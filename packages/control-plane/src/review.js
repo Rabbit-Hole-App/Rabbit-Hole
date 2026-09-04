@@ -80,6 +80,8 @@ async function runReview(env, appId, bundle, skipped) {
         'anthropic-version': '2023-06-01',
         'anthropic-beta': 'server-side-fallback-2026-07-01',
         'Content-Type': 'application/json',
+        // identity-linked (non-workspace-scoped) keys must name the workspace per request
+        ...(env.ANTHROPIC_WORKSPACE_ID ? { 'anthropic-workspace-id': env.ANTHROPIC_WORKSPACE_ID } : {}),
       },
       body: JSON.stringify({
         model: MODEL,
