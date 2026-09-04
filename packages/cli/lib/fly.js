@@ -26,13 +26,6 @@ function run(args, token, { capture = false, cwd } = {}) {
   return r;
 }
 
-function ensureApp(flyApp, org, token) {
-  const r = run(['apps', 'create', flyApp, '--org', org], token, { capture: true });
-  const out = (r.stdout || '') + (r.stderr || '');
-  // Name collisions are near-impossible (random suffix); an existing app is ours from a prior deploy.
-  if (r.status !== 0 && !/already|taken/i.test(out)) throw new Error(`flyctl apps create failed:\n${out.trim()}`);
-}
-
 function setSecrets(flyApp, token, kv) {
   const pairs = Object.entries(kv).map(([k, v]) => `${k}=${v}`);
   if (!pairs.length) return;
@@ -54,4 +47,4 @@ function logs(flyApp, token) {
   run(['logs', '--app', flyApp, '--no-tail'], token);
 }
 
-module.exports = { ensureApp, setSecrets, deploy, logs };
+module.exports = { setSecrets, deploy, logs };

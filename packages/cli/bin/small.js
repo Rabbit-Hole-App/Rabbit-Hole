@@ -62,7 +62,6 @@ const commands = {
     if (!d.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
     writeFlyToml(dir, d.flyApp, app.config.memory);
 
-    fly.ensureApp(d.flyApp, d.flyOrg, d.flyToken);
     // gradio builds asset/API URLs from its root; behind the path proxy that must be the public URL
     const rootPath = app.framework === 'gradio' ? { GRADIO_ROOT_PATH: d.url.replace(/\/$/, '') } : {};
     fly.setSecrets(d.flyApp, d.flyToken, { SMALL_PROXY_SECRET: d.proxySecret, ...rootPath, ...secrets });

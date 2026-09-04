@@ -102,6 +102,33 @@ def test_guard_blocks_direct_origin(deployed, cli_config):
     assert status == 403, f"guard let a direct request through: {status} {body[:100]}"
 
 
+def test_no_fly_token_leaks(deployed, cli_config):
+    """The CLI must never persist or print a Fly credential. The only Fly token in
+    its traffic is the 1h app-scoped one inside the /api/deploy response body."""
+    raw = CLI_CONFIG.read_text()
+    assert "FlyV1" not in raw and "fm2_" not in raw, "fly token leaked into ~/.small/config.json"
+    assert "FlyV1" not in deployed["stdout"] and "fm2_" not in deployed["stdout"], "fly token leaked into CLI output"
+
+
+def test_deploy_token_scoped_to_one_app(cli_config):
+    bearer = {"Authorization": f"Bearer {cli_config['token']}", "Content-Type": "application/json"}
+    status, body = http("POST", f"{API}/api/deploy", headers=bearer, data=json.dumps({"name": APP_NAME}).encode())
+    assert status == 200, f"deploy api failed: {body}"
+    d = json.loads(body)
+    token = d["flyToken"]
+    assert token.startswith("FlyV1"), "expected an app-scoped fly macaroon"
+
+    def machines_status(fly_app):
+        status, _ = http("GET", f"https://api.machines.dev/v1/apps/{fly_app}/machines", headers={"Authorization": token})
+        return status
+
+    assert machines_status(d["flyApp"]) == 200, "scoped token cannot manage its own app"
+    status, body = http("GET", f"{API}/api/apps", headers={"Authorization": f"Bearer {cli_config['token']}"})
+    other = next((a["fly_app"] for a in json.loads(body)["apps"] if a["name"] != APP_NAME), None)
+    if other:
+        assert machines_status(other) in (401, 403, 404), "deploy token can reach a different app"
+
+
 def test_two_users_share_state(deployed, cli_config):
     org_domain = cli_config["email"].split("@")[1]
     a = session_for(cli_config["email"])

@@ -1,6 +1,7 @@
 // small control plane: CLI API + browser auth wall + router. One Worker + D1.
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, sha256, randomHex } from './token.js';
+import { ensureFlyApp, mintDeployToken } from './fly.js';
 
 const SESSION_COOKIE = 'small_session';
 const SESSION_TTL = 7 * 24 * 3600;
@@ -92,12 +93,19 @@ async function apiDeploy(req, env, user, baseUrl) {
       .run();
     app = await appRow(env, user.org, name);
   }
-  // ponytail: hands the org-wide Fly token to any org member; scope to per-app deploy tokens post-MVP.
+  if (!env.FLY_API_TOKEN) return json({ error: 'control plane has no FLY_API_TOKEN configured' }, 503);
+  // The worker owns the Fly app lifecycle; the CLI only gets a 1h token scoped to this one app.
+  let flyToken;
+  try {
+    await ensureFlyApp(env, app.fly_app);
+    flyToken = await mintDeployToken(env, app.fly_app);
+  } catch (e) {
+    return json({ error: e.message }, 502);
+  }
   return json({
     flyApp: app.fly_app,
     proxySecret: app.proxy_secret,
-    flyToken: env.FLY_API_TOKEN || null,
-    flyOrg: env.FLY_ORG_SLUG || 'personal',
+    flyToken,
     url: `${baseUrl}/a/${user.org}/${name}/`,
     framework: framework || null,
   });
@@ -124,7 +132,12 @@ async function apiLogs(req, env, user) {
   const app = await appRow(env, user.org, name);
   if (!app) return json({ error: `no app named ${name}` }, 404);
   if (!(await canView(env, app, user.email))) return json({ error: 'no access' }, 403);
-  return json({ flyApp: app.fly_app, flyToken: env.FLY_API_TOKEN || null });
+  if (!env.FLY_API_TOKEN) return json({ error: 'control plane has no FLY_API_TOKEN configured' }, 503);
+  try {
+    return json({ flyApp: app.fly_app, flyToken: await mintDeployToken(env, app.fly_app) });
+  } catch (e) {
+    return json({ error: e.message }, 502);
+  }
 }
 
 // ---------- Browser wall ----------

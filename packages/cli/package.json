@@ -1,6 +1,6 @@
 {
   "name": "small-deploy",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Deploy a Python app behind a login in one command",
   "bin": { "small": "bin/small.js" },
   "files": ["bin", "lib", "assets"],
