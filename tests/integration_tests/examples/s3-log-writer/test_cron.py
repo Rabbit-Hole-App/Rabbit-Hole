@@ -66,17 +66,27 @@ def job_dir():
     toml = (d / "small.toml").read_text().replace('name = "s3-log-writer"', f'name = "{APP_NAME}"')
     # prepend, not append: the file ends inside [secrets], appended keys would land there
     (d / "small.toml").write_text('schedule = "* * * * *"\n' + toml)
+    # teardown pauses and pause survives redeploys (the CLI says so at deploy) — resume
+    # up front or reruns on the shared worker never tick. No-op when the app is new.
+    subprocess.run([small(), "schedule", "resume", APP_NAME], capture_output=True, timeout=60)
     yield d
     subprocess.run([small(), "schedule", "pause", APP_NAME], capture_output=True, timeout=60)
     shutil.rmtree(d, ignore_errors=True)
 
 
 def test_cron_run_fires_and_writes_s3(job_dir):
+    # the shared app accumulates runs across test sessions — only a run newer than this deploy counts
+    stale = {l.split()[0] for l in runs_rows() if l.startswith("r-")}
     out = deploy(job_dir)
     assert re.search(r"✓ schedule: \* \* \* \* \* \(UTC\) · next run \d{4}-\d{2}-\d{2} \d{2}:\d{2}", out), out
-    time.sleep(90)  # ≥1 tick + job runtime (~5s) + machine boot
-    finished = [l for l in runs_rows() if "cron" in l and "finished" in l]
-    assert finished, f"no finished cron run after 90s:\n{runs_rows()}"
+    # ≥1 tick + job runtime + machine boot; CF tick delivery can lag minutes (v9 doc) — poll, don't sleep once
+    deadline = time.time() + 300
+    finished = []
+    while time.time() < deadline and not finished:
+        finished = [l for l in runs_rows() if "cron" in l and "finished" in l and l.split()[0] not in stale]
+        if not finished:
+            time.sleep(15)
+    assert finished, f"no fresh finished cron run within 5 min:\n{runs_rows()}"
     run_id = finished[0].split()[0]
 
     boto3 = pytest.importorskip("boto3")
