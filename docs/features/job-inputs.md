@@ -21,7 +21,7 @@ report = { path = "report.pdf", label = "Weekly report" }
 Exactly six types: `file`, `number`, `select`, `date`, `text`, `bool`. Anything else is
 rejected at `small init` and `small deploy` with a one-line error.
 
-## CLI (implemented)
+## CLI
 
 `small run <app> --image ./photo.jpg --threshold 0.7 --dry-run`. One flag per input
 (underscores become dashes: `dry_run` → `--dry-run`), validated against the schema before
@@ -48,7 +48,7 @@ fetch: small run yolo-job --download ./out
 
 `small run <app> --download ./out` downloads every output of the latest finished run.
 
-## Wire contract (for the control-plane and runtime halves)
+## Wire contract (between the three halves)
 
 - `POST /api/runs` — unchanged JSON `{ app, inputs?: { name: value } }` when there are no
   file inputs. With files: multipart form with field `body` holding that same JSON string,
@@ -59,26 +59,34 @@ fetch: small run yolo-job --download ./out
 - `GET /api/runs/<id>/outputs/<name>` → the file bytes.
 - Uploads capped at 100 MB per run.
 
-## Runtime (pending — separate change)
+## Runtime
 
-`runner.py` receives inputs and writes: scalars as `SMALL_INPUT_<NAME>` env vars
-(uppercase), files to `$SMALL_INPUTS/<name><ext>`, and everything to
-`$SMALL_INPUTS/inputs.json`. Creates `$SMALL_OUTPUTS/`. On exit, uploads every file in it
-to the control plane, declared or not.
+`runner.py` receives inputs (`SMALL_RUN_INPUTS` env, set per run by the control plane)
+and writes: scalars as `SMALL_INPUT_<NAME>` env vars (uppercase; bools as `true`/`false`),
+files to `$SMALL_INPUTS/<name><ext>` (fetched from the control plane with the run token),
+and everything to `$SMALL_INPUTS/inputs.json` (file values as their fetched path). Creates
+`$SMALL_OUTPUTS/` for every job. On exit, uploads every file in it to the control plane,
+declared or not — before the exit-code post, so "finished" means outputs are listable.
+An input fetch failure fails the run with a `runner: inputs failed` log line.
 
-## Control plane (pending — separate change)
+## Control plane
 
-Run-row inputs JSON, R2 storage, the two outputs routes, the 100 MB cap.
+Inputs JSON on the run row (migration `0005-inputs.sql`; also in `GET /api/runs/<id>`),
+files in R2 bucket `small-runs` (binding `RUNS`) keyed `runs/<run_id>/{inputs,outputs}/<name>`,
+`GET /api/runs/<id>/outputs` + `GET /api/runs/<id>/outputs/<name>` (CLI auth, canView),
+`GET .../inputs/<name>` + `POST .../outputs/<name>` (run-token auth, runner only),
+100 MB cap enforced on both input parts and cumulative outputs. Job machines now get
+2 GB (was 256 MB — torch jobs need it; still a fixed size, ponytail-marked).
 
-## Example (pending — separate change)
+## Example
 
-`examples/yolo-job` from `examples/yolo-gradio`: takes `image` and `threshold`, writes
-`annotated.jpg` and `boxes.json` to `$SMALL_OUTPUTS`. The Gradio one stays.
+`examples/yolo-job`: takes `image` and `threshold`, writes `annotated.jpg` and
+`boxes.json` to `$SMALL_OUTPUTS`. The Gradio one stays.
 
-## Skill (pending — separate change)
+## Skill
 
-SKILL.md: every non-secret `os.environ` read in a job is an input — declare it. Anything
-the script saves for the user goes in `$SMALL_OUTPUTS`.
+`skills/small/SKILL.md`: every non-secret `os.environ` read in a job is an input —
+declare it. Anything the script saves for the user goes in `$SMALL_OUTPUTS`.
 
 ## Skipped
 

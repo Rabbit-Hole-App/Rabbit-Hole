@@ -76,3 +76,26 @@ DB = os.path.join(os.environ.get("SMALL_DATA", "."), "tool.db")
 
 (`small init` adds `[storage]` automatically when the entry file imports
 `sqlite3` or references `SMALL_DATA`.)
+
+## Jobs: inputs and outputs
+
+For a script that runs on demand (`kind = "job"`), every non-secret
+`os.environ` read in the script is an input — declare it in `small.toml`
+instead of leaving it an undeclared env var:
+
+```toml
+[inputs]
+image     = { type = "file",   required = true, accept = ".jpg,.png", help = "Photo to analyse" }
+threshold = { type = "number", default = 0.5, min = 0, max = 1 }
+```
+
+Six types: `file`, `number`, `select`, `date`, `text`, `bool`. Callers pass
+them as flags — `small run app --image ./photo.jpg --threshold 0.7` — and the
+script reads scalars from `SMALL_INPUT_<NAME>` env vars (uppercase), file
+paths from `$SMALL_INPUTS/inputs.json`.
+
+Anything the script saves for the user goes in `$SMALL_OUTPUTS` — every file
+written there is captured on the run and fetched with
+`small run app --download ./out`. Do not print results to stdout when a file
+would serve better, and do not write user-facing files anywhere else in the
+container: only `$SMALL_OUTPUTS` survives the machine.

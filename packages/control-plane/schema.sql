@@ -60,7 +60,8 @@ CREATE TABLE IF NOT EXISTS runs (
   status TEXT NOT NULL DEFAULT 'running',
   exit_code INTEGER,
   reason TEXT,
-  machine_id TEXT
+  machine_id TEXT,
+  inputs TEXT
 );
 
 CREATE TABLE IF NOT EXISTS run_logs (

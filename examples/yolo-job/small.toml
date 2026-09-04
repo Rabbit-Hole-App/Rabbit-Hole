@@ -1,0 +1,13 @@
+name = "yolo-job"
+entry = "job.py"
+framework = "script"
+kind = "job"
+system = ["libgl1", "libglib2.0-0"]
+
+[inputs]
+image = { type = "file", required = true, accept = ".jpg,.png", help = "Image to run detection on" }
+threshold = { type = "number", default = 0.5, min = 0, max = 1 }
+
+[outputs]
+annotated = { path = "annotated.jpg", label = "Annotated image" }
+boxes = { path = "boxes.json", label = "Detections" }

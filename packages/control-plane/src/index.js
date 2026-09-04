@@ -434,21 +434,31 @@ async function apiImage(req, env, user) {
 
 // Shared by the manual /api/runs path and the cron tick. startedBy = email or "cron".
 // Marks the run failed and rethrows if the machine won't start.
-async function startRun(env, app, startedBy, baseUrl) {
+// inputs = validated scalar values (files as original filename); files = [{ name, file }] multipart parts.
+async function startRun(env, app, startedBy, baseUrl, inputs = null, files = []) {
   const runId = 'r-' + randomHex(6);
-  await env.DB.prepare('INSERT INTO runs (run_id, app_id, started_by) VALUES (?, ?, ?)').bind(runId, app.id, startedBy).run();
+  await env.DB.prepare('INSERT INTO runs (run_id, app_id, started_by, inputs) VALUES (?, ?, ?, ?)')
+    .bind(runId, app.id, startedBy, inputs ? JSON.stringify(inputs) : null).run();
   const runToken = await sign({ t: 'run', run: runId, exp: now() + 6 * 3600 }, env.MASTER_KEY);
+  // input files land in R2 before the machine starts; runner fetches them by stored name
+  const fileNames = {};
+  for (const { name, file } of files) {
+    const ext = (file.name.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+    fileNames[name] = name + ext;
+    await env.RUNS.put(`runs/${runId}/inputs/${fileNames[name]}`, file);
+  }
   try {
     const machine = await startMachine(env, app.fly_app, {
       image: app.image,
       auto_destroy: true,
       restart: { policy: 'no' },
-      guest: { cpu_kind: 'shared', cpus: 1, memory_mb: 256 }, // ponytail: fixed size; read memory from small.toml when a job needs more
+      guest: { cpu_kind: 'shared', cpus: 1, memory_mb: 2048 }, // ponytail: fixed size (2GB fits torch jobs); read memory from small.toml when one needs more
       env: {
         SMALL_RUN_ID: runId,
         SMALL_RUN_TOKEN: runToken,
         SMALL_USER: startedBy,
         SMALL_API: baseUrl,
+        ...(inputs ? { SMALL_RUN_INPUTS: JSON.stringify({ values: inputs, files: fileNames }) } : {}),
         ...(startedBy === 'cron' ? { SMALL_TRIGGER: 'cron' } : {}),
       },
     });
@@ -461,7 +471,21 @@ async function startRun(env, app, startedBy, baseUrl) {
 }
 
 async function apiRunStart(req, env, user, baseUrl) {
-  const { app: name } = await req.json();
+  // Plain JSON without files; multipart when the CLI ships file inputs:
+  // field "body" = the same JSON, one "input:<name>" part per file (docs/features/job-inputs.md).
+  let name, inputs = null;
+  const files = [];
+  if ((req.headers.get('Content-Type') || '').includes('multipart/form-data')) {
+    const form = await req.formData();
+    ({ app: name, inputs = null } = JSON.parse(form.get('body') || '{}'));
+    for (const [k, v] of form.entries()) {
+      if (k.startsWith('input:') && typeof v === 'object') files.push({ name: k.slice(6), file: v });
+    }
+    if (files.length && !env.RUNS) return json({ error: 'control plane has no R2 bucket bound — create small-runs and redeploy the worker' }, 503);
+    if (files.reduce((s, f) => s + f.file.size, 0) > 100 * 1024 * 1024) return json({ error: 'input files exceed the 100 MB per-run cap' }, 400);
+  } else {
+    ({ app: name, inputs = null } = await req.json());
+  }
   const app = await appRow(env, user.org, name);
   if (!app) return json({ error: `no app named ${name}` }, 404);
   if (!(await canView(env, app, user.email))) return json({ error: 'no access' }, 403);
@@ -469,10 +493,67 @@ async function apiRunStart(req, env, user, baseUrl) {
   if (!app.image) return json({ error: `no image for ${name} — run small deploy first` }, 409);
   if (!env.FLY_ORG_TOKEN && !env.FLY_API_TOKEN) return json({ error: 'control plane has no fly token configured' }, 503);
   try {
-    return json({ runId: await startRun(env, app, user.email, baseUrl) });
+    return json({ runId: await startRun(env, app, user.email, baseUrl, inputs, files) });
   } catch (e) {
     return json({ error: e.message }, 502);
   }
+}
+
+// A run row + access check for the outputs routes. Returns the row or a Response.
+async function runForUser(env, user, runId) {
+  const run = await env.DB.prepare(
+    'SELECT runs.run_id, apps.id AS app_id, apps.org, apps.owner_email, apps.visibility FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?'
+  ).bind(runId).first();
+  if (!run || run.org !== user.org) return json({ error: `no run ${runId}` }, 404);
+  if (!(await canView(env, { id: run.app_id, org: run.org, owner_email: run.owner_email, visibility: run.visibility }, user.email)))
+    return json({ error: 'no access' }, 403);
+  return run;
+}
+
+async function apiRunOutputsList(env, user, runId) {
+  const run = await runForUser(env, user, runId);
+  if (run instanceof Response) return run;
+  if (!env.RUNS) return json({ outputs: [] });
+  const prefix = `runs/${runId}/outputs/`;
+  const listed = await env.RUNS.list({ prefix }); // ponytail: first 1000 outputs only — no run writes that many
+  return json({ outputs: listed.objects.map((o) => ({ name: o.key.slice(prefix.length), size: o.size })) });
+}
+
+async function apiRunOutputGet(env, user, runId, name) {
+  const run = await runForUser(env, user, runId);
+  if (run instanceof Response) return run;
+  const obj = env.RUNS && (await env.RUNS.get(`runs/${runId}/outputs/${name}`));
+  if (!obj) return json({ error: `no output ${name} on ${runId}` }, 404);
+  return new Response(obj.body, { headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': String(obj.size) } });
+}
+
+// ---------- runner-auth routes (per-run token, not CLI auth) ----------
+
+async function runnerAuth(req, env, runId) {
+  const m = (req.headers.get('Authorization') || '').match(/^Bearer (.+)$/);
+  const p = m && (await verify(m[1], env.MASTER_KEY));
+  return !!p && p.t === 'run' && p.run === runId;
+}
+
+// runner.py fetches its input files at boot
+async function apiRunInputGet(req, env, runId, fname) {
+  if (!(await runnerAuth(req, env, runId))) return json({ error: 'bad run token' }, 401);
+  const obj = env.RUNS && (await env.RUNS.get(`runs/${runId}/inputs/${fname}`));
+  if (!obj) return json({ error: `no input ${fname}` }, 404);
+  return new Response(obj.body, { headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': String(obj.size) } });
+}
+
+// runner.py uploads everything in $SMALL_OUTPUTS here on exit, declared or not
+async function apiRunOutputPut(req, env, runId, name) {
+  if (!(await runnerAuth(req, env, runId))) return json({ error: 'bad run token' }, 401);
+  if (!env.RUNS) return json({ error: 'control plane has no R2 bucket bound — create small-runs and redeploy the worker' }, 503);
+  if (name.includes('..') || name.startsWith('/')) return json({ error: 'bad output name' }, 400);
+  const listed = await env.RUNS.list({ prefix: `runs/${runId}/outputs/` });
+  const used = listed.objects.reduce((s, o) => s + o.size, 0);
+  const len = Number(req.headers.get('Content-Length') || 0);
+  if (used + len > 100 * 1024 * 1024) return json({ error: 'outputs exceed the 100 MB per-run cap' }, 400);
+  await env.RUNS.put(`runs/${runId}/outputs/${name}`, req.body);
+  return json({ ok: true });
 }
 
 async function apiSchedulePause(req, env, user) {
@@ -520,7 +601,7 @@ async function apiRunsList(req, env, user) {
 
 async function apiRunGet(req, env, user, runId) {
   const run = await env.DB.prepare(
-    'SELECT runs.status, runs.exit_code, runs.started_at, runs.finished_at, apps.id AS app_id, apps.org, apps.owner_email, apps.visibility FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?'
+    'SELECT runs.status, runs.exit_code, runs.started_at, runs.finished_at, runs.inputs, apps.id AS app_id, apps.org, apps.owner_email, apps.visibility FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?'
   ).bind(runId).first();
   if (!run || run.org !== user.org) return json({ error: `no run ${runId}` }, 404);
   if (!(await canView(env, { id: run.app_id, org: run.org, owner_email: run.owner_email, visibility: run.visibility }, user.email)))
@@ -532,6 +613,7 @@ async function apiRunGet(req, env, user, runId) {
     exitCode: run.exit_code,
     startedAt: run.started_at,
     finishedAt: run.finished_at,
+    inputs: run.inputs ? JSON.parse(run.inputs) : null,
     lines: results.map((r) => r.line),
     cursor: results.length ? results[results.length - 1].seq : after,
   });
@@ -652,6 +734,10 @@ export default {
       if (path.startsWith('/api/')) {
         const runLog = path.match(/^\/api\/runs\/([\w-]+)\/log$/);
         if (runLog && req.method === 'POST') return await apiRunLog(req, env, runLog[1]); // runner auth, not CLI auth
+        const runInput = path.match(/^\/api\/runs\/([\w-]+)\/inputs\/([^/]+)$/);
+        if (runInput && req.method === 'GET') return await apiRunInputGet(req, env, runInput[1], decodeURIComponent(runInput[2])); // runner auth
+        const runOutPost = path.match(/^\/api\/runs\/([\w-]+)\/outputs\/(.+)$/);
+        if (runOutPost && req.method === 'POST') return await apiRunOutputPut(req, env, runOutPost[1], decodeURIComponent(runOutPost[2])); // runner auth
         const reqLog = path.match(/^\/api\/apps\/([a-z0-9-]+)\/request-log$/);
         if (reqLog && req.method === 'POST') return await apiRequestLogIngest(req, env, reqLog[1]); // guard auth, not CLI auth
         // CLI Bearer token or browser session cookie — the web dashboard is same-origin and rides the cookie.
@@ -667,6 +753,10 @@ export default {
         if (path === '/api/runs' && req.method === 'GET') return await apiRunsList(req, env, user);
         const runGet = path.match(/^\/api\/runs\/([\w-]+)$/);
         if (runGet && req.method === 'GET') return await apiRunGet(req, env, user, runGet[1]);
+        const runOutputs = path.match(/^\/api\/runs\/([\w-]+)\/outputs$/);
+        if (runOutputs && req.method === 'GET') return await apiRunOutputsList(env, user, runOutputs[1]);
+        const runOutput = path.match(/^\/api\/runs\/([\w-]+)\/outputs\/(.+)$/);
+        if (runOutput && req.method === 'GET') return await apiRunOutputGet(env, user, runOutput[1], decodeURIComponent(runOutput[2]));
         if (path === '/api/schedule' && req.method === 'POST') return await apiSchedulePause(req, env, user);
         const runStop = path.match(/^\/api\/runs\/([\w-]+)\/stop$/);
         if (runStop && req.method === 'POST') return await apiRunStop(req, env, user, runStop[1]);
