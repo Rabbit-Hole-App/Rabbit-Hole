@@ -19,10 +19,10 @@ function runCommand(entry, framework) {
   }
 }
 
-function guardSource() {
-  const shipped = path.join(__dirname, '..', 'assets', 'guard.py');
+function runtimeSource(name) {
+  const shipped = path.join(__dirname, '..', 'assets', name);
   if (fs.existsSync(shipped)) return shipped; // published package
-  return path.join(__dirname, '..', '..', 'runtime', 'guard.py'); // monorepo dev
+  return path.join(__dirname, '..', '..', 'runtime', name); // monorepo dev
 }
 
 function dockerfile(app, dir) {
@@ -35,22 +35,32 @@ function dockerfile(app, dir) {
   if (fs.existsSync(path.join(dir, deps))) {
     lines.push(`COPY ${deps} .`, `RUN pip install --no-cache-dir -r ${deps}`);
   }
-  lines.push(
-    'COPY . .',
-    'ENV PORT=8080',
-    'ENV SMALL_APP_PORT=8090',
-    'EXPOSE 8080',
-    `CMD ["python", ".small/guard.py", "sh", "-c", "${runCommand(app.entry, app.framework)}"]`
-  );
+  if (app.config.kind === 'job') {
+    // no port, no guard: runner.py streams output to the control plane and exits
+    lines.push(
+      'COPY . .',
+      'ENV PYTHONUNBUFFERED=1',
+      `CMD ["python", ".small/runner.py", "sh", "-c", "${runCommand(app.entry, app.framework)}"]`
+    );
+  } else {
+    lines.push(
+      'COPY . .',
+      'ENV PORT=8080',
+      'ENV SMALL_APP_PORT=8090',
+      'EXPOSE 8080',
+      `CMD ["python", ".small/guard.py", "sh", "-c", "${runCommand(app.entry, app.framework)}"]`
+    );
+  }
   return lines.join('\n') + '\n';
 }
 
-// Writes .small/Dockerfile + .small/guard.py; ensures .env never enters the image.
+// Writes .small/Dockerfile + .small/guard.py (or runner.py for jobs); ensures .env never enters the image.
 function write(dir, app) {
   const out = path.join(dir, '.small');
   fs.mkdirSync(out, { recursive: true });
   fs.writeFileSync(path.join(out, 'Dockerfile'), dockerfile(app, dir));
-  fs.copyFileSync(guardSource(), path.join(out, 'guard.py'));
+  const py = app.config.kind === 'job' ? 'runner.py' : 'guard.py';
+  fs.copyFileSync(runtimeSource(py), path.join(out, py));
   const ignorePath = path.join(dir, '.dockerignore');
   if (!fs.existsSync(ignorePath)) {
     fs.writeFileSync(ignorePath, '.env\n.git\n');

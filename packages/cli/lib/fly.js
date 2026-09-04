@@ -43,8 +43,20 @@ function deploy(flyApp, token, cwd) {
   if (r.status !== 0) throw new Error('deploy failed — see flyctl output above');
 }
 
+// Jobs: build + push the image only, start nothing. Label makes the ref
+// deterministic so no output parsing is needed.
+function buildImage(flyApp, token, cwd, label) {
+  const r = run(
+    ['deploy', '.', '--app', flyApp, '--config', '.small/fly.toml', '--dockerfile', '.small/Dockerfile', '--remote-only', '--build-only', '--push', '--image-label', label, '--yes'],
+    token,
+    { cwd }
+  );
+  if (r.status !== 0) throw new Error('image build failed — see flyctl output above');
+  return `registry.fly.io/${flyApp}:${label}`;
+}
+
 function logs(flyApp, token) {
   run(['logs', '--app', flyApp, '--no-tail'], token);
 }
 
-module.exports = { setSecrets, deploy, logs };
+module.exports = { setSecrets, deploy, buildImage, logs };

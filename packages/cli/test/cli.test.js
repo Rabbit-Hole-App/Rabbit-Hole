@@ -94,6 +94,21 @@ test('init: writes small.toml with framework and detected env vars', () => {
   assert.equal(t.access.visibility, 'domain');
 });
 
+test('dockerfile + write for a job: runner.py, no guard, no port', () => {
+  const dir = tmp({
+    'small.toml': 'name = "j"\nentry = "pipeline.py"\nframework = "script"\nkind = "job"\n',
+    'pipeline.py': 'print(1)',
+  });
+  const app = detect(dir);
+  const df = dockerfile(app, dir);
+  assert.match(df, /CMD \["python", "\.small\/runner\.py", "sh", "-c", "python pipeline\.py"\]/);
+  assert.match(df, /PYTHONUNBUFFERED=1/);
+  assert.doesNotMatch(df, /guard\.py|EXPOSE/);
+  const out = write(dir, app);
+  assert.ok(fs.existsSync(path.join(out, 'runner.py')));
+  assert.ok(!fs.existsSync(path.join(out, 'guard.py')));
+});
+
 test('dockerfile + write for counter example', () => {
   const counter = path.join(__dirname, '..', '..', '..', 'examples', 'counter');
   const app = detect(counter);

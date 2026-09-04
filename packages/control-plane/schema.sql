@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS apps (
   owner_email TEXT NOT NULL,
   aws_role_arn TEXT,
   deploy_token TEXT,
+  kind TEXT NOT NULL DEFAULT 'server',
+  image TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   review TEXT,
   review_prev TEXT,
@@ -15,10 +17,31 @@ CREATE TABLE IF NOT EXISTS apps (
   review_model TEXT,
   UNIQUE(org, name)
 );
+-- migrating an existing DB:
+--   ALTER TABLE apps ADD COLUMN kind TEXT NOT NULL DEFAULT 'server';
+--   ALTER TABLE apps ADD COLUMN image TEXT;
 
 CREATE TABLE IF NOT EXISTS members (
   app_id INTEGER NOT NULL REFERENCES apps(id),
   email TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'view',
   UNIQUE(app_id, email)
+);
+
+CREATE TABLE IF NOT EXISTS runs (
+  id INTEGER PRIMARY KEY,
+  run_id TEXT NOT NULL UNIQUE,
+  app_id INTEGER NOT NULL REFERENCES apps(id),
+  started_by TEXT NOT NULL,
+  started_at TEXT NOT NULL DEFAULT (datetime('now')),
+  finished_at TEXT,
+  status TEXT NOT NULL DEFAULT 'running',
+  exit_code INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS run_logs (
+  run_id TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  line TEXT NOT NULL,
+  PRIMARY KEY (run_id, seq)
 );

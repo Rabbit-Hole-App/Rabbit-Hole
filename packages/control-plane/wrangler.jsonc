@@ -11,7 +11,10 @@
     }
   ],
   "vars": {
-    "FLY_ORG_SLUG": "personal"
+    "FLY_ORG_SLUG": "personal",
+    "FLY_ORG_ID": "yw2NK09lG62eytyo75jV2OwzbVT8K410y"
   }
-  // secrets (wrangler secret put): MASTER_KEY, FLY_API_TOKEN, RESEND_API_KEY (optional), TEST_BYPASS_SECRET (test envs only), EMAIL_FROM (optional), ANTHROPIC_API_KEY (optional — enables deploy review; if identity-linked, also set ANTHROPIC_WORKSPACE_ID)
+  // secrets (wrangler secret put): MASTER_KEY, FLY_ORG_TOKEN (machine/app ops), FLY_API_TOKEN (minting only),
+  // RESEND_API_KEY (optional), TEST_BYPASS_SECRET (test envs only), EMAIL_FROM (optional),
+  // ANTHROPIC_API_KEY (optional — enables deploy review; if identity-linked, also set ANTHROPIC_WORKSPACE_ID)
 }

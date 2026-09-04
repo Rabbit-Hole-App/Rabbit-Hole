@@ -1,7 +1,7 @@
 // small control plane: CLI API + browser auth wall + router. One Worker + D1.
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, sha256, randomHex } from './token.js';
-import { ensureFlyApp, deployTokenFor } from './fly.js';
+import { ensureFlyApp, deployTokenFor, startMachine } from './fly.js';
 import { assumeRole } from './aws.js';
 import { runReview } from './review.js';
 
@@ -82,7 +82,7 @@ async function apiVerify(req, env) {
 }
 
 async function apiDeploy(req, env, ctx, user, baseUrl) {
-  const { name, framework, visibility, awsRoleArn, review } = await req.json();
+  const { name, framework, visibility, awsRoleArn, kind, review } = await req.json();
   if (!name || !/^[a-z0-9-]{1,40}$/.test(name)) return json({ error: 'name must be [a-z0-9-]' }, 400);
   if (awsRoleArn && !/^arn:aws:iam::\d{12}:role\/[\w+=,.@/-]+$/.test(awsRoleArn)) return json({ error: 'bad aws role arn' }, 400);
   let app = await appRow(env, user.org, name);
@@ -90,10 +90,11 @@ async function apiDeploy(req, env, ctx, user, baseUrl) {
     if (!(await canEdit(env, app, user.email))) return json({ error: `${name} exists and you cannot edit it` }, 403);
     if (visibility) await env.DB.prepare('UPDATE apps SET visibility = ? WHERE id = ?').bind(visibility, app.id).run();
     if (awsRoleArn !== undefined) await env.DB.prepare('UPDATE apps SET aws_role_arn = ? WHERE id = ?').bind(awsRoleArn || null, app.id).run();
+    if (kind) await env.DB.prepare('UPDATE apps SET kind = ? WHERE id = ?').bind(kind === 'job' ? 'job' : 'server', app.id).run();
   } else {
     const flyApp = `small-${name}-${randomHex(3)}`;
-    await env.DB.prepare('INSERT INTO apps (org, name, fly_app, proxy_secret, visibility, owner_email, aws_role_arn) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .bind(user.org, name, flyApp, randomHex(32), visibility || 'domain', user.email, awsRoleArn || null)
+    await env.DB.prepare('INSERT INTO apps (org, name, fly_app, proxy_secret, visibility, owner_email, aws_role_arn, kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(user.org, name, flyApp, randomHex(32), visibility || 'domain', user.email, awsRoleArn || null, kind === 'job' ? 'job' : 'server')
       .run();
     app = await appRow(env, user.org, name);
   }
@@ -178,6 +179,94 @@ async function apiAwsCreds(req, env) {
   } catch (e) {
     return json({ error: e.message }, 502);
   }
+}
+
+// ---------- Job runs ----------
+
+// Registered by the CLI after `fly deploy --build-only --push` — jobs deploy an image, not machines.
+async function apiImage(req, env, user) {
+  const { app: name, image } = await req.json();
+  const app = await appRow(env, user.org, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!(await canEdit(env, app, user.email))) return json({ error: 'no access' }, 403);
+  if (!/^registry\.fly\.io\/[\w./:-]+$/.test(image || '')) return json({ error: 'bad image ref' }, 400);
+  await env.DB.prepare('UPDATE apps SET image = ? WHERE id = ?').bind(image, app.id).run();
+  return json({ ok: true });
+}
+
+async function apiRunStart(req, env, user, baseUrl) {
+  const { app: name } = await req.json();
+  const app = await appRow(env, user.org, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!(await canView(env, app, user.email))) return json({ error: 'no access' }, 403);
+  if (app.kind !== 'job') return json({ error: `${name} is not a job — set kind = "job" in small.toml and redeploy` }, 400);
+  if (!app.image) return json({ error: `no image for ${name} — run small deploy first` }, 409);
+  if (!env.FLY_ORG_TOKEN && !env.FLY_API_TOKEN) return json({ error: 'control plane has no fly token configured' }, 503);
+  const runId = 'r-' + randomHex(6);
+  await env.DB.prepare('INSERT INTO runs (run_id, app_id, started_by) VALUES (?, ?, ?)').bind(runId, app.id, user.email).run();
+  const runToken = await sign({ t: 'run', run: runId, exp: now() + 6 * 3600 }, env.MASTER_KEY);
+  try {
+    await startMachine(env, app.fly_app, {
+      image: app.image,
+      auto_destroy: true,
+      restart: { policy: 'no' },
+      guest: { cpu_kind: 'shared', cpus: 1, memory_mb: 256 }, // ponytail: fixed size; read memory from small.toml when a job needs more
+      env: { SMALL_RUN_ID: runId, SMALL_RUN_TOKEN: runToken, SMALL_USER: user.email, SMALL_API: baseUrl },
+    });
+  } catch (e) {
+    await env.DB.prepare("UPDATE runs SET status = 'failed', finished_at = datetime('now') WHERE run_id = ?").bind(runId).run();
+    return json({ error: e.message }, 502);
+  }
+  return json({ runId });
+}
+
+async function apiRunsList(req, env, user) {
+  const name = new URL(req.url).searchParams.get('app');
+  const app = await appRow(env, user.org, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!(await canView(env, app, user.email))) return json({ error: 'no access' }, 403);
+  const { results } = await env.DB.prepare(
+    'SELECT run_id, status, exit_code, started_by, started_at, finished_at FROM runs WHERE app_id = ? ORDER BY id DESC'
+  ).bind(app.id).all();
+  return json({ runs: results });
+}
+
+async function apiRunGet(req, env, user, runId) {
+  const run = await env.DB.prepare(
+    'SELECT runs.status, runs.exit_code, apps.id AS app_id, apps.org, apps.owner_email, apps.visibility FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?'
+  ).bind(runId).first();
+  if (!run || run.org !== user.org) return json({ error: `no run ${runId}` }, 404);
+  if (!(await canView(env, { id: run.app_id, org: run.org, owner_email: run.owner_email, visibility: run.visibility }, user.email)))
+    return json({ error: 'no access' }, 403);
+  const after = Number(new URL(req.url).searchParams.get('after') ?? -1);
+  const { results } = await env.DB.prepare('SELECT seq, line FROM run_logs WHERE run_id = ? AND seq > ? ORDER BY seq').bind(runId, after).all();
+  return json({
+    status: run.status,
+    exitCode: run.exit_code,
+    lines: results.map((r) => r.line),
+    cursor: results.length ? results[results.length - 1].seq : after,
+  });
+}
+
+// Called by runner.py with the per-run token — not a CLI token.
+async function apiRunLog(req, env, runId) {
+  const m = (req.headers.get('Authorization') || '').match(/^Bearer (.+)$/);
+  const p = m && (await verify(m[1], env.MASTER_KEY));
+  if (!p || p.t !== 'run' || p.run !== runId) return json({ error: 'bad run token' }, 401);
+  const { lines = [], exitCode } = await req.json();
+  if (lines.length) {
+    // ponytail: MAX(seq) is race-free only because one runner posts batches sequentially
+    const { m: maxSeq } = await env.DB.prepare('SELECT COALESCE(MAX(seq), -1) AS m FROM run_logs WHERE run_id = ?').bind(runId).first();
+    let seq = maxSeq;
+    const stmt = env.DB.prepare('INSERT INTO run_logs (run_id, seq, line) VALUES (?, ?, ?)');
+    await env.DB.batch(lines.map((l) => stmt.bind(runId, ++seq, String(l))));
+  }
+  if (exitCode !== undefined && exitCode !== null) {
+    await env.DB.prepare("UPDATE runs SET status = ?, exit_code = ?, finished_at = datetime('now') WHERE run_id = ?")
+      .bind(exitCode === 0 ? 'finished' : 'failed', exitCode, runId)
+      .run();
+  }
+  return json({ ok: true });
 }
 
 // ---------- Browser wall ----------
@@ -271,9 +360,16 @@ export default {
       if (path === '/api/cli/verify' && req.method === 'POST') return await apiVerify(req, env);
       if (path === '/api/runtime/aws-creds' && req.method === 'POST') return await apiAwsCreds(req, env);
       if (path.startsWith('/api/')) {
+        const runLog = path.match(/^\/api\/runs\/([\w-]+)\/log$/);
+        if (runLog && req.method === 'POST') return await apiRunLog(req, env, runLog[1]); // runner auth, not CLI auth
         const user = await cliAuth(req, env);
         if (!user) return json({ error: 'run small login first' }, 401);
         if (path === '/api/deploy' && req.method === 'POST') return await apiDeploy(req, env, ctx, user, baseUrl);
+        if (path === '/api/image' && req.method === 'POST') return await apiImage(req, env, user);
+        if (path === '/api/runs' && req.method === 'POST') return await apiRunStart(req, env, user, baseUrl);
+        if (path === '/api/runs' && req.method === 'GET') return await apiRunsList(req, env, user);
+        const runGet = path.match(/^\/api\/runs\/([\w-]+)$/);
+        if (runGet && req.method === 'GET') return await apiRunGet(req, env, user, runGet[1]);
         if (path === '/api/share' && req.method === 'POST') return await apiShare(req, env, user);
         if (path === '/api/apps' && req.method === 'GET') return await apiApps(env, user);
         if (path === '/api/logs' && req.method === 'GET') return await apiLogs(req, env, user);

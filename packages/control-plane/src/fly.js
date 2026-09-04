@@ -54,6 +54,18 @@ async function orgId(env) {
   return orgIdCache;
 }
 
+// Start one machine for a job run. auto_destroy + restart "no": the machine
+// runs the image's CMD to completion and Fly removes it.
+export async function startMachine(env, flyApp, config) {
+  const resp = await fetch(`${MACHINES}/apps/${flyApp}/machines`, {
+    method: 'POST',
+    headers: { Authorization: authH(machineToken(env)), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ config }),
+  });
+  if (!resp.ok) throw new Error(`fly machine start failed (${resp.status}): ${await resp.text()}`);
+  return resp.json();
+}
+
 // The only Fly credential the CLI ever sees: deploy-scoped to one app.
 // Minting requires the user token — org tokens get UNAUTHORIZED here — and user
 // tokens' org authorization rots ~30min after `flyctl auth token`. So each app's

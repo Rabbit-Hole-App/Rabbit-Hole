@@ -1714,6 +1714,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "boto3" },
     { name = "pytest" },
 ]
 
@@ -1726,7 +1727,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest" }]
+dev = [
+    { name = "boto3", specifier = ">=1.43.88" },
+    { name = "pytest" },
+]
 
 [[package]]
 name = "starlette"

@@ -151,9 +151,19 @@ const commands = {
     const review = buildBundle(dir, app.entry, secrets);
     const visibility = (app.config.access && app.config.access.visibility) || undefined;
     const awsRoleArn = (app.config.aws && app.config.aws.role_arn) || undefined;
-    const d = await call('POST', '/api/deploy', { name: app.name, framework: app.framework, visibility, awsRoleArn, review });
+    const kind = app.config.kind === 'job' ? 'job' : 'server';
+    const d = await call('POST', '/api/deploy', { name: app.name, framework: app.framework, visibility, awsRoleArn, kind, review });
     if (!d.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
     writeFlyToml(dir, d.flyApp, app.config.memory);
+
+    if (kind === 'job') {
+      // jobs: build + register the image, start nothing — the control plane starts machines per run
+      fly.setSecrets(d.flyApp, d.flyToken, secrets);
+      const image = fly.buildImage(d.flyApp, d.flyToken, dir, `v${Date.now()}`);
+      await call('POST', '/api/image', { app: app.name, image });
+      console.log(`✓ built ${app.name} — start it with: small run ${app.name}`);
+      return;
+    }
 
     // gradio builds asset/API URLs from its root; behind the path proxy that must be the public URL
     const rootPath = app.framework === 'gradio' ? { GRADIO_ROOT_PATH: d.url.replace(/\/$/, '') } : {};
@@ -178,6 +188,48 @@ const commands = {
     else printReport(res);
   },
 
+  async run() {
+    const name = flags._[0] || appName(process.cwd());
+    const { runId } = await call('POST', '/api/runs', { app: name });
+    console.log(`run: ${runId}`);
+    let cursor = -1;
+    for (;;) {
+      const r = await call('GET', `/api/runs/${encodeURIComponent(runId)}?after=${cursor}`);
+      for (const line of r.lines) console.log(line);
+      if (r.lines.length) cursor = r.cursor;
+      if (r.status !== 'running' && !r.lines.length) {
+        console.log(r.exitCode === 0 ? `✓ finished (exit ${r.exitCode})` : `✗ failed (exit ${r.exitCode})`);
+        process.exitCode = r.exitCode === 0 ? 0 : 1;
+        return;
+      }
+      await new Promise((res) => setTimeout(res, 1000));
+    }
+  },
+
+  async runs() {
+    const name = flags._[0] || appName(process.cwd());
+    const { runs } = await call('GET', `/api/runs?app=${encodeURIComponent(name)}`);
+    if (!runs.length) return console.log(`no runs yet — small run ${name}`);
+    for (const r of runs) {
+      // sqlite datetime('now') strings are UTC without a zone marker
+      const dur = r.finished_at ? `${Math.round((new Date(r.finished_at + 'Z') - new Date(r.started_at + 'Z')) / 1000)}s` : '…';
+      console.log(`${r.run_id}  ${r.status}  ${dur}  ${r.started_by}  ${r.started_at}`);
+    }
+  },
+
+  async logs() {
+    const arg = flags._[0];
+    if (arg && arg.startsWith('r-')) {
+      const r = await call('GET', `/api/runs/${encodeURIComponent(arg)}?after=-1`);
+      for (const line of r.lines) console.log(line);
+      return;
+    }
+    const name = arg || appName(process.cwd());
+    const res = await call('GET', `/api/logs?app=${encodeURIComponent(name)}`);
+    if (!res.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
+    fly.logs(res.flyApp, res.flyToken);
+  },
+
   async share() {
     const email = flags._[0];
     if (!email || !email.includes('@')) throw new Error('usage: small share <email> [--edit] [--app name]');
@@ -192,17 +244,11 @@ const commands = {
     for (const a of apps) console.log(`${a.name}  ${a.visibility}  owner:${a.owner_email}`);
   },
 
-  async logs() {
-    const name = flags._[0] || appName(process.cwd());
-    const res = await call('GET', `/api/logs?app=${encodeURIComponent(name)}`);
-    if (!res.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
-    fly.logs(res.flyApp, res.flyToken);
-  },
 };
 
 const run = commands[cmd];
 if (!run) {
-  console.log('usage: small <login|init|deploy|share|list|logs|review>');
+  console.log('usage: small <login|init|deploy|run|runs|share|list|logs|review>');
   process.exitCode = 1;
 } else {
   run().catch((err) => {

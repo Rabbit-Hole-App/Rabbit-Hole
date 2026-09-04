@@ -1,0 +1,7 @@
+name = "s3-log-writer"
+entry = "pipeline.py"
+framework = "script"
+kind = "job"                # server (default) | job
+
+[secrets]
+required = ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "S3_BUCKET"]
