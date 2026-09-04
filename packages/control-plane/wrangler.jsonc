@@ -13,5 +13,5 @@
   "vars": {
     "FLY_ORG_SLUG": "personal"
   }
-  // secrets (wrangler secret put): MASTER_KEY, FLY_API_TOKEN, RESEND_API_KEY (optional), TEST_BYPASS_SECRET (test envs only), EMAIL_FROM (optional)
+  // secrets (wrangler secret put): MASTER_KEY, FLY_API_TOKEN, RESEND_API_KEY (optional), TEST_BYPASS_SECRET (test envs only), EMAIL_FROM (optional), ANTHROPIC_API_KEY (optional — enables deploy review)
 }

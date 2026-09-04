@@ -9,6 +9,10 @@ CREATE TABLE IF NOT EXISTS apps (
   aws_role_arn TEXT,
   deploy_token TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  review TEXT,
+  review_prev TEXT,
+  reviewed_at TEXT,
+  review_model TEXT,
   UNIQUE(org, name)
 );
 

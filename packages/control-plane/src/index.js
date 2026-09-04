@@ -3,6 +3,7 @@
 import { sign, verify, sha256, randomHex } from './token.js';
 import { ensureFlyApp, deployTokenFor } from './fly.js';
 import { assumeRole } from './aws.js';
+import { runReview } from './review.js';
 
 const SESSION_COOKIE = 'small_session';
 const SESSION_TTL = 7 * 24 * 3600;
@@ -80,8 +81,8 @@ async function apiVerify(req, env) {
   return json({ token, email: p.email, org: orgOf(p.email) });
 }
 
-async function apiDeploy(req, env, user, baseUrl) {
-  const { name, framework, visibility, awsRoleArn } = await req.json();
+async function apiDeploy(req, env, ctx, user, baseUrl) {
+  const { name, framework, visibility, awsRoleArn, review } = await req.json();
   if (!name || !/^[a-z0-9-]{1,40}$/.test(name)) return json({ error: 'name must be [a-z0-9-]' }, 400);
   if (awsRoleArn && !/^arn:aws:iam::\d{12}:role\/[\w+=,.@/-]+$/.test(awsRoleArn)) return json({ error: 'bad aws role arn' }, 400);
   let app = await appRow(env, user.org, name);
@@ -105,12 +106,30 @@ async function apiDeploy(req, env, user, baseUrl) {
   } catch (e) {
     return json({ error: e.message }, 502);
   }
+  // Review runs concurrently with the CLI-side Fly build; it never blocks or fails the deploy.
+  const reviewStarted = !!(env.ANTHROPIC_API_KEY && review && review.bundle);
+  if (reviewStarted) ctx.waitUntil(runReview(env, app.id, review.bundle, review.skipped || []));
   return json({
     flyApp: app.fly_app,
     proxySecret: app.proxy_secret,
     flyToken,
     url: `${baseUrl}/a/${user.org}/${name}/`,
     framework: framework || null,
+    reviewStarted,
+    reviewedAt: app.reviewed_at || null, // previous review's stamp; the CLI polls until it changes
+  });
+}
+
+async function apiReview(req, env, user) {
+  const name = new URL(req.url).searchParams.get('app');
+  const app = await appRow(env, user.org, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!(await canView(env, app, user.email))) return json({ error: 'no access' }, 403);
+  return json({
+    review: app.review ? JSON.parse(app.review) : null,
+    prev: app.review_prev ? JSON.parse(app.review_prev) : null,
+    reviewedAt: app.reviewed_at || null,
+    model: app.review_model || null,
   });
 }
 
@@ -243,7 +262,7 @@ async function proxyApp(req, env, org, name, rest, baseUrl) {
 }
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url);
     const baseUrl = `${url.protocol}//${url.host}`;
     const path = url.pathname;
@@ -254,10 +273,11 @@ export default {
       if (path.startsWith('/api/')) {
         const user = await cliAuth(req, env);
         if (!user) return json({ error: 'run small login first' }, 401);
-        if (path === '/api/deploy' && req.method === 'POST') return await apiDeploy(req, env, user, baseUrl);
+        if (path === '/api/deploy' && req.method === 'POST') return await apiDeploy(req, env, ctx, user, baseUrl);
         if (path === '/api/share' && req.method === 'POST') return await apiShare(req, env, user);
         if (path === '/api/apps' && req.method === 'GET') return await apiApps(env, user);
         if (path === '/api/logs' && req.method === 'GET') return await apiLogs(req, env, user);
+        if (path === '/api/review' && req.method === 'GET') return await apiReview(req, env, user);
         return json({ error: 'no such endpoint' }, 404);
       }
       if (path === '/login') return await loginPage(req, env, baseUrl);
