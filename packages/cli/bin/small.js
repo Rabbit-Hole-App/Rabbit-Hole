@@ -63,7 +63,9 @@ const commands = {
     writeFlyToml(dir, d.flyApp, app.config.memory);
 
     fly.ensureApp(d.flyApp, d.flyOrg, d.flyToken);
-    fly.setSecrets(d.flyApp, d.flyToken, { SMALL_PROXY_SECRET: d.proxySecret, ...secrets });
+    // gradio builds asset/API URLs from its root; behind the path proxy that must be the public URL
+    const rootPath = app.framework === 'gradio' ? { GRADIO_ROOT_PATH: d.url.replace(/\/$/, '') } : {};
+    fly.setSecrets(d.flyApp, d.flyToken, { SMALL_PROXY_SECRET: d.proxySecret, ...rootPath, ...secrets });
     fly.deploy(d.flyApp, d.flyToken, dir);
 
     console.log(`✓ deployed → ${d.url}`);
