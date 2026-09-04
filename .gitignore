@@ -155,5 +155,3 @@ packages/control-plane/.wrangler/
 examples/*/.dockerignore
 __pycache__/
 *.pyc
-
-docs/
