@@ -11,6 +11,9 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -48,6 +51,42 @@ def small():
 def cli_email():
     assert CLI_CONFIG.exists(), "run `small login` once before the integration tests"
     return json.loads(CLI_CONFIG.read_text())["email"]
+
+
+def _http_get(url, token):
+    req = urllib.request.Request(url)
+    req.add_header("User-Agent", "small-integration-test")  # default python UA trips Cloudflare bot block (1010)
+    req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=90) as r:
+            return r.status, r.read().decode()
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode()
+
+
+@pytest.fixture(scope="session")
+def runbook(deployed):
+    """The review (runbook included) is stored async with the deploy; poll until it lands."""
+    token = json.loads(CLI_CONFIG.read_text())["token"]
+    for _ in range(24):
+        status, body = _http_get(f"{ENV['SMALL_API']}/api/review?app={APP_NAME}", token)
+        if status == 200:
+            review = json.loads(body).get("review") or {}
+            if review.get("runbook"):
+                return review["runbook"]
+        time.sleep(5)
+    pytest.fail("runbook never appeared after deploy")
+
+
+def test_runbook_schedule_or_commands_has_small_run(runbook):
+    sections = [runbook.split(h, 1)[1].split("\n## ")[0] for h in ("## Commands", "## Schedule") if h in runbook]
+    assert sections, f"runbook has neither a Commands nor a Schedule section:\n{runbook}"
+    assert any("small run" in s for s in sections), f"no `small run` in Commands/Schedule:\n{sections}"
+
+
+def test_runbook_names_s3_bucket_with_location(runbook):
+    line = next((l for l in runbook.splitlines() if "S3_BUCKET" in l and re.search(r"pipeline\.py:\d+", l)), None)
+    assert line, f"runbook does not name S3_BUCKET with its pipeline.py:line:\n{runbook}"
 
 
 @pytest.fixture(scope="session")

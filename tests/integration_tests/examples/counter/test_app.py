@@ -92,6 +92,53 @@ def deployed(project_dir, cli_config):
     return {"url": m.group(1), "stdout": r.stdout, "org": cli_config["org"]}
 
 
+@pytest.fixture(scope="session")
+def runbook(deployed, cli_config):
+    """The review (runbook included) is stored async with the deploy; poll until it lands."""
+    for _ in range(24):
+        status, body = http(
+            "GET",
+            f"{API}/api/review?app={APP_NAME}",
+            headers={"Authorization": f"Bearer {cli_config['token']}"},
+        )
+        if status == 200:
+            review = json.loads(body).get("review") or {}
+            if review.get("runbook"):
+                return review["runbook"]
+        time.sleep(5)
+    pytest.fail("runbook never appeared after deploy")
+
+
+def test_runbook_names_storage_and_sqlite(runbook):
+    assert "SMALL_DATA" in runbook, f"runbook does not name SMALL_DATA:\n{runbook}"
+    assert re.search(r"sqlite", runbook, re.I), f"runbook does not mention SQLite:\n{runbook}"
+
+
+def test_runbook_gunicorn_under_commands(runbook):
+    parts = runbook.split("## Commands", 1)
+    assert len(parts) == 2, f"no Commands section:\n{runbook}"
+    commands = parts[1].split("\n## ")[0]
+    assert "gunicorn" in commands, f"no gunicorn command under Commands:\n{commands}"
+
+
+def test_runbook_endpoints_only_home_and_inc(runbook):
+    parts = runbook.split("## Endpoints", 1)
+    assert len(parts) == 2, f"no Endpoints section:\n{runbook}"
+    section = parts[1].split("\n## ")[0]
+    routes = set(re.findall(r"/[a-zA-Z0-9_-]+", section))
+    assert "/inc" in section, f"missing /inc endpoint:\n{section}"
+    assert routes <= {"/inc"}, f"unexpected endpoints beyond / and /inc: {routes}\n{section}"
+
+
+def test_runbook_cli_prints_and_ends_with_review_line(runbook, deployed):
+    r = subprocess.run(
+        [small(), "runbook", APP_NAME], capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace"
+    )
+    assert r.returncode == 0, r.stderr
+    assert "## What it does" in r.stdout
+    assert re.search(r"\*review: .+ — risk: (low|medium|high)\*", r.stdout), f"no review summary line:\n{r.stdout[-500:]}"
+
+
 def test_deploy_detects_and_prints(deployed):
     assert "entry: app.py (flask)" in deployed["stdout"]
     assert f"/a/{deployed['org']}/{APP_NAME}/" in deployed["url"]

@@ -3,7 +3,7 @@
 import { sign, verify, sha256, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine } from './fly.js';
 import { assumeRole } from './aws.js';
-import { runReview } from './review.js';
+import { runReview, generateRunbook } from './review.js';
 import { parseCron, matches, nextRun } from './cron.js';
 
 const SESSION_COOKIE = 'small_session';
@@ -149,6 +149,19 @@ async function apiReview(req, env, user) {
     reviewedAt: app.reviewed_at || null,
     model: app.review_model || null,
   });
+}
+
+// `small init` sends a bundle before any app row exists; the runbook comes back
+// synchronously and the CLI writes RUNBOOK.md. Deploys store theirs via runReview.
+async function apiRunbook(req, env) {
+  const { bundle } = await req.json();
+  if (!bundle) return json({ error: 'bundle required' }, 400);
+  if (!env.ANTHROPIC_API_KEY) return json({ error: 'runbook generation not configured on this control plane' }, 503);
+  try {
+    return json({ runbook: await generateRunbook(env, bundle) });
+  } catch (e) {
+    return json({ error: e.message }, 502);
+  }
 }
 
 async function apiShare(req, env, user) {
@@ -459,6 +472,7 @@ export default {
         if (path === '/api/logs' && req.method === 'GET') return await apiLogs(req, env, user);
         if (path === '/api/request-logs' && req.method === 'GET') return await apiRequestLogs(req, env, user);
         if (path === '/api/review' && req.method === 'GET') return await apiReview(req, env, user);
+        if (path === '/api/runbook' && req.method === 'POST') return await apiRunbook(req, env);
         return json({ error: 'no such endpoint' }, 404);
       }
       if (path === '/login') return await loginPage(req, env, baseUrl);

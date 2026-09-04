@@ -32,9 +32,14 @@ small deploy --env .env
 (`small deploy` runs init itself when no `small.toml` exists, but running
 init first lets you review the file.)
 
-5. Print the URL from the output. Stop. Do not build a Dockerfile, do not
-   suggest hosting options, do not add auth — small already put the app behind
-   a work-email login.
+5. Print the URL from the output.
+
+6. Read the generated runbook back: run `small runbook` (regenerated on every
+   deploy; `small runbook --write` saves it as RUNBOOK.md). Tell the user in
+   two sentences what the runbook says the app does and what it needs, so they
+   confirm what was built before sharing it. Then stop. Do not build a
+   Dockerfile, do not suggest hosting options, do not add auth — small already
+   put the app behind a work-email login.
 
 To give someone access when visibility is private, or edit rights:
 

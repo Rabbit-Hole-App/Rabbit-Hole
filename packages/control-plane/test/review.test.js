@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { runReview, computeRisk, validateReview, hostAllowed, MODEL } from '../src/review.js';
+import { runReview, generateRunbook, computeRisk, validateReview, hostAllowed, MODEL } from '../src/review.js';
 
 // The bundle is built by the CLI; use the real builder so the cross-file flow
 // genuinely depends on both fixture files reaching the model.
@@ -22,6 +22,7 @@ const emptyReview = () => ({
   user_input: [],
   findings: [],
   skipped: [],
+  runbook: '# a test app\n\n## What it does\n\nA test app.\n',
 });
 
 function tmpApp(files) {
@@ -147,6 +148,38 @@ test('risk rules: outbound allowlist', () => {
     'high'
   );
   assert.equal(computeRisk(emptyReview()), 'low');
+});
+
+test('runbook is stored with the review, review summary line appended with the computed risk', async () => {
+  const db = dbStub();
+  await withFetch(
+    mockAnthropic(() => ({
+      ...emptyReview(),
+      summary: 'a shell runner',
+      risk: 'low', // deliberately wrong — the appended line must carry the computed risk
+      shell_exec: [{ command: 'x', user_input_reaches_it: true, at: 'a.py:1' }],
+      runbook: '# shell runner\n\n## What it does\n\nRuns shells.\n',
+    })),
+    () => runReview({ ANTHROPIC_API_KEY: 'k', DB: db }, 5, 'bundle', [])
+  );
+  const review = stored(db);
+  assert.ok(review.runbook.startsWith('# shell runner\n'));
+  assert.ok(review.runbook.endsWith('\n---\n*review: a shell runner — risk: high*\n'));
+});
+
+test('generateRunbook returns the finished runbook without a DB', async () => {
+  const runbook = await withFetch(
+    mockAnthropic(() => emptyReview()),
+    () => generateRunbook({ ANTHROPIC_API_KEY: 'k' }, 'bundle')
+  );
+  assert.ok(runbook.startsWith('# a test app\n'));
+  assert.match(runbook, /\*review: a test app — risk: low\*\n$/);
+});
+
+test('missing or empty runbook fails validation', () => {
+  const { runbook, ...withoutRunbook } = emptyReview();
+  assert.throws(() => validateReview(withoutRunbook));
+  assert.throws(() => validateReview({ ...emptyReview(), runbook: '  ' }));
 });
 
 test('API failure never throws and stores nothing', async () => {

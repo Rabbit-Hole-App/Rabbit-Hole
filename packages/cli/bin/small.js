@@ -129,7 +129,23 @@ const commands = {
   },
 
   async init() {
-    if (!init(process.cwd(), { force: !!flags.force })) process.exitCode = 1;
+    const dir = process.cwd();
+    if (!init(dir, { force: !!flags.force })) {
+      process.exitCode = 1;
+      return;
+    }
+    // First runbook, from the code as it stands. Never fails the init.
+    const rbPath = path.join(dir, 'RUNBOOK.md');
+    if (fs.existsSync(rbPath) && !flags.force) return console.log('RUNBOOK.md already exists — use --force to regenerate');
+    try {
+      const app = detect(dir);
+      const { bundle } = buildBundle(dir, app.entry, envfile.parse(path.join(dir, '.env')));
+      const { runbook } = await call('POST', '/api/runbook', { bundle });
+      fs.writeFileSync(rbPath, runbook);
+      console.log('✓ wrote RUNBOOK.md');
+    } catch (e) {
+      console.log(`runbook: unavailable (${e.message}) — regenerated on every small deploy`);
+    }
   },
 
   async deploy() {
@@ -214,6 +230,30 @@ const commands = {
     if (!res.review) return console.log('review: unavailable — no reviewed deploy yet');
     if (flags.diff) printDiff(res);
     else printReport(res);
+  },
+
+  async runbook() {
+    const name = flags._[0] || appName(process.cwd());
+    const res = await call('GET', `/api/review?app=${encodeURIComponent(name)}`);
+    const cur = res.review && res.review.runbook;
+    if (!cur) return console.log('runbook: unavailable — no reviewed deploy yet');
+    if (flags.diff) {
+      const prev = res.prev && res.prev.runbook;
+      if (!prev) return console.log('no previous runbook to diff against');
+      // ponytail: line-set diff, no ordering — mirror of review --diff; real diff when it matters
+      const before = new Set(prev.split('\n'));
+      const after = new Set(cur.split('\n'));
+      let changed = false;
+      for (const l of cur.split('\n')) if (!before.has(l)) (changed = true), console.log(`+ ${l}`);
+      for (const l of prev.split('\n')) if (!after.has(l)) (changed = true), console.log(`- ${l}`);
+      if (!changed) console.log('no changes since previous deploy');
+      return;
+    }
+    if (flags.write) {
+      fs.writeFileSync(path.join(process.cwd(), 'RUNBOOK.md'), cur);
+      return console.log('✓ wrote RUNBOOK.md');
+    }
+    console.log(cur);
   },
 
   async run() {
@@ -309,7 +349,7 @@ const commands = {
 
 const run = commands[cmd];
 if (!run) {
-  console.log('usage: small <login|init|deploy|run|runs|schedule|share|list|logs|review>');
+  console.log('usage: small <login|init|deploy|run|runs|schedule|share|list|logs|review|runbook>');
   process.exitCode = 1;
 } else {
   run().catch((err) => {
