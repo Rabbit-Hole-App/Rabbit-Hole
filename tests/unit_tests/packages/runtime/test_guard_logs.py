@@ -7,6 +7,13 @@ import os
 import subprocess
 import sys
 import time
+
+try:
+    from tests.consts import kill_tree
+except ImportError:  # standalone `python test_guard*.py` run: best-effort cleanup only
+    def kill_tree(proc):
+        proc.terminate()
+
 from datetime import datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -59,7 +66,7 @@ def main():
         # exactly 3 log lines expected (warmup, ok, rejected); readline blocks until each flushes
         lines = [json.loads(guard.stdout.readline()) for _ in range(3)]
     finally:
-        guard.terminate()
+        kill_tree(guard)
         guard.wait()
     os.remove(echo_path)
 

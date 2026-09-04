@@ -8,6 +8,13 @@ import subprocess
 import sys
 import time
 
+try:
+    from tests.consts import kill_tree
+except ImportError:  # standalone `python test_guard*.py` run: best-effort cleanup only
+    def kill_tree(proc):
+        proc.terminate()
+
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 GUARD = os.path.join(HERE, "..", "..", "..", "..", "packages", "runtime", "guard.py")
 PORT = 18081
@@ -87,7 +94,7 @@ def main():
         sock.close()
         assert b"403" in resp.split(b"\r\n")[0], f"want 403 got {resp!r}"
     finally:
-        guard.terminate()
+        kill_tree(guard)
         guard.wait()
         os.remove(echo_path)
     print("guard ws: all checks pass")

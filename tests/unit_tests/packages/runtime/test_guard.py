@@ -6,6 +6,12 @@ import subprocess
 import sys
 import time
 
+try:
+    from tests.consts import kill_tree
+except ImportError:  # standalone `python test_guard.py` run: best-effort cleanup only
+    def kill_tree(proc):
+        proc.terminate()
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 GUARD = os.path.join(HERE, "..", "..", "..", "..", "packages", "runtime", "guard.py")
 PORT = 18080
@@ -64,7 +70,7 @@ def main():
         status, data = req("POST", "/x", {"X-Small-Proxy": SECRET}, b"payload")
         assert status == 200 and data == b"echo:payload", f"post roundtrip: got {status} {data!r}"
     finally:
-        guard.terminate()
+        kill_tree(guard)
         guard.wait()
         os.remove(echo_path)
     print("guard: all checks pass")

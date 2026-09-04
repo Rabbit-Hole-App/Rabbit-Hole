@@ -10,7 +10,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from tests.consts import PROJECT_DIR
+from tests.consts import PROJECT_DIR, kill_tree
 
 GUARD = PROJECT_DIR / "packages" / "runtime" / "guard.py"
 CREDS = {"AccessKeyId": "ASIATEST", "SecretAccessKey": "sk-test", "SessionToken": "tok-test", "Expiration": "2099-01-01T00:00:00Z"}
@@ -60,5 +60,5 @@ def test_guard_writes_sts_creds_file_and_env(tmp_path):
         assert app_env["AWS_SHARED_CREDENTIALS_FILE"] == str(creds_file)
         assert "AWS_SECRET_ACCESS_KEY" not in app_env
     finally:
-        proc.terminate()
+        kill_tree(proc)
         server.shutdown()

@@ -8,7 +8,7 @@ import sys
 import time
 import urllib.request
 
-from tests.consts import PROJECT_DIR
+from tests.consts import PROJECT_DIR, kill_tree
 
 GUARD = PROJECT_DIR / "packages" / "runtime" / "guard.py"
 
@@ -46,4 +46,4 @@ def test_sse_stream_survives_abrupt_close():
             raise AssertionError("guard never came up")
         assert b"data: one" in body
     finally:
-        proc.terminate()
+        kill_tree(proc)
