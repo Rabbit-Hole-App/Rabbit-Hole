@@ -92,6 +92,16 @@ export async function startMachine(env, flyApp, config) {
   return resp.json();
 }
 
+// Kill a job run's machine. force: SIGKILL now — a stopped job machine has no
+// graceful-shutdown value. 404 is fine: auto_destroy already removed it.
+export async function destroyMachine(env, flyApp, machineId) {
+  const resp = await fetch(`${MACHINES}/apps/${flyApp}/machines/${machineId}?force=true`, {
+    method: 'DELETE',
+    headers: { Authorization: authH(machineToken(env)) },
+  });
+  if (!resp.ok && resp.status !== 404) throw new Error(`fly machine destroy failed (${resp.status}): ${await resp.text()}`);
+}
+
 // The only Fly credential the CLI ever sees: deploy-scoped to one app.
 // Minting requires the user token — org tokens get UNAUTHORIZED here — and user
 // tokens' org authorization rots ~30min after `flyctl auth token`. So each app's

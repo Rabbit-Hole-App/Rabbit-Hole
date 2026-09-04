@@ -24,11 +24,13 @@ CREATE TABLE IF NOT EXISTS apps (
   repo_dirty INTEGER,
   repo_public INTEGER,
   deployed_at TEXT,
+  runbook TEXT,
   UNIQUE(org, name)
 );
 -- migrating an existing DB:
 --   ALTER TABLE apps ADD COLUMN kind TEXT NOT NULL DEFAULT 'server';
 --   ALTER TABLE apps ADD COLUMN image TEXT;
+--   (web dashboard columns: migrations/0003-web.sql, 0004-stop.sql)
 
 CREATE TABLE IF NOT EXISTS members (
   app_id INTEGER NOT NULL REFERENCES apps(id),
@@ -57,7 +59,8 @@ CREATE TABLE IF NOT EXISTS runs (
   finished_at TEXT,
   status TEXT NOT NULL DEFAULT 'running',
   exit_code INTEGER,
-  reason TEXT
+  reason TEXT,
+  machine_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS run_logs (

@@ -54,7 +54,9 @@ plane); BYO-AWS (deploying into the customer's cloud) is the long-term business.
   1. See deployed pipelines (the org's apps and their runs/status).
   2. Share — grant a colleague access from the dashboard.
   3. Start/run button — trigger a job run from the dashboard.
-  Dashboard stack/serving undecided — record the decision when it is built.
+  Dashboard stack (decided, built): React + Vite + Tailwind + shadcn-style
+  primitives in `packages/web`, served as static assets on the small-cp Worker —
+  same origin as `/api`, so the session cookie works (docs/features/web.md).
   Existing browser surfaces: the magic-link login page served by the Worker,
   and the deployed apps themselves.
 - URLs are workers.dev path-style for now; custom domain undecided, not binding.

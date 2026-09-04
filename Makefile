@@ -49,6 +49,15 @@ test-integration:
 cp-deploy:
 	$(BASH) run.sh cp:deploy
 
+web-dev:
+	$(BASH) run.sh web:dev
+
+web-deploy:
+	$(BASH) run.sh web:deploy
+
+web-test:
+	$(BASH) run.sh web:test
+
 cp-tail:
 	$(BASH) run.sh cp:tail
 

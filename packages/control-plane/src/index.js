@@ -1,10 +1,11 @@
 // small control plane: CLI API + browser auth wall + router. One Worker + D1.
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, sha256, randomHex } from './token.js';
-import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine } from './fly.js';
+import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine } from './fly.js';
 import { assumeRole } from './aws.js';
 import { runReview, generateRunbook } from './review.js';
 import { parseCron, matches, nextRun } from './cron.js';
+import SHELL from '../../web/dist/index.html';
 
 const SESSION_COOKIE = 'small_session';
 const SESSION_TTL = 7 * 24 * 3600;
@@ -224,9 +225,119 @@ async function apiShare(req, env, user) {
   return json({ ok: true, app: name, email: email.toLowerCase(), role: role === 'edit' ? 'edit' : 'view' });
 }
 
-async function apiApps(env, user) {
-  const { results } = await env.DB.prepare('SELECT name, visibility, owner_email, fly_app, created_at FROM apps WHERE org = ? ORDER BY name').bind(user.org).all();
-  return json({ apps: results });
+// A runner can only report while its 6h run token lives — anything 'running' longer
+// is a dead machine that never posted an exit code. Swept lazily on list reads.
+// finished_at stays NULL: the real end time is unknown, so no fake duration.
+const sweepStaleRuns = (env) =>
+  env.DB.prepare("UPDATE runs SET status = 'failed' WHERE status = 'running' AND started_at < datetime('now','-6 hours')").run();
+
+async function apiApps(env, user, baseUrl) {
+  await sweepStaleRuns(env);
+  const { results } = await env.DB.prepare(
+    `SELECT name, kind, visibility, owner_email, fly_app, created_at, deployed_at, runbook, schedule, schedule_paused,
+            (SELECT group_concat(email || ':' || role) FROM members WHERE app_id = apps.id) AS member_emails,
+            (SELECT role FROM members WHERE app_id = apps.id AND email = ?1) AS my_role,
+            (SELECT json_object('runId', run_id, 'status', status, 'exitCode', exit_code, 'startedAt', started_at, 'finishedAt', finished_at)
+               FROM runs WHERE app_id = apps.id ORDER BY id DESC LIMIT 1) AS last_run
+     FROM apps WHERE org = ?2 ORDER BY name`
+  ).bind(user.email, user.org).all();
+  return json({
+    org: user.org,
+    email: user.email,
+    apps: results.map(({ member_emails, my_role, last_run, ...a }) => {
+      const canView = a.owner_email === user.email || !!my_role || a.visibility === 'domain';
+      return {
+        ...a,
+        // private apps stay listed for the org, but their content does not leak
+        runbook: canView ? a.runbook : null,
+        members: canView && member_emails ? member_emails.split(',').map((s) => { const [email, role] = s.split(':'); return { email, role }; }) : [],
+        canView,
+        canEdit: a.owner_email === user.email || my_role === 'edit',
+        lastRun: canView && last_run ? JSON.parse(last_run) : null,
+        url: `${baseUrl}/a/${user.org}/${a.name}/`,
+      };
+    }),
+  });
+}
+
+// Share-page lookup. The slug is org-scoped, but people shared by email from another
+// org must reach the page too — fall back to their membership row.
+async function appForUser(env, user, name) {
+  const app = await env.DB.prepare(
+    `SELECT apps.*, members.role AS my_role FROM apps
+     LEFT JOIN members ON members.app_id = apps.id AND members.email = ?1
+     WHERE apps.name = ?2 AND (apps.org = ?3 OR members.email IS NOT NULL)
+     ORDER BY (apps.org = ?3) DESC LIMIT 1`
+  ).bind(user.email, name, user.org).first();
+  if (!app) return null;
+  app.canEdit = app.owner_email === user.email || app.my_role === 'edit';
+  app.canView = app.owner_email === user.email || !!app.my_role || (app.visibility === 'domain' && app.org === user.org);
+  return app;
+}
+
+async function apiAppGet(env, user, name, baseUrl) {
+  const app = await appForUser(env, user, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!app.canView) return json({ error: 'no access', owner: app.owner_email, name: app.name }, 403);
+  const { results: members } = await env.DB.prepare('SELECT email, role FROM members WHERE app_id = ? ORDER BY email').bind(app.id).all();
+  const lastRun = await env.DB.prepare(
+    'SELECT run_id AS runId, status, exit_code AS exitCode, started_at AS startedAt, finished_at AS finishedAt FROM runs WHERE app_id = ? ORDER BY id DESC LIMIT 1'
+  ).bind(app.id).first();
+  let lastOpened = null;
+  try {
+    lastOpened = await env.DB.prepare(
+      "SELECT user AS email, ts FROM request_logs WHERE org = ? AND slug = ? AND user IS NOT NULL ORDER BY id DESC LIMIT 1"
+    ).bind(app.org, app.name).first();
+  } catch {} // request_logs ships with the request-logs feature branch — absent on fresh local DBs
+  return json({
+    name: app.name, org: app.org, kind: app.kind, visibility: app.visibility, owner_email: app.owner_email,
+    runbook: app.runbook, schedule: app.schedule, schedule_paused: app.schedule_paused,
+    url: `${baseUrl}/a/${app.org}/${app.name}/`,
+    members, lastRun: lastRun || null, lastOpened: lastOpened || null,
+    canEdit: app.canEdit, email: user.email,
+  });
+}
+
+async function apiAppPatch(req, env, user, name) {
+  const app = await appForUser(env, user, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!app.canEdit) return json({ error: 'only owner or edit members can change visibility' }, 403);
+  const { visibility } = await req.json();
+  if (!['domain', 'private'].includes(visibility)) return json({ error: 'visibility must be domain or private' }, 400);
+  await env.DB.prepare('UPDATE apps SET visibility = ? WHERE id = ?').bind(visibility, app.id).run();
+  return json({ ok: true, visibility });
+}
+
+async function apiUnshare(req, env, user) {
+  const { app: name, email } = await req.json();
+  const app = await appForUser(env, user, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!app.canEdit) return json({ error: 'only owner or edit members can unshare' }, 403);
+  await env.DB.prepare('DELETE FROM members WHERE app_id = ? AND email = ?').bind(app.id, String(email || '').toLowerCase()).run();
+  return json({ ok: true });
+}
+
+async function apiRequestAccess(env, user, name, baseUrl) {
+  const app = await appForUser(env, user, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (app.canView) return json({ ok: true, already: true });
+  const sent = await sendEmail(
+    env, app.owner_email,
+    `${user.email} asked for access to ${app.name}`,
+    `${user.email} is asking for access to ${app.name}.\n\nGrant it from ${baseUrl}/apps/${app.name} (Share), or run:\n  small share ${user.email} --app ${app.name}`
+  );
+  return json({ ok: true, sent });
+}
+
+// Dashboard runbook save (PUT). POST /api/runbook is the CLI's generate-from-bundle route.
+async function apiRunbookSave(req, env, user) {
+  const { app: name, runbook } = await req.json();
+  const app = await appRow(env, user.org, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!(await canEdit(env, app, user.email))) return json({ error: 'only owner or edit members can edit the runbook' }, 403);
+  if (typeof runbook !== 'string' || runbook.length > 500_000) return json({ error: 'runbook must be a string under 500KB' }, 400);
+  await env.DB.prepare('UPDATE apps SET runbook = ? WHERE id = ?').bind(runbook, app.id).run();
+  return json({ ok: true });
 }
 
 async function apiDeploys(env, user, slug) {
@@ -317,7 +428,7 @@ async function apiImage(req, env, user) {
   if (!app) return json({ error: `no app named ${name}` }, 404);
   if (!(await canEdit(env, app, user.email))) return json({ error: 'no access' }, 403);
   if (!/^registry\.fly\.io\/[\w./:-]+$/.test(image || '')) return json({ error: 'bad image ref' }, 400);
-  await env.DB.prepare('UPDATE apps SET image = ? WHERE id = ?').bind(image, app.id).run();
+  await env.DB.prepare("UPDATE apps SET image = ?, deployed_at = datetime('now') WHERE id = ?").bind(image, app.id).run();
   return json({ ok: true });
 }
 
@@ -328,7 +439,7 @@ async function startRun(env, app, startedBy, baseUrl) {
   await env.DB.prepare('INSERT INTO runs (run_id, app_id, started_by) VALUES (?, ?, ?)').bind(runId, app.id, startedBy).run();
   const runToken = await sign({ t: 'run', run: runId, exp: now() + 6 * 3600 }, env.MASTER_KEY);
   try {
-    await startMachine(env, app.fly_app, {
+    const machine = await startMachine(env, app.fly_app, {
       image: app.image,
       auto_destroy: true,
       restart: { policy: 'no' },
@@ -341,6 +452,7 @@ async function startRun(env, app, startedBy, baseUrl) {
         ...(startedBy === 'cron' ? { SMALL_TRIGGER: 'cron' } : {}),
       },
     });
+    await env.DB.prepare('UPDATE runs SET machine_id = ? WHERE run_id = ?').bind(machine.id, runId).run(); // the dashboard Stop button kills it
   } catch (e) {
     await env.DB.prepare("UPDATE runs SET status = 'failed', finished_at = datetime('now') WHERE run_id = ?").bind(runId).run();
     throw e;
@@ -373,7 +485,29 @@ async function apiSchedulePause(req, env, user) {
   return json({ ok: true, schedule: app.schedule, paused: !!paused });
 }
 
+// Stop button on a live run: kill the machine, mark the run. Same privilege as
+// starting one (canView) — whoever can run a job can stop it.
+async function apiRunStop(req, env, user, runId) {
+  const run = await env.DB.prepare(
+    'SELECT runs.status, runs.machine_id, apps.id AS app_id, apps.org, apps.owner_email, apps.visibility, apps.fly_app FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?'
+  ).bind(runId).first();
+  if (!run || run.org !== user.org) return json({ error: `no run ${runId}` }, 404);
+  if (!(await canView(env, { id: run.app_id, org: run.org, owner_email: run.owner_email, visibility: run.visibility }, user.email)))
+    return json({ error: 'no access' }, 403);
+  if (run.status !== 'running') return json({ ok: true, status: run.status }); // already settled
+  if (run.machine_id) {
+    try {
+      await destroyMachine(env, run.fly_app, run.machine_id);
+    } catch (e) {
+      return json({ error: e.message }, 502);
+    }
+  }
+  await env.DB.prepare("UPDATE runs SET status = 'stopped', finished_at = datetime('now') WHERE run_id = ? AND status = 'running'").bind(runId).run();
+  return json({ ok: true, status: 'stopped' });
+}
+
 async function apiRunsList(req, env, user) {
+  await sweepStaleRuns(env);
   const name = new URL(req.url).searchParams.get('app');
   const app = await appRow(env, user.org, name);
   if (!app) return json({ error: `no app named ${name}` }, 404);
@@ -386,7 +520,7 @@ async function apiRunsList(req, env, user) {
 
 async function apiRunGet(req, env, user, runId) {
   const run = await env.DB.prepare(
-    'SELECT runs.status, runs.exit_code, apps.id AS app_id, apps.org, apps.owner_email, apps.visibility FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?'
+    'SELECT runs.status, runs.exit_code, runs.started_at, runs.finished_at, apps.id AS app_id, apps.org, apps.owner_email, apps.visibility FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?'
   ).bind(runId).first();
   if (!run || run.org !== user.org) return json({ error: `no run ${runId}` }, 404);
   if (!(await canView(env, { id: run.app_id, org: run.org, owner_email: run.owner_email, visibility: run.visibility }, user.email)))
@@ -396,6 +530,8 @@ async function apiRunGet(req, env, user, runId) {
   return json({
     status: run.status,
     exitCode: run.exit_code,
+    startedAt: run.started_at,
+    finishedAt: run.finished_at,
     lines: results.map((r) => r.line),
     cursor: results.length ? results[results.length - 1].seq : after,
   });
@@ -415,7 +551,8 @@ async function apiRunLog(req, env, runId) {
     await env.DB.batch(lines.map((l) => stmt.bind(runId, ++seq, String(l))));
   }
   if (exitCode !== undefined && exitCode !== null) {
-    await env.DB.prepare("UPDATE runs SET status = ?, exit_code = ?, finished_at = datetime('now') WHERE run_id = ?")
+    // AND status='running': a stop via the dashboard must not be overwritten by the dying runner's last post
+    await env.DB.prepare("UPDATE runs SET status = ?, exit_code = ?, finished_at = datetime('now') WHERE run_id = ? AND status = 'running'")
       .bind(exitCode === 0 ? 'finished' : 'failed', exitCode, runId)
       .run();
   }
@@ -517,7 +654,12 @@ export default {
         if (runLog && req.method === 'POST') return await apiRunLog(req, env, runLog[1]); // runner auth, not CLI auth
         const reqLog = path.match(/^\/api\/apps\/([a-z0-9-]+)\/request-log$/);
         if (reqLog && req.method === 'POST') return await apiRequestLogIngest(req, env, reqLog[1]); // guard auth, not CLI auth
-        const user = await cliAuth(req, env);
+        // CLI Bearer token or browser session cookie — the web dashboard is same-origin and rides the cookie.
+        let user = await cliAuth(req, env);
+        if (!user) {
+          const s = await sessionOf(req, env);
+          if (s) user = { email: s.email, org: orgOf(s.email) };
+        }
         if (!user) return json({ error: 'run small login first' }, 401);
         if (path === '/api/deploy' && req.method === 'POST') return await apiDeploy(req, env, ctx, user, baseUrl);
         if (path === '/api/image' && req.method === 'POST') return await apiImage(req, env, user);
@@ -526,10 +668,19 @@ export default {
         const runGet = path.match(/^\/api\/runs\/([\w-]+)$/);
         if (runGet && req.method === 'GET') return await apiRunGet(req, env, user, runGet[1]);
         if (path === '/api/schedule' && req.method === 'POST') return await apiSchedulePause(req, env, user);
+        const runStop = path.match(/^\/api\/runs\/([\w-]+)\/stop$/);
+        if (runStop && req.method === 'POST') return await apiRunStop(req, env, user, runStop[1]);
         if (path === '/api/share' && req.method === 'POST') return await apiShare(req, env, user);
-        if (path === '/api/apps' && req.method === 'GET') return await apiApps(env, user);
+        if (path === '/api/apps' && req.method === 'GET') return await apiApps(env, user, baseUrl);
         const deploysGet = path.match(/^\/api\/apps\/([a-z0-9-]+)\/deploys$/);
         if (deploysGet && req.method === 'GET') return await apiDeploys(env, user, deploysGet[1]);
+        const reqAccess = path.match(/^\/api\/apps\/([a-z0-9-]+)\/request-access$/);
+        if (reqAccess && req.method === 'POST') return await apiRequestAccess(env, user, reqAccess[1], baseUrl);
+        const appPath = path.match(/^\/api\/apps\/([a-z0-9-]+)$/);
+        if (appPath && req.method === 'GET') return await apiAppGet(env, user, appPath[1], baseUrl);
+        if (appPath && req.method === 'PATCH') return await apiAppPatch(req, env, user, appPath[1]);
+        if (path === '/api/unshare' && req.method === 'POST') return await apiUnshare(req, env, user);
+        if (path === '/api/runbook' && req.method === 'PUT') return await apiRunbookSave(req, env, user);
         if (path === '/api/logs' && req.method === 'GET') return await apiLogs(req, env, user);
         if (path === '/api/request-logs' && req.method === 'GET') return await apiRequestLogs(req, env, user);
         if (path === '/api/review' && req.method === 'GET') return await apiReview(req, env, user);
@@ -542,6 +693,14 @@ export default {
       if (path === '/test/session' && req.method === 'POST') return await testSession(req, env);
       const m = path.match(/^\/a\/([a-z0-9-]+)\/([a-z0-9-]+)(\/.*)?$/);
       if (m) return await proxyApp(req, env, m[1], m[2], m[3] || '', baseUrl);
+      // Web dashboard: built packages/web assets ride on this Worker so /api is same-origin.
+      // Only dashboard paths delegate — everything else keeps the Worker's own pages/404.
+      // SPA shell ships inside the worker (no-store) — workers.dev's asset edge cache
+      // outlived deploys and served stale HTML/405s on the old /apps + /assets/* URLs.
+      // /dash is a clean alias while the poisoned /apps cache entry ages out.
+      if (path === '/apps' || path === '/dash' || path.startsWith('/apps/'))
+        return new Response(SHELL, { headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' } });
+      if (env.ASSETS && (path.startsWith('/static/') || path === '/favicon.svg')) return env.ASSETS.fetch(req);
       if (path === '/') return html('<h2>small</h2><p>Deploy a Python app behind a login in one command: <code>npm i -g small-deploy</code></p>');
       return html('<p>Not found.</p>', 404);
     } catch (err) {

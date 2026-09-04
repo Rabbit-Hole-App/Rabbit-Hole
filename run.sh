@@ -105,9 +105,27 @@ function test:integration {
     uv run pytest "$THIS_DIR/tests/integration_tests/"
 }
 
-# deploy the control plane worker to Cloudflare
+# deploy the control plane worker to Cloudflare (wrangler.jsonc mounts ../web/dist, so build first)
 function cp:deploy {
+    (cd "$THIS_DIR/packages/web" && npm run build)
     (cd "$THIS_DIR/packages/control-plane" && npx wrangler deploy)
+}
+
+# ---------- web dashboard ----------
+
+# Vite dev server with /api proxied to the control plane (SMALL_API from repo .env)
+function web:dev {
+    (cd "$THIS_DIR/packages/web" && npm run dev)
+}
+
+# build the dashboard and ship it — assets ride on the small-cp worker, same origin as /api
+function web:deploy {
+    cp:deploy
+}
+
+# Playwright e2e: bypass login, see the app list, run a job to finished
+function web:test {
+    (cd "$THIS_DIR/packages/web" && npx playwright test)
 }
 
 # live-tail control plane logs

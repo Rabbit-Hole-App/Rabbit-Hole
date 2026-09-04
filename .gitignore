@@ -149,6 +149,8 @@ vite.config.ts.timestamp-*
 skills-lock.json
 # small
 .small/
+packages/web/test-results/
+packages/web/playwright-report/
 examples/counter/counter.db
 packages/cli/assets/
 packages/control-plane/.dev.vars
