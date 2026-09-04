@@ -5,13 +5,14 @@ app = Flask(__name__)
 count = 0
 
 
+# Relative URLs only — the app is served under a path prefix behind the proxy.
 @app.route("/")
 def home():
-    return f"<h1>count: {count}</h1><form method='post' action='/inc'><button>+1</button></form>"
+    return f"<h1>count: {count}</h1><form method='post' action='inc'><button>+1</button></form>"
 
 
 @app.post("/inc")
 def inc():
     global count
     count += 1
-    return redirect("/")
+    return redirect(".", code=303)

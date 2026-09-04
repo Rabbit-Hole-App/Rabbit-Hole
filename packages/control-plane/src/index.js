@@ -63,7 +63,10 @@ async function apiLogin(req, env) {
   const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
   const challenge = await sign({ t: 'challenge', email, codeHash: await sha256(code), exp: now() + 600 }, env.MASTER_KEY);
   const sent = await sendEmail(env, email, `small login code: ${code}`, `Your small login code is ${code}\nIt expires in 10 minutes.`);
-  return json(sent ? { challenge } : { challenge, devCode: code, warning: 'email not configured — code echoed' });
+  if (sent) return json({ challenge });
+  // Echoing the code is an auth bypass — only allowed on test/dev instances (marked by TEST_BYPASS_SECRET).
+  if (!env.TEST_BYPASS_SECRET) return json({ error: 'email not configured on this control plane' }, 503);
+  return json({ challenge, devCode: code, warning: 'test instance — code echoed' });
 }
 
 async function apiVerify(req, env) {
@@ -141,7 +144,8 @@ async function loginPage(req, env, baseUrl) {
     const link = `${baseUrl}/auth?token=${encodeURIComponent(magic)}`;
     const sent = await sendEmail(env, email, 'Your small sign-in link', `Sign in: ${link}\nExpires in 15 minutes.`);
     if (sent) return html(`<h2>Check your inbox</h2><p>We sent a sign-in link to <b>${email}</b>.</p>`);
-    return html(`<h2>Email not configured</h2><p>Dev sign-in link:</p><p><a href="${link}">${link}</a></p>`);
+    if (!env.TEST_BYPASS_SECRET) return html('<p>Email is not configured on this control plane.</p>', 503);
+    return html(`<h2>Test instance</h2><p>Dev sign-in link:</p><p><a href="${link}">${link}</a></p>`);
   }
   return html(`<h2>Sign in to small</h2><form method=post><input name=email type=email placeholder=you@company.com required autofocus> <button>Send link</button></form>`);
 }

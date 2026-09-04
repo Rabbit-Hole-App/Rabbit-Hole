@@ -1,17 +1,24 @@
 'use strict';
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { spawnSync } = require('child_process');
+
+function flyctlBin() {
+  const local = path.join(os.homedir(), '.fly', 'bin', process.platform === 'win32' ? 'flyctl.exe' : 'flyctl');
+  return fs.existsSync(local) ? local : 'flyctl'; // fall back to PATH
+}
 
 function flyEnv(token) {
   return { ...process.env, FLY_API_TOKEN: token, FLY_ACCESS_TOKEN: token, FLY_NO_UPDATE_CHECK: '1' };
 }
 
 function run(args, token, { capture = false, cwd } = {}) {
-  const r = spawnSync('flyctl', args, {
+  const r = spawnSync(flyctlBin(), args, {
     env: flyEnv(token),
     cwd,
     stdio: capture ? ['ignore', 'pipe', 'pipe'] : 'inherit',
     encoding: 'utf8',
-    shell: process.platform === 'win32', // flyctl is a .exe wrapper on Windows installs
   });
   if (r.error && r.error.code === 'ENOENT') {
     throw new Error('flyctl not installed — https://fly.io/docs/flyctl/install/');
