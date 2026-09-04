@@ -18,6 +18,12 @@ CREATE TABLE IF NOT EXISTS apps (
   review_prev TEXT,
   reviewed_at TEXT,
   review_model TEXT,
+  repo_url TEXT,
+  repo_branch TEXT,
+  repo_commit TEXT,
+  repo_dirty INTEGER,
+  repo_public INTEGER,
+  deployed_at TEXT,
   UNIQUE(org, name)
 );
 -- migrating an existing DB:
@@ -29,6 +35,17 @@ CREATE TABLE IF NOT EXISTS members (
   email TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'view',
   UNIQUE(app_id, email)
+);
+
+CREATE TABLE IF NOT EXISTS deploys (
+  id INTEGER PRIMARY KEY,
+  app_id INTEGER NOT NULL REFERENCES apps(id),
+  repo_url TEXT,
+  branch TEXT,
+  commit_sha TEXT,
+  dirty INTEGER,
+  deployed_by TEXT NOT NULL,
+  deployed_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS runs (

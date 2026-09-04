@@ -246,6 +246,52 @@ def test_count_survives_machine_replacement(deployed, cli_config, project_dir):
     assert count() == before + 3, "count did not survive machine replacement"
 
 
+def test_deploy_outside_git_prints_no_repo(deployed):
+    assert "source: not a git repo" in deployed["stdout"]
+
+
+def test_source_provenance_recorded(deployed, cli_config, project_dir):
+    """Turn the fixture dir into a git repo at a known commit, redeploy, and assert
+    the ✓ source line plus the deploys row (SHA, branch, normalized origin, clean tree).
+    Runs after the main deploy — the earlier tests saw the not-a-git-repo path."""
+    def git(*args):
+        r = subprocess.run(
+            ["git", "-c", "user.email=t@t", "-c", "user.name=t", *args],
+            cwd=project_dir, capture_output=True, text=True, timeout=30,
+        )
+        assert r.returncode == 0, r.stderr
+        return r.stdout.strip()
+
+    git("init")
+    git("remote", "add", "origin", "git@github.com:Pipeship-Studio/small-deploy.git")
+    git("add", ".")
+    git("commit", "-m", "itest provenance", "--no-gpg-sign")
+    sha = git("rev-parse", "HEAD")
+    branch = git("rev-parse", "--abbrev-ref", "HEAD")
+
+    r = subprocess.run(
+        [small(), "deploy"], cwd=project_dir, capture_output=True, text=True, timeout=600, encoding="utf-8", errors="replace"
+    )
+    assert r.returncode == 0, f"redeploy failed:\n{r.stdout}\n{r.stderr}"
+    assert f"✓ source: github.com/Pipeship-Studio/small-deploy @ {branch} {sha[:7]}" in r.stdout
+    assert "uncommitted changes" not in r.stdout
+
+    status, body = http(
+        "GET", f"{API}/api/apps/{APP_NAME}/deploys", headers={"Authorization": f"Bearer {cli_config['token']}"}
+    )
+    assert status == 200, body
+    res = json.loads(body)
+    assert len(res["deploys"]) >= 2, "history missing — expected the earlier non-git deploy too"
+    latest = res["deploys"][0]
+    assert latest["commit_sha"] == sha
+    assert latest["branch"] == branch
+    assert latest["repo_url"] == "https://github.com/Pipeship-Studio/small-deploy"
+    assert latest["dirty"] == 0
+    assert latest["deployed_by"] == cli_config["email"]
+    # this run's first deploy was outside git; the table persists across runs, so look for any null-commit row
+    assert any(d["commit_sha"] is None for d in res["deploys"]), "the non-git deploy left no provenance-free row"
+
+
 def test_request_logs(deployed, cli_config):
     """Three clicks as two users through the wall + one direct fly.dev hit →
     small logs shows the three lines with the right users/statuses and a

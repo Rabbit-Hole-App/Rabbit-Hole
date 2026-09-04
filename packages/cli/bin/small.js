@@ -11,6 +11,7 @@ const { buildBundle } = require('../lib/bundle');
 const config = require('../lib/config');
 const envfile = require('../lib/envfile');
 const fly = require('../lib/fly');
+const source = require('../lib/source');
 
 const [cmd, ...rest] = process.argv.slice(2);
 const flags = { _: [] };
@@ -144,6 +145,15 @@ const commands = {
     const app = detect(dir, flags);
     console.log(`✓ entry: ${app.entry} (${app.framework}) via ${app.via}`);
 
+    const src = source.capture(dir);
+    if (src) {
+      const repo = src.repoUrl ? `${src.repoUrl.replace(/^https:\/\//, '')} @ ` : '';
+      console.log(`✓ source: ${repo}${src.branch} ${src.shortCommit}`);
+      if (src.dirty) console.log('⚠ uncommitted changes deployed — commit before sharing');
+    } else {
+      console.log('source: not a git repo');
+    }
+
     const envPath = path.resolve(dir, typeof flags.env === 'string' ? flags.env : '.env');
     const secrets = envfile.parse(envPath);
     const required = (app.config.secrets && app.config.secrets.required) || [];
@@ -171,6 +181,7 @@ const commands = {
       kind,
       storage: storage ? { sizeGb } : undefined,
       schedule: kind === 'job' ? schedule || null : undefined, // null clears a removed schedule
+      source: src ? { repoUrl: src.repoUrl, branch: src.branch, commit: src.commit, dirty: src.dirty } : undefined,
     });
     if (!d.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
     if (storage && !d.volumeRegion) throw new Error('control plane does not support [storage] yet — redeploy the worker');

@@ -82,8 +82,22 @@ async function apiVerify(req, env) {
   return json({ token, email: p.email, org: orgOf(p.email) });
 }
 
+// 200 = public, 404 = private or nonexistent, anything else (rate limit, outage) = unknown.
+// Unauthenticated on purpose — never store a token; private repos just get plain SHAs.
+// ponytail: 60 req/h unauth limit shared across CF egress IPs; null (unknown) when it trips
+async function repoPublic(repoUrl) {
+  const m = (repoUrl || '').match(/^https:\/\/github\.com\/([^/]+\/[^/]+)$/);
+  if (!m) return null;
+  try {
+    const r = await fetch(`https://api.github.com/repos/${m[1]}`, { headers: { 'User-Agent': 'small-cp' } });
+    return r.status === 200 ? 1 : r.status === 404 ? 0 : null;
+  } catch {
+    return null;
+  }
+}
+
 async function apiDeploy(req, env, ctx, user, baseUrl) {
-  const { name, framework, visibility, awsRoleArn, kind, review, storage, schedule } = await req.json();
+  const { name, framework, visibility, awsRoleArn, kind, review, storage, schedule, source } = await req.json();
   if (!name || !/^[a-z0-9-]{1,40}$/.test(name)) return json({ error: 'name must be [a-z0-9-]' }, 400);
   let nextAt = null;
   if (schedule) {
@@ -121,6 +135,22 @@ async function apiDeploy(req, env, ctx, user, baseUrl) {
   } catch (e) {
     return json({ error: e.message }, 502);
   }
+  // Source provenance: one deploys row per deploy, latest mirrored on the app row.
+  // No source (not a git repo) clears the app-row copy — stale repo info under a fresh
+  // deployed_at would claim the deployed code matches a commit it doesn't.
+  const src = {
+    repoUrl: source && source.repoUrl ? String(source.repoUrl).slice(0, 300) : null,
+    branch: source && source.branch ? String(source.branch).slice(0, 100) : null,
+    commit: source && /^[0-9a-f]{7,40}$/.test(source.commit || '') ? source.commit : null,
+    dirty: source ? (source.dirty ? 1 : 0) : null,
+  };
+  const isPublic = src.repoUrl ? await repoPublic(src.repoUrl) : null;
+  await env.DB.prepare(
+    "UPDATE apps SET repo_url = ?, repo_branch = ?, repo_commit = ?, repo_dirty = ?, repo_public = ?, deployed_at = datetime('now') WHERE id = ?"
+  ).bind(src.repoUrl, src.branch, src.commit, src.dirty, isPublic, app.id).run();
+  await env.DB.prepare(
+    'INSERT INTO deploys (app_id, repo_url, branch, commit_sha, dirty, deployed_by) VALUES (?, ?, ?, ?, ?, ?)'
+  ).bind(app.id, src.repoUrl, src.branch, src.commit, src.dirty, user.email).run();
   // Review runs concurrently with the CLI-side Fly build; it never blocks or fails the deploy.
   const reviewStarted = !!(env.ANTHROPIC_API_KEY && review && review.bundle);
   if (reviewStarted) ctx.waitUntil(runReview(env, app.id, review.bundle, review.skipped || []));
@@ -197,6 +227,16 @@ async function apiShare(req, env, user) {
 async function apiApps(env, user) {
   const { results } = await env.DB.prepare('SELECT name, visibility, owner_email, fly_app, created_at FROM apps WHERE org = ? ORDER BY name').bind(user.org).all();
   return json({ apps: results });
+}
+
+async function apiDeploys(env, user, slug) {
+  const app = await appRow(env, user.org, slug);
+  if (!app) return json({ error: `no app named ${slug}` }, 404);
+  if (!(await canView(env, app, user.email))) return json({ error: 'no access' }, 403);
+  const { results } = await env.DB.prepare(
+    'SELECT repo_url, branch, commit_sha, dirty, deployed_by, deployed_at FROM deploys WHERE app_id = ? ORDER BY id DESC'
+  ).bind(app.id).all();
+  return json({ deploys: results, repoPublic: app.repo_public });
 }
 
 async function apiLogs(req, env, user) {
@@ -488,6 +528,8 @@ export default {
         if (path === '/api/schedule' && req.method === 'POST') return await apiSchedulePause(req, env, user);
         if (path === '/api/share' && req.method === 'POST') return await apiShare(req, env, user);
         if (path === '/api/apps' && req.method === 'GET') return await apiApps(env, user);
+        const deploysGet = path.match(/^\/api\/apps\/([a-z0-9-]+)\/deploys$/);
+        if (deploysGet && req.method === 'GET') return await apiDeploys(env, user, deploysGet[1]);
         if (path === '/api/logs' && req.method === 'GET') return await apiLogs(req, env, user);
         if (path === '/api/request-logs' && req.method === 'GET') return await apiRequestLogs(req, env, user);
         if (path === '/api/review' && req.method === 'GET') return await apiReview(req, env, user);

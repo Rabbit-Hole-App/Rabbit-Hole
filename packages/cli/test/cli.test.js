@@ -142,6 +142,43 @@ test('dockerfile + write for a job: runner.py, no guard, no port', () => {
   assert.ok(!fs.existsSync(path.join(out, 'guard.py')));
 });
 
+test('source: normalizeRemote handles ssh, scp and https shapes', () => {
+  const { normalizeRemote } = require('../lib/source');
+  assert.equal(normalizeRemote('git@github.com:acme/tools.git'), 'https://github.com/acme/tools');
+  assert.equal(normalizeRemote('ssh://git@github.com/acme/tools.git'), 'https://github.com/acme/tools');
+  assert.equal(normalizeRemote('https://github.com/acme/tools.git'), 'https://github.com/acme/tools');
+  assert.equal(normalizeRemote('https://github.com/acme/tools'), 'https://github.com/acme/tools');
+  assert.equal(normalizeRemote('https://gitlab.com/acme/sub/tools.git'), 'https://gitlab.com/acme/sub/tools');
+  assert.equal(normalizeRemote('not a url'), null);
+  assert.equal(normalizeRemote(null), null);
+});
+
+test('source: capture reads commit, branch and dirty from a real repo; null outside one', () => {
+  const { spawnSync } = require('node:child_process');
+  const { capture } = require('../lib/source');
+  const dir = tmp({ 'app.py': 'print(1)' });
+  assert.equal(capture(dir), null); // temp dir is not a repo
+
+  const git = (...args) => {
+    const r = spawnSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...args], { cwd: dir, encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    return r.stdout.trim();
+  };
+  git('init');
+  git('remote', 'add', 'origin', 'git@github.com:acme/tools.git');
+  git('add', '.');
+  git('commit', '-m', 'x', '--no-gpg-sign');
+  const clean = capture(dir);
+  assert.equal(clean.repoUrl, 'https://github.com/acme/tools');
+  assert.equal(clean.commit, git('rev-parse', 'HEAD'));
+  assert.equal(clean.branch, git('rev-parse', '--abbrev-ref', 'HEAD'));
+  assert.ok(clean.commit.startsWith(clean.shortCommit));
+  assert.equal(clean.dirty, false);
+
+  fs.writeFileSync(path.join(dir, 'extra.py'), 'print(2)');
+  assert.equal(capture(dir).dirty, true);
+});
+
 test('dockerfile + write for counter example', () => {
   const counter = path.join(__dirname, '..', '..', '..', 'examples', 'counter');
   const app = detect(counter);
