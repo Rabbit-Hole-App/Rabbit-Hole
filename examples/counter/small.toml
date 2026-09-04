@@ -1,0 +1,3 @@
+name = "counter"
+entry = "app.py"
+framework = "flask"

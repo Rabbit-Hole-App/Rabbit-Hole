@@ -1,0 +1,13 @@
+{
+  "name": "small-deploy",
+  "version": "0.0.1",
+  "description": "Deploy a Python app behind a login in one command",
+  "bin": { "small": "bin/small.js" },
+  "files": ["bin", "lib", "assets"],
+  "scripts": {
+    "test": "node --test",
+    "prepack": "node scripts/sync-guard.js"
+  },
+  "license": "MIT",
+  "engines": { "node": ">=18" }
+}
