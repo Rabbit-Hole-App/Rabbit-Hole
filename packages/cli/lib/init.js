@@ -2,6 +2,8 @@
 const fs = require('fs');
 const path = require('path');
 const { detect } = require('./detect');
+const { checkSchema } = require('./inputs');
+const { parse } = require('./toml');
 
 // os.environ["X"], os.environ.get("X"), os.getenv("X")
 const ENV_RE = /os\.environ\[\s*["']([A-Za-z_]\w*)["']\s*\]|os\.(?:getenv|environ\.get)\(\s*["']([A-Za-z_]\w*)["']/g;
@@ -10,6 +12,7 @@ const ENV_RE = /os\.environ\[\s*["']([A-Za-z_]\w*)["']\s*\]|os\.(?:getenv|enviro
 function init(dir, { force = false } = {}) {
   const tomlPath = path.join(dir, 'small.toml');
   if (fs.existsSync(tomlPath) && !force) {
+    checkSchema(parse(fs.readFileSync(tomlPath, 'utf8'))); // bad [inputs] type stops init in one line
     console.log('small.toml already exists — use --force to overwrite');
     return true;
   }

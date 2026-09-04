@@ -6,12 +6,14 @@ const readline = require('node:readline/promises');
 const { detect } = require('../lib/detect');
 const { init } = require('../lib/init');
 const { write, writeFlyToml } = require('../lib/generate');
-const { call, apiBase } = require('../lib/api');
+const { call, apiBase, fetchRaw } = require('../lib/api');
 const { buildBundle } = require('../lib/bundle');
 const config = require('../lib/config');
 const envfile = require('../lib/envfile');
 const fly = require('../lib/fly');
+const inputs = require('../lib/inputs');
 const source = require('../lib/source');
+const toml = require('../lib/toml');
 
 const [cmd, ...rest] = process.argv.slice(2);
 const flags = { _: [] };
@@ -34,6 +36,44 @@ async function ask(question) {
 function appName(dir) {
   if (flags.app) return flags.app;
   return detect(dir).name;
+}
+
+function fmtSize(b) {
+  return b < 1024 ? `${b} B` : b < 1048576 ? `${Math.round(b / 1024)} KB` : `${(b / 1048576).toFixed(1)} MB`;
+}
+
+// The [inputs] schema lives in the local small.toml; running someone else's app
+// from elsewhere has no schema to validate against.
+function localConfig(name) {
+  const p = path.join(process.cwd(), 'small.toml');
+  if (!fs.existsSync(p)) return null;
+  const cfg = toml.parse(fs.readFileSync(p, 'utf8'));
+  const local = cfg.name || path.basename(process.cwd()).toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  return local === name ? cfg : null;
+}
+
+async function printOutputs(name, runId) {
+  // ponytail: catch-all until the control-plane outputs routes ship
+  const res = await call('GET', `/api/runs/${encodeURIComponent(runId)}/outputs`).catch(() => null);
+  if (!res || !(res.outputs || []).length) return;
+  console.log('outputs:');
+  for (const o of res.outputs) console.log(`  ${o.name}  ${fmtSize(o.size)}`);
+  console.log(`fetch: small run ${name} --download ./out`);
+}
+
+async function downloadOutputs(name, dir) {
+  const { runs } = await call('GET', `/api/runs?app=${encodeURIComponent(name)}`);
+  const last = (runs || []).find((r) => r.status === 'finished'); // list is newest-first
+  if (!last) throw new Error(`no finished runs for ${name}`);
+  const { outputs } = await call('GET', `/api/runs/${encodeURIComponent(last.run_id)}/outputs`);
+  if (!(outputs || []).length) return console.log(`run ${last.run_id} produced no outputs`);
+  for (const o of outputs) {
+    if (o.name.includes('..')) continue; // never let a server-supplied name walk out of dir
+    const dest = path.join(dir, o.name);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, await fetchRaw(`/api/runs/${encodeURIComponent(last.run_id)}/outputs/${encodeURIComponent(o.name)}`));
+    console.log(`✓ wrote ${dest} (${fmtSize(o.size)})`);
+  }
 }
 
 // ---------- deploy review output ----------
@@ -144,6 +184,7 @@ const commands = {
     }
     const app = detect(dir, flags);
     console.log(`✓ entry: ${app.entry} (${app.framework}) via ${app.via}`);
+    inputs.checkSchema(app.config); // bad [inputs]/[outputs] stops the deploy here
 
     const src = source.capture(dir);
     if (src) {
@@ -269,7 +310,33 @@ const commands = {
 
   async run() {
     const name = flags._[0] || appName(process.cwd());
-    const { runId } = await call('POST', '/api/runs', { app: name });
+    if (flags.download) return downloadOutputs(name, typeof flags.download === 'string' ? flags.download : '.');
+
+    const cfg = localConfig(name);
+    if (cfg) inputs.checkSchema(cfg);
+    const extra = Object.keys(flags).filter((k) => !['_', 'app'].includes(k));
+    if (!cfg && extra.length) throw new Error(`--${extra[0]}: no small.toml for ${name} here — run from the app directory to pass inputs`);
+    const { values, files } = cfg ? inputs.validate(cfg.inputs, flags) : { values: {}, files: {} };
+
+    if (Object.keys(values).length) {
+      const line = Object.entries(values)
+        .map(([k, v]) => (files[k] ? `${k}=${v} (${fmtSize(files[k].size)})` : `${k}=${v}`))
+        .join(' · ');
+      console.log(`✓ inputs: ${line}`);
+    }
+    const total = Object.values(files).reduce((s, f) => s + f.size, 0);
+    if (total > 100 * 1024 * 1024) throw new Error(`input files total ${fmtSize(total)} — cap is 100 MB per run`);
+
+    let body;
+    if (Object.keys(files).length) {
+      // files ride a multipart POST; scalars stay in the JSON part
+      body = new FormData();
+      body.append('body', JSON.stringify({ app: name, inputs: values }));
+      for (const [n, f] of Object.entries(files)) body.append(`input:${n}`, new Blob([fs.readFileSync(f.path)]), path.basename(f.path));
+    } else {
+      body = { app: name, inputs: Object.keys(values).length ? values : undefined };
+    }
+    const { runId } = await call('POST', '/api/runs', body);
     console.log(`run: ${runId}`);
     let cursor = -1;
     for (;;) {
@@ -278,6 +345,7 @@ const commands = {
       if (r.lines.length) cursor = r.cursor;
       if (r.status !== 'running' && !r.lines.length) {
         console.log(r.exitCode === 0 ? `✓ finished (exit ${r.exitCode})` : `✗ failed (exit ${r.exitCode})`);
+        await printOutputs(name, runId);
         process.exitCode = r.exitCode === 0 ? 0 : 1;
         return;
       }

@@ -8,6 +8,7 @@ const { detect } = require('../lib/detect');
 const { init } = require('../lib/init');
 const { runCommand, dockerfile, write, writeFlyToml } = require('../lib/generate');
 const { parse } = require('../lib/toml');
+const { checkSchema, validate } = require('../lib/inputs');
 
 function tmp(files) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'small-test-'));
@@ -177,6 +178,66 @@ test('source: capture reads commit, branch and dirty from a real repo; null outs
 
   fs.writeFileSync(path.join(dir, 'extra.py'), 'print(2)');
   assert.equal(capture(dir).dirty, true);
+});
+
+test('toml: inline tables for [inputs], commas inside strings survive', () => {
+  const t = parse(
+    '[inputs]\n' +
+      'image = { type = "file", required = true, accept = ".jpg,.png", help = "Photo to analyse" }\n' +
+      'threshold = { type = "number", default = 0.5, min = 0, max = 1 }\n' +
+      'account = { type = "select", options = ["acme", "globex"] }\n' +
+      '\n[outputs]\nreport = { path = "report.pdf", label = "Weekly report" }\n'
+  );
+  assert.deepEqual(t.inputs.image, { type: 'file', required: true, accept: '.jpg,.png', help: 'Photo to analyse' });
+  assert.deepEqual(t.inputs.threshold, { type: 'number', default: 0.5, min: 0, max: 1 });
+  assert.deepEqual(t.inputs.account.options, ['acme', 'globex']);
+  assert.equal(t.outputs.report.path, 'report.pdf');
+});
+
+test('inputs: schema accepts the six types, rejects a seventh', () => {
+  checkSchema({
+    inputs: { a: { type: 'file' }, b: { type: 'number' }, c: { type: 'select', options: [] }, d: { type: 'date' }, e: { type: 'text' }, f: { type: 'bool' } },
+    outputs: { r: { path: 'r.pdf' } },
+  });
+  assert.throws(() => checkSchema({ inputs: { x: { type: 'csv' } } }), /unknown type "csv"/);
+  assert.throws(() => checkSchema({ inputs: { x: { type: 'select' } } }), /needs options/);
+  assert.throws(() => checkSchema({ outputs: { r: { label: 'x' } } }), /needs path/);
+});
+
+test('inputs: validate — required, range, options, accept, pattern, defaults', () => {
+  const schema = {
+    image: { type: 'file', required: true, accept: '.jpg,.png' },
+    threshold: { type: 'number', default: 0.5, min: 0, max: 1 },
+    account: { type: 'select', options: ['acme', 'globex'] },
+    since: { type: 'date', default: '-7d' },
+    label: { type: 'text', pattern: '^[a-z0-9-]*$' },
+    dry_run: { type: 'bool', default: false },
+  };
+  const dir = tmp({ 'photo.jpg': 'x' });
+  const img = path.join(dir, 'photo.jpg');
+
+  const { values, files } = validate(schema, { _: [], image: img, threshold: '0.7', account: 'acme', label: 'ok-1', 'dry-run': true });
+  assert.equal(values.image, 'photo.jpg'); // run row records the original filename
+  assert.equal(values.threshold, 0.7);
+  assert.equal(values.dry_run, true);
+  assert.match(values.since, /^\d{4}-\d{2}-\d{2}$/); // "-7d" resolved to a concrete date
+  assert.equal(files.image.path, img);
+  assert.ok(files.image.size > 0);
+
+  const def = validate(schema, { _: [], image: img });
+  assert.equal(def.values.threshold, 0.5);
+  assert.equal(def.values.dry_run, false);
+
+  assert.throws(() => validate(schema, { _: [] }), /--image is required/);
+  assert.throws(() => validate(schema, { _: [], image: img, threshold: '2' }), /out of range/); // fails before upload
+  assert.throws(() => validate(schema, { _: [], image: img, threshold: 'abc' }), /must be a number/);
+  assert.throws(() => validate(schema, { _: [], image: img, account: 'initech' }), /must be one of/);
+  assert.throws(() => validate(schema, { _: [], image: img, label: 'NOPE' }), /must match/);
+  assert.throws(() => validate(schema, { _: [], image: img.replace('.jpg', '.gif') }), /not in accept/);
+  assert.throws(() => validate(schema, { _: [], image: path.join(dir, 'gone.jpg') }), /not found/);
+  assert.throws(() => validate(schema, { _: [], image: img, since: 'yesterday' }), /YYYY-MM-DD/);
+  assert.throws(() => validate(schema, { _: [], image: img, bogus: '1' }), /unknown input --bogus/);
+  assert.throws(() => validate({}, { _: [], bogus: '1' }), /declares no \[inputs\]/);
 });
 
 test('dockerfile + write for counter example', () => {

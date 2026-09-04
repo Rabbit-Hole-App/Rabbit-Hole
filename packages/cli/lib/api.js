@@ -9,7 +9,8 @@ function apiBase() {
 }
 
 async function call(method, path, body, { auth = true } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
+  const isForm = body instanceof FormData; // fetch sets the multipart boundary itself
+  const headers = isForm ? {} : { 'Content-Type': 'application/json' };
   if (auth) {
     const { token } = load();
     if (!token) throw new Error('not logged in — run: small login');
@@ -18,11 +19,20 @@ async function call(method, path, body, { auth = true } = {}) {
   const resp = await fetch(apiBase() + path, {
     method,
     headers,
-    body: body ? JSON.stringify(body) : undefined,
+    body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
   });
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) throw new Error(data.error || `${path} failed (${resp.status})`);
   return data;
 }
 
-module.exports = { call, apiBase };
+// Binary GET for run outputs — call() assumes JSON responses.
+async function fetchRaw(path) {
+  const { token } = load();
+  if (!token) throw new Error('not logged in — run: small login');
+  const resp = await fetch(apiBase() + path, { headers: { Authorization: `Bearer ${token}` } });
+  if (!resp.ok) throw new Error(`${path} failed (${resp.status})`);
+  return Buffer.from(await resp.arrayBuffer());
+}
+
+module.exports = { call, apiBase, fetchRaw };
