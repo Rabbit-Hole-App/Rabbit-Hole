@@ -10,9 +10,11 @@
       "database_id": "3a9cc077-4dc8-4fbd-8bf7-8ed3b971af8b"
     }
   ],
+  "triggers": { "crons": ["* * * * *"] },
   "vars": {
     "FLY_ORG_SLUG": "personal",
-    "FLY_ORG_ID": "yw2NK09lG62eytyo75jV2OwzbVT8K410y"
+    "FLY_ORG_ID": "yw2NK09lG62eytyo75jV2OwzbVT8K410y",
+    "BASE_URL": "https://small-cp.zeroshothq.workers.dev" // scheduled() has no request URL; runner needs SMALL_API
   }
   // secrets (wrangler secret put): MASTER_KEY, FLY_ORG_TOKEN (machine/app ops), FLY_API_TOKEN (minting only),
   // RESEND_API_KEY (optional), TEST_BYPASS_SECRET (test envs only), EMAIL_FROM (optional),

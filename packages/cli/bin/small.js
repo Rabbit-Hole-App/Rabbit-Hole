@@ -159,6 +159,7 @@ const commands = {
     }
     const awsRoleArn = (app.config.aws && app.config.aws.role_arn) || undefined;
     const kind = app.config.kind === 'job' ? 'job' : 'server';
+    const schedule = app.config.schedule;
     const d = await call('POST', '/api/deploy', {
       name: app.name,
       framework: app.framework,
@@ -167,6 +168,7 @@ const commands = {
       kind,
       review,
       storage: storage ? { sizeGb } : undefined,
+      schedule: kind === 'job' ? schedule || null : undefined, // null clears a removed schedule
     });
     if (!d.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
     if (storage && !d.volumeRegion) throw new Error('control plane does not support [storage] yet — redeploy the worker');
@@ -174,6 +176,13 @@ const commands = {
     if (storage) console.log(`✓ storage: ${storage.path || '/data'} (${sizeGb}GB volume in ${d.volumeRegion}, survives redeploys)`);
 
     if (kind === 'job') {
+      if (schedule) {
+        if (!d.nextRun && !d.schedulePaused) throw new Error('control plane does not support schedule yet — redeploy the worker');
+        const next = d.schedulePaused
+          ? `paused — small schedule resume ${app.name}`
+          : `next run ${new Date(d.nextRun).toISOString().slice(0, 16).replace('T', ' ')}`;
+        console.log(`✓ schedule: ${schedule} (UTC) · ${next}`);
+      }
       // jobs: build + register the image, start nothing — the control plane starts machines per run
       fly.setSecrets(d.flyApp, d.flyToken, secrets);
       const image = fly.buildImage(d.flyApp, d.flyToken, dir, `v${Date.now()}`);
@@ -229,9 +238,18 @@ const commands = {
     if (!runs.length) return console.log(`no runs yet — small run ${name}`);
     for (const r of runs) {
       // sqlite datetime('now') strings are UTC without a zone marker
-      const dur = r.finished_at ? `${Math.round((new Date(r.finished_at + 'Z') - new Date(r.started_at + 'Z')) / 1000)}s` : '…';
-      console.log(`${r.run_id}  ${r.status}  ${dur}  ${r.started_by}  ${r.started_at}`);
+      const dur = r.status === 'skipped' ? '—' : r.finished_at ? `${Math.round((new Date(r.finished_at + 'Z') - new Date(r.started_at + 'Z')) / 1000)}s` : '…';
+      const by = r.started_by === 'cron' ? '⏱ cron' : r.started_by;
+      console.log(`${r.run_id}  ${r.status}  ${dur}  ${by}  ${r.started_at}${r.reason ? `  (${r.reason})` : ''}`);
     }
+  },
+
+  async schedule() {
+    const action = flags._[0];
+    if (!['pause', 'resume'].includes(action)) throw new Error('usage: small schedule <pause|resume> [app]');
+    const name = flags._[1] || appName(process.cwd());
+    const res = await call('POST', '/api/schedule', { app: name, paused: action === 'pause' });
+    console.log(`✓ schedule ${res.paused ? 'paused' : 'resumed'} for ${name} (${res.schedule})`);
   },
 
   async logs() {
@@ -265,7 +283,7 @@ const commands = {
 
 const run = commands[cmd];
 if (!run) {
-  console.log('usage: small <login|init|deploy|run|runs|share|list|logs|review>');
+  console.log('usage: small <login|init|deploy|run|runs|schedule|share|list|logs|review>');
   process.exitCode = 1;
 } else {
   run().catch((err) => {

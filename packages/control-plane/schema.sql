@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS apps (
   deploy_token TEXT,
   kind TEXT NOT NULL DEFAULT 'server',
   image TEXT,
+  schedule TEXT,
+  schedule_paused INTEGER NOT NULL DEFAULT 0,
+  last_scheduled_at INTEGER,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   review TEXT,
   review_prev TEXT,
@@ -36,7 +39,8 @@ CREATE TABLE IF NOT EXISTS runs (
   started_at TEXT NOT NULL DEFAULT (datetime('now')),
   finished_at TEXT,
   status TEXT NOT NULL DEFAULT 'running',
-  exit_code INTEGER
+  exit_code INTEGER,
+  reason TEXT
 );
 
 CREATE TABLE IF NOT EXISTS run_logs (

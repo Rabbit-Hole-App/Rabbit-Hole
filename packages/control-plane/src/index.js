@@ -4,6 +4,7 @@ import { sign, verify, sha256, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine } from './fly.js';
 import { assumeRole } from './aws.js';
 import { runReview } from './review.js';
+import { parseCron, matches, nextRun } from './cron.js';
 
 const SESSION_COOKIE = 'small_session';
 const SESSION_TTL = 7 * 24 * 3600;
@@ -82,8 +83,17 @@ async function apiVerify(req, env) {
 }
 
 async function apiDeploy(req, env, ctx, user, baseUrl) {
-  const { name, framework, visibility, awsRoleArn, kind, review, storage } = await req.json();
+  const { name, framework, visibility, awsRoleArn, kind, review, storage, schedule } = await req.json();
   if (!name || !/^[a-z0-9-]{1,40}$/.test(name)) return json({ error: 'name must be [a-z0-9-]' }, 400);
+  let nextAt = null;
+  if (schedule) {
+    if (kind !== 'job') return json({ error: 'schedule requires kind = "job" in small.toml' }, 400);
+    try {
+      nextAt = nextRun(parseCron(schedule), Date.now()); // also rejects "0 0 30 2 *" — valid syntax, never fires
+    } catch (e) {
+      return json({ error: `bad schedule "${schedule}": ${e.message} — use 5-field cron like "0 9 * * 1-5"` }, 400);
+    }
+  }
   if (storage && !(Number.isInteger(storage.sizeGb) && storage.sizeGb >= 1 && storage.sizeGb <= 100))
     return json({ error: 'storage.sizeGb must be an integer between 1 and 100' }, 400);
   if (awsRoleArn && !/^arn:aws:iam::\d{12}:role\/[\w+=,.@/-]+$/.test(awsRoleArn)) return json({ error: 'bad aws role arn' }, 400);
@@ -93,10 +103,11 @@ async function apiDeploy(req, env, ctx, user, baseUrl) {
     if (visibility) await env.DB.prepare('UPDATE apps SET visibility = ? WHERE id = ?').bind(visibility, app.id).run();
     if (awsRoleArn !== undefined) await env.DB.prepare('UPDATE apps SET aws_role_arn = ? WHERE id = ?').bind(awsRoleArn || null, app.id).run();
     if (kind) await env.DB.prepare('UPDATE apps SET kind = ? WHERE id = ?').bind(kind === 'job' ? 'job' : 'server', app.id).run();
+    if (schedule !== undefined) await env.DB.prepare('UPDATE apps SET schedule = ? WHERE id = ?').bind(schedule || null, app.id).run();
   } else {
     const flyApp = `small-${name}-${randomHex(3)}`;
-    await env.DB.prepare('INSERT INTO apps (org, name, fly_app, proxy_secret, visibility, owner_email, aws_role_arn, kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(user.org, name, flyApp, randomHex(32), visibility || 'domain', user.email, awsRoleArn || null, kind === 'job' ? 'job' : 'server')
+    await env.DB.prepare('INSERT INTO apps (org, name, fly_app, proxy_secret, visibility, owner_email, aws_role_arn, kind, schedule) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(user.org, name, flyApp, randomHex(32), visibility || 'domain', user.email, awsRoleArn || null, kind === 'job' ? 'job' : 'server', schedule || null)
       .run();
     app = await appRow(env, user.org, name);
   }
@@ -122,6 +133,8 @@ async function apiDeploy(req, env, ctx, user, baseUrl) {
     volumeRegion: volumeRegion || null,
     reviewStarted,
     reviewedAt: app.reviewed_at || null, // previous review's stamp; the CLI polls until it changes
+    nextRun: nextAt,
+    schedulePaused: !!app.schedule_paused,
   });
 }
 
@@ -198,6 +211,33 @@ async function apiImage(req, env, user) {
   return json({ ok: true });
 }
 
+// Shared by the manual /api/runs path and the cron tick. startedBy = email or "cron".
+// Marks the run failed and rethrows if the machine won't start.
+async function startRun(env, app, startedBy, baseUrl) {
+  const runId = 'r-' + randomHex(6);
+  await env.DB.prepare('INSERT INTO runs (run_id, app_id, started_by) VALUES (?, ?, ?)').bind(runId, app.id, startedBy).run();
+  const runToken = await sign({ t: 'run', run: runId, exp: now() + 6 * 3600 }, env.MASTER_KEY);
+  try {
+    await startMachine(env, app.fly_app, {
+      image: app.image,
+      auto_destroy: true,
+      restart: { policy: 'no' },
+      guest: { cpu_kind: 'shared', cpus: 1, memory_mb: 256 }, // ponytail: fixed size; read memory from small.toml when a job needs more
+      env: {
+        SMALL_RUN_ID: runId,
+        SMALL_RUN_TOKEN: runToken,
+        SMALL_USER: startedBy,
+        SMALL_API: baseUrl,
+        ...(startedBy === 'cron' ? { SMALL_TRIGGER: 'cron' } : {}),
+      },
+    });
+  } catch (e) {
+    await env.DB.prepare("UPDATE runs SET status = 'failed', finished_at = datetime('now') WHERE run_id = ?").bind(runId).run();
+    throw e;
+  }
+  return runId;
+}
+
 async function apiRunStart(req, env, user, baseUrl) {
   const { app: name } = await req.json();
   const app = await appRow(env, user.org, name);
@@ -206,22 +246,21 @@ async function apiRunStart(req, env, user, baseUrl) {
   if (app.kind !== 'job') return json({ error: `${name} is not a job — set kind = "job" in small.toml and redeploy` }, 400);
   if (!app.image) return json({ error: `no image for ${name} — run small deploy first` }, 409);
   if (!env.FLY_ORG_TOKEN && !env.FLY_API_TOKEN) return json({ error: 'control plane has no fly token configured' }, 503);
-  const runId = 'r-' + randomHex(6);
-  await env.DB.prepare('INSERT INTO runs (run_id, app_id, started_by) VALUES (?, ?, ?)').bind(runId, app.id, user.email).run();
-  const runToken = await sign({ t: 'run', run: runId, exp: now() + 6 * 3600 }, env.MASTER_KEY);
   try {
-    await startMachine(env, app.fly_app, {
-      image: app.image,
-      auto_destroy: true,
-      restart: { policy: 'no' },
-      guest: { cpu_kind: 'shared', cpus: 1, memory_mb: 256 }, // ponytail: fixed size; read memory from small.toml when a job needs more
-      env: { SMALL_RUN_ID: runId, SMALL_RUN_TOKEN: runToken, SMALL_USER: user.email, SMALL_API: baseUrl },
-    });
+    return json({ runId: await startRun(env, app, user.email, baseUrl) });
   } catch (e) {
-    await env.DB.prepare("UPDATE runs SET status = 'failed', finished_at = datetime('now') WHERE run_id = ?").bind(runId).run();
     return json({ error: e.message }, 502);
   }
-  return json({ runId });
+}
+
+async function apiSchedulePause(req, env, user) {
+  const { app: name, paused } = await req.json();
+  const app = await appRow(env, user.org, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!(await canEdit(env, app, user.email))) return json({ error: 'no access' }, 403);
+  if (!app.schedule) return json({ error: `${name} has no schedule — add schedule = "..." to small.toml and redeploy` }, 400);
+  await env.DB.prepare('UPDATE apps SET schedule_paused = ? WHERE id = ?').bind(paused ? 1 : 0, app.id).run();
+  return json({ ok: true, schedule: app.schedule, paused: !!paused });
 }
 
 async function apiRunsList(req, env, user) {
@@ -230,7 +269,7 @@ async function apiRunsList(req, env, user) {
   if (!app) return json({ error: `no app named ${name}` }, 404);
   if (!(await canView(env, app, user.email))) return json({ error: 'no access' }, 403);
   const { results } = await env.DB.prepare(
-    'SELECT run_id, status, exit_code, started_by, started_at, finished_at FROM runs WHERE app_id = ? ORDER BY id DESC'
+    'SELECT run_id, status, exit_code, started_by, started_at, finished_at, reason FROM runs WHERE app_id = ? ORDER BY id DESC'
   ).bind(app.id).all();
   return json({ runs: results });
 }
@@ -374,6 +413,7 @@ export default {
         if (path === '/api/runs' && req.method === 'GET') return await apiRunsList(req, env, user);
         const runGet = path.match(/^\/api\/runs\/([\w-]+)$/);
         if (runGet && req.method === 'GET') return await apiRunGet(req, env, user, runGet[1]);
+        if (path === '/api/schedule' && req.method === 'POST') return await apiSchedulePause(req, env, user);
         if (path === '/api/share' && req.method === 'POST') return await apiShare(req, env, user);
         if (path === '/api/apps' && req.method === 'GET') return await apiApps(env, user);
         if (path === '/api/logs' && req.method === 'GET') return await apiLogs(req, env, user);
@@ -389,6 +429,41 @@ export default {
       return html('<p>Not found.</p>', 404);
     } catch (err) {
       return json({ error: `internal: ${err.message}` }, 500);
+    }
+  },
+
+  // Cron trigger fires every minute (wrangler.jsonc). scheduledTime is the tick's
+  // nominal minute even when delivery is late; last_scheduled_at pins each fired
+  // minute so a duplicate or late tick never double-fires.
+  // ponytail: no catch-up after downtime — a missed minute is just missed.
+  async scheduled(event, env, ctx) {
+    const tick = Math.floor(event.scheduledTime / 60000) * 60; // unix seconds, floored to the minute
+    const { results } = await env.DB.prepare(
+      "SELECT * FROM apps WHERE kind = 'job' AND schedule IS NOT NULL AND schedule_paused = 0 AND image IS NOT NULL"
+    ).all();
+    for (const app of results) {
+      let parsed;
+      try {
+        parsed = parseCron(app.schedule);
+      } catch {
+        continue; // validated at deploy; a bad legacy row must not kill the whole tick
+      }
+      if (!matches(parsed, new Date(tick * 1000)) || (app.last_scheduled_at || 0) >= tick) continue;
+      await env.DB.prepare('UPDATE apps SET last_scheduled_at = ? WHERE id = ?').bind(tick, app.id).run();
+      // ponytail: a run whose machine died before posting an exit code stays 'running'
+      // and blocks cron forever; add a max-age cutoff when it bites.
+      const running = await env.DB.prepare("SELECT 1 AS x FROM runs WHERE app_id = ? AND status = 'running' LIMIT 1").bind(app.id).first();
+      if (running) {
+        await env.DB.prepare(
+          "INSERT INTO runs (run_id, app_id, started_by, status, reason, finished_at) VALUES (?, ?, 'cron', 'skipped', 'previous run still active', datetime('now'))"
+        ).bind('r-' + randomHex(6), app.id).run();
+        continue;
+      }
+      try {
+        await startRun(env, app, 'cron', env.BASE_URL);
+      } catch (e) {
+        console.error(`cron: ${app.org}/${app.name}: ${e.message}`); // run row already marked failed
+      }
     }
   },
 };
