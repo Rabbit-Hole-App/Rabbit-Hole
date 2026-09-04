@@ -37,6 +37,8 @@ def _dotenv(path):
 ENV = _dotenv(PROJECT_DIR / ".env")
 API = ENV["SMALL_API"]
 BYPASS = ENV["SMALL_TEST_BYPASS"]
+if not (APP_DIR / ".env").exists():
+    pytest.skip("examples/yolo-lambda/.env with LAMBDA_ARN missing — BYO-AWS test needs it", allow_module_level=True)
 LAMBDA_ARN = _dotenv(APP_DIR / ".env")["LAMBDA_ARN"]
 CLI_CONFIG = Path.home() / ".small" / "config.json"
 
