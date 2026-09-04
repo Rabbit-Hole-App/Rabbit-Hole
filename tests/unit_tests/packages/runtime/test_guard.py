@@ -1,5 +1,5 @@
 # Self-check for guard.py: 403 without header, 200 + body roundtrip with it.
-# Run: python test_guard.py
+# Run: python test_guard.py  (or via pytest)
 import http.client
 import os
 import subprocess
@@ -7,6 +7,7 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+GUARD = os.path.join(HERE, "..", "..", "..", "..", "packages", "runtime", "guard.py")
 PORT = 18080
 SECRET = "test-secret-123"
 
@@ -46,7 +47,7 @@ def main():
     with open(echo_path, "w") as f:
         f.write(ECHO_APP)
     env = dict(os.environ, PORT=str(PORT), SMALL_PROXY_SECRET=SECRET, SMALL_APP_PORT="18090")
-    guard = subprocess.Popen([sys.executable, os.path.join(HERE, "guard.py"), sys.executable, echo_path], env=env)
+    guard = subprocess.Popen([sys.executable, GUARD, sys.executable, echo_path], env=env)
     try:
         for _ in range(50):
             try:
@@ -67,6 +68,10 @@ def main():
         guard.wait()
         os.remove(echo_path)
     print("guard: all checks pass")
+
+
+def test_guard():
+    main()
 
 
 if __name__ == "__main__":
