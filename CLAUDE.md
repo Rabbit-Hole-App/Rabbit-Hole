@@ -2,6 +2,28 @@
 
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
+# small
+
+Deploy a Python app for your team, behind a work-email login, in one command.
+Read SCOPE.md for the product and v1.md for what's built and why.
+
+## Layout
+- `packages/cli` — Node CLI, zero dependencies, stdlib only. Never add a package.
+- `packages/control-plane` — Cloudflare Worker + D1. Holds every credential. The CLI never sees a Fly token.
+- `packages/runtime` — Python, stdlib only. `guard.py` fronts every server container.
+- `examples/` — one directory per app shape; each has a `small.toml`.
+- `tests/unit_tests`, `tests/integration_tests` — mirror the package layout.
+
+## Rules
+- Every command prints what it decided: `✓ entry: app.py (flask)`. A wrong guess must be visible in one line.
+- Fail at deploy time, not runtime. Missing secrets, unknown framework, bad entry all stop the deploy with a one-line fix.
+- The user never sees a Dockerfile, a Fly app name, or a session cookie.
+- `make test-unit` before every commit. `make test-integration` before merge.
+- Mark anything deliberately skipped with a `ponytail:` comment.
+- Feature specs live in `docs/features/<name>.md`. Implement the spec; don't expand it.
+
+---
+
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
 ## 1. Think Before Coding

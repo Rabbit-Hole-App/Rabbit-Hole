@@ -1,0 +1,19 @@
+name = "yolo-lambda"
+entry = "app.py"
+framework = "gradio"
+memory = "512MB"
+
+[deps]
+file = "requirements.txt"
+
+[secrets]
+required = ["LAMBDA_ARN"]
+
+[aws]
+# small's control plane assumes this role via STS and feeds the container
+# short-lived session creds — no AWS keys anywhere. The role's trust policy
+# names small's AWS principal + this org as ExternalId (see docs/v3).
+role_arn = "arn:aws:iam::637423432890:role/small-yolo-demo"
+
+[access]
+visibility = "domain"

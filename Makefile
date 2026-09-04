@@ -1,7 +1,8 @@
 # On Windows, bash is not on PATH in PowerShell/cmd — derive it from git's install dir.
 # ponytail: breaks if git lives under a path with spaces; set BASH=... manually then.
 ifeq ($(OS),Windows_NT)
-BASH := $(subst cmd\git.exe,bin\bash.exe,$(word 1,$(shell where git)))
+# inside git-bash, bash is already on PATH; from PowerShell/cmd derive it from git's dir
+BASH := $(if $(shell where bash 2>NUL),bash,$(subst cmd\git.exe,bin\bash.exe,$(word 1,$(shell where git))))
 else
 BASH := bash
 endif

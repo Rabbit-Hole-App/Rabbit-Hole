@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS apps (
   proxy_secret TEXT NOT NULL,
   visibility TEXT NOT NULL DEFAULT 'domain',
   owner_email TEXT NOT NULL,
+  aws_role_arn TEXT,
+  deploy_token TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(org, name)
 );

@@ -1,7 +1,8 @@
 // small control plane: CLI API + browser auth wall + router. One Worker + D1.
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, sha256, randomHex } from './token.js';
-import { ensureFlyApp, mintDeployToken } from './fly.js';
+import { ensureFlyApp, deployTokenFor } from './fly.js';
+import { assumeRole } from './aws.js';
 
 const SESSION_COOKIE = 'small_session';
 const SESSION_TTL = 7 * 24 * 3600;
@@ -80,16 +81,18 @@ async function apiVerify(req, env) {
 }
 
 async function apiDeploy(req, env, user, baseUrl) {
-  const { name, framework, visibility } = await req.json();
+  const { name, framework, visibility, awsRoleArn } = await req.json();
   if (!name || !/^[a-z0-9-]{1,40}$/.test(name)) return json({ error: 'name must be [a-z0-9-]' }, 400);
+  if (awsRoleArn && !/^arn:aws:iam::\d{12}:role\/[\w+=,.@/-]+$/.test(awsRoleArn)) return json({ error: 'bad aws role arn' }, 400);
   let app = await appRow(env, user.org, name);
   if (app) {
     if (!(await canEdit(env, app, user.email))) return json({ error: `${name} exists and you cannot edit it` }, 403);
     if (visibility) await env.DB.prepare('UPDATE apps SET visibility = ? WHERE id = ?').bind(visibility, app.id).run();
+    if (awsRoleArn !== undefined) await env.DB.prepare('UPDATE apps SET aws_role_arn = ? WHERE id = ?').bind(awsRoleArn || null, app.id).run();
   } else {
     const flyApp = `small-${name}-${randomHex(3)}`;
-    await env.DB.prepare('INSERT INTO apps (org, name, fly_app, proxy_secret, visibility, owner_email) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(user.org, name, flyApp, randomHex(32), visibility || 'domain', user.email)
+    await env.DB.prepare('INSERT INTO apps (org, name, fly_app, proxy_secret, visibility, owner_email, aws_role_arn) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(user.org, name, flyApp, randomHex(32), visibility || 'domain', user.email, awsRoleArn || null)
       .run();
     app = await appRow(env, user.org, name);
   }
@@ -98,7 +101,7 @@ async function apiDeploy(req, env, user, baseUrl) {
   let flyToken;
   try {
     await ensureFlyApp(env, app.fly_app);
-    flyToken = await mintDeployToken(env, app.fly_app);
+    flyToken = await deployTokenFor(env, app);
   } catch (e) {
     return json({ error: e.message }, 502);
   }
@@ -134,7 +137,25 @@ async function apiLogs(req, env, user) {
   if (!(await canView(env, app, user.email))) return json({ error: 'no access' }, 403);
   if (!env.FLY_API_TOKEN) return json({ error: 'control plane has no FLY_API_TOKEN configured' }, 503);
   try {
-    return json({ flyApp: app.fly_app, flyToken: await mintDeployToken(env, app.fly_app) });
+    return json({ flyApp: app.fly_app, flyToken: await deployTokenFor(env, app) });
+  } catch (e) {
+    return json({ error: e.message }, 502);
+  }
+}
+
+// Runtime endpoint: the guard inside a machine trades its proxy secret for 1h STS
+// session creds scoped by the customer's role. No CLI token involved — the proxy
+// secret is per-app and high-entropy. ExternalId pins the role to the app's org so
+// one org cannot point small.toml at another org's role (confused deputy).
+async function apiAwsCreds(req, env) {
+  const { secret } = await req.json();
+  if (!secret) return json({ error: 'secret required' }, 400);
+  const app = await env.DB.prepare('SELECT * FROM apps WHERE proxy_secret = ?').bind(secret).first();
+  if (!app) return json({ error: 'forbidden' }, 403);
+  if (!app.aws_role_arn) return json({ error: 'no aws role configured for this app' }, 404);
+  if (!env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) return json({ error: 'control plane has no AWS principal configured' }, 503);
+  try {
+    return json(await assumeRole(env, app.aws_role_arn, `small-${app.org}-${app.name}`, app.org));
   } catch (e) {
     return json({ error: e.message }, 502);
   }
@@ -229,6 +250,7 @@ export default {
     try {
       if (path === '/api/cli/login' && req.method === 'POST') return await apiLogin(req, env);
       if (path === '/api/cli/verify' && req.method === 'POST') return await apiVerify(req, env);
+      if (path === '/api/runtime/aws-creds' && req.method === 'POST') return await apiAwsCreds(req, env);
       if (path.startsWith('/api/')) {
         const user = await cliAuth(req, env);
         if (!user) return json({ error: 'run small login first' }, 401);

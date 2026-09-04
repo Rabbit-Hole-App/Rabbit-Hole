@@ -68,13 +68,17 @@ const commands = {
 
     write(dir, app);
     const visibility = (app.config.access && app.config.access.visibility) || undefined;
-    const d = await call('POST', '/api/deploy', { name: app.name, framework: app.framework, visibility });
+    const awsRoleArn = (app.config.aws && app.config.aws.role_arn) || undefined;
+    const d = await call('POST', '/api/deploy', { name: app.name, framework: app.framework, visibility, awsRoleArn });
     if (!d.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
     writeFlyToml(dir, d.flyApp, app.config.memory);
 
     // gradio builds asset/API URLs from its root; behind the path proxy that must be the public URL
     const rootPath = app.framework === 'gradio' ? { GRADIO_ROOT_PATH: d.url.replace(/\/$/, '') } : {};
-    fly.setSecrets(d.flyApp, d.flyToken, { SMALL_PROXY_SECRET: d.proxySecret, ...rootPath, ...secrets });
+    // [aws] role: guard fetches STS session creds from the control plane at boot
+    const cpUrl = awsRoleArn ? { SMALL_CP_URL: apiBase() } : {};
+    fly.setSecrets(d.flyApp, d.flyToken, { SMALL_PROXY_SECRET: d.proxySecret, ...rootPath, ...cpUrl, ...secrets });
+    if (awsRoleArn) console.log(`✓ aws role: ${awsRoleArn} (STS via control plane)`);
     fly.deploy(d.flyApp, d.flyToken, dir);
 
     console.log(`✓ deployed → ${d.url}`);
