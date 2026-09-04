@@ -9,6 +9,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
 
 API = os.environ["SMALL_API"]
@@ -22,19 +23,26 @@ _lock = threading.Lock()
 def _post(payload):
     data = json.dumps(payload).encode()
     # ponytail: 3 attempts then drop the batch — the job itself must not die on log hiccups
+    err = None
     for delay in (0, 1, 5):
         time.sleep(delay)
         try:
             req = urllib.request.Request(
                 f"{API}/api/runs/{RUN_ID}/log",
                 data=data,
-                headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}"},
+                # custom UA: the default Python-urllib agent trips Cloudflare's bot block (error 1010)
+                headers={"Content-Type": "application/json", "Authorization": f"Bearer {TOKEN}", "User-Agent": "small-runner"},
                 method="POST",
             )
             urllib.request.urlopen(req, timeout=10)
             return
-        except OSError:
-            pass
+        except urllib.error.HTTPError as e:
+            err = f"HTTP {e.code} {e.read()[:200]!r}"
+        except OSError as e:
+            err = repr(e)
+    # a dropped batch is a real failure for a log shipper — surface it on our own
+    # stderr (flows to the platform console), never into the captured child stream
+    print(f"runner: log POST to {API} failed after retries: {err}", file=sys.__stderr__)
 
 
 def _flush(exit_code=None):

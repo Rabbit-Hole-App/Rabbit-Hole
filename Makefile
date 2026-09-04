@@ -2,7 +2,8 @@
 # ponytail: breaks if git lives under a path with spaces; set BASH=... manually then.
 ifeq ($(OS),Windows_NT)
 # inside git-bash, bash is already on PATH; from PowerShell/cmd derive it from git's dir (cmd\ or mingw64\bin\ layout)
-BASH := $(if $(shell where bash 2>NUL),bash,$(subst mingw64\bin\git.exe,bin\bash.exe,$(subst cmd\git.exe,bin\bash.exe,$(word 1,$(shell where git)))))
+# 2>/dev/null not 2>NUL: make's $(shell) runs through sh, where NUL is a regular file
+BASH := $(if $(shell where bash 2>/dev/null),bash,$(subst mingw64\bin\git.exe,bin\bash.exe,$(subst cmd\git.exe,bin\bash.exe,$(word 1,$(shell where git)))))
 else
 BASH := bash
 endif

@@ -6,6 +6,7 @@ SMALL_API + SMALL_TEST_BYPASS + AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY + S3_B
 """
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -36,7 +37,9 @@ CLI_CONFIG = Path.home() / ".small" / "config.json"
 
 
 def small():
-    path = shutil.which("small")
+    # SMALL_BIN pins this worktree's CLI — the global `small` is shared machine
+    # state and any of the four worktrees may have re-pointed it
+    path = os.environ.get("SMALL_BIN") or shutil.which("small")
     assert path, "small-deploy not installed — npm i -g small-deploy"
     return path
 
