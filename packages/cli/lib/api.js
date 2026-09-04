@@ -2,7 +2,7 @@
 const { load } = require('./config');
 
 // Real value baked in before npm publish; SMALL_API env overrides for dev/test.
-const DEFAULT_API = 'https://small-cp.example.workers.dev';
+const DEFAULT_API = 'https://small-cp.zeroshothq.workers.dev';
 
 function apiBase() {
   return process.env.SMALL_API || load().apiBase || DEFAULT_API;
