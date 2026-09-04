@@ -3,7 +3,8 @@
   "main": "src/index.js",
   "compatibility_date": "2026-08-01",
   "observability": { "enabled": true },
-  "triggers": { "crons": ["0 3 * * *"] }, // daily request_logs purge (7-day retention)
+  // every-minute due-job tick + daily 3am request_logs purge (7-day retention)
+  "triggers": { "crons": ["* * * * *", "0 3 * * *"] },
   "d1_databases": [
     {
       "binding": "DB",
@@ -13,7 +14,8 @@
   ],
   "vars": {
     "FLY_ORG_SLUG": "personal",
-    "FLY_ORG_ID": "yw2NK09lG62eytyo75jV2OwzbVT8K410y"
+    "FLY_ORG_ID": "yw2NK09lG62eytyo75jV2OwzbVT8K410y",
+    "BASE_URL": "https://small-cp.zeroshothq.workers.dev" // scheduled() has no request URL; runner needs SMALL_API
   }
   // secrets (wrangler secret put): MASTER_KEY, FLY_ORG_TOKEN (machine/app ops), FLY_API_TOKEN (minting only),
   // RESEND_API_KEY (optional), TEST_BYPASS_SECRET (test envs only), EMAIL_FROM (optional),
