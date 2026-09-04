@@ -57,19 +57,6 @@ function reviewLine(r) {
   return `review: ${awsPart} · ${outPart} · ${shellPart} · ${r.risk}`;
 }
 
-// The review runs concurrently with the Fly build, so it is normally already
-// stored by the time the deploy finishes; poll briefly for the stamp to change.
-async function reviewAfterDeploy(name, priorReviewedAt) {
-  for (let i = 0; i < 6; i++) {
-    try {
-      const res = await call('GET', `/api/review?app=${encodeURIComponent(name)}`);
-      if (res.reviewedAt && res.reviewedAt !== priorReviewedAt) return console.log(reviewLine(res.review));
-    } catch {}
-    await new Promise((r) => setTimeout(r, 5000));
-  }
-  console.log('review: unavailable');
-}
-
 function printReport(res) {
   const r = res.review;
   const section = (title, key) => {
@@ -182,7 +169,6 @@ const commands = {
       visibility,
       awsRoleArn,
       kind,
-      review,
       storage: storage ? { sizeGb } : undefined,
       schedule: kind === 'job' ? schedule || null : undefined, // null clears a removed schedule
     });
@@ -190,6 +176,20 @@ const commands = {
     if (storage && !d.volumeRegion) throw new Error('control plane does not support [storage] yet — redeploy the worker');
     writeFlyToml(dir, d.flyApp, app.config.memory, storage ? { path: storage.path || '/data', region: d.volumeRegion } : undefined);
     if (storage) console.log(`✓ storage: ${storage.path || '/data'} (${sizeGb}GB volume in ${d.volumeRegion}, survives redeploys)`);
+
+    // The worker's waitUntil window (~30s) is too short for the model to write review +
+    // runbook, so the CLI holds this request open in parallel with the Fly build instead;
+    // the worker awaits the model and stores the result before responding.
+    const reviewPromise = call('POST', '/api/review/run', {
+      app: app.name,
+      bundle: review.bundle,
+      skipped: review.skipped,
+    }).catch(() => null);
+    const printReview = async () => {
+      const res = await reviewPromise;
+      if (res && res.review) console.log(reviewLine(res.review));
+      else console.log('review: unavailable');
+    };
 
     if (kind === 'job') {
       if (schedule) {
@@ -204,6 +204,7 @@ const commands = {
       const image = fly.buildImage(d.flyApp, d.flyToken, dir, `v${Date.now()}`);
       await call('POST', '/api/image', { app: app.name, image });
       console.log(`✓ built ${app.name} — start it with: small run ${app.name}`);
+      await printReview();
       return;
     }
 
@@ -220,8 +221,7 @@ const commands = {
     console.log(`✓ deployed → ${d.url}`);
     const { org } = config.load();
     console.log(visibility === 'private' ? '✓ login required · explicit members only' : `✓ login required · anyone @${org}`);
-    if (d.reviewStarted) await reviewAfterDeploy(app.name, d.reviewedAt);
-    else console.log('review: unavailable');
+    await printReview();
   },
 
   async review() {

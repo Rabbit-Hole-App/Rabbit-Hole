@@ -82,6 +82,18 @@ template every generated runbook follows.
    by this feature. Integration also needs the live worker redeployed from
    this branch (`/api/runbook` + the schema field); the worker is shared
    across four worktrees, so it was not auto-deployed.
+4. **`ctx.waitUntil` killed the review once the runbook joined it.** The v4
+   review ran in `waitUntil` concurrent with the Fly build; Cloudflare stops
+   `waitUntil` work ~30 s after the response, and Opus writing review +
+   runbook blows past that (a 2-line probe app took 31 s), so nothing was
+   ever stored and every deploy said `review: unavailable`. Fix: the deploy
+   review moved to `POST /api/review/run` — the CLI fires it right after
+   `/api/deploy` and holds the request open in parallel with the Fly build
+   (a held request has no 30 s ceiling; the worker awaits the model and
+   stores before responding). Still zero added wall-clock in practice —
+   the build takes minutes. Old published CLIs still send the bundle in
+   `/api/deploy` and get the old `waitUntil` path, which now only works for
+   apps small enough to review in under ~30 s.
 
 ## Ceilings (ponytail)
 
@@ -99,13 +111,19 @@ template every generated runbook follows.
 
 ## Current state
 
-- All local suites green: control-plane 9/9 (model mocked), CLI 18/18,
-  Python unit 5/5. New integration tests compile; not run (see issue 3 —
-  needs worktree `.env` + a union worker deploy).
+- All suites green: `make test-unit` 20/20, control-plane 9/9 (model
+  mocked), CLI 18/18. Integration 19 passed / 1 skipped (yolo-lambda, no
+  `.env`) — the only failures are the two `test_cron.py` tick tests, blocked
+  by the documented Cloudflare cron-delivery outage, unrelated to runbook.
+- **Verified live end to end** (worker `78743b13`): `examples/counter`
+  deployed, deploy line reads
+  `review: no AWS · no outbound · no shell exec · low`; `small runbook
+  counter` prints the full runbook — names `SMALL_DATA`, SQLite, gunicorn
+  under Commands, endpoints only `/` and `/inc`, review line at the bottom.
 - Touched: `review.js`, `index.js` (one route), `bin/small.js`,
   `RUNBOOK.example.md` (new), `skills/small/SKILL.md`, unit + integration
   tests. No D1 migration, no new dependencies.
-- Uncommitted on `feature/runbook`; npm unpublished, worker undeployed —
-  publish/deploy cumulatively per the shared live-state rule.
-- v7 is reserved for cron (`feature/cron`, `8b9c437`) — its doc is not
-  written yet; this doc takes v8 to keep the numbering.
+- Committed on `feature/runbook`, rebased onto main (which now carries v7
+  request logs and v9 cron) — this branch is main + runbook, so a worker
+  deploy from here is the union per the shared live-state rule. npm still
+  unpublished; publish cumulatively.

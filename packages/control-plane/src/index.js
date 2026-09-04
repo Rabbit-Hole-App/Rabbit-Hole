@@ -151,6 +151,25 @@ async function apiReview(req, env, user) {
   });
 }
 
+// Deploy-time review, run while the CLI holds the request open (in parallel with its Fly
+// build). waitUntil's ~30s window is too short for the model to write review + runbook —
+// this handler awaits the model and stores the result before responding. runReview never
+// throws, so a model failure still answers 200 with the previous (or no) review.
+async function apiReviewRun(req, env, user) {
+  const { app: name, bundle, skipped } = await req.json();
+  const app = await appRow(env, user.org, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!(await canEdit(env, app, user.email))) return json({ error: 'no access' }, 403);
+  if (!env.ANTHROPIC_API_KEY || !bundle) return json({ error: 'review not configured' }, 503);
+  await runReview(env, app.id, bundle, skipped || []);
+  const fresh = await appRow(env, user.org, name);
+  return json({
+    review: fresh.review ? JSON.parse(fresh.review) : null,
+    reviewedAt: fresh.reviewed_at || null,
+    model: fresh.review_model || null,
+  });
+}
+
 // `small init` sends a bundle before any app row exists; the runbook comes back
 // synchronously and the CLI writes RUNBOOK.md. Deploys store theirs via runReview.
 async function apiRunbook(req, env) {
@@ -473,6 +492,7 @@ export default {
         if (path === '/api/request-logs' && req.method === 'GET') return await apiRequestLogs(req, env, user);
         if (path === '/api/review' && req.method === 'GET') return await apiReview(req, env, user);
         if (path === '/api/runbook' && req.method === 'POST') return await apiRunbook(req, env);
+        if (path === '/api/review/run' && req.method === 'POST') return await apiReviewRun(req, env, user);
         return json({ error: 'no such endpoint' }, 404);
       }
       if (path === '/login') return await loginPage(req, env, baseUrl);
