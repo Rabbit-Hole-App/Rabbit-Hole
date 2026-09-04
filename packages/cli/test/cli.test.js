@@ -94,6 +94,39 @@ test('init: writes small.toml with framework and detected env vars', () => {
   assert.equal(t.access.visibility, 'domain');
 });
 
+test('init: sqlite3 import adds [storage]; SMALL_ vars are not secrets', () => {
+  const dir = tmp({
+    'app.py': 'import os\nimport sqlite3\nfrom flask import Flask\napp = Flask(__name__)\ndb = os.environ.get("SMALL_DATA", ".")\n',
+    'requirements.txt': 'flask\n',
+  });
+  assert.equal(init(dir), true);
+  const t = parse(fs.readFileSync(path.join(dir, 'small.toml'), 'utf8'));
+  assert.equal(t.storage.path, '/data');
+  assert.equal(t.storage.size, '1GB');
+  assert.deepEqual(t.secrets.required, []);
+});
+
+test('init: no [storage] without sqlite3 or SMALL_DATA', () => {
+  const dir = tmp({ 'app.py': 'from flask import Flask\napp = Flask(__name__)\n' });
+  assert.equal(init(dir), true);
+  const t = parse(fs.readFileSync(path.join(dir, 'small.toml'), 'utf8'));
+  assert.equal(t.storage, undefined);
+});
+
+test('writeFlyToml: storage pins region, mounts volume, sets SMALL_DATA', () => {
+  const dir = tmp({});
+  fs.mkdirSync(path.join(dir, '.small'));
+  writeFlyToml(dir, 'small-x-abc123', undefined, { path: '/data', region: 'iad' });
+  const toml = fs.readFileSync(path.join(dir, '.small', 'fly.toml'), 'utf8');
+  assert.match(toml, /primary_region = "iad"/);
+  assert.match(toml, /source = "data"/);
+  assert.match(toml, /destination = "\/data"/);
+  assert.match(toml, /SMALL_DATA = "\/data"/);
+
+  writeFlyToml(dir, 'small-x-abc123', undefined, undefined);
+  assert.doesNotMatch(fs.readFileSync(path.join(dir, '.small', 'fly.toml'), 'utf8'), /mounts|SMALL_DATA|primary_region/);
+});
+
 test('dockerfile + write for a job: runner.py, no guard, no port', () => {
   const dir = tmp({
     'small.toml': 'name = "j"\nentry = "pipeline.py"\nframework = "script"\nkind = "job"\n',

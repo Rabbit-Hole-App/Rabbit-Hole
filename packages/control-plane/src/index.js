@@ -1,7 +1,7 @@
 // small control plane: CLI API + browser auth wall + router. One Worker + D1.
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, sha256, randomHex } from './token.js';
-import { ensureFlyApp, deployTokenFor, startMachine } from './fly.js';
+import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine } from './fly.js';
 import { assumeRole } from './aws.js';
 import { runReview } from './review.js';
 
@@ -82,8 +82,10 @@ async function apiVerify(req, env) {
 }
 
 async function apiDeploy(req, env, ctx, user, baseUrl) {
-  const { name, framework, visibility, awsRoleArn, kind, review } = await req.json();
+  const { name, framework, visibility, awsRoleArn, kind, review, storage } = await req.json();
   if (!name || !/^[a-z0-9-]{1,40}$/.test(name)) return json({ error: 'name must be [a-z0-9-]' }, 400);
+  if (storage && !(Number.isInteger(storage.sizeGb) && storage.sizeGb >= 1 && storage.sizeGb <= 100))
+    return json({ error: 'storage.sizeGb must be an integer between 1 and 100' }, 400);
   if (awsRoleArn && !/^arn:aws:iam::\d{12}:role\/[\w+=,.@/-]+$/.test(awsRoleArn)) return json({ error: 'bad aws role arn' }, 400);
   let app = await appRow(env, user.org, name);
   if (app) {
@@ -100,9 +102,10 @@ async function apiDeploy(req, env, ctx, user, baseUrl) {
   }
   if (!env.FLY_API_TOKEN) return json({ error: 'control plane has no FLY_API_TOKEN configured' }, 503);
   // The worker owns the Fly app lifecycle; the CLI only gets a 1h token scoped to this one app.
-  let flyToken;
+  let flyToken, volumeRegion;
   try {
     await ensureFlyApp(env, app.fly_app);
+    if (storage) volumeRegion = await ensureVolume(env, app.fly_app, storage.sizeGb);
     flyToken = await deployTokenFor(env, app);
   } catch (e) {
     return json({ error: e.message }, 502);
@@ -116,6 +119,7 @@ async function apiDeploy(req, env, ctx, user, baseUrl) {
     flyToken,
     url: `${baseUrl}/a/${user.org}/${name}/`,
     framework: framework || null,
+    volumeRegion: volumeRegion || null,
     reviewStarted,
     reviewedAt: app.reviewed_at || null, // previous review's stamp; the CLI polls until it changes
   });

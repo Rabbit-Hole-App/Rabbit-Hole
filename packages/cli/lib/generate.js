@@ -70,9 +70,11 @@ function write(dir, app) {
   return out;
 }
 
-function writeFlyToml(dir, flyApp, memory) {
-  const toml = [
-    `app = "${flyApp}"`,
+function writeFlyToml(dir, flyApp, memory, storage) {
+  const lines = [`app = "${flyApp}"`];
+  // volumes are per-region: pin the machine to the region the control plane put the volume in
+  if (storage) lines.push(`primary_region = "${storage.region}"`);
+  lines.push(
     '',
     '[http_service]',
     '  internal_port = 8080',
@@ -80,13 +82,13 @@ function writeFlyToml(dir, flyApp, memory) {
     '  auto_stop_machines = "stop"',
     '  auto_start_machines = true',
     '  min_machines_running = 0',
-    '',
-    '[[vm]]',
-    '  size = "shared-cpu-1x"',
-    `  memory = "${String(memory || '256mb').toLowerCase()}"`,
-    '',
-  ].join('\n');
-  fs.writeFileSync(path.join(dir, '.small', 'fly.toml'), toml);
+    ''
+  );
+  if (storage) {
+    lines.push('[env]', `  SMALL_DATA = "${storage.path}"`, '', '[mounts]', '  source = "data"', `  destination = "${storage.path}"`, '');
+  }
+  lines.push('[[vm]]', '  size = "shared-cpu-1x"', `  memory = "${String(memory || '256mb').toLowerCase()}"`, '');
+  fs.writeFileSync(path.join(dir, '.small', 'fly.toml'), lines.join('\n'));
 }
 
 module.exports = { runCommand, dockerfile, write, writeFlyToml };

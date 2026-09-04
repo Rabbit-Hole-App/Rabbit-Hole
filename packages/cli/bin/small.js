@@ -150,11 +150,28 @@ const commands = {
     write(dir, app);
     const review = buildBundle(dir, app.entry, secrets);
     const visibility = (app.config.access && app.config.access.visibility) || undefined;
+    const storage = app.config.storage;
+    let sizeGb;
+    if (storage) {
+      const m = /^(\d+)\s*gb$/i.exec(String(storage.size || '1GB'));
+      if (!m) throw new Error('storage.size must be whole gigabytes, like "1GB"');
+      sizeGb = Number(m[1]);
+    }
     const awsRoleArn = (app.config.aws && app.config.aws.role_arn) || undefined;
     const kind = app.config.kind === 'job' ? 'job' : 'server';
-    const d = await call('POST', '/api/deploy', { name: app.name, framework: app.framework, visibility, awsRoleArn, kind, review });
+    const d = await call('POST', '/api/deploy', {
+      name: app.name,
+      framework: app.framework,
+      visibility,
+      awsRoleArn,
+      kind,
+      review,
+      storage: storage ? { sizeGb } : undefined,
+    });
     if (!d.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
-    writeFlyToml(dir, d.flyApp, app.config.memory);
+    if (storage && !d.volumeRegion) throw new Error('control plane does not support [storage] yet — redeploy the worker');
+    writeFlyToml(dir, d.flyApp, app.config.memory, storage ? { path: storage.path || '/data', region: d.volumeRegion } : undefined);
+    if (storage) console.log(`✓ storage: ${storage.path || '/data'} (${sizeGb}GB volume in ${d.volumeRegion}, survives redeploys)`);
 
     if (kind === 'job') {
       // jobs: build + register the image, start nothing — the control plane starts machines per run

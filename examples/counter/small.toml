@@ -1,3 +1,7 @@
 name = "counter"
 entry = "app.py"
 framework = "flask"
+
+[storage]
+path = "/data"          # mounted volume, survives machine replacement
+size = "1GB"

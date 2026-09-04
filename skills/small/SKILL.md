@@ -50,3 +50,24 @@ interactively (it emails them a 6-digit code).
 Apps are served under a path prefix, so use **relative URLs** in HTML
 (`action="inc"`, `href="page"`, `redirect(".")`) — absolute `/paths` break
 behind the proxy.
+
+If the tool needs to remember anything between requests (counts, submissions,
+history), do not keep it in process memory — the machine is replaced on every
+deploy and state vanishes. Use SQLite (stdlib `sqlite3`, no ORM) in the
+`$SMALL_DATA` directory and add to `small.toml`:
+
+```toml
+[storage]
+path = "/data"          # mounted volume, survives machine replacement
+size = "1GB"
+```
+
+`SMALL_DATA` is set to that path in the container. In code, fall back to the
+current directory so local runs work without the volume:
+
+```python
+DB = os.path.join(os.environ.get("SMALL_DATA", "."), "tool.db")
+```
+
+(`small init` adds `[storage]` automatically when the entry file imports
+`sqlite3` or references `SMALL_DATA`.)

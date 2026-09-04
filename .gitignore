@@ -148,6 +148,7 @@ vite.config.ts.timestamp-*
 skills-lock.json
 # small
 .small/
+examples/counter/counter.db
 packages/cli/assets/
 packages/control-plane/.dev.vars
 packages/control-plane/.wrangler/

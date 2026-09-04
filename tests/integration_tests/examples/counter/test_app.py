@@ -6,9 +6,11 @@ and repo-root .env with SMALL_API + SMALL_TEST_BYPASS.
 """
 
 import json
+import os
 import re
 import shutil
 import subprocess
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -70,13 +72,19 @@ def cli_config():
     return json.loads(CLI_CONFIG.read_text())
 
 
+def small():
+    # SMALL_BIN pins this worktree's CLI — the global `small` is shared machine
+    # state and any of the four worktrees may have re-pointed it
+    path = os.environ.get("SMALL_BIN") or shutil.which("small")
+    assert path, "small-deploy not installed — npm i -g small-deploy"
+    return path
+
+
 @pytest.fixture(scope="session")
 def deployed(project_dir, cli_config):
-    """Deploy the fixture app once via the globally installed CLI; return its URL."""
-    small = shutil.which("small")
-    assert small, "small-deploy not installed — npm i -g small-deploy"
+    """Deploy the fixture app once via the CLI; return its URL."""
     r = subprocess.run(
-        [small, "deploy"], cwd=project_dir, capture_output=True, text=True, timeout=600, encoding="utf-8", errors="replace"
+        [small(), "deploy"], cwd=project_dir, capture_output=True, text=True, timeout=600, encoding="utf-8", errors="replace"
     )
     assert r.returncode == 0, f"deploy failed:\n{r.stdout}\n{r.stderr}"
     m = re.search(r"deployed → (\S+)", r.stdout)
@@ -144,3 +152,48 @@ def test_two_users_share_state(deployed, cli_config):
     assert status in (200, 303)
     assert count(a) == before + 1
     assert count(b) == before + 1, "second user does not see the shared count"
+
+
+def test_count_survives_machine_replacement(deployed, cli_config, project_dir):
+    """[storage]: +1 three times, destroy the machine, redeploy — the SQLite
+    count on the volume must still be there."""
+    assert "storage: /data" in deployed["stdout"], "deploy did not provision [storage]"
+    sess = session_for(cli_config["email"])
+
+    def count():
+        status, body = http("GET", deployed["url"], headers=sess)
+        assert status == 200, f"expected 200, got {status}: {body[:100]}"
+        return int(re.search(r"count: (\d+)", body).group(1))
+
+    before = count()  # the volume persists across test runs, so the count is relative
+    for _ in range(3):
+        status, _ = http("POST", deployed["url"] + "inc", headers=sess, data=b"")
+        assert status in (200, 303)
+    assert count() == before + 3
+
+    # force machine replacement: destroy every machine with an app-scoped token, redeploy
+    bearer = {"Authorization": f"Bearer {cli_config['token']}", "Content-Type": "application/json"}
+    status, body = http("POST", f"{API}/api/deploy", headers=bearer, data=json.dumps({"name": APP_NAME}).encode())
+    assert status == 200, f"deploy api failed: {body}"
+    d = json.loads(body)
+    fly = {"Authorization": d["flyToken"]}
+    machines_url = f"https://api.machines.dev/v1/apps/{d['flyApp']}/machines"
+    status, body = http("GET", machines_url, headers=fly)
+    assert status == 200, body
+    machines = json.loads(body)
+    assert machines, "no machine to destroy"
+    for m in machines:
+        status, body = http("DELETE", f"{machines_url}/{m['id']}?force=true", headers=fly)
+        assert status in (200, 202), f"machine destroy failed: {body}"
+    for _ in range(30):  # wait until the destroy has actually landed
+        status, body = http("GET", machines_url, headers=fly)
+        if status == 200 and not json.loads(body):
+            break
+        time.sleep(2)
+
+    r = subprocess.run(
+        [small(), "deploy"], cwd=project_dir, capture_output=True, text=True, timeout=600, encoding="utf-8", errors="replace"
+    )
+    assert r.returncode == 0, f"redeploy failed:\n{r.stdout}\n{r.stderr}"
+
+    assert count() == before + 3, "count did not survive machine replacement"

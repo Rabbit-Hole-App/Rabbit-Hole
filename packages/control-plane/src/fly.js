@@ -40,6 +40,32 @@ export async function ensureFlyApp(env, flyApp) {
   await gql(machineToken(env), 'mutation($app: ID!) { allocateIpAddress(input: {appId: $app, type: shared_v4}) { app { name } } }', { app: flyApp });
 }
 
+// One volume per app, named "data" — [storage] in small.toml. Idempotent: reuse
+// the existing volume (and its region) on redeploy. Volume and machine must share
+// a region, so the caller pins the machine to the returned region.
+// ponytail: single volume, single region; per-region volumes when multi-machine matters.
+export async function ensureVolume(env, flyApp, sizeGb) {
+  const headers = { Authorization: authH(machineToken(env)), 'Content-Type': 'application/json' };
+  const list = await fetch(`${MACHINES}/apps/${flyApp}/volumes`, { headers });
+  if (!list.ok) throw new Error(`fly volumes list failed (${list.status}): ${await list.text()}`);
+  const existing = (await list.json()).find((v) => v.name === 'data');
+  if (existing) return existing.region;
+  // an app deployed before [storage] already has machines somewhere — put the volume with them
+  let region = env.FLY_VOLUME_REGION || 'iad';
+  const machines = await fetch(`${MACHINES}/apps/${flyApp}/machines`, { headers });
+  if (machines.ok) {
+    const ms = await machines.json();
+    if (ms.length) region = ms[0].region;
+  }
+  const resp = await fetch(`${MACHINES}/apps/${flyApp}/volumes`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ name: 'data', region, size_gb: sizeGb }),
+  });
+  if (!resp.ok) throw new Error(`fly volume create failed (${resp.status}): ${await resp.text()}`);
+  return (await resp.json()).region;
+}
+
 let orgIdCache;
 async function orgId(env) {
   if (env.FLY_ORG_ID) return env.FLY_ORG_ID; // pinned: skips a flaky orgs query on the aging user token
