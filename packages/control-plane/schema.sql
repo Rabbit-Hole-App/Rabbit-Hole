@@ -45,3 +45,17 @@ CREATE TABLE IF NOT EXISTS run_logs (
   line TEXT NOT NULL,
   PRIMARY KEY (run_id, seq)
 );
+
+CREATE TABLE IF NOT EXISTS request_logs (
+  id INTEGER PRIMARY KEY,
+  org TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  ts TEXT NOT NULL,
+  method TEXT NOT NULL,
+  path TEXT NOT NULL,
+  status INTEGER NOT NULL,
+  ms INTEGER NOT NULL,
+  user TEXT
+);
+CREATE INDEX IF NOT EXISTS request_logs_app ON request_logs (org, slug, id);
+CREATE INDEX IF NOT EXISTS request_logs_ts ON request_logs (ts);

@@ -197,3 +197,48 @@ def test_count_survives_machine_replacement(deployed, cli_config, project_dir):
     assert r.returncode == 0, f"redeploy failed:\n{r.stdout}\n{r.stderr}"
 
     assert count() == before + 3, "count did not survive machine replacement"
+
+
+def test_request_logs(deployed, cli_config):
+    """Three clicks as two users through the wall + one direct fly.dev hit →
+    small logs shows the three lines with the right users/statuses and a
+    rejected 403 line with no user."""
+    org_domain = cli_config["email"].split("@")[1]
+    nonce = str(int(time.time()))  # unique emails so this run's lines are unambiguous
+    email_a = f"loga-{nonce}@{org_domain}"
+    email_b = f"logb-{nonce}@{org_domain}"
+    a = session_for(email_a)
+    b = session_for(email_b)
+    for sess in (a, a, b):  # three clicks: two as A, one as B
+        status, _ = http("POST", deployed["url"] + "inc", headers=sess, data=b"")
+        assert status in (200, 303)
+
+    status, body = http("GET", f"{API}/api/apps", headers={"Authorization": f"Bearer {cli_config['token']}"})
+    assert status == 200
+    fly_app = next(x["fly_app"] for x in json.loads(body)["apps"] if x["name"] == APP_NAME)
+    status, _ = http("GET", f"https://{fly_app}.fly.dev/")  # guard rejects: logged with no user
+    assert status == 403
+
+    def logs(*args):
+        r = subprocess.run(
+            [small(), "logs", APP_NAME, *args], capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace"
+        )
+        assert r.returncode == 0, f"small logs failed:\n{r.stdout}\n{r.stderr}"
+        return r.stdout.splitlines()
+
+    line_re = re.compile(r"^\d\d:\d\d:\d\d (\S+) (\S+) (\d+) \d+ms(?: (\S+))?$")
+    ours_a = ours_b = rejected = []
+    for _ in range(30):  # guard batches every 2s; poll until our lines land
+        lines = logs()
+        ours_a = [l for l in lines if email_a in l]
+        ours_b = [l for l in lines if email_b in l]
+        rejected = [m for m in map(line_re.match, lines) if m and m.group(3) == "403" and not m.group(4)]
+        if len(ours_a) == 2 and len(ours_b) == 1 and rejected:
+            break
+        time.sleep(2)
+    assert len(ours_a) == 2 and all(" POST /inc 303 " in l for l in ours_a), ours_a
+    assert len(ours_b) == 1 and " POST /inc 303 " in ours_b[0], ours_b
+    assert rejected, "no rejected 403 line with no user"
+
+    only_a = [l for l in logs("--user", email_a) if line_re.match(l)]
+    assert len(only_a) == 2 and all(email_a in l for l in only_a), only_a

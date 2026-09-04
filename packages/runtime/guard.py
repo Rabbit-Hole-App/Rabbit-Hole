@@ -19,8 +19,54 @@ SECRET = os.environ["SMALL_PROXY_SECRET"]
 LISTEN_PORT = int(os.environ.get("PORT", "8080"))
 APP_PORT = int(os.environ.get("SMALL_APP_PORT", "8090"))
 CP_URL = os.environ.get("SMALL_CP_URL")  # set at deploy when small.toml has [aws]
+LOG_URL = os.environ.get("SMALL_LOG_URL")  # request-log endpoint; absent on old images -> stdout only
 AWS_CREDS_FILE = os.environ.get("SMALL_AWS_CREDS_FILE", "/tmp/small-aws-creds")
 HOP_HEADERS = {"connection", "keep-alive", "transfer-encoding", "content-length", "host", "x-small-proxy"}
+
+# ---------- request log: one JSON line per request on stdout, batched to the control plane ----------
+
+_log_lines = []
+_log_lock = threading.Lock()
+_log_flush = threading.Event()
+
+
+def _log(method, path, status, ms, user, rejected=False):
+    entry = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "method": method,
+        "path": path.split("?", 1)[0],  # never log query strings or bodies
+        "status": status,
+        "ms": ms,
+    }
+    if rejected:
+        entry["rejected"] = True
+    else:
+        entry["user"] = user
+    print(json.dumps(entry), flush=True)
+    if LOG_URL:
+        with _log_lock:
+            _log_lines.append(entry)
+            if len(_log_lines) >= 50:
+                _log_flush.set()
+
+
+def _post_logs_loop():
+    while True:
+        _log_flush.wait(timeout=2)  # every 2s or 50 lines, whichever first
+        _log_flush.clear()
+        with _log_lock:
+            batch, _log_lines[:] = list(_log_lines), []
+        if not batch:
+            continue
+        req = urllib.request.Request(
+            LOG_URL,
+            data=json.dumps({"lines": batch}).encode(),
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {SECRET}", "User-Agent": "small-guard"},
+        )
+        try:
+            urllib.request.urlopen(req, timeout=10).close()
+        except Exception as e:
+            print(f"guard: request-log post failed, {len(batch)} lines dropped: {e}", file=sys.stderr, flush=True)
 
 
 # Trade the proxy secret for 1h STS session creds; write them as a boto3 shared
@@ -78,15 +124,22 @@ class Guard(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def _handle(self):
+        start = time.time()
+        ms = lambda: int((time.time() - start) * 1000)
         if self.headers.get("X-Small-Proxy") != SECRET:
             body = b"403 forbidden\n"
             self.send_response(403)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+            _log(self.command, self.path, 403, ms(), None, rejected=True)
             return
+        user = self.headers.get("X-Small-User")
         if (self.headers.get("Upgrade") or "").lower() == "websocket":
-            return self._websocket()
+            self._websocket()
+            # ponytail: guard tunnels raw bytes, never parses the app's reply — status assumed 101
+            _log(self.command, self.path, 101, ms(), user)
+            return
         length = int(self.headers.get("Content-Length") or 0)
         body = self.rfile.read(length) if length else None
         headers = {k: v for k, v in self.headers.items() if k.lower() not in HOP_HEADERS}
@@ -98,7 +151,9 @@ class Guard(BaseHTTPRequestHandler):
             conn.request(self.command, self.path, body=body, headers=headers)
             resp = conn.getresponse()
             if (resp.getheader("Content-Type") or "").startswith("text/event-stream"):
-                return self._stream(resp, conn)
+                self._stream(resp, conn)
+                _log(self.command, self.path, resp.status, ms(), user)
+                return
             try:
                 data = resp.read()
             except http.client.IncompleteRead as e:
@@ -109,6 +164,7 @@ class Guard(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
+            _log(self.command, self.path, 502, ms(), user)
             return
         self.send_response(resp.status)
         for k, v in resp.getheaders():
@@ -119,6 +175,7 @@ class Guard(BaseHTTPRequestHandler):
         if self.command != "HEAD":
             self.wfile.write(data)
         conn.close()
+        _log(self.command, self.path, resp.status, ms(), user)
 
     # SSE must not be buffered: events arrive over minutes and gradio may close the
     # stream without a terminating chunk. Forward chunks as they arrive.
@@ -189,6 +246,8 @@ def main():
             print(f"guard: initial aws creds fetch failed: {e}", flush=True)
         env["AWS_SHARED_CREDENTIALS_FILE"] = AWS_CREDS_FILE
         threading.Thread(target=_aws_creds_loop, args=(expiration,), daemon=True).start()
+    if LOG_URL:
+        threading.Thread(target=_post_logs_loop, daemon=True).start()
     proc = subprocess.Popen(sys.argv[1:], env=env)
     server = ThreadingHTTPServer(("0.0.0.0", LISTEN_PORT), Guard)
     threading.Thread(target=server.serve_forever, daemon=True).start()

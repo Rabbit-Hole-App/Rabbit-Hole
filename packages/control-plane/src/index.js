@@ -167,6 +167,44 @@ async function apiLogs(req, env, user) {
   }
 }
 
+// Called by guard.py with the app's proxy secret — not a CLI token.
+async function apiRequestLogIngest(req, env, slug) {
+  const m = (req.headers.get('Authorization') || '').match(/^Bearer (.+)$/);
+  const app = m && (await env.DB.prepare('SELECT * FROM apps WHERE proxy_secret = ?').bind(m[1]).first());
+  if (!app || app.name !== slug) return json({ error: 'forbidden' }, 403);
+  const { lines = [] } = await req.json();
+  if (!Array.isArray(lines) || !lines.length) return json({ ok: true });
+  const stmt = env.DB.prepare('INSERT INTO request_logs (org, slug, ts, method, path, status, ms, user) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+  await env.DB.batch(
+    lines.slice(0, 500).map((l) =>
+      stmt.bind(app.org, app.name, String(l.ts || ''), String(l.method || ''), String(l.path || ''), Number(l.status) || 0, Number(l.ms) || 0, l.user == null ? null : String(l.user))
+    )
+  );
+  return json({ ok: true });
+}
+
+// ponytail: no log search — user/status filters only, add a path/text query param when asked
+async function apiRequestLogs(req, env, user) {
+  const url = new URL(req.url);
+  const name = url.searchParams.get('app');
+  const app = await appRow(env, user.org, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!(await canView(env, app, user.email))) return json({ error: 'no access' }, 403);
+  const where = ['org = ?', 'slug = ?'];
+  const binds = [app.org, app.name];
+  const byUser = url.searchParams.get('user');
+  if (byUser) { where.push('user = ?'); binds.push(byUser); }
+  const byStatus = url.searchParams.get('status') || '';
+  if (/^[1-5]xx$/.test(byStatus)) { where.push('status BETWEEN ? AND ?'); binds.push(+byStatus[0] * 100, +byStatus[0] * 100 + 99); }
+  else if (/^\d+$/.test(byStatus)) { where.push('status = ?'); binds.push(+byStatus); }
+  const after = url.searchParams.get('after');
+  const order = after === null ? 'ORDER BY id DESC LIMIT 100' : 'ORDER BY id LIMIT 1000'; // no cursor: last 100 newest-first; cursor: ascending for --follow
+  if (after !== null) { where.push('id > ?'); binds.push(+after); }
+  const { results } = await env.DB.prepare(`SELECT id, ts, method, path, status, ms, user FROM request_logs WHERE ${where.join(' AND ')} ${order}`).bind(...binds).all();
+  const cursor = results.length ? Math.max(results[0].id, results[results.length - 1].id) : +(after || 0);
+  return json({ lines: results, cursor });
+}
+
 // Runtime endpoint: the guard inside a machine trades its proxy secret for 1h STS
 // session creds scoped by the customer's role. No CLI token involved — the proxy
 // secret is per-app and high-entropy. ExternalId pins the role to the app's org so
@@ -366,6 +404,8 @@ export default {
       if (path.startsWith('/api/')) {
         const runLog = path.match(/^\/api\/runs\/([\w-]+)\/log$/);
         if (runLog && req.method === 'POST') return await apiRunLog(req, env, runLog[1]); // runner auth, not CLI auth
+        const reqLog = path.match(/^\/api\/apps\/([a-z0-9-]+)\/request-log$/);
+        if (reqLog && req.method === 'POST') return await apiRequestLogIngest(req, env, reqLog[1]); // guard auth, not CLI auth
         const user = await cliAuth(req, env);
         if (!user) return json({ error: 'run small login first' }, 401);
         if (path === '/api/deploy' && req.method === 'POST') return await apiDeploy(req, env, ctx, user, baseUrl);
@@ -377,6 +417,7 @@ export default {
         if (path === '/api/share' && req.method === 'POST') return await apiShare(req, env, user);
         if (path === '/api/apps' && req.method === 'GET') return await apiApps(env, user);
         if (path === '/api/logs' && req.method === 'GET') return await apiLogs(req, env, user);
+        if (path === '/api/request-logs' && req.method === 'GET') return await apiRequestLogs(req, env, user);
         if (path === '/api/review' && req.method === 'GET') return await apiReview(req, env, user);
         return json({ error: 'no such endpoint' }, 404);
       }
@@ -390,5 +431,11 @@ export default {
     } catch (err) {
       return json({ error: `internal: ${err.message}` }, 500);
     }
+  },
+
+  // 7-day request-log retention. Cutoff formatted with 'T' to match the guard's ISO timestamps.
+  // ponytail: retention fixed at 7 days — make it a per-app column when someone needs more
+  async scheduled(_event, env) {
+    await env.DB.prepare("DELETE FROM request_logs WHERE ts < strftime('%Y-%m-%dT%H:%M:%S', 'now', '-7 days')").run();
   },
 };

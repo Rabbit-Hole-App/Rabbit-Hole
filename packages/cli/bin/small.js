@@ -186,7 +186,9 @@ const commands = {
     const rootPath = app.framework === 'gradio' ? { GRADIO_ROOT_PATH: d.url.replace(/\/$/, '') } : {};
     // [aws] role: guard fetches STS session creds from the control plane at boot
     const cpUrl = awsRoleArn ? { SMALL_CP_URL: apiBase() } : {};
-    fly.setSecrets(d.flyApp, d.flyToken, { SMALL_PROXY_SECRET: d.proxySecret, ...rootPath, ...cpUrl, ...secrets });
+    // guard batches request-log lines here, authed by the proxy secret it already holds
+    const logUrl = { SMALL_LOG_URL: `${apiBase()}/api/apps/${app.name}/request-log` };
+    fly.setSecrets(d.flyApp, d.flyToken, { SMALL_PROXY_SECRET: d.proxySecret, ...rootPath, ...cpUrl, ...logUrl, ...secrets });
     if (awsRoleArn) console.log(`✓ aws role: ${awsRoleArn} (STS via control plane)`);
     fly.deploy(d.flyApp, d.flyToken, dir);
 
@@ -242,9 +244,33 @@ const commands = {
       return;
     }
     const name = arg || appName(process.cwd());
-    const res = await call('GET', `/api/logs?app=${encodeURIComponent(name)}`);
-    if (!res.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
-    fly.logs(res.flyApp, res.flyToken);
+    if (flags.machine) {
+      const res = await call('GET', `/api/logs?app=${encodeURIComponent(name)}`);
+      if (!res.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
+      return fly.logs(res.flyApp, res.flyToken);
+    }
+    // ponytail: no export — pipe stdout to a file until a --json flag is asked for
+    let base = `/api/request-logs?app=${encodeURIComponent(name)}`;
+    if (typeof flags.user === 'string') base += `&user=${encodeURIComponent(flags.user)}`;
+    if (typeof flags.status === 'string') base += `&status=${encodeURIComponent(flags.status)}`;
+    const fmt = (l) => {
+      const t = new Date(l.ts).toTimeString().slice(0, 8);
+      return `${t} ${l.method} ${l.path} ${l.status} ${l.ms}ms${l.user ? ' ' + l.user : ''}`;
+    };
+    const res = await call('GET', base);
+    if (!flags.follow) {
+      if (!res.lines.length) return console.log('no requests yet');
+      for (const l of res.lines) console.log(fmt(l)); // newest first
+      return;
+    }
+    for (const l of [...res.lines].reverse()) console.log(fmt(l)); // --follow reads top-down: oldest of the last 100 first
+    let cursor = res.cursor;
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 1000));
+      const more = await call('GET', `${base}&after=${cursor}`);
+      for (const l of more.lines) console.log(fmt(l));
+      cursor = more.cursor;
+    }
   },
 
   async share() {
