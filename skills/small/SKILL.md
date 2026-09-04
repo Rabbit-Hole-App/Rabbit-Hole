@@ -7,26 +7,32 @@ description: Deploy the Python tool you just built so colleagues can use it. Use
 
 When the user asks to share or deploy a Python app you built:
 
-1. Write `small.toml` next to the entry file:
+1. In the app directory, run:
 
-```toml
-name = "tool-name"          # lowercase, dashes
-entry = "app.py"
-framework = "flask"         # flask | fastapi | streamlit | script
-
-[secrets]
-required = []               # env var names the code reads, e.g. ["OPENAI_API_KEY"]
+```
+small init
 ```
 
-2. If the app reads env vars, make sure they are in `.env` (never commit it).
+It writes `small.toml` from what it detects: entry file, framework,
+`requirements.txt`, and env vars the code reads (pre-filled into
+`[secrets] required`). It never overwrites an existing `small.toml`
+(`--force` to regenerate).
 
-3. Run:
+2. Open `small.toml` and fill in anything marked `# fill in` — the entry file
+   if it could not be detected, and any secret names the scan missed.
+
+3. If the app reads env vars, make sure they are in `.env` (never commit it).
+
+4. Run:
 
 ```
 small deploy --env .env
 ```
 
-4. Print the URL from the output. Stop. Do not build a Dockerfile, do not
+(`small deploy` runs init itself when no `small.toml` exists, but running
+init first lets you review the file.)
+
+5. Print the URL from the output. Stop. Do not build a Dockerfile, do not
    suggest hosting options, do not add auth — small already put the app behind
    a work-email login.
 

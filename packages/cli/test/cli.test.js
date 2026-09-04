@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { test } = require('node:test');
 const { detect } = require('../lib/detect');
+const { init } = require('../lib/init');
 const { runCommand, dockerfile, write, writeFlyToml } = require('../lib/generate');
 const { parse } = require('../lib/toml');
 
@@ -77,6 +78,20 @@ test('dockerfile: top-level system packages + fly.toml memory', () => {
   write(dir, app);
   writeFlyToml(dir, 'small-x-abc123', app.config.memory);
   assert.match(fs.readFileSync(path.join(dir, '.small', 'fly.toml'), 'utf8'), /memory = "2gb"/);
+});
+
+test('init: writes small.toml with framework and detected env vars', () => {
+  const dir = tmp({
+    'app.py': 'import os\nfrom flask import Flask\napp = Flask(__name__)\nkey = os.environ["STRIPE_KEY"]\n',
+    'requirements.txt': 'flask\n',
+  });
+  assert.equal(init(dir), true);
+  const t = parse(fs.readFileSync(path.join(dir, 'small.toml'), 'utf8'));
+  assert.equal(t.entry, 'app.py');
+  assert.equal(t.framework, 'flask');
+  assert.equal(t.deps.file, 'requirements.txt');
+  assert.deepEqual(t.secrets.required, ['STRIPE_KEY']);
+  assert.equal(t.access.visibility, 'domain');
 });
 
 test('dockerfile + write for counter example', () => {

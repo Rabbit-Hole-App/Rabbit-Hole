@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 'use strict';
+const fs = require('fs');
 const path = require('path');
 const readline = require('node:readline/promises');
 const { detect } = require('../lib/detect');
+const { init } = require('../lib/init');
 const { write, writeFlyToml } = require('../lib/generate');
 const { call, apiBase } = require('../lib/api');
 const config = require('../lib/config');
@@ -45,8 +47,16 @@ const commands = {
     console.log(`✓ logged in as ${v.email} (org: ${v.org})`);
   },
 
+  async init() {
+    if (!init(process.cwd(), { force: !!flags.force })) process.exitCode = 1;
+  },
+
   async deploy() {
     const dir = process.cwd();
+    if (!fs.existsSync(path.join(dir, 'small.toml')) && !init(dir)) {
+      process.exitCode = 1;
+      return;
+    }
     const app = detect(dir, flags);
     console.log(`✓ entry: ${app.entry} (${app.framework}) via ${app.via}`);
 
@@ -96,7 +106,7 @@ const commands = {
 
 const run = commands[cmd];
 if (!run) {
-  console.log('usage: small <login|deploy|share|list|logs>');
+  console.log('usage: small <login|init|deploy|share|list|logs>');
   process.exitCode = 1;
 } else {
   run().catch((err) => {
