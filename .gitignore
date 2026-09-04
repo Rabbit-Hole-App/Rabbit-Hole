@@ -152,3 +152,5 @@ packages/cli/assets/
 packages/control-plane/.dev.vars
 packages/control-plane/.wrangler/
 examples/*/.dockerignore
+__pycache__/
+*.pyc
