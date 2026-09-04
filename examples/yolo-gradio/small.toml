@@ -1,0 +1,5 @@
+name = "yolo-gradio"
+entry = "app.py"
+framework = "gradio"
+memory = "2GB"
+system = ["libgl1", "libglib2.0-0"]

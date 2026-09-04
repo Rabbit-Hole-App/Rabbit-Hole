@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { test } = require('node:test');
 const { detect } = require('../lib/detect');
-const { runCommand, dockerfile, write } = require('../lib/generate');
+const { runCommand, dockerfile, write, writeFlyToml } = require('../lib/generate');
 const { parse } = require('../lib/toml');
 
 function tmp(files) {
@@ -58,7 +58,25 @@ test('run commands per framework', () => {
   assert.equal(runCommand('app.py', 'flask'), 'gunicorn --bind 0.0.0.0:$PORT --timeout 300 app:app');
   assert.equal(runCommand('api.py', 'fastapi'), 'uvicorn api:app --host 0.0.0.0 --port $PORT');
   assert.match(runCommand('app.py', 'streamlit'), /^streamlit run app\.py/);
+  assert.equal(runCommand('app.py', 'gradio'), 'GRADIO_SERVER_NAME=0.0.0.0 GRADIO_SERVER_PORT=$PORT python app.py');
   assert.equal(runCommand('job.py', 'script'), 'python job.py');
+});
+
+test('detect: gradio hint', () => {
+  const dir = tmp({ 'demo.py': 'import gradio as gr\ndemo = gr.Interface(lambda x: x, "text", "text")' });
+  assert.equal(detect(dir).framework, 'gradio');
+});
+
+test('dockerfile: top-level system packages + fly.toml memory', () => {
+  const dir = tmp({
+    'small.toml': 'framework = "gradio"\nentry = "app.py"\nmemory = "2GB"\nsystem = ["libgl1", "libglib2.0-0"]\n',
+    'app.py': 'import gradio as gr',
+  });
+  const app = detect(dir);
+  assert.match(dockerfile(app, dir), /apt-get install -y --no-install-recommends libgl1 libglib2\.0-0/);
+  write(dir, app);
+  writeFlyToml(dir, 'small-x-abc123', app.config.memory);
+  assert.match(fs.readFileSync(path.join(dir, '.small', 'fly.toml'), 'utf8'), /memory = "2gb"/);
 });
 
 test('dockerfile + write for counter example', () => {

@@ -7,6 +7,7 @@ const HINTS = [
   ['Flask(', 'flask'],
   ['FastAPI(', 'fastapi'],
   ['import streamlit', 'streamlit'],
+  ['import gradio', 'gradio'],
 ];
 
 function frameworkOf(source) {

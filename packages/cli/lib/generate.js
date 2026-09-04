@@ -11,6 +11,9 @@ function runCommand(entry, framework) {
       return `uvicorn ${mod}:app --host 0.0.0.0 --port $PORT`;
     case 'streamlit':
       return `streamlit run ${entry} --server.port $PORT --server.address 0.0.0.0 --server.headless true`;
+    case 'gradio':
+      // gradio reads these env vars in launch(); overrides any hardcoded defaults
+      return `GRADIO_SERVER_NAME=0.0.0.0 GRADIO_SERVER_PORT=$PORT python ${entry}`;
     default:
       return `python ${entry}`;
   }
@@ -24,7 +27,7 @@ function guardSource() {
 
 function dockerfile(app, dir) {
   const deps = (app.config.deps && app.config.deps.file) || 'requirements.txt';
-  const system = (app.config.deps && app.config.deps.system) || [];
+  const system = app.config.system || (app.config.deps && app.config.deps.system) || [];
   const lines = ['FROM python:3.13-slim', 'WORKDIR /app'];
   if (system.length) {
     lines.push(`RUN apt-get update && apt-get install -y --no-install-recommends ${system.join(' ')} && rm -rf /var/lib/apt/lists/*`);
@@ -57,7 +60,7 @@ function write(dir, app) {
   return out;
 }
 
-function writeFlyToml(dir, flyApp) {
+function writeFlyToml(dir, flyApp, memory) {
   const toml = [
     `app = "${flyApp}"`,
     '',
@@ -70,7 +73,7 @@ function writeFlyToml(dir, flyApp) {
     '',
     '[[vm]]',
     '  size = "shared-cpu-1x"',
-    '  memory = "256mb"',
+    `  memory = "${String(memory || '256mb').toLowerCase()}"`,
     '',
   ].join('\n');
   fs.writeFileSync(path.join(dir, '.small', 'fly.toml'), toml);

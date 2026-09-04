@@ -60,7 +60,7 @@ const commands = {
     const visibility = (app.config.access && app.config.access.visibility) || undefined;
     const d = await call('POST', '/api/deploy', { name: app.name, framework: app.framework, visibility });
     if (!d.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
-    writeFlyToml(dir, d.flyApp);
+    writeFlyToml(dir, d.flyApp, app.config.memory);
 
     fly.ensureApp(d.flyApp, d.flyOrg, d.flyToken);
     fly.setSecrets(d.flyApp, d.flyToken, { SMALL_PROXY_SECRET: d.proxySecret, ...secrets });
