@@ -1,11 +1,19 @@
+# On Windows, bash is not on PATH in PowerShell/cmd — derive it from git's install dir.
+# ponytail: breaks if git lives under a path with spaces; set BASH=... manually then.
+ifeq ($(OS),Windows_NT)
+BASH := $(subst cmd\git.exe,bin\bash.exe,$(word 1,$(shell where git)))
+else
+BASH := bash
+endif
+
 clean:
-	bash run.sh clean
+	$(BASH) run.sh clean
 
 test:
-	bash run.sh run-tests
+	$(BASH) run.sh run-tests
 
 help:
-	bash run.sh help
+	$(BASH) run.sh help
 
 # ---------- small-deploy ----------
 # DIR defaults to examples/counter; override: make deploy DIR=examples/my-tool
@@ -13,34 +21,34 @@ help:
 DIR ?= examples/counter
 
 run-local:
-	bash run.sh run-local $(DIR)
+	$(BASH) run.sh run-local $(DIR)
 
 run-guarded:
-	bash run.sh run-guarded $(DIR)
+	$(BASH) run.sh run-guarded $(DIR)
 
 login:
-	bash run.sh login
+	$(BASH) run.sh login
 
 deploy:
-	bash run.sh deploy $(DIR)
+	$(BASH) run.sh deploy $(DIR)
 
 share:
-	bash run.sh share $(EMAIL) $(DIR)
+	$(BASH) run.sh share $(EMAIL) $(DIR)
 
 logs:
-	bash run.sh logs
+	$(BASH) run.sh logs
 
 test-unit:
-	bash run.sh test:unit
+	$(BASH) run.sh test:unit
 
 test-integration:
-	bash run.sh test:integration
+	$(BASH) run.sh test:integration
 
 cp-deploy:
-	bash run.sh cp:deploy
+	$(BASH) run.sh cp:deploy
 
 cp-tail:
-	bash run.sh cp:tail
+	$(BASH) run.sh cp:tail
 
 publish-cli:
-	bash run.sh publish:cli
+	$(BASH) run.sh publish:cli
