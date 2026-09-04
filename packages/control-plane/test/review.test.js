@@ -120,6 +120,22 @@ test('undeclared os.environ["FOO"] → undeclared_secrets == ["FOO"], risk >= me
   assert.ok(['medium', 'high'].includes(review.risk));
 });
 
+test('platform SMALL_* vars are not undeclared secrets and do not raise risk', async () => {
+  const db = dbStub();
+  await withFetch(
+    mockAnthropic(() => ({
+      ...emptyReview(),
+      secrets: [{ name: 'SMALL_DATA', declared: false, used_at: 'app.py:10' }],
+      undeclared_secrets: ['SMALL_DATA'],
+    })),
+    () => runReview({ ANTHROPIC_API_KEY: 'k', DB: db }, 3, 'bundle', [])
+  );
+  const review = stored(db);
+  assert.deepEqual(review.undeclared_secrets, []);
+  assert.deepEqual(review.secrets, []);
+  assert.equal(review.risk, 'low');
+});
+
 test('risk rules: outbound allowlist', () => {
   assert.ok(hostAllowed('api.stripe.com'));
   assert.ok(hostAllowed('lambda.us-east-1.amazonaws.com'));

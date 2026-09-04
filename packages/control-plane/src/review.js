@@ -99,6 +99,9 @@ async function runReview(env, appId, bundle, skipped) {
     if (!text) throw new Error('no text block in response');
     const review = validateReview(JSON.parse(text.text));
     review.skipped = skipped || []; // the CLI knows what it left out; the model can't
+    // SMALL_* vars are platform-injected (SMALL_DATA, SMALL_USER, ...), not app secrets.
+    review.secrets = review.secrets.filter((s) => !s.name.startsWith('SMALL_'));
+    review.undeclared_secrets = review.undeclared_secrets.filter((n) => !n.startsWith('SMALL_'));
     review.risk = computeRisk(review);
     review.findings.sort((a, b) => (SEVERITY[a.severity] ?? 3) - (SEVERITY[b.severity] ?? 3));
     if (review.risk === 'high') console.log(`review: HIGH risk on app ${appId}: ${review.summary}`);
