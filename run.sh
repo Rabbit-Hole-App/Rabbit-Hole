@@ -61,6 +61,75 @@ function try-load-dotenv {
     done < <(grep -v '^#' "$THIS_DIR/.env" | grep -v '^$')
 }
 
+# ---------- small-deploy tasks ----------
+# Most take an app dir (default examples/counter) so new use cases plug in:
+#   ./run.sh deploy examples/my-new-tool
+
+# run an app's flask server plainly on :8000 (fast dev loop)
+function run-local {
+    local dir="${1:-$THIS_DIR/examples/counter}"
+    (cd "$dir" && flask --app app run --port 8000)
+}
+
+# run an app behind guard.py exactly like production: 403 without the proxy header
+function run-guarded {
+    local dir="${1:-$THIS_DIR/examples/counter}"
+    echo "guard on :8080 (secret dev123) -> app on :8090"
+    echo "try: curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/   # 403"
+    echo "try: curl -s http://127.0.0.1:8080/ -H 'X-Small-Proxy: dev123'         # 200"
+    (cd "$dir" && PORT=8080 SMALL_APP_PORT=8090 SMALL_PROXY_SECRET=dev123 \
+        python "$THIS_DIR/packages/runtime/guard.py" flask --app app run --port 8090)
+}
+
+# log in to the small control plane (code echoed inline on the test instance)
+function login {
+    small login
+}
+
+# deploy an app dir with the published CLI
+function deploy {
+    local dir="${1:-$THIS_DIR/examples/counter}"
+    (cd "$dir" && small deploy)
+}
+
+# grant a person access to an app: ./run.sh share alice@gmail.com [dir] [--edit]
+function share {
+    local email="$1"; shift
+    local dir="${1:-$THIS_DIR/examples/counter}"
+    [[ "$dir" == --* ]] && dir="$THIS_DIR/examples/counter" || shift || true
+    (cd "$dir" && small share "$email" "$@")
+}
+
+# recent container logs: ./run.sh logs [app-name]
+function logs {
+    small logs "$@"
+}
+
+# fast tests only (no network): guard proxy unit test
+function test:unit {
+    python -m pytest "$THIS_DIR/tests/unit_tests/"
+}
+
+# full integration tests: real deploy to Fly through the published CLI (~30s)
+function test:integration {
+    python -m pytest "$THIS_DIR/tests/integration_tests/"
+}
+
+# deploy the control plane worker to Cloudflare
+function cp:deploy {
+    (cd "$THIS_DIR/packages/control-plane" && npx wrangler deploy)
+}
+
+# live-tail control plane logs
+function cp:tail {
+    (cd "$THIS_DIR/packages/control-plane" && npx wrangler tail)
+}
+
+# publish a new CLI version to npm: bump packages/cli/package.json version first
+function publish:cli {
+    (cd "$THIS_DIR/packages/cli" && npm test && npm publish)
+}
+
 # print all functions in this file
 function help {
     echo "$0 <task> <args>"
