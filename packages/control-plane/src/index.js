@@ -189,12 +189,19 @@ async function proxyApp(req, env, org, name, rest, baseUrl) {
   headers.set('X-Small-User', sess.email);
   headers.set('X-Small-Org', org);
   headers.set('X-Small-Proxy', app.proxy_secret);
-  const resp = await fetch(`${origin}${rest}${target.search}`, {
-    method: req.method,
-    headers,
-    body: ['GET', 'HEAD'].includes(req.method) ? undefined : req.body,
-    redirect: 'manual',
-  });
+  let resp;
+  for (let attempt = 0; ; attempt++) {
+    resp = await fetch(`${origin}${rest}${target.search}`, {
+      method: req.method,
+      headers,
+      body: ['GET', 'HEAD'].includes(req.method) ? undefined : req.body,
+      redirect: 'manual',
+    });
+    // Fly answers 502/503 while a scaled-to-zero machine wakes (~30s for torch-heavy apps);
+    // hold safe-to-repeat requests instead of showing the browser a Bad Gateway.
+    if (![502, 503].includes(resp.status) || !['GET', 'HEAD'].includes(req.method) || attempt >= 9) break;
+    await new Promise((r) => setTimeout(r, 5000));
+  }
   const out = new Headers(resp.headers);
   const loc = out.get('Location');
   if (loc && loc.startsWith('/') && !loc.startsWith('/a/')) out.set('Location', prefix + loc); // path-based hosting: re-prefix app redirects
