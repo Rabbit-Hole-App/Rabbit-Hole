@@ -57,4 +57,23 @@ function write(dir, app) {
   return out;
 }
 
-module.exports = { runCommand, dockerfile, write };
+function writeFlyToml(dir, flyApp) {
+  const toml = [
+    `app = "${flyApp}"`,
+    '',
+    '[http_service]',
+    '  internal_port = 8080',
+    '  force_https = true',
+    '  auto_stop_machines = "stop"',
+    '  auto_start_machines = true',
+    '  min_machines_running = 0',
+    '',
+    '[[vm]]',
+    '  size = "shared-cpu-1x"',
+    '  memory = "256mb"',
+    '',
+  ].join('\n');
+  fs.writeFileSync(path.join(dir, '.small', 'fly.toml'), toml);
+}
+
+module.exports = { runCommand, dockerfile, write, writeFlyToml };

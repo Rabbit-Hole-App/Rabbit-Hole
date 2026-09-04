@@ -1,0 +1,17 @@
+{
+  "name": "small-cp",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-01",
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "small",
+      "database_id": "REPLACED_AT_SETUP"
+    }
+  ],
+  "vars": {
+    "FLY_ORG_SLUG": "personal"
+  }
+  // secrets (wrangler secret put): MASTER_KEY, FLY_API_TOKEN, RESEND_API_KEY (optional), TEST_BYPASS_SECRET (test envs only), EMAIL_FROM (optional)
+}

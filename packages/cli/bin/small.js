@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 'use strict';
+const path = require('path');
+const readline = require('node:readline/promises');
 const { detect } = require('../lib/detect');
-const { write } = require('../lib/generate');
+const { write, writeFlyToml } = require('../lib/generate');
+const { call, apiBase } = require('../lib/api');
+const config = require('../lib/config');
+const envfile = require('../lib/envfile');
+const fly = require('../lib/fly');
 
 const [cmd, ...rest] = process.argv.slice(2);
 const flags = { _: [] };
@@ -14,26 +20,76 @@ for (let i = 0; i < rest.length; i++) {
   }
 }
 
+async function ask(question) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await rl.question(question);
+  rl.close();
+  return answer.trim();
+}
+
+function appName(dir) {
+  if (flags.app) return flags.app;
+  return detect(dir).name;
+}
+
 const commands = {
-  deploy() {
+  async login() {
+    if (flags.api) config.save({ ...config.load(), apiBase: flags.api });
+    const email = flags.email || (await ask('work email: '));
+    const res = await call('POST', '/api/cli/login', { email }, { auth: false });
+    if (res.devCode) console.log(`(dev) code: ${res.devCode}`);
+    else console.log(`✓ code sent to ${email}`);
+    const code = flags.code || (await ask('6-digit code: '));
+    const v = await call('POST', '/api/cli/verify', { challenge: res.challenge, code }, { auth: false });
+    config.save({ ...config.load(), token: v.token, email: v.email, org: v.org, apiBase: apiBase() });
+    console.log(`✓ logged in as ${v.email} (org: ${v.org})`);
+  },
+
+  async deploy() {
     const dir = process.cwd();
     const app = detect(dir, flags);
     console.log(`✓ entry: ${app.entry} (${app.framework}) via ${app.via}`);
-    const out = write(dir, app);
-    console.log(`✓ generated ${out}`);
-    console.log('… network deploy not wired yet (control plane pending)');
+
+    const envPath = path.resolve(dir, typeof flags.env === 'string' ? flags.env : '.env');
+    const secrets = envfile.parse(envPath);
+    const required = (app.config.secrets && app.config.secrets.required) || [];
+    const missing = required.filter((k) => !(k in secrets));
+    if (missing.length) throw new Error(`missing secrets: ${missing.join(', ')} — add them to ${envPath}`);
+
+    write(dir, app);
+    const visibility = (app.config.access && app.config.access.visibility) || undefined;
+    const d = await call('POST', '/api/deploy', { name: app.name, framework: app.framework, visibility });
+    if (!d.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
+    writeFlyToml(dir, d.flyApp);
+
+    fly.ensureApp(d.flyApp, d.flyOrg, d.flyToken);
+    fly.setSecrets(d.flyApp, d.flyToken, { SMALL_PROXY_SECRET: d.proxySecret, ...secrets });
+    fly.deploy(d.flyApp, d.flyToken, dir);
+
+    console.log(`✓ deployed → ${d.url}`);
+    const { org } = config.load();
+    console.log(visibility === 'private' ? '✓ login required · explicit members only' : `✓ login required · anyone @${org}`);
   },
-  login() {
-    console.log('… login not wired yet (control plane pending)');
+
+  async share() {
+    const email = flags._[0];
+    if (!email || !email.includes('@')) throw new Error('usage: small share <email> [--edit] [--app name]');
+    const name = appName(process.cwd());
+    const res = await call('POST', '/api/share', { app: name, email, role: flags.edit ? 'edit' : 'view' });
+    console.log(`✓ ${res.email} can ${res.role} ${res.app}`);
   },
-  share() {
-    console.log('… share not wired yet (control plane pending)');
+
+  async list() {
+    const { apps } = await call('GET', '/api/apps');
+    if (!apps.length) return console.log('no apps yet — run small deploy');
+    for (const a of apps) console.log(`${a.name}  ${a.visibility}  owner:${a.owner_email}`);
   },
-  list() {
-    console.log('… list not wired yet (control plane pending)');
-  },
-  logs() {
-    console.log('… logs not wired yet (control plane pending)');
+
+  async logs() {
+    const name = flags._[0] || appName(process.cwd());
+    const res = await call('GET', `/api/logs?app=${encodeURIComponent(name)}`);
+    if (!res.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
+    fly.logs(res.flyApp, res.flyToken);
   },
 };
 
@@ -42,10 +98,8 @@ if (!run) {
   console.log('usage: small <login|deploy|share|list|logs>');
   process.exitCode = 1;
 } else {
-  try {
-    run();
-  } catch (err) {
+  run().catch((err) => {
     console.error(`✗ ${err.message}`);
     process.exitCode = 1;
-  }
+  });
 }
