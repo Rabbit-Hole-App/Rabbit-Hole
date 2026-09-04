@@ -64,7 +64,8 @@ def job_dir():
     shutil.copytree(PROJECT_DIR / "examples" / "s3-log-writer", d, dirs_exist_ok=True)
     (d / ".env").write_text("".join(f"{k}={ENV[k]}\n" for k in AWS_KEYS))
     toml = (d / "small.toml").read_text().replace('name = "s3-log-writer"', f'name = "{APP_NAME}"')
-    (d / "small.toml").write_text(toml + '\nschedule = "* * * * *"\n')
+    # prepend, not append: the file ends inside [secrets], appended keys would land there
+    (d / "small.toml").write_text('schedule = "* * * * *"\n' + toml)
     yield d
     subprocess.run([small(), "schedule", "pause", APP_NAME], capture_output=True, timeout=60)
     shutil.rmtree(d, ignore_errors=True)
