@@ -483,7 +483,7 @@ export function RunView({ runId, app, onRunAgain }) {
         <div className="text-sm text-ink-2">{meta.status === 'running' ? 'Waiting for output…' : 'No log.'}</div>
       ) : (
         <>
-          <CodeBlock scrollRef={logRef} className="max-h-[360px] overflow-y-auto">{visible.join('\n')}</CodeBlock>
+          <CodeBlock scrollRef={logRef} className="no-scrollbar max-h-[360px] overflow-y-auto">{visible.join('\n')}</CodeBlock>
           {!showAll && lines.length > 20 && (
             <button className="mt-1 cursor-pointer text-sm text-ink-2 hover:text-ink" onClick={() => setShowAll(true)}>Show all {lines.length} lines</button>
           )}
