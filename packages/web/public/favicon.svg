@@ -1,8 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- the ● from the "● small" wordmark: a small dot in generous whitespace -->
+  <!-- E2: your own cloud, boxed — a private cloud for small software.
+       Ink on light tabs, paper on dark via prefers-color-scheme. -->
   <style>
-    circle { fill: #37352F; }
-    @media (prefers-color-scheme: dark) { circle { fill: #E9E9E7; } }
+    .frame { stroke: #37352F; }
+    .cloud { fill: #37352F; }
+    @media (prefers-color-scheme: dark) {
+      .frame { stroke: #E9E9E7; }
+      .cloud { fill: #E9E9E7; }
+    }
   </style>
-  <circle cx="16" cy="16" r="7"/>
+  <rect class="frame" x="2" y="2" width="28" height="28" rx="7" fill="none" stroke-width="2.5"/>
+  <g transform="translate(6.2,7) scale(0.83)">
+    <path class="cloud" d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+  </g>
 </svg>
