@@ -503,7 +503,7 @@ export function RunView({ runId, app, onRunAgain }) {
 export function RunPeek({ runId, app, onClose, onRunAgain }) {
   const [tab, setTab] = useState('run');
   const [chatted, setChatted] = useState(false);
-  const tabCls = (on) => cn('flex h-6 cursor-pointer items-center gap-1.5 truncate rounded-sm px-1.5 text-sm', on ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink');
+  const tabCls = (on) => cn('flex h-6 cursor-pointer items-center gap-1.5 truncate rounded-full px-2.5 text-sm', on ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink');
   return (
     <SlidePanel
       width={480}
