@@ -277,7 +277,7 @@ function OutputRow({ runId, name, size }) {
 
 // One chat, scoped: {app} | {run} | {} (org). Style per the Notion AI reference -
 // user turns as a right-aligned bubble, answers as plain text, pill input at the bottom.
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, autoFocus = false }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, autoFocus = false, onSent = null, onHasChat = null }) {
   const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -325,6 +325,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       threadId.current = d.id;
       setMsgs(d.messages);
       setChoices(null);
+      if (d.messages?.length) onHasChat?.(); // the parent may surface a Chat tab
       if (toChat) setView('chat'); // the silent resume-on-mount must not yank the user out of History
     } catch { /* stale id - stay on the empty chat */ }
   };
@@ -345,6 +346,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // @-chips ride at the front of the message text
     const message = [...mentions.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     if (!message || busy) return;
+    onSent?.();
     setChoices(null);
     setBusy(true);
     setInput('');

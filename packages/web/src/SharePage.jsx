@@ -585,17 +585,26 @@ function AppPage({ slug, runId, reloadShell }) {
         {app && runId && (
           <>
             <h1 className="pb-4 text-[32px] leading-[1.2] font-bold tracking-[-0.01em]">Run {runId.replace(/^r-/, '').slice(0, 7)}</h1>
-            <div>
-              <RunView
-                runId={runId}
-                app={app}
-                onRunAgain={(inputs) => {
-                  sessionStorage.setItem(`small.runPrefill.${slug}`, JSON.stringify(inputs || {}));
-                  setPeek(null);
-                  setTab('run'); // AppPage stays mounted across this navigate - land on the form
-                  navigate(`/apps/${slug}`);
-                }}
-              />
+            {/* split view: run content left, the run's chat as a right column with the
+                textbox pinned to the bottom (sticky, so it stays while logs scroll) */}
+            <div className="flex gap-6">
+              <div className="min-w-0 flex-1">
+                <RunView
+                  runId={runId}
+                  app={app}
+                  onRunAgain={(inputs) => {
+                    sessionStorage.setItem(`small.runPrefill.${slug}`, JSON.stringify(inputs || {}));
+                    setPeek(null);
+                    setTab('run'); // AppPage stays mounted across this navigate - land on the form
+                    navigate(`/apps/${slug}`);
+                  }}
+                />
+              </div>
+              <div className="w-[380px] shrink-0 border-l border-line pl-5 max-lg:hidden">
+                <div className="sticky top-4 flex h-[calc(100dvh-140px)] flex-col">
+                  <AskPanel scope={{ run: runId }} appName={app.name} placeholder="Ask about this run…" />
+                </div>
+              </div>
             </div>
           </>
         )}

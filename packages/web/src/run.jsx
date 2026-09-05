@@ -498,25 +498,38 @@ export function RunView({ runId, app, onRunAgain }) {
 }
 
 // ─── The 480px side peek. ⤢ opens /apps/<slug>/runs/<id>; the page behind stays live. ───
+// Once a conversation exists it gets its own Chat tab in the header; the panel is
+// never remounted on switch (a mid-stream reply must survive), only re-styled.
 export function RunPeek({ runId, app, onClose, onRunAgain }) {
+  const [tab, setTab] = useState('run');
+  const [chatted, setChatted] = useState(false);
+  const tabCls = (on) => cn('cursor-pointer truncate rounded-sm px-1.5 py-0.5 text-sm', on ? 'font-semibold text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink');
   return (
     <SlidePanel
       width={480}
       onClose={onClose}
       title={
         <>
-          <span className="truncate">Run {shortId(runId)}</span>
+          <span className={tabCls(tab === 'run')} onClick={() => setTab('run')}>Run {shortId(runId)}</span>
+          {chatted && <span className={tabCls(tab === 'chat')} onClick={() => setTab('chat')}>Chat</span>}
           <IconBtn aria-label="Open as page" title="Open as page" onClick={() => navigate(`/apps/${app.name}/runs/${runId}`)}>
             <Maximize2 size={14} strokeWidth={1.5} />
           </IconBtn>
         </>
       }
     >
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2">
+      <div className={cn('min-h-0 flex-1 overflow-y-auto px-5 pb-2', tab !== 'run' && 'hidden')}>
         <RunView runId={runId} app={app} onRunAgain={onRunAgain} />
       </div>
-      <div className="shrink-0 border-t border-line px-5 pt-1 pb-4">
-        <AskPanel scope={{ run: runId }} appName={app?.name} compact placeholder="Ask about this run…" />
+      <div className={cn('px-5', tab === 'chat' ? 'flex min-h-0 flex-1 flex-col pt-2 pb-4' : 'shrink-0 border-t border-line pt-1 pb-4')}>
+        <AskPanel
+          scope={{ run: runId }}
+          appName={app?.name}
+          compact={tab !== 'chat'}
+          placeholder="Ask about this run…"
+          onHasChat={() => setChatted(true)}
+          onSent={() => { setChatted(true); setTab('chat'); }}
+        />
       </div>
     </SlidePanel>
   );
