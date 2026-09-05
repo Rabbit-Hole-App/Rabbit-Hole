@@ -575,6 +575,13 @@ function AppPage({ slug, runId, reloadShell }) {
                   {app.name}
                 </h1>
               )}
+              {app.kind !== 'job' && (
+                <span className="ml-auto">
+                  <Button variant="primary" size="sm" onClick={() => window.open(app.url, '_blank', 'noopener')}>
+                    Open <ArrowUpRight size={14} strokeWidth={1.5} />
+                  </Button>
+                </span>
+              )}
             </div>
 
             {/* Notion-style vertical property list: icon + grey label at 160px, value
@@ -617,13 +624,6 @@ function AppPage({ slug, runId, reloadShell }) {
                 {app.kind === 'job' && <TabsTrigger value="run">Run</TabsTrigger>}
                 <TabsTrigger value="logs">Logs</TabsTrigger>
                 <TabsTrigger value="agent">Agent</TabsTrigger>
-                {app.kind !== 'job' && (
-                  <span className="ml-auto self-center">
-                    <Button variant="primary" size="sm" onClick={() => window.open(app.url, '_blank', 'noopener')}>
-                      Open <ArrowUpRight size={14} strokeWidth={1.5} />
-                    </Button>
-                  </span>
-                )}
               </TabsList>
 
               <TabsContent value="runbook" className="min-h-[200px] pt-4">
@@ -645,13 +645,15 @@ function AppPage({ slug, runId, reloadShell }) {
               </TabsContent>
 
               <TabsContent value="agent" className="pt-4">
-                <div className="flex h-[460px] flex-col">
+                {/* fills the viewport below the header: the input stays pinned at the
+                    bottom and only the conversation scrolls */}
+                <div className="flex h-[calc(100dvh-380px)] min-h-[320px] flex-col">
                   <AskPanel scope={{ app: app.name }} email={app.email} placeholder={`Ask about ${app.name}…`} autoFocus />
                 </div>
               </TabsContent>
             </Tabs>
 
-            {app.lastOpened && (
+            {app.lastOpened && (tab ?? (app.kind === 'job' ? 'run' : 'runbook')) !== 'agent' && (
               <div className="pt-6 text-sm text-ink-2">
                 Last opened by {app.lastOpened.email} · {ago(app.lastOpened.ts)}
               </div>

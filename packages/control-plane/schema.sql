@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS threads (
   user TEXT NOT NULL,
   scope TEXT NOT NULL,
   scope_ref TEXT,
+  title TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS messages (
@@ -132,6 +133,20 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id);
+
+-- Ask phase 2: tool calls become proposals; the row is the approval log.
+CREATE TABLE IF NOT EXISTS proposals (
+  id TEXT PRIMARY KEY,
+  thread_id INTEGER NOT NULL,
+  org TEXT NOT NULL,
+  user TEXT NOT NULL,
+  tool TEXT NOT NULL,
+  args TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'proposed',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  approved_by TEXT,
+  approved_at TEXT
+);
 
 CREATE TABLE IF NOT EXISTS run_logs (
   run_id TEXT NOT NULL,

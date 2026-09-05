@@ -2,7 +2,7 @@
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, sha256, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
-import { askOnce, askStream, capJoin, DIAGNOSIS_PROMPT } from './ask.js';
+import { ASK_MODELS, ASK_TOOLS, askOnce, askStream, capJoin, DIAGNOSIS_PROMPT } from './ask.js';
 import { assumeRole, s3Buckets, s3Get, s3List } from './aws.js';
 import { runReview, generateRunbook } from './review.js';
 import { parseCron, matches, nextRun } from './cron.js';
@@ -462,13 +462,16 @@ async function editorsLine(env, app) {
   return `owner: ${app.owner_email}${results.length ? ` · edit members: ${results.map((r) => r.email).join(', ')}` : ''}`;
 }
 
-async function runContext(env, app, run) {
-  const { results: logRows } = await env.DB.prepare(
-    'SELECT seq, line FROM run_logs WHERE run_id = ? ORDER BY seq DESC LIMIT 400'
-  ).bind(run.run_id).all();
+// `use` = Set of source keys the user toggled on (null = everything). The picker
+// in the ask box mirrors Notion's "My sources".
+async function runContext(env, app, run, use = null) {
+  const onR = (k) => !use || use.has(k);
+  const logRows = onR('log')
+    ? (await env.DB.prepare('SELECT seq, line FROM run_logs WHERE run_id = ? ORDER BY seq DESC LIMIT 400').bind(run.run_id).all()).results
+    : [];
   logRows.reverse();
   let outputs = [];
-  if (env.RUNS) {
+  if (env.RUNS && onR('outputs')) {
     const listed = await env.RUNS.list({ prefix: `runs/${run.run_id}/outputs/` });
     outputs = listed.objects.map((o) => `${o.key.split('/').pop()} (${o.size} B)`);
   }
@@ -486,21 +489,26 @@ async function runContext(env, app, run) {
     lastOk ? `last successful run: ${lastOk.run_id} at ${lastOk.finished_at}` : 'no successful run before this one',
     // ponytail: deploy bundles aren't stored — no real code diff since the last success
     line('deployed from', app.repo_branch && `${app.repo_branch} · ${app.repo_commit || '?'}${app.repo_dirty ? ' · dirty' : ''} (deployed_at ${app.deployed_at})`),
-    line('AGENT.md', app.agent_md),
-    line('review', app.review),
-    line('runbook', app.runbook),
-    logRows.length
-      ? `log lines ${logRows[0].seq}-${logRows[logRows.length - 1].seq}:\n${logRows.map((r) => r.line).join('\n')}`
-      : 'log: empty',
+    onR('agent') ? line('AGENT.md', app.agent_md) : null,
+    onR('review') ? line('review', app.review) : null,
+    onR('runbook') ? line('runbook', app.runbook) : null,
+    onR('log')
+      ? (logRows.length
+          ? `log lines ${logRows[0].seq}-${logRows[logRows.length - 1].seq}:\n${logRows.map((r) => r.line).join('\n')}`
+          : 'log: empty')
+      : null,
   ]);
 }
 
-async function appContext(env, app) {
-  const { results: runs } = await env.DB.prepare(
-    'SELECT run_id, status, exit_code, started_by, started_at, finished_at, inputs, reason FROM runs WHERE app_id = ? ORDER BY id DESC LIMIT 20'
-  ).bind(app.id).all();
+async function appContext(env, app, use = null) {
+  const on = (k) => !use || use.has(k);
+  const runs = on('runs')
+    ? (await env.DB.prepare(
+        'SELECT run_id, status, exit_code, started_by, started_at, finished_at, inputs, reason FROM runs WHERE app_id = ? ORDER BY id DESC LIMIT 20'
+      ).bind(app.id).all()).results
+    : [];
   let reqSummary = null;
-  if (app.kind !== 'job') {
+  if (app.kind !== 'job' && on('requests')) {
     try {
       const { results } = await env.DB.prepare(
         'SELECT status, COUNT(*) AS n FROM request_logs WHERE org = ? AND slug = ? GROUP BY status ORDER BY n DESC LIMIT 10'
@@ -517,11 +525,11 @@ async function appContext(env, app) {
     line('inputs schema', app.inputs),
     line('outputs declared', app.outputs),
     line('deployed from', app.repo_branch && `${app.repo_branch} · ${app.repo_commit || '?'}${app.repo_dirty ? ' · dirty' : ''} (deployed_at ${app.deployed_at})`),
-    line('AGENT.md', app.agent_md),
-    line('review', app.review),
-    line('runbook', app.runbook),
+    on('agent') ? line('AGENT.md', app.agent_md) : null,
+    on('review') ? line('review', app.review) : null,
+    on('runbook') ? line('runbook', app.runbook) : null,
     line('request log summary (status: count)', reqSummary),
-    runs.length ? `last ${runs.length} runs:\n${runs.map(fmtRunLine).join('\n')}` : 'no runs yet',
+    on('runs') ? (runs.length ? `last ${runs.length} runs:\n${runs.map(fmtRunLine).join('\n')}` : 'no runs yet') : null,
   ]);
 }
 
@@ -560,12 +568,46 @@ function resolveMention(message, visible) {
   return hits;
 }
 
+// Base64 without call-stack limits (String.fromCharCode(...big) overflows).
+function b64(bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
 async function apiAsk(req, env, ctx, user) {
   if (!env.ANTHROPIC_API_KEY) return json({ error: 'ask is not configured on this control plane' }, 503);
-  const { scope = {}, message, thread_id } = await req.json();
+  // JSON, or multipart when a file rides along (images/PDFs as model blocks, CSVs as text)
+  let body, extraBlocks = [], attachedName = null;
+  if ((req.headers.get('Content-Type') || '').includes('multipart/form-data')) {
+    const form = await req.formData();
+    body = JSON.parse(form.get('body') || '{}');
+    const file = form.get('file');
+    if (file && typeof file !== 'string') {
+      if (file.size > 4 * 1024 * 1024) return json({ error: 'attachment too large — 4 MB max' }, 400);
+      attachedName = file.name;
+      const type = file.type || '';
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      if (type.startsWith('image/')) {
+        extraBlocks = [{ type: 'image', source: { type: 'base64', media_type: type, data: b64(bytes) } }];
+      } else if (type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+        extraBlocks = [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64(bytes) } }];
+      } else {
+        // csv/txt/anything text-ish rides inline, truncated
+        const text = new TextDecoder().decode(bytes).slice(0, 50000);
+        extraBlocks = [{ type: 'text', text: `Attached file ${file.name}:\n${text}` }];
+      }
+    }
+  } else {
+    body = await req.json();
+  }
+  const { scope = {}, message, thread_id, sources, model } = body;
   if (!message || typeof message !== 'string' || message.length > 4000) return json({ error: 'message required (max 4000 chars)' }, 400);
+  // sources picker (Notion "My sources"): only the toggled context rides; model from the allowlist
+  const useSet = Array.isArray(sources) && sources.length ? new Set(sources.map(String)) : null;
+  const modelId = ASK_MODELS[model] || null;
 
-  let context, scopeKind, scopeRef = null, note = null;
+  let context, scopeKind, scopeRef = null, note = null, canAct = false;
   if (scope.run) {
     const run = await env.DB.prepare(
       'SELECT runs.*, apps.id AS app_id FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?'
@@ -573,14 +615,16 @@ async function apiAsk(req, env, ctx, user) {
     if (!run) return json({ error: `no run ${scope.run}` }, 404);
     const app = await env.DB.prepare('SELECT * FROM apps WHERE id = ?').bind(run.app_id).first();
     if (!app || app.org !== user.org || !(await canView(env, app, user.email))) return json({ error: 'no access' }, 403);
-    context = await runContext(env, app, run);
+    context = await runContext(env, app, run, useSet);
+    canAct = await canEdit(env, app, user.email);
     scopeKind = 'run';
     scopeRef = scope.run;
   } else if (scope.app) {
     const app = await appForUser(env, user, scope.app);
     if (!app) return json({ error: `no app named ${scope.app}` }, 404);
     if (!app.canView) return json({ error: 'no access' }, 403);
-    context = await appContext(env, app);
+    context = await appContext(env, app, useSet);
+    canAct = !!app.canEdit;
     scopeKind = 'app';
     scopeRef = scope.app;
   } else {
@@ -588,7 +632,8 @@ async function apiAsk(req, env, ctx, user) {
     const hits = resolveMention(message, visible);
     if (hits.length === 1) {
       note = `(interpreting this as being about ${hits[0].app.name})`;
-      context = await appContext(env, hits[0].app);
+      context = await appContext(env, hits[0].app, useSet);
+      canAct = await canEdit(env, hits[0].app, user.email);
     } else if (hits.length > 1) {
       return json({
         choose: hits.map(({ app }) => ({
@@ -617,12 +662,132 @@ async function apiAsk(req, env, ctx, user) {
     'SELECT role, content FROM messages WHERE thread_id = ? ORDER BY id DESC LIMIT 10'
   ).bind(threadId).all();
   history.reverse();
-  await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'user', message).run();
+  await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)')
+    .bind(threadId, 'user', attachedName ? `${message} [attached: ${attachedName}]` : message).run();
 
   const q = note ? `${note} ${message}` : message;
+  // tools ride only when the user can edit the scope — a viewer's model has none
+  const toolOpts = canAct
+    ? {
+        tools: ASK_TOOLS,
+        onProposal: async (tool, args) => {
+          const id = 'p-' + randomHex(6);
+          await env.DB.prepare('INSERT INTO proposals (id, thread_id, org, user, tool, args) VALUES (?, ?, ?, ?, ?, ?)')
+            .bind(id, threadId, user.org, user.email, tool, JSON.stringify(args)).run();
+          return { id, tool, args };
+        },
+      }
+    : null;
   return askStream(env, context, history, q, async (full) => {
     await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
-  }, { threadId, ...(note ? { note } : {}) });
+  }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId);
+}
+
+// Chat history: threads persist in D1 — these two GETs let the UI resume them.
+async function apiAskThreads(req, env, user) {
+  const url = new URL(req.url);
+  const kind = url.searchParams.get('scope') || 'org';
+  const ref = url.searchParams.get('ref') || null;
+  const { results } = await env.DB.prepare(
+    `SELECT t.id, t.created_at,
+            COALESCE(t.title, (SELECT content FROM messages WHERE thread_id = t.id AND role = 'user' ORDER BY id LIMIT 1)) AS title
+     FROM threads t WHERE t.org = ? AND t.user = ? AND t.scope = ? AND (t.scope_ref IS ? OR t.scope_ref = ?)
+     ORDER BY t.id DESC LIMIT 20`
+  ).bind(user.org, user.email, kind, ref, ref).all();
+  return json({ threads: results.filter((t) => t.title) });
+}
+
+async function apiAskThreadRename(req, env, user, threadId) {
+  const title = String((await req.json()).title || '').trim().slice(0, 120);
+  if (!title) return json({ error: 'title required' }, 400);
+  const r = await env.DB.prepare('UPDATE threads SET title = ? WHERE id = ? AND user = ? AND org = ?')
+    .bind(title, threadId, user.email, user.org).run();
+  if (!r.meta.changes) return json({ error: 'no such thread' }, 404);
+  return json({ ok: true, title });
+}
+
+// Deleting a chat removes the thread + messages; approved proposals stay — they
+// are the action log, not conversation.
+async function apiAskThreadDelete(env, user, threadId) {
+  const r = await env.DB.prepare('DELETE FROM threads WHERE id = ? AND user = ? AND org = ?')
+    .bind(threadId, user.email, user.org).run();
+  if (!r.meta.changes) return json({ error: 'no such thread' }, 404);
+  await env.DB.prepare('DELETE FROM messages WHERE thread_id = ?').bind(threadId).run();
+  return json({ ok: true });
+}
+
+async function apiAskThread(env, user, threadId) {
+  const t = await env.DB.prepare('SELECT id FROM threads WHERE id = ? AND user = ? AND org = ?').bind(threadId, user.email, user.org).first();
+  if (!t) return json({ error: 'no such thread' }, 404);
+  const { results } = await env.DB.prepare('SELECT role, content FROM messages WHERE thread_id = ? ORDER BY id').bind(threadId).all();
+  return json({ id: t.id, messages: results });
+}
+
+// Phase 2 approval: the proposal executes here, with edit re-checked NOW — the
+// row becomes the log (who, what, when, thread).
+async function apiAskApprove(req, env, user, baseUrl) {
+  const { proposal_id } = await req.json();
+  const p = await env.DB.prepare('SELECT * FROM proposals WHERE id = ? AND org = ? AND user = ?')
+    .bind(proposal_id, user.org, user.email).first();
+  if (!p) return json({ error: 'no such proposal' }, 404);
+  if (p.status !== 'proposed') return json({ error: `already ${p.status}` }, 409);
+  const args = JSON.parse(p.args);
+
+  const editableApp = async (name) => {
+    const app = await appRow(env, user.org, name);
+    if (!app) throw new Error(`no app named ${name}`);
+    if (!(await canEdit(env, app, user.email))) throw new Error('no edit access');
+    return app;
+  };
+
+  let result;
+  try {
+    if (p.tool === 'run') {
+      const app = await editableApp(args.app);
+      if (app.kind !== 'job') throw new Error('only jobs run');
+      if (!app.image) throw new Error('no image yet — deploy first');
+      const fileInputs = Object.entries(JSON.parse(app.inputs || '{}')).filter(([, s]) => s.type === 'file');
+      if (fileInputs.length) throw new Error('this job takes file inputs — start it from the Run tab');
+      result = { runId: await startRun(env, app, user.email, baseUrl, args.inputs && Object.keys(args.inputs).length ? args.inputs : null) };
+    } else if (p.tool === 'run_again') {
+      const old = await env.DB.prepare('SELECT runs.*, apps.name AS app_name FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?').bind(args.run_id).first();
+      if (!old) throw new Error(`no run ${args.run_id}`);
+      const app = await editableApp(old.app_name);
+      const inputs = old.inputs ? JSON.parse(old.inputs) : null;
+      const schema = JSON.parse(app.inputs || '{}');
+      // ponytail: stored R2 input files aren't copied to the new run — scalars only
+      if (inputs && Object.keys(inputs).some((k) => schema[k]?.type === 'file')) throw new Error('that run had file inputs — re-run it from the Run tab');
+      result = { runId: await startRun(env, app, user.email, baseUrl, inputs) };
+    } else if (p.tool === 'pause_schedule' || p.tool === 'resume_schedule') {
+      const app = await editableApp(args.app);
+      if (!app.schedule) throw new Error(`${app.name} has no schedule`);
+      const paused = p.tool === 'pause_schedule' ? 1 : 0;
+      await env.DB.prepare('UPDATE apps SET schedule_paused = ? WHERE id = ?').bind(paused, app.id).run();
+      result = { schedule: app.schedule, paused: !!paused };
+    } else if (p.tool === 'share') {
+      const app = await editableApp(args.app);
+      const email = String(args.email || '').toLowerCase().trim();
+      if (!email.includes('@')) throw new Error('bad email');
+      const role = args.role === 'edit' ? 'edit' : 'view';
+      await env.DB.prepare('INSERT INTO members (app_id, email, role) VALUES (?, ?, ?) ON CONFLICT(app_id, email) DO UPDATE SET role = excluded.role')
+        .bind(app.id, email, role).run();
+      result = { shared: email, role };
+    } else if (p.tool === 'unshare') {
+      const app = await editableApp(args.app);
+      await env.DB.prepare('DELETE FROM members WHERE app_id = ? AND email = ?').bind(app.id, String(args.email || '').toLowerCase().trim()).run();
+      result = { unshared: args.email };
+    } else {
+      throw new Error(`unknown tool ${p.tool}`);
+    }
+  } catch (e) {
+    return json({ error: e.message }, 400);
+  }
+
+  await env.DB.prepare("UPDATE proposals SET status = 'approved', approved_by = ?, approved_at = datetime('now') WHERE id = ?")
+    .bind(user.email, p.id).run();
+  await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)')
+    .bind(p.thread_id, 'assistant', `✓ approved and executed ${p.tool} ${p.args} → ${JSON.stringify(result)}`).run();
+  return json({ ok: true, ...result });
 }
 
 // s3:// autocomplete for the Run form: list one level under the typed uri using
@@ -1428,6 +1593,14 @@ export default {
         if (!user) return json({ error: 'run small login first' }, 401);
         if (path === '/api/deploy' && req.method === 'POST') return await apiDeploy(req, env, ctx, user, baseUrl);
         if (path === '/api/ask' && req.method === 'POST') return await apiAsk(req, env, ctx, user);
+        if (path === '/api/ask/approve' && req.method === 'POST') return await apiAskApprove(req, env, user, baseUrl);
+        if (path === '/api/ask/threads' && req.method === 'GET') return await apiAskThreads(req, env, user);
+        const askThread = path.match(/^\/api\/ask\/threads\/(\d+)$/);
+        if (askThread && req.method === 'GET') return await apiAskThread(env, user, Number(askThread[1]));
+        const askThreadRen = path.match(/^\/api\/ask\/threads\/(\d+)\/rename$/);
+        if (askThreadRen && req.method === 'POST') return await apiAskThreadRename(req, env, user, Number(askThreadRen[1]));
+        const askThreadDel = path.match(/^\/api\/ask\/threads\/(\d+)\/delete$/);
+        if (askThreadDel && req.method === 'POST') return await apiAskThreadDelete(env, user, Number(askThreadDel[1]));
         if (path === '/api/image' && req.method === 'POST') return await apiImage(req, env, user);
         if (path === '/api/runs' && req.method === 'POST') return await apiRunStart(req, env, user, baseUrl);
         if (path === '/api/runs' && req.method === 'GET') return await apiRunsList(req, env, user);

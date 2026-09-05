@@ -328,9 +328,34 @@ invite emails, admin roles, /settings — per flow.md, when asked.
   run (missing S3 key — ponytail: not s3-log-writer wrong-bucket, no shared
   secret mutation) gets a diagnosis naming s3/source; org "why did yolo fail"
   → choose with 5 candidates; viewer asking to re-run is told the owner.
-- ponytail: phase 2 (gated tools + proposals + /api/ask/approve) not started —
-  stopped for review per the spec.
-- ponytail: no memory across threads, no scheduled questions, no multi-app actions.
+- Phase 2 (agent writes, gated): tools attach ONLY when the asking user has
+  edit on the scope (org scope: only after single-app resolution) — run,
+  run_again, pause_schedule, resume_schedule, share, unshare (ponytail: no
+  redeploy tool, deploys need the CLI's build; no #team share via chat;
+  run_again refuses runs with file inputs — R2 copies not implemented). With
+  tools the call is non-streaming so tool_use blocks arrive whole; each becomes
+  a proposals row (0012) + an SSE `proposal` event — nothing executes. The
+  card shows the tool + exact args with Run / Change / Cancel; Run posts
+  /api/ask/approve which re-checks edit NOW, executes via the same internals
+  (startRun etc.), flips the row to approved (who/when/thread = the log), and
+  409s a second approve. Verified live: "re-run the last successful run" →
+  run_again proposal → approve → new run with the exact stored inputs.
+- Ask box extras (Notion AI parity): + menu (attach images/PDFs ≤4MB as model
+  blocks, CSVs/txt inline ≤50k chars; @-mention apps — scrollable full list,
+  picked apps render as removable @pills), ⚙ sources picker (per-scope toggles:
+  runs/requests/runbook/review/AGENT.md or log/outputs/... — the Worker filters
+  context by the selection), model picker (Auto/Opus 5/Sonnet 5/Haiku 4.5,
+  server allowlist). Input pinned at the bottom; only the conversation scrolls.
+- Chats persist: the Agent tab resumes the latest thread for the scope
+  (GET /api/ask/threads + /threads/:id), History lists past chats (title =
+  first question or a custom one), each row's ⋯ offers Rename (0013
+  threads.title) and Delete (messages go; approved proposals stay — that's
+  the action log), + New chat.
+- Phase 2 test (tests/integration_tests/ask, 4 passed): editor's re-run ask
+  yields a proposal, approving creates a run with the stored inputs,
+  double-approve 409s.
+- ponytail: no scheduled questions, no multi-app actions, Change on a proposal
+  just hands the args back to the input box.
 
 ## Serving (hard-won)
 The SPA shell is bundled INTO the worker (esbuild Text rule imports

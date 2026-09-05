@@ -14,6 +14,7 @@ Model-dependent assertions are kept loose on purpose.
 
 import json
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -102,6 +103,32 @@ def test_failed_run_gets_a_diagnosis(owner_session):
     diagnosis = meta.get("diagnosis") or ""
     assert diagnosis, "no diagnosis stored on the failed run"
     assert any(t in diagnosis.lower() for t in ("s3", "source", BAD_KEY.split("/")[-1])), diagnosis
+
+
+def test_editor_rerun_proposal_approves_into_a_run(owner_session):
+    """Phase 2: 're-run with the same inputs' → proposal with the exact stored
+    inputs; approving creates a run; the approval is logged (double-approve 409s)."""
+    ctype, body = post(
+        "/api/ask",
+        {"scope": {"app": APP}, "message": "re-run the last successful run with exactly the same inputs"},
+        owner_session,
+    )
+    assert "event-stream" in ctype, body[:200]
+    prop_lines = [line[6:] for line in body.splitlines() if line.startswith("data: ") and '"tool"' in line]
+    assert prop_lines, "no proposal event: " + sse_text(body)[:300]
+    prop = json.loads(prop_lines[0])
+    assert prop["tool"] in ("run", "run_again"), prop
+
+    _, approved = post("/api/ask/approve", {"proposal_id": prop["id"]}, owner_session)
+    run_id = json.loads(approved).get("runId")
+    assert run_id, approved
+    meta = get(f"/api/runs/{run_id}", owner_session)
+    assert meta["inputs"] and meta["inputs"].get("source", "").startswith("s3://"), meta
+    post(f"/api/runs/{run_id}/stop", {}, owner_session)  # no need to burn the full run
+
+    with pytest.raises(urllib.error.HTTPError) as e:
+        post("/api/ask/approve", {"proposal_id": prop["id"]}, owner_session)
+    assert e.value.code == 409  # already approved — the log holds
 
 
 def test_viewer_asking_for_action_is_told_who_can(owner_session, bob_session):
