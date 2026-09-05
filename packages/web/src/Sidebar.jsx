@@ -3,39 +3,87 @@ import { AlertTriangle, Bell, ChevronDown, ChevronRight, ChevronsLeft, Copy, Ext
 import { ago, api, getTheme, navigate, sectionOf, setTheme, wsName } from './api.js';
 import { Avatar, Button, cn, ConfirmDialog, IconBtn, KindIcon, Menu, MenuItem, Select, ShareInput, SlidePanel, toast } from './ui.jsx';
 
-// Settings (workspace dropdown → Settings): Appearance only for now, Notion-style.
+// Settings (workspace dropdown → Settings): Notion-style two-pane modal —
+// left nav (Account / Workspace sections), right content per tab.
 const THEMES = { System: 'system', Light: 'light', Dark: 'dark' };
-function SettingsDialog({ onClose }) {
+function SettingsRow({ title, desc, children }) {
+  return (
+    <div className="flex items-center justify-between gap-8 py-3">
+      <div>
+        <div className="text-sm">{title}</div>
+        {desc && <div className="pt-0.5 text-xs text-ink-2">{desc}</div>}
+      </div>
+      {children && <div className="shrink-0">{children}</div>}
+    </div>
+  );
+}
+function SettingsDialog({ email, onMarkRead, onClose }) {
+  const [tab, setTab] = useState('preferences');
   const [theme, setThemeState] = useState(() => getTheme());
   const label = Object.keys(THEMES).find((k) => THEMES[k] === theme);
+  const NavBtn = ({ id, icon: Icon, children }) => (
+    <div
+      onClick={() => setTab(id)}
+      className={cn('flex h-7 cursor-pointer items-center gap-2 rounded-sm px-2 text-sm', tab === id ? 'bg-hover font-medium' : 'hover:bg-hover text-ink-2')}
+    >
+      <Icon size={15} strokeWidth={1.5} className="shrink-0" />
+      {children}
+    </div>
+  );
+  const Heading = ({ children }) => <div className="mt-8 border-b border-line pb-1.5 text-[15px] font-medium">{children}</div>;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={onClose}>
-      <div className="mt-[24vh] w-[420px] max-w-[90vw] rounded-md bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between pb-3">
-          <div className="text-sm font-semibold">Settings</div>
-          <IconBtn aria-label="Close" onClick={onClose}><X size={14} /></IconBtn>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={onClose}>
+      <div className="flex h-[560px] max-h-[85vh] w-[880px] max-w-[95vw] overflow-hidden rounded-lg bg-white text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="w-[220px] shrink-0 overflow-y-auto border-r border-line bg-side py-3 px-2">
+          <div className="px-2 pb-1 text-xs font-medium text-ink-3">Account</div>
+          <div className="flex items-center gap-2 rounded-sm px-2 py-1">
+            {email && <Avatar email={email} />}
+            <span className="truncate text-sm" title={email}>{email}</span>
+          </div>
+          <NavBtn id="preferences" icon={Settings}>Preferences</NavBtn>
+          <NavBtn id="notifications" icon={Bell}>Notifications</NavBtn>
+          <div className="px-2 pt-4 pb-1 text-xs font-medium text-ink-3">Workspace</div>
+          <NavBtn id="connections" icon={Link}>Connections</NavBtn>
         </div>
-        <div className="grid grid-cols-[160px_1fr] items-center gap-x-4 py-1">
-          <div>
-            <div className="text-sm font-medium">Appearance</div>
-            <div className="text-xs text-ink-2">How the dashboard looks on this device.</div>
-          </div>
-          <Select
-            value={label}
-            options={Object.keys(THEMES)}
-            onChange={(k) => { setThemeState(THEMES[k]); setTheme(THEMES[k]); }}
-          />
-        </div>
-        <div className="grid grid-cols-[160px_1fr] items-center gap-x-4 py-1">
-          <div>
-            <div className="text-sm font-medium">Slack</div>
-            <div className="text-xs text-ink-2">@small in channels, proposals as buttons.</div>
-          </div>
-          <div>
-            <Button variant="secondary" size="sm" onClick={() => window.open('/slack/install', '_blank', 'noopener')}>
-              Connect Slack
-            </Button>
-          </div>
+        <div className="relative flex-1 overflow-y-auto px-10 py-8">
+          <IconBtn aria-label="Close" onClick={onClose} className="absolute top-3 right-3"><X size={14} /></IconBtn>
+          {tab === 'preferences' && (
+            <>
+              <div className="text-xl font-semibold">Preferences</div>
+              <div className="pt-1 text-sm text-ink-2">Choose how the dashboard looks on this device.</div>
+              <Heading>Appearance</Heading>
+              <SettingsRow title="Theme" desc="Choose a theme for the dashboard on this device.">
+                <Select
+                  value={label}
+                  options={Object.keys(THEMES)}
+                  onChange={(k) => { setThemeState(THEMES[k]); setTheme(THEMES[k]); }}
+                />
+              </SettingsRow>
+            </>
+          )}
+          {tab === 'notifications' && (
+            <>
+              <div className="text-xl font-semibold">Notifications</div>
+              <div className="pt-1 text-sm text-ink-2">What Watch found, and where you hear about it.</div>
+              <Heading>Watch</Heading>
+              <SettingsRow title="Sidebar bell" desc="New observations from the nightly pass light the bell.">
+                <Button variant="secondary" size="sm" onClick={onMarkRead}>Mark all as read</Button>
+              </SettingsRow>
+              <SettingsRow title="Weekly email" desc="A summary lands every Monday 08:00 UTC." />
+            </>
+          )}
+          {tab === 'connections' && (
+            <>
+              <div className="text-xl font-semibold">Connections</div>
+              <div className="pt-1 text-sm text-ink-2">Bring small into the tools your team already uses.</div>
+              <Heading>Slack</Heading>
+              <SettingsRow title="Slack" desc="@small in channels, /small commands, proposals as buttons.">
+                <Button variant="secondary" size="sm" onClick={() => window.open('/slack/install', '_blank', 'noopener')}>
+                  Connect Slack
+                </Button>
+              </SettingsRow>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -367,7 +415,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
           <MenuItem icon={LogOut} onClick={() => { window.location.href = '/logout'; }}>Log out</MenuItem>
         </Menu>
       </div>
-      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsDialog email={email} onMarkRead={markRead} onClose={() => setShowSettings(false)} />}
 
       <div
         onClick={() => window.dispatchEvent(new CustomEvent('small:search'))}
