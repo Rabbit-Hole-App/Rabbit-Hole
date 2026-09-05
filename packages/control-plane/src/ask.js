@@ -106,6 +106,18 @@ export const ASK_TOOLS = [
     input_schema: { type: 'object', properties: { run_id: { type: 'string' } }, required: ['run_id'] },
   },
   {
+    name: 'set_schedule',
+    description: 'Set or replace a job\'s cron schedule (5-field cron, UTC). Several crons may be joined with "; " — to ADD to an existing schedule, include the current crons from the context plus the new one. An empty schedule removes all crons.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        app: { type: 'string' },
+        schedule: { type: 'string', description: '5-field cron like "0 9 * * 1-5", multiple joined by "; ", empty string to remove' },
+      },
+      required: ['app', 'schedule'],
+    },
+  },
+  {
     name: 'pause_schedule',
     description: 'Pause the cron schedule of a job.',
     input_schema: { type: 'object', properties: { app: { type: 'string' } }, required: ['app'] },

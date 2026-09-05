@@ -841,6 +841,22 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
       // ponytail: stored R2 input files aren't copied to the new run — scalars only
       if (inputs && Object.keys(inputs).some((k) => schema[k]?.type === 'file')) throw new Error('that run had file inputs — re-run it from the Run tab');
       result = { runId: await startRun(env, app, user.email, baseUrl, inputs) };
+    } else if (p.tool === 'set_schedule') {
+      const app = await editableApp(args.app);
+      if (app.kind !== 'job') throw new Error('only jobs can be scheduled');
+      const schedule = String(args.schedule || '').trim();
+      let nextAt = null;
+      for (const part of schedule ? cronParts(schedule) : []) {
+        try {
+          const n = nextRun(parseCron(part), Date.now());
+          nextAt = nextAt == null ? n : Math.min(nextAt, n);
+        } catch (e) {
+          throw new Error(`bad schedule "${part}": ${e.message} — use 5-field cron like "0 9 * * 1-5"`);
+        }
+      }
+      await env.DB.prepare('UPDATE apps SET schedule = ?, schedule_paused = 0, last_scheduled_at = NULL WHERE id = ?')
+        .bind(schedule || null, app.id).run();
+      result = { schedule: schedule || null, nextRun: nextAt };
     } else if (p.tool === 'pause_schedule' || p.tool === 'resume_schedule') {
       const app = await editableApp(args.app);
       if (!app.schedule) throw new Error(`${app.name} has no schedule`);
