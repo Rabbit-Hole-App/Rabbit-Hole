@@ -2,6 +2,7 @@
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, sha256, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
+import { askOnce, askStream, capJoin, DIAGNOSIS_PROMPT } from './ask.js';
 import { assumeRole, s3Buckets, s3Get, s3List } from './aws.js';
 import { runReview, generateRunbook } from './review.js';
 import { parseCron, matches, nextRun } from './cron.js';
@@ -122,7 +123,7 @@ async function repoPublic(repoUrl) {
 }
 
 async function apiDeploy(req, env, ctx, user, baseUrl) {
-  const { name, framework, visibility, awsRoleArn, kind, review, storage, schedule, source, inputs, outputs } = await req.json();
+  const { name, framework, visibility, awsRoleArn, kind, review, storage, schedule, source, inputs, outputs, agentMd } = await req.json();
   if (!name || !/^[a-z0-9-]{1,40}$/.test(name)) return json({ error: 'name must be [a-z0-9-]' }, 400);
   let nextAt = null;
   if (schedule) {
@@ -185,6 +186,11 @@ async function apiDeploy(req, env, ctx, user, baseUrl) {
     const text = val ? JSON.stringify(val) : null;
     if (text && text.length > 20000) return json({ error: `[${col}] too large — keep the schema under 20KB` }, 400);
     await env.DB.prepare(`UPDATE apps SET ${col} = ? WHERE id = ?`).bind(text, app.id).run();
+  }
+  // AGENT.md rides every deploy verbatim into app-scope Ask context (null clears it)
+  if (agentMd !== undefined) {
+    const text = agentMd ? String(agentMd).slice(0, 20000) : null;
+    await env.DB.prepare('UPDATE apps SET agent_md = ? WHERE id = ?').bind(text, app.id).run();
   }
   if (!env.FLY_API_TOKEN) return json({ error: 'control plane has no FLY_API_TOKEN configured' }, 503);
   // The worker owns the Fly app lifecycle; the CLI only gets a 1h token scoped to this one app.
@@ -440,6 +446,183 @@ async function apiAppGet(env, user, name, baseUrl) {
     inputs: app.inputs ? JSON.parse(app.inputs) : null, outputs: app.outputs ? JSON.parse(app.outputs) : null,
     canEdit: app.canEdit, email: user.email,
   });
+}
+
+// ---------- Ask (phase 1 — read only) ----------
+// Context is assembled from what THIS user can already read; permissions live in
+// these queries, never in the prompt. Roadmap rule: chat reads, agent writes (later).
+
+const line = (k, v) => (v == null || v === '' ? null : `${k}: ${v}`);
+const fmtRunLine = (r) =>
+  `run ${r.run_id}: ${r.status}${r.exit_code != null ? ` (exit ${r.exit_code})` : ''} · by ${r.started_by} · ${r.started_at}${r.finished_at ? ` → ${r.finished_at}` : ''}${r.inputs ? ` · inputs ${r.inputs}` : ''}${r.reason ? ` · ${r.reason}` : ''}`;
+
+// Owner + edit members, so the model can name who CAN act (it can't).
+async function editorsLine(env, app) {
+  const { results } = await env.DB.prepare("SELECT email FROM members WHERE app_id = ? AND role = 'edit'").bind(app.id).all();
+  return `owner: ${app.owner_email}${results.length ? ` · edit members: ${results.map((r) => r.email).join(', ')}` : ''}`;
+}
+
+async function runContext(env, app, run) {
+  const { results: logRows } = await env.DB.prepare(
+    'SELECT seq, line FROM run_logs WHERE run_id = ? ORDER BY seq DESC LIMIT 400'
+  ).bind(run.run_id).all();
+  logRows.reverse();
+  let outputs = [];
+  if (env.RUNS) {
+    const listed = await env.RUNS.list({ prefix: `runs/${run.run_id}/outputs/` });
+    outputs = listed.objects.map((o) => `${o.key.split('/').pop()} (${o.size} B)`);
+  }
+  const lastOk = await env.DB.prepare(
+    "SELECT run_id, finished_at FROM runs WHERE app_id = ? AND status = 'finished' AND id < (SELECT id FROM runs WHERE run_id = ?) ORDER BY id DESC LIMIT 1"
+  ).bind(app.id, run.run_id).first();
+  return capJoin([
+    `SCOPE: run ${run.run_id} of app ${app.name} (${app.kind})`,
+    fmtRunLine(run),
+    line('diagnosis (earlier)', run.diagnosis),
+    await editorsLine(env, app),
+    line('inputs schema', app.inputs),
+    line('outputs declared', app.outputs),
+    outputs.length ? `outputs produced:\n${outputs.join('\n')}` : 'outputs produced: none',
+    lastOk ? `last successful run: ${lastOk.run_id} at ${lastOk.finished_at}` : 'no successful run before this one',
+    // ponytail: deploy bundles aren't stored — no real code diff since the last success
+    line('deployed from', app.repo_branch && `${app.repo_branch} · ${app.repo_commit || '?'}${app.repo_dirty ? ' · dirty' : ''} (deployed_at ${app.deployed_at})`),
+    line('AGENT.md', app.agent_md),
+    line('review', app.review),
+    line('runbook', app.runbook),
+    logRows.length
+      ? `log lines ${logRows[0].seq}-${logRows[logRows.length - 1].seq}:\n${logRows.map((r) => r.line).join('\n')}`
+      : 'log: empty',
+  ]);
+}
+
+async function appContext(env, app) {
+  const { results: runs } = await env.DB.prepare(
+    'SELECT run_id, status, exit_code, started_by, started_at, finished_at, inputs, reason FROM runs WHERE app_id = ? ORDER BY id DESC LIMIT 20'
+  ).bind(app.id).all();
+  let reqSummary = null;
+  if (app.kind !== 'job') {
+    try {
+      const { results } = await env.DB.prepare(
+        'SELECT status, COUNT(*) AS n FROM request_logs WHERE org = ? AND slug = ? GROUP BY status ORDER BY n DESC LIMIT 10'
+      ).bind(app.org, app.name).all();
+      reqSummary = results.map((r) => `${r.status}: ${r.n}`).join(', ') || 'no requests logged';
+    } catch { /* request_logs may be absent on fresh DBs */ }
+  }
+  const { results: members } = await env.DB.prepare('SELECT email, role FROM members WHERE app_id = ?').bind(app.id).all();
+  return capJoin([
+    `SCOPE: app ${app.name} (${app.kind}, org ${app.org})`,
+    await editorsLine(env, app),
+    members.length ? `shared with: ${members.map((m) => `${m.email} (${m.role})`).join(', ')}` : 'shared with: nobody directly',
+    line('schedule', app.schedule && `${app.schedule}${app.schedule_paused ? ' (paused)' : ''} (UTC)`),
+    line('inputs schema', app.inputs),
+    line('outputs declared', app.outputs),
+    line('deployed from', app.repo_branch && `${app.repo_branch} · ${app.repo_commit || '?'}${app.repo_dirty ? ' · dirty' : ''} (deployed_at ${app.deployed_at})`),
+    line('AGENT.md', app.agent_md),
+    line('review', app.review),
+    line('runbook', app.runbook),
+    line('request log summary (status: count)', reqSummary),
+    runs.length ? `last ${runs.length} runs:\n${runs.map(fmtRunLine).join('\n')}` : 'no runs yet',
+  ]);
+}
+
+// Org scope: one line per app the user can see. Never another app's secrets or logs.
+async function orgVisibleApps(env, user) {
+  const { results } = await env.DB.prepare('SELECT * FROM apps WHERE org = ? AND deleted_at IS NULL').bind(user.org).all();
+  const out = [];
+  for (const app of results) {
+    const role = app.owner_email === user.email ? 'owner' : await memberRole(env, app, user.email);
+    if (app.visibility !== 'domain' && !role) continue;
+    out.push({ app, role: role || 'workspace' });
+  }
+  return out;
+}
+
+async function orgContext(env, user, visible) {
+  const lines = visible.map(({ app, role }) => {
+    let risk = null;
+    try { risk = app.review ? JSON.parse(app.review).risk : null; } catch { /* unreviewed */ }
+    const firstLine = (app.runbook || '').replace(/\s+/g, ' ').slice(0, 160);
+    return `- ${app.name} (${app.kind}) · owner ${app.owner_email} · your role: ${role}${risk ? ` · review risk ${risk}` : ''}${app.schedule ? ` · schedule ${app.schedule}` : ''}${firstLine ? ` · runbook: ${firstLine}` : ''}`;
+  });
+  return capJoin([
+    `SCOPE: org ${user.org} — apps visible to ${user.email}`,
+    lines.join('\n') || 'no apps',
+  ]);
+}
+
+// "why did yolo fail" with several yolo apps → choose, never guess between apps.
+function resolveMention(message, visible) {
+  const words = message.toLowerCase().split(/[^a-z0-9-]+/).filter((w) => w.length >= 3);
+  const hits = visible.filter(({ app }) => {
+    const parts = [app.name, ...app.name.split('-')].filter((p) => p.length >= 3);
+    return words.some((w) => parts.some((p) => p.includes(w) || w.includes(p)));
+  });
+  return hits;
+}
+
+async function apiAsk(req, env, ctx, user) {
+  if (!env.ANTHROPIC_API_KEY) return json({ error: 'ask is not configured on this control plane' }, 503);
+  const { scope = {}, message, thread_id } = await req.json();
+  if (!message || typeof message !== 'string' || message.length > 4000) return json({ error: 'message required (max 4000 chars)' }, 400);
+
+  let context, scopeKind, scopeRef = null, note = null;
+  if (scope.run) {
+    const run = await env.DB.prepare(
+      'SELECT runs.*, apps.id AS app_id FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?'
+    ).bind(scope.run).first();
+    if (!run) return json({ error: `no run ${scope.run}` }, 404);
+    const app = await env.DB.prepare('SELECT * FROM apps WHERE id = ?').bind(run.app_id).first();
+    if (!app || app.org !== user.org || !(await canView(env, app, user.email))) return json({ error: 'no access' }, 403);
+    context = await runContext(env, app, run);
+    scopeKind = 'run';
+    scopeRef = scope.run;
+  } else if (scope.app) {
+    const app = await appForUser(env, user, scope.app);
+    if (!app) return json({ error: `no app named ${scope.app}` }, 404);
+    if (!app.canView) return json({ error: 'no access' }, 403);
+    context = await appContext(env, app);
+    scopeKind = 'app';
+    scopeRef = scope.app;
+  } else {
+    const visible = await orgVisibleApps(env, user);
+    const hits = resolveMention(message, visible);
+    if (hits.length === 1) {
+      note = `(interpreting this as being about ${hits[0].app.name})`;
+      context = await appContext(env, hits[0].app);
+    } else if (hits.length > 1) {
+      return json({
+        choose: hits.map(({ app }) => ({
+          app: app.name,
+          hint: (app.runbook || '').replace(/\s+/g, ' ').slice(0, 120) || `${app.kind}, owner ${app.owner_email}`,
+        })),
+      });
+    } else {
+      // ponytail: no fuzzy "did you mean" — zero matches just answers org-wide
+      context = await orgContext(env, user, visible);
+    }
+    scopeKind = 'org';
+  }
+
+  // thread per scope and user; follow-ups ride the same thread
+  let threadId = thread_id || null;
+  if (threadId) {
+    const t = await env.DB.prepare('SELECT id FROM threads WHERE id = ? AND user = ? AND org = ?').bind(threadId, user.email, user.org).first();
+    if (!t) return json({ error: 'no such thread' }, 404);
+  } else {
+    const r = await env.DB.prepare('INSERT INTO threads (org, user, scope, scope_ref) VALUES (?, ?, ?, ?)')
+      .bind(user.org, user.email, scopeKind, scopeRef).run();
+    threadId = r.meta.last_row_id;
+  }
+  const { results: history } = await env.DB.prepare(
+    'SELECT role, content FROM messages WHERE thread_id = ? ORDER BY id DESC LIMIT 10'
+  ).bind(threadId).all();
+  history.reverse();
+  await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'user', message).run();
+
+  const q = note ? `${note} ${message}` : message;
+  return askStream(env, context, history, q, async (full) => {
+    await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
+  }, { threadId, ...(note ? { note } : {}) });
 }
 
 // s3:// autocomplete for the Run form: list one level under the typed uri using
@@ -1072,7 +1255,7 @@ async function apiRunsList(req, env, user) {
 
 async function apiRunGet(req, env, user, runId) {
   const run = await env.DB.prepare(
-    'SELECT runs.status, runs.exit_code, runs.started_by, runs.started_at, runs.finished_at, runs.inputs, apps.id AS app_id, apps.org, apps.owner_email, apps.visibility, apps.name AS app_name FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?'
+    'SELECT runs.status, runs.exit_code, runs.started_by, runs.started_at, runs.finished_at, runs.inputs, runs.diagnosis, apps.id AS app_id, apps.org, apps.owner_email, apps.visibility, apps.name AS app_name FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?'
   ).bind(runId).first();
   if (!run || run.org !== user.org) return json({ error: `no run ${runId}` }, 404);
   if (!(await canView(env, { id: run.app_id, org: run.org, owner_email: run.owner_email, visibility: run.visibility }, user.email)))
@@ -1092,6 +1275,7 @@ async function apiRunGet(req, env, user, runId) {
     startedBy: run.started_by,
     startedAt: run.started_at,
     finishedAt: run.finished_at,
+    diagnosis: run.diagnosis || null,
     app: run.app_name,
     inputs: run.inputs ? JSON.parse(run.inputs) : null,
     inputFiles,
@@ -1101,7 +1285,7 @@ async function apiRunGet(req, env, user, runId) {
 }
 
 // Called by runner.py with the per-run token — not a CLI token.
-async function apiRunLog(req, env, runId) {
+async function apiRunLog(req, env, ctx, runId) {
   const m = (req.headers.get('Authorization') || '').match(/^Bearer (.+)$/);
   const p = m && (await verify(m[1], env.MASTER_KEY));
   if (!p || p.t !== 'run' || p.run !== runId) return json({ error: 'bad run token' }, 401);
@@ -1115,9 +1299,21 @@ async function apiRunLog(req, env, runId) {
   }
   if (exitCode !== undefined && exitCode !== null) {
     // AND status='running': a stop via the dashboard must not be overwritten by the dying runner's last post
-    await env.DB.prepare("UPDATE runs SET status = ?, exit_code = ?, finished_at = datetime('now') WHERE run_id = ? AND status = 'running'")
+    const settled = await env.DB.prepare("UPDATE runs SET status = ?, exit_code = ?, finished_at = datetime('now') WHERE run_id = ? AND status = 'running'")
       .bind(exitCode === 0 ? 'finished' : 'failed', exitCode, runId)
       .run();
+    // failure hook (roadmap: chat reads): one model call per failed run, stored as the
+    // run's diagnosis and shown under the status pill. Never blocks the runner's post.
+    if (exitCode !== 0 && settled.meta.changes === 1 && env.ANTHROPIC_API_KEY) {
+      ctx.waitUntil((async () => {
+        try {
+          const run = await env.DB.prepare('SELECT * FROM runs WHERE run_id = ?').bind(runId).first();
+          const app = await env.DB.prepare('SELECT * FROM apps WHERE id = ?').bind(run.app_id).first();
+          const answer = await askOnce(env, await runContext(env, app, run), DIAGNOSIS_PROMPT);
+          await env.DB.prepare('UPDATE runs SET diagnosis = ? WHERE run_id = ?').bind(answer.slice(0, 600), runId).run();
+        } catch { /* a failed diagnosis is just a missing hint */ }
+      })());
+    }
   }
   return json({ ok: true });
 }
@@ -1216,7 +1412,7 @@ export default {
       if (path === '/api/runtime/aws-creds' && req.method === 'POST') return await apiAwsCreds(req, env);
       if (path.startsWith('/api/')) {
         const runLog = path.match(/^\/api\/runs\/([\w-]+)\/log$/);
-        if (runLog && req.method === 'POST') return await apiRunLog(req, env, runLog[1]); // runner auth, not CLI auth
+        if (runLog && req.method === 'POST') return await apiRunLog(req, env, ctx, runLog[1]); // runner auth, not CLI auth
         const runInput = path.match(/^\/api\/runs\/([\w-]+)\/inputs\/([^/]+)$/);
         if (runInput && req.method === 'GET') return await apiRunInputGet(req, env, runInput[1], decodeURIComponent(runInput[2])); // runner auth
         const runOutPost = path.match(/^\/api\/runs\/([\w-]+)\/outputs\/(.+)$/);
@@ -1231,6 +1427,7 @@ export default {
         }
         if (!user) return json({ error: 'run small login first' }, 401);
         if (path === '/api/deploy' && req.method === 'POST') return await apiDeploy(req, env, ctx, user, baseUrl);
+        if (path === '/api/ask' && req.method === 'POST') return await apiAsk(req, env, ctx, user);
         if (path === '/api/image' && req.method === 'POST') return await apiImage(req, env, user);
         if (path === '/api/runs' && req.method === 'POST') return await apiRunStart(req, env, user, baseUrl);
         if (path === '/api/runs' && req.method === 'GET') return await apiRunsList(req, env, user);

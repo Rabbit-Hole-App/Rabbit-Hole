@@ -7,6 +7,7 @@ import {
   Play, Plus, Search as SearchIcon, Type, User, X,
 } from 'lucide-react';
 import { ago, api, fmtTime, navigate } from './api.js';
+import { AskPanel } from './ask.jsx';
 import {
   Avatar, Button, Chk, cn, CodeBlock, Dropzone, Field, fmtBytes, IconBtn, Input,
   Menu, MenuItem, Pill, Select, SkeletonRows, SlidePanel, Slider, StatusPill, toast, Toggle,
@@ -421,6 +422,11 @@ export function RunView({ runId, app, onRunAgain }) {
         <span className="text-ink-2" title={fmtTime(meta.startedAt)}>{ago(meta.startedAt)}</span>
         {settled && <span className="text-ink-2 tabular-nums">{dur}</span>}
       </div>
+      {meta.diagnosis && (
+        <div className="mt-2 rounded-sm bg-code px-3 py-2 text-sm text-ink-2">
+          <span className="font-medium text-ink">Diagnosis</span> · {meta.diagnosis}
+        </div>
+      )}
 
       {inputEntries.length > 0 && (
         <>
@@ -506,8 +512,11 @@ export function RunPeek({ runId, app, onClose, onRunAgain }) {
         </>
       }
     >
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2">
         <RunView runId={runId} app={app} onRunAgain={onRunAgain} />
+      </div>
+      <div className="shrink-0 border-t border-line px-5 pt-1 pb-4">
+        <AskPanel scope={{ run: runId }} compact placeholder="Ask about this run…" />
       </div>
     </SlidePanel>
   );

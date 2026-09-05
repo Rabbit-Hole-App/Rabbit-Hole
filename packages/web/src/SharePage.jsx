@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Calendar as CalendarIcon, Check, Circle, Clock, Copy, GitBranch, Globe, Link as LinkIcon, Lock, MoreHorizontal, Plus, Trash2, User as UserIcon, Users, X } from 'lucide-react';
 import { ago, api, cronHuman, cronList, fmtTime, navigate, wsName } from './api.js';
+import { AskPanel } from './ask.jsx';
 import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
 import Shell from './Shell.jsx';
 import { Avatar, Button, Chk, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Menu, MenuItem, Pill, Select, ShareInput, SkeletonRows, Tabs, TabsContent, TabsList, TabsTrigger, cn, toast } from './ui.jsx';
@@ -615,6 +616,7 @@ function AppPage({ slug, runId, reloadShell }) {
                 <TabsTrigger value="runbook">Runbook</TabsTrigger>
                 {app.kind === 'job' && <TabsTrigger value="run">Run</TabsTrigger>}
                 <TabsTrigger value="logs">Logs</TabsTrigger>
+                <TabsTrigger value="agent">Agent</TabsTrigger>
                 {app.kind !== 'job' && (
                   <span className="ml-auto self-center">
                     <Button variant="primary" size="sm" onClick={() => window.open(app.url, '_blank', 'noopener')}>
@@ -640,6 +642,12 @@ function AppPage({ slug, runId, reloadShell }) {
                 {app.kind === 'job'
                   ? <RunsDb app={app} onOpen={setPeek} onNewRun={() => setTab('run')} onRunAgain={runAgain} />
                   : <RequestLog slug={slug} />}
+              </TabsContent>
+
+              <TabsContent value="agent" className="pt-4">
+                <div className="flex h-[460px] flex-col">
+                  <AskPanel scope={{ app: app.name }} email={app.email} placeholder={`Ask about ${app.name}…`} autoFocus />
+                </div>
               </TabsContent>
             </Tabs>
 

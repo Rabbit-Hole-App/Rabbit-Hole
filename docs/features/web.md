@@ -292,6 +292,46 @@ invite emails, admin roles, /settings — per flow.md, when asked.
 - ponytail: multiple crons share one pause flag and one per-minute fire; split
   into a schedules table when per-cron pause or same-minute fan-out matters.
 
+## v13: Ask — phase 1, read only (chat reads; agent writes comes later)
+- One agent function: POST /api/ask { scope: {org}|{app}|{run}, message,
+  thread_id? }. The Worker assembles context for the scope from what THAT user
+  can already read (queries, never the prompt), calls Anthropic once
+  (claude-opus-5, same key as review), streams SSE. Threads/messages in D1
+  (0011-ask.sql), one thread per question chain per user+scope; follow-ups
+  ride thread_id. Context capped ~150k tokens (capJoin, oldest runs drop first).
+- Context: run scope = run row + inputs + last 400 log lines + outputs list +
+  runbook + review + provenance + last successful run (ponytail: bundles
+  aren't stored, no real code diff). App scope = runbook, review, schemas,
+  members, last 20 runs, request-log status counts (servers), AGENT.md. Org
+  scope = one line per visible app (name/kind/owner/risk/runbook first line +
+  your role) — never another app's secrets or logs.
+- Resolution: org-scope mentions ("why did yolo fail") match app names; one →
+  answers about it and says so; several → { choose } with runbook one-liners
+  (deterministic, no model call); none → org-wide answer (ponytail: no fuzzy
+  did-you-mean). Never guesses between apps.
+- Phase 1 has NO tools. The prompt says so and names who could act (owner +
+  edit members ride the context); a viewer asking "re-run it" is told who can.
+  Every answer ends "Sources: …".
+- Diagnose on failure: when the runner posts a non-zero exit, the settle
+  transition (status='running' guard) fires one waitUntil model call with the
+  fixed question; the answer lands on runs.diagnosis and renders under the
+  status pill in the run view. One call per failed run.
+- Web: Agent tab on every app page (Notion-AI look: user bubble right,
+  markdown-lite answer — safe element renderer, no HTML injection — Sources
+  line muted, avatar input pill with ↑); ask box at the bottom of the run
+  peek; ⌘J focuses the nearest ask box; ⌘K grew a Search|Ask tab pair (Ask =
+  org scope). Choose renders as candidate cards.
+- AGENT.md: small init writes the two-line template, small deploy uploads it
+  verbatim (agentMd, null clears), app-scope context includes it; SKILL.md
+  step 7 tells the building agent to write it.
+- Tests (tests/integration_tests/ask, 3 passed in ~1min): failed yolo-s3-job
+  run (missing S3 key — ponytail: not s3-log-writer wrong-bucket, no shared
+  secret mutation) gets a diagnosis naming s3/source; org "why did yolo fail"
+  → choose with 5 candidates; viewer asking to re-run is told the owner.
+- ponytail: phase 2 (gated tools + proposals + /api/ask/approve) not started —
+  stopped for review per the spec.
+- ponytail: no memory across threads, no scheduled questions, no multi-app actions.
+
 ## Serving (hard-won)
 The SPA shell is bundled INTO the worker (esbuild Text rule imports
 `../web/dist/index.html`) and served at `/apps` + `/dash` with `Cache-Control:

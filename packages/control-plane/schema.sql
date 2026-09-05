@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS apps (
   deleted_at TEXT,
   inputs TEXT,
   outputs TEXT,
+  agent_md TEXT,
   UNIQUE(org, name)
 );
 -- migrating an existing DB:
@@ -110,8 +111,27 @@ CREATE TABLE IF NOT EXISTS runs (
   exit_code INTEGER,
   reason TEXT,
   machine_id TEXT,
-  inputs TEXT
+  inputs TEXT,
+  diagnosis TEXT
 );
+
+-- Ask (phase 1): one thread per question chain, scoped and per-user.
+CREATE TABLE IF NOT EXISTS threads (
+  id INTEGER PRIMARY KEY,
+  org TEXT NOT NULL,
+  user TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  scope_ref TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS messages (
+  id INTEGER PRIMARY KEY,
+  thread_id INTEGER NOT NULL,
+  role TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id);
 
 CREATE TABLE IF NOT EXISTS run_logs (
   run_id TEXT NOT NULL,

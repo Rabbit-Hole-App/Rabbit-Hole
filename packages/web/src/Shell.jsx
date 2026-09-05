@@ -20,6 +20,11 @@ export default function Shell({ children }) {
   };
   useEffect(() => {
     const on = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('small:ask-focus')); // ⌘J → nearest Ask box
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
         e.preventDefault();
         setCollapsed((c) => {

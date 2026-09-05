@@ -51,6 +51,11 @@ debugging around it.
    Dockerfile, do not suggest hosting options, do not add auth — small already
    put the app behind a work-email login.
 
+7. Write AGENT.md (created empty by `small init`, uploaded with every deploy):
+   things the dashboard's Ask agent should know that the code doesn't say —
+   what the app is for, gotchas, who to contact. Two paragraphs, plain
+   English. You built the tool, so you write it.
+
 To give someone access when visibility is private, or edit rights:
 
 ```

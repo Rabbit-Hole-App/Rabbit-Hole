@@ -52,6 +52,16 @@ function init(dir, { force = false } = {}) {
   if (wantsStorage) console.log('✓ storage: /data (1GB)');
   console.log('✓ visibility: domain');
   console.log('✓ wrote small.toml');
+  // AGENT.md feeds the dashboard's Ask agent at app scope, verbatim, on every deploy.
+  const agentPath = path.join(dir, 'AGENT.md');
+  if (!fs.existsSync(agentPath)) {
+    fs.writeFileSync(agentPath, [
+      '<!-- Things the agent should know that the code doesn\'t say.',
+      '     Two paragraphs, plain English. Uploaded with every `small deploy`. -->',
+      '',
+    ].join('\n'));
+    console.log('✓ wrote AGENT.md (notes for the Ask agent — optional)');
+  }
   if (!app) console.log('✗ could not find the entry file — fill in entry = "your-app.py" in small.toml');
   return !!app;
 }

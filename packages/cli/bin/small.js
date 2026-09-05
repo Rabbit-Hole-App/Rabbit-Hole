@@ -236,6 +236,8 @@ const commands = {
       // the dashboard's Run form renders from these; null clears a removed [inputs]
       inputs: kind === 'job' ? app.config.inputs || null : undefined,
       outputs: kind === 'job' ? app.config.outputs || null : undefined,
+      // AGENT.md rides along verbatim for the dashboard's Ask agent (null clears it)
+      agentMd: fs.existsSync(path.join(dir, 'AGENT.md')) ? fs.readFileSync(path.join(dir, 'AGENT.md'), 'utf8') : null,
     });
     if (!d.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
     if (storage && !d.volumeRegion) throw new Error('control plane does not support [storage] yet — redeploy the worker');
