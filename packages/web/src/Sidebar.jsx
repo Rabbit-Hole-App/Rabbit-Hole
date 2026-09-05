@@ -156,7 +156,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
         {((a.members?.length || 0) > 0 || (a.team_count || 0) > 0) && (
           <Users size={11} className="shrink-0 text-ink-3" title="shared" />
         )}
-        {menu && (
+        {menu ? (
           <IconBtn
             title="More"
             onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === a.name ? null : a.name); }}
@@ -164,6 +164,9 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
           >
             <MoreHorizontal size={16} strokeWidth={1.5} />
           </IconBtn>
+        ) : (
+          // rows without a ⋯ (Recent) reserve its slot so the shared icon lines up across sections
+          <span className="-mr-1 h-7 w-7 shrink-0" />
         )}
       </div>
       )}
