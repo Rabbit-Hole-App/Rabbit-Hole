@@ -435,7 +435,17 @@ function AppPage({ slug, runId, reloadShell }) {
   const [confirmDel, setConfirmDel] = useState(false);
   const [scheduling, setScheduling] = useState(false);
   const [editTitle, setEditTitle] = useState(null); // string while renaming
+  const [editDesc, setEditDesc] = useState(null); // string while editing the blurb
 
+  const saveDesc = async () => {
+    const next = (editDesc || '').trim();
+    setEditDesc(null);
+    if (next === (app.description || '')) return;
+    try {
+      await api(`/api/apps/${slug}/description`, { method: 'POST', body: JSON.stringify({ description: next }) });
+      load();
+    } catch (e) { toast(`✗ ${e.message}`); }
+  };
   const rename = async () => {
     const next = (editTitle || '').trim().toLowerCase();
     setEditTitle(null);
@@ -615,6 +625,30 @@ function AppPage({ slug, runId, reloadShell }) {
                 </span>
               )}
             </div>
+
+            {/* model-written blurb (first deploy), click to edit — edits stick across deploys */}
+            {editDesc !== null ? (
+              <textarea
+                autoFocus
+                value={editDesc}
+                onChange={(e) => setEditDesc(e.target.value)}
+                onBlur={saveDesc}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setEditDesc(null);
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveDesc();
+                }}
+                rows={3}
+                className="mb-3 w-full max-w-[720px] resize-none rounded-sm bg-hover/60 px-1 py-0.5 text-sm text-ink-2 outline-none"
+              />
+            ) : (app.description || app.canEdit) && (
+              <p
+                title={app.canEdit ? 'Click to edit' : undefined}
+                onClick={() => app.canEdit && setEditDesc(app.description || '')}
+                className={cn('mb-3 max-w-[720px] text-sm leading-relaxed text-ink-2', app.canEdit && 'cursor-text rounded-sm px-1 -mx-1 hover:bg-hover/60', !app.description && 'text-ink-3 italic')}
+              >
+                {app.description || 'Add a description…'}
+              </p>
+            )}
 
             {/* Notion-style vertical property list: icon + grey label at 160px, value
                 beside, 32px rows. Access has no row — the Share popover owns that. */}

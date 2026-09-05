@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS apps (
   inputs TEXT,
   outputs TEXT,
   agent_md TEXT,
+  description TEXT,
   UNIQUE(org, name)
 );
 -- migrating an existing DB:
@@ -178,3 +179,5 @@ CREATE TABLE IF NOT EXISTS slack_runs (
   thread_ts TEXT,
   PRIMARY KEY (org, run_id)
 );
+
+-- 0018: apps.description — model-written on first deploy, user-editable after.

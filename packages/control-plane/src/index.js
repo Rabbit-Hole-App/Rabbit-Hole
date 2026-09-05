@@ -277,6 +277,18 @@ async function apiReviewRun(req, env, user) {
     }
   }
   await runReview(env, app.id, bundle, skipped || []);
+  // first deploy writes the model's 2-3 line description; user edits stick — only fill when empty
+  if (!app.description) {
+    try {
+      const desc = await askOnce(
+        env,
+        `App name: ${name} (kind: ${app.kind})\n\nSource:\n${String(bundle).slice(0, 60000)}`,
+        'Write a 2-3 sentence description of what this app does, for a teammate who never read the code. Plain language, no jargon, no file names — just what it does and what you get out of it. Reply with the description only.'
+      );
+      const clean = desc && desc.replace(/\n+Sources:.*$/is, '').trim();
+      if (clean) await env.DB.prepare('UPDATE apps SET description = ? WHERE id = ?').bind(clean.slice(0, 600), app.id).run();
+    } catch { /* description is a nicety — never fail the review over it */ }
+  }
   const fresh = await appRow(env, user.org, name);
   return json({
     review: fresh.review ? JSON.parse(fresh.review) : null,
@@ -330,7 +342,7 @@ const sweepStaleRuns = (env) =>
 
 async function apiApps(env, user, baseUrl) {
   await sweepStaleRuns(env);
-  const FIELDS = `apps.org, name, kind, visibility, owner_email, fly_app, created_at, deployed_at, runbook, schedule, schedule_paused, folder_id,
+  const FIELDS = `apps.org, name, kind, visibility, owner_email, fly_app, created_at, deployed_at, runbook, schedule, schedule_paused, folder_id, description,
             (SELECT group_concat(email || ':' || role) FROM members WHERE app_id = apps.id) AS member_emails,
             (SELECT role FROM members WHERE app_id = apps.id AND email = ?1) AS my_role,
             (SELECT at.role FROM app_teams at JOIN team_members tm ON tm.team_id = at.team_id
@@ -470,8 +482,39 @@ async function apiAppGet(env, user, name, baseUrl) {
     url: `${baseUrl}/a/${app.org}/${app.name}/`,
     members, teams, lastRun: lastRun || null, lastOpened: lastOpened || null,
     inputs: app.inputs ? JSON.parse(app.inputs) : null, outputs: app.outputs ? JSON.parse(app.outputs) : null,
+    description: app.description ?? null,
     canEdit: app.canEdit, email: user.email,
   });
+}
+
+// Natural-language app finder for the ⌘K modal — one model call over the visible
+// apps' names/kinds/descriptions, returns matching names best-first.
+async function apiAppFind(req, env, user) {
+  const { q } = await req.json();
+  if (!q || !env.ANTHROPIC_API_KEY) return json({ apps: [] });
+  const visible = await orgVisibleApps(env, user);
+  const catalog = visible.map(({ app }) =>
+    `${app.name} — kind:${app.kind}${app.description ? ` — ${String(app.description).split('\n')[0].slice(0, 200)}` : ''}`
+  ).join('\n');
+  const answer = await askOnce(
+    env,
+    `Apps in this workspace:\n${catalog}`,
+    `The user is looking for: "${String(q).slice(0, 300)}". Reply ONLY with a JSON array of the app names that match what they want, best match first, e.g. ["a","b"]. Empty array [] if none fit.`
+  );
+  let names = [];
+  try { names = JSON.parse((answer.match(/\[[\s\S]*?\]/) || ['[]'])[0]); } catch { /* model went off-script → no recs */ }
+  return json({ apps: names.filter((n) => visible.some((v) => v.app.name === n)) });
+}
+
+// The 2-3 line blurb under the title — model-written on first deploy, edits here stick.
+async function apiAppDescription(req, env, user, name) {
+  const app = await appForUser(env, user, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!app.canEdit) return json({ error: 'only owner or edit members can edit the description' }, 403);
+  const { description } = await req.json();
+  await env.DB.prepare('UPDATE apps SET description = ? WHERE id = ?')
+    .bind(String(description || '').trim().slice(0, 600) || null, app.id).run();
+  return json({ ok: true });
 }
 
 // ---------- Ask (phase 1 — read only) ----------
@@ -1902,6 +1945,9 @@ export default {
         if (dupPath && req.method === 'POST') return await apiAppDuplicate(env, user, dupPath[1], baseUrl);
         const renPath = path.match(/^\/api\/apps\/([a-z0-9-]+)\/rename$/);
         if (renPath && req.method === 'POST') return await apiAppRename(req, env, user, renPath[1]);
+        const descPath = path.match(/^\/api\/apps\/([a-z0-9-]+)\/description$/);
+        if (descPath && req.method === 'POST') return await apiAppDescription(req, env, user, descPath[1]);
+        if (path === '/api/apps/find' && req.method === 'POST') return await apiAppFind(req, env, user);
         if (path === '/api/unshare' && req.method === 'POST') return await apiUnshare(req, env, user);
         if (path === '/api/folders' && req.method === 'POST') return await apiFolderCreate(req, env, user);
         const folderDel = path.match(/^\/api\/folders\/(\d+)\/delete$/);

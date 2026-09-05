@@ -728,7 +728,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
           <Trash2 size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
           Trash
         </button>
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 mb-3 flex items-center gap-2">
           <button
             onClick={() => navigate('/chat')}
             className={cn('flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full border border-line px-4 text-sm shadow-sm hover:bg-hover', path === '/chat' ? 'bg-active' : 'bg-white')}

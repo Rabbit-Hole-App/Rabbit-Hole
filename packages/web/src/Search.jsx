@@ -31,7 +31,20 @@ export default function SearchModal() {
     if (open && !data) api('/api/apps').then(setData).catch(() => setData({ apps: [] }));
   }, [open]);
 
-  const close = () => { setOpen(false); setQ(''); setHi(0); };
+  const close = () => { setOpen(false); setQ(''); setHi(0); setAi(null); };
+
+  // sentence-length queries also go to the model, which picks apps by description
+  const [ai, setAi] = useState(null); // null | 'loading' | string[] of app names
+  useEffect(() => {
+    if (!open || q.trim().split(/\s+/).length < 4) { setAi(null); return; }
+    setAi('loading');
+    const t = setTimeout(() => {
+      api('/api/apps/find', { method: 'POST', body: JSON.stringify({ q }) })
+        .then((d) => setAi(d.apps || []))
+        .catch(() => setAi(null));
+    }, 600);
+    return () => clearTimeout(t);
+  }, [q, open]);
 
   if (!open) return null;
 
@@ -85,7 +98,27 @@ export default function SearchModal() {
           />
         </div>
         <div className="max-h-80 overflow-y-auto p-1">
-          {results.length === 0 && <div className="flex h-9 items-center px-3 text-sm text-ink-3">No results</div>}
+          {ai === 'loading' && <div className="px-3 pt-1.5 pb-0.5 text-xs text-ink-3">Thinking…</div>}
+          {Array.isArray(ai) && ai.length > 0 && (
+            <>
+              <div className="px-3 pt-1.5 pb-0.5 text-xs text-ink-3">Recommended</div>
+              {ai.map((n) => apps.find((a) => a.name === n)).filter(Boolean).map((a) => (
+                <button
+                  key={`ai-${a.name}`}
+                  onClick={() => go(a.name)}
+                  className="flex h-9 w-full items-center gap-2.5 rounded-sm px-3 text-left text-sm hover:bg-hover"
+                >
+                  <KindIcon kind={a.kind} schedule={a.schedule} />
+                  <span className="truncate">{a.name}</span>
+                  {a.description && <span className="min-w-0 flex-1 truncate text-xs text-ink-3">{a.description.split('\n')[0]}</span>}
+                </button>
+              ))}
+            </>
+          )}
+          {Array.isArray(ai) && ai.length === 0 && results.length === 0 && (
+            <div className="flex h-9 items-center px-3 text-sm text-ink-3">Nothing matches that description</div>
+          )}
+          {results.length === 0 && !Array.isArray(ai) && ai !== 'loading' && <div className="flex h-9 items-center px-3 text-sm text-ink-3">No results</div>}
           {appHits.length > 0 && <div className="px-3 pt-1.5 pb-0.5 text-xs text-ink-3">Apps</div>}
           {appHits.map((a, i) => row(a, i))}
           {bookHits.length > 0 && <div className="px-3 pt-1.5 pb-0.5 text-xs text-ink-3">Runbooks</div>}
