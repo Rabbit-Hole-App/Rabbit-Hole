@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { ArrowUpRight, ChevronDown, ChevronRight, Clock, Folder as FolderIcon, Inbox, Loader2, PanelRight, Play, Search, Square } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, ChevronRight, Clock, Folder as FolderIcon, Loader2, PanelRight, Play, Search, Square } from 'lucide-react';
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
 import Shell from './Shell.jsx';
-import { Avatar, EmptyState, IconBtn, Input, KindIcon, Pill, PillButton, SkeletonRows } from './ui.jsx';
+import { Avatar, EmptyState, IconBtn, Input, KindIcon, Mark, Pill, PillButton, SkeletonRows } from './ui.jsx';
 
 const people = (a) => [a.owner_email, ...(a.members || []).map((m) => m.email).filter((e) => e !== a.owner_email)];
 
@@ -83,7 +83,7 @@ function AppContent({ data, load }) {
           {!data && <SkeletonRows rows={4} />}
           {data?.error && <div className="text-ink-2">✗ {data.error}</div>}
           {data && !data.error && apps.length === 0 && (
-            <EmptyState icon={Inbox}>
+            <EmptyState icon={Mark}>
               No apps yet — <code className="rounded-sm bg-hover px-1.5 py-0.5 text-xs">small deploy</code> ships the first one.{' '}
               <a className="text-accent hover:underline" href="https://www.npmjs.com/package/small-deploy" target="_blank" rel="noreferrer">
                 Get the CLI

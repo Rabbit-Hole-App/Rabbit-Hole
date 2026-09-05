@@ -137,6 +137,16 @@ export function TabsTrigger({ className, ...props }) {
 }
 export const TabsContent = TabsPrimitive.Content;
 
+// The product mark (E2: a small cloud, boxed) in currentColor — themes for free.
+export function Mark({ size = 20, className }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" className={className} aria-label="small">
+      <rect x="2" y="2" width="28" height="28" rx="7" fill="none" stroke="currentColor" strokeWidth="2.5" />
+      <path transform="translate(6.2 7) scale(0.83)" fill="currentColor" d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+    </svg>
+  );
+}
+
 // Empty state — one quiet line, one ghost action. Nothing else.
 export function EmptyState({ icon: Icon, children, action, className }) {
   return (

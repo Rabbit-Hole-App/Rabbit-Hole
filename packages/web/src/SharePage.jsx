@@ -4,7 +4,7 @@ import { ago, api, cronHuman, cronList, fmtTime, navigate, wsName } from './api.
 import { AskPanel } from './ask.jsx';
 import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
 import Shell from './Shell.jsx';
-import { Avatar, Button, Chk, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Menu, MenuItem, Pill, Select, ShareInput, SkeletonRows, Tabs, TabsContent, TabsList, TabsTrigger, cn, toast } from './ui.jsx';
+import { Avatar, Button, Chk, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, ShareInput, SkeletonRows, Tabs, TabsContent, TabsList, TabsTrigger, cn, toast } from './ui.jsx';
 
 const Runbook = lazy(() => import('./RunbookEditor.jsx'));
 
@@ -559,7 +559,7 @@ function AppPage({ slug, runId, reloadShell }) {
           <Denied slug={slug} error={error} />
         ) : error.status === 404 ? (
           // 404 also covers ex-members from another org — existence is not revealed to them
-          <div className="mx-auto max-w-md pt-[20vh] text-center">You don’t have access, or this app doesn’t exist.</div>
+          <div className="mx-auto flex max-w-md flex-col items-center gap-3 pt-[20vh] text-center"><Mark size={24} className="text-ink-2" />You don’t have access, or this app doesn’t exist.</div>
         ) : (
           <div className="text-ink-2">✗ {error.message}</div>
         ))}
