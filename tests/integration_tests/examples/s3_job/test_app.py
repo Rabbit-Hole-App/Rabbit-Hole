@@ -137,3 +137,25 @@ def test_report_written_back_to_s3(run_result, s3):
 def test_no_aws_keys_in_logs(run_result):
     # the STS secret must never leak into the streamed run log
     assert "AWS_SECRET" not in run_result["stdout"] and "aws_secret" not in run_result["stdout"]
+
+
+def test_unassumable_role_fails_deploy_with_trust_policy(job_dir):
+    """The deploy error must be the documentation: trust policy + ExternalId, no app created."""
+    d = Path(tempfile.mkdtemp(prefix="small-itest-badrole-"))
+    try:
+        for f in job_dir.iterdir():
+            shutil.copy(f, d / f.name)
+        toml = (d / "small.toml").read_text()
+        toml = toml.replace(f'name = "{APP_NAME}"', 'name = "itest-bad-role"')
+        toml = re.sub(r'role_arn = ".*"', 'role_arn = "arn:aws:iam::637423432890:role/small-does-not-exist"', toml)
+        (d / "small.toml").write_text(toml)
+        r = subprocess.run(
+            [small(), "deploy"], cwd=d, capture_output=True, text=True, timeout=120, encoding="utf-8", errors="replace"
+        )
+        out = r.stdout + r.stderr
+        assert r.returncode != 0, out
+        assert "cannot assume" in out, out
+        assert "sts:ExternalId" in out and "gmail-com" in out, out  # paste-ready trust policy
+        assert "sts:AssumeRole" in out, out
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
