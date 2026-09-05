@@ -7,6 +7,7 @@ import '@blocknote/shadcn/style.css';
 import '@excalidraw/excalidraw/index.css';
 import { PenTool } from 'lucide-react';
 import { api, isDark } from './api.js';
+import { chartBlock, insertChart } from './ChartBlock.jsx';
 
 const Excalidraw = lazy(() => import('@excalidraw/excalidraw').then((m) => ({ default: m.Excalidraw })));
 
@@ -70,7 +71,7 @@ const excalidrawBlock = createReactBlockSpec(
   { render: (props) => <ExcalidrawEmbed block={props.block} editor={props.editor} /> },
 )();
 
-const schema = BlockNoteSchema.create({ blockSpecs: { ...defaultBlockSpecs, excalidraw: excalidrawBlock } });
+const schema = BlockNoteSchema.create({ blockSpecs: { ...defaultBlockSpecs, excalidraw: excalidrawBlock, chart: chartBlock } });
 
 const insertExcalidraw = (editor) => ({
   title: 'Drawing',
@@ -146,7 +147,7 @@ export default function Runbook({ app, canEdit, onSaved }) {
           <SuggestionMenuController
             triggerCharacter="/"
             getItems={async (query) =>
-              filterSuggestionItems([...getDefaultReactSlashMenuItems(editor), insertExcalidraw(editor)], query)}
+              filterSuggestionItems([...getDefaultReactSlashMenuItems(editor), insertExcalidraw(editor), insertChart(editor, app.name)], query)}
           />
         </BlockNoteView>
       </div>

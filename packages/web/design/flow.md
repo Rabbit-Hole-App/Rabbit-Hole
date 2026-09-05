@@ -149,11 +149,11 @@ The generated `RUNBOOK.md`, rendered in Notion typography. Files table links to 
 the deployed commit if the repo is public. This is what a colleague reads to understand
 the tool.
 
-**Charts — the `/` command.** Below the generated markdown sits one empty line reading
-*Type / for blocks*. Typing `/` opens a small Notion-style block menu with one entry for
-now: **Chart** (the menu exists so later blocks slot in without redesign). Charts render
-with [nivo](https://github.com/plouc/nivo) — import only `@nivo/line`, `@nivo/bar`,
-`@nivo/pie`, lazy-loaded so the runbook tab pays nothing until a chart exists.
+**Charts — the `/` command.** The runbook is a BlockNote editor; typing `/` opens its
+block menu, which already carries the standard blocks plus **Drawing** (Excalidraw).
+**Chart** joins it. Charts render with [nivo](https://github.com/plouc/nivo) — only
+`@nivo/line`, `@nivo/bar`, `@nivo/pie`, each lazy-loaded so the runbook tab pays nothing
+until a chart of that type renders.
 
 ```
   ... generated RUNBOOK.md ...
@@ -172,14 +172,15 @@ Inserting a chart configures it inline, three fields:
 - **Type** — line / bar / pie.
 - **Fields** — x + y (label + value for pie), picked from the columns of the chosen source.
 
-Charts are **not** stored inside `RUNBOOK.md` — the generated markdown is replaced on
-every deploy and they must survive it. They live as JSON on the app row and render after
-the generated body, drag-to-reorder among themselves. Data is live: a chart queries the
-existing runs/outputs APIs on open, never a snapshot. Editors insert and edit; viewers
-see them rendered, no `/` line, no `⋯`.
+Charts are BlockNote blocks (same pattern as the Excalidraw block): config lives in the
+block's props and rides the runbook JSON autosave, so it survives deploys, reorders like
+any block, and needs no storage of its own. Data is live: a chart queries the existing
+runs/outputs APIs on open, never a snapshot. Editors insert and edit; viewers see charts
+rendered read-only.
 
-Backend: `GET /api/runs?app=` and the outputs routes already serve everything a chart
-plots — the only new piece is a `runbook_charts` JSON column on apps and a PUT to save it.
+Backend: nothing new — `GET /api/runs?app=` and the outputs routes already serve
+everything a chart plots. Built: `ChartBlock.jsx` (block + `/chart` menu item),
+`chart-data.js` (pure row/series shaping, node --test covered).
 
 ### 3b. Run tab — jobs with `[inputs]`
 
