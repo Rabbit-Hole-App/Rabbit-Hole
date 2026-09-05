@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, Loader2 } from 'lucide-react';
-import { api, cronHuman, fmtTime } from './api.js';
+import { api, cronHuman, cronList, fmtTime } from './api.js';
 const Runbook = lazy(() => import('./RunbookEditor.jsx')); // BlockNote is heavy — its chunk loads only when a runbook opens
 import { Button, SlidePanel, Tabs, TabsContent, TabsList, TabsTrigger } from './ui.jsx';
 
@@ -132,7 +132,7 @@ export default function Panel({ app, tab, run, onTab, onRunbookSaved, onRunSettl
           <span className="truncate">{app.name}</span>
           {app.schedule && (
             <span className="text-xs font-normal text-ink-2" title={`cron ${app.schedule} (UTC)`}>
-              {cronHuman(app.schedule)}{app.schedule_paused ? ' · paused' : ''}
+              {cronList(app.schedule).map(cronHuman).join(' · ')}{app.schedule_paused ? ' · paused' : ''}
             </span>
           )}
         </>

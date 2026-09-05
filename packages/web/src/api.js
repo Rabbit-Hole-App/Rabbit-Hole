@@ -31,6 +31,9 @@ export async function api(path, opts = {}) {
 
 const parse = (s) => new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z'); // D1 datetime or ISO
 
+// A job can hold several crons, ';'-separated (dashboard "+" adds them).
+export const cronList = (s) => String(s || '').split(';').map((x) => x.trim()).filter(Boolean);
+
 // Human-readable cron for the common shapes; raw cron string as fallback. Cron fires in UTC.
 export function cronHuman(c) {
   const [m, h, dom, , dow] = c.trim().split(/\s+/);

@@ -285,7 +285,7 @@ export function ShareInput({ value, onChange, onPick, people = [], teams = [], e
 
 // ─── ConfirmDialog — the one modal (Delete only, per notion.md §7): item name in
 // the body, red primary button. ───
-export function ConfirmDialog({ title, body, confirmLabel = 'Delete', onConfirm, onCancel }) {
+export function ConfirmDialog({ title, body, confirmLabel = 'Delete', confirmVariant = 'danger', onConfirm, onCancel }) {
   useEffect(() => {
     const esc = (e) => e.key === 'Escape' && onCancel();
     window.addEventListener('keydown', esc);
@@ -298,7 +298,7 @@ export function ConfirmDialog({ title, body, confirmLabel = 'Delete', onConfirm,
         <div className="pb-4 text-sm text-ink-2">{body}</div>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-          <Button variant="danger" onClick={onConfirm}>{confirmLabel}</Button>
+          <Button variant={confirmVariant} onClick={onConfirm}>{confirmLabel}</Button>
         </div>
       </div>
     </div>

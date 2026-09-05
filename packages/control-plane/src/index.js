@@ -11,6 +11,8 @@ const SESSION_COOKIE = 'small_session';
 const SESSION_TTL = 7 * 24 * 3600;
 
 const orgOf = (email) => email.split('@')[1].toLowerCase().replace(/\./g, '-');
+// apps.schedule may hold several crons separated by ';' (dashboard "+" adds them)
+const cronParts = (s) => String(s || '').split(';').map((x) => x.trim()).filter(Boolean);
 const now = () => Math.floor(Date.now() / 1000);
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 const html = (body, status = 200, headers = {}) =>
@@ -414,9 +416,18 @@ async function apiAppGet(env, user, name, baseUrl) {
       "SELECT user AS email, ts FROM request_logs WHERE org = ? AND slug = ? AND user IS NOT NULL ORDER BY id DESC LIMIT 1"
     ).bind(app.org, app.name).first();
   } catch {} // request_logs ships with the request-logs feature branch — absent on fresh local DBs
+  let nextAt = null;
+  if (app.schedule && !app.schedule_paused) {
+    for (const part of cronParts(app.schedule)) {
+      try {
+        const n = nextRun(parseCron(part), Date.now());
+        nextAt = nextAt == null ? n : Math.min(nextAt, n);
+      } catch { /* legacy bad cron — row shows without a next time */ }
+    }
+  }
   return json({
     name: app.name, org: app.org, kind: app.kind, visibility: app.visibility, owner_email: app.owner_email,
-    runbook: app.runbook, schedule: app.schedule, schedule_paused: app.schedule_paused,
+    runbook: app.runbook, schedule: app.schedule, schedule_paused: app.schedule_paused, nextRun: nextAt,
     deployed_at: app.deployed_at ?? null, created_at: app.created_at,
     repo_url: app.repo_url ?? null, repo_branch: app.repo_branch ?? null, repo_commit: app.repo_commit ?? null,
     repo_dirty: app.repo_dirty ?? null, repo_public: app.repo_public ?? null,
@@ -923,11 +934,30 @@ async function apiRunOutputPut(req, env, runId, name) {
   return json({ ok: true });
 }
 
+// Pause/resume a schedule, and (dashboard) set or remove one: `schedule` set/replaces
+// (null removes). A later `small deploy` still wins — small.toml is the source of truth
+// at deploy time, so a redeploy without `schedule = ...` clears a dashboard-set cron.
 async function apiSchedulePause(req, env, user) {
-  const { app: name, paused } = await req.json();
+  const { app: name, paused, schedule } = await req.json();
   const app = await appRow(env, user.org, name);
   if (!app) return json({ error: `no app named ${name}` }, 404);
   if (!(await canEdit(env, app, user.email))) return json({ error: 'no access' }, 403);
+  if (schedule !== undefined) {
+    if (app.kind !== 'job') return json({ error: 'only jobs can be scheduled' }, 400);
+    let nextAt = null;
+    for (const part of schedule ? cronParts(schedule) : []) {
+      try {
+        const n = nextRun(parseCron(part), Date.now());
+        nextAt = nextAt == null ? n : Math.min(nextAt, n);
+      } catch (e) {
+        return json({ error: `bad schedule "${part}": ${e.message} — use 5-field cron like "0 9 * * 1-5"` }, 400);
+      }
+    }
+    // setting a schedule unpauses it (that's the intent); removing clears the pause too
+    await env.DB.prepare('UPDATE apps SET schedule = ?, schedule_paused = 0, last_scheduled_at = NULL WHERE id = ?')
+      .bind(schedule || null, app.id).run();
+    return json({ ok: true, schedule: schedule || null, paused: false, nextRun: nextAt });
+  }
   if (!app.schedule) return json({ error: `${name} has no schedule — add schedule = "..." to small.toml and redeploy` }, 400);
   await env.DB.prepare('UPDATE apps SET schedule_paused = ? WHERE id = ?').bind(paused ? 1 : 0, app.id).run();
   return json({ ok: true, schedule: app.schedule, paused: !!paused });
@@ -1228,13 +1258,16 @@ export default {
       "SELECT * FROM apps WHERE kind = 'job' AND schedule IS NOT NULL AND schedule_paused = 0 AND image IS NOT NULL AND deleted_at IS NULL"
     ).all();
     for (const app of results) {
-      let parsed;
-      try {
-        parsed = parseCron(app.schedule);
-      } catch {
-        continue; // validated at deploy; a bad legacy row must not kill the whole tick
-      }
-      if (!matches(parsed, new Date(tick * 1000)) || (app.last_scheduled_at || 0) >= tick) continue;
+      // schedule may hold several crons ("0 9 * * 1-5; 0 14 * * 6") — due if ANY matches.
+      // One fire per app per minute regardless of how many crons agree (last_scheduled_at pin).
+      const due = cronParts(app.schedule).some((c) => {
+        try {
+          return matches(parseCron(c), new Date(tick * 1000));
+        } catch {
+          return false; // validated when set; a bad legacy part must not kill the whole tick
+        }
+      });
+      if (!due || (app.last_scheduled_at || 0) >= tick) continue;
       await env.DB.prepare('UPDATE apps SET last_scheduled_at = ? WHERE id = ?').bind(tick, app.id).run();
       // ponytail: a run whose machine died before posting an exit code stays 'running'
       // and blocks cron forever; add a max-age cutoff when it bites.

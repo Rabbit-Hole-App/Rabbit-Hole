@@ -1,14 +1,123 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Calendar as CalendarIcon, Check, Circle, Clock, GitBranch, Globe, Link as LinkIcon, Lock, MoreHorizontal, Trash2, User as UserIcon, Users, X } from 'lucide-react';
-import { ago, api, cronHuman, fmtTime, navigate, wsName } from './api.js';
+import { ArrowUpRight, Calendar as CalendarIcon, Check, Circle, Clock, Copy, GitBranch, Globe, Link as LinkIcon, Lock, MoreHorizontal, Plus, Trash2, User as UserIcon, Users, X } from 'lucide-react';
+import { ago, api, cronHuman, cronList, fmtTime, navigate, wsName } from './api.js';
 import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
 import Shell from './Shell.jsx';
-import { Avatar, Button, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Menu, MenuItem, Pill, ShareInput, SkeletonRows, Tabs, TabsContent, TabsList, TabsTrigger, cn, toast } from './ui.jsx';
+import { Avatar, Button, Chk, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Menu, MenuItem, Pill, Select, ShareInput, SkeletonRows, Tabs, TabsContent, TabsList, TabsTrigger, cn, toast } from './ui.jsx';
 
 const Runbook = lazy(() => import('./RunbookEditor.jsx'));
 
 const TH = 'h-8 border-b border-line px-2 text-left text-xs font-normal text-ink-2';
 const TD = 'h-8 border-b border-line px-2 text-sm whitespace-nowrap';
+
+// Schedule a job from the dashboard: presets (minute/hour/day/specific days) or raw
+// cron, all UTC. Existing schedule can be paused, resumed, or removed.
+const DOW = [['Mon', 1], ['Tue', 2], ['Wed', 3], ['Thu', 4], ['Fri', 5], ['Sat', 6], ['Sun', 0]];
+const FREQ = ['every minute', 'every hour', 'every day', 'specific days', 'custom cron'];
+
+function ScheduleDialog({ app, onClose, onChanged }) {
+  const [freq, setFreq] = useState('every day');
+  const [time, setTime] = useState('09:00');
+  const [days, setDays] = useState(() => new Set([1, 2, 3, 4, 5]));
+  const [custom, setCustom] = useState('');
+  const [err, setErr] = useState(null);
+  const parts = cronList(app.schedule);
+  useEffect(() => {
+    const esc = (e) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, []);
+
+  const cron = () => {
+    const [h, m] = time.split(':').map((x) => parseInt(x, 10));
+    if (freq === 'every minute') return '* * * * *';
+    if (freq === 'every hour') return `${m || 0} * * * *`;
+    if (freq === 'every day') return `${m || 0} ${h || 0} * * *`;
+    if (freq === 'specific days') {
+      if (!days.size) return null;
+      return `${m || 0} ${h || 0} * * ${[...days].sort((a, b) => a - b).join(',')}`;
+    }
+    return custom.trim() || null;
+  };
+
+  const post = async (body, note) => {
+    setErr(null);
+    try {
+      await api('/api/schedule', { method: 'POST', body: JSON.stringify({ app: app.name, ...body }) });
+      toast(note);
+      onChanged();
+      onClose();
+    } catch (e) { setErr(e.message); }
+  };
+  // "+": a new cron appends to the existing ones; removing a row posts the rest.
+  const save = () => {
+    const c = cron();
+    if (!c) { setErr(freq === 'specific days' ? 'pick at least one day' : 'enter a cron like "0 9 * * 1-5"'); return; }
+    post({ schedule: [...parts, c].join('; ') }, `Scheduled ${cronHuman(c)}`);
+  };
+  const removePart = (i) => {
+    const rest = parts.filter((_, j) => j !== i);
+    post({ schedule: rest.length ? rest.join('; ') : null }, rest.length ? 'Schedule removed' : 'All schedules removed');
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={onClose}>
+      {/* text-ink: this dialog mounts inside the breadcrumb row (text-ink-2) and would inherit its pale color */}
+      <div className="mt-[22vh] w-[380px] max-w-[90vw] rounded-md bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="pb-3 text-sm font-semibold">Schedule {app.name}</div>
+        {parts.length > 0 && (
+          <div className="mb-3 flex flex-col gap-1 rounded-sm bg-code px-2.5 py-2">
+            {parts.map((c, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm">
+                <Pill color="orange" className={cn(app.schedule_paused && 'line-through opacity-60')} title={`cron ${c} (UTC)`}>{cronHuman(c)}</Pill>
+                <span className="flex-1" />
+                <IconBtn aria-label={`Remove ${cronHuman(c)}`} onClick={() => removePart(i)}><X size={14} /></IconBtn>
+              </div>
+            ))}
+            <div className="flex items-center gap-2 pt-1">
+              {/* schedule_paused is 0/1 from D1 — a bare && would render the 0 */}
+              {!!app.schedule_paused && <span className="text-xs text-ink-2">paused</span>}
+              <span className="flex-1" />
+              <Button
+                size="sm"
+                onClick={() => post({ paused: !app.schedule_paused }, app.schedule_paused ? 'Schedule resumed' : 'Schedule paused')}
+              >
+                {app.schedule_paused ? 'Resume all' : 'Pause all'}
+              </Button>
+            </div>
+          </div>
+        )}
+        <div className="flex flex-col gap-2">
+          <Select value={freq} options={FREQ} onChange={setFreq} />
+          {(freq === 'every hour' || freq === 'every day' || freq === 'specific days') && (
+            <div className="flex items-center gap-2">
+              <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="w-[110px]" aria-label="time" />
+              <span className="text-xs text-ink-2">{freq === 'every hour' ? `at :${(time.split(':')[1] || '00')} past each hour · UTC` : 'UTC'}</span>
+            </div>
+          )}
+          {freq === 'specific days' && (
+            <div className="flex gap-3 pt-1">
+              {DOW.map(([label, n]) => (
+                <label key={n} className="flex cursor-pointer flex-col items-center gap-1 text-xs text-ink-2" onClick={() => setDays((s) => { const x = new Set(s); x.has(n) ? x.delete(n) : x.add(n); return x; })}>
+                  <Chk on={days.has(n)} />
+                  {label}
+                </label>
+              ))}
+            </div>
+          )}
+          {freq === 'custom cron' && <Input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder='5-field cron, UTC — "0 9 * * 1-5"' aria-label="cron" />}
+          {err && <div className="text-xs text-danger">{err}</div>}
+        </div>
+        <div className="flex justify-end gap-2 pt-4">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" onClick={save}>
+            {parts.length ? <><Plus size={14} strokeWidth={1.5} /> Add schedule</> : 'Schedule'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Notion-style share popover: visibility toggle, people list (no borders), email field.
 // Viewers get the same popover read-only.
@@ -16,6 +125,7 @@ function SharePopover({ app, onChanged }) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('view');
+  const [confirmShare, setConfirmShare] = useState(null); // pending share body on a private app
   const [err, setErr] = useState(null);
   const [orgTeams, setOrgTeams] = useState([]);
   const [pool, setPool] = useState([]);
@@ -36,17 +146,21 @@ function SharePopover({ app, onChanged }) {
     try { await fn(); onChanged(); } catch (e) { setErr(e.message); }
   };
   const share = (body) => call(() => api('/api/share', { method: 'POST', body: JSON.stringify({ app: app.name, ...body }) }));
+  // First share on a private app moves it from Private to Shared — confirm that.
+  const firstShare = app.visibility === 'private' && app.owner_email === app.email
+    && !app.members.length && !(app.teams || []).length;
+  const doAdd = (body) => { share(body); setEmail(''); };
+  const request = (body) => (firstShare ? setConfirmShare(body) : doAdd(body));
   const add = (e) => {
     e.preventDefault();
     const v = email.trim();
     if (v.startsWith('#')) {
       if (v.length < 2) return;
-      share({ team: v, role });
+      request({ team: v, role });
     } else {
       if (!v.includes('@')) return;
-      share({ email: v, role });
+      request({ email: v, role });
     }
-    setEmail('');
   };
   const exclude = [
     app.owner_email,
@@ -61,6 +175,16 @@ function SharePopover({ app, onChanged }) {
   return (
     <div className="relative" ref={ref}>
       <Button variant="secondary" onClick={() => setOpen(!open)}>Share</Button>
+      {confirmShare && (
+        <ConfirmDialog
+          title={`Share ${app.name}?`}
+          body={`${app.name} is private. Sharing it with ${confirmShare.team || confirmShare.email} moves it from Private to Shared in the sidebar — they'll be able to ${confirmShare.role === 'edit' ? 'edit' : 'view'} it.`}
+          confirmLabel="Share"
+          confirmVariant="primary"
+          onConfirm={() => { const b = confirmShare; setConfirmShare(null); doAdd(b); }}
+          onCancel={() => setConfirmShare(null)}
+        />
+      )}
       {open && (
         <div className="absolute top-9 right-0 z-10 w-80 rounded-md bg-white p-2 shadow-pop">
           {app.canEdit && (
@@ -70,7 +194,7 @@ function SharePopover({ app, onChanged }) {
                   autoFocus
                   value={email}
                   onChange={setEmail}
-                  onPick={(it) => { share({ ...it, role }); setEmail(''); }}
+                  onPick={(it) => request({ ...(it.team ? { team: `#${it.team}` } : { email: it.email }), role })}
                   people={pool}
                   teams={orgTeams}
                   exclude={exclude}
@@ -199,6 +323,15 @@ const Person = ({ email }) => (email
   ? <span className="inline-flex items-center gap-1.5"><Avatar email={email} />{email}</span>
   : '—');
 
+// "next in 3h" for the schedule row; nextRun is a ms epoch from the worker.
+const until = (ms) => {
+  const s = Math.max(0, (ms - Date.now()) / 1000);
+  if (s < 90) return 'in a minute';
+  if (s < 3600) return `in ${Math.round(s / 60)}m`;
+  if (s < 86400) return `in ${Math.round(s / 3600)}h`;
+  return `in ${Math.round(s / 86400)}d`;
+};
+
 // Property-list row halves (design/components.html .plist): grey key w/ icon, value beside.
 const PropKey = ({ icon: Icon, children }) => (
   <div className="flex h-8 items-center gap-1.5 text-ink-2"><Icon size={16} strokeWidth={1.5} className="text-ink-3" />{children}</div>
@@ -258,9 +391,9 @@ function AppPage({ slug, runId, reloadShell }) {
   const [peek, setPeek] = useState(null); // runId shown in the side peek
   const [tab, setTab] = useState(null); // null until the app's kind picks the default
   const [prefill, setPrefill] = useState(null); // Run-again inputs for the form
-  const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
   const [editTitle, setEditTitle] = useState(null); // string while renaming
 
   const rename = async () => {
@@ -316,30 +449,50 @@ function AppPage({ slug, runId, reloadShell }) {
           <span className="flex-1" />
           {app && (
             <>
-              <Button
-                onClick={() => {
-                  navigator.clipboard.writeText(`${window.location.origin}/apps/${app.name}`);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 1500);
-                }}
-              >
-                <LinkIcon size={16} strokeWidth={1.5} /> {copied ? 'Copied' : 'Copy link'}
-              </Button>
-              {/* Private-section apps (mine, private, unshared) have no Share — drag to Apps in the sidebar to open one up. */}
-              {!(app.visibility === 'private' && app.owner_email === app.email && !app.members?.length && !app.teams?.length) && (
-                <SharePopover app={app} onChanged={load} />
-              )}
-              {app.owner_email === app.email && (
-                <div className="relative">
-                  <IconBtn title="More" onClick={() => setMenuOpen(!menuOpen)}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>
-                  <Menu open={menuOpen} onClose={() => setMenuOpen(false)} className="top-8 right-0">
+              <SharePopover app={app} onChanged={load} />
+              <div className="relative">
+                <IconBtn title="More" onMouseDown={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>
+                <Menu open={menuOpen} onClose={() => setMenuOpen(false)} className="top-8 right-0">
+                  <MenuItem
+                    icon={LinkIcon}
+                    onClick={() => { setMenuOpen(false); navigator.clipboard.writeText(`${window.location.origin}/apps/${app.name}`); toast('Link copied'); }}
+                  >
+                    Copy link
+                  </MenuItem>
+                  <MenuItem
+                    icon={Copy}
+                    onClick={async () => {
+                      setMenuOpen(false);
+                      try {
+                        const r = await api(`/api/apps/${slug}/duplicate`, { method: 'POST' });
+                        toast(`Duplicated as ${r.name}`);
+                        reloadShell?.();
+                        navigate(`/apps/${r.name}`);
+                      } catch (e) { toast(`✗ ${e.message}`); }
+                    }}
+                  >
+                    Duplicate
+                  </MenuItem>
+                  {app.kind === 'job' && app.canEdit && (
+                    <MenuItem icon={Clock} onClick={() => { setMenuOpen(false); setScheduling(true); }}>
+                      Schedule
+                    </MenuItem>
+                  )}
+                  {app.owner_email === app.email && (
                     <MenuItem icon={Trash2} className="text-danger" onClick={() => { setMenuOpen(false); setConfirmDel(true); }}>
                       Move to Trash
                     </MenuItem>
-                  </Menu>
-                </div>
-              )}
+                  )}
+                </Menu>
+              </div>
             </>
+          )}
+          {scheduling && app && (
+            <ScheduleDialog
+              app={app}
+              onClose={() => setScheduling(false)}
+              onChanged={() => { load(); reloadShell?.(); }}
+            />
           )}
           {confirmDel && (
             <ConfirmDialog
@@ -417,14 +570,6 @@ function AppPage({ slug, runId, reloadShell }) {
               <PropVal><Pill color={app.kind === 'job' ? 'blue' : 'grey'}>{app.kind}</Pill></PropVal>
               <PropKey icon={CalendarIcon}>Deployed</PropKey>
               <PropVal><span title={fmtTime(app.deployed_at || app.created_at)}>{ago(app.deployed_at || app.created_at)}</span></PropVal>
-              {app.schedule && (
-                <>
-                  <PropKey icon={Clock}>Schedule</PropKey>
-                  <PropVal>
-                    <Pill className={cn(app.schedule_paused && 'line-through opacity-60')} title={`cron ${app.schedule} (UTC)`}>{cronHuman(app.schedule)}</Pill>
-                  </PropVal>
-                </>
-              )}
               {source && (
                 <>
                   <PropKey icon={GitBranch}>Source</PropKey>
@@ -437,6 +582,19 @@ function AppPage({ slug, runId, reloadShell }) {
               )}
               <PropKey icon={UserIcon}>Owner</PropKey>
               <PropVal><Avatar email={app.owner_email} />{app.owner_email}</PropVal>
+              {app.schedule && (
+                <>
+                  <PropKey icon={Clock}>Schedule</PropKey>
+                  <PropVal>
+                    {cronList(app.schedule).map((c) => (
+                      <Pill key={c} color="orange" className={cn(app.schedule_paused && 'line-through opacity-60')} title={`cron ${c} (UTC)`}>{cronHuman(c)}</Pill>
+                    ))}
+                    {app.schedule_paused
+                      ? <span className="text-xs text-ink-2">paused</span>
+                      : app.nextRun && <span className="text-xs text-ink-2" title={new Date(app.nextRun).toLocaleString()}>next {until(app.nextRun)}</span>}
+                  </PropVal>
+                </>
+              )}
             </div>
 
             <Tabs value={tab ?? (app.kind === 'job' ? 'run' : 'runbook')} onValueChange={setTab}>

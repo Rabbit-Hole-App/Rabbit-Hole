@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowUpRight, Clock, Inbox, Loader2, PanelRight, Play, Search, Square } from 'lucide-react';
-import { ago, api, cronHuman, fmtTime, navigate, sectionOf, wsName } from './api.js';
+import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
 import Shell from './Shell.jsx';
 import { Avatar, EmptyState, IconBtn, Input, KindIcon, Pill, PillButton, SkeletonRows } from './ui.jsx';
@@ -131,7 +131,7 @@ function AppContent({ data, load }) {
                                 title={`cron ${a.schedule} (UTC)${a.schedule_paused ? ' — paused' : ''}`}
                               >
                                 <Clock size={10} />
-                                {cronHuman(a.schedule)}
+                                {cronList(a.schedule).map(cronHuman).join(' · ')}
                               </Pill>
                             )}
                           </span>

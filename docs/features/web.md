@@ -262,6 +262,36 @@ invite emails, admin roles, /settings — per flow.md, when asked.
 - ponytail: Calculate footer is fixed count/avg — click-to-pick when asked.
 - ponytail: cron runs pass no inputs; the runs table shows — for them.
 
+## v12: property list, ⋯ menu, schedules from the dashboard
+- App page properties are a Notion vertical property list (icon + grey 160px
+  label, value beside, 32px rows): Type (was "Kind"), Deployed, Source, Owner,
+  Schedule last. The Access row is gone — like Notion, access lives only behind
+  the Share button.
+- Header is just Share + ⋯. The ⋯ menu (all viewers): Copy link, Duplicate,
+  Schedule (jobs w/ edit), Move to Trash (owner) — all with icons.
+- Schedules from the dashboard: POST /api/schedule now also accepts
+  `schedule` (set/replace; null removes) with per-part cron validation;
+  setting unpauses. `apps.schedule` may hold SEVERAL crons, ';'-separated —
+  the dialog lists each as a pill with ✕, "+ Add schedule" appends
+  (presets: every minute/hour/day, specific days w/ a Mon–Sun checkbox row,
+  custom cron; all UTC), Pause all/Resume all toggles the job's cron whole.
+  The every-minute tick fires if ANY part matches (still one run per minute —
+  last_scheduled_at pins the app, not the part). apiAppGet returns `nextRun`
+  (min over parts) — the Schedule row shows "next in 3h". A `small deploy`
+  still wins: small.toml's single schedule (or its absence) replaces
+  dashboard-set crons.
+- Sidebar/list/table already swap the job ▷ to a clock when scheduled
+  (KindIcon); the dialog's reloadShell makes the swap immediate.
+- Private apps have the Share button again: the FIRST share on an unshared
+  private app opens a confirm ("moves it from Private to Shared") with a blue
+  primary — sectionOf then files it under Shared for everyone including the
+  owner. ConfirmDialog grew a confirmVariant for non-destructive confirms.
+- Fixed: ScheduleDialog inherited the breadcrumb's text-ink-2 (pale dropdown
+  text) — dialogs mounted inside colored rows must set text-ink; D1's 0/1
+  schedule_paused leaked a literal "0" through a bare `&&`.
+- ponytail: multiple crons share one pause flag and one per-minute fire; split
+  into a schedules table when per-cron pause or same-minute fan-out matters.
+
 ## Serving (hard-won)
 The SPA shell is bundled INTO the worker (esbuild Text rule imports
 `../web/dist/index.html`) and served at `/apps` + `/dash` with `Cache-Control:
