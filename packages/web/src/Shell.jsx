@@ -60,12 +60,12 @@ export default function Shell({ children }) {
       {/* Notion slide: the wrapper animates width to 0 while the fixed-width inner
           translates left, so the sidebar glides out instead of blinking away. */}
       <div
-        style={{ width: collapsed ? 0 : width }}
-        className={`shrink-0 overflow-hidden max-md:hidden ${resizing ? '' : 'transition-[width] duration-200 ease-out'}`}
+        style={{ width: collapsed ? 0 : width, transition: resizing ? 'none' : 'width 200ms cubic-bezier(0.25,1,0.35,1)' }}
+        className="shrink-0 overflow-hidden max-md:hidden"
       >
         <div
-          style={{ width, transform: collapsed ? `translateX(-${width}px)` : 'none' }}
-          className={`flex h-full ${resizing ? '' : 'transition-transform duration-200 ease-out'}`}
+          style={{ width, transform: collapsed ? `translateX(-${width}px)` : 'none', transition: resizing ? 'none' : 'transform 200ms cubic-bezier(0.25,1,0.35,1)' }}
+          className="flex h-full"
         >
           <Sidebar
             org={data?.org || 'small'}

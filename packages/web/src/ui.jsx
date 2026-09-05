@@ -215,7 +215,7 @@ export function SlidePanel({ title, width = 560, onClose, children }) {
     if (closing.current) return;
     closing.current = true;
     setShown(false);
-    setTimeout(onClose, 220);
+    setTimeout(onClose, 210);
   };
   useEffect(() => {
     const esc = (e) => e.key === 'Escape' && close();
@@ -229,7 +229,7 @@ export function SlidePanel({ title, width = 560, onClose, children }) {
       style={{
         width,
         transform: shown ? 'translate3d(0,0,0)' : 'translate3d(102%,0,0)',
-        transition: 'transform 220ms cubic-bezier(0.25,1,0.35,1)',
+        transition: 'transform 200ms cubic-bezier(0.25,1,0.35,1)', // one motion constant with the sidebar slide (Shell.jsx)
       }}
       className="fixed inset-y-0 right-0 z-30 flex max-w-full flex-col overflow-x-clip border-l border-line bg-white will-change-transform"
     >
