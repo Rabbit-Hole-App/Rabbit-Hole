@@ -429,6 +429,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           </button>
         </div>
       )}
+      {compact && msgs.length > 0 && (
+        <div className="flex shrink-0 justify-end pb-1">
+          <button onClick={newChat} className="flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
+            Clear chat
+          </button>
+        </div>
+      )}
       {filePeek && <FilePeek appName={fileApp} path={filePeek.path} line={filePeek.line} lineEnd={filePeek.lineEnd} onClose={() => setFilePeek(null)} />}
       {confirmDel && (
         <ConfirmDialog

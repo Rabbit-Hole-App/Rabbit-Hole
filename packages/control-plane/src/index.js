@@ -543,7 +543,7 @@ async function editorsLine(env, app) {
 
 // `use` = Set of source keys the user toggled on (null = everything). The picker
 // in the ask box mirrors Notion's "My sources".
-async function runContext(env, app, run, use = null) {
+async function runContext(env, app, run, use = null, blocks = null) {
   const onR = (k) => !use || use.has(k);
   // full log, newest kept if the char cap bites (we trim the head below)
   const logRows = onR('log')
@@ -553,9 +553,25 @@ async function runContext(env, app, run, use = null) {
   let logText = logRows.map((r) => r.line).join('\n');
   if (logText.length > 100000) logText = `…(earlier lines trimmed)…\n${logText.slice(-100000)}`;
   let outputs = [];
+  const outputTexts = [];
   if (env.RUNS && onR('outputs')) {
     const listed = await env.RUNS.list({ prefix: `runs/${run.run_id}/outputs/` });
     outputs = listed.objects.map((o) => `${o.key.split('/').pop()} (${o.size} B)`);
+    // the agent sees the outputs themselves, not just names: small text/json inline,
+    // images as vision blocks (when the caller collects blocks)
+    for (const o of listed.objects) {
+      const nm = o.key.split('/').pop();
+      if (/\.(json|txt|csv|md|log)$/i.test(nm) && o.size <= 16384) {
+        const obj = await env.RUNS.get(o.key);
+        if (obj) outputTexts.push(`output ${nm}:\n${await obj.text()}`);
+      } else if (blocks && blocks.length < 4 && /\.(jpe?g|png|webp|gif)$/i.test(nm) && o.size <= 3 * 1024 * 1024) {
+        const obj = await env.RUNS.get(o.key);
+        if (obj) {
+          const mt = nm.toLowerCase().endsWith('.png') ? 'image/png' : nm.toLowerCase().endsWith('.webp') ? 'image/webp' : nm.toLowerCase().endsWith('.gif') ? 'image/gif' : 'image/jpeg';
+          blocks.push({ type: 'text', text: `Run output image ${nm}:` }, { type: 'image', source: { type: 'base64', media_type: mt, data: b64(new Uint8Array(await obj.arrayBuffer())) } });
+        }
+      }
+    }
   }
   const lastOk = await env.DB.prepare(
     "SELECT run_id, finished_at, deploy_id FROM runs WHERE app_id = ? AND status = 'finished' AND id < (SELECT id FROM runs WHERE run_id = ?) ORDER BY id DESC LIMIT 1"
@@ -583,6 +599,7 @@ async function runContext(env, app, run, use = null) {
     line('inputs schema', app.inputs),
     line('outputs declared', app.outputs),
     outputs.length ? `outputs produced:\n${outputs.join('\n')}` : 'outputs produced: none',
+    ...outputTexts,
     lastOk ? `last successful run: ${lastOk.run_id} at ${lastOk.finished_at}` : 'no successful run before this one',
     // ponytail: deploy bundles aren't stored — no real code diff since the last success
     line('deployed from', app.repo_branch && `${app.repo_branch} · ${app.repo_commit || '?'}${app.repo_dirty ? ' · dirty' : ''} (deployed_at ${app.deployed_at})`),
@@ -722,7 +739,7 @@ async function apiAsk(req, env, ctx, user) {
     if (!run) return json({ error: `no run ${scope.run}` }, 404);
     const app = await env.DB.prepare('SELECT * FROM apps WHERE id = ?').bind(run.app_id).first();
     if (!app || app.org !== user.org || !(await canView(env, app, user.email))) return json({ error: 'no access' }, 403);
-    context = await runContext(env, app, run, useSet);
+    context = await runContext(env, app, run, useSet, extraBlocks);
     canAct = await canEdit(env, app, user.email);
     scopeKind = 'run';
     scopeRef = scope.run;
