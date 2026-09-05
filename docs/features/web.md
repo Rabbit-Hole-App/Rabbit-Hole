@@ -209,6 +209,58 @@ invite emails, admin roles, /settings — per flow.md, when asked.
   ("Move X into folder Y?" / "Move X to Private? — only people it's shared with
   keep access"); no-op drops (same place) are ignored; drops outside a target cancel.
 
+## v11: run surface — Run tab, side peek, runs database
+- Schema plumbing: `small deploy` now sends the small.toml `[inputs]`/`[outputs]`
+  tables (2 fields in the deploy body — the one CLI change); the worker stores
+  them on the app row (migration 0010, >20KB rejected at deploy, never truncated)
+  and `GET /api/apps/<name>` returns them parsed. `GET /api/runs?app=` includes
+  each run's `inputs`; `GET /api/runs/<id>` adds `startedBy`, `app`, and
+  `inputFiles` (R2-stored input files with sizes); input-file GET accepts a
+  session/CLI token with canView, not just the runner token. Output GET serves
+  real content types for what the dashboard inlines (jpg/png/gif/webp/json/csv/
+  txt, nosniff; svg stays octet-stream — inline svg on this origin is stored XSS).
+- Run tab (`run.jsx` RunForm, flow.md §3b): one row per input — label 200px,
+  control 320px, help under. file → dropzone w/ accept, number w/ min+max →
+  slider + 64px field (without → plain field), select → dropdown (search past 6
+  options; `multiple` → Chk group per explicit request), date → date input +
+  relative text, bool → toggle, text → pattern validated on blur. Defaults
+  prefilled; client-side validation mirrors cli/lib/inputs.js; errors under the
+  field in danger w/ red border. Multipart post (`body` + `input:<name>` parts)
+  when files, JSON otherwise. Last-run line with "Run again with those inputs"
+  (fetches that run, prefills scalars; files re-picked).
+- Side peek (RunPeek/RunView, §4): 480px SlidePanel — ⤢ opens
+  `/apps/<slug>/runs/<id>` (real route, same RunView full-page), Esc closes,
+  page behind stays live. Props line: status pill · person (cron = clock
+  avatar) · started (relative, full on hover) · duration. Inputs as a plist
+  with type icons + file size/download; Output: declared outputs first with
+  labels, images <2MB as 200px thumbnails, .json/.csv/.txt <4KB inline in a
+  code block, rest as download rows, "Waiting…" while running; Log: last 20
+  lines + "Show all N", 1s poll that survives transient fetch blips and
+  auto-scrolls the real scroll container. Run again → Run tab prefilled.
+- Logs tab for jobs (RunsDb, §3c): the runs database — run id / status /
+  started-by / when / duration + one column per declared input (files as
+  📎 name, bools as pills, numbers right tabular), header type icons, 32px
+  header. Toolbar right-aligned: Filter (status / person / any input value,
+  removable pill chips), Sort, Properties (hide input columns, persisted),
+  Search, New run (→ Run tab). Columns resize by edge-drag, widths persisted
+  per app (`small.tblw.<app>`); the table is exact-px wide (fixed layout —
+  `w-full` would rescale dragged widths away) and scrolls in its wrapper.
+  Calculate tfoot: Count under Run, Avg under Duration. 48px inline empty row.
+  Servers keep the request-log table untouched.
+- Fixed along the way (adversarial review pass): per-app state (peek/tab/
+  prefill) resets on slug change; menu triggers toggle on mousedown (the
+  outside-mousedown close raced click-toggles into reopening); Slider's number
+  field sized inline (base Input `w-full` beat `w-16` in the cascade);
+  full-page Run again lands on the Run tab; CodeBlock grew the hover Copy
+  button and a scrollRef to its real scroll container; SlidePanel matches the
+  panel spec (left border only, 44px header).
+- e2e `run.spec.js`: real yolo-job run through the form (fixture image +
+  threshold 0.4) → peek running → finished → annotated.jpg thumbnail +
+  boxes.json inline → Run-again prefill asserted → runs table shows 0.4 →
+  column resized, reload, width held. ~1 min against live.
+- ponytail: Calculate footer is fixed count/avg — click-to-pick when asked.
+- ponytail: cron runs pass no inputs; the runs table shows — for them.
+
 ## Serving (hard-won)
 The SPA shell is bundled INTO the worker (esbuild Text rule imports
 `../web/dist/index.html`) and served at `/apps` + `/dash` with `Cache-Control:

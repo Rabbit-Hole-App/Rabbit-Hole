@@ -7,9 +7,9 @@ import SearchModal from './Search.jsx';
 import SharePage from './SharePage.jsx';
 import { Toasts } from './ui.jsx';
 
-// /apps (list), /apps/<slug> (app page), /members; /dash aliases /apps
-// (see the control-plane cache note). No router dep for three pages.
-if (!/^\/(apps(\/[a-z0-9-]+)?|dash|members)$/.test(window.location.pathname)) {
+// /apps (list), /apps/<slug> (app page), /apps/<slug>/runs/<id> (run page),
+// /members; /dash aliases /apps (see the control-plane cache note). No router dep.
+if (!/^\/(apps(\/[a-z0-9-]+(\/runs\/[\w-]+)?)?|dash|members)$/.test(window.location.pathname)) {
   window.history.replaceState(null, '', '/apps');
 }
 
@@ -21,10 +21,10 @@ function Root() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
-  const m = path.split('?')[0].match(/^\/apps\/([a-z0-9-]+)$/);
+  const m = path.split('?')[0].match(/^\/apps\/([a-z0-9-]+)(?:\/runs\/([\w-]+))?$/);
   return (
     <>
-      {m ? <SharePage slug={m[1]} /> : path.split('?')[0] === '/members' ? <MembersPage /> : <App />}
+      {m ? <SharePage slug={m[1]} runId={m[2]} /> : path.split('?')[0] === '/members' ? <MembersPage /> : <App />}
       <SearchModal />
       <Toasts />
     </>

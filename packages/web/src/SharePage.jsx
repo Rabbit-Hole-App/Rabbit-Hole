@@ -1,18 +1,11 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Check, Globe, Link as LinkIcon, Loader2, Lock, MoreHorizontal, Play, Trash2, Users, X } from 'lucide-react';
+import { ArrowUpRight, Check, Globe, Link as LinkIcon, Lock, MoreHorizontal, Trash2, Users, X } from 'lucide-react';
 import { ago, api, cronHuman, fmtTime, navigate, wsName } from './api.js';
-import Panel from './Panel.jsx';
+import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
 import Shell from './Shell.jsx';
-import { Avatar, Button, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Menu, MenuItem, Pill, ShareInput, SkeletonRows, StatusPill, Tabs, TabsContent, TabsList, TabsTrigger, cn, toast } from './ui.jsx';
+import { Avatar, Button, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Menu, MenuItem, Pill, ShareInput, SkeletonRows, Tabs, TabsContent, TabsList, TabsTrigger, cn, toast } from './ui.jsx';
 
 const Runbook = lazy(() => import('./RunbookEditor.jsx'));
-
-const secs = (a, b) => {
-  if (!a || !b) return null;
-  const d = (new Date(b.replace(' ', 'T') + 'Z') - new Date(a.replace(' ', 'T') + 'Z')) / 1000;
-  return d >= 0 ? Math.round(d) : null;
-};
-const fmtDur = (s) => (s == null ? '—' : s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`);
 
 const TH = 'h-8 border-b border-line px-2 text-left text-xs font-normal text-ink-2';
 const TD = 'h-8 border-b border-line px-2 text-sm whitespace-nowrap';
@@ -206,43 +199,6 @@ const Person = ({ email }) => (email
   ? <span className="inline-flex items-center gap-1.5"><Avatar email={email} />{email}</span>
   : '—');
 
-// Jobs → runs database (notion.md §5). Row click opens the run's log in the side peek.
-function RunsTable({ slug, onOpen, onRun }) {
-  const [runs, setRuns] = useState(null);
-  useEffect(() => { api(`/api/runs?app=${encodeURIComponent(slug)}`).then((d) => setRuns(d.runs)).catch(() => setRuns([])); }, [slug]);
-  if (!runs) return <SkeletonRows />;
-  if (!runs.length) {
-    return <EmptyState action={<Button onClick={onRun}><Play size={16} strokeWidth={1.5} /> Run</Button>}>No runs yet.</EmptyState>;
-  }
-  return (
-    <>
-      <table className="w-full border-collapse">
-        <thead>
-          <tr>
-            <th className={TH}>Run</th>
-            <th className={TH}>Status</th>
-            <th className={TH}>Started by</th>
-            <th className={TH}>When</th>
-            <th className={cn(TH, 'text-right')}>Duration</th>
-          </tr>
-        </thead>
-        <tbody>
-          {runs.map((r) => (
-            <tr key={r.run_id} onClick={() => onOpen(r.run_id)} className="hover:bg-hover">
-              <td className={cn(TD, 'font-mono text-xs')}>{r.run_id}</td>
-              <td className={TD}><StatusPill status={r.status} /></td>
-              <td className={TD}>{r.started_by === 'cron' ? 'cron' : <Person email={r.started_by} />}</td>
-              <td className={TD} title={fmtTime(r.started_at)}>{ago(r.started_at)}</td>
-              <td className={cn(TD, 'text-right tabular-nums')}>{r.status === 'running' ? '—' : fmtDur(secs(r.started_at, r.finished_at))}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="flex h-7 items-center px-2 text-xs text-ink-3">Count {runs.length}</div>
-    </>
-  );
-}
-
 // 2xx green, 3xx blue, 403 with no user = guard rejection, other 4xx yellow, 5xx red.
 const ReqStatus = ({ status, user }) => (status === 403 && user == null
   ? <Pill color="grey">rejected</Pill>
@@ -285,16 +241,17 @@ function RequestLog({ slug }) {
   );
 }
 
-export default function SharePage({ slug }) {
+export default function SharePage({ slug, runId }) {
   // flow.md §1: sidebar is always present — the app page included.
-  return <Shell>{(data, reloadShell) => <AppPage slug={slug} reloadShell={reloadShell} />}</Shell>;
+  return <Shell>{(data, reloadShell) => <AppPage slug={slug} runId={runId} reloadShell={reloadShell} />}</Shell>;
 }
 
-function AppPage({ slug, reloadShell }) {
+function AppPage({ slug, runId, reloadShell }) {
   const [app, setApp] = useState(null);
   const [error, setError] = useState(null);
-  const [run, setRun] = useState(null); // { appName, id?, error? } — same shape Panel expects
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [peek, setPeek] = useState(null); // runId shown in the side peek
+  const [tab, setTab] = useState(null); // null until the app's kind picks the default
+  const [prefill, setPrefill] = useState(null); // Run-again inputs for the form
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -322,21 +279,13 @@ function AppPage({ slug, reloadShell }) {
       localStorage.setItem('small.recent', JSON.stringify([slug, ...r.filter((x) => x !== slug)].slice(0, 5)));
     } catch { /* recents are best-effort */ }
   }).catch(setError);
-  useEffect(() => { setApp(null); setError(null); load(); }, [slug]);
+  // AppPage survives sidebar navigation (same element position) — per-app state
+  // must reset with the slug or app A's peek/tab/prefill leak into app B.
+  useEffect(() => { setApp(null); setError(null); setPeek(null); setTab(null); setPrefill(null); load(); }, [slug]);
 
-  const startRun = async () => {
-    setPanelOpen(true);
-    setRun({ appName: slug });
-    try {
-      const { runId } = await api('/api/runs', { method: 'POST', body: JSON.stringify({ app: slug }) });
-      setRun({ appName: slug, id: runId });
-    } catch (e) {
-      setRun({ appName: slug, error: e.message });
-    }
-  };
-  const openRun = (id) => { setRun({ appName: slug, id }); setPanelOpen(true); };
+  // Run again (peek footer, table hover ▶): prefill the form, land on the Run tab.
+  const runAgain = (inputs) => { setPeek(null); setPrefill({ ...inputs }); setTab('run'); };
 
-  const running = run?.id || (app?.lastRun?.status === 'running' && app.lastRun.runId);
   const domain = app?.org.replace(/-/g, '.');
   const source = app?.repo_branch && app?.repo_commit
     ? `${app.repo_branch} · ${app.repo_commit.slice(0, 7)}${app.repo_dirty ? ' · dirty' : ''}`
@@ -350,7 +299,15 @@ function AppPage({ slug, reloadShell }) {
           <span>/</span>
           <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate('/apps')}>Apps</button>
           <span>/</span>
-          <span className="px-1 text-ink">{slug}</span>
+          {runId ? (
+            <>
+              <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate(`/apps/${slug}`)}>{slug}</button>
+              <span>/</span>
+              <span className="px-1 text-ink">Run {runId.replace(/^r-/, '').slice(0, 7)}</span>
+            </>
+          ) : (
+            <span className="px-1 text-ink">{slug}</span>
+          )}
           <span className="flex-1" />
           {app && (
             <>
@@ -404,7 +361,25 @@ function AppPage({ slug, reloadShell }) {
         ))}
         {!error && !app && <SkeletonRows rows={3} className="pt-8" />}
 
-        {app && (
+        {app && runId && (
+          <>
+            <h1 className="pb-4 text-[32px] leading-[1.2] font-bold tracking-[-0.01em]">Run {runId.replace(/^r-/, '').slice(0, 7)}</h1>
+            <div className="max-w-[640px]">
+              <RunView
+                runId={runId}
+                app={app}
+                onRunAgain={(inputs) => {
+                  sessionStorage.setItem(`small.runPrefill.${slug}`, JSON.stringify(inputs || {}));
+                  setPeek(null);
+                  setTab('run'); // AppPage stays mounted across this navigate — land on the form
+                  navigate(`/apps/${slug}`);
+                }}
+              />
+            </div>
+          </>
+        )}
+
+        {app && !runId && (
           <>
             <div className="flex items-center gap-2.5 pb-2">
               <KindIcon kind={app.kind} schedule={app.schedule} size={20} />
@@ -451,7 +426,7 @@ function AppPage({ slug, reloadShell }) {
               <span className="inline-flex items-center gap-1.5"><span className="text-ink-2">Owner</span><Avatar email={app.owner_email} />{app.owner_email}</span>
             </div>
 
-            <Tabs defaultValue={app.kind === 'job' ? 'run' : 'runbook'}>
+            <Tabs value={tab ?? (app.kind === 'job' ? 'run' : 'runbook')} onValueChange={setTab}>
               <TabsList className="mt-5">
                 <TabsTrigger value="runbook">Runbook</TabsTrigger>
                 {app.kind === 'job' && <TabsTrigger value="run">Run</TabsTrigger>}
@@ -473,24 +448,13 @@ function AppPage({ slug, reloadShell }) {
 
               {app.kind === 'job' && (
                 <TabsContent value="run" className="pt-5">
-                  {running ? (
-                    <Button variant="secondary" onClick={() => setPanelOpen(true)}>
-                      <Loader2 size={16} strokeWidth={1.5} className="animate-spin" /> View log
-                    </Button>
-                  ) : (
-                    <Button variant="primary" onClick={startRun}><Play size={16} strokeWidth={1.5} /> Run</Button>
-                  )}
-                  {app.lastRun && (
-                    <div className="flex items-center gap-1.5 pt-3 text-sm text-ink-2">
-                      Last run {ago(app.lastRun.startedAt)}{app.lastRun.startedBy ? ` by ${app.lastRun.startedBy}` : ''} · <StatusPill status={app.lastRun.status} />
-                    </div>
-                  )}
+                  <RunForm app={app} prefill={prefill} onStarted={(id) => { setPeek(id); load(); }} />
                 </TabsContent>
               )}
 
               <TabsContent value="logs" className="pt-4">
                 {app.kind === 'job'
-                  ? <RunsTable slug={slug} onOpen={openRun} onRun={startRun} />
+                  ? <RunsDb app={app} onOpen={setPeek} onNewRun={() => setTab('run')} onRunAgain={runAgain} />
                   : <RequestLog slug={slug} />}
               </TabsContent>
             </Tabs>
@@ -501,17 +465,7 @@ function AppPage({ slug, reloadShell }) {
               </div>
             )}
 
-            {panelOpen && (
-              <Panel
-                app={app}
-                tab="run"
-                run={run?.appName === app.name ? run : (app.lastRun?.status === 'running' ? { appName: app.name, id: app.lastRun.runId } : null)}
-                onTab={() => {}}
-                onRunbookSaved={(name, text) => setApp((a) => ({ ...a, runbook: text }))}
-                onRunSettled={() => { setRun(null); load(); }}
-                onClose={() => setPanelOpen(false)}
-              />
-            )}
+            {peek && <RunPeek runId={peek} app={app} onClose={() => { setPeek(null); load(); }} onRunAgain={runAgain} />}
           </>
         )}
       </div>

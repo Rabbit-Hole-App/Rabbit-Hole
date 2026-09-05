@@ -120,7 +120,7 @@ async function repoPublic(repoUrl) {
 }
 
 async function apiDeploy(req, env, ctx, user, baseUrl) {
-  const { name, framework, visibility, awsRoleArn, kind, review, storage, schedule, source } = await req.json();
+  const { name, framework, visibility, awsRoleArn, kind, review, storage, schedule, source, inputs, outputs } = await req.json();
   if (!name || !/^[a-z0-9-]{1,40}$/.test(name)) return json({ error: 'name must be [a-z0-9-]' }, 400);
   let nextAt = null;
   if (schedule) {
@@ -174,6 +174,15 @@ async function apiDeploy(req, env, ctx, user, baseUrl) {
       .bind(user.org, name, flyApp, randomHex(32), visibility || 'domain', user.email, awsRoleArn || null, kind === 'job' ? 'job' : 'server', schedule || null)
       .run();
     app = await appRow(env, user.org, name);
+  }
+  // [inputs]/[outputs] schema from small.toml — the dashboard Run form renders from it.
+  // undefined = old CLI (keep what's stored); null/absent-in-toml = clear. Oversize is
+  // rejected, not truncated — a sliced JSON would 500 every later app GET.
+  for (const [col, val] of [['inputs', inputs], ['outputs', outputs]]) {
+    if (val === undefined) continue;
+    const text = val ? JSON.stringify(val) : null;
+    if (text && text.length > 20000) return json({ error: `[${col}] too large — keep the schema under 20KB` }, 400);
+    await env.DB.prepare(`UPDATE apps SET ${col} = ? WHERE id = ?`).bind(text, app.id).run();
   }
   if (!env.FLY_API_TOKEN) return json({ error: 'control plane has no FLY_API_TOKEN configured' }, 503);
   // The worker owns the Fly app lifecycle; the CLI only gets a 1h token scoped to this one app.
@@ -397,7 +406,7 @@ async function apiAppGet(env, user, name, baseUrl) {
      FROM app_teams at JOIN teams t ON t.id = at.team_id WHERE at.app_id = ? ORDER BY t.name`
   ).bind(app.id).all();
   const lastRun = await env.DB.prepare(
-    'SELECT run_id AS runId, status, exit_code AS exitCode, started_at AS startedAt, finished_at AS finishedAt FROM runs WHERE app_id = ? ORDER BY id DESC LIMIT 1'
+    'SELECT run_id AS runId, status, exit_code AS exitCode, started_by AS startedBy, started_at AS startedAt, finished_at AS finishedAt FROM runs WHERE app_id = ? ORDER BY id DESC LIMIT 1'
   ).bind(app.id).first();
   let lastOpened = null;
   try {
@@ -413,6 +422,7 @@ async function apiAppGet(env, user, name, baseUrl) {
     repo_dirty: app.repo_dirty ?? null, repo_public: app.repo_public ?? null,
     url: `${baseUrl}/a/${app.org}/${app.name}/`,
     members, teams, lastRun: lastRun || null, lastOpened: lastOpened || null,
+    inputs: app.inputs ? JSON.parse(app.inputs) : null, outputs: app.outputs ? JSON.parse(app.outputs) : null,
     canEdit: app.canEdit, email: user.email,
   });
 }
@@ -867,7 +877,11 @@ async function apiRunOutputGet(env, user, runId, name) {
   if (run instanceof Response) return run;
   const obj = env.RUNS && (await env.RUNS.get(`runs/${runId}/outputs/${name}`));
   if (!obj) return json({ error: `no output ${name} on ${runId}` }, 404);
-  return new Response(obj.body, { headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': String(obj.size) } });
+  // Real types for what the dashboard renders inline (thumbnails, json/csv/txt);
+  // octet-stream downloads the rest. No svg — inline svg on this origin is stored XSS.
+  const TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', json: 'application/json', csv: 'text/csv', txt: 'text/plain' };
+  const type = TYPES[(name.match(/\.(\w+)$/) || [])[1]?.toLowerCase()] || 'application/octet-stream';
+  return new Response(obj.body, { headers: { 'Content-Type': type, 'Content-Length': String(obj.size), 'X-Content-Type-Options': 'nosniff' } });
 }
 
 // ---------- runner-auth routes (per-run token, not CLI auth) ----------
@@ -878,9 +892,19 @@ async function runnerAuth(req, env, runId) {
   return !!p && p.t === 'run' && p.run === runId;
 }
 
-// runner.py fetches its input files at boot
+// runner.py fetches its input files at boot; the dashboard downloads them too,
+// so a session cookie (or CLI token) with canView on the app also passes.
 async function apiRunInputGet(req, env, runId, fname) {
-  if (!(await runnerAuth(req, env, runId))) return json({ error: 'bad run token' }, 401);
+  if (!(await runnerAuth(req, env, runId))) {
+    let user = await cliAuth(req, env);
+    if (!user) {
+      const s = await sessionOf(req, env);
+      if (s) user = { email: s.email, org: orgOf(s.email) };
+    }
+    if (!user) return json({ error: 'bad run token' }, 401);
+    const run = await runForUser(env, user, runId);
+    if (run instanceof Response) return run;
+  }
   const obj = env.RUNS && (await env.RUNS.get(`runs/${runId}/inputs/${fname}`));
   if (!obj) return json({ error: `no input ${fname}` }, 404);
   return new Response(obj.body, { headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': String(obj.size) } });
@@ -937,26 +961,36 @@ async function apiRunsList(req, env, user) {
   if (!app) return json({ error: `no app named ${name}` }, 404);
   if (!(await canView(env, app, user.email))) return json({ error: 'no access' }, 403);
   const { results } = await env.DB.prepare(
-    'SELECT run_id, status, exit_code, started_by, started_at, finished_at, reason FROM runs WHERE app_id = ? ORDER BY id DESC'
+    'SELECT run_id, status, exit_code, started_by, started_at, finished_at, reason, inputs FROM runs WHERE app_id = ? ORDER BY id DESC'
   ).bind(app.id).all();
-  return json({ runs: results });
+  return json({ runs: results.map((r) => ({ ...r, inputs: r.inputs ? JSON.parse(r.inputs) : null })) });
 }
 
 async function apiRunGet(req, env, user, runId) {
   const run = await env.DB.prepare(
-    'SELECT runs.status, runs.exit_code, runs.started_at, runs.finished_at, runs.inputs, apps.id AS app_id, apps.org, apps.owner_email, apps.visibility FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?'
+    'SELECT runs.status, runs.exit_code, runs.started_by, runs.started_at, runs.finished_at, runs.inputs, apps.id AS app_id, apps.org, apps.owner_email, apps.visibility, apps.name AS app_name FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?'
   ).bind(runId).first();
   if (!run || run.org !== user.org) return json({ error: `no run ${runId}` }, 404);
   if (!(await canView(env, { id: run.app_id, org: run.org, owner_email: run.owner_email, visibility: run.visibility }, user.email)))
     return json({ error: 'no access' }, 403);
   const after = Number(new URL(req.url).searchParams.get('after') ?? -1);
   const { results } = await env.DB.prepare('SELECT seq, line FROM run_logs WHERE run_id = ? AND seq > ? ORDER BY seq').bind(runId, after).all();
+  // Stored input files with sizes, so the run page can show "photo.jpg 2.1 MB ⬇".
+  let inputFiles = [];
+  if (env.RUNS && run.inputs) {
+    const prefix = `runs/${runId}/inputs/`;
+    const listed = await env.RUNS.list({ prefix });
+    inputFiles = listed.objects.map((o) => ({ name: o.key.slice(prefix.length), size: o.size }));
+  }
   return json({
     status: run.status,
     exitCode: run.exit_code,
+    startedBy: run.started_by,
     startedAt: run.started_at,
     finishedAt: run.finished_at,
+    app: run.app_name,
     inputs: run.inputs ? JSON.parse(run.inputs) : null,
+    inputFiles,
     lines: results.map((r) => r.line),
     cursor: results.length ? results[results.length - 1].seq : after,
   });

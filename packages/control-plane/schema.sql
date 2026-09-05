@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS apps (
   runbook TEXT,
   folder_id INTEGER,
   deleted_at TEXT,
+  inputs TEXT,
+  outputs TEXT,
   UNIQUE(org, name)
 );
 -- migrating an existing DB:

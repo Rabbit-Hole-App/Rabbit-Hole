@@ -233,6 +233,9 @@ const commands = {
       storage: storage ? { sizeGb } : undefined,
       schedule: kind === 'job' ? schedule || null : undefined, // null clears a removed schedule
       source: src ? { repoUrl: src.repoUrl, branch: src.branch, commit: src.commit, dirty: src.dirty } : undefined,
+      // the dashboard's Run form renders from these; null clears a removed [inputs]
+      inputs: kind === 'job' ? app.config.inputs || null : undefined,
+      outputs: kind === 'job' ? app.config.outputs || null : undefined,
     });
     if (!d.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
     if (storage && !d.volumeRegion) throw new Error('control plane does not support [storage] yet — redeploy the worker');
