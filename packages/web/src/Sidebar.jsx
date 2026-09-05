@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Bell, ChevronDown, ChevronRight, ChevronsLeft, Copy, ExternalLink, Folder, FolderPlus, Link, LogOut, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Sparkles, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bell, Braces, ChevronDown, ChevronRight, ChevronsLeft, CircleArrowUp, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, LayoutGrid, LayoutPanelLeft, Link, LogOut, Mail, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Sparkles, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, wsName } from './api.js';
-import { Avatar, Button, cn, ConfirmDialog, IconBtn, KindIcon, Menu, MenuItem, Select, ShareInput, SlidePanel, toast } from './ui.jsx';
+import { Avatar, Button, cn, ConfirmDialog, IconBtn, KindIcon, Menu, MenuItem, Select, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal —
 // left nav (Account / Workspace sections), right content per tab.
@@ -17,9 +17,13 @@ function SettingsRow({ title, desc, children }) {
     </div>
   );
 }
+// ponytail: nav copied verbatim from the Notion reference (user: "copy the same we
+// will remove later") — most items render an empty pane until we prune/wire them.
 function SettingsDialog({ email, onMarkRead, onClose }) {
   const [tab, setTab] = useState('preferences');
   const [theme, setThemeState] = useState(() => getTheme());
+  const [enterNewline, setEnterNewline] = useState(false); // visual only
+  const [textDir, setTextDir] = useState(false); // visual only
   const label = Object.keys(THEMES).find((k) => THEMES[k] === theme);
   const NavBtn = ({ id, icon: Icon, children }) => (
     <div
@@ -30,41 +34,87 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
       {children}
     </div>
   );
-  const Heading = ({ children }) => <div className="mt-8 border-b border-line pb-1.5 text-[15px] font-medium">{children}</div>;
+  const NavLabel = ({ children }) => <div className="px-2 pt-4 pb-1 text-xs font-medium text-ink-3">{children}</div>;
+  const Heading = ({ children }) => <div className="mt-9 border-b border-line pb-2 text-base font-medium">{children}</div>;
+  const TITLES = {
+    mail: 'Mail & Calendar', general: 'General', people: 'People', import: 'Import',
+    ai: 'small AI', mcp: 'small MCP', pages: 'Public pages', emoji: 'Emoji', developer: 'Developer',
+    teamspaces: 'Teamspaces', security: 'Security', identity: 'Identity', billing: 'Upgrade plan',
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={onClose}>
-      <div className="flex h-[560px] max-h-[85vh] w-[880px] max-w-[95vw] overflow-hidden rounded-lg bg-white text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="w-[220px] shrink-0 overflow-y-auto border-r border-line bg-side py-3 px-2">
+      <div className="flex h-[calc(100vh-100px)] max-h-[720px] w-[calc(100vw-100px)] max-w-[1150px] overflow-hidden rounded-lg bg-white text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="w-[260px] shrink-0 overflow-y-auto border-r border-line bg-side py-4 px-3">
           <div className="px-2 pb-1 text-xs font-medium text-ink-3">Account</div>
-          <div className="flex items-center gap-2 rounded-sm px-2 py-1">
+          <div className="flex items-center gap-2 rounded-sm px-2 py-1.5">
             {email && <Avatar email={email} />}
             <span className="truncate text-sm" title={email}>{email}</span>
           </div>
-          <NavBtn id="preferences" icon={Settings}>Preferences</NavBtn>
+          <NavBtn id="preferences" icon={SlidersHorizontal}>Preferences</NavBtn>
           <NavBtn id="notifications" icon={Bell}>Notifications</NavBtn>
-          <div className="px-2 pt-4 pb-1 text-xs font-medium text-ink-3">Workspace</div>
-          <NavBtn id="connections" icon={Link}>Connections</NavBtn>
+          <NavBtn id="mail" icon={Mail}>Mail & Calendar</NavBtn>
+          <NavLabel>Workspace</NavLabel>
+          <NavBtn id="general" icon={Settings}>General</NavBtn>
+          <NavBtn id="people" icon={Users}>People</NavBtn>
+          <NavBtn id="import" icon={Download}>Import</NavBtn>
+          <NavLabel>Features</NavLabel>
+          <NavBtn id="ai" icon={Sparkles}>small AI</NavBtn>
+          <NavBtn id="connections" icon={LayoutGrid}>Connections</NavBtn>
+          <NavBtn id="mcp" icon={Share2}>small MCP</NavBtn>
+          <NavBtn id="pages" icon={Globe}>Public pages</NavBtn>
+          <NavBtn id="emoji" icon={Smile}>Emoji</NavBtn>
+          <NavBtn id="developer" icon={Braces}>Developer</NavBtn>
+          <NavLabel>Admin</NavLabel>
+          <NavBtn id="teamspaces" icon={LayoutPanelLeft}>Teamspaces</NavBtn>
+          <NavBtn id="security" icon={Shield}>Security</NavBtn>
+          <NavBtn id="identity" icon={BadgeCheck}>Identity</NavBtn>
+          <NavLabel>Access & billing</NavLabel>
+          <div onClick={() => setTab('billing')} className="flex h-7 cursor-pointer items-center gap-2 rounded-sm px-2 text-sm text-accent hover:bg-hover">
+            <CircleArrowUp size={15} strokeWidth={1.5} className="shrink-0" />
+            Upgrade plan
+          </div>
         </div>
-        <div className="relative flex-1 overflow-y-auto px-10 py-8">
+        <div className="relative flex-1 overflow-y-auto">
           <IconBtn aria-label="Close" onClick={onClose} className="absolute top-3 right-3"><X size={14} /></IconBtn>
+          <div className="mx-auto max-w-[920px] px-12 py-10">
           {tab === 'preferences' && (
             <>
-              <div className="text-xl font-semibold">Preferences</div>
-              <div className="pt-1 text-sm text-ink-2">Choose how the dashboard looks on this device.</div>
+              <div className="text-2xl font-semibold">Preferences</div>
+              <div className="pt-2 text-base text-ink-2">Choose how you want small to look and behave</div>
               <Heading>Appearance</Heading>
-              <SettingsRow title="Theme" desc="Choose a theme for the dashboard on this device.">
+              <SettingsRow title="Theme" desc="Choose a theme for small on this device">
                 <Select
                   value={label}
                   options={Object.keys(THEMES)}
                   onChange={(k) => { setThemeState(THEMES[k]); setTheme(THEMES[k]); }}
                 />
               </SettingsRow>
+              <SettingsRow
+                title={<span>High contrast <span className="ml-1 rounded-sm bg-hover px-1.5 py-0.5 text-[11px] text-ink-2">Beta</span></span>}
+                desc="Increase contrast for improved visibility"
+              >
+                <Select value="Use system setting" options={['Use system setting', 'On', 'Off']} onChange={() => {}} />
+              </SettingsRow>
+              <Heading>Input options</Heading>
+              <SettingsRow title="Use Enter to add a new line" desc="Applies to chat, comments, and other input fields. Press Cmd/Ctrl + Enter to send.">
+                <Toggle on={enterNewline} onChange={setEnterNewline} />
+              </SettingsRow>
+              <Heading>Language & time</Heading>
+              <SettingsRow title="Language" desc="Choose the language you want to use small in">
+                <Select value="English (US)" options={['English (US)']} onChange={() => {}} />
+              </SettingsRow>
+              <SettingsRow title="Number format" desc="Choose how numbers and currencies are formatted. Default uses your language setting.">
+                <Select value="Default" options={['Default']} onChange={() => {}} />
+              </SettingsRow>
+              <SettingsRow title="Always show text direction controls" desc="Show the option to change text direction (left to right or right to left) in the editor, regardless of what language you're using">
+                <Toggle on={textDir} onChange={setTextDir} />
+              </SettingsRow>
             </>
           )}
           {tab === 'notifications' && (
             <>
-              <div className="text-xl font-semibold">Notifications</div>
-              <div className="pt-1 text-sm text-ink-2">What Watch found, and where you hear about it.</div>
+              <div className="text-2xl font-semibold">Notifications</div>
+              <div className="pt-2 text-base text-ink-2">What Watch found, and where you hear about it</div>
               <Heading>Watch</Heading>
               <SettingsRow title="Sidebar bell" desc="New observations from the nightly pass light the bell.">
                 <Button variant="secondary" size="sm" onClick={onMarkRead}>Mark all as read</Button>
@@ -74,8 +124,8 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
           )}
           {tab === 'connections' && (
             <>
-              <div className="text-xl font-semibold">Connections</div>
-              <div className="pt-1 text-sm text-ink-2">Bring small into the tools your team already uses.</div>
+              <div className="text-2xl font-semibold">Connections</div>
+              <div className="pt-2 text-base text-ink-2">Bring small into the tools your team already uses</div>
               <Heading>Slack</Heading>
               <SettingsRow title="Slack" desc="@small in channels, /small commands, proposals as buttons.">
                 <Button variant="secondary" size="sm" onClick={() => window.open('/slack/install', '_blank', 'noopener')}>
@@ -84,6 +134,13 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
               </SettingsRow>
             </>
           )}
+          {TITLES[tab] && (
+            <>
+              <div className="text-2xl font-semibold">{TITLES[tab]}</div>
+              <div className="pt-2 text-base text-ink-2">Nothing here yet</div>
+            </>
+          )}
+          </div>
         </div>
       </div>
     </div>
@@ -113,6 +170,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
     api('/api/teams').then((d) => d.teams).catch(() => []),
   ]).then(([people, teams]) => setPool({ people, teams }));
   const [wsMenu, setWsMenu] = useState(false);
+  const [newMenu, setNewMenu] = useState(false); // bottom + button popup
   const [showSettings, setShowSettings] = useState(false);
   const [watchObs, setWatchObs] = useState([]);
   const [watchOpen, setWatchOpen] = useState(false);
@@ -630,13 +688,30 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
           <Trash2 size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
           Trash
         </button>
-        <button
-          onClick={() => window.dispatchEvent(new CustomEvent('small:search', { detail: { mode: 'ask' } }))}
-          className="mt-3 flex h-9 w-full items-center gap-2 rounded-full border border-line bg-white px-4 text-sm shadow-sm hover:bg-hover"
-        >
-          <Sparkles size={15} strokeWidth={1.5} className="shrink-0 text-ink-2" />
-          New chat
-        </button>
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('small:search', { detail: { mode: 'ask' } }))}
+            className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm shadow-sm hover:bg-hover"
+          >
+            <Sparkles size={15} strokeWidth={1.5} className="shrink-0 text-ink-2" />
+            New chat
+            <span className="ml-auto shrink-0 text-xs text-ink-3">Ctrl O</span>
+          </button>
+          <div className="relative shrink-0">
+            <button
+              aria-label="New"
+              onClick={() => setNewMenu((v) => !v)}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover hover:text-ink"
+            >
+              <Plus size={16} strokeWidth={1.5} />
+            </button>
+            <Menu open={newMenu} onClose={() => setNewMenu(false)} className="bottom-11 right-0 w-40">
+              <MenuItem icon={Sparkles} onClick={() => { setNewMenu(false); window.dispatchEvent(new CustomEvent('small:search', { detail: { mode: 'ask' } })); }}>Chat</MenuItem>
+              <MenuItem icon={FolderPlus} onClick={() => { setNewMenu(false); setNewFolder(''); }}>Folder</MenuItem>
+              <MenuItem icon={Plus} onClick={() => { setNewMenu(false); toast('Deploy a new app with: small deploy'); }}>App</MenuItem>
+            </Menu>
+          </div>
+        </div>
       </div>
 
       {sharedFolderObj && (

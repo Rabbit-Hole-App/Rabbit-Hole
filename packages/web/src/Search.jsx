@@ -18,6 +18,7 @@ export default function SearchModal() {
   useEffect(() => {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setOpen(true); }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'o') { e.preventDefault(); setMode('ask'); setOpen(true); }
       if (e.key === 'Escape') close();
     };
     const onOpen = (e) => { setOpen(true); if (e.detail?.mode) setMode(e.detail.mode); };
