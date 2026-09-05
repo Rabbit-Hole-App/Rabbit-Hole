@@ -70,7 +70,7 @@ elif cmd == "deploy":
         print("create the role in your AWS account with this trust policy, then redeploy:")
         print(json.dumps({"Version": "2012-10-17", "Statement": [{"Effect": "Allow",
               "Principal": {"AWS": "arn:aws:iam::637423432890:user/small-cp"},
-              "Action": "sts:AssumeRole", "Condition": {"StringEquals": {"sts:ExternalId": "acme-com"}}}]))
+              "Action": "sts:AssumeRole", "Condition": {"StringEquals": {"sts:ExternalId": "acme-com"}}}]}))
         print("and attach a permissions policy for what the app may touch (S3, Lambda, ...)")
         sys.exit(1)
     if "role_arn" in toml:
@@ -170,6 +170,19 @@ def scenario_plain(failures):
         shutil.rmtree(work, ignore_errors=True)
 
 
+def scenario_vague(failures):
+    """The trigger-strength test: an underspecified ask must still route into the
+    skill — this exact prompt once ended with the agent asking 'what tool?'."""
+    print("scenario: vague ask — 'share this tool with my team'")
+    work, project, calls, r = run_scenario("vague", FLASK_APP, "Share this tool with my team.")
+    check("vague ask still routed into small", bool(calls), failures)
+    check("deploy reached", "deploy" in calls, failures)
+    if failures:
+        debug(r, work)
+    else:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 def scenario_aws(failures):
     print("scenario: boto3 job — role must be created, never keys in .env")
     work, project, calls, r = run_scenario(
@@ -195,6 +208,8 @@ if __name__ == "__main__":
     failures = []
     if which in ("all", "plain"):
         scenario_plain(failures)
+    if which in ("all", "vague"):
+        scenario_vague(failures)
     if which in ("all", "aws"):
         scenario_aws(failures)
     print(f"\n{'ALL PASS' if not failures else f'{len(failures)} FAILURES: ' + '; '.join(failures)}")
