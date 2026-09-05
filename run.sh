@@ -138,9 +138,16 @@ function publish:cli {
     (cd "$THIS_DIR/packages/cli" && npm test && npm publish)
 }
 
-# publish the agent skill to npm as small-skill: bump skills/small/package.json first
+# publish the agent skill to npm as small-skill: bump skills/small/package.json first.
+# Auth rides an isolated throwaway npmrc built from NPM_TOKEN in .env — never the user npmrc.
 function publish:skill {
-    (cd "$THIS_DIR" && .venv/Scripts/python.exe -m pytest tests/unit_tests/skills -q && cd skills/small && npm publish)
+    (cd "$THIS_DIR" && .venv/Scripts/python.exe -m pytest tests/unit_tests/skills -q) || return 1
+    local rc="$THIS_DIR/.npmrc-publish"
+    grep '^NPM_TOKEN=' "$THIS_DIR/.env" | sed 's|^NPM_TOKEN=|//registry.npmjs.org/:_authToken=|' > "$rc"
+    (cd "$THIS_DIR/skills/small" && NPM_CONFIG_USERCONFIG="$rc" npm publish)
+    local code=$?
+    rm -f "$rc"
+    return $code
 }
 
 # mirror skills/small into its own repo for humans + npx provenance

@@ -10,6 +10,9 @@
     "SKILL.md",
     "references"
   ],
-  "repository": "github:yudhisteer/small-skill",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yudhisteer/small-skill.git"
+  },
   "license": "MIT"
 }
