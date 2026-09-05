@@ -139,14 +139,14 @@ def test_no_aws_keys_in_logs(run_result):
     assert "AWS_SECRET" not in run_result["stdout"] and "aws_secret" not in run_result["stdout"]
 
 
-def test_unassumable_role_fails_deploy_with_trust_policy(job_dir):
+def test_unassumable_role_fails_deploy_with_trust_policy():
     """The deploy error must be the documentation: trust policy + ExternalId, no app created."""
     d = Path(tempfile.mkdtemp(prefix="small-itest-badrole-"))
     try:
-        for f in job_dir.iterdir():
+        for f in EXAMPLE.iterdir():  # pristine example — job_dir grows a .small/ dir once deployed
             shutil.copy(f, d / f.name)
         toml = (d / "small.toml").read_text()
-        toml = toml.replace(f'name = "{APP_NAME}"', 'name = "itest-bad-role"')
+        toml = toml.replace('name = "s3-job"', 'name = "itest-bad-role"')
         toml = re.sub(r'role_arn = ".*"', 'role_arn = "arn:aws:iam::637423432890:role/small-does-not-exist"', toml)
         (d / "small.toml").write_text(toml)
         r = subprocess.run(
