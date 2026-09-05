@@ -155,6 +155,7 @@ examples/counter/counter.db
 packages/cli/assets/
 packages/control-plane/.dev.vars
 packages/control-plane/.wrangler/
+packages/control-plane/secrets.json
 # impeccable design hook: shared config is tracked, local state and cache are not
 .impeccable/config.local.json
 .impeccable/hook.cache.json
