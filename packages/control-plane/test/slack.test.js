@@ -2,7 +2,7 @@ import assert from 'node:assert';
 import { test } from 'node:test';
 import { chooseBlocks, handleSlackEvent, handleSlackInteract, proposalBlocks, SIGN_IN_REPLY, verifySlackSignature } from '../src/slack.js';
 
-const install = { org: 'gmail-com', team_id: 'T1', bot_token: 'xoxb-test', signing_secret: 's3cr3t' };
+const install = { org: 'gmail-com', team_id: 'T1', bot_token: 'fake-token-for-tests', signing_secret: 's3cr3t' };
 
 // fake Slack Web API: records every call, answers users.info from a directory
 function fakeSlack(directory) {
