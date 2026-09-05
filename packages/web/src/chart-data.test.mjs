@@ -42,3 +42,15 @@ test('toNivo: line raw points, bar/pie aggregate, empty-safe', () => {
   assert.equal(toNivo('line', [], 'x', 'y'), null);
   assert.equal(toNivo('line', rows, 'run', 'status'), null); // non-numeric y
 });
+
+test('toNivo: scatter needs numeric x, calendar buckets by day', () => {
+  const rows = flattenRuns(runs);
+  const sc = toNivo('scatter', rows, 'threshold', 'duration_s');
+  assert.deepEqual(sc[0].data, [{ x: 0.7, y: 14 }, { x: 0.5, y: 3 }]);
+  assert.equal(toNivo('scatter', rows, 'account', 'duration_s'), null); // non-numeric x
+  const cal = toNivo('calendar', rows, 'started_at', '');
+  assert.deepEqual(cal.sort((a, b) => a.day.localeCompare(b.day)),
+    [{ day: '2026-09-04', value: 1 }, { day: '2026-09-05', value: 1 }]); // counts per day
+  assert.deepEqual(toNivo('calendar', rows, 'started_at', 'duration_s')[1], { day: '2026-09-05', value: 3 }); // sums y
+  assert.equal(toNivo('calendar', rows, 'account', ''), null); // not a date column
+});

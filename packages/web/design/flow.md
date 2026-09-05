@@ -152,8 +152,10 @@ the tool.
 **Charts — the `/` command.** The runbook is a BlockNote editor; typing `/` opens its
 block menu, which already carries the standard blocks plus **Drawing** (Excalidraw).
 **Chart** joins it. Charts render with [nivo](https://github.com/plouc/nivo) — only
-`@nivo/line`, `@nivo/bar`, `@nivo/pie`, each lazy-loaded so the runbook tab pays nothing
-until a chart of that type renders.
+`@nivo/line`, `@nivo/bar`, `@nivo/pie`, `@nivo/scatterplot`, `@nivo/calendar`, each
+lazy-loaded so the runbook tab pays nothing until a chart of that type renders.
+Inserting a chart drops the text cursor, so no "type / for commands" placeholder hangs
+under the fresh block — the block contains the chart and its config row, nothing else.
 
 ```
   ... generated RUNBOOK.md ...
@@ -169,7 +171,8 @@ Inserting a chart configures it inline, three fields:
 - **Data** — *Runs of this app* (one point per run: status, duration, started_at, and
   every `[inputs]` column — same data as §3c) or *an output file* (`.json`/`.csv`) of the
   latest finished run.
-- **Type** — line / bar / pie.
+- **Type** — line / bar / pie / scatter (two numeric fields) / calendar (runs per day,
+  the GitHub-graph view — natural for scheduled jobs).
 - **Fields** — x + y (label + value for pie), picked from the columns of the chosen source.
 
 Charts are BlockNote blocks (same pattern as the Excalidraw block): config lives in the

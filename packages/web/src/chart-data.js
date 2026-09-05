@@ -66,13 +66,23 @@ function groupBy(rows, x, y) {
   return [...acc.entries()];
 }
 
-// nivo data for each chart type. Line plots raw points in row order; bar and
-// pie aggregate by x so repeated categories don't overwrite each other.
+// nivo data for each chart type. Line and scatter plot raw points in row order
+// (scatter needs numeric x too); bar, pie and calendar aggregate by x so
+// repeated categories don't overwrite each other; calendar buckets by day.
 export function toNivo(type, rows, x, y) {
   if (!rows.length || !x) return null;
-  if (type === 'line') {
-    const pts = rows.filter((r) => r[x] != null && Number.isFinite(+r[y])).map((r) => ({ x: String(r[x]), y: +r[y] }));
+  if (type === 'line' || type === 'scatter') {
+    const pts = rows
+      .filter((r) => r[x] != null && Number.isFinite(+r[y]) && (type !== 'scatter' || Number.isFinite(+r[x])))
+      .map((r) => ({ x: type === 'scatter' ? +r[x] : String(r[x]), y: +r[y] }));
     return pts.length ? [{ id: y, data: pts }] : null;
+  }
+  if (type === 'calendar') {
+    const drows = rows
+      .map((r) => ({ day: String(r[x] ?? '').slice(0, 10), v: r[y] }))
+      .filter((r) => /^\d{4}-\d{2}-\d{2}$/.test(r.day));
+    const groups = groupBy(drows, 'day', y ? 'v' : '');
+    return groups.length ? groups.map(([day, value]) => ({ day, value })) : null;
   }
   const groups = groupBy(rows, x, y);
   if (!groups.length) return null;

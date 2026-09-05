@@ -13,9 +13,11 @@ import { flattenRuns, parseOutput, columns, toNivo } from './chart-data.js';
 const Line = lazy(() => import('@nivo/line').then((m) => ({ default: m.ResponsiveLine })));
 const Bar = lazy(() => import('@nivo/bar').then((m) => ({ default: m.ResponsiveBar })));
 const Pie = lazy(() => import('@nivo/pie').then((m) => ({ default: m.ResponsivePie })));
+const Scatter = lazy(() => import('@nivo/scatterplot').then((m) => ({ default: m.ResponsiveScatterPlot })));
+const Calendar = lazy(() => import('@nivo/calendar').then((m) => ({ default: m.ResponsiveCalendar })));
 
 const MARGIN = { top: 10, right: 20, bottom: 45, left: 45 };
-const TYPES = ['line', 'bar', 'pie'];
+const TYPES = ['line', 'bar', 'pie', 'scatter', 'calendar'];
 
 // Follow Settings → Appearance live, same event the Excalidraw block listens to.
 function useDark() {
@@ -37,12 +39,20 @@ const nivoTheme = (dark) => ({
 });
 
 function Chart({ type, data, x, y }) {
-  const theme = nivoTheme(useDark());
+  const dark = useDark();
+  const theme = nivoTheme(dark);
   if (type === 'line') {
     return <Line data={data} theme={theme} margin={MARGIN} xScale={{ type: 'point' }} axisBottom={{ tickRotation: -30 }} pointSize={6} useMesh />;
   }
   if (type === 'bar') {
     return <Bar data={data} theme={theme} keys={[y || 'count']} indexBy={x} margin={MARGIN} padding={0.3} axisBottom={{ tickRotation: -30 }} />;
+  }
+  if (type === 'scatter') {
+    return <Scatter data={data} theme={theme} margin={MARGIN} xScale={{ type: 'linear', min: 'auto', max: 'auto' }} yScale={{ type: 'linear', min: 'auto', max: 'auto' }} axisBottom={{ tickRotation: -30 }} nodeSize={8} />;
+  }
+  if (type === 'calendar') {
+    const days = data.map((d) => d.day).sort();
+    return <Calendar data={data} theme={theme} from={days[0]} to={days[days.length - 1]} margin={MARGIN} emptyColor={dark ? '#2a2a2a' : '#eeeeee'} dayBorderColor={dark ? '#191919' : '#ffffff'} monthBorderColor={dark ? '#191919' : '#ffffff'} />;
   }
   return <Pie data={data} theme={theme} margin={MARGIN} innerRadius={0.5} padAngle={1} arcLinkLabelsSkipAngle={10} />;
 }
@@ -94,7 +104,11 @@ function ChartEmbed({ block, editor }) {
 
   const cols = columns(rows);
   const data = toNivo(cfg.type, rows, cfg.x, cfg.y);
-  const hint = cfg.type === 'line' && cfg.x && !cfg.y ? 'pick a numeric y field' : 'pick fields to plot';
+  const hint = {
+    line: 'pick x and a numeric y',
+    scatter: 'pick two numeric fields',
+    calendar: 'pick a date field for x',
+  }[cfg.type] || 'pick fields to plot';
 
   return (
     <div
@@ -110,7 +124,7 @@ function ChartEmbed({ block, editor }) {
           <div className="w-28"><Select value={cfg.source} options={['runs', 'output file']} onChange={(v) => setCfg({ source: v === 'runs' ? 'runs' : 'output', file: '', x: '', y: '' })} /></div>
           {cfg.source === 'output' && <div className="w-40"><Select value={cfg.file} options={files} placeholder="file…" onChange={(v) => setCfg({ file: v, x: '', y: '' })} /></div>}
           <div className="w-24"><Select value={cfg.type} options={TYPES} onChange={(v) => setCfg({ type: v })} /></div>
-          <div className="w-32"><Select value={cfg.x} options={cols.all} placeholder="x…" onChange={(v) => setCfg({ x: v })} /></div>
+          <div className="w-32"><Select value={cfg.x} options={cfg.type === 'scatter' ? cols.numeric : cols.all} placeholder="x…" onChange={(v) => setCfg({ x: v })} /></div>
           <div className="w-32"><Select value={cfg.y} options={cols.numeric} placeholder={cfg.type === 'line' ? 'y…' : 'y (count)…'} onChange={(v) => setCfg({ y: v })} /></div>
         </div>
       )}
@@ -139,5 +153,10 @@ export const insertChart = (editor, app) => ({
   aliases: ['chart', 'graph', 'plot', 'nivo'],
   group: 'Media',
   icon: <BarChart3 size={18} />,
-  onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: 'chart', props: { app } }),
+  onItemClick: () => {
+    insertOrUpdateBlockForSlashMenu(editor, { type: 'chart', props: { app } });
+    // the block is configured by mouse — drop the text cursor so BlockNote's
+    // "type / for commands" placeholder doesn't hang glued under the fresh chart
+    setTimeout(() => document.activeElement?.blur(), 50);
+  },
 });
