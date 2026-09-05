@@ -356,6 +356,23 @@ invite emails, admin roles, /settings — per flow.md, when asked.
   double-approve 409s.
 - ponytail: no scheduled questions, no multi-app actions, Change on a proposal
   just hands the args back to the input box.
+- Code context: the review bundle (already import-walked, gitignore-aware,
+  redacted, ≤100k tokens with a skipped list) is persisted per deploy in R2
+  (`bundles/<appId>/<deployId>`, stored by /api/review/run — the deploy body
+  never carried it) and runs stamp `deploy_id` (0014). App + run scope include
+  the DEPLOYED source; run scope adds the full log (head-trimmed at 100k
+  chars) and a unified-ish diff of code+small.toml between this run's deploy
+  and the last successful run's — or "same deploy" instead of an empty diff
+  (ponytail: one trimmed hunk per file, not minimal Myers hunks; deploys
+  predating storage say so). Org scope never bundles code — it resolves the
+  app first. New POST /api/ask/file { app, path } returns one file from the
+  latest stored bundle. Prompt rules: every code claim cites file:line,
+  "not in the deployed code" over runbook inference, behaviour questions
+  trace the real path, skipped files get named, no greeting/offers.
+  Regression fixed en route: `[\s\S]*?` + multiline `$` truncated bundle
+  sections at the first line end — parseBundle now splits on === headers.
+  Tests: 9 passing (threshold cite, env-unset trace, same-deploy diff,
+  no-invented-function, file route, plus the earlier five).
 
 ## Serving (hard-won)
 The SPA shell is bundled INTO the worker (esbuild Text rule imports

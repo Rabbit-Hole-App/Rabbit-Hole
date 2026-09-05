@@ -7,17 +7,70 @@ export const ASK_MODELS = { auto: MODEL, 'opus-5': 'claude-opus-5', 'sonnet-5': 
 
 export const ASK_SYSTEM = [
   'You are the built-in assistant of "small", a platform where teams deploy Python apps',
-  '(servers and jobs) behind a work-email login. You answer questions about the apps,',
-  'runs, and logs in the context below. You have NO tools and cannot take actions:',
-  'you cannot run, re-run, deploy, share, pause, or change anything.',
-  'If the user asks for an action, say you cannot do it yet and name exactly who could',
-  '(the owner and edit members are listed in the context).',
-  'Answer from the context only; if the context does not contain the answer, say what',
-  'is missing. Be concise — a few sentences, markdown allowed (lists, `code`, **bold**).',
+  '(servers and jobs) behind a work-email login. The context below includes the DEPLOYED',
+  'source as a bundle of files prefixed with === path === — the code that actually shipped,',
+  'not what may be on anyone\'s laptop now.',
+  'Rules:',
+  '1. Every claim about the code cites file:line — "the threshold is clamped in app.py:40",',
+  'never "the code clamps the threshold". Count lines within each === file === section.',
+  '2. If the answer is not in the bundle, say "not in the deployed code" — never infer',
+  'code behaviour from the runbook or review.',
+  '3. For behaviour questions ("what happens when X?"), trace the actual path through the',
+  'code and quote the relevant lines.',
+  '4. If a skipped-files note lists a file that might matter, say which and offer to look',
+  'at it specifically.',
+  '5. No greeting, no self-introduction, no offers of further help. Answer, cite, stop.',
+  'Without tools you cannot run, re-run, deploy, share, pause, or change anything; if',
+  'asked for an action, name exactly who could (owner and edit members are in the context).',
+  'Be concise. Markdown allowed (lists, `code`, **bold**).',
   'End EVERY answer with a final line starting with "Sources: " naming what you used —',
-  'run ids, "runbook", "review", "log lines N-M", "request log", "AGENT.md" — or',
-  '"Sources: none" when the context had nothing relevant.',
+  'file:line ranges, run ids, "runbook", "review", "log lines N-M", "diff", "AGENT.md" —',
+  'or "Sources: none".',
 ].join(' ');
+
+// One deploy's stored source ({bundle, skipped}) from R2, or null for pre-feature deploys.
+export async function getBundle(env, appId, deployId) {
+  if (!env.RUNS || !deployId) return null;
+  const obj = await env.RUNS.get(`bundles/${appId}/${deployId}`);
+  if (!obj) return null;
+  try { return JSON.parse(await obj.text()); } catch { return null; }
+}
+
+export const parseBundle = (bundle) => {
+  // split alternates [pre, path1, body1, path2, body2, ...] — immune to the
+  // multiline-$ trap that truncates lazy [\s\S]*? at the first line end
+  const parts = String(bundle).split(/^=== (.+?) ===\n/m);
+  const files = {};
+  for (let i = 1; i < parts.length; i += 2) files[parts[i]] = parts[i + 1].replace(/\n+$/, '');
+  return files;
+};
+
+// Unified-ish diff between two stored bundles. ponytail: one trimmed hunk per
+// changed file (common prefix/suffix stripped), not minimal Myers hunks.
+export function diffBundles(oldBundle, newBundle) {
+  const a = parseBundle(oldBundle);
+  const b = parseBundle(newBundle);
+  const out = [];
+  for (const path of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (a[path] === b[path]) continue;
+    if (!(path in a)) { out.push(`+++ ${path} (new file, ${b[path].split('\n').length} lines)`); continue; }
+    if (!(path in b)) { out.push(`--- ${path} (deleted)`); continue; }
+    const al = a[path].split('\n');
+    const bl = b[path].split('\n');
+    let s = 0;
+    while (s < al.length && s < bl.length && al[s] === bl[s]) s++;
+    let e = 0;
+    while (e < al.length - s && e < bl.length - s && al[al.length - 1 - e] === bl[bl.length - 1 - e]) e++;
+    out.push([
+      `--- ${path}`,
+      `+++ ${path}`,
+      `@@ old lines ${s + 1}-${al.length - e} → new lines ${s + 1}-${bl.length - e} @@`,
+      ...al.slice(s, al.length - e).map((l) => `-${l}`),
+      ...bl.slice(s, bl.length - e).map((l) => `+${l}`),
+    ].join('\n'));
+  }
+  return out.join('\n\n').slice(0, 40000) || null;
+}
 
 export const DIAGNOSIS_PROMPT = 'Why did this fail, in one sentence, and where should I look?';
 

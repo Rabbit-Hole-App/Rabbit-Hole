@@ -2,7 +2,7 @@
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, sha256, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
-import { ASK_MODELS, ASK_TOOLS, askOnce, askStream, capJoin, DIAGNOSIS_PROMPT } from './ask.js';
+import { ASK_MODELS, ASK_TOOLS, askOnce, askStream, capJoin, DIAGNOSIS_PROMPT, diffBundles, getBundle, parseBundle } from './ask.js';
 import { assumeRole, s3Buckets, s3Get, s3List } from './aws.js';
 import { runReview, generateRunbook } from './review.js';
 import { parseCron, matches, nextRun } from './cron.js';
@@ -215,9 +215,17 @@ async function apiDeploy(req, env, ctx, user, baseUrl) {
   await env.DB.prepare(
     "UPDATE apps SET repo_url = ?, repo_branch = ?, repo_commit = ?, repo_dirty = ?, repo_public = ?, deployed_at = datetime('now') WHERE id = ?"
   ).bind(src.repoUrl, src.branch, src.commit, src.dirty, isPublic, app.id).run();
-  await env.DB.prepare(
+  const deployRow = await env.DB.prepare(
     'INSERT INTO deploys (app_id, repo_url, branch, commit_sha, dirty, deployed_by) VALUES (?, ?, ?, ?, ?, ?)'
   ).bind(app.id, src.repoUrl, src.branch, src.commit, src.dirty, user.email).run();
+  // The review bundle IS the deployed source (redacted, import-walked, capped) —
+  // keep it per deploy so Ask answers from what actually shipped, and diffs work.
+  if (env.RUNS && review && review.bundle) {
+    await env.RUNS.put(
+      `bundles/${app.id}/${deployRow.meta.last_row_id}`,
+      JSON.stringify({ bundle: String(review.bundle).slice(0, 800000), skipped: review.skipped || [] })
+    );
+  }
   // Review runs concurrently with the CLI-side Fly build; it never blocks or fails the deploy.
   const reviewStarted = !!(env.ANTHROPIC_API_KEY && review && review.bundle);
   if (reviewStarted) ctx.waitUntil(runReview(env, app.id, review.bundle, review.skipped || []));
@@ -258,6 +266,14 @@ async function apiReviewRun(req, env, user) {
   if (!app) return json({ error: `no app named ${name}` }, 404);
   if (!(await canEdit(env, app, user.email))) return json({ error: 'no access' }, 403);
   if (!env.ANTHROPIC_API_KEY || !bundle) return json({ error: 'review not configured' }, 503);
+  // the review bundle IS the deployed source — persist it against this deploy so
+  // Ask cites the code that actually shipped (and can diff deploys)
+  if (env.RUNS) {
+    const dep = (await env.DB.prepare('SELECT MAX(id) AS id FROM deploys WHERE app_id = ?').bind(app.id).first())?.id;
+    if (dep) {
+      await env.RUNS.put(`bundles/${app.id}/${dep}`, JSON.stringify({ bundle: String(bundle).slice(0, 800000), skipped: skipped || [] }));
+    }
+  }
   await runReview(env, app.id, bundle, skipped || []);
   const fresh = await appRow(env, user.org, name);
   return json({
@@ -456,7 +472,14 @@ const line = (k, v) => (v == null || v === '' ? null : `${k}: ${v}`);
 const fmtRunLine = (r) =>
   `run ${r.run_id}: ${r.status}${r.exit_code != null ? ` (exit ${r.exit_code})` : ''} · by ${r.started_by} · ${r.started_at}${r.finished_at ? ` → ${r.finished_at}` : ''}${r.inputs ? ` · inputs ${r.inputs}` : ''}${r.reason ? ` · ${r.reason}` : ''}`;
 
-// Owner + edit members, so the model can name who CAN act (it can't).
+// Deployed source for an app's latest (or a specific) deploy, ready for context.
+async function sourceSection(env, appId, deployId = null) {
+  const dep = deployId || (await env.DB.prepare('SELECT MAX(id) AS id FROM deploys WHERE app_id = ?').bind(appId).first())?.id;
+  const stored = await getBundle(env, appId, dep);
+  if (!stored) return { text: 'deployed source: not stored for this deploy — redeploy with a current CLI to enable code answers', deployId: dep };
+  const skipped = (stored.skipped || []).length ? `\nskipped files (not bundled, ask for them by name): ${stored.skipped.join(', ')}` : '';
+  return { text: `DEPLOYED SOURCE (deploy ${dep}):\n${stored.bundle}${skipped}`, deployId: dep };
+}
 async function editorsLine(env, app) {
   const { results } = await env.DB.prepare("SELECT email FROM members WHERE app_id = ? AND role = 'edit'").bind(app.id).all();
   return `owner: ${app.owner_email}${results.length ? ` · edit members: ${results.map((r) => r.email).join(', ')}` : ''}`;
@@ -466,18 +489,36 @@ async function editorsLine(env, app) {
 // in the ask box mirrors Notion's "My sources".
 async function runContext(env, app, run, use = null) {
   const onR = (k) => !use || use.has(k);
+  // full log, newest kept if the char cap bites (we trim the head below)
   const logRows = onR('log')
-    ? (await env.DB.prepare('SELECT seq, line FROM run_logs WHERE run_id = ? ORDER BY seq DESC LIMIT 400').bind(run.run_id).all()).results
+    ? (await env.DB.prepare('SELECT seq, line FROM run_logs WHERE run_id = ? ORDER BY seq DESC LIMIT 5000').bind(run.run_id).all()).results
     : [];
   logRows.reverse();
+  let logText = logRows.map((r) => r.line).join('\n');
+  if (logText.length > 100000) logText = `…(earlier lines trimmed)…\n${logText.slice(-100000)}`;
   let outputs = [];
   if (env.RUNS && onR('outputs')) {
     const listed = await env.RUNS.list({ prefix: `runs/${run.run_id}/outputs/` });
     outputs = listed.objects.map((o) => `${o.key.split('/').pop()} (${o.size} B)`);
   }
   const lastOk = await env.DB.prepare(
-    "SELECT run_id, finished_at FROM runs WHERE app_id = ? AND status = 'finished' AND id < (SELECT id FROM runs WHERE run_id = ?) ORDER BY id DESC LIMIT 1"
+    "SELECT run_id, finished_at, deploy_id FROM runs WHERE app_id = ? AND status = 'finished' AND id < (SELECT id FROM runs WHERE run_id = ?) ORDER BY id DESC LIMIT 1"
   ).bind(app.id, run.run_id).first();
+  // deployed source for THIS run's deploy + the diff against the last success's deploy
+  const src = await sourceSection(env, app.id, run.deploy_id);
+  let diffText = null;
+  if (lastOk) {
+    const lastDep = lastOk.deploy_id || src.deployId;
+    if (lastDep === src.deployId) {
+      diffText = `code diff vs last successful run (${lastOk.run_id}): same deploy — no code or small.toml changes`;
+    } else {
+      const oldStored = await getBundle(env, app.id, lastDep);
+      const newStored = await getBundle(env, app.id, src.deployId);
+      diffText = oldStored && newStored
+        ? `code diff since last successful run (deploy ${lastDep} → ${src.deployId}):\n${diffBundles(oldStored.bundle, newStored.bundle) || '(no textual changes in bundled files)'}`
+        : 'code diff since last successful run: one of the deploys predates stored bundles';
+    }
+  }
   return capJoin([
     `SCOPE: run ${run.run_id} of app ${app.name} (${app.kind})`,
     fmtRunLine(run),
@@ -492,9 +533,11 @@ async function runContext(env, app, run, use = null) {
     onR('agent') ? line('AGENT.md', app.agent_md) : null,
     onR('review') ? line('review', app.review) : null,
     onR('runbook') ? line('runbook', app.runbook) : null,
+    diffText,
+    src.text,
     onR('log')
       ? (logRows.length
-          ? `log lines ${logRows[0].seq}-${logRows[logRows.length - 1].seq}:\n${logRows.map((r) => r.line).join('\n')}`
+          ? `log lines ${logRows[0].seq}-${logRows[logRows.length - 1].seq}:\n${logText}`
           : 'log: empty')
       : null,
   ]);
@@ -530,6 +573,7 @@ async function appContext(env, app, use = null) {
     on('runbook') ? line('runbook', app.runbook) : null,
     line('request log summary (status: count)', reqSummary),
     on('runs') ? (runs.length ? `last ${runs.length} runs:\n${runs.map(fmtRunLine).join('\n')}` : 'no runs yet') : null,
+    (await sourceSection(env, app.id)).text,
   ]);
 }
 
@@ -681,6 +725,21 @@ async function apiAsk(req, env, ctx, user) {
   return askStream(env, context, history, q, async (full) => {
     await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
   }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId);
+}
+
+// Pull ONE file from the latest stored bundle — a thread can fetch a skipped
+// file on demand without re-bundling everything.
+async function apiAskFile(req, env, user) {
+  const { app: name, path: filePath } = await req.json();
+  const app = await appForUser(env, user, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!app.canView) return json({ error: 'no access' }, 403);
+  const dep = (await env.DB.prepare('SELECT MAX(id) AS id FROM deploys WHERE app_id = ?').bind(app.id).first())?.id;
+  const stored = await getBundle(env, app.id, dep);
+  if (!stored) return json({ error: 'no stored source for this app — redeploy first' }, 404);
+  const files = parseBundle(stored.bundle);
+  if (!(filePath in files)) return json({ error: `no ${filePath} in the deployed bundle (skipped files aren't stored)` }, 404);
+  return json({ path: filePath, content: files[filePath] });
 }
 
 // Chat history: threads persist in D1 — these two GETs let the UI resume them.
@@ -1214,8 +1273,9 @@ async function apiImage(req, env, user) {
 // inputs = validated scalar values (files as original filename); files = [{ name, file }] multipart parts.
 async function startRun(env, app, startedBy, baseUrl, inputs = null, files = []) {
   const runId = 'r-' + randomHex(6);
-  await env.DB.prepare('INSERT INTO runs (run_id, app_id, started_by, inputs) VALUES (?, ?, ?, ?)')
-    .bind(runId, app.id, startedBy, inputs ? JSON.stringify(inputs) : null).run();
+  const dep = await env.DB.prepare('SELECT MAX(id) AS id FROM deploys WHERE app_id = ?').bind(app.id).first();
+  await env.DB.prepare('INSERT INTO runs (run_id, app_id, started_by, inputs, deploy_id) VALUES (?, ?, ?, ?, ?)')
+    .bind(runId, app.id, startedBy, inputs ? JSON.stringify(inputs) : null, dep?.id || null).run();
   const runToken = await sign({ t: 'run', run: runId, exp: now() + 6 * 3600 }, env.MASTER_KEY);
   // input files land in R2 before the machine starts; runner fetches them by stored name
   const fileNames = {};
@@ -1594,6 +1654,7 @@ export default {
         if (path === '/api/deploy' && req.method === 'POST') return await apiDeploy(req, env, ctx, user, baseUrl);
         if (path === '/api/ask' && req.method === 'POST') return await apiAsk(req, env, ctx, user);
         if (path === '/api/ask/approve' && req.method === 'POST') return await apiAskApprove(req, env, user, baseUrl);
+        if (path === '/api/ask/file' && req.method === 'POST') return await apiAskFile(req, env, user);
         if (path === '/api/ask/threads' && req.method === 'GET') return await apiAskThreads(req, env, user);
         const askThread = path.match(/^\/api\/ask\/threads\/(\d+)$/);
         if (askThread && req.method === 'GET') return await apiAskThread(env, user, Number(askThread[1]));

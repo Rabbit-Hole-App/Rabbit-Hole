@@ -112,7 +112,8 @@ CREATE TABLE IF NOT EXISTS runs (
   reason TEXT,
   machine_id TEXT,
   inputs TEXT,
-  diagnosis TEXT
+  diagnosis TEXT,
+  deploy_id INTEGER
 );
 
 -- Ask (phase 1): one thread per question chain, scoped and per-user.

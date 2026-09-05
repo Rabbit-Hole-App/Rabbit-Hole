@@ -131,6 +131,39 @@ def test_editor_rerun_proposal_approves_into_a_run(owner_session):
     assert e.value.code == 409  # already approved — the log holds
 
 
+def ask(scope, message, session):
+    ctype, body = post("/api/ask", {"scope": scope, "message": message}, session)
+    assert "event-stream" in ctype, body[:200]
+    return sse_text(body)
+
+
+def test_code_question_cites_file_and_line(owner_session):
+    answer = ask({"app": APP}, "where is the threshold used?", owner_session)
+    assert "job.py:" in answer, answer[:400]
+
+
+def test_behaviour_question_traces_the_env_read(owner_session):
+    answer = ask({"app": APP}, "what happens if SMALL_INPUT_SOURCE is unset?", owner_session)
+    assert "SMALL_INPUT_SOURCE" in answer and ("KeyError" in answer or "os.environ" in answer), answer[:400]
+
+
+def test_diff_since_last_success_or_same_deploy(owner_session):
+    runs = get(f"/api/runs?app={APP}", owner_session)["runs"]
+    answer = ask({"run": runs[0]["run_id"]}, "what changed since the last successful run?", owner_session)
+    assert "same deploy" in answer.lower() or "diff" in answer.lower() or "---" in answer, answer[:400]
+
+
+def test_unknown_function_is_not_invented(owner_session):
+    answer = ask({"app": APP}, "what does the function normalize_embeddings() do in this app?", owner_session)
+    assert "not in the deployed code" in answer.lower() or ("no " in answer.lower() and "normalize_embeddings" in answer), answer[:400]
+
+
+def test_ask_file_returns_one_deployed_file(owner_session):
+    ctype, body = post("/api/ask/file", {"app": APP, "path": "job.py"}, owner_session)
+    d = json.loads(body)
+    assert d["path"] == "job.py" and "SMALL_INPUT_SOURCE" in d["content"], body[:200]
+
+
 def test_viewer_asking_for_action_is_told_who_can(owner_session, bob_session):
     post("/api/share", {"app": APP, "email": "bob@gmail.com", "role": "view"}, owner_session)
     try:
