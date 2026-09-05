@@ -627,9 +627,20 @@ function AppPage({ slug, runId, reloadShell }) {
                 <>
                   <PropKey icon={GitBranch}>Source</PropKey>
                   <PropVal>
+                    {/* public repo → branch·sha links the exact commit, the url links the repo; private → plain text */}
                     {app.repo_public && app.repo_url
-                      ? <a href={app.repo_url} target="_blank" rel="noreferrer" className="text-accent hover:underline">{source}</a>
-                      : source}
+                      ? <a href={app.repo_commit ? `${app.repo_url}/commit/${app.repo_commit}` : app.repo_url} target="_blank" rel="noreferrer" className="shrink-0 text-accent hover:underline">{source}</a>
+                      : <span className="shrink-0">{source}</span>}
+                    {app.repo_url && (
+                      app.repo_public
+                        ? <a href={app.repo_url} target="_blank" rel="noreferrer" className="truncate text-xs text-ink-2 hover:text-ink hover:underline" title={app.repo_url}>{app.repo_url.replace(/^https?:\/\//, '').replace(/\.git$/, '')}</a>
+                        : (
+                          <>
+                            <span className="truncate text-xs text-ink-3" title={app.repo_url}>{app.repo_url.replace(/^https?:\/\//, '').replace(/\.git$/, '')}</span>
+                            <span className="shrink-0 text-xs text-ink-3">· private</span>
+                          </>
+                        )
+                    )}
                   </PropVal>
                 </>
               )}
