@@ -1,1 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><text x="2" y="13" font-family="Inter,system-ui,sans-serif" font-size="13" font-weight="600" fill="#37352F">s</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- the ● from the "● small" wordmark: a small dot in generous whitespace -->
+  <style>
+    circle { fill: #37352F; }
+    @media (prefers-color-scheme: dark) { circle { fill: #E9E9E7; } }
+  </style>
+  <circle cx="16" cy="16" r="7"/>
+</svg>
