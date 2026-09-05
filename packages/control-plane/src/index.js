@@ -2,7 +2,7 @@
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, sha256, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
-import { assumeRole } from './aws.js';
+import { assumeRole, s3List } from './aws.js';
 import { runReview, generateRunbook } from './review.js';
 import { parseCron, matches, nextRun } from './cron.js';
 import SHELL from '../../web/dist/index.html';
@@ -436,6 +436,30 @@ async function apiAppGet(env, user, name, baseUrl) {
     inputs: app.inputs ? JSON.parse(app.inputs) : null, outputs: app.outputs ? JSON.parse(app.outputs) : null,
     canEdit: app.canEdit, email: user.email,
   });
+}
+
+// s3:// autocomplete for the Run form: list one level under the typed uri using
+// the app's own [aws] role — the browser never sees AWS creds.
+async function apiS3List(req, env, user, name) {
+  const app = await appForUser(env, user, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!app.canView) return json({ error: 'no access' }, 403);
+  if (!app.aws_role_arn) return json({ error: `${name} has no [aws] role` }, 400);
+  const uri = new URL(req.url).searchParams.get('uri') || '';
+  const m = uri.match(/^s3:\/\/([a-z0-9.-]{3,63})\/(.*)$/);
+  if (!m) return json({ items: [] }); // nothing listable until s3://bucket/ is typed
+  try {
+    const creds = await assumeRole(env, app.aws_role_arn, `small-s3ls-${user.org}`, app.org);
+    const { dirs, files } = await s3List(env, creds, m[1], m[2]);
+    return json({
+      items: [
+        ...dirs.map((p) => ({ uri: `s3://${m[1]}/${p}`, dir: true })),
+        ...files.map((f) => ({ uri: `s3://${m[1]}/${f.key}`, size: f.size })),
+      ],
+    });
+  } catch (e) {
+    return json({ error: e.message }, 502);
+  }
 }
 
 async function apiAppPatch(req, env, user, name) {
@@ -1175,6 +1199,8 @@ export default {
         if (deploysGet && req.method === 'GET') return await apiDeploys(env, user, deploysGet[1]);
         const reqAccess = path.match(/^\/api\/apps\/([a-z0-9-]+)\/request-access$/);
         if (reqAccess && req.method === 'POST') return await apiRequestAccess(env, user, reqAccess[1], baseUrl);
+        const s3ListPath = path.match(/^\/api\/apps\/([a-z0-9-]+)\/s3-list$/);
+        if (s3ListPath && req.method === 'GET') return await apiS3List(req, env, user, s3ListPath[1]);
         const appPath = path.match(/^\/api\/apps\/([a-z0-9-]+)$/);
         if (appPath && req.method === 'GET') return await apiAppGet(env, user, appPath[1], baseUrl);
         if (appPath && req.method === 'PATCH') return await apiAppPatch(req, env, user, appPath[1]);

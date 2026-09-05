@@ -2,8 +2,9 @@
 // and the runs database (Logs tab, jobs). Design: design/flow.md §3b/3c/§4. ───
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowUpDown, Calendar, Circle, Clock, Copy as CopyIcon, Download, Eye, Filter as FilterIcon,
-  Hash, Inbox, Loader2, Maximize2, Paperclip, Play, Plus, Search as SearchIcon, Type, User, X,
+  ArrowUpDown, Calendar, Circle, Clock, Copy as CopyIcon, Download, Eye, File as FileIcon,
+  Filter as FilterIcon, Folder, Hash, Inbox, Loader2, Maximize2, Paperclip, Play, Plus,
+  Search as SearchIcon, Type, User, X,
 } from 'lucide-react';
 import { ago, api, fmtTime, navigate } from './api.js';
 import {
@@ -71,6 +72,71 @@ const defaultValue = (spec) => {
   if (spec.type === 'select' && spec.multiple) return spec.default ?? [];
   return spec.default ?? '';
 };
+
+// ─── s3:// text input with autocomplete: the control plane lists one level under
+// the typed uri via the app's [aws] role. Pasting a full uri works unchanged;
+// no role / no access → no suggestions, still a plain text field. ───
+function S3Input({ app, value, onChange, onBlur, error, label }) {
+  const [items, setItems] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [hi, setHi] = useState(-1);
+  const timer = useRef(null);
+  const look = (v) => {
+    clearTimeout(timer.current);
+    if (!/^s3:\/\/[^/]+\//.test(v)) { setItems([]); setOpen(false); return; }
+    timer.current = setTimeout(async () => {
+      try {
+        const d = await api(`/api/apps/${app.name}/s3-list?uri=${encodeURIComponent(v)}`);
+        setItems(d.items || []);
+        setOpen((d.items || []).length > 0);
+        setHi(-1);
+      } catch { setItems([]); setOpen(false); }
+    }, 300);
+  };
+  const pick = (it) => {
+    onChange(it.uri);
+    if (it.dir) look(it.uri);
+    else { setOpen(false); setItems([]); }
+  };
+  return (
+    <div className="relative">
+      <Input
+        value={value}
+        onChange={(e) => { onChange(e.target.value); look(e.target.value); }}
+        onFocus={() => look(value)}
+        onBlur={() => { setTimeout(() => setOpen(false), 150); onBlur?.(); }}
+        onKeyDown={(e) => {
+          if (!open) return;
+          if (e.key === 'ArrowDown') { e.preventDefault(); setHi((h) => Math.min(h + 1, items.length - 1)); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); setHi((h) => Math.max(h - 1, -1)); }
+          else if (e.key === 'Enter' && hi >= 0 && items[hi]) { e.preventDefault(); pick(items[hi]); }
+          else if (e.key === 'Escape') setOpen(false);
+        }}
+        placeholder="s3://bucket/key"
+        className={error ? 'border-danger' : undefined}
+        aria-label={label}
+      />
+      {open && (
+        <div className="absolute right-0 left-0 z-20 mt-1 max-h-56 overflow-y-auto rounded-md bg-white p-1 shadow-pop">
+          {items.map((it, i) => (
+            <button
+              key={it.uri}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); pick(it); }}
+              className={cn('flex h-8 w-full items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover', i === hi && 'bg-hover')}
+            >
+              {it.dir
+                ? <Folder size={16} strokeWidth={1.5} className="shrink-0 text-ink-3" />
+                : <FileIcon size={16} strokeWidth={1.5} className="shrink-0 text-ink-3" />}
+              <span className="min-w-0 flex-1 truncate" title={it.uri}>{it.uri}</span>
+              {!it.dir && it.size != null && <span className="shrink-0 text-xs text-ink-2">{fmtBytes(it.size)}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Run tab (flow.md §3b): the form generated from [inputs]. ───
 export function RunForm({ app, prefill, onStarted }) {
@@ -162,7 +228,17 @@ export function RunForm({ app, prefill, onStarted }) {
             </div>
           )}
           {spec.type === 'bool' && <div className="pt-2"><Toggle on={!!values[k]} onChange={(v) => set(k, v)} aria-label={k} /></div>}
-          {spec.type === 'text' && (
+          {spec.type === 'text' && (spec.pattern || '').includes('s3://') && (
+            <S3Input
+              app={app}
+              value={values[k]}
+              onChange={(v) => set(k, v)}
+              onBlur={() => setErrors((er) => ({ ...er, [k]: validateOne(spec, values[k]) }))}
+              error={errors[k]}
+              label={k}
+            />
+          )}
+          {spec.type === 'text' && !(spec.pattern || '').includes('s3://') && (
             <Input
               value={values[k]}
               onChange={(e) => set(k, e.target.value)}
