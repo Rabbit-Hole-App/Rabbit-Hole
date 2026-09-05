@@ -283,9 +283,11 @@ async function apiReviewRun(req, env, user) {
       const desc = await askOnce(
         env,
         `App name: ${name} (kind: ${app.kind})\n\nSource:\n${String(bundle).slice(0, 60000)}`,
-        'Write a 2-3 sentence description of what this app does, for a teammate who never read the code. Plain language, no jargon, no file names — just what it does and what you get out of it. Reply with the description only.'
+        'Write a 2-3 sentence description of what this app does, for a teammate who never read the code. Plain language, no jargon, no file names — just what it does and what you get out of it. Reply with the description only.',
+        600
       );
-      const clean = desc && desc.replace(/\n+Sources:.*$/is, '').trim();
+      let clean = desc && desc.replace(/\n+Sources:.*$/is, '').trim();
+      if (clean && !/[.!?]$/.test(clean)) clean = clean.replace(/\s+[^.!?]*$/, ''); // a token-capped tail ends mid-word — drop it
       if (clean) await env.DB.prepare('UPDATE apps SET description = ? WHERE id = ?').bind(clean.slice(0, 600), app.id).run();
     } catch { /* description is a nicety — never fail the review over it */ }
   }
@@ -499,11 +501,12 @@ async function apiAppFind(req, env, user) {
   const answer = await askOnce(
     env,
     `Apps in this workspace:\n${catalog}`,
-    `The user is looking for: "${String(q).slice(0, 300)}". Reply ONLY with a JSON array of the app names that match what they want, best match first, e.g. ["a","b"]. Empty array [] if none fit.`
+    `The user is looking for: "${String(q).slice(0, 300)}". Reply ONLY with JSON like {"apps":["a","b"],"note":""} — apps = names of matching apps, best first. If none fit, apps is [] and note is ONE short friendly sentence (name the closest thing available, or say nothing here does that yet).`
   );
-  let names = [];
-  try { names = JSON.parse((answer.match(/\[[\s\S]*?\]/) || ['[]'])[0]); } catch { /* model went off-script → no recs */ }
-  return json({ apps: names.filter((n) => visible.some((v) => v.app.name === n)) });
+  let out = {};
+  try { out = JSON.parse((answer.match(/\{[\s\S]*\}/) || ['{}'])[0]); } catch { /* model went off-script → no recs */ }
+  const names = (Array.isArray(out.apps) ? out.apps : []).filter((n) => visible.some((v) => v.app.name === n));
+  return json({ apps: names, note: names.length ? '' : String(out.note || '').slice(0, 200) });
 }
 
 // The 2-3 line blurb under the title — model-written on first deploy, edits here stick.

@@ -1,14 +1,33 @@
 import { useState } from 'react';
-import { ArrowUpRight, ChevronDown, ChevronRight, Clock, Folder as FolderIcon, Loader2, PanelRight, Play, Search, Square } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpRight, ChevronDown, ChevronRight, Clock, EyeOff, Folder as FolderIcon, Inbox, ListFilter, Loader2, PanelRight, Play, Search, Settings2, Square, X } from 'lucide-react';
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
 import Shell from './Shell.jsx';
-import { Avatar, EmptyState, IconBtn, Input, KindIcon, Mark, Pill, PillButton, SkeletonRows } from './ui.jsx';
+import { Avatar, Chk, cn, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows } from './ui.jsx';
 
 const people = (a) => [a.owner_email, ...(a.members || []).map((m) => m.email).filter((e) => e !== a.owner_email)];
 
 const td = 'h-8 border-b border-line px-2 text-sm whitespace-nowrap';
 const th = 'h-8 border-b border-line px-2 text-left text-xs font-normal text-ink-2';
+
+// Notion-lite database controls: column order/visibility, one sort, one filter.
+const COLS = { name: 'Name', kind: 'Kind', access: 'Access', people: 'People', watch: 'Watch', deployed: 'Deployed', lastrun: 'Last run' };
+const DEFAULT_ORDER = Object.keys(COLS);
+const sortVal = (a, key) =>
+  key === 'name' ? a.name
+  : key === 'kind' ? a.kind
+  : key === 'access' ? a.visibility
+  : key === 'people' ? people(a).length
+  : key === 'watch' ? (a.watch_count || 0)
+  : key === 'deployed' ? (a.deployed_at || a.created_at || '')
+  : key === 'lastrun' ? (a.lastRun?.startedAt || '')
+  : '';
+// enumerable columns get an equals-filter; free-text ones don't
+const FILTERS = {
+  kind: (a) => a.kind,
+  access: (a) => (a.visibility === 'private' ? 'only shared' : 'anyone in org'),
+  watch: (a) => (a.watch_count > 0 ? 'has findings' : 'none'),
+};
 
 export default function App() {
   return <Shell>{(data, load) => <AppContent data={data} load={load} />}</Shell>;
@@ -40,6 +59,26 @@ function AppContent({ data, load }) {
     return next;
   });
 
+  // table controls, remembered per device
+  const persisted = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+  const [cols, setCols] = useState(() => persisted('small.tblCols', { order: DEFAULT_ORDER, hidden: {} }));
+  const saveCols = (next) => { setCols(next); localStorage.setItem('small.tblCols', JSON.stringify(next)); };
+  const [sort, setSort] = useState(() => persisted('small.tblSort', null));
+  const saveSort = (s) => { setSort(s); localStorage.setItem('small.tblSort', JSON.stringify(s)); };
+  const [filter, setFilter] = useState(() => persisted('small.tblFilter', null)); // { key, value }
+  const saveFilter = (f) => { setFilter(f); localStorage.setItem('small.tblFilter', JSON.stringify(f)); };
+  const [colMenu, setColMenu] = useState(null); // column key with its header menu open
+  const [toolMenu, setToolMenu] = useState(null); // 'filter' | 'sort' | 'props'
+  const [dragCol, setDragCol] = useState(null); // key being dragged
+  const order = [...cols.order.filter((k) => DEFAULT_ORDER.includes(k)), ...DEFAULT_ORDER.filter((k) => !cols.order.includes(k))];
+  const visibleCols = order.filter((k) => !cols.hidden[k]);
+  const moveCol = (from, to) => {
+    if (from === to) return;
+    const next = order.filter((k) => k !== from);
+    next.splice(next.indexOf(to), 0, from);
+    saveCols({ ...cols, order: next });
+  };
+
   const apps = data?.apps || [];
   const org = data?.org || 'small';
   // ?s=shared / ?s=private — the sidebar section labels filter this overview;
@@ -51,7 +90,15 @@ function AppContent({ data, load }) {
   const sectionApps = folder
     ? apps.filter((a) => a.folder_id === folder.id)
     : section ? apps.filter((a) => sectionOf(a, org, data?.email) === section) : apps;
-  const rows = search ? sectionApps.filter((a) => a.name.toLowerCase().includes(search.toLowerCase())) : sectionApps;
+  let rows = search ? sectionApps.filter((a) => a.name.toLowerCase().includes(search.toLowerCase())) : sectionApps;
+  if (filter && FILTERS[filter.key]) rows = rows.filter((a) => FILTERS[filter.key](a) === filter.value);
+  if (sort) {
+    rows = [...rows].sort((a, b) => {
+      const x = sortVal(a, sort.key); const y = sortVal(b, sort.key);
+      const c = typeof x === 'number' ? x - y : String(x).localeCompare(String(y));
+      return sort.dir === 'desc' ? -c : c;
+    });
+  }
   // the plain Apps view groups by folder, Notion-style; filtered/search views stay flat
   const folders = data?.folders || [];
   const flat = !folder && !section && !search
@@ -93,7 +140,63 @@ function AppContent({ data, load }) {
 
           {apps.length > 0 && (
             <>
-              <div className="flex h-8 items-center justify-end">
+              <div className="flex h-8 items-center justify-end gap-1">
+                {/* active filter/sort read back as chips; the buttons open Notion-style menus */}
+                {filter && (
+                  <Pill color="blue">
+                    {COLS[filter.key]}: {filter.value}
+                    <button aria-label="Clear filter" className="cursor-pointer" onClick={() => saveFilter(null)}><X size={10} /></button>
+                  </Pill>
+                )}
+                {sort && (
+                  <Pill>
+                    {COLS[sort.key]} {sort.dir === 'desc' ? '↓' : '↑'}
+                    <button aria-label="Clear sort" className="cursor-pointer" onClick={() => saveSort(null)}><X size={10} /></button>
+                  </Pill>
+                )}
+                <div className="relative">
+                  <IconBtn title="Filter" className={cn(toolMenu === 'filter' && 'bg-active')} onClick={() => setToolMenu(toolMenu === 'filter' ? null : 'filter')}>
+                    <ListFilter size={16} strokeWidth={1.5} />
+                  </IconBtn>
+                  <Menu open={toolMenu === 'filter'} onClose={() => setToolMenu(null)} className="top-8 right-0 w-56">
+                    {Object.keys(FILTERS).flatMap((k) =>
+                      [...new Set(sectionApps.map((a) => FILTERS[k](a)))].sort().map((v) => (
+                        <MenuItem key={`${k}:${v}`} onClick={() => { saveFilter({ key: k, value: v }); setToolMenu(null); }}>
+                          {COLS[k]} · {v}
+                        </MenuItem>
+                      )))}
+                    {filter && <MenuItem className="text-ink-2" onClick={() => { saveFilter(null); setToolMenu(null); }}>Clear filter</MenuItem>}
+                  </Menu>
+                </div>
+                <div className="relative">
+                  <IconBtn title="Sort" className={cn(toolMenu === 'sort' && 'bg-active')} onClick={() => setToolMenu(toolMenu === 'sort' ? null : 'sort')}>
+                    <ArrowUp size={16} strokeWidth={1.5} />
+                  </IconBtn>
+                  <Menu open={toolMenu === 'sort'} onClose={() => setToolMenu(null)} className="top-8 right-0 w-56">
+                    {visibleCols.map((k) => (
+                      <MenuItem key={k} onClick={() => { saveSort({ key: k, dir: sort?.key === k && sort.dir === 'asc' ? 'desc' : 'asc' }); setToolMenu(null); }}>
+                        {COLS[k]}{sort?.key === k ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ''}
+                      </MenuItem>
+                    ))}
+                    {sort && <MenuItem className="text-ink-2" onClick={() => { saveSort(null); setToolMenu(null); }}>Clear sort</MenuItem>}
+                  </Menu>
+                </div>
+                <div className="relative">
+                  <IconBtn title="Properties" className={cn(toolMenu === 'props' && 'bg-active')} onClick={() => setToolMenu(toolMenu === 'props' ? null : 'props')}>
+                    <Settings2 size={16} strokeWidth={1.5} />
+                  </IconBtn>
+                  <Menu open={toolMenu === 'props'} onClose={() => setToolMenu(null)} className="top-8 right-0 w-48">
+                    {order.map((k) => (
+                      <MenuItem
+                        key={k}
+                        onClick={() => k !== 'name' && saveCols({ ...cols, hidden: { ...cols.hidden, [k]: !cols.hidden[k] } })}
+                        className={k === 'name' ? 'opacity-50' : ''}
+                      >
+                        <Chk on={!cols.hidden[k]} /> {COLS[k]}
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                </div>
                 {search === null ? (
                   <IconBtn title="Search" onClick={() => setSearch('')}>
                     <Search size={16} strokeWidth={1.5} />
@@ -115,13 +218,30 @@ function AppContent({ data, load }) {
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="whitespace-nowrap">
-                    <th className={th}>Name</th>
-                    <th className={th}>Kind</th>
-                    <th className={th}>Access</th>
-                    <th className={th}>People</th>
-                    <th className={th}>Watch</th>
-                    <th className={th}>Deployed</th>
-                    <th className={th}>Last run</th>
+                    {visibleCols.map((k) => (
+                      <th
+                        key={k}
+                        draggable
+                        onDragStart={() => setDragCol(k)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => { dragCol && moveCol(dragCol, k); setDragCol(null); }}
+                        className={cn(th, 'relative cursor-pointer select-none hover:bg-hover', dragCol === k && 'opacity-50')}
+                        onClick={() => setColMenu(colMenu === k ? null : k)}
+                        title="Click for options · drag to reorder"
+                      >
+                        {COLS[k]}{sort?.key === k ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ''}
+                        <Menu open={colMenu === k} onClose={() => setColMenu(null)} className="top-8 left-0 w-48 cursor-default font-normal normal-case">
+                          <MenuItem icon={ArrowUp} onClick={(e) => { e.stopPropagation(); saveSort({ key: k, dir: 'asc' }); setColMenu(null); }}>Sort ascending</MenuItem>
+                          <MenuItem icon={ArrowDown} onClick={(e) => { e.stopPropagation(); saveSort({ key: k, dir: 'desc' }); setColMenu(null); }}>Sort descending</MenuItem>
+                          {FILTERS[k] && [...new Set(sectionApps.map((a) => FILTERS[k](a)))].sort().map((v) => (
+                            <MenuItem key={v} icon={ListFilter} onClick={(e) => { e.stopPropagation(); saveFilter({ key: k, value: v }); setColMenu(null); }}>Filter · {v}</MenuItem>
+                          ))}
+                          {k !== 'name' && (
+                            <MenuItem icon={EyeOff} onClick={(e) => { e.stopPropagation(); saveCols({ ...cols, hidden: { ...cols.hidden, [k]: true } }); setColMenu(null); }}>Hide column</MenuItem>
+                          )}
+                        </Menu>
+                      </th>
+                    ))}
                     <th className={th}></th>
                   </tr>
                 </thead>
@@ -134,7 +254,7 @@ function AppContent({ data, load }) {
                           onClick={() => navigate(`/apps?f=${encodeURIComponent(a.__folder.name)}`)}
                           className="cursor-pointer hover:bg-hover"
                         >
-                          <td colSpan={8} className="border-b border-line px-2 pt-3 pb-1">
+                          <td colSpan={visibleCols.length + 1} className="border-b border-line px-2 pt-3 pb-1">
                             <span className="flex items-center gap-1 text-sm font-medium">
                               <button
                                 aria-label={a.closed ? `Expand ${a.__folder.name}` : `Collapse ${a.__folder.name}`}
@@ -151,13 +271,9 @@ function AppContent({ data, load }) {
                       );
                     }
                     const live = runningId(a);
-                    return (
-                      <tr
-                        key={`${a.org}/${a.name}`}
-                        onClick={() => navigate(`/apps/${a.name}`)} // row = the full app page; the OPEN pill = side peek
-                        className="group cursor-pointer hover:bg-hover"
-                      >
-                        <td className={td}>
+                    const CELLS = {
+                      name: (
+                        <td key="name" className={td}>
                           {/* grouped rows indent under their folder header */}
                           <span className={`flex items-center gap-1.5 font-medium${a.__grouped ? ' pl-6' : ''}`}>
                             <KindIcon kind={a.kind} schedule={a.schedule} />
@@ -169,7 +285,9 @@ function AppContent({ data, load }) {
                             </button>
                           </span>
                         </td>
-                        <td className={td}>
+                      ),
+                      kind: (
+                        <td key="kind" className={td}>
                           <span className="flex items-center gap-1.5">
                             <Pill color={a.kind === 'job' ? 'blue' : 'grey'}>{a.kind}</Pill>
                             {a.schedule && (
@@ -183,10 +301,14 @@ function AppContent({ data, load }) {
                             )}
                           </span>
                         </td>
-                        <td className={`${td} text-ink-2`}>
+                      ),
+                      access: (
+                        <td key="access" className={`${td} text-ink-2`}>
                           {a.visibility === 'private' ? 'only shared' : `anyone @${a.org.replace(/-/g, '.')}`}
                         </td>
-                        <td className={td}>
+                      ),
+                      people: (
+                        <td key="people" className={td}>
                           <span className="flex items-center">
                             {people(a).slice(0, 4).map((e, i) => <Avatar key={e} email={e} className={i ? '-ml-1.5' : ''} />)}
                             {people(a).length > 4 && (
@@ -196,21 +318,36 @@ function AppContent({ data, load }) {
                             )}
                           </span>
                         </td>
-                        <td className={td}>
+                      ),
+                      watch: (
+                        <td key="watch" className={td}>
                           {a.watch_count > 0
                             ? <Pill color="orange" title={`${a.watch_count} open observation${a.watch_count > 1 ? 's' : ''}`}>{a.watch_count}</Pill>
                             : <span className="text-ink-3">—</span>}
                         </td>
-                        <td className={`${td} text-ink-2`} title={fmtTime(a.deployed_at || a.created_at)}>
+                      ),
+                      deployed: (
+                        <td key="deployed" className={`${td} text-ink-2`} title={fmtTime(a.deployed_at || a.created_at)}>
                           {ago(a.deployed_at || a.created_at)}
                         </td>
-                        <td className={`${td} text-ink-2`}>
+                      ),
+                      lastrun: (
+                        <td key="lastrun" className={`${td} text-ink-2`}>
                           {a.kind !== 'job' || (!live && !a.lastRun) ? (a.kind === 'job' ? '—' : '') : live ? (
                             <span className="flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> running</span>
                           ) : (
                             `${a.lastRun.status === 'finished' ? '✓' : '✗'} ${ago(a.lastRun.startedAt)}`
                           )}
                         </td>
+                      ),
+                    };
+                    return (
+                      <tr
+                        key={`${a.org}/${a.name}`}
+                        onClick={() => navigate(`/apps/${a.name}`)} // row = the full app page; the OPEN pill = side peek
+                        className="group cursor-pointer hover:bg-hover"
+                      >
+                        {visibleCols.map((k) => CELLS[k])}
                         <td className={`${td} text-right`}>
                           <span className="inline-flex items-center gap-1">
                             <PillButton

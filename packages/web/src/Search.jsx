@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Sparkles } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { cn, KindIcon } from './ui.jsx';
 
@@ -34,13 +34,13 @@ export default function SearchModal() {
   const close = () => { setOpen(false); setQ(''); setHi(0); setAi(null); };
 
   // sentence-length queries also go to the model, which picks apps by description
-  const [ai, setAi] = useState(null); // null | 'loading' | string[] of app names
+  const [ai, setAi] = useState(null); // null | 'loading' | { apps: string[], note: string }
   useEffect(() => {
     if (!open || q.trim().split(/\s+/).length < 4) { setAi(null); return; }
     setAi('loading');
     const t = setTimeout(() => {
       api('/api/apps/find', { method: 'POST', body: JSON.stringify({ q }) })
-        .then((d) => setAi(d.apps || []))
+        .then((d) => setAi({ apps: d.apps || [], note: d.note || '' }))
         .catch(() => setAi(null));
     }, 600);
     return () => clearTimeout(t);
@@ -87,22 +87,22 @@ export default function SearchModal() {
       <div className="absolute inset-0 bg-black/20" onClick={close} />
       <div className="relative mx-auto mt-[20vh] w-[640px] max-w-[90vw] rounded-md bg-white text-ink shadow-pop">
         <div className="flex h-12 items-center gap-2.5 border-b border-line px-4">
-          <Search size={16} strokeWidth={1.5} className="shrink-0 text-ink-3" />
+          <Sparkles size={16} strokeWidth={1.5} className="shrink-0 text-ink-3" />
           <input
             autoFocus
             value={q}
             onChange={(e) => { setQ(e.target.value); setHi(0); }}
             onKeyDown={onKeyDown}
-            placeholder="Search apps and runbooks…"
+            placeholder="I am looking for… — describe it, AI finds the app"
             className="w-full border-0 bg-transparent text-base outline-none placeholder:text-ink-3"
           />
         </div>
         <div className="max-h-80 overflow-y-auto p-1">
           {ai === 'loading' && <div className="px-3 pt-1.5 pb-0.5 text-xs text-ink-3">Thinking…</div>}
-          {Array.isArray(ai) && ai.length > 0 && (
+          {ai?.apps?.length > 0 && (
             <>
               <div className="px-3 pt-1.5 pb-0.5 text-xs text-ink-3">Recommended</div>
-              {ai.map((n) => apps.find((a) => a.name === n)).filter(Boolean).map((a) => (
+              {ai.apps.map((n) => apps.find((a) => a.name === n)).filter(Boolean).map((a) => (
                 <button
                   key={`ai-${a.name}`}
                   onClick={() => go(a.name)}
@@ -115,10 +115,11 @@ export default function SearchModal() {
               ))}
             </>
           )}
-          {Array.isArray(ai) && ai.length === 0 && results.length === 0 && (
-            <div className="flex h-9 items-center px-3 text-sm text-ink-3">Nothing matches that description</div>
+          {/* the agent answers in one line when nothing fits — never a bare "No results" for sentence queries */}
+          {ai?.apps?.length === 0 && (
+            <div className="px-3 py-2 text-sm text-ink-2">{ai.note || 'Nothing here does that yet.'}</div>
           )}
-          {results.length === 0 && !Array.isArray(ai) && ai !== 'loading' && <div className="flex h-9 items-center px-3 text-sm text-ink-3">No results</div>}
+          {results.length === 0 && ai === null && <div className="flex h-9 items-center px-3 text-sm text-ink-3">No results</div>}
           {appHits.length > 0 && <div className="px-3 pt-1.5 pb-0.5 text-xs text-ink-3">Apps</div>}
           {appHits.map((a, i) => row(a, i))}
           {bookHits.length > 0 && <div className="px-3 pt-1.5 pb-0.5 text-xs text-ink-3">Runbooks</div>}
