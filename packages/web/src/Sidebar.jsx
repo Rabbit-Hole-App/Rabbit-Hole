@@ -385,19 +385,18 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
           <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-5">
             {watchObs.length === 0 && <div className="pt-2 text-sm text-ink-2">Nothing to report — Watch runs nightly.</div>}
             {watchObs.map((o) => (
-              <div key={o.id} className={cn('flex items-start gap-2 border-b border-line py-2.5 text-sm', o.first_seen > panelReadAt ? '' : 'opacity-70')}>
+              <div
+                key={o.id}
+                onClick={() => { setWatchOpen(false); navigate(`/apps/${o.slug}`); }}
+                className={cn('flex cursor-pointer items-start gap-2 rounded-sm border-b border-line px-1 py-2.5 text-sm hover:bg-hover', o.first_seen > panelReadAt ? '' : 'opacity-70')}
+              >
                 <AlertTriangle size={15} strokeWidth={1.5} className="mt-0.5 shrink-0 text-warn" />
                 <div className="min-w-0 flex-1">
-                  <button
-                    onClick={() => { setWatchOpen(false); navigate(`/apps/${o.slug}`); }}
-                    className="cursor-pointer font-medium hover:underline"
-                  >
-                    {o.slug}
-                  </button>
+                  <span className="font-medium">{o.slug}</span>
                   <div className="text-ink-2">{o.text}</div>
                   <div className="pt-0.5 text-xs text-ink-3">{o.check} · {ago(o.last_seen)}</div>
                 </div>
-                <div className="relative shrink-0">
+                <div className="relative shrink-0" onClick={(e) => e.stopPropagation()}>
                   <button
                     onMouseDown={(e) => { e.stopPropagation(); setWatchMenu(watchMenu === o.id ? null : o.id); }}
                     className="cursor-pointer rounded-sm px-1.5 py-0.5 text-xs text-ink-2 hover:bg-hover hover:text-ink"
