@@ -39,16 +39,21 @@ The org is the email domain. First person from a domain creates the org by loggi
 │ [A] acme        ‹‹ │  ← workspace row. Click name: switch org / log out. ‹‹ on hover collapses.
 │ 🔍 Search       ⌘K │
 │                    │
-│ ▾ Apps           + │  ← + copies `small deploy` with a toast. Section folds on click.
+│ ▾ Apps           + │  ← org-wide apps (visibility = domain). + copies `small deploy`.
 │   ◉ refund-dash…   │  ← icon = kind. Selected row is bg-active.
-│   ▶ yolo-job       │
+│   ▸ 🗀 ml           │  ← folder: folds on click, drag rows in/out. New folder in the header ⋯.
 │   ◷ s3-log-writer  │  ← clock = scheduled job
+│                    │
+│ ▾ Shared           │  ← private apps with people/teams on them — mine and ones shared to me
 │   ◉ counter        │
 │                    │
-│ ▾ Recent           │  ← last 5 opened
+│ ▾ Private          │  ← my private apps shared with nobody yet
+│   ▶ scratch-job    │
+│                    │
+│ ▾ Recent           │  ← last 3 opened
 │   ▶ yolo-job       │
 │                    │
-│                    │
+│ 🗑 Trash            │  ← restore within 30 days; redeploying a trashed name also revives it
 │ 👥 Members         │  ← org-level people. See §6.
 │ ⚙ Settings         │
 │ ? Help             │
@@ -56,10 +61,24 @@ The org is the email domain. First person from a domain creates the org by loggi
 └────────────────────┘
 ```
 
+The Notion Teamspaces / Shared / Private split. Which section an app lives in is derived,
+never chosen: org-visible → **Apps**; private with any person or team on it → **Shared**;
+private and unshared → **Private**. An app made private while filed in a folder keeps its
+`folder_id` but lists only under Private — no double listing. Every section header is a
+**▾/▸ chevron** (click folds; state persists) and a link to that section's filtered
+`/apps` view.
+
+Folders are org-wide and organizational (`folders` table, `apps.folder_id`) — filing an
+app changes nothing about access — but a folder can itself be **shared** with a person or
+`#team` as a live grant over every app currently or later filed in it (`folder_shares`).
+Drag an app onto a folder, Private, or the workspace root to move it; moves that change
+visibility confirm first.
+
 **Click an app** → `/apps/<slug>`, §3.
 **Click Members** → `/members`, §6.
 **Click Settings** → `/settings`, §7.
-**Hover an app row** → `⋯` appears: Open · Copy link · Runbook · Delete.
+**Hover an app row** → `⋯` appears: Open · Copy link · Runbook · Move to folder · Move to Trash.
+**Trash** → slide panel; items restore in place and are gone for good after 30 days.
 
 Right-click anywhere on the app list is the same menu.
 
@@ -205,6 +224,11 @@ interactive. Full page at `/apps/<slug>/runs/<id>` if you open it in a new tab.
 While running: status pill is blue, log streams, Output section says *Waiting…*.
 **Run again** → the Run tab with these inputs pre-filled.
 
+Backend for this page is live: the run row's `inputs` JSON drives the Inputs block (and
+the per-input columns in §3c), `GET /api/runs/<id>/outputs` lists the files with sizes,
+`GET /api/runs/<id>/outputs/<name>` serves each ⬇ (R2-backed, 100 MB per run). The CLI
+mirror is `small run <app> --download ./out`.
+
 ---
 
 ## 5. Sharing — per app
@@ -225,8 +249,10 @@ The **Share** button in any app header. Popover, Notion-style.
                                   └────────────────────────────────────┘
 ```
 
-Viewers see the same popover read-only, no add field. This is the **only** place a
-colleague adds a person to one app — it's a Google Doc's share dialog, deliberately.
+The email field autocompletes from org members and `#teams`; adding a team is a live
+grant (grow the team later, access follows). Viewers see the same popover read-only, no
+add field. This is the **only** place a colleague adds a person to one app — it's a
+Google Doc's share dialog, deliberately.
 
 Someone without access who opens the link sees the access-denied page with a
 **Request access** button that emails the owner.
@@ -259,9 +285,9 @@ Groups                                                      [New group]
   people and see every app regardless of visibility.
 - **Invite** sends a magic link and pre-creates the member row, so you can share with
   someone before they've ever logged in.
-- **Groups** are `#finance`-style — share an app with a group instead of five emails. The
-  share popover's email field accepts `#finance`. Groups are in the roadmap's "when a company
-  asks" tier, so this section can ship empty with the New group button doing nothing yet.
+- **Groups** are `#finance`-style teams — share an app (or a folder) with a team instead
+  of five emails; the share popover's email field accepts `#finance`. Built: teams are
+  live references, so adding someone to a team later grants everything shared with it.
 
 Click a person → their page: the apps they own, the apps shared with them, their runs.
 
