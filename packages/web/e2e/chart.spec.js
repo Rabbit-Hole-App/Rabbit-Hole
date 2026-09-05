@@ -31,7 +31,7 @@ test('runbook /chart: insert, configure from run data, render, restore', async (
   await context.addCookies([{ name: 'small_session', value: session, url: 'http://localhost:5173' }]);
 
   // Original runbook, restored at the end whatever happens.
-  const appRes = await page.request.get('/api/apps/yolo-job');
+  const appRes = await page.request.get('http://localhost:5173/api/apps/yolo-job');
   expect(appRes.ok(), await appRes.text()).toBeTruthy();
   const original = (await appRes.json()).runbook ?? '';
 
@@ -56,7 +56,7 @@ test('runbook /chart: insert, configure from run data, render, restore', async (
     await expect(page.getByText(/for commands/i)).toHaveCount(0);
 
     // What renders around the block — is the "/ for commands" hint inside it?
-    await page.screenshot({ path: process.env.CHART_SHOT || 'chart-block.png', fullPage: false });
+    await page.screenshot({ path: process.env.CHART_SHOT || 'test-results/chart-block.png', fullPage: false });
     const inside = await block.locator('..').locator('..').evaluate((el) => el.outerHTML.slice(0, 2000));
     console.log('CHARTBLOCK-DOM:', inside);
     console.log('PLACEHOLDER-IN-BLOCK:', await block.getByText(/for commands/i).count());
@@ -67,8 +67,14 @@ test('runbook /chart: insert, configure from run data, render, restore', async (
     await block.getByRole('button', { name: 'y…' }).click();
     await page.getByRole('button', { name: 'duration_s', exact: true }).click();
     await expect(block.locator('svg path')).not.toHaveCount(0, { timeout: 20_000 });
+
+    // ⚙ options: decimals → 2 reformats the y axis ticks.
+    await block.getByRole('button', { name: 'Chart options' }).click();
+    await block.getByRole('button', { name: 'auto' }).click();
+    await block.getByRole('button', { name: '2', exact: true }).click();
+    await expect(block.locator('svg text').filter({ hasText: /\d+\.\d\d/ }).first()).toBeVisible({ timeout: 10_000 });
   } finally {
-    const put = await page.request.put('/api/runbook', { data: { app: 'yolo-job', runbook: original } });
+    const put = await page.request.put('http://localhost:5173/api/runbook', { data: { app: 'yolo-job', runbook: original } });
     expect(put.ok(), await put.text()).toBeTruthy();
   }
 });

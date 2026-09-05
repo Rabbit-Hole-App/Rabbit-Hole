@@ -175,6 +175,11 @@ Inserting a chart configures it inline, three fields:
   the GitHub-graph view — natural for scheduled jobs).
 - **Fields** — x + y (label + value for pie), picked from the columns of the chosen source.
 
+A ⚙ at the row's end folds out the rare knobs — color scheme (named nivo schemes),
+decimals (auto/0–3, formats tooltips, labels and the y axis), stacked/grouped for bars.
+Deliberately not offered: chart titles (type a heading block above — that's the Notion
+way), custom hex colors, fonts, margins.
+
 Charts are BlockNote blocks (same pattern as the Excalidraw block): config lives in the
 block's props and rides the runbook JSON autosave, so it survives deploys, reorders like
 any block, and needs no storage of its own. Data is live: a chart queries the existing

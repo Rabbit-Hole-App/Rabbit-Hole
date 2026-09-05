@@ -4,9 +4,9 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { insertOrUpdateBlockForSlashMenu } from '@blocknote/core';
 import { createReactBlockSpec } from '@blocknote/react';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, Settings2 } from 'lucide-react';
 import { api, isDark } from './api.js';
-import { Select } from './ui.jsx';
+import { IconBtn, Select } from './ui.jsx';
 import { flattenRuns, parseOutput, columns, toNivo } from './chart-data.js';
 
 // nivo is heavy — each chart type loads its chunk only when a chart of that type renders
@@ -18,6 +18,8 @@ const Calendar = lazy(() => import('@nivo/calendar').then((m) => ({ default: m.R
 
 const MARGIN = { top: 10, right: 20, bottom: 45, left: 45 };
 const TYPES = ['line', 'bar', 'pie', 'scatter', 'calendar'];
+const SCHEMES = ['nivo', 'category10', 'accent', 'paired', 'set2', 'dark2'];
+const DECIMALS = ['auto', '0', '1', '2', '3'];
 
 // Follow Settings → Appearance live, same event the Excalidraw block listens to.
 function useDark() {
@@ -38,23 +40,26 @@ const nivoTheme = (dark) => ({
   tooltip: { container: { background: dark ? '#252525' : '#fff', color: dark ? '#d4d4d4' : '#37352f' } },
 });
 
-function Chart({ type, data, x, y }) {
+function Chart({ type, data, x, y, cfg }) {
   const dark = useDark();
   const theme = nivoTheme(dark);
+  const colors = { scheme: cfg.scheme || 'nivo' };
+  const fmt = cfg.decimals === '' || cfg.decimals == null ? undefined : `>-.${cfg.decimals}f`;
+  const axisLeft = fmt ? { format: fmt } : undefined;
   if (type === 'line') {
-    return <Line data={data} theme={theme} margin={MARGIN} xScale={{ type: 'point' }} axisBottom={{ tickRotation: -30 }} pointSize={6} useMesh />;
+    return <Line data={data} theme={theme} colors={colors} yFormat={fmt} axisLeft={axisLeft} margin={MARGIN} xScale={{ type: 'point' }} axisBottom={{ tickRotation: -30 }} pointSize={6} useMesh />;
   }
   if (type === 'bar') {
-    return <Bar data={data} theme={theme} keys={[y || 'count']} indexBy={x} margin={MARGIN} padding={0.3} axisBottom={{ tickRotation: -30 }} />;
+    return <Bar data={data} theme={theme} colors={colors} valueFormat={fmt} axisLeft={axisLeft} groupMode={cfg.group || 'stacked'} keys={[y || 'count']} indexBy={x} margin={MARGIN} padding={0.3} axisBottom={{ tickRotation: -30 }} />;
   }
   if (type === 'scatter') {
-    return <Scatter data={data} theme={theme} margin={MARGIN} xScale={{ type: 'linear', min: 'auto', max: 'auto' }} yScale={{ type: 'linear', min: 'auto', max: 'auto' }} axisBottom={{ tickRotation: -30 }} nodeSize={8} />;
+    return <Scatter data={data} theme={theme} colors={colors} yFormat={fmt} axisLeft={axisLeft} margin={MARGIN} xScale={{ type: 'linear', min: 'auto', max: 'auto' }} yScale={{ type: 'linear', min: 'auto', max: 'auto' }} axisBottom={{ tickRotation: -30 }} nodeSize={8} />;
   }
   if (type === 'calendar') {
     const days = data.map((d) => d.day).sort();
-    return <Calendar data={data} theme={theme} from={days[0]} to={days[days.length - 1]} margin={MARGIN} emptyColor={dark ? '#2a2a2a' : '#eeeeee'} dayBorderColor={dark ? '#191919' : '#ffffff'} monthBorderColor={dark ? '#191919' : '#ffffff'} />;
+    return <Calendar data={data} theme={theme} valueFormat={fmt} from={days[0]} to={days[days.length - 1]} margin={MARGIN} emptyColor={dark ? '#2a2a2a' : '#eeeeee'} dayBorderColor={dark ? '#191919' : '#ffffff'} monthBorderColor={dark ? '#191919' : '#ffffff'} />;
   }
-  return <Pie data={data} theme={theme} margin={MARGIN} innerRadius={0.5} padAngle={1} arcLinkLabelsSkipAngle={10} />;
+  return <Pie data={data} theme={theme} colors={colors} valueFormat={fmt} margin={MARGIN} innerRadius={0.5} padAngle={1} arcLinkLabelsSkipAngle={10} />;
 }
 
 function ChartEmbed({ block, editor }) {
@@ -62,11 +67,12 @@ function ChartEmbed({ block, editor }) {
   const app = block.props.app;
   let saved = {};
   try { saved = JSON.parse(block.props.config || '{}'); } catch { /* stale props — start fresh */ }
-  const cfg = { source: 'runs', file: '', type: 'line', x: '', y: '', ...saved };
+  const cfg = { source: 'runs', file: '', type: 'line', x: '', y: '', scheme: 'nivo', decimals: '', group: 'stacked', ...saved };
 
   const [rows, setRows] = useState([]);
   const [files, setFiles] = useState([]);
   const [note, setNote] = useState('loading data…');
+  const [more, setMore] = useState(false);
 
   const setCfg = (patch) => editor.updateBlock(block, { props: { config: JSON.stringify({ ...cfg, ...patch }) } });
 
@@ -126,12 +132,27 @@ function ChartEmbed({ block, editor }) {
           <div className="w-24"><Select value={cfg.type} options={TYPES} onChange={(v) => setCfg({ type: v })} /></div>
           <div className="w-32"><Select value={cfg.x} options={cfg.type === 'scatter' ? cols.numeric : cols.all} placeholder="x…" onChange={(v) => setCfg({ x: v })} /></div>
           <div className="w-32"><Select value={cfg.y} options={cols.numeric} placeholder={cfg.type === 'line' ? 'y…' : 'y (count)…'} onChange={(v) => setCfg({ y: v })} /></div>
+          <IconBtn aria-label="Chart options" title="Colors, decimals…" className="ml-auto" onClick={() => setMore(!more)}><Settings2 size={16} strokeWidth={1.5} /></IconBtn>
+        </div>
+      )}
+      {editable && more && (
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-line p-1.5 text-sm">
+          <span className="pl-1 text-xs text-ink-2">colors</span>
+          <div className="w-28"><Select value={cfg.scheme} options={SCHEMES} onChange={(v) => setCfg({ scheme: v })} /></div>
+          <span className="pl-1 text-xs text-ink-2">decimals</span>
+          <div className="w-20"><Select value={cfg.decimals === '' ? 'auto' : cfg.decimals} options={DECIMALS} onChange={(v) => setCfg({ decimals: v === 'auto' ? '' : v })} /></div>
+          {cfg.type === 'bar' && (
+            <>
+              <span className="pl-1 text-xs text-ink-2">bars</span>
+              <div className="w-28"><Select value={cfg.group} options={['stacked', 'grouped']} onChange={(v) => setCfg({ group: v })} /></div>
+            </>
+          )}
         </div>
       )}
       <div className="h-[280px] w-full">
         {data ? (
           <Suspense fallback={<div className="p-3 text-xs text-ink-2">loading chart…</div>}>
-            <Chart type={cfg.type} data={data} x={cfg.x} y={cfg.y} />
+            <Chart type={cfg.type} data={data} x={cfg.x} y={cfg.y} cfg={cfg} />
           </Suspense>
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-ink-2">{note || hint}</div>
