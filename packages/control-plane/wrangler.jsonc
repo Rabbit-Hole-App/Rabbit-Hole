@@ -32,7 +32,8 @@
   "vars": {
     "FLY_ORG_SLUG": "personal",
     "FLY_ORG_ID": "yw2NK09lG62eytyo75jV2OwzbVT8K410y",
-    "BASE_URL": "https://small-cp.zeroshothq.workers.dev" // scheduled() has no request URL; runner needs SMALL_API
+    "BASE_URL": "https://small-cp.zeroshothq.workers.dev", // scheduled() has no request URL; runner needs SMALL_API
+    "AWS_PRINCIPAL_ARN": "arn:aws:iam::637423432890:user/small-cp" // shown in the [aws] deploy error's trust policy — not a secret
   }
   // secrets (wrangler secret put): MASTER_KEY, FLY_ORG_TOKEN (machine/app ops), FLY_API_TOKEN (minting only),
   // RESEND_API_KEY (optional), TEST_BYPASS_SECRET (test envs only), EMAIL_FROM (optional),

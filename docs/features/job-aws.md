@@ -13,6 +13,12 @@ the env and boto3 finds the creds on its own.
 - Same trust model as servers: customer role trusts small's principal with the org as
   `ExternalId`; nothing stored, creds die with the machine.
 
+**Discovery**: `small deploy` verifies the role is assumable before creating anything;
+a failed assume stops the deploy and prints the exact trust policy to paste — small's
+principal (`AWS_PRINCIPAL_ARN` var) plus the caller's org as ExternalId. The error is
+the documentation. On success the CLI prints `✓ aws role: … (verified — STS via
+control plane)` for servers and jobs alike.
+
 S3 in/out needs no platform support beyond this: declare the URI and destination as
 `text` inputs and let the script use boto3 — see `examples/s3-job` (reads
 `s3://bucket/key`, writes a report to `$SMALL_OUTPUTS` and back to a bucket).

@@ -228,6 +228,8 @@ const commands = {
     if (storage && !d.volumeRegion) throw new Error('control plane does not support [storage] yet — redeploy the worker');
     writeFlyToml(dir, d.flyApp, app.config.memory, storage ? { path: storage.path || '/data', region: d.volumeRegion } : undefined);
     if (storage) console.log(`✓ storage: ${storage.path || '/data'} (${sizeGb}GB volume in ${d.volumeRegion}, survives redeploys)`);
+    // reaching here means the control plane test-assumed the role during /api/deploy
+    if (awsRoleArn) console.log(`✓ aws role: ${awsRoleArn} (verified — STS via control plane)`);
 
     // The worker's waitUntil window (~30s) is too short for the model to write review +
     // runbook, so the CLI holds this request open in parallel with the Fly build instead;
@@ -267,7 +269,6 @@ const commands = {
     // guard batches request-log lines here, authed by the proxy secret it already holds
     const logUrl = { SMALL_LOG_URL: `${apiBase()}/api/apps/${app.name}/request-log` };
     fly.setSecrets(d.flyApp, d.flyToken, { SMALL_PROXY_SECRET: d.proxySecret, ...rootPath, ...cpUrl, ...logUrl, ...secrets });
-    if (awsRoleArn) console.log(`✓ aws role: ${awsRoleArn} (STS via control plane)`);
     fly.deploy(d.flyApp, d.flyToken, dir);
 
     console.log(`✓ deployed → ${d.url}`);

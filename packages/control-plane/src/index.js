@@ -134,6 +134,31 @@ async function apiDeploy(req, env, ctx, user, baseUrl) {
   if (storage && !(Number.isInteger(storage.sizeGb) && storage.sizeGb >= 1 && storage.sizeGb <= 100))
     return json({ error: 'storage.sizeGb must be an integer between 1 and 100' }, 400);
   if (awsRoleArn && !/^arn:aws:iam::\d{12}:role\/[\w+=,.@/-]+$/.test(awsRoleArn)) return json({ error: 'bad aws role arn' }, 400);
+  // Verify the role is assumable NOW, before anything is created — the deploy error
+  // carries the exact trust policy (principal + this org as ExternalId) to paste.
+  if (awsRoleArn) {
+    if (!env.AWS_ACCESS_KEY_ID) return json({ error: 'control plane has no AWS credentials configured' }, 503);
+    try {
+      await assumeRole(env, awsRoleArn, `small-verify-${user.org}`, user.org);
+    } catch (e) {
+      const trust = {
+        Version: '2012-10-17',
+        Statement: [{
+          Effect: 'Allow',
+          Principal: { AWS: env.AWS_PRINCIPAL_ARN || '<ask small support for the control-plane principal>' },
+          Action: 'sts:AssumeRole',
+          Condition: { StringEquals: { 'sts:ExternalId': user.org } },
+        }],
+      };
+      return json({
+        error:
+          `aws: cannot assume ${awsRoleArn} (${e.message})\n` +
+          `create the role in your AWS account with this trust policy, then redeploy:\n` +
+          `${JSON.stringify(trust, null, 2)}\n` +
+          `and attach a permissions policy for what the app may touch (S3, Lambda, ...)`,
+      }, 400);
+    }
+  }
   // redeploying a name that sits in the Trash revives it — same fly app, same shares
   await env.DB.prepare('UPDATE apps SET deleted_at = NULL WHERE org = ? AND name = ? AND deleted_at IS NOT NULL').bind(user.org, name).run();
   let app = await appRow(env, user.org, name);

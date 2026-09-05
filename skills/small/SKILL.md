@@ -77,6 +77,26 @@ DB = os.path.join(os.environ.get("SMALL_DATA", "."), "tool.db")
 (`small init` adds `[storage]` automatically when the entry file imports
 `sqlite3` or references `SMALL_DATA`.)
 
+## AWS access
+
+If the tool calls AWS (boto3, S3, Lambda, …), **never put AWS keys in `.env`**.
+Declare a role instead:
+
+```toml
+[aws]
+role_arn = "arn:aws:iam::<their-account>:role/<their-role>"
+```
+
+small's control plane assumes the role per session (servers) or per run (jobs)
+and injects short-lived STS creds into the environment — boto3 finds them with
+zero config lines. The user must create that role in **their** AWS account.
+`small deploy` verifies the role is assumable and, when it is not, fails with
+the exact trust policy JSON to paste (small's principal + their org as
+ExternalId). Relay that error to the user verbatim: they create the role with
+the printed trust policy, attach a permissions policy for only what the tool
+touches, and redeploy. Do not work around a failed verification with access
+keys.
+
 ## Jobs: inputs and outputs
 
 For a script that runs on demand (`kind = "job"`), every non-secret
