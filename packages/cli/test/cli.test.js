@@ -266,6 +266,20 @@ test('preflight: undeclared bracket env reads warn; SMALL_INPUT_ without [inputs
   assert.deepEqual(checkEnvReads(dir, { kind: 'job', inputs: { threshold: { type: 'number' } }, secrets: { required: ['STRIPE_KEY'] } }, {}), []);
 });
 
+test('small skill installs SKILL.md + references into .claude/skills/small', () => {
+  const { spawnSync } = require('node:child_process');
+  const root = path.join(__dirname, '..');
+  assert.equal(spawnSync(process.execPath, [path.join(root, 'scripts', 'sync-guard.js')], { encoding: 'utf8' }).status, 0);
+  const dir = tmp({});
+  const r = spawnSync(process.execPath, [path.join(root, 'bin', 'small.js'), 'skill'], { cwd: dir, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /✓ skill installed/);
+  const base = path.join(dir, '.claude', 'skills', 'small');
+  assert.match(fs.readFileSync(path.join(base, 'SKILL.md'), 'utf8'), /name: small/);
+  assert.match(fs.readFileSync(path.join(base, 'references', 'aws.md'), 'utf8'), /trust policy/);
+  assert.match(fs.readFileSync(path.join(base, 'references', 'jobs.md'), 'utf8'), /SMALL_OUTPUTS/);
+});
+
 test('dockerfile + write for counter example', () => {
   const counter = path.join(__dirname, '..', '..', '..', 'examples', 'counter');
   const app = detect(counter);

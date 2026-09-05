@@ -77,69 +77,11 @@ DB = os.path.join(os.environ.get("SMALL_DATA", "."), "tool.db")
 (`small init` adds `[storage]` automatically when the entry file imports
 `sqlite3` or references `SMALL_DATA`.)
 
-## AWS access
+## When to read more
 
-If the tool calls AWS (boto3, S3, Lambda, …), **never put AWS keys in `.env`**.
-Declare a role instead:
-
-```toml
-[aws]
-role_arn = "arn:aws:iam::<account-id>:role/small-<app-name>"
-```
-
-small's control plane assumes the role per session (servers) or per run (jobs)
-and injects short-lived STS creds into the environment — boto3 finds them with
-zero config lines. `small deploy` verifies the role is assumable; when it is
-not, it fails with the exact trust policy JSON to paste.
-
-**Create and maintain the role yourself** — the user is likely non-technical;
-their AWS credentials are on this machine (`aws sts get-caller-identity` to
-check; if that fails, ask the user to sign in to AWS first). Steps:
-
-1. Tell the user in one sentence what you are about to create and why
-   ("a role that lets small run this tool against your S3 bucket, nothing
-   else"). Then:
-2. Get the account id from `aws sts get-caller-identity`, fill
-   `role_arn = "arn:aws:iam::<account>:role/small-<app-name>"` into small.toml,
-   and run `small deploy`. It fails and prints the trust policy.
-3. Create the role with that trust policy **verbatim** (save it to a file,
-   `aws iam create-role --role-name small-<app-name>
-   --assume-role-policy-document file://trust.json`). Never edit the
-   ExternalId — it is the user's org and closes the confused-deputy hole.
-4. Attach an inline permissions policy for **exactly what the code you wrote
-   touches** — you know the actions and resources because you wrote the calls.
-   `s3:GetObject` on the one bucket, `lambda:InvokeFunction` on the one
-   function. Never `*` actions, never `AdministratorAccess`, never resources
-   the tool does not use. (`aws iam put-role-policy`.)
-5. `small deploy` again — it must print `✓ aws role: … (verified)`.
-
-**Updating**: when a code change adds a new AWS call, widen the inline policy
-by that one action/resource before redeploying. If a run's log shows
-`AccessDenied`, the message names the blocked operation — add exactly that,
-rerun. Shrink the policy when calls are removed.
-
-Never work around a failed verification or a denied action with access keys
-in `.env` or hard-coded credentials — fix the role.
-
-## Jobs: inputs and outputs
-
-For a script that runs on demand (`kind = "job"`), every non-secret
-`os.environ` read in the script is an input — declare it in `small.toml`
-instead of leaving it an undeclared env var:
-
-```toml
-[inputs]
-image     = { type = "file",   required = true, accept = ".jpg,.png", help = "Photo to analyse" }
-threshold = { type = "number", default = 0.5, min = 0, max = 1 }
-```
-
-Six types: `file`, `number`, `select`, `date`, `text`, `bool`. Callers pass
-them as flags — `small run app --image ./photo.jpg --threshold 0.7` — and the
-script reads scalars from `SMALL_INPUT_<NAME>` env vars (uppercase), file
-paths from `$SMALL_INPUTS/inputs.json`.
-
-Anything the script saves for the user goes in `$SMALL_OUTPUTS` — every file
-written there is captured on the run and fetched with
-`small run app --download ./out`. Do not print results to stdout when a file
-would serve better, and do not write user-facing files anywhere else in the
-container: only `$SMALL_OUTPUTS` survives the machine.
+- The tool calls AWS (boto3, S3, Lambda, …) → read `references/aws.md` before
+  touching small.toml: never AWS keys in `.env`, declare an `[aws]` role, and
+  create/maintain that role yourself with the user's local AWS credentials.
+- The tool is an on-demand script (`kind = "job"`) → read `references/jobs.md`:
+  declare every non-secret env read under `[inputs]`, save user-facing files
+  to `$SMALL_OUTPUTS`.

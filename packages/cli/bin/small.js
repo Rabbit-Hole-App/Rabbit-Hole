@@ -445,11 +445,21 @@ const commands = {
     for (const a of apps) console.log(`${a.name}  ${a.visibility}  owner:${a.owner_email}`);
   },
 
+  // Install the agent skill into this project so Claude Code/Codex knows how to
+  // deploy with small. Files ship inside the npm package (synced at prepack).
+  async skill() {
+    const src = path.join(__dirname, '..', 'assets', 'skill');
+    if (!fs.existsSync(src)) throw new Error('skill assets missing — reinstall: npm i -g small-deploy');
+    const dst = path.join(process.cwd(), '.claude', 'skills', 'small');
+    fs.cpSync(src, dst, { recursive: true });
+    console.log(`✓ skill installed → ${path.join('.claude', 'skills', 'small')} (SKILL.md + references/)`);
+  },
+
 };
 
 const run = commands[cmd];
 if (!run) {
-  console.log('usage: small <login|init|deploy|run|runs|schedule|share|list|logs|review|runbook>');
+  console.log('usage: small <login|init|deploy|run|runs|schedule|share|list|logs|review|runbook|skill>');
   process.exitCode = 1;
 } else {
   run().catch((err) => {

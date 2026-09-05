@@ -10,3 +10,7 @@ for (const name of ['guard.py', 'runner.py']) {
   fs.copyFileSync(src, dst);
   console.log(`synced ${name} -> assets/`);
 }
+
+// the agent skill ships with the CLI so `small skill` can install it into a project
+fs.cpSync(path.join(__dirname, '..', '..', '..', 'skills', 'small'), path.join(__dirname, '..', 'assets', 'skill'), { recursive: true });
+console.log('synced skills/small -> assets/skill/');
