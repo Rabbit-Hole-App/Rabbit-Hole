@@ -221,7 +221,7 @@ export function SlidePanel({ title, width = 560, onClose, children }) {
         transform: shown ? 'translate3d(0,0,0)' : 'translate3d(102%,0,0)',
         transition: 'transform 220ms cubic-bezier(0.25,1,0.35,1)',
       }}
-      className="fixed inset-y-0 right-0 z-30 flex max-w-full flex-col border-l border-line bg-white will-change-transform"
+      className="fixed inset-y-0 right-0 z-30 flex max-w-full flex-col overflow-x-clip border-l border-line bg-white will-change-transform"
     >
       <div className="flex h-11 shrink-0 items-center justify-between pr-3 pl-4">
         <div className="flex min-w-0 items-center gap-2 text-[15px] font-semibold">{title}</div>
