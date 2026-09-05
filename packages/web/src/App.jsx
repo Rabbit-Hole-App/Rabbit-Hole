@@ -82,11 +82,7 @@ function AppContent({ data, load }) {
             <button onClick={() => navigate('/apps')} className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink">{wsName(org)}</button>
             <span className="px-1">/</span> <span className="text-ink">{title}</span>
           </div>
-          {/* a folder view is a sub-page — its title sits a step below the top-level Apps */}
-          <h1 className={`pb-5 leading-[1.2] font-bold tracking-[-0.01em] ${folder ? 'text-[28px]' : 'text-[40px]'}`}>
-            {folder && <FolderIcon size={22} strokeWidth={1.5} className="mr-2 inline-block align-[-2px] text-ink-3" />}
-            {title}
-          </h1>
+          <h1 className="pb-5 text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{title}</h1>
 
           {!data && <SkeletonRows rows={4} />}
           {data?.error && <div className="text-ink-2">✗ {data.error}</div>}
