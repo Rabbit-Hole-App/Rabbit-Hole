@@ -2,8 +2,8 @@
 // and the runs database (Logs tab, jobs). Design: design/flow.md §3b/3c/§4. ───
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowUpDown, Calendar, Circle, Clock, Download, Eye, Filter as FilterIcon, Hash, Inbox,
-  Loader2, Maximize2, Paperclip, Play, Plus, Search as SearchIcon, Type, User, X,
+  ArrowUpDown, Calendar, Circle, Clock, Copy as CopyIcon, Download, Eye, Filter as FilterIcon,
+  Hash, Inbox, Loader2, Maximize2, Paperclip, Play, Plus, Search as SearchIcon, Type, User, X,
 } from 'lucide-react';
 import { ago, api, fmtTime, navigate } from './api.js';
 import {
@@ -297,20 +297,31 @@ export function RunView({ runId, app, onRunAgain }) {
               const f = spec.type === 'file' ? fileFor(k) : null;
               return (
                 <div key={k} className="contents">
-                  <div className="flex h-8 items-center gap-1.5 text-ink-2"><I size={16} strokeWidth={1.5} className="text-ink-3" />{k}</div>
-                  <div className="flex h-8 min-w-0 items-center gap-1.5">
+                  <div className="flex min-h-8 items-center gap-1.5 self-start text-ink-2"><I size={16} strokeWidth={1.5} className="text-ink-3" />{k}</div>
+                  <div className="flex min-h-8 min-w-0 items-center gap-1.5 py-1">
                     {spec.type === 'bool' || typeof v === 'boolean' ? (
                       <Pill>{v ? 'on' : 'off'}</Pill>
                     ) : f ? (
                       <>
-                        <span className="truncate">{String(v)}</span>
-                        <span className="text-xs text-ink-2">{fmtBytes(f.size)}</span>
-                        <a href={`/api/runs/${runId}/inputs/${encodeURIComponent(f.name)}`} download={String(v)} className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink" aria-label={`Download ${k}`}>
+                        <span className="break-all">{String(v)}</span>
+                        <span className="shrink-0 text-xs text-ink-2">{fmtBytes(f.size)}</span>
+                        <a href={`/api/runs/${runId}/inputs/${encodeURIComponent(f.name)}`} download={String(v)} className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink" aria-label={`Download ${k}`}>
                           <Download size={16} strokeWidth={1.5} />
                         </a>
                       </>
                     ) : (
-                      <span className="truncate tabular-nums">{Array.isArray(v) ? v.join(', ') : String(v)}</span>
+                      <>
+                        {/* long values (s3 URIs) wrap instead of clipping, and copy in one click */}
+                        <span className="break-all tabular-nums">{Array.isArray(v) ? v.join(', ') : String(v)}</span>
+                        <IconBtn
+                          aria-label={`Copy ${k}`}
+                          title="Copy"
+                          className="shrink-0"
+                          onClick={() => { navigator.clipboard.writeText(Array.isArray(v) ? v.join(', ') : String(v)); toast('Copied'); }}
+                        >
+                          <CopyIcon size={14} strokeWidth={1.5} />
+                        </IconBtn>
+                      </>
                     )}
                   </div>
                 </div>
@@ -407,10 +418,10 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain }) {
     const v = (r.inputs || {})[c.input];
     if (v == null) return <span className="text-ink-3">—</span>;
     const spec = schema[c.input] || {};
-    if (spec.type === 'file') return <span className="inline-flex min-w-0 items-center gap-1"><Paperclip size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" /><span className="truncate">{String(v)}</span></span>;
+    if (spec.type === 'file') return <span className="inline-flex min-w-0 items-center gap-1"><Paperclip size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" /><span className="break-all">{String(v)}</span></span>;
     if (spec.type === 'bool' || typeof v === 'boolean') return <Pill>{v ? 'on' : 'off'}</Pill>;
     if (spec.type === 'number') return <span className="tabular-nums">{String(v)}</span>;
-    return <span className="truncate">{Array.isArray(v) ? v.join(', ') : String(v)}</span>;
+    return <span className="break-all">{Array.isArray(v) ? v.join(', ') : String(v)}</span>;
   };
 
   const filtered = useMemo(() => {
@@ -563,7 +574,8 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain }) {
                     />
                   </td>
                   {cols.map((c) => (
-                    <td key={c.key} className={cn('overflow-hidden border-b border-line px-2 py-1.5 text-sm whitespace-nowrap', c.right && 'text-right')}>{cell(r, c)}</td>
+                    // input columns wrap (s3 URIs must stay readable); core columns keep one line
+                    <td key={c.key} className={cn('overflow-hidden border-b border-line px-2 py-1.5 align-middle text-sm', c.input ? 'break-words' : 'whitespace-nowrap', c.right && 'text-right')}>{cell(r, c)}</td>
                   ))}
                   <td className="border-b border-line text-right" onClick={(e) => e.stopPropagation()}>
                     {r.status !== 'running' && (
