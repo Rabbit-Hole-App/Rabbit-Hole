@@ -757,6 +757,14 @@ async function startRun(env, app, startedBy, baseUrl, inputs = null, files = [])
     await env.RUNS.put(`runs/${runId}/inputs/${fileNames[name]}`, file);
   }
   try {
+    // [aws] jobs: one STS mint at start — the 1h session outlives a normal run, and a
+    // failed mint fails the run here, not mid-script.
+    // ponytail: no refresh — a job running past 1h loses AWS; add re-mint when one exists.
+    let aws = {};
+    if (app.aws_role_arn) {
+      const c = await assumeRole(env, app.aws_role_arn, `small-${app.org}-${app.name}`, app.org);
+      aws = { AWS_ACCESS_KEY_ID: c.AccessKeyId, AWS_SECRET_ACCESS_KEY: c.SecretAccessKey, AWS_SESSION_TOKEN: c.SessionToken, AWS_REGION: env.AWS_REGION || 'us-east-1' };
+    }
     const machine = await startMachine(env, app.fly_app, {
       image: app.image,
       auto_destroy: true,
@@ -767,6 +775,7 @@ async function startRun(env, app, startedBy, baseUrl, inputs = null, files = [])
         SMALL_RUN_TOKEN: runToken,
         SMALL_USER: startedBy,
         SMALL_API: baseUrl,
+        ...aws,
         ...(inputs ? { SMALL_RUN_INPUTS: JSON.stringify({ values: inputs, files: fileNames }) } : {}),
         ...(startedBy === 'cron' ? { SMALL_TRIGGER: 'cron' } : {}),
       },

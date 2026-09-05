@@ -1,0 +1,16 @@
+name = "s3-job"
+entry = "job.py"
+framework = "script"
+kind = "job"
+
+[aws]
+# small's control plane assumes this role via STS per run and puts the session
+# creds in the job's env — no AWS keys anywhere (trust policy: see docs/v3).
+role_arn = "arn:aws:iam::637423432890:role/small-s3-demo"
+
+[inputs]
+source        = { type = "text", pattern = "^s3://.+", required = true, help = "s3://bucket/key to summarize" }
+output_bucket = { type = "text", pattern = "^s3://.+", required = true, help = "bucket for the report copy" }
+
+[outputs]
+report = { path = "report.json", label = "Object summary" }
