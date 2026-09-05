@@ -316,8 +316,9 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
             <ChevronsLeft size={15} />
           </IconBtn>
         </div>
-        {/* w-auto!: the menu grows to fit the full email instead of clipping it */}
-        <Menu open={wsMenu} onClose={() => setWsMenu(false)} className="top-9 left-2 w-auto! min-w-60 max-w-[340px]">
+        {/* fixed!: the sidebar is a scroll container and clips anything wider than
+            itself — pinning to the viewport lets the menu fit the full email */}
+        <Menu open={wsMenu} onClose={() => setWsMenu(false)} className="fixed! top-11 left-3 w-auto! min-w-60 max-w-[340px]">
           <div className="flex items-center gap-2 px-2 py-1.5">
             {email && <Avatar email={email} />}
             <span className="text-xs whitespace-nowrap text-ink-2">{email}</span>
