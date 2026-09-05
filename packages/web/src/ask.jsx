@@ -62,7 +62,7 @@ export function Md({ text, onFile }) {
   lines.forEach((l, i) => {
     if (fence !== null) {
       if (/^\s*```/.test(l)) {
-        out.push(<CodeBlock key={`f${i}`} className="my-1.5 text-xs">{fence.join('\n')}</CodeBlock>);
+        out.push(<CodeBlock key={`f${i}`} className="my-1.5 text-xs">{fence.map((fl, j) => <div key={j}>{colorLine(fl)}</div>)}</CodeBlock>);
         fence = null;
       } else {
         fence.push(l);
@@ -88,7 +88,7 @@ export function Md({ text, onFile }) {
       out.push(<p key={i} className="my-1">{inline(l)}</p>);
     }
   });
-  if (fence) out.push(<CodeBlock key="f-end" className="my-1.5 text-xs">{fence.join('\n')}</CodeBlock>);
+  if (fence) out.push(<CodeBlock key="f-end" className="my-1.5 text-xs">{fence.map((fl, j) => <div key={j}>{colorLine(fl)}</div>)}</CodeBlock>);
   if (bullets) out.push(<ul key="ul-end" className="my-1 list-disc pl-5">{bullets}</ul>);
   return <div className="text-sm leading-normal">{out}</div>;
 }
