@@ -145,7 +145,7 @@ function publish:skill {
 
 # mirror skills/small into its own repo for humans + npx provenance
 function skill:mirror {
-    (cd "$THIS_DIR" && git subtree push --prefix=skills/small https://github.com/Pipeship-Studio/small-skill.git main)
+    (cd "$THIS_DIR" && git subtree push --prefix=skills/small https://github.com/yudhisteer/small-skill.git main)
 }
 
 # print all functions in this file
