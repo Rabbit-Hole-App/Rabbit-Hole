@@ -425,7 +425,8 @@ export function RunView({ runId, app, onRunAgain }) {
       {inputEntries.length > 0 && (
         <>
           <H3>Inputs</H3>
-          <div className="grid max-w-[520px] grid-cols-[160px_1fr] text-sm">
+          {/* no width cap — the peek's 480px clamps it there; the full page gets the room */}
+          <div className="grid grid-cols-[160px_1fr] text-sm">
             {inputEntries.map(([k, v]) => {
               const spec = schema[k] || {};
               const I = TYPE_ICON[spec.type] || Type;
@@ -556,7 +557,13 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain }) {
     if (spec.type === 'file') return <span className="inline-flex min-w-0 items-center gap-1"><Paperclip size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" /><span className="break-all">{String(v)}</span></span>;
     if (spec.type === 'bool' || typeof v === 'boolean') return <Pill>{v ? 'on' : 'off'}</Pill>;
     if (spec.type === 'number') return <span className="tabular-nums">{String(v)}</span>;
-    return <span className="break-all">{Array.isArray(v) ? v.join(', ') : String(v)}</span>;
+    const s = Array.isArray(v) ? v.join(', ') : String(v);
+    // s3 uris: one line, just the tail — the full uri sits on hover
+    if (/^s3:\/\//.test(s)) {
+      const tail = s.replace(/\/+$/, '').split('/').pop();
+      return <span className="block truncate whitespace-nowrap" title={s}>…/{tail}</span>;
+    }
+    return <span className="break-all">{s}</span>;
   };
 
   const filtered = useMemo(() => {

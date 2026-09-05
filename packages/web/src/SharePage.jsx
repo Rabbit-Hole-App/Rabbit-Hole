@@ -529,7 +529,7 @@ function AppPage({ slug, runId, reloadShell }) {
         {app && runId && (
           <>
             <h1 className="pb-4 text-[32px] leading-[1.2] font-bold tracking-[-0.01em]">Run {runId.replace(/^r-/, '').slice(0, 7)}</h1>
-            <div className="max-w-[640px]">
+            <div>
               <RunView
                 runId={runId}
                 app={app}
