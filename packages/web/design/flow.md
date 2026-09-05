@@ -101,8 +101,11 @@ Apps
                                                                     Count 4
 ```
 
-A Notion database. Click a row → the app page. Hover → `↗` Open for servers, `▶` Run for
-jobs, both act without leaving the list. Empty state: *No apps yet · Copy `small deploy`*.
+A Notion database. **Click a row → the app page** (the project itself). The hover
+affordance is different: **Open** (`↗`) opens a right side peek showing the **runbook** —
+read what it is without leaving the list; `▶` Run for jobs acts in place. App names are
+plain text, not underlined — the whole row is the link, underlining one cell reads as a
+second, different link. Empty state: *No apps yet · Copy `small deploy`*.
 
 ---
 
