@@ -89,3 +89,7 @@ DB = os.path.join(os.environ.get("SMALL_DATA", "."), "tool.db")
   → read `references/aws-compute.md`: check small's own machines cover it
   first, then pick Lambda/Fargate/SageMaker/Batch from three plain questions
   and wire it behind the small app.
+- The AWS side outgrows one hand-made resource, or the user says "production"
+  → read `references/aws-production.md`: one CDK stack per tool in `infra/`,
+  the whole footprint (compute, pipelines, the `[aws]` role itself) as code,
+  `cdk diff` before every deploy.
