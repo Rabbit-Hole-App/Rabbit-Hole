@@ -135,6 +135,11 @@ Kind  server ·  Access  anyone @acme.com ·  Deployed 2h ago ·  Source main ·
 same menu as the sidebar row. **Open** is the primary action for servers; for jobs it's
 replaced by the Run tab being the default.
 
+**Breadcrumb shows the filing path**: an app filed in a folder reads
+`acme / Apps / hhtg / counter` — the folder crumb clicks through to that folder's
+filtered list. Unfiled: `acme / Apps / counter`. Private and Shared apps crumb through
+their section name instead of Apps. (Seen live: folder missing from the crumb.)
+
 **Default tab:** Runbook for servers, Run for jobs. The colleague who arrives from a link
 sees an explanation first for a server, and the thing to do first for a job.
 
