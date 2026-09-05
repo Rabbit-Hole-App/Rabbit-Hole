@@ -171,6 +171,12 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
   ]).then(([people, teams]) => setPool({ people, teams }));
   const [wsMenu, setWsMenu] = useState(false);
   const [newMenu, setNewMenu] = useState(false); // bottom + button popup
+  const [searchOpen, setSearchOpen] = useState(false); // mirrors the ⌘K modal for the icon's active state
+  useEffect(() => {
+    const on = (e) => setSearchOpen(!!e.detail?.open);
+    window.addEventListener('small:search-state', on);
+    return () => window.removeEventListener('small:search-state', on);
+  }, []);
   const [showSettings, setShowSettings] = useState(false);
   const [watchObs, setWatchObs] = useState([]);
   const [watchRuns, setWatchRuns] = useState([]); // my settled runs, last 3 days
@@ -478,11 +484,21 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
 
       {/* icons only — search + notifications share one line, tooltips carry the labels */}
       <div className="flex items-center gap-1 px-0.5">
-        <IconBtn title="Search (Ctrl + K)" aria-label="Search" onClick={() => window.dispatchEvent(new CustomEvent('small:search'))}>
+        <IconBtn
+          title="Search (Ctrl + K)"
+          aria-label="Search"
+          className={cn(searchOpen && 'bg-active text-ink')}
+          onClick={() => window.dispatchEvent(new CustomEvent('small:search'))}
+        >
           <Search size={16} strokeWidth={1.5} />
         </IconBtn>
         <div className="relative">
-          <IconBtn title="Notifications" aria-label="Notifications" onClick={() => { setWatchOpen(true); loadWatch(); markRead(); }}>
+          <IconBtn
+            title="Notifications"
+            aria-label="Notifications"
+            className={cn(watchOpen && 'bg-active text-ink')}
+            onClick={() => { setWatchOpen(true); loadWatch(); markRead(); }}
+          >
             <Bell size={16} strokeWidth={1.5} />
           </IconBtn>
           {unread.length > 0 && (
@@ -715,7 +731,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
         <div className="mt-3 flex items-center gap-2">
           <button
             onClick={() => navigate('/chat')}
-            className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm shadow-sm hover:bg-hover"
+            className={cn('flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full border border-line px-4 text-sm shadow-sm hover:bg-hover', path === '/chat' ? 'bg-active' : 'bg-white')}
           >
             <img src="/icon-32.png" alt="" className="h-4 w-4 shrink-0" />
             New chat

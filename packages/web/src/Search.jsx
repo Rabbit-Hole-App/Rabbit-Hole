@@ -9,6 +9,8 @@ const runbookText = (rb) => [...rb.matchAll(/"text":"((?:[^"\\]|\\.)*)"/g)].map(
 // ⌘K search modal. Self-contained: opens on Ctrl/⌘K or a 'small:search' event.
 export default function SearchModal() {
   const [open, setOpen] = useState(false);
+  // the sidebar's search icon highlights while the modal is up
+  useEffect(() => { window.dispatchEvent(new CustomEvent('small:search-state', { detail: { open } })); }, [open]);
   const [data, setData] = useState(null); // { org, apps } — fetched once, on first open
   const [q, setQ] = useState('');
   const [hi, setHi] = useState(0);
