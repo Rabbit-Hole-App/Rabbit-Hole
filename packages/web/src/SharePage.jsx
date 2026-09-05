@@ -488,7 +488,11 @@ function AppPage({ slug, runId, reloadShell }) {
 
   return (
     <main className="flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-[900px] px-24 py-12 max-lg:px-8 max-md:px-4 max-md:py-6">
+      {/* run pages carve out the fixed 400px chat panel and center in what's left */}
+      <div className={cn(
+        'py-12 max-lg:px-8 max-md:px-4 max-md:py-6',
+        runId ? 'mx-auto max-w-[860px] px-12 lg:mr-[416px]' : 'mx-auto max-w-[900px] px-24',
+      )}>
         <div className="flex items-center gap-1 pb-8 text-sm text-ink-2">
           <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate('/apps')}>{wsName(app?.org)}</button>
           <span>/</span>
@@ -587,7 +591,7 @@ function AppPage({ slug, runId, reloadShell }) {
             <h1 className="pb-4 text-[32px] leading-[1.2] font-bold tracking-[-0.01em]">Run {runId.replace(/^r-/, '').slice(0, 7)}</h1>
             {/* split view: run content left; the chat is a real right panel pinned to
                 the window edge, full height - messages scroll inside it, textbox stays put */}
-            <div className="min-w-0 lg:mr-[416px]">
+            <div className="min-w-0">
               <RunView
                 runId={runId}
                 app={app}
