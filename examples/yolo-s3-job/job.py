@@ -26,3 +26,13 @@ result.save(filename=os.path.join(out_dir, "annotated.jpg"))
 with open(os.path.join(out_dir, "boxes.json"), "w") as f:
     json.dump(boxes, f)
 print(f"{len(boxes)} detections at conf >= {threshold}")
+
+# optional S3 copy of the results, next to nothing extra: s3://bucket/yolo/<name>.*
+dest = os.environ.get("SMALL_INPUT_OUTPUT_BUCKET")
+if dest:
+    dest_bucket = dest.removeprefix("s3://").rstrip("/")
+    stem = os.path.splitext(os.path.basename(key))[0]
+    s3 = boto3.client("s3")
+    s3.upload_file(os.path.join(out_dir, "annotated.jpg"), dest_bucket, f"yolo/{stem}.annotated.jpg")
+    s3.upload_file(os.path.join(out_dir, "boxes.json"), dest_bucket, f"yolo/{stem}.boxes.json")
+    print(f"copied results to s3://{dest_bucket}/yolo/{stem}.*")

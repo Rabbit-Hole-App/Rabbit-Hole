@@ -9,8 +9,9 @@ system = ["libgl1", "libglib2.0-0"]
 role_arn = "arn:aws:iam::637423432890:role/small-s3-demo"
 
 [inputs]
-source    = { type = "text", pattern = "^s3://.+", required = true, help = "s3://bucket/key of the image to run detection on" }
-threshold = { type = "number", default = 0.5, min = 0, max = 1 }
+source        = { type = "text", pattern = "^s3://.+", required = true, help = "s3://bucket/key of the image to run detection on" }
+output_bucket = { type = "text", pattern = "^s3://.+", help = "optional bucket — annotated image and boxes are copied there" }
+threshold     = { type = "number", default = 0.5, min = 0, max = 1 }
 
 [outputs]
 annotated = { path = "annotated.jpg", label = "Annotated image" }
