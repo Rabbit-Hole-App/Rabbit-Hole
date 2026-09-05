@@ -509,6 +509,29 @@ async function apiAppFind(req, env, user) {
   return json({ apps: names, note: names.length ? '' : String(out.note || '').slice(0, 200) });
 }
 
+// Same idea for one app's runs table: sentence query in, matching run ids out.
+async function apiRunsFind(req, env, user) {
+  const { app: name, q } = await req.json();
+  if (!q || !env.ANTHROPIC_API_KEY) return json({ runs: [] });
+  const app = await appForUser(env, user, name);
+  if (!app || !app.canView) return json({ error: 'no access' }, 403);
+  const { results } = await env.DB.prepare(
+    'SELECT run_id, status, exit_code, started_by, started_at, finished_at, inputs FROM runs WHERE app_id = ? ORDER BY id DESC LIMIT 200'
+  ).bind(app.id).all();
+  const catalog = results.map((r) =>
+    `${r.run_id} · ${r.status}${r.exit_code != null ? ` exit ${r.exit_code}` : ''} · by ${r.started_by} · ${r.started_at}${r.inputs ? ` · inputs ${r.inputs}` : ''}`
+  ).join('\n');
+  const answer = await askOnce(
+    env,
+    `Runs of app ${name}:\n${catalog}`,
+    `The user is looking for: "${String(q).slice(0, 300)}". Reply ONLY with JSON like {"runs":["r-abc"],"note":""} - runs = matching run ids, best first. If none fit, runs is [] and note is ONE short friendly sentence.`
+  );
+  let out = {};
+  try { out = JSON.parse((answer.match(/\{[\s\S]*\}/) || ['{}'])[0]); } catch { /* off-script reply, no matches */ }
+  const ids = (Array.isArray(out.runs) ? out.runs : []).filter((id) => results.some((r) => r.run_id === id));
+  return json({ runs: ids, note: ids.length ? '' : String(out.note || '').slice(0, 200) });
+}
+
 // The 2-3 line blurb under the title - model-written on first deploy, edits here stick.
 async function apiAppDescription(req, env, user, name) {
   const app = await appForUser(env, user, name);
@@ -1935,6 +1958,7 @@ export default {
         if (path === '/api/image' && req.method === 'POST') return await apiImage(req, env, user);
         if (path === '/api/runs' && req.method === 'POST') return await apiRunStart(req, env, user, baseUrl);
         if (path === '/api/runs' && req.method === 'GET') return await apiRunsList(req, env, user);
+        if (path === '/api/runs/find' && req.method === 'POST') return await apiRunsFind(req, env, user);
         const runGet = path.match(/^\/api\/runs\/([\w-]+)$/);
         if (runGet && req.method === 'GET') return await apiRunGet(req, env, user, runGet[1]);
         const runOutputs = path.match(/^\/api\/runs\/([\w-]+)\/outputs$/);

@@ -540,11 +540,24 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [q, setQ] = useState('');
   const [menu, setMenu] = useState(null); // 'filter' | 'sort' | 'props'
-  const [selected, setSelected] = useState(() => new Set());
   const [hidden, setHidden] = useState(() => new Set(JSON.parse(localStorage.getItem(`small.cols.${slug}`) || '[]')));
   const [widths, setWidths] = useState(() => JSON.parse(localStorage.getItem(`small.tblw.${slug}`) || '{}'));
 
   useEffect(() => { api(`/api/runs?app=${encodeURIComponent(slug)}`).then((d) => setRuns(d.runs)).catch(() => setRuns([])); }, [slug]);
+
+  // sentence queries in the search box go to the model, which picks runs by
+  // status/inputs/when; short strings stay instant substring matching
+  const [aiRuns, setAiRuns] = useState(null); // null | 'loading' | { ids, note }
+  useEffect(() => {
+    if (!q || q.trim().split(/\s+/).length < 4) { setAiRuns(null); return; }
+    setAiRuns('loading');
+    const t = setTimeout(() => {
+      api('/api/runs/find', { method: 'POST', body: JSON.stringify({ app: slug, q }) })
+        .then((d) => setAiRuns({ ids: d.runs || [], note: d.note || '' }))
+        .catch(() => setAiRuns(null));
+    }, 600);
+    return () => clearTimeout(t);
+  }, [q, slug]);
 
   const schema = app.inputs || {};
   const inputCols = Object.keys(schema).filter((k) => !hidden.has(k));
@@ -583,10 +596,14 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain }) {
         : f.field === 'by' ? r.started_by === f.value
         : String((r.inputs || {})[f.field] ?? '') === String(f.value)));
     if (q.trim()) {
-      const qq = q.trim().toLowerCase();
-      out = out.filter((r) =>
-        r.run_id.includes(qq) || (r.started_by || '').toLowerCase().includes(qq) || r.status.includes(qq) ||
-        Object.values(r.inputs || {}).some((v) => String(v).toLowerCase().includes(qq)));
+      if (aiRuns && aiRuns !== 'loading') {
+        out = aiRuns.ids.map((id) => out.find((r) => r.run_id === id)).filter(Boolean);
+      } else {
+        const qq = q.trim().toLowerCase();
+        out = out.filter((r) =>
+          r.run_id.includes(qq) || (r.started_by || '').toLowerCase().includes(qq) || r.status.includes(qq) ||
+          Object.values(r.inputs || {}).some((v) => String(v).toLowerCase().includes(qq)));
+      }
     }
     out = out.slice().sort((a, b) => {
       const va = sort.field === 'dur' ? (durOf(a) ?? -1) : a.started_at || '';
@@ -594,7 +611,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain }) {
       return (va < vb ? -1 : va > vb ? 1 : 0) * (sort.dir === 'asc' ? 1 : -1);
     });
     return out;
-  }, [runs, filters, q, sort]);
+  }, [runs, filters, q, sort, aiRuns]);
 
   const saveWidth = (key, w) => setWidths((s) => {
     const next = { ...s, [key]: w };
@@ -666,7 +683,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain }) {
           </Menu>
         </div>
         {searchOpen ? (
-          <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onBlur={() => !q && setSearchOpen(false)} placeholder="Search runs…" className="ml-1 w-48" />
+          <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onBlur={() => !q && setSearchOpen(false)} placeholder="Describe what you are looking for" className="ml-1 w-72" />
         ) : (
           <IconBtn aria-label="Search runs" onClick={() => setSearchOpen(true)}><SearchIcon size={14} strokeWidth={1.5} /></IconBtn>
         )}
@@ -692,12 +709,13 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain }) {
         </div>
       ) : (
         <div className="overflow-x-auto">
+          {aiRuns === 'loading' && <div className="px-2 py-1 text-xs text-ink-3">Thinking…</div>}
+          {aiRuns?.ids?.length === 0 && <div className="px-2 py-1 text-sm text-ink-2">{aiRuns.note || 'No runs match that.'}</div>}
           {/* fixed layout + explicit total width: columns keep their exact px (resize persists);
               the wrapper scrolls horizontally when the columns outgrow the page */}
-          <table className="border-collapse" style={{ tableLayout: 'fixed', width: 60 + cols.reduce((s, c) => s + (widths[c.key] || c.w), 0) }}>
+          <table className="border-collapse" style={{ tableLayout: 'fixed', width: 32 + cols.reduce((s, c) => s + (widths[c.key] || c.w), 0) }}>
             <thead>
               <tr>
-                <th className="w-7 border-b border-line" />
                 {cols.map((c) => (
                   <th
                     key={c.key}
@@ -716,14 +734,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain }) {
             </thead>
             <tbody>
               {filtered.map((r) => (
-                <tr key={r.run_id} onClick={() => onOpen(r.run_id)} className={cn('group cursor-pointer hover:bg-hover', selected.has(r.run_id) && 'bg-[#E7F3FF] hover:bg-[#E7F3FF]')}>
-                  <td className="border-b border-line px-1.5" onClick={(e) => e.stopPropagation()}>
-                    <Chk
-                      on={selected.has(r.run_id)}
-                      className={cn('opacity-0 group-hover:opacity-100', selected.has(r.run_id) && 'opacity-100')}
-                      onClick={() => setSelected((s) => { const n = new Set(s); n.has(r.run_id) ? n.delete(r.run_id) : n.add(r.run_id); return n; })}
-                    />
-                  </td>
+                <tr key={r.run_id} onClick={() => onOpen(r.run_id)} className="group cursor-pointer hover:bg-hover">
                   {cols.map((c) => (
                     // input columns wrap (s3 URIs must stay readable); core columns keep one line
                     <td key={c.key} className={cn('overflow-hidden border-b border-line px-2 py-1.5 align-middle text-sm', c.input ? 'break-words' : 'whitespace-nowrap', c.right && 'text-right')}>{cell(r, c)}</td>
@@ -742,7 +753,6 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain }) {
                 ponytail: fixed picks - click-to-choose count/sum/avg when someone asks */}
             <tfoot>
               <tr>
-                <td />
                 <td className="h-7 px-2 text-xs text-ink-3">Count {filtered.length}</td>
                 <td colSpan={3} />
                 <td className="h-7 px-2 text-right text-xs whitespace-nowrap text-ink-3">{avg != null && `Avg ${fmtDur(avg)}`}</td>
