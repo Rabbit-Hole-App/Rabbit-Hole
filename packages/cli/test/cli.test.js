@@ -280,6 +280,8 @@ test('small skill installs SKILL.md + references into .claude/skills/small', () 
   assert.match(fs.readFileSync(path.join(base, 'references', 'jobs.md'), 'utf8'), /SMALL_OUTPUTS/);
   assert.match(fs.readFileSync(path.join(base, 'references', 'aws-compute.md'), 'utf8'), /Lambda/);
   assert.match(fs.readFileSync(path.join(base, 'references', 'aws-production.md'), 'utf8'), /cdk diff/);
+  // payload only: the skill dir doubles as the small-skill npm package, none of that ships into .claude
+  assert.ok(!fs.existsSync(path.join(base, 'package.json')) && !fs.existsSync(path.join(base, 'bin')), 'installer files leaked into the installed skill');
 });
 
 test('dockerfile + write for counter example', () => {

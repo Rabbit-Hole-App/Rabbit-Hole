@@ -447,11 +447,17 @@ const commands = {
 
   // Install the agent skill into this project so Claude Code/Codex knows how to
   // deploy with small. Files ship inside the npm package (synced at prepack).
+  // Payload only — the skill dir is also the standalone small-skill npm package,
+  // and its installer/package.json must not land in .claude/skills.
   async skill() {
     const src = path.join(__dirname, '..', 'assets', 'skill');
     if (!fs.existsSync(src)) throw new Error('skill assets missing — reinstall: npm i -g small-deploy');
     const dst = path.join(process.cwd(), '.claude', 'skills', 'small');
-    fs.cpSync(src, dst, { recursive: true });
+    fs.mkdirSync(path.join(dst, 'references'), { recursive: true });
+    fs.copyFileSync(path.join(src, 'SKILL.md'), path.join(dst, 'SKILL.md'));
+    for (const f of fs.readdirSync(path.join(src, 'references'))) {
+      if (f.endsWith('.md')) fs.copyFileSync(path.join(src, 'references', f), path.join(dst, 'references', f));
+    }
     console.log(`✓ skill installed → ${path.join('.claude', 'skills', 'small')} (SKILL.md + references/)`);
   },
 

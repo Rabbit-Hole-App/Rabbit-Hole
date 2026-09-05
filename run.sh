@@ -138,6 +138,16 @@ function publish:cli {
     (cd "$THIS_DIR/packages/cli" && npm test && npm publish)
 }
 
+# publish the agent skill to npm as small-skill: bump skills/small/package.json first
+function publish:skill {
+    (cd "$THIS_DIR" && .venv/Scripts/python.exe -m pytest tests/unit_tests/skills -q && cd skills/small && npm publish)
+}
+
+# mirror skills/small into its own repo for humans + npx provenance
+function skill:mirror {
+    (cd "$THIS_DIR" && git subtree push --prefix=skills/small https://github.com/Pipeship-Studio/small-skill.git main)
+}
+
 # print all functions in this file
 function help {
     echo "$0 <task> <args>"
