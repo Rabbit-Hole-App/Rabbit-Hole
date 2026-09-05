@@ -144,6 +144,25 @@ def test_download_fetches_outputs(run_result, job_dir):
         shutil.rmtree(out, ignore_errors=True)
 
 
+def test_deploy_stores_inputs_schema(deployed, auth):
+    status, body = http("GET", f"{API}/api/apps/{APP_NAME}", headers=auth)
+    assert status == 200, body
+    app = json.loads(body)
+    assert app["inputs"]["image"]["type"] == "file", app["inputs"]
+    assert app["inputs"]["threshold"] == {"type": "number", "default": 0.5, "min": 0, "max": 1}, app["inputs"]
+    assert app["outputs"]["annotated"]["path"] == "annotated.jpg", app["outputs"]
+
+
+def test_remote_schema_validates_away_from_app_dir(deployed):
+    """No small.toml in cwd: the schema stored at deploy still rejects a bad flag value."""
+    r = subprocess.run(
+        [small(), "run", APP_NAME, "--image", str(FIXTURE_IMAGE), "--threshold", "2"],
+        cwd=tempfile.gettempdir(), capture_output=True, text=True, timeout=120, encoding="utf-8", errors="replace",
+    )
+    assert r.returncode != 0
+    assert "out of range" in (r.stdout + r.stderr), f"{r.stdout}\n{r.stderr}"
+
+
 def test_out_of_range_threshold_fails_before_upload(deployed, job_dir, auth):
     before = http("GET", f"{API}/api/runs?app={APP_NAME}", headers=auth)[1]
     r = subprocess.run(

@@ -58,6 +58,10 @@ fetch: small run yolo-job --download ./out
 - `GET /api/runs/<id>/outputs` → `{ outputs: [{ name, size }] }`
 - `GET /api/runs/<id>/outputs/<name>` → the file bytes.
 - Uploads capped at 100 MB per run.
+- Deploy sends `inputs` and `outputs` (the toml tables verbatim; null clears a removed
+  section); stored on the app row (`0010-input-schema.sql`) and returned by
+  `GET /api/apps/<slug>` as `inputs`/`outputs`. The web Run form renders from them, and
+  `small run` fetches `inputs` to validate when no local small.toml is present.
 
 ## Runtime
 

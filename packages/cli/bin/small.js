@@ -326,10 +326,17 @@ const commands = {
     const name = flags._[0] || appName(process.cwd());
     if (flags.download) return downloadOutputs(name, typeof flags.download === 'string' ? flags.download : '.');
 
-    const cfg = localConfig(name);
+    let cfg = localConfig(name);
     if (cfg) inputs.checkSchema(cfg);
-    const extra = Object.keys(flags).filter((k) => !['_', 'app'].includes(k));
-    if (!cfg && extra.length) throw new Error(`--${extra[0]}: no small.toml for ${name} here — run from the app directory to pass inputs`);
+    if (!cfg) {
+      // away from the app dir: the schema stored at deploy still validates flags and required inputs
+      const remote = await call('GET', `/api/apps/${encodeURIComponent(name)}`).catch(() => null);
+      if (remote && remote.inputs) cfg = { inputs: remote.inputs };
+      else {
+        const extra = Object.keys(flags).filter((k) => !['_', 'app'].includes(k));
+        if (extra.length) throw new Error(`--${extra[0]}: ${name} declares no inputs (or the control plane predates them)`);
+      }
+    }
     const { values, files } = cfg ? inputs.validate(cfg.inputs, flags) : { values: {}, files: {} };
 
     if (Object.keys(values).length) {
