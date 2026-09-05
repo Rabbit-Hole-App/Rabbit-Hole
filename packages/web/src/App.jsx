@@ -157,7 +157,7 @@ function AppContent({ data, load }) {
                     return (
                       <tr
                         key={`${a.org}/${a.name}`}
-                        onClick={() => setPanel({ name: a.name, tab: 'runbook' })}
+                        onClick={() => navigate(`/apps/${a.name}`)} // row = the full app page; the OPEN pill = side peek
                         className="group cursor-pointer hover:bg-hover"
                       >
                         <td className={td}>
@@ -165,7 +165,7 @@ function AppContent({ data, load }) {
                           <span className={`flex items-center gap-1.5 font-medium${a.__grouped ? ' pl-6' : ''}`}>
                             <KindIcon kind={a.kind} schedule={a.schedule} />
                             <button
-                              className="cursor-pointer hover:underline"
+                              className="cursor-pointer"
                               onClick={(e) => { e.stopPropagation(); navigate(`/apps/${a.name}`); }}
                             >
                               {a.name}
