@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpRight, Clock, Folder as FolderIcon, Inbox, Loader2, PanelRight, Play, Search, Square } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, ChevronRight, Clock, Folder as FolderIcon, Inbox, Loader2, PanelRight, Play, Search, Square } from 'lucide-react';
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
 import Shell from './Shell.jsx';
@@ -36,6 +36,14 @@ function AppContent({ data, load }) {
     load();
   };
 
+  // folder groups in the table collapse like the sidebar's, remembered per device
+  const [closedGroups, setClosedGroups] = useState(() => JSON.parse(localStorage.getItem('small.tblFolders') || '{}'));
+  const toggleGroup = (id) => setClosedGroups((s) => {
+    const next = { ...s, [id]: !s[id] };
+    localStorage.setItem('small.tblFolders', JSON.stringify(next));
+    return next;
+  });
+
   const apps = data?.apps || [];
   const org = data?.org || 'small';
   // ?s=shared / ?s=private — the sidebar section labels filter this overview;
@@ -54,7 +62,9 @@ function AppContent({ data, load }) {
     ? [
         ...folders.flatMap((g) => {
           const list = rows.filter((a) => a.folder_id === g.id);
-          return list.length ? [{ __folder: g, count: list.length }, ...list.map((a) => ({ ...a, __grouped: true }))] : [];
+          if (!list.length) return [];
+          const isClosed = !!closedGroups[g.id];
+          return [{ __folder: g, count: list.length, closed: isClosed }, ...(isClosed ? [] : list.map((a) => ({ ...a, __grouped: true })))];
         }),
         ...rows.filter((a) => !folders.some((g) => g.id === a.folder_id)),
       ]
@@ -128,7 +138,14 @@ function AppContent({ data, load }) {
                           className="cursor-pointer hover:bg-hover"
                         >
                           <td colSpan={7} className="border-b border-line px-2 pt-3 pb-1">
-                            <span className="flex items-center gap-1.5 text-xs font-medium text-ink-2">
+                            <span className="flex items-center gap-1 text-xs font-medium text-ink-2">
+                              <button
+                                aria-label={a.closed ? `Expand ${a.__folder.name}` : `Collapse ${a.__folder.name}`}
+                                onClick={(e) => { e.stopPropagation(); toggleGroup(a.__folder.id); }}
+                                className="cursor-pointer rounded-sm p-0.5 text-ink-3 hover:bg-active hover:text-ink"
+                              >
+                                {a.closed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+                              </button>
                               <FolderIcon size={14} strokeWidth={1.5} className="text-ink-3" />
                               {a.__folder.name}
                               <span className="font-normal text-ink-3">{a.count}</span>
