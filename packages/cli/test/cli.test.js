@@ -278,6 +278,7 @@ test('small skill installs SKILL.md + references into .claude/skills/small', () 
   assert.match(fs.readFileSync(path.join(base, 'SKILL.md'), 'utf8'), /name: small/);
   assert.match(fs.readFileSync(path.join(base, 'references', 'aws.md'), 'utf8'), /trust policy/);
   assert.match(fs.readFileSync(path.join(base, 'references', 'jobs.md'), 'utf8'), /SMALL_OUTPUTS/);
+  assert.match(fs.readFileSync(path.join(base, 'references', 'aws-compute.md'), 'utf8'), /Lambda/);
 });
 
 test('dockerfile + write for counter example', () => {

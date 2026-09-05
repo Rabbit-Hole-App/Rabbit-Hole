@@ -85,3 +85,7 @@ DB = os.path.join(os.environ.get("SMALL_DATA", "."), "tool.db")
 - The tool is an on-demand script (`kind = "job"`) → read `references/jobs.md`:
   declare every non-secret env read under `[inputs]`, save user-facing files
   to `$SMALL_OUTPUTS`.
+- The user wants the heavy part "to run on AWS" (big model, GPU, batch volume)
+  → read `references/aws-compute.md`: check small's own machines cover it
+  first, then pick Lambda/Fargate/SageMaker/Batch from three plain questions
+  and wire it behind the small app.
