@@ -2,7 +2,7 @@
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, AtSign, History, Loader2, MoreHorizontal, Paperclip, Pencil, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { ArrowUp, AtSign, Copy, History, Loader2, MoreHorizontal, Paperclip, Pencil, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { ago, api } from './api.js';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
@@ -93,6 +93,25 @@ export function Md({ text, onFile }) {
   return <div className="text-sm leading-normal">{out}</div>;
 }
 
+// Tiny per-line tokenizer for the file peek — comments, strings, keywords,
+// numbers. React spans only, no HTML. ponytail: no multi-line strings, and
+// python keywords double for toml well enough.
+const PY_TOKEN = /(#.*$)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\b(def|class|import|from|return|if|elif|else|for|while|try|except|finally|with|as|in|not|and|or|None|True|False|lambda|raise|pass|break|continue|global|yield|assert|del|is|print)\b|\b(\d+(?:\.\d+)?)\b/g;
+const TOKEN_COLOR = { c: '#9B9A97', s: '#448361', k: '#9065B0', n: '#D9730D' };
+
+function colorLine(line) {
+  const out = [];
+  let last = 0;
+  for (const m of line.matchAll(PY_TOKEN)) {
+    if (m.index > last) out.push(line.slice(last, m.index));
+    const kind = m[1] ? 'c' : m[2] ? 's' : m[3] ? 'k' : 'n';
+    out.push(<span key={m.index} style={{ color: TOKEN_COLOR[kind] }}>{m[0]}</span>);
+    last = m.index + m[0].length;
+  }
+  if (last < line.length) out.push(line.slice(last));
+  return out.length ? out : ' ';
+}
+
 // The cited file in a side panel, scrolled to (and highlighting) the cited line.
 function FilePeek({ appName, path, line, lineEnd, onClose }) {
   const hi = (n) => line && n >= line && n <= (lineEnd || line);
@@ -108,16 +127,32 @@ function FilePeek({ appName, path, line, lineEnd, onClose }) {
     if (content && lineRef.current) lineRef.current.scrollIntoView({ block: 'center' });
   }, [content]);
   return (
-    <SlidePanel width={560} onClose={onClose} title={<span className="truncate font-mono text-sm">{path}{line ? `:${line}${lineEnd ? `-${lineEnd}` : ''}` : ''}</span>}>
+    <SlidePanel
+      width={560}
+      onClose={onClose}
+      title={
+        <>
+          <span className="truncate font-mono text-sm">{path}{line ? `:${line}${lineEnd ? `-${lineEnd}` : ''}` : ''}</span>
+          <button
+            aria-label="Copy file"
+            title="Copy"
+            onClick={() => { navigator.clipboard.writeText(content || ''); }}
+            className="inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink"
+          >
+            <Copy size={13} strokeWidth={1.5} />
+          </button>
+        </>
+      }
+    >
       <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-5">
         {err && <div className="text-sm text-ink-2">✗ {err}</div>}
         {content == null && !err && <Loader2 size={14} className="animate-spin text-ink-3" />}
         {content != null && (
           <pre className="rounded-sm bg-code p-3 font-mono text-xs leading-relaxed text-ink">
             {content.split('\n').map((l, i) => (
-              <div key={i} ref={i + 1 === line ? lineRef : null} className={cn('flex gap-3 px-1', hi(i + 1) && 'rounded-xs bg-[#FDECC8] dark:bg-active')}>
+              <div key={i} ref={i + 1 === line ? lineRef : null} className={cn('flex gap-3 px-1', hi(i + 1) && 'rounded-xs bg-[#DBEDDB] dark:bg-[#1C3829]')}>
                 <span className="w-7 shrink-0 text-right text-ink-3 select-none">{i + 1}</span>
-                <span className="whitespace-pre-wrap">{l || ' '}</span>
+                <span className="whitespace-pre-wrap">{colorLine(l)}</span>
               </div>
             ))}
           </pre>
