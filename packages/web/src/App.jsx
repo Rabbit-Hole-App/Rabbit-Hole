@@ -54,7 +54,7 @@ function AppContent({ data, load }) {
     ? [
         ...folders.flatMap((g) => {
           const list = rows.filter((a) => a.folder_id === g.id);
-          return list.length ? [{ __folder: g, count: list.length }, ...list] : [];
+          return list.length ? [{ __folder: g, count: list.length }, ...list.map((a) => ({ ...a, __grouped: true }))] : [];
         }),
         ...rows.filter((a) => !folders.some((g) => g.id === a.folder_id)),
       ]
@@ -145,7 +145,8 @@ function AppContent({ data, load }) {
                         className="group cursor-pointer hover:bg-hover"
                       >
                         <td className={td}>
-                          <span className="flex items-center gap-1.5 font-medium">
+                          {/* grouped rows indent under their folder header */}
+                          <span className={`flex items-center gap-1.5 font-medium${a.__grouped ? ' pl-6' : ''}`}>
                             <KindIcon kind={a.kind} schedule={a.schedule} />
                             <button
                               className="cursor-pointer hover:underline"
