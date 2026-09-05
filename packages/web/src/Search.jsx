@@ -20,7 +20,7 @@ export default function SearchModal() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setOpen(true); }
       if (e.key === 'Escape') close();
     };
-    const onOpen = () => setOpen(true);
+    const onOpen = (e) => { setOpen(true); if (e.detail?.mode) setMode(e.detail.mode); };
     window.addEventListener('keydown', onKey);
     window.addEventListener('small:search', onOpen);
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('small:search', onOpen); };

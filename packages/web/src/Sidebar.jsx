@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Bell, ChevronDown, ChevronRight, ChevronsLeft, Copy, ExternalLink, Folder, FolderPlus, Link, LogOut, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, Bell, ChevronDown, ChevronRight, ChevronsLeft, Copy, ExternalLink, Folder, FolderPlus, Link, LogOut, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Sparkles, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, wsName } from './api.js';
 import { Avatar, Button, cn, ConfirmDialog, IconBtn, KindIcon, Menu, MenuItem, Select, ShareInput, SlidePanel, toast } from './ui.jsx';
 
@@ -348,7 +348,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => { e.preventDefault(); setDragging(null); setDropTarget(null); }} // outside a real target = cancel
       style={{ width }}
-      className="group/sb relative flex shrink-0 flex-col overflow-y-auto border-r border-line bg-side px-2 py-2 max-md:hidden"
+      className="group/sb relative flex shrink-0 flex-col overflow-x-hidden overflow-y-auto border-r border-line bg-side px-2 py-2 max-md:hidden"
     >
       <div
         onMouseDown={startResize}
@@ -629,6 +629,13 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
         >
           <Trash2 size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
           Trash
+        </button>
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('small:search', { detail: { mode: 'ask' } }))}
+          className="mt-3 flex h-9 w-full items-center gap-2 rounded-full border border-line bg-white px-4 text-sm shadow-sm hover:bg-hover"
+        >
+          <Sparkles size={15} strokeWidth={1.5} className="shrink-0 text-ink-2" />
+          New chat
         </button>
       </div>
 
