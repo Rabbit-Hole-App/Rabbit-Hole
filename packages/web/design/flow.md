@@ -74,6 +74,12 @@ app changes nothing about access — but a folder can itself be **shared** with 
 Drag an app onto a folder, Private, or the workspace root to move it; moves that change
 visibility confirm first.
 
+**Layering rule:** every popover and modal born in the sidebar (workspace menu,
+Settings, row `⋯` menus, Trash panel) renders **above and outside** the sidebar —
+portal to the document root, never clipped by the sidebar's `overflow` or width and
+never under the content pane (seen live: the workspace menu and Settings modal cut
+off at the sidebar edge).
+
 **Click an app** → `/apps/<slug>`, §3.
 **Click Members** → `/members`, §6.
 **Click Settings** → `/settings`, §7.
