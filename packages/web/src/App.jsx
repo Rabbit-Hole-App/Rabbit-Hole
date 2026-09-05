@@ -138,7 +138,7 @@ function AppContent({ data, load }) {
                           className="cursor-pointer hover:bg-hover"
                         >
                           <td colSpan={7} className="border-b border-line px-2 pt-3 pb-1">
-                            <span className="flex items-center gap-1 text-xs font-medium text-ink-2">
+                            <span className="flex items-center gap-1 text-sm font-medium">
                               <button
                                 aria-label={a.closed ? `Expand ${a.__folder.name}` : `Collapse ${a.__folder.name}`}
                                 onClick={(e) => { e.stopPropagation(); toggleGroup(a.__folder.id); }}
@@ -146,9 +146,9 @@ function AppContent({ data, load }) {
                               >
                                 {a.closed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
                               </button>
-                              <FolderIcon size={14} strokeWidth={1.5} className="text-ink-3" />
+                              <FolderIcon size={15} strokeWidth={1.5} className="text-ink-2" />
                               {a.__folder.name}
-                              <span className="font-normal text-ink-3">{a.count}</span>
+                              <span className="text-xs font-normal text-ink-3">{a.count}</span>
                             </span>
                           </td>
                         </tr>
