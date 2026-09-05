@@ -787,8 +787,18 @@ async function slackInbound(req, env, ctx, kind, baseUrl) {
     return json({ ok: true });
   }
   if (kind === 'command') {
-    const res = await handleSlackCommand(env, ctx, install, payload, deps, baseUrl);
-    return json({ response_type: 'ephemeral', ...res });
+    // same 3s deadline — /small run calls the model, so ack now and reply via response_url
+    ctx.waitUntil((async () => {
+      const res = await handleSlackCommand(env, ctx, install, payload, deps, baseUrl).catch((e) => ({ text: `✗ ${e.message}` }));
+      if (res?.text) {
+        await fetch(payload.response_url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ response_type: 'ephemeral', ...res }),
+        });
+      }
+    })());
+    return new Response('', { status: 200 });
   }
   ctx.waitUntil(handleSlackInteract(env, ctx, install, payload, deps, baseUrl).catch(() => {}));
   return json({ ok: true });
