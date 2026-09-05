@@ -4,6 +4,7 @@ import { sign, verify, sha256, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
 import { ASK_MODELS, ASK_TOOLS, askOnce, askStream, capJoin, DIAGNOSIS_PROMPT, diffBundles, getBundle, parseBundle } from './ask.js';
 import { assumeRole, s3Buckets, s3Get, s3List } from './aws.js';
+import { handleSlackCommand, handleSlackEvent, handleSlackInteract, slackApi, verifySlackSignature } from './slack.js';
 import { runWatchPass, weeklyWatchEmail } from './watch.js';
 import { runReview, generateRunbook } from './review.js';
 import { parseCron, matches, nextRun } from './cron.js';
@@ -743,6 +744,88 @@ async function apiAsk(req, env, ctx, user) {
   }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId);
 }
 
+// ---------- Slack adapter (transport for Ask) ----------
+
+const SLACK_DEPS = {
+  askHandler: (req, env, ctx, user) => apiAsk(req, env, ctx, user),
+  approveHandler: (req, env, ctx, user, baseUrl) => apiAskApprove(req, env, ctx, user, baseUrl),
+  runsHandler: (req, env, user) => apiRunsList(req, env, user),
+  watchHandler: (req, env, user) => apiWatchList(req, env, user),
+  canEditApp: async (env, user, name) => {
+    const app = await appRow(env, user.org, name);
+    return !!app && (await canEdit(env, app, user.email));
+  },
+};
+
+async function slackInstallFor(env, teamId) {
+  return env.DB.prepare('SELECT * FROM slack_installs WHERE team_id = ?').bind(teamId).first();
+}
+
+// Every inbound Slack request: raw body first, signature second, work third.
+async function slackInbound(req, env, ctx, kind, baseUrl) {
+  const raw = await req.text();
+  let payload, teamId;
+  if (kind === 'events') {
+    payload = JSON.parse(raw);
+    if (payload.type === 'url_verification') return json({ challenge: payload.challenge });
+    teamId = payload.team_id;
+  } else {
+    const form = Object.fromEntries(new URLSearchParams(raw));
+    payload = kind === 'interact' ? JSON.parse(form.payload || '{}') : form;
+    teamId = kind === 'interact' ? payload.team?.id || payload.user?.team_id : form.team_id;
+  }
+  const install = teamId ? await slackInstallFor(env, teamId) : null;
+  const secret = install?.signing_secret || env.SLACK_SIGNING_SECRET;
+  const ok = await verifySlackSignature(secret, req.headers.get('X-Slack-Request-Timestamp'), raw, req.headers.get('X-Slack-Signature'));
+  if (!ok) return json({ error: 'bad signature' }, 401);
+  if (!install) return json({ error: 'no install for this workspace' }, 404);
+  const deps = { ...SLACK_DEPS, api: slackApi(install.bot_token) };
+
+  if (kind === 'events') {
+    // Slack wants a 200 within 3s — do the real work after responding
+    ctx.waitUntil(handleSlackEvent(env, ctx, install, payload, deps).catch(() => {}));
+    return json({ ok: true });
+  }
+  if (kind === 'command') {
+    const res = await handleSlackCommand(env, ctx, install, payload, deps, baseUrl);
+    return json({ response_type: 'ephemeral', ...res });
+  }
+  ctx.waitUntil(handleSlackInteract(env, ctx, install, payload, deps, baseUrl).catch(() => {}));
+  return json({ ok: true });
+}
+
+// OAuth install: /settings → Connect Slack. State is a signed token so the
+// callback can't be spoofed into another org.
+async function slackInstallStart(req, env, user, baseUrl) {
+  if (!env.SLACK_CLIENT_ID) return html('<p>Slack is not configured on this control plane (SLACK_CLIENT_ID missing).</p>', 503);
+  const state = await sign({ t: 'slackoauth', org: user.org, email: user.email, exp: now() + 600 }, env.MASTER_KEY);
+  const scopes = 'app_mentions:read,chat:write,im:history,im:read,users:read,users:read.email,commands';
+  const url = `https://slack.com/oauth/v2/authorize?client_id=${encodeURIComponent(env.SLACK_CLIENT_ID)}&scope=${encodeURIComponent(scopes)}&redirect_uri=${encodeURIComponent(`${baseUrl}/slack/oauth`)}&state=${encodeURIComponent(state)}`;
+  return new Response(null, { status: 302, headers: { Location: url } });
+}
+
+async function slackOAuthCallback(req, env, baseUrl) {
+  const url = new URL(req.url);
+  const state = await verify(url.searchParams.get('state') || '', env.MASTER_KEY);
+  if (!state || state.t !== 'slackoauth') return html('<p>Bad or expired state — start again from Settings.</p>', 400);
+  const resp = await fetch('https://slack.com/api/oauth.v2.access', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: env.SLACK_CLIENT_ID,
+      client_secret: env.SLACK_CLIENT_SECRET,
+      code: url.searchParams.get('code') || '',
+      redirect_uri: `${baseUrl}/slack/oauth`,
+    }),
+  });
+  const data = await resp.json();
+  if (!data.ok) return html(`<p>Slack install failed: ${data.error}</p>`, 502);
+  await env.DB.prepare(
+    'INSERT OR REPLACE INTO slack_installs (org, team_id, bot_token, signing_secret, installed_by) VALUES (?, ?, ?, ?, ?)'
+  ).bind(state.org, data.team.id, data.access_token, env.SLACK_SIGNING_SECRET || '', state.email).run();
+  return html(`<h2>✓ Slack connected</h2><p>Workspace <b>${data.team.name}</b> is linked to ${state.org}. Try <code>/small link &lt;app&gt;</code> in a channel, or @small anywhere.</p><p><a href="/apps">back to small</a></p>`);
+}
+
 // ---------- Watch surfaces ----------
 
 const OPEN_OBS = "resolved_at IS NULL AND (dismissed_until IS NULL OR dismissed_until < datetime('now'))";
@@ -839,8 +922,10 @@ async function apiAskThread(env, user, threadId) {
 // row becomes the log (who, what, when, thread).
 async function apiAskApprove(req, env, ctx, user, baseUrl) {
   const { proposal_id } = await req.json();
-  const p = await env.DB.prepare('SELECT * FROM proposals WHERE id = ? AND org = ? AND user = ?')
-    .bind(proposal_id, user.org, user.email).first();
+  // the asker or ANY editor may approve (Slack buttons) — every tool below
+  // re-checks canEdit for the approving user before executing
+  const p = await env.DB.prepare('SELECT * FROM proposals WHERE id = ? AND org = ?')
+    .bind(proposal_id, user.org).first();
   if (!p) return json({ error: 'no such proposal' }, 404);
   if (p.status !== 'proposed') return json({ error: `already ${p.status}` }, 409);
   const args = JSON.parse(p.args);
@@ -1827,6 +1912,15 @@ export default {
       if (path === '/auth') return await authRedirect(req, env);
       if (path === '/test/session' && req.method === 'POST') return await testSession(req, env);
       if (path === '/test/watch' && req.method === 'POST') return await testWatch(req, env);
+      if (path === '/slack/events' && req.method === 'POST') return await slackInbound(req, env, ctx, 'events', baseUrl);
+      if (path === '/slack/command' && req.method === 'POST') return await slackInbound(req, env, ctx, 'command', baseUrl);
+      if (path === '/slack/interact' && req.method === 'POST') return await slackInbound(req, env, ctx, 'interact', baseUrl);
+      if (path === '/slack/oauth' && req.method === 'GET') return await slackOAuthCallback(req, env, baseUrl);
+      if (path === '/slack/install') {
+        const s = await sessionOf(req, env);
+        if (!s) return new Response(null, { status: 302, headers: { Location: `/login?next=${encodeURIComponent('/slack/install')}` } });
+        return await slackInstallStart(req, env, { email: s.email, org: orgOf(s.email) }, baseUrl);
+      }
       const m = path.match(/^\/a\/([a-z0-9-]+)\/([a-z0-9-]+)(\/.*)?$/);
       if (m) return await proxyApp(req, env, m[1], m[2], m[3] || '', baseUrl);
       // Web dashboard: built packages/web assets ride on this Worker so /api is same-origin.

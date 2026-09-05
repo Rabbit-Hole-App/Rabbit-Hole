@@ -26,6 +26,17 @@ function SettingsDialog({ onClose }) {
             onChange={(k) => { setThemeState(THEMES[k]); setTheme(THEMES[k]); }}
           />
         </div>
+        <div className="grid grid-cols-[160px_1fr] items-center gap-x-4 py-1">
+          <div>
+            <div className="text-sm font-medium">Slack</div>
+            <div className="text-xs text-ink-2">@small in channels, proposals as buttons.</div>
+          </div>
+          <div>
+            <Button variant="secondary" size="sm" onClick={() => window.open('/slack/install', '_blank', 'noopener')}>
+              Connect Slack
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

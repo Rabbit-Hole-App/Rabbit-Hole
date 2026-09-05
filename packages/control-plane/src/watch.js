@@ -3,6 +3,7 @@
 // runWatchPass: 03:00 UTC. weeklyWatchEmail: Monday 08:00 UTC.
 import { askOnce } from './ask.js';
 import { nextRun, parseCron } from './cron.js';
+import { notifySlackObservation, slackWeeklyDigest } from './slack.js';
 
 const DAY = 86400000;
 const isoDay = (ms) => new Date(ms).toISOString().slice(0, 10);
@@ -227,7 +228,14 @@ export async function runWatchPass(env, now = Date.now()) {
     try {
       const b = await computeBaseline(env, app, now);
       const fired = await evaluateChecks(env, app, b, enabled, now);
-      await upsertObservations(env, app, fired, now);
+      const created = await upsertObservations(env, app, fired, now);
+      // a channel linked to this app hears about NEW observations once
+      for (const check of created) {
+        const row = await env.DB.prepare(
+          'SELECT text FROM observations WHERE org = ? AND slug = ? AND "check" = ? AND resolved_at IS NULL'
+        ).bind(app.org, app.name, check).first();
+        if (row?.text) await notifySlackObservation(env, app.org, app.name, row.text);
+      }
     } catch { /* one bad app must not kill the pass */ }
   }
 }
@@ -244,13 +252,17 @@ export async function weeklyWatchEmail(env, now, send) {
   const byOwner = {};
   for (const r of results) (byOwner[r.owner_email] = byOwner[r.owner_email] || []).push(r);
   let sentCount = 0;
+  const byOrg = {};
   for (const [owner, rows] of Object.entries(byOwner)) {
     const settings = await env.DB.prepare('SELECT notify_weekly FROM org_settings WHERE org = ?').bind(rows[0].org).first();
     if (settings && !settings.notify_weekly) continue; // default (no row) = on
     const lines = rows.map((r) => `- ${r.slug} · ${r.check}: ${r.text}`);
+    (byOrg[rows[0].org] = byOrg[rows[0].org] || []).push(...lines);
     await send(env, owner, `small watch: ${rows.length} thing${rows.length > 1 ? 's' : ''} worth a look`,
       `Open observations across your apps:\n\n${lines.join('\n')}\n\nDismiss them from each app's page.`);
     sentCount++;
   }
+  // the digest also lands in the org's Slack digest channel, when one is set
+  for (const [org, lines] of Object.entries(byOrg)) await slackWeeklyDigest(env, org, lines);
   return sentCount;
 }

@@ -411,6 +411,39 @@ invite emails, admin roles, /settings — per flow.md, when asked.
 - Skipped per spec: per-org check config UI, Slack delivery, anomaly detection
   beyond the fixed list.
 
+## v15: Slack adapter for Ask — a transport, not a new agent
+- Every message becomes POST /api/ask as the resolved small user; every
+  proposal becomes Block Kit Run/Cancel buttons hitting /api/ask/approve.
+  Routes: /slack/events (url_verification + app_mention + message.im, 200
+  within 3s then waitUntil), /slack/command (/small), /slack/interact,
+  /slack/install (session-gated OAuth start, signed state) + /slack/oauth
+  (token exchange → slack_installs per org). Signature (HMAC v0, 5-min replay
+  window) verified on the RAW body of every inbound request — unsigned = 401,
+  verified live. Manifest in docs/slack-manifest.json.
+- Identity: users.info → email → must belong to the installing org (domain or
+  explicit member) — otherwise "I don't know you — sign in…" and stop. Slack
+  identity is never the actor; the resolved small user is.
+- Routing: channel linked via /small link <app> (edit required) → app scope;
+  otherwise org scope, choose renders as a static_select. Replies thread;
+  slack_threads maps thread_ts ↔ ask thread_id so follow-ups keep context.
+- /small: link · unlink · runs [app] (last 5) · run <app> --input value
+  (posts a proposal directly) · watch [app] · digest (ponytail: the digest
+  channel is set by this command, not /settings — smaller). Proposals update
+  in place on approve/cancel; only the asker or an editor can approve —
+  apiAskApprove's asker-only filter relaxed to org (each tool still re-checks
+  canEdit for the approver); anyone else gets an ephemeral "only editors can
+  run this". Approved runs post the run-page link.
+- Watch: a linked channel hears each NEW observation once; the Monday digest
+  also posts to the org's digest channel.
+- ponytail: no Workflow Builder, no per-user DM digests, no file inputs via
+  Slack upload, and inline image outputs post as run links (files.upload is
+  deprecated; the two-step external upload isn't wired yet). Needs env:
+  SLACK_CLIENT_ID, SLACK_CLIENT_SECRET, SLACK_SIGNING_SECRET.
+- Tests: control-plane unit suite +5 (mocked Slack API): HMAC accept/reject/
+  stale, known-member mention → choose select with two apps, unknown DM →
+  sign-in reply and NO ask call, editor approve updates in place while a
+  viewer gets the ephemeral refusal, Block Kit limits (25 options).
+
 ## Serving (hard-won)
 The SPA shell is bundled INTO the worker (esbuild Text rule imports
 `../web/dist/index.html`) and served at `/apps` + `/dash` with `Cache-Control:
