@@ -97,7 +97,7 @@ export function Md({ text, onFile }) {
 // numbers. React spans only, no HTML. ponytail: no multi-line strings, and
 // python keywords double for toml well enough.
 const PY_TOKEN = /(#.*$)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\b(def|class|import|from|return|if|elif|else|for|while|try|except|finally|with|as|in|not|and|or|None|True|False|lambda|raise|pass|break|continue|global|yield|assert|del|is|print)\b|\b(\d+(?:\.\d+)?)\b/g;
-const TOKEN_COLOR = { c: '#9B9A97', s: '#448361', k: '#9065B0', n: '#D9730D' };
+const TOKEN_COLOR = { c: 'var(--tok-c)', s: 'var(--tok-s)', k: 'var(--tok-k)', n: 'var(--tok-n)' };
 
 function colorLine(line) {
   const out = [];
@@ -114,8 +114,11 @@ function colorLine(line) {
 
 // The cited file in a side panel, scrolled to (and highlighting) the cited line.
 function FilePeek({ appName, path, line, lineEnd, onClose }) {
-  const hi = (n) => line && n >= line && n <= (lineEnd || line);
   const [content, setContent] = useState(null);
+  // a citation spanning the whole file highlights nothing: all-green is no signal
+  const total = content ? content.split('\n').length : 0;
+  const whole = line === 1 && lineEnd && total && lineEnd >= total - 1;
+  const hi = (n) => !whole && line && n >= line && n <= (lineEnd || line);
   const [err, setErr] = useState(null);
   const lineRef = useRef(null);
   useEffect(() => {

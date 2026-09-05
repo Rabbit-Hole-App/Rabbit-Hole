@@ -29,10 +29,22 @@ html {
   font-feature-settings: 'cv11', 'ss01';
 }
 
+/* Code token colors (file peek + chat code blocks) - dark variants below. */
+:root {
+  --tok-c: #9b9a97;
+  --tok-s: #448361;
+  --tok-k: #9065b0;
+  --tok-n: #d9730d;
+}
+
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
    so one override block re-skins every token - including bg-white surfaces via
    --color-white. Elements on accent/danger re-pin white so their text stays white. */
 .dark {
+  --tok-c: #82817d;
+  --tok-s: #6fbf8e;
+  --tok-k: #b79ae3;
+  --tok-n: #e8a15c;
   --color-white: #191919; /* page + popover surfaces */
   --color-ink: #d4d4d4;
   --color-ink-2: #979797;
