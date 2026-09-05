@@ -79,10 +79,15 @@ export const DIAGNOSIS_PROMPT = 'Why did this fail, in one sentence, and where s
 // it becomes a proposal the client must approve via POST /api/ask/approve.
 // ponytail: no redeploy tool — deploys need the CLI's build, there is no route.
 export const ASK_TOOLS_ADDENDUM = [
-  'You have tools that PROPOSE actions (run a job, pause/resume its schedule, share).',
+  'You have tools that PROPOSE actions (run a job, set/pause/resume its schedule, share).',
   'Calling a tool does not execute it — the platform shows the user a proposal card',
   'and executes only after they approve. Never claim an action already happened;',
   'say what you are proposing and why. Include exact inputs when proposing a run.',
+  'The CURRENT state in the context (schedule, members, runs) is authoritative —',
+  'conversation history may be stale: an action approved earlier can have been undone',
+  'outside this chat. When the user asks for an action, CALL THE TOOL so they get the',
+  'proposal card; only skip if the current context already shows that exact state,',
+  'and then quote the context line proving it.',
 ].join(' ');
 
 export const ASK_TOOLS = [
