@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { api, cronHuman, cronList, fmtTime } from './api.js';
 const Runbook = lazy(() => import('./RunbookEditor.jsx')); // BlockNote is heavy — its chunk loads only when a runbook opens
+import { RunForm } from './run.jsx';
 import { Button, SlidePanel, Tabs, TabsContent, TabsList, TabsTrigger } from './ui.jsx';
 
 // Polls /api/runs/<id> every second until the run leaves 'running'.
@@ -111,6 +112,16 @@ function RunsTab({ app, liveRunId, onSettled }) {
   );
 }
 
+// The Run tab in the peek is the same form as the app page — the list payload has
+// no [inputs] schema, so fetch the app detail first.
+function RunFormTab({ app, onStarted }) {
+  const [detail, setDetail] = useState(null);
+  useEffect(() => { api(`/api/apps/${app.name}`).then(setDetail).catch(() => setDetail({ error: true })); }, [app.name]);
+  if (!detail) return <div className="pt-2 text-ink-2">loading…</div>;
+  if (detail.error) return <div className="pt-2 text-ink-2">✗ could not load the form.</div>;
+  return <RunForm app={detail} onStarted={onStarted} />;
+}
+
 // The runbook tab IS the editor (Notion behavior): autosaves, Ctrl+Z undoes.
 // Viewers without edit rights get the same render, read-only.
 function RunbookTab({ app, onSaved }) {
@@ -123,7 +134,7 @@ function RunbookTab({ app, onSaved }) {
 }
 
 // Notion-style side peek: slides in from the right, faint shadow, no overlay dim.
-export default function Panel({ app, tab, run, onTab, onRunbookSaved, onRunSettled, onClose }) {
+export default function Panel({ app, tab, run, onTab, onRunbookSaved, onRunSettled, onRunStarted, onClose }) {
   return (
     <SlidePanel
       onClose={onClose}
@@ -141,11 +152,17 @@ export default function Panel({ app, tab, run, onTab, onRunbookSaved, onRunSettl
       <Tabs value={tab} onValueChange={onTab} className="flex min-h-0 flex-1 flex-col px-5">
         <TabsList>
           <TabsTrigger value="runbook">Runbook</TabsTrigger>
+          {app.kind === 'job' && <TabsTrigger value="form">Run</TabsTrigger>}
           {app.kind === 'job' && <TabsTrigger value="run">Logs</TabsTrigger>}
         </TabsList>
         <TabsContent value="runbook" className="flex min-h-0 flex-1 flex-col py-3">
           <RunbookTab app={app} onSaved={onRunbookSaved} />
         </TabsContent>
+        {app.kind === 'job' && (
+          <TabsContent value="form" className="min-h-0 flex-1 overflow-y-auto py-3">
+            <RunFormTab app={app} onStarted={onRunStarted} />
+          </TabsContent>
+        )}
         {app.kind === 'job' && (
           <TabsContent value="run" className="flex min-h-0 flex-1 flex-col py-3">
             {run?.error

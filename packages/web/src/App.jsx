@@ -19,15 +19,11 @@ function AppContent({ data, load }) {
   const [run, setRun] = useState(null); // { appName, id?, error? }
   const [search, setSearch] = useState(null); // null = collapsed, string = open
 
-  const startRun = async (app) => {
-    setPanel({ name: app.name, tab: 'run' });
-    setRun({ appName: app.name });
-    try {
-      const { runId } = await api('/api/runs', { method: 'POST', body: JSON.stringify({ app: app.name }) });
-      setRun({ appName: app.name, id: runId });
-    } catch (e) {
-      setRun({ appName: app.name, error: e.message });
-    }
+  // RUN opens the peek on its Run tab (the [inputs] form); the form's own Run
+  // button starts the run and flips the peek to Logs.
+  const startRun = (app) => {
+    setRun(null);
+    setPanel({ name: app.name, tab: 'form' });
   };
 
   const stopRun = async (id) => {
@@ -266,6 +262,7 @@ function AppContent({ data, load }) {
           onTab={(t) => setPanel({ ...panel, tab: t })}
           onRunbookSaved={() => load()}
           onRunSettled={() => { setRun(null); load(); }}
+          onRunStarted={(id) => { setRun({ appName: panelApp.name, id }); setPanel({ name: panelApp.name, tab: 'run' }); }}
           onClose={() => setPanel(null)}
         />
       )}

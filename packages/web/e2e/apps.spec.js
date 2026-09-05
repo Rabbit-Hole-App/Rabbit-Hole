@@ -37,5 +37,7 @@ test('apps list shows the org, Run drives a job to finished', async ({ page, con
 
   await jobRow.hover();
   await jobRow.getByRole('button', { name: 'Run' }).click();
+  // RUN opens the peek's Run tab (the form); its Run button actually starts the run
+  await page.getByRole('dialog').getByRole('button', { name: 'Run', exact: true }).click();
   await expect(page.getByText(/finished \(exit 0\)/)).toBeVisible({ timeout: 220_000 });
 });
