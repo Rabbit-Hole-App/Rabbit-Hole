@@ -66,7 +66,10 @@ function ScheduleDialog({ app, onClose, onChanged }) {
       <div className="mt-[22vh] w-[380px] max-w-[90vw] rounded-md bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
         <div className="pb-3 text-sm font-semibold">Schedule {app.name}</div>
         {parts.length > 0 && (
-          <div className="mb-3 flex flex-col gap-1 rounded-sm bg-code px-2.5 py-2">
+          <div className="pb-1.5 text-xs font-medium text-ink-2">Scheduled</div>
+        )}
+        {parts.length > 0 && (
+          <div className="flex flex-col gap-1 rounded-sm bg-code px-2.5 py-2">
             {parts.map((c, i) => (
               <div key={i} className="flex items-center gap-2 text-sm">
                 <Pill color="orange" className={cn(app.schedule_paused && 'line-through opacity-60')} title={`cron ${c} (UTC)`}>{cronHuman(c)}</Pill>
@@ -87,6 +90,10 @@ function ScheduleDialog({ app, onClose, onChanged }) {
             </div>
           </div>
         )}
+        {parts.length > 0 && <div className="my-3 border-t border-line" />}
+        <div className={cn('pb-1.5 text-xs font-medium text-ink-2', !parts.length && 'pt-0')}>
+          {parts.length ? 'Add another' : 'New schedule'}
+        </div>
         <div className="flex flex-col gap-2">
           <Select value={freq} options={FREQ} onChange={setFreq} />
           {(freq === 'every hour' || freq === 'every day' || freq === 'specific days') && (
