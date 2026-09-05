@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowUpRight, Calendar as CalendarIcon, Check, Circle, Clock, Copy, GitBranch, Globe, Link as LinkIcon, Lock, MoreHorizontal, Plus, Trash2, User as UserIcon, Users, X } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, Calendar as CalendarIcon, Check, Circle, Clock, Copy, GitBranch, Globe, Link as LinkIcon, Lock, Maximize2, MoreHorizontal, Plus, Trash2, User as UserIcon, Users, X } from 'lucide-react';
 
 // lucide dropped brand icons - the GitHub mark, inline
 const Github = ({ size = 14 }) => (
@@ -743,6 +743,11 @@ function AppPage({ slug, runId, reloadShell }) {
               </TabsContent>
 
               <TabsContent value="agent" className="pt-4">
+                <div className="flex justify-end">
+                  <IconBtn aria-label="Open as page" title="Open as page" onClick={() => navigate(`/chat?app=${encodeURIComponent(app.name)}`)}>
+                    <Maximize2 size={14} strokeWidth={1.5} />
+                  </IconBtn>
+                </div>
                 {/* fills the viewport below the header: the input stays pinned at the
                     bottom and only the conversation scrolls */}
                 <div className="flex h-[calc(100dvh-380px)] min-h-[320px] flex-col">

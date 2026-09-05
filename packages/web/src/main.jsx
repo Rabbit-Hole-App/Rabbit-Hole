@@ -18,14 +18,16 @@ if (!/^\/(apps(\/[a-z0-9-]+(\/runs\/[\w-]+)?)?|dash|members|chat)$/.test(window.
   window.history.replaceState(null, '', '/apps');
 }
 
-// org-wide chat as a page - same panel as the app Agent tab, textbox pinned bottom
+// org-wide chat as a page - same panel as the app Agent tab, textbox pinned bottom.
+// /chat?app=<slug> narrows the scope to one app (the Agent tab's open-as-page).
 function ChatPage() {
+  const app = new URLSearchParams(window.location.search).get('app');
   return (
     <Shell>
       {() => (
         <main className="flex h-screen min-w-0 flex-1 flex-col">
           <div className="mx-auto flex h-full w-full max-w-[780px] min-h-0 flex-col px-6 py-6">
-            <AskPanel scope={{}} placeholder="Ask about your workspace…" autoFocus />
+            <AskPanel scope={app ? { app } : {}} appName={app} placeholder={app ? `Ask about ${app}…` : 'Ask about your workspace…'} autoFocus />
           </div>
         </main>
       )}

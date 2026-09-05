@@ -555,7 +555,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           </div>
         )}
       </div>
-      <div className="relative mt-2 shrink-0">
+      {/* non-compact: the box sticks to the viewport bottom - the page can scroll, the input never leaves */}
+      <div className={cn('relative mt-2 shrink-0', !compact && 'sticky bottom-0 bg-white pt-1 pb-2')}>
         {/* @-mention suggestions above the input */}
         {atHits.length > 0 && (
           <div className="absolute bottom-full left-0 z-20 mb-1 max-h-56 w-64 overflow-y-auto rounded-md bg-white p-1 shadow-pop">
