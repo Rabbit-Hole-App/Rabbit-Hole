@@ -69,6 +69,14 @@ a {
   cursor: pointer;
 }
 
+/* Scrolls without showing a bar (chat areas — the content is the affordance). */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* 100ms hover states, 200ms ease-out panels. Nothing bounces. */
 @keyframes slide-in-right {
   from { transform: translateX(100%); }

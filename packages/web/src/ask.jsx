@@ -266,7 +266,7 @@ export function AskPanel({ scope, placeholder = 'Ask anything…', compact = fal
         />
       )}
       {view === 'history' && (
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto">
           {threads.map((t) => (
             <div key={t.id} className="group/h relative flex items-center border-b border-line">
               {renaming?.id === t.id ? (
@@ -319,7 +319,7 @@ export function AskPanel({ scope, placeholder = 'Ask anything…', compact = fal
         </div>
       )}
       {view === 'chat' && (<>
-      <div ref={boxRef} className="min-h-0 flex-1 overflow-y-auto">
+      <div ref={boxRef} className="no-scrollbar min-h-0 flex-1 overflow-y-auto">
         {msgs.length === 0 && !choices && (
           <div className="py-3 text-sm text-ink-2">
             Ask about {scope.run ? 'this run — what happened, why it failed, what changed.' : scope.app ? 'this app — runs, logs, schedule, who has access.' : 'your workspace — any app, run, or person.'}
