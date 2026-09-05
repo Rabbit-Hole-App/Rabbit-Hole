@@ -79,7 +79,7 @@ DB = os.path.join(os.environ.get("SMALL_DATA", "."), "tool.db")
 
 ## When to read more
 
-- The tool calls AWS (boto3, S3, Lambda, …) → read `references/aws.md` before
+- The tool calls AWS (boto3, S3, Lambda, …) → read `references/aws-role.md` before
   touching small.toml: never AWS keys in `.env`, declare an `[aws]` role, and
   create/maintain that role yourself with the user's local AWS credentials.
 - The tool is an on-demand script (`kind = "job"`) → read `references/jobs.md`:

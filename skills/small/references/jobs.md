@@ -30,4 +30,4 @@ would serve better, and do not write user-facing files anywhere else in the
 container: only `$SMALL_OUTPUTS` survives the machine.
 
 S3 in/out: declare the URI and destination bucket as `text` inputs and use
-boto3 in the script — see references/aws.md for the role.
+boto3 in the script — see references/aws-role.md for the role.

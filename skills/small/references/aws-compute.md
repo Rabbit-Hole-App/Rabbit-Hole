@@ -40,7 +40,7 @@ sentence ("bursty and small — Lambda, it costs nothing while idle").
 Every choice needs IAM on **both sides**. Name them all `small-<app-name>-<purpose>`.
 
 **Side 1 — roles the service itself runs as** (create these with the user's
-local credentials, per the consent style in references/aws.md):
+local credentials, per the consent style in references/aws-role.md):
 
 | Compute | Create | It needs |
 |---|---|---|
@@ -59,7 +59,7 @@ local credentials, per the consent style in references/aws.md):
 | SageMaker endpoint | `sagemaker:InvokeEndpoint` on that endpoint ARN |
 | Batch | `batch:SubmitJob` on the job queue + job definition |
 
-Update rule is the same as references/aws.md: a new AWS call in code = one
+Update rule is the same as references/aws-role.md: a new AWS call in code = one
 new statement, named resource, before redeploying; remove statements when the
 call goes. The service's own role never gets what only the app needs, and the
 small role never gets what only the service needs.
@@ -70,7 +70,7 @@ The small app stays the front door — login, Run form, runbook, logs. AWS only
 does the heavy call:
 
 1. Provision with the user's local AWS credentials (same consent style as
-   references/aws.md: one sentence about what you are creating, then create).
+   references/aws-role.md: one sentence about what you are creating, then create).
    For Lambda: build the container image, push to ECR, create the function.
 2. The small app invokes it with boto3 through the `[aws]` role — add exactly
    `lambda:InvokeFunction` on that one function ARN (or the equivalent single
