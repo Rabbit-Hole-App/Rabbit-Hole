@@ -418,7 +418,6 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
                   <Folder size={13} className="shrink-0 text-ink-2" />
                   <span className="truncate">{f.name}</span>
                   {(f.shares || []).length > 0 && <Users size={11} className="shrink-0 text-ink-3" title="shared" />}
-                  {inside.length > 0 && <span className="ml-auto text-xs text-ink-2">{inside.length}</span>}
                 </button>
               )}
               <IconBtn

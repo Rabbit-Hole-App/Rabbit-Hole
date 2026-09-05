@@ -148,7 +148,6 @@ function AppContent({ data, load }) {
                               </button>
                               <FolderIcon size={15} strokeWidth={1.5} className="text-ink-2" />
                               {a.__folder.name}
-                              <span className="text-xs font-normal text-ink-3">{a.count}</span>
                             </span>
                           </td>
                         </tr>
