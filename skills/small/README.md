@@ -1,6 +1,6 @@
 # small-skill
 
-The agent skill for [small-deploy](https://github.com/Pipeship-Studio/small-deploy):
+The agent skill for [small-deploy](https://github.com/yudhisteer/small-deploy):
 teaches Claude Code / Codex to deploy the Python tool it just built behind a
 work-email login in one command — and, when the tool needs AWS, to create and
 maintain the IAM role itself with least privilege.

@@ -263,7 +263,7 @@ def test_source_provenance_recorded(deployed, cli_config, project_dir):
         return r.stdout.strip()
 
     git("init")
-    git("remote", "add", "origin", "git@github.com:Pipeship-Studio/small-deploy.git")
+    git("remote", "add", "origin", "git@github.com:yudhisteer/small-deploy.git")
     git("add", ".")
     git("commit", "-m", "itest provenance", "--no-gpg-sign")
     sha = git("rev-parse", "HEAD")
@@ -273,7 +273,7 @@ def test_source_provenance_recorded(deployed, cli_config, project_dir):
         [small(), "deploy"], cwd=project_dir, capture_output=True, text=True, timeout=600, encoding="utf-8", errors="replace"
     )
     assert r.returncode == 0, f"redeploy failed:\n{r.stdout}\n{r.stderr}"
-    assert f"✓ source: github.com/Pipeship-Studio/small-deploy @ {branch} {sha[:7]}" in r.stdout
+    assert f"✓ source: github.com/yudhisteer/small-deploy @ {branch} {sha[:7]}" in r.stdout
     assert "uncommitted changes" not in r.stdout
 
     status, body = http(
@@ -285,7 +285,7 @@ def test_source_provenance_recorded(deployed, cli_config, project_dir):
     latest = res["deploys"][0]
     assert latest["commit_sha"] == sha
     assert latest["branch"] == branch
-    assert latest["repo_url"] == "https://github.com/Pipeship-Studio/small-deploy"
+    assert latest["repo_url"] == "https://github.com/yudhisteer/small-deploy"
     assert latest["dirty"] == 0
     assert latest["deployed_by"] == cli_config["email"]
     # this run's first deploy was outside git; the table persists across runs, so look for any null-commit row
