@@ -63,3 +63,9 @@ cp-tail:
 
 publish-cli:
 	$(BASH) run.sh publish:cli
+
+publish-skill:
+	$(BASH) run.sh publish:skill
+
+skill-mirror:
+	$(BASH) run.sh skill:mirror
