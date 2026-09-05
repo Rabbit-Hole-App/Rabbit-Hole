@@ -132,17 +132,6 @@ export function RunForm({ app, prefill, onStarted }) {
     }
   };
 
-  const runAgain = async () => {
-    try {
-      const d = await api(`/api/runs/${app.lastRun.runId}`);
-      if (d.inputs) setValues((s) => {
-        const next = { ...s };
-        for (const [k, v] of Object.entries(d.inputs)) if (schema[k] && schema[k].type !== 'file') next[k] = v;
-        return next;
-      });
-    } catch (e) { toast(`✗ ${e.message}`); }
-  };
-
   const lr = app.lastRun;
   const lrDur = lr && fmtDur(secs(lr.startedAt, lr.finishedAt));
   return (
@@ -193,12 +182,6 @@ export function RunForm({ app, prefill, onStarted }) {
         <div className="flex flex-wrap items-center gap-1 pt-3 text-sm text-ink-2">
           Last run {ago(lr.startedAt)}{lr.startedBy ? ` by ${startedName(lr.startedBy)}` : ''}
           {lr.status === 'running' ? <> · <StatusPill status="running" /></> : ` · ${lr.status}${lrDur !== '—' ? ` in ${lrDur}` : ''}`}
-          {entries.length > 0 && lr.status !== 'running' && (
-            <>
-              {' · '}
-              <button className="cursor-pointer text-accent hover:underline" onClick={runAgain}>Run again with those inputs</button>
-            </>
-          )}
         </div>
       )}
     </div>

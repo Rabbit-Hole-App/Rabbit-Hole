@@ -58,13 +58,9 @@ test('yolo-job: form from [inputs], run in the side peek, outputs, run-again, ru
   await expect(peek.locator('img[alt="annotated.jpg"]')).toBeVisible({ timeout: 15_000 });
   await expect(peek.locator('pre').first()).toContainText(/[{[]/); // boxes.json inline (Output renders before Log)
 
-  // Close the peek; the last-run line's link prefills the form from that run.
+  // Close the peek; Logs tab — the runs database has a threshold column with this run's value.
   await page.keyboard.press('Escape');
   await expect(peek).not.toBeVisible();
-  await page.getByRole('button', { name: 'Run again with those inputs' }).click();
-  await expect(page.getByLabel('threshold')).toHaveValue('0.4');
-
-  // Logs tab: the runs database has a threshold column with this run's value.
   await page.getByRole('tab', { name: 'Logs' }).click();
   const row = page.getByRole('row').filter({ hasText: '0.4' }).first();
   await expect(row).toBeVisible();
@@ -89,4 +85,10 @@ test('yolo-job: form from [inputs], run in the side peek, outputs, run-again, ru
   await expect(th).toBeVisible();
   const held = await width();
   expect(Math.abs(held - after)).toBeLessThan(3);
+
+  // Hover ▶ on a run row prefills the Run tab from that run.
+  const row2 = page.getByRole('row').filter({ hasText: '0.4' }).first();
+  await row2.hover();
+  await row2.getByRole('button', { name: 'Run again' }).click();
+  await expect(page.getByLabel('threshold')).toHaveValue('0.4');
 });

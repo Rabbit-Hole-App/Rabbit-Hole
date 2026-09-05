@@ -226,8 +226,9 @@ invite emails, admin roles, /settings — per flow.md, when asked.
   relative text, bool → toggle, text → pattern validated on blur. Defaults
   prefilled; client-side validation mirrors cli/lib/inputs.js; errors under the
   field in danger w/ red border. Multipart post (`body` + `input:<name>` parts)
-  when files, JSON otherwise. Last-run line with "Run again with those inputs"
-  (fetches that run, prefills scalars; files re-picked).
+  when files, JSON otherwise. Last-run line shows when/who/status/duration
+  (the "Run again with those inputs" link was cut on request — run-again lives
+  in the peek footer and the table's hover ▶; both prefill scalars, files re-picked).
 - Side peek (RunPeek/RunView, §4): 480px SlidePanel — ⤢ opens
   `/apps/<slug>/runs/<id>` (real route, same RunView full-page), Esc closes,
   page behind stays live. Props line: status pill · person (cron = clock
