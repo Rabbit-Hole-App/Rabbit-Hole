@@ -416,6 +416,9 @@ async function apiAppGet(env, user, name, baseUrl) {
       "SELECT user AS email, ts FROM request_logs WHERE org = ? AND slug = ? AND user IS NOT NULL ORDER BY id DESC LIMIT 1"
     ).bind(app.org, app.name).first();
   } catch {} // request_logs ships with the request-logs feature branch — absent on fresh local DBs
+  const folder = app.folder_id
+    ? await env.DB.prepare('SELECT name FROM folders WHERE id = ?').bind(app.folder_id).first()
+    : null;
   let nextAt = null;
   if (app.schedule && !app.schedule_paused) {
     for (const part of cronParts(app.schedule)) {
@@ -428,6 +431,7 @@ async function apiAppGet(env, user, name, baseUrl) {
   return json({
     name: app.name, org: app.org, kind: app.kind, visibility: app.visibility, owner_email: app.owner_email,
     runbook: app.runbook, schedule: app.schedule, schedule_paused: app.schedule_paused, nextRun: nextAt,
+    folder: folder ? folder.name : null,
     deployed_at: app.deployed_at ?? null, created_at: app.created_at,
     repo_url: app.repo_url ?? null, repo_branch: app.repo_branch ?? null, repo_commit: app.repo_commit ?? null,
     repo_dirty: app.repo_dirty ?? null, repo_public: app.repo_public ?? null,

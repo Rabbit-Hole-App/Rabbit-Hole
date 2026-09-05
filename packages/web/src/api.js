@@ -16,7 +16,10 @@ export const getTheme = () => localStorage.getItem('small.theme') || 'system';
 export function applyTheme(t) {
   const dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.classList.toggle('dark', dark);
+  window.dispatchEvent(new CustomEvent('small:theme', { detail: dark })); // embedded editors re-skin live
 }
+
+export const isDark = () => document.documentElement.classList.contains('dark');
 export function setTheme(t) {
   localStorage.setItem('small.theme', t);
   applyTheme(t);

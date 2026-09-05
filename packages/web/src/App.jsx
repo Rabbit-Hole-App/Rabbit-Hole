@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpRight, Clock, Inbox, Loader2, PanelRight, Play, Search, Square } from 'lucide-react';
+import { ArrowUpRight, Clock, Folder as FolderIcon, Inbox, Loader2, PanelRight, Play, Search, Square } from 'lucide-react';
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
 import Shell from './Shell.jsx';
@@ -38,11 +38,27 @@ function AppContent({ data, load }) {
 
   const apps = data?.apps || [];
   const org = data?.org || 'small';
-  // ?s=shared / ?s=private — the sidebar section labels filter this overview
-  const section = new URLSearchParams(window.location.search).get('s');
-  const title = section === 'shared' ? 'Shared' : section === 'private' ? 'Private' : 'Apps';
-  const sectionApps = section ? apps.filter((a) => sectionOf(a, org, data?.email) === section) : apps;
+  // ?s=shared / ?s=private — the sidebar section labels filter this overview;
+  // ?f=<folder> — the breadcrumb's folder crumb shows just that folder's apps
+  const params = new URLSearchParams(window.location.search);
+  const section = params.get('s');
+  const folder = params.get('f') ? (data?.folders || []).find((x) => x.name === params.get('f')) : null;
+  const title = folder ? folder.name : section === 'shared' ? 'Shared' : section === 'private' ? 'Private' : 'Apps';
+  const sectionApps = folder
+    ? apps.filter((a) => a.folder_id === folder.id)
+    : section ? apps.filter((a) => sectionOf(a, org, data?.email) === section) : apps;
   const rows = search ? sectionApps.filter((a) => a.name.toLowerCase().includes(search.toLowerCase())) : sectionApps;
+  // the plain Apps view groups by folder, Notion-style; filtered/search views stay flat
+  const folders = data?.folders || [];
+  const flat = !folder && !section && !search
+    ? [
+        ...folders.flatMap((g) => {
+          const list = rows.filter((a) => a.folder_id === g.id);
+          return list.length ? [{ __folder: g, count: list.length }, ...list] : [];
+        }),
+        ...rows.filter((a) => !folders.some((g) => g.id === a.folder_id)),
+      ]
+    : rows;
   const panelApp = panel && apps.find((a) => a.name === panel.name);
   const runningId = (a) =>
     (run?.appName === a.name && !run.error && (run.id || 'starting')) ||
@@ -103,7 +119,24 @@ function AppContent({ data, load }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((a) => {
+                  {flat.map((a) => {
+                    if (a.__folder) {
+                      return (
+                        <tr
+                          key={`folder-${a.__folder.id}`}
+                          onClick={() => navigate(`/apps?f=${encodeURIComponent(a.__folder.name)}`)}
+                          className="cursor-pointer hover:bg-hover"
+                        >
+                          <td colSpan={7} className="border-b border-line px-2 pt-3 pb-1">
+                            <span className="flex items-center gap-1.5 text-xs font-medium text-ink-2">
+                              <FolderIcon size={14} strokeWidth={1.5} className="text-ink-3" />
+                              {a.__folder.name}
+                              <span className="font-normal text-ink-3">{a.count}</span>
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    }
                     const live = runningId(a);
                     return (
                       <tr

@@ -444,6 +444,12 @@ function AppPage({ slug, runId, reloadShell }) {
           <span>/</span>
           <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate('/apps')}>Apps</button>
           <span>/</span>
+          {app?.folder && (
+            <>
+              <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate(`/apps?f=${encodeURIComponent(app.folder)}`)}>{app.folder}</button>
+              <span>/</span>
+            </>
+          )}
           {runId ? (
             <>
               <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate(`/apps/${slug}`)}>{slug}</button>

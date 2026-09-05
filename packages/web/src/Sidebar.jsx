@@ -224,20 +224,39 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
     } catch (e) { toast(`✗ ${e.message}`); }
   };
 
-  const sectionLabel = (label, s, extra) => (
-    <div className="flex items-center justify-between pt-3 pr-1 pb-1 pl-0.5">
-      <button
-        onClick={() => navigate(s ? `/apps?s=${s}` : '/apps')}
-        className={cn(
-          'rounded-sm px-1.5 py-0.5 text-xs text-ink-2 hover:bg-hover hover:text-ink',
-          path === '/apps' && (section || null) === (s || null) && 'bg-active font-medium text-ink',
-        )}
-      >
-        {label}
-      </button>
-      {extra}
-    </div>
-  );
+  // sections collapse like folders: v open, > closed, remembered per device
+  const [secClosed, setSecClosed] = useState(() => JSON.parse(localStorage.getItem('small.secClosed') || '{}'));
+  const toggleSec = (k) => setSecClosed((s) => {
+    const next = { ...s, [k]: !s[k] };
+    localStorage.setItem('small.secClosed', JSON.stringify(next));
+    return next;
+  });
+  const sectionLabel = (label, s, extra) => {
+    const k = s || label.toLowerCase();
+    return (
+      <div className="flex items-center justify-between pt-3 pr-1 pb-1 pl-0.5">
+        <span className="flex min-w-0 items-center">
+          <button
+            aria-label={secClosed[k] ? `Expand ${label}` : `Collapse ${label}`}
+            onClick={() => toggleSec(k)}
+            className="cursor-pointer rounded-sm p-0.5 text-ink-3 hover:bg-hover hover:text-ink"
+          >
+            {secClosed[k] ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+          </button>
+          <button
+            onClick={() => navigate(s ? `/apps?s=${s}` : '/apps')}
+            className={cn(
+              'rounded-sm px-1 py-0.5 text-xs text-ink-2 hover:bg-hover hover:text-ink',
+              path === '/apps' && (section || null) === (s || null) && 'bg-active font-medium text-ink',
+            )}
+          >
+            {label}
+          </button>
+        </span>
+        {extra}
+      </div>
+    );
+  };
 
   return (
     <aside
@@ -297,10 +316,11 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
             <ChevronsLeft size={15} />
           </IconBtn>
         </div>
-        <Menu open={wsMenu} onClose={() => setWsMenu(false)} className="top-9 left-2">
+        {/* w-auto!: the menu grows to fit the full email instead of clipping it */}
+        <Menu open={wsMenu} onClose={() => setWsMenu(false)} className="top-9 left-2 w-auto! min-w-60 max-w-[340px]">
           <div className="flex items-center gap-2 px-2 py-1.5">
             {email && <Avatar email={email} />}
-            <span className="min-w-0 truncate text-xs text-ink-2">{email}</span>
+            <span className="text-xs whitespace-nowrap text-ink-2">{email}</span>
           </div>
           <div className="my-1 border-t border-line" />
           <MenuItem icon={Settings} onClick={() => { setWsMenu(false); setShowSettings(true); }}>Settings</MenuItem>
@@ -357,7 +377,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
           />
         </form>
       )}
-      {folders.map((f) => {
+      {!secClosed.apps && folders.map((f) => {
         const inside = inFolder(f);
         const isOpen = !closed[f.id];
         return (
@@ -423,13 +443,13 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
         onDragLeave={() => setDropTarget((t) => (t === 'root' ? null : t))}
         onDrop={(e) => { e.preventDefault(); e.stopPropagation(); drop(null, 'domain', 'to Apps'); }}
       >
-        {rootApps.map((a) => appRow(a))}
+        {!secClosed.apps && rootApps.map((a) => appRow(a))}
       </div>
 
       {sharedApps.length > 0 && (
         <>
           {sectionLabel('Shared', 'shared')}
-          {sharedApps.map((a) => appRow(a))}
+          {!secClosed.shared && sharedApps.map((a) => appRow(a))}
         </>
       )}
 
@@ -440,14 +460,23 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
         onDrop={(e) => { e.preventDefault(); e.stopPropagation(); drop(null, 'private', 'to Private'); }}
       >
         {sectionLabel('Private', 'private')}
-        {privateApps.length === 0 && <div className="px-2 pb-1 text-xs text-ink-3">Drag apps here to make them private.</div>}
-        {privateApps.map((a) => appRow(a))}
+        {!secClosed.private && privateApps.length === 0 && <div className="px-2 pb-1 text-xs text-ink-3">Drag apps here to make them private.</div>}
+        {!secClosed.private && privateApps.map((a) => appRow(a))}
       </div>
 
       {recent.length > 0 && (
         <>
-          <div className="px-2 pt-3 pb-1 text-xs text-ink-2">Recent</div>
-          {recent.map((a) => appRow(a, false))}
+          <div className="flex items-center pt-3 pb-1 pl-0.5">
+            <button
+              aria-label={secClosed.recent ? 'Expand Recent' : 'Collapse Recent'}
+              onClick={() => toggleSec('recent')}
+              className="cursor-pointer rounded-sm p-0.5 text-ink-3 hover:bg-hover hover:text-ink"
+            >
+              {secClosed.recent ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+            </button>
+            <span className="px-1 text-xs text-ink-2">Recent</span>
+          </div>
+          {!secClosed.recent && recent.map((a) => appRow(a, false))}
         </>
       )}
 

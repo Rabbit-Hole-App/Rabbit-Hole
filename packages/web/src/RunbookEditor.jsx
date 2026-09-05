@@ -6,14 +6,26 @@ import { BlockNoteView } from '@blocknote/shadcn';
 import '@blocknote/shadcn/style.css';
 import '@excalidraw/excalidraw/index.css';
 import { PenTool } from 'lucide-react';
-import { api } from './api.js';
+import { api, isDark } from './api.js';
 
 const Excalidraw = lazy(() => import('@excalidraw/excalidraw').then((m) => ({ default: m.Excalidraw })));
+
+// Follow the Settings → Appearance toggle live (applyTheme fires small:theme).
+function useDark() {
+  const [dark, setDark] = useState(isDark);
+  useEffect(() => {
+    const on = (e) => setDark(e.detail);
+    window.addEventListener('small:theme', on);
+    return () => window.removeEventListener('small:theme', on);
+  }, []);
+  return dark;
+}
 
 // Excalidraw canvas as a BlockNote block. The scene (elements only) lives in the
 // block's props, so it rides the normal runbook JSON autosave — no extra storage.
 function ExcalidrawEmbed({ block, editor }) {
   const editable = editor.isEditable;
+  const dark = useDark();
   const timer = useRef();
   const last = useRef(block.props.data);
   const initial = useMemo(() => {
@@ -46,7 +58,7 @@ function ExcalidrawEmbed({ block, editor }) {
       onMouseDown={(e) => e.stopPropagation()}
     >
       <Suspense fallback={<div className="p-3 text-xs text-ink-2">loading canvas…</div>}>
-        <Excalidraw initialData={initial} onChange={onChange} viewModeEnabled={!editable} />
+        <Excalidraw initialData={initial} onChange={onChange} viewModeEnabled={!editable} theme={dark ? 'dark' : 'light'} />
       </Suspense>
     </div>
   );
@@ -90,6 +102,7 @@ function loadContent(editor, raw) {
 // BlockNote's own history. Read-only render for viewers without edit rights.
 export default function Runbook({ app, canEdit, onSaved }) {
   const editor = useCreateBlockNote({ schema });
+  const dark = useDark();
   const [status, setStatus] = useState('');
   const timer = useRef();
   const ready = useRef(false); // loading the initial content fires onChange too — don't autosave that
@@ -129,7 +142,7 @@ export default function Runbook({ app, canEdit, onSaved }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="-mx-[34px] min-h-0 flex-1 overflow-y-auto">{/* cancels bn-editor's 54px gutter down to the panel's 20px */}
-        <BlockNoteView editor={editor} editable={canEdit} theme="light" onChange={canEdit ? onChange : undefined} slashMenu={false}>
+        <BlockNoteView editor={editor} editable={canEdit} theme={dark ? 'dark' : 'light'} onChange={canEdit ? onChange : undefined} slashMenu={false}>
           <SuggestionMenuController
             triggerCharacter="/"
             getItems={async (query) =>
