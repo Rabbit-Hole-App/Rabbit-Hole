@@ -396,6 +396,15 @@ const commands = {
     console.log(`✓ schedule ${res.paused ? 'paused' : 'resumed'} for ${name} (${res.schedule})`);
   },
 
+  // Open Watch observations — the nightly pass's findings. `small watch [app]`.
+  async watch() {
+    const name = flags._[0];
+    const res = await call('GET', `/api/watch${name ? `?app=${encodeURIComponent(name)}` : ''}`);
+    const obs = res.observations || [];
+    if (!obs.length) return console.log(name ? `✓ ${name}: nothing to report` : '✓ nothing to report');
+    for (const o of obs) console.log(`! ${o.slug} · ${o.check} · ${o.text} (since ${o.first_seen})`);
+  },
+
   async logs() {
     const arg = flags._[0];
     if (arg && arg.startsWith('r-')) {

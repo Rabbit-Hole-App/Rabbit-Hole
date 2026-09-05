@@ -374,6 +374,43 @@ invite emails, admin roles, /settings — per flow.md, when asked.
   Tests: 9 passing (threshold cite, env-unset trace, same-deploy diff,
   no-invented-function, file route, plus the earlier five).
 
+## v14: Watch — the nightly pass that notices what a person wouldn't
+- 03:00 UTC cron (same branch as retention): baselines table, one row per app
+  per day — median run duration (last 20 runs), daily request rate, last
+  request/run/deploy, consecutive failures. request_logs only keeps 7 days,
+  so baselines carry the long memory (last_request_at and peak daily rate
+  fold forward day by day).
+- Fixed checks (checks table, enabled flag; ponytail: global, org column
+  when per-org config ships): schedule_missed (2× expected interval, interval
+  derived from the cron itself), run_slow (last > 3× median; ponytail: ≥5
+  finished runs so one cold start doesn't page), run_failing (3 consecutive),
+  server_silent (nothing in 14d, previously >1/day), never_opened (7d+, zero
+  ever), secret_drift (review undeclared_secrets), stale_deploy (public
+  GitHub repo 20+ commits ahead — unauthenticated compare API, silently
+  skipped on rate limit), access_unused (shared member, no requests in 60d;
+  ponytail: members carry no shared-at date, and the 7-day log window blurs
+  it).
+- observations: org/slug/check/first_seen/last_seen/resolved_at/
+  dismissed_until/evidence(json)/text. Refires bump last_seen, never a new
+  row; a check that stops firing resolves. One model sentence per NEW
+  observation only (fallback template if the model fails). First live pass
+  immediately caught a real one: yolo-lambda's review lists WEIGHTS_BUCKET/
+  WEIGHTS_KEY as undeclared.
+- Surface: quiet warn rows under the app page properties with Dismiss ▾
+  (30 days / forever, edit-gated), a Watch count pill column on /apps,
+  `small watch [app]` in the CLI, GET /api/watch + POST /api/watch/:id/dismiss.
+  Dismissed observations vanish from every surface until dismissed_until.
+- Weekly email: Monday 08:00 UTC cron (third trigger), one plain-text Resend
+  email per owner with open undismissed observations; org_settings.notify_weekly
+  (default on, no UI). /test/watch (bypass-guarded like /test/session) runs
+  the pass on demand for tests.
+- Tests: control-plane unit suite +3 (fake D1 + mocked model): fire-once with
+  exact evidence, refire bumps last_seen with no new row and no model call,
+  success resolves run_failing/run_slow, weekly email includes open, excludes
+  dismissed, respects notify_weekly.
+- Skipped per spec: per-org check config UI, Slack delivery, anomaly detection
+  beyond the fixed list.
+
 ## Serving (hard-won)
 The SPA shell is bundled INTO the worker (esbuild Text rule imports
 `../web/dist/index.html`) and served at `/apps` + `/dash` with `Cache-Control:

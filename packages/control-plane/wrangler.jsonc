@@ -4,7 +4,7 @@
   "compatibility_date": "2026-08-01",
   "observability": { "enabled": true },
   // every-minute due-job tick + daily 3am request_logs purge (7-day retention)
-  "triggers": { "crons": ["* * * * *", "0 3 * * *"] },
+  "triggers": { "crons": ["* * * * *", "0 3 * * *", "0 8 * * 1"] },
   // Web dashboard (packages/web) builds into ../web/dist; same origin so the session cookie works.
   // run_worker_first: the Worker owns routing — it delegates only /static/* + favicon to ASSETS.
   "assets": {

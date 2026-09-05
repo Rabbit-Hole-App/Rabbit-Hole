@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Calendar as CalendarIcon, Check, Circle, Clock, Copy, GitBranch, Globe, Link as LinkIcon, Lock, MoreHorizontal, Plus, Trash2, User as UserIcon, Users, X } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, Calendar as CalendarIcon, Check, Circle, Clock, Copy, GitBranch, Globe, Link as LinkIcon, Lock, MoreHorizontal, Plus, Trash2, User as UserIcon, Users, X } from 'lucide-react';
 import { ago, api, cronHuman, cronList, fmtTime, navigate, wsName } from './api.js';
 import { AskPanel } from './ask.jsx';
 import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
@@ -340,6 +340,38 @@ const until = (ms) => {
   return `in ${Math.round(s / 86400)}d`;
 };
 
+// One Watch observation: warn icon, the sentence, Dismiss ▾ (30 days / forever).
+function ObservationRow({ obs, canEdit, onChanged }) {
+  const [open, setOpen] = useState(false);
+  const dismiss = async (days) => {
+    setOpen(false);
+    try {
+      await api(`/api/watch/${obs.id}/dismiss`, { method: 'POST', body: JSON.stringify({ days }) });
+      onChanged();
+    } catch (e) { toast(`✗ ${e.message}`); }
+  };
+  return (
+    <div className="flex items-start gap-2 rounded-sm bg-code px-3 py-2 text-sm">
+      <AlertTriangle size={15} strokeWidth={1.5} className="mt-0.5 shrink-0 text-warn" />
+      <span className="min-w-0 flex-1" title={`${obs.check} · since ${obs.first_seen}`}>{obs.text}</span>
+      {canEdit && (
+        <div className="relative shrink-0">
+          <button
+            onMouseDown={(e) => { e.stopPropagation(); setOpen(!open); }}
+            className="cursor-pointer rounded-sm px-1.5 py-0.5 text-xs text-ink-2 hover:bg-hover hover:text-ink"
+          >
+            Dismiss ▾
+          </button>
+          <Menu open={open} onClose={() => setOpen(false)} className="top-6 right-0 w-32">
+            <MenuItem onClick={() => dismiss(30)}>30 days</MenuItem>
+            <MenuItem onClick={() => dismiss(null)}>Forever</MenuItem>
+          </Menu>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Property-list row halves (design/components.html .plist): grey key w/ icon, value beside.
 const PropKey = ({ icon: Icon, children }) => (
   <div className="flex h-8 items-center gap-1.5 text-ink-2"><Icon size={16} strokeWidth={1.5} className="text-ink-3" />{children}</div>
@@ -617,6 +649,15 @@ function AppPage({ slug, runId, reloadShell }) {
                 </>
               )}
             </div>
+
+            {/* Watch: one quiet row per open observation */}
+            {(app.observations || []).length > 0 && (
+              <div className="mt-3 flex flex-col gap-1">
+                {app.observations.map((o) => (
+                  <ObservationRow key={o.id} obs={o} canEdit={!!app.canEdit} onChanged={load} />
+                ))}
+              </div>
+            )}
 
             <Tabs value={tab ?? (app.kind === 'job' ? 'run' : 'runbook')} onValueChange={setTab}>
               <TabsList className="mt-5">

@@ -4,6 +4,7 @@ import { sign, verify, sha256, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
 import { ASK_MODELS, ASK_TOOLS, askOnce, askStream, capJoin, DIAGNOSIS_PROMPT, diffBundles, getBundle, parseBundle } from './ask.js';
 import { assumeRole, s3Buckets, s3Get, s3List } from './aws.js';
+import { runWatchPass, weeklyWatchEmail } from './watch.js';
 import { runReview, generateRunbook } from './review.js';
 import { parseCron, matches, nextRun } from './cron.js';
 import SHELL from '../../web/dist/index.html';
@@ -335,6 +336,7 @@ async function apiApps(env, user, baseUrl) {
               WHERE at.app_id = apps.id AND tm.email = ?1 ORDER BY (at.role = 'edit') DESC LIMIT 1) AS team_role,
             ${FOLDER_ROLE_SQL} AS folder_role,
             (SELECT COUNT(*) FROM app_teams WHERE app_id = apps.id) AS team_count,
+            (SELECT COUNT(*) FROM observations o WHERE o.org = apps.org AND o.slug = apps.name AND o.resolved_at IS NULL AND (o.dismissed_until IS NULL OR o.dismissed_until < datetime('now'))) AS watch_count,
             (SELECT json_object('runId', run_id, 'status', status, 'exitCode', exit_code, 'startedAt', started_at, 'finishedAt', finished_at)
                FROM runs WHERE app_id = apps.id ORDER BY id DESC LIMIT 1) AS last_run`;
   const { results } = await env.DB.prepare(
@@ -450,9 +452,16 @@ async function apiAppGet(env, user, name, baseUrl) {
       } catch { /* legacy bad cron — row shows without a next time */ }
     }
   }
+  let observations = [];
+  try {
+    observations = (await env.DB.prepare(
+      `SELECT id, "check", first_seen, last_seen, text FROM observations WHERE org = ? AND slug = ? AND resolved_at IS NULL AND (dismissed_until IS NULL OR dismissed_until < datetime('now')) ORDER BY last_seen DESC`
+    ).bind(app.org, app.name).all()).results;
+  } catch { /* pre-watch DBs */ }
   return json({
     name: app.name, org: app.org, kind: app.kind, visibility: app.visibility, owner_email: app.owner_email,
     runbook: app.runbook, schedule: app.schedule, schedule_paused: app.schedule_paused, nextRun: nextAt,
+    observations,
     folder: folder ? folder.name : null,
     deployed_at: app.deployed_at ?? null, created_at: app.created_at,
     repo_url: app.repo_url ?? null, repo_branch: app.repo_branch ?? null, repo_commit: app.repo_commit ?? null,
@@ -733,6 +742,43 @@ async function apiAsk(req, env, ctx, user) {
     await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
   }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId);
 }
+
+// ---------- Watch surfaces ----------
+
+const OPEN_OBS = "resolved_at IS NULL AND (dismissed_until IS NULL OR dismissed_until < datetime('now'))";
+
+// Open, undismissed observations — org-wide (visible apps only) or one app.
+async function apiWatchList(req, env, user) {
+  const name = new URL(req.url).searchParams.get('app');
+  if (name) {
+    const app = await appForUser(env, user, name);
+    if (!app) return json({ error: `no app named ${name}` }, 404);
+    if (!app.canView) return json({ error: 'no access' }, 403);
+    const { results } = await env.DB.prepare(
+      `SELECT id, slug, "check", first_seen, last_seen, evidence, text FROM observations WHERE org = ? AND slug = ? AND ${OPEN_OBS} ORDER BY last_seen DESC`
+    ).bind(user.org, name).all();
+    return json({ observations: results });
+  }
+  const visible = await orgVisibleApps(env, user);
+  const slugs = new Set(visible.map((v) => v.app.name));
+  const { results } = await env.DB.prepare(
+    `SELECT id, slug, "check", first_seen, last_seen, evidence, text FROM observations WHERE org = ? AND ${OPEN_OBS} ORDER BY slug, last_seen DESC`
+  ).bind(user.org).all();
+  return json({ observations: results.filter((o) => slugs.has(o.slug)) });
+}
+
+async function apiWatchDismiss(req, env, user, obsId) {
+  const { days } = await req.json();
+  const o = await env.DB.prepare('SELECT * FROM observations WHERE id = ? AND org = ?').bind(obsId, user.org).first();
+  if (!o) return json({ error: 'no such observation' }, 404);
+  const app = await appRow(env, user.org, o.slug);
+  if (!app || !(await canEdit(env, app, user.email))) return json({ error: 'no access' }, 403);
+  const until = days ? sqlNow(days * 86400000) : '9999-12-31 00:00:00';
+  await env.DB.prepare('UPDATE observations SET dismissed_until = ? WHERE id = ?').bind(until, obsId).run();
+  return json({ ok: true, dismissed_until: until });
+}
+
+const sqlNow = (plusMs = 0) => new Date(Date.now() + plusMs).toISOString().slice(0, 19).replace('T', ' ');
 
 // Pull ONE file from the latest stored bundle — a thread can fetch a skipped
 // file on demand without re-bundling everything.
@@ -1625,6 +1671,15 @@ async function testSession(req, env) {
   return json({ session: sess }, 200);
 }
 
+// Tests trigger the nightly Watch pass on demand — same bypass guard as /test/session.
+async function testWatch(req, env) {
+  if (!env.TEST_BYPASS_SECRET) return json({ error: 'not enabled' }, 404);
+  const { secret } = await req.json();
+  if (secret !== env.TEST_BYPASS_SECRET) return json({ error: 'bad secret' }, 401);
+  await runWatchPass(env, Date.now());
+  return json({ ok: true });
+}
+
 // ---------- Router/proxy ----------
 
 async function proxyApp(req, env, org, name, rest, baseUrl) {
@@ -1695,6 +1750,9 @@ export default {
         if (path === '/api/ask' && req.method === 'POST') return await apiAsk(req, env, ctx, user);
         if (path === '/api/ask/approve' && req.method === 'POST') return await apiAskApprove(req, env, ctx, user, baseUrl);
         if (path === '/api/ask/file' && req.method === 'POST') return await apiAskFile(req, env, user);
+        if (path === '/api/watch' && req.method === 'GET') return await apiWatchList(req, env, user);
+        const watchDismiss = path.match(/^\/api\/watch\/(\d+)\/dismiss$/);
+        if (watchDismiss && req.method === 'POST') return await apiWatchDismiss(req, env, user, Number(watchDismiss[1]));
         if (path === '/api/ask/threads' && req.method === 'GET') return await apiAskThreads(req, env, user);
         const askThread = path.match(/^\/api\/ask\/threads\/(\d+)$/);
         if (askThread && req.method === 'GET') return await apiAskThread(env, user, Number(askThread[1]));
@@ -1768,6 +1826,7 @@ export default {
       if (path === '/login') return await loginPage(req, env, baseUrl);
       if (path === '/auth') return await authRedirect(req, env);
       if (path === '/test/session' && req.method === 'POST') return await testSession(req, env);
+      if (path === '/test/watch' && req.method === 'POST') return await testWatch(req, env);
       const m = path.match(/^\/a\/([a-z0-9-]+)\/([a-z0-9-]+)(\/.*)?$/);
       if (m) return await proxyApp(req, env, m[1], m[2], m[3] || '', baseUrl);
       // Web dashboard: built packages/web assets ride on this Worker so /api is same-origin.
@@ -1796,6 +1855,13 @@ export default {
         "SELECT * FROM apps WHERE deleted_at IS NOT NULL AND deleted_at < datetime('now', '-30 days')"
       ).all();
       for (const app of expired) await purgeApp(env, app);
+      // Watch: baselines + fixed checks + one model sentence per NEW observation.
+      await runWatchPass(env, event.scheduledTime);
+      return;
+    }
+    if (event.cron === '0 8 * * 1') {
+      // Monday morning: one plain-text email per owner with open, undismissed observations.
+      await weeklyWatchEmail(env, event.scheduledTime, sendEmail);
       return;
     }
     // Every-minute tick. scheduledTime is the tick's nominal minute even when

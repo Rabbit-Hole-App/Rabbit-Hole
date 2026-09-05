@@ -119,6 +119,7 @@ function AppContent({ data, load }) {
                     <th className={th}>Kind</th>
                     <th className={th}>Access</th>
                     <th className={th}>People</th>
+                    <th className={th}>Watch</th>
                     <th className={th}>Deployed</th>
                     <th className={th}>Last run</th>
                     <th className={th}></th>
@@ -133,7 +134,7 @@ function AppContent({ data, load }) {
                           onClick={() => navigate(`/apps?f=${encodeURIComponent(a.__folder.name)}`)}
                           className="cursor-pointer hover:bg-hover"
                         >
-                          <td colSpan={7} className="border-b border-line px-2 pt-3 pb-1">
+                          <td colSpan={8} className="border-b border-line px-2 pt-3 pb-1">
                             <span className="flex items-center gap-1 text-sm font-medium">
                               <button
                                 aria-label={a.closed ? `Expand ${a.__folder.name}` : `Collapse ${a.__folder.name}`}
@@ -194,6 +195,11 @@ function AppContent({ data, load }) {
                               </span>
                             )}
                           </span>
+                        </td>
+                        <td className={td}>
+                          {a.watch_count > 0
+                            ? <Pill color="orange" title={`${a.watch_count} open observation${a.watch_count > 1 ? 's' : ''}`}>{a.watch_count}</Pill>
+                            : <span className="text-ink-3">—</span>}
                         </td>
                         <td className={`${td} text-ink-2`} title={fmtTime(a.deployed_at || a.created_at)}>
                           {ago(a.deployed_at || a.created_at)}
