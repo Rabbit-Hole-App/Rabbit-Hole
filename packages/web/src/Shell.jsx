@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronsRight } from 'lucide-react';
 import { api } from './api.js';
 import Sidebar from './Sidebar.jsx';
@@ -10,6 +10,15 @@ export default function Shell({ children }) {
   const [data, setData] = useState(null); // { org, email, apps, folders } | { error }
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('small.sidebar') === 'closed');
   const [width, setWidth] = useState(() => +localStorage.getItem('small.sidebarW') || 260); // resizable, 200–400
+  const [resizing, setResizing] = useState(false); // drag-resize must not fight the slide transition
+  const resizeTimer = useRef();
+  const resize = (w) => {
+    setResizing(true);
+    setWidth(w);
+    localStorage.setItem('small.sidebarW', w);
+    clearTimeout(resizeTimer.current);
+    resizeTimer.current = setTimeout(() => setResizing(false), 150);
+  };
 
   const load = () => api('/api/apps').then(setData).catch((e) => setData({ error: e.message }));
   useEffect(() => { load(); }, []);
@@ -39,7 +48,7 @@ export default function Shell({ children }) {
 
   return (
     <div className="flex h-screen">
-      {collapsed ? (
+      {collapsed && (
         <button
           title="Open sidebar (Ctrl+\)"
           onClick={() => toggle(false)}
@@ -47,18 +56,29 @@ export default function Shell({ children }) {
         >
           <ChevronsRight size={16} />
         </button>
-      ) : (
-        <Sidebar
-          org={data?.org || 'small'}
-          email={data?.email}
-          apps={data?.apps || []}
-          folders={data?.folders || []}
-          width={width}
-          onResize={(w) => { setWidth(w); localStorage.setItem('small.sidebarW', w); }}
-          onReload={load}
-          onCollapse={() => toggle(true)}
-        />
       )}
+      {/* Notion slide: the wrapper animates width to 0 while the fixed-width inner
+          translates left, so the sidebar glides out instead of blinking away. */}
+      <div
+        style={{ width: collapsed ? 0 : width }}
+        className={`shrink-0 overflow-hidden max-md:hidden ${resizing ? '' : 'transition-[width] duration-200 ease-out'}`}
+      >
+        <div
+          style={{ width, transform: collapsed ? `translateX(-${width}px)` : 'none' }}
+          className={`flex h-full ${resizing ? '' : 'transition-transform duration-200 ease-out'}`}
+        >
+          <Sidebar
+            org={data?.org || 'small'}
+            email={data?.email}
+            apps={data?.apps || []}
+            folders={data?.folders || []}
+            width={width}
+            onResize={resize}
+            onReload={load}
+            onCollapse={() => toggle(true)}
+          />
+        </div>
+      </div>
       {children(data, load)}
     </div>
   );
