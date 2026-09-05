@@ -21,7 +21,7 @@ function run(args, token, { capture = false, cwd } = {}) {
     encoding: 'utf8',
   });
   if (r.error && r.error.code === 'ENOENT') {
-    throw new Error('flyctl not installed — https://fly.io/docs/flyctl/install/');
+    throw new Error('flyctl not installed - https://fly.io/docs/flyctl/install/');
   }
   return r;
 }
@@ -40,7 +40,7 @@ function deploy(flyApp, token, cwd) {
     token,
     { cwd }
   );
-  if (r.status !== 0) throw new Error('deploy failed — see flyctl output above');
+  if (r.status !== 0) throw new Error('deploy failed - see flyctl output above');
 }
 
 // Jobs: build + push the image only, start nothing. Label makes the ref
@@ -51,7 +51,7 @@ function buildImage(flyApp, token, cwd, label) {
     token,
     { cwd }
   );
-  if (r.status !== 0) throw new Error('image build failed — see flyctl output above');
+  if (r.status !== 0) throw new Error('image build failed - see flyctl output above');
   return `registry.fly.io/${flyApp}:${label}`;
 }
 

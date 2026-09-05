@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { api, cronHuman, cronList, fmtTime } from './api.js';
-const Runbook = lazy(() => import('./RunbookEditor.jsx')); // BlockNote is heavy — its chunk loads only when a runbook opens
+const Runbook = lazy(() => import('./RunbookEditor.jsx')); // BlockNote is heavy - its chunk loads only when a runbook opens
 import { RunForm } from './run.jsx';
 import { Button, SlidePanel, Tabs, TabsContent, TabsList, TabsTrigger } from './ui.jsx';
 
@@ -112,7 +112,7 @@ function RunsTab({ app, liveRunId, onSettled }) {
   );
 }
 
-// The Run tab in the peek is the same form as the app page — the list payload has
+// The Run tab in the peek is the same form as the app page - the list payload has
 // no [inputs] schema, so fetch the app detail first.
 function RunFormTab({ app, onStarted }) {
   const [detail, setDetail] = useState(null);

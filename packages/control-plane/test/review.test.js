@@ -164,7 +164,7 @@ test('runbook is stored with the review, review summary line appended with the c
   );
   const review = stored(db);
   assert.ok(review.runbook.startsWith('# shell runner\n'));
-  assert.ok(review.runbook.endsWith('\n---\n*review: a shell runner — risk: high*\n'));
+  assert.ok(review.runbook.endsWith('\n---\n*review: a shell runner - risk: high*\n'));
 });
 
 test('generateRunbook returns the finished runbook without a DB', async () => {
@@ -173,7 +173,7 @@ test('generateRunbook returns the finished runbook without a DB', async () => {
     () => generateRunbook({ ANTHROPIC_API_KEY: 'k' }, 'bundle')
   );
   assert.ok(runbook.startsWith('# a test app\n'));
-  assert.match(runbook, /\*review: a test app — risk: low\*\n$/);
+  assert.match(runbook, /\*review: a test app - risk: low\*\n$/);
 });
 
 test('missing or empty runbook fails validation', () => {

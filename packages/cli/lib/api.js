@@ -13,7 +13,7 @@ async function call(method, path, body, { auth = true } = {}) {
   const headers = isForm ? {} : { 'Content-Type': 'application/json' };
   if (auth) {
     const { token } = load();
-    if (!token) throw new Error('not logged in — run: small login');
+    if (!token) throw new Error('not logged in - run: small login');
     headers.Authorization = `Bearer ${token}`;
   }
   const resp = await fetch(apiBase() + path, {
@@ -26,10 +26,10 @@ async function call(method, path, body, { auth = true } = {}) {
   return data;
 }
 
-// Binary GET for run outputs — call() assumes JSON responses.
+// Binary GET for run outputs - call() assumes JSON responses.
 async function fetchRaw(path) {
   const { token } = load();
-  if (!token) throw new Error('not logged in — run: small login');
+  if (!token) throw new Error('not logged in - run: small login');
   const resp = await fetch(apiBase() + path, { headers: { Authorization: `Bearer ${token}` } });
   if (!resp.ok) throw new Error(`${path} failed (${resp.status})`);
   return Buffer.from(await resp.arrayBuffer());

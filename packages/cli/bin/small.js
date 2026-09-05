@@ -80,12 +80,12 @@ async function downloadOutputs(name, dir) {
 // ---------- deploy review output ----------
 
 const reviewFmt = {
-  findings: (x) => `[${x.severity}] ${x.at} — ${x.text}`,
+  findings: (x) => `[${x.severity}] ${x.at} - ${x.text}`,
   secrets: (x) => `${x.name} ${x.declared ? 'declared' : 'NOT DECLARED'} · used at ${x.used_at}`,
   undeclared_secrets: (x) => x,
-  outbound: (x) => `${x.host} — ${x.purpose} (${x.at})`,
+  outbound: (x) => `${x.host} - ${x.purpose} (${x.at})`,
   aws: (x) => `${x.action} ${x.resource} (${x.at})`,
-  shell_exec: (x) => `${x.at} — ${x.command}${x.user_input_reaches_it ? ' · user input reaches it' : ''}`,
+  shell_exec: (x) => `${x.at} - ${x.command}${x.user_input_reaches_it ? ' · user input reaches it' : ''}`,
 };
 
 function reviewLine(r) {
@@ -114,8 +114,8 @@ function printReport(res) {
   section('shell exec', 'shell_exec');
   const fsys = r.filesystem || { reads: [], writes: [] };
   console.log('filesystem:');
-  console.log(`  reads: ${fsys.reads.join(', ') || '—'}`);
-  console.log(`  writes: ${fsys.writes.join(', ') || '—'}`);
+  console.log(`  reads: ${fsys.reads.join(', ') || '-'}`);
+  console.log(`  writes: ${fsys.writes.join(', ') || '-'}`);
   if ((r.skipped || []).length) console.log(`skipped: ${r.skipped.join(', ')}`);
   console.log(`summary: ${r.summary}`);
   console.log(`risk: ${r.risk} (${res.model || 'unknown model'}, ${res.reviewedAt})`);
@@ -165,7 +165,7 @@ const commands = {
     }
     // First runbook, from the code as it stands. Never fails the init.
     const rbPath = path.join(dir, 'RUNBOOK.md');
-    if (fs.existsSync(rbPath) && !flags.force) return console.log('RUNBOOK.md already exists — use --force to regenerate');
+    if (fs.existsSync(rbPath) && !flags.force) return console.log('RUNBOOK.md already exists - use --force to regenerate');
     try {
       const app = detect(dir);
       const { bundle } = buildBundle(dir, app.entry, envfile.parse(path.join(dir, '.env')));
@@ -173,7 +173,7 @@ const commands = {
       fs.writeFileSync(rbPath, runbook);
       console.log('✓ wrote RUNBOOK.md');
     } catch (e) {
-      console.log(`runbook: unavailable (${e.message}) — regenerated on every small deploy`);
+      console.log(`runbook: unavailable (${e.message}) - regenerated on every small deploy`);
     }
   },
 
@@ -191,7 +191,7 @@ const commands = {
     if (src) {
       const repo = src.repoUrl ? `${src.repoUrl.replace(/^https:\/\//, '')} @ ` : '';
       console.log(`✓ source: ${repo}${src.branch} ${src.shortCommit}`);
-      if (src.dirty) console.log('⚠ uncommitted changes deployed — commit before sharing');
+      if (src.dirty) console.log('⚠ uncommitted changes deployed - commit before sharing');
     } else {
       console.log('source: not a git repo');
     }
@@ -200,13 +200,13 @@ const commands = {
     const secrets = envfile.parse(envPath);
     const required = (app.config.secrets && app.config.secrets.required) || [];
     const missing = required.filter((k) => !(k in secrets));
-    if (missing.length) throw new Error(`missing secrets: ${missing.join(', ')} — add them to ${envPath}`);
+    if (missing.length) throw new Error(`missing secrets: ${missing.join(', ')} - add them to ${envPath}`);
 
     // pre-flight: catch here what would otherwise burn the remote build or fail at runtime
     console.log(`✓ syntax: ${preflight.checkSyntax(dir)}`);
     const deps = await preflight.checkDeps(dir, app.config.deps && app.config.deps.file);
     if (deps) {
-      if (deps.missing.length) console.log(`⚠ deps: not on PyPI: ${deps.missing.join(', ')} — the build will likely fail`);
+      if (deps.missing.length) console.log(`⚠ deps: not on PyPI: ${deps.missing.join(', ')} - the build will likely fail`);
       else console.log(`✓ deps: ${deps.count} on PyPI`);
     }
     for (const w of preflight.checkEnvReads(dir, app.config, secrets)) console.log(`⚠ env: ${w}`);
@@ -240,11 +240,11 @@ const commands = {
       agentMd: fs.existsSync(path.join(dir, 'AGENT.md')) ? fs.readFileSync(path.join(dir, 'AGENT.md'), 'utf8') : null,
     });
     if (!d.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
-    if (storage && !d.volumeRegion) throw new Error('control plane does not support [storage] yet — redeploy the worker');
+    if (storage && !d.volumeRegion) throw new Error('control plane does not support [storage] yet - redeploy the worker');
     writeFlyToml(dir, d.flyApp, app.config.memory, storage ? { path: storage.path || '/data', region: d.volumeRegion } : undefined);
     if (storage) console.log(`✓ storage: ${storage.path || '/data'} (${sizeGb}GB volume in ${d.volumeRegion}, survives redeploys)`);
     // reaching here means the control plane test-assumed the role during /api/deploy
-    if (awsRoleArn) console.log(`✓ aws role: ${awsRoleArn} (verified — STS via control plane)`);
+    if (awsRoleArn) console.log(`✓ aws role: ${awsRoleArn} (verified - STS via control plane)`);
 
     // The worker's waitUntil window (~30s) is too short for the model to write review +
     // runbook, so the CLI holds this request open in parallel with the Fly build instead;
@@ -262,17 +262,17 @@ const commands = {
 
     if (kind === 'job') {
       if (schedule) {
-        if (!d.nextRun && !d.schedulePaused) throw new Error('control plane does not support schedule yet — redeploy the worker');
+        if (!d.nextRun && !d.schedulePaused) throw new Error('control plane does not support schedule yet - redeploy the worker');
         const next = d.schedulePaused
-          ? `paused — small schedule resume ${app.name}`
+          ? `paused - small schedule resume ${app.name}`
           : `next run ${new Date(d.nextRun).toISOString().slice(0, 16).replace('T', ' ')}`;
         console.log(`✓ schedule: ${schedule} (UTC) · ${next}`);
       }
-      // jobs: build + register the image, start nothing — the control plane starts machines per run
+      // jobs: build + register the image, start nothing - the control plane starts machines per run
       fly.setSecrets(d.flyApp, d.flyToken, secrets);
       const image = fly.buildImage(d.flyApp, d.flyToken, dir, `v${Date.now()}`);
       await call('POST', '/api/image', { app: app.name, image });
-      console.log(`✓ built ${app.name} — start it with: small run ${app.name}`);
+      console.log(`✓ built ${app.name} - start it with: small run ${app.name}`);
       await printReview();
       return;
     }
@@ -295,7 +295,7 @@ const commands = {
   async review() {
     const name = flags._[0] || appName(process.cwd());
     const res = await call('GET', `/api/review?app=${encodeURIComponent(name)}`);
-    if (!res.review) return console.log('review: unavailable — no reviewed deploy yet');
+    if (!res.review) return console.log('review: unavailable - no reviewed deploy yet');
     if (flags.diff) printDiff(res);
     else printReport(res);
   },
@@ -304,11 +304,11 @@ const commands = {
     const name = flags._[0] || appName(process.cwd());
     const res = await call('GET', `/api/review?app=${encodeURIComponent(name)}`);
     const cur = res.review && res.review.runbook;
-    if (!cur) return console.log('runbook: unavailable — no reviewed deploy yet');
+    if (!cur) return console.log('runbook: unavailable - no reviewed deploy yet');
     if (flags.diff) {
       const prev = res.prev && res.prev.runbook;
       if (!prev) return console.log('no previous runbook to diff against');
-      // ponytail: line-set diff, no ordering — mirror of review --diff; real diff when it matters
+      // ponytail: line-set diff, no ordering - mirror of review --diff; real diff when it matters
       const before = new Set(prev.split('\n'));
       const after = new Set(cur.split('\n'));
       let changed = false;
@@ -348,7 +348,7 @@ const commands = {
       console.log(`✓ inputs: ${line}`);
     }
     const total = Object.values(files).reduce((s, f) => s + f.size, 0);
-    if (total > 100 * 1024 * 1024) throw new Error(`input files total ${fmtSize(total)} — cap is 100 MB per run`);
+    if (total > 100 * 1024 * 1024) throw new Error(`input files total ${fmtSize(total)} - cap is 100 MB per run`);
 
     let body;
     if (Object.keys(files).length) {
@@ -379,10 +379,10 @@ const commands = {
   async runs() {
     const name = flags._[0] || appName(process.cwd());
     const { runs } = await call('GET', `/api/runs?app=${encodeURIComponent(name)}`);
-    if (!runs.length) return console.log(`no runs yet — small run ${name}`);
+    if (!runs.length) return console.log(`no runs yet - small run ${name}`);
     for (const r of runs) {
       // sqlite datetime('now') strings are UTC without a zone marker
-      const dur = r.status === 'skipped' ? '—' : r.finished_at ? `${Math.round((new Date(r.finished_at + 'Z') - new Date(r.started_at + 'Z')) / 1000)}s` : '…';
+      const dur = r.status === 'skipped' ? '-' : r.finished_at ? `${Math.round((new Date(r.finished_at + 'Z') - new Date(r.started_at + 'Z')) / 1000)}s` : '…';
       const by = r.started_by === 'cron' ? '⏱ cron' : r.started_by;
       console.log(`${r.run_id}  ${r.status}  ${dur}  ${by}  ${r.started_at}${r.reason ? `  (${r.reason})` : ''}`);
     }
@@ -396,7 +396,7 @@ const commands = {
     console.log(`✓ schedule ${res.paused ? 'paused' : 'resumed'} for ${name} (${res.schedule})`);
   },
 
-  // Open Watch observations — the nightly pass's findings. `small watch [app]`.
+  // Open Watch observations - the nightly pass's findings. `small watch [app]`.
   async watch() {
     const name = flags._[0];
     const res = await call('GET', `/api/watch${name ? `?app=${encodeURIComponent(name)}` : ''}`);
@@ -418,7 +418,7 @@ const commands = {
       if (!res.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
       return fly.logs(res.flyApp, res.flyToken);
     }
-    // ponytail: no export — pipe stdout to a file until a --json flag is asked for
+    // ponytail: no export - pipe stdout to a file until a --json flag is asked for
     let base = `/api/request-logs?app=${encodeURIComponent(name)}`;
     if (typeof flags.user === 'string') base += `&user=${encodeURIComponent(flags.user)}`;
     if (typeof flags.status === 'string') base += `&status=${encodeURIComponent(flags.status)}`;
@@ -452,17 +452,17 @@ const commands = {
 
   async list() {
     const { apps } = await call('GET', '/api/apps');
-    if (!apps.length) return console.log('no apps yet — run small deploy');
+    if (!apps.length) return console.log('no apps yet - run small deploy');
     for (const a of apps) console.log(`${a.name}  ${a.visibility}  owner:${a.owner_email}`);
   },
 
   // Install the agent skill into this project so Claude Code/Codex knows how to
   // deploy with small. Files ship inside the npm package (synced at prepack).
-  // Payload only — the skill dir is also the standalone small-skill npm package,
+  // Payload only - the skill dir is also the standalone small-skill npm package,
   // and its installer/package.json must not land in .claude/skills.
   async skill() {
     const src = path.join(__dirname, '..', 'assets', 'skill');
-    if (!fs.existsSync(src)) throw new Error('skill assets missing — reinstall: npm i -g small-deploy');
+    if (!fs.existsSync(src)) throw new Error('skill assets missing - reinstall: npm i -g small-deploy');
     const dst = path.join(process.cwd(), '.claude', 'skills', 'small');
     fs.mkdirSync(path.join(dst, 'references'), { recursive: true });
     fs.copyFileSync(path.join(src, 'SKILL.md'), path.join(dst, 'SKILL.md'));

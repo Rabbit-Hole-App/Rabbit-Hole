@@ -8,7 +8,7 @@ function git(args, cwd) {
 
 // git@github.com:org/repo.git | ssh://git@github.com/org/repo.git | https://github.com/org/repo.git
 // → https://github.com/org/repo. Unrecognized shapes → null.
-// ponytail: any host normalizes; only github gets visibility checks server-side — GitLab when asked
+// ponytail: any host normalizes; only github gets visibility checks server-side - GitLab when asked
 function normalizeRemote(url) {
   if (!url) return null;
   const m = url.match(/^git@([^:/]+):(.+?)(?:\.git)?\/?$/) || url.match(/^\w+:\/\/(?:[^@/]+@)?([^:/]+)\/(.+?)(?:\.git)?\/?$/);

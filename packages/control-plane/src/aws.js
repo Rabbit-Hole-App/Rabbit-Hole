@@ -10,7 +10,7 @@ async function hmac(key, data) {
   return new Uint8Array(await crypto.subtle.sign('HMAC', k, te.encode(data)));
 }
 
-// ListObjectsV2 signed with STS session creds — powers the dashboard's s3://
+// ListObjectsV2 signed with STS session creds - powers the dashboard's s3://
 // autocomplete. One level per call (delimiter=/): returns folders and files.
 export async function s3List(env, creds, bucket, prefix) {
   const region = env.AWS_REGION || 'us-east-1';
@@ -50,7 +50,7 @@ export async function s3List(env, creds, bucket, prefix) {
   return { dirs, files };
 }
 
-// GetObject with STS session creds — the dashboard's s3:// image preview.
+// GetObject with STS session creds - the dashboard's s3:// image preview.
 export async function s3Get(env, creds, bucket, key) {
   const region = env.AWS_REGION || 'us-east-1';
   const host = `${bucket}.s3.${region}.amazonaws.com`;
@@ -76,7 +76,7 @@ export async function s3Get(env, creds, bucket, key) {
   });
 }
 
-// ListAllMyBuckets — used for the autocomplete's initial browse. Roles often
+// ListAllMyBuckets - used for the autocomplete's initial browse. Roles often
 // deny this; callers treat a throw as "no bucket list, fall back".
 export async function s3Buckets(env, creds) {
   const region = env.AWS_REGION || 'us-east-1';

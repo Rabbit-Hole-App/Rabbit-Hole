@@ -205,7 +205,7 @@ test('inputs: schema accepts the six types, rejects a seventh', () => {
   assert.throws(() => checkSchema({ outputs: { r: { label: 'x' } } }), /needs path/);
 });
 
-test('inputs: validate — required, range, options, accept, pattern, defaults', () => {
+test('inputs: validate - required, range, options, accept, pattern, defaults', () => {
   const schema = {
     image: { type: 'file', required: true, accept: '.jpg,.png' },
     threshold: { type: 'number', default: 0.5, min: 0, max: 1 },
@@ -244,7 +244,7 @@ test('inputs: validate — required, range, options, accept, pattern, defaults',
 test('preflight: syntax check passes clean code, stops a broken file', () => {
   const verdict = checkSyntax(tmp({ 'app.py': 'print(1)\n' }));
   assert.match(verdict, /compile|skipped/);
-  // hard stop only checkable where a local python exists — the check itself skips without one
+  // hard stop only checkable where a local python exists - the check itself skips without one
   if (!verdict.startsWith('skipped')) {
     assert.throws(() => checkSyntax(tmp({ 'app.py': 'def broken(:\n' })), /syntax/);
   }

@@ -39,7 +39,7 @@ test('bundle: includes py files + small.toml + requirements.txt, excludes junk d
   assert.deepEqual(skipped, []);
 });
 
-test('bundle: secret values redacted — model sees names only', () => {
+test('bundle: secret values redacted - model sees names only', () => {
   const dir = tmp({
     'app.py': 'import os\nSTRIPE_KEY = "sk-live-hunter22222"\nos.environ.get("STRIPE_KEY")\n',
     'small.toml': 'entry = "app.py"\n',

@@ -37,7 +37,7 @@ function detect(dir, flags = {}) {
     if (pys.includes(f)) return pick(f, 'filename convention');
   }
   if (pys.length === 1) return pick(pys[0], 'only .py file');
-  throw new Error('cannot find the app entry — add entry = "app.py" to small.toml');
+  throw new Error('cannot find the app entry - add entry = "app.py" to small.toml');
 }
 
 module.exports = { detect, frameworkOf };

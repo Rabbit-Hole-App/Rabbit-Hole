@@ -23,7 +23,7 @@ function useDark() {
 }
 
 // Excalidraw canvas as a BlockNote block. The scene (elements only) lives in the
-// block's props, so it rides the normal runbook JSON autosave — no extra storage.
+// block's props, so it rides the normal runbook JSON autosave - no extra storage.
 function ExcalidrawEmbed({ block, editor }) {
   const editable = editor.isEditable;
   const dark = useDark();
@@ -65,7 +65,7 @@ function ExcalidrawEmbed({ block, editor }) {
   );
 }
 
-// createReactBlockSpec returns a factory in 0.54 — call it to get the spec
+// createReactBlockSpec returns a factory in 0.54 - call it to get the spec
 const excalidrawBlock = createReactBlockSpec(
   { type: 'excalidraw', propSchema: { data: { default: '' } }, content: 'none' },
   { render: (props) => <ExcalidrawEmbed block={props.block} editor={props.editor} /> },
@@ -82,7 +82,7 @@ const insertExcalidraw = (editor) => ({
   onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: 'excalidraw' }),
 });
 
-// Runbooks store BlockNote's own block JSON — saving markdown was lossy, so the
+// Runbooks store BlockNote's own block JSON - saving markdown was lossy, so the
 // saved page never matched what was edited. Legacy rows are markdown: sniff & convert.
 function loadContent(editor, raw) {
   if (!raw) return;
@@ -95,18 +95,18 @@ function loadContent(editor, raw) {
     }
     if (Array.isArray(blocks) && blocks.length) editor.replaceBlocks(editor.document, blocks);
   } catch {
-    /* unreadable content — leave the editor empty rather than crash the panel */
+    /* unreadable content - leave the editor empty rather than crash the panel */
   }
 }
 
-// Notion behavior: no Save button — edits autosave (debounced), Ctrl+Z is
+// Notion behavior: no Save button - edits autosave (debounced), Ctrl+Z is
 // BlockNote's own history. Read-only render for viewers without edit rights.
 export default function Runbook({ app, canEdit, onSaved }) {
   const editor = useCreateBlockNote({ schema });
   const dark = useDark();
   const [status, setStatus] = useState('');
   const timer = useRef();
-  const ready = useRef(false); // loading the initial content fires onChange too — don't autosave that
+  const ready = useRef(false); // loading the initial content fires onChange too - don't autosave that
 
   useEffect(() => {
     loadContent(editor, app.runbook);

@@ -1,4 +1,4 @@
-// Slack adapter for Ask — a transport, not a new agent. Every message becomes a
+// Slack adapter for Ask - a transport, not a new agent. Every message becomes a
 // /api/ask call; every proposal becomes Run/Cancel buttons that hit /api/ask/approve.
 // Deps (ask, approve, slackApi) are injected so unit tests mock Slack cleanly.
 
@@ -17,7 +17,7 @@ export async function verifySlackSignature(secret, timestamp, rawBody, signature
 export function slackApi(token) {
   return async (method, payload = {}) => {
     // form-encoded, not JSON: read methods like users.info ignore JSON bodies
-    // (silent — the missing `user` arg comes back as user_not_found); objects
+    // (silent - the missing `user` arg comes back as user_not_found); objects
     // (blocks, etc.) go JSON-stringified per param, which every method accepts.
     const body = new URLSearchParams();
     for (const [k, v] of Object.entries(payload)) body.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
@@ -46,7 +46,7 @@ export async function resolveActor(env, install, api, slackUserId) {
   return member ? { email, org: install.org } : null;
 }
 
-export const SIGN_IN_REPLY = "I don't know you — sign in at small.app with your work email first.";
+export const SIGN_IN_REPLY = "I don't know you - sign in at small.app with your work email first.";
 
 // ---------- Block Kit builders ----------
 
@@ -170,14 +170,14 @@ export async function handleSlackCommand(env, ctx, install, form, deps, baseUrl)
     if (!(await canEditApp(env, actor, app))) return { text: `you need edit on ${app} to link it` };
     await env.DB.prepare('INSERT OR REPLACE INTO slack_channels (org, channel_id, app, digest) VALUES (?, ?, ?, 0)')
       .bind(install.org, channel, app).run();
-    return { text: `✓ this channel is now linked to ${app} — @small here talks about it, and Watch posts new observations` };
+    return { text: `✓ this channel is now linked to ${app} - @small here talks about it, and Watch posts new observations` };
   }
   if (verb === 'unlink') {
     await env.DB.prepare('DELETE FROM slack_channels WHERE org = ? AND channel_id = ?').bind(install.org, channel).run();
     return { text: '✓ unlinked' };
   }
   if (verb === 'digest') {
-    // ponytail: the spec wanted this in /settings — a slash command is smaller and stays in Slack
+    // ponytail: the spec wanted this in /settings - a slash command is smaller and stays in Slack
     await env.DB.prepare('INSERT OR REPLACE INTO slack_channels (org, channel_id, app, digest) VALUES (?, ?, NULL, 1)')
       .bind(install.org, channel).run();
     return { text: '✓ the Monday watch digest will post here' };
@@ -239,7 +239,7 @@ export async function handleSlackInteract(env, ctx, install, payload, deps, base
   if (action.action_id === 'ask_choose') {
     const { app, message } = JSON.parse(action.selected_option.value);
     const result = await runAsk(env, ctx, actor, { scope: { app }, message }, askHandler);
-    await respond({ replace_original: true, text: `*${app}* — ${result.text}`.slice(0, 3000) });
+    await respond({ replace_original: true, text: `*${app}* - ${result.text}`.slice(0, 3000) });
     for (const p of result.proposals) {
       await api('chat.postMessage', { channel, thread_ts: threadTs, text: `${p.tool}?`, blocks: proposalBlocks(p) });
     }
@@ -260,7 +260,7 @@ export async function handleSlackInteract(env, ctx, install, payload, deps, base
     const resp = await approveHandler(req, env, ctx, actor, baseUrl);
     const d = await resp.json();
     if (!resp.ok || d.error) {
-      // only the asker or an editor can run it — everyone else gets an ephemeral no
+      // only the asker or an editor can run it - everyone else gets an ephemeral no
       await respond({
         response_type: 'ephemeral',
         replace_original: false,
@@ -270,7 +270,7 @@ export async function handleSlackInteract(env, ctx, install, payload, deps, base
     }
     const link = d.runId ? `\n<${baseUrl}/apps/${encodeURIComponent(payloadAppOf(payload) || '')}/runs/${d.runId}|open the run>` : '';
     if (d.runId) {
-      // remember where to post the outcome — apiRunLog notifies on settle
+      // remember where to post the outcome - apiRunLog notifies on settle
       await env.DB.prepare('INSERT OR REPLACE INTO slack_runs (org, run_id, channel_id, thread_ts) VALUES (?, ?, ?, ?)')
         .bind(install.org, d.runId, channel, threadTs || null).run();
     }
@@ -287,7 +287,7 @@ function payloadAppOf(payload) {
 // ---------- run outcome → Slack (called from apiRunLog on settle) ----------
 
 // Runs approved from Slack post their result back to the same thread: ✓ + link,
-// or ✗ + diagnosis + log tail. One-shot — the slack_runs row is deleted after.
+// or ✗ + diagnosis + log tail. One-shot - the slack_runs row is deleted after.
 export async function notifySlackRun(env, runId, baseUrl) {
   const sub = await env.DB.prepare('SELECT * FROM slack_runs WHERE run_id = ?').bind(runId).first();
   if (!sub) return;
@@ -305,7 +305,7 @@ export async function notifySlackRun(env, runId, baseUrl) {
       const listed = await env.RUNS.list({ prefix: `runs/${runId}/outputs/` });
       outs = listed.objects.map((o) => `• ${o.key.split('/').pop()} (${o.size < 1024 ? `${o.size} B` : `${Math.round(o.size / 1024)} KB`})`);
     }
-    text = `✓ ${run.app_name} run ${runId} finished — ${link}`
+    text = `✓ ${run.app_name} run ${runId} finished - ${link}`
       + (outs.length ? `\noutputs:\n${outs.slice(0, 10).join('\n')}` : '');
   } else {
     const tail = await env.DB.prepare('SELECT line FROM run_logs WHERE run_id = ? ORDER BY seq DESC LIMIT 3').bind(runId).all();

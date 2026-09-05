@@ -52,7 +52,7 @@ async function appRow(env, org, name) {
   return env.DB.prepare('SELECT * FROM apps WHERE org = ? AND name = ? AND deleted_at IS NULL').bind(org, name).first();
 }
 
-// Direct membership, a team share (#finance), or a share on the app's folder —
+// Direct membership, a team share (#finance), or a share on the app's folder -
 // all live references; 'edit' wins over 'view'.
 async function memberRole(env, app, email) {
   const roles = [];
@@ -96,9 +96,9 @@ async function apiLogin(req, env) {
   const challenge = await sign({ t: 'challenge', email, codeHash: await sha256(code), exp: now() + 600 }, env.MASTER_KEY);
   const sent = await sendEmail(env, email, `small deploy login code: ${code}`, `Your small deploy login code is ${code}\nIt expires in 10 minutes.`);
   if (sent) return json({ challenge });
-  // Echoing the code is an auth bypass — only allowed on test/dev instances (marked by TEST_BYPASS_SECRET).
+  // Echoing the code is an auth bypass - only allowed on test/dev instances (marked by TEST_BYPASS_SECRET).
   if (!env.TEST_BYPASS_SECRET) return json({ error: 'email not configured on this control plane' }, 503);
-  return json({ challenge, devCode: code, warning: 'test instance — code echoed' });
+  return json({ challenge, devCode: code, warning: 'test instance - code echoed' });
 }
 
 async function apiVerify(req, env) {
@@ -111,7 +111,7 @@ async function apiVerify(req, env) {
 }
 
 // 200 = public, 404 = private or nonexistent, anything else (rate limit, outage) = unknown.
-// Unauthenticated on purpose — never store a token; private repos just get plain SHAs.
+// Unauthenticated on purpose - never store a token; private repos just get plain SHAs.
 // ponytail: 60 req/h unauth limit shared across CF egress IPs; null (unknown) when it trips
 async function repoPublic(repoUrl) {
   const m = (repoUrl || '').match(/^https:\/\/github\.com\/([^/]+\/[^/]+)$/);
@@ -131,15 +131,15 @@ async function apiDeploy(req, env, ctx, user, baseUrl) {
   if (schedule) {
     if (kind !== 'job') return json({ error: 'schedule requires kind = "job" in small.toml' }, 400);
     try {
-      nextAt = nextRun(parseCron(schedule), Date.now()); // also rejects "0 0 30 2 *" — valid syntax, never fires
+      nextAt = nextRun(parseCron(schedule), Date.now()); // also rejects "0 0 30 2 *" - valid syntax, never fires
     } catch (e) {
-      return json({ error: `bad schedule "${schedule}": ${e.message} — use 5-field cron like "0 9 * * 1-5"` }, 400);
+      return json({ error: `bad schedule "${schedule}": ${e.message} - use 5-field cron like "0 9 * * 1-5"` }, 400);
     }
   }
   if (storage && !(Number.isInteger(storage.sizeGb) && storage.sizeGb >= 1 && storage.sizeGb <= 100))
     return json({ error: 'storage.sizeGb must be an integer between 1 and 100' }, 400);
   if (awsRoleArn && !/^arn:aws:iam::\d{12}:role\/[\w+=,.@/-]+$/.test(awsRoleArn)) return json({ error: 'bad aws role arn' }, 400);
-  // Verify the role is assumable NOW, before anything is created — the deploy error
+  // Verify the role is assumable NOW, before anything is created - the deploy error
   // carries the exact trust policy (principal + this org as ExternalId) to paste.
   if (awsRoleArn) {
     if (!env.AWS_ACCESS_KEY_ID) return json({ error: 'control plane has no AWS credentials configured' }, 503);
@@ -164,7 +164,7 @@ async function apiDeploy(req, env, ctx, user, baseUrl) {
       }, 400);
     }
   }
-  // redeploying a name that sits in the Trash revives it — same fly app, same shares
+  // redeploying a name that sits in the Trash revives it - same fly app, same shares
   await env.DB.prepare('UPDATE apps SET deleted_at = NULL WHERE org = ? AND name = ? AND deleted_at IS NOT NULL').bind(user.org, name).run();
   let app = await appRow(env, user.org, name);
   if (app) {
@@ -180,13 +180,13 @@ async function apiDeploy(req, env, ctx, user, baseUrl) {
       .run();
     app = await appRow(env, user.org, name);
   }
-  // [inputs]/[outputs] schema from small.toml — the dashboard Run form renders from it.
+  // [inputs]/[outputs] schema from small.toml - the dashboard Run form renders from it.
   // undefined = old CLI (keep what's stored); null/absent-in-toml = clear. Oversize is
-  // rejected, not truncated — a sliced JSON would 500 every later app GET.
+  // rejected, not truncated - a sliced JSON would 500 every later app GET.
   for (const [col, val] of [['inputs', inputs], ['outputs', outputs]]) {
     if (val === undefined) continue;
     const text = val ? JSON.stringify(val) : null;
-    if (text && text.length > 20000) return json({ error: `[${col}] too large — keep the schema under 20KB` }, 400);
+    if (text && text.length > 20000) return json({ error: `[${col}] too large - keep the schema under 20KB` }, 400);
     await env.DB.prepare(`UPDATE apps SET ${col} = ? WHERE id = ?`).bind(text, app.id).run();
   }
   // AGENT.md rides every deploy verbatim into app-scope Ask context (null clears it)
@@ -205,7 +205,7 @@ async function apiDeploy(req, env, ctx, user, baseUrl) {
     return json({ error: e.message }, 502);
   }
   // Source provenance: one deploys row per deploy, latest mirrored on the app row.
-  // No source (not a git repo) clears the app-row copy — stale repo info under a fresh
+  // No source (not a git repo) clears the app-row copy - stale repo info under a fresh
   // deployed_at would claim the deployed code matches a commit it doesn't.
   const src = {
     repoUrl: source && source.repoUrl ? String(source.repoUrl).slice(0, 300) : null,
@@ -220,7 +220,7 @@ async function apiDeploy(req, env, ctx, user, baseUrl) {
   const deployRow = await env.DB.prepare(
     'INSERT INTO deploys (app_id, repo_url, branch, commit_sha, dirty, deployed_by) VALUES (?, ?, ?, ?, ?, ?)'
   ).bind(app.id, src.repoUrl, src.branch, src.commit, src.dirty, user.email).run();
-  // The review bundle IS the deployed source (redacted, import-walked, capped) —
+  // The review bundle IS the deployed source (redacted, import-walked, capped) -
   // keep it per deploy so Ask answers from what actually shipped, and diffs work.
   if (env.RUNS && review && review.bundle) {
     await env.RUNS.put(
@@ -259,7 +259,7 @@ async function apiReview(req, env, user) {
 }
 
 // Deploy-time review, run while the CLI holds the request open (in parallel with its Fly
-// build). waitUntil's ~30s window is too short for the model to write review + runbook —
+// build). waitUntil's ~30s window is too short for the model to write review + runbook -
 // this handler awaits the model and stores the result before responding. runReview never
 // throws, so a model failure still answers 200 with the previous (or no) review.
 async function apiReviewRun(req, env, user) {
@@ -268,7 +268,7 @@ async function apiReviewRun(req, env, user) {
   if (!app) return json({ error: `no app named ${name}` }, 404);
   if (!(await canEdit(env, app, user.email))) return json({ error: 'no access' }, 403);
   if (!env.ANTHROPIC_API_KEY || !bundle) return json({ error: 'review not configured' }, 503);
-  // the review bundle IS the deployed source — persist it against this deploy so
+  // the review bundle IS the deployed source - persist it against this deploy so
   // Ask cites the code that actually shipped (and can diff deploys)
   if (env.RUNS) {
     const dep = (await env.DB.prepare('SELECT MAX(id) AS id FROM deploys WHERE app_id = ?').bind(app.id).first())?.id;
@@ -277,19 +277,19 @@ async function apiReviewRun(req, env, user) {
     }
   }
   await runReview(env, app.id, bundle, skipped || []);
-  // first deploy writes the model's 2-3 line description; user edits stick — only fill when empty
+  // first deploy writes the model's 2-3 line description; user edits stick - only fill when empty
   if (!app.description) {
     try {
       const desc = await askOnce(
         env,
         `App name: ${name} (kind: ${app.kind})\n\nSource:\n${String(bundle).slice(0, 60000)}`,
-        'Write a 2-3 sentence description of what this app does, for a teammate who never read the code. Plain language, no jargon, no file names — just what it does and what you get out of it. Reply with the description only.',
+        'Write a 2-3 sentence description of what this app does, for a teammate who never read the code. Plain language, no jargon, no file names - just what it does and what you get out of it. Reply with the description only.',
         600
       );
       let clean = desc && desc.replace(/\n+Sources:.*$/is, '').trim();
-      if (clean && !/[.!?]$/.test(clean)) clean = clean.replace(/\s+[^.!?]*$/, ''); // a token-capped tail ends mid-word — drop it
+      if (clean && !/[.!?]$/.test(clean)) clean = clean.replace(/\s+[^.!?]*$/, ''); // a token-capped tail ends mid-word - drop it
       if (clean) await env.DB.prepare('UPDATE apps SET description = ? WHERE id = ?').bind(clean.slice(0, 600), app.id).run();
-    } catch { /* description is a nicety — never fail the review over it */ }
+    } catch { /* description is a nicety - never fail the review over it */ }
   }
   const fresh = await appRow(env, user.org, name);
   return json({
@@ -325,7 +325,7 @@ async function apiShare(req, env, user) {
   const r = role === 'edit' ? 'edit' : 'view';
   if (team) {
     const t = await teamRow(env, user.org, team);
-    if (!t) return json({ error: `no team #${teamName(team)} — create it first` }, 404);
+    if (!t) return json({ error: `no team #${teamName(team)} - create it first` }, 404);
     await env.DB.prepare('INSERT INTO app_teams (app_id, team_id, role) VALUES (?, ?, ?) ON CONFLICT(app_id, team_id) DO UPDATE SET role = excluded.role')
       .bind(app.id, t.id, r).run();
     return json({ ok: true, app: name, team: t.name, role: r });
@@ -336,7 +336,7 @@ async function apiShare(req, env, user) {
   return json({ ok: true, app: name, email: email.toLowerCase(), role: r });
 }
 
-// A runner can only report while its 6h run token lives — anything 'running' longer
+// A runner can only report while its 6h run token lives - anything 'running' longer
 // is a dead machine that never posted an exit code. Swept lazily on list reads.
 // finished_at stays NULL: the real end time is unknown, so no fake duration.
 const sweepStaleRuns = (env) =>
@@ -357,7 +357,7 @@ async function apiApps(env, user, baseUrl) {
   const { results } = await env.DB.prepare(
     `SELECT ${FIELDS} FROM apps WHERE org = ?2 AND deleted_at IS NULL ORDER BY name`
   ).bind(user.email, user.org).all();
-  // apps from OTHER orgs shared with me by email or via a group — the Shared section
+  // apps from OTHER orgs shared with me by email or via a group - the Shared section
   const { results: foreign } = await env.DB.prepare(
     `SELECT ${FIELDS} FROM apps WHERE deleted_at IS NULL AND org != ?2 AND (
         EXISTS (SELECT 1 FROM members WHERE app_id = apps.id AND email = ?1)
@@ -391,7 +391,7 @@ async function apiApps(env, user, baseUrl) {
   });
 }
 
-// Duplicate: a fresh owned copy of an app I can view — metadata, runbook, image.
+// Duplicate: a fresh owned copy of an app I can view - metadata, runbook, image.
 // Jobs are immediately runnable (same image, fresh Fly app); servers need one
 // `small deploy` to serve. Shares are not copied; schedules start paused.
 async function apiAppDuplicate(env, user, name, baseUrl) {
@@ -416,7 +416,7 @@ async function apiAppDuplicate(env, user, name, baseUrl) {
 }
 
 // Share-page lookup. The slug is org-scoped, but people shared by email from another
-// org must reach the page too — fall back to their membership row.
+// org must reach the page too - fall back to their membership row.
 async function appForUser(env, user, name) {
   const app = await env.DB.prepare(
     `SELECT apps.*, members.role AS my_role,
@@ -454,7 +454,7 @@ async function apiAppGet(env, user, name, baseUrl) {
     lastOpened = await env.DB.prepare(
       "SELECT user AS email, ts FROM request_logs WHERE org = ? AND slug = ? AND user IS NOT NULL ORDER BY id DESC LIMIT 1"
     ).bind(app.org, app.name).first();
-  } catch {} // request_logs ships with the request-logs feature branch — absent on fresh local DBs
+  } catch {} // request_logs ships with the request-logs feature branch - absent on fresh local DBs
   const folder = app.folder_id
     ? await env.DB.prepare('SELECT name FROM folders WHERE id = ?').bind(app.folder_id).first()
     : null;
@@ -464,7 +464,7 @@ async function apiAppGet(env, user, name, baseUrl) {
       try {
         const n = nextRun(parseCron(part), Date.now());
         nextAt = nextAt == null ? n : Math.min(nextAt, n);
-      } catch { /* legacy bad cron — row shows without a next time */ }
+      } catch { /* legacy bad cron - row shows without a next time */ }
     }
   }
   let observations = [];
@@ -489,19 +489,19 @@ async function apiAppGet(env, user, name, baseUrl) {
   });
 }
 
-// Natural-language app finder for the ⌘K modal — one model call over the visible
+// Natural-language app finder for the ⌘K modal - one model call over the visible
 // apps' names/kinds/descriptions, returns matching names best-first.
 async function apiAppFind(req, env, user) {
   const { q } = await req.json();
   if (!q || !env.ANTHROPIC_API_KEY) return json({ apps: [] });
   const visible = await orgVisibleApps(env, user);
   const catalog = visible.map(({ app }) =>
-    `${app.name} — kind:${app.kind}${app.description ? ` — ${String(app.description).split('\n')[0].slice(0, 200)}` : ''}`
+    `${app.name} - kind:${app.kind}${app.description ? ` - ${String(app.description).split('\n')[0].slice(0, 200)}` : ''}`
   ).join('\n');
   const answer = await askOnce(
     env,
     `Apps in this workspace:\n${catalog}`,
-    `The user is looking for: "${String(q).slice(0, 300)}". Reply ONLY with JSON like {"apps":["a","b"],"note":""} — apps = names of matching apps, best first. If none fit, apps is [] and note is ONE short friendly sentence (name the closest thing available, or say nothing here does that yet).`
+    `The user is looking for: "${String(q).slice(0, 300)}". Reply ONLY with JSON like {"apps":["a","b"],"note":""} - apps = names of matching apps, best first. If none fit, apps is [] and note is ONE short friendly sentence (name the closest thing available, or say nothing here does that yet).`
   );
   let out = {};
   try { out = JSON.parse((answer.match(/\{[\s\S]*\}/) || ['{}'])[0]); } catch { /* model went off-script → no recs */ }
@@ -509,7 +509,7 @@ async function apiAppFind(req, env, user) {
   return json({ apps: names, note: names.length ? '' : String(out.note || '').slice(0, 200) });
 }
 
-// The 2-3 line blurb under the title — model-written on first deploy, edits here stick.
+// The 2-3 line blurb under the title - model-written on first deploy, edits here stick.
 async function apiAppDescription(req, env, user, name) {
   const app = await appForUser(env, user, name);
   if (!app) return json({ error: `no app named ${name}` }, 404);
@@ -520,7 +520,7 @@ async function apiAppDescription(req, env, user, name) {
   return json({ ok: true });
 }
 
-// ---------- Ask (phase 1 — read only) ----------
+// ---------- Ask (phase 1 - read only) ----------
 // Context is assembled from what THIS user can already read; permissions live in
 // these queries, never in the prompt. Roadmap rule: chat reads, agent writes (later).
 
@@ -532,7 +532,7 @@ const fmtRunLine = (r) =>
 async function sourceSection(env, appId, deployId = null) {
   const dep = deployId || (await env.DB.prepare('SELECT MAX(id) AS id FROM deploys WHERE app_id = ?').bind(appId).first())?.id;
   const stored = await getBundle(env, appId, dep);
-  if (!stored) return { text: 'deployed source: not stored for this deploy — redeploy with a current CLI to enable code answers', deployId: dep };
+  if (!stored) return { text: 'deployed source: not stored for this deploy - redeploy with a current CLI to enable code answers', deployId: dep };
   const skipped = (stored.skipped || []).length ? `\nskipped files (not bundled, ask for them by name): ${stored.skipped.join(', ')}` : '';
   return { text: `DEPLOYED SOURCE (deploy ${dep}):\n${stored.bundle}${skipped}`, deployId: dep };
 }
@@ -582,7 +582,7 @@ async function runContext(env, app, run, use = null, blocks = null) {
   if (lastOk) {
     const lastDep = lastOk.deploy_id || src.deployId;
     if (lastDep === src.deployId) {
-      diffText = `code diff vs last successful run (${lastOk.run_id}): same deploy — no code or small.toml changes`;
+      diffText = `code diff vs last successful run (${lastOk.run_id}): same deploy - no code or small.toml changes`;
     } else {
       const oldStored = await getBundle(env, app.id, lastDep);
       const newStored = await getBundle(env, app.id, src.deployId);
@@ -601,7 +601,7 @@ async function runContext(env, app, run, use = null, blocks = null) {
     outputs.length ? `outputs produced:\n${outputs.join('\n')}` : 'outputs produced: none',
     ...outputTexts,
     lastOk ? `last successful run: ${lastOk.run_id} at ${lastOk.finished_at}` : 'no successful run before this one',
-    // ponytail: deploy bundles aren't stored — no real code diff since the last success
+    // ponytail: deploy bundles aren't stored - no real code diff since the last success
     line('deployed from', app.repo_branch && `${app.repo_branch} · ${app.repo_commit || '?'}${app.repo_dirty ? ' · dirty' : ''} (deployed_at ${app.deployed_at})`),
     onR('agent') ? line('AGENT.md', app.agent_md) : null,
     onR('review') ? line('review', app.review) : null,
@@ -670,7 +670,7 @@ async function orgContext(env, user, visible) {
     return `- ${app.name} (${app.kind}) · owner ${app.owner_email} · your role: ${role}${risk ? ` · review risk ${risk}` : ''}${app.schedule ? ` · schedule ${app.schedule}` : ''}${firstLine ? ` · runbook: ${firstLine}` : ''}`;
   });
   return capJoin([
-    `SCOPE: org ${user.org} — apps visible to ${user.email}`,
+    `SCOPE: org ${user.org} - apps visible to ${user.email}`,
     lines.join('\n') || 'no apps',
   ]);
 }
@@ -701,7 +701,7 @@ async function apiAsk(req, env, ctx, user) {
     body = JSON.parse(form.get('body') || '{}');
     const file = form.get('file');
     if (file && typeof file !== 'string') {
-      if (file.size > 4 * 1024 * 1024) return json({ error: 'attachment too large — 4 MB max' }, 400);
+      if (file.size > 4 * 1024 * 1024) return json({ error: 'attachment too large - 4 MB max' }, 400);
       attachedName = file.name;
       const type = file.type || '';
       const bytes = new Uint8Array(await file.arrayBuffer());
@@ -715,11 +715,11 @@ async function apiAsk(req, env, ctx, user) {
         extraBlocks = [{ type: 'text', text: `Attached file ${file.name}:\n${text}` }];
       }
       // stash the raw bytes so "run it with this image" can feed a file input;
-      // ponytail: unapproved uploads linger in R2 — no lifecycle sweep yet
+      // ponytail: unapproved uploads linger in R2 - no lifecycle sweep yet
       if (env.RUNS) {
         const uploadId = 'u-' + randomHex(6);
         await env.RUNS.put(`ask-uploads/${uploadId}/${file.name}`, bytes);
-        uploadNote = `pending chat attachment: ${file.name} (upload id ${uploadId}) — the run tool can use it for a file-type input via attachment_id + attachment_input`;
+        uploadNote = `pending chat attachment: ${file.name} (upload id ${uploadId}) - the run tool can use it for a file-type input via attachment_id + attachment_input`;
       }
     }
   } else {
@@ -766,7 +766,7 @@ async function apiAsk(req, env, ctx, user) {
         })),
       });
     } else {
-      // ponytail: no fuzzy "did you mean" — zero matches just answers org-wide
+      // ponytail: no fuzzy "did you mean" - zero matches just answers org-wide
       context = await orgContext(env, user, visible);
     }
     scopeKind = 'org';
@@ -790,7 +790,7 @@ async function apiAsk(req, env, ctx, user) {
     .bind(threadId, 'user', attachedName ? `${message} [attached: ${attachedName}]` : message).run();
 
   const q = [note, uploadNote && `(${uploadNote})`, message].filter(Boolean).join(' ');
-  // tools ride only when the user can edit the scope — a viewer's model has none
+  // tools ride only when the user can edit the scope - a viewer's model has none
   const toolOpts = canAct
     ? {
         tools: ASK_TOOLS,
@@ -845,12 +845,12 @@ async function slackInbound(req, env, ctx, kind, baseUrl) {
   const deps = { ...SLACK_DEPS, api: slackApi(install.bot_token) };
 
   if (kind === 'events') {
-    // Slack wants a 200 within 3s — do the real work after responding
+    // Slack wants a 200 within 3s - do the real work after responding
     ctx.waitUntil(handleSlackEvent(env, ctx, install, payload, deps).catch(() => {}));
     return json({ ok: true });
   }
   if (kind === 'command') {
-    // same 3s deadline — /small run calls the model, so ack now and reply via response_url
+    // same 3s deadline - /small run calls the model, so ack now and reply via response_url
     ctx.waitUntil((async () => {
       const res = await handleSlackCommand(env, ctx, install, payload, deps, baseUrl).catch((e) => ({ text: `✗ ${e.message}` }));
       if (res?.text) {
@@ -880,7 +880,7 @@ async function slackInstallStart(req, env, user, baseUrl) {
 async function slackOAuthCallback(req, env, baseUrl) {
   const url = new URL(req.url);
   const state = await verify(url.searchParams.get('state') || '', env.MASTER_KEY);
-  if (!state || state.t !== 'slackoauth') return html('<p>Bad or expired state — start again from Settings.</p>', 400);
+  if (!state || state.t !== 'slackoauth') return html('<p>Bad or expired state - start again from Settings.</p>', 400);
   const resp = await fetch('https://slack.com/api/oauth.v2.access', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -903,7 +903,7 @@ async function slackOAuthCallback(req, env, baseUrl) {
 
 const OPEN_OBS = "resolved_at IS NULL AND (dismissed_until IS NULL OR dismissed_until < datetime('now'))";
 
-// Open, undismissed observations — org-wide (visible apps only) or one app.
+// Open, undismissed observations - org-wide (visible apps only) or one app.
 async function apiWatchList(req, env, user) {
   const name = new URL(req.url).searchParams.get('app');
   if (name) {
@@ -944,7 +944,7 @@ async function apiWatchDismiss(req, env, user, obsId) {
 
 const sqlNow = (plusMs = 0) => new Date(Date.now() + plusMs).toISOString().slice(0, 19).replace('T', ' ');
 
-// Pull ONE file from the latest stored bundle — a thread can fetch a skipped
+// Pull ONE file from the latest stored bundle - a thread can fetch a skipped
 // file on demand without re-bundling everything.
 async function apiAskFile(req, env, user) {
   const { app: name, path: filePath } = await req.json();
@@ -953,13 +953,13 @@ async function apiAskFile(req, env, user) {
   if (!app.canView) return json({ error: 'no access' }, 403);
   const dep = (await env.DB.prepare('SELECT MAX(id) AS id FROM deploys WHERE app_id = ?').bind(app.id).first())?.id;
   const stored = await getBundle(env, app.id, dep);
-  if (!stored) return json({ error: 'no stored source for this app — redeploy first' }, 404);
+  if (!stored) return json({ error: 'no stored source for this app - redeploy first' }, 404);
   const files = parseBundle(stored.bundle);
   if (!(filePath in files)) return json({ error: `no ${filePath} in the deployed bundle (skipped files aren't stored)` }, 404);
   return json({ path: filePath, content: files[filePath] });
 }
 
-// Chat history: threads persist in D1 — these two GETs let the UI resume them.
+// Chat history: threads persist in D1 - these two GETs let the UI resume them.
 async function apiAskThreads(req, env, user) {
   const url = new URL(req.url);
   const kind = url.searchParams.get('scope') || 'org';
@@ -982,7 +982,7 @@ async function apiAskThreadRename(req, env, user, threadId) {
   return json({ ok: true, title });
 }
 
-// Deleting a chat removes the thread + messages; approved proposals stay — they
+// Deleting a chat removes the thread + messages; approved proposals stay - they
 // are the action log, not conversation.
 async function apiAskThreadDelete(env, user, threadId) {
   const r = await env.DB.prepare('DELETE FROM threads WHERE id = ? AND user = ? AND org = ?')
@@ -999,11 +999,11 @@ async function apiAskThread(env, user, threadId) {
   return json({ id: t.id, messages: results });
 }
 
-// Phase 2 approval: the proposal executes here, with edit re-checked NOW — the
+// Phase 2 approval: the proposal executes here, with edit re-checked NOW - the
 // row becomes the log (who, what, when, thread).
 async function apiAskApprove(req, env, ctx, user, baseUrl) {
   const { proposal_id } = await req.json();
-  // the asker or ANY editor may approve (Slack buttons) — every tool below
+  // the asker or ANY editor may approve (Slack buttons) - every tool below
   // re-checks canEdit for the approving user before executing
   const p = await env.DB.prepare('SELECT * FROM proposals WHERE id = ? AND org = ?')
     .bind(proposal_id, user.org).first();
@@ -1023,7 +1023,7 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
     if (p.tool === 'run') {
       const app = await editableApp(args.app);
       if (app.kind !== 'job') throw new Error('only jobs run');
-      if (!app.image) throw new Error('no image yet — deploy first');
+      if (!app.image) throw new Error('no image yet - deploy first');
       const schema = JSON.parse(app.inputs || '{}');
       const fileInputs = Object.entries(schema).filter(([, s]) => s.type === 'file');
       const inputs = args.inputs && Object.keys(args.inputs).length ? { ...args.inputs } : {};
@@ -1034,15 +1034,15 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
         if (!target || schema[target]?.type !== 'file') throw new Error(`${target || 'no'} is not a file input`);
         const listed = await env.RUNS.list({ prefix: `ask-uploads/${args.attachment_id}/` });
         const key = listed.objects[0]?.key;
-        if (!key) throw new Error('that chat attachment expired — attach it again');
+        if (!key) throw new Error('that chat attachment expired - attach it again');
         const obj = await env.RUNS.get(key);
         const filename = key.split('/').pop();
         files.push({ name: target, file: new File([await obj.arrayBuffer()], filename) });
         inputs[target] = filename;
-        ctx?.waitUntil?.(env.RUNS.delete(key)); // used — no need to keep it around
+        ctx?.waitUntil?.(env.RUNS.delete(key)); // used - no need to keep it around
       }
       const missing = fileInputs.filter(([k, s]) => s.required && !files.some((f) => f.name === k));
-      if (missing.length) throw new Error(`this job needs a file for "${missing[0][0]}" — attach one in chat or use the Run tab`);
+      if (missing.length) throw new Error(`this job needs a file for "${missing[0][0]}" - attach one in chat or use the Run tab`);
       result = { runId: await startRun(env, app, user.email, baseUrl, Object.keys(inputs).length ? inputs : null, files) };
     } else if (p.tool === 'run_again') {
       const old = await env.DB.prepare('SELECT runs.*, apps.name AS app_name FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?').bind(args.run_id).first();
@@ -1050,8 +1050,8 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
       const app = await editableApp(old.app_name);
       const inputs = old.inputs ? JSON.parse(old.inputs) : null;
       const schema = JSON.parse(app.inputs || '{}');
-      // ponytail: stored R2 input files aren't copied to the new run — scalars only
-      if (inputs && Object.keys(inputs).some((k) => schema[k]?.type === 'file')) throw new Error('that run had file inputs — re-run it from the Run tab');
+      // ponytail: stored R2 input files aren't copied to the new run - scalars only
+      if (inputs && Object.keys(inputs).some((k) => schema[k]?.type === 'file')) throw new Error('that run had file inputs - re-run it from the Run tab');
       result = { runId: await startRun(env, app, user.email, baseUrl, inputs) };
     } else if (p.tool === 'set_schedule') {
       const app = await editableApp(args.app);
@@ -1063,7 +1063,7 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
           const n = nextRun(parseCron(part), Date.now());
           nextAt = nextAt == null ? n : Math.min(nextAt, n);
         } catch (e) {
-          throw new Error(`bad schedule "${part}": ${e.message} — use 5-field cron like "0 9 * * 1-5"`);
+          throw new Error(`bad schedule "${part}": ${e.message} - use 5-field cron like "0 9 * * 1-5"`);
         }
       }
       await env.DB.prepare('UPDATE apps SET schedule = ?, schedule_paused = 0, last_scheduled_at = NULL WHERE id = ?')
@@ -1102,7 +1102,7 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
 }
 
 // s3:// autocomplete for the Run form: list one level under the typed uri using
-// the app's own [aws] role — the browser never sees AWS creds.
+// the app's own [aws] role - the browser never sees AWS creds.
 async function apiS3List(req, env, user, name) {
   const app = await appForUser(env, user, name);
   if (!app) return json({ error: `no app named ${name}` }, 404);
@@ -1141,7 +1141,7 @@ async function apiS3List(req, env, user, name) {
 }
 
 // Preview for the Run form: proxy one S3 object through the app's role.
-// Images/pdf up to 5 MB, text-ish (json/txt/csv) up to 64 KB — a preview pipe,
+// Images/pdf up to 5 MB, text-ish (json/txt/csv) up to 64 KB - a preview pipe,
 // not a download service; anything else is refused.
 async function apiS3Object(req, env, user, name) {
   const app = await appForUser(env, user, name);
@@ -1190,7 +1190,7 @@ async function apiAppPatch(req, env, user, name) {
   return json({ ok: true });
 }
 
-// Rename an app. The slug IS the URL — /apps/<name> and /a/<org>/<name>/ change
+// Rename an app. The slug IS the URL - /apps/<name> and /a/<org>/<name>/ change
 // for everyone; request-log history follows the slug. The next `small deploy`
 // from a small.toml still carrying the old name creates a fresh app.
 async function apiAppRename(req, env, user, name) {
@@ -1205,13 +1205,13 @@ async function apiAppRename(req, env, user, name) {
   await env.DB.prepare('UPDATE apps SET name = ? WHERE id = ?').bind(next, app.id).run();
   try {
     await env.DB.prepare('UPDATE request_logs SET slug = ? WHERE org = ? AND slug = ?').bind(next, app.org, app.name).run();
-  } catch {} // request_logs ships with the request-logs feature branch — absent on fresh local DBs
+  } catch {} // request_logs ships with the request-logs feature branch - absent on fresh local DBs
   return json({ ok: true, name: next });
 }
 
 // Delete = Trash. The row is stamped deleted_at and disappears everywhere (appRow
 // filters it); the Fly app stays until the 30-day purge so Restore is instant.
-// Owner only — stricter than canEdit; edit members can change an app, not delete it.
+// Owner only - stricter than canEdit; edit members can change an app, not delete it.
 async function apiAppDelete(env, user, name) {
   const app = await appForUser(env, user, name);
   if (!app) return json({ error: `no app named ${name}` }, 404);
@@ -1256,7 +1256,7 @@ async function purgeApp(env, app) {
 }
 
 // ---------- Folders + teams (dashboard) ----------
-// ponytail: any org member can create folders/teams and move apps — org-internal
+// ponytail: any org member can create folders/teams and move apps - org-internal
 // organization, not an access boundary; lock down if it ever bites.
 
 async function apiFolderCreate(req, env, user) {
@@ -1285,7 +1285,7 @@ async function apiFolderShare(req, env, user, id) {
   let teamId = null;
   if (team) {
     const t = await teamRow(env, user.org, team);
-    if (!t) return json({ error: `no team #${teamName(team)} — create it first` }, 404);
+    if (!t) return json({ error: `no team #${teamName(team)} - create it first` }, 404);
     teamId = t.id;
   } else if (!email || !email.includes('@')) {
     return json({ error: 'an email or a #team is required' }, 400);
@@ -1363,9 +1363,9 @@ async function apiTeamMembers(req, env, user, name) {
   if (remove) {
     await env.DB.prepare('DELETE FROM team_members WHERE team_id = ? AND email = ?').bind(t.id, email.toLowerCase()).run();
   } else {
-    // groups only hold people the org already knows — add them on /members first
+    // groups only hold people the org already knows - add them on /members first
     if (!(await knownEmail(env, user.org, email.toLowerCase())))
-      return json({ error: `${email.toLowerCase()} isn't in Members yet — add them there first` }, 400);
+      return json({ error: `${email.toLowerCase()} isn't in Members yet - add them there first` }, 400);
     await env.DB.prepare('INSERT INTO team_members (team_id, email) VALUES (?, ?) ON CONFLICT(team_id, email) DO NOTHING').bind(t.id, email.toLowerCase()).run();
   }
   return json({ ok: true });
@@ -1451,7 +1451,7 @@ async function apiLogs(req, env, user) {
   }
 }
 
-// Called by guard.py with the app's proxy secret — not a CLI token.
+// Called by guard.py with the app's proxy secret - not a CLI token.
 async function apiRequestLogIngest(req, env, slug) {
   const m = (req.headers.get('Authorization') || '').match(/^Bearer (.+)$/);
   const app = m && (await env.DB.prepare('SELECT * FROM apps WHERE proxy_secret = ?').bind(m[1]).first());
@@ -1467,7 +1467,7 @@ async function apiRequestLogIngest(req, env, slug) {
   return json({ ok: true });
 }
 
-// ponytail: no log search — user/status filters only, add a path/text query param when asked
+// ponytail: no log search - user/status filters only, add a path/text query param when asked
 async function apiRequestLogs(req, env, user) {
   const url = new URL(req.url);
   const name = url.searchParams.get('app');
@@ -1490,7 +1490,7 @@ async function apiRequestLogs(req, env, user) {
 }
 
 // Runtime endpoint: the guard inside a machine trades its proxy secret for 1h STS
-// session creds scoped by the customer's role. No CLI token involved — the proxy
+// session creds scoped by the customer's role. No CLI token involved - the proxy
 // secret is per-app and high-entropy. ExternalId pins the role to the app's org so
 // one org cannot point small.toml at another org's role (confused deputy).
 async function apiAwsCreds(req, env) {
@@ -1509,7 +1509,7 @@ async function apiAwsCreds(req, env) {
 
 // ---------- Job runs ----------
 
-// Registered by the CLI after `fly deploy --build-only --push` — jobs deploy an image, not machines.
+// Registered by the CLI after `fly deploy --build-only --push` - jobs deploy an image, not machines.
 async function apiImage(req, env, user) {
   const { app: name, image } = await req.json();
   const app = await appRow(env, user.org, name);
@@ -1537,9 +1537,9 @@ async function startRun(env, app, startedBy, baseUrl, inputs = null, files = [])
     await env.RUNS.put(`runs/${runId}/inputs/${fileNames[name]}`, file);
   }
   try {
-    // [aws] jobs: one STS mint at start — the 1h session outlives a normal run, and a
+    // [aws] jobs: one STS mint at start - the 1h session outlives a normal run, and a
     // failed mint fails the run here, not mid-script.
-    // ponytail: no refresh — a job running past 1h loses AWS; add re-mint when one exists.
+    // ponytail: no refresh - a job running past 1h loses AWS; add re-mint when one exists.
     let aws = {};
     if (app.aws_role_arn) {
       const c = await assumeRole(env, app.aws_role_arn, `small-${app.org}-${app.name}`, app.org);
@@ -1579,7 +1579,7 @@ async function apiRunStart(req, env, user, baseUrl) {
     for (const [k, v] of form.entries()) {
       if (k.startsWith('input:') && typeof v === 'object') files.push({ name: k.slice(6), file: v });
     }
-    if (files.length && !env.RUNS) return json({ error: 'control plane has no R2 bucket bound — create small-runs and redeploy the worker' }, 503);
+    if (files.length && !env.RUNS) return json({ error: 'control plane has no R2 bucket bound - create small-runs and redeploy the worker' }, 503);
     if (files.reduce((s, f) => s + f.file.size, 0) > 100 * 1024 * 1024) return json({ error: 'input files exceed the 100 MB per-run cap' }, 400);
   } else {
     ({ app: name, inputs = null } = await req.json());
@@ -1587,8 +1587,8 @@ async function apiRunStart(req, env, user, baseUrl) {
   const app = await appRow(env, user.org, name);
   if (!app) return json({ error: `no app named ${name}` }, 404);
   if (!(await canView(env, app, user.email))) return json({ error: 'no access' }, 403);
-  if (app.kind !== 'job') return json({ error: `${name} is not a job — set kind = "job" in small.toml and redeploy` }, 400);
-  if (!app.image) return json({ error: `no image for ${name} — run small deploy first` }, 409);
+  if (app.kind !== 'job') return json({ error: `${name} is not a job - set kind = "job" in small.toml and redeploy` }, 400);
+  if (!app.image) return json({ error: `no image for ${name} - run small deploy first` }, 409);
   if (!env.FLY_ORG_TOKEN && !env.FLY_API_TOKEN) return json({ error: 'control plane has no fly token configured' }, 503);
   try {
     return json({ runId: await startRun(env, app, user.email, baseUrl, inputs, files) });
@@ -1613,7 +1613,7 @@ async function apiRunOutputsList(env, user, runId) {
   if (run instanceof Response) return run;
   if (!env.RUNS) return json({ outputs: [] });
   const prefix = `runs/${runId}/outputs/`;
-  const listed = await env.RUNS.list({ prefix }); // ponytail: first 1000 outputs only — no run writes that many
+  const listed = await env.RUNS.list({ prefix }); // ponytail: first 1000 outputs only - no run writes that many
   return json({ outputs: listed.objects.map((o) => ({ name: o.key.slice(prefix.length), size: o.size })) });
 }
 
@@ -1623,7 +1623,7 @@ async function apiRunOutputGet(env, user, runId, name) {
   const obj = env.RUNS && (await env.RUNS.get(`runs/${runId}/outputs/${name}`));
   if (!obj) return json({ error: `no output ${name} on ${runId}` }, 404);
   // Real types for what the dashboard renders inline (thumbnails, json/csv/txt);
-  // octet-stream downloads the rest. No svg — inline svg on this origin is stored XSS.
+  // octet-stream downloads the rest. No svg - inline svg on this origin is stored XSS.
   const TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', json: 'application/json', csv: 'text/csv', txt: 'text/plain' };
   const type = TYPES[(name.match(/\.(\w+)$/) || [])[1]?.toLowerCase()] || 'application/octet-stream';
   return new Response(obj.body, { headers: { 'Content-Type': type, 'Content-Length': String(obj.size), 'X-Content-Type-Options': 'nosniff' } });
@@ -1658,7 +1658,7 @@ async function apiRunInputGet(req, env, runId, fname) {
 // runner.py uploads everything in $SMALL_OUTPUTS here on exit, declared or not
 async function apiRunOutputPut(req, env, runId, name) {
   if (!(await runnerAuth(req, env, runId))) return json({ error: 'bad run token' }, 401);
-  if (!env.RUNS) return json({ error: 'control plane has no R2 bucket bound — create small-runs and redeploy the worker' }, 503);
+  if (!env.RUNS) return json({ error: 'control plane has no R2 bucket bound - create small-runs and redeploy the worker' }, 503);
   if (name.includes('..') || name.startsWith('/')) return json({ error: 'bad output name' }, 400);
   const listed = await env.RUNS.list({ prefix: `runs/${runId}/outputs/` });
   const used = listed.objects.reduce((s, o) => s + o.size, 0);
@@ -1669,7 +1669,7 @@ async function apiRunOutputPut(req, env, runId, name) {
 }
 
 // Pause/resume a schedule, and (dashboard) set or remove one: `schedule` set/replaces
-// (null removes). A later `small deploy` still wins — small.toml is the source of truth
+// (null removes). A later `small deploy` still wins - small.toml is the source of truth
 // at deploy time, so a redeploy without `schedule = ...` clears a dashboard-set cron.
 async function apiSchedulePause(req, env, user) {
   const { app: name, paused, schedule } = await req.json();
@@ -1684,7 +1684,7 @@ async function apiSchedulePause(req, env, user) {
         const n = nextRun(parseCron(part), Date.now());
         nextAt = nextAt == null ? n : Math.min(nextAt, n);
       } catch (e) {
-        return json({ error: `bad schedule "${part}": ${e.message} — use 5-field cron like "0 9 * * 1-5"` }, 400);
+        return json({ error: `bad schedule "${part}": ${e.message} - use 5-field cron like "0 9 * * 1-5"` }, 400);
       }
     }
     // setting a schedule unpauses it (that's the intent); removing clears the pause too
@@ -1692,13 +1692,13 @@ async function apiSchedulePause(req, env, user) {
       .bind(schedule || null, app.id).run();
     return json({ ok: true, schedule: schedule || null, paused: false, nextRun: nextAt });
   }
-  if (!app.schedule) return json({ error: `${name} has no schedule — add schedule = "..." to small.toml and redeploy` }, 400);
+  if (!app.schedule) return json({ error: `${name} has no schedule - add schedule = "..." to small.toml and redeploy` }, 400);
   await env.DB.prepare('UPDATE apps SET schedule_paused = ? WHERE id = ?').bind(paused ? 1 : 0, app.id).run();
   return json({ ok: true, schedule: app.schedule, paused: !!paused });
 }
 
 // Stop button on a live run: kill the machine, mark the run. Same privilege as
-// starting one (canView) — whoever can run a job can stop it.
+// starting one (canView) - whoever can run a job can stop it.
 async function apiRunStop(req, env, user, runId) {
   const run = await env.DB.prepare(
     'SELECT runs.status, runs.machine_id, apps.id AS app_id, apps.org, apps.owner_email, apps.visibility, apps.fly_app FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?'
@@ -1761,7 +1761,7 @@ async function apiRunGet(req, env, user, runId) {
   });
 }
 
-// Called by runner.py with the per-run token — not a CLI token.
+// Called by runner.py with the per-run token - not a CLI token.
 async function apiRunLog(req, env, ctx, runId) {
   const m = (req.headers.get('Authorization') || '').match(/^Bearer (.+)$/);
   const p = m && (await verify(m[1], env.MASTER_KEY));
@@ -1843,7 +1843,7 @@ async function testSession(req, env) {
   return json({ session: sess }, 200);
 }
 
-// Tests trigger the nightly Watch pass on demand — same bypass guard as /test/session.
+// Tests trigger the nightly Watch pass on demand - same bypass guard as /test/session.
 async function testWatch(req, env) {
   if (!env.TEST_BYPASS_SECRET) return json({ error: 'not enabled' }, 404);
   const { secret } = await req.json();
@@ -1911,7 +1911,7 @@ export default {
         if (runOutPost && req.method === 'POST') return await apiRunOutputPut(req, env, runOutPost[1], decodeURIComponent(runOutPost[2])); // runner auth
         const reqLog = path.match(/^\/api\/apps\/([a-z0-9-]+)\/request-log$/);
         if (reqLog && req.method === 'POST') return await apiRequestLogIngest(req, env, reqLog[1]); // guard auth, not CLI auth
-        // CLI Bearer token or browser session cookie — the web dashboard is same-origin and rides the cookie.
+        // CLI Bearer token or browser session cookie - the web dashboard is same-origin and rides the cookie.
         let user = await cliAuth(req, env);
         if (!user) {
           const s = await sessionOf(req, env);
@@ -2014,8 +2014,8 @@ export default {
       const m = path.match(/^\/a\/([a-z0-9-]+)\/([a-z0-9-]+)(\/.*)?$/);
       if (m) return await proxyApp(req, env, m[1], m[2], m[3] || '', baseUrl);
       // Web dashboard: built packages/web assets ride on this Worker so /api is same-origin.
-      // Only dashboard paths delegate — everything else keeps the Worker's own pages/404.
-      // SPA shell ships inside the worker (no-store) — workers.dev's asset edge cache
+      // Only dashboard paths delegate - everything else keeps the Worker's own pages/404.
+      // SPA shell ships inside the worker (no-store) - workers.dev's asset edge cache
       // outlived deploys and served stale HTML/405s on the old /apps + /assets/* URLs.
       // /dash is a clean alias while the poisoned /apps cache entry ages out.
       if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path.startsWith('/apps/'))
@@ -2033,7 +2033,7 @@ export default {
   async scheduled(event, env, ctx) {
     if (event.cron === '0 3 * * *') {
       // 7-day request-log retention. Cutoff formatted with 'T' to match the guard's ISO timestamps.
-      // ponytail: retention fixed at 7 days — make it a per-app column when someone needs more
+      // ponytail: retention fixed at 7 days - make it a per-app column when someone needs more
       await env.DB.prepare("DELETE FROM request_logs WHERE ts < strftime('%Y-%m-%dT%H:%M:%S', 'now', '-7 days')").run();
       // Trash retention: 30 days, then the Fly app and every row go for good.
       const { results: expired } = await env.DB.prepare(
@@ -2052,13 +2052,13 @@ export default {
     // Every-minute tick. scheduledTime is the tick's nominal minute even when
     // delivery is late; last_scheduled_at pins each fired minute so a duplicate
     // or late tick never double-fires.
-    // ponytail: no catch-up after downtime — a missed minute is just missed.
+    // ponytail: no catch-up after downtime - a missed minute is just missed.
     const tick = Math.floor(event.scheduledTime / 60000) * 60; // unix seconds, floored to the minute
     const { results } = await env.DB.prepare(
       "SELECT * FROM apps WHERE kind = 'job' AND schedule IS NOT NULL AND schedule_paused = 0 AND image IS NOT NULL AND deleted_at IS NULL"
     ).all();
     for (const app of results) {
-      // schedule may hold several crons ("0 9 * * 1-5; 0 14 * * 6") — due if ANY matches.
+      // schedule may hold several crons ("0 9 * * 1-5; 0 14 * * 6") - due if ANY matches.
       // One fire per app per minute regardless of how many crons agree (last_scheduled_at pin).
       const due = cronParts(app.schedule).some((c) => {
         try {

@@ -4,7 +4,7 @@ import { api, navigate, wsName } from './api.js';
 import Shell from './Shell.jsx';
 import { Avatar, Button, ConfirmDialog, IconBtn, Input, Menu, MenuItem, Pill, ShareInput, SkeletonRows, toast } from './ui.jsx';
 
-// "acme.com" and "acme-com" are the same org — dots normalize to dashes.
+// "acme.com" and "acme-com" are the same org - dots normalize to dashes.
 const norm = (s) => (s || '').toLowerCase().replace(/\./g, '-');
 
 export default function MembersPage() {
@@ -211,7 +211,7 @@ function MembersContent({ data }) {
                       if (email.includes('@')) addToTeam(t.name, email);
                     }}
                   >
-                    {/* autocomplete from the members pool — groups can only hold known people */}
+                    {/* autocomplete from the members pool - groups can only hold known people */}
                     <ShareInput
                       autoFocus
                       value={newEmail}

@@ -13,7 +13,7 @@ function init(dir, { force = false } = {}) {
   const tomlPath = path.join(dir, 'small.toml');
   if (fs.existsSync(tomlPath) && !force) {
     checkSchema(parse(fs.readFileSync(tomlPath, 'utf8'))); // bad [inputs] type stops init in one line
-    console.log('small.toml already exists — use --force to overwrite');
+    console.log('small.toml already exists - use --force to overwrite');
     return true;
   }
 
@@ -40,7 +40,7 @@ function init(dir, { force = false } = {}) {
   lines.push(`framework = "${app ? app.framework : ''}"`);
   if (hasReqs) lines.push('', '[deps]', 'file = "requirements.txt"');
   lines.push('', '[secrets]');
-  lines.push(required.length ? `required = [${required.map((n) => `"${n}"`).join(', ')}]` : 'required = []                  # env vars this app reads — fill in');
+  lines.push(required.length ? `required = [${required.map((n) => `"${n}"`).join(', ')}]` : 'required = []                  # env vars this app reads - fill in');
   if (wantsStorage) lines.push('', '[storage]', 'path = "/data"', 'size = "1GB"');
   lines.push('', '[access]', 'visibility = "domain"', '');
   fs.writeFileSync(tomlPath, lines.join('\n'));
@@ -60,9 +60,9 @@ function init(dir, { force = false } = {}) {
       '     Two paragraphs, plain English. Uploaded with every `small deploy`. -->',
       '',
     ].join('\n'));
-    console.log('✓ wrote AGENT.md (notes for the Ask agent — optional)');
+    console.log('✓ wrote AGENT.md (notes for the Ask agent - optional)');
   }
-  if (!app) console.log('✗ could not find the entry file — fill in entry = "your-app.py" in small.toml');
+  if (!app) console.log('✗ could not find the entry file - fill in entry = "your-app.py" in small.toml');
   return !!app;
 }
 

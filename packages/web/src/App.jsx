@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpRight, ChevronDown, ChevronRight, Clock, EyeOff, Folder as FolderIcon, Inbox, ListFilter, Loader2, PanelRight, Play, Search, Settings2, Square, X } from 'lucide-react';
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
@@ -78,11 +78,50 @@ function AppContent({ data, load }) {
     next.splice(next.indexOf(to), 0, from);
     saveCols({ ...cols, order: next });
   };
+  // pointer-based header drag: horizontal only, live reorder as the pointer
+  // crosses a neighbour, a <5px move still counts as a click (opens the menu)
+  const dragRef = useRef(null);
+  const clickSquelch = useRef(false);
+  const headerDown = (k) => (e) => {
+    if (e.button !== 0) return;
+    const row = e.currentTarget.parentElement;
+    const grab = () => {
+      const r = {};
+      [...row.children].forEach((c) => { if (c.dataset.col) r[c.dataset.col] = c.getBoundingClientRect(); });
+      return r;
+    };
+    dragRef.current = { key: k, startX: e.clientX, moved: false, rects: grab(), last: null };
+    const move = (ev) => {
+      const d = dragRef.current;
+      if (!d) return;
+      if (!d.moved && Math.abs(ev.clientX - d.startX) < 5) return;
+      if (!d.moved) { d.moved = true; setDragCol(d.key); document.body.style.cursor = 'grabbing'; }
+      for (const [key, r] of Object.entries(d.rects)) {
+        if (key !== d.key && key !== d.last && ev.clientX > r.left && ev.clientX < r.right) {
+          d.last = key;
+          moveCol(d.key, key);
+          requestAnimationFrame(() => { if (dragRef.current) dragRef.current.rects = grab(); });
+          break;
+        }
+      }
+    };
+    const up = () => {
+      const d = dragRef.current;
+      dragRef.current = null;
+      setDragCol(null);
+      document.body.style.cursor = '';
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (d?.moved) clickSquelch.current = true;
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
 
   const apps = data?.apps || [];
   const org = data?.org || 'small';
-  // ?s=shared / ?s=private — the sidebar section labels filter this overview;
-  // ?f=<folder> — the breadcrumb's folder crumb shows just that folder's apps
+  // ?s=shared / ?s=private - the sidebar section labels filter this overview;
+  // ?f=<folder> - the breadcrumb's folder crumb shows just that folder's apps
   const params = new URLSearchParams(window.location.search);
   const section = params.get('s');
   const folder = params.get('f') ? (data?.folders || []).find((x) => x.name === params.get('f')) : null;
@@ -90,7 +129,26 @@ function AppContent({ data, load }) {
   const sectionApps = folder
     ? apps.filter((a) => a.folder_id === folder.id)
     : section ? apps.filter((a) => sectionOf(a, org, data?.email) === section) : apps;
-  let rows = search ? sectionApps.filter((a) => a.name.toLowerCase().includes(search.toLowerCase())) : sectionApps;
+  // the inline search is agent-backed too: sentence queries ask the model, which
+  // picks apps by description; short strings stay instant name matching
+  const [aiFind, setAiFind] = useState(null); // null | 'loading' | { names, note }
+  useEffect(() => {
+    if (!search || search.trim().split(/\s+/).length < 4) { setAiFind(null); return; }
+    setAiFind('loading');
+    const t = setTimeout(() => {
+      api('/api/apps/find', { method: 'POST', body: JSON.stringify({ q: search }) })
+        .then((d) => setAiFind({ names: d.apps || [], note: d.note || '' }))
+        .catch(() => setAiFind(null));
+    }, 600);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  let rows = sectionApps;
+  if (search) {
+    rows = aiFind && aiFind !== 'loading'
+      ? aiFind.names.map((n) => sectionApps.find((a) => a.name === n)).filter(Boolean)
+      : sectionApps.filter((a) => a.name.toLowerCase().includes(search.toLowerCase()));
+  }
   if (filter && FILTERS[filter.key]) rows = rows.filter((a) => FILTERS[filter.key](a) === filter.value);
   if (sort) {
     rows = [...rows].sort((a, b) => {
@@ -131,7 +189,7 @@ function AppContent({ data, load }) {
           {data?.error && <div className="text-ink-2">✗ {data.error}</div>}
           {data && !data.error && apps.length === 0 && (
             <EmptyState icon={Mark}>
-              No apps yet — <code className="rounded-sm bg-hover px-1.5 py-0.5 text-xs">small deploy</code> ships the first one.{' '}
+              No apps yet - <code className="rounded-sm bg-hover px-1.5 py-0.5 text-xs">small deploy</code> ships the first one.{' '}
               <a className="text-accent hover:underline" href="https://www.npmjs.com/package/small-deploy" target="_blank" rel="noreferrer">
                 Get the CLI
               </a>
@@ -202,11 +260,11 @@ function AppContent({ data, load }) {
                     <Search size={16} strokeWidth={1.5} />
                   </IconBtn>
                 ) : (
-                  <div className="w-48">
+                  <div className="w-72">
                     <Input
                       autoFocus
                       value={search}
-                      placeholder="Search apps…"
+                      placeholder="Describe what you are looking for"
                       onChange={(e) => setSearch(e.target.value)}
                       onKeyDown={(e) => e.key === 'Escape' && setSearch(null)}
                       onBlur={() => !search && setSearch(null)}
@@ -221,12 +279,13 @@ function AppContent({ data, load }) {
                     {visibleCols.map((k) => (
                       <th
                         key={k}
-                        draggable
-                        onDragStart={() => setDragCol(k)}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={() => { dragCol && moveCol(dragCol, k); setDragCol(null); }}
-                        className={cn(th, 'relative cursor-pointer select-none hover:bg-hover', dragCol === k && 'opacity-50')}
-                        onClick={() => setColMenu(colMenu === k ? null : k)}
+                        data-col={k}
+                        onPointerDown={headerDown(k)}
+                        className={cn(th, 'relative cursor-pointer touch-none select-none hover:bg-hover', dragCol === k && 'bg-active opacity-60')}
+                        onClick={() => {
+                          if (clickSquelch.current) { clickSquelch.current = false; return; }
+                          setColMenu(colMenu === k ? null : k);
+                        }}
                         title="Click for options · drag to reorder"
                       >
                         {COLS[k]}{sort?.key === k ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ''}
@@ -293,7 +352,7 @@ function AppContent({ data, load }) {
                             {a.schedule && (
                               <Pill
                                 className={a.schedule_paused ? 'opacity-60 line-through' : ''}
-                                title={`cron ${a.schedule} (UTC)${a.schedule_paused ? ' — paused' : ''}`}
+                                title={`cron ${a.schedule} (UTC)${a.schedule_paused ? ' - paused' : ''}`}
                               >
                                 <Clock size={10} />
                                 {cronList(a.schedule).map(cronHuman).join(' · ')}
@@ -323,7 +382,7 @@ function AppContent({ data, load }) {
                         <td key="watch" className={td}>
                           {a.watch_count > 0
                             ? <Pill color="orange" title={`${a.watch_count} open observation${a.watch_count > 1 ? 's' : ''}`}>{a.watch_count}</Pill>
-                            : <span className="text-ink-3">—</span>}
+                            : <span className="text-ink-3">-</span>}
                         </td>
                       ),
                       deployed: (
@@ -333,7 +392,7 @@ function AppContent({ data, load }) {
                       ),
                       lastrun: (
                         <td key="lastrun" className={`${td} text-ink-2`}>
-                          {a.kind !== 'job' || (!live && !a.lastRun) ? (a.kind === 'job' ? '—' : '') : live ? (
+                          {a.kind !== 'job' || (!live && !a.lastRun) ? (a.kind === 'job' ? '-' : '') : live ? (
                             <span className="flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> running</span>
                           ) : (
                             `${a.lastRun.status === 'finished' ? '✓' : '✗'} ${ago(a.lastRun.startedAt)}`
@@ -391,6 +450,10 @@ function AppContent({ data, load }) {
                 </tbody>
               </table>
               </div>
+              {aiFind === 'loading' && <div className="flex h-7 items-center px-2 text-xs text-ink-3">Thinking…</div>}
+              {aiFind?.names?.length === 0 && (
+                <div className="flex h-7 items-center px-2 text-sm text-ink-2">{aiFind.note || 'Nothing here does that yet.'}</div>
+              )}
               <div className="flex h-7 items-center px-2 text-xs text-ink-3">Count {rows.length}</div>
             </>
           )}

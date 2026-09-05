@@ -65,7 +65,7 @@ function write(dir, app) {
   if (!fs.existsSync(ignorePath)) {
     fs.writeFileSync(ignorePath, '.env\n.git\n');
   } else if (!fs.readFileSync(ignorePath, 'utf8').split(/\r?\n/).includes('.env')) {
-    console.error('! .dockerignore exists but does not exclude .env — secrets could end up in the image');
+    console.error('! .dockerignore exists but does not exclude .env - secrets could end up in the image');
   }
   return out;
 }

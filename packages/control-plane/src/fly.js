@@ -1,17 +1,17 @@
 // Fly control from the worker. The org admin token (env.FLY_API_TOKEN) never
 // leaves this process; the CLI only ever receives 1h app-scoped deploy tokens.
 // Chosen over building from a tarball here: Fly has no build-from-tarball REST
-// endpoint — remote builds speak the Docker/BuildKit protocol to a builder
+// endpoint - remote builds speak the Docker/BuildKit protocol to a builder
 // machine, which a Worker cannot. See docs/v3.
 const MACHINES = 'https://api.machines.dev/v1';
 const GQL = 'https://api.fly.io/graphql';
 
 // Two credentials: FLY_ORG_TOKEN (long-lived org token) for app/IP/machine ops,
-// FLY_API_TOKEN (short-lived user token) only for minting limited tokens —
+// FLY_API_TOKEN (short-lived user token) only for minting limited tokens -
 // Fly rejects createLimitedAccessToken from org tokens (verified both dashboard-
 // and flyctl-created). ponytail: user token's discharge expires in <1h, so
 // minting (and thus deploys) needs a fresh one; offline macaroon attenuation of
-// the org token would remove that — v4.
+// the org token would remove that - v4.
 const authH = (token) => (token.startsWith('FlyV1') ? token : `Bearer ${token}`);
 const machineToken = (env) => env.FLY_ORG_TOKEN || env.FLY_API_TOKEN;
 
@@ -26,7 +26,7 @@ async function gql(token, query, variables) {
   return body.data;
 }
 
-// Create the Fly app + shared IPv4. Idempotent — rerun on every deploy.
+// Create the Fly app + shared IPv4. Idempotent - rerun on every deploy.
 export async function ensureFlyApp(env, flyApp) {
   const resp = await fetch(`${MACHINES}/apps`, {
     method: 'POST',
@@ -40,7 +40,7 @@ export async function ensureFlyApp(env, flyApp) {
   await gql(machineToken(env), 'mutation($app: ID!) { allocateIpAddress(input: {appId: $app, type: shared_v4}) { app { name } } }', { app: flyApp });
 }
 
-// One volume per app, named "data" — [storage] in small.toml. Idempotent: reuse
+// One volume per app, named "data" - [storage] in small.toml. Idempotent: reuse
 // the existing volume (and its region) on redeploy. Volume and machine must share
 // a region, so the caller pins the machine to the returned region.
 // ponytail: single volume, single region; per-region volumes when multi-machine matters.
@@ -50,7 +50,7 @@ export async function ensureVolume(env, flyApp, sizeGb) {
   if (!list.ok) throw new Error(`fly volumes list failed (${list.status}): ${await list.text()}`);
   const existing = (await list.json()).find((v) => v.name === 'data');
   if (existing) return existing.region;
-  // an app deployed before [storage] already has machines somewhere — put the volume with them
+  // an app deployed before [storage] already has machines somewhere - put the volume with them
   let region = env.FLY_VOLUME_REGION || 'iad';
   const machines = await fetch(`${MACHINES}/apps/${flyApp}/machines`, { headers });
   if (machines.ok) {
@@ -101,7 +101,7 @@ export async function destroyFlyApp(env, flyApp) {
   if (!resp.ok && resp.status !== 404) throw new Error(`fly app delete failed (${resp.status}): ${await resp.text()}`);
 }
 
-// Kill a job run's machine. force: SIGKILL now — a stopped job machine has no
+// Kill a job run's machine. force: SIGKILL now - a stopped job machine has no
 // graceful-shutdown value. 404 is fine: auto_destroy already removed it.
 export async function destroyMachine(env, flyApp, machineId) {
   const resp = await fetch(`${MACHINES}/apps/${flyApp}/machines/${machineId}?force=true`, {
@@ -112,7 +112,7 @@ export async function destroyMachine(env, flyApp, machineId) {
 }
 
 // The only Fly credential the CLI ever sees: deploy-scoped to one app.
-// Minting requires the user token — org tokens get UNAUTHORIZED here — and user
+// Minting requires the user token - org tokens get UNAUTHORIZED here - and user
 // tokens' org authorization rots ~30min after `flyctl auth token`. So each app's
 // token is minted ONCE at app creation (30 days) and stored in D1; deploys of
 // existing apps never touch the user token again. ponytail: stored token = one

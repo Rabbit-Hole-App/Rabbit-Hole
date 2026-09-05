@@ -4,7 +4,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { listPyFiles } = require('./bundle');
 
-// os.environ["X"] bracket reads — no default, so an unset var crashes at runtime
+// os.environ["X"] bracket reads - no default, so an unset var crashes at runtime
 const HARD_ENV_RE = /os\.environ\[\s*["']([A-Za-z_]\w*)["']\s*\]/g;
 
 function pythonExe() {
@@ -15,7 +15,7 @@ function pythonExe() {
   return null;
 }
 
-// Syntax-check every bundled .py with the local python — a syntax error can never
+// Syntax-check every bundled .py with the local python - a syntax error can never
 // deploy, so this one is a hard stop. Silently skipped when python is not installed.
 function checkSyntax(dir) {
   const exe = pythonExe();
@@ -25,7 +25,7 @@ function checkSyntax(dir) {
   const r = spawnSync(exe, ['-m', 'py_compile', ...files.map((f) => path.join(dir, f))], { encoding: 'utf8' });
   if (r.status !== 0) {
     const line = (r.stderr || '').split('\n').find((l) => l.includes('Error') || l.trim()) || 'syntax error';
-    throw new Error(`syntax: ${line.trim()} — fix before deploying`);
+    throw new Error(`syntax: ${line.trim()} - fix before deploying`);
   }
   return `${files.length} file${files.length === 1 ? '' : 's'} compile`;
 }
@@ -40,7 +40,7 @@ function depNames(text) {
     .filter(Boolean);
 }
 
-// Each name HEAD-checked against PyPI. Warnings only — private indexes and network
+// Each name HEAD-checked against PyPI. Warnings only - private indexes and network
 // flake must never block a deploy; a typo'd public dep still surfaces before the
 // minutes-long remote build fails on it.
 async function checkDeps(dir, file) {
@@ -61,7 +61,7 @@ async function checkDeps(dir, file) {
 }
 
 // Bracket env reads that are neither declared secrets, in .env, nor SMALL_ platform
-// vars — they will be unset in the container. Plus: a job reading SMALL_INPUT_*
+// vars - they will be unset in the container. Plus: a job reading SMALL_INPUT_*
 // without [inputs] declared.
 function checkEnvReads(dir, config, secrets) {
   const declared = new Set([...((config.secrets && config.secrets.required) || []), ...Object.keys(secrets || {})]);
@@ -75,10 +75,10 @@ function checkEnvReads(dir, config, secrets) {
       const v = m[1];
       if (v.startsWith('SMALL_') || declared.has(v) || warned.has(v)) continue;
       warned.add(v);
-      warnings.push(`${f} reads ${v} — not in [secrets] or .env, it will be unset in the container`);
+      warnings.push(`${f} reads ${v} - not in [secrets] or .env, it will be unset in the container`);
     }
   }
-  if (readsInputs && config.kind === 'job' && !config.inputs) warnings.push('reads SMALL_INPUT_* but small.toml has no [inputs] — declare them');
+  if (readsInputs && config.kind === 'job' && !config.inputs) warnings.push('reads SMALL_INPUT_* but small.toml has no [inputs] - declare them');
   return warnings;
 }
 

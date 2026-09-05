@@ -1,19 +1,19 @@
-// Ask (phase 1 — read only): one agent function, scoped per question. This module
+// Ask (phase 1 - read only): one agent function, scoped per question. This module
 // holds the model call + prompt; index.js owns auth, scope resolution, and context
 // assembly so permissions are enforced by queries, never by the prompt.
 const MODEL = 'claude-opus-5';
-// Model picker allowlist — "Auto" resolves to the default.
+// Model picker allowlist - "Auto" resolves to the default.
 export const ASK_MODELS = { auto: MODEL, 'opus-5': 'claude-opus-5', 'sonnet-5': 'claude-sonnet-5', 'haiku-4.5': 'claude-haiku-4-5-20251001' };
 
 export const ASK_SYSTEM = [
   'You are the built-in assistant of "small", a platform where teams deploy Python apps',
   '(servers and jobs) behind a work-email login. The context below includes the DEPLOYED',
-  'source as a bundle of files prefixed with === path === — the code that actually shipped,',
+  'source as a bundle of files prefixed with === path === - the code that actually shipped,',
   'not what may be on anyone\'s laptop now.',
   'Rules:',
-  '1. Every claim about the code cites file:line — "the threshold is clamped in app.py:40",',
+  '1. Every claim about the code cites file:line - "the threshold is clamped in app.py:40",',
   'never "the code clamps the threshold". Count lines within each === file === section.',
-  '2. If the answer is not in the bundle, say "not in the deployed code" — never infer',
+  '2. If the answer is not in the bundle, say "not in the deployed code" - never infer',
   'code behaviour from the runbook or review.',
   '3. For behaviour questions ("what happens when X?"), trace the actual path through the',
   'code and quote the relevant lines.',
@@ -21,12 +21,13 @@ export const ASK_SYSTEM = [
   'at it specifically.',
   '5. No greeting, no self-introduction, no offers of further help. Answer, cite, stop.',
   '6. Match the reply to the question. A greeting or small talk ("hi", "thanks") gets one',
-  'short line back — never an unprompted summary of the run, app, or context.',
+  'short line back - never an unprompted summary of the run, app, or context.',
+  '7. Never use em dashes. Use commas, colons, periods, or middle dots instead.',
   'Without tools you cannot run, re-run, deploy, share, pause, or change anything; if',
   'asked for an action, name exactly who could (owner and edit members are in the context).',
   'Be concise. Markdown allowed (lists, `code`, **bold**).',
-  'End EVERY answer with a final line starting with "Sources: " naming what you used —',
-  'file:line ranges, run ids, "runbook", "review", "log lines N-M", "diff", "AGENT.md" —',
+  'End EVERY answer with a final line starting with "Sources: " naming what you used -',
+  'file:line ranges, run ids, "runbook", "review", "log lines N-M", "diff", "AGENT.md" -',
   'or "Sources: none".',
 ].join(' ');
 
@@ -39,7 +40,7 @@ export async function getBundle(env, appId, deployId) {
 }
 
 export const parseBundle = (bundle) => {
-  // split alternates [pre, path1, body1, path2, body2, ...] — immune to the
+  // split alternates [pre, path1, body1, path2, body2, ...] - immune to the
   // multiline-$ trap that truncates lazy [\s\S]*? at the first line end
   const parts = String(bundle).split(/^=== (.+?) ===\n/m);
   const files = {};
@@ -77,15 +78,15 @@ export function diffBundles(oldBundle, newBundle) {
 export const DIAGNOSIS_PROMPT = 'Why did this fail, in one sentence, and where should I look?';
 
 // Phase 2: tools map one-to-one to existing routes, attached ONLY when the asking
-// user has edit on the scope (enforced in index.js). A tool call never executes —
+// user has edit on the scope (enforced in index.js). A tool call never executes -
 // it becomes a proposal the client must approve via POST /api/ask/approve.
-// ponytail: no redeploy tool — deploys need the CLI's build, there is no route.
+// ponytail: no redeploy tool - deploys need the CLI's build, there is no route.
 export const ASK_TOOLS_ADDENDUM = [
   'You have tools that PROPOSE actions (run a job, set/pause/resume its schedule, share).',
-  'Calling a tool does not execute it — the platform shows the user a proposal card',
+  'Calling a tool does not execute it - the platform shows the user a proposal card',
   'and executes only after they approve. Never claim an action already happened;',
   'say what you are proposing and why. Include exact inputs when proposing a run.',
-  'The CURRENT state in the context (schedule, members, runs) is authoritative —',
+  'The CURRENT state in the context (schedule, members, runs) is authoritative -',
   'conversation history may be stale: an action approved earlier can have been undone',
   'outside this chat. When the user asks for an action, CALL THE TOOL so they get the',
   'proposal card; only skip if the current context already shows that exact state,',
@@ -95,7 +96,7 @@ export const ASK_TOOLS_ADDENDUM = [
 export const ASK_TOOLS = [
   {
     name: 'run',
-    description: 'Start a run of a job with the given inputs (values must satisfy the [inputs] schema). If the user attached a file in this chat, the context names its upload id — pass it as attachment_id with attachment_input naming the file-type input it fills.',
+    description: 'Start a run of a job with the given inputs (values must satisfy the [inputs] schema). If the user attached a file in this chat, the context names its upload id - pass it as attachment_id with attachment_input naming the file-type input it fills.',
     input_schema: {
       type: 'object',
       properties: {
@@ -114,7 +115,7 @@ export const ASK_TOOLS = [
   },
   {
     name: 'set_schedule',
-    description: 'Set or replace a job\'s cron schedule (5-field cron, UTC). Several crons may be joined with "; " — to ADD to an existing schedule, include the current crons from the context plus the new one. An empty schedule removes all crons.',
+    description: 'Set or replace a job\'s cron schedule (5-field cron, UTC). Several crons may be joined with "; " - to ADD to an existing schedule, include the current crons from the context plus the new one. An empty schedule removes all crons.',
     input_schema: {
       type: 'object',
       properties: {
@@ -217,7 +218,7 @@ export function askStream(env, context, history, message, onDone, meta = {}, ext
     try {
       if (toolOpts) {
         // tools attached (user has edit): one non-streaming call so tool_use blocks
-        // arrive whole; each becomes a proposal — never an execution
+        // arrive whole; each becomes a proposal - never an execution
         const resp = await anthropic(env, {
           max_tokens: 2000,
           system: `${ASK_SYSTEM} ${ASK_TOOLS_ADDENDUM}`,

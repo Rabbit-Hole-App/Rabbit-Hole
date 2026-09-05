@@ -1,4 +1,4 @@
-// HMAC-signed JSON tokens — no session table. Format: b64u(json).b64u(sig).
+// HMAC-signed JSON tokens - no session table. Format: b64u(json).b64u(sig).
 const enc = new TextEncoder();
 
 async function hmacKey(secret) {

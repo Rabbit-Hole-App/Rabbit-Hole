@@ -2,7 +2,7 @@
 export const wsName = (org) => ((org || '').split('-')[0] || org || '').replace(/^./, (c) => c.toUpperCase());
 
 // Which sidebar section an app belongs to: workspace Apps, Shared, or Private.
-// Private is strictly personal — a private app that has ANY shares lives in Shared
+// Private is strictly personal - a private app that has ANY shares lives in Shared
 // (for the owner too, like Notion), and only unshared-private apps offer no Share button.
 export const sectionOf = (a, org, email) => {
   if (a.org !== org) return 'shared';
@@ -68,13 +68,13 @@ export function cronHuman(c) {
 
 // "Sep 4, 14:32" local time from a D1 datetime('now') string (UTC).
 export function fmtTime(sqlDate) {
-  if (!sqlDate) return '—';
+  if (!sqlDate) return '-';
   return parse(sqlDate).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 // "2h ago" from a D1 datetime('now') string (UTC, "YYYY-MM-DD HH:MM:SS").
 export function ago(sqlDate) {
-  if (!sqlDate) return '—';
+  if (!sqlDate) return '-';
   const t = parse(sqlDate);
   const s = Math.max(0, (Date.now() - t.getTime()) / 1000);
   if (s < 60) return 'just now';

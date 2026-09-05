@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Search, Sparkles } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { api, navigate } from './api.js';
-import { cn, KindIcon } from './ui.jsx';
+import { AppIcon, cn, KindIcon } from './ui.jsx';
 
-// Plain text out of a BlockNote JSON string — no parse, just the "text" values.
+// Plain text out of a BlockNote JSON string - no parse, just the "text" values.
 const runbookText = (rb) => [...rb.matchAll(/"text":"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]).join(' ');
 
 // ⌘K search modal. Self-contained: opens on Ctrl/⌘K or a 'small:search' event.
@@ -11,7 +11,7 @@ export default function SearchModal() {
   const [open, setOpen] = useState(false);
   // the sidebar's search icon highlights while the modal is up
   useEffect(() => { window.dispatchEvent(new CustomEvent('small:search-state', { detail: { open } })); }, [open]);
-  const [data, setData] = useState(null); // { org, apps } — fetched once, on first open
+  const [data, setData] = useState(null); // { org, apps } - fetched once, on first open
   const [q, setQ] = useState('');
   const [hi, setHi] = useState(0);
 
@@ -87,13 +87,13 @@ export default function SearchModal() {
       <div className="absolute inset-0 bg-black/20" onClick={close} />
       <div className="relative mx-auto mt-[20vh] w-[640px] max-w-[90vw] rounded-md bg-white text-ink shadow-pop">
         <div className="flex h-12 items-center gap-2.5 border-b border-line px-4">
-          <Sparkles size={16} strokeWidth={1.5} className="shrink-0 text-ink-3" />
+          <AppIcon size={16} className="shrink-0" />
           <input
             autoFocus
             value={q}
             onChange={(e) => { setQ(e.target.value); setHi(0); }}
             onKeyDown={onKeyDown}
-            placeholder="I am looking for… — describe it, AI finds the app"
+            placeholder="Describe what you are looking for"
             className="w-full border-0 bg-transparent text-base outline-none placeholder:text-ink-3"
           />
         </div>
@@ -115,7 +115,7 @@ export default function SearchModal() {
               ))}
             </>
           )}
-          {/* the agent answers in one line when nothing fits — never a bare "No results" for sentence queries */}
+          {/* the agent answers in one line when nothing fits - never a bare "No results" for sentence queries */}
           {ai?.apps?.length === 0 && (
             <div className="px-3 py-2 text-sm text-ink-2">{ai.note || 'Nothing here does that yet.'}</div>
           )}

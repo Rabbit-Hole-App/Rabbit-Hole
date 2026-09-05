@@ -15,7 +15,7 @@ export const KindIcon = ({ kind, schedule, size = 16 }) => {
   return <I size={size} strokeWidth={1.5} className="shrink-0 text-ink-2" />;
 };
 
-// Buttons — primary (accent), secondary (bordered), ghost (default for most actions), danger.
+// Buttons - primary (accent), secondary (bordered), ghost (default for most actions), danger.
 export function Button({ className, variant = 'ghost', size, ...props }) {
   return (
     <button
@@ -45,7 +45,7 @@ export function IconBtn({ className, ...props }) {
   );
 }
 
-// Input — bg-code at rest, border-strong + accent ring on focus. 32px.
+// Input - bg-code at rest, border-strong + accent ring on focus. 32px.
 export function Input({ className, ...props }) {
   return (
     <input
@@ -72,7 +72,7 @@ export function PillButton({ className, ...props }) {
   );
 }
 
-// Property pills — Notion's tag palette (design/notion.md §1).
+// Property pills - Notion's tag palette (design/notion.md §1).
 export const TAG = {
   grey: ['#E3E2E0', '#32302C'],
   brown: ['#EEE0DA', '#442A1E'],
@@ -104,7 +104,7 @@ export const StatusPill = ({ status, className }) => (
   <Pill color={STATUS_COLOR[status] || 'grey'} className={className}>{status}</Pill>
 );
 
-// Avatar chips keep the tag palette hashed by email — a person keeps their color everywhere.
+// Avatar chips keep the tag palette hashed by email - a person keeps their color everywhere.
 const AVATAR_BG = ['#D3E5EF', '#DBEDDB', '#FADEC9', '#E8DEEE', '#F5E0E9', '#FDECC8', '#EEE0DA'];
 export function Avatar({ email, className }) {
   const i = [...email].reduce((h, c) => h + c.charCodeAt(0), 0) % AVATAR_BG.length;
@@ -137,7 +137,7 @@ export function TabsTrigger({ className, ...props }) {
 }
 export const TabsContent = TabsPrimitive.Content;
 
-// The product mark (E2: a small cloud, boxed) in currentColor — themes for free.
+// The product mark (E2: a small cloud, boxed) in currentColor - themes for free.
 export function Mark({ size = 20, className }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" className={className} aria-label="small deploy">
@@ -147,7 +147,7 @@ export function Mark({ size = 20, className }) {
   );
 }
 
-// Empty state — one quiet line, one ghost action. Nothing else.
+// Empty state - one quiet line, one ghost action. Nothing else.
 export function EmptyState({ icon: Icon, children, action, className }) {
   return (
     <div className={cn('flex flex-col items-center gap-2 py-12 text-sm text-ink-2', className)}>
@@ -158,7 +158,7 @@ export function EmptyState({ icon: Icon, children, action, className }) {
   );
 }
 
-// Skeleton rows — bg-hover bars at real row height, no spinners on navigation.
+// Skeleton rows - bg-hover bars at real row height, no spinners on navigation.
 export function SkeletonRows({ rows = 4, className }) {
   return (
     <div className={className} aria-hidden="true">
@@ -173,7 +173,7 @@ export function SkeletonRows({ rows = 4, className }) {
   );
 }
 
-// ─── Toasts — bottom-left, dark, 3s. `toast('Copied')` from anywhere. ───
+// ─── Toasts - bottom-left, dark, 3s. `toast('Copied')` from anywhere. ───
 export function toast(message) {
   window.dispatchEvent(new CustomEvent('small:toast', { detail: message }));
 }
@@ -201,7 +201,7 @@ export function Toasts() {
   );
 }
 
-// ─── SlidePanel — the Notion side peek. A real slide: mounted transform transition
+// ─── SlidePanel - the Notion side peek. A real slide: mounted transform transition
 // (200ms ease-out per notion.md), GPU-composited, animates in AND out. ───
 export function SlidePanel({ title, width = 560, onClose, children }) {
   const [shown, setShown] = useState(false);
@@ -242,7 +242,7 @@ export function SlidePanel({ title, width = 560, onClose, children }) {
   );
 }
 
-// ─── ShareInput — every sharing field autocompletes from the org's people pool
+// ─── ShareInput - every sharing field autocompletes from the org's people pool
 // and #teams. Click or ↑/↓ + Enter picks; Enter with nothing highlighted submits
 // the typed value through the surrounding <form>. ───
 export function ShareInput({ value, onChange, onPick, people = [], teams = [], exclude = [], placeholder, autoFocus, className }) {
@@ -293,7 +293,7 @@ export function ShareInput({ value, onChange, onPick, people = [], teams = [], e
   );
 }
 
-// ─── ConfirmDialog — the one modal (Delete only, per notion.md §7): item name in
+// ─── ConfirmDialog - the one modal (Delete only, per notion.md §7): item name in
 // the body, red primary button. ───
 export function ConfirmDialog({ title, body, confirmLabel = 'Delete', confirmVariant = 'danger', onConfirm, onCancel }) {
   useEffect(() => {
@@ -315,7 +315,7 @@ export function ConfirmDialog({ title, body, confirmLabel = 'Delete', confirmVar
   );
 }
 
-// ─── Menu — white popover, shadow-pop, 28px items. Closes on outside click. ───
+// ─── Menu - white popover, shadow-pop, 28px items. Closes on outside click. ───
 export function Menu({ open, onClose, className, children }) {
   useEffect(() => {
     if (!open) return;
@@ -349,7 +349,7 @@ export function Field({ label, help, error, children }) {
   );
 }
 
-// 30×16 Notion toggle — accent when on, 12px knob.
+// 30×16 Notion toggle - accent when on, 12px knob.
 export function Toggle({ on, onChange, ...props }) {
   return (
     <button
@@ -365,7 +365,7 @@ export function Toggle({ on, onChange, ...props }) {
   );
 }
 
-// Slider — 2px track, accent fill, 16px white knob with pop shadow, 64px number field.
+// Slider - 2px track, accent fill, 16px white knob with pop shadow, 64px number field.
 export function Slider({ min = 0, max = 1, step, value, onChange, inputProps }) {
   const track = useRef(null);
   const pct = Math.min(100, Math.max(0, ((Number(value) - min) / (max - min)) * 100 || 0));
@@ -393,7 +393,7 @@ export function Slider({ min = 0, max = 1, step, value, onChange, inputProps }) 
       <Input
         {...inputProps}
         // style width: the base Input carries w-full, and utility order (not class
-        // order) would decide the conflict — inline wins deterministically
+        // order) would decide the conflict - inline wins deterministically
         style={{ width: 64, flex: 'none' }}
         className={cn('text-right tabular-nums', inputProps?.className)}
         value={value}
@@ -403,7 +403,7 @@ export function Slider({ min = 0, max = 1, step, value, onChange, inputProps }) 
   );
 }
 
-// Select — input-styled trigger, chevron, shadow-pop option list; a search field
+// Select - input-styled trigger, chevron, shadow-pop option list; a search field
 // tops the menu past ~6 options. Trigger toggles on mousedown so closing doesn't
 // race Menu's outside-mousedown close into a reopen.
 export function Select({ value, options = [], placeholder = 'Select…', onChange }) {
@@ -436,7 +436,7 @@ export function Select({ value, options = [], placeholder = 'Select…', onChang
   );
 }
 
-// 14px square checkbox (the table .chk) — usable in checkbox groups too.
+// 14px square checkbox (the table .chk) - usable in checkbox groups too.
 export function Chk({ on, className, ...props }) {
   return (
     <button
@@ -455,7 +455,7 @@ export function Chk({ on, className, ...props }) {
   );
 }
 
-// Dropzone — dashed 80px empty state; filled: 40px solid row with name, size, remove.
+// Dropzone - dashed 80px empty state; filled: 40px solid row with name, size, remove.
 export function Dropzone({ accept, file, onFile }) {
   const inp = useRef(null);
   const [over, setOver] = useState(false);
@@ -489,7 +489,7 @@ export function Dropzone({ accept, file, onFile }) {
   );
 }
 
-// Code block — bg-code, mono 13px, pre; Copy appears top-right on hover.
+// Code block - bg-code, mono 13px, pre; Copy appears top-right on hover.
 // scrollRef reaches the <pre> (the real scroll container) for live-tail autoscroll.
 export function CodeBlock({ className, scrollRef, children }) {
   const pre = useRef(null);
@@ -526,3 +526,8 @@ export function MenuItem({ icon: Icon, className, children, ...props }) {
     </button>
   );
 }
+
+// the product mark (favicon set) as an inline icon; brand rule: never lucide Sparkles
+export const AppIcon = ({ size = 15, className }) => (
+  <img src="/icon-32.png" alt="" width={size} height={size} className={className} />
+);

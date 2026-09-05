@@ -1,5 +1,5 @@
 // Pure data shaping for runbook chart blocks: rows in, nivo props out.
-// No fetch, no React — node --test runs this file's test directly.
+// No fetch, no React - node --test runs this file's test directly.
 
 const parse = (s) => new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z'); // D1 datetime or ISO
 
@@ -33,7 +33,7 @@ export function parseOutput(name, text) {
   return [];
 }
 
-// ponytail: naive CSV — no quoted commas; add a real parser when an output needs one.
+// ponytail: naive CSV - no quoted commas; add a real parser when an output needs one.
 function parseCsv(text) {
   const [head, ...lines] = text.trim().split(/\r?\n/);
   if (!head) return [];

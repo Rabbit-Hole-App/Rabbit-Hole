@@ -3,7 +3,7 @@
 /* BlockNote's shadcn components rely on the host app's Tailwind generating their utilities */
 @source '../../../node_modules/@blocknote/shadcn';
 
-/* Tokens — measured Notion values, see design/notion.md (authoritative, read-only).
+/* Tokens - measured Notion values, see design/notion.md (authoritative, read-only).
    Old token names kept (ink/line/hover/side) so existing classes stay valid. */
 @theme {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
@@ -30,7 +30,7 @@ html {
 }
 
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
-   so one override block re-skins every token — including bg-white surfaces via
+   so one override block re-skins every token - including bg-white surfaces via
    --color-white. Elements on accent/danger re-pin white so their text stays white. */
 .dark {
   --color-white: #191919; /* page + popover surfaces */
@@ -60,7 +60,7 @@ body {
   @apply bg-white font-sans text-[16px] leading-normal text-ink antialiased;
 }
 
-/* Design system (see DESIGN.md): every enabled clickable gets the hand cursor —
+/* Design system (see DESIGN.md): every enabled clickable gets the hand cursor -
    never rely on per-element classes for this. Hover surface is always --color-hover. */
 button:not(:disabled),
 select,
@@ -69,7 +69,7 @@ a {
   cursor: pointer;
 }
 
-/* Scrolls without showing a bar (chat areas — the content is the affordance). */
+/* Scrolls without showing a bar (chat areas - the content is the affordance). */
 .no-scrollbar {
   scrollbar-width: none;
 }
@@ -92,7 +92,7 @@ a {
 }
 
 /* shadcn variables BlockNote's components consume (we run Tailwind without shadcn/ui,
-   so define them ourselves) — mapped onto the Notion palette. Light theme only. */
+   so define them ourselves) - mapped onto the Notion palette. Light theme only. */
 :root {
   --background: #ffffff;
   --foreground: #37352f;
@@ -155,7 +155,7 @@ a {
   box-shadow: var(--shadow-pop);
 }
 
-/* Excalidraw's own rule for its overlay layer doesn't survive our Tailwind cascade —
+/* Excalidraw's own rule for its overlay layer doesn't survive our Tailwind cascade -
    without it the layer swallows pointer events and nothing can be drawn. */
 .excalidraw .SVGLayer,
 .excalidraw .SVGLayer * {

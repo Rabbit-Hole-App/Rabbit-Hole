@@ -10,7 +10,7 @@ import Shell from './Shell.jsx';
 import { applyTheme, getTheme } from './api.js';
 import { Toasts } from './ui.jsx';
 
-applyTheme(getTheme()); // before first paint — no light flash for dark users
+applyTheme(getTheme()); // before first paint - no light flash for dark users
 
 // /apps (list), /apps/<slug> (app page), /apps/<slug>/runs/<id> (run page),
 // /members, /chat; /dash aliases /apps (see the control-plane cache note). No router dep.
@@ -18,7 +18,7 @@ if (!/^\/(apps(\/[a-z0-9-]+(\/runs\/[\w-]+)?)?|dash|members|chat)$/.test(window.
   window.history.replaceState(null, '', '/apps');
 }
 
-// org-wide chat as a page — same panel as the app Agent tab, textbox pinned bottom
+// org-wide chat as a page - same panel as the app Agent tab, textbox pinned bottom
 function ChatPage() {
   return (
     <Shell>

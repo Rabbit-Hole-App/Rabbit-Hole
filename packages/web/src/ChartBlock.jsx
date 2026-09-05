@@ -1,6 +1,6 @@
 // Chart as a BlockNote block (flow.md §3a): /chart plots this app's runs or an
 // output file with nivo. Config lives in block props, so it rides the runbook
-// JSON autosave exactly like the Excalidraw block — no extra storage or routes.
+// JSON autosave exactly like the Excalidraw block - no extra storage or routes.
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { insertOrUpdateBlockForSlashMenu } from '@blocknote/core';
 import { createReactBlockSpec } from '@blocknote/react';
@@ -9,7 +9,7 @@ import { api, isDark } from './api.js';
 import { IconBtn, Select } from './ui.jsx';
 import { flattenRuns, parseOutput, columns, toNivo } from './chart-data.js';
 
-// nivo is heavy — each chart type loads its chunk only when a chart of that type renders
+// nivo is heavy - each chart type loads its chunk only when a chart of that type renders
 const Line = lazy(() => import('@nivo/line').then((m) => ({ default: m.ResponsiveLine })));
 const Bar = lazy(() => import('@nivo/bar').then((m) => ({ default: m.ResponsiveBar })));
 const Pie = lazy(() => import('@nivo/pie').then((m) => ({ default: m.ResponsivePie })));
@@ -32,7 +32,7 @@ function useDark() {
   return dark;
 }
 
-// nivo draws SVG text in its own theme, not CSS — dark mode needs explicit fills.
+// nivo draws SVG text in its own theme, not CSS - dark mode needs explicit fills.
 const nivoTheme = (dark) => ({
   text: { fill: dark ? '#d4d4d4' : '#37352f' },
   axis: { ticks: { text: { fill: dark ? '#9b9b9b' : '#787774' } } },
@@ -66,7 +66,7 @@ function ChartEmbed({ block, editor }) {
   const editable = editor.isEditable;
   const app = block.props.app;
   let saved = {};
-  try { saved = JSON.parse(block.props.config || '{}'); } catch { /* stale props — start fresh */ }
+  try { saved = JSON.parse(block.props.config || '{}'); } catch { /* stale props - start fresh */ }
   const cfg = { source: 'runs', file: '', type: 'line', x: '', y: '', scheme: 'nivo', decimals: '', group: 'stacked', ...saved };
 
   const [rows, setRows] = useState([]);
@@ -84,7 +84,7 @@ function ChartEmbed({ block, editor }) {
         if (cfg.source === 'runs') {
           if (dead) return;
           setRows(flattenRuns(runs));
-          setNote(runs.length ? '' : 'no runs yet — run the job once and the chart fills in');
+          setNote(runs.length ? '' : 'no runs yet - run the job once and the chart fills in');
           return;
         }
         const last = (runs || []).find((r) => r.status === 'finished');
@@ -162,7 +162,7 @@ function ChartEmbed({ block, editor }) {
   );
 }
 
-// createReactBlockSpec returns a factory in 0.54 — call it to get the spec
+// createReactBlockSpec returns a factory in 0.54 - call it to get the spec
 export const chartBlock = createReactBlockSpec(
   { type: 'chart', propSchema: { app: { default: '' }, config: { default: '' } }, content: 'none' },
   { render: (props) => <ChartEmbed block={props.block} editor={props.editor} /> },
@@ -176,7 +176,7 @@ export const insertChart = (editor, app) => ({
   icon: <BarChart3 size={18} />,
   onItemClick: () => {
     insertOrUpdateBlockForSlashMenu(editor, { type: 'chart', props: { app } });
-    // the block is configured by mouse — drop the text cursor so BlockNote's
+    // the block is configured by mouse - drop the text cursor so BlockNote's
     // "type / for commands" placeholder doesn't hang glued under the fresh chart
     setTimeout(() => document.activeElement?.blur(), 50);
   },

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, BadgeCheck, Bell, Braces, ChevronDown, ChevronRight, ChevronsLeft, CircleArrowUp, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, LayoutGrid, LayoutPanelLeft, Link, LogOut, Mail, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Sparkles, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bell, Braces, ChevronDown, ChevronRight, ChevronsLeft, CircleArrowUp, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, LayoutGrid, LayoutPanelLeft, Link, LogOut, Mail, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, wsName } from './api.js';
-import { Avatar, Button, cn, ConfirmDialog, IconBtn, KindIcon, Menu, MenuItem, Select, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
+import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, KindIcon, Menu, MenuItem, Select, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 
-// Settings (workspace dropdown → Settings): Notion-style two-pane modal —
+// Settings (workspace dropdown → Settings): Notion-style two-pane modal -
 // left nav (Account / Workspace sections), right content per tab.
 const THEMES = { System: 'system', Light: 'light', Dark: 'dark' };
 function SettingsRow({ title, desc, children }) {
@@ -18,7 +18,7 @@ function SettingsRow({ title, desc, children }) {
   );
 }
 // ponytail: nav copied verbatim from the Notion reference (user: "copy the same we
-// will remove later") — most items render an empty pane until we prune/wire them.
+// will remove later") - most items render an empty pane until we prune/wire them.
 function SettingsDialog({ email, onMarkRead, onClose }) {
   const [tab, setTab] = useState('preferences');
   const [theme, setThemeState] = useState(() => getTheme());
@@ -58,7 +58,7 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
           <NavBtn id="people" icon={Users}>People</NavBtn>
           <NavBtn id="import" icon={Download}>Import</NavBtn>
           <NavLabel>Features</NavLabel>
-          <NavBtn id="ai" icon={Sparkles}>small AI</NavBtn>
+          <NavBtn id="ai" icon={AppIcon}>small AI</NavBtn>
           <NavBtn id="connections" icon={LayoutGrid}>Connections</NavBtn>
           <NavBtn id="mcp" icon={Share2}>small MCP</NavBtn>
           <NavBtn id="pages" icon={Globe}>Public pages</NavBtn>
@@ -185,7 +185,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
   // read = inbox semantics: opening the panel clears the badge; the observation
   // itself stays until it resolves or is dismissed. Per device (localStorage).
   const [readAt, setReadAt] = useState(() => localStorage.getItem('small.watchReadAt') || '');
-  const [panelReadAt, setPanelReadAt] = useState(''); // snapshot at open — rows dim against this, not the fresh mark
+  const [panelReadAt, setPanelReadAt] = useState(''); // snapshot at open - rows dim against this, not the fresh mark
   const unread = [...watchObs.filter((o) => o.first_seen > readAt), ...watchRuns.filter((r) => r.finished_at > readAt)];
   const markRead = () => {
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -243,7 +243,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
 
   // Dropping between sections changes visibility; dropping on a folder files it
   // (folders live in the workspace section, so that also makes it domain-visible).
-  // Every drop confirms first — moving can change who has access.
+  // Every drop confirms first - moving can change who has access.
   const drop = (folderId, visibility, label) => {
     if (!dragging) return;
     const name = dragging;
@@ -358,7 +358,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
   const privateApps = apps.filter((a) => sectionOf(a, org, email) === 'private');
   const sharedApps = apps.filter((a) => sectionOf(a, org, email) === 'shared');
   const rootApps = workspaceApps.filter((a) => !a.folder_id || !folders.some((f) => f.id === a.folder_id));
-  // an app made private while filed keeps folder_id, but lives in Private only — no double listing
+  // an app made private while filed keeps folder_id, but lives in Private only - no double listing
   const inFolder = (f) => workspaceApps.filter((a) => a.folder_id === f.id);
   const recent = JSON.parse(localStorage.getItem('small.recent') || '[]')
     .map((n) => apps.find((a) => a.name === n))
@@ -433,7 +433,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
         <ConfirmDialog
           title={`Move ${confirmMove.name} ${confirmMove.label}?`}
           body={confirmMove.visibility === 'private'
-            ? 'It leaves the workspace section — only people (and teams) it is shared with keep access.'
+            ? 'It leaves the workspace section - only people (and teams) it is shared with keep access.'
             : `Anyone at ${org.replace(/-/g, '.')} will be able to view it.`}
           confirmLabel="Move"
           onConfirm={applyMove}
@@ -467,7 +467,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
           </IconBtn>
         </div>
         {/* fixed!: the sidebar is a scroll container and clips anything wider than
-            itself — pinning to the viewport lets the menu fit the full email */}
+            itself - pinning to the viewport lets the menu fit the full email */}
         <Menu open={wsMenu} onClose={() => setWsMenu(false)} className="fixed! top-11 left-3 w-auto! min-w-60 max-w-[340px]">
           <div className="flex items-center gap-2 px-2 py-1.5">
             {email && <Avatar email={email} />}
@@ -482,7 +482,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
       </div>
       {showSettings && <SettingsDialog email={email} onMarkRead={markRead} onClose={() => setShowSettings(false)} />}
 
-      {/* icons only — search + notifications share one line, tooltips carry the labels */}
+      {/* icons only - search + notifications share one line, tooltips carry the labels */}
       <div className="flex items-center gap-1 px-0.5">
         <IconBtn
           title="Search (Ctrl + K)"
@@ -511,7 +511,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
       {watchOpen && (
         <SlidePanel title="Notifications" width={440} onClose={() => setWatchOpen(false)}>
           <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-5">
-            {/* read rows are gone — only what arrived since the last open shows, and Clear empties it now */}
+            {/* read rows are gone - only what arrived since the last open shows, and Clear empties it now */}
             {(watchObs.some((o) => o.first_seen > panelReadAt) || watchRuns.some((r) => r.finished_at > panelReadAt)) && (
               <div className="flex justify-end pt-1 pb-1">
                 <button
@@ -581,8 +581,8 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
             <FolderPlus size={13} />
           </button>
           <button
-            title="New app — copy the deploy command"
-            onClick={() => { navigator.clipboard.writeText('small deploy'); toast('Copied — run this in your project'); }}
+            title="New app - copy the deploy command"
+            onClick={() => { navigator.clipboard.writeText('small deploy'); toast('Copied - run this in your project'); }}
             className="cursor-pointer rounded-sm p-0.5 text-ink-2 opacity-0 group-hover/sb:opacity-100 hover:bg-hover hover:text-ink"
           >
             <Plus size={13} />
@@ -746,7 +746,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
               <Plus size={16} strokeWidth={1.5} />
             </button>
             <Menu open={newMenu} onClose={() => setNewMenu(false)} className="bottom-11 right-0 w-40">
-              <MenuItem icon={Sparkles} onClick={() => { setNewMenu(false); navigate('/chat'); }}>Chat</MenuItem>
+              <MenuItem icon={AppIcon} onClick={() => { setNewMenu(false); navigate('/chat'); }}>Chat</MenuItem>
               <MenuItem icon={FolderPlus} onClick={() => { setNewMenu(false); setNewFolder(''); }}>Folder</MenuItem>
               <MenuItem icon={Plus} onClick={() => { setNewMenu(false); toast('Deploy a new app with: small deploy'); }}>App</MenuItem>
             </Menu>
@@ -781,7 +781,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
             </form>
             <div className="min-h-0 flex-1 overflow-y-auto">
               {(sharedFolderObj.shares || []).length === 0 && (
-                <div className="pt-1 text-sm text-ink-2">Not shared — everyone gets access to every app in this folder when you add them.</div>
+                <div className="pt-1 text-sm text-ink-2">Not shared - everyone gets access to every app in this folder when you add them.</div>
               )}
               {(sharedFolderObj.shares || []).map((s) => (
                 <div key={s.team || s.email} className="group/fs flex h-8 items-center gap-2 rounded-sm px-2 text-sm hover:bg-hover">

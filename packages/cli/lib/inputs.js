@@ -8,7 +8,7 @@ const TYPES = ['file', 'number', 'select', 'date', 'text', 'bool'];
 function checkSchema(config) {
   for (const [name, spec] of Object.entries(config.inputs || {})) {
     if (!spec || typeof spec !== 'object' || Array.isArray(spec)) throw new Error(`[inputs] ${name} must be a table like { type = "text" }`);
-    if (!TYPES.includes(spec.type)) throw new Error(`[inputs] ${name}: unknown type "${spec.type}" — one of ${TYPES.join(', ')}`);
+    if (!TYPES.includes(spec.type)) throw new Error(`[inputs] ${name}: unknown type "${spec.type}" - one of ${TYPES.join(', ')}`);
     if (spec.type === 'select' && !Array.isArray(spec.options)) throw new Error(`[inputs] ${name}: select needs options = ["a", "b"]`);
   }
   for (const [name, spec] of Object.entries(config.outputs || {})) {
@@ -35,7 +35,7 @@ function validate(schema, flags) {
   const known = new Set(names.map((n) => n.replace(/_/g, '-')));
   for (const key of Object.keys(flags)) {
     if (key === '_' || key === 'app' || key === 'download') continue;
-    if (!known.has(key)) throw new Error(`unknown input --${key}${names.length ? ` — declared: ${[...known].map((k) => '--' + k).join(', ')}` : ' — this app declares no [inputs]'}`);
+    if (!known.has(key)) throw new Error(`unknown input --${key}${names.length ? ` - declared: ${[...known].map((k) => '--' + k).join(', ')}` : ' - this app declares no [inputs]'}`);
   }
   for (const name of names) {
     const spec = schema[name];

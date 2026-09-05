@@ -1,4 +1,4 @@
-// ─── Ask (phase 1 — read only): the chat panel behind the Agent tab, the run
+// ─── Ask (phase 1 - read only): the chat panel behind the Agent tab, the run
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
 import { useEffect, useRef, useState } from 'react';
@@ -6,7 +6,7 @@ import { ArrowUp, AtSign, Copy, History, Loader2, MoreHorizontal, Paperclip, Pen
 import { ago, api } from './api.js';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
-// What the agent may read, per scope — the ⚙ picker mirrors Notion's "My sources".
+// What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
 const SOURCE_OPTIONS = {
   run: [['log', 'Log'], ['outputs', 'Outputs'], ['runbook', 'Runbook'], ['review', 'Review'], ['agent', 'AGENT.md']],
   app: [['runs', 'Runs'], ['requests', 'Request log'], ['runbook', 'Runbook'], ['review', 'Review'], ['agent', 'AGENT.md']],
@@ -15,7 +15,7 @@ const SOURCE_OPTIONS = {
 // Model picker keys → labels (server holds the allowlist; auto = default).
 const MODELS = [['auto', 'Auto'], ['opus-5', 'Opus 5'], ['sonnet-5', 'Sonnet 5'], ['haiku-4.5', 'Haiku 4.5']];
 
-// Tiny safe markdown: **bold**, `code`, "- " bullets. Built as elements — no HTML injection.
+// Tiny safe markdown: **bold**, `code`, "- " bullets. Built as elements - no HTML injection.
 function inline(s) {
   return s.split(/(`[^`]+`|\*\*[^*]+\*\*)/g).map((part, i) => {
     if (part.startsWith('`') && part.endsWith('`')) {
@@ -26,7 +26,7 @@ function inline(s) {
   });
 }
 
-// A source token like "job.py:15" or "small.toml" — clickable when onFile is wired.
+// A source token like "job.py:15" or "small.toml" - clickable when onFile is wired.
 const FILE_TOKEN = /^([\w./-]+\.(?:py|toml|txt|md|json|csv|cfg|ini|yaml|yml))(?::(\d+)(?:-(\d+))?)?$/;
 
 function SourcesLine({ text, onFile }) {
@@ -93,7 +93,7 @@ export function Md({ text, onFile }) {
   return <div className="text-sm leading-normal">{out}</div>;
 }
 
-// Tiny per-line tokenizer for the file peek — comments, strings, keywords,
+// Tiny per-line tokenizer for the file peek - comments, strings, keywords,
 // numbers. React spans only, no HTML. ponytail: no multi-line strings, and
 // python keywords double for toml well enough.
 const PY_TOKEN = /(#.*$)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\b(def|class|import|from|return|if|elif|else|for|while|try|except|finally|with|as|in|not|and|or|None|True|False|lambda|raise|pass|break|continue|global|yield|assert|del|is|print)\b|\b(\d+(?:\.\d+)?)\b/g;
@@ -207,7 +207,7 @@ function ProposalCard({ proposal, onDone, onChange }) {
   );
 }
 
-// After an approved run: live result right in the chat — status, log tail,
+// After an approved run: live result right in the chat - status, log tail,
 // outputs with the same inline previews as the run peek.
 function RunResultCard({ runId, app }) {
   const [meta, setMeta] = useState(null);
@@ -256,7 +256,7 @@ function RunResultCard({ runId, app }) {
   );
 }
 
-// compact copy of the run peek's output renderer (kept local — run.jsx imports us)
+// compact copy of the run peek's output renderer (kept local - run.jsx imports us)
 function OutputRow({ runId, name, size }) {
   const url = `/api/runs/${runId}/outputs/${encodeURIComponent(name)}`;
   const isImg = /\.(jpe?g|png|gif|webp)$/i.test(name) && size < 2 * 1024 * 1024;
@@ -272,7 +272,7 @@ function OutputRow({ runId, name, size }) {
   );
 }
 
-// One chat, scoped: {app} | {run} | {} (org). Style per the Notion AI reference —
+// One chat, scoped: {app} | {run} | {} (org). Style per the Notion AI reference -
 // user turns as a right-aligned bubble, answers as plain text, pill input at the bottom.
 export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, autoFocus = false }) {
   const [msgs, setMsgs] = useState([]);
@@ -283,7 +283,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const [mentions, setMentions] = useState([]); // @app chips
   const [plusOpen, setPlusOpen] = useState(false);
   const [threads, setThreads] = useState([]); // past chats for this scope
-  const [view, setView] = useState('chat'); // 'chat' | 'history' — history REPLACES the chat
+  const [view, setView] = useState('chat'); // 'chat' | 'history' - history REPLACES the chat
   const [rowMenu, setRowMenu] = useState(null); // thread id with its ⋯ open
   const [renaming, setRenaming] = useState(null); // { id, value }
   const [confirmDel, setConfirmDel] = useState(null); // thread pending delete
@@ -315,7 +315,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     return () => window.removeEventListener('small:ask-focus', focus);
   }, []);
 
-  // chats persist in D1 — resume the latest thread for this scope on mount
+  // chats persist in D1 - resume the latest thread for this scope on mount
   const loadThread = async (id, toChat = true) => {
     try {
       const d = await api(`/api/ask/threads/${id}`);
@@ -323,7 +323,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       setMsgs(d.messages);
       setChoices(null);
       if (toChat) setView('chat'); // the silent resume-on-mount must not yank the user out of History
-    } catch { /* stale id — stay on the empty chat */ }
+    } catch { /* stale id - stay on the empty chat */ }
   };
   useEffect(() => {
     api(`/api/ask/threads?scope=${scopeKind}${scopeRef ? `&ref=${encodeURIComponent(scopeRef)}` : ''}`)
@@ -378,7 +378,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       if ((r.headers.get('Content-Type') || '').includes('json')) {
         const d = await r.json();
         if (d.choose) {
-          setMsgs((m) => m.slice(0, -2)); // no turn happened yet — the pills replace it
+          setMsgs((m) => m.slice(0, -2)); // no turn happened yet - the pills replace it
           setChoices({ message, candidates: d.choose });
         } else {
           append(`✗ ${d.error || `HTTP ${r.status}`}`);
@@ -510,7 +510,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       <div ref={boxRef} className="no-scrollbar min-h-0 flex-1 overflow-y-auto">
         {msgs.length === 0 && !choices && (
           <div className="py-3 text-sm text-ink-2">
-            Ask about {scope.run ? 'this run — what happened, why it failed, what changed.' : scope.app ? 'this app — runs, logs, schedule, who has access.' : 'your workspace — any app, run, or person.'}
+            Ask about {scope.run ? 'this run - what happened, why it failed, what changed.' : scope.app ? 'this app - runs, logs, schedule, who has access.' : 'your workspace - any app, run, or person.'}
           </div>
         )}
         {msgs.map((m, i) => (

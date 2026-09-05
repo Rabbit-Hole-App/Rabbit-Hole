@@ -1,4 +1,4 @@
-// Watch — a nightly pass that notices what a person wouldn't: stale apps, silent
+// Watch - a nightly pass that notices what a person wouldn't: stale apps, silent
 // schedules, drifting secrets. SQL plus a few model calls, not an agent loop.
 // runWatchPass: 03:00 UTC. weeklyWatchEmail: Monday 08:00 UTC.
 import { askOnce } from './ask.js';
@@ -29,7 +29,7 @@ export async function computeBaseline(env, app, now) {
     else if (r.status === 'running') continue; // an in-flight run neither breaks nor extends the streak
     else break;
   }
-  // request_logs only keeps 7 days — baselines carry the long memory forward
+  // request_logs only keeps 7 days - baselines carry the long memory forward
   // (last_request_at and peak daily average survive the purge day by day).
   let req = { total: 0, last7: 0, last_at: null };
   try {
@@ -136,7 +136,7 @@ export async function evaluateChecks(env, app, b, enabled, now) {
             fired.push({ check: 'stale_deploy', evidence: { ahead_by: cmp.ahead_by, deployed_sha: app.repo_commit } });
           }
         }
-      } catch { /* rate limit / offline — silently skip */ }
+      } catch { /* rate limit / offline - silently skip */ }
     }
   }
 
@@ -149,7 +149,7 @@ export async function evaluateChecks(env, app, b, enabled, now) {
         const row = await env.DB.prepare('SELECT MAX(ts) AS last FROM request_logs WHERE org = ? AND slug = ? AND user = ?')
           .bind(app.org, app.name, m.email).first().catch(() => null);
         const lastMs = parseTs(row?.last);
-        // ponytail: members has no shared-at date — a fresh share on an old app counts as unused
+        // ponytail: members has no shared-at date - a fresh share on an old app counts as unused
         if ((lastMs == null && appAgeMs && now - appAgeMs > 60 * DAY) || (lastMs != null && now - lastMs > 60 * DAY)) {
           unused.push({ email: m.email, last_request_at: row?.last || null });
         }
@@ -164,8 +164,8 @@ export async function evaluateChecks(env, app, b, enabled, now) {
 // ---------- observations: upsert, resolve, one model sentence for NEW rows only ----------
 
 const FALLBACK_TEXT = {
-  schedule_missed: (e) => `Scheduled (${e.schedule}) but no run for over twice the expected interval — last run ${e.last_run_at || 'never'}.`,
-  run_slow: (e) => `Last run ${e.run_id} took ${e.duration_secs}s — over 3× the ${e.median_secs}s median.`,
+  schedule_missed: (e) => `Scheduled (${e.schedule}) but no run for over twice the expected interval - last run ${e.last_run_at || 'never'}.`,
+  run_slow: (e) => `Last run ${e.run_id} took ${e.duration_secs}s - over 3× the ${e.median_secs}s median.`,
   run_failing: (e) => `${e.count} consecutive failed runs since ${e.since} (${(e.run_ids || []).join(', ')}).`,
   server_silent: (e) => `No requests in 14 days; it previously averaged ${e.previous_daily_avg}/day (last request ${e.last_request_at}).`,
   never_opened: (e) => `Deployed ${e.deployed_at} and never received a request.`,

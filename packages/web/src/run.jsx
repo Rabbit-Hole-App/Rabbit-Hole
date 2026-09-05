@@ -15,7 +15,7 @@ import {
 
 const shortId = (id) => String(id || '').replace(/^r-/, '').slice(0, 7);
 const secs = (a, b) => (a && b ? Math.max(0, (new Date(b.replace(' ', 'T') + 'Z') - new Date(a.replace(' ', 'T') + 'Z')) / 1000) : null);
-export const fmtDur = (s) => (s == null ? '—' : s < 60 ? `${Math.round(s)}s` : s < 3600 ? `${Math.floor(s / 60)}m ${Math.round(s % 60)}s` : `${Math.floor(s / 3600)}h ${Math.round((s % 3600) / 60)}m`);
+export const fmtDur = (s) => (s == null ? '-' : s < 60 ? `${Math.round(s)}s` : s < 3600 ? `${Math.floor(s / 60)}m ${Math.round(s % 60)}s` : `${Math.floor(s / 3600)}h ${Math.round((s % 3600) / 60)}m`);
 
 // Type icons match the plist reference: 📎 file, # number, Aa text/select, date, bool.
 const TYPE_ICON = { file: Paperclip, number: Hash, select: Type, text: Type, date: Calendar, bool: Circle };
@@ -171,7 +171,7 @@ function S3Input({ app, value, onChange, onBlur, error, label }) {
 }
 
 // Inline preview by extension: images and pdf render, small json/txt/csv show as
-// a code block. The proxy refuses anything else or oversized — we just go quiet.
+// a code block. The proxy refuses anything else or oversized - we just go quiet.
 function S3Preview({ app, uri, kind }) {
   const url = `/api/apps/${app.name}/s3-object?uri=${encodeURIComponent(uri)}`;
   const [text, setText] = useState(null);
@@ -317,7 +317,7 @@ export function RunForm({ app, prefill, onStarted }) {
       {lr && (
         <div className="flex flex-wrap items-center gap-1 pt-3 text-sm text-ink-2">
           Last run {ago(lr.startedAt)}{lr.startedBy ? ` by ${startedName(lr.startedBy)}` : ''}
-          {lr.status === 'running' ? <> · <StatusPill status="running" /></> : ` · ${lr.status}${lrDur !== '—' ? ` in ${lrDur}` : ''}`}
+          {lr.status === 'running' ? <> · <StatusPill status="running" /></> : ` · ${lr.status}${lrDur !== '-' ? ` in ${lrDur}` : ''}`}
         </div>
       )}
     </div>
@@ -362,7 +362,7 @@ function useRun(runId) {
 // everything else a download row.
 function Output({ runId, name, size, label }) {
   const url = `/api/runs/${runId}/outputs/${encodeURIComponent(name)}`;
-  const isImg = /\.(jpe?g|png|gif|webp)$/i.test(name) && size < 2 * 1024 * 1024; // no svg — served nosniff, won't render
+  const isImg = /\.(jpe?g|png|gif|webp)$/i.test(name) && size < 2 * 1024 * 1024; // no svg - served nosniff, won't render
   const isText = /\.(json|csv|txt)$/i.test(name) && size < 4096;
   const [text, setText] = useState(null);
   useEffect(() => {
@@ -386,7 +386,7 @@ function Output({ runId, name, size, label }) {
 
 const H3 = ({ children }) => <h3 className="pt-5 pb-1.5 text-sm font-semibold">{children}</h3>;
 
-// ─── The run page content (flow.md §4) — same body in the 480px peek and the full page. ───
+// ─── The run page content (flow.md §4) - same body in the 480px peek and the full page. ───
 export function RunView({ runId, app, onRunAgain }) {
   const { meta, lines } = useRun(runId);
   const [outputs, setOutputs] = useState(null);
@@ -431,7 +431,7 @@ export function RunView({ runId, app, onRunAgain }) {
       {inputEntries.length > 0 && (
         <>
           <H3>Inputs</H3>
-          {/* no width cap — the peek's 480px clamps it there; the full page gets the room */}
+          {/* no width cap - the peek's 480px clamps it there; the full page gets the room */}
           <div className="grid grid-cols-[160px_1fr] text-sm">
             {inputEntries.map(([k, v]) => {
               const spec = schema[k] || {};
@@ -559,15 +559,15 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain }) {
     if (c.key === 'status') return <StatusPill status={r.status} />;
     if (c.key === 'by') return <Person email={r.started_by} />;
     if (c.key === 'when') return <span title={fmtTime(r.started_at)}>{ago(r.started_at)}</span>;
-    if (c.key === 'dur') return <span className="tabular-nums">{r.status === 'running' ? '—' : fmtDur(durOf(r))}</span>;
+    if (c.key === 'dur') return <span className="tabular-nums">{r.status === 'running' ? '-' : fmtDur(durOf(r))}</span>;
     const v = (r.inputs || {})[c.input];
-    if (v == null) return <span className="text-ink-3">—</span>;
+    if (v == null) return <span className="text-ink-3">-</span>;
     const spec = schema[c.input] || {};
     if (spec.type === 'file') return <span className="inline-flex min-w-0 items-center gap-1"><Paperclip size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" /><span className="break-all">{String(v)}</span></span>;
     if (spec.type === 'bool' || typeof v === 'boolean') return <Pill>{v ? 'on' : 'off'}</Pill>;
     if (spec.type === 'number') return <span className="tabular-nums">{String(v)}</span>;
     const s = Array.isArray(v) ? v.join(', ') : String(v);
-    // s3 uris: one line, just the tail — the full uri sits on hover
+    // s3 uris: one line, just the tail - the full uri sits on hover
     if (/^s3:\/\//.test(s)) {
       const tail = s.replace(/\/+$/, '').split('/').pop();
       return <span className="block truncate whitespace-nowrap" title={s}>…/{tail}</span>;
@@ -739,7 +739,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain }) {
               ))}
             </tbody>
             {/* Calculate footer: count under Run, avg right-aligned under Duration.
-                ponytail: fixed picks — click-to-choose count/sum/avg when someone asks */}
+                ponytail: fixed picks - click-to-choose count/sum/avg when someone asks */}
             <tfoot>
               <tr>
                 <td />

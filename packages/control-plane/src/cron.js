@@ -1,5 +1,5 @@
 // 5-field cron (min hour dom mon dow), UTC only. Supports * lists ranges steps.
-// ponytail: no seconds, no @daily aliases, no timezones — add when someone asks.
+// ponytail: no seconds, no @daily aliases, no timezones - add when someone asks.
 const BOUNDS = [
   [0, 59],
   [0, 23],
@@ -37,7 +37,7 @@ export function matches(parsed, date) {
 }
 
 // Next matching minute strictly after fromMs, as epoch ms. Scans by day (skips
-// non-matching days at midnight), 4 years max — catches "0 0 30 2 *" at deploy time.
+// non-matching days at midnight), 4 years max - catches "0 0 30 2 *" at deploy time.
 export function nextRun(parsed, fromMs) {
   const [min, hour, dom, mon, dow] = parsed;
   let t = Math.floor(fromMs / 60000) * 60000 + 60000;

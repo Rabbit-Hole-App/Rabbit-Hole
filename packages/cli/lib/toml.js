@@ -1,7 +1,7 @@
 'use strict';
 // Minimal TOML subset for small.toml: [section], key = "str" | number | bool | ["a", "b"]
 // | { k = v, ... } (one level, for [inputs]/[outputs]).
-// ponytail: comment strip breaks on # inside strings — small.toml values never contain #.
+// ponytail: comment strip breaks on # inside strings - small.toml values never contain #.
 
 function parse(text) {
   const root = {};
@@ -21,7 +21,7 @@ function parse(text) {
   return root;
 }
 
-// Split on top-level commas only — commas inside quotes ("a,b") or brackets stay put.
+// Split on top-level commas only - commas inside quotes ("a,b") or brackets stay put.
 function splitTop(s) {
   const parts = [];
   let depth = 0;

@@ -10,7 +10,7 @@ const MAX_TOKENS = 100000; // ~4 chars per token
 
 const escapeRx = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// ponytail: common-subset .gitignore — bare names, dir/, *.ext, leading /; no ** or ! negation
+// ponytail: common-subset .gitignore - bare names, dir/, *.ext, leading /; no ** or ! negation
 function gitignoreMatchers(dir) {
   const file = path.join(dir, '.gitignore');
   if (!fs.existsSync(file)) return [];
@@ -68,7 +68,7 @@ function transitiveFrom(entry, files, dir) {
   return keep;
 }
 
-// The model must never see secret values — only names and line numbers.
+// The model must never see secret values - only names and line numbers.
 function redact(text, secrets) {
   for (const value of Object.values(secrets || {})) {
     if (value && value.length >= 4) text = text.split(value).join('«redacted»');

@@ -1,5 +1,12 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowUpRight, Calendar as CalendarIcon, Check, Circle, Clock, Copy, GitBranch, Globe, Link as LinkIcon, Lock, MoreHorizontal, Plus, Trash2, User as UserIcon, Users, X } from 'lucide-react';
+
+// lucide dropped brand icons - the GitHub mark, inline
+const Github = ({ size = 14 }) => (
+  <svg viewBox="0 0 16 16" width={size} height={size} fill="currentColor" aria-hidden="true">
+    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+  </svg>
+);
 import { ago, api, cronHuman, cronList, fmtTime, navigate, wsName } from './api.js';
 import { AskPanel } from './ask.jsx';
 import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
@@ -79,7 +86,7 @@ function ScheduleDialog({ app, onClose, onChanged }) {
               </div>
             ))}
             <div className="flex items-center gap-2 pt-1">
-              {/* schedule_paused is 0/1 from D1 — a bare && would render the 0 */}
+              {/* schedule_paused is 0/1 from D1 - a bare && would render the 0 */}
               {!!app.schedule_paused && <span className="text-xs text-ink-2">paused</span>}
               <span className="flex-1" />
               <Button
@@ -113,7 +120,7 @@ function ScheduleDialog({ app, onClose, onChanged }) {
               ))}
             </div>
           )}
-          {freq === 'custom cron' && <Input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder='5-field cron, UTC — "0 9 * * 1-5"' aria-label="cron" />}
+          {freq === 'custom cron' && <Input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder='5-field cron, UTC - "0 9 * * 1-5"' aria-label="cron" />}
           {err && <div className="text-xs text-danger">{err}</div>}
         </div>
         <div className="flex justify-end gap-2 pt-4">
@@ -154,7 +161,7 @@ function SharePopover({ app, onChanged }) {
     try { await fn(); onChanged(); } catch (e) { setErr(e.message); }
   };
   const share = (body) => call(() => api('/api/share', { method: 'POST', body: JSON.stringify({ app: app.name, ...body }) }));
-  // First share on a private app moves it from Private to Shared — confirm that.
+  // First share on a private app moves it from Private to Shared - confirm that.
   const firstShare = app.visibility === 'private' && app.owner_email === app.email
     && !app.members.length && !(app.teams || []).length;
   const doAdd = (body) => { share(body); setEmail(''); };
@@ -186,7 +193,7 @@ function SharePopover({ app, onChanged }) {
       {confirmShare && (
         <ConfirmDialog
           title={`Share ${app.name}?`}
-          body={`${app.name} is private. Sharing it with ${confirmShare.team || confirmShare.email} moves it from Private to Shared in the sidebar — they'll be able to ${confirmShare.role === 'edit' ? 'edit' : 'view'} it.`}
+          body={`${app.name} is private. Sharing it with ${confirmShare.team || confirmShare.email} moves it from Private to Shared in the sidebar - they'll be able to ${confirmShare.role === 'edit' ? 'edit' : 'view'} it.`}
           confirmLabel="Share"
           confirmVariant="primary"
           onConfirm={() => { const b = confirmShare; setConfirmShare(null); doAdd(b); }}
@@ -213,7 +220,7 @@ function SharePopover({ app, onChanged }) {
                   <option value="view">view</option>
                   <option value="edit">edit</option>
                 </select>
-                {/* implicit form submission is unreliable with multiple fields — Enter must always work */}
+                {/* implicit form submission is unreliable with multiple fields - Enter must always work */}
                 <button type="submit" className="hidden" aria-hidden="true" tabIndex={-1} />
               </form>
             </>
@@ -320,7 +327,7 @@ function Denied({ slug, error }) {
       {owner && !asked && <Button variant="accent" className="mx-auto" onClick={ask}>Request access</Button>}
       {asked && (
         <div className="text-sm text-ink-2">
-          {asked.err ? `✗ ${asked.err}` : asked.sent ? `✓ asked ${owner}` : `✓ noted — email isn’t configured on this control plane, ping ${owner} directly`}
+          {asked.err ? `✗ ${asked.err}` : asked.sent ? `✓ asked ${owner}` : `✓ noted - email isn’t configured on this control plane, ping ${owner} directly`}
         </div>
       )}
     </div>
@@ -329,7 +336,7 @@ function Denied({ slug, error }) {
 
 const Person = ({ email }) => (email
   ? <span className="inline-flex items-center gap-1.5"><Avatar email={email} />{email}</span>
-  : '—');
+  : '-');
 
 // "next in 3h" for the schedule row; nextRun is a ms epoch from the worker.
 const until = (ms) => {
@@ -421,7 +428,7 @@ function RequestLog({ slug }) {
 }
 
 export default function SharePage({ slug, runId }) {
-  // flow.md §1: sidebar is always present — the app page included.
+  // flow.md §1: sidebar is always present - the app page included.
   return <Shell>{(data, reloadShell) => <AppPage slug={slug} runId={runId} reloadShell={reloadShell} />}</Shell>;
 }
 
@@ -468,7 +475,7 @@ function AppPage({ slug, runId, reloadShell }) {
       localStorage.setItem('small.recent', JSON.stringify([slug, ...r.filter((x) => x !== slug)].slice(0, 5)));
     } catch { /* recents are best-effort */ }
   }).catch(setError);
-  // AppPage survives sidebar navigation (same element position) — per-app state
+  // AppPage survives sidebar navigation (same element position) - per-app state
   // must reset with the slug or app A's peek/tab/prefill leak into app B.
   useEffect(() => { setApp(null); setError(null); setPeek(null); setTab(null); setPrefill(null); load(); }, [slug]);
 
@@ -568,7 +575,7 @@ function AppPage({ slug, runId, reloadShell }) {
         {error && (error.status === 403 ? (
           <Denied slug={slug} error={error} />
         ) : error.status === 404 ? (
-          // 404 also covers ex-members from another org — existence is not revealed to them
+          // 404 also covers ex-members from another org - existence is not revealed to them
           <div className="mx-auto flex max-w-md flex-col items-center gap-3 pt-[20vh] text-center"><Mark size={24} className="text-ink-2" />You don’t have access, or this app doesn’t exist.</div>
         ) : (
           <div className="text-ink-2">✗ {error.message}</div>
@@ -585,7 +592,7 @@ function AppPage({ slug, runId, reloadShell }) {
                 onRunAgain={(inputs) => {
                   sessionStorage.setItem(`small.runPrefill.${slug}`, JSON.stringify(inputs || {}));
                   setPeek(null);
-                  setTab('run'); // AppPage stays mounted across this navigate — land on the form
+                  setTab('run'); // AppPage stays mounted across this navigate - land on the form
                   navigate(`/apps/${slug}`);
                 }}
               />
@@ -626,7 +633,7 @@ function AppPage({ slug, runId, reloadShell }) {
               )}
             </div>
 
-            {/* model-written blurb (first deploy), click to edit — edits stick across deploys */}
+            {/* model-written blurb (first deploy), click to edit - edits stick across deploys */}
             {editDesc !== null ? (
               <textarea
                 autoFocus
@@ -651,7 +658,7 @@ function AppPage({ slug, runId, reloadShell }) {
             )}
 
             {/* Notion-style vertical property list: icon + grey label at 160px, value
-                beside, 32px rows. Access has no row — the Share popover owns that. */}
+                beside, 32px rows. Access has no row - the Share popover owns that. */}
             <div className="grid max-w-[560px] grid-cols-[160px_1fr] text-sm">
               <PropKey icon={Circle}>Type</PropKey>
               <PropVal><Pill color={app.kind === 'job' ? 'blue' : 'grey'}>{app.kind}</Pill></PropVal>
@@ -666,14 +673,10 @@ function AppPage({ slug, runId, reloadShell }) {
                       ? <a href={app.repo_commit ? `${app.repo_url}/commit/${app.repo_commit}` : app.repo_url} target="_blank" rel="noreferrer" className="shrink-0 text-accent hover:underline">{source}</a>
                       : <span className="shrink-0">{source}</span>}
                     {app.repo_url && (
+                      // just the GitHub mark: public → links the repo, private → grey with a tooltip
                       app.repo_public
-                        ? <a href={app.repo_url} target="_blank" rel="noreferrer" className="truncate text-xs text-ink-2 hover:text-ink hover:underline" title={app.repo_url}>{app.repo_url.replace(/^https?:\/\//, '').replace(/\.git$/, '')}</a>
-                        : (
-                          <>
-                            <span className="truncate text-xs text-ink-3" title={app.repo_url}>{app.repo_url.replace(/^https?:\/\//, '').replace(/\.git$/, '')}</span>
-                            <span className="shrink-0 text-xs text-ink-3">· private</span>
-                          </>
-                        )
+                        ? <a href={app.repo_url} target="_blank" rel="noreferrer" title={app.repo_url.replace(/^https?:\/\//, '').replace(/\.git$/, '')} className="shrink-0 text-ink-2 hover:text-ink"><Github size={14} /></a>
+                        : <span title={`${app.repo_url.replace(/^https?:\/\//, '').replace(/\.git$/, '')} · private repo`} className="shrink-0 text-ink-3"><Github size={14} /></span>
                     )}
                   </PropVal>
                 </>

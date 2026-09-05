@@ -3,7 +3,7 @@ import { ChevronsRight } from 'lucide-react';
 import { api } from './api.js';
 import Sidebar from './Sidebar.jsx';
 
-// flow.md §1: the sidebar is always present. One shell owns it everywhere —
+// flow.md §1: the sidebar is always present. One shell owns it everywhere -
 // the /api/apps fetch it needs, the persisted collapse, the » reopen button,
 // and the Ctrl/⌘+\ shortcut. Pages render inside via children(data, reload).
 export default function Shell({ children }) {
