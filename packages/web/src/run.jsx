@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowUpDown, Calendar, Circle, Clock, Copy as CopyIcon, Download, Eye,
-  File as FileIcon, Filter as FilterIcon, Folder, Hash, Inbox, Loader2, Maximize2, Paperclip,
-  Play, Plus, Search as SearchIcon, Type, User, X,
+  File as FileIcon, Filter as FilterIcon, Folder, Hash, Inbox, Loader2, Maximize2, MessageCircle,
+  Paperclip, Play, Plus, Search as SearchIcon, Type, User, X,
 } from 'lucide-react';
 import { ago, api, fmtTime, navigate } from './api.js';
 import { AskPanel } from './ask.jsx';
 import {
-  AppIcon, Avatar, Button, Chk, cn, CodeBlock, Dropzone, Field, fmtBytes, IconBtn, Input,
+  Avatar, Button, Chk, cn, CodeBlock, Dropzone, Field, fmtBytes, IconBtn, Input,
   Menu, MenuItem, Pill, Select, SkeletonRows, SlidePanel, Slider, StatusPill, toast, Toggle,
 } from './ui.jsx';
 
@@ -503,7 +503,7 @@ export function RunView({ runId, app, onRunAgain }) {
 export function RunPeek({ runId, app, onClose, onRunAgain }) {
   const [tab, setTab] = useState('run');
   const [chatted, setChatted] = useState(false);
-  const tabCls = (on) => cn('flex cursor-pointer items-center gap-1.5 truncate rounded-sm px-1.5 py-0.5 text-sm', on ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink');
+  const tabCls = (on) => cn('flex h-6 cursor-pointer items-center gap-1.5 truncate rounded-sm px-1.5 text-sm', on ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink');
   return (
     <SlidePanel
       width={480}
@@ -513,7 +513,8 @@ export function RunPeek({ runId, app, onClose, onRunAgain }) {
           <span className={tabCls(tab === 'run')} onClick={() => setTab('run')}>Run {shortId(runId)}</span>
           {chatted && (
             <span className={tabCls(tab === 'chat')} onClick={() => setTab('chat')} title="Chat" aria-label="Chat">
-              <AppIcon size={15} />
+              <MessageCircle size={16} strokeWidth={1.5} />
+              {tab === 'chat' && 'Chat'}
             </span>
           )}
           <IconBtn aria-label="Open as page" title="Open as page" onClick={() => navigate(`/apps/${app.name}/runs/${runId}`)}>
