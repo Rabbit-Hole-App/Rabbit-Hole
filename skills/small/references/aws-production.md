@@ -30,11 +30,21 @@ Everything AWS the tool touches lives in that one stack:
   or a plain task definition for Fargate, Batch job queues for backlogs.
 - **Pipelines**: Step Functions state machines for multi-step flows,
   EventBridge rules for schedules, S3 buckets and queues between stages.
-- **The small `[aws]` role too**: define the role in the stack — trust policy
+- **Every role from references/aws-compute.md, in the stack**: CDK creates
+  the execution/task roles implicitly per construct — accept those defaults,
+  then grant by reference instead of writing policy JSON:
+  `weightsBucket.grant_read(fn)` (Lambda execution role),
+  `taskDefinition.task_role` grants for what the container touches,
+  `queue.grant_send_messages(...)` between pipeline stages. A Step Functions
+  state machine gets its role the same way — CDK wires `states:StartExecution`
+  and per-step invoke grants for you.
+- **The small `[aws]` role too**: define it in the stack — trust policy
   exactly as the failed `small deploy` printed it (principal + org ExternalId),
-  permissions granted by reference (`fn.grantInvoke(role)`,
-  `bucket.grantReadWrite(role)`) instead of hand-edited JSON. The whole
-  footprint, including what small may touch, is then reviewable code.
+  then the side-2 grants from references/aws-compute.md by reference:
+  `fn.grant_invoke(small_role)`, `state_machine.grant_start_execution(small_role)`,
+  `bucket.grant_read_write(small_role)`. The whole footprint, both sides of
+  every role, is then reviewable code — and a removed construct takes its
+  grants with it, so policies never rot.
 
 Stack outputs (function ARN, bucket name) go into `.env` / `[inputs]` defaults
 — never hard-coded in the script.

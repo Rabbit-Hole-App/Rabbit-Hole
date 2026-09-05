@@ -35,6 +35,35 @@ fits a Lambda container image (10 GB limit; the small demo runs YOLOv8 this
 way). Do not offer the whole table to the user; pick one and say why in one
 sentence ("bursty and small — Lambda, it costs nothing while idle").
 
+## Roles — two directions, never mixed
+
+Every choice needs IAM on **both sides**. Name them all `small-<app-name>-<purpose>`.
+
+**Side 1 — roles the service itself runs as** (create these with the user's
+local credentials, per the consent style in references/aws.md):
+
+| Compute | Create | It needs |
+|---|---|---|
+| Lambda | one execution role | `AWSLambdaBasicExecutionRole` (logs) + exactly what the function code touches (e.g. `s3:GetObject` on the weights bucket) |
+| Fargate | **two**: execution role + task role | execution: `AmazonECSTaskExecutionRolePolicy` (pull image, logs). task: what the container code touches — keep them separate, that is the point |
+| SageMaker endpoint | one execution role | S3 read on the model artifacts, ECR pull, logs |
+| Batch | job role (+ execution role for the container) | job role: what the job code touches; execution: image pull + logs |
+
+**Side 2 — one new statement on the small `[aws]` role** so the app may call it:
+
+| Compute | Add to the small role |
+|---|---|
+| Lambda | `lambda:InvokeFunction` on that one function ARN |
+| Fargate (task per run) | `ecs:RunTask` on the task definition + `iam:PassRole` on its two roles |
+| Fargate (always-on service) | nothing — the app calls it over the network |
+| SageMaker endpoint | `sagemaker:InvokeEndpoint` on that endpoint ARN |
+| Batch | `batch:SubmitJob` on the job queue + job definition |
+
+Update rule is the same as references/aws.md: a new AWS call in code = one
+new statement, named resource, before redeploying; remove statements when the
+call goes. The service's own role never gets what only the app needs, and the
+small role never gets what only the service needs.
+
 ## Wiring it into small
 
 The small app stays the front door — login, Run form, runbook, logs. AWS only
