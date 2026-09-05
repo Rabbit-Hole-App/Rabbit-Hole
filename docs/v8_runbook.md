@@ -3,7 +3,7 @@
 Every app now carries a generated runbook: the document a colleague reads to
 understand and run a tool they didn't write. It rides the existing deploy
 review — same model call, same bundle — so sharing an app always ships the
-manual with it. `RUNBOOK.example.md` in the repo root is the canonical
+manual with it. `docs/RUNBOOK.example.md` is the canonical
 template every generated runbook follows.
 
 ## How it runs

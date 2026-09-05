@@ -5,7 +5,7 @@ Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-s
 # small
 
 Deploy a Python app for your team, behind a work-email login, in one command.
-Read SCOPE.md for the product and v1.md for what's built and why.
+Read docs/SCOPE.md for the product and docs/v1_mvp_shipped.md for what's built and why.
 
 ## Layout
 - `packages/cli` — Node CLI, zero dependencies, stdlib only. Never add a package.
