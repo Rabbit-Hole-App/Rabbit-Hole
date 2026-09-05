@@ -15,11 +15,16 @@ export async function verifySlackSignature(secret, timestamp, rawBody, signature
 
 // Minimal Slack Web API caller (bot token per org).
 export function slackApi(token) {
-  return async (method, payload) => {
+  return async (method, payload = {}) => {
+    // form-encoded, not JSON: read methods like users.info ignore JSON bodies
+    // (silent — the missing `user` arg comes back as user_not_found); objects
+    // (blocks, etc.) go JSON-stringified per param, which every method accepts.
+    const body = new URLSearchParams();
+    for (const [k, v] of Object.entries(payload)) body.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
     const resp = await fetch(`https://slack.com/api/${method}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify(payload),
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
     });
     const data = await resp.json();
     if (!data.ok) throw new Error(`slack ${method}: ${data.error}`);
@@ -30,8 +35,8 @@ export function slackApi(token) {
 // Slack user → small actor. Slack identity is never trusted on its own: the
 // resolved email must belong to the installing org (domain or explicit member).
 export async function resolveActor(env, install, api, slackUserId) {
-  const info = await api('users.info', { user: slackUserId });
-  const email = (info.user?.profile?.email || '').toLowerCase();
+  const info = await api('users.info', { user: slackUserId }).catch(() => null);
+  const email = (info?.user?.profile?.email || '').toLowerCase();
   if (!email) return null;
   const domainOrg = email.split('@')[1]?.toLowerCase().replace(/\./g, '-');
   if (domainOrg === install.org) return { email, org: install.org };
