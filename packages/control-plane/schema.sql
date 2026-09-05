@@ -169,3 +169,12 @@ CREATE TABLE IF NOT EXISTS request_logs (
 );
 CREATE INDEX IF NOT EXISTS request_logs_app ON request_logs (org, slug, id);
 CREATE INDEX IF NOT EXISTS request_logs_ts ON request_logs (ts);
+
+-- Slack-approved runs get their outcome pushed back to the thread; one row per pending run.
+CREATE TABLE IF NOT EXISTS slack_runs (
+  org TEXT NOT NULL,
+  run_id TEXT NOT NULL,
+  channel_id TEXT NOT NULL,
+  thread_ts TEXT,
+  PRIMARY KEY (org, run_id)
+);

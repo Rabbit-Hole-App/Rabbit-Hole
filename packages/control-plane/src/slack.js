@@ -269,6 +269,11 @@ export async function handleSlackInteract(env, ctx, install, payload, deps, base
       return;
     }
     const link = d.runId ? `\n<${baseUrl}/apps/${encodeURIComponent(payloadAppOf(payload) || '')}/runs/${d.runId}|open the run>` : '';
+    if (d.runId) {
+      // remember where to post the outcome — apiRunLog notifies on settle
+      await env.DB.prepare('INSERT OR REPLACE INTO slack_runs (org, run_id, channel_id, thread_ts) VALUES (?, ?, ?, ?)')
+        .bind(install.org, d.runId, channel, threadTs || null).run();
+    }
     await respond({ replace_original: true, text: `✓ approved by ${actor.email} → ${JSON.stringify(d).slice(0, 500)}${link}` });
   }
 }
@@ -277,6 +282,39 @@ export async function handleSlackInteract(env, ctx, install, payload, deps, base
 function payloadAppOf(payload) {
   const m = JSON.stringify(payload.message?.blocks || '').match(/\\"app\\":\s*\\"([a-z0-9-]+)\\"/);
   return m ? m[1] : null;
+}
+
+// ---------- run outcome → Slack (called from apiRunLog on settle) ----------
+
+// Runs approved from Slack post their result back to the same thread: ✓ + link,
+// or ✗ + diagnosis + log tail. One-shot — the slack_runs row is deleted after.
+export async function notifySlackRun(env, runId, baseUrl) {
+  const sub = await env.DB.prepare('SELECT * FROM slack_runs WHERE run_id = ?').bind(runId).first();
+  if (!sub) return;
+  const install = await env.DB.prepare('SELECT * FROM slack_installs WHERE org = ?').bind(sub.org).first();
+  if (!install) return;
+  const run = await env.DB.prepare(
+    'SELECT runs.*, apps.name AS app_name FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?'
+  ).bind(runId).first();
+  if (!run || run.status === 'running') return;
+  const link = `<${baseUrl}/apps/${encodeURIComponent(run.app_name)}/runs/${encodeURIComponent(runId)}|open the run>`;
+  let text;
+  if (run.status === 'finished') {
+    text = `✓ ${run.app_name} run ${runId} finished — ${link}`;
+  } else {
+    const tail = await env.DB.prepare('SELECT line FROM run_logs WHERE run_id = ? ORDER BY seq DESC LIMIT 3').bind(runId).all();
+    const lines = (tail.results || []).map((r) => r.line).reverse().join('\n');
+    text = `✗ ${run.app_name} run ${runId} failed (exit ${run.exit_code})`
+      + (run.diagnosis ? `\n${run.diagnosis}` : '')
+      + (lines ? `\n\`\`\`${lines.slice(0, 500)}\`\`\`` : '')
+      + `\n${link}`;
+  }
+  await slackApi(install.bot_token)('chat.postMessage', {
+    channel: sub.channel_id,
+    ...(sub.thread_ts ? { thread_ts: sub.thread_ts } : {}),
+    text,
+  });
+  await env.DB.prepare('DELETE FROM slack_runs WHERE run_id = ?').bind(runId).run();
 }
 
 // ---------- Watch → Slack (called from the nightly pass) ----------

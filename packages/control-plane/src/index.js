@@ -4,7 +4,7 @@ import { sign, verify, sha256, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
 import { ASK_MODELS, ASK_TOOLS, askOnce, askStream, capJoin, DIAGNOSIS_PROMPT, diffBundles, getBundle, parseBundle } from './ask.js';
 import { assumeRole, s3Buckets, s3Get, s3List } from './aws.js';
-import { handleSlackCommand, handleSlackEvent, handleSlackInteract, slackApi, verifySlackSignature } from './slack.js';
+import { handleSlackCommand, handleSlackEvent, handleSlackInteract, notifySlackRun, slackApi, verifySlackSignature } from './slack.js';
 import { runWatchPass, weeklyWatchEmail } from './watch.js';
 import { runReview, generateRunbook } from './review.js';
 import { parseCron, matches, nextRun } from './cron.js';
@@ -847,7 +847,15 @@ async function apiWatchList(req, env, user) {
   const { results } = await env.DB.prepare(
     `SELECT id, slug, "check", first_seen, last_seen, evidence, text FROM observations WHERE org = ? AND ${OPEN_OBS} ORDER BY slug, last_seen DESC`
   ).bind(user.org).all();
-  return json({ observations: results.filter((o) => slugs.has(o.slug)) });
+  // the bell also carries the user's own settled runs (done/failed), last 3 days
+  const { results: myRuns } = await env.DB.prepare(
+    `SELECT runs.run_id, runs.status, runs.exit_code, runs.finished_at, apps.name AS app
+     FROM runs JOIN apps ON apps.id = runs.app_id
+     WHERE apps.org = ? AND runs.started_by = ? AND runs.status != 'running'
+       AND runs.finished_at > datetime('now', '-3 days')
+     ORDER BY runs.finished_at DESC LIMIT 10`
+  ).bind(user.org, user.email).all();
+  return json({ observations: results.filter((o) => slugs.has(o.slug)), runs: myRuns });
 }
 
 async function apiWatchDismiss(req, env, user, obsId) {
@@ -1700,14 +1708,20 @@ async function apiRunLog(req, env, ctx, runId) {
       .run();
     // failure hook (roadmap: chat reads): one model call per failed run, stored as the
     // run's diagnosis and shown under the status pill. Never blocks the runner's post.
-    if (exitCode !== 0 && settled.meta.changes === 1 && env.ANTHROPIC_API_KEY) {
+    // Then Slack: runs approved from Slack get their outcome posted back to the thread
+    // (after the diagnosis, so a failure message carries it).
+    if (settled.meta.changes === 1) {
+      const origin = new URL(req.url).origin;
       ctx.waitUntil((async () => {
-        try {
-          const run = await env.DB.prepare('SELECT * FROM runs WHERE run_id = ?').bind(runId).first();
-          const app = await env.DB.prepare('SELECT * FROM apps WHERE id = ?').bind(run.app_id).first();
-          const answer = await askOnce(env, await runContext(env, app, run), DIAGNOSIS_PROMPT);
-          await env.DB.prepare('UPDATE runs SET diagnosis = ? WHERE run_id = ?').bind(answer.slice(0, 600), runId).run();
-        } catch { /* a failed diagnosis is just a missing hint */ }
+        if (exitCode !== 0 && env.ANTHROPIC_API_KEY) {
+          try {
+            const run = await env.DB.prepare('SELECT * FROM runs WHERE run_id = ?').bind(runId).first();
+            const app = await env.DB.prepare('SELECT * FROM apps WHERE id = ?').bind(run.app_id).first();
+            const answer = await askOnce(env, await runContext(env, app, run), DIAGNOSIS_PROMPT);
+            await env.DB.prepare('UPDATE runs SET diagnosis = ? WHERE run_id = ?').bind(answer.slice(0, 600), runId).run();
+          } catch { /* a failed diagnosis is just a missing hint */ }
+        }
+        try { await notifySlackRun(env, runId, origin); } catch { /* Slack echo is best-effort */ }
       })());
     }
   }

@@ -173,20 +173,21 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
   const [newMenu, setNewMenu] = useState(false); // bottom + button popup
   const [showSettings, setShowSettings] = useState(false);
   const [watchObs, setWatchObs] = useState([]);
+  const [watchRuns, setWatchRuns] = useState([]); // my settled runs, last 3 days
   const [watchOpen, setWatchOpen] = useState(false);
   const [watchMenu, setWatchMenu] = useState(null);
   // read = inbox semantics: opening the panel clears the badge; the observation
   // itself stays until it resolves or is dismissed. Per device (localStorage).
   const [readAt, setReadAt] = useState(() => localStorage.getItem('small.watchReadAt') || '');
   const [panelReadAt, setPanelReadAt] = useState(''); // snapshot at open — rows dim against this, not the fresh mark
-  const unread = watchObs.filter((o) => o.first_seen > readAt);
+  const unread = [...watchObs.filter((o) => o.first_seen > readAt), ...watchRuns.filter((r) => r.finished_at > readAt)];
   const markRead = () => {
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
     setPanelReadAt(readAt);
     localStorage.setItem('small.watchReadAt', now);
     setReadAt(now);
   };
-  const loadWatch = () => api('/api/watch').then((d) => setWatchObs(d.observations || [])).catch(() => {});
+  const loadWatch = () => api('/api/watch').then((d) => { setWatchObs(d.observations || []); setWatchRuns(d.runs || []); }).catch(() => {});
   useEffect(() => { loadWatch(); }, []);
   const dismissObs = async (id, days) => {
     setWatchMenu(null);
@@ -500,7 +501,23 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
       {watchOpen && (
         <SlidePanel title="Notifications" width={440} onClose={() => setWatchOpen(false)}>
           <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-5">
-            {watchObs.length === 0 && <div className="pt-2 text-sm text-ink-2">Nothing to report — Watch runs nightly.</div>}
+            {watchObs.length === 0 && watchRuns.length === 0 && <div className="pt-2 text-sm text-ink-2">Nothing to report — Watch runs nightly.</div>}
+            {watchRuns.map((r) => (
+              <div
+                key={r.run_id}
+                onClick={() => { setWatchOpen(false); navigate(`/apps/${r.app}/runs/${r.run_id}`); }}
+                className={cn('flex cursor-pointer items-start gap-2 rounded-sm border-b border-line px-1 py-2.5 text-sm hover:bg-hover', r.finished_at > panelReadAt ? '' : 'opacity-70')}
+              >
+                <span className={cn('mt-0.5 shrink-0 text-[13px]', r.status === 'finished' ? 'text-success' : 'text-danger')}>
+                  {r.status === 'finished' ? '✓' : '✗'}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <span className="font-medium">{r.app}</span>
+                  <div className="text-ink-2">run {r.status}{r.status !== 'finished' && r.exit_code != null ? ` (exit ${r.exit_code})` : ''}</div>
+                  <div className="pt-0.5 text-xs text-ink-3">{r.run_id} · {ago(r.finished_at)}</div>
+                </div>
+              </div>
+            ))}
             {watchObs.map((o) => (
               <div
                 key={o.id}
