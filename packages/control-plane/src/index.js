@@ -1930,8 +1930,9 @@ export default {
       // /dash is a clean alias while the poisoned /apps cache entry ages out.
       if (path === '/apps' || path === '/dash' || path.startsWith('/apps/'))
         return new Response(SHELL, { headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' } });
-      if (env.ASSETS && (path.startsWith('/static/') || path === '/favicon.svg')) return env.ASSETS.fetch(req);
-      if (path === '/') return html('<h2>small</h2><p>Deploy a Python app behind a login in one command: <code>npm i -g small-deploy</code></p>');
+      if (env.ASSETS && (path.startsWith('/static/') || path === '/favicon.svg' || path.startsWith('/icon-') || path === '/apple-touch-icon.png')) return env.ASSETS.fetch(req);
+      // the dashboard IS the front page — /apps bounces to /login when there is no session
+      if (path === '/') return new Response(null, { status: 302, headers: { Location: '/apps' } });
       return html('<p>Not found.</p>', 404);
     } catch (err) {
       return json({ error: `internal: ${err.message}` }, 500);
