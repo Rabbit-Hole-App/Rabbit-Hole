@@ -29,5 +29,22 @@ written there is captured on the run, shown in the dashboard, and fetched with
 would serve better, and do not write user-facing files anywhere else in the
 container: only `$SMALL_OUTPUTS` survives the machine.
 
+## Schedules
+
+A job that should run itself carries a standard 5-field cron expression, UTC:
+
+```toml
+kind = "job"
+schedule = "0 9 * * 1-5"
+```
+
+Deploy validates it (bad or never-firing expressions stop with a one-line
+fix) and prints the next run. `small schedule pause app` /
+`small schedule resume app` flip it without losing the expression; `small
+runs` shows cron runs with a `⏱ cron` marker. Scheduled runs pass **no
+inputs at all** (not even defaults — those are applied by the CLI): a
+scheduled job's script must fall back in code,
+`os.environ.get("SMALL_INPUT_THRESHOLD", "0.5")`, or not be scheduled.
+
 S3 in/out: declare the URI and destination bucket as `text` inputs and use
 boto3 in the script — see references/aws-role.md for the role.

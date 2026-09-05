@@ -32,6 +32,11 @@ small deploy --env .env
 (`small deploy` runs init itself when no `small.toml` exists, but running
 init first lets you review the file.)
 
+Deploy pre-flights before building: python syntax, requirements names on
+PyPI, env reads that would be unset, secrets, and the `[aws]` role. Its
+one-line `✗`/`⚠` output IS the fix — apply it as printed instead of
+debugging around it.
+
 5. Print the URL from the output.
 
 6. Read the generated runbook back: run `small runbook` (regenerated on every
