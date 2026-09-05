@@ -1952,7 +1952,7 @@ export default {
       // SPA shell ships inside the worker (no-store) — workers.dev's asset edge cache
       // outlived deploys and served stale HTML/405s on the old /apps + /assets/* URLs.
       // /dash is a clean alias while the poisoned /apps cache entry ages out.
-      if (path === '/apps' || path === '/dash' || path.startsWith('/apps/'))
+      if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path.startsWith('/apps/'))
         return new Response(SHELL, { headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' } });
       if (env.ASSETS && (path.startsWith('/static/') || path === '/favicon.svg' || path.startsWith('/icon-') || path === '/apple-touch-icon.png')) return env.ASSETS.fetch(req);
       // the dashboard IS the front page — /apps bounces to /login when there is no session

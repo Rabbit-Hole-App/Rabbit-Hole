@@ -300,7 +300,13 @@ export async function notifySlackRun(env, runId, baseUrl) {
   const link = `<${baseUrl}/apps/${encodeURIComponent(run.app_name)}/runs/${encodeURIComponent(runId)}|open the run>`;
   let text;
   if (run.status === 'finished') {
-    text = `✓ ${run.app_name} run ${runId} finished — ${link}`;
+    let outs = [];
+    if (env.RUNS) {
+      const listed = await env.RUNS.list({ prefix: `runs/${runId}/outputs/` });
+      outs = listed.objects.map((o) => `• ${o.key.split('/').pop()} (${o.size < 1024 ? `${o.size} B` : `${Math.round(o.size / 1024)} KB`})`);
+    }
+    text = `✓ ${run.app_name} run ${runId} finished — ${link}`
+      + (outs.length ? `\noutputs:\n${outs.slice(0, 10).join('\n')}` : '');
   } else {
     const tail = await env.DB.prepare('SELECT line FROM run_logs WHERE run_id = ? ORDER BY seq DESC LIMIT 3').bind(runId).all();
     const lines = (tail.results || []).map((r) => r.line).reverse().join('\n');

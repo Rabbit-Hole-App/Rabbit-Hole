@@ -476,37 +476,44 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
       </div>
       {showSettings && <SettingsDialog email={email} onMarkRead={markRead} onClose={() => setShowSettings(false)} />}
 
-      <div
-        onClick={() => window.dispatchEvent(new CustomEvent('small:search'))}
-        className="flex h-7 cursor-pointer items-center gap-2 rounded-sm px-2 text-sm hover:bg-hover"
-      >
-        <Search size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
-        Search
-        <span className="ml-auto text-xs text-ink-3">Ctrl K</span>
-      </div>
-
-      {/* Watch notifications — badge shows open observations, click opens the list */}
-      <div
-        onClick={() => { setWatchOpen(true); loadWatch(); markRead(); }}
-        className="flex h-7 cursor-pointer items-center gap-2 rounded-sm px-2 text-sm hover:bg-hover"
-      >
-        <Bell size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
-        Notifications
-        {unread.length > 0 && (
-          <span className="ml-auto inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warn px-1 text-[10px] font-semibold text-white">
-            {unread.length}
-          </span>
-        )}
+      {/* icons only — search + notifications share one line, tooltips carry the labels */}
+      <div className="flex items-center gap-1 px-0.5">
+        <IconBtn title="Search (Ctrl + K)" aria-label="Search" onClick={() => window.dispatchEvent(new CustomEvent('small:search'))}>
+          <Search size={16} strokeWidth={1.5} />
+        </IconBtn>
+        <div className="relative">
+          <IconBtn title="Notifications" aria-label="Notifications" onClick={() => { setWatchOpen(true); loadWatch(); markRead(); }}>
+            <Bell size={16} strokeWidth={1.5} />
+          </IconBtn>
+          {unread.length > 0 && (
+            <span className="pointer-events-none absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warn px-1 text-[10px] font-semibold text-white">
+              {unread.length}
+            </span>
+          )}
+        </div>
       </div>
       {watchOpen && (
         <SlidePanel title="Notifications" width={440} onClose={() => setWatchOpen(false)}>
           <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-5">
-            {watchObs.length === 0 && watchRuns.length === 0 && <div className="pt-2 text-sm text-ink-2">Nothing to report — Watch runs nightly.</div>}
-            {watchRuns.map((r) => (
+            {/* read rows are gone — only what arrived since the last open shows, and Clear empties it now */}
+            {(watchObs.some((o) => o.first_seen > panelReadAt) || watchRuns.some((r) => r.finished_at > panelReadAt)) && (
+              <div className="flex justify-end pt-1 pb-1">
+                <button
+                  onClick={() => setPanelReadAt(new Date().toISOString().slice(0, 19).replace('T', ' '))}
+                  className="cursor-pointer rounded-sm px-1.5 py-0.5 text-xs text-ink-2 hover:bg-hover hover:text-ink"
+                >
+                  Clear notifications
+                </button>
+              </div>
+            )}
+            {!watchObs.some((o) => o.first_seen > panelReadAt) && !watchRuns.some((r) => r.finished_at > panelReadAt) && (
+              <div className="pt-2 text-sm text-ink-2">You're all caught up.</div>
+            )}
+            {watchRuns.filter((r) => r.finished_at > panelReadAt).map((r) => (
               <div
                 key={r.run_id}
                 onClick={() => { setWatchOpen(false); navigate(`/apps/${r.app}/runs/${r.run_id}`); }}
-                className={cn('flex cursor-pointer items-start gap-2 rounded-sm border-b border-line px-1 py-2.5 text-sm hover:bg-hover', r.finished_at > panelReadAt ? '' : 'opacity-70')}
+                className="flex cursor-pointer items-start gap-2 rounded-sm border-b border-line px-1 py-2.5 text-sm hover:bg-hover"
               >
                 <span className={cn('mt-0.5 shrink-0 text-[13px]', r.status === 'finished' ? 'text-success' : 'text-danger')}>
                   {r.status === 'finished' ? '✓' : '✗'}
@@ -518,11 +525,11 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
                 </div>
               </div>
             ))}
-            {watchObs.map((o) => (
+            {watchObs.filter((o) => o.first_seen > panelReadAt).map((o) => (
               <div
                 key={o.id}
                 onClick={() => { setWatchOpen(false); navigate(`/apps/${o.slug}`); }}
-                className={cn('flex cursor-pointer items-start gap-2 rounded-sm border-b border-line px-1 py-2.5 text-sm hover:bg-hover', o.first_seen > panelReadAt ? '' : 'opacity-70')}
+                className="flex cursor-pointer items-start gap-2 rounded-sm border-b border-line px-1 py-2.5 text-sm hover:bg-hover"
               >
                 <AlertTriangle size={15} strokeWidth={1.5} className="mt-0.5 shrink-0 text-warn" />
                 <div className="min-w-0 flex-1">
@@ -707,12 +714,12 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
         </button>
         <div className="mt-3 flex items-center gap-2">
           <button
-            onClick={() => window.dispatchEvent(new CustomEvent('small:search', { detail: { mode: 'ask' } }))}
+            onClick={() => navigate('/chat')}
             className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm shadow-sm hover:bg-hover"
           >
-            <Sparkles size={15} strokeWidth={1.5} className="shrink-0 text-ink-2" />
+            <img src="/icon-32.png" alt="" className="h-4 w-4 shrink-0" />
             New chat
-            <span className="ml-auto shrink-0 text-xs text-ink-3">Ctrl O</span>
+            <span className="ml-auto shrink-0 text-xs text-ink-3">Ctrl + O</span>
           </button>
           <div className="relative shrink-0">
             <button
@@ -723,7 +730,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
               <Plus size={16} strokeWidth={1.5} />
             </button>
             <Menu open={newMenu} onClose={() => setNewMenu(false)} className="bottom-11 right-0 w-40">
-              <MenuItem icon={Sparkles} onClick={() => { setNewMenu(false); window.dispatchEvent(new CustomEvent('small:search', { detail: { mode: 'ask' } })); }}>Chat</MenuItem>
+              <MenuItem icon={Sparkles} onClick={() => { setNewMenu(false); navigate('/chat'); }}>Chat</MenuItem>
               <MenuItem icon={FolderPlus} onClick={() => { setNewMenu(false); setNewFolder(''); }}>Folder</MenuItem>
               <MenuItem icon={Plus} onClick={() => { setNewMenu(false); toast('Deploy a new app with: small deploy'); }}>App</MenuItem>
             </Menu>
