@@ -487,7 +487,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
         <IconBtn
           title="Search (Ctrl + K)"
           aria-label="Search"
-          className={cn(searchOpen && 'bg-active text-ink')}
+          className={cn('rounded-full!', searchOpen && 'bg-active text-ink')}
           onClick={() => window.dispatchEvent(new CustomEvent('small:search'))}
         >
           <Search size={16} strokeWidth={1.5} />
@@ -496,7 +496,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
           <IconBtn
             title="Notifications"
             aria-label="Notifications"
-            className={cn(watchOpen && 'bg-active text-ink')}
+            className={cn('rounded-full!', watchOpen && 'bg-active text-ink')}
             onClick={() => { setWatchOpen(true); loadWatch(); markRead(); }}
           >
             <Bell size={16} strokeWidth={1.5} />

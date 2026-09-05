@@ -512,9 +512,9 @@ export function RunPeek({ runId, app, onClose, onRunAgain }) {
         <>
           <span className={tabCls(tab === 'run')} onClick={() => setTab('run')}>Run {shortId(runId)}</span>
           {chatted && (
-            <span className={tabCls(tab === 'chat')} onClick={() => setTab('chat')} title="Chat" aria-label="Chat">
-              <MessageCircle size={16} strokeWidth={1.5} />
-              {tab === 'chat' && 'Chat'}
+            <span className={cn(tabCls(tab === 'chat'), 'gap-0')} onClick={() => setTab('chat')} title="Chat" aria-label="Chat">
+              <MessageCircle size={16} strokeWidth={1.5} className="shrink-0" />
+              <span className={cn('overflow-hidden whitespace-nowrap transition-[max-width] duration-200 ease-out', tab === 'chat' ? 'max-w-[44px] pl-1.5' : 'max-w-0')}>Chat</span>
             </span>
           )}
           <IconBtn aria-label="Open as page" title="Open as page" onClick={() => navigate(`/apps/${app.name}/runs/${runId}`)}>

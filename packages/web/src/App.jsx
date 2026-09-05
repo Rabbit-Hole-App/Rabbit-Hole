@@ -213,7 +213,7 @@ function AppContent({ data, load }) {
                   </Pill>
                 )}
                 <div className="relative">
-                  <IconBtn title="Filter" className={cn(toolMenu === 'filter' && 'bg-active')} onClick={() => setToolMenu(toolMenu === 'filter' ? null : 'filter')}>
+                  <IconBtn title="Filter" className={cn('rounded-full!', toolMenu === 'filter' && 'bg-active')} onClick={() => setToolMenu(toolMenu === 'filter' ? null : 'filter')}>
                     <ListFilter size={16} strokeWidth={1.5} />
                   </IconBtn>
                   <Menu open={toolMenu === 'filter'} onClose={() => setToolMenu(null)} className="top-8 right-0 w-56">
@@ -227,7 +227,7 @@ function AppContent({ data, load }) {
                   </Menu>
                 </div>
                 <div className="relative">
-                  <IconBtn title="Sort" className={cn(toolMenu === 'sort' && 'bg-active')} onClick={() => setToolMenu(toolMenu === 'sort' ? null : 'sort')}>
+                  <IconBtn title="Sort" className={cn('rounded-full!', toolMenu === 'sort' && 'bg-active')} onClick={() => setToolMenu(toolMenu === 'sort' ? null : 'sort')}>
                     <ArrowUp size={16} strokeWidth={1.5} />
                   </IconBtn>
                   <Menu open={toolMenu === 'sort'} onClose={() => setToolMenu(null)} className="top-8 right-0 w-56">
@@ -240,7 +240,7 @@ function AppContent({ data, load }) {
                   </Menu>
                 </div>
                 <div className="relative">
-                  <IconBtn title="Properties" className={cn(toolMenu === 'props' && 'bg-active')} onClick={() => setToolMenu(toolMenu === 'props' ? null : 'props')}>
+                  <IconBtn title="Properties" className={cn('rounded-full!', toolMenu === 'props' && 'bg-active')} onClick={() => setToolMenu(toolMenu === 'props' ? null : 'props')}>
                     <Settings2 size={16} strokeWidth={1.5} />
                   </IconBtn>
                   <Menu open={toolMenu === 'props'} onClose={() => setToolMenu(null)} className="top-8 right-0 w-48">
@@ -256,7 +256,7 @@ function AppContent({ data, load }) {
                   </Menu>
                 </div>
                 {search === null ? (
-                  <IconBtn title="Search" onClick={() => setSearch('')}>
+                  <IconBtn title="Search" className="rounded-full!" onClick={() => setSearch('')}>
                     <Search size={16} strokeWidth={1.5} />
                   </IconBtn>
                 ) : (
