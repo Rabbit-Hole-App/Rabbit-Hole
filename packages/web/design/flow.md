@@ -146,8 +146,40 @@ sees an explanation first for a server, and the thing to do first for a job.
 ### 3a. Runbook tab
 
 The generated `RUNBOOK.md`, rendered in Notion typography. Files table links to GitHub at
-the deployed commit if the repo is public. Nothing else on the page. This is what a
-colleague reads to understand the tool.
+the deployed commit if the repo is public. This is what a colleague reads to understand
+the tool.
+
+**Charts — the `/` command.** Below the generated markdown sits one empty line reading
+*Type / for blocks*. Typing `/` opens a small Notion-style block menu with one entry for
+now: **Chart** (the menu exists so later blocks slot in without redesign). Charts render
+with [nivo](https://github.com/plouc/nivo) — import only `@nivo/line`, `@nivo/bar`,
+`@nivo/pie`, lazy-loaded so the runbook tab pays nothing until a chart exists.
+
+```
+  ... generated RUNBOOK.md ...
+
+  ┌ Run duration, last 30 runs ──────────────── ⋯ ┐   ← ⋯: Edit · Duplicate · Delete
+  │        ▂▄▃▆▅█▄▂▃▅   (nivo line)               │
+  └───────────────────────────────────────────────┘
+  Type / for blocks
+```
+
+Inserting a chart configures it inline, three fields:
+
+- **Data** — *Runs of this app* (one point per run: status, duration, started_at, and
+  every `[inputs]` column — same data as §3c) or *an output file* (`.json`/`.csv`) of the
+  latest finished run.
+- **Type** — line / bar / pie.
+- **Fields** — x + y (label + value for pie), picked from the columns of the chosen source.
+
+Charts are **not** stored inside `RUNBOOK.md` — the generated markdown is replaced on
+every deploy and they must survive it. They live as JSON on the app row and render after
+the generated body, drag-to-reorder among themselves. Data is live: a chart queries the
+existing runs/outputs APIs on open, never a snapshot. Editors insert and edit; viewers
+see them rendered, no `/` line, no `⋯`.
+
+Backend: `GET /api/runs?app=` and the outputs routes already serve everything a chart
+plots — the only new piece is a `runbook_charts` JSON column on apps and a PUT to save it.
 
 ### 3b. Run tab — jobs with `[inputs]`
 
