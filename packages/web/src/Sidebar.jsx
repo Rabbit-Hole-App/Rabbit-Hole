@@ -58,6 +58,17 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
   const [watchObs, setWatchObs] = useState([]);
   const [watchOpen, setWatchOpen] = useState(false);
   const [watchMenu, setWatchMenu] = useState(null);
+  // read = inbox semantics: opening the panel clears the badge; the observation
+  // itself stays until it resolves or is dismissed. Per device (localStorage).
+  const [readAt, setReadAt] = useState(() => localStorage.getItem('small.watchReadAt') || '');
+  const [panelReadAt, setPanelReadAt] = useState(''); // snapshot at open — rows dim against this, not the fresh mark
+  const unread = watchObs.filter((o) => o.first_seen > readAt);
+  const markRead = () => {
+    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    setPanelReadAt(readAt);
+    localStorage.setItem('small.watchReadAt', now);
+    setReadAt(now);
+  };
   const loadWatch = () => api('/api/watch').then((d) => setWatchObs(d.observations || [])).catch(() => {});
   useEffect(() => { loadWatch(); }, []);
   const dismissObs = async (id, days) => {
@@ -358,14 +369,14 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
 
       {/* Watch notifications — badge shows open observations, click opens the list */}
       <div
-        onClick={() => { setWatchOpen(true); loadWatch(); }}
+        onClick={() => { setWatchOpen(true); loadWatch(); markRead(); }}
         className="flex h-7 cursor-pointer items-center gap-2 rounded-sm px-2 text-sm hover:bg-hover"
       >
         <Bell size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
         Notifications
-        {watchObs.length > 0 && (
+        {unread.length > 0 && (
           <span className="ml-auto inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warn px-1 text-[10px] font-semibold text-white">
-            {watchObs.length}
+            {unread.length}
           </span>
         )}
       </div>
@@ -374,7 +385,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
           <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-5">
             {watchObs.length === 0 && <div className="pt-2 text-sm text-ink-2">Nothing to report — Watch runs nightly.</div>}
             {watchObs.map((o) => (
-              <div key={o.id} className="flex items-start gap-2 border-b border-line py-2.5 text-sm">
+              <div key={o.id} className={cn('flex items-start gap-2 border-b border-line py-2.5 text-sm', o.first_seen > panelReadAt ? '' : 'opacity-70')}>
                 <AlertTriangle size={15} strokeWidth={1.5} className="mt-0.5 shrink-0 text-warn" />
                 <div className="min-w-0 flex-1">
                   <button
