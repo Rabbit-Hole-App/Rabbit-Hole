@@ -5,7 +5,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { insertOrUpdateBlockForSlashMenu } from '@blocknote/core';
 import { createReactBlockSpec } from '@blocknote/react';
 import { BarChart3 } from 'lucide-react';
-import { api } from './api.js';
+import { api, isDark } from './api.js';
 import { Select } from './ui.jsx';
 import { flattenRuns, parseOutput, columns, toNivo } from './chart-data.js';
 
@@ -17,14 +17,34 @@ const Pie = lazy(() => import('@nivo/pie').then((m) => ({ default: m.ResponsiveP
 const MARGIN = { top: 10, right: 20, bottom: 45, left: 45 };
 const TYPES = ['line', 'bar', 'pie'];
 
+// Follow Settings → Appearance live, same event the Excalidraw block listens to.
+function useDark() {
+  const [dark, setDark] = useState(isDark);
+  useEffect(() => {
+    const on = (e) => setDark(e.detail);
+    window.addEventListener('small:theme', on);
+    return () => window.removeEventListener('small:theme', on);
+  }, []);
+  return dark;
+}
+
+// nivo draws SVG text in its own theme, not CSS — dark mode needs explicit fills.
+const nivoTheme = (dark) => ({
+  text: { fill: dark ? '#d4d4d4' : '#37352f' },
+  axis: { ticks: { text: { fill: dark ? '#9b9b9b' : '#787774' } } },
+  grid: { line: { stroke: dark ? '#333' : '#e9e9e7' } },
+  tooltip: { container: { background: dark ? '#252525' : '#fff', color: dark ? '#d4d4d4' : '#37352f' } },
+});
+
 function Chart({ type, data, x, y }) {
+  const theme = nivoTheme(useDark());
   if (type === 'line') {
-    return <Line data={data} margin={MARGIN} xScale={{ type: 'point' }} axisBottom={{ tickRotation: -30 }} pointSize={6} useMesh />;
+    return <Line data={data} theme={theme} margin={MARGIN} xScale={{ type: 'point' }} axisBottom={{ tickRotation: -30 }} pointSize={6} useMesh />;
   }
   if (type === 'bar') {
-    return <Bar data={data} keys={[y || 'count']} indexBy={x} margin={MARGIN} padding={0.3} axisBottom={{ tickRotation: -30 }} />;
+    return <Bar data={data} theme={theme} keys={[y || 'count']} indexBy={x} margin={MARGIN} padding={0.3} axisBottom={{ tickRotation: -30 }} />;
   }
-  return <Pie data={data} margin={MARGIN} innerRadius={0.5} padAngle={1} arcLinkLabelsSkipAngle={10} />;
+  return <Pie data={data} theme={theme} margin={MARGIN} innerRadius={0.5} padAngle={1} arcLinkLabelsSkipAngle={10} />;
 }
 
 function ChartEmbed({ block, editor }) {
