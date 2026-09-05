@@ -622,7 +622,7 @@ function b64(bytes) {
 async function apiAsk(req, env, ctx, user) {
   if (!env.ANTHROPIC_API_KEY) return json({ error: 'ask is not configured on this control plane' }, 503);
   // JSON, or multipart when a file rides along (images/PDFs as model blocks, CSVs as text)
-  let body, extraBlocks = [], attachedName = null;
+  let body, extraBlocks = [], attachedName = null, uploadNote = null;
   if ((req.headers.get('Content-Type') || '').includes('multipart/form-data')) {
     const form = await req.formData();
     body = JSON.parse(form.get('body') || '{}');
@@ -640,6 +640,13 @@ async function apiAsk(req, env, ctx, user) {
         // csv/txt/anything text-ish rides inline, truncated
         const text = new TextDecoder().decode(bytes).slice(0, 50000);
         extraBlocks = [{ type: 'text', text: `Attached file ${file.name}:\n${text}` }];
+      }
+      // stash the raw bytes so "run it with this image" can feed a file input;
+      // ponytail: unapproved uploads linger in R2 — no lifecycle sweep yet
+      if (env.RUNS) {
+        const uploadId = 'u-' + randomHex(6);
+        await env.RUNS.put(`ask-uploads/${uploadId}/${file.name}`, bytes);
+        uploadNote = `pending chat attachment: ${file.name} (upload id ${uploadId}) — the run tool can use it for a file-type input via attachment_id + attachment_input`;
       }
     }
   } else {
@@ -709,7 +716,7 @@ async function apiAsk(req, env, ctx, user) {
   await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)')
     .bind(threadId, 'user', attachedName ? `${message} [attached: ${attachedName}]` : message).run();
 
-  const q = note ? `${note} ${message}` : message;
+  const q = [note, uploadNote && `(${uploadNote})`, message].filter(Boolean).join(' ');
   // tools ride only when the user can edit the scope — a viewer's model has none
   const toolOpts = canAct
     ? {
@@ -784,7 +791,7 @@ async function apiAskThread(env, user, threadId) {
 
 // Phase 2 approval: the proposal executes here, with edit re-checked NOW — the
 // row becomes the log (who, what, when, thread).
-async function apiAskApprove(req, env, user, baseUrl) {
+async function apiAskApprove(req, env, ctx, user, baseUrl) {
   const { proposal_id } = await req.json();
   const p = await env.DB.prepare('SELECT * FROM proposals WHERE id = ? AND org = ? AND user = ?')
     .bind(proposal_id, user.org, user.email).first();
@@ -805,9 +812,26 @@ async function apiAskApprove(req, env, user, baseUrl) {
       const app = await editableApp(args.app);
       if (app.kind !== 'job') throw new Error('only jobs run');
       if (!app.image) throw new Error('no image yet — deploy first');
-      const fileInputs = Object.entries(JSON.parse(app.inputs || '{}')).filter(([, s]) => s.type === 'file');
-      if (fileInputs.length) throw new Error('this job takes file inputs — start it from the Run tab');
-      result = { runId: await startRun(env, app, user.email, baseUrl, args.inputs && Object.keys(args.inputs).length ? args.inputs : null) };
+      const schema = JSON.parse(app.inputs || '{}');
+      const fileInputs = Object.entries(schema).filter(([, s]) => s.type === 'file');
+      const inputs = args.inputs && Object.keys(args.inputs).length ? { ...args.inputs } : {};
+      const files = [];
+      if (args.attachment_id) {
+        // a chat attachment fills the file input, exactly like the Run tab dropzone
+        const target = args.attachment_input || fileInputs[0]?.[0];
+        if (!target || schema[target]?.type !== 'file') throw new Error(`${target || 'no'} is not a file input`);
+        const listed = await env.RUNS.list({ prefix: `ask-uploads/${args.attachment_id}/` });
+        const key = listed.objects[0]?.key;
+        if (!key) throw new Error('that chat attachment expired — attach it again');
+        const obj = await env.RUNS.get(key);
+        const filename = key.split('/').pop();
+        files.push({ name: target, file: new File([await obj.arrayBuffer()], filename) });
+        inputs[target] = filename;
+        ctx?.waitUntil?.(env.RUNS.delete(key)); // used — no need to keep it around
+      }
+      const missing = fileInputs.filter(([k, s]) => s.required && !files.some((f) => f.name === k));
+      if (missing.length) throw new Error(`this job needs a file for "${missing[0][0]}" — attach one in chat or use the Run tab`);
+      result = { runId: await startRun(env, app, user.email, baseUrl, Object.keys(inputs).length ? inputs : null, files) };
     } else if (p.tool === 'run_again') {
       const old = await env.DB.prepare('SELECT runs.*, apps.name AS app_name FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?').bind(args.run_id).first();
       if (!old) throw new Error(`no run ${args.run_id}`);
@@ -1653,7 +1677,7 @@ export default {
         if (!user) return json({ error: 'run small login first' }, 401);
         if (path === '/api/deploy' && req.method === 'POST') return await apiDeploy(req, env, ctx, user, baseUrl);
         if (path === '/api/ask' && req.method === 'POST') return await apiAsk(req, env, ctx, user);
-        if (path === '/api/ask/approve' && req.method === 'POST') return await apiAskApprove(req, env, user, baseUrl);
+        if (path === '/api/ask/approve' && req.method === 'POST') return await apiAskApprove(req, env, ctx, user, baseUrl);
         if (path === '/api/ask/file' && req.method === 'POST') return await apiAskFile(req, env, user);
         if (path === '/api/ask/threads' && req.method === 'GET') return await apiAskThreads(req, env, user);
         const askThread = path.match(/^\/api\/ask\/threads\/(\d+)$/);

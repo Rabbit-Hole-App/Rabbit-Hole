@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUp, AtSign, History, Loader2, MoreHorizontal, Paperclip, Pencil, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { ago, api } from './api.js';
-import { cn, ConfirmDialog, KindIcon, Menu, MenuItem, Toggle } from './ui.jsx';
+import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope — the ⚙ picker mirrors Notion's "My sources".
 const SOURCE_OPTIONS = {
@@ -26,11 +26,53 @@ function inline(s) {
   });
 }
 
-export function Md({ text }) {
+// A source token like "job.py:15" or "small.toml" — clickable when onFile is wired.
+const FILE_TOKEN = /^([\w./-]+\.(?:py|toml|txt|md|json|csv|cfg|ini|yaml|yml))(?::(\d+)(?:-(\d+))?)?$/;
+
+function SourcesLine({ text, onFile }) {
+  const [head, rest] = [text.slice(0, 9), text.slice(9)]; // "Sources: "
+  const parts = rest.split(/([,;]\s*)/);
+  return (
+    <div className="pt-1 text-xs text-ink-3">
+      {head}
+      {parts.map((p, i) => {
+        const m = onFile && p.trim().match(FILE_TOKEN);
+        return m ? (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onFile(m[1], m[2] ? Number(m[2]) : null, m[3] ? Number(m[3]) : null)}
+            className="cursor-pointer text-ink-2 hover:text-ink hover:underline"
+          >
+            {p}
+          </button>
+        ) : (
+          <span key={i}>{p}</span>
+        );
+      })}
+    </div>
+  );
+}
+
+export function Md({ text, onFile }) {
   const lines = String(text).split('\n');
   const out = [];
   let bullets = null;
+  let fence = null; // collecting a ``` block
   lines.forEach((l, i) => {
+    if (fence !== null) {
+      if (/^\s*```/.test(l)) {
+        out.push(<CodeBlock key={`f${i}`} className="my-1.5 text-xs">{fence.join('\n')}</CodeBlock>);
+        fence = null;
+      } else {
+        fence.push(l);
+      }
+      return;
+    }
+    if (/^\s*```/.test(l)) {
+      fence = [];
+      return;
+    }
     if (/^\s*[-*] /.test(l)) {
       bullets = bullets || [];
       bullets.push(<li key={i}>{inline(l.replace(/^\s*[-*] /, ''))}</li>);
@@ -41,13 +83,48 @@ export function Md({ text }) {
       bullets = null;
     }
     if (l.startsWith('Sources: ')) {
-      out.push(<div key={i} className="pt-1 text-xs text-ink-3">{l}</div>);
+      out.push(<SourcesLine key={i} text={l} onFile={onFile} />);
     } else if (l.trim()) {
       out.push(<p key={i} className="my-1">{inline(l)}</p>);
     }
   });
+  if (fence) out.push(<CodeBlock key="f-end" className="my-1.5 text-xs">{fence.join('\n')}</CodeBlock>);
   if (bullets) out.push(<ul key="ul-end" className="my-1 list-disc pl-5">{bullets}</ul>);
   return <div className="text-sm leading-normal">{out}</div>;
+}
+
+// The cited file in a side panel, scrolled to (and highlighting) the cited line.
+function FilePeek({ appName, path, line, lineEnd, onClose }) {
+  const hi = (n) => line && n >= line && n <= (lineEnd || line);
+  const [content, setContent] = useState(null);
+  const [err, setErr] = useState(null);
+  const lineRef = useRef(null);
+  useEffect(() => {
+    api('/api/ask/file', { method: 'POST', body: JSON.stringify({ app: appName, path }) })
+      .then((d) => setContent(d.content))
+      .catch((e) => setErr(e.message));
+  }, [appName, path]);
+  useEffect(() => {
+    if (content && lineRef.current) lineRef.current.scrollIntoView({ block: 'center' });
+  }, [content]);
+  return (
+    <SlidePanel width={560} onClose={onClose} title={<span className="truncate font-mono text-sm">{path}{line ? `:${line}${lineEnd ? `-${lineEnd}` : ''}` : ''}</span>}>
+      <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+        {err && <div className="text-sm text-ink-2">✗ {err}</div>}
+        {content == null && !err && <Loader2 size={14} className="animate-spin text-ink-3" />}
+        {content != null && (
+          <pre className="rounded-sm bg-code p-3 font-mono text-xs leading-relaxed text-ink">
+            {content.split('\n').map((l, i) => (
+              <div key={i} ref={i + 1 === line ? lineRef : null} className={cn('flex gap-3 px-1', hi(i + 1) && 'rounded-xs bg-[#FDECC8] dark:bg-active')}>
+                <span className="w-7 shrink-0 text-right text-ink-3 select-none">{i + 1}</span>
+                <span className="whitespace-pre-wrap">{l || ' '}</span>
+              </div>
+            ))}
+          </pre>
+        )}
+      </div>
+    </SlidePanel>
+  );
 }
 
 // Phase 2 proposal card: what will happen with the exact inputs; nothing runs
@@ -63,7 +140,8 @@ function ProposalCard({ proposal, onDone, onChange }) {
     setBusy(true);
     try {
       const d = await api('/api/ask/approve', { method: 'POST', body: JSON.stringify({ proposal_id: proposal.id }) });
-      onDone(`✓ ${TOOL_LABEL[proposal.tool] || proposal.tool} executed${d.runId ? ` — run \`${d.runId}\`` : ''}`);
+      // a started run becomes a live result card in the chat
+      onDone(d.runId ? { runId: d.runId } : `✓ ${TOOL_LABEL[proposal.tool] || proposal.tool} executed`);
     } catch (e) {
       onDone(`✗ ${e.message}`);
     }
@@ -94,9 +172,74 @@ function ProposalCard({ proposal, onDone, onChange }) {
   );
 }
 
+// After an approved run: live result right in the chat — status, log tail,
+// outputs with the same inline previews as the run peek.
+function RunResultCard({ runId, app }) {
+  const [meta, setMeta] = useState(null);
+  const [lines, setLines] = useState([]);
+  const [outs, setOuts] = useState(null);
+  const cursor = useRef(-1);
+  useEffect(() => {
+    let stop = false;
+    const tick = async () => {
+      try {
+        const d = await api(`/api/runs/${runId}?after=${cursor.current}`);
+        if (stop) return;
+        cursor.current = d.cursor;
+        setMeta(d);
+        if (d.lines.length) setLines((l) => [...l, ...d.lines]);
+        if (d.status === 'running') setTimeout(() => !stop && tick(), 1500);
+        else api(`/api/runs/${runId}/outputs`).then((o) => !stop && setOuts(o.outputs)).catch(() => setOuts([]));
+      } catch { if (!stop) setTimeout(() => !stop && tick(), 3000); }
+    };
+    tick();
+    return () => { stop = true; };
+  }, [runId]);
+  const runUrl = app?.name ? `/apps/${app.name}/runs/${runId}` : null;
+  return (
+    <div className="max-w-[520px] rounded-md border border-line p-3 text-sm">
+      <div className="flex items-center gap-2 pb-1.5">
+        {meta?.status === 'running' && <Loader2 size={13} className="animate-spin text-ink-3" />}
+        <span className="font-medium">Run {runId.replace(/^r-/, '').slice(0, 7)}</span>
+        <span className="text-ink-2">{meta?.status || 'starting…'}</span>
+        {runUrl && (
+          <button className="ml-auto cursor-pointer text-xs text-accent hover:underline" onClick={() => window.history.pushState(null, '', runUrl) || window.dispatchEvent(new PopStateEvent('popstate'))}>
+            open
+          </button>
+        )}
+      </div>
+      {lines.length > 0 && (
+        <pre className="no-scrollbar max-h-40 overflow-y-auto rounded-sm bg-code p-2 font-mono text-xs whitespace-pre-wrap text-ink-2">{lines.slice(-15).join('\n')}</pre>
+      )}
+      {outs && outs.length > 0 && (
+        <div className="pt-2">
+          {outs.map((o) => <OutputRow key={o.name} runId={runId} name={o.name} size={o.size} />)}
+        </div>
+      )}
+      {outs && !outs.length && meta?.status !== 'running' && <div className="pt-1 text-xs text-ink-3">no outputs</div>}
+    </div>
+  );
+}
+
+// compact copy of the run peek's output renderer (kept local — run.jsx imports us)
+function OutputRow({ runId, name, size }) {
+  const url = `/api/runs/${runId}/outputs/${encodeURIComponent(name)}`;
+  const isImg = /\.(jpe?g|png|gif|webp)$/i.test(name) && size < 2 * 1024 * 1024;
+  const isText = /\.(json|csv|txt)$/i.test(name) && size < 4096;
+  const [text, setText] = useState(null);
+  useEffect(() => { if (isText) fetch(url).then((r) => r.text()).then(setText).catch(() => {}); }, [url, isText]);
+  return (
+    <div className="pb-1.5">
+      <a href={url} download={name} className="text-xs text-ink-2 hover:text-ink">{name}</a>
+      {isImg && <img src={url} alt={name} className="mt-1 max-h-[180px] max-w-full rounded-sm border border-line" />}
+      {isText && text != null && <pre className="no-scrollbar mt-1 max-h-32 overflow-y-auto rounded-sm bg-code p-2 font-mono text-xs whitespace-pre-wrap text-ink-2">{text}</pre>}
+    </div>
+  );
+}
+
 // One chat, scoped: {app} | {run} | {} (org). Style per the Notion AI reference —
 // user turns as a right-aligned bubble, answers as plain text, pill input at the bottom.
-export function AskPanel({ scope, placeholder = 'Ask anything…', compact = false, autoFocus = false }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, autoFocus = false }) {
   const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -109,6 +252,8 @@ export function AskPanel({ scope, placeholder = 'Ask anything…', compact = fal
   const [rowMenu, setRowMenu] = useState(null); // thread id with its ⋯ open
   const [renaming, setRenaming] = useState(null); // { id, value }
   const [confirmDel, setConfirmDel] = useState(null); // thread pending delete
+  const [filePeek, setFilePeek] = useState(null); // { path, line } from a Sources click
+  const fileApp = appName || scope.app || null; // /api/ask/file needs the app name
   const scopeKind = scope.run ? 'run' : scope.app ? 'app' : 'org';
   const scopeRef = scope.run || scope.app || null;
   const srcOpts = SOURCE_OPTIONS[scopeKind] || [];
@@ -249,6 +394,7 @@ export function AskPanel({ scope, placeholder = 'Ask anything…', compact = fal
           </button>
         </div>
       )}
+      {filePeek && <FilePeek appName={fileApp} path={filePeek.path} line={filePeek.line} lineEnd={filePeek.lineEnd} onClose={() => setFilePeek(null)} />}
       {confirmDel && (
         <ConfirmDialog
           title="Delete this chat?"
@@ -332,11 +478,13 @@ export function AskPanel({ scope, placeholder = 'Ask anything…', compact = fal
             ) : m.role === 'proposal' ? (
               <ProposalCard
                 proposal={m.proposal}
-                onDone={(text) => setMsgs((ms) => ms.map((x, j) => (j === i ? { role: 'assistant', content: text } : x)))}
+                onDone={(r) => setMsgs((ms) => ms.map((x, j) => (j === i ? (r?.runId ? { role: 'run', runId: r.runId } : { role: 'assistant', content: r }) : x)))}
                 onChange={(text) => { setMsgs((ms) => ms.filter((_, j) => j !== i)); setInput(text); inputRef.current?.focus(); }}
               />
+            ) : m.role === 'run' ? (
+              <RunResultCard runId={m.runId} app={fileApp ? { name: fileApp } : null} />
             ) : m.content ? (
-              <Md text={m.content} />
+              <Md text={m.content} onFile={fileApp ? (path, ln, lnEnd) => setFilePeek({ path, line: ln, lineEnd: lnEnd }) : null} />
             ) : (
               <Loader2 size={14} className="animate-spin text-ink-3" />
             )}

@@ -88,12 +88,14 @@ export const ASK_TOOLS_ADDENDUM = [
 export const ASK_TOOLS = [
   {
     name: 'run',
-    description: 'Start a run of a job with the given inputs (values must satisfy the [inputs] schema; file-type inputs cannot be provided from chat).',
+    description: 'Start a run of a job with the given inputs (values must satisfy the [inputs] schema). If the user attached a file in this chat, the context names its upload id — pass it as attachment_id with attachment_input naming the file-type input it fills.',
     input_schema: {
       type: 'object',
       properties: {
         app: { type: 'string', description: 'app name' },
-        inputs: { type: 'object', description: 'input name → value; omit for jobs without inputs' },
+        inputs: { type: 'object', description: 'scalar input name → value; omit for jobs without inputs' },
+        attachment_id: { type: 'string', description: 'upload id of the chat attachment to use as a file input' },
+        attachment_input: { type: 'string', description: 'name of the file-type input the attachment fills' },
       },
       required: ['app'],
     },

@@ -516,7 +516,7 @@ export function RunPeek({ runId, app, onClose, onRunAgain }) {
         <RunView runId={runId} app={app} onRunAgain={onRunAgain} />
       </div>
       <div className="shrink-0 border-t border-line px-5 pt-1 pb-4">
-        <AskPanel scope={{ run: runId }} compact placeholder="Ask about this run…" />
+        <AskPanel scope={{ run: runId }} appName={app?.name} compact placeholder="Ask about this run…" />
       </div>
     </SlidePanel>
   );
