@@ -9,6 +9,7 @@ const { init } = require('../lib/init');
 const { runCommand, dockerfile, write, writeFlyToml } = require('../lib/generate');
 const { parse } = require('../lib/toml');
 const { checkSchema, validate } = require('../lib/inputs');
+const { checkSyntax, checkEnvReads, depNames } = require('../lib/preflight');
 
 function tmp(files) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'small-test-'));
@@ -238,6 +239,31 @@ test('inputs: validate — required, range, options, accept, pattern, defaults',
   assert.throws(() => validate(schema, { _: [], image: img, since: 'yesterday' }), /YYYY-MM-DD/);
   assert.throws(() => validate(schema, { _: [], image: img, bogus: '1' }), /unknown input --bogus/);
   assert.throws(() => validate({}, { _: [], bogus: '1' }), /declares no \[inputs\]/);
+});
+
+test('preflight: syntax check passes clean code, stops a broken file', () => {
+  const verdict = checkSyntax(tmp({ 'app.py': 'print(1)\n' }));
+  assert.match(verdict, /compile|skipped/);
+  // hard stop only checkable where a local python exists — the check itself skips without one
+  if (!verdict.startsWith('skipped')) {
+    assert.throws(() => checkSyntax(tmp({ 'app.py': 'def broken(:\n' })), /syntax/);
+  }
+});
+
+test('preflight: dep names from messy requirements lines', () => {
+  assert.deepEqual(
+    depNames('--extra-index-url https://x\ntorch==2.1 # pin\nuvicorn[standard]>=0.2\nflask\n\n# comment\nboto3; python_version>"3"\n'),
+    ['torch', 'uvicorn', 'flask', 'boto3']
+  );
+});
+
+test('preflight: undeclared bracket env reads warn; SMALL_INPUT_ without [inputs] warns on jobs', () => {
+  const dir = tmp({ 'job.py': 'import os\nk = os.environ["STRIPE_KEY"]\nt = os.environ["SMALL_INPUT_THRESHOLD"]\n' });
+  const warnings = checkEnvReads(dir, { kind: 'job' }, {});
+  assert.equal(warnings.length, 2, JSON.stringify(warnings));
+  assert.match(warnings[0], /STRIPE_KEY/);
+  assert.match(warnings[1], /no \[inputs\]/);
+  assert.deepEqual(checkEnvReads(dir, { kind: 'job', inputs: { threshold: { type: 'number' } }, secrets: { required: ['STRIPE_KEY'] } }, {}), []);
 });
 
 test('dockerfile + write for counter example', () => {

@@ -12,6 +12,7 @@ const config = require('../lib/config');
 const envfile = require('../lib/envfile');
 const fly = require('../lib/fly');
 const inputs = require('../lib/inputs');
+const preflight = require('../lib/preflight');
 const source = require('../lib/source');
 const toml = require('../lib/toml');
 
@@ -200,6 +201,15 @@ const commands = {
     const required = (app.config.secrets && app.config.secrets.required) || [];
     const missing = required.filter((k) => !(k in secrets));
     if (missing.length) throw new Error(`missing secrets: ${missing.join(', ')} — add them to ${envPath}`);
+
+    // pre-flight: catch here what would otherwise burn the remote build or fail at runtime
+    console.log(`✓ syntax: ${preflight.checkSyntax(dir)}`);
+    const deps = await preflight.checkDeps(dir, app.config.deps && app.config.deps.file);
+    if (deps) {
+      if (deps.missing.length) console.log(`⚠ deps: not on PyPI: ${deps.missing.join(', ')} — the build will likely fail`);
+      else console.log(`✓ deps: ${deps.count} on PyPI`);
+    }
+    for (const w of preflight.checkEnvReads(dir, app.config, secrets)) console.log(`⚠ env: ${w}`);
 
     write(dir, app);
     const review = buildBundle(dir, app.entry, secrets);
