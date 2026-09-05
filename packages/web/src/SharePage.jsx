@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Check, Globe, Link as LinkIcon, Lock, MoreHorizontal, Trash2, Users, X } from 'lucide-react';
+import { ArrowUpRight, Calendar as CalendarIcon, Check, Circle, Clock, GitBranch, Globe, Link as LinkIcon, Lock, MoreHorizontal, Trash2, User as UserIcon, Users, X } from 'lucide-react';
 import { ago, api, cronHuman, fmtTime, navigate, wsName } from './api.js';
 import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
 import Shell from './Shell.jsx';
@@ -199,6 +199,12 @@ const Person = ({ email }) => (email
   ? <span className="inline-flex items-center gap-1.5"><Avatar email={email} />{email}</span>
   : '—');
 
+// Property-list row halves (design/components.html .plist): grey key w/ icon, value beside.
+const PropKey = ({ icon: Icon, children }) => (
+  <div className="flex h-8 items-center gap-1.5 text-ink-2"><Icon size={16} strokeWidth={1.5} className="text-ink-3" />{children}</div>
+);
+const PropVal = ({ children }) => <div className="flex h-8 min-w-0 items-center gap-1.5 truncate">{children}</div>;
+
 // 2xx green, 3xx blue, 403 with no user = guard rejection, other 4xx yellow, 5xx red.
 const ReqStatus = ({ status, user }) => (status === 403 && user == null
   ? <Pill color="grey">rejected</Pill>
@@ -286,7 +292,6 @@ function AppPage({ slug, runId, reloadShell }) {
   // Run again (peek footer, table hover ▶): prefill the form, land on the Run tab.
   const runAgain = (inputs) => { setPeek(null); setPrefill({ ...inputs }); setTab('run'); };
 
-  const domain = app?.org.replace(/-/g, '.');
   const source = app?.repo_branch && app?.repo_commit
     ? `${app.repo_branch} · ${app.repo_commit.slice(0, 7)}${app.repo_dirty ? ' · dirty' : ''}`
     : null;
@@ -405,25 +410,33 @@ function AppPage({ slug, runId, reloadShell }) {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-              <span className="inline-flex items-center"><span className="mr-1.5 text-ink-2">Kind</span><Pill color={app.kind === 'job' ? 'blue' : 'grey'}>{app.kind}</Pill></span>
-              <span><span className="mr-1.5 text-ink-2">Access</span>{app.visibility === 'domain' ? `anyone @${domain}` : 'only shared'}</span>
-              <span><span className="mr-1.5 text-ink-2">Deployed</span>{ago(app.deployed_at || app.created_at)}</span>
+            {/* Notion-style vertical property list: icon + grey label at 160px, value
+                beside, 32px rows. Access has no row — the Share popover owns that. */}
+            <div className="grid max-w-[560px] grid-cols-[160px_1fr] text-sm">
+              <PropKey icon={Circle}>Type</PropKey>
+              <PropVal><Pill color={app.kind === 'job' ? 'blue' : 'grey'}>{app.kind}</Pill></PropVal>
+              <PropKey icon={CalendarIcon}>Deployed</PropKey>
+              <PropVal><span title={fmtTime(app.deployed_at || app.created_at)}>{ago(app.deployed_at || app.created_at)}</span></PropVal>
               {app.schedule && (
-                <span className="inline-flex items-center">
-                  <span className="mr-1.5 text-ink-2">Schedule</span>
-                  <Pill className={cn(app.schedule_paused && 'line-through opacity-60')} title={`cron ${app.schedule} (UTC)`}>{cronHuman(app.schedule)}</Pill>
-                </span>
+                <>
+                  <PropKey icon={Clock}>Schedule</PropKey>
+                  <PropVal>
+                    <Pill className={cn(app.schedule_paused && 'line-through opacity-60')} title={`cron ${app.schedule} (UTC)`}>{cronHuman(app.schedule)}</Pill>
+                  </PropVal>
+                </>
               )}
               {source && (
-                <span>
-                  <span className="mr-1.5 text-ink-2">Source</span>
-                  {app.repo_public && app.repo_url
-                    ? <a href={app.repo_url} target="_blank" rel="noreferrer" className="text-accent hover:underline">{source}</a>
-                    : source}
-                </span>
+                <>
+                  <PropKey icon={GitBranch}>Source</PropKey>
+                  <PropVal>
+                    {app.repo_public && app.repo_url
+                      ? <a href={app.repo_url} target="_blank" rel="noreferrer" className="text-accent hover:underline">{source}</a>
+                      : source}
+                  </PropVal>
+                </>
               )}
-              <span className="inline-flex items-center gap-1.5"><span className="text-ink-2">Owner</span><Avatar email={app.owner_email} />{app.owner_email}</span>
+              <PropKey icon={UserIcon}>Owner</PropKey>
+              <PropVal><Avatar email={app.owner_email} />{app.owner_email}</PropVal>
             </div>
 
             <Tabs value={tab ?? (app.kind === 'job' ? 'run' : 'runbook')} onValueChange={setTab}>
