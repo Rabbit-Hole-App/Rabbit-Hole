@@ -105,7 +105,7 @@ export function AskPanel({ scope, placeholder = 'Ask anything…', compact = fal
   const [mentions, setMentions] = useState([]); // @app chips
   const [plusOpen, setPlusOpen] = useState(false);
   const [threads, setThreads] = useState([]); // past chats for this scope
-  const [histOpen, setHistOpen] = useState(false);
+  const [view, setView] = useState('chat'); // 'chat' | 'history' — history REPLACES the chat
   const [rowMenu, setRowMenu] = useState(null); // thread id with its ⋯ open
   const [renaming, setRenaming] = useState(null); // { id, value }
   const [confirmDel, setConfirmDel] = useState(null); // thread pending delete
@@ -136,23 +136,24 @@ export function AskPanel({ scope, placeholder = 'Ask anything…', compact = fal
   }, []);
 
   // chats persist in D1 — resume the latest thread for this scope on mount
-  const loadThread = async (id) => {
+  const loadThread = async (id, toChat = true) => {
     try {
       const d = await api(`/api/ask/threads/${id}`);
       threadId.current = d.id;
       setMsgs(d.messages);
       setChoices(null);
+      if (toChat) setView('chat'); // the silent resume-on-mount must not yank the user out of History
     } catch { /* stale id — stay on the empty chat */ }
   };
   useEffect(() => {
     api(`/api/ask/threads?scope=${scopeKind}${scopeRef ? `&ref=${encodeURIComponent(scopeRef)}` : ''}`)
       .then(async (d) => {
         setThreads(d.threads || []);
-        if (d.threads?.[0]) await loadThread(d.threads[0].id);
+        if (d.threads?.[0]) await loadThread(d.threads[0].id, false);
       })
       .catch(() => {});
   }, [scopeKind, scopeRef]);
-  const newChat = () => { threadId.current = null; setMsgs([]); setChoices(null); setHistOpen(false); };
+  const newChat = () => { threadId.current = null; setMsgs([]); setChoices(null); setView('chat'); };
   useEffect(() => {
     if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight;
   }, [msgs]);
@@ -236,66 +237,12 @@ export function AskPanel({ scope, placeholder = 'Ask anything…', compact = fal
       {!compact && (msgs.length > 0 || threads.length > 0) && (
         <div className="flex shrink-0 items-center justify-end gap-1 pb-1">
           {threads.length > 0 && (
-            <div className="relative">
-              <button
-                onMouseDown={(e) => { e.stopPropagation(); setHistOpen(!histOpen); }}
-                className="flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink"
-              >
-                <History size={12} strokeWidth={1.5} /> History
-              </button>
-              <Menu open={histOpen} onClose={() => setHistOpen(false)} className="top-7 right-0 max-h-64 w-80 overflow-y-auto">
-                {threads.map((t) => (
-                  <div key={t.id} className="group/h relative flex items-center">
-                    {renaming?.id === t.id ? (
-                      <form
-                        className="flex-1 px-1 py-0.5"
-                        onSubmit={async (e) => {
-                          e.preventDefault();
-                          const title = renaming.value.trim();
-                          setRenaming(null);
-                          if (!title) return;
-                          try {
-                            await api(`/api/ask/threads/${t.id}/rename`, { method: 'POST', body: JSON.stringify({ title }) });
-                            setThreads((ts) => ts.map((x) => (x.id === t.id ? { ...x, title } : x)));
-                          } catch { /* row keeps its old title */ }
-                        }}
-                      >
-                        <input
-                          autoFocus
-                          value={renaming.value}
-                          onChange={(e) => setRenaming({ ...renaming, value: e.target.value })}
-                          onBlur={() => setRenaming(null)}
-                          className="h-6 w-full rounded-sm bg-hover px-2 text-sm outline-none"
-                        />
-                      </form>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => { setHistOpen(false); loadThread(t.id); }}
-                        className="flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover"
-                      >
-                        <span className="min-w-0 flex-1 truncate">{t.title}</span>
-                        <span className="shrink-0 text-xs text-ink-3">{ago(t.created_at)}</span>
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      aria-label="Thread options"
-                      onMouseDown={(e) => { e.stopPropagation(); setRowMenu(rowMenu === t.id ? null : t.id); }}
-                      className="mr-0.5 inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-sm text-ink-2 opacity-0 group-hover/h:opacity-100 hover:bg-hover hover:text-ink"
-                    >
-                      <MoreHorizontal size={14} strokeWidth={1.5} />
-                    </button>
-                    {rowMenu === t.id && (
-                      <div className="absolute top-7 right-0 z-30 w-36 rounded-md bg-white p-1 shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
-                        <MenuItem icon={Pencil} type="button" onClick={() => { setRowMenu(null); setRenaming({ id: t.id, value: t.title }); }}>Rename</MenuItem>
-                        <MenuItem icon={Trash2} type="button" className="text-danger" onClick={() => { setRowMenu(null); setConfirmDel(t); }}>Delete</MenuItem>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </Menu>
-            </div>
+            <button
+              onClick={() => setView(view === 'history' ? 'chat' : 'history')}
+              className={cn('flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', view === 'history' && 'bg-active text-ink')}
+            >
+              <History size={12} strokeWidth={1.5} /> {view === 'history' ? 'Back to chat' : 'History'}
+            </button>
           )}
           <button onClick={newChat} className="flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
             <Plus size={12} strokeWidth={1.5} /> New chat
@@ -318,6 +265,60 @@ export function AskPanel({ scope, placeholder = 'Ask anything…', compact = fal
           onCancel={() => setConfirmDel(null)}
         />
       )}
+      {view === 'history' && (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {threads.map((t) => (
+            <div key={t.id} className="group/h relative flex items-center border-b border-line">
+              {renaming?.id === t.id ? (
+                <form
+                  className="flex-1 py-1"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const title = renaming.value.trim();
+                    setRenaming(null);
+                    if (!title) return;
+                    try {
+                      await api(`/api/ask/threads/${t.id}/rename`, { method: 'POST', body: JSON.stringify({ title }) });
+                      setThreads((ts) => ts.map((x) => (x.id === t.id ? { ...x, title } : x)));
+                    } catch { /* row keeps its old title */ }
+                  }}
+                >
+                  <input
+                    autoFocus
+                    value={renaming.value}
+                    onChange={(e) => setRenaming({ ...renaming, value: e.target.value })}
+                    onBlur={() => setRenaming(null)}
+                    className="h-7 w-full rounded-sm bg-hover px-2 text-sm outline-none"
+                  />
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => loadThread(t.id)}
+                  className="flex h-9 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover"
+                >
+                  <span className="min-w-0 flex-1 truncate">{t.title}</span>
+                  <span className="shrink-0 text-xs text-ink-3">{ago(t.created_at)}</span>
+                </button>
+              )}
+              <button
+                type="button"
+                aria-label="Thread options"
+                onMouseDown={(e) => { e.stopPropagation(); setRowMenu(rowMenu === t.id ? null : t.id); }}
+                className="mr-0.5 inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-ink-2 opacity-0 group-hover/h:opacity-100 hover:bg-hover hover:text-ink"
+              >
+                <MoreHorizontal size={15} strokeWidth={1.5} />
+              </button>
+              <Menu open={rowMenu === t.id} onClose={() => setRowMenu(null)} className="top-8 right-0 w-36">
+                <MenuItem icon={Pencil} type="button" onClick={() => { setRowMenu(null); setRenaming({ id: t.id, value: t.title }); }}>Rename</MenuItem>
+                <MenuItem icon={Trash2} type="button" className="text-danger" onClick={() => { setRowMenu(null); setConfirmDel(t); }}>Delete</MenuItem>
+              </Menu>
+            </div>
+          ))}
+          {threads.length === 0 && <div className="py-3 text-sm text-ink-3">No past chats.</div>}
+        </div>
+      )}
+      {view === 'chat' && (<>
       <div ref={boxRef} className="min-h-0 flex-1 overflow-y-auto">
         {msgs.length === 0 && !choices && (
           <div className="py-3 text-sm text-ink-2">
@@ -486,6 +487,7 @@ export function AskPanel({ scope, placeholder = 'Ask anything…', compact = fal
           </button>
         </form>
       </div>
+      </>)}
     </div>
   );
 }
