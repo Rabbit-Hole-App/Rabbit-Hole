@@ -19,7 +19,7 @@ const cronParts = (s) => String(s || '').split(';').map((x) => x.trim()).filter(
 const now = () => Math.floor(Date.now() / 1000);
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 const html = (body, status = 200, headers = {}) =>
-  new Response(`<!doctype html><meta name=viewport content="width=device-width,initial-scale=1"><link rel=icon href=/favicon.svg><style>body{font-family:Inter,ui-sans-serif,system-ui;color:#37352F;background:#fff;max-width:26rem;margin:18vh auto;padding:0 1rem;line-height:1.5}input{width:100%;height:36px;padding:0 10px;border-radius:4px;border:1px solid transparent;background:#F7F6F3;font-size:14px;outline:0}input:focus{border-color:#D3D1CB;box-shadow:0 0 0 2px rgba(35,131,226,.2);background:#fff}button{height:36px;padding:0 14px;border-radius:4px;border:0;background:#2383E2;color:#fff;font-size:14px;font-weight:500;cursor:pointer;margin-top:8px}button:hover{background:#1B6FC2}a{color:#2383E2;text-decoration:none}p{color:#787774}h2{color:#37352F;font-weight:600}</style>${body}`, {
+  new Response(`<!doctype html><meta name=viewport content="width=device-width,initial-scale=1"><link rel=icon href=/favicon.svg><title>small deploy</title><style>body{font-family:Inter,ui-sans-serif,system-ui;color:#37352F;background:#fff;max-width:26rem;margin:18vh auto;padding:0 1rem;line-height:1.5}input{width:100%;height:36px;padding:0 10px;border-radius:4px;border:1px solid transparent;background:#F7F6F3;font-size:14px;outline:0}input:focus{border-color:#D3D1CB;box-shadow:0 0 0 2px rgba(35,131,226,.2);background:#fff}button{height:36px;padding:0 14px;border-radius:4px;border:0;background:#2383E2;color:#fff;font-size:14px;font-weight:500;cursor:pointer;margin-top:8px}button:hover{background:#1B6FC2}a{color:#2383E2;text-decoration:none}p{color:#787774}h2{color:#37352F;font-weight:600}</style>${body}`, {
     status,
     headers: { 'Content-Type': 'text/html;charset=utf-8', ...headers },
   });
@@ -94,7 +94,7 @@ async function apiLogin(req, env) {
   if (!email || !email.includes('@')) return json({ error: 'valid email required' }, 400);
   const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
   const challenge = await sign({ t: 'challenge', email, codeHash: await sha256(code), exp: now() + 600 }, env.MASTER_KEY);
-  const sent = await sendEmail(env, email, `small login code: ${code}`, `Your small login code is ${code}\nIt expires in 10 minutes.`);
+  const sent = await sendEmail(env, email, `small deploy login code: ${code}`, `Your small deploy login code is ${code}\nIt expires in 10 minutes.`);
   if (sent) return json({ challenge });
   // Echoing the code is an auth bypass — only allowed on test/dev instances (marked by TEST_BYPASS_SECRET).
   if (!env.TEST_BYPASS_SECRET) return json({ error: 'email not configured on this control plane' }, 503);
@@ -1729,13 +1729,13 @@ async function loginPage(req, env, baseUrl) {
     if (!email.includes('@')) return html('<p>Enter a valid work email.</p><a href="javascript:history.back()">back</a>', 400);
     const magic = await sign({ t: 'magic', email, next, exp: now() + 900 }, env.MASTER_KEY);
     const link = `${baseUrl}/auth?token=${encodeURIComponent(magic)}`;
-    const sent = await sendEmail(env, email, 'Your small sign-in link', `Sign in: ${link}\nExpires in 15 minutes.`);
+    const sent = await sendEmail(env, email, 'Your small deploy sign-in link', `Sign in: ${link}\nExpires in 15 minutes.`);
     if (sent) return html(`<h2>Check your inbox</h2><p>We sent a sign-in link to <b>${email}</b>.</p>`);
     if (!env.TEST_BYPASS_SECRET) return html('<p>Email is not configured on this control plane.</p>', 503);
     return html(`<h2>Test instance</h2><p>Dev sign-in link:</p><p><a href="${link}">${link}</a></p>`);
   }
   return html(
-    `<div style="display:flex;align-items:center;gap:8px;font-weight:600;color:#37352F"><svg width="22" height="22" viewBox="0 0 32 32"><rect x="2" y="2" width="28" height="28" rx="7" fill="none" stroke="#37352F" stroke-width="2.5"/><path transform="translate(6.2 7) scale(0.83)" fill="#37352F" d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>small</div><h2>Sign in</h2><form method=post><input name=email type=email placeholder=you@company.com required autofocus><button>Email me a link</button></form><p style="font-size:14px">We’ll send a link. No password.</p>`
+    `<div style="display:flex;align-items:center;gap:8px;font-weight:600;color:#37352F"><svg width="22" height="22" viewBox="0 0 32 32"><rect x="2" y="2" width="28" height="28" rx="7" fill="none" stroke="#37352F" stroke-width="2.5"/><path transform="translate(6.2 7) scale(0.83)" fill="#37352F" d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>small deploy</div><h2>Sign in</h2><form method=post><input name=email type=email placeholder=you@company.com required autofocus><button>Email me a link</button></form><p style="font-size:14px">We’ll send a link. No password.</p>`
   );
 }
 
