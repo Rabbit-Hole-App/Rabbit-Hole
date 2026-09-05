@@ -3,31 +3,58 @@
 /* BlockNote's shadcn components rely on the host app's Tailwind generating their utilities */
 @source '../../../node_modules/@blocknote/shadcn';
 
-/* Notion palette — hierarchy comes from weight and spacing, not size. */
+/* Tokens — measured Notion values, see design/notion.md (authoritative, read-only).
+   Old token names kept (ink/line/hover/side) so existing classes stay valid. */
 @theme {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-  --color-ink: #37352f;
-  --color-ink-2: #787774;
-  --color-line: #e9e9e7;
-  --color-hover: #f1f1ef;
-  --color-side: #f7f7f5;
+  --font-mono: 'SFMono-Regular', Menlo, Consolas, monospace;
+  --color-ink: #37352f; /* text */
+  --color-ink-2: #787774; /* text-secondary */
+  --color-ink-3: #9b9a97; /* text-tertiary: placeholders, disabled */
+  --color-line: #e9e9e7; /* borders, dividers */
+  --color-line-strong: #d3d1cb; /* input border on focus */
+  --color-hover: #efefed; /* row/item hover */
+  --color-active: #e8e8e6; /* selected sidebar item, pressed */
+  --color-side: #f7f7f5; /* sidebar */
+  --color-code: #f7f6f3; /* inline code, code blocks, inputs at rest */
   --color-accent: #2383e2;
+  --color-accent-hover: #1b6fc2;
+  --color-danger: #eb5757;
+  --color-warn: #d9730d;
+  --color-success: #448361;
+  --shadow-pop: 0 0 0 1px rgba(15, 15, 15, 0.05), 0 3px 6px rgba(15, 15, 15, 0.1), 0 9px 24px rgba(15, 15, 15, 0.2);
 }
 
+html {
+  font-feature-settings: 'cv11', 'ss01';
+}
+
+/* Notion body is 16px; UI chrome (sidebar, tables, buttons) opts into 14px via text-sm. */
 body {
-  @apply bg-white font-sans text-sm leading-normal text-ink antialiased;
+  @apply bg-white font-sans text-[16px] leading-normal text-ink antialiased;
 }
 
-/* Excalidraw's own rule for its overlay layer doesn't survive our Tailwind cascade —
-   without it the layer swallows pointer events and nothing can be drawn. */
-.excalidraw .SVGLayer,
-.excalidraw .SVGLayer * {
-  pointer-events: none !important;
+/* Design system (see DESIGN.md): every enabled clickable gets the hand cursor —
+   never rely on per-element classes for this. Hover surface is always --color-hover. */
+button:not(:disabled),
+select,
+[role='button'],
+a {
+  cursor: pointer;
 }
 
+/* 100ms hover states, 200ms ease-out panels. Nothing bounces. */
 @keyframes slide-in-right {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
+}
+@keyframes toast-in {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* shadcn variables BlockNote's components consume (we run Tailwind without shadcn/ui,
@@ -41,13 +68,13 @@ body {
   --popover-foreground: #37352f;
   --primary: #37352f;
   --primary-foreground: #ffffff;
-  --secondary: #f1f1ef;
+  --secondary: #efefed;
   --secondary-foreground: #37352f;
-  --muted: #f1f1ef;
+  --muted: #efefed;
   --muted-foreground: #787774;
-  --accent: #f1f1ef;
+  --accent: #efefed;
   --accent-foreground: #37352f;
-  --destructive: #d44c47;
+  --destructive: #eb5757;
   --destructive-foreground: #ffffff;
   --border: #e9e9e7;
   --input: #e9e9e7;
@@ -67,8 +94,6 @@ body {
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
@@ -77,4 +102,28 @@ body {
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
+}
+
+/* shadcn's semantic `accent` (a hover surface) must NOT hijack our brand accent
+   (#2383E2). BlockNote's generated utilities read --color-accent at runtime, so we
+   re-point it to hover-grey only inside BlockNote containers/portals (all carry a
+   bn-* class). This collision is what once turned accent buttons grey. */
+[class*='bn-'] {
+  --color-accent: #efefed;
+  --color-accent-foreground: #37352f;
+}
+
+/* BlockNote (runbook editor): its menus portal outside .bn-container. */
+.bn-suggestion-menu {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  box-shadow: var(--shadow-pop);
+}
+
+/* Excalidraw's own rule for its overlay layer doesn't survive our Tailwind cascade —
+   without it the layer swallows pointer events and nothing can be drawn. */
+.excalidraw .SVGLayer,
+.excalidraw .SVGLayer * {
+  pointer-events: none !important;
 }

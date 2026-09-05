@@ -92,6 +92,15 @@ export async function startMachine(env, flyApp, config) {
   return resp.json();
 }
 
+// Delete the whole Fly app (machines, volumes, IPs go with it). 404 = already gone.
+export async function destroyFlyApp(env, flyApp) {
+  const resp = await fetch(`${MACHINES}/apps/${flyApp}`, {
+    method: 'DELETE',
+    headers: { Authorization: authH(machineToken(env)) },
+  });
+  if (!resp.ok && resp.status !== 404) throw new Error(`fly app delete failed (${resp.status}): ${await resp.text()}`);
+}
+
 // Kill a job run's machine. force: SIGKILL now — a stopped job machine has no
 // graceful-shutdown value. 404 is fine: auto_destroy already removed it.
 export async function destroyMachine(env, flyApp, machineId) {

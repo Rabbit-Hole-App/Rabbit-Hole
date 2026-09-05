@@ -104,6 +104,111 @@ canView; members now carry roles). Routing is hand-rolled (pushState + popstate)
 — two pages don't need a router dep. ponytail: groups, link-sharing without
 email, share expiry — all skipped until asked.
 
+## v4: folders, teams, design system
+- Sidebar: « collapses (persisted in localStorage, » reopens), org-wide folders —
+  create with the hover +, drag apps in/out (HTML5 DnD → PATCH `/api/apps/<slug>`
+  `{folder}`), delete returns apps to root. `folders` table + `apps.folder_id`
+  (migrations/0006-folders-teams.sql).
+- Teams: #finance is a live reference, not a copy — `teams`/`team_members`/`app_teams`
+  tables; every access check (`memberRole`) unions direct membership with team
+  membership, 'edit' beats 'view'. Share popover accepts `#name` (with suggestions),
+  team rows carry role select + hover-remove; sidebar Teams section manages members
+  in a slide-in panel. Routes: GET/POST `/api/teams`, POST `/api/teams/<name>/members`
+  (add/remove), `/delete`, team fields on `/api/share`+`/api/unshare`.
+  ponytail: any org member can manage folders/teams — org-internal organization, not
+  an access boundary.
+- Design system in `packages/web/DESIGN.md` + `src/ui.jsx`: 7 colors, type scale
+  (28px/700 page titles), `PillButton` (Notion's bordered hover "⧉ OPEN" affordance —
+  side peek on row hover; Run/Stop use it too), `IconBtn`, global hand-cursor rule,
+  hover always `--color-hover`, panels slide 320ms easeOutExpo.
+- e2e runs the production bundle (`vite preview` webServer) — dev-mode cold compile
+  of the BlockNote/Excalidraw graph blew test budgets and masked real failures.
+
+## v5: design/ implemented
+The measured Notion spec (`packages/web/design/` — notion.md, components.html,
+flow.md; read-only) is now the app: full token swap + component kit in ui.jsx
+(Button primary/secondary/ghost, Input, Pill w/ tag palette, StatusPill, Menu,
+toast/Toasts, EmptyState, SkeletonRows), 40px titles, 16px body, sidebar per
+flow §1 (workspace row, Search w/ ⌘K, + copies `small deploy` with a toast,
+Recent from localStorage, Members, email pinned), app page per flow §3
+(properties line incl. Source from provenance fields now returned by GET
+/api/apps/<slug>, tab bar Runbook·Run·Logs — Logs = runs database for jobs,
+request log w/ rejected pills for servers, side-peek on row click), /members
+(people derived from shares + Groups = teams), ⌘K search modal (apps +
+runbook text), ⌘\ sidebar toggle, restyled worker login page. Fixed for real:
+shadcn's semantic `--accent` was clobbering brand accent globally (the old
+"grayed Save button") — now scoped to `[class*='bn-']` only.
+ponytail: [inputs] run forms, sidebar drag-resize, column resize/multi-select,
+invite emails, admin roles, /settings — per flow.md, when asked.
+
+## v6: shell, inline groups, delete, resize
+- One `Shell` owns the sidebar on every page (flow §1 "always present" — the app
+  page too): /api/apps fetch, persisted collapse, » reopen, Ctrl+\.
+- Sidebar drags to resize (200–400px, persisted, default 260).
+- Groups edit inline on /members (expand a row: add email, hover-✕ remove, delete
+  group) — the slide-in TeamPanel is gone.
+- `SlidePanel` replaces the radix side peek: mounted transform transition
+  (220ms, GPU) that eases in AND out — an actual slide.
+- Delete app: sidebar ⋯ and app-page ⋯ (owner only) → the one confirm modal
+  (name in body, red primary) → new DELETE `/api/apps/<slug>` destroys the Fly
+  app (`destroyFlyApp`) then every D1 row. "Hide" = make it private in Share
+  (content invisible to non-members) or drop it in a folder; ponytail: per-user
+  hide-from-sidebar skipped until asked.
+
+## v7: trash, members pool, workspace menu
+- Delete = Trash (soft): `deleted_at` stamp (0008-trash.sql); the app vanishes
+  everywhere (appRow filters), the Fly app stays so Restore is instant; sidebar
+  Trash panel lists org's trashed apps w/ owner-only Restore; daily 3am cron
+  purges 30-day-old items (destroyFlyApp + all rows). Redeploying a trashed name
+  revives it. Every entity delete confirms via the modal (app, folder, group,
+  member-pool removal); chip removals stay one-click.
+- Members pool: `org_members` (0006) + GET/POST `/api/members` — Add person on
+  /members; groups only accept known people (server-enforced: org_members ∪
+  owners ∪ shares ∪ team members) with autofill suggestions from the pool.
+  Group row ⋯ menu: Rename (POST `/api/teams/<name>/rename`) + Delete.
+- Workspace row: pretty name (gmail-com → Gmail), dropdown with profile email,
+  Settings (stub), New workspace (stub — one org per domain), Log out (new
+  `/logout` clears the cookie). Sidebar highlights the active page (`bg-active`).
+
+## v8: sections, folder sharing, duplicate
+- Sidebar sections: Apps (workspace, with folders) · Shared (with me — incl.
+  cross-org apps, now listed by `/api/apps`' second query) · Private (my
+  private apps). Section labels click through to a filtered overview
+  (`/apps?s=shared|private`); dragging an app between sections PATCHes its
+  visibility; dropping on a folder also files it.
+- Folder ⋯ menu: **Share folder** (new `folder_shares` table, 0008 — a live
+  grant with email or #team + role over every app in the folder, enforced in
+  memberRole/appForUser/apiApps), Rename (`POST /api/folders/<id>/rename`),
+  Delete (confirm modal). Shared folders show a small people glyph.
+- App ⋯ gains Duplicate (`POST /api/apps/<slug>/duplicate`): fresh owned copy
+  (metadata, runbook, image; schedule starts paused; jobs immediately runnable,
+  servers need one redeploy). Delete is labelled "Move to Trash" everywhere.
+- Breadcrumbs use the workspace name (Gmail, not gmail-com) and every segment
+  is a hover-highlighted button; Recent shows 3; group names are validated
+  client-side with a toast (server always rejected bad ones).
+
+## v9: autocomplete + app rename
+- `ShareInput` (ui.jsx): every sharing field autocompletes from the org's people
+  pool + #teams — the app Share popover (people AND teams now), the folder share
+  panel, and group-add on /members. ↑/↓ + Enter picks; Enter with nothing
+  highlighted submits the typed value; picked/typed entries excluded once shared.
+- App rename: `POST /api/apps/<slug>/rename` (canEdit; slug = URL, so links
+  change; request-log history follows; a small.toml still carrying the old name
+  deploys a fresh app). UI: click the app-page title to edit (Notion-style,
+  canEdit only) or sidebar ⋯ → Rename; both toast and refresh the sidebar.
+  Fixed while wiring: the request_logs slug-update 500'd fresh DBs mid-rename
+  (table ships with another branch) — now try/caught like lastOpened.
+
+## v10: drag confirm + fixes
+- Fixed: Sidebar used ShareInput without importing it — the folder share panel
+  crashed on open (esbuild doesn't flag free identifiers; runtime ReferenceError).
+- Fixed: an app made private via the popover while filed kept its folder_id and
+  listed twice (folder + Private). Folders now render workspace-visible apps only.
+- Drag & drop: targets (folders, Apps root, Private) highlight `bg-active` +
+  outline while dragging; every drop opens a confirm modal saying what changes
+  ("Move X into folder Y?" / "Move X to Private? — only people it's shared with
+  keep access"); no-op drops (same place) are ignored; drops outside a target cancel.
+
 ## Serving (hard-won)
 The SPA shell is bundled INTO the worker (esbuild Text rule imports
 `../web/dist/index.html`) and served at `/apps` + `/dash` with `Cache-Control:

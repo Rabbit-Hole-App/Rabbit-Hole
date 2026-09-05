@@ -1,9 +1,8 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
-import { ChevronLeft, Loader2, X } from 'lucide-react';
+import { ChevronLeft, Loader2 } from 'lucide-react';
 import { api, cronHuman, fmtTime } from './api.js';
 const Runbook = lazy(() => import('./RunbookEditor.jsx')); // BlockNote is heavy — its chunk loads only when a runbook opens
-import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from './ui.jsx';
+import { Button, SlidePanel, Tabs, TabsContent, TabsList, TabsTrigger } from './ui.jsx';
 
 // Polls /api/runs/<id> every second until the run leaves 'running'.
 function useRunLog(runId) {
@@ -126,47 +125,36 @@ function RunbookTab({ app, onSaved }) {
 // Notion-style side peek: slides in from the right, faint shadow, no overlay dim.
 export default function Panel({ app, tab, run, onTab, onRunbookSaved, onRunSettled, onClose }) {
   return (
-    // modal={false}: BlockNote's slash/drag menus portal to <body>; a modal focus trap would make them unclickable
-    <Dialog.Root open modal={false} onOpenChange={(o) => !o && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Content
-          aria-describedby={undefined}
-          onOpenAutoFocus={(e) => e.preventDefault()}
-          onInteractOutside={(e) => e.preventDefault()}
-          className="fixed inset-y-0 right-0 flex w-[560px] max-w-full flex-col bg-white shadow-[-1px_0_0_#e9e9e7,-8px_0_24px_rgba(0,0,0,0.04)] outline-none animate-[slide-in-right_250ms_cubic-bezier(0.2,0,0,1)]"
-        >
-          <div className="flex items-center justify-between px-5 pt-4 pb-2">
-            <Dialog.Title className="flex items-center gap-2 text-[15px] font-semibold">
-              {app.name}
-              {app.schedule && (
-                <span className="text-xs font-normal text-ink-2" title={`cron ${app.schedule} (UTC)`}>
-                  {cronHuman(app.schedule)}{app.schedule_paused ? ' · paused' : ''}
-                </span>
-              )}
-            </Dialog.Title>
-            <Dialog.Close asChild>
-              <Button aria-label="Close" className="h-6 w-6 justify-center px-0"><X size={14} /></Button>
-            </Dialog.Close>
-          </div>
-          <Tabs value={tab} onValueChange={onTab} className="flex min-h-0 flex-1 flex-col px-5">
-            <TabsList>
-              <TabsTrigger value="runbook">Runbook</TabsTrigger>
-              {app.kind === 'job' && <TabsTrigger value="run">Logs</TabsTrigger>}
-            </TabsList>
-            <TabsContent value="runbook" className="flex min-h-0 flex-1 flex-col py-3">
-              <RunbookTab app={app} onSaved={onRunbookSaved} />
-            </TabsContent>
-            {app.kind === 'job' && (
-              <TabsContent value="run" className="flex min-h-0 flex-1 flex-col py-3">
-                {run?.error
-                  ? <div className="pt-2 text-ink-2">✗ {run.error}</div>
-                  : <RunsTab app={app} liveRunId={run?.id} onSettled={onRunSettled} />}
-              </TabsContent>
-            )}
-          </Tabs>
-          <div className="h-4" />
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <SlidePanel
+      onClose={onClose}
+      title={
+        <>
+          <span className="truncate">{app.name}</span>
+          {app.schedule && (
+            <span className="text-xs font-normal text-ink-2" title={`cron ${app.schedule} (UTC)`}>
+              {cronHuman(app.schedule)}{app.schedule_paused ? ' · paused' : ''}
+            </span>
+          )}
+        </>
+      }
+    >
+      <Tabs value={tab} onValueChange={onTab} className="flex min-h-0 flex-1 flex-col px-5">
+        <TabsList>
+          <TabsTrigger value="runbook">Runbook</TabsTrigger>
+          {app.kind === 'job' && <TabsTrigger value="run">Logs</TabsTrigger>}
+        </TabsList>
+        <TabsContent value="runbook" className="flex min-h-0 flex-1 flex-col py-3">
+          <RunbookTab app={app} onSaved={onRunbookSaved} />
+        </TabsContent>
+        {app.kind === 'job' && (
+          <TabsContent value="run" className="flex min-h-0 flex-1 flex-col py-3">
+            {run?.error
+              ? <div className="pt-2 text-ink-2">✗ {run.error}</div>
+              : <RunsTab app={app} liveRunId={run?.id} onSettled={onRunSettled} />}
+          </TabsContent>
+        )}
+      </Tabs>
+      <div className="h-4" />
+    </SlidePanel>
   );
 }

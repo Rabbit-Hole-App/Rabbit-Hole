@@ -1,7 +1,7 @@
 // small control plane: CLI API + browser auth wall + router. One Worker + D1.
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, sha256, randomHex } from './token.js';
-import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine } from './fly.js';
+import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
 import { assumeRole } from './aws.js';
 import { runReview, generateRunbook } from './review.js';
 import { parseCron, matches, nextRun } from './cron.js';
@@ -14,7 +14,7 @@ const orgOf = (email) => email.split('@')[1].toLowerCase().replace(/\./g, '-');
 const now = () => Math.floor(Date.now() / 1000);
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 const html = (body, status = 200, headers = {}) =>
-  new Response(`<!doctype html><meta name=viewport content="width=device-width,initial-scale=1"><style>body{font-family:system-ui;max-width:26rem;margin:15vh auto;padding:0 1rem}input,button{font-size:1rem;padding:.5rem}</style>${body}`, {
+  new Response(`<!doctype html><meta name=viewport content="width=device-width,initial-scale=1"><style>body{font-family:Inter,ui-sans-serif,system-ui;color:#37352F;background:#fff;max-width:26rem;margin:18vh auto;padding:0 1rem;line-height:1.5}input{width:100%;height:36px;padding:0 10px;border-radius:4px;border:1px solid transparent;background:#F7F6F3;font-size:14px;outline:0}input:focus{border-color:#D3D1CB;box-shadow:0 0 0 2px rgba(35,131,226,.2);background:#fff}button{height:36px;padding:0 14px;border-radius:4px;border:0;background:#2383E2;color:#fff;font-size:14px;font-weight:500;cursor:pointer;margin-top:8px}button:hover{background:#1B6FC2}a{color:#2383E2;text-decoration:none}p{color:#787774}h2{color:#37352F;font-weight:600}</style>${body}`, {
     status,
     headers: { 'Content-Type': 'text/html;charset=utf-8', ...headers },
   });
@@ -44,20 +44,42 @@ async function sessionOf(req, env) {
 }
 
 async function appRow(env, org, name) {
-  return env.DB.prepare('SELECT * FROM apps WHERE org = ? AND name = ?').bind(org, name).first();
+  return env.DB.prepare('SELECT * FROM apps WHERE org = ? AND name = ? AND deleted_at IS NULL').bind(org, name).first();
 }
+
+// Direct membership, a team share (#finance), or a share on the app's folder —
+// all live references; 'edit' wins over 'view'.
+async function memberRole(env, app, email) {
+  const roles = [];
+  const m = await env.DB.prepare('SELECT role FROM members WHERE app_id = ? AND email = ?').bind(app.id, email).first();
+  if (m) roles.push(m.role);
+  const t = await env.DB.prepare(
+    "SELECT at.role FROM app_teams at JOIN team_members tm ON tm.team_id = at.team_id WHERE at.app_id = ? AND tm.email = ? ORDER BY (at.role = 'edit') DESC LIMIT 1"
+  ).bind(app.id, email).first();
+  if (t) roles.push(t.role);
+  if (app.folder_id) {
+    const f = await env.DB.prepare(
+      "SELECT role FROM folder_shares WHERE folder_id = ?1 AND (email = ?2 OR team_id IN (SELECT team_id FROM team_members WHERE email = ?2)) ORDER BY (role = 'edit') DESC LIMIT 1"
+    ).bind(app.folder_id, email).first();
+    if (f) roles.push(f.role);
+  }
+  return roles.includes('edit') ? 'edit' : roles[0] || null;
+}
+
+// Reused in list/detail SQL: the caller's role from a share on the app's folder.
+const FOLDER_ROLE_SQL = `(SELECT fs.role FROM folder_shares fs WHERE fs.folder_id = apps.folder_id
+   AND (fs.email = ?1 OR fs.team_id IN (SELECT team_id FROM team_members WHERE email = ?1))
+   ORDER BY (fs.role = 'edit') DESC LIMIT 1)`;
 
 async function canView(env, app, email) {
   if (app.owner_email === email) return true;
-  const member = await env.DB.prepare('SELECT role FROM members WHERE app_id = ? AND email = ?').bind(app.id, email).first();
-  if (member) return true;
+  if (await memberRole(env, app, email)) return true;
   return app.visibility === 'domain' && orgOf(email) === app.org;
 }
 
 async function canEdit(env, app, email) {
   if (app.owner_email === email) return true;
-  const member = await env.DB.prepare('SELECT role FROM members WHERE app_id = ? AND email = ?').bind(app.id, email).first();
-  return member && member.role === 'edit';
+  return (await memberRole(env, app, email)) === 'edit';
 }
 
 // ---------- CLI API ----------
@@ -112,6 +134,8 @@ async function apiDeploy(req, env, ctx, user, baseUrl) {
   if (storage && !(Number.isInteger(storage.sizeGb) && storage.sizeGb >= 1 && storage.sizeGb <= 100))
     return json({ error: 'storage.sizeGb must be an integer between 1 and 100' }, 400);
   if (awsRoleArn && !/^arn:aws:iam::\d{12}:role\/[\w+=,.@/-]+$/.test(awsRoleArn)) return json({ error: 'bad aws role arn' }, 400);
+  // redeploying a name that sits in the Trash revives it — same fly app, same shares
+  await env.DB.prepare('UPDATE apps SET deleted_at = NULL WHERE org = ? AND name = ? AND deleted_at IS NOT NULL').bind(user.org, name).run();
   let app = await appRow(env, user.org, name);
   if (app) {
     if (!(await canEdit(env, app, user.email))) return json({ error: `${name} exists and you cannot edit it` }, 403);
@@ -214,15 +238,28 @@ async function apiRunbook(req, env) {
   }
 }
 
+const teamName = (s) => String(s || '').replace(/^#/, '').toLowerCase();
+async function teamRow(env, org, name) {
+  return env.DB.prepare('SELECT * FROM teams WHERE org = ? AND name = ?').bind(org, teamName(name)).first();
+}
+
 async function apiShare(req, env, user) {
-  const { app: name, email, role } = await req.json();
+  const { app: name, email, team, role } = await req.json();
   const app = await appRow(env, user.org, name);
   if (!app) return json({ error: `no app named ${name}` }, 404);
   if (!(await canEdit(env, app, user.email))) return json({ error: 'only owner or edit members can share' }, 403);
+  const r = role === 'edit' ? 'edit' : 'view';
+  if (team) {
+    const t = await teamRow(env, user.org, team);
+    if (!t) return json({ error: `no team #${teamName(team)} — create it first` }, 404);
+    await env.DB.prepare('INSERT INTO app_teams (app_id, team_id, role) VALUES (?, ?, ?) ON CONFLICT(app_id, team_id) DO UPDATE SET role = excluded.role')
+      .bind(app.id, t.id, r).run();
+    return json({ ok: true, app: name, team: t.name, role: r });
+  }
   await env.DB.prepare('INSERT INTO members (app_id, email, role) VALUES (?, ?, ?) ON CONFLICT(app_id, email) DO UPDATE SET role = excluded.role')
-    .bind(app.id, email.toLowerCase(), role === 'edit' ? 'edit' : 'view')
+    .bind(app.id, email.toLowerCase(), r)
     .run();
-  return json({ ok: true, app: name, email: email.toLowerCase(), role: role === 'edit' ? 'edit' : 'view' });
+  return json({ ok: true, app: name, email: email.toLowerCase(), role: r });
 }
 
 // A runner can only report while its 6h run token lives — anything 'running' longer
@@ -233,45 +270,95 @@ const sweepStaleRuns = (env) =>
 
 async function apiApps(env, user, baseUrl) {
   await sweepStaleRuns(env);
-  const { results } = await env.DB.prepare(
-    `SELECT name, kind, visibility, owner_email, fly_app, created_at, deployed_at, runbook, schedule, schedule_paused,
+  const FIELDS = `apps.org, name, kind, visibility, owner_email, fly_app, created_at, deployed_at, runbook, schedule, schedule_paused, folder_id,
             (SELECT group_concat(email || ':' || role) FROM members WHERE app_id = apps.id) AS member_emails,
             (SELECT role FROM members WHERE app_id = apps.id AND email = ?1) AS my_role,
+            (SELECT at.role FROM app_teams at JOIN team_members tm ON tm.team_id = at.team_id
+              WHERE at.app_id = apps.id AND tm.email = ?1 ORDER BY (at.role = 'edit') DESC LIMIT 1) AS team_role,
+            ${FOLDER_ROLE_SQL} AS folder_role,
+            (SELECT COUNT(*) FROM app_teams WHERE app_id = apps.id) AS team_count,
             (SELECT json_object('runId', run_id, 'status', status, 'exitCode', exit_code, 'startedAt', started_at, 'finishedAt', finished_at)
-               FROM runs WHERE app_id = apps.id ORDER BY id DESC LIMIT 1) AS last_run
-     FROM apps WHERE org = ?2 ORDER BY name`
+               FROM runs WHERE app_id = apps.id ORDER BY id DESC LIMIT 1) AS last_run`;
+  const { results } = await env.DB.prepare(
+    `SELECT ${FIELDS} FROM apps WHERE org = ?2 AND deleted_at IS NULL ORDER BY name`
   ).bind(user.email, user.org).all();
+  // apps from OTHER orgs shared with me by email or via a group — the Shared section
+  const { results: foreign } = await env.DB.prepare(
+    `SELECT ${FIELDS} FROM apps WHERE deleted_at IS NULL AND org != ?2 AND (
+        EXISTS (SELECT 1 FROM members WHERE app_id = apps.id AND email = ?1)
+        OR EXISTS (SELECT 1 FROM app_teams at JOIN team_members tm ON tm.team_id = at.team_id WHERE at.app_id = apps.id AND tm.email = ?1)
+        OR ${FOLDER_ROLE_SQL} IS NOT NULL
+      ) ORDER BY name`
+  ).bind(user.email, user.org).all();
+  const { results: folders } = await env.DB.prepare('SELECT id, name FROM folders WHERE org = ? ORDER BY name').bind(user.org).all();
+  const { results: fshares } = await env.DB.prepare(
+    `SELECT fs.folder_id, fs.email, fs.role, t.name AS team FROM folder_shares fs
+     LEFT JOIN teams t ON t.id = fs.team_id JOIN folders f ON f.id = fs.folder_id WHERE f.org = ?`
+  ).bind(user.org).all();
+  for (const f of folders) f.shares = fshares.filter((s) => s.folder_id === f.id).map(({ email, team, role }) => ({ email, team, role }));
   return json({
     org: user.org,
     email: user.email,
-    apps: results.map(({ member_emails, my_role, last_run, ...a }) => {
-      const canView = a.owner_email === user.email || !!my_role || a.visibility === 'domain';
+    folders,
+    apps: [...results, ...foreign].map(({ member_emails, my_role, team_role, folder_role, last_run, ...a }) => {
+      const canView = a.owner_email === user.email || !!my_role || !!team_role || !!folder_role || (a.visibility === 'domain' && a.org === user.org);
       return {
         ...a,
         // private apps stay listed for the org, but their content does not leak
         runbook: canView ? a.runbook : null,
         members: canView && member_emails ? member_emails.split(',').map((s) => { const [email, role] = s.split(':'); return { email, role }; }) : [],
         canView,
-        canEdit: a.owner_email === user.email || my_role === 'edit',
+        canEdit: a.owner_email === user.email || my_role === 'edit' || team_role === 'edit' || folder_role === 'edit',
         lastRun: canView && last_run ? JSON.parse(last_run) : null,
-        url: `${baseUrl}/a/${user.org}/${a.name}/`,
+        url: `${baseUrl}/a/${a.org}/${a.name}/`,
       };
     }),
   });
+}
+
+// Duplicate: a fresh owned copy of an app I can view — metadata, runbook, image.
+// Jobs are immediately runnable (same image, fresh Fly app); servers need one
+// `small deploy` to serve. Shares are not copied; schedules start paused.
+async function apiAppDuplicate(env, user, name, baseUrl) {
+  const src = await appForUser(env, user, name);
+  if (!src) return json({ error: `no app named ${name}` }, 404);
+  if (!src.canView) return json({ error: 'no access' }, 403);
+  let copy = `${src.name}-copy`;
+  for (let i = 2; await env.DB.prepare('SELECT 1 FROM apps WHERE org = ? AND name = ?').bind(user.org, copy).first(); i++)
+    copy = `${src.name}-copy-${i}`;
+  const flyApp = `small-${copy.slice(0, 30)}-${randomHex(3)}`;
+  if (!env.FLY_ORG_TOKEN && !env.FLY_API_TOKEN) return json({ error: 'control plane has no fly token configured' }, 503);
+  try {
+    await ensureFlyApp(env, flyApp);
+  } catch (e) {
+    return json({ error: e.message }, 502);
+  }
+  await env.DB.prepare(
+    `INSERT INTO apps (org, name, fly_app, proxy_secret, visibility, owner_email, kind, image, runbook, folder_id, schedule, schedule_paused)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
+  ).bind(user.org, copy, flyApp, randomHex(32), src.visibility, user.email, src.kind, src.image, src.runbook, src.org === user.org ? src.folder_id : null, src.schedule).run();
+  return json({ ok: true, name: copy, url: `${baseUrl}/apps/${copy}` });
 }
 
 // Share-page lookup. The slug is org-scoped, but people shared by email from another
 // org must reach the page too — fall back to their membership row.
 async function appForUser(env, user, name) {
   const app = await env.DB.prepare(
-    `SELECT apps.*, members.role AS my_role FROM apps
+    `SELECT apps.*, members.role AS my_role,
+            (SELECT at.role FROM app_teams at JOIN team_members tm ON tm.team_id = at.team_id
+              WHERE at.app_id = apps.id AND tm.email = ?1 ORDER BY (at.role = 'edit') DESC LIMIT 1) AS team_role,
+            ${FOLDER_ROLE_SQL} AS folder_role
+     FROM apps
      LEFT JOIN members ON members.app_id = apps.id AND members.email = ?1
-     WHERE apps.name = ?2 AND (apps.org = ?3 OR members.email IS NOT NULL)
+     WHERE apps.deleted_at IS NULL AND apps.name = ?2 AND (apps.org = ?3 OR members.email IS NOT NULL
+       OR EXISTS (SELECT 1 FROM app_teams at JOIN team_members tm ON tm.team_id = at.team_id
+                   WHERE at.app_id = apps.id AND tm.email = ?1)
+       OR ${FOLDER_ROLE_SQL} IS NOT NULL)
      ORDER BY (apps.org = ?3) DESC LIMIT 1`
   ).bind(user.email, name, user.org).first();
   if (!app) return null;
-  app.canEdit = app.owner_email === user.email || app.my_role === 'edit';
-  app.canView = app.owner_email === user.email || !!app.my_role || (app.visibility === 'domain' && app.org === user.org);
+  app.canEdit = app.owner_email === user.email || app.my_role === 'edit' || app.team_role === 'edit' || app.folder_role === 'edit';
+  app.canView = app.owner_email === user.email || !!app.my_role || !!app.team_role || !!app.folder_role || (app.visibility === 'domain' && app.org === user.org);
   return app;
 }
 
@@ -280,6 +367,10 @@ async function apiAppGet(env, user, name, baseUrl) {
   if (!app) return json({ error: `no app named ${name}` }, 404);
   if (!app.canView) return json({ error: 'no access', owner: app.owner_email, name: app.name }, 403);
   const { results: members } = await env.DB.prepare('SELECT email, role FROM members WHERE app_id = ? ORDER BY email').bind(app.id).all();
+  const { results: teams } = await env.DB.prepare(
+    `SELECT t.name, at.role, (SELECT COUNT(*) FROM team_members WHERE team_id = t.id) AS count
+     FROM app_teams at JOIN teams t ON t.id = at.team_id WHERE at.app_id = ? ORDER BY t.name`
+  ).bind(app.id).all();
   const lastRun = await env.DB.prepare(
     'SELECT run_id AS runId, status, exit_code AS exitCode, started_at AS startedAt, finished_at AS finishedAt FROM runs WHERE app_id = ? ORDER BY id DESC LIMIT 1'
   ).bind(app.id).first();
@@ -292,8 +383,11 @@ async function apiAppGet(env, user, name, baseUrl) {
   return json({
     name: app.name, org: app.org, kind: app.kind, visibility: app.visibility, owner_email: app.owner_email,
     runbook: app.runbook, schedule: app.schedule, schedule_paused: app.schedule_paused,
+    deployed_at: app.deployed_at ?? null, created_at: app.created_at,
+    repo_url: app.repo_url ?? null, repo_branch: app.repo_branch ?? null, repo_commit: app.repo_commit ?? null,
+    repo_dirty: app.repo_dirty ?? null, repo_public: app.repo_public ?? null,
     url: `${baseUrl}/a/${app.org}/${app.name}/`,
-    members, lastRun: lastRun || null, lastOpened: lastOpened || null,
+    members, teams, lastRun: lastRun || null, lastOpened: lastOpened || null,
     canEdit: app.canEdit, email: user.email,
   });
 }
@@ -301,18 +395,233 @@ async function apiAppGet(env, user, name, baseUrl) {
 async function apiAppPatch(req, env, user, name) {
   const app = await appForUser(env, user, name);
   if (!app) return json({ error: `no app named ${name}` }, 404);
-  if (!app.canEdit) return json({ error: 'only owner or edit members can change visibility' }, 403);
-  const { visibility } = await req.json();
-  if (!['domain', 'private'].includes(visibility)) return json({ error: 'visibility must be domain or private' }, 400);
-  await env.DB.prepare('UPDATE apps SET visibility = ? WHERE id = ?').bind(visibility, app.id).run();
-  return json({ ok: true, visibility });
+  if (!app.canEdit) return json({ error: 'only owner or edit members can change this app' }, 403);
+  const { visibility, folder } = await req.json();
+  if (visibility !== undefined) {
+    if (!['domain', 'private'].includes(visibility)) return json({ error: 'visibility must be domain or private' }, 400);
+    await env.DB.prepare('UPDATE apps SET visibility = ? WHERE id = ?').bind(visibility, app.id).run();
+  }
+  if (folder !== undefined) {
+    if (folder !== null) {
+      const f = await env.DB.prepare('SELECT id FROM folders WHERE id = ? AND org = ?').bind(folder, app.org).first();
+      if (!f) return json({ error: 'no such folder' }, 404);
+    }
+    await env.DB.prepare('UPDATE apps SET folder_id = ? WHERE id = ?').bind(folder, app.id).run();
+  }
+  return json({ ok: true });
+}
+
+// Rename an app. The slug IS the URL — /apps/<name> and /a/<org>/<name>/ change
+// for everyone; request-log history follows the slug. The next `small deploy`
+// from a small.toml still carrying the old name creates a fresh app.
+async function apiAppRename(req, env, user, name) {
+  const app = await appForUser(env, user, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!app.canEdit) return json({ error: 'only owner or edit members can rename' }, 403);
+  const next = String((await req.json()).name || '').trim().toLowerCase();
+  if (!/^[a-z0-9-]{1,40}$/.test(next)) return json({ error: 'name must be [a-z0-9-]' }, 400);
+  if (next === app.name) return json({ ok: true, name: next });
+  const dupe = await env.DB.prepare('SELECT 1 FROM apps WHERE org = ? AND name = ?').bind(app.org, next).first();
+  if (dupe) return json({ error: `${next} already exists (maybe in the Trash)` }, 400);
+  await env.DB.prepare('UPDATE apps SET name = ? WHERE id = ?').bind(next, app.id).run();
+  try {
+    await env.DB.prepare('UPDATE request_logs SET slug = ? WHERE org = ? AND slug = ?').bind(next, app.org, app.name).run();
+  } catch {} // request_logs ships with the request-logs feature branch — absent on fresh local DBs
+  return json({ ok: true, name: next });
+}
+
+// Delete = Trash. The row is stamped deleted_at and disappears everywhere (appRow
+// filters it); the Fly app stays until the 30-day purge so Restore is instant.
+// Owner only — stricter than canEdit; edit members can change an app, not delete it.
+async function apiAppDelete(env, user, name) {
+  const app = await appForUser(env, user, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (app.owner_email !== user.email) return json({ error: 'only the owner can delete an app' }, 403);
+  await env.DB.prepare("UPDATE apps SET deleted_at = datetime('now') WHERE id = ?").bind(app.id).run();
+  return json({ ok: true });
+}
+
+async function apiTrash(env, user) {
+  const { results } = await env.DB.prepare(
+    'SELECT name, kind, owner_email, deleted_at FROM apps WHERE org = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC'
+  ).bind(user.org).all();
+  return json({ trash: results, email: user.email });
+}
+
+async function apiAppRestore(env, user, name) {
+  const app = await env.DB.prepare('SELECT * FROM apps WHERE org = ? AND name = ? AND deleted_at IS NOT NULL')
+    .bind(user.org, name).first();
+  if (!app) return json({ error: `nothing named ${name} in the trash` }, 404);
+  if (app.owner_email !== user.email) return json({ error: 'only the owner can restore an app' }, 403);
+  await env.DB.prepare('UPDATE apps SET deleted_at = NULL WHERE id = ?').bind(app.id).run();
+  return json({ ok: true });
+}
+
+// The 30-day purge: destroy the Fly app for real and drop every row.
+async function purgeApp(env, app) {
+  try {
+    await destroyFlyApp(env, app.fly_app);
+  } catch (e) {
+    console.log(`purge: fly delete failed for ${app.fly_app}: ${e.message}`); // retried next tick
+    return;
+  }
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM run_logs WHERE run_id IN (SELECT run_id FROM runs WHERE app_id = ?)').bind(app.id),
+    env.DB.prepare('DELETE FROM runs WHERE app_id = ?').bind(app.id),
+    env.DB.prepare('DELETE FROM members WHERE app_id = ?').bind(app.id),
+    env.DB.prepare('DELETE FROM app_teams WHERE app_id = ?').bind(app.id),
+    env.DB.prepare('DELETE FROM deploys WHERE app_id = ?').bind(app.id),
+    env.DB.prepare('DELETE FROM request_logs WHERE org = ? AND slug = ?').bind(app.org, app.name),
+    env.DB.prepare('DELETE FROM apps WHERE id = ?').bind(app.id),
+  ]);
+}
+
+// ---------- Folders + teams (dashboard) ----------
+// ponytail: any org member can create folders/teams and move apps — org-internal
+// organization, not an access boundary; lock down if it ever bites.
+
+async function apiFolderCreate(req, env, user) {
+  const { name } = await req.json();
+  if (!name || !/^[\w][\w &-]{0,40}$/.test(name)) return json({ error: 'folder name must be 1-40 word characters' }, 400);
+  await env.DB.prepare('INSERT INTO folders (org, name) VALUES (?, ?) ON CONFLICT(org, name) DO NOTHING').bind(user.org, name.trim()).run();
+  const f = await env.DB.prepare('SELECT id, name FROM folders WHERE org = ? AND name = ?').bind(user.org, name.trim()).first();
+  return json({ ok: true, folder: f });
+}
+
+async function apiFolderRename(req, env, user, id) {
+  const { name } = await req.json();
+  if (!name || !/^[\w][\w &-]{0,40}$/.test(name)) return json({ error: 'folder name must be 1-40 word characters' }, 400);
+  const dupe = await env.DB.prepare('SELECT 1 FROM folders WHERE org = ? AND name = ? AND id != ?').bind(user.org, name.trim(), id).first();
+  if (dupe) return json({ error: `a folder named ${name.trim()} already exists` }, 400);
+  await env.DB.prepare('UPDATE folders SET name = ? WHERE id = ? AND org = ?').bind(name.trim(), id, user.org).run();
+  return json({ ok: true });
+}
+
+// Share/unshare a folder with a person or #team. UNIQUE can't dedupe NULL pairs,
+// so it's delete-then-insert.
+async function apiFolderShare(req, env, user, id) {
+  const folder = await env.DB.prepare('SELECT id FROM folders WHERE id = ? AND org = ?').bind(id, user.org).first();
+  if (!folder) return json({ error: 'no such folder' }, 404);
+  const { email, team, role, remove } = await req.json();
+  let teamId = null;
+  if (team) {
+    const t = await teamRow(env, user.org, team);
+    if (!t) return json({ error: `no team #${teamName(team)} — create it first` }, 404);
+    teamId = t.id;
+  } else if (!email || !email.includes('@')) {
+    return json({ error: 'an email or a #team is required' }, 400);
+  }
+  const em = teamId ? null : email.toLowerCase();
+  await env.DB.prepare('DELETE FROM folder_shares WHERE folder_id = ? AND email IS ? AND team_id IS ?').bind(id, em, teamId).run();
+  if (!remove) {
+    await env.DB.prepare('INSERT INTO folder_shares (folder_id, email, team_id, role) VALUES (?, ?, ?, ?)')
+      .bind(id, em, teamId, role === 'edit' ? 'edit' : 'view').run();
+  }
+  return json({ ok: true });
+}
+
+async function apiFolderDelete(env, user, id) {
+  await env.DB.prepare('UPDATE apps SET folder_id = NULL WHERE folder_id = ? AND org = ?').bind(id, user.org).run();
+  await env.DB.prepare('DELETE FROM folder_shares WHERE folder_id = ?').bind(id).run();
+  await env.DB.prepare('DELETE FROM folders WHERE id = ? AND org = ?').bind(id, user.org).run();
+  return json({ ok: true });
+}
+
+async function apiTeams(env, user) {
+  const { results } = await env.DB.prepare(
+    'SELECT t.name, group_concat(tm.email) AS emails FROM teams t LEFT JOIN team_members tm ON tm.team_id = t.id WHERE t.org = ? GROUP BY t.id ORDER BY t.name'
+  ).bind(user.org).all();
+  return json({ teams: results.map((t) => ({ name: t.name, members: t.emails ? t.emails.split(',').sort() : [] })) });
+}
+
+async function apiTeamCreate(req, env, user) {
+  const { name } = await req.json();
+  const n = teamName(name);
+  if (!/^[a-z0-9-]{1,30}$/.test(n)) return json({ error: 'team name must be #[a-z0-9-], max 30' }, 400);
+  await env.DB.prepare('INSERT INTO teams (org, name) VALUES (?, ?) ON CONFLICT(org, name) DO NOTHING').bind(user.org, n).run();
+  return json({ ok: true, team: n });
+}
+
+// The org's people pool: everyone added on /members, plus everyone already visible
+// through shares (owners, direct members, group members). Groups may only contain these.
+async function knownEmail(env, org, email) {
+  const row = await env.DB.prepare(
+    `SELECT 1 AS ok WHERE EXISTS (SELECT 1 FROM org_members WHERE org = ?1 AND email = ?2)
+        OR EXISTS (SELECT 1 FROM apps WHERE org = ?1 AND owner_email = ?2)
+        OR EXISTS (SELECT 1 FROM members m JOIN apps a ON a.id = m.app_id WHERE a.org = ?1 AND m.email = ?2)
+        OR EXISTS (SELECT 1 FROM team_members tm JOIN teams t ON t.id = tm.team_id WHERE t.org = ?1 AND tm.email = ?2)`
+  ).bind(org, email).first();
+  return !!row;
+}
+
+async function apiOrgMembers(req, env, user) {
+  if (req.method === 'POST') {
+    const { email, remove } = await req.json();
+    if (!email || !email.includes('@')) return json({ error: 'valid email required' }, 400);
+    if (remove) {
+      await env.DB.prepare('DELETE FROM org_members WHERE org = ? AND email = ?').bind(user.org, email.toLowerCase()).run();
+    } else {
+      await env.DB.prepare('INSERT INTO org_members (org, email) VALUES (?, ?) ON CONFLICT(org, email) DO NOTHING').bind(user.org, email.toLowerCase()).run();
+    }
+    return json({ ok: true });
+  }
+  const { results: added } = await env.DB.prepare('SELECT email FROM org_members WHERE org = ? ORDER BY email').bind(user.org).all();
+  const { results: known } = await env.DB.prepare(
+    `SELECT owner_email AS email FROM apps WHERE org = ?1
+     UNION SELECT m.email FROM members m JOIN apps a ON a.id = m.app_id WHERE a.org = ?1
+     UNION SELECT tm.email FROM team_members tm JOIN teams t ON t.id = tm.team_id WHERE t.org = ?1
+     UNION SELECT email FROM org_members WHERE org = ?1
+     ORDER BY email`
+  ).bind(user.org).all();
+  return json({ members: known.map((r) => r.email), added: added.map((r) => r.email) });
+}
+
+async function apiTeamMembers(req, env, user, name) {
+  const t = await teamRow(env, user.org, name);
+  if (!t) return json({ error: `no team #${teamName(name)}` }, 404);
+  const { email, remove } = await req.json();
+  if (!email || !email.includes('@')) return json({ error: 'valid email required' }, 400);
+  if (remove) {
+    await env.DB.prepare('DELETE FROM team_members WHERE team_id = ? AND email = ?').bind(t.id, email.toLowerCase()).run();
+  } else {
+    // groups only hold people the org already knows — add them on /members first
+    if (!(await knownEmail(env, user.org, email.toLowerCase())))
+      return json({ error: `${email.toLowerCase()} isn't in Members yet — add them there first` }, 400);
+    await env.DB.prepare('INSERT INTO team_members (team_id, email) VALUES (?, ?) ON CONFLICT(team_id, email) DO NOTHING').bind(t.id, email.toLowerCase()).run();
+  }
+  return json({ ok: true });
+}
+
+async function apiTeamRename(req, env, user, name) {
+  const t = await teamRow(env, user.org, name);
+  if (!t) return json({ error: `no team #${teamName(name)}` }, 404);
+  const next = teamName((await req.json()).name);
+  if (!/^[a-z0-9-]{1,30}$/.test(next)) return json({ error: 'team name must be #[a-z0-9-], max 30' }, 400);
+  if (await teamRow(env, user.org, next)) return json({ error: `#${next} already exists` }, 400);
+  await env.DB.prepare('UPDATE teams SET name = ? WHERE id = ?').bind(next, t.id).run();
+  return json({ ok: true, team: next });
+}
+
+async function apiTeamDelete(env, user, name) {
+  const t = await teamRow(env, user.org, name);
+  if (!t) return json({ error: `no team #${teamName(name)}` }, 404);
+  await env.DB.prepare('DELETE FROM app_teams WHERE team_id = ?').bind(t.id).run();
+  await env.DB.prepare('DELETE FROM folder_shares WHERE team_id = ?').bind(t.id).run();
+  await env.DB.prepare('DELETE FROM team_members WHERE team_id = ?').bind(t.id).run();
+  await env.DB.prepare('DELETE FROM teams WHERE id = ?').bind(t.id).run();
+  return json({ ok: true });
 }
 
 async function apiUnshare(req, env, user) {
-  const { app: name, email } = await req.json();
+  const { app: name, email, team } = await req.json();
   const app = await appForUser(env, user, name);
   if (!app) return json({ error: `no app named ${name}` }, 404);
   if (!app.canEdit) return json({ error: 'only owner or edit members can unshare' }, 403);
+  if (team) {
+    const t = await teamRow(env, user.org, team);
+    if (t) await env.DB.prepare('DELETE FROM app_teams WHERE app_id = ? AND team_id = ?').bind(app.id, t.id).run();
+    return json({ ok: true });
+  }
   await env.DB.prepare('DELETE FROM members WHERE app_id = ? AND email = ?').bind(app.id, String(email || '').toLowerCase()).run();
   return json({ ok: true });
 }
@@ -661,7 +970,9 @@ async function loginPage(req, env, baseUrl) {
     if (!env.TEST_BYPASS_SECRET) return html('<p>Email is not configured on this control plane.</p>', 503);
     return html(`<h2>Test instance</h2><p>Dev sign-in link:</p><p><a href="${link}">${link}</a></p>`);
   }
-  return html(`<h2>Sign in to small</h2><form method=post><input name=email type=email placeholder=you@company.com required autofocus> <button>Send link</button></form>`);
+  return html(
+    `<div style="font-weight:600;color:#37352F">&#9679; small</div><h2>Sign in</h2><form method=post><input name=email type=email placeholder=you@company.com required autofocus><button>Email me a link</button></form><p style="font-size:14px">We’ll send a link. No password.</p>`
+  );
 }
 
 async function authRedirect(req, env) {
@@ -769,7 +1080,31 @@ export default {
         const appPath = path.match(/^\/api\/apps\/([a-z0-9-]+)$/);
         if (appPath && req.method === 'GET') return await apiAppGet(env, user, appPath[1], baseUrl);
         if (appPath && req.method === 'PATCH') return await apiAppPatch(req, env, user, appPath[1]);
+        if (appPath && req.method === 'DELETE') return await apiAppDelete(env, user, appPath[1]);
+        if (path === '/api/trash' && req.method === 'GET') return await apiTrash(env, user);
+        const restorePath = path.match(/^\/api\/apps\/([a-z0-9-]+)\/restore$/);
+        if (restorePath && req.method === 'POST') return await apiAppRestore(env, user, restorePath[1]);
+        const dupPath = path.match(/^\/api\/apps\/([a-z0-9-]+)\/duplicate$/);
+        if (dupPath && req.method === 'POST') return await apiAppDuplicate(env, user, dupPath[1], baseUrl);
+        const renPath = path.match(/^\/api\/apps\/([a-z0-9-]+)\/rename$/);
+        if (renPath && req.method === 'POST') return await apiAppRename(req, env, user, renPath[1]);
         if (path === '/api/unshare' && req.method === 'POST') return await apiUnshare(req, env, user);
+        if (path === '/api/folders' && req.method === 'POST') return await apiFolderCreate(req, env, user);
+        const folderDel = path.match(/^\/api\/folders\/(\d+)\/delete$/);
+        if (folderDel && req.method === 'POST') return await apiFolderDelete(env, user, Number(folderDel[1]));
+        const folderRen = path.match(/^\/api\/folders\/(\d+)\/rename$/);
+        if (folderRen && req.method === 'POST') return await apiFolderRename(req, env, user, Number(folderRen[1]));
+        const folderShr = path.match(/^\/api\/folders\/(\d+)\/share$/);
+        if (folderShr && req.method === 'POST') return await apiFolderShare(req, env, user, Number(folderShr[1]));
+        if (path === '/api/teams' && req.method === 'GET') return await apiTeams(env, user);
+        if (path === '/api/teams' && req.method === 'POST') return await apiTeamCreate(req, env, user);
+        if (path === '/api/members' && (req.method === 'GET' || req.method === 'POST')) return await apiOrgMembers(req, env, user);
+        const teamMembers = path.match(/^\/api\/teams\/([a-z0-9-]+)\/members$/);
+        if (teamMembers && req.method === 'POST') return await apiTeamMembers(req, env, user, teamMembers[1]);
+        const teamRen = path.match(/^\/api\/teams\/([a-z0-9-]+)\/rename$/);
+        if (teamRen && req.method === 'POST') return await apiTeamRename(req, env, user, teamRen[1]);
+        const teamDel = path.match(/^\/api\/teams\/([a-z0-9-]+)\/delete$/);
+        if (teamDel && req.method === 'POST') return await apiTeamDelete(env, user, teamDel[1]);
         if (path === '/api/runbook' && req.method === 'PUT') return await apiRunbookSave(req, env, user);
         if (path === '/api/logs' && req.method === 'GET') return await apiLogs(req, env, user);
         if (path === '/api/request-logs' && req.method === 'GET') return await apiRequestLogs(req, env, user);
@@ -778,6 +1113,11 @@ export default {
         if (path === '/api/review/run' && req.method === 'POST') return await apiReviewRun(req, env, user);
         return json({ error: 'no such endpoint' }, 404);
       }
+      if (path === '/logout')
+        return new Response(null, {
+          status: 302,
+          headers: { Location: '/login', 'Set-Cookie': `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0` },
+        });
       if (path === '/login') return await loginPage(req, env, baseUrl);
       if (path === '/auth') return await authRedirect(req, env);
       if (path === '/test/session' && req.method === 'POST') return await testSession(req, env);
@@ -804,6 +1144,11 @@ export default {
       // 7-day request-log retention. Cutoff formatted with 'T' to match the guard's ISO timestamps.
       // ponytail: retention fixed at 7 days — make it a per-app column when someone needs more
       await env.DB.prepare("DELETE FROM request_logs WHERE ts < strftime('%Y-%m-%dT%H:%M:%S', 'now', '-7 days')").run();
+      // Trash retention: 30 days, then the Fly app and every row go for good.
+      const { results: expired } = await env.DB.prepare(
+        "SELECT * FROM apps WHERE deleted_at IS NOT NULL AND deleted_at < datetime('now', '-30 days')"
+      ).all();
+      for (const app of expired) await purgeApp(env, app);
       return;
     }
     // Every-minute tick. scheduledTime is the tick's nominal minute even when
@@ -812,7 +1157,7 @@ export default {
     // ponytail: no catch-up after downtime — a missed minute is just missed.
     const tick = Math.floor(event.scheduledTime / 60000) * 60; // unix seconds, floored to the minute
     const { results } = await env.DB.prepare(
-      "SELECT * FROM apps WHERE kind = 'job' AND schedule IS NOT NULL AND schedule_paused = 0 AND image IS NOT NULL"
+      "SELECT * FROM apps WHERE kind = 'job' AND schedule IS NOT NULL AND schedule_paused = 0 AND image IS NOT NULL AND deleted_at IS NULL"
     ).all();
     for (const app of results) {
       let parsed;

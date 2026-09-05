@@ -1,21 +1,23 @@
-import { useEffect, useState } from 'react';
-import { AppWindow, ArrowUpRight, Clock, Loader2, Play, Square, SquareTerminal } from 'lucide-react';
-import { ago, api, cronHuman, navigate } from './api.js';
+import { useState } from 'react';
+import { ArrowUpRight, Clock, Inbox, Loader2, PanelRight, Play, Search, Square } from 'lucide-react';
+import { ago, api, cronHuman, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
-import { Avatar, Button, Pill } from './ui.jsx';
-
-const KindIcon = ({ kind }) =>
-  kind === 'job' ? <SquareTerminal size={14} className="shrink-0 text-ink-2" /> : <AppWindow size={14} className="shrink-0 text-ink-2" />;
+import Shell from './Shell.jsx';
+import { Avatar, EmptyState, IconBtn, Input, KindIcon, Pill, PillButton, SkeletonRows } from './ui.jsx';
 
 const people = (a) => [a.owner_email, ...(a.members || []).map((m) => m.email).filter((e) => e !== a.owner_email)];
 
+const td = 'h-8 border-b border-line px-2 text-sm whitespace-nowrap';
+const th = 'h-8 border-b border-line px-2 text-left text-xs font-normal text-ink-2';
+
 export default function App() {
-  const [data, setData] = useState(null); // { org, email, apps } | { error }
+  return <Shell>{(data, load) => <AppContent data={data} load={load} />}</Shell>;
+}
+
+function AppContent({ data, load }) {
   const [panel, setPanel] = useState(null); // { name, tab }
   const [run, setRun] = useState(null); // { appName, id?, error? }
-
-  const load = () => api('/api/apps').then(setData).catch((e) => setData({ error: e.message }));
-  useEffect(() => { load(); }, []);
+  const [search, setSearch] = useState(null); // null = collapsed, string = open
 
   const startRun = async (app) => {
     setPanel({ name: app.name, tab: 'run' });
@@ -36,146 +38,172 @@ export default function App() {
 
   const apps = data?.apps || [];
   const org = data?.org || 'small';
+  // ?s=shared / ?s=private — the sidebar section labels filter this overview
+  const section = new URLSearchParams(window.location.search).get('s');
+  const title = section === 'shared' ? 'Shared' : section === 'private' ? 'Private' : 'Apps';
+  const sectionApps = section ? apps.filter((a) => sectionOf(a, org, data?.email) === section) : apps;
+  const rows = search ? sectionApps.filter((a) => a.name.toLowerCase().includes(search.toLowerCase())) : sectionApps;
   const panelApp = panel && apps.find((a) => a.name === panel.name);
   const runningId = (a) =>
     (run?.appName === a.name && !run.error && (run.id || 'starting')) ||
     (a.lastRun?.status === 'running' && a.lastRun.runId) || null;
 
   return (
-    <div className="flex h-screen">
-      <aside className="w-60 shrink-0 overflow-y-auto border-r border-line bg-side px-2 py-3 max-md:hidden">
-        <div className="px-2 pb-4 text-sm font-semibold">{org}</div>
-        <div className="px-2 pb-1 text-xs font-medium text-ink-2">Apps</div>
-        {apps.map((a) => (
-          <button
-            key={a.name}
-            onClick={() => navigate(`/apps/${a.name}`)}
-            className="flex w-full cursor-pointer items-center gap-1.5 rounded-sm px-2 py-1 text-left text-sm hover:bg-hover"
-          >
-            <KindIcon kind={a.kind} />
-            <span className="truncate">{a.name}</span>
-          </button>
-        ))}
-      </aside>
-
+    <>
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-[900px] px-24 py-12 max-lg:px-8 max-md:px-4 max-md:py-6">
+        <div className="max-w-[1150px] px-24 py-12 max-lg:px-8 max-md:px-4 max-md:py-6">
           <div className="pb-8 text-sm text-ink-2">
-            {org} <span className="px-1">/</span> <span className="text-ink">Apps</span>
+            <button onClick={() => navigate('/apps')} className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink">{wsName(org)}</button>
+            <span className="px-1">/</span> <span className="text-ink">{title}</span>
           </div>
-          <h1 className="pb-4 text-[18px] font-semibold">Apps</h1>
+          <h1 className="pb-5 text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{title}</h1>
 
+          {!data && <SkeletonRows rows={4} />}
           {data?.error && <div className="text-ink-2">✗ {data.error}</div>}
           {data && !data.error && apps.length === 0 && (
-            <div className="text-ink-2">
+            <EmptyState icon={Inbox}>
               No apps yet — <code className="rounded-sm bg-hover px-1.5 py-0.5 text-xs">small deploy</code> ships the first one.{' '}
               <a className="text-accent hover:underline" href="https://www.npmjs.com/package/small-deploy" target="_blank" rel="noreferrer">
                 Get the CLI
               </a>
-            </div>
+            </EmptyState>
           )}
 
           {apps.length > 0 && (
-            <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-line text-left text-xs whitespace-nowrap text-ink-2">
-                  <th className="h-8 pr-3 pl-1 font-normal">Name</th>
-                  <th className="h-8 pr-3 font-normal">Kind</th>
-                  <th className="h-8 pr-3 font-normal">Schedule</th>
-                  <th className="h-8 pr-3 font-normal">Visibility</th>
-                  <th className="h-8 pr-3 font-normal">Members</th>
-                  <th className="h-8 pr-3 font-normal">Last deployed</th>
-                  <th className="h-8 pr-3 font-normal">Last run</th>
-                  <th className="h-8 pr-1 font-normal"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {apps.map((a) => {
-                  const live = runningId(a);
-                  return (
-                    <tr
-                      key={a.name}
-                      onClick={() => setPanel({ name: a.name, tab: 'runbook' })}
-                      className="group h-9 cursor-pointer whitespace-nowrap hover:bg-hover"
-                    >
-                      <td className="rounded-l-sm pr-3 pl-1">
-                        <span className="flex items-center gap-1.5 font-medium">
-                          <KindIcon kind={a.kind} />
-                          <button
-                            className="cursor-pointer hover:underline"
-                            onClick={(e) => { e.stopPropagation(); navigate(`/apps/${a.name}`); }}
-                          >
-                            {a.name}
-                          </button>
-                        </span>
-                      </td>
-                      <td className="pr-3"><Pill>{a.kind}</Pill></td>
-                      <td className="pr-3">
-                        {a.schedule ? (
-                          <Pill
-                            className={a.schedule_paused ? 'gap-1 opacity-60 line-through' : 'gap-1'}
-                            title={`cron ${a.schedule} (UTC)${a.schedule_paused ? ' — paused' : ''}`}
-                          >
-                            <Clock size={10} />
-                            {cronHuman(a.schedule)}
-                          </Pill>
-                        ) : (
-                          <span className="text-ink-2">{a.kind === 'job' ? '—' : ''}</span>
-                        )}
-                      </td>
-                      <td className="pr-3"><Pill>{a.visibility}</Pill></td>
-                      <td className="pr-3">
-                        <span className="flex items-center">
-                          {people(a).slice(0, 4).map((e, i) => <Avatar key={e} email={e} className={i ? '-ml-1.5' : ''} />)}
-                          {people(a).length > 4 && (
-                            <span className="-ml-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-hover text-[10px] text-ink-2 ring-1 ring-white">
-                              +{people(a).length - 4}
-                            </span>
-                          )}
-                        </span>
-                      </td>
-                      <td className="pr-3 text-ink-2">{ago(a.deployed_at || a.created_at)}</td>
-                      <td className="pr-3 text-ink-2">
-                        {a.kind !== 'job' || (!live && !a.lastRun) ? (a.kind === 'job' ? '—' : '') : live ? (
-                          <span className="flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> running</span>
-                        ) : (
-                          `${a.lastRun.status === 'finished' ? '✓' : '✗'} ${ago(a.lastRun.startedAt)}`
-                        )}
-                      </td>
-                      <td className="rounded-r-sm pr-1 text-right">
-                        {a.kind === 'job' ? (
-                          live ? (
-                            <Button
-                              disabled={live === 'starting'}
-                              title="stop this run"
-                              onClick={(e) => { e.stopPropagation(); stopRun(live); }}
+            <>
+              <div className="flex h-8 items-center justify-end">
+                {search === null ? (
+                  <IconBtn title="Search" onClick={() => setSearch('')}>
+                    <Search size={16} strokeWidth={1.5} />
+                  </IconBtn>
+                ) : (
+                  <div className="w-48">
+                    <Input
+                      autoFocus
+                      value={search}
+                      placeholder="Search apps…"
+                      onChange={(e) => setSearch(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Escape' && setSearch(null)}
+                      onBlur={() => !search && setSearch(null)}
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="whitespace-nowrap">
+                    <th className={th}>Name</th>
+                    <th className={th}>Kind</th>
+                    <th className={th}>Access</th>
+                    <th className={th}>People</th>
+                    <th className={th}>Deployed</th>
+                    <th className={th}>Last run</th>
+                    <th className={th}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((a) => {
+                    const live = runningId(a);
+                    return (
+                      <tr
+                        key={`${a.org}/${a.name}`}
+                        onClick={() => setPanel({ name: a.name, tab: 'runbook' })}
+                        className="group cursor-pointer hover:bg-hover"
+                      >
+                        <td className={td}>
+                          <span className="flex items-center gap-1.5 font-medium">
+                            <KindIcon kind={a.kind} schedule={a.schedule} />
+                            <button
+                              className="cursor-pointer hover:underline"
+                              onClick={(e) => { e.stopPropagation(); navigate(`/apps/${a.name}`); }}
                             >
-                              <Square size={11} fill="currentColor" /> Stop
-                            </Button>
+                              {a.name}
+                            </button>
+                          </span>
+                        </td>
+                        <td className={td}>
+                          <span className="flex items-center gap-1.5">
+                            <Pill color={a.kind === 'job' ? 'blue' : 'grey'}>{a.kind}</Pill>
+                            {a.schedule && (
+                              <Pill
+                                className={a.schedule_paused ? 'opacity-60 line-through' : ''}
+                                title={`cron ${a.schedule} (UTC)${a.schedule_paused ? ' — paused' : ''}`}
+                              >
+                                <Clock size={10} />
+                                {cronHuman(a.schedule)}
+                              </Pill>
+                            )}
+                          </span>
+                        </td>
+                        <td className={`${td} text-ink-2`}>
+                          {a.visibility === 'private' ? 'only shared' : `anyone @${a.org.replace(/-/g, '.')}`}
+                        </td>
+                        <td className={td}>
+                          <span className="flex items-center">
+                            {people(a).slice(0, 4).map((e, i) => <Avatar key={e} email={e} className={i ? '-ml-1.5' : ''} />)}
+                            {people(a).length > 4 && (
+                              <span className="-ml-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-hover text-[10px] text-ink-2 ring-1 ring-white">
+                                +{people(a).length - 4}
+                              </span>
+                            )}
+                          </span>
+                        </td>
+                        <td className={`${td} text-ink-2`} title={fmtTime(a.deployed_at || a.created_at)}>
+                          {ago(a.deployed_at || a.created_at)}
+                        </td>
+                        <td className={`${td} text-ink-2`}>
+                          {a.kind !== 'job' || (!live && !a.lastRun) ? (a.kind === 'job' ? '—' : '') : live ? (
+                            <span className="flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> running</span>
                           ) : (
-                            <Button onClick={(e) => { e.stopPropagation(); startRun(a); }}>
-                              <Play size={13} /> Run
-                            </Button>
-                          )
-                        ) : (
-                          <a
-                            href={a.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex h-7 items-center gap-1 rounded-sm px-2 text-ink-2 hover:bg-white hover:text-ink"
-                          >
-                            Open <ArrowUpRight size={13} />
-                          </a>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            </div>
+                            `${a.lastRun.status === 'finished' ? '✓' : '✗'} ${ago(a.lastRun.startedAt)}`
+                          )}
+                        </td>
+                        <td className={`${td} text-right`}>
+                          <span className="inline-flex items-center gap-1">
+                            <PillButton
+                              title="Open in side peek"
+                              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                              onClick={(e) => { e.stopPropagation(); setPanel({ name: a.name, tab: 'runbook' }); }}
+                            >
+                              <PanelRight size={11} /> Open
+                            </PillButton>
+                            {a.kind === 'job' ? (
+                              live ? (
+                                <PillButton
+                                  disabled={live === 'starting'}
+                                  title="Stop this run"
+                                  onClick={(e) => { e.stopPropagation(); stopRun(live); }}
+                                >
+                                  <Square size={10} fill="currentColor" /> Stop
+                                </PillButton>
+                              ) : (
+                                <PillButton title="Run now" onClick={(e) => { e.stopPropagation(); startRun(a); }}>
+                                  <Play size={11} /> Run
+                                </PillButton>
+                              )
+                            ) : (
+                              <a
+                                href={a.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Open the app"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-ink-2 hover:bg-white hover:text-ink"
+                              >
+                                <ArrowUpRight size={14} />
+                              </a>
+                            )}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              </div>
+              <div className="flex h-7 items-center px-2 text-xs text-ink-3">Count {rows.length}</div>
+            </>
           )}
         </div>
       </main>
@@ -186,12 +214,11 @@ export default function App() {
           tab={panel.tab}
           run={run?.appName === panelApp.name ? run : (panelApp.lastRun?.status === 'running' ? { appName: panelApp.name, id: panelApp.lastRun.runId } : null)}
           onTab={(t) => setPanel({ ...panel, tab: t })}
-          onRunbookSaved={(name, text) =>
-            setData((d) => ({ ...d, apps: d.apps.map((x) => (x.name === name ? { ...x, runbook: text } : x)) }))}
+          onRunbookSaved={() => load()}
           onRunSettled={() => { setRun(null); load(); }}
           onClose={() => setPanel(null)}
         />
       )}
-    </div>
+    </>
   );
 }

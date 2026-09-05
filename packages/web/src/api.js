@@ -1,3 +1,16 @@
+// "gmail-com" reads like a slug; the workspace shows as "Gmail".
+export const wsName = (org) => ((org || '').split('-')[0] || org || '').replace(/^./, (c) => c.toUpperCase());
+
+// Which sidebar section an app belongs to: workspace Apps, Shared, or Private.
+// Private is strictly personal — a private app that has ANY shares lives in Shared
+// (for the owner too, like Notion), and only unshared-private apps offer no Share button.
+export const sectionOf = (a, org, email) => {
+  if (a.org !== org) return 'shared';
+  if (a.visibility !== 'private') return 'apps';
+  const shared = (a.members?.length || 0) > 0 || (a.team_count || 0) > 0;
+  return a.owner_email === email && !shared ? 'private' : 'shared';
+};
+
 // Two pages don't need a router dep: pushState + a popstate event the root listens to.
 export function navigate(to) {
   window.history.pushState(null, '', to);

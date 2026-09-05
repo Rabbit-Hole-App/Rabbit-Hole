@@ -25,12 +25,59 @@ CREATE TABLE IF NOT EXISTS apps (
   repo_public INTEGER,
   deployed_at TEXT,
   runbook TEXT,
+  folder_id INTEGER,
+  deleted_at TEXT,
   UNIQUE(org, name)
 );
 -- migrating an existing DB:
 --   ALTER TABLE apps ADD COLUMN kind TEXT NOT NULL DEFAULT 'server';
 --   ALTER TABLE apps ADD COLUMN image TEXT;
---   (web dashboard columns: migrations/0003-web.sql, 0004-stop.sql)
+--   (web dashboard columns: migrations/0003-web.sql, 0004-stop.sql, 0005-folders-teams.sql)
+
+-- Dashboard sidebar folders — org-wide, purely organizational.
+CREATE TABLE IF NOT EXISTS folders (
+  id INTEGER PRIMARY KEY,
+  org TEXT NOT NULL,
+  name TEXT NOT NULL,
+  UNIQUE(org, name)
+);
+
+-- People added on /members without any share yet — the pool groups draw from.
+CREATE TABLE IF NOT EXISTS org_members (
+  org TEXT NOT NULL,
+  email TEXT NOT NULL,
+  UNIQUE(org, email)
+);
+
+-- Share a whole folder with a person or a #team — a live grant over every app
+-- currently (or later) filed in it.
+CREATE TABLE IF NOT EXISTS folder_shares (
+  folder_id INTEGER NOT NULL REFERENCES folders(id),
+  email TEXT,
+  team_id INTEGER REFERENCES teams(id),
+  role TEXT NOT NULL DEFAULT 'view',
+  UNIQUE(folder_id, email, team_id)
+);
+
+-- Teams: #finance shares as a live reference — add someone to the team later and
+-- they gain access to everything shared with it.
+CREATE TABLE IF NOT EXISTS teams (
+  id INTEGER PRIMARY KEY,
+  org TEXT NOT NULL,
+  name TEXT NOT NULL,
+  UNIQUE(org, name)
+);
+CREATE TABLE IF NOT EXISTS team_members (
+  team_id INTEGER NOT NULL REFERENCES teams(id),
+  email TEXT NOT NULL,
+  UNIQUE(team_id, email)
+);
+CREATE TABLE IF NOT EXISTS app_teams (
+  app_id INTEGER NOT NULL REFERENCES apps(id),
+  team_id INTEGER NOT NULL REFERENCES teams(id),
+  role TEXT NOT NULL DEFAULT 'view',
+  UNIQUE(app_id, team_id)
+);
 
 CREATE TABLE IF NOT EXISTS members (
   app_id INTEGER NOT NULL REFERENCES apps(id),
