@@ -8,6 +8,14 @@
         "value": "inter",
         "createdAt": "2026-09-05T00:24:55.311Z",
         "reason": "pre-existing html() helper deliberately matches the Notion look the whole product mirrors; no webfont loaded - stack falls back to system-ui"
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "packages/web/src/Shell.jsx"
+        ],
+        "createdAt": "2026-09-05T22:26:24.741Z"
       }
     ]
   }
