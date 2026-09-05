@@ -81,6 +81,7 @@ function S3Input({ app, value, onChange, onBlur, error, label }) {
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(-1);
   const timer = useRef(null);
+  const focused = useRef(false); // a slow list response must not reopen after blur/Esc
   const look = (v) => {
     clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
@@ -88,7 +89,7 @@ function S3Input({ app, value, onChange, onBlur, error, label }) {
         // browse from the very first click: empty/partial uris list buckets server-side
         const d = await api(`/api/apps/${app.name}/s3-list?uri=${encodeURIComponent(/^s3:\/\/[^/]+\//.test(v) ? v : '')}`);
         setItems(d.items || []);
-        setOpen(true);
+        setOpen(focused.current);
         setHi(-1);
       } catch { setItems([]); setOpen(false); }
     }, 250);
@@ -109,13 +110,19 @@ function S3Input({ app, value, onChange, onBlur, error, label }) {
   const shown = /^s3:\/\/[^/]*$/.test(value) && value.length > 5
     ? items.filter((it) => it.uri.startsWith(value))
     : items;
+  const ext = (value.match(/^s3:\/\/[^/]+\/.+\.(\w+)$/i) || [])[1]?.toLowerCase();
+  const preview = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext) ? 'image'
+    : ext === 'pdf' ? 'pdf'
+    : ['json', 'txt', 'csv'].includes(ext) ? 'text'
+    : null;
   return (
     <div className="relative">
       <Input
         value={value}
+        title={value || undefined}
         onChange={(e) => { onChange(e.target.value); look(e.target.value); }}
-        onFocus={() => look(value)}
-        onBlur={() => { setTimeout(() => setOpen(false), 150); onBlur?.(); }}
+        onFocus={() => { focused.current = true; look(value); }}
+        onBlur={() => { focused.current = false; setTimeout(() => setOpen(false), 150); onBlur?.(); }}
         onKeyDown={(e) => {
           if (!open) return;
           if (e.key === 'ArrowDown') { e.preventDefault(); setHi((h) => Math.min(h + 1, shown.length - 1)); }
@@ -155,8 +162,39 @@ function S3Input({ app, value, onChange, onBlur, error, label }) {
           ))}
         </div>
       )}
+      {/* picked something previewable? render it under the field (proxied through the app's role);
+          the open dropdown overlays it, so no need to gate on it */}
+      {preview && <S3Preview app={app} uri={value} kind={preview} />}
     </div>
   );
+}
+
+// Inline preview by extension: images and pdf render, small json/txt/csv show as
+// a code block. The proxy refuses anything else or oversized — we just go quiet.
+function S3Preview({ app, uri, kind }) {
+  const url = `/api/apps/${app.name}/s3-object?uri=${encodeURIComponent(uri)}`;
+  const [text, setText] = useState(null);
+  useEffect(() => {
+    setText(null);
+    if (kind !== 'text') return;
+    let stop = false;
+    fetch(url).then((r) => (r.ok ? r.text() : null)).then((t) => !stop && setText(t)).catch(() => {});
+    return () => { stop = true; };
+  }, [url, kind]);
+  if (kind === 'image') {
+    return (
+      <img
+        src={url}
+        alt=""
+        className="mt-2 max-h-[200px] max-w-full rounded-sm border border-line"
+        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        onLoad={(e) => { e.currentTarget.style.display = ''; }}
+      />
+    );
+  }
+  if (kind === 'pdf') return <embed src={url} type="application/pdf" className="mt-2 h-[280px] w-full rounded-sm border border-line" />;
+  if (text == null) return null;
+  return <CodeBlock className="mt-2 max-h-[200px] overflow-y-auto">{text}</CodeBlock>;
 }
 
 // ─── Run tab (flow.md §3b): the form generated from [inputs]. ───

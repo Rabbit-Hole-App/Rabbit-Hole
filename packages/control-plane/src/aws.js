@@ -50,6 +50,32 @@ export async function s3List(env, creds, bucket, prefix) {
   return { dirs, files };
 }
 
+// GetObject with STS session creds — the dashboard's s3:// image preview.
+export async function s3Get(env, creds, bucket, key) {
+  const region = env.AWS_REGION || 'us-east-1';
+  const host = `${bucket}.s3.${region}.amazonaws.com`;
+  const enc = (s) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+  const uriPath = '/' + key.split('/').map(enc).join('/');
+  const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+  const date = amzDate.slice(0, 8);
+  const payloadHash = await sha256hex('');
+  const signedHeaders = 'host;x-amz-content-sha256;x-amz-date;x-amz-security-token';
+  const canonical = `GET\n${uriPath}\n\nhost:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\nx-amz-security-token:${creds.SessionToken}\n\n${signedHeaders}\n${payloadHash}`;
+  const scope = `${date}/${region}/s3/aws4_request`;
+  const toSign = `AWS4-HMAC-SHA256\n${amzDate}\n${scope}\n${await sha256hex(canonical)}`;
+  let sk = te.encode('AWS4' + creds.SecretAccessKey);
+  for (const part of [date, region, 's3', 'aws4_request']) sk = await hmac(sk, part);
+  const signature = hex(await hmac(sk, toSign));
+  return fetch(`https://${host}${uriPath}`, {
+    headers: {
+      'X-Amz-Date': amzDate,
+      'X-Amz-Content-Sha256': payloadHash,
+      'X-Amz-Security-Token': creds.SessionToken,
+      Authorization: `AWS4-HMAC-SHA256 Credential=${creds.AccessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+    },
+  });
+}
+
 // ListAllMyBuckets — used for the autocomplete's initial browse. Roles often
 // deny this; callers treat a throw as "no bucket list, fall back".
 export async function s3Buckets(env, creds) {

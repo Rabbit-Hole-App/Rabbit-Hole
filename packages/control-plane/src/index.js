@@ -2,7 +2,7 @@
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, sha256, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
-import { assumeRole, s3Buckets, s3List } from './aws.js';
+import { assumeRole, s3Buckets, s3Get, s3List } from './aws.js';
 import { runReview, generateRunbook } from './review.js';
 import { parseCron, matches, nextRun } from './cron.js';
 import SHELL from '../../web/dist/index.html';
@@ -471,6 +471,37 @@ async function apiS3List(req, env, user, name) {
         ...dirs.map((p) => ({ uri: `s3://${m[1]}/${p}`, dir: true })),
         ...files.map((f) => ({ uri: `s3://${m[1]}/${f.key}`, size: f.size })),
       ],
+    });
+  } catch (e) {
+    return json({ error: e.message }, 502);
+  }
+}
+
+// Preview for the Run form: proxy one S3 object through the app's role.
+// Images/pdf up to 5 MB, text-ish (json/txt/csv) up to 64 KB — a preview pipe,
+// not a download service; anything else is refused.
+async function apiS3Object(req, env, user, name) {
+  const app = await appForUser(env, user, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!app.canView) return json({ error: 'no access' }, 403);
+  if (!app.aws_role_arn) return json({ error: `${name} has no [aws] role` }, 400);
+  const uri = new URL(req.url).searchParams.get('uri') || '';
+  const m = uri.match(/^s3:\/\/([a-z0-9.-]{3,63})\/(.+)$/);
+  const TYPES = {
+    jpg: ['image/jpeg', 5e6], jpeg: ['image/jpeg', 5e6], png: ['image/png', 5e6],
+    gif: ['image/gif', 5e6], webp: ['image/webp', 5e6], pdf: ['application/pdf', 5e6],
+    json: ['application/json', 65536], txt: ['text/plain', 65536], csv: ['text/csv', 65536],
+  };
+  const [type, cap] = (m && TYPES[(m[2].match(/\.(\w+)$/) || [])[1]?.toLowerCase()]) || [];
+  if (!type) return json({ error: 'no preview for this file type' }, 400);
+  try {
+    const creds = await assumeRole(env, app.aws_role_arn, `small-s3get-${user.org}`, app.org);
+    const resp = await s3Get(env, creds, m[1], m[2]);
+    if (!resp.ok) return json({ error: `s3 get failed (${resp.status})` }, 502);
+    const size = Number(resp.headers.get('Content-Length') || 0);
+    if (size > cap) return json({ error: 'too large to preview' }, 413);
+    return new Response(resp.body, {
+      headers: { 'Content-Type': type, 'Content-Length': String(size), 'Content-Disposition': 'inline', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=60' },
     });
   } catch (e) {
     return json({ error: e.message }, 502);
@@ -1216,6 +1247,8 @@ export default {
         if (reqAccess && req.method === 'POST') return await apiRequestAccess(env, user, reqAccess[1], baseUrl);
         const s3ListPath = path.match(/^\/api\/apps\/([a-z0-9-]+)\/s3-list$/);
         if (s3ListPath && req.method === 'GET') return await apiS3List(req, env, user, s3ListPath[1]);
+        const s3ObjPath = path.match(/^\/api\/apps\/([a-z0-9-]+)\/s3-object$/);
+        if (s3ObjPath && req.method === 'GET') return await apiS3Object(req, env, user, s3ObjPath[1]);
         const appPath = path.match(/^\/api\/apps\/([a-z0-9-]+)$/);
         if (appPath && req.method === 'GET') return await apiAppGet(env, user, appPath[1], baseUrl);
         if (appPath && req.method === 'PATCH') return await apiAppPatch(req, env, user, appPath[1]);
