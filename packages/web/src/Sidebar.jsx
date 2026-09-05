@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ChevronDown, ChevronRight, ChevronsLeft, Copy, ExternalLink, Folder, FolderPlus, Link, LogOut, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Trash2, Users, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AlertTriangle, Bell, ChevronDown, ChevronRight, ChevronsLeft, Copy, ExternalLink, Folder, FolderPlus, Link, LogOut, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, wsName } from './api.js';
 import { Avatar, Button, cn, ConfirmDialog, IconBtn, KindIcon, Menu, MenuItem, Select, ShareInput, SlidePanel, toast } from './ui.jsx';
 
@@ -55,6 +55,18 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
   ]).then(([people, teams]) => setPool({ people, teams }));
   const [wsMenu, setWsMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [watchObs, setWatchObs] = useState([]);
+  const [watchOpen, setWatchOpen] = useState(false);
+  const [watchMenu, setWatchMenu] = useState(null);
+  const loadWatch = () => api('/api/watch').then((d) => setWatchObs(d.observations || [])).catch(() => {});
+  useEffect(() => { loadWatch(); }, []);
+  const dismissObs = async (id, days) => {
+    setWatchMenu(null);
+    try {
+      await api(`/api/watch/${id}/dismiss`, { method: 'POST', body: JSON.stringify({ days }) });
+      loadWatch();
+    } catch (e) { toast(`✗ ${e.message}`); }
+  };
   const [trashOpen, setTrashOpen] = useState(false);
   const [trash, setTrash] = useState(null); // { trash: [...], email }
   const path = window.location.pathname;
@@ -343,6 +355,54 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
         Search
         <span className="ml-auto text-xs text-ink-3">Ctrl K</span>
       </div>
+
+      {/* Watch notifications — badge shows open observations, click opens the list */}
+      <div
+        onClick={() => { setWatchOpen(true); loadWatch(); }}
+        className="flex h-7 cursor-pointer items-center gap-2 rounded-sm px-2 text-sm hover:bg-hover"
+      >
+        <Bell size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
+        Notifications
+        {watchObs.length > 0 && (
+          <span className="ml-auto inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warn px-1 text-[10px] font-semibold text-white">
+            {watchObs.length}
+          </span>
+        )}
+      </div>
+      {watchOpen && (
+        <SlidePanel title="Notifications" width={440} onClose={() => setWatchOpen(false)}>
+          <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+            {watchObs.length === 0 && <div className="pt-2 text-sm text-ink-2">Nothing to report — Watch runs nightly.</div>}
+            {watchObs.map((o) => (
+              <div key={o.id} className="flex items-start gap-2 border-b border-line py-2.5 text-sm">
+                <AlertTriangle size={15} strokeWidth={1.5} className="mt-0.5 shrink-0 text-warn" />
+                <div className="min-w-0 flex-1">
+                  <button
+                    onClick={() => { setWatchOpen(false); navigate(`/apps/${o.slug}`); }}
+                    className="cursor-pointer font-medium hover:underline"
+                  >
+                    {o.slug}
+                  </button>
+                  <div className="text-ink-2">{o.text}</div>
+                  <div className="pt-0.5 text-xs text-ink-3">{o.check} · {ago(o.last_seen)}</div>
+                </div>
+                <div className="relative shrink-0">
+                  <button
+                    onMouseDown={(e) => { e.stopPropagation(); setWatchMenu(watchMenu === o.id ? null : o.id); }}
+                    className="cursor-pointer rounded-sm px-1.5 py-0.5 text-xs text-ink-2 hover:bg-hover hover:text-ink"
+                  >
+                    Dismiss ▾
+                  </button>
+                  <Menu open={watchMenu === o.id} onClose={() => setWatchMenu(null)} className="top-6 right-0 w-32">
+                    <MenuItem onClick={() => dismissObs(o.id, 30)}>30 days</MenuItem>
+                    <MenuItem onClick={() => dismissObs(o.id, null)}>Forever</MenuItem>
+                  </Menu>
+                </div>
+              </div>
+            ))}
+          </div>
+        </SlidePanel>
+      )}
 
       {sectionLabel('Apps', null, (
         <span className="flex items-center gap-0.5">
