@@ -5,7 +5,10 @@ import App from './App.jsx';
 import MembersPage from './Members.jsx';
 import SearchModal from './Search.jsx';
 import SharePage from './SharePage.jsx';
+import { applyTheme, getTheme } from './api.js';
 import { Toasts } from './ui.jsx';
+
+applyTheme(getTheme()); // before first paint — no light flash for dark users
 
 // /apps (list), /apps/<slug> (app page), /apps/<slug>/runs/<id> (run page),
 // /members; /dash aliases /apps (see the control-plane cache note). No router dep.

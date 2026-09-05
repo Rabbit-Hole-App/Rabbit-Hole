@@ -1,7 +1,35 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, ChevronsLeft, Copy, ExternalLink, Folder, FolderPlus, Link, LogOut, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Trash2, Users, X } from 'lucide-react';
-import { ago, api, navigate, sectionOf, wsName } from './api.js';
-import { Avatar, Button, cn, ConfirmDialog, IconBtn, KindIcon, Menu, MenuItem, ShareInput, SlidePanel, toast } from './ui.jsx';
+import { ago, api, getTheme, navigate, sectionOf, setTheme, wsName } from './api.js';
+import { Avatar, Button, cn, ConfirmDialog, IconBtn, KindIcon, Menu, MenuItem, Select, ShareInput, SlidePanel, toast } from './ui.jsx';
+
+// Settings (workspace dropdown → Settings): Appearance only for now, Notion-style.
+const THEMES = { System: 'system', Light: 'light', Dark: 'dark' };
+function SettingsDialog({ onClose }) {
+  const [theme, setThemeState] = useState(() => getTheme());
+  const label = Object.keys(THEMES).find((k) => THEMES[k] === theme);
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={onClose}>
+      <div className="mt-[24vh] w-[420px] max-w-[90vw] rounded-md bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between pb-3">
+          <div className="text-sm font-semibold">Settings</div>
+          <IconBtn aria-label="Close" onClick={onClose}><X size={14} /></IconBtn>
+        </div>
+        <div className="grid grid-cols-[160px_1fr] items-center gap-x-4 py-1">
+          <div>
+            <div className="text-sm font-medium">Appearance</div>
+            <div className="text-xs text-ink-2">How the dashboard looks on this device.</div>
+          </div>
+          <Select
+            value={label}
+            options={Object.keys(THEMES)}
+            onChange={(k) => { setThemeState(THEMES[k]); setTheme(THEMES[k]); }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Notion-style sidebar: workspace row, search, folders (drag apps in), recent, members.
 // Resizable by dragging the right edge (200–400px).
@@ -26,6 +54,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
     api('/api/teams').then((d) => d.teams).catch(() => []),
   ]).then(([people, teams]) => setPool({ people, teams }));
   const [wsMenu, setWsMenu] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
   const [trash, setTrash] = useState(null); // { trash: [...], email }
   const path = window.location.pathname;
@@ -274,12 +303,13 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
             <span className="min-w-0 truncate text-xs text-ink-2">{email}</span>
           </div>
           <div className="my-1 border-t border-line" />
-          <MenuItem icon={Settings} onClick={() => { setWsMenu(false); toast('Settings — coming soon'); }}>Settings</MenuItem>
+          <MenuItem icon={Settings} onClick={() => { setWsMenu(false); setShowSettings(true); }}>Settings</MenuItem>
           <MenuItem icon={Plus} onClick={() => { setWsMenu(false); toast('One workspace per email domain for now'); }}>New workspace</MenuItem>
           <div className="my-1 border-t border-line" />
           <MenuItem icon={LogOut} onClick={() => { window.location.href = '/logout'; }}>Log out</MenuItem>
         </Menu>
       </div>
+      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
 
       <div
         onClick={() => window.dispatchEvent(new CustomEvent('small:search'))}

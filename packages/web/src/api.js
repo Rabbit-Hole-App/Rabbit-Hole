@@ -11,6 +11,17 @@ export const sectionOf = (a, org, email) => {
   return a.owner_email === email && !shared ? 'private' : 'shared';
 };
 
+// Appearance (Settings modal): 'system' | 'light' | 'dark', persisted locally.
+export const getTheme = () => localStorage.getItem('small.theme') || 'system';
+export function applyTheme(t) {
+  const dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.classList.toggle('dark', dark);
+}
+export function setTheme(t) {
+  localStorage.setItem('small.theme', t);
+  applyTheme(t);
+}
+
 // Two pages don't need a router dep: pushState + a popstate event the root listens to.
 export function navigate(to) {
   window.history.pushState(null, '', to);
