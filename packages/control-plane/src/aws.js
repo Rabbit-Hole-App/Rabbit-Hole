@@ -50,6 +50,34 @@ export async function s3List(env, creds, bucket, prefix) {
   return { dirs, files };
 }
 
+// ListAllMyBuckets — used for the autocomplete's initial browse. Roles often
+// deny this; callers treat a throw as "no bucket list, fall back".
+export async function s3Buckets(env, creds) {
+  const region = env.AWS_REGION || 'us-east-1';
+  const host = `s3.${region}.amazonaws.com`;
+  const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+  const date = amzDate.slice(0, 8);
+  const payloadHash = await sha256hex('');
+  const signedHeaders = 'host;x-amz-content-sha256;x-amz-date;x-amz-security-token';
+  const canonical = `GET\n/\n\nhost:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\nx-amz-security-token:${creds.SessionToken}\n\n${signedHeaders}\n${payloadHash}`;
+  const scope = `${date}/${region}/s3/aws4_request`;
+  const toSign = `AWS4-HMAC-SHA256\n${amzDate}\n${scope}\n${await sha256hex(canonical)}`;
+  let key = te.encode('AWS4' + creds.SecretAccessKey);
+  for (const part of [date, region, 's3', 'aws4_request']) key = await hmac(key, part);
+  const signature = hex(await hmac(key, toSign));
+  const resp = await fetch(`https://${host}/`, {
+    headers: {
+      'X-Amz-Date': amzDate,
+      'X-Amz-Content-Sha256': payloadHash,
+      'X-Amz-Security-Token': creds.SessionToken,
+      Authorization: `AWS4-HMAC-SHA256 Credential=${creds.AccessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+    },
+  });
+  const text = await resp.text();
+  if (!resp.ok) throw new Error((text.match(/<Message>([^<]*)<\/Message>/) || [])[1] || `list buckets failed (${resp.status})`);
+  return [...text.matchAll(/<Name>([^<]*)<\/Name>/g)].map((m) => m[1]);
+}
+
 export async function assumeRole(env, roleArn, sessionName, externalId) {
   const region = env.AWS_REGION || 'us-east-1';
   const host = `sts.${region}.amazonaws.com`;

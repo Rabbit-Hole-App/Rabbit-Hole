@@ -2,7 +2,7 @@
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, sha256, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
-import { assumeRole, s3List } from './aws.js';
+import { assumeRole, s3Buckets, s3List } from './aws.js';
 import { runReview, generateRunbook } from './review.js';
 import { parseCron, matches, nextRun } from './cron.js';
 import SHELL from '../../web/dist/index.html';
@@ -447,9 +447,24 @@ async function apiS3List(req, env, user, name) {
   if (!app.aws_role_arn) return json({ error: `${name} has no [aws] role` }, 400);
   const uri = new URL(req.url).searchParams.get('uri') || '';
   const m = uri.match(/^s3:\/\/([a-z0-9.-]{3,63})\/(.*)$/);
-  if (!m) return json({ items: [] }); // nothing listable until s3://bucket/ is typed
   try {
     const creds = await assumeRole(env, app.aws_role_arn, `small-s3ls-${user.org}`, app.org);
+    if (!m) {
+      // browse mode (empty field / partial bucket): ListBuckets if the role may,
+      // else the buckets this app's past runs actually used
+      let buckets = [];
+      try {
+        buckets = await s3Buckets(env, creds);
+      } catch {
+        const { results } = await env.DB.prepare(
+          "SELECT inputs FROM runs WHERE app_id = ? AND inputs LIKE '%s3://%' ORDER BY id DESC LIMIT 50"
+        ).bind(app.id).all();
+        const seen = new Set();
+        for (const r of results) for (const b of String(r.inputs).matchAll(/s3:\/\/([a-z0-9.-]{3,63})/g)) seen.add(b[1]);
+        buckets = [...seen];
+      }
+      return json({ items: buckets.map((b) => ({ uri: `s3://${b}/`, dir: true })) });
+    }
     const { dirs, files } = await s3List(env, creds, m[1], m[2]);
     return json({
       items: [

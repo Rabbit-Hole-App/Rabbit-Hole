@@ -2,9 +2,9 @@
 // and the runs database (Logs tab, jobs). Design: design/flow.md §3b/3c/§4. ───
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowUpDown, Calendar, Circle, Clock, Copy as CopyIcon, Download, Eye, File as FileIcon,
-  Filter as FilterIcon, Folder, Hash, Inbox, Loader2, Maximize2, Paperclip, Play, Plus,
-  Search as SearchIcon, Type, User, X,
+  ArrowLeft, ArrowUpDown, Calendar, Circle, Clock, Copy as CopyIcon, Download, Eye,
+  File as FileIcon, Filter as FilterIcon, Folder, Hash, Inbox, Loader2, Maximize2, Paperclip,
+  Play, Plus, Search as SearchIcon, Type, User, X,
 } from 'lucide-react';
 import { ago, api, fmtTime, navigate } from './api.js';
 import {
@@ -83,21 +83,32 @@ function S3Input({ app, value, onChange, onBlur, error, label }) {
   const timer = useRef(null);
   const look = (v) => {
     clearTimeout(timer.current);
-    if (!/^s3:\/\/[^/]+\//.test(v)) { setItems([]); setOpen(false); return; }
     timer.current = setTimeout(async () => {
       try {
-        const d = await api(`/api/apps/${app.name}/s3-list?uri=${encodeURIComponent(v)}`);
+        // browse from the very first click: empty/partial uris list buckets server-side
+        const d = await api(`/api/apps/${app.name}/s3-list?uri=${encodeURIComponent(/^s3:\/\/[^/]+\//.test(v) ? v : '')}`);
         setItems(d.items || []);
-        setOpen((d.items || []).length > 0);
+        setOpen(true);
         setHi(-1);
       } catch { setItems([]); setOpen(false); }
-    }, 300);
+    }, 250);
   };
   const pick = (it) => {
     onChange(it.uri);
     if (it.dir) look(it.uri);
     else { setOpen(false); setItems([]); }
   };
+  // ← one level up: s3://b/x/y/ → s3://b/x/ → s3://b/ → bucket list
+  const atRoot = !/^s3:\/\/[^/]+\//.test(value);
+  const up = () => {
+    const parent = value.replace(/[^/]+\/?$/, '');
+    onChange(/^s3:\/\/[^/]*\/?$/.test(parent) && !/^s3:\/\/[^/]+\/$/.test(parent) ? '' : parent);
+    look(parent);
+  };
+  // while typing a bare bucket name, filter the browse list client-side
+  const shown = /^s3:\/\/[^/]*$/.test(value) && value.length > 5
+    ? items.filter((it) => it.uri.startsWith(value))
+    : items;
   return (
     <div className="relative">
       <Input
@@ -107,18 +118,28 @@ function S3Input({ app, value, onChange, onBlur, error, label }) {
         onBlur={() => { setTimeout(() => setOpen(false), 150); onBlur?.(); }}
         onKeyDown={(e) => {
           if (!open) return;
-          if (e.key === 'ArrowDown') { e.preventDefault(); setHi((h) => Math.min(h + 1, items.length - 1)); }
+          if (e.key === 'ArrowDown') { e.preventDefault(); setHi((h) => Math.min(h + 1, shown.length - 1)); }
           else if (e.key === 'ArrowUp') { e.preventDefault(); setHi((h) => Math.max(h - 1, -1)); }
-          else if (e.key === 'Enter' && hi >= 0 && items[hi]) { e.preventDefault(); pick(items[hi]); }
+          else if (e.key === 'Enter' && hi >= 0 && shown[hi]) { e.preventDefault(); pick(shown[hi]); }
           else if (e.key === 'Escape') setOpen(false);
         }}
         placeholder="s3://bucket/key"
         className={error ? 'border-danger' : undefined}
         aria-label={label}
       />
-      {open && (
-        <div className="absolute right-0 left-0 z-20 mt-1 max-h-56 overflow-y-auto rounded-md bg-white p-1 shadow-pop">
-          {items.map((it, i) => (
+      {open && (shown.length > 0 || !atRoot) && (
+        // w-max: suggestions grow past the 320px control so full uris stay readable
+        <div className="absolute left-0 z-20 mt-1 max-h-56 w-max min-w-full max-w-[600px] overflow-y-auto rounded-md bg-white p-1 shadow-pop">
+          {!atRoot && (
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); up(); }}
+              className="flex h-8 w-full items-center gap-2 rounded-sm px-2 text-left text-sm text-ink-2 hover:bg-hover"
+            >
+              <ArrowLeft size={16} strokeWidth={1.5} className="shrink-0 text-ink-3" /> Back
+            </button>
+          )}
+          {shown.map((it, i) => (
             <button
               key={it.uri}
               type="button"
