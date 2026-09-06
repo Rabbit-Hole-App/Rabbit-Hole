@@ -1,0 +1,130 @@
+{
+  "id": "nms",
+  "title": "Non-Maximum Suppression",
+  "screens": [
+    { "id": 1, "kind": "whiteboard", "title": "the problem" },
+    { "id": 2, "kind": "whiteboard", "title": "measuring overlap" },
+    { "id": 3, "kind": "whiteboard", "title": "the algorithm" },
+    { "id": 4, "kind": "code", "clears": true, "title": "the code" }
+  ],
+  "beats": [
+    {
+      "screen": 1,
+      "voice": "A detector doesn't give you one box per object. It gives you a pile of them.",
+      "caption": "A detector gives you a pile of boxes, not one per object.",
+      "strokes": [
+        { "type": "text", "x": 80, "y": 60, "size": 56, "color": "#37352F", "text": "Non-Maximum Suppression", "at": 0.2, "dur": 1.6 },
+        { "type": "path", "color": "#37352F", "width": 3.5, "at": 1.9, "dur": 2.9, "points": [[665,240],[640,270],[560,262],[460,258],[380,264],[352,242],[356,206],[342,192],[322,200],[300,212],[272,224],[270,240],[290,252],[318,258],[340,286],[344,300],[338,420],[360,424],[366,320],[460,330],[540,326],[536,420],[558,424],[566,330],[600,310],[640,288],[665,240]] }
+      ]
+    },
+    {
+      "screen": 1,
+      "voice": "Here, one dog earns three boxes, each with its own confidence score.",
+      "caption": "One dog, three boxes — each with its own confidence score.",
+      "strokes": [
+        { "type": "rect", "x": 250, "y": 170, "w": 430, "h": 290, "color": "#2383E2", "width": 3, "at": 0.2, "dur": 1.0 },
+        { "type": "text", "x": 255, "y": 128, "size": 30, "color": "#2383E2", "text": "0.91", "at": 1.3, "dur": 0.5 },
+        { "type": "rect", "x": 300, "y": 215, "w": 400, "h": 230, "color": "#2383E2", "width": 3, "at": 1.9, "dur": 0.9 },
+        { "type": "text", "x": 712, "y": 215, "size": 30, "color": "#2383E2", "text": "0.74", "at": 2.9, "dur": 0.5 },
+        { "type": "rect", "x": 215, "y": 145, "w": 395, "h": 335, "color": "#2383E2", "width": 3, "at": 3.5, "dur": 0.9 },
+        { "type": "text", "x": 130, "y": 488, "size": 30, "color": "#2383E2", "text": "0.62", "at": 4.5, "dur": 0.5 },
+        { "type": "text", "x": 640, "y": 494, "size": 34, "color": "#37352F", "text": "one dog. three boxes.", "at": 5.1, "dur": 1.2 }
+      ]
+    },
+    {
+      "screen": 2,
+      "voice": "To clean this up, we first need a way to measure how much two boxes overlap.",
+      "caption": "First we need a way to measure how much two boxes overlap.",
+      "strokes": [
+        { "type": "text", "x": 1060, "y": 60, "size": 40, "color": "#37352F", "text": "measuring overlap", "at": 0.2, "dur": 1.1 },
+        { "type": "rect", "x": 1050, "y": 140, "w": 300, "h": 220, "color": "#2383E2", "width": 3, "at": 1.4, "dur": 1.0 },
+        { "type": "text", "x": 1065, "y": 150, "size": 34, "color": "#2383E2", "text": "A", "at": 2.5, "dur": 0.4 },
+        { "type": "rect", "x": 1200, "y": 230, "w": 300, "h": 220, "color": "#2383E2", "width": 3, "at": 3.0, "dur": 1.0 },
+        { "type": "text", "x": 1455, "y": 408, "size": 34, "color": "#2383E2", "text": "B", "at": 4.1, "dur": 0.4 },
+        { "type": "rect", "x": 1200, "y": 230, "w": 150, "h": 130, "color": "#2383E2", "width": 2, "fill": "#2383E2", "fillStyle": "hachure", "noStroke": true, "at": 4.6, "dur": 1.0 }
+      ]
+    },
+    {
+      "screen": 2,
+      "voice": "Intersection over union: the shared area divided by the combined area. Above zero point five, they are the same object.",
+      "caption": "IoU = shared area ÷ combined area. Above 0.5 → same object.",
+      "strokes": [
+        { "type": "text", "x": 1050, "y": 470, "size": 36, "color": "#37352F", "text": "IoU = overlap / union", "at": 0.3, "dur": 1.4 },
+        { "type": "line", "x1": 1050, "y1": 520, "x2": 1435, "y2": 520, "color": "#2383E2", "width": 3, "at": 1.9, "dur": 0.6 },
+        { "type": "text", "x": 1520, "y": 474, "size": 30, "color": "#2383E2", "text": "> 0.5 : same object", "at": 2.7, "dur": 1.1 }
+      ]
+    },
+    {
+      "screen": 3,
+      "voice": "Non-maximum suppression keeps the highest scoring box, and drops every neighbour that overlaps it too much.",
+      "caption": "NMS keeps the top box and drops every overlapping neighbour.",
+      "strokes": [
+        { "type": "text", "x": 80, "y": 552, "size": 40, "color": "#37352F", "text": "keep the max. drop the overlaps.", "at": 0.2, "dur": 1.5 },
+        { "type": "rect", "x": 120, "y": 660, "w": 280, "h": 200, "color": "#2383E2", "width": 4, "at": 1.8, "dur": 1.0 },
+        { "type": "text", "x": 128, "y": 618, "size": 30, "color": "#2383E2", "text": "0.91", "at": 2.8, "dur": 0.4 },
+        { "type": "rect", "x": 180, "y": 700, "w": 300, "h": 176, "color": "#EB5757", "width": 3, "at": 3.3, "dur": 0.9 },
+        { "type": "cross", "x": 180, "y": 700, "w": 300, "h": 176, "color": "#EB5757", "width": 3, "at": 4.2, "dur": 0.7 },
+        { "type": "rect", "x": 96, "y": 622, "w": 240, "h": 160, "color": "#EB5757", "width": 3, "at": 5.0, "dur": 0.9 },
+        { "type": "cross", "x": 96, "y": 622, "w": 240, "h": 160, "color": "#EB5757", "width": 3, "at": 5.9, "dur": 0.7 }
+      ]
+    },
+    {
+      "screen": 3,
+      "voice": "The ledger: zero point nine one wins. The other two overlap the winner heavily, so they are out.",
+      "caption": "0.91 wins. The other two overlap the winner heavily — out.",
+      "strokes": [
+        { "type": "text", "x": 640, "y": 592, "size": 30, "color": "#37352F", "text": "score", "at": 0.2, "dur": 0.4 },
+        { "type": "text", "x": 850, "y": 592, "size": 30, "color": "#37352F", "text": "IoU vs best", "at": 0.6, "dur": 0.6 },
+        { "type": "line", "x1": 640, "y1": 640, "x2": 1310, "y2": 640, "color": "#37352F", "width": 2.5, "at": 1.2, "dur": 0.5 },
+        { "type": "text", "x": 640, "y": 662, "size": 30, "color": "#37352F", "text": "0.91", "at": 1.8, "dur": 0.4 },
+        { "type": "text", "x": 906, "y": 662, "size": 30, "color": "#37352F", "text": "-", "at": 2.2, "dur": 0.2 },
+        { "type": "text", "x": 1150, "y": 662, "size": 30, "color": "#2383E2", "text": "keep", "at": 2.5, "dur": 0.4 },
+        { "type": "text", "x": 640, "y": 722, "size": 30, "color": "#37352F", "text": "0.74", "at": 3.0, "dur": 0.4 },
+        { "type": "text", "x": 890, "y": 722, "size": 30, "color": "#37352F", "text": "0.83", "at": 3.4, "dur": 0.3 },
+        { "type": "text", "x": 1150, "y": 722, "size": 30, "color": "#EB5757", "text": "drop", "at": 3.8, "dur": 0.4 },
+        { "type": "text", "x": 640, "y": 782, "size": 30, "color": "#37352F", "text": "0.62", "at": 4.3, "dur": 0.4 },
+        { "type": "text", "x": 890, "y": 782, "size": 30, "color": "#37352F", "text": "0.71", "at": 4.7, "dur": 0.3 },
+        { "type": "text", "x": 1150, "y": 782, "size": 30, "color": "#EB5757", "text": "drop", "at": 5.1, "dur": 0.4 }
+      ]
+    },
+    {
+      "screen": 3,
+      "voice": "Then repeat with the next best box still standing, until every box is either kept or dropped.",
+      "caption": "Repeat with the next best box until every box is kept or dropped.",
+      "strokes": [
+        { "type": "text", "x": 1420, "y": 592, "size": 32, "color": "#37352F", "text": "repeat with the", "at": 0.3, "dur": 0.8 },
+        { "type": "text", "x": 1420, "y": 640, "size": 32, "color": "#37352F", "text": "next best", "at": 1.1, "dur": 0.6 },
+        { "type": "arrow", "x1": 1480, "y1": 690, "x2": 1340, "y2": 730, "color": "#37352F", "width": 3, "at": 1.9, "dur": 0.8 },
+        { "type": "ellipse", "cx": 1188, "cy": 674, "rx": 92, "ry": 42, "color": "#2383E2", "width": 3, "at": 2.9, "dur": 1.0 }
+      ]
+    },
+    {
+      "screen": 4,
+      "voice": "The whole algorithm is seven lines: sort by score, keep the best, filter the rest.",
+      "caption": "The whole algorithm: sort by score, keep the best, filter the rest.",
+      "strokes": [
+        { "type": "rect", "x": 190, "y": 150, "w": 890, "h": 520, "color": "#37352F", "width": 3, "at": 0.2, "dur": 1.0 },
+        { "type": "code", "x": 240, "y": 200, "size": 38, "color": "#37352F", "at": 1.3, "dur": 4.3, "text": "boxes.sort(by=score, desc=True)\nkeep = []\nwhile boxes:\n    best = boxes.pop(0)\n    keep.append(best)\n    boxes = [b for b in boxes\n             if iou(best, b) < 0.5]" }
+      ]
+    },
+    {
+      "screen": 4,
+      "voice": "This line is the entire trick: a survivor must overlap the winner less than the threshold.",
+      "caption": "The entire trick: survivors must overlap the winner less than 0.5.",
+      "strokes": [
+        { "type": "line", "x1": 530, "y1": 604, "x2": 1000, "y2": 604, "color": "#2383E2", "width": 3, "at": 0.3, "dur": 0.8 },
+        { "type": "text", "x": 1150, "y": 520, "size": 40, "color": "#2383E2", "text": "the whole trick", "at": 1.3, "dur": 1.1 },
+        { "type": "arrow", "x1": 1140, "y1": 560, "x2": 1020, "y2": 598, "color": "#2383E2", "width": 3, "at": 2.5, "dur": 0.7 }
+      ]
+    },
+    {
+      "screen": 4,
+      "voice": "That is non-maximum suppression. Score them, overlap them, keep the best, drop the rest.",
+      "caption": "Score them. Overlap them. Keep the best, drop the rest.",
+      "strokes": [
+        { "type": "text", "x": 1150, "y": 260, "size": 48, "color": "#37352F", "text": "keep the best.", "at": 0.5, "dur": 1.2 },
+        { "type": "text", "x": 1150, "y": 340, "size": 48, "color": "#EB5757", "text": "drop the rest.", "at": 2.0, "dur": 1.2 }
+      ]
+    }
+  ]
+}

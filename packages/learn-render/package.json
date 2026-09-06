@@ -1,0 +1,24 @@
+{
+  "name": "learn-render",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Renders Learn lectures to MP4: rough.js whiteboard scenes in Remotion, Fish Audio voice.",
+  "scripts": {
+    "render": "node scripts/render.mjs",
+    "tts": "node scripts/tts.mjs",
+    "stills": "node scripts/stills.mjs",
+    "test": "node scripts/test.mjs",
+    "studio": "remotion studio src/index.js"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.246",
+    "@remotion/cli": "^4.0.246",
+    "@remotion/media-utils": "^4.0.246",
+    "@remotion/renderer": "^4.0.246",
+    "music-metadata": "^11.0.0",
+    "pngjs": "^7.0.0",
+    "remotion": "^4.0.246",
+    "roughjs": "^4.6.6"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "voice": null,
+  "voiceNote": "Fish Audio reference_id. null = Fish's default voice. With FISH_AUDIO_KEY set, run `node scripts/tts.mjs --voices` to browse the library, then paste an id here.",
+  "model": "speech-1.5",
+  "usdPerMillionBytes": 15
+}

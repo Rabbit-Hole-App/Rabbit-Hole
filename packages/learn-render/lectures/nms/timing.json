@@ -1,0 +1,69 @@
+{
+  "voiced": false,
+  "totalSec": 67.724,
+  "lectureBytes": 895,
+  "fetchedBytes": 0,
+  "fetchedUsd": 0,
+  "beats": [
+    {
+      "screen": 1,
+      "durSec": 5.841,
+      "audio": null,
+      "caption": "A detector gives you a pile of boxes, not one per object."
+    },
+    {
+      "screen": 1,
+      "durSec": 5.29,
+      "audio": null,
+      "caption": "One dog, three boxes — each with its own confidence score."
+    },
+    {
+      "screen": 2,
+      "durSec": 5.841,
+      "audio": null,
+      "caption": "First we need a way to measure how much two boxes overlap."
+    },
+    {
+      "screen": 2,
+      "durSec": 8.807,
+      "audio": null,
+      "caption": "IoU = shared area ÷ combined area. Above 0.5 → same object."
+    },
+    {
+      "screen": 3,
+      "durSec": 7.979,
+      "audio": null,
+      "caption": "NMS keeps the top box and drops every overlapping neighbour."
+    },
+    {
+      "screen": 3,
+      "durSec": 7.221,
+      "audio": null,
+      "caption": "0.91 wins. The other two overlap the winner heavily — out."
+    },
+    {
+      "screen": 3,
+      "durSec": 7.014,
+      "audio": null,
+      "caption": "Repeat with the next best box until every box is kept or dropped."
+    },
+    {
+      "screen": 4,
+      "durSec": 6.255,
+      "audio": null,
+      "caption": "The whole algorithm: sort by score, keep the best, filter the rest."
+    },
+    {
+      "screen": 4,
+      "durSec": 6.807,
+      "audio": null,
+      "caption": "The entire trick: survivors must overlap the winner less than 0.5."
+    },
+    {
+      "screen": 4,
+      "durSec": 6.669,
+      "audio": null,
+      "caption": "Score them. Overlap them. Keep the best, drop the rest."
+    }
+  ]
+}
