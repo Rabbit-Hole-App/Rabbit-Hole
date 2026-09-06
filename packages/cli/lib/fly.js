@@ -9,6 +9,20 @@ function flyctlBin() {
   return fs.existsSync(local) ? local : 'flyctl'; // fall back to PATH
 }
 
+// Deploy calls this FIRST: a missing local binary must fail before anything
+// touches the network or the user's cloud account (a role got created for a
+// deploy that could never succeed - never again).
+function assertInstalled() {
+  const r = spawnSync(flyctlBin(), ['version'], { stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
+  if (r.error && r.error.code === 'ENOENT') {
+    const install = process.platform === 'win32'
+      ? 'pwsh -Command "iwr https://fly.io/install.ps1 -useb | iex"'
+      : 'curl -L https://fly.io/install.sh | sh';
+    throw new Error(`flyctl not installed - small builds on Fly.io remote builders (no Docker needed).\n  install: ${install}\n  then re-run small deploy`);
+  }
+  return ((r.stdout || '').trim().split('\n')[0] || 'flyctl').trim();
+}
+
 function flyEnv(token) {
   return { ...process.env, FLY_API_TOKEN: token, FLY_ACCESS_TOKEN: token, FLY_NO_UPDATE_CHECK: '1' };
 }
@@ -59,4 +73,4 @@ function logs(flyApp, token) {
   run(['logs', '--app', flyApp, '--no-tail'], token);
 }
 
-module.exports = { setSecrets, deploy, buildImage, logs };
+module.exports = { assertInstalled, setSecrets, deploy, buildImage, logs };
