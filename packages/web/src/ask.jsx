@@ -2,7 +2,7 @@
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, AtSign, Copy, History, Loader2, MoreHorizontal, Paperclip, Pencil, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, Copy, Crown, Feather, FileText, Globe, History, Loader2, MoreHorizontal, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
 import { ago, api, wsHeaders } from './api.js';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
@@ -11,6 +11,9 @@ const SOURCE_OPTIONS = {
   run: [['log', 'Log'], ['outputs', 'Outputs'], ['runbook', 'Runbook'], ['review', 'Review'], ['agent', 'AGENT.md']],
   app: [['runs', 'Runs'], ['requests', 'Request log'], ['runbook', 'Runbook'], ['review', 'Review'], ['agent', 'AGENT.md']],
 };
+const SOURCE_ICON = { log: ScrollText, outputs: Package, runs: Play, requests: Globe, runbook: BookOpen, review: Shield, agent: FileText };
+// model rows carry a strength icon + one-word hint (Opus strongest, Haiku fastest)
+const MODEL_META = { auto: [SlidersHorizontal, 'Picks for you'], 'opus-5': [Crown, 'Most capable'], 'sonnet-5': [Zap, 'Balanced'], 'haiku-4.5': [Feather, 'Fastest'] };
 
 // Model picker keys → labels (server holds the allowlist; auto = default).
 const MODELS = [['auto', 'Auto'], ['opus-5', 'Opus 5'], ['sonnet-5', 'Sonnet 5'], ['haiku-4.5', 'Haiku 4.5']];
@@ -515,7 +518,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       {view === 'chat' && (<>
       <div ref={boxRef} className="no-scrollbar min-h-0 flex-1 overflow-y-auto">
         {msgs.length === 0 && !choices && (
-          <div className="flex flex-wrap gap-1.5 py-3">
+          <div className="flex flex-col items-start gap-1.5 py-3">
             {(scope.run
               ? ['What happened in this run?', 'Why did it fail?', 'What changed since the last successful run?']
               : scope.app
@@ -651,15 +654,18 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               </button>
               <Menu open={srcOpen} onClose={() => setSrcOpen(false)} className="bottom-8 left-0 w-64 p-2">
                 <div className="pb-1.5 text-xs font-medium text-ink-2">Sources</div>
-                {srcOpts.map(([k, label]) => (
+                {srcOpts.map(([k, label]) => {
+                  const SI = SOURCE_ICON[k];
+                  return (
                   <div key={k} className="flex h-7 items-center justify-between text-sm">
-                    {label}
+                    <span className="flex items-center gap-2">{SI && <SI size={14} strokeWidth={1.5} className="text-ink-2" />}{label}</span>
                     <Toggle
                       on={srcOn.has(k)}
                       onChange={() => setSrcOn((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; })}
                     />
                   </div>
-                ))}
+                  );
+                })}
                 <div className="pt-1.5 text-xs text-ink-3">The agent only reads what's on here.</div>
               </Menu>
             </div>
@@ -680,10 +686,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             >
               {MODELS.find(([k]) => k === model)?.[1]}
             </button>
-            <Menu open={modelOpen} onClose={() => setModelOpen(false)} className="right-0 bottom-8 w-40">
+            <Menu open={modelOpen} onClose={() => setModelOpen(false)} className="right-0 bottom-8 w-52">
               {MODELS.map(([k, label]) => (
-                <MenuItem key={k} type="button" onClick={() => { setModel(k); setModelOpen(false); }}>
-                  <span className={cn(k === model && 'font-medium')}>{label}</span>
+                <MenuItem key={k} type="button" icon={MODEL_META[k]?.[0]} onClick={() => { setModel(k); setModelOpen(false); }}>
+                  <span className="flex w-full items-center justify-between">
+                    <span className={cn(k === model && 'font-medium')}>{label}</span>
+                    <span className="text-xs text-ink-3">{MODEL_META[k]?.[1]}</span>
+                  </span>
                 </MenuItem>
               ))}
             </Menu>
