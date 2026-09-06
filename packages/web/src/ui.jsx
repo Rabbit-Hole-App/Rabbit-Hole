@@ -348,23 +348,28 @@ export function ConfirmDialog({ title, body, confirmLabel = 'Delete', confirmVar
 }
 
 // ─── Menu - white popover, shadow-pop, 28px items. Closes on outside click. ───
-export function Menu({ open, onClose, className, children }) {
+export function Menu({ open, onClose, className, style, portal = false, children }) {
   useEffect(() => {
     if (!open) return;
     const close = () => onClose();
     // defer so the opening click doesn't immediately close it
     const t = setTimeout(() => document.addEventListener('mousedown', close), 0);
-    return () => { clearTimeout(t); document.removeEventListener('mousedown', close); };
+    // a portaled menu is pinned to viewport coords - scrolling under it must close it
+    if (portal) window.addEventListener('scroll', close, true);
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', close); if (portal) window.removeEventListener('scroll', close, true); };
   }, [open]);
   if (!open) return null;
-  return (
+  const node = (
     <div
       onMouseDown={(e) => e.stopPropagation()}
-      className={cn('absolute z-20 w-60 rounded-md bg-white p-1 shadow-pop animate-[fade-in_100ms_ease-out]', className)}
+      style={style}
+      className={cn(portal ? 'fixed z-50' : 'absolute z-20', 'w-60 rounded-md bg-white p-1 shadow-pop animate-[fade-in_100ms_ease-out]', className)}
     >
       {children}
     </div>
   );
+  // portal escapes overflow-hidden/auto ancestors (settings modal panes etc.)
+  return portal ? createPortal(node, document.body) : node;
 }
 
 // ─── Form controls (design/components.html "Inputs"). One field row: label 200px,
@@ -442,19 +447,26 @@ export function Slider({ min = 0, max = 1, step, value, onChange, inputProps }) 
 // race Menu's outside-mousedown close into a reopen.
 export function Select({ value, options = [], placeholder = 'Select…', onChange }) {
   const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState(null); // trigger position at open time (menu portals to body)
   const [q, setQ] = useState('');
   const shown = q.trim() ? options.filter((o) => String(o).toLowerCase().includes(q.trim().toLowerCase())) : options;
   return (
     <div className="relative">
       <button
         type="button"
-        onMouseDown={(e) => { e.stopPropagation(); setOpen(!open); setQ(''); }}
+        onMouseDown={(e) => { e.stopPropagation(); setRect(e.currentTarget.getBoundingClientRect()); setOpen(!open); setQ(''); }}
         className="flex h-8 w-full cursor-pointer items-center rounded-sm border border-transparent bg-code px-2 pr-7 text-left text-sm transition-[border-color,box-shadow] duration-100 outline-none focus:border-line-strong focus:bg-white focus:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]"
       >
         <span className={cn('min-w-0 flex-1 truncate', value == null || value === '' ? 'text-ink-3' : undefined)}>{value == null || value === '' ? placeholder : String(value)}</span>
         <ChevronDown size={16} strokeWidth={1.5} className="pointer-events-none absolute right-2 text-ink-3" />
       </button>
-      <Menu open={open} onClose={() => setOpen(false)} className="top-9 right-0 left-0 w-auto">
+      <Menu
+        open={open}
+        onClose={() => setOpen(false)}
+        portal
+        className="w-auto"
+        style={rect ? { top: rect.bottom + 4, left: rect.left, minWidth: rect.width } : undefined}
+      >
         {options.length > 6 && (
           <div className="p-1 pb-1.5"><Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" className="h-7" /></div>
         )}
