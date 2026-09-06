@@ -188,7 +188,7 @@ export default function Runbook({ app, canEdit, onSaved }) {
           <SuggestionMenuController
             triggerCharacter="/"
             getItems={async (query) =>
-              filterSuggestionItems([...getDefaultReactSlashMenuItems(editor), insertExcalidraw(editor), insertChart(editor, app.name)], query)}
+              filterSuggestionItems([...getDefaultReactSlashMenuItems(editor).filter((i) => i.group !== 'Media'), insertExcalidraw(editor), insertChart(editor, app.name)], query)}
           />
         </BlockNoteView>
       </div>

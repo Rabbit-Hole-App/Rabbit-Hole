@@ -612,8 +612,40 @@ async function apiRunbookGenerate(env, user, name) {
   const dep = (await env.DB.prepare('SELECT MAX(id) AS id FROM deploys WHERE app_id = ?').bind(app.id).first())?.id;
   const stored = await getBundle(env, app.id, dep);
   if (!stored) return json({ error: 'no stored source for this app - redeploy with a current CLI first' }, 404);
+  // real examples make the page: last good run's inputs plus a few log lines
+  const lastOk = await env.DB.prepare(
+    "SELECT run_id, inputs, started_by FROM runs WHERE app_id = ? AND status = 'finished' ORDER BY id DESC LIMIT 1"
+  ).bind(app.id).first();
+  let logSample = '';
+  if (lastOk) {
+    const { results } = await env.DB.prepare('SELECT line FROM run_logs WHERE run_id = ? ORDER BY seq DESC LIMIT 6').bind(lastOk.run_id).all();
+    logSample = results.map((r) => r.line).reverse().join('\n');
+  }
+  const context = [
+    `App: ${name} (${app.kind})` ,
+    line('description', app.description),
+    line('inputs schema', app.inputs),
+    line('outputs declared', app.outputs),
+    line('schedule (cron, UTC)', app.schedule),
+    `owner: ${app.owner_email}`,
+    lastOk ? `example inputs from a real successful run: ${lastOk.inputs || '(none)'}` : 'no successful runs yet',
+    logSample ? `log lines from that run:
+${logSample}` : null,
+    `SOURCE:
+${String(stored.bundle).slice(0, 60000)}`,
+  ].filter(Boolean).join('\n\n');
   try {
-    return json({ markdown: await generateRunbook(env, stored.bundle) });
+    const md = await askOnce(env, context,
+      'Write a runbook page in Markdown for NON-TECHNICAL teammates. Structure exactly: '
+      + 'a # heading with the app name and one plain-language sentence under it; '
+      + '"## What it does" with 2-3 short bullets, everyday words; '
+      + '"## How to run it" with one bullet per input: its name in bold, what to type, and a realistic example value; '
+      + '"## What you get" with one bullet per output and what is inside it; '
+      + '"## A good run looks like" with 2-4 real log lines in a ``` code block and ONE line under it saying what they mean; '
+      + 'then "## Schedule & owner". '
+      + 'NEVER mention file names, paths, or line numbers. No em dashes. Short lines. '
+      + 'Reply with the Markdown only, no Sources line.', 1200);
+    return json({ markdown: md.replace(/\n+Sources:.*$/is, '').trim() });
   } catch (e) {
     return json({ error: e.message }, 502);
   }
