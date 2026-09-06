@@ -297,7 +297,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const srcOpts = SOURCE_OPTIONS[scopeKind] || [];
   const [srcOn, setSrcOn] = useState(() => new Set(srcOpts.map(([k]) => k)));
   const [srcOpen, setSrcOpen] = useState(false);
-  const [model, setModel] = useState('auto');
+  const [model, setModel] = useState(() => localStorage.getItem('small.askModel') || 'auto'); // Settings > Small AI sets the default
   const [modelOpen, setModelOpen] = useState(false);
   const [appNames, setAppNames] = useState(null); // lazy, for @-mentions
   const threadId = useRef(null);

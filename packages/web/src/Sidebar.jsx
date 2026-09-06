@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, CircleArrowUp, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, LayoutGrid, LayoutPanelLeft, Link, LogOut, Mail, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName } from './api.js';
-import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Menu, MenuItem, Select, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
+import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Select, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
 // left nav (Account / Workspace sections), right content per tab.
@@ -36,11 +36,27 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
   );
   const NavLabel = ({ children }) => <div className="px-2 pt-4 pb-1 text-xs font-medium text-ink-3">{children}</div>;
   const Heading = ({ children }) => <div className="mt-9 border-b border-line pb-2 text-base font-medium">{children}</div>;
-  const TITLES = {
-    mail: 'Mail & Calendar', general: 'General', people: 'People', import: 'Import',
-    ai: 'small AI', mcp: 'small MCP', pages: 'Public pages', emoji: 'Emoji', developer: 'Developer',
-    teamspaces: 'Teamspaces', security: 'Security', identity: 'Identity', billing: 'Upgrade plan',
-  };
+  const TITLES = { mail: 'Mail & Calendar', import: 'Import', mcp: 'Small MCP', pages: 'Public pages', emoji: 'Emoji' };
+  // data behind the wired panes, loaded when their tab opens
+  const [wsInfo, setWsInfo] = useState(null);
+  const [teams, setTeams] = useState(null);
+  const [people, setPeople] = useState(null);
+  const [invite, setInvite] = useState('');
+  const [askModel, setAskModel] = useState(() => localStorage.getItem('small.askModel') || 'auto');
+  useEffect(() => {
+    if ((tab === 'general' || tab === 'people') && !wsInfo) api('/api/workspaces').then(setWsInfo).catch(() => {});
+    if (tab === 'teamspaces' && teams === null) api('/api/teams').then((d) => setTeams(d.teams || [])).catch(() => setTeams([]));
+    if (tab === 'people' && people === null) api('/api/members').then((d) => setPeople(d.members || [])).catch(() => setPeople([]));
+  }, [tab]);
+  const activeWs = wsInfo?.workspaces?.find((w) => w.slug === wsInfo.active);
+  const MODEL_LABELS = { auto: 'Auto', 'opus-5': 'Opus 5', 'sonnet-5': 'Sonnet 5', 'haiku-4.5': 'Haiku 4.5' };
+  const copy = (t) => { navigator.clipboard.writeText(t); toast('Copied'); };
+  const CodeCopy = ({ text }) => (
+    <span className="flex items-center gap-1">
+      <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{text}</code>
+      <IconBtn aria-label="Copy" onClick={() => copy(text)}><Copy size={13} strokeWidth={1.5} /></IconBtn>
+    </span>
+  );
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={onClose}>
       <div className="flex h-[calc(100vh-100px)] max-h-[720px] w-[calc(100vw-100px)] max-w-[1150px] overflow-hidden rounded-2xl bg-white text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
@@ -58,9 +74,9 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
           <NavBtn id="people" icon={Users}>People</NavBtn>
           <NavBtn id="import" icon={Download}>Import</NavBtn>
           <NavLabel>Features</NavLabel>
-          <NavBtn id="ai" icon={AppIcon}>small AI</NavBtn>
+          <NavBtn id="ai" icon={Mark}>Small AI</NavBtn>
           <NavBtn id="connections" icon={LayoutGrid}>Connections</NavBtn>
-          <NavBtn id="mcp" icon={Share2}>small MCP</NavBtn>
+          <NavBtn id="mcp" icon={Share2}>Small MCP</NavBtn>
           <NavBtn id="pages" icon={Globe}>Public pages</NavBtn>
           <NavBtn id="emoji" icon={Smile}>Emoji</NavBtn>
           <NavBtn id="developer" icon={Braces}>Developer</NavBtn>
@@ -132,6 +148,142 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
                   Connect Slack
                 </Button>
               </SettingsRow>
+            </>
+          )}
+          {tab === 'general' && (
+            <>
+              <div className="text-2xl font-semibold">General</div>
+              <div className="pt-2 text-base text-ink-2">The workspace you are in right now</div>
+              <Heading>Workspace</Heading>
+              <SettingsRow title="Name" desc="Shown in the sidebar and breadcrumbs">
+                <span className="text-sm text-ink-2">{activeWs ? (activeWs.name || wsName(activeWs.slug)) : '…'}</span>
+              </SettingsRow>
+              <SettingsRow title="Slug" desc="Its id in app URLs">
+                <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{wsInfo?.active || '…'}</code>
+              </SettingsRow>
+              <SettingsRow title="Type" desc="Domain workspaces include everyone with your email domain; custom ones are invite only">
+                <span className="text-sm text-ink-2">{activeWs?.kind === 'custom' ? 'custom' : 'email domain'}</span>
+              </SettingsRow>
+              {activeWs?.kind === 'custom' && activeWs?.role === 'owner' && (
+                <>
+                  <Heading>People</Heading>
+                  <SettingsRow title="Add someone" desc="They see this workspace next time they open the workspace menu">
+                    <form
+                      className="flex items-center gap-2"
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        try {
+                          await api('/api/workspaces/members', { method: 'POST', body: JSON.stringify({ email: invite }) });
+                          toast(`Added ${invite}`);
+                          setInvite('');
+                        } catch (er) { toast(`✗ ${er.message}`); }
+                      }}
+                    >
+                      <Input value={invite} onChange={(e) => setInvite(e.target.value)} placeholder="teammate@company.com" className="w-56" aria-label="Invite email" />
+                      <Button variant="secondary" size="sm" type="submit" disabled={!invite.includes('@')}>Add</Button>
+                    </form>
+                  </SettingsRow>
+                </>
+              )}
+            </>
+          )}
+          {tab === 'people' && (
+            <>
+              <div className="text-2xl font-semibold">People</div>
+              <div className="pt-2 text-base text-ink-2">Everyone in this workspace</div>
+              <Heading>Members</Heading>
+              {people === null && <div className="pt-3 text-sm text-ink-2">Loading…</div>}
+              {(people || []).slice(0, 10).map((m) => {
+                const em = String(m.email || m);
+                return <div key={em} className="flex h-9 items-center gap-2 text-sm"><Avatar email={em} />{em}</div>;
+              })}
+              {people?.length === 0 && <div className="pt-3 text-sm text-ink-2">Nobody else yet.</div>}
+              <div className="pt-4">
+                <Button variant="secondary" size="sm" onClick={() => { onClose(); navigate('/members'); }}>Open Members</Button>
+              </div>
+            </>
+          )}
+          {tab === 'ai' && (
+            <>
+              <div className="text-2xl font-semibold">Small AI</div>
+              <div className="pt-2 text-base text-ink-2">The agent behind chat, search, diagnosis and Watch</div>
+              <Heading>Chat</Heading>
+              <SettingsRow title="Default model" desc="New chats start on this model; you can still switch per message">
+                <Select
+                  value={MODEL_LABELS[askModel]}
+                  options={Object.values(MODEL_LABELS)}
+                  onChange={(l) => {
+                    const k = Object.keys(MODEL_LABELS).find((x) => MODEL_LABELS[x] === l);
+                    setAskModel(k);
+                    localStorage.setItem('small.askModel', k);
+                  }}
+                />
+              </SettingsRow>
+              <Heading>Always on</Heading>
+              <SettingsRow title="App descriptions" desc="Written from the code on first deploy; click one on an app page to edit it" />
+              <SettingsRow title="Run diagnosis" desc="Every failed run gets a one-line diagnosis under its status" />
+              <SettingsRow title="Watch" desc="A nightly pass files observations to the bell, weekly email and Slack" />
+            </>
+          )}
+          {tab === 'developer' && (
+            <>
+              <div className="text-2xl font-semibold">Developer</div>
+              <div className="pt-2 text-base text-ink-2">Deploy from your terminal</div>
+              <Heading>CLI</Heading>
+              <SettingsRow title="Install" desc="Node 18+"><CodeCopy text="npm i -g small-deploy" /></SettingsRow>
+              <SettingsRow title="Sign in" desc="A one-time code to your email"><CodeCopy text="small login" /></SettingsRow>
+              <SettingsRow title="Ship" desc="From your project directory"><CodeCopy text="small deploy" /></SettingsRow>
+              <Heading>API</Heading>
+              <SettingsRow title="Base URL" desc="The same-origin API this dashboard uses"><CodeCopy text={`${window.location.origin}/api`} /></SettingsRow>
+            </>
+          )}
+          {tab === 'teamspaces' && (
+            <>
+              <div className="text-2xl font-semibold">Teamspaces</div>
+              <div className="pt-2 text-base text-ink-2">Groups you can share apps with, like #finance</div>
+              <Heading>Teams</Heading>
+              {teams === null && <div className="pt-3 text-sm text-ink-2">Loading…</div>}
+              {(teams || []).map((t) => (
+                <div key={t.name} className="flex h-9 items-center gap-2 text-sm">
+                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-hover text-xs text-ink-2">#</span>
+                  {t.name}
+                  <span className="text-xs text-ink-3">{t.members ? `${t.members.length} people` : ''}</span>
+                </div>
+              ))}
+              {teams?.length === 0 && <div className="pt-3 text-sm text-ink-2">No teams yet. Create them on the Members page.</div>}
+              <div className="pt-4">
+                <Button variant="secondary" size="sm" onClick={() => { onClose(); navigate('/members'); }}>Open Members</Button>
+              </div>
+            </>
+          )}
+          {tab === 'security' && (
+            <>
+              <div className="text-2xl font-semibold">Security</div>
+              <div className="pt-2 text-base text-ink-2">Sign-in and sessions</div>
+              <Heading>Sign-in</Heading>
+              <SettingsRow title="Method" desc="A magic link or one-time code to your work email. No passwords stored." />
+              <SettingsRow title="This device" desc="Sign out here">
+                <Button variant="secondary" size="sm" onClick={() => { window.location.href = '/logout'; }}>Log out</Button>
+              </SettingsRow>
+            </>
+          )}
+          {tab === 'identity' && (
+            <>
+              <div className="text-2xl font-semibold">Identity</div>
+              <div className="pt-2 text-base text-ink-2">Who you are here</div>
+              <Heading>Account</Heading>
+              <SettingsRow title="Email" desc="Your sign-in identity"><span className="text-sm text-ink-2">{email}</span></SettingsRow>
+              <SettingsRow title="Home workspace" desc="Everyone with this email domain shares it">
+                <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{email ? email.split('@')[1] : ''}</code>
+              </SettingsRow>
+            </>
+          )}
+          {tab === 'billing' && (
+            <>
+              <div className="text-2xl font-semibold">Upgrade plan</div>
+              <div className="pt-2 text-base text-ink-2">Billing</div>
+              <Heading>Plan</Heading>
+              <SettingsRow title="Beta" desc="small deploy is free while in beta. No card needed." />
             </>
           )}
           {TITLES[tab] && (
