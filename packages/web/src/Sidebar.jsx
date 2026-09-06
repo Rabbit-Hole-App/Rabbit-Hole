@@ -366,8 +366,8 @@ function AiModelSettings() {
     <div className="flex flex-col gap-3 pt-2">
       <SettingsRow title="Provider" desc="Who runs the models behind chat, review, runbook and watch">
         <Select
-          value={bedrock ? 'Your AWS Bedrock' : 'Hosted'}
-          options={['Hosted', 'Your AWS Bedrock']}
+          value={bedrock ? 'Your AWS Bedrock' : 'Claude'}
+          options={['Claude', 'Your AWS Bedrock']}
           onChange={(v) => set('provider', v.includes('Bedrock') ? 'bedrock' : 'anthropic')}
         />
       </SettingsRow>
