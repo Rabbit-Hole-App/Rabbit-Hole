@@ -348,19 +348,24 @@ async function apiReviewRun(req, env, ctx, user) {
   }
   await runReview(env, app.id, bundle, skipped || []);
   // spec (docs/features/runbook.md): the structured runbook regenerates on every
-  // deploy. Async - a slow model must not block the deploy; the visible page only
-  // changes via the Generate button.
-  ctx.waitUntil((async () => {
-    try {
-      const fresh0 = await appRow(env, user.org, name);
-      const deploy = await env.DB.prepare('SELECT * FROM deploys WHERE app_id = ? ORDER BY id DESC LIMIT 1').bind(app.id).first();
-      const stored2 = await getBundle(env, app.id, deploy?.id);
-      if (!stored2) return;
+  // deploy. It needs the fresh review (data_flow) and the agent takes 45-90s,
+  // far past the ~30s waitUntil window that silently killed it before - so it
+  // runs inside this held-open request, like the review itself. The CLI holds
+  // /api/review/run open in parallel with the Fly build, which takes longer.
+  try {
+    const fresh0 = await appRow(env, user.org, name);
+    const deploy = await env.DB.prepare('SELECT * FROM deploys WHERE app_id = ? ORDER BY id DESC LIMIT 1').bind(app.id).first();
+    const stored2 = await getBundle(env, app.id, deploy?.id);
+    if (stored2) {
       const { runbook, warnings } = await buildRunbook(env, fresh0, deploy, stored2, new URL(req.url).origin);
       await env.DB.prepare('UPDATE apps SET runbook_json = ?, runbook_warnings = ? WHERE id = ?')
         .bind(JSON.stringify(runbook), warnings.length ? JSON.stringify(warnings) : null, app.id).run();
-    } catch { /* the runbook refresh is best-effort */ }
-  })());
+    }
+  } catch (e) {
+    // never fail the deploy over the runbook, but leave the reason where Watch and Get can see it
+    await env.DB.prepare('UPDATE apps SET runbook_warnings = ? WHERE id = ?')
+      .bind(JSON.stringify([`runbook generation failed: ${e.message}`]), app.id).run().catch(() => {});
+  }
   // first deploy writes the model's 2-3 line description; user edits stick - only fill when empty
   if (!app.description) {
     try {

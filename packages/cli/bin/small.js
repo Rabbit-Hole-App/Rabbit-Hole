@@ -328,7 +328,8 @@ const commands = {
 
   async run() {
     const name = flags._[0] || appName(process.cwd());
-    if (flags.download) return downloadOutputs(name, typeof flags.download === 'string' ? flags.download : '.');
+    // default ./out matches the printed fetch line and the out/ dockerignore entry
+    if (flags.download) return downloadOutputs(name, typeof flags.download === 'string' ? flags.download : './out');
 
     let cfg = localConfig(name);
     if (cfg) inputs.checkSchema(cfg);

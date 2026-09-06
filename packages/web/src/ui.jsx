@@ -375,7 +375,9 @@ export function Field({ label, help, error, children }) {
       <label className="pt-1.5 text-sm font-medium">{label}</label>
       <div>
         {children}
-        {error ? <div className="mt-1 text-xs text-danger">{error}</div> : help ? <div className="mt-1 text-xs text-ink-2">{help}</div> : null}
+        {/* help may carry a long example uri - let it run past the 320px control
+            column (page space to the right is empty) instead of folding into 3 lines */}
+        {error ? <div className="mt-1 text-xs text-danger">{error}</div> : help ? <div className="mt-1 w-max max-w-xl text-xs break-words text-ink-2">{help}</div> : null}
       </div>
     </div>
   );

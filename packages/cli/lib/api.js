@@ -8,12 +8,18 @@ function apiBase() {
   return process.env.SMALL_API || load().apiBase || DEFAULT_API;
 }
 
+// SMALL_TOKEN lets CI/agents skip the interactive email login: copy the token
+// from ~/.small/config.json on a machine that ran `small login` once.
+function sessionToken() {
+  return process.env.SMALL_TOKEN || load().token;
+}
+
 async function call(method, path, body, { auth = true } = {}) {
   const isForm = body instanceof FormData; // fetch sets the multipart boundary itself
   const headers = isForm ? {} : { 'Content-Type': 'application/json' };
   if (auth) {
-    const { token } = load();
-    if (!token) throw new Error('not logged in - run: small login');
+    const token = sessionToken();
+    if (!token) throw new Error('not logged in - run: small login (or set SMALL_TOKEN)');
     headers.Authorization = `Bearer ${token}`;
   }
   const resp = await fetch(apiBase() + path, {
@@ -28,8 +34,8 @@ async function call(method, path, body, { auth = true } = {}) {
 
 // Binary GET for run outputs - call() assumes JSON responses.
 async function fetchRaw(path) {
-  const { token } = load();
-  if (!token) throw new Error('not logged in - run: small login');
+  const token = sessionToken();
+  if (!token) throw new Error('not logged in - run: small login (or set SMALL_TOKEN)');
   const resp = await fetch(apiBase() + path, { headers: { Authorization: `Bearer ${token}` } });
   if (!resp.ok) throw new Error(`${path} failed (${resp.status})`);
   return Buffer.from(await resp.arrayBuffer());

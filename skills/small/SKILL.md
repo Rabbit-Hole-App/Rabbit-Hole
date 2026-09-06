@@ -42,7 +42,9 @@ PyPI, env reads that would be unset, secrets, and the `[aws]` role. Its
 one-line `✗`/`⚠` output IS the fix — apply it as printed instead of
 debugging around it.
 
-5. Print the URL from the output.
+5. Relay the deploy's closing line. Web apps print a URL — share it. Jobs
+   have no URL: the output ends with `✓ built <name> - start it with: small
+   run <name>`, and the same run form lives on the dashboard.
 
 6. Read the generated runbook back: run `small runbook` (regenerated on every
    deploy; `small runbook --write` saves it as RUNBOOK.md). Tell the user in

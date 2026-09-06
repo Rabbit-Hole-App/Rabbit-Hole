@@ -63,9 +63,13 @@ function write(dir, app) {
   fs.copyFileSync(runtimeSource(py), path.join(out, py));
   const ignorePath = path.join(dir, '.dockerignore');
   if (!fs.existsSync(ignorePath)) {
-    fs.writeFileSync(ignorePath, '.env\n.git\n');
-  } else if (!fs.readFileSync(ignorePath, 'utf8').split(/\r?\n/).includes('.env')) {
-    console.error('! .dockerignore exists but does not exclude .env - secrets could end up in the image');
+    // out/ is where --download lands: without this every fetched artifact bakes
+    // into the next image and the image grows on every run
+    fs.writeFileSync(ignorePath, '.env\n.git\nout/\n__pycache__/\n*.pyc\n');
+  } else {
+    const have = fs.readFileSync(ignorePath, 'utf8').split(/\r?\n/);
+    if (!have.includes('.env')) console.error('! .dockerignore exists but does not exclude .env - secrets could end up in the image');
+    if (!have.includes('out/') && !have.includes('out')) console.error('! .dockerignore does not exclude out/ - downloaded run artifacts will bake into the next image');
   }
   return out;
 }

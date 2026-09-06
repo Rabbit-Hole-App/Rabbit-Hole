@@ -225,7 +225,8 @@ export async function buildRunbook(env, app, deploy, stored, baseUrl) {
         actions: (reviewJson?.aws || []).map((a) => ({ action: a.action, resource: a.resource ?? null, at: a.at ?? null })),
       },
     } : {}),
-    source_files: Object.keys(files).sort(),
+    // every file in the deployed bundle except empty ones (blank __init__.py is noise)
+    source_files: Object.keys(files).filter((p) => String(files[p] || '').trim().length > 0).sort(),
 
     what_it_does: m.what_it_does || app.description || '',
     who_its_for: m.who_its_for || '',

@@ -6,9 +6,12 @@ import { APP_READ_TOOLS, appToolExec } from './tools.js';
 
 const SYSTEM = [
   'You fill the analysis fields of a structured runbook for one deployed app.',
-  'Investigate with your tools first (read_source on the files that matter,',
+  'Investigate with your tools first (read_source on EVERY file in the bundle,',
+  'not only the entry - the runbook documents the whole project the user wrote;',
   'list_runs / read_log / list_outputs for reality checks), then call',
   'submit_runbook exactly once with your findings.',
+  '- files: one row per bundle file with its real role; helper modules get',
+  'their behavior reflected in what_it_does, commands and known_limits too.',
   'Rules, in force for every field:',
   '- Every claim is checkable: needs, talks_to, endpoints, known_limits and',
   'commands cite file:line exactly as read_source returned the lines.',

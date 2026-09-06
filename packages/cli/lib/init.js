@@ -59,13 +59,20 @@ function init(dir, { force = false } = {}) {
   }
   if (wantsOutputs) lines.push('', '[outputs]', '# fill in: label the files the script saves, e.g.', '# result = { path = "result.csv", label = "Results" }');
   lines.push('', '[secrets]');
-  lines.push(required.length ? `required = [${required.map((n) => `"${n}"`).join(', ')}]` : 'required = []                  # env vars this app reads - fill in');
+  // say whether the scan RAN and found nothing, or never ran - "fill in" on a
+  // scanned-clean file reads as "the tool didn't look"
+  lines.push(required.length ? `required = [${required.map((n) => `"${n}"`).join(', ')}]`
+    : app ? `required = []                  # scanned ${app.entry}: no secret env reads found`
+    : 'required = []                  # env vars this app reads - fill in');
   if (wantsAws) lines.push('', '[aws]', 'role_arn = ""                  # fill in: IAM role the runs assume - never AWS keys in .env');
   if (wantsStorage) lines.push('', '[storage]', 'path = "/data"', 'size = "1GB"');
   lines.push('', '[access]', 'visibility = "domain"', '');
   fs.writeFileSync(tomlPath, lines.join('\n'));
 
   console.log(`✓ name: ${name}`);
+  if (['app', 'src', 'main', 'tmp', 'test', 'code', 'scripts'].includes(name)) {
+    console.log(`⚠ name "${name}" comes from the directory - set name = "something-descriptive" in small.toml before deploying`);
+  }
   if (app) console.log(`✓ entry: ${app.entry} (${app.framework})`);
   if (isJob) console.log('✓ type: job (plain script, runs on demand)');
   if (hasReqs) console.log('✓ deps: requirements.txt');
