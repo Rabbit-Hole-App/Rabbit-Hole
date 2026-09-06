@@ -325,10 +325,19 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
   const lrDur = lr && fmtDur(secs(lr.startedAt, lr.finishedAt));
   return (
     <div>
-      {entries.map(([k, spec]) => (
+      {entries.map(([k, spec]) => {
+        const TypeIcon = TYPE_ICON[spec.type];
+        return (
         <Field
           key={k}
-          label={<>{k.replace(/_/g, ' ')} <span className="text-xs font-normal text-ink-3">({spec.type})</span>{spec.required && <span className="text-danger"> *</span>}</>}
+          label={
+            <span className="inline-flex items-center gap-1.5">
+              {TypeIcon && <TypeIcon size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />}
+              {k.replace(/_/g, ' ')}
+              <span className="text-xs font-normal text-ink-3">({spec.type})</span>
+              {spec.required && <span className="text-danger">*</span>}
+            </span>
+          }
           help={spec.help || (spec.required ? undefined : 'optional')}
           error={errors[k]}
         >
@@ -382,7 +391,8 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
             );
           })()}
         </Field>
-      ))}
+        );
+      })}
       <div className={cn('flex items-center gap-3', entries.length && 'pt-4')}>
         <Button variant="primary" disabled={busy || (batchField && !batchValues.length)} onClick={batchField ? submitBatch : submit}>
           {busy ? <Loader2 size={16} strokeWidth={1.5} className="animate-spin" /> : <Play size={16} strokeWidth={1.5} />}
