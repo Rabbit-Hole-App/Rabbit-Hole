@@ -472,11 +472,42 @@ const commands = {
     console.log(`✓ skill installed → ${path.join('.claude', 'skills', 'small')} (SKILL.md + references/)`);
   },
 
+  // ponytail: help text is hand-kept next to the commands it describes
+  async help() {
+    console.log(`small deploy - ship a Python app for your team, behind a work-email login
+
+usage: small <command>
+
+start
+  login                    sign in with a one-time email code
+  init                     scaffold small.toml and a runbook in this project
+  deploy                   ship the current directory (it appears on the dashboard)
+
+everyday
+  run <app>                start a job (prompts for its inputs)
+  runs <app>               recent runs: status, duration, who started them
+  logs <app>               tail what an app printed
+  list                     your apps and their URLs
+  watch [app]              what the nightly watch pass found
+
+sharing & schedule
+  share <email> [--edit]   give a teammate access (--app name to pick the app)
+  schedule pause <app>     pause its cron (resume to restart)
+
+more
+  review                   AI code review of the current directory
+  runbook                  generate RUNBOOK.md from the code
+  skill                    install the agent skill into .claude/skills
+  help                     this list
+
+dashboard: run any command once, then open the URL it prints.`);
+  },
+
 };
 
-const run = commands[cmd];
+const run = commands[cmd === '--help' || cmd === '-h' ? 'help' : cmd];
 if (!run) {
-  console.log('usage: small <login|init|deploy|run|runs|schedule|share|list|logs|review|runbook|skill>');
+  console.log('usage: small <login|init|deploy|run|runs|schedule|share|list|logs|review|runbook|watch|skill|help>');
   process.exitCode = 1;
 } else {
   run().catch((err) => {

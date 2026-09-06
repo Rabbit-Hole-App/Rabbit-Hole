@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import { clsx as cn } from 'clsx';
 import { Check, ChevronDown, ChevronRight, Clock, Copy as CopyIcon, File as FileIcon, Globe, Play, Upload, X } from 'lucide-react';
@@ -229,7 +230,7 @@ export function Toasts() {
 
 // ─── SlidePanel - the Notion side peek. A real slide: mounted transform transition
 // (200ms ease-out per notion.md), GPU-composited, animates in AND out. ───
-export function SlidePanel({ title, width = 560, onClose, children }) {
+export function SlidePanel({ title, width = 560, z = 30, onClose, children }) {
   const [shown, setShown] = useState(false);
   const closing = useRef(false);
   useEffect(() => {
@@ -248,23 +249,28 @@ export function SlidePanel({ title, width = 560, onClose, children }) {
     window.addEventListener('keydown', esc);
     return () => window.removeEventListener('keydown', esc);
   }, []);
-  return (
+  // portal to <body>: a panel opened from INSIDE another panel must escape its
+  // transformed ancestor (will-change made it the containing block, clipping the
+  // nested peek) - portaled, the later panel simply covers the earlier one
+  return createPortal(
     <div
       role="dialog"
       aria-label={typeof title === 'string' ? title : undefined}
       style={{
         width,
+        zIndex: z,
         transform: shown ? 'translate3d(0,0,0)' : 'translate3d(102%,0,0)',
         transition: 'transform 200ms cubic-bezier(0.25,1,0.35,1)', // one motion constant with the sidebar slide (Shell.jsx)
       }}
-      className="fixed inset-y-0 right-0 z-30 flex max-w-full flex-col overflow-x-clip border-l border-line bg-white will-change-transform"
+      className="fixed inset-y-0 right-0 flex max-w-full flex-col overflow-x-clip border-l border-line bg-white will-change-transform"
     >
       <div className="flex h-11 shrink-0 items-center justify-between pr-3 pl-4">
         <div className="flex min-w-0 items-center gap-2 text-[15px] font-semibold">{title}</div>
         <IconBtn aria-label="Close" onClick={close}><X size={14} /></IconBtn>
       </div>
       {children}
-    </div>
+    </div>,
+    document.body,
   );
 }
 

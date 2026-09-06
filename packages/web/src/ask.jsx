@@ -135,6 +135,7 @@ function FilePeek({ appName, path, line, lineEnd, onClose }) {
   return (
     <SlidePanel
       width={560}
+      z={40}
       onClose={onClose}
       title={
         <>
