@@ -3,7 +3,7 @@
 // ambiguity comes back as { choose } and renders candidate pills. ───
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUp, AtSign, Copy, History, Loader2, MoreHorizontal, Paperclip, Pencil, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
-import { ago, api } from './api.js';
+import { ago, api, wsHeaders } from './api.js';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
@@ -372,11 +372,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         const fd = new FormData();
         fd.append('body', JSON.stringify(payload));
         fd.append('file', attached);
-        r = await fetch('/api/ask', { method: 'POST', body: fd });
+        r = await fetch('/api/ask', { method: 'POST', headers: wsHeaders(), body: fd });
       } else {
         r = await fetch('/api/ask', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...wsHeaders() },
           body: JSON.stringify(payload),
         });
       }

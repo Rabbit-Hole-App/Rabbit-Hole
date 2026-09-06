@@ -29,7 +29,7 @@ function ChatPage() {
         <main className="flex h-screen min-w-0 flex-1 flex-col">
           <div className="mx-auto flex h-full w-full max-w-[780px] min-h-0 flex-col px-6 py-6">
             <div className="flex shrink-0 items-center gap-1 pb-6 text-sm text-ink-2">
-              <button className={crumb} onClick={() => navigate('/apps')}>{wsName(data?.org)}</button>
+              <button className={crumb} onClick={() => navigate('/apps')}>{data?.orgName || wsName(data?.org)}</button>
               <span>/</span>
               <button className={crumb} onClick={() => navigate('/apps')}>Apps</button>
               {app && (

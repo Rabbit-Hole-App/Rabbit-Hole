@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, BadgeCheck, Bell, Braces, ChevronDown, ChevronRight, ChevronsLeft, CircleArrowUp, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, LayoutGrid, LayoutPanelLeft, Link, LogOut, Mail, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
-import { ago, api, getTheme, navigate, sectionOf, setTheme, wsName } from './api.js';
-import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, KindIcon, Menu, MenuItem, Select, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
+import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, CircleArrowUp, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, LayoutGrid, LayoutPanelLeft, Link, LogOut, Mail, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName } from './api.js';
+import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Menu, MenuItem, Select, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
 // left nav (Account / Workspace sections), right content per tab.
@@ -149,7 +149,7 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
 
 // Notion-style sidebar: workspace row, search, folders (drag apps in), recent, members.
 // Resizable by dragging the right edge (200–400px).
-export default function Sidebar({ org, email, apps, folders, width = 260, onResize, onReload, onCollapse }) {
+export default function Sidebar({ org, orgName, email, apps, folders, width = 260, onResize, onReload, onCollapse }) {
   const [dragging, setDragging] = useState(null);
   const [closed, setClosed] = useState({}); // folder id -> collapsed
   const [newFolder, setNewFolder] = useState(null);
@@ -170,6 +170,24 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
     api('/api/teams').then((d) => d.teams).catch(() => []),
   ]).then(([people, teams]) => setPool({ people, teams }));
   const [wsMenu, setWsMenu] = useState(false);
+  const [wsList, setWsList] = useState(null); // workspaces the user belongs to, loaded when the menu opens
+  const [newWs, setNewWs] = useState(null); // string while the create dialog is up
+  useEffect(() => {
+    if (wsMenu && !wsList) {
+      api('/api/workspaces')
+        .then((d) => { const l = d.workspaces || []; l.activeSlug = d.active; setWsList(l); })
+        .catch(() => setWsList([]));
+    }
+  }, [wsMenu]);
+  const createWs = async () => {
+    const name = (newWs || '').trim();
+    if (!name) return;
+    try {
+      const d = await api('/api/workspaces', { method: 'POST', body: JSON.stringify({ name }) });
+      setWs(d.slug);
+      window.location.assign('/apps'); // land in the fresh workspace
+    } catch (e) { toast(`✗ ${e.message}`); }
+  };
   const [newMenu, setNewMenu] = useState(false); // bottom + button popup
   const [searchOpen, setSearchOpen] = useState(false); // mirrors the ⌘K modal for the icon's active state
   useEffect(() => {
@@ -458,8 +476,8 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
             onClick={() => setWsMenu(!wsMenu)}
             className="flex min-w-0 flex-1 items-center gap-2 rounded-sm py-1 pr-1 text-left hover:bg-hover"
           >
-            <span className="grid h-5 w-5 shrink-0 place-items-center rounded-sm bg-ink text-[11px] font-semibold text-white">{wsName(org)[0]}</span>
-            <span className="truncate text-sm font-medium">{wsName(org)}</span>
+            <span className="grid h-5 w-5 shrink-0 place-items-center rounded-sm bg-ink text-[11px] font-semibold text-white">{(orgName || wsName(org))[0].toUpperCase()}</span>
+            <span className="truncate text-sm font-medium">{orgName || wsName(org)}</span>
             <ChevronDown size={12} className="shrink-0 text-ink-3 opacity-0 group-hover/sb:opacity-100" />
           </button>
           <IconBtn title="Close sidebar" onClick={onCollapse} className="opacity-0 group-hover/sb:opacity-100">
@@ -474,8 +492,30 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
             <span className="text-xs whitespace-nowrap text-ink-2">{email}</span>
           </div>
           <div className="my-1 border-t border-line" />
+          {/* every workspace the user belongs to; the active one gets the check */}
+          {(wsList || []).map((w) => {
+            const label = w.name || wsName(w.slug);
+            const active = w.slug === (wsList?.activeSlug ?? org);
+            return (
+              <MenuItem
+                key={w.slug}
+                onClick={() => {
+                  setWsMenu(false);
+                  setWs(w.kind === 'domain' ? '' : w.slug);
+                  window.location.assign('/apps'); // clean reload, every fetch re-scopes
+                }}
+              >
+                <span className="flex w-full items-center gap-2">
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-sm bg-ink text-[11px] font-semibold text-white">{label[0].toUpperCase()}</span>
+                  <span className="min-w-0 flex-1 truncate">{label}</span>
+                  {active && <Check size={14} strokeWidth={2} className="shrink-0 text-ink" />}
+                </span>
+              </MenuItem>
+            );
+          })}
+          <div className="my-1 border-t border-line" />
           <MenuItem icon={Settings} onClick={() => { setWsMenu(false); setShowSettings(true); }}>Settings</MenuItem>
-          <MenuItem className="text-accent hover:text-accent" onClick={() => { setWsMenu(false); toast('One workspace per email domain for now'); }}>
+          <MenuItem className="text-accent hover:text-accent" onClick={() => { setWsMenu(false); setNewWs(''); }}>
             <span className="flex items-center gap-2 text-accent"><Plus size={16} strokeWidth={1.5} /> New workspace</span>
           </MenuItem>
           <div className="my-1 border-t border-line" />
@@ -483,6 +523,21 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
         </Menu>
       </div>
       {showSettings && <SettingsDialog email={email} onMarkRead={markRead} onClose={() => setShowSettings(false)} />}
+      {newWs !== null && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={() => setNewWs(null)}>
+          <div className="mt-[26vh] w-96 max-w-[90vw] rounded-2xl bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="pb-1 text-sm font-semibold">New workspace</div>
+            <div className="pb-3 text-xs text-ink-2">A separate space with its own apps. You choose who joins it.</div>
+            <form onSubmit={(e) => { e.preventDefault(); createWs(); }}>
+              <Input autoFocus value={newWs} onChange={(e) => setNewWs(e.target.value)} placeholder="Workspace name" aria-label="Workspace name" />
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="secondary" type="button" onClick={() => setNewWs(null)}>Cancel</Button>
+                <Button variant="primary" type="submit" disabled={!(newWs || '').trim()}>Create</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* icons only - search + notifications share one line, tooltips carry the labels */}
       <div className="flex items-center gap-1 px-0.5">

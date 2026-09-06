@@ -69,6 +69,7 @@ export default function Shell({ children }) {
         >
           <Sidebar
             org={data?.org || 'small'}
+          orgName={data?.orgName || null}
             email={data?.email}
             apps={data?.apps || []}
             folders={data?.folders || []}

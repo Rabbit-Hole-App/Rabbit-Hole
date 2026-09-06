@@ -31,9 +31,18 @@ export function navigate(to) {
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
+// Active workspace: '' = the email-domain one; custom slugs (w-*) ride a header
+// on every call and the server only honours them for members.
+export const getWs = () => localStorage.getItem('small.ws') || '';
+export function setWs(slug) {
+  if (slug) localStorage.setItem('small.ws', slug);
+  else localStorage.removeItem('small.ws');
+}
+export const wsHeaders = () => (getWs() ? { 'X-Small-Workspace': getWs() } : {});
+
 // Same-origin control-plane API. Session cookie rides along; 401 → magic-link login and back.
 export async function api(path, opts = {}) {
-  const r = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  const r = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', ...wsHeaders(), ...(opts.headers || {}) } });
   if (r.status === 401) {
     window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
     return new Promise(() => {}); // navigation in flight

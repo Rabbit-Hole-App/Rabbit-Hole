@@ -79,7 +79,64 @@ const FOLDER_ROLE_SQL = `(SELECT fs.role FROM folder_shares fs WHERE fs.folder_i
 async function canView(env, app, email) {
   if (app.owner_email === email) return true;
   if (await memberRole(env, app, email)) return true;
-  return app.visibility === 'domain' && orgOf(email) === app.org;
+  if (app.visibility !== 'domain') return false;
+  if (orgOf(email) === app.org) return true;
+  // custom workspaces: 'domain' visibility means any workspace member
+  const wm = await env.DB.prepare('SELECT 1 AS x FROM workspace_members WHERE slug = ? AND email = ?').bind(app.org, email).first();
+  return !!wm;
+}
+
+// ---------- Workspaces (create + switch) ----------
+// The email-domain workspace is implicit. Custom ones (slug w-*) have explicit
+// membership; the browser names its active one via the X-Small-Workspace header
+// and the server only honours it for members - permissions stay in queries.
+async function workspaceFor(req, env, email) {
+  const w = req.headers.get('X-Small-Workspace');
+  const home = orgOf(email);
+  if (!w || w === home) return { org: home };
+  const m = await env.DB.prepare(
+    'SELECT w.slug, w.name FROM workspace_members m JOIN workspaces w ON w.slug = m.slug WHERE m.slug = ? AND m.email = ?'
+  ).bind(w, email).first();
+  return m ? { org: m.slug, orgName: m.name } : { org: home };
+}
+
+async function apiWorkspaces(env, user) {
+  const home = orgOf(user.email);
+  const { results } = await env.DB.prepare(
+    'SELECT w.slug, w.name, m.role FROM workspace_members m JOIN workspaces w ON w.slug = m.slug WHERE m.email = ? ORDER BY w.created_at'
+  ).bind(user.email).all();
+  return json({
+    active: user.org,
+    workspaces: [
+      { slug: home, name: null, kind: 'domain' },
+      ...results.map((r) => ({ slug: r.slug, name: r.name, kind: 'custom', role: r.role })),
+    ],
+  });
+}
+
+async function apiWorkspaceCreate(req, env, user) {
+  const { name } = await req.json();
+  const clean = String(name || '').trim();
+  if (!clean || clean.length > 40) return json({ error: 'workspace name required (max 40 chars)' }, 400);
+  const slug = `w-${clean.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30)}`;
+  if (slug === 'w-') return json({ error: 'the name needs at least one letter or digit' }, 400);
+  const exists = await env.DB.prepare('SELECT 1 AS x FROM workspaces WHERE slug = ?').bind(slug).first();
+  if (exists) return json({ error: `a workspace with that name already exists (${slug})` }, 400);
+  await env.DB.prepare('INSERT INTO workspaces (slug, name, owner_email) VALUES (?, ?, ?)').bind(slug, clean, user.email).run();
+  await env.DB.prepare("INSERT INTO workspace_members (slug, email, role) VALUES (?, ?, 'owner')").bind(slug, user.email).run();
+  return json({ slug, name: clean });
+}
+
+// Owner invites by email into the ACTIVE custom workspace.
+async function apiWorkspaceMemberAdd(req, env, user) {
+  if (!user.org.startsWith('w-')) return json({ error: 'switch to a custom workspace first' }, 400);
+  const ws = await env.DB.prepare('SELECT * FROM workspaces WHERE slug = ?').bind(user.org).first();
+  if (!ws || ws.owner_email !== user.email) return json({ error: 'only the workspace owner can add people' }, 403);
+  const { email } = await req.json();
+  const clean = String(email || '').toLowerCase().trim();
+  if (!clean.includes('@')) return json({ error: 'valid email required' }, 400);
+  await env.DB.prepare("INSERT OR IGNORE INTO workspace_members (slug, email, role) VALUES (?, ?, 'member')").bind(user.org, clean).run();
+  return json({ ok: true });
 }
 
 async function canEdit(env, app, email) {
@@ -373,6 +430,7 @@ async function apiApps(env, user, baseUrl) {
   for (const f of folders) f.shares = fshares.filter((s) => s.folder_id === f.id).map(({ email, team, role }) => ({ email, team, role }));
   return json({
     org: user.org,
+    orgName: user.orgName || null,
     email: user.email,
     folders,
     apps: [...results, ...foreign].map(({ member_emails, my_role, team_role, folder_role, last_run, ...a }) => {
@@ -474,7 +532,7 @@ async function apiAppGet(env, user, name, baseUrl) {
     ).bind(app.org, app.name).all()).results;
   } catch { /* pre-watch DBs */ }
   return json({
-    name: app.name, org: app.org, kind: app.kind, visibility: app.visibility, owner_email: app.owner_email,
+    name: app.name, org: app.org, orgName: user.orgName || null, kind: app.kind, visibility: app.visibility, owner_email: app.owner_email,
     runbook: app.runbook, schedule: app.schedule, schedule_paused: app.schedule_paused, nextRun: nextAt,
     observations,
     folder: folder ? folder.name : null,
@@ -1938,9 +1996,12 @@ export default {
         let user = await cliAuth(req, env);
         if (!user) {
           const s = await sessionOf(req, env);
-          if (s) user = { email: s.email, org: orgOf(s.email) };
+          if (s) user = { email: s.email, ...(await workspaceFor(req, env, s.email)) };
         }
         if (!user) return json({ error: 'run small login first' }, 401);
+        if (path === '/api/workspaces' && req.method === 'GET') return await apiWorkspaces(env, user);
+        if (path === '/api/workspaces' && req.method === 'POST') return await apiWorkspaceCreate(req, env, user);
+        if (path === '/api/workspaces/members' && req.method === 'POST') return await apiWorkspaceMemberAdd(req, env, user);
         if (path === '/api/deploy' && req.method === 'POST') return await apiDeploy(req, env, ctx, user, baseUrl);
         if (path === '/api/ask' && req.method === 'POST') return await apiAsk(req, env, ctx, user);
         if (path === '/api/ask/approve' && req.method === 'POST') return await apiAskApprove(req, env, ctx, user, baseUrl);

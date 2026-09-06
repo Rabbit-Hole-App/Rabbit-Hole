@@ -181,3 +181,17 @@ CREATE TABLE IF NOT EXISTS slack_runs (
 );
 
 -- 0018: apps.description — model-written on first deploy, user-editable after.
+
+-- 0019: custom workspaces (slug w-*), explicit membership; domain workspace stays implicit.
+CREATE TABLE IF NOT EXISTS workspaces (
+  slug TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  owner_email TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS workspace_members (
+  slug TEXT NOT NULL,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member',
+  PRIMARY KEY (slug, email)
+);

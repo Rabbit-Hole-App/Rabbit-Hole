@@ -6,7 +6,7 @@ import {
   File as FileIcon, Filter as FilterIcon, Folder, Hash, Inbox, Loader2, Maximize2, MessageCircle,
   Paperclip, Play, Plus, ScrollText, Search as SearchIcon, Type, User, X,
 } from 'lucide-react';
-import { ago, api, fmtTime, navigate } from './api.js';
+import { ago, api, fmtTime, navigate, wsHeaders } from './api.js';
 import { AskPanel } from './ask.jsx';
 import {
   Avatar, Button, Chk, cn, CodeBlock, Dropzone, Field, fmtBytes, IconBtn, Input,
@@ -244,7 +244,7 @@ export function RunForm({ app, prefill, onStarted }) {
         const fd = new FormData();
         fd.append('body', JSON.stringify({ app: app.name, inputs: vals }));
         for (const [k, f] of fileEntries) fd.append(`input:${k}`, f);
-        const r = await fetch('/api/runs', { method: 'POST', body: fd });
+        const r = await fetch('/api/runs', { method: 'POST', headers: wsHeaders(), body: fd });
         d = await r.json();
         if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
       } else {

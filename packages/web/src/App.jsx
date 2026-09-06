@@ -152,7 +152,7 @@ function AppContent({ data, load }) {
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-[1150px] px-24 py-12 max-lg:px-8 max-md:px-4 max-md:py-6">
           <div className="pb-8 text-sm text-ink-2">
-            <button onClick={() => navigate('/apps')} className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink">{wsName(org)}</button>
+            <button onClick={() => navigate('/apps')} className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink">{data?.orgName || wsName(org)}</button>
             <span className="px-1">/</span> <span className="text-ink">{title}</span>
           </div>
           <h1 className="pb-5 text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{title}</h1>

@@ -501,7 +501,7 @@ function AppPage({ slug, runId, reloadShell }) {
         agentFull && 'flex h-full min-h-0 flex-col pb-4',
       )}>
         <div className="flex items-center gap-1 pb-8 text-sm text-ink-2">
-          <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate('/apps')}>{wsName(app?.org)}</button>
+          <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate('/apps')}>{app?.orgName || wsName(app?.org)}</button>
           <span>/</span>
           <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate('/apps')}>Apps</button>
           <span>/</span>

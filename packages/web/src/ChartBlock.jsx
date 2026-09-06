@@ -5,7 +5,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { insertOrUpdateBlockForSlashMenu } from '@blocknote/core';
 import { createReactBlockSpec } from '@blocknote/react';
 import { BarChart3, Settings2 } from 'lucide-react';
-import { api, isDark } from './api.js';
+import { api, isDark, wsHeaders } from './api.js';
 import { IconBtn, Select } from './ui.jsx';
 import { flattenRuns, parseOutput, columns, toNivo } from './chart-data.js';
 
@@ -95,7 +95,7 @@ function ChartEmbed({ block, editor }) {
         setFiles(usable);
         if (!usable.length) { setNote('latest run has no .json or .csv output'); return; }
         if (!cfg.file || !usable.includes(cfg.file)) { setRows([]); setNote(''); return; }
-        const r = await fetch(`/api/runs/${encodeURIComponent(last.run_id)}/outputs/${encodeURIComponent(cfg.file)}`);
+        const r = await fetch(`/api/runs/${encodeURIComponent(last.run_id)}/outputs/${encodeURIComponent(cfg.file)}`, { headers: wsHeaders() });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const parsed = parseOutput(cfg.file, await r.text());
         if (dead) return;
