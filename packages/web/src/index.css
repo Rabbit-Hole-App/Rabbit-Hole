@@ -188,3 +188,23 @@ tr.cursor-pointer:active > td {
 .dark tr.cursor-pointer:active > td {
   filter: brightness(1.15);
 }
+
+/* Scrollbars: lighter than the OS default, themed by the line tokens. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-line-strong);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
