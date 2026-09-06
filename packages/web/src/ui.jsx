@@ -27,7 +27,7 @@ export function Button({ className, variant = 'ghost', size, ...props }) {
         size === 'sm' ? 'h-7 px-2 text-[13px]' : 'h-8 px-3',
         variant === 'primary' && 'bg-accent text-white hover:bg-accent-hover',
         // "New token" template: visible as a button at rest - white, border, faint shadow
-        variant === 'secondary' && 'border border-line-strong/60 bg-white text-ink shadow-[0_1px_3px_rgba(0,0,0,0.09)] hover:bg-hover',
+        variant === 'secondary' && 'border border-line-strong bg-white text-ink shadow-[0_1px_3px_rgba(0,0,0,0.12)] hover:bg-hover',
         // "Copy link" template: accent-tinted fill for feature CTAs that should not shout
         variant === 'soft' && 'bg-accent/10 text-accent hover:bg-accent/20',
         variant === 'ghost' && 'text-ink-2 hover:bg-hover hover:text-ink',
