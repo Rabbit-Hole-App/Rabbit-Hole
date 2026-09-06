@@ -10,9 +10,8 @@ command. Product truth: `docs/SCOPE.md` and `docs/PRODUCT.md`.
 
 ## What has been done so far
 
-- `docs/v1_mvp_shipped.md` … `docs/v15_slack.md` — one file per shipped
-  feature wave, in order, with the why. Read the latest few before changing
-  anything substantial.
+- `docs/v*.md` — one numbered file per shipped feature wave, in order, with
+  the why. Read the highest-numbered few before changing anything substantial.
 - `docs/features/<name>.md` — feature specs. Implement the spec; don't expand it.
 - `git log` — commit messages carry the reasoning; they are the changelog.
 
