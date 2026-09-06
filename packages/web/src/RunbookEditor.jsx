@@ -85,10 +85,35 @@ async function insertFlowDiagram(editor, appName, rb) {
     const { convertToExcalidrawElements } = await import('@excalidraw/excalidraw');
     if (pf?.length) {
       // the agent-authored stages, top to bottom - mirrors the Process flow list
-      const W = 340, H = 72, GAP = 46;
-      const skel = [];
-      pf.slice(0, 8).forEach((s, i) => skel.push({ id: `s${i}`, type: 'rectangle', x: 0, y: i * (H + GAP), width: W, height: H, backgroundColor: i === 0 ? '#e7f1fd' : i === pf.length - 1 ? '#e6f4ea' : '#fff', label: { text: String(s.step).slice(0, 48) } }));
-      pf.slice(1, 8).forEach((_, i) => skel.push({ type: 'arrow', x: W / 2, y: 0, start: { id: `s${i}` }, end: { id: `s${i + 1}` } }));
+      // snake layout, 4 per row: 7 steps stacked vertically overflow the 380px
+      // canvas, two rows fit it with room to breathe
+      const W = 250, H = 80, HGAP = 80, VGAP = 80, COLS = 4;
+      const steps = pf.slice(0, 8);
+      const pos = (i) => {
+        const row = Math.floor(i / COLS);
+        const col = row % 2 === 0 ? i % COLS : COLS - 1 - (i % COLS); // snake: even rows ->, odd rows <-
+        return { x: col * (W + HGAP), y: row * (H + VGAP) };
+      };
+      const skel = steps.map((s, i) => ({
+        id: `s${i}`,
+        type: 'rectangle',
+        ...pos(i),
+        width: W,
+        height: H,
+        backgroundColor: i === 0 ? '#e7f1fd' : i === steps.length - 1 ? '#e6f4ea' : '#fff',
+        label: { text: `${i + 1}. ${String(s.step).slice(0, 44)}` },
+      }));
+      steps.slice(1).forEach((_, i) => {
+        // plain geometric arrows in the gaps - bound arrows misroute on static scenes
+        const a = pos(i), b = pos(i + 1);
+        if (a.y === b.y) {
+          const sx = a.x + (b.x > a.x ? W : 0);
+          const ex = b.x + (b.x > a.x ? 0 : W);
+          skel.push({ type: 'arrow', x: sx, y: a.y + H / 2, width: ex - sx, height: 0 });
+        } else {
+          skel.push({ type: 'arrow', x: a.x + W / 2, y: a.y + H, width: 0, height: VGAP });
+        }
+      });
       const elements = convertToExcalidrawElements(skel);
       const anchor = editor.document.find((b) => /Process flow/i.test(b.content?.map?.((c) => c.text || '').join('') || ''))
         || editor.document.find((b) => /Where data/i.test(b.content?.map?.((c) => c.text || '').join('') || ''));
@@ -183,7 +208,15 @@ function ExcalidrawEmbed({ block, editor }) {
         </button>
       )}
       <Suspense fallback={<div className="p-3 text-xs text-ink-2">loading canvas…</div>}>
-        <Excalidraw initialData={initial} onChange={onChange} viewModeEnabled={!editable || locked} theme={dark ? 'dark' : 'light'} />
+        <Excalidraw
+          initialData={initial}
+          onChange={onChange}
+          viewModeEnabled={!editable || locked}
+          theme={dark ? 'dark' : 'light'}
+          // zoom the whole drawing into the 380px frame - scrollToContent alone
+          // centers at zoom 1 and crops anything wider than the canvas
+          excalidrawAPI={(api) => setTimeout(() => api.scrollToContent(undefined, { fitToViewport: true, viewportZoomFactor: 0.85 }), 100)}
+        />
       </Suspense>
     </div>
   );

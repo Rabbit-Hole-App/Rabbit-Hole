@@ -165,6 +165,11 @@ export async function buildRunbook(env, app, deploy, stored, baseUrl) {
   let reviewJson = null;
   try { reviewJson = JSON.parse(app.review); } catch { /* unreviewed app */ }
   const m = await runbookFields(env, app, files, deploy);
+  // the model occasionally hands back a string where the schema says array -
+  // a malformed field is dropped, never allowed to crash the build
+  for (const k of ['how_to_use', 'commands', 'needs', 'talks_to', 'files', 'endpoints', 'known_limits', 'if_it_breaks', 'outputs_examples', 'appendix', 'process_flow']) {
+    if (m[k] != null && !Array.isArray(m[k])) delete m[k];
+  }
 
   const schema = app.inputs ? JSON.parse(app.inputs) : {};
   const exampleInputs = lastOk?.inputs ? JSON.parse(lastOk.inputs) : {};
