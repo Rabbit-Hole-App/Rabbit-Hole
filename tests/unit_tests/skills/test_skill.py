@@ -30,9 +30,11 @@ def test_every_pointed_reference_exists_and_none_orphaned():
 
 
 def test_every_mentioned_cli_command_exists():
-    usage = re.search(r"usage: small <([\w|]+)>", CLI)
-    assert usage, "usage line missing from small.js"
-    commands = set(usage.group(1).split("|"))
+    # commands live as methods on the `const commands = {...}` dispatch object
+    body = re.search(r"const commands = \{(.*?)\n\};", CLI, re.S)
+    assert body, "commands object missing from small.js"
+    commands = set(re.findall(r"^  (?:async )?([\w-]+)\(", body.group(1), re.M))
+    assert commands, "no commands parsed from small.js"
     # prose that reads "small <word>" without meaning a command
     not_commands = {"role", "may", "itself", "demo", "and", "already", "app"}
     mentioned = set(re.findall(r"\bsmall ([a-z]+)\b", ALL_TEXT)) - not_commands
@@ -53,8 +55,11 @@ def test_mentioned_platform_env_vars_exist_in_source():
         for p in (PROJECT_DIR / "packages" / pkg).rglob("*"):
             if p.suffix in (".js", ".py") and "node_modules" not in p.parts and ".wrangler" not in p.parts:
                 source += p.read_text(encoding="utf-8", errors="replace")
-    # placeholders like SMALL_INPUT_<NAME> reduce to their literal prefix
-    for var in {v.rstrip("_") for v in re.findall(r"SMALL_[A-Z_]+", ALL_TEXT)}:
+    # placeholders like SMALL_INPUT_<NAME> reduce to their literal prefix, and
+    # concrete per-app examples (SMALL_INPUT_SOURCE) reduce to the family prefix
+    # the runtime builds dynamically
+    mentioned = {re.sub(r"(SMALL_INPUT)_[A-Z_]+", r"\1", v) for v in re.findall(r"SMALL_[A-Z_]+", ALL_TEXT)}
+    for var in {v.rstrip("_") for v in mentioned}:
         assert var in source, f"skill mentions {var} but no package source contains it"
 
 

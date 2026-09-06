@@ -155,6 +155,9 @@ export default function Runbook({ app, canEdit, onSaved }) {
   // #src=path:line-line links (written by the runbook agent) open the code peek
   const [srcPeek, setSrcPeek] = useState(null);
   const [runPeek, setRunPeek] = useState(null); // #run= links open the run panel
+  // ref chips (file:line, run ids, s3 uris) are inline code - the accent colour
+  // and pointer come from .runbook-refs in index.css, no DOM decoration needed
+
   const onSrcClick = (e) => {
     // refs are inline code chips (`job.py:13-15`, `r-d904117412ae`) - BlockNote
     // link marks proved unreliable (mangled anchors, new tabs). Old pages with
@@ -214,7 +217,7 @@ export default function Runbook({ app, canEdit, onSaved }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {canEdit && (
-        <div className="flex shrink-0 items-center justify-end pb-1">
+        <div className="flex shrink-0 items-center justify-end py-2">
           <Button variant="soft" size="sm" onClick={() => (editor.document.some((b) => b.content?.length || b.type !== 'paragraph') ? setConfirmGen(true) : generate())} disabled={genBusy} title="AI writes this page from the deployed code and small.toml">
             {genBusy ? <Loader2 size={13} className="animate-spin" /> : <Mark size={13} />} Generate runbook
           </Button>

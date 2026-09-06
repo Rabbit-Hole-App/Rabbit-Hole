@@ -214,7 +214,10 @@ tr.cursor-pointer:active > td {
   background: transparent;
 }
 
-/* runbook ref chips: inline code that opens the file/run peek reads as clickable */
+/* runbook ref chips: inline code that opens the file/run peek reads as clickable.
+   Literal brand blue: [class*='bn-'] repoints --color-accent to hover-grey inside
+   BlockNote, which is exactly where these chips live. */
 .runbook-refs :not(pre) > code {
   cursor: pointer;
+  color: #2383e2;
 }

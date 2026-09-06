@@ -60,7 +60,12 @@ function validate(rb, files, bundleText) {
 
   // the platform contract stays out of the reader's document entirely
   if (rb.run_locally) {
-    rb.run_locally.env = (rb.run_locally.env || []).filter((e) => !/SMALL_/.test(e));
+    // env entries must be actual env var names - a sentence here is model chatter
+    rb.run_locally.env = (rb.run_locally.env || []).filter((e) => {
+      if (/SMALL_/.test(e)) return false;
+      if (!/^[A-Z][A-Z0-9_]{1,63}$/.test(String(e).replace(/`/g, '').trim())) { drop(`run_locally env "${String(e).slice(0, 40)}" is not an env var name`); return false; }
+      return true;
+    });
     if (!rb.run_locally.env.length) delete rb.run_locally.env;
     if (/SMALL_/.test(rb.run_locally.start || '')) delete rb.run_locally.start;
     if (!Object.keys(rb.run_locally).length) delete rb.run_locally;
@@ -123,12 +128,13 @@ function dataFlow(app, files, review) {
     const write = /put|upload|write|delete/i.test(a.action || '');
     (write ? outputs_to : inputs_from).push({
       ...(write ? { sink: 's3' } : { source: 's3' }),
-      what: `${a.action}${a.resource ? ` ${a.resource}` : ''}`,
+      // resource goes in a code span: markdown would swallow <placeholders> as HTML
+      what: `${a.action}${a.resource ? ` \`${a.resource}\`` : ''}`,
       at: a.at || 'small.toml',
     });
   }
   for (const o of review?.outbound || []) {
-    if (/amazonaws\.com$/.test(o.host || '')) continue; // covered by the aws entries
+    if (/amazonaws\.com/.test(o.host || '')) continue; // covered by the aws entries
     outputs_to.push({ sink: 'http', what: `${o.host}${o.purpose ? `: ${o.purpose}` : ''}`, at: o.at || 'small.toml' });
   }
   const persists = [];
@@ -237,8 +243,28 @@ export async function buildRunbook(env, app, deploy, stored, baseUrl) {
     review: reviewSummary(app.review),
   };
 
+  scrubPlatformVars(rb);
   const warnings = validate(rb, files, stored.bundle);
   return { runbook: rb, warnings, markdown: renderMarkdown(rb) };
+}
+
+// Platform env names never reach the reader (or Ask): rewrite them into the
+// plain-language thing they stand for, everywhere in the document.
+function scrubPlatformVars(node) {
+  const fix = (t) => String(t)
+    .replace(/\$?SMALL_INPUT_OUTPUT_BUCKET/g, 'the output_bucket input')
+    .replace(/\$?SMALL_INPUT_([A-Z0-9_]+)/g, (_, n) => `the ${n.toLowerCase()} input`)
+    .replace(/\$?SMALL_OUTPUTS/g, 'the run outputs folder')
+    .replace(/\$?SMALL_INPUTS/g, 'the uploaded files folder')
+    .replace(/\$?SMALL_DATA/g, 'persistent storage')
+    .replace(/\$?SMALL_RUN_[A-Z0-9_]+/g, 'platform run metadata')
+    .replace(/the the/g, 'the')
+    .replace(/input input/g, 'input');
+  for (const k of Object.keys(node)) {
+    const v = node[k];
+    if (typeof v === 'string') node[k] = fix(v);
+    else if (v && typeof v === 'object') scrubPlatformVars(v);
+  }
 }
 
 function reviewSummary(raw) {
@@ -257,8 +283,13 @@ function reviewSummary(raw) {
 // ---------- rendering (spec order, tables, absent sections skipped) ----------
 
 const esc = (v) => String(v ?? '').replace(/\|/g, '\\|');
-const table = (headers, rows) =>
-  [`| ${headers.join(' | ')} |`, `| ${headers.map(() => '---').join(' | ')} |`, ...rows.map((r) => `| ${r.map(esc).join(' | ')} |`)].join('\n');
+const table = (headers, rows) => {
+  // columns where every row is empty carry no information - drop them
+  const keep = headers.map((_, c) => rows.some((r) => String(r[c] ?? '').trim() !== ''));
+  const pick = (r) => r.filter((_, c) => keep[c]);
+  const h = pick(headers);
+  return [`| ${h.join(' | ')} |`, `| ${h.map(() => '---').join(' | ')} |`, ...rows.map((r) => `| ${pick(r).map(esc).join(' | ')} |`)].join('\n');
+};
 
 // Bare refs in prose become chips: file:line tokens and s3:// uris get backticks
 // so the web page makes them clickable/coloured. Fenced blocks stay untouched.
@@ -266,7 +297,10 @@ function chipify(md) {
   return md.split(/(```[\s\S]*?```)/).map((seg, i) => (i % 2 ? seg
     : seg
       .replace(/(?<![`\w/])((?:[\w-]+\/)*[\w-]+\.(?:py|toml|txt|md|json|csv|cfg|ini|ya?ml|js):\d+(?:-\d+)?)(?![`\w])/g, '`$1`')
-      .replace(/(?<!`)(s3:\/\/[^\s`)\],]+)(?!`)/g, '`$1`')
+      .replace(/(?<!`)(s3:\/\/[^\s`)\],<>]*[^\s`)\],<>.])(?!`)/g, '`$1`')
+      .replace(/(?<![`\w/-])(r-[0-9a-f]{8,16})(?![`\w-])/g, '`$1`') // not after / : run ids inside URLs stay plain
+      .replace(/the the /g, 'the ')
+      .replace(/ input input/g, ' input')
   )).join('');
 }
 
@@ -340,10 +374,10 @@ export function renderMarkdown(rb) {
 
   if (rb.known_limits?.length) out.push(`## Known limits\n${rb.known_limits.map((l) => `- ${l.text} \`${l.at}\``).join('\n')}`);
   if (rb.if_it_breaks?.length) {
-    out.push(`## If it breaks\n${rb.if_it_breaks.map((b) => `- **You see:** ${b.symptom}\n  **Likely:** ${b.likely}\n  **Look:** ${/[\w./-]+:\d+/.test(b.look) ? `\`${b.look}\`` : b.look}`).join('\n')}`);
+    out.push(`## If it breaks\n${rb.if_it_breaks.map((b) => `- **You see:** ${b.symptom}\n  **Likely:** ${b.likely}\n  **Look:** ${/[`\s]/.test(b.look) ? b.look : `\`${b.look}\``}`).join('\n')}`);
   }
   out.push(`## Ask\n${rb.ask}`);
   if (rb.review) out.push(`*review: risk ${rb.review.risk} · ${rb.review.secrets} undeclared secrets · ${rb.review.outbound} outbound · ${rb.review.shell_exec} shell exec · ${rb.review.findings} findings*`);
 
-  return out.join('\n\n');
+  return chipify(out.join('\n\n'));
 }
