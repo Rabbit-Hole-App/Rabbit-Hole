@@ -37,9 +37,11 @@ svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.5;stroke
 code{font-family:var(--mono);font-size:14px;background:var(--bg-code);color:var(--danger);padding:2px 4px;border-radius:var(--r4)}
 
 /* ═══ BUTTONS ═══ */
-.btn{height:32px;padding:0 12px;border-radius:var(--r4);border:0;background:transparent;font-size:14px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:background .1s,color .1s;white-space:nowrap}
+.btn{height:32px;padding:0 12px;border-radius:8px;border:0;background:transparent;font-size:14px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:background .1s,color .1s;white-space:nowrap}
+.btn:active{transform:scale(.97)} /* press feedback is mandatory on every clickable */
 .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-hover)}
-.btn-secondary{border:1px solid var(--border);color:var(--text)}.btn-secondary:hover{background:var(--bg-hover)}
+.btn-secondary{border:1px solid var(--border-strong,#d3d1cb);background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12)}.btn-secondary:hover{background:var(--bg-hover)} /* visible as a button AT REST, never text-only */
+.btn-soft{background:rgba(35,131,226,.1);color:var(--accent)}.btn-soft:hover{background:rgba(35,131,226,.18)} /* feature CTAs (Connect Slack, Copy link) */
 .btn-ghost{color:var(--text-2)}.btn-ghost:hover{background:var(--bg-hover);color:var(--text)}
 .btn-danger{background:var(--danger);color:#fff}
 .btn-sm{height:28px;padding:0 8px;font-size:13px}
@@ -279,9 +281,11 @@ section>h2{font-size:14px;font-weight:600;color:var(--text-2);margin-bottom:16px
 <!-- ─────────────────────────────────────────────── -->
 <section>
 <h2>Buttons</h2>
+<p style="font-size:12px;color:var(--text-2)">Templates: design/buttons.html (Notion refs 2026-09-05). Radius language: controls 8px, popovers 6px, modals 16px. Every clickable presses (scale .97) on :active.</p>
 <div class="demo">
  <button class="btn btn-primary">Run</button>
  <button class="btn btn-secondary">Share</button>
+ <button class="btn btn-soft">Connect Slack</button>
  <button class="btn btn-ghost"><svg><use href="#i-plus"/></svg>New run</button>
  <button class="btn btn-danger">Delete app</button>
  <button class="btn btn-secondary btn-sm">Run again</button>
