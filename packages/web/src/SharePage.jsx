@@ -71,7 +71,7 @@ function ScheduleDialog({ app, onClose, onChanged }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={onClose}>
       {/* text-ink: this dialog mounts inside the breadcrumb row (text-ink-2) and would inherit its pale color */}
-      <div className="mt-[22vh] w-[380px] max-w-[90vw] rounded-md bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="mt-[22vh] w-[380px] max-w-[90vw] rounded-2xl bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
         <div className="pb-3 text-sm font-semibold">Schedule {app.name}</div>
         {parts.length > 0 && (
           <div className="pb-1.5 text-xs font-medium text-ink-2">Scheduled</div>

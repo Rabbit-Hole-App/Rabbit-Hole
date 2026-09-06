@@ -475,7 +475,9 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
           </div>
           <div className="my-1 border-t border-line" />
           <MenuItem icon={Settings} onClick={() => { setWsMenu(false); setShowSettings(true); }}>Settings</MenuItem>
-          <MenuItem icon={Plus} onClick={() => { setWsMenu(false); toast('One workspace per email domain for now'); }}>New workspace</MenuItem>
+          <MenuItem className="text-accent hover:text-accent" onClick={() => { setWsMenu(false); toast('One workspace per email domain for now'); }}>
+            <span className="flex items-center gap-2 text-accent"><Plus size={16} strokeWidth={1.5} /> New workspace</span>
+          </MenuItem>
           <div className="my-1 border-t border-line" />
           <MenuItem icon={LogOut} onClick={() => { window.location.href = '/logout'; }}>Log out</MenuItem>
         </Menu>

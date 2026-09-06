@@ -604,9 +604,9 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
   const colKeys = baseCols.map((c) => c.key);
   const ordKeys = [...(order || []).filter((k) => colKeys.includes(k)), ...colKeys.filter((k) => !(order || []).includes(k))];
   const cols = ordKeys.map((k) => baseCols.find((c) => c.key === k));
-  const moveCol = (from, to) => {
+  const moveCol = (from, to, after = false) => {
     const next = ordKeys.filter((k) => k !== from);
-    next.splice(next.indexOf(to), 0, from);
+    next.splice(next.indexOf(to) + (after ? 1 : 0), 0, from);
     saveOrder(next);
   };
   const { down: hdrDown, dragCol, squelch } = useHeaderDrag(moveCol);

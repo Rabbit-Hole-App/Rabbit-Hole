@@ -81,10 +81,10 @@ function AppContent({ data, load }) {
   const [toolMenu, setToolMenu] = useState(null); // 'filter' | 'sort' | 'props'
   const order = [...cols.order.filter((k) => DEFAULT_ORDER.includes(k)), ...DEFAULT_ORDER.filter((k) => !cols.order.includes(k))];
   const visibleCols = order.filter((k) => !cols.hidden[k]);
-  const moveCol = (from, to) => {
+  const moveCol = (from, to, after = false) => {
     if (from === to) return;
     const next = order.filter((k) => k !== from);
-    next.splice(next.indexOf(to), 0, from);
+    next.splice(next.indexOf(to) + (after ? 1 : 0), 0, from);
     saveCols({ ...cols, order: next });
   };
   // shared pointer drag with the FLIP slide (ui.jsx) - <5px still counts as a click

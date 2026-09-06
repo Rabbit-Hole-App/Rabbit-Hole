@@ -173,3 +173,18 @@ a {
 .excalidraw .SVGLayer * {
   pointer-events: none !important;
 }
+
+/* Design rule (user, 2026-09-05): EVERY clickable gives press feedback on click.
+   Buttons and links compress slightly; other cursor-pointer surfaces darken. */
+button:not(:disabled):active,
+a:active {
+  transform: scale(0.97);
+}
+.cursor-pointer:active,
+tr.cursor-pointer:active > td {
+  filter: brightness(0.96);
+}
+.dark .cursor-pointer:active,
+.dark tr.cursor-pointer:active > td {
+  filter: brightness(1.15);
+}

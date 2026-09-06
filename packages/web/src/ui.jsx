@@ -6,6 +6,9 @@ import { Check, ChevronDown, ChevronRight, Clock, Copy as CopyIcon, File as File
 export { cn };
 
 // ─── The component kit. Pixel reference: design/components.html (read-only). ───
+// Radius language (user rule): one template everywhere - buttons/controls
+// RADIUS.control, popovers/menus RADIUS.popover, modal windows RADIUS.modal.
+export const RADIUS = { control: 'rounded-lg', popover: 'rounded-md', modal: 'rounded-2xl' };
 // Sizes: buttons/inputs/table rows 32px, small 28px, sidebar rows 28px, pills 20px.
 // Radius 4px (rounded-sm), popovers 6px (rounded-md). Shadow only on popovers.
 
@@ -20,7 +23,7 @@ export function Button({ className, variant = 'ghost', size, ...props }) {
   return (
     <button
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-sm border-0 text-sm font-medium whitespace-nowrap transition-colors duration-100 select-none focus-visible:outline-2 focus-visible:outline-accent/35 disabled:cursor-default disabled:opacity-50',
+        'inline-flex items-center gap-1.5 rounded-lg border-0 text-sm font-medium whitespace-nowrap transition-colors duration-100 select-none focus-visible:outline-2 focus-visible:outline-accent/35 disabled:cursor-default disabled:opacity-50',
         size === 'sm' ? 'h-7 px-2 text-[13px]' : 'h-8 px-3',
         variant === 'primary' && 'bg-accent text-white hover:bg-accent-hover',
         variant === 'secondary' && 'border border-line text-ink hover:bg-hover',
@@ -303,7 +306,7 @@ export function ConfirmDialog({ title, body, confirmLabel = 'Delete', confirmVar
   }, []);
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={onCancel}>
-      <div className="mt-[26vh] w-96 max-w-[90vw] rounded-md bg-white p-4 shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="mt-[26vh] w-96 max-w-[90vw] rounded-2xl bg-white p-4 shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
         <div className="pb-1 text-sm font-semibold">{title}</div>
         <div className="pb-4 text-sm text-ink-2">{body}</div>
         <div className="flex justify-end gap-2">
@@ -569,11 +572,16 @@ export function useHeaderDrag(moveCol) {
         el.style.transform = `translateX(${(ev.clientX - d.grabOff) - d.layoutLeft}px)`;
         el.style.zIndex = 20;
       }
-      for (const [key, r] of Object.entries(d.rects)) {
-        if (key !== d.key && key !== d.last && ev.clientX > r.left + r.width * 0.4 && ev.clientX < r.right - r.width * 0.4) {
-          d.last = key;
+      // insertion point = position among the OTHER columns' centers - stable
+      // thresholds (no ping-pong) and the extremes are reachable
+      const others = Object.entries(d.rects).filter(([k2]) => k2 !== d.key).sort((a, b) => a[1].left - b[1].left);
+      const idx = others.findIndex(([, r]) => ev.clientX < r.left + r.width / 2);
+      const place = idx === -1 ? `after:${others[others.length - 1][0]}` : `before:${others[idx][0]}`;
+      if (place !== d.place) {
+        if (d.place !== undefined) {
+          const [mode, key] = place.split(':');
           const before = d.rects;
-          moveCol(d.key, key);
+          moveCol(d.key, key, mode === 'after');
           requestAnimationFrame(() => {
             const dd = dragRef.current;
             if (!dd) return;
@@ -593,8 +601,8 @@ export function useHeaderDrag(moveCol) {
             });
             dd.rects = grab();
           });
-          break;
         }
+        d.place = place;
       }
     };
     const up = () => {

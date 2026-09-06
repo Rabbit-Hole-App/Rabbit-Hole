@@ -87,7 +87,7 @@ export default function SearchModal() {
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/20" onClick={close} />
-      <div className="relative mx-auto mt-[20vh] w-[640px] max-w-[90vw] rounded-md bg-white text-ink shadow-pop">
+      <div className="relative mx-auto mt-[20vh] w-[640px] max-w-[90vw] rounded-2xl bg-white text-ink shadow-pop">
         <div className="flex h-12 items-center gap-2.5 border-b border-line px-4">
           <AppIcon size={16} className="shrink-0" />
           <input
