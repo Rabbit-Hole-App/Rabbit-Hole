@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowUpRight, Calendar as CalendarIcon, Check, Circle, Clock, Copy, GitBranch, Globe, GraduationCap, Link as LinkIcon, Lock, Maximize2, MoreHorizontal, Plus, Trash2, User as UserIcon, Users, X } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, Calendar as CalendarIcon, Check, Circle, Clock, Copy, GitBranch, Globe, GraduationCap, Hash, Link as LinkIcon, Lock, Maximize2, MoreHorizontal, Plus, Trash2, User as UserIcon, Users, X } from 'lucide-react';
 
 // lucide dropped brand icons - the GitHub mark, inline
 const Github = ({ size = 14 }) => (
@@ -404,12 +404,12 @@ function RequestLog({ slug }) {
       <table className="w-full border-collapse">
         <thead>
           <tr>
-            <th className={TH}>Time</th>
-            <th className={TH}>Method</th>
-            <th className={TH}>Path</th>
-            <th className={TH}>Status</th>
-            <th className={cn(TH, 'text-right')}>ms</th>
-            <th className={TH}>Person</th>
+            <th className={TH}><span className="inline-flex items-center gap-1.5"><Clock size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />Time</span></th>
+            <th className={TH}><span className="inline-flex items-center gap-1.5"><ArrowUpRight size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />Method</span></th>
+            <th className={TH}><span className="inline-flex items-center gap-1.5"><LinkIcon size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />Path</span></th>
+            <th className={TH}><span className="inline-flex items-center gap-1.5"><Circle size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />Status</span></th>
+            <th className={cn(TH, 'text-right')}><span className="inline-flex items-center gap-1.5"><Hash size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />ms</span></th>
+            <th className={TH}><span className="inline-flex items-center gap-1.5"><UserIcon size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />Person</span></th>
           </tr>
         </thead>
         <tbody>

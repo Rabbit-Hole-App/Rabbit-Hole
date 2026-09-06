@@ -314,7 +314,10 @@ function AppContent({ data, load }) {
                         }}
                       >
                         <Tip label={COLS[k]} info={COL_INFO[k]}>
-                          <span>{COLS[k]}{sort?.key === k ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ''}</span>
+                          <span className="inline-flex items-center gap-1.5">
+                            {COL_ICON[k] && (() => { const I = COL_ICON[k]; return <I size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />; })()}
+                            {COLS[k]}{sort?.key === k ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ''}
+                          </span>
                         </Tip>
                         <Menu open={colMenu === k} onClose={() => { setColMenu(null); setColSub(null); }} className="top-8 left-0 w-44 cursor-default font-normal normal-case">
                           <SubMenu icon={ArrowUp} label="Sort" open={colSub === 'sort'} onOpen={() => setColSub('sort')} width="w-44">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronDown, ChevronRight, MoreHorizontal, Pencil, Plus, Trash2, Users, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, MoreHorizontal, Pencil, Plus, Shield, Square, Trash2, User, Users, X } from 'lucide-react';
 import { api, navigate, wsName } from './api.js';
 import Shell from './Shell.jsx';
 import { Avatar, Button, cn, ConfirmDialog, IconBtn, Input, Menu, MenuItem, Pill, ShareInput, SkeletonRows, toast } from './ui.jsx';
@@ -89,9 +89,9 @@ function MembersContent({ data }) {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs whitespace-nowrap text-ink-2">
-                  <th className="h-8 pr-3 pl-1 font-normal">Person</th>
-                  <th className="h-8 pr-3 font-normal">Role</th>
-                  <th className="h-8 pr-3 font-normal">Apps</th>
+                  <th className="h-8 pr-3 pl-1 font-normal"><span className="inline-flex items-center gap-1.5"><User size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />Person</span></th>
+                  <th className="h-8 pr-3 font-normal"><span className="inline-flex items-center gap-1.5"><Shield size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />Role</span></th>
+                  <th className="h-8 pr-3 font-normal"><span className="inline-flex items-center gap-1.5"><Square size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />Apps</span></th>
                   <th className="h-8 pr-1 font-normal"></th>
                 </tr>
               </thead>
