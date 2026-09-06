@@ -79,9 +79,26 @@ function RolePeek({ appName, onSrc, onClose }) {
 // it reads as a figure; the reader can Edit it like any /excalidraw block.
 async function insertFlowDiagram(editor, appName, rb) {
   try {
+    const pf = rb?.process_flow;
     const df = rb?.data_flow;
-    if (!df || (!df.inputs_from?.length && !df.outputs_to?.length)) return;
+    if (!pf?.length && (!df || (!df.inputs_from?.length && !df.outputs_to?.length))) return;
     const { convertToExcalidrawElements } = await import('@excalidraw/excalidraw');
+    if (pf?.length) {
+      // the agent-authored stages, top to bottom - mirrors the Process flow list
+      const W = 340, H = 72, GAP = 46;
+      const skel = [];
+      pf.slice(0, 8).forEach((s, i) => skel.push({ id: `s${i}`, type: 'rectangle', x: 0, y: i * (H + GAP), width: W, height: H, backgroundColor: i === 0 ? '#e7f1fd' : i === pf.length - 1 ? '#e6f4ea' : '#fff', label: { text: String(s.step).slice(0, 48) } }));
+      pf.slice(1, 8).forEach((_, i) => skel.push({ type: 'arrow', x: W / 2, y: 0, start: { id: `s${i}` }, end: { id: `s${i + 1}` } }));
+      const elements = convertToExcalidrawElements(skel);
+      const anchor = editor.document.find((b) => /Process flow/i.test(b.content?.map?.((c) => c.text || '').join('') || ''))
+        || editor.document.find((b) => /Where data/i.test(b.content?.map?.((c) => c.text || '').join('') || ''));
+      editor.insertBlocks(
+        [{ type: 'excalidraw', props: { data: JSON.stringify({ elements }), locked: true } }],
+        anchor || editor.document[0],
+        anchor ? 'after' : 'before'
+      );
+      return;
+    }
     // first token only (field name, aws action, host): excalidraw ignores the
     // label fontSize, so long phrases clip - a concise node reads better anyway
     const clean = (s) => (String(s).replace(/`[^`]*`/g, '').match(/^[\w:./<>@-]+/) || ['?'])[0].replace(/[:,.]$/, '').slice(0, 24);
@@ -252,11 +269,22 @@ export default function Runbook({ app, canEdit, onSaved }) {
   // and pointer come from .runbook-refs in index.css, no DOM decoration needed
 
   const [rolePeek, setRolePeek] = useState(null); // #role= links open the AWS role panel
+  // BlockNote renders every link with target="_blank"; a ref chip must NEVER
+  // open a tab. Strip target before the browser reads it (mousedown precedes
+  // the click's navigation decision) - the belt behind the click interception.
+  const refAnchor = (e) => {
+    const a = e.target.closest?.('a');
+    return a && /#(src|run|role)=/.test(a.getAttribute('href') || '') ? a : null;
+  };
+  const disarm = (e) => {
+    const a = refAnchor(e);
+    if (a) a.removeAttribute('target');
+  };
   const onSrcClick = (e) => {
     // refs are #src=/#run=/#role= links (chipify writes them; onClickCapture
     // intercepts before ProseMirror). Inline code chips from older pages still
     // work via the code branch below.
-    const a = e.target.closest?.('a[href^="#src="], a[href^="#run="], a[href^="#role="]');
+    const a = refAnchor(e);
     if (a) {
       e.preventDefault();
       e.stopPropagation();
@@ -354,7 +382,16 @@ export default function Runbook({ app, canEdit, onSaved }) {
           }}
         />
       )}
-      <div className="runbook-refs -mx-[34px] min-h-0 flex-1 overflow-y-auto" onClickCapture={onSrcClick}>{/* cancels bn-editor's 54px gutter down to the panel's 20px */}
+      <div
+        className="runbook-refs -mx-[34px] min-h-0 flex-1 overflow-y-auto"
+        onClickCapture={onSrcClick}
+        onMouseDownCapture={disarm}
+        // ProseMirror opens links from its OWN mouseup handling (window.open),
+        // before any click event exists - swallow mouseup on ref chips so the
+        // only opener left is our click handler
+        onMouseUpCapture={(e) => { if (refAnchor(e)) { e.preventDefault(); e.stopPropagation(); } }}
+        onAuxClickCapture={(e) => { if (refAnchor(e)) { e.preventDefault(); e.stopPropagation(); } }}
+      >{/* cancels bn-editor's 54px gutter down to the panel's 20px */}
         <BlockNoteView editor={editor} editable={canEdit} theme={dark ? 'dark' : 'light'} onChange={canEdit ? onChange : undefined} slashMenu={false} linkToolbar={false}>
           <SuggestionMenuController
             triggerCharacter="/"

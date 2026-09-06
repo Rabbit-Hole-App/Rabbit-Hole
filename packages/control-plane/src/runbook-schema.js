@@ -42,6 +42,8 @@ function validate(rb, files, bundleText) {
   rb.talks_to = citeFiltered(rb.talks_to, 'at', 'talks_to');
   rb.endpoints = citeFiltered(rb.endpoints, 'at', 'endpoint');
   rb.known_limits = citeFiltered(rb.known_limits, 'at', 'known limit');
+  rb.process_flow = citeFiltered(rb.process_flow, 'at', 'process step');
+  if (!rb.process_flow.length) delete rb.process_flow;
   rb.files = (rb.files || []).filter((f) => {
     if (files[f.path] != null) return true;
     drop(`files dropped: ${f.path} not in the bundle`);
@@ -210,6 +212,7 @@ export async function buildRunbook(env, app, deploy, stored, baseUrl) {
       : null,
     runs_on: await runsOn(env, app),
     data_flow: dataFlow(app, files, reviewJson),
+    ...(m.process_flow?.length ? { process_flow: m.process_flow } : {}),
     // the role and what the code was observed doing with it - powers the role peek
     ...(app.aws_role_arn ? {
       aws_role: {
@@ -349,6 +352,11 @@ export function renderMarkdown(rb) {
       df.persists?.length ? `Survives between runs: ${df.persists.map((x) => `\`${x}\``).join(', ')}` : null,
       df.leaves_the_org ? '**This app sends data outside the organisation.**' : null,
     ].filter(Boolean).join('\n\n')}`);
+  }
+
+  if (rb.process_flow?.length) {
+    // the agent-authored run stages; the dashboard draws this same chain as the diagram
+    out.push(`## Process flow\n${rb.process_flow.map((s, i) => `${i + 1}. ${s.step} \`${s.at}\``).join('\n')}`);
   }
 
   if (rb.what_it_does) out.push(`## What it does\n${rb.what_it_does}${rb.who_its_for ? `\n\n${rb.who_its_for}` : ''}${rb.when_to_use ? `\n\n${rb.when_to_use}` : ''}`);

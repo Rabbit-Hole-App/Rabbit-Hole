@@ -168,9 +168,12 @@ observed doing with it, and a live read of its policies when the role permits re
 itself). `source_files` renders as **Project files** near the bottom, every path a
 `#src=` link. `appendix` renders as **## Appendix** with `###` subsections, before Ask.
 
-The dashboard's Generate button also inserts a locked excalidraw figure under
-**Where data comes from and goes**, drawn deterministically from `data_flow`
-(inputs → app → outputs) — never model-invented.
+`process_flow` (model row: 3-7 ordered stages, each `{step, at}` with a `file:line`
+cite, uncited steps dropped) renders as **Process flow**, a numbered list with
+clickable cites. The dashboard's Generate button draws the same chain as a locked
+excalidraw figure under that section; when `process_flow` is absent it falls back
+to a deterministic inputs → app → outputs figure from `data_flow`. The markdown
+list is the source of truth; the drawing is derived from it, never model-drawn.
 
 `how_to_use` is written about the code, not the dashboard: the Run form is
 self-explanatory, so the steps assume the reader may run the code anywhere
