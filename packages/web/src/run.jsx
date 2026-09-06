@@ -213,7 +213,8 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
   const [batchOpen, setBatchOpen] = useState(false);
   const [batchField, setBatchField] = useState(textFields[0] || '');
   const [batchText, setBatchText] = useState('');
-  const batchLines = [...new Set(batchText.split('\n').map((l) => l.trim()).filter(Boolean))];
+  // one value per line; a trailing comma (CSV/JSON paste residue) is forgiven
+  const batchLines = [...new Set(batchText.split('\n').map((l) => l.trim().replace(/,$/, '').trim()).filter(Boolean))];
   const BATCH_MAX = 25; // ponytail: sequential client-side starts; server-side fan-out when someone needs hundreds
   const set = (k, v) => { setValues((s) => ({ ...s, [k]: v })); setErrors((e) => ({ ...e, [k]: null })); };
 
