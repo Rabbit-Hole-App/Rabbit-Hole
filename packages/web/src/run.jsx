@@ -77,7 +77,7 @@ const defaultValue = (spec) => {
 // ─── s3:// text input with autocomplete: the control plane lists one level under
 // the typed uri via the app's [aws] role. Pasting a full uri works unchanged;
 // no role / no access → no suggestions, still a plain text field. ───
-function S3Input({ app, value, onChange, onBlur, error, label }) {
+function S3Input({ app, value, onChange, onBlur, onPaste, error, label }) {
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(-1);
@@ -121,6 +121,7 @@ function S3Input({ app, value, onChange, onBlur, error, label }) {
       <Input
         value={value}
         title={value || undefined}
+        onPaste={onPaste}
         onChange={(e) => { onChange(e.target.value); look(e.target.value); }}
         onFocus={() => { focused.current = true; look(value); }}
         onBlur={() => { focused.current = false; setTimeout(() => setOpen(false), 150); onBlur?.(); }}
@@ -206,16 +207,28 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
   const [files, setFiles] = useState({});
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
-  // Batch: paste one value per line for ONE text field, every other field is
-  // shared - each line becomes its own run (own status, logs and outputs).
-  const textFields = entries.filter(([, s]) => (s.type || 'text') === 'text').map(([k]) => k);
-  const hasRequiredFile = entries.some(([, s]) => s.type === 'file' && s.required);
-  const [batchOpen, setBatchOpen] = useState(false);
-  const [batchField, setBatchField] = useState(textFields[0] || '');
-  const [batchText, setBatchText] = useState('');
-  // one value per line; a trailing comma (CSV/JSON paste residue) is forgiven
-  const batchLines = [...new Set(batchText.split('\n').map((l) => l.trim().replace(/,$/, '').trim()).filter(Boolean))];
+  // Batch: + beside a text field adds another value row for that field; each
+  // row becomes its own run (own status, logs and outputs), every other field
+  // is shared. A multi-line paste into any row splits into rows automatically.
+  const [extras, setExtras] = useState({}); // field -> extra value rows
+  const batchField = Object.keys(extras).find((k) => (extras[k] || []).length > 0) || null;
+  const cleanLine = (l) => String(l).trim().replace(/,$/, '').trim(); // trailing comma = CSV/JSON paste residue
+  const batchValues = batchField
+    ? [...new Set([values[batchField], ...extras[batchField]].map(cleanLine).filter(Boolean))]
+    : [];
   const BATCH_MAX = 25; // ponytail: sequential client-side starts; server-side fan-out when someone needs hundreds
+  const addExtra = (k) => setExtras((s) => ({ ...s, [k]: [...(s[k] || []), ''] }));
+  const setExtraAt = (k, i, v) => setExtras((s) => { const a = [...s[k]]; a[i] = v; return { ...s, [k]: a }; });
+  const removeExtra = (k, i) => setExtras((s) => { const a = s[k].filter((_, j) => j !== i); return a.length ? { ...s, [k]: a } : Object.fromEntries(Object.entries(s).filter(([kk]) => kk !== k)); });
+  const pasteSplit = (k, i) => (e) => {
+    const t = e.clipboardData?.getData('text') || '';
+    if (!t.includes('\n')) return;
+    e.preventDefault();
+    const lines = t.split('\n').map(cleanLine).filter(Boolean);
+    if (!lines.length) return;
+    if (i == null) { set(k, lines[0]); if (lines.length > 1) setExtras((s) => ({ ...s, [k]: [...(s[k] || []), ...lines.slice(1)] })); }
+    else setExtras((s) => { const a = [...s[k]]; a.splice(i, 1, ...lines); return { ...s, [k]: a }; });
+  };
   const set = (k, v) => { setValues((s) => ({ ...s, [k]: v })); setErrors((e) => ({ ...e, [k]: null })); };
 
   // Prefill from "Run again": scalar values land; file fields must be re-picked.
@@ -269,7 +282,7 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
   };
 
   const submitBatch = async () => {
-    // shared fields validate as usual; the batch field validates per line
+    // shared fields validate as usual; the batch field validates per row
     const spec = schema[batchField];
     const errs = {};
     for (const [k, s] of entries) {
@@ -279,7 +292,7 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
     }
     setErrors(errs);
     if (Object.values(errs).some(Boolean)) return;
-    for (const line of batchLines) {
+    for (const line of batchValues) {
       const e = validateOne(spec, line);
       if (e) return toast(`✗ ${batchField} "${line.slice(0, 40)}": ${e}`);
     }
@@ -294,13 +307,12 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
     setBusy(true);
     let started = 0;
     try {
-      for (const line of batchLines.slice(0, BATCH_MAX)) {
+      for (const line of batchValues.slice(0, BATCH_MAX)) {
         await api('/api/runs', { method: 'POST', body: JSON.stringify({ app: app.name, inputs: { ...shared, [batchField]: line } }) });
         started++;
       }
       toast(`Started ${started} run${started === 1 ? '' : 's'}`);
-      setBatchOpen(false);
-      setBatchText('');
+      setExtras({});
       (onBatchStarted || (() => {}))();
     } catch (e) {
       toast(`✗ after ${started} started: ${e.message}`);
@@ -339,62 +351,41 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
             </div>
           )}
           {spec.type === 'bool' && <div className="pt-2"><Toggle on={!!values[k]} onChange={(v) => set(k, v)} aria-label={k} /></div>}
-          {spec.type === 'text' && (spec.pattern || '').includes('s3://') && (
-            <S3Input
-              app={app}
-              value={values[k]}
-              onChange={(v) => set(k, v)}
-              onBlur={() => setErrors((er) => ({ ...er, [k]: validateOne(spec, values[k]) }))}
-              error={errors[k]}
-              label={k}
-            />
-          )}
-          {spec.type === 'text' && !(spec.pattern || '').includes('s3://') && (
-            <Input
-              value={values[k]}
-              onChange={(e) => set(k, e.target.value)}
-              onBlur={() => setErrors((er) => ({ ...er, [k]: validateOne(spec, values[k]) }))}
-              className={errors[k] ? 'border-danger' : undefined}
-              aria-label={k}
-            />
-          )}
+          {spec.type === 'text' && (() => {
+            const s3 = (spec.pattern || '').includes('s3://');
+            // helper CALL (not a component): keeps S3Input/Input identity stable across renders
+            const ctl = (value, onChange, onPaste, label) => (s3
+              ? <S3Input app={app} value={value} onChange={onChange} onPaste={onPaste} onBlur={() => setErrors((er) => ({ ...er, [k]: validateOne(spec, values[k]) }))} error={errors[k]} label={label} />
+              : <Input value={value} onChange={(e) => onChange(e.target.value)} onPaste={onPaste} onBlur={() => setErrors((er) => ({ ...er, [k]: validateOne(spec, values[k]) }))} className={errors[k] ? 'border-danger' : undefined} aria-label={label} />);
+            return (
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-start gap-1.5">
+                  <div className="min-w-0 flex-1">{ctl(values[k], (v) => set(k, v), pasteSplit(k, null), k)}</div>
+                  {(!batchField || batchField === k) && (
+                    <Tip label={`Add another ${k}`} info="each value becomes its own run">
+                      <IconBtn aria-label={`Add another ${k}`} onClick={() => addExtra(k)}><Plus size={14} strokeWidth={1.5} /></IconBtn>
+                    </Tip>
+                  )}
+                </div>
+                {(extras[k] || []).map((v, i) => (
+                  <div key={i} className="flex items-start gap-1.5">
+                    <div className="min-w-0 flex-1">{ctl(v, (nv) => setExtraAt(k, i, nv), pasteSplit(k, i), `${k} ${i + 2}`)}</div>
+                    <IconBtn aria-label={`Remove ${k} ${i + 2}`} onClick={() => removeExtra(k, i)}><X size={14} strokeWidth={1.5} /></IconBtn>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </Field>
       ))}
       <div className={cn('flex items-center gap-3', entries.length && 'pt-4')}>
-        <Button variant="primary" disabled={busy} onClick={submit}>
-          {busy ? <Loader2 size={16} strokeWidth={1.5} className="animate-spin" /> : <Play size={16} strokeWidth={1.5} />} Run
+        <Button variant="primary" disabled={busy || (batchField && !batchValues.length)} onClick={batchField ? submitBatch : submit}>
+          {busy ? <Loader2 size={16} strokeWidth={1.5} className="animate-spin" /> : <Play size={16} strokeWidth={1.5} />}
+          {batchField ? `Run batch (${Math.min(batchValues.length, BATCH_MAX)})` : 'Run'}
         </Button>
-        {textFields.length > 0 && !hasRequiredFile && !batchOpen && (
-          <button type="button" className="cursor-pointer text-sm text-ink-2 hover:text-ink" onClick={() => setBatchOpen(true)}>Run a batch…</button>
-        )}
+        {batchField && <span className="text-sm text-ink-2">one run per {batchField}, other fields shared</span>}
+        {batchValues.length > BATCH_MAX && <span className="text-xs text-warn">first {BATCH_MAX} of {batchValues.length} - split larger batches</span>}
       </div>
-      {batchOpen && (
-        <div className="mt-4 max-w-xl rounded-md border border-line p-3">
-          <div className="flex items-center gap-2 pb-2 text-sm">
-            One run per line for
-            {textFields.length > 1
-              ? <Select value={batchField} options={textFields} onChange={setBatchField} />
-              : <span className="font-medium">{batchField}</span>}
-            <span className="text-ink-2">- the other fields above are shared by every run</span>
-          </div>
-          <textarea
-            value={batchText}
-            onChange={(e) => setBatchText(e.target.value)}
-            rows={6}
-            placeholder={'one value per line, e.g.\ns3://bucket/events/event-1/\ns3://bucket/events/event-2/'}
-            className="w-full resize-y rounded-sm bg-code p-2 font-mono text-xs outline-none"
-            aria-label="Batch values"
-          />
-          <div className="flex items-center gap-3 pt-2">
-            <Button variant="primary" size="sm" disabled={busy || !batchLines.length} onClick={submitBatch}>
-              {busy ? <Loader2 size={14} strokeWidth={1.5} className="animate-spin" /> : <Play size={14} strokeWidth={1.5} />}
-              Start {Math.min(batchLines.length, BATCH_MAX)} run{batchLines.length === 1 ? '' : 's'}
-            </Button>
-            <button type="button" className="cursor-pointer text-sm text-ink-2 hover:text-ink" onClick={() => setBatchOpen(false)}>Cancel</button>
-            {batchLines.length > BATCH_MAX && <span className="text-xs text-warn">first {BATCH_MAX} of {batchLines.length} lines - split larger batches</span>}
-          </div>
-        </div>
-      )}
       {lr && (
         <div className="flex flex-wrap items-center gap-1 pt-3 text-sm text-ink-2">
           Last run {ago(lr.startedAt)}{lr.startedBy ? ` by ${startedName(lr.startedBy)}` : ''}
