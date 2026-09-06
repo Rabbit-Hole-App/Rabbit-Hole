@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import { clsx as cn } from 'clsx';
-import { Check, ChevronDown, Clock, Copy as CopyIcon, File as FileIcon, Globe, Play, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Clock, Copy as CopyIcon, File as FileIcon, Globe, Play, Upload, X } from 'lucide-react';
 
 export { cn };
 
@@ -549,27 +549,49 @@ export function useHeaderDrag(moveCol) {
       [...row.children].forEach((c) => { if (c.dataset.col) r[c.dataset.col] = c.getBoundingClientRect(); });
       return r;
     };
-    dragRef.current = { key: k, startX: e.clientX, moved: false, rects: grab(), last: null };
+    const startRects = grab();
+    dragRef.current = {
+      key: k, startX: e.clientX, moved: false, rects: startRects, last: null,
+      grabOff: e.clientX - (startRects[k]?.left ?? e.clientX), // pointer offset inside the header
+      layoutLeft: startRects[k]?.left ?? 0, // the header's untransformed x
+      lastX: e.clientX,
+    };
+    const dragged = () => [...row.children].find((c) => c.dataset.col === k);
     const move = (ev) => {
       const d = dragRef.current;
       if (!d) return;
+      d.lastX = ev.clientX;
       if (!d.moved && Math.abs(ev.clientX - d.startX) < 5) return;
       if (!d.moved) { d.moved = true; setDragCol(d.key); document.body.style.cursor = 'grabbing'; }
+      // the grabbed header follows the pointer 1:1; neighbours FLIP around it
+      const el = dragged();
+      if (el) {
+        el.style.transform = `translateX(${(ev.clientX - d.grabOff) - d.layoutLeft}px)`;
+        el.style.zIndex = 20;
+      }
       for (const [key, r] of Object.entries(d.rects)) {
-        if (key !== d.key && key !== d.last && ev.clientX > r.left && ev.clientX < r.right) {
+        if (key !== d.key && key !== d.last && ev.clientX > r.left + r.width * 0.4 && ev.clientX < r.right - r.width * 0.4) {
           d.last = key;
           const before = d.rects;
           moveCol(d.key, key);
           requestAnimationFrame(() => {
-            if (!dragRef.current) return;
-            // FLIP: each header animates from its old x to its new one
+            const dd = dragRef.current;
+            if (!dd) return;
+            const el2 = dragged();
+            if (el2) {
+              // re-anchor the grabbed header to its new layout slot, keep it under the pointer
+              el2.style.transform = '';
+              dd.layoutLeft = el2.getBoundingClientRect().left;
+              el2.style.transform = `translateX(${(dd.lastX - dd.grabOff) - dd.layoutLeft}px)`;
+              el2.style.zIndex = 20;
+            }
             [...row.children].forEach((c) => {
               const ck = c.dataset.col;
-              if (!ck || !before[ck]) return;
+              if (!ck || ck === dd.key || !before[ck]) return;
               const dx = before[ck].left - c.getBoundingClientRect().left;
-              if (dx) c.animate([{ transform: `translateX(${dx}px)` }, { transform: 'translateX(0)' }], { duration: 160, easing: 'ease-out' });
+              if (dx) c.animate([{ transform: `translateX(${dx}px)` }, { transform: 'translateX(0)' }], { duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
             });
-            dragRef.current.rects = grab();
+            dd.rects = grab();
           });
           break;
         }
@@ -580,6 +602,14 @@ export function useHeaderDrag(moveCol) {
       dragRef.current = null;
       setDragCol(null);
       document.body.style.cursor = '';
+      const el = d && [...row.children].find((c) => c.dataset.col === d.key);
+      if (el) {
+        // settle: glide from wherever the pointer left it back into the slot
+        const from = el.style.transform;
+        el.style.transform = '';
+        el.style.zIndex = '';
+        if (from) el.animate([{ transform: from }, { transform: 'translateX(0)' }], { duration: 160, easing: 'ease-out' });
+      }
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       if (d?.moved) squelch.current = true;
@@ -600,5 +630,48 @@ export function Tip({ label, info, children }) {
         {info && <span className="pt-0.5 text-xs font-normal text-white/75">{info}</span>}
       </span>
     </span>
+  );
+}
+
+// Notion-style submenu row: hover (or click) opens a flyout to the right.
+export function SubMenu({ icon: Icon, label, open, onOpen, children, width = 'w-52' }) {
+  return (
+    <div className="relative" onMouseEnter={onOpen}>
+      <button className="flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-sm text-ink hover:bg-hover" onClick={onOpen}>
+        {Icon && <Icon size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />}
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+        <ChevronRight size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />
+      </button>
+      {open && (
+        <div className={cn('absolute top-0 left-full z-30 ml-1 rounded-md bg-white p-1 shadow-pop', width)} onMouseDown={(e) => e.stopPropagation()}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Search-as-you-type value list for filter flyouts - never dumps hundreds of rows.
+export function ValuePicker({ values, label = (v) => String(v), onPick }) {
+  const [q, setQ] = useState('');
+  const shown = values.filter((v) => String(label(v)).toLowerCase().includes(q.toLowerCase())).slice(0, 10);
+  return (
+    <>
+      {values.length > 6 && (
+        <input
+          autoFocus
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search values…"
+          onMouseDown={(e) => e.stopPropagation()}
+          className="mb-1 h-7 w-full rounded-sm bg-code px-2 text-sm outline-none"
+        />
+      )}
+      {shown.map((v) => (
+        <MenuItem key={String(v)} onClick={(e) => { e.stopPropagation(); onPick(v); }}>{label(v)}</MenuItem>
+      ))}
+      {shown.length === 0 && <div className="px-2 py-1 text-xs text-ink-3">No matches</div>}
+      {values.length > 10 && shown.length >= 10 && <div className="px-2 py-1 text-xs text-ink-3">{values.length} values, type to narrow</div>}
+    </>
   );
 }

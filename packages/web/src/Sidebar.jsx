@@ -43,7 +43,7 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
   };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={onClose}>
-      <div className="flex h-[calc(100vh-100px)] max-h-[720px] w-[calc(100vw-100px)] max-w-[1150px] overflow-hidden rounded-lg bg-white text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="flex h-[calc(100vh-100px)] max-h-[720px] w-[calc(100vw-100px)] max-w-[1150px] overflow-hidden rounded-2xl bg-white text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
         <div className="w-[260px] shrink-0 overflow-y-auto border-r border-line bg-side py-4 px-3">
           <div className="px-2 pb-1 text-xs font-medium text-ink-3">Account</div>
           <div className="flex items-center gap-2 rounded-sm px-2 py-1.5">

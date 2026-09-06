@@ -10,7 +10,7 @@ import { ago, api, fmtTime, navigate } from './api.js';
 import { AskPanel } from './ask.jsx';
 import {
   Avatar, Button, Chk, cn, CodeBlock, Dropzone, Field, fmtBytes, IconBtn, Input,
-  Menu, MenuItem, Pill, Select, SkeletonRows, SlidePanel, Slider, StatusPill, Tip, toast, Toggle, useHeaderDrag,
+  Menu, MenuItem, Pill, Select, SkeletonRows, SlidePanel, Slider, StatusPill, SubMenu, Tip, toast, Toggle, useHeaderDrag, ValuePicker,
 } from './ui.jsx';
 
 const shortId = (id) => String(id || '').replace(/^r-/, '').slice(0, 7);
@@ -573,6 +573,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
   const [order, setOrder] = useState(() => JSON.parse(localStorage.getItem(`small.tblorder.${slug}`) || 'null'));
   const saveOrder = (o) => { setOrder(o); localStorage.setItem(`small.tblorder.${slug}`, JSON.stringify(o)); };
   const [colMenu, setColMenu] = useState(null); // column key with its header menu open
+  const [colSub, setColSub] = useState(null); // 'sort' | 'filter' flyout inside it
 
   useEffect(() => { api(`/api/runs?app=${encodeURIComponent(slug)}`).then((d) => setRuns(d.runs)).catch(() => setRuns([])); }, [slug]);
 
@@ -682,7 +683,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
 
   const people = [...new Set(runs.map((r) => r.started_by).filter(Boolean))];
   const statuses = [...new Set(runs.map((r) => r.status))];
-  const valuesOf = (k) => [...new Set(runs.map((r) => (r.inputs || {})[k]).filter((v) => v != null).map(String))].slice(0, 8);
+  const valuesOf = (k) => [...new Set(runs.map((r) => (r.inputs || {})[k]).filter((v) => v != null).map(String))].slice(0, 200);
   const settledDurs = filtered.map(durOf).filter((s) => s != null);
   const avg = settledDurs.length ? settledDurs.reduce((a, b) => a + b, 0) / settledDurs.length : null;
 
@@ -767,6 +768,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
                     onPointerDown={hdrDown(c.key)}
                     onClick={() => {
                       if (squelch.current) { squelch.current = false; return; }
+                      setColSub(null);
                       setColMenu(colMenu === c.key ? null : c.key);
                     }}
                     className={cn('relative h-8 cursor-pointer touch-none border-b border-line px-2 text-left text-xs font-normal whitespace-nowrap text-ink-2 select-none hover:bg-hover', c.right && 'text-right', dragCol === c.key && 'bg-active opacity-60')}
@@ -778,18 +780,22 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
                         {c.label}
                       </span>
                     </Tip>
-                    <Menu open={colMenu === c.key} onClose={() => setColMenu(null)} className="top-8 left-0 max-h-72 w-48 cursor-default overflow-y-auto text-left font-normal">
+                    <Menu open={colMenu === c.key} onClose={() => { setColMenu(null); setColSub(null); }} className="top-8 left-0 w-44 cursor-default text-left font-normal">
                       {(c.key === 'when' || c.key === 'dur') && (
-                        <>
+                        <SubMenu icon={ArrowUpDown} label="Sort" open={colSub === 'sort'} onOpen={() => setColSub('sort')} width="w-44">
                           <MenuItem onClick={(e) => { e.stopPropagation(); setSort({ field: c.key, dir: 'asc' }); setColMenu(null); }}>Sort ascending</MenuItem>
                           <MenuItem onClick={(e) => { e.stopPropagation(); setSort({ field: c.key, dir: 'desc' }); setColMenu(null); }}>Sort descending</MenuItem>
-                        </>
+                        </SubMenu>
                       )}
-                      {(c.key === 'status' ? statuses : c.key === 'by' ? people : c.input ? valuesOf(c.input) : []).map((v) => (
-                        <MenuItem key={String(v)} icon={FilterIcon} onClick={(e) => { e.stopPropagation(); setFilters((f) => [...f, { field: c.input || c.key, value: v }]); setColMenu(null); }}>
-                          Filter · {c.key === 'by' ? startedName(v) : String(v)}
-                        </MenuItem>
-                      ))}
+                      {(c.key === 'status' || c.key === 'by' || c.input) && (
+                        <SubMenu icon={FilterIcon} label="Filter" open={colSub === 'filter'} onOpen={() => setColSub('filter')}>
+                          <ValuePicker
+                            values={c.key === 'status' ? statuses : c.key === 'by' ? people : valuesOf(c.input)}
+                            label={(v) => (c.key === 'by' ? startedName(v) : String(v))}
+                            onPick={(v) => { setFilters((f) => [...f, { field: c.input || c.key, value: v }]); setColMenu(null); setColSub(null); }}
+                          />
+                        </SubMenu>
+                      )}
                       {c.key !== 'run' && (
                         <MenuItem icon={Eye} onClick={(e) => { e.stopPropagation(); toggleCol(c.input || c.key); setColMenu(null); }}>Hide column</MenuItem>
                       )}

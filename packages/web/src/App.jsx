@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpRight, ChevronDown, ChevronRight, Clock, Eye
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
 import Shell from './Shell.jsx';
-import { Avatar, Chk, cn, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, Tip, useHeaderDrag } from './ui.jsx';
+import { Avatar, Chk, cn, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, useHeaderDrag, ValuePicker } from './ui.jsx';
 
 const people = (a) => [a.owner_email, ...(a.members || []).map((m) => m.email).filter((e) => e !== a.owner_email)];
 
@@ -77,6 +77,7 @@ function AppContent({ data, load }) {
   const [filter, setFilter] = useState(() => persisted('small.tblFilter', null)); // { key, value }
   const saveFilter = (f) => { setFilter(f); localStorage.setItem('small.tblFilter', JSON.stringify(f)); };
   const [colMenu, setColMenu] = useState(null); // column key with its header menu open
+  const [colSub, setColSub] = useState(null); // 'sort' | 'filter' flyout inside it
   const [toolMenu, setToolMenu] = useState(null); // 'filter' | 'sort' | 'props'
   const order = [...cols.order.filter((k) => DEFAULT_ORDER.includes(k)), ...DEFAULT_ORDER.filter((k) => !cols.order.includes(k))];
   const visibleCols = order.filter((k) => !cols.hidden[k]);
@@ -255,18 +256,26 @@ function AppContent({ data, load }) {
                         className={cn(th, 'relative cursor-pointer touch-none select-none hover:bg-hover', dragCol === k && 'bg-active opacity-60')}
                         onClick={() => {
                           if (clickSquelch.current) { clickSquelch.current = false; return; }
+                          setColSub(null);
                           setColMenu(colMenu === k ? null : k);
                         }}
                       >
                         <Tip label={COLS[k]} info={COL_INFO[k]}>
                           <span>{COLS[k]}{sort?.key === k ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ''}</span>
                         </Tip>
-                        <Menu open={colMenu === k} onClose={() => setColMenu(null)} className="top-8 left-0 w-48 cursor-default font-normal normal-case">
-                          <MenuItem icon={ArrowUp} onClick={(e) => { e.stopPropagation(); saveSort({ key: k, dir: 'asc' }); setColMenu(null); }}>Sort ascending</MenuItem>
-                          <MenuItem icon={ArrowDown} onClick={(e) => { e.stopPropagation(); saveSort({ key: k, dir: 'desc' }); setColMenu(null); }}>Sort descending</MenuItem>
-                          {FILTERS[k] && [...new Set(sectionApps.map((a) => FILTERS[k](a)))].sort().map((v) => (
-                            <MenuItem key={v} icon={ListFilter} onClick={(e) => { e.stopPropagation(); saveFilter({ key: k, value: v }); setColMenu(null); }}>Filter · {v}</MenuItem>
-                          ))}
+                        <Menu open={colMenu === k} onClose={() => { setColMenu(null); setColSub(null); }} className="top-8 left-0 w-44 cursor-default font-normal normal-case">
+                          <SubMenu icon={ArrowUp} label="Sort" open={colSub === 'sort'} onOpen={() => setColSub('sort')} width="w-44">
+                            <MenuItem onClick={(e) => { e.stopPropagation(); saveSort({ key: k, dir: 'asc' }); setColMenu(null); }}>Sort ascending</MenuItem>
+                            <MenuItem onClick={(e) => { e.stopPropagation(); saveSort({ key: k, dir: 'desc' }); setColMenu(null); }}>Sort descending</MenuItem>
+                          </SubMenu>
+                          {FILTERS[k] && (
+                            <SubMenu icon={ListFilter} label="Filter" open={colSub === 'filter'} onOpen={() => setColSub('filter')}>
+                              <ValuePicker
+                                values={[...new Set(sectionApps.map((a) => FILTERS[k](a)))].sort()}
+                                onPick={(v) => { saveFilter({ key: k, value: v }); setColMenu(null); setColSub(null); }}
+                              />
+                            </SubMenu>
+                          )}
                           {k !== 'name' && (
                             <MenuItem icon={EyeOff} onClick={(e) => { e.stopPropagation(); saveCols({ ...cols, hidden: { ...cols.hidden, [k]: true } }); setColMenu(null); }}>Hide column</MenuItem>
                           )}
