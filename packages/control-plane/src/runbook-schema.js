@@ -27,6 +27,8 @@ function validate(rb, files, bundleText) {
   });
 
   rb.needs = (rb.needs || []).filter((n) => {
+    // SMALL_* is platform plumbing - it never appears in a runbook
+    if (/^SMALL_/.test(n.name)) return false;
     if (!bundleText.includes(n.name)) { drop(`needs dropped: ${n.name} not found in the source`); return false; }
     if (!fileLineOk(files, n.used_in)) { drop(`needs dropped: cite ${n.used_in} not in the bundle`); return false; }
     return true;
@@ -54,6 +56,14 @@ function validate(rb, files, bundleText) {
         return false;
       });
     }
+  }
+
+  // the platform contract stays out of the reader's document entirely
+  if (rb.run_locally) {
+    rb.run_locally.env = (rb.run_locally.env || []).filter((e) => !/SMALL_/.test(e));
+    if (!rb.run_locally.env.length) delete rb.run_locally.env;
+    if (/SMALL_/.test(rb.run_locally.start || '')) delete rb.run_locally.start;
+    if (!Object.keys(rb.run_locally).length) delete rb.run_locally;
   }
 
   const sentences = String(rb.what_it_does || '').split(/[.!?]+\s/).filter(Boolean).length;
@@ -249,6 +259,16 @@ function reviewSummary(raw) {
 const esc = (v) => String(v ?? '').replace(/\|/g, '\\|');
 const table = (headers, rows) =>
   [`| ${headers.join(' | ')} |`, `| ${headers.map(() => '---').join(' | ')} |`, ...rows.map((r) => `| ${r.map(esc).join(' | ')} |`)].join('\n');
+
+// Bare refs in prose become chips: file:line tokens and s3:// uris get backticks
+// so the web page makes them clickable/coloured. Fenced blocks stay untouched.
+function chipify(md) {
+  return md.split(/(```[\s\S]*?```)/).map((seg, i) => (i % 2 ? seg
+    : seg
+      .replace(/(?<![`\w/])((?:[\w-]+\/)*[\w-]+\.(?:py|toml|txt|md|json|csv|cfg|ini|ya?ml|js):\d+(?:-\d+)?)(?![`\w])/g, '`$1`')
+      .replace(/(?<!`)(s3:\/\/[^\s`)\],]+)(?!`)/g, '`$1`')
+  )).join('');
+}
 
 export function renderMarkdown(rb) {
   const out = [];
