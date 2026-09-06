@@ -484,23 +484,25 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
 
       {/* icons only - search + notifications share one line, tooltips carry the labels */}
       <div className="flex items-center gap-1 px-0.5">
-        <IconBtn
+        <button
           title="Search (Ctrl + K)"
           aria-label="Search"
-          className={cn('rounded-full!', searchOpen && 'bg-active text-ink')}
           onClick={() => window.dispatchEvent(new CustomEvent('small:search'))}
+          className={cn('flex h-7 cursor-pointer items-center rounded-full px-1.5 text-sm', searchOpen ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')}
         >
-          <Search size={16} strokeWidth={1.5} />
-        </IconBtn>
+          <Search size={16} strokeWidth={1.5} className="shrink-0" />
+          <span className={cn('overflow-hidden whitespace-nowrap transition-[max-width] duration-200 ease-out', searchOpen ? 'max-w-[64px] pl-1.5' : 'max-w-0')}>Search</span>
+        </button>
         <div className="relative">
-          <IconBtn
+          <button
             title="Notifications"
             aria-label="Notifications"
-            className={cn('rounded-full!', watchOpen && 'bg-active text-ink')}
             onClick={() => { setWatchOpen(true); loadWatch(); markRead(); }}
+            className={cn('flex h-7 cursor-pointer items-center rounded-full px-1.5 text-sm', watchOpen ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')}
           >
-            <Bell size={16} strokeWidth={1.5} />
-          </IconBtn>
+            <Bell size={16} strokeWidth={1.5} className="shrink-0" />
+            <span className={cn('overflow-hidden whitespace-nowrap transition-[max-width] duration-200 ease-out', watchOpen ? 'max-w-[110px] pl-1.5' : 'max-w-0')}>Notifications</span>
+          </button>
           {unread.length > 0 && (
             <span className="pointer-events-none absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warn px-1 text-[10px] font-semibold text-white">
               {unread.length}
