@@ -1,4 +1,9 @@
 @import 'tailwindcss';
+
+/* dark: must follow the app's own theme toggle (.dark on <html>), never the OS -
+   with the default media-query variant an OS-dark user saw dark highlights on the
+   Light theme (file peek citation bug). */
+@custom-variant dark (&:where(.dark, .dark *));
 @import '@fontsource-variable/inter';
 /* BlockNote's shadcn components rely on the host app's Tailwind generating their utilities */
 @source '../../../node_modules/@blocknote/shadcn';
