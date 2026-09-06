@@ -61,7 +61,7 @@ function MembersContent({ data }) {
         </div>
         <div className="flex items-center justify-between pb-5">
           <h1 className="text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">Members</h1>
-          <Button size="sm" onClick={() => setNewPerson(newPerson === null ? '' : null)}>
+          <Button variant="secondary" size="sm" onClick={() => setNewPerson(newPerson === null ? '' : null)}>
             <Plus size={14} strokeWidth={1.5} /> Add person
           </Button>
         </div>
@@ -130,7 +130,7 @@ function MembersContent({ data }) {
 
         <div className="flex items-center justify-between pt-8 pb-2">
           <span className="text-sm font-medium">Groups</span>
-          <Button size="sm" onClick={() => setNewTeam(newTeam === null ? '' : null)}>
+          <Button variant="secondary" size="sm" onClick={() => setNewTeam(newTeam === null ? '' : null)}>
             <Plus size={14} strokeWidth={1.5} /> New group
           </Button>
         </div>

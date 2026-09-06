@@ -355,6 +355,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
   const [wsMenu, setWsMenu] = useState(false);
   const [wsList, setWsList] = useState(null); // workspaces the user belongs to, loaded when the menu opens
   const [newWs, setNewWs] = useState(null); // string while the create dialog is up
+  const [newApp, setNewApp] = useState(false); // the how-to-ship dialog
   useEffect(() => {
     if (wsMenu && !wsList) {
       api('/api/workspaces')
@@ -519,7 +520,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
       </div>
       )}
       {menu && (
-        <Menu open={menuFor === a.name} onClose={() => setMenuFor(null)} className="top-7 left-0 max-w-52">
+        <Menu open={menuFor === a.name} onClose={() => setMenuFor(null)} className="top-7 right-0 w-52">
           <MenuItem icon={ExternalLink} onClick={() => { setMenuFor(null); navigate(`/apps/${a.name}`); }}>Open</MenuItem>
           <MenuItem
             icon={Link}
@@ -706,6 +707,26 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
         </Menu>
       </div>
       {showSettings && <SettingsDialog email={email} onMarkRead={markRead} onClose={() => setShowSettings(false)} />}
+      {newApp && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={() => setNewApp(false)}>
+          <div className="mt-[22vh] w-[420px] max-w-[90vw] rounded-2xl bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="pb-1 text-sm font-semibold">New app</div>
+            <div className="pb-3 text-xs text-ink-2">Apps ship from your terminal. Three commands and it appears here.</div>
+            {[['1. Install the CLI', 'npm i -g small-deploy'], ['2. Sign in', 'small login'], ['3. Ship from your project directory', 'small deploy']].map(([label, cmd]) => (
+              <div key={cmd} className="flex items-center justify-between gap-3 py-1.5">
+                <span className="text-sm text-ink-2">{label}</span>
+                <span className="flex items-center gap-1">
+                  <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{cmd}</code>
+                  <IconBtn aria-label={`Copy ${cmd}`} onClick={() => { navigator.clipboard.writeText(cmd); toast('Copied'); }}><Copy size={13} strokeWidth={1.5} /></IconBtn>
+                </span>
+              </div>
+            ))}
+            <div className="flex justify-end pt-3">
+              <Button variant="secondary" size="sm" onClick={() => setNewApp(false)}>Done</Button>
+            </div>
+          </div>
+        </div>
+      )}
       {newWs !== null && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={() => setNewWs(null)}>
           <div className="mt-[26vh] w-96 max-w-[90vw] rounded-2xl bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
@@ -831,8 +852,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
             <FolderPlus size={13} />
           </button>
           <button
-            title="New app - copy the deploy command"
-            onClick={() => { navigator.clipboard.writeText('small deploy'); toast('Copied - run this in your project'); }}
+            title="New app"
+            onClick={() => setNewApp(true)}
             className="cursor-pointer rounded-sm p-0.5 text-ink-2 opacity-0 group-hover/sb:opacity-100 hover:bg-hover hover:text-ink"
           >
             <Plus size={13} />
@@ -907,7 +928,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
               >
                 <MoreHorizontal size={16} strokeWidth={1.5} />
               </IconBtn>
-              <Menu open={folderMenu === f.id} onClose={() => setFolderMenu(null)} className="top-7 left-2 max-w-52">
+              <Menu open={folderMenu === f.id} onClose={() => setFolderMenu(null)} className="top-7 right-0 w-52">
                 <MenuItem icon={Users} onClick={() => { setFolderMenu(null); setShareFolder(f.id); setFShare(''); loadPool(); }}>Share folder</MenuItem>
                 <MenuItem icon={Pencil} onClick={() => { setFolderMenu(null); setRenamingFolder({ id: f.id, value: f.name }); }}>Rename</MenuItem>
                 <MenuItem icon={Trash2} className="text-danger" onClick={() => { setFolderMenu(null); setConfirmFolder({ id: f.id, name: f.name }); }}>Delete</MenuItem>
@@ -998,7 +1019,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
             <Menu open={newMenu} onClose={() => setNewMenu(false)} className="bottom-11 right-0 w-40">
               <MenuItem icon={AppIcon} onClick={() => { setNewMenu(false); navigate('/chat'); }}>Chat</MenuItem>
               <MenuItem icon={FolderPlus} onClick={() => { setNewMenu(false); setNewFolder(''); }}>Folder</MenuItem>
-              <MenuItem icon={Plus} onClick={() => { setNewMenu(false); toast('Deploy a new app with: small deploy'); }}>App</MenuItem>
+              <MenuItem icon={Plus} onClick={() => { setNewMenu(false); setNewApp(true); }}>App</MenuItem>
             </Menu>
           </div>
         </div>
@@ -1076,7 +1097,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
                   <span className="min-w-0 flex-1 truncate">{t.name}</span>
                   <span className="text-xs text-ink-3">{ago(t.deleted_at)}</span>
                   {t.owner_email === trash.email && (
-                    <Button size="sm" className="opacity-0 group-hover/tr:opacity-100" onClick={() => restore(t.name)}>
+                    <Button variant="secondary" size="sm" className="opacity-0 group-hover/tr:opacity-100" onClick={() => restore(t.name)}>
                       <RotateCcw size={13} strokeWidth={1.5} /> Restore
                     </Button>
                   )}

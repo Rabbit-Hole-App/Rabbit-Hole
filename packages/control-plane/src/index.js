@@ -602,6 +602,23 @@ async function apiRunsFind(req, env, user) {
   return json({ runs: ids, note: ids.length ? '' : String(out.note || '').slice(0, 200) });
 }
 
+// The Generate button on the Runbook tab: AI writes a runbook from the deployed
+// source; the editor swaps it in client-side (charts appended there for jobs).
+async function apiRunbookGenerate(env, user, name) {
+  const app = await appForUser(env, user, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!app.canEdit) return json({ error: 'only owner or edit members can generate the runbook' }, 403);
+  if (!env.ANTHROPIC_API_KEY) return json({ error: 'runbook generation not configured on this control plane' }, 503);
+  const dep = (await env.DB.prepare('SELECT MAX(id) AS id FROM deploys WHERE app_id = ?').bind(app.id).first())?.id;
+  const stored = await getBundle(env, app.id, dep);
+  if (!stored) return json({ error: 'no stored source for this app - redeploy with a current CLI first' }, 404);
+  try {
+    return json({ markdown: await generateRunbook(env, stored.bundle) });
+  } catch (e) {
+    return json({ error: e.message }, 502);
+  }
+}
+
 // The 2-3 line blurb under the title - model-written on first deploy, edits here stick.
 async function apiAppDescription(req, env, user, name) {
   const app = await appForUser(env, user, name);
@@ -2074,6 +2091,8 @@ export default {
         const descPath = path.match(/^\/api\/apps\/([a-z0-9-]+)\/description$/);
         if (descPath && req.method === 'POST') return await apiAppDescription(req, env, user, descPath[1]);
         if (path === '/api/apps/find' && req.method === 'POST') return await apiAppFind(req, env, user);
+        const genRb = path.match(/^\/api\/apps\/([a-z0-9-]+)\/generate-runbook$/);
+        if (genRb && req.method === 'POST') return await apiRunbookGenerate(env, user, genRb[1]);
         if (path === '/api/unshare' && req.method === 'POST') return await apiUnshare(req, env, user);
         if (path === '/api/folders' && req.method === 'POST') return await apiFolderCreate(req, env, user);
         const folderDel = path.match(/^\/api\/folders\/(\d+)\/delete$/);

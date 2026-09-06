@@ -693,7 +693,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
           mousedown so closing a menu doesn't race its outside-mousedown close */}
       <div className="flex items-center justify-end gap-1 pb-2">
         <div className="relative">
-          <Button size="sm" onMouseDown={(e) => { e.stopPropagation(); setMenu(menu === 'filter' ? null : 'filter'); }}><FilterIcon size={14} strokeWidth={1.5} /> Filter</Button>
+          <Button variant="secondary" size="sm" onMouseDown={(e) => { e.stopPropagation(); setMenu(menu === 'filter' ? null : 'filter'); }}><FilterIcon size={14} strokeWidth={1.5} /> Filter</Button>
           <Menu open={menu === 'filter'} onClose={() => setMenu(null)} className="top-8 left-0 max-h-80 overflow-y-auto">
             <div className="px-2 pt-1 pb-0.5 text-xs text-ink-3">Status</div>
             {statuses.map((s) => <MenuItem key={s} onClick={() => { setFilters((f) => [...f, { field: 'status', value: s }]); setMenu(null); }}>{s}</MenuItem>)}
@@ -708,7 +708,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
           </Menu>
         </div>
         <div className="relative">
-          <Button size="sm" onMouseDown={(e) => { e.stopPropagation(); setMenu(menu === 'sort' ? null : 'sort'); }}><ArrowUpDown size={14} strokeWidth={1.5} /> Sort</Button>
+          <Button variant="secondary" size="sm" onMouseDown={(e) => { e.stopPropagation(); setMenu(menu === 'sort' ? null : 'sort'); }}><ArrowUpDown size={14} strokeWidth={1.5} /> Sort</Button>
           <Menu open={menu === 'sort'} onClose={() => setMenu(null)} className="top-8 left-0">
             <MenuItem onClick={() => { setSort({ field: 'when', dir: 'desc' }); setMenu(null); }}>Newest first</MenuItem>
             <MenuItem onClick={() => { setSort({ field: 'when', dir: 'asc' }); setMenu(null); }}>Oldest first</MenuItem>
@@ -717,7 +717,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
           </Menu>
         </div>
         <div className="relative">
-          <Button size="sm" onMouseDown={(e) => { e.stopPropagation(); setMenu(menu === 'props' ? null : 'props'); }}><Eye size={14} strokeWidth={1.5} /> Properties</Button>
+          <Button variant="secondary" size="sm" onMouseDown={(e) => { e.stopPropagation(); setMenu(menu === 'props' ? null : 'props'); }}><Eye size={14} strokeWidth={1.5} /> Properties</Button>
           <Menu open={menu === 'props'} onClose={() => setMenu(null)} className="top-8 left-0">
             {[...CORE_COLS.filter((c) => c.key !== 'run').map((c) => [c.key, c.label]), ...Object.keys(schema).map((k) => [k, k])].map(([k, label]) => (
               <MenuItem key={k} onClick={() => toggleCol(k)}>
@@ -731,7 +731,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
         ) : (
           <IconBtn aria-label="Search runs" onClick={() => setSearchOpen(true)}><SearchIcon size={14} strokeWidth={1.5} /></IconBtn>
         )}
-        <Button size="sm" onClick={onNewRun}><Plus size={14} strokeWidth={1.5} /> New run</Button>
+        <Button variant="secondary" size="sm" onClick={onNewRun}><Plus size={14} strokeWidth={1.5} /> New run</Button>
       </div>
       {filters.length > 0 && (
         <div className="flex flex-wrap gap-1.5 pb-2">
@@ -749,7 +749,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
         <div className="flex h-12 items-center gap-3 text-sm text-ink-3">
           <Inbox size={16} strokeWidth={1.5} />
           No runs yet
-          <Button size="sm" onClick={onNewRun}><Plus size={14} strokeWidth={1.5} /> New run</Button>
+          <Button variant="secondary" size="sm" onClick={onNewRun}><Plus size={14} strokeWidth={1.5} /> New run</Button>
         </div>
       ) : (
         <div className="overflow-x-auto">

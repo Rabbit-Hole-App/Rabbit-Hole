@@ -5,8 +5,9 @@ import { createReactBlockSpec, getDefaultReactSlashMenuItems, SuggestionMenuCont
 import { BlockNoteView } from '@blocknote/shadcn';
 import '@blocknote/shadcn/style.css';
 import '@excalidraw/excalidraw/index.css';
-import { PenTool } from 'lucide-react';
+import { Loader2, PenTool } from 'lucide-react';
 import { api, isDark } from './api.js';
+import { Button, Mark } from './ui.jsx';
 import { chartBlock, insertChart } from './ChartBlock.jsx';
 
 const Excalidraw = lazy(() => import('@excalidraw/excalidraw').then((m) => ({ default: m.Excalidraw })));
@@ -132,6 +133,28 @@ export default function Runbook({ app, canEdit, onSaved }) {
     clearTimeout(timer.current);
     timer.current = setTimeout(save, 800);
   };
+
+  // Generate from code: AI writes the page from the deployed source; jobs also
+  // get a /chart block of recent runs appended. /excalidraw and /chart stay
+  // available for hand edits afterwards - it is a normal editable page.
+  const [genBusy, setGenBusy] = useState(false);
+  const generate = async () => {
+    setGenBusy(true);
+    setStatus('generating…');
+    try {
+      const d = await api(`/api/apps/${app.name}/generate-runbook`, { method: 'POST' });
+      const blocks = await editor.tryParseMarkdownToBlocks(d.markdown);
+      if (Array.isArray(blocks) && blocks.length) editor.replaceBlocks(editor.document, blocks);
+      if (app.kind === 'job' && editor.document.length) {
+        editor.insertBlocks([{ type: 'chart', props: { app: app.name } }], editor.document[editor.document.length - 1], 'after');
+      }
+      onChange();
+      setStatus('');
+    } catch (e) {
+      setStatus(`✗ ${e.message}`);
+    }
+    setGenBusy(false);
+  };
   useEffect(() => () => {
     // flush a pending save when the panel closes so the last keystrokes aren't lost
     if (timer.current) {
@@ -142,6 +165,13 @@ export default function Runbook({ app, canEdit, onSaved }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {canEdit && (
+        <div className="flex shrink-0 items-center justify-end pb-1">
+          <Button variant="soft" size="sm" onClick={generate} disabled={genBusy} title="AI writes this page from the deployed code and small.toml">
+            {genBusy ? <Loader2 size={13} className="animate-spin" /> : <Mark size={13} />} Generate from code
+          </Button>
+        </div>
+      )}
       <div className="-mx-[34px] min-h-0 flex-1 overflow-y-auto">{/* cancels bn-editor's 54px gutter down to the panel's 20px */}
         <BlockNoteView editor={editor} editable={canEdit} theme={dark ? 'dark' : 'light'} onChange={canEdit ? onChange : undefined} slashMenu={false}>
           <SuggestionMenuController
