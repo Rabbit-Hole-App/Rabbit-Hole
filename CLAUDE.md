@@ -11,8 +11,10 @@ Read docs/SCOPE.md for the product and docs/v1_mvp_shipped.md for what's built a
 - `packages/cli` — Node CLI, zero dependencies, stdlib only. Never add a package.
 - `packages/control-plane` — Cloudflare Worker + D1. Holds every credential. The CLI never sees a Fly token.
 - `packages/runtime` — Python, stdlib only. `guard.py` fronts every server container.
+- `packages/web` — React dashboard (Vite), served by the control-plane worker.
+- `skills/` — the agent skill; `skills/small` is also the `small-skill` npm package and ships inside the CLI (`small skill`).
 - `examples/` — one directory per app shape; each has a `small.toml`.
-- `tests/unit_tests`, `tests/integration_tests` — mirror the package layout.
+- `tests/unit_tests`, `tests/integration_tests` — mirror the package layout. `tests/evals` — behavioral skill eval, run by hand before publishing the skill.
 
 ## Rules
 - Every command prints what it decided: `✓ entry: app.py (flask)`. A wrong guess must be visible in one line.
