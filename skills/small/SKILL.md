@@ -70,15 +70,15 @@ file untouched and add a thin adapter as the entry:
 
 ```python
 # job.py — adapter. Each [inputs] field in small.toml arrives as an env var:
-# image -> SMALL_INPUT_IMAGE. Files written to $SMALL_OUTPUTS become run outputs.
+# source -> SMALL_INPUT_SOURCE. Files written to $SMALL_OUTPUTS become run outputs.
 import os
-from detect import run_detection            # the user's file, unchanged
+from mytool import main                     # the user's file, unchanged
 
-result = run_detection(
-    image=os.environ["SMALL_INPUT_IMAGE"],
-    threshold=float(os.environ.get("SMALL_INPUT_THRESHOLD", "0.5")),
+result = main(
+    source=os.environ["SMALL_INPUT_SOURCE"],
+    limit=int(os.environ.get("SMALL_INPUT_LIMIT", "10")),
 )
-result.save(os.path.join(os.environ["SMALL_OUTPUTS"], "result.jpg"))
+result.save(os.path.join(os.environ["SMALL_OUTPUTS"], "result.csv"))
 ```
 
 For a Lambda handler, the adapter builds the `event` dict from the
