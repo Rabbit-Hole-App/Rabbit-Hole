@@ -178,16 +178,79 @@ export async function aiSettings(env, org) {
   if (!org) return null;
   const hit = aiCache.get(org);
   if (hit && Date.now() - hit.at < 60000) return hit.row;
-  const row = await env.DB.prepare('SELECT provider, model, bedrock_region, bedrock_role_arn FROM org_ai WHERE org = ?').bind(org).first().catch(() => null);
+  const row = await env.DB.prepare('SELECT provider, model, bedrock_region, bedrock_role_arn, openai_base_url, openai_api_key FROM org_ai WHERE org = ?').bind(org).first().catch(() => null);
   aiCache.set(org, { at: Date.now(), row });
   return row;
 }
 export function aiCacheDrop(org) { aiCache.delete(org); }
 
+// A whole non-streamed answer replayed as the anthropic-style SSE the chat
+// reader expects (one big delta). Used by every non-Anthropic provider.
+function sseFromMessage(msg) {
+  const text = (msg.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+  const enc = new TextEncoder();
+  const sse = [
+    `event: content_block_delta\ndata: ${JSON.stringify({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } })}\n\n`,
+    `event: message_delta\ndata: ${JSON.stringify({ type: 'message_delta', delta: { stop_reason: msg.stop_reason || 'end_turn' }, usage: msg.usage || {} })}\n\n`,
+    `event: message_stop\ndata: ${JSON.stringify({ type: 'message_stop' })}\n\n`,
+  ].join('');
+  return new Response(enc.encode(sse), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+}
+
+// Anthropic Messages shape -> OpenAI chat/completions shape (and back). This is
+// what lets a local LLM behind a tunnel (Ollama, LM Studio, vLLM - all speak
+// the OpenAI API) power chat, search, review and the agents.
+export function toOpenAI(body, modelId) {
+  const msgs = [];
+  if (body.system) msgs.push({ role: 'system', content: String(body.system) });
+  for (const m of body.messages || []) {
+    if (typeof m.content === 'string') { msgs.push({ role: m.role, content: m.content }); continue; }
+    const blocks = m.content || [];
+    if (m.role === 'assistant') {
+      const text = blocks.filter((b) => b.type === 'text').map((b) => b.text).join('');
+      const tool_calls = blocks.filter((b) => b.type === 'tool_use')
+        .map((b) => ({ id: b.id, type: 'function', function: { name: b.name, arguments: JSON.stringify(b.input || {}) } }));
+      msgs.push({ role: 'assistant', content: text || null, ...(tool_calls.length ? { tool_calls } : {}) });
+      continue;
+    }
+    for (const r of blocks.filter((b) => b.type === 'tool_result')) {
+      msgs.push({ role: 'tool', tool_call_id: r.tool_use_id, content: typeof r.content === 'string' ? r.content : JSON.stringify(r.content) });
+    }
+    const rest = blocks.filter((b) => b.type !== 'tool_result');
+    if (rest.length) {
+      msgs.push(rest.some((b) => b.type === 'image')
+        ? { role: 'user', content: rest.map((b) => (b.type === 'image' ? { type: 'image_url', image_url: { url: `data:${b.source?.media_type};base64,${b.source?.data}` } } : { type: 'text', text: b.text || '' })) }
+        : { role: 'user', content: rest.map((b) => b.text || '').join('') });
+    }
+  }
+  return {
+    model: modelId,
+    messages: msgs,
+    max_tokens: body.max_tokens,
+    ...(body.tools?.length ? { tools: body.tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.input_schema } })) } : {}),
+  };
+}
+export function fromOpenAI(j) {
+  const ch = j.choices?.[0] || {};
+  const m = ch.message || {};
+  const content = [];
+  if (m.content) content.push({ type: 'text', text: String(m.content) });
+  for (const tc of m.tool_calls || []) {
+    let input = {};
+    try { input = JSON.parse(tc.function?.arguments || '{}'); } catch { /* a local model's malformed args become {} */ }
+    content.push({ type: 'tool_use', id: tc.id || `t_${crypto.randomUUID().slice(0, 8)}`, name: tc.function?.name, input });
+  }
+  return {
+    content,
+    stop_reason: m.tool_calls?.length ? 'tool_use' : ch.finish_reason === 'length' ? 'max_tokens' : 'end_turn',
+    usage: j.usage || {},
+  };
+}
+
 // One chokepoint for every model call. Default: the platform's Anthropic key.
-// An org that configured Bedrock (their role, their region, their bill) is
-// routed there instead; Bedrock is invoked non-streaming and a stream:true
-// request gets the full answer replayed as anthropic-style SSE.
+// bedrock = the org's AWS pays; openai = any OpenAI-compatible endpoint (a
+// local LLM behind a tunnel, vLLM, a gateway). Non-Anthropic providers run
+// non-streaming and a stream:true request gets the answer replayed as SSE.
 export async function anthropic(env, body, model, org) {
   const ai = await aiSettings(env, org);
   if (ai?.provider === 'bedrock' && ai.bedrock_role_arn && ai.model) {
@@ -196,17 +259,18 @@ export async function anthropic(env, body, model, org) {
     const { model: _m, stream, fallbacks: _f, ...rest } = body;
     const resp = await bedrockInvoke(creds, ai.bedrock_region || 'us-east-1', ai.model, { anthropic_version: 'bedrock-2023-05-31', ...rest });
     if (!stream || !resp.ok) return resp;
-    // synthesize the SSE shape the streaming reader expects (one big delta)
-    // ponytail: real bedrock event-stream parsing when replay latency matters
-    const msg = await resp.json();
-    const text = (msg.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
-    const enc = new TextEncoder();
-    const sse = [
-      `event: content_block_delta\ndata: ${JSON.stringify({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } })}\n\n`,
-      `event: message_delta\ndata: ${JSON.stringify({ type: 'message_delta', delta: { stop_reason: msg.stop_reason || 'end_turn' }, usage: msg.usage || {} })}\n\n`,
-      `event: message_stop\ndata: ${JSON.stringify({ type: 'message_stop' })}\n\n`,
-    ].join('');
-    return new Response(enc.encode(sse), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+    return sseFromMessage(await resp.json());
+  }
+  if (ai?.provider === 'openai' && ai.openai_base_url && ai.model) {
+    const { stream, ...rest } = body;
+    const resp = await fetch(`${ai.openai_base_url.replace(/\/+$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(ai.openai_api_key ? { Authorization: `Bearer ${ai.openai_api_key}` } : {}) },
+      body: JSON.stringify(toOpenAI(rest, ai.model)),
+    });
+    if (!resp.ok) return resp;
+    const msg = fromOpenAI(await resp.json());
+    return stream ? sseFromMessage(msg) : new Response(JSON.stringify(msg), { status: 200, headers: { 'Content-Type': 'application/json' } });
   }
   // an explicit model (chat picker or org setting) is incompatible with the
   // server-side fallback feature - the API 400s on the combination

@@ -362,15 +362,29 @@ function AiModelSettings() {
     }
   };
   const bedrock = ai.provider === 'bedrock';
+  const local = ai.provider === 'openai';
   return (
     <div className="flex flex-col gap-3 pt-2">
       <SettingsRow title="Provider" desc="Who runs the models behind chat, review, runbook and watch">
         <Select
-          value={bedrock ? 'AWS Bedrock' : 'Claude'}
-          options={['Claude', 'AWS Bedrock']}
-          onChange={(v) => set('provider', v.includes('Bedrock') ? 'bedrock' : 'anthropic')}
+          value={bedrock ? 'AWS Bedrock' : local ? 'Local' : 'Claude'}
+          options={['Claude', 'AWS Bedrock', 'Local']}
+          onChange={(v) => set('provider', v.includes('Bedrock') ? 'bedrock' : v === 'Local' ? 'openai' : 'anthropic')}
         />
       </SettingsRow>
+      {local && (
+        <>
+          <SettingsRow title="Endpoint" desc="Any OpenAI-compatible URL. A machine on your desk: run cloudflared tunnel --url http://localhost:11434 and paste the printed URL plus /v1">
+            <Input value={ai.openai_base_url || ''} onChange={(e) => set('openai_base_url', e.target.value)} placeholder="https://your-tunnel.trycloudflare.com/v1" className="w-96 font-mono text-xs" />
+          </SettingsRow>
+          <SettingsRow title="API key" desc="Only if the endpoint wants one - most local runtimes don't">
+            <Input value={ai.openai_api_key || ''} onChange={(e) => set('openai_api_key', e.target.value)} placeholder="optional" className="w-72 font-mono text-xs" />
+          </SettingsRow>
+          <SettingsRow title="Model" desc="The model name the endpoint serves">
+            <Input value={ai.model || ''} onChange={(e) => set('model', e.target.value)} placeholder="llama3.1" className="w-72 font-mono text-xs" />
+          </SettingsRow>
+        </>
+      )}
       {bedrock ? (
         <>
           <SettingsRow title="Role ARN" desc="IAM role with bedrock:InvokeModel - trust policy names small's principal, ExternalId is your workspace slug">
@@ -383,7 +397,7 @@ function AiModelSettings() {
             <Input value={ai.model || ''} onChange={(e) => set('model', e.target.value)} placeholder="us.anthropic.claude-sonnet-4-5-20250929-v1:0" className="w-96 font-mono text-xs" />
           </SettingsRow>
         </>
-      ) : (
+      ) : local ? null : (
         <SettingsRow title="Model" desc="Leave empty for the platform default (chat's picker still overrides per message)">
           <Input value={ai.model || ''} onChange={(e) => set('model', e.target.value)} placeholder="platform default" className="w-72 font-mono text-xs" />
         </SettingsRow>
@@ -391,6 +405,7 @@ function AiModelSettings() {
       <div>
         <Button variant="primary" size="sm" disabled={busy} onClick={save}>{busy ? 'Verifying…' : 'Save'}</Button>
         {bedrock && <span className="pl-3 text-xs text-ink-2">Save assumes the role once to verify the trust policy.</span>}
+        {local && <span className="pl-3 text-xs text-ink-2">Save sends one tiny completion to verify the endpoint.</span>}
       </div>
     </div>
   );

@@ -665,13 +665,14 @@ async function apiRunbookGet(env, user, name) {
 // Settings > Account: which model answers for this org - the platform's
 // Anthropic key (default) or the org's own AWS Bedrock via an assumed role.
 async function apiOrgAiGet(env, user) {
-  const row = await env.DB.prepare('SELECT provider, model, bedrock_region, bedrock_role_arn, updated_by, updated_at FROM org_ai WHERE org = ?').bind(user.org).first();
-  return json(row || { provider: 'anthropic', model: null, bedrock_region: null, bedrock_role_arn: null });
+  const row = await env.DB.prepare('SELECT provider, model, bedrock_region, bedrock_role_arn, openai_base_url, openai_api_key, updated_by, updated_at FROM org_ai WHERE org = ?').bind(user.org).first();
+  if (row) row.openai_api_key = row.openai_api_key ? '•••' : null; // stored, never echoed
+  return json(row || { provider: 'anthropic', model: null, bedrock_region: null, bedrock_role_arn: null, openai_base_url: null, openai_api_key: null });
 }
 
 async function apiOrgAiSet(req, env, user) {
-  const { provider, model, bedrock_region, bedrock_role_arn } = await req.json();
-  if (!['anthropic', 'bedrock'].includes(provider)) return json({ error: 'provider must be anthropic or bedrock' }, 400);
+  const { provider, model, bedrock_region, bedrock_role_arn, openai_base_url, openai_api_key } = await req.json();
+  if (!['anthropic', 'bedrock', 'openai'].includes(provider)) return json({ error: 'provider must be anthropic, bedrock or openai' }, 400);
   if (provider === 'bedrock') {
     if (!bedrock_role_arn || !/^arn:aws:iam::\d+:role\//.test(bedrock_role_arn)) return json({ error: 'bedrock needs a role arn (arn:aws:iam::…:role/…)' }, 400);
     if (!model) return json({ error: 'bedrock needs a model id (e.g. us.anthropic.claude-sonnet-...)' }, 400);
@@ -682,10 +683,29 @@ async function apiOrgAiSet(req, env, user) {
       return json({ error: `cannot assume the role: ${e.message}` }, 400);
     }
   }
+  // the GET masks the key as ••• - saving that back means "keep the stored one"
+  let key = provider === 'openai' ? openai_api_key || null : null;
+  if (key === '•••') key = (await env.DB.prepare('SELECT openai_api_key FROM org_ai WHERE org = ?').bind(user.org).first())?.openai_api_key || null;
+  if (provider === 'openai') {
+    if (!/^https?:\/\//.test(openai_base_url || '')) return json({ error: 'needs the endpoint base url, e.g. https://your-tunnel.trycloudflare.com/v1' }, 400);
+    if (!model) return json({ error: 'needs the model name, e.g. llama3.1' }, 400);
+    // one tiny completion proves the endpoint is reachable and the model exists
+    try {
+      const r = await fetch(`${openai_base_url.replace(/\/+$/, '')}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(key ? { Authorization: `Bearer ${key}` } : {}) },
+        body: JSON.stringify({ model, max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!r.ok) return json({ error: `endpoint answered ${r.status}: ${(await r.text()).slice(0, 200)}` }, 400);
+    } catch (e) {
+      return json({ error: `cannot reach the endpoint: ${e.message}` }, 400);
+    }
+  }
   await env.DB.prepare(
-    'INSERT INTO org_ai (org, provider, model, bedrock_region, bedrock_role_arn, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, datetime(\'now\')) ' +
-    'ON CONFLICT(org) DO UPDATE SET provider = excluded.provider, model = excluded.model, bedrock_region = excluded.bedrock_region, bedrock_role_arn = excluded.bedrock_role_arn, updated_by = excluded.updated_by, updated_at = excluded.updated_at'
-  ).bind(user.org, provider, model || null, bedrock_region || null, provider === 'bedrock' ? bedrock_role_arn : null, user.email).run();
+    'INSERT INTO org_ai (org, provider, model, bedrock_region, bedrock_role_arn, openai_base_url, openai_api_key, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime(\'now\')) ' +
+    'ON CONFLICT(org) DO UPDATE SET provider = excluded.provider, model = excluded.model, bedrock_region = excluded.bedrock_region, bedrock_role_arn = excluded.bedrock_role_arn, openai_base_url = excluded.openai_base_url, openai_api_key = excluded.openai_api_key, updated_by = excluded.updated_by, updated_at = excluded.updated_at'
+  ).bind(user.org, provider, model || null, bedrock_region || null, provider === 'bedrock' ? bedrock_role_arn : null, provider === 'openai' ? openai_base_url : null, key, user.email).run();
   aiCacheDrop(user.org);
   return json({ ok: true });
 }
@@ -2229,6 +2249,18 @@ export default {
       if (path === '/login') return await loginPage(req, env, baseUrl);
       if (path === '/auth') return await authRedirect(req, env);
       if (path === '/test/session' && req.method === 'POST') return await testSession(req, env);
+      if (path === '/test/openai/chat/completions' && req.method === 'POST') {
+        // OpenAI-compatible mock (only where a bypass secret exists): lets the
+        // "openai" provider path be exercised end to end without a real LLM
+        if (!env.SMALL_TEST_BYPASS) return json({ error: 'not found' }, 404);
+        const b = await req.json();
+        const last = [...(b.messages || [])].reverse().find((m) => m.role === 'user');
+        const lastText = typeof last?.content === 'string' ? last.content : (last?.content || []).map((c) => c.text || '').join('');
+        return json({
+          choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: `mock(${b.model}): ${String(lastText).slice(-80)}` } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1 },
+        });
+      }
       if (path === '/test/watch' && req.method === 'POST') return await testWatch(req, env);
       if (path === '/slack/events' && req.method === 'POST') return await slackInbound(req, env, ctx, 'events', baseUrl);
       if (path === '/slack/command' && req.method === 'POST') return await slackInbound(req, env, ctx, 'command', baseUrl);

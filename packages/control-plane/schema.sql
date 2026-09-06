@@ -211,3 +211,7 @@ CREATE TABLE IF NOT EXISTS org_ai (
   updated_by TEXT,
   updated_at TEXT DEFAULT (datetime('now'))
 );
+
+-- 0022: OpenAI-compatible provider (local LLMs via tunnel, vLLM, gateways).
+-- ALTER TABLE org_ai ADD COLUMN openai_base_url TEXT;
+-- ALTER TABLE org_ai ADD COLUMN openai_api_key TEXT;
