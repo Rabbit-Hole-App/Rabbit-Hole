@@ -2,117 +2,8 @@
 // deterministic field; the model fills ONLY its row of the source table via a
 // forced submit tool; validation drops uncheckable claims into `warnings`.
 // Ask reads the JSON, people read renderMarkdown()'s output.
-import { anthropic, parseBundle } from './ask.js';
-
-const MODEL_FIELDS_SYSTEM = [
-  'You fill the analysis fields of a structured runbook for one deployed app.',
-  'Investigate with your tools first (read_source on the files that matter,',
-  'list_runs / read_log / list_outputs for reality checks), then call',
-  'submit_runbook exactly once with your findings.',
-  'Rules, in force for every field:',
-  '- Every claim is checkable: needs, talks_to, endpoints, known_limits and',
-  'commands cite file:line exactly as read_source returned the lines.',
-  'Uncitable claims are omitted, never approximated.',
-  '- Omit rather than fill: leave arrays empty and strings null when the code',
-  'has nothing to say. Absent means "not applicable".',
-  '- No secret VALUES ever, names and locations only.',
-  '- Plain English, short lines, no em dashes.',
-  '- what_it_does: at most 2 sentences. who_its_for: 1 sentence.',
-  '- when_to_use: include a negative if the code implies one, else null.',
-  '- how_to_use: at most 5 steps for the person who opens the app link.',
-  '- if_it_breaks: symptom the person SEES first, then the likely cause, then',
-  'where to look (a command, file:line, or log filter).',
-  '- outputs_examples: for each output file, its SHAPE, not content: the first',
-  'JSON object, header plus one row, or one sentence for binary.',
-].join(' ');
-
-const S = { type: 'string' };
-const SUBMIT_TOOL = {
-  name: 'submit_runbook',
-  description: 'Submit the analysis fields of the runbook. Call exactly once, after investigating.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      what_it_does: S,
-      who_its_for: S,
-      when_to_use: { type: ['string', 'null'] },
-      how_to_use: { type: 'array', items: S },
-      commands: { type: 'array', items: { type: 'object', properties: { what: S, command: S, from: S }, required: ['what', 'command', 'from'] } },
-      needs: { type: 'array', items: { type: 'object', properties: { name: S, used_in: S, for: S, declared: { type: 'boolean' } }, required: ['name', 'used_in', 'for'] } },
-      run_locally: { type: 'object', properties: { install: S, env: { type: 'array', items: S }, start: S } },
-      storage_contains: { type: ['string', 'null'] },
-      talks_to: { type: 'array', items: { type: 'object', properties: { host: S, mode: { type: 'string', enum: ['read', 'write', 'both'] }, for: S, at: S }, required: ['host', 'mode', 'for', 'at'] } },
-      files: { type: 'array', items: { type: 'object', properties: { path: S, role: S, entry: { type: 'boolean' } }, required: ['path', 'role'] } },
-      endpoints: { type: 'array', items: { type: 'object', properties: { route: S, method: S, does: S, at: S }, required: ['route', 'method', 'does', 'at'] } },
-      known_limits: { type: 'array', items: { type: 'object', properties: { text: S, at: S }, required: ['text', 'at'] } },
-      if_it_breaks: { type: 'array', items: { type: 'object', properties: { symptom: S, likely: S, look: S }, required: ['symptom', 'likely', 'look'] } },
-      outputs_examples: { type: 'array', items: { type: 'object', properties: { name: S, example: S }, required: ['name', 'example'] } },
-    },
-    required: ['what_it_does', 'who_its_for', 'how_to_use'],
-  },
-};
-
-const READ_TOOLS = [
-  { name: 'read_source', description: 'Read one file from the deployed bundle (or get the file list if the path is wrong).', input_schema: { type: 'object', properties: { path: S }, required: ['path'] } },
-  { name: 'list_runs', description: 'Recent runs: run_id, status, exit code, inputs, timing.', input_schema: { type: 'object', properties: {} } },
-  { name: 'read_log', description: 'Tail of one run log.', input_schema: { type: 'object', properties: { run_id: S, tail: { type: 'number' } }, required: ['run_id'] } },
-  { name: 'list_outputs', description: 'Output files one run produced (name, bytes).', input_schema: { type: 'object', properties: { run_id: S }, required: ['run_id'] } },
-];
-
-async function modelFields(env, app, files, deploy) {
-  const exec = async (name, input) => {
-    if (name === 'read_source') {
-      const f = files[input.path];
-      return f != null ? f.slice(0, 20000) : `no file named ${input.path}. Available: ${Object.keys(files).join(', ')}`;
-    }
-    if (name === 'list_runs') {
-      const { results } = await env.DB.prepare(
-        'SELECT run_id, status, exit_code, started_at, finished_at, inputs, deploy_id FROM runs WHERE app_id = ? ORDER BY id DESC LIMIT 10'
-      ).bind(app.id).all();
-      return JSON.stringify(results.map((r) => ({ ...r, current_deploy: deploy ? r.deploy_id === deploy.id : null })));
-    }
-    if (name === 'read_log') {
-      const { results } = await env.DB.prepare('SELECT line FROM run_logs WHERE run_id = ? ORDER BY seq DESC LIMIT ?')
-        .bind(String(input.run_id), Math.min(Number(input.tail) || 40, 200)).all();
-      return results.map((r) => r.line).reverse().join('\n') || '(empty log)';
-    }
-    if (name === 'list_outputs') {
-      if (!env.RUNS) return '[]';
-      const listed = await env.RUNS.list({ prefix: `runs/${String(input.run_id)}/outputs/` });
-      return JSON.stringify(listed.objects.map((o) => ({ name: o.key.split('/').pop(), bytes: o.size })));
-    }
-    return `unknown tool ${name}`;
-  };
-
-  const intro = [
-    `App: ${app.name} (kind: ${app.kind})`,
-    app.inputs ? `inputs schema: ${app.inputs}` : null,
-    app.outputs ? `outputs declared: ${app.outputs}` : null,
-    app.agent_md ? `AGENT.md (builder notes):\n${String(app.agent_md).slice(0, 4000)}` : null,
-    `files in the bundle: ${Object.keys(files).join(', ')}`,
-    'Investigate, then call submit_runbook.',
-  ].filter(Boolean).join('\n');
-
-  const messages = [{ role: 'user', content: intro }];
-  for (let i = 0; i < 10; i++) {
-    const resp = await anthropic(env, { max_tokens: 3000, system: MODEL_FIELDS_SYSTEM, tools: [...READ_TOOLS, SUBMIT_TOOL], messages });
-    if (!resp.ok) throw new Error(`anthropic ${resp.status}`);
-    const msg = await resp.json();
-    messages.push({ role: 'assistant', content: msg.content });
-    const submit = (msg.content || []).find((b) => b.type === 'tool_use' && b.name === 'submit_runbook');
-    if (submit) return submit.input;
-    if (msg.stop_reason !== 'tool_use') {
-      messages.push({ role: 'user', content: 'Call submit_runbook with your findings now.' });
-      continue;
-    }
-    const results = [];
-    for (const b of msg.content) {
-      if (b.type === 'tool_use') results.push({ type: 'tool_result', tool_use_id: b.id, content: String(await exec(b.name, b.input || {})).slice(0, 30000) });
-    }
-    messages.push({ role: 'user', content: results });
-  }
-  throw new Error('the runbook model never submitted');
-}
+import { parseBundle } from './ask.js';
+import { runbookFields } from './agents/runbook.js';
 
 // ---------- validation (spec: drop the claim, record a warning) ----------
 
@@ -255,7 +146,7 @@ export async function buildRunbook(env, app, deploy, stored, baseUrl) {
 
   let reviewJson = null;
   try { reviewJson = JSON.parse(app.review); } catch { /* unreviewed app */ }
-  const m = await modelFields(env, app, files, deploy);
+  const m = await runbookFields(env, app, files, deploy);
 
   const schema = app.inputs ? JSON.parse(app.inputs) : {};
   const exampleInputs = lastOk?.inputs ? JSON.parse(lastOk.inputs) : {};
