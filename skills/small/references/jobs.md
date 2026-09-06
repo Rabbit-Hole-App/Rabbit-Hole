@@ -16,7 +16,10 @@ annotated = { path = "annotated.jpg", label = "Annotated image" }
 
 Six types: `file`, `number`, `select`, `date`, `text`, `bool`. Callers pass
 them as flags — `small run app --image ./photo.jpg --threshold 0.7` — and the
-dashboard renders a Run form from the same declaration. In the script:
+dashboard renders a Run form from the same declaration. Slack (`/small run`),
+the chat agent's Run proposals, cron, and Run again all feed the same
+declaration too: the script receives identical env vars no matter who or what
+started the run. In the script:
 
 - scalars arrive as `SMALL_INPUT_<NAME>` env vars (uppercase; bools are the
   strings `true`/`false`)
@@ -48,3 +51,12 @@ scheduled job's script must fall back in code,
 
 S3 in/out: declare the URI and destination bucket as `text` inputs and use
 boto3 in the script — see references/aws-role.md for the role.
+
+## Existing scripts
+
+When the working code predates small (local script, Lambda handler), keep it
+untouched and write a thin adapter as the entry — SKILL.md, "The code already
+exists". The adapter is the only file that reads `SMALL_INPUT_*` or writes to
+`$SMALL_OUTPUTS`; the original stays runnable everywhere it already runs.
+Always leave the two contract comments in the adapter so the next reader
+learns the env-var mapping from the code itself.

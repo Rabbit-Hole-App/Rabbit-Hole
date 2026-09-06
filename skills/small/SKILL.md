@@ -63,6 +63,41 @@ small share alice@company.com          # view
 small share bob@company.com --edit     # can redeploy
 ```
 
+## The code already exists (a script that works locally or on Lambda)
+
+Do not rewrite it and do not require it to know about small. Keep the working
+file untouched and add a thin adapter as the entry:
+
+```python
+# job.py — adapter. Each [inputs] field in small.toml arrives as an env var:
+# image -> SMALL_INPUT_IMAGE. Files written to $SMALL_OUTPUTS become run outputs.
+import os
+from detect import run_detection            # the user's file, unchanged
+
+result = run_detection(
+    image=os.environ["SMALL_INPUT_IMAGE"],
+    threshold=float(os.environ.get("SMALL_INPUT_THRESHOLD", "0.5")),
+)
+result.save(os.path.join(os.environ["SMALL_OUTPUTS"], "result.jpg"))
+```
+
+For a Lambda handler, the adapter builds the `event` dict from the
+`SMALL_INPUT_*` vars and calls `handler(event, None)`.
+
+The entry file name is free — `entry` in `small.toml` points at whatever you
+wrote (adapter or the original file if the user is fine editing it). Leave the
+two contract comments in the adapter: they are how the next human learns the
+wiring without reading platform source.
+
+## The run contract, in one breath
+
+`[inputs]` in `small.toml` defines the fields once. Every trigger — the
+dashboard Run form, `small run`, `/small run` in Slack, the chat agent's Run
+button, a cron schedule, Run again — delivers the values the same way:
+`SMALL_INPUT_<NAME>` env vars (files land under `$SMALL_INPUTS`). Every file
+the script writes to `$SMALL_OUTPUTS` becomes a run output on the dashboard,
+regardless of trigger. The script never knows who started it.
+
 If `small` is not installed: `npm i -g small-deploy`. If not logged in the
 deploy fails with "run small login" — have the user run `small login`
 interactively (it emails them a 6-digit code).
