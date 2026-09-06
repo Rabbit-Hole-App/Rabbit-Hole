@@ -238,6 +238,8 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
             <>
               <div className="text-2xl font-semibold">Small AI</div>
               <div className="pt-2 text-base text-ink-2">The agent behind chat, search, diagnosis and Watch</div>
+              <Heading>Model provider</Heading>
+              <AiModelSettings />
               <Heading>Chat</Heading>
               <SettingsRow title="Default model" desc="New chats start on this model; you can still switch per message">
                 <Select
@@ -316,8 +318,6 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
               <SettingsRow title="Home workspace" desc="Everyone with this email domain shares it">
                 <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{email ? email.split('@')[1] : ''}</code>
               </SettingsRow>
-              <Heading>AI model</Heading>
-              <AiModelSettings />
             </>
           )}
           {tab === 'billing' && (
