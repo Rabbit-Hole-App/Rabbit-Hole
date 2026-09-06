@@ -20,6 +20,8 @@ function frameworkOf(source) {
 function detect(dir, flags = {}) {
   const tomlPath = path.join(dir, 'small.toml');
   const config = fs.existsSync(tomlPath) ? parse(fs.readFileSync(tomlPath, 'utf8')) : {};
+  // `kind` was renamed to `type`; old tomls keep working, new ones write `type`
+  if (config.kind != null && config.type == null) config.type = config.kind;
   const name = config.name || path.basename(dir).toLowerCase().replace(/[^a-z0-9-]/g, '-');
   const pick = (entry, via) => {
     const full = path.join(dir, entry);

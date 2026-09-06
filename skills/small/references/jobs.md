@@ -1,6 +1,6 @@
 # Jobs — inputs and outputs
 
-Read this when the tool is a script that runs on demand (`kind = "job"`).
+Read this when the tool is a script that runs on demand (`type = "job"`).
 
 Every non-secret `os.environ` read in a job is an input — declare it in
 `small.toml` instead of leaving it an undeclared env var:
@@ -37,7 +37,7 @@ container: only `$SMALL_OUTPUTS` survives the machine.
 A job that should run itself carries a standard 5-field cron expression, UTC:
 
 ```toml
-kind = "job"
+type = "job"
 schedule = "0 9 * * 1-5"
 ```
 

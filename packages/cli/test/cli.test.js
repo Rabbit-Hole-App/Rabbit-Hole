@@ -115,7 +115,7 @@ test('init: plain script scaffolds kind=job, [inputs] from SMALL_INPUT_* reads, 
   });
   assert.equal(init(dir), true);
   const t = parse(fs.readFileSync(path.join(dir, 'small.toml'), 'utf8'));
-  assert.equal(t.kind, 'job');
+  assert.equal(t.type, 'job');
   assert.equal(t.inputs.source.type, 'text');
   assert.equal(t.inputs.threshold.type, 'text');
   assert.equal(t.aws.role_arn, '');
@@ -145,6 +145,7 @@ test('writeFlyToml: storage pins region, mounts volume, sets SMALL_DATA', () => 
 
 test('dockerfile + write for a job: runner.py, no guard, no port', () => {
   const dir = tmp({
+    // deliberately the OLD `kind` key: detect aliases it to `type`, old tomls keep deploying as jobs
     'small.toml': 'name = "j"\nentry = "pipeline.py"\nframework = "script"\nkind = "job"\n',
     'pipeline.py': 'print(1)',
   });
@@ -273,11 +274,11 @@ test('preflight: dep names from messy requirements lines', () => {
 
 test('preflight: undeclared bracket env reads warn; SMALL_INPUT_ without [inputs] warns on jobs', () => {
   const dir = tmp({ 'job.py': 'import os\nk = os.environ["STRIPE_KEY"]\nt = os.environ["SMALL_INPUT_THRESHOLD"]\n' });
-  const warnings = checkEnvReads(dir, { kind: 'job' }, {});
+  const warnings = checkEnvReads(dir, { type: 'job' }, {});
   assert.equal(warnings.length, 2, JSON.stringify(warnings));
   assert.match(warnings[0], /STRIPE_KEY/);
   assert.match(warnings[1], /no \[inputs\]/);
-  assert.deepEqual(checkEnvReads(dir, { kind: 'job', inputs: { threshold: { type: 'number' } }, secrets: { required: ['STRIPE_KEY'] } }, {}), []);
+  assert.deepEqual(checkEnvReads(dir, { type: 'job', inputs: { threshold: { type: 'number' } }, secrets: { required: ['STRIPE_KEY'] } }, {}), []);
 });
 
 test('small skill installs SKILL.md + references into .claude/skills/small', () => {

@@ -53,7 +53,7 @@ small logs                             # recent container logs
 small runbook                          # the generated manual for this app
 ```
 
-If the tool is a script rather than a server (`kind = "job"` in
+If the tool is a script rather than a server (`type = "job"` in
 `small.toml`), it runs on demand instead of serving requests:
 
 ```

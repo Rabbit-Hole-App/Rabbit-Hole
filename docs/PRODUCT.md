@@ -43,7 +43,7 @@ plane); BYO-AWS (deploying into the customer's cloud) is the long-term business.
 ## Capabilities and Constraints
 
 - Commands: login, init, deploy, run, runs, share, list, logs, review.
-- App shapes: flask / fastapi / streamlit / gradio servers, `kind = "job"`
+- App shapes: flask / fastapi / streamlit / gradio servers, `type = "job"`
   one-shot scripts, persistent `[storage]` volumes with SQLite.
 - Every command prints what it decided (`✓ entry: app.py (flask)`); fail at
   deploy time, not runtime, with a one-line fix.

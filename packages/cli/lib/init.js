@@ -51,7 +51,7 @@ function init(dir, { force = false } = {}) {
   const lines = [`name = "${name}"`];
   lines.push(app ? `entry = "${app.entry}"` : 'entry = ""                     # fill in: your app\'s main .py file');
   lines.push(`framework = "${app ? app.framework : ''}"`);
-  if (isJob) lines.push('kind = "job"');
+  if (isJob) lines.push('type = "job"');
   if (hasReqs) lines.push('', '[deps]', 'file = "requirements.txt"');
   if (inputs.length) {
     lines.push('', '[inputs]');
@@ -67,7 +67,7 @@ function init(dir, { force = false } = {}) {
 
   console.log(`✓ name: ${name}`);
   if (app) console.log(`✓ entry: ${app.entry} (${app.framework})`);
-  if (isJob) console.log('✓ kind: job (plain script, runs on demand)');
+  if (isJob) console.log('✓ type: job (plain script, runs on demand)');
   if (hasReqs) console.log('✓ deps: requirements.txt');
   if (inputs.length) console.log(`✓ inputs: ${inputs.join(', ')} (SMALL_INPUT_* reads in ${app.entry} - set types in small.toml)`);
   if (wantsOutputs) console.log('✓ outputs: script writes to the run outputs folder - label them in [outputs]');

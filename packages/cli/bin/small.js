@@ -222,7 +222,7 @@ const commands = {
       sizeGb = Number(m[1]);
     }
     const awsRoleArn = (app.config.aws && app.config.aws.role_arn) || undefined;
-    const kind = app.config.kind === 'job' ? 'job' : 'server';
+    const kind = app.config.type === 'job' ? 'job' : 'server';
     const schedule = app.config.schedule;
     const d = await call('POST', '/api/deploy', {
       name: app.name,

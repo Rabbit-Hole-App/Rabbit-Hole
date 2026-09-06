@@ -62,7 +62,7 @@ prints what was chosen.
 ```toml
 name = "detect"
 entry = "job.py"
-kind = "job"              # omit for web apps: flask | fastapi | streamlit | gradio
+type = "job"              # omit for web apps: flask | fastapi | streamlit | gradio
 schedule = "0 9 * * 1-5"  # optional cron, UTC
 
 [deps]

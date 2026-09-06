@@ -78,7 +78,7 @@ function checkEnvReads(dir, config, secrets) {
       warnings.push(`${f} reads ${v} - not in [secrets] or .env, it will be unset in the container`);
     }
   }
-  if (readsInputs && config.kind === 'job' && !config.inputs) warnings.push('reads SMALL_INPUT_* but small.toml has no [inputs] - declare them');
+  if (readsInputs && config.type === 'job' && !config.inputs) warnings.push('reads SMALL_INPUT_* but small.toml has no [inputs] - declare them');
   return warnings;
 }
 

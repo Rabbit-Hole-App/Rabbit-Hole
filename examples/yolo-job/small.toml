@@ -1,7 +1,7 @@
 name = "yolo-job"
 entry = "job.py"
 framework = "script"
-kind = "job"
+type = "job"
 system = ["libgl1", "libglib2.0-0"]
 
 [inputs]

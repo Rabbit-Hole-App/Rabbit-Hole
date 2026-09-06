@@ -1,7 +1,7 @@
 name = "s3-job"
 entry = "job.py"
 framework = "script"
-kind = "job"
+type = "job"
 
 [aws]
 # small's control plane assumes this role via STS per run and puts the session

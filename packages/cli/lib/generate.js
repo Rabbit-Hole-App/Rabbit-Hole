@@ -35,7 +35,7 @@ function dockerfile(app, dir) {
   if (fs.existsSync(path.join(dir, deps))) {
     lines.push(`COPY ${deps} .`, `RUN pip install --no-cache-dir -r ${deps}`);
   }
-  if (app.config.kind === 'job') {
+  if (app.config.type === 'job') {
     // no port, no guard: runner.py streams output to the control plane and exits
     lines.push(
       'COPY . .',
@@ -59,7 +59,7 @@ function write(dir, app) {
   const out = path.join(dir, '.small');
   fs.mkdirSync(out, { recursive: true });
   fs.writeFileSync(path.join(out, 'Dockerfile'), dockerfile(app, dir));
-  const py = app.config.kind === 'job' ? 'runner.py' : 'guard.py';
+  const py = app.config.type === 'job' ? 'runner.py' : 'guard.py';
   fs.copyFileSync(runtimeSource(py), path.join(out, py));
   const ignorePath = path.join(dir, '.dockerignore');
   if (!fs.existsSync(ignorePath)) {
