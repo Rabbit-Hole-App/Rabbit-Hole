@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpRight, ChevronDown, ChevronRight, Clock, EyeOff, Folder as FolderIcon, Inbox, ListFilter, Loader2, PanelRight, Play, Search, Settings2, Square, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpRight, Calendar, ChevronDown, ChevronRight, Circle, Clock, Eye, EyeOff, Folder as FolderIcon, Inbox, ListFilter, Loader2, Lock, PanelRight, Play, Search, Settings2, Square, Type, Users, X } from 'lucide-react';
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
 import Shell from './Shell.jsx';
@@ -13,6 +13,7 @@ const th = 'h-8 border-b border-line px-2 text-left text-xs font-normal text-ink
 // Notion-lite database controls: column order/visibility, one sort, one filter.
 const COLS = { name: 'Name', kind: 'Kind', access: 'Access', people: 'People', watch: 'Watch', deployed: 'Deployed', lastrun: 'Last run' };
 const DEFAULT_ORDER = Object.keys(COLS);
+const COL_ICON = { name: Type, kind: Circle, access: Lock, people: Users, watch: Eye, deployed: Calendar, lastrun: Clock };
 const COL_INFO = {
   name: 'The app. Click a row to open it',
   kind: 'server (always on) or job (runs on demand)',
@@ -79,6 +80,19 @@ function AppContent({ data, load }) {
   const [colMenu, setColMenu] = useState(null); // column key with its header menu open
   const [colSub, setColSub] = useState(null); // 'sort' | 'filter' flyout inside it
   const [toolMenu, setToolMenu] = useState(null); // 'filter' | 'sort' | 'props'
+  const [menuQ, setMenuQ] = useState(''); // search inside the sort/filter menus
+  const openTool = (m) => { setMenuQ(''); setColSub(null); setToolMenu(toolMenu === m ? null : m); };
+  const menuSearch = (
+    <input
+      autoFocus
+      value={menuQ}
+      onChange={(e) => setMenuQ(e.target.value)}
+      placeholder="Search…"
+      onMouseDown={(e) => e.stopPropagation()}
+      className="mb-1 h-7 w-full rounded-sm bg-code px-2 text-sm outline-none"
+    />
+  );
+  const colMatch = (k) => COLS[k].toLowerCase().includes(menuQ.toLowerCase());
   const order = [...cols.order.filter((k) => DEFAULT_ORDER.includes(k)), ...DEFAULT_ORDER.filter((k) => !cols.order.includes(k))];
   const visibleCols = order.filter((k) => !cols.hidden[k]);
   const moveCol = (from, to, after = false) => {
@@ -185,26 +199,31 @@ function AppContent({ data, load }) {
                   </Pill>
                 )}
                 <div className="relative">
-                  <IconBtn title="Filter" className={cn('rounded-full!', toolMenu === 'filter' && 'bg-active')} onClick={() => setToolMenu(toolMenu === 'filter' ? null : 'filter')}>
+                  <IconBtn title="Filter" className={cn('rounded-full!', toolMenu === 'filter' && 'bg-active')} onClick={() => openTool('filter')}>
                     <ListFilter size={16} strokeWidth={1.5} />
                   </IconBtn>
-                  <Menu open={toolMenu === 'filter'} onClose={() => setToolMenu(null)} className="top-8 right-0 w-56">
-                    {Object.keys(FILTERS).flatMap((k) =>
-                      [...new Set(sectionApps.map((a) => FILTERS[k](a)))].sort().map((v) => (
-                        <MenuItem key={`${k}:${v}`} onClick={() => { saveFilter({ key: k, value: v }); setToolMenu(null); }}>
-                          {COLS[k]} · {v}
-                        </MenuItem>
-                      )))}
+                  {/* Notion shape: pick the column first, its values live in a searchable flyout */}
+                  <Menu open={toolMenu === 'filter'} onClose={() => { setToolMenu(null); setColSub(null); }} className="top-8 right-0 w-44">
+                    {menuSearch}
+                    {Object.keys(FILTERS).filter(colMatch).map((k) => (
+                      <SubMenu key={k} icon={COL_ICON[k]} label={COLS[k]} open={colSub === `tf:${k}`} onOpen={() => setColSub(`tf:${k}`)}>
+                        <ValuePicker
+                          values={[...new Set(sectionApps.map((a) => FILTERS[k](a)))].sort()}
+                          onPick={(v) => { saveFilter({ key: k, value: v }); setToolMenu(null); setColSub(null); }}
+                        />
+                      </SubMenu>
+                    ))}
                     {filter && <MenuItem className="text-ink-2" onClick={() => { saveFilter(null); setToolMenu(null); }}>Clear filter</MenuItem>}
                   </Menu>
                 </div>
                 <div className="relative">
-                  <IconBtn title="Sort" className={cn('rounded-full!', toolMenu === 'sort' && 'bg-active')} onClick={() => setToolMenu(toolMenu === 'sort' ? null : 'sort')}>
+                  <IconBtn title="Sort" className={cn('rounded-full!', toolMenu === 'sort' && 'bg-active')} onClick={() => openTool('sort')}>
                     <ArrowUp size={16} strokeWidth={1.5} />
                   </IconBtn>
                   <Menu open={toolMenu === 'sort'} onClose={() => setToolMenu(null)} className="top-8 right-0 w-56">
-                    {visibleCols.map((k) => (
-                      <MenuItem key={k} onClick={() => { saveSort({ key: k, dir: sort?.key === k && sort.dir === 'asc' ? 'desc' : 'asc' }); setToolMenu(null); }}>
+                    {menuSearch}
+                    {visibleCols.filter(colMatch).map((k) => (
+                      <MenuItem key={k} icon={COL_ICON[k]} onClick={() => { saveSort({ key: k, dir: sort?.key === k && sort.dir === 'asc' ? 'desc' : 'asc' }); setToolMenu(null); }}>
                         {COLS[k]}{sort?.key === k ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ''}
                       </MenuItem>
                     ))}
@@ -212,13 +231,15 @@ function AppContent({ data, load }) {
                   </Menu>
                 </div>
                 <div className="relative">
-                  <IconBtn title="Properties" className={cn('rounded-full!', toolMenu === 'props' && 'bg-active')} onClick={() => setToolMenu(toolMenu === 'props' ? null : 'props')}>
+                  <IconBtn title="Properties" className={cn('rounded-full!', toolMenu === 'props' && 'bg-active')} onClick={() => openTool('props')}>
                     <Settings2 size={16} strokeWidth={1.5} />
                   </IconBtn>
                   <Menu open={toolMenu === 'props'} onClose={() => setToolMenu(null)} className="top-8 right-0 w-48">
-                    {order.map((k) => (
+                    {menuSearch}
+                    {order.filter(colMatch).map((k) => (
                       <MenuItem
                         key={k}
+                        icon={COL_ICON[k]}
                         onClick={() => k !== 'name' && saveCols({ ...cols, hidden: { ...cols.hidden, [k]: !cols.hidden[k] } })}
                         className={k === 'name' ? 'opacity-50' : ''}
                       >

@@ -568,6 +568,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [q, setQ] = useState('');
   const [menu, setMenu] = useState(null); // 'filter' | 'sort' | 'props'
+  const [menuQ, setMenuQ] = useState(''); // search inside the filter menu
   const [hidden, setHidden] = useState(() => new Set(JSON.parse(localStorage.getItem(`small.cols.${slug}`) || '[]')));
   const [widths, setWidths] = useState(() => JSON.parse(localStorage.getItem(`small.tblw.${slug}`) || '{}'));
   const [order, setOrder] = useState(() => JSON.parse(localStorage.getItem(`small.tblorder.${slug}`) || 'null'));
@@ -693,18 +694,39 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
           mousedown so closing a menu doesn't race its outside-mousedown close */}
       <div className="flex items-center justify-end gap-1 pb-2">
         <div className="relative">
-          <Button variant="secondary" size="sm" onMouseDown={(e) => { e.stopPropagation(); setMenu(menu === 'filter' ? null : 'filter'); }}><FilterIcon size={14} strokeWidth={1.5} /> Filter</Button>
+          <Button variant="secondary" size="sm" onMouseDown={(e) => { e.stopPropagation(); setMenuQ(''); setMenu(menu === 'filter' ? null : 'filter'); }}><FilterIcon size={14} strokeWidth={1.5} /> Filter</Button>
           <Menu open={menu === 'filter'} onClose={() => setMenu(null)} className="top-8 left-0 max-h-80 overflow-y-auto">
-            <div className="px-2 pt-1 pb-0.5 text-xs text-ink-3">Status</div>
-            {statuses.map((s) => <MenuItem key={s} onClick={() => { setFilters((f) => [...f, { field: 'status', value: s }]); setMenu(null); }}>{s}</MenuItem>)}
-            <div className="px-2 pt-2 pb-0.5 text-xs text-ink-3">Started by</div>
-            {people.map((p) => <MenuItem key={p} onClick={() => { setFilters((f) => [...f, { field: 'by', value: p }]); setMenu(null); }}>{startedName(p)}</MenuItem>)}
-            {Object.keys(schema).map((k) => (
-              <div key={k}>
-                <div className="px-2 pt-2 pb-0.5 text-xs text-ink-3">{k}</div>
-                {valuesOf(k).map((v) => <MenuItem key={v} onClick={() => { setFilters((f) => [...f, { field: k, value: v }]); setMenu(null); }}>{v}</MenuItem>)}
-              </div>
-            ))}
+            <input
+              autoFocus
+              value={menuQ}
+              onChange={(e) => setMenuQ(e.target.value)}
+              placeholder="Search values…"
+              onMouseDown={(e) => e.stopPropagation()}
+              className="mb-1 h-7 w-full rounded-sm bg-code px-2 text-sm outline-none"
+            />
+            {(() => {
+              const hit = (v) => String(v).toLowerCase().includes(menuQ.toLowerCase());
+              const st = statuses.filter(hit);
+              const ppl = people.filter((p) => hit(startedName(p)) || hit(p));
+              return (
+                <>
+                  {st.length > 0 && <div className="px-2 pt-1 pb-0.5 text-xs text-ink-3">Status</div>}
+                  {st.map((s) => <MenuItem key={s} onClick={() => { setFilters((f) => [...f, { field: 'status', value: s }]); setMenu(null); }}>{s}</MenuItem>)}
+                  {ppl.length > 0 && <div className="px-2 pt-2 pb-0.5 text-xs text-ink-3">Started by</div>}
+                  {ppl.map((p) => <MenuItem key={p} onClick={() => { setFilters((f) => [...f, { field: 'by', value: p }]); setMenu(null); }}>{startedName(p)}</MenuItem>)}
+                  {Object.keys(schema).map((k) => {
+                    const vals = valuesOf(k).filter(hit).slice(0, 8);
+                    if (!vals.length) return null;
+                    return (
+                      <div key={k}>
+                        <div className="px-2 pt-2 pb-0.5 text-xs text-ink-3">{k}</div>
+                        {vals.map((v) => <MenuItem key={v} onClick={() => { setFilters((f) => [...f, { field: k, value: v }]); setMenu(null); }}>{v}</MenuItem>)}
+                      </div>
+                    );
+                  })}
+                </>
+              );
+            })()}
           </Menu>
         </div>
         <div className="relative">
@@ -717,9 +739,17 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
           </Menu>
         </div>
         <div className="relative">
-          <Button variant="secondary" size="sm" onMouseDown={(e) => { e.stopPropagation(); setMenu(menu === 'props' ? null : 'props'); }}><Eye size={14} strokeWidth={1.5} /> Properties</Button>
-          <Menu open={menu === 'props'} onClose={() => setMenu(null)} className="top-8 left-0">
-            {[...CORE_COLS.filter((c) => c.key !== 'run').map((c) => [c.key, c.label]), ...Object.keys(schema).map((k) => [k, k])].map(([k, label]) => (
+          <Button variant="secondary" size="sm" onMouseDown={(e) => { e.stopPropagation(); setMenuQ(''); setMenu(menu === 'props' ? null : 'props'); }}><Eye size={14} strokeWidth={1.5} /> Properties</Button>
+          <Menu open={menu === 'props'} onClose={() => setMenu(null)} className="top-8 left-0 max-h-80 w-52 overflow-y-auto">
+            <input
+              autoFocus
+              value={menuQ}
+              onChange={(e) => setMenuQ(e.target.value)}
+              placeholder="Search…"
+              onMouseDown={(e) => e.stopPropagation()}
+              className="mb-1 h-7 w-full rounded-sm bg-code px-2 text-sm outline-none"
+            />
+            {[...CORE_COLS.filter((c) => c.key !== 'run').map((c) => [c.key, c.label]), ...Object.keys(schema).map((k) => [k, k])].filter(([, label]) => label.toLowerCase().includes(menuQ.toLowerCase())).map(([k, label]) => (
               <MenuItem key={k} onClick={() => toggleCol(k)}>
                 <span className="flex w-full items-center gap-2"><Chk on={!hidden.has(k)} /> {label}</span>
               </MenuItem>

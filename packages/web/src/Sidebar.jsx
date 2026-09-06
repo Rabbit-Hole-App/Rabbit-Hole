@@ -520,7 +520,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
       </div>
       )}
       {menu && (
-        <Menu open={menuFor === a.name} onClose={() => setMenuFor(null)} className="top-7 right-0 w-52">
+        <Menu open={menuFor === a.name} onClose={() => setMenuFor(null)} className="top-8 right-0 w-52">
           <MenuItem icon={ExternalLink} onClick={() => { setMenuFor(null); navigate(`/apps/${a.name}`); }}>Open</MenuItem>
           <MenuItem
             icon={Link}
@@ -928,7 +928,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
               >
                 <MoreHorizontal size={16} strokeWidth={1.5} />
               </IconBtn>
-              <Menu open={folderMenu === f.id} onClose={() => setFolderMenu(null)} className="top-7 right-0 w-52">
+              <Menu open={folderMenu === f.id} onClose={() => setFolderMenu(null)} className="top-8 right-0 w-52">
                 <MenuItem icon={Users} onClick={() => { setFolderMenu(null); setShareFolder(f.id); setFShare(''); loadPool(); }}>Share folder</MenuItem>
                 <MenuItem icon={Pencil} onClick={() => { setFolderMenu(null); setRenamingFolder({ id: f.id, value: f.name }); }}>Rename</MenuItem>
                 <MenuItem icon={Trash2} className="text-danger" onClick={() => { setFolderMenu(null); setConfirmFolder({ id: f.id, name: f.name }); }}>Delete</MenuItem>
