@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowUpDown, Calendar, Circle, Clock, Copy as CopyIcon, Download, Eye,
   File as FileIcon, Filter as FilterIcon, Folder, Hash, Inbox, Loader2, Maximize2, MessageCircle,
-  Paperclip, Play, Plus, Search as SearchIcon, Type, User, X,
+  Paperclip, Play, Plus, ScrollText, Search as SearchIcon, Type, User, X,
 } from 'lucide-react';
 import { ago, api, fmtTime, navigate } from './api.js';
 import { AskPanel } from './ask.jsx';
@@ -510,7 +510,10 @@ export function RunPeek({ runId, app, onClose, onRunAgain }) {
       onClose={onClose}
       title={
         <>
-          <span className={tabCls(tab === 'run')} onClick={() => setTab('run')}>Run {shortId(runId)}</span>
+          <span className={cn(tabCls(tab === 'run'), 'gap-0')} onClick={() => setTab('run')} title={`Run ${shortId(runId)}`} aria-label={`Run ${shortId(runId)}`}>
+            <ScrollText size={16} strokeWidth={1.5} className="shrink-0" />
+            <span className={cn('overflow-hidden whitespace-nowrap transition-[max-width] duration-200 ease-out', tab === 'run' ? 'max-w-[120px] pl-1.5' : 'max-w-0')}>Run {shortId(runId)}</span>
+          </span>
           {chatted && (
             <span className={cn(tabCls(tab === 'chat'), 'gap-0')} onClick={() => setTab('chat')} title="Chat" aria-label="Chat">
               <MessageCircle size={16} strokeWidth={1.5} className="shrink-0" />
@@ -557,7 +560,7 @@ const CORE_COLS = [
   { key: 'dur', label: 'Duration', w: 90, right: true, icon: Hash },
 ];
 
-export function RunsDb({ app, onOpen, onNewRun, onRunAgain }) {
+export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
   const slug = app.name;
   const [runs, setRuns] = useState(null);
   const [filters, setFilters] = useState([]);
@@ -759,7 +762,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain }) {
             </thead>
             <tbody>
               {filtered.map((r) => (
-                <tr key={r.run_id} onClick={() => onOpen(r.run_id)} className="group cursor-pointer hover:bg-hover">
+                <tr key={r.run_id} onClick={() => onOpen(r.run_id)} className={cn('group cursor-pointer hover:bg-hover', openId === r.run_id && 'bg-active hover:bg-active')}>
                   {cols.map((c) => (
                     // input columns wrap (s3 URIs must stay readable); core columns keep one line
                     <td key={c.key} className={cn('overflow-hidden border-b border-line px-2 py-1.5 align-middle text-sm', c.input ? 'break-words' : 'whitespace-nowrap', c.right && 'text-right')}>{cell(r, c)}</td>

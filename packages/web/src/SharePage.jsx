@@ -486,12 +486,16 @@ function AppPage({ slug, runId, reloadShell }) {
     ? `${app.repo_branch} · ${app.repo_commit.slice(0, 7)}${app.repo_dirty ? ' · dirty' : ''}`
     : null;
 
+  // Agent tab: the page must NOT scroll - the pane fills to the viewport bottom so
+  // the textbox sits static (level with the sidebar's New chat), only messages scroll.
+  const agentFull = !runId && (tab ?? (app?.kind === 'job' ? 'run' : 'runbook')) === 'agent';
   return (
-    <main className="flex-1 overflow-y-auto">
+    <main className={cn('flex-1', agentFull ? 'overflow-hidden' : 'overflow-y-auto')}>
       {/* run pages carve out the fixed 400px chat panel and center in what's left */}
       <div className={cn(
         'py-12 max-lg:px-8 max-md:px-4 max-md:py-6',
         runId ? 'mx-auto max-w-[860px] px-12 lg:mr-[416px]' : 'mx-auto max-w-[900px] px-24',
+        agentFull && 'flex h-full min-h-0 flex-col pb-4',
       )}>
         <div className="flex items-center gap-1 pb-8 text-sm text-ink-2">
           <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate('/apps')}>{wsName(app?.org)}</button>
@@ -716,8 +720,8 @@ function AppPage({ slug, runId, reloadShell }) {
               </div>
             )}
 
-            <Tabs value={tab ?? (app.kind === 'job' ? 'run' : 'runbook')} onValueChange={setTab}>
-              <TabsList className="mt-5">
+            <Tabs value={tab ?? (app.kind === 'job' ? 'run' : 'runbook')} onValueChange={setTab} className={cn(agentFull && 'flex min-h-0 flex-1 flex-col')}>
+              <TabsList className="mt-5 shrink-0">
                 <TabsTrigger value="runbook">Runbook</TabsTrigger>
                 {app.kind === 'job' && <TabsTrigger value="run">Run</TabsTrigger>}
                 <TabsTrigger value="logs">Logs</TabsTrigger>
@@ -738,19 +742,19 @@ function AppPage({ slug, runId, reloadShell }) {
 
               <TabsContent value="logs" className="pt-4">
                 {app.kind === 'job'
-                  ? <RunsDb app={app} onOpen={setPeek} onNewRun={() => setTab('run')} onRunAgain={runAgain} />
+                  ? <RunsDb app={app} openId={peek} onOpen={setPeek} onNewRun={() => setTab('run')} onRunAgain={runAgain} />
                   : <RequestLog slug={slug} />}
               </TabsContent>
 
-              <TabsContent value="agent" className="pt-4">
-                <div className="flex justify-end">
+              <TabsContent value="agent" className="flex min-h-0 flex-1 flex-col pt-4">
+                <div className="flex shrink-0 justify-end">
                   <IconBtn aria-label="Open as page" title="Open as page" onClick={() => navigate(`/chat?app=${encodeURIComponent(app.name)}`)}>
                     <Maximize2 size={14} strokeWidth={1.5} />
                   </IconBtn>
                 </div>
-                {/* fills the viewport below the header: the input stays pinned at the
-                    bottom and only the conversation scrolls */}
-                <div className="flex h-[calc(100dvh-380px)] min-h-[320px] flex-col">
+                {/* the page itself is scroll-locked on this tab; the pane flexes to the
+                    viewport bottom so the input is static and only messages scroll */}
+                <div className="flex min-h-0 flex-1 flex-col">
                   <AskPanel scope={{ app: app.name }} email={app.email} placeholder={`Ask about ${app.name}…`} autoFocus />
                 </div>
               </TabsContent>
