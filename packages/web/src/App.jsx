@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpRight, Calendar, ChevronDown, ChevronRight, Circle, Clock, Eye, EyeOff, Folder as FolderIcon, Inbox, ListFilter, Loader2, Lock, PanelRight, Play, Search, Settings2, Square, Type, Users, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Calendar, ChevronDown, ChevronRight, Circle, Clock, Eye, EyeOff, Folder as FolderIcon, Inbox, Link as LinkIcon, ListFilter, Loader2, Lock, PanelRight, Play, Search, Settings2, Square, Type, Users, X } from 'lucide-react';
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
 import Shell from './Shell.jsx';
-import { Avatar, Chk, cn, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, useHeaderDrag, ValuePicker } from './ui.jsx';
+import { Avatar, Chk, cn, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, toast, useHeaderDrag, ValuePicker } from './ui.jsx';
 
 const people = (a) => [a.owner_email, ...(a.members || []).map((m) => m.email).filter((e) => e !== a.owner_email)];
 
@@ -76,6 +76,8 @@ function AppContent({ data, load }) {
   const [sort, setSort] = useState(() => persisted('small.tblSort', null));
   const saveSort = (s) => { setSort(s); localStorage.setItem('small.tblSort', JSON.stringify(s)); };
   const [filter, setFilter] = useState(() => persisted('small.tblFilter', null)); // { key, value }
+  const [grouped, setGrouped] = useState(() => persisted('small.tblGroup', true)); // group rows by folder
+  const saveGrouped = (g) => { setGrouped(g); localStorage.setItem('small.tblGroup', JSON.stringify(g)); };
   const saveFilter = (f) => { setFilter(f); localStorage.setItem('small.tblFilter', JSON.stringify(f)); };
   const [colMenu, setColMenu] = useState(null); // column key with its header menu open
   const [colSub, setColSub] = useState(null); // 'sort' | 'filter' flyout inside it
@@ -145,7 +147,7 @@ function AppContent({ data, load }) {
   }
   // the plain Apps view groups by folder, Notion-style; filtered/search views stay flat
   const folders = data?.folders || [];
-  const flat = !folder && !section && !search
+  const flat = !folder && !section && !search && grouped
     ? [
         ...folders.flatMap((g) => {
           const list = rows.filter((a) => a.folder_id === g.id);
@@ -231,21 +233,51 @@ function AppContent({ data, load }) {
                   </Menu>
                 </div>
                 <div className="relative">
-                  <IconBtn title="Properties" className={cn('rounded-full!', toolMenu === 'props' && 'bg-active')} onClick={() => openTool('props')}>
+                  <IconBtn title="View settings" className={cn('rounded-full!', toolMenu === 'view' && 'bg-active')} onClick={() => openTool('view')}>
                     <Settings2 size={16} strokeWidth={1.5} />
                   </IconBtn>
-                  <Menu open={toolMenu === 'props'} onClose={() => setToolMenu(null)} className="top-8 right-0 w-48">
-                    {menuSearch}
-                    {order.filter(colMatch).map((k) => (
-                      <MenuItem
-                        key={k}
-                        icon={COL_ICON[k]}
-                        onClick={() => k !== 'name' && saveCols({ ...cols, hidden: { ...cols.hidden, [k]: !cols.hidden[k] } })}
-                        className={k === 'name' ? 'opacity-50' : ''}
-                      >
-                        <Chk on={!cols.hidden[k]} /> {COLS[k]}
+                  {/* Notion View settings: every existing control in one place, hints on the right */}
+                  <Menu open={toolMenu === 'view'} onClose={() => { setToolMenu(null); setColSub(null); }} className="top-8 right-0 w-64">
+                    <div className="flex items-center justify-between px-2 pt-1 pb-1.5">
+                      <span className="text-xs font-medium text-ink-3">View settings</span>
+                      <button aria-label="Close" className="cursor-pointer rounded-sm p-0.5 text-ink-3 hover:bg-hover hover:text-ink" onClick={() => { setToolMenu(null); setColSub(null); }}><X size={13} /></button>
+                    </div>
+                    <SubMenu icon={Eye} label="Property visibility" hint={String(visibleCols.length)} open={colSub === 'v:props'} onOpen={() => setColSub('v:props')} width="w-56">
+                      {order.map((k) => (
+                        <MenuItem key={k} icon={COL_ICON[k]} onClick={() => k !== 'name' && saveCols({ ...cols, hidden: { ...cols.hidden, [k]: !cols.hidden[k] } })} className={k === 'name' ? 'opacity-50' : ''}>
+                          <span className="flex w-full items-center gap-2"><Chk on={!cols.hidden[k]} /> {COLS[k]}</span>
+                        </MenuItem>
+                      ))}
+                    </SubMenu>
+                    <SubMenu icon={ListFilter} label="Filter" hint={filter ? `${COLS[filter.key]}` : 'None'} open={!!colSub?.startsWith?.('v:filter')} onOpen={() => setColSub('v:filter')} width="w-52">
+                      {Object.keys(FILTERS).map((k) => (
+                        <SubMenu key={k} icon={COL_ICON[k]} label={COLS[k]} open={colSub === `v:filter:${k}`} onOpen={() => setColSub(`v:filter:${k}`)}>
+                          <ValuePicker
+                            values={[...new Set(sectionApps.map((a) => FILTERS[k](a)))].sort()}
+                            onPick={(v) => { saveFilter({ key: k, value: v }); setToolMenu(null); setColSub(null); }}
+                          />
+                        </SubMenu>
+                      ))}
+                      {filter && <MenuItem className="text-ink-2" onClick={() => { saveFilter(null); setColSub('v:filter'); }}>Clear filter</MenuItem>}
+                    </SubMenu>
+                    <SubMenu icon={ArrowUpDown} label="Sort" hint={sort ? `${COLS[sort.key]} ${sort.dir === 'desc' ? '↓' : '↑'}` : 'None'} open={colSub === 'v:sort'} onOpen={() => setColSub('v:sort')} width="w-52">
+                      {visibleCols.map((k) => (
+                        <MenuItem key={k} icon={COL_ICON[k]} onClick={() => saveSort({ key: k, dir: sort?.key === k && sort.dir === 'asc' ? 'desc' : 'asc' })}>
+                          {COLS[k]}{sort?.key === k ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ''}
+                        </MenuItem>
+                      ))}
+                      {sort && <MenuItem className="text-ink-2" onClick={() => saveSort(null)}>Clear sort</MenuItem>}
+                    </SubMenu>
+                    <SubMenu icon={FolderIcon} label="Group" hint={grouped ? 'Folder' : 'None'} open={colSub === 'v:group'} onOpen={() => setColSub('v:group')} width="w-44">
+                      <MenuItem icon={FolderIcon} onClick={() => saveGrouped(true)}>
+                        <span className="flex w-full items-center justify-between">Folder {grouped && <span>✓</span>}</span>
                       </MenuItem>
-                    ))}
+                      <MenuItem onClick={() => saveGrouped(false)}>
+                        <span className="flex w-full items-center justify-between">None {!grouped && <span>✓</span>}</span>
+                      </MenuItem>
+                    </SubMenu>
+                    <div className="my-1 border-t border-line" />
+                    <MenuItem icon={LinkIcon} onClick={() => { navigator.clipboard.writeText(window.location.href); toast('Link copied'); setToolMenu(null); }}>Copy link to view</MenuItem>
                   </Menu>
                 </div>
                 {search === null ? (

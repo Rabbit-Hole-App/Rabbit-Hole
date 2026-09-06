@@ -27,7 +27,7 @@ export function Button({ className, variant = 'ghost', size, ...props }) {
         size === 'sm' ? 'h-7 px-2 text-[13px]' : 'h-8 px-3',
         variant === 'primary' && 'bg-accent text-white hover:bg-accent-hover',
         // "New token" template: visible as a button at rest - white, border, faint shadow
-        variant === 'secondary' && 'border border-line bg-white text-ink shadow-[0_1px_2px_rgba(0,0,0,0.06)] hover:bg-hover',
+        variant === 'secondary' && 'border border-line-strong/60 bg-white text-ink shadow-[0_1px_3px_rgba(0,0,0,0.09)] hover:bg-hover',
         // "Copy link" template: accent-tinted fill for feature CTAs that should not shout
         variant === 'soft' && 'bg-accent/10 text-accent hover:bg-accent/20',
         variant === 'ghost' && 'text-ink-2 hover:bg-hover hover:text-ink',
@@ -665,12 +665,13 @@ export function Tip({ label, info, children }) {
 }
 
 // Notion-style submenu row: hover (or click) opens a flyout to the right.
-export function SubMenu({ icon: Icon, label, open, onOpen, children, width = 'w-52' }) {
+export function SubMenu({ icon: Icon, label, hint, open, onOpen, children, width = 'w-52' }) {
   return (
     <div className="relative" onMouseEnter={onOpen}>
       <button className="flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-sm text-ink hover:bg-hover" onClick={onOpen}>
         {Icon && <Icon size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />}
         <span className="min-w-0 flex-1 truncate">{label}</span>
+        {hint && <span className="shrink-0 text-xs text-ink-3">{hint}</span>}
         <ChevronRight size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />
       </button>
       {open && (
