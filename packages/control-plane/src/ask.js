@@ -31,9 +31,9 @@ export const ASK_SYSTEM = [
   'Without tools you cannot run, re-run, deploy, share, pause, or change anything; if',
   'asked for an action, name exactly who could (owner and edit members are in the context).',
   'Be concise. Markdown allowed (lists, `code`, **bold**).',
-  'End EVERY answer with a final line starting with "Sources: " naming what you used -',
-  'file:line ranges, run ids, "runbook", "review", "log lines N-M", "diff", "AGENT.md" -',
-  'or "Sources: none".',
+  'End answers that USED sources with a final line starting with "Sources: " naming them -',
+  'file:line ranges, run ids, "runbook", "review", "log lines N-M", "diff", "AGENT.md".',
+  'If nothing was used (greetings, small talk), no Sources line at all.',
 ].join(' ');
 
 // One deploy's stored source ({bundle, skipped}) from R2, or null for pre-feature deploys.

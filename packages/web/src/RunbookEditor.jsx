@@ -6,8 +6,9 @@ import { BlockNoteView } from '@blocknote/shadcn';
 import '@blocknote/shadcn/style.css';
 import '@excalidraw/excalidraw/index.css';
 import { Loader2, PenTool } from 'lucide-react';
-import { api, isDark } from './api.js';
+import { api, isDark, navigate } from './api.js';
 import { FilePeek } from './ask.jsx';
+import { RunPeek } from './run.jsx';
 import { Button, ConfirmDialog, Mark } from './ui.jsx';
 import { chartBlock, insertChart } from './ChartBlock.jsx';
 
@@ -153,12 +154,18 @@ export default function Runbook({ app, canEdit, onSaved }) {
   const [confirmGen, setConfirmGen] = useState(false); // a non-empty page warns before it is replaced
   // #src=path:line-line links (written by the runbook agent) open the code peek
   const [srcPeek, setSrcPeek] = useState(null);
+  const [runPeek, setRunPeek] = useState(null); // #run= links open the run panel
   const onSrcClick = (e) => {
-    const a = e.target.closest?.('a[href^="#src="]');
+    const a = e.target.closest?.('a[href^="#src="], a[href^="#run="]');
     if (!a) return;
     e.preventDefault();
     e.stopPropagation();
-    const ref = decodeURIComponent(a.getAttribute('href').slice(5));
+    const href = a.getAttribute('href');
+    if (href.startsWith('#run=')) {
+      setRunPeek(decodeURIComponent(href.slice(5)));
+      return;
+    }
+    const ref = decodeURIComponent(href.slice(5));
     const m = ref.match(/^(.+?):(\d+)(?:-(\d+))?$/);
     setSrcPeek(m ? { path: m[1], line: +m[2], lineEnd: m[3] ? +m[3] : null } : { path: ref, line: null, lineEnd: null });
   };
@@ -206,6 +213,18 @@ export default function Runbook({ app, canEdit, onSaved }) {
         />
       )}
       {srcPeek && <FilePeek appName={app.name} path={srcPeek.path} line={srcPeek.line} lineEnd={srcPeek.lineEnd} onClose={() => setSrcPeek(null)} />}
+      {runPeek && (
+        <RunPeek
+          runId={runPeek}
+          app={app}
+          onClose={() => setRunPeek(null)}
+          onRunAgain={(inputs) => {
+            sessionStorage.setItem(`small.runPrefill.${app.name}`, JSON.stringify(inputs || {}));
+            setRunPeek(null);
+            navigate(`/apps/${app.name}`);
+          }}
+        />
+      )}
       <div className="-mx-[34px] min-h-0 flex-1 overflow-y-auto" onClickCapture={onSrcClick}>{/* cancels bn-editor's 54px gutter down to the panel's 20px */}
         <BlockNoteView editor={editor} editable={canEdit} theme={dark ? 'dark' : 'light'} onChange={canEdit ? onChange : undefined} slashMenu={false}>
           <SuggestionMenuController
