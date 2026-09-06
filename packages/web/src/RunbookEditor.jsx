@@ -156,18 +156,35 @@ export default function Runbook({ app, canEdit, onSaved }) {
   const [srcPeek, setSrcPeek] = useState(null);
   const [runPeek, setRunPeek] = useState(null); // #run= links open the run panel
   const onSrcClick = (e) => {
+    // refs are inline code chips (`job.py:13-15`, `r-d904117412ae`) - BlockNote
+    // link marks proved unreliable (mangled anchors, new tabs). Old pages with
+    // #src=/#run= links still work.
     const a = e.target.closest?.('a[href^="#src="], a[href^="#run="]');
-    if (!a) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const href = a.getAttribute('href');
-    if (href.startsWith('#run=')) {
-      setRunPeek(decodeURIComponent(href.slice(5)));
+    if (a) {
+      e.preventDefault();
+      e.stopPropagation();
+      const href = a.getAttribute('href');
+      if (href.startsWith('#run=')) setRunPeek(decodeURIComponent(href.slice(5)));
+      else {
+        const ref = decodeURIComponent(href.slice(5));
+        const m = ref.match(/^(.+?):(\d+)(?:-(\d+))?$/);
+        setSrcPeek(m ? { path: m[1], line: +m[2], lineEnd: m[3] ? +m[3] : null } : { path: ref, line: null, lineEnd: null });
+      }
       return;
     }
-    const ref = decodeURIComponent(href.slice(5));
-    const m = ref.match(/^(.+?):(\d+)(?:-(\d+))?$/);
-    setSrcPeek(m ? { path: m[1], line: +m[2], lineEnd: m[3] ? +m[3] : null } : { path: ref, line: null, lineEnd: null });
+    const c = e.target.closest?.('code');
+    if (!c || c.closest('pre')) return; // inline code only, not log blocks
+    const t = (c.textContent || '').trim();
+    if (/^r-\w{6,}$/.test(t)) {
+      e.preventDefault();
+      setRunPeek(t);
+      return;
+    }
+    const m = t.match(/^([\w./-]+\.[A-Za-z]\w*):(\d+)(?:-(\d+))?$/);
+    if (m) {
+      e.preventDefault();
+      setSrcPeek({ path: m[1], line: +m[2], lineEnd: m[3] ? +m[3] : null });
+    }
   };
   const generate = async () => {
     setGenBusy(true);
@@ -225,7 +242,7 @@ export default function Runbook({ app, canEdit, onSaved }) {
           }}
         />
       )}
-      <div className="-mx-[34px] min-h-0 flex-1 overflow-y-auto" onClickCapture={onSrcClick}>{/* cancels bn-editor's 54px gutter down to the panel's 20px */}
+      <div className="runbook-refs -mx-[34px] min-h-0 flex-1 overflow-y-auto" onClickCapture={onSrcClick}>{/* cancels bn-editor's 54px gutter down to the panel's 20px */}
         <BlockNoteView editor={editor} editable={canEdit} theme={dark ? 'dark' : 'light'} onChange={canEdit ? onChange : undefined} slashMenu={false}>
           <SuggestionMenuController
             triggerCharacter="/"

@@ -213,3 +213,8 @@ tr.cursor-pointer:active > td {
 *::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* runbook ref chips: inline code that opens the file/run peek reads as clickable */
+.runbook-refs :not(pre) > code {
+  cursor: pointer;
+}
