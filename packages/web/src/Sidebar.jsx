@@ -260,10 +260,19 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
             <>
               <div className="text-2xl font-semibold">Developer</div>
               <div className="pt-2 text-base text-ink-2">Deploy from your terminal</div>
-              <Heading>CLI</Heading>
-              <SettingsRow title="Install" desc="Node 18+"><CodeCopy text="npm i -g small-deploy" /></SettingsRow>
-              <SettingsRow title="Sign in" desc="A one-time code to your email"><CodeCopy text="small login" /></SettingsRow>
-              <SettingsRow title="Ship" desc="From your project directory"><CodeCopy text="small deploy" /></SettingsRow>
+              <Heading>New app</Heading>
+              <SettingsRow title="1. Install the CLI" desc="Node 18+"><CodeCopy text="npm i -g small-deploy" /></SettingsRow>
+              <SettingsRow title="2. Sign in" desc="A one-time code to your email"><CodeCopy text="small login" /></SettingsRow>
+              <SettingsRow title="3. Ship" desc="From your project directory. It appears here the moment it deploys."><CodeCopy text="small deploy" /></SettingsRow>
+              <Heading>Everyday commands</Heading>
+              <SettingsRow title="Start a job" desc="Prompts for its inputs"><CodeCopy text="small run <app>" /></SettingsRow>
+              <SettingsRow title="Recent runs" desc="Status, duration, who started them"><CodeCopy text="small runs <app>" /></SettingsRow>
+              <SettingsRow title="Logs" desc="Tail what an app printed"><CodeCopy text="small logs <app>" /></SettingsRow>
+              <SettingsRow title="Share" desc="Give a teammate access"><CodeCopy text="small share <email>" /></SettingsRow>
+              <SettingsRow title="Schedule" desc="Pause or resume a cron"><CodeCopy text="small schedule pause <app>" /></SettingsRow>
+              <SettingsRow title="Everything you own" desc="Apps and their URLs"><CodeCopy text="small list" /></SettingsRow>
+              <SettingsRow title="Watch" desc="What the nightly pass found"><CodeCopy text="small watch" /></SettingsRow>
+              <SettingsRow title="Start a new project" desc="Scaffolds small.toml and a runbook"><CodeCopy text="small init" /></SettingsRow>
               <Heading>API</Heading>
               <SettingsRow title="Base URL" desc="The same-origin API this dashboard uses"><CodeCopy text={`${window.location.origin}/api`} /></SettingsRow>
             </>
