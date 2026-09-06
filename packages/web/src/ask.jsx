@@ -515,8 +515,22 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       {view === 'chat' && (<>
       <div ref={boxRef} className="no-scrollbar min-h-0 flex-1 overflow-y-auto">
         {msgs.length === 0 && !choices && (
-          <div className="py-3 text-sm text-ink-2">
-            Ask about {scope.run ? 'this run - what happened, why it failed, what changed.' : scope.app ? 'this app - runs, logs, schedule, who has access.' : 'your workspace - any app, run, or person.'}
+          <div className="flex flex-wrap gap-1.5 py-3">
+            {(scope.run
+              ? ['What happened in this run?', 'Why did it fail?', 'What changed since the last successful run?']
+              : scope.app
+                ? ['When did this last run, and how did it go?', 'What does the code actually do?', 'Who has access to this app?']
+                : ['What apps do we have and what do they do?', 'Any failed runs recently?', 'What did Watch find this week?']
+            ).map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => send(q)}
+                className="cursor-pointer rounded-full border border-line bg-white px-3 py-1 text-left text-[13px] text-ink-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-line-strong hover:text-ink"
+              >
+                {q}
+              </button>
+            ))}
           </div>
         )}
         {msgs.map((m, i) => (
