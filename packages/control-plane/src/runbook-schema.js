@@ -210,6 +210,14 @@ export async function buildRunbook(env, app, deploy, stored, baseUrl) {
       : null,
     runs_on: await runsOn(env, app),
     data_flow: dataFlow(app, files, reviewJson),
+    // the role and what the code was observed doing with it - powers the role peek
+    ...(app.aws_role_arn ? {
+      aws_role: {
+        arn: app.aws_role_arn,
+        actions: (reviewJson?.aws || []).map((a) => ({ action: a.action, resource: a.resource ?? null, at: a.at ?? null })),
+      },
+    } : {}),
+    source_files: Object.keys(files).sort(),
 
     what_it_does: m.what_it_does || app.description || '',
     who_its_for: m.who_its_for || '',
@@ -238,6 +246,7 @@ export async function buildRunbook(env, app, deploy, stored, baseUrl) {
 
     ...(m.known_limits?.length ? { known_limits: m.known_limits } : {}),
     ...(m.if_it_breaks?.length ? { if_it_breaks: m.if_it_breaks } : {}),
+    ...(m.appendix?.length ? { appendix: m.appendix } : {}),
     ask: app.owner_email,
 
     review: reviewSummary(app.review),
@@ -250,7 +259,7 @@ export async function buildRunbook(env, app, deploy, stored, baseUrl) {
 
 // Platform env names never reach the reader (or Ask): rewrite them into the
 // plain-language thing they stand for, everywhere in the document.
-function scrubPlatformVars(node) {
+export function scrubPlatformVars(node) {
   const fix = (t) => String(t)
     .replace(/\$?SMALL_INPUT_OUTPUT_BUCKET/g, 'the output_bucket input')
     .replace(/\$?SMALL_INPUT_([A-Z0-9_]+)/g, (_, n) => `the ${n.toLowerCase()} input`)
@@ -301,6 +310,13 @@ function chipify(md) {
       .replace(/(?<![`\w/-])(r-[0-9a-f]{8,16})(?![`\w-])/g, '`$1`') // not after / : run ids inside URLs stay plain
       .replace(/the the /g, 'the ')
       .replace(/ input input/g, ' input')
+      // clickable refs become #src=/#run= links (onSrcClick intercepts, CSS
+      // underlines) - BlockNote drops bold/other marks on inline code, so a
+      // link is the only mark that survives to signal "this opens the peek"
+      .replace(/`((?:[\w-]+\/)*[\w-]+\.[A-Za-z]\w*:\d+(?:-\d+)?)`/g, (_, r) => `[${r}](#src=${r})`)
+      .replace(/`(r-\w{6,})`/g, '[$1](#run=$1)')
+      .replace(/`(arn:aws:iam::\d+:role\/[\w+=,.@/-]+)`/g, '[$1](#role=$1)')
+      .replace(/(?<![`[\w=/])(arn:aws:iam::\d+:role\/[\w+=,.@-]+)(?![`\]\w])/g, '[$1](#role=$1)')
   )).join('');
 }
 
@@ -353,7 +369,9 @@ export function renderMarkdown(rb) {
     )}`);
   }
   if (rb.outputs?.length) {
-    out.push(`## Outputs\n${rb.outputs.map((o) => `- \`${o.name}\`${o.label ? ` (${o.label})` : ''}${o.example ? `: ${o.example}` : ''}`).join('\n')}`);
+    // JSON-shaped examples read as code, not prose - backtick them for the chip colour
+    const ex = (e) => (/^[[{]/.test(String(e).trim()) && !String(e).includes('`') ? `\`${e}\`` : e);
+    out.push(`## Outputs\n${rb.outputs.map((o) => `- \`${o.name}\`${o.label ? ` (${o.label})` : ''}${o.example ? `: ${ex(o.example)}` : ''}`).join('\n')}`);
   }
 
   if (rb.run_locally) {
@@ -369,12 +387,19 @@ export function renderMarkdown(rb) {
   if (rb.talks_to?.length) out.push(`## Talks to\n${rb.talks_to.map((t) => `- ${t.host} (${t.mode}): ${t.for} \`${t.at}\``).join('\n')}`);
 
   if (rb.files?.length) out.push(`## Files\n${table(['path', 'role'], rb.files.map((f) => [`\`${f.path}\`${f.entry ? ' (entry)' : ''}`, f.role]))}`);
+  if (rb.source_files?.length) {
+    // ponytail: flat list; collapse into a toggle when a bundle outgrows one screen
+    out.push(`## Project files\n${rb.source_files.map((p) => `- [${p}](#src=${encodeURIComponent(p)})`).join('\n')}`);
+  }
   if (rb.endpoints?.length) out.push(`## Endpoints\n${table(['route', 'method', 'does', 'at'], rb.endpoints.map((e) => [`\`${e.route}\``, e.method, e.does, `\`${e.at}\``]))}`);
   if (rb.schedule) out.push(`## Schedule\n\`${rb.schedule}\` (UTC)`);
 
   if (rb.known_limits?.length) out.push(`## Known limits\n${rb.known_limits.map((l) => `- ${l.text} \`${l.at}\``).join('\n')}`);
   if (rb.if_it_breaks?.length) {
     out.push(`## If it breaks\n${rb.if_it_breaks.map((b) => `- **You see:** ${b.symptom}\n  **Likely:** ${b.likely}\n  **Look:** ${/[`\s]/.test(b.look) ? b.look : `\`${b.look}\``}`).join('\n')}`);
+  }
+  if (rb.appendix?.length) {
+    out.push(`## Appendix\n${rb.appendix.map((a) => `### ${a.title}\n${a.body}`).join('\n\n')}`);
   }
   out.push(`## Ask\n${rb.ask}`);
   if (rb.review) out.push(`*review: risk ${rb.review.risk} · ${rb.review.secrets} undeclared secrets · ${rb.review.outbound} outbound · ${rb.review.shell_exec} shell exec · ${rb.review.findings} findings*`);

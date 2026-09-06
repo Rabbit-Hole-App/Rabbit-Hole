@@ -3,11 +3,11 @@
 import { sign, verify, sha256, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
 import { ASK_MODELS, ASK_TOOLS, askOnce, askStream, capJoin, DIAGNOSIS_PROMPT, diffBundles, getBundle, parseBundle } from './ask.js';
-import { assumeRole, s3Buckets, s3Get, s3List } from './aws.js';
+import { assumeRole, iamRolePolicies, s3Buckets, s3Get, s3List } from './aws.js';
 import { handleSlackCommand, handleSlackEvent, handleSlackInteract, notifySlackRun, slackApi, verifySlackSignature } from './slack.js';
 import { runWatchPass, weeklyWatchEmail } from './watch.js';
 import { runReview, generateRunbook } from './review.js';
-import { buildRunbook } from './runbook-schema.js';
+import { buildRunbook, renderMarkdown, scrubPlatformVars } from './runbook-schema.js';
 import { parseCron, matches, nextRun } from './cron.js';
 import SHELL from '../../web/dist/index.html';
 
@@ -631,10 +631,47 @@ async function apiRunbookGenerate(req, env, ctx, user, name) {
     const { runbook, warnings, markdown } = await buildRunbook(env, app, deploy, stored, new URL(req.url).origin);
     await env.DB.prepare('UPDATE apps SET runbook_json = ?, runbook_warnings = ? WHERE id = ?')
       .bind(JSON.stringify(runbook), warnings.length ? JSON.stringify(warnings) : null, app.id).run();
-    return json({ markdown, warnings });
+    return json({ markdown, warnings, runbook });
   } catch (e) {
     return json({ error: e.message }, 502);
   }
+}
+
+// The structured runbook as markdown - what `small runbook` prints. Rendered
+// from the stored JSON (refreshed on every deploy); falls back to the editable
+// page for apps that predate the structured pipeline.
+async function apiRunbookGet(env, user, name) {
+  const app = await appForUser(env, user, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (app.runbook_json) {
+    try {
+      return json({ markdown: renderMarkdown(JSON.parse(app.runbook_json)), warnings: app.runbook_warnings ? JSON.parse(app.runbook_warnings) : [] });
+    } catch { /* fall through to the page */ }
+  }
+  if (app.runbook) return json({ markdown: app.runbook, warnings: [] });
+  return json({ error: 'no runbook yet - deploy once or press Generate runbook in the dashboard' }, 404);
+}
+
+// The role peek: arn + what the code was observed doing with it (review), plus a
+// live read of the role's policies when the role permits reading itself.
+async function apiAppRole(env, user, name) {
+  const app = await appForUser(env, user, name);
+  if (!app) return json({ error: `no app named ${name}` }, 404);
+  if (!app.aws_role_arn) return json({ error: 'no aws role configured for this app' }, 404);
+  let review = null;
+  try { review = JSON.parse(app.review); } catch { /* unreviewed */ }
+  const actions = (review?.aws || []).map((a) => ({ action: a.action, resource: a.resource ?? null, at: a.at ?? null }));
+  scrubPlatformVars(actions); // review text can name platform env vars - readers never see those
+  let policies = null, policies_error = null;
+  if (env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY) {
+    try {
+      const creds = await assumeRole(env, app.aws_role_arn, `small-role-${app.org}`, app.org);
+      policies = await iamRolePolicies(creds, app.aws_role_arn);
+    } catch (e) {
+      policies_error = String(e.message || e);
+    }
+  } else policies_error = 'control plane has no AWS principal configured';
+  return json({ arn: app.aws_role_arn, actions, policies, policies_error });
 }
 
 // The 2-3 line blurb under the title - model-written on first deploy, edits here stick.
@@ -2115,6 +2152,10 @@ export default {
         if (path === '/api/apps/find' && req.method === 'POST') return await apiAppFind(req, env, user);
         const genRb = path.match(/^\/api\/apps\/([a-z0-9-]+)\/generate-runbook$/);
         if (genRb && req.method === 'POST') return await apiRunbookGenerate(req, env, ctx, user, genRb[1]);
+        const rolePath = path.match(/^\/api\/apps\/([a-z0-9-]+)\/role$/);
+        if (rolePath && req.method === 'GET') return await apiAppRole(env, user, rolePath[1]);
+        const rbGet = path.match(/^\/api\/apps\/([a-z0-9-]+)\/runbook$/);
+        if (rbGet && req.method === 'GET') return await apiRunbookGet(env, user, rbGet[1]);
         if (path === '/api/unshare' && req.method === 'POST') return await apiUnshare(req, env, user);
         if (path === '/api/folders' && req.method === 'POST') return await apiFolderCreate(req, env, user);
         const folderDel = path.match(/^\/api\/folders\/(\d+)\/delete$/);

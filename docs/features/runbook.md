@@ -134,7 +134,8 @@ markdown. This file defines the JSON.
 | `small.toml` | `inputs` (base), `outputs` (base), `run_locally.start`, `storage.path`, `kind` |
 | last successful run | `inputs[].example`, `outputs[].example`, `example_run.command` |
 | `AGENT.md` | `inputs[].example_note`, `when_to_use` hints, `ask` override |
-| the model, from the source bundle | `what_it_does`, `who_its_for`, `how_to_use`, `commands`, `needs`, `talks_to`, `files`, `endpoints`, `known_limits`, `if_it_breaks`, `outputs[].example` shape, `storage.contains` |
+| the model, from the source bundle | `what_it_does`, `who_its_for`, `how_to_use`, `commands`, `needs`, `talks_to`, `files`, `endpoints`, `known_limits`, `if_it_breaks`, `outputs[].example` shape, `storage.contains`, `appendix` |
+| control plane, no model | `aws_role` (`arn` from the app config, `actions` from the review), `source_files` (every file in the deployed bundle) |
 
 The model fills only the last row. Everything else is deterministic, so the model can't
 contradict the platform about facts it already knows.
@@ -159,7 +160,21 @@ if `leaves_the_org` is true: *This app sends data outside the organisation.*
 
 Tables for `inputs`, `needs`, `files`, `endpoints`, `commands`. Lists for everything else.
 `review` is one italic line at the bottom. Absent sections are not rendered as empty
-headings — they're skipped.
+headings — they're skipped. Table columns where every row is empty are dropped.
+
+Clickable refs render as links the web page intercepts: `file:line` → `#src=` (code peek),
+run ids → `#run=` (run peek), role arns → `#role=` (role peek: the arn, what the code was
+observed doing with it, and a live read of its policies when the role permits reading
+itself). `source_files` renders as **Project files** near the bottom, every path a
+`#src=` link. `appendix` renders as **## Appendix** with `###` subsections, before Ask.
+
+The dashboard's Generate button also inserts a locked excalidraw figure under
+**Where data comes from and goes**, drawn deterministically from `data_flow`
+(inputs → app → outputs) — never model-invented.
+
+`how_to_use` is written about the code, not the dashboard: the Run form is
+self-explanatory, so the steps assume the reader may run the code anywhere
+(locally, on AWS, on a schedule).
 
 ## Validation before storing
 

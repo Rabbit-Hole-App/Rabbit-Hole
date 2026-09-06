@@ -214,10 +214,25 @@ tr.cursor-pointer:active > td {
   background: transparent;
 }
 
-/* runbook ref chips: inline code that opens the file/run peek reads as clickable.
-   Literal brand blue: [class*='bn-'] repoints --color-accent to hover-grey inside
-   BlockNote, which is exactly where these chips live. */
+/* runbook chips. Literal brand blue: [class*='bn-'] repoints --color-accent to
+   hover-grey inside BlockNote, which is exactly where these chips live.
+   Colour = code/data; underline = clickable (the renderer bolds refs that open
+   the file/run peek, plain code stays colour-only). */
 .runbook-refs :not(pre) > code {
-  cursor: pointer;
   color: #2383e2;
+}
+.runbook-refs a[href^='#src='],
+.runbook-refs a[href^='#run='],
+.runbook-refs a[href^='#role='] {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  color: #2383e2;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.runbook-refs a[href^='#src=']:hover,
+.runbook-refs a[href^='#run=']:hover,
+.runbook-refs a[href^='#role=']:hover {
+  text-decoration-style: solid;
 }

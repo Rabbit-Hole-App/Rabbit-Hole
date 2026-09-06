@@ -302,19 +302,20 @@ const commands = {
 
   async runbook() {
     const name = flags._[0] || appName(process.cwd());
-    const res = await call('GET', `/api/review?app=${encodeURIComponent(name)}`);
-    const cur = res.review && res.review.runbook;
-    if (!cur) return console.log('runbook: unavailable - no reviewed deploy yet');
+    // the structured runbook (refreshed every deploy), not the review's old free-form one
+    const res = await call('GET', `/api/apps/${encodeURIComponent(name)}/runbook`);
+    const cur = res.markdown;
+    if (!cur) return console.log('runbook: unavailable - deploy once first');
     if (flags.diff) {
-      const prev = res.prev && res.prev.runbook;
-      if (!prev) return console.log('no previous runbook to diff against');
-      // ponytail: line-set diff, no ordering - mirror of review --diff; real diff when it matters
-      const before = new Set(prev.split('\n'));
+      const rbPath = path.join(process.cwd(), 'RUNBOOK.md');
+      if (!fs.existsSync(rbPath)) return console.log('no local RUNBOOK.md to diff against - run small runbook --write first');
+      // ponytail: line-set diff vs the last --write, no ordering; real diff when it matters
+      const before = new Set(fs.readFileSync(rbPath, 'utf8').split('\n'));
       const after = new Set(cur.split('\n'));
       let changed = false;
       for (const l of cur.split('\n')) if (!before.has(l)) (changed = true), console.log(`+ ${l}`);
-      for (const l of prev.split('\n')) if (!after.has(l)) (changed = true), console.log(`- ${l}`);
-      if (!changed) console.log('no changes since previous deploy');
+      for (const l of before) if (!after.has(l)) (changed = true), console.log(`- ${l}`);
+      if (!changed) console.log('no changes since RUNBOOK.md was written');
       return;
     }
     if (flags.write) {

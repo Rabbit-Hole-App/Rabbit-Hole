@@ -9,10 +9,103 @@ import { Loader2, PenTool } from 'lucide-react';
 import { api, isDark, navigate } from './api.js';
 import { FilePeek } from './ask.jsx';
 import { RunPeek } from './run.jsx';
-import { Button, ConfirmDialog, Mark } from './ui.jsx';
+import { Button, ConfirmDialog, Mark, SlidePanel } from './ui.jsx';
 import { chartBlock, insertChart } from './ChartBlock.jsx';
 
 const Excalidraw = lazy(() => import('@excalidraw/excalidraw').then((m) => ({ default: m.Excalidraw })));
+
+// The AWS role peek (#role= links): the arn, what the code was observed doing
+// with it, and a live read of its policies when the role permits reading itself.
+function RolePeek({ appName, onSrc, onClose }) {
+  const [info, setInfo] = useState(null);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    api(`/api/apps/${appName}/role`).then(setInfo).catch((e) => setErr(e.message));
+  }, [appName]);
+  return (
+    <SlidePanel title="AWS role" onClose={onClose} z={40}>
+      {err && <div className="p-4 text-sm text-ink-2">{err}</div>}
+      {!err && !info && <div className="p-4 text-sm text-ink-2">loading…</div>}
+      {info && (
+        <div className="space-y-4 p-4 text-sm">
+          <div className="rounded-md bg-hover px-3 py-2 font-mono text-xs break-all">{info.arn}</div>
+          {info.actions?.length > 0 && (
+            <div>
+              <div className="mb-1.5 text-xs font-semibold text-ink-2">What the code does with it</div>
+              <ul className="space-y-1">
+                {info.actions.map((a, i) => (
+                  <li key={i} className="text-[13px]">
+                    {a.action}
+                    {a.resource ? <span className="font-mono text-xs text-ink-2"> {a.resource}</span> : null}
+                    {a.at && /:\d+/.test(a.at) ? (
+                      <button type="button" className="ml-1.5 cursor-pointer font-mono text-xs text-accent underline decoration-dotted underline-offset-2" onClick={() => onSrc(a.at)}>{a.at}</button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {info.policies ? (
+            <div>
+              <div className="mb-1.5 text-xs font-semibold text-ink-2">Policies on the role</div>
+              {info.policies.attached?.length > 0 && (
+                <div className="mb-2 text-[13px]">Attached: {info.policies.attached.join(', ')}</div>
+              )}
+              {(info.policies.inline || []).map((p) => (
+                <div key={p.name} className="mb-2">
+                  <div className="mb-1 font-mono text-xs">{p.name}</div>
+                  <pre className="max-h-64 overflow-auto rounded-md bg-hover p-2 text-[11px] leading-relaxed">{JSON.stringify(p.document, null, 2)}</pre>
+                </div>
+              ))}
+              {!info.policies.attached?.length && !info.policies.inline?.length && (
+                <div className="text-[13px] text-ink-2">No policies readable on this role.</div>
+              )}
+            </div>
+          ) : (
+            <div className="text-[13px] text-ink-2">
+              The role does not allow reading its own policies
+              {info.policies_error ? <span className="block pt-1 font-mono text-xs">({info.policies_error})</span> : null}
+              , so only the access observed in the code is shown above.
+            </div>
+          )}
+        </div>
+      )}
+    </SlidePanel>
+  );
+}
+
+// Process-flow diagram on generate: inputs -> app -> outputs, drawn straight
+// from the deterministic data_flow (never model-invented). Inserted locked so
+// it reads as a figure; the reader can Edit it like any /excalidraw block.
+async function insertFlowDiagram(editor, appName, rb) {
+  try {
+    const df = rb?.data_flow;
+    if (!df || (!df.inputs_from?.length && !df.outputs_to?.length)) return;
+    const { convertToExcalidrawElements } = await import('@excalidraw/excalidraw');
+    // first token only (field name, aws action, host): excalidraw ignores the
+    // label fontSize, so long phrases clip - a concise node reads better anyway
+    const clean = (s) => (String(s).replace(/`[^`]*`/g, '').match(/^[\w:./<>@-]+/) || ['?'])[0].replace(/[:,.]$/, '').slice(0, 24);
+    const ins = (df.inputs_from || []).slice(0, 6);
+    const outs = (df.outputs_to || []).slice(0, 6);
+    const H = 56, GAP = 14, W = 280, MID = 190, SPAN = 130;
+    const colH = (n) => (n ? n * H + (n - 1) * GAP : 0);
+    const maxH = Math.max(colH(ins.length), colH(outs.length), H);
+    const skel = [];
+    ins.forEach((x, i) => skel.push({ id: `in${i}`, type: 'rectangle', x: 0, y: (maxH - colH(ins.length)) / 2 + i * (H + GAP), width: W, height: H, backgroundColor: '#e7f1fd', label: { text: clean(x.what), fontSize: 12 } }));
+    skel.push({ id: 'app', type: 'rectangle', x: W + SPAN, y: maxH / 2 - H / 2, width: MID, height: H, backgroundColor: '#ffe8cc', label: { text: appName, fontSize: 15 } });
+    outs.forEach((x, i) => skel.push({ id: `out${i}`, type: 'rectangle', x: W + SPAN + MID + SPAN, y: (maxH - colH(outs.length)) / 2 + i * (H + GAP), width: W, height: H, backgroundColor: '#e6f4ea', label: { text: clean(x.what), fontSize: 12 } }));
+    ins.forEach((_, i) => skel.push({ type: 'arrow', x: W, y: maxH / 2, start: { id: `in${i}` }, end: { id: 'app' } }));
+    outs.forEach((_, i) => skel.push({ type: 'arrow', x: W + SPAN + MID, y: maxH / 2, start: { id: 'app' }, end: { id: `out${i}` } }));
+    const elements = convertToExcalidrawElements(skel);
+    // sits under the data-flow section it illustrates
+    const anchor = editor.document.find((b) => /Where data/i.test(b.content?.map?.((c) => c.text || '').join('') || ''));
+    editor.insertBlocks(
+      [{ type: 'excalidraw', props: { data: JSON.stringify({ elements }), locked: true } }],
+      anchor || editor.document[0],
+      anchor ? 'after' : 'before'
+    );
+  } catch { /* the diagram is a bonus - a failed insert never blocks the runbook */ }
+}
 
 // Follow the Settings → Appearance toggle live (applyTheme fires small:theme).
 function useDark() {
@@ -158,16 +251,18 @@ export default function Runbook({ app, canEdit, onSaved }) {
   // ref chips (file:line, run ids, s3 uris) are inline code - the accent colour
   // and pointer come from .runbook-refs in index.css, no DOM decoration needed
 
+  const [rolePeek, setRolePeek] = useState(null); // #role= links open the AWS role panel
   const onSrcClick = (e) => {
-    // refs are inline code chips (`job.py:13-15`, `r-d904117412ae`) - BlockNote
-    // link marks proved unreliable (mangled anchors, new tabs). Old pages with
-    // #src=/#run= links still work.
-    const a = e.target.closest?.('a[href^="#src="], a[href^="#run="]');
+    // refs are #src=/#run=/#role= links (chipify writes them; onClickCapture
+    // intercepts before ProseMirror). Inline code chips from older pages still
+    // work via the code branch below.
+    const a = e.target.closest?.('a[href^="#src="], a[href^="#run="], a[href^="#role="]');
     if (a) {
       e.preventDefault();
       e.stopPropagation();
       const href = a.getAttribute('href');
       if (href.startsWith('#run=')) setRunPeek(decodeURIComponent(href.slice(5)));
+      else if (href.startsWith('#role=')) setRolePeek(decodeURIComponent(href.slice(6)));
       else {
         const ref = decodeURIComponent(href.slice(5));
         const m = ref.match(/^(.+?):(\d+)(?:-(\d+))?$/);
@@ -194,8 +289,12 @@ export default function Runbook({ app, canEdit, onSaved }) {
     setStatus('generating…');
     try {
       const d = await api(`/api/apps/${app.name}/generate-runbook`, { method: 'POST' });
+      setStatus('writing page…');
       const blocks = await editor.tryParseMarkdownToBlocks(d.markdown);
       if (Array.isArray(blocks) && blocks.length) editor.replaceBlocks(editor.document, blocks);
+      setStatus('drawing…');
+      await insertFlowDiagram(editor, app.name, d.runbook); // deterministic, from data_flow
+      setStatus('chart…');
       if (app.kind === 'job' && editor.document.length) {
         editor.insertBlocks([{ type: 'chart', props: { app: app.name } }], editor.document[editor.document.length - 1], 'after');
       }
@@ -233,6 +332,16 @@ export default function Runbook({ app, canEdit, onSaved }) {
         />
       )}
       {srcPeek && <FilePeek appName={app.name} path={srcPeek.path} line={srcPeek.line} lineEnd={srcPeek.lineEnd} onClose={() => setSrcPeek(null)} />}
+      {rolePeek && (
+        <RolePeek
+          appName={app.name}
+          onSrc={(at) => {
+            const m = at.match(/^(.+?):(\d+)(?:-(\d+))?$/);
+            if (m) setSrcPeek({ path: m[1], line: +m[2], lineEnd: m[3] ? +m[3] : null });
+          }}
+          onClose={() => setRolePeek(null)}
+        />
+      )}
       {runPeek && (
         <RunPeek
           runId={runPeek}
@@ -246,7 +355,7 @@ export default function Runbook({ app, canEdit, onSaved }) {
         />
       )}
       <div className="runbook-refs -mx-[34px] min-h-0 flex-1 overflow-y-auto" onClickCapture={onSrcClick}>{/* cancels bn-editor's 54px gutter down to the panel's 20px */}
-        <BlockNoteView editor={editor} editable={canEdit} theme={dark ? 'dark' : 'light'} onChange={canEdit ? onChange : undefined} slashMenu={false}>
+        <BlockNoteView editor={editor} editable={canEdit} theme={dark ? 'dark' : 'light'} onChange={canEdit ? onChange : undefined} slashMenu={false} linkToolbar={false}>
           <SuggestionMenuController
             triggerCharacter="/"
             getItems={async (query) =>

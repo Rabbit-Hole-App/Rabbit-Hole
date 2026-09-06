@@ -104,6 +104,58 @@ export async function s3Buckets(env, creds) {
   return [...text.matchAll(/<Name>([^<]*)<\/Name>/g)].map((m) => m[1]);
 }
 
+// IAM Query API call signed with STS session creds. IAM is a global service:
+// host iam.amazonaws.com, signing region us-east-1 regardless of env.AWS_REGION.
+async function iamCall(creds, params) {
+  const region = 'us-east-1';
+  const host = 'iam.amazonaws.com';
+  const body = new URLSearchParams({ ...params, Version: '2010-05-08' }).toString();
+  const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+  const date = amzDate.slice(0, 8);
+  const signedHeaders = 'content-type;host;x-amz-date;x-amz-security-token';
+  const canonical = `POST\n/\n\ncontent-type:application/x-www-form-urlencoded\nhost:${host}\nx-amz-date:${amzDate}\nx-amz-security-token:${creds.SessionToken}\n\n${signedHeaders}\n${await sha256hex(body)}`;
+  const scope = `${date}/${region}/iam/aws4_request`;
+  const toSign = `AWS4-HMAC-SHA256\n${amzDate}\n${scope}\n${await sha256hex(canonical)}`;
+  let key = te.encode('AWS4' + creds.SecretAccessKey);
+  for (const part of [date, region, 'iam', 'aws4_request']) key = await hmac(key, part);
+  const signature = hex(await hmac(key, toSign));
+  const resp = await fetch(`https://${host}/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-Amz-Date': amzDate,
+      'X-Amz-Security-Token': creds.SessionToken,
+      Authorization: `AWS4-HMAC-SHA256 Credential=${creds.AccessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+    },
+    body,
+  });
+  const text = await resp.text();
+  if (!resp.ok) {
+    const msg = (text.match(/<Message>([^<]*)<\/Message>/) || [])[1] || `iam ${params.Action} failed (${resp.status})`;
+    throw new Error(msg);
+  }
+  return text;
+}
+
+// The role's own policies, read with the role's own session - works only when the
+// role permits reading itself; most don't, callers surface the throw as a note.
+export async function iamRolePolicies(creds, roleArn) {
+  const RoleName = roleArn.split('/').pop();
+  const inlineNames = [...(await iamCall(creds, { Action: 'ListRolePolicies', RoleName }))
+    .matchAll(/<member>([^<]+)<\/member>/g)].map((m) => m[1]);
+  const inline = [];
+  for (const name of inlineNames.slice(0, 5)) {
+    const t = await iamCall(creds, { Action: 'GetRolePolicy', RoleName, PolicyName: name });
+    const doc = (t.match(/<PolicyDocument>([^<]*)<\/PolicyDocument>/) || [])[1] || '';
+    let document = null;
+    try { document = JSON.parse(decodeURIComponent(doc)); } catch { document = doc; }
+    inline.push({ name, document });
+  }
+  const attachedXml = await iamCall(creds, { Action: 'ListAttachedRolePolicies', RoleName });
+  const attached = [...attachedXml.matchAll(/<PolicyName>([^<]+)<\/PolicyName>/g)].map((m) => m[1]);
+  return { inline, attached };
+}
+
 export async function assumeRole(env, roleArn, sessionName, externalId) {
   const region = env.AWS_REGION || 'us-east-1';
   const host = `sts.${region}.amazonaws.com`;
