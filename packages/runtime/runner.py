@@ -101,11 +101,19 @@ def _setup_inputs(child_env):
         child_env["SMALL_INPUT_" + name.upper()] = json.dumps(val) if isinstance(val, bool) else str(val)
     with open(os.path.join(INPUTS_DIR, "inputs.json"), "w") as f:
         json.dump(values, f)
+    # the run log opens with where every input landed — file paths for uploads,
+    # values for scalars — so nobody greps the source to find them
+    with _lock:
+        for name, val in values.items():
+            tag = "file" if name in files else "value"
+            _buf.append(f"runner: input {name} ({tag}) = {str(val)[:200]}")
+        _buf.append(f"runner: outputs folder {OUTPUTS_DIR} (files saved there appear on the run)")
 
 
 # One attempt per file; a failed upload becomes a run-log line, never a crash.
 # ponytail: whole file in memory — fine under the 100 MB cap and 2GB machine.
 def _upload_outputs():
+    n_ok = 0
     for root, _, names in os.walk(OUTPUTS_DIR):
         for n in names:
             p = os.path.join(root, n)
@@ -118,9 +126,15 @@ def _upload_outputs():
                     data=data, method="POST", ctype="application/octet-stream",
                 )
                 urllib.request.urlopen(req, timeout=120)
+                n_ok += 1
+                with _lock:
+                    _buf.append(f"runner: output {rel} ({len(data)} bytes) saved to the run")
             except (OSError, urllib.error.HTTPError) as e:
                 with _lock:
                     _buf.append(f"runner: output upload failed {rel}: {e}")
+    if n_ok == 0:
+        with _lock:
+            _buf.append(f"runner: no output files - nothing was written to {OUTPUTS_DIR}")
 
 
 def main():
