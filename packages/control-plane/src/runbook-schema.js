@@ -171,6 +171,27 @@ export async function buildRunbook(env, app, deploy, stored, baseUrl) {
     if (m[k] != null && !Array.isArray(m[k])) delete m[k];
   }
 
+  // Run it locally / Commands must never be missing - the model skips them some
+  // runs, but the deterministic minimum (install deps, python <entry>) always
+  // exists in the manifest
+  const entryFile = (files['small.toml'] || '').match(/^entry\s*=\s*"([^"]+)"/m)?.[1] || null;
+  if (!m.run_locally || typeof m.run_locally !== 'object') m.run_locally = {};
+  if (!m.run_locally.install && files['requirements.txt'] != null) m.run_locally.install = 'pip install -r requirements.txt';
+  if (!m.run_locally.start && entryFile) m.run_locally.start = `python ${entryFile}`;
+  if (!m.commands?.length && entryFile) {
+    m.commands = [
+      ...(files['requirements.txt'] != null ? [{ what: 'Install the Python dependencies', command: 'pip install -r requirements.txt', from: 'requirements.txt' }] : []),
+      { what: 'Run the script', command: `python ${entryFile}`, from: 'small.toml' },
+    ];
+  }
+
+  // the runbook documents the WHOLE project: every non-empty bundle file gets a
+  // Files row even when the agent skipped it (empty role beats absent file)
+  const documented = new Set((m.files || []).map((f) => f && f.path));
+  for (const p of Object.keys(files)) {
+    if (!documented.has(p) && String(files[p] || '').trim()) (m.files ||= []).push({ path: p, role: '' });
+  }
+
   const schema = app.inputs ? JSON.parse(app.inputs) : {};
   const exampleInputs = lastOk?.inputs ? JSON.parse(lastOk.inputs) : {};
   const inputs = Object.entries(schema).map(([name, spec]) => {
