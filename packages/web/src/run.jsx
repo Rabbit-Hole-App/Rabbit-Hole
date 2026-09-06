@@ -683,6 +683,17 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
 
   if (!runs) return <SkeletonRows />;
 
+  // nothing to filter, sort or search yet - no toolbar, one centered invitation
+  if (runs.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-16 text-ink-3">
+        <Inbox size={20} strokeWidth={1.25} />
+        <div className="text-sm">No runs yet</div>
+        <Button variant="secondary" size="sm" onClick={onNewRun}><Plus size={14} strokeWidth={1.5} /> New run</Button>
+      </div>
+    );
+  }
+
   const people = [...new Set(runs.map((r) => r.started_by).filter(Boolean))];
   const statuses = [...new Set(runs.map((r) => r.status))];
   const valuesOf = (k) => [...new Set(runs.map((r) => (r.inputs || {})[k]).filter((v) => v != null).map(String))].slice(0, 200);
@@ -775,15 +786,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
         </div>
       )}
 
-      {runs.length === 0 ? (
-        // the table empty state is a quiet 48px inline row, not a centered hero
-        <div className="flex h-12 items-center gap-3 text-sm text-ink-3">
-          <Inbox size={16} strokeWidth={1.5} />
-          No runs yet
-          <Button variant="secondary" size="sm" onClick={onNewRun}><Plus size={14} strokeWidth={1.5} /> New run</Button>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
+      <div className="overflow-x-auto">
           {aiRuns === 'loading' && <div className="px-2 py-1 text-xs text-ink-3">Thinking…</div>}
           {aiRuns?.ids?.length === 0 && <div className="px-2 py-1 text-sm text-ink-2">{aiRuns.note || 'No runs match that.'}</div>}
           {/* fixed layout + explicit total width: columns keep their exact px (resize persists);
@@ -866,7 +869,6 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
             </tfoot>
           </table>
         </div>
-      )}
     </div>
   );
 }
