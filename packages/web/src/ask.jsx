@@ -277,7 +277,7 @@ function OutputRow({ runId, name, size }) {
 
 // One chat, scoped: {app} | {run} | {} (org). Style per the Notion AI reference -
 // user turns as a right-aligned bubble, answers as plain text, pill input at the bottom.
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, autoFocus = false, onSent = null, onHasChat = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null }) {
   const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -419,7 +419,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
 
   return (
     <div className={cn('flex min-h-0 flex-col', compact ? 'max-h-[320px]' : 'flex-1')}>
-      {!compact && (msgs.length > 0 || threads.length > 0) && (
+      {!compact && (msgs.length > 0 || threads.length > 0 || headerExtra) && (
         <div className="flex shrink-0 items-center justify-end gap-1 pb-1">
           {threads.length > 0 && (
             <button
@@ -432,6 +432,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <button onClick={newChat} className="flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
             <Plus size={12} strokeWidth={1.5} /> New chat
           </button>
+          {headerExtra}
         </div>
       )}
       {compact && msgs.length > 0 && (

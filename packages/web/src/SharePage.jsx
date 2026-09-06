@@ -747,15 +747,25 @@ function AppPage({ slug, runId, reloadShell }) {
               </TabsContent>
 
               <TabsContent value="agent" className="flex min-h-0 flex-1 flex-col pt-4">
-                <div className="flex shrink-0 justify-end">
-                  <IconBtn aria-label="Open as page" title="Open as page" onClick={() => navigate(`/chat?app=${encodeURIComponent(app.name)}`)}>
-                    <Maximize2 size={14} strokeWidth={1.5} />
-                  </IconBtn>
-                </div>
                 {/* the page itself is scroll-locked on this tab; the pane flexes to the
                     viewport bottom so the input is static and only messages scroll */}
                 <div className="flex min-h-0 flex-1 flex-col">
-                  <AskPanel scope={{ app: app.name }} email={app.email} placeholder={`Ask about ${app.name}…`} autoFocus />
+                  <AskPanel
+                    scope={{ app: app.name }}
+                    email={app.email}
+                    placeholder={`Ask about ${app.name}…`}
+                    autoFocus
+                    headerExtra={
+                      <button
+                        aria-label="Open as page"
+                        title="Open as page"
+                        onClick={() => navigate(`/chat?app=${encodeURIComponent(app.name)}`)}
+                        className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink"
+                      >
+                        <Maximize2 size={13} strokeWidth={1.5} />
+                      </button>
+                    }
+                  />
                 </div>
               </TabsContent>
             </Tabs>

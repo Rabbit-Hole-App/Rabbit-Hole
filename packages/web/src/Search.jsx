@@ -22,9 +22,11 @@ export default function SearchModal() {
       if (e.key === 'Escape') close();
     };
     const onOpen = () => setOpen(true);
+    const onClose = () => close(); // the notifications bell closes us (one surface at a time)
     window.addEventListener('keydown', onKey);
     window.addEventListener('small:search', onOpen);
-    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('small:search', onOpen); };
+    window.addEventListener('small:search-close', onClose);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('small:search', onOpen); window.removeEventListener('small:search-close', onClose); };
   }, []);
 
   useEffect(() => {

@@ -487,7 +487,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
         <button
           title="Search (Ctrl + K)"
           aria-label="Search"
-          onClick={() => window.dispatchEvent(new CustomEvent('small:search'))}
+          onClick={() => { setWatchOpen(false); window.dispatchEvent(new CustomEvent('small:search')); }}
           className={cn('flex h-7 cursor-pointer items-center rounded-full px-1.5 text-sm', searchOpen ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')}
         >
           <Search size={16} strokeWidth={1.5} className="shrink-0" />
@@ -497,7 +497,7 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
           <button
             title="Notifications"
             aria-label="Notifications"
-            onClick={() => { setWatchOpen(true); loadWatch(); markRead(); }}
+            onClick={() => { window.dispatchEvent(new CustomEvent('small:search-close')); setWatchOpen(true); loadWatch(); markRead(); }}
             className={cn('flex h-7 cursor-pointer items-center rounded-full px-1.5 text-sm', watchOpen ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')}
           >
             <Bell size={16} strokeWidth={1.5} className="shrink-0" />
