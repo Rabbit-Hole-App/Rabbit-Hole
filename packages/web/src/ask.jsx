@@ -618,7 +618,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               type="button"
               aria-label="Add"
               onMouseDown={(e) => { e.stopPropagation(); setPlusOpen(!plusOpen); }}
-              className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink"
+              className={cn('inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', plusOpen && 'bg-active text-ink')}
             >
               <Plus size={14} strokeWidth={1.5} />
             </button>
@@ -645,7 +645,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
                 aria-label="Sources"
                 title="What the agent reads"
                 onMouseDown={(e) => { e.stopPropagation(); setSrcOpen(!srcOpen); }}
-                className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink"
+                className={cn('inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink', srcOpen && 'bg-active text-ink')}
               >
                 <SlidersHorizontal size={14} strokeWidth={1.5} />
               </button>
@@ -676,7 +676,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             <button
               type="button"
               onMouseDown={(e) => { e.stopPropagation(); setModelOpen(!modelOpen); }}
-              className="h-6 cursor-pointer rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink"
+              className={cn('h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', modelOpen && 'bg-active text-ink')}
             >
               {MODELS.find(([k]) => k === model)?.[1]}
             </button>
