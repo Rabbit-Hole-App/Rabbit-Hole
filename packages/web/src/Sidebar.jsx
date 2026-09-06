@@ -316,6 +316,8 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
               <SettingsRow title="Home workspace" desc="Everyone with this email domain shares it">
                 <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{email ? email.split('@')[1] : ''}</code>
               </SettingsRow>
+              <Heading>AI model</Heading>
+              <AiModelSettings />
             </>
           )}
           {tab === 'billing' && (
@@ -334,6 +336,61 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
           )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Settings > Account > AI model: every agent (chat, review, runbook, watch)
+// answers with either the platform's Anthropic key or the org's own AWS
+// Bedrock - their role, their region, their bill. Applies to the whole org.
+function AiModelSettings() {
+  const [ai, setAi] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { api('/api/org/ai').then(setAi).catch(() => setAi({ provider: 'anthropic' })); }, []);
+  if (!ai) return <div className="pt-2 text-sm text-ink-2">loading…</div>;
+  const set = (k, v) => setAi((s) => ({ ...s, [k]: v }));
+  const save = async () => {
+    setBusy(true);
+    try {
+      await api('/api/org/ai', { method: 'POST', body: JSON.stringify(ai) });
+      toast('AI settings saved - applies to chat, review, runbook and watch');
+    } catch (e) {
+      toast(`✗ ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const bedrock = ai.provider === 'bedrock';
+  return (
+    <div className="flex flex-col gap-3 pt-2">
+      <SettingsRow title="Provider" desc="Who runs the models behind chat, review, runbook and watch">
+        <Select
+          value={bedrock ? 'Your AWS Bedrock' : 'small (Anthropic)'}
+          options={['small (Anthropic)', 'Your AWS Bedrock']}
+          onChange={(v) => set('provider', v.includes('Bedrock') ? 'bedrock' : 'anthropic')}
+        />
+      </SettingsRow>
+      {bedrock ? (
+        <>
+          <SettingsRow title="Role ARN" desc="IAM role with bedrock:InvokeModel - trust policy names small's principal, ExternalId is your workspace slug">
+            <Input value={ai.bedrock_role_arn || ''} onChange={(e) => set('bedrock_role_arn', e.target.value)} placeholder="arn:aws:iam::123456789012:role/small-bedrock" className="w-80 font-mono text-xs" />
+          </SettingsRow>
+          <SettingsRow title="Region" desc="Where your Bedrock access lives">
+            <Input value={ai.bedrock_region || ''} onChange={(e) => set('bedrock_region', e.target.value)} placeholder="us-east-1" className="w-40" />
+          </SettingsRow>
+          <SettingsRow title="Model id" desc="A Bedrock Anthropic model your account has access to">
+            <Input value={ai.model || ''} onChange={(e) => set('model', e.target.value)} placeholder="us.anthropic.claude-sonnet-4-5-20250929-v1:0" className="w-96 font-mono text-xs" />
+          </SettingsRow>
+        </>
+      ) : (
+        <SettingsRow title="Model" desc="Leave empty for the platform default (chat's picker still overrides per message)">
+          <Input value={ai.model || ''} onChange={(e) => set('model', e.target.value)} placeholder="platform default" className="w-72 font-mono text-xs" />
+        </SettingsRow>
+      )}
+      <div>
+        <Button variant="primary" size="sm" disabled={busy} onClick={save}>{busy ? 'Verifying…' : 'Save'}</Button>
+        {bedrock && <span className="pl-3 text-xs text-ink-2">Save assumes the role once to verify the trust policy.</span>}
       </div>
     </div>
   );

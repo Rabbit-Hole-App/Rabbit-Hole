@@ -171,28 +171,66 @@ export function capJoin(parts, cap = CAP_CHARS) {
   return out.join('\n\n');
 }
 
-export async function anthropic(env, body, model) {
-  body = { ...body, ...(model ? { model } : {}) };
+// Per-org AI settings (Settings > Account): provider + model. Cached briefly -
+// an agent loop makes a dozen calls and must not read D1 for each.
+const aiCache = new Map(); // org -> { at, row }
+export async function aiSettings(env, org) {
+  if (!org) return null;
+  const hit = aiCache.get(org);
+  if (hit && Date.now() - hit.at < 60000) return hit.row;
+  const row = await env.DB.prepare('SELECT provider, model, bedrock_region, bedrock_role_arn FROM org_ai WHERE org = ?').bind(org).first().catch(() => null);
+  aiCache.set(org, { at: Date.now(), row });
+  return row;
+}
+export function aiCacheDrop(org) { aiCache.delete(org); }
+
+// One chokepoint for every model call. Default: the platform's Anthropic key.
+// An org that configured Bedrock (their role, their region, their bill) is
+// routed there instead; Bedrock is invoked non-streaming and a stream:true
+// request gets the full answer replayed as anthropic-style SSE.
+export async function anthropic(env, body, model, org) {
+  const ai = await aiSettings(env, org);
+  if (ai?.provider === 'bedrock' && ai.bedrock_role_arn && ai.model) {
+    const { assumeRole, bedrockInvoke } = await import('./aws.js');
+    const creds = await assumeRole(env, ai.bedrock_role_arn, `small-ai-${org}`, org);
+    const { model: _m, stream, fallbacks: _f, ...rest } = body;
+    const resp = await bedrockInvoke(creds, ai.bedrock_region || 'us-east-1', ai.model, { anthropic_version: 'bedrock-2023-05-31', ...rest });
+    if (!stream || !resp.ok) return resp;
+    // synthesize the SSE shape the streaming reader expects (one big delta)
+    // ponytail: real bedrock event-stream parsing when replay latency matters
+    const msg = await resp.json();
+    const text = (msg.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+    const enc = new TextEncoder();
+    const sse = [
+      `event: content_block_delta\ndata: ${JSON.stringify({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } })}\n\n`,
+      `event: message_delta\ndata: ${JSON.stringify({ type: 'message_delta', delta: { stop_reason: msg.stop_reason || 'end_turn' }, usage: msg.usage || {} })}\n\n`,
+      `event: message_stop\ndata: ${JSON.stringify({ type: 'message_stop' })}\n\n`,
+    ].join('');
+    return new Response(enc.encode(sse), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+  }
+  // an explicit model (chat picker or org setting) is incompatible with the
+  // server-side fallback feature - the API 400s on the combination
+  const chosen = model || ai?.model || null;
   return fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'x-api-key': env.ANTHROPIC_API_KEY,
       'anthropic-version': '2023-06-01',
-      'anthropic-beta': 'server-side-fallback-2026-07-01',
+      ...(chosen ? {} : { 'anthropic-beta': 'server-side-fallback-2026-07-01' }),
       'Content-Type': 'application/json',
       ...(env.ANTHROPIC_WORKSPACE_ID ? { 'anthropic-workspace-id': env.ANTHROPIC_WORKSPACE_ID } : {}),
     },
-    body: JSON.stringify({ model: MODEL, fallbacks: 'default', ...body }),
+    body: JSON.stringify(chosen ? { ...body, model: chosen } : { model: MODEL, fallbacks: 'default', ...body }),
   });
 }
 
 // One non-streaming answer (failure diagnosis). Returns plain text or throws.
-export async function askOnce(env, context, question, maxTokens = 300) {
+export async function askOnce(env, context, question, maxTokens = 300, org = null) {
   const resp = await anthropic(env, {
     max_tokens: maxTokens,
     system: ASK_SYSTEM,
     messages: [{ role: 'user', content: `${context}\n\n---\n\n${question}` }],
-  });
+  }, null, org);
   if (!resp.ok) throw new Error(`anthropic ${resp.status}`);
   const msg = await resp.json();
   const text = (msg.content || []).find((b) => b.type === 'text');
@@ -203,7 +241,7 @@ export async function askOnce(env, context, question, maxTokens = 300) {
 // Streaming answer as an SSE Response. `history` is prior thread turns
 // [{role, content}]; the context rides on the latest user turn. onDone(fullText)
 // runs after the stream closes (store the message, etc.).
-export function askStream(env, context, history, message, onDone, meta = {}, extraBlocks = [], toolOpts = null, model = null) {
+export function askStream(env, context, history, message, onDone, meta = {}, extraBlocks = [], toolOpts = null, model = null, org = null) {
   const turns = [
     ...history.map((m) => ({ role: m.role, content: m.content })),
     {
@@ -229,7 +267,7 @@ export function askStream(env, context, history, message, onDone, meta = {}, ext
           system: `${ASK_SYSTEM} ${ASK_TOOLS_ADDENDUM}`,
           tools: toolOpts.tools,
           messages: turns,
-        }, model);
+        }, model, org);
         if (!resp.ok) throw new Error(`anthropic ${resp.status}`);
         const msg = await resp.json();
         for (const block of msg.content || []) {
@@ -243,7 +281,7 @@ export function askStream(env, context, history, message, onDone, meta = {}, ext
           }
         }
       } else {
-        const resp = await anthropic(env, { max_tokens: 2000, stream: true, system: ASK_SYSTEM, messages: turns }, model);
+        const resp = await anthropic(env, { max_tokens: 2000, stream: true, system: ASK_SYSTEM, messages: turns }, model, org);
         if (!resp.ok) throw new Error(`anthropic ${resp.status}`);
         const reader = resp.body.getReader();
         const dec = new TextDecoder();

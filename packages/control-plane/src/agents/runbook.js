@@ -86,5 +86,6 @@ export async function runbookFields(env, app, files, deploy) {
     exec: appToolExec(env, app, files, deploy),
     intro,
     submitName: 'submit_runbook',
+    org: app.org,
   });
 }

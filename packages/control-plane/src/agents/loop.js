@@ -3,10 +3,10 @@
 // the final text (prose agents). Every agent in this directory uses it.
 import { anthropic } from '../ask.js';
 
-export async function toolLoop(env, { system, tools, exec, intro, submitName = null, maxTokens = 3000, maxTurns = 10 }) {
+export async function toolLoop(env, { system, tools, exec, intro, submitName = null, maxTokens = 3000, maxTurns = 10, org = null }) {
   const messages = [{ role: 'user', content: intro }];
   for (let i = 0; i < maxTurns; i++) {
-    const resp = await anthropic(env, { max_tokens: maxTokens, system, tools, messages });
+    const resp = await anthropic(env, { max_tokens: maxTokens, system, tools, messages }, null, org);
     if (!resp.ok) throw new Error(`anthropic ${resp.status}`);
     const msg = await resp.json();
     messages.push({ role: 'assistant', content: msg.content });

@@ -2,7 +2,7 @@
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, sha256, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
-import { ASK_MODELS, ASK_TOOLS, askOnce, askStream, capJoin, DIAGNOSIS_PROMPT, diffBundles, getBundle, parseBundle } from './ask.js';
+import { aiCacheDrop, ASK_MODELS, ASK_TOOLS, askOnce, askStream, capJoin, DIAGNOSIS_PROMPT, diffBundles, getBundle, parseBundle } from './ask.js';
 import { assumeRole, iamRolePolicies, s3Buckets, s3Get, s3List } from './aws.js';
 import { handleSlackCommand, handleSlackEvent, handleSlackInteract, notifySlackRun, slackApi, verifySlackSignature } from './slack.js';
 import { runWatchPass, weeklyWatchEmail } from './watch.js';
@@ -373,7 +373,8 @@ async function apiReviewRun(req, env, ctx, user) {
         env,
         `App name: ${name} (kind: ${app.kind})\n\nSource:\n${String(bundle).slice(0, 60000)}`,
         'Write a 2-3 sentence description of what this app does, for a teammate who never read the code. Plain language, no jargon, no file names - just what it does and what you get out of it. Reply with the description only.',
-        600
+        600,
+        app.org
       );
       let clean = desc && desc.replace(/\n+Sources:.*$/is, '').trim();
       if (clean && !/[.!?]$/.test(clean)) clean = clean.replace(/\s+[^.!?]*$/, ''); // a token-capped tail ends mid-word - drop it
@@ -591,7 +592,9 @@ async function apiAppFind(req, env, user) {
   const answer = await askOnce(
     env,
     `Apps in this workspace:\n${catalog}`,
-    `The user is looking for: "${String(q).slice(0, 300)}". Reply ONLY with JSON like {"apps":["a","b"],"note":""} - apps = names of matching apps, best first. If none fit, apps is [] and note is ONE short friendly sentence (name the closest thing available, or say nothing here does that yet).`
+    `The user is looking for: "${String(q).slice(0, 300)}". Reply ONLY with JSON like {"apps":["a","b"],"note":""} - apps = names of matching apps, best first. If none fit, apps is [] and note is ONE short friendly sentence (name the closest thing available, or say nothing here does that yet).`,
+    300,
+    user.org
   );
   let out = {};
   try { out = JSON.parse((answer.match(/\{[\s\S]*\}/) || ['{}'])[0]); } catch { /* model went off-script → no recs */ }
@@ -614,7 +617,9 @@ async function apiRunsFind(req, env, user) {
   const answer = await askOnce(
     env,
     `Runs of app ${name}:\n${catalog}`,
-    `The user is looking for: "${String(q).slice(0, 300)}". Reply ONLY with JSON like {"runs":["r-abc"],"note":""} - runs = matching run ids, best first. If none fit, runs is [] and note is ONE short friendly sentence.`
+    `The user is looking for: "${String(q).slice(0, 300)}". Reply ONLY with JSON like {"runs":["r-abc"],"note":""} - runs = matching run ids, best first. If none fit, runs is [] and note is ONE short friendly sentence.`,
+    300,
+    user.org
   );
   let out = {};
   try { out = JSON.parse((answer.match(/\{[\s\S]*\}/) || ['{}'])[0]); } catch { /* off-script reply, no matches */ }
@@ -655,6 +660,34 @@ async function apiRunbookGet(env, user, name) {
   }
   if (app.runbook) return json({ markdown: app.runbook, warnings: [] });
   return json({ error: 'no runbook yet - deploy once or press Generate runbook in the dashboard' }, 404);
+}
+
+// Settings > Account: which model answers for this org - the platform's
+// Anthropic key (default) or the org's own AWS Bedrock via an assumed role.
+async function apiOrgAiGet(env, user) {
+  const row = await env.DB.prepare('SELECT provider, model, bedrock_region, bedrock_role_arn, updated_by, updated_at FROM org_ai WHERE org = ?').bind(user.org).first();
+  return json(row || { provider: 'anthropic', model: null, bedrock_region: null, bedrock_role_arn: null });
+}
+
+async function apiOrgAiSet(req, env, user) {
+  const { provider, model, bedrock_region, bedrock_role_arn } = await req.json();
+  if (!['anthropic', 'bedrock'].includes(provider)) return json({ error: 'provider must be anthropic or bedrock' }, 400);
+  if (provider === 'bedrock') {
+    if (!bedrock_role_arn || !/^arn:aws:iam::\d+:role\//.test(bedrock_role_arn)) return json({ error: 'bedrock needs a role arn (arn:aws:iam::…:role/…)' }, 400);
+    if (!model) return json({ error: 'bedrock needs a model id (e.g. us.anthropic.claude-sonnet-...)' }, 400);
+    // verify the trust policy now, not on the first chat message
+    try {
+      await assumeRole(env, bedrock_role_arn, `small-ai-${user.org}`, user.org);
+    } catch (e) {
+      return json({ error: `cannot assume the role: ${e.message}` }, 400);
+    }
+  }
+  await env.DB.prepare(
+    'INSERT INTO org_ai (org, provider, model, bedrock_region, bedrock_role_arn, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, datetime(\'now\')) ' +
+    'ON CONFLICT(org) DO UPDATE SET provider = excluded.provider, model = excluded.model, bedrock_region = excluded.bedrock_region, bedrock_role_arn = excluded.bedrock_role_arn, updated_by = excluded.updated_by, updated_at = excluded.updated_at'
+  ).bind(user.org, provider, model || null, bedrock_region || null, provider === 'bedrock' ? bedrock_role_arn : null, user.email).run();
+  aiCacheDrop(user.org);
+  return json({ ok: true });
 }
 
 // The role peek: arn + what the code was observed doing with it (review), plus a
@@ -974,7 +1007,7 @@ async function apiAsk(req, env, ctx, user) {
     : null;
   return askStream(env, context, history, q, async (full) => {
     await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
-  }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId);
+  }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId, user.org);
 }
 
 // ---------- Slack adapter (transport for Ask) ----------
@@ -1972,7 +2005,7 @@ async function apiRunLog(req, env, ctx, runId) {
           try {
             const run = await env.DB.prepare('SELECT * FROM runs WHERE run_id = ?').bind(runId).first();
             const app = await env.DB.prepare('SELECT * FROM apps WHERE id = ?').bind(run.app_id).first();
-            const answer = await askOnce(env, await runContext(env, app, run), DIAGNOSIS_PROMPT);
+            const answer = await askOnce(env, await runContext(env, app, run), DIAGNOSIS_PROMPT, 300, app.org);
             await env.DB.prepare('UPDATE runs SET diagnosis = ? WHERE run_id = ?').bind(answer.slice(0, 600), runId).run();
           } catch { /* a failed diagnosis is just a missing hint */ }
         }
@@ -2161,6 +2194,8 @@ export default {
         if (rolePath && req.method === 'GET') return await apiAppRole(env, user, rolePath[1]);
         const rbGet = path.match(/^\/api\/apps\/([a-z0-9-]+)\/runbook$/);
         if (rbGet && req.method === 'GET') return await apiRunbookGet(env, user, rbGet[1]);
+        if (path === '/api/org/ai' && req.method === 'GET') return await apiOrgAiGet(env, user);
+        if (path === '/api/org/ai' && req.method === 'POST') return await apiOrgAiSet(req, env, user);
         if (path === '/api/unshare' && req.method === 'POST') return await apiUnshare(req, env, user);
         if (path === '/api/folders' && req.method === 'POST') return await apiFolderCreate(req, env, user);
         const folderDel = path.match(/^\/api\/folders\/(\d+)\/delete$/);

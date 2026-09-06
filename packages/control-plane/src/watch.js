@@ -183,7 +183,8 @@ async function observationText(env, app, check, evidence) {
       env,
       `App ${app.name} (${app.kind}). Runbook summary: ${runbook || 'none'}.\nWatch check "${check}" fired with evidence:\n${JSON.stringify(evidence)}`,
       'Write ONE sentence for the app owner that names the concrete evidence (run ids, dates, names, counts). No advice, no preamble, no "Sources" line.',
-      150
+      150,
+      app.org
     );
     return text.replace(/\s*Sources:.*$/s, '').trim() || fallback;
   } catch {

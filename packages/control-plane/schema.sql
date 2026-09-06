@@ -199,3 +199,15 @@ CREATE TABLE IF NOT EXISTS workspace_members (
 -- 0020: structured runbook JSON + validation warnings (docs/features/runbook.md).
 -- ALTER TABLE apps ADD COLUMN runbook_json TEXT;
 -- ALTER TABLE apps ADD COLUMN runbook_warnings TEXT;
+
+-- 0021: per-org AI provider (Settings > Account) - platform Anthropic key or
+-- the org's own AWS Bedrock via an assumed role.
+CREATE TABLE IF NOT EXISTS org_ai (
+  org TEXT PRIMARY KEY,
+  provider TEXT NOT NULL DEFAULT 'anthropic',
+  model TEXT,
+  bedrock_region TEXT,
+  bedrock_role_arn TEXT,
+  updated_by TEXT,
+  updated_at TEXT DEFAULT (datetime('now'))
+);

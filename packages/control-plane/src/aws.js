@@ -156,6 +156,34 @@ export async function iamRolePolicies(creds, roleArn) {
   return { inline, attached };
 }
 
+// Bedrock InvokeModel with STS session creds - the org's own AWS pays for the
+// tokens. Non-streaming only; the caller synthesizes SSE when the UI streams.
+export async function bedrockInvoke(creds, region, modelId, payload) {
+  const host = `bedrock-runtime.${region}.amazonaws.com`;
+  const uriPath = `/model/${encodeURIComponent(modelId)}/invoke`;
+  const body = JSON.stringify(payload);
+  const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+  const date = amzDate.slice(0, 8);
+  const payloadHash = await sha256hex(body);
+  const signedHeaders = 'content-type;host;x-amz-date;x-amz-security-token';
+  const canonical = `POST\n${uriPath}\n\ncontent-type:application/json\nhost:${host}\nx-amz-date:${amzDate}\nx-amz-security-token:${creds.SessionToken}\n\n${signedHeaders}\n${payloadHash}`;
+  const scope = `${date}/${region}/bedrock/aws4_request`;
+  const toSign = `AWS4-HMAC-SHA256\n${amzDate}\n${scope}\n${await sha256hex(canonical)}`;
+  let key = te.encode('AWS4' + creds.SecretAccessKey);
+  for (const part of [date, region, 'bedrock', 'aws4_request']) key = await hmac(key, part);
+  const signature = hex(await hmac(key, toSign));
+  return fetch(`https://${host}${uriPath}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Amz-Date': amzDate,
+      'X-Amz-Security-Token': creds.SessionToken,
+      Authorization: `AWS4-HMAC-SHA256 Credential=${creds.AccessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+    },
+    body,
+  });
+}
+
 export async function assumeRole(env, roleArn, sessionName, externalId) {
   const region = env.AWS_REGION || 'us-east-1';
   const host = `sts.${region}.amazonaws.com`;
