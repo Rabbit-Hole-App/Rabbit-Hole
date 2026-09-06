@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpRight, ChevronDown, ChevronRight, Clock, Eye
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
 import Shell from './Shell.jsx';
-import { Avatar, Chk, cn, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows } from './ui.jsx';
+import { Avatar, Chk, cn, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, useHeaderDrag } from './ui.jsx';
 
 const people = (a) => [a.owner_email, ...(a.members || []).map((m) => m.email).filter((e) => e !== a.owner_email)];
 
@@ -69,7 +69,6 @@ function AppContent({ data, load }) {
   const saveFilter = (f) => { setFilter(f); localStorage.setItem('small.tblFilter', JSON.stringify(f)); };
   const [colMenu, setColMenu] = useState(null); // column key with its header menu open
   const [toolMenu, setToolMenu] = useState(null); // 'filter' | 'sort' | 'props'
-  const [dragCol, setDragCol] = useState(null); // key being dragged
   const order = [...cols.order.filter((k) => DEFAULT_ORDER.includes(k)), ...DEFAULT_ORDER.filter((k) => !cols.order.includes(k))];
   const visibleCols = order.filter((k) => !cols.hidden[k]);
   const moveCol = (from, to) => {
@@ -78,45 +77,8 @@ function AppContent({ data, load }) {
     next.splice(next.indexOf(to), 0, from);
     saveCols({ ...cols, order: next });
   };
-  // pointer-based header drag: horizontal only, live reorder as the pointer
-  // crosses a neighbour, a <5px move still counts as a click (opens the menu)
-  const dragRef = useRef(null);
-  const clickSquelch = useRef(false);
-  const headerDown = (k) => (e) => {
-    if (e.button !== 0) return;
-    const row = e.currentTarget.parentElement;
-    const grab = () => {
-      const r = {};
-      [...row.children].forEach((c) => { if (c.dataset.col) r[c.dataset.col] = c.getBoundingClientRect(); });
-      return r;
-    };
-    dragRef.current = { key: k, startX: e.clientX, moved: false, rects: grab(), last: null };
-    const move = (ev) => {
-      const d = dragRef.current;
-      if (!d) return;
-      if (!d.moved && Math.abs(ev.clientX - d.startX) < 5) return;
-      if (!d.moved) { d.moved = true; setDragCol(d.key); document.body.style.cursor = 'grabbing'; }
-      for (const [key, r] of Object.entries(d.rects)) {
-        if (key !== d.key && key !== d.last && ev.clientX > r.left && ev.clientX < r.right) {
-          d.last = key;
-          moveCol(d.key, key);
-          requestAnimationFrame(() => { if (dragRef.current) dragRef.current.rects = grab(); });
-          break;
-        }
-      }
-    };
-    const up = () => {
-      const d = dragRef.current;
-      dragRef.current = null;
-      setDragCol(null);
-      document.body.style.cursor = '';
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      if (d?.moved) clickSquelch.current = true;
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-  };
+  // shared pointer drag with the FLIP slide (ui.jsx) - <5px still counts as a click
+  const { down: headerDown, dragCol, squelch: clickSquelch } = useHeaderDrag(moveCol);
 
   const apps = data?.apps || [];
   const org = data?.org || 'small';

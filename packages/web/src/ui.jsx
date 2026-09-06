@@ -531,3 +531,61 @@ export function MenuItem({ icon: Icon, className, children, ...props }) {
 export const AppIcon = ({ size = 15, className }) => (
   <img src="/icon-32.png" alt="" width={size} height={size} className={className} />
 );
+
+// Pointer-based column-header drag: horizontal only, live reorder, and a FLIP
+// slide so headers visibly glide into place. th elements need data-col.
+// Returns { down, dragCol, squelch } - wire down(key) to onPointerDown and skip
+// the click menu when squelch.current is true.
+export function useHeaderDrag(moveCol) {
+  const dragRef = useRef(null);
+  const squelch = useRef(false);
+  const [dragCol, setDragCol] = useState(null);
+  const down = (k) => (e) => {
+    if (e.button !== 0) return;
+    if (e.target.dataset?.resize) return; // resize handles keep their own drag
+    const row = e.currentTarget.parentElement;
+    const grab = () => {
+      const r = {};
+      [...row.children].forEach((c) => { if (c.dataset.col) r[c.dataset.col] = c.getBoundingClientRect(); });
+      return r;
+    };
+    dragRef.current = { key: k, startX: e.clientX, moved: false, rects: grab(), last: null };
+    const move = (ev) => {
+      const d = dragRef.current;
+      if (!d) return;
+      if (!d.moved && Math.abs(ev.clientX - d.startX) < 5) return;
+      if (!d.moved) { d.moved = true; setDragCol(d.key); document.body.style.cursor = 'grabbing'; }
+      for (const [key, r] of Object.entries(d.rects)) {
+        if (key !== d.key && key !== d.last && ev.clientX > r.left && ev.clientX < r.right) {
+          d.last = key;
+          const before = d.rects;
+          moveCol(d.key, key);
+          requestAnimationFrame(() => {
+            if (!dragRef.current) return;
+            // FLIP: each header animates from its old x to its new one
+            [...row.children].forEach((c) => {
+              const ck = c.dataset.col;
+              if (!ck || !before[ck]) return;
+              const dx = before[ck].left - c.getBoundingClientRect().left;
+              if (dx) c.animate([{ transform: `translateX(${dx}px)` }, { transform: 'translateX(0)' }], { duration: 160, easing: 'ease-out' });
+            });
+            dragRef.current.rects = grab();
+          });
+          break;
+        }
+      }
+    };
+    const up = () => {
+      const d = dragRef.current;
+      dragRef.current = null;
+      setDragCol(null);
+      document.body.style.cursor = '';
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (d?.moved) squelch.current = true;
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  return { down, dragCol, squelch };
+}

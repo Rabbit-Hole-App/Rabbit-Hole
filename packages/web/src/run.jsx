@@ -10,7 +10,7 @@ import { ago, api, fmtTime, navigate } from './api.js';
 import { AskPanel } from './ask.jsx';
 import {
   Avatar, Button, Chk, cn, CodeBlock, Dropzone, Field, fmtBytes, IconBtn, Input,
-  Menu, MenuItem, Pill, Select, SkeletonRows, SlidePanel, Slider, StatusPill, toast, Toggle,
+  Menu, MenuItem, Pill, Select, SkeletonRows, SlidePanel, Slider, StatusPill, toast, Toggle, useHeaderDrag,
 } from './ui.jsx';
 
 const shortId = (id) => String(id || '').replace(/^r-/, '').slice(0, 7);
@@ -570,6 +570,9 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
   const [menu, setMenu] = useState(null); // 'filter' | 'sort' | 'props'
   const [hidden, setHidden] = useState(() => new Set(JSON.parse(localStorage.getItem(`small.cols.${slug}`) || '[]')));
   const [widths, setWidths] = useState(() => JSON.parse(localStorage.getItem(`small.tblw.${slug}`) || '{}'));
+  const [order, setOrder] = useState(() => JSON.parse(localStorage.getItem(`small.tblorder.${slug}`) || 'null'));
+  const saveOrder = (o) => { setOrder(o); localStorage.setItem(`small.tblorder.${slug}`, JSON.stringify(o)); };
+  const [colMenu, setColMenu] = useState(null); // column key with its header menu open
 
   useEffect(() => { api(`/api/runs?app=${encodeURIComponent(slug)}`).then((d) => setRuns(d.runs)).catch(() => setRuns([])); }, [slug]);
 
@@ -589,10 +592,23 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
 
   const schema = app.inputs || {};
   const inputCols = Object.keys(schema).filter((k) => !hidden.has(k));
-  const cols = [...CORE_COLS, ...inputCols.map((k) => ({
-    key: `in:${k}`, label: k, w: schema[k].type === 'number' ? 100 : 150, right: schema[k].type === 'number', input: k,
-    icon: TYPE_ICON[schema[k].type] || Type,
-  }))];
+  const baseCols = [
+    ...CORE_COLS.filter((c) => c.key === 'run' || !hidden.has(c.key)),
+    ...inputCols.map((k) => ({
+      key: `in:${k}`, label: k, w: schema[k].type === 'number' ? 100 : 150, right: schema[k].type === 'number', input: k,
+      icon: TYPE_ICON[schema[k].type] || Type,
+    })),
+  ];
+  // column order persists; unknown keys (new inputs) append in natural order
+  const colKeys = baseCols.map((c) => c.key);
+  const ordKeys = [...(order || []).filter((k) => colKeys.includes(k)), ...colKeys.filter((k) => !(order || []).includes(k))];
+  const cols = ordKeys.map((k) => baseCols.find((c) => c.key === k));
+  const moveCol = (from, to) => {
+    const next = ordKeys.filter((k) => k !== from);
+    next.splice(next.indexOf(to), 0, from);
+    saveOrder(next);
+  };
+  const { down: hdrDown, dragCol, squelch } = useHeaderDrag(moveCol);
 
   const durOf = (r) => secs(r.started_at, r.finished_at);
   const cell = (r, c) => {
@@ -702,10 +718,9 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
         <div className="relative">
           <Button size="sm" onMouseDown={(e) => { e.stopPropagation(); setMenu(menu === 'props' ? null : 'props'); }}><Eye size={14} strokeWidth={1.5} /> Properties</Button>
           <Menu open={menu === 'props'} onClose={() => setMenu(null)} className="top-8 left-0">
-            {Object.keys(schema).length === 0 && <div className="px-2 py-1 text-sm text-ink-2">No input columns.</div>}
-            {Object.keys(schema).map((k) => (
+            {[...CORE_COLS.filter((c) => c.key !== 'run').map((c) => [c.key, c.label]), ...Object.keys(schema).map((k) => [k, k])].map(([k, label]) => (
               <MenuItem key={k} onClick={() => toggleCol(k)}>
-                <span className="flex w-full items-center gap-2"><Chk on={!hidden.has(k)} /> {k}</span>
+                <span className="flex w-full items-center gap-2"><Chk on={!hidden.has(k)} /> {label}</span>
               </MenuItem>
             ))}
           </Menu>
@@ -747,13 +762,36 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
                 {cols.map((c) => (
                   <th
                     key={c.key}
+                    data-col={c.key}
                     style={{ width: widths[c.key] || c.w }}
-                    className={cn('relative h-8 border-b border-line px-2 text-left text-xs font-normal whitespace-nowrap text-ink-2 select-none', c.right && 'text-right')}
+                    onPointerDown={hdrDown(c.key)}
+                    onClick={() => {
+                      if (squelch.current) { squelch.current = false; return; }
+                      setColMenu(colMenu === c.key ? null : c.key);
+                    }}
+                    className={cn('relative h-8 cursor-pointer touch-none border-b border-line px-2 text-left text-xs font-normal whitespace-nowrap text-ink-2 select-none hover:bg-hover', c.right && 'text-right', dragCol === c.key && 'bg-active opacity-60')}
+                    title="Click for options · drag to reorder"
                   >
                     <span className={cn('inline-flex items-center gap-1.5', c.right && 'flex-row-reverse')}>
                       {c.icon && <c.icon size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />}
                       {c.label}
                     </span>
+                    <Menu open={colMenu === c.key} onClose={() => setColMenu(null)} className="top-8 left-0 max-h-72 w-48 cursor-default overflow-y-auto text-left font-normal">
+                      {(c.key === 'when' || c.key === 'dur') && (
+                        <>
+                          <MenuItem onClick={(e) => { e.stopPropagation(); setSort({ field: c.key, dir: 'asc' }); setColMenu(null); }}>Sort ascending</MenuItem>
+                          <MenuItem onClick={(e) => { e.stopPropagation(); setSort({ field: c.key, dir: 'desc' }); setColMenu(null); }}>Sort descending</MenuItem>
+                        </>
+                      )}
+                      {(c.key === 'status' ? statuses : c.key === 'by' ? people : c.input ? valuesOf(c.input) : []).map((v) => (
+                        <MenuItem key={String(v)} icon={FilterIcon} onClick={(e) => { e.stopPropagation(); setFilters((f) => [...f, { field: c.input || c.key, value: v }]); setColMenu(null); }}>
+                          Filter · {c.key === 'by' ? startedName(v) : String(v)}
+                        </MenuItem>
+                      ))}
+                      {c.key !== 'run' && (
+                        <MenuItem icon={Eye} onClick={(e) => { e.stopPropagation(); toggleCol(c.input || c.key); setColMenu(null); }}>Hide column</MenuItem>
+                      )}
+                    </Menu>
                     <div onPointerDown={(e) => resize(e, c.key, widths[c.key] || c.w)} className="absolute top-0 -right-0.5 z-10 h-full w-1 cursor-col-resize hover:bg-accent/40" data-resize={c.key} />
                   </th>
                 ))}
