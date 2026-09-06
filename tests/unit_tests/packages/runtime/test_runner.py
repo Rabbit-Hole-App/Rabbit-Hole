@@ -60,7 +60,11 @@ def main():
         assert all(p[0] == "/api/runs/r-test01/log" for p in posts), f"wrong path: {posts[0][0]}"
         assert all(p[1] == "Bearer tok123" for p in posts), "run token missing from Authorization"
         lines = [l for _, _, body in posts for l in body.get("lines", [])]
-        assert lines == ["line one", "line two", "boom"], f"lines wrong/misordered: {lines}"
+        job_lines = [l for l in lines if not l.startswith("runner:")]
+        assert job_lines == ["line one", "line two", "boom"], f"lines wrong/misordered: {lines}"
+        # the runner narrates the io contract: outputs folder up front, explicit no-output at exit
+        assert any(l.startswith("runner: outputs folder") for l in lines), lines
+        assert any(l.startswith("runner: no output files") for l in lines), lines
         assert posts[-1][2].get("exitCode") == 3, f"final batch lacks exitCode=3: {posts[-1][2]}"
         # sleep in the job forces >1 flush: progress streamed, not one dump at exit
         assert len(posts) >= 2, f"expected batched streaming, got a single post: {posts}"
