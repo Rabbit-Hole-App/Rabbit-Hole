@@ -10,6 +10,10 @@ small init                  # scaffold small.toml + a first runbook
 small deploy --env .env     # detect app, build remotely, print URL
 ```
 
+Working with an AI coding agent? `npx small-skill` installs the agent skill
+(same as `small skill`) so Claude Code/Codex deploys through small instead
+of hand-rolling Docker.
+
 Your app is served at `https://<control-plane>/a/<org>/<app>/` behind a
 magic-link login. Only people at your email domain (or explicitly shared
 emails) get in. The container itself refuses any request that did not come
