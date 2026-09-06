@@ -171,7 +171,7 @@ export function capJoin(parts, cap = CAP_CHARS) {
   return out.join('\n\n');
 }
 
-async function anthropic(env, body, model) {
+export async function anthropic(env, body, model) {
   body = { ...body, ...(model ? { model } : {}) };
   return fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

@@ -7,6 +7,7 @@ import { assumeRole, s3Buckets, s3Get, s3List } from './aws.js';
 import { handleSlackCommand, handleSlackEvent, handleSlackInteract, notifySlackRun, slackApi, verifySlackSignature } from './slack.js';
 import { runWatchPass, weeklyWatchEmail } from './watch.js';
 import { runReview, generateRunbook } from './review.js';
+import { runbookAgent } from './runbook-agent.js';
 import { parseCron, matches, nextRun } from './cron.js';
 import SHELL from '../../web/dist/index.html';
 
@@ -609,43 +610,11 @@ async function apiRunbookGenerate(env, user, name) {
   if (!app) return json({ error: `no app named ${name}` }, 404);
   if (!app.canEdit) return json({ error: 'only owner or edit members can generate the runbook' }, 403);
   if (!env.ANTHROPIC_API_KEY) return json({ error: 'runbook generation not configured on this control plane' }, 503);
-  const dep = (await env.DB.prepare('SELECT MAX(id) AS id FROM deploys WHERE app_id = ?').bind(app.id).first())?.id;
-  const stored = await getBundle(env, app.id, dep);
+  const deploy = await env.DB.prepare('SELECT * FROM deploys WHERE app_id = ? ORDER BY id DESC LIMIT 1').bind(app.id).first();
+  const stored = await getBundle(env, app.id, deploy?.id);
   if (!stored) return json({ error: 'no stored source for this app - redeploy with a current CLI first' }, 404);
-  // real examples make the page: last good run's inputs plus a few log lines
-  const lastOk = await env.DB.prepare(
-    "SELECT run_id, inputs, started_by FROM runs WHERE app_id = ? AND status = 'finished' ORDER BY id DESC LIMIT 1"
-  ).bind(app.id).first();
-  let logSample = '';
-  if (lastOk) {
-    const { results } = await env.DB.prepare('SELECT line FROM run_logs WHERE run_id = ? ORDER BY seq DESC LIMIT 6').bind(lastOk.run_id).all();
-    logSample = results.map((r) => r.line).reverse().join('\n');
-  }
-  const context = [
-    `App: ${name} (${app.kind})` ,
-    line('description', app.description),
-    line('inputs schema', app.inputs),
-    line('outputs declared', app.outputs),
-    line('schedule (cron, UTC)', app.schedule),
-    `owner: ${app.owner_email}`,
-    lastOk ? `example inputs from a real successful run: ${lastOk.inputs || '(none)'}` : 'no successful runs yet',
-    logSample ? `log lines from that run:
-${logSample}` : null,
-    `SOURCE:
-${String(stored.bundle).slice(0, 60000)}`,
-  ].filter(Boolean).join('\n\n');
   try {
-    const md = await askOnce(env, context,
-      'Write a runbook page in Markdown for NON-TECHNICAL teammates. Structure exactly: '
-      + 'a # heading with the app name and one plain-language sentence under it; '
-      + '"## What it does" with 2-3 short bullets, everyday words; '
-      + '"## How to run it" with one bullet per input: its name in bold, what to type, and a realistic example value; '
-      + '"## What you get" with one bullet per output and what is inside it; '
-      + '"## A good run looks like" with 2-4 real log lines in a ``` code block and ONE line under it saying what they mean; '
-      + 'then "## Schedule & owner". '
-      + 'NEVER mention file names, paths, or line numbers. No em dashes. Short lines. '
-      + 'Reply with the Markdown only, no Sources line.', 1200);
-    return json({ markdown: md.replace(/\n+Sources:.*$/is, '').trim() });
+    return json({ markdown: await runbookAgent(env, app, stored, deploy) });
   } catch (e) {
     return json({ error: e.message }, 502);
   }
@@ -1882,7 +1851,7 @@ async function apiRunsList(req, env, user) {
 
 async function apiRunGet(req, env, user, runId) {
   const run = await env.DB.prepare(
-    'SELECT runs.status, runs.exit_code, runs.started_by, runs.started_at, runs.finished_at, runs.inputs, runs.diagnosis, apps.id AS app_id, apps.org, apps.owner_email, apps.visibility, apps.name AS app_name FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?'
+    'SELECT runs.status, runs.exit_code, runs.started_by, runs.started_at, runs.finished_at, runs.inputs, runs.diagnosis, apps.id AS app_id, apps.org, apps.owner_email, apps.visibility, apps.name AS app_name, d.branch AS src_branch, d.commit_sha AS src_commit, d.dirty AS src_dirty FROM runs JOIN apps ON apps.id = runs.app_id LEFT JOIN deploys d ON d.id = runs.deploy_id WHERE runs.run_id = ?'
   ).bind(runId).first();
   if (!run || run.org !== user.org) return json({ error: `no run ${runId}` }, 404);
   if (!(await canView(env, { id: run.app_id, org: run.org, owner_email: run.owner_email, visibility: run.visibility }, user.email)))
@@ -1904,6 +1873,10 @@ async function apiRunGet(req, env, user, runId) {
     finishedAt: run.finished_at,
     diagnosis: run.diagnosis || null,
     app: run.app_name,
+    // which code this run actually executed - shown as "branch · sha · dirty"
+    source: run.src_branch || run.src_commit
+      ? `${run.src_branch || '?'} · ${(run.src_commit || '').slice(0, 7)}${run.src_dirty ? ' · dirty' : ''}`
+      : null,
     inputs: run.inputs ? JSON.parse(run.inputs) : null,
     inputFiles,
     lines: results.map((r) => r.line),

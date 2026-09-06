@@ -7,6 +7,7 @@ import '@blocknote/shadcn/style.css';
 import '@excalidraw/excalidraw/index.css';
 import { Loader2, PenTool } from 'lucide-react';
 import { api, isDark } from './api.js';
+import { FilePeek } from './ask.jsx';
 import { Button, Mark } from './ui.jsx';
 import { chartBlock, insertChart } from './ChartBlock.jsx';
 
@@ -145,10 +146,21 @@ export default function Runbook({ app, canEdit, onSaved }) {
     timer.current = setTimeout(save, 800);
   };
 
-  // Generate from code: AI writes the page from the deployed source; jobs also
+  // Generate runbook: AI writes the page from the deployed source; jobs also
   // get a /chart block of recent runs appended. /excalidraw and /chart stay
   // available for hand edits afterwards - it is a normal editable page.
   const [genBusy, setGenBusy] = useState(false);
+  // #src=path:line-line links (written by the runbook agent) open the code peek
+  const [srcPeek, setSrcPeek] = useState(null);
+  const onSrcClick = (e) => {
+    const a = e.target.closest?.('a[href^="#src="]');
+    if (!a) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const ref = decodeURIComponent(a.getAttribute('href').slice(5));
+    const m = ref.match(/^(.+?):(\d+)(?:-(\d+))?$/);
+    setSrcPeek(m ? { path: m[1], line: +m[2], lineEnd: m[3] ? +m[3] : null } : { path: ref, line: null, lineEnd: null });
+  };
   const generate = async () => {
     setGenBusy(true);
     setStatus('generating…');
@@ -179,11 +191,12 @@ export default function Runbook({ app, canEdit, onSaved }) {
       {canEdit && (
         <div className="flex shrink-0 items-center justify-end pb-1">
           <Button variant="soft" size="sm" onClick={generate} disabled={genBusy} title="AI writes this page from the deployed code and small.toml">
-            {genBusy ? <Loader2 size={13} className="animate-spin" /> : <Mark size={13} />} Generate from code
+            {genBusy ? <Loader2 size={13} className="animate-spin" /> : <Mark size={13} />} Generate runbook
           </Button>
         </div>
       )}
-      <div className="-mx-[34px] min-h-0 flex-1 overflow-y-auto">{/* cancels bn-editor's 54px gutter down to the panel's 20px */}
+      {srcPeek && <FilePeek appName={app.name} path={srcPeek.path} line={srcPeek.line} lineEnd={srcPeek.lineEnd} onClose={() => setSrcPeek(null)} />}
+      <div className="-mx-[34px] min-h-0 flex-1 overflow-y-auto" onClickCapture={onSrcClick}>{/* cancels bn-editor's 54px gutter down to the panel's 20px */}
         <BlockNoteView editor={editor} editable={canEdit} theme={dark ? 'dark' : 'light'} onChange={canEdit ? onChange : undefined} slashMenu={false}>
           <SuggestionMenuController
             triggerCharacter="/"

@@ -116,7 +116,7 @@ function colorLine(line) {
 }
 
 // The cited file in a side panel, scrolled to (and highlighting) the cited line.
-function FilePeek({ appName, path, line, lineEnd, onClose }) {
+export function FilePeek({ appName, path, line, lineEnd, onClose }) {
   const [content, setContent] = useState(null);
   // a citation spanning the whole file highlights nothing: all-green is no signal
   const total = content ? content.split('\n').length : 0;

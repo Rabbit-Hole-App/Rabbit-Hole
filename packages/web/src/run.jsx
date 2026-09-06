@@ -421,6 +421,7 @@ export function RunView({ runId, app, onRunAgain }) {
         <Person email={meta.startedBy} />
         <span className="text-ink-2" title={fmtTime(meta.startedAt)}>{ago(meta.startedAt)}</span>
         {settled && <span className="text-ink-2 tabular-nums">{dur}</span>}
+        {meta.source && <span className="text-xs text-ink-3" title="The code this run executed">{meta.source}</span>}
       </div>
       {meta.diagnosis && (
         <div className="mt-2 rounded-sm bg-code px-3 py-2 text-sm text-ink-2">
