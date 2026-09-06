@@ -508,7 +508,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
           <IconBtn
             title="More"
             onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === a.name ? null : a.name); }}
-            className="-mr-1 opacity-0 group-hover/r:opacity-100"
+            className={cn('-mr-1 opacity-0 group-hover/r:opacity-100', menuFor === a.name && 'bg-active text-ink opacity-100')}
           >
             <MoreHorizontal size={16} strokeWidth={1.5} />
           </IconBtn>
@@ -903,7 +903,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
               <IconBtn
                 title="More"
                 onClick={() => setFolderMenu(folderMenu === f.id ? null : f.id)}
-                className="-mr-1 opacity-0 group-hover/f:opacity-100"
+                className={cn('-mr-1 opacity-0 group-hover/f:opacity-100', folderMenu === f.id && 'bg-active text-ink opacity-100')}
               >
                 <MoreHorizontal size={16} strokeWidth={1.5} />
               </IconBtn>

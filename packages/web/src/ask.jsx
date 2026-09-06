@@ -499,7 +499,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
                 type="button"
                 aria-label="Thread options"
                 onMouseDown={(e) => { e.stopPropagation(); setRowMenu(rowMenu === t.id ? null : t.id); }}
-                className="mr-0.5 inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-ink-2 opacity-0 group-hover/h:opacity-100 hover:bg-hover hover:text-ink"
+                className={cn('mr-0.5 inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-ink-2 opacity-0 group-hover/h:opacity-100 hover:bg-hover hover:text-ink', rowMenu === t.id && 'bg-active text-ink opacity-100')}
               >
                 <MoreHorizontal size={15} strokeWidth={1.5} />
               </button>

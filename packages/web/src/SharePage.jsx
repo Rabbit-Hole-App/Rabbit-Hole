@@ -525,7 +525,7 @@ function AppPage({ slug, runId, reloadShell }) {
             <>
               <SharePopover app={app} onChanged={load} />
               <div className="relative">
-                <IconBtn title="More" onMouseDown={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>
+                <IconBtn title="More" className={cn(menuOpen && 'bg-active text-ink')} onMouseDown={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>
                 <Menu open={menuOpen} onClose={() => setMenuOpen(false)} className="top-8 right-0">
                   <MenuItem
                     icon={LinkIcon}

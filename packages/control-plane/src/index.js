@@ -1431,7 +1431,15 @@ async function apiOrgMembers(req, env, user) {
     const { email, remove } = await req.json();
     if (!email || !email.includes('@')) return json({ error: 'valid email required' }, 400);
     if (remove) {
-      await env.DB.prepare('DELETE FROM org_members WHERE org = ? AND email = ?').bind(user.org, email.toLowerCase()).run();
+      // full removal for non-owners: pool entry, app shares, and team seats in this org
+      const em = email.toLowerCase();
+      if (em === user.email) return json({ error: 'you cannot remove yourself' }, 400);
+      const owns = await env.DB.prepare('SELECT COUNT(*) AS n FROM apps WHERE org = ? AND owner_email = ? AND deleted_at IS NULL').bind(user.org, em).first();
+      if (owns.n > 0) return json({ error: `${em} owns ${owns.n} app${owns.n > 1 ? 's' : ''} here - those must go first` }, 400);
+      await env.DB.prepare('DELETE FROM org_members WHERE org = ? AND email = ?').bind(user.org, em).run();
+      await env.DB.prepare('DELETE FROM members WHERE email = ? AND app_id IN (SELECT id FROM apps WHERE org = ?)').bind(em, user.org).run();
+      await env.DB.prepare('DELETE FROM team_members WHERE email = ? AND team_id IN (SELECT id FROM teams WHERE org = ?)').bind(em, user.org).run();
+      if (user.org.startsWith('w-')) await env.DB.prepare('DELETE FROM workspace_members WHERE slug = ? AND email = ?').bind(user.org, em).run();
     } else {
       await env.DB.prepare('INSERT INTO org_members (org, email) VALUES (?, ?) ON CONFLICT(org, email) DO NOTHING').bind(user.org, email.toLowerCase()).run();
     }

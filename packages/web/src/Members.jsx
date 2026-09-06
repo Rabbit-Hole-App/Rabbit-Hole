@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight, MoreHorizontal, Pencil, Plus, Trash2, Users, X } from 'lucide-react';
 import { api, navigate, wsName } from './api.js';
 import Shell from './Shell.jsx';
-import { Avatar, Button, ConfirmDialog, IconBtn, Input, Menu, MenuItem, Pill, ShareInput, SkeletonRows, toast } from './ui.jsx';
+import { Avatar, Button, cn, ConfirmDialog, IconBtn, Input, Menu, MenuItem, Pill, ShareInput, SkeletonRows, toast } from './ui.jsx';
 
 // "acme.com" and "acme-com" are the same org - dots normalize to dashes.
 const norm = (s) => (s || '').toLowerCase().replace(/\./g, '-');
@@ -109,10 +109,10 @@ function MembersContent({ data }) {
                     </td>
                     <td className="pr-3 text-ink-2">{p.owned} owned · {p.shared} shared</td>
                     <td className="rounded-r-sm pr-1 text-right">
-                      {pool.added.includes(email) && p.owned + p.shared === 0 && (
+                      {p.owned === 0 && email !== data?.email && (
                         <button
                           aria-label={`Remove ${email}`}
-                          title="Remove from members"
+                          title="Remove from this workspace (their shares and team seats go too)"
                           onClick={() => setConfirm({ kind: 'person', name: email })}
                           className="rounded-sm p-0.5 text-ink-2 opacity-0 group-hover/p:opacity-100 hover:text-ink"
                         >
@@ -188,7 +188,7 @@ function MembersContent({ data }) {
                 <IconBtn
                   title="More"
                   onClick={() => setMenuFor(menuFor === t.name ? null : t.name)}
-                  className="opacity-0 group-hover/t:opacity-100"
+                  className={cn('opacity-0 group-hover/t:opacity-100', menuFor === t.name && 'bg-active text-ink opacity-100')}
                 >
                   <MoreHorizontal size={16} strokeWidth={1.5} />
                 </IconBtn>
