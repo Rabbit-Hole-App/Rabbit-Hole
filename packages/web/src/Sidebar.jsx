@@ -851,13 +851,6 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
           >
             <FolderPlus size={13} />
           </button>
-          <button
-            title="New app"
-            onClick={() => setNewApp(true)}
-            className="cursor-pointer rounded-sm p-0.5 text-ink-2 opacity-0 group-hover/sb:opacity-100 hover:bg-hover hover:text-ink"
-          >
-            <Plus size={13} />
-          </button>
         </span>
       ))}
       {newFolder !== null && (
