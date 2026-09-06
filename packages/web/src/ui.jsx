@@ -90,7 +90,7 @@ export function PillButton({ className, ...props }) {
   return (
     <button
       className={cn(
-        'inline-flex h-6 items-center gap-1 rounded-sm border border-line bg-white px-1.5 text-[11px] font-medium tracking-wide text-ink-2 uppercase shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-100 select-none hover:bg-hover hover:text-ink disabled:opacity-50',
+        'inline-flex h-6 items-center gap-1 rounded-sm border border-line bg-white px-1.5 text-[11px] font-medium tracking-wide text-ink-2 uppercase shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-100 select-none hover:border-line-strong hover:bg-white hover:text-ink disabled:opacity-50',
         className,
       )}
       {...props}
