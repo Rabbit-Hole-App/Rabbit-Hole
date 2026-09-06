@@ -27,6 +27,8 @@ function useDark() {
 // block's props, so it rides the normal runbook JSON autosave - no extra storage.
 function ExcalidrawEmbed({ block, editor }) {
   const editable = editor.isEditable;
+  // Done hides the drawing tools (view mode) and rides the autosave; Edit brings them back
+  const locked = !!block.props.locked;
   const dark = useDark();
   const timer = useRef();
   const last = useRef(block.props.data);
@@ -52,15 +54,24 @@ function ExcalidrawEmbed({ block, editor }) {
 
   return (
     <div
-      className="my-1 h-[380px] w-full rounded-sm border border-line"
+      className="relative my-1 h-[380px] w-full rounded-sm border border-line"
       contentEditable={false}
       // ProseMirror listens at the editor root; without these it hijacks canvas pointer/key gestures
       onKeyDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
+      {editable && (
+        <button
+          type="button"
+          onClick={() => editor.updateBlock(block, { props: { locked: !locked } })}
+          className="absolute top-2 right-2 z-10 inline-flex h-6 cursor-pointer items-center rounded-lg border border-line-strong bg-white px-2 text-xs font-medium text-ink shadow-[0_1px_3px_rgba(0,0,0,0.12)] hover:bg-hover"
+        >
+          {locked ? 'Edit' : 'Done'}
+        </button>
+      )}
       <Suspense fallback={<div className="p-3 text-xs text-ink-2">loading canvas…</div>}>
-        <Excalidraw initialData={initial} onChange={onChange} viewModeEnabled={!editable} theme={dark ? 'dark' : 'light'} />
+        <Excalidraw initialData={initial} onChange={onChange} viewModeEnabled={!editable || locked} theme={dark ? 'dark' : 'light'} />
       </Suspense>
     </div>
   );
@@ -68,7 +79,7 @@ function ExcalidrawEmbed({ block, editor }) {
 
 // createReactBlockSpec returns a factory in 0.54 - call it to get the spec
 const excalidrawBlock = createReactBlockSpec(
-  { type: 'excalidraw', propSchema: { data: { default: '' } }, content: 'none' },
+  { type: 'excalidraw', propSchema: { data: { default: '' }, locked: { default: false } }, content: 'none' },
   { render: (props) => <ExcalidrawEmbed block={props.block} editor={props.editor} /> },
 )();
 
