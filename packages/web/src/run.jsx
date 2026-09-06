@@ -326,7 +326,12 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
   return (
     <div>
       {entries.map(([k, spec]) => (
-        <Field key={k} label={k.replace(/_/g, ' ')} help={spec.help || (spec.required ? undefined : 'optional')} error={errors[k]}>
+        <Field
+          key={k}
+          label={<>{k.replace(/_/g, ' ')} <span className="text-xs font-normal text-ink-3">({spec.type})</span>{spec.required && <span className="text-danger"> *</span>}</>}
+          help={spec.help || (spec.required ? undefined : 'optional')}
+          error={errors[k]}
+        >
           {spec.type === 'file' && <Dropzone accept={spec.accept} file={files[k]} onFile={(f) => { setFiles((s) => ({ ...s, [k]: f })); setErrors((e) => ({ ...e, [k]: null })); }} />}
           {spec.type === 'number' && (spec.min != null && spec.max != null
             ? <Slider min={spec.min} max={spec.max} value={values[k]} onChange={(v) => set(k, v)} inputProps={{ 'aria-label': k, className: errors[k] ? 'border-danger' : undefined }} />
