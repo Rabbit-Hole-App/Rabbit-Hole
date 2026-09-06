@@ -108,6 +108,20 @@ test('init: sqlite3 import adds [storage]; SMALL_ vars are not secrets', () => {
   assert.deepEqual(t.secrets.required, []);
 });
 
+test('init: plain script scaffolds kind=job, [inputs] from SMALL_INPUT_* reads, [aws] from boto3', () => {
+  const dir = tmp({
+    'job.py': 'import os\nimport boto3\nsrc = os.environ["SMALL_INPUT_SOURCE"]\nth = os.environ.get("SMALL_INPUT_THRESHOLD", "0.5")\nout = os.environ["SMALL_OUTPUTS"]\n',
+    'requirements.txt': 'boto3\n',
+  });
+  assert.equal(init(dir), true);
+  const t = parse(fs.readFileSync(path.join(dir, 'small.toml'), 'utf8'));
+  assert.equal(t.kind, 'job');
+  assert.equal(t.inputs.source.type, 'text');
+  assert.equal(t.inputs.threshold.type, 'text');
+  assert.equal(t.aws.role_arn, '');
+  assert.deepEqual(t.secrets.required, []); // SMALL_INPUT_* are inputs, not secrets
+});
+
 test('init: no [storage] without sqlite3 or SMALL_DATA', () => {
   const dir = tmp({ 'app.py': 'from flask import Flask\napp = Flask(__name__)\n' });
   assert.equal(init(dir), true);
