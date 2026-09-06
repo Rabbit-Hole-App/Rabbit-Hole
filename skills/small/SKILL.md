@@ -102,12 +102,10 @@ If `small` is not installed: `npm i -g small-deploy`. If not logged in the
 deploy fails with "run small login" — have the user run `small login`
 interactively (it emails them a 6-digit code).
 
-Builds run on Fly.io remote builders through the `flyctl` binary — no Docker,
-but flyctl must be on the machine. `small deploy` checks for it first and
-prints the install command if missing (`curl -L https://fly.io/install.sh | sh`,
-then add `$HOME/.fly/bin` to PATH); install it and re-run. Prefer downloading
-the script to a file and reading it before running if piping to a shell is a
-concern.
+Builds run on Fly.io remote builders through the `flyctl` binary — no Docker.
+`small deploy` checks for it before touching anything remote and, if missing,
+downloads the official release binary itself (one time, into `~/.small/bin`).
+Only if that auto-install fails does it print a manual install command to run.
 
 Apps are served under a path prefix, so use **relative URLs** in HTML
 (`action="inc"`, `href="page"`, `redirect(".")`) — absolute `/paths` break

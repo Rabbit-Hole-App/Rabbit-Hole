@@ -93,7 +93,8 @@ Only `entry` is required.
 
 ## Notes
 
-- Builds run on Fly.io remote builders — you need `flyctl` installed, no Docker.
+- Builds run on Fly.io remote builders — no Docker. `small deploy` installs
+  `flyctl` itself on first use if it is missing.
 - Apps live under a path prefix: use relative URLs in your HTML.
 - `.env` values are sent to the runtime as secrets, never baked into the image.
 - Job inputs arrive as env vars, files written to the outputs folder become

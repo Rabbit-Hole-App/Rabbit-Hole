@@ -186,7 +186,7 @@ const commands = {
     const app = detect(dir, flags);
     console.log(`✓ entry: ${app.entry} (${app.framework}) via ${app.via}`);
     inputs.checkSchema(app.config); // bad [inputs]/[outputs] stops the deploy here
-    console.log(`✓ ${fly.assertInstalled()}`); // free local check - before anything network or cloud
+    console.log(`✓ ${await fly.ensureInstalled()}`); // before anything cloud - downloads the binary on first use
 
     const src = source.capture(dir);
     if (src) {
