@@ -26,7 +26,10 @@ export function Button({ className, variant = 'ghost', size, ...props }) {
         'inline-flex items-center gap-1.5 rounded-lg border-0 text-sm font-medium whitespace-nowrap transition-colors duration-100 select-none focus-visible:outline-2 focus-visible:outline-accent/35 disabled:cursor-default disabled:opacity-50',
         size === 'sm' ? 'h-7 px-2 text-[13px]' : 'h-8 px-3',
         variant === 'primary' && 'bg-accent text-white hover:bg-accent-hover',
-        variant === 'secondary' && 'border border-line text-ink hover:bg-hover',
+        // "New token" template: visible as a button at rest - white, border, faint shadow
+        variant === 'secondary' && 'border border-line bg-white text-ink shadow-[0_1px_2px_rgba(0,0,0,0.06)] hover:bg-hover',
+        // "Copy link" template: accent-tinted fill for feature CTAs that should not shout
+        variant === 'soft' && 'bg-accent/10 text-accent hover:bg-accent/20',
         variant === 'ghost' && 'text-ink-2 hover:bg-hover hover:text-ink',
         variant === 'danger' && 'bg-danger text-white',
         // legacy alias used across the app for quiet blue text actions
@@ -35,6 +38,26 @@ export function Button({ className, variant = 'ghost', size, ...props }) {
       )}
       {...props}
     />
+  );
+}
+
+// "Add members ▾" template: primary action with an attached chevron menu.
+export function SplitButton({ children, onClick, menu, size, className }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className={cn('relative inline-flex', className)}>
+      <Button variant="primary" size={size} onClick={onClick} className="rounded-r-none!">{children}</Button>
+      <Button
+        variant="primary"
+        size={size}
+        aria-label="More options"
+        onClick={() => setOpen(!open)}
+        className="rounded-l-none! border-l border-white/35 px-2!"
+      >
+        <ChevronDown size={14} strokeWidth={2} />
+      </Button>
+      <Menu open={open} onClose={() => setOpen(false)} className="top-9 right-0 w-48">{menu}</Menu>
+    </span>
   );
 }
 

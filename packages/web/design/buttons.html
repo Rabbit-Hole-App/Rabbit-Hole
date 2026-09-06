@@ -1,0 +1,71 @@
+<!doctype html>
+<!-- Button templates (user reference 2026-09-05, Notion screenshots). One radius
+     language: controls rounded-lg (8px). Every clickable reads as a button AT REST,
+     not only on hover. Implementations live in src/ui.jsx (Button variants, SplitButton). -->
+<meta charset="utf-8" />
+<title>small deploy - button templates</title>
+<style>
+  body { font-family: Inter, ui-sans-serif, system-ui; color: #37352f; background: #fff; padding: 40px; line-height: 1.5; }
+  section { margin-bottom: 36px; }
+  h2 { font-size: 14px; font-weight: 600; margin: 0 0 4px; }
+  p { font-size: 12px; color: #787774; margin: 0 0 12px; }
+  .row { display: flex; align-items: center; gap: 16px; }
+  button { font-size: 14px; font-weight: 500; height: 32px; padding: 0 12px; border-radius: 8px; border: 0; cursor: pointer; font-family: inherit; }
+  button:active { transform: scale(0.97); }
+
+  /* 1. primary - the one main action on a surface ("Add members") */
+  .primary { background: #2383e2; color: #fff; }
+  .primary:hover { background: #1b6fc2; }
+
+  /* 2. secondary - "New token": white, bordered, faint shadow. Visible as a button at rest. */
+  .secondary { background: #fff; border: 1px solid #e3e2e0; color: #37352f; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06); }
+  .secondary:hover { background: #f7f6f3; }
+
+  /* 3. soft - "Copy link": accent-tinted fill, no border. Calmer than primary, still clearly a button. */
+  .soft { background: rgba(35, 131, 226, 0.1); color: #2383e2; }
+  .soft:hover { background: rgba(35, 131, 226, 0.18); }
+
+  /* 4. link - "View People Directory ↗": blue text, no chrome. Navigation, never a mutation. */
+  .link { background: none; color: #2383e2; padding: 0 4px; }
+  .link:hover { background: rgba(35, 131, 226, 0.08); }
+
+  /* 5. split - "Add members ▾": primary action + attached chevron menu */
+  .split { display: inline-flex; }
+  .split .main { border-radius: 8px 0 0 8px; }
+  .split .chev { border-radius: 0 8px 8px 0; border-left: 1px solid rgba(255, 255, 255, 0.35); padding: 0 8px; }
+</style>
+
+<section>
+  <h2>primary</h2>
+  <p>One per surface. Solid accent. ui.jsx: <code>&lt;Button variant="primary"&gt;</code></p>
+  <div class="row"><button class="primary">Add members</button></div>
+</section>
+
+<section>
+  <h2>secondary</h2>
+  <p>Default pressable action. White + border + faint shadow so it reads as a button at rest. ui.jsx: <code>variant="secondary"</code></p>
+  <div class="row"><button class="secondary">New token</button></div>
+</section>
+
+<section>
+  <h2>soft</h2>
+  <p>Feature call-to-action that should not shout (Connect Slack, Copy link). ui.jsx: <code>variant="soft"</code></p>
+  <div class="row"><button class="soft">Copy link</button></div>
+</section>
+
+<section>
+  <h2>link</h2>
+  <p>Blue text navigation, arrow when it leaves the page. ui.jsx: <code>variant="accent"</code></p>
+  <div class="row"><button class="link">View People Directory ↗</button></div>
+</section>
+
+<section>
+  <h2>split</h2>
+  <p>Primary with an attached chevron menu. ui.jsx: <code>&lt;SplitButton onClick menu=[...]&gt;</code></p>
+  <div class="row">
+    <span class="split">
+      <button class="primary main">Add members</button>
+      <button class="primary chev">▾</button>
+    </span>
+  </div>
+</section>

@@ -145,7 +145,7 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
               <div className="pt-2 text-base text-ink-2">Bring small into the tools your team already uses</div>
               <Heading>Slack</Heading>
               <SettingsRow title="Slack" desc="@small in channels, /small commands, proposals as buttons.">
-                <Button variant="secondary" size="sm" onClick={() => window.open('/slack/install', '_blank', 'noopener')}>
+                <Button variant="soft" size="sm" onClick={() => window.open('/slack/install', '_blank', 'noopener')}>
                   Connect Slack
                 </Button>
               </SettingsRow>
