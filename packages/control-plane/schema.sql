@@ -195,3 +195,7 @@ CREATE TABLE IF NOT EXISTS workspace_members (
   role TEXT NOT NULL DEFAULT 'member',
   PRIMARY KEY (slug, email)
 );
+
+-- 0020: structured runbook JSON + validation warnings (docs/features/runbook.md).
+-- ALTER TABLE apps ADD COLUMN runbook_json TEXT;
+-- ALTER TABLE apps ADD COLUMN runbook_warnings TEXT;

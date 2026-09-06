@@ -7,7 +7,7 @@ import { assumeRole, s3Buckets, s3Get, s3List } from './aws.js';
 import { handleSlackCommand, handleSlackEvent, handleSlackInteract, notifySlackRun, slackApi, verifySlackSignature } from './slack.js';
 import { runWatchPass, weeklyWatchEmail } from './watch.js';
 import { runReview, generateRunbook } from './review.js';
-import { runbookAgent } from './runbook-agent.js';
+import { buildRunbook } from './runbook-schema.js';
 import { parseCron, matches, nextRun } from './cron.js';
 import SHELL from '../../web/dist/index.html';
 
@@ -332,7 +332,7 @@ async function apiReview(req, env, user) {
 // build). waitUntil's ~30s window is too short for the model to write review + runbook -
 // this handler awaits the model and stores the result before responding. runReview never
 // throws, so a model failure still answers 200 with the previous (or no) review.
-async function apiReviewRun(req, env, user) {
+async function apiReviewRun(req, env, ctx, user) {
   const { app: name, bundle, skipped } = await req.json();
   const app = await appRow(env, user.org, name);
   if (!app) return json({ error: `no app named ${name}` }, 404);
@@ -347,6 +347,20 @@ async function apiReviewRun(req, env, user) {
     }
   }
   await runReview(env, app.id, bundle, skipped || []);
+  // spec (docs/features/runbook.md): the structured runbook regenerates on every
+  // deploy. Async - a slow model must not block the deploy; the visible page only
+  // changes via the Generate button.
+  ctx.waitUntil((async () => {
+    try {
+      const fresh0 = await appRow(env, user.org, name);
+      const deploy = await env.DB.prepare('SELECT * FROM deploys WHERE app_id = ? ORDER BY id DESC LIMIT 1').bind(app.id).first();
+      const stored2 = await getBundle(env, app.id, deploy?.id);
+      if (!stored2) return;
+      const { runbook, warnings } = await buildRunbook(env, fresh0, deploy, stored2, new URL(req.url).origin);
+      await env.DB.prepare('UPDATE apps SET runbook_json = ?, runbook_warnings = ? WHERE id = ?')
+        .bind(JSON.stringify(runbook), warnings.length ? JSON.stringify(warnings) : null, app.id).run();
+    } catch { /* the runbook refresh is best-effort */ }
+  })());
   // first deploy writes the model's 2-3 line description; user edits stick - only fill when empty
   if (!app.description) {
     try {
@@ -605,7 +619,7 @@ async function apiRunsFind(req, env, user) {
 
 // The Generate button on the Runbook tab: AI writes a runbook from the deployed
 // source; the editor swaps it in client-side (charts appended there for jobs).
-async function apiRunbookGenerate(env, user, name) {
+async function apiRunbookGenerate(req, env, ctx, user, name) {
   const app = await appForUser(env, user, name);
   if (!app) return json({ error: `no app named ${name}` }, 404);
   if (!app.canEdit) return json({ error: 'only owner or edit members can generate the runbook' }, 403);
@@ -614,7 +628,10 @@ async function apiRunbookGenerate(env, user, name) {
   const stored = await getBundle(env, app.id, deploy?.id);
   if (!stored) return json({ error: 'no stored source for this app - redeploy with a current CLI first' }, 404);
   try {
-    return json({ markdown: await runbookAgent(env, app, stored, deploy) });
+    const { runbook, warnings, markdown } = await buildRunbook(env, app, deploy, stored, new URL(req.url).origin);
+    await env.DB.prepare('UPDATE apps SET runbook_json = ?, runbook_warnings = ? WHERE id = ?')
+      .bind(JSON.stringify(runbook), warnings.length ? JSON.stringify(warnings) : null, app.id).run();
+    return json({ markdown, warnings });
   } catch (e) {
     return json({ error: e.message }, 502);
   }
@@ -716,7 +733,7 @@ async function runContext(env, app, run, use = null, blocks = null) {
     line('deployed from', app.repo_branch && `${app.repo_branch} · ${app.repo_commit || '?'}${app.repo_dirty ? ' · dirty' : ''} (deployed_at ${app.deployed_at})`),
     onR('agent') ? line('AGENT.md', app.agent_md) : null,
     onR('review') ? line('review', app.review) : null,
-    onR('runbook') ? line('runbook', app.runbook) : null,
+    onR('runbook') ? line('runbook', app.runbook_json || app.runbook) : null,
     diffText,
     src.text,
     onR('log')
@@ -754,7 +771,7 @@ async function appContext(env, app, use = null) {
     line('deployed from', app.repo_branch && `${app.repo_branch} · ${app.repo_commit || '?'}${app.repo_dirty ? ' · dirty' : ''} (deployed_at ${app.deployed_at})`),
     on('agent') ? line('AGENT.md', app.agent_md) : null,
     on('review') ? line('review', app.review) : null,
-    on('runbook') ? line('runbook', app.runbook) : null,
+    on('runbook') ? line('runbook', app.runbook_json || app.runbook) : null,
     line('request log summary (status: count)', reqSummary),
     on('runs') ? (runs.length ? `last ${runs.length} runs:\n${runs.map(fmtRunLine).join('\n')}` : 'no runs yet') : null,
     (await sourceSection(env, app.id)).text,
@@ -2097,7 +2114,7 @@ export default {
         if (descPath && req.method === 'POST') return await apiAppDescription(req, env, user, descPath[1]);
         if (path === '/api/apps/find' && req.method === 'POST') return await apiAppFind(req, env, user);
         const genRb = path.match(/^\/api\/apps\/([a-z0-9-]+)\/generate-runbook$/);
-        if (genRb && req.method === 'POST') return await apiRunbookGenerate(env, user, genRb[1]);
+        if (genRb && req.method === 'POST') return await apiRunbookGenerate(req, env, ctx, user, genRb[1]);
         if (path === '/api/unshare' && req.method === 'POST') return await apiUnshare(req, env, user);
         if (path === '/api/folders' && req.method === 'POST') return await apiFolderCreate(req, env, user);
         const folderDel = path.match(/^\/api\/folders\/(\d+)\/delete$/);
@@ -2120,7 +2137,7 @@ export default {
         if (path === '/api/request-logs' && req.method === 'GET') return await apiRequestLogs(req, env, user);
         if (path === '/api/review' && req.method === 'GET') return await apiReview(req, env, user);
         if (path === '/api/runbook' && req.method === 'POST') return await apiRunbook(req, env);
-        if (path === '/api/review/run' && req.method === 'POST') return await apiReviewRun(req, env, user);
+        if (path === '/api/review/run' && req.method === 'POST') return await apiReviewRun(req, env, ctx, user);
         return json({ error: 'no such endpoint' }, 404);
       }
       if (path === '/logout')
