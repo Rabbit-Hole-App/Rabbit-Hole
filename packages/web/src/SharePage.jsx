@@ -739,7 +739,7 @@ function AppPage({ slug, runId, reloadShell }) {
 
               {app.kind === 'job' && (
                 <TabsContent value="run" className="pt-5">
-                  <RunForm app={app} prefill={prefill} onStarted={(id) => { setPeek(id); load(); }} />
+                  <RunForm app={app} prefill={prefill} onStarted={(id) => { setPeek(id); load(); }} onBatchStarted={() => { setTab('logs'); load(); }} />
                 </TabsContent>
               )}
 

@@ -199,13 +199,22 @@ function S3Preview({ app, uri, kind }) {
 }
 
 // ─── Run tab (flow.md §3b): the form generated from [inputs]. ───
-export function RunForm({ app, prefill, onStarted }) {
+export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
   const schema = app.inputs || {};
   const entries = Object.entries(schema);
   const [values, setValues] = useState(() => Object.fromEntries(entries.map(([k, s]) => [k, defaultValue(s)])));
   const [files, setFiles] = useState({});
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
+  // Batch: paste one value per line for ONE text field, every other field is
+  // shared - each line becomes its own run (own status, logs and outputs).
+  const textFields = entries.filter(([, s]) => (s.type || 'text') === 'text').map(([k]) => k);
+  const hasRequiredFile = entries.some(([, s]) => s.type === 'file' && s.required);
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [batchField, setBatchField] = useState(textFields[0] || '');
+  const [batchText, setBatchText] = useState('');
+  const batchLines = [...new Set(batchText.split('\n').map((l) => l.trim()).filter(Boolean))];
+  const BATCH_MAX = 25; // ponytail: sequential client-side starts; server-side fan-out when someone needs hundreds
   const set = (k, v) => { setValues((s) => ({ ...s, [k]: v })); setErrors((e) => ({ ...e, [k]: null })); };
 
   // Prefill from "Run again": scalar values land; file fields must be re-picked.
@@ -253,6 +262,47 @@ export function RunForm({ app, prefill, onStarted }) {
       onStarted(d.runId);
     } catch (e) {
       toast(`✗ ${e.message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitBatch = async () => {
+    // shared fields validate as usual; the batch field validates per line
+    const spec = schema[batchField];
+    const errs = {};
+    for (const [k, s] of entries) {
+      if (k === batchField || s.type === 'file') continue;
+      const e = validateOne(s, values[k], files[k]);
+      if (e) errs[k] = e;
+    }
+    setErrors(errs);
+    if (Object.values(errs).some(Boolean)) return;
+    for (const line of batchLines) {
+      const e = validateOne(spec, line);
+      if (e) return toast(`✗ ${batchField} "${line.slice(0, 40)}": ${e}`);
+    }
+    const shared = {};
+    for (const [k, s] of entries) {
+      if (k === batchField || s.type === 'file') continue;
+      if (s.type === 'bool') { shared[k] = !!values[k]; continue; }
+      const v = values[k];
+      if (v == null || v === '' || (Array.isArray(v) && !v.length)) continue;
+      shared[k] = s.type === 'number' ? Number(v) : v;
+    }
+    setBusy(true);
+    let started = 0;
+    try {
+      for (const line of batchLines.slice(0, BATCH_MAX)) {
+        await api('/api/runs', { method: 'POST', body: JSON.stringify({ app: app.name, inputs: { ...shared, [batchField]: line } }) });
+        started++;
+      }
+      toast(`Started ${started} run${started === 1 ? '' : 's'}`);
+      setBatchOpen(false);
+      setBatchText('');
+      (onBatchStarted || (() => {}))();
+    } catch (e) {
+      toast(`✗ after ${started} started: ${e.message}`);
     } finally {
       setBusy(false);
     }
@@ -313,7 +363,37 @@ export function RunForm({ app, prefill, onStarted }) {
         <Button variant="primary" disabled={busy} onClick={submit}>
           {busy ? <Loader2 size={16} strokeWidth={1.5} className="animate-spin" /> : <Play size={16} strokeWidth={1.5} />} Run
         </Button>
+        {textFields.length > 0 && !hasRequiredFile && !batchOpen && (
+          <button type="button" className="cursor-pointer text-sm text-ink-2 hover:text-ink" onClick={() => setBatchOpen(true)}>Run a batch…</button>
+        )}
       </div>
+      {batchOpen && (
+        <div className="mt-4 max-w-xl rounded-md border border-line p-3">
+          <div className="flex items-center gap-2 pb-2 text-sm">
+            One run per line for
+            {textFields.length > 1
+              ? <Select value={batchField} options={textFields} onChange={setBatchField} />
+              : <span className="font-medium">{batchField}</span>}
+            <span className="text-ink-2">- the other fields above are shared by every run</span>
+          </div>
+          <textarea
+            value={batchText}
+            onChange={(e) => setBatchText(e.target.value)}
+            rows={6}
+            placeholder={'one value per line, e.g.\ns3://bucket/events/event-1/\ns3://bucket/events/event-2/'}
+            className="w-full resize-y rounded-sm bg-code p-2 font-mono text-xs outline-none"
+            aria-label="Batch values"
+          />
+          <div className="flex items-center gap-3 pt-2">
+            <Button variant="primary" size="sm" disabled={busy || !batchLines.length} onClick={submitBatch}>
+              {busy ? <Loader2 size={14} strokeWidth={1.5} className="animate-spin" /> : <Play size={14} strokeWidth={1.5} />}
+              Start {Math.min(batchLines.length, BATCH_MAX)} run{batchLines.length === 1 ? '' : 's'}
+            </Button>
+            <button type="button" className="cursor-pointer text-sm text-ink-2 hover:text-ink" onClick={() => setBatchOpen(false)}>Cancel</button>
+            {batchLines.length > BATCH_MAX && <span className="text-xs text-warn">first {BATCH_MAX} of {batchLines.length} lines - split larger batches</span>}
+          </div>
+        </div>
+      )}
       {lr && (
         <div className="flex flex-wrap items-center gap-1 pt-3 text-sm text-ink-2">
           Last run {ago(lr.startedAt)}{lr.startedBy ? ` by ${startedName(lr.startedBy)}` : ''}
