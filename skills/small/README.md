@@ -7,12 +7,17 @@ maintain the IAM role itself with least privilege.
 
 ## Install
 
+Two packages: the [small-deploy](https://www.npmjs.com/package/small-deploy)
+CLI does the deploying; this skill teaches your agent to drive it.
+
 ```
-npx small-skill            # into this project's .claude/skills/small
-npx small-skill --global   # into ~/.claude/skills/small for every project
+npm i -g small-deploy      # the CLI (the agent runs `small ...` through it)
+npx small-skill            # the skill, into this project's .claude/skills/small
+npx small-skill --global   # or into ~/.claude/skills/small for every project
 ```
 
-Or, with the CLI already installed: `small skill`.
+Or, with the CLI already installed: `small skill` installs the skill copy it
+ships with.
 
 ## What the agent learns
 
