@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpRight, ChevronDown, ChevronRight, Clock, Eye
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
 import Shell from './Shell.jsx';
-import { Avatar, Chk, cn, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, useHeaderDrag } from './ui.jsx';
+import { Avatar, Chk, cn, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, Tip, useHeaderDrag } from './ui.jsx';
 
 const people = (a) => [a.owner_email, ...(a.members || []).map((m) => m.email).filter((e) => e !== a.owner_email)];
 
@@ -13,6 +13,15 @@ const th = 'h-8 border-b border-line px-2 text-left text-xs font-normal text-ink
 // Notion-lite database controls: column order/visibility, one sort, one filter.
 const COLS = { name: 'Name', kind: 'Kind', access: 'Access', people: 'People', watch: 'Watch', deployed: 'Deployed', lastrun: 'Last run' };
 const DEFAULT_ORDER = Object.keys(COLS);
+const COL_INFO = {
+  name: 'The app. Click a row to open it',
+  kind: 'server (always on) or job (runs on demand)',
+  access: 'Who can open it',
+  people: 'Owner and members',
+  watch: 'Open findings from the nightly Watch pass',
+  deployed: 'When it last shipped',
+  lastrun: 'Latest run and its outcome',
+};
 const sortVal = (a, key) =>
   key === 'name' ? a.name
   : key === 'kind' ? a.kind
@@ -248,9 +257,10 @@ function AppContent({ data, load }) {
                           if (clickSquelch.current) { clickSquelch.current = false; return; }
                           setColMenu(colMenu === k ? null : k);
                         }}
-                        title="Click for options · drag to reorder"
                       >
-                        {COLS[k]}{sort?.key === k ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ''}
+                        <Tip label={COLS[k]} info={COL_INFO[k]}>
+                          <span>{COLS[k]}{sort?.key === k ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ''}</span>
+                        </Tip>
                         <Menu open={colMenu === k} onClose={() => setColMenu(null)} className="top-8 left-0 w-48 cursor-default font-normal normal-case">
                           <MenuItem icon={ArrowUp} onClick={(e) => { e.stopPropagation(); saveSort({ key: k, dir: 'asc' }); setColMenu(null); }}>Sort ascending</MenuItem>
                           <MenuItem icon={ArrowDown} onClick={(e) => { e.stopPropagation(); saveSort({ key: k, dir: 'desc' }); setColMenu(null); }}>Sort descending</MenuItem>

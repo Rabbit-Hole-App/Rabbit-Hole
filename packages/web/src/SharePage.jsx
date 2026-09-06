@@ -11,7 +11,7 @@ import { ago, api, cronHuman, cronList, fmtTime, navigate, wsName } from './api.
 import { AskPanel } from './ask.jsx';
 import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
 import Shell from './Shell.jsx';
-import { Avatar, Button, Chk, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, ShareInput, SkeletonRows, Tabs, TabsContent, TabsList, TabsTrigger, cn, toast } from './ui.jsx';
+import { Avatar, Button, Chk, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, ShareInput, SkeletonRows, Tabs, TabsContent, TabsList, TabsTrigger, Tip, cn, toast } from './ui.jsx';
 
 const Runbook = lazy(() => import('./RunbookEditor.jsx'));
 
@@ -380,8 +380,11 @@ function ObservationRow({ obs, canEdit, onChanged }) {
 }
 
 // Property-list row halves (design/components.html .plist): grey key w/ icon, value beside.
-const PropKey = ({ icon: Icon, children }) => (
-  <div className="flex h-8 items-center gap-1.5 text-ink-2"><Icon size={16} strokeWidth={1.5} className="text-ink-3" />{children}</div>
+const PropKey = ({ icon: Icon, info, children }) => (
+  <div className="flex h-8 items-center gap-1.5 text-ink-2">
+    <Icon size={16} strokeWidth={1.5} className="text-ink-3" />
+    {info ? <Tip label={children} info={info}><span>{children}</span></Tip> : children}
+  </div>
 );
 const PropVal = ({ children }) => <div className="flex h-8 min-w-0 items-center gap-1.5 truncate">{children}</div>;
 
@@ -673,13 +676,13 @@ function AppPage({ slug, runId, reloadShell }) {
             {/* Notion-style vertical property list: icon + grey label at 160px, value
                 beside, 32px rows. Access has no row - the Share popover owns that. */}
             <div className="grid max-w-[560px] grid-cols-[160px_1fr] text-sm">
-              <PropKey icon={Circle}>Type</PropKey>
+              <PropKey icon={Circle} info="server (always on) or job (runs on demand)">Type</PropKey>
               <PropVal><Pill color={app.kind === 'job' ? 'blue' : 'grey'}>{app.kind}</Pill></PropVal>
-              <PropKey icon={CalendarIcon}>Deployed</PropKey>
+              <PropKey icon={CalendarIcon} info="When this app last shipped">Deployed</PropKey>
               <PropVal><span title={fmtTime(app.deployed_at || app.created_at)}>{ago(app.deployed_at || app.created_at)}</span></PropVal>
               {source && (
                 <>
-                  <PropKey icon={GitBranch}>Source</PropKey>
+                  <PropKey icon={GitBranch} info="Branch, commit and repo it was deployed from">Source</PropKey>
                   <PropVal>
                     {/* public repo → branch·sha links the exact commit, the url links the repo; private → plain text */}
                     {app.repo_public && app.repo_url
@@ -694,11 +697,11 @@ function AppPage({ slug, runId, reloadShell }) {
                   </PropVal>
                 </>
               )}
-              <PropKey icon={UserIcon}>Owner</PropKey>
+              <PropKey icon={UserIcon} info="Who deployed and owns this app">Owner</PropKey>
               <PropVal><Avatar email={app.owner_email} />{app.owner_email}</PropVal>
               {app.schedule && (
                 <>
-                  <PropKey icon={Clock}>Schedule</PropKey>
+                  <PropKey icon={Clock} info="Cron schedule, all times UTC">Schedule</PropKey>
                   <PropVal>
                     {cronList(app.schedule).map((c) => (
                       <Pill key={c} color="orange" className={cn(app.schedule_paused && 'line-through opacity-60')} title={`cron ${c} (UTC)`}>{cronHuman(c)}</Pill>
@@ -722,10 +725,10 @@ function AppPage({ slug, runId, reloadShell }) {
 
             <Tabs value={tab ?? (app.kind === 'job' ? 'run' : 'runbook')} onValueChange={setTab} className={cn(agentFull && 'flex min-h-0 flex-1 flex-col')}>
               <TabsList className="mt-5 shrink-0">
-                <TabsTrigger value="runbook">Runbook</TabsTrigger>
-                {app.kind === 'job' && <TabsTrigger value="run">Run</TabsTrigger>}
-                <TabsTrigger value="logs">Logs</TabsTrigger>
-                <TabsTrigger value="agent">Agent</TabsTrigger>
+                <TabsTrigger value="runbook"><Tip label="Runbook" info="Notes and docs for this app"><span>Runbook</span></Tip></TabsTrigger>
+                {app.kind === 'job' && <TabsTrigger value="run"><Tip label="Run" info="Start a run from the input form"><span>Run</span></Tip></TabsTrigger>}
+                <TabsTrigger value="logs"><Tip label="Logs" info="Table view of this app's runs and requests"><span>Logs</span></Tip></TabsTrigger>
+                <TabsTrigger value="agent"><Tip label="Agent" info="Chat with the AI about this app"><span>Agent</span></Tip></TabsTrigger>
               </TabsList>
 
               <TabsContent value="runbook" className="min-h-[200px] pt-4">

@@ -511,8 +511,15 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
         </div>
       </div>
       {watchOpen && (
-        <SlidePanel title="Notifications" width={440} onClose={() => setWatchOpen(false)}>
-          <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+        <>
+          {/* Notion-style inbox: a floating rounded box beside the sidebar, not a full-height panel */}
+          <div className="fixed inset-0 z-40" onMouseDown={() => setWatchOpen(false)} />
+          <div style={{ left: width + 12 }} className="fixed top-10 z-50 flex max-h-[75vh] w-[440px] flex-col overflow-hidden rounded-lg bg-white text-ink shadow-pop">
+            <div className="flex shrink-0 items-center justify-between px-4 pt-3 pb-1">
+              <span className="text-sm font-semibold">Notifications</span>
+              <IconBtn aria-label="Close" onClick={() => setWatchOpen(false)}><X size={14} /></IconBtn>
+            </div>
+          <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-4">
             {/* read rows are gone - only what arrived since the last open shows, and Clear empties it now */}
             {(watchObs.some((o) => o.first_seen > panelReadAt) || watchRuns.some((r) => r.finished_at > panelReadAt)) && (
               <div className="flex justify-end pt-1 pb-1">
@@ -570,7 +577,8 @@ export default function Sidebar({ org, email, apps, folders, width = 260, onResi
               </div>
             ))}
           </div>
-        </SlidePanel>
+          </div>
+        </>
       )}
 
       {sectionLabel('Apps', null, (

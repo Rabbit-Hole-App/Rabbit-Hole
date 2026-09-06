@@ -10,7 +10,7 @@ import { ago, api, fmtTime, navigate } from './api.js';
 import { AskPanel } from './ask.jsx';
 import {
   Avatar, Button, Chk, cn, CodeBlock, Dropzone, Field, fmtBytes, IconBtn, Input,
-  Menu, MenuItem, Pill, Select, SkeletonRows, SlidePanel, Slider, StatusPill, toast, Toggle, useHeaderDrag,
+  Menu, MenuItem, Pill, Select, SkeletonRows, SlidePanel, Slider, StatusPill, Tip, toast, Toggle, useHeaderDrag,
 } from './ui.jsx';
 
 const shortId = (id) => String(id || '').replace(/^r-/, '').slice(0, 7);
@@ -553,11 +553,11 @@ export function RunPeek({ runId, app, onClose, onRunAgain }) {
 // ─── The runs database (flow.md §3c): fixed columns + one column per declared input.
 // Header cells carry the property-type icon, per the table reference. ───
 const CORE_COLS = [
-  { key: 'run', label: 'Run', w: 120, icon: Type },
-  { key: 'status', label: 'Status', w: 110, icon: Circle },
-  { key: 'by', label: 'Started by', w: 140, icon: User },
-  { key: 'when', label: 'When', w: 120, icon: Calendar },
-  { key: 'dur', label: 'Duration', w: 90, right: true, icon: Hash },
+  { key: 'run', label: 'Run', w: 120, icon: Type, info: 'Run id. Click a row for details' },
+  { key: 'status', label: 'Status', w: 110, icon: Circle, info: 'finished, failed, stopped or running' },
+  { key: 'by', label: 'Started by', w: 140, icon: User, info: 'Who started the run' },
+  { key: 'when', label: 'When', w: 120, icon: Calendar, info: 'Start time' },
+  { key: 'dur', label: 'Duration', w: 90, right: true, icon: Hash, info: 'How long the run took' },
 ];
 
 export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
@@ -772,10 +772,12 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
                     className={cn('relative h-8 cursor-pointer touch-none border-b border-line px-2 text-left text-xs font-normal whitespace-nowrap text-ink-2 select-none hover:bg-hover', c.right && 'text-right', dragCol === c.key && 'bg-active opacity-60')}
                     title="Click for options · drag to reorder"
                   >
-                    <span className={cn('inline-flex items-center gap-1.5', c.right && 'flex-row-reverse')}>
-                      {c.icon && <c.icon size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />}
-                      {c.label}
-                    </span>
+                    <Tip label={c.label} info={c.info || (c.input && (schema[c.input]?.help || `${schema[c.input]?.type || 'text'} input`))}>
+                      <span className={cn('inline-flex items-center gap-1.5', c.right && 'flex-row-reverse')}>
+                        {c.icon && <c.icon size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" />}
+                        {c.label}
+                      </span>
+                    </Tip>
                     <Menu open={colMenu === c.key} onClose={() => setColMenu(null)} className="top-8 left-0 max-h-72 w-48 cursor-default overflow-y-auto text-left font-normal">
                       {(c.key === 'when' || c.key === 'dur') && (
                         <>

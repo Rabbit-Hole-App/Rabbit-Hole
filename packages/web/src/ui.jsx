@@ -589,3 +589,16 @@ export function useHeaderDrag(moveCol) {
   };
   return { down, dragCol, squelch };
 }
+
+// Hover tooltip, Notion-style inverted chrome: bold label line, plain info under it.
+export function Tip({ label, info, children }) {
+  return (
+    <span className="group/tip relative inline-flex min-w-0">
+      {children}
+      <span className="pointer-events-none absolute top-full left-1/2 z-50 mt-1.5 hidden w-max max-w-60 -translate-x-1/2 flex-col rounded-md bg-ink px-2.5 py-1.5 text-left whitespace-normal shadow-pop group-hover/tip:flex">
+        <span className="text-xs font-semibold text-white">{label}</span>
+        {info && <span className="pt-0.5 text-xs font-normal text-white/75">{info}</span>}
+      </span>
+    </span>
+  );
+}
