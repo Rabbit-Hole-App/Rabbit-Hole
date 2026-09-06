@@ -8,7 +8,7 @@ import '@excalidraw/excalidraw/index.css';
 import { Loader2, PenTool } from 'lucide-react';
 import { api, isDark } from './api.js';
 import { FilePeek } from './ask.jsx';
-import { Button, Mark } from './ui.jsx';
+import { Button, ConfirmDialog, Mark } from './ui.jsx';
 import { chartBlock, insertChart } from './ChartBlock.jsx';
 
 const Excalidraw = lazy(() => import('@excalidraw/excalidraw').then((m) => ({ default: m.Excalidraw })));
@@ -150,6 +150,7 @@ export default function Runbook({ app, canEdit, onSaved }) {
   // get a /chart block of recent runs appended. /excalidraw and /chart stay
   // available for hand edits afterwards - it is a normal editable page.
   const [genBusy, setGenBusy] = useState(false);
+  const [confirmGen, setConfirmGen] = useState(false); // a non-empty page warns before it is replaced
   // #src=path:line-line links (written by the runbook agent) open the code peek
   const [srcPeek, setSrcPeek] = useState(null);
   const onSrcClick = (e) => {
@@ -190,10 +191,19 @@ export default function Runbook({ app, canEdit, onSaved }) {
     <div className="flex min-h-0 flex-1 flex-col">
       {canEdit && (
         <div className="flex shrink-0 items-center justify-end pb-1">
-          <Button variant="soft" size="sm" onClick={generate} disabled={genBusy} title="AI writes this page from the deployed code and small.toml">
+          <Button variant="soft" size="sm" onClick={() => (editor.document.some((b) => b.content?.length || b.type !== 'paragraph') ? setConfirmGen(true) : generate())} disabled={genBusy} title="AI writes this page from the deployed code and small.toml">
             {genBusy ? <Loader2 size={13} className="animate-spin" /> : <Mark size={13} />} Generate runbook
           </Button>
         </div>
+      )}
+      {confirmGen && (
+        <ConfirmDialog
+          title="Replace this runbook?"
+          body="Generate runbook erases the current page and writes a fresh one from the deployed code and real runs. This cannot be undone."
+          confirmLabel="Replace"
+          onConfirm={() => { setConfirmGen(false); generate(); }}
+          onCancel={() => setConfirmGen(false)}
+        />
       )}
       {srcPeek && <FilePeek appName={app.name} path={srcPeek.path} line={srcPeek.line} lineEnd={srcPeek.lineEnd} onClose={() => setSrcPeek(null)} />}
       <div className="-mx-[34px] min-h-0 flex-1 overflow-y-auto" onClickCapture={onSrcClick}>{/* cancels bn-editor's 54px gutter down to the panel's 20px */}
