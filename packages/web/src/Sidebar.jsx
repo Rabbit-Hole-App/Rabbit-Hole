@@ -42,6 +42,7 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
   const [teams, setTeams] = useState(null);
   const [people, setPeople] = useState(null);
   const [invite, setInvite] = useState('');
+  const [wsRename, setWsRename] = useState(null); // null until the owner edits the name field
   const [askModel, setAskModel] = useState(() => localStorage.getItem('small.askModel') || 'auto');
   useEffect(() => {
     if ((tab === 'general' || tab === 'people') && !wsInfo) api('/api/workspaces').then(setWsInfo).catch(() => {});
@@ -155,8 +156,38 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
               <div className="text-2xl font-semibold">General</div>
               <div className="pt-2 text-base text-ink-2">The workspace you are in right now</div>
               <Heading>Workspace</Heading>
-              <SettingsRow title="Name" desc="Shown in the sidebar and breadcrumbs">
-                <span className="text-sm text-ink-2">{activeWs ? (activeWs.name || wsName(activeWs.slug)) : '…'}</span>
+              <SettingsRow
+                title="Name"
+                desc={activeWs?.kind === 'custom' && activeWs?.role === 'owner'
+                  ? 'Shown in the sidebar and breadcrumbs. Edit and save.'
+                  : activeWs?.kind === 'custom'
+                    ? 'Shown in the sidebar and breadcrumbs. Only the owner can rename it.'
+                    : 'Named after your email domain'}
+              >
+                {activeWs?.kind === 'custom' && activeWs?.role === 'owner' ? (
+                  <form
+                    className="flex items-center gap-2"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      try {
+                        const d = await api('/api/workspaces/rename', { method: 'POST', body: JSON.stringify({ name: wsRename }) });
+                        toast(`Renamed to ${d.name}`);
+                        setWsInfo(null); // refetch on next open
+                        window.location.reload(); // sidebar + breadcrumbs pick the new name up
+                      } catch (er) { toast(`✗ ${er.message}`); }
+                    }}
+                  >
+                    <Input
+                      value={wsRename ?? (activeWs.name || '')}
+                      onChange={(e) => setWsRename(e.target.value)}
+                      className="w-56"
+                      aria-label="Workspace name"
+                    />
+                    <Button variant="secondary" size="sm" type="submit" disabled={!(wsRename ?? '').trim() || wsRename === activeWs.name}>Save</Button>
+                  </form>
+                ) : (
+                  <span className="text-sm text-ink-2">{activeWs ? (activeWs.name || wsName(activeWs.slug)) : '…'}</span>
+                )}
               </SettingsRow>
               <SettingsRow title="Slug" desc="Its id in app URLs">
                 <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{wsInfo?.active || '…'}</code>

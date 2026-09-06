@@ -127,6 +127,18 @@ async function apiWorkspaceCreate(req, env, user) {
   return json({ slug, name: clean });
 }
 
+// Owner renames the ACTIVE custom workspace; the slug (URLs) stays put.
+async function apiWorkspaceRename(req, env, user) {
+  if (!user.org.startsWith('w-')) return json({ error: 'the domain workspace is named after your email domain' }, 400);
+  const ws = await env.DB.prepare('SELECT * FROM workspaces WHERE slug = ?').bind(user.org).first();
+  if (!ws || ws.owner_email !== user.email) return json({ error: 'only the workspace owner can rename it' }, 403);
+  const { name } = await req.json();
+  const clean = String(name || '').trim();
+  if (!clean || clean.length > 40) return json({ error: 'workspace name required (max 40 chars)' }, 400);
+  await env.DB.prepare('UPDATE workspaces SET name = ? WHERE slug = ?').bind(clean, user.org).run();
+  return json({ ok: true, name: clean });
+}
+
 // Owner invites by email into the ACTIVE custom workspace.
 async function apiWorkspaceMemberAdd(req, env, user) {
   if (!user.org.startsWith('w-')) return json({ error: 'switch to a custom workspace first' }, 400);
@@ -2002,6 +2014,7 @@ export default {
         if (path === '/api/workspaces' && req.method === 'GET') return await apiWorkspaces(env, user);
         if (path === '/api/workspaces' && req.method === 'POST') return await apiWorkspaceCreate(req, env, user);
         if (path === '/api/workspaces/members' && req.method === 'POST') return await apiWorkspaceMemberAdd(req, env, user);
+        if (path === '/api/workspaces/rename' && req.method === 'POST') return await apiWorkspaceRename(req, env, user);
         if (path === '/api/deploy' && req.method === 'POST') return await apiDeploy(req, env, ctx, user, baseUrl);
         if (path === '/api/ask' && req.method === 'POST') return await apiAsk(req, env, ctx, user);
         if (path === '/api/ask/approve' && req.method === 'POST') return await apiAskApprove(req, env, ctx, user, baseUrl);
