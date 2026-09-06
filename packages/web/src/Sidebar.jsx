@@ -363,25 +363,48 @@ function AiModelSettings() {
   };
   const bedrock = ai.provider === 'bedrock';
   const local = ai.provider === 'openai';
+  // every provider below except Claude/Bedrock is the same OpenAI-compatible
+  // plumbing with a preset base url - adding one is adding a row here
+  const PRESETS = [
+    { label: 'OpenAI', base: 'https://api.openai.com/v1', modelPh: 'gpt-5' },
+    { label: 'Google Gemini', base: 'https://generativelanguage.googleapis.com/v1beta/openai', modelPh: 'gemini-2.5-flash' },
+    { label: 'Groq', base: 'https://api.groq.com/openai/v1', modelPh: 'llama-3.3-70b-versatile' },
+    { label: 'Mistral', base: 'https://api.mistral.ai/v1', modelPh: 'mistral-large-latest' },
+    { label: 'DeepSeek', base: 'https://api.deepseek.com/v1', modelPh: 'deepseek-chat' },
+    { label: 'xAI Grok', base: 'https://api.x.ai/v1', modelPh: 'grok-4' },
+    { label: 'Local', base: null, modelPh: 'llama3.1' },
+    { label: 'Custom endpoint', base: null, modelPh: '' },
+  ];
+  const preset = local ? (PRESETS.find((p) => p.base && p.base === ai.openai_base_url) || PRESETS.find((p) => p.label === (ai.openai_base_url ? 'Custom endpoint' : 'Local'))) : null;
+  const providerLabel = bedrock ? 'AWS Bedrock' : local ? preset.label : 'Claude';
   return (
     <div className="flex flex-col gap-3 pt-2">
       <SettingsRow title="Provider" desc="Who runs the models behind chat, review, runbook and watch">
         <Select
-          value={bedrock ? 'AWS Bedrock' : local ? 'Local' : 'Claude'}
-          options={['Claude', 'AWS Bedrock', 'Local']}
-          onChange={(v) => set('provider', v.includes('Bedrock') ? 'bedrock' : v === 'Local' ? 'openai' : 'anthropic')}
+          value={providerLabel}
+          options={['Claude', 'AWS Bedrock', ...PRESETS.map((p) => p.label)]}
+          onChange={(v) => {
+            if (v === 'Claude') return set('provider', 'anthropic');
+            if (v === 'AWS Bedrock') return set('provider', 'bedrock');
+            const p = PRESETS.find((x) => x.label === v);
+            setAi((s) => ({ ...s, provider: 'openai', openai_base_url: p.base || '', model: '' }));
+          }}
         />
       </SettingsRow>
       {local && (
         <>
-          <SettingsRow title="Endpoint" desc="Any OpenAI-compatible URL. A machine on your desk: run cloudflared tunnel --url http://localhost:11434 and paste the printed URL plus /v1">
-            <Input value={ai.openai_base_url || ''} onChange={(e) => set('openai_base_url', e.target.value)} placeholder="https://your-tunnel.trycloudflare.com/v1" className="w-96 font-mono text-xs" />
-          </SettingsRow>
-          <SettingsRow title="API key" desc="Only if the endpoint wants one - most local runtimes don't">
-            <Input value={ai.openai_api_key || ''} onChange={(e) => set('openai_api_key', e.target.value)} placeholder="optional" className="w-72 font-mono text-xs" />
+          {!preset.base && (
+            <SettingsRow title="Endpoint" desc={preset.label === 'Local'
+              ? 'A machine on your desk: run cloudflared tunnel --url http://localhost:11434 and paste the printed URL plus /v1'
+              : 'Any OpenAI-compatible URL, including /v1'}>
+              <Input value={ai.openai_base_url || ''} onChange={(e) => set('openai_base_url', e.target.value)} placeholder="https://your-tunnel.trycloudflare.com/v1" className="w-96 font-mono text-xs" />
+            </SettingsRow>
+          )}
+          <SettingsRow title="API key" desc={preset.base ? `Your ${preset.label} API key` : "Only if the endpoint wants one - most local runtimes don't"}>
+            <Input value={ai.openai_api_key || ''} onChange={(e) => set('openai_api_key', e.target.value)} placeholder={preset.base ? 'sk-…' : 'optional'} className="w-72 font-mono text-xs" />
           </SettingsRow>
           <SettingsRow title="Model" desc="The model name the endpoint serves">
-            <Input value={ai.model || ''} onChange={(e) => set('model', e.target.value)} placeholder="llama3.1" className="w-72 font-mono text-xs" />
+            <Input value={ai.model || ''} onChange={(e) => set('model', e.target.value)} placeholder={preset.modelPh || 'model name'} className="w-72 font-mono text-xs" />
           </SettingsRow>
         </>
       )}
