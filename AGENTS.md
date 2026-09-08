@@ -34,6 +34,7 @@ command. Product truth: `docs/SCOPE.md` and `docs/PRODUCT.md`.
 - `docs/v*.md` — one numbered file per shipped feature wave, in order, with
   the why. Read the highest-numbered few before changing anything substantial.
 - `docs/features/<name>.md` — feature specs. Implement the spec; don't expand it.
+- [Coaching UI and dev deployment](docs/features/coaching.md) — read and update when changing the Agent preview tabs, shared presentation helpers, or dev deployment.
 - `git log` — commit messages carry the reasoning; they are the changelog.
 
 ## Live state (shared, be careful)
@@ -42,3 +43,7 @@ One live Cloudflare worker (`small-cp`), one D1 database (`small`), one npm
 package (`small-deploy` + `small-skill`) are shared by every worktree and
 every agent session. Never deploy the control plane from one branch's view
 alone. `make test-unit` before every commit.
+
+`small-cp-dev` is a separate frontend preview using the existing live control plane.
+Its app actions use real shared data. Sessions, Sources, Capture, and Decisions
+remain sample UI and are enabled only in dev builds. See the Coaching spec above.

@@ -614,6 +614,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
       {menu && (
         <Menu open={menuFor === a.name} onClose={() => setMenuFor(null)} className="top-8 right-0 w-52">
           <MenuItem icon={ExternalLink} onClick={() => { setMenuFor(null); navigate(`/apps/${a.name}`); }}>Open</MenuItem>
+          <MenuItem icon={Share2} onClick={() => { setMenuFor(null); navigate(`/apps/${a.name}?share=1`); }}>Share</MenuItem>
           <MenuItem
             icon={Link}
             onClick={() => { setMenuFor(null); navigator.clipboard.writeText(`${window.location.origin}/apps/${a.name}`); toast('Link copied'); }}

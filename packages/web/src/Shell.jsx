@@ -60,6 +60,7 @@ export default function Shell({ children }) {
       {/* Notion slide: the wrapper animates width to 0 while the fixed-width inner
           translates left, so the sidebar glides out instead of blinking away. */}
       <div
+        data-shell-sidebar
         style={{ width: collapsed ? 0 : width, transition: resizing ? 'none' : 'width 200ms cubic-bezier(0.25,1,0.35,1)' }}
         className="shrink-0 overflow-hidden max-md:hidden"
       >

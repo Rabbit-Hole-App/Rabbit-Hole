@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Minimize2 } from 'lucide-react';
 import './index.css';
 import App from './App.jsx';
 import { AskPanel } from './ask.jsx';
@@ -8,7 +9,7 @@ import SearchModal from './Search.jsx';
 import SharePage from './SharePage.jsx';
 import Shell from './Shell.jsx';
 import { applyTheme, getTheme, navigate, wsName } from './api.js';
-import { Toasts } from './ui.jsx';
+import { ExpandedPageFrame, Toasts } from './ui.jsx';
 
 applyTheme(getTheme()); // before first paint - no light flash for dark users
 
@@ -27,7 +28,7 @@ function ChatPage() {
     <Shell>
       {(data) => (
         <main className="flex h-screen min-w-0 flex-1 flex-col">
-          <div className="mx-auto flex h-full w-full max-w-[780px] min-h-0 flex-col px-6 py-6">
+          <ExpandedPageFrame>
             <div className="flex shrink-0 items-center gap-1 pb-6 text-sm text-ink-2">
               <button className={crumb} onClick={() => navigate('/apps')}>{data?.orgName || wsName(data?.org)}</button>
               <span>/</span>
@@ -40,9 +41,10 @@ function ChatPage() {
               )}
               <span>/</span>
               <span className="px-1 text-ink">Chat</span>
+              <button aria-label="Minimize chat" title="Back to Agent" onClick={() => navigate(app ? '/apps/' + encodeURIComponent(app) + '?tab=agent' : '/apps')} className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink"><Minimize2 size={14} strokeWidth={1.5} /></button>
             </div>
             <AskPanel scope={app ? { app } : {}} appName={app} placeholder={app ? `Ask about ${app}…` : 'Ask about your workspace…'} autoFocus />
-          </div>
+          </ExpandedPageFrame>
         </main>
       )}
     </Shell>

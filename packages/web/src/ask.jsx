@@ -3,7 +3,8 @@
 // ambiguity comes back as { choose } and renders candidate pills. ───
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUp, AtSign, BookOpen, Copy, Crown, Feather, FileText, Globe, History, Loader2, MoreHorizontal, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
-import { ago, api, wsHeaders } from './api.js';
+import { ago, api, navigate, wsHeaders } from './api.js';
+import { colorLine } from './code.jsx';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
@@ -32,32 +33,28 @@ function inline(s) {
 // A source token like "job.py:15" or "small.toml" - clickable when onFile is wired.
 const FILE_TOKEN = /^([\w./-]+\.(?:py|toml|txt|md|json|csv|cfg|ini|yaml|yml))(?::(\d+)(?:-(\d+))?)?$/;
 
-function SourcesLine({ text, onFile }) {
-  const [head, rest] = [text.slice(0, 9), text.slice(9)]; // "Sources: "
-  const parts = rest.split(/([,;]\s*)/);
+function SourcesLine({ text, onFile, onRun, onDecision }) {
+  const parts = text.slice(9).split(/[,;]/).map(part => part.trim().replace(/^\x60(.*)\x60$/, '$1')).filter(Boolean);
+  const tagClass = 'inline-flex max-w-full items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-left text-xs text-ink-2';
   return (
-    <div className="pt-1 text-xs text-ink-3">
-      {head}
-      {parts.map((p, i) => {
-        const m = onFile && p.trim().match(FILE_TOKEN);
-        return m ? (
-          <button
-            key={i}
-            type="button"
-            onClick={() => onFile(m[1], m[2] ? Number(m[2]) : null, m[3] ? Number(m[3]) : null)}
-            className="cursor-pointer text-ink-2 hover:text-ink hover:underline"
-          >
-            {p}
-          </button>
-        ) : (
-          <span key={i}>{p}</span>
-        );
+    <div aria-label="Answer evidence" className="flex flex-wrap gap-2 pt-2">
+      {parts.map((part, i) => {
+        const file = part.replace(/[–—]/g, '-').match(FILE_TOKEN);
+        const run = part.match(/^(?:run\s+)?(r-[\w-]+)$/i);
+        const decision = part.match(/^decision:([a-f0-9-]{36})$/);
+        const open = file && onFile ? () => onFile(file[1], file[2] ? Number(file[2]) : null, file[3] ? Number(file[3]) : null)
+          : run && onRun ? () => onRun(run[1])
+          : decision && onDecision ? () => onDecision(decision[1]) : null;
+        const label = run ? 'Run · ' + run[1] : decision ? 'Approved decision' : part;
+        const Icon = run ? Play : decision ? Shield : FileText;
+        return open ? <button key={i} type="button" onClick={open} title={'Open ' + label} className={tagClass + ' cursor-pointer hover:bg-hover hover:text-ink'}><Icon size={12} strokeWidth={1.5} className="shrink-0" /><span className="break-all">{label}</span></button>
+          : <span key={i} className={tagClass}><Icon size={12} strokeWidth={1.5} className="shrink-0" /><span className="break-all">{label}</span></span>;
       })}
     </div>
   );
 }
 
-export function Md({ text, onFile }) {
+export function Md({ text, onRun, onFile }) {
   const lines = String(text).split('\n');
   const out = [];
   let bullets = null;
@@ -86,7 +83,7 @@ export function Md({ text, onFile }) {
       bullets = null;
     }
     if (l.startsWith('Sources: ')) {
-      out.push(<SourcesLine key={i} text={l} onFile={onFile} />);
+      out.push(<SourcesLine key={i} text={l} onRun={onRun} onFile={onFile} />);
     } else if (l.trim()) {
       out.push(<p key={i} className="my-1">{inline(l)}</p>);
     }
@@ -96,26 +93,13 @@ export function Md({ text, onFile }) {
   return <div className="text-sm leading-normal">{out}</div>;
 }
 
-// Tiny per-line tokenizer for the file peek - comments, strings, keywords,
-// numbers. React spans only, no HTML. ponytail: no multi-line strings, and
-// python keywords double for toml well enough.
-const PY_TOKEN = /(#.*$)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\b(def|class|import|from|return|if|elif|else|for|while|try|except|finally|with|as|in|not|and|or|None|True|False|lambda|raise|pass|break|continue|global|yield|assert|del|is|print)\b|\b(\d+(?:\.\d+)?)\b/g;
-const TOKEN_COLOR = { c: 'var(--tok-c)', s: 'var(--tok-s)', k: 'var(--tok-k)', n: 'var(--tok-n)' };
-
-function colorLine(line) {
-  const out = [];
-  let last = 0;
-  for (const m of line.matchAll(PY_TOKEN)) {
-    if (m.index > last) out.push(line.slice(last, m.index));
-    const kind = m[1] ? 'c' : m[2] ? 's' : m[3] ? 'k' : 'n';
-    out.push(<span key={m.index} style={{ color: TOKEN_COLOR[kind] }}>{m[0]}</span>);
-    last = m.index + m[0].length;
-  }
-  if (last < line.length) out.push(line.slice(last));
-  return out.length ? out : ' ';
-}
-
 // The cited file in a side panel, scrolled to (and highlighting) the cited line.
+const evidenceCrumbs = (appName, label, onBack) => [
+  { label: 'Apps', onClick: () => navigate('/apps') },
+  ...(appName ? [{ label: appName, onClick: () => navigate('/apps/' + encodeURIComponent(appName)) }, { label: 'Agent' }] : []),
+  { label: 'Chat', onClick: onBack }, { label },
+];
+
 export function FilePeek({ appName, path, line, lineEnd, onClose }) {
   const [content, setContent] = useState(null);
   // a citation spanning the whole file highlights nothing: all-green is no signal
@@ -135,6 +119,8 @@ export function FilePeek({ appName, path, line, lineEnd, onClose }) {
   return (
     <SlidePanel
       width={560}
+      expandable
+      breadcrumbs={evidenceCrumbs(appName, path, onClose)}
       z={40}
       onClose={onClose}
       title={
@@ -151,7 +137,7 @@ export function FilePeek({ appName, path, line, lineEnd, onClose }) {
         </>
       }
     >
-      <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+      <div data-panel-content className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-5">
         {err && <div className="text-sm text-ink-2">✗ {err}</div>}
         {content == null && !err && <Loader2 size={14} className="animate-spin text-ink-3" />}
         {content != null && (
@@ -294,6 +280,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const [rowMenu, setRowMenu] = useState(null); // thread id with its ⋯ open
   const [renaming, setRenaming] = useState(null); // { id, value }
   const [confirmDel, setConfirmDel] = useState(null); // thread pending delete
+  const [runPeek, setRunPeek] = useState(null);
   const [filePeek, setFilePeek] = useState(null); // { path, line } from a Sources click
   const fileApp = appName || scope.app || null; // /api/ask/file needs the app name
   const scopeKind = scope.run ? 'run' : scope.app ? 'app' : 'org';
@@ -446,6 +433,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           </button>
         </div>
       )}
+      {runPeek && (
+        <SlidePanel key={runPeek} width={560} expandable breadcrumbs={evidenceCrumbs(fileApp, 'Run ' + runPeek, () => setRunPeek(null))} title={'Run ' + runPeek} onClose={() => setRunPeek(null)}>
+          <div data-panel-content className="min-h-0 flex-1 overflow-y-auto px-5 pb-5"><RunResultCard runId={runPeek} app={fileApp ? { name: fileApp } : null} /></div>
+        </SlidePanel>
+      )}
       {filePeek && <FilePeek appName={fileApp} path={filePeek.path} line={filePeek.line} lineEnd={filePeek.lineEnd} onClose={() => setFilePeek(null)} />}
       {confirmDel && (
         <ConfirmDialog
@@ -550,7 +542,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             ) : m.role === 'run' ? (
               <RunResultCard runId={m.runId} app={fileApp ? { name: fileApp } : null} />
             ) : m.content ? (
-              <Md text={m.content} onFile={fileApp ? (path, ln, lnEnd) => setFilePeek({ path, line: ln, lineEnd: lnEnd }) : null} />
+              <Md text={m.content} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, ln, lnEnd) => { setRunPeek(null); setFilePeek({ path, line: ln, lineEnd: lnEnd }); } : null} />
             ) : (
               <Loader2 size={14} className="animate-spin text-ink-3" />
             )}

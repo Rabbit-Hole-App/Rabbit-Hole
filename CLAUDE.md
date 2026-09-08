@@ -23,6 +23,7 @@ Read docs/SCOPE.md for the product and docs/v1_mvp_shipped.md for what's built a
 - `make test-unit` before every commit. `make test-integration` before merge.
 - Mark anything deliberately skipped with a `ponytail:` comment.
 - Feature specs live in `docs/features/<name>.md`. Implement the spec; don't expand it.
+- Before changing Coaching or its dev deployment, read [docs/features/coaching.md](docs/features/coaching.md). Update that document when its UI, deployment steps, or verification status change.
 - Never guess identifiers or state — DB names, paths, flags, what's applied where. Read the config/source/remote state first; every suggested command must come from a verified source, not memory or pattern-matching. One wrong guessed command costs more than three verification reads.
 
 ---

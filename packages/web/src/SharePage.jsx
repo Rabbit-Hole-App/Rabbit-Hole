@@ -9,6 +9,7 @@ const Github = ({ size = 14 }) => (
 );
 import { ago, api, cronHuman, cronList, fmtTime, navigate, wsName } from './api.js';
 import { AskPanel } from './ask.jsx';
+import CoachingPanel from './coaching/CoachingPanel.jsx';
 import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
 import Shell from './Shell.jsx';
 import { Avatar, Button, Chk, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, ShareInput, SkeletonRows, Tabs, TabsContent, TabsList, TabsTrigger, Tip, cn, toast } from './ui.jsx';
@@ -145,6 +146,18 @@ function SharePopover({ app, onChanged }) {
   const [orgTeams, setOrgTeams] = useState([]);
   const [pool, setPool] = useState([]);
   const ref = useRef(null);
+  useEffect(() => {
+    const openFromSidebar = () => {
+      const url = new URL(window.location.href);
+      if (url.pathname !== `/apps/${app.name}` || url.searchParams.get('share') !== '1') return;
+      setOpen(true);
+      url.searchParams.delete('share');
+      window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+    };
+    openFromSidebar();
+    window.addEventListener('popstate', openFromSidebar);
+    return () => window.removeEventListener('popstate', openFromSidebar);
+  }, [app.name]);
   useEffect(() => {
     if (!open) return;
     if (app.canEdit) {
@@ -439,7 +452,7 @@ function AppPage({ slug, runId, reloadShell }) {
   const [app, setApp] = useState(null);
   const [error, setError] = useState(null);
   const [peek, setPeek] = useState(null); // runId shown in the side peek
-  const [tab, setTab] = useState(null); // null until the app's kind picks the default
+  const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get('tab') === 'agent' ? 'agent' : null); // null until the app's kind picks the default
   const [prefill, setPrefill] = useState(null); // Run-again inputs for the form
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -480,7 +493,7 @@ function AppPage({ slug, runId, reloadShell }) {
   }).catch(setError);
   // AppPage survives sidebar navigation (same element position) - per-app state
   // must reset with the slug or app A's peek/tab/prefill leak into app B.
-  useEffect(() => { setApp(null); setError(null); setPeek(null); setTab(null); setPrefill(null); load(); }, [slug]);
+  useEffect(() => { setApp(null); setError(null); setPeek(null); setTab(new URLSearchParams(window.location.search).get('tab') === 'agent' ? 'agent' : null); setPrefill(null); load(); }, [slug]);
 
   // Run again (peek footer, table hover ▶): prefill the form, land on the Run tab.
   const runAgain = (inputs) => { setPeek(null); setPrefill({ ...inputs }); setTab('run'); };
@@ -751,6 +764,7 @@ function AppPage({ slug, runId, reloadShell }) {
               </TabsContent>
 
               <TabsContent value="agent" className="flex min-h-0 flex-1 flex-col pt-4">
+                <CoachingPanel appName={app.name}>
                 {/* the page itself is scroll-locked on this tab; the pane flexes to the
                     viewport bottom so the input is static and only messages scroll */}
                 <div className="flex min-h-0 flex-1 flex-col">
@@ -771,6 +785,7 @@ function AppPage({ slug, runId, reloadShell }) {
                     }
                   />
                 </div>
+                </CoachingPanel>
               </TabsContent>
 
               {/* ponytail: Learn TabsContent hidden with its trigger above */}

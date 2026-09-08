@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import { clsx as cn } from 'clsx';
-import { Check, ChevronDown, ChevronRight, Clock, Copy as CopyIcon, File as FileIcon, Globe, Play, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Clock, Copy as CopyIcon, File as FileIcon, Globe, Maximize2, Minimize2, Play, Upload, X } from 'lucide-react';
 
 export { cn };
 
@@ -230,8 +230,44 @@ export function Toasts() {
 
 // ─── SlidePanel - the Notion side peek. A real slide: mounted transform transition
 // (200ms ease-out per notion.md), GPU-composited, animates in AND out. ───
-export function SlidePanel({ title, width = 560, z = 30, onClose, children }) {
+export function useSidebarInset() {
+  const read = () => Math.max(0, document.querySelector('[data-shell-sidebar]')?.getBoundingClientRect().right || 0);
+  const [inset, setInset] = useState(read);
+  useEffect(() => {
+    const sidebar = document.querySelector('[data-shell-sidebar]');
+    const update = () => setInset(read());
+    const observer = new ResizeObserver(update);
+    if (sidebar) observer.observe(sidebar);
+    window.addEventListener('resize', update);
+    update();
+    return () => { observer.disconnect(); window.removeEventListener('resize', update); };
+  }, []);
+  return inset;
+}
+
+// Chat's existing page dimensions are shared by every enlarged view.
+export function ExpandedPageFrame({ expanded = true, children }) {
+  return <div className={expanded
+    ? 'expanded-page-frame mx-auto flex h-full w-full max-w-[780px] min-h-0 flex-col px-6 py-6'
+    : 'flex min-h-0 w-full flex-1 flex-col'}>{children}</div>;
+}
+
+export function PeekBreadcrumbs({ items }) {
+  return <nav aria-label="Breadcrumb" className="flex shrink-0 flex-wrap items-center gap-1 pb-6 text-sm text-ink-2">
+    {items.map((item, i) => <span key={i} className="inline-flex min-w-0 items-center gap-1">
+      {i > 0 && <span aria-hidden="true">/</span>}
+      {item.onClick ? <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={item.onClick}>{item.label}</button>
+        : <span className="truncate px-1" aria-current={i === items.length - 1 ? 'page' : undefined}>{item.label}</span>}
+    </span>)}
+  </nav>;
+}
+
+export function SlidePanel({ title, width = 560, z = 30, onClose, children, expandable = false, breadcrumbs = [] }) {
   const [shown, setShown] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const expandedRef = useRef(false);
+  expandedRef.current = expanded;
+  const sidebarInset = useSidebarInset();
   const closing = useRef(false);
   useEffect(() => {
     // double rAF so the initial off-screen frame paints before the transition starts
@@ -245,7 +281,7 @@ export function SlidePanel({ title, width = 560, z = 30, onClose, children }) {
     setTimeout(onClose, 210);
   };
   useEffect(() => {
-    const esc = (e) => e.key === 'Escape' && close();
+    const esc = (e) => { if (e.key === 'Escape') { if (expandedRef.current) setExpanded(false); else close(); } };
     window.addEventListener('keydown', esc);
     return () => window.removeEventListener('keydown', esc);
   }, []);
@@ -257,18 +293,22 @@ export function SlidePanel({ title, width = 560, z = 30, onClose, children }) {
       role="dialog"
       aria-label={typeof title === 'string' ? title : undefined}
       style={{
-        width,
+        width: expanded ? 'calc(100vw - ' + sidebarInset + 'px)' : width,
+        maxWidth: expandable ? 'calc(100vw - ' + sidebarInset + 'px)' : undefined,
         zIndex: z,
         transform: shown ? 'translate3d(0,0,0)' : 'translate3d(102%,0,0)',
         transition: 'transform 200ms cubic-bezier(0.25,1,0.35,1)', // one motion constant with the sidebar slide (Shell.jsx)
       }}
-      className="fixed inset-y-0 right-0 flex max-w-full flex-col overflow-x-clip border-l border-line bg-white will-change-transform"
+      className={cn('fixed inset-y-0 right-0 flex max-w-full flex-col overflow-x-clip bg-white will-change-transform', !expanded && 'border-l border-line')}
     >
-      <div className="flex h-11 shrink-0 items-center justify-between pr-3 pl-4">
+      <ExpandedPageFrame expanded={expanded}>
+      {expanded && breadcrumbs.length > 0 && <PeekBreadcrumbs items={breadcrumbs} />}
+      <div className={cn('flex h-11 shrink-0 items-center justify-between', !expanded && 'pr-3 pl-4')}>
         <div className="flex min-w-0 items-center gap-2 text-[15px] font-semibold">{title}</div>
-        <IconBtn aria-label="Close" onClick={close}><X size={14} /></IconBtn>
+        <div className="ml-2 flex shrink-0 gap-1">{expandable && <IconBtn aria-label={expanded ? 'Minimize' : 'Open as page'} title={expanded ? 'Minimize' : 'Open as page'} onClick={() => setExpanded(!expanded)}>{expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}</IconBtn>}<IconBtn aria-label="Close" onClick={close}><X size={14} /></IconBtn></div>
       </div>
       {children}
+      </ExpandedPageFrame>
     </div>,
     document.body,
   );
