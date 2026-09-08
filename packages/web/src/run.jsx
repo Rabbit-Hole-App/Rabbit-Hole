@@ -2,7 +2,7 @@
 // and the runs database (Logs tab, jobs). Design: design/flow.md §3b/3c/§4. ───
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, ArrowUpDown, Calendar, Circle, Clock, Copy as CopyIcon, Download, ExternalLink, Eye,
+  AlertTriangle, ArrowLeft, ArrowUpDown, Calendar, ChevronsUpDown, Circle, Clock, Copy as CopyIcon, Download, ExternalLink, Eye,
   File as FileIcon, Filter as FilterIcon, Folder, Hash, Inbox, Loader2, Maximize2, MessageCircle,
   Paperclip, Play, Plus, ScrollText, Search as SearchIcon, Type, User, X,
 } from 'lucide-react';
@@ -429,7 +429,7 @@ function useRun(runId) {
         loaded = true;
         cursor.current = d.cursor;
         setMeta(d);
-        if (d.lines.length) setLines((l) => [...l, ...d.lines]);
+        if (d.lines.length) setLines((l) => [...l, ...d.lines.map((t, i) => ({ t: String(t), ts: d.lineTs?.[i] || null }))]);
         if (d.status === 'running') setTimeout(() => !stop && tick(), 1000);
       } catch (e) {
         if (stop) return;
@@ -477,13 +477,33 @@ function Output({ runId, name, size, label }) {
   );
 }
 
-const H3 = ({ children }) => <h3 className="pt-5 pb-1.5 text-sm font-semibold">{children}</h3>;
+// ─── Run page sections as cards (Inputs / Output / Log) + log line dressing. ───
+const Card = ({ title, right, pad = true, children }) => (
+  <div className="mt-5 overflow-hidden rounded-md border border-line">
+    <div className="flex h-9 items-center gap-2 border-b border-line bg-side px-3">
+      <span className="text-sm font-semibold">{title}</span>
+      <span className="ml-auto flex items-center gap-1.5">{right}</span>
+    </div>
+    <div className={pad ? 'p-3' : undefined}>{children}</div>
+  </div>
+);
+
+const ERR_RE = /\b(error|traceback|exception|fatal)\b|✗/i;
+const WARN_RE = /\bwarn(ing)?\b/i;
+const lineTone = (t) => (ERR_RE.test(t) ? 'text-danger' : WARN_RE.test(t) ? 'text-warn' : /^runner: /.test(t) ? 'text-ink-3' : '');
+const linkify = (t) =>
+  t.split(/(https?:\/\/\S+)/g).map((p, i) =>
+    /^https?:\/\//.test(p)
+      ? <a key={i} href={p} target="_blank" rel="noopener" className="underline decoration-ink-3 underline-offset-2 hover:text-accent">{p}</a>
+      : p);
+const parseT = (s) => new Date(/[zZ]$/.test(s) ? s : s.replace(' ', 'T') + 'Z');
 
 // ─── The run page content (flow.md §4) - same body in the 480px peek and the full page. ───
 export function RunView({ runId, app, onRunAgain }) {
   const { meta, lines } = useRun(runId);
   const [outputs, setOutputs] = useState(null);
-  const [showAll, setShowAll] = useState(false);
+  const [logQ, setLogQ] = useState(''); // filter box in the Log card header
+  const [openFolds, setOpenFolds] = useState(() => new Set()); // fold start indexes clicked open
   const logRef = useRef(null);
   const settled = meta && meta.status && meta.status !== 'running';
 
@@ -505,7 +525,37 @@ export function RunView({ runId, app, onRunAgain }) {
   const dur = fmtDur(secs(meta.startedAt, meta.finishedAt));
   const inputEntries = Object.entries(meta.inputs || {});
   const fileFor = (k) => (meta.inputFiles || []).find((f) => f.name.replace(/\.[^.]+$/, '') === k);
-  const visible = showAll ? lines : lines.slice(-20);
+
+  // Log rows: filter beats folds; otherwise plain stretches > FOLD_MIN collapse to
+  // first 2 + last 2 with an expander. Error/warn/runner lines break stretches, so
+  // the interesting lines are never hidden.
+  const FOLD_MIN = 25;
+  const q = logQ.trim().toLowerCase();
+  const rows = [];
+  if (q) {
+    lines.forEach((l, i) => l.t.toLowerCase().includes(q) && rows.push({ l, i }));
+  } else {
+    let i = 0;
+    while (i < lines.length) {
+      if (lineTone(lines[i].t)) { rows.push({ l: lines[i], i }); i++; continue; }
+      let j = i;
+      while (j < lines.length && !lineTone(lines[j].t)) j++;
+      if (j - i > FOLD_MIN && !openFolds.has(i)) {
+        rows.push({ l: lines[i], i }, { l: lines[i + 1], i: i + 1 });
+        rows.push({ fold: i, count: j - i - 4 });
+        rows.push({ l: lines[j - 2], i: j - 2 }, { l: lines[j - 1], i: j - 1 });
+      } else {
+        for (let k = i; k < j; k++) rows.push({ l: lines[k], i: k });
+      }
+      i = j;
+    }
+  }
+  const hasErr = lines.some((l) => ERR_RE.test(l.t));
+  const off = (ts) => (ts && meta.startedAt ? `+${Math.max(0, (parseT(ts) - parseT(meta.startedAt)) / 1000).toFixed(1)}s` : undefined);
+  const jumpToError = () => {
+    setLogQ('');
+    setTimeout(() => logRef.current?.querySelector('[data-err]')?.scrollIntoView({ block: 'center' }), 0);
+  };
 
   return (
     <div>
@@ -523,8 +573,7 @@ export function RunView({ runId, app, onRunAgain }) {
       )}
 
       {inputEntries.length > 0 && (
-        <>
-          <H3>Inputs</H3>
+        <Card title="Inputs">
           {/* no width cap - the peek's 480px clamps it there; the full page gets the room */}
           <div className="grid grid-cols-[160px_1fr] text-sm">
             {inputEntries.map(([k, v]) => {
@@ -564,25 +613,69 @@ export function RunView({ runId, app, onRunAgain }) {
               );
             })}
           </div>
-        </>
+        </Card>
       )}
 
-      <H3>Output</H3>
-      {!settled && <div className="flex items-center gap-1.5 text-sm text-ink-2"><Loader2 size={14} className="animate-spin" /> Waiting…</div>}
-      {settled && outputs && !outputs.length && <div className="text-sm text-ink-2">No outputs.</div>}
-      {settled && sorted.map((o) => <Output key={o.name} runId={runId} name={o.name} size={o.size} label={byPath(o.name)?.[1]?.label} />)}
+      <Card title="Output">
+        {!settled && <div className="flex items-center gap-1.5 text-sm text-ink-2"><Loader2 size={14} className="animate-spin" /> Waiting…</div>}
+        {settled && outputs && !outputs.length && <div className="text-sm text-ink-2">No outputs.</div>}
+        {settled && sorted.map((o) => <Output key={o.name} runId={runId} name={o.name} size={o.size} label={byPath(o.name)?.[1]?.label} />)}
+      </Card>
 
-      <H3>Log</H3>
-      {lines.length === 0 ? (
-        <div className="text-sm text-ink-2">{meta.status === 'running' ? 'Waiting for output…' : 'No log.'}</div>
-      ) : (
-        <>
-          <CodeBlock scrollRef={logRef} className="no-scrollbar max-h-[360px] overflow-y-auto">{visible.join('\n')}</CodeBlock>
-          {!showAll && lines.length > 20 && (
-            <button className="mt-1 cursor-pointer text-sm text-ink-2 hover:text-ink" onClick={() => setShowAll(true)}>Show all {lines.length} lines</button>
-          )}
-        </>
-      )}
+      <Card
+        title="Log"
+        pad={false}
+        right={
+          <>
+            {lines.length > 5 && (
+              <input
+                value={logQ}
+                onChange={(e) => setLogQ(e.target.value)}
+                placeholder="Filter…"
+                aria-label="Filter log lines"
+                className="h-6 w-32 rounded-sm bg-code px-2 text-xs outline-none placeholder:text-ink-3 focus:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]"
+              />
+            )}
+            {hasErr && (
+              <button
+                onClick={jumpToError}
+                className="flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-danger hover:bg-hover"
+                title="Jump to the first error line"
+              >
+                <AlertTriangle size={12} strokeWidth={1.5} /> error
+              </button>
+            )}
+            {lines.length > 0 && (
+              <IconBtn aria-label="Copy log" title="Copy log" onClick={() => { navigator.clipboard.writeText(lines.map((l) => l.t).join('\n')); toast('Copied'); }}>
+                <CopyIcon size={13} strokeWidth={1.5} />
+              </IconBtn>
+            )}
+          </>
+        }
+      >
+        {lines.length === 0 ? (
+          <div className="p-3 text-sm text-ink-2">{meta.status === 'running' ? 'Waiting for output…' : 'No log.'}</div>
+        ) : (
+          <div ref={logRef} className="no-scrollbar max-h-[360px] overflow-y-auto p-3 font-mono text-[13px] leading-normal whitespace-pre-wrap">
+            {rows.length === 0 && <div className="text-ink-2">No lines match "{logQ}"</div>}
+            {rows.map((r) =>
+              r.fold != null ? (
+                <button
+                  key={`fold-${r.fold}`}
+                  onClick={() => setOpenFolds((s) => new Set(s).add(r.fold))}
+                  className="my-0.5 flex h-6 cursor-pointer items-center gap-1.5 rounded-sm px-1.5 font-sans text-xs text-ink-2 hover:bg-hover hover:text-ink"
+                >
+                  <ChevronsUpDown size={12} strokeWidth={1.5} /> show {r.count} more lines
+                </button>
+              ) : (
+                <div key={r.i} data-err={ERR_RE.test(r.l.t) || undefined} title={off(r.l.ts)} className={lineTone(r.l.t) || undefined}>
+                  {r.l.t ? linkify(r.l.t) : ' '}
+                </div>
+              ),
+            )}
+          </div>
+        )}
+      </Card>
 
       <div className="pt-5 pb-2">
         <Button variant="secondary" onClick={() => onRunAgain(meta.inputs || {})}><Play size={16} strokeWidth={1.5} /> Run again</Button>

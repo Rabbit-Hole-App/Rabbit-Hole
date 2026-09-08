@@ -66,6 +66,11 @@ def _flush(exit_code=None):
 def _reader(stream):
     for raw in iter(stream.readline, b""):
         line = raw.decode("utf-8", "replace").rstrip("\r\n")
+        # tqdm-style progress redraws with \r and only ends the line with \n once:
+        # all frames arrive as one line - keep the final frame, drop the spam
+        if "\r" in line:
+            frames = [s for s in line.split("\r") if s.strip()]
+            line = frames[-1] if frames else ""
         with _lock:
             _buf.append(line)
 
