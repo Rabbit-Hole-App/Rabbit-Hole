@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, CircleArrowUp, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, LayoutGrid, LayoutPanelLeft, Link, LogOut, Mail, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, LayoutGrid, LayoutPanelLeft, Link, LogOut, Mail, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName } from './api.js';
 import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Select, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 
@@ -85,11 +85,6 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
           <NavBtn id="teamspaces" icon={LayoutPanelLeft}>Teamspaces</NavBtn>
           <NavBtn id="security" icon={Shield}>Security</NavBtn>
           <NavBtn id="identity" icon={BadgeCheck}>Identity</NavBtn>
-          <NavLabel>Access & billing</NavLabel>
-          <div onClick={() => setTab('billing')} className="flex h-7 cursor-pointer items-center gap-2 rounded-sm px-2 text-sm text-accent hover:bg-hover">
-            <CircleArrowUp size={15} strokeWidth={1.5} className="shrink-0" />
-            Upgrade plan
-          </div>
         </div>
         <div className="relative flex-1 overflow-y-auto">
           <IconBtn aria-label="Close" onClick={onClose} className="absolute top-3 right-3"><X size={14} /></IconBtn>
@@ -318,14 +313,6 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
               <SettingsRow title="Home workspace" desc="Everyone with this email domain shares it">
                 <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{email ? email.split('@')[1] : ''}</code>
               </SettingsRow>
-            </>
-          )}
-          {tab === 'billing' && (
-            <>
-              <div className="text-2xl font-semibold">Upgrade plan</div>
-              <div className="pt-2 text-base text-ink-2">Billing</div>
-              <Heading>Plan</Heading>
-              <SettingsRow title="Beta" desc="small deploy is free while in beta. No card needed." />
             </>
           )}
           {TITLES[tab] && (
