@@ -1853,11 +1853,16 @@ async function apiRunOutputGet(env, user, runId, name) {
   if (run instanceof Response) return run;
   const obj = env.RUNS && (await env.RUNS.get(`runs/${runId}/outputs/${name}`));
   if (!obj) return json({ error: `no output ${name} on ${runId}` }, 404);
-  // Real types for what the dashboard renders inline (thumbnails, json/csv/txt);
-  // octet-stream downloads the rest. No svg - inline svg on this origin is stored XSS.
-  const TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', json: 'application/json', csv: 'text/csv', txt: 'text/plain' };
+  // Real types for what the dashboard renders inline (thumbnails, json/csv/txt)
+  // or opens in a tab (html, pdf); octet-stream downloads the rest.
+  // No svg - inline svg on this origin is stored XSS.
+  const TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', json: 'application/json', csv: 'text/csv', txt: 'text/plain', html: 'text/html', htm: 'text/html', pdf: 'application/pdf' };
   const type = TYPES[(name.match(/\.(\w+)$/) || [])[1]?.toLowerCase()] || 'application/octet-stream';
-  return new Response(obj.body, { headers: { 'Content-Type': type, 'Content-Length': String(obj.size), 'X-Content-Type-Options': 'nosniff' } });
+  const headers = { 'Content-Type': type, 'Content-Length': String(obj.size), 'X-Content-Type-Options': 'nosniff' };
+  // user HTML must never run same-origin - the session cookie lives here. sandbox
+  // gives it an opaque origin: scripts run, but no cookies, no same-origin /api reads.
+  if (type === 'text/html') headers['Content-Security-Policy'] = 'sandbox allow-scripts';
+  return new Response(obj.body, { headers });
 }
 
 // ---------- runner-auth routes (per-run token, not CLI auth) ----------

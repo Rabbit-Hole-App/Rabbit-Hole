@@ -2,7 +2,7 @@
 // and the runs database (Logs tab, jobs). Design: design/flow.md §3b/3c/§4. ───
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, ArrowUpDown, Calendar, Circle, Clock, Copy as CopyIcon, Download, Eye,
+  ArrowLeft, ArrowUpDown, Calendar, Circle, Clock, Copy as CopyIcon, Download, ExternalLink, Eye,
   File as FileIcon, Filter as FilterIcon, Folder, Hash, Inbox, Loader2, Maximize2, MessageCircle,
   Paperclip, Play, Plus, ScrollText, Search as SearchIcon, Type, User, X,
 } from 'lucide-react';
@@ -451,6 +451,7 @@ function Output({ runId, name, size, label }) {
   const url = `/api/runs/${runId}/outputs/${encodeURIComponent(name)}`;
   const isImg = /\.(jpe?g|png|gif|webp)$/i.test(name) && size < 2 * 1024 * 1024; // no svg - served nosniff, won't render
   const isText = /\.(json|csv|txt)$/i.test(name) && size < 4096;
+  const opensInTab = /\.(html?|pdf|jpe?g|png|gif|webp|json|txt)$/i.test(name); // types the API serves with a real Content-Type
   const [text, setText] = useState(null);
   useEffect(() => {
     if (isText) fetch(url).then((r) => r.text()).then(setText).catch(() => {});
@@ -461,6 +462,11 @@ function Output({ runId, name, size, label }) {
         <Paperclip size={16} strokeWidth={1.5} className="shrink-0 text-ink-3" />
         <span className="min-w-0 truncate">{label || name}</span>
         <span className="text-xs text-ink-2">{fmtBytes(size)}</span>
+        {opensInTab && (
+          <a href={url} target="_blank" rel="noopener" className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink" aria-label={`Open ${name} in a new tab`} title="Open in new tab">
+            <ExternalLink size={16} strokeWidth={1.5} />
+          </a>
+        )}
         <a href={url} download={name} className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink" aria-label={`Download ${name}`}>
           <Download size={16} strokeWidth={1.5} />
         </a>
