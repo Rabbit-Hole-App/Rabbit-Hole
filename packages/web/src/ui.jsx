@@ -427,7 +427,8 @@ export function Slider({ min = 0, max = 1, step, value, onChange, inputProps }) 
     <div className="flex h-8 items-center gap-3">
       <div ref={track} onPointerDown={drag} className="relative h-0.5 flex-1 cursor-pointer rounded-[1px] bg-line">
         <div className="absolute top-0 left-0 h-0.5 bg-accent" style={{ width: `${pct}%` }} />
-        <div className="absolute -top-[7px] h-4 w-4 -translate-x-2 rounded-full bg-white shadow-pop" style={{ left: `${pct}%` }} />
+        {/* literal white: bg-white remaps to the dark page surface in dark mode and the knob vanishes */}
+        <div className="absolute -top-[7px] h-4 w-4 -translate-x-2 rounded-full bg-[#ffffff] shadow-pop" style={{ left: `${pct}%` }} />
       </div>
       <Input
         {...inputProps}
