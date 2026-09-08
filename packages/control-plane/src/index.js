@@ -1762,9 +1762,12 @@ async function startRun(env, app, startedBy, baseUrl, inputs = null, files = [])
   // Log shape: inputs header, separator, process lines, separator, outputs footer
   // (footer appended at settle in apiRunLog). Runner lines append after MAX(seq).
   if (inputs && Object.keys(inputs).length) {
-    const line = 'inputs: ' + Object.entries(inputs).map(([k, v]) => `${k}=${Array.isArray(v) ? v.join(',') : v}`).join('  ');
     const stmt = env.DB.prepare('INSERT INTO run_logs (run_id, seq, line) VALUES (?, ?, ?)');
-    await env.DB.batch([stmt.bind(runId, 0, line), stmt.bind(runId, 1, '───')]);
+    let seq = -1;
+    await env.DB.batch([
+      ...Object.entries(inputs).map(([k, v]) => stmt.bind(runId, ++seq, `input: ${k}=${Array.isArray(v) ? v.join(',') : v}`)),
+      stmt.bind(runId, ++seq, '───'),
+    ]);
   }
   const runToken = await sign({ t: 'run', run: runId, exp: now() + 6 * 3600 }, env.MASTER_KEY);
   // input files land in R2 before the machine starts; runner fetches them by stored name
