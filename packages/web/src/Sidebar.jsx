@@ -447,6 +447,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
   const [renamingFolder, setRenamingFolder] = useState(null); // { id, value }
   const [shareFolder, setShareFolder] = useState(null); // folder id for the share panel
   const [fShare, setFShare] = useState(''); // email or #team being typed
+  const [fConfirm, setFConfirm] = useState(null); // { email | team, role } awaiting the share confirm
   const [pool, setPool] = useState({ people: [], teams: [] }); // autocomplete sources
   const [renamingApp, setRenamingApp] = useState(null); // { from, value }
   const [dropTarget, setDropTarget] = useState(null); // 'folder:<id>' | 'root' | 'private' while dragging over
@@ -677,6 +678,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
     try {
       await api(`/api/folders/${shareFolder}/share`, { method: 'POST', body: JSON.stringify(body) });
       onReload();
+      return true;
     } catch (e) { toast(`✗ ${e.message}`); }
   };
 
@@ -1130,23 +1132,40 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
               onSubmit={(e) => {
                 e.preventDefault();
                 const v = fShare.trim().toLowerCase();
-                if (v.startsWith('#') && v.length > 1) shareFolderCall({ team: v, role: 'view' });
-                else if (v.includes('@')) shareFolderCall({ email: v, role: 'view' });
-                else return;
-                setFShare('');
+                if (v.startsWith('#') && v.length > 1) setFConfirm({ team: v, role: 'view' });
+                else if (v.includes('@')) setFConfirm({ email: v, role: 'view' });
               }}
             >
               <ShareInput
                 autoFocus
                 value={fShare}
                 onChange={setFShare}
-                onPick={(it) => { shareFolderCall({ ...it, role: 'view' }); setFShare(''); }}
+                onPick={(it) => setFConfirm({ ...it, role: 'view' })}
                 people={pool.people}
                 teams={pool.teams}
                 exclude={(sharedFolderObj.shares || []).map((s) => (s.team ? `#${s.team}` : s.email))}
                 placeholder="Add people by email, teams by #…"
               />
             </form>
+            <div className="pb-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/apps?f=${encodeURIComponent(sharedFolderObj.name)}`); toast('Link copied'); }}
+              >
+                <Link size={13} strokeWidth={1.5} /> Copy link
+              </Button>
+            </div>
+            {fConfirm && (
+              <ConfirmDialog
+                title={`Share folder ${sharedFolderObj.name}?`}
+                body={`${fConfirm.team ? (fConfirm.team.startsWith('#') ? fConfirm.team : `#${fConfirm.team}`) : fConfirm.email} gets ${fConfirm.role} access to every app in ${sharedFolderObj.name}, now and later.`}
+                confirmLabel="Share"
+                confirmVariant="primary"
+                onConfirm={() => { const b = fConfirm; setFConfirm(null); setFShare(''); shareFolderCall(b).then((ok) => ok && toast('Shared')); }}
+                onCancel={() => setFConfirm(null)}
+              />
+            )}
             <div className="min-h-0 flex-1 overflow-y-auto">
               {(sharedFolderObj.shares || []).length === 0 && (
                 <div className="pt-1 text-sm text-ink-2">Not shared - everyone gets access to every app in this folder when you add them.</div>
