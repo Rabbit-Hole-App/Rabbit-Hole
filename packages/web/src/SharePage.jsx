@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowUpRight, Calendar as CalendarIcon, Check, Circle, Clock, Copy, GitBranch, Globe, GraduationCap, Hash, Link as LinkIcon, Lock, Maximize2, MoreHorizontal, Plus, Trash2, User as UserIcon, Users, X } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, Calendar as CalendarIcon, Check, Circle, Clock, Copy, GitBranch, Globe, Hash, Link as LinkIcon, Lock, Maximize2, MoreHorizontal, Plus, Trash2, User as UserIcon, Users, X } from 'lucide-react';
 
 // lucide dropped brand icons - the GitHub mark, inline
 const Github = ({ size = 14 }) => (
@@ -729,7 +729,7 @@ function AppPage({ slug, runId, reloadShell }) {
                 {app.kind === 'job' && <TabsTrigger value="run"><Tip label="Run" info="Start a run from the input form"><span>Run</span></Tip></TabsTrigger>}
                 <TabsTrigger value="logs"><Tip label="Logs" info="Table view of this app's runs and requests"><span>Logs</span></Tip></TabsTrigger>
                 <TabsTrigger value="agent"><Tip label="Agent" info="Chat with the AI about this app"><span>Agent</span></Tip></TabsTrigger>
-                <TabsTrigger value="learn"><Tip label="Learn" info="Short rendered lectures about this app's concepts"><span>Learn</span></Tip></TabsTrigger>
+                {/* ponytail: Learn tab hidden until lectures ship - restore this trigger and its TabsContent below */}
               </TabsList>
 
               <TabsContent value="runbook" className="min-h-[200px] pt-4">
@@ -773,13 +773,7 @@ function AppPage({ slug, runId, reloadShell }) {
                 </div>
               </TabsContent>
 
-              <TabsContent value="learn" className="pt-4">
-                <div className="flex flex-col items-center justify-center gap-2 py-20 text-center">
-                  <GraduationCap size={28} strokeWidth={1.25} className="text-ink-2" />
-                  <div className="text-sm font-medium text-ink">No lectures yet</div>
-                  <div className="max-w-sm text-sm text-ink-2">Short whiteboard lectures about the concepts behind this app will show up here.</div>
-                </div>
-              </TabsContent>
+              {/* ponytail: Learn TabsContent hidden with its trigger above */}
             </Tabs>
 
             {app.lastOpened && (tab ?? (app.kind === 'job' ? 'run' : 'runbook')) !== 'agent' && (
