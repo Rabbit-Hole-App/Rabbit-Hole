@@ -1759,6 +1759,11 @@ async function startRun(env, app, startedBy, baseUrl, inputs = null, files = [])
   const dep = await env.DB.prepare('SELECT MAX(id) AS id FROM deploys WHERE app_id = ?').bind(app.id).first();
   await env.DB.prepare('INSERT INTO runs (run_id, app_id, started_by, inputs, deploy_id) VALUES (?, ?, ?, ?, ?)')
     .bind(runId, app.id, startedBy, inputs ? JSON.stringify(inputs) : null, dep?.id || null).run();
+  // first log line records what the run was asked to do; runner lines append after MAX(seq)
+  if (inputs && Object.keys(inputs).length) {
+    const line = 'inputs: ' + Object.entries(inputs).map(([k, v]) => `${k}=${Array.isArray(v) ? v.join(',') : v}`).join('  ');
+    await env.DB.prepare('INSERT INTO run_logs (run_id, seq, line) VALUES (?, 0, ?)').bind(runId, line).run();
+  }
   const runToken = await sign({ t: 'run', run: runId, exp: now() + 6 * 3600 }, env.MASTER_KEY);
   // input files land in R2 before the machine starts; runner fetches them by stored name
   const fileNames = {};
