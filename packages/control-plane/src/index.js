@@ -1759,10 +1759,12 @@ async function startRun(env, app, startedBy, baseUrl, inputs = null, files = [])
   const dep = await env.DB.prepare('SELECT MAX(id) AS id FROM deploys WHERE app_id = ?').bind(app.id).first();
   await env.DB.prepare('INSERT INTO runs (run_id, app_id, started_by, inputs, deploy_id) VALUES (?, ?, ?, ?, ?)')
     .bind(runId, app.id, startedBy, inputs ? JSON.stringify(inputs) : null, dep?.id || null).run();
-  // first log line records what the run was asked to do; runner lines append after MAX(seq)
+  // Log shape: inputs header, separator, process lines, separator, outputs footer
+  // (footer appended at settle in apiRunLog). Runner lines append after MAX(seq).
   if (inputs && Object.keys(inputs).length) {
     const line = 'inputs: ' + Object.entries(inputs).map(([k, v]) => `${k}=${Array.isArray(v) ? v.join(',') : v}`).join('  ');
-    await env.DB.prepare('INSERT INTO run_logs (run_id, seq, line) VALUES (?, 0, ?)').bind(runId, line).run();
+    const stmt = env.DB.prepare('INSERT INTO run_logs (run_id, seq, line) VALUES (?, ?, ?)');
+    await env.DB.batch([stmt.bind(runId, 0, line), stmt.bind(runId, 1, '───')]);
   }
   const runToken = await sign({ t: 'run', run: runId, exp: now() + 6 * 3600 }, env.MASTER_KEY);
   // input files land in R2 before the machine starts; runner fetches them by stored name
@@ -2021,6 +2023,26 @@ async function apiRunLog(req, env, ctx, runId) {
   }
   if (exitCode !== undefined && exitCode !== null) {
     // AND status='running': a stop via the dashboard must not be overwritten by the dying runner's last post
+    // outputs footer before the status flip: the dashboard poller stops once it
+    // sees a settled status, so the footer must already be in run_logs by then.
+    // Runner uploads outputs before this post, so the list is complete.
+    const cur = await env.DB.prepare('SELECT status FROM runs WHERE run_id = ?').bind(runId).first();
+    if (cur?.status === 'running' && env.RUNS) {
+      try {
+        const prefix = `runs/${runId}/outputs/`;
+        const listed = await env.RUNS.list({ prefix });
+        if (listed.objects.length) {
+          const { m } = await env.DB.prepare('SELECT COALESCE(MAX(seq), -1) AS m FROM run_logs WHERE run_id = ?').bind(runId).first();
+          const stmt = env.DB.prepare('INSERT INTO run_logs (run_id, seq, line) VALUES (?, ?, ?)');
+          const fmt = (n) => (n < 1024 ? `${n} B` : n < 1048576 ? `${Math.round(n / 1024)} KB` : `${(n / 1048576).toFixed(1)} MB`);
+          let seq = m;
+          await env.DB.batch([
+            stmt.bind(runId, ++seq, '───'),
+            ...listed.objects.map((o) => stmt.bind(runId, ++seq, `output: ${o.key.slice(prefix.length)} (${fmt(o.size)})`)),
+          ]);
+        }
+      } catch { /* footer is cosmetic - never fail the runner's final post */ }
+    }
     const settled = await env.DB.prepare("UPDATE runs SET status = ?, exit_code = ?, finished_at = datetime('now') WHERE run_id = ? AND status = 'running'")
       .bind(exitCode === 0 ? 'finished' : 'failed', exitCode, runId)
       .run();
