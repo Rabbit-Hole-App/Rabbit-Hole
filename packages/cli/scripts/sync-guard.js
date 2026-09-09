@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
-for (const name of ['guard.py', 'runner.py']) {
+for (const name of ['guard.py', 'runner.py', 'aws_runner.py']) {
   const src = path.join(__dirname, '..', '..', 'runtime', name);
   const dst = path.join(__dirname, '..', 'assets', name);
   fs.mkdirSync(path.dirname(dst), { recursive: true });

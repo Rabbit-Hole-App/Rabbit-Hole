@@ -10,9 +10,10 @@ const MAX_TOKENS = 100000; // ~4 chars per token
 
 const escapeRx = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// ponytail: common-subset .gitignore - bare names, dir/, *.ext, leading /; no ** or ! negation
-function gitignoreMatchers(dir) {
-  const file = path.join(dir, '.gitignore');
+// ponytail: common-subset .gitignore - names, dir/, *, **, ?, leading /;
+// negation is conservatively ignored rather than re-including private files.
+function gitignoreMatchers(dir, filename = '.gitignore') {
+  const file = path.join(dir, filename);
   if (!fs.existsSync(file)) return [];
   return fs
     .readFileSync(file, 'utf8')
@@ -23,7 +24,9 @@ function gitignoreMatchers(dir) {
       let pat = raw.replace(/\/$/, '');
       const anchored = pat.startsWith('/');
       if (anchored) pat = pat.slice(1);
-      const rx = new RegExp('^' + pat.split('*').map(escapeRx).join('[^/]*') + '$');
+      const glob = pat.split(/(\*\*\/|\*\*|\*|\?)/).map((part) =>
+        part === '**/' ? '(?:.*/)?' : part === '**' ? '.*' : part === '*' ? '[^/]*' : part === '?' ? '[^/]' : escapeRx(part)).join('');
+      const rx = new RegExp('^' + glob + '$');
       return (rel) => (anchored ? rx.test(rel) || rx.test(rel.split('/')[0]) : rel.split('/').some((seg) => rx.test(seg)) || rx.test(rel));
     });
 }
@@ -90,4 +93,4 @@ function buildBundle(dir, entry, secrets) {
   return { bundle: [...extras, ...files].map(section).join('\n'), skipped };
 }
 
-module.exports = { buildBundle, listPyFiles };
+module.exports = { buildBundle, listPyFiles, gitignoreMatchers };

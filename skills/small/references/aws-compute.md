@@ -1,5 +1,9 @@
 # Heavy compute on the user's AWS — choosing and wiring it
 
+This reference covers a hosted app delegating a heavy operation to AWS. When
+the user wants the entire CPU job hosted in their account, first follow
+`references/aws-hosting.md`; do not replace that choice with hosted compute.
+
 Read this when the user wants their script "to run on AWS" — a model too big
 for the app machine, batch inference, GPU, or an existing AWS account they
 must use.

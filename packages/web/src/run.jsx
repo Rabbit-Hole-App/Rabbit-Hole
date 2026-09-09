@@ -7,6 +7,7 @@ import {
   Paperclip, Play, Plus, ScrollText, Search as SearchIcon, Type, User, X,
 } from 'lucide-react';
 import { ago, api, fmtTime, navigate, wsHeaders } from './api.js';
+import { appApi } from './app-data.js';
 import { AskPanel } from './ask.jsx';
 import {
   Avatar, Button, Chk, cn, CodeBlock, Dropzone, Field, fmtBytes, IconBtn, Input,
@@ -201,6 +202,7 @@ function S3Preview({ app, uri, kind }) {
 
 // ─── Run tab (flow.md §3b): the form generated from [inputs]. ───
 export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
+  const request = appApi(app);
   const schema = app.inputs || {};
   const entries = Object.entries(schema);
   const [values, setValues] = useState(() => Object.fromEntries(entries.map(([k, s]) => [k, defaultValue(s)])));
@@ -264,6 +266,7 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
       let d;
       const fileEntries = Object.entries(files).filter(([, f]) => f);
       if (fileEntries.length) {
+        if (app.hosting === 'aws') throw new Error('File inputs are not available for AWS jobs yet');
         const fd = new FormData();
         fd.append('body', JSON.stringify({ app: app.name, inputs: vals }));
         for (const [k, f] of fileEntries) fd.append(`input:${k}`, f);
@@ -271,7 +274,7 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
         d = await r.json();
         if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
       } else {
-        d = await api('/api/runs', { method: 'POST', body: JSON.stringify({ app: app.name, inputs: Object.keys(vals).length ? vals : undefined }) });
+        d = await request('/api/runs', { method: 'POST', body: JSON.stringify({ app: app.name, inputs: Object.keys(vals).length ? vals : undefined }) });
       }
       onStarted(d.runId);
     } catch (e) {
@@ -308,7 +311,7 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
     let started = 0;
     try {
       for (const line of batchValues.slice(0, BATCH_MAX)) {
-        await api('/api/runs', { method: 'POST', body: JSON.stringify({ app: app.name, inputs: { ...shared, [batchField]: line } }) });
+        await request('/api/runs', { method: 'POST', body: JSON.stringify({ app: app.name, inputs: { ...shared, [batchField]: line } }) });
         started++;
       }
       toast(`Started ${started} run${started === 1 ? '' : 's'}`);
@@ -323,6 +326,7 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
 
   const lr = app.lastRun;
   const lrDur = lr && fmtDur(secs(lr.startedAt, lr.finishedAt));
+  if (app.hosting === 'aws' && app.deployment?.status !== 'ready') return <p className="text-sm text-ink-2">Deploy this job with <code>small deploy</code> before running it. Deployment: {app.deployment?.status || 'not deployed'}.</p>;
   return (
     <div>
       {entries.map(([k, spec]) => {
@@ -366,7 +370,7 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
           )}
           {spec.type === 'bool' && <div className="pt-2"><Toggle on={!!values[k]} onChange={(v) => set(k, v)} aria-label={k} /></div>}
           {spec.type === 'text' && (() => {
-            const s3 = (spec.pattern || '').includes('s3://');
+            const s3 = app.hosting !== 'aws' && (spec.pattern || '').includes('s3://');
             // helper CALL (not a component): keeps S3Input/Input identity stable across renders
             const ctl = (value, onChange, onPaste, label) => (s3
               ? <S3Input app={app} value={value} onChange={onChange} onPaste={onPaste} onBlur={() => setErrors((er) => ({ ...er, [k]: validateOne(spec, values[k]) }))} error={errors[k]} label={label} />
@@ -412,7 +416,7 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
 }
 
 // ─── Poll a run: status + appended log lines every second while running. ───
-function useRun(runId) {
+function useRun(runId, request) {
   const [meta, setMeta] = useState(null);
   const [lines, setLines] = useState([]);
   const cursor = useRef(-1);
@@ -424,13 +428,13 @@ function useRun(runId) {
     let loaded = false;
     const tick = async () => {
       try {
-        const d = await api(`/api/runs/${runId}?after=${cursor.current}`);
+        const d = await request(`/api/runs/${runId}?after=${encodeURIComponent(cursor.current)}`);
         if (stop) return;
         loaded = true;
         cursor.current = d.cursor;
         setMeta(d);
         if (d.lines.length) setLines((l) => [...l, ...d.lines.map((t, i) => ({ t: String(t), ts: d.lineTs?.[i] || null }))]);
-        if (d.status === 'running') setTimeout(() => !stop && tick(), 1000);
+        if (d.status === 'running' || d.hasMore) setTimeout(() => !stop && tick(), 1000);
       } catch (e) {
         if (stop) return;
         // a transient blip mid-run keeps the last good view and retries; only a
@@ -441,14 +445,13 @@ function useRun(runId) {
     };
     tick();
     return () => { stop = true; };
-  }, [runId]);
+  }, [runId, request]);
   return { meta, lines };
 }
 
 // One output: <2MB images inline at 200px, small .json/.csv/.txt in a code block,
 // everything else a download row.
-function Output({ runId, name, size, label }) {
-  const url = `/api/runs/${runId}/outputs/${encodeURIComponent(name)}`;
+function Output({ runId, name, size, label, url = `/api/runs/${runId}/outputs/${encodeURIComponent(name)}` }) {
   const isImg = /\.(jpe?g|png|gif|webp)$/i.test(name) && size < 2 * 1024 * 1024; // no svg - served nosniff, won't render
   const isText = /\.(json|csv|txt)$/i.test(name) && size < 4096;
   const opensInTab = /\.(html?|pdf|jpe?g|png|gif|webp|json|txt)$/i.test(name); // types the API serves with a real Content-Type
@@ -500,7 +503,8 @@ const parseT = (s) => new Date(/[zZ]$/.test(s) ? s : s.replace(' ', 'T') + 'Z');
 
 // ─── The run page content (flow.md §4) - same body in the 480px peek and the full page. ───
 export function RunView({ runId, app, onRunAgain }) {
-  const { meta, lines } = useRun(runId);
+  const request = appApi(app);
+  const { meta, lines } = useRun(runId, request);
   const [outputs, setOutputs] = useState(null);
   const [logQ, setLogQ] = useState(''); // filter box in the Log card header
   const [openFolds, setOpenFolds] = useState(() => new Set()); // fold start indexes clicked open
@@ -508,9 +512,9 @@ export function RunView({ runId, app, onRunAgain }) {
   const settled = meta && meta.status && meta.status !== 'running';
 
   useEffect(() => {
-    if (settled) api(`/api/runs/${runId}/outputs`).then((d) => setOutputs(d.outputs)).catch(() => setOutputs([]));
+    if (settled) request(`/api/runs/${runId}/outputs`).then((d) => setOutputs(d.outputs)).catch(() => setOutputs([]));
     else setOutputs(null);
-  }, [runId, settled]);
+  }, [runId, settled, request]);
   useEffect(() => {
     if (meta?.status === 'running' && logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [lines, meta?.status]);
@@ -619,7 +623,7 @@ export function RunView({ runId, app, onRunAgain }) {
       <Card title="Output">
         {!settled && <div className="flex items-center gap-1.5 text-sm text-ink-2"><Loader2 size={14} className="animate-spin" /> Waiting…</div>}
         {settled && outputs && !outputs.length && <div className="text-sm text-ink-2">No outputs.</div>}
-        {settled && sorted.map((o) => <Output key={o.name} runId={runId} name={o.name} size={o.size} label={byPath(o.name)?.[1]?.label} />)}
+        {settled && sorted.map((o) => <Output key={o.name} runId={runId} name={o.name} size={o.size} url={o.url} label={byPath(o.name)?.[1]?.label} />)}
       </Card>
 
       <Card
@@ -718,7 +722,7 @@ export function RunPeek({ runId, app, onClose, onRunAgain }) {
       </div>
       {/* once a conversation exists the chat lives ONLY in its tab: on the Run tab
           the box is hidden (not unmounted, a mid-stream reply keeps streaming) */}
-      <div className={cn(
+      {app.hosting !== 'aws' && <div className={cn(
         'px-5',
         tab === 'chat' ? 'flex min-h-0 flex-1 flex-col pt-2 pb-4'
         : chatted ? 'hidden'
@@ -732,7 +736,7 @@ export function RunPeek({ runId, app, onClose, onRunAgain }) {
           onHasChat={() => setChatted(true)}
           onSent={() => { setChatted(true); setTab('chat'); }}
         />
-      </div>
+      </div>}
     </SlidePanel>
   );
 }
@@ -748,6 +752,7 @@ const CORE_COLS = [
 ];
 
 export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
+  const request = appApi(app);
   const slug = app.name;
   const [runs, setRuns] = useState(null);
   const [filters, setFilters] = useState([]);
@@ -763,13 +768,13 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
   const [colMenu, setColMenu] = useState(null); // column key with its header menu open
   const [colSub, setColSub] = useState(null); // 'sort' | 'filter' flyout inside it
 
-  useEffect(() => { api(`/api/runs?app=${encodeURIComponent(slug)}`).then((d) => setRuns(d.runs)).catch(() => setRuns([])); }, [slug]);
+  useEffect(() => { request(`/api/runs?app=${encodeURIComponent(slug)}`).then((d) => setRuns(d.runs)).catch(() => setRuns([])); }, [slug, request, openId]);
 
   // sentence queries in the search box go to the model, which picks runs by
   // status/inputs/when; short strings stay instant substring matching
   const [aiRuns, setAiRuns] = useState(null); // null | 'loading' | { ids, note }
   useEffect(() => {
-    if (!q || q.trim().split(/\s+/).length < 4) { setAiRuns(null); return; }
+    if (app.hosting === 'aws' || !q || q.trim().split(/\s+/).length < 4) { setAiRuns(null); return; }
     setAiRuns('loading');
     const t = setTimeout(() => {
       api('/api/runs/find', { method: 'POST', body: JSON.stringify({ app: slug, q }) })
@@ -777,7 +782,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
         .catch(() => setAiRuns(null));
     }, 600);
     return () => clearTimeout(t);
-  }, [q, slug]);
+  }, [q, slug, app.hosting]);
 
   const schema = app.inputs || {};
   const inputCols = Object.keys(schema).filter((k) => !hidden.has(k));

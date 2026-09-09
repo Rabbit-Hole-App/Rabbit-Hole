@@ -11,6 +11,7 @@ Read docs/SCOPE.md for the product and docs/v1_mvp_shipped.md for what's built a
 - `packages/cli` — Node CLI, zero dependencies, stdlib only. Never add a package.
 - `packages/control-plane` — Cloudflare Worker + D1. Holds every credential. The CLI never sees a Fly token.
 - `packages/runtime` — Python, stdlib only. `guard.py` fronts every server container.
+- `packages/byoc` — AWS CPU-job installer, customer Lambda API/signer, and tests. Lambda supplies boto3; the CLI/runtime keep their zero-dependency rules.
 - `packages/web` — React dashboard (Vite), served by the control-plane worker.
 - `skills/` — the agent skill; `skills/small` is also the `small-skill` npm package and ships inside the CLI (`small skill`).
 - `examples/` — one directory per app shape; each has a `small.toml`.
@@ -23,7 +24,11 @@ Read docs/SCOPE.md for the product and docs/v1_mvp_shipped.md for what's built a
 - `make test-unit` before every commit. `make test-integration` before merge.
 - Mark anything deliberately skipped with a `ponytail:` comment.
 - Feature specs live in `docs/features/<name>.md`. Implement the spec; don't expand it.
+- Build every testable feature into an app in the existing Apps list/sidebar and app UI. Never create a separate feature/demo page as the deliverable. Reuse the existing tabs, panels, and Settings connection flow.
 - Before changing Coaching or its dev deployment, read [docs/features/coaching.md](docs/features/coaching.md). Update that document when its UI, deployment steps, or verification status change.
+- Before changing AWS BYOC, read and update [docs/features/byoc-aws.md](docs/features/byoc-aws.md). Customer source, inputs, outputs, and logs must travel directly to customer AWS; the dev control plane accepts connection metadata only.
+- When changing CLI deployment workflows, update [skills/small/SKILL.md](skills/small/SKILL.md) and its affected references, including [AWS hosting](skills/small/references/aws-hosting.md). Keep agent instructions aligned with the implemented commands and release availability.
+- Every requested UI change includes building and deploying it to `small-cp-dev` for visual review. Finish that deployment and return the dev page link before calling the change done; a commit or push alone is insufficient. Live promotion requires explicit approval.
 - Never guess identifiers or state — DB names, paths, flags, what's applied where. Read the config/source/remote state first; every suggested command must come from a verified source, not memory or pattern-matching. One wrong guessed command costs more than three verification reads.
 
 ---

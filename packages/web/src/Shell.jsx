@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronsRight } from 'lucide-react';
-import { api } from './api.js';
+import { loadApps } from './app-data.js';
 import Sidebar from './Sidebar.jsx';
 
 // flow.md §1: the sidebar is always present. One shell owns it everywhere -
@@ -20,7 +20,7 @@ export default function Shell({ children }) {
     resizeTimer.current = setTimeout(() => setResizing(false), 150);
   };
 
-  const load = () => api('/api/apps').then(setData).catch((e) => setData({ error: e.message }));
+  const load = () => loadApps().then(setData).catch((e) => setData({ error: e.message }));
   useEffect(() => { load(); }, []);
 
   const toggle = (c) => {
@@ -73,6 +73,7 @@ export default function Shell({ children }) {
           orgName={data?.orgName || null}
             email={data?.email}
             apps={data?.apps || []}
+            awsError={data?.awsError}
             folders={data?.folders || []}
             width={width}
             onResize={resize}

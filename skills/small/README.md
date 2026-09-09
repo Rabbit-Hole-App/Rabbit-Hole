@@ -21,6 +21,12 @@ ships with.
 
 ## What the agent learns
 
+- Workspace selection through `small workspaces`, `--workspace`, and
+  `SMALL_WORKSPACE`; browser selection is independent of the CLI.
+- `references/aws-hosting.md` — the dev CPU-job hosting flow: connect once
+  per workspace, approve installation in AWS, then deploy multiple jobs. The
+  updated CLI/skill are available from the repository; public npm release is
+  held pending dev approval.
 - `small init` → review small.toml → `small deploy` → hand back the URL. Never
   a Dockerfile, never hand-rolled hosting, never bolted-on auth.
 - `references/jobs.md` — on-demand scripts: declare every env read under

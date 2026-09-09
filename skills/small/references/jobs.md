@@ -2,6 +2,10 @@
 
 Read this when the tool is a script that runs on demand (`type = "job"`).
 
+For `[deploy] target = "aws"`, also follow `references/aws-hosting.md`.
+Its MVP input types and available triggers are narrower than the hosted
+contract described here.
+
 Every non-secret `os.environ` read in a job is an input — declare it in
 `small.toml` instead of leaving it an undeclared env var:
 

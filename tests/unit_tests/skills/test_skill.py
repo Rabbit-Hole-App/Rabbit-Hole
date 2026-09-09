@@ -65,6 +65,6 @@ def test_mentioned_platform_env_vars_exist_in_source():
 
 def test_toml_sections_mentioned_exist_in_the_products_vocabulary():
     # every [section] the skill tells an agent to write must be one the code reads
-    known = {"inputs", "outputs", "secrets", "storage", "access", "aws", "deps"}
+    known = {"inputs", "outputs", "secrets", "storage", "access", "aws", "deps", "deploy"}
     for section in re.findall(r"^\[(\w+)\]$", ALL_TEXT, re.M):
         assert section in known, f"skill writes [{section}] which nothing implements"

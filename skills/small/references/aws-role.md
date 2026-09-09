@@ -2,6 +2,9 @@
 
 Read this when the tool calls AWS (boto3, S3, Lambda, …).
 
+This reference covers AWS access from a hosted app. To host the CPU job itself
+in the customer's AWS account, follow `references/aws-hosting.md` instead.
+
 **Never put AWS keys in `.env`.** Declare a role instead:
 
 ```toml

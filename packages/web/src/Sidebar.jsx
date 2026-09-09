@@ -1,25 +1,15 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, LayoutGrid, LayoutPanelLeft, Link, LogOut, Mail, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName } from './api.js';
-import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Select, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
+import AwsConnection from './AwsConnection.jsx';
+import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
 // left nav (Account / Workspace sections), right content per tab.
 const THEMES = { System: 'system', Light: 'light', Dark: 'dark' };
-function SettingsRow({ title, desc, children }) {
-  return (
-    <div className="flex items-center justify-between gap-8 py-3">
-      <div>
-        <div className="text-sm">{title}</div>
-        {desc && <div className="pt-0.5 text-xs text-ink-2">{desc}</div>}
-      </div>
-      {children && <div className="shrink-0">{children}</div>}
-    </div>
-  );
-}
 // ponytail: nav copied verbatim from the Notion reference (user: "copy the same we
 // will remove later") - most items render an empty pane until we prune/wire them.
-function SettingsDialog({ email, onMarkRead, onClose }) {
+function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose }) {
   const [tab, setTab] = useState('preferences');
   const [theme, setThemeState] = useState(() => getTheme());
   const [enterNewline, setEnterNewline] = useState(false); // visual only
@@ -138,6 +128,10 @@ function SettingsDialog({ email, onMarkRead, onClose }) {
             <>
               <div className="text-2xl font-semibold">Connections</div>
               <div className="pt-2 text-base text-ink-2">Bring small into the tools your team already uses</div>
+              {import.meta.env.VITE_BYOC_DEV === 'true' && <>
+                <Heading>AWS</Heading>
+                <AwsConnection workspace={org} apps={apps} onChanged={onReload} />
+              </>}
               <Heading>Slack</Heading>
               <SettingsRow title="Slack" desc="@small in channels, /small commands, proposals as buttons.">
                 <Button variant="soft" size="sm" onClick={() => window.open('/slack/install', '_blank', 'noopener')}>
@@ -423,7 +417,7 @@ function AiModelSettings() {
 
 // Notion-style sidebar: workspace row, search, folders (drag apps in), recent, members.
 // Resizable by dragging the right edge (200–400px).
-export default function Sidebar({ org, orgName, email, apps, folders, width = 260, onResize, onReload, onCollapse }) {
+export default function Sidebar({ org, orgName, email, apps, folders, awsError, width = 260, onResize, onReload, onCollapse }) {
   const [dragging, setDragging] = useState(null);
   const [closed, setClosed] = useState({}); // folder id -> collapsed
   const [newFolder, setNewFolder] = useState(null);
@@ -583,8 +577,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
         </form>
       ) : (
       <div
-        draggable={menu}
-        onDragStart={menu ? (e) => { setDragging(a.name); e.dataTransfer.setData('text/plain', a.name); e.dataTransfer.effectAllowed = 'move'; } : undefined}
+        draggable={menu && a.hosting !== 'aws'}
+        onDragStart={menu && a.hosting !== 'aws' ? (e) => { setDragging(a.name); e.dataTransfer.setData('text/plain', a.name); e.dataTransfer.effectAllowed = 'move'; } : undefined}
         onDragEnd={menu ? () => { setDragging(null); setDropTarget(null); } : undefined}
         onClick={() => navigate(`/apps/${a.name}`)}
         className={cn(
@@ -594,6 +588,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
       >
         <KindIcon kind={a.kind} schedule={a.schedule} />
         <span className="min-w-0 flex-1 truncate">{a.name}</span>
+        {a.hosting === 'aws' && <span className="text-[10px] text-ink-3">AWS</span>}
         {((a.members?.length || 0) > 0 || (a.team_count || 0) > 0) && (
           <Users size={11} className="shrink-0 text-ink-3" title="shared" />
         )}
@@ -626,7 +621,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
               Rename
             </MenuItem>
           )}
-          <MenuItem
+          {a.hosting !== 'aws' && <MenuItem
             icon={Copy}
             onClick={async () => {
               setMenuFor(null);
@@ -638,8 +633,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
             }}
           >
             Duplicate
-          </MenuItem>
-          {a.owner_email === email && (
+          </MenuItem>}
+          {a.hosting !== 'aws' && a.owner_email === email && (
             <MenuItem icon={Trash2} className="text-danger" onClick={() => { setMenuFor(null); setConfirmDel(a.name); }}>
               Move to Trash
             </MenuItem>
@@ -800,7 +795,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
           <MenuItem icon={LogOut} onClick={() => { window.location.href = '/logout'; }}>Log out</MenuItem>
         </Menu>
       </div>
-      {showSettings && <SettingsDialog email={email} onMarkRead={markRead} onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsDialog email={email} org={org} apps={apps} onReload={onReload} onMarkRead={markRead} onClose={() => setShowSettings(false)} />}
       {newApp && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={() => setNewApp(false)}>
           <div className="mt-[22vh] w-[420px] max-w-[90vw] rounded-2xl bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
@@ -1032,6 +1027,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, width = 26
         onDrop={(e) => { e.preventDefault(); e.stopPropagation(); drop(null, 'domain', 'to Apps'); }}
       >
         {!secClosed.apps && rootApps.map((a) => appRow(a))}
+        {awsError && <p role="alert" className="px-2 py-1 text-xs text-danger">{awsError}</p>}
       </div>
 
       {sharedApps.length > 0 && (

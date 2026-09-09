@@ -8,6 +8,7 @@ const Github = ({ size = 14 }) => (
   </svg>
 );
 import { ago, api, cronHuman, cronList, fmtTime, navigate, wsName } from './api.js';
+import { loadApp } from './app-data.js';
 import { AskPanel } from './ask.jsx';
 import CoachingPanel from './coaching/CoachingPanel.jsx';
 import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
@@ -445,10 +446,12 @@ function RequestLog({ slug }) {
 
 export default function SharePage({ slug, runId }) {
   // flow.md §1: sidebar is always present - the app page included.
-  return <Shell>{(data, reloadShell) => <AppPage slug={slug} runId={runId} reloadShell={reloadShell} />}</Shell>;
+  return <Shell>{(data, reloadShell) => <AppPage slug={slug} runId={runId} catalog={data} reloadShell={reloadShell} />}</Shell>;
 }
 
-function AppPage({ slug, runId, reloadShell }) {
+function AppPage({ slug, runId, catalog, reloadShell }) {
+  const catalogApp = catalog?.apps?.find((app) => app.name === slug);
+  const loadId = useRef(0);
   const [app, setApp] = useState(null);
   const [error, setError] = useState(null);
   const [peek, setPeek] = useState(null); // runId shown in the side peek
@@ -483,17 +486,25 @@ function AppPage({ slug, runId, reloadShell }) {
     }
   };
 
-  const load = () => api(`/api/apps/${slug}`).then((d) => {
+  const load = () => {
+    if (!catalog) return;
+    const id = ++loadId.current;
+    return loadApp(slug, catalogApp).then((d) => {
+    if (id !== loadId.current) return;
     setApp(d);
     setError(null);
     try {
       const r = JSON.parse(localStorage.getItem('small.recent') || '[]');
       localStorage.setItem('small.recent', JSON.stringify([slug, ...r.filter((x) => x !== slug)].slice(0, 5)));
     } catch { /* recents are best-effort */ }
-  }).catch(setError);
+  }).catch((error) => { if (id === loadId.current) setError(error); });
+  };
   // AppPage survives sidebar navigation (same element position) - per-app state
   // must reset with the slug or app A's peek/tab/prefill leak into app B.
-  useEffect(() => { setApp(null); setError(null); setPeek(null); setTab(new URLSearchParams(window.location.search).get('tab') === 'agent' ? 'agent' : null); setPrefill(null); load(); }, [slug]);
+  useEffect(() => {
+    setApp(null); setError(null); setPeek(null); setTab(new URLSearchParams(window.location.search).get('tab') === 'agent' ? 'agent' : null); setPrefill(null); load();
+    return () => { loadId.current++; };
+  }, [slug, !!catalog, catalog?.org, catalogApp?.aws_connection?.id]);
 
   // Run again (peek footer, table hover ▶): prefill the form, land on the Run tab.
   const runAgain = (inputs) => { setPeek(null); setPrefill({ ...inputs }); setTab('run'); };
@@ -505,12 +516,13 @@ function AppPage({ slug, runId, reloadShell }) {
   // Agent tab: the page must NOT scroll - the pane fills to the viewport bottom so
   // the textbox sits static (level with the sidebar's New chat), only messages scroll.
   const agentFull = !runId && (tab ?? (app?.kind === 'job' ? 'run' : 'runbook')) === 'agent';
+  const isAws = app?.hosting === 'aws';
   return (
     <main className={cn('flex-1', agentFull ? 'overflow-hidden' : 'overflow-y-auto')}>
       {/* run pages carve out the fixed 400px chat panel and center in what's left */}
       <div className={cn(
         'py-12 max-lg:px-8 max-md:px-4 max-md:py-6',
-        runId ? 'mx-auto max-w-[860px] px-12 lg:mr-[416px]' : 'mx-auto max-w-[900px] px-24',
+        runId ? cn('mx-auto max-w-[860px] px-12', !isAws && 'lg:mr-[416px]') : 'mx-auto max-w-[900px] px-24',
         agentFull && 'flex h-full min-h-0 flex-col pb-4',
       )}>
         <div className="flex items-center gap-1 pb-8 text-sm text-ink-2">
@@ -546,7 +558,7 @@ function AppPage({ slug, runId, reloadShell }) {
                   >
                     Copy link
                   </MenuItem>
-                  <MenuItem
+                  {!isAws && <MenuItem
                     icon={Copy}
                     onClick={async () => {
                       setMenuOpen(false);
@@ -559,13 +571,13 @@ function AppPage({ slug, runId, reloadShell }) {
                     }}
                   >
                     Duplicate
-                  </MenuItem>
+                  </MenuItem>}
                   {app.kind === 'job' && app.canEdit && (
                     <MenuItem icon={Clock} onClick={() => { setMenuOpen(false); setScheduling(true); }}>
                       Schedule
                     </MenuItem>
                   )}
-                  {app.owner_email === app.email && (
+                  {!isAws && app.owner_email === app.email && (
                     <MenuItem icon={Trash2} className="text-danger" onClick={() => { setMenuOpen(false); setConfirmDel(true); }}>
                       Move to Trash
                     </MenuItem>
@@ -623,9 +635,9 @@ function AppPage({ slug, runId, reloadShell }) {
                 }}
               />
             </div>
-            <div className="fixed inset-y-0 right-0 z-10 flex w-[400px] flex-col border-l border-line bg-white px-5 pt-4 pb-4 max-lg:hidden">
+            {!isAws && <div className="fixed inset-y-0 right-0 z-10 flex w-[400px] flex-col border-l border-line bg-white px-5 pt-4 pb-4 max-lg:hidden">
               <AskPanel scope={{ run: runId }} appName={app.name} placeholder="Ask about this run…" />
-            </div>
+            </div>}
           </>
         )}
 
@@ -690,7 +702,11 @@ function AppPage({ slug, runId, reloadShell }) {
                 beside, 32px rows. Access has no row - the Share popover owns that. */}
             <div className="grid max-w-[560px] grid-cols-[160px_1fr] text-sm">
               <PropKey icon={Circle} info="server (always on) or job (runs on demand)">Type</PropKey>
-              <PropVal><Pill color={app.kind === 'job' ? 'blue' : 'grey'}>{app.kind}</Pill></PropVal>
+              <PropVal><Pill color={app.kind === 'job' ? 'blue' : 'grey'}>{app.kind}</Pill>{isAws && <Pill>AWS</Pill>}</PropVal>
+              {isAws && <>
+                <PropKey icon={Globe} info="The AWS account and region where this job runs">Hosting</PropKey>
+                <PropVal>{app.aws_connection.account_id} · {app.aws_connection.region}</PropVal>
+              </>}
               <PropKey icon={CalendarIcon} info="When this app last shipped">Deployed</PropKey>
               <PropVal><span title={fmtTime(app.deployed_at || app.created_at)}>{ago(app.deployed_at || app.created_at)}</span></PropVal>
               {source && (
@@ -746,9 +762,9 @@ function AppPage({ slug, runId, reloadShell }) {
               </TabsList>
 
               <TabsContent value="runbook" className="min-h-[200px] pt-4">
-                <Suspense fallback={<div className="text-ink-2">loading…</div>}>
+                {isAws ? <p className="text-sm text-ink-2">Runbooks are not connected for AWS jobs yet.</p> : <Suspense fallback={<div className="text-ink-2">loading…</div>}>
                   <Runbook app={app} canEdit={!!app.canEdit} onSaved={(name, text) => setApp((a) => ({ ...a, runbook: text }))} />
-                </Suspense>
+                </Suspense>}
               </TabsContent>
 
               {app.kind === 'job' && (
@@ -764,7 +780,7 @@ function AppPage({ slug, runId, reloadShell }) {
               </TabsContent>
 
               <TabsContent value="agent" className="flex min-h-0 flex-1 flex-col pt-4">
-                <CoachingPanel appName={app.name}>
+                {isAws ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : <CoachingPanel appName={app.name}>
                 {/* the page itself is scroll-locked on this tab; the pane flexes to the
                     viewport bottom so the input is static and only messages scroll */}
                 <div className="flex min-h-0 flex-1 flex-col">
@@ -785,7 +801,7 @@ function AppPage({ slug, runId, reloadShell }) {
                     }
                   />
                 </div>
-                </CoachingPanel>
+                </CoachingPanel>}
               </TabsContent>
 
               {/* ponytail: Learn TabsContent hidden with its trigger above */}

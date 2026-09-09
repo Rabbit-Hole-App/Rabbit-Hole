@@ -1,0 +1,12 @@
+name = "aws-word-count"
+entry = "job.py"
+type = "job"
+
+[deploy]
+target = "aws"
+
+[inputs]
+text = { type = "text", default = "small apps run in your AWS account", required = true, help = "Text to count" }
+
+[outputs]
+report = { path = "report.json" }

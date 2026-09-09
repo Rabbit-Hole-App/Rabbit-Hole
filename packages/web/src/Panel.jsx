@@ -1,8 +1,9 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { api, cronHuman, cronList, fmtTime } from './api.js';
+import { appApi, loadApp } from './app-data.js';
 const Runbook = lazy(() => import('./RunbookEditor.jsx')); // BlockNote is heavy - its chunk loads only when a runbook opens
-import { RunForm } from './run.jsx';
+import { RunForm, RunView } from './run.jsx';
 import { Button, SlidePanel, Tabs, TabsContent, TabsList, TabsTrigger } from './ui.jsx';
 
 // Polls /api/runs/<id> every second until the run leaves 'running'.
@@ -77,13 +78,18 @@ function RunDetail({ runId, onBack, onSettled }) {
 }
 
 // Past runs of the job: newest first, click one for its log.
-function RunsTab({ app, liveRunId, onSettled }) {
+function RunsTab({ app, liveRunId, onSettled, onRunAgain }) {
+  const request = appApi(app);
   const [runs, setRuns] = useState(null);
   const [sel, setSel] = useState(liveRunId || null);
-  const load = () => api(`/api/runs?app=${encodeURIComponent(app.name)}`).then((d) => setRuns(d.runs)).catch(() => setRuns([]));
+  const load = () => request(`/api/runs?app=${encodeURIComponent(app.name)}`).then((d) => setRuns(d.runs)).catch(() => setRuns([]));
   useEffect(() => { load(); }, [app.name]);
   useEffect(() => { if (liveRunId) setSel(liveRunId); }, [liveRunId]);
 
+  if (sel && app.hosting === 'aws') return <div className="min-h-0 flex-1 overflow-y-auto">
+    <Button onClick={() => { setSel(null); load(); }}><ChevronLeft size={13} /> Logs</Button>
+    <RunView runId={sel} app={app} onRunAgain={onRunAgain} />
+  </div>;
   if (sel) return <RunDetail runId={sel} onBack={() => { setSel(null); load(); }} onSettled={() => { load(); onSettled(); }} />;
   if (!runs) return null;
   if (!runs.length) return <div className="pt-2 text-ink-2">No runs yet.</div>;
@@ -116,7 +122,7 @@ function RunsTab({ app, liveRunId, onSettled }) {
 // no [inputs] schema, so fetch the app detail first.
 function RunFormTab({ app, onStarted }) {
   const [detail, setDetail] = useState(null);
-  useEffect(() => { api(`/api/apps/${app.name}`).then(setDetail).catch(() => setDetail({ error: true })); }, [app.name]);
+  useEffect(() => { loadApp(app.name, app).then(setDetail).catch(() => setDetail({ error: true })); }, [app.name]);
   if (!detail) return <div className="pt-2 text-ink-2">loading…</div>;
   if (detail.error) return <div className="pt-2 text-ink-2">✗ could not load the form.</div>;
   return <RunForm app={detail} onStarted={onStarted} />;
@@ -125,6 +131,7 @@ function RunFormTab({ app, onStarted }) {
 // The runbook tab IS the editor (Notion behavior): autosaves, Ctrl+Z undoes.
 // Viewers without edit rights get the same render, read-only.
 function RunbookTab({ app, onSaved }) {
+  if (app.hosting === 'aws') return <div className="pt-2 text-ink-2">Runbooks are not connected for AWS jobs yet.</div>;
   if (!app.canEdit && !app.runbook) return <div className="pt-2 text-ink-2">No runbook yet.</div>;
   return (
     <Suspense fallback={<div className="pt-2 text-ink-2">loading…</div>}>
@@ -167,7 +174,7 @@ export default function Panel({ app, tab, run, onTab, onRunbookSaved, onRunSettl
           <TabsContent value="run" className="flex min-h-0 flex-1 flex-col py-3">
             {run?.error
               ? <div className="pt-2 text-ink-2">✗ {run.error}</div>
-              : <RunsTab app={app} liveRunId={run?.id} onSettled={onRunSettled} />}
+              : <RunsTab app={app} liveRunId={run?.id} onSettled={onRunSettled} onRunAgain={() => onTab('form')} />}
           </TabsContent>
         )}
       </Tabs>

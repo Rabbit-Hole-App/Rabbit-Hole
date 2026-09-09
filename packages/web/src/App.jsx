@@ -160,6 +160,7 @@ function AppContent({ data, load }) {
     : rows;
   const panelApp = panel && apps.find((a) => a.name === panel.name);
   const runningId = (a) =>
+    a.hosting === 'aws' ? null :
     (run?.appName === a.name && !run.error && (run.id || 'starting')) ||
     (a.lastRun?.status === 'running' && a.lastRun.runId) || null;
 

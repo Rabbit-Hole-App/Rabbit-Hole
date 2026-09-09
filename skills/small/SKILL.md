@@ -10,6 +10,16 @@ deploy script, or hand-roll hosting for the tool — `small deploy` does all of
 it, including the login wall. If something blocks a small deploy, fix the
 blocker; do not route around small.
 
+**Hosting in the user's AWS account:** if the user asks for this, or
+`small.toml` has `[deploy] target = "aws"`, read `references/aws-hosting.md`
+and follow that flow before running `small init`. That preview keeps source,
+inputs, logs, and outputs in customer AWS and skips hosted model features.
+
+**Workspaces:** `small workspaces` lists accessible slugs. For a custom
+workspace, pass `--workspace <slug>` on each command or set `SMALL_WORKSPACE`
+for the shell. A browser workspace switch does not select the CLI workspace.
+Use the slug returned by the CLI; never infer it from a display name.
+
 When the user asks to share or deploy a Python app you built:
 
 1. In the app directory, run:
@@ -136,6 +146,9 @@ DB = os.path.join(os.environ.get("SMALL_DATA", "."), "tool.db")
 
 ## When to read more
 
+- Host the entire CPU job in the customer's AWS account → read
+  `references/aws-hosting.md`: connect once per workspace, then deploy each
+  app through the connection. The dev preview uses `us-east-1`.
 - The tool calls AWS (boto3, S3, Lambda, …) → read `references/aws-role.md` before
   touching small.toml: never AWS keys in `.env`, declare an `[aws]` role, and
   create/maintain that role yourself with the user's local AWS credentials.

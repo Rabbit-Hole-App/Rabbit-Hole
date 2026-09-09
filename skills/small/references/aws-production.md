@@ -1,5 +1,9 @@
 # Production on AWS — infrastructure as code with CDK
 
+For the workspace AWS hosting preview, use `references/aws-hosting.md`.
+Its installation already owns the shared infrastructure; do not create a
+second stack per job using the pattern below.
+
 Read this when the AWS side of a tool outgrows one hand-made resource: the
 user says "production", a second resource appears (queue, bucket, schedule,
 second function), or they need staging, review, or clean teardown.

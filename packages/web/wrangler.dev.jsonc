@@ -9,6 +9,12 @@
     "binding": "ASSETS",
     "run_worker_first": true
   },
-  "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": true }],
+  "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.py"], "fallthrough": true }],
+  "d1_databases": [{ "binding": "BYOC_DB", "database_name": "small-byoc-dev", "database_id": "67723b56-de7a-4b5e-af91-ae1af32cc4d8" }],
+  "vars": {
+    "BYOC_REGION": "us-east-1",
+    "BYOC_PRINCIPAL_ARN": "arn:aws:iam::637423432890:user/small-byoc-dev",
+    "BYOC_TEMPLATE_BUCKET": "small-byoc-installer-637423432890-us-east-1"
+  },
   "services": [{ "binding": "CONTROL_PLANE", "service": "small-cp" }]
 }

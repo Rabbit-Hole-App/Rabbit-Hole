@@ -712,12 +712,25 @@ export function useHeaderDrag(moveCol) {
   return { down, dragCol, squelch };
 }
 
-// Hover tooltip, Notion-style inverted chrome: bold label line, plain info under it.
+// Shared settings layout: description at left, action aligned at right.
+export function SettingsRow({ title, desc, children }) {
+  return (
+    <div className="flex items-center justify-between gap-8 py-3">
+      <div>
+        <div className="text-sm">{title}</div>
+        {desc && <div className="pt-0.5 text-xs text-ink-2">{desc}</div>}
+      </div>
+      {children && <div className="shrink-0">{children}</div>}
+    </div>
+  );
+}
+
+// Hover/focus tooltip, Notion-style inverted chrome: bold label line, plain info under it.
 export function Tip({ label, info, children }) {
   return (
     <span className="group/tip relative inline-flex min-w-0">
       {children}
-      <span className="pointer-events-none absolute top-full left-1/2 z-50 mt-1.5 hidden w-max max-w-60 -translate-x-1/2 flex-col rounded-md bg-ink px-2.5 py-1.5 text-left whitespace-normal shadow-pop group-hover/tip:flex">
+      <span role="tooltip" className="pointer-events-none absolute top-full left-1/2 z-50 mt-1.5 hidden w-max max-w-60 -translate-x-1/2 flex-col rounded-md bg-ink px-2.5 py-1.5 text-left whitespace-normal shadow-pop group-hover/tip:flex group-focus-within/tip:flex">
         <span className="text-xs font-semibold text-white">{label}</span>
         {info && <span className="pt-0.5 text-xs font-normal text-white/75">{info}</span>}
       </span>

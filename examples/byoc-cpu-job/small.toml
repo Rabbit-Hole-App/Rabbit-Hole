@@ -1,0 +1,13 @@
+name = "aws-cpu-proof"
+entry = "job.py"
+type = "job"
+
+[deploy]
+target = "aws"
+
+[inputs]
+count = { type = "number", default = 8, min = 1, max = 10000, help = "How many squares to calculate" }
+label = { type = "text", default = "BYOC proof" }
+
+[outputs]
+report = { path = "report.json" }

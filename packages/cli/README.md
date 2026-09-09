@@ -37,6 +37,7 @@ everyday
   runs <app>               recent runs: status, duration, who started them
   logs <app>               tail what an app printed
   list                     your apps and their URLs
+  workspaces               list accessible workspace slugs
   watch [app]              what the nightly watch pass found
 
 sharing & schedule
@@ -49,6 +50,48 @@ more
   skill                    install the agent skill into .claude/skills
   help                     this list
 ```
+
+Use `--workspace <slug>` on a command to select a workspace from
+`small workspaces`, or set `SMALL_WORKSPACE` for the shell. The flag takes
+precedence. With neither set, commands use the login's email workspace.
+Selecting a workspace in the browser does not select it in the CLI. Unknown
+slugs fail before app requests rather than falling back to a different workspace.
+The CLI also verifies that the server activated the selection. A server without
+the CLI workspace authentication update stops the command before app access.
+
+## AWS hosting (dev preview)
+
+The updated CLI currently comes from this repository. Public npm publication
+is held while the feature is reviewed on dev. From the repository root, run
+`node packages/cli/scripts/sync-guard.js` to prepare its bundled runtime/skill,
+then `npm install -g ./packages/cli` to install the local CLI. Run `small skill`
+in your app directory to refresh its agent instructions.
+
+In the [dev dashboard](https://small-cp-dev.zeroshothq.workers.dev/apps), open
+the desired workspace's **Settings → Connections → AWS**. Enter the customer's
+account ID and first app name, approve the installation in their AWS console,
+and return to **Finish connecting**. Additional apps reuse that connection.
+
+In the app's `small.toml`, set `type = "job"` and `[deploy] target = "aws"`
+before running `small init`. Then, in PowerShell:
+
+```powershell
+$env:SMALL_API = 'https://small-cp-dev.zeroshothq.workers.dev'
+small workspaces
+# Replace <slug> with an accessible slug returned above.
+small deploy --workspace <slug>
+small run aws-test-job --workspace <slug>
+```
+
+The CLI prints the workspace, AWS account, and region before source upload.
+Source, inputs, logs, and outputs go directly between the client and customer
+AWS. The normal app sidebar, Run form, and Logs panels show the job.
+
+This preview supports multiple CPU jobs on one connection per workspace in
+`us-east-1`, with text, number, bool, and select inputs. App secrets, extra AWS
+roles, system packages, persistent storage, schedules, file/date inputs, GPU
+jobs, web servers, and hosted review/runbook/Coaching are not supported yet.
+The connection installer can deploy; workspace members can run and inspect.
 
 ## App detection
 

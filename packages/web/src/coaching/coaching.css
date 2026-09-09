@@ -1,4 +1,8 @@
 .coach-inspector { animation: coach-peek 180ms cubic-bezier(0.25,1,0.35,1); }
+.coach-turn-alternate {
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-white));
+  border-color: color-mix(in srgb, var(--color-accent) 20%, var(--color-line));
+}
 @keyframes coach-peek { from { transform: translateX(100%); } to { transform: translateX(0); } }
 @media (prefers-reduced-motion: reduce) { .coach-inspector { animation: none; } }
 .coach-ui button:focus-visible, .coach-inspector button:focus-visible,

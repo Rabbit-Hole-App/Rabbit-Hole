@@ -14,6 +14,13 @@ export function Raw({ value }) {
 function Conversation({ item, onOpen }) {
   const [query, setQuery] = useState(''), [role, setRole] = useState('All speakers'), [expanded, setExpanded] = useState(false);
   const matches = item.messages.filter(m => (role === 'All speakers' || m.role === role) && display(m).toLowerCase().includes(query.toLowerCase()));
+  const visibleIds = new Set(matches.map(m => m.id));
+  // Group before filtering so replies keep their original user ask and color.
+  const turns = [];
+  for (const message of item.messages) {
+    if (message.role === 'User' || !turns.length) turns.push([]);
+    turns.at(-1).push(message);
+  }
   useEffect(() => {
     if (item.messageId) document.getElementById('sample-' + item.messageId)?.scrollIntoView({ block: 'center' });
   }, [item.messageId]);
@@ -28,12 +35,18 @@ function Conversation({ item, onOpen }) {
       <div className="flex items-center justify-between text-xs text-ink-2"><span>{matches.length} of {item.messages.length} messages</span><button className="hover:text-ink" onClick={() => setExpanded(!expanded)}>{expanded ? 'Collapse tool details' : 'Expand tool details'}</button></div>
     </div>
     {!matches.length && <p className="py-8 text-sm text-ink-2">No messages match. Clear the search or change the speaker filter.</p>}
-    {matches.map(m => <article id={'sample-' + m.id} key={m.id} className={cn('border-b border-line py-5', item.messageId === m.id && 'rounded-sm bg-accent/5 px-3')}>
+    {turns.map((turn, index) => {
+      const visible = turn.filter(m => visibleIds.has(m.id));
+      if (!visible.length) return null;
+      return <section key={turn[0].id} aria-label={turn[0].role === 'User' ? 'User ask ' + turn[0].id : 'Before the first user ask'} className={cn('my-4 rounded-md border border-line px-4', index % 2 === 0 ? 'bg-side' : 'coach-turn-alternate')}>
+    {visible.map(m => <article id={'sample-' + m.id} key={m.id} className={cn('border-b border-line py-5 last:border-b-0', item.messageId === m.id && 'rounded-sm bg-accent/5 px-3')}>
       <div className="mb-2 flex flex-wrap items-center gap-2 text-xs"><span className={cn('font-semibold', m.role === 'User' ? 'text-ink' : 'text-ink-2')}>{m.role}</span><span className="text-ink-2">{m.time} · {m.id}</span>{m.evidence && <span className="ml-auto flex items-center gap-1 text-success"><Check size={11} /> Evidence</span>}</div>
       <p className="whitespace-pre-wrap break-words text-sm leading-6">{m.text}</p>
       {m.body && <details open={expanded || !!query} className="mt-3"><summary className="cursor-pointer text-xs text-ink-2 hover:text-ink">Arguments and full result</summary><div className="mt-2"><Raw value={m.body} /></div></details>}
       {m.evidence && <button onClick={() => onOpen({ ...decisions.find(d => d.messageId === m.id), type: 'Decision' })} className="mt-3 flex items-center gap-1 text-xs text-accent">View decision <ArrowUpRight size={12} /></button>}
     </article>)}
+      </section>;
+    })}
   </>;
 }
 
@@ -91,7 +104,7 @@ export default function Inspector({ item, onClose, onBack, onOpen, appName, sect
     </header>
     <div className={cn('shrink-0 pt-5 pb-4', !full && 'px-6')}><p className="mb-2 text-xs text-ink-2">{item.type}</p><h2 id="coach-inspector-title" className="break-words text-lg font-semibold leading-6">{item.title}</h2>{item.subtitle && <p className="mt-2 text-xs text-ink-2">{item.subtitle}</p>}</div>
     <Tabs key={item.id + (item.messageId || '') + (item.file || '')} defaultValue="contents" className="flex min-h-0 flex-1 flex-col">
-      <TabsList aria-label="Inspector views" className={cn('shrink-0 gap-5', !full && 'px-6')}><TabsTrigger value="contents">{contentLabel}</TabsTrigger><TabsTrigger value="raw">{item.modelInput ? 'Model input' : 'Original'}</TabsTrigger><TabsTrigger value="details">Details</TabsTrigger></TabsList>
+      <TabsList aria-label="Inspector views" className={cn('shrink-0 gap-5', !full && 'px-6')}><TabsTrigger value="contents">{contentLabel}</TabsTrigger><TabsTrigger value="raw">{item.modelInput ? 'Model input' : 'Original'}</TabsTrigger><TabsTrigger value="details">Metadata</TabsTrigger></TabsList>
       <TabsContent value="contents" className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain py-4', !full && 'px-6')}>
         {item.messages ? <Conversation item={item} onOpen={onOpen} /> : item.files ? <Source item={item} /> : item.type === 'Decision' ? <Decision item={item} onOpen={onOpen} /> : <Raw value={item.content} />}
       </TabsContent>

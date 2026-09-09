@@ -6,8 +6,9 @@ const readline = require('node:readline/promises');
 const { detect } = require('../lib/detect');
 const { init } = require('../lib/init');
 const { write, writeFlyToml } = require('../lib/generate');
-const { call, apiBase, fetchRaw } = require('../lib/api');
+const { call, apiBase, fetchRaw, selectWorkspace } = require('../lib/api');
 const { buildBundle } = require('../lib/bundle');
+const byoc = require('../lib/byoc');
 const config = require('../lib/config');
 const envfile = require('../lib/envfile');
 const fly = require('../lib/fly');
@@ -168,6 +169,7 @@ const commands = {
     if (fs.existsSync(rbPath) && !flags.force) return console.log('RUNBOOK.md already exists - use --force to regenerate');
     try {
       const app = detect(dir);
+      if (await byoc.target(app.name, app.config.deploy?.target === 'aws')) return console.log('✓ AWS project: hosted runbook generation is disabled');
       const { bundle } = buildBundle(dir, app.entry, envfile.parse(path.join(dir, '.env')));
       const { runbook } = await call('POST', '/api/runbook', { bundle });
       fs.writeFileSync(rbPath, runbook);
@@ -186,6 +188,8 @@ const commands = {
     const app = detect(dir, flags);
     console.log(`✓ entry: ${app.entry} (${app.framework}) via ${app.via}`);
     inputs.checkSchema(app.config); // bad [inputs]/[outputs] stops the deploy here
+    const awsTarget = await byoc.target(app.name, app.config.deploy?.target === 'aws');
+    if (awsTarget) return byoc.deploy(dir, app, awsTarget);
     console.log(`✓ ${await fly.ensureInstalled()}`); // before anything cloud - downloads the binary on first use
 
     const src = source.capture(dir);
@@ -328,6 +332,8 @@ const commands = {
 
   async run() {
     const name = flags._[0] || appName(process.cwd());
+    const awsTarget = await byoc.target(name, localConfig(name)?.deploy?.target === 'aws');
+    if (awsTarget) return byoc.run(awsTarget, flags);
     // default ./out matches the printed fetch line and the out/ dockerignore entry
     if (flags.download) return downloadOutputs(name, typeof flags.download === 'string' ? flags.download : './out');
 
@@ -381,6 +387,8 @@ const commands = {
 
   async runs() {
     const name = flags._[0] || appName(process.cwd());
+    const awsTarget = await byoc.target(name, localConfig(name)?.deploy?.target === 'aws');
+    if (awsTarget) return byoc.runs(awsTarget);
     const { runs } = await call('GET', `/api/runs?app=${encodeURIComponent(name)}`);
     if (!runs.length) return console.log(`no runs yet - small run ${name}`);
     for (const r of runs) {
@@ -410,12 +418,16 @@ const commands = {
 
   async logs() {
     const arg = flags._[0];
+    const awsRun = /^r-\d{13}-[a-f0-9]{12}$/.test(arg || '');
+    if (awsRun) return byoc.logsById(arg);
     if (arg && arg.startsWith('r-')) {
       const r = await call('GET', `/api/runs/${encodeURIComponent(arg)}?after=-1`);
       for (const line of r.lines) console.log(line);
       return;
     }
     const name = arg || appName(process.cwd());
+    const awsTarget = await byoc.target(name, localConfig(name)?.deploy?.target === 'aws');
+    if (awsTarget) return byoc.logs(awsTarget);
     if (flags.machine) {
       const res = await call('GET', `/api/logs?app=${encodeURIComponent(name)}`);
       if (!res.flyToken) throw new Error('control plane has no FLY_API_TOKEN configured');
@@ -459,6 +471,12 @@ const commands = {
     for (const a of apps) console.log(`${a.name}  ${a.visibility}  owner:${a.owner_email}`);
   },
 
+  async workspaces() {
+    const { workspaces } = await call('GET', '/api/workspaces');
+    for (const w of workspaces) console.log(`${w.slug}  ${w.name || '(email workspace)'}`);
+    console.log('choose: small <command> --workspace <slug> (or set SMALL_WORKSPACE)');
+  },
+
   // Install the agent skill into this project so Claude Code/Codex knows how to
   // deploy with small. Files ship inside the npm package (synced at prepack).
   // Payload only - the skill dir is also the standalone small-skill npm package,
@@ -491,6 +509,7 @@ everyday
   runs <app>               recent runs: status, duration, who started them
   logs <app>               tail what an app printed
   list                     your apps and their URLs
+  workspaces               list workspace slugs for --workspace
   watch [app]              what the nightly watch pass found
 
 sharing & schedule
@@ -503,17 +522,30 @@ more
   skill                    install the agent skill into .claude/skills
   help                     this list
 
+workspace
+  --workspace <slug>       select a workspace for this command
+  SMALL_WORKSPACE          default workspace for this shell (flag takes precedence)
+
 dashboard: run any command once, then open the URL it prints.`);
   },
 
 };
 
-const run = commands[cmd === '--help' || cmd === '-h' ? 'help' : cmd];
+const command = cmd === '--help' || cmd === '-h' ? 'help' : cmd;
+const run = commands[command];
 if (!run) {
-  console.log('usage: small <login|init|deploy|run|runs|schedule|share|list|logs|review|runbook|watch|skill|help>');
+  console.log('usage: small <login|init|deploy|run|runs|schedule|share|list|workspaces|logs|review|runbook|watch|skill|help>');
   process.exitCode = 1;
 } else {
-  run().catch((err) => {
+  (async () => {
+    const selected = flags.workspace ?? process.env.SMALL_WORKSPACE;
+    delete flags.workspace; // a global option, never a job input
+    if (selected !== undefined && !['login', 'help', 'skill', 'workspaces'].includes(command)) {
+      const w = await selectWorkspace(selected);
+      console.log(`✓ workspace: ${w.slug}${w.name ? ` (${w.name})` : ''}`);
+    }
+    await run();
+  })().catch((err) => {
     console.error(`✗ ${err.message}`);
     process.exitCode = 1;
   });

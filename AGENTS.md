@@ -24,6 +24,21 @@ Reuse existing UI components and helpers for common presentation, including code
 highlighting and enlarged page layouts. Extend the shared template rather than
 creating a separate design for each tab.
 
+## Deliver UI changes on the dev web app
+
+Build features into an app in the existing Apps list, sidebar, and app interface
+so the user can test them there. Never create a separate feature/demo page (such
+as `/aws`) as the deliverable. Reuse the normal app tabs and panels; workspace
+connection setup belongs in the existing Settings flow.
+
+A request to add or change UI includes authorization to build and deploy it to
+https://small-cp-dev.zeroshothq.workers.dev for the user's visual review.
+Complete the dev deployment before reporting the UI change as done, and provide
+the relevant dev page link. A local edit, build, commit, or push alone does not
+finish a UI request. Do not wait for a separate deployment request.
+Follow [the dev deployment steps](docs/features/coaching.md#deploy-dev).
+Promotion to the live app still requires the user's explicit approval.
+
 ## What this is
 
 small — deploy a Python app for your team, behind a work-email login, in one
@@ -35,6 +50,7 @@ command. Product truth: `docs/SCOPE.md` and `docs/PRODUCT.md`.
   the why. Read the highest-numbered few before changing anything substantial.
 - `docs/features/<name>.md` — feature specs. Implement the spec; don't expand it.
 - [Coaching UI and dev deployment](docs/features/coaching.md) — read and update when changing the Agent preview tabs, shared presentation helpers, or dev deployment.
+- [AWS BYOC CPU-job MVP](docs/features/byoc-aws.md) — read and update when changing AWS installation, permissions, CLI routing, or the AWS app in dev.
 - `git log` — commit messages carry the reasoning; they are the changelog.
 
 ## Live state (shared, be careful)
@@ -44,6 +60,8 @@ package (`small-deploy` + `small-skill`) are shared by every worktree and
 every agent session. Never deploy the control plane from one branch's view
 alone. `make test-unit` before every commit.
 
-`small-cp-dev` is a separate frontend preview using the existing live control plane.
-Its app actions use real shared data. Sessions, Sources, Capture, and Decisions
-remain sample UI and are enabled only in dev builds. See the Coaching spec above.
+`small-cp-dev` uses the existing live control plane for app actions and real shared
+data. Its AWS preview has a separate connection-metadata database and scoped AWS
+installer credentials; job data stays in customer AWS. Sessions, Sources,
+Capture, and Decisions remain sample UI enabled only in dev builds. Preserve
+both dev build flags using the Coaching deployment steps above.

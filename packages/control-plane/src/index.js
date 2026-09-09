@@ -39,7 +39,8 @@ async function cliAuth(req, env) {
   const m = (req.headers.get('Authorization') || '').match(/^Bearer (.+)$/);
   if (!m) return null;
   const p = await verify(m[1], env.MASTER_KEY);
-  return p && p.t === 'cli' ? p : null;
+  if (!p || p.t !== 'cli') return null;
+  return { ...p, ...(await workspaceFor(req, env, p.email)) };
 }
 
 async function sessionOf(req, env) {

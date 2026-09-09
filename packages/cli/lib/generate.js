@@ -95,4 +95,4 @@ function writeFlyToml(dir, flyApp, memory, storage) {
   fs.writeFileSync(path.join(dir, '.small', 'fly.toml'), lines.join('\n'));
 }
 
-module.exports = { runCommand, dockerfile, write, writeFlyToml };
+module.exports = { runCommand, dockerfile, write, writeFlyToml, runtimeSource };

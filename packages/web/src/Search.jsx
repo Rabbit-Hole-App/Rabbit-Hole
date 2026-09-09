@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
 import { api, navigate } from './api.js';
+import { loadApps } from './app-data.js';
 import { AppIcon, cn, KindIcon } from './ui.jsx';
 
 // Plain text out of a BlockNote JSON string - no parse, just the "text" values.
@@ -30,7 +31,7 @@ export default function SearchModal() {
   }, []);
 
   useEffect(() => {
-    if (open && !data) api('/api/apps').then(setData).catch(() => setData({ apps: [] }));
+    if (open && !data) loadApps().then(setData).catch(() => setData({ apps: [] }));
   }, [open]);
 
   const close = () => { setOpen(false); setQ(''); setHi(0); setAi(null); };
