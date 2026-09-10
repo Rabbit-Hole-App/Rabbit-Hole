@@ -22,7 +22,9 @@ Six types: `file`, `number`, `select`, `date`, `text`, `bool`. Callers pass
 them as flags — `small run app --image ./photo.jpg --threshold 0.7` — and the
 dashboard renders a Run form from the same declaration: a `number` with both
 `min` and `max` draws as a slider (plus a typed box), `select` a dropdown,
-`bool` a toggle, `file` a dropzone, `date` a date picker. Slack (`/small run`),
+`bool` a toggle, `file` a dropzone, `date` a date picker. Text fields also
+batch: the `+` beside one (or a multi-line paste into it) adds value rows and
+submit starts one run per value — other fields shared, 25 runs max. Slack (`/small run`),
 the chat agent's Run proposals, cron, and Run again all feed the same
 declaration too: the script receives identical env vars no matter who or what
 started the run. In the script:

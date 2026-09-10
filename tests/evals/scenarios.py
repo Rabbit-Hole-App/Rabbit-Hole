@@ -11,6 +11,7 @@ runner was asked for JSON output.
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -354,6 +355,80 @@ SCENARIOS = {
         "prompt": "Deploy the job in this directory. It must run inside our company AWS account through the existing connection on our Acme workspace. Do not ask questions.",
         "setup": _setup_byoc, "checks": _checks_byoc, "byoc": True,
     },
+}
+
+# ---------- knowledge Q&A: does the skill let the agent answer platform ----------
+# questions truthfully instead of inventing limits? One agent run answers all
+# questions; each check greps the whole answer for the mechanism a correct
+# answer must name. Questions never contain their answers (leakage policy).
+
+KNOWLEDGE_QA = [
+    ("slider", "Can the 'parallel' input show up as a slider on the dashboard Run form instead of a plain box? How?",
+     "Yes - a number input with both min and max renders as a slider (plus a typed box) on the Run form."),
+    ("batch", "A teammate has a list of 12 account names. Can they start one run per account from the Run form without submitting 12 times? How?",
+     "Yes - the + beside a text field adds value rows (a multi-line paste splits into rows automatically); submit starts one run per value with every other field shared, up to 25."),
+    ("defaults", "If an input declares a default in small.toml, what does the Run form show for that field?",
+     "The field comes pre-filled with the declared default; the user can edit it before running."),
+    ("outputs", "Where must the script write result files so teammates can download them from the run page?",
+     "Into the directory named by the SMALL_OUTPUTS env var - every file written there becomes a downloadable run output."),
+    ("storage", "How does an app keep its data across deploys and machine replacement?",
+     "Declare a [storage] block in small.toml - a persistent volume is mounted and SMALL_DATA points at it; keep state there (e.g. sqlite), never in process memory."),
+    ("types", "List every input type small supports.",
+     "Exactly six: file, number, select, date, text, bool."),
+]
+
+_JUDGE_MODEL = os.environ.get("EVAL_JUDGE_MODEL", "claude-haiku-4-5-20251001")
+
+
+def _judge_knowledge(answer):
+    """Grade the numbered answer against the reference facts with a cheap model.
+    Returns a list of booleans, one per question; all-False if judging fails."""
+    rubric = "\n\n".join(
+        f"Q{i}: {q}\nReference fact: {ref}" for i, (_, q, ref) in enumerate(KNOWLEDGE_QA, 1))
+    prompt = (
+        "Grade a candidate's answers about a deploy tool. For each question, the answer is "
+        "correct only if it asserts the reference fact (paraphrase fine, extra detail fine); "
+        "it is wrong if it denies the fact, invents a limitation, or dodges.\n\n"
+        f"{rubric}\n\nCandidate's answers:\n{answer}\n\n"
+        f'Reply with ONLY a JSON array of {len(KNOWLEDGE_QA)} booleans, one per question, in order.'
+    )
+    claude = shutil.which("claude") or "claude"
+    try:
+        r = subprocess.run([claude, "-p", prompt, "--model", _JUDGE_MODEL],
+                           capture_output=True, text=True, timeout=120,
+                           encoding="utf-8", errors="replace")
+        m = re.search(r"\[.*?\]", r.stdout, re.DOTALL)
+        verdicts = json.loads(m.group(0)) if m else []
+    except (subprocess.SubprocessError, json.JSONDecodeError, OSError):
+        verdicts = []
+    if len(verdicts) != len(KNOWLEDGE_QA):
+        verdicts = [False] * len(KNOWLEDGE_QA)
+    return [bool(v) for v in verdicts]
+
+
+def _setup_knowledge(project):
+    (project / "job.py").write_text(ENV_REPORT, encoding="utf-8")
+    (project / "small.toml").write_text(
+        'name = "report"\nentry = "job.py"\ntype = "job"\n\n[inputs]\n'
+        'parallel = { type = "number", default = 4, min = 1, max = 20 }\n'
+        'account = { type = "text", required = true }\n', encoding="utf-8")
+
+
+def _checks_knowledge(ctx):
+    verdicts = _judge_knowledge(ctx["result_text"])
+    return [(f"knows: {qid}", ok) for (qid, _, _), ok in zip(KNOWLEDGE_QA, verdicts)]
+
+
+_KNOWLEDGE_PROMPT = (
+    "A teammate asks the following questions about small (the deploy tool this project uses). "
+    "Answer each one accurately and concretely, numbered. Do not run any commands.\n\n"
+    + "\n".join(f"{i}. {q}" for i, (_, q, _f) in enumerate(KNOWLEDGE_QA, 1))
+)
+
+SCENARIOS["knowledge"] = {
+    "title": "platform Q&A — answers from skill knowledge, no invented limits",
+    "prompt": _KNOWLEDGE_PROMPT,
+    "setup": _setup_knowledge, "checks": _checks_knowledge,
 }
 
 # The no-skill arm's damage report: things the skill exists to prevent.

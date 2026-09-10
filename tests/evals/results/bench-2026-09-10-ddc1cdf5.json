@@ -1,0 +1,177 @@
+{
+  "model": "claude-sonnet-5",
+  "reps": 5,
+  "skill": "ddc1cdf5",
+  "records": [
+    {
+      "scenario": "knowledge",
+      "arm": "skill",
+      "checks": {
+        "knows: slider": true,
+        "knows: batch": true,
+        "knows: defaults": true,
+        "knows: outputs": true,
+        "knows: storage": true,
+        "knows: types": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.24437730000000002,
+      "duration_s": 21.3,
+      "turns": 4
+    },
+    {
+      "scenario": "knowledge",
+      "arm": "skill",
+      "checks": {
+        "knows: slider": true,
+        "knows: batch": true,
+        "knows: defaults": true,
+        "knows: outputs": true,
+        "knows: storage": true,
+        "knows: types": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.24121770000000003,
+      "duration_s": 17.2,
+      "turns": 4
+    },
+    {
+      "scenario": "knowledge",
+      "arm": "skill",
+      "checks": {
+        "knows: slider": true,
+        "knows: batch": true,
+        "knows: defaults": true,
+        "knows: outputs": true,
+        "knows: storage": true,
+        "knows: types": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.2444085,
+      "duration_s": 21.9,
+      "turns": 4
+    },
+    {
+      "scenario": "knowledge",
+      "arm": "skill",
+      "checks": {
+        "knows: slider": true,
+        "knows: batch": true,
+        "knows: defaults": true,
+        "knows: outputs": true,
+        "knows: storage": true,
+        "knows: types": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.2382741,
+      "duration_s": 13.7,
+      "turns": 4
+    },
+    {
+      "scenario": "knowledge",
+      "arm": "skill",
+      "checks": {
+        "knows: slider": true,
+        "knows: batch": true,
+        "knows: defaults": true,
+        "knows: outputs": true,
+        "knows: storage": true,
+        "knows: types": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.243213,
+      "duration_s": 22.7,
+      "turns": 4
+    },
+    {
+      "scenario": "knowledge",
+      "arm": "noskill",
+      "checks": {
+        "knows: slider": true,
+        "knows: batch": true,
+        "knows: defaults": true,
+        "knows: outputs": true,
+        "knows: storage": true,
+        "knows: types": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 1.0577670000000001,
+      "duration_s": 259.2,
+      "turns": 29
+    },
+    {
+      "scenario": "knowledge",
+      "arm": "noskill",
+      "checks": {
+        "knows: slider": true,
+        "knows: batch": false,
+        "knows: defaults": true,
+        "knows: outputs": true,
+        "knows: storage": true,
+        "knows: types": true
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.7255788000000001,
+      "duration_s": 171.9,
+      "turns": 22
+    },
+    {
+      "scenario": "knowledge",
+      "arm": "noskill",
+      "checks": {
+        "knows: slider": false,
+        "knows: batch": false,
+        "knows: defaults": false,
+        "knows: outputs": false,
+        "knows: storage": false,
+        "knows: types": false
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.4472616,
+      "duration_s": 106.9,
+      "turns": 9
+    },
+    {
+      "scenario": "knowledge",
+      "arm": "noskill",
+      "checks": {
+        "knows: slider": true,
+        "knows: batch": false,
+        "knows: defaults": true,
+        "knows: outputs": true,
+        "knows: storage": true,
+        "knows: types": true
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 1.019145,
+      "duration_s": 214.4,
+      "turns": 30
+    },
+    {
+      "scenario": "knowledge",
+      "arm": "noskill",
+      "checks": {
+        "knows: slider": true,
+        "knows: batch": false,
+        "knows: defaults": true,
+        "knows: outputs": false,
+        "knows: storage": false,
+        "knows: types": false
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.34577610000000003,
+      "duration_s": 88.6,
+      "turns": 8
+    }
+  ]
+}
