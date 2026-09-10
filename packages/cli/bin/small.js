@@ -10,6 +10,7 @@ const { call, apiBase, fetchRaw, selectWorkspace } = require('../lib/api');
 const { buildBundle } = require('../lib/bundle');
 const byoc = require('../lib/byoc');
 const config = require('../lib/config');
+const cognito = require('../lib/cognito');
 const envfile = require('../lib/envfile');
 const fly = require('../lib/fly');
 const inputs = require('../lib/inputs');
@@ -147,6 +148,13 @@ function printDiff(res) {
 
 const commands = {
   async login() {
+    const selected = typeof flags.api === 'string' ? flags.api.replace(/\/$/, '') : apiBase().replace(/\/$/, '');
+    const privateSettings = await cognito.discover(selected);
+    if (privateSettings) {
+      const member = await cognito.login(selected, privateSettings, flags['no-browser'] ? { onAuthorize: () => {} } : {});
+      console.log(`✓ logged in as ${member.email} (workspace: ${member.active}, API: ${selected})`);
+      return;
+    }
     if (flags.api) config.save({ ...config.load(), apiBase: flags.api });
     const email = flags.email || (await ask('work email: '));
     const res = await call('POST', '/api/cli/login', { email }, { auth: false });
@@ -154,7 +162,7 @@ const commands = {
     else console.log(`✓ code sent to ${email}`);
     const code = flags.code || (await ask('6-digit code: '));
     const v = await call('POST', '/api/cli/verify', { challenge: res.challenge, code }, { auth: false });
-    config.save({ ...config.load(), token: v.token, email: v.email, org: v.org, apiBase: apiBase() });
+    config.save({ ...config.load(), token: v.token, email: v.email, org: v.org, apiBase: apiBase(), authType: 'hosted', cognito: null });
     console.log(`✓ logged in as ${v.email} (org: ${v.org})`);
   },
 
@@ -500,7 +508,7 @@ const commands = {
 usage: small <command>
 
 start
-  login                    sign in with a one-time email code
+  login [--api <url>]       sign in; private AWS opens Cognito in your browser
   init                     scaffold small.toml and a runbook in this project
   deploy                   ship the current directory (it appears on the dashboard)
 

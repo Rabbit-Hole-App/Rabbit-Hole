@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Copy, ExternalLink } from 'lucide-react';
 import { api } from './api.js';
-import { Button, IconBtn, Input, SettingsRow } from './ui.jsx';
+import { Button, IconBtn, Input } from './ui.jsx';
 
 // The CLI requests access. The installer approves the exact folder here.
 export default function AwsS3Access({ connection }) {
@@ -43,16 +43,15 @@ export default function AwsS3Access({ connection }) {
     } catch (e) { if (popup) popup.close(); setError(e.message); } finally { setBusy(false); }
   };
   const pending = state?.pending;
+  const needsUpgrade = state && !state.approval_enabled;
+  if (!needsUpgrade && !pending && !templateUrl && !notice && !error) return null;
   return <div className="mt-5 border-t border-line pt-4">
     <div className="text-sm font-medium">S3 access</div>
-    <p className="mt-1 text-xs text-ink-3">Each app can read its approved folder. Review new access here when you deploy.</p>
-    {state && !state.approval_enabled && <div className="mt-3 rounded-lg border border-line p-4">
+    {needsUpgrade && <div className="mt-3 rounded-lg border border-line p-4">
       <div className="text-sm font-medium">One-time AWS connection upgrade</div>
       <p className="mt-2 text-xs text-ink-3">Approve this installation update in AWS once. Afterward, approve each app’s S3 folder here and deployment continues automatically. Existing folders stay approved.</p>
       {connection.can_deploy && <div className="mt-3 flex gap-2"><Button variant="soft" size="sm" disabled={busy || !state.stable} onClick={() => act('upgrade')}>Upgrade in AWS<ExternalLink size={13} /></Button><Button variant="ghost" size="sm" disabled={busy} onClick={load}>Check upgrade</Button></div>}
     </div>}
-    {state && !Object.keys(state.approved).length && <p className="mt-3 text-xs text-ink-3">No apps have S3 read access yet.</p>}
-    {Object.entries(state?.approved || {}).map(([name, uri]) => <SettingsRow key={name} title={name} desc={uri}><span className="text-xs text-ink-3">{state.stable ? 'Read only' : 'AWS updating…'}</span></SettingsRow>)}
     {pending && <div className="mt-3 rounded-lg border border-line bg-side p-4">
       <div className="text-sm font-medium">{pending.app_name} · {['updating', 'applying'].includes(pending.status) ? 'Applying in AWS' : pending.status === 'stale' ? 'Request needs refreshing' : 'Awaiting your approval'}</div>
       <p className="mt-2 break-all text-sm">{pending.s3_read ? `Read ${pending.s3_read}` : 'Remove this app’s S3 access'}</p>

@@ -1,5 +1,225 @@
 # AWS BYOC: CPU jobs in one workspace connection
 
+[Cognito setup reference](byoc-cognito-reference.md) preserves the user-provided
+React examples and records the verified pool settings. The private installation
+uses that pool through `oidc-client-ts`; the token-display sample is not shipped.
+
+The customer-hosted slice moves Small's UI, login, API, and workspace metadata
+into customer AWS. See the
+[customer-hosted implementation plan](../../tasks/plan.md) and
+[task checklist](../../tasks/todo.md).
+
+## Private installation: first dashboard milestone
+
+First milestone on 2026-09-09: internal release `0.1.0-pilot.1` was deployed at
+**[Small AWS](https://d3sgti338uxlc.cloudfront.net/apps)**. This release supports
+Cognito sign-in and an empty local workspace in the existing Apps interface.
+That first release did not deploy or run jobs. On 2026-09-09, the user confirmed that
+sign-in to the deployed Small dashboard works. Separate live refresh/logout
+confirmation remains outstanding; those paths pass the automated browser checks.
+
+- Target: **Amazon account `503561429929`, `us-east-1`**. The remote dev box's
+  `default` profile was verified as `DrishtiAdminRole`. Windows has no such
+  profile; installation runs over SSH on the user-provided Amazon dev box.
+- **`637423432890` is the user's personal account. Never use its credentials,
+  installer, trust principal, or hosted connection for Amazon deployments.**
+- Stack: `small-private-byoc`; initial workspace `w-small-aws` / **Small AWS**.
+  The existing confirmed Cognito user `cyudhist@amazon.com` is its initial owner.
+  Initial stack status was `CREATE_COMPLETE`; distribution `E3PCNTVI41XBAB`, API
+  `13bbxg9r6b`, metadata table `small-private-byoc-Metadata-AI3GZ98RP94P`, and web
+  bucket `small-private-byoc-webbucket-u96wrqr0jzim` belong to the Amazon account.
+- Customer S3/CloudFront serves the existing React dashboard. API Gateway checks
+  Cognito JWTs and the `openid` scope before invoking customer Lambda. Lambda
+  checks the exact issuer, client, access-token type, expiry, and DynamoDB
+  membership on each request. Matching an email domain grants no access.
+- `/api/auth/config` contains public login configuration only. Catalog,
+  workspace, and member responses come from customer DynamoDB. Other actions
+  return an explicit unsupported response and never proxy to hosted Small.
+- Tokens stay in browser memory; only the one-use PKCE transaction uses session
+  storage. Reload uses Cognito's login session. The callback consumes its state
+  before the shared router runs; logout returns to this installation's login.
+- No external ConnectionRole, hosted signer, public Lambda Function URL, or
+  runtime Cloudflare/Fly/D1/R2 service exists in this stack. The Lambda role can
+  read its metadata table and write its logs. S3 permits only this distribution's
+  service access and denies insecure transport. API responses are not cached.
+- These are authenticated AWS HTTPS endpoints, not a claim that traffic stays
+  inside a VPC. Cognito login and CloudFront are reachable over the internet.
+
+### Private release files and installation
+
+| File | Purpose |
+| --- | --- |
+| `packages/web/src/private-auth.js`, `PrivateAuthGate.jsx` | Code/PKCE, callback, in-memory session, sign-out; preserve the existing app shell |
+| `packages/web/src/api.js`, `app-data.js` | Private same-origin transport and local catalog; hosted behavior remains available in hosted builds |
+| `packages/byoc/private_api.py` | Explicit subject membership and read-only dashboard routes |
+| `packages/byoc/private-template.mjs` | Customer web, API, metadata, and restricted service policies |
+| `packages/byoc/package-private.mjs` | Versioned web/backend/installer artifacts plus SHA-256 manifest |
+| `packages/byoc/install-private.py` | Customer AWS CLI installer; checks account/checksums and preserves existing Cognito settings |
+
+Build with `VITE_PRIVATE_BYOC=true` into `packages/web/dist-private`, then run
+`node packages/byoc/package-private.mjs <installation-config.json>`. The
+installation configuration supplies the verified account, region, pool, client,
+domain, stack/workspace names, initial owner email, and release version. Internal
+pilot packages live under ignored `.small/byoc-private/releases/<version>`.
+
+Run the packaged installer where the customer's AWS CLI profile exists:
+
+```sh
+python3 install-private.py inspect --account-id 503561429929 --profile default
+python3 install-private.py deploy --account-id 503561429929 --profile default
+python3 install-private.py status --account-id 503561429929 --profile default
+# Once the stack is CREATE_COMPLETE or UPDATE_COMPLETE:
+python3 install-private.py finish --account-id 503561429929 --profile default
+```
+
+The installer clears environment access keys, explicitly selects the profile,
+and refuses an STS account mismatch before mutation. It only updates an existing
+stack carrying the installation's Purpose tag. `finish` initializes the owner
+without promoting existing members, appends the exact callback/logout URLs,
+preserves all existing writable app-client settings, and uploads the web assets.
+The package needs Python stdlib and the AWS CLI on the installation machine;
+it needs neither Node nor a source checkout. Assets and metadata are retained
+if the stack is removed. No existing AWS job installation is migrated or removed.
+
+Private local previews must also set `VITE_PRIVATE_BYOC=true`; this disables
+Vite's hosted proxy. The shared Cloudflare dev build keeps private mode off
+and preserves both existing dev flags. It cannot demonstrate Amazon isolation.
+
+### Private milestone checks
+
+- 8 API tests: token/context checks, explicit membership, workspace isolation,
+  catalog visibility, response contracts, unsupported mutations, and safe errors.
+- 6 infrastructure tests: no external account Allow, scoped JWT routes, no API
+  cache, authorization forwarding, durable resources, and SPA callback routes.
+- 6 installer tests: account mismatch, corrupt package, unrelated stack,
+  no silent member promotion, and preserved Cognito settings/return URLs.
+- 8 auth helper tests and 5 existing AWS app-adapter regressions.
+- 2 isolated browser tests use the real OIDC client with synthetic provider/API
+  replies: login, existing dashboard, reload, logout, missing/replayed state,
+  no persisted tokens, and no hosted network requests. These do not establish
+  a real-user Cognito sign-in. The user separately confirmed that sign-in works
+  at the deployed AWS URL on 2026-09-09.
+- Private production build passes. The new OIDC dependency has no reported
+  advisory in the npm audit at this checkpoint. Existing transitive advisories
+  remain in diagram/editor packages and dev tooling; no forced dependency
+  upgrade is included. Those features are not activated in this dashboard slice.
+- Live AWS checks: `/apps` serves the SPA with its security headers;
+  `/api/auth/config` returns the intended issuer/client; missing and invalid
+  bearer credentials are rejected with HTTP 401. The real Cognito page shows
+  **Email address → Next**.
+- An administrator-invoked Lambda diagnostic reads the real DynamoDB workspace
+  and returns its owner and zero apps. This proves the installed backend/data
+  wiring, not a real-user JWT login. Cognito's original callback and scopes are
+  retained alongside the new callback and logout URLs.
+- Shared UI build deployed to `small-cp-dev` as version
+  `57a96323-3d5f-4a67-b309-360991af744f`, with both preview flags preserved and
+  private mode off. Production and public npm packages were not changed.
+
+<!-- ponytail: private CLI login, job deployment/run/sharing, local S3 approval,
+additional member onboarding, and hosted integrations follow this milestone. -->
+
+## Private installation: CLI and CPU milestone
+
+The user approved connecting the CLI and proving one CPU app after confirming
+dashboard sign-in. Internal release `0.1.0-pilot.3` is installed in
+`503561429929`, `us-east-1`, at the same CloudFront URL. Real CLI sign-in,
+sample deployment, run, log retrieval, and output download passed. The stack
+is `UPDATE_COMPLETE`. This slice does not complete the later
+sharing and S3-approval tasks in the full checklist.
+
+- `packages/cli/lib/cognito.js` uses Node's crypto, HTTP, and fetch APIs for a
+  loopback code/PKCE login. It validates state, signed Cognito ID/access tokens,
+  issuer/client, nonce, expiry, and workspace membership before saving a login.
+  The CLI binds credentials to one HTTPS origin and does not reuse hosted
+  `SMALL_TOKEN` credentials or fall back after a private authentication failure.
+- The private gateway authorizes membership and app ownership, then invokes an
+  internal job Lambda through its IAM role. That Lambda uses the existing
+  `packages/byoc/api.py` engine. It has no public route, function URL, hosted
+  signer, signing secret, or external account principal.
+- Deploy uses customer S3, CodeBuild and ECR. Fargate jobs run in a private
+  subnet with S3/ECR/CloudWatch endpoints. The existing Run and Logs components
+  use the private `/api/jobs` routes and customer S3 output links.
+- App creation/deployment is restricted to the owner for this pilot. Membership
+  is checked on each request; existing visibility rules apply to reads/runs.
+  No extra S3 folder permissions are enabled in this release.
+- Templates larger than CloudFormation's inline limit are staged in a separate
+  private customer S3 bucket owned by `small-private-byoc-releases`. Backend
+  templates and the CLI archive are not published with the web assets.
+
+Package the private web build and the locally packed CLI together:
+
+```text
+npm pack --workspace packages/cli --pack-destination .small/byoc-private/cli
+node packages/byoc/package-private.mjs <installation-config.json> .small/byoc-private/cli/small-deploy-0.0.9.tgz
+```
+
+CPU configuration adds `jobs: true`, a stable 32-hex `installationId`,
+`jobName`, and `cliRedirectUri: "http://127.0.0.1:8766/auth/callback"`.
+Reuse that installation ID for upgrades. Each release has a new version and
+SHA-256 manifest, including `small-deploy.tgz`. When transferring a Windows ZIP
+to Linux, normalize ZIP entry separators to `/` within the release directory.
+Use the same `inspect`, `deploy`, `status`, and `finish` installer commands
+above. `finish` preserves existing Cognito callbacks and adds the CLI callback.
+
+Install the supplied CLI with `npm install -g ./small-deploy.tgz`, then:
+
+```text
+small login --api https://d3sgti338uxlc.cloudfront.net
+small workspaces
+small deploy --workspace w-small-aws
+small run aws-private-proof --workspace w-small-aws --count 8
+small logs aws-private-proof --workspace w-small-aws
+small run aws-private-proof --workspace w-small-aws --download ./out
+```
+
+Run deploy from `examples/byoc-private-cpu` (or an equivalent project with
+`type = "job"` and `[deploy] target = "aws"`). Clear a conflicting `SMALL_API`
+override or set it to the same AWS origin. The CLI login link must be opened
+on the computer running the command. Public npm and production remain unchanged.
+
+Focused verification before AWS update: 25 Node CLI/template tests and 42
+Python engine/API/installer tests passed. Coverage includes wrong-account
+refusal, foreign/unshared apps, deploy permissions, token origin binding,
+invalid state/signature, legacy authentication, and private artifact staging.
+The private web build passed. Browser checks cover the actual OIDC client and
+existing dashboard login/reload/logout/replay paths with synthetic replies.
+The additional CPU browser check caught missing account metadata and an
+unstable request adapter; both are fixed. That check now passes the existing
+Run form, run panel, log line, report link, and Logs table, with no hosted requests.
+After the real login, 18 CLI authentication/workspace/deployment regressions
+also passed with fixture config isolated from the user's saved credentials;
+the five existing web adapter tests passed.
+
+Real proof on 2026-09-09 (local time):
+
+- The user completed CLI Cognito sign-in as `cyudhist@amazon.com` for `w-small-aws`.
+  The live API returns this app's hosting account as `503561429929`.
+- App: [aws-private-proof](https://d3sgti338uxlc.cloudfront.net/apps/aws-private-proof).
+  Deployment `d-1789013429327-d057c38a82b6` built in customer CodeBuild and is ready.
+- Run `r-1789013587930-68fb628c493f` ran on Fargate and exited `0`.
+  The CLI retrieved its CloudWatch output and downloaded the 74-byte `report.json`
+  from customer S3. Its checked values are `count: 8`, `sum_of_squares: 204`,
+  and `label: "Private AWS proof"`.
+- Customer data bucket: `small-private-byoc-databucket-7siqli2pchdw`;
+  internal job API: `small-byoc-7f3da1e29839-api`. The later package preserves
+  the same workspace, app, data bucket, deployment, and run.
+- Final private dashboard was published with `install-private.py finish` for
+  `0.1.0-pilot.3`. The CLI package is included in that release; no public npm
+  publication or production promotion was performed.
+- Shared dev UI version `9aee52fd-39da-46b3-9556-6376e743a01c` preserves both
+  preview flags and private mode off. It includes the requested **Type** label.
+
+## Existing hosted preview
+
+The remaining sections describe the **legacy personal-account dev preview**.
+Its external-role trust and Cloudflare login/grant flow must not be used for
+the Amazon installation above.
+
+Distribution is planned as versioned Small installation packages under a
+commercial subscription, following the Retool self-hosted model. The immediate
+deliverable is the working private BYOC pilot and a reproducible internal
+release; billing and license-key enforcement are later work.
+
 ## Approved scope
 
 Prove install → connect → deploy → run → view logs and outputs for one CPU job
@@ -72,7 +292,9 @@ customer account. Automated cleanup/retention and stopping running tasks are def
 - [x] Require AWS-observed approval; a Small request or registration callback grants nothing.
 - [x] Give each approved app its own read-only task role; other apps retain no data access.
 - [x] Re-check permissions when deploying and running, including older deployments.
-- [x] Show pending and approved access in the existing AWS connection settings.
+- [x] Show pending access requests and their approval controls in the existing AWS connection settings.
+  The user removed the static approved-folder list; hide the section when there
+  is no upgrade, pending request, result notice, or error. Existing AWS grants stay intact.
 - [x] Prove the sample CSV report, denied access outside its folder, and unchanged normal outputs.
 - [x] Update CLI/skill instructions, run focused tests, review, and deploy dev.
 
@@ -227,6 +449,12 @@ app secrets, and Coaching in AWS need their own accepted slice. -->
 
 ## Verification
 
+Dev UI cleanup, 2026-09-09: the user removed the static list of approved S3
+folders because it offered no action. The idle section is hidden while new
+permission requests and their existing controls still appear automatically.
+No AWS permissions were changed. Dev version
+`c402091f-e052-4175-a82f-863378d01ce3`; build and all 31 unit tests passed.
+
 Approval in Small follow-up, 2026-09-09:
 
 - Dev version `37a0ce41-779c-460a-96b9-655c5849e046` includes approval/cancellation,
@@ -298,8 +526,9 @@ S3 access slice, 2026-09-09:
 
 Use the repository CLI for this slice. In the sample app, enter an S3 key inside
 the approved folder and click **Run**; **Logs** shows both the successful report
-and the deliberate denied-access test. Inspect the grant under
-**Settings → Connections → AWS → S3 access**. The reusable source and declaration
+and the deliberate denied-access test. New access requests appear under
+**Settings → Connections → AWS → S3 access** for approval; the static list of
+already-approved folders is no longer displayed. The reusable source and declaration
 example are in `examples/byoc-s3-report`; replace its example bucket before use.
 
 CLI/skill follow-up, 2026-09-09:

@@ -1,22 +1,24 @@
 'use strict';
-const { load } = require('./config');
+const config = require('./config');
+const cognito = require('./cognito');
 
 // Real value baked in before npm publish; SMALL_API env overrides for dev/test.
 const DEFAULT_API = 'https://small-cp.zeroshothq.workers.dev';
 let workspace;
 
 function apiBase() {
-  return process.env.SMALL_API || load().apiBase || DEFAULT_API;
+  return process.env.SMALL_API || config.load().apiBase || DEFAULT_API;
 }
 
 // SMALL_TOKEN lets CI/agents skip the interactive email login: copy the token
 // from ~/.small/config.json on a machine that ran `small login` once.
 function sessionToken() {
-  return process.env.SMALL_TOKEN || load().token;
+  return process.env.SMALL_TOKEN || config.load().token;
 }
 
-function sessionHeaders() {
-  const token = sessionToken();
+async function sessionHeaders() {
+  const current = config.load();
+  const token = current.authType === 'cognito' ? await cognito.accessToken(apiBase(), current.cognito) : sessionToken();
   if (!token) throw new Error('not logged in - run: small login (or set SMALL_TOKEN)');
   return { Authorization: `Bearer ${token}`, ...(workspace ? { 'X-Small-Workspace': workspace } : {}) };
 }
@@ -40,11 +42,12 @@ async function selectWorkspace(slug) {
 async function call(method, path, body, { auth = true } = {}) {
   const isForm = body instanceof FormData; // fetch sets the multipart boundary itself
   const headers = isForm ? {} : { 'Content-Type': 'application/json' };
-  if (auth) Object.assign(headers, sessionHeaders());
+  if (auth) Object.assign(headers, await sessionHeaders());
   const resp = await fetch(apiBase() + path, {
     method,
     headers,
     body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
+    redirect: 'error',
   });
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) throw Object.assign(new Error(data.error || `${path} failed (${resp.status})`), { status: resp.status });
@@ -53,7 +56,7 @@ async function call(method, path, body, { auth = true } = {}) {
 
 // Binary GET for run outputs - call() assumes JSON responses.
 async function fetchRaw(path) {
-  const resp = await fetch(apiBase() + path, { headers: sessionHeaders() });
+  const resp = await fetch(apiBase() + path, { headers: await sessionHeaders(), redirect: 'error' });
   if (!resp.ok) throw new Error(`${path} failed (${resp.status})`);
   return Buffer.from(await resp.arrayBuffer());
 }

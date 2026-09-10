@@ -82,6 +82,7 @@ out
 .nuxt
 dist
 dist-dev/
+dist-private/
 .output
 
 # Gatsby files

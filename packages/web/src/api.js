@@ -1,3 +1,5 @@
+import { isPrivateByoc, privateAuth } from './private-auth.js';
+
 // "gmail-com" reads like a slug; the workspace shows as "Gmail".
 export const wsName = (org) => ((org || '').split('-')[0] || org || '').replace(/^./, (c) => c.toUpperCase());
 
@@ -42,7 +44,17 @@ export const wsHeaders = () => (getWs() ? { 'X-Small-Workspace': getWs() } : {})
 
 // Same-origin control-plane API. Session cookie rides along; 401 → magic-link login and back.
 export async function api(path, opts = {}) {
-  const r = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', ...wsHeaders(), ...(opts.headers || {}) } });
+  let authorization = {};
+  if (isPrivateByoc) {
+    try { authorization = await (await privateAuth()).headers(path); }
+    catch (error) {
+      if (error.status !== 401) throw error;
+      window.location.href = `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      return new Promise(() => {});
+    }
+  }
+  const r = await fetch(path, { ...opts, ...(isPrivateByoc ? { credentials: 'omit', redirect: 'error' } : {}),
+    headers: { 'Content-Type': 'application/json', ...wsHeaders(), ...(opts.headers || {}), ...authorization } });
   if (r.status === 401) {
     window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
     return new Promise(() => {}); // navigation in flight

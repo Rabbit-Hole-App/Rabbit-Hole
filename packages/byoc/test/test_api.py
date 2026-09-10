@@ -75,6 +75,30 @@ class AuthorizationTests(unittest.TestCase):
         aws.assert_not_called()
 
 
+class PrivateGatewayTests(unittest.TestCase):
+    def test_internal_entry_requires_gateway_mode_exact_app_workspace_and_permission(self):
+        actor = {"org": "gmail-com", "app": "proof", "email": "owner@example.test", "permissions": ["read", "run", "deploy"]}
+        event = {"rawPath": "/apps/proof/runs", "requestContext": {"http": {"method": "POST"}}, "body": "{}", "actor": actor}
+        with patch.dict(os.environ, {"PRIVATE_GATEWAY": "true", "WORKSPACE": "gmail-com"}), \
+                patch.object(api, "dispatch", return_value={"run_id": "fixture"}) as dispatch, patch.object(api, "signing_secret") as secret:
+            self.assertEqual(api.private_handler(event, None)["statusCode"], 200)
+            self.assertEqual(dispatch.call_args.args[-2:], ({"sub": "owner@example.test"}, "proof"))
+            dispatch.reset_mock()
+            for change in [{"org": "other"}, {"app": "other"}, {"email": ""}, {"permissions": ["read"]}, {"permissions": "run"}]:
+                self.assertEqual(api.private_handler({**event, "actor": {**actor, **change}}, None)["statusCode"], 403)
+            with patch.dict(os.environ, {"PRIVATE_GATEWAY": "false"}):
+                self.assertEqual(api.private_handler(event, None)["statusCode"], 403)
+            dispatch.assert_not_called()
+            secret.assert_not_called()
+
+    def test_hosted_entry_does_not_accept_an_actor_as_authentication(self):
+        event = {"rawPath": "/apps/proof/runs", "requestContext": {"http": {"method": "GET"}},
+                 "actor": {"org": "gmail-com", "app": "proof", "email": "owner@example.test", "permissions": ["read"]}}
+        with patch.object(api, "signing_secret", return_value="test-secret"), patch.object(api, "dispatch") as dispatch:
+            self.assertEqual(api.handler(event, None)["statusCode"], 401)
+            dispatch.assert_not_called()
+
+
 class InputTests(unittest.TestCase):
     def test_defaults_and_typed_scalars(self):
         schema = {"count": {"type": "number", "default": 3}, "label": {"type": "text", "required": True}}

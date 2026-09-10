@@ -6,6 +6,7 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { packageJob, target, runs, logsById, deploy } = require('../lib/byoc');
+const config = require('../lib/config');
 
 test('AWS source archive is readable by Python and excludes secrets, sessions, ignored files, and local outputs', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'small-byoc-test-'));
@@ -47,6 +48,7 @@ test('AWS packaging rejects unsupported app shapes and configuration before uplo
 });
 
 test('one workspace connection routes multiple apps and resolves run IDs without mixing hosted apps', async (t) => {
+  t.mock.method(config, 'load', () => ({}));
   const previous = { token: process.env.SMALL_TOKEN, base: process.env.SMALL_API };
   process.env.SMALL_TOKEN = 'fixture-small-token';
   process.env.SMALL_API = 'https://small.example';
@@ -87,6 +89,7 @@ test('one workspace connection routes multiple apps and resolves run IDs without
 });
 
 test('deploy requests only S3 metadata before approval, then sends source and schema directly to AWS', async (t) => {
+  t.mock.method(config, 'load', () => ({}));
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'small-byoc-test-'));
   const before = { token: process.env.SMALL_TOKEN, base: process.env.SMALL_API };
   process.env.SMALL_TOKEN = 'fixture'; process.env.SMALL_API = 'https://small.example';

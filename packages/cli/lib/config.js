@@ -15,7 +15,8 @@ function load() {
 
 function save(obj) {
   fs.mkdirSync(path.dirname(FILE), { recursive: true });
-  fs.writeFileSync(FILE, JSON.stringify(obj, null, 2) + '\n');
+  fs.writeFileSync(FILE, JSON.stringify(obj, null, 2) + '\n', { mode: 0o600 });
+  fs.chmodSync(FILE, 0o600);
 }
 
 module.exports = { load, save, FILE };

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, LayoutGrid, LayoutPanelLeft, Link, LogOut, Mail, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
+import { isPrivateByoc } from './private-auth.js';
 import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
@@ -252,8 +253,9 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose }) {
               <div className="text-2xl font-semibold">Developer</div>
               <div className="pt-2 text-base text-ink-2">Deploy from your terminal</div>
               <Heading>New app</Heading>
-              <SettingsRow title="1. Install the CLI" desc="Node 18+"><CodeCopy text="npm i -g small-deploy" /></SettingsRow>
-              <SettingsRow title="2. Sign in" desc="A one-time code to your email"><CodeCopy text="small login" /></SettingsRow>
+              {isPrivateByoc && <p className="py-3 text-sm text-ink-2">Use the CLI package supplied with this private installation. CPU jobs deploy and run in your AWS account.</p>}
+              <SettingsRow title="1. Install the CLI" desc="Node 18+"><CodeCopy text={isPrivateByoc ? 'npm i -g ./small-deploy.tgz' : 'npm i -g small-deploy'} /></SettingsRow>
+              <SettingsRow title="2. Sign in" desc={isPrivateByoc ? 'Cognito opens in your browser' : 'A one-time code to your email'}><CodeCopy text={isPrivateByoc ? `small login --api ${window.location.origin}` : 'small login'} /></SettingsRow>
               <SettingsRow title="3. Ship" desc="From your project directory. It appears here the moment it deploys."><CodeCopy text="small deploy" /></SettingsRow>
               <Heading>Everyday commands</Heading>
               <SettingsRow title="Start a job" desc="Prompts for its inputs"><CodeCopy text="small run <app>" /></SettingsRow>
@@ -292,7 +294,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose }) {
               <div className="text-2xl font-semibold">Security</div>
               <div className="pt-2 text-base text-ink-2">Sign-in and sessions</div>
               <Heading>Sign-in</Heading>
-              <SettingsRow title="Method" desc="A magic link or one-time code to your work email. No passwords stored." />
+              <SettingsRow title="Method" desc={isPrivateByoc ? 'Amazon Cognito, managed by your workspace administrator.' : 'A magic link or one-time code to your work email. No passwords stored.'} />
               <SettingsRow title="This device" desc="Sign out here">
                 <Button variant="secondary" size="sm" onClick={() => { window.location.href = '/logout'; }}>Log out</Button>
               </SettingsRow>
@@ -304,8 +306,8 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose }) {
               <div className="pt-2 text-base text-ink-2">Who you are here</div>
               <Heading>Account</Heading>
               <SettingsRow title="Email" desc="Your sign-in identity"><span className="text-sm text-ink-2">{email}</span></SettingsRow>
-              <SettingsRow title="Home workspace" desc="Everyone with this email domain shares it">
-                <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{email ? email.split('@')[1] : ''}</code>
+              <SettingsRow title="Home workspace" desc={isPrivateByoc ? 'Access is granted by your workspace administrator.' : 'Everyone with this email domain shares it'}>
+                <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{isPrivateByoc ? org : email ? email.split('@')[1] : ''}</code>
               </SettingsRow>
             </>
           )}
@@ -800,8 +802,12 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={() => setNewApp(false)}>
           <div className="mt-[22vh] w-[420px] max-w-[90vw] rounded-2xl bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
             <div className="pb-1 text-sm font-semibold">New app</div>
-            <div className="pb-3 text-xs text-ink-2">Apps ship from your terminal. Three commands and it appears here.</div>
-            {[['1. Install the CLI', 'npm i -g small-deploy'], ['2. Sign in', 'small login'], ['3. Ship from your project directory', 'small deploy']].map(([label, cmd]) => (
+            <div className="pb-3 text-xs text-ink-2">{isPrivateByoc
+              ? 'Use the CLI package supplied with this installation to deploy CPU jobs into your AWS account.'
+              : 'Apps ship from your terminal. Three commands and it appears here.'}</div>
+            {[['1. Install the CLI', isPrivateByoc ? 'npm i -g ./small-deploy.tgz' : 'npm i -g small-deploy'],
+              ['2. Sign in', isPrivateByoc ? `small login --api ${window.location.origin}` : 'small login'],
+              ['3. Ship from your project directory', 'small deploy']].map(([label, cmd]) => (
               <div key={cmd} className="flex items-center justify-between gap-3 py-1.5">
                 <span className="text-sm text-ink-2">{label}</span>
                 <span className="flex items-center gap-1">

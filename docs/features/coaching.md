@@ -96,6 +96,25 @@ preserves the approved AWS app integration. Default builds disable both previews
 
 ## Release and verification
 
+Dev version `c402091f-e052-4175-a82f-863378d01ce3` removes the static S3
+approved-folder list from AWS connection settings. The section stays hidden
+when idle; upgrade, approval, cancellation, and status/error UI remain.
+The dev build and all 31 `make test-unit` checks passed. Both preview flags
+remain enabled, private mode is off, and the Apps **Type** label is retained.
+
+Dev version `9aee52fd-39da-46b3-9556-6376e743a01c` includes the Apps table
+column rename from **Kind** to **Type**, including in `test-ws`. The build succeeded with
+both preview flags enabled and private mode disabled. No production promotion.
+The label was first deployed as `e4f1e091-4b47-47b7-8e6d-3c99fb4104da`;
+this final build also contains the private AWS adapter fix, inactive on shared dev.
+
+Dev version `57a96323-3d5f-4a67-b309-360991af744f` publishes the shared UI after
+adding the [private Cognito installation mode](byoc-aws.md#private-installation-first-dashboard-milestone).
+Both existing preview flags remain enabled; private mode is disabled on this
+Cloudflare site, so its login/app flows remain hosted. The Amazon pilot has a
+separate AWS URL and sends no Cognito sessions or workspace data to this preview.
+The two web builds and focused adapter/auth tests pass. No production promotion.
+
 Dev version `37a0ce41-779c-460a-96b9-655c5849e046` adds **Approve & deploy** and
 **Cancel** inside the existing AWS connection settings. Older connections show
 a one-time AWS upgrade; new requests appear while Settings stays open. The

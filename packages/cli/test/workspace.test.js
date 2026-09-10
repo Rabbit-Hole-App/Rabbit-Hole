@@ -24,6 +24,7 @@ function invoke(t, args, extraEnv = {}) {
   fs.writeFileSync(preload, `
 const fs = require('node:fs');
 const awsUrl = 'https://fixture.lambda-url.us-east-1.on.aws/';
+require(${JSON.stringify(path.resolve(__dirname, '../lib/config.js'))}).load = () => ({});
 const connection = { org: 'w-team', account_id: '987654321098', region: 'us-east-1', state: 'connected',
   job_name: 'first-job', api_url: awsUrl, can_deploy: true };
 globalThis.fetch = async (url, options = {}) => {

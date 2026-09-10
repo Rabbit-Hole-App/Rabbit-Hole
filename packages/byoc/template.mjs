@@ -9,8 +9,9 @@ const role = (service, statements) => ({ Type: 'AWS::IAM::Role', Properties: {
   AssumeRolePolicyDocument: trust(service), Policies: [{ PolicyName: 'small-job', PolicyDocument: { Version: '2012-10-17', Statement: statements } }],
 } });
 
-export function makeTemplate({ apiCode, signerCode, permissionsCode, installationId, externalId, workspace, owner, platformPrincipal, platformOrigin, jobName, s3Access = {} }) {
-  if (!/^[a-f0-9]{32}$/.test(installationId) || !/^[a-f0-9]{64}$/.test(externalId)) throw new Error('Invalid installation ID');
+export function makeTemplate({ apiCode, signerCode, permissionsCode, installationId, externalId, workspace, owner, platformPrincipal, platformOrigin, jobName, s3Access = {}, privateGateway = false }) {
+  if (!/^[a-f0-9]{32}$/.test(installationId) || (!privateGateway && !/^[a-f0-9]{64}$/.test(externalId))) throw new Error('Invalid installation ID');
+  if (privateGateway && (permissionsCode || Object.keys(s3Access).length)) throw new Error('Private S3 approval is not enabled in this release');
   if (!/^[a-z0-9-]{1,40}$/.test(jobName)) throw new Error('Invalid job name');
   const label = 'small-byoc-' + installationId.slice(0, 12);
   s3Access = accessMap(s3Access);
@@ -173,6 +174,24 @@ export function makeTemplate({ apiCode, signerCode, permissionsCode, installatio
     Resources[id] = { Type: 'AWS::EC2::VPCEndpoint', Properties: { VpcId: ref('Vpc'), VpcEndpointType: 'Interface',
       ServiceName: sub('com.amazonaws.${AWS::Region}.' + service), PrivateDnsEnabled: true,
       SubnetIds: [ref('Subnet')], SecurityGroupIds: [ref('EndpointSecurityGroup')] } };
+  }
+  if (privateGateway) {
+    // Explicit compute allowlist: hosted grants, registration, external trust,
+    // signing secrets and public function URLs never enter a private stack.
+    const ids = ['Vpc', 'Subnet', 'RouteTable', 'RouteAssociation', 'EndpointSecurityGroup', 'TaskSecurityGroup',
+      'S3Endpoint', 'EcrApiEndpoint', 'EcrDockerEndpoint', 'LogsEndpoint', 'DataBucket', 'BucketPolicy', 'Repository',
+      'Cluster', 'RunLogGroup', 'BuildLogGroup', 'ApiLogGroup', 'TaskRole', 'ExecutionRole', 'BuildRole', 'BuildProject'];
+    const compute = Object.fromEntries(ids.map((id) => [id, Resources[id]]));
+    compute.JobApiRole = Resources.ApiRole;
+    compute.JobApiRole.Properties.Policies[0].PolicyDocument.Statement = Resources.ApiRole.Properties.Policies[0].PolicyDocument.Statement
+      .filter((statement) => statement.Action !== 'secretsmanager:GetSecretValue');
+    compute.JobApiFunction = Resources.ApiFunction;
+    compute.JobApiFunction.Properties.Role = att('JobApiRole', 'Arn');
+    compute.JobApiFunction.Properties.Handler = 'index.private_handler';
+    compute.JobApiFunction.Properties.Timeout = 25;
+    delete compute.JobApiFunction.Properties.Environment.Variables.SIGNING_SECRET;
+    compute.JobApiFunction.Properties.Environment.Variables.PRIVATE_GATEWAY = 'true';
+    return { Resources: compute };
   }
   return { AWSTemplateFormatVersion: '2010-09-09', Description: 'small BYOC preview: CPU jobs for one workspace. Customer data stays in this account.',
     Resources, Outputs: { ConnectionRoleArn: { Value: att('ConnectionRole', 'Arn') }, SignerArn: { Value: att('SignerFunction', 'Arn') },

@@ -14,6 +14,10 @@ blocker; do not route around small.
 `small.toml` has `[deploy] target = "aws"`, read `references/aws-hosting.md`
 and follow that flow before running `small init`. That preview keeps source,
 inputs, logs, and outputs in customer AWS and skips hosted model features.
+For a **private Small installation**, use its supplied CLI package and AWS URL,
+then `small login --api <installation-url>` for Cognito sign-in. Never use
+the hosted connection setup or an external AWS role for that mode. Its first
+CPU release does not support additional S3 access yet.
 For an AWS-hosted job reading S3, declare its exact folder with `[aws] s3_read`.
 Deploy requests approval in Small when access changes, waits, and resumes after
 the installer approves. Older connections need one AWS template upgrade first.

@@ -384,11 +384,30 @@ def dispatch(method, path, body, query, claims, app=None):
 
 
 def handler(event, context):
+    return handle_request(event, context)
+
+
+def private_handler(event, context):
+    # This entry has no public URL. Only the customer gateway's IAM role can
+    # invoke it in the installation. Actor/scope are constructed by that gateway.
+    return handle_request(event, context, private=True)
+
+
+def handle_request(event, context, private=False):
     try:
         method = event.get("requestContext", {}).get("http", {}).get("method", "")
         app, path = app_route(event.get("rawPath", ""))
         permission = "read" if method == "GET" else "deploy" if path.startswith("/deploys") else "run"
-        claims = authorize(event.get("headers", {}).get("authorization", ""), signing_secret(), permission)
+        if private:
+            actor = event.get("actor", {})
+            if (os.environ.get("PRIVATE_GATEWAY") != "true" or actor.get("org") != os.environ["WORKSPACE"]
+                    or actor.get("app") != app or not isinstance(actor.get("email"), str) or not actor["email"]
+                    or not isinstance(actor.get("permissions"), list)
+                    or permission not in actor.get("permissions", [])):
+                raise Rejected("Not authorized for this job", 403)
+            claims = {"sub": actor["email"]}
+        else:
+            claims = authorize(event.get("headers", {}).get("authorization", ""), signing_secret(), permission)
         raw = event.get("body") or "{}"
         if event.get("isBase64Encoded"):
             raw = base64.b64decode(raw).decode()

@@ -1,5 +1,6 @@
 import { api } from './api.js';
 import { createAwsClient } from './byoc-client.js';
+import { isPrivateByoc } from './private-auth.js';
 
 // App names come directly from customer AWS. Job content stays in the browser
 // and customer account when the normal app/run UI opens it.
@@ -23,7 +24,7 @@ export function withAwsApp(data, connection, jobs = [{ name: connection?.job_nam
 
 export async function loadApps() {
   const data = await api('/api/apps');
-  if (import.meta.env?.VITE_BYOC_DEV !== 'true') return data;
+  if (isPrivateByoc || import.meta.env?.VITE_BYOC_DEV !== 'true') return data;
   try {
     const { connection } = await api('/api/byoc/connection');
     if (!connection || connection.state !== 'connected' || connection.org !== data.org) return data;
@@ -76,6 +77,7 @@ export function createAwsRunApi(client, connection, name = connection.job_name) 
 }
 
 const clients = new WeakMap();
+const privateClients = new WeakMap();
 function awsClient(connection) {
   if (!clients.has(connection)) clients.set(connection, {
     aws: createAwsClient(() => api('/api/byoc/grant', { method: 'POST', body: '{}' }), connection.api_url),
@@ -85,6 +87,12 @@ function awsClient(connection) {
 }
 
 export function appApi(app) {
+  if (isPrivateByoc) {
+    if (app?.hosting !== 'aws') return api;
+    if (!privateClients.has(app)) privateClients.set(app, createAwsRunApi((path, { method = 'GET', body } = {}) => api('/api/jobs' + path,
+      { method, ...(body ? { body: JSON.stringify(body) } : {}) }), {}, app.name));
+    return privateClients.get(app);
+  }
   if (app?.hosting !== 'aws') return api;
   const connection = app.aws_connection;
   const aws = awsClient(connection), { apps } = clients.get(connection);

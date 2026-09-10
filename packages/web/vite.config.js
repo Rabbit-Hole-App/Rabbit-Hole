@@ -17,8 +17,9 @@ function smallApi() {
 }
 
 // '^/a/' is a regex key — a plain '/a' prefix would swallow /apps itself.
-const target = smallApi();
-const proxy = Object.fromEntries(['/api', '/login', '/auth', '^/a/'].map((p) => [p, { target, changeOrigin: true }]));
+// A private preview must never proxy Cognito credentials to hosted Small.
+const proxy = process.env.VITE_PRIVATE_BYOC === 'true' ? undefined
+  : Object.fromEntries(['/api', '/login', '/auth', '^/a/'].map((p) => [p, { target: smallApi(), changeOrigin: true }]));
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],

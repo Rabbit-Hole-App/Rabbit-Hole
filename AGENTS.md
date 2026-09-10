@@ -51,6 +51,10 @@ command. Product truth: `docs/SCOPE.md` and `docs/PRODUCT.md`.
 - `docs/features/<name>.md` — feature specs. Implement the spec; don't expand it.
 - [Coaching UI and dev deployment](docs/features/coaching.md) — read and update when changing the Agent preview tabs, shared presentation helpers, or dev deployment.
 - [AWS BYOC CPU-job MVP](docs/features/byoc-aws.md) — read and update when changing AWS installation, permissions, CLI routing, or the AWS app in dev.
+- Amazon BYOC uses account **503561429929** in **us-east-1**, with the private
+  AWS-hosted Small installation documented above. **637423432890 is personal;
+  never use its credentials, installer, or trust principal for Amazon.** The
+  verified `default` AWS profile is on the user's Amazon dev box, not Windows.
 - `git log` — commit messages carry the reasoning; they are the changelog.
 
 ## Live state (shared, be careful)

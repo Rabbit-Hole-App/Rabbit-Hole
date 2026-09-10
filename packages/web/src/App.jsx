@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Calendar, ChevronDown, C
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
 import Shell from './Shell.jsx';
+import { isPrivateByoc } from './private-auth.js';
 import { Avatar, Chk, cn, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, toast, useHeaderDrag, ValuePicker } from './ui.jsx';
 
 const people = (a) => [a.owner_email, ...(a.members || []).map((m) => m.email).filter((e) => e !== a.owner_email)];
@@ -11,7 +12,7 @@ const td = 'h-8 border-b border-line px-2 text-sm whitespace-nowrap';
 const th = 'h-8 border-b border-line px-2 text-left text-xs font-normal text-ink-2';
 
 // Notion-lite database controls: column order/visibility, one sort, one filter.
-const COLS = { name: 'Name', kind: 'Kind', access: 'Access', people: 'People', watch: 'Watch', deployed: 'Deployed', lastrun: 'Last run' };
+const COLS = { name: 'Name', kind: 'Type', access: 'Access', people: 'People', watch: 'Watch', deployed: 'Deployed', lastrun: 'Last run' };
 const DEFAULT_ORDER = Object.keys(COLS);
 const COL_ICON = { name: Type, kind: Circle, access: Lock, people: Users, watch: Eye, deployed: Calendar, lastrun: Clock };
 const COL_INFO = {
@@ -178,9 +179,10 @@ function AppContent({ data, load }) {
           {data?.error && <div className="text-ink-2">✗ {data.error}</div>}
           {data && !data.error && apps.length === 0 && (
             <EmptyState icon={Mark}>
-              No apps yet - <code className="rounded-sm bg-hover px-1.5 py-0.5 text-xs">small deploy</code> ships the first one.{' '}
+              {isPrivateByoc ? 'No apps yet. Use the private CLI to sign into this installation and deploy a CPU job. '
+                : <>No apps yet - <code className="rounded-sm bg-hover px-1.5 py-0.5 text-xs">small deploy</code> ships the first one.{' '}</>}
               <a className="text-accent hover:underline" href="https://www.npmjs.com/package/small-deploy" target="_blank" rel="noreferrer">
-                Get the CLI
+                {isPrivateByoc ? 'CLI for hosted Small' : 'Get the CLI'}
               </a>
             </EmptyState>
           )}

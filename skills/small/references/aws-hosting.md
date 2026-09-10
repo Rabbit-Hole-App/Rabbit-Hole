@@ -1,4 +1,39 @@
-# Host a CPU job in the customer's AWS account (dev preview)
+# Host a CPU job in the customer's AWS account
+
+## Private Small installation with Cognito
+
+If Small's interface itself is installed in customer AWS, install the supplied
+`small-deploy.tgz` with `npm install -g ./small-deploy.tgz`. The public npm
+package does not include this pilot. Sign in on the machine running the CLI:
+
+```text
+small login --api <installation-url>
+small workspaces
+small deploy --workspace <returned-slug>
+small run <app-name> --workspace <returned-slug> --count 8
+small logs <app-name> --workspace <returned-slug>
+small run <app-name> --workspace <returned-slug> --download ./out
+```
+
+Login opens Cognito and returns to the local CLI with PKCE. The installer
+registers `http://127.0.0.1:8766/auth/callback`; use `--no-browser` when the
+user prefers opening the printed link themselves. Complete sign-in on that
+same computer. Never request passwords, copy browser tokens, or create a user
+to bypass membership. The saved login is bound to this installation's origin.
+Clear a conflicting `SMALL_API` shell override, or set it to the same AWS URL.
+Hosted `SMALL_TOKEN` credentials are ignored for a private login.
+
+Use `type = "job"` and `[deploy] target = "aws"` as shown below. Source goes
+directly to customer S3; CodeBuild, ECR, Fargate, CloudWatch, and job output
+remain in that account. The normal Apps list, Run, and Logs show the job.
+The first private CPU release supports the installation owner and synthetic
+scalar inputs; extra S3 folders and sharing changes are deferred.
+
+The Amazon pilot uses account `503561429929` in `us-east-1` and
+`https://d3sgti338uxlc.cloudfront.net`. Account `637423432890` is personal:
+never use it, the hosted Connect AWS flow, or an external trust role for Amazon.
+
+## Hosted dashboard dev preview
 
 Use this flow when the user wants the job itself hosted in their AWS account,
 or the project already has `[deploy] target = "aws"`. The workspace has one

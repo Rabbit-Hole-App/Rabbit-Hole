@@ -10,14 +10,10 @@ import SharePage from './SharePage.jsx';
 import Shell from './Shell.jsx';
 import { applyTheme, getTheme, navigate, wsName } from './api.js';
 import { ExpandedPageFrame, Toasts } from './ui.jsx';
+import { isPrivateByoc } from './private-auth.js';
+import PrivateAuthGate from './PrivateAuthGate.jsx';
 
 applyTheme(getTheme()); // before first paint - no light flash for dark users
-
-// /apps (list), /apps/<slug> (app page), /apps/<slug>/runs/<id> (run page),
-// /members, /chat; /dash aliases /apps (see the control-plane cache note). No router dep.
-if (!/^\/(apps(\/[a-z0-9-]+(\/runs\/[\w-]+)?)?|dash|members|chat)$/.test(window.location.pathname)) {
-  window.history.replaceState(null, '', '/apps');
-}
 
 // org-wide chat as a page - same panel as the app Agent tab, textbox pinned bottom.
 // /chat?app=<slug> narrows the scope to one app (the Agent tab's open-as-page).
@@ -52,6 +48,11 @@ function ChatPage() {
 }
 
 function Root() {
+  // PrivateAuthGate consumes Cognito callbacks before normalizing app routes.
+  // /dash aliases /apps (see the control-plane cache note). No router dep.
+  if (!/^\/(apps(\/[a-z0-9-]+(\/runs\/[\w-]+)?)?|dash|members|chat)$/.test(window.location.pathname)) {
+    window.history.replaceState(null, '', '/apps');
+  }
   // pathname + search so ?s=shared section switches re-render too
   const [path, setPath] = useState(window.location.pathname + window.location.search);
   useEffect(() => {
@@ -69,4 +70,4 @@ function Root() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<Root />);
+createRoot(document.getElementById('root')).render(isPrivateByoc ? <PrivateAuthGate><Root /></PrivateAuthGate> : <Root />);

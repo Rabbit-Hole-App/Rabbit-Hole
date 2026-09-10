@@ -13,6 +13,10 @@ async function target(name, required = false) {
   let connection;
   try { ({ connection } = await call('GET', '/api/byoc/connection')); }
   catch (error) { if (error.status !== 404) throw error; }
+  if (connection?.private) {
+    if (!/^[a-z0-9-]{1,40}$/.test(name)) throw new Error('Use an AWS app name with 1-40 lowercase letters, numbers, or hyphens');
+    return { ...connection, app_name: name };
+  }
   if (connection && (required || connection.job_name === name || connection.state === 'connected')) {
     if (connection.state !== 'connected') throw new Error('Finish connecting AWS in the dev dashboard before deploying');
     const { apps: hosted } = await call('GET', '/api/apps');
@@ -108,6 +112,7 @@ function packageJob(dir, app) {
 }
 
 async function client(connection) {
+  if (connection.private) return (path, { method = 'GET', body } = {}) => call(method, '/api/jobs' + path, body);
   const { createAwsClient } = await import('./byoc-client.mjs');
   return createAwsClient(() => call('POST', '/api/byoc/grant', {}), connection.api_url);
 }
@@ -123,7 +128,9 @@ async function deploy(dir, app, connection) {
   const archive = packageJob(dir, app);
   console.log(`✓ target: workspace ${connection.org} · AWS ${connection.account_id} / ${connection.region}`);
   const scope = s3Read(app.config.aws?.s3_read);
-  const permission = await call('POST', '/api/byoc/access', { app_name: connection.app_name || connection.job_name, s3_read: scope });
+  if (connection.private && scope) throw new Error('Extra S3 access is not enabled in this private release yet');
+  const permission = connection.private ? { status: 'approved' }
+    : await call('POST', '/api/byoc/access', { app_name: connection.app_name || connection.job_name, s3_read: scope });
   if (permission.status !== 'approved') {
     console.log(`✓ permission request: ${scope ? 'read ' + scope : 'remove S3 access'}`);
     if (!permission.request_id) throw new Error('AWS approval required; update the dev connection and retry deploy');
