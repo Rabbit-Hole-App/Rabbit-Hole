@@ -96,6 +96,20 @@ preserves the approved AWS app integration. Default builds disable both previews
 
 ## Release and verification
 
+Dev version `37a0ce41-779c-460a-96b9-655c5849e046` adds **Approve & deploy** and
+**Cancel** inside the existing AWS connection settings. Older connections show
+a one-time AWS upgrade; new requests appear while Settings stays open. The
+`aws-s3-approval` sample app passed the real browser/CLI approval, CSV run, and
+denied-folder proof. Both preview flags and prior UI remain intact. Details:
+[AWS approval verification](byoc-aws.md#verification). No production or npm release.
+
+Dev version `d1ee690c-1021-40f7-b184-e7a7ac802ce5` adds the
+[S3 permission flow](byoc-aws.md#s3-access-acceptance) within the existing AWS
+connection settings. Both preview flags stay enabled. The live sample app
+`aws-s3-report` uses the shared sidebar, Run form, logs, and output download;
+the browser proof passed. Coaching tabs and the existing connection controls
+remain intact. No production UI or npm release was made.
+
 The initial dev deployment on 2026-09-08 is version
 `0d271549-04c1-4f73-b7fb-a42dbe24a7ec`. Its build succeeded and Wrangler confirmed
 deployment. The user reviewed the dev app and approved committing the work.

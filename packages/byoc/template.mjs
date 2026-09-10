@@ -1,4 +1,5 @@
 // One workspace connection, multiple CPU jobs. Shared by dev and tests.
+import { accessMap } from '../cli/lib/byoc-s3.js';
 const ref = (name) => ({ Ref: name });
 const att = (name, field) => ({ 'Fn::GetAtt': [name, field] });
 const sub = (value) => ({ 'Fn::Sub': value });
@@ -8,10 +9,12 @@ const role = (service, statements) => ({ Type: 'AWS::IAM::Role', Properties: {
   AssumeRolePolicyDocument: trust(service), Policies: [{ PolicyName: 'small-job', PolicyDocument: { Version: '2012-10-17', Statement: statements } }],
 } });
 
-export function makeTemplate({ apiCode, signerCode, installationId, externalId, workspace, owner, platformPrincipal, platformOrigin, jobName }) {
+export function makeTemplate({ apiCode, signerCode, permissionsCode, installationId, externalId, workspace, owner, platformPrincipal, platformOrigin, jobName, s3Access = {} }) {
   if (!/^[a-f0-9]{32}$/.test(installationId) || !/^[a-f0-9]{64}$/.test(externalId)) throw new Error('Invalid installation ID');
   if (!/^[a-z0-9-]{1,40}$/.test(jobName)) throw new Error('Invalid job name');
   const label = 'small-byoc-' + installationId.slice(0, 12);
+  s3Access = accessMap(s3Access);
+  const appRolePrefix = 'small-job-' + installationId.slice(0, 12) + '-';
   const bucketObjects = sub('${DataBucket.Arn}/*');
   const logPolicy = (group) => allow(['logs:CreateLogStream', 'logs:PutLogEvents'], sub('${' + group + '.Arn}:*'));
   const Resources = {
@@ -91,6 +94,7 @@ export function makeTemplate({ apiCode, signerCode, installationId, externalId, 
         BUCKET: ref('DataBucket'), SIGNING_SECRET: ref('SigningSecret'), CLUSTER: ref('Cluster'), SUBNETS: ref('Subnet'),
         TASK_SECURITY_GROUP: ref('TaskSecurityGroup'), TASK_ROLE: att('TaskRole', 'Arn'), EXECUTION_ROLE: att('ExecutionRole', 'Arn'),
         TASK_FAMILY: label, REPOSITORY: att('Repository', 'RepositoryUri'), BUILD_PROJECT: ref('BuildProject'),
+        S3_ACCESS: JSON.stringify(s3Access), S3_ROLE_ARN_PREFIX: sub('arn:${AWS::Partition}:iam::${AWS::AccountId}:role/' + appRolePrefix),
         BUILD_LOG_GROUP: ref('BuildLogGroup'), RUN_LOG_GROUP: ref('RunLogGroup') } },
     } },
     ApiUrl: { Type: 'AWS::Lambda::Url', Properties: { AuthType: 'NONE', TargetFunctionArn: att('ApiFunction', 'Arn'),
@@ -102,7 +106,7 @@ export function makeTemplate({ apiCode, signerCode, installationId, externalId, 
       FunctionName: label + '-signer', Runtime: 'python3.13', Handler: 'index.handler', Role: att('SignerRole', 'Arn'), Timeout: 45,
       Code: { ZipFile: signerCode }, Environment: { Variables: { INSTALLATION_ID: installationId, WORKSPACE: workspace, OWNER: owner,
         ACCOUNT_ID: ref('AWS::AccountId'), API_URL: att('ApiUrl', 'FunctionUrl'), JOB_NAME: jobName,
-        SIGNING_SECRET: ref('SigningSecret'), PLATFORM_ORIGIN: platformOrigin } },
+        SIGNING_SECRET: ref('SigningSecret'), PLATFORM_ORIGIN: platformOrigin, S3_ACCESS: JSON.stringify(s3Access) } },
     } },
     ConnectionRole: { Type: 'AWS::IAM::Role', Properties: { RoleName: label + '-connection', AssumeRolePolicyDocument: {
       Version: '2012-10-17', Statement: [{ Effect: 'Allow', Principal: { AWS: platformPrincipal }, Action: 'sts:AssumeRole',
@@ -112,6 +116,59 @@ export function makeTemplate({ apiCode, signerCode, installationId, externalId, 
     ] } }] } },
     Register: { Type: 'Custom::SmallConnection', Properties: { ServiceToken: att('SignerFunction', 'Arn'), ServiceTimeout: 90, RoleArn: att('ConnectionRole', 'Arn') } },
   };
+  for (const [app, uri] of Object.entries(s3Access)) {
+    // Hex encoding retains the entire name: no collisions between app names.
+    const id = 'S3Task' + Array.from(app, (c) => c.charCodeAt(0).toString(16)).join('');
+    Resources[id] = role('ecs-tasks.amazonaws.com', [allow('s3:GetObject', 'arn:aws:s3:::' + uri.slice(5) + '*', {
+      StringEquals: { 's3:ResourceAccount': ref('AWS::AccountId'), 'aws:RequestedRegion': ref('AWS::Region') },
+    })]);
+    Resources[id].Properties.RoleName = appRolePrefix + app;
+    Resources[id].Properties.AssumeRolePolicyDocument.Statement[0].Condition = {
+      StringEquals: { 'aws:SourceAccount': ref('AWS::AccountId') },
+      ArnLike: { 'aws:SourceArn': sub('arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:*') },
+    };
+    const passRole = Resources.ApiRole.Properties.Policies[0].PolicyDocument.Statement.find((s) => s.Action === 'iam:PassRole');
+    passRole.Resource.push(att(id, 'Arn'));
+  }
+  if (permissionsCode) {
+    const prefix = 'small-s3-' + installationId.slice(0, 12) + '-';
+    const roleArn = sub('arn:${AWS::Partition}:iam::${AWS::AccountId}:role/' + prefix + '*');
+    Resources.AccessTable = { Type: 'AWS::DynamoDB::Table', DeletionPolicy: 'Retain', UpdateReplacePolicy: 'Retain', Properties: {
+      BillingMode: 'PAY_PER_REQUEST', AttributeDefinitions: [{ AttributeName: 'id', AttributeType: 'S' }],
+      KeySchema: [{ AttributeName: 'id', KeyType: 'HASH' }], SSESpecification: { SSEEnabled: true },
+    } };
+    Resources.AccessBoundary = { Type: 'AWS::IAM::ManagedPolicy', Properties: {
+      Description: 'App roles may only read S3 objects in this account and region. Only the AWS administrator can change this boundary.',
+      PolicyDocument: { Version: '2012-10-17', Statement: [
+        allow('s3:GetObject', 'arn:aws:s3:::*/*'),
+        { Effect: 'Deny', NotAction: 's3:GetObject', Resource: '*' },
+        { Effect: 'Deny', Action: 's3:GetObject', Resource: '*', Condition: { StringNotEquals: { 's3:ResourceAccount': ref('AWS::AccountId') } } },
+        { Effect: 'Deny', Action: 's3:GetObject', Resource: '*', Condition: { StringNotEquals: { 'aws:RequestedRegion': ref('AWS::Region') } } },
+      ] },
+    } };
+    Resources.AccessLogGroup = { Type: 'AWS::Logs::LogGroup', Properties: { LogGroupName: '/aws/lambda/' + label + '-access', RetentionInDays: 7 } };
+    Resources.AccessRole = role('lambda.amazonaws.com', [
+      allow('iam:CreateRole', roleArn, { StringEquals: { 'iam:PermissionsBoundary': ref('AccessBoundary') } }),
+      allow('iam:GetRole', roleArn),
+      allow('iam:PutRolePolicy', roleArn, { StringEquals: { 'iam:PermissionsBoundary': ref('AccessBoundary') } }),
+      allow(['dynamodb:GetItem', 'dynamodb:PutItem'], att('AccessTable', 'Arn')), logPolicy('AccessLogGroup'),
+    ]);
+    Resources.AccessFunction = { Type: 'AWS::Lambda::Function', DependsOn: ['AccessLogGroup'], Properties: {
+      FunctionName: label + '-access', Runtime: 'python3.13', Handler: 'index.handler', Role: att('AccessRole', 'Arn'),
+      Timeout: 30, ReservedConcurrentExecutions: 1, Code: { ZipFile: permissionsCode }, Environment: { Variables: {
+        INSTALLATION_ID: installationId, WORKSPACE: workspace, OWNER: owner, ACCOUNT_ID: ref('AWS::AccountId'),
+        ACCESS_TABLE: ref('AccessTable'), ACCESS_BOUNDARY: ref('AccessBoundary'), ACCESS_ROLE_PREFIX: prefix, S3_ACCESS: JSON.stringify(s3Access),
+      } },
+    } };
+    for (const name of ['Api', 'Signer']) {
+      Resources[name + 'Role'].Properties.Policies[0].PolicyDocument.Statement.push(
+        allow('dynamodb:GetItem', att('AccessTable', 'Arn'), { 'ForAllValues:StringEquals': { 'dynamodb:LeadingKeys': ['state'] } }));
+      Resources[name + 'Function'].Properties.Environment.Variables.ACCESS_TABLE = ref('AccessTable');
+    }
+    Resources.ApiFunction.Properties.Environment.Variables.ACCESS_ROLE_ARN_PREFIX = sub('arn:${AWS::Partition}:iam::${AWS::AccountId}:role/' + prefix);
+    Resources.ApiRole.Properties.Policies[0].PolicyDocument.Statement.find((s) => s.Action === 'iam:PassRole').Resource.push(roleArn);
+    Resources.ConnectionRole.Properties.Policies[0].PolicyDocument.Statement[0].Resource = [att('SignerFunction', 'Arn'), att('AccessFunction', 'Arn')];
+  }
   for (const [id, service] of [['EcrApiEndpoint', 'ecr.api'], ['EcrDockerEndpoint', 'ecr.dkr'], ['LogsEndpoint', 'logs']]) {
     Resources[id] = { Type: 'AWS::EC2::VPCEndpoint', Properties: { VpcId: ref('Vpc'), VpcEndpointType: 'Interface',
       ServiceName: sub('com.amazonaws.${AWS::Region}.' + service), PrivateDnsEnabled: true,

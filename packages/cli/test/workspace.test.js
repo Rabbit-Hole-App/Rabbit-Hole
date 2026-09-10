@@ -36,6 +36,7 @@ globalThis.fetch = async (url, options = {}) => {
     if (options.headers['X-Small-Workspace'] !== 'w-team') throw new Error('wrong workspace reached app API');
     if (p === '/api/byoc/connection') return Response.json({ connection });
     if (p === '/api/apps') return Response.json({ apps: [] });
+    if (p === '/api/byoc/access') return Response.json({ status: 'approved' });
     if (p === '/api/byoc/grant') return Response.json({ api_url: awsUrl, token: 'aws-fixture', expires_at: Date.now() / 1000 + 180 });
   }
   if (url === 'https://fixture.s3.us-east-1.amazonaws.com/source.zip') return new Response('');
@@ -79,7 +80,8 @@ test('deploy selects the requested workspace over the shell default and keeps so
   const small = r.calls.filter((c) => c.url.startsWith('https://small.example'));
   assert.equal(small[0].url, 'https://small.example/api/workspaces');
   for (const c of small.slice(1)) assert.equal(c.headers['X-Small-Workspace'], 'w-team');
-  assert.deepEqual(small.filter((c) => c.method === 'POST').map((c) => [new URL(c.url).pathname, c.body]), [['/api/byoc/grant', '{}']]);
+  assert.deepEqual(small.filter((c) => c.method === 'POST').map((c) => [new URL(c.url).pathname, c.body]), [
+    ['/api/byoc/access', JSON.stringify({ app_name: 'test-job', s3_read: null })], ['/api/byoc/grant', '{}']]);
   assert.ok(r.calls.some((c) => c.method === 'PUT' && c.url.startsWith('https://fixture.s3.')));
   for (const c of r.calls.filter((c) => c.url.includes('.lambda-url.'))) {
     assert.equal(c.headers.Authorization, 'Bearer aws-fixture');

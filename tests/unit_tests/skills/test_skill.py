@@ -51,14 +51,14 @@ def test_input_types_match_the_validator():
 
 def test_mentioned_platform_env_vars_exist_in_source():
     source = ""
-    for pkg in ["cli", "runtime", "control-plane"]:
+    for pkg in ["cli", "runtime", "control-plane", "byoc"]:
         for p in (PROJECT_DIR / "packages" / pkg).rglob("*"):
             if p.suffix in (".js", ".py") and "node_modules" not in p.parts and ".wrangler" not in p.parts:
                 source += p.read_text(encoding="utf-8", errors="replace")
     # placeholders like SMALL_INPUT_<NAME> reduce to their literal prefix, and
     # concrete per-app examples (SMALL_INPUT_SOURCE) reduce to the family prefix
     # the runtime builds dynamically
-    mentioned = {re.sub(r"(SMALL_INPUT)_[A-Z_]+", r"\1", v) for v in re.findall(r"SMALL_[A-Z_]+", ALL_TEXT)}
+    mentioned = {re.sub(r"(SMALL_INPUT)_[A-Z0-9_]+", r"\1", v) for v in re.findall(r"SMALL_[A-Z0-9_]+", ALL_TEXT)}
     for var in {v.rstrip("_") for v in mentioned}:
         assert var in source, f"skill mentions {var} but no package source contains it"
 

@@ -77,6 +77,55 @@ goes directly to customer S3, builds run in their account, and the job runs on
 Fargate. Relay the app link printed by deploy. The app appears in the normal
 sidebar; users run it and inspect logs and outputs in the existing app tabs.
 
+## Read an existing S3 folder
+
+Declare one folder in `small.toml`, using a bucket in the connected AWS account
+and `us-east-1`:
+
+```toml
+[aws]
+s3_read = "s3://company-data/reports/"
+```
+
+Use a literal folder, without `*`, `?`, or policy variables. A missing trailing
+slash is added. This grants `GetObject` for explicit keys in that folder, with
+no listing, writes, or KMS decryption grant. Use ordinary SSE-S3 objects for
+this MVP. Add `boto3` to the app's requirements if its code uses that SDK.
+
+1. Run `small deploy --workspace <slug>`. If this app needs new or changed
+   access, deploy requests approval and waits before uploading source.
+2. In that workspace's **Settings → Connections → AWS → S3 access**, the
+   installer reviews the exact folder and clicks **Approve & deploy** or **Cancel**.
+3. The waiting CLI resumes automatically after approval. Cancel stops it without
+   uploading source. Subsequent deploys reuse approval until the access changes.
+
+For an older installation, Small first shows **One-time AWS connection upgrade**.
+Click **Upgrade in AWS**, select **Replace existing template**, and review the
+generated template. If AWS leaves the URL empty, copy the URL shown in Small
+into **Amazon S3 URL**. Choose **Update stack**, then return and **Check upgrade**.
+The upgrade preserves existing grants; each new folder still requires approval
+in Small. New installations already include this permission handler.
+
+The CLI waits for up to 30 minutes; Ctrl+C stops waiting. If it exits, approve
+the request and rerun deploy. A failed AWS permission operation keeps **Retry
+approval** available; do not replace the request with broader access.
+
+AWS supplies credentials automatically to this app's dedicated task role.
+The runtime sets `SMALL_S3_BUCKET` and `SMALL_S3_PREFIX` from its approved scope.
+Use `boto3.client("s3").get_object(Bucket=os.environ["SMALL_S3_BUCKET"], Key=key)`
+with a complete key under that prefix. Keep writing generated files under
+`SMALL_OUTPUTS`; the existing output upload/download flow is unchanged.
+
+Removing `s3_read` and deploying requests removal of the grant. An older
+deployment whose recorded folder no longer matches approval cannot start.
+Already running work is not stopped. Cancel is unavailable once an approval
+starts applying; retry that exact approval if AWS fails. Do not approve in Small
+or execute an AWS installation upgrade unless the user has authorized that access.
+
+`examples/byoc-s3-report` contains a CSV report job and sample file. Upload the
+sample into the chosen folder in customer AWS; set its bucket and input key
+before deploying. Data files still travel directly to AWS.
+
 ## MVP limits and data boundary
 
 - CPU jobs only: 1 vCPU, 2 GiB, `us-east-1`. Inputs are `text`, `number`,

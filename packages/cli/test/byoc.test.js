@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { packageJob, target, runs, logsById } = require('../lib/byoc');
+const { packageJob, target, runs, logsById, deploy } = require('../lib/byoc');
 
 test('AWS source archive is readable by Python and excludes secrets, sessions, ignored files, and local outputs', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'small-byoc-test-'));
@@ -84,4 +84,55 @@ test('one workspace connection routes multiple apps and resolves run IDs without
   assert.equal(await target('unknown-app'), null);
   await logsById(id);
   assert.ok(paths.includes('/apps/second-app/runs/' + id + '/logs'));
+});
+
+test('deploy requests only S3 metadata before approval, then sends source and schema directly to AWS', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'small-byoc-test-'));
+  const before = { token: process.env.SMALL_TOKEN, base: process.env.SMALL_API };
+  process.env.SMALL_TOKEN = 'fixture'; process.env.SMALL_API = 'https://small.example';
+  t.after(() => {
+    if (before.token === undefined) delete process.env.SMALL_TOKEN; else process.env.SMALL_TOKEN = before.token;
+    if (before.base === undefined) delete process.env.SMALL_API; else process.env.SMALL_API = before.base;
+    assert.ok(path.resolve(dir).startsWith(path.resolve(os.tmpdir()) + path.sep) && path.basename(dir).startsWith('small-byoc-test-'));
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  fs.writeFileSync(path.join(dir, 'job.py'), 'print("PRIVATE_SOURCE")');
+  const connection = { app_name: 'report', org: 'w-test', account_id: '123456789012', region: 'us-east-1', can_deploy: true,
+    api_url: 'https://abcdefghijklmnopqrst.lambda-url.us-east-1.on.aws/' };
+  const app = { entry: 'job.py', config: { type: 'job', aws: { s3_read: 's3://company-data/reports' }, inputs: { key: { type: 'text', default: 'PRIVATE_DEFAULT' } } } };
+  const calls = [];
+  let approved = false, cancelled = true;
+  t.mock.method(console, 'log', () => {});
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const u = new URL(url); calls.push({ url, body: options.body });
+    if (u.origin === 'https://small.example') {
+      if (u.pathname === '/api/byoc/access') {
+        if (options.method === 'GET') {
+          assert.ok(!calls.some((c) => c.url.startsWith(connection.api_url)));
+          if (cancelled) return Response.json({ approved: {}, stable: true, pending: null });
+          approved = true;
+          return Response.json({ approved: { report: 's3://company-data/reports/' }, stable: true, pending: null });
+        }
+        assert.deepEqual(JSON.parse(options.body), { app_name: 'report', s3_read: 's3://company-data/reports/' });
+        return Response.json({ status: approved ? 'approved' : 'pending', request_id: 'b'.repeat(32) });
+      }
+      assert.equal(u.pathname, '/api/byoc/grant');
+      return Response.json({ token: 'aws-grant', api_url: connection.api_url, expires_at: Date.now() / 1000 + 180 });
+    }
+    assert.ok(approved);
+    if (u.hostname === 'sample.s3.us-east-1.amazonaws.com') return new Response('');
+    if (u.pathname === '/apps/report/deploys') {
+      assert.equal(JSON.parse(options.body).s3_read, 's3://company-data/reports/');
+      assert.equal(JSON.parse(options.body).inputs.key.default, 'PRIVATE_DEFAULT');
+      return Response.json({ id: 'fixture', upload_url: 'https://sample.s3.us-east-1.amazonaws.com/source' });
+    }
+    if (u.pathname.endsWith('/logs')) return Response.json({ lines: [] });
+    return Response.json({ status: 'ready' });
+  });
+  await assert.rejects(deploy(dir, app, connection), /cancelled or replaced/);
+  assert.equal(calls.length, 2);
+  cancelled = false;
+  await deploy(dir, app, connection);
+  assert.ok(calls.some((c) => c.url.startsWith('https://sample.s3.')));
+  assert.ok(calls.filter((c) => c.url.startsWith('https://small.example')).every((c) => !c.body?.includes('PRIVATE')));
 });

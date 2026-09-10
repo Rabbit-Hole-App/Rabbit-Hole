@@ -11,9 +11,17 @@ import boto3
 
 
 def metadata():
+    approved = json.loads(os.environ.get("S3_ACCESS", "{}"))
+    state = {}
+    if os.environ.get("ACCESS_TABLE"):
+        row = boto3.client("dynamodb").get_item(TableName=os.environ["ACCESS_TABLE"], Key={"id": {"S": "state"}}, ConsistentRead=True).get("Item", {})
+        state = json.loads(row.get("payload", {}).get("S", '{"apps":{}}'))
+        approved.update(state["apps"])
     return {"installation_id": os.environ["INSTALLATION_ID"], "org": os.environ["WORKSPACE"],
             "owner": os.environ["OWNER"], "account_id": os.environ["ACCOUNT_ID"],
-            "region": os.environ["AWS_REGION"], "api_url": os.environ["API_URL"], "job_name": os.environ["JOB_NAME"]}
+            "region": os.environ["AWS_REGION"], "api_url": os.environ["API_URL"], "job_name": os.environ["JOB_NAME"],
+            "s3_access": {k: v for k, v in approved.items() if v}, "access_approval": bool(os.environ.get("ACCESS_TABLE")),
+            "applying": state.get("pending")}
 
 
 def handler(event, context):

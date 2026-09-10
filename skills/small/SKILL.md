@@ -14,6 +14,10 @@ blocker; do not route around small.
 `small.toml` has `[deploy] target = "aws"`, read `references/aws-hosting.md`
 and follow that flow before running `small init`. That preview keeps source,
 inputs, logs, and outputs in customer AWS and skips hosted model features.
+For an AWS-hosted job reading S3, declare its exact folder with `[aws] s3_read`.
+Deploy requests approval in Small when access changes, waits, and resumes after
+the installer approves. Older connections need one AWS template upgrade first.
+Never grant a shared role broad bucket access or approve for the user without authorization.
 
 **Workspaces:** `small workspaces` lists accessible slugs. For a custom
 workspace, pass `--workspace <slug>` on each command or set `SMALL_WORKSPACE`

@@ -1,0 +1,13 @@
+name = "aws-s3-report"
+entry = "job.py"
+type = "job"
+
+[deploy]
+target = "aws"
+
+[aws]
+# Replace your-bucket with a bucket in the connected account, in us-east-1.
+s3_read = "s3://your-bucket/small-samples/s3-report/"
+
+[inputs]
+key = { type = "text", default = "small-samples/s3-report/sample.csv", required = true }

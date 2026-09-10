@@ -20,6 +20,66 @@ The CLI/skill follow-up adds explicit workspace selection and documents this
 flow for coding agents. It remains a dev preview. Commit and push the work to
 main; public npm publication and production promotion remain held.
 
+The next accepted slice adds one read-only S3 folder per CPU-job app. The coding
+agent declares `[aws] s3_read = "s3://bucket/folder/"`; deploy prepares an update
+to the existing installation when that app's access changes. The installer
+approves the update in AWS and retries deploy. Unchanged approved permissions
+need no further stack update. The first test uses a sample CSV in `test-ws`.
+Keep this on dev, in the connected account and `us-east-1`.
+
+The accepted follow-up replaces per-folder AWS console updates with approval
+inside Small. Existing installations receive one AWS-owner-approved template
+upgrade; new installations include it. The installer reviews the exact folder
+under Settings → Connections → AWS and selects **Approve & deploy** or **Cancel**.
+The CLI waits up to 30 minutes before uploading source and resumes after approval.
+
+### Approval in Small acceptance
+
+- [x] Add an IAM-only customer Lambda restricted to installation-specific app roles.
+- [x] Require an immutable S3-read-only permissions boundary on role creation and updates.
+- [x] Keep existing stack resources and grants through the one-time upgrade.
+- [x] Bind approval to the installer, workspace, app, exact folder, and request ID.
+- [x] Record approval in customer DynamoDB; block incomplete changes and allow exact retries.
+- [x] Preserve normal app/settings UI; add approval, cancellation, and CLI automatic resume.
+- [x] Test viewers, stale/replayed requests, cancellation, failure recovery, and role isolation.
+- [x] Build and deploy dev; prove the upgrade and a CSV app through the real approval UI.
+
+The new handler cannot change the stack, its own role, the boundary, or other
+installation roles. Its IAM authority is CreateRole/GetRole/PutRolePolicy only
+under `small-s3-<installation>-*`. CreateRole and PutRolePolicy require the exact
+boundary. The boundary explicitly denies actions other than S3 GetObject and
+denies objects outside the customer account/region. The generated inline policy
+allows only the reviewed folder and explicitly denies other folders.
+See [AWS permissions boundaries](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_boundaries.html).
+
+The metadata table holds current overrides and an audit record per approval.
+A conditional state write claims the request before IAM changes; a transaction
+commits current access and its audit together. API reads are consistent and
+block the affected app while a change is incomplete. Small claims its pending
+request before invoking AWS, so Cancel cannot race a started approval. A failed
+approval keeps **Retry approval** available; it never silently grants access.
+Existing CloudFormation-managed app roles are retained during migration. New
+runs use current overrides; already running work is not terminated. Managed
+roles are denied all access when their grant is removed.
+
+<!-- ponytail: retired managed roles and approval audit rows are retained in the
+customer account. Automated cleanup/retention and stopping running tasks are deferred. -->
+
+### S3 access acceptance
+
+- [x] Reject wildcard/bucket-wide or unsupported permission declarations before upload.
+- [x] Generate a reviewable stack update, retaining the other apps' approved access.
+- [x] Require AWS-observed approval; a Small request or registration callback grants nothing.
+- [x] Give each approved app its own read-only task role; other apps retain no data access.
+- [x] Re-check permissions when deploying and running, including older deployments.
+- [x] Show pending and approved access in the existing AWS connection settings.
+- [x] Prove the sample CSV report, denied access outside its folder, and unchanged normal outputs.
+- [x] Update CLI/skill instructions, run focused tests, review, and deploy dev.
+
+<!-- ponytail: this slice supports GetObject of explicit keys only. Bucket listing,
+writes, KMS decryption grants, cross-account/cross-region buckets, and multiple
+folders per app are deferred. -->
+
 Small may hold connection metadata and deployment status. Source, input values,
 output files, build logs, and run logs go directly between the client and the
 customer's AWS account. No deploy review, runbook generation, or Coaching model
@@ -57,8 +117,9 @@ call may send this job's content through the hosted control plane.
   corrected before registration; changing its account or app name rotates the
   installation identity and external ID so the old template cannot register.
   An installed, connected, or disconnected account cannot be replaced in place.
-- The hosted connection role can verify the installation and invoke an IAM-only
-  signer. It cannot read the signing secret, source, job inputs, outputs, or logs. A unique
+- The hosted connection role can verify the installation and invoke the IAM-only
+  signer and, after upgrading, the bounded S3 approval handler. It cannot read
+  the signing secret, source, job inputs, outputs, or logs. A unique
   installation external ID binds STS assumption to the owning workspace.
 - The platform IAM user can assume installation connection roles in customer
   accounts only when an external ID is supplied. Each installed role separately
@@ -100,7 +161,11 @@ call may send this job's content through the hosted control plane.
 - AWS builds use the Docker Official Python image from
   [Amazon ECR Public](https://aws.amazon.com/blogs/containers/docker-official-images-now-available-on-amazon-elastic-container-registry-public/).
   This avoids the Docker Hub pull-rate limit encountered during the second app proof.
-- The task role has no data permissions. The task sends stdout through the ECS
+- The default task role has no data permissions. S3-approved apps receive their
+  own task role with only `GetObject` under the declared folder, constrained to
+  the installed account and region. The API chooses the role from AWS-installed
+  metadata and rechecks it for every deploy and run. Clients cannot pass role ARNs.
+  The task sends stdout through the ECS
   log driver and receives presigned uploads limited to its own output prefix and
   completion record. Run payloads stay in S3. The dashboard
   reads the AWS API directly and downloads outputs from short-lived S3 URLs.
@@ -161,6 +226,81 @@ existing VPC selection, GPU/server workloads, schedules, file-input forms,
 app secrets, and Coaching in AWS need their own accepted slice. -->
 
 ## Verification
+
+Approval in Small follow-up, 2026-09-09:
+
+- Dev version `37a0ce41-779c-460a-96b9-655c5849e046` includes approval/cancellation,
+  the one-time upgrade flow, and automatic discovery of requests while Settings
+  is already open. Both preview flags remain enabled. Production and npm are held.
+- The reviewed change set `small-access-upgrade-c9347a29800f` upgraded the existing
+  `test-ws` installation to `UPDATE_COMPLETE`. It added the approval Lambda,
+  role, boundary, log group, and metadata table. Existing VPC, bucket, build role,
+  execution role, app roles, and grants were retained. This was applied through
+  the AWS SDK after review; the full AWS console wizard is not claimed tested.
+- A real CLI deployment of `aws-s3-approval` paused for approval. Clicking
+  **Cancel** in the dev browser stopped it before source upload or creation of
+  an AWS deployment. A second attempt resumed the same CLI process after
+  **Approve & deploy**, without a second command or another stack update.
+- Deployment `d-1789000778585-e37a9e89cce7` is available in the normal app UI at
+  [aws-s3-approval](https://small-cp-dev.zeroshothq.workers.dev/apps/aws-s3-approval).
+  Run `r-1789000832258-8e023a87c1b5` produced the five-row CSV report, total `94.30`.
+  Run `r-1789000828736-51069f2ba37e` tried the adjacent folder and received
+  `AccessDenied`. Both existing apps retained their previous deployment IDs.
+- Approval `c2fa20b87cfb4bc080a7c80817e648ab` was independently read from customer
+  DynamoDB: installer, app, exact folder, and timestamp were recorded.
+- 37 focused Node tests, 35 BYOC Python tests, and all 31 repository unit tests
+  passed. The real browser/CLI/CSV proof passed. Review fixed compatibility
+  with old deployments and made the open Settings panel discover new requests.
+  The final panel/navigation check uses simulated metadata and AWS navigation;
+  it does not grant access or exercise the AWS console wizard.
+
+S3 access slice, 2026-09-09:
+
+- Dev version `d1ee690c-1021-40f7-b184-e7a7ac802ce5` serves the approval UI
+  and metadata endpoints. Both preview flags remain enabled. Only the separate
+  dev database gained `access_requests`; production and npm releases stay held.
+- The CLI requests only app name and desired S3 folder from Small, before any
+  source upload. Small stores one pending update per connection and generates
+  an immutable template. It reads the installed signer metadata and completed
+  CloudFormation status to confirm approval. Repeated deploys reuse approval;
+  changed or removed access requires a new update. Other apps' grants are kept.
+- The new task roles grant only `s3:GetObject` in the approved folder, with
+  account/region conditions. The shared role remains empty. Run-time role
+  overrides prevent old task definitions from retaining a superseded grant;
+  deployments with no requested S3 access use the empty role. No source, input
+  values, logs, or outputs go through the hosted control plane.
+- Live proof uses `test-ws` (`w-test-ws`), account `637423432890`, stack
+  `small-byoc-1f1a024bd89d`, and bucket
+  `small-byoc-1f1a024bd89d-databucket-nsztsawbpbxn`. The reviewed update added one
+  app role and updated API permissions/code and signer metadata. The VPC, bucket,
+  and existing app deployment were preserved; the stack reached `UPDATE_COMPLETE`.
+- [aws-s3-report](https://small-cp-dev.zeroshothq.workers.dev/apps/aws-s3-report)
+  reads `small-samples/s3-report/sample.csv`. Run
+  `r-1788998315776-c381ef274281`, started through the existing Run form, produced
+  `report.json`: 5 rows, total sales `94.30` (East `42.30`, North `25.00`, West
+  `27.00`). Browser download and sidebar checks passed without JavaScript errors.
+- Run `r-1788998312048-b70b909696ce` tried an existing sample CSV in the adjacent
+  `small-samples/s3-report-denied/` folder. AWS returned `AccessDenied`; there
+  was no report output. API tests additionally cover another app requesting the
+  same grant, client-supplied role ARNs, and old/revoked deployment access.
+- The pending approval panel was checked in a real isolated browser with real
+  dev metadata. AWS console navigation was stubbed for that UI check. The exact
+  generated template was applied through a reviewed AWS SDK change set for the
+  live proof; the full customer AWS console wizard is not claimed tested.
+  Small exposes a copyable template URL if AWS does not prefill it.
+- CLI, customer API, permission/template, web adapter, and browser checks pass;
+  `make test-unit` passes all 31 tests. Review added an idempotent callback for
+  an already connected stack, with no state write or grant, and fixed the skill
+  lint to scan BYOC code and recognize environment-variable names containing digits.
+- AWS behavior references: [task role overrides](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_TaskOverride.html),
+  [S3 account/prefix conditions](https://docs.aws.amazon.com/AmazonS3/latest/userguide/amazon-s3-policy-keys.html),
+  and [reviewing a stack update in the console](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-updating-stacks-direct.html).
+
+Use the repository CLI for this slice. In the sample app, enter an S3 key inside
+the approved folder and click **Run**; **Logs** shows both the successful report
+and the deliberate denied-access test. Inspect the grant under
+**Settings → Connections → AWS → S3 access**. The reusable source and declaration
+example are in `examples/byoc-s3-report`; replace its example bucket before use.
 
 CLI/skill follow-up, 2026-09-09:
 

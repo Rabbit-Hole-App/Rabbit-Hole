@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch, Mock
 from botocore.exceptions import ClientError
 
-os.environ.update(INSTALLATION_ID="install-123", WORKSPACE="gmail-com", JOB_NAME="aws-cpu-proof")
+os.environ.update(INSTALLATION_ID="install-123", WORKSPACE="gmail-com", JOB_NAME="aws-cpu-proof", TASK_ROLE="arn:empty-task-role")
 spec = importlib.util.spec_from_file_location("byoc_api", Path(__file__).parents[1] / "api.py")
 api = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(api)
@@ -23,6 +23,30 @@ def token(**changes):
     data = enc({"alg": "HS256", "typ": "JWT"}) + "." + enc(body)
     sig = base64.urlsafe_b64encode(hmac.new(b"test-secret", data.encode(), hashlib.sha256).digest()).decode().rstrip("=")
     return data + "." + sig
+
+
+class ManagedPermissionTests(unittest.TestCase):
+    def test_current_customer_metadata_controls_new_runs_and_blocks_incomplete_updates(self):
+        scope = "s3://company-data/reports/"
+        db = Mock()
+        def state(value):
+            db.get_item.return_value = {"Item": {"payload": {"S": json.dumps(value)}}}
+        with patch.dict(os.environ, {"ACCESS_TABLE": "permissions", "S3_ACCESS": json.dumps({"legacy": scope}),
+            "S3_ROLE_ARN_PREFIX": "arn:legacy-", "ACCESS_ROLE_ARN_PREFIX": "arn:managed-"}), patch.object(api, "client", return_value=db):
+            state({"apps": {"report": scope}})
+            self.assertEqual(api.task_role("report", scope), "arn:managed-report")
+            self.assertEqual(api.task_role("legacy", scope), "arn:legacy-legacy")
+            self.assertEqual(api.task_role("report", None), "arn:empty-task-role")
+            with self.assertRaises(api.Rejected):
+                api.task_role("other", scope)
+            state({"apps": {"report": scope}, "pending": {"app_name": "report"}})
+            with self.assertRaises(api.Rejected):
+                api.task_role("report", scope)
+            state({"apps": {"report": None, "legacy": None}})
+            for app in ["report", "legacy"]:
+                with self.assertRaises(api.Rejected):
+                    api.task_role(app, scope)
+            self.assertTrue(all(call.kwargs["ConsistentRead"] for call in db.get_item.call_args_list))
 
 
 class AuthorizationTests(unittest.TestCase):
@@ -211,6 +235,45 @@ class MultipleAppTests(unittest.TestCase):
     def test_invalid_app_names_do_not_reach_storage(self):
         for name in ["..", "%2e%2e", "UPPER", "a" * 41, ""]:
             self.assertEqual(self.request("/apps/" + name + "/job")["statusCode"], 400)
+        self.assertFalse(self.s3.mock_calls)
+
+    def test_unapproved_scope_and_client_supplied_role_never_get_upload_urls(self):
+        for extra in [{"s3_read": "s3://company-data/reports/"}, {"task_role_arn": "arn:privileged"}]:
+            response = self.request("/apps/reports/deploys", "POST", {"entry": "job.py", **extra})
+            self.assertIn(response["statusCode"], [400, 409])
+        self.assertFalse(self.s3.mock_calls)
+        self.assertFalse(self.stored)
+
+    def test_approved_app_uses_its_role_other_apps_and_old_deploys_cannot_inherit_it(self):
+        scope = "s3://company-data/reports/"
+        with patch.dict(os.environ, {"S3_ACCESS": json.dumps({"reports": scope}), "S3_ROLE_ARN_PREFIX": "arn:task-"}):
+            response = self.request("/apps/reports/deploys", "POST", {"entry": "job.py", "s3_read": scope})
+            self.assertEqual(response["statusCode"], 200, response)
+            doc = json.loads(response["body"])
+            key = api.app_key("reports", "deploys/" + doc["id"] + "/record.json")
+            self.stored[key].update(status="ready", task_definition="task:reports")
+            result = self.request("/apps/reports/runs", "POST", {}, viewer=True)
+            self.assertEqual(result["statusCode"], 200, result)
+            overrides = self.ecs.run_task.call_args.kwargs["overrides"]
+            self.assertEqual(overrides["taskRoleArn"], "arn:task-reports")
+            env = {v["name"]: v["value"] for v in overrides["containerOverrides"][0]["environment"]}
+            self.assertEqual(env["SMALL_S3_BUCKET"], "company-data")
+            self.assertEqual(env["SMALL_S3_PREFIX"], "reports/")
+            self.assertEqual(self.request("/apps/other/deploys", "POST", {"entry": "job.py", "s3_read": scope})["statusCode"], 409)
+            self.create("other", "text")
+            self.assertEqual(self.request("/apps/other/runs", "POST")["statusCode"], 200)
+            self.assertEqual(self.ecs.run_task.call_args.kwargs["overrides"]["taskRoleArn"], "arn:empty-task-role")
+            # A pre-permission deployment of the approved app still has no data access.
+            self.stored[key]["s3_read"] = None
+            self.request("/apps/reports/runs", "POST")
+            self.assertEqual(self.ecs.run_task.call_args.kwargs["overrides"]["taskRoleArn"], "arn:empty-task-role")
+            self.stored[key]["s3_read"] = scope
+        self.ecs.reset_mock()
+        self.s3.reset_mock()
+        # An old deployment stops before a run record/upload grant/task is created.
+        with patch.dict(os.environ, {"S3_ACCESS": "{}"}):
+            self.assertEqual(self.request("/apps/reports/runs", "POST")["statusCode"], 409)
+        self.assertFalse(self.ecs.mock_calls)
         self.assertFalse(self.s3.mock_calls)
 
 

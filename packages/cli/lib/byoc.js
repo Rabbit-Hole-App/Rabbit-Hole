@@ -6,6 +6,7 @@ const { call, apiBase } = require('./api');
 const { gitignoreMatchers } = require('./bundle');
 const { runtimeSource } = require('./generate');
 const inputs = require('./inputs');
+const { s3Read } = require('./byoc-s3');
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function target(name, required = false) {
@@ -67,6 +68,10 @@ function packageJob(dir, app) {
     throw new Error('AWS preview does not yet support schedules, persistent volumes, app secrets, extra AWS roles, or system packages');
   }
   if (Object.values(cfg.inputs || {}).some((s) => !['text', 'number', 'bool', 'select'].includes(s.type))) throw new Error('AWS preview supports scalar inputs only');
+  if (cfg.aws && (typeof cfg.aws !== 'object' || Array.isArray(cfg.aws) || Object.keys(cfg.aws).some((key) => key !== 's3_read'))) {
+    throw new Error('AWS hosting supports only [aws] s3_read for extra data access');
+  }
+  s3Read(cfg.aws?.s3_read);
   const validPath = (p) => typeof p === 'string' && /^[a-zA-Z0-9_][a-zA-Z0-9_./-]*$/.test(p) && !p.split('/').includes('..');
   if (!validPath(app.entry) || !app.entry.endsWith('.py')) throw new Error('Use a relative Python entry path');
   const deps = cfg.deps?.file || 'requirements.txt';
@@ -117,9 +122,27 @@ async function deploy(dir, app, connection) {
   if (!connection.can_deploy) throw new Error('Only the installer can deploy this AWS job');
   const archive = packageJob(dir, app);
   console.log(`✓ target: workspace ${connection.org} · AWS ${connection.account_id} / ${connection.region}`);
+  const scope = s3Read(app.config.aws?.s3_read);
+  const permission = await call('POST', '/api/byoc/access', { app_name: connection.app_name || connection.job_name, s3_read: scope });
+  if (permission.status !== 'approved') {
+    console.log(`✓ permission request: ${scope ? 'read ' + scope : 'remove S3 access'}`);
+    if (!permission.request_id) throw new Error('AWS approval required; update the dev connection and retry deploy');
+    console.log(`✓ waiting for approval: ${apiBase()}/apps → ${connection.org} → Settings > Connections > AWS`);
+    console.log('  Approve the folder in Small. This deployment will continue automatically; Ctrl+C stops waiting.');
+    const approvalDeadline = Date.now() + 30 * 60 * 1000;
+    while (true) {
+      const state = await call('GET', '/api/byoc/access');
+      if (state.stable && state.pending?.status !== 'applying' && (state.approved[connection.app_name || connection.job_name] ?? null) === scope) break;
+      if (!state.pending || state.pending.id !== permission.request_id) throw new Error('Permission request was cancelled or replaced; update small.toml and deploy again');
+      if (state.pending.status === 'stale') throw new Error('AWS permissions changed; dismiss the request in Small and deploy again');
+      if (Date.now() >= approvalDeadline) throw new Error('Still waiting for approval. Approve in Small, then retry deploy');
+      await pause(3000);
+    }
+  }
+  if (scope) console.log(`✓ S3 read access: ${scope} (approved in AWS)`);
   console.log(`✓ source: ${archive.length} bytes, sent directly to your AWS account`);
   const aws = await jobClient(connection);
-  let doc = await aws('/deploys', { method: 'POST', body: { entry: app.entry, inputs: app.config.inputs || {} } });
+  let doc = await aws('/deploys', { method: 'POST', body: { entry: app.entry, inputs: app.config.inputs || {}, ...(scope ? { s3_read: scope } : {}) } });
   if (!/^https:\/\/[^/]+\.s3\.us-east-1\.amazonaws\.com\//.test(doc.upload_url)) throw new Error('Invalid AWS upload destination');
   const upload = await fetch(doc.upload_url, { method: 'PUT', body: archive, headers: { 'Content-Type': 'application/zip' }, redirect: 'error' });
   if (!upload.ok) throw new Error(`AWS source upload failed (${upload.status})`);

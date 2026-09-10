@@ -141,6 +141,25 @@ def app_names():
     return sorted({os.environ["JOB_NAME"], *(app_name(p.split("/")[1]) for p in prefixes("apps", 1000))})
 
 
+def task_role(app, s3_read):
+    if s3_read is None:
+        return os.environ["TASK_ROLE"]
+    name = app_name(app or os.environ["JOB_NAME"])
+    approved = json.loads(os.environ.get("S3_ACCESS", "{}"))
+    role_prefix = os.environ.get("S3_ROLE_ARN_PREFIX")
+    if os.environ.get("ACCESS_TABLE"):
+        row = client("dynamodb").get_item(TableName=os.environ["ACCESS_TABLE"], Key={"id": {"S": "state"}}, ConsistentRead=True).get("Item", {})
+        state = json.loads(row.get("payload", {}).get("S", '{"apps":{}}'))
+        if state.get("pending", {}).get("app_name") == name:
+            raise Rejected("S3 permission update is applying; retry after approval finishes", 409)
+        if name in state["apps"]:
+            approved[name] = state["apps"][name]
+            role_prefix = os.environ["ACCESS_ROLE_ARN_PREFIX"]
+    if not isinstance(s3_read, str) or not s3_read or approved.get(name) != s3_read:
+        raise Rejected("S3 access has not been approved for this app; run small deploy to prepare the AWS update", 409)
+    return role_prefix + name
+
+
 def new_id(prefix):
     return f"{prefix}-{int(time.time() * 1000)}-{uuid.uuid4().hex[:12]}"
 
@@ -201,7 +220,7 @@ def deployment(deploy_id, refresh=False, finalize=False, app=None):
         if doc["status"] == "built":
                 task = client("ecs").register_task_definition(
                     family=os.environ["TASK_FAMILY"], networkMode="awsvpc", requiresCompatibilities=["FARGATE"],
-                    cpu="1024", memory="2048", executionRoleArn=os.environ["EXECUTION_ROLE"], taskRoleArn=os.environ["TASK_ROLE"],
+                    cpu="1024", memory="2048", executionRoleArn=os.environ["EXECUTION_ROLE"], taskRoleArn=task_role(app, doc.get("s3_read")),
                     runtimePlatform={"cpuArchitecture": "X86_64", "operatingSystemFamily": "LINUX"},
                     containerDefinitions=[dict(name="job", image=doc["image"], essential=True, readonlyRootFilesystem=False,
                         environment=[{"name": "SMALL_AWS_BUCKET", "value": os.environ["BUCKET"]},
@@ -265,11 +284,12 @@ def dispatch(method, path, body, query, claims, app=None):
         entry = body.get("entry", "")
         if not re.fullmatch(r"[a-zA-Z0-9_][a-zA-Z0-9_./-]*\.py", entry) or ".." in entry.split("/"):
             raise Rejected("Entry must be a relative Python file")
-        if set(body) - {"entry", "inputs"}:
+        if set(body) - {"entry", "inputs", "s3_read"}:
             raise Rejected("Unsupported deployment setting")
         schema = validate_schema(body.get("inputs", {}))
+        task_role(app, body.get("s3_read"))  # enforce approval before issuing a source upload URL
         deploy_id = new_id("d")
-        doc = dict(id=deploy_id, status="uploading", entry=entry, inputs=schema, created_at=stamp())
+        doc = dict(id=deploy_id, status="uploading", entry=entry, inputs=schema, s3_read=body.get("s3_read"), created_at=stamp())
         put_doc(app_key(app, "deploys/" + deploy_id + "/record.json"), doc)
         # Archives keep globally unique deployment IDs under the installed build
         # role's sources/ permission; only the owning app's record can build them.
@@ -307,6 +327,8 @@ def dispatch(method, path, body, query, claims, app=None):
         doc = deployment(body["deploy_id"], refresh=True, app=app) if body.get("deploy_id") else latest_deployment(app)
         if not doc or doc["status"] != "ready":
             raise Rejected("Deploy the job successfully before running it", 409)
+        # Old task definitions cannot retain access after its approval changes.
+        role = task_role(app, doc.get("s3_read"))
         values = validate_inputs(doc["inputs"], body.get("inputs", {}))
         run_id = new_id("r")
         run = dict(run_id=run_id, deploy_id=doc["id"], status="starting", inputs=values,
@@ -316,8 +338,10 @@ def dispatch(method, path, body, query, claims, app=None):
             Conditions=[["content-length-range", 1, 11 * 1024 * 1024]], ExpiresIn=1800)
         result_url = client("s3").generate_presigned_url("put_object", Params={"Bucket": os.environ["BUCKET"],
             "Key": app_key(app, "runs/" + run_id + "/result.json"), "ContentType": "application/json"}, ExpiresIn=1800)
-        overrides = {"containerOverrides": [{"name": "job", "environment": [
+        bucket, _, prefix = (doc.get("s3_read") or "s3://")[5:].partition("/")
+        overrides = {"taskRoleArn": role, "containerOverrides": [{"name": "job", "environment": [
             {"name": "SMALL_RUN_ID", "value": run_id}, {"name": "SMALL_RUN_INPUTS", "value": json.dumps(values)},
+            {"name": "SMALL_S3_BUCKET", "value": bucket}, {"name": "SMALL_S3_PREFIX", "value": prefix},
             {"name": "SMALL_OUTPUT_POST", "value": json.dumps(output_post)}, {"name": "SMALL_RESULT_URL", "value": result_url}]}]}
         if len(json.dumps(overrides).encode()) > 8192:
             raise Rejected("Run inputs and upload grants exceed the AWS task limit", 413)
