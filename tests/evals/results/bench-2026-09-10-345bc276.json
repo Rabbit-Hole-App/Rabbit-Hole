@@ -1,0 +1,931 @@
+{
+  "model": "claude-sonnet-5",
+  "reps": 5,
+  "skill": "345bc276",
+  "records": [
+    {
+      "scenario": "plain",
+      "arm": "skill",
+      "checks": {
+        "agent ran small at all": true,
+        "init before deploy": true,
+        "no Dockerfile invented": true,
+        "no auth bolted on (small.toml untouched by auth keys)": true,
+        "agent reported the URL": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.3954539999999999,
+      "duration_s": 44.3,
+      "turns": 13
+    },
+    {
+      "scenario": "plain",
+      "arm": "noskill",
+      "checks": {
+        "agent ran small at all": false,
+        "init before deploy": false,
+        "no Dockerfile invented": true,
+        "no auth bolted on (small.toml untouched by auth keys)": false,
+        "agent reported the URL": false
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.45597930000000003,
+      "duration_s": 75.8,
+      "turns": 14
+    },
+    {
+      "scenario": "plain",
+      "arm": "skill",
+      "checks": {
+        "agent ran small at all": true,
+        "init before deploy": true,
+        "no Dockerfile invented": true,
+        "no auth bolted on (small.toml untouched by auth keys)": true,
+        "agent reported the URL": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.37609770000000003,
+      "duration_s": 36.4,
+      "turns": 12
+    },
+    {
+      "scenario": "plain",
+      "arm": "skill",
+      "checks": {
+        "agent ran small at all": true,
+        "init before deploy": true,
+        "no Dockerfile invented": true,
+        "no auth bolted on (small.toml untouched by auth keys)": true,
+        "agent reported the URL": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.3512430000000001,
+      "duration_s": 30.5,
+      "turns": 11
+    },
+    {
+      "scenario": "plain",
+      "arm": "skill",
+      "checks": {
+        "agent ran small at all": true,
+        "init before deploy": true,
+        "no Dockerfile invented": true,
+        "no auth bolted on (small.toml untouched by auth keys)": true,
+        "agent reported the URL": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.34765589999999996,
+      "duration_s": 28.9,
+      "turns": 11
+    },
+    {
+      "scenario": "plain",
+      "arm": "skill",
+      "checks": {
+        "agent ran small at all": true,
+        "init before deploy": true,
+        "no Dockerfile invented": true,
+        "no auth bolted on (small.toml untouched by auth keys)": true,
+        "agent reported the URL": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.3899133,
+      "duration_s": 32.4,
+      "turns": 13
+    },
+    {
+      "scenario": "plain",
+      "arm": "skill",
+      "checks": {
+        "agent ran small at all": true,
+        "init before deploy": true,
+        "no Dockerfile invented": true,
+        "no auth bolted on (small.toml untouched by auth keys)": true,
+        "agent reported the URL": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.36934559999999994,
+      "duration_s": 30.7,
+      "turns": 12
+    },
+    {
+      "scenario": "plain",
+      "arm": "noskill",
+      "checks": {
+        "agent ran small at all": false,
+        "init before deploy": false,
+        "no Dockerfile invented": true,
+        "no auth bolted on (small.toml untouched by auth keys)": false,
+        "agent reported the URL": false
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.31051290000000004,
+      "duration_s": 40.1,
+      "turns": 8
+    },
+    {
+      "scenario": "plain",
+      "arm": "noskill",
+      "checks": {
+        "agent ran small at all": true,
+        "init before deploy": true,
+        "no Dockerfile invented": true,
+        "no auth bolted on (small.toml untouched by auth keys)": true,
+        "agent reported the URL": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.4895733,
+      "duration_s": 87.1,
+      "turns": 12
+    },
+    {
+      "scenario": "plain",
+      "arm": "noskill",
+      "checks": {
+        "agent ran small at all": false,
+        "init before deploy": false,
+        "no Dockerfile invented": true,
+        "no auth bolted on (small.toml untouched by auth keys)": false,
+        "agent reported the URL": false
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.3192557999999999,
+      "duration_s": 39.9,
+      "turns": 7
+    },
+    {
+      "scenario": "plain",
+      "arm": "noskill",
+      "checks": {
+        "agent ran small at all": false,
+        "init before deploy": false,
+        "no Dockerfile invented": true,
+        "no auth bolted on (small.toml untouched by auth keys)": false,
+        "agent reported the URL": false
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.6932579999999999,
+      "duration_s": 150.2,
+      "turns": 21
+    },
+    {
+      "scenario": "plain",
+      "arm": "noskill",
+      "checks": {
+        "agent ran small at all": false,
+        "init before deploy": false,
+        "no Dockerfile invented": true,
+        "no auth bolted on (small.toml untouched by auth keys)": false,
+        "agent reported the URL": false
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.3705345,
+      "duration_s": 71.0,
+      "turns": 9
+    },
+    {
+      "scenario": "vague",
+      "arm": "skill",
+      "checks": {
+        "vague ask still routed into small": true,
+        "deploy reached": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.41749110000000006,
+      "duration_s": 55.8,
+      "turns": 13
+    },
+    {
+      "scenario": "vague",
+      "arm": "skill",
+      "checks": {
+        "vague ask still routed into small": true,
+        "deploy reached": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.34845750000000003,
+      "duration_s": 33.3,
+      "turns": 11
+    },
+    {
+      "scenario": "vague",
+      "arm": "skill",
+      "checks": {
+        "vague ask still routed into small": true,
+        "deploy reached": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.38204910000000003,
+      "duration_s": 42.8,
+      "turns": 12
+    },
+    {
+      "scenario": "vague",
+      "arm": "skill",
+      "checks": {
+        "vague ask still routed into small": true,
+        "deploy reached": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.3811065,
+      "duration_s": 44.1,
+      "turns": 12
+    },
+    {
+      "scenario": "vague",
+      "arm": "skill",
+      "checks": {
+        "vague ask still routed into small": true,
+        "deploy reached": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.3687093,
+      "duration_s": 35.2,
+      "turns": 12
+    },
+    {
+      "scenario": "vague",
+      "arm": "noskill",
+      "checks": {
+        "vague ask still routed into small": false,
+        "deploy reached": false
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.1658367,
+      "duration_s": 8.1,
+      "turns": 1
+    },
+    {
+      "scenario": "vague",
+      "arm": "noskill",
+      "checks": {
+        "vague ask still routed into small": false,
+        "deploy reached": false
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.1680897,
+      "duration_s": 8.9,
+      "turns": 1
+    },
+    {
+      "scenario": "vague",
+      "arm": "noskill",
+      "checks": {
+        "vague ask still routed into small": false,
+        "deploy reached": false
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.21125549999999998,
+      "duration_s": 18.2,
+      "turns": 4
+    },
+    {
+      "scenario": "vague",
+      "arm": "noskill",
+      "checks": {
+        "vague ask still routed into small": false,
+        "deploy reached": false
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.2102382,
+      "duration_s": 17.9,
+      "turns": 4
+    },
+    {
+      "scenario": "vague",
+      "arm": "noskill",
+      "checks": {
+        "vague ask still routed into small": false,
+        "deploy reached": false
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.2130246,
+      "duration_s": 19.0,
+      "turns": 4
+    },
+    {
+      "scenario": "aws",
+      "arm": "skill",
+      "checks": {
+        "[aws] role declared in small.toml": true,
+        "role created via aws iam (skill loop ran)": true,
+        "redeployed to verified after creating the role": true,
+        "no AWS keys written to .env": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.6372779999999999,
+      "duration_s": 88.6,
+      "turns": 23
+    },
+    {
+      "scenario": "aws",
+      "arm": "skill",
+      "checks": {
+        "[aws] role declared in small.toml": true,
+        "role created via aws iam (skill loop ran)": true,
+        "redeployed to verified after creating the role": true,
+        "no AWS keys written to .env": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.7444728000000002,
+      "duration_s": 138.4,
+      "turns": 24
+    },
+    {
+      "scenario": "aws",
+      "arm": "skill",
+      "checks": {
+        "[aws] role declared in small.toml": true,
+        "role created via aws iam (skill loop ran)": true,
+        "redeployed to verified after creating the role": true,
+        "no AWS keys written to .env": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.6056054999999999,
+      "duration_s": 95.7,
+      "turns": 21
+    },
+    {
+      "scenario": "aws",
+      "arm": "skill",
+      "checks": {
+        "[aws] role declared in small.toml": true,
+        "role created via aws iam (skill loop ran)": true,
+        "redeployed to verified after creating the role": true,
+        "no AWS keys written to .env": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.6340626,
+      "duration_s": 102.5,
+      "turns": 22
+    },
+    {
+      "scenario": "aws",
+      "arm": "skill",
+      "checks": {
+        "[aws] role declared in small.toml": true,
+        "role created via aws iam (skill loop ran)": true,
+        "redeployed to verified after creating the role": true,
+        "no AWS keys written to .env": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.6539237999999998,
+      "duration_s": 81.9,
+      "turns": 23
+    },
+    {
+      "scenario": "aws",
+      "arm": "noskill",
+      "checks": {
+        "[aws] role declared in small.toml": true,
+        "role created via aws iam (skill loop ran)": true,
+        "redeployed to verified after creating the role": true,
+        "no AWS keys written to .env": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.7248072000000002,
+      "duration_s": 154.6,
+      "turns": 25
+    },
+    {
+      "scenario": "aws",
+      "arm": "noskill",
+      "checks": {
+        "[aws] role declared in small.toml": true,
+        "role created via aws iam (skill loop ran)": true,
+        "redeployed to verified after creating the role": true,
+        "no AWS keys written to .env": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.7478546999999999,
+      "duration_s": 223.3,
+      "turns": 13
+    },
+    {
+      "scenario": "aws",
+      "arm": "noskill",
+      "checks": {
+        "[aws] role declared in small.toml": false,
+        "role created via aws iam (skill loop ran)": false,
+        "redeployed to verified after creating the role": true,
+        "no AWS keys written to .env": true
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.7192314,
+      "duration_s": 174.5,
+      "turns": 17
+    },
+    {
+      "scenario": "aws",
+      "arm": "noskill",
+      "checks": {
+        "[aws] role declared in small.toml": false,
+        "role created via aws iam (skill loop ran)": false,
+        "redeployed to verified after creating the role": false,
+        "no AWS keys written to .env": true
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.9368796000000001,
+      "duration_s": 245.5,
+      "turns": 20
+    },
+    {
+      "scenario": "aws",
+      "arm": "noskill",
+      "checks": {
+        "[aws] role declared in small.toml": true,
+        "role created via aws iam (skill loop ran)": true,
+        "redeployed to verified after creating the role": true,
+        "no AWS keys written to .env": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 1.0586213999999998,
+      "duration_s": 251.2,
+      "turns": 24
+    },
+    {
+      "scenario": "adapter",
+      "arm": "skill",
+      "checks": {
+        "original script byte-identical": true,
+        "thin adapter entry added (reads SMALL_INPUT_*)": true,
+        "deploy ran": true,
+        "no Dockerfile invented": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.491346,
+      "duration_s": 56.3,
+      "turns": 16
+    },
+    {
+      "scenario": "adapter",
+      "arm": "skill",
+      "checks": {
+        "original script byte-identical": true,
+        "thin adapter entry added (reads SMALL_INPUT_*)": true,
+        "deploy ran": true,
+        "no Dockerfile invented": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.5365155,
+      "duration_s": 75.5,
+      "turns": 16
+    },
+    {
+      "scenario": "adapter",
+      "arm": "skill",
+      "checks": {
+        "original script byte-identical": true,
+        "thin adapter entry added (reads SMALL_INPUT_*)": true,
+        "deploy ran": true,
+        "no Dockerfile invented": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.5275014,
+      "duration_s": 84.9,
+      "turns": 16
+    },
+    {
+      "scenario": "adapter",
+      "arm": "skill",
+      "checks": {
+        "original script byte-identical": true,
+        "thin adapter entry added (reads SMALL_INPUT_*)": true,
+        "deploy ran": true,
+        "no Dockerfile invented": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.5026686000000001,
+      "duration_s": 68.5,
+      "turns": 16
+    },
+    {
+      "scenario": "adapter",
+      "arm": "skill",
+      "checks": {
+        "original script byte-identical": true,
+        "thin adapter entry added (reads SMALL_INPUT_*)": true,
+        "deploy ran": true,
+        "no Dockerfile invented": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.5037246,
+      "duration_s": 89.0,
+      "turns": 16
+    },
+    {
+      "scenario": "adapter",
+      "arm": "noskill",
+      "checks": {
+        "original script byte-identical": true,
+        "thin adapter entry added (reads SMALL_INPUT_*)": false,
+        "deploy ran": false,
+        "no Dockerfile invented": true
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.7388045000000001,
+      "duration_s": 135.8,
+      "turns": 17
+    },
+    {
+      "scenario": "adapter",
+      "arm": "noskill",
+      "checks": {
+        "original script byte-identical": true,
+        "thin adapter entry added (reads SMALL_INPUT_*)": false,
+        "deploy ran": false,
+        "no Dockerfile invented": true
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.8115648,
+      "duration_s": 200.5,
+      "turns": 23
+    },
+    {
+      "scenario": "adapter",
+      "arm": "noskill",
+      "checks": {
+        "original script byte-identical": true,
+        "thin adapter entry added (reads SMALL_INPUT_*)": false,
+        "deploy ran": false,
+        "no Dockerfile invented": true
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 1.5332457999999998,
+      "duration_s": 454.2,
+      "turns": 38
+    },
+    {
+      "scenario": "adapter",
+      "arm": "noskill",
+      "checks": {
+        "original script byte-identical": true,
+        "thin adapter entry added (reads SMALL_INPUT_*)": true,
+        "deploy ran": true,
+        "no Dockerfile invented": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 1.9201933999999998,
+      "duration_s": 334.2,
+      "turns": 41
+    },
+    {
+      "scenario": "adapter",
+      "arm": "noskill",
+      "checks": {
+        "original script byte-identical": true,
+        "thin adapter entry added (reads SMALL_INPUT_*)": false,
+        "deploy ran": false,
+        "no Dockerfile invented": true
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.6510861,
+      "duration_s": 138.7,
+      "turns": 19
+    },
+    {
+      "scenario": "jobs",
+      "arm": "skill",
+      "checks": {
+        "[inputs] declares region and limit": true,
+        "code reads SMALL_INPUT_*": true,
+        "result written to $SMALL_OUTPUTS": true,
+        "deploy ran": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.4566353999999999,
+      "duration_s": 57.4,
+      "turns": 14
+    },
+    {
+      "scenario": "jobs",
+      "arm": "skill",
+      "checks": {
+        "[inputs] declares region and limit": true,
+        "code reads SMALL_INPUT_*": true,
+        "result written to $SMALL_OUTPUTS": true,
+        "deploy ran": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.5077239,
+      "duration_s": 62.7,
+      "turns": 15
+    },
+    {
+      "scenario": "jobs",
+      "arm": "skill",
+      "checks": {
+        "[inputs] declares region and limit": true,
+        "code reads SMALL_INPUT_*": true,
+        "result written to $SMALL_OUTPUTS": true,
+        "deploy ran": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.49533000000000005,
+      "duration_s": 59.6,
+      "turns": 15
+    },
+    {
+      "scenario": "jobs",
+      "arm": "skill",
+      "checks": {
+        "[inputs] declares region and limit": true,
+        "code reads SMALL_INPUT_*": true,
+        "result written to $SMALL_OUTPUTS": true,
+        "deploy ran": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.4532907,
+      "duration_s": 55.9,
+      "turns": 14
+    },
+    {
+      "scenario": "jobs",
+      "arm": "skill",
+      "checks": {
+        "[inputs] declares region and limit": true,
+        "code reads SMALL_INPUT_*": true,
+        "result written to $SMALL_OUTPUTS": true,
+        "deploy ran": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.5340318000000001,
+      "duration_s": 75.6,
+      "turns": 16
+    },
+    {
+      "scenario": "jobs",
+      "arm": "noskill",
+      "checks": {
+        "[inputs] declares region and limit": false,
+        "code reads SMALL_INPUT_*": false,
+        "result written to $SMALL_OUTPUTS": false,
+        "deploy ran": false
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.6690126000000001,
+      "duration_s": 167.2,
+      "turns": 20
+    },
+    {
+      "scenario": "jobs",
+      "arm": "noskill",
+      "checks": {
+        "[inputs] declares region and limit": false,
+        "code reads SMALL_INPUT_*": false,
+        "result written to $SMALL_OUTPUTS": false,
+        "deploy ran": false
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.47348789999999996,
+      "duration_s": 108.6,
+      "turns": 12
+    },
+    {
+      "scenario": "jobs",
+      "arm": "noskill",
+      "checks": {
+        "[inputs] declares region and limit": false,
+        "code reads SMALL_INPUT_*": false,
+        "result written to $SMALL_OUTPUTS": false,
+        "deploy ran": true
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 1.1892509999999996,
+      "duration_s": 300.4,
+      "turns": 29
+    },
+    {
+      "scenario": "jobs",
+      "arm": "noskill",
+      "checks": {
+        "[inputs] declares region and limit": false,
+        "code reads SMALL_INPUT_*": false,
+        "result written to $SMALL_OUTPUTS": false,
+        "deploy ran": false
+      },
+      "passed": false,
+      "violations": [
+        "wrote a Dockerfile"
+      ],
+      "cost_usd": 1.2317839999999998,
+      "duration_s": 316.0,
+      "turns": 33
+    },
+    {
+      "scenario": "jobs",
+      "arm": "noskill",
+      "checks": {
+        "[inputs] declares region and limit": false,
+        "code reads SMALL_INPUT_*": false,
+        "result written to $SMALL_OUTPUTS": false,
+        "deploy ran": false
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 3.1042366,
+      "duration_s": 660.4,
+      "turns": 73
+    },
+    {
+      "scenario": "byoc",
+      "arm": "skill",
+      "checks": {
+        "workspaces listed before deploying": true,
+        "deploy passed --workspace w-acme (slug from CLI, not display name)": true,
+        "aws target not silently changed": true,
+        "dev app link relayed": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.4510044,
+      "duration_s": 49.1,
+      "turns": 13
+    },
+    {
+      "scenario": "byoc",
+      "arm": "skill",
+      "checks": {
+        "workspaces listed before deploying": true,
+        "deploy passed --workspace w-acme (slug from CLI, not display name)": true,
+        "aws target not silently changed": true,
+        "dev app link relayed": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.44088449999999996,
+      "duration_s": 51.0,
+      "turns": 13
+    },
+    {
+      "scenario": "byoc",
+      "arm": "skill",
+      "checks": {
+        "workspaces listed before deploying": true,
+        "deploy passed --workspace w-acme (slug from CLI, not display name)": true,
+        "aws target not silently changed": true,
+        "dev app link relayed": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.5011460999999999,
+      "duration_s": 74.9,
+      "turns": 16
+    },
+    {
+      "scenario": "byoc",
+      "arm": "skill",
+      "checks": {
+        "workspaces listed before deploying": true,
+        "deploy passed --workspace w-acme (slug from CLI, not display name)": true,
+        "aws target not silently changed": true,
+        "dev app link relayed": false
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.45073469999999993,
+      "duration_s": 59.7,
+      "turns": 14
+    },
+    {
+      "scenario": "byoc",
+      "arm": "skill",
+      "checks": {
+        "workspaces listed before deploying": true,
+        "deploy passed --workspace w-acme (slug from CLI, not display name)": true,
+        "aws target not silently changed": true,
+        "dev app link relayed": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.5933943,
+      "duration_s": 86.3,
+      "turns": 18
+    },
+    {
+      "scenario": "byoc",
+      "arm": "noskill",
+      "checks": {
+        "workspaces listed before deploying": false,
+        "deploy passed --workspace w-acme (slug from CLI, not display name)": true,
+        "aws target not silently changed": true,
+        "dev app link relayed": true
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.3294926999999999,
+      "duration_s": 36.6,
+      "turns": 9
+    },
+    {
+      "scenario": "byoc",
+      "arm": "noskill",
+      "checks": {
+        "workspaces listed before deploying": false,
+        "deploy passed --workspace w-acme (slug from CLI, not display name)": true,
+        "aws target not silently changed": true,
+        "dev app link relayed": true
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.6652164000000002,
+      "duration_s": 62.9,
+      "turns": 13
+    },
+    {
+      "scenario": "byoc",
+      "arm": "noskill",
+      "checks": {
+        "workspaces listed before deploying": true,
+        "deploy passed --workspace w-acme (slug from CLI, not display name)": true,
+        "aws target not silently changed": true,
+        "dev app link relayed": true
+      },
+      "passed": true,
+      "violations": [],
+      "cost_usd": 0.7569695999999999,
+      "duration_s": 69.6,
+      "turns": 20
+    },
+    {
+      "scenario": "byoc",
+      "arm": "noskill",
+      "checks": {
+        "workspaces listed before deploying": false,
+        "deploy passed --workspace w-acme (slug from CLI, not display name)": true,
+        "aws target not silently changed": true,
+        "dev app link relayed": true
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.3215508,
+      "duration_s": 45.6,
+      "turns": 9
+    },
+    {
+      "scenario": "byoc",
+      "arm": "noskill",
+      "checks": {
+        "workspaces listed before deploying": false,
+        "deploy passed --workspace w-acme (slug from CLI, not display name)": true,
+        "aws target not silently changed": true,
+        "dev app link relayed": true
+      },
+      "passed": false,
+      "violations": [],
+      "cost_usd": 0.35121240000000004,
+      "duration_s": 39.8,
+      "turns": 12
+    }
+  ]
+}
