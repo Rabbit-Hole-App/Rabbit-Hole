@@ -20,7 +20,9 @@ annotated = { path = "annotated.jpg", label = "Annotated image" }
 
 Six types: `file`, `number`, `select`, `date`, `text`, `bool`. Callers pass
 them as flags — `small run app --image ./photo.jpg --threshold 0.7` — and the
-dashboard renders a Run form from the same declaration. Slack (`/small run`),
+dashboard renders a Run form from the same declaration: a `number` with both
+`min` and `max` draws as a slider (plus a typed box), `select` a dropdown,
+`bool` a toggle, `file` a dropzone, `date` a date picker. Slack (`/small run`),
 the chat agent's Run proposals, cron, and Run again all feed the same
 declaration too: the script receives identical env vars no matter who or what
 started the run. In the script:
