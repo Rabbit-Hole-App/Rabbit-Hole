@@ -48,6 +48,30 @@ New:
 Prompts stay human-authored and never leak assertion wording (SkillsBench
 leakage policy). Shims stay deterministic.
 
+## Scenarios added after v1
+
+- **S7 knowledge** — one run answers platform Q&A, graded per question by a
+  cheap judge model against reference facts (haiku by default; questions never
+  contain their answers). Covers Run-form widgets, batching, defaults,
+  outputs, storage, input types, and — after the constants/tooltip skill
+  update — `SMALL_CONSTANTS` delivery, read-only Run > Constants (change =
+  redeploy), tooltip being explanatory-only, image retirement, and
+  installation-reported region.
+- **S8 constants** — a detector whose logic consumes two module constants,
+  plus two decoys the skill's rules exclude (platform plumbing named like
+  `RUN_LIMIT_MB`, a never-read tag). Pass: both consumed values under
+  `[constants]`, decoys excluded, code reads `SMALL_CONSTANTS`, values not
+  re-offered as editable inputs, no placeholder/example-account copied,
+  deploy through the workspace slug.
+- **S9 grants** — exactly two SDK calls (`s3.get_object` on a named bucket,
+  `lambda.invoke` on a named function). Pass: grants trace to exactly those
+  actions/resources with the installation's account, no wildcards, no
+  untraced extra actions, grants on one physical line, no placeholder copied.
+- **plain** additionally asserts the SKILL.md handback checklist: runbook
+  read back, AGENT.md written.
+- **violations()** (no-skill damage report) additionally counts angle-bracket
+  placeholders and the example AWS account id copied into `small.toml`.
+
 ## Arms and matrix
 
 - **skill** — `.claude/skills/small` installed from the working tree, as the

@@ -8,7 +8,7 @@ Always start with --dry-run. Hand-triggered only, never CI.
 
     .venv/Scripts/python tests/evals/bench_skill.py --dry-run
     .venv/Scripts/python tests/evals/bench_skill.py -n 1 --scenario plain   # smoke
-    .venv/Scripts/python tests/evals/bench_skill.py                          # full: 6 x 2 x 5
+    .venv/Scripts/python tests/evals/bench_skill.py                          # full: all scenarios x 2 x 5
 
 Flags: -n REPS (5) · --scenario NAME (repeatable) · --arms skill,noskill ·
 --model ID (EVAL_MODEL / claude-sonnet-5) · --dry-run

@@ -83,12 +83,80 @@ target = "aws"
 text = { type = "text", required = true }
 """
 
+# S8: a detector whose logic consumes two module constants; two decoys that the
+# [constants] rules exclude (platform plumbing, never-read tag).
+DETECT_JOB = '''\
+import json
+import os
+
+THRESHOLD = 0.85          # minimum confidence a detection must reach
+COOLDOWN_FRAMES = 7       # frames to skip after an alert fires
+RUN_LIMIT_MB = 45         # upload cap enforced by the deploy platform
+BUILD_TAG = "detector-2026-03"
+
+
+def detect(scores):
+    alerts, wait = [], 0
+    for i, s in enumerate(scores):
+        if wait:
+            wait -= 1
+            continue
+        if s >= THRESHOLD:
+            alerts.append(i)
+            wait = COOLDOWN_FRAMES
+    return alerts
+
+
+if __name__ == "__main__":
+    scores = json.loads(os.environ["SMALL_INPUT_SCORES"])
+    print(json.dumps(detect(scores)))
+'''
+
+DETECT_TOML = """\
+name = "acme-detector"
+entry = "job.py"
+type = "job"
+
+[deploy]
+target = "aws"
+
+[inputs]
+scores = { type = "text", required = true }
+"""
+
+# S9: exactly two SDK calls on named customer resources - the grants must
+# trace to them and nothing else.
+GRANTS_JOB = '''\
+import os
+
+import boto3
+
+s3 = boto3.client("s3")
+lam = boto3.client("lambda")
+
+report = s3.get_object(Bucket="acme-reports", Key=os.environ["SMALL_INPUT_KEY"])["Body"].read()
+resp = lam.invoke(FunctionName="acme-summarizer", Payload=report)
+print("invoked:", resp["StatusCode"])
+'''
+
+GRANTS_TOML = """\
+name = "acme-summary"
+entry = "job.py"
+type = "job"
+
+[deploy]
+target = "aws"
+
+[inputs]
+key = { type = "text", required = true }
+"""
+
 # fake `small`: records argv, plays the part. First `deploy` in the aws scenario
 # fails with the real-shaped trust-policy error so the skill's create-role loop
 # runs. With EVAL_BYOC=1 and target = "aws" in small.toml, deploy demands
 # --workspace w-acme (mirrors the aws-hosting flow) and `workspaces` lists slugs.
 FAKE_SMALL = r'''
-import json, os, sys
+import json, os, re, sys
 from pathlib import Path
 
 log = Path(os.environ["EVAL_LOG"])
@@ -108,15 +176,21 @@ if cmd == "init":
     print("✓ wrote small.toml")
 elif cmd == "workspaces":
     print("gmail-com  (email workspace)")
-    print("w-acme  Acme")
+    print("w-acme  Acme  (AWS 111122223333 · us-east-1)")
     print("choose: small <command> --workspace <slug> (or set SMALL_WORKSPACE)")
 elif cmd == "deploy":
     toml = Path("small.toml").read_text(encoding="utf-8") if Path("small.toml").exists() else ""
     if os.environ.get("EVAL_BYOC") == "1" and 'target = "aws"' in toml:
         if "--workspace" in argv and argv[argv.index("--workspace") + 1] == "w-acme":
+            m = re.search(r'name = "([^"]+)"', toml)
+            app = m.group(1) if m else "app"
             print("✓ workspace: w-acme (Acme)")
             print("✓ target: workspace w-acme · AWS 111122223333 / us-east-1")
-            print("✓ deployed acme-counter → https://small-cp-dev.example.dev/apps/acme-counter")
+            if "grants" in toml:
+                print("✓ app access: grants approved by the connection owner")
+            if "[constants]" in toml:
+                print("✓ constants: recorded, shown read-only under Run > Constants")
+            print(f"✓ deployed {app} → https://small-cp-dev.example.dev/apps/{app}")
         else:
             print("✗ No AWS connection for this job - pass --workspace <slug> (list them with: small workspaces)")
             sys.exit(1)
@@ -256,6 +330,17 @@ def _setup_byoc(project):
     (project / "small.toml").write_text(BYOC_TOML, encoding="utf-8")
 
 
+def _setup_constants(project):
+    (project / "job.py").write_text(DETECT_JOB, encoding="utf-8")
+    (project / "small.toml").write_text(DETECT_TOML, encoding="utf-8")
+
+
+def _setup_grants(project):
+    (project / "job.py").write_text(GRANTS_JOB, encoding="utf-8")
+    (project / "small.toml").write_text(GRANTS_TOML, encoding="utf-8")
+    (project / "requirements.txt").write_text("boto3\n", encoding="utf-8")
+
+
 # ---------- checks: (label, bool) lists ----------
 
 def _checks_plain(ctx):
@@ -267,6 +352,8 @@ def _checks_plain(ctx):
         ("no Dockerfile invented", not (project / "Dockerfile").exists()),
         ("no auth bolted on (small.toml untouched by auth keys)", bool(toml) and "auth" not in toml.lower()),
         ("agent reported the URL", "small-cp.example.dev" in ctx["result_text"]),
+        ("runbook read back (handback checklist)", "runbook" in cmds),
+        ("AGENT.md written with app context", len(_read(project / "AGENT.md").strip()) > 0),
     ]
 
 
@@ -324,6 +411,50 @@ def _checks_byoc(ctx):
     ]
 
 
+def _ws_deploy_ran(ctx):
+    ws_deploys = [a for a in ctx["argvs"] if a and a[0] == "deploy" and "--workspace" in a]
+    return any(a[a.index("--workspace") + 1] == "w-acme" for a in ws_deploys)
+
+
+def _no_placeholder(toml):
+    return not re.search(r"<[a-z][a-z0-9-]*>", toml) and "123456789012" not in toml
+
+
+def _checks_constants(ctx):
+    project = ctx["project"]
+    toml = _read(project / "small.toml")
+    low = toml.lower()
+    consts = re.search(r"\[constants\](.*?)(\n\[|\Z)", toml, re.S)
+    csec = consts.group(1).lower() if consts else ""
+    inputs = re.search(r"\[inputs\](.*?)(\n\[|\Z)", toml, re.S)
+    isec = inputs.group(1).lower() if inputs else ""
+    code = "\n".join(_read(p) for p in project.glob("*.py"))
+    return [
+        ("[constants] declares both consumed values (0.85 threshold, 7-frame cooldown)",
+         "0.85" in csec and "7" in csec),
+        ("plumbing and never-read decoys excluded", "run_limit" not in low and "build_tag" not in low),
+        ("code reads SMALL_CONSTANTS", "SMALL_CONSTANTS" in code),
+        ("constants not offered as editable inputs", "threshold" not in isec and "0.85" not in isec),
+        ("no example placeholder or account copied", _no_placeholder(toml)),
+        ("deployed through workspace w-acme", _ws_deploy_ran(ctx)),
+    ]
+
+
+def _checks_grants(ctx):
+    toml = _read(ctx["project"] / "small.toml")
+    one_line = any("s3:GetObject" in l and "lambda:InvokeFunction" in l for l in toml.splitlines())
+    return [
+        ("GetObject grant on the real bucket", "s3:GetObject" in toml and "acme-reports" in toml),
+        ("InvokeFunction grant with installation account", "lambda:InvokeFunction" in toml
+         and "111122223333" in toml and "acme-summarizer" in toml),
+        ("no wildcard action or resource", '= "*"' not in toml and "s3:*" not in toml and ":*\"" not in toml),
+        ("no untraced extra actions", "s3:PutObject" not in toml and "s3:ListBucket" not in toml),
+        ("grants stay on one physical line", one_line),
+        ("no example placeholder or account copied", _no_placeholder(toml)),
+        ("deployed through workspace w-acme", _ws_deploy_ran(ctx)),
+    ]
+
+
 SCENARIOS = {
     "plain": {
         "title": "plain flask tool — 'share this with my team'",
@@ -355,6 +486,16 @@ SCENARIOS = {
         "prompt": "Deploy the job in this directory. It must run inside our company AWS account through the existing connection on our Acme workspace. Do not ask questions.",
         "setup": _setup_byoc, "checks": _checks_byoc, "byoc": True,
     },
+    "constants": {
+        "title": "[constants] — expose consumed values read-only, skip decoys",
+        "prompt": "Deploy the detector job in this directory to our company AWS through the existing connection on our Acme workspace (our private installation advertises support for fixed read-only run values and input tooltips). Teammates keep asking which fixed detection settings each run used — make those visible on the app's Run page without letting anyone edit them. Do not ask questions.",
+        "setup": _setup_constants, "checks": _checks_constants, "byoc": True,
+    },
+    "grants": {
+        "title": "aws grants — exact actions on resolved resources, one line",
+        "prompt": "Deploy this job through the existing connection on our Acme workspace. It must be able to do exactly what the code does against our real AWS resources — declare the access it needs so our administrator can review it. The bucket and function names in the code are the real ones. Do not ask questions.",
+        "setup": _setup_grants, "checks": _checks_grants, "byoc": True,
+    },
 }
 
 # ---------- knowledge Q&A: does the skill let the agent answer platform ----------
@@ -366,7 +507,7 @@ KNOWLEDGE_QA = [
     ("slider", "Can the 'parallel' input show up as a slider on the dashboard Run form instead of a plain box? How?",
      "Yes - a number input with both min and max renders as a slider (plus a typed box) on the Run form."),
     ("batch", "A teammate has a list of 12 account names. Can they start one run per account from the Run form without submitting 12 times? How?",
-     "Yes - the + beside a text field adds value rows (a multi-line paste splits into rows automatically); submit starts one run per value with every other field shared, up to 25."),
+     "Yes - the + beside a text field adds value rows (a multi-line paste splits into rows automatically); submit starts one run per value with every other field shared, bounded by a product limit on runs per batch."),
     ("defaults", "If an input declares a default in small.toml, what does the Run form show for that field?",
      "The field comes pre-filled with the declared default; the user can edit it before running."),
     ("outputs", "Where must the script write result files so teammates can download them from the run page?",
@@ -375,6 +516,16 @@ KNOWLEDGE_QA = [
      "Declare a [storage] block in small.toml - a persistent volume is mounted and SMALL_DATA points at it; keep state there (e.g. sqlite), never in process memory."),
     ("types", "List every input type small supports.",
      "Exactly six: file, number, select, date, text, bool."),
+    ("constants-read", "A private AWS job's small.toml declares fixed values under [constants]. How does the running Python code receive them?",
+     "Via the SMALL_CONSTANTS env var: json.loads(os.environ['SMALL_CONSTANTS']) yields the scalar values; the tooltip/definition objects are never passed to the job."),
+    ("constants-change", "A teammate wants different values for the entries shown under Run > Constants next week. What do they do in the dashboard?",
+     "Nothing in the dashboard - Run > Constants is read-only; changing a constant requires editing small.toml and redeploying the app."),
+    ("tooltip", "Does the tooltip text on an input change which value the job receives?",
+     "No - a tooltip is explanatory text behind an information icon beside the label; it does not configure behavior, the script still receives only the value."),
+    ("retirement", "On a private AWS installation with image retirement, a deploy replaced last week's version of an app. Can teammates still start runs of that older version, and what remains of it?",
+     "No - replaced versions cannot start new runs; deploy the old source again to run it. Run history, logs, and outputs remain."),
+    ("region", "Which AWS region does a private-installation job deploy into?",
+     "The region the installation/connection itself reports - there is no fixed universal region; never assume one from an example."),
 ]
 
 _JUDGE_MODEL = os.environ.get("EVAL_JUDGE_MODEL", "claude-haiku-4-5-20251001")
@@ -435,9 +586,14 @@ SCENARIOS["knowledge"] = {
 def violations(ctx):
     project = ctx["project"]
     envf = _read(project / ".env")
+    toml = _read(project / "small.toml")
     out = []
     if (project / "Dockerfile").exists() or (project / "docker-compose.yml").exists():
         out.append("wrote a Dockerfile")
     if "AWS_SECRET" in envf or "AWS_ACCESS" in envf:
         out.append("put AWS keys in .env")
+    if re.search(r"<[a-z][a-z0-9-]*>", toml):
+        out.append("left an angle-bracket placeholder in small.toml")
+    if "123456789012" in toml:
+        out.append("copied an example AWS account id")
     return out
