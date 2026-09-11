@@ -1,0 +1,417 @@
+{
+  "raw": [
+    {
+      "id": "d1",
+      "decision": "Build only the CLI half of the job-inputs/outputs feature (flags, validation, multipart upload, output listing/download); leave runner.py, control-plane routes/R2, the yolo-job example, and SKILL.md for a separate pass.",
+      "reason": null,
+      "kind": "operational",
+      "alternatives": [
+        "Build the full stack (runtime + control plane + example + skill doc) in one pass as originally requested"
+      ],
+      "constraints": [
+        "Touch only runner.py, run command, run routes, schema validator, example, SKILL.md, tests (per original request) — narrowed further to CLI-only"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m5673",
+          "quote": "you are implementing the cli part only"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "docs/features/job-inputs.md",
+          "start_line": 62,
+          "end_line": 81
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "Enforce exactly six input types (file, number, select, date, text, bool); reject any other declared type with a one-line error at small init and small deploy.",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "Allow arbitrary/custom input types"
+      ],
+      "constraints": [
+        "Must fail before deploy proceeds, single-line error message"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m5646",
+          "quote": "Exactly six types. Reject anything else at small init and small deploy with a one-line error."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/inputs.js",
+          "start_line": 6,
+          "end_line": 16
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "Send scalar inputs in a JSON 'body' field and file inputs as separate multipart parts named input:<name>, rather than a pure JSON request, only switching to multipart when files are present.",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "Always use multipart",
+        "Send files base64-encoded inside JSON"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m5646",
+          "quote": "Files upload to the control plane; scalars go in the request body."
+        },
+        {
+          "message_id": "m5831",
+          "quote": "files via multipart FormData (scalars in JSON part)"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 330,
+          "end_line": 339
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Cap total input-file size at 100 MB per run, checked client-side before any upload begins.",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "No cap",
+        "Cap enforced only server-side"
+      ],
+      "constraints": [
+        "\"for now\" — stated as a temporary limit"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m5646",
+          "quote": "Cap uploads at 100 MB per run for now."
+        },
+        {
+          "message_id": "m5831",
+          "quote": "100 MB cap pre-upload"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 327,
+          "end_line": 328
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "Resolve relative date inputs (e.g. \"-7d\") to a concrete YYYY-MM-DD string at CLI validation time, rather than passing the relative string through to the script.",
+      "reason": "Relative dates (`-7d`) resolve to `YYYY-MM-DD` at validation so the script gets a concrete date.",
+      "kind": "design",
+      "alternatives": [
+        "Pass relative date string unresolved and let the job script compute it"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m5831",
+          "quote": "date resolution to `YYYY-MM-DD`"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/inputs.js",
+          "start_line": 20,
+          "end_line": 26
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "Skip any output filename containing '..' when downloading run outputs, instead of writing it under the requested local directory.",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "Trust server-supplied filenames as-is"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m5831",
+          "quote": "path-traversal names skipped"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 70,
+          "end_line": 72
+        }
+      ]
+    },
+    {
+      "id": "d7",
+      "decision": "Defer the web run form, multiple-select inputs, outputs over 100 MB, and input presets rather than implement them now.",
+      "reason": "the CLI flags cover job runs; form belongs to the dashboard work.",
+      "kind": "design",
+      "alternatives": [
+        "Build a web-based run form now",
+        "Support multi-select and larger outputs immediately"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m5646",
+          "quote": "Skip: the web form, multiple selects, outputs over 100 MB, input presets."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "docs/features/job-inputs.md",
+          "start_line": 83,
+          "end_line": 88
+        }
+      ]
+    },
+    {
+      "id": "d8",
+      "decision": "Only allow input flags to be passed to small run when a local small.toml with an [inputs] schema exists in the current directory; error otherwise rather than accepting arbitrary flags.",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "Fetch the app's schema remotely to validate flags for apps run from other directories"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 45,
+          "end_line": 53
+        }
+      ]
+    }
+  ],
+  "retained": [
+    {
+      "id": "d2",
+      "decision": "Enforce exactly six input types (file, number, select, date, text, bool); reject any other declared type with a one-line error at small init and small deploy.",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "Allow arbitrary/custom input types"
+      ],
+      "constraints": [
+        "Must fail before deploy proceeds, single-line error message"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m5646",
+          "quote": "Exactly six types. Reject anything else at small init and small deploy with a one-line error."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/inputs.js",
+          "start_line": 6,
+          "end_line": 16
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "Send scalar inputs in a JSON 'body' field and file inputs as separate multipart parts named input:<name>, rather than a pure JSON request, only switching to multipart when files are present.",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "Always use multipart",
+        "Send files base64-encoded inside JSON"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m5646",
+          "quote": "Files upload to the control plane; scalars go in the request body."
+        },
+        {
+          "message_id": "m5831",
+          "quote": "files via multipart FormData (scalars in JSON part)"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 330,
+          "end_line": 339
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Cap total input-file size at 100 MB per run, checked client-side before any upload begins.",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "No cap",
+        "Cap enforced only server-side"
+      ],
+      "constraints": [
+        "\"for now\" — stated as a temporary limit"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m5646",
+          "quote": "Cap uploads at 100 MB per run for now."
+        },
+        {
+          "message_id": "m5831",
+          "quote": "100 MB cap pre-upload"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 327,
+          "end_line": 328
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "Resolve relative date inputs (e.g. \"-7d\") to a concrete YYYY-MM-DD string at CLI validation time, rather than passing the relative string through to the script.",
+      "reason": "Relative dates (`-7d`) resolve to `YYYY-MM-DD` at validation so the script gets a concrete date.",
+      "kind": "design",
+      "alternatives": [
+        "Pass relative date string unresolved and let the job script compute it"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m5831",
+          "quote": "date resolution to `YYYY-MM-DD`"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/inputs.js",
+          "start_line": 20,
+          "end_line": 26
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "Skip any output filename containing '..' when downloading run outputs, instead of writing it under the requested local directory.",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "Trust server-supplied filenames as-is"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m5831",
+          "quote": "path-traversal names skipped"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 70,
+          "end_line": 72
+        }
+      ]
+    },
+    {
+      "id": "d8",
+      "decision": "Only allow input flags to be passed to small run when a local small.toml with an [inputs] schema exists in the current directory; error otherwise rather than accepting arbitrary flags.",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "Fetch the app's schema remotely to validate flags for apps run from other directories"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 45,
+          "end_line": 53
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "id": "d1",
+      "errors": [
+        "invalid_anchor"
+      ]
+    },
+    {
+      "id": "d2",
+      "errors": []
+    },
+    {
+      "id": "d3",
+      "errors": []
+    },
+    {
+      "id": "d4",
+      "errors": []
+    },
+    {
+      "id": "d5",
+      "errors": []
+    },
+    {
+      "id": "d6",
+      "errors": []
+    },
+    {
+      "id": "d7",
+      "errors": [
+        "invalid_anchor"
+      ]
+    },
+    {
+      "id": "d8",
+      "errors": []
+    }
+  ],
+  "human_approved": false,
+  "completed": true
+}

@@ -1,0 +1,33 @@
+{
+  "frozen": {
+    "answer_limit": 4096,
+    "arms": [
+      "sources",
+      "session",
+      "records"
+    ],
+    "capture_limit": 8000,
+    "corpus_hash": "fb3acaaeed9d448fe436f27072ad5e334bd3af784be4ec1f57ee4620ca21bfd6",
+    "effort": "high",
+    "judge_limit": 6000,
+    "model": "claude-sonnet-5",
+    "prices_per_million": {
+      "cache_creation_input_tokens": 2.5,
+      "cache_read_input_tokens": 0.2,
+      "input_tokens": 2,
+      "output_tokens": 10
+    },
+    "pricing_url": "https://platform.claude.com/docs/en/models/sonnet-5/whats-new-sonnet-5",
+    "prompt_hashes": {
+      "answer": "1db64124beb1e962d4ecfda7d9318c837c688a968b9cadc74285c9472b200c8f",
+      "capture": "bc595963418aab5d0423d759f641dffa22b79987bb1d88f23ef4fce366130508",
+      "capture_judge": "a15f7d92c3395fd2f10309b983789fcf0c6059d1a3b19dc6ca27ce9ad69a3284",
+      "judge": "a5d909556edd721800d76ed6eebf8f69613bee315d6abb9f8b50084b9fcf0606"
+    },
+    "thinking": "adaptive"
+  },
+  "started_at": "2026-09-10T15:46:42.054777+00:00",
+  "budget_usd": 15,
+  "git_commit": "70cfe88344406bb9f3eb8f346ecae252d75ffcc0",
+  "code_hash": "620c87ff77f1a633a228df5546342c83558cd246268db87a1ef4e4a31c0989da"
+}

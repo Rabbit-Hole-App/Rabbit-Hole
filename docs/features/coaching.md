@@ -4,6 +4,11 @@ Coaching helps builders and colleagues understand how an app was built through
 the app's Agent tab. This release adds an inspection UI with sample data around
 the existing chat. Capture and extraction are not connected in this UI release.
 
+The [Coaching benchmark protocol](coaching-benchmark.md) and
+[measured pilot results](../testing/coaching-benchmark-results.md) compare source,
+session, and extracted-decision context in a separate evaluation harness. These
+experiments do not connect extraction to the app or change the sample UI.
+
 ## Views
 
 | Tab | Current behavior |
@@ -11,12 +16,40 @@ the existing chat. Capture and extraction are not connected in this UI release.
 | Chat | Original AskPanel: real chat, History, New Chat, attachments, model/source controls, and Open as page. Opens by default and stays mounted while switching preview tabs. |
 | Sessions | Full sample coding-agent conversations, including user messages, tool calls, and results. Each User message starts a container containing the subsequent agent and tool messages, with alternating gray and blue backgrounds. Search and filter by speaker. |
 | Sources | Sample deployed code, documents, configuration, logs, and access information. Code uses the existing shared syntax highlighter. |
-| Capture | Sample processing stages with inspectable input and output. |
+| Capture | Five sample processing stages with readable conversation/code previews, a redaction comparison, prompt sections, candidate decision cards, and validation checks. Original data remains inspectable. |
 | Decisions | Sample choices, reasons, alternatives, constraints, evidence, code anchors, gaps, and review status. |
 
 The four inspection tabs show **Sample data / UI only**. They do not import
 sessions, run extraction, call models, save decisions, or change approvals.
 Their controls only navigate and inspect the handwritten fixtures.
+Sessions has no **Add session** button; importing is not connected in this preview.
+
+The [private AWS Bedrock chat](byoc-bedrock-chat.md) uses the same Agent chat UI,
+History, New Chat, and enlarged page. Its context is the app's job definition and
+recent run evidence. Private app chat and Logs run chat have separate histories;
+the four sample inspection tabs do not feed either model call. Private AWS
+deployment remains pending the inference-region choice documented in that spec.
+
+Capture keeps the existing five-step list and inspector. Each step's **Contents**
+view presents its sample input or output in a readable format:
+
+- **Read inputs:** conversation excerpts with a link to the full session, and
+  complete source files with line numbers and syntax highlighting.
+- **Normalize and redact:** preserved message IDs/speakers and a highlighted
+  before/after comparison. The redaction example is explicitly a separate
+  illustration; the sample conversation contains no secrets to remove.
+  The message count is a compact, muted line with its explanation on hover;
+  status metadata should not compete with the contents for space.
+- **Build model input:** extraction instructions followed by the included
+  conversation and source context.
+- **Model response:** decision cards with the reason, alternatives, evidence,
+  code anchor, and links to the existing conversation/source/decision inspectors.
+- **Validate candidates:** sample counts, passed checks, and a decision awaiting
+  builder review. These are fixture results, not executed validation.
+
+**Original** retains each step's full sample data and **Metadata** retains its
+processing flags. Nested evidence links use the existing Back navigation.
+Resize, enlarge, breadcrumbs, and Minimize keep the shared inspector layout.
 
 The inspector's **Metadata** tab shows the selected input's source, type, name,
 usage, version, message count, and processing flags. These currently describe
@@ -42,6 +75,9 @@ extending this UI. Adding a view does not authorize removing an existing control
   inspectors use this same frame.
 - `colorLine` in `packages/web/src/code.jsx` is the existing tokenizer shared by
   chat code blocks, file previews, and sample deployed source.
+- `SourcePreview` in `packages/web/src/coaching/SourcePreview.jsx` shares the
+  complete source viewer between Sources and Capture, including file selection,
+  line numbers, anchor highlighting, and syntax colors.
 - The enlarged chat page has a Minimize button returning to the app's Agent tab.
 - Each sidebar app menu includes Share. It opens that app and its existing
   sharing popover, preserving editor controls and the viewer's read-only view.
@@ -72,6 +108,10 @@ leave them disabled. Keep them in dev until the user approves promotion to live.
 
 ## Deploy dev
 
+For **customer-hosted AWS**, use the [private AWS dev deployment](byoc-dev.md#build-and-deploy).
+It has its own test apps and data. The Cloudflare steps below apply to shared
+Small dev and must not be used to host Amazon app data or credentials.
+
 Every requested UI addition or change includes a dev build and deployment for
 the user's visual review. Complete these steps before reporting the UI change
 as done, then provide its dev page link. This applies even when the same request
@@ -96,6 +136,64 @@ preserves the approved AWS app integration. Default builds disable both previews
 
 ## Release and verification
 
+Shared dev version `859bb0e8-a938-411f-8a81-a4ee5f5a4db3` preserves both preview
+flags with private mode off. The new [private AWS dev installation](byoc-dev.md)
+enables the same sample inspection tabs in its existing Agent tab, including when
+Bedrock is not configured. Its separate build displays a DEV badge. Nine private
+browser scenarios passed; no private AWS data or login is routed through shared dev.
+
+Dev version `9e5b5eb6-1c72-40bc-9895-4266c3b4c251` adds the shared UI wiring for
+[private AWS Agent chat with Bedrock](byoc-bedrock-chat.md). App chat keeps the
+existing History, New Chat, source picker, Open as page, and Minimize chat.
+Both preview flags remain enabled; private mode stays off on shared dev.
+135 Python BYOC tests, 10 private template tests, and all eight private browser
+scenarios passed. Independent review found no blocker. Private release
+`0.1.0-pilot.6.1` is packaged locally; Amazon deployment and actual inference
+still await the region choice. The shared dev deployment does not enable
+Bedrock for hosted apps or send Amazon evidence through Cloudflare.
+
+Dev version `f20958cd-0f09-431e-96ff-8a411b2ce2dc` includes the shared components
+for [private AWS Logs chat with Bedrock](byoc-bedrock-chat.md). Existing hosted
+chat remains available; private run chat is enabled by the AWS installation's
+capability response. Both dev preview flags remain enabled and private mode is
+off on shared dev. The private browser flow covers answers, follow-ups, History,
+New Chat, enlarged runs, and switching runs without retaining the previous chat.
+The Amazon stack update and real Bedrock answer are pending the region choice.
+
+Dev version `91767f6b-a02e-479a-b1dd-648689c68c23` reduces the normalization
+status banner to one muted line, with the explanation on hover. The contents
+retain their space and existing behavior. The dev build, focused Capture browser
+check, and screenshot review passed; both preview flags remain enabled.
+
+Dev version `336c2a48-facc-4db7-a356-4b641f30fde9` publishes the readable
+Capture views and removes the disabled **Add session** button from Sessions.
+The dev build and all five isolated browser scenarios passed, including evidence
+navigation, preserved chat controls, and responsive inspector behavior. The
+decision cards and redaction comparison were also reviewed in browser screenshots.
+Both preview flags remain enabled; private mode is off. No production or private
+AWS deployment was made for this UI change.
+
+The Capture browser check uses the existing app route with synthetic API reads;
+it blocks external requests and fails on unexpected requests, including writes
+or model calls. After building dev with both preview flags, run from `packages/web`:
+
+```powershell
+npx playwright test --config playwright.coaching.config.js
+```
+
+It covers the five readable steps, Original/Metadata, evidence navigation,
+existing Chat controls, and inspector resizing/enlarge/minimize at 320, 768,
+1024, and 1440px. This is an isolated UI check, not a capture/extraction benchmark.
+
+Dev version `38d10e97-19a5-42a9-971f-12f927ec99d2` publishes the shared UI
+after adding S3 approval to the separate private AWS installation. Both preview
+flags remain enabled and private mode is off on shared dev. Existing connection
+controls and the hidden-when-idle S3 panel are preserved. The private AWS build
+reuses that Settings panel and identifies its installed account; it is packaged
+as `0.1.0-pilot.4`. See [the private S3 proof](byoc-aws.md#private-installation-s3-approval-milestone).
+Both builds, the private Settings browser scenario, focused CLI/template/API
+checks, and all 31 repository unit tests passed.
+
 Dev version `c402091f-e052-4175-a82f-863378d01ce3` removes the static S3
 approved-folder list from AWS connection settings. The section stays hidden
 when idle; upgrade, approval, cancellation, and status/error UI remain.
@@ -107,6 +205,13 @@ column rename from **Kind** to **Type**, including in `test-ws`. The build succe
 both preview flags enabled and private mode disabled. No production promotion.
 The label was first deployed as `e4f1e091-4b47-47b7-8e6d-3c99fb4104da`;
 this final build also contains the private AWS adapter fix, inactive on shared dev.
+
+Dev version `aeff9ac6-03f3-4bd1-8ed9-f43bfd2ad732` publishes the shared components
+for [configurable private AWS grants and uploads](byoc-aws-grants.md). Both
+preview flags remain enabled and private mode remains off in shared dev. The
+existing Settings approval and Run form are reused; private Cognito traffic
+stays on the AWS installation. Six private browser scenarios and both builds
+passed. No live Cloudflare promotion.
 
 Dev version `57a96323-3d5f-4a67-b309-360991af744f` publishes the shared UI after
 adding the [private Cognito installation mode](byoc-aws.md#private-installation-first-dashboard-milestone).

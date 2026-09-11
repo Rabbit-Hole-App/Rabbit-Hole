@@ -1,0 +1,21 @@
+{
+  "checked_at": "2026-09-10T19:37:52.243419+00:00",
+  "distinct_sessions": 5,
+  "messages": 304,
+  "answer_calls": 60,
+  "complete_answer_grades": 60,
+  "candidate_decisions_validated": 37,
+  "request_hashes_verified": 96,
+  "raw_corpus_and_retrieval_code_frozen": true,
+  "selected_contexts_reproduced": 30,
+  "outbound_redaction_matches": 0,
+  "all_calls_verified_claude_code_max": true,
+  "direct_api_key_calls": 0,
+  "all_model_calls_end_turn": true,
+  "rubric_correction_changes_only_one_criterion": true,
+  "correction_quotes_verified": 3,
+  "local_markdown_links_valid": true,
+  "offline_test_command": "python -m pytest tests/evals/coaching/test_bench.py -q -p no:cacheprovider",
+  "offline_test_result": "31 passed, exit 0 (executed separately during this task)",
+  "limitation": "Automated grading and redaction checks are not human gold or a privacy guarantee."
+}

@@ -74,10 +74,14 @@ export const answer = {
 
 export const stages = [
   { id: 'read', title: 'Read inputs', summary: '10 messages · 3 source files', content: { session: 'build-counter.jsonl', messages, source: files } },
-  { id: 'normalize', title: 'Normalize and redact', summary: 'Preserve speakers and evidence locations', content: { note: 'Illustrative processed input.', messages: messages.map(m => ({ id: m.id, role: m.role, content: m.body || m.text })) } },
+  { id: 'normalize', title: 'Normalize and redact', summary: 'Preserve speakers and evidence locations', content: { note: 'Illustrative processed input.', messages: messages.map(m => ({ id: m.id, role: m.role, content: m.body || m.text })), redaction_example: { before: 'DEMO_VALUE_NOT_A_SECRET', after: '[REDACTED]', note: 'This session has no sample secrets. This separate illustration shows how a sensitive value would be hidden.' } } },
   { id: 'model', title: 'Build model input', summary: 'Prompt, source, and session window', content: { example: true, prompt: 'Select deliberate choices supported by the session and anchored in the deployed code. Keep unknown reasons empty.', source: files, messages } },
   { id: 'response', title: 'Model response', summary: '2 candidate decisions', content: decisions.slice(0, 2) },
-  { id: 'validate', title: 'Validate candidates', summary: '2 valid anchors · 1 decision awaiting approval', content: { example: true, candidates: 2, valid_anchors: 2, excluded: [], note: 'No extraction is executed in this preview.' } },
+  { id: 'validate', title: 'Validate candidates', summary: '2 valid anchors · 1 decision awaiting approval', content: { example: true, candidates: 2, valid_anchors: 2, excluded: [], checks: [
+    { title: 'Code anchors', status: 'Passed', detail: 'Both candidates point to app.py in Deploy 7: lines 5–10 and 19–25.' },
+    { title: 'Recorded reasons', status: 'Passed', detail: 'Both reasons link to the builder’s words in messages m4 and m7.' },
+    { title: 'Builder approval', status: 'Needs review', detail: 'The reset confirmation decision is still a draft.', decisionId: 'reset' },
+  ], note: 'Illustrative checks only. No extraction or validation is executed in this preview.' } },
 ];
 
 export const sampleApp = {

@@ -1,0 +1,362 @@
+{
+  "raw": [
+    {
+      "id": "d1",
+      "decision": "Take the fallback approach (worker-minted, app-scoped 1h Fly deploy tokens) instead of the primary plan of having the Worker build directly from a CLI-uploaded tarball via the Machines API.",
+      "reason": "The primary path (CLI tarball → worker builds via Machines API) is not workable: Fly has no build-from-tarball REST endpoint; remote builds speak the Docker/BuildKit wire protocol to a builder machine, which a Cloudflare Worker can't.",
+      "kind": "design",
+      "alternatives": [
+        "CLI packages tarball, Worker triggers remote build via Fly Machines API (original requested primary path)"
+      ],
+      "constraints": [
+        "Fly has no build-from-tarball REST endpoint",
+        "Worker cannot speak Docker/BuildKit protocol"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m2077",
+          "quote": "The primary path (CLI tarball → worker builds via Machines API) is not workable: Fly has no build-from-tarball REST endpoint; remote builds speak the Docker/BuildKit wire protocol to a builder machine, which a Cloudflare Worker can't."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 1,
+          "end_line": 6
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "Worker mints a Fly deploy token scoped to exactly one app, expiring in 1 hour (via createLimitedAccessToken), and returns only that to the CLI instead of the org-wide token.",
+      "reason": "any authenticated user gets credentials for every machine in the org. That must end before a second user exists.",
+      "kind": "design",
+      "alternatives": [
+        "Return org-wide FLY_API_TOKEN to CLI (prior behavior)"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1812",
+          "quote": "any authenticated user gets credentials for every machine in the org. That must end before a second user exists."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 48,
+          "end_line": 56
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "CLI retains the flyctl dependency for the build+deploy step (using the short-lived scoped token), rather than removing flyctl from the CLI entirely as originally requested.",
+      "reason": "keeps flyctl only for build+deploy with the throwaway token, per the fallback.",
+      "kind": "design",
+      "alternatives": [
+        "Remove flyctl entirely from packages/cli (original request)"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m2077",
+          "quote": "flyctl apps create removed; keeps flyctl only for build+deploy with the throwaway token, per the fallback."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/fly.js",
+          "start_line": 37,
+          "end_line": 44
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Worker takes over Fly app creation and shared IPv4 allocation (ensureFlyApp); CLI's 'apps create' step is removed.",
+      "reason": "flyctl apps create removed (worker owns it).",
+      "kind": "design",
+      "alternatives": [
+        "CLI runs 'flyctl apps create' itself (prior behavior)"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1940",
+          "quote": "flyctl apps create removed (worker owns it)."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 22,
+          "end_line": 34
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "Use the Fly user auth token (not a Fly dashboard-issued org token) as the worker's FLY_API_TOKEN, since only the user token can mint limited-access tokens.",
+      "reason": "dashboard org tokens can't mint scoped tokens either — Fly only allows `createLimitedAccessToken` from your **user auth token**.",
+      "kind": "operational",
+      "alternatives": [
+        "Dashboard-created Admin org token",
+        "Dashboard-created org token in new 'small-deploy' org"
+      ],
+      "constraints": [
+        "createLimitedAccessToken only works with user auth tokens, per observation reported in this episode"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1980",
+          "quote": "dashboard org tokens can't mint scoped tokens either — Fly only allows `createLimitedAccessToken` from your **user auth token**."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 1,
+          "end_line": 9
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "Keep deploys in the existing 'personal' Fly org rather than migrating to the newly created 'small-deploy' org.",
+      "reason": "existing apps live in `personal`, and the user token covers both, so I'll keep deploys in `personal`. No migration needed.",
+      "kind": "operational",
+      "alternatives": [
+        "Migrate deploys to the new 'small-deploy' org"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d5"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1980",
+          "quote": "existing apps live in `personal`, and the user token covers both, so I'll keep deploys in `personal`. No migration needed."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 37,
+          "end_line": 46
+        }
+      ]
+    },
+    {
+      "id": "d7",
+      "decision": "Pass the Fly app identifier as `app_id` (not `app_name`) in the createLimitedAccessToken GraphQL mutation's profileParams.",
+      "reason": "Also: the mutation wants `app_id`, not `app_name`.",
+      "kind": "operational",
+      "alternatives": [
+        "Use app_name in profileParams (initially assumed)"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m2077",
+          "quote": "Also: the mutation wants `app_id`, not `app_name`."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 49,
+          "end_line": 54
+        }
+      ]
+    }
+  ],
+  "retained": [
+    {
+      "id": "d1",
+      "decision": "Take the fallback approach (worker-minted, app-scoped 1h Fly deploy tokens) instead of the primary plan of having the Worker build directly from a CLI-uploaded tarball via the Machines API.",
+      "reason": "The primary path (CLI tarball → worker builds via Machines API) is not workable: Fly has no build-from-tarball REST endpoint; remote builds speak the Docker/BuildKit wire protocol to a builder machine, which a Cloudflare Worker can't.",
+      "kind": "design",
+      "alternatives": [
+        "CLI packages tarball, Worker triggers remote build via Fly Machines API (original requested primary path)"
+      ],
+      "constraints": [
+        "Fly has no build-from-tarball REST endpoint",
+        "Worker cannot speak Docker/BuildKit protocol"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m2077",
+          "quote": "The primary path (CLI tarball → worker builds via Machines API) is not workable: Fly has no build-from-tarball REST endpoint; remote builds speak the Docker/BuildKit wire protocol to a builder machine, which a Cloudflare Worker can't."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 1,
+          "end_line": 6
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "Worker mints a Fly deploy token scoped to exactly one app, expiring in 1 hour (via createLimitedAccessToken), and returns only that to the CLI instead of the org-wide token.",
+      "reason": "any authenticated user gets credentials for every machine in the org. That must end before a second user exists.",
+      "kind": "design",
+      "alternatives": [
+        "Return org-wide FLY_API_TOKEN to CLI (prior behavior)"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1812",
+          "quote": "any authenticated user gets credentials for every machine in the org. That must end before a second user exists."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 48,
+          "end_line": 56
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "Use the Fly user auth token (not a Fly dashboard-issued org token) as the worker's FLY_API_TOKEN, since only the user token can mint limited-access tokens.",
+      "reason": "dashboard org tokens can't mint scoped tokens either — Fly only allows `createLimitedAccessToken` from your **user auth token**.",
+      "kind": "operational",
+      "alternatives": [
+        "Dashboard-created Admin org token",
+        "Dashboard-created org token in new 'small-deploy' org"
+      ],
+      "constraints": [
+        "createLimitedAccessToken only works with user auth tokens, per observation reported in this episode"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1980",
+          "quote": "dashboard org tokens can't mint scoped tokens either — Fly only allows `createLimitedAccessToken` from your **user auth token**."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 1,
+          "end_line": 9
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "Keep deploys in the existing 'personal' Fly org rather than migrating to the newly created 'small-deploy' org.",
+      "reason": "existing apps live in `personal`, and the user token covers both, so I'll keep deploys in `personal`. No migration needed.",
+      "kind": "operational",
+      "alternatives": [
+        "Migrate deploys to the new 'small-deploy' org"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d5"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1980",
+          "quote": "existing apps live in `personal`, and the user token covers both, so I'll keep deploys in `personal`. No migration needed."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 37,
+          "end_line": 46
+        }
+      ]
+    },
+    {
+      "id": "d7",
+      "decision": "Pass the Fly app identifier as `app_id` (not `app_name`) in the createLimitedAccessToken GraphQL mutation's profileParams.",
+      "reason": "Also: the mutation wants `app_id`, not `app_name`.",
+      "kind": "operational",
+      "alternatives": [
+        "Use app_name in profileParams (initially assumed)"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m2077",
+          "quote": "Also: the mutation wants `app_id`, not `app_name`."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 49,
+          "end_line": 54
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "id": "d1",
+      "errors": []
+    },
+    {
+      "id": "d2",
+      "errors": []
+    },
+    {
+      "id": "d3",
+      "errors": [
+        "invalid_evidence"
+      ]
+    },
+    {
+      "id": "d4",
+      "errors": [
+        "invalid_evidence"
+      ]
+    },
+    {
+      "id": "d5",
+      "errors": []
+    },
+    {
+      "id": "d6",
+      "errors": []
+    },
+    {
+      "id": "d7",
+      "errors": []
+    }
+  ],
+  "human_approved": false,
+  "completed": true
+}

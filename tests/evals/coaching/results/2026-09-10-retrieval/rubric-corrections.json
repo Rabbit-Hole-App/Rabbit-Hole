@@ -1,0 +1,30 @@
+{
+  "recorded_at": "2026-09-10T19:23:29.876427+00:00",
+  "author": "benchmark author; source-based review, not independent human gold",
+  "answer_regenerations": 0,
+  "corrections": [
+    {
+      "question": "r01-q3",
+      "field": "required[1]",
+      "original": "Give the reported 49-second final suite duration as a historical observation, not a promise about every deploy.",
+      "corrected": "Give the final reported jobs-only integration duration of 59.81 seconds (m1242/m1261), distinguish any earlier 49-second run if mentioned, and frame timings as historical observations rather than a promise or new measurement.",
+      "reason": "The original criterion mistakenly treated m1033 as the final run. Later messages m1242 and m1261 explicitly report four jobs integration tests passed in 59.81s. Both original answers will be regraded with the same corrected criterion and unchanged evidence.",
+      "evidence": [
+        {
+          "message_id": "m1033",
+          "quote": "All 4 integration tests green in 49s:"
+        },
+        {
+          "message_id": "m1242",
+          "quote": "Jobs integration: **4 passed (59.81s)**."
+        },
+        {
+          "message_id": "m1261",
+          "quote": "Jobs integration green — **4 passed, 59.81s**"
+        }
+      ],
+      "selected_grade": "judge-answer-r01-q3-subscription-correction-1",
+      "original_grade": "judge-answer-r01-q3"
+    }
+  ]
+}

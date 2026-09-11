@@ -1,0 +1,356 @@
+{
+  "raw": [
+    {
+      "id": "d1",
+      "decision": "Add websocket passthrough to guard.py by tunneling raw bytes both ways over sockets (two pump threads) after replaying the upgrade request, instead of extending the buffered HTTP proxy path",
+      "reason": "Gradio and Streamlit open a socket after page load and the full-buffer proxy breaks them",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [
+        "Keep stdlib only",
+        "Keep the X-Small-Proxy check on the upgrade request"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m960",
+          "quote": "Gradio and Streamlit open a socket after page load and the full-buffer proxy breaks them. Keep stdlib only. Keep the X-Small-Proxy check on the upgrade request."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/guard.py",
+          "start_line": 48,
+          "end_line": 49
+        },
+        {
+          "path": "packages/runtime/guard.py",
+          "start_line": 81,
+          "end_line": 98
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "Kept SSE/HTTP responses full-buffered in guard rather than adding streaming support, marked as an intentionally skipped item",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1514",
+          "quote": "Skipped, marked where relevant: SSE still full-buffered in guard (works — gradio closes stream per event)"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/guard.py",
+          "start_line": 5,
+          "end_line": 5
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "Set the minimum viable memory for the yolo-gradio example to 1024MB, and restored the deployed machine to the spec'd 2GB after testing",
+      "reason": null,
+      "kind": "operational",
+      "alternatives": [
+        "512MB (tested and rejected)"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1446",
+          "quote": "OOM confirmed at 512MB (`oom_score_adj:0`, code 137). Floor = **1024MB** (number 3). Restoring machine to the spec'd 2GB and running the integration test:"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "examples/yolo-gradio/small.toml",
+          "start_line": 4,
+          "end_line": 4
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Implemented the websocket unit test with a hand-rolled RFC 6455 handshake and frame encoding/decoding using only stdlib, rather than a websocket library",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [
+        "stdlib only"
+      ],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1026",
+          "quote": "Now the unit test — hand-rolled RFC 6455 handshake + frames, stdlib only:"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "tests/unit_tests/packages/runtime/test_guard_ws.py",
+          "start_line": 19,
+          "end_line": 41
+        },
+        {
+          "path": "tests/unit_tests/packages/runtime/test_guard_ws.py",
+          "start_line": 45,
+          "end_line": 65
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "Configured examples/yolo-gradio's small.toml with framework = \"gradio\", system = [\"libgl1\", \"libglib2.0-0\"], and memory = \"2GB\"",
+      "reason": null,
+      "kind": "operational",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m960",
+          "quote": "small.toml with framework = \"gradio\", system = [\"libgl1\", \"libglib2.0-0\"], memory = \"2GB\""
+        }
+      ],
+      "anchors": [
+        {
+          "path": "examples/yolo-gradio/small.toml",
+          "start_line": 1,
+          "end_line": 5
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "Did not add S3, GPU, or volumes to the yolo-gradio example deployment",
+      "reason": null,
+      "kind": "operational",
+      "alternatives": [
+        "S3, GPU, volumes"
+      ],
+      "constraints": [
+        "Don't add S3, GPU, or volumes"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1514",
+          "quote": "no S3/GPU/volumes per spec."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "examples/yolo-gradio/small.toml",
+          "start_line": 1,
+          "end_line": 5
+        }
+      ]
+    }
+  ],
+  "retained": [
+    {
+      "id": "d1",
+      "decision": "Add websocket passthrough to guard.py by tunneling raw bytes both ways over sockets (two pump threads) after replaying the upgrade request, instead of extending the buffered HTTP proxy path",
+      "reason": "Gradio and Streamlit open a socket after page load and the full-buffer proxy breaks them",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [
+        "Keep stdlib only",
+        "Keep the X-Small-Proxy check on the upgrade request"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m960",
+          "quote": "Gradio and Streamlit open a socket after page load and the full-buffer proxy breaks them. Keep stdlib only. Keep the X-Small-Proxy check on the upgrade request."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/guard.py",
+          "start_line": 48,
+          "end_line": 49
+        },
+        {
+          "path": "packages/runtime/guard.py",
+          "start_line": 81,
+          "end_line": 98
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "Kept SSE/HTTP responses full-buffered in guard rather than adding streaming support, marked as an intentionally skipped item",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1514",
+          "quote": "Skipped, marked where relevant: SSE still full-buffered in guard (works — gradio closes stream per event)"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/guard.py",
+          "start_line": 5,
+          "end_line": 5
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "Set the minimum viable memory for the yolo-gradio example to 1024MB, and restored the deployed machine to the spec'd 2GB after testing",
+      "reason": null,
+      "kind": "operational",
+      "alternatives": [
+        "512MB (tested and rejected)"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1446",
+          "quote": "OOM confirmed at 512MB (`oom_score_adj:0`, code 137). Floor = **1024MB** (number 3). Restoring machine to the spec'd 2GB and running the integration test:"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "examples/yolo-gradio/small.toml",
+          "start_line": 4,
+          "end_line": 4
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Implemented the websocket unit test with a hand-rolled RFC 6455 handshake and frame encoding/decoding using only stdlib, rather than a websocket library",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [
+        "stdlib only"
+      ],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1026",
+          "quote": "Now the unit test — hand-rolled RFC 6455 handshake + frames, stdlib only:"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "tests/unit_tests/packages/runtime/test_guard_ws.py",
+          "start_line": 19,
+          "end_line": 41
+        },
+        {
+          "path": "tests/unit_tests/packages/runtime/test_guard_ws.py",
+          "start_line": 45,
+          "end_line": 65
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "Configured examples/yolo-gradio's small.toml with framework = \"gradio\", system = [\"libgl1\", \"libglib2.0-0\"], and memory = \"2GB\"",
+      "reason": null,
+      "kind": "operational",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m960",
+          "quote": "small.toml with framework = \"gradio\", system = [\"libgl1\", \"libglib2.0-0\"], memory = \"2GB\""
+        }
+      ],
+      "anchors": [
+        {
+          "path": "examples/yolo-gradio/small.toml",
+          "start_line": 1,
+          "end_line": 5
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "Did not add S3, GPU, or volumes to the yolo-gradio example deployment",
+      "reason": null,
+      "kind": "operational",
+      "alternatives": [
+        "S3, GPU, volumes"
+      ],
+      "constraints": [
+        "Don't add S3, GPU, or volumes"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1514",
+          "quote": "no S3/GPU/volumes per spec."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "examples/yolo-gradio/small.toml",
+          "start_line": 1,
+          "end_line": 5
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "id": "d1",
+      "errors": []
+    },
+    {
+      "id": "d2",
+      "errors": []
+    },
+    {
+      "id": "d3",
+      "errors": []
+    },
+    {
+      "id": "d4",
+      "errors": []
+    },
+    {
+      "id": "d5",
+      "errors": []
+    },
+    {
+      "id": "d6",
+      "errors": []
+    }
+  ],
+  "human_approved": false,
+  "completed": true
+}

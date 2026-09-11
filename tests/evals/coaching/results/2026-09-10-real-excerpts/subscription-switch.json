@@ -1,0 +1,19 @@
+{
+  "reason": "User requested using their subscription after the original API run had completed.",
+  "auth": {
+    "loggedIn": true,
+    "authMethod": "claude.ai",
+    "apiProvider": "firstParty",
+    "subscriptionType": "max"
+  },
+  "answer_regenerations": 0,
+  "original_api_calls_preserved": true,
+  "replacement_grades": {
+    "judge-answer-s02-q6": "judge-answer-s02-q6-subscription-2",
+    "judge-answer-s02-q4": "judge-answer-s02-q4-subscription-2",
+    "judge-answer-s04-q4": "judge-answer-s04-q4-subscription-2",
+    "judge-capture-s04": "judge-capture-s04-subscription-2",
+    "judge-answer-s05-q5": "judge-answer-s05-q5-subscription-1"
+  },
+  "grading_change": "Same original evidence/rubric/answers, Claude Code subscription transport; grading output cap raised from 6000 to 12000 after truncation."
+}

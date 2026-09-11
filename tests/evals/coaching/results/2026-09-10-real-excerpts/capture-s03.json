@@ -1,0 +1,382 @@
+{
+  "raw": [
+    {
+      "id": "d1",
+      "decision": "Implement `small init` by reusing the existing `detect()` function (hints, filename convention, only-.py fallback) rather than writing separate detection logic",
+      "reason": "Detection uses the existing entry-and-framework logic from deploy: find the entry file by hints then filename convention, sniff the framework, and check for requirements.txt.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [
+        "packages/cli/lib/detect.js"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m2120",
+          "quote": "Detection uses the existing entry-and-framework logic from deploy: find the entry file by hints then filename convention, sniff the framework, and check for requirements.txt."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/init.js",
+          "start_line": 17,
+          "end_line": 20
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "Never overwrite an existing small.toml by default; require --force to overwrite",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "Always overwrite",
+        "Prompt interactively"
+      ],
+      "constraints": [
+        "Never overwrite an existing small.toml — print that it exists and exit 0. Add --force to overwrite."
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m2120",
+          "quote": "Never overwrite an existing small.toml — print that it exists and exit 0. Add --force to overwrite."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/init.js",
+          "start_line": 10,
+          "end_line": 15
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "When entry cannot be determined, still write small.toml (with entry = \"\" and a fill-in comment) and exit 1 with a guidance line, rather than failing without writing anything",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "Fail without writing any file"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m2120",
+          "quote": "If the entry can't be determined, write the file anyway with entry = \"\" and a comment, then exit 1 with one line telling the user what to fill in."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/init.js",
+          "start_line": 32,
+          "end_line": 47
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Scan only the detected entry file (not the whole project) for os.environ[...]/os.getenv/os.environ.get patterns to pre-fill required secrets",
+      "reason": "Skipped: multi-file env scan (entry only, per spec — extend to all .py if apps split config out).",
+      "kind": "design",
+      "alternatives": [
+        "Scan all .py files in the project"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": "extend to all .py if apps split config out",
+      "evidence": [
+        {
+          "message_id": "m2189",
+          "quote": "Skipped: multi-file env scan (entry only, per spec — extend to all .py if apps split config out)."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/init.js",
+          "start_line": 22,
+          "end_line": 29
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "Make `small deploy` auto-run init when no small.toml is present, stopping with exit 1 if entry is undetermined",
+      "reason": "Make small deploy call init automatically when no small.toml is present, so the common path is still one command.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [
+        "d1",
+        "d3"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m2120",
+          "quote": "Make small deploy call init automatically when no small.toml is present, so the common path is still one command."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 54,
+          "end_line": 59
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "Update skills/small/SKILL.md so the documented agent flow is: run small init, fill in items marked \"fill in\", then run small deploy",
+      "reason": "Update skills/small/SKILL.md: the agent runs small init first, then fills in anything marked \"fill in\", then small deploy.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [
+        "d1",
+        "d5"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m2120",
+          "quote": "Update skills/small/SKILL.md: the agent runs small init first, then fills in anything marked \"fill in\", then small deploy."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "skills/small/SKILL.md",
+          "start_line": 10,
+          "end_line": 33
+        }
+      ]
+    },
+    {
+      "id": "d7",
+      "decision": "Do not publish the npm package with the new `small init` functionality as part of this change; leave npm at version 0.0.4 for now",
+      "reason": null,
+      "kind": "operational",
+      "alternatives": [
+        "Bump version and publish immediately"
+      ],
+      "constraints": [
+        "npm still at 0.0.4 — small init needs publish (bump to 0.0.5 + make publish-cli) before global install has it."
+      ],
+      "depends_on": [],
+      "revisit": "bump to 0.0.5 and run make publish-cli before global install has it",
+      "evidence": [
+        {
+          "message_id": "m2211",
+          "quote": "Pushed: `2649258` on main. Note: npm still at 0.0.4 — `small init` needs publish (bump to 0.0.5 + `make publish-cli`) before global install has it."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 50,
+          "end_line": 52
+        }
+      ]
+    }
+  ],
+  "retained": [
+    {
+      "id": "d1",
+      "decision": "Implement `small init` by reusing the existing `detect()` function (hints, filename convention, only-.py fallback) rather than writing separate detection logic",
+      "reason": "Detection uses the existing entry-and-framework logic from deploy: find the entry file by hints then filename convention, sniff the framework, and check for requirements.txt.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [
+        "packages/cli/lib/detect.js"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m2120",
+          "quote": "Detection uses the existing entry-and-framework logic from deploy: find the entry file by hints then filename convention, sniff the framework, and check for requirements.txt."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/init.js",
+          "start_line": 17,
+          "end_line": 20
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "Never overwrite an existing small.toml by default; require --force to overwrite",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "Always overwrite",
+        "Prompt interactively"
+      ],
+      "constraints": [
+        "Never overwrite an existing small.toml — print that it exists and exit 0. Add --force to overwrite."
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m2120",
+          "quote": "Never overwrite an existing small.toml — print that it exists and exit 0. Add --force to overwrite."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/init.js",
+          "start_line": 10,
+          "end_line": 15
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "When entry cannot be determined, still write small.toml (with entry = \"\" and a fill-in comment) and exit 1 with a guidance line, rather than failing without writing anything",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "Fail without writing any file"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m2120",
+          "quote": "If the entry can't be determined, write the file anyway with entry = \"\" and a comment, then exit 1 with one line telling the user what to fill in."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/init.js",
+          "start_line": 32,
+          "end_line": 47
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Scan only the detected entry file (not the whole project) for os.environ[...]/os.getenv/os.environ.get patterns to pre-fill required secrets",
+      "reason": "Skipped: multi-file env scan (entry only, per spec — extend to all .py if apps split config out).",
+      "kind": "design",
+      "alternatives": [
+        "Scan all .py files in the project"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": "extend to all .py if apps split config out",
+      "evidence": [
+        {
+          "message_id": "m2189",
+          "quote": "Skipped: multi-file env scan (entry only, per spec — extend to all .py if apps split config out)."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/init.js",
+          "start_line": 22,
+          "end_line": 29
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "Make `small deploy` auto-run init when no small.toml is present, stopping with exit 1 if entry is undetermined",
+      "reason": "Make small deploy call init automatically when no small.toml is present, so the common path is still one command.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [
+        "d1",
+        "d3"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m2120",
+          "quote": "Make small deploy call init automatically when no small.toml is present, so the common path is still one command."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 54,
+          "end_line": 59
+        }
+      ]
+    },
+    {
+      "id": "d7",
+      "decision": "Do not publish the npm package with the new `small init` functionality as part of this change; leave npm at version 0.0.4 for now",
+      "reason": null,
+      "kind": "operational",
+      "alternatives": [
+        "Bump version and publish immediately"
+      ],
+      "constraints": [
+        "npm still at 0.0.4 — small init needs publish (bump to 0.0.5 + make publish-cli) before global install has it."
+      ],
+      "depends_on": [],
+      "revisit": "bump to 0.0.5 and run make publish-cli before global install has it",
+      "evidence": [
+        {
+          "message_id": "m2211",
+          "quote": "Pushed: `2649258` on main. Note: npm still at 0.0.4 — `small init` needs publish (bump to 0.0.5 + `make publish-cli`) before global install has it."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 50,
+          "end_line": 52
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "id": "d1",
+      "errors": []
+    },
+    {
+      "id": "d2",
+      "errors": []
+    },
+    {
+      "id": "d3",
+      "errors": []
+    },
+    {
+      "id": "d4",
+      "errors": []
+    },
+    {
+      "id": "d5",
+      "errors": []
+    },
+    {
+      "id": "d6",
+      "errors": [
+        "invalid_anchor"
+      ]
+    },
+    {
+      "id": "d7",
+      "errors": []
+    }
+  ],
+  "human_approved": false,
+  "completed": true
+}

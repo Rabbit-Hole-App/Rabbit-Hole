@@ -1,0 +1,446 @@
+{
+  "raw": [
+    {
+      "id": "d1",
+      "decision": "On kind = \"job\" apps, `small deploy` builds and registers the image via the control plane but starts no machine; execution is triggered separately by `small run`.",
+      "reason": "small deploy on a kind = \"job\" app builds the image and registers it, but starts nothing.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "small deploy on a kind = \"job\" app builds the image and registers it, but starts nothing."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 159,
+          "end_line": 166
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "Job images use a distinct Dockerfile shape: no exposed port, no guard.py, runner.py as the CMD entrypoint, PYTHONUNBUFFERED=1.",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m380",
+          "quote": "Job Dockerfile: `runner.py` CMD, `PYTHONUNBUFFERED=1`, no guard/EXPOSE."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/generate.js",
+          "start_line": 38,
+          "end_line": 44
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "runner.py retries a failed log-batch POST 3 times (with backoff) then drops it rather than failing the job.",
+      "reason": "3-attempt retry then drops batch (`ponytail:` job must not die on log hiccups).",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [
+        "job execution must not be aborted by log-delivery failures"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m380",
+          "quote": "3-attempt retry then drops batch (`ponytail:` job must not die on log hiccups)."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/runner.py",
+          "start_line": 23,
+          "end_line": 27
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "runner.py sends a custom `User-Agent: small-runner` header on log POSTs instead of the default urllib agent.",
+      "reason": "runner.py's default `Python-urllib` User-Agent is banned by Cloudflare on workers.dev; every log POST 403s.",
+      "kind": "operational",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [
+        "d3"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m982",
+          "quote": "runner.py's default `Python-urllib` User-Agent is banned by Cloudflare on workers.dev; every log POST 403s."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/runner.py",
+          "start_line": 30,
+          "end_line": 37
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "Job machines are started at a fixed size (shared-1x / 256mb) rather than reading a memory setting from small.toml.",
+      "reason": "Machine fixed at shared-1x/256mb (`ponytail:` read memory from small.toml when a job needs more).",
+      "kind": "design",
+      "alternatives": [
+        "read job memory from small.toml"
+      ],
+      "constraints": [
+        "fixed 256mb regardless of job needs, marked for future revisit"
+      ],
+      "depends_on": [],
+      "revisit": "read memory from small.toml when a job needs more",
+      "evidence": [
+        {
+          "message_id": "m380",
+          "quote": "Machine fixed at shared-1x/256mb (`ponytail:` read memory from small.toml when a job needs more)."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 213,
+          "end_line": 213
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "Log line sequencing uses `MAX(seq)` per run rather than a dedicated counter/lock, relying on the runner posting batches sequentially.",
+      "reason": "`index.js:258` — `MAX(seq)` is race-free only because one runner posts batches sequentially.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [
+        "safe only under the assumption of a single sequential poster per run"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1261",
+          "quote": "`index.js:258` — `MAX(seq)` is race-free only because one runner posts batches sequentially."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 258,
+          "end_line": 262
+        }
+      ]
+    },
+    {
+      "id": "d7",
+      "decision": "Pin `FLY_ORG_ID` in the worker so org-id resolution skips a live GraphQL organizations query during token minting/machine starts.",
+      "reason": "`FLY_ORG_ID` pinned so minting skips the flaky orgs query.",
+      "kind": "operational",
+      "alternatives": [
+        "resolve org id via live GraphQL query each time"
+      ],
+      "constraints": [
+        "mitigates a flaky/aging-token-dependent GraphQL org lookup"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m652",
+          "quote": "`FLY_ORG_ID` pinned so minting skips the flaky orgs query."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 44,
+          "end_line": 46
+        }
+      ]
+    },
+    {
+      "id": "d8",
+      "decision": "Merge main's split-credential AWS/token model into feature/jobs (union) and adapt the jobs code to it, rather than keeping jobs on the old single-token model.",
+      "reason": "Union = merge main into feature/jobs, adapt jobs code to the split-credential model, redeploy",
+      "kind": "design",
+      "alternatives": [
+        "keep feature/jobs on its original token model separate from main"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m462",
+          "quote": "Union = merge main into feature/jobs, adapt jobs code to the split-credential model, redeploy:"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 9,
+          "end_line": 16
+        }
+      ]
+    }
+  ],
+  "retained": [
+    {
+      "id": "d1",
+      "decision": "On kind = \"job\" apps, `small deploy` builds and registers the image via the control plane but starts no machine; execution is triggered separately by `small run`.",
+      "reason": "small deploy on a kind = \"job\" app builds the image and registers it, but starts nothing.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "small deploy on a kind = \"job\" app builds the image and registers it, but starts nothing."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 159,
+          "end_line": 166
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "Job images use a distinct Dockerfile shape: no exposed port, no guard.py, runner.py as the CMD entrypoint, PYTHONUNBUFFERED=1.",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m380",
+          "quote": "Job Dockerfile: `runner.py` CMD, `PYTHONUNBUFFERED=1`, no guard/EXPOSE."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/generate.js",
+          "start_line": 38,
+          "end_line": 44
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "runner.py retries a failed log-batch POST 3 times (with backoff) then drops it rather than failing the job.",
+      "reason": "3-attempt retry then drops batch (`ponytail:` job must not die on log hiccups).",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [
+        "job execution must not be aborted by log-delivery failures"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m380",
+          "quote": "3-attempt retry then drops batch (`ponytail:` job must not die on log hiccups)."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/runner.py",
+          "start_line": 23,
+          "end_line": 27
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "runner.py sends a custom `User-Agent: small-runner` header on log POSTs instead of the default urllib agent.",
+      "reason": "runner.py's default `Python-urllib` User-Agent is banned by Cloudflare on workers.dev; every log POST 403s.",
+      "kind": "operational",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [
+        "d3"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m982",
+          "quote": "runner.py's default `Python-urllib` User-Agent is banned by Cloudflare on workers.dev; every log POST 403s."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/runner.py",
+          "start_line": 30,
+          "end_line": 37
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "Job machines are started at a fixed size (shared-1x / 256mb) rather than reading a memory setting from small.toml.",
+      "reason": "Machine fixed at shared-1x/256mb (`ponytail:` read memory from small.toml when a job needs more).",
+      "kind": "design",
+      "alternatives": [
+        "read job memory from small.toml"
+      ],
+      "constraints": [
+        "fixed 256mb regardless of job needs, marked for future revisit"
+      ],
+      "depends_on": [],
+      "revisit": "read memory from small.toml when a job needs more",
+      "evidence": [
+        {
+          "message_id": "m380",
+          "quote": "Machine fixed at shared-1x/256mb (`ponytail:` read memory from small.toml when a job needs more)."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 213,
+          "end_line": 213
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "Log line sequencing uses `MAX(seq)` per run rather than a dedicated counter/lock, relying on the runner posting batches sequentially.",
+      "reason": "`index.js:258` — `MAX(seq)` is race-free only because one runner posts batches sequentially.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [
+        "safe only under the assumption of a single sequential poster per run"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m1261",
+          "quote": "`index.js:258` — `MAX(seq)` is race-free only because one runner posts batches sequentially."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 258,
+          "end_line": 262
+        }
+      ]
+    },
+    {
+      "id": "d7",
+      "decision": "Pin `FLY_ORG_ID` in the worker so org-id resolution skips a live GraphQL organizations query during token minting/machine starts.",
+      "reason": "`FLY_ORG_ID` pinned so minting skips the flaky orgs query.",
+      "kind": "operational",
+      "alternatives": [
+        "resolve org id via live GraphQL query each time"
+      ],
+      "constraints": [
+        "mitigates a flaky/aging-token-dependent GraphQL org lookup"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m652",
+          "quote": "`FLY_ORG_ID` pinned so minting skips the flaky orgs query."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 44,
+          "end_line": 46
+        }
+      ]
+    },
+    {
+      "id": "d8",
+      "decision": "Merge main's split-credential AWS/token model into feature/jobs (union) and adapt the jobs code to it, rather than keeping jobs on the old single-token model.",
+      "reason": "Union = merge main into feature/jobs, adapt jobs code to the split-credential model, redeploy",
+      "kind": "design",
+      "alternatives": [
+        "keep feature/jobs on its original token model separate from main"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m462",
+          "quote": "Union = merge main into feature/jobs, adapt jobs code to the split-credential model, redeploy:"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 9,
+          "end_line": 16
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "id": "d1",
+      "errors": []
+    },
+    {
+      "id": "d2",
+      "errors": []
+    },
+    {
+      "id": "d3",
+      "errors": []
+    },
+    {
+      "id": "d4",
+      "errors": []
+    },
+    {
+      "id": "d5",
+      "errors": []
+    },
+    {
+      "id": "d6",
+      "errors": []
+    },
+    {
+      "id": "d7",
+      "errors": []
+    },
+    {
+      "id": "d8",
+      "errors": []
+    }
+  ],
+  "human_approved": false,
+  "completed": true
+}

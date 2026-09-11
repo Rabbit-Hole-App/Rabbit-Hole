@@ -1,0 +1,356 @@
+{
+  "raw": [
+    {
+      "id": "d1",
+      "decision": "Defer the web UI portion of source provenance (app-page source line, commit-tree link, Deploys tab, drift indicator) and build only CLI/control-plane/runbook/tests",
+      "reason": "User instruction to skip web UI for this pass",
+      "kind": "operational",
+      "alternatives": [
+        "Build full web UI as originally requested"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m4869",
+          "quote": "Noted — skipping web UI (app page, deploys tab, drift display). Building: CLI git capture + print, deploys table + app-row columns, GET deploys route, repo_public check, runbook header line, tests."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "docs/features/source-provenance.md",
+          "start_line": 23,
+          "end_line": 26
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "Determine repo visibility via an unauthenticated GET to the GitHub API (200=public, 404=private/nonexistent, other=unknown) and never store a token",
+      "reason": "Explicit requirement: 'Don't assume... unauthenticated; 200 means public, 404 means private or nonexistent... Never store a token.'",
+      "kind": "design",
+      "alternatives": [
+        "Store a GitHub token for authenticated/private-repo checks or linking"
+      ],
+      "constraints": [
+        "Unauthenticated GitHub API rate limit (60 req/h) shared across egress IPs"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m4770",
+          "quote": "On deploy, the control plane hits https://api.github.com/repos/<org>/<repo> unauthenticated; 200 means public, 404 means private or nonexistent. Store repo_public. Never store a token."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 85,
+          "end_line": 97
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "When a deploy has no git source, clear the app-row provenance mirror columns rather than leaving stale values",
+      "reason": "stale repo info must not outlive a non-git deploy",
+      "kind": "design",
+      "alternatives": [
+        "Leave previous repo_url/branch/commit values in place when source is absent"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m5108",
+          "quote": "`apiDeploy` stores both; no source clears the app-row copy (stale repo info must not outlive a non-git deploy)."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 138,
+          "end_line": 150
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Drop the deployed_at ALTER from migration 0003-provenance.sql because the production apps table already has that column from an earlier manual experiment",
+      "reason": "the one production DB already has it",
+      "kind": "operational",
+      "alternatives": [
+        "Keep the ALTER and handle the resulting failure some other way"
+      ],
+      "constraints": [
+        "Production DB previously had orphan deployed_at and dead runbook columns added manually"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m5142",
+          "quote": "Fix: drop the `deployed_at` ALTER from 0003 — the one production DB already has it."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/migrations/0003-provenance.sql",
+          "start_line": 17,
+          "end_line": 18
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "Scope source provenance to GitHub only; explicitly skip GitLab support, auto-deploy-on-push, and private-repo linking via stored tokens",
+      "reason": "provenance is recorded, not acted on; private repos get plain SHAs, never a stored token",
+      "kind": "design",
+      "alternatives": [
+        "Support GitLab remotes for visibility/links",
+        "Trigger auto-deploy on push",
+        "Use stored tokens to link private repos"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m4770",
+          "quote": "Skip: GitLab, auto-deploy on push, private-repo linking via tokens."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "docs/features/source-provenance.md",
+          "start_line": 28,
+          "end_line": 32
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "Normalize git remote URLs (git@, ssh://, https://) into a canonical https://github.com/org/repo form for storage/display",
+      "reason": "remote URL (origin, normalized to https://github.com/org/repo)",
+      "kind": "design",
+      "alternatives": [
+        "Store the raw remote URL as-is"
+      ],
+      "constraints": [
+        "Unrecognized URL shapes normalize to null"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m4770",
+          "quote": "capture: remote URL (origin, normalized to https://github.com/org/repo), branch, short and full commit SHA, and whether the working tree is dirty"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/source.js",
+          "start_line": 9,
+          "end_line": 16
+        }
+      ]
+    },
+    {
+      "id": "d7",
+      "decision": "Store one row per deploy in a new deploys table plus mirror the latest provenance fields directly on the app row",
+      "reason": "one row per deploy, so history is kept — and the latest on the app row",
+      "kind": "design",
+      "alternatives": [
+        "Store only latest provenance on app row without history table"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m4770",
+          "quote": "Store repo_url, branch, commit, dirty, deployed_at on a deploys table — one row per deploy, so history is kept — and the latest on the app row."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/migrations/0003-provenance.sql",
+          "start_line": 1,
+          "end_line": 16
+        }
+      ]
+    }
+  ],
+  "retained": [
+    {
+      "id": "d2",
+      "decision": "Determine repo visibility via an unauthenticated GET to the GitHub API (200=public, 404=private/nonexistent, other=unknown) and never store a token",
+      "reason": "Explicit requirement: 'Don't assume... unauthenticated; 200 means public, 404 means private or nonexistent... Never store a token.'",
+      "kind": "design",
+      "alternatives": [
+        "Store a GitHub token for authenticated/private-repo checks or linking"
+      ],
+      "constraints": [
+        "Unauthenticated GitHub API rate limit (60 req/h) shared across egress IPs"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m4770",
+          "quote": "On deploy, the control plane hits https://api.github.com/repos/<org>/<repo> unauthenticated; 200 means public, 404 means private or nonexistent. Store repo_public. Never store a token."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 85,
+          "end_line": 97
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "When a deploy has no git source, clear the app-row provenance mirror columns rather than leaving stale values",
+      "reason": "stale repo info must not outlive a non-git deploy",
+      "kind": "design",
+      "alternatives": [
+        "Leave previous repo_url/branch/commit values in place when source is absent"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m5108",
+          "quote": "`apiDeploy` stores both; no source clears the app-row copy (stale repo info must not outlive a non-git deploy)."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 138,
+          "end_line": 150
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Drop the deployed_at ALTER from migration 0003-provenance.sql because the production apps table already has that column from an earlier manual experiment",
+      "reason": "the one production DB already has it",
+      "kind": "operational",
+      "alternatives": [
+        "Keep the ALTER and handle the resulting failure some other way"
+      ],
+      "constraints": [
+        "Production DB previously had orphan deployed_at and dead runbook columns added manually"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m5142",
+          "quote": "Fix: drop the `deployed_at` ALTER from 0003 — the one production DB already has it."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/migrations/0003-provenance.sql",
+          "start_line": 17,
+          "end_line": 18
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "Normalize git remote URLs (git@, ssh://, https://) into a canonical https://github.com/org/repo form for storage/display",
+      "reason": "remote URL (origin, normalized to https://github.com/org/repo)",
+      "kind": "design",
+      "alternatives": [
+        "Store the raw remote URL as-is"
+      ],
+      "constraints": [
+        "Unrecognized URL shapes normalize to null"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m4770",
+          "quote": "capture: remote URL (origin, normalized to https://github.com/org/repo), branch, short and full commit SHA, and whether the working tree is dirty"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/source.js",
+          "start_line": 9,
+          "end_line": 16
+        }
+      ]
+    },
+    {
+      "id": "d7",
+      "decision": "Store one row per deploy in a new deploys table plus mirror the latest provenance fields directly on the app row",
+      "reason": "one row per deploy, so history is kept — and the latest on the app row",
+      "kind": "design",
+      "alternatives": [
+        "Store only latest provenance on app row without history table"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m4770",
+          "quote": "Store repo_url, branch, commit, dirty, deployed_at on a deploys table — one row per deploy, so history is kept — and the latest on the app row."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/migrations/0003-provenance.sql",
+          "start_line": 1,
+          "end_line": 16
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "id": "d1",
+      "errors": [
+        "invalid_anchor"
+      ]
+    },
+    {
+      "id": "d2",
+      "errors": []
+    },
+    {
+      "id": "d3",
+      "errors": []
+    },
+    {
+      "id": "d4",
+      "errors": []
+    },
+    {
+      "id": "d5",
+      "errors": [
+        "invalid_anchor"
+      ]
+    },
+    {
+      "id": "d6",
+      "errors": []
+    },
+    {
+      "id": "d7",
+      "errors": []
+    }
+  ],
+  "human_approved": false,
+  "completed": true
+}

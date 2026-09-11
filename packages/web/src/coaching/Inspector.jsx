@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, ArrowUpRight, Braces, Check, FileCode2, Maximize2, Minimize2, Search, X } from 'lucide-react';
-import { Button, IconBtn, Input, Tabs, TabsContent, TabsList, TabsTrigger, ExpandedPageFrame, PeekBreadcrumbs, useSidebarInset, cn } from '../ui.jsx';
+import { ArrowLeft, ArrowUpRight, Braces, Check, Maximize2, Minimize2, Search, X } from 'lucide-react';
+import { IconBtn, Input, Tabs, TabsContent, TabsList, TabsTrigger, ExpandedPageFrame, PeekBreadcrumbs, useSidebarInset, cn } from '../ui.jsx';
 import { decisions, inputs } from './sample-data.js';
 import { navigate } from '../api.js';
-import { colorLine } from '../code.jsx';
+import SourcePreview from './SourcePreview.jsx';
+import CaptureStep from './CaptureStep.jsx';
 
 export const display = value => typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 export function Raw({ value }) {
@@ -47,18 +48,6 @@ function Conversation({ item, onOpen }) {
     </article>)}
       </section>;
     })}
-  </>;
-}
-
-function Source({ item }) {
-  const [file, setFile] = useState(item.file || Object.keys(item.files)[0]);
-  useEffect(() => { if (item.line) document.getElementById('sample-code-' + item.line)?.scrollIntoView({ block: 'center' }); }, [item.line, file]);
-  return <>
-    <nav aria-label="Source files" className="mb-4 flex flex-wrap gap-1 border-b border-line pb-3">
-      {Object.keys(item.files).map(path => <Button key={path} size="sm" aria-pressed={file === path} className={cn('font-mono text-xs', file === path && 'bg-hover text-ink')} onClick={() => setFile(path)}><FileCode2 size={13} />{path}</Button>)}
-    </nav>
-    <div className="mb-3 flex justify-between gap-3 text-xs text-ink-2"><span>{file}</span><span>Complete sample file</span></div>
-    <pre className="rounded-sm bg-code py-3 font-mono text-xs leading-6">{item.files[file].split('\n').map((line, i) => <div id={'sample-code-' + (i + 1)} key={i} className={cn('flex gap-4 px-3', file === item.file && i + 1 === item.line && 'bg-accent/10')}><span className="w-6 shrink-0 text-right text-ink-2 select-none">{i + 1}</span><span className="min-w-0 whitespace-pre-wrap break-words">{colorLine(line)}</span></div>)}</pre>
   </>;
 }
 
@@ -106,7 +95,7 @@ export default function Inspector({ item, onClose, onBack, onOpen, appName, sect
     <Tabs key={item.id + (item.messageId || '') + (item.file || '')} defaultValue="contents" className="flex min-h-0 flex-1 flex-col">
       <TabsList aria-label="Inspector views" className={cn('shrink-0 gap-5', !full && 'px-6')}><TabsTrigger value="contents">{contentLabel}</TabsTrigger><TabsTrigger value="raw">{item.modelInput ? 'Model input' : 'Original'}</TabsTrigger><TabsTrigger value="details">Metadata</TabsTrigger></TabsList>
       <TabsContent value="contents" className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain py-4', !full && 'px-6')}>
-        {item.messages ? <Conversation item={item} onOpen={onOpen} /> : item.files ? <Source item={item} /> : item.type === 'Decision' ? <Decision item={item} onOpen={onOpen} /> : <Raw value={item.content} />}
+        {item.messages ? <Conversation item={item} onOpen={onOpen} /> : item.files ? <SourcePreview item={item} /> : item.type === 'Decision' ? <Decision item={item} onOpen={onOpen} /> : item.type === 'Capture step' ? <CaptureStep item={item} onOpen={onOpen} /> : <Raw value={item.content} />}
       </TabsContent>
       <TabsContent value="raw" className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain py-4', !full && 'px-6')}><div className="mb-3 flex items-center gap-2 text-xs text-ink-2"><Braces size={13} />Complete sample {item.modelInput ? 'model input' : 'content'}</div><Raw value={item.modelInput || item.original || item.files || item.content || item} /></TabsContent>
       <TabsContent value="details" className={cn('min-h-0 flex-1 overflow-y-auto py-4', !full && 'px-6')}><Raw value={{ source: 'Handwritten UI sample', type: item.type, name: item.title, used_for: item.use || 'Inspection', version: item.version || 'Example', messages: item.messages?.length, model_executed: false, saved: false }} /></TabsContent>

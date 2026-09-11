@@ -1,0 +1,15 @@
+{
+  "checked_at": "2026-09-10T18:12:43.248868+00:00",
+  "corpus_hash_verified": true,
+  "saved_request_hashes_verified": 139,
+  "outbound_redaction_matches": 0,
+  "answer_grades_complete": 90,
+  "capture_grades_complete": 35,
+  "retained_records_validated": 28,
+  "local_markdown_links_valid": true,
+  "focused_tests_passed": 24,
+  "test_command": "python -m pytest tests/evals/coaching/test_bench.py -q -p no:cacheprovider",
+  "test_exit_code": 0,
+  "test_evidence": "Executed separately in this task; 24 passed in 0.14s.",
+  "limitation": "Redaction match absence is not a guarantee that arbitrary sessions are safe to upload."
+}

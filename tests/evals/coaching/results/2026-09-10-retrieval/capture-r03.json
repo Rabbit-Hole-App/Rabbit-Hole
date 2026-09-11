@@ -1,0 +1,458 @@
+{
+  "raw": [
+    {
+      "id": "d1",
+      "decision": "Guard log lines never include query strings or request bodies — only the stripped path — one JSON object printed per request",
+      "reason": "Never log request bodies or query strings — paths only.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [
+        "Never log request bodies or query strings — paths only."
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Never log request bodies or query strings — paths only."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/guard.py",
+          "start_line": 33,
+          "end_line": 45
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "Guard batches request-log lines to the control plane every 2 seconds or 50 lines (whichever first), authenticating with the app's existing proxy secret as bearer token rather than minting a new credential",
+      "reason": "Have the guard POST batches of lines (every 2 seconds or 50 lines, whichever first) to /api/apps/<slug>/request-log with the app's proxy secret as the bearer token — reuse the secret the guard already holds.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Have the guard POST batches of lines (every 2 seconds or 50 lines, whichever first) to /api/apps/<slug>/request-log with the app's proxy secret as the bearer token — reuse the secret the guard already holds."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/guard.py",
+          "start_line": 53,
+          "end_line": 69
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "Set a custom User-Agent header (\"small-guard\") on the log-batch POST instead of the default Python urllib UA",
+      "reason": "UA `small-guard` (Cloudflare 1010)",
+      "kind": "operational",
+      "alternatives": [
+        "default Python urllib User-Agent"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d2"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m288",
+          "quote": "UA `small-guard` (Cloudflare 1010)"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/guard.py",
+          "start_line": 64,
+          "end_line": 64
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Request logs retained for a fixed 7 days, purged by a daily Worker cron rather than a configurable retention policy",
+      "reason": "Keep 7 days; a Worker cron deletes older rows.",
+      "kind": "design",
+      "alternatives": [
+        "per-app configurable retention"
+      ],
+      "constraints": [
+        "Keep 7 days; a Worker cron deletes older rows."
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Keep 7 days; a Worker cron deletes older rows."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 436,
+          "end_line": 440
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "On a failed log-batch POST, drop the batch (log a stderr note) rather than retrying or spooling to disk",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "retry/spool queue"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d2"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m288",
+          "quote": "Failed batch drops with stderr note."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/guard.py",
+          "start_line": 66,
+          "end_line": 69
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "For websocket connections, the logged status is hard-coded to 101 since the guard tunnels raw bytes and never parses the app's actual reply",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "parse app's upgrade response for actual status"
+      ],
+      "constraints": [
+        "guard never parses app reply"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m288",
+          "quote": "status assumed 101 — guard never parses app reply"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/guard.py",
+          "start_line": 138,
+          "end_line": 141
+        }
+      ]
+    },
+    {
+      "id": "d7",
+      "decision": "`small logs [app]` defaults to the last 100 request lines, newest first, in a fixed compact format, with `--follow`, `--machine` (old behavior), `--user`, and `--status` as opt-in flags",
+      "reason": "small logs [app] now defaults to the last 100 request lines, newest first, one per line formatted as 09:41:02 GET /click 302 14ms [REDACTED]. Add --follow to poll every second. Add --machine to get the old machine-state output. Add --user [REDACTED] and --status 5xx filters.",
+      "kind": "design",
+      "alternatives": [
+        "keep old machine-state output as default"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "small logs [app] now defaults to the last 100 request lines, newest first, one per line formatted as 09:41:02 GET /click 302 14ms [REDACTED]. Add --follow to poll every second. Add --machine to get the old machine-state output. Add --user [REDACTED] and --status 5xx filters."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 239,
+          "end_line": 274
+        }
+      ]
+    },
+    {
+      "id": "d8",
+      "decision": "`small deploy` sets a new `SMALL_LOG_URL` secret pointing at the app's request-log endpoint, as the one change outside the strictly scoped file list",
+      "reason": "deploy in `bin/small.js` sets `SMALL_LOG_URL` secret — guard needs endpoint + slug; without it nothing POSTs.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [
+        "Touch only guard.py, the new request-log route and table, the logs command, and tests."
+      ],
+      "depends_on": [
+        "d2"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m288",
+          "quote": "deploy in `bin/small.js` sets `SMALL_LOG_URL` secret — guard needs endpoint + slug; without it nothing POSTs."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 189,
+          "end_line": 191
+        }
+      ]
+    }
+  ],
+  "retained": [
+    {
+      "id": "d1",
+      "decision": "Guard log lines never include query strings or request bodies — only the stripped path — one JSON object printed per request",
+      "reason": "Never log request bodies or query strings — paths only.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [
+        "Never log request bodies or query strings — paths only."
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Never log request bodies or query strings — paths only."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/guard.py",
+          "start_line": 33,
+          "end_line": 45
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "Guard batches request-log lines to the control plane every 2 seconds or 50 lines (whichever first), authenticating with the app's existing proxy secret as bearer token rather than minting a new credential",
+      "reason": "Have the guard POST batches of lines (every 2 seconds or 50 lines, whichever first) to /api/apps/<slug>/request-log with the app's proxy secret as the bearer token — reuse the secret the guard already holds.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Have the guard POST batches of lines (every 2 seconds or 50 lines, whichever first) to /api/apps/<slug>/request-log with the app's proxy secret as the bearer token — reuse the secret the guard already holds."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/guard.py",
+          "start_line": 53,
+          "end_line": 69
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "Set a custom User-Agent header (\"small-guard\") on the log-batch POST instead of the default Python urllib UA",
+      "reason": "UA `small-guard` (Cloudflare 1010)",
+      "kind": "operational",
+      "alternatives": [
+        "default Python urllib User-Agent"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d2"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m288",
+          "quote": "UA `small-guard` (Cloudflare 1010)"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/guard.py",
+          "start_line": 64,
+          "end_line": 64
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Request logs retained for a fixed 7 days, purged by a daily Worker cron rather than a configurable retention policy",
+      "reason": "Keep 7 days; a Worker cron deletes older rows.",
+      "kind": "design",
+      "alternatives": [
+        "per-app configurable retention"
+      ],
+      "constraints": [
+        "Keep 7 days; a Worker cron deletes older rows."
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Keep 7 days; a Worker cron deletes older rows."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 436,
+          "end_line": 440
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "On a failed log-batch POST, drop the batch (log a stderr note) rather than retrying or spooling to disk",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "retry/spool queue"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d2"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m288",
+          "quote": "Failed batch drops with stderr note."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/guard.py",
+          "start_line": 66,
+          "end_line": 69
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "For websocket connections, the logged status is hard-coded to 101 since the guard tunnels raw bytes and never parses the app's actual reply",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "parse app's upgrade response for actual status"
+      ],
+      "constraints": [
+        "guard never parses app reply"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m288",
+          "quote": "status assumed 101 — guard never parses app reply"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/runtime/guard.py",
+          "start_line": 138,
+          "end_line": 141
+        }
+      ]
+    },
+    {
+      "id": "d7",
+      "decision": "`small logs [app]` defaults to the last 100 request lines, newest first, in a fixed compact format, with `--follow`, `--machine` (old behavior), `--user`, and `--status` as opt-in flags",
+      "reason": "small logs [app] now defaults to the last 100 request lines, newest first, one per line formatted as 09:41:02 GET /click 302 14ms [REDACTED]. Add --follow to poll every second. Add --machine to get the old machine-state output. Add --user [REDACTED] and --status 5xx filters.",
+      "kind": "design",
+      "alternatives": [
+        "keep old machine-state output as default"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "small logs [app] now defaults to the last 100 request lines, newest first, one per line formatted as 09:41:02 GET /click 302 14ms [REDACTED]. Add --follow to poll every second. Add --machine to get the old machine-state output. Add --user [REDACTED] and --status 5xx filters."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 239,
+          "end_line": 274
+        }
+      ]
+    },
+    {
+      "id": "d8",
+      "decision": "`small deploy` sets a new `SMALL_LOG_URL` secret pointing at the app's request-log endpoint, as the one change outside the strictly scoped file list",
+      "reason": "deploy in `bin/small.js` sets `SMALL_LOG_URL` secret — guard needs endpoint + slug; without it nothing POSTs.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [
+        "Touch only guard.py, the new request-log route and table, the logs command, and tests."
+      ],
+      "depends_on": [
+        "d2"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m288",
+          "quote": "deploy in `bin/small.js` sets `SMALL_LOG_URL` secret — guard needs endpoint + slug; without it nothing POSTs."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 189,
+          "end_line": 191
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "id": "d1",
+      "errors": []
+    },
+    {
+      "id": "d2",
+      "errors": []
+    },
+    {
+      "id": "d3",
+      "errors": []
+    },
+    {
+      "id": "d4",
+      "errors": []
+    },
+    {
+      "id": "d5",
+      "errors": []
+    },
+    {
+      "id": "d6",
+      "errors": []
+    },
+    {
+      "id": "d7",
+      "errors": []
+    },
+    {
+      "id": "d8",
+      "errors": []
+    }
+  ],
+  "human_approved": false,
+  "completed": true
+}

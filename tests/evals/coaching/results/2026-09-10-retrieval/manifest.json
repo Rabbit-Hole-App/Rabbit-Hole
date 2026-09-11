@@ -1,0 +1,28 @@
+{
+  "frozen": {
+    "corpus_hash": "43a2412fc658a3845ab1047861edf7df7130926320d5a4f2d9ce0e203c0f8f50",
+    "settings": {
+      "char_limit": 12000,
+      "message_limit": 8,
+      "seed_limit": 4,
+      "decision_expansion": 2,
+      "bm25_k1": 1.5,
+      "bm25_b": 0.75,
+      "answer_limit": 4096,
+      "judge_limit": 12000
+    },
+    "model": "claude-sonnet-5",
+    "arms": [
+      "session",
+      "retrieval"
+    ],
+    "prompts": {
+      "capture": "bc595963418aab5d0423d759f641dffa22b79987bb1d88f23ef4fce366130508",
+      "answer": "1db64124beb1e962d4ecfda7d9318c837c688a968b9cadc74285c9472b200c8f",
+      "judge": "a5d909556edd721800d76ed6eebf8f69613bee315d6abb9f8b50084b9fcf0606"
+    },
+    "retrieval_code_hash": "c3583489e78643a3966623880ea9259742dc1e80cea6b98ae0a245be8c05595f"
+  },
+  "started_at": "2026-09-10T19:01:43.695709+00:00",
+  "transport": "claude-code-subscription"
+}

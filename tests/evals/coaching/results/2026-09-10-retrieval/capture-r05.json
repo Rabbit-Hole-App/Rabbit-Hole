@@ -1,0 +1,396 @@
+{
+  "raw": [
+    {
+      "id": "d1",
+      "decision": "Cron implementation scoped to standard 5-field UTC expressions only — no seconds, no @daily-style aliases, no timezones, no catch-up runs after downtime, no jitter",
+      "reason": "explicitly requested scope limit",
+      "kind": "design",
+      "alternatives": [
+        "support timezones/aliases/catch-up/jitter in this pass"
+      ],
+      "constraints": [
+        "5-field cron, UTC",
+        "no seconds",
+        "no @daily aliases"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Skip: timezones, retries, catch-up runs after downtime, jitter."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/cron.js",
+          "start_line": 1,
+          "end_line": 2
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "On a cron tick that finds a still-running run for the same job, skip it and insert a run row with status='skipped', reason='previous run still active', never starting a second concurrent run",
+      "reason": "explicitly requested overlap behavior",
+      "kind": "design",
+      "alternatives": [
+        "queue the run for later",
+        "silently drop the tick with no row"
+      ],
+      "constraints": [
+        "never start a second concurrent run from cron"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "If a run for that job is still running when the tick fires, skip it and write a run row with status = \"skipped\" and reason = \"previous run still active\". Never start a second concurrent run from cron."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 452,
+          "end_line": 461
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "Store last_scheduled_at on the app row and guard each tick against it so a late-arriving tick never double-fires a job",
+      "reason": "explicitly requested to prevent late-tick double-fire",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Store last_scheduled_at on the app so a tick that arrives late doesn't double-fire."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 439,
+          "end_line": 451
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Add small schedule pause/resume commands that keep the schedule string on the app but set schedule_paused = 1/0 rather than clearing the schedule field",
+      "reason": "explicitly requested behavior",
+      "kind": "design",
+      "alternatives": [
+        "clear the schedule field on pause"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Add small schedule pause [app] and small schedule resume [app] — a paused schedule keeps the field but sets schedule_paused = 1."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 247,
+          "end_line": 253
+        },
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 256,
+          "end_line": 264
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "Extracted a shared startRun() helper used by both the manual /api/runs endpoint and the cron scheduled() handler, passing SMALL_TRIGGER=cron only for cron-started runs",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "duplicate machine-start logic separately in the cron handler"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 216,
+          "end_line": 239
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "Cron day-of-month/day-of-week matching uses the standard cron OR rule (either field matching fires) when both fields are restricted, rather than requiring both to match",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "require AND match of dom and dow always"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/cron.js",
+          "start_line": 30,
+          "end_line": 37
+        }
+      ]
+    },
+    {
+      "id": "d7",
+      "decision": "Set an every-minute Workers cron trigger plus a BASE_URL var, since the scheduled() handler has no request URL and the runner needs SMALL_API",
+      "reason": "scheduled ticks carry no request URL for the runner to call back with",
+      "kind": "operational",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m261",
+          "quote": "wrangler.jsonc — `triggers.crons: [\"* * * * *\"]` + `BASE_URL` var (scheduled ticks have no request URL; runner needs `SMALL_API`)."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/wrangler.jsonc",
+          "start_line": 13,
+          "end_line": 17
+        }
+      ]
+    },
+    {
+      "id": "d8",
+      "decision": "Kept the built Workers cron-trigger scheduler as-is rather than adding an external-clock fallback endpoint, after Cloudflare failed to deliver any scheduled invocations during testing; proposed but did not build a /api/cron-tick fallback",
+      "reason": "the built scheduler logic already supports an external ping; fallback offered only as an option pending user decision, not implemented",
+      "kind": "operational",
+      "alternatives": [
+        "build a ~10-line authenticated /api/cron-tick endpoint pinged externally (GitHub Actions/uptime monitor)"
+      ],
+      "constraints": [
+        "blocked on Cloudflare tick delivery, described as a platform-side issue"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m787",
+          "quote": "Interim workaround (if you don't want to wait on CF): a tiny authenticated `/api/cron-tick` endpoint the scheduler logic already supports, pinged by anything external every minute — GitHub Actions schedule, uptime monitor. ~10 lines on top of what's built; the spec's Workers-trigger stays in place for when CF heals. Say the word."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 439,
+          "end_line": 468
+        }
+      ]
+    }
+  ],
+  "retained": [
+    {
+      "id": "d1",
+      "decision": "Cron implementation scoped to standard 5-field UTC expressions only — no seconds, no @daily-style aliases, no timezones, no catch-up runs after downtime, no jitter",
+      "reason": "explicitly requested scope limit",
+      "kind": "design",
+      "alternatives": [
+        "support timezones/aliases/catch-up/jitter in this pass"
+      ],
+      "constraints": [
+        "5-field cron, UTC",
+        "no seconds",
+        "no @daily aliases"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Skip: timezones, retries, catch-up runs after downtime, jitter."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/cron.js",
+          "start_line": 1,
+          "end_line": 2
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "On a cron tick that finds a still-running run for the same job, skip it and insert a run row with status='skipped', reason='previous run still active', never starting a second concurrent run",
+      "reason": "explicitly requested overlap behavior",
+      "kind": "design",
+      "alternatives": [
+        "queue the run for later",
+        "silently drop the tick with no row"
+      ],
+      "constraints": [
+        "never start a second concurrent run from cron"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "If a run for that job is still running when the tick fires, skip it and write a run row with status = \"skipped\" and reason = \"previous run still active\". Never start a second concurrent run from cron."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 452,
+          "end_line": 461
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "Store last_scheduled_at on the app row and guard each tick against it so a late-arriving tick never double-fires a job",
+      "reason": "explicitly requested to prevent late-tick double-fire",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Store last_scheduled_at on the app so a tick that arrives late doesn't double-fire."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 439,
+          "end_line": 451
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Add small schedule pause/resume commands that keep the schedule string on the app but set schedule_paused = 1/0 rather than clearing the schedule field",
+      "reason": "explicitly requested behavior",
+      "kind": "design",
+      "alternatives": [
+        "clear the schedule field on pause"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Add small schedule pause [app] and small schedule resume [app] — a paused schedule keeps the field but sets schedule_paused = 1."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 247,
+          "end_line": 253
+        },
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 256,
+          "end_line": 264
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "Extracted a shared startRun() helper used by both the manual /api/runs endpoint and the cron scheduled() handler, passing SMALL_TRIGGER=cron only for cron-started runs",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "duplicate machine-start logic separately in the cron handler"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 216,
+          "end_line": 239
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "Cron day-of-month/day-of-week matching uses the standard cron OR rule (either field matching fires) when both fields are restricted, rather than requiring both to match",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "require AND match of dom and dow always"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/cron.js",
+          "start_line": 30,
+          "end_line": 37
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "id": "d1",
+      "errors": []
+    },
+    {
+      "id": "d2",
+      "errors": []
+    },
+    {
+      "id": "d3",
+      "errors": []
+    },
+    {
+      "id": "d4",
+      "errors": []
+    },
+    {
+      "id": "d5",
+      "errors": []
+    },
+    {
+      "id": "d6",
+      "errors": []
+    },
+    {
+      "id": "d7",
+      "errors": [
+        "invalid_evidence"
+      ]
+    },
+    {
+      "id": "d8",
+      "errors": [
+        "invalid_evidence"
+      ]
+    }
+  ],
+  "human_approved": false,
+  "completed": true
+}

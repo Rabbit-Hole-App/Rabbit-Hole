@@ -1,0 +1,463 @@
+{
+  "raw": [
+    {
+      "id": "d1",
+      "decision": "Runbook generation reuses the existing deploy review call: added a `runbook` field to REVIEW_SCHEMA instead of a separate model call or endpoint",
+      "reason": "Generation. Extend the existing deploy review — same model call, same bundle of every .py plus small.toml and requirements.txt, entry file flagged. Add a runbook field to the schema containing markdown",
+      "kind": "design",
+      "alternatives": [
+        "separate model call/endpoint for runbook generation"
+      ],
+      "constraints": [
+        "touch list limited to review.js, schema, runbook/init commands, SKILL.md, tests"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Generation. Extend the existing deploy review — same model call, same bundle of every .py plus small.toml and requirements.txt, entry file flagged. Add a runbook field to the schema containing markdown that follows RUNBOOK.example.md"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/review.js",
+          "start_line": 48,
+          "end_line": 61
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "No database migration for runbook storage — it rides inside the existing review/review_prev JSON columns alongside reviewed_at",
+      "reason": "Storage — no DB migration. Runbook rides inside the existing `review`/`review_prev` JSON columns with `reviewed_at`: timestamp + previous version already exist there.",
+      "kind": "design",
+      "alternatives": [
+        "new schema.sql column/table for runbook"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m279",
+          "quote": "**Storage** — no DB migration. Runbook rides inside the existing `review`/`review_prev` JSON columns with `reviewed_at`: timestamp + previous version already exist there."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/review.js",
+          "start_line": 136,
+          "end_line": 138
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "The final review/runbook summary+risk line is appended by worker code (computeRisk), never authored by the model",
+      "reason": "Worker appends the review summary line (`*review: <summary> — risk: <computed risk>*`) after `computeRisk`, so the bottom line carries the code-computed risk, never the model's.",
+      "kind": "design",
+      "alternatives": [
+        "let the model write its own risk assessment into the runbook"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m279",
+          "quote": "Worker appends the review summary line (`*review: <summary> — risk: <computed risk>*`) after `computeRisk`, so the bottom line carries the code-computed risk, never the model's."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/review.js",
+          "start_line": 120,
+          "end_line": 129
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Deploy review execution moved off ctx.waitUntil to a held-open POST /api/review/run request made by the CLI in parallel with the Fly build",
+      "reason": "Probe proved 30s+ model calls die in `waitUntil` but survive a held request.",
+      "kind": "design",
+      "alternatives": [
+        "keep review in ctx.waitUntil"
+      ],
+      "constraints": [
+        "Cloudflare stops waitUntil work ~30s after the response"
+      ],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m648",
+          "quote": "Change: deploy review no longer rides `waitUntil` — CLI holds a `POST /api/review/run` open in parallel with the Fly build; worker stores before responding. Probe proved 30s+ model calls die in `waitUntil` but survive a held request."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 180,
+          "end_line": 193
+        },
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 154,
+          "end_line": 171
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "Created RUNBOOK.example.md at the repo root as the canonical template, since the spec referenced it but it did not exist",
+      "reason": "RUNBOOK.example.md did not exist in the repo root — I created it as the canonical template (counter-shaped example, all sections, review line at bottom).",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [
+        "only deviation from stated touch list besides the one new route"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m279",
+          "quote": "plus **`RUNBOOK.example.md` did not exist in the repo root** — I created it as the canonical template (counter-shaped example, all sections, review line at bottom)."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "RUNBOOK.example.md",
+          "start_line": 1,
+          "end_line": 10
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "`small runbook --diff` implemented as a line-set diff (no ordering), mirroring the existing `review --diff` idiom, rather than a real diff",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "a proper ordered/structural diff"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m723",
+          "quote": "**ponytail: markers added by this branch:** one — `packages/cli/bin/small.js:243` `// ponytail: line-set diff, no ordering — mirror of review --diff; real diff when it matters`."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 240,
+          "end_line": 250
+        }
+      ]
+    },
+    {
+      "id": "d7",
+      "decision": "Removed the 'do not edit by hand' clause from the runbook's generated-by line in both the system prompt and the example template",
+      "reason": "no the user can edit by hand if needed",
+      "kind": "design",
+      "alternatives": [
+        "keep original 'regenerated on every deploy, do not edit by hand' wording"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1",
+        "d5"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m725",
+          "quote": ", do not edit by hand. no the user can edit by hand if needed"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/review.js",
+          "start_line": 27,
+          "end_line": 29
+        }
+      ]
+    },
+    {
+      "id": "d8",
+      "decision": "Review bundle continues to exclude the Makefile and non-.py scripts, so the model can only derive commands from .py files, small.toml, and requirements.txt",
+      "reason": "model can only derive commands from files it sees, i.e. .py + small.toml + requirements.txt; add Makefile to the bundle if Makefile-derived commands ever matter",
+      "kind": "design",
+      "alternatives": [
+        "extend bundle.js to include Makefile/scripts"
+      ],
+      "constraints": [
+        "touch list did not include bundle.js"
+      ],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m279",
+          "quote": "Also skipped: bundling the Makefile/scripts into the review bundle (`bundle.js` untouched — model can only derive commands from files it sees, i.e. `.py` + small.toml + requirements.txt; add Makefile to the bundle if Makefile-derived commands ever matter)."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/review.js",
+          "start_line": 36,
+          "end_line": 39
+        }
+      ]
+    }
+  ],
+  "retained": [
+    {
+      "id": "d1",
+      "decision": "Runbook generation reuses the existing deploy review call: added a `runbook` field to REVIEW_SCHEMA instead of a separate model call or endpoint",
+      "reason": "Generation. Extend the existing deploy review — same model call, same bundle of every .py plus small.toml and requirements.txt, entry file flagged. Add a runbook field to the schema containing markdown",
+      "kind": "design",
+      "alternatives": [
+        "separate model call/endpoint for runbook generation"
+      ],
+      "constraints": [
+        "touch list limited to review.js, schema, runbook/init commands, SKILL.md, tests"
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Generation. Extend the existing deploy review — same model call, same bundle of every .py plus small.toml and requirements.txt, entry file flagged. Add a runbook field to the schema containing markdown that follows RUNBOOK.example.md"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/review.js",
+          "start_line": 48,
+          "end_line": 61
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "No database migration for runbook storage — it rides inside the existing review/review_prev JSON columns alongside reviewed_at",
+      "reason": "Storage — no DB migration. Runbook rides inside the existing `review`/`review_prev` JSON columns with `reviewed_at`: timestamp + previous version already exist there.",
+      "kind": "design",
+      "alternatives": [
+        "new schema.sql column/table for runbook"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m279",
+          "quote": "**Storage** — no DB migration. Runbook rides inside the existing `review`/`review_prev` JSON columns with `reviewed_at`: timestamp + previous version already exist there."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/review.js",
+          "start_line": 136,
+          "end_line": 138
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "The final review/runbook summary+risk line is appended by worker code (computeRisk), never authored by the model",
+      "reason": "Worker appends the review summary line (`*review: <summary> — risk: <computed risk>*`) after `computeRisk`, so the bottom line carries the code-computed risk, never the model's.",
+      "kind": "design",
+      "alternatives": [
+        "let the model write its own risk assessment into the runbook"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m279",
+          "quote": "Worker appends the review summary line (`*review: <summary> — risk: <computed risk>*`) after `computeRisk`, so the bottom line carries the code-computed risk, never the model's."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/review.js",
+          "start_line": 120,
+          "end_line": 129
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Deploy review execution moved off ctx.waitUntil to a held-open POST /api/review/run request made by the CLI in parallel with the Fly build",
+      "reason": "Probe proved 30s+ model calls die in `waitUntil` but survive a held request.",
+      "kind": "design",
+      "alternatives": [
+        "keep review in ctx.waitUntil"
+      ],
+      "constraints": [
+        "Cloudflare stops waitUntil work ~30s after the response"
+      ],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m648",
+          "quote": "Change: deploy review no longer rides `waitUntil` — CLI holds a `POST /api/review/run` open in parallel with the Fly build; worker stores before responding. Probe proved 30s+ model calls die in `waitUntil` but survive a held request."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 180,
+          "end_line": 193
+        },
+        {
+          "path": "packages/control-plane/src/index.js",
+          "start_line": 154,
+          "end_line": 171
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "`small runbook --diff` implemented as a line-set diff (no ordering), mirroring the existing `review --diff` idiom, rather than a real diff",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "a proper ordered/structural diff"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m723",
+          "quote": "**ponytail: markers added by this branch:** one — `packages/cli/bin/small.js:243` `// ponytail: line-set diff, no ordering — mirror of review --diff; real diff when it matters`."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/bin/small.js",
+          "start_line": 240,
+          "end_line": 250
+        }
+      ]
+    },
+    {
+      "id": "d7",
+      "decision": "Removed the 'do not edit by hand' clause from the runbook's generated-by line in both the system prompt and the example template",
+      "reason": "no the user can edit by hand if needed",
+      "kind": "design",
+      "alternatives": [
+        "keep original 'regenerated on every deploy, do not edit by hand' wording"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1",
+        "d5"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m725",
+          "quote": ", do not edit by hand. no the user can edit by hand if needed"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/review.js",
+          "start_line": 27,
+          "end_line": 29
+        }
+      ]
+    },
+    {
+      "id": "d8",
+      "decision": "Review bundle continues to exclude the Makefile and non-.py scripts, so the model can only derive commands from .py files, small.toml, and requirements.txt",
+      "reason": "model can only derive commands from files it sees, i.e. .py + small.toml + requirements.txt; add Makefile to the bundle if Makefile-derived commands ever matter",
+      "kind": "design",
+      "alternatives": [
+        "extend bundle.js to include Makefile/scripts"
+      ],
+      "constraints": [
+        "touch list did not include bundle.js"
+      ],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m279",
+          "quote": "Also skipped: bundling the Makefile/scripts into the review bundle (`bundle.js` untouched — model can only derive commands from files it sees, i.e. `.py` + small.toml + requirements.txt; add Makefile to the bundle if Makefile-derived commands ever matter)."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/review.js",
+          "start_line": 36,
+          "end_line": 39
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "id": "d1",
+      "errors": []
+    },
+    {
+      "id": "d2",
+      "errors": []
+    },
+    {
+      "id": "d3",
+      "errors": []
+    },
+    {
+      "id": "d4",
+      "errors": []
+    },
+    {
+      "id": "d5",
+      "errors": [
+        "invalid_anchor"
+      ]
+    },
+    {
+      "id": "d6",
+      "errors": []
+    },
+    {
+      "id": "d7",
+      "errors": []
+    },
+    {
+      "id": "d8",
+      "errors": []
+    }
+  ],
+  "human_approved": false,
+  "completed": true
+}

@@ -1,0 +1,478 @@
+{
+  "raw": [
+    {
+      "id": "d1",
+      "decision": "Add a `[storage]` section to small.toml that, when present, causes the control plane to create/reuse a per-app Fly volume, mount it at the given path, and inject SMALL_DATA into the container env",
+      "reason": "Today a Flask counter resets whenever Fly replaces the machine, which means nothing built on small can track anything. Fix that with one line in small.toml.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [
+        "Volumes are per-app, per-region; keep the app pinned to one region so the volume and machine stay together."
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Today a Flask counter resets whenever Fly replaces the machine, which means nothing built on small can track anything. Fix that with one line in small.toml."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "examples/counter/small.toml",
+          "start_line": 5,
+          "end_line": 7
+        },
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 43,
+          "end_line": 67
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "Store the counter's count in SQLite via the stdlib sqlite3 module at $SMALL_DATA/counter.db, falling back to ./counter.db when SMALL_DATA is unset",
+      "reason": "No ORM. If SMALL_DATA is unset, fall back to ./counter.db so make run-local still works.",
+      "kind": "design",
+      "alternatives": [
+        "ORM-based storage"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "No ORM. If SMALL_DATA is unset, fall back to ./counter.db so make run-local still works."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "examples/counter/app.py",
+          "start_line": 1,
+          "end_line": 17
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "When creating a new volume for an app that already has machines (pre-storage app), place the volume in the region of the existing machines rather than a default region",
+      "reason": "new volume lands in the region of existing machines (so pre-storage apps adopt it safely)",
+      "kind": "design",
+      "alternatives": [
+        "Always use FLY_VOLUME_REGION/iad default"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m454",
+          "quote": "new volume lands in the region of existing machines (so pre-storage apps adopt it safely)"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 53,
+          "end_line": 59
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Limit storage to a single volume in a single region per app; skip backups, multiple volumes, cross-app storage sharing, and migration tooling",
+      "reason": "Skip: backups, multiple volumes, sharing storage across apps, migration tooling.",
+      "kind": "design",
+      "alternatives": [
+        "multiple volumes per app",
+        "per-region volumes",
+        "cross-app shared storage"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": "per-region volumes when multi-machine matters (noted as v4/future work)",
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Skip: backups, multiple volumes, sharing storage across apps, migration tooling."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 43,
+          "end_line": 46
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "Leave kind=\"job\" code paths (e.g. dockerfile job branch, runner.py, startMachine/auto_destroy logic) unmodified while implementing storage",
+      "reason": "Do not modify anything under kind = \"job\" code paths — another session owns those.",
+      "kind": "operational",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Do not modify anything under kind = \"job\" code paths — another session owns those."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/generate.js",
+          "start_line": 38,
+          "end_line": 44
+        },
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 83,
+          "end_line": 93
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "Exclude SMALL_* environment variables (e.g. SMALL_DATA) from the `[secrets] required` list generated by small init",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "treat all detected env var references as required secrets"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/init.js",
+          "start_line": 26,
+          "end_line": 30
+        }
+      ]
+    },
+    {
+      "id": "d7",
+      "decision": "Build and deploy a union control-plane worker (combining live aws feature code with the new storage patch) from a scratchpad copy rather than deploying the shared worker directly from this feature branch",
+      "reason": "Deploying the shared worker from this branch could revert it.",
+      "kind": "operational",
+      "alternatives": [
+        "deploy directly from feature/sqlite branch"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m138",
+          "quote": "Deploying the shared worker from this branch could revert it. Check sibling control-plane sources."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 1,
+          "end_line": 16
+        }
+      ]
+    },
+    {
+      "id": "d8",
+      "decision": "Resolve the rebase conflict in the Fly machine/deploy config by keeping both jobs' auto_destroy startMachine logic and the new ensureVolume/volumeRegion storage code side by side",
+      "reason": "Resolve it by keeping both paths: jobs' auto_destroy run config and your volume mount for kind = \"server\" apps. Don't drop either.",
+      "kind": "design",
+      "alternatives": [
+        "drop one implementation in favor of the other"
+      ],
+      "constraints": [
+        "Touch nothing outside the [storage] handling, the volume code in the control plane, examples/counter, small init, the SKILL.md, and tests."
+      ],
+      "depends_on": [
+        "d1",
+        "d5"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m792",
+          "quote": "Resolve it by keeping both paths: jobs' auto_destroy run config and your volume mount for kind = \"server\" apps. Don't drop either."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 43,
+          "end_line": 93
+        }
+      ]
+    }
+  ],
+  "retained": [
+    {
+      "id": "d1",
+      "decision": "Add a `[storage]` section to small.toml that, when present, causes the control plane to create/reuse a per-app Fly volume, mount it at the given path, and inject SMALL_DATA into the container env",
+      "reason": "Today a Flask counter resets whenever Fly replaces the machine, which means nothing built on small can track anything. Fix that with one line in small.toml.",
+      "kind": "design",
+      "alternatives": [],
+      "constraints": [
+        "Volumes are per-app, per-region; keep the app pinned to one region so the volume and machine stay together."
+      ],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Today a Flask counter resets whenever Fly replaces the machine, which means nothing built on small can track anything. Fix that with one line in small.toml."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "examples/counter/small.toml",
+          "start_line": 5,
+          "end_line": 7
+        },
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 43,
+          "end_line": 67
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "decision": "Store the counter's count in SQLite via the stdlib sqlite3 module at $SMALL_DATA/counter.db, falling back to ./counter.db when SMALL_DATA is unset",
+      "reason": "No ORM. If SMALL_DATA is unset, fall back to ./counter.db so make run-local still works.",
+      "kind": "design",
+      "alternatives": [
+        "ORM-based storage"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "No ORM. If SMALL_DATA is unset, fall back to ./counter.db so make run-local still works."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "examples/counter/app.py",
+          "start_line": 1,
+          "end_line": 17
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "decision": "When creating a new volume for an app that already has machines (pre-storage app), place the volume in the region of the existing machines rather than a default region",
+      "reason": "new volume lands in the region of existing machines (so pre-storage apps adopt it safely)",
+      "kind": "design",
+      "alternatives": [
+        "Always use FLY_VOLUME_REGION/iad default"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m454",
+          "quote": "new volume lands in the region of existing machines (so pre-storage apps adopt it safely)"
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 53,
+          "end_line": 59
+        }
+      ]
+    },
+    {
+      "id": "d4",
+      "decision": "Limit storage to a single volume in a single region per app; skip backups, multiple volumes, cross-app storage sharing, and migration tooling",
+      "reason": "Skip: backups, multiple volumes, sharing storage across apps, migration tooling.",
+      "kind": "design",
+      "alternatives": [
+        "multiple volumes per app",
+        "per-region volumes",
+        "cross-app shared storage"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": "per-region volumes when multi-machine matters (noted as v4/future work)",
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Skip: backups, multiple volumes, sharing storage across apps, migration tooling."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 43,
+          "end_line": 46
+        }
+      ]
+    },
+    {
+      "id": "d5",
+      "decision": "Leave kind=\"job\" code paths (e.g. dockerfile job branch, runner.py, startMachine/auto_destroy logic) unmodified while implementing storage",
+      "reason": "Do not modify anything under kind = \"job\" code paths — another session owns those.",
+      "kind": "operational",
+      "alternatives": [],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m10",
+          "quote": "Do not modify anything under kind = \"job\" code paths — another session owns those."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/generate.js",
+          "start_line": 38,
+          "end_line": 44
+        },
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 83,
+          "end_line": 93
+        }
+      ]
+    },
+    {
+      "id": "d6",
+      "decision": "Exclude SMALL_* environment variables (e.g. SMALL_DATA) from the `[secrets] required` list generated by small init",
+      "reason": null,
+      "kind": "design",
+      "alternatives": [
+        "treat all detected env var references as required secrets"
+      ],
+      "constraints": [],
+      "depends_on": [
+        "d1"
+      ],
+      "revisit": null,
+      "evidence": [],
+      "anchors": [
+        {
+          "path": "packages/cli/lib/init.js",
+          "start_line": 26,
+          "end_line": 30
+        }
+      ]
+    },
+    {
+      "id": "d7",
+      "decision": "Build and deploy a union control-plane worker (combining live aws feature code with the new storage patch) from a scratchpad copy rather than deploying the shared worker directly from this feature branch",
+      "reason": "Deploying the shared worker from this branch could revert it.",
+      "kind": "operational",
+      "alternatives": [
+        "deploy directly from feature/sqlite branch"
+      ],
+      "constraints": [],
+      "depends_on": [],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m138",
+          "quote": "Deploying the shared worker from this branch could revert it. Check sibling control-plane sources."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 1,
+          "end_line": 16
+        }
+      ]
+    },
+    {
+      "id": "d8",
+      "decision": "Resolve the rebase conflict in the Fly machine/deploy config by keeping both jobs' auto_destroy startMachine logic and the new ensureVolume/volumeRegion storage code side by side",
+      "reason": "Resolve it by keeping both paths: jobs' auto_destroy run config and your volume mount for kind = \"server\" apps. Don't drop either.",
+      "kind": "design",
+      "alternatives": [
+        "drop one implementation in favor of the other"
+      ],
+      "constraints": [
+        "Touch nothing outside the [storage] handling, the volume code in the control plane, examples/counter, small init, the SKILL.md, and tests."
+      ],
+      "depends_on": [
+        "d1",
+        "d5"
+      ],
+      "revisit": null,
+      "evidence": [
+        {
+          "message_id": "m792",
+          "quote": "Resolve it by keeping both paths: jobs' auto_destroy run config and your volume mount for kind = \"server\" apps. Don't drop either."
+        }
+      ],
+      "anchors": [
+        {
+          "path": "packages/control-plane/src/fly.js",
+          "start_line": 43,
+          "end_line": 93
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "id": "d1",
+      "errors": []
+    },
+    {
+      "id": "d2",
+      "errors": []
+    },
+    {
+      "id": "d3",
+      "errors": []
+    },
+    {
+      "id": "d4",
+      "errors": []
+    },
+    {
+      "id": "d5",
+      "errors": []
+    },
+    {
+      "id": "d6",
+      "errors": []
+    },
+    {
+      "id": "d7",
+      "errors": []
+    },
+    {
+      "id": "d8",
+      "errors": []
+    }
+  ],
+  "human_approved": false,
+  "completed": true
+}
