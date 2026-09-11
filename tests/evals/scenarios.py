@@ -417,22 +417,25 @@ def _ws_deploy_ran(ctx):
 
 
 def _no_placeholder(toml):
-    return not re.search(r"<[a-z][a-z0-9-]*>", toml) and "123456789012" not in toml
+    """No angle-bracket template markers; no AWS account id other than the
+    installation's own (111122223333) - anything else was copied or invented."""
+    return (not re.search(r"<[a-z][a-z0-9-]*>", toml, re.I)
+            and all(m == "111122223333" for m in re.findall(r"\b\d{12}\b", toml)))
 
 
 def _checks_constants(ctx):
     project = ctx["project"]
     toml = _read(project / "small.toml")
-    low = toml.lower()
     consts = re.search(r"\[constants\](.*?)(\n\[|\Z)", toml, re.S)
     csec = consts.group(1).lower() if consts else ""
     inputs = re.search(r"\[inputs\](.*?)(\n\[|\Z)", toml, re.S)
     isec = inputs.group(1).lower() if inputs else ""
     code = "\n".join(_read(p) for p in project.glob("*.py"))
+    decoys = csec + isec  # sections only - a comment naming a decoy is fine
     return [
         ("[constants] declares both consumed values (0.85 threshold, 7-frame cooldown)",
          "0.85" in csec and "7" in csec),
-        ("plumbing and never-read decoys excluded", "run_limit" not in low and "build_tag" not in low),
+        ("plumbing and never-read decoys excluded", "run_limit" not in decoys and "build_tag" not in decoys),
         ("code reads SMALL_CONSTANTS", "SMALL_CONSTANTS" in code),
         ("constants not offered as editable inputs", "threshold" not in isec and "0.85" not in isec),
         ("no example placeholder or account copied", _no_placeholder(toml)),
@@ -592,8 +595,8 @@ def violations(ctx):
         out.append("wrote a Dockerfile")
     if "AWS_SECRET" in envf or "AWS_ACCESS" in envf:
         out.append("put AWS keys in .env")
-    if re.search(r"<[a-z][a-z0-9-]*>", toml):
+    if re.search(r"<[a-z][a-z0-9-]*>", toml, re.I):
         out.append("left an angle-bracket placeholder in small.toml")
-    if "123456789012" in toml:
-        out.append("copied an example AWS account id")
+    if any(m != "111122223333" for m in re.findall(r"\b\d{12}\b", toml)):
+        out.append("copied or invented an AWS account id")
     return out
