@@ -310,7 +310,7 @@ def dispatch(method, path, event, member):
                 "account_id": os.environ.get("ACCOUNT_ID"), "region": "us-east-1", "job_name": os.environ.get("JOB_NAME"),
                 "owner_email": member["email"], "can_deploy": member["role"] == "owner",
                 "allowed_actions": installed_actions() if os.environ.get("APP_GRANTS") == "v1" else [],
-                "file_inputs": os.environ.get("FILE_INPUTS") == "v1", "data_bucket": os.environ.get("SMALL_DATA_BUCKET")}}
+                "file_inputs": os.environ.get("FILE_INPUTS") == "v1", "constants": True, "constant_tooltips": True, "data_bucket": os.environ.get("SMALL_DATA_BUCKET")}}
         if path == "/api/apps":
             return {"org": workspace, "orgName": name, "email": member["email"],
                     "apps": apps(member), "folders": [], "privateByoc": True}

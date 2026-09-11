@@ -68,6 +68,25 @@ use only account `503561429929`; personal account `637423432890` is never a
 principal, credential source, or artifact host for this update. This addresses
 that trust design; it does not promise exemption from company security review.
 
+## Approval notifications
+
+Pending app-access requests appear in the existing sidebar notification bell for
+the user who can manage the AWS connection. Clicking the request opens
+**Settings > Connections** directly. The Connections item carries an orange dot
+while the request remains unresolved. Opening or clearing ordinary notifications
+does not dismiss the access request; approval or cancellation clears both indicators.
+Applying and stale requests retain an indicator with the corresponding status.
+
+The dashboard reads the existing authenticated connection/access endpoints every
+10 seconds while visible and on window focus. The approval panel also updates the
+indicators immediately after an action. No new permission, backend endpoint, or
+notification storage is introduced. Notifications are scoped to the active
+workspace. Non-managers receive no approval notification.
+
+Browser regressions cover a request arriving after the dashboard is open,
+navigation directly to Connections, persistence after reading, approval and
+cancellation clearing both indicators, and suppression for non-managers.
+
 ## File input path
 
 The existing Run form and CLI accept up to five files of 10 MiB each. Metadata

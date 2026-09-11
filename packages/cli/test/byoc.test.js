@@ -123,8 +123,10 @@ for (const privateMode of [false, true]) test(`${privateMode ? 'private' : 'host
   });
   fs.writeFileSync(path.join(dir, 'job.py'), 'print("PRIVATE_SOURCE")');
   const connection = { private: privateMode, app_name: 'report', org: 'w-test', account_id: '123456789012', region: 'us-east-1', can_deploy: true,
+    constants: privateMode, constant_tooltips: privateMode,
     api_url: 'https://abcdefghijklmnopqrst.lambda-url.us-east-1.on.aws/', data_bucket: 'sample' };
   const app = { entry: 'job.py', config: { type: 'job', aws: { s3_read: 's3://company-data/reports' }, inputs: { key: { type: 'text', default: 'PRIVATE_DEFAULT' } } } };
+  if (privateMode) app.config.constants = { threshold: { value: 0.85, tooltip: 'Minimum score accepted.' }, enabled: false, label: 'PRIVATE_CONSTANT' };
   const calls = [];
   let approved = false, cancelled = true;
   t.mock.method(console, 'log', () => {});
@@ -149,6 +151,7 @@ for (const privateMode of [false, true]) test(`${privateMode ? 'private' : 'host
     if (u.pathname === (privateMode ? '/api/jobs' : '') + '/apps/report/deploys') {
       assert.equal(JSON.parse(options.body).s3_read, 's3://company-data/reports/');
       assert.equal(JSON.parse(options.body).inputs.key.default, 'PRIVATE_DEFAULT');
+      if (privateMode) assert.deepEqual(JSON.parse(options.body).constants, app.config.constants);
       return Response.json({ id: 'fixture', upload_url: 'https://sample.s3.us-east-1.amazonaws.com/source' });
     }
     if (u.pathname.endsWith('/logs')) return Response.json({ lines: [] });
@@ -164,4 +167,11 @@ for (const privateMode of [false, true]) test(`${privateMode ? 'private' : 'host
   calls.length = 0;
   await assert.rejects(deploy(dir, app, { ...connection, data_bucket: 'different-customer' }), /Invalid AWS upload destination/);
   assert.ok(!calls.some((c) => c.url.startsWith('https://sample.s3.')));
+  if (privateMode) {
+    calls.length = 0;
+      await assert.rejects(deploy(dir, app, { ...connection, constants: false }), /Update the private AWS installation/);
+      assert.equal(calls.length, 0);
+      await assert.rejects(deploy(dir, app, { ...connection, constant_tooltips: false }), /enable constant tooltips/);
+      assert.equal(calls.length, 0);
+  }
 });

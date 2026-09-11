@@ -71,6 +71,27 @@ def authorize(header, secret, permission, now=None):
     return claims
 
 
+def validate_constants(values):
+    if not isinstance(values, dict) or len(values) > 20:
+        raise Rejected('Constants must contain at most 20 named values')
+    for name, value in values.items():
+        if isinstance(value, dict):
+            if 'value' not in value or set(value) - {'value', 'tooltip'}:
+                raise Rejected('Constant definition requires value and optional tooltip')
+            if 'tooltip' in value and (not isinstance(value['tooltip'], str) or len(value['tooltip']) > 2000):
+                raise Rejected('Constant tooltip must be text, at most 2000 characters')
+            value = value['value']
+        if not isinstance(name, str) or not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]{0,39}', name):
+            raise Rejected('Invalid constant name')
+        if type(value) not in (str, bool, int, float):
+            raise Rejected('Constants must be text, finite numbers or booleans')
+        if type(value) in (int, float) and (abs(value) > 9007199254740991 or not math.isfinite(value)):
+            raise Rejected('Constant number is outside the supported range')
+    if len(json.dumps(values, ensure_ascii=False, separators=(',', ':')).encode()) > 2048:
+        raise Rejected('Constants exceed the 2 KiB limit')
+    return values
+
+
 def validate_schema(schema):
     if not isinstance(schema, dict) or len(schema) > 20:
         raise Rejected("Use at most 20 inputs")
@@ -79,6 +100,8 @@ def validate_schema(schema):
             raise Rejected("Invalid input name or definition")
         if field.get("type", "text") not in ("text", "number", "bool", "select", "file"):
             raise Rejected("AWS jobs support text, number, boolean, select and file inputs")
+        if 'tooltip' in field and (not isinstance(field['tooltip'], str) or len(field['tooltip']) > 2000):
+            raise Rejected('Input tooltip must be text, at most 2000 characters')
         if field.get("type") == "file":
             if os.environ.get("FILE_INPUTS") != "v1":
                 raise Rejected("Update this installation to enable file inputs", 409)
@@ -471,12 +494,13 @@ def dispatch(method, path, body, query, claims, app=None):
         entry = body.get("entry", "")
         if not re.fullmatch(r"[a-zA-Z0-9_][a-zA-Z0-9_./-]*\.py", entry) or ".." in entry.split("/"):
             raise Rejected("Entry must be a relative Python file")
-        if set(body) - {"entry", "inputs", "s3_read", "grants"} or ("grants" in body and "s3_read" in body):
+        if set(body) - {"entry", "inputs", "constants", "s3_read", "grants"} or ("grants" in body and "s3_read" in body):
             raise Rejected("Unsupported deployment setting")
         schema = validate_schema(body.get("inputs", {}))
+        constants = validate_constants(body.get('constants', {}))
         task_role(app, body.get("s3_read"), body.get("grants"))  # approval before any source upload
         deploy_id = new_id("d")
-        doc = dict(id=deploy_id, status="uploading", entry=entry, inputs=schema, s3_read=body.get("s3_read"), created_at=stamp())
+        doc = dict(id=deploy_id, status="uploading", entry=entry, inputs=schema, constants=constants, s3_read=body.get("s3_read"), created_at=stamp())
         if "grants" in body:
             doc["grants"] = normalize_grants(body["grants"], os.environ.get("ACCOUNT_ID"), allowed_actions=installed_actions())
         put_doc(app_key(app, "deploys/" + deploy_id + "/record.json"), doc)
@@ -522,9 +546,11 @@ def dispatch(method, path, body, query, claims, app=None):
         # Old task definitions cannot retain access after its approval changes.
         role = task_role(app, doc.get("s3_read"), doc.get("grants"))
         values = validate_inputs(doc["inputs"], body.get("inputs", {}))
+        constants = {name: value['value'] if isinstance(value, dict) else value
+                     for name, value in validate_constants(doc.get('constants', {})).items()}
         files = uploaded_files(app, doc, values, body.get("upload_id"), claims["sub"])
         run_id = new_id("r")
-        run = dict(run_id=run_id, deploy_id=doc["id"], status="starting", inputs=values,
+        run = dict(run_id=run_id, deploy_id=doc["id"], status="starting", inputs=values, constants=constants,
                    started_by=claims["sub"], started_at=stamp())
         if files:
             run["input_files"] = files
@@ -536,6 +562,7 @@ def dispatch(method, path, body, query, claims, app=None):
         bucket, _, prefix = (doc.get("s3_read") or "s3://")[5:].partition("/")
         overrides = {"taskRoleArn": role, "containerOverrides": [{"name": "job", "environment": [
             {"name": "SMALL_RUN_ID", "value": run_id}, {"name": "SMALL_RUN_INPUTS", "value": json.dumps(values)},
+            {"name": "SMALL_CONSTANTS", "value": json.dumps(constants, ensure_ascii=False, separators=(',', ':'))},
             {"name": "SMALL_S3_BUCKET", "value": bucket}, {"name": "SMALL_S3_PREFIX", "value": prefix},
             {"name": "SMALL_OUTPUT_POST", "value": json.dumps(output_post)}, {"name": "SMALL_RESULT_URL", "value": result_url}]}]}
         if files:

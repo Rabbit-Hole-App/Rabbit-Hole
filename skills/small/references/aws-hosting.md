@@ -1,18 +1,39 @@
 # Host a CPU job in the customer's AWS account
 
+## Contents
+
+- [Deployment checklist](#deployment-checklist)
+- [Private Small installation with Cognito](#private-small-installation-with-cognito)
+- [Hosted dashboard connection](#hosted-dashboard-connection)
+- [Select the workspace and deploy](#select-the-workspace-and-deploy)
+- [Fixed values in Run > Constants](#fixed-values-in-run--constants)
+- [Read an existing S3 folder](#read-an-existing-s3-folder)
+- [MVP limits and data boundary](#mvp-limits-and-data-boundary)
+
+## Deployment checklist
+
+- [ ] Use the installation URL, account, region, and workspace returned by the customer environment.
+- [ ] Derive inputs, constants, and AWS grants from code the job actually runs.
+- [ ] Validate the source boundary before upload and obtain approval for changed grants.
+- [ ] Deploy, run one representative input, and inspect logs and outputs.
+- [ ] Fix any mismatch at its source, then repeat validation and the representative run.
+
 ## Private Small installation with Cognito
 
 If Small's interface itself is installed in customer AWS, install
-`small-deploy@0.0.10` or newer from npm. Use the installation URL supplied by
+the current `small-deploy` package from npm. Use the installation URL supplied by
 the customer's administrator; this command installs the CLI, not AWS infrastructure.
 Sign in on the machine running the CLI:
 
+Command template—replace every angle-bracket placeholder with a value returned
+by the installation or CLI:
+
 ```text
-npm install -g small-deploy@0.0.10
+npm install -g small-deploy
 small login --api <installation-url>
 small workspaces
 small deploy --workspace <returned-slug>
-small run <app-name> --workspace <returned-slug> --count 8
+small run <app-name> --workspace <returned-slug> --<input-name> <value>
 small logs <app-name> --workspace <returned-slug>
 small run <app-name> --workspace <returned-slug> --download ./out
 ```
@@ -31,11 +52,9 @@ Hosted `SMALL_TOKEN` credentials are ignored for a private login.
 Use `type = "job"` and `[deploy] target = "aws"` as shown below. Source goes
 directly to customer S3; CodeBuild, ECR, Fargate, CloudWatch, and job output
 remain in that account. The normal Apps list, Run, and Logs show the job.
-Private release `0.1.0-pilot.5.1` supports the installation owner, scalar and file
-inputs, and configurable app permissions. Sharing changes are deferred. The CLI
-discovers these capabilities from the installation; older releases need an
-installation update for grants and uploads. Installing the CLI alone is not
-that update.
+The CLI discovers supported inputs, constants, tooltips, and app permissions
+from the installation. When a capability is absent, update the installation;
+installing the CLI alone does not change customer AWS infrastructure.
 
 ### Images and successful replacements
 
@@ -45,9 +64,9 @@ available. Older deployment IDs cannot start new runs or uploads: deploy the old
 source again to run it. Small removes replaced build images after their jobs
 finish; run history, logs, and outputs remain. No seven-day rollback window.
 
-CLI `0.0.11` and later upgrade available Debian
-packages before Python requirements and remove Perl last. Rebuild existing apps
-to receive the fix; an installation update does not rebuild their images.
+Generated images upgrade available Debian packages before Python requirements
+and remove Perl last. Rebuild an existing app to receive image changes; an
+installation update does not rebuild deployed app images.
 The generated image deliberately does not support system packages or Perl.
 
 ### Declare the app's AWS permissions
@@ -55,12 +74,18 @@ The generated image deliberately does not support system packages or Perl.
 Read the app's actual SDK operations and resource configuration. Declare only
 the actions and resources it needs. Keep `grants` on **one physical line**; the
 small TOML parser supports inline arrays, not multiline arrays or `[[aws.grants]]`.
-Use the customer's real resource ARNs, not the illustrative account below:
+Example only—replace the bucket, account, region, function, cluster, and app
+resources with values verified from the customer's application and AWS account:
 
 ```toml
 [aws]
-grants = [{ action = "s3:PutObject", resource = "arn:aws:s3:::company-jobs/jobs/*" }, { action = "s3:GetObject", resource = "arn:aws:s3:::company-jobs/reports/*" }, { action = "s3:ListBucket", resource = "arn:aws:s3:::company-jobs" }, { action = "lambda:InvokeFunction", resource = "arn:aws:lambda:us-east-1:123456789012:function:report-launcher" }, { action = "ecs:DescribeTasks", resource = "arn:aws:ecs:us-east-1:123456789012:task/report-jobs/*" }]
+grants = [{ action = "s3:PutObject", resource = "arn:aws:s3:::<job-bucket>/jobs/*" }, { action = "s3:GetObject", resource = "arn:aws:s3:::<job-bucket>/reports/*" }, { action = "s3:ListBucket", resource = "arn:aws:s3:::<job-bucket>" }, { action = "lambda:InvokeFunction", resource = "arn:aws:lambda:<installation-region>:<customer-account-id>:function:<launcher-name>" }, { action = "ecs:DescribeTasks", resource = "arn:aws:ecs:<installation-region>:<customer-account-id>:task/<cluster-name>/*" }]
 ```
+
+Validate each grant by tracing it to one SDK operation and one resolved customer
+resource. Remove or correct anything without that trace, then repeat until every
+grant is accounted for and no example placeholder or wildcard remains. Deployment
+and owner approval execute the validated plan.
 
 `small deploy` requests approval before uploading source. In this private
 installation's **Settings > Connections > AWS > App access**, the owner sees
@@ -70,7 +95,8 @@ approval. `grants = []` requests removal; changed grants block new runs of old
 deployments until the new configuration is deployed. Existing running tasks
 remain subject to AWS permission propagation.
 
-The default installation enables the five actions above. For another action,
+Never infer the installation's allowed actions from that example. For an action
+outside the installation's advertised allowlist,
 the AWS administrator updates the stack parameter **AppGrantActions**, retaining
 the existing actions and adding the exact action required. This changes the
 installation ceiling; it grants nothing to any app. The agent then retries
@@ -78,13 +104,14 @@ deployment and requests the app's exact resource approval. No new Small release
 is needed for an additional compatible action. Do not edit the stack, broaden
 permissions, or approve a request without the user's authorization.
 
-Supported grants have exact action names and same-account, `us-east-1` resource
+Supported grants have exact action names and same-account resource
 ARNs. S3 accepts exact bucket/object ARNs and trailing folder `/*`; ECS task
 inspection accepts a named cluster's `task/cluster/*`. At most 20 grants per app.
 Wildcard actions, `Resource = "*"`, cross-account resources, IAM/STS and
 organization/account/CloudFormation management are unsupported. AWS validates
 each policy before approval; syntactically valid ARNs do not guarantee an action
 supports that resource type. ListBucket applies to the named bucket's listing.
+The CLI uses the installation's reported region and rejects a different one.
 The boundary also requires AWS to supply `aws:ResourceAccount` for the action;
 operations without that ownership context remain denied.
 
@@ -100,6 +127,9 @@ Do not silently change encryption or add broad permissions to work around it.
 ### File inputs
 
 Use the existing Run form's file picker, or a local CLI file path:
+
+Example only—replace the input name, accepted extensions, and CLI flag with the
+real job input:
 
 ```toml
 [inputs]
@@ -124,7 +154,7 @@ as a workaround. Write results to `SMALL_OUTPUTS` as before.
 `grants`; switching to `grants` requires explicit approval even for the same
 GetObject folder. Small retires the old role's permissions during that switch.
 
-For S3, declare `[aws] s3_read = "s3://your-bucket/your-folder/"` in
+For S3, declare `[aws] s3_read = "s3://<customer-bucket>/<approved-prefix>/"` in
 `small.toml`, then run `small deploy`. When access changes, deployment waits
 before uploading source. The owner opens this **private installation's**
 **Settings > Connections > AWS** and reviews the exact app/folder, then clicks
@@ -132,7 +162,7 @@ before uploading source. The owner opens this **private installation's**
 approved folders do not prompt again. No folder inventory appears when idle.
 
 With `s3_read`, each app has its own ECS task role. It can get objects only in the approved
-folder, in the installation's account and `us-east-1`; it cannot list buckets,
+folder, in the installation's account and reported region; it cannot list buckets,
 write, delete, or read another folder. Use `SMALL_S3_BUCKET` and `SMALL_S3_PREFIX`
 in the job, plus a known object key. SSE-KMS buckets need separately scoped KMS
 support and are outside this legacy single-folder flow. Do not add broad KMS permissions.
@@ -148,17 +178,16 @@ individual folder approvals do not require another CloudFormation update.
 Use only the customer's installation and AWS account for private BYOC.
 Do not use the hosted Connect AWS flow or add an external trust role for it.
 
-## Hosted dashboard dev preview
+## Hosted dashboard connection
 
 Use this flow when the user wants the job itself hosted in their AWS account,
 or the project already has `[deploy] target = "aws"`. The workspace has one
 AWS connection and can host multiple CPU-job apps through it.
 
-This feature currently lives on the dev dashboard:
-https://small-cp-dev.zeroshothq.workers.dev/apps
-Install `small-deploy@0.0.9` or newer and run `small skill` in the project to
-install its matching agent instructions. This hosted AWS interface remains a
-dev preview; the private installation above uses its own URL.
+Use the dashboard URL supplied by the user or workspace administrator. Do not
+copy a URL from this reference. Install the current `small-deploy` package and
+run `small skill` in the project to install its matching agent instructions.
+The private installation above uses its own customer-controlled URL.
 
 ## Connect once
 
@@ -171,15 +200,16 @@ dev preview; the private installation above uses its own URL.
    Continue when it says **Connected**. A connected workspace needs no new
    installation for its second or later app.
 
-The region is `us-east-1`. A disconnected installation can be reconnected;
+Use the region reported by the connection. A disconnected installation can be reconnected;
 use a new workspace to connect a different AWS account.
 
 ## Select the workspace and deploy
 
-Point the CLI at dev first. In PowerShell:
+Command template—replace `<small-api-origin>` with the exact origin supplied by
+the user or connection screen:
 
 ```powershell
-$env:SMALL_API = 'https://small-cp-dev.zeroshothq.workers.dev'
+$env:SMALL_API = '<small-api-origin>'
 small workspaces
 ```
 
@@ -195,30 +225,35 @@ the hosting target.
 Create or update `small.toml` **before running `small init`** so the AWS target
 is already declared. Do not generate a hosted runbook from this source.
 
+Example only—replace the app name, entry, inputs, defaults, and bounds with the
+real job contract:
+
 ```toml
-name = "aws-test-job"
-entry = "job.py"
+name = "<app-name>"
+entry = "<python-entry>"
 type = "job"
 
 [deploy]
 target = "aws"
 
 [inputs]
-count = { type = "number", default = 8, min = 1, max = 10000 }
+<input-name> = { type = "number", default = <default>, min = <minimum>, max = <maximum> }
 ```
 
-Keep the working Python code; use a thin adapter if needed. The entry reads
-`SMALL_INPUT_COUNT` and writes downloadable files under `SMALL_OUTPUTS`.
+Keep the working Python code; use a thin adapter if needed. The entry reads the
+declared input as `SMALL_INPUT_<INPUT_NAME>` and writes downloadable files under
+`SMALL_OUTPUTS`.
 Use a unique app name with 1–40 lowercase letters, digits, or hyphens.
 
-Replace `<slug>` with the value returned by `small workspaces`:
+Command template—replace `<slug>`, `<app-name>`, `<input-name>`, and `<value>`
+with values from `small workspaces` and the real `small.toml`:
 
 ```text
 small deploy --workspace <slug>
-small run aws-test-job --workspace <slug> --count 8
-small runs aws-test-job --workspace <slug>
-small logs aws-test-job --workspace <slug>
-small run aws-test-job --workspace <slug> --download ./out
+small run <app-name> --workspace <slug> --<input-name> <value>
+small runs <app-name> --workspace <slug>
+small logs <app-name> --workspace <slug>
+small run <app-name> --workspace <slug> --download ./out
 ```
 
 The CLI prints the workspace, AWS account, and region before upload. Source
@@ -226,14 +261,87 @@ goes directly to customer S3, builds run in their account, and the job runs on
 Fargate. Relay the app link printed by deploy. The app appears in the normal
 sidebar; users run it and inspect logs and outputs in the existing app tabs.
 
+## Fixed values in Run > Constants
+
+Inputs may also include optional `tooltip` text (up to 2000 characters). Small
+shows an information icon beside the label; hover, click or focus it to read the
+explanation. `help` remains below the input. This is explanatory text and does
+not define the Python behavior or change the selected option.
+
+Example only—the profiles, thresholds, distances, and cooldowns below illustrate
+tooltip prose; replace them with facts from the real application:
+
+```toml
+[inputs]
+profile = { type = "select", default = "prod", options = ["prod", "sensitive"], help = "Choose a detection profile.", tooltip = "Prod: arm elevation 90 degrees, wrist distance 300 mm, cooldown 7 frames. Sensitive: arm elevation 80 degrees, wrist distance 400 mm, cooldown 5 frames." }
+```
+
+Keep the inline definition on one physical line with the CLI's TOML subset.
+Write plain text; tooltip contents are not interpreted as HTML or executable code.
+
+Use the current `small-deploy` package and an installation that advertises
+constants support. Put fixed, non-secret application behavior in `small.toml`:
+
+Every declared constant must be consumed by the underlying application and
+affect behavior or result interpretation. Trace it to the code before adding it.
+Do not copy model names or other settings into `[constants]` solely to display
+them; an unused declaration becomes stale. Platform limits and adapter settings
+also stay out of this section.
+
+Good example—the Python snippet below consumes this exact value:
+
+```toml
+[constants]
+acceptance_threshold = { value = 0.85, tooltip = "Minimum score accepted." }
+```
+
+```python
+import json
+import os
+
+constants = json.loads(os.environ["SMALL_CONSTANTS"])
+acceptance_threshold = constants["acceptance_threshold"]
+```
+
+Bad example—do not add display-only or platform values that the application
+does not consume:
+
+```toml
+[constants]
+model_name = "<display-only-model-name>"
+run_limit_mb = 45
+```
+
+The examples establish the boundary: declare a constant only when the real job
+reads it and it affects behavior or result interpretation. Keep inline definitions
+on one physical line. Tooltip text is limited to 2000 characters and counts
+toward the 2 KiB declaration limit. The runtime receives only the scalar value,
+never the tooltip or definition object.
+
+Small displays these values read-only under Run > Constants. Redeploy to change
+them; do not offer them as editable `[inputs]` or duplicate the value in Python.
+Every run records its constants snapshot. Existing apps without a declaration
+receive `{}`. For local testing, supply `SMALL_CONSTANTS` with the JSON values
+from the same TOML file. If loading `[constants]` with Python's `tomllib`, unwrap
+each inline definition's `value` before using it as runtime constants.
+
+The MVP accepts at most 20 scalar values and 2 KiB total JSON: strings, finite
+numbers, and booleans. Names start with a letter and contain letters, digits or
+underscores, at most 40 characters. Numbers must be in the JavaScript safe range.
+No arrays or nested tables. These are visible configuration values, never secrets.
+Older private installations and shared hosting must be updated/supported before
+deploying a constants declaration; the CLI stops rather than ignoring it.
+
 ## Read an existing S3 folder
 
 Declare one folder in `small.toml`, using a bucket in the connected AWS account
-and `us-east-1`:
+and the installation's reported region.
+
+Example only—replace the bucket and prefix with the approved customer location:
 
 ```toml
 [aws]
-s3_read = "s3://company-data/reports/"
+s3_read = "s3://<customer-bucket>/<approved-prefix>/"
 ```
 
 Use a literal folder, without `*`, `?`, or policy variables. A missing trailing
@@ -277,18 +385,19 @@ before deploying. Data files still travel directly to AWS.
 
 ## MVP limits and data boundary
 
-- CPU jobs only: 1 vCPU, 2 GiB, `us-east-1`. Inputs are `text`, `number`,
-  `bool`, or `select`.
+- CPU jobs only. Read the connection and deployment output for its region,
+  compute size, supported inputs, and enabled capabilities; do not infer them
+  from examples in this reference.
 - The connection installer can deploy; workspace members can run and inspect.
   Private app sharing and per-app edit grants are not implemented for AWS jobs.
 - App secrets, extra `[aws] role_arn` grants, system packages, persistent
-  volumes, schedules, file/date inputs, GPU jobs, and web servers are deferred.
+  volumes, schedules, GPU jobs, and web servers are deferred. Use only input
+  types advertised by the installation.
   Do not silently change the hosting target to make an unsupported job deploy.
 - Small receives connection metadata and deployment status. Customer source,
   input values, outputs, and logs travel directly between the client and AWS.
   Do not send them to hosted review, runbook generation, or Coaching. Slack and
   the Coach Agent are not connected to these AWS jobs yet.
 
-For a hosted app that only calls an AWS service, use `references/aws-role.md`.
-For a hosted app delegating a heavy operation to AWS, use
-`references/aws-compute.md`. Those are separate deployment paths.
+For a hosted app that only calls an AWS service, or delegates heavy work to AWS,
+return to the direct reference routing in `SKILL.md`; those are separate paths.

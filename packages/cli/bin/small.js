@@ -198,6 +198,7 @@ const commands = {
     inputs.checkSchema(app.config); // bad [inputs]/[outputs] stops the deploy here
     const awsTarget = await byoc.target(app.name, app.config.deploy?.target === 'aws');
     if (awsTarget) return byoc.deploy(dir, app, awsTarget);
+    if (app.config.constants !== undefined) throw new Error('[constants] currently requires private AWS hosting');
     console.log(`✓ ${await fly.ensureInstalled()}`); // before anything cloud - downloads the binary on first use
 
     const src = source.capture(dir);

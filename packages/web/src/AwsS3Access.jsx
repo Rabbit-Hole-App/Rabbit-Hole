@@ -8,7 +8,7 @@ const actionHelp = { 's3:GetObject': 'Read objects', 's3:PutObject': 'Write or r
   'ecs:DescribeTasks': 'View task status and configuration' };
 
 // The CLI requests access. The owner reviews exact actions and resources here.
-export default function AwsS3Access({ connection }) {
+export default function AwsS3Access({ connection, onAccessChanged }) {
   const [state, setState] = useState(null), [error, setError] = useState('');
   const [busy, setBusy] = useState(false), [templateUrl, setTemplateUrl] = useState('');
   const [notice, setNotice] = useState('');
@@ -16,6 +16,7 @@ export default function AwsS3Access({ connection }) {
     try {
       const next = await api('/api/byoc/access');
       setState(next); setError('');
+      onAccessChanged?.(next.pending || null);
       if (next.approval_enabled && !state?.approval_enabled && templateUrl) {
         setTemplateUrl(''); setNotice('Connection upgraded. You can now approve app folders here.');
       }
@@ -43,6 +44,7 @@ export default function AwsS3Access({ connection }) {
         setTemplateUrl(result.template_url);
         if (popup) popup.location.href = result.update_url; else window.location.assign(result.update_url);
       } else if (action === 'approve') {
+        onAccessChanged?.(result.pending || null);
         setState(result); setTemplateUrl(''); setNotice('Access approved. Your waiting deployment will continue automatically.');
       } else { setTemplateUrl(''); await load(); setNotice('Request cancelled. The waiting deployment will stop without uploading source.'); }
     } catch (e) { if (popup) popup.close(); setError(e.message); } finally { setBusy(false); }

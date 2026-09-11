@@ -3,9 +3,12 @@
 Read this when the tool calls AWS (boto3, S3, Lambda, …).
 
 This reference covers AWS access from a hosted app. To host the CPU job itself
-in the customer's AWS account, follow `references/aws-hosting.md` instead.
+in the customer's AWS account, use the AWS hosting route in `SKILL.md` instead.
 
 **Never put AWS keys in `.env`.** Declare a role instead:
+
+Template—replace each angle-bracket placeholder with values verified from AWS
+and the application:
 
 ```toml
 [aws]
@@ -19,24 +22,24 @@ not, it fails with the exact trust policy JSON to paste.
 
 The user is likely non-technical; their AWS credentials are on this machine
 (`aws sts get-caller-identity` to check; if that fails, ask the user to sign
-in to AWS first). Steps:
+in to AWS first). Use this checklist:
 
-1. Tell the user in one sentence what you are about to create and why
+- [ ] Tell the user in one sentence what you are about to create and why
    ("a role that lets small run this tool against your S3 bucket, nothing
    else"). Then:
-2. Get the account id from `aws sts get-caller-identity`, fill
+- [ ] Get the account id from `aws sts get-caller-identity`, fill
    `role_arn = "arn:aws:iam::<account>:role/small-<app-name>"` into small.toml,
    and run `small deploy`. It fails and prints the trust policy.
-3. Create the role with that trust policy **verbatim** (save it to a file,
+- [ ] Create the role with that trust policy **verbatim** (save it to a file,
    `aws iam create-role --role-name small-<app-name>
    --assume-role-policy-document file://trust.json`). Never edit the
    ExternalId — it is the user's org and closes the confused-deputy hole.
-4. Attach an inline permissions policy for **exactly what the code you wrote
+- [ ] Attach an inline permissions policy for **exactly what the code you wrote
    touches** — you know the actions and resources because you wrote the calls.
    `s3:GetObject` on the one bucket, `lambda:InvokeFunction` on the one
    function. Never `*` actions, never `AdministratorAccess`, never resources
    the tool does not use. (`aws iam put-role-policy`.)
-5. `small deploy` again — it must print `✓ aws role: … (verified)`.
+- [ ] Run `small deploy` again — it must print `✓ aws role: … (verified)`.
 
 **Updating**: when a code change adds a new AWS call, widen the inline policy
 by that one action/resource before redeploying. If a run's log shows

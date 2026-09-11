@@ -6,14 +6,32 @@ const path = require('path');
 const TYPES = ['file', 'number', 'select', 'date', 'text', 'bool'];
 
 function checkSchema(config) {
+  if (config.constants !== undefined) checkConstants(config.constants);
   for (const [name, spec] of Object.entries(config.inputs || {})) {
     if (!spec || typeof spec !== 'object' || Array.isArray(spec)) throw new Error(`[inputs] ${name} must be a table like { type = "text" }`);
     if (!TYPES.includes(spec.type)) throw new Error(`[inputs] ${name}: unknown type "${spec.type}" - one of ${TYPES.join(', ')}`);
+    if (spec.tooltip !== undefined && (typeof spec.tooltip !== 'string' || spec.tooltip.length > 2000)) throw new Error(`[inputs] ${name}: tooltip must be text, at most 2000 characters`);
     if (spec.type === 'select' && !Array.isArray(spec.options)) throw new Error(`[inputs] ${name}: select needs options = ["a", "b"]`);
   }
   for (const [name, spec] of Object.entries(config.outputs || {})) {
     if (!spec || typeof spec !== 'object' || typeof spec.path !== 'string') throw new Error(`[outputs] ${name} needs path = "file.ext"`);
   }
+}
+
+function checkConstants(values) {
+  if (!values || typeof values !== 'object' || Array.isArray(values) || Object.keys(values).length > 20) throw new Error('[constants] must contain at most 20 named values');
+  for (const [name, declaration] of Object.entries(values)) {
+    let value = declaration;
+    if (declaration && typeof declaration === 'object' && !Array.isArray(declaration)) {
+      if (!Object.hasOwn(declaration, 'value') || Object.keys(declaration).some(k => !['value', 'tooltip'].includes(k))) throw new Error(`[constants] ${name}: use { value = ..., tooltip = "..." }`);
+      if (declaration.tooltip !== undefined && (typeof declaration.tooltip !== 'string' || declaration.tooltip.length > 2000)) throw new Error(`[constants] ${name}: tooltip must be text, at most 2000 characters`);
+      value = declaration.value;
+    }
+    if (!/^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(name)) throw new Error('[constants] names must start with a letter and use up to 40 letters, digits or underscores');
+    if (!['string', 'boolean', 'number'].includes(typeof value) || (typeof value === 'number' && (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER))) throw new Error(`[constants] ${name}: use text, a finite number or a boolean`);
+  }
+  if (Buffer.byteLength(JSON.stringify(values)) > 2048) throw new Error('[constants] exceeds the 2 KiB limit');
+  return values;
 }
 
 // "-7d" and friends resolve to a concrete date here so the script gets YYYY-MM-DD.
@@ -82,4 +100,4 @@ function validate(schema, flags) {
   return { values, files };
 }
 
-module.exports = { checkSchema, validate, TYPES };
+module.exports = { checkSchema, checkConstants, validate, TYPES };

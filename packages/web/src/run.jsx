@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle, ArrowLeft, ArrowUpDown, Calendar, ChevronsUpDown, Circle, Clock, Copy as CopyIcon, Download, ExternalLink, Eye,
-  File as FileIcon, Filter as FilterIcon, Folder, Hash, Inbox, Loader2, Maximize2, MessageCircle,
+  File as FileIcon, Filter as FilterIcon, Folder, Hash, Inbox, Info, Loader2, Maximize2, MessageCircle,
   Paperclip, Play, Plus, ScrollText, Search as SearchIcon, Type, User, X,
 } from 'lucide-react';
 import { ago, api, fmtTime, navigate, wsHeaders } from './api.js';
@@ -341,6 +341,9 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
               {k.replace(/_/g, ' ')}
               <span className="text-xs font-normal text-ink-3">({spec.type})</span>
               {spec.required && <span className="text-danger">*</span>}
+              {typeof spec.tooltip === 'string' && spec.tooltip.trim() && <Tip label={k.replace(/_/g, ' ')} info={<span className="whitespace-pre-wrap break-words">{spec.tooltip}</span>}>
+                <IconBtn type="button" aria-label={`${k} information`} aria-description={spec.tooltip}><Info size={14} strokeWidth={1.5} /></IconBtn>
+              </Tip>}
             </span>
           }
           help={spec.help || (spec.required ? undefined : 'optional')}
@@ -398,6 +401,22 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
         </Field>
         );
       })}
+      {Object.keys(app.constants || {}).length > 0 && <section aria-label="Constants" className="mt-5 border-t border-line pt-4">
+        <h3 className="text-sm font-medium">Constants</h3>
+        <p className="mt-1 text-xs text-ink-3">Fixed for this deployment. Redeploy to change.</p>
+        <dl className="mt-2 divide-y divide-line">
+          {Object.entries(app.constants).map(([name, declaration]) => {
+            const { value, tooltip } = declaration && typeof declaration === 'object' ? declaration : { value: declaration };
+            return <div key={name} className="grid grid-cols-[minmax(100px,1fr)_2fr] gap-4 py-2 text-sm">
+            <dt className="flex items-center gap-1 break-words text-ink-2">{name}
+              {typeof tooltip === 'string' && tooltip.trim() && <Tip label={name.replace(/_/g, ' ')} info={<span className="whitespace-pre-wrap break-words">{tooltip}</span>}>
+                <IconBtn type="button" aria-label={`${name} information`} aria-description={tooltip}><Info size={14} strokeWidth={1.5} /></IconBtn>
+              </Tip>}
+            </dt>
+            <dd className="min-w-0 whitespace-pre-wrap break-words">{String(value) || <span className="text-ink-3">Empty string</span>}</dd>
+          </div>; })}
+        </dl>
+      </section>}
       <div className={cn('flex items-center gap-3', entries.length && 'pt-4')}>
         <Button variant="primary" disabled={busy || (batchField && !batchValues.length)} onClick={batchField ? submitBatch : submit}>
           {busy ? <Loader2 size={16} strokeWidth={1.5} className="animate-spin" /> : <Play size={16} strokeWidth={1.5} />}
@@ -450,16 +469,9 @@ function useRun(runId, request) {
   return { meta, lines };
 }
 
-// One output: <2MB images inline at 200px, small .json/.csv/.txt in a code block,
-// everything else a download row.
+// Keep outputs compact; the existing open and download controls expose the file.
 function Output({ runId, name, size, label, url = `/api/runs/${runId}/outputs/${encodeURIComponent(name)}` }) {
-  const isImg = /\.(jpe?g|png|gif|webp)$/i.test(name) && size < 2 * 1024 * 1024; // no svg - served nosniff, won't render
-  const isText = /\.(json|csv|txt)$/i.test(name) && size < 4096;
   const opensInTab = /\.(html?|pdf|jpe?g|png|gif|webp|json|txt)$/i.test(name); // types the API serves with a real Content-Type
-  const [text, setText] = useState(null);
-  useEffect(() => {
-    if (isText) fetch(url).then((r) => r.text()).then(setText).catch(() => {});
-  }, [url, isText]);
   return (
     <div className="pb-2">
       <div className="flex h-8 items-center gap-1.5 text-sm">
@@ -475,8 +487,6 @@ function Output({ runId, name, size, label, url = `/api/runs/${runId}/outputs/${
           <Download size={16} strokeWidth={1.5} />
         </a>
       </div>
-      {isImg && <a href={url} target="_blank" rel="noopener"><img src={url} alt={name} className="max-h-[200px] max-w-full rounded-sm border border-line" /></a>}
-      {isText && text != null && <CodeBlock className="mt-1 max-w-[560px]">{text}</CodeBlock>}
     </div>
   );
 }
@@ -817,7 +827,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
     const v = (r.inputs || {})[c.input];
     if (v == null) return <span className="text-ink-3">-</span>;
     const spec = schema[c.input] || {};
-    if (spec.type === 'file') return <span className="inline-flex min-w-0 items-center gap-1"><Paperclip size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" /><span className="break-all">{String(v)}</span></span>;
+    if (spec.type === 'file') return <span className="flex min-w-0 items-center gap-1" title={String(v)}><Paperclip size={14} strokeWidth={1.5} className="shrink-0 text-ink-3" /><span className="truncate">{String(v)}</span></span>;
     if (spec.type === 'bool' || typeof v === 'boolean') return <Pill>{v ? 'on' : 'off'}</Pill>;
     if (spec.type === 'number') return <span className="tabular-nums">{String(v)}</span>;
     const s = Array.isArray(v) ? v.join(', ') : String(v);
@@ -826,7 +836,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
       const tail = s.replace(/\/+$/, '').split('/').pop();
       return <span className="block truncate whitespace-nowrap" title={s}>…/{tail}</span>;
     }
-    return <span className="break-all">{s}</span>;
+    return <span className="block truncate" title={s}>{s}</span>;
   };
 
   const filtered = useMemo(() => {
@@ -1038,8 +1048,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
               {filtered.map((r) => (
                 <tr key={r.run_id} onClick={() => onOpen(r.run_id)} className={cn('group cursor-pointer hover:bg-hover', openId === r.run_id && 'bg-active hover:bg-active')}>
                   {cols.map((c) => (
-                    // input columns wrap (s3 URIs must stay readable); core columns keep one line
-                    <td key={c.key} className={cn('overflow-hidden border-b border-line px-2 py-1.5 align-middle text-sm', c.input ? 'break-words' : 'whitespace-nowrap', c.right && 'text-right')}>{cell(r, c)}</td>
+                    <td key={c.key} className={cn('overflow-hidden whitespace-nowrap border-b border-line px-2 py-1.5 align-middle text-sm', c.right && 'text-right')}>{cell(r, c)}</td>
                   ))}
                   <td className="border-b border-line text-right" onClick={(e) => e.stopPropagation()}>
                     {r.status !== 'running' && (

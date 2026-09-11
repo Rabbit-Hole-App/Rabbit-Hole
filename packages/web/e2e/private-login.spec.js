@@ -10,10 +10,16 @@ const devPreview = process.env.BYOC_DEV_TEST === 'true';
 const jwt = (claims) => [Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url'),
   Buffer.from(JSON.stringify(claims)).toString('base64url'), 'synthetic-signature'].join('.');
 
-async function fixture(page, withJob = false) {
+async function fixture(page, withJob = false, canDeploy = true) {
   const withFile = withJob === 'files';
   const withChat = withJob === 'chat';
+  const withLongInputs = withJob === 'long-inputs';
+  const withConstants = withJob === 'constants';
+  const withTooltip = withJob === 'tooltip';
+  const longText = 'A long parameter value with spaces and a newline\n'.repeat(12);
+  const longFile = 'long-event-identifiers-'.repeat(12) + '.txt';
   const requests = [], unexpected = [], errors = [];
+  const outputReads = [];
   const runId = 'r-1788978860120-7aa015589f2e';
   const nextRunId = 'r-1788978861120-7aa015589f2e';
   const app = { name: 'aws-private-proof', org: 'w-small-aws', kind: 'job', hosting: 'aws', privateByoc: true,
@@ -22,7 +28,8 @@ async function fixture(page, withJob = false) {
   const run = { run_id: runId, status: 'finished', exit_code: 0, inputs: { count: 8 },
     started_at: '2026-09-09T12:00:00+00:00', finished_at: '2026-09-09T12:00:01+00:00', started_by: email };
   if (withChat) app.run_chat = app.app_chat = { provider: 'bedrock', model: 'test-model' };
-  let started = withChat, uploaded = false, checksum;
+  if (withLongInputs) run.inputs = { count: 8, description: longText, event_ids_file: longFile };
+  let started = withChat || withLongInputs, uploaded = false, checksum;
   const chats = new Map();
   const access = { approved: {}, pending: null, stable: true, approval_enabled: true };
   let authorize;
@@ -52,7 +59,7 @@ async function fixture(page, withJob = false) {
       if (url.pathname === '/oauth2/revoke') return route.fulfill({ json: {} });
     }
     if (url.origin === origin && url.pathname.startsWith('/api/')) {
-      requests.push({ path: url.pathname, authorization: request.headers().authorization,
+      requests.push({ path: url.pathname, method: request.method(), authorization: request.headers().authorization,
         ...(url.pathname === '/api/ask' ? { body: request.postDataJSON() } : {}) });
       if (url.pathname === '/api/auth/config') return route.fulfill({ json: config });
       expect(request.headers().authorization).toBe('Bearer synthetic-access');
@@ -93,10 +100,19 @@ async function fixture(page, withJob = false) {
         access.pending = null;
         return route.fulfill({ json: access });
       }
+      if (url.pathname === '/api/byoc/access/dismiss') {
+        expect(request.postDataJSON()).toEqual({ request_id: access.pending.id });
+        access.pending = null;
+        return route.fulfill({ json: access });
+      }
       if (withJob && url.pathname.startsWith('/api/jobs/apps/aws-private-proof/')) {
         const path = url.pathname.slice('/api/jobs/apps/aws-private-proof'.length);
-        if (path === '/job') return route.fulfill({ json: { deployment: { id: 'd-1789000000000-aaaaaaaaaaaa', status: 'ready', inputs: {
+        if (path === '/job') return route.fulfill({ json: { deployment: { id: 'd-1789000000000-aaaaaaaaaaaa', status: 'ready',
+          ...(withConstants ? { constants: { threshold: { value: 0.85, tooltip: 'Minimum score accepted.' }, region: 'us-east-1', enabled: false, retries: 0 } } : {}), inputs: {
           count: { type: 'number', default: 8, min: 1, max: 10000 },
+          ...(withTooltip ? { profile: { type: 'select', default: 'prod', options: ['prod', 'sensitive'],
+            help: 'Choose a detection profile.', tooltip: 'Prod: arm elevation 90 degrees. Sensitive: arm elevation 80 degrees.' } } : {}),
+          ...(withLongInputs ? { description: { type: 'text' }, event_ids_file: { type: 'file' } } : {}),
           ...(withFile ? { event_ids_file: { type: 'file', required: true, accept: '.txt' } } : {}) }, created_at: run.started_at } } });
         if (withFile && path === '/uploads') {
           const body = request.postDataJSON();
@@ -128,7 +144,7 @@ async function fixture(page, withJob = false) {
         '/api/members': { org: 'w-small-aws', email, members: [email], added: [email] },
         '/api/teams': { teams: [] }, '/api/watch': { observations: [], runs: [] }, '/api/trash': { trash: [], email },
         '/api/byoc/connection': { connection: { private: true, state: 'connected', org: 'w-small-aws',
-          account_id: '503561429929', region: 'us-east-1', owner_email: email, can_deploy: true, job_name: app.name } },
+          account_id: '503561429929', region: 'us-east-1', owner_email: email, can_deploy: canDeploy, job_name: app.name } },
       };
       return route.fulfill({ status: responses[url.pathname] ? 200 : 501,
         json: responses[url.pathname] || { error: 'This action is not available in this BYOC release yet.' } });
@@ -141,13 +157,14 @@ async function fixture(page, withJob = false) {
         uploaded = true;
         return route.fulfill({ body: '' });
       }
+      outputReads.push(url.pathname);
       return route.fulfill({ json: { count: 8, sum_of_squares: 204 } });
     }
     if (url.origin === origin) return route.continue();
     unexpected.push(url.origin + url.pathname);
     return route.abort();
   });
-  return { requests, unexpected, errors, access, chats, get authorize() { return authorize; } };
+  return { requests, unexpected, errors, access, chats, outputReads, longText, longFile, get authorize() { return authorize; } };
 }
 
 test('PKCE login opens the existing private dashboard; reload and logout preserve the account boundary', async ({ page }) => {
@@ -173,7 +190,7 @@ test('PKCE login opens the existing private dashboard; reload and logout preserv
   await expect(page).toHaveURL(origin + '/login');
   await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
   expect(state.requests.some((request) => request.path === '/api/apps')).toBe(true);
-  expect(state.requests.some((request) => request.path.startsWith('/api/byoc/'))).toBe(false);
+  expect(state.requests.filter((request) => request.path.startsWith('/api/byoc/')).every((request) => ['/api/byoc/connection', '/api/byoc/access'].includes(request.path))).toBe(true);
   expect(state.unexpected).toEqual([]);
   expect(state.errors).toEqual([]);
 });
@@ -217,14 +234,83 @@ test('private CPU app uses the existing Run, Logs and output panels without host
   const panel = page.getByRole('dialog');
   await expect(panel.getByText('finished', { exact: true })).toBeVisible();
   await expect(panel.getByText('report.json', { exact: true }).first()).toBeVisible();
+  await expect(panel.getByRole('link', { name: 'Open report.json in a new tab', exact: true })).toHaveAttribute('target', '_blank');
+  await expect(panel.getByRole('link', { name: 'Download report.json', exact: true })).toHaveAttribute('download', 'report.json');
   await expect(panel.getByText('Computed 8 squares in customer AWS', { exact: false }).first()).toBeVisible();
+  expect(state.outputReads).toEqual([]); // Opening Logs must not fetch or render output bodies.
+  await expect(panel.getByText('sum_of_squares', { exact: false })).toHaveCount(0);
   await page.keyboard.press('Escape');
   await page.getByRole('tab', { name: 'Logs', exact: true }).click();
   await expect(page.getByRole('row').filter({ hasText: 'finished' }).first()).toBeVisible();
   expect(state.requests.filter((request) => request.path.startsWith('/api/jobs/')).length).toBeGreaterThan(3);
-  expect(state.requests.some((request) => request.path.startsWith('/api/byoc/'))).toBe(false);
+  expect(state.requests.filter((request) => request.path.startsWith('/api/byoc/')).every((request) => ['/api/byoc/connection', '/api/byoc/access'].includes(request.path))).toBe(true);
   expect(state.unexpected).toEqual([]);
   expect(state.errors).toEqual([]);
+});
+
+test('input information opens on hover, click and focus without changing the profile', async ({ page }) => {
+  const state = await fixture(page, 'tooltip');
+  await page.goto('/apps/aws-private-proof');
+  await page.getByRole('link', { name: 'Continue test sign-in' }).click();
+  const icon = page.getByRole('button', { name: 'profile information', exact: true });
+  const tooltip = page.getByRole('tooltip').filter({ hasText: 'Prod: arm elevation 90 degrees.' });
+  await expect(page.getByText('Choose a detection profile.', { exact: true })).toBeVisible();
+  await expect(tooltip).toBeHidden();
+  await icon.hover();
+  await expect(tooltip).toBeVisible();
+  await page.mouse.move(0, 0);
+  await expect(tooltip).toBeHidden();
+  await icon.click();
+  await page.mouse.move(0, 0);
+  await expect(tooltip).toBeVisible();
+  await page.getByRole('button', { name: 'Run', exact: true }).focus();
+  await expect(tooltip).toBeHidden();
+  await icon.focus();
+  await expect(tooltip).toBeVisible();
+  await expect(page.getByRole('button', { name: 'prod', exact: true })).toBeVisible();
+  expect(state.requests.some((r) => r.path.endsWith('/runs') && r.method === 'POST')).toBe(false);
+  expect(state.errors).toEqual([]);
+  expect(state.unexpected).toEqual([]);
+});
+
+test('Run shows deployment constants read-only and submits only editable inputs', async ({ page }) => {
+  const state = await fixture(page, 'constants');
+  await page.goto('/apps/aws-private-proof');
+  await page.getByRole('link', { name: 'Continue test sign-in' }).click();
+  const constants = page.getByRole('region', { name: 'Constants', exact: true });
+  await expect(constants).toBeVisible();
+  await expect(constants.locator('dt').first()).toContainText('threshold');
+  for (const value of ['0.85', 'region', 'us-east-1', 'enabled', 'false', 'retries', '0']) {
+    await expect(constants.getByText(value, { exact: true })).toBeVisible();
+  }
+  await expect(constants.locator('input,textarea,select')).toHaveCount(0);
+  await constants.getByRole('button', { name: 'threshold information', exact: true }).focus();
+  await expect(page.getByText('Minimum score accepted.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Run', exact: true }).click(); // fixture checks exact {inputs:{count:8}}
+  await expect(page.getByRole('dialog').getByText('finished', { exact: true })).toBeVisible();
+  expect(state.errors).toEqual([]);
+  expect(state.unexpected).toEqual([]);
+});
+
+test('Logs keeps long text and file parameters on one line with full values on hover', async ({ page }) => {
+  const state = await fixture(page, 'long-inputs');
+  await page.goto('/apps/aws-private-proof');
+  await page.getByRole('link', { name: 'Continue test sign-in' }).click();
+  await page.getByRole('tab', { name: 'Logs', exact: true }).click();
+  const row = page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'finished', exact: true }) }).first();
+  await expect(row).toBeVisible();
+  for (const value of [state.longText, state.longFile]) {
+    const field = row.getByTitle(value === state.longFile ? /long-event-identifiers-/ : /A long parameter value/);
+    await expect(field).toBeVisible();
+    await expect(field).toHaveAttribute('title', value);
+    expect(await field.evaluate((el) => el.getBoundingClientRect().height)).toBeLessThanOrEqual(22);
+    const text = value === state.longFile ? field.locator('span') : field;
+    expect(await text.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+    await expect(text).toHaveCSS('text-overflow', 'ellipsis');
+  }
+  expect(await row.evaluate((el) => el.getBoundingClientRect().height)).toBeLessThanOrEqual(40);
+  expect(state.errors).toEqual([]);
+  expect(state.unexpected).toEqual([]);
 });
 
 test('private Settings shows an actionable S3 request and approves it without a hosted connection flow', async ({ page }) => {
@@ -247,6 +333,49 @@ test('private Settings shows an actionable S3 request and approves it without a 
   await expect(page.getByRole('button', { name: 'Approve & deploy', exact: true })).toHaveCount(0);
   await expect(page.getByText('One-time AWS connection upgrade', { exact: true })).toHaveCount(0);
   expect(state.requests.some((request) => request.path === '/api/byoc/access/approve')).toBe(true);
+  expect(state.unexpected).toEqual([]);
+  expect(state.errors).toEqual([]);
+});
+
+for (const action of ['Approve & deploy', 'Cancel']) test(`grant notification opens Connections and clears after ${action}`, async ({ page }) => {
+  const state = await fixture(page, true);
+  await page.clock.install();
+  await page.goto('/apps');
+  await page.getByRole('link', { name: 'Continue test sign-in' }).click();
+  await expect.poll(() => state.requests.filter((r) => r.path === '/api/byoc/access').length).toBeGreaterThan(0);
+  await expect(page.getByLabel('Pending notifications', { exact: true })).toHaveCount(0);
+  state.access.pending = { id: 'f'.repeat(32), app_name: 'customer-job', status: 'pending',
+    grants: [{ action: 's3:GetObject', resource: 'arn:aws:s3:::customer-data/reports/*' }] };
+  await page.clock.fastForward(10100);
+  const badge = page.getByLabel('Pending notifications', { exact: true });
+  await expect(badge).toHaveText('1');
+  await page.getByRole('button', { name: 'Notifications', exact: true }).click();
+  await expect(badge).toHaveText('1'); // Reading never resolves a permission request.
+  await expect(page.getByText("You're all caught up.")).toHaveCount(0);
+  await page.getByRole('button', { name: /customer-job AWS access needs your approval/ }).click();
+  await expect(page.getByText('App access', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('AWS access needs attention', { exact: true })).toBeVisible();
+  await expect(page.getByText('arn:aws:s3:::customer-data/reports/*', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: action, exact: true }).click();
+  await expect(badge).toHaveCount(0);
+  await expect(page.getByLabel('AWS access needs attention', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('button', { name: 'Notifications', exact: true }).click();
+  await expect(page.getByText("You're all caught up.")).toBeVisible();
+  expect(state.unexpected).toEqual([]);
+  expect(state.errors).toEqual([]);
+});
+
+test('grant approval notifications are not shown to a member who cannot manage the connection', async ({ page }) => {
+  const state = await fixture(page, true, false);
+  state.access.pending = { id: 'f'.repeat(32), app_name: 'owner-only-job', status: 'pending', grants: [] };
+  await page.goto('/apps');
+  await page.getByRole('link', { name: 'Continue test sign-in' }).click();
+  await expect.poll(() => state.requests.some((r) => r.path === '/api/byoc/connection')).toBe(true);
+  await page.getByRole('button', { name: 'Notifications', exact: true }).click();
+  await expect(page.getByText("You're all caught up.")).toBeVisible();
+  await expect(page.getByLabel('Pending notifications', { exact: true })).toHaveCount(0);
+  expect(state.requests.some((r) => r.path === '/api/byoc/access')).toBe(false);
   expect(state.unexpected).toEqual([]);
   expect(state.errors).toEqual([]);
 });

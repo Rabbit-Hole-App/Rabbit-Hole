@@ -1,6 +1,6 @@
 {
   "name": "small-skill",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Agent skill for small-deploy: teaches Claude Code/Codex to deploy a Python tool behind a work-email login in one command",
   "bin": {
     "small-skill": "bin/install.js"

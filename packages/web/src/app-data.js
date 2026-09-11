@@ -48,7 +48,7 @@ export function createAwsRunApi(client, connection, name = connection.job_name) 
     const data = typeof body === 'string' ? JSON.parse(body) : body || {};
     if (method === 'GET' && url.pathname === '/api/apps/' + name) {
       const job = await aws('/job');
-      return { inputs: job.deployment?.inputs || {}, outputs: {}, deployment: job.deployment,
+      return { inputs: job.deployment?.inputs || {}, constants: job.deployment?.constants || {}, outputs: {}, deployment: job.deployment,
         deployed_at: utc(job.deployment?.created_at) };
     }
     if (url.pathname === '/api/runs') {

@@ -99,7 +99,7 @@ In order: `small.toml` (`entry`), `--entry` flag, framework hint
 convention (`app.py`/`main.py`/`server.py`), only `.py` file. Every deploy
 prints what was chosen.
 
-## Private AWS installation (CLI 0.0.10)
+## Private AWS installation (CLI 0.0.13)
 
 Use the Small URL supplied by your company's administrator. The existing
 customer AWS installation must have CPU jobs enabled; release `0.1.0-pilot.5.1`
@@ -107,7 +107,7 @@ adds configurable app grants and file uploads. Installing this CLI does not
 install or update that stack. Existing single-folder S3 configurations remain compatible.
 
 ```sh
-npm install -g small-deploy@0.0.10
+npm install -g small-deploy@0.0.13
 small login --api https://small.example.com
 small workspaces
 small skill
@@ -125,7 +125,9 @@ CLI runs over SSH, forward port `8766` to that host before signing in;
 `--no-browser` prints the login link but does not set up forwarding.
 
 The private AWS pilot supports CPU jobs, scalar inputs, files (up to five,
-10 MiB each), and exact per-app AWS grants. Declare `[aws] grants` as a single-line
+10 MiB each), fixed `[constants]`, input and constant tooltips, and exact per-app AWS grants.
+Constants reach the job as typed `SMALL_CONSTANTS` JSON and appear read-only in
+Run. Declare `[aws] grants` as a single-line
 array of `{ action = "...", resource = "..." }` entries. Deployment waits for
 approval in Settings > Connections > AWS. The customer administrator controls
 available actions through the stack's `AppGrantActions` parameter; adding an

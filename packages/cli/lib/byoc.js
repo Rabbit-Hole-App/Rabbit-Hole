@@ -69,6 +69,7 @@ function zip(files) {
 
 function packageJob(dir, app) {
   const cfg = app.config;
+  if (cfg.constants !== undefined) inputs.checkConstants(cfg.constants);
   if (cfg.type !== 'job') throw new Error('AWS preview supports CPU jobs only: set type = "job"');
   if (cfg.schedule || cfg.storage || cfg.aws?.role_arn || cfg.secrets?.required?.length || cfg.system?.length || cfg.deps?.system?.length) {
     throw new Error('AWS preview does not yet support schedules, persistent volumes, app secrets, extra AWS roles, or system packages');
@@ -133,6 +134,8 @@ async function jobClient(connection) {
 
 async function deploy(dir, app, connection) {
   if (!connection.can_deploy) throw new Error('Only the installer can deploy this AWS job');
+  if (app.config.constants !== undefined && (!connection.private || !connection.constants)) throw new Error('Update the private AWS installation to enable [constants]');
+  if (Object.values(app.config.constants || {}).some(value => value && typeof value === 'object') && !connection.constant_tooltips) throw new Error('Update the private AWS installation to enable constant tooltips');
   const archive = packageJob(dir, app);
   console.log(`✓ target: workspace ${connection.org} · AWS ${connection.account_id} / ${connection.region}`);
   const scope = s3Read(app.config.aws?.s3_read);
@@ -160,7 +163,7 @@ async function deploy(dir, app, connection) {
   if (scope) console.log(`✓ S3 read access: ${scope} (approved in AWS)`);
   console.log(`✓ source: ${archive.length} bytes, sent directly to your AWS account`);
   const aws = await jobClient(connection);
-  let doc = await aws('/deploys', { method: 'POST', body: { entry: app.entry, inputs: app.config.inputs || {}, ...(generic ? { grants: requested } : scope ? { s3_read: scope } : {}) } });
+  let doc = await aws('/deploys', { method: 'POST', body: { entry: app.entry, inputs: app.config.inputs || {}, ...(app.config.constants !== undefined ? { constants: app.config.constants } : {}), ...(generic ? { grants: requested } : scope ? { s3_read: scope } : {}) } });
   const destination = new URL(doc.upload_url);
   if (destination.protocol !== 'https:' || destination.username || destination.password || destination.port || destination.hash
       || !/^[a-z0-9.-]+\.s3\.us-east-1\.amazonaws\.com$/.test(destination.hostname)

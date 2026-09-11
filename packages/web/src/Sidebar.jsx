@@ -11,8 +11,8 @@ import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, M
 const THEMES = { System: 'system', Light: 'light', Dark: 'dark' };
 // ponytail: nav copied verbatim from the Notion reference (user: "copy the same we
 // will remove later") - most items render an empty pane until we prune/wire them.
-function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose }) {
-  const [tab, setTab] = useState('preferences');
+function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initialTab, pendingGrant, onAccessChanged }) {
+  const [tab, setTab] = useState(initialTab || 'preferences');
   const [theme, setThemeState] = useState(() => getTheme());
   const [enterNewline, setEnterNewline] = useState(false); // visual only
   const [textDir, setTextDir] = useState(false); // visual only
@@ -68,7 +68,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose }) {
           <NavBtn id="import" icon={Download}>Import</NavBtn>
           <NavLabel>Features</NavLabel>
           <NavBtn id="ai" icon={Mark}>Small AI</NavBtn>
-          <NavBtn id="connections" icon={LayoutGrid}>Connections</NavBtn>
+          <NavBtn id="connections" icon={LayoutGrid}>Connections{pendingGrant && <span role="status" aria-label="AWS access needs attention" className="ml-auto h-2 w-2 shrink-0 rounded-full bg-warn" />}</NavBtn>
           <NavBtn id="mcp" icon={Share2}>Small MCP</NavBtn>
           <NavBtn id="pages" icon={Globe}>Public pages</NavBtn>
           <NavBtn id="emoji" icon={Smile}>Emoji</NavBtn>
@@ -132,7 +132,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose }) {
               <div className="pt-2 text-base text-ink-2">Bring small into the tools your team already uses</div>
               {(isPrivateByoc || import.meta.env.VITE_BYOC_DEV === 'true') && <>
                 <Heading>AWS</Heading>
-                <AwsConnection workspace={org} apps={apps} onChanged={onReload} />
+                <AwsConnection workspace={org} apps={apps} onChanged={onReload} onAccessChanged={onAccessChanged} />
               </>}
               <Heading>Slack</Heading>
               <SettingsRow title="Slack" desc="@small in channels, /small commands, proposals as buttons.">
@@ -469,6 +469,29 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
     return () => window.removeEventListener('small:search-state', on);
   }, []);
   const [showSettings, setShowSettings] = useState(false);
+  const [grantNotice, setGrantNotice] = useState(null);
+  const pendingGrant = grantNotice?.org === org ? grantNotice.pending : null;
+  const onAccessChanged = (pending) => setGrantNotice({ org, pending });
+  useEffect(() => {
+    if (!isPrivateByoc && import.meta.env.VITE_BYOC_DEV !== 'true') return;
+    let cancelled = false, loading = false;
+    const load = async () => {
+      if (loading || document.hidden) return;
+      loading = true;
+      try {
+        const { connection } = await api('/api/byoc/connection');
+        if (cancelled) return;
+        const state = connection?.state === 'connected' && connection.can_deploy
+          ? await api('/api/byoc/access') : null;
+        if (!cancelled) setGrantNotice({ org, pending: state?.pending || null });
+      } catch { /* Keep the last known request until the next successful refresh. */ }
+      finally { loading = false; }
+    };
+    load();
+    const timer = setInterval(load, 10000);
+    window.addEventListener('focus', load);
+    return () => { cancelled = true; clearInterval(timer); window.removeEventListener('focus', load); };
+  }, [org]);
   const [watchObs, setWatchObs] = useState([]);
   const [watchRuns, setWatchRuns] = useState([]); // my settled runs, last 3 days
   const [watchOpen, setWatchOpen] = useState(false);
@@ -799,7 +822,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           <MenuItem icon={LogOut} onClick={() => { window.location.href = '/logout'; }}>Log out</MenuItem>
         </Menu>
       </div>
-      {showSettings && <SettingsDialog email={email} org={org} apps={apps} onReload={onReload} onMarkRead={markRead} onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsDialog email={email} org={org} apps={apps} onReload={onReload} onMarkRead={markRead} onClose={() => setShowSettings(false)} initialTab={typeof showSettings === 'string' ? showSettings : undefined} pendingGrant={pendingGrant} onAccessChanged={onAccessChanged} />}
       {newApp && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={() => setNewApp(false)}>
           <div className="mt-[22vh] w-[420px] max-w-[90vw] rounded-2xl bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
@@ -861,9 +884,9 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             <Bell size={16} strokeWidth={1.5} className="shrink-0" />
             <span className={cn('overflow-hidden whitespace-nowrap transition-[max-width] duration-200 ease-out', watchOpen ? 'max-w-[110px] pl-1.5' : 'max-w-0')}>Notifications</span>
           </button>
-          {unread.length > 0 && (
-            <span className="pointer-events-none absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warn px-1 text-[10px] font-semibold text-white">
-              {unread.length}
+          {(unread.length > 0 || pendingGrant) && (
+            <span role="status" aria-label="Pending notifications" className="pointer-events-none absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warn px-1 text-[10px] font-semibold text-white">
+              {unread.length + (pendingGrant ? 1 : 0)}
             </span>
           )}
         </div>
@@ -878,6 +901,17 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
               <IconBtn aria-label="Close" onClick={() => setWatchOpen(false)}><X size={14} /></IconBtn>
             </div>
           <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+            {pendingGrant && <button
+              onClick={() => { setWatchOpen(false); setShowSettings('connections'); }}
+              className="flex w-full cursor-pointer items-start gap-2 rounded-sm border-b border-line px-1 py-2.5 text-left text-sm hover:bg-hover"
+            >
+              <AlertTriangle size={15} strokeWidth={1.5} className="mt-0.5 shrink-0 text-warn" />
+              <span className="min-w-0 flex-1">
+                <span className="font-medium">{pendingGrant.app_name}</span>
+                <span className="block text-ink-2">{pendingGrant.status === 'stale' ? 'AWS access request needs refreshing' : ['applying', 'updating'].includes(pendingGrant.status) ? 'AWS access approval in progress' : 'AWS access needs your approval'}</span>
+                <span className="block pt-0.5 text-xs text-ink-3">Review in Settings → Connections</span>
+              </span>
+            </button>}
             {/* read rows are gone - only what arrived since the last open shows, and Clear empties it now */}
             {(watchObs.some((o) => o.first_seen > panelReadAt) || watchRuns.some((r) => r.finished_at > panelReadAt)) && (
               <div className="flex justify-end pt-1 pb-1">
@@ -889,7 +923,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
                 </button>
               </div>
             )}
-            {!watchObs.some((o) => o.first_seen > panelReadAt) && !watchRuns.some((r) => r.finished_at > panelReadAt) && (
+            {!pendingGrant && !watchObs.some((o) => o.first_seen > panelReadAt) && !watchRuns.some((r) => r.finished_at > panelReadAt) && (
               <div className="pt-2 text-sm text-ink-2">You're all caught up.</div>
             )}
             {watchRuns.filter((r) => r.finished_at > panelReadAt).map((r) => (

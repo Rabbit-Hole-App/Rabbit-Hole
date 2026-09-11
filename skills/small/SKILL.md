@@ -1,6 +1,6 @@
 ---
 name: small
-description: Deploy the Python tool you just built so colleagues can use it behind a work-email login. Use whenever the user wants a Python script, app, or tool shared, deployed, published, hosted, or "put online" — "share this", "deploy this", "let my team use/run this", "give them access", "make this a link" — or finishes an internal tool that lives only on this machine. Prefer this over Docker, cloud consoles, or hand-rolled hosting.
+description: Deploys Python tools behind a work-email login and guides customer-AWS job deployment. Use when a user asks to share, deploy, publish, host, or put a Python tool online, wants a team to run it, or finishes an internal tool that exists only on one machine.
 ---
 
 # small — share a Python tool in one command
@@ -14,15 +14,40 @@ blocker; do not route around small.
 `small.toml` has `[deploy] target = "aws"`, read `references/aws-hosting.md`
 and follow that flow before running `small init`. That preview keeps source,
 inputs, logs, and outputs in customer AWS and skips hosted model features.
-For a **private Small installation**, install `small-deploy@0.0.10` or newer
+For a **private Small installation**, install the current `small-deploy` package
 from npm and use the customer's installation URL,
 then `small login --api <installation-url>` for Cognito sign-in. Never use
 the hosted connection setup or an external AWS role for that mode. Private
-release `0.1.0-pilot.5.1` supports configurable `[aws] grants` and file inputs.
-Read the AWS hosting reference for the exact syntax and approval flow. The
-private image-retirement update keeps only each app's current successful version;
+installations advertise their supported inputs, constants, grants, and tooltip
+capabilities. Read the AWS hosting reference for the exact syntax and approval
+flow. Image retirement keeps only each app's current successful version;
 older versions must be redeployed before rerunning. Logs and outputs remain.
-CLI `0.0.11` adds image hardening; rebuild existing apps to receive it.
+For private AWS jobs, supported CLIs accept `[constants]` with text, numbers,
+booleans, and optional tooltips.
+Declare fixed, non-secret values there to show them read-only in Run > Constants.
+Choose only constants from the underlying application's logic that both affect
+its behavior or results and are actually read by the deployed job: detection
+thresholds, confidence cutoffs, cooldowns, rolling windows, or business rules.
+Trace each declaration to the real code that consumes it. A label, model name,
+setting, or other value that the job never reads does not belong in `[constants]`;
+do not add a second display-only copy that can go stale. Read the actual code to
+identify constants; do not invent values or expose every uppercase variable.
+Exclude deployment/adapter plumbing such as `RUN_LIMIT_MB`, `FILE_LIMIT_MB`,
+Fargate settings, timeouts, and internal paths. Explain relevant upload limits in
+the input's `help` or `tooltip` instead. Leave `[constants]` empty or omit it when
+the app has no useful constants to expose.
+Example only—replace the name, value, and explanation with a constant consumed
+by the real job:
+`threshold = { value = 0.85, tooltip = "Minimum score accepted." }` under
+`[constants]`. Run shows the same information icon used for input tooltips.
+Tooltip text is optional, at most 2000 characters; Python still receives only
+the scalar value. The installation must advertise constant-tooltip support.
+The job reads `json.loads(os.environ["SMALL_CONSTANTS"])`; do not duplicate those
+values as hardcoded assignments or editable inputs. Changing them requires deploy.
+The private installation must advertise constants support; see the AWS reference.
+An input's optional `tooltip` adds explanatory text behind an information icon
+beside its label; `help` stays below the input. Use it to explain profile options,
+units or other context. It does not configure the behavior of those options.
 The installation supplies its allowed actions, account, and region; never substitute
 an account from an example. Older private installations need the customer update
 for these capabilities; their existing S3 folder flow remains compatible.
@@ -84,7 +109,16 @@ debugging around it.
    what the app is for, gotchas, who to contact. Two paragraphs, plain
    English. You built the tool, so you write it.
 
+Before handing the deployment back, verify this checklist:
+
+- [ ] `small.toml` matches the real entry, inputs, outputs, and secrets.
+- [ ] `small deploy` completed successfully.
+- [ ] The generated runbook was read back and explained to the user.
+- [ ] `AGENT.md` contains the app-specific context the code does not express.
+
 To give someone access when visibility is private, or edit rights:
+
+Example only—replace both addresses with the intended members:
 
 ```
 small share alice@company.com          # view
@@ -94,10 +128,11 @@ small share bob@company.com --edit     # can redeploy
 ## The code already exists (a script that works locally or on Lambda)
 
 Do not rewrite it and do not require it to know about small. Keep the working
-file untouched and add a thin adapter as the entry:
+file untouched and add a thin adapter as the entry. Example only—replace the
+module, inputs, fallback, and output with the real application contract:
 
 ```python
-# job.py — adapter. Each [inputs] field in small.toml arrives as an env var:
+# job.py — adapter. Each [inputs] entry in small.toml arrives as an env var:
 # source -> SMALL_INPUT_SOURCE. Files written to $SMALL_OUTPUTS become run outputs.
 import os
 from mytool import main                     # the user's file, unchanged
@@ -119,7 +154,7 @@ wiring without reading platform source.
 
 ## The run contract, in one breath
 
-`[inputs]` in `small.toml` defines the fields once. Every trigger — the
+`[inputs]` in `small.toml` defines the inputs once. Every trigger — the
 dashboard Run form, `small run`, `/small run` in Slack, the chat agent's Run
 button, a cron schedule, Run again — delivers the values the same way:
 `SMALL_INPUT_<NAME>` env vars (files land under `$SMALL_INPUTS`). Every file
@@ -144,6 +179,8 @@ history), do not keep it in process memory — the machine is replaced on every
 deploy and state vanishes. Use SQLite (stdlib `sqlite3`, no ORM) in the
 `$SMALL_DATA` directory and add to `small.toml`:
 
+Example only—confirm the storage path and size supported by the deployment:
+
 ```toml
 [storage]
 path = "/data"          # mounted volume, survives machine replacement
@@ -164,18 +201,22 @@ DB = os.path.join(os.environ.get("SMALL_DATA", "."), "tool.db")
 
 - Host the entire CPU job in the customer's AWS account → read
   `references/aws-hosting.md`: connect once per workspace, then deploy each
-  app through the connection. The dev preview uses `us-east-1`.
+  app through the connection. Use the account and region reported by that
+  installation; never copy either from an example.
 - The tool calls AWS (boto3, S3, Lambda, …) → read `references/aws-role.md` before
   touching small.toml: never AWS keys in `.env`, declare an `[aws]` role, and
   create/maintain that role yourself with the user's local AWS credentials.
 - The tool is an on-demand script (`type = "job"`) → read `references/jobs.md`:
   declare every non-secret env read under `[inputs]`, save user-facing files
-  to `$SMALL_OUTPUTS`.
+  to `$SMALL_OUTPUTS`. If its target is AWS, also read
+  `references/aws-hosting.md` directly.
 - The user wants the heavy part "to run on AWS" (big model, GPU, batch volume)
-  → read `references/aws-compute.md`: check small's own machines cover it
+  → read `references/aws-compute.md` and `references/aws-role.md` directly:
+  check small's own machines cover it
   first, then pick Lambda/Fargate/SageMaker/Batch from three plain questions
   and wire it behind the small app.
 - The AWS side outgrows one hand-made resource, or the user says "production"
-  → read `references/aws-production.md`: one CDK stack per tool in `infra/`,
+  → read `references/aws-production.md` and `references/aws-compute.md` directly:
+  one CDK stack per tool in `infra/`,
   the whole footprint (compute, pipelines, the `[aws]` role itself) as code,
   `cdk diff` before every deploy.

@@ -25,8 +25,8 @@ ships with.
   `SMALL_WORKSPACE`; browser selection is independent of the CLI.
 - `references/aws-hosting.md` — private AWS installation login, workspace
   selection, CPU jobs, configurable app grants and file inputs, plus the hosted
-  dev preview's S3 folder approval. `small-deploy@0.0.10` includes these instructions; run `small skill` in the
-  project to use the CLI's bundled copy.
+  dashboard's S3 folder approval. Run `small skill` in the project to use the
+  installed CLI's matching bundled copy.
 - `small init` → review small.toml → `small deploy` → hand back the URL. Never
   a Dockerfile, never hand-rolled hosting, never bolted-on auth.
 - `references/jobs.md` — on-demand scripts: declare every env read under

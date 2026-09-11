@@ -2,12 +2,16 @@
 
 Read this when the tool is a script that runs on demand (`type = "job"`).
 
-For `[deploy] target = "aws"`, also follow `references/aws-hosting.md`.
+For `[deploy] target = "aws"`, `SKILL.md` routes directly to the additional AWS
+hosting reference.
 Its MVP input types and available triggers are narrower than the hosted
 contract described here.
 
 Every non-secret `os.environ` read in a job is an input — declare it in
 `small.toml` instead of leaving it an undeclared env var:
+
+Example only—replace the inputs, values, bounds, labels, and file types with the
+real job contract:
 
 ```toml
 [inputs]
@@ -21,10 +25,10 @@ annotated = { path = "annotated.jpg", label = "Annotated image" }
 Six types: `file`, `number`, `select`, `date`, `text`, `bool`. Callers pass
 them as flags — `small run app --image ./photo.jpg --threshold 0.7` — and the
 dashboard renders a Run form from the same declaration: a `number` with both
-`min` and `max` draws as a slider (plus a typed box), `select` a dropdown,
-`bool` a toggle, `file` a dropzone, `date` a date picker. Text fields also
+`min` and `max` draws as a slider with a typed input, `select` a dropdown,
+`bool` a toggle, `file` a dropzone, and `date` a date picker. Text inputs also
 batch: the `+` beside one (or a multi-line paste into it) adds value rows and
-submit starts one run per value — other fields shared, 25 runs max. Slack (`/small run`),
+submit starts one run per value with other inputs shared, up to the product limit. Slack (`/small run`),
 the chat agent's Run proposals, cron, and Run again all feed the same
 declaration too: the script receives identical env vars no matter who or what
 started the run. In the script:
@@ -42,7 +46,9 @@ container: only `$SMALL_OUTPUTS` survives the machine.
 
 ## Schedules
 
-A job that should run itself carries a standard 5-field cron expression, UTC:
+A job that should run itself carries a standard five-part cron expression, UTC.
+Example only—the schedule below means 09:00 UTC on weekdays; replace it with the
+user's requested schedule:
 
 ```toml
 type = "job"
@@ -58,7 +64,7 @@ scheduled job's script must fall back in code,
 `os.environ.get("SMALL_INPUT_THRESHOLD", "0.5")`, or not be scheduled.
 
 S3 in/out: declare the URI and destination bucket as `text` inputs and use
-boto3 in the script — see references/aws-role.md for the role.
+boto3 in the script. `SKILL.md` routes AWS callers directly to the role reference.
 
 ## Existing scripts
 

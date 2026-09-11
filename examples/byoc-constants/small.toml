@@ -1,0 +1,14 @@
+name = "constants-proof"
+entry = "job.py"
+type = "job"
+
+[deploy]
+target = "aws"
+
+[inputs]
+score = { type = "number", default = 0.9, min = 0, max = 1, help = "Enter the score to check.", tooltip = "The score is compared with the deployed threshold shown in Constants. A score at or above the threshold is accepted when enabled is true." }
+
+[constants]
+threshold = { value = 0.85, tooltip = "Minimum score accepted. Scores below this threshold are rejected." }
+region = "us-east-1"
+enabled = true

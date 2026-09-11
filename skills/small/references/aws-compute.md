@@ -1,8 +1,8 @@
 # Heavy compute on the user's AWS — choosing and wiring it
 
 This reference covers a hosted app delegating a heavy operation to AWS. When
-the user wants the entire CPU job hosted in their account, first follow
-`references/aws-hosting.md`; do not replace that choice with hosted compute.
+the user wants the entire CPU job hosted in their account, use the AWS hosting
+route in `SKILL.md`; do not replace that choice with hosted compute.
 
 Read this when the user wants their script "to run on AWS" — a model too big
 for the app machine, batch inference, GPU, or an existing AWS account they
@@ -11,8 +11,8 @@ must use.
 ## First: does it need AWS at all?
 
 Most "run it on AWS" asks really mean "run it not-on-my-laptop". That is
-`small deploy` (server) or `small run` (job) — 2 GB machine, no AWS account,
-no extra moving parts. Reach for AWS compute only when the work truly does
+`small deploy` (server) or `small run` (job), with no customer AWS account or
+extra moving parts. Reach for AWS compute only when the work truly does
 not fit: model or data too large, GPU required, more than a few minutes per
 item at real volume, or the data already lives in their AWS. Say so in one
 sentence and let the user choose.
@@ -29,14 +29,13 @@ Then decide:
 
 | Situation | Pick | Why |
 |---|---|---|
-| MVP, bursty, one item < 15 min, CPU is fine | **Lambda** (container image) | Zero idle cost, scales to zero, the yolo demo shape |
+| MVP, bursty, one item fits Lambda's current execution limits, CPU is fine | **Lambda** (container image) | Zero idle cost and scales to zero |
 | Steady volume, long-running items, still CPU | **Fargate** (ECS service or task) | No 15-min limit, no cold starts at volume |
 | Needs a GPU | **SageMaker endpoint** (or ECS on GPU EC2) | Lambda and Fargate have no GPUs |
 | Huge offline backlog, nobody waiting | **AWS Batch** | Queue it, let it drain cheap |
 
-Default to **Lambda** for anything that smells like an MVP — a torch model
-fits a Lambda container image (10 GB limit; the small demo runs YOLOv8 this
-way). Do not offer the whole table to the user; pick one and say why in one
+Default to **Lambda** for an MVP that fits the service limits verified for the
+customer's region and account. Do not offer the whole table to the user; pick one and say why in one
 sentence ("bursty and small — Lambda, it costs nothing while idle").
 
 ## Roles — two directions, never mixed
@@ -44,7 +43,7 @@ sentence ("bursty and small — Lambda, it costs nothing while idle").
 Every choice needs IAM on **both sides**. Name them all `small-<app-name>-<purpose>`.
 
 **Side 1 — roles the service itself runs as** (create these with the user's
-local credentials, per the consent style in references/aws-role.md):
+local credentials after stating what will be created and why):
 
 | Compute | Create | It needs |
 |---|---|---|
@@ -63,23 +62,23 @@ local credentials, per the consent style in references/aws-role.md):
 | SageMaker endpoint | `sagemaker:InvokeEndpoint` on that endpoint ARN |
 | Batch | `batch:SubmitJob` on the job queue + job definition |
 
-Update rule is the same as references/aws-role.md: a new AWS call in code = one
-new statement, named resource, before redeploying; remove statements when the
+For every new AWS call in code, add one statement for its named resource before
+redeploying; remove statements when the
 call goes. The service's own role never gets what only the app needs, and the
 small role never gets what only the service needs.
 
 ## Wiring it into small
 
 The small app stays the front door — login, Run form, runbook, logs. AWS only
-does the heavy call:
+does the heavy call. Use this checklist:
 
-1. Provision with the user's local AWS credentials (same consent style as
-   references/aws-role.md: one sentence about what you are creating, then create).
+- [ ] Provision with the user's local AWS credentials after one sentence explaining
+   what will be created and why.
    For Lambda: build the container image, push to ECR, create the function.
-2. The small app invokes it with boto3 through the `[aws]` role — add exactly
+- [ ] Let the small app invoke it with boto3 through the `[aws]` role — add exactly
    `lambda:InvokeFunction` on that one function ARN (or the equivalent single
    permission for Fargate/SageMaker/Batch) to the role's inline policy.
-3. Deploy with `small deploy` — the role verification and review will show the
+- [ ] Deploy with `small deploy` — the role verification and review will show the
    AWS call. For a job, results still go to `$SMALL_OUTPUTS`; the Lambda
    returns bytes or writes S3 and the job copies them there.
 

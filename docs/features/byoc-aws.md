@@ -28,17 +28,40 @@ live in the grant implementation. Consult that document for the grants release
 results and the image lifecycle link above for the subsequent update. The earlier
 milestones below record their original scope and results.
 
+Pending grant approvals also appear in the sidebar notification bell and as an
+orange dot on Settings > Connections. Clicking the notification opens the
+existing approval screen. [Notification behavior and tests](byoc-aws-grants.md#approval-notifications)
+are part of the [private dashboard UI update](byoc-dev.md#approval-notification-and-logs-ui-update),
+which also keeps long Logs input values on one line with full values on hover.
+Run outputs use compact file rows with the existing Open and Download controls;
+the Logs panel no longer automatically loads or displays output file contents.
+
+## Run constants
+
+[Constants specification](byoc-constants.md) defines `[constants]` in `small.toml`,
+read-only Run values, and the typed `SMALL_CONSTANTS` JSON supplied to Python.
+CLI `0.0.13` and an updated private installation are required. The bundled skill
+and [AWS hosting reference](../../skills/small/references/aws-hosting.md#fixed-values-in-run--constants)
+describe the declaration and runtime access. Old apps keep their existing inputs.
+Private dev `0.1.0-dev.9` and live `0.1.0-pilot.6.8` are installed.
+`small-deploy@0.0.13` is published as npm `latest` with constant tooltips, the
+reviewed selection rule, bundled skill, and AWS reference.
+
+The next dev update adds optional constant tooltips using the existing input
+information icon. See the [constants contract](byoc-constants.md) for the inline
+definition syntax and compatibility with scalar values.
+
 ## Private Agent and Logs chat with Bedrock
 
 [The chat specification](byoc-bedrock-chat.md) connects the existing Agent tab,
 Logs chat, and enlarged layouts using the private backend's own Bedrock role.
 Agent reads the job definition and recent run evidence; individual run chats
 keep their own history. Source code and builder sessions are not yet included.
-The implementation and local tests are ready; Amazon installation deployment
-is pending the user's inference-region choice. The available US Sonnet profile
-routes within us-east-1, us-east-2, and us-west-2. No new model permissions have
-been deployed to the Amazon account. Shared dev has the updated components;
-private chat appears only when the installation advertises its model capability.
+Bedrock is enabled on private dev `0.1.0-dev.3` and live `0.1.0-pilot.6.2`.
+The user approved the US Sonnet profile routing within us-east-1, us-east-2,
+and us-west-2. A real dev run answer, follow-up, and saved history passed;
+both installations advertise the capability that makes the composer visible.
+See the linked specification for deployed and browser verification details.
 
 ## CLI npm release: 0.0.9 (2026-09-10)
 

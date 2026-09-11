@@ -7,7 +7,7 @@ import AwsS3Access from './AwsS3Access.jsx';
 const dataInfo = 'Your source, inputs, logs, and outputs stay in your AWS account. Small stores the connection details.';
 
 // AWS installation lives alongside the other workspace connections.
-export default function AwsConnection({ workspace, apps = [], onChanged }) {
+export default function AwsConnection({ workspace, apps = [], onChanged, onAccessChanged }) {
   const [connection, setConnection] = useState(undefined), [jobName, setJobName] = useState('cpu-job');
   const [accountId, setAccountId] = useState('');
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
@@ -90,6 +90,6 @@ export default function AwsConnection({ workspace, apps = [], onChanged }) {
     {connection?.state === 'installed' && <p className="mt-3 text-xs text-ink-3">AWS has registered the installation. Finish connecting verifies this account and workspace.</p>}
     {connection && !connection.can_deploy && connection.state !== 'connected' && <p className="mt-3 text-xs text-ink-3">{connection.owner_email} manages this connection.</p>}
     {error && !confirmDisconnect && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
-    {connection?.state === 'connected' && <AwsS3Access key={connection.id} connection={connection} />}
+    {connection?.state === 'connected' && <AwsS3Access key={connection.id} connection={connection} onAccessChanged={(pending) => onAccessChanged?.(connection.can_deploy ? pending : null)} />}
   </div>;
 }

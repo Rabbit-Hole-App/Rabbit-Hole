@@ -12,8 +12,9 @@ Never use the personal account or the shared Cloudflare AWS connection for Amazo
 | --- | --- | --- |
 | Stack | `small-private-byoc-dev` | `small-private-byoc` |
 | Workspace | `w-small-aws-dev` / Small AWS Dev | `w-small-aws` / Small AWS |
-| Apps | `dev-cpu-job`, `dev-word-count` | Existing apps including drift-debug, oof-debug, overreach-debug |
-| Release | `0.1.0-dev.2` | `0.1.0-pilot.5.2` |
+| Apps | `dev-cpu-job`, `dev-word-count`, `constants-proof` | `drift-debug`, `oof-debug`, `overreach-debug` |
+| Dashboard release | `0.1.0-dev.10` | `0.1.0-pilot.6.8` |
+| Infrastructure release | `0.1.0-dev.10` | `0.1.0-pilot.6.8` |
 | URL | https://dviorrcko52ft.cloudfront.net/apps | https://d3sgti338uxlc.cloudfront.net/apps |
 
 The existing Cognito user directory is shared, with a **separate public app client**
@@ -50,6 +51,57 @@ For colleagues, open the dev URL and sign in. They need no CLI or SSH tunnel.
 
 ## Build and deploy
 
+### Approval notification and Logs UI update
+
+The existing notification bell links pending AWS grants directly to Settings >
+Connections, whose navigation item also carries an orange dot. Resolved requests
+clear both indicators; reading the notification does not approve access. See the
+[notification contract](byoc-aws-grants.md#approval-notifications).
+
+Logs table input values now use one line with ellipsis and their full value on
+hover, including long file names. Run details retain the original complete inputs.
+Browser regressions cover row height, overflow, full hover values, notification
+navigation, approval/cancellation, and connection-manager visibility, alongside
+the existing login, Run, Logs, Agent, and chat-history scenarios.
+
+The update packages dev `0.1.0-dev.4` and live `0.1.0-pilot.6.3`; each contains
+209 verified files and an unchanged infrastructure template. Live promotion was
+explicitly requested. Dev retains its sample Coaching tabs; live hides them.
+
+Both stacks reached `UPDATE_COMPLETE` and installer `finish` published their
+dashboards. Dev covered 13 browser scenarios across the suite and the corrected
+Logs-selector rerun; live passed 12, with the dev-only preview scenario skipped.
+The four new regressions exercise notifications and long input cells. Existing
+Bedrock chat and history tests remain green. Approval actions in these tests use
+synthetic API fixtures; no customer grants were approved or cancelled by testing.
+
+### Operator steps
+
+The subsequent UI-only release keeps run outputs as compact file rows in the
+shared run details component, including the right Logs panel and enlarged view.
+File name, size, Open in new tab, and Download remain; output bodies and image
+previews are no longer fetched automatically or rendered inline. Input-file
+previews and Logs chat keep their existing behavior.
+
+Dev `0.1.0-dev.5` and live `0.1.0-pilot.6.4` use installer `finish` to publish
+dashboard assets after verifying the current AWS template exactly matches the
+packaged template. The stacks retain their previous infrastructure release tags.
+Two focused browser scenarios passed for each build: output controls and no body
+fetch on opening Logs, plus chat, history, and enlarged run details.
+
+The constants and input-tooltip release is dev `0.1.0-dev.9` and live
+`0.1.0-pilot.6.8`. Both stacks reached `UPDATE_COMPLETE`, and installer `finish`
+published the separate dev/live dashboard builds. The edge index for each URL
+matched its packaged index byte for byte. Live retained exactly the three ready
+apps listed above. The dev `constants-proof` app completed a real Fargate run and
+returned its deployed constants unchanged. See [the constants specification and
+evidence](byoc-constants.md).
+
+Dev `0.1.0-dev.10` adds optional information tooltips beside individual
+constants. The `constants-proof` app was redeployed with a threshold explanation;
+its real run finished successfully while `SMALL_CONSTANTS` contained only the
+three scalar values. Live remains on `0.1.0-pilot.6.8`.
+
 Installation settings are local operator configuration:
 `.small/byoc-private/installation-dev.json`. Each immutable release lives under
 `.small/byoc-private/releases/<version>/`. The package checksums cover the exact
@@ -73,7 +125,7 @@ Separate stacks and authorization provide isolation; these UI flags do not.
 From the repository root, after choosing a fresh version in the dev config:
 
 ```powershell
-node packages/byoc/package-private.mjs .small/byoc-private/installation-dev.json .small/npm-release/0.0.11/small-deploy-0.0.11.tgz
+node packages/byoc/package-private.mjs .small/byoc-private/installation-dev.json .small/npm-release/0.0.13/small-deploy-0.0.13.tgz
 ```
 
 Transfer the release to the customer dev box. In that release directory:
@@ -142,10 +194,11 @@ Proof state and the synthetic app archives are under ignored
 `.small/byoc-private/dev-test-apps/`. The verified release is also staged on the
 Amazon dev box at `/home/cyudhist/small-private-byoc-dev-0.1.0-dev.1/`.
 
-Bedrock activation remains pending the inference-region decision documented in
-[the chat specification](byoc-bedrock-chat.md). No model profile is configured in
-this first dev installation; sample Sessions/Sources/Capture/Decisions do not feed
-model calls.
+The subsequent dev `0.1.0-dev.3` and live `0.1.0-pilot.6.2` releases enable
+Bedrock in Logs and Agent chat with the user's approved US inference profile.
+See [activation evidence](byoc-bedrock-chat.md#activation-evidence-2026-09-11)
+for the real dev answer, follow-up, history, and UI verification. Sample
+Sessions/Sources/Capture/Decisions still do not feed model calls.
 
 Cognito clients created through the API require a managed login branding entry;
 the dev client uses Cognito's defaults. [AWS documentation](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-managed-login.html)

@@ -1,4 +1,4 @@
-# Coaching UI and dev deployment
+# Coaching: product, ideas, tasks, and results
 
 Coaching helps builders and colleagues understand how an app was built through
 the app's Agent tab. This release adds an inspection UI with sample data around
@@ -8,6 +8,353 @@ The [Coaching benchmark protocol](coaching-benchmark.md) and
 [measured pilot results](../testing/coaching-benchmark-results.md) compare source,
 session, and extracted-decision context in a separate evaluation harness. These
 experiments do not connect extraction to the app or change the sample UI.
+
+This is the central Coaching document. Keep proposed work, task status, and
+links to supporting specifications and measured results here as we build.
+The brainstorm below is proposed work, not an approved implementation or a
+claim that the sample inspection tabs already feed Chat.
+
+## Why we are building Coaching
+
+The builder already explained choices and corrected their coding agent while
+making the app. A colleague should be able to recover that judgment without
+finding the builder or learning the repository first. The builder should also
+be able to recover their own reasoning later.
+
+Both people use Small's existing Coach Agent interface. Coaching connects what
+was intended, what was deployed, and what happened when the app ran. Its core
+questions are:
+
+- What does this app do, and how should I use it?
+- Why was it built this way? What alternatives were rejected?
+- What happened in this run, and what should I try next?
+- What depends on this choice, and what is still unknown?
+
+An answer must distinguish a recorded reason, an observed result, and an
+inference. A plausible explanation is not evidence of the builder's intention.
+
+## What exists and what we have tested
+
+| Area | Status | Specification and evidence |
+| --- | --- | --- |
+| Inspection UI | Sessions, Sources, Capture, and Decisions are sample views. Their contents do not feed Chat. Existing chat controls and evidence navigation are preserved. | [Views](#views), [shared presentation](#shared-presentation), and [release verification](#release-and-verification) below |
+| Context experiment 1 | Completed: 30 questions comparing sources, session context, and extracted decisions. Five excerpts came from one real session, not five independent sessions. | [Protocol](coaching-benchmark.md), [measured results](../testing/coaching-benchmark-results.md) |
+| Context experiment 2 | Completed: five distinct sessions, 30 questions, 60 answers. Decisions plus retrieval did not meet the declared success rule. | [Protocol](coaching-retrieval-benchmark.md), [measured results](../testing/coaching-retrieval-results.md) |
+| Evaluation harness | Offline preparation, capture, answering, grading, and reporting exist. Subscription runs do not imply a production model integration. | [Harness and reproduction commands](../../tests/evals/coaching/README.md), [tests](../../tests/evals/coaching/test_bench.py) |
+| Private AWS app/run chat | Enabled on dev and live with job definitions and run evidence. Real dev Bedrock answers, follow-up, and separate histories passed. It does not include builder sessions or design decisions. | [Bedrock chat specification and verification](byoc-bedrock-chat.md) |
+| Private AWS dev | Separate installation with test apps and sample Coaching tabs. Future Amazon Coaching work is tested here before approved live promotion. | [Dev installation and deployment](byoc-dev.md) |
+
+Experiment 2 scored **12/30 strict passes for Session and 11/30 for Decisions
+plus retrieval**. Retrieval reduced answering input by 7.4%, but used 13.8%
+more total input after extraction. Unsupported answers were judged in 7 cases
+for Retrieval versus 4 for Session. JSON-format failures affected 27 of 60
+answers. The separately labeled content diagnostic scored 22/30 and 21/30.
+These are provisional automated judgments from related work in one repository.
+They do not establish human usefulness or a production-ready retrieval design.
+
+Implication: keep full visible session context as a measured baseline. Test
+retrieval improvements against it; do not assume smaller context gives better
+answers. Keep answer-format failures separate from factual quality while still
+counting them against a declared strict result.
+
+## Ideas from Glen
+
+[Glen](https://www.tryglen.com/) advertises continuous capture from coding agents
+and company tools, automatic context injection, a shared transcript library,
+permission-aware recall, and explanations of why code exists. These are their
+published claims; we have not tested their product or verified their agent-clone
+mechanism. The lessons below are our proposed application of those ideas.
+
+| Idea | Application to Small |
+| --- | --- |
+| Relevant context arrives automatically | Chat knows the selected app, deployment, and run. The user can inspect what was included without assembling the context manually. |
+| Preserve the original evidence | Extracted decisions link back to the precise conversation and deployed source that support them. |
+| Connect knowledge to the user's work | Explain a failed run using operational evidence, and explain design choices using the builder's recorded reasoning. |
+| Carry knowledge forward | Associate decisions with versions and identify changed or unresolved anchors before reusing old reasoning. |
+| Make knowledge shared and permissioned | Colleagues can use approved app knowledge only while they retain access to its supporting material. |
+| Learn from questions | Unanswered questions and builder corrections can improve future answers, with explicit review and provenance. |
+
+Our proposed focus is the app the colleague actually uses: its purpose, inputs,
+versions, runs, and builder reasoning. Company-wide connectors, shared skills,
+and session takeover are later possibilities, not prerequisites for this MVP.
+
+## Proposed tasks
+
+C01's first evidence manifest and six diagnostic questions are prepared below.
+Production ingestion and Chat integration remain **not started**. Existing
+preview components and benchmark code are reusable starting points. A checked
+task should link to its implementation and verification evidence.
+
+| ID | Task | Concrete result | Depends on |
+| --- | --- | --- | --- |
+| C01 | Define the first app and questions | One dev app, its actual builder session, matching source snapshot, and a frozen question set spanning purpose, usage, reasons, runs, and unknowns. | None |
+| C02 | Define the data and permission boundary | Document what can be read, stored, shared, and sent to the selected model, including full visible sessions. Establish deletion and access-revocation behavior before ingestion. | C01 |
+| C03 | Connect real Sessions and Sources | Authorized session messages and matching deployed files appear in the existing inspectors with stable IDs and version metadata. | C02 |
+| C04 | Connect Capture and decision review | Extraction produces traceable candidates; validation catches unsupported reasons and missing code anchors. The builder can approve, correct, or discard a candidate. | C03 |
+| C05 | Assemble context for each question | Select authorized evidence using the current app/run/version and question. Record exactly what the model received and what was omitted. Compare full-session and retrieval approaches. | C03; C04 for decision context |
+| C06 | Connect that evidence to Chat | Answer through the existing composer, History, New Chat, and enlarged layout. Explain purpose, use, design, and observed behavior without inventing missing reasoning. | C05 |
+| C07 | Open exact evidence from answers | Citation tags open the relevant message group, source lines, decision, or log entry in the shared inspector, with working Back and Minimize. | C03, C06 |
+| C08 | Capture gaps and builder corrections | A user can mark an answer wrong or record an unanswered question. A reviewed correction becomes sourced knowledge; an unreviewed chat answer never becomes a fact automatically. | C04, C06 |
+| C09 | Handle knowledge across deployments | Preserve historical reasoning, flag changed anchors, and link superseding decisions. Avoid using an old reason as an explanation of a different version. | C03, C04 |
+| C10 | Evaluate and review the complete experience | Run the frozen benchmark, audit failures, and have a colleague try the dev app. Link the report and an explicit continue/revise decision here. | C01 for protocol; C06/C07 for end-to-end evaluation |
+
+### C01-C03: real inputs and traceability
+
+- Choose authorized Small development material for the first test. For Amazon
+  material, use the private AWS dev installation and its permitted processing
+  path; do not send it through shared Small services.
+- Resolve the full-session storage and model-processing policy explicitly.
+  The earlier local-only proposal and later full-context experiments are not
+  interchangeable authorization for production ingestion.
+- Preserve session and message IDs, speakers, ordering, timestamps when present,
+  source hashes, and deployment/commit associations. Do not manufacture metadata
+  missing from a session export or claim access to hidden model reasoning.
+- Keep raw input inspection separate from normalized model input. Show redaction,
+  omissions, and truncation so debugging explains what the model actually saw.
+- Apply access checks before retrieval, answering, and opening citations. A
+  citation must not reveal a session that the viewer cannot access.
+- Define the import interaction before changing the UI. The removed Add session
+  button should not silently reappear as part of backend work.
+
+### C04-C05: useful memory and context
+
+- Candidate decisions include the choice, alternatives, reason or explicit
+  unknown, evidence, code anchor, constraints, dependencies, and revisit condition
+  when recorded. Missing fields remain missing; extraction does not fill them by
+  guessing.
+- Keep design reasoning distinct from operational observations. A successful run
+  demonstrates behavior, not why the builder originally chose the implementation.
+- Full visible sessions, approved decisions, source snapshots, and run evidence
+  have different roles. Chat history is conversation context, not an approved
+  decision store.
+- Preserve corrections and nearby conversation when retrieving. Conflicting
+  statements should retain their order and provenance rather than being silently
+  merged into a single confident answer.
+- Use version and permission filtering before ranking. Record selected IDs,
+  context size, omissions, and retrieval time for evaluation and inspection.
+- On removal or revoked access, stop using the affected evidence and define how
+  dependent answers, summaries, and caches are invalidated. Do not claim deletion
+  regenerates every view until that behavior is implemented and tested.
+
+### C06-C09: the colleague's experience
+
+- From the app, explain declared behavior and recorded design reasoning. From a
+  run, use that run's deployment and observations; do not silently substitute the
+  latest deployment's source.
+- Use compact evidence tags after supported claims. Reuse `SourcePreview`,
+  `colorLine`, and `ExpandedPageFrame`; retain the existing chat controls and
+  sidebar rather than introducing a separate Coaching page.
+- Derive Continue exploring suggestions from the user's recent questions and
+  stated goal. Prefer useful next questions such as which input to change or
+  which recorded constraint matters, without assuming a goal they never stated.
+- Show unknowns plainly. The MVP can report gaps in answers before adding the
+  persistent gap-and-correction workflow in C08.
+- Start version safety with exact deployment association and unresolved-anchor
+  warnings. Automatic semantic supersession and dependency warnings in C09 need
+  their own evidence and evaluation before being presented as reliable.
+- Coaching initially explains and guides. Running jobs, editing code, approving
+  grants, or deploying from chat would be a separate scope decision.
+
+## Proposed MVP order and checklist
+
+The first complete experience is: a colleague opens one dev app, asks what it
+does, why it was built that way, and how to use it, then opens the supporting
+evidence without leaving the normal app interface.
+
+- [x] Prepare C01's app, source/session evidence manifest, and six diagnostic questions: [dev-word-count](#first-app-evidence-manifest-dev-word-count).
+- [ ] Confirm C02's session-sharing and model-processing boundary before inference or ingestion.
+- [ ] Freeze the C10 evaluation protocol before tuning the implementation.
+- [ ] Establish a full-session baseline in the existing evaluation harness.
+- [ ] Compare C05's proposed context strategy before adding production memory.
+- [ ] Connect C03's real session and versioned source to the existing inspectors.
+- [ ] Add C04's candidate extraction, validation, and review.
+- [ ] Connect C06 using the measured context strategy.
+- [ ] Complete C07's exact citations and dev review.
+- [ ] Run C10, record failures and results, and decide the next iteration.
+- [ ] After that slice is useful, consider persistent corrections (C08) and
+  richer version/supersession handling (C09).
+
+Basic permission enforcement, exact version association, and truthful unknowns
+belong in the first slice. Richer memory automation can follow it.
+
+## Next execution plan
+
+This sequence makes the next deliverable concrete. Implementation remains
+proposed; writing this plan does not activate ingestion, inference, or deployment.
+
+1. **Prepare one real app's evidence (C01-C02).** Inventory the available dev
+   apps and builder sessions, then select one with a verifiable source/version
+   match. Prefer Small-owned development material for the first experiment.
+   Produce an evidence manifest containing app and deployment identifiers,
+   session/message references, source hashes, missing inputs, and the agreed
+   processing boundary. Do not silently choose a session that merely mentions
+   the app or use synthetic dialogue as its history.
+2. **Freeze six diagnostic questions (C01/C10).** Cover purpose, use, one design
+   choice, one rejected alternative, one operational observation, and one
+   genuinely unknown reason. Record supporting evidence and forbidden claims
+   before generating answers. These six questions are development diagnostics;
+   they do not replace the separate 30-question held-out comparison.
+3. **Measure a simple baseline, then one challenger (C05/C10).** Start with a
+   fresh model given the complete permitted visible session and matching source.
+   A proposed challenger is a fresh model with bounded, read-only tools to search
+   and open the same eligible evidence. It may follow a citation or fetch nearby
+   messages before answering. It cannot execute code, browse other projects,
+   access scoring rubrics, or change the app. Freeze tool limits and total model
+   budgets; count search calls and all intermediate tokens. Fix output-contract
+   reliability on development cases before the held-out run. Keep failures in
+   the results instead of silently retrying until they pass.
+4. **Connect the selected approach to one dev app (C03-C07).** Show its real
+   authorized inputs in Sessions/Sources and answer through the existing Chat.
+   Connect Capture/Decisions when candidate extraction and review are implemented;
+   keep preview fixtures visibly separate until then. Full-session answering must
+   not depend on inventing or approving an unnecessary decision record. Evidence
+   tags open exact source locations with the existing navigation and layouts.
+5. **Check the complete flow (C10).** Test version matching, permission denial,
+   missing/removed evidence, failed model requests, and citation destinations.
+   Ask a colleague to complete a defined task using the dev app. Report this
+   human trial separately from automated answer scores. Link the results here
+   before deciding whether to promote or revise the feature.
+6. **Add memory improvements only after the first useful flow (C08-C09).**
+   Prioritize reviewed corrections and recurring gaps, then stale-decision and
+   supersession handling. Defer company-wide connectors, automatic shared skills,
+   and action-taking tools.
+
+The first action is **step 1: identify the app, session, and matching source**.
+Its deliverable is the evidence manifest and proposed six questions, not another
+UI mockup or a new extraction architecture. App selection and any unresolved
+data-processing choices must be settled before dependent implementation.
+
+### What we mean by an agent with historical context
+
+Glen's phrase "agent clone" does not establish a technical implementation.
+For our experiment, use precise names: **full-session answering** and
+**read-only evidence-search agent**. Both start fresh from recorded evidence;
+neither copies a model's private state or recreates the original agent's mind.
+Simply loading the original conversation is already the full-session baseline,
+so renaming it a clone would not create a meaningful third comparison arm.
+
+The search-agent challenger is a proposal to test whether fetching additional
+evidence when needed improves on the earlier fixed BM25 selection. It is not a
+claim about how Glen works or an assumption that agentic search is better.
+
+## First app evidence manifest: dev-word-count
+
+Prepared 2026-09-11 after the user approved the next evidence-preparation step.
+This is a development diagnostic, not a completed model experiment.
+
+| Field | Verified value |
+| --- | --- |
+| App | `dev-word-count` |
+| Interface | [Private AWS dev app](https://dviorrcko52ft.cloudfront.net/apps/dev-word-count) |
+| Workspace | `w-small-aws-dev` |
+| Current deployment at verification | `d-1789112453520-696d4b54be60`, ready |
+| Image digest | `sha256:02e428d46d128af23ede187e1b83012049454cbc6f7f80d3de3efeb19662d417` |
+| Source archive SHA-256 | `ab51b208b3ed66c11d4290a761069208d0ed970ebdda582f65a56d501e0f7c00` |
+| `job.py` SHA-256 | `13eec9043446be01edb0d5c03f56887aa3d774dedc0a6eb53061568c45c7adc8` |
+| `small.toml` SHA-256 | `13dd91a7c969b0ff45916545e6791c603771e2312220397c41cea147236c5ed6` |
+| Builder session | Codex `01a0782a-6ed1-7513-84da-e7e9ff746866` |
+| Original private dev deployment | `d-1789107898516-5810db9c3213`; the current deployment is a later image-hardening rebuild |
+| Current-version recorded run | `r-1789112779853-ed52e9f64414`, finished, exit 0, `report.json` listed |
+
+The current source hashes were computed inside customer AWS and compared with
+the local prepared app files. Both match byte for byte. The deployed `job.py`
+also matches [the tracked word-count example](../../examples/byoc-word-count/job.py).
+The example's tracked configuration uses `aws-word-count`; the deployed
+configuration uses `dev-word-count`. Do not treat that name difference as a
+byte-identical config match. The matching local configuration is under ignored
+`.small/byoc-private/dev-test-apps/dev-word-count/small.toml`.
+
+The session contains the actual command copying the existing example into the
+private dev app, not just a later mention of its name. It is a long mixed-work
+session: dev setup and later image hardening are separate episodes within it.
+Neither a single app-only conversation nor a complete original algorithm-design
+discussion has been established. This makes it useful for wiring and unknowns,
+but insufficient by itself to validate rich design-reasoning capture.
+
+### Evidence references
+
+The operator-local transcript is
+`~/.codex/sessions/2026/09/06/rollout-2026-09-06T12-20-42-01a0782a-6ed1-7513-84da-e7e9ff746866.jsonl`.
+Line numbers below refer to original `response_item` records, not duplicate
+event notifications, compaction summaries, or this later planning discussion.
+They are source locations, not native message UUIDs. The transcript is not
+copied into this repository or sent to a model by this preparation step.
+
+| ID | Location | What it establishes |
+| --- | --- | --- |
+| E1 | Matching `job.py`, lines 5-10 | Whitespace splitting, total count, lowercase distinct count, JSON output, and stdout. |
+| E2 | Matching deployed `small.toml`, lines 1-12 | App name, Python entry, AWS job type, required text input/default, and report declaration. |
+| E3 | Session line 16702, assistant, 2026-09-11 05:55:59 UTC | Explicit alternatives: use existing apps/data or separate test apps/data; using existing data would execute real jobs. |
+| E4 | Session line 16709, user, 2026-09-11 05:58:47 UTC | User chose separate dev test apps while live keeps drift, oof, and overreach. |
+| E5 | Session line 16940, tool call `call_7NJ9sd2AnKQTUJmOivTUFZPN` | Prepared `dev-word-count` by copying the existing `byoc-word-count` example. |
+| E6 | Session line 17635, tool call `call_6BGcozDdK6VXicmIYVE1Wsot` | Requested the later word-count rebuild; a tool request alone does not prove build success. |
+| E7 | `.small/byoc-private/image-proof/dev-verified.json` | Saved rollout verification associates the rebuilt version with a finished run and a listed `report.json`; not a fresh run during this preparation. |
+| E8 | AWS metadata/hash comparison performed during this preparation | Confirms the current deployment and its source bytes; source stayed in AWS during this remote check. |
+
+Original record SHA-256 values, hashing UTF-8 JSONL text without its line ending:
+E3 `a56f310aeeea92870c1ba60ec9579761525ea7fd0bcd594f04362d13f92da449`;
+E4 `2b0ba54fa1e775daf341b7878ae2dfeed109571acab2665b124c3ff74800db2d`;
+E5 `0d5a3158eac10f699d22cd262af5fb99fe16b42939e3ce92db16edde28f395b4`.
+E7's file SHA-256 is
+`c3cc13ac11e98ea49a89c2a06d550b70f5cf365554e06c83980f3f6e8f786262`.
+These hashes identify evidence; they do not make the transcript tamper-proof or
+turn reported outcomes into independent execution tests.
+
+### Six diagnostic questions and expected evidence
+
+These questions and expected criteria are prepared before any new answers.
+They may be used to debug the harness; keep them out of the later held-out score.
+
+| ID | Question | Expected answer and evidence | Claims to reject |
+| --- | --- | --- | --- |
+| D1: purpose | What does this app do, and what result do I get? | Counts whitespace-separated words and case-insensitive unique tokens; writes `report.json` containing `word_count` and `unique_words`. E1/E2. | Semantic language analysis, punctuation normalization, or external text-service calls. |
+| D2: use | What should I enter, and what should `Small small dev works` return? | Enter it in the Text input. Source predicts 4 words and 3 unique words; use Run, then inspect the report. E1/E2. This is a source-derived prediction, not a newly executed result. | Claiming this exact input was run in this preparation, or confusing total count with unique count. |
+| D3: design | Why is this test app in a separate dev installation? | The user wanted separate test apps while live retained the business apps. E3/E4/E5. This is the environment decision, not a reason for the counting algorithm. | A claim that word counting technically requires a dedicated AWS account or installation. |
+| D4: alternative | Could we have tested against the live apps and their data instead? Why did we choose otherwise? | The assistant offered shared existing apps/data versus separate test apps/data; the user selected separation. Cite E3/E4 and explain the stated real-job execution consequence. | Invented cost, latency, or regulatory studies; claiming the user explained more than their recorded choice. |
+| D5: operations | Was this deployed version ever run successfully, and what does the evidence actually prove? | E7 records the specified run finished with exit 0 and `report.json` listed; E8 identifies the matching current deployment. It proves that recorded sample run, not arbitrary inputs, load performance, or today's browser login. | Mixing the original deployment's run with the rebuilt deployment, claiming a fresh run, or treating file existence as proof every result field is correct. |
+| D6: unknown | Why use `split()` and lowercase tokens instead of a tokenizer? Was accuracy benchmarked? | E1 shows the implementation. The selected build episode does not record a tokenizer comparison or accuracy benchmark. Say the reason is unknown in this evidence. | Presenting simplicity, speed, or benchmark superiority as the builder's recorded rationale. |
+
+Remaining boundary decisions: which visible session episodes may enter model
+context and who may inspect/share them. Bedrock's US model routing was separately
+approved for app/run chat; that does not settle builder-session ingestion. The whole
+mixed session is not implicitly eligible because one app was selected. Candidate
+selection and local inspection are complete; inference, production ingestion,
+new UI controls, and deployment were not performed. No secrets, raw customer
+job data, hidden reasoning, or retrospective planning messages should be added
+to the evaluation evidence without a separate, applicable authorization.
+
+## Next evaluation proposal
+
+Reuse the five-session, 30-question structure, with fresh held-out questions for
+claims about improvement. Keep the existing experiments as historical baselines;
+do not silently revise their frozen questions or reinterpret their scores.
+
+Compare the same model, evidence eligibility, answer instructions, and output
+budget across full-session context and the proposed retrieval strategy. Report
+extraction cost separately and included in total usage. For subscription-based
+experiments, keep the user's existing subscription preference; production BYOC
+inference uses the customer's configured provider, not a personal subscription.
+
+| Measure | What to record |
+| --- | --- |
+| Answer quality | Required criteria covered, unsupported claims, correct treatment of unknowns, and strict pass count with a fixed denominator. |
+| Evidence quality | Citations that resolve, citations that support the claim, omitted decisive corrections, and version mismatches. |
+| Output reliability | Format failures, timeouts, and incomplete answers, separately from factual quality. |
+| Access and removal | Cross-app/user access denial and inability to retrieve removed evidence. These need deterministic tests, not an LLM judge. |
+| Efficiency | Serving and extraction tokens, retrieval time, and end-to-end answer latency. |
+| Human usefulness | Whether a colleague completes a defined app task correctly, time needed, and interruptions to the builder. Report separately from model scores. |
+
+Proposed selection rule: a retrieval approach must match or improve strict
+quality without increasing unsupported answers before token savings justify
+choosing it. No unauthorized evidence or fabricated citation is acceptable in
+the deterministic access/citation tests. A small pilot is a decision aid, not
+proof of general reliability. Report both wins and failures and agree on any
+numeric release thresholds before running the experiment.
+
+Open decisions before implementation: the first app and session, permitted
+full-session handling, model and inference region, session import interaction,
+who can review knowledge, and the exact evaluation thresholds. None requires
+changing the current UI just to review this brainstorm.
 
 ## Views
 
@@ -28,7 +375,7 @@ The [private AWS Bedrock chat](byoc-bedrock-chat.md) uses the same Agent chat UI
 History, New Chat, and enlarged page. Its context is the app's job definition and
 recent run evidence. Private app chat and Logs run chat have separate histories;
 the four sample inspection tabs do not feed either model call. Private AWS
-deployment remains pending the inference-region choice documented in that spec.
+chat is enabled on private dev and live with the approved US Bedrock profile.
 
 Capture keeps the existing five-step list and inspector. Each step's **Contents**
 view presents its sample input or output in a readable format:
@@ -136,6 +483,15 @@ preserves the approved AWS app integration. Default builds disable both previews
 
 ## Release and verification
 
+Private dev `0.1.0-dev.3` and live `0.1.0-pilot.6.2` enable the existing Logs and
+Agent chat composers. Both reached `UPDATE_COMPLETE`; nine dev and eight live
+browser scenarios passed. A real Bedrock answer used the synthetic dev run's
+counts, a follow-up retained context, and app/run histories remained separate.
+The live catalog advertises chat on drift, oof, and overreach. See
+[activation evidence](byoc-bedrock-chat.md#activation-evidence-2026-09-11).
+This activates operational chat, not session extraction or the proposed Coaching
+evidence-search experiment. The entries below retain earlier release history.
+
 Shared dev version `859bb0e8-a938-411f-8a81-a4ee5f5a4db3` preserves both preview
 flags with private mode off. The new [private AWS dev installation](byoc-dev.md)
 enables the same sample inspection tabs in its existing Agent tab, including when
@@ -148,8 +504,8 @@ existing History, New Chat, source picker, Open as page, and Minimize chat.
 Both preview flags remain enabled; private mode stays off on shared dev.
 135 Python BYOC tests, 10 private template tests, and all eight private browser
 scenarios passed. Independent review found no blocker. Private release
-`0.1.0-pilot.6.1` is packaged locally; Amazon deployment and actual inference
-still await the region choice. The shared dev deployment does not enable
+`0.1.0-pilot.6.1` was packaged locally; Amazon deployment and actual inference
+then awaited the region choice. The shared dev deployment does not enable
 Bedrock for hosted apps or send Amazon evidence through Cloudflare.
 
 Dev version `f20958cd-0f09-431e-96ff-8a411b2ce2dc` includes the shared components
@@ -158,7 +514,8 @@ chat remains available; private run chat is enabled by the AWS installation's
 capability response. Both dev preview flags remain enabled and private mode is
 off on shared dev. The private browser flow covers answers, follow-ups, History,
 New Chat, enlarged runs, and switching runs without retaining the previous chat.
-The Amazon stack update and real Bedrock answer are pending the region choice.
+At that stage the Amazon update and real Bedrock answer awaited the region choice;
+the later activation is recorded above.
 
 Dev version `91767f6b-a02e-479a-b1dd-648689c68c23` reduces the normalization
 status banner to one muted line, with the explanation on hover. The contents
