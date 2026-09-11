@@ -37,6 +37,19 @@ discovers these capabilities from the installation; older releases need an
 installation update for grants and uploads. Installing the CLI alone is not
 that update.
 
+### Images and successful replacements
+
+On installations with image retirement, a successful deploy replaces that app's
+current version. Failed or unfinished replacements leave its working version
+available. Older deployment IDs cannot start new runs or uploads: deploy the old
+source again to run it. Small removes replaced build images after their jobs
+finish; run history, logs, and outputs remain. No seven-day rollback window.
+
+CLI `0.0.11` and later upgrade available Debian
+packages before Python requirements and remove Perl last. Rebuild existing apps
+to receive the fix; an installation update does not rebuild their images.
+The generated image deliberately does not support system packages or Perl.
+
 ### Declare the app's AWS permissions
 
 Read the app's actual SDK operations and resource configuration. Declare only

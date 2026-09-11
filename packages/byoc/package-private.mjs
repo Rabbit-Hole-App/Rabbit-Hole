@@ -12,7 +12,8 @@ if (!/^\d{12}$/.test(config.accountId) || config.region !== 'us-east-1'
     || !config.workspaceName || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/.test(config.version)) throw new Error('Invalid installation configuration');
 const output = resolve(root, '.small/byoc-private/releases', config.version);
 if (existsSync(output)) throw new Error('This release version already exists; choose a new version');
-const web = resolve(root, 'packages/web/dist-private');
+// Image/backend-only updates can reuse the exact installed dashboard artifact.
+const web = process.argv[4] ? resolve(process.argv[4]) : resolve(root, 'packages/web/dist-private');
 if (!existsSync(join(web, 'index.html'))) throw new Error('Build the dashboard with VITE_PRIVATE_BYOC=true first');
 const cli = process.argv[3];
 if (config.jobs && (!cli || !existsSync(cli))) throw new Error('CPU releases require the CLI archive as the third argument');
@@ -22,7 +23,9 @@ cpSync(fileURLToPath(new URL('./install-private.py', import.meta.url)), join(out
 if (cli) cpSync(cli, join(output, 'small-deploy.tgz'));
 const template = makePrivateTemplate({ ...config, apiCode: readFileSync(fileURLToPath(new URL('./private_api.py', import.meta.url)), 'utf8'),
   grantsCode: readFileSync(fileURLToPath(new URL('./grants.py', import.meta.url)), 'utf8'),
+  chatCode: readFileSync(fileURLToPath(new URL('./private_chat.py', import.meta.url)), 'utf8'),
   ...(config.jobs ? { jobCode: readFileSync(fileURLToPath(new URL('./api.py', import.meta.url)), 'utf8'),
+    cleanupCode: readFileSync(fileURLToPath(new URL('./image_cleanup.py', import.meta.url)), 'utf8'),
     permissionsCode: readFileSync(fileURLToPath(new URL('./permissions.py', import.meta.url)), 'utf8') } : {}) });
 writeFileSync(join(output, 'template.json'), JSON.stringify(template));
 const sha256 = {};

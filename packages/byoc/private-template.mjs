@@ -1,13 +1,23 @@
 // First private BYOC slice: existing dashboard, Cognito, customer-local catalog.
 import { makeTemplate } from './template.mjs';
-import { withGrants } from './python-source.mjs';
+import { createHash } from 'node:crypto';
+import { withGrants, withPrivateChat } from './python-source.mjs';
 const ref = (name) => ({ Ref: name });
 const att = (name, field) => ({ 'Fn::GetAtt': [name, field] });
 const sub = (value) => ({ 'Fn::Sub': value });
 
 export function makePrivateTemplate({ poolId, clientId, cognitoDomain, apiCode, workspace = 'w-small-aws',
-  cliRedirectUri = 'http://127.0.0.1:8766/auth/callback', jobCode, permissionsCode, grantsCode, ownerEmail, installationId, jobName }) {
-  apiCode = withGrants(apiCode, grantsCode);
+  cliRedirectUri = 'http://127.0.0.1:8766/auth/callback', jobCode, permissionsCode, grantsCode, chatCode, ownerEmail, installationId, jobName,
+  bedrockModelId, bedrockModelRegions, cleanupCode, protectedResourceArns = [] }) {
+  if (!Array.isArray(protectedResourceArns) || protectedResourceArns.length > 32 || JSON.stringify(protectedResourceArns).length > 2400
+      || protectedResourceArns.some(arn => typeof arn !== 'string' || !/^arn:aws:(?:s3:::[A-Za-z0-9_./*-]+|[a-z0-9-]+:us-east-1:\d{12}:[A-Za-z0-9_./:*-]+)$/.test(arn))) {
+    throw new Error('Invalid protected resource ARNs');
+  }
+  apiCode = withPrivateChat(withGrants(apiCode, grantsCode), chatCode);
+  if (bedrockModelId && (!jobCode || !/^(us\.)?anthropic\.[a-z0-9.:-]+$/.test(bedrockModelId)
+      || !Array.isArray(bedrockModelRegions) || !bedrockModelRegions.includes('us-east-1')
+      || bedrockModelRegions.some((region) => !['us-east-1', 'us-east-2', 'us-west-2'].includes(region))
+      || (!bedrockModelId.startsWith('us.') && bedrockModelRegions.length !== 1))) throw new Error('Invalid Bedrock model or Regions');
   if (!/^us-east-1_[A-Za-z0-9]+$/.test(poolId) || !/^[a-z0-9]{1,128}$/.test(clientId)
       || !/^https:\/\/[a-z0-9-]+\.auth\.us-east-1\.amazoncognito\.com$/.test(cognitoDomain)
       || !/^w-[a-z0-9-]{1,40}$/.test(workspace) || !apiCode
@@ -142,6 +152,69 @@ export function makePrivateTemplate({ poolId, clientId, cognitoDomain, apiCode, 
     }
     resources.Headers.Properties.ResponseHeadersPolicyConfig.SecurityHeadersConfig.ContentSecurityPolicy.ContentSecurityPolicy
       += ' https://*.s3.us-east-1.amazonaws.com';
+    if (cleanupCode) {
+      resources.JobApiFunction.Properties.Environment.Variables.IMAGE_RETENTION = 'current';
+      resources.ImageCleanupLogs = { Type: 'AWS::Logs::LogGroup', Properties: {
+        LogGroupName: sub('/aws/lambda/${AWS::StackName}-images'), RetentionInDays: 7 } };
+      resources.ImageCleanupRole = { Type: 'AWS::IAM::Role', Properties: {
+        AssumeRolePolicyDocument: { Version: '2012-10-17', Statement: [
+          { Effect: 'Allow', Principal: { Service: 'lambda.amazonaws.com' }, Action: 'sts:AssumeRole' }] },
+        Policies: [{ PolicyName: 'retire-replaced-images', PolicyDocument: { Version: '2012-10-17', Statement: [
+          { Effect: 'Allow', Action: 's3:ListBucket', Resource: att('DataBucket', 'Arn') },
+          { Effect: 'Allow', Action: 's3:GetObject', Resource: [
+            'deploys/*/record.json', 'apps/*/deploys/*/record.json', 'runs/*/record.json', 'apps/*/runs/*/record.json',
+            '_image_cleanup/activation.json'].map(path => sub('${DataBucket.Arn}/' + path)) },
+          { Effect: 'Allow', Action: 's3:PutObject', Resource: sub('${DataBucket.Arn}/_image_cleanup/activation.json') },
+          { Effect: 'Allow', Action: ['ecr:DescribeImages', 'ecr:BatchDeleteImage'], Resource: att('Repository', 'Arn') },
+          { Effect: 'Allow', Action: 'codebuild:BatchGetBuilds', Resource: att('BuildProject', 'Arn') },
+          { Effect: 'Allow', Action: 'ecs:ListTasks', Resource: '*', Condition: { ArnEquals: { 'ecs:cluster': att('Cluster', 'Arn') } } },
+          { Effect: 'Allow', Action: 'ecs:DescribeTasks', Resource: sub('arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:task/small-byoc-' + installationId.slice(0, 12) + '/*') },
+          { Effect: 'Allow', Action: ['logs:CreateLogStream', 'logs:PutLogEvents'], Resource: sub('${ImageCleanupLogs.Arn}:*') },
+        ] } }],
+      } };
+      resources.ImageCleanupFunction = { Type: 'AWS::Lambda::Function', DependsOn: ['JobApiFunction', 'ImageCleanupLogs'], Properties: {
+        FunctionName: sub('${AWS::StackName}-images'), Runtime: 'python3.13', Handler: 'index.handler',
+        Role: att('ImageCleanupRole', 'Arn'), Timeout: 120, MemorySize: 256, ReservedConcurrentExecutions: 1,
+        Code: { ZipFile: cleanupCode }, Environment: { Variables: { BUCKET: ref('DataBucket'), REPOSITORY: att('Repository', 'RepositoryUri'),
+          CLUSTER: ref('Cluster'), JOB_NAME: jobName, RETENTION_REVISION: createHash('sha256').update(jobCode + cleanupCode).digest('hex') } },
+      } };
+      resources.ImageCleanupSchedule = { Type: 'AWS::Events::Rule', Properties: {
+        ScheduleExpression: 'rate(5 minutes)', State: 'ENABLED',
+        Targets: [{ Id: 'cleanup', Arn: att('ImageCleanupFunction', 'Arn') }],
+      } };
+      resources.ImageCleanupInvoke = { Type: 'AWS::Lambda::Permission', Properties: {
+        FunctionName: ref('ImageCleanupFunction'), Action: 'lambda:InvokeFunction', Principal: 'events.amazonaws.com',
+        SourceAccount: ref('AWS::AccountId'), SourceArn: att('ImageCleanupSchedule', 'Arn'),
+      } };
+    }
+  }
+  if (bedrockModelId) {
+    resources.ChatTable = { Type: 'AWS::DynamoDB::Table', DeletionPolicy: 'Retain', UpdateReplacePolicy: 'Retain', Properties: {
+      BillingMode: 'PAY_PER_REQUEST', AttributeDefinitions: [{ AttributeName: 'owner', AttributeType: 'S' }, { AttributeName: 'id', AttributeType: 'S' }],
+      KeySchema: [{ AttributeName: 'owner', KeyType: 'HASH' }, { AttributeName: 'id', KeyType: 'RANGE' }],
+      SSESpecification: { SSEEnabled: true }, TimeToLiveSpecification: { AttributeName: 'expires_at', Enabled: true },
+    } };
+    Object.assign(resources.ApiFunction.Properties.Environment.Variables, { CHAT_TABLE: ref('ChatTable'), BEDROCK_MODEL_ID: bedrockModelId });
+    const statements = resources.ApiRole.Properties.Policies[0].PolicyDocument.Statement;
+    statements.push({ Effect: 'Allow', Action: ['dynamodb:GetItem', 'dynamodb:Query', 'dynamodb:PutItem', 'dynamodb:UpdateItem', 'dynamodb:DeleteItem'],
+      Resource: att('ChatTable', 'Arn') });
+    const model = bedrockModelId.replace(/^us\./, '');
+    const models = [...new Set(bedrockModelRegions)].map((region) => sub('arn:${AWS::Partition}:bedrock:' + region + '::foundation-model/' + model));
+    if (bedrockModelId.startsWith('us.')) {
+      const profile = sub('arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/' + bedrockModelId);
+      statements.push({ Effect: 'Allow', Action: 'bedrock:InvokeModel', Resource: profile },
+        { Effect: 'Allow', Action: 'bedrock:InvokeModel', Resource: models, Condition: { ArnEquals: { 'bedrock:InferenceProfileArn': profile } } });
+    } else statements.push({ Effect: 'Allow', Action: 'bedrock:InvokeModel', Resource: models });
+    if (resources.AppAccessBoundary) resources.AppAccessBoundary.Properties.PolicyDocument.Statement.push({ Effect: 'Deny', Action: '*', Resource: att('ChatTable', 'Arn') });
+  }
+  if (protectedResourceArns.length) {
+    if (!resources.AppAccessBoundary) throw new Error('Protected resources require app permissions');
+    for (const name of ['AppAccessBoundary', 'AccessBoundary']) {
+      resources[name].Properties.PolicyDocument.Statement.push({ Effect: 'Deny', Action: '*', Resource: protectedResourceArns });
+    }
+    for (const name of ['ApiFunction', 'JobApiFunction', 'AccessFunction']) {
+      resources[name].Properties.Environment.Variables.SMALL_PROTECTED_RESOURCE_ARNS = JSON.stringify(protectedResourceArns);
+    }
   }
   return { AWSTemplateFormatVersion: '2010-09-09', Description: 'Small private BYOC: Cognito login and the existing Apps dashboard',
     ...(parameters ? { Parameters: parameters } : {}), Resources: resources, Outputs: { SmallUrl: { Value: sub('https://${Distribution.DomainName}') },

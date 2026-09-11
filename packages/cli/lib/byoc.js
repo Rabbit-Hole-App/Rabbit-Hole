@@ -104,9 +104,13 @@ function packageJob(dir, app) {
   };
   walk();
   if (!files.has(app.entry)) throw new Error('Entry is excluded or missing: ' + app.entry);
-  const docker = ['FROM public.ecr.aws/docker/library/python:3.13-slim', 'WORKDIR /app'];
+  const docker = ['FROM public.ecr.aws/docker/library/python:3.13-slim', 'WORKDIR /app',
+    'RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*'];
   if (files.has(deps)) docker.push(`COPY ${JSON.stringify([deps, '/tmp/requirements.txt'])}`, 'RUN pip install --no-cache-dir -r /tmp/requirements.txt');
-  docker.push('COPY . .', 'ENV PYTHONUNBUFFERED=1', 'CMD ' + JSON.stringify(['python', '.small/aws_runner.py', 'python', app.entry]));
+  // Keep the purge last: apt/dpkg package installation depends on perl-base.
+  docker.push('COPY . .', 'ENV PYTHONUNBUFFERED=1',
+    'RUN dpkg --purge --force-remove-essential --force-depends perl-base && rm -rf /usr/bin/perl /usr/lib/*/perl-base && ! command -v perl',
+    'CMD ' + JSON.stringify(['python', '.small/aws_runner.py', 'python', app.entry]));
   files.set('.small/Dockerfile', Buffer.from(docker.join('\n') + '\n'));
   files.set('.small/aws_runner.py', fs.readFileSync(runtimeSource('aws_runner.py')));
   // Our already-filtered archive is the build context. A stale user .dockerignore

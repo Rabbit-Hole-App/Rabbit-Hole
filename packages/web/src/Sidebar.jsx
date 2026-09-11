@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, LayoutGrid, LayoutPanelLeft, Link, LogOut, Mail, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
+import ByocDevBadge from './ByocDevBadge.jsx';
 import { isPrivateByoc } from './private-auth.js';
 import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 
@@ -753,6 +754,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           >
             <span className="grid h-5 w-5 shrink-0 place-items-center rounded-sm bg-ink text-[11px] font-semibold text-white">{(orgName || wsName(org))[0].toUpperCase()}</span>
             <span className="truncate text-sm font-medium">{orgName || wsName(org)}</span>
+            <ByocDevBadge />
             <ChevronDown size={12} className="shrink-0 text-ink-3 opacity-0 group-hover/sb:opacity-100" />
           </button>
           <IconBtn title="Close sidebar" onClick={onCollapse} className="opacity-0 group-hover/sb:opacity-100">

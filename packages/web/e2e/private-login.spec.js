@@ -6,19 +6,24 @@ const origin = 'http://127.0.0.1:5185';
 const config = { issuer: 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_TestPool',
   clientId: 'client123', cognitoDomain: 'https://private-test.auth.us-east-1.amazoncognito.com' };
 const email = 'owner@example.test';
+const devPreview = process.env.BYOC_DEV_TEST === 'true';
 const jwt = (claims) => [Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url'),
   Buffer.from(JSON.stringify(claims)).toString('base64url'), 'synthetic-signature'].join('.');
 
 async function fixture(page, withJob = false) {
   const withFile = withJob === 'files';
+  const withChat = withJob === 'chat';
   const requests = [], unexpected = [], errors = [];
   const runId = 'r-1788978860120-7aa015589f2e';
+  const nextRunId = 'r-1788978861120-7aa015589f2e';
   const app = { name: 'aws-private-proof', org: 'w-small-aws', kind: 'job', hosting: 'aws', privateByoc: true,
     aws_connection: { private: true, account_id: '503561429929', region: 'us-east-1' },
     owner_email: email, visibility: 'domain', canEdit: true, canDeploy: true, members: [], url: '/apps/aws-private-proof' };
   const run = { run_id: runId, status: 'finished', exit_code: 0, inputs: { count: 8 },
     started_at: '2026-09-09T12:00:00+00:00', finished_at: '2026-09-09T12:00:01+00:00', started_by: email };
-  let started = false, uploaded = false, checksum;
+  if (withChat) app.run_chat = app.app_chat = { provider: 'bedrock', model: 'test-model' };
+  let started = withChat, uploaded = false, checksum;
+  const chats = new Map();
   const access = { approved: {}, pending: null, stable: true, approval_enabled: true };
   let authorize;
   page.on('pageerror', (error) => errors.push(error.message));
@@ -47,9 +52,40 @@ async function fixture(page, withJob = false) {
       if (url.pathname === '/oauth2/revoke') return route.fulfill({ json: {} });
     }
     if (url.origin === origin && url.pathname.startsWith('/api/')) {
-      requests.push({ path: url.pathname, authorization: request.headers().authorization });
+      requests.push({ path: url.pathname, authorization: request.headers().authorization,
+        ...(url.pathname === '/api/ask' ? { body: request.postDataJSON() } : {}) });
       if (url.pathname === '/api/auth/config') return route.fulfill({ json: config });
       expect(request.headers().authorization).toBe('Bearer synthetic-access');
+      if (withChat && url.pathname === '/api/ask/threads') {
+        expect(url.searchParams.get('app')).toBe(app.name);
+        const run = url.searchParams.get('scope') === 'run' ? url.searchParams.get('ref') : undefined;
+        if (run) expect([runId, nextRunId]).toContain(run);
+        else expect(url.searchParams.get('ref')).toBe(app.name);
+        return route.fulfill({ json: { threads: [...chats.values()].filter((chat) => chat.run === run).map(({ messages, ...chat }) => chat) } });
+      }
+      if (withChat && url.pathname === '/api/ask') {
+        const body = request.postDataJSON();
+        expect(body.scope.app).toBe(app.name);
+        if (body.scope.run) expect([runId, nextRunId]).toContain(body.scope.run);
+        else expect(body.scope).toEqual({ app: app.name });
+        expect(body.model).toBeUndefined();
+        const id = body.thread_id || 't-1789000000000-' + (chats.size + 1).toString(16).padStart(12, '0');
+        const chat = chats.get(id) || { id, ...body.scope, title: body.message, created_at: '2026-09-10T12:00:00Z', messages: [] };
+        expect(chat.run).toBe(body.scope.run);
+        const answer = body.scope.run ? 'The run finished successfully. The sum of squares was 204.\nSources: run ' + body.scope.run
+          : 'This job accepts a count in the Run tab. Its most recent result was 204.\nSources: Job definition, run ' + runId;
+        chat.messages.push({ role: 'user', content: body.message }, { role: 'assistant', content: answer });
+        chats.set(id, chat);
+        const { messages, ...thread } = chat;
+        return route.fulfill({ json: { answer, threadId: id, thread } });
+      }
+      if (withChat && url.pathname.startsWith('/api/ask/threads/')) {
+        const [, , , , id, operation] = url.pathname.split('/');
+        const chat = chats.get(id);
+        if (operation === 'rename') { chat.title = request.postDataJSON().title; return route.fulfill({ json: { ok: true } }); }
+        if (operation === 'delete') { chats.delete(id); return route.fulfill({ json: { ok: true } }); }
+        return route.fulfill({ json: chat });
+      }
       if (url.pathname === '/api/byoc/access') return route.fulfill({ json: access });
       if (url.pathname === '/api/byoc/access/approve') {
         expect(request.postDataJSON()).toEqual({ request_id: access.pending.id });
@@ -81,6 +117,7 @@ async function fixture(page, withJob = false) {
         }
         if (path === '/runs') return route.fulfill({ json: { runs: started ? [run] : [] } });
         if (path === '/runs/' + runId) return route.fulfill({ json: run });
+        if (withChat && path === '/runs/' + nextRunId) return route.fulfill({ json: { ...run, run_id: nextRunId } });
         if (path.endsWith('/logs')) return route.fulfill({ json: { lines: [{ line: 'Computed 8 squares in customer AWS', timestamp: 1788955200000 }], cursor: null } });
         if (path.endsWith('/outputs')) return route.fulfill({ json: { outputs: [{ name: 'report.json', size: 40,
           url: 'https://customer.s3.us-east-1.amazonaws.com/report.json?signed=fixture' }] } });
@@ -110,7 +147,7 @@ async function fixture(page, withJob = false) {
     unexpected.push(url.origin + url.pathname);
     return route.abort();
   });
-  return { requests, unexpected, errors, access, get authorize() { return authorize; } };
+  return { requests, unexpected, errors, access, chats, get authorize() { return authorize; } };
 }
 
 test('PKCE login opens the existing private dashboard; reload and logout preserve the account boundary', async ({ page }) => {
@@ -123,6 +160,7 @@ test('PKCE login opens the existing private dashboard; reload and logout preserv
   await page.getByRole('link', { name: 'Continue test sign-in' }).click();
   await expect(page).toHaveURL(origin + '/apps');
   await expect(page.getByText('Small AWS', { exact: true }).first()).toBeVisible();
+  await expect(page.getByLabel('Development environment', { exact: true })).toHaveCount(devPreview ? 1 : 0);
   await expect(page.getByText('No apps yet', { exact: false }).first()).toBeVisible();
   const storage = await page.evaluate(() => ({ local: JSON.stringify(localStorage), session: JSON.stringify(sessionStorage) }));
   expect(JSON.stringify(storage)).not.toMatch(/synthetic-(access|refresh)|id_token|code_verifier/);
@@ -136,6 +174,24 @@ test('PKCE login opens the existing private dashboard; reload and logout preserv
   await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
   expect(state.requests.some((request) => request.path === '/api/apps')).toBe(true);
   expect(state.requests.some((request) => request.path.startsWith('/api/byoc/'))).toBe(false);
+  expect(state.unexpected).toEqual([]);
+  expect(state.errors).toEqual([]);
+});
+
+test('private dev exposes the sample Coaching tabs without enabling model calls', async ({ page }, testInfo) => {
+  test.skip(!devPreview, 'Run against the private dev build with BYOC_DEV_TEST=true');
+  const state = await fixture(page, true);
+  await page.goto('/apps/aws-private-proof?tab=agent');
+  await page.getByRole('link', { name: 'Continue test sign-in' }).click();
+  await expect(page.getByLabel('Development environment', { exact: true })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Chat', exact: true })).toHaveAttribute('data-state', 'active');
+  for (const name of ['Sessions', 'Sources', 'Capture', 'Decisions']) {
+    await page.getByRole('tab', { name, exact: true }).click();
+    await expect(page.getByText('Sample data · UI only', { exact: true })).toBeVisible();
+  }
+  await page.getByRole('tab', { name: 'Sessions', exact: true }).click();
+  await page.screenshot({ path: testInfo.outputPath('private-dev-sessions.png'), fullPage: true });
+  expect(state.requests.some(request => request.path.startsWith('/api/ask'))).toBe(false);
   expect(state.unexpected).toEqual([]);
   expect(state.errors).toEqual([]);
 });
@@ -223,6 +279,87 @@ test('the existing private Run form uploads a file directly to customer S3 befor
   await page.locator('input[type=file]').setInputFiles({ name: 'events.txt', mimeType: 'text/plain', buffer: Buffer.from('event-1\nevent-2\n') });
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await expect(page.getByText('Computed 8 squares in customer AWS', { exact: false }).first()).toBeVisible();
+  expect(state.unexpected).toEqual([]);
+  expect(state.errors).toEqual([]);
+});
+
+test('private Logs restores Bedrock chat, followups, history and the enlarged run layout', async ({ page }) => {
+  const state = await fixture(page, 'chat');
+  await page.goto('/apps/aws-private-proof');
+  await page.getByRole('link', { name: 'Continue test sign-in' }).click();
+  await page.getByRole('tab', { name: 'Logs', exact: true }).click();
+  await page.getByRole('cell', { name: '1788978', exact: true }).click();
+  const panel = page.getByRole('dialog');
+  const input = panel.getByPlaceholder('Ask about this run…');
+  await expect(input).toBeVisible();
+  await input.fill('What happened?');
+  await panel.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect(panel.getByText('The run finished successfully.', { exact: false }).first()).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'History', exact: true })).toBeVisible();
+  await input.fill('What was the result?');
+  await panel.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect.poll(() => [...state.chats.values()][0]?.messages.length).toBe(4);
+  await panel.getByRole('button', { name: 'New chat', exact: true }).click();
+  await expect(panel.getByText('The run finished successfully.', { exact: false })).toHaveCount(0);
+  await panel.getByRole('button', { name: 'History', exact: true }).click();
+  await panel.getByRole('button', { name: 'What happened?', exact: false }).click();
+  await expect(panel.getByText('The run finished successfully.', { exact: false })).toHaveCount(2);
+  await panel.getByRole('button', { name: 'Open as page', exact: true }).click();
+  await expect(page).toHaveURL(/\/runs\/r-/);
+  await expect(page.getByPlaceholder('Ask about this run…')).toBeVisible();
+  await expect(page.getByText('The run finished successfully.', { exact: false })).toHaveCount(2);
+  // Change run through the SPA router; a document reload would hide stale component state.
+  await page.evaluate(() => {
+    history.pushState(null, '', '/apps/aws-private-proof/runs/r-1788978861120-7aa015589f2e');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await expect(page.getByText('The run finished successfully.', { exact: false })).toHaveCount(0);
+  await page.getByPlaceholder('Ask about this run…').fill('Explain this second run.');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect.poll(() => state.chats.size).toBe(2);
+  expect([...state.chats.values()].map((chat) => chat.messages.length)).toEqual([4, 2]);
+  expect(state.unexpected).toEqual([]);
+  expect(state.errors).toEqual([]);
+});
+
+test('private Agent uses Bedrock with app history, sources, enlarge and minimize', async ({ page }, testInfo) => {
+  const state = await fixture(page, 'chat');
+  await page.goto('/apps/aws-private-proof?tab=agent');
+  await page.getByRole('link', { name: 'Continue test sign-in' }).click();
+  const input = page.getByPlaceholder('Ask about aws-private-proof…');
+  await expect(input).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Bedrock', exact: true })).toBeVisible();
+  await input.fill('How do I use this app?');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect(page.getByText('This job accepts a count', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Sources', exact: true }).click();
+  for (const label of ['Recent runs', 'Latest run log', 'Latest run outputs']) {
+    await page.getByRole('switch', { name: label, exact: true }).click();
+  }
+  await page.getByRole('button', { name: 'Sources', exact: true }).click();
+  await input.fill('What was its latest result?');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect.poll(() => [...state.chats.values()][0]?.messages.length).toBe(4);
+  expect(state.requests.filter(request => request.path === '/api/ask')[1].body.sources).toEqual([]);
+  await page.getByRole('button', { name: 'New chat', exact: true }).click();
+  await expect(page.getByText('This job accepts a count', { exact: false })).toHaveCount(0);
+  await page.getByRole('button', { name: 'History', exact: true }).click();
+  await page.getByRole('button', { name: 'How do I use this app?', exact: false }).click();
+  await expect(page.getByText('This job accepts a count', { exact: false })).toHaveCount(2);
+  await page.screenshot({ path: testInfo.outputPath('bedrock-agent.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Open as page', exact: true }).click();
+  await expect(page).toHaveURL(/\/chat\?app=aws-private-proof/);
+  await expect(page.getByRole('button', { name: 'Bedrock', exact: true })).toBeVisible();
+  await expect(page.getByText('This job accepts a count', { exact: false })).toHaveCount(2);
+  await page.getByRole('button', { name: 'Minimize chat', exact: true }).click();
+  await expect(page).toHaveURL(/\/apps\/aws-private-proof\?tab=agent/);
+  await expect(page.getByText('This job accepts a count', { exact: false })).toHaveCount(2);
+  await page.getByRole('tab', { name: 'Logs', exact: true }).click();
+  await page.getByRole('cell', { name: '1788978', exact: true }).click();
+  const panel = page.getByRole('dialog');
+  await expect(panel.getByPlaceholder('Ask about this run…')).toBeVisible();
+  await expect(panel.getByText('This job accepts a count', { exact: false })).toHaveCount(0);
+  expect(state.chats.size).toBe(1);
   expect(state.unexpected).toEqual([]);
   expect(state.errors).toEqual([]);
 });

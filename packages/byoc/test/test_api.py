@@ -177,6 +177,24 @@ class DeploymentTests(unittest.TestCase):
 
 
 class RunStartTests(unittest.TestCase):
+    def test_lost_run_task_response_preserves_an_uncertain_start(self):
+        from botocore.exceptions import ReadTimeoutError
+        s3, ecs, stored = Mock(), Mock(), {}
+        s3.generate_presigned_post.return_value = {"url": "https://s3.example", "fields": {}}
+        s3.generate_presigned_url.return_value = "https://s3.example/result"
+        ecs.run_task.side_effect = ReadTimeoutError(endpoint_url="https://ecs.example")
+        with patch.dict(os.environ, {"BUCKET": "test", "CLUSTER": "test", "SUBNETS": "subnet", "TASK_SECURITY_GROUP": "sg"}), \
+                patch.object(api, "deployment", return_value={"id": "d", "status": "ready", "inputs": {}, "task_definition": "task"}), \
+                patch.object(api, "client", side_effect=lambda service: s3 if service == "s3" else ecs), \
+                patch.object(api, "put_doc", side_effect=lambda key, doc, **kw: stored.update({key: dict(doc)})), \
+                self.assertRaises(ReadTimeoutError):
+            api.dispatch("POST", "/runs", {"deploy_id": "d"}, {}, {"sub": "owner@test"})
+        self.assertEqual(len(stored), 1)
+        run = next(iter(stored.values()))
+        self.assertEqual(run['status'], 'starting')
+        self.assertTrue(run['launch_uncertain'])
+        self.assertNotIn('finished_at', run)
+
     def test_rejected_or_failed_starts_never_leave_a_taskless_starting_run(self):
         for oversized in [False, True]:
             with self.subTest(oversized=oversized):

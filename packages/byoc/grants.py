@@ -1,5 +1,6 @@
 """Scoped app requests, bounded by customer configuration. No AWS calls."""
 import json
+from fnmatch import fnmatchcase
 import os
 import re
 
@@ -18,11 +19,14 @@ def valid_action(action):
 
 def check_protected(grants):
     """Small's control resources are never delegated as application data."""
+    protected = json.loads(os.environ.get('SMALL_PROTECTED_RESOURCE_ARNS', '[]'))
     namespaces = [n for n in os.environ.get("SMALL_RESOURCE_NAMES", "").split(",") if n]
     data_bucket = os.environ.get("SMALL_DATA_BUCKET")
     protected_buckets = {os.environ.get("SMALL_WEB_BUCKET"), os.environ.get("SMALL_RELEASE_BUCKET")}
     for grant in grants:
         resource = grant["resource"]
+        if any(fnmatchcase(resource, pattern) for pattern in protected):
+            raise ValueError("Small installation resources cannot be granted to apps")
         if resource.startswith("arn:aws:s3:::"):
             bucket, _, key = resource[13:].partition("/")
             if bucket in protected_buckets:

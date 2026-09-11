@@ -1,6 +1,17 @@
+import json
 import pytest
 
-from grants import normalize_grants, stored_grants, grant_policy
+from grants import normalize_grants, stored_grants, grant_policy, check_protected
+
+
+@pytest.mark.parametrize('resource', ['arn:aws:s3:::live-data', 'arn:aws:s3:::live-data/*',
+    'arn:aws:s3:::live-data/reports/output.json', 'arn:aws:lambda:us-east-1:234567890123:function:live-small-api'])
+def test_dev_cannot_request_protected_live_resources(monkeypatch, resource):
+    monkeypatch.setenv('SMALL_PROTECTED_RESOURCE_ARNS', json.dumps(['arn:aws:s3:::live-data',
+        'arn:aws:s3:::live-data/*', 'arn:aws:lambda:us-east-1:234567890123:function:live-small-*']))
+    with pytest.raises(ValueError, match='installation resources'):
+        check_protected([{'action': 's3:GetObject', 'resource': resource}])
+    check_protected([{'action': 's3:GetObject', 'resource': 'arn:aws:s3:::dev-data/test/sample.csv'}])
 
 
 @pytest.mark.parametrize("account", ["123456789012", "234567890123"])

@@ -1,5 +1,11 @@
 # AWS BYOC: CPU jobs in one workspace connection
 
+[Private AWS image lifecycle](byoc-images.md) defines Perl removal and per-app
+image retirement. Successful replacements become current; unfinished jobs retain
+their images. There is no seven-day rollback window or repository-wide age rule.
+This update is installed as dev `0.1.0-dev.2` and live `0.1.0-pilot.5.2`;
+published CLI `small-deploy@0.0.11` generates the hardened images.
+
 [Cognito setup reference](byoc-cognito-reference.md) preserves the user-provided
 React examples and records the verified pool settings. The private installation
 uses that pool through `oidc-client-ts`; the token-display sample is not shipped.
@@ -11,11 +17,28 @@ into customer AWS. See the
 
 ## Configurable app grants and file inputs
 
+[Private AWS dev and live](byoc-dev.md) documents the separate test installation.
+New Amazon BYOC changes deploy to dev first; the existing private URL and its
+drift/oof/overreach apps remain the stable installation.
+
 [The grants specification and release checklist](byoc-aws-grants.md) describe
 private update `0.1.0-pilot.5.1`, with CLI `0.0.10`. Its permissions are
 configured per customer installation and approved per app; account IDs do not
-live in the grant implementation. Consult that document for current release
-status. The earlier milestones below record their original scope and results.
+live in the grant implementation. Consult that document for the grants release
+results and the image lifecycle link above for the subsequent update. The earlier
+milestones below record their original scope and results.
+
+## Private Agent and Logs chat with Bedrock
+
+[The chat specification](byoc-bedrock-chat.md) connects the existing Agent tab,
+Logs chat, and enlarged layouts using the private backend's own Bedrock role.
+Agent reads the job definition and recent run evidence; individual run chats
+keep their own history. Source code and builder sessions are not yet included.
+The implementation and local tests are ready; Amazon installation deployment
+is pending the user's inference-region choice. The available US Sonnet profile
+routes within us-east-1, us-east-2, and us-west-2. No new model permissions have
+been deployed to the Amazon account. Shared dev has the updated components;
+private chat appears only when the installation advertises its model capability.
 
 ## CLI npm release: 0.0.9 (2026-09-10)
 

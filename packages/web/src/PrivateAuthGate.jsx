@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { privateAuth } from './private-auth.js';
+import ByocDevBadge from './ByocDevBadge.jsx';
 
 export default function PrivateAuthGate({ children }) {
   const [status, setStatus] = useState('loading');
@@ -18,7 +19,7 @@ export default function PrivateAuthGate({ children }) {
   return (
     <main className="grid min-h-screen place-items-center bg-paper px-6 text-ink">
       <div className="w-full max-w-sm space-y-5">
-        <div className="text-2xl font-semibold tracking-tight">small</div>
+        <div className="flex items-center gap-2 text-2xl font-semibold tracking-tight">small <ByocDevBadge /></div>
         <h1 className="text-xl font-medium">Sign in to Small</h1>
         <p className="text-sm text-ink-2">Use your account for this workspace.</p>
         {status === 'loading' ? <p role="status" className="text-sm text-ink-2">Opening Small…</p> : (

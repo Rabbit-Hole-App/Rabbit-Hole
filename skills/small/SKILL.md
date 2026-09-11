@@ -20,7 +20,10 @@ then `small login --api <installation-url>` for Cognito sign-in. Never use
 the hosted connection setup or an external AWS role for that mode. Private
 release `0.1.0-pilot.5.1` supports configurable `[aws] grants` and file inputs.
 Read the AWS hosting reference for the exact syntax and approval flow. The
-installation supplies its allowed actions, account, and region; never substitute
+private image-retirement update keeps only each app's current successful version;
+older versions must be redeployed before rerunning. Logs and outputs remain.
+CLI `0.0.11` adds image hardening; rebuild existing apps to receive it.
+The installation supplies its allowed actions, account, and region; never substitute
 an account from an example. Older private installations need the customer update
 for these capabilities; their existing S3 folder flow remains compatible.
 For an AWS-hosted job reading S3, declare its exact folder with `[aws] s3_read`.

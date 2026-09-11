@@ -39,7 +39,11 @@ function ChatPage() {
               <span className="px-1 text-ink">Chat</span>
               <button aria-label="Minimize chat" title="Back to Agent" onClick={() => navigate(app ? '/apps/' + encodeURIComponent(app) + '?tab=agent' : '/apps')} className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink"><Minimize2 size={14} strokeWidth={1.5} /></button>
             </div>
-            <AskPanel scope={app ? { app } : {}} appName={app} placeholder={app ? `Ask about ${app}…` : 'Ask about your workspace…'} autoFocus />
+            {isPrivateByoc && !data?.apps?.find(a => a.name === app)?.app_chat
+              ? <p className="text-sm text-ink-2">{!data ? 'Loading chat…' : app ? 'Chat is not configured for this app yet.' : 'Open an app to chat about it in Agent.'}</p>
+              : <AskPanel key={isPrivateByoc ? app : undefined} scope={app ? { app } : {}} appName={app}
+                  chatConfig={data?.apps?.find(a => a.name === app)?.app_chat}
+                  placeholder={app ? `Ask about ${app}…` : 'Ask about your workspace…'} autoFocus />}
           </ExpandedPageFrame>
         </main>
       )}

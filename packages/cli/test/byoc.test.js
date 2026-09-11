@@ -47,6 +47,28 @@ test('AWS packaging rejects unsupported app shapes and configuration before uplo
   }
 });
 
+test('AWS images upgrade OS packages and remove Perl after dependency installation', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'small-byoc-test-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'job.py'), 'print("test")\n');
+    fs.writeFileSync(path.join(dir, 'requirements.txt'), 'boto3\n');
+    const archive = packageJob(dir, { entry: 'job.py', config: { type: 'job' } });
+    const result = spawnSync('python', ['-c', 'import sys,io,zipfile; print(zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read())).read(".small/Dockerfile").decode())'], { input: archive });
+    assert.equal(result.status, 0, result.stderr.toString());
+    const docker = result.stdout.toString();
+    assert.ok(docker.indexOf('apt-get upgrade -y') >= 0);
+    assert.ok(docker.indexOf('apt-get upgrade -y') < docker.indexOf('pip install'));
+    const runs = docker.split(/\r?\n/).filter(line => line.startsWith('RUN '));
+    assert.match(runs.at(-1), /dpkg --purge --force-remove-essential --force-depends perl-base/);
+    assert.match(runs.at(-1), /! command -v perl$/);
+    assert.ok(docker.indexOf('pip install') < docker.indexOf('dpkg --purge'));
+    assert.match(docker, /CMD \["python",".small\/aws_runner.py","python","job.py"\]/);
+  } finally {
+    assert.ok(path.resolve(dir).startsWith(path.resolve(os.tmpdir()) + path.sep) && path.basename(dir).startsWith('small-byoc-test-'));
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('one workspace connection routes multiple apps and resolves run IDs without mixing hosted apps', async (t) => {
   t.mock.method(config, 'load', () => ({}));
   const previous = { token: process.env.SMALL_TOKEN, base: process.env.SMALL_API };

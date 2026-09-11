@@ -13,8 +13,10 @@ import time
 import uuid
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.config import Config
+from botocore.exceptions import ClientError, BotoCoreError
 from grants import normalize_grants, stored_grants, legacy_scope, installed_actions, check_protected
+from private_chat import PrivateChat, ChatDenied, chat_store, bedrock_answer
 
 
 class Denied(Exception):
@@ -81,11 +83,21 @@ def rows(prefix):
         request["ExclusiveStartKey"] = page["LastEvaluatedKey"]
 
 
+def can_view_app(row, member):
+    return bool(row and (row.get('owner_sub') == member['sub'] or member['role'] == 'owner'
+                         or row.get('visibility') == 'domain' or member['sub'] in row.get('shared_with', [])))
+
+
+def chat_app(name, member):
+    if not can_view_app(item('APP#' + name), member):
+        raise Denied(404, 'No such app.')
+
+
 def apps(member):
     result = []
     for row in rows("APP#"):
         owner = row.get("owner_sub") == member["sub"]
-        visible = owner or member["role"] == "owner" or row.get("visibility") == "domain" or member["sub"] in row.get("shared_with", [])
+        visible = can_view_app(row, member)
         if not visible:
             continue
         # Keep internal subjects/access records out of the browser contract.
@@ -94,6 +106,9 @@ def apps(member):
                     aws_connection={"private": True, "account_id": os.environ.get("ACCOUNT_ID"), "region": "us-east-1",
                                     "data_bucket": os.environ.get("SMALL_DATA_BUCKET")},
                     canEdit=owner or member["role"] == "owner", canDeploy=owner or member["role"] == "owner", members=[])
+        if os.environ.get('BEDROCK_MODEL_ID') and os.environ.get('CHAT_TABLE'):
+            data['run_chat'] = {'provider': 'bedrock', 'model': os.environ['BEDROCK_MODEL_ID']}
+            data['app_chat'] = dict(data['run_chat'])
         result.append(data)
     return result
 
@@ -222,7 +237,7 @@ def access_request(method, path, event, member):
 def job_request(method, path, event, member):
     if not os.environ.get("JOB_API_FUNCTION"):
         raise Denied(501, "Job deployment is not enabled in this installation yet.")
-    match = re.fullmatch(r"/api/jobs/apps/([a-z0-9-]{1,40})(/(?:job|deploys|runs|uploads)(?:/[a-z0-9-]+(?:/(?:build|finalize|logs|outputs))?)?)", path)
+    match = re.fullmatch(r"/api/jobs/apps/([a-z0-9-]{1,40})(/(?:job|context|deploys|runs|uploads)(?:/[a-z0-9-]+(?:/(?:build|finalize|logs|outputs|context))?)?)", path)
     if not match or method not in ("GET", "POST"):
         raise Denied(404, "No such job operation.")
     name, operation = match.groups()
@@ -237,8 +252,7 @@ def job_request(method, path, event, member):
             if error.response["Error"]["Code"] != "ConditionalCheckFailedException":
                 raise
             app = item("APP#" + name)
-    if not app or not (member["role"] == "owner" or app.get("owner_sub") == member["sub"]
-                       or app.get("visibility") == "domain" or member["sub"] in app.get("shared_with", [])):
+    if not can_view_app(app, member):
         raise Denied(404, "No such app.")
     can_deploy = member["role"] == "owner" or app.get("owner_sub") == member["sub"]
     if operation.startswith("/deploys") and not can_deploy:
@@ -249,8 +263,15 @@ def job_request(method, path, event, member):
                "body": json.dumps(body), "queryStringParameters": event.get("queryStringParameters") or {},
                "actor": {"org": os.environ["WORKSPACE"], "app": name, "email": member["email"],
                          "permissions": ["read", "run", *(["deploy"] if can_deploy else [])]}}
-    result = boto3.client("lambda").invoke(FunctionName=os.environ["JOB_API_FUNCTION"],
-        InvocationType="RequestResponse", Payload=json.dumps(payload).encode())
+    is_context = method == 'GET' and operation.endswith('/context')
+    options = {'config': Config(connect_timeout=1, read_timeout=4, retries={'max_attempts': 0})} if is_context else {}
+    try:
+        result = boto3.client("lambda", **options).invoke(FunctionName=os.environ["JOB_API_FUNCTION"],
+            InvocationType="RequestResponse", Payload=json.dumps(payload).encode())
+    except BotoCoreError:
+        if is_context:
+            raise Denied(503, 'Chat evidence could not be loaded in time. Try again.') from None
+        raise
     if result.get("FunctionError"):
         raise Denied(502, "The job service could not complete the operation.")
     response = json.loads(result["Payload"].read())
@@ -270,6 +291,13 @@ def dispatch(method, path, event, member):
     if not meta:
         raise Denied(503, "The Small workspace installation is not complete.")
     name = meta["name"]
+    if path == '/api/ask' or path.startswith('/api/ask/threads'):
+        if not os.environ.get('BEDROCK_MODEL_ID') or not os.environ.get('CHAT_TABLE'):
+            raise Denied(501, 'Chat is not configured in this private installation yet.')
+        service = PrivateChat(chat_store(), member, lambda app: chat_app(app, member),
+            lambda app, run, sources: job_request('GET', '/api/jobs/apps/' + app + ('/runs/' + run if run else '') + '/context',
+                {'queryStringParameters': {'sources': ','.join(sources)}}, member), bedrock_answer)
+        return service.handle(method, path, body_of(event, 24000), event.get('queryStringParameters') or {})
     if path.startswith("/api/byoc/access"):
         return access_request(method, path, event, member)
     if path.startswith("/api/jobs/apps/"):
@@ -312,7 +340,7 @@ def handler(event, context):
         else:
             data = dispatch(method, path, event, identity(event))
         status = 200
-    except Denied as error:
+    except (Denied, ChatDenied) as error:
         status, data = error.status, {"error": error.message}
     except Exception:
         # Provider exceptions can include resource names or credentials.

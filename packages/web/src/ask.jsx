@@ -12,6 +12,10 @@ const SOURCE_OPTIONS = {
   run: [['log', 'Log'], ['outputs', 'Outputs'], ['runbook', 'Runbook'], ['review', 'Review'], ['agent', 'AGENT.md']],
   app: [['runs', 'Runs'], ['requests', 'Request log'], ['runbook', 'Runbook'], ['review', 'Review'], ['agent', 'AGENT.md']],
 };
+const PRIVATE_SOURCE_OPTIONS = {
+  run: [['log', 'Log'], ['outputs', 'Outputs']],
+  app: [['runs', 'Recent runs'], ['log', 'Latest run log'], ['outputs', 'Latest run outputs']],
+};
 const SOURCE_ICON = { log: ScrollText, outputs: Package, runs: Play, requests: Globe, runbook: BookOpen, review: Shield, agent: FileText };
 // model rows carry a strength icon + one-word hint (Opus strongest, Haiku fastest)
 const MODEL_META = { auto: [SlidersHorizontal, 'Picks for you'], 'opus-5': [Crown, 'Most capable'], 'sonnet-5': [Zap, 'Balanced'], 'haiku-4.5': [Feather, 'Fastest'] };
@@ -267,7 +271,8 @@ function OutputRow({ runId, name, size }) {
 
 // One chat, scoped: {app} | {run} | {} (org). Style per the Notion AI reference -
 // user turns as a right-aligned bubble, answers as plain text, pill input at the bottom.
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, chatConfig = null }) {
+  const privateChat = chatConfig?.provider === 'bedrock';
   const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -285,19 +290,21 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const fileApp = appName || scope.app || null; // /api/ask/file needs the app name
   const scopeKind = scope.run ? 'run' : scope.app ? 'app' : 'org';
   const scopeRef = scope.run || scope.app || null;
-  const srcOpts = SOURCE_OPTIONS[scopeKind] || [];
+  const srcOpts = (privateChat ? PRIVATE_SOURCE_OPTIONS : SOURCE_OPTIONS)[scopeKind] || [];
   const [srcOn, setSrcOn] = useState(() => new Set(srcOpts.map(([k]) => k)));
   const [srcOpen, setSrcOpen] = useState(false);
-  const [model, setModel] = useState(() => localStorage.getItem('small.askModel') || 'auto'); // Settings > Small AI sets the default
+  const [model, setModel] = useState(() => privateChat ? 'auto' : localStorage.getItem('small.askModel') || 'auto'); // Settings > Small AI sets the default
+  const modelOptions = privateChat ? [['auto', 'Bedrock']] : MODELS;
   const [modelOpen, setModelOpen] = useState(false);
   const [appNames, setAppNames] = useState(null); // lazy, for @-mentions
   const threadId = useRef(null);
+  const historyRequest = useRef(0);
   const boxRef = useRef(null);
   const inputRef = useRef(null);
   const fileRef = useRef(null);
 
   // "@yol" at the end of the input → app-name suggestions
-  const atMatch = input.match(/@([a-z0-9-]*)$/);
+  const atMatch = privateChat ? null : input.match(/@([a-z0-9-]*)$/);
   useEffect(() => {
     if (atMatch && appNames === null) api('/api/apps').then((d) => setAppNames(d.apps.map((a) => ({ name: a.name, kind: a.kind, schedule: a.schedule })))).catch(() => setAppNames([]));
   }, [!!atMatch]);
@@ -309,10 +316,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     return () => window.removeEventListener('small:ask-focus', focus);
   }, []);
 
-  // chats persist in D1 - resume the latest thread for this scope on mount
-  const loadThread = async (id, toChat = true) => {
+  // Resume the latest saved thread for this scope on mount.
+  const loadThread = async (id, toChat = true, request = ++historyRequest.current) => {
     try {
       const d = await api(`/api/ask/threads/${id}`);
+      if (privateChat && request !== historyRequest.current) return;
       threadId.current = d.id;
       setMsgs(d.messages);
       setChoices(null);
@@ -321,14 +329,17 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     } catch { /* stale id - stay on the empty chat */ }
   };
   useEffect(() => {
-    api(`/api/ask/threads?scope=${scopeKind}${scopeRef ? `&ref=${encodeURIComponent(scopeRef)}` : ''}`)
+    const request = ++historyRequest.current;
+    api(`/api/ask/threads?scope=${scopeKind}${scopeRef ? `&ref=${encodeURIComponent(scopeRef)}` : ''}${privateChat ? `&app=${encodeURIComponent(fileApp)}` : ''}`)
       .then(async (d) => {
+        if (privateChat && request !== historyRequest.current) return;
         setThreads(d.threads || []);
-        if (d.threads?.[0]) await loadThread(d.threads[0].id, false);
+        if (d.threads?.[0]) await loadThread(d.threads[0].id, false, request);
       })
       .catch(() => {});
-  }, [scopeKind, scopeRef]);
-  const newChat = () => { threadId.current = null; setMsgs([]); setChoices(null); setView('chat'); };
+    return () => { if (privateChat) historyRequest.current++; };
+  }, [scopeKind, scopeRef, privateChat, appName]);
+  const newChat = () => { historyRequest.current++; threadId.current = null; setMsgs([]); setChoices(null); setView('chat'); };
   useEffect(() => {
     if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight;
   }, [msgs]);
@@ -337,6 +348,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // @-chips ride at the front of the message text
     const message = [...mentions.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     if (!message || busy) return;
+    if (privateChat) historyRequest.current++;
     onSent?.();
     setChoices(null);
     setBusy(true);
@@ -358,6 +370,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(srcOpts.length && srcOn.size < srcOpts.length ? { sources: [...srcOn] } : {}),
         ...(model !== 'auto' ? { model } : {}),
       };
+      if (privateChat) {
+        const d = await api('/api/ask', { method: 'POST', body: JSON.stringify({ ...payload,
+          scope: { app: fileApp, ...(scope.run ? { run: scope.run } : {}) } }) });
+        append(d.answer);
+        threadId.current = d.threadId;
+        setThreads((ts) => [d.thread, ...ts.filter((t) => t.id !== d.threadId)]);
+        return;
+      }
       let r;
       if (attached) {
         const fd = new FormData();
@@ -414,13 +434,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         <div className="flex shrink-0 items-center justify-end gap-1 pb-1">
           {threads.length > 0 && (
             <button
+              disabled={privateChat && busy}
               onClick={() => setView(view === 'history' ? 'chat' : 'history')}
               className={cn('flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', view === 'history' && 'bg-active text-ink')}
             >
               <History size={12} strokeWidth={1.5} /> {view === 'history' ? 'Back to chat' : 'History'}
             </button>
           )}
-          <button onClick={newChat} className="flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
+          <button disabled={privateChat && busy} onClick={newChat} className="flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
             <Plus size={12} strokeWidth={1.5} /> New chat
           </button>
           {headerExtra}
@@ -428,7 +449,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       )}
       {compact && msgs.length > 0 && (
         <div className="flex shrink-0 justify-end pb-1">
-          <button onClick={newChat} className="flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
+          <button disabled={privateChat && busy} onClick={newChat} className="flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
             Clear chat
           </button>
         </div>
@@ -542,7 +563,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             ) : m.role === 'run' ? (
               <RunResultCard runId={m.runId} app={fileApp ? { name: fileApp } : null} />
             ) : m.content ? (
-              <Md text={m.content} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, ln, lnEnd) => { setRunPeek(null); setFilePeek({ path, line: ln, lineEnd: lnEnd }); } : null} />
+              <Md text={m.content} onRun={id => { if (privateChat) navigate(`/apps/${encodeURIComponent(appName)}/runs/${encodeURIComponent(id)}`); else { setFilePeek(null); setRunPeek(id); } }} onFile={!privateChat && fileApp ? (path, ln, lnEnd) => { setRunPeek(null); setFilePeek({ path, line: ln, lineEnd: lnEnd }); } : null} />
             ) : (
               <Loader2 size={14} className="animate-spin text-ink-3" />
             )}
@@ -619,10 +640,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               <Plus size={14} strokeWidth={1.5} />
             </button>
             <Menu open={plusOpen} onClose={() => setPlusOpen(false)} className="bottom-8 left-0 w-64">
-              <MenuItem icon={Paperclip} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
+              <MenuItem icon={Paperclip} disabled={privateChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
                 Add images, PDFs, or CSVs
               </MenuItem>
-              <MenuItem icon={AtSign} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
+              <MenuItem icon={AtSign} disabled={privateChat} title={privateChat ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
                 Mention an app
               </MenuItem>
             </Menu>
@@ -653,13 +674,16 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
                   <div key={k} className="flex h-7 items-center justify-between text-sm">
                     <span className="flex items-center gap-2">{SI && <SI size={14} strokeWidth={1.5} className="text-ink-2" />}{label}</span>
                     <Toggle
+                      aria-label={label}
                       on={srcOn.has(k)}
                       onChange={() => setSrcOn((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; })}
                     />
                   </div>
                   );
                 })}
-                <div className="pt-1.5 text-xs text-ink-3">The agent only reads what's on here.</div>
+                <div className="pt-1.5 text-xs text-ink-3">{privateChat
+                  ? `${scope.run ? 'Run details' : 'Job definition'} always included. Choose additional evidence above.`
+                  : "The agent only reads what's on here."}</div>
               </Menu>
             </div>
           )}
@@ -674,17 +698,18 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <div className="relative shrink-0">
             <button
               type="button"
+              title={privateChat ? chatConfig.model : undefined}
               onMouseDown={(e) => { e.stopPropagation(); setModelOpen(!modelOpen); }}
               className={cn('h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', modelOpen && 'bg-active text-ink')}
             >
-              {MODELS.find(([k]) => k === model)?.[1]}
+              {modelOptions.find(([k]) => k === model)?.[1]}
             </button>
             <Menu open={modelOpen} onClose={() => setModelOpen(false)} className="right-0 bottom-8 w-52">
-              {MODELS.map(([k, label]) => (
+              {modelOptions.map(([k, label]) => (
                 <MenuItem key={k} type="button" icon={MODEL_META[k]?.[0]} onClick={() => { setModel(k); setModelOpen(false); }}>
                   <span className="flex w-full items-center justify-between">
                     <span className={cn(k === model && 'font-medium')}>{label}</span>
-                    <span className="text-xs text-ink-3">{MODEL_META[k]?.[1]}</span>
+                    <span className="text-xs text-ink-3">{privateChat ? 'AWS model' : MODEL_META[k]?.[1]}</span>
                   </span>
                 </MenuItem>
               ))}

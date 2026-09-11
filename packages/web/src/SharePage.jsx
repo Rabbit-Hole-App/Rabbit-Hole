@@ -522,7 +522,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
       {/* run pages carve out the fixed 400px chat panel and center in what's left */}
       <div className={cn(
         'py-12 max-lg:px-8 max-md:px-4 max-md:py-6',
-        runId ? cn('mx-auto max-w-[860px] px-12', !isAws && 'lg:mr-[416px]') : 'mx-auto max-w-[900px] px-24',
+        runId ? cn('mx-auto max-w-[860px] px-12', (!isAws || app?.run_chat) && 'lg:mr-[416px]') : 'mx-auto max-w-[900px] px-24',
         agentFull && 'flex h-full min-h-0 flex-col pb-4',
       )}>
         <div className="flex items-center gap-1 pb-8 text-sm text-ink-2">
@@ -635,8 +635,8 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                 }}
               />
             </div>
-            {!isAws && <div className="fixed inset-y-0 right-0 z-10 flex w-[400px] flex-col border-l border-line bg-white px-5 pt-4 pb-4 max-lg:hidden">
-              <AskPanel scope={{ run: runId }} appName={app.name} placeholder="Ask about this run…" />
+            {(!isAws || app.run_chat) && <div className="fixed inset-y-0 right-0 z-10 flex w-[400px] flex-col border-l border-line bg-white px-5 pt-4 pb-4 max-lg:hidden">
+              <AskPanel key={app.run_chat ? `${app.name}:${runId}` : undefined} scope={{ run: runId }} appName={app.name} chatConfig={app.run_chat} placeholder="Ask about this run…" />
             </div>}
           </>
         )}
@@ -780,12 +780,16 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
               </TabsContent>
 
               <TabsContent value="agent" className="flex min-h-0 flex-1 flex-col pt-4">
-                {isAws ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : <CoachingPanel appName={app.name}>
+                <CoachingPanel appName={app.name}>
                 {/* the page itself is scroll-locked on this tab; the pane flexes to the
                     viewport bottom so the input is static and only messages scroll */}
+                {isAws && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> :
                 <div className="flex min-h-0 flex-1 flex-col">
                   <AskPanel
+                    key={app.app_chat ? app.name : undefined}
                     scope={{ app: app.name }}
+                    appName={app.name}
+                    chatConfig={app.app_chat}
                     email={app.email}
                     placeholder={`Ask about ${app.name}…`}
                     autoFocus
@@ -800,8 +804,8 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                       </button>
                     }
                   />
-                </div>
-                </CoachingPanel>}
+                </div>}
+                </CoachingPanel>
               </TabsContent>
 
               {/* ponytail: Learn TabsContent hidden with its trigger above */}

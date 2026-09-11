@@ -723,15 +723,17 @@ export function RunPeek({ runId, app, onClose, onRunAgain }) {
       </div>
       {/* once a conversation exists the chat lives ONLY in its tab: on the Run tab
           the box is hidden (not unmounted, a mid-stream reply keeps streaming) */}
-      {app.hosting !== 'aws' && <div className={cn(
+      {(app.hosting !== 'aws' || app.run_chat) && <div className={cn(
         'px-5',
         tab === 'chat' ? 'flex min-h-0 flex-1 flex-col pt-2 pb-4'
         : chatted ? 'hidden'
         : 'shrink-0 border-t border-line pt-1 pb-4',
       )}>
         <AskPanel
+          key={app.run_chat ? `${app.name}:${runId}` : undefined}
           scope={{ run: runId }}
           appName={app?.name}
+          chatConfig={app.run_chat}
           compact={tab !== 'chat'}
           placeholder="Ask about this run…"
           onHasChat={() => setChatted(true)}

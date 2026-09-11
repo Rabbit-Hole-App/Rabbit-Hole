@@ -135,6 +135,7 @@ def prepare_upload(app, body, actor):
     if set(body) != {"deploy_id", "files"} or not isinstance(body["files"], dict) or not 1 <= len(body["files"]) <= 5:
         raise Rejected("Upload one to five declared file inputs")
     doc = deployment(body["deploy_id"], refresh=True, app=app)
+    require_current_deployment(doc, app)
     if doc["status"] != "ready":
         raise Rejected("Deploy the job successfully before uploading", 409)
     task_role(app, doc.get("s3_read"), doc.get("grants"))
@@ -294,6 +295,8 @@ def prefixes(kind, limit=20):
         continuation = page.get("NextContinuationToken")
         if not continuation:
             break
+    if limit is None and continuation:
+        raise Rejected("Deployment inventory is incomplete; retry later", 503)
     return sorted(found, reverse=True)[:limit]
 
 
@@ -328,7 +331,7 @@ def deployment(deploy_id, refresh=False, finalize=False, app=None):
                         logConfiguration={"logDriver": "awslogs", "options": {
                             "awslogs-group": os.environ["RUN_LOG_GROUP"], "awslogs-region": os.environ["AWS_REGION"],
                             "awslogs-stream-prefix": "small"}})])
-                doc.update(status="ready", task_definition=task["taskDefinition"]["taskDefinitionArn"])
+                doc.update(status="ready", task_definition=task["taskDefinition"]["taskDefinitionArn"], ready_at=stamp())
         put_doc(key, doc)
     return doc
 
@@ -338,10 +341,27 @@ def latest_deployment(app=None):
     return deployment(rows[0].rstrip("/").split("/")[-1], refresh=True, app=app) if rows else None
 
 
-def log_lines(group, stream, cursor=None):
+def current_deployment(app=None):
+    if os.environ.get("IMAGE_RETENTION") != "current":
+        return latest_deployment(app)
+    for prefix in prefixes(app_key(app, "deploys"), limit=None):
+        doc = deployment(prefix.rstrip("/").split("/")[-1], app=app)
+        if doc["status"] == "ready":
+            return doc
+    return None
+
+
+def require_current_deployment(doc, app=None):
+    if os.environ.get("IMAGE_RETENTION") == "current" and doc and doc["status"] == "ready":
+        current = current_deployment(app)
+        if not current or doc["id"] != current["id"]:
+            raise Rejected("This deployment was replaced; redeploy its source to run it again", 409)
+
+
+def log_lines(group, stream, cursor=None, tail=False):
     if not stream:
         return {"lines": [], "cursor": None}
-    args = dict(logGroupName=group, logStreamName=stream, limit=200, startFromHead=True)
+    args = dict(logGroupName=group, logStreamName=stream, limit=200, startFromHead=not tail)
     if cursor:
         args["nextToken"] = cursor
     try:
@@ -350,6 +370,44 @@ def log_lines(group, stream, cursor=None):
         return {"lines": [], "cursor": cursor}
     return {"lines": [{"timestamp": e["timestamp"], "line": e["message"]} for e in result["events"]],
             "cursor": result.get("nextForwardToken")}
+
+
+def run_context(app, run, query):
+    sources = query.get('sources', 'log,outputs')
+    if not isinstance(sources, str) or any(s not in ('', 'log', 'outputs') for s in sources.split(',')):
+        raise Rejected('Invalid run chat sources')
+    result = {'run': {k: run[k] for k in ('run_id', 'deploy_id', 'status', 'exit_code', 'reason',
+                                        'inputs', 'started_at', 'finished_at') if k in run}}
+    if run.get('input_files'):
+        result['run']['input_files'] = [{k: f[k] for k in ('name', 'filename', 'size') if k in f} for f in run['input_files']]
+    if 'log' in sources.split(','):
+        stream = 'small/job/' + run['task_arn'].split('/')[-1] if run.get('task_arn') else None
+        events = log_lines(os.environ['RUN_LOG_GROUP'], stream, tail=True)['lines']
+        text = '\n'.join(e['line'] for e in events)
+        result['log'] = {'lines': ['L' + str(i + 1) + ': ' + line for i, line in enumerate(text[-18000:].splitlines())],
+                         'truncated': len(events) == 200 or len(text) > 18000,
+                         'note': 'Most recent log events; line numbers refer to this captured tail.'}
+    if 'outputs' in sources.split(','):
+        prefix = app_key(app, 'runs/' + run['run_id'] + '/outputs/')
+        objects = client('s3').list_objects_v2(Bucket=os.environ['BUCKET'], Prefix=prefix, MaxKeys=100)
+        result['outputs'], previews = [], 0
+        result['outputs_truncated'] = bool(objects.get('IsTruncated'))
+        for obj in objects.get('Contents', []):
+            if not obj['Key'].startswith(prefix):
+                continue
+            name = obj['Key'][len(prefix):]
+            output = {'name': name, 'size': obj['Size']}
+            if previews < 3 and obj['Size'] <= 4096 and re.search(r'\.(json|txt|csv|log|md)$', name, re.I):
+                body = client('s3').get_object(Bucket=os.environ['BUCKET'], Key=obj['Key'])['Body']
+                try:
+                    raw = body.read(4097)
+                finally:
+                    body.close()
+                output['text'] = raw[:4096].decode('utf-8', errors='replace')
+                output['truncated'] = len(raw) > 4096
+                previews += 1
+            result['outputs'].append(output)
+    return result
 
 
 def run_record(run_id, app=None):
@@ -375,13 +433,40 @@ def run_record(run_id, app=None):
     return doc
 
 
+def app_context(app, query):
+    sources = query.get('sources', 'runs,log,outputs')
+    if not isinstance(sources, str) or any(s not in ('', 'runs', 'log', 'outputs') for s in sources.split(',')):
+        raise Rejected('Invalid app chat sources')
+    sources = set(sources.split(',')) - {''}
+    deployed = prefixes(app_key(app, 'deploys'), 1)
+    doc = deployment(deployed[0].rstrip('/').split('/')[-1], app=app) if deployed else None
+    result = {'app': app, 'deployment': {k: doc[k] for k in ('id', 'status', 'entry', 'inputs', 'created_at',
+              's3_read', 'grants') if k in doc} if doc else None,
+              'unavailable': ['Source code', 'Builder sessions', 'Approved design decisions']}
+    if sources:
+        records = [run_record(p.rstrip('/').split('/')[-1], app)
+                   for p in prefixes(app_key(app, 'runs'), 5 if 'runs' in sources else 1)]
+        if 'runs' in sources:
+            result['runs'] = [{k: r[k] for k in ('run_id', 'deploy_id', 'status', 'exit_code', 'reason',
+                              'started_at', 'finished_at') if k in r} for r in records]
+            result['runs_note'] = 'At most the five most recent runs, not the complete run history.'
+        details = [s for s in ('log', 'outputs') if s in sources]
+        if details:
+            result['latest_run'] = run_context(app, records[0], {'sources': ','.join(details)}) if records else None
+    return result
+
+
 def dispatch(method, path, body, query, claims, app=None):
     if path == "/uploads" and method == "POST":
         return prepare_upload(app, body, claims["sub"])
     if path == "/apps" and method == "GET":
         return {"apps": [{"name": name} for name in app_names()]}
     if path == "/job" and method == "GET":
-        return {"name": app or os.environ["JOB_NAME"], "deployment": latest_deployment(app)}
+        latest = latest_deployment(app)
+        return {"name": app or os.environ["JOB_NAME"], "deployment": current_deployment(app) or latest,
+                "latest_attempt": latest}
+    if path == '/context' and method == 'GET':
+        return app_context(app, query)
     if path == "/deploys" and method == "POST":
         entry = body.get("entry", "")
         if not re.fullmatch(r"[a-zA-Z0-9_][a-zA-Z0-9_./-]*\.py", entry) or ".." in entry.split("/"):
@@ -419,6 +504,8 @@ def dispatch(method, path, body, query, claims, app=None):
                 sourceTypeOverride="S3", sourceLocationOverride=os.environ["BUCKET"] + "/" + source,
                 sourceVersion=obj["VersionId"], idempotencyToken=deploy_id)["build"]
             doc.update(status="building", build_id=build["id"])
+            if type(build.get("buildNumber")) is int:
+                doc["image_tag"] = "build-" + str(build["buildNumber"])
             put_doc(app_key(app, "deploys/" + deploy_id + "/record.json"), doc)
             return doc
         if method == "GET" and suffix == "/logs":
@@ -428,7 +515,8 @@ def dispatch(method, path, body, query, claims, app=None):
     if path == "/runs" and method == "POST":
         if set(body) - {"inputs", "deploy_id", "upload_id"}:
             raise Rejected("Unsupported run setting")
-        doc = deployment(body["deploy_id"], refresh=True, app=app) if body.get("deploy_id") else latest_deployment(app)
+        doc = deployment(body["deploy_id"], refresh=True, app=app) if body.get("deploy_id") else current_deployment(app)
+        require_current_deployment(doc, app)
         if not doc or doc["status"] != "ready":
             raise Rejected("Deploy the job successfully before running it", 409)
         # Old task definitions cannot retain access after its approval changes.
@@ -464,8 +552,15 @@ def dispatch(method, path, body, query, claims, app=None):
                 networkConfiguration={"awsvpcConfiguration": {"subnets": os.environ["SUBNETS"].split(","),
                     "securityGroups": [os.environ["TASK_SECURITY_GROUP"]], "assignPublicIp": "DISABLED"}},
                 overrides=overrides)
-        except Exception:
-            run.update(status="failed", reason="AWS could not start the task", finished_at=stamp(), exit_code=-1)
+        except Exception as error:
+            # A lost response does not prove ECS rejected this idempotent request.
+            # Retain its image until the task's actual state is established.
+            rejected = isinstance(error, ClientError) and error.response['Error']['Code'] in (
+                'AccessDeniedException', 'InvalidParameterException', 'ClusterNotFoundException', 'ClientException')
+            if rejected:
+                run.update(status="failed", launch_rejected=True, reason="AWS could not start the task", finished_at=stamp(), exit_code=-1)
+            else:
+                run.update(status="starting", launch_uncertain=True, reason="AWS did not confirm whether the task started")
             put_doc(app_key(app, "runs/" + run_id + "/record.json"), run)
             raise
         if result.get("failures") or not result.get("tasks"):
@@ -476,10 +571,12 @@ def dispatch(method, path, body, query, claims, app=None):
         return run
     if path == "/runs" and method == "GET":
         return {"runs": [run_record(p.rstrip("/").split("/")[-1], app) for p in prefixes(app_key(app, "runs"))]}
-    match = re.fullmatch(r"/runs/([^/]+)(/logs|/outputs)?", path)
+    match = re.fullmatch(r"/runs/([^/]+)(/logs|/outputs|/context)?", path)
     if match and method == "GET":
         run_id, suffix = match.groups()
         run = run_record(run_id, app)
+        if suffix == '/context':
+            return run_context(app, run, query)
         if suffix == "/logs":
             stream = "small/job/" + run["task_arn"].split("/")[-1] if run.get("task_arn") else None
             return log_lines(os.environ["RUN_LOG_GROUP"], stream, query.get("cursor"))
