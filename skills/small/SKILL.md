@@ -14,10 +14,15 @@ blocker; do not route around small.
 `small.toml` has `[deploy] target = "aws"`, read `references/aws-hosting.md`
 and follow that flow before running `small init`. That preview keeps source,
 inputs, logs, and outputs in customer AWS and skips hosted model features.
-For a **private Small installation**, use its supplied CLI package and AWS URL,
+For a **private Small installation**, install `small-deploy@0.0.10` or newer
+from npm and use the customer's installation URL,
 then `small login --api <installation-url>` for Cognito sign-in. Never use
-the hosted connection setup or an external AWS role for that mode. Its first
-CPU release does not support additional S3 access yet.
+the hosted connection setup or an external AWS role for that mode. Private
+release `0.1.0-pilot.5.1` supports configurable `[aws] grants` and file inputs.
+Read the AWS hosting reference for the exact syntax and approval flow. The
+installation supplies its allowed actions, account, and region; never substitute
+an account from an example. Older private installations need the customer update
+for these capabilities; their existing S3 folder flow remains compatible.
 For an AWS-hosted job reading S3, declare its exact folder with `[aws] s3_read`.
 Deploy requests approval in Small when access changes, waits, and resumes after
 the installer approves. Older connections need one AWS template upgrade first.

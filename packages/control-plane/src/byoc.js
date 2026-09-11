@@ -72,7 +72,7 @@ const accessView = (state) => ({ approved: state.approved, stable: state.stable,
   approval_enabled: state.approval_enabled,
   pending: state.pending && { id: state.pending.id, app_name: state.pending.app_name, s3_read: state.pending.s3_read, status: state.pending.status } });
 
-export async function byocFetch(req, env, { apiCode, signerCode, permissionsCode } = {}) {
+export async function byocFetch(req, env, { apiCode, signerCode, permissionsCode, grantsCode } = {}) {
   try {
     if (!env.BYOC_DB || !env.AWS_ACCESS_KEY_ID) return json({ error: 'AWS preview is not configured' }, 503);
     const path = new URL(req.url).pathname;
@@ -126,7 +126,7 @@ export async function byocFetch(req, env, { apiCode, signerCode, permissionsCode
           .bind(c.id, c.org, c.owner_email, c.job_name, c.external_id, c.account_id, c.region).run();
         if (inserted.meta.changes !== 1) fail('This workspace already has an AWS setup; reload to continue it', 409);
       }
-      const template = makeTemplate({ apiCode, signerCode, permissionsCode, installationId: c.id, externalId: c.external_id,
+      const template = makeTemplate({ apiCode, signerCode, permissionsCode, grantsCode, installationId: c.id, externalId: c.external_id,
         workspace: c.org, owner: c.owner_email, jobName: c.job_name, platformPrincipal: env.BYOC_PRINCIPAL_ARN, platformOrigin: new URL(req.url).origin });
       const key = `templates/${c.id}.json`;
       await awsCall(platformCredentials(env), c.region, 's3', '/' + key, JSON.stringify(template), {
@@ -155,7 +155,7 @@ export async function byocFetch(req, env, { apiCode, signerCode, permissionsCode
         if (state.approval_enabled) fail('This connection is already upgraded', 409);
         if (!permissionsCode) fail('Connection upgrade is unavailable', 503);
         // Preserve all installed grants. The upgrade itself approves no new folder.
-        const template = makeTemplate({ apiCode, signerCode, permissionsCode, installationId: c.id, externalId: c.external_id,
+        const template = makeTemplate({ apiCode, signerCode, permissionsCode, grantsCode, installationId: c.id, externalId: c.external_id,
           workspace: c.org, owner: c.owner_email, jobName: c.job_name, platformPrincipal: env.BYOC_PRINCIPAL_ARN,
           platformOrigin: new URL(req.url).origin, s3Access: state.approved });
         const key = `templates/${c.id}/upgrade-${random(16)}.json`;
@@ -179,7 +179,7 @@ export async function byocFetch(req, env, { apiCode, signerCode, permissionsCode
           let template;
           try {
             accessMap(desired);
-            if (!state.approval_enabled) template = makeTemplate({ apiCode, signerCode, permissionsCode, installationId: c.id, externalId: c.external_id,
+            if (!state.approval_enabled) template = makeTemplate({ apiCode, signerCode, permissionsCode, grantsCode, installationId: c.id, externalId: c.external_id,
               workspace: c.org, owner: c.owner_email, jobName: c.job_name, platformPrincipal: env.BYOC_PRINCIPAL_ARN,
               platformOrigin: new URL(req.url).origin, s3Access: permissionsCode ? state.approved : desired });
           } catch (error) { fail(error.message); }

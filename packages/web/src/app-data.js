@@ -1,6 +1,7 @@
 import { api } from './api.js';
 import { createAwsClient } from './byoc-client.js';
 import { isPrivateByoc } from './private-auth.js';
+import { uploadInputs } from '../../cli/lib/byoc-uploads.mjs';
 
 // App names come directly from customer AWS. Job content stays in the browser
 // and customer account when the normal app/run UI opens it.
@@ -41,7 +42,7 @@ const runRow = (run) => ({ ...run, status: ['starting', 'running'].includes(run.
 // Unknown operations fail here; they must never fall back to hosted endpoints.
 export function createAwsRunApi(client, connection, name = connection.job_name) {
   const aws = (path, options) => client('/apps/' + encodeURIComponent(name) + path, options);
-  return async (path, { method = 'GET', body } = {}) => {
+  return async (path, { method = 'GET', body, files } = {}) => {
     const url = new URL(path, 'https://small.invalid');
     if (url.origin !== 'https://small.invalid') throw new Error('Invalid app request');
     const data = typeof body === 'string' ? JSON.parse(body) : body || {};
@@ -53,7 +54,14 @@ export function createAwsRunApi(client, connection, name = connection.job_name) 
     if (url.pathname === '/api/runs') {
       if (method === 'POST') {
         if (data.app !== name || Object.keys(data).some((k) => !['app', 'inputs'].includes(k))) throw new Error('Invalid AWS run request');
-        const run = await aws('/runs', { method, body: { inputs: data.inputs || {} } });
+        const runBody = { inputs: data.inputs || {} };
+        if (files && Object.values(files).some(Boolean)) {
+          const { deployment } = await aws('/job');
+          if (deployment?.status !== 'ready') throw new Error('Deploy the AWS job first');
+          runBody.deploy_id = deployment.id;
+          runBody.upload_id = await uploadInputs(aws, deployment.id, files, connection.data_bucket);
+        }
+        const run = await aws('/runs', { method, body: runBody });
         return { runId: run.run_id };
       }
       if (method === 'GET' && url.searchParams.get('app') === name) {
@@ -67,7 +75,7 @@ export function createAwsRunApi(client, connection, name = connection.job_name) 
       const run = runRow(await aws('/runs/' + id));
       const after = url.searchParams.get('after');
       const log = await aws('/runs/' + id + '/logs' + (after && !['-1', 'null'].includes(after) ? '?cursor=' + encodeURIComponent(after) : ''));
-      return { runId: id, status: run.status, exitCode: run.exit_code, inputs: run.inputs, inputFiles: [],
+      return { runId: id, status: run.status, exitCode: run.exit_code, inputs: run.inputs, inputFiles: run.input_files || [],
         startedAt: run.started_at, finishedAt: run.finished_at, startedBy: run.started_by,
         lines: log.lines.map((line) => line.line), lineTs: log.lines.map((line) => new Date(line.timestamp).toISOString()),
         cursor: log.cursor, hasMore: log.lines.length === 200 };
@@ -90,7 +98,7 @@ export function appApi(app) {
   if (isPrivateByoc) {
     if (app?.hosting !== 'aws') return api;
     if (!privateClients.has(app)) privateClients.set(app, createAwsRunApi((path, { method = 'GET', body } = {}) => api('/api/jobs' + path,
-      { method, ...(body ? { body: JSON.stringify(body) } : {}) }), {}, app.name));
+      { method, ...(body ? { body: JSON.stringify(body) } : {}) }), app.aws_connection || {}, app.name));
     return privateClients.get(app);
   }
   if (app?.hosting !== 'aws') return api;

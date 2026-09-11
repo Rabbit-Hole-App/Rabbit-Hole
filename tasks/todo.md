@@ -248,18 +248,24 @@ local owner authorization and customer metadata.
 
 **Acceptance**
 
-- [ ] A new folder request appears in existing Settings; only the workspace
+- [x] A new folder request appears in existing Settings; only the workspace
   owner can approve the exact app/folder request or cancel it.
-- [ ] The bounded IAM handler preserves other apps' grants and cannot broaden
+- [x] The bounded IAM handler preserves other apps' grants and cannot broaden
   its own boundary or access another app's folder.
-- [ ] Waiting CLI deployment resumes after approval and handles cancellation,
+- [x] Waiting CLI deployment resumes after approval and handles cancellation,
   retries, and partial failures without source upload before approval.
 
 **Verification:** Existing permissions/API tests extended for Cognito owner
 authorization and request binding; read a folder of synthetic test objects and verify
 an adjacent folder is denied.
 
-**Dependencies:** 9. **Scope:** Medium.
+**Dependencies:** Private CPU path is shipped; user selected S3 before colleague
+sharing. **Scope:** Medium. Shipped in private `0.1.0-pilot.4`: Cognito owner
+routes, private IAM resources, existing Settings/CLI approval flow, and synthetic
+AWS proof. The supplied CLI paused/resumed; the CSV run returned 5 rows/94.30,
+the adjacent folder returned AccessDenied, and the original CPU app still ran.
+See [recorded results](../docs/features/byoc-aws.md#private-installation-s3-approval-milestone).
+Colleague sharing/onboarding is still outstanding.
 **Likely files:** `packages/byoc/private_api.py`, `packages/byoc/permissions.py`,
 `packages/byoc/private-template.mjs`,
 `packages/byoc/test/test_private_api.py`,

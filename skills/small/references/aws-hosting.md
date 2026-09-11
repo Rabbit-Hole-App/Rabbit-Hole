@@ -2,11 +2,13 @@
 
 ## Private Small installation with Cognito
 
-If Small's interface itself is installed in customer AWS, install the supplied
-`small-deploy.tgz` with `npm install -g ./small-deploy.tgz`. The public npm
-package does not include this pilot. Sign in on the machine running the CLI:
+If Small's interface itself is installed in customer AWS, install
+`small-deploy@0.0.10` or newer from npm. Use the installation URL supplied by
+the customer's administrator; this command installs the CLI, not AWS infrastructure.
+Sign in on the machine running the CLI:
 
 ```text
+npm install -g small-deploy@0.0.10
 small login --api <installation-url>
 small workspaces
 small deploy --workspace <returned-slug>
@@ -18,7 +20,10 @@ small run <app-name> --workspace <returned-slug> --download ./out
 Login opens Cognito and returns to the local CLI with PKCE. The installer
 registers `http://127.0.0.1:8766/auth/callback`; use `--no-browser` when the
 user prefers opening the printed link themselves. Complete sign-in on that
-same computer. Never request passwords, copy browser tokens, or create a user
+same computer. For a CLI running over SSH, forward local port `8766` to port
+`8766` on that host before login and keep both commands running until sign-in
+finishes. `--no-browser` alone does not forward the callback. Never request
+passwords, copy browser tokens, or create a user
 to bypass membership. The saved login is bound to this installation's origin.
 Clear a conflicting `SMALL_API` shell override, or set it to the same AWS URL.
 Hosted `SMALL_TOKEN` credentials are ignored for a private login.
@@ -26,12 +31,109 @@ Hosted `SMALL_TOKEN` credentials are ignored for a private login.
 Use `type = "job"` and `[deploy] target = "aws"` as shown below. Source goes
 directly to customer S3; CodeBuild, ECR, Fargate, CloudWatch, and job output
 remain in that account. The normal Apps list, Run, and Logs show the job.
-The first private CPU release supports the installation owner and synthetic
-scalar inputs; extra S3 folders and sharing changes are deferred.
+Private release `0.1.0-pilot.5.1` supports the installation owner, scalar and file
+inputs, and configurable app permissions. Sharing changes are deferred. The CLI
+discovers these capabilities from the installation; older releases need an
+installation update for grants and uploads. Installing the CLI alone is not
+that update.
 
-The Amazon pilot uses account `503561429929` in `us-east-1` and
-`https://d3sgti338uxlc.cloudfront.net`. Account `637423432890` is personal:
-never use it, the hosted Connect AWS flow, or an external trust role for Amazon.
+### Declare the app's AWS permissions
+
+Read the app's actual SDK operations and resource configuration. Declare only
+the actions and resources it needs. Keep `grants` on **one physical line**; the
+small TOML parser supports inline arrays, not multiline arrays or `[[aws.grants]]`.
+Use the customer's real resource ARNs, not the illustrative account below:
+
+```toml
+[aws]
+grants = [{ action = "s3:PutObject", resource = "arn:aws:s3:::company-jobs/jobs/*" }, { action = "s3:GetObject", resource = "arn:aws:s3:::company-jobs/reports/*" }, { action = "s3:ListBucket", resource = "arn:aws:s3:::company-jobs" }, { action = "lambda:InvokeFunction", resource = "arn:aws:lambda:us-east-1:123456789012:function:report-launcher" }, { action = "ecs:DescribeTasks", resource = "arn:aws:ecs:us-east-1:123456789012:task/report-jobs/*" }]
+```
+
+`small deploy` requests approval before uploading source. In this private
+installation's **Settings > Connections > AWS > App access**, the owner sees
+each exact action and ARN and chooses **Approve & deploy** or **Cancel**.
+Approval replaces that app's complete grant set. Unchanged grants reuse their
+approval. `grants = []` requests removal; changed grants block new runs of old
+deployments until the new configuration is deployed. Existing running tasks
+remain subject to AWS permission propagation.
+
+The default installation enables the five actions above. For another action,
+the AWS administrator updates the stack parameter **AppGrantActions**, retaining
+the existing actions and adding the exact action required. This changes the
+installation ceiling; it grants nothing to any app. The agent then retries
+deployment and requests the app's exact resource approval. No new Small release
+is needed for an additional compatible action. Do not edit the stack, broaden
+permissions, or approve a request without the user's authorization.
+
+Supported grants have exact action names and same-account, `us-east-1` resource
+ARNs. S3 accepts exact bucket/object ARNs and trailing folder `/*`; ECS task
+inspection accepts a named cluster's `task/cluster/*`. At most 20 grants per app.
+Wildcard actions, `Resource = "*"`, cross-account resources, IAM/STS and
+organization/account/CloudFormation management are unsupported. AWS validates
+each policy before approval; syntactically valid ARNs do not guarantee an action
+supports that resource type. ListBucket applies to the named bucket's listing.
+The boundary also requires AWS to supply `aws:ResourceAccount` for the action;
+operations without that ownership context remain denied.
+
+AppGrantActions is an administrator's policy, not a classification of harmless
+operations. PutObject can replace data; InvokeFunction runs with the function's
+existing role; other explicitly enabled actions can change resources. Each
+addition needs deliberate review of those effects. Jobs have no public network
+route. The installation supplies S3, ECR, CloudWatch Logs, Lambda, and ECS
+endpoints; another service may also require a customer-configured VPC endpoint.
+KMS-encrypted data needs the appropriate key permission and network access.
+Do not silently change encryption or add broad permissions to work around it.
+
+### File inputs
+
+Use the existing Run form's file picker, or a local CLI file path:
+
+```toml
+[inputs]
+event_ids_file = { type = "file", accept = ".txt,.csv", required = true }
+```
+
+```text
+small run <app-name> --workspace <returned-slug> --event-ids-file ./events.txt
+```
+
+The Python entry receives a local path in `SMALL_INPUT_EVENT_IDS_FILE` (and the
+matching entry in the JSON file referenced by `SMALL_INPUTS`). Read the uploaded
+file normally. Up to five files,
+10 MiB each, go directly to the installation's S3 bucket. Uploads are bound to
+the signed-in user, app, and deployment, verified by checksum, and pinned to an
+S3 version before execution. Never put local source data in the source archive
+as a workaround. Write results to `SMALL_OUTPUTS` as before.
+
+### Existing single-folder S3 configuration
+
+`[aws] s3_read` remains supported for existing apps. Do not combine it with
+`grants`; switching to `grants` requires explicit approval even for the same
+GetObject folder. Small retires the old role's permissions during that switch.
+
+For S3, declare `[aws] s3_read = "s3://your-bucket/your-folder/"` in
+`small.toml`, then run `small deploy`. When access changes, deployment waits
+before uploading source. The owner opens this **private installation's**
+**Settings > Connections > AWS** and reviews the exact app/folder, then clicks
+**Approve & deploy** or **Cancel**. The CLI resumes after approval; unchanged
+approved folders do not prompt again. No folder inventory appears when idle.
+
+With `s3_read`, each app has its own ECS task role. It can get objects only in the approved
+folder, in the installation's account and `us-east-1`; it cannot list buckets,
+write, delete, or read another folder. Use `SMALL_S3_BUCKET` and `SMALL_S3_PREFIX`
+in the job, plus a known object key. SSE-KMS buckets need separately scoped KMS
+support and are outside this legacy single-folder flow. Do not add broad KMS permissions.
+
+If approval fails while applying, retry that same request in Settings. A
+pending unapproved request can be cancelled. Changing or removing `s3_read`
+requests a new approval; old deployments cannot start new runs with an outdated
+folder. Already running tasks and in-flight requests are not synchronously
+recalled. The permissions handler runs inside this customer's AWS account;
+it uses no external account role. Install the versioned private update once;
+individual folder approvals do not require another CloudFormation update.
+
+Use only the customer's installation and AWS account for private BYOC.
+Do not use the hosted Connect AWS flow or add an external trust role for it.
 
 ## Hosted dashboard dev preview
 
@@ -41,10 +143,9 @@ AWS connection and can host multiple CPU-job apps through it.
 
 This feature currently lives on the dev dashboard:
 https://small-cp-dev.zeroshothq.workers.dev/apps
-The updated CLI and skill currently come from the small-deploy repository;
-the public npm release is held until the dev work is approved. Use that CLI's
-`packages/cli/bin/small.js` with Node (or its locally installed package).
-Commands below use `small` for that updated CLI, not the older npm version.
+Install `small-deploy@0.0.9` or newer and run `small skill` in the project to
+install its matching agent instructions. This hosted AWS interface remains a
+dev preview; the private installation above uses its own URL.
 
 ## Connect once
 

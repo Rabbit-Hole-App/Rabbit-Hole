@@ -265,8 +265,9 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
     try {
       let d;
       const fileEntries = Object.entries(files).filter(([, f]) => f);
-      if (fileEntries.length) {
-        if (app.hosting === 'aws') throw new Error('File inputs are not available for AWS jobs yet');
+      if (fileEntries.length && app.hosting === 'aws') {
+        d = await request('/api/runs', { method: 'POST', body: JSON.stringify({ app: app.name, inputs: vals }), files: Object.fromEntries(fileEntries) });
+      } else if (fileEntries.length) {
         const fd = new FormData();
         fd.append('body', JSON.stringify({ app: app.name, inputs: vals }));
         for (const [k, f] of fileEntries) fd.append(`input:${k}`, f);

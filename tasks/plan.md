@@ -137,6 +137,16 @@ does not claim every request stays inside a VPC.
 
 ## Delivery sequence
 
+Completed slice: the user selected private S3 approval before colleague sharing.
+Reuse the customer permissions Lambda and its per-app boundary. Store the single
+pending request in the customer AccessTable; the Cognito gateway may change only
+that request row, while approved grants and audit rows belong to the IAM handler.
+Reuse Settings > Connections > AWS and the CLI approval wait. Ship a versioned
+private update, run the synthetic CSV job, and check an adjacent folder is denied.
+Private `0.1.0-pilot.4` passed that proof and the existing CPU app regression;
+see [the results](../docs/features/byoc-aws.md#private-installation-s3-approval-milestone).
+No static inventory of approved folders is added. Colleague sharing remains open.
+
 | Checkpoint | Tasks | Observable result |
 | --- | --- | --- |
 | Customer foundation | 1-3 | Verified installation inputs, local workspace API, and protected AWS hosting |

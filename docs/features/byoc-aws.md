@@ -9,6 +9,127 @@ into customer AWS. See the
 [customer-hosted implementation plan](../../tasks/plan.md) and
 [task checklist](../../tasks/todo.md).
 
+## Configurable app grants and file inputs
+
+[The grants specification and release checklist](byoc-aws-grants.md) describe
+private update `0.1.0-pilot.5.1`, with CLI `0.0.10`. Its permissions are
+configured per customer installation and approved per app; account IDs do not
+live in the grant implementation. Consult that document for current release
+status. The earlier milestones below record their original scope and results.
+
+## CLI npm release: 0.0.9 (2026-09-10)
+
+Published **`small-deploy@0.0.9`** to npm with the `latest` tag. Users and
+their coding agents can now install the BYOC-capable CLI normally:
+
+```sh
+npm install -g small-deploy@latest
+small login --api https://d3sgti338uxlc.cloudfront.net
+small workspaces
+small skill
+```
+
+The URL above is this Amazon pilot; other customers use their own installation
+URL. The CLI discovers Cognito configuration and receives the account/workspace
+from that installation. It is not hardcoded to Amazon. The current AWS support
+at that release was CPU jobs in `us-east-1`, with one approved read-only S3 folder per app.
+At that release the AWS-hosted installation was `0.1.0-pilot.4`; installing the npm CLI
+does not install or update the customer's infrastructure or migrate hosted apps.
+
+`small skill` refreshes the instructions bundled with this CLI. The standalone
+`small-skill` npm package was not part of this publication. The CLI README and
+bundled AWS guide now document npm installation and the SSH port-forwarding
+requirement for a remote CLI login. Customer-specific account numbers, Cognito
+identifiers, and the Amazon pilot URL are absent from the published archive.
+
+Release verification: all 52 CLI tests, all 31 repository unit tests, and the
+four behavioral skill scenarios (`plain`, `vague`, `aws`, `byoc`) passed.
+Behavioral checks used the user's Claude Code subscription with synthetic
+projects and mocked deployment/AWS commands. The focused six skill checks also
+passed after the documentation update. A second-model review found no code
+blocker; its two packaging/documentation findings were resolved before release.
+
+A fresh npm install of `small-deploy@latest` resolved to `0.0.9`. All 31 package
+files match the tested archive, which contains no runtime dependencies or
+configured secret values. SHA-256:
+`50c294902ab24126352a83519e22b3f7e270f1436b0160f3edcd6096bbccb3f2`.
+Evidence and the immutable release archive are under ignored
+`.small/npm-release/0.0.9/`. The previous hosted CLI is `0.0.8`; if a release
+regression requires a rollback, its npm tag can be restored while a corrected
+version is prepared. That older version does not support the private AWS pilot.
+
+Earlier milestone notes below describe what was available when each milestone
+was tested; their held-publication notes are superseded by this CLI release.
+
+## Private installation: S3 approval milestone
+
+Private release `0.1.0-pilot.4` connects the existing exact-folder S3 workflow
+to Cognito owner authorization. The target remains account **503561429929**,
+`us-east-1`, at **https://d3sgti338uxlc.cloudfront.net/apps**.
+
+- Declare `[aws] s3_read = "s3://bucket/folder/"`; `small deploy` sends only
+  that request first and waits. In the existing **Settings > Connections > AWS**,
+  the owner reviews the app/folder and clicks **Approve & deploy** or **Cancel**.
+- Reuse `AwsS3Access`; no static approved-folder inventory, separate feature page,
+  hosted Connect AWS action, or cross-account role is introduced. Private Settings
+  identifies the installed account. Shared dev retains its existing connection UI.
+- The private gateway can write only the `request` row of customer AccessTable.
+  Approved grants and durable approval records can be written only by the existing
+  IAM handler. Conditional writes bind approval/cancellation to the exact saved
+  request; retries retain the applying request until IAM completion is recorded.
+- Reuse separate app roles, bounded to `s3:GetObject` in this account/region and
+  the exact approved prefix. The gateway has no IAM administration or S3 data
+  permissions. No source upload URL is issued for an unapproved folder.
+- The one installation update adds the permissions resources. Individual folder
+  approvals update the app role without a CloudFormation update. Other app grants
+  and all existing jobs/users remain. Removing or changing the folder requires
+  approval and prevents new runs of outdated deployments; existing tasks/in-flight
+  requests are subject to normal AWS permission propagation.
+- This slice supports literal non-root folders and known object keys, not bucket
+  listing, writes, deletes, cross-account buckets, or SSE-KMS decryption. Sharing
+  and colleague onboarding remain separate tasks.
+
+Release `0.1.0-pilot.4` is installed; `small-private-byoc` reached
+`UPDATE_COMPLETE`, and the private dashboard was published at the same URL.
+The proof uses the supplied CLI archive extracted from this release, with
+the user's real Cognito owner login. Its source is the existing
+`examples/byoc-s3-report` example, staged locally with the private bucket/name.
+
+Verified on 2026-09-09:
+
+- [aws-private-s3-report](https://d3sgti338uxlc.cloudfront.net/apps/aws-private-s3-report)
+  requested only `s3://small-private-byoc-databucket-7siqli2pchdw/small-samples/private-s3-report/`.
+  The CLI paused before app deployment/source upload. Approving that exact
+  synthetic-folder request through the owner's API session resumed deployment.
+- Run `r-1789016936491-290d11ded6de` finished with exit 0. Downloaded
+  `report.json`: 5 CSV rows, total `94.30`, East `42.30`, North `25.00`, West `27.00`.
+- Negative run `r-1789017105413-b7d9f97a9164` attempted the existing adjacent
+  `small-samples/private-s3-report-denied/sample.csv` object. It finished with
+  exit 1 and S3 `AccessDenied` from the app role's explicit deny. This intentional
+  failed run stays in Logs as evidence of the boundary.
+- The original `aws-private-proof` app remained deployed. Its regression run
+  `r-1789017159782-a5ef3967ce68` finished with exit 0 and produced its report.
+- Read the installed app role: ECS-only trust with source account `503561429929`,
+  customer-owned permissions boundary, exact-folder GetObject allow, and explicit
+  deny outside that folder. No external account principal was added.
+- 31 repository unit tests and 21 focused Node CLI/template tests passed.
+  Private API/permissions tests cover owner authorization, changed/cancelled
+  requests, retries, source gating, revocation and preservation of another app's
+  policy/audit. All four private browser scenarios pass with synthetic provider/API
+  replies, including the existing Settings panel. The real AWS approval above
+  used the API; it was not a real browser approval test.
+- Shared dev UI deployed as `38d10e97-19a5-42a9-971f-12f927ec99d2`, retaining
+  both preview flags with private mode off. Amazon source/data/login stay on the
+  private AWS URL. No live Cloudflare promotion or public npm publication.
+- Lockfile audit still reports 5 high and 7 moderate existing transitive findings
+  in diagram packages and dev/build tooling. The changed S3 flow calls none of
+  those APIs; no dependency was added or upgraded in this slice.
+
+[AWS permissions boundaries](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_boundaries.html)
+describe the intersection of the app policy and boundary;
+[DynamoDB transaction authorization](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis-iam.html)
+uses the underlying item permissions for the handler's approval/audit transaction.
+
 ## Private installation: first dashboard milestone
 
 First milestone on 2026-09-09: internal release `0.1.0-pilot.1` was deployed at
@@ -716,7 +837,7 @@ public npm package does not include this preview yet; use the repository CLI
 above or install `./packages/cli` locally. `small skill` installs the updated
 skill payload, including `references/aws-hosting.md`, into the current app.
 
-For a new workspace, use **Settings → Connections → AWS**:
+For a new hosted-preview workspace, use **Settings → Connections → AWS**:
 
 1. Enter the customer's 12-digit AWS account ID and first app name.
 2. Click **Connect AWS**. It prepares a private template and opens CloudFormation

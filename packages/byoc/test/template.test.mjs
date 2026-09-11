@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { makeTemplate } from '../template.mjs';
 
 const template = makeTemplate({ apiCode: readFileSync(new URL('../api.py', import.meta.url), 'utf8'),
+  grantsCode: readFileSync(new URL('../grants.py', import.meta.url), 'utf8'),
   signerCode: readFileSync(new URL('../signer.py', import.meta.url), 'utf8'), installationId: 'a'.repeat(32), externalId: 'b'.repeat(64),
   workspace: 'example-com', owner: 'owner@example.com', jobName: 'cpu-job',
   platformPrincipal: 'arn:aws:iam::123456789012:user/small-byoc-dev', platformOrigin: 'https://small.example.test' });

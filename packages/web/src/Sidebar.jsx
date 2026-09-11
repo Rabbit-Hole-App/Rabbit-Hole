@@ -129,7 +129,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose }) {
             <>
               <div className="text-2xl font-semibold">Connections</div>
               <div className="pt-2 text-base text-ink-2">Bring small into the tools your team already uses</div>
-              {import.meta.env.VITE_BYOC_DEV === 'true' && <>
+              {(isPrivateByoc || import.meta.env.VITE_BYOC_DEV === 'true') && <>
                 <Heading>AWS</Heading>
                 <AwsConnection workspace={org} apps={apps} onChanged={onReload} />
               </>}

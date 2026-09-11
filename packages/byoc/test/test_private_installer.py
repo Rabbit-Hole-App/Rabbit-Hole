@@ -91,7 +91,7 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(self.installer.seed.call_args.args[1], "MEMBER#owner-sub")
 
     def test_large_template_uses_only_a_private_customer_release_bucket(self):
-        (self.root / "template.json").write_text(" " * 51201)
+        (self.root / "template.json").write_text("{}" + " " * 51201)
         calls, created = [], False
 
         def aws(*args):
@@ -117,6 +117,20 @@ class InstallerTests(unittest.TestCase):
         upload = next(args for args in calls if args[:2] == ("s3api", "put-object"))
         self.assertEqual(upload[upload.index("--expected-bucket-owner") + 1], "503561429929")
         self.assertTrue(all("web" not in str(args) for args in calls))
+
+    def test_software_update_preserves_customer_actions_and_binds_release_bucket(self):
+        (self.root / "template.json").write_text(json.dumps({"Parameters": {"ReleaseBucketArn": {}, "AppGrantActions": {}}}))
+        self.installer.verify = Mock()
+        self.installer.stack = Mock(return_value={"Parameters": [{"ParameterKey": "AppGrantActions", "ParameterValue": "s3:GetObject,sqs:SendMessage"}]})
+        self.installer.template_input = Mock(return_value=["--template-url", "https://customer-releases.s3.us-east-1.amazonaws.com/template.json"])
+        self.installer.release_bucket = "customer-releases"
+        self.installer.status = Mock(return_value={"status": "UPDATE_IN_PROGRESS"})
+        self.installer.aws = Mock()
+        self.installer.deploy()
+        update = self.installer.aws.call_args.args
+        self.assertEqual(update[:2], ("cloudformation", "update-stack"))
+        self.assertIn("ParameterKey=AppGrantActions,UsePreviousValue=true", update)
+        self.assertIn("ParameterKey=ReleaseBucketArn,ParameterValue=arn:aws:s3:::customer-releases", update)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ from urllib.parse import quote
 import boto3
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
+from grants import normalize_grants, stored_grants, installed_actions, check_protected
 
 _clients = {}
 _secret = None
@@ -72,12 +73,17 @@ def authorize(header, secret, permission, now=None):
 
 def validate_schema(schema):
     if not isinstance(schema, dict) or len(schema) > 20:
-        raise Rejected("Use at most 20 scalar inputs")
+        raise Rejected("Use at most 20 inputs")
     for name, field in schema.items():
         if not re.fullmatch(r"[a-zA-Z][a-zA-Z0-9_]{0,39}", name) or not isinstance(field, dict):
             raise Rejected("Invalid input name or definition")
-        if field.get("type", "text") not in ("text", "number", "bool", "select"):
-            raise Rejected("AWS MVP supports text, number, boolean, and select inputs; file inputs are not enabled")
+        if field.get("type", "text") not in ("text", "number", "bool", "select", "file"):
+            raise Rejected("AWS jobs support text, number, boolean, select and file inputs")
+        if field.get("type") == "file":
+            if os.environ.get("FILE_INPUTS") != "v1":
+                raise Rejected("Update this installation to enable file inputs", 409)
+            if "default" in field or not isinstance(field.get("accept", ""), str) or len(field.get("accept", "")) > 200:
+                raise Rejected("File inputs need an optional accept string and cannot have defaults")
         if field.get("type") == "select" and (not isinstance(field.get("options"), list) or not field["options"]):
             raise Rejected("Select inputs need options")
     if len(json.dumps(schema)) > 8000:
@@ -101,7 +107,7 @@ def validate_inputs(schema, values):
             raise Rejected("Input must be a finite number: " + name)
         if kind == "bool" and not isinstance(value, bool):
             raise Rejected("Input must be a boolean: " + name)
-        if kind in ("text", "select") and not isinstance(value, str):
+        if kind in ("text", "select", "file") and not isinstance(value, str):
             raise Rejected("Input must be text: " + name)
         if kind == "select" and value not in field["options"]:
             raise Rejected("Choose one of the options for " + name)
@@ -111,6 +117,83 @@ def validate_inputs(schema, values):
     if len(json.dumps(result).encode()) > 4000:
         raise Rejected("Inputs exceed 4 KB")
     return result
+
+
+def file_name(value, field):
+    if (not isinstance(value, str) or not re.fullmatch(r"[^/\\:\x00-\x1f]{1,160}", value)
+            or value in (".", "..") or value != value.strip()):
+        raise Rejected("Use a filename without folders")
+    extensions = [s.strip().lower() for s in field.get("accept", "").split(",") if s.strip()]
+    if extensions and not any(value.lower().endswith(ext) for ext in extensions):
+        raise Rejected("File type must be " + field["accept"])
+    return value
+
+
+def prepare_upload(app, body, actor):
+    if os.environ.get("FILE_INPUTS") != "v1":
+        raise Rejected("Update this installation to enable file inputs", 409)
+    if set(body) != {"deploy_id", "files"} or not isinstance(body["files"], dict) or not 1 <= len(body["files"]) <= 5:
+        raise Rejected("Upload one to five declared file inputs")
+    doc = deployment(body["deploy_id"], refresh=True, app=app)
+    if doc["status"] != "ready":
+        raise Rejected("Deploy the job successfully before uploading", 409)
+    task_role(app, doc.get("s3_read"), doc.get("grants"))
+    files = {}
+    upload_id = new_id("u")
+    for name, info in body["files"].items():
+        field = doc["inputs"].get(name, {})
+        if field.get("type") != "file" or not isinstance(info, dict) or set(info) != {"filename", "size", "sha256"}:
+            raise Rejected("Unknown file input or unsupported upload metadata")
+        filename = file_name(info["filename"], field)
+        if type(info["size"]) is not int or not 0 <= info["size"] <= 10 * 1024 * 1024:
+            raise Rejected("File inputs are limited to 10 MB per file")
+        try:
+            checksum = base64.b64decode(info["sha256"], validate=True)
+            if len(checksum) != 32:
+                raise ValueError()
+        except (ValueError, TypeError):
+            raise Rejected("File input requires a SHA-256 checksum")
+        files[name] = {"name": name, "filename": filename, "size": info["size"], "sha256": info["sha256"],
+                       "key": app_key(app, "uploads/" + upload_id + "/files/" + name)}
+    record = {"upload_id": upload_id, "deploy_id": doc["id"], "owner": actor, "expires_at": int(time.time()) + 900, "files": files}
+    put_doc(app_key(app, "uploads/" + upload_id + "/record.json"), record)
+    urls = {}
+    for name, info in files.items():
+        headers = {"content-type": "application/octet-stream", "x-amz-checksum-sha256": info["sha256"]}
+        url = client("s3").generate_presigned_url("put_object", Params={"Bucket": os.environ["BUCKET"], "Key": info["key"],
+            "ContentType": headers["content-type"], "ContentLength": info["size"], "ChecksumSHA256": info["sha256"]}, ExpiresIn=300)
+        urls[name] = {"url": url, "headers": headers}
+    return {"upload_id": upload_id, "files": urls, "data_bucket": os.environ["BUCKET"]}
+
+
+def uploaded_files(app, deployment, values, upload_id, actor):
+    names = {k for k, v in values.items() if v and deployment["inputs"][k].get("type") == "file"}
+    if not names:
+        if upload_id:
+            raise Rejected("No file input uses this upload")
+        return []
+    if not upload_id:
+        raise Rejected("Upload the declared files before starting the run")
+    record_id(upload_id, "u")
+    upload = get_doc(app_key(app, "uploads/" + upload_id + "/record.json"))
+    if (not upload or upload["owner"] != actor or upload["deploy_id"] != deployment["id"]
+            or upload["expires_at"] <= time.time() or set(upload["files"]) != names):
+        raise Rejected("This file upload does not belong to this user, app and deployment, or has expired", 403)
+    files = []
+    for name, info in upload["files"].items():
+        if info["filename"] != values[name]:
+            raise Rejected("File input does not match the uploaded filename")
+        obj = client("s3").head_object(Bucket=os.environ["BUCKET"], Key=info["key"], ChecksumMode="ENABLED")
+        if (obj.get("ContentLength") != info["size"] or obj.get("ChecksumSHA256") != info["sha256"]
+                or not obj.get("VersionId") or obj["VersionId"] == "null"):
+            raise Rejected("File upload is incomplete or changed; upload it again")
+        files.append({**info, "version_id": obj["VersionId"]})
+    return files
+
+
+def input_file_url(info, expiry=1800):
+    return client("s3").generate_presigned_url("get_object", Params={"Bucket": os.environ["BUCKET"], "Key": info["key"],
+        "VersionId": info["version_id"], "ResponseContentDisposition": "attachment; filename*=UTF-8''" + quote(info["filename"], safe="")}, ExpiresIn=expiry)
 
 
 def record_id(value, prefix):
@@ -141,8 +224,19 @@ def app_names():
     return sorted({os.environ["JOB_NAME"], *(app_name(p.split("/")[1]) for p in prefixes("apps", 1000))})
 
 
-def task_role(app, s3_read):
-    if s3_read is None:
+def task_role(app, s3_read=None, grants=None):
+    if s3_read is not None and grants is not None:
+        raise Rejected("Declare either grants or s3_read")
+    if grants is not None and os.environ.get("APP_GRANTS") != "v1":
+        raise Rejected("Update this installation to enable app permission grants", 409)
+    try:
+        requested = stored_grants(grants if grants is not None else s3_read, os.environ.get("ACCOUNT_ID"))
+        if grants is not None:
+            normalize_grants(grants, os.environ.get("ACCOUNT_ID"), allowed_actions=installed_actions())
+        check_protected(requested)
+    except ValueError as error:
+        raise Rejected(str(error), 409)
+    if not requested:
         return os.environ["TASK_ROLE"]
     name = app_name(app or os.environ["JOB_NAME"])
     approved = json.loads(os.environ.get("S3_ACCESS", "{}"))
@@ -151,12 +245,18 @@ def task_role(app, s3_read):
         row = client("dynamodb").get_item(TableName=os.environ["ACCESS_TABLE"], Key={"id": {"S": "state"}}, ConsistentRead=True).get("Item", {})
         state = json.loads(row.get("payload", {}).get("S", '{"apps":{}}'))
         if state.get("pending", {}).get("app_name") == name:
-            raise Rejected("S3 permission update is applying; retry after approval finishes", 409)
+            raise Rejected("App permission update is applying; retry after approval finishes", 409)
         if name in state["apps"]:
             approved[name] = state["apps"][name]
-            role_prefix = os.environ["ACCESS_ROLE_ARN_PREFIX"]
-    if not isinstance(s3_read, str) or not s3_read or approved.get(name) != s3_read:
-        raise Rejected("S3 access has not been approved for this app; run small deploy to prepare the AWS update", 409)
+            role_prefix = os.environ["APP_ACCESS_ROLE_ARN_PREFIX"] if isinstance(approved[name], list) else os.environ["ACCESS_ROLE_ARN_PREFIX"]
+    try:
+        current = stored_grants(approved.get(name), os.environ.get("ACCOUNT_ID"))
+        if isinstance(approved.get(name), list):
+            normalize_grants(current, os.environ.get("ACCOUNT_ID"), allowed_actions=installed_actions())
+    except ValueError as error:
+        raise Rejected(str(error), 409)
+    if current != requested or (grants is not None and not isinstance(approved.get(name), list)):
+        raise Rejected("App access has not been approved; run small deploy and review the request in Settings > Connections > AWS", 409)
     return role_prefix + name
 
 
@@ -220,7 +320,7 @@ def deployment(deploy_id, refresh=False, finalize=False, app=None):
         if doc["status"] == "built":
                 task = client("ecs").register_task_definition(
                     family=os.environ["TASK_FAMILY"], networkMode="awsvpc", requiresCompatibilities=["FARGATE"],
-                    cpu="1024", memory="2048", executionRoleArn=os.environ["EXECUTION_ROLE"], taskRoleArn=task_role(app, doc.get("s3_read")),
+                    cpu="1024", memory="2048", executionRoleArn=os.environ["EXECUTION_ROLE"], taskRoleArn=task_role(app, doc.get("s3_read"), doc.get("grants")),
                     runtimePlatform={"cpuArchitecture": "X86_64", "operatingSystemFamily": "LINUX"},
                     containerDefinitions=[dict(name="job", image=doc["image"], essential=True, readonlyRootFilesystem=False,
                         environment=[{"name": "SMALL_AWS_BUCKET", "value": os.environ["BUCKET"]},
@@ -276,6 +376,8 @@ def run_record(run_id, app=None):
 
 
 def dispatch(method, path, body, query, claims, app=None):
+    if path == "/uploads" and method == "POST":
+        return prepare_upload(app, body, claims["sub"])
     if path == "/apps" and method == "GET":
         return {"apps": [{"name": name} for name in app_names()]}
     if path == "/job" and method == "GET":
@@ -284,12 +386,14 @@ def dispatch(method, path, body, query, claims, app=None):
         entry = body.get("entry", "")
         if not re.fullmatch(r"[a-zA-Z0-9_][a-zA-Z0-9_./-]*\.py", entry) or ".." in entry.split("/"):
             raise Rejected("Entry must be a relative Python file")
-        if set(body) - {"entry", "inputs", "s3_read"}:
+        if set(body) - {"entry", "inputs", "s3_read", "grants"} or ("grants" in body and "s3_read" in body):
             raise Rejected("Unsupported deployment setting")
         schema = validate_schema(body.get("inputs", {}))
-        task_role(app, body.get("s3_read"))  # enforce approval before issuing a source upload URL
+        task_role(app, body.get("s3_read"), body.get("grants"))  # approval before any source upload
         deploy_id = new_id("d")
         doc = dict(id=deploy_id, status="uploading", entry=entry, inputs=schema, s3_read=body.get("s3_read"), created_at=stamp())
+        if "grants" in body:
+            doc["grants"] = normalize_grants(body["grants"], os.environ.get("ACCOUNT_ID"), allowed_actions=installed_actions())
         put_doc(app_key(app, "deploys/" + deploy_id + "/record.json"), doc)
         # Archives keep globally unique deployment IDs under the installed build
         # role's sources/ permission; only the owning app's record can build them.
@@ -322,17 +426,20 @@ def dispatch(method, path, body, query, claims, app=None):
         if method == "GET" and not suffix:
             return doc
     if path == "/runs" and method == "POST":
-        if set(body) - {"inputs", "deploy_id"}:
+        if set(body) - {"inputs", "deploy_id", "upload_id"}:
             raise Rejected("Unsupported run setting")
         doc = deployment(body["deploy_id"], refresh=True, app=app) if body.get("deploy_id") else latest_deployment(app)
         if not doc or doc["status"] != "ready":
             raise Rejected("Deploy the job successfully before running it", 409)
         # Old task definitions cannot retain access after its approval changes.
-        role = task_role(app, doc.get("s3_read"))
+        role = task_role(app, doc.get("s3_read"), doc.get("grants"))
         values = validate_inputs(doc["inputs"], body.get("inputs", {}))
+        files = uploaded_files(app, doc, values, body.get("upload_id"), claims["sub"])
         run_id = new_id("r")
         run = dict(run_id=run_id, deploy_id=doc["id"], status="starting", inputs=values,
                    started_by=claims["sub"], started_at=stamp())
+        if files:
+            run["input_files"] = files
         output_post = client("s3").generate_presigned_post(Bucket=os.environ["BUCKET"],
             Key=app_key(app, "runs/" + run_id + "/outputs/${filename}"),
             Conditions=[["content-length-range", 1, 11 * 1024 * 1024]], ExpiresIn=1800)
@@ -343,6 +450,11 @@ def dispatch(method, path, body, query, claims, app=None):
             {"name": "SMALL_RUN_ID", "value": run_id}, {"name": "SMALL_RUN_INPUTS", "value": json.dumps(values)},
             {"name": "SMALL_S3_BUCKET", "value": bucket}, {"name": "SMALL_S3_PREFIX", "value": prefix},
             {"name": "SMALL_OUTPUT_POST", "value": json.dumps(output_post)}, {"name": "SMALL_RESULT_URL", "value": result_url}]}]}
+        if files:
+            key = app_key(app, "runs/" + run_id + "/input-manifest.json")
+            put_doc(key, [{"name": f["name"], "filename": f["filename"], "size": f["size"], "sha256": f["sha256"], "url": input_file_url(f)} for f in files])
+            url = client("s3").generate_presigned_url("get_object", Params={"Bucket": os.environ["BUCKET"], "Key": key}, ExpiresIn=1800)
+            overrides["containerOverrides"][0]["environment"].append({"name": "SMALL_INPUT_MANIFEST_URL", "value": url})
         if len(json.dumps(overrides).encode()) > 8192:
             raise Rejected("Run inputs and upload grants exceed the AWS task limit", 413)
         put_doc(app_key(app, "runs/" + run_id + "/record.json"), run)
@@ -379,6 +491,9 @@ def dispatch(method, path, body, query, claims, app=None):
                     "Key": o["Key"], "ResponseContentDisposition": "attachment; filename*=UTF-8''" + quote(o["Key"][len(prefix):], safe="")},
                     ExpiresIn=180)} for o in objs]}
         if not suffix:
+            if run.get("input_files"):
+                return {**run, "input_files": [{"name": f["name"] + os.path.splitext(f["filename"])[1], "size": f["size"],
+                                                "url": input_file_url(f, 180)} for f in run["input_files"]]}
             return run
     raise Rejected("No such AWS operation", 404)
 

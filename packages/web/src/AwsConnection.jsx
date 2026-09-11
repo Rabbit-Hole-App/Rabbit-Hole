@@ -63,7 +63,8 @@ export default function AwsConnection({ workspace, apps = [], onChanged }) {
       title={<span className="inline-flex items-center gap-2">Run in your AWS account<Tip label="Data privacy" info={dataInfo}><IconBtn type="button" aria-label="AWS data privacy information" aria-description={dataInfo}><CircleAlert size={16} strokeWidth={1.5} /></IconBtn></Tip></span>}
       desc={connection ? `Account ${connection.account_id} · ${connection.region}` : 'One connection for your workspace · us-east-1'}
     >
-    {connection?.state === 'connected' ? <Button variant="soft" size="sm" disabled={busy || !connection.can_deploy} title={connection.can_deploy ? 'Disconnect AWS' : 'Only the installer can disconnect AWS'} onClick={() => { setError(''); setConfirmDisconnect(true); }}><Check size={14} />Connected</Button>
+    {connection?.private ? <span className="inline-flex items-center gap-2 text-sm text-ink-2"><Check size={14} />Installed in your AWS</span>
+      : connection?.state === 'connected' ? <Button variant="soft" size="sm" disabled={busy || !connection.can_deploy} title={connection.can_deploy ? 'Disconnect AWS' : 'Only the installer can disconnect AWS'} onClick={() => { setError(''); setConfirmDisconnect(true); }}><Check size={14} />Connected</Button>
       : connection !== undefined && <div className="flex flex-wrap justify-end gap-2">
         {(!connection || connection.can_deploy) && <Button variant="soft" size="sm" disabled={busy} onClick={reconnect ? connect : install}>
           {busy ? 'Working…' : connection?.state === 'installed' ? 'Finish connecting' : connection?.state === 'pending' ? 'Open AWS installation' : 'Connect AWS'}{!reconnect && <ExternalLink size={14} />}</Button>}

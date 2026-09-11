@@ -10,9 +10,9 @@ small init                  # scaffold small.toml + a first runbook
 small deploy --env .env     # detect app, build remotely, print URL
 ```
 
-Working with an AI coding agent? `npx small-skill` installs the agent skill
-(same as `small skill`) so Claude Code/Codex deploys through small instead
-of hand-rolling Docker.
+Working with an AI coding agent? Run `small skill` in the project to install
+the instructions bundled with your CLI, including the private AWS workflow.
+The separately published `small-skill` package also provides agent instructions.
 
 Your app is served at `https://<control-plane>/a/<org>/<app>/` behind a
 magic-link login. Only people at your email domain (or explicitly shared
@@ -28,7 +28,7 @@ and `/small run` works from there too, with results posted back to the thread.
 
 ```
 start
-  login                    sign in with a one-time email code
+  login [--api <url>]       hosted email login or private AWS Cognito login
   init                     scaffold small.toml and a runbook in this project
   deploy                   ship the current directory
 
@@ -61,11 +61,10 @@ the CLI workspace authentication update stops the command before app access.
 
 ## AWS hosting (dev preview)
 
-The updated CLI currently comes from this repository. Public npm publication
-is held while the feature is reviewed on dev. From the repository root, run
-`node packages/cli/scripts/sync-guard.js` to prepare its bundled runtime/skill,
-then `npm install -g ./packages/cli` to install the local CLI. Run `small skill`
-in your app directory to refresh its agent instructions.
+Install `small-deploy@0.0.9` or newer from npm and run `small skill` in your
+app directory to refresh its agent instructions. The hosted AWS dashboard
+remains a dev preview. For a customer-hosted Small installation, use the
+private AWS instructions below and that installation's own URL.
 
 In the [dev dashboard](https://small-cp-dev.zeroshothq.workers.dev/apps), open
 the desired workspace's **Settings → Connections → AWS**. Enter the customer's
@@ -99,6 +98,44 @@ In order: `small.toml` (`entry`), `--entry` flag, framework hint
 (`Flask(`, `FastAPI(`, `import streamlit`, `import gradio`), filename
 convention (`app.py`/`main.py`/`server.py`), only `.py` file. Every deploy
 prints what was chosen.
+
+## Private AWS installation (CLI 0.0.10)
+
+Use the Small URL supplied by your company's administrator. The existing
+customer AWS installation must have CPU jobs enabled; release `0.1.0-pilot.5.1`
+adds configurable app grants and file uploads. Installing this CLI does not
+install or update that stack. Existing single-folder S3 configurations remain compatible.
+
+```sh
+npm install -g small-deploy@0.0.10
+small login --api https://small.example.com
+small workspaces
+small skill
+```
+
+Replace the example URL with your installation's HTTPS origin. Set `SMALL_API`
+to that same origin if the shell already overrides it. In each app's `small.toml`,
+use `type = "job"` and `[deploy] target = "aws"`. Preserve its name and Python
+entry, then run `small deploy --workspace <slug-from-workspaces>`.
+
+Source uploads, builds, runs, logs, and outputs use customer AWS. Private login
+uses Cognito and a temporary callback at `http://127.0.0.1:8766/auth/callback`.
+Keep the login command running and open its link on the same computer. When the
+CLI runs over SSH, forward port `8766` to that host before signing in;
+`--no-browser` prints the login link but does not set up forwarding.
+
+The private AWS pilot supports CPU jobs, scalar inputs, files (up to five,
+10 MiB each), and exact per-app AWS grants. Declare `[aws] grants` as a single-line
+array of `{ action = "...", resource = "..." }` entries. Deployment waits for
+approval in Settings > Connections > AWS. The customer administrator controls
+available actions through the stack's `AppGrantActions` parameter; adding an
+action never broadens an app's existing approval. Additional services may need
+customer-configured VPC endpoints. The hosted dev preview retains its existing
+single-folder S3 permission flow.
+
+App secrets, system packages, schedules, persistent volumes, and sharing changes
+are outside this pilot. `small skill` installs the complete
+`references/aws-hosting.md` guide, including file flags, grant syntax, and limits.
 
 ## small.toml
 

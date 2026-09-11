@@ -1,5 +1,6 @@
 // One workspace connection, multiple CPU jobs. Shared by dev and tests.
 import { accessMap } from '../cli/lib/byoc-s3.js';
+import { withGrants } from './python-source.mjs';
 const ref = (name) => ({ Ref: name });
 const att = (name, field) => ({ 'Fn::GetAtt': [name, field] });
 const sub = (value) => ({ 'Fn::Sub': value });
@@ -9,9 +10,11 @@ const role = (service, statements) => ({ Type: 'AWS::IAM::Role', Properties: {
   AssumeRolePolicyDocument: trust(service), Policies: [{ PolicyName: 'small-job', PolicyDocument: { Version: '2012-10-17', Statement: statements } }],
 } });
 
-export function makeTemplate({ apiCode, signerCode, permissionsCode, installationId, externalId, workspace, owner, platformPrincipal, platformOrigin, jobName, s3Access = {}, privateGateway = false }) {
+export function makeTemplate({ apiCode, signerCode, permissionsCode, grantsCode, installationId, externalId, workspace, owner, platformPrincipal, platformOrigin, jobName, s3Access = {}, privateGateway = false }) {
+  apiCode = withGrants(apiCode, grantsCode);
+  permissionsCode = withGrants(permissionsCode, grantsCode);
   if (!/^[a-f0-9]{32}$/.test(installationId) || (!privateGateway && !/^[a-f0-9]{64}$/.test(externalId))) throw new Error('Invalid installation ID');
-  if (privateGateway && (permissionsCode || Object.keys(s3Access).length)) throw new Error('Private S3 approval is not enabled in this release');
+  if (privateGateway && Object.keys(s3Access).length) throw new Error('Private S3 folders must be approved in Small');
   if (!/^[a-z0-9-]{1,40}$/.test(jobName)) throw new Error('Invalid job name');
   const label = 'small-byoc-' + installationId.slice(0, 12);
   s3Access = accessMap(s3Access);
@@ -182,6 +185,55 @@ export function makeTemplate({ apiCode, signerCode, permissionsCode, installatio
       'S3Endpoint', 'EcrApiEndpoint', 'EcrDockerEndpoint', 'LogsEndpoint', 'DataBucket', 'BucketPolicy', 'Repository',
       'Cluster', 'RunLogGroup', 'BuildLogGroup', 'ApiLogGroup', 'TaskRole', 'ExecutionRole', 'BuildRole', 'BuildProject'];
     const compute = Object.fromEntries(ids.map((id) => [id, Resources[id]]));
+    if (permissionsCode) {
+      for (const id of ['AccessTable', 'AccessBoundary', 'AccessLogGroup', 'AccessRole', 'AccessFunction']) compute[id] = Resources[id];
+      compute.AccessFunction.Properties.Timeout = 25;
+      const appPrefix = 'small-app-' + installationId.slice(0, 12) + '-';
+      const appRoleArn = sub('arn:${AWS::Partition}:iam::${AWS::AccountId}:role/' + appPrefix + '*');
+      // IAM forbids wildcards in an ARN's service segment. Ownership uses the
+      // global context key; services without that key remain denied.
+      const internalArns = ['lambda', 'logs', 'ecr', 'ecs', 'codebuild', 'dynamodb', 'cognito-idp'].flatMap((service) => [
+        sub('arn:${AWS::Partition}:' + service + ':${AWS::Region}:${AWS::AccountId}:*${AWS::StackName}*'),
+        sub('arn:${AWS::Partition}:' + service + ':${AWS::Region}:${AWS::AccountId}:*' + label + '*'),
+      ]);
+      // The old read-only boundary stays unchanged. New grants use new roles.
+      compute.AppAccessBoundary = { Type: 'AWS::IAM::ManagedPolicy', Properties: {
+        Description: 'Customer-configured application capabilities; each app still needs an exact approval.',
+        PolicyDocument: { Version: '2012-10-17', Statement: [
+          allow(ref('AppGrantActions'), '*'),
+          { Effect: 'Deny', NotAction: ref('AppGrantActions'), Resource: '*' },
+          { Effect: 'Deny', Action: '*', Resource: '*', Condition: { StringNotEquals: { 'aws:ResourceAccount': ref('AWS::AccountId') } } },
+          { Effect: 'Deny', Action: 's3:*', Resource: '*', Condition: { StringNotEquals: { 's3:ResourceAccount': ref('AWS::AccountId') } } },
+          { Effect: 'Deny', Action: '*', Resource: '*', Condition: { StringNotEquals: { 'aws:RequestedRegion': ref('AWS::Region') } } },
+          { Effect: 'Deny', Action: '*', Resource: [
+            ...internalArns,
+            ref('ReleaseBucketArn'), sub('${ReleaseBucketArn}/*'),
+          ] },
+          { Effect: 'Deny', NotAction: 's3:GetObject', Resource: [att('DataBucket', 'Arn'), bucketObjects] },
+          { Effect: 'Deny', Action: 's3:*', Resource: ['sources', 'deploys', 'runs', 'uploads', 'apps'].map((p) => sub('${DataBucket.Arn}/' + p + '/*')) },
+        ] },
+      } };
+      compute.AccessRole.Properties.Policies[0].PolicyDocument.Statement.push(
+        allow('iam:CreateRole', appRoleArn, { StringEquals: { 'iam:PermissionsBoundary': ref('AppAccessBoundary') } }),
+        allow('iam:GetRole', appRoleArn),
+        allow('iam:PutRolePolicy', appRoleArn, { StringEquals: { 'iam:PermissionsBoundary': ref('AppAccessBoundary') } }),
+        allow('access-analyzer:ValidatePolicy', '*'));
+      Object.assign(compute.AccessFunction.Properties.Environment.Variables, {
+        APP_GRANTS: 'v1', APP_GRANT_ACTIONS: { 'Fn::Join': [',', ref('AppGrantActions')] },
+        APP_ACCESS_ROLE_PREFIX: appPrefix, APP_ACCESS_BOUNDARY: ref('AppAccessBoundary'),
+      });
+      Resources.ApiRole.Properties.Policies[0].PolicyDocument.Statement.find((s) => s.Action === 'iam:PassRole').Resource.push(appRoleArn);
+      Object.assign(Resources.ApiFunction.Properties.Environment.Variables, {
+        APP_GRANTS: 'v1', APP_GRANT_ACTIONS: { 'Fn::Join': [',', ref('AppGrantActions')] },
+        APP_ACCESS_ROLE_ARN_PREFIX: sub('arn:${AWS::Partition}:iam::${AWS::AccountId}:role/' + appPrefix),
+        ACCOUNT_ID: ref('AWS::AccountId'), FILE_INPUTS: 'v1',
+      });
+    }
+    for (const [id, service] of [['LambdaEndpoint', 'lambda'], ['EcsEndpoint', 'ecs']]) {
+      compute[id] = { Type: 'AWS::EC2::VPCEndpoint', Properties: { VpcId: ref('Vpc'), VpcEndpointType: 'Interface',
+        ServiceName: sub('com.amazonaws.${AWS::Region}.' + service), PrivateDnsEnabled: true,
+        SubnetIds: [ref('Subnet')], SecurityGroupIds: [ref('EndpointSecurityGroup')] } };
+    }
     compute.JobApiRole = Resources.ApiRole;
     compute.JobApiRole.Properties.Policies[0].PolicyDocument.Statement = Resources.ApiRole.Properties.Policies[0].PolicyDocument.Statement
       .filter((statement) => statement.Action !== 'secretsmanager:GetSecretValue');
@@ -191,7 +243,14 @@ export function makeTemplate({ apiCode, signerCode, permissionsCode, installatio
     compute.JobApiFunction.Properties.Timeout = 25;
     delete compute.JobApiFunction.Properties.Environment.Variables.SIGNING_SECRET;
     compute.JobApiFunction.Properties.Environment.Variables.PRIVATE_GATEWAY = 'true';
-    return { Resources: compute };
+    return { Resources: compute, ...(permissionsCode ? { Parameters: {
+      AppGrantActions: { Type: 'CommaDelimitedList',
+        Default: 's3:GetObject,s3:PutObject,s3:ListBucket,lambda:InvokeFunction,ecs:DescribeTasks',
+        AllowedPattern: '(?!(?:iam|sts|organizations|account|cloudformation):)[a-z0-9-]+:[A-Za-z][A-Za-z0-9]{0,99}',
+        Description: 'Exact actions apps may request. Adding an action does not grant it to any app. No Small release is needed to change this setting.' },
+      ReleaseBucketArn: { Type: 'String', AllowedPattern: 'arn:aws:s3:::[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]',
+        Description: 'Private installer artifact bucket, reserved from all app grants.' },
+    } } : {}) };
   }
   return { AWSTemplateFormatVersion: '2010-09-09', Description: 'small BYOC preview: CPU jobs for one workspace. Customer data stays in this account.',
     Resources, Outputs: { ConnectionRoleArn: { Value: att('ConnectionRole', 'Arn') }, SignerArn: { Value: att('SignerFunction', 'Arn') },

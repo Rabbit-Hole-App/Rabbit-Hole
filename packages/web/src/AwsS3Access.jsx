@@ -3,7 +3,11 @@ import { Copy, ExternalLink } from 'lucide-react';
 import { api } from './api.js';
 import { Button, IconBtn, Input } from './ui.jsx';
 
-// The CLI requests access. The installer approves the exact folder here.
+const actionHelp = { 's3:GetObject': 'Read objects', 's3:PutObject': 'Write or replace objects',
+  's3:ListBucket': 'List object names', 'lambda:InvokeFunction': 'Run this function with its existing permissions',
+  'ecs:DescribeTasks': 'View task status and configuration' };
+
+// The CLI requests access. The owner reviews exact actions and resources here.
 export default function AwsS3Access({ connection }) {
   const [state, setState] = useState(null), [error, setError] = useState('');
   const [busy, setBusy] = useState(false), [templateUrl, setTemplateUrl] = useState('');
@@ -17,7 +21,8 @@ export default function AwsS3Access({ connection }) {
       }
       if (state?.pending && !next.pending) {
         setTemplateUrl('');
-        const approved = next.stable && (next.approved[state.pending.app_name] ?? null) === state.pending.s3_read;
+        const generic = Array.isArray(state.pending.grants);
+        const approved = next.stable && JSON.stringify(next.approved[state.pending.app_name] ?? (generic ? [] : null)) === JSON.stringify(generic ? state.pending.grants : state.pending.s3_read);
         setNotice(approved ? 'Access approved. Your waiting deployment will continue automatically.' : 'This permission request is no longer pending.');
       }
     } catch (e) { setError(e.message); }
@@ -43,10 +48,11 @@ export default function AwsS3Access({ connection }) {
     } catch (e) { if (popup) popup.close(); setError(e.message); } finally { setBusy(false); }
   };
   const pending = state?.pending;
+  const generic = Array.isArray(pending?.grants);
   const needsUpgrade = state && !state.approval_enabled;
   if (!needsUpgrade && !pending && !templateUrl && !notice && !error) return null;
   return <div className="mt-5 border-t border-line pt-4">
-    <div className="text-sm font-medium">S3 access</div>
+    <div className="text-sm font-medium">{generic ? 'App access' : 'S3 access'}</div>
     {needsUpgrade && <div className="mt-3 rounded-lg border border-line p-4">
       <div className="text-sm font-medium">One-time AWS connection upgrade</div>
       <p className="mt-2 text-xs text-ink-3">Approve this installation update in AWS once. Afterward, approve each app’s S3 folder here and deployment continues automatically. Existing folders stay approved.</p>
@@ -54,8 +60,13 @@ export default function AwsS3Access({ connection }) {
     </div>}
     {pending && <div className="mt-3 rounded-lg border border-line bg-side p-4">
       <div className="text-sm font-medium">{pending.app_name} · {['updating', 'applying'].includes(pending.status) ? 'Applying in AWS' : pending.status === 'stale' ? 'Request needs refreshing' : 'Awaiting your approval'}</div>
-      <p className="mt-2 break-all text-sm">{pending.s3_read ? `Read ${pending.s3_read}` : 'Remove this app’s S3 access'}</p>
-      <p className="mt-2 text-xs text-ink-3">{pending.status === 'stale' ? 'AWS permissions changed after this request. Cancel it and retry deploy.' : !state.approval_enabled ? 'Finish the one-time upgrade above, then approve this folder here.' : pending.s3_read ? 'This app can read files in this folder. It cannot list, write, or delete them. Approval resumes your waiting deployment.' : 'This removes the app’s S3 read access. Approval resumes your waiting deployment.'}</p>
+      {generic ? <div className="mt-3 space-y-3">
+        {pending.grants.length ? pending.grants.map(({ action, resource }) => <div key={action + resource} className="text-sm">
+          <div>{actionHelp[action] || 'Requested action'} <code className="ml-1 text-xs text-ink-3">{action}</code></div>
+          <div className="mt-1 break-all font-mono text-xs text-ink-2">{resource}</div>
+        </div>) : <p className="text-sm">Remove this app’s extra AWS access</p>}
+      </div> : <p className="mt-2 break-all text-sm">{pending.s3_read ? `Read ${pending.s3_read}` : 'Remove this app’s S3 access'}</p>}
+      <p className="mt-2 text-xs text-ink-3">{pending.status === 'stale' ? 'AWS permissions changed after this request. Cancel it and retry deploy.' : !state.approval_enabled ? 'Finish the one-time upgrade above, then approve this folder here.' : generic ? 'This replaces the app’s previous access with the actions and resources shown above. Approval resumes your waiting deployment.' : pending.s3_read ? 'This app can read files in this folder. It cannot list, write, or delete them. Approval resumes your waiting deployment.' : 'This removes the app’s S3 read access. Approval resumes your waiting deployment.'}</p>
       {connection.can_deploy ? <div className="mt-3 flex flex-wrap gap-2">
         <Button variant="soft" size="sm" disabled={busy || !state.approval_enabled || !['pending', 'applying'].includes(pending.status)} onClick={() => act('approve')}>{busy ? 'Working…' : pending.status === 'applying' ? 'Retry approval' : 'Approve & deploy'}</Button>
         <Button variant="ghost" size="sm" disabled={busy} onClick={load}>Check approval</Button>

@@ -26,7 +26,7 @@ test('AWS source archive is readable by Python and excludes secrets, sessions, i
     fs.writeFileSync(path.join(dir, 'build-data/nested/data.txt'), 'private');
     fs.mkdirSync(path.join(dir, 'out'));
     fs.writeFileSync(path.join(dir, 'out', 'previous.txt'), 'private');
-    const archive = packageJob(dir, { entry: 'job.py', config: { type: 'job' } });
+    const archive = packageJob(dir, { entry: 'job.py', config: { type: 'job', inputs: { event_ids_file: { type: 'file', accept: '.txt', required: true } } } });
     const result = spawnSync('python', ['-c', 'import sys,io,zipfile,json; z=zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read())); assert z.testzip() is None; print(json.dumps(z.namelist()))'], { input: archive });
     assert.equal(result.status, 0, result.stderr.toString());
     const names = JSON.parse(result.stdout);
@@ -42,7 +42,7 @@ test('AWS source archive is readable by Python and excludes secrets, sessions, i
 });
 
 test('AWS packaging rejects unsupported app shapes and configuration before uploading', () => {
-  for (const config of [{}, { type: 'job', schedule: '* * * * *' }, { type: 'job', secrets: { required: ['KEY'] } }, { type: 'job', inputs: { photo: { type: 'file' } } }]) {
+  for (const config of [{}, { type: 'job', schedule: '* * * * *' }, { type: 'job', secrets: { required: ['KEY'] } }, { type: 'job', inputs: { date: { type: 'date' } } }]) {
     assert.throws(() => packageJob('.', { entry: 'job.py', config }));
   }
 });
@@ -88,7 +88,7 @@ test('one workspace connection routes multiple apps and resolves run IDs without
   assert.ok(paths.includes('/apps/second-app/runs/' + id + '/logs'));
 });
 
-test('deploy requests only S3 metadata before approval, then sends source and schema directly to AWS', async (t) => {
+for (const privateMode of [false, true]) test(`${privateMode ? 'private' : 'hosted'} deploy waits for S3 approval before uploading source`, async (t) => {
   t.mock.method(config, 'load', () => ({}));
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'small-byoc-test-'));
   const before = { token: process.env.SMALL_TOKEN, base: process.env.SMALL_API };
@@ -100,18 +100,18 @@ test('deploy requests only S3 metadata before approval, then sends source and sc
     fs.rmSync(dir, { recursive: true, force: true });
   });
   fs.writeFileSync(path.join(dir, 'job.py'), 'print("PRIVATE_SOURCE")');
-  const connection = { app_name: 'report', org: 'w-test', account_id: '123456789012', region: 'us-east-1', can_deploy: true,
-    api_url: 'https://abcdefghijklmnopqrst.lambda-url.us-east-1.on.aws/' };
+  const connection = { private: privateMode, app_name: 'report', org: 'w-test', account_id: '123456789012', region: 'us-east-1', can_deploy: true,
+    api_url: 'https://abcdefghijklmnopqrst.lambda-url.us-east-1.on.aws/', data_bucket: 'sample' };
   const app = { entry: 'job.py', config: { type: 'job', aws: { s3_read: 's3://company-data/reports' }, inputs: { key: { type: 'text', default: 'PRIVATE_DEFAULT' } } } };
   const calls = [];
   let approved = false, cancelled = true;
   t.mock.method(console, 'log', () => {});
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     const u = new URL(url); calls.push({ url, body: options.body });
-    if (u.origin === 'https://small.example') {
+    if (u.origin === 'https://small.example' && !u.pathname.startsWith('/api/jobs/')) {
       if (u.pathname === '/api/byoc/access') {
         if (options.method === 'GET') {
-          assert.ok(!calls.some((c) => c.url.startsWith(connection.api_url)));
+          assert.ok(!calls.some((c) => c.url.startsWith(connection.api_url) || c.url.includes('/api/jobs/')));
           if (cancelled) return Response.json({ approved: {}, stable: true, pending: null });
           approved = true;
           return Response.json({ approved: { report: 's3://company-data/reports/' }, stable: true, pending: null });
@@ -124,7 +124,7 @@ test('deploy requests only S3 metadata before approval, then sends source and sc
     }
     assert.ok(approved);
     if (u.hostname === 'sample.s3.us-east-1.amazonaws.com') return new Response('');
-    if (u.pathname === '/apps/report/deploys') {
+    if (u.pathname === (privateMode ? '/api/jobs' : '') + '/apps/report/deploys') {
       assert.equal(JSON.parse(options.body).s3_read, 's3://company-data/reports/');
       assert.equal(JSON.parse(options.body).inputs.key.default, 'PRIVATE_DEFAULT');
       return Response.json({ id: 'fixture', upload_url: 'https://sample.s3.us-east-1.amazonaws.com/source' });
@@ -137,5 +137,9 @@ test('deploy requests only S3 metadata before approval, then sends source and sc
   cancelled = false;
   await deploy(dir, app, connection);
   assert.ok(calls.some((c) => c.url.startsWith('https://sample.s3.')));
-  assert.ok(calls.filter((c) => c.url.startsWith('https://small.example')).every((c) => !c.body?.includes('PRIVATE')));
+  assert.ok(calls.filter((c) => c.url.startsWith('https://small.example/api/byoc')).every((c) => !c.body?.includes('PRIVATE')));
+  if (privateMode) assert.ok(calls.every((c) => !c.url.includes('lambda-url') && !c.url.includes('/byoc/grant')));
+  calls.length = 0;
+  await assert.rejects(deploy(dir, app, { ...connection, data_bucket: 'different-customer' }), /Invalid AWS upload destination/);
+  assert.ok(!calls.some((c) => c.url.startsWith('https://sample.s3.')));
 });

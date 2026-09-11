@@ -1,16 +1,19 @@
 // First private BYOC slice: existing dashboard, Cognito, customer-local catalog.
 import { makeTemplate } from './template.mjs';
+import { withGrants } from './python-source.mjs';
 const ref = (name) => ({ Ref: name });
 const att = (name, field) => ({ 'Fn::GetAtt': [name, field] });
 const sub = (value) => ({ 'Fn::Sub': value });
 
 export function makePrivateTemplate({ poolId, clientId, cognitoDomain, apiCode, workspace = 'w-small-aws',
-  cliRedirectUri = 'http://127.0.0.1:8766/auth/callback', jobCode, installationId, jobName }) {
+  cliRedirectUri = 'http://127.0.0.1:8766/auth/callback', jobCode, permissionsCode, grantsCode, ownerEmail, installationId, jobName }) {
+  apiCode = withGrants(apiCode, grantsCode);
   if (!/^us-east-1_[A-Za-z0-9]+$/.test(poolId) || !/^[a-z0-9]{1,128}$/.test(clientId)
       || !/^https:\/\/[a-z0-9-]+\.auth\.us-east-1\.amazoncognito\.com$/.test(cognitoDomain)
       || !/^w-[a-z0-9-]{1,40}$/.test(workspace) || !apiCode
       || !/^http:\/\/(127\.0\.0\.1|localhost):8766\/auth\/callback$/.test(cliRedirectUri)) throw new Error('Invalid private installation settings');
   const issuer = 'https://cognito-idp.us-east-1.amazonaws.com/' + poolId;
+  let parameters;
   const resources = {
     WebBucket: { Type: 'AWS::S3::Bucket', DeletionPolicy: 'Retain', UpdateReplacePolicy: 'Retain', Properties: {
       PublicAccessBlockConfiguration: { BlockPublicAcls: true, BlockPublicPolicy: true, IgnorePublicAcls: true, RestrictPublicBuckets: true },
@@ -100,9 +103,10 @@ export function makePrivateTemplate({ poolId, clientId, cognitoDomain, apiCode, 
     ] } } },
   };
   if (jobCode) {
-    const compute = makeTemplate({ apiCode: jobCode, installationId, workspace, jobName, privateGateway: true,
-      platformOrigin: sub('https://${Distribution.DomainName}') }).Resources;
-    Object.assign(resources, compute);
+    const compute = makeTemplate({ apiCode: jobCode, permissionsCode, grantsCode, owner: ownerEmail, installationId, workspace, jobName, privateGateway: true,
+      platformOrigin: sub('https://${Distribution.DomainName}') });
+    Object.assign(resources, compute.Resources);
+    parameters = compute.Parameters;
     resources.ApiFunction.Properties.Environment.Variables.JOB_API_FUNCTION = ref('JobApiFunction');
     resources.ApiFunction.Properties.Environment.Variables.ACCOUNT_ID = ref('AWS::AccountId');
     resources.ApiFunction.Properties.Environment.Variables.JOB_NAME = jobName;
@@ -111,11 +115,36 @@ export function makePrivateTemplate({ poolId, clientId, cognitoDomain, apiCode, 
     resources.ApiRole.Properties.Policies[0].PolicyDocument.Statement.push(
       { Effect: 'Allow', Action: 'lambda:InvokeFunction', Resource: att('JobApiFunction', 'Arn') },
       { Effect: 'Allow', Action: ['dynamodb:PutItem', 'dynamodb:UpdateItem'], Resource: att('Metadata', 'Arn') });
+    if (permissionsCode) {
+      Object.assign(resources.ApiFunction.Properties.Environment.Variables, {
+        ACCESS_TABLE: ref('AccessTable'), ACCESS_FUNCTION: ref('AccessFunction'), INSTALLATION_ID: installationId,
+      });
+      resources.ApiRole.Properties.Policies[0].PolicyDocument.Statement.push(
+        { Effect: 'Allow', Action: 'lambda:InvokeFunction', Resource: att('AccessFunction', 'Arn') },
+        { Effect: 'Allow', Action: 'dynamodb:GetItem', Resource: att('AccessTable', 'Arn'),
+          Condition: { 'ForAllValues:StringEquals': { 'dynamodb:LeadingKeys': ['state', 'request'] } } },
+        { Effect: 'Allow', Action: ['dynamodb:PutItem', 'dynamodb:UpdateItem', 'dynamodb:DeleteItem'], Resource: att('AccessTable', 'Arn'),
+          Condition: { 'ForAllValues:StringEquals': { 'dynamodb:LeadingKeys': ['request'] } } });
+      const protectedResources = [att('WebBucket', 'Arn'), sub('${WebBucket.Arn}/*'),
+        sub('arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/' + poolId)];
+      resources.AppAccessBoundary.Properties.PolicyDocument.Statement.push({ Effect: 'Deny', Action: '*', Resource: protectedResources });
+      for (const name of ['ApiFunction', 'AccessFunction', 'JobApiFunction']) {
+        Object.assign(resources[name].Properties.Environment.Variables, {
+          APP_GRANTS: 'v1', APP_GRANT_ACTIONS: { 'Fn::Join': [',', ref('AppGrantActions')] },
+          SMALL_RESOURCE_NAMES: sub('${AWS::StackName},small-byoc-' + installationId.slice(0, 12)),
+          SMALL_DATA_BUCKET: ref('DataBucket'), SMALL_WEB_BUCKET: ref('WebBucket'),
+          SMALL_RELEASE_BUCKET: { 'Fn::Select': [5, { 'Fn::Split': [':', ref('ReleaseBucketArn')] }] },
+          SMALL_COGNITO_ARN: protectedResources[2],
+        });
+      }
+      resources.ApiFunction.Properties.Environment.Variables.FILE_INPUTS = 'v1';
+      resources.DataBucket.Properties.CorsConfiguration.CorsRules[0].AllowedHeaders.push('x-amz-checksum-sha256');
+    }
     resources.Headers.Properties.ResponseHeadersPolicyConfig.SecurityHeadersConfig.ContentSecurityPolicy.ContentSecurityPolicy
       += ' https://*.s3.us-east-1.amazonaws.com';
   }
   return { AWSTemplateFormatVersion: '2010-09-09', Description: 'Small private BYOC: Cognito login and the existing Apps dashboard',
-    Resources: resources, Outputs: { SmallUrl: { Value: sub('https://${Distribution.DomainName}') },
+    ...(parameters ? { Parameters: parameters } : {}), Resources: resources, Outputs: { SmallUrl: { Value: sub('https://${Distribution.DomainName}') },
       WebBucket: { Value: ref('WebBucket') }, MetadataTable: { Value: ref('Metadata') },
       DistributionId: { Value: ref('Distribution') }, ApiId: { Value: ref('Api') },
       ...(jobCode ? { DataBucket: { Value: ref('DataBucket') }, JobApiFunction: { Value: ref('JobApiFunction') } } : {}) } };

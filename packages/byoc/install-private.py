@@ -72,7 +72,8 @@ class Installer:
 
     def template_input(self):
         template = self.root / "template.json"
-        if template.stat().st_size <= 51200:
+        parameters = json.loads(template.read_text()).get("Parameters", {})
+        if template.stat().st_size <= 51200 and "ReleaseBucketArn" not in parameters:
             return ["--template-body", "file://" + str(template)]
         # CloudFormation limits inline templates to 51,200 bytes. A tiny customer
         # stack owns a private release bucket, separate from public web assets.
@@ -99,6 +100,7 @@ class Installer:
         if stack["StackStatus"] not in ("CREATE_COMPLETE", "UPDATE_COMPLETE"):
             raise RuntimeError("The private release-bucket stack is not ready: " + stack["StackStatus"])
         bucket = next(row["OutputValue"] for row in stack["Outputs"] if row["OutputKey"] == "Bucket")
+        self.release_bucket = bucket
         key = "releases/" + self.manifest["version"] + "/template.json"
         self.aws("s3api", "put-object", "--bucket", bucket, "--key", key, "--body", str(template),
                  "--expected-bucket-owner", self.account_id, "--content-type", "application/json")
@@ -112,6 +114,10 @@ class Installer:
         args = ["cloudformation", "update-stack" if stack else "create-stack", "--stack-name", self.config["stackName"],
                 *template, "--capabilities", "CAPABILITY_IAM", "--tags", "Key=Purpose,Value=small-private-byoc",
                 "Key=Release,Value=" + self.manifest["version"]]
+        if "ReleaseBucketArn" in json.loads((self.root / "template.json").read_text()).get("Parameters", {}):
+            args += ["--parameters", "ParameterKey=ReleaseBucketArn,ParameterValue=arn:aws:s3:::" + self.release_bucket]
+            if stack and any(p["ParameterKey"] == "AppGrantActions" for p in stack.get("Parameters", [])):
+                args += ["ParameterKey=AppGrantActions,UsePreviousValue=true"]
         try:
             self.aws(*args)
         except RuntimeError as error:

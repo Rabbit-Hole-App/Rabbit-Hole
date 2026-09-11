@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { makePrivateTemplate } from '../private-template.mjs';
 
 const args = { poolId: 'us-east-1_TestPool', clientId: 'client123',
@@ -77,4 +79,45 @@ test('private CPU stack reuses the job engine with no hosted signer, external tr
   assert.equal(cpu.DataBucket.DeletionPolicy, 'Retain');
   assert.deepEqual(cpu.DataBucket.Properties.CorsConfiguration.CorsRules[0].AllowedOrigins, [{ 'Fn::Sub': 'https://${Distribution.DomainName}' }]);
   assert.ok(cpu.EcrApiEndpoint && cpu.EcrDockerEndpoint && cpu.LogsEndpoint && cpu.S3Endpoint);
+});
+
+test('private S3 approval stays behind Cognito and the gateway cannot change approved grants or IAM', () => {
+  const cpu = makePrivateTemplate({ ...args, jobCode: 'job', permissionsCode: 'permissions', ownerEmail: 'owner@example.test',
+    installationId: 'a'.repeat(32), jobName: 'private-proof' }).Resources;
+  assert.ok(cpu.AccessTable && cpu.AccessBoundary && cpu.AccessFunction);
+  assert.equal(cpu.AccessTable.DeletionPolicy, 'Retain');
+  assert.equal(cpu.AccessFunction.Properties.Environment.Variables.OWNER, 'owner@example.test');
+  assert.equal(cpu.AccessFunction.Properties.ReservedConcurrentExecutions, 1);
+  assert.deepEqual(cpu.JobApiFunction.Properties.Environment.Variables.ACCESS_TABLE, { Ref: 'AccessTable' });
+  const statements = cpu.ApiRole.Properties.Policies[0].PolicyDocument.Statement;
+  assert.doesNotMatch(JSON.stringify(statements), /iam:|sts:|s3:/);
+  const writes = statements.find((s) => Array.isArray(s.Action) && s.Action.includes('dynamodb:DeleteItem'));
+  assert.deepEqual(writes.Resource, { 'Fn::GetAtt': ['AccessTable', 'Arn'] });
+  assert.deepEqual(writes.Condition['ForAllValues:StringEquals']['dynamodb:LeadingKeys'], ['request']);
+  assert.doesNotMatch(JSON.stringify(cpu), /637423432890|ConnectionRole|SignerFunction|AWS::Lambda::Url/);
+});
+
+test('configurable permissions preserve legacy roles and bundle executable standalone Lambdas', () => {
+  const source = (name) => readFileSync(new URL('../' + name, import.meta.url), 'utf8');
+  const template = makePrivateTemplate({ ...args, apiCode: source('private_api.py'), jobCode: source('api.py'),
+    permissionsCode: source('permissions.py'), grantsCode: source('grants.py'), ownerEmail: 'owner@example.test',
+    installationId: 'a'.repeat(32), jobName: 'proof' });
+  const r = template.Resources;
+  assert.equal(r.AccessBoundary.Properties.PolicyDocument.Statement[1].NotAction, 's3:GetObject');
+  assert.deepEqual(r.AppAccessBoundary.Properties.PolicyDocument.Statement[1].NotAction, { Ref: 'AppGrantActions' });
+  assert.ok(template.Parameters.AppGrantActions.AllowedPattern);
+  assert.ok(r.LambdaEndpoint && r.EcsEndpoint);
+  const denies = r.AppAccessBoundary.Properties.PolicyDocument.Statement.filter((s) => s.Effect === 'Deny');
+  assert.match(JSON.stringify(denies), /ReleaseBucketArn/);
+  assert.match(JSON.stringify(denies), /uploads/);
+  assert.match(JSON.stringify(denies), /WebBucket/);
+  assert.doesNotMatch(JSON.stringify(denies), /arn:\$\{AWS::Partition\}:\*:/);
+  assert.ok(denies.some((s) => s.Action === '*' && s.Condition?.StringNotEquals?.['aws:ResourceAccount']?.Ref === 'AWS::AccountId'));
+  assert.doesNotMatch(JSON.stringify(template), /503561429929|637423432890/);
+  const codes = ['ApiFunction', 'JobApiFunction', 'AccessFunction'].map((name) => r[name].Properties.Code.ZipFile);
+  for (const code of codes) assert.doesNotMatch(code, /^from grants import /m);
+  const result = spawnSync('python', ['-c', 'import json,sys\nfor code in json.load(sys.stdin):\n ns={}\n exec(compile(code,"index.py","exec"),ns)\n assert callable(ns["normalize_grants"])\n assert callable(ns["handler"])'],
+    { input: JSON.stringify(codes), encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.throws(() => makePrivateTemplate({ ...args, apiCode: source('private_api.py') }), /missing.*validator/);
 });

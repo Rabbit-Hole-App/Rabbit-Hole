@@ -96,7 +96,7 @@ class PrivateApiTests(unittest.TestCase):
         self.assertEqual([row["name"] for row in data["apps"]], ["shared", "workspace-app"])
         self.assertNotIn("shared_with", data["apps"][0])
         self.assertFalse(data["apps"][0]["canDeploy"])
-        self.assertEqual(data["apps"][0]["aws_connection"], {"private": True, "account_id": "503561429929", "region": "us-east-1"})
+        self.assertEqual(data["apps"][0]["aws_connection"], {"private": True, "account_id": "503561429929", "region": "us-east-1", "data_bucket": None})
 
     def test_workspace_and_members_fit_the_existing_settings(self):
         _, data = self.call(event("/api/workspaces"))
@@ -171,6 +171,18 @@ class PrivateApiTests(unittest.TestCase):
         request["body"] = '{"entry":"job.py","s3_read":"s3://bucket/folder/"}'
         self.assertEqual(self.call(request)[0], 501)
         invoke.invoke.assert_not_called()
+
+    def test_s3_deploy_is_checked_by_the_job_engine_before_upload(self):
+        invoke = self.job_fixture({"name": "job", "owner_sub": "owner-sub"})
+        request = event("/api/jobs/apps/job/deploys", "POST")
+        request['body'] = '{"entry":"job.py","s3_read":"s3://bucket/folder/"}'
+        invoke.invoke.return_value = {"Payload": io.BytesIO(json.dumps({"statusCode": 409,
+            "body": '{"error":"S3 access has not been approved"}'}).encode())}
+        with patch.dict(os.environ, {"ACCESS_FUNCTION": "access"}):
+            status, data = self.call(request)
+        self.assertEqual(status, 409)
+        self.assertNotIn('upload_url', data)
+        self.assertEqual(json.loads(json.loads(invoke.invoke.call_args.kwargs['Payload'])['body'])['s3_read'], 's3://bucket/folder/')
 
 
 if __name__ == "__main__":

@@ -21,7 +21,9 @@ cpSync(web, join(output, 'web'), { recursive: true });
 cpSync(fileURLToPath(new URL('./install-private.py', import.meta.url)), join(output, 'install-private.py'));
 if (cli) cpSync(cli, join(output, 'small-deploy.tgz'));
 const template = makePrivateTemplate({ ...config, apiCode: readFileSync(fileURLToPath(new URL('./private_api.py', import.meta.url)), 'utf8'),
-  ...(config.jobs ? { jobCode: readFileSync(fileURLToPath(new URL('./api.py', import.meta.url)), 'utf8') } : {}) });
+  grantsCode: readFileSync(fileURLToPath(new URL('./grants.py', import.meta.url)), 'utf8'),
+  ...(config.jobs ? { jobCode: readFileSync(fileURLToPath(new URL('./api.py', import.meta.url)), 'utf8'),
+    permissionsCode: readFileSync(fileURLToPath(new URL('./permissions.py', import.meta.url)), 'utf8') } : {}) });
 writeFileSync(join(output, 'template.json'), JSON.stringify(template));
 const sha256 = {};
 function hashFiles(dir) {

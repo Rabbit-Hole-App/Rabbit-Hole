@@ -26,6 +26,28 @@ def token(**changes):
 
 
 class ManagedPermissionTests(unittest.TestCase):
+    def test_configured_grants_require_exact_approval_and_current_ceiling(self):
+        grant = {"action": "lambda:InvokeFunction", "resource": "arn:aws:lambda:us-east-1:123456789012:function:launcher"}
+        state = {"apps": {"report": [grant]}}
+        db = Mock()
+        db.get_item.side_effect = lambda **_: {"Item": {"payload": {"S": json.dumps(state)}}}
+        with patch.dict(os.environ, {"ACCESS_TABLE": "permissions", "ACCOUNT_ID": "123456789012", "APP_GRANTS": "v1",
+                "APP_GRANT_ACTIONS": "s3:GetObject,lambda:InvokeFunction", "APP_ACCESS_ROLE_ARN_PREFIX": "arn:app-",
+                "ACCESS_ROLE_ARN_PREFIX": "arn:legacy-"}), patch.object(api, "client", return_value=db):
+            self.assertEqual(api.task_role("report", grants=[grant]), "arn:app-report")
+            for app, grants in [("other", [grant]), ("report", [{**grant, "resource": grant["resource"] + "-other"}])]:
+                with self.assertRaises(api.Rejected):
+                    api.task_role(app, grants=grants)
+            with patch.dict(os.environ, {"APP_GRANT_ACTIONS": "s3:GetObject"}), self.assertRaises(api.Rejected):
+                api.task_role("report", grants=[grant])
+            state["pending"] = {"app_name": "report"}
+            with self.assertRaises(api.Rejected):
+                api.task_role("report", grants=[grant])
+            del state["pending"]
+            state["apps"]["report"] = "s3://company-data/reports/"
+            with self.assertRaises(api.Rejected):
+                api.task_role("report", grants=[{"action": "s3:GetObject", "resource": "arn:aws:s3:::company-data/reports/*"}])
+
     def test_current_customer_metadata_controls_new_runs_and_blocks_incomplete_updates(self):
         scope = "s3://company-data/reports/"
         db = Mock()
