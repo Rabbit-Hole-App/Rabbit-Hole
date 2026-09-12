@@ -144,6 +144,13 @@ def main():
             print(f"  {n}: {SCENARIOS[n]['title']}")
         return 0
 
+    results_dir = HERE / "results"
+    results_dir.mkdir(exist_ok=True)
+    out = results_dir / f"bench-{date.today().isoformat()}-{skill_hash()}.json"
+    # same-day same-skill runs merge, so the grid can be run in scenario chunks;
+    # the file is rewritten after every rep so a killed run keeps what finished
+    prior = json.loads(out.read_text(encoding="utf-8"))["records"] if out.exists() else []
+
     with ThreadPoolExecutor(max_workers=4) as ex:
         futs = [ex.submit(one_rep, n, arm, a.model) for n, arm in grid]
         records = []
@@ -152,15 +159,8 @@ def main():
             records.append(r)
             cost = f"${r['cost_usd']:.2f}" if r["cost_usd"] else "?"
             print(f"[{i}/{len(grid)}] {r['scenario']}/{r['arm']}: {'pass' if r['passed'] else 'FAIL'} {cost}")
-
-    results_dir = HERE / "results"
-    results_dir.mkdir(exist_ok=True)
-    out = results_dir / f"bench-{date.today().isoformat()}-{skill_hash()}.json"
-    # same-day same-skill runs merge, so the grid can be run in scenario chunks
-    if out.exists():
-        records = json.loads(out.read_text(encoding="utf-8"))["records"] + records
-    out.write_text(json.dumps({"model": a.model, "reps": a.n, "skill": skill_hash(),
-                               "records": records}, indent=2), encoding="utf-8")
+            out.write_text(json.dumps({"model": a.model, "reps": a.n, "skill": skill_hash(),
+                                       "records": prior + records}, indent=2), encoding="utf-8")
     recs, hashes = all_today_records()
     (HERE / "benchmark.md").write_text(report_md(recs, a.model, a.n, arms, hashes), encoding="utf-8")
     print(f"\nwrote {out}\nwrote {HERE / 'benchmark.md'}")
