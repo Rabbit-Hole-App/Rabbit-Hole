@@ -13,20 +13,30 @@ import subprocess
 import sys
 
 
+LIVE_CONFIRMATION = "DEPLOY LIVE"
+
+
 class Installer:
-    def __init__(self, root, account_id, profile, runner=subprocess.run):
+    def __init__(self, root, account_id, profile, target, confirmation=None, runner=subprocess.run):
         self.root, self.runner = Path(root).resolve(), runner
         self.manifest = json.loads((self.root / "release.json").read_text())
         self.config = self.manifest["installation"]
+        if self.config.get("target") != target:
+            raise RuntimeError("The requested target must match this release's installation target.")
         if not re.fullmatch(r"\d{12}", account_id) or self.config["accountId"] != account_id:
             raise RuntimeError("The requested account must match this release's installation account.")
         if self.config["region"] != "us-east-1":
             raise RuntimeError("This pilot supports us-east-1 only.")
         self.account_id = account_id
+        self.target, self.confirmation = target, confirmation
         self.env = {key: value for key, value in os.environ.items() if key not in
                     ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_SECURITY_TOKEN")}
         self.env.update(AWS_PROFILE=profile, AWS_DEFAULT_REGION="us-east-1", AWS_PAGER="")
         self.state = self.root / ".install"
+
+    def require_mutation_confirmation(self):
+        if self.target == "live" and self.confirmation != LIVE_CONFIRMATION:
+            raise RuntimeError('Live installation requires --confirm "DEPLOY LIVE".')
 
     def aws(self, *args):
         result = self.runner(["aws", *args, "--output", "json"], env=self.env, capture_output=True, text=True)
@@ -107,6 +117,7 @@ class Installer:
         return ["--template-url", "https://" + bucket + ".s3.us-east-1.amazonaws.com/" + key]
 
     def deploy(self):
+        self.require_mutation_confirmation()
         self.verify()
         stack = self.stack()
         template = self.template_input()
@@ -156,6 +167,7 @@ class Installer:
                  "--condition-expression", "attribute_not_exists(pk)")
 
     def finish(self):
+        self.require_mutation_confirmation()
         self.verify()
         status = self.status()
         if status["status"] not in ("CREATE_COMPLETE", "UPDATE_COMPLETE"):
@@ -189,13 +201,19 @@ class Installer:
         return {"account": self.account_id, "url": output["SmallUrl"] + "/apps", "owner": attrs["email"], "release": self.manifest["version"]}
 
 
-def main():
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("inspect", "deploy", "status", "finish"))
     parser.add_argument("--account-id", required=True)
     parser.add_argument("--profile", default="default")
-    args = parser.parse_args()
-    installer = Installer(Path(__file__).parent, args.account_id, args.profile)
+    parser.add_argument("--target", choices=("dev", "live"), required=True)
+    parser.add_argument("--confirm")
+    return parser.parse_args(argv)
+
+
+def main():
+    args = parse_args()
+    installer = Installer(Path(__file__).parent, args.account_id, args.profile, args.target, args.confirm)
     if args.action == "inspect":
         result = installer.verify()
     else:

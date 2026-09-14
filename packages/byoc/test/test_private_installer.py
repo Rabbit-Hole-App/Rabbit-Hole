@@ -15,11 +15,11 @@ class InstallerTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.config = {"accountId": "503561429929", "region": "us-east-1", "poolId": "us-east-1_Pool", "clientId": "client123",
+        self.config = {"target": "dev", "accountId": "503561429929", "region": "us-east-1", "poolId": "us-east-1_Pool", "clientId": "client123",
                        "cognitoDomain": "https://test.auth.us-east-1.amazoncognito.com", "stackName": "small-private-byoc", "workspace": "w-small"}
         (self.root / "release.json").write_text(json.dumps({"version": "0.1", "installation": self.config, "sha256": {}}))
         self.runner = Mock()
-        self.installer = module.Installer(self.root, "503561429929", "default", self.runner)
+        self.installer = module.Installer(self.root, "503561429929", "default", "dev", runner=self.runner)
 
     def response(self, data):
         return Mock(returncode=0, stdout=json.dumps(data), stderr="")
@@ -35,8 +35,28 @@ class InstallerTests(unittest.TestCase):
 
     def test_release_account_cannot_be_silently_changed(self):
         with self.assertRaisesRegex(RuntimeError, "requested account"):
-            module.Installer(self.root, "637423432890", "default", self.runner)
+            module.Installer(self.root, "637423432890", "default", "dev", runner=self.runner)
         self.runner.assert_not_called()
+
+    def test_release_target_cannot_be_silently_changed(self):
+        with self.assertRaisesRegex(RuntimeError, "target must match"):
+            module.Installer(self.root, "503561429929", "default", "live", "DEPLOY LIVE", self.runner)
+        self.runner.assert_not_called()
+
+    def test_live_mutations_require_exact_confirmation_phrase(self):
+        self.config["target"] = "live"
+        (self.root / "release.json").write_text(json.dumps({"version": "0.1", "installation": self.config, "sha256": {}}))
+        for action in ("deploy", "finish"):
+            installer = module.Installer(self.root, "503561429929", "default", "live", runner=self.runner)
+            with self.assertRaisesRegex(RuntimeError, "--confirm.*DEPLOY LIVE"):
+                getattr(installer, action)()
+        self.runner.assert_not_called()
+
+    def test_installer_cli_requires_explicit_target(self):
+        with self.assertRaises(SystemExit):
+            module.parse_args(["status", "--account-id", "503561429929"])
+        args = module.parse_args(["status", "--account-id", "503561429929", "--target", "dev"])
+        self.assertEqual(args.target, "dev")
 
     def test_corrupt_release_is_rejected_before_contacting_aws(self):
         self.installer.manifest["sha256"] = {"asset.js": "wrong"}

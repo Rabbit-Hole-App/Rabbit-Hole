@@ -224,7 +224,9 @@ confirmation remains outstanding; those paths pass the automated browser checks.
 | `packages/byoc/install-private.py` | Customer AWS CLI installer; checks account/checksums and preserves existing Cognito settings |
 
 Build with `VITE_PRIVATE_BYOC=true` into `packages/web/dist-private`, then run
-`node packages/byoc/package-private.mjs <installation-config.json>`. The
+`node packages/byoc/package-private.mjs --target dev <installation-config.json>`.
+The configuration must declare the same target. Live packaging instead requires
+`--target live --confirm "DEPLOY LIVE"`. The
 installation configuration supplies the verified account, region, pool, client,
 domain, stack/workspace names, initial owner email, and release version. Internal
 pilot packages live under ignored `.small/byoc-private/releases/<version>`.
@@ -232,11 +234,11 @@ pilot packages live under ignored `.small/byoc-private/releases/<version>`.
 Run the packaged installer where the customer's AWS CLI profile exists:
 
 ```sh
-python3 install-private.py inspect --account-id 503561429929 --profile default
-python3 install-private.py deploy --account-id 503561429929 --profile default
-python3 install-private.py status --account-id 503561429929 --profile default
+python3 install-private.py inspect --target dev --account-id 503561429929 --profile default
+python3 install-private.py deploy --target dev --account-id 503561429929 --profile default
+python3 install-private.py status --target dev --account-id 503561429929 --profile default
 # Once the stack is CREATE_COMPLETE or UPDATE_COMPLETE:
-python3 install-private.py finish --account-id 503561429929 --profile default
+python3 install-private.py finish --target dev --account-id 503561429929 --profile default
 ```
 
 The installer clears environment access keys, explicitly selects the profile,
@@ -317,7 +319,7 @@ Package the private web build and the locally packed CLI together:
 
 ```text
 npm pack --workspace packages/cli --pack-destination .small/byoc-private/cli
-node packages/byoc/package-private.mjs <installation-config.json> .small/byoc-private/cli/small-deploy-0.0.9.tgz
+node packages/byoc/package-private.mjs --target dev <installation-config.json> .small/byoc-private/cli/small-deploy-0.0.9.tgz
 ```
 
 CPU configuration adds `jobs: true`, a stable 32-hex `installationId`,

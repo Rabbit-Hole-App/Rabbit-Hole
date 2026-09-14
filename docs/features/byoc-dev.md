@@ -34,6 +34,13 @@ approval; both app permission boundaries also deny them in IAM. This optional li
 contains customer installation identifiers, not account-specific implementation.
 The live stack and its grants are not changed by creating dev.
 
+Every private release configuration declares `"target": "dev"` or
+`"target": "live"`. Packaging and installation also require the same explicit
+`--target`; a mismatch is rejected before packaging or contacting AWS. Live
+packaging and the mutating installer actions (`deploy` and `finish`) additionally
+require the exact phrase `--confirm "DEPLOY LIVE"`. The read-only `inspect` and
+`status` actions require a target but no confirmation phrase.
+
 Dev identifiers: distribution `ELXPWJNXN10PK`, API `78c31tudv0`, client
 `3e2g9lj3kv00pl3d8v8bo1j2en`, installation `d00414561f984b23a78d8ed3478b3e60`.
 Metadata: `small-private-byoc-dev-Metadata-1MPTCLPF23CRI`; data bucket:
@@ -125,24 +132,26 @@ Separate stacks and authorization provide isolation; these UI flags do not.
 From the repository root, after choosing a fresh version in the dev config:
 
 ```powershell
-node packages/byoc/package-private.mjs .small/byoc-private/installation-dev.json .small/npm-release/0.0.13/small-deploy-0.0.13.tgz
+node packages/byoc/package-private.mjs --target dev .small/byoc-private/installation-dev.json .small/npm-release/0.0.13/small-deploy-0.0.13.tgz
 ```
 
 Transfer the release to the customer dev box. In that release directory:
 
 ```sh
-AWS_PROFILE=default python3 install-private.py inspect --account-id 503561429929 --profile default
-AWS_PROFILE=default python3 install-private.py deploy --account-id 503561429929 --profile default
-AWS_PROFILE=default python3 install-private.py status --account-id 503561429929 --profile default
+AWS_PROFILE=default python3 install-private.py inspect --target dev --account-id 503561429929 --profile default
+AWS_PROFILE=default python3 install-private.py deploy --target dev --account-id 503561429929 --profile default
+AWS_PROFILE=default python3 install-private.py status --target dev --account-id 503561429929 --profile default
 # After CREATE_COMPLETE or UPDATE_COMPLETE:
-AWS_PROFILE=default python3 install-private.py finish --account-id 503561429929 --profile default
+AWS_PROFILE=default python3 install-private.py finish --target dev --account-id 503561429929 --profile default
 ```
 
 `finish` adds the dev callback/logout URLs to the dev app client, seeds the owner,
 publishes assets, and invalidates the dev dashboard. It does not update the live
 app client or distribution. For a later approved live release, build separately
 with `VITE_SMALL_ENV=live`, `VITE_COACHING_DEV=false`, and private mode still true;
-never package the dev `dist-private` directory into a live release.
+never package the dev `dist-private` directory into a live release. The approved
+live package, deploy, and finish commands must specify `--target live --confirm
+"DEPLOY LIVE"`.
 
 ## Image lifecycle update
 
