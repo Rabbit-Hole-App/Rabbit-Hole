@@ -422,6 +422,8 @@ test('private Logs restores Bedrock chat, followups, history and the enlarged ru
   await page.getByRole('cell', { name: '1788978', exact: true }).click();
   await page.clock.install();
   const panel = page.getByRole('dialog');
+  const runPill = panel.locator('span[title^="Run "]');
+  await expect(runPill.getByRole('button', { name: 'Copy run ID', exact: true })).toHaveCount(1);
   await panel.getByRole('button', { name: 'Copy run ID', exact: true }).click();
   const runIdButton = panel.getByRole('button', { name: 'Copy run ID', exact: true });
   const runIdFeedback = panel.locator('[role=status]').filter({ hasText: 'Run ID copied' });

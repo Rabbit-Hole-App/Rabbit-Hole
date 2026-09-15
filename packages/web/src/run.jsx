@@ -708,7 +708,7 @@ export function RunPeek({ runId, app, onClose, onRunAgain }) {
   const [copied, setCopied] = useState(null);
   const feedbackTimer = useRef(null);
   useEffect(() => () => clearTimeout(feedbackTimer.current), []);
-  const tabCls = (on) => cn('flex h-6 cursor-pointer items-center gap-1.5 truncate rounded-full px-2.5 text-sm', on ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink');
+  const tabCls = (on) => cn('flex h-6 cursor-pointer items-center gap-1.5 rounded-full px-2.5 text-sm', on ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink');
   const runUrl = `${window.location.origin}/apps/${encodeURIComponent(app.name)}/runs/${encodeURIComponent(runId)}`;
   const copyWithFeedback = (value, kind) => {
     navigator.clipboard.writeText(value);
@@ -725,12 +725,12 @@ export function RunPeek({ runId, app, onClose, onRunAgain }) {
           <span className={cn(tabCls(tab === 'run'), 'gap-0')} onClick={() => setTab('run')} title={`Run ${shortId(runId)}`} aria-label={`Run ${shortId(runId)}`}>
             <ScrollText size={16} strokeWidth={1.5} className="shrink-0" />
             <span className={cn('overflow-hidden whitespace-nowrap transition-[max-width] duration-200 ease-out', tab === 'run' ? 'max-w-[120px] pl-1.5' : 'max-w-0')}>Run {shortId(runId)}</span>
-          </span>
-          <span className="relative inline-flex">
-            <IconBtn aria-label="Copy run ID" title="Copy run ID" onClick={() => copyWithFeedback(runId, 'id')}>
-              <CopyIcon size={13} strokeWidth={1.5} />
-            </IconBtn>
-            {copied === 'id' && <span role="status" className="absolute top-full left-1/2 z-50 mt-1.5 w-max -translate-x-1/2 rounded-md bg-ink px-2.5 py-1.5 text-xs font-normal text-white shadow-pop">Run ID copied</span>}
+            <span className="relative ml-1 inline-flex">
+              <IconBtn aria-label="Copy run ID" title="Copy run ID" className="h-5! w-5! rounded-full" onClick={(event) => { event.stopPropagation(); copyWithFeedback(runId, 'id'); }}>
+                <CopyIcon size={13} strokeWidth={1.5} />
+              </IconBtn>
+              {copied === 'id' && <span role="status" className="absolute top-full left-1/2 z-50 mt-1.5 w-max -translate-x-1/2 rounded-md bg-ink px-2.5 py-1.5 text-xs font-normal text-white shadow-pop">Run ID copied</span>}
+            </span>
           </span>
           {chatted && (
             <span className={cn(tabCls(tab === 'chat'), 'gap-0')} onClick={() => setTab('chat')} title="Chat" aria-label="Chat">

@@ -13,7 +13,7 @@ Never use the personal account or the shared Cloudflare AWS connection for Amazo
 | Stack | `small-private-byoc-dev` | `small-private-byoc` |
 | Workspace | `w-small-aws-dev` / Small AWS Dev | `w-small-aws` / Small AWS |
 | Apps | `dev-cpu-job`, `dev-word-count`, `constants-proof` | `drift-debug`, `oof-debug`, `overreach-debug` |
-| Dashboard release | `0.1.0-dev.12` | `0.1.0-pilot.6.9` |
+| Dashboard release | `0.1.0-dev.13` | `0.1.0-pilot.6.9` |
 | Infrastructure release | `0.1.0-dev.10` | `0.1.0-pilot.6.8` |
 | URL | https://dviorrcko52ft.cloudfront.net/apps | https://d3sgti338uxlc.cloudfront.net/apps |
 
@@ -118,6 +118,10 @@ Dev `0.1.0-dev.12` moves both copy confirmations beneath their respective
 buttons. The focused browser test passed; its package kept the identical dev
 infrastructure template and installer `finish` published only the dev dashboard.
 
+Dev `0.1.0-dev.13` puts the run-ID copy icon inside the Run pill. The focused
+browser test verified the placement and copied ID. This UI-only package reused
+the `0.1.0-dev.12` template; installer `finish` published only the dev dashboard.
+
 The approved live `0.1.0-pilot.6.9` promotion publishes the same button-local
 confirmations. Its packaged template matched the active CloudFormation template
 exactly, and it reused the prior CLI archive; installer `finish` published only
@@ -138,8 +142,8 @@ $env:VITE_BYOC_DEV = 'false'
 npm run build -- --outDir dist-private
 ```
 
-The shared run panel includes a run-ID copy control and a Share control beside
-Open as page. Share copies the private installation's run URL; opening it still
+The shared run panel includes a run-ID copy control inside the Run pill and a
+Share control beside Open as page. Share copies the private installation's run URL; opening it still
 requires Cognito login and membership with access to the app. It creates no
 public token and copies no log data outside customer AWS. Each copy confirmation
 appears below its own icon in the run panel.

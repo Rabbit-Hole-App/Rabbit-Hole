@@ -670,3 +670,7 @@ copy confirmations directly beneath the clicked icons. The shared live worker
 was subsequently promoted with explicit approval as version
 `ccf915cc-64fa-4236-b06c-eb497e96ecb8`; live `/apps` served the updated
 bundle and anonymous `/api/apps` remained `401`.
+
+Dev version `505b90ef-b645-48e6-a298-1879edf70eaf` places the run-ID copy
+icon inside the Run pill in the Logs side panel. The focused private browser
+test verified the icon's placement and copy behavior. Live was not promoted.
