@@ -660,3 +660,13 @@ resolves CLI workspace membership through the existing browser resolver. The
 deployment preserved the live frontend assets: no changed assets uploaded, and
 all 133 files matched afterward. Dev remains on the version above; AWS/Coaching
 preview UI and the updated CLI/skill remain dev-only, with npm publication held.
+
+Dev version `f765560a-87ef-4dbd-a242-175976948644` adds the shared run-log
+controls: copy the complete run ID or copy an authenticated run link beside Open
+as page. The production build and live worker remain unchanged.
+
+Dev version `958c27d7-8e95-487e-9f9d-600afbe5652d` moves the run-ID and log-link
+copy confirmations directly beneath the clicked icons. The shared live worker
+was subsequently promoted with explicit approval as version
+`ccf915cc-64fa-4236-b06c-eb497e96ecb8`; live `/apps` served the updated
+bundle and anonymous `/api/apps` remained `401`.

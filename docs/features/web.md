@@ -104,6 +104,12 @@ canView; members now carry roles). Routing is hand-rolled (pushState + popstate)
 — two pages don't need a router dep. ponytail: groups, link-sharing without
 email, share expiry — all skipped until asked.
 
+Run log panels expose the complete run ID through a copy control and copy an
+authenticated deep link to `/apps/<slug>/runs/<run-id>` through Share. The link
+does not grant access: the recipient signs in and the existing app visibility
+check controls the run, logs, inputs, and outputs. Copy confirmation appears
+directly below the control clicked, including for the run ID and log link.
+
 ## v4: folders, teams, design system
 - Sidebar: « collapses (persisted in localStorage, » reopens), org-wide folders —
   create with the hover +, drag apps in/out (HTML5 DnD → PATCH `/api/apps/<slug>`

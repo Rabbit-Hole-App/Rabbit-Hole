@@ -13,7 +13,7 @@ Never use the personal account or the shared Cloudflare AWS connection for Amazo
 | Stack | `small-private-byoc-dev` | `small-private-byoc` |
 | Workspace | `w-small-aws-dev` / Small AWS Dev | `w-small-aws` / Small AWS |
 | Apps | `dev-cpu-job`, `dev-word-count`, `constants-proof` | `drift-debug`, `oof-debug`, `overreach-debug` |
-| Dashboard release | `0.1.0-dev.10` | `0.1.0-pilot.6.8` |
+| Dashboard release | `0.1.0-dev.12` | `0.1.0-pilot.6.9` |
 | Infrastructure release | `0.1.0-dev.10` | `0.1.0-pilot.6.8` |
 | URL | https://dviorrcko52ft.cloudfront.net/apps | https://d3sgti338uxlc.cloudfront.net/apps |
 
@@ -109,6 +109,20 @@ constants. The `constants-proof` app was redeployed with a threshold explanation
 its real run finished successfully while `SMALL_CONSTANTS` contained only the
 three scalar values. Live remains on `0.1.0-pilot.6.8`.
 
+Dev `0.1.0-dev.11` adds permissioned run-log links and a run-ID copy control to
+the existing Logs panel. The focused private browser flow passed, and installer
+`finish` published only the dev dashboard. The infrastructure release and live
+installation remain unchanged.
+
+Dev `0.1.0-dev.12` moves both copy confirmations beneath their respective
+buttons. The focused browser test passed; its package kept the identical dev
+infrastructure template and installer `finish` published only the dev dashboard.
+
+The approved live `0.1.0-pilot.6.9` promotion publishes the same button-local
+confirmations. Its packaged template matched the active CloudFormation template
+exactly, and it reused the prior CLI archive; installer `finish` published only
+the live dashboard. The infrastructure release remains `0.1.0-pilot.6.8`.
+
 Installation settings are local operator configuration:
 `.small/byoc-private/installation-dev.json`. Each immutable release lives under
 `.small/byoc-private/releases/<version>/`. The package checksums cover the exact
@@ -123,6 +137,12 @@ $env:VITE_COACHING_DEV = 'true'
 $env:VITE_BYOC_DEV = 'false'
 npm run build -- --outDir dist-private
 ```
+
+The shared run panel includes a run-ID copy control and a Share control beside
+Open as page. Share copies the private installation's run URL; opening it still
+requires Cognito login and membership with access to the app. It creates no
+public token and copies no log data outside customer AWS. Each copy confirmation
+appears below its own icon in the run panel.
 
 `VITE_SMALL_ENV=dev` adds the reusable DEV badge on login and the workspace row.
 The Coaching flag enables existing sample inspection tabs, including when model

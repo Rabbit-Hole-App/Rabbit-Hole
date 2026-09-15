@@ -164,7 +164,7 @@ async function fixture(page, withJob = false, canDeploy = true) {
     unexpected.push(url.origin + url.pathname);
     return route.abort();
   });
-  return { requests, unexpected, errors, access, chats, outputReads, longText, longFile, get authorize() { return authorize; } };
+  return { requests, unexpected, errors, access, chats, outputReads, longText, longFile, runId, get authorize() { return authorize; } };
 }
 
 test('PKCE login opens the existing private dashboard; reload and logout preserve the account boundary', async ({ page }) => {
@@ -412,13 +412,33 @@ test('the existing private Run form uploads a file directly to customer S3 befor
   expect(state.errors).toEqual([]);
 });
 
-test('private Logs restores Bedrock chat, followups, history and the enlarged run layout', async ({ page }) => {
+test('private Logs restores Bedrock chat, followups, history and the enlarged run layout', async ({ page, context }) => {
   const state = await fixture(page, 'chat');
+  const { runId } = state;
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.goto('/apps/aws-private-proof');
   await page.getByRole('link', { name: 'Continue test sign-in' }).click();
   await page.getByRole('tab', { name: 'Logs', exact: true }).click();
   await page.getByRole('cell', { name: '1788978', exact: true }).click();
+  await page.clock.install();
   const panel = page.getByRole('dialog');
+  await panel.getByRole('button', { name: 'Copy run ID', exact: true }).click();
+  const runIdButton = panel.getByRole('button', { name: 'Copy run ID', exact: true });
+  const runIdFeedback = panel.locator('[role=status]').filter({ hasText: 'Run ID copied' });
+  await expect(runIdFeedback).toBeVisible();
+  const runIdBox = await runIdButton.boundingBox(), runIdFeedbackBox = await runIdFeedback.boundingBox();
+  expect(runIdFeedbackBox.y).toBeGreaterThanOrEqual(runIdBox.y + runIdBox.height);
+  await expect(page.locator('.fixed.bottom-5').getByText('Run ID copied')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(runId);
+  await panel.getByRole('button', { name: 'Share run log', exact: true }).click();
+  const shareButton = panel.getByRole('button', { name: 'Share run log', exact: true });
+  const feedback = panel.locator('[role=status]').filter({ hasText: 'Log link copied' });
+  await expect(feedback).toBeVisible();
+  const buttonBox = await shareButton.boundingBox(), feedbackBox = await feedback.boundingBox();
+  expect(feedbackBox.y).toBeGreaterThanOrEqual(buttonBox.y + buttonBox.height);
+  expect(feedbackBox.x + feedbackBox.width).toBeLessThanOrEqual(buttonBox.x + buttonBox.width + 1);
+  await expect(page.locator('.fixed.bottom-5').getByText('Log link copied')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(`${origin}/apps/aws-private-proof/runs/${runId}`);
   const input = panel.getByPlaceholder('Ask about this run…');
   await expect(input).toBeVisible();
   await input.fill('What happened?');
