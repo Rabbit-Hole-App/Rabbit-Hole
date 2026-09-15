@@ -133,9 +133,15 @@ function cp:tail {
     (cd "$THIS_DIR/packages/control-plane" && npx wrangler tail)
 }
 
-# publish a new CLI version to npm: bump packages/cli/package.json version first
+# publish a new CLI version to npm: bump packages/cli/package.json version first.
+# Auth rides an isolated throwaway npmrc built from NPM_TOKEN in .env — never the user npmrc.
 function publish:cli {
-    (cd "$THIS_DIR/packages/cli" && npm test && npm publish)
+    local rc="$THIS_DIR/.npmrc-publish"
+    grep '^NPM_TOKEN=' "$THIS_DIR/.env" | sed 's|^NPM_TOKEN=|//registry.npmjs.org/:_authToken=|' > "$rc"
+    (cd "$THIS_DIR/packages/cli" && npm test && NPM_CONFIG_USERCONFIG="$rc" npm publish)
+    local code=$?
+    rm -f "$rc"
+    return $code
 }
 
 # publish the agent skill to npm as small-skill: bump skills/small/package.json first.
