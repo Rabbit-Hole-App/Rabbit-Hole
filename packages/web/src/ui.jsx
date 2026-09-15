@@ -262,6 +262,8 @@ export function PeekBreadcrumbs({ items }) {
   </nav>;
 }
 
+const MIN_PEEK_W = 380;
+
 export function SlidePanel({ title, width = 560, z = 30, onClose, children, expandable = false, breadcrumbs = [] }) {
   const [shown, setShown] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -269,6 +271,30 @@ export function SlidePanel({ title, width = 560, z = 30, onClose, children, expa
   expandedRef.current = expanded;
   const sidebarInset = useSidebarInset();
   const closing = useRef(false);
+  // user-resized width, remembered per default size so 400-wide dialogs and
+  // 560-wide peeks keep independent widths
+  const widthKey = `small.peek-w.${width}`;
+  const [userW, setUserW] = useState(() => Number(localStorage.getItem(widthKey)) || width);
+  const [dragging, setDragging] = useState(false);
+  const clampW = (w) => Math.min(Math.max(w, MIN_PEEK_W), Math.max(MIN_PEEK_W, window.innerWidth - sidebarInset - 80));
+  const setWidth = (w) => {
+    const c = clampW(w);
+    setUserW(c);
+    localStorage.setItem(widthKey, String(c));
+  };
+  const startDrag = (e) => {
+    e.preventDefault();
+    const startX = e.clientX, startW = userW;
+    setDragging(true);
+    const move = (ev) => setWidth(startW + (startX - ev.clientX));
+    const up = () => {
+      setDragging(false);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
   useEffect(() => {
     // double rAF so the initial off-screen frame paints before the transition starts
     const raf = requestAnimationFrame(() => requestAnimationFrame(() => setShown(true)));
@@ -293,14 +319,32 @@ export function SlidePanel({ title, width = 560, z = 30, onClose, children, expa
       role="dialog"
       aria-label={typeof title === 'string' ? title : undefined}
       style={{
-        width: expanded ? 'calc(100vw - ' + sidebarInset + 'px)' : width,
-        maxWidth: expandable ? 'calc(100vw - ' + sidebarInset + 'px)' : undefined,
+        width: expanded ? 'calc(100vw - ' + sidebarInset + 'px)' : clampW(userW),
+        maxWidth: 'calc(100vw - ' + sidebarInset + 'px)',
         zIndex: z,
         transform: shown ? 'translate3d(0,0,0)' : 'translate3d(102%,0,0)',
         transition: 'transform 200ms cubic-bezier(0.25,1,0.35,1)', // one motion constant with the sidebar slide (Shell.jsx)
       }}
       className={cn('fixed inset-y-0 right-0 flex max-w-full flex-col overflow-x-clip bg-white will-change-transform', !expanded && 'border-l border-line')}
     >
+      {!expanded && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize panel"
+          tabIndex={0}
+          onPointerDown={startDrag}
+          onDoubleClick={() => setWidth(width)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowLeft') { e.preventDefault(); setWidth(userW + 24); }
+            if (e.key === 'ArrowRight') { e.preventDefault(); setWidth(userW - 24); }
+          }}
+          className={cn(
+            'absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize transition-colors hover:bg-line focus-visible:bg-line',
+            dragging && 'bg-line',
+          )}
+        />
+      )}
       <ExpandedPageFrame expanded={expanded}>
       {expanded && breadcrumbs.length > 0 && <PeekBreadcrumbs items={breadcrumbs} />}
       <div className={cn('flex h-11 shrink-0 items-center justify-between', !expanded && 'pr-3 pl-4')}>
