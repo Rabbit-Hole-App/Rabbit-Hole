@@ -37,7 +37,14 @@ export function playSigmoid(editor, explain, lesson, onChange, generated = null)
   editor.setCurrentPage(pages[0]);
   editor.setCurrentTool('select');
   editor.selectNone();
-  const fitPage = index => editor.zoomToBounds(new Box(offsets[index] + (viewport.x || 0), viewport.y || 0, viewport.w, viewport.h), { inset: 40 });
+  const fitPage = index => {
+    const bounds = new Box(offsets[index] + (viewport.x || 0), viewport.y || 0, viewport.w, viewport.h);
+    if (!generated) return editor.zoomToBounds(bounds, { inset: 40 });
+    // Fit width only: text stays readable and the camera follows the writing down.
+    const screen = editor.getViewportScreenBounds();
+    const zoom = Math.min(1, Math.max(0.1, (screen.w - 48) / bounds.w));
+    editor.setCamera({ x: -bounds.x + 24 / zoom, y: -bounds.y + 24 / zoom, z: zoom });
+  };
   fitPage(0);
   const frames = definition.map(() => []);
   let building = 0;
@@ -79,11 +86,13 @@ export function playSigmoid(editor, explain, lesson, onChange, generated = null)
       // Prepared lesson scenes are data, not model-generated executable code.
       // Reuse the same playback frames, ownership cleanup and semantic context.
       if (page.scene) {
-        const parts = (page.audioParts || []).map(part => ({ ...part, start: -1 }));
+        const parts = (page.audioParts || []).map(part => ({ ...part, start: -1, ids: [] }));
+        let active = -1;
         for (const item of page.scene) {
           const waiting = parts.find(part => part.start < 0 && part.at === item.objectId);
-          if (waiting) waiting.start = frames[i].length;
+          if (waiting) { waiting.start = frames[i].length; active = parts.indexOf(waiting); }
           const objectId = `page-${i + 1}-${item.objectId}`;
+          if (active >= 0 && !parts[active].ids.includes(objectId)) parts[active].ids.push(objectId);
           objects[objectId] = { ...page.objects[item.objectId], relatedObjectIds: page.objects[item.objectId].relatedObjectIds.map(id => `page-${i + 1}-${id}`) };
           if (item.type === 'text') write(item.text, item.x, item.y, item.size || 's', item.color || 'black', objectId, item.w);
           else {
@@ -193,10 +202,30 @@ export function playSigmoid(editor, explain, lesson, onChange, generated = null)
     audio.play().catch(error => { if (error?.name === 'NotAllowedError' && playing && !audioBlocked) { audioBlocked = true; pause(); } });
   };
   const state = () => ({ page: step, frame: position, playing, pages: definition, label: definition[step].label, pageComplete: position === frames[step].length, timeline: (step + position / frames[step].length) * 1000 });
+  // Focus follows the voice: completed narration parts dim, the active one stays
+  // full, and a finished page restores everything for reading.
+  let emphasized = null;
+  const emphasize = () => {
+    const parts = pageParts[step];
+    if (!parts) return;
+    const k = partAt(step);
+    const done = position === frames[step].length;
+    const tag = `${step}:${k}:${done}`;
+    if (tag === emphasized) return;
+    emphasized = tag;
+    for (const shape of editor.getCurrentPageShapes()) {
+      if (shape.meta.author !== 'script' || shape.meta.lessonId !== lessonId) continue;
+      const index = parts.findIndex(part => part.ids.includes(shape.meta.objectId));
+      if (index < 0) continue;
+      const opacity = done || index >= k ? 1 : 0.55;
+      if (shape.opacity !== opacity) editor.updateShape({ id: shape.id, type: shape.type, opacity });
+    }
+  };
   const notify = () => {
     positions[step] = position;
     lesson.animationProgress = position / frames[step].length;
     syncAudio();
+    emphasize();
     onChange(state());
   };
   const enter = index => {
@@ -236,6 +265,7 @@ export function playSigmoid(editor, explain, lesson, onChange, generated = null)
   const seek = (index, count = frames[index]?.length) => {
     if (disposed || index < 0 || index >= frames.length || !editor.getPage(pages[index])) return;
     clearTimeout(timer); playing = false;
+    emphasized = null; // shapes are redrawn at full opacity below
     const changedPage = index !== step || editor.getCurrentPageId() !== pages[index];
     lesson.runId = crypto.randomUUID();
     enter(index);
