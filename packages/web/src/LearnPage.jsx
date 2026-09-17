@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Minimize2, Network, Pause, Pencil, Play, Scan, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
+import { createShapeId, getIndices } from 'tldraw';
 import { SPEEDS, getSpeed, isMuted, onMuted, setMuted, setSpeed } from './learn-audio.js';
 import { api, navigate, wsHeaders } from './api.js';
 import { requestBoardExplanation } from './learn-board-request.js';
@@ -126,14 +127,31 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const [lessonSpeed, setLessonSpeed] = useState(getSpeed());
   const [canvasPick, setCanvasPick] = useState(null);
   const [toolsOpen, setToolsOpen] = useState(false);
+  // The red selection ellipse stays on the canvas while the question is asked.
+  const regionMarker = useRef(null);
+  const clearRegionMarker = () => {
+    if (regionMarker.current && editor?.getShape(regionMarker.current)) editor.deleteShapes([regionMarker.current]);
+    regionMarker.current = null;
+  };
+  const drawRegionMarker = points => {
+    clearRegionMarker();
+    if (!points?.length) return;
+    const origin = points[0];
+    const loop = [...points, points[0]];
+    const indices = getIndices(loop.length);
+    const id = createShapeId();
+    editor.createShape({ id, type: 'line', x: origin.x, y: origin.y, meta: { regionMarker: true },
+      props: { color: 'red', size: 's', dash: 'solid', points: Object.fromEntries(loop.map((point, i) => [indices[i], { id: indices[i], index: indices[i], x: point.x - origin.x, y: point.y - origin.y }])) } });
+    regionMarker.current = id;
+  };
   // Page 3: tapping a position tile on the canvas selects it in the check below.
   const pickSequenceTile = event => {
     if (!editor || !nanoActive || progress?.page !== 2) return;
     const point = editor.screenToPage({ x: event.clientX, y: event.clientY });
     const shape = editor.getShapeAtPoint(point, { hitInside: true });
-    if (!shape?.meta?.objectId?.endsWith('-sequence')) return;
-    const boxes = editor.getCurrentPageShapes().filter(s => s.meta.objectId === shape.meta.objectId && s.type === 'geo').sort((a, b) => a.x - b.x);
-    const x = shape.type === 'geo' ? shape.x : shape.x - 14;
+    if (!/-(sequence|positions)$/.test(shape?.meta?.objectId || '')) return;
+    const boxes = editor.getCurrentPageShapes().filter(s => s.meta.objectId?.endsWith('-sequence') && s.type === 'geo').sort((a, b) => a.x - b.x);
+    const x = shape.type === 'geo' ? shape.x : shape.x - (shape.meta.objectId.endsWith('-positions') ? 18 : 14);
     const index = boxes.findIndex(b => Math.abs(b.x - x) < 24);
     if (index >= 0 && index < 4) setCanvasPick({ position: index + 1, nonce: Date.now() });
   };
@@ -145,6 +163,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     boardRequest.current++;
     const old = explanation.current; explanation.current = null;
     old?.dispose(); setBoardVisible(false);
+    clearRegionMarker();
   };
   useEffect(() => () => { boardRequest.current++; explanation.current?.dispose(); }, []);
 
@@ -287,7 +306,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     previewKind: paperContext?.selection ? 'paper' : 'canvas',
     removeImage: () => { removeImage(); setPaperContext(previous => previous ? { ...previous, selection: undefined } : previous); },
     pause: pauseLesson, setAnswering,
-    clear: () => { pinned.current = null; editor?.selectNone(); removeImage(); refreshSelection(v => v + 1); },
+    clear: () => { pinned.current = null; editor?.selectNone(); removeImage(); clearRegionMarker(); refreshSelection(v => v + 1); },
     snapshot: () => teachingSnapshot(selectionSnapshot(editor, lesson.current, pinned.current)),
     isCurrent: snapshot => {
       if (!editor || lesson.current?.runId !== snapshot.runId || lesson.current?.currentStage !== snapshot.lessonContext.currentStage) return false;
@@ -379,7 +398,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   };
   const navigateLesson = (action, value, position) => {
     dismissBoard();
-    setRegion(false); pinned.current = null; removeImage();
+    setRegion(false); pinned.current = null; removeImage(); clearRegionMarker();
     playback.current?.[action](value, position);
     refreshSelection(v => v + 1);
   };
@@ -465,13 +484,14 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             editor.select(...ids);
             pinned.current = captureSelection(editor, lesson.current);
             if (pinned.current) pinned.current.region = ellipse;
+            drawRegionMarker(ellipse);
             preparePreview();
             setRegion(false);
             refreshSelection(v => v + 1);
           }} />}
         </div>
           <div className="flex shrink-0 self-center flex-col gap-1 rounded-lg border border-line bg-white p-1 shadow-sm">
-            <IconBtn aria-label="Ask about selection" title="Ask about selection: draw a red ellipse" disabled={!editor || (!progress && !boardVisible) || answering} onClick={() => { pauseLesson(); pinned.current = null; removeImage(); setRegion(true); }}><Scan size={17} strokeWidth={1.5} /></IconBtn>
+            <IconBtn aria-label="Ask about selection" title="Ask about selection: draw a red ellipse" disabled={!editor || (!progress && !boardVisible) || answering} onClick={() => { pauseLesson(); pinned.current = null; removeImage(); clearRegionMarker(); setRegion(true); }}><Scan size={17} strokeWidth={1.5} /></IconBtn>
             <IconBtn aria-label="Add personal note" title="Pause and add a personal note" disabled={!editor || (!progress && !boardVisible) || !notesLoaded || answering} onClick={addNote}><NotebookPen size={17} strokeWidth={1.5} /></IconBtn>
             <IconBtn aria-label={narrationMuted ? 'Unmute narration' : 'Mute narration'} title={narrationMuted ? 'Unmute narration audio' : 'Mute narration audio'} aria-pressed={narrationMuted} onClick={() => { setMuted(!narrationMuted); setNarrationMuted(!narrationMuted); }}>{narrationMuted ? <VolumeX size={17} strokeWidth={1.5} /> : <Volume2 size={17} strokeWidth={1.5} />}</IconBtn>
             <IconBtn aria-label={toolsOpen ? 'Hide drawing tools' : 'Show drawing tools'} title={toolsOpen ? 'Hide drawing tools' : 'Show drawing tools'} aria-pressed={toolsOpen} className={toolsOpen ? 'bg-hover' : ''} onClick={() => setToolsOpen(!toolsOpen)}><Pencil size={17} strokeWidth={1.5} /></IconBtn>
