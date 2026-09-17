@@ -17,13 +17,18 @@ export const sigmoidObjects = {
   'axes-y': { kind: 'axis', label: 'Output σ(x) axis', originalText: 'Vertical axis: output σ(x), shown from 0 to 1.', relatedObjectIds: ['curve'] },
 };
 
+// The snapshot contract allows at most 12 shapes per object; capture always
+// stays under it so a dense scene degrades to a representative subset instead
+// of failing validation at ask time.
+export const SHAPE_CAP = 12;
+
 export function captureSelection(editor, lesson) {
   const ids = editor.getSelectedShapeIds();
   const shapes = ids.map(id => editor.getShape(id));
   if (!ids.length || shapes.some(s => !s?.meta.objectId || !['script', 'assistant'].includes(s.meta.author) || s.meta.runId !== lesson?.runId)) return null;
   const objects = new Set(shapes.map(s => s.meta.objectId));
   if (objects.size !== 1) return null;
-  return { shapeIds: ids, objectId: shapes[0].meta.objectId, runId: lesson.runId, label: shapes[0].meta.label };
+  return { shapeIds: ids.slice(0, SHAPE_CAP), objectId: shapes[0].meta.objectId, runId: lesson.runId, label: shapes[0].meta.label };
 }
 
 export function selectionSnapshot(editor, lesson, selection) {
@@ -35,9 +40,10 @@ export function selectionSnapshot(editor, lesson, selection) {
   if (chosen.some(s => !s || !shapes.some(p => p.id === s.id) || s.meta.runId !== lesson.runId || s.meta.objectId !== selection.objectId)) {
     throw new Error('The selected object was deleted or changed. Select an object again.');
   }
-  const object = id => {
-    const parts = shapes.filter(s => s.meta.runId === lesson.runId && s.meta.objectId === id);
-    if (!parts.length) return null;
+  const object = (id, prefer = []) => {
+    const all = shapes.filter(s => s.meta.runId === lesson.runId && s.meta.objectId === id);
+    if (!all.length) return null;
+    const parts = [...all.filter(s => prefer.includes(s.id)), ...all.filter(s => !prefer.includes(s.id))].slice(0, SHAPE_CAP);
     const meta = parts[0].meta;
     const axis = parts.find(s => s.type === 'line' && s.meta.kind === 'axis');
     const transform = axis && editor.getShapePageTransform(axis.id);
@@ -58,10 +64,11 @@ export function selectionSnapshot(editor, lesson, selection) {
       }),
     };
   };
-  const target = selection && object(selection.objectId);
+  const selectedIds = selection ? selection.shapeIds.slice(0, SHAPE_CAP) : [];
+  const target = selection && object(selection.objectId, selectedIds);
   return { lessonId: lesson.lessonId || 'sigmoid-demo', runId: lesson.runId,
     lessonContext: { topic: lesson.topic || 'Sigmoid function', currentStage: lesson.currentStage, ...(lesson.pageNumber ? { pageNumber: lesson.pageNumber, pageTitle: lesson.pageTitle, animationProgress: lesson.animationProgress } : {}), recentExplanations: lesson.recentExplanations.slice(-4) },
-    ...(target ? { target: { ...target, method: 'explicit-selection', selectedShapeIds: selection.shapeIds },
+    ...(target ? { target: { ...target, method: 'explicit-selection', selectedShapeIds: selectedIds },
       relatedObjects: target.relatedObjectIds.map(object).filter(Boolean) }
       : { method: 'lesson', target: null, relatedObjects: [...new Set(shapes.filter(s => s.meta.runId === lesson.runId && ['script', 'assistant'].includes(s.meta.author)).map(s => s.meta.objectId))].slice(-12).map(object).filter(Boolean) }) };
 }

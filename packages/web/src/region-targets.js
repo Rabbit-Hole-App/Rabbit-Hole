@@ -51,7 +51,9 @@ export function regionTargets(editor, lesson, points) {
     current.enclosed ||= enclosed;
     candidates.set(current.objectId, current);
   }
-  const all = [...candidates.values()];
+  // The ask snapshot allows at most 12 shapes per object; a capped subset still
+  // selects the whole semantic object.
+  const all = [...candidates.values()].map(c => ({ ...c, shapeIds: c.shapeIds.slice(0, 12) }));
   // A fully enclosed dot/label is more specific than a curve or axis passing through the loop.
   const enclosed = all.filter(c => c.enclosed);
   return { candidates: enclosed.length ? enclosed : all };

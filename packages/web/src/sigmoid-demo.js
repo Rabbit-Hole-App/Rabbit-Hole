@@ -101,6 +101,11 @@ export function playSigmoid(editor, explain, lesson, onChange, generated = null)
           }
           if (item.pause) frame(() => {}, item.pause);
         }
+        // Authoring tripwire: capture caps objects at 12 shapes, so denser
+        // groups silently lose shapes from ask snapshots - split them instead.
+        const counts = {};
+        for (const item of page.scene) counts[item.objectId] = (counts[item.objectId] || 0) + 1;
+        Object.entries(counts).filter(([, count]) => count > 12).forEach(([id, count]) => console.warn(`Lesson object "${id}" on page ${i + 1} has ${count} shapes; ask snapshots cap at 12.`));
         if (parts.length && parts.every(part => part.start >= 0)) {
           // Stretch each scene segment to its narration clip plus a short breath,
           // so drawing and speech stay aligned part by part.
