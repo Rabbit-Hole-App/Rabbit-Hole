@@ -31,6 +31,15 @@ Implementation: a supplied lesson fixture using the existing canvas player,
 with a small reading/check component; no new API, generation or publication flow.
 Browser persistence is explicitly local, not cross-device progress sync.
 
+Pages 1–2 have narration audio, pre-generated once from the plan's spoken text
+with Fish Audio (`scripts/generate-lesson-audio.mjs`, key in the repo `.env`)
+and committed as static files under `packages/web/public/audio/`. There is no
+runtime TTS call. Each page's `durationMs` is authored to its narration length
+so drawing keeps pace with speech; playback applies a small drift correction and
+pauses/seeks audio with the lesson. A mute toggle sits in the canvas-side
+toolbar and persists per browser. Regenerate the audio and update `durationMs`
+in `nanogpt-lesson.js` whenever the narration text changes.
+
 The curriculum list remains in the main area. A lesson opens one level deeper
 inside Curriculum, with Back to curriculum. Lesson 1 displays all six pages;
 later lessons retain their outlines. Each page is a collapsible card (first page

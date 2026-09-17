@@ -1,5 +1,6 @@
 import { sigmoidObjects } from './sigmoid-context.js';
 import { writingFrames } from './canvas-writing.js';
+import { isMuted, onMuted } from './learn-audio.js';
 import { Box, PageRecordType, createShapeId, getIndices, toRichText } from 'tldraw';
 
 export const sigmoidPages = [
@@ -127,10 +128,30 @@ export function playSigmoid(editor, explain, lesson, onChange, generated = null)
   let step = 0, position = 0, playing = false, timer, disposed = false;
   const positions = frames.map(() => 0);
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Narration audio per page; page durations are authored to the narration
+  // length, so drawing and speech stay in step with a small drift correction.
+  const audios = definition.map((_, i) => {
+    const url = generated?.pages[i]?.audio;
+    if (!url) return null;
+    const audio = new Audio(url);
+    audio.preload = 'auto';
+    audio.muted = isMuted();
+    return audio;
+  });
+  const unlistenMuted = onMuted(value => audios.forEach(audio => { if (audio) audio.muted = value; }));
+  const audioTime = index => (positions[index] / (frames[index].length || 1)) * (audios[index].duration || 0);
+  const syncAudio = () => {
+    audios.forEach((audio, i) => { if (audio && (i !== step || !playing)) audio.pause(); });
+    const audio = audios[step];
+    if (!audio || !playing) return;
+    if (audio.duration && Math.abs(audio.currentTime - audioTime(step)) > 2) audio.currentTime = audioTime(step);
+    audio.play().catch(() => {});
+  };
   const state = () => ({ page: step, frame: position, playing, pages: definition, label: definition[step].label, pageComplete: position === frames[step].length, timeline: (step + position / frames[step].length) * 1000 });
   const notify = () => {
     positions[step] = position;
     lesson.animationProgress = position / frames[step].length;
+    syncAudio();
     onChange(state());
   };
   const enter = index => {
@@ -180,6 +201,8 @@ export function playSigmoid(editor, explain, lesson, onChange, generated = null)
       for (const current of frames[index].slice(0, position)) current.apply();
     });
     if (changedPage) fitPage(index);
+    const audio = audios[index];
+    if (audio && audio.duration) audio.currentTime = Math.min(audio.duration, (position / (frames[index].length || 1)) * audio.duration);
     notify();
   };
   const scrub = value => {
@@ -199,5 +222,5 @@ export function playSigmoid(editor, explain, lesson, onChange, generated = null)
     if (index >= 0) seek(index, positions[index] || frames[index].length);
   });
   enter(0); notify();
-  return { play, pause, seek, scrub, next, back: () => seek(step - 1), dispose: () => { disposed = true; clearTimeout(timer); unlisten(); }, state };
+  return { play, pause, seek, scrub, next, back: () => seek(step - 1), dispose: () => { disposed = true; clearTimeout(timer); unlisten(); unlistenMuted(); audios.forEach(audio => audio?.pause()); }, state };
 }

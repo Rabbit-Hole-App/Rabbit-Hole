@@ -28,7 +28,8 @@ export const nanoLesson = {
   id: `course-1001-${nanoRevision}`, title: 'What nanoGPT does', viewport: { x: -30, y: -65, w: 1040, h: 770 },
   pages: [
     {
-      ...nanoMaterials[0], durationMs: 45000,
+      // durationMs tracks the narration length so drawing keeps pace with audio.
+      ...nanoMaterials[0], durationMs: 31500, audio: '/audio/nanogpt-l1-p1.mp3',
       objects: {
         title: meaning('title', 'The prediction task', 'What does a language model predict?', ['prefix', 'prediction']),
         prefix: meaning('diagram', 'Available text: Hell', 'The teaching example has H, e, l, l and an unknown next character. This is not a measured model prediction.', ['prediction']),
@@ -51,7 +52,7 @@ export const nanoLesson = {
       ],
     },
     {
-      ...nanoMaterials[1], durationMs: 60000,
+      ...nanoMaterials[1], durationMs: 25500, audio: '/audio/nanogpt-l1-p2.mp3',
       objects: {
         title: meaning('title', 'Text → tokens → integer IDs', 'Represent characters with consistent integer IDs, then decode to recover the text.', ['characters', 'vocabulary', 'ids']),
         characters: meaning('diagram', 'Hello character positions', 'Hello has five character positions, including two occurrences of l.', ['vocabulary', 'ids']),

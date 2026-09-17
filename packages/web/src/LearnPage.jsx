@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Minimize2, Network, Pause, Play, Scan, Trophy, NotebookPen } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Minimize2, Network, Pause, Play, Scan, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
+import { isMuted, setMuted } from './learn-audio.js';
 import { api, navigate } from './api.js';
 import { requestBoardExplanation } from './learn-board-request.js';
 import { AskPanel } from './ask.jsx';
@@ -121,6 +122,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     }
   };
   const [answering, setAnswering] = useState(false);
+  const [narrationMuted, setNarrationMuted] = useState(isMuted());
   const explanation = useRef(null);
   const boardRequest = useRef(0);
   const [boardVisible, setBoardVisible] = useState(false);
@@ -443,6 +445,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           <div className="flex shrink-0 self-center flex-col gap-1 rounded-lg border border-line bg-white p-1 shadow-sm">
             <IconBtn aria-label="Ask about selection" title="Ask about selection: draw a red ellipse" disabled={!editor || (!progress && !boardVisible) || answering} onClick={() => { pauseLesson(); pinned.current = null; removeImage(); setRegion(true); }}><Scan size={17} strokeWidth={1.5} /></IconBtn>
             <IconBtn aria-label="Add personal note" title="Pause and add a personal note" disabled={!editor || (!progress && !boardVisible) || !notesLoaded || answering} onClick={addNote}><NotebookPen size={17} strokeWidth={1.5} /></IconBtn>
+            <IconBtn aria-label={narrationMuted ? 'Unmute narration' : 'Mute narration'} title={narrationMuted ? 'Unmute narration audio' : 'Mute narration audio'} aria-pressed={narrationMuted} onClick={() => { setMuted(!narrationMuted); setNarrationMuted(!narrationMuted); }}>{narrationMuted ? <VolumeX size={17} strokeWidth={1.5} /> : <Volume2 size={17} strokeWidth={1.5} />}</IconBtn>
           </div>
         </div>
         <div aria-label="Lesson playback" className={`${courseView || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
