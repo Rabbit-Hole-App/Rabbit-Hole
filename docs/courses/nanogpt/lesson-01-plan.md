@@ -3,7 +3,7 @@
 Status: draft for owner review. Authored in this coding session as the initial example of the future Learn Agent artifact; not generated through the application's Learn Agent. Pages 1–2 are authorized for a regular-dev rendering preview. No generated media; notebook not executed.
 
 Course: [nanoGPT Quickstart](quickstart-curriculum.md).
-Lesson ID: `nanogpt-quickstart-01`. Plan revision: 3.
+Lesson ID: `nanogpt-quickstart-01`. Plan revision: 4.
 Source commit: `3adf61e154c3fe3fca428ad6bc3818b27a3b8291`.
 Curriculum approval: pending. Plan approval: pending.
 
@@ -119,7 +119,7 @@ This is an invented teaching example, not a prediction from a trained nanoGPT ch
 
 ### Spoken or written explanation
 
-“Suppose you see H-e-l-l. What might come next? You might suggest o. You used patterns you have seen before. We want a computer to learn patterns from examples too. Its task is to estimate the next token—one character in this example. It assigns probabilities to possible continuations; it does not know a guaranteed answer. We can build longer text by choosing one character and repeating. But first, how do we give the computer this text as numbers?”
+“Hi, and welcome to lesson one! Let's start with a tiny puzzle. Suppose you see H, e, l, l. What might come next? You might suggest o — turning hell into hello, which is much friendlier. You used patterns you have seen before. We want a computer to learn patterns from examples too. Its task is to estimate the next token — one character in this example. It assigns probabilities to possible continuations; it does not know a guaranteed answer. We can build longer text by choosing one character and repeating. Nice — but computers don't read letters, they crunch numbers. So, next question: how do we give the computer this text as numbers?”
 
 ### Further explanations
 
@@ -203,7 +203,7 @@ per account/workspace/app/pinned source/plan revision in this browser only.
 
 ### Spoken or written explanation
 
-“We want to keep Hello, but give the model numerical inputs. Assign each character an ID. H becomes zero, e becomes one, and both l characters become two. This lookup is encoding. Reverse it and we recover Hello: that is decoding. A larger ID does not mean a more important character. We have changed the representation, not learned anything yet. So what prediction task can we build from this sequence?”
+“Welcome back! On the last page we predicted the next character. Now for the cliffhanger: how does Hello become numbers? Simple: we assign each character its own ID. H becomes zero, e becomes one, and both l characters become two — identical twins, same ID. This lookup is called encoding. Reverse it and we recover Hello: that is decoding. And don't read too much into the numbers — a larger ID does not mean a more important character. We have changed the representation; the model has not learned anything yet. So, what prediction task can we build from this sequence of IDs? Your turn: try the encoding exercise below the canvas.”
 
 ### Further explanations
 

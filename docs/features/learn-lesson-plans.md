@@ -32,13 +32,16 @@ with a small reading/check component; no new API, generation or publication flow
 Browser persistence is explicitly local, not cross-device progress sync.
 
 Pages 1–2 have narration audio, pre-generated once from the plan's spoken text
-with Fish Audio (`scripts/generate-lesson-audio.mjs`, key in the repo `.env`)
-and committed as static files under `packages/web/public/audio/`. There is no
-runtime TTS call. Each page's `durationMs` is authored to its narration length
-so drawing keeps pace with speech; playback applies a small drift correction and
-pauses/seeks audio with the lesson. A mute toggle sits in the canvas-side
-toolbar and persists per browser. Regenerate the audio and update `durationMs`
-in `nanogpt-lesson.js` whenever the narration text changes.
+with Fish Audio (`scripts/generate-lesson-audio.mjs`, key in the repo `.env`,
+one pinned narrator voice) and committed as static files under
+`packages/web/public/audio/`. There is no runtime TTS call. The script splits
+each page's narration into parts anchored to scene objects — it fails if the
+split no longer matches the plan text — and writes clip timings to
+`packages/web/src/nanogpt-audio.json`. The player stretches each scene segment
+to its clip length, applies a small drift correction, pauses/seeks audio with
+the lesson, and pauses the lesson when the browser blocks autoplay so speech
+and drawing restart together. A mute toggle sits in the canvas-side toolbar and
+persists per browser. Rerun the script whenever the narration text changes.
 
 The curriculum list remains in the main area. A lesson opens one level deeper
 inside Curriculum, with Back to curriculum. Lesson 1 displays all six pages;
