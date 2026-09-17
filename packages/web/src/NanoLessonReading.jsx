@@ -57,17 +57,58 @@ export function useNanoProgress(app, enabled) {
 const Tile = ({ children, tone = '' }) => <span className={`inline-flex h-9 min-w-9 items-center justify-center rounded border px-1 font-mono text-sm ${tone === 'out' ? 'border-dashed border-line text-ink-3' : tone === 'target' ? 'border-orange-400 text-orange-700' : tone === 'action' ? 'border-purple-400 text-purple-700' : 'border-blue-300 text-ink'}`}>{children}</span>;
 const Fig = ({ label, caption, children }) => <figure className="my-5 rounded-lg border border-line p-4" aria-label={label}>{children}<figcaption className="mt-3 text-xs text-ink-2">{caption}</figcaption></figure>;
 
-const READING_VISUALS = {
-  // Page 3: bounded context window sliding over "Hello Hello" (toy window of 4).
-  window: () => <Fig label="Sliding context window" caption="A toy window of four characters: the sequence grows while each prediction reads a bounded window. Illustrative size, not the quickstart setting.">
-    <div className="space-y-3">
-      {[[['H', ''], ['e', ''], ['l', ''], ['l', '']], [['H', 'out'], ['e', ''], ['l', ''], ['l', ''], ['o', '']]].map((row, i) => <div key={i} className="flex flex-wrap items-center gap-1.5">
-        {row.map(([value, tone], j) => <Tile key={j} tone={tone}>{value}</Tile>)}
-        <span aria-hidden="true" className="px-1 text-ink-2">→</span><Tile tone="target">{i === 0 ? 'o' : '␣'}</Tile>
-        {i === 1 && <span className="ml-2 text-xs text-ink-3">first H falls outside the window</span>}
-      </div>)}
+const WINDOW_SEQUENCE = ['H', 'e', 'l', 'l', 'o', '␣', 'H', 'e', 'l', 'l', 'o'];
+function WindowVisual() {
+  // Prediction target index; the window is the four characters before it.
+  const [target, setTarget] = useState(4);
+  return <Fig label="Sliding context window" caption="A toy window of four characters: step forward and watch the window slide while the sequence grows. Illustrative size, not the quickstart setting.">
+    <div className="flex flex-wrap items-center gap-1.5">
+      {WINDOW_SEQUENCE.slice(0, target).map((value, i) => <Tile key={i} tone={i < target - 4 ? 'out' : ''}>{value}</Tile>)}
+      <span aria-hidden="true" className="px-1 text-ink-2">→</span><Tile tone="target">{WINDOW_SEQUENCE[target]}</Tile>
     </div>
-  </Fig>,
+    <div className="mt-3 flex items-center gap-2">
+      <button type="button" disabled={target <= 4} onClick={() => setTarget(target - 1)} className="rounded border border-line px-3 py-1 text-xs hover:bg-hover disabled:opacity-40">Back</button>
+      <button type="button" disabled={target >= WINDOW_SEQUENCE.length - 1} onClick={() => setTarget(target + 1)} className="rounded border border-line px-3 py-1 text-xs hover:bg-hover disabled:opacity-40">Step forward</button>
+      <span aria-live="polite" className="text-xs text-ink-2">Window: {WINDOW_SEQUENCE.slice(Math.max(0, target - 4), target).join('')} · {Math.max(0, target - 4)} earlier character{target - 4 === 1 ? '' : 's'} outside</span>
+    </div>
+  </Fig>;
+}
+
+function TraceVisual() {
+  const steps = ['o', '␣'];
+  const [taken, setTaken] = useState(0);
+  return <Fig label="Two generation steps" caption="Invented continuation, not a checkpoint result. Each selected character is appended before the next prediction; the learned parameters do not change.">
+    <div className="flex flex-wrap items-center gap-2 font-mono text-base" aria-live="polite">
+      <span>Hell{steps.slice(0, taken).map((value, i) => <strong key={i} className="text-orange-700">{value}</strong>)}</span>
+      {taken < steps.length && <span className="text-xs text-ink-3">next prediction pending…</span>}
+    </div>
+    <div className="mt-3 flex items-center gap-2">
+      <button type="button" disabled={taken >= steps.length} onClick={() => setTaken(taken + 1)} className="rounded border border-line px-3 py-1 text-xs hover:bg-hover disabled:opacity-40">{taken >= steps.length ? 'Done' : `Select “${steps[taken]}” and append`}</button>
+      <button type="button" disabled={!taken} onClick={() => setTaken(0)} className="rounded border border-line px-3 py-1 text-xs hover:bg-hover disabled:opacity-40">Reset</button>
+    </div>
+  </Fig>;
+}
+
+function AnnotatedVisual() {
+  const [position, setPosition] = useState(3);
+  const pair = PREFIX_PAIRS[position - 1];
+  const ids = ['0', '1', '2', '2', '3'];
+  return <Fig label="Annotated Hello trace" caption="Inputs pair with one-position-shifted targets. Pick a position to see its prefix and observed target.">
+    <div className="mb-3 flex flex-wrap items-center gap-2" role="group" aria-label="Position">
+      <span className="text-xs text-ink-2">Position</span>
+      {PREFIX_PAIRS.map(item => <button key={item.position} type="button" aria-pressed={position === item.position} onClick={() => setPosition(item.position)} className={`rounded border px-2.5 py-1 text-xs ${position === item.position ? 'border-accent bg-hover font-medium' : 'border-line hover:bg-hover'}`}>{item.position}</button>)}
+    </div>
+    <div className="space-y-2 font-mono text-sm">
+      <div className="flex flex-wrap items-center gap-1.5"><span className="w-16 text-xs text-ink-2">text</span>{['H', 'e', 'l', 'l', 'o'].map((value, i) => <Tile key={i} tone={i < position ? '' : 'out'}>{value}</Tile>)}<span aria-hidden="true" className="px-1 text-ink-2">→</span><span>[0, 1, 2, 2, 3]</span></div>
+      <div className="flex flex-wrap items-center gap-1.5"><span className="w-16 text-xs text-ink-2">inputs</span>{ids.slice(0, 4).map((value, i) => <Tile key={i} tone={i === position - 1 ? 'action' : ''}>{value}</Tile>)}</div>
+      <div className="flex flex-wrap items-center gap-1.5"><span className="w-16 text-xs text-ink-2">targets</span>{ids.slice(1).map((value, i) => <Tile key={i} tone={i === position - 1 ? 'target' : ''}>{value}</Tile>)}</div>
+    </div>
+    <p aria-live="polite" className="mt-3 text-xs text-ink-2">Prefix <code className="rounded bg-code px-1">{pair.prefix}</code> → observed target <code className="rounded bg-code px-1">{pair.target}</code>, ID {ids[position]}</p>
+  </Fig>;
+}
+
+const READING_VISUALS = {
+  window: WindowVisual,
   // Page 4: the two lanes, compact.
   lanes: () => <Fig label="Training and generation lanes" caption="The prediction step is identical; only what changes afterwards differs.">
     {[['Training', ['known text', 'predict', 'compare', 'update θ'], 'parameters change'], ['Generation', ['prompt', 'predict', 'select', 'append'], 'text grows; parameters stay fixed']].map(([name, steps, note]) => <div key={name} className="mb-2 flex flex-wrap items-center gap-1.5 last:mb-0">
@@ -76,14 +117,7 @@ const READING_VISUALS = {
       <span className="ml-2 text-xs text-ink-3">{note}</span>
     </div>)}
   </Fig>,
-  // Page 4: two-step generation trace.
-  trace: () => <Fig label="Two generation steps" caption="Invented continuation, not a checkpoint result. A selected character is appended before the next prediction; the learned parameters do not change.">
-    <div className="flex flex-wrap items-center gap-2 font-mono text-base">
-      <span>Hell</span><span aria-hidden="true">→</span>
-      <span>Hell<strong className="text-orange-700">o</strong></span><span aria-hidden="true">→</span>
-      <span>Hello<strong className="text-orange-700">␣</strong></span>
-    </div>
-  </Fig>,
+  trace: TraceVisual,
   // Page 5: expanded pipeline map.
   pipeline: () => <Fig label="nanoGPT pipeline map" caption="Preparation writes training and validation data; training updates a model while validation evaluates it; generation uses saved model state. model.py supplies the shared implementation.">
     <div className="grid gap-3 text-sm sm:grid-cols-3">
@@ -104,14 +138,7 @@ const READING_VISUALS = {
       </div>)}
     </div>
   </Fig>,
-  // Page 6: the annotated Hello trace.
-  annotated: () => <Fig label="Annotated Hello trace" caption="Inputs pair with one-position-shifted targets. At the highlighted position the prefix is Hel and the observed target is l, ID 2.">
-    <div className="space-y-2 font-mono text-sm">
-      <div className="flex flex-wrap items-center gap-1.5"><span className="w-16 text-xs text-ink-2">text</span>{['H', 'e', 'l', 'l', 'o'].map((value, i) => <Tile key={i}>{value}</Tile>)}<span aria-hidden="true" className="px-1 text-ink-2">→</span><span>[0, 1, 2, 2, 3]</span></div>
-      <div className="flex flex-wrap items-center gap-1.5"><span className="w-16 text-xs text-ink-2">inputs</span>{['0', '1', '2', '2'].map((value, i) => <Tile key={i} tone={i === 2 ? 'action' : ''}>{value}</Tile>)}</div>
-      <div className="flex flex-wrap items-center gap-1.5"><span className="w-16 text-xs text-ink-2">targets</span>{['1', '2', '2', '3'].map((value, i) => <Tile key={i} tone={i === 2 ? 'target' : ''}>{value}</Tile>)}</div>
-    </div>
-  </Fig>,
+  annotated: AnnotatedVisual,
 };
 
 function SupportingVisual({ page }) {
