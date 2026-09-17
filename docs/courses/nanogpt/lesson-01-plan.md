@@ -467,9 +467,9 @@ The generation method repeatedly obtains next-token scores, selects a token and 
 
 ### References and further reading
 
-**Repository — generation:** [model.py, GPT.generate](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L283-L302). Follow the loop and append operation; save sampling controls for Lesson 7.
+**Repository — generation:** [model.py, GPT.generate](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L306-L330). Follow the loop and append operation; save sampling controls for Lesson 7.
 
-**Repository — validation:** [train.py:204–217, estimate_loss](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/train.py#L204-L217). This evaluates losses separately from parameter updates.
+**Repository — validation:** [train.py:215–228, estimate_loss](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/train.py#L215-L228). This evaluates losses separately from parameter updates.
 
 **Online extension:** [PyTorch: Optimizing Model Parameters](https://docs.pytorch.org/tutorials/beginner/basics/optimization_tutorial.html). Compare the training and test loops. Focus on which loop performs updates; the tutorial's dataset and task differ from this character language model.
 
