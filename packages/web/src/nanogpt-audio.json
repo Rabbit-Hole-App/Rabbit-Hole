@@ -3,64 +3,64 @@
     {
       "at": "title",
       "src": "/audio/nanogpt-l1-p1-0.mp3",
-      "ms": 4206
+      "ms": 4023
     },
     {
       "at": "prefix",
       "src": "/audio/nanogpt-l1-p1-1.mp3",
-      "ms": 4023
+      "ms": 3605
     },
     {
       "at": "prediction",
       "src": "/audio/nanogpt-l1-p1-2.mp3",
-      "ms": 15673
+      "ms": 13636
     },
     {
       "at": "probabilities",
       "src": "/audio/nanogpt-l1-p1-3.mp3",
-      "ms": 5825
+      "ms": 5120
     },
     {
       "at": "check",
       "src": "/audio/nanogpt-l1-p1-4.mp3",
-      "ms": 4232
+      "ms": 3605
     },
     {
       "at": "transition",
       "src": "/audio/nanogpt-l1-p1-5.mp3",
-      "ms": 7967
+      "ms": 7732
     }
   ],
   [
     {
       "at": "title",
       "src": "/audio/nanogpt-l1-p2-0.mp3",
-      "ms": 7549
+      "ms": 7497
     },
     {
       "at": "characters",
       "src": "/audio/nanogpt-l1-p2-1.mp3",
-      "ms": 3918
+      "ms": 3135
     },
     {
       "at": "vocabulary",
       "src": "/audio/nanogpt-l1-p2-2.mp3",
-      "ms": 6426
+      "ms": 5956
     },
     {
       "at": "encoding",
       "src": "/audio/nanogpt-l1-p2-3.mp3",
-      "ms": 2011
+      "ms": 1724
     },
     {
       "at": "decode",
       "src": "/audio/nanogpt-l1-p2-4.mp3",
-      "ms": 14054
+      "ms": 12277
     },
     {
       "at": "check",
       "src": "/audio/nanogpt-l1-p2-5.mp3",
-      "ms": 7262
+      "ms": 7157
     }
   ]
 ]

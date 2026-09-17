@@ -11,7 +11,7 @@ const key = parseEnv(readFileSync(new URL('../.env', import.meta.url), 'utf8')).
 if (!key) throw new Error('Missing FISH_AUDIO_API_KEY in .env');
 
 // One narrator for every clip. Fish picks a random voice without a reference.
-const VOICE = '933563129e564b19a115bedd57b7406a'; // "Sarah"
+const VOICE = '802e3bc2b27e49c2995d23ef70e6ac89'; // "Energetic Male"
 const BITRATE = 128;
 
 // Each part starts when its `at` scene object begins drawing; the player
