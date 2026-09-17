@@ -42,10 +42,15 @@ export function playSigmoid(editor, explain, lesson, onChange, generated = null)
   const frames = definition.map(() => []);
   let building = 0;
   const frame = (apply, delay = 0) => frames[building].push({ apply, delay });
-  const create = (shape, objectId, status = 'drawing') => editor.createShape({ ...shape, x: shape.x + offsets[step],
-    meta: { sigmoidDemo: !generated, learnLesson: lessonId, lessonId, runId: lesson.runId, author: 'script',
-      ...objects[objectId], objectId, stageId: lesson.currentStage, renderStatus: status,
-      ...(objectId === 'axes-x' || objectId === 'axes-y' ? { coordinateMapping: { origin: { x: offsets[step] + 315, y: 470 }, xUnitsToPage: 490 / 12, yUnitsToPage: -250 } } : {}) } });
+  const create = (shape, objectId, status = 'drawing') => {
+    editor.createShape({ ...shape, x: shape.x + offsets[step],
+      meta: { sigmoidDemo: !generated, learnLesson: lessonId, lessonId, runId: lesson.runId, author: 'script',
+        ...objects[objectId], objectId, stageId: lesson.currentStage, renderStatus: status,
+        ...(objectId === 'axes-x' || objectId === 'axes-y' ? { coordinateMapping: { origin: { x: offsets[step] + 315, y: 470 }, xUnitsToPage: 490 / 12, yUnitsToPage: -250 } } : {}) } });
+    // Follow the writing: pan down when a new shape lands outside the viewport.
+    const view = editor.getViewportPageBounds();
+    if (shape.y + 120 > view.maxY || shape.y < view.minY + 20) editor.centerOnPoint({ x: view.midX, y: shape.y + 80 }, { animation: { duration: 250 } });
+  };
   const complete = id => frame(() => {
     const shape = editor.getShape(id);
     if (shape) editor.updateShape({ id, type: shape.type, meta: { ...shape.meta, renderStatus: 'complete' } });
