@@ -17,19 +17,22 @@ export const nanoMaterials = sections.map(section => {
 });
 
 const text = (objectId, value, x, y, w = 720, size = 'm', pause = 1400, color) => ({ type: 'text', objectId, text: value, x, y, w, size, pause, ...(color ? { color } : {}) });
-const box = (objectId, x, y, w, h, color = 'grey') => ({ type: 'geo', objectId, x, y, props: { geo: 'rectangle', w, h, color, fill: 'none', size: 's', dash: 'solid' } });
+const box = (objectId, x, y, w, h, color = 'grey', fill = 'none') => ({ type: 'geo', objectId, x, y, props: { geo: 'rectangle', w, h, color, fill, size: 's', dash: 'solid' } });
 const arrow = (objectId, x, y, dx, dy, color = 'violet') => ({ type: 'arrow', objectId, x, y, props: { start: { x: 0, y: 0 }, end: { x: dx, y: dy }, color, size: 's', dash: 'solid', arrowheadEnd: 'arrow' } });
 const tiles = (objectId, values, x, y, colors = []) => values.flatMap((value, i) => [
   box(objectId, x + i * 64, y, 52, 54, colors[i] || 'blue'),
   text(objectId, value, x + i * 64 + 14, y + 7, 34, 'm', 250),
 ]);
-// Color language on every page: blue = given input, violet = action, orange = answer.
+// Color language on every page: blue = given, violet = action, red = question,
+// orange = answer, green = what comes next.
 const legend = objectId => [
-  box(objectId, 830, 18, 54, 30, 'blue'), text(objectId, 'given', 892, 22, 100, 's', 100, 'blue'),
-  box(objectId, 830, 56, 54, 30, 'violet'), text(objectId, 'action', 892, 60, 100, 's', 100, 'violet'),
-  box(objectId, 830, 94, 54, 30, 'orange'), text(objectId, 'answer', 892, 98, 100, 's', 100, 'orange'),
+  box(objectId, 830, 18, 48, 26, 'blue'), text(objectId, 'given', 886, 21, 110, 's', 100, 'blue'),
+  box(objectId, 830, 52, 48, 26, 'violet'), text(objectId, 'action', 886, 55, 110, 's', 100, 'violet'),
+  box(objectId, 830, 86, 48, 26, 'red'), text(objectId, 'question', 886, 89, 110, 's', 100, 'red'),
+  box(objectId, 830, 120, 48, 26, 'orange'), text(objectId, 'answer', 886, 123, 110, 's', 100, 'orange'),
+  box(objectId, 830, 154, 48, 26, 'green'), text(objectId, 'up next', 886, 157, 110, 's', 100, 'green'),
 ];
-const LEGEND_MEANING = { kind: 'annotation', label: 'Color legend', originalText: 'Blue = given input, violet = action, orange = answer or output.', relatedObjectIds: [] };
+const LEGEND_MEANING = { kind: 'annotation', label: 'Color legend', originalText: 'Blue = given input, violet = action, red = question, orange = answer or output, green = what comes next.', relatedObjectIds: [] };
 const meaning = (kind, label, originalText, relatedObjectIds = []) => ({ kind, label, originalText, relatedObjectIds });
 
 export const nanoLesson = {
@@ -51,14 +54,14 @@ export const nanoLesson = {
       scene: [
         ...legend('legend'),
         text('title', 'What does a language model predict?', 40, 20, 760, 'l'),
-        ...tiles('prefix', ['H', 'e', 'l', 'l', '?'], 45, 125, ['blue', 'blue', 'blue', 'blue', 'orange']),
+        ...tiles('prefix', ['H', 'e', 'l', 'l', '?'], 45, 125, ['blue', 'blue', 'blue', 'blue', 'yellow']),
         text('prefix', 'Given the text so far,\npredict the next token.', 45, 210, 345, 'm', 2200, 'blue'),
         arrow('prediction', 360, 152, 65, 0), box('prediction', 435, 105, 360, 135, 'violet'),
         text('prediction', 'Possible next:', 455, 118, 320, 'm', 300, 'violet'),
         ...tiles('prediction', ['o', '␣', '?'], 455, 155, ['orange', 'orange', 'orange']),
         text('probabilities', 'Probabilities — not guarantees', 45, 320, 735, 'm', 2000, 'orange'),
-        text('check', 'Whole sentence at once? No: one token, then repeat.', 45, 390, 735, 'm', 2600),
-        text('transition', 'Next: turn text into numbers', 45, 460, 735, 'm', 800, 'violet'),
+        text('check', 'Whole sentence at once? No: one token, then repeat.', 45, 390, 735, 'm', 2600, 'red'),
+        text('transition', 'Next: turn text into numbers', 45, 460, 735, 'm', 800, 'green'),
       ],
     },
     {
@@ -85,7 +88,7 @@ export const nanoLesson = {
         arrow('decode', 390, 335, 0, -190), text('decode', 'decode', 323, 235, 100, 'm', 1200, 'violet'),
         text('vocabulary', 'Toy IDs only. Actual IDs depend on the dataset.', 45, 440, 735),
         text('decode', 'An ID is a label, not an importance score.', 45, 480, 735),
-        text('check', 'Your turn below: encode “lo H”.', 45, 535, 750, 'm', 1400, 'violet'),
+        text('check', 'Your turn below: encode “lo H”.', 45, 535, 750, 'm', 1400, 'red'),
       ],
     },
     {
@@ -106,13 +109,14 @@ export const nanoLesson = {
         ...tiles('sequence', ['H', 'e', 'l', 'l', 'o'], 45, 105),
         ...['1', '2', '3', '4', '5'].map((v, i) => text('sequence', v, 45 + i * 64 + 18, 165, 30, 'm', 150, 'violet')),
         text('demo', 'H → e  (worked example)', 45, 215, 360, 'm', 1800),
-        text('choose', 'Your turn: tap a position tile above, then answer below ↓', 45, 260, 735, 'm', 2400, 'violet'),
+        text('choose', 'Your turn: tap a position tile above, then answer below ↓', 45, 260, 735, 'm', 2400, 'red'),
         text('rows', 'Observed training pairs', 45, 330, 400, 'm', 600),
         ...tiles('rows', ['H', 'e', 'l', 'l'], 45, 365),
         ...Array.from({ length: 4 }, (_, i) => arrow('rows', 71 + i * 64, 424, 32, 64)),
         ...tiles('rows', ['e', 'l', 'l', 'o'], 77, 495, ['orange', 'orange', 'orange', 'orange']),
-        text('captions', 'context = tokens available · context window = max considered', 45, 575, 735, 'm', 2200),
-        text('transition', 'Next: how does comparing help the model learn?', 45, 650, 735, 'm', 800, 'violet'),
+        box('captions', 45, 563, 730, 84, 'yellow', 'semi'),
+        text('captions', '• Context: the tokens this prediction can see.\n• Context window: the most it can see at once.', 65, 575, 690, 'm', 2200),
+        text('transition', 'Next: how does comparing help the model learn?', 45, 665, 735, 'm', 800, 'green'),
       ],
     },
     {
@@ -148,10 +152,11 @@ export const nanoLesson = {
         box('generation', 441, 300, 150, 48, 'violet'), text('generation', 'select', 483, 313, 80, 's', 150),
         arrow('generation', 597, 324, 26, 0),
         box('generation', 629, 300, 130, 48, 'orange'), text('generation', 'append', 657, 313, 80, 's', 700),
-        text('captions', 'θ = learned parameters: adjustable numbers inside the model', 45, 400, 735, 'm', 1800),
-        text('validation', 'Validation: compare only — parameters never change', 45, 470, 735, 'm', 1600),
-        text('check', 'Check below the canvas ↓', 45, 520, 400, 'm', 2000, 'violet'),
-        text('transition', 'Next: where does each live in nanoGPT?', 45, 570, 735, 'm', 800, 'violet'),
+        box('captions', 45, 390, 730, 84, 'yellow', 'semi'),
+        text('captions', 'θ = learned parameters:\nadjustable numbers inside the model', 65, 402, 690, 'm', 1800),
+        text('validation', 'Validation: compare only — parameters never change', 45, 495, 735, 'm', 1600),
+        text('check', 'Check below the canvas ↓', 45, 545, 400, 'm', 2000, 'red'),
+        text('transition', 'Next: where does each live in nanoGPT?', 45, 595, 735, 'm', 800, 'green'),
       ],
     },
     {
@@ -181,9 +186,9 @@ export const nanoLesson = {
         arrow('generate', 690, 195, 0, 25),
         text('generate', 'sample.py\ncheckpoint\n→ generated text', 595, 235, 200, 'm', 2200, 'blue'),
         text('generate', 'model.py — the shared GPT implementation', 45, 410, 735, 'm', 1400, 'violet'),
-        box('closing', 45, 450, 730, 56, 'orange'),
-        text('closing', 'train.bin = examples · checkpoint = learned state', 65, 464, 690, 'm', 2600, 'orange'),
-        text('transition', 'Trace one string through the whole pipeline!', 45, 535, 735, 'm', 800, 'violet'),
+        box('closing', 45, 450, 730, 84, 'orange', 'semi'),
+        text('closing', '• train.bin holds the examples\n• the checkpoint holds the learned state', 65, 462, 690, 'm', 2600, 'orange'),
+        text('transition', 'Trace one string through the whole pipeline!', 45, 560, 735, 'm', 800, 'red'),
       ],
     },
     {
@@ -208,13 +213,13 @@ export const nanoLesson = {
         box('recap', 401, 100, 140, 48, 'violet'), text('recap', 'model', 443, 113, 70, 's', 150),
         arrow('recap', 547, 124, 26, 0),
         box('recap', 579, 100, 190, 48, 'orange'), text('recap', 'next token', 615, 113, 120, 's', 700),
-        text('check1', 'Check 1: What does one position predict?', 45, 200, 735, 'm', 3500, 'violet'),
-        box('answer1', 45, 245, 730, 84, 'orange'),
+        text('check1', 'Check 1: What does one position predict?', 45, 200, 735, 'm', 3500, 'red'),
+        box('answer1', 45, 245, 730, 84, 'orange', 'semi'),
         text('answer1', 'A distribution over the next token,\nfrom its prefix', 65, 259, 690, 'm', 2000, 'orange'),
-        text('check2', 'Check 2: Why separate training and validation data?', 45, 360, 735, 'm', 3500, 'violet'),
-        box('answer2', 45, 405, 730, 56, 'orange'),
+        text('check2', 'Check 2: Why separate training and validation data?', 45, 360, 735, 'm', 3500, 'red'),
+        box('answer2', 45, 405, 730, 56, 'orange', 'semi'),
         text('answer2', 'To evaluate on examples training never used', 65, 419, 690, 'm', 2000, 'orange'),
-        text('closing', 'Quiz · Flashcards · Notebook — below in Curriculum', 45, 490, 735, 'm', 800, 'violet'),
+        text('closing', 'Finish up in Curriculum: quiz, flashcards, notebook.', 45, 490, 735, 'm', 800, 'green'),
       ],
     },
   ],
