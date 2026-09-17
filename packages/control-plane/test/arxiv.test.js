@@ -6,6 +6,9 @@ const xml = '<feed><entry><id>http://arxiv.org/abs/1506.02640v5</id><title>Examp
 test('arXiv IDs and retrieved references cannot redirect to arbitrary hosts', () => {
   assert.equal(arxivId('https://arxiv.org/pdf/1506.02640v5.pdf'), '1506.02640v5');
   assert.equal(arxivId('hep-th/9901001'), 'hep-th/9901001');
+  assert.equal(arxivId('arXiv:1706.03762'), '1706.03762');
+  assert.equal(arxivId('abs/1706.03762'), '1706.03762');
+  assert.equal(arxivId('1706.03762.'), '1706.03762');
   for (const id of ['https://evil.example/pdf/1506.02640', '../../private', 'https://arxiv.org@evil.example/pdf/1506.02640', '1506.02640?other=1']) assert.throws(() => arxivId(id));
   const [paper] = parseArxiv(xml); assert.equal(paper.title, 'Example & Paper'); assert.equal(paper.pdfUrl, 'https://arxiv.org/pdf/1506.02640v5');
 });

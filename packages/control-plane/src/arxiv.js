@@ -12,7 +12,10 @@ export function arxivId(value) {
     if (!['arxiv.org', 'www.arxiv.org', 'export.arxiv.org'].includes(url.hostname) || url.username || url.password || url.port) throw new Error('Use an arxiv.org paper URL');
     id = url.pathname.replace(/^\/(abs|pdf)\//, '').replace(/\.pdf$/, '');
   }
-  if (!/^(?:\d{4}\.\d{4,5}|[a-z-]+(?:\.[A-Z]{2})?\/\d{7})(?:v[1-9]\d*)?$/.test(id)) throw new Error('Invalid arXiv paper ID');
+  // Models write IDs as "arXiv:1706.03762", "abs/1706.03762" or with trailing
+  // punctuation; normalize those instead of failing the whole tool call.
+  id = id.replace(/^arxiv:\s*/i, '').replace(/^(abs|pdf)\//, '').replace(/[.,;:)\]]+$/, '');
+  if (!/^(?:\d{4}\.\d{4,5}|[a-z-]+(?:\.[A-Z]{2})?\/\d{7})(?:v[1-9]\d*)?$/.test(id)) throw new Error(`Invalid arXiv paper ID: ${JSON.stringify(String(value).slice(0, 60))}. Use a form like 1706.03762 or an arxiv.org abs URL.`);
   return id;
 }
 const decode = text => text.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/&(?:amp|lt|gt|quot|apos);/g, entity => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'" })[entity]).replace(/\s+/g, ' ').trim();
