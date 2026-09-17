@@ -33,13 +33,16 @@ export function repositoryApp(row,user) {
   return {...row,kind:'repository',hosting:'repository',email:user.email,orgName:user.orgName,visibility:'domain',members:[],canView:true,canEdit:row.owner_email===user.email,
     repo_url:`https://github.com/${row.repo}`,repo_branch:row.branch,repo_commit:row.commit_sha,description:`Learn from ${row.repo}`,url:`/apps/${row.name}`,inputs:{},outputs:{}};
 }
+// D1 occasionally throws a transient internal error ("object to be reset");
+// one retry absorbs it instead of failing the learner's request.
+async function d1(run){try{return await run();}catch(error){if(!/D1_ERROR|object to be reset/i.test(String(error?.message)))throw error;await new Promise(resolve=>setTimeout(resolve,150));return run();}}
 export async function repositoryAccess(req,env,name) {
   const user=await repositoryIdentity(req,env); if(user instanceof Response) return user;
-  const row=await env.LEARN_DB.prepare('SELECT * FROM repository_apps WHERE org=? AND name=?').bind(user.org,name).first();
+  const row=await d1(()=>env.LEARN_DB.prepare('SELECT * FROM repository_apps WHERE org=? AND name=?').bind(user.org,name).first());
   return row?repositoryApp(row,user):json({error:'Repository not found in this workspace'},404);
 }
 export async function repositorySnapshot(env,app,commit=app.commit_sha) {
-  const row=await env.LEARN_DB.prepare('SELECT storage_key FROM repository_versions WHERE app_id=? AND commit_sha=?').bind(app.id,commit).first();
+  const row=await d1(()=>env.LEARN_DB.prepare('SELECT storage_key FROM repository_versions WHERE app_id=? AND commit_sha=?').bind(app.id,commit).first());
   if(!row) throw Error('This repository version is not indexed yet');
   const object=await env.RUNS.get(row.storage_key); if(!object) throw Error('Repository snapshot unavailable');
   return object.json();

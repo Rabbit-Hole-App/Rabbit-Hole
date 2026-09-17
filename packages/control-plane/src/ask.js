@@ -281,7 +281,7 @@ export async function anthropic(env, body, model, org) {
   // an explicit model (chat picker or org setting) is incompatible with the
   // server-side fallback feature - the API 400s on the combination
   const chosen = model || ai?.model || null;
-  return fetch('https://api.anthropic.com/v1/messages', {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'x-api-key': env.ANTHROPIC_API_KEY,
@@ -292,6 +292,9 @@ export async function anthropic(env, body, model, org) {
     },
     body: JSON.stringify(chosen ? { ...body, model: chosen } : { model: MODEL, fallbacks: 'default', ...body }),
   });
+  // Surface the API's own reason in logs; callers only relay the status code.
+  if (!resp.ok) console.warn('anthropic API error', resp.status, (await resp.clone().text().catch(() => '')).slice(0, 400));
+  return resp;
 }
 
 // One non-streaming answer (failure diagnosis). Returns plain text or throws.

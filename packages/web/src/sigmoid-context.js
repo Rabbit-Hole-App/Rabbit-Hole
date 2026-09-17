@@ -69,6 +69,7 @@ export function selectionSnapshot(editor, lesson, selection) {
   return { lessonId: lesson.lessonId || 'sigmoid-demo', runId: lesson.runId,
     lessonContext: { topic: lesson.topic || 'Sigmoid function', currentStage: lesson.currentStage, ...(lesson.pageNumber ? { pageNumber: lesson.pageNumber, pageTitle: lesson.pageTitle, animationProgress: lesson.animationProgress } : {}), recentExplanations: lesson.recentExplanations.slice(-4) },
     ...(target ? { target: { ...target, method: 'explicit-selection', selectedShapeIds: selectedIds },
-      relatedObjects: target.relatedObjectIds.map(object).filter(Boolean) }
-      : { method: 'lesson', target: null, relatedObjects: [...new Set(shapes.filter(s => s.meta.runId === lesson.runId && ['script', 'assistant'].includes(s.meta.author)).map(s => s.meta.objectId))].slice(-12).map(object).filter(Boolean) }) };
+      // map(object) would pass the array index as `prefer` - call with the id only.
+      relatedObjects: target.relatedObjectIds.map(id => object(id)).filter(Boolean) }
+      : { method: 'lesson', target: null, relatedObjects: [...new Set(shapes.filter(s => s.meta.runId === lesson.runId && ['script', 'assistant'].includes(s.meta.author)).map(s => s.meta.objectId))].slice(-12).map(id => object(id)).filter(Boolean) }) };
 }
