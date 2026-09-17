@@ -161,17 +161,27 @@ export function playSigmoid(editor, explain, lesson, onChange, generated = null)
     while (k > 0 && parts[k].start >= Math.max(1, positions[index])) k--;
     return k;
   };
+  // Scheduled time when each frame applies; frame delays are uneven, so audio
+  // position must follow accumulated delay, never the frame count.
+  const elapsed = frames.map(list => { let t = 0; return [...list.map(f => { const at = t; t += f.delay; return at; }), t]; });
   const partTime = (index, k) => {
     const parts = pageParts[index];
-    const end = k + 1 < parts.length ? parts[k + 1].start : frames[index].length;
-    return ((positions[index] - parts[k].start) / Math.max(1, end - parts[k].start)) * (parts[k].ms / 1000);
+    return Math.min(parts[k].ms / 1000, (elapsed[index][positions[index]] - elapsed[index][parts[k].start]) / 1000);
   };
+  // Each clip plays once, straight through, started at its segment boundary.
+  // No mid-clip correction: nudging a playing clip is audible as stutter.
+  let activeAudio = null;
   const syncAudio = () => {
     const k = partAt(step);
-    audios.forEach((page, i) => page.forEach((audio, j) => { if (i !== step || j !== k || !playing) audio.pause(); }));
-    if (!playing || k < 0) return;
-    const audio = audios[step][k];
-    if (audio.duration && Math.abs(audio.currentTime - partTime(step, k)) > 2) audio.currentTime = Math.min(audio.duration, partTime(step, k));
+    const audio = k >= 0 ? audios[step][k] : null;
+    if (audio !== activeAudio) {
+      activeAudio?.pause();
+      activeAudio = audio;
+      if (audio) audio.currentTime = 0;
+    }
+    if (!audio) return;
+    if (!playing) { audio.pause(); return; }
+    if (audio.ended || !audio.paused) return;
     // A blocked autoplay pauses the lesson so speech and drawing restart together.
     audio.play().catch(error => { if (error?.name === 'NotAllowedError' && playing && !audioBlocked) { audioBlocked = true; pause(); } });
   };
