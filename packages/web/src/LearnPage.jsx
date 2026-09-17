@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Minimize2, Network, Pause, Pencil, Play, Scan, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
-import { SPEEDS, getSpeed, isMuted, setMuted, setSpeed } from './learn-audio.js';
-import { api, navigate } from './api.js';
+import { SPEEDS, getSpeed, isMuted, onMuted, setMuted, setSpeed } from './learn-audio.js';
+import { api, navigate, wsHeaders } from './api.js';
 import { requestBoardExplanation } from './learn-board-request.js';
 import { AskPanel } from './ask.jsx';
 import { Button, ExpandedPageFrame, IconBtn, PeekBreadcrumbs, ConfirmDialog } from './ui.jsx';
@@ -266,7 +266,21 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
       editor.updateViewportScreenBounds(editor.getContainer());
       const previous = explanation.current;
       const layer = drawExplanation(editor, current, renderedPlan, { app: app.name, onVideo: (...args) => videos.current?.start(...args), onScene: (...args) => scenes.current?.start(...args) });
-      explanation.current = { dispose: () => { layer.dispose(); previous?.dispose(); }, runId: snapshot.runId };
+      // Speak the explanation with the lesson narrator; a failed request stays silent.
+      let boardAudio = null;
+      const spoken = renderedPlan.blocks.map(block => block.text).filter(Boolean).join(' ').slice(0, 3800);
+      if (spoken) fetch('/api/learn/tts', { method: 'POST', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify({ app: app.name, text: spoken }) })
+        .then(async response => {
+          if (!response.ok || request !== boardRequest.current) return;
+          const url = URL.createObjectURL(await response.blob());
+          if (request !== boardRequest.current) { URL.revokeObjectURL(url); return; }
+          boardAudio = new Audio(url);
+          boardAudio.muted = isMuted();
+          boardAudio.playbackRate = getSpeed();
+          boardAudio.play().catch(() => {});
+        }).catch(() => {});
+      const unlistenBoardMuted = onMuted(value => { if (boardAudio) boardAudio.muted = value; });
+      explanation.current = { dispose: () => { unlistenBoardMuted(); boardAudio?.pause(); layer.dispose(); previous?.dispose(); }, runId: snapshot.runId };
     },
     label: pinned.current?.label,
     preview: paperContext?.selection?.preview || preview,
@@ -440,7 +454,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         }} />}
         <div className={`${courseView || learningView !== 'lesson' ? 'hidden' : ''} min-h-0 flex-1 overflow-y-auto pr-1`}>
         {(!isRepository || progress) && <div aria-label="Current lesson and section" className="mb-4"><h2 className="text-lg font-semibold">Lesson {sampleIndex >= 0 ? sampleIndex + 1 : 1}: {currentLesson?.title}</h2><p className="mt-1 text-sm text-ink-2">Section {(progress?.page || 0) + 1} of {pages.length}: {progress?.label || pages[0].label}</p></div>}
-        {boardVisible && <div className="mb-2 flex items-center justify-between gap-2 py-2 text-xs text-ink-2"><span>Agent explanation · lesson paused</span><button type="button" onClick={dismissBoard} className="rounded border border-line bg-white px-2 py-1">Dismiss explanation</button></div>}
+        {boardVisible && <div className="mb-2 flex flex-wrap items-center justify-between gap-2 py-2 text-xs text-ink-2"><span>Agent explanation · lesson paused — keep asking, or resume when ready</span><div className="flex gap-2"><button type="button" disabled={!notesLoaded || answering} onClick={addNote} className="rounded border border-line bg-white px-2 py-1 disabled:opacity-40">Save to notes</button><button type="button" onClick={() => { dismissBoard(); playback.current?.play(); }} className="rounded border border-line bg-white px-2 py-1 font-medium">Resume lesson</button></div></div>}
         <div className="flex items-start gap-2">
         {graphError && <p role="alert" className="text-sm text-red-700">{graphError}</p>}
         <div aria-label="Lesson canvas" onPointerDownCapture={event => { editor?.updateViewportScreenBounds(editor.getContainer()); pauseLesson(); pickSequenceTile(event); openPaperReference(event); }} onClickCapture={openPaperReference} onWheelCapture={e => { if (!e.ctrlKey && !e.metaKey && !e.target.closest?.('[data-shape-type="interactive-graph"], [data-shape-type="three-d-viewer"]')) e.stopPropagation(); }} className={`relative h-[480px] min-h-[360px] min-w-0 flex-1 overflow-hidden rounded-lg border border-line`}>
@@ -463,7 +477,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             <IconBtn aria-label={toolsOpen ? 'Hide drawing tools' : 'Show drawing tools'} title={toolsOpen ? 'Hide drawing tools' : 'Show drawing tools'} aria-pressed={toolsOpen} className={toolsOpen ? 'bg-hover' : ''} onClick={() => setToolsOpen(!toolsOpen)}><Pencil size={17} strokeWidth={1.5} /></IconBtn>
           </div>
         </div>
-        <div aria-label="Lesson playback" className={`${courseView || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
+        <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
             <button type="button" disabled={!progress || progress.page === 0 || answering} onClick={() => navigateLesson('back')} className="flex items-center gap-1 rounded px-2 py-1.5 text-xs text-ink-2 hover:bg-hover disabled:opacity-40"><ChevronLeft size={14} />Previous lesson</button>
             <button type="button" disabled={!editor || (progress?.page === pages.length - 1 && progress.pageComplete) || answering} onClick={() => { setRegion(false); if (!progress) startDemo.current?.(); else progress.playing ? pauseLesson() : playback.current?.play(); }} className="flex min-w-20 items-center justify-center gap-1.5 rounded border border-line px-3 py-1.5 text-xs hover:bg-hover disabled:opacity-40">{progress?.playing ? <Pause size={14} /> : <Play size={14} />}{progress?.playing ? 'Pause' : 'Play'}</button>
@@ -472,7 +486,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           </div>
           <span aria-live="polite" className="text-xs text-ink-2">{progress ? `Page ${progress.page + 1} of ${pages.length} · ${progress.label}` : 'Logistic regression · 3 pages'}</span>
         </div>
-        <div className={`${courseView || (isRepository && !progress) ? 'hidden' : ''} shrink-0 pt-2 pb-1`}>
+        <div className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : ''} shrink-0 pt-2 pb-1`}>
           <div className="relative flex items-center">
             <input type="range" aria-label="Lesson timeline" aria-valuetext={progress ? `Page ${progress.page + 1} of ${pages.length}, ${Math.round((progress.timeline / 1000 - progress.page) * 100)} percent` : 'Start the lesson to scrub'} min="0" max={pages.length * 1000} step="1" value={progress?.timeline || 0} disabled={!progress || answering} onPointerDown={pauseLesson} onChange={e => navigateLesson('scrub', Number(e.target.value))} className="h-4 w-full cursor-pointer accent-accent disabled:opacity-40" />
             {pages.slice(1).map((_, i) => <span key={i} style={{ left: `${(i + 1) * 100 / pages.length}%` }} className="pointer-events-none absolute h-2 w-px bg-white" />)}

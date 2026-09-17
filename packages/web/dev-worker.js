@@ -56,6 +56,21 @@ export default {
         return apiAsk(req, env, ctx, { email: access.email, org: access.org, orgName: access.orgName }, 'learn');
       }
     }
+    if (path === '/api/learn/tts' && req.method === 'POST') {
+      let body; try { body = await req.json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
+      if (!body?.text || typeof body.text !== 'string' || body.text.length > 4000) return Response.json({ error: 'Provide narration text under 4000 characters.' }, { status: 400 });
+      const access = await authorizedBoardApp(req, env, body.app);
+      if (access instanceof Response) return access;
+      if (!env.FISH_AUDIO_API_KEY) return Response.json({ error: 'Narration audio is not configured on this environment.' }, { status: 503 });
+      const upstream = await fetch('https://api.fish.audio/v1/tts', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${env.FISH_AUDIO_API_KEY}`, 'Content-Type': 'application/json', model: 's1' },
+        // Same pinned narrator as the pre-generated lesson clips.
+        body: JSON.stringify({ text: body.text, reference_id: '802e3bc2b27e49c2995d23ef70e6ac89', format: 'mp3', mp3_bitrate: 128, normalize: true }),
+      });
+      if (!upstream.ok) return Response.json({ error: 'Narration audio unavailable.' }, { status: 502 });
+      return new Response(upstream.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } });
+    }
     if (path === '/api/learn/paper') return paperFetch(req, env);
     if (path === '/api/learn/board') {
       if (env.SUBSCRIPTION_ONLY === 'true') {
