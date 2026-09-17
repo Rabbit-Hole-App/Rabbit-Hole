@@ -420,7 +420,6 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           }
         }} />}
         <div className={`${courseView || learningView !== 'lesson' ? 'hidden' : ''} min-h-0 flex-1 overflow-y-auto pr-1`}>
-        {suppliedCourse && <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line p-3"><span className="text-sm text-ink-2">Lesson 1 preview · Pages 1–2 of the six-page plan</span><Button variant="primary" disabled={!editor || !nanoProgress.loaded || answering} onClick={() => previewLesson(nanoLesson, !nanoActive)}><Play size={14} />{nanoActive ? 'Replay preview' : nanoProgress.saved.timeline > 0 ? 'Resume Lesson 1' : 'Start Lesson 1'}</Button></div>}
         {(!isRepository || progress) && <div aria-label="Current lesson and section" className="mb-4"><h2 className="text-lg font-semibold">Lesson {sampleIndex >= 0 ? sampleIndex + 1 : 1}: {currentLesson?.title}</h2><p className="mt-1 text-sm text-ink-2">Section {(progress?.page || 0) + 1} of {pages.length}: {progress?.label || pages[0].label}</p></div>}
         {boardVisible && <div className="mb-2 flex items-center justify-between gap-2 py-2 text-xs text-ink-2"><span>Agent explanation · lesson paused</span><button type="button" onClick={dismissBoard} className="rounded border border-line bg-white px-2 py-1">Dismiss explanation</button></div>}
         <div className="flex items-start gap-2">
