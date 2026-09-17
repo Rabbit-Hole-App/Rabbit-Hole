@@ -124,6 +124,18 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const [answering, setAnswering] = useState(false);
   const [narrationMuted, setNarrationMuted] = useState(isMuted());
   const [lessonSpeed, setLessonSpeed] = useState(getSpeed());
+  const [canvasPick, setCanvasPick] = useState(null);
+  // Page 3: tapping a position tile on the canvas selects it in the check below.
+  const pickSequenceTile = event => {
+    if (!editor || !nanoActive || progress?.page !== 2) return;
+    const point = editor.screenToPage({ x: event.clientX, y: event.clientY });
+    const shape = editor.getShapeAtPoint(point, { hitInside: true });
+    if (!shape?.meta?.objectId?.endsWith('-sequence')) return;
+    const boxes = editor.getCurrentPageShapes().filter(s => s.meta.objectId === shape.meta.objectId && s.type === 'geo').sort((a, b) => a.x - b.x);
+    const x = shape.type === 'geo' ? shape.x : shape.x - 14;
+    const index = boxes.findIndex(b => Math.abs(b.x - x) < 24);
+    if (index >= 0 && index < 4) setCanvasPick({ position: index + 1, nonce: Date.now() });
+  };
   const explanation = useRef(null);
   const boardRequest = useRef(0);
   const [boardVisible, setBoardVisible] = useState(false);
@@ -430,7 +442,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {boardVisible && <div className="mb-2 flex items-center justify-between gap-2 py-2 text-xs text-ink-2"><span>Agent explanation · lesson paused</span><button type="button" onClick={dismissBoard} className="rounded border border-line bg-white px-2 py-1">Dismiss explanation</button></div>}
         <div className="flex items-start gap-2">
         {graphError && <p role="alert" className="text-sm text-red-700">{graphError}</p>}
-        <div aria-label="Lesson canvas" onPointerDownCapture={event => { editor?.updateViewportScreenBounds(editor.getContainer()); pauseLesson(); openPaperReference(event); }} onClickCapture={openPaperReference} onWheelCapture={e => { if (!e.ctrlKey && !e.metaKey && !e.target.closest?.('[data-shape-type="interactive-graph"], [data-shape-type="three-d-viewer"]')) e.stopPropagation(); }} className={`relative h-[480px] min-h-[360px] min-w-0 flex-1 overflow-hidden rounded-lg border border-line`}>
+        <div aria-label="Lesson canvas" onPointerDownCapture={event => { editor?.updateViewportScreenBounds(editor.getContainer()); pauseLesson(); pickSequenceTile(event); openPaperReference(event); }} onClickCapture={openPaperReference} onWheelCapture={e => { if (!e.ctrlKey && !e.metaKey && !e.target.closest?.('[data-shape-type="interactive-graph"], [data-shape-type="three-d-viewer"]')) e.stopPropagation(); }} className={`relative h-[480px] min-h-[360px] min-w-0 flex-1 overflow-hidden rounded-lg border border-line`}>
           <Suspense fallback={<p className="p-4 text-sm text-ink-2">Loading canvas…</p>}>
             <LearnCanvas key={app.name} onReady={setEditor} />
           </Suspense>
@@ -467,7 +479,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             {pages.map(({ label }, i) => <button key={i} type="button" disabled={!progress || answering} onClick={() => navigateLesson('seek', i)} className="truncate text-left hover:text-ink disabled:opacity-40" title={label}>{i + 1}. {i === 1 && lesson.current?.lessonId === 'sigmoid-demo' ? 'The formula' : label}</button>)}
           </div>
         </div>
-        <div className="mt-5">{nanoActive ? <NanoLessonReading page={progress?.page || 0} progress={nanoProgress} onSource={source => { pauseLesson(); setPaperOpen(false); setSourceOpen(false); setLessonSource(source); }} /> : isRepository ? <p className="whitespace-pre-wrap text-sm text-ink-2">{narration}</p> : <LessonReading architecture={lesson.current?.lessonId === architectureLesson.id} page={progress?.page || 0} narration={narration} onSource={() => { pauseLesson(); setSourceOpen(true); }} onNotebook={() => changeLearningView('notebook')} />}</div>
+        <div className="mt-5">{nanoActive ? <NanoLessonReading page={progress?.page || 0} progress={nanoProgress} canvasPick={canvasPick} onSource={source => { pauseLesson(); setPaperOpen(false); setSourceOpen(false); setLessonSource(source); }} /> : isRepository ? <p className="whitespace-pre-wrap text-sm text-ink-2">{narration}</p> : <LessonReading architecture={lesson.current?.lessonId === architectureLesson.id} page={progress?.page || 0} narration={narration} onSource={() => { pauseLesson(); setSourceOpen(true); }} onNotebook={() => changeLearningView('notebook')} />}</div>
         </div>
         {!courseView && learningView === 'notes' && <Suspense fallback={<p className="text-sm text-ink-2">Loading notes...</p>}><LearnNotes saveRef={noteSave} onChange={setNoteChanged} records={noteRecords} editing={noteEditing} onSave={saveNote} onDelete={removeNote} onResume={returnToNoteLesson} onEdit={record => { setNoteChanged(false); setNoteEditing(record); }} onReturn={() => setNoteEditing(null)} loaded={notesLoaded} error={notesError} /></Suspense>}
         <LessonNotebook active={!courseView && learningView === 'notebook'} />

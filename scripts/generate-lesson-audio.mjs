@@ -26,7 +26,7 @@ const CHUNKS = [
     { at: 'transition', text: "Nice — but computers don't read letters, they crunch numbers. So, next question: how do we give the computer this text as numbers?" },
   ],
   [
-    { at: 'title', text: 'Welcome back! On the last page we predicted the next character. Now for the cliffhanger: how does Hello become numbers?' },
+    { at: 'title', text: 'On the last page we predicted the next character. Now for the cliffhanger: how does Hello become numbers?' },
     { at: 'characters', text: 'Simple: we assign each character its own ID.' },
     { at: 'vocabulary', text: 'H becomes zero, e becomes one, and both l characters become two — identical twins, same ID.' },
     { at: 'encoding', text: 'This lookup is called encoding.' },
@@ -43,7 +43,7 @@ const CHUNKS = [
     { at: 'transition', text: 'Now we can compare a prediction with a target. How does that comparison help the model learn?' },
   ],
   [
-    { at: 'title', text: 'Welcome to the tale of two workflows! Same prediction task, two very different jobs.' },
+    { at: 'title', text: 'Now for a tale of two workflows: same prediction task, two very different jobs.' },
     { at: 'training', text: "Our example tells us that o followed Hell. During training, we compare the model's prediction with that observed target, and the comparison guides changes to adjustable numbers inside the model, called parameters." },
     { at: 'generation', text: 'Generation is different: keep those parameters frozen, select a token, append it, and predict again.' },
     { at: 'captions', text: 'So training changes the parameters, while generation only grows the text.' },

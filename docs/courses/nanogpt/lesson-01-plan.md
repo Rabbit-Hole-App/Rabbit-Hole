@@ -203,7 +203,7 @@ per account/workspace/app/pinned source/plan revision in this browser only.
 
 ### Spoken or written explanation
 
-“Welcome back! On the last page we predicted the next character. Now for the cliffhanger: how does Hello become numbers? Simple: we assign each character its own ID. H becomes zero, e becomes one, and both l characters become two — identical twins, same ID. This lookup is called encoding. Reverse it and we recover Hello: that is decoding. And don't read too much into the numbers — a larger ID does not mean a more important character. We have changed the representation; the model has not learned anything yet. So, what prediction task can we build from this sequence of IDs? Your turn: try the encoding exercise below the canvas.”
+“On the last page we predicted the next character. Now for the cliffhanger: how does Hello become numbers? Simple: we assign each character its own ID. H becomes zero, e becomes one, and both l characters become two — identical twins, same ID. This lookup is called encoding. Reverse it and we recover Hello: that is decoding. And don't read too much into the numbers — a larger ID does not mean a more important character. We have changed the representation; the model has not learned anything yet. So, what prediction task can we build from this sequence of IDs? Your turn: try the encoding exercise below the canvas.”
 
 ### Further explanations
 
@@ -425,7 +425,7 @@ No video generation. Staged arrows already show the repeated process precisely a
 
 ### Spoken or written explanation
 
-“Welcome to the tale of two workflows! Same prediction task, two very different jobs. Our example tells us that o followed Hell. During training, we compare the model's prediction with that observed target, and the comparison guides changes to adjustable numbers inside the model, called parameters. Generation is different: keep those parameters frozen, select a token, append it, and predict again. So training changes the parameters, while generation only grows the text. Validation also keeps parameters fixed while comparing predictions with known answers. Quick check below the canvas: if a generated answer gets longer, did the parameters change? Then let's see where these activities happen in nanoGPT.”
+“Now for a tale of two workflows: same prediction task, two very different jobs. Our example tells us that o followed Hell. During training, we compare the model's prediction with that observed target, and the comparison guides changes to adjustable numbers inside the model, called parameters. Generation is different: keep those parameters frozen, select a token, append it, and predict again. So training changes the parameters, while generation only grows the text. Validation also keeps parameters fixed while comparing predictions with known answers. Quick check below the canvas: if a generated answer gets longer, did the parameters change? Then let's see where these activities happen in nanoGPT.”
 
 ### Further explanations
 

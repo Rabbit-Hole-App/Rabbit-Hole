@@ -239,3 +239,8 @@ tr.cursor-pointer:active > td {
 
 /* Enlarged panels use the same content edges as the chat page. */
 .expanded-page-frame > [data-panel-content] { padding-inline: 0; padding-bottom: 0; }
+
+/* Lesson canvas tools stay out of the way until the learner reaches for them. */
+.learn-canvas .tlui-toolbar { opacity: 0.3; transition: opacity 0.15s ease; }
+.learn-canvas:hover .tlui-toolbar,
+.learn-canvas .tlui-toolbar:focus-within { opacity: 1; }

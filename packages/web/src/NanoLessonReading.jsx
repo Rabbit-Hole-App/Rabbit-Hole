@@ -66,10 +66,13 @@ function AttemptFooter({ result }) {
   return <p className="mt-2 text-xs text-ink-2">Attempt {result.count} · First attempt: {result.first.correct ? 'correct' : 'incorrect'} · {result.everCorrect ? 'Answered correctly' : 'Keep practicing'}</p>;
 }
 
-function PrefixTargetCheck({ progress }) {
+function PrefixTargetCheck({ progress, canvasPick }) {
   const [position, setPosition] = useState(null);
   const [choice, setChoice] = useState(null);
   const [retry, setRetry] = useState(false);
+  useEffect(() => {
+    if (canvasPick) { setPosition(canvasPick.position); setChoice(null); setRetry(true); }
+  }, [canvasPick?.nonce]);
   const result = progress.saved.prefixTarget;
   const pair = PREFIX_PAIRS.find(item => item.position === position);
   const showForm = !result || retry;
@@ -120,7 +123,7 @@ function GenerationWeightsCheck({ progress }) {
   </section>;
 }
 
-export default function NanoLessonReading({ page, progress, onSource }) {
+export default function NanoLessonReading({ page, progress, onSource, canvasPick }) {
   const [answer, setAnswer] = useState('');
   const [validation, setValidation] = useState('');
   const [retry, setRetry] = useState(false);
@@ -156,7 +159,7 @@ export default function NanoLessonReading({ page, progress, onSource }) {
       </div>}
       <p className="mt-3 text-xs text-ink-2">{progress.persistent ? 'Progress is saved in this browser for your account.' : 'Progress lasts for this visit; no signed-in account was supplied.'}</p>
     </section>}
-    {page === 2 && <PrefixTargetCheck progress={progress} />}
+    {page === 2 && <PrefixTargetCheck progress={progress} canvasPick={canvasPick} />}
     {page === 3 && <GenerationWeightsCheck progress={progress} />}
     {progress.error && <p role="alert" className="text-sm text-red-700">{progress.error}</p>}
     <section aria-label="Further explanations" className="text-sm leading-relaxed">
