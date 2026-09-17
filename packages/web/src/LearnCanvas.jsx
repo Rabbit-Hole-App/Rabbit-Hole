@@ -1,14 +1,14 @@
-import { DefaultToolbar, DrawToolbarItem, EraserToolbarItem, HandToolbarItem, SelectToolbarItem, Tldraw } from 'tldraw';
+import { Tldraw } from 'tldraw';
 import { learnShapeUtils } from './learn-shape-utils.js';
 import 'tldraw/tldraw.css';
 
-// Lesson chrome stays minimal: four essential tools that fade until hovered
-// (see .learn-canvas rules in index.css); page menu stays for the engine.
+// Lesson chrome is hidden entirely; only the page menu stays for the engine.
+// Note editing keeps its own tool row, and keyboard shortcuts still work.
 const components = {
   StylePanel: null, ActionsMenu: null, QuickActions: null, MainMenu: null,
   HelperButtons: null, NavigationPanel: null, Minimap: null, ZoomMenu: null,
   DebugMenu: null, DebugPanel: null, KeyboardShortcutsDialog: null, HelpMenu: null,
-  Toolbar: () => <DefaultToolbar><SelectToolbarItem /><HandToolbarItem /><DrawToolbarItem /><EraserToolbarItem /></DefaultToolbar>,
+  Toolbar: null,
 };
 
 export default function LearnCanvas({ onReady }) {
