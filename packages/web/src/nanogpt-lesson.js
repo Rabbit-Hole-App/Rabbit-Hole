@@ -5,7 +5,7 @@ import narrationParts from './nanogpt-audio.json';
 // Owner-approved two-page rendering fixture, not a generated course or syllabus.
 export const nanoSourceVersion = '3adf61e154c3fe3fca428ad6bc3818b27a3b8291';
 export const nanoRevision = Number(materialPlan.match(/Plan revision: (\d+)/)[1]);
-const sections = materialPlan.split(/^## /m).filter(section => /^Page [12] —/.test(section));
+const sections = materialPlan.split(/^## /m).filter(section => /^Page [1-6] —/.test(section));
 export const nanoMaterials = sections.map(section => {
   const parts = Object.fromEntries(section.split(/^### /m).slice(1).map(part => {
     const [heading, ...body] = part.split('\n');
@@ -76,6 +76,104 @@ export const nanoLesson = {
         text('vocabulary', 'Toy IDs only. Actual IDs depend on the dataset.', 45, 440, 735),
         text('decode', 'An ID is a label, not an importance score.', 45, 480, 735),
         text('check', 'Your turn below: encode “lo H”.', 45, 535, 750),
+      ],
+    },
+    {
+      ...nanoMaterials[2], audioParts: narrationParts[2],
+      objects: {
+        title: meaning('title', 'The text grades itself', 'Use the prefix to predict what follows.', ['sequence', 'rows']),
+        sequence: meaning('diagram', 'Hello with positions 1–5', 'The sequence Hello with numbered positions 1 to 5. Position 5 has no recorded next character in this example.', ['demo', 'rows']),
+        demo: meaning('diagram', 'Worked example: H → e', 'At position 1 the available prefix is H and the observed next character is e. An explicitly unscored worked example.', ['sequence']),
+        choose: meaning('question', 'Pick a position below', 'The learner picks a position 1–4 below the canvas and chooses the character that followed that prefix in Hello.', ['sequence']),
+        rows: meaning('diagram', 'Inputs and shifted targets', 'Input row H e l l pairs with target row e l l o. The target row is the same text shifted one position; these are observed training pairs, not model predictions.', ['sequence', 'captions']),
+        captions: meaning('annotation', 'Context and context window', 'Context = tokens available for this prediction. Context window = the maximum number of input tokens considered at once.', ['rows']),
+        transition: meaning('annotation', 'Toward training', 'How can comparing a prediction with its target improve a model?', []),
+      },
+      scene: [
+        text('title', 'Use the prefix to predict what follows', 40, 20, 760, 'l'),
+        ...tiles('sequence', ['H', 'e', 'l', 'l', 'o'], 45, 105),
+        ...['1', '2', '3', '4', '5'].map((v, i) => text('sequence', v, 45 + i * 64 + 18, 165, 30, 'm', 200)),
+        text('demo', 'Worked example: after H, the observed next character is e.', 45, 215, 735, 'm', 1800),
+        text('choose', 'Your turn: pick a position below the canvas and check your answer.', 45, 260, 735, 'm', 2600),
+        text('rows', 'Observed training pairs', 45, 320, 400),
+        ...tiles('rows', ['H', 'e', 'l', 'l'], 45, 360),
+        ...tiles('rows', ['e', 'l', 'l', 'o'], 77, 435, ['orange', 'orange', 'orange', 'orange']),
+        text('rows', 'The target row is the same text, shifted one position.', 45, 505, 735, 'm', 2400),
+        text('captions', 'Context = tokens available for this prediction.\nContext window = the maximum tokens considered at once.', 45, 555, 735, 'm', 2400),
+        text('transition', 'Next: how does that comparison improve a model?', 45, 630, 735),
+      ],
+    },
+    {
+      ...nanoMaterials[3], audioParts: narrationParts[3],
+      objects: {
+        title: meaning('title', 'Same task, different use', 'Training and generation share the same prediction task but do different jobs.', ['training', 'generation']),
+        training: meaning('diagram', 'Training lane', 'Training: known text, predict, compare with the observed next token, update parameters. Learned parameters change.', ['generation', 'validation']),
+        generation: meaning('diagram', 'Generation lane', 'Generation: prompt, predict, select a token, append it. Text grows; learned parameters stay fixed.', ['training']),
+        captions: meaning('annotation', 'What parameters are', 'Learned parameters are adjustable numerical values inside the model.', ['training']),
+        validation: meaning('annotation', 'Validation', 'Validation compares predictions with known targets, without updating parameters.', ['training']),
+        check: meaning('question', 'Longer answer, new weights?', 'Does a longer generated answer mean the parameters changed? No - the generated text changed; the learned parameters stayed fixed. Answered below the canvas.', ['generation']),
+        transition: meaning('annotation', 'Toward the repository', 'Where do training and generation live in nanoGPT?', []),
+      },
+      scene: [
+        text('title', 'Same prediction task, different use', 40, 20, 760, 'l'),
+        box('training', 45, 100, 730, 115),
+        text('training', 'Training: known text → predict → compare with observed next token\n→ update parameters', 65, 118, 690, 'm', 2200),
+        text('training', 'Learned parameters change', 65, 178, 690, 'm', 1200),
+        box('generation', 45, 245, 730, 115),
+        text('generation', 'Generation: prompt → predict → select token → append token', 65, 263, 690, 'm', 2200),
+        text('generation', 'Text grows; learned parameters stay fixed', 65, 315, 690, 'm', 1200),
+        text('captions', 'Learned parameters = adjustable numerical values inside the model', 45, 395, 735, 'm', 1800),
+        text('validation', 'Validation compares with known targets, without updating parameters', 45, 445, 735, 'm', 1800),
+        text('check', 'Check below the canvas: does a longer generated answer\nmean the parameters changed?', 45, 500, 735, 'm', 2600),
+        text('transition', 'Next: where do training and generation live in nanoGPT?', 45, 580, 735),
+      ],
+    },
+    {
+      ...nanoMaterials[4], audioParts: narrationParts[4],
+      objects: {
+        title: meaning('title', 'The pipeline in nanoGPT', 'nanoGPT makes the training and generation pipeline concrete.', ['stages']),
+        stages: meaning('diagram', 'Three stages', 'Prepare data, train a model, generate text - the whole workflow in three stages.', ['prepare', 'train', 'generate']),
+        prepare: meaning('diagram', 'Prepare data', 'Tiny Shakespeare text goes through prepare.py into train.bin and val.bin. train.bin holds learning examples; val.bin holds held-out evaluation examples.', ['stages', 'train']),
+        train: meaning('diagram', 'Train a model', 'train.py uses the prepared examples, guided by config/train_shakespeare_char.py, and saves a model checkpoint.', ['prepare', 'generate']),
+        generate: meaning('diagram', 'Generate text', 'sample.py loads the checkpoint and extends a prompt into generated text. model.py supplies the shared GPT implementation.', ['train']),
+        closing: meaning('annotation', 'Examples versus learned state', 'Data files are examples. A checkpoint stores learned state. train.bin does not contain the learned weights.', ['prepare', 'train']),
+        transition: meaning('annotation', 'Toward the recap', 'Can you trace one string through this entire workflow?', []),
+      },
+      scene: [
+        text('title', 'nanoGPT makes the pipeline concrete', 40, 20, 760, 'l'),
+        box('stages', 45, 100, 210, 70), text('stages', 'Prepare data', 75, 122, 160, 'm', 400),
+        arrow('stages', 262, 135, 45, 0),
+        box('stages', 315, 100, 210, 70), text('stages', 'Train a model', 345, 122, 160, 'm', 400),
+        arrow('stages', 532, 135, 45, 0),
+        box('stages', 585, 100, 210, 70), text('stages', 'Generate text', 615, 122, 160, 'm', 800),
+        text('prepare', 'Tiny Shakespeare\nprepare.py\ntrain.bin / val.bin', 55, 195, 200, 'm', 2200),
+        text('train', 'train.py\nconfig settings\n→ checkpoint', 325, 195, 210, 'm', 2200),
+        text('generate', 'sample.py\ncheckpoint\n→ generated text', 595, 195, 200, 'm', 2200),
+        text('generate', 'model.py: the shared GPT implementation', 45, 360, 735, 'm', 1400),
+        text('closing', 'Data files are examples. A checkpoint stores learned state.', 45, 420, 735, 'm', 2200),
+        text('closing', 'train.bin holds encoded examples - not the learned weights.', 45, 462, 735, 'm', 1600),
+        text('transition', 'Can you trace one string through the entire workflow?', 45, 530, 735),
+      ],
+    },
+    {
+      ...nanoMaterials[5], audioParts: narrationParts[5],
+      objects: {
+        title: meaning('title', 'Check your mental model', 'Text in, next-token predictions out.', ['recap']),
+        recap: meaning('diagram', 'The whole task', 'Text → IDs → model → next-token prediction.', ['check1', 'check2']),
+        check1: meaning('question', 'What does one position predict?', 'One position predicts a distribution over the next token, using its available prefix.', ['recap']),
+        answer1: meaning('annotation', 'Answer: a distribution', 'A distribution over the next token, using its available prefix.', ['check1']),
+        check2: meaning('question', 'Why separate validation data?', 'Training and validation data stay separate to evaluate predictions on examples not used for the training updates.', ['recap']),
+        answer2: meaning('annotation', 'Answer: held-out evaluation', 'To evaluate predictions on examples not used for the training updates.', ['check2']),
+        closing: meaning('annotation', 'What comes next', 'Try the quiz, review the flashcards, or inspect text and IDs in the notebook. Lesson 2 opens the model.', []),
+      },
+      scene: [
+        text('title', 'Text in, next-token predictions out', 40, 20, 760, 'l'),
+        text('recap', 'Text → IDs → model → next-token prediction', 45, 110, 735, 'm', 2200),
+        text('check1', 'Check 1: What does one position predict?', 45, 195, 735, 'm', 3500),
+        text('answer1', 'A distribution over the next token, using its available prefix.', 45, 245, 735, 'm', 2000),
+        text('check2', 'Check 2: Why keep training and validation data separate?', 45, 325, 735, 'm', 3500),
+        text('answer2', 'To evaluate predictions on examples not used for the training updates.', 45, 375, 735, 'm', 2000),
+        text('closing', 'Try the quiz, review the flashcards, or open the notebook.', 45, 455, 735),
       ],
     },
   ],

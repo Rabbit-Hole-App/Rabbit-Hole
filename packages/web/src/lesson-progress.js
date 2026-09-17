@@ -21,3 +21,31 @@ export function addEncodingAttempt(previous, response, now = Date.now()) {
   return { ...previous, encoding: { count: attempt.number, first: old?.first || attempt,
     last: attempt, everCorrect: !!old?.everCorrect || score.correct } };
 }
+
+// Page 3 prefix-target: positions 1-4 of Hello, choices are characters.
+export const PREFIX_PAIRS = [
+  { position: 1, prefix: 'H', target: 'e' },
+  { position: 2, prefix: 'He', target: 'l' },
+  { position: 3, prefix: 'Hel', target: 'l' },
+  { position: 4, prefix: 'Hell', target: 'o' },
+];
+
+export function addPrefixAttempt(previous, position, choice, now = Date.now()) {
+  const pair = PREFIX_PAIRS.find(item => item.position === position);
+  if (!pair) throw new Error('Choose a position between 1 and 4.');
+  const old = previous.prefixTarget;
+  const attempt = { number: (old?.count || 0) + 1, position, choice, correct: choice === pair.target,
+    revealedBeforeAnswer: !!old, at: now, checkId: 'prefix-target', objectiveId: 'predict-next' };
+  return { ...previous, prefixTarget: { count: attempt.number, first: old?.first || attempt,
+    last: attempt, everCorrect: !!old?.everCorrect || attempt.correct } };
+}
+
+// Page 4 generation-weights: yes/no; the correct answer is no.
+export function addGenerationAttempt(previous, choice, now = Date.now()) {
+  if (!['yes', 'no'].includes(choice)) throw new Error('Choose Yes or No.');
+  const old = previous.generationWeights;
+  const attempt = { number: (old?.count || 0) + 1, choice, correct: choice === 'no',
+    revealedBeforeAnswer: !!old, at: now, checkId: 'generation-weights', objectiveId: 'training-vs-generation' };
+  return { ...previous, generationWeights: { count: attempt.number, first: old?.first || attempt,
+    last: attempt, everCorrect: !!old?.everCorrect || attempt.correct } };
+}

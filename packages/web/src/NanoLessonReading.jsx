@@ -3,7 +3,7 @@ import { BookOpen, FileCode2 } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { Button } from './ui.jsx';
 import { nanoLesson, nanoMaterials, nanoSourceVersion } from './nanogpt-lesson.js';
-import { addEncodingAttempt, lessonProgressKey } from './lesson-progress.js';
+import { PREFIX_PAIRS, addEncodingAttempt, addGenerationAttempt, addPrefixAttempt, lessonProgressKey } from './lesson-progress.js';
 
 export function useNanoProgress(app, enabled) {
   const key = enabled ? lessonProgressKey(app, nanoLesson.id, nanoSourceVersion) : null;
@@ -43,7 +43,15 @@ export function useNanoProgress(app, enabled) {
     current.current = addEncodingAttempt(current.current, response);
     save(); setSaved(current.current);
   };
-  return { saved, error, loaded, record, submit, persistent: !!key };
+  const submitPrefix = (position, choice) => {
+    current.current = addPrefixAttempt(current.current, position, choice);
+    save(); setSaved(current.current);
+  };
+  const submitGeneration = choice => {
+    current.current = addGenerationAttempt(current.current, choice);
+    save(); setSaved(current.current);
+  };
+  return { saved, error, loaded, record, submit, submitPrefix, submitGeneration, persistent: !!key };
 }
 
 function SupportingVisual({ page }) {
@@ -54,6 +62,64 @@ function SupportingVisual({ page }) {
   </figure>;
 }
 
+function AttemptFooter({ result }) {
+  return <p className="mt-2 text-xs text-ink-2">Attempt {result.count} · First attempt: {result.first.correct ? 'correct' : 'incorrect'} · {result.everCorrect ? 'Answered correctly' : 'Keep practicing'}</p>;
+}
+
+function PrefixTargetCheck({ progress }) {
+  const [position, setPosition] = useState(null);
+  const [choice, setChoice] = useState(null);
+  const [retry, setRetry] = useState(false);
+  const result = progress.saved.prefixTarget;
+  const pair = PREFIX_PAIRS.find(item => item.position === position);
+  const showForm = !result || retry;
+  return <section aria-label="Prefix and target check" className="rounded-xl border border-line bg-white p-5 text-ink">
+    <h3 className="font-semibold">Try it: prefix → observed target</h3>
+    <p className="mt-2 text-sm">Choose a position in <code className="rounded bg-code px-1">Hello</code>, then choose the character that followed that prefix. Position 5 has no recorded next character in this example.</p>
+    <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label="Position">
+      <span className="text-xs text-ink-2">Position</span>
+      {PREFIX_PAIRS.map(item => <button key={item.position} type="button" aria-pressed={position === item.position} onClick={() => { setPosition(item.position); setChoice(null); setRetry(true); }} className={`rounded border px-3 py-1.5 text-sm ${position === item.position ? 'border-accent bg-hover font-medium' : 'border-line hover:bg-hover'}`}>{item.position}</button>)}
+    </div>
+    {showForm && pair && <>
+      <p className="mt-3 text-sm">Available prefix: <code className="rounded bg-code px-1">{pair.prefix}</code>. What followed it in Hello?</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2" role="group" aria-label="Next character">
+        {['H', 'e', 'l', 'o'].map(value => <button key={value} type="button" aria-pressed={choice === value} onClick={() => setChoice(value)} className={`rounded border px-3 py-1.5 font-mono text-sm ${choice === value ? 'border-accent bg-hover font-medium' : 'border-line hover:bg-hover'}`}>{value}</button>)}
+      </div>
+      <div className="mt-3"><Button variant="primary" disabled={!choice || !progress.loaded} onClick={() => { progress.submitPrefix(position, choice); setRetry(false); }}>Check answer</Button></div>
+    </>}
+    {result && !retry && <div role="status" className="mt-4 text-sm">
+      <p className="font-medium">{result.last.correct
+        ? (result.last.position === 3 ? 'Yes. After Hel, Hello contains another l.' : `Yes. After ${PREFIX_PAIRS[result.last.position - 1].prefix}, the observed next character is ${PREFIX_PAIRS[result.last.position - 1].target}.`)
+        : `You selected ${result.last.choice}. After ${PREFIX_PAIRS[result.last.position - 1].prefix} the next character in this example is ${PREFIX_PAIRS[result.last.position - 1].target}${result.last.position === 3 ? '; the final o comes one position later' : ''}.`}</p>
+      <p className="mt-2">Shifting the text by one position pairs each input with its observed target. One answered position is practice, not proof of mastery of all positions.</p>
+      <AttemptFooter result={result} />
+      <button type="button" onClick={() => { setChoice(null); setRetry(true); }} className="mt-3 rounded border border-line px-3 py-1.5 text-xs hover:bg-hover">Try another position</button>
+    </div>}
+  </section>;
+}
+
+function GenerationWeightsCheck({ progress }) {
+  const [choice, setChoice] = useState(null);
+  const [retry, setRetry] = useState(false);
+  const result = progress.saved.generationWeights;
+  const showForm = !result || retry;
+  return <section aria-label="Generation and parameters check" className="rounded-xl border border-line bg-white p-5 text-ink">
+    <h3 className="font-semibold">Quick check: text versus parameters</h3>
+    <p className="mt-2 text-sm">Does a longer generated answer mean the parameters changed?</p>
+    {showForm && <>
+      <div className="mt-3 flex gap-2" role="group" aria-label="Answer">
+        {['yes', 'no'].map(value => <button key={value} type="button" aria-pressed={choice === value} onClick={() => setChoice(value)} className={`rounded border px-4 py-1.5 text-sm capitalize ${choice === value ? 'border-accent bg-hover font-medium' : 'border-line hover:bg-hover'}`}>{value}</button>)}
+      </div>
+      <div className="mt-3"><Button variant="primary" disabled={!choice || !progress.loaded} onClick={() => { progress.submitGeneration(choice); setRetry(false); }}>Check answer</Button></div>
+    </>}
+    {result && !retry && <div role="status" className="mt-4 text-sm">
+      <p className="font-medium">{result.last.correct ? 'No. The generated text changed; the learned parameters stayed fixed.' : 'Appending tokens changes the generated sequence, not the learned parameters. Once the context window is full, each prediction uses a shifted, bounded input.'}</p>
+      <AttemptFooter result={result} />
+      <button type="button" onClick={() => { setChoice(null); setRetry(true); }} className="mt-3 rounded border border-line px-3 py-1.5 text-xs hover:bg-hover">Try again</button>
+    </div>}
+  </section>;
+}
+
 export default function NanoLessonReading({ page, progress, onSource }) {
   const [answer, setAnswer] = useState('');
   const [validation, setValidation] = useState('');
@@ -61,10 +127,12 @@ export default function NanoLessonReading({ page, progress, onSource }) {
   const material = nanoMaterials[page];
   if (!material) return null;
   const result = progress.saved.encoding;
-  const reading = material.reading
+  const reading = (page <= 1 ? material.reading
     .replace(/\*\*Supporting visual[^\n]+/, '@@visual@@')
     .replace('**Reuse the canvas lookup card beside this code.** ', '')
-    .replace('**Insert the extended static mapping here.**', '\n\n@@visual@@\n\n');
+    .replace('**Insert the extended static mapping here.**', '\n\n@@visual@@\n\n')
+    // Later pages: authoring directives about planned diagrams are not learner text.
+    : material.reading.replace(/^\*\*(?:Insert|Reuse)[^\n]*\n?/gm, ''));
   const refs = [...material.references.matchAll(/\[([^\]]+)\]\((https:[^)]+)\)/g)];
   return <div className="space-y-6 pb-8">
     {page === 1 && <section aria-label="Encoding check" className="rounded-xl border border-line bg-white p-5 text-ink">
@@ -88,6 +156,8 @@ export default function NanoLessonReading({ page, progress, onSource }) {
       </div>}
       <p className="mt-3 text-xs text-ink-2">{progress.persistent ? 'Progress is saved in this browser for your account.' : 'Progress lasts for this visit; no signed-in account was supplied.'}</p>
     </section>}
+    {page === 2 && <PrefixTargetCheck progress={progress} />}
+    {page === 3 && <GenerationWeightsCheck progress={progress} />}
     {progress.error && <p role="alert" className="text-sm text-red-700">{progress.error}</p>}
     <section aria-label="Further explanations" className="text-sm leading-relaxed">
       <h3 className="mb-4 flex items-center gap-2 text-base font-semibold"><BookOpen size={17} />Further explanations</h3>

@@ -1,8 +1,9 @@
 # Review lesson materials before rendering
 
-Status: review UI and an authorized Pages 1–2 playback preview on regular dev. The supplied nanoGPT outline is saved
-as an unapproved course draft, and all six pages of the Lesson 1 Markdown fixture are browsable
-under Curriculum. Automated per-lesson planning, shared saved plan revisions and
+Status: review UI and an owner-requested full Lesson 1 playback (all six pages)
+on regular dev. The supplied nanoGPT outline is saved as an unapproved course
+draft, and all six pages of the Lesson 1 Markdown fixture are browsable under
+Curriculum. Automated per-lesson planning, shared saved plan revisions and
 plan approval/build actions are not implemented yet.
 
 ## Modular preview
@@ -22,10 +23,16 @@ the full curriculum remains a draft. No paid/generated assets are needed.
 - [x] Check selection snapshots and the highlighted source reader with chat
   still available, build, deploy regular dev and inspect it in a real browser.
 
-Preview completion is not full lesson/course completion. Pages 3–6, Quiz Question 1
-(next-token objective), the Page 4 training/generation check, flashcards and the
-notebook remain later work. The Page 3 interaction is practice. A short encoding
-exercise on Page 2 assesses the text-versus-IDs objective.
+Pages 3–6 are rendered (owner request, 2026-09-19, plan revision 5): scripted
+canvas scenes with per-part narration, Further explanations (authoring
+directives about planned diagrams stripped; tables render via the shared Md
+renderer), and reference pills. The Page 3 prefix-target practice and the
+Page 4 generation-weights check live below the canvas beside the Page 2
+encoding check, with attempts stored in the same browser progress record.
+Page 6 reveals its two self-check answers on the canvas after a pause. The
+quiz, flashcards and notebook remain later work. Lesson completion counts six
+pages plus the three checks. A short encoding exercise on Page 2 assesses the
+text-versus-IDs objective.
 
 Implementation: a supplied lesson fixture using the existing canvas player,
 with a small reading/check component; no new API, generation or publication flow.

@@ -33,12 +33,48 @@ const CHUNKS = [
     { at: 'decode', text: "Reverse it and we recover Hello: that is decoding. And don't read too much into the numbers — a larger ID does not mean a more important character. We have changed the representation; the model has not learned anything yet." },
     { at: 'check', text: 'So, what prediction task can we build from this sequence of IDs? Your turn: try the encoding exercise below the canvas.' },
   ],
+  [
+    { at: 'title', text: 'Here is a fun trick: the text can grade itself!' },
+    { at: 'sequence', text: 'We have the sequence Hello. How can it supply its own answers?' },
+    { at: 'demo', text: 'After H, the observed next character is e. That one was a freebie.' },
+    { at: 'choose', text: 'Now it is your turn. Pick a position below the canvas, look at the prefix, and choose the character that followed it in this example.' },
+    { at: 'rows', text: 'Shifting by one position pairs every input with its target. The predictor may use the prefix, but peeking at future characters would give away the answer.' },
+    { at: 'captions', text: 'The tokens available for a prediction are its context, and the context window caps how many the model reads at once.' },
+    { at: 'transition', text: 'Now we can compare a prediction with a target. How does that comparison help the model learn?' },
+  ],
+  [
+    { at: 'title', text: 'Welcome to the tale of two workflows! Same prediction task, two very different jobs.' },
+    { at: 'training', text: "Our example tells us that o followed Hell. During training, we compare the model's prediction with that observed target, and the comparison guides changes to adjustable numbers inside the model, called parameters." },
+    { at: 'generation', text: 'Generation is different: keep those parameters frozen, select a token, append it, and predict again.' },
+    { at: 'captions', text: 'So training changes the parameters, while generation only grows the text.' },
+    { at: 'validation', text: 'Validation also keeps parameters fixed while comparing predictions with known answers.' },
+    { at: 'check', text: 'Quick check below the canvas: if a generated answer gets longer, did the parameters change?' },
+    { at: 'transition', text: "Then let's see where these activities happen in nanoGPT." },
+  ],
+  [
+    { at: 'title', text: 'Time to open the toolbox and meet nanoGPT itself!' },
+    { at: 'stages', text: 'The whole workflow is three stages: prepare data, train a model, generate text.' },
+    { at: 'prepare', text: 'Preparation turns text into token IDs: prepare.py reads tiny Shakespeare and writes train.bin and val.bin.' },
+    { at: 'train', text: 'Training uses those examples to adjust parameters, guided by a small configuration file, and saves the result as a checkpoint.' },
+    { at: 'generate', text: 'Sampling loads that checkpoint and extends your prompt, and model.py supplies the shared GPT implementation for both.' },
+    { at: 'closing', text: 'So the files finally make sense: train.bin holds examples, and the checkpoint stores the learned state.' },
+    { at: 'transition', text: 'The quickstart uses Shakespeare rather than our tiny Hello, but the roles are exactly the same. Can you trace one string through the entire workflow?' },
+  ],
+  [
+    { at: 'title', text: "You made it to the final page! Let's put the pieces together." },
+    { at: 'recap', text: 'Text becomes IDs, the model reads them, and out comes a next-token prediction.' },
+    { at: 'check1', text: 'First check: what does one position predict? Pause and say it out loud.' },
+    { at: 'answer1', text: 'It predicts a distribution over the next token, using only its available prefix.' },
+    { at: 'check2', text: 'Second check: why keep training and validation data separate?' },
+    { at: 'answer2', text: 'So we can evaluate predictions on examples the training updates never saw.' },
+    { at: 'closing', text: 'That is the whole task! Try the quiz, flip the flashcards, or poke at the notebook. In lesson two, we open the model and watch token IDs become useful predictions. See you there!' },
+  ],
 ];
 
 // The chunks must be exactly the plan's spoken text, split - fail loudly if
 // someone edits the plan without updating this mapping (or the reverse).
 const plan = readFileSync(new URL('../docs/courses/nanogpt/lesson-01-plan.md', import.meta.url), 'utf8');
-const sections = plan.split(/^## /m).filter(section => /^Page [12] —/.test(section));
+const sections = plan.split(/^## /m).filter(section => /^Page [1-6] —/.test(section));
 sections.forEach((section, i) => {
   const parts = Object.fromEntries(section.split(/^### /m).slice(1).map(part => {
     const [heading, ...body] = part.split('\n');

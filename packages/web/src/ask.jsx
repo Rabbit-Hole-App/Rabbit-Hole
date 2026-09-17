@@ -77,6 +77,12 @@ export function Md({ text, onRun, onFile, sourcePath = singleSourcePath(text) })
   const out = [];
   let bullets = null;
   let fence = null; // collecting a ``` block
+  let table = null; // collecting consecutive | … | rows
+  const flushTable = key => {
+    const [head, ...rows] = table;
+    out.push(<div key={key} className="my-2 overflow-x-auto"><table className="min-w-full border-collapse text-xs"><thead><tr>{head.map((c, j) => <th key={j} className="border border-line px-2 py-1 text-left font-semibold">{inline(c, math, onFile, sourcePath)}</th>)}</tr></thead><tbody>{rows.map((r, ri) => <tr key={ri}>{r.map((c, j) => <td key={j} className="border border-line px-2 py-1 align-top">{inline(c, math, onFile, sourcePath)}</td>)}</tr>)}</tbody></table></div>);
+    table = null;
+  };
   lines.forEach((l, i) => {
     if (fence !== null) {
       if (/^\s*```/.test(l)) {
@@ -91,6 +97,12 @@ export function Md({ text, onRun, onFile, sourcePath = singleSourcePath(text) })
       fence = [];
       return;
     }
+    if (/^\s*\|.*\|\s*$/.test(l)) {
+      const cells = l.trim().replace(/^\||\|$/g, '').split('|').map(cell => cell.trim());
+      if (!cells.every(cell => /^:?-{3,}:?$/.test(cell))) (table = table || []).push(cells);
+      return;
+    }
+    if (table) flushTable(`t${i}`);
     if (/^\s*[-*] /.test(l)) {
       bullets = bullets || [];
       bullets.push(<li key={i}>{inline(l.replace(/^\s*[-*] /, ''), math, onFile, sourcePath)}</li>);
@@ -114,6 +126,7 @@ export function Md({ text, onRun, onFile, sourcePath = singleSourcePath(text) })
     }
   });
   if (fence) out.push(<CodeBlock key="f-end" className="my-1.5 text-xs">{fence.map((fl, j) => <div key={j}>{colorLine(fl)}</div>)}</CodeBlock>);
+  if (table) flushTable('t-end');
   if (bullets) out.push(<ul key="ul-end" className="my-1 list-disc pl-5">{bullets}</ul>);
   return <div className="min-w-0 text-sm leading-normal">{out}</div>;
 }

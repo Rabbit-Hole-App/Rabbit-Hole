@@ -3,7 +3,7 @@
 Status: draft for owner review. Authored in this coding session as the initial example of the future Learn Agent artifact; not generated through the application's Learn Agent. Pages 1–2 are authorized for a regular-dev rendering preview. No generated media; notebook not executed.
 
 Course: [nanoGPT Quickstart](quickstart-curriculum.md).
-Lesson ID: `nanogpt-quickstart-01`. Plan revision: 4.
+Lesson ID: `nanogpt-quickstart-01`. Plan revision: 5.
 Source commit: `3adf61e154c3fe3fca428ad6bc3818b27a3b8291`.
 Curriculum approval: pending. Plan approval: pending.
 
@@ -332,9 +332,7 @@ Use structured tiles and arrows for both diagrams. No photo or generated video i
 
 ### Spoken or written explanation
 
-Before interaction: “We have the sequence Hello. How can it supply its own answers? After H, the observed next character is e. Now choose a position yourself. Look at the prefix and choose the character that followed it in this example.”
-
-After submission or Skip: “Shifting by one position pairs inputs with targets. The predictor may use the prefix, but seeing future characters would give away the answer. Now we can compare a prediction with a target. How does that comparison help the model learn?” Do not narrate a pending answer before submission.
+“Here is a fun trick: the text can grade itself! We have the sequence Hello. How can it supply its own answers? After H, the observed next character is e. That one was a freebie. Now it is your turn. Pick a position below the canvas, look at the prefix, and choose the character that followed it in this example. Shifting by one position pairs every input with its target. The predictor may use the prefix, but peeking at future characters would give away the answer. The tokens available for a prediction are its context, and the context window caps how many the model reads at once. Now we can compare a prediction with a target. How does that comparison help the model learn?”
 
 ### Further explanations
 
@@ -427,7 +425,7 @@ No video generation. Staged arrows already show the repeated process precisely a
 
 ### Spoken or written explanation
 
-“Our example tells us that o followed Hell. During training, we compare the model's prediction with that observed target. The comparison guides changes to adjustable numbers inside the model, called parameters. Generation does something different: keep those parameters fixed, select a token, append it and predict again. The text changes, but that is not a training update. Validation also keeps parameters fixed while comparing predictions with known answers. Let's see where these activities happen in nanoGPT.”
+“Welcome to the tale of two workflows! Same prediction task, two very different jobs. Our example tells us that o followed Hell. During training, we compare the model's prediction with that observed target, and the comparison guides changes to adjustable numbers inside the model, called parameters. Generation is different: keep those parameters frozen, select a token, append it, and predict again. So training changes the parameters, while generation only grows the text. Validation also keeps parameters fixed while comparing predictions with known answers. Quick check below the canvas: if a generated answer gets longer, did the parameters change? Then let's see where these activities happen in nanoGPT.”
 
 ### Further explanations
 
@@ -517,7 +515,7 @@ No external media or generated video. These exact repository relationships are c
 
 ### Spoken or written explanation
 
-“We know the steps; now let's locate them in nanoGPT. Preparation turns text into token IDs. Training uses those examples to adjust parameters. A checkpoint saves learned state. Sampling loads a model and extends a prompt. The files now have a reason to exist: train.bin holds examples, not learned weights. The quickstart uses Shakespeare rather than our tiny Hello example, but the roles are the same.”
+“Time to open the toolbox and meet nanoGPT itself! The whole workflow is three stages: prepare data, train a model, generate text. Preparation turns text into token IDs: prepare.py reads tiny Shakespeare and writes train.bin and val.bin. Training uses those examples to adjust parameters, guided by a small configuration file, and saves the result as a checkpoint. Sampling loads that checkpoint and extends your prompt, and model.py supplies the shared GPT implementation for both. So the files finally make sense: train.bin holds examples, and the checkpoint stores the learned state. The quickstart uses Shakespeare rather than our tiny Hello, but the roles are exactly the same. Can you trace one string through the entire workflow?”
 
 ### Further explanations
 
@@ -595,7 +593,7 @@ Sources: [README quickstart](https://github.com/karpathy/nanoGPT/blob/3adf61e154
 
 ### Spoken or written explanation
 
-“Let's put the pieces together. Take Hello. How do we encode it, and what should each position predict? Pause and explain before checking the diagram. Training compares with the observed next character and changes parameters. Generation keeps them fixed and extends a prompt. The repository gives each step a home. We understand the task now. In Lesson 2, we will open the model and see how token IDs become useful predictions.”
+“You made it to the final page! Let's put the pieces together. Text becomes IDs, the model reads them, and out comes a next-token prediction. First check: what does one position predict? Pause and say it out loud. It predicts a distribution over the next token, using only its available prefix. Second check: why keep training and validation data separate? So we can evaluate predictions on examples the training updates never saw. That is the whole task! Try the quiz, flip the flashcards, or poke at the notebook. In lesson two, we open the model and watch token IDs become useful predictions. See you there!”
 
 ### Further explanations
 
