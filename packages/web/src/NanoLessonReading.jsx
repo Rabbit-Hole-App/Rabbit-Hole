@@ -96,11 +96,10 @@ export default function NanoLessonReading({ page, progress, onSource }) {
     <section aria-label="References and further reading" className="text-sm">
       <h3 className="mb-3 font-semibold">References and further reading</h3>
       {page === 1 && <><Md text={'```python\nchars = sorted(list(set(data)))\nvocab_size = len(chars)\n```'} /><p className="my-3 text-ink-2">The preparation script gathers distinct characters and counts them. The following lines build the encoding and decoding dictionaries.</p></>}
-      <div className="flex flex-wrap gap-2">{refs.map(([, label, href]) => {
+      <ul className="ml-5 list-disc space-y-2">{refs.map(([, label, href]) => {
         const repo = href.match(/github\.com\/karpathy\/nanoGPT\/blob\/([^/]+)\/([^#]+)(?:#L(\d+)(?:-L(\d+))?)?/);
-        return repo ? <button key={href} type="button" onClick={() => onSource({ path: repo[2], commit: repo[1], line: Number(repo[3] || 1), lineEnd: Number(repo[4] || repo[3] || 1) })} className="inline-flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-left text-xs text-ink-2 hover:bg-hover"><FileCode2 size={13} />{label}</button> : <Md key={href} text={`[${label}](${href})`} />;
-      })}</div>
-      <p className="mt-3 text-xs text-ink-2">Repository links open the pinned source beside chat. External resources are optional further reading.</p>
+        return <li key={href}>{repo ? <button type="button" onClick={() => onSource({ path: repo[2], commit: repo[1], line: Number(repo[3] || 1), lineEnd: Number(repo[4] || repo[3] || 1) })} className="inline-flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-left text-xs text-ink-2 hover:bg-hover"><FileCode2 size={13} />{label}</button> : <Md text={`[${label}](${href})`} />}</li>;
+      })}</ul>
     </section>
   </div>;
 }
