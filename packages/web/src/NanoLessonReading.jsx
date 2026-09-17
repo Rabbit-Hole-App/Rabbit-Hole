@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { BookOpen, FileCode2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { BookOpen, CheckCircle2, FileCode2, XCircle } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { Button } from './ui.jsx';
 import { nanoLesson, nanoMaterials, nanoSourceVersion } from './nanogpt-lesson.js';
@@ -149,6 +149,22 @@ function SupportingVisual({ page }) {
   </figure>;
 }
 
+function Burst() {
+  const pieces = useMemo(() => Array.from({ length: 18 }, (_, i) => ({
+    angle: (i / 18) * 2 * Math.PI, distance: 42 + (i % 5) * 14,
+    color: ['#2383e2', '#d9730d', '#448361', '#eb5757', '#9065b0'][i % 5], delay: (i % 4) * 40,
+  })), []);
+  return <span aria-hidden="true" className="pointer-events-none absolute inset-0">{pieces.map((piece, i) => <span key={i} className="confetti-piece" style={{ background: piece.color, '--dx': `${Math.cos(piece.angle) * piece.distance}px`, '--dy': `${Math.sin(piece.angle) * piece.distance}px`, animationDelay: `${piece.delay}ms` }} />)}</span>;
+}
+
+// Verdict mark: green check with a confetti burst when right, red cross when wrong.
+function ResultMark({ correct }) {
+  return <span className={`relative mr-1.5 inline-flex align-text-bottom ${correct ? 'text-success' : 'text-danger'}`}>
+    {correct ? <CheckCircle2 size={17} /> : <XCircle size={17} />}
+    {correct && <Burst />}
+  </span>;
+}
+
 function AttemptFooter({ result }) {
   return <p className="mt-2 text-xs text-ink-2">Attempt {result.count} · First attempt: {result.first.correct ? 'correct' : 'incorrect'} · {result.everCorrect ? 'Answered correctly' : 'Keep practicing'}</p>;
 }
@@ -178,7 +194,7 @@ function PrefixTargetCheck({ progress, canvasPick }) {
       <div className="mt-3"><Button variant="primary" disabled={!choice || !progress.loaded} onClick={() => { progress.submitPrefix(position, choice); setRetry(false); }}>Check answer</Button></div>
     </>}
     {result && !retry && <div role="status" className="mt-4 text-sm">
-      <p className="font-medium">{result.last.correct
+      <p className={`font-medium ${result.last.correct ? 'text-success' : 'text-danger'}`}><ResultMark key={result.count} correct={result.last.correct} />{result.last.correct
         ? (result.last.position === 3 ? 'Yes. After Hel, Hello contains another l.' : `Yes. After ${PREFIX_PAIRS[result.last.position - 1].prefix}, the observed next character is ${PREFIX_PAIRS[result.last.position - 1].target}.`)
         : `You selected ${result.last.choice}. After ${PREFIX_PAIRS[result.last.position - 1].prefix} the next character in this example is ${PREFIX_PAIRS[result.last.position - 1].target}${result.last.position === 3 ? '; the final o comes one position later' : ''}.`}</p>
       <p className="mt-2">Shifting the text by one position pairs each input with its observed target. One answered position is practice, not proof of mastery of all positions.</p>
@@ -203,7 +219,7 @@ function GenerationWeightsCheck({ progress }) {
       <div className="mt-3"><Button variant="primary" disabled={!choice || !progress.loaded} onClick={() => { progress.submitGeneration(choice); setRetry(false); }}>Check answer</Button></div>
     </>}
     {result && !retry && <div role="status" className="mt-4 text-sm">
-      <p className="font-medium">{result.last.correct ? 'No. The generated text changed; the learned parameters stayed fixed.' : 'Appending tokens changes the generated sequence, not the learned parameters. Once the context window is full, each prediction uses a shifted, bounded input.'}</p>
+      <p className={`font-medium ${result.last.correct ? 'text-success' : 'text-danger'}`}><ResultMark key={result.count} correct={result.last.correct} />{result.last.correct ? 'No. The generated text changed; the learned parameters stayed fixed.' : 'Appending tokens changes the generated sequence, not the learned parameters. Once the context window is full, each prediction uses a shifted, bounded input.'}</p>
       <AttemptFooter result={result} />
       <button type="button" onClick={() => { setChoice(null); setRetry(true); }} className="mt-3 rounded border border-line px-3 py-1.5 text-xs hover:bg-hover">Try again</button>
     </div>}
@@ -246,7 +262,7 @@ export default function NanoLessonReading({ page, progress, onSource, canvasPick
         {validation && <p role="alert" className="mt-2 text-sm text-red-700">{validation}</p>}
       </form>}
       {result && !retry && <div role="status" className="mt-4 text-sm">
-        <p className="font-medium">{result.last.correct ? 'Correct.' : 'Not quite.'} {result.last.correct ? 'The space has its own ID too.' : `You entered [${result.last.response.join(', ')}]. Work through the lookup one character at a time.`}</p>
+        <p className={`font-medium ${result.last.correct ? 'text-success' : 'text-danger'}`}><ResultMark key={result.count} correct={result.last.correct} />{result.last.correct ? 'Correct.' : 'Not quite.'} {result.last.correct ? 'The space has its own ID too.' : `You entered [${result.last.response.join(', ')}]. Work through the lookup one character at a time.`}</p>
         <p className="mt-2">l → 2, o → 3, space → 4, H → 0. So <code>[2, 3, 4, 0]</code> decodes back to <code>lo H</code>. IDs identify characters; they are not probabilities or importance scores.</p>
         <p className="mt-2 text-xs text-ink-2">Attempt {result.count} · First attempt: {result.first.correct ? 'correct' : 'incorrect'} · {result.everCorrect ? 'Answered correctly' : 'Keep practicing'}</p>
         <button type="button" onClick={() => { setAnswer(''); setRetry(true); }} className="mt-3 rounded border border-line px-3 py-1.5 text-xs hover:bg-hover">Try again</button>
