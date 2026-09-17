@@ -239,11 +239,16 @@ export function playSigmoid(editor, explain, lesson, onChange, generated = null)
     explain(definition[step].text);
   };
   const pause = () => { clearTimeout(timer); playing = false; notify(); };
+  let advanceWait = 0;
   function tick() {
     if (disposed) return;
     if (editor.getCurrentPageId() !== pages[step]) { pause(); return; }
     while (playing) {
       if (position === frames[step].length) {
+        // Clip starts lag the schedule slightly, so the narration can still be
+        // speaking when the drawing finishes - let it end before moving on.
+        if (activeAudio && !activeAudio.paused && !activeAudio.ended && ++advanceWait < 75) { timer = setTimeout(tick, 200); return; }
+        advanceWait = 0;
         if (step === frames.length - 1 || !editor.getPage(pages[step + 1])) { pause(); return; }
         seek(step + 1, 0);
         playing = true;
