@@ -1,6 +1,6 @@
 import { sigmoidObjects } from './sigmoid-context.js';
 import { writingFrames } from './canvas-writing.js';
-import { isMuted, onMuted } from './learn-audio.js';
+import { getSpeed, isMuted, onMuted, onSpeed } from './learn-audio.js';
 import { Box, PageRecordType, createShapeId, getIndices, toRichText } from 'tldraw';
 
 export const sigmoidPages = [
@@ -151,9 +151,11 @@ export function playSigmoid(editor, explain, lesson, onChange, generated = null)
     const audio = new Audio(part.src);
     audio.preload = 'auto';
     audio.muted = isMuted();
+    audio.playbackRate = getSpeed();
     return audio;
   }));
   const unlistenMuted = onMuted(value => audios.flat().forEach(audio => { audio.muted = value; }));
+  const unlistenSpeed = onSpeed(value => audios.flat().forEach(audio => { audio.playbackRate = value; }));
   const partAt = index => {
     const parts = pageParts[index];
     if (!parts) return -1;
@@ -216,7 +218,7 @@ export function playSigmoid(editor, explain, lesson, onChange, generated = null)
       current.apply();
       notify();
       if (!reduced) {
-        timer = setTimeout(tick, current.delay);
+        timer = setTimeout(tick, current.delay / getSpeed());
         return;
       }
     }
@@ -261,5 +263,5 @@ export function playSigmoid(editor, explain, lesson, onChange, generated = null)
     if (index >= 0) seek(index, positions[index] || frames[index].length);
   });
   enter(0); notify();
-  return { play, pause, seek, scrub, next, back: () => seek(step - 1), dispose: () => { disposed = true; clearTimeout(timer); unlisten(); unlistenMuted(); audios.flat().forEach(audio => audio.pause()); }, state };
+  return { play, pause, seek, scrub, next, back: () => seek(step - 1), dispose: () => { disposed = true; clearTimeout(timer); unlisten(); unlistenMuted(); unlistenSpeed(); audios.flat().forEach(audio => audio.pause()); }, state };
 }

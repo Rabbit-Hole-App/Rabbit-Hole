@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Minimize2, Network, Pause, Play, Scan, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
-import { isMuted, setMuted } from './learn-audio.js';
+import { SPEEDS, getSpeed, isMuted, setMuted, setSpeed } from './learn-audio.js';
 import { api, navigate } from './api.js';
 import { requestBoardExplanation } from './learn-board-request.js';
 import { AskPanel } from './ask.jsx';
@@ -123,6 +123,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   };
   const [answering, setAnswering] = useState(false);
   const [narrationMuted, setNarrationMuted] = useState(isMuted());
+  const [lessonSpeed, setLessonSpeed] = useState(getSpeed());
   const explanation = useRef(null);
   const boardRequest = useRef(0);
   const [boardVisible, setBoardVisible] = useState(false);
@@ -452,6 +453,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           <div className="flex items-center gap-1">
             <button type="button" disabled={!progress || progress.page === 0 || answering} onClick={() => navigateLesson('back')} className="flex items-center gap-1 rounded px-2 py-1.5 text-xs text-ink-2 hover:bg-hover disabled:opacity-40"><ChevronLeft size={14} />Back</button>
             <button type="button" disabled={!editor || (progress?.page === pages.length - 1 && progress.pageComplete) || answering} onClick={() => { setRegion(false); if (!progress) startDemo.current?.(); else progress.playing ? pauseLesson() : playback.current?.play(); }} className="flex min-w-20 items-center justify-center gap-1.5 rounded border border-line px-3 py-1.5 text-xs hover:bg-hover disabled:opacity-40">{progress?.playing ? <Pause size={14} /> : <Play size={14} />}{progress?.playing ? 'Pause' : 'Play'}</button>
+            <button type="button" aria-label={`Playback speed ${lessonSpeed}x`} title="Playback speed" onClick={() => { const next = SPEEDS[(SPEEDS.indexOf(lessonSpeed) + 1) % SPEEDS.length]; setSpeed(next); setLessonSpeed(next); }} className="flex min-w-12 items-center justify-center rounded border border-line px-2 py-1.5 text-xs tabular-nums hover:bg-hover">{lessonSpeed}×</button>
             <button type="button" disabled={!progress || (progress.page === pages.length - 1 && progress.pageComplete) || answering} onClick={() => navigateLesson('next')} className="flex items-center gap-1 rounded px-2 py-1.5 text-xs text-ink-2 hover:bg-hover disabled:opacity-40">Next<ChevronRight size={14} /></button>
           </div>
           <span aria-live="polite" className="text-xs text-ink-2">{progress ? `Page ${progress.page + 1} of ${pages.length} · ${progress.label}` : 'Logistic regression · 3 pages'}</span>
