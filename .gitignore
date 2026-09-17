@@ -165,3 +165,5 @@ packages/control-plane/secrets.json
 examples/*/.dockerignore
 __pycache__/
 *.pyc
+# JupyterLite local build cache (generated, not lesson content)
+.jupyterlite.doit.db*

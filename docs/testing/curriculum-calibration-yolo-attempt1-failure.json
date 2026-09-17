@@ -1,0 +1,123 @@
+{
+  "error": "Too many lessons",
+  "candidate": {
+    "title": "How YOLOv8n Detects Objects, and How to Run yolo-s3-job",
+    "modules": [
+      {
+        "title": "Images and what an object detector produces",
+        "lessons": [
+          {
+            "title": "An image as numbers",
+            "topics": [
+              "Pixel grid, colour channels, and image size",
+              "Why a model resizes an image to a fixed input size",
+              "Nothing in an image is labelled: meaning must be inferred"
+            ]
+          },
+          {
+            "title": "Labels, boxes, and confidence",
+            "topics": [
+              "Classification (one label per image) versus detection (several located objects)",
+              "A detection = class label + rectangular box + confidence score",
+              "Confidence as the model's score for that prediction, not a probability of being correct"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Prerequisites: trained models and learned features",
+        "lessons": [
+          {
+            "title": "Weights, training, and inference",
+            "topics": [
+              "Parameters (weights) fitted on labelled example images",
+              "Training versus inference: this app only runs inference",
+              "yolov8n.pt as a stored weights file; 'n' = nano, the smallest variant of the YOLOv8 family",
+              "A pretrained model recognises only the fixed class vocabulary it was trained on"
+            ]
+          },
+          {
+            "title": "Convolutional feature extraction",
+            "topics": [
+              "Filters applied over small pixel neighbourhoods to produce feature maps",
+              "Downsampling: fewer, coarser spatial locations carrying richer descriptions",
+              "Layer stacking: edges and textures to parts to whole-object evidence"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Inside YOLOv8",
+        "lessons": [
+          {
+            "title": "One pass, backbone and neck",
+            "topics": [
+              "A single forward pass over the whole image rather than a sliding search",
+              "Backbone: extracting features at several resolutions",
+              "Neck: combining resolutions so small and large objects are both represented",
+              "Predictions attached to spatial locations in the feature grids"
+            ]
+          },
+          {
+            "title": "The anchor-free split detection head",
+            "topics": [
+              "Split (decoupled) branches: class scores separate from box geometry",
+              "Anchor-free: box edges predicted directly at a location, without predefined anchor shapes",
+              "Why one real object generates many overlapping raw predictions"
+            ]
+          },
+          {
+            "title": "From raw predictions to a final list",
+            "topics": [
+              "Score filtering: discarding predictions below a confidence value",
+              "Non-maximum suppression: keeping the highest-scoring box among overlapping duplicates for the same object",
+              "CPU inference: same computation as on a GPU, longer wall-clock time"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Running yolo-s3-job",
+        "lessons": [
+          {
+            "title": "Inputs and the confidence control",
+            "topics": [
+              "S3 image path as input; optional output bucket as destination",
+              "Confidence threshold (default 0.5): sets the minimum score a prediction must reach to be reported",
+              "Raising it reports fewer, higher-scored detections; lowering it reports more, including weaker ones — it does not change what the model computed and does not by itself establish accuracy",
+              "A per-image job: one image in, one set of outputs"
+            ]
+          },
+          {
+            "title": "Reading annotated.jpg and boxes.json",
+            "topics": [
+              "annotated.jpg: detections drawn as boxes on the image, so location is visible there",
+              "boxes.json: label and confidence pairs; box coordinates are not written into this file even though the model computes them to draw the annotation",
+              "Choosing which output to inspect for 'what' versus 'where'",
+              "Objects outside the model's class vocabulary, or scored below the threshold, appear in neither output"
+            ]
+          }
+        ]
+      }
+    ],
+    "prerequisites": [
+      "Comfort viewing image files and reading a simple text/JSON file",
+      "No machine learning, mathematics, or programming background assumed",
+      "An image location and any run access supplied by the app owner"
+    ],
+    "scopeNotes": [
+      "Training procedure (loss functions, label assignment, dataset construction) and model comparison are excluded; the goal is understanding inference and running this job.",
+      "App behaviour here comes from a supplied description, not from inspection of the deployed code or weights; the Ultralytics documentation describes the standard YOLOv8 family, not the specific deployed yolov8n.pt.",
+      "The exact class vocabulary of the deployed weights is not established by the supplied evidence; the course will state this as an unknown rather than name a dataset."
+    ],
+    "duration": {
+      "fit": "needs-more-time",
+      "explanation": "Twenty minutes can cover Modules 1 and 4 plus a stated summary of YOLOv8's structure, but it cannot also build the beginner foundations (learned weights, convolutional features, anchor-free split head, NMS) that make the mechanism understandable. Keeping the stated conceptual goal requires a longer session; this is a planning judgement, not a measured learning time."
+    },
+    "ownerQuestions": [
+      "Extend beyond 20 minutes to keep Modules 2 and 3, or approve a 20-minute overview that describes YOLOv8's outputs and the threshold without explaining feature extraction and the detection head?",
+      "Should the course name the detectable classes? That requires confirming the training dataset of the deployed weights, which the supplied evidence does not cover."
+    ]
+  },
+  "history": []
+}

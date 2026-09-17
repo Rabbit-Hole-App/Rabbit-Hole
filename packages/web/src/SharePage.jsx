@@ -11,11 +11,19 @@ import { ago, api, cronHuman, cronList, fmtTime, navigate, wsName } from './api.
 import { loadApp } from './app-data.js';
 import { AskPanel } from './ask.jsx';
 import CoachingPanel from './coaching/CoachingPanel.jsx';
+import LearnPage from './LearnPage.jsx';
+import RepositoryPage from './RepositoryPage.jsx';
 import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
 import Shell from './Shell.jsx';
 import { Avatar, Button, Chk, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, ShareInput, SkeletonRows, Tabs, TabsContent, TabsList, TabsTrigger, Tip, cn, toast } from './ui.jsx';
 
 const Runbook = lazy(() => import('./RunbookEditor.jsx'));
+const learnPreview = import.meta.env.VITE_COACHING_DEV === 'true' && import.meta.env.VITE_PRIVATE_BYOC !== 'true';
+
+function initialAppTab() {
+  const tab = new URLSearchParams(window.location.search).get('tab');
+  return tab === 'agent' || (learnPreview && tab === 'learn') ? tab : null;
+}
 
 const TH = 'h-8 border-b border-line px-2 text-left text-xs font-normal text-ink-2';
 const TD = 'h-8 border-b border-line px-2 text-sm whitespace-nowrap';
@@ -455,7 +463,9 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
   const [app, setApp] = useState(null);
   const [error, setError] = useState(null);
   const [peek, setPeek] = useState(null); // runId shown in the side peek
-  const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get('tab') === 'agent' ? 'agent' : null); // null until the app's kind picks the default
+  const [tab, setTab] = useState(initialAppTab); // null until the app's kind picks the default
+  const requestedTab = initialAppTab();
+  useEffect(() => setTab(requestedTab), [requestedTab]);
   const [prefill, setPrefill] = useState(null); // Run-again inputs for the form
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -502,7 +512,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
   // AppPage survives sidebar navigation (same element position) - per-app state
   // must reset with the slug or app A's peek/tab/prefill leak into app B.
   useEffect(() => {
-    setApp(null); setError(null); setPeek(null); setTab(new URLSearchParams(window.location.search).get('tab') === 'agent' ? 'agent' : null); setPrefill(null); load();
+    setApp(null); setError(null); setPeek(null); setTab(initialAppTab()); setPrefill(null); load();
     return () => { loadId.current++; };
   }, [slug, !!catalog, catalog?.org, catalogApp?.aws_connection?.id]);
 
@@ -517,6 +527,10 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
   // the textbox sits static (level with the sidebar's New chat), only messages scroll.
   const agentFull = !runId && (tab ?? (app?.kind === 'job' ? 'run' : 'runbook')) === 'agent';
   const isAws = app?.hosting === 'aws';
+  if (learnPreview && app?.kind === 'repository' && !error) return <RepositoryPage key={app.name} app={app} />;
+  if (learnPreview && tab === 'learn' && app && !error && !runId) {
+    return <LearnPage key={JSON.stringify([app.email, app.org, app.name])} app={app} onBack={() => { setTab(null); navigate(`/apps/${encodeURIComponent(app.name)}`); }} />;
+  }
   return (
     <main className={cn('flex-1', agentFull ? 'overflow-hidden' : 'overflow-y-auto')}>
       {/* run pages carve out the fixed 400px chat panel and center in what's left */}
@@ -752,13 +766,13 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
               </div>
             )}
 
-            <Tabs value={tab ?? (app.kind === 'job' ? 'run' : 'runbook')} onValueChange={setTab} className={cn(agentFull && 'flex min-h-0 flex-1 flex-col')}>
+            <Tabs value={tab ?? (app.kind === 'job' ? 'run' : 'runbook')} onValueChange={value => { setTab(value); if (value === 'learn') navigate(`/apps/${encodeURIComponent(app.name)}?tab=learn`); }} className={cn(agentFull && 'flex min-h-0 flex-1 flex-col')}>
               <TabsList className="mt-5 shrink-0">
                 <TabsTrigger value="runbook"><Tip label="Runbook" info="Notes and docs for this app"><span>Runbook</span></Tip></TabsTrigger>
                 {app.kind === 'job' && <TabsTrigger value="run"><Tip label="Run" info="Start a run from the input form"><span>Run</span></Tip></TabsTrigger>}
                 <TabsTrigger value="logs"><Tip label="Logs" info="Table view of this app's runs and requests"><span>Logs</span></Tip></TabsTrigger>
                 <TabsTrigger value="agent"><Tip label="Agent" info="Chat with the AI about this app"><span>Agent</span></Tip></TabsTrigger>
-                {/* ponytail: Learn tab hidden until lectures ship - restore this trigger and its TabsContent below */}
+                {learnPreview && <TabsTrigger value="learn"><Tip label="Learn" info="Guided explanations of how this app works"><span>Learn</span></Tip></TabsTrigger>}
               </TabsList>
 
               <TabsContent value="runbook" className="min-h-[200px] pt-4">
@@ -808,7 +822,6 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                 </CoachingPanel>
               </TabsContent>
 
-              {/* ponytail: Learn TabsContent hidden with its trigger above */}
             </Tabs>
 
             {app.lastOpened && (tab ?? (app.kind === 'job' ? 'run' : 'runbook')) !== 'agent' && (

@@ -1,11 +1,35 @@
 # Review lesson materials before rendering
 
-Status: review UI preview on regular dev. The supplied nanoGPT outline is saved
+Status: review UI and an authorized Pages 1–2 playback preview on regular dev. The supplied nanoGPT outline is saved
 as an unapproved course draft, and all six pages of the Lesson 1 Markdown fixture are browsable
 under Curriculum. Automated per-lesson planning, shared saved plan revisions and
 plan approval/build actions are not implemented yet.
 
 ## Modular preview
+
+### Execution plan: Lesson 1, Pages 1–2 (2026-09-17)
+
+The owner authorized rendering this two-page preview. Regular Cloudflare dev only;
+the full curriculum remains a draft. No paid/generated assets are needed.
+
+- [x] Extend the existing page player with prepared text, tiles and arrows;
+  retain pause/play, finish-before-next, scrub, selection questions and notes.
+  Verify both pages and that replay preserves learner drawings.
+- [x] Render Further explanations and source pills from the reviewed material;
+  add the Page 2 encoding check with separate first-attempt/eventual correctness.
+  Store attempts per account/workspace/app/source/plan revision in this browser.
+  Verify incorrect/correct feedback, retry, reload and account isolation.
+- [x] Check selection snapshots and the highlighted source reader with chat
+  still available, build, deploy regular dev and inspect it in a real browser.
+
+Preview completion is not full lesson/course completion. Pages 3–6, Quiz Question 1
+(next-token objective), the Page 4 training/generation check, flashcards and the
+notebook remain later work. The Page 3 interaction is practice. A short encoding
+exercise on Page 2 assesses the text-versus-IDs objective.
+
+Implementation: a supplied lesson fixture using the existing canvas player,
+with a small reading/check component; no new API, generation or publication flow.
+Browser persistence is explicitly local, not cross-device progress sync.
 
 The curriculum list remains in the main area. A lesson opens one level deeper
 inside Curriculum, with Back to curriculum. Lesson 1 displays all six pages;
@@ -29,9 +53,40 @@ the detailed plan: two question blocks with answers, four individual front/back
 card blocks, and five notebook cell blocks. Later lessons show their supplied
 outlines without fabricated answers or notebook implementations.
 
-Lesson 1 also exposes Quiz, Flashcards and Notebook directly beneath Page 6 in
-the detailed material plan. It reuses the same activity modules, revision IDs,
-draft edits and Edit in chat actions as the curriculum cards.
+Lesson 1 exposes Quiz, Flashcards and Notebook as three separate collapsible
+blocks directly beneath Page 6. Each has its own icon and chevron. It reuses the
+same activity content, revision IDs, draft edits and Edit in chat actions as the
+curriculum cards. The quiz draft shows outlined checkbox-style options, the
+correct option with a green check, and feedback below, with no colored row fill.
+Selecting a quiz block changes only its
+outline; the text background remains unchanged. This is a reviewable
+answer key, not the learner's scored quiz. Curriculum cards keep their existing
+activity tabs. Edit course / Learner view appear on the overview only, not
+inside a detailed material plan; returning to the overview restores the switch.
+
+Lesson 1 displays separate timing labels sourced from the Markdown: Guided
+explanation ~6 min; Quiz and review self-paced; Optional notebook ~5 min, pending
+testing. Page durations describe playback, not total completion time. Overview
+duration labels likewise say guided explanations. The progress contract maps
+the Page 2 encoding exercise to representation, Quiz Question 1 to next-token
+prediction, and Page 4 to training versus generation. Page 3 is practice.
+Required participation is guided playback plus those three submitted checks;
+correctness is recorded separately. Supporting reading, Quiz Question 2,
+flashcards and notebook remain optional. Only Pages 1–2 playback and the encoding
+exercise currently persist, locally in the learner's browser. The progress bar
+counts them against all six pages and three objective checks, so this preview
+cannot mark the whole lesson complete.
+
+The Lesson tab has Start/Resume Lesson 1 and Replay preview; Curriculum's nested
+Lesson 1 plan has Preview Pages 1–2. They use the existing canvas player,
+Back/Play/Pause/Next, timeline, selection context and My notes. Next first finishes
+an unfinished page; playing advances between pages. Page layouts carry semantic
+metadata, with exact character tiles, vocabulary, IDs and connecting arrows.
+Further explanations reuse the reviewed Markdown and add its static supporting
+visuals. Source pills open pinned repository lines in the existing right-panel
+reader while retaining the composer. Browser draft edits remain in the plan;
+they do not silently rebuild this fixture, and the plan warns when they differ.
+No paid assets or model calls are required to play the preview.
 
 Each owner-editable block has Edit in chat. Selection highlights the block,
 focuses the shared chat composer and attaches the page, section and current
@@ -89,12 +144,18 @@ Notebooks follow predict → run → change → explain, starting with a small
 inspectable example before using real repository data. Include expected behavior,
 recoverable failure examples and a final conceptual check.
 
-Lesson 1 revision 2 demonstrates this direction across all six pages, the two
+Lesson 1 revision 3 demonstrates this direction across all six pages, the two
 quiz questions, four flashcards and five notebook cells. Its draft section IDs
 include the material revision so older browser edits cannot overwrite reordered
 pages or revised activities. Older edits are not deleted, but are not applied
 to the new revision. This content preview is not a teaching-quality evaluation
 of automated lesson generation.
+
+Revision 3 specifies a position-selection exercise on Page 3, objective-linked
+answer tracking on Pages 2–4, and a three-group introduction to the repository
+on Page 5. These interactions/progress records are still build requirements,
+not live learner behavior. Syntax checks on raw Python do not replace executing
+the exported notebook in the real browser kernel before publication.
 
 ### Material structure
 

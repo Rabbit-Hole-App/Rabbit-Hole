@@ -38,7 +38,7 @@ function dbStub() {
   const writes = [];
   return {
     writes,
-    prepare: (sql) => ({ bind: (...args) => ({ run: async () => writes.push({ sql, args }) }) }),
+    prepare: (sql) => ({ bind: (...args) => ({ first: async () => null, run: async () => writes.push({ sql, args }) }) }),
   };
 }
 

@@ -1,14 +1,71 @@
+import { sceneFetch } from '../control-plane/src/learn-scene.js';
+import { repositoriesFetch, repositoryIdentity, repositoryApp } from '../control-plane/src/repositories.js';
+export { RepositoryImports } from '../control-plane/src/repositories.js';
+export { LearnScenes } from '../control-plane/src/learn-scene.js';
 import SHELL from './dist-dev/index.html';
 import { byocFetch } from '../control-plane/src/byoc.js';
 import apiCode from '../byoc/api.py';
 import signerCode from '../byoc/signer.py';
 import permissionsCode from '../byoc/permissions.py';
 import grantsCode from '../byoc/grants.py';
+import { apiAsk } from '../control-plane/src/index.js';
+import { boardFetch, authorizedBoardApp, paperFetch } from '../control-plane/src/learn-board.js';
+import { videoFetch } from '../control-plane/src/learn-video.js';
+export { LearnVideos } from '../control-plane/src/learn-video.js';
 
-// UI preview only. Authentication and existing app actions use the live backend.
+// Authentication/app actions use the live backend. Dev Learn reuses the Ask handler
+// and shared chat history, with support for selectable AI canvas objects.
 export default {
-  fetch(req, env) {
+  async fetch(req, env, ctx) {
     const path = new URL(req.url).pathname;
+    if (path.startsWith('/api/repositories')) return repositoriesFetch(req, env, ctx);
+    if (path === '/api/apps' && req.method === 'GET') {
+      const catalog = await repositoryIdentity(req, env);
+      if (catalog instanceof Response) return catalog;
+      const { results } = await env.LEARN_DB.prepare('SELECT * FROM repository_apps WHERE org=? ORDER BY created_at DESC').bind(catalog.org).all();
+      return Response.json({ ...catalog, apps: [...catalog.apps, ...results.map(row => repositoryApp(row, catalog))] }, { headers: { 'Cache-Control': 'no-store' } });
+    }
+    const repositoryRoute = path.match(/^\/api\/apps\/(repo-[a-z0-9-]+)(\/learn-course)?$/);
+    if (repositoryRoute) {
+      const target = new URL(req.url); target.pathname = `/api/repositories/${repositoryRoute[1]}${repositoryRoute[2] || ''}`;
+      return repositoriesFetch(new Request(target, req), env, ctx);
+    }
+    if (path === '/api/learn/graph-config' && req.method === 'GET') {
+      const app = await authorizedBoardApp(req, env, new URL(req.url).searchParams.get('app'));
+      if (app instanceof Response) return app;
+      return Response.json({ desmosApiKey: env.DESMOS_API_KEY || null }, { headers: { 'Cache-Control': 'no-store' } });
+    }
+    if (path === '/api/learn/scene') return sceneFetch(req, env);
+    if (path === '/api/learn/video') return videoFetch(req, env);
+    if (env.SUBSCRIPTION_ONLY === 'true' && req.method === 'POST' && (path === '/api/ask' || /\/learn-course$/.test(path))) {
+      let action; try { action = (await req.clone().json()).action; } catch {}
+      if (path === '/api/ask' || ['draft', 'generate'].includes(action)) return Response.json({ error: 'Subscription-only dev mode: use Learn chat. This action is not connected to the subscription yet.' }, { status: 503 });
+    }
+    if (env.SUBSCRIPTION_ONLY === 'true' && req.method === 'POST' && ['/api/learn/ask', '/api/learn/selection'].includes(path) && !req.headers.get('content-type')?.includes('application/json')) return Response.json({ error: 'Attachments are not connected to the subscription yet. No API fallback.' }, { status: 503 });
+    if (['/api/learn/selection', '/api/learn/ask'].includes(path) && req.method === 'POST' && req.headers.get('content-type')?.includes('application/json')) {
+      let body;
+      try { body = await req.clone().json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
+      if (body.scope?.app?.startsWith('repo-')) {
+        const target = new URL(req.url); target.pathname = `/api/repositories/${body.scope.app}/ask`;
+        return repositoriesFetch(new Request(target, req), env, ctx);
+      }
+      {
+        const access = await authorizedBoardApp(req, env, body.scope?.app);
+        if (access instanceof Response) return access;
+        if (env.SUBSCRIPTION_ONLY === 'true' && access.email !== env.SUBSCRIPTION_OWNER_EMAIL) return Response.json({ error: 'This personal dev subscription is available only to its owner.' }, { status: 403 });
+        return apiAsk(req, env, ctx, { email: access.email, org: access.org, orgName: access.orgName }, 'learn');
+      }
+    }
+    if (path === '/api/learn/paper') return paperFetch(req, env);
+    if (path === '/api/learn/board') {
+      if (env.SUBSCRIPTION_ONLY === 'true') {
+        let body; try { body = await req.clone().json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
+        const access = await authorizedBoardApp(req, env, body.app);
+        if (access instanceof Response) return access;
+        if (access.email !== env.SUBSCRIPTION_OWNER_EMAIL) return Response.json({ error: 'This personal dev subscription is available only to its owner.' }, { status: 403 });
+      }
+      return boardFetch(req, env);
+    }
     if (path === '/aws') return Response.redirect(new URL('/apps', req.url), 302);
     if (path.startsWith('/api/byoc/')) return byocFetch(req, env, { apiCode, signerCode, permissionsCode, grantsCode });
     if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path.startsWith('/apps/')) {

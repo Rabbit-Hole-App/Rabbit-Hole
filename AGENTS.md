@@ -24,7 +24,33 @@ Reuse existing UI components and helpers for common presentation, including code
 highlighting and enlarged page layouts. Extend the shared template rather than
 creating a separate design for each tab.
 
+Always make side panels resizable by dragging their edge. Reuse
+`ResizableSidePanel` for inline right panels and `SlidePanel` for overlays;
+preserve keyboard resizing and responsive bounds. Never add a fixed-width-only
+desktop side panel.
+
+Chat references use the existing neutral source-pill presentation, including
+paper links. Do not introduce blue link text.
+
 ## Deliver UI changes on the dev web app
+
+Use the user's verified subscription for all agent-run model tests and dev Learn
+inference. Never use an API key, paid cloud provider, or paid fallback without
+new explicit authorization. Check authentication before invoking a model; having
+an API key in .env is not authorization to spend it. If subscription access is
+unavailable or exhausted, stop and report it instead of switching providers.
+
+Current explicit exception: the user authorized switching regular dev Learn back
+to the paid Claude API after the subscription tunnel failed (2026-09-16).
+This covers dev Learn inference and its focused end-to-end verification. Do not
+extend that authorization to unrelated paid experiments or other environments.
+
+Before recommending a test or saying a flow works, run the exact user-facing
+scenario yourself against the intended deployed environment. For AI features,
+verify the real model/tool path and inspect the result; mocked tests alone do
+not establish that the feature works. If access or another dependency prevents
+verification, state precisely what remains unverified instead of asking the user
+to discover the failure. Preserve this rule across tasks and sessions.
 
 Build features into an app in the existing Apps list, sidebar, and app interface
 so the user can test them there. Never create a separate feature/demo page (such
@@ -62,6 +88,12 @@ command. Product truth: `docs/SCOPE.md` and `docs/PRODUCT.md`.
 - `git log` — commit messages carry the reasoning; they are the changelog.
 
 ## Live state (shared, be careful)
+
+For requested integrations on regular dev, the user approves installing their
+provided API keys as server secrets on `small-cp-dev` (2026-09-17). Keep secret
+values out of browser bundles, source control and logs. This does not authorize
+live/BYOC promotion. Public browser SDK keys must follow that SDK's documented
+usage; private provider credentials remain server-side.
 
 One live Cloudflare worker (`small-cp`), one D1 database (`small`), one npm
 package (`small-deploy` + `small-skill`) are shared by every worktree and

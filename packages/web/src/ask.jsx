@@ -1,11 +1,16 @@
+import ChatComposer from './ChatComposer.jsx';
+import RepositorySource, { SourceSelectionContext } from './RepositorySource.jsx';
+import { FILE_TOKEN, INLINE_PARTS, sourceReference, singleSourcePath } from './source-references.js';
 // ─── Ask (phase 1 - read only): the chat panel behind the Agent tab, the run
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, AtSign, BookOpen, Copy, Crown, Feather, FileText, Globe, History, Loader2, MoreHorizontal, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, Copy, Crown, Feather, FileText, Globe, History, Loader2, MoreHorizontal, MessageCircle, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
-import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
+import { answerBlocks, isAnswerMetadata } from './answer-blocks.js';
+import { MathText, tokenizeMath } from './MathText.jsx';
+import { Button, cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
 const SOURCE_OPTIONS = {
@@ -23,23 +28,32 @@ const MODEL_META = { auto: [SlidersHorizontal, 'Picks for you'], 'opus-5': [Crow
 // Model picker keys → labels (server holds the allowlist; auto = default).
 const MODELS = [['auto', 'Auto'], ['opus-5', 'Opus 5'], ['sonnet-5', 'Sonnet 5'], ['haiku-4.5', 'Haiku 4.5']];
 
+function EvidencePill({ icon: Icon = FileText, children, ...props }) {
+  const Tag = props.href ? 'a' : props.onClick ? 'button' : 'span';
+  return <Tag {...props} className={cn('inline-flex max-w-full items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-left text-xs text-ink-2 no-underline', (props.href || props.onClick) && 'cursor-pointer hover:bg-hover hover:text-ink')}><Icon size={12} strokeWidth={1.5} className="shrink-0" /><span className="break-words min-w-0">{children}</span></Tag>;
+}
+
 // Tiny safe markdown: **bold**, `code`, "- " bullets. Built as elements - no HTML injection.
-function inline(s) {
-  return s.split(/(`[^`]+`|\*\*[^*]+\*\*)/g).map((part, i) => {
+function inline(s, math = [], onFile, sourcePath) {
+  return s.split(INLINE_PARTS).map((part, i) => {
+    const link = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
+    if (link) return <EvidencePill key={i} href={link[2]} target="_blank" rel="noreferrer">{inline(link[1], math)}</EvidencePill>;
+    const token = part.match(/^\uE000(\d+)\uE001$/);
+    if (token && math[Number(token[1])]) return <MathText key={i} {...math[Number(token[1])]} />;
+    const reference=onFile&&sourceReference(part,sourcePath);
+    if(reference)return <EvidencePill key={i} type="button" title={`Open ${reference.path}:${reference.start}-${reference.end}`} onClick={()=>onFile(reference.path,reference.start,reference.end)}>{part.replace(/^`(.*)`$/,'$1')}</EvidencePill>;
     if (part.startsWith('`') && part.endsWith('`')) {
       return <code key={i} className="rounded-xs bg-code px-1 font-mono text-[0.9em]">{part.slice(1, -1)}</code>;
     }
-    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{part.slice(2, -2)}</strong>;
+    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{inline(part.slice(2, -2), math, onFile, sourcePath)}</strong>;
     return part;
   });
 }
 
 // A source token like "job.py:15" or "small.toml" - clickable when onFile is wired.
-const FILE_TOKEN = /^([\w./-]+\.(?:py|toml|txt|md|json|csv|cfg|ini|yaml|yml))(?::(\d+)(?:-(\d+))?)?$/;
 
 function SourcesLine({ text, onFile, onRun, onDecision }) {
   const parts = text.slice(9).split(/[,;]/).map(part => part.trim().replace(/^\x60(.*)\x60$/, '$1')).filter(Boolean);
-  const tagClass = 'inline-flex max-w-full items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-left text-xs text-ink-2';
   return (
     <div aria-label="Answer evidence" className="flex flex-wrap gap-2 pt-2">
       {parts.map((part, i) => {
@@ -51,15 +65,15 @@ function SourcesLine({ text, onFile, onRun, onDecision }) {
           : decision && onDecision ? () => onDecision(decision[1]) : null;
         const label = run ? 'Run · ' + run[1] : decision ? 'Approved decision' : part;
         const Icon = run ? Play : decision ? Shield : FileText;
-        return open ? <button key={i} type="button" onClick={open} title={'Open ' + label} className={tagClass + ' cursor-pointer hover:bg-hover hover:text-ink'}><Icon size={12} strokeWidth={1.5} className="shrink-0" /><span className="break-all">{label}</span></button>
-          : <span key={i} className={tagClass}><Icon size={12} strokeWidth={1.5} className="shrink-0" /><span className="break-all">{label}</span></span>;
+        return <EvidencePill key={i} icon={Icon} {...(open ? { type: 'button', onClick: open, title: 'Open ' + label } : {})}>{label}</EvidencePill>;
       })}
     </div>
   );
 }
 
-export function Md({ text, onRun, onFile }) {
-  const lines = String(text).split('\n');
+export function Md({ text, onRun, onFile, sourcePath = singleSourcePath(text) }) {
+  const { source, math } = tokenizeMath(text.replace(/^Papers read:\s*/gm, ''));
+  const lines = source.split('\n');
   const out = [];
   let bullets = null;
   let fence = null; // collecting a ``` block
@@ -79,22 +93,29 @@ export function Md({ text, onRun, onFile }) {
     }
     if (/^\s*[-*] /.test(l)) {
       bullets = bullets || [];
-      bullets.push(<li key={i}>{inline(l.replace(/^\s*[-*] /, ''))}</li>);
+      bullets.push(<li key={i}>{inline(l.replace(/^\s*[-*] /, ''), math, onFile, sourcePath)}</li>);
       return;
     }
     if (bullets) {
       out.push(<ul key={`ul${i}`} className="my-1 list-disc pl-5">{bullets}</ul>);
       bullets = null;
     }
-    if (l.startsWith('Sources: ')) {
+    const token = l.trim().match(/^\uE000(\d+)\uE001$/);
+    const heading = l.match(/^(#{1,6})\s+(\S.*?)\s*#*$/);
+    if (token && math[Number(token[1])]?.display) {
+      out.push(<MathText key={i} {...math[Number(token[1])]} />);
+    } else if (heading) {
+      const Heading = `h${heading[1].length}`;
+      out.push(<Heading key={i} className="mt-3 mb-1 font-semibold text-ink">{inline(heading[2], math, onFile, sourcePath)}</Heading>);
+    } else if (l.startsWith('Sources: ')) {
       out.push(<SourcesLine key={i} text={l} onRun={onRun} onFile={onFile} />);
     } else if (l.trim()) {
-      out.push(<p key={i} className="my-1">{inline(l)}</p>);
+      out.push(<p key={i} className="my-1">{inline(l, math, onFile, sourcePath)}</p>);
     }
   });
   if (fence) out.push(<CodeBlock key="f-end" className="my-1.5 text-xs">{fence.map((fl, j) => <div key={j}>{colorLine(fl)}</div>)}</CodeBlock>);
   if (bullets) out.push(<ul key="ul-end" className="my-1 list-disc pl-5">{bullets}</ul>);
-  return <div className="text-sm leading-normal">{out}</div>;
+  return <div className="min-w-0 text-sm leading-normal">{out}</div>;
 }
 
 // The cited file in a side panel, scrolled to (and highlighting) the cited line.
@@ -143,7 +164,7 @@ export function FilePeek({ appName, path, line, lineEnd, onClose }) {
     >
       <div data-panel-content className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-5">
         {err && <div className="text-sm text-ink-2">✗ {err}</div>}
-        {content == null && !err && <Loader2 size={14} className="animate-spin text-ink-3" />}
+        {content == null && !err && <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" />Reading source?</span>}
         {content != null && (
           <pre className="rounded-sm bg-code p-3 font-mono text-xs leading-relaxed text-ink">
             {content.split('\n').map((l, i) => (
@@ -271,11 +292,31 @@ function OutputRow({ runId, name, size }) {
 
 // One chat, scoped: {app} | {run} | {} (org). Style per the Notion AI reference -
 // user turns as a right-aligned bubble, answers as plain text, pill input at the bottom.
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, chatConfig = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null }) {
+  const repository = appName?.startsWith('repo-');
+  const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
+  const [codeSelection, setCodeSelection] = useState(null);
+  const chatApi = (path, options) => {
+    if (!repository) return api(path, options);
+    const tail = path.replace('/api/ask/threads', '').split('?')[0];
+    const action = tail.endsWith('/delete') ? 'DELETE' : tail.endsWith('/rename') ? 'PATCH' : null;
+    return api(`/api/repositories/${appName}/threads${tail.replace(/\/(delete|rename)$/, '')}`, action ? { ...options, method: action } : options);
+  };
   const privateChat = chatConfig?.provider === 'bedrock';
+  const learnChat = conversation === 'learn';
+  const guardedHistory = privateChat || learnChat;
   const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [selectedPassage, setSelectedPassage] = useState(null);
+  const [blockCopy, setBlockCopy] = useState(null);
+  useEffect(() => {
+    if (!blockCopy) return;
+    const timer = setTimeout(() => setBlockCopy(null), 1800);
+    return () => clearTimeout(timer);
+  }, [blockCopy]);
+  const [drawingReply, setDrawingReply] = useState(null);
+  const [boardError, setBoardError] = useState(null);
   const [choices, setChoices] = useState(null); // { message, candidates }
   const [file, setFile] = useState(null); // one attachment per question
   const [mentions, setMentions] = useState([]); // @app chips
@@ -290,7 +331,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const fileApp = appName || scope.app || null; // /api/ask/file needs the app name
   const scopeKind = scope.run ? 'run' : scope.app ? 'app' : 'org';
   const scopeRef = scope.run || scope.app || null;
-  const srcOpts = (privateChat ? PRIVATE_SOURCE_OPTIONS : SOURCE_OPTIONS)[scopeKind] || [];
+  const historyScope = learnChat ? 'learn' : scopeKind;
+  const askPath = learnChat ? '/api/learn/ask' : '/api/ask';
+  const srcOpts = repository ? [] : (privateChat ? PRIVATE_SOURCE_OPTIONS : SOURCE_OPTIONS)[scopeKind] || [];
   const [srcOn, setSrcOn] = useState(() => new Set(srcOpts.map(([k]) => k)));
   const [srcOpen, setSrcOpen] = useState(false);
   const [model, setModel] = useState(() => privateChat ? 'auto' : localStorage.getItem('small.askModel') || 'auto'); // Settings > Small AI sets the default
@@ -302,6 +345,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const boxRef = useRef(null);
   const inputRef = useRef(null);
   const fileRef = useRef(null);
+  useEffect(() => {
+    if (!demo?.startRef) return;
+    demo.startRef.current = () => send(demo.prompt);
+    return () => { demo.startRef.current = null; };
+  });
 
   // "@yol" at the end of the input → app-name suggestions
   const atMatch = privateChat ? null : input.match(/@([a-z0-9-]*)$/);
@@ -319,8 +367,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // Resume the latest saved thread for this scope on mount.
   const loadThread = async (id, toChat = true, request = ++historyRequest.current) => {
     try {
-      const d = await api(`/api/ask/threads/${id}`);
-      if (privateChat && request !== historyRequest.current) return;
+      const d = await chatApi(`/api/ask/threads/${id}`);
+      if (repository) { setRepositoryCommit(d.commit); setCodeSelection(null); }
+      if (guardedHistory && request !== historyRequest.current) return;
       threadId.current = d.id;
       setMsgs(d.messages);
       setChoices(null);
@@ -330,16 +379,16 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   };
   useEffect(() => {
     const request = ++historyRequest.current;
-    api(`/api/ask/threads?scope=${scopeKind}${scopeRef ? `&ref=${encodeURIComponent(scopeRef)}` : ''}${privateChat ? `&app=${encodeURIComponent(fileApp)}` : ''}`)
+    chatApi(`/api/ask/threads?scope=${historyScope}${scopeRef ? `&ref=${encodeURIComponent(scopeRef)}` : ''}${privateChat ? `&app=${encodeURIComponent(fileApp)}` : ''}`)
       .then(async (d) => {
-        if (privateChat && request !== historyRequest.current) return;
+        if (guardedHistory && request !== historyRequest.current) return;
         setThreads(d.threads || []);
         if (d.threads?.[0]) await loadThread(d.threads[0].id, false, request);
       })
       .catch(() => {});
-    return () => { if (privateChat) historyRequest.current++; };
-  }, [scopeKind, scopeRef, privateChat, appName]);
-  const newChat = () => { historyRequest.current++; threadId.current = null; setMsgs([]); setChoices(null); setView('chat'); };
+    return () => { if (guardedHistory) historyRequest.current++; };
+  }, [historyScope, scopeRef, privateChat, appName]);
+  const newChat = () => { setCodeSelection(null); setFilePeek(null); setRepositoryCommit(repositoryContext?.commit || null); boardContext?.clearPaper?.(); onCloseContentPanel?.(); historyRequest.current++; threadId.current = null; boardContext?.removeImage(); setMsgs([]); setSelectedPassage(null); setChoices(null); setView('chat'); };
   useEffect(() => {
     if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight;
   }, [msgs]);
@@ -348,30 +397,57 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // @-chips ride at the front of the message text
     const message = [...mentions.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     if (!message || busy) return;
-    if (privateChat) historyRequest.current++;
+    if (selectedPassage && message.length + selectedPassage.text.length > 3850) { setBoardError({ id: selectedPassage.reply, message: 'This passage and question are too long. Ask a shorter question or clear the passage.' }); return; }
+    const isDemo = demo && message.toLowerCase().replace(/[.!?]+$/, '') === demo.prompt.toLowerCase() && !file;
+    if (isDemo && demo.disabled) return;
+    if (!isDemo) { boardContext?.pause(); boardContext?.setAnswering(true); }
+    if (guardedHistory) historyRequest.current++;
     onSent?.();
+    if (contentPanel) { setFilePeek(null); onCloseContentPanel?.(); setView('chat'); }
     setChoices(null);
     setBusy(true);
     setInput('');
     setMentions([]);
+    const sourceRange = codeSelection;
+    setCodeSelection(null);
+    const passage = selectedPassage;
+    setSelectedPassage(null);
     const attached = file;
     setFile(null);
-    setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message }, { role: 'assistant', content: '' }]);
+    const canvasImage = !isDemo ? boardContext?.preview : null;
+    const questionPaper = boardContext?.paper;
+    if (!isDemo) boardContext?.removeImage();
+    const replyId = crypto.randomUUID();
+    setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : passage ? { passage: passage.text } : {}) }, { role: 'assistant', content: '', id: replyId, demo: !!isDemo }]);
     const append = (t) => setMsgs((m) => {
       const next = m.slice();
       next[next.length - 1] = { ...next[next.length - 1], content: next[next.length - 1].content + t };
       return next;
     });
+    let snapshot = null;
+    let selectionAnswer = '';
+    let responseGraph = null;
     try {
+      if (isDemo) {
+        // Demo replies are temporary and never written into a saved conversation.
+        setView('chat');
+        await demo.run(text => setMsgs(m => m.map(item => item.id === replyId ? { ...item, content: text } : item)));
+        return;
+      }
+      snapshot = boardContext?.snapshot() || null;
+      const requestPath = snapshot?.target ? '/api/learn/selection' : askPath;
       const payload = {
+        ...(snapshot ? { lesson_snapshot: snapshot } : {}),
+        ...(questionPaper ? { paper_context: { id: questionPaper.id, page: questionPaper.page, ...(questionPaper.selection ? { selection: questionPaper.selection } : {}) } } : {}),
         scope: scopeOverride || scope,
-        message,
+        ...(repository ? { repository_context: { ...repositoryContext, commit: sourceRange?.commit || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
+        message: passage ? `Question about this previous answer passage:\n${passage.text}\n\nLearner question: ${message}` : message,
         thread_id: threadId.current,
         ...(srcOpts.length && srcOn.size < srcOpts.length ? { sources: [...srcOn] } : {}),
         ...(model !== 'auto' ? { model } : {}),
       };
       if (privateChat) {
-        const d = await api('/api/ask', { method: 'POST', body: JSON.stringify({ ...payload,
+        const d = await api(askPath, { method: 'POST', body: JSON.stringify({ ...payload,
           scope: { app: fileApp, ...(scope.run ? { run: scope.run } : {}) } }) });
         append(d.answer);
         threadId.current = d.threadId;
@@ -383,9 +459,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         const fd = new FormData();
         fd.append('body', JSON.stringify(payload));
         fd.append('file', attached);
-        r = await fetch('/api/ask', { method: 'POST', headers: wsHeaders(), body: fd });
+        r = await fetch(requestPath, { method: 'POST', headers: wsHeaders(), body: fd });
       } else {
-        r = await fetch('/api/ask', {
+        r = await fetch(requestPath, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...wsHeaders() },
           body: JSON.stringify(payload),
@@ -415,33 +491,46 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           const data = (ev.match(/^data: (.+)$/m) || [])[1];
           if (!type || !data) continue;
           const d = JSON.parse(data);
-          if (type === 'chunk') append(d.text);
+          if (type === 'chunk') { if (snapshot) selectionAnswer += d.text; else append(d.text); }
+          else if (type === 'progress') setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, status: d.stage } : item));
+          else if (type === 'graph') { responseGraph=d; setMsgs(messages=>messages.map(item=>item.id===replyId?{...item,graph:d}:item)); }
+          else if (type === 'papers') setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, papers: d.papers } : item));
           else if (type === 'proposal') setMsgs((m) => [...m, { role: 'proposal', proposal: d }]);
-          else if (type === 'done' && d.threadId) threadId.current = d.threadId;
+          else if (type === 'done' && d.threadId) {
+            threadId.current = d.threadId;
+            if (repository && d.commit) setRepositoryCommit(d.commit);
+            if (responseGraph && onGraph) onGraph(responseGraph);
+            if (learnChat) setThreads(ts => ts.some(t => t.id === d.threadId) ? ts : [{ id: d.threadId, title: message.slice(0, 120) }, ...ts]);
+          }
           else if (type === 'error') append(`✗ ${d.error}`);
         }
       }
+      if (snapshot) append(boardContext.isCurrent(snapshot) ? selectionAnswer : 'The lesson or selected object changed while answering. Select it again and ask again.');
+      if (snapshot && selectionAnswer.trim() && boardContext.isCurrent(snapshot)) setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, board: { snapshot, question: passage ? `${message}\nAbout: ${passage.text}` : message, answer: selectionAnswer, model } } : item));
     } catch (e) {
       append(`✗ ${e.message}`);
     } finally {
+      if (!isDemo) boardContext?.setAnswering(false);
       setBusy(false);
     }
   };
 
+  if (repository && filePeek) contentPanel = <RepositorySource appName={fileApp} {...filePeek} commit={repositoryCommit || repositoryContext?.commit} onClose={() => setFilePeek(null)} />;
   return (
     <div className={cn('flex min-h-0 flex-col', compact ? 'max-h-[320px]' : 'flex-1')}>
-      {!compact && (msgs.length > 0 || threads.length > 0 || headerExtra) && (
+      {!compact && (msgs.length > 0 || threads.length > 0 || headerExtra || headerTitle) && (
         <div className="flex shrink-0 items-center justify-end gap-1 pb-1">
-          {threads.length > 0 && (
+          {headerTitle && <h2 className="mr-auto text-sm font-semibold">{headerTitle}</h2>}
+          {(threads.length > 0 || headerTitle) && (
             <button
-              disabled={privateChat && busy}
-              onClick={() => setView(view === 'history' ? 'chat' : 'history')}
+              disabled={guardedHistory && busy}
+              onClick={() => { setFilePeek(null); onCloseContentPanel?.(); setView(view === 'history' ? 'chat' : 'history'); }}
               className={cn('flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', view === 'history' && 'bg-active text-ink')}
             >
               <History size={12} strokeWidth={1.5} /> {view === 'history' ? 'Back to chat' : 'History'}
             </button>
           )}
-          <button disabled={privateChat && busy} onClick={newChat} className="flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
+          <button disabled={guardedHistory && busy} onClick={newChat} className="flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
             <Plus size={12} strokeWidth={1.5} /> New chat
           </button>
           {headerExtra}
@@ -459,7 +548,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <div data-panel-content className="min-h-0 flex-1 overflow-y-auto px-5 pb-5"><RunResultCard runId={runPeek} app={fileApp ? { name: fileApp } : null} /></div>
         </SlidePanel>
       )}
-      {filePeek && <FilePeek appName={fileApp} path={filePeek.path} line={filePeek.line} lineEnd={filePeek.lineEnd} onClose={() => setFilePeek(null)} />}
+      {filePeek && !repository && <FilePeek appName={fileApp} path={filePeek.path} line={filePeek.line} lineEnd={filePeek.lineEnd} onClose={() => setFilePeek(null)} />}
       {confirmDel && (
         <ConfirmDialog
           title="Delete this chat?"
@@ -468,7 +557,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             const t = confirmDel;
             setConfirmDel(null);
             try {
-              await api(`/api/ask/threads/${t.id}/delete`, { method: 'POST' });
+              await chatApi(`/api/ask/threads/${t.id}/delete`, { method: 'POST' });
               setThreads((ts) => ts.filter((x) => x.id !== t.id));
               if (threadId.current === t.id) newChat();
             } catch { /* row stays if the delete failed */ }
@@ -476,7 +565,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           onCancel={() => setConfirmDel(null)}
         />
       )}
-      {view === 'history' && (
+      {view === 'history' && !contentPanel && (
         <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto">
           {threads.map((t) => (
             <div key={t.id} className="group/h relative flex items-center border-b border-line">
@@ -489,7 +578,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
                     setRenaming(null);
                     if (!title) return;
                     try {
-                      await api(`/api/ask/threads/${t.id}/rename`, { method: 'POST', body: JSON.stringify({ title }) });
+                      await chatApi(`/api/ask/threads/${t.id}/rename`, { method: 'POST', body: JSON.stringify({ title }) });
                       setThreads((ts) => ts.map((x) => (x.id === t.id ? { ...x, title } : x)));
                     } catch { /* row keeps its old title */ }
                   }}
@@ -529,11 +618,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           {threads.length === 0 && <div className="py-3 text-sm text-ink-3">No past chats.</div>}
         </div>
       )}
-      {view === 'chat' && (<>
-      <div ref={boxRef} className="no-scrollbar min-h-0 flex-1 overflow-y-auto">
+      {(view === 'chat' || contentPanel) && (<>
+      {contentPanel && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SourceSelectionContext.Provider value={{value:codeSelection,set:setCodeSelection}}>{contentPanel}</SourceSelectionContext.Provider></div>}
+      <div ref={boxRef} className={cn('no-scrollbar min-h-0 flex-1 overflow-y-auto', contentPanel && 'hidden')}>
         {msgs.length === 0 && !choices && (
           <div className="flex flex-col items-start gap-1.5 py-3">
-            {(scope.run
+            {(repository
+              ? ['What are the main concepts in this repository?', 'How does the code fit together?', 'Where should I start reading?']
+              : scope.run
               ? ['What happened in this run?', 'Why did it fail?', 'What changed since the last successful run?']
               : scope.app
                 ? ['When did this last run, and how did it go?', 'What does the code actually do?', 'Who has access to this app?']
@@ -553,7 +645,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         {msgs.map((m, i) => (
           <div key={i} className={cn('py-1.5', m.role === 'user' && 'flex justify-end')}>
             {m.role === 'user' ? (
-              <span className="max-w-[85%] rounded-lg bg-hover px-3 py-1.5 text-sm">{m.content}</span>
+              <div className="max-w-[85%] rounded-lg bg-hover px-3 py-1.5 text-sm">
+                {m.canvasImage && <img src={m.canvasImage} alt="Canvas with the question’s target marked" className="mb-2 max-h-32 w-44 rounded border border-line bg-white object-contain" />}
+                {m.passage && <blockquote className="mb-2 max-h-24 overflow-auto border-l-2 border-accent/40 pl-2 text-xs text-ink-2">{m.passage}</blockquote>}
+                {m.content}
+              </div>
             ) : m.role === 'proposal' ? (
               <ProposalCard
                 proposal={m.proposal}
@@ -563,9 +659,28 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             ) : m.role === 'run' ? (
               <RunResultCard runId={m.runId} app={fileApp ? { name: fileApp } : null} />
             ) : m.content ? (
-              <Md text={m.content} onRun={id => { if (privateChat) navigate(`/apps/${encodeURIComponent(appName)}/runs/${encodeURIComponent(id)}`); else { setFilePeek(null); setRunPeek(id); } }} onFile={!privateChat && fileApp ? (path, ln, lnEnd) => { setRunPeek(null); setFilePeek({ path, line: ln, lineEnd: lnEnd }); } : null} />
+              <>{learnChat ? <div className="space-y-2">{answerBlocks(m.content).map((block, blockIndex) => isAnswerMetadata(block) ? <Md key={blockIndex} text={block} sourcePath={singleSourcePath(m.content)} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} /> : <div key={blockIndex} className={cn('relative min-w-0 rounded-lg border border-accent/30 p-3 pr-16', selectedPassage?.reply === (m.id || i) && selectedPassage?.index === blockIndex ? 'ring-2 ring-accent bg-accent/10 text-black' : 'bg-transparent')}>
+                <Md text={block} sourcePath={singleSourcePath(m.content)} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} />
+                <button type="button" title="Copy block" aria-label={`Copy answer block ${blockIndex + 1}`} className="absolute top-2 right-9 rounded p-1 text-accent hover:bg-accent/10" onClick={async () => {
+                  try { await navigator.clipboard.writeText(block); setBlockCopy({ reply: m.id || i, index: blockIndex, text: 'Copied' }); }
+                  catch { setBlockCopy({ reply: m.id || i, index: blockIndex, text: 'Copy failed' }); }
+                }}><Copy size={14} /></button>
+                {blockCopy?.reply === (m.id || i) && blockCopy.index === blockIndex && <span role="status" className="absolute right-2 top-9 z-10 rounded border border-accent/30 bg-accent/10 px-2 py-1 text-xs text-black shadow-sm">{blockCopy.text}</span>}
+                <button type="button" title="Ask about this block" aria-label={`Ask about answer block ${blockIndex + 1}`} aria-pressed={selectedPassage?.reply === (m.id || i) && selectedPassage?.index === blockIndex} disabled={busy || drawingReply !== null} className="absolute top-2 right-2 rounded p-1 text-accent hover:bg-accent/10 disabled:opacity-40" onClick={() => {
+                  boardContext?.pause(); boardContext?.clear(); setSelectedPassage({ reply: m.id || i, index: blockIndex, text: block }); inputRef.current?.focus();
+                }}><MessageCircle size={14} /></button>
+              </div>)}</div> : <Md text={m.content} onRun={id => { if (privateChat) navigate(`/apps/${encodeURIComponent(appName)}/runs/${encodeURIComponent(id)}`); else { setFilePeek(null); setRunPeek(id); } }} onFile={!privateChat && fileApp ? (path, ln, lnEnd) => { setRunPeek(null); setFilePeek({ path, line: ln, lineEnd: lnEnd }); } : null} />}
+              {m.graph&&onGraph&&<div className="mt-2"><EvidencePill icon={Network} type="button" onClick={()=>onGraph(m.graph)} title={m.graph.title}>Show on graph</EvidencePill></div>}
+              {learnChat && !m.demo && !m.content.startsWith('\u2717') && boardContext?.explain && msgs.slice(0, i).some(item => item.role === 'user') && <div className="mt-2"><Button size="sm" variant="primary" disabled={busy || drawingReply !== null || !boardContext.ready} onClick={async () => {
+                setDrawingReply(m.id ?? i); setBoardError(null); boardContext.setAnswering(true);
+                try { await boardContext.explain({ ...(m.board || { snapshot: null, question: [...msgs.slice(0, i)].reverse().find(item => item.role === 'user').content, answer: m.content, model }), paperIds: m.papers?.map(p => p.id) || [], ...(repository ? { repository_context: { commit: repositoryCommit || repositoryContext?.commit } } : {}), history: msgs.slice(0, i).filter(item => !item.demo && ['user', 'assistant'].includes(item.role) && item.content?.trim()).slice(-6).map(item => ({ role: item.role, content: item.content.slice(0, 1000) })) }); }
+                catch (error) { setBoardError({ id: m.id ?? i, message: error.message }); }
+                finally { setDrawingReply(null); boardContext.setAnswering(false); }
+              }}>{drawingReply === (m.id ?? i) ? <><Loader2 size={13} className="animate-spin" />{boardContext.status || 'Preparing explanation...'}</> : <><Pencil size={13} />Explain on canvas</>}</Button>
+                {boardError?.id === (m.id ?? i) && <p role="alert" className="mt-2 text-xs text-red-700">{boardError.message}</p>}
+              </div>}</>
             ) : (
-              <Loader2 size={14} className="animate-spin text-ink-3" />
+              <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" />{m.status || 'Thinking...'}</span>
             )}
           </div>
         ))}
@@ -626,10 +741,22 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             )}
           </div>
         )}
-        <form
-          className="flex items-center gap-2 rounded-lg border border-line px-2.5 py-1.5 focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]"
-          onSubmit={(e) => { e.preventDefault(); send(input); }}
-        >
+        {!contentPanel && boardContext?.label && <div className="mb-2 text-xs text-ink-2">
+          {boardContext.label && <div className="mt-1 flex items-center gap-2" role="status">Asking about: {boardContext.label}<button type="button" aria-label="Clear selected context" onClick={boardContext.clear}>×</button></div>}
+        </div>}
+        {!contentPanel && demo && <button type="button" disabled={busy || demo.disabled} onClick={() => send(demo.prompt)} className="mb-2 self-start rounded-full border border-line px-3 py-1.5 text-xs text-ink-2 hover:bg-hover disabled:opacity-50">
+          {demo.prompt} <span className="ml-1 text-ink-3">· Demo</span>
+        </button>}
+        {repository && <div className={cn("mb-2 inline-flex max-w-full self-start items-center gap-1.5 text-xs", repositoryContext?.label ? "rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-green-800" : "text-ink-2")}><span className="min-w-0 truncate">{repositoryContext?.label ? `Asking about: ${repositoryContext.label}` : 'Repository source'} · {(repositoryCommit || repositoryContext?.commit || '').slice(0,7)}</span>{repositoryContext?.label && onClearRepository && <button type="button" className="shrink-0 rounded p-0.5 hover:bg-green-100" aria-label="Clear repository selection" onClick={onClearRepository}><X size={12}/></button>}</div>}
+        {selectedPassage && <div className="mb-2 flex items-start gap-2 rounded-lg border border-accent/30 bg-accent/10 p-2 text-xs text-black"><div className="min-w-0 flex-1"><span className="font-medium">Asking about this answer</span><div className="mt-1 max-h-24 overflow-auto"><Md text={selectedPassage.text} /></div></div><button type="button" aria-label="Clear answer selection" title="Clear answer selection" onClick={() => setSelectedPassage(null)}><X size={13} /></button></div>}
+        {codeSelection&&<div aria-label="Selected code attachment" className="mb-2 rounded-lg border border-accent/40 bg-accent/5 p-2 text-xs text-ink"><div className="flex items-start gap-2"><div className="min-w-0 flex-1"><div className="text-ink-2">Asking about selected code</div><div className="mt-1 truncate font-mono font-medium">{codeSelection.path}:{codeSelection.start}–{codeSelection.end}</div></div><button type="button" aria-label="Clear code selection" onClick={()=>setCodeSelection(null)}><X size={13}/></button></div><pre className="mt-2 max-h-20 overflow-auto rounded border border-line bg-white p-2 font-mono text-[10px] leading-4">{codeSelection.text.split('\n').slice(0,4).map((line,i)=><div key={i}><span className="mr-2 text-ink-3">{codeSelection.start+i}</span>{colorLine(line)}</div>)}{codeSelection.end-codeSelection.start>=4&&<span className="text-ink-3">… {codeSelection.end-codeSelection.start+1} selected lines</span>}</pre></div>}
+        {boardContext?.paper && <div className="mb-2 flex items-center gap-2 rounded border border-line p-2 text-xs"><span className="min-w-0 flex-1">Asking about: {boardContext.paper.title} / Page {boardContext.paper.page}</span><button type="button" aria-label="Clear paper context" onClick={boardContext.clearPaper}><X size={12} /></button></div>}
+        {boardContext?.preview && <div className="relative mb-2 w-28" data-canvas-attachment>
+          <img src={boardContext.preview} alt={boardContext.previewKind === 'paper' ? 'Selected paper region' : 'Selected canvas preview'} className="h-20 w-28 rounded-lg border border-line bg-white object-contain" />
+          <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
+        </div>}
+        <ChatComposer value={input} onChange={value => { boardContext?.pause(); setInput(value); }} onSubmit={send} inputRef={inputRef} autoFocus={autoFocus} placeholder={placeholder} busy={busy}
+          leading={<>
           <div className="relative shrink-0">
             <button
               type="button"
@@ -640,10 +767,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               <Plus size={14} strokeWidth={1.5} />
             </button>
             <Menu open={plusOpen} onClose={() => setPlusOpen(false)} className="bottom-8 left-0 w-64">
-              <MenuItem icon={Paperclip} disabled={privateChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
+              <MenuItem icon={Paperclip} disabled={privateChat || repository} title={privateChat || repository ? 'Attachments are not connected for private chat yet.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
                 Add images, PDFs, or CSVs
               </MenuItem>
-              <MenuItem icon={AtSign} disabled={privateChat} title={privateChat ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
+              <MenuItem icon={AtSign} disabled={privateChat || repository} title={privateChat || repository ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
                 Mention an app
               </MenuItem>
             </Menu>
@@ -687,14 +814,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               </Menu>
             </div>
           )}
-          <input
-            ref={inputRef}
-            autoFocus={autoFocus}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={placeholder}
-            className="h-7 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-ink-3"
-          />
+          </>}
+          trailing={
           <div className="relative shrink-0">
             <button
               type="button"
@@ -715,15 +836,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               ))}
             </Menu>
           </div>
-          <button
-            type="submit"
-            aria-label="Send"
-            disabled={busy || !input.trim()}
-            className="inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full bg-accent text-white disabled:opacity-30"
-          >
-            {busy ? <Loader2 size={13} className="animate-spin" /> : <ArrowUp size={13} strokeWidth={2} />}
-          </button>
-        </form>
+          }
+        />
       </div>
       </>)}
     </div>

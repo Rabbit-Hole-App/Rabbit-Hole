@@ -71,6 +71,51 @@ Evidence: `.small/learn-six-pages-check.json`, `.small/learn-six-pages.png`.
 
 ## Limits
 
+Timing follow-up: regular dev `0e0d13ef-11b5-4b11-8e01-bf0364d052db`.
+The deployed browser check verified the three timing labels (guided explanation,
+self-paced review, optional notebook pending testing) and a lesson heading with
+no ambiguous total-duration claim. Existing page, quiz-background, activity and
+navigation checks passed without browser errors or generation requests. Objective
+tracking and the optional-activity completion rules are still documented build
+requirements, not a tested learner progress implementation.
+
+Quiz readability follow-up: regular dev `c174a97c-c7b4-42fd-98ad-2bb9b2e189d4`.
+The deployed browser check verified that selecting a quiz question retains its
+original white computed background and adds only the selection outline. Correct
+answer rows have transparent backgrounds; the green checkbox remains. All
+existing six-page and activity checks passed without errors or model requests.
+
+### Revision 3 draft and activity presentation
+
+Regular dev `a6b79f41-92cf-4951-949f-27eb22542ce4` shows Quiz, Flashcards and
+Notebook as independent collapsible blocks below Page 6. Quiz options render
+checkbox outlines with the correct option checked green and feedback below.
+The nested material plan hides Edit course / Learner view; returning to the
+overview restores the switch. Existing curriculum-card activity tabs remain.
+
+Deployed Chromium checks passed: all three dropdowns open/close independently,
+2 quiz / 4 flashcard / 5 notebook review blocks remain, both correct-answer
+checks are green, notebook editing focuses chat, and the view switch is absent
+inside the plan and visible on return. Six pages retain distinct section icons,
+math/code rendering and edit targets. No browser errors or model/generation
+requests. Three existing navigation scenarios passed (8.7 seconds).
+
+All six raw Python fences compile with notebook top-level-await support; no
+escaped underscores, emphasized keywords or nonbreaking-space indentation were
+found in the repository copy. The clean `lesson-01-notebook.ipynb` contains seven
+Jupyter cells (3 code, 4 Markdown) from the five review sections; its three code
+cells round-trip exactly to the Markdown source. The reported corrupt uploaded
+copy was not supplied here, so its formatting transform was not identified.
+This is syntax/export validation, not execution of the notebook in Pyodide.
+
+Revision 3 specifies, but does not implement, Page 3 position targeting,
+objective-linked learner attempts and Page 5's progressive three-group diagram.
+Browser notebook execution, dataset pinning, real lesson interaction and an
+audience-matched usability preview remain release requirements.
+
+Evidence: `.small/learn-six-pages-check.json`,
+`.small/learn-quiz-answer-key.png`, `.small/learn-lesson1-practice.png`.
+
 Regular dev `3bef151e-2595-45d5-b17f-87b941822b0d` adds the three practice tabs
 directly beneath Page 6. The deployed browser check opened all three modules,
 verified two quiz blocks, four flashcards and five notebook cells, then selected
@@ -106,3 +151,33 @@ The section editor can revise text/specifications, but cannot generate assets.
 The full course-production approval/build workflow remains pending. No model
 claim about teaching quality was evaluated, and no notebook cells were executed.
 Only regular dev was deployed; Amazon BYOC and live were not changed.
+
+
+## Lesson 1 Pages 1-2 playback preview (2026-09-17)
+
+Deployed regular dev version `58d8147d-c64f-496b-8d42-0a13ea8d8dbf`.
+The real authenticated browser check passed: pause, finish-before-next,
+two canvas pages, Further explanations, encoding feedback/retry, reload,
+real pinned source lines 21-32 highlighted above the composer, selection
+transport accepted by the server snapshot validator, scrubbing, auto-advance
+and replay preserving learner annotations. The tutor reply was intercepted;
+no paid model or media-generation call was made. A stale viewport coordinate
+after scrolling was found and fixed before the successful rerun.
+
+Three focused progress unit tests passed (input parsing, attempt history and
+account/source/revision isolation). Three existing navigation browser tests
+passed. Supporting browser artifacts are local in `.small/nanogpt-*`.
+Full Pages 3-6, scored Quiz Question 1/Page 4, browser notebook execution,
+shared progress sync and rebuilding chat draft edits remain outside this slice.
+
+### Main synchronization checks
+
+- `make test-unit`: 31 passed.
+- Control-plane Node suite: 167 passed after updating paper-planner fixtures
+  for the current schema and the deploy-review DB mock for provenance lookup.
+- Frontend helper suite: 9 passed.
+- `make test-integration`: failed broadly against the configured external test
+  environment; interrupted after repeated failures/timeouts. A focused rerun
+  confirmed the first Ask test expects multiple yolo apps, but its authenticated
+  context reports no visible yolo app (SSE answer instead of the expected JSON
+  disambiguation). Integration is not green; no live deployment is part of this push.

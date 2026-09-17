@@ -1,0 +1,8 @@
+*
+!Dockerfile
+!scene-schema.json
+!validation.py
+!compile_scene.py
+!server.py
+!index_repository.py
+!repository_jobs.py

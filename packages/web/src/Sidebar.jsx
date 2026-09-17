@@ -603,8 +603,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         </form>
       ) : (
       <div
-        draggable={menu && a.hosting !== 'aws'}
-        onDragStart={menu && a.hosting !== 'aws' ? (e) => { setDragging(a.name); e.dataTransfer.setData('text/plain', a.name); e.dataTransfer.effectAllowed = 'move'; } : undefined}
+        draggable={menu && a.hosting !== 'aws' && a.kind !== 'repository'}
+        onDragStart={menu && a.hosting !== 'aws' && a.kind !== 'repository' ? (e) => { setDragging(a.name); e.dataTransfer.setData('text/plain', a.name); e.dataTransfer.effectAllowed = 'move'; } : undefined}
         onDragEnd={menu ? () => { setDragging(null); setDropTarget(null); } : undefined}
         onClick={() => navigate(`/apps/${a.name}`)}
         className={cn(
@@ -613,7 +613,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         )}
       >
         <KindIcon kind={a.kind} schedule={a.schedule} />
-        <span className="min-w-0 flex-1 truncate">{a.name}</span>
+        <span className="min-w-0 flex-1 truncate">{a.kind === 'repository' ? a.repo : a.name}</span>
         {a.hosting === 'aws' && <span className="text-[10px] text-ink-3">AWS</span>}
         {((a.members?.length || 0) > 0 || (a.team_count || 0) > 0) && (
           <Users size={11} className="shrink-0 text-ink-3" title="shared" />
@@ -635,19 +635,19 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
       {menu && (
         <Menu open={menuFor === a.name} onClose={() => setMenuFor(null)} className="top-8 right-0 w-52">
           <MenuItem icon={ExternalLink} onClick={() => { setMenuFor(null); navigate(`/apps/${a.name}`); }}>Open</MenuItem>
-          <MenuItem icon={Share2} onClick={() => { setMenuFor(null); navigate(`/apps/${a.name}?share=1`); }}>Share</MenuItem>
+          <MenuItem disabled={a.kind === 'repository'} title={a.kind === 'repository' ? 'Available to everyone in this workspace' : undefined} icon={Share2} onClick={() => { setMenuFor(null); navigate(`/apps/${a.name}?share=1`); }}>Share</MenuItem>
           <MenuItem
             icon={Link}
             onClick={() => { setMenuFor(null); navigator.clipboard.writeText(`${window.location.origin}/apps/${a.name}`); toast('Link copied'); }}
           >
             Copy link
           </MenuItem>
-          {a.canEdit && (
+          {a.canEdit && a.kind !== 'repository' && (
             <MenuItem icon={Pencil} onClick={() => { setMenuFor(null); setRenamingApp({ from: a.name, value: a.name }); }}>
               Rename
             </MenuItem>
           )}
-          {a.hosting !== 'aws' && <MenuItem
+          {a.hosting !== 'aws' && a.kind !== 'repository' && <MenuItem
             icon={Copy}
             onClick={async () => {
               setMenuFor(null);
@@ -660,7 +660,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           >
             Duplicate
           </MenuItem>}
-          {a.hosting !== 'aws' && a.owner_email === email && (
+          {a.hosting !== 'aws' && a.kind !== 'repository' && a.owner_email === email && (
             <MenuItem icon={Trash2} className="text-danger" onClick={() => { setMenuFor(null); setConfirmDel(a.name); }}>
               Move to Trash
             </MenuItem>

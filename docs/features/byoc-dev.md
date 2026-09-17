@@ -13,7 +13,7 @@ Never use the personal account or the shared Cloudflare AWS connection for Amazo
 | Stack | `small-private-byoc-dev` | `small-private-byoc` |
 | Workspace | `w-small-aws-dev` / Small AWS Dev | `w-small-aws` / Small AWS |
 | Apps | `dev-cpu-job`, `dev-word-count`, `constants-proof` | `drift-debug`, `oof-debug`, `overreach-debug` |
-| Dashboard release | `0.1.0-dev.13` | `0.1.0-pilot.6.9` |
+| Dashboard release | `0.1.0-dev.14` | `0.1.0-pilot.6.9` |
 | Infrastructure release | `0.1.0-dev.10` | `0.1.0-pilot.6.8` |
 | URL | https://dviorrcko52ft.cloudfront.net/apps | https://d3sgti338uxlc.cloudfront.net/apps |
 
@@ -121,6 +121,13 @@ infrastructure template and installer `finish` published only the dev dashboard.
 Dev `0.1.0-dev.13` puts the run-ID copy icon inside the Run pill. The focused
 browser test verified the placement and copied ID. This UI-only package reused
 the `0.1.0-dev.12` template; installer `finish` published only the dev dashboard.
+
+Dev `0.1.0-dev.14` adds the empty Learn app tab behind the existing Coaching dev
+flag. Open `/apps/dev-word-count?tab=learn` to inspect it. It shows "No lessons
+yet."; lesson generation, drawing, audio, and model integration are not included.
+The existing dev-tab browser smoke check passed. This dashboard-only release
+reused the `0.1.0-dev.13` template and CLI archive, verified all 209 package hashes,
+and was published with installer `finish`.
 
 The approved live `0.1.0-pilot.6.9` promotion publishes the same button-local
 confirmations. Its packaged template matched the active CloudFormation template

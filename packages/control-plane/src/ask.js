@@ -1,3 +1,5 @@
+import { subscriptionTransport } from './subscription-transport.js';
+import { researchAnswer } from './learn-research.js';
 // Ask (phase 1 - read only): one agent function, scoped per question. This module
 // holds the model call + prompt; index.js owns auth, scope resolution, and context
 // assembly so permissions are enforced by queries, never by the prompt.
@@ -252,6 +254,10 @@ export function fromOpenAI(j) {
 // local LLM behind a tunnel, vLLM, a gateway). Non-Anthropic providers run
 // non-streaming and a stream:true request gets the answer replayed as SSE.
 export async function anthropic(env, body, model, org) {
+  if (env.SUBSCRIPTION_ONLY === 'true') {
+    const response = await subscriptionTransport(env, body, model || MODEL);
+    return body.stream ? sseFromMessage(await response.json()) : response;
+  }
   const ai = await aiSettings(env, org);
   if (ai?.provider === 'bedrock' && ai.bedrock_role_arn && ai.model) {
     const { assumeRole, bedrockInvoke } = await import('./aws.js');
@@ -305,7 +311,7 @@ export async function askOnce(env, context, question, maxTokens = 300, org = nul
 // Streaming answer as an SSE Response. `history` is prior thread turns
 // [{role, content}]; the context rides on the latest user turn. onDone(fullText)
 // runs after the stream closes (store the message, etc.).
-export function askStream(env, context, history, message, onDone, meta = {}, extraBlocks = [], toolOpts = null, model = null, org = null) {
+export function askStream(env, context, history, message, onDone, meta = {}, extraBlocks = [], toolOpts = null, model = null, org = null, system = ASK_SYSTEM, research = null) {
   const turns = [
     ...history.map((m) => ({ role: m.role, content: m.content })),
     {
@@ -323,7 +329,18 @@ export function askStream(env, context, history, message, onDone, meta = {}, ext
   (async () => {
     let full = '';
     try {
-      if (toolOpts) {
+      if (research) {
+        const result = await researchAnswer(env, turns, system, model, { callModel: anthropic, initialPapers: research.papers || [], tools: research.tools || [], runTool: research.runTool, onProgress: stage => send('progress', { stage }) });
+        full = result.answer;
+        if (result.papers.length) {
+          const references = result.papers.map(p => `[${p.title} (arXiv:${p.id})](${p.pdfUrl})`).join(' | ');
+          full += `\n\nPapers read: ${references}`;
+          await send('papers', { papers: result.papers });
+        }
+        await send('chunk', { text: full });
+        const graph = research.getGraphView?.();
+        if (graph) await send('graph', graph);
+      } else if (toolOpts) {
         // tools attached (user has edit): one non-streaming call so tool_use blocks
         // arrive whole; each becomes a proposal - never an execution
         const resp = await anthropic(env, {
@@ -345,7 +362,7 @@ export function askStream(env, context, history, message, onDone, meta = {}, ext
           }
         }
       } else {
-        const resp = await anthropic(env, { max_tokens: 2000, stream: true, system: ASK_SYSTEM, messages: turns }, model, org);
+        const resp = await anthropic(env, { max_tokens: 2000, stream: true, system, messages: turns }, model, org);
         if (!resp.ok) throw new Error(`anthropic ${resp.status}`);
         const reader = resp.body.getReader();
         const dec = new TextDecoder();

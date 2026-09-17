@@ -4,14 +4,14 @@ Status: user-supplied curriculum draft, awaiting course approval. No lessons or 
 
 Repository: [karpathy/nanoGPT](https://github.com/karpathy/nanoGPT).
 Source snapshot: `3adf61e154c3fe3fca428ad6bc3818b27a3b8291`.
-Core lessons: approximately 50 minutes. Optional notebooks: approximately 69 minutes, excluding setup and variable training time.
+Guided explanations: approximately 50 minutes, not total course completion time. Quiz and review: self-paced. Optional notebooks: approximately 69 minutes, excluding setup and variable training time; estimates pending testing.
 
 This outline is supplied by the owner for the first iteration. Later, Curriculum Agent will create a reviewable outline. Learn Agent expands only a selected, approved lesson into a separate Markdown plan before rendering or asset generation.
 
 - [Lesson 1 material plan](lesson-01-plan.md)
 - [Proposed review workflow](../../features/learn-lesson-plans.md)
 
-## Lesson 1: What nanoGPT does — ~6 min
+## Lesson 1: What nanoGPT does — ~6 min guided explanation
 
 - What a language model predicts
 - Text → tokens → next-token prediction

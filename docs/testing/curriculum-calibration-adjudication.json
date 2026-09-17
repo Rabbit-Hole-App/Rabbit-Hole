@@ -1,0 +1,15 @@
+{
+  "method": "Coding-agent matching of actual review findings to prelabelled synthetic defects; not independent human gold. Baseline and refined reviews used F1 for each seeded defect.",
+  "annotations": {
+    "C01": { "targetFindingIds": ["F1"], "reason": "Flags applying fences before explaining quartiles, IQR and fences." },
+    "C02": { "targetFindingIds": ["F1"], "reason": "Flags mandatory 640-by-640 resizing contradicted by supplied app evidence." },
+    "C03": { "targetFindingIds": ["F1"], "reason": "Flags unrelated CPU hardware topics as unnecessary to the dashboard operator goal." },
+    "C04": { "targetFindingIds": ["F1"], "reason": "Flags omitted report-running topics despite the explicit learner goal." },
+    "C05": { "targetFindingIds": [], "reason": "Acceptable expert orientation accepted. Minor wording feedback does not reject it." },
+    "C06": { "targetFindingIds": [], "reason": "Honest duration/depth choice accepted; optional precision feedback only." },
+    "H01": { "targetFindingIds": ["F1"], "reason": "Flags unsupported promise of detailed calculation, multiple practice problems and proficiency in five minutes." },
+    "H02": { "targetFindingIds": ["F1"], "reason": "Flags inference from missing pixels in metadata JSON to their absence throughout the app." },
+    "H03": { "targetFindingIds": [], "reason": "Acceptable conceptual dashboard orientation accepted; suggested synthesis and TTL wording are optional." },
+    "H04": { "targetFindingIds": [], "reason": "Acceptable image viewer outline accepted; optional prerequisite and terminology feedback only." }
+  }
+}

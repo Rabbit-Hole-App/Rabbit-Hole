@@ -1,0 +1,35 @@
+{
+  "baselineDevelopment": {
+    "cases": 6,
+    "errors": 0,
+    "defective": 4,
+    "detected": 4,
+    "blocked": 4,
+    "missed": 0,
+    "severityMisses": 0,
+    "acceptable": 2,
+    "falseRejections": 0
+  },
+  "refinedDevelopment": {
+    "cases": 6,
+    "errors": 0,
+    "defective": 4,
+    "detected": 4,
+    "blocked": 4,
+    "missed": 0,
+    "severityMisses": 0,
+    "acceptable": 2,
+    "falseRejections": 0
+  },
+  "refinedHoldout": {
+    "cases": 4,
+    "errors": 0,
+    "defective": 2,
+    "detected": 2,
+    "blocked": 2,
+    "missed": 0,
+    "severityMisses": 0,
+    "acceptable": 2,
+    "falseRejections": 0
+  }
+}

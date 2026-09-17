@@ -215,3 +215,15 @@ CREATE TABLE IF NOT EXISTS org_ai (
 -- 0022: OpenAI-compatible provider (local LLMs via tunnel, vLLM, gateways).
 -- ALTER TABLE org_ai ADD COLUMN openai_base_url TEXT;
 -- ALTER TABLE org_ai ADD COLUMN openai_api_key TEXT;
+
+-- 0024: one owner-reviewed Learn course per app.
+CREATE TABLE IF NOT EXISTS learn_courses (
+  app_id INTEGER PRIMARY KEY REFERENCES apps(id) ON DELETE CASCADE,
+  revision INTEGER NOT NULL,
+  brief TEXT NOT NULL,
+  curriculum TEXT,
+  approved_revision INTEGER,
+  lesson TEXT,
+  source_version TEXT,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);

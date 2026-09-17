@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Calendar, ChevronDown, ChevronRight, Circle, Clock, Eye, EyeOff, Folder as FolderIcon, Inbox, Link as LinkIcon, ListFilter, Loader2, Lock, PanelRight, Play, Search, Settings2, Square, Type, Users, X } from 'lucide-react';
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
+import RepositoryImport from './RepositoryImport.jsx';
 import Shell from './Shell.jsx';
 import { isPrivateByoc } from './private-auth.js';
 import { Avatar, Chk, cn, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, toast, useHeaderDrag, ValuePicker } from './ui.jsx';
@@ -45,6 +46,7 @@ export default function App() {
 }
 
 function AppContent({ data, load }) {
+  const [importOpen, setImportOpen] = useState(false);
   const [panel, setPanel] = useState(null); // { name, tab }
   const [run, setRun] = useState(null); // { appName, id?, error? }
   const [search, setSearch] = useState(null); // null = collapsed, string = open
@@ -173,7 +175,8 @@ function AppContent({ data, load }) {
             <button onClick={() => navigate('/apps')} className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink">{data?.orgName || wsName(org)}</button>
             <span className="px-1">/</span> <span className="text-ink">{title}</span>
           </div>
-          <h1 className="pb-5 text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{title}</h1>
+          <div className="flex items-center justify-between pb-5"><h1 className="text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{title}</h1>{import.meta.env.VITE_COACHING_DEV === 'true' && !isPrivateByoc && <button onClick={() => setImportOpen(true)} className="rounded-lg bg-accent px-3 py-2 text-sm text-white hover:bg-accent-hover">Import repository</button>}</div>
+          {importOpen && <RepositoryImport onClose={() => setImportOpen(false)} onImported={load} />}
 
           {!data && <SkeletonRows rows={4} />}
           {data?.error && <div className="text-ink-2">✗ {data.error}</div>}
@@ -380,7 +383,7 @@ function AppContent({ data, load }) {
                               className="cursor-pointer"
                               onClick={(e) => { e.stopPropagation(); navigate(`/apps/${a.name}`); }}
                             >
-                              {a.name}
+                              {a.kind === 'repository' ? a.repo : a.name}
                             </button>
                           </span>
                         </td>
@@ -452,7 +455,7 @@ function AppContent({ data, load }) {
                             <PillButton
                               title="Open in side peek"
                               className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-                              onClick={(e) => { e.stopPropagation(); setPanel({ name: a.name, tab: 'runbook' }); }}
+                              onClick={(e) => { e.stopPropagation(); a.kind === 'repository' ? navigate(`/apps/${a.name}?tab=code`) : setPanel({ name: a.name, tab: 'runbook' }); }}
                             >
                               <PanelRight size={11} /> Open
                             </PillButton>

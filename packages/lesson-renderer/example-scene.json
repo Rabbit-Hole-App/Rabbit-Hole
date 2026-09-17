@@ -1,0 +1,70 @@
+{
+  "op": "generate_3d_animation",
+  "id": "projection-proof",
+  "concept": "Perspective camera geometry",
+  "purpose": "geometry",
+  "output": "glb",
+  "duration": 2,
+  "caption": "Camera frustum, axes, cube and a moving ray",
+  "scene": {
+    "objects": [
+      {
+        "id": "frustum",
+        "type": "camera_frustum",
+        "near": 0.2,
+        "far": 4,
+        "fov": 55,
+        "aspect": 1.5,
+        "color": "#4c78a8"
+      },
+      {
+        "id": "axes",
+        "type": "coordinate_frame",
+        "length": 1
+      },
+      {
+        "id": "subject",
+        "type": "cube",
+        "position": [
+          0,
+          0,
+          -3
+        ],
+        "color": "#ed8936"
+      },
+      {
+        "id": "ray",
+        "type": "arrow",
+        "start": [
+          0,
+          0,
+          0
+        ],
+        "end": [
+          0,
+          0,
+          -3
+        ],
+        "color": "#dc2626"
+      }
+    ],
+    "animations": [
+      {
+        "target": "ray",
+        "type": "rotate",
+        "from": [
+          0,
+          -15,
+          0
+        ],
+        "to": [
+          0,
+          15,
+          0
+        ],
+        "start": 0,
+        "end": 2
+      }
+    ]
+  }
+}

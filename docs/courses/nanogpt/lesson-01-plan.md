@@ -1,19 +1,60 @@
 # Lesson 1 material plan: What nanoGPT does
 
-Status: draft for owner review. Authored in this coding session as the initial example of the future Learn Agent artifact; not generated through the application's Learn Agent. Nothing rendered, no assets generated, notebook not executed.
+Status: draft for owner review. Authored in this coding session as the initial example of the future Learn Agent artifact; not generated through the application's Learn Agent. Pages 1–2 are authorized for a regular-dev rendering preview. No generated media; notebook not executed.
 
 Course: [nanoGPT Quickstart](quickstart-curriculum.md).
-Lesson ID: `nanogpt-quickstart-01`. Plan revision: 2.
+Lesson ID: `nanogpt-quickstart-01`. Plan revision: 3.
 Source commit: `3adf61e154c3fe3fca428ad6bc3818b27a3b8291`.
 Curriculum approval: pending. Plan approval: pending.
 
 ## Brief
 
-Objective: explain what the model predicts, distinguish text from token IDs, and describe the different roles of training and generation.
+Objectives:
+
+- `predict-next`: identify the observed next-character target from the available prefix.
+- `represent-text`: distinguish token IDs from probabilities and reverse a character encoding.
+- `training-vs-generation`: distinguish parameter updates from extending generated text.
+
+### Planned evidence of understanding
+
+| Check ID | Objective | Learner action | Evidence |
+|---|---|---|---|
+| `quiz-1` | `predict-next` | Existing Quiz Question 1: identify the next-character prediction task | Choice and correctness |
+| `encode-text` | `represent-text` | Page 2: encode `lo H` using the toy vocabulary | Four IDs and correctness; expected `[2, 3, 4, 0]` |
+| `generation-weights` | `training-vs-generation` | Page 4: answer whether a longer generated answer implies changed parameters | Yes/no choice and correctness; expected No |
+
+The three rows above are the objective-linked checks. Page 3's prefix selection
+is practice alongside Quiz Question 1. Quiz Question 2 is supplementary
+repository-artifact review, not a fourth core objective. Preserve both questions.
+Page 2 uses a new short string rather than copying the displayed Hello encoding.
+
+These are build requirements, not currently recorded events. On explicit answer
+submission retain learner/course/lesson/plan revision, check ID, objective ID,
+attempt number, response, correctness and whether the answer was already
+revealed. Page 3 also records zero-based position so the two l characters remain
+distinct. Keep first-attempt and eventual-correct results separate. A reveal
+without an answer is reviewed, not correctly answered; skipping or advancing
+playback is not completion. Save progress per learner and revision and restore
+it on reload. Reset affects only that learner's attempts. Keep the existing
+two-question quiz; do not add a long final quiz to duplicate these checks.
+
+For the planned progress display, distinguish guided-page playback, three
+objective checks, and optional review activities. Required participation is
+reaching the guided explanation's end and submitting the three core checks.
+Record correctness separately; completing participation does not imply mastery.
+Reveals or skipped checks remain unattempted until an answer is submitted.
+Further explanations, Quiz Question 2, flashcards and notebook are
+optional and must not block lesson completion or navigation to Lesson 2.
+Track their own activity states without folding them into the required lesson
+completion denominator. Any course-level Quickstart completion rule must retain
+that distinction; never silently require all four activity types.
 
 Audience assumption for review: learners comfortable with basic Python strings, lists and dictionaries, without prior transformer knowledge. The owner has not yet confirmed this assumption.
 
-Timing: roughly six minutes of canvas presentation, with short checks that learners can pause on; optional notebook ~five additional minutes. Reading supporting text is self-paced. These are design estimates, not measured playback times.
+The six page budgets total 360 seconds of guided explanation. Time spent paused
+on a check, reading, reviewing cards or experimenting in the notebook is
+additional. These are design estimates, not measured completion times. Do not
+advertise the whole lesson or its completion requirements as a six-minute task.
 
 Teaching direction: use the owner's requested Andrew Ng-inspired progression:
 motivate a concrete problem, build intuition, work through a small example,
@@ -36,6 +77,14 @@ equations, code, diagrams, images, video and interactive examples. Each planned
 asset states its content, placement and purpose before anything is generated.
 For this lesson, exact diagrams and code are appropriate; media is not added
 solely to demonstrate an available tool.
+
+## Timing
+
+- **Guided explanation:** ~6 min
+- **Quiz and review:** self-paced
+- **Optional notebook:** ~5 min, pending testing
+
+Playback estimate only; answering checks and optional reading add time.
 
 ## Page 1 — What are we trying to teach a computer? (~45 seconds)
 
@@ -121,7 +170,8 @@ Optional source link below the explanation: [nanoGPT README quickstart](https://
 - Note: **Same character, same ID. Spaces have IDs too.**
 - Reverse arrow label: **decode**.
 - Footnote: **Toy IDs for this example. Actual IDs depend on the dataset vocabulary.**
-- Check: **Does a larger ID make a character more important?** Answer after a pause: **No. An ID is a label.**
+- Explain: **An ID is a label, not an importance score.**
+- Short encoding check below the canvas: **Encode `lo H` using this toy vocabulary. Include the space.** Expected IDs: `[2, 3, 4, 0]`, revealed only after submission.
 - Transition: **What should the model learn from these IDs?**
 
 ### Assets
@@ -140,7 +190,16 @@ Optional source link below the explanation: [nanoGPT README quickstart](https://
 4. Connect characters to `[0, 1, 2, 2, 3]`. Highlight the repeated `l` and ID `2` together.
 5. Add a reverse arrow labeled **decode** back to the string.
 6. Footnote: **Toy IDs for this example. Actual IDs depend on the dataset vocabulary.**
-7. Ask the ID check, reveal the answer, then transition to learning from this sequence.
+7. Explain that IDs are labels; invite the encoding check below the canvas, then transition to learning from this sequence.
+
+Check `encode-text`: provide a four-ID text field and Check answer. Accept comma
+or space separators, with optional square brackets. Record a valid submitted
+answer before showing feedback. Expected: `[2, 3, 4, 0]`. Explain the lookup
+l → 2, o → 3, space → 4, H → 0, and decode it back to `lo H`. Invalid formatting
+is not a scored attempt. Retry preserves first-attempt correctness and records
+that the solution was already revealed. Playback and this check are independent.
+The two-page dev preview stores first/latest attempts, count and eventual success
+per account/workspace/app/pinned source/plan revision in this browser only.
 
 ### Spoken or written explanation
 
@@ -213,17 +272,50 @@ Source: `prepare.py:22–23`. Accompanying text: “The script gathers the disti
 ### Canvas text
 
 - Heading: **Use the prefix to predict what follows**.
-- Input row: `H`, `e`, `l`, `l`.
-- Target row: `e`, `l`, `l`, `o`.
+- Example sequence: `H`, `e`, `l`, `l`, `o`, labeled with positions 1–5.
+- Prompt: **Choose a position, then choose its observed next character.**
+- Prediction positions: 1–4. Position 5 note: **No recorded next character in this example.**
+- Answer choices: `H`, `e`, `l`, `o`. Action: **Check answer**.
+- Reveal the selected target after answering; show the full shifted row at recap.
 - Arrow label: **next character**.
-- Highlight label: **At position 3: context = Hel; target = l**.
+- Before answering at position 3: **Available prefix: Hel. What followed it in Hello?**
+- After answering: **Observed target: l.**
 - Captions: **Context = tokens available for this prediction.** **Context window = maximum number of input tokens considered at once.**
 - Check: **After Hel, what is the observed target in Hello?** Answer: **l, using only Hel as context.**
 - Transition: **How can comparing with that target improve a model?**
 
 ### Assets
 
-**Canvas diagram:** two aligned rows of four tiles. Highlight the prefix through the current position and its corresponding target; keep the remaining input tiles dimmed. The target row represents observed training text, not generated predictions.
+**Canvas interaction — `prefix-target`:** reuse the character tiles as position
+controls. The learner selects one of positions 1–4. Highlight the selected
+position and prefix; dim future tile outlines and mask their characters until
+submission, including in accessible labels. Dimming readable letters would give
+away the answer. This checks observed alignment, not model probabilities; the
+learner has already seen the full example.
+
+| Selected position | Available prefix | Observed target |
+|---|---|---|
+| 1: H | H | e |
+| 2: e | He | l |
+| 3: first l | Hel | l |
+| 4: second l | Hell | o |
+
+Use position indices, not character values. Position 5 is labeled as having no
+recorded successor; do not invent an end-of-sequence token. Changing position
+clears an unsubmitted answer but retains prior attempts. Arrow keys move among
+positions; Enter/Space selects. Choices and Check answer are keyboard-operable,
+with visible focus and feedback announced without relying on color.
+
+After submission, record the attempt and reveal the target and associated arrow.
+For position 3, correct feedback: “Yes. After Hel, Hello contains another l.”
+Incorrect: “You selected [choice]. After Hel the next character in this example
+is l; the final o comes one position later.” Use the actual prefix/target for
+other positions. Offer Retry, Try another position and Continue; mark trials
+after a solution reveal as such. One answered trial is participation, not proof
+of mastery of all positions. Support Skip and returning later.
+
+After the interaction show both aligned rows as a recap. They represent observed
+training text, not generated predictions. No additional media asset is needed.
 
 **Further explanations diagram:** a two-panel static context-window illustration from `Hello Hello`, using a toy window of four. Show `Hell → o`, then `ello → [space]`, with the excluded first `H` outside the second window. Mark this window size as illustrative, not the quickstart setting. Alt text: “After appending o, the four-character window contains ello and excludes the first H.” Also reuse the aligned rows beside the code and probability notation.
 
@@ -232,17 +324,17 @@ Use structured tiles and arrows for both diagrams. No photo or generated video i
 ### Drawing sequence
 
 1. Title: **Use the prefix to predict what follows**.
-2. Input row: `H`, `e`, `l`, `l`.
-3. Target row aligned underneath: `e`, `l`, `l`, `o`.
-4. Reveal four vertical arrows one at a time, each labeled **next character**.
-5. Highlight the third input and its available prefix `H e l`; dim the later `l`.
-6. Caption: **Context = tokens available for this prediction.**
-7. Caption: **Context window = maximum number of input tokens considered at once.**
-8. Ask the check before revealing its target. Finish with the transition about improving predictions.
+2. Show Hello with numbered positions. Demonstrate position 1 as an explicitly unscored example.
+3. Pause for the learner to choose a position and submit an answer. Do not reveal the answer on a timer.
+4. Give feedback and reveal the associated arrow only after submission. Offer another position, Continue or Skip.
+5. On Continue or Skip, reveal the complete input row H e l l and target row e l l o, one associated arrow at a time. Mark later trials as following a reveal.
+6. Add the context and context-window captions, then transition to how comparison improves the model. Extra learner interaction time is outside the clip-duration estimate.
 
 ### Spoken or written explanation
 
-“We have the sequence Hello. How can it supply its own answers? After H, the observed next character is e. Shift the sequence by one position and every input has a target. At the third position, the context is Hel; what comes next in this example? Another l. The predictor may use the prefix, but seeing future characters would give away the answer. Now we can compare a prediction with a target. How does that comparison help the model learn?”
+Before interaction: “We have the sequence Hello. How can it supply its own answers? After H, the observed next character is e. Now choose a position yourself. Look at the prefix and choose the character that followed it in this example.”
+
+After submission or Skip: “Shifting by one position pairs inputs with targets. The predictor may use the prefix, but seeing future characters would give away the answer. Now we can compare a prediction with a target. How does that comparison help the model learn?” Do not narrate a pending answer before submission.
 
 ### Further explanations
 
@@ -312,7 +404,7 @@ Source pill: [config/train_shakespeare_char.py, lines 15–22](https://github.co
 - Generation caption: **Text grows; learned parameters stay fixed**.
 - Side note: **Validation compares with known targets, without updating parameters**.
 - Definition: **Learned parameters = adjustable numerical values inside the model**.
-- Check: **Does a longer generated answer mean the parameters changed?** Answer: **No. The context grew.**
+- Check: **Does a longer generated answer mean the parameters changed?** Answer: **No. The generated text changed; the learned parameters stayed fixed.**
 - Transition: **Where do training and generation live in nanoGPT?**
 
 ### Assets
@@ -331,7 +423,7 @@ No video generation. Staged arrows already show the repeated process precisely a
 4. Under training: **Learned parameters change**.
 5. Under generation: **Text grows; learned parameters stay fixed**.
 6. Add the validation side note after both main lanes are complete.
-7. Ask the parameter-change check, reveal its answer, then transition to the repository mapping.
+7. Pause for check `generation-weights`, with Yes / No and Check answer. Record the choice before feedback. Correct: “No. The generated text changed; the learned parameters stayed fixed.” Incorrect: “Appending tokens changes the generated sequence, not the learned parameters. Once the context window is full, each prediction uses a shifted, bounded input.” Offer Retry or Skip, then transition to the repository mapping.
 
 ### Spoken or written explanation
 
@@ -388,7 +480,10 @@ The generation method repeatedly obtains next-token scores, selects a token and 
 ### Canvas text
 
 - Heading: **nanoGPT makes the training and generation pipeline concrete**.
-- Stages: **Tiny Shakespeare text**, **prepare.py**, **token files**, **train.py**, **model checkpoint**, **sample.py**, **generated text**.
+- Initial view: **Prepare data → Train a model → Generate text**.
+- Reveal inside Prepare data: **Tiny Shakespeare text → prepare.py → train.bin / val.bin**.
+- Reveal inside Train a model: **train.py**, **model checkpoint**.
+- Reveal inside Generate text: **sample.py → generated text**; the checkpoint supplies learned state.
 - Token-file labels: **train.bin: learning examples**; **val.bin: held-out evaluation examples**.
 - Training input: **config/train_shakespeare_char.py → settings**.
 - Model definition label beside training and sampling: **model.py: the GPT implementation**.
@@ -398,7 +493,13 @@ The generation method repeatedly obtains next-token scores, selects a token and 
 
 ### Assets
 
-**Canvas diagram:** a repository workflow with seven stage boxes, a split for the two token files, and a settings box. Label the validation connection “evaluate,” rather than making it look like validation examples update weights. Connect `model.py` to both training and sampling with smaller “uses” connectors.
+**Canvas diagram:** start with only three group containers and two connecting
+arrows: Prepare data → Train a model → Generate text. Reveal filenames inside
+the active group while explaining its role. Keep group positions stable and
+earlier groups visible but quiet. Configuration is a small settings annotation
+inside Train a model, not a fourth stage. Add model.py as a shared implementation
+label only once training and generation are clear. Put the detailed connections
+in Further explanations. Preserve all existing pinned source links.
 
 **Further explanations visual:** a static three-card comparison: “Data: encoded examples,” “Code: how computation works,” “Checkpoint: saved learned state.” Use file icons and text, not screenshots of imaginary files. Alt text: “Token files, Python source, and a saved checkpoint play different roles in one pipeline.”
 
@@ -407,11 +508,11 @@ No external media or generated video. These exact repository relationships are c
 ### Drawing sequence
 
 1. Title: **nanoGPT makes the training and generation pipeline concrete**.
-2. Build a left-to-right diagram: **Tiny Shakespeare text → prepare.py → token files → train.py → model checkpoint**.
-3. Below token files, show two branches: **train.bin: learning examples** and **val.bin: held-out evaluation examples**.
-4. Add **config/train_shakespeare_char.py** above the training box with an arrow labeled **settings**.
-5. Extend checkpoint to **sample.py → generated text**.
-6. Add `model.py` beside the training and sampling stages, connecting it to each as the implementation they use. Reveal the distinction between data and learned state.
+2. Show only **Prepare data → Train a model → Generate text**, explaining the three purposes before filenames.
+3. Emphasize Prepare data; reveal the text, prepare.py and token files inside it.
+4. Emphasize Train a model; reveal train.py, checkpoint and the small configuration annotation. Explain training versus evaluation without drawing all branches.
+5. Emphasize Generate text; reveal sample.py and generated text, showing that it uses saved learned state.
+6. Add the shared model.py label. Offer the detailed static diagram in Further explanations rather than expanding every connection automatically.
 7. Ask which artifact stores examples and which stores learned state; reveal the answer, then transition to the recap.
 
 ### Spoken or written explanation
@@ -423,6 +524,14 @@ No external media or generated video. These exact repository relationships are c
 #### Turn the conceptual workflow into a reading map
 
 Suppose you want to move from our `Hello` example to training on a real text collection. You need more than a prediction formula: you need prepared data, a model implementation, a training procedure and a way to use the result. nanoGPT makes those responsibilities visible in a few files. Read the diagram from left to right before opening any source file.
+
+**Reuse and expand the three-group diagram here.** Keep the same group positions,
+adding the train.bin / val.bin branches, a validation arrow labeled “evaluate,”
+the configuration settings connection and model.py uses links to training and
+sampling. This static version leaves time to inspect the detail. Alt text:
+“Preparation writes training and validation data; training updates a model while
+validation evaluates it. Generation uses saved model state. Configuration
+supplies settings; model.py supplies the shared implementation.”
 
 #### Separate the examples, the computation and the learned result
 
@@ -543,6 +652,8 @@ We now know what goes into the model and what it is asked to predict. We have no
 | context-window-reading | Static two-panel tile diagram | Extend Page 3 with a bounded-window example | Further explanations: Hell → o, ello → [space]; toy window of four |
 | artifact-comparison-reading | Three illustrated cards | Distinguish data, code and learned state | Further explanations on Page 5; file icons and exact labels |
 | generation-trace-reading | Two-step text diagram | Reuse Page 4's generation loop with a concrete example | Further explanations: Hell → Hello → Hello[space]; invented continuation |
+| prefix-target | Position selection, answer submission and feedback | Let the learner apply prefix/target alignment | Page 3; reuses character tiles; objective predict-next |
+| repository-details-reading | Expanded static three-group diagram | Preserve detail without crowding the initial view | Page 5 Further explanations; existing source links retained |
 
 Use existing tldraw text/diagram primitives. Group meaningfully related shapes with semantic IDs and source metadata. Connectors appear with their associated explanation, not all at once. Source pills open the highlighted file in the resizable right panel, keeping chat available.
 
@@ -602,6 +713,14 @@ answer the concrete question before flipping; the back supplies the concept and
 its reasoning. The cards practice retrieval rather than copying definitions.
 
 ## Optional notebook — Text and token IDs (~5 minutes)
+
+Clean draft export: [lesson-01-notebook.ipynb](lesson-01-notebook.ipynb).
+It preserves raw code, splitting the five review sections into seven Jupyter
+cells (three code and four Markdown). All six Python fences in this lesson
+compile, allowing top-level await for the Pyodide download cell. No escaped
+underscores, emphasized keywords or nonbreaking-space indentation were found in
+the source. The export round-trips the three notebook code cells exactly. These
+checks do not establish browser execution; that release requirement stays open.
 
 Editable learner copy with Reset to this approved baseline. No training, GPU, model download or checkpoint required. Browser notebook dependency: Pyodide's existing `pyodide.http.pyfetch`; remaining operations use Python built-ins.
 
@@ -697,7 +816,17 @@ Then change the start positions or preview length. Explain why different snippet
 - [ ] Owner confirms audience and reviews timing/content.
 - [ ] Curriculum and this exact lesson plan revision approved.
 - [ ] Dataset snapshot pinned and browser notebook executed successfully.
+- [ ] Raw notebook export round-trips without escaped underscores, emphasized keywords or nonbreaking-space indentation; exported notebook executed in the actual browser runtime.
+- [ ] Page 3 position selection, answer masking, keyboard interaction and feedback verified.
+- [ ] Objective-linked checks persist across reload, distinguish attempted/correct/revealed/skipped states and isolate each learner's progress.
 - [ ] Rendering matches the approved plan, source links and highlights work.
 - [ ] Quizzes, flashcards, notebook editing/reset and lesson playback verified.
 
 Open review point: six minutes leaves limited time for reading. Keep extended text below the canvas and let learners pause; measure pacing in preview before calling this a six-minute lesson.
+
+Next milestone: one functioning Lesson 1, with this interaction and the existing
+assessments, previewed by someone comfortable with basic Python and new to
+transformers. Observe whether they can complete the prefix/target task, explain
+fixed parameters during generation, and distinguish data from learned state.
+Record confusion and time spent; revise from that evidence rather than adding
+more assets. Audience preview and all build requirements above remain pending.

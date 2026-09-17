@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import { clsx as cn } from 'clsx';
-import { Check, ChevronDown, ChevronRight, Clock, Copy as CopyIcon, File as FileIcon, Globe, Maximize2, Minimize2, Play, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Clock, Copy as CopyIcon, File as FileIcon, Globe, Maximize2, Minimize2, Network, Play, Upload, X } from 'lucide-react';
 
 export { cn };
 
@@ -15,7 +15,7 @@ export const RADIUS = { control: 'rounded-lg', popover: 'rounded-md', modal: 'ro
 
 // Kind icon per app: Globe server, Play job, Clock scheduled job. 16px, stroke 1.5.
 export const KindIcon = ({ kind, schedule, size = 16 }) => {
-  const I = kind === 'job' ? (schedule ? Clock : Play) : Globe;
+  const I = kind === 'repository' ? Network : kind === 'job' ? (schedule ? Clock : Play) : Globe;
   return <I size={size} strokeWidth={1.5} className="shrink-0 text-ink-2" />;
 };
 
@@ -246,9 +246,9 @@ export function useSidebarInset() {
 }
 
 // Chat's existing page dimensions are shared by every enlarged view.
-export function ExpandedPageFrame({ expanded = true, children }) {
+export function ExpandedPageFrame({ expanded = true, wide = false, children }) {
   return <div className={expanded
-    ? 'expanded-page-frame mx-auto flex h-full w-full max-w-[780px] min-h-0 flex-col px-6 py-6'
+    ? `expanded-page-frame mx-auto flex h-full w-full ${wide ? 'max-w-[900px]' : 'max-w-[780px]'} min-h-0 flex-col px-6 py-6`
     : 'flex min-h-0 w-full flex-1 flex-col'}>{children}</div>;
 }
 
@@ -419,7 +419,7 @@ export function ConfirmDialog({ title, body, confirmLabel = 'Delete', confirmVar
   }, []);
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={onCancel}>
-      <div className="mt-[26vh] w-96 max-w-[90vw] rounded-2xl bg-white p-4 shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label={title} className="mt-[26vh] w-96 max-w-[90vw] rounded-2xl bg-white p-4 shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
         <div className="pb-1 text-sm font-semibold">{title}</div>
         <div className="pb-4 text-sm text-ink-2">{body}</div>
         <div className="flex justify-end gap-2">
@@ -530,7 +530,7 @@ export function Slider({ min = 0, max = 1, step, value, onChange, inputProps }) 
 // Select - input-styled trigger, chevron, shadow-pop option list; a search field
 // tops the menu past ~6 options. Trigger toggles on mousedown so closing doesn't
 // race Menu's outside-mousedown close into a reopen.
-export function Select({ value, options = [], placeholder = 'Select…', onChange }) {
+export function Select({ value, options = [], placeholder = 'Select…', onChange, ...props }) {
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState(null); // trigger position at open time (menu portals to body)
   const [q, setQ] = useState('');
@@ -539,7 +539,8 @@ export function Select({ value, options = [], placeholder = 'Select…', onChang
     <div className="relative">
       <button
         type="button"
-        onMouseDown={(e) => { e.stopPropagation(); setRect(e.currentTarget.getBoundingClientRect()); setOpen(!open); setQ(''); }}
+          {...props}
+          onMouseDown={(e) => { e.stopPropagation(); setRect(e.currentTarget.getBoundingClientRect()); setOpen(!open); setQ(''); }}
         className="flex h-8 w-full cursor-pointer items-center rounded-sm border border-transparent bg-code px-2 pr-7 text-left text-sm transition-[border-color,box-shadow] duration-100 outline-none focus:border-line-strong focus:bg-white focus:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]"
       >
         <span className={cn('min-w-0 flex-1 truncate', value == null || value === '' ? 'text-ink-3' : undefined)}>{value == null || value === '' ? placeholder : String(value)}</span>

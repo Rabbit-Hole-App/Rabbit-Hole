@@ -1,0 +1,247 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "op": {
+      "type": "string",
+      "enum": [
+        "generate_3d_animation"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+    },
+    "concept": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "purpose": {
+      "type": "string",
+      "enum": [
+        "spatial_intuition",
+        "technical_visualization",
+        "geometry",
+        "mechanism"
+      ]
+    },
+    "output": {
+      "type": "string",
+      "enum": [
+        "glb"
+      ]
+    },
+    "duration": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 10
+    },
+    "caption": {
+      "type": "string",
+      "maxLength": 300
+    },
+    "scene": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "objects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 24,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "cube",
+                  "sphere",
+                  "arrow",
+                  "coordinate_frame",
+                  "camera_frustum"
+                ]
+              },
+              "parent": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+              },
+              "position": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "items": {
+                  "type": "number",
+                  "minimum": -100,
+                  "maximum": 100
+                }
+              },
+              "rotation": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "items": {
+                  "type": "number",
+                  "minimum": -100,
+                  "maximum": 100
+                }
+              },
+              "scale": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "items": {
+                  "type": "number",
+                  "minimum": 0.01,
+                  "maximum": 20
+                }
+              },
+              "color": {
+                "type": "string",
+                "pattern": "^#[0-9a-fA-F]{6}$"
+              },
+              "start": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "items": {
+                  "type": "number",
+                  "minimum": -100,
+                  "maximum": 100
+                }
+              },
+              "end": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "items": {
+                  "type": "number",
+                  "minimum": -100,
+                  "maximum": 100
+                }
+              },
+              "thickness": {
+                "type": "number",
+                "minimum": 0.005,
+                "maximum": 0.2
+              },
+              "length": {
+                "type": "number",
+                "minimum": 0.1,
+                "maximum": 10
+              },
+              "near": {
+                "type": "number",
+                "minimum": 0.01,
+                "maximum": 10
+              },
+              "far": {
+                "type": "number",
+                "minimum": 0.02,
+                "maximum": 20
+              },
+              "fov": {
+                "type": "number",
+                "minimum": 5,
+                "maximum": 120
+              },
+              "aspect": {
+                "type": "number",
+                "minimum": 0.2,
+                "maximum": 5
+              }
+            },
+            "required": [
+              "id",
+              "type"
+            ]
+          }
+        },
+        "animations": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "target": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "translate",
+                  "rotate",
+                  "scale"
+                ]
+              },
+              "from": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "items": {
+                  "type": "number",
+                  "minimum": -100,
+                  "maximum": 100
+                }
+              },
+              "to": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "items": {
+                  "type": "number",
+                  "minimum": -100,
+                  "maximum": 100
+                }
+              },
+              "start": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "end": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              }
+            },
+            "required": [
+              "target",
+              "type",
+              "from",
+              "to",
+              "start",
+              "end"
+            ]
+          }
+        }
+      },
+      "required": [
+        "objects"
+      ]
+    }
+  },
+  "required": [
+    "op",
+    "id",
+    "concept",
+    "purpose",
+    "output",
+    "scene"
+  ]
+}
