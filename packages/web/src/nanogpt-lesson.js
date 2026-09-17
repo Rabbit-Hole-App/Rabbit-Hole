@@ -23,16 +23,6 @@ const tiles = (objectId, values, x, y, colors = []) => values.flatMap((value, i)
   box(objectId, x + i * 64, y, 52, 54, colors[i] || 'blue'),
   text(objectId, value, x + i * 64 + 14, y + 7, 34, 'm', 250),
 ]);
-// Color language on every page: blue = given, violet = action, red = question,
-// orange = answer, green = what comes next.
-const legend = objectId => [
-  box(objectId, 830, 18, 48, 26, 'blue'), text(objectId, 'given', 886, 21, 110, 's', 100, 'blue'),
-  box(objectId, 830, 52, 48, 26, 'violet'), text(objectId, 'action', 886, 55, 110, 's', 100, 'violet'),
-  box(objectId, 830, 86, 48, 26, 'red'), text(objectId, 'question', 886, 89, 110, 's', 100, 'red'),
-  box(objectId, 830, 120, 48, 26, 'orange'), text(objectId, 'answer', 886, 123, 110, 's', 100, 'orange'),
-  box(objectId, 830, 154, 48, 26, 'green'), text(objectId, 'up next', 886, 157, 110, 's', 100, 'green'),
-];
-const LEGEND_MEANING = { kind: 'annotation', label: 'Color legend', originalText: 'Blue = given input, violet = action, red = question, orange = answer or output, green = what comes next.', relatedObjectIds: [] };
 const meaning = (kind, label, originalText, relatedObjectIds = []) => ({ kind, label, originalText, relatedObjectIds });
 
 export const nanoLesson = {
@@ -49,10 +39,8 @@ export const nanoLesson = {
         probabilities: meaning('annotation', 'Probabilities, not guarantees', 'A prediction assigns probabilities; it does not guarantee the next character.', ['prediction']),
         check: meaning('question', 'One token, then repeat', 'Do we need to predict the whole sentence at once? No. Predict one token, then repeat.', ['prefix', 'prediction']),
         transition: meaning('annotation', 'Represent text as numbers', 'How can we represent this text as numbers?', []),
-        legend: LEGEND_MEANING,
       },
       scene: [
-        ...legend('legend'),
         text('title', 'What does a language model predict?', 40, 20, 760, 'l'),
         ...tiles('prefix', ['H', 'e', 'l', 'l', '?'], 45, 125, ['blue', 'blue', 'blue', 'blue', 'yellow']),
         text('prefix', 'Given the text so far,\npredict the next token.', 45, 210, 345, 'm', 2200, 'blue'),
@@ -74,10 +62,8 @@ export const nanoLesson = {
         encoding: meaning('diagram', 'Look up each character', 'Each character position maps to its integer ID using the toy vocabulary.', ['vocabulary', 'ids']),
         decode: meaning('annotation', 'Decode IDs back to text', 'Decode [0, 1, 2, 2, 3] with the same dictionary to recover Hello. IDs are labels, not importance scores or learned embeddings.', ['vocabulary', 'ids']),
         check: meaning('question', 'Try encoding a new string', 'Use the same toy vocabulary to encode lo H, including the space. The exercise is below the canvas.', ['vocabulary']),
-        legend: LEGEND_MEANING,
       },
       scene: [
-        ...legend('legend'),
         text('title', 'Text → tokens → integer IDs', 40, 20, 760, 'l'),
         ...tiles('characters', ['H', 'e', 'l', 'l', 'o'], 45, 115, ['blue', 'blue', 'orange', 'orange', 'blue']),
         text('vocabulary', 'Toy vocabulary', 430, 100, 350, 'm', 1400, 'blue'),
@@ -101,10 +87,8 @@ export const nanoLesson = {
         rows: meaning('diagram', 'Inputs and shifted targets', 'Input row H e l l pairs with target row e l l o. The target row is the same text shifted one position; these are observed training pairs, not model predictions.', ['sequence', 'captions']),
         captions: meaning('annotation', 'Context and context window', 'Context = tokens available for this prediction. Context window = the maximum number of input tokens considered at once.', ['rows']),
         transition: meaning('annotation', 'Toward training', 'How can comparing a prediction with its target improve a model?', []),
-        legend: LEGEND_MEANING,
       },
       scene: [
-        ...legend('legend'),
         text('title', 'Use the prefix to predict what follows', 40, 20, 760, 'l'),
         ...tiles('sequence', ['H', 'e', 'l', 'l', 'o'], 45, 105),
         ...['1', '2', '3', '4', '5'].map((v, i) => text('sequence', v, 45 + i * 64 + 18, 165, 30, 'm', 150, 'violet')),
@@ -129,10 +113,8 @@ export const nanoLesson = {
         validation: meaning('annotation', 'Validation', 'Validation compares predictions with known targets, without updating parameters.', ['training']),
         check: meaning('question', 'Longer answer, new weights?', 'Does a longer generated answer mean the parameters changed? No - the generated text changed; the learned parameters stayed fixed. Answered below the canvas.', ['generation']),
         transition: meaning('annotation', 'Toward the repository', 'Where do training and generation live in nanoGPT?', []),
-        legend: LEGEND_MEANING,
       },
       scene: [
-        ...legend('legend'),
         text('title', 'Same prediction task, different use', 40, 20, 760, 'l'),
         box('training', 45, 100, 730, 120, 'light-violet'),
         text('training', 'Training', 65, 110, 200, 'm', 300, 'violet'),
@@ -169,10 +151,8 @@ export const nanoLesson = {
         generate: meaning('diagram', 'Generate text', 'sample.py loads the checkpoint and extends a prompt into generated text. model.py supplies the shared GPT implementation.', ['train']),
         closing: meaning('annotation', 'Examples versus learned state', 'Data files are examples. A checkpoint stores learned state. train.bin does not contain the learned weights.', ['prepare', 'train']),
         transition: meaning('annotation', 'Toward the recap', 'Can you trace one string through this entire workflow?', []),
-        legend: LEGEND_MEANING,
       },
       scene: [
-        ...legend('legend'),
         text('title', 'nanoGPT makes the pipeline concrete', 40, 20, 760, 'l'),
         box('stages', 45, 100, 210, 90, 'violet'), text('stages', 'Prepare data', 60, 128, 190, 'm', 400, 'violet'),
         arrow('stages', 262, 145, 45, 0),
@@ -201,10 +181,8 @@ export const nanoLesson = {
         check2: meaning('question', 'Why separate validation data?', 'Training and validation data stay separate to evaluate predictions on examples not used for the training updates.', ['recap']),
         answer2: meaning('annotation', 'Answer: held-out evaluation', 'To evaluate predictions on examples not used for the training updates.', ['check2']),
         closing: meaning('annotation', 'What comes next', 'Try the quiz, review the flashcards, or inspect text and IDs in the notebook. Lesson 2 opens the model.', []),
-        legend: LEGEND_MEANING,
       },
       scene: [
-        ...legend('legend'),
         text('title', 'Text in, next-token predictions out', 40, 20, 760, 'l'),
         box('recap', 45, 100, 140, 48, 'blue'), text('recap', 'Text', 88, 113, 70, 's', 150),
         arrow('recap', 191, 124, 26, 0),

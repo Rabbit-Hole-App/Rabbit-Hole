@@ -54,6 +54,66 @@ export function useNanoProgress(app, enabled) {
   return { saved, error, loaded, record, submit, submitPrefix, submitGeneration, persistent: !!key };
 }
 
+const Tile = ({ children, tone = '' }) => <span className={`inline-flex h-9 min-w-9 items-center justify-center rounded border px-1 font-mono text-sm ${tone === 'out' ? 'border-dashed border-line text-ink-3' : tone === 'target' ? 'border-orange-400 text-orange-700' : tone === 'action' ? 'border-purple-400 text-purple-700' : 'border-blue-300 text-ink'}`}>{children}</span>;
+const Fig = ({ label, caption, children }) => <figure className="my-5 rounded-lg border border-line p-4" aria-label={label}>{children}<figcaption className="mt-3 text-xs text-ink-2">{caption}</figcaption></figure>;
+
+const READING_VISUALS = {
+  // Page 3: bounded context window sliding over "Hello Hello" (toy window of 4).
+  window: () => <Fig label="Sliding context window" caption="A toy window of four characters: the sequence grows while each prediction reads a bounded window. Illustrative size, not the quickstart setting.">
+    <div className="space-y-3">
+      {[[['H', ''], ['e', ''], ['l', ''], ['l', '']], [['H', 'out'], ['e', ''], ['l', ''], ['l', ''], ['o', '']]].map((row, i) => <div key={i} className="flex flex-wrap items-center gap-1.5">
+        {row.map(([value, tone], j) => <Tile key={j} tone={tone}>{value}</Tile>)}
+        <span aria-hidden="true" className="px-1 text-ink-2">→</span><Tile tone="target">{i === 0 ? 'o' : '␣'}</Tile>
+        {i === 1 && <span className="ml-2 text-xs text-ink-3">first H falls outside the window</span>}
+      </div>)}
+    </div>
+  </Fig>,
+  // Page 4: the two lanes, compact.
+  lanes: () => <Fig label="Training and generation lanes" caption="The prediction step is identical; only what changes afterwards differs.">
+    {[['Training', ['known text', 'predict', 'compare', 'update θ'], 'parameters change'], ['Generation', ['prompt', 'predict', 'select', 'append'], 'text grows; parameters stay fixed']].map(([name, steps, note]) => <div key={name} className="mb-2 flex flex-wrap items-center gap-1.5 last:mb-0">
+      <span className="w-24 text-xs font-semibold text-purple-700">{name}</span>
+      {steps.map((step, i) => <span key={step} className="flex items-center gap-1.5">{i > 0 && <span aria-hidden="true" className="text-ink-2">→</span>}<Tile tone={i === steps.length - 1 ? 'target' : i === 0 ? '' : 'action'}>{step}</Tile></span>)}
+      <span className="ml-2 text-xs text-ink-3">{note}</span>
+    </div>)}
+  </Fig>,
+  // Page 4: two-step generation trace.
+  trace: () => <Fig label="Two generation steps" caption="Invented continuation, not a checkpoint result. A selected character is appended before the next prediction; the learned parameters do not change.">
+    <div className="flex flex-wrap items-center gap-2 font-mono text-base">
+      <span>Hell</span><span aria-hidden="true">→</span>
+      <span>Hell<strong className="text-orange-700">o</strong></span><span aria-hidden="true">→</span>
+      <span>Hello<strong className="text-orange-700">␣</strong></span>
+    </div>
+  </Fig>,
+  // Page 5: expanded pipeline map.
+  pipeline: () => <Fig label="nanoGPT pipeline map" caption="Preparation writes training and validation data; training updates a model while validation evaluates it; generation uses saved model state. model.py supplies the shared implementation.">
+    <div className="grid gap-3 text-sm sm:grid-cols-3">
+      {[['Prepare data', ['text → prepare.py', 'train.bin · learning examples', 'val.bin · held-out examples']], ['Train a model', ['train.py + config settings', 'evaluate on val.bin', '→ checkpoint']], ['Generate text', ['sample.py', 'loads the checkpoint', '→ generated text']]].map(([stage, lines]) => <div key={stage} className="rounded-lg border border-purple-300 p-3">
+        <p className="mb-1 font-semibold text-purple-700">{stage}</p>
+        {lines.map(line => <p key={line} className="font-mono text-xs leading-6 text-ink-2">{line}</p>)}
+      </div>)}
+    </div>
+    <p className="mt-3 rounded border border-line px-3 py-2 text-center font-mono text-xs text-ink-2">model.py — shared GPT implementation for training and sampling</p>
+  </Fig>,
+  // Page 5: data / code / checkpoint roles.
+  artifacts: () => <Fig label="Data, code and checkpoint" caption="Token files, Python source, and a saved checkpoint play different roles in one pipeline.">
+    <div className="grid gap-3 text-sm sm:grid-cols-3">
+      {[['Data', 'train.bin / val.bin', 'encoded examples', 'blue'], ['Code', 'model.py, train.py…', 'how computation works', 'purple'], ['Checkpoint', 'ckpt.pt', 'saved learned state', 'orange']].map(([role, file, description, tone]) => <div key={role} className={`rounded-lg border p-3 ${tone === 'blue' ? 'border-blue-300' : tone === 'purple' ? 'border-purple-300' : 'border-orange-400'}`}>
+        <p className={`font-semibold ${tone === 'blue' ? 'text-blue-700' : tone === 'purple' ? 'text-purple-700' : 'text-orange-700'}`}>{role}</p>
+        <p className="mt-1 font-mono text-xs">{file}</p>
+        <p className="mt-1 text-xs text-ink-2">{description}</p>
+      </div>)}
+    </div>
+  </Fig>,
+  // Page 6: the annotated Hello trace.
+  annotated: () => <Fig label="Annotated Hello trace" caption="Inputs pair with one-position-shifted targets. At the highlighted position the prefix is Hel and the observed target is l, ID 2.">
+    <div className="space-y-2 font-mono text-sm">
+      <div className="flex flex-wrap items-center gap-1.5"><span className="w-16 text-xs text-ink-2">text</span>{['H', 'e', 'l', 'l', 'o'].map((value, i) => <Tile key={i}>{value}</Tile>)}<span aria-hidden="true" className="px-1 text-ink-2">→</span><span>[0, 1, 2, 2, 3]</span></div>
+      <div className="flex flex-wrap items-center gap-1.5"><span className="w-16 text-xs text-ink-2">inputs</span>{['0', '1', '2', '2'].map((value, i) => <Tile key={i} tone={i === 2 ? 'action' : ''}>{value}</Tile>)}</div>
+      <div className="flex flex-wrap items-center gap-1.5"><span className="w-16 text-xs text-ink-2">targets</span>{['1', '2', '2', '3'].map((value, i) => <Tile key={i} tone={i === 2 ? 'target' : ''}>{value}</Tile>)}</div>
+    </div>
+  </Fig>,
+};
+
 function SupportingVisual({ page }) {
   return <figure className="my-5 rounded-lg border border-line p-4" aria-label={page === 0 ? 'Two next-token steps' : 'Toy character lookup'}>
     {page === 0 ? <div className="flex flex-wrap items-center gap-3 font-mono text-base"><span>Hell</span><span aria-hidden="true">→</span><span>Hell<strong className="text-orange-700">o</strong></span><span aria-hidden="true">→</span><span>Hello<strong className="text-orange-700">[space]</strong></span></div>
@@ -134,8 +194,15 @@ export default function NanoLessonReading({ page, progress, onSource, canvasPick
     .replace(/\*\*Supporting visual[^\n]+/, '@@visual@@')
     .replace('**Reuse the canvas lookup card beside this code.** ', '')
     .replace('**Insert the extended static mapping here.**', '\n\n@@visual@@\n\n')
-    // Later pages: authoring directives about planned diagrams are not learner text.
-    : material.reading.replace(/^\*\*(?:Insert|Reuse)[^\n]*\n?/gm, ''));
+    // Later pages: the plan's diagram directives become rendered visuals.
+    : material.reading
+      .replace(/^\*\*Insert the planned two-panel sliding-window diagram here\.\*\*[^\n]*/m, '\n@@window@@\n')
+      .replace(/^\*\*Reuse the canvas lanes here\*\*[^\n]*/m, '\n@@lanes@@\n')
+      .replace(/^\*\*Insert the planned generation trace here\.\*\* ?/m, '@@trace@@\n\n')
+      .replace(/\*\*Reuse and expand the three-group diagram here\.\*\*[\s\S]*?\r?\n\r?\n/, '@@pipeline@@\n\n')
+      .replace(/^\*\*Insert the planned data\/code\/checkpoint comparison here\.\*\* ?/m, '@@artifacts@@\n\n')
+      .replace(/^\*\*Reuse the annotated trace here\.\*\* ?/m, '@@annotated@@\n\n')
+      .replace(/^\*\*(?:Insert|Reuse)[^\n]*\n?/gm, ''));
   const refs = [...material.references.matchAll(/\[([^\]]+)\]\((https:[^)]+)\)/g)];
   return <div className="space-y-6 pb-8">
     {page === 1 && <section aria-label="Encoding check" className="rounded-xl border border-line bg-white p-5 text-ink">
@@ -164,7 +231,12 @@ export default function NanoLessonReading({ page, progress, onSource, canvasPick
     {progress.error && <p role="alert" className="text-sm text-red-700">{progress.error}</p>}
     <section aria-label="Further explanations" className="text-sm leading-relaxed">
       <h3 className="mb-4 flex items-center gap-2 text-base font-semibold"><BookOpen size={17} />Further explanations</h3>
-      {reading.split('@@visual@@').map((part, i) => <div key={i}>{i > 0 && <SupportingVisual page={page} />}<Md text={part} /></div>)}
+      {reading.split(/@@([a-z]+)@@/).map((part, i) => {
+        if (i % 2 === 0) return <Md key={i} text={part} />;
+        if (part === 'visual') return <SupportingVisual key={i} page={page} />;
+        const Visual = READING_VISUALS[part];
+        return Visual ? <Visual key={i} /> : null;
+      })}
     </section>
     <section aria-label="References and further reading" className="text-sm">
       <h3 className="mb-3 font-semibold">References and further reading</h3>

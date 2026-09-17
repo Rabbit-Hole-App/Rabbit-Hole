@@ -239,3 +239,6 @@ tr.cursor-pointer:active > td {
 
 /* Enlarged panels use the same content edges as the chat page. */
 .expanded-page-frame > [data-panel-content] { padding-inline: 0; padding-bottom: 0; }
+
+/* Lesson canvas tools hide until the side toggle opens them. */
+.learn-canvas.tools-hidden .tlui-toolbar { display: none; }

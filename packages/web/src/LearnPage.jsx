@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Minimize2, Network, Pause, Play, Scan, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Minimize2, Network, Pause, Pencil, Play, Scan, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
 import { SPEEDS, getSpeed, isMuted, setMuted, setSpeed } from './learn-audio.js';
 import { api, navigate } from './api.js';
 import { requestBoardExplanation } from './learn-board-request.js';
@@ -125,6 +125,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const [narrationMuted, setNarrationMuted] = useState(isMuted());
   const [lessonSpeed, setLessonSpeed] = useState(getSpeed());
   const [canvasPick, setCanvasPick] = useState(null);
+  const [toolsOpen, setToolsOpen] = useState(false);
   // Page 3: tapping a position tile on the canvas selects it in the check below.
   const pickSequenceTile = event => {
     if (!editor || !nanoActive || progress?.page !== 2) return;
@@ -444,7 +445,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {graphError && <p role="alert" className="text-sm text-red-700">{graphError}</p>}
         <div aria-label="Lesson canvas" onPointerDownCapture={event => { editor?.updateViewportScreenBounds(editor.getContainer()); pauseLesson(); pickSequenceTile(event); openPaperReference(event); }} onClickCapture={openPaperReference} onWheelCapture={e => { if (!e.ctrlKey && !e.metaKey && !e.target.closest?.('[data-shape-type="interactive-graph"], [data-shape-type="three-d-viewer"]')) e.stopPropagation(); }} className={`relative h-[480px] min-h-[360px] min-w-0 flex-1 overflow-hidden rounded-lg border border-line`}>
           <Suspense fallback={<p className="p-4 text-sm text-ink-2">Loading canvas…</p>}>
-            <LearnCanvas key={app.name} onReady={setEditor} />
+            <LearnCanvas key={app.name} onReady={setEditor} showTools={toolsOpen} />
           </Suspense>
           {region && <RegionPicker editor={editor} lesson={lesson.current} onCancel={cancelRegion} onSelect={(ids, ellipse) => {
             editor.select(...ids);
@@ -459,6 +460,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             <IconBtn aria-label="Ask about selection" title="Ask about selection: draw a red ellipse" disabled={!editor || (!progress && !boardVisible) || answering} onClick={() => { pauseLesson(); pinned.current = null; removeImage(); setRegion(true); }}><Scan size={17} strokeWidth={1.5} /></IconBtn>
             <IconBtn aria-label="Add personal note" title="Pause and add a personal note" disabled={!editor || (!progress && !boardVisible) || !notesLoaded || answering} onClick={addNote}><NotebookPen size={17} strokeWidth={1.5} /></IconBtn>
             <IconBtn aria-label={narrationMuted ? 'Unmute narration' : 'Mute narration'} title={narrationMuted ? 'Unmute narration audio' : 'Mute narration audio'} aria-pressed={narrationMuted} onClick={() => { setMuted(!narrationMuted); setNarrationMuted(!narrationMuted); }}>{narrationMuted ? <VolumeX size={17} strokeWidth={1.5} /> : <Volume2 size={17} strokeWidth={1.5} />}</IconBtn>
+            <IconBtn aria-label={toolsOpen ? 'Hide drawing tools' : 'Show drawing tools'} title={toolsOpen ? 'Hide drawing tools' : 'Show drawing tools'} aria-pressed={toolsOpen} className={toolsOpen ? 'bg-hover' : ''} onClick={() => setToolsOpen(!toolsOpen)}><Pencil size={17} strokeWidth={1.5} /></IconBtn>
           </div>
         </div>
         <div aria-label="Lesson playback" className={`${courseView || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>

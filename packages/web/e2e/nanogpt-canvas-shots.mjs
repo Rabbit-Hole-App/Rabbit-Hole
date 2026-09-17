@@ -45,6 +45,7 @@ for (const index of wanted) {
   }, String((index + 1) * 1000 - 1));
   await page.waitForTimeout(1500);
   await canvas.screenshot({ path: `${outDir}/canvas-page-${index + 1}.png` });
+  await page.screenshot({ path: `${outDir}/full-page-${index + 1}.png`, fullPage: true });
   const overlaps = await page.evaluate(() => {
     const rect = el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, text: (el.textContent || '').trim().slice(0, 32) }; };
     const texts = [...document.querySelectorAll('.tl-shape[data-shape-type="text"]')].map(rect).filter(s => s.w && s.h && s.text);
