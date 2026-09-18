@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, Diamond, Eraser, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
 import { BLOCK_TYPES, LearningBlockBody, describeBlock } from './LearningBlocks.jsx';
 import { gapsFrom, nearestGap } from './learn-gap-rail.js';
 import { panelFor, textStyle, dashArray, dashStyle, reorder, TEXT_LEVELS, DASH_STYLES, OPACITIES } from './learn-style-panel.js';
+import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -57,12 +58,17 @@ const POLYGONS = {
 
 // Pointer drag with a live apply callback; used by blocks, stickies, text,
 // shapes and panning. scale converts screen pixels to world units.
-function startDrag(event, origin, apply, scale = 1) {
+function startDrag(event, origin, apply, scale = 1, snap = null) {
   event.preventDefault();
   event.stopPropagation();
   const from = { x: event.clientX, y: event.clientY };
-  const move = e => apply(origin.x + (e.clientX - from.x) / scale, origin.y + (e.clientY - from.y) / scale);
-  const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); apply.done?.(); };
+  const move = e => {
+    const x = origin.x + (e.clientX - from.x) / scale;
+    const y = origin.y + (e.clientY - from.y) / scale;
+    const pulled = snap ? snap(x, y) : null;
+    apply(pulled ? pulled.x : x, pulled ? pulled.y : y);
+  };
+  const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); apply.done?.(); snap?.done?.(); };
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', up);
 }
@@ -88,7 +94,7 @@ function outlineOf(shape) {
 // Shared node chrome for everything card-shaped on the canvas: drag with
 // lift, corner resize, selection ring, top/bottom connection ports, and the
 // layout observer that keeps connector geometry fresh. Content is children.
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, space = 0, connected = null, autoMax = 420, width = 380, height = undefined, saved = null, onSelect, onMove, onSize, onLayout, onConnect, nodeRef = null, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, space = 0, connected = null, autoMax = 420, width = 380, height = undefined, saved = null, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, children }) {
   const [lifted, setLifted] = useState(false);
   // A resized node keeps its size in its own data, so a reload restores it.
   const [size, setSize] = useState({ w: saved?.w || null, h: saved?.h || null });
@@ -105,7 +111,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, s
     setLifted(true);
     const apply = (x, y) => onMove(id, x, y);
     apply.done = () => setLifted(false);
-    startDrag(event, { x: dx, y: dy }, apply, zoom);
+    startDrag(event, { x: dx, y: dy }, apply, zoom, onSnap?.(id));
   };
   const resize = event => {
     if (event.button !== 0) return;
@@ -210,14 +216,14 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
 
 // A course-authored lesson block (challenge, explanation, quiz, …) in the
 // same chrome as chat nodes; the body renderer comes from LearningBlocks.
-function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onAsk, onFile, appName, onAskRegion, onGrade }) {
+function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade }) {
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       autoMax={BLOCK_TYPES[block.type]?.autoMax}
       width={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.width ?? BLOCK_TYPES[block.type]?.width}
       height={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.height ?? BLOCK_TYPES[block.type]?.height}
       saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })}
-      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect}>
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && (
         <div className="absolute -top-10 right-0 z-30 flex items-center gap-1.5">
           {block.type === 'whiteboard' && (
@@ -250,7 +256,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
   );
 }
 
-function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, onResize, onGesture, onDelete }) {
+function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, onResize, onGesture, onDelete, onSnap = null }) {
   const [editing, setEditing] = useState(item.fresh);
   const body = useRef(null);
   // The rendered children stay pinned to this ref while editing so re-renders
@@ -268,7 +274,7 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
     if (tool === 'eraser') { event.preventDefault(); event.stopPropagation(); onDelete(item.id); return; }
     if (tool !== 'select') return;
     if (!selected) onSelect(item.id, event);
-    if (!editing) { onGesture(); startDrag(event, { x: item.x, y: item.y }, (x, y) => onMove(item.id, x, y), zoom); }
+    if (!editing) { onGesture(); startDrag(event, { x: item.x, y: item.y }, (x, y) => onMove(item.id, x, y), zoom, onSnap?.(item.id)); }
     else event.stopPropagation();
   };
   if (section) {
@@ -292,7 +298,7 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
     );
   }
   return (
-    <div data-block style={{ left: item.x, top: item.y, opacity: item.opacity, ...(sticky ? { width: item.w || 160, height: item.h || 160 } : { color: item.color, ...textStyle(item) }) }}
+    <div data-block data-item-id={item.id} style={{ left: item.x, top: item.y, opacity: item.opacity, ...(sticky ? { width: item.w || 160, height: item.h || 160 } : { color: item.color, ...textStyle(item) }) }}
       className={`absolute z-10 cursor-grab active:cursor-grabbing ${sticky ? '-rotate-1 overflow-hidden rounded-sm border border-[#f0d9a8] bg-[#fef3c7] p-3 text-[13px] leading-snug text-[#6b4e0b] shadow-md' : 'min-w-24 leading-snug'} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
       onPointerDown={down} onDoubleClick={startEdit}>
       <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder={sticky ? 'Note…' : 'Text…'}
@@ -529,6 +535,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const [connecting, setConnecting] = useState(null);
   const [bounds, setBounds] = useState({});
   const [hoverGap, setHoverGap] = useState(null);
+  const [guides, setGuides] = useState([]);
+  const [grid, setGrid] = useState(false);
+  const itemsLayer = useRef(null);
   const [level, setLevel] = useState('body');
   const [styleOpen, setStyleOpen] = useState(false); // the swatch's manual override
   const exchangesRef = useRef(exchanges);
@@ -932,6 +941,56 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     setItems(previous => previous.map(item => targets.includes(item.id) ? { ...item, ...patch } : item));
     if (patch.color) setLinks(previous => previous.map(link => targets.includes(link.id) ? { ...link, color: patch.color } : link));
   };
+  // Every box a drag can line itself up against, gathered once when the drag
+  // starts rather than every frame. Item sizes are read from the DOM here
+  // because nothing else measures them - a centre needs a width.
+  const collectBoxes = exclude => {
+    const boxes = [];
+    for (const [id, box] of Object.entries(boundsRef.current)) if (!exclude.includes(id)) boxes.push(box);
+    for (const shape of shapesRef.current) {
+      if (exclude.includes(shape.id)) continue;
+      boxes.push({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) });
+    }
+    for (const element of itemsLayer.current?.querySelectorAll('[data-item-id]') || []) {
+      const item = itemsRef.current.find(entry => entry.id === element.dataset.itemId);
+      if (item && !exclude.includes(item.id)) boxes.push({ x: item.x, y: item.y, w: element.offsetWidth, h: element.offsetHeight });
+    }
+    return boxes;
+  };
+  // One adapter per mover. Each drag speaks its own coordinates - a card moves
+  // by an offset from its place in the column, a note by absolute position, a
+  // shape by one corner - so `base` maps that to a world box and back again.
+  const makeSnap = (exclude, size, base = { x: 0, y: 0 }, toColumn = false) => {
+    const others = collectBoxes(exclude);
+    const tolerance = SNAP_TOLERANCE / view.z;
+    const snap = (x, y) => {
+      let { x: nx, y: ny, lines } = snapMove({ x: base.x + x, y: base.y + y, ...size }, others, tolerance);
+      // A card also answers to the lesson column. Pulling its offset back to
+      // zero is "put it back in the flow", which is the alignment that matters
+      // most here and has no other object to line up against.
+      if (toColumn && !lines.some(line => line.axis === 'x') && Math.abs(nx - base.x) < tolerance) {
+        nx = base.x;
+        lines = [...lines, { axis: 'x', at: nx + size.w / 2, from: ny, to: ny + size.h }];
+      }
+      if (grid && !lines.length) ({ x: nx, y: ny } = snapGrid(nx, ny));
+      setGuides(lines);
+      return { x: nx - base.x, y: ny - base.y };
+    };
+    snap.done = () => setGuides([]);
+    return snap;
+  };
+  // A card's base is where it sits with no offset at all; bounds already folds
+  // the offset in, so take it back out.
+  const snapForNode = id => {
+    const box = boundsRef.current[id];
+    const node = exchangesRef.current.find(item => item.id === id) || blocksRef.current.find(item => item.id === id);
+    if (!box || !node) return null;
+    return makeSnap(groupTargets(id), { w: box.w, h: box.h }, { x: box.x - node.dx, y: box.y - node.dy }, true);
+  };
+  const snapForItem = id => {
+    const element = itemsLayer.current?.querySelector(`[data-item-id="${id}"]`);
+    return element ? makeSnap([id], { w: element.offsetWidth, h: element.offsetHeight }) : null;
+  };
   // Paint order is array order for both lists, so one pass over each is enough.
   const reorderSelection = (toFront, targets) => {
     if (!targets.length) return;
@@ -985,10 +1044,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const resizeShape = (id, patch) => setShapes(previous => previous.map(shape => shape.id === id ? { ...shape, ...patch } : shape));
   const moveShapeStart = (event, shape) => {
     snapshot();
+    // x1 is not always the left edge - a shape dragged out right-to-left has
+    // x2 smaller - so the base carries the gap between the corner and the box.
+    const base = { x: Math.min(shape.x1, shape.x2) - shape.x1, y: Math.min(shape.y1, shape.y2) - shape.y1 };
+    const size = { w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) };
     startDrag(event, { x: shape.x1, y: shape.y1 }, (x, y) => {
       const dx = x - shape.x1, dy = y - shape.y1;
       setShapes(previous => previous.map(s => s.id === shape.id ? { ...s, x1: shape.x1 + dx, y1: shape.y1 + dy, x2: shape.x2 + dx, y2: shape.y2 + dy } : s));
-    }, view.z);
+    }, view.z, makeSnap([shape.id], size, base));
   };
   const inking = tool === 'pen' || tool === 'highlighter';
   const drawing = inking || shapeTool;
@@ -1025,7 +1088,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         const editable = active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA';
         if (editable && !active.contains(event.target)) active.blur();
       }}>
-      <div ref={surface} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => setHoverGap(null)} className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor}`}>
+      {/* With the grid on, the canvas draws its own dots instead of borrowing
+          the page's: these ride the camera, so the grid you snap to is the grid
+          you can see. An opaque surface keeps the page dots from showing through
+          and doubling them up. */}
+      <div ref={surface} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => setHoverGap(null)}
+        style={grid ? { background: 'var(--color-white)', backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: `${GRID * view.z}px ${GRID * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` } : undefined}
+        className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor}`}>
         <div style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className="absolute top-0 left-0">
         <svg width="1" height="1" className="pointer-events-none absolute top-0 left-0 overflow-visible">
           {links.map(link => <g key={link.id} data-connection={link.id} className="dark:[filter:brightness(1.5)_saturate(1.2)]">
@@ -1043,12 +1112,22 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
             : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />)}
         </svg>
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
-          {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onFile={onOpenFile} />)}
-          {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} />)}
+          {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />)}
+          {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} />)}
         </div>
         {activeGap && <GapRail gap={activeGap} zoom={view.z} space={blocks.find(block => block.id === activeGap.beforeId)?.space || 0} onNudge={nudgeGap} />}
-        <div className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
-          {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} />)}
+        {/* Alignment guides, live only while something is being dragged. */}
+        {!!guides.length && (
+          <svg width="1" height="1" aria-hidden="true" className="pointer-events-none absolute top-0 left-0 z-30 overflow-visible">
+            {guides.map((line, index) => (
+              <line key={index} stroke="#e8437f" strokeWidth={1 / view.z} shapeRendering="crispEdges"
+                x1={line.axis === 'x' ? line.at : line.from} x2={line.axis === 'x' ? line.at : line.to}
+                y1={line.axis === 'x' ? line.from : line.at} y2={line.axis === 'x' ? line.to : line.at} />
+            ))}
+          </svg>
+        )}
+        <div ref={itemsLayer} className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
+          {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} />)}
         </div>
         </div>
       </div>
@@ -1089,6 +1168,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         {/* Keeps the armed tool armed after a draw, so shapes come in runs. */}
         <ToolButton Icon={lock ? Lock : LockOpen} label={lock ? 'Keep tool active — on' : 'Keep tool active — off'}
           active={lock} onPick={() => setLock(previous => !previous)} />
+        {/* Alignment guides always run; this is the harder 18px grid on top. */}
+        <ToolButton Icon={Grid3x3} label={grid ? 'Snap to grid — on' : 'Snap to grid — off'}
+          active={grid} onPick={() => setGrid(previous => !previous)} />
         {/* The one control that never hides: the way back to the style panel
             once it has closed itself, showing what colour is currently armed. */}
         <button type="button" title="Style" aria-label="Style" aria-pressed={showStyle}
