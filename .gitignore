@@ -167,3 +167,4 @@ __pycache__/
 *.pyc
 # JupyterLite local build cache (generated, not lesson content)
 .jupyterlite.doit.db*
+packages/web/e2e/shots/
