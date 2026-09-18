@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, ArrowUpRight, Calendar as CalendarIcon, Check, Circle, Clock, Copy, GitBranch, Globe, Hash, Link as LinkIcon, Lock, Maximize2, MoreHorizontal, Plus, Trash2, User as UserIcon, Users, X } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, Check, Circle, Clock, Copy, GitBranch, Globe, Hash, Link as LinkIcon, Lock, Maximize2, MoreHorizontal, Plus, Trash2, User as UserIcon, Users, X } from 'lucide-react';
 
 // lucide dropped brand icons - the GitHub mark, inline
 const Github = ({ size = 14 }) => (
@@ -402,15 +402,6 @@ function ObservationRow({ obs, canEdit, onChanged }) {
   );
 }
 
-// Property-list row halves (design/components.html .plist): grey key w/ icon, value beside.
-const PropKey = ({ icon: Icon, info, children }) => (
-  <div className="flex h-8 items-center gap-1.5 text-ink-2">
-    <Icon size={16} strokeWidth={1.5} className="text-ink-3" />
-    {info ? <Tip label={children} info={info}><span>{children}</span></Tip> : children}
-  </div>
-);
-const PropVal = ({ children }) => <div className="flex h-8 min-w-0 items-center gap-1.5 truncate">{children}</div>;
-
 // 2xx green, 3xx blue, 403 with no user = guard rejection, other 4xx yellow, 5xx red.
 const ReqStatus = ({ status, user }) => (status === 403 && user == null
   ? <Pill color="grey">rejected</Pill>
@@ -528,19 +519,62 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
   // the textbox sits static (level with the sidebar's New chat), only messages scroll.
   const graphFull = !runId && (tab ?? 'graph') === 'graph';
   const isAws = app?.hosting === 'aws';
+  // Share + ⋯ menu, shown in the run breadcrumb and in the app title row
+  const appActions = app && (
+    <>
+      <SharePopover app={app} onChanged={load} />
+      <div className="relative">
+        <IconBtn title="More" className={cn(menuOpen && 'bg-active text-ink')} onMouseDown={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>
+        <Menu open={menuOpen} onClose={() => setMenuOpen(false)} className="top-8 right-0">
+          <MenuItem
+            icon={LinkIcon}
+            onClick={() => { setMenuOpen(false); navigator.clipboard.writeText(`${window.location.origin}/apps/${app.name}`); toast('Link copied'); }}
+          >
+            Copy link
+          </MenuItem>
+          {!isAws && <MenuItem
+            icon={Copy}
+            onClick={async () => {
+              setMenuOpen(false);
+              try {
+                const r = await api(`/api/apps/${slug}/duplicate`, { method: 'POST' });
+                toast(`Duplicated as ${r.name}`);
+                reloadShell?.();
+                navigate(`/apps/${r.name}`);
+              } catch (e) { toast(`✗ ${e.message}`); }
+            }}
+          >
+            Duplicate
+          </MenuItem>}
+          {app.kind === 'job' && app.canEdit && (
+            <MenuItem icon={Clock} onClick={() => { setMenuOpen(false); setScheduling(true); }}>
+              Schedule
+            </MenuItem>
+          )}
+          {!isAws && app.owner_email === app.email && (
+            <MenuItem icon={Trash2} className="text-danger" onClick={() => { setMenuOpen(false); setConfirmDel(true); }}>
+              Move to Trash
+            </MenuItem>
+          )}
+        </Menu>
+      </div>
+    </>
+  );
   if (learnPreview && app?.kind === 'repository' && !error) return <RepositoryPage key={app.name} app={app} />;
   if (learnPreview && tab === 'learn' && app && !error && !runId) {
     return <LearnPage key={JSON.stringify([app.email, app.org, app.name])} app={app} onBack={() => { setTab(null); navigate(`/apps/${encodeURIComponent(app.name)}`); }} />;
   }
   return (
     <main className={cn('flex-1', graphFull ? 'overflow-hidden' : 'overflow-y-auto')}>
-      {/* run pages carve out the fixed 400px chat panel and center in what's left */}
+      {/* run pages carve out the fixed 400px chat panel and center in what's left;
+          the app view itself is repo-style: title, pill tabs, full-bleed content */}
       <div className={cn(
-        'py-12 max-lg:px-8 max-md:px-4 max-md:py-6',
-        runId ? cn('mx-auto max-w-[860px] px-12', (!isAws || app?.run_chat) && 'lg:mr-[416px]') : 'mx-auto max-w-[900px] px-24',
-        graphFull && 'flex h-full min-h-0 flex-col pb-4',
+        'max-lg:px-8 max-md:px-4',
+        runId ? cn('mx-auto max-w-[860px] px-12 py-12 max-md:py-6', (!isAws || app?.run_chat) && 'lg:mr-[416px]')
+          : graphFull ? 'flex h-full min-h-0 flex-col px-12 pt-8 pb-4'
+          : 'mx-auto max-w-[900px] px-24 py-12 max-md:py-6',
       )}>
-        <div className="flex items-center gap-1 pb-8 text-sm text-ink-2">
+        {runId && <div className="flex items-center gap-1 pb-8 text-sm text-ink-2">
           <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate('/apps')}>{app?.orgName || wsName(app?.org)}</button>
           <span>/</span>
           <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate('/apps')}>Apps</button>
@@ -551,57 +585,13 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
               <span>/</span>
             </>
           )}
-          {runId ? (
-            <>
-              <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate(`/apps/${slug}`)}>{slug}</button>
-              <span>/</span>
-              <span className="px-1 text-ink">Run {runId.replace(/^r-/, '').slice(0, 7)}</span>
-            </>
-          ) : (
-            <span className="px-1 text-ink">{slug}</span>
-          )}
+          <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate(`/apps/${slug}`)}>{slug}</button>
+          <span>/</span>
+          <span className="px-1 text-ink">Run {runId.replace(/^r-/, '').slice(0, 7)}</span>
           <span className="flex-1" />
-          {app && (
-            <>
-              <SharePopover app={app} onChanged={load} />
-              <div className="relative">
-                <IconBtn title="More" className={cn(menuOpen && 'bg-active text-ink')} onMouseDown={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>
-                <Menu open={menuOpen} onClose={() => setMenuOpen(false)} className="top-8 right-0">
-                  <MenuItem
-                    icon={LinkIcon}
-                    onClick={() => { setMenuOpen(false); navigator.clipboard.writeText(`${window.location.origin}/apps/${app.name}`); toast('Link copied'); }}
-                  >
-                    Copy link
-                  </MenuItem>
-                  {!isAws && <MenuItem
-                    icon={Copy}
-                    onClick={async () => {
-                      setMenuOpen(false);
-                      try {
-                        const r = await api(`/api/apps/${slug}/duplicate`, { method: 'POST' });
-                        toast(`Duplicated as ${r.name}`);
-                        reloadShell?.();
-                        navigate(`/apps/${r.name}`);
-                      } catch (e) { toast(`✗ ${e.message}`); }
-                    }}
-                  >
-                    Duplicate
-                  </MenuItem>}
-                  {app.kind === 'job' && app.canEdit && (
-                    <MenuItem icon={Clock} onClick={() => { setMenuOpen(false); setScheduling(true); }}>
-                      Schedule
-                    </MenuItem>
-                  )}
-                  {!isAws && app.owner_email === app.email && (
-                    <MenuItem icon={Trash2} className="text-danger" onClick={() => { setMenuOpen(false); setConfirmDel(true); }}>
-                      Move to Trash
-                    </MenuItem>
-                  )}
-                </Menu>
-              </div>
-            </>
-          )}
-          {scheduling && app && (
+          {appActions}
+        </div>}
+        {scheduling && app && (
             <ScheduleDialog
               app={app}
               onClose={() => setScheduling(false)}
@@ -621,7 +611,6 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
               onCancel={() => setConfirmDel(false)}
             />
           )}
-        </div>
 
         {error && (error.status === 403 ? (
           <Denied slug={slug} error={error} />
@@ -659,7 +648,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
         {app && !runId && (
           <>
             <div className="flex items-center gap-2.5 pb-2">
-              <KindIcon kind={app.kind} schedule={app.schedule} size={20} />
+              <KindIcon kind={app.kind} schedule={app.schedule} size={18} />
               {editTitle !== null ? (
                 <form className="min-w-0 flex-1" onSubmit={(e) => { e.preventDefault(); rename(); }}>
                   <input
@@ -668,113 +657,102 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                     onChange={(e) => setEditTitle(e.target.value)}
                     onBlur={rename}
                     onKeyDown={(e) => e.key === 'Escape' && setEditTitle(null)}
-                    className="w-full bg-transparent text-[40px] leading-[1.2] font-bold tracking-[-0.01em] outline-none"
+                    className="w-full bg-transparent text-2xl font-semibold outline-none"
                   />
                 </form>
               ) : (
                 <h1
                   title={app.canEdit ? 'Click to rename' : undefined}
                   onClick={() => app.canEdit && setEditTitle(app.name)}
-                  className={cn('text-[40px] leading-[1.2] font-bold tracking-[-0.01em]', app.canEdit && 'cursor-text rounded-sm hover:bg-hover/60')}
+                  className={cn('text-2xl font-semibold', app.canEdit && 'cursor-text rounded-sm hover:bg-hover/60')}
                 >
                   {app.name}
                 </h1>
               )}
-              {app.kind !== 'job' && (
-                <span className="ml-auto">
+              <span className="ml-auto flex items-center gap-1.5">
+                {app.kind !== 'job' && (
                   <Button variant="primary" size="sm" onClick={() => window.open(app.url, '_blank', 'noopener')}>
                     Open <ArrowUpRight size={14} strokeWidth={1.5} />
                   </Button>
-                </span>
-              )}
+                )}
+                {appActions}
+              </span>
             </div>
 
-            {/* model-written blurb (first deploy), click to edit - edits stick across deploys */}
-            {editDesc !== null ? (
-              <textarea
-                autoFocus
-                value={editDesc}
-                onChange={(e) => setEditDesc(e.target.value)}
-                onBlur={saveDesc}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') setEditDesc(null);
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveDesc();
-                }}
-                rows={3}
-                className="mb-3 w-full max-w-[720px] resize-none rounded-sm bg-hover/60 px-1 py-0.5 text-sm text-ink-2 outline-none"
-              />
-            ) : (app.description || app.canEdit) && (
-              <p
-                title={app.canEdit ? 'Click to edit' : undefined}
-                onClick={() => app.canEdit && setEditDesc(app.description || '')}
-                className={cn('mb-3 max-w-[720px] text-sm leading-relaxed text-ink-2', app.canEdit && 'cursor-text rounded-sm px-1 -mx-1 hover:bg-hover/60', !app.description && 'text-ink-3 italic')}
-              >
-                {app.description || 'Add a description…'}
-              </p>
-            )}
+            <Tabs value={tab ?? 'graph'} onValueChange={value => { setTab(value); if (value === 'learn') navigate(`/apps/${encodeURIComponent(app.name)}?tab=learn`); }} className={cn(graphFull && 'flex min-h-0 flex-1 flex-col')}>
+              <TabsList pill className="shrink-0">
+                <TabsTrigger pill value="graph"><Tip label="Graph" info="Map of this app, with the Graph Agent"><span>Graph</span></Tip></TabsTrigger>
+                <TabsTrigger pill value="runbook"><Tip label="Runbook" info="Notes and docs for this app"><span>Runbook</span></Tip></TabsTrigger>
+                {app.kind === 'job' && <TabsTrigger pill value="run"><Tip label="Run" info="Start a run from the input form"><span>Run</span></Tip></TabsTrigger>}
+                <TabsTrigger pill value="logs"><Tip label="Logs" info="Table view of this app's runs and requests"><span>Logs</span></Tip></TabsTrigger>
+                {learnPreview && <TabsTrigger pill value="learn"><Tip label="Learn" info="Guided explanations of how this app works"><span>Learn</span></Tip></TabsTrigger>}
+              </TabsList>
 
-            {/* Notion-style vertical property list: icon + grey label at 160px, value
-                beside, 32px rows. Access has no row - the Share popover owns that. */}
-            <div className="grid max-w-[560px] grid-cols-[160px_1fr] text-sm">
-              <PropKey icon={Circle} info="server (always on) or job (runs on demand)">Type</PropKey>
-              <PropVal><Pill color={app.kind === 'job' ? 'blue' : 'grey'}>{app.kind}</Pill>{isAws && <Pill>AWS</Pill>}</PropVal>
-              {isAws && <>
-                <PropKey icon={Globe} info="The AWS account and region where this job runs">Hosting</PropKey>
-                <PropVal>{app.aws_connection.account_id} · {app.aws_connection.region}</PropVal>
-              </>}
-              <PropKey icon={CalendarIcon} info="When this app last shipped">Deployed</PropKey>
-              <PropVal><span title={fmtTime(app.deployed_at || app.created_at)}>{ago(app.deployed_at || app.created_at)}</span></PropVal>
-              {source && (
-                <>
-                  <PropKey icon={GitBranch} info="Branch, commit and repo it was deployed from">Source</PropKey>
-                  <PropVal>
+              {/* one compact meta line, repo-page style, in place of the old property grid */}
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-2">
+                <Pill color={app.kind === 'job' ? 'blue' : 'grey'}>{app.kind}</Pill>
+                {isAws && <Pill>AWS</Pill>}
+                {isAws && app.aws_connection && <span>{app.aws_connection.account_id} · {app.aws_connection.region}</span>}
+                <span title={fmtTime(app.deployed_at || app.created_at)}>deployed {ago(app.deployed_at || app.created_at)}</span>
+                {source && (
+                  <span className="flex items-center gap-1.5">
+                    <GitBranch size={13} />
                     {/* public repo → branch·sha links the exact commit, the url links the repo; private → plain text */}
                     {app.repo_public && app.repo_url
-                      ? <a href={app.repo_commit ? `${app.repo_url}/commit/${app.repo_commit}` : app.repo_url} target="_blank" rel="noreferrer" className="shrink-0 text-accent hover:underline">{source}</a>
-                      : <span className="shrink-0">{source}</span>}
+                      ? <a href={app.repo_commit ? `${app.repo_url}/commit/${app.repo_commit}` : app.repo_url} target="_blank" rel="noreferrer" className="text-accent hover:underline">{source}</a>
+                      : <span>{source}</span>}
                     {app.repo_url && (
-                      // just the GitHub mark: public → links the repo, private → grey with a tooltip
                       app.repo_public
-                        ? <a href={app.repo_url} target="_blank" rel="noreferrer" title={app.repo_url.replace(/^https?:\/\//, '').replace(/\.git$/, '')} className="shrink-0 text-ink-2 hover:text-ink"><Github size={14} /></a>
-                        : <span title={`${app.repo_url.replace(/^https?:\/\//, '').replace(/\.git$/, '')} · private repo`} className="shrink-0 text-ink-3"><Github size={14} /></span>
+                        ? <a href={app.repo_url} target="_blank" rel="noreferrer" title={app.repo_url.replace(/^https?:\/\//, '').replace(/\.git$/, '')} className="text-ink-2 hover:text-ink"><Github size={13} /></a>
+                        : <span title={`${app.repo_url.replace(/^https?:\/\//, '').replace(/\.git$/, '')} · private repo`} className="text-ink-3"><Github size={13} /></span>
                     )}
-                  </PropVal>
-                </>
-              )}
-              <PropKey icon={UserIcon} info="Who deployed and owns this app">Owner</PropKey>
-              <PropVal><Avatar email={app.owner_email} />{app.owner_email}</PropVal>
-              {app.schedule && (
-                <>
-                  <PropKey icon={Clock} info="Cron schedule, all times UTC">Schedule</PropKey>
-                  <PropVal>
+                  </span>
+                )}
+                <span className="flex items-center gap-1.5"><Avatar email={app.owner_email} />{app.owner_email}</span>
+                {app.schedule && (
+                  <span className="flex items-center gap-1.5">
                     {cronList(app.schedule).map((c) => (
                       <Pill key={c} color="orange" className={cn(app.schedule_paused && 'line-through opacity-60')} title={`cron ${c} (UTC)`}>{cronHuman(c)}</Pill>
                     ))}
                     {app.schedule_paused
-                      ? <span className="text-xs text-ink-2">paused</span>
-                      : app.nextRun && <span className="text-xs text-ink-2" title={new Date(app.nextRun).toLocaleString()}>next {until(app.nextRun)}</span>}
-                  </PropVal>
-                </>
-              )}
-            </div>
-
-            {/* Watch: one quiet row per open observation */}
-            {(app.observations || []).length > 0 && (
-              <div className="mt-3 flex flex-col gap-1">
-                {app.observations.map((o) => (
-                  <ObservationRow key={o.id} obs={o} canEdit={!!app.canEdit} onChanged={load} />
-                ))}
+                      ? <span>paused</span>
+                      : app.nextRun && <span title={new Date(app.nextRun).toLocaleString()}>next {until(app.nextRun)}</span>}
+                  </span>
+                )}
               </div>
-            )}
 
-            <Tabs value={tab ?? 'graph'} onValueChange={value => { setTab(value); if (value === 'learn') navigate(`/apps/${encodeURIComponent(app.name)}?tab=learn`); }} className={cn(graphFull && 'flex min-h-0 flex-1 flex-col')}>
-              <TabsList className="mt-5 shrink-0">
-                <TabsTrigger value="runbook"><Tip label="Runbook" info="Notes and docs for this app"><span>Runbook</span></Tip></TabsTrigger>
-                {app.kind === 'job' && <TabsTrigger value="run"><Tip label="Run" info="Start a run from the input form"><span>Run</span></Tip></TabsTrigger>}
-                <TabsTrigger value="logs"><Tip label="Logs" info="Table view of this app's runs and requests"><span>Logs</span></Tip></TabsTrigger>
-                <TabsTrigger value="graph"><Tip label="Graph" info="Map of this app, with the Graph Agent"><span>Graph</span></Tip></TabsTrigger>
-                {learnPreview && <TabsTrigger value="learn"><Tip label="Learn" info="Guided explanations of how this app works"><span>Learn</span></Tip></TabsTrigger>}
-              </TabsList>
+              {/* model-written blurb (first deploy), click to edit - edits stick across deploys */}
+              {editDesc !== null ? (
+                <textarea
+                  autoFocus
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  onBlur={saveDesc}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setEditDesc(null);
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveDesc();
+                  }}
+                  rows={3}
+                  className="mt-2 w-full max-w-[720px] resize-none rounded-sm bg-hover/60 px-1 py-0.5 text-sm text-ink-2 outline-none"
+                />
+              ) : (app.description || app.canEdit) && (
+                <p
+                  title={app.canEdit ? 'Click to edit' : undefined}
+                  onClick={() => app.canEdit && setEditDesc(app.description || '')}
+                  className={cn('mt-2 max-w-[720px] text-sm leading-relaxed text-ink-2', app.canEdit && 'cursor-text rounded-sm px-1 -mx-1 hover:bg-hover/60', !app.description && 'text-ink-3 italic')}
+                >
+                  {app.description || 'Add a description…'}
+                </p>
+              )}
+
+              {/* Watch: one quiet row per open observation */}
+              {(app.observations || []).length > 0 && (
+                <div className="mt-2 flex flex-col gap-1">
+                  {app.observations.map((o) => (
+                    <ObservationRow key={o.id} obs={o} canEdit={!!app.canEdit} onChanged={load} />
+                  ))}
+                </div>
+              )}
 
               <TabsContent value="runbook" className="min-h-[200px] pt-4">
                 {isAws ? <p className="text-sm text-ink-2">Runbooks are not connected for AWS jobs yet.</p> : <Suspense fallback={<div className="text-ink-2">loading…</div>}>

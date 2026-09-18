@@ -27,9 +27,9 @@ export default function RepositoryPage({ app: initial }) {
     <section className="min-w-0 flex-1 overflow-auto"><ExpandedPageFrame wide>
       <h1 className="pb-2 text-2xl font-semibold">{app.repo}</h1>
       <Tabs value="graph" onValueChange={value=>{if(value==='learn')navigate(`/apps/${app.name}?tab=learn`);}}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="graph"><Tip label="Graph" info="Code graph of this repository, with the Graph Agent"><span>Graph</span></Tip></TabsTrigger>
-          <TabsTrigger value="learn" disabled={!app.commit_sha}><Tip label="Learn" info="Guided lessons built from this repository"><span>Learn</span></Tip></TabsTrigger>
+        <TabsList pill className="mb-4">
+          <TabsTrigger pill value="graph"><Tip label="Graph" info="Code graph of this repository, with the Graph Agent"><span>Graph</span></Tip></TabsTrigger>
+          <TabsTrigger pill value="learn" disabled={!app.commit_sha}><Tip label="Learn" info="Guided lessons built from this repository"><span>Learn</span></Tip></TabsTrigger>
         </TabsList>
       </Tabs>
       <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-ink-2"><GitBranch size={14}/>{app.branch}<span>· {app.commit_sha?.slice(0,7)||'Awaiting snapshot'}</span><span>· {app.status}</span>{app.canEdit&&<Button size="sm" disabled={['queued','indexing'].includes(app.status)} onClick={async()=>{try{setError('');await api(`${root}/refresh`,{method:'POST',body:'{}'});setApp(await api(root));}catch(e){setError(e.message);}}}><RefreshCw size={13}/> {app.status==='failed'?'Retry import':'Refresh branch'}</Button>}</div>

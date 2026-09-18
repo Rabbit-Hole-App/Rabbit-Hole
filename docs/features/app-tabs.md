@@ -12,8 +12,12 @@ its home view. A single tab row replaces the `Apps / <name> / Graph` breadcrumb.
 
 ## Page structure
 
-Header: app name + meta line (kind, schedule). Below it, one tab row
-(shadcn-style underline tabs, same visual language as the existing peek tabs):
+Every app page uses the repository-page format: compact title row (name +
+Open/Share/⋯ actions), a pill tab row directly beneath, a one-line meta strip
+(kind, deployed, source, owner, schedule), the description, then full-bleed
+tab content. The old Notion property grid and the app-page breadcrumb are
+gone; the run subpage keeps its breadcrumb. Tabs are bordered pills with a
+grey (bg-active) selected state:
 
 **Graph · Runbook · Run · Logs · Learn**
 
