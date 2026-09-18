@@ -131,3 +131,44 @@ test('a time that is not a number evaluates as the start', () => {
   assert.deepEqual(getSceneState(built, 'six'), getSceneState(built, 0));
   assert.deepEqual(getSceneState(built, Infinity), getSceneState(built, built.duration), 'a huge time still clamps to the end');
 });
+
+const valued = (values, event) => validateScene({
+  id: 'valued', duration: 4,
+  objects: [{ id: 'row', type: 'strip', initialState: { x: 0, y: 0, cell: 30, values } }],
+  timeline: [{ at: 0, action: 'set_values', target: 'row', duration: 2, easing: 'linear', ...event }],
+});
+
+test('set_values refuses a payload that is not an array of numbers', () => {
+  assert.throws(() => valued([0, 0], { value: 0.42 }), /set_values needs an array/);
+  assert.throws(() => valued([0, 0], { value: 'lots' }), /set_values needs an array/);
+  assert.throws(() => valued([0, 0], { value: [1, 'two'] }), /numbers or null/);
+});
+
+test('set_values refuses a length that disagrees with the object', () => {
+  assert.throws(() => valued([0, 0, 0], { value: [1, 2, 3, 4, 5] }), /sends 5 values .* which holds 3/);
+  assert.throws(() => valued([0, 0, 0], { value: [1, 2] }), /sends 2 values .* which holds 3/);
+});
+
+test('set_values needs a target', () => {
+  assert.throws(() => validateScene({
+    id: 'aimless', duration: 4,
+    objects: [{ id: 'row', type: 'strip', initialState: { x: 0, y: 0, values: [0] } }],
+    timeline: [{ at: 0, action: 'set_values', value: [1] }],
+  }), /set_values needs a target/);
+});
+
+test('null blanks a cell instead of tweening it to a fake zero', () => {
+  const built = valued([4, 4], { value: [8, null] });
+  assert.deepEqual(getSceneState(built, 0.0).objects[0].values, [4, 4]);
+  assert.deepEqual(getSceneState(built, 1.0).objects[0].values, [6, null], 'the blank is immediate; there is nothing to tween towards');
+  assert.deepEqual(getSceneState(built, 2.0).objects[0].values, [8, null]);
+});
+
+test('a blanked cell grows back from zero, never from null', () => {
+  const built = validateScene({
+    id: 'refill', duration: 6,
+    objects: [{ id: 'row', type: 'strip', initialState: { x: 0, y: 0, values: [null] } }],
+    timeline: [{ at: 0, action: 'set_values', target: 'row', duration: 2, easing: 'linear', value: [10] }],
+  });
+  assert.deepEqual(getSceneState(built, 1).objects[0].values, [5]);
+});

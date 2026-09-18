@@ -27,7 +27,9 @@ const objectSchema = z.object({
     rows: z.number().int().positive().max(64).optional(),
     cols: z.number().int().positive().max(64).optional(),
     cell: z.number().positive().max(80).optional(),
-    values: z.array(z.number()).max(256).optional(),
+    // null is a blank cell, not a zero: a masked or not-yet-computed entry
+    // must read as absent rather than as a real measurement of nothing.
+    values: z.array(z.number().nullable()).max(256).optional(),
     labels: z.array(z.string().max(24)).max(64).optional(),
     tokens: z.array(z.string().max(24)).max(48).optional(),
   }).default({}),
@@ -88,11 +90,26 @@ export function validateScene(raw) {
     throw new Error(`Invalid animation at ${issue.path.join('.') || 'root'}: ${issue.message}`);
   }
   const scene = parsed.data;
-  const ids = new Set(scene.objects.map(object => object.id));
+  const byId = new Map(scene.objects.map(object => [object.id, object]));
+  const ids = new Set(byId.keys());
   if (ids.size !== scene.objects.length) throw new Error('Every animation object needs a unique id');
   for (const event of scene.timeline) {
     for (const key of ['target', 'from', 'to']) {
       if (event[key] && !ids.has(event[key])) throw new Error(`Timeline event at ${event.at}s refers to unknown object "${event[key]}"`);
+    }
+    if (event.action === 'set_values') {
+      if (!event.target) throw new Error(`Timeline event at ${event.at}s: set_values needs a target`);
+      if (!Array.isArray(event.value)) throw new Error(`Timeline event at ${event.at}s: set_values needs an array of numbers`);
+      if (event.value.some(entry => entry !== null && !Number.isFinite(entry))) {
+        throw new Error(`Timeline event at ${event.at}s: set_values takes numbers or null, nothing else`);
+      }
+      // The object's own size is frozen from its authored values at build time
+      // and the region hit-test reads that size, so a payload of a different
+      // length would desynchronise the picture from what the learner can click.
+      const authored = byId.get(event.target)?.initialState.values;
+      if (authored && event.value.length !== authored.length) {
+        throw new Error(`Timeline event at ${event.at}s: set_values sends ${event.value.length} values to "${event.target}", which holds ${authored.length}`);
+      }
     }
     if (event.at + event.duration > scene.duration + 0.001) throw new Error(`Timeline event at ${event.at}s runs past the ${scene.duration}s scene`);
   }
@@ -196,7 +213,16 @@ export function getSceneState(scene, time) {
       // move rather than reading two static states.
       case 'set_values': if (object && Array.isArray(event.value)) {
         const target = event.value;
-        object.values = (object.values || target.map(() => 0)).map((current, index) => current + ((target[index] ?? current) - current) * progress);
+        object.values = (object.values || target.map(() => 0)).map((current, index) => {
+          const goal = target[index];
+          // Before the event starts (progress 0) nothing has happened yet, same
+          // as every other branch here; only once it is under way does a null
+          // goal blank the cell, and it does so immediately rather than fading.
+          if (goal === null) return progress > 0 ? null : current;
+          if (goal === undefined) return current;    // untouched
+          const from = current == null ? 0 : current; // a blank cell grows back from zero
+          return from + (goal - from) * progress;
+        });
       } break;
       case 'highlight_cell': if (object) object.cellHighlight = progress > 0 ? event.value : null; break;
       case 'sweep': if (object) object.sweep = progress >= 1 ? null : progress; break;
