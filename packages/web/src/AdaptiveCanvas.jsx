@@ -80,7 +80,7 @@ function outlineOf(shape) {
 // Shared node chrome for everything card-shaped on the canvas: drag with
 // lift, corner resize, selection ring, top/bottom connection ports, and the
 // layout observer that keeps connector geometry fresh. Content is children.
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, onSelect, onMove, onLayout, onConnect, nodeRef = null, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, connected = null, onSelect, onMove, onLayout, onConnect, nodeRef = null, children }) {
   const [lifted, setLifted] = useState(false);
   const [size, setSize] = useState({ w: null, h: null });
   const card = useRef(null);
@@ -102,7 +102,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, o
     if (event.button !== 0) return;
     const element = card.current;
     startDrag(event, { x: element.offsetWidth, y: element.offsetHeight },
-      (w, h) => setSize({ w: Math.min(720, Math.max(280, w)), h: Math.min(640, Math.max(140, h)) }), zoom);
+      (w, h) => setSize({ w: Math.min(1200, Math.max(280, w)), h: Math.min(1000, Math.max(140, h)) }), zoom);
   };
   return (
     <div ref={card} data-block data-block-id={id} {...(chat ? { 'data-chat-block': true } : {})} onPointerDown={drag}
@@ -110,7 +110,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, o
       className={`group relative mx-auto flex flex-col rounded-xl border transition-shadow duration-150 ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${lifted ? 'z-20 cursor-grabbing shadow-xl' : `cursor-grab ${ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}`}>
       {children}
       {['top', 'bottom'].map(side => <button key={side} type="button" data-port={side} data-owner={id} aria-label={`Connect ${side}`} title="Drag to connect blocks"
-        className={`absolute left-1/2 z-20 h-4 w-4 -translate-x-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white opacity-0 group-hover:opacity-100 focus:opacity-100 ${side === 'top' ? '-top-2' : '-bottom-2'}`}
+        className={`absolute left-1/2 z-20 h-4 w-4 -translate-x-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white focus:opacity-100 ${connected?.[side] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${side === 'top' ? '-top-2' : '-bottom-2'}`}
         onPointerDown={event => onConnect(event, id, side)} />)}
       <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute right-0 bottom-0 z-10 cursor-nwse-resize p-1 text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink-2 focus:opacity-100"
         onPointerDown={resize}><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg></button>
@@ -121,7 +121,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, o
 // One conversation node: the learner's message, a separator, then the agent's
 // reply. Starts at a compact width, grows with content up to a max height
 // (longer replies scroll inside), and resizes from the corner handle.
-function ChatCard({ exchange, zoom, selected, onSelect, onMove, renderComposer, onLayout, onConnect }) {
+function ChatCard({ exchange, zoom, selected, connected, onSelect, onMove, renderComposer, onLayout, onConnect }) {
   const [replyOpen, setReplyOpen] = useState(false);
   const [started, setStarted] = useState(false);
   const [replies, setReplies] = useState([]);
@@ -136,8 +136,17 @@ function ChatCard({ exchange, zoom, selected, onSelect, onMove, renderComposer, 
       : { ...turn, status: event.done ? 'done' : event.stage });
   });
   return (
-    <CanvasNode id={exchange.id} dx={exchange.dx} dy={exchange.dy} zoom={zoom} selected={selected} chat
+    <CanvasNode id={exchange.id} dx={exchange.dx} dy={exchange.dy} zoom={zoom} selected={selected} chat connected={connected}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} nodeRef={card}>
+      {/* Selecting the node offers Continue convo above it, which opens the
+          in-block composer at the bottom. */}
+      {selected && exchange.status === 'done' && renderComposer && !replyOpen && (
+        <button type="button" title="Continue this conversation"
+          onPointerDown={e => e.stopPropagation()} onClick={continueReply}
+          className="absolute -top-10 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
+          <MessageCircle size={13} />Continue convo
+        </button>
+      )}
       <div className="flex shrink-0 justify-end px-4 pt-3 pb-2"><span className="max-w-[85%] rounded-xl bg-[#2383e2] px-3 py-1.5 text-sm whitespace-pre-wrap text-white">{exchange.question}</span></div>
       <div className="shrink-0 border-t border-line" />
       <div ref={body} data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
@@ -149,9 +158,6 @@ function ChatCard({ exchange, zoom, selected, onSelect, onMove, renderComposer, 
           <div className="text-sm">{turn.answer ? <Md text={turn.answer} /> : <span className="text-ink-2">{turn.status === 'done' ? 'No answer received. Try again.' : 'Thinking…'}</span>}</div>
         </div>)}
       </div>
-      {/* Pinned footer: the continue-conversation icon stays visible no matter
-          how tall the thread grows or how the block is resized. */}
-      {exchange.status === 'done' && renderComposer && !replyOpen && <div className="flex shrink-0 justify-end px-2 pb-1.5"><button type="button" aria-label="Reply in this block" title="Continue this conversation" onPointerDown={e => e.stopPropagation()} onClick={continueReply} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-accent"><MessageCircle size={15} /></button></div>}
       {started && <div data-block-composer className={`shrink-0 border-t border-line px-3 pb-3 ${replyOpen ? '' : 'hidden'}`} onPointerDown={e => e.stopPropagation()}>
         <div className="flex items-center justify-between py-1 text-xs text-ink-2"><span>This conversation</span><button type="button" aria-label="Close block composer" onClick={() => setReplyOpen(false)} className="rounded p-1 hover:bg-hover"><X size={13} /></button></div>
         {renderComposer(exchange, receive)}
@@ -162,10 +168,17 @@ function ChatCard({ exchange, zoom, selected, onSelect, onMove, renderComposer, 
 
 // A course-authored lesson block (challenge, explanation, quiz, …) in the
 // same chrome as chat nodes; the body renderer comes from LearningBlocks.
-function LessonBlockCard({ block, zoom, selected, onSelect, onMove, onChange, onLayout, onConnect }) {
+function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onAsk }) {
   return (
-    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost}
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} connected={connected}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect}>
+      {selected && (
+        <button type="button" title="Ask the tutor about this block"
+          onPointerDown={e => e.stopPropagation()} onClick={() => onAsk(block)}
+          className="absolute -top-10 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
+          <MessageCircle size={13} />Ask in chat
+        </button>
+      )}
       <LearningBlockBody block={block} onChange={onChange} />
     </CanvasNode>
   );
@@ -256,7 +269,7 @@ function ToolButton({ Icon, label, active, onPick }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, storageKey = null, composer = null, renderBlockComposer = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, apiRef = null, storageKey = null, composer = null, renderBlockComposer = null }) {
   const [tool, setTool] = useState('select');
   const [insertOpen, setInsertOpen] = useState(false); // dev-only lesson-block workbench menu
   const [color, setColor] = useState(COLORS[0]);
@@ -300,6 +313,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   onRestoreRef.current = onRestore;
   const onAskTargetRef = useRef(onAskTarget);
   onAskTargetRef.current = onAskTarget;
+  useEffect(() => { if (apiRef) apiRef.current = { deselect: () => setSelected(null) }; });
   const connectionCleanup = useRef(null);
   const selectedRef = useRef(null);
   selectedRef.current = selected;
@@ -377,23 +391,28 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, []);
-  // Selecting a lesson block arms the dock composer with it as context.
-  useEffect(() => {
-    const block = blocks.find(item => item.id === selected);
-    const described = block && describeBlock(block);
-    onAskTargetRef.current?.(described ? { id: block.id, ...described } : null);
-  }, [selected, blocks]);
-  // A question asked about a block auto-links that block to its answer node.
+  // The Ask-in-chat button on a selected block arms the dock composer with
+  // that block as context; plain selection stays just a selection.
+  const askBlock = block => {
+    const described = describeBlock(block);
+    if (described) onAskTargetRef.current?.({ id: block.id, ...described });
+  };
+  // A question asked about a block auto-links that block to its answer node
+  // and parks the node directly below the block it came from.
   const autoLinked = useRef(new Set());
   useEffect(() => {
     for (const exchange of exchanges) {
       if (!exchange.linkFrom || autoLinked.current.has(exchange.id)) continue;
+      const source = bounds[exchange.linkFrom], own = bounds[exchange.id];
+      if (!source || !own) continue; // wait for both to be measured
       autoLinked.current.add(exchange.id);
+      const flowX = own.x - exchange.dx, flowY = own.y - exchange.dy;
+      onMove(exchange.id, source.x + (source.w - own.w) / 2 - flowX, source.y + source.h + 28 - flowY);
       if (!present.current.links.some(link => link.from === exchange.linkFrom && link.to === exchange.id)) {
         setLinks(previous => [...previous, { id: crypto.randomUUID(), from: exchange.linkFrom, fromSide: 'bottom', to: exchange.id, toSide: 'top', color: '#2383e2' }]);
       }
     }
-  }, [exchanges]);
+  }, [exchanges, bounds]);
   // Keep the newest exchange in sight while it streams.
   useEffect(() => {
     const element = surface.current, col = column.current;
@@ -559,6 +578,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const inking = tool === 'pen' || tool === 'highlighter';
   const drawing = inking || shapeTool;
   const cursor = tool === 'hand' ? 'cursor-grab' : inking || tool === 'eraser' || shapeTool ? 'cursor-crosshair' : tool === 'select' ? '' : 'cursor-copy';
+  // Ports with a live connection stay visible on both ends of the link.
+  const portsInUse = {};
+  for (const link of links) {
+    (portsInUse[link.from] = portsInUse[link.from] || {})[link.fromSide] = true;
+    (portsInUse[link.to] = portsInUse[link.to] || {})[link.toSide] = true;
+  }
   return (
     <div className="relative flex h-full min-h-0 flex-col">
       <div ref={surface} onPointerDown={down} className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor}`}>
@@ -571,15 +596,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           </g>)}
           {connecting && <path data-connection-preview d={connectionPath(connecting)} fill="none" stroke={connecting.color} strokeWidth="2.5" />}
         </svg>
-        <svg aria-hidden="true" width="1" height="1" className="pointer-events-none absolute top-0 left-0 z-10 overflow-visible">
+        <svg aria-hidden="true" data-ink width="1" height="1" className="pointer-events-none absolute top-0 left-0 z-10 overflow-visible">
           {[...shapes, ...(liveShape ? [liveShape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={tool} zoom={view.z} selected={selected === shape.id} onSelect={select} onMoveStart={moveShapeStart} onResize={resizeShape} onGesture={snapshot} onDelete={deleteItem} />)}
           {[...strokes, ...(live ? [live] : [])].map((stroke, index) => stroke.tool === 'pen'
             ? <path key={index} d={pathOf(stroke.points)} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeDasharray={stroke.dash ? `${stroke.width * 3} ${stroke.width * 2.5}` : undefined} strokeLinecap="round" strokeLinejoin="round" />
             : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />)}
         </svg>
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
-          {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={selected === exchange.id} onSelect={select} onMove={onMove} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} />)}
-          {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={selected === block.id} onSelect={select} onMove={moveBlock} onChange={changeBlock} onLayout={measureBlocks} onConnect={connect} />)}
+          {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={selected === exchange.id} connected={portsInUse[exchange.id]} onSelect={select} onMove={onMove} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} />)}
+          {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={selected === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveBlock} onChange={changeBlock} onLayout={measureBlocks} onConnect={connect} onAsk={askBlock} />)}
         </div>
         <div className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={selected === item.id} onSelect={select} onChange={changeItem} onMove={moveItem} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} />)}

@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, RotateCcw, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Loader2, Play, RotateCcw, X } from 'lucide-react';
 import { Md } from './ask.jsx';
+import { colorLine } from './code.jsx';
+import { CodeBlock } from './ui.jsx';
+import { runPython } from './pyodide-runner.js';
 
 // Lesson component library for the adaptive canvas (spec: docs/
 // adaptive-learning-canvas-spec.md §12). Each entry renders inside the shared
@@ -40,6 +43,35 @@ export const BLOCK_TYPES = {
       ],
       why: 'Differentiate: $\\sigma\'(x) = \\frac{e^{-x}}{(1+e^{-x})^2} = \\sigma(x)\\,(1-\\sigma(x))$ — maximal $0.25$ at $x = 0$, which is why deep sigmoid stacks saturate.',
       choice: null,
+    }),
+  },
+  snippet: {
+    label: 'Code sample',
+    sample: () => ({
+      id: crypto.randomUUID(),
+      type: 'snippet',
+      dx: 0,
+      dy: 0,
+      title: 'Building the character vocabulary',
+      brief: 'The char model derives its whole vocabulary from the training text — every distinct character gets an id.',
+      code: "text = 'hello hi'\nchars = sorted(set(text))\nprint(chars)\nprint(len(chars), 'characters')\nstoi = { ch: i for i, ch in enumerate(chars) }\nprint(stoi['h'], stoi['i'])",
+      output: "[' ', 'e', 'h', 'i', 'l', 'o']\n6 characters\n2 3",
+    }),
+  },
+  code: {
+    label: 'Code exercise',
+    sample: () => ({
+      id: crypto.randomUUID(),
+      type: 'code',
+      dx: 0,
+      dy: 0,
+      title: 'Finish the character encoder',
+      brief: 'The char model maps every character to an id with `stoi`. Complete `encode` so it turns a string into its list of ids.',
+      setup: "text = 'hello hi'\nchars = sorted(set(text))\nstoi = { ch: i for i, ch in enumerate(chars) }\nitos = { i: ch for ch, i in stoi.items() }",
+      starter: 'def encode(s):\n    # return the list of ids for the characters of s\n    ...',
+      checks: "assert encode('hi') == [stoi['h'], stoi['i']], f\"encode('hi') returned {encode('hi')}\"\nassert encode('') == [], 'an empty string should give an empty list'\nprint('encode(\\'hi\\') =', encode('hi'))\nprint('all checks passed')",
+      hint: 'encode must return one id per character of s, in order — look each character up in stoi.',
+      draft: null,
     }),
   },
   flashcards: {
@@ -128,6 +160,72 @@ function QuizBody({ block, onChange }) {
   );
 }
 
+function SnippetBody({ block }) {
+  return (
+    <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+      <Kicker>Code</Kicker>
+      <p className="text-sm font-medium">{block.title}</p>
+      {block.brief && <div className="mt-1 text-sm text-ink-2"><Md text={block.brief} /></div>}
+      <CodeBlock className="mt-2 text-xs">{block.code.split('\n').map((line, index) => <div key={index}>{colorLine(line)}</div>)}</CodeBlock>
+      {block.output && <>
+        <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-3 uppercase">Output</p>
+        <pre className="no-scrollbar mt-1 max-h-40 overflow-y-auto rounded-lg border border-line bg-white p-2 font-mono text-[11px] leading-4 whitespace-pre-wrap">{block.output}</pre>
+      </>}
+    </div>
+  );
+}
+
+function CodeBody({ block, onChange }) {
+  const [draft, setDraft] = useState(block.draft ?? block.starter);
+  const [busy, setBusy] = useState(false);
+  const [run, setRun] = useState(null); // null | 'starting' | { ok, output, error }
+  const execute = async () => {
+    setBusy(true);
+    setRun('starting');
+    const result = await runPython(`${block.setup}\n\n${draft}\n\n${block.checks}`);
+    setRun(result);
+    setBusy(false);
+  };
+  const reset = () => { setDraft(block.starter); setRun(null); onChange({ ...block, draft: null }); };
+  return (
+    <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+      <Kicker action={draft !== block.starter && (
+        <button type="button" aria-label="Reset code" title="Restore the starter code"
+          onPointerDown={e => e.stopPropagation()} onClick={reset}
+          className="rounded p-1 text-ink-3 hover:bg-hover hover:text-ink"><RotateCcw size={13} /></button>
+      )}>Code</Kicker>
+      <p className="text-sm font-medium">{block.title}</p>
+      <div className="mt-1 text-sm text-ink-2"><Md text={block.brief} /></div>
+      <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-3 uppercase">Given</p>
+      <CodeBlock className="mt-1 text-xs">{block.setup.split('\n').map((line, index) => <div key={index}>{colorLine(line)}</div>)}</CodeBlock>
+      <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-3 uppercase">Your code</p>
+      <textarea value={draft} spellCheck={false} rows={Math.max(4, draft.split('\n').length + 1)}
+        onPointerDown={e => e.stopPropagation()}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={() => onChange({ ...block, draft })}
+        className="mt-1 w-full resize-y rounded-lg border border-line bg-code p-3 font-mono text-xs leading-5 outline-none focus:border-ink-3" />
+      <div className="mt-2 flex items-center gap-2" onPointerDown={e => e.stopPropagation()}>
+        <button type="button" data-run-code disabled={busy} onClick={execute}
+          className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white disabled:opacity-50">
+          {busy ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}{run === 'starting' ? 'Starting Python…' : 'Run checks'}
+        </button>
+        {run && run !== 'starting' && (run.ok
+          ? <span className="text-sm font-medium text-green-700">✓ All checks passed</span>
+          : <span className="text-sm font-medium text-red-700">✗ Not yet</span>)}
+      </div>
+      {run && run !== 'starting' && !run.ok && (
+        <div className="mt-2 rounded-lg border border-red-700/25 bg-red-700/5 p-2 text-xs">
+          <p><span className="font-medium text-red-700">Why it failed:</span> {(run.error || 'A check did not pass.').split('\n').filter(Boolean).pop()}</p>
+          {block.hint && <p className="mt-1 text-ink"><span className="font-medium">Hint:</span> {block.hint}</p>}
+        </div>
+      )}
+      {run && run !== 'starting' && run.output && (
+        <pre className="no-scrollbar mt-2 max-h-32 overflow-y-auto rounded-lg border border-line bg-white p-2 font-mono text-[11px] leading-4 whitespace-pre-wrap">{run.output}</pre>
+      )}
+    </div>
+  );
+}
+
 function FlashcardsBody({ block, onChange }) {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -168,6 +266,8 @@ function FlashcardsBody({ block, onChange }) {
 
 // Serialize a block for the tutor prompt when the learner asks about it.
 export function describeBlock(block) {
+  if (block.type === 'code') return { kind: 'Code exercise', title: block.title, text: `Code exercise: ${block.title}\n${block.brief}\nGiven setup:\n${block.setup}\nLearner's current code:\n${block.draft ?? block.starter}\nChecks it must pass:\n${block.checks}` };
+  if (block.type === 'snippet') return { kind: 'Code sample', title: block.title, text: `Code sample: ${block.title}\n${block.brief || ''}\nCode:\n${block.code}\nOutput:\n${block.output || '(none shown)'}` };
   if (block.type === 'quiz') return { kind: 'Quiz', title: block.question, text: `Quiz question: ${block.question}\nOptions:\n${block.options.map(option => `${option.key}. ${option.text}${option.correct ? ' (correct answer)' : ''}`).join('\n')}\nLearner's current choice: ${block.choice || 'none yet'}` };
   if (block.type === 'flashcards') return { kind: 'Flashcards', title: `${block.cards.length} cards`, text: `Flashcards:\n${block.cards.map((card, index) => `- ${card.front} → ${card.back} (learner self-rated: ${(block.marks || {})[index] || 'unrated'})`).join('\n')}` };
   if (block.type === 'challenge') return { kind: 'Challenge', title: block.prompt, text: `Challenge: ${block.prompt}\nLearner's committed answer: ${block.answer || 'none yet'}` };
@@ -178,5 +278,7 @@ export function LearningBlockBody({ block, onChange }) {
   if (block.type === 'challenge') return <ChallengeBody block={block} onChange={onChange} />;
   if (block.type === 'quiz') return <QuizBody block={block} onChange={onChange} />;
   if (block.type === 'flashcards') return <FlashcardsBody block={block} onChange={onChange} />;
+  if (block.type === 'code') return <CodeBody block={block} onChange={onChange} />;
+  if (block.type === 'snippet') return <SnippetBody block={block} />;
   return null;
 }

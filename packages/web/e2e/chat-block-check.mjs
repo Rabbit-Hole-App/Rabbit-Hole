@@ -76,15 +76,15 @@ await check('pen draws a stroke', async () => {
   await page.mouse.down();
   await page.mouse.move(box.x + 260, box.y + 200, { steps: 10 });
   await page.mouse.up();
-  const paths = await canvas.locator('svg path').count();
+  const paths = await canvas.locator('[data-ink] path').count();
   if (!paths) throw new Error('no stroke path');
 });
 
 // ctrl+z: the stroke just drawn disappears
 await check('ctrl+z undoes the stroke', async () => {
-  const before = await canvas.locator('svg path').count();
+  const before = await canvas.locator('[data-ink] path').count();
   await page.keyboard.press('Control+z');
-  const after = await canvas.locator('svg path').count();
+  const after = await canvas.locator('[data-ink] path').count();
   if (after !== before - 1) throw new Error(`paths ${before} -> ${after}`);
 });
 
@@ -107,7 +107,7 @@ await check('rectangle draws', async () => {
   await page.mouse.down();
   await page.mouse.move(box.x + box.width - 120, box.y + 470, { steps: 8 });
   await page.mouse.up();
-  if (!(await canvas.locator('svg rect').count())) throw new Error('no rect');
+  if (!(await canvas.locator('[data-ink] rect').count())) throw new Error('no rect');
 });
 
 // del key: select the sticky, delete it
@@ -130,7 +130,7 @@ await check('blocks survive reload', async () => {
   await page.waitForTimeout(700);
   await page.reload();
   await canvas.locator('[data-chat-block]').getByText('Explain me sigmoid', { exact: true }).waitFor({ timeout: 20000 });
-  if (!(await canvas.locator('svg rect').count())) throw new Error('shape lost');
+  if (!(await canvas.locator('[data-ink] rect').count())) throw new Error('shape lost');
 });
 
 // node select + Del: the chat block deletes; ctrl+z brings it back
@@ -194,12 +194,36 @@ await check('flashcards flip and navigate', async () => {
 // linked conversation node below it
 await check('ask about selected quiz links a node', async () => {
   await canvas.getByText('what is the derivative', { exact: false }).first().click();
+  await page.getByRole('button', { name: 'Ask in chat' }).click();
   await page.locator('[data-canvas-target]').waitFor({ timeout: 5000 });
   const linksBefore = await canvas.locator('[data-connection]').count();
   await dock.fill('why is the derivative maximal at zero?');
   await dock.press('Enter');
   await canvas.locator('[data-chat-block]').getByText('why is the derivative maximal at zero?', { exact: true }).waitFor({ timeout: 15000 });
   if ((await canvas.locator('[data-connection]').count()) !== linksBefore + 1) throw new Error('no auto link');
+});
+
+// code sample: display-only code with its output shown below
+await check('code sample shows code and output', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  await page.getByRole('menuitem', { name: 'Code sample' }).click();
+  await canvas.getByText('Building the character vocabulary').waitFor({ timeout: 5000 });
+  await canvas.getByText('6 characters', { exact: false }).waitFor({ timeout: 3000 });
+});
+
+// code exercise: complete the function, run in-browser Python, checks pass
+await check('code exercise runs and passes', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  await page.getByRole('menuitem', { name: 'Code exercise' }).click();
+  const editor = canvas.locator('textarea');
+  await editor.waitFor({ timeout: 5000 });
+  await editor.fill('def encode(s):\n    return []');
+  await page.locator('[data-run-code]').click();
+  await canvas.getByText('Why it failed:', { exact: false }).waitFor({ timeout: 120000 });
+  await canvas.getByText('Hint:', { exact: false }).waitFor({ timeout: 3000 });
+  await editor.fill('def encode(s):\n    return [stoi[c] for c in s]');
+  await page.locator('[data-run-code]').click();
+  await canvas.getByText('✓ All checks passed', { exact: false }).waitFor({ timeout: 30000 });
 });
 
 await page.waitForTimeout(400);
