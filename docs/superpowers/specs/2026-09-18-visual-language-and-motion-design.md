@@ -70,12 +70,33 @@ and the `latest` ref becomes belt rather than load-bearing.
 
 ### Colour: the scene names meaning, the system picks the pixel
 
-`initialState.color` is removed. Objects carry a semantic role:
+`initialState.color` is removed. Objects carry a semantic role — **what the object means** — and,
+separately, transient state — **what is happening to it now**. Conflating the two would mean a
+`prediction` stops being a prediction the moment a learner selects it, and every such change would
+be a migration once Plan B adds interaction.
+
+```js
+{
+  role: 'prediction',          // what this object IS. authored, stable.
+  state: { selected: true },   // what is HAPPENING to it. mostly evaluator- or learner-driven.
+}
+```
+
+**Roles** — ten, authored, stable for the life of an object:
 
 ```
-input  output  active  selected  prediction  observed
-blocked  warning  success  learner  tutor  code  neutral
+neutral  input  output  prediction  observed  learner  tutor  code  warning  success
 ```
+
+**States** — six, orthogonal to role, and each composes with any of them:
+
+```
+active  selected  highlighted  chosen  blocked  disabled
+```
+
+`highlighted` and `chosen` already exist as evaluated booleans, so this formalises what is there
+rather than inventing it. A `prediction` that is `selected` is still a prediction: the role picks
+the hue, the state modulates weight, fill strength and ring.
 
 Each role resolves to a CSS custom property defined once, in both themes, beside the existing
 tokens in `index.css`. The renderer never computes a colour: it emits `var(--viz-<role>)` and lets
@@ -97,9 +118,25 @@ Three consequences worth stating:
   than a drift.
 - **The agent cannot pick a colour**, which is what the source brief asks for.
 
-**Legacy adapter, temporary.** The four existing scenes author hex. A compatibility layer maps the
-known values to roles at validation, so nothing has to be edited by hand, and it carries a removal
-note. New scenes are role-only; the schema does not accept `color`.
+**Legacy adapter, and exactly where it runs.** The four existing scenes author hex, and the schema
+will not accept `color` — so the adapter must run *before* validation, or zod strips the field
+before compatibility can see it:
+
+```
+raw persisted scene
+  ↓  legacySceneAdapter()      color -> role, on a closed table of known values
+validateScene()                 role-only from here on
+  ↓
+prepared scene
+```
+
+An unknown hex **fails loudly** rather than being guessed at or mapped to `neutral`: a silently
+wrong colour is the thing this whole model exists to prevent, and a scene authored against a hex
+nobody recognises is a scene nobody has reviewed.
+
+**Deletion condition, stated so "temporary" does not become permanent:** the adapter is removed once
+no shipped scene, no persisted canvas block and no test fixture carries a `color` field. Plan B's
+first task checks this and deletes it if the condition holds.
 
 ### Typography
 
@@ -134,10 +171,13 @@ of the pass.
 
 ### Object states
 
-The doc's semantic states, each styled once and applied by every primitive that can hold them:
-`active`, `selected`, `blocked`, `prediction`, `observed`, plus the existing `highlighted` and
-`chosen`. Today `chosen` is a hardcoded `#b42318` stroke and `highlighted` is a ring; both become
-role-driven.
+The six states above, each styled once and applied by every primitive that can hold them. A state
+never changes an object's hue — it modulates fill strength, stroke weight and ring against the
+role's own colour, so a selected `prediction` and a selected `observed` read as the same *kind* of
+selection on two different things.
+
+Today `chosen` is a hardcoded `#b42318` stroke and `highlighted` is a ring. Both become
+role-and-state driven.
 
 ### Motion grammar
 
@@ -147,9 +187,22 @@ Named timings replacing raw seconds:
 instant 0ms   fast 180ms   normal 350ms   slow 700ms   explain 1100ms
 ```
 
-`event.duration` accepts a name or a number; a name resolves through the table. The rules from the
-brief become authoring guidance enforced where they can be: animate one major change at a time,
-pause after a transformation, preserve object identity, avoid simultaneous motion.
+**The vocabulary resolves before the evaluator ever sees it.** An author may write a name; the
+evaluator only ever receives seconds:
+
+```
+authored      duration: 'slow'
+validateScene duration: 0.7          <- resolved here, once
+getSceneState duration: 0.7          <- numeric only; knows no vocabulary
+```
+
+This is what keeps the claim that A.5 changes no evaluator semantics true. `getSceneState` is
+byte-for-byte the same function it was, operating on the same numeric input; the names live
+entirely on the authoring side of the gate. A scene that authors numbers directly is unaffected.
+
+The rules from the brief become authoring guidance enforced where they can be: animate one major
+change at a time, pause after a transformation, preserve object identity, avoid simultaneous
+motion.
 
 Motion still springs only discrete state — the invariant Plan A established and wrote into the
 code. Nothing continuous is sprung.
@@ -179,9 +232,36 @@ one's sound once:
 previous t → current t → events crossed → play once
 ```
 
-Scrubbing is muted — dragging across ten seconds must not machine-gun. Playback and direct
-interaction are the only things that sound. A coalescing window (one sound per ~80 ms) makes rule 2
-mechanical rather than a matter of authoring care.
+**When it fires, exhaustively** — leaving any of these to implementation order produces edge-case
+noise:
+
+| situation | sound |
+|---|---|
+| playback advancing forward | fires |
+| manual scrub, any direction | silent |
+| backward seek of any kind | silent |
+| replay from zero, then playing | fires normally, from the start |
+| one dropped frame crossing several events | coalesced, deterministically |
+
+**Coalescing.** One sound per ~80 ms window. When several are crossed together the winner is by
+tier, not by array order:
+
+```
+1. success  incorrect  reveal          the outcome of a beat
+2. split    merge      connect  drop   snap     a structural change
+3. soft_pop soft_whoosh  tick  select  toggle_on  toggle_off  compute
+```
+
+Highest tier wins; within a tier, the earliest `at` wins. That makes rule 2 mechanical rather than a
+matter of authoring care, and makes the choice reproducible.
+
+**The AudioContext is created or resumed only after a first user gesture.** Chrome refuses playback
+otherwise and does so silently. The Play button is a sufficient gesture; this is specified rather
+than discovered.
+
+**Preferences live outside the scene.** A scene says `reveal`. Whether that is audible, and how
+loud, is the learner's setting — mute, volume, reduce-effects. The scene never knows, and the same
+JSON is correct for a learner who has sound off.
 
 **Where the audio comes from.** Synthesised with the Web Audio API rather than shipped as files: a
 soft pop is a short enveloped sine, a whoosh is filtered noise. No assets, no network, no
@@ -229,6 +309,33 @@ against real content rather than against three demos written to show off primiti
 5. The four existing scenes render through the new system without hand edits, via the legacy
    adapter.
 6. The two A.5a debts are closed, each with a test that fails first.
+
+### 7. The visual gate — and it is the one that matters
+
+Everything above proves the architecture is right and nothing regressed. **None of it proves the
+result looks good**, and looking bad is the entire reason A.5 exists. A perfectly tokenised system
+can still produce something ugly.
+
+For each of the three reference scenes, capture keyframes at **0%, 25%, 50%, 75% and 100%**, in
+**both themes** — thirty images. Review each against:
+
+- visual hierarchy: is the important thing the most prominent thing?
+- typography: does the scale read as one system, at the sizes actually used?
+- spacing rhythm: does the layout sit on the scale, or near it?
+- edge and arrow clarity: are connections legible where they matter, including where they cross?
+- contrast: does every text and fill pass in both themes?
+- label collisions: does anything overlap at any keyframe?
+- stroke weight consistency across primitives
+- motion pacing: do the beats land, or does everything happen at once?
+- focal point: at each keyframe, is it obvious where to look?
+- and the only question that really counts — **is the concept visually obvious?**
+
+**A.5 does not pass because every token is used correctly. It passes when these three scenes are
+approved by a human as production-quality examples of the target learning experience.** That
+approval is explicit and is not mine to give.
+
+The approved images then become the golden visual baseline, the way `token-journey-baseline.png`
+served Plan A — so the next pass can prove it changed nothing it did not mean to.
 
 ## Not in scope
 
