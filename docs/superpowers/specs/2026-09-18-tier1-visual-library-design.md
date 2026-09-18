@@ -60,11 +60,18 @@ Five conditions. All must hold.
 ### One frame function
 
 ```
-inputs ──► derive(scene.derive, inputs) ──► derived
-                                              │
-scene, t, inputs, derived ──► getSceneState ──► visual state ──► render
-                                              │
-inputs, derived ──► check(scene.check) ──────► { passed } | { passed, reason }
+rawInputs
+   │
+   ▼
+coerceInputs(scene.inputs, rawInputs)
+   │
+   ▼
+effectiveInputs
+   ├──► derive(scene.derive, effectiveInputs, scene) ──► derived
+   │                                                        │
+   ├──► getSceneState(scene, t, effectiveInputs, derived) ──┴──► visual state ──► render
+   │
+   └──► check(scene.check, effectiveInputs, derived) ──► { passed } | { passed, reason, evaluable }
 ```
 
 Four boundaries, and the whole design rests on keeping them apart:
@@ -74,9 +81,26 @@ Four boundaries, and the whole design rests on keeping them apart:
 - **check** answers *did the learner satisfy a concrete state objective*;
 - the **tutor** answers *did the learner understand it*.
 
+**Inputs are coerced exactly once, before the fork.** Derive, the evaluator, check, the renderer and
+the tutor must all observe the same `effectiveInputs`. Coercing inside `getSceneState` instead would
+let a stale or out-of-range persisted value reach the calculator raw while the picture clamps it, so
+the number on screen and the number in the readout could disagree — the precise class of divergence
+this design exists to prevent.
+
+One orchestration helper, not another engine:
+
+```js
+evaluateScene(scene, t, rawInputs) -> { inputs, derived, state }
+```
+
+`AnimatedScene` and `describeBlock` both call it, so the pipeline cannot be reconstructed two
+different ways again — which is how the current tutor bug happened.
+
 `getSceneState(scene, t, inputs = {}, derived = null)` keeps its defaults, so every existing
 two-argument call site stays correct and the thirteen tests in `animation-scene.test.mjs` pass
-unedited.
+unedited. It coerces defensively as well; `coerceInputs` is idempotent (clamping a clamped value is
+identity), so the second pass costs nothing and a direct two-argument call still gets clamped
+defaults.
 
 ### Mode is not an argument to the evaluator
 
@@ -115,6 +139,17 @@ A discriminated union, not twelve flat optionals — an author cannot write `{ty
 [...]}` and have it silently accepted. `of` names the object whose cell, chip or value count is the
 index domain; `validateScene` checks that the named object exists and that the default is inside it.
 
+**Canonical forms**, fixed here rather than left to implementation:
+
+- `indices` is a **set**: clamp each entry to the domain, drop duplicates, sort numerically ascending.
+  Click order is not preserved. Without this, `[2,0,1]` and `[0,1,2]` express identical learner
+  understanding and fail `input_all_equal` differently.
+- `vec2` is **symmetric**: each axis is clamped to `[-range, +range]`. This matches the existing
+  `clampVector` at `scene-behaviors.js:75`, whose `LIMIT` is applied as `Math.max(-LIMIT,
+  Math.min(LIMIT, …))`, so the migrated vector scene keeps its current domain exactly.
+- Every coerced numeric input passes through the same `round` as `derive`, so an input and a derived
+  value are comparable without an epsilon.
+
 Widgets are keyed on input **type**, not on a scene or behaviour id, so `box` later lands as one
 shared widget rather than a fourth bespoke renderer:
 
@@ -132,10 +167,10 @@ architecture change — that is the test this design has to pass and the earlier
 An event late-binds with `{"$input": "query"}` and gates with `when: {"input": "mask", "is": true}`.
 
 **Learner values are a separate trust tier and must never fail the authored parse.** They are clamped
-by `coerceInputs` inside `getSceneState`, not validated in `validateScene` — `describeBlock` bypasses
-validation, so anything placed in the validator is bypassable on the one path whose output reaches a
-model prompt. Persisted input state is read leniently; a stale or hand-edited value clamps to its
-domain instead of red-boxing the whole animation.
+by `coerceInputs` at the head of the pipeline, never validated in `validateScene` — `describeBlock`
+bypasses validation, so anything placed in the validator is bypassable on the one path whose output
+reaches a model prompt. Persisted input state is read leniently; a stale or hand-edited value clamps
+to its domain instead of red-boxing the whole animation.
 
 ### Derive
 
@@ -191,6 +226,18 @@ guard does not skip it and `move` computes `x + (null - x) * 1 = 0` — an objec
 silently snaps to the origin and draws. A plausible arrow at 0,0 is precisely what this boundary
 exists to prevent.
 
+The same rule covers a `set_values` length mismatch, which late binding makes a runtime question as
+well as an authoring one. Author-time validation cannot know the length of an array that `$input` or
+`$derived` will resolve to:
+
+| payload | where the length is checked | on mismatch |
+|---|---|---|
+| literal | `validateScene` | refuse the scene, one-line error |
+| resolved `$input` / `$derived` | after resolution, each frame | skip the entire event, keep the authored or current values, record a diagnostic |
+
+Never a partial write. Half a resolved array over authored data is indistinguishable from real
+output, which is the failure this rule exists to make impossible.
+
 ### Action value shapes
 
 `event.value` is `z.any()` today, with each of the twenty-two cases hand-guarding its own payload.
@@ -207,7 +254,26 @@ rather than at the top level only.
 
 ### Check
 
-Closed, allowlisted, pure, never throws. Returns `{passed: true}` or `{passed: false, reason}`.
+Closed, allowlisted, pure, never throws.
+
+```js
+{ passed: true,  evaluable: true }
+{ passed: false, evaluable: true,  reason: 'IoU is 0.63; target is at least 0.70.' }
+{ passed: false, evaluable: false, reason: 'Choose a non-zero axis before checking the projection.' }
+```
+
+`evaluable` connects `check` to `derive`'s `{defined: false, reason}` and separates two things that
+must never look alike:
+
+- **failed** — the learner attempted a valid goal and missed it.
+- **not ready** (`evaluable: false`) — a required derived value does not exist yet, because a
+  prerequisite interaction has not happened. `derived_at_least` on an undefined projection is not a
+  wrong answer.
+
+A predicate over a `{defined: false}` derivation is always *not ready*, and inherits that
+derivation's `reason` so the learner is told what to do rather than that they were wrong. Under
+`all`/`any`, one *not ready* child makes the parent *not ready*; the shell reports progress
+accordingly and the tutor is told which of the two it is.
 
 ```
 input_equals   input_includes   input_all_equal
@@ -246,8 +312,22 @@ holds.
 
 A predict-then-reveal scene gates its reveal on a committed **input**, never on time. `derive`
 returns `{defined: false, reason}` until the commit, so the answer is absent from state at every `t`
-— and therefore absent from the tutor prompt — until the learner commits. A commit is a one-way door
-until `reset_attempt`.
+— and therefore absent from the tutor prompt — until the learner commits.
+
+The commit needs no new vocabulary. It is an ordinary `bool` input carrying one extra field:
+
+```js
+{ type: 'bool', name: 'committed', label: 'Lock in my choice', default: false, once: true }
+```
+
+`once: true` means the shell refuses to change the input again after it leaves its default. It is an
+affordance constraint, enforced where the widget lives — the evaluator never sees it, so mode-blindness
+holds. **Reset** is a shell control that restores every input to its declared default; it is the only
+way past a `once` input, and it is what makes an attempt counter meaningful. Neither is an evaluator
+concept and neither is an action.
+
+Scene C needs this: without it a learner can change their prediction after the reveal, which removes
+the entire pedagogical point of predict-then-reveal.
 
 ## Work
 
@@ -293,7 +373,11 @@ Nothing new; make what exists true.
 - Render `arrow` and `line`. Both are in the type enum with no render branch and fall through to a
   generic `<rect>` with undefined width and height; `initialState.from`/`to` are parsed and read by
   nothing. The arrowhead marker already exists.
-- Render `image` with a bounded `src`, for Scene B.
+- Render `image`, for Scene B. `src` is bounded by **policy**, not only by length: a same-origin
+  relative path under the existing asset route. Absolute URLs, `data:` and `blob:` are refused at
+  `validateScene`. A length cap alone would let a scene reference a third-party origin — a tracking
+  and exfiltration path out of a lesson — or inline a multi-megabyte `data:` URI into persisted block
+  state.
 - Value-mapped cell alpha on `grid` — that is `Heatmap`, about two lines in the existing branch, and
   `bars` already computes `peak` the same way.
 - `null` inside a `set_values` array blanks a cell rather than showing a fake zero.
@@ -378,8 +462,14 @@ acceptance scenes that do not exist yet is the trade this design refuses.
 - Assert with `Object.is` or `assert.deepEqual`, never `JSON.stringify`, which is blind to the `-0`
   the rounding policy can produce.
 - Playwright keeps the nine existing interactive-block checks passing throughout, and gains one
-  mode-portability check per acceptance scene: the same scene JSON rendered `passive`, then
-  `interactive`, then `activity`, with the visual state at a fixed `t` identical in all three.
+  mode-portability check per acceptance scene. The property under test is:
+
+  > For identical `(scene, t, effectiveInputs, derived)`, the visual state is identical in `passive`,
+  > `interactive` and `activity`.
+
+  Not "identical at a fixed `t`" — an interactive learner changing `queryIndex` *should* change the
+  picture, and a test phrased on `t` alone would read that correct behaviour as a portability
+  violation. The inputs are held equal; only the mode varies.
 
 ## Deliberately not in Tier 1
 
