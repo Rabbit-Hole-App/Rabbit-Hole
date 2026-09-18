@@ -125,6 +125,22 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
   };
   const forced = tool => ({ type: 'tool', name: tool.name, disable_parallel_tool_use: true });
   let formatRepairUsed = continuation?.formatRepairUsed || false;
+  // Last resort after a failed repair: drop individually invalid blocks and
+  // render the rest, so a bad block never sinks the whole explanation.
+  const salvage = (input, validate) => {
+    let plan = input && typeof input === 'object' ? { ...input, blocks: Array.isArray(input.blocks) ? [...input.blocks] : input.blocks } : input;
+    for (let round = 0; round < 8; round++) {
+      try { return validate(plan); }
+      catch (error) {
+        if (!Array.isArray(plan?.blocks) || plan.blocks.length <= 1) throw error;
+        const bad = plan.blocks.findIndex(block => { try { validate({ ...plan, blocks: [block] }); return false; } catch { return true; } });
+        if (bad < 0) throw error; // plan-level failure, not a block problem
+        console.warn('Learn salvage dropped a block', { kind: plan.blocks[bad]?.kind, reason: error.message });
+        plan = { ...plan, blocks: plan.blocks.filter((_, i) => i !== bad) };
+      }
+    }
+    return validate(plan);
+  };
   const validateOrRepair = async (response, tool, validate, history, maxTokens = 3000) => {
     try {
       if (response.result.stop_reason === 'max_tokens') throw new Error(`${tool.name}: output reached its ${maxTokens}-token limit before completing`);
@@ -132,7 +148,10 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
     }
     catch (error) {
       console.warn('Learn validation failed', { tool: tool.name, reason: error.message });
-      if (formatRepairUsed) throw error;
+      if (formatRepairUsed) {
+        if (tool.name === PLAN_TOOL.name) return { ...response, plan: salvage(response.call.input, validate) };
+        throw error;
+      }
       formatRepairUsed = true;
       onProgress(`Correcting ${tool.name === PLAN_TOOL.name ? 'teaching plan' : 'canvas format'}: ${error.message}`);
       const repairHistory = [...history, { role: 'assistant', content: response.result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: response.call.id, is_error: true, content: `Validation failed: ${error.message}. Return the complete corrected ${tool.name} input. Follow all schema limits, preserving supported meaning. This is the only format correction attempt; factual review still follows.` }] }];
@@ -141,7 +160,12 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
       const repaired = await invoke(BOARD_SYSTEM, [tool], forced(tool), repairHistory, repairTokens);
       if (repaired.call.name !== tool.name) throw new Error('Unexpected correction tool');
       if (repaired.result.stop_reason === 'max_tokens') throw new Error(`${tool.name}: correction reached its ${repairTokens}-token limit`);
-      return { ...repaired, plan: validate(repaired.call.input) };
+      try { return { ...repaired, plan: validate(repaired.call.input) }; }
+      catch (secondError) {
+        console.warn('Learn validation failed', { tool: tool.name, reason: secondError.message, attempt: 'repair' });
+        if (tool.name === PLAN_TOOL.name) return { ...repaired, plan: salvage(repaired.call.input, validate) };
+        throw secondError;
+      }
     }
   };
   const reply = (result, call, content, is_error = false) => messages.push({ role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, content, is_error }] });
