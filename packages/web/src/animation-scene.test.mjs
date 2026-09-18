@@ -170,5 +170,6 @@ test('a blanked cell grows back from zero, never from null', () => {
     objects: [{ id: 'row', type: 'strip', initialState: { x: 0, y: 0, values: [null] } }],
     timeline: [{ at: 0, action: 'set_values', target: 'row', duration: 2, easing: 'linear', value: [10] }],
   });
+  assert.deepEqual(getSceneState(built, 0).objects[0].values, [null], 'an authored blank is still blank before its event starts');
   assert.deepEqual(getSceneState(built, 1).objects[0].values, [5]);
 });
