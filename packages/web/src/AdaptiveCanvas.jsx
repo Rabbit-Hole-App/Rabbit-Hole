@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, Diamond, Eraser, Hand, Hexagon, Highlighter, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, Diamond, Eraser, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
 import { BLOCK_TYPES, LearningBlockBody, describeBlock } from './LearningBlocks.jsx';
 import { gapsFrom, nearestGap } from './learn-gap-rail.js';
-import { panelFor, textStyle, TEXT_LEVELS } from './learn-style-panel.js';
+import { panelFor, textStyle, dashArray, dashStyle, reorder, TEXT_LEVELS, DASH_STYLES, OPACITIES } from './learn-style-panel.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -292,7 +292,7 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
     );
   }
   return (
-    <div data-block style={{ left: item.x, top: item.y, ...(sticky ? { width: item.w || 160, height: item.h || 160 } : { color: item.color, ...textStyle(item) }) }}
+    <div data-block style={{ left: item.x, top: item.y, opacity: item.opacity, ...(sticky ? { width: item.w || 160, height: item.h || 160 } : { color: item.color, ...textStyle(item) }) }}
       className={`absolute z-10 cursor-grab active:cursor-grabbing ${sticky ? '-rotate-1 overflow-hidden rounded-sm border border-[#f0d9a8] bg-[#fef3c7] p-3 text-[13px] leading-snug text-[#6b4e0b] shadow-md' : 'min-w-24 leading-snug'} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
       onPointerDown={down} onDoubleClick={startEdit}>
       <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder={sticky ? 'Note…' : 'Text…'}
@@ -339,8 +339,8 @@ const arrowHead = (tip, from, stroke) => {
 };
 
 function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResize, onGesture, onDelete }) {
-  const { kind, x1, y1, x2, y2, color, width, dash } = shape;
-  const stroke = { stroke: color, strokeWidth: width, fill: 'none', strokeDasharray: dash ? `${width * 3} ${width * 2.5}` : undefined, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const { kind, x1, y1, x2, y2, color, width, dash, fill, opacity, round } = shape;
+  const stroke = { stroke: color, strokeWidth: width, fill: fill || 'none', fillOpacity: fill ? 0.25 : undefined, opacity, strokeDasharray: dashArray(dash, width), strokeLinecap: 'round', strokeLinejoin: 'round' };
   const x = Math.min(x1, x2), y = Math.min(y1, y2), w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
   const control = kind === 'curve' ? curveControl(shape) : null;
   const linear = kind === 'line' || kind === 'arrow' || kind === 'curve';
@@ -357,7 +357,7 @@ function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResiz
     : [[x1, y1, p => ({ x1: p.x, y1: p.y })], [x2, y1, p => ({ x2: p.x, y1: p.y })], [x2, y2, p => ({ x2: p.x, y2: p.y })], [x1, y2, p => ({ x1: p.x, y2: p.y })]];
   return (
     <g style={{ pointerEvents: 'visibleStroke', cursor: tool === 'select' ? 'grab' : undefined }} onPointerDown={down}>
-      {kind === 'rect' && <rect x={x} y={y} width={w} height={h} rx={2} {...stroke} />}
+      {kind === 'rect' && <rect x={x} y={y} width={w} height={h} rx={round ? 14 : 2} {...stroke} />}
       {kind === 'ellipse' && <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...stroke} />}
       {POLYGONS[kind] && <polygon points={POLYGONS[kind].map(([u, v]) => `${x + u * w},${y + v * h}`).join(' ')} {...stroke} />}
       {(kind === 'line' || kind === 'arrow') && <line x1={x1} y1={y1} x2={x2} y2={y2} {...stroke} />}
@@ -378,7 +378,8 @@ function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResiz
 // 26 buttons and scrolled. They sit in their own island now, beside the tools,
 // shown only while a drawing tool is armed or something styleable is selected.
 // Text swaps the thickness row for Notion's heading ladder.
-function StylePanel({ text, color, width, dash, level, onColor, onWidth, onDash, onLevel }) {
+function StylePanel({ text, showFill, corners, order, color, fill, width, dash, opacity, round, level, onColor, onFill, onWidth, onDash, onOpacity, onRound, onLevel, onOrder }) {
+  const rule = <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />;
   return (
     <div role="group" aria-label="Style" onPointerDown={event => event.stopPropagation()}
       className="absolute top-1/2 right-16 z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md">
@@ -388,7 +389,26 @@ function StylePanel({ text, color, width, dash, level, onColor, onWidth, onDash,
           <span style={{ background: value }} className={`h-3.5 w-3.5 rounded-full ${color === value ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`} />
         </button>
       ))}
-      <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
+      {showFill && rule}
+      {showFill && (
+        <>
+          {/* Fill is drawn at a quarter opacity so a filled shape never buries
+              what is under it - the Excalidraw habit, without the hatching. */}
+          <button type="button" title="No fill" aria-label="No fill" aria-pressed={!fill} onClick={() => onFill(null)}
+            className="flex h-6 w-8 items-center justify-center rounded-lg hover:bg-hover">
+            <span className={`h-3.5 w-3.5 rounded-sm border border-line bg-white ${!fill ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}>
+              <svg viewBox="0 0 14 14" aria-hidden="true"><line x1="1" y1="13" x2="13" y2="1" stroke="#b42318" strokeWidth="1.5" /></svg>
+            </span>
+          </button>
+          {COLORS.map(value => (
+            <button key={value} type="button" title="Fill" aria-label={`Fill ${value}`} aria-pressed={fill === value} onClick={() => onFill(value)}
+              className="flex h-6 w-8 items-center justify-center rounded-lg hover:bg-hover">
+              <span style={{ background: value, opacity: 0.25, borderColor: value }} className={`h-3.5 w-3.5 rounded-sm border ${fill === value ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`} />
+            </button>
+          ))}
+        </>
+      )}
+      {rule}
       {text
         ? TEXT_LEVELS.map(entry => (
           <button key={entry.id} type="button" title={entry.label} aria-label={entry.label} aria-pressed={level === entry.id} onClick={() => onLevel(entry.id)}
@@ -402,11 +422,41 @@ function StylePanel({ text, color, width, dash, level, onColor, onWidth, onDash,
               <span style={{ height: value }} className="w-4 rounded-full bg-current" />
             </button>
           ))}
-          <button type="button" title="Dashed" aria-label="Dashed lines" aria-pressed={dash} onClick={onDash}
-            className={`flex h-6 w-8 items-center justify-center rounded-lg ${dash ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover'}`}>
-            <svg width="16" height="4" aria-hidden="true"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="2" strokeDasharray="4 3" /></svg>
-          </button>
+          {DASH_STYLES.map(value => (
+            <button key={value} type="button" title={value} aria-label={`${value} lines`} aria-pressed={dashStyle(dash) === value} onClick={() => onDash(value)}
+              className={`flex h-6 w-8 items-center justify-center rounded-lg ${dashStyle(dash) === value ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover'}`}>
+              <svg width="16" height="4" aria-hidden="true">
+                <line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                  strokeDasharray={value === 'dashed' ? '4 3' : value === 'dotted' ? '0 4' : undefined} />
+              </svg>
+            </button>
+          ))}
         </>}
+      {rule}
+      {OPACITIES.map(value => (
+        <button key={value} type="button" title={`Opacity ${Math.round(value * 100)}%`} aria-label={`Opacity ${Math.round(value * 100)}%`}
+          aria-pressed={(opacity ?? 1) === value} onClick={() => onOpacity(value)}
+          className={`flex h-6 w-8 items-center justify-center rounded-lg ${(opacity ?? 1) === value ? 'bg-hover' : 'hover:bg-hover'}`}>
+          <span style={{ background: color, opacity: value }} className="h-3.5 w-3.5 rounded-full" />
+        </button>
+      ))}
+      {corners && (
+        <>
+          <button type="button" title="Sharp corners" aria-label="Sharp corners" aria-pressed={!round} onClick={() => onRound(false)}
+            className={`flex h-6 w-8 items-center justify-center rounded-lg ${!round ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover'}`}><Square size={14} strokeWidth={1.7} /></button>
+          <button type="button" title="Rounded corners" aria-label="Rounded corners" aria-pressed={!!round} onClick={() => onRound(true)}
+            className={`flex h-6 w-8 items-center justify-center rounded-lg ${round ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover'}`}><Squircle size={14} strokeWidth={1.7} /></button>
+        </>
+      )}
+      {order && (
+        <>
+          {rule}
+          <button type="button" title="Send to back" aria-label="Send to back" onClick={() => onOrder(false)}
+            className="flex h-6 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><SendToBack size={14} strokeWidth={1.7} /></button>
+          <button type="button" title="Bring to front" aria-label="Bring to front" onClick={() => onOrder(true)}
+            className="flex h-6 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><BringToFront size={14} strokeWidth={1.7} /></button>
+        </>
+      )}
     </div>
   );
 }
@@ -427,7 +477,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const [insertFilter, setInsertFilter] = useState('');
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(WIDTHS[0]);
-  const [dash, setDash] = useState(false);
+  const [dash, setDash] = useState('solid');
+  const [fill, setFill] = useState(null);
+  const [opacity, setOpacity] = useState(1);
+  const [round, setRound] = useState(false);
+  // Lock keeps the armed tool armed, so three rectangles take three drags
+  // instead of three trips back to the toolbar.
+  const [lock, setLock] = useState(false);
   const [view, setView] = useState({ x: 0, y: 24, z: 1 });
   // Learner artifacts persist in this browser so a refresh keeps the canvas.
   const stored = useRef(null);
@@ -784,7 +840,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     if (tool === 'pen' || tool === 'highlighter') {
       event.preventDefault();
       // The width row scales both inks: pen uses it directly, highlighter 4x.
-      const ink = tool === 'pen' ? { tool, color, width, dash } : { tool, width: width * 4 };
+      const ink = tool === 'pen' ? { tool, color, width, dash, opacity } : { tool, width: width * 4 };
       const points = [local(event)];
       setLive({ ...ink, points });
       const move = e => { points.push(local(e)); setLive({ ...ink, points: [...points] }); };
@@ -798,7 +854,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     } else if (shapeTool) {
       event.preventDefault();
       const start = local(event);
-      const draft = { id: crypto.randomUUID(), kind: tool, x1: start.x, y1: start.y, x2: start.x, y2: start.y, color, width, dash };
+      const draft = { id: crypto.randomUUID(), kind: tool, x1: start.x, y1: start.y, x2: start.x, y2: start.y, color, width, dash, fill, opacity, round };
       setLiveShape(draft);
       const move = e => { const p = local(e); setLiveShape({ ...draft, x2: p.x, y2: p.y }); };
       const up = e => {
@@ -806,7 +862,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         const p = local(e);
         setLiveShape(null);
         if (Math.hypot(p.x - start.x, p.y - start.y) > 4) { snapshot(); setShapes(previous => [...previous, { ...draft, x2: p.x, y2: p.y }]); }
-        setTool('select');
+        if (!lock) setTool('select');
       };
       window.addEventListener('pointermove', move);
       window.addEventListener('pointerup', up);
@@ -833,8 +889,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       event.preventDefault();
       snapshot();
       const point = local(event);
-      setItems(previous => [...previous, { id: crypto.randomUUID(), kind: tool, x: point.x, y: point.y, text: '', color, ...(tool === 'text' ? { level } : {}), fresh: true }]);
-      setTool('select');
+      setItems(previous => [...previous, { id: crypto.randomUUID(), kind: tool, x: point.x, y: point.y, text: '', color, opacity, ...(tool === 'text' ? { level } : {}), fresh: true }]);
+      if (!lock) setTool('select');
     } else {
       setSelected(null);
       pan(event);
@@ -875,6 +931,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     setShapes(previous => previous.map(shape => targets.includes(shape.id) ? { ...shape, ...patch } : shape));
     setItems(previous => previous.map(item => targets.includes(item.id) ? { ...item, ...patch } : item));
     if (patch.color) setLinks(previous => previous.map(link => targets.includes(link.id) ? { ...link, color: patch.color } : link));
+  };
+  // Paint order is array order for both lists, so one pass over each is enough.
+  const reorderSelection = (toFront, targets) => {
+    if (!targets.length) return;
+    snapshot();
+    setShapes(previous => reorder(previous, targets, toFront));
+    setItems(previous => reorder(previous, targets, toFront));
   };
   const nudgeGap = (beforeId, delta) => {
     snapshot();
@@ -976,7 +1039,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         <svg aria-hidden="true" data-ink width="1" height="1" className="pointer-events-none absolute top-0 left-0 z-10 overflow-visible">
           {[...shapes, ...(liveShape ? [liveShape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={tool} zoom={view.z} selected={isSelected(shape.id)} onSelect={select} onMoveStart={moveShapeStart} onResize={resizeShape} onGesture={snapshot} onDelete={deleteItem} />)}
           {[...strokes, ...(live ? [live] : [])].map((stroke, index) => stroke.tool === 'pen'
-            ? <path key={index} d={pathOf(stroke.points)} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeDasharray={stroke.dash ? `${stroke.width * 3} ${stroke.width * 2.5}` : undefined} strokeLinecap="round" strokeLinejoin="round" />
+            ? <path key={index} d={pathOf(stroke.points)} fill="none" stroke={stroke.color} strokeWidth={stroke.width} opacity={stroke.opacity} strokeDasharray={dashArray(stroke.dash, stroke.width)} strokeLinecap="round" strokeLinejoin="round" />
             : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />)}
         </svg>
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
@@ -1023,20 +1086,28 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
         {SHAPE_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
         <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
+        {/* Keeps the armed tool armed after a draw, so shapes come in runs. */}
+        <ToolButton Icon={lock ? Lock : LockOpen} label={lock ? 'Keep tool active — on' : 'Keep tool active — off'}
+          active={lock} onPick={() => setLock(previous => !previous)} />
         {/* The one control that never hides: the way back to the style panel
             once it has closed itself, showing what colour is currently armed. */}
         <button type="button" title="Style" aria-label="Style" aria-pressed={showStyle}
           onPointerDown={e => e.stopPropagation()} onClick={() => setStyleOpen(previous => !previous)}
-          className={`col-span-2 mx-auto flex h-8 w-8 items-center justify-center rounded-lg ${showStyle ? 'bg-hover' : 'hover:bg-hover'}`}>
+          className={`flex h-8 w-8 items-center justify-center rounded-lg ${showStyle ? 'bg-hover' : 'hover:bg-hover'}`}>
           <span style={{ background: color }} className="h-4 w-4 rounded-full ring-1 ring-line" />
         </button>
       </div>
       {showStyle && (
-        <StylePanel text={panel.text} color={color} width={width} dash={dash} level={level}
+        <StylePanel text={panel.text} showFill={panel.fill} fill={fill} corners={panel.corners} order={panel.order}
+          color={color} width={width} dash={dash} opacity={opacity} round={round} level={level}
           onColor={value => { setColor(value); applyStyle({ color: value }, panel.targets); }}
+          onFill={value => { setFill(value); applyStyle({ fill: value }, panel.targets); }}
           onWidth={value => { setWidth(value); applyStyle({ width: value }, panel.targets); }}
-          onDash={() => { const next = !dash; setDash(next); applyStyle({ dash: next }, panel.targets); }}
-          onLevel={value => { setLevel(value); applyStyle({ level: value }, panel.targets); }} />
+          onDash={value => { setDash(value); applyStyle({ dash: value }, panel.targets); }}
+          onOpacity={value => { setOpacity(value); applyStyle({ opacity: value }, panel.targets); }}
+          onRound={value => { setRound(value); applyStyle({ round: value }, panel.targets); }}
+          onLevel={value => { setLevel(value); applyStyle({ level: value }, panel.targets); }}
+          onOrder={toFront => reorderSelection(toFront, panel.targets)} />
       )}
       {/* The zoom pill sits level with the composer's bottom edge. */}
       <div className="relative min-h-11 shrink-0 pt-3">

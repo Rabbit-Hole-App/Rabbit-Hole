@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { panelFor, textStyle, TEXT_LEVELS } from './learn-style-panel.js';
+import { panelFor, textStyle, reorder, dashStyle, dashArray, TEXT_LEVELS } from './learn-style-panel.js';
 
-const shape = id => ({ id, kind: 'rect' });
+const shape = (id, kind = 'rect') => ({ id, kind });
 const text = id => ({ id, kind: 'text' });
 const sticky = id => ({ id, kind: 'sticky' });
 
@@ -69,6 +69,66 @@ test('text with no level keeps rendering its old size', () => {
   assert.deepEqual(textStyle({ kind: 'text', size: 24 }), { fontSize: 24 });
   assert.deepEqual(textStyle({ kind: 'text' }), { fontSize: 14 });
   assert.deepEqual(textStyle({ kind: 'text', level: 'h9', size: 18 }), { fontSize: 18 });
+});
+
+// A line has no inside. Offering fill for it would be a press that does nothing.
+test('fill shows for closed shapes only', () => {
+  assert.equal(panelFor({ tool: 'rect', selection: [] }).fill, true);
+  assert.equal(panelFor({ tool: 'star', selection: [] }).fill, true);
+  assert.equal(panelFor({ tool: 'line', selection: [] }).fill, false);
+  assert.equal(panelFor({ tool: 'arrow', selection: [] }).fill, false);
+  assert.equal(panelFor({ tool: 'pen', selection: [] }).fill, false);
+});
+
+test('fill needs every selected shape to be closed, not just one', () => {
+  const shapes = [shape('a', 'rect'), shape('b', 'ellipse'), shape('c', 'line')];
+  assert.equal(panelFor({ tool: 'select', selection: ['a', 'b'], shapes }).fill, true);
+  assert.equal(panelFor({ tool: 'select', selection: ['a', 'c'], shapes }).fill, false);
+});
+
+test('corners are a rectangle idea only', () => {
+  assert.equal(panelFor({ tool: 'rect', selection: [] }).corners, true);
+  assert.equal(panelFor({ tool: 'ellipse', selection: [] }).corners, false);
+  const shapes = [shape('a', 'rect'), shape('b', 'ellipse')];
+  assert.equal(panelFor({ tool: 'select', selection: ['a'], shapes }).corners, true);
+  assert.equal(panelFor({ tool: 'select', selection: ['a', 'b'], shapes }).corners, false);
+});
+
+test('layer buttons need something selected - an armed tool has nothing to reorder', () => {
+  assert.equal(panelFor({ tool: 'rect', selection: [] }).order, false);
+  assert.equal(panelFor({ tool: 'select', selection: ['a'], shapes: [shape('a')] }).order, true);
+});
+
+test('dash reads the old boolean as dashed', () => {
+  assert.equal(dashStyle(true), 'dashed');
+  assert.equal(dashStyle(false), 'solid');
+  assert.equal(dashStyle(undefined), 'solid');
+  assert.equal(dashStyle('dotted'), 'dotted');
+  assert.equal(dashStyle('nonsense'), 'solid');
+});
+
+test('dashArray scales with stroke width and leaves solid undefined', () => {
+  assert.equal(dashArray('solid', 2), undefined);
+  assert.equal(dashArray(true, 2), '6 5');
+  assert.equal(dashArray('dashed', 4), '12 10');
+  assert.equal(dashArray('dotted', 3), '0 6'); // zero-length dashes + round caps = pips
+});
+
+test('reorder moves a selection to either end of paint order', () => {
+  const list = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+  assert.deepEqual(reorder(list, ['a'], true).map(e => e.id), ['b', 'c', 'a']);
+  assert.deepEqual(reorder(list, ['c'], false).map(e => e.id), ['c', 'a', 'b']);
+});
+
+test('reorder keeps a multi-selection in its own order and leaves the rest alone', () => {
+  const list = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }];
+  assert.deepEqual(reorder(list, ['a', 'c'], true).map(e => e.id), ['b', 'd', 'a', 'c']);
+  assert.deepEqual(reorder(list, ['b', 'd'], false).map(e => e.id), ['b', 'd', 'a', 'c']);
+});
+
+test('reorder returns the same list when nothing selected is in it', () => {
+  const list = [{ id: 'a' }];
+  assert.equal(reorder(list, ['zz'], true), list);
 });
 
 test('the levels run big to small so the panel reads like Notion', () => {
