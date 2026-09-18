@@ -133,12 +133,17 @@ await check('blocks survive reload', async () => {
   if (!(await canvas.locator('svg rect').count())) throw new Error('shape lost');
 });
 
-// node select + Del: the chat block deletes
+// node select + Del: the chat block deletes; ctrl+z brings it back
 await check('Del removes selected block', async () => {
   const count = await canvas.locator('[data-chat-block]').count();
   await canvas.locator('[data-chat-block]').first().click();
   await page.keyboard.press('Delete');
   if ((await canvas.locator('[data-chat-block]').count()) !== count - 1) throw new Error('block not deleted');
+});
+await check('ctrl+z restores deleted block', async () => {
+  const count = await canvas.locator('[data-chat-block]').count();
+  await page.keyboard.press('Control+z');
+  if ((await canvas.locator('[data-chat-block]').count()) !== count + 1) throw new Error('block not restored');
 });
 
 await page.waitForTimeout(400);

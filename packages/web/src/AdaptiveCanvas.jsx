@@ -124,14 +124,14 @@ function ChatCard({ exchange, zoom, selected, onSelect, onMove, renderComposer, 
         {exchange.answer
           ? <div className="text-sm"><Md text={exchange.answer} /></div>
           : <p className="text-sm text-ink-2 italic">{exchange.status === 'thinking' ? 'Thinking…' : `${exchange.status}…`}</p>}
-        {/* The continue-conversation icon shows once, under the last turn only. */}
-        {exchange.status === 'done' && renderComposer && !replies.length && <div className="mt-2 flex justify-end"><button type="button" aria-label="Reply in this block" title="Continue this conversation" onPointerDown={e => e.stopPropagation()} onClick={continueReply} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-accent"><MessageCircle size={15} /></button></div>}
-        {replies.map((turn, index) => <div key={turn.id} className="mt-3 border-t border-line pt-3">
+        {replies.map(turn => <div key={turn.id} className="mt-3 border-t border-line pt-3">
           <div className="mb-3 flex justify-end"><span className="rounded-xl bg-accent px-3 py-1.5 text-sm whitespace-pre-wrap text-white">{turn.question}</span></div>
           <div className="text-sm">{turn.answer ? <Md text={turn.answer} /> : <span className="text-ink-2">{turn.status === 'done' ? 'No answer received. Try again.' : 'Thinking…'}</span>}</div>
-          {turn.status === 'done' && index === replies.length - 1 && <div className="mt-2 flex justify-end"><button type="button" aria-label="Reply in this block" title="Continue this conversation" onPointerDown={e => e.stopPropagation()} onClick={continueReply} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-accent"><MessageCircle size={15} /></button></div>}
         </div>)}
       </div>
+      {/* Pinned footer: the continue-conversation icon stays visible no matter
+          how tall the thread grows or how the block is resized. */}
+      {exchange.status === 'done' && renderComposer && !replyOpen && <div className="flex shrink-0 justify-end px-2 pb-1.5"><button type="button" aria-label="Reply in this block" title="Continue this conversation" onPointerDown={e => e.stopPropagation()} onClick={continueReply} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-accent"><MessageCircle size={15} /></button></div>}
       {started && <div data-block-composer className={`shrink-0 border-t border-line px-3 pb-3 ${replyOpen ? '' : 'hidden'}`} onPointerDown={e => e.stopPropagation()}>
         <div className="flex items-center justify-between py-1 text-xs text-ink-2"><span>This conversation</span><button type="button" aria-label="Close block composer" onClick={() => setReplyOpen(false)} className="rounded p-1 hover:bg-hover"><X size={13} /></button></div>
         {renderComposer(exchange, receive)}
@@ -230,7 +230,7 @@ function ToolButton({ Icon, label, active, onPick }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, storageKey = null, composer = null, renderBlockComposer = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, storageKey = null, composer = null, renderBlockComposer = null }) {
   const [tool, setTool] = useState('select');
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(WIDTHS[0]);
@@ -266,6 +266,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, sto
   exchangesRef.current = exchanges;
   const onDeleteRef = useRef(onDelete);
   onDeleteRef.current = onDelete;
+  const onRestoreRef = useRef(onRestore);
+  onRestoreRef.current = onRestore;
   const connectionCleanup = useRef(null);
   const selectedRef = useRef(null);
   selectedRef.current = selected;
@@ -286,11 +288,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, sto
   const present = useRef(null);
   present.current = { strokes, shapes, items, links };
   const history = useRef([]);
-  const snapshot = () => { history.current.push(present.current); if (history.current.length > 100) history.current.shift(); };
+  // withExchanges captures the chat blocks too, so deleting a block undoes.
+  const snapshot = (withExchanges = false) => {
+    history.current.push({ ...present.current, ...(withExchanges ? { exchanges: exchangesRef.current } : {}) });
+    if (history.current.length > 100) history.current.shift();
+  };
   const undo = () => {
     const previous = history.current.pop();
     if (!previous) return;
     setStrokes(previous.strokes); setShapes(previous.shapes); setItems(previous.items); setLinks(previous.links); setSelected(null);
+    if (previous.exchanges) onRestoreRef.current?.(previous.exchanges);
   };
   useEffect(() => { setView(v => ({ ...v, x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2) })); }, []);
   // Wheel pans the world; ctrl/cmd+wheel zooms at the cursor. Non-passive so
@@ -323,10 +330,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, sto
       }
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
       if (typing || !selectedRef.current) return;
-      snapshot();
       const id = selectedRef.current;
+      const isBlock = exchangesRef.current.some(exchange => exchange.id === id);
+      snapshot(isBlock);
       // A selected chat block deletes with its attached connections.
-      if (exchangesRef.current.some(exchange => exchange.id === id)) {
+      if (isBlock) {
         onDeleteRef.current?.(id);
         setLinks(previous => previous.filter(link => link.from !== id && link.to !== id));
       }
