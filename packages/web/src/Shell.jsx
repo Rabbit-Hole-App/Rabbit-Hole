@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronsRight } from 'lucide-react';
+import { Home } from 'lucide-react';
+import { navigate } from './api.js';
 import { loadApps } from './app-data.js';
 import Sidebar from './Sidebar.jsx';
 
@@ -27,6 +28,12 @@ export default function Shell({ children }) {
     setCollapsed(c);
     localStorage.setItem('small.sidebar', c ? 'closed' : 'open');
   };
+  // Immersive pages (Learn) collapse the sidebar on entry via this event.
+  useEffect(() => {
+    const onSidebar = (e) => toggle(!!e.detail?.collapsed);
+    window.addEventListener('small:sidebar', onSidebar);
+    return () => window.removeEventListener('small:sidebar', onSidebar);
+  }, []);
   useEffect(() => {
     const on = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
@@ -50,11 +57,11 @@ export default function Shell({ children }) {
     <div className="flex h-screen">
       {collapsed && (
         <button
-          title="Open sidebar (Ctrl+\)"
-          onClick={() => toggle(false)}
-          className="fixed top-3 left-2 z-10 rounded-sm p-1 text-ink-2 hover:bg-hover hover:text-ink max-md:hidden"
+          title="Home (reopens the sidebar)"
+          onClick={() => { toggle(false); navigate('/apps'); }}
+          className="fixed top-3 left-2 z-10 rounded-md border border-line bg-hover p-1.5 text-ink-2 hover:bg-active hover:text-ink max-md:hidden"
         >
-          <ChevronsRight size={16} />
+          <Home size={16} />
         </button>
       )}
       {/* Notion slide: the wrapper animates width to 0 while the fixed-width inner
