@@ -10,11 +10,21 @@ import { getSceneState, validateScene } from './animation-scene.js';
 
 const NEWLINE = String.fromCharCode(10);
 
+// A grid may hold 256 numbers and a scene 60 objects, and this text goes
+// straight into a model prompt. Past a couple of rows the tutor needs the
+// shape and the shown values, not every cell - and the remainder is counted
+// out loud so a shortened list never reads as a complete one.
+const SHOWN = 24;
+const sample = values => (values.length <= SHOWN
+  ? values
+  : [...values.slice(0, SHOWN), `+${values.length - SHOWN} more`]);
+
 export function describeAnimation(block) {
   const title = block.title || 'Animation';
+  let scene = null;
   let state = null;
   let problem = '';
-  try { state = getSceneState(validateScene(block.scene), block.time ?? 0); }
+  try { scene = validateScene(block.scene); state = getSceneState(scene, block.time ?? 0); }
   catch (failure) { problem = failure.message; }
 
   if (!state) {
@@ -27,14 +37,14 @@ export function describeAnimation(block) {
     kind: 'Animation',
     title,
     text: [
-      `Animation: ${title} (${block.scene.duration}s)`,
+      `Animation: ${title} (${scene.duration}s)`,
       `Paused at: ${state.time.toFixed(1)}s`,
       concepts.length ? `Concepts: ${concepts.join(', ')}` : '',
       block.selectedObject ? `Selected object: ${block.selectedObject}` : '',
       `State at that moment: ${JSON.stringify(shown.map(object => ({
         id: object.semanticId,
         highlighted: object.highlighted,
-        ...(object.values ? { values: object.values } : {}),
+        ...(object.values ? { values: sample(object.values) } : {}),
         ...(object.tokens ? { tokens: object.tokens } : {}),
         ...(object.cellHighlight != null ? { cellHighlight: object.cellHighlight } : {}),
       })))}`,

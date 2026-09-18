@@ -45,3 +45,13 @@ test('an unusable scene degrades to a sentence and never throws', () => {
 test('concept ids reach the tutor', () => {
   assert.match(describeAnimation(block()).text, /tokenisation/);
 });
+
+test('a large array is shortened with its remainder counted, never silently', () => {
+  const big = Array.from({ length: 200 }, (unused, index) => index);
+  const described = describeAnimation(block({
+    scene: { id: 'big', duration: 4, objects: [{ id: 'g', type: 'grid', semanticId: 'wide', initialState: { x: 0, y: 0, rows: 10, cols: 20, values: big } }], timeline: [] },
+  }));
+  assert.match(described.text, /\+176 more/, 'the remainder is stated');
+  assert.ok(described.text.length < 1200, `serialised state stayed bounded, got ${described.text.length}`);
+  assert.doesNotMatch(described.text, /,199/, 'the tail is not present');
+});
