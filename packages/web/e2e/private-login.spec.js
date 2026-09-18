@@ -503,7 +503,7 @@ test('private Agent uses Bedrock with app history, sources, enlarge and minimize
   await expect(page.getByRole('button', { name: 'Bedrock', exact: true })).toBeVisible();
   await expect(page.getByText('This job accepts a count', { exact: false })).toHaveCount(2);
   await page.getByRole('button', { name: 'Minimize chat', exact: true }).click();
-  await expect(page).toHaveURL(/\/apps\/aws-private-proof\?tab=agent/);
+  await expect(page).toHaveURL(/\/apps\/aws-private-proof\?tab=graph/);
   await expect(page.getByText('This job accepts a count', { exact: false })).toHaveCount(2);
   await page.getByRole('tab', { name: 'Logs', exact: true }).click();
   await page.getByRole('cell', { name: '1788978', exact: true }).click();

@@ -1045,7 +1045,8 @@ extending this UI. Adding a view does not authorize removing an existing control
 - `SourcePreview` in `packages/web/src/coaching/SourcePreview.jsx` shares the
   complete source viewer between Sources and Capture, including file selection,
   line numbers, anchor highlighting, and syntax colors.
-- The enlarged chat page has a Minimize button returning to the app's Agent tab.
+- The enlarged chat page has a Minimize button returning to the app's Graph tab
+  (formerly the Agent tab; see [app-tabs.md](app-tabs.md)).
 - Each sidebar app menu includes Share. It opens that app and its existing
   sharing popover, preserving editor controls and the viewer's read-only view.
 

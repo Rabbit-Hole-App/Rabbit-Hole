@@ -22,7 +22,8 @@ const learnPreview = import.meta.env.VITE_COACHING_DEV === 'true' && import.meta
 
 function initialAppTab() {
   const tab = new URLSearchParams(window.location.search).get('tab');
-  return tab === 'agent' || (learnPreview && tab === 'learn') ? tab : null;
+  if (tab === 'agent') return 'graph'; // legacy links from before the Agent tab became Graph
+  return tab === 'graph' || (learnPreview && tab === 'learn') ? tab : null;
 }
 
 const TH = 'h-8 border-b border-line px-2 text-left text-xs font-normal text-ink-2';
@@ -523,21 +524,21 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
     ? `${app.repo_branch} · ${app.repo_commit.slice(0, 7)}${app.repo_dirty ? ' · dirty' : ''}`
     : null;
 
-  // Agent tab: the page must NOT scroll - the pane fills to the viewport bottom so
+  // Graph tab: the page must NOT scroll - the pane fills to the viewport bottom so
   // the textbox sits static (level with the sidebar's New chat), only messages scroll.
-  const agentFull = !runId && (tab ?? (app?.kind === 'job' ? 'run' : 'runbook')) === 'agent';
+  const graphFull = !runId && (tab ?? 'graph') === 'graph';
   const isAws = app?.hosting === 'aws';
   if (learnPreview && app?.kind === 'repository' && !error) return <RepositoryPage key={app.name} app={app} />;
   if (learnPreview && tab === 'learn' && app && !error && !runId) {
     return <LearnPage key={JSON.stringify([app.email, app.org, app.name])} app={app} onBack={() => { setTab(null); navigate(`/apps/${encodeURIComponent(app.name)}`); }} />;
   }
   return (
-    <main className={cn('flex-1', agentFull ? 'overflow-hidden' : 'overflow-y-auto')}>
+    <main className={cn('flex-1', graphFull ? 'overflow-hidden' : 'overflow-y-auto')}>
       {/* run pages carve out the fixed 400px chat panel and center in what's left */}
       <div className={cn(
         'py-12 max-lg:px-8 max-md:px-4 max-md:py-6',
         runId ? cn('mx-auto max-w-[860px] px-12', (!isAws || app?.run_chat) && 'lg:mr-[416px]') : 'mx-auto max-w-[900px] px-24',
-        agentFull && 'flex h-full min-h-0 flex-col pb-4',
+        graphFull && 'flex h-full min-h-0 flex-col pb-4',
       )}>
         <div className="flex items-center gap-1 pb-8 text-sm text-ink-2">
           <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate('/apps')}>{app?.orgName || wsName(app?.org)}</button>
@@ -766,12 +767,12 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
               </div>
             )}
 
-            <Tabs value={tab ?? (app.kind === 'job' ? 'run' : 'runbook')} onValueChange={value => { setTab(value); if (value === 'learn') navigate(`/apps/${encodeURIComponent(app.name)}?tab=learn`); }} className={cn(agentFull && 'flex min-h-0 flex-1 flex-col')}>
+            <Tabs value={tab ?? 'graph'} onValueChange={value => { setTab(value); if (value === 'learn') navigate(`/apps/${encodeURIComponent(app.name)}?tab=learn`); }} className={cn(graphFull && 'flex min-h-0 flex-1 flex-col')}>
               <TabsList className="mt-5 shrink-0">
                 <TabsTrigger value="runbook"><Tip label="Runbook" info="Notes and docs for this app"><span>Runbook</span></Tip></TabsTrigger>
                 {app.kind === 'job' && <TabsTrigger value="run"><Tip label="Run" info="Start a run from the input form"><span>Run</span></Tip></TabsTrigger>}
                 <TabsTrigger value="logs"><Tip label="Logs" info="Table view of this app's runs and requests"><span>Logs</span></Tip></TabsTrigger>
-                <TabsTrigger value="agent"><Tip label="Agent" info="Chat with the AI about this app"><span>Agent</span></Tip></TabsTrigger>
+                <TabsTrigger value="graph"><Tip label="Graph" info="Map of this app, with the Graph Agent"><span>Graph</span></Tip></TabsTrigger>
                 {learnPreview && <TabsTrigger value="learn"><Tip label="Learn" info="Guided explanations of how this app works"><span>Learn</span></Tip></TabsTrigger>}
               </TabsList>
 
@@ -793,7 +794,11 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                   : <RequestLog slug={slug} />}
               </TabsContent>
 
-              <TabsContent value="agent" className="flex min-h-0 flex-1 flex-col pt-4">
+              <TabsContent value="graph" className="flex min-h-0 flex-1 flex-col pt-4">
+                <div className="flex min-h-0 flex-1 gap-4 max-md:flex-col">
+                {/* graphify fills this canvas at deploy time; apps without a graph keep it blank */}
+                <div aria-label="App graph" className="min-h-[280px] min-w-0 flex-1 rounded-lg border border-line" />
+                <div className="flex min-h-0 w-[400px] shrink-0 flex-col max-md:w-auto">
                 <CoachingPanel appName={app.name}>
                 {/* the page itself is scroll-locked on this tab; the pane flexes to the
                     viewport bottom so the input is static and only messages scroll */}
@@ -805,6 +810,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                     appName={app.name}
                     chatConfig={app.app_chat}
                     email={app.email}
+                    headerTitle="Graph Agent"
                     placeholder={`Ask about ${app.name}…`}
                     autoFocus
                     headerExtra={
@@ -820,11 +826,13 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                   />
                 </div>}
                 </CoachingPanel>
+                </div>
+                </div>
               </TabsContent>
 
             </Tabs>
 
-            {app.lastOpened && (tab ?? (app.kind === 'job' ? 'run' : 'runbook')) !== 'agent' && (
+            {app.lastOpened && (tab ?? 'graph') !== 'graph' && (
               <div className="pt-6 text-sm text-ink-2">
                 Last opened by {app.lastOpened.email} · {ago(app.lastOpened.ts)}
               </div>

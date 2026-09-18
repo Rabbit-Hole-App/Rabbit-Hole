@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { BookOpen, FileCode, GitBranch, Network, RefreshCw } from 'lucide-react';
+import { FileCode, GitBranch, Network, RefreshCw } from 'lucide-react';
 import { api, navigate } from './api.js';
-import { Button, ExpandedPageFrame, Input, PeekBreadcrumbs } from './ui.jsx';
+import { Button, ExpandedPageFrame, Input, Tabs, TabsList, TabsTrigger, Tip } from './ui.jsx';
 import { AskPanel } from './ask.jsx';
 import LearnPage from './LearnPage.jsx';
 import RepositoryGraph from './RepositoryGraph.jsx';
@@ -25,8 +25,13 @@ export default function RepositoryPage({ app: initial }) {
   const relationships=selected&&snapshot?snapshot.graph.edges.filter(e=>e.source===selected.id||e.target===selected.id):[];
   return <main className="flex min-w-0 flex-1 overflow-hidden max-lg:flex-col">
     <section className="min-w-0 flex-1 overflow-auto"><ExpandedPageFrame wide>
-      <PeekBreadcrumbs items={[{label:'Apps',onClick:()=>navigate('/apps')},{label:app.repo},{label:mode==='graph'?'Graph':'Files'}]}/>
-      <div className="flex items-center justify-between gap-3 pb-4"><div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1"><h1 className="text-2xl font-semibold">{mode==='graph'?'Graph':'Files'}</h1><span className="text-base text-ink-2">{app.repo}</span></div><Button variant="primary" disabled={!app.commit_sha} onClick={()=>navigate(`/apps/${app.name}?tab=learn`)}><BookOpen size={15}/>Learn</Button></div>
+      <h1 className="pb-2 text-2xl font-semibold">{app.repo}</h1>
+      <Tabs value="graph" onValueChange={value=>{if(value==='learn')navigate(`/apps/${app.name}?tab=learn`);}}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="graph"><Tip label="Graph" info="Code graph of this repository, with the Graph Agent"><span>Graph</span></Tip></TabsTrigger>
+          <TabsTrigger value="learn" disabled={!app.commit_sha}><Tip label="Learn" info="Guided lessons built from this repository"><span>Learn</span></Tip></TabsTrigger>
+        </TabsList>
+      </Tabs>
       <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-ink-2"><GitBranch size={14}/>{app.branch}<span>· {app.commit_sha?.slice(0,7)||'Awaiting snapshot'}</span><span>· {app.status}</span>{app.canEdit&&<Button size="sm" disabled={['queued','indexing'].includes(app.status)} onClick={async()=>{try{setError('');await api(`${root}/refresh`,{method:'POST',body:'{}'});setApp(await api(root));}catch(e){setError(e.message);}}}><RefreshCw size={13}/> {app.status==='failed'?'Retry import':'Refresh branch'}</Button>}</div>
       {['queued','indexing'].includes(app.status)&&<div role="status" className="mb-4 rounded-lg border border-line p-4 text-sm"><div className="mb-2 h-1 overflow-hidden rounded bg-hover"><div className="h-full w-1/2 animate-pulse bg-accent"/></div>{app.status==='queued'?'Waiting for the indexer…':'Downloading source and building the code graph…'}{app.commit_sha&&' The previous snapshot remains available.'}</div>}
       {(error||app.error)&&<p role="alert" className="mb-4 text-sm text-danger">{error||app.error}</p>}
@@ -38,9 +43,9 @@ export default function RepositoryPage({ app: initial }) {
         {!!snapshot.skipped.length&&<details className="mt-2 text-xs text-ink-2"><summary className="cursor-pointer">{snapshot.skipped.length} excluded files</summary><div className="max-h-40 overflow-auto">{snapshot.skipped.map(f=><p key={f.path}>{f.path}: {f.reason}</p>)}</div></details>}
       </>}
     </ExpandedPageFrame></section>
-    <ResizableSidePanel aria-label="Repository Learn Agent" resizeLabel="Resize repository panel" defaultWidth={420} className="p-5">
+    <ResizableSidePanel aria-label="Repository Graph Agent" resizeLabel="Resize repository panel" defaultWidth={420} className="p-5">
 
-      <AskPanel onGraph={showGraph} scope={{app:app.name}} appName={app.name} conversation="learn" repositoryContext={{commit:asking?.commit||snapshot?.commit,nodeId:asking?.id,label:asking?.label}} onClearRepository={()=>setAsking(null)} headerTitle="Learn Agent" placeholder={`Ask about ${app.repo}…`} contentPanel={source?<RepositorySource appName={app.name} {...source} commit={source.commit||snapshot?.commit} onClose={()=>setSource(null)}/>:null} onCloseContentPanel={()=>setSource(null)}/>
+      <AskPanel onGraph={showGraph} scope={{app:app.name}} appName={app.name} conversation="learn" repositoryContext={{commit:asking?.commit||snapshot?.commit,nodeId:asking?.id,label:asking?.label}} onClearRepository={()=>setAsking(null)} headerTitle="Graph Agent" placeholder={`Ask about ${app.repo}…`} contentPanel={source?<RepositorySource appName={app.name} {...source} commit={source.commit||snapshot?.commit} onClose={()=>setSource(null)}/>:null} onCloseContentPanel={()=>setSource(null)}/>
     </ResizableSidePanel>
   </main>;
 }
