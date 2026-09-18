@@ -125,6 +125,22 @@ await check('zoom pill works', async () => {
   await page.locator('[title="Reset zoom"]').click();
   await page.locator('[aria-label="Zoom controls"]').getByText('100%').waitFor({ timeout: 5000 });
 });
+// persistence: blocks and shapes survive a reload
+await check('blocks survive reload', async () => {
+  await page.waitForTimeout(700);
+  await page.reload();
+  await canvas.locator('[data-chat-block]').getByText('Explain me sigmoid', { exact: true }).waitFor({ timeout: 20000 });
+  if (!(await canvas.locator('svg rect').count())) throw new Error('shape lost');
+});
+
+// node select + Del: the chat block deletes
+await check('Del removes selected block', async () => {
+  const count = await canvas.locator('[data-chat-block]').count();
+  await canvas.locator('[data-chat-block]').first().click();
+  await page.keyboard.press('Delete');
+  if ((await canvas.locator('[data-chat-block]').count()) !== count - 1) throw new Error('block not deleted');
+});
+
 await page.waitForTimeout(400);
 await page.screenshot({ path: 'e2e/shots/chat-block-moved.png', fullPage: false });
 

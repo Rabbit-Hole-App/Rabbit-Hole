@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowLeftRight, Reply, X, ArrowUpRight, Circle, Diamond, Eraser, Hand, Hexagon, Highlighter, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type } from 'lucide-react';
+import { MessageCircle, X, ArrowUpRight, Circle, Diamond, Eraser, Hand, Hexagon, Highlighter, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn } from './ui.jsx';
 
@@ -8,8 +8,8 @@ import { IconBtn } from './ui.jsx';
 // as movable cards; the learner adds ink, shapes, stickies and text from the
 // right-hand toolbar. Hand or empty-space drag pans; wheel pans, ctrl+wheel
 // zooms.
-// ponytail: canvas content is not persisted yet; save/restore comes with the
-// lesson content model.
+// ponytail: canvas content persists per-browser via localStorage; cross-device
+// save/restore comes with the lesson content model.
 
 const NAV_TOOLS = [
   ['select', MousePointer2, 'Select and move'],
@@ -79,7 +79,7 @@ function outlineOf(shape) {
 // One conversation node: the learner's message, a separator, then the agent's
 // reply. Starts at a compact width, grows with content up to a max height
 // (longer replies scroll inside), and resizes from the corner handle.
-function ChatCard({ exchange, zoom, onMove, renderComposer, onLayout, onConnect }) {
+function ChatCard({ exchange, zoom, selected, onSelect, onMove, renderComposer, onLayout, onConnect }) {
   const [lifted, setLifted] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
   const [started, setStarted] = useState(false);
@@ -102,6 +102,7 @@ function ChatCard({ exchange, zoom, onMove, renderComposer, onLayout, onConnect 
   });
   const drag = event => {
     if (event.button !== 0) return;
+    onSelect(exchange.id);
     setLifted(true);
     const apply = (x, y) => onMove(exchange.id, x, y);
     apply.done = () => setLifted(false);
@@ -116,29 +117,30 @@ function ChatCard({ exchange, zoom, onMove, renderComposer, onLayout, onConnect 
   return (
     <div ref={card} data-block data-chat-block data-block-id={exchange.id} onPointerDown={drag}
       style={{ transform: `translate(${exchange.dx}px, ${exchange.dy}px)${lifted ? ' scale(1.02)' : ''}`, width: size.w || 380, height: size.h || undefined, maxHeight: size.h ? undefined : 420 }}
-      className={`group relative mx-auto flex flex-col rounded-xl border border-line bg-white transition-shadow duration-150 ${lifted ? 'z-20 cursor-grabbing shadow-xl' : 'cursor-grab shadow-sm hover:shadow-md'}`}>
+      className={`group relative mx-auto flex flex-col rounded-xl border border-line bg-white transition-shadow duration-150 ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${lifted ? 'z-20 cursor-grabbing shadow-xl' : 'cursor-grab shadow-sm hover:shadow-md'}`}>
       <div className="flex shrink-0 justify-end px-4 pt-3 pb-2"><span className="max-w-[85%] rounded-xl bg-[#2383e2] px-3 py-1.5 text-sm whitespace-pre-wrap text-white">{exchange.question}</span></div>
       <div className="shrink-0 border-t border-line" />
       <div ref={body} data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {exchange.answer
           ? <div className="text-sm"><Md text={exchange.answer} /></div>
           : <p className="text-sm text-ink-2 italic">{exchange.status === 'thinking' ? 'Thinking…' : `${exchange.status}…`}</p>}
-        {exchange.status === 'done' && renderComposer && <button type="button" aria-label="Reply in this block" title="Continue this conversation" onPointerDown={e => e.stopPropagation()} onClick={continueReply} className="mt-2 rounded p-1 text-ink-2 hover:bg-hover hover:text-accent"><Reply size={15} /></button>}
-        {replies.map(turn => <div key={turn.id} className="mt-3 border-t border-line pt-3">
+        {/* The continue-conversation icon shows once, under the last turn only. */}
+        {exchange.status === 'done' && renderComposer && !replies.length && <div className="mt-2 flex justify-end"><button type="button" aria-label="Reply in this block" title="Continue this conversation" onPointerDown={e => e.stopPropagation()} onClick={continueReply} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-accent"><MessageCircle size={15} /></button></div>}
+        {replies.map((turn, index) => <div key={turn.id} className="mt-3 border-t border-line pt-3">
           <div className="mb-3 flex justify-end"><span className="rounded-xl bg-accent px-3 py-1.5 text-sm whitespace-pre-wrap text-white">{turn.question}</span></div>
           <div className="text-sm">{turn.answer ? <Md text={turn.answer} /> : <span className="text-ink-2">{turn.status === 'done' ? 'No answer received. Try again.' : 'Thinking…'}</span>}</div>
-          {turn.status === 'done' && <button type="button" aria-label="Reply in this block" title="Continue this conversation" onPointerDown={e => e.stopPropagation()} onClick={continueReply} className="mt-2 rounded p-1 text-ink-2 hover:bg-hover hover:text-accent"><Reply size={15} /></button>}
+          {turn.status === 'done' && index === replies.length - 1 && <div className="mt-2 flex justify-end"><button type="button" aria-label="Reply in this block" title="Continue this conversation" onPointerDown={e => e.stopPropagation()} onClick={continueReply} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-accent"><MessageCircle size={15} /></button></div>}
         </div>)}
       </div>
       {started && <div data-block-composer className={`shrink-0 border-t border-line px-3 pb-3 ${replyOpen ? '' : 'hidden'}`} onPointerDown={e => e.stopPropagation()}>
         <div className="flex items-center justify-between py-1 text-xs text-ink-2"><span>This conversation</span><button type="button" aria-label="Close block composer" onClick={() => setReplyOpen(false)} className="rounded p-1 hover:bg-hover"><X size={13} /></button></div>
         {renderComposer(exchange, receive)}
       </div>}
-      {['left', 'right'].map(side => <button key={side} type="button" data-port={side} data-owner={exchange.id} aria-label={`Connect ${side}`} title="Drag to connect blocks"
-        className={`absolute top-1/2 z-20 h-4 w-4 -translate-y-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white opacity-0 group-hover:opacity-100 focus:opacity-100 ${side === 'left' ? '-left-2' : '-right-2'}`}
+      {['top', 'bottom'].map(side => <button key={side} type="button" data-port={side} data-owner={exchange.id} aria-label={`Connect ${side}`} title="Drag to connect blocks"
+        className={`absolute left-1/2 z-20 h-4 w-4 -translate-x-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white opacity-0 group-hover:opacity-100 focus:opacity-100 ${side === 'top' ? '-top-2' : '-bottom-2'}`}
         onPointerDown={event => onConnect(event, exchange.id, side)} />)}
-      <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute -right-3 -bottom-2 z-10 cursor-nwse-resize rounded bg-white px-1 text-accent opacity-0 group-hover:opacity-100 focus:opacity-100"
-        onPointerDown={resize}><ArrowLeftRight size={18} /></button>
+      <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute right-0 bottom-0 z-10 cursor-nwse-resize p-1 text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink-2 focus:opacity-100"
+        onPointerDown={resize}><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg></button>
     </div>
   );
 }
@@ -228,23 +230,42 @@ function ToolButton({ Icon, label, active, onPick }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, composer = null, renderBlockComposer = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, storageKey = null, composer = null, renderBlockComposer = null }) {
   const [tool, setTool] = useState('select');
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(WIDTHS[0]);
   const [dash, setDash] = useState(false);
   const [view, setView] = useState({ x: 0, y: 24, z: 1 });
-  const [strokes, setStrokes] = useState([]); // pen and highlighter ink, world coords
+  // Learner artifacts persist in this browser so a refresh keeps the canvas.
+  const stored = useRef(null);
+  if (stored.current === null) {
+    try { stored.current = storageKey ? JSON.parse(localStorage.getItem(storageKey) || '{}') : {}; } catch { stored.current = {}; }
+  }
+  const [strokes, setStrokes] = useState(stored.current.strokes || []); // pen and highlighter ink, world coords
   const [live, setLive] = useState(null);
-  const [shapes, setShapes] = useState([]);
+  const [shapes, setShapes] = useState(stored.current.shapes || []);
   const [liveShape, setLiveShape] = useState(null);
-  const [items, setItems] = useState([]); // stickies and text
+  const [items, setItems] = useState(() => (stored.current.items || []).map(item => ({ ...item, fresh: false }))); // stickies and text
   const [selected, setSelected] = useState(null);
-  const [links, setLinks] = useState([]);
+  // Selecting on the canvas takes the keyboard away from the composer so
+  // Delete acts on the selection; editable notes keep their own focus.
+  const select = id => {
+    const active = document.activeElement;
+    if (id && active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) active.blur();
+    setSelected(id);
+  };
+  const [links, setLinks] = useState(stored.current.links || []);
+  useEffect(() => {
+    if (!storageKey) return;
+    const timer = setTimeout(() => { try { localStorage.setItem(storageKey, JSON.stringify({ strokes, shapes, items, links })); } catch { /* full or blocked storage loses drawings only */ } }, 400);
+    return () => clearTimeout(timer);
+  }, [strokes, shapes, items, links, storageKey]);
   const [connecting, setConnecting] = useState(null);
   const [bounds, setBounds] = useState({});
   const exchangesRef = useRef(exchanges);
   exchangesRef.current = exchanges;
+  const onDeleteRef = useRef(onDelete);
+  onDeleteRef.current = onDelete;
   const connectionCleanup = useRef(null);
   const selectedRef = useRef(null);
   selectedRef.current = selected;
@@ -303,9 +324,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null, ren
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
       if (typing || !selectedRef.current) return;
       snapshot();
-      setItems(previous => previous.filter(item => item.id !== selectedRef.current));
-      setShapes(previous => previous.filter(shape => shape.id !== selectedRef.current));
-      setLinks(previous => previous.filter(link => link.id !== selectedRef.current));
+      const id = selectedRef.current;
+      // A selected chat block deletes with its attached connections.
+      if (exchangesRef.current.some(exchange => exchange.id === id)) {
+        onDeleteRef.current?.(id);
+        setLinks(previous => previous.filter(link => link.from !== id && link.to !== id));
+      }
+      setItems(previous => previous.filter(item => item.id !== id));
+      setShapes(previous => previous.filter(shape => shape.id !== id));
+      setLinks(previous => previous.filter(link => link.id !== id));
       setSelected(null);
     };
     window.addEventListener('keydown', key);
@@ -333,14 +360,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null, ren
   };
   const portPosition = (id, side) => {
     const box = bounds[id];
-    return box ? { x: box.x + (side === 'right' ? box.w : 0), y: box.y + box.h / 2 } : null;
+    return box ? { x: box.x + box.w / 2, y: box.y + (side === 'bottom' ? box.h : 0) } : null;
   };
   const connect = (event, from, fromSide) => {
     if (event.button !== 0) return;
     event.preventDefault(); event.stopPropagation();
     connectionCleanup.current?.();
-    setConnecting({ from, fromSide, toPoint: local(event), color });
-    const move = e => setConnecting({ from, fromSide, toPoint: local(e), color });
+    // The ink color drives the connector; the plain ink default reads as
+    // uncolored on a line, so it maps to the accent blue.
+    const linkColor = color === COLORS[0] ? '#2383e2' : color;
+    setConnecting({ from, fromSide, toPoint: local(event), color: linkColor });
+    const move = e => setConnecting({ from, fromSide, toPoint: local(e), color: linkColor });
     const cleanup = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
@@ -365,8 +395,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null, ren
   const connectionPath = link => {
     const a = portPosition(link.from, link.fromSide), b = link.toPoint || portPosition(link.to, link.toSide);
     if (!a || !b) return '';
-    const bend = Math.max(60, Math.abs(b.x - a.x) / 2);
-    return `M${a.x} ${a.y} C${a.x + (link.fromSide === 'right' ? bend : -bend)} ${a.y},${b.x + (link.toSide === 'right' ? bend : -bend)} ${b.y},${b.x} ${b.y}`;
+    const bend = Math.max(60, Math.abs(b.y - a.y) / 2);
+    return `M${a.x} ${a.y} C${a.x} ${a.y + (link.fromSide === 'bottom' ? bend : -bend)},${b.x} ${b.y + (link.toSide === 'bottom' ? bend : -bend)},${b.x} ${b.y}`;
   };
   const shapeTool = SHAPE_TOOLS.some(([kind]) => kind === tool);
   const pan = event => startDrag(event, { x: view.x, y: view.y }, (x, y) => setView(v => ({ ...v, x, y })));
@@ -459,21 +489,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null, ren
           {links.map(link => <g key={link.id} data-connection={link.id}>
             <path d={connectionPath(link)} fill="none" stroke={link.color} strokeWidth={selected === link.id ? 4 : 2.5} />
             <path d={connectionPath(link)} fill="none" stroke="transparent" strokeWidth={14 / view.z} style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
-              onPointerDown={event => { event.stopPropagation(); setSelected(link.id); }}><title>Select connection · choose a color or press Delete</title></path>
+              onPointerDown={event => { event.stopPropagation(); select(link.id); }}><title>Select connection · choose a color or press Delete</title></path>
           </g>)}
-          {connecting && <path data-connection-preview d={connectionPath(connecting)} fill="none" stroke={connecting.color} strokeWidth="2.5" strokeDasharray="5 4" />}
+          {connecting && <path data-connection-preview d={connectionPath(connecting)} fill="none" stroke={connecting.color} strokeWidth="2.5" />}
         </svg>
         <svg aria-hidden="true" width="1" height="1" className="pointer-events-none absolute top-0 left-0 z-10 overflow-visible">
-          {[...shapes, ...(liveShape ? [liveShape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={tool} zoom={view.z} selected={selected === shape.id} onSelect={setSelected} onMoveStart={moveShapeStart} onResize={resizeShape} onGesture={snapshot} onDelete={deleteItem} />)}
+          {[...shapes, ...(liveShape ? [liveShape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={tool} zoom={view.z} selected={selected === shape.id} onSelect={select} onMoveStart={moveShapeStart} onResize={resizeShape} onGesture={snapshot} onDelete={deleteItem} />)}
           {[...strokes, ...(live ? [live] : [])].map((stroke, index) => stroke.tool === 'pen'
             ? <path key={index} d={pathOf(stroke.points)} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeDasharray={stroke.dash ? `${stroke.width * 3} ${stroke.width * 2.5}` : undefined} strokeLinecap="round" strokeLinejoin="round" />
             : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />)}
         </svg>
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
-          {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} onMove={onMove} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} />)}
+          {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={selected === exchange.id} onSelect={select} onMove={onMove} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} />)}
         </div>
         <div className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
-          {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={selected === item.id} onSelect={setSelected} onChange={changeItem} onMove={moveItem} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} />)}
+          {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={selected === item.id} onSelect={select} onChange={changeItem} onMove={moveItem} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} />)}
         </div>
         </div>
       </div>
