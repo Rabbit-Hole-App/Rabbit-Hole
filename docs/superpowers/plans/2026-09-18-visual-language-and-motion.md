@@ -390,7 +390,30 @@ test('typography is a role, not a size', () => {
   assert.ok(textStyle('caption').fontSize < textStyle('heading').fontSize);
   assert.match(textStyle('code').fontFamily, /mono/i);
 });
+
+// Task 3 defined the tokens by hand in two separate CSS blocks. Nothing would
+// catch a role added to one and not the other, and the failure is invisible
+// until a learner toggles appearance. This closes that by reading the stylesheet.
+test('every role has a token in both themes', () => {
+  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+  const block = name => {
+    const start = css.indexOf(name);
+    assert.ok(start > -1, `no ${name} block in index.css`);
+    return css.slice(start, css.indexOf('}', start));
+  };
+  // the light roles live in their own :root block, after the --tok-* one
+  const light = css.slice(css.indexOf('--viz-neutral'));
+  const dark = block('.dark {');
+  for (const role of ROLES) {
+    assert.match(light, new RegExp(`--viz-${role}\\s*:`), `${role} has no light token`);
+    assert.match(dark, new RegExp(`--viz-${role}\\s*:`), `${role} has no dark token`);
+  }
+  assert.match(light, /--viz-surface\s*:/);
+  assert.match(dark, /--viz-surface\s*:/);
+});
 ```
+
+The test file needs `import { readFileSync } from 'node:fs';` for that last case. It is the only impure thing in the file and it earns its place: it is the one check that can catch a hand-maintained pair drifting apart.
 
 - [ ] **Step 2: Run to confirm it fails**
 
