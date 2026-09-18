@@ -56,13 +56,22 @@ const POLYGONS = {
   }),
 };
 
+// Screen pixels of travel before a press counts as a drag rather than a click.
+const DRAG_THRESHOLD = 3;
+
 // Pointer drag with a live apply callback; used by blocks, stickies, text,
 // shapes and panning. scale converts screen pixels to world units.
 function startDrag(event, origin, apply, scale = 1, snap = null) {
   event.preventDefault();
   event.stopPropagation();
   const from = { x: event.clientX, y: event.clientY };
+  // A press only becomes a drag once the pointer has actually travelled. Without
+  // this, a click meant to select something shifts it by whatever the hand did
+  // on the way down - worst on text, which has no handle to aim at.
+  let dragging = false;
   const move = e => {
+    if (!dragging && Math.hypot(e.clientX - from.x, e.clientY - from.y) < DRAG_THRESHOLD) return;
+    dragging = true;
     const x = origin.x + (e.clientX - from.x) / scale;
     const y = origin.y + (e.clientY - from.y) / scale;
     const pulled = snap ? snap(x, y) : null;
@@ -299,7 +308,13 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
   }
   return (
     <div data-block data-item-id={item.id} style={{ left: item.x, top: item.y, opacity: item.opacity, ...(sticky ? { width: item.w || 160, height: item.h || 160 } : { color: item.color, ...textStyle(item) }) }}
-      className={`absolute z-10 cursor-grab active:cursor-grabbing ${sticky ? '-rotate-1 overflow-hidden rounded-sm border border-[#f0d9a8] bg-[#fef3c7] p-3 text-[13px] leading-snug text-[#6b4e0b] shadow-md' : 'min-w-24 leading-snug'} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
+      className={`absolute z-10 cursor-grab active:cursor-grabbing ${sticky
+        // Text has no card behind it, so its box is invisible until you are on
+        // it. The border is always there and only gains a colour on hover, so
+        // nothing shifts; the padding is cancelled by the margin for the same
+        // reason - glyphs stay exactly where they were placed.
+        ? '-rotate-1 overflow-hidden rounded-sm border border-[#f0d9a8] bg-[#fef3c7] p-3 text-[13px] leading-snug text-[#6b4e0b] shadow-md'
+        : `min-w-24 -mx-1 -my-0.5 rounded border border-transparent px-1 py-0.5 leading-snug ${tool === 'select' ? 'hover:border-line' : ''}`} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
       onPointerDown={down} onDoubleClick={startEdit}>
       <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder={sticky ? 'Note…' : 'Text…'}
         onBlur={e => { setEditing(false); const text = e.currentTarget.textContent; shown.current = text; onChange(item.id, text); }}
