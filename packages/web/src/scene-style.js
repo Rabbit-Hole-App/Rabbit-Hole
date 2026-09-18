@@ -23,6 +23,9 @@ const TEXT_STYLE = {
   code: { fontSize: 13, fontWeight: 400, fill: 'var(--color-ink-2)', fontFamily: 'var(--font-mono)' },
   equation: { fontSize: 16, fontWeight: 400, fill: 'var(--color-ink)' },
 };
+// Returned by reference below, so a caller mutating one would silently retune
+// the default for everyone after it.
+for (const style of Object.values(TEXT_STYLE)) Object.freeze(style);
 
 export function textStyle(typographyRole) {
   return TEXT_STYLE[typographyRole] ?? TEXT_STYLE.body;
@@ -40,9 +43,11 @@ const STATE_STYLE = {
   blocked: { fillPercent: 8, strokeWidth: 1.5 },
   disabled: { fillPercent: 6, strokeWidth: 1 },
 };
-// Most visually dominant first, so a rare multi-state object still resolves
-// to one considered look instead of an arbitrary key-order pick.
-const STATE_PRIORITY = ['chosen', 'selected', 'highlighted', 'active', 'blocked', 'disabled'];
+// A multi-state object resolves to one considered look instead of an arbitrary
+// key-order pick. Availability outranks attention: something the learner cannot
+// act on must keep reading that way even while it is selected or highlighted,
+// or the frame promises an interaction that will not answer.
+const STATE_PRIORITY = ['disabled', 'blocked', 'chosen', 'selected', 'highlighted', 'active'];
 
 export function shapeStyle(role, state = {}) {
   const matched = STATE_PRIORITY.find(name => state[name]);
