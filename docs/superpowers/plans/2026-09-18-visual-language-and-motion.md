@@ -249,9 +249,11 @@ git commit -m 'fix(learn): scrubbing commits through a path that does not snapsh
 
 This task is CSS only and renders nothing new. It defines the palette every later task resolves against.
 
-- [ ] **Step 1: Add the roles to `@theme`**
+- [ ] **Step 1: Add the roles to `:root` — NOT to `@theme`**
 
-Beside the existing tokens, keeping the file's comment style:
+**Tailwind v4 prunes unused `@theme` tokens out of the production build.** Verified by experiment: a token declared in `@theme` and referenced nowhere is absent from the compiled CSS. Nothing reads `--viz-*` until Task 7, so putting them in `@theme` would silently drop the entire light-mode palette from production while dev looked fine — and `.dark` would survive, because it is plain CSS and never scanned for pruning. The failure would first appear at Task 7 as a canvas with no colour in light mode only.
+
+Use plain `:root`, matching the `--tok-*` precedent already in this file for exactly the same reason.
 
 ```css
   /* Scene roles. A scene names meaning; these decide the pixel. Reusing the app's
