@@ -1,0 +1,139 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["op", "id", "concept", "purpose", "scene"],
+  "properties": {
+    "op": { "type": "string", "enum": ["generate_math_animation"] },
+    "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z][A-Za-z0-9_-]*$" },
+    "concept": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "purpose": { "type": "string", "enum": ["derivation", "intuition", "geometry", "transformation"] },
+    "caption": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "quality": { "type": "string", "enum": ["low", "medium"] },
+    "scene": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["steps"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["equation", "plot", "shapes", "matrix"] },
+              "note": { "type": "string", "minLength": 1, "maxLength": 160 },
+              "hold": { "type": "number", "minimum": 0.5, "maximum": 6 },
+
+              "expressions": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 5,
+                "items": { "type": "string", "minLength": 1, "maxLength": 200 }
+              },
+              "highlight": {
+                "type": "array",
+                "maxItems": 4,
+                "items": { "type": "string", "minLength": 1, "maxLength": 40 }
+              },
+
+              "functions": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["expression"],
+                  "properties": {
+                    "expression": { "type": "string", "minLength": 1, "maxLength": 120 },
+                    "label": { "type": "string", "minLength": 1, "maxLength": 40 },
+                    "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
+                  }
+                }
+              },
+              "xRange": { "type": "array", "minItems": 2, "maxItems": 3, "items": { "type": "number", "minimum": -1000, "maximum": 1000 } },
+              "yRange": { "type": "array", "minItems": 2, "maxItems": 3, "items": { "type": "number", "minimum": -1000, "maximum": 1000 } },
+              "marker": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["from", "to"],
+                "properties": {
+                  "from": { "type": "number", "minimum": -1000, "maximum": 1000 },
+                  "to": { "type": "number", "minimum": -1000, "maximum": 1000 },
+                  "tangent": { "type": "boolean" }
+                }
+              },
+
+              "objects": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 12,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["id", "type"],
+                  "properties": {
+                    "id": { "type": "string", "minLength": 1, "maxLength": 40, "pattern": "^[A-Za-z][A-Za-z0-9_-]*$" },
+                    "type": { "type": "string", "enum": ["circle", "rectangle", "arrow", "line", "dot", "brace", "label"] },
+                    "at": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": -20, "maximum": 20 } },
+                    "to": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": -20, "maximum": 20 } },
+                    "size": { "type": "number", "minimum": 0.05, "maximum": 10 },
+                    "width": { "type": "number", "minimum": 0.05, "maximum": 20 },
+                    "height": { "type": "number", "minimum": 0.05, "maximum": 20 },
+                    "text": { "type": "string", "minLength": 1, "maxLength": 60 },
+                    "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+                    "animation": { "type": "string", "enum": ["create", "fade_in", "grow", "write"] }
+                  }
+                }
+              },
+              "moves": {
+                "type": "array",
+                "maxItems": 6,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["target", "to"],
+                  "properties": {
+                    "target": { "type": "string", "minLength": 1, "maxLength": 40 },
+                    "to": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": -20, "maximum": 20 } },
+                    "scale": { "type": "number", "minimum": 0.1, "maximum": 8 }
+                  }
+                }
+              },
+
+              "rows": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 6,
+                "items": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 6,
+                  "items": { "type": "string", "minLength": 1, "maxLength": 24 }
+                }
+              },
+              "emphasise": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "row": { "type": "number", "minimum": 0, "maximum": 5 },
+                  "column": { "type": "number", "minimum": 0, "maximum": 5 }
+                }
+              },
+              "grid": {
+                "type": "array",
+                "minItems": 4,
+                "maxItems": 4,
+                "items": { "type": "number", "minimum": -10, "maximum": 10 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
