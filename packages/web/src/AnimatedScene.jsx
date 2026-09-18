@@ -170,6 +170,9 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked }) {
           return <line key={connection.key} x1={start.x} y1={start.y} x2={tipX} y2={tipY} stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" markerEnd={connection.progress > 0.98 ? 'url(#animation-arrow)' : undefined} />;
         })}
         <defs>
+          {/* ponytail: one grey head for every stroke - a coloured or selected
+              arrow gets a mismatched tip; needs context-stroke or a marker per
+              colour when a lesson authors coloured arrows */}
           <marker id="animation-arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#94a3b8" /></marker>
           <filter id="animation-shadow" x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="1" stdDeviation="1.4" floodColor="#37352f" floodOpacity="0.14" />
@@ -190,6 +193,9 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked }) {
             <g key={object.id} data-animation-object={object.semanticId} opacity={object.opacity}
               transform={`rotate(${object.rotation} ${centre.x} ${centre.y})`}
               onClick={() => onPick(object.semanticId)} className="cursor-pointer">
+              {/* ponytail: the halo assumes a box - a highlighted stroke draws a
+                  stray 10x10 outline at its x/y; give strokes their own halo when
+                  a lesson actually highlights one */}
               {object.highlighted && !isText && !isData && (isCircle
                 ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 7} fill="none" stroke={colour} strokeOpacity="0.28" strokeWidth="6" />
                 : <rect x={object.x - 5} y={object.y - 5} width={(object.w || 0) + 10} height={(object.h || 0) + 10} rx={14} fill="none" stroke={colour} strokeOpacity="0.25" strokeWidth="6" />)}
