@@ -305,7 +305,7 @@ function OutputRow({ runId, name, size }) {
 
 // One chat, scoped: {app} | {run} | {} (org). Style per the Notion AI reference -
 // user turns as a right-aligned bubble, answers as plain text, pill input at the bottom.
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -549,7 +549,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           {headerExtra}
         </div>
       )}
-      {compact && msgs.length > 0 && (
+      {compact && !composerOnly && msgs.length > 0 && (
         <div className="flex shrink-0 justify-end pb-1">
           <button disabled={privateChat && busy} onClick={newChat} className="flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
             Clear chat
@@ -633,7 +633,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       )}
       {(view === 'chat' || contentPanel) && (<>
       {contentPanel && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SourceSelectionContext.Provider value={{value:codeSelection,set:setCodeSelection}}>{contentPanel}</SourceSelectionContext.Provider></div>}
-      <div ref={boxRef} className={cn('no-scrollbar min-h-0 flex-1 overflow-y-auto', contentPanel && 'hidden')}>
+      <div ref={boxRef} className={cn('no-scrollbar min-h-0 flex-1 overflow-y-auto', (contentPanel || composerOnly) && 'hidden')}>
         {msgs.length === 0 && !choices && (
           <div className="flex flex-col items-start gap-1.5 py-3">
             {(repository
