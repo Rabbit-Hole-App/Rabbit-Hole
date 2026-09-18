@@ -42,6 +42,29 @@ html {
   --tok-n: #d9730d;
 }
 
+/* Scene roles. A scene names meaning; these decide the pixel. Reusing the app's
+   own accent/warn/success/danger where the meaning matches, so a lesson and its
+   chrome are visibly the same product. Kept out of @theme, like --tok-* above:
+   Tailwind v4 only emits an @theme variable into the built CSS when something
+   resolves to a matching utility class or var() it can see while scanning -
+   nothing reads --viz-* yet, so inside @theme this whole light-mode block was
+   silently dropped from the production build (dark survived only because
+   .dark below is plain CSS, never scanned for theme pruning). Dark variants
+   in .dark below. */
+:root {
+  --viz-neutral: #787774;
+  --viz-input: #2383e2;
+  --viz-output: #448361;
+  --viz-prediction: #9065b0;
+  --viz-observed: #37352f;
+  --viz-learner: #d9730d;
+  --viz-tutor: #2383e2;
+  --viz-code: #787774;
+  --viz-warning: #d9730d;
+  --viz-success: #448361;
+  --viz-surface: #fbfbfa;
+}
+
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
    so one override block re-skins every token - including bg-white surfaces via
    --color-white. Elements on accent/danger re-pin white so their text stays white. */
@@ -62,6 +85,21 @@ html {
   --color-code: #252525;
   --shadow-pop: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 3px 6px rgba(0, 0, 0, 0.3), 0 9px 24px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
+
+  /* Scene roles, dark - light block above (outside @theme, see its comment).
+     Each clears 3:1 against --viz-surface: roles are strokes/fills/accents,
+     not body text, so they don't need --color-ink's 4.5:1. */
+  --viz-neutral: #979797;
+  --viz-input: #5ba3f5;
+  --viz-output: #6fbf8e;
+  --viz-prediction: #b79ae3;
+  --viz-observed: #d4d4d4;
+  --viz-learner: #e8a15c;
+  --viz-tutor: #5ba3f5;
+  --viz-code: #979797;
+  --viz-warning: #e8a15c;
+  --viz-success: #6fbf8e;
+  --viz-surface: #1f1f1f;
 }
 .dark [class*='bg-accent'],
 .dark [class*='bg-danger'] {
