@@ -77,6 +77,13 @@ body {
   @apply bg-white font-sans text-[16px] leading-normal text-ink antialiased;
 }
 
+/* The main work area sits on a subtle dot grid (user, 2026-09-18); the chat
+   panel and sidebar are asides and stay solid, cards keep their own surfaces. */
+main {
+  background-image: radial-gradient(var(--color-line) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
 /* Design system (see DESIGN.md): every enabled clickable gets the hand cursor -
    never rely on per-element classes for this. Hover surface is always --color-hover. */
 button:not(:disabled),
