@@ -3,7 +3,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { Pause, Play, RotateCcw, Scan, X } from 'lucide-react';
 import katex from 'katex';
 import { BAR, CHIP, getSceneState, validateScene } from './animation-scene.js';
-import { roleVar, shapeStyle, tintOf } from './scene-style.js';
+import { roleVar, shapeStyle, textStyle, tintOf } from './scene-style.js';
 
 // Live playback of an animation spec. The evaluator owns what the frame looks
 // like at time t; this only draws it and owns the transport. Learner ink is a
@@ -37,6 +37,11 @@ const marked = (object, row, column, index) => {
 // not teach these; the values do.
 function DataShape({ object, role, pop }) {
   const emphasis = 1 + (object.emphasis || 0) * 0.06;
+  // Every number a data shape draws - a cell, a bar's tick, a token's chip -
+  // is a datum, not a caption, so all three share the smallest named size.
+  // Ink stays the shape's own lit/unlit read, which predates typography and
+  // is not what this scale governs.
+  const numeral = textStyle('annotation');
   if (object.type === 'grid' || object.type === 'strip') {
     const cell = object.cell || 18;
     const columns = object.type === 'strip' ? (object.values?.length || 0) : (object.cols || 1);
@@ -69,7 +74,7 @@ function DataShape({ object, role, pop }) {
               transition={pop} />
             {value != null && cell >= 22 && (
               <text x={object.x + column * cell + cell / 2} y={object.y + row * cell + cell / 2}
-                textAnchor="middle" dominantBaseline="central" fontSize={Math.min(12, cell * 0.42)}
+                textAnchor="middle" dominantBaseline="central" fontSize={Math.min(numeral.fontSize, cell * 0.42)} fontWeight={numeral.fontWeight}
                 style={{ fontFamily: MONO, fill: lit ? 'var(--color-ink)' : 'var(--color-ink-2)' }}>{num(value)}</text>
             )}
           </g>,
@@ -107,7 +112,7 @@ function DataShape({ object, role, pop }) {
                 rx={2.5} animate={{ fill: lit ? roleVar(role) : tintOf(role, 35) }} transition={pop} />
               {object.labels?.[index] && (
                 <text x={object.x + index * BAR.w + BAR.w / 2} y={object.y + height + 13} textAnchor="middle"
-                  fontSize="10" style={{ fontFamily: MONO, fill: lit ? 'var(--color-ink)' : 'var(--color-ink-3)' }}>{object.labels[index]}</text>
+                  fontSize={numeral.fontSize} fontWeight={numeral.fontWeight} style={{ fontFamily: MONO, fill: lit ? 'var(--color-ink)' : 'var(--color-ink-3)' }}>{object.labels[index]}</text>
               )}
             </motion.g>
           );
@@ -135,7 +140,7 @@ function DataShape({ object, role, pop }) {
             <motion.rect x={x} y={object.y} width={width} height={CHIP.h} rx={7}
               animate={{ fill: lit ? tintOf(role, 20) : tintOf(role, 7), strokeWidth: lit ? 1.8 : 0.9 }} style={{ stroke: roleVar(role) }} transition={pop} />
             <text x={x + width / 2} y={object.y + CHIP.h / 2} textAnchor="middle" dominantBaseline="central"
-              fontSize="14" style={{ fontFamily: MONO, fill: 'var(--color-ink)' }}>{token}</text>
+              fontSize={numeral.fontSize} fontWeight={numeral.fontWeight} style={{ fontFamily: MONO, fill: 'var(--color-ink)' }}>{token}</text>
           </motion.g>
         );
       })}
@@ -244,6 +249,24 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
           // State never changes which role's colour is shown, only weight and
           // fill strength - one resolved look serves every shape below.
           const look = shapeStyle(role, { highlighted: object.highlighted, chosen });
+          // A label is named by what it is doing, not by what it looks like: a
+          // text object carries its own typography, every other kind draws a
+          // caption on the shape beside it. Circle labels borrow the equation
+          // scale because it is the only role sized for a short symbol.
+          const type = isData ? textStyle('caption')
+            : isCode ? textStyle('code')
+            : isEquation ? textStyle('equation')
+            : object.type === 'text' ? textStyle(object.typography)
+            : isCircle ? textStyle('equation')
+            : textStyle('body');
+          // Colour comes from role alone (scene-style.js): a text object with a
+          // real role keeps that role's colour, and only a neutral one falls
+          // back to its typography's ink. Every other kind of label already
+          // read a flat legibility ink before this task and still does - their
+          // shape, not their words, carries the role.
+          const textFill = object.type === 'text'
+            ? (role !== 'neutral' ? roleVar(role) : type.fill)
+            : (isText || isData ? 'var(--color-ink-2)' : 'var(--color-ink)');
           return (
             <g key={object.id} data-animation-object={object.semanticId} opacity={object.opacity}
               transform={`rotate(${object.rotation} ${centre.x} ${centre.y})`}
@@ -275,19 +298,19 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
                   {/* Only typeset() output may reach this - it is KaTeX markup,
                       never script. A scene's own strings are authored content and
                       must never be set as HTML. */}
-                  <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontSize: 15, color: 'var(--color-ink)' }}
+                  <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontSize: textStyle('equation').fontSize, color: 'var(--color-ink)' }}
                     dangerouslySetInnerHTML={{ __html: maths }} />
                 </foreignObject>
               )}
               {!maths && (
                 <text
                   x={label.x} y={label.y} textAnchor={label.anchor} dominantBaseline={label.baseline}
-                  fontSize={isCircle ? 16 : 13}
-                  fontWeight={isCircle ? 600 : isData ? 500 : isText ? 400 : 500}
-                  style={{ fontFamily: isCircle || isCode ? MONO : 'inherit', fill: isText || isData ? 'var(--color-ink-2)' : 'var(--color-ink)' }}>{shown}</text>
+                  fontSize={type.fontSize}
+                  fontWeight={type.fontWeight}
+                  style={{ fontFamily: type.fontFamily ?? (isCircle ? MONO : 'inherit'), fill: textFill }}>{shown}</text>
               )}
               {/* the full label reserves its space so later objects never shift */}
-              {object.textProgress < 1 && <text x={-9999} y={-9999} fontSize="13">{object.label}</text>}
+              {object.textProgress < 1 && <text x={-9999} y={-9999} fontSize={type.fontSize}>{object.label}</text>}
             </g>
           );
         })}

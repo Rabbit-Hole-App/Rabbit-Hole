@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ROLES } from './scene-vocab.js';
+import { ROLES, TYPE_ROLES } from './scene-vocab.js';
 import { adaptLegacyScene } from './scene-legacy.js';
 
 // The animation source of truth: scene JSON plus a pure evaluator. Neither
@@ -29,6 +29,7 @@ const objectSchema = z.object({
     opacity: z.number().min(0).max(1).default(1),
     rotation: z.number().min(-360).max(360).default(0),
     role: z.enum(ROLES).default('neutral'),
+    typography: z.enum(TYPE_ROLES).default('body'),
     from: vector.optional(),
     to: vector.optional(),
     rows: z.number().int().positive().max(64).optional(),
@@ -209,6 +210,7 @@ export function getSceneState(scene, time) {
     h: object.initialState.h ?? sizeOf(object).h,
     rotation: object.initialState.rotation,
     role: object.initialState.role,
+    typography: object.initialState.typography,
     from: object.initialState.from ?? null,
     to: object.initialState.to ?? null,
     src: object.initialState.src ?? null,

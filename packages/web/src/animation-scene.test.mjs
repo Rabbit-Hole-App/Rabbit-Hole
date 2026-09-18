@@ -390,6 +390,25 @@ test('a role defaults to neutral and never to undefined', () => {
   assert.equal(getSceneState(built, 1).objects[0].role, 'neutral');
 });
 
+test('a text object names a typography role and never a size', () => {
+  const built = validateScene({
+    id: 'typed', duration: 2,
+    objects: [
+      { id: 'h', type: 'text', initialState: { x: 0, y: 0, text: 'Attention', typography: 'heading' } },
+      { id: 'b', type: 'text', initialState: { x: 0, y: 40, text: 'a caption' } },
+    ],
+    timeline: [],
+  });
+  const [heading, plain] = getSceneState(built, 1).objects;
+  assert.equal(heading.typography, 'heading');
+  assert.equal(plain.typography, 'body', 'the default is body, never undefined');
+  assert.throws(() => validateScene({
+    id: 'sized', duration: 2,
+    objects: [{ id: 'h', type: 'text', initialState: { x: 0, y: 0, text: 'x', typography: 'enormous' } }],
+    timeline: [],
+  }), /typography/);
+});
+
 test('a scene authored with the old hex colours still loads, through the adapter', () => {
   const built = validateScene({
     id: 'legacy', duration: 2,
