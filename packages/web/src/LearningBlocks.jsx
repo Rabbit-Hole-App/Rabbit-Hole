@@ -14,7 +14,8 @@ import RepositoryGraph from './RepositoryGraph.jsx';
 import FlowDiagram from './FlowDiagram.jsx';
 import AnimatedScene from './AnimatedScene.jsx';
 const WhiteboardBlock = lazy(() => import('./WhiteboardBlock.jsx'));
-import { fromTemplate, getSceneState } from './animation-scene.js';
+import { fromTemplate } from './animation-scene.js';
+import { describeAnimation } from './scene-describe.js';
 import InteractiveScene, { sceneSummary } from './InteractiveScene.jsx';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
 import { sceneAssetUrl, sceneList, startScene, startVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
@@ -1477,7 +1478,7 @@ export function describeBlock(block) {
   if (block.type === 'code') return { kind: 'Code exercise', title: block.title, text: `Code exercise: ${block.title}\n${block.brief}\nGiven setup:\n${block.setup}\nLearner's current code:\n${block.draft ?? block.starter}\nChecks it must pass:\n${block.checks}` };
   if (block.type === 'audio') return { kind: 'Narration', title: block.title, text: [`Narration block: ${block.title}`, block.text].join(NEWLINE) };
   if (block.type === 'whiteboard') return { kind: 'Whiteboard', title: block.title, text: `Learner whiteboard: ${block.title}` };
-  if (block.type === 'animation') return { kind: 'Animation', title: block.title, text: [`Animation: ${block.title} (${block.scene.duration}s)`, `Paused at: ${(block.time ?? 0).toFixed(1)}s`, block.selectedObject ? `Selected object: ${block.selectedObject}` : '', `State at that moment: ${JSON.stringify(getSceneState(block.scene, block.time ?? 0).objects.filter(object => object.visible).map(object => ({ id: object.semanticId, highlighted: object.highlighted })))}`].join(NEWLINE) };
+  if (block.type === 'animation') return describeAnimation(block);
   if (block.type === 'flow') return { kind: 'Diagram', title: block.title, text: [`Laid-out diagram: ${block.title}`, `Nodes: ${block.spec.nodes.map(node => node.label).join(', ')}`, `Edges: ${block.spec.edges.map(edge => `${edge.source} -> ${edge.target}${edge.label ? ` (${edge.label})` : ''}`).join('; ')}`].join(NEWLINE) };
   if (block.type === 'mermaid') return { kind: 'Diagram', title: block.title, text: [`Mermaid diagram: ${block.title}`, block.code].join(NEWLINE) };
   if (block.type === 'knowledge') return { kind: 'Graph', title: block.title, text: [`Knowledge graph: ${block.title}`, `Nodes: ${block.graph.nodes.map(node => node.label).join(', ')}`, `Edges: ${block.graph.edges.map(edge => `${edge.source} ${edge.relation} ${edge.target}`).join('; ')}`, block.selected ? `Learner selected: ${block.selected.label}` : ''].join(NEWLINE) };
