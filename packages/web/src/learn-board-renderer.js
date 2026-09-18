@@ -81,14 +81,26 @@ export function drawExplanation(editor, snapshot, plan, { onVideo, onScene, app 
       if (block.photo) linkedCredit(`Photo by ${photo.photographer} on Pexels`, photo.url, editor.getShapePageBounds(caption).maxY + 12);
     } else if (block.kind === 'diagram') {
       textShape(block.text, 0, 0);
-      block.nodes.forEach((node, j) => {
+      // Order nodes so edges point rightward (topological; cycles keep given order).
+      // Without this a hub node declared first sends every edge looping backward.
+      const pending = block.nodes.map(n => n.id), order = [];
+      while (pending.length) {
+        const next = pending.find(id => !block.edges.some(e => e.to === id && e.from !== id && pending.includes(e.from))) ?? pending[0];
+        order.push(next); pending.splice(pending.indexOf(next), 1);
+      }
+      const nodes = order.map(id => block.nodes.find(n => n.id === id));
+      nodes.forEach((node, j) => {
         const id = create({ id: createShapeId(), type: 'geo', x: j * 220, y: 70, props: { geo: 'rectangle', w: 170, h: 160, color: 'blue', fill: 'semi', size: 's', font: 'sans', richText: toRichText(node.label) } }, meta);
         local.push(id); writes.push({ id, text: node.label });
       });
+      let below = 0, above = 0;
       block.edges.forEach(edge => {
-        const from = block.nodes.findIndex(n => n.id === edge.from), to = block.nodes.findIndex(n => n.id === edge.to);
+        const from = nodes.findIndex(n => n.id === edge.from), to = nodes.findIndex(n => n.id === edge.to);
         const adjacent = to === from + 1;
-        const id = create({ id: createShapeId(), type: 'arrow', x: 0, y: 0, props: { start: { x: from * 220 + (adjacent ? 178 : 85), y: adjacent ? 150 : 235 }, end: { x: to * 220 + (adjacent ? -8 : 85), y: adjacent ? 150 : 235 }, bend: adjacent ? 0 : 80, color: 'blue', size: 's', arrowheadEnd: 'arrow' } }, meta);
+        // Forward skips arc below, backward edges arc above, each in its own lane.
+        const lane = adjacent ? 0 : to < from ? above++ : below++;
+        const y = to < from ? 58 - lane * 24 : 240 + lane * 24;
+        const id = create({ id: createShapeId(), type: 'arrow', x: 0, y: 0, props: { start: { x: from * 220 + (adjacent ? 178 : 85), y: adjacent ? 150 : y }, end: { x: to * 220 + (adjacent ? -8 : 85), y: adjacent ? 150 : y }, bend: adjacent ? 0 : to < from ? -70 : 80, color: 'blue', size: 's', arrowheadEnd: 'arrow' } }, meta);
         local.push(id);
         if (to > from) { const target = writes[to + 1].id; edgesBefore.set(target, [...(edgesBefore.get(target) || []), id]); }
         else trailingEdges.push(id);

@@ -473,10 +473,11 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         }} />}
         <div className={`${courseView || learningView !== 'lesson' ? 'hidden' : ''} min-h-0 flex-1 overflow-y-auto pr-1`}>
         {(!isRepository || progress) && <div aria-label="Current lesson and section" className="mb-4"><h2 className="text-lg font-semibold">Lesson {sampleIndex >= 0 ? sampleIndex + 1 : 1}: {currentLesson?.title}</h2><p className="mt-1 text-sm text-ink-2">Section {(progress?.page || 0) + 1} of {pages.length}: {progress?.label || pages[0].label}</p></div>}
-        {boardVisible && <div className="mb-2 flex flex-wrap items-center justify-between gap-2 py-2 text-xs text-ink-2"><span>Agent explanation · lesson paused — keep asking, or resume when ready</span><div className="flex gap-2"><button type="button" disabled={!notesLoaded || answering} onClick={addNote} className="rounded border border-line bg-white px-2 py-1 disabled:opacity-40">Save to notes</button><button type="button" onClick={() => { dismissBoard(); playback.current?.play(); }} className="rounded border border-line bg-white px-2 py-1 font-medium">Resume lesson</button></div></div>}
         <div className="flex items-start gap-2">
         {graphError && <p role="alert" className="text-sm text-red-700">{graphError}</p>}
-        <div aria-label="Lesson canvas" onPointerDownCapture={event => { editor?.updateViewportScreenBounds(editor.getContainer()); pauseLesson(); pickSequenceTile(event); openPaperReference(event); }} onClickCapture={openPaperReference} onWheelCapture={e => { if (!e.ctrlKey && !e.metaKey && !e.target.closest?.('[data-shape-type="interactive-graph"], [data-shape-type="three-d-viewer"]')) e.stopPropagation(); }} className={`relative h-[480px] min-h-[360px] min-w-0 flex-1 overflow-hidden rounded-lg border border-line`}>
+        <div className="min-w-0 flex-1">
+        {boardVisible && <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-2"><span>Agent explanation · lesson paused — keep asking, or resume when ready</span><div className="flex gap-2"><button type="button" disabled={!notesLoaded || answering} onClick={addNote} className="rounded border border-line-strong bg-white px-2.5 py-1 font-medium text-ink hover:bg-hover disabled:opacity-40">Save to notes</button><button type="button" onClick={() => { dismissBoard(); playback.current?.play(); }} className="rounded bg-ink px-2.5 py-1 font-medium text-white hover:opacity-90">Resume lesson</button></div></div>}
+        <div aria-label="Lesson canvas" onPointerDownCapture={event => { editor?.updateViewportScreenBounds(editor.getContainer()); pauseLesson(); pickSequenceTile(event); openPaperReference(event); }} onClickCapture={openPaperReference} onWheelCapture={e => { if (!e.ctrlKey && !e.metaKey && !e.target.closest?.('[data-shape-type="interactive-graph"], [data-shape-type="three-d-viewer"]')) e.stopPropagation(); }} className={`relative h-[480px] min-h-[360px] min-w-0 overflow-hidden rounded-lg border border-line`}>
           <Suspense fallback={<p className="p-4 text-sm text-ink-2">Loading canvas…</p>}>
             <LearnCanvas key={app.name} onReady={setEditor} showTools={toolsOpen} />
           </Suspense>
@@ -489,6 +490,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             setRegion(false);
             refreshSelection(v => v + 1);
           }} />}
+        </div>
         </div>
           <div className="flex shrink-0 self-center flex-col gap-1 rounded-lg border border-line bg-white p-1 shadow-sm">
             <IconBtn aria-label="Ask about selection" title="Ask about selection: draw a red ellipse" disabled={!editor || (!progress && !boardVisible) || answering} onClick={() => { pauseLesson(); pinned.current = null; removeImage(); clearRegionMarker(); setRegion(true); }}><Scan size={17} strokeWidth={1.5} /></IconBtn>
