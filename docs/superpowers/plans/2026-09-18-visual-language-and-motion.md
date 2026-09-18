@@ -12,7 +12,16 @@
 
 ## Global Constraints
 
-- `packages/web/src/animation-scene.js` imports **nothing but zod**.
+- `packages/web/src/animation-scene.js` imports **zod and `scene-vocab.js`, nothing else**. `scene-vocab.js` is a pure module of frozen enums with no imports of its own, so the evaluator still pulls in no renderer code, no React and no style logic. The dependency graph is:
+
+  ```
+  scene-vocab.js   (no imports)
+    ├── animation-scene.js   (+ zod)
+    ├── scene-style.js
+    └── scene-sound.js
+  ```
+
+  This exists so the enums are declared once. Duplicating them into two modules that must agree is the failure this plan is built to avoid.
 - `getSceneState` stays **pure, total and silent**: same arguments → same output; full replay from t=0; no caching; no colour in its output; no sound.
 - Motion animates **discrete state only** — never position, size, opacity, rotation, values, path length, or any continuously-varying value.
 - Object identity is fixed for the life of a scene.
@@ -64,7 +73,8 @@ Wait ~20 s after the deploy returns; a new version serves 15-20 s later and prob
 | File | Responsibility | This plan |
 |---|---|---|
 | `packages/web/src/animation-scene.js` | schema, validation, pure evaluator | modify — roles/states, timing resolution, sound field, `set_values` gate |
-| `packages/web/src/scene-style.js` | **new** — role→token, typography, spacing, geometry, state modulation. Pure, zero imports | create |
+| `packages/web/src/scene-vocab.js` | **new** — the frozen enums every other module agrees on: `ROLES`, `STATES`, `TYPE_ROLES`, `TIMING`, `SOUNDS`, `SPACE`, `GEOMETRY`. No imports | create |
+| `packages/web/src/scene-style.js` | **new** — role→token, typography, state modulation. Imports only `scene-vocab.js` | create |
 | `packages/web/src/scene-style.test.mjs` | **new** | create |
 | `packages/web/src/scene-legacy.js` | **new** — the pre-validation `color`→`role` adapter, with its deletion condition | create |
 | `packages/web/src/scene-sound.js` | **new** — sound vocabulary, crossing calculation, Web Audio synthesis | create |
@@ -261,9 +271,17 @@ In the existing `.dark` block. Each value must clear 4.5:1 against `--viz-surfac
   --viz-surface: #1f1f1f;
 ```
 
-- [ ] **Step 3: Check the contrast for real**
+- [ ] **Step 3: Check the contrast for real, against the right threshold**
 
-Do not eyeball this. Write a throwaway script **to a file** (not a quoted one-liner) that parses the two blocks out of `index.css` and computes WCAG contrast for every role against its theme's `--viz-surface`. Report the table in your report. Any pair below 4.5:1 gets its value adjusted here, not worked around later.
+Role colours and text colours have different jobs, and holding roles to a text threshold would muddy the whole palette to make every role usable as body copy — which no scene needs.
+
+| what | threshold | against |
+|---|---|---|
+| a role used as a stroke, fill or semantic accent | **≥ 3:1** | `--viz-surface` |
+| normal text | **≥ 4.5:1** | `--viz-surface` — and it uses the **ink** tokens, not a role |
+| coloured text, if a scene ever needs it | ≥ 4.5:1 | a dedicated accessible role-text token, added only when something actually requires one |
+
+Do not eyeball this. Write a script **to a file** — not a quoted one-liner; shell quoting produced three false readings in Plan A — that parses both blocks out of `index.css` and computes WCAG contrast for every role against its theme's surface. Report the table. Anything below 3:1 is adjusted here, not worked around later.
 
 - [ ] **Step 4: Verify nothing moved**
 
@@ -376,7 +394,7 @@ git commit -m 'feat(learn): a pure style resolver for roles, states, typography 
 - Test: `packages/web/src/animation-scene.test.mjs`
 
 **Interfaces:**
-- Consumes: `ROLES`, `STATES` from `scene-style.js` — **the only import `animation-scene.js` gains beyond zod, and it is a sibling pure module with no imports of its own.** If that trade is unacceptable, inline the two frozen arrays instead and have `scene-style.js` import them from here; decide and say which in your report.
+- Consumes: `ROLES`, `STATES` from `scene-vocab.js`.
 - Produces: `initialState.role` (enum, default `neutral`); `initialState.color` removed; evaluated objects carry `role` and the six state booleans.
 
 - [ ] **Step 1: Write the failing test**
@@ -406,7 +424,19 @@ test('a role defaults to neutral and never to undefined', () => {
 
 - [ ] **Step 3: Change the schema**
 
-Replace `color: z.string().max(24).optional()` with `role: z.enum(ROLES).default('neutral')`. Make the object schema **strict** for this field so an authored `color` is a loud error rather than a silently stripped one — zod strips unknown keys by default, and a silently ignored colour is exactly the failure this model exists to prevent.
+Replace `color: z.string().max(24).optional()` with `role: z.enum(ROLES).default('neutral')`.
+
+An authored `color` must be a loud error rather than a silently stripped one — zod drops unknown keys by default, and a silently ignored colour is exactly the failure this model exists to prevent. **Do not reach for `.strict()`.** Verified against the installed zod 4.5.4: `.strict()` rejects *every* unrecognised key, so it would also start refusing unrelated legacy fields on persisted blocks. Detect the one field explicitly, before parsing:
+
+```js
+  for (const object of raw.objects ?? []) {
+    if (object?.initialState && 'color' in object.initialState) {
+      throw new Error(`Object "${object.id}": a scene names a role, not a colour`);
+    }
+  }
+```
+
+Task 6 puts the legacy adapter in front of this, so a *known* legacy colour is translated before it ever reaches the check and only an unrecognised one surfaces here.
 
 Carry `role` into the evaluated object literal beside `semanticId`.
 
@@ -500,7 +530,9 @@ Run and record: `grep -c "#[0-9a-fA-F]\{6\}" src/AnimatedScene.jsx` and `grep -n
 
 - [ ] **Step 2: Replace the colour source**
 
-Delete `COLORS` and `tint`. Every `fill=`/`stroke=` **attribute** carrying a colour becomes a `style={{ fill: … }}` / `style={{ stroke: … }}` property, because `fill` accepts a `<color>` as a CSS property and **not** as an SVG attribute — `fill="var(--x)"` silently does nothing.
+Delete `COLORS` and `tint`. Every `fill=`/`stroke=` carrying a colour becomes a `style={{ fill: … }}` / `style={{ stroke: … }}` property.
+
+**Why `style`, accurately:** `fill="var(--c)"` does in fact resolve in current browsers — verified in Chromium, computed `rgb(255, 0, 0)`. The reason to use `style` is not that attributes are broken; it is that a presentation attribute is the weakest source in the cascade, so anything setting `fill` in CSS silently wins over it, and `style` keeps one obvious place where a colour comes from. `color-mix()` was also verified working through `style`, computing `color(srgb 1 0 0 / 0.3)`.
 
 `#37352f`, `#787774`, `#9b9a97` are the light values of `--color-ink`, `--color-ink-2`, `--color-ink-3`; those are a 1:1 swap to `var(--color-ink*)`. The canvas background `bg-[#fbfbfa]` becomes `style={{ background: 'var(--viz-surface)' }}`. The shadow `floodColor` and the KaTeX `color` become tokens too.
 
@@ -574,26 +606,41 @@ Expected: FAIL — `typography` is not in the schema, so zod strips it and the f
 - Modify: `packages/web/src/animation-scene.js` (`sizeOf` constants), `packages/web/src/AnimatedScene.jsx`
 - Test: `packages/web/src/animation-scene.test.mjs`
 
+**Two different rules, and conflating them makes things uglier to pass a test.** A spacing scale governs the space *between* and *around* things. A component's own dimensions are a different question — a node may legitimately be 176px wide because that is what its content needs, and forcing it to 160 or 192 to sit on the scale would be design by test suite.
+
+| what | rule |
+|---|---|
+| gaps, padding, margins, offsets, corner radii, stroke weights | a member of `SPACE` |
+| component dimensions — node width and height, bar width and height, cell pitch, chip height | a member of `GEOMETRY`, each aligned to a **4px baseline**, derived from content where content decides it |
+
 - [ ] **Step 1: Write the failing test**
 
-This is the test that makes the scale real rather than aspirational — without it, "we use a spacing scale" is a sentence in a document.
-
 ```js
-import { BAR, CHIP } from './animation-scene.js';
-import { SPACE } from './scene-style.js';
+import { SPACE, GEOMETRY } from './scene-vocab.js';
 
-test('every geometry constant the renderer supplies sits on the spacing scale', () => {
-  const onScale = value => SPACE.includes(value);
-  for (const [name, value] of Object.entries({ 'BAR.w': BAR.w, 'BAR.h': BAR.h, 'CHIP.h': CHIP.h, 'CHIP.pad': CHIP.pad, 'CHIP.gap': CHIP.gap })) {
-    assert.ok(onScale(value), `${name} is ${value}, which is not on the scale ${SPACE.join(', ')}`);
+test('spacing sits on the scale and geometry sits on a 4px baseline', () => {
+  for (const [name, value] of Object.entries(GEOMETRY)) {
+    assert.equal(value % 4, 0, `GEOMETRY.${name} is ${value}, which is off the 4px baseline`);
+    assert.ok(value > 0, `GEOMETRY.${name} must be positive`);
   }
+  assert.deepEqual(SPACE, [4, 8, 12, 16, 24, 32, 48, 64, 96]);
+  for (const value of SPACE) assert.equal(value % 4, 0, `the scale itself must sit on the baseline`);
+});
+
+test('the renderer takes its geometry from the vocabulary, not from loose constants', () => {
+  assert.equal(BAR.w, GEOMETRY.barWidth);
+  assert.equal(BAR.h, GEOMETRY.barHeight);
+  assert.equal(CHIP.h, GEOMETRY.chipHeight);
+  assert.ok(SPACE.includes(CHIP.gap), 'a gap between chips is spacing, so it is on the scale');
 });
 ```
 
 - [ ] **Step 2: Run to confirm it fails**
 
 Run: `cd packages/web && node --test src/animation-scene.test.mjs`
-Expected: FAIL. Today `BAR.w` is 30, `BAR.h` is 120, `CHIP.h` is 32, `CHIP.pad` is 18, `CHIP.gap` is 8 — only `CHIP.gap` is on the scale. `NODE` (170×58), `GAP` (80) and `PAD` (48) live in `fromTemplate`; extend the test to those once they are exported, or assert them in `fromTemplate`'s own test.
+Expected: FAIL — `GEOMETRY` does not exist yet, and today `BAR.w` is 30 and `CHIP.pad` is 18, neither on a 4px baseline.
+
+Define `GEOMETRY` in `scene-vocab.js` with values chosen for how they look, then aligned to the baseline — for example `{ nodeMinWidth: 176, nodeHeight: 56, barWidth: 28, barHeight: 120, chipHeight: 32, cellPitch: 24 }`. `CHIP.char` is a text-measurement constant, not geometry; leave it out of both.
 - [ ] **Step 3: Move every constant onto the scale.** `BAR`, `CHIP`, `NODE`, `GAP`, `PAD`, the default cell pitch, corner radii, stroke weights. `sizeOf` still derives size from content; only its constants change.
 - [ ] **Step 4: Style each primitive once** — radii, stroke weights, fill strengths, shadow, bar gap, chip shape. One considered default per primitive, all from the scale and `shapeStyle`.
 - [ ] **Step 5: Verify locally** — all four scenes, both themes. Layouts will shift; confirm nothing collides and every label still fits. Screenshot each in your report.
@@ -645,10 +692,12 @@ test('a timing name is resolved before the evaluator ever sees it', () => {
 
 **Interfaces:**
 - Produces:
-  - `SOUNDS` — the fifteen names, frozen
+  - `SOUNDS` — the fifteen names, from `scene-vocab.js`
   - `crossed(timeline, from, to) -> [event…]` — pure, no audio
-  - `pick(events) -> event | null` — tier-then-earliest coalescing
+  - `coalesce(events, window = 0.08) -> [event…]` — **buckets by time, then picks a winner per bucket.** Not one winner overall
   - `play(name, volume)` — Web Audio; the only impure function, and the only one not unit-tested
+
+**The coalescing contract, stated because getting it wrong is silent.** The window collapses sounds that land *together*, so thirty cells appearing read as one event. It must not collapse sounds that are seconds apart: a dropped frame crossing 1 s, 2 s and 3 s produces **three** sounds, not one. Group into ~80 ms buckets, pick the highest tier within each bucket, earliest `at` breaking ties inside a tier.
 
 - [ ] **Step 1: Write the failing tests for the pure half**
 
@@ -658,25 +707,52 @@ test('only events crossed going forward are sounded', () => {
   assert.deepEqual(crossed(line, 0.5, 2.5).map(e => e.sound), ['soft_pop', 'connect']);
   assert.deepEqual(crossed(line, 2.5, 0.5), [], 'a backward seek is silent');
   assert.deepEqual(crossed(line, 1, 1), [], 'standing still is silent');
-  assert.deepEqual(crossed(line, 0, 3).map(e => e.sound), ['soft_pop', 'connect', 'reveal'], 'a dropped frame crosses several');
 });
 
-test('coalescing is by tier then by time, never by array order', () => {
-  const dropped = [{ at: 2, sound: 'soft_pop' }, { at: 1, sound: 'reveal' }, { at: 3, sound: 'connect' }];
-  assert.equal(pick(dropped).sound, 'reveal', 'an outcome beats a structural change beats an incidental one');
-  assert.equal(pick([{ at: 2, sound: 'connect' }, { at: 1, sound: 'split' }]).sound, 'split', 'same tier, earliest wins');
-  assert.equal(pick([]), null);
+test('an event at zero sounds on a replay, and is not swallowed by the boundary', () => {
+  const line = [{ at: 0, sound: 'soft_pop' }, { at: 1, sound: 'connect' }];
+  // A naive `at > from` never fires an event at 0, because playback starts there.
+  assert.deepEqual(crossed(line, 0, 0.5, { start: true }).map(e => e.sound), ['soft_pop'], 'starting playback includes the boundary');
+  assert.deepEqual(crossed(line, 0, 0.5).map(e => e.sound), [], 'advancing past it again does not repeat it');
+});
+
+test('coalescing collapses what lands together and keeps what does not', () => {
+  const together = [{ at: 1.0, sound: 'soft_pop' }, { at: 1.03, sound: 'connect' }];
+  assert.deepEqual(coalesce(together).map(e => e.sound), ['connect'], 'one bucket, higher tier wins');
+
+  const apart = [{ at: 1.0, sound: 'soft_pop' }, { at: 1.5, sound: 'reveal' }, { at: 2.1, sound: 'tick' }];
+  assert.deepEqual(coalesce(apart).map(e => e.sound), ['soft_pop', 'reveal', 'tick'], 'three buckets, three sounds - a dropped frame must not swallow two of them');
+
+  const sameTier = [{ at: 1.0, sound: 'connect' }, { at: 1.02, sound: 'split' }];
+  assert.deepEqual(coalesce(sameTier).map(e => e.sound), ['connect'], 'same tier, earliest wins');
+
+  assert.deepEqual(coalesce([]), []);
 });
 ```
 
 - [ ] **Step 2: Run to confirm they fail.**
-- [ ] **Step 3: Write the pure half** — `SOUNDS`, `crossed`, `pick`, and the three tiers from the spec.
+- [ ] **Step 3: Write the pure half** — `crossed`, `coalesce`, and the three tiers from the spec. `SOUNDS` lives in `scene-vocab.js`.
 - [ ] **Step 4: Run to confirm they pass.**
 - [ ] **Step 5: Add the schema field** — `sound: z.enum(SOUNDS).optional()` on `eventSchema`, with a test that an unknown name is refused. **`getSceneState` must not read it** — assert that the evaluated state contains no sound field.
 - [ ] **Step 6: Write the synthesis** — Web Audio, ~40 lines, one `AudioContext` created or resumed **only on a user gesture**. Play is a sufficient gesture. No files, no new dependency.
-- [ ] **Step 7: Trigger it from the transport** — in the rAF loop only, never on a scrub. Add a mute toggle to the transport row beside Play, defaulting to muted so nobody is ambushed, persisted per learner.
-- [ ] **Step 8: Verify locally** — `make test-unit`, build. Then by hand: play a scene with sound on and confirm beats land; scrub end to end and confirm **silence**; seek backward and confirm silence; press Replay and confirm sound resumes from the start. Confirm every scene still teaches with sound muted.
-- [ ] **Step 9: Commit** — `feat(learn): a semantic sound channel outside the evaluator`
+
+- [ ] **Step 7: Give the preference one owner**
+
+"Global mute" owned by each `AnimatedScene` is not global — three scenes on a board would each have their own. The preference belongs to the learner, not to a block:
+
+```
+learner preference (persisted once)
+        ↓
+   read by every AnimatedScene
+```
+
+First **look for an existing preference store** in `packages/web/src` — the app already persists an appearance setting, so there may be somewhere this belongs. Report what you found. If there is one, use it. If there is not, create the smallest possible shared module: a `localStorage`-backed value plus a subscribe hook, no dependency, no context provider.
+
+Scene JSON stays free of this entirely. A scene says `{ "sound": "reveal" }` and never knows whether anyone can hear it.
+
+- [ ] **Step 8: Trigger it from the transport** — in the rAF loop only, never on a scrub. Add a mute toggle to the transport row beside Play, reading and writing the shared preference, defaulting to **muted** so nobody is ambushed.
+- [ ] **Step 9: Verify locally** — `make test-unit`, build. Then by hand: play a scene with sound on and confirm beats land; scrub end to end and confirm **silence**; seek backward and confirm silence; press Replay and confirm sound resumes from the start. Confirm every scene still teaches with sound muted.
+- [ ] **Step 10: Commit** — `feat(learn): a semantic sound channel outside the evaluator`
 
 ---
 
@@ -762,11 +838,32 @@ git commit -m 'feat(learn): the world-model branching futures reference scene'
 **Files:**
 - Create: `packages/web/e2e/golden-shots.mjs`
 
-- [ ] **Step 1: Write the capture script** — modelled on the committed `e2e/baseline-shot.mjs`. For each of the three reference scenes, at 0/25/50/75/100% of its duration, in both themes: **30 images** to `e2e/shots/golden/`. `e2e/shots` is gitignored, so the script is the committed artifact; do not force binaries past `.gitignore`.
-- [ ] **Step 2: Run it against the Gate 2 deployment.**
-- [ ] **Step 3: Review all thirty yourself first**, against the spec's ten criteria: hierarchy, typography, spacing rhythm, edge clarity, contrast, label collisions, stroke consistency, motion pacing, focal point, and whether the concept is visually obvious. Write the review. Name every problem you see — an honest list here is worth more than a clean one.
-- [ ] **Step 4: Fix what your own review found**, through the vocabularies only.
-- [ ] **Step 5: Commit** — `test(learn): capture the golden keyframes for the reference scenes`
+**A baseline that is gitignored is not a baseline.** `e2e/shots` is ignored, so approved goldens go somewhere tracked: `packages/web/e2e/golden/`. Thirty PNGs is a few hundred kilobytes and visual regression baselines must travel with the code, or the next pass has nothing to compare against — exactly the position Plan A was in until a baseline was captured mid-flight.
+
+Add `packages/web/e2e/golden/` as a tracked directory; it is not covered by the `e2e/shots` ignore.
+
+- [ ] **Step 1: Write the capture script**
+
+Modelled on the committed `e2e/baseline-shot.mjs`. For each of the three reference scenes, at 0/25/50/75/100% of its duration, in both themes: **30 images**, named `<scene>-<pct>-<theme>.png`, written to `e2e/golden/`. Switch theme through the app's own appearance control rather than by injecting a class, so the capture exercises the real path.
+
+- [ ] **Step 2: Test the script locally** against `npm run dev`. It must produce exactly 30 files with no missing or zero-byte images. This step is local — the deployed run happens at Gate 2, which comes after this task.
+
+- [ ] **Step 3: Review all thirty yourself first**
+
+Against the spec's ten criteria: hierarchy, typography, spacing rhythm, edge clarity, contrast, label collisions, stroke consistency, motion pacing, focal point, and whether the concept is visually obvious. Write the review out. **Name every problem you see** — an honest list here is worth far more than a clean one, and a reviewer who finds nothing on thirty first-pass images has not looked.
+
+- [ ] **Step 4: Fix what your own review found**, through the vocabularies only. If a fix needs something the vocabularies lack, that is a finding — record it, do not reach for a scene-level hack.
+
+- [ ] **Step 5: Re-run the capture** and confirm the fixes landed.
+
+- [ ] **Step 6: Commit the script only**
+
+```bash
+git add packages/web/e2e/golden-shots.mjs
+git commit -m 'test(learn): capture the golden keyframes for the reference scenes'
+```
+
+The images are committed at Gate 2, after approval — an unapproved image is not a baseline either.
 
 ---
 
@@ -780,7 +877,13 @@ git commit -m 'feat(learn): the world-model branching futures reference scene'
 
 **A.5 does not pass because every token is used correctly.** It passes when these three scenes are approved as production-quality examples of the target learning experience. That approval is the human's and nobody else's. If it is withheld, the fixes go through the vocabularies and the gate runs again.
 
-- [ ] On approval, the images become the golden visual baseline for later passes.
+- [ ] **On approval, commit the thirty images to `packages/web/e2e/golden/`** — a tracked directory, not the ignored `e2e/shots`. They are the baseline every later pass compares against, and a baseline that does not survive a clean checkout is not one.
+
+  ```bash
+  git add packages/web/e2e/golden/
+  git commit -m 'test(learn): the approved golden baseline for the reference scenes'
+  ```
+
 - [ ] Report the dev page link.
 
 ---
