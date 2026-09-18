@@ -679,8 +679,16 @@ Expected: FAIL — `typography` is not in the schema, so zod strips it and the f
 
 `typography: z.enum(TYPE_ROLES).default('body')` on `initialState`, copied into the evaluated object beside `role`.
 - [ ] **Step 4: Spend it in the renderer** — every hardcoded `fontSize`/`fontWeight` in `AnimatedScene.jsx` comes from `textStyle()`. Record the `grep -c "fontSize=" src/AnimatedScene.jsx` count before and after.
-- [ ] **Step 5: Verify locally** — `make test-unit`, build, and a `npm run dev` pass over all four scenes confirming hierarchy reads.
-- [ ] **Step 6: Commit** — `feat(learn): text names a typography role instead of a size`
+
+A `grid`, `strip`, `bars` or `tokens` object also draws a `label`, and those labels carry hardcoded sizes of their own. They are captions, not authored text: resolve them through `textStyle('caption')` (or `annotation` for the per-cell numerals, whichever the existing sizes are nearer) and **do not** add a `typography` field to data objects. Only a `text` object names its typography, because only a `text` object *is* the words.
+
+- [ ] **Step 5: Verify locally** — `make test-unit`, build, and a `npm run dev` pass over all four scenes confirming hierarchy reads. Local only; Gate 1 is after Task 11 and nothing deploys before it.
+- [ ] **Step 6: Commit**
+
+```bash
+git add packages/web/src/animation-scene.js packages/web/src/AnimatedScene.jsx packages/web/src/animation-scene.test.mjs
+git commit -m 'feat(learn): text names a typography role instead of a size'
+```
 
 ---
 
