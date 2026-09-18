@@ -787,9 +787,19 @@ test('a timing name is resolved before the evaluator ever sees it', () => {
 ```
 
 - [ ] **Step 2: Run to confirm it fails.**
-- [ ] **Step 3: Widen the field and resolve it** — `duration: z.union([z.number().min(0).max(60), z.enum(Object.keys(TIMING))])`, resolved to a number in `validateScene` **before** the runs-past-duration check, which compares numbers.
+- [ ] **Step 3: Widen the field and resolve it** — `duration: z.union([z.number().min(0).max(60), z.enum(Object.keys(TIMING))]).default(0)`.
+
+**Keep the `.default(0)`.** The field is `z.number().min(0).max(60).default(0)` today (`animation-scene.js:62`) and most authored events omit a duration entirely — dropping the default would fail every one of them. Verify after the change that an event with no `duration` still parses to `0`.
+
+Resolve the name to seconds in `validateScene` **before** the runs-past-duration check at `animation-scene.js:174`, which does `event.at + event.duration > scene.duration` and would compare a string. The evaluator also sorts by `a.duration - b.duration`; both are reasons the resolution belongs at the gate and not in `getSceneState`.
+
 - [ ] **Step 4: Run the suite** — `getSceneState` is untouched; every existing test must pass unmodified. Confirm that explicitly.
-- [ ] **Step 5: Commit** — `feat(learn): timing names resolve at the gate so the evaluator only sees seconds`
+- [ ] **Step 5: Commit**
+
+```bash
+git add packages/web/src/animation-scene.js packages/web/src/animation-scene.test.mjs
+git commit -m 'feat(learn): timing names resolve at the gate so the evaluator only sees seconds'
+```
 
 ---
 
