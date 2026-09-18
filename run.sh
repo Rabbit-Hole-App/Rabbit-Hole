@@ -95,9 +95,12 @@ function logs {
     small logs "$@"
 }
 
-# fast tests only (no network): guard proxy unit test
+# fast tests only (no network): Python guard proxy, plus both JS suites.
+# run.sh sets -e, so the first failing suite stops the run with its own exit code.
 function test:unit {
     uv run pytest "$THIS_DIR/tests/unit_tests/"
+    (cd "$THIS_DIR/packages/web" && npm run test:unit)
+    (cd "$THIS_DIR/packages/control-plane" && npm test)
 }
 
 # full integration tests: real deploy to Fly through the published CLI (~30s)
