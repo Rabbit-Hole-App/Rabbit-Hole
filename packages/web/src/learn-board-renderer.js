@@ -93,14 +93,15 @@ export function drawExplanation(editor, snapshot, plan, { onVideo, onScene, app 
         const id = create({ id: createShapeId(), type: 'geo', x: j * 220, y: 70, props: { geo: 'rectangle', w: 170, h: 160, color: 'blue', fill: 'semi', size: 's', font: 'sans', richText: toRichText(node.label) } }, meta);
         local.push(id); writes.push({ id, text: node.label });
       });
-      let below = 0, above = 0;
+      let below = 0;
       block.edges.forEach(edge => {
         const from = nodes.findIndex(n => n.id === edge.from), to = nodes.findIndex(n => n.id === edge.to);
         const adjacent = to === from + 1;
-        // Forward skips arc below, backward edges arc above, each in its own lane.
-        const lane = adjacent ? 0 : to < from ? above++ : below++;
-        const y = to < from ? 58 - lane * 24 : 240 + lane * 24;
-        const id = create({ id: createShapeId(), type: 'arrow', x: 0, y: 0, props: { start: { x: from * 220 + (adjacent ? 178 : 85), y: adjacent ? 150 : y }, end: { x: to * 220 + (adjacent ? -8 : 85), y: adjacent ? 150 : y }, bend: adjacent ? 0 : to < from ? -70 : 80, color: 'blue', size: 's', arrowheadEnd: 'arrow' } }, meta);
+        // Every non-adjacent edge (skips and loop-backs) arcs below the row in
+        // its own lane; routing over the boxes collided with their titles.
+        const lane = adjacent ? 0 : below++;
+        const y = 240 + lane * 26;
+        const id = create({ id: createShapeId(), type: 'arrow', x: 0, y: 0, props: { start: { x: from * 220 + (adjacent ? 178 : 85), y: adjacent ? 150 : y }, end: { x: to * 220 + (adjacent ? -8 : 85), y: adjacent ? 150 : y }, bend: adjacent ? 0 : to < from ? -80 : 80, color: 'blue', size: 's', arrowheadEnd: 'arrow' } }, meta);
         local.push(id);
         if (to > from) { const target = writes[to + 1].id; edgesBefore.set(target, [...(edgesBefore.get(target) || []), id]); }
         else trailingEdges.push(id);

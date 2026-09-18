@@ -694,7 +694,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
                 try { await boardContext.explain({ ...(m.board || { snapshot: null, question: [...msgs.slice(0, i)].reverse().find(item => item.role === 'user').content, answer: m.content, model }), paperIds: m.papers?.map(p => p.id) || [], ...(repository ? { repository_context: { commit: repositoryCommit || repositoryContext?.commit } } : {}), history: msgs.slice(0, i).filter(item => !item.demo && ['user', 'assistant'].includes(item.role) && item.content?.trim()).slice(-6).map(item => ({ role: item.role, content: item.content.slice(0, 1000) })) }); }
                 catch (error) { setBoardError({ id: m.id ?? i, message: error.message }); }
                 finally { setDrawingReply(null); boardContext.setAnswering(false); }
-              }}>{drawingReply === (m.id ?? i) ? <><Loader2 size={13} className="animate-spin" />{boardContext.status || 'Preparing explanation...'}</> : <><Pencil size={13} />Explain on canvas</>}</Button>
+              }}>{drawingReply === (m.id ?? i) ? <><Loader2 size={13} className="shrink-0 animate-spin" /><span className="min-w-0 max-w-64 truncate" title={boardContext.status || ''}>{boardContext.status || 'Preparing explanation...'}</span></> : <><Pencil size={13} />Explain on canvas</>}</Button>
                 {boardError?.id === (m.id ?? i) && <p role="alert" className="mt-2 text-xs text-red-700">{boardError.message}</p>}
               </div>}</>
             ) : (

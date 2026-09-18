@@ -52,7 +52,8 @@ test('model errors fail without returning drawing instructions', async () => {
 test('diagrams validate node references and equations cannot wrap', () => {
   const diagram = { kind: 'diagram', text: 'Flow', fromObjectId: null, nodes: [{ id: 'a', label: 'Input' }, { id: 'b', label: 'Output' }], edges: [{ from: 'a', to: 'b' }] };
   assert.equal(validateBoardPlan({ ...plan, blocks: [diagram] }, snapshot).blocks[0], diagram);
-  assert.throws(() => validateBoardPlan({ ...plan, blocks: [{ ...diagram, edges: [{ from: 'a', to: 'invented' }] }] }, snapshot));
+  // Stray references and decorated edges sanitize away instead of failing the plan.
+  assert.deepEqual(validateBoardPlan({ ...plan, blocks: [{ ...diagram, edges: [{ from: 'a', to: 'invented' }, { from: 'a', to: 'b', label: 'x' }] }] }, snapshot).blocks[0].edges, [{ from: 'a', to: 'b' }]);
   assert.throws(() => validateBoardPlan({ ...plan, blocks: [{ ...plan.blocks[0], text: 'a =\nb' }] }, snapshot));
 });
 

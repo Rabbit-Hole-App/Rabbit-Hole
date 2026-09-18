@@ -51,6 +51,15 @@ export const BOARD_TOOL = { name: 'explain_on_canvas', description: 'Propose a b
 } };
 
 export function validateBoardPlan(plan, snapshot) {
+  // Sanitize diagram edges before schema validation: models decorate edges
+  // with labels and stray references, which are droppable, not fatal.
+  if (Array.isArray(plan?.blocks)) for (const b of plan.blocks) {
+    if (b?.kind === 'diagram' && Array.isArray(b.nodes) && Array.isArray(b.edges)) {
+      const nodeIds = new Set(b.nodes.map(n => n?.id));
+      b.edges = b.edges.map(e => e && nodeIds.has(e.from) && nodeIds.has(e.to) && e.from !== e.to ? { from: e.from, to: e.to } : null).filter(Boolean).slice(0, 5);
+      b.nodes = b.nodes.map(n => n && typeof n === 'object' ? { id: n.id, label: n.label } : n);
+    }
+  }
   validateToolInput(plan, BOARD_TOOL.input_schema, 'canvas');
   const ids = new Set([snapshot.target, ...snapshot.relatedObjects].filter(Boolean).map(o => o.objectId));
   if (!plan || typeof plan.summary !== 'string' || !plan.summary.trim() || plan.summary.length > 500 || typeof plan.needsClarification !== 'boolean' || !Array.isArray(plan.blocks) || plan.blocks.length > 8 || (!plan.needsClarification && !plan.blocks.length) || (plan.needsClarification && plan.blocks.length)) throw new Error('Invalid canvas explanation');
@@ -85,9 +94,13 @@ export function validateBoardPlan(plan, snapshot) {
     }
     if (b.kind === 'equation' && /[\r\n]/.test(b.text)) throw new Error('Equations must stay on one line');
     if (b.kind === 'diagram') {
-      if (!Array.isArray(b.nodes) || b.nodes.length < 2 || b.nodes.length > 4 || b.nodes.some(n => !n || typeof n.id !== 'string' || !/^[\w-]{1,20}$/.test(n.id) || typeof n.label !== 'string' || !n.label.trim() || n.label.length > 60 || Object.keys(n).some(k => !['id', 'label'].includes(k)))) throw new Error('Invalid diagram nodes');
+      if (!Array.isArray(b.nodes) || b.nodes.length < 2 || b.nodes.length > 4 || b.nodes.some(n => !n || typeof n.id !== 'string' || !/^[\w-]{1,20}$/.test(n.id) || typeof n.label !== 'string' || !n.label.trim() || n.label.length > 60)) throw new Error('Invalid diagram nodes');
+      // Models decorate nodes/edges with extra fields and stray references;
+      // sanitize to the supported shape instead of failing the plan.
+      b.nodes = b.nodes.map(n => ({ id: n.id, label: n.label }));
       const nodeIds = new Set(b.nodes.map(n => n.id));
-      if (nodeIds.size !== b.nodes.length || !Array.isArray(b.edges) || b.edges.length > 5 || b.edges.some(e => !e || !nodeIds.has(e.from) || !nodeIds.has(e.to) || e.from === e.to || Object.keys(e).some(k => !['from', 'to'].includes(k)))) throw new Error('Invalid diagram edges');
+      if (nodeIds.size !== b.nodes.length) throw new Error('Invalid diagram nodes');
+      b.edges = (Array.isArray(b.edges) ? b.edges : []).map(e => e && nodeIds.has(e.from) && nodeIds.has(e.to) && e.from !== e.to ? { from: e.from, to: e.to } : null).filter(Boolean).slice(0, 5);
     } else if (b.nodes !== undefined || b.edges !== undefined) throw new Error('Only diagrams accept nodes and edges');
   }
   // Source arrows are decoration, never worth failing the explanation over:
