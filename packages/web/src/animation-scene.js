@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { GEOMETRY, ROLES, TYPE_ROLES } from './scene-vocab.js';
+import { GEOMETRY, ROLES, TIMING, TYPE_ROLES } from './scene-vocab.js';
 import { adaptLegacyScene } from './scene-legacy.js';
 
 // The animation source of truth: scene JSON plus a pure evaluator. Neither
@@ -59,7 +59,9 @@ const eventSchema = z.object({
   target: z.string().max(64).optional(),
   from: z.string().max(64).optional(),
   to: z.string().max(64).optional(),
-  duration: z.number().min(0).max(60).default(0),
+  duration: z.union([z.number().min(0).max(60), z.enum(Object.keys(TIMING))], {
+    error: () => `not a timing: write seconds or one of ${Object.keys(TIMING).join(', ')}`,
+  }).default(0),
   easing: z.enum(EASINGS).default('easeInOut'),
   value: z.any().optional(),
 });
@@ -139,6 +141,11 @@ export function validateScene(raw) {
     }
   }
   for (const event of scene.timeline) {
+    // A name is an author convenience, not something the evaluator should ever
+    // parse: getSceneState both compares durations with `>` and sorts by
+    // `a.duration - b.duration`, so every event must carry seconds by the time
+    // it leaves this gate.
+    if (typeof event.duration === 'string') event.duration = TIMING[event.duration];
     for (const key of ['target', 'from', 'to']) {
       if (event[key] && !ids.has(event[key])) throw new Error(`Timeline event at ${event.at}s refers to unknown object "${event[key]}"`);
     }

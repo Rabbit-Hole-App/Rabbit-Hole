@@ -476,3 +476,18 @@ test('a data cell falls back to the vocabulary pitch', () => {
   });
   assert.equal(getSceneState(built, 1).objects[0].cell, GEOMETRY.cellPitch);
 });
+
+test('a timing name is resolved before the evaluator ever sees it', () => {
+  const built = validateScene({
+    id: 'timed', duration: 4,
+    objects: [{ id: 'a', type: 'box', initialState: { x: 0, y: 0, opacity: 0 } }],
+    timeline: [{ at: 0, action: 'appear', target: 'a', duration: 'slow' }],
+  });
+  assert.equal(built.timeline[0].duration, 0.7, 'the scene that reaches the evaluator carries seconds');
+  assert.equal(typeof built.timeline[0].duration, 'number');
+  assert.throws(() => validateScene({
+    id: 'bad', duration: 4,
+    objects: [{ id: 'a', type: 'box' }],
+    timeline: [{ at: 0, action: 'appear', target: 'a', duration: 'leisurely' }],
+  }), /not a timing/);
+});
