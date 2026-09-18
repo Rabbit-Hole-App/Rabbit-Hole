@@ -79,9 +79,9 @@ export const residualScene = {
     arrow('a2', { x: 410, y: row + 29 }, { x: 498, y: row + 29 }, 'neutral'),
     arrow('a3', { x: 650, y: row + 29 }, { x: 698, y: row + 29 }, 'neutral'),
     // the residual itself: straight over the top of the block it skips
-    arrow('skip', { x: 115, y: 150 }, { x: 560, y: 150 }, 'warning'),
+    arrow('skip', { x: 115, y: 150 }, { x: 560, y: 150 }, 'input'),
     { id: 'skip-label', type: 'text', semanticId: 'skip-label', conceptId: 'residual-connection',
-      initialState: { text: 'the original x, carried past untouched', x: 190, y: 128, opacity: 0, role: 'warning' } },
+      initialState: { text: 'the original x, carried past untouched', x: 190, y: 128, opacity: 0, role: 'input' } },
     { id: 'note', type: 'text', semanticId: 'note', initialState: { text: '', x: 40, y: 320 } },
   ],
   timeline: [
