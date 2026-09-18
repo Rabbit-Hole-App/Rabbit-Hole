@@ -230,3 +230,16 @@ test('an image needs a source', () => {
     timeline: [],
   }), /image needs a src/);
 });
+
+test('an image needs a size it can be drawn at', () => {
+  assert.throws(() => validateScene({
+    id: 'unsized', duration: 4,
+    objects: [{ id: 'photo', type: 'image', initialState: { x: 0, y: 0, src: '/favicon.svg' } }],
+    timeline: [],
+  }), /needs a width and height/);
+  assert.throws(() => validateScene({
+    id: 'halfsized', duration: 4,
+    objects: [{ id: 'photo', type: 'image', initialState: { x: 0, y: 0, w: 40, src: '/favicon.svg' } }],
+    timeline: [],
+  }), /needs a width and height/);
+});

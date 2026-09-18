@@ -106,6 +106,12 @@ export function validateScene(raw) {
     if (!SAME_ORIGIN.test(src) || src.includes('..') || src.startsWith('//')) {
       throw new Error(`Object "${object.id}": an image src must be a same-origin path beginning with a single /`);
     }
+    // An image has no intrinsic size here - sizeOf gives it none - so without
+    // a width and height it renders as an element with no dimensions, which is
+    // engine-dependent and silently invisible.
+    if (!(object.initialState.w && object.initialState.h)) {
+      throw new Error(`Object "${object.id}": an image needs a width and height`);
+    }
   }
   for (const event of scene.timeline) {
     for (const key of ['target', 'from', 'to']) {
