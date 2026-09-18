@@ -5,7 +5,7 @@ import { SPEEDS, getSpeed, isMuted, onMuted, setMuted, setSpeed } from './learn-
 import { api, wsHeaders } from './api.js';
 import { requestBoardExplanation } from './learn-board-request.js';
 import { AskPanel } from './ask.jsx';
-import { Button, ExpandedPageFrame, IconBtn, ConfirmDialog } from './ui.jsx';
+import { Button, ExpandedPageFrame, IconBtn, ConfirmDialog, Tabs, TabsList, TabsTrigger } from './ui.jsx';
 import { captureSelection, selectionSnapshot } from './sigmoid-context.js';
 import RegionPicker from './RegionPicker.jsx';
 import { CourseInterview, CoursePanel, useLearnCourse } from './LearnCourse.jsx';
@@ -21,7 +21,6 @@ import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from '.
 import { architectureLesson, sampleCourse } from './learn-preview.js';
 
 const LearnNotes = lazy(() => import('./LearnNotes.jsx'));
-const LearnCanvas = lazy(() => import('./LearnCanvas.jsx'));
 
 export default function LearnPage({ app, onBack, repositoryContext = null, onGraph = null }) {
   const isRepository = app.kind === 'repository';
@@ -444,10 +443,10 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         <div className="flex items-center justify-between gap-3 pt-1 pb-4">
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1"><h1 className="text-2xl font-semibold">Learn</h1><span aria-label="Course title" className="text-base text-ink-2">{courseTitle}</span></div>
         </div>
-        <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
-          <nav aria-label="Lesson views" className="flex flex-wrap gap-1">{['curriculum', 'lesson', 'notes'].map(value => <button key={value} type="button" disabled={!course.loaded || course.dirty && value !== 'curriculum'} aria-pressed={learningView === value} onClick={() => requestLearningView(value)} className={`rounded px-3 py-1.5 text-sm disabled:opacity-40 ${learningView === value ? 'bg-hover font-medium text-ink' : 'text-ink-2 hover:bg-hover'}`}>{value === 'notes' ? 'My notes' : value[0].toUpperCase() + value.slice(1)}</button>)}</nav>
-          {!isRepository && <div className="flex gap-1">{['notebook', 'practice'].map(value => <button key={value} disabled={course.dirty} aria-pressed={learningView === value} onClick={() => requestLearningView(value)} className="rounded border border-line px-3 py-1.5 text-sm hover:bg-hover">{value === 'notebook' ? 'Notebook' : 'Quiz & flashcards'}</button>)}</div>}
-        </div>
+        {/* the Curriculum | Lesson | My notes switcher now lives in the right panel as tabs */}
+        {!isRepository && <div className="mb-4 flex shrink-0 flex-wrap items-center justify-end gap-3 border-b border-line pb-3">
+          <div className="flex gap-1">{['notebook', 'practice'].map(value => <button key={value} disabled={course.dirty} aria-pressed={learningView === value} onClick={() => requestLearningView(value)} className="rounded border border-line px-3 py-1.5 text-sm hover:bg-hover">{value === 'notebook' ? 'Notebook' : 'Quiz & flashcards'}</button>)}</div>
+        </div>}
         {learningView === 'curriculum' && course.canAuthor && !(suppliedCourse && planOpen) && <div role="tablist" aria-label="Curriculum views" className="mb-4 flex gap-1">{[['edit', 'Edit course'], ['learner', 'Learner view']].map(([value, label]) => <button key={value} role="tab" aria-selected={value === 'edit' ? courseView : learnerOpen} disabled={course.dirty} className={`rounded px-3 py-1.5 text-xs hover:bg-hover ${(value === 'edit' ? courseView : learnerOpen) ? 'bg-hover font-medium' : 'text-ink-2'}`} onClick={() => { setCourseView(value === 'edit'); setSetupChat(value === 'edit'); setLearnerOpen(value === 'learner'); }}>{label}</button>)}</div>}
         {planStorageError && <p role="alert" className="mb-3 text-xs text-red-700">{planStorageError}</p>}
         {suppliedCourse && learningView === 'curriculum' && <LessonPlanPreview onPreview={editor && nanoProgress.loaded && !answering ? () => previewLesson(nanoLesson, true) : null} edits={course.canAuthor ? planEdits : {}} selectedSection={sectionTarget?.id} onEdit={target => { setSectionTarget(target); setSetupChat(true); }} course={course.course} learnerView={!course.canAuthor || learnerOpen} editorPanel={courseView ? coursePanel : null} view={planOpen ? 'plan' : 'curriculum'} selected={plannedLesson} onBack={() => { setPlanOpen(false); setSectionTarget(null); }} onSelect={index => { setPlannedLesson(index); setPlanOpen(true); }} />}
@@ -466,33 +465,13 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         }} />}
         <div className={`${courseView || learningView !== 'lesson' ? 'hidden' : ''} min-h-0 flex-1 overflow-y-auto pr-1`}>
         {(!isRepository || progress) && <div aria-label="Current lesson and section" className="mb-4"><h2 className="text-lg font-semibold">Lesson {sampleIndex >= 0 ? sampleIndex + 1 : 1}: {currentLesson?.title}</h2><p className="mt-1 text-sm text-ink-2">Section {(progress?.page || 0) + 1} of {pages.length}: {progress?.label || pages[0].label}</p></div>}
-        <div className="flex items-start gap-2">
         {graphError && <p role="alert" className="text-sm text-red-700">{graphError}</p>}
-        <div className="min-w-0 flex-1">
         {boardVisible && <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-2"><span>Agent explanation · lesson paused — keep asking, or resume when ready</span><div className="flex gap-2"><button type="button" disabled={!notesLoaded || answering} onClick={addNote} className="rounded border border-line-strong bg-white px-2.5 py-1 font-medium text-ink hover:bg-hover disabled:opacity-40">Save to notes</button><button type="button" onClick={() => { dismissBoard(); playback.current?.play(); }} className="rounded bg-ink px-2.5 py-1 font-medium text-white hover:opacity-90">Resume lesson</button></div></div>}
-        <div aria-label="Lesson canvas" onPointerDownCapture={event => { editor?.updateViewportScreenBounds(editor.getContainer()); pauseLesson(); pickSequenceTile(event); openPaperReference(event); }} onClickCapture={openPaperReference} onWheelCapture={e => { if (!e.ctrlKey && !e.metaKey && !e.target.closest?.('[data-shape-type="interactive-graph"], [data-shape-type="three-d-viewer"]')) e.stopPropagation(); }} className={`relative h-[480px] min-h-[360px] min-w-0 overflow-hidden rounded-lg border border-line`}>
-          <Suspense fallback={<p className="p-4 text-sm text-ink-2">Loading canvas…</p>}>
-            <LearnCanvas key={app.name} onReady={setEditor} showTools={toolsOpen} />
-          </Suspense>
-          {region && <RegionPicker editor={editor} lesson={lesson.current} onCancel={cancelRegion} onSelect={(ids, ellipse) => {
-            editor.select(...ids);
-            pinned.current = captureSelection(editor, lesson.current);
-            if (pinned.current) pinned.current.region = ellipse;
-            drawRegionMarker(ellipse);
-            preparePreview();
-            setRegion(false);
-            refreshSelection(v => v + 1);
-          }} />}
-        </div>
-        </div>
-          <div className="flex shrink-0 self-center flex-col gap-1 rounded-lg border border-line bg-white p-1 shadow-sm">
-            <IconBtn aria-label="Ask about selection" title="Ask about selection: draw a red ellipse" disabled={!editor || (!progress && !boardVisible) || answering} onClick={() => { pauseLesson(); pinned.current = null; removeImage(); clearRegionMarker(); setRegion(true); }}><Scan size={17} strokeWidth={1.5} /></IconBtn>
-            <IconBtn aria-label="Add personal note" title="Pause and add a personal note" disabled={!editor || (!progress && !boardVisible) || !notesLoaded || answering} onClick={addNote}><NotebookPen size={17} strokeWidth={1.5} /></IconBtn>
-            <IconBtn aria-label={narrationMuted ? 'Unmute narration' : 'Mute narration'} title={narrationMuted ? 'Unmute narration audio' : 'Mute narration audio'} aria-pressed={narrationMuted} onClick={() => { setMuted(!narrationMuted); setNarrationMuted(!narrationMuted); }}>{narrationMuted ? <VolumeX size={17} strokeWidth={1.5} /> : <Volume2 size={17} strokeWidth={1.5} />}</IconBtn>
-            <IconBtn aria-label={toolsOpen ? 'Hide drawing tools' : 'Show drawing tools'} title={toolsOpen ? 'Hide drawing tools' : 'Show drawing tools'} aria-pressed={toolsOpen} className={toolsOpen ? 'bg-hover' : ''} onClick={() => setToolsOpen(!toolsOpen)}><Pencil size={17} strokeWidth={1.5} /></IconBtn>
-          </div>
-        </div>
-        <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
+        {/* ponytail: tldraw removed for the lesson-2 canvas redesign - this scrollable
+            document area is the new lesson surface; its content model comes next */}
+        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-[65vh] rounded-lg border border-line" />
+        {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
+        {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
             <button type="button" disabled={!progress || progress.page === 0 || answering} onClick={() => navigateLesson('back')} className="flex items-center gap-1 rounded px-2 py-1.5 text-xs text-ink-2 hover:bg-hover disabled:opacity-40"><ChevronLeft size={14} />Previous lesson</button>
             <button type="button" disabled={!editor || (progress?.page === pages.length - 1 && progress.pageComplete) || answering} onClick={() => { setRegion(false); if (!progress) startDemo.current?.(); else progress.playing ? pauseLesson() : playback.current?.play(); }} className="flex min-w-20 items-center justify-center gap-1.5 rounded border border-line px-3 py-1.5 text-xs hover:bg-hover disabled:opacity-40">{progress?.playing ? <Pause size={14} /> : <Play size={14} />}{progress?.playing ? 'Pause' : 'Play'}</button>
@@ -500,8 +479,8 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             <button type="button" disabled={!progress || (progress.page === pages.length - 1 && progress.pageComplete) || answering} onClick={() => navigateLesson('next')} className="flex items-center gap-1 rounded px-2 py-1.5 text-xs text-ink-2 hover:bg-hover disabled:opacity-40">Next lesson<ChevronRight size={14} /></button>
           </div>
           <span aria-live="polite" className="text-xs text-ink-2">{progress ? `Page ${progress.page + 1} of ${pages.length} · ${progress.label}` : 'Logistic regression · 3 pages'}</span>
-        </div>
-        <div className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : ''} shrink-0 pt-2 pb-1`}>
+        </div>}
+        {false && <div className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : ''} shrink-0 pt-2 pb-1`}>
           <div className="relative flex items-center">
             <input type="range" aria-label="Lesson timeline" aria-valuetext={progress ? `Page ${progress.page + 1} of ${pages.length}, ${Math.round((progress.timeline / 1000 - progress.page) * 100)} percent` : 'Start the lesson to scrub'} min="0" max={pages.length * 1000} step="1" value={progress?.timeline || 0} disabled={!progress || answering} onPointerDown={pauseLesson} onChange={e => navigateLesson('scrub', Number(e.target.value))} className="h-4 w-full cursor-pointer accent-accent disabled:opacity-40" />
             {pages.slice(1).map((_, i) => <span key={i} style={{ left: `${(i + 1) * 100 / pages.length}%` }} className="pointer-events-none absolute h-2 w-px bg-white" />)}
@@ -509,9 +488,13 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           <div className="mt-1 grid gap-2 text-[10px] text-ink-2" style={{ gridTemplateColumns: `repeat(${pages.length}, minmax(0, 1fr))` }}>
             {pages.map(({ label }, i) => <button key={i} type="button" disabled={!progress || answering} onClick={() => navigateLesson('seek', i)} className="truncate text-left hover:text-ink disabled:opacity-40" title={label}>{i + 1}. {i === 1 && lesson.current?.lessonId === 'sigmoid-demo' ? 'The formula' : label}</button>)}
           </div>
-        </div>
+        </div>}
         <div className="mt-5">{nanoActive ? <NanoLessonReading page={progress?.page || 0} progress={nanoProgress} canvasPick={canvasPick} onSource={source => { pauseLesson(); setPaperOpen(false); setSourceOpen(false); setLessonSource(source); }} /> : isRepository ? <p className="whitespace-pre-wrap text-sm text-ink-2">{narration}</p> : <LessonReading architecture={lesson.current?.lessonId === architectureLesson.id} page={progress?.page || 0} narration={narration} onSource={() => { pauseLesson(); setSourceOpen(true); }} onNotebook={() => changeLearningView('notebook')} />}</div>
         </div>
+        {/* the agent textbox stays docked under the canvas; the canvas above scrolls */}
+        {!courseView && learningView === 'lesson' && (app.hosting !== 'aws' || app.app_chat) && <div className="shrink-0 pt-3">
+          <AskPanel compact key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus />
+        </div>}
         {!courseView && learningView === 'notes' && <Suspense fallback={<p className="text-sm text-ink-2">Loading notes...</p>}><LearnNotes saveRef={noteSave} onChange={setNoteChanged} records={noteRecords} editing={noteEditing} onSave={saveNote} onDelete={removeNote} onResume={returnToNoteLesson} onEdit={record => { setNoteChanged(false); setNoteEditing(record); }} onReturn={() => setNoteEditing(null)} loaded={notesLoaded} error={notesError} /></Suspense>}
         <LessonNotebook active={!courseView && learningView === 'notebook'} />
         <LessonPractice mode={practiceMode} setMode={setPracticeMode} active={!courseView && learningView === 'practice'} onReview={async index => {
@@ -525,11 +508,19 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         <div role="progressbar" aria-label={suppliedCourse ? "Lesson 1 participation progress" : "Course completion"} aria-valuemin={0} aria-valuemax={sectionKeys.length} aria-valuenow={finishedCount} className="h-1.5 flex-1 overflow-hidden rounded-full bg-hover"><div className="h-full rounded-full bg-green-600 transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${sectionKeys.length ? finishedCount / sectionKeys.length * 100 : 0}%` }} /></div>
         <Trophy size={18} role="img" aria-label={suppliedCourse ? 'Complete all six pages and three objective checks to finish Lesson 1' : allFinished ? 'Course complete' : 'Complete all sections and activities to earn this award'} className={allFinished ? 'text-green-600 drop-shadow-sm' : 'text-ink-3 opacity-35'} />
       </div>
+      <Tabs value={learningView === 'notes' ? 'notes' : learningView === 'curriculum' ? 'curriculum' : 'lesson'} onValueChange={requestLearningView} className="shrink-0">
+        <TabsList pill className="mb-3">
+          {[['curriculum', 'Curriculum'], ['lesson', 'Lesson'], ['notes', 'My notes']].map(([value, label]) => <TabsTrigger key={value} pill value={value} disabled={!course.loaded || course.dirty && value !== 'curriculum'}>{label}</TabsTrigger>)}
+        </TabsList>
+      </Tabs>
       {setupChat && <CourseInterview state={course} app={app} sectionEditor={suppliedCourse ? sectionEditor : null} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>
       {narration && !paperOpen && !sourceOpen && !lessonSource && !learnerOpen && <details className="mb-3 max-h-40 overflow-auto rounded border border-line p-3 text-sm" open><summary className="cursor-pointer text-xs font-medium">Current page explanation</summary><p className="mt-2 whitespace-pre-wrap text-ink-2">{narration}</p></details>}
       {app.hosting === 'aws' && !app.app_chat
         ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p>
+        : !courseView && learningView === 'lesson'
+        // lesson view: chat is docked under the canvas - the panel only displays papers and source
+        ? (lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : <p className="text-sm text-ink-3">Papers and source code open here when the lesson references them.</p>)
         : <AskPanel onGraph={onGraph} key={app.name} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" headerTitle="Learn Agent" demo={isRepository ? null : demo} boardContext={boardContext} contentPanel={lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : null} onCloseContentPanel={() => { setPaperOpen(false); setSourceOpen(false); setLessonSource(null); }} placeholder={`Ask about ${app.repo || app.name}…`} autoFocus />}
       </div>
     </ResizableSidePanel>
