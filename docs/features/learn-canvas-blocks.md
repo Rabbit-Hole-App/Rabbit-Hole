@@ -39,6 +39,12 @@ surface*: the learner attempting something, the tutor annotating that attempt.
 Rule of thumb: **if the change over time is the explanation, it is an Animation; if the surface is
 the explanation, it is a Whiteboard.** Replay belongs to the first; undo and erase to the second.
 
+**Maths animation** is a third thing: a manim render, produced offline and played as a video. Use it
+when the explanation needs typeset mathematics moving - a derivation morphing line by line, a tangent
+travelling along a curve - which the SVG animation engine cannot typeset and the whiteboard cannot
+animate. It is not scrubbable in the engine sense: it is a clip, so questions about it are questions
+about a video. See [learn-math-animation.md](learn-math-animation.md).
+
 ## Explain in canvas
 
 A question asked from a board creates a conversation node linked to it, and that node carries an

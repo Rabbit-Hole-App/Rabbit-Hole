@@ -1,6 +1,8 @@
 import { authorizedBoardApp } from './learn-board.js';
 import { validateVideo, videoCacheKey } from './learn-video-schema.js';
 import { videoProvider } from './video-provider.js';
+import { ManimProvider, cacheKey as mathCacheKey } from './math-provider.js';
+import { validateMathAnimation } from './learn-math-schema.js';
 
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
 const POLL_MS = 10000; // Clips take minutes; background polling does not depend on an open browser.
@@ -55,28 +57,33 @@ export class LearnVideos {
           await this.state.storage.put(`placement:${body.id}`, { ...p, position: body.position, hidden: body.hidden === true });
           return json({ saved: true });
         }
-        const provider = videoProvider(this.env);
-        const input = validateVideo(body.operation);
+        const maths = body.operation?.op === 'generate_math_animation';
+        const provider = maths ? new ManimProvider(this.env) : videoProvider(this.env);
+        const input = maths ? { spec: validateMathAnimation(body.operation), id: body.operation.id, caption: body.operation.caption } : validateVideo(body.operation);
         if (typeof body.lessonId !== 'string' || body.lessonId.length > 150 || typeof body.page !== 'string' || body.page.length > 150) throw new Error('Lesson and page are required');
-        const key = await videoCacheKey(input, provider.version);
+        // The worker's compiler version is part of the key, so a rebuilt
+        // compiler renders again instead of serving a stale animation.
+        const version = maths ? await provider.workerVersion() : provider.version;
+        const key = maths ? await mathCacheKey(input.spec, version) : await videoCacheKey(input, version);
         let job = await this.state.storage.get(`job:${key}`);
         if (!job || (body.retry === true && job.status === 'failed' && !job.uncertain)) {
           const all = await this.state.storage.list({ prefix: 'job:' });
           if ([...all.values()].some(j => j.status === 'generating')) return json({ error: 'One video is already generating. Wait for it before requesting another.' }, 409);
           if (all.size >= 100 && !job) throw new Error('This preview has reached its saved video limit');
-          job = { key, input, status: 'generating', startedAt: Date.now(), version: provider.version, provider: this.env.LEARN_VIDEO_PROVIDER };
+          job = { key, input, status: 'generating', startedAt: Date.now(), version, provider: maths ? 'manim' : this.env.LEARN_VIDEO_PROVIDER };
           // Persist before submitting. Never automatically repeat a potentially charged POST.
           await this.state.storage.put(`job:${key}`, job);
           await this.state.storage.setAlarm(Date.now() + POLL_MS);
-          try { job.ticket = await provider.submit(input); }
+          try { job.ticket = maths ? await provider.submit(input, version) : await provider.submit(input); }
           catch { job.status = 'failed'; job.uncertain = true; job.error = 'Submission could not be confirmed. Check the provider request history before generating again.'; }
           await this.state.storage.put(`job:${key}`, job);
         } else if (body.retry === true && job.uncertain) {
           return json({ error: job.error }, 409);
         }
         const placementId = await videoCacheKey({ ...input, prompt: JSON.stringify([body.lessonId, body.page, input.id]) }, key);
+        const operation = maths ? body.operation : input;
         const previous = await this.state.storage.get(`placement:${placementId}`);
-        await this.state.storage.put(`placement:${placementId}`, previous || { id: placementId, key, lessonId: body.lessonId, page: body.page, operation: input, position: null });
+        await this.state.storage.put(`placement:${placementId}`, previous || { id: placementId, key, lessonId: body.lessonId, page: body.page, operation, position: null });
         return json({ ...await this.list(), placementId }, 202);
       } catch (error) { return json({ error: error.message }, 400); }
     });
@@ -97,8 +104,16 @@ export class LearnVideos {
       if (!job.ticket) { job.status = 'failed'; job.uncertain = true; job.error = 'Submission status is unknown. Check provider history before generating again.'; }
       else {
         try {
-          const result = await videoProvider({ ...this.env, LEARN_VIDEO_PROVIDER: job.provider }).poll(job.ticket);
-          if (result) {
+          const result = job.provider === 'manim'
+            ? await new ManimProvider(this.env).poll(job.ticket)
+            : await videoProvider({ ...this.env, LEARN_VIDEO_PROVIDER: job.provider }).poll(job.ticket);
+          if (result?.bytes) {
+            job.storageKey = `learn-video-dev/${this.state.id}/${job.key}.mp4`;
+            await this.env.RUNS.put(job.storageKey, result.bytes, { httpMetadata: { contentType: 'video/mp4' } });
+            // Never persist the clip itself in the job record.
+            job.result = { provider: result.provider, generationId: result.generationId };
+            job.status = 'ready';
+          } else if (result) {
             const response = await fetch(result.videoUrl, { redirect: 'manual', signal: AbortSignal.timeout(30000) });
             if (!response.ok || !response.headers.get('content-type')?.startsWith('video/')) throw new Error('Video download unavailable');
             // Short preview clips are bounded to protect Worker memory and storage.

@@ -33,8 +33,10 @@ export class ManimProvider {
     if (!health.version) throw new Error('The math worker did not report a version');
     return health.version;
   }
-  async submit(input) {
-    const version = await this.workerVersion();
+  // The caller already needed the version to compute its own cache key, so it
+  // passes it in rather than asking the worker twice.
+  async submit(input, known) {
+    const version = known || await this.workerVersion();
     const key = await cacheKey(input.spec, version);
     const response = await this.request('/jobs', { key, operation: input.spec, version });
     if (response.status === 429) throw new Error('The math worker is busy; try again shortly');

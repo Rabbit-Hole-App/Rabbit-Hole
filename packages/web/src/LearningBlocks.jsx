@@ -618,6 +618,35 @@ export const BLOCK_TYPES = {
       status: 'idle',
     }),
   },
+  mathAnimation: {
+    label: 'Maths animation',
+    width: 560,
+    autoMax: 680,
+    sample: () => ({
+      id: crypto.randomUUID(),
+      type: 'video',
+      dx: 0,
+      dy: 0,
+      mode: 'generate',
+      title: 'Why the sigmoid saturates',
+      src: '',
+      caption: 'Rendered with manim from a validated specification; the tutor supplies the steps, never code.',
+      // generate_math_animation contract (packages/math-renderer/math-schema.json).
+      operation: {
+        op: 'generate_math_animation', id: 'sigmoid-saturation', concept: 'Sigmoid saturation', purpose: 'derivation',
+        caption: 'The derivative peaks at a quarter and vanishes in the tails.',
+        scene: {
+          title: 'Where the slope goes',
+          steps: [
+            { kind: 'equation', expressions: ['\sigma(x) = \frac{1}{1 + e^{-x}}', "\sigma'(x) = \sigma(x)(1 - \sigma(x))"], highlight: ['\sigma(x)'], note: 'the slope is written with the function itself', hold: 2 },
+            { kind: 'plot', functions: [{ expression: '1 / (1 + exp(-x))', label: '\sigma(x)', color: '#2383e2' }], xRange: [-6, 6, 2], yRange: [0, 1, 0.25], marker: { from: -6, to: 6, tangent: true }, note: 'the tangent flattens at both ends', hold: 2 },
+            { kind: 'plot', functions: [{ expression: 'exp(-x) / (1 + exp(-x))**2', label: "\sigma'(x)", color: '#E8590C' }], xRange: [-6, 6, 2], yRange: [0, 0.3, 0.1], note: 'the derivative never exceeds a quarter', hold: 2 },
+          ],
+        },
+      },
+      status: 'idle',
+    }),
+  },
   model3d: {
     label: '3D model',
     width: 560,
@@ -1228,10 +1257,12 @@ function VideoBody({ block, appName, onChange, onFile }) {
             )}
           </>
         : <div className="mt-2 flex min-h-32 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-line bg-hover p-4 text-center" onPointerDown={event => event.stopPropagation()}>
-            <p className="text-xs text-ink-2">{block.operation?.duration || 4}s · {block.operation?.aspectRatio || '16:9'} · {block.operation?.purpose?.replace('_', ' ')}</p>
+            {block.operation?.op === 'generate_math_animation'
+              ? <p className="text-xs text-ink-2">{block.operation.scene.steps.length} steps · {block.operation.scene.steps.map(step => step.kind).join(', ')} · rendered by manim</p>
+              : <p className="text-xs text-ink-2">{block.operation?.duration || 4}s · {block.operation?.aspectRatio || '16:9'} · {block.operation?.purpose?.replace('_', ' ')}</p>}
             {pending
-              ? <Progress seconds={elapsed} expected={180} label="Generating the clip" />
-              : <button type="button" data-generate-video onClick={generate} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? 'Retry video' : 'Generate the video'}</button>}
+              ? <Progress seconds={elapsed} expected={block.operation?.op === 'generate_math_animation' ? 240 : 180} label={block.operation?.op === 'generate_math_animation' ? 'Rendering the animation' : 'Generating the clip'} />
+              : <button type="button" data-generate-video onClick={generate} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? 'Retry render' : block.operation?.op === 'generate_math_animation' ? 'Render the animation' : 'Generate the video'}</button>}
             {error && <p className="text-xs text-red-700">{error}</p>}
           </div>}
       {block.caption && <div className="mt-1.5 text-xs text-ink-2"><Md text={block.caption} onFile={onFile} /></div>}
