@@ -146,6 +146,22 @@ await check('ctrl+z restores deleted block', async () => {
   if ((await canvas.locator('[data-chat-block]').count()) !== count + 1) throw new Error('block not restored');
 });
 
+// challenge lesson block: insert from the dev menu, commit a guess, reveal
+await check('challenge block commits and reveals', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  await page.getByRole('menuitem', { name: 'Challenge' }).click();
+  const block = canvas.getByText('Commit a guess before we look.');
+  await block.waitFor({ timeout: 5000 });
+  await page.locator('input[placeholder^="Your guess"]').fill('embeddings turn IDs into vectors');
+  await page.getByRole('button', { name: 'Commit', exact: true }).click();
+  await canvas.getByText('Hold that thought.', { exact: false }).waitFor({ timeout: 5000 });
+});
+await check('challenge block survives reload', async () => {
+  await page.waitForTimeout(700);
+  await page.reload();
+  await canvas.getByText('embeddings turn IDs into vectors').waitFor({ timeout: 20000 });
+});
+
 await page.waitForTimeout(400);
 await page.screenshot({ path: 'e2e/shots/chat-block-moved.png', fullPage: false });
 

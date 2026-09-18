@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { MessageCircle, X, ArrowUpRight, Circle, Diamond, Eraser, Hand, Hexagon, Highlighter, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn } from './ui.jsx';
+import { BLOCK_TYPES, LearningBlockBody } from './LearningBlocks.jsx';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -76,37 +77,26 @@ function outlineOf(shape) {
   return { points: relative.map(([u, v]) => ({ x: x + u * w, y: y + v * h })), closed: true };
 }
 
-// One conversation node: the learner's message, a separator, then the agent's
-// reply. Starts at a compact width, grows with content up to a max height
-// (longer replies scroll inside), and resizes from the corner handle.
-function ChatCard({ exchange, zoom, selected, onSelect, onMove, renderComposer, onLayout, onConnect }) {
+// Shared node chrome for everything card-shaped on the canvas: drag with
+// lift, corner resize, selection ring, top/bottom connection ports, and the
+// layout observer that keeps connector geometry fresh. Content is children.
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, onSelect, onMove, onLayout, onConnect, nodeRef = null, children }) {
   const [lifted, setLifted] = useState(false);
-  const [replyOpen, setReplyOpen] = useState(false);
-  const [started, setStarted] = useState(false);
-  const [replies, setReplies] = useState([]);
   const [size, setSize] = useState({ w: null, h: null });
   const card = useRef(null);
-  const body = useRef(null);
+  useEffect(() => { if (nodeRef) nodeRef.current = card.current; });
   useEffect(() => {
     const observer = new ResizeObserver(onLayout);
     observer.observe(card.current);
     return () => observer.disconnect();
   }, [onLayout]);
-  useEffect(() => { if (body.current && replies.length) body.current.scrollTop = body.current.scrollHeight; }, [replies]);
-  useEffect(() => { if (replyOpen) card.current?.querySelector('[data-block-composer] input[placeholder]')?.focus(); }, [replyOpen]);
-  const continueReply = () => { setStarted(true); setReplyOpen(true); };
-  const receive = event => setReplies(previous => {
-    if (event.question !== undefined) return [...previous, { id: event.id, question: event.question, answer: '', status: 'thinking' }];
-    return previous.map(turn => turn.id !== event.id ? turn : event.delta ? { ...turn, answer: turn.answer + event.delta }
-      : { ...turn, status: event.done ? 'done' : event.stage });
-  });
   const drag = event => {
     if (event.button !== 0) return;
-    onSelect(exchange.id);
+    onSelect(id);
     setLifted(true);
-    const apply = (x, y) => onMove(exchange.id, x, y);
+    const apply = (x, y) => onMove(id, x, y);
     apply.done = () => setLifted(false);
-    startDrag(event, { x: exchange.dx, y: exchange.dy }, apply, zoom);
+    startDrag(event, { x: dx, y: dy }, apply, zoom);
   };
   const resize = event => {
     if (event.button !== 0) return;
@@ -115,9 +105,39 @@ function ChatCard({ exchange, zoom, selected, onSelect, onMove, renderComposer, 
       (w, h) => setSize({ w: Math.min(720, Math.max(280, w)), h: Math.min(640, Math.max(140, h)) }), zoom);
   };
   return (
-    <div ref={card} data-block data-chat-block data-block-id={exchange.id} onPointerDown={drag}
-      style={{ transform: `translate(${exchange.dx}px, ${exchange.dy}px)${lifted ? ' scale(1.02)' : ''}`, width: size.w || 380, height: size.h || undefined, maxHeight: size.h ? undefined : 420 }}
+    <div ref={card} data-block data-block-id={id} {...(chat ? { 'data-chat-block': true } : {})} onPointerDown={drag}
+      style={{ transform: `translate(${dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, width: size.w || 380, height: size.h || undefined, maxHeight: size.h ? undefined : 420 }}
       className={`group relative mx-auto flex flex-col rounded-xl border border-line bg-white transition-shadow duration-150 ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${lifted ? 'z-20 cursor-grabbing shadow-xl' : 'cursor-grab shadow-sm hover:shadow-md'}`}>
+      {children}
+      {['top', 'bottom'].map(side => <button key={side} type="button" data-port={side} data-owner={id} aria-label={`Connect ${side}`} title="Drag to connect blocks"
+        className={`absolute left-1/2 z-20 h-4 w-4 -translate-x-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white opacity-0 group-hover:opacity-100 focus:opacity-100 ${side === 'top' ? '-top-2' : '-bottom-2'}`}
+        onPointerDown={event => onConnect(event, id, side)} />)}
+      <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute right-0 bottom-0 z-10 cursor-nwse-resize p-1 text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink-2 focus:opacity-100"
+        onPointerDown={resize}><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg></button>
+    </div>
+  );
+}
+
+// One conversation node: the learner's message, a separator, then the agent's
+// reply. Starts at a compact width, grows with content up to a max height
+// (longer replies scroll inside), and resizes from the corner handle.
+function ChatCard({ exchange, zoom, selected, onSelect, onMove, renderComposer, onLayout, onConnect }) {
+  const [replyOpen, setReplyOpen] = useState(false);
+  const [started, setStarted] = useState(false);
+  const [replies, setReplies] = useState([]);
+  const card = useRef(null);
+  const body = useRef(null);
+  useEffect(() => { if (body.current && replies.length) body.current.scrollTop = body.current.scrollHeight; }, [replies]);
+  useEffect(() => { if (replyOpen) card.current?.querySelector('[data-block-composer] input[placeholder]')?.focus(); }, [replyOpen]);
+  const continueReply = () => { setStarted(true); setReplyOpen(true); };
+  const receive = event => setReplies(previous => {
+    if (event.question !== undefined) return [...previous, { id: event.id, question: event.question, answer: '', status: 'thinking' }];
+    return previous.map(turn => turn.id !== event.id ? turn : event.delta ? { ...turn, answer: turn.answer + event.delta }
+      : { ...turn, status: event.done ? 'done' : event.stage });
+  });
+  return (
+    <CanvasNode id={exchange.id} dx={exchange.dx} dy={exchange.dy} zoom={zoom} selected={selected} chat
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} nodeRef={card}>
       <div className="flex shrink-0 justify-end px-4 pt-3 pb-2"><span className="max-w-[85%] rounded-xl bg-[#2383e2] px-3 py-1.5 text-sm whitespace-pre-wrap text-white">{exchange.question}</span></div>
       <div className="shrink-0 border-t border-line" />
       <div ref={body} data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
@@ -136,12 +156,18 @@ function ChatCard({ exchange, zoom, selected, onSelect, onMove, renderComposer, 
         <div className="flex items-center justify-between py-1 text-xs text-ink-2"><span>This conversation</span><button type="button" aria-label="Close block composer" onClick={() => setReplyOpen(false)} className="rounded p-1 hover:bg-hover"><X size={13} /></button></div>
         {renderComposer(exchange, receive)}
       </div>}
-      {['top', 'bottom'].map(side => <button key={side} type="button" data-port={side} data-owner={exchange.id} aria-label={`Connect ${side}`} title="Drag to connect blocks"
-        className={`absolute left-1/2 z-20 h-4 w-4 -translate-x-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white opacity-0 group-hover:opacity-100 focus:opacity-100 ${side === 'top' ? '-top-2' : '-bottom-2'}`}
-        onPointerDown={event => onConnect(event, exchange.id, side)} />)}
-      <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute right-0 bottom-0 z-10 cursor-nwse-resize p-1 text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink-2 focus:opacity-100"
-        onPointerDown={resize}><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg></button>
-    </div>
+    </CanvasNode>
+  );
+}
+
+// A course-authored lesson block (challenge, explanation, quiz, …) in the
+// same chrome as chat nodes; the body renderer comes from LearningBlocks.
+function LessonBlockCard({ block, zoom, selected, onSelect, onMove, onChange, onLayout, onConnect }) {
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect}>
+      <LearningBlockBody block={block} onChange={onChange} />
+    </CanvasNode>
   );
 }
 
@@ -232,6 +258,7 @@ function ToolButton({ Icon, label, active, onPick }) {
 
 export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, storageKey = null, composer = null, renderBlockComposer = null }) {
   const [tool, setTool] = useState('select');
+  const [insertOpen, setInsertOpen] = useState(false); // dev-only lesson-block workbench menu
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(WIDTHS[0]);
   const [dash, setDash] = useState(false);
@@ -246,6 +273,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const [shapes, setShapes] = useState(stored.current.shapes || []);
   const [liveShape, setLiveShape] = useState(null);
   const [items, setItems] = useState(() => (stored.current.items || []).map(item => ({ ...item, fresh: false }))); // stickies and text
+  const [blocks, setBlocks] = useState(stored.current.blocks || []); // course-authored lesson blocks
+  const blocksRef = useRef(blocks);
+  blocksRef.current = blocks;
   const [selected, setSelected] = useState(null);
   // Selecting on the canvas takes the keyboard away from the composer so
   // Delete acts on the selection; editable notes keep their own focus.
@@ -257,9 +287,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const [links, setLinks] = useState(stored.current.links || []);
   useEffect(() => {
     if (!storageKey) return;
-    const timer = setTimeout(() => { try { localStorage.setItem(storageKey, JSON.stringify({ strokes, shapes, items, links })); } catch { /* full or blocked storage loses drawings only */ } }, 400);
+    const timer = setTimeout(() => { try { localStorage.setItem(storageKey, JSON.stringify({ strokes, shapes, items, links, blocks })); } catch { /* full or blocked storage loses drawings only */ } }, 400);
     return () => clearTimeout(timer);
-  }, [strokes, shapes, items, links, storageKey]);
+  }, [strokes, shapes, items, links, blocks, storageKey]);
   const [connecting, setConnecting] = useState(null);
   const [bounds, setBounds] = useState({});
   const exchangesRef = useRef(exchanges);
@@ -276,17 +306,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const measureBlocks = useCallback(() => {
     const next = {};
     for (const element of column.current?.querySelectorAll('[data-block-id]') || []) {
-      const exchange = exchangesRef.current.find(item => item.id === element.dataset.blockId);
-      if (exchange) next[exchange.id] = { x: element.offsetLeft + exchange.dx, y: element.offsetTop + exchange.dy, w: element.offsetWidth, h: element.offsetHeight };
+      const owner = exchangesRef.current.find(item => item.id === element.dataset.blockId) || blocksRef.current.find(item => item.id === element.dataset.blockId);
+      if (owner) next[owner.id] = { x: element.offsetLeft + owner.dx, y: element.offsetTop + owner.dy, w: element.offsetWidth, h: element.offsetHeight };
     }
     setBounds(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
   }, []);
-  useLayoutEffect(measureBlocks, [exchanges, measureBlocks]);
+  useLayoutEffect(measureBlocks, [exchanges, blocks, measureBlocks]);
   useEffect(() => () => connectionCleanup.current?.(), []);
   // Undo: snapshot the three artifact lists before every mutating gesture.
   // ponytail: single-level lists + 100-step cap; redo comes when asked for.
   const present = useRef(null);
-  present.current = { strokes, shapes, items, links };
+  present.current = { strokes, shapes, items, links, blocks };
   const history = useRef([]);
   // withExchanges captures the chat blocks too, so deleting a block undoes.
   const snapshot = (withExchanges = false) => {
@@ -296,7 +326,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const undo = () => {
     const previous = history.current.pop();
     if (!previous) return;
-    setStrokes(previous.strokes); setShapes(previous.shapes); setItems(previous.items); setLinks(previous.links); setSelected(null);
+    setStrokes(previous.strokes); setShapes(previous.shapes); setItems(previous.items); setLinks(previous.links); setBlocks(previous.blocks); setSelected(null);
     if (previous.exchanges) onRestoreRef.current?.(previous.exchanges);
   };
   useEffect(() => { setView(v => ({ ...v, x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2) })); }, []);
@@ -331,13 +361,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
       if (typing || !selectedRef.current) return;
       const id = selectedRef.current;
-      const isBlock = exchangesRef.current.some(exchange => exchange.id === id);
-      snapshot(isBlock);
-      // A selected chat block deletes with its attached connections.
-      if (isBlock) {
-        onDeleteRef.current?.(id);
-        setLinks(previous => previous.filter(link => link.from !== id && link.to !== id));
-      }
+      const isChat = exchangesRef.current.some(exchange => exchange.id === id);
+      snapshot(isChat);
+      // A selected node deletes with its attached connections.
+      if (isChat) onDeleteRef.current?.(id);
+      if (isChat || blocksRef.current.some(block => block.id === id)) setLinks(previous => previous.filter(link => link.from !== id && link.to !== id));
+      setBlocks(previous => previous.filter(block => block.id !== id));
       setItems(previous => previous.filter(item => item.id !== id));
       setShapes(previous => previous.filter(shape => shape.id !== id));
       setLinks(previous => previous.filter(link => link.id !== id));
@@ -349,13 +378,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // Keep the newest exchange in sight while it streams.
   useEffect(() => {
     const element = surface.current, col = column.current;
-    if (!element || !col || !exchanges.length) return;
+    if (!element || !col || (!exchanges.length && !blocks.length)) return;
     setView(v => {
       const bottom = v.y + (24 + col.offsetHeight) * v.z;
       const want = element.clientHeight - 150;
       return bottom > want ? { ...v, y: v.y - (bottom - want) } : v;
     });
-  }, [exchanges]);
+  }, [exchanges, blocks.length]);
   const zoomAt = (cx, cy, factor) => setView(v => {
     const z = Math.min(3, Math.max(0.25, v.z * factor));
     const f = z / v.z;
@@ -473,6 +502,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   };
   const moveItem = (id, x, y) => setItems(previous => previous.map(item => item.id === id ? { ...item, x, y } : item));
   const resizeItem = (id, w, h) => setItems(previous => previous.map(item => item.id === id ? { ...item, w, h } : item));
+  const moveBlock = (id, dx, dy) => setBlocks(previous => previous.map(block => block.id === id ? { ...block, dx, dy } : block));
+  const changeBlock = updated => { snapshot(); setBlocks(previous => previous.map(block => block.id === updated.id ? updated : block)); };
+  const insertBlock = type => { snapshot(); setBlocks(previous => [...previous, BLOCK_TYPES[type].sample()]); setInsertOpen(false); };
   const changeItem = (id, text) => {
     if (present.current.items.some(item => item.id === id && item.text !== text)) snapshot();
     setItems(previous => previous.map(item => item.id === id ? { ...item, text, fresh: false } : item));
@@ -509,12 +541,32 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         </svg>
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
           {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={selected === exchange.id} onSelect={select} onMove={onMove} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} />)}
+          {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={selected === block.id} onSelect={select} onMove={moveBlock} onChange={changeBlock} onLayout={measureBlocks} onConnect={connect} />)}
         </div>
         <div className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={selected === item.id} onSelect={select} onChange={changeItem} onMove={moveItem} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} />)}
         </div>
         </div>
       </div>
+      {/* Dev-only workbench: drop any lesson block on the canvas to review its
+          look before lessons are assembled. */}
+      {import.meta.env.VITE_COACHING_DEV === 'true' && (
+        <div className="absolute top-3 -right-6 z-20">
+          <button type="button" aria-label="Insert lesson block" title="Insert a sample lesson block" aria-expanded={insertOpen}
+            onClick={() => setInsertOpen(previous => !previous)}
+            className="flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink">
+            <Plus size={15} strokeWidth={1.7} />
+          </button>
+          {insertOpen && (
+            <div role="menu" aria-label="Lesson blocks" className="absolute top-0 right-10 w-40 rounded-xl border border-line bg-white p-1 shadow-md">
+              {Object.entries(BLOCK_TYPES).map(([type, meta]) => (
+                <button key={type} type="button" role="menuitem" onClick={() => insertBlock(type)}
+                  className="block w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink hover:bg-hover">{meta.label}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <div role="toolbar" aria-label="Canvas tools" className="absolute top-1/2 -right-6 z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md">
         {NAV_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
         <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
