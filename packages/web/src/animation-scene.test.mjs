@@ -243,3 +243,22 @@ test('an image needs a size it can be drawn at', () => {
     timeline: [],
   }), /needs a width and height/);
 });
+
+test('a pinned peak survives into evaluated state so the axis holds still', () => {
+  const built = validateScene({
+    id: 'revealed', duration: 4,
+    objects: [{ id: 'cost', type: 'bars', initialState: { x: 0, y: 0, values: [4, 3, 9], peak: 14 } }],
+    timeline: [{ at: 0, action: 'set_values', target: 'cost', duration: 2, easing: 'linear', value: [4, 3, 14] }],
+  });
+  assert.equal(getSceneState(built, 0).objects[0].peak, 14);
+  assert.equal(getSceneState(built, 2).objects[0].peak, 14, 'the axis does not move when the values do');
+});
+
+test('heat is carried so a grid can read as a distribution', () => {
+  const built = validateScene({
+    id: 'hot', duration: 2,
+    objects: [{ id: 'g', type: 'grid', initialState: { x: 0, y: 0, rows: 2, cols: 2, values: [0, 1, 2, 3], heat: true } }],
+    timeline: [],
+  });
+  assert.equal(getSceneState(built, 1).objects[0].heat, true);
+});

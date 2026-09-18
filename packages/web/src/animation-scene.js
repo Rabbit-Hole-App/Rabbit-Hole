@@ -33,6 +33,8 @@ const objectSchema = z.object({
     labels: z.array(z.string().max(24)).max(64).optional(),
     tokens: z.array(z.string().max(24)).max(48).optional(),
     src: z.string().max(300).optional(),
+    heat: z.boolean().optional(),
+    peak: z.number().positive().max(1e6).optional(),
   }).default({}),
 });
 
@@ -182,6 +184,8 @@ export function getSceneState(scene, time) {
     values: object.initialState.values ? [...object.initialState.values] : null,
     labels: object.initialState.labels ?? null,
     tokens: object.initialState.tokens ?? null,
+    heat: object.initialState.heat ?? false,
+    peak: object.initialState.peak ?? null,
     cellHighlight: null,
     sweep: null,
     emphasis: 0,

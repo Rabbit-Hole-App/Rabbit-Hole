@@ -40,6 +40,14 @@ function DataShape({ object, colour }) {
     const cell = object.cell || 18;
     const columns = object.type === 'strip' ? (object.values?.length || 0) : (object.cols || 1);
     const rows = object.type === 'strip' ? 1 : (object.rows || 1);
+    // A heat grid reads as a distribution: fill carries the value, so the shape
+    // is visible before a single numeral is read.
+    const hottest = object.heat ? Math.max(...(object.values || []).map(entry => Math.abs(entry ?? 0)), 0.0001) : 0;
+    const alpha = value => {
+      if (!object.heat || value == null) return '0a';
+      const share = Math.min(1, Math.abs(value) / hottest);
+      return Math.round(10 + share * 150).toString(16).padStart(2, '0');
+    };
     const cells = [];
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
@@ -49,7 +57,7 @@ function DataShape({ object, colour }) {
         cells.push(
           <g key={index}>
             <motion.rect x={object.x + column * cell} y={object.y + row * cell} width={cell} height={cell}
-              animate={{ fill: lit ? tint(colour, '33') : tint(colour, '0a'), stroke: lit ? colour : tint(colour, '33'), strokeWidth: lit ? 1.4 : 0.6 }}
+              animate={{ fill: lit ? tint(colour, '33') : tint(colour, alpha(value)), stroke: lit ? colour : tint(colour, '33'), strokeWidth: lit ? 1.4 : 0.6 }}
               transition={POP} />
             {value != null && cell >= 22 && (
               <text x={object.x + column * cell + cell / 2} y={object.y + row * cell + cell / 2}
@@ -74,14 +82,17 @@ function DataShape({ object, colour }) {
   }
   if (object.type === 'bars') {
     const values = object.values || [];
-    const peak = Math.max(...values.map(Math.abs), 0.0001);
+    // An authored peak pins the axis. Without it the scale is recomputed from
+    // the tweening values, so bars that never changed visibly shrink while a
+    // neighbour grows - the learner watches their own answer move.
+    const peak = object.peak ?? Math.max(...values.map(entry => Math.abs(entry ?? 0)), 0.0001);
     const height = object.h || BAR.h;
     return (
       <g>
         <line x1={object.x} y1={object.y + height} x2={object.x + (object.w || 0)} y2={object.y + height} stroke={tint(colour, '55')} strokeWidth="1.5" />
         {values.map((value, index) => {
-          const tall = Math.max(1, (Math.abs(value) / peak) * (height - 4));
-          const lit = marked(object, 0, index, index) || (object.cellHighlight === 'max' && value === Math.max(...values));
+          const tall = value == null ? 0 : Math.max(1, (Math.abs(value) / peak) * (height - 4));
+          const lit = marked(object, 0, index, index) || (object.cellHighlight === 'max' && value != null && value === Math.max(...values.map(entry => entry ?? -Infinity)));
           return (
             <motion.g key={index} animate={{ scale: lit ? 1.06 : 1 }} transition={POP} style={fromCentre}>
               <motion.rect x={object.x + index * BAR.w + 3} y={object.y + height - tall} width={BAR.w - 6} height={tall}
