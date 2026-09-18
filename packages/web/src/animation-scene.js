@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { GEOMETRY, ROLES, TIMING, TYPE_ROLES } from './scene-vocab.js';
+import { GEOMETRY, ROLES, SOUNDS, TIMING, TYPE_ROLES } from './scene-vocab.js';
 import { adaptLegacyScene } from './scene-legacy.js';
 
 // The animation source of truth: scene JSON plus a pure evaluator. Neither
@@ -64,6 +64,10 @@ const eventSchema = z.object({
   }).default(0),
   easing: z.enum(EASINGS).default('easeInOut'),
   value: z.any().optional(),
+  // Named, not authored as pitch or gain: getSceneState never reads this
+  // field (see scene-sound.js) - a scene means the same thing whether or not
+  // anyone can hear it.
+  sound: z.enum(SOUNDS).optional(),
 });
 
 export const animationSchema = z.object({

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { Pause, Play, RotateCcw, Scan, X } from 'lucide-react';
+import { Pause, Play, RotateCcw, Scan, Volume2, VolumeX, X } from 'lucide-react';
 import katex from 'katex';
 import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './animation-scene.js';
+import { isMuted, onMuted, setMuted } from './learn-audio.js';
+import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-sound.js';
 import { GEOMETRY } from './scene-vocab.js';
 import { roleVar, shapeStyle, textStyle, tintOf } from './scene-style.js';
 
@@ -331,8 +333,11 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
   const [time, setTime] = useState(block.time || 0);
   const [playing, setPlaying] = useState(false);
   const [selecting, setSelecting] = useState(false);
+  const [muted, setMutedState] = useState(isMuted());
+  useEffect(() => onMuted(setMutedState), []);
   const frame = useRef(0);
   const clock = useRef(0);
+  const pending = useRef([]); // sound events crossed but not yet resolved to a winner - see the flush below
   const latest = useRef(block);
   latest.current = block;
   const clearMark = () => { setSelecting(false); onChange({ ...block, marked: null, selectedObject: null }); };
@@ -348,9 +353,36 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
   useEffect(() => {
     if (!playing || !scene) return;
     clock.current = performance.now() - time * 1000;
+    // Sound is triggered here only - never on a scrub, which sets time
+    // directly and never runs this loop. Sorted once so a bucket's earliest
+    // member is always at index 0, which the flush below depends on.
+    const soundEvents = scene.timeline.filter(event => event.sound).sort((a, b) => a.at - b.at);
+    pending.current = [];
+    // A bucket can only be resolved once no later crossing could still land
+    // inside its coalescing window - a crossing this frame lands at `upto` at
+    // the earliest, so once `upto` is already more than the window past a
+    // bucket's anchor, that bucket's membership is final.
+    const flush = upto => {
+      while (pending.current.length && upto - pending.current[0].at > COALESCE_WINDOW) {
+        const anchor = pending.current[0].at;
+        const closed = [];
+        while (pending.current.length && pending.current[0].at - anchor <= COALESCE_WINDOW) closed.push(pending.current.shift());
+        if (!isMuted()) coalesce(closed).forEach(event => playSound(event.sound));
+      }
+    };
+    let cursor = time;
+    let first = true;
     const tick = now => {
       const next = (now - clock.current) / 1000;
-      if (next >= scene.duration) { setTime(scene.duration); setPlaying(false); return; }
+      const finished = next >= scene.duration;
+      const upto = finished ? scene.duration : next;
+      if (soundEvents.length) {
+        pending.current.push(...crossed(soundEvents, cursor, upto, { start: first }));
+        flush(upto);
+      }
+      cursor = upto;
+      first = false;
+      if (finished) { flush(Infinity); setTime(scene.duration); setPlaying(false); return; }
       setTime(next);
       frame.current = requestAnimationFrame(tick);
     };
@@ -399,6 +431,11 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
         </button>
         <button type="button" data-animation-replay title="Replay from the start" onClick={replay}
           className="flex h-8 items-center rounded-lg border border-line px-2.5 hover:bg-hover"><RotateCcw size={13} /></button>
+        <button type="button" data-animation-mute title={muted ? 'Unmute' : 'Mute'} aria-pressed={muted}
+          onClick={() => setMuted(!muted)}
+          className="flex h-8 items-center rounded-lg border border-line px-2.5 hover:bg-hover">
+          {muted ? <VolumeX size={13} /> : <Volume2 size={13} />}
+        </button>
         <button type="button" data-animation-select
           title={block.marked ? 'Clear the marked region' : 'Mark a region to ask about'} aria-pressed={selecting}
           onClick={() => (block.marked ? clearMark() : pauseAnd(() => setSelecting(value => !value)))}

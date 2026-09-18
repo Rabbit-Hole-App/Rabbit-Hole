@@ -491,3 +491,41 @@ test('a timing name is resolved before the evaluator ever sees it', () => {
     timeline: [{ at: 0, action: 'appear', target: 'a', duration: 'leisurely' }],
   }), /not a timing/);
 });
+
+test('a timeline event may name a sound from the closed vocabulary, and nothing else', () => {
+  const built = validateScene({
+    id: 'sounded', duration: 2,
+    objects: [{ id: 'a', type: 'box' }],
+    timeline: [{ at: 0, action: 'appear', target: 'a', sound: 'reveal' }],
+  });
+  assert.equal(built.timeline[0].sound, 'reveal');
+  assert.throws(() => validateScene({
+    id: 'unsounded', duration: 2,
+    objects: [{ id: 'a', type: 'box' }],
+    timeline: [{ at: 0, action: 'appear', target: 'a', sound: 'kaboom' }],
+  }), /sound/);
+});
+
+// The governing invariant of the whole sound channel: getSceneState is pure,
+// total and silent. A scene authoring `sound` on every action it knows must
+// still evaluate to a state tree with no sound field anywhere - the evaluator
+// is not where a sound is decided to have played.
+test('getSceneState never carries a sound field, no matter what the scene authors', () => {
+  const built = validateScene({
+    id: 'noisy', duration: 4,
+    objects: [{ id: 'a', type: 'box' }, { id: 'b', type: 'box' }],
+    timeline: [
+      { at: 0, action: 'appear', target: 'a', sound: 'soft_pop' },
+      { at: 1, action: 'highlight', target: 'a', sound: 'select' },
+      { at: 2, action: 'connect', from: 'a', to: 'b', sound: 'connect' },
+    ],
+  });
+  const state = getSceneState(built, 3);
+  const holdsSound = value => {
+    if (value == null || typeof value !== 'object') return false;
+    if (Object.prototype.hasOwnProperty.call(value, 'sound')) return true;
+    return Object.values(value).some(entry =>
+      Array.isArray(entry) ? entry.some(holdsSound) : holdsSound(entry));
+  };
+  assert.equal(holdsSound(state), false, 'evaluated state must never carry a sound field, at any depth');
+});
