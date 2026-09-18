@@ -332,6 +332,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
   const [scene, setScene] = useState(null);
   const [time, setTime] = useState(block.time || 0);
   const [playing, setPlaying] = useState(false);
+  const [run, setRun] = useState(0);
   const [selecting, setSelecting] = useState(false);
   const [muted, setMutedState] = useState(isMuted());
   useEffect(() => onMuted(setMutedState), []);
@@ -388,7 +389,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
     };
     frame.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame.current);
-  }, [playing, scene]);
+  }, [playing, scene, run]);
   // The paused moment is what a question refers to, so it is committed on
   // every scrub. It goes through the quiet path because scrubbing is a view
   // change and must not be able to destroy the learner's undo history.
@@ -410,7 +411,11 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
     if (atEnd && !playing) setTime(0);
     setPlaying(value => !value);
   };
-  const replay = () => { setTime(0); if (!still) setPlaying(true); };
+  // Replay while already playing leaves `playing` true, so the loop effect
+  // below would not re-run and its clock would keep counting from the old
+  // start - the time jumped to 0 and was overwritten on the very next frame.
+  // The run counter is what actually restarts it.
+  const replay = () => { setTime(0); setRun(count => count + 1); if (!still) setPlaying(true); };
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
       <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-white">
