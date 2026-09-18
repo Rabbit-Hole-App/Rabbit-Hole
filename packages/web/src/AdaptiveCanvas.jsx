@@ -4,6 +4,7 @@ import { Md } from './ask.jsx';
 import { IconBtn, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
 import { BLOCK_TYPES, LearningBlockBody, describeBlock } from './LearningBlocks.jsx';
+import { gapsFrom, nearestGap } from './learn-gap-rail.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -41,6 +42,8 @@ const COLORS = ['#37352f', '#2383e2', '#b42318', '#1a7f37', '#f59e0b', '#7c3aed'
 const LINK_COLORS = { chat: '#2383e2', quiz: '#7c3aed', flashcards: '#f59e0b', challenge: '#37352f', explanation: '#6b7280', table: '#0891b2', snippet: '#1a7f37', code: '#1a7f37', graph: '#2383e2', paper: '#b42318', model3d: '#7c3aed', image: '#0891b2', video: '#b42318' };
 const WIDTHS = [2, 3.5, 6];
 const COLUMN = 560;
+// How much blank space one press of [+] adds between two cards, and [-] removes.
+const SPACE_STEP = 120;
 const POLYGONS = {
   triangle: [[0.5, 0], [1, 1], [0, 1]],
   diamond: [[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]],
@@ -84,7 +87,7 @@ function outlineOf(shape) {
 // Shared node chrome for everything card-shaped on the canvas: drag with
 // lift, corner resize, selection ring, top/bottom connection ports, and the
 // layout observer that keeps connector geometry fresh. Content is children.
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, connected = null, autoMax = 420, width = 380, height = undefined, saved = null, onSelect, onMove, onSize, onLayout, onConnect, nodeRef = null, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, space = 0, connected = null, autoMax = 420, width = 380, height = undefined, saved = null, onSelect, onMove, onSize, onLayout, onConnect, nodeRef = null, children }) {
   const [lifted, setLifted] = useState(false);
   // A resized node keeps its size in its own data, so a reload restores it.
   const [size, setSize] = useState({ w: saved?.w || null, h: saved?.h || null });
@@ -114,7 +117,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, c
   return (
     <div ref={card} data-block data-block-id={id} {...(chat ? { 'data-chat-block': true } : {})}
       onPointerDown={event => { if (event.button !== 0) return; if (event.target.closest('[data-drag-zone]')) drag(event); else onSelect(id, event); }}
-      style={{ transform: `translate(${dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, width: size.w || width, height: size.h || height, maxHeight: size.h || height ? undefined : autoMax }}
+      style={{ transform: `translate(${dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, marginTop: space || undefined, width: size.w || width, height: size.h || height, maxHeight: size.h || height ? undefined : autoMax }}
       className={`group relative mx-auto flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* Only this strip drags; the body keeps a normal cursor so text can be
           selected and links inside the block stay clickable. */}
@@ -208,7 +211,7 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
 // same chrome as chat nodes; the body renderer comes from LearningBlocks.
 function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onAsk, onFile, appName, onAskRegion, onGrade }) {
   return (
-    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} connected={connected}
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       autoMax={BLOCK_TYPES[block.type]?.autoMax}
       width={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.width ?? BLOCK_TYPES[block.type]?.width}
       height={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.height ?? BLOCK_TYPES[block.type]?.height}
@@ -298,6 +301,31 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
         <span aria-label="Resize note" className="absolute -right-1.5 -bottom-1.5 h-3 w-3 cursor-nwse-resize rounded-sm border border-[#2383e2] bg-white"
           onPointerDown={event => { if (event.button !== 0) return; onGesture(); startDrag(event, { x: item.w || 160, y: item.h || 160 }, (w, h) => onResize(item.id, Math.max(80, w), Math.max(80, h)), zoom); }} />
       )}
+    </div>
+  );
+}
+
+// The insert rail: a dotted line across the column, with [-] and [+] parked on
+// the blank canvas beside it. Press either as often as you like - [+] pushes the
+// pair apart, [-] pulls it together and then straight past flush into an
+// overlap, because the space is only a margin and margins go negative.
+function GapRail({ gap, zoom, space, onNudge }) {
+  const button = (delta, Icon, label) => (
+    <button type="button" aria-label={label} title={label} onClick={() => onNudge(gap.beforeId, delta)}
+      onPointerDown={event => event.stopPropagation()} // a press here must not start a pan
+      className="flex h-6 w-6 items-center justify-center rounded-lg border border-line bg-white text-ink-2 shadow-md hover:bg-hover hover:text-ink">
+      <Icon size={13} strokeWidth={1.8} />
+    </button>
+  );
+  return (
+    <div style={{ top: gap.y }} className="pointer-events-none absolute left-0 z-10">
+      <div style={{ width: COLUMN }} className="absolute -translate-y-1/2 border-t border-dashed border-ink-3/50" />
+      {/* Counter-scaled so the buttons stay the same size to press at any zoom. */}
+      <div style={{ left: COLUMN + 12, transform: `translateY(-50%) scale(${1 / zoom})`, transformOrigin: 'left center' }}
+        className="pointer-events-auto absolute flex items-center gap-1">
+        {button(-SPACE_STEP, Minus, `Pull these cards together — ${space}px apart`)}
+        {button(SPACE_STEP, Plus, `Push these cards apart — ${space}px apart`)}
+      </div>
     </div>
   );
 }
@@ -406,6 +434,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   }, [strokes, shapes, items, links, blocks, storageKey]);
   const [connecting, setConnecting] = useState(null);
   const [bounds, setBounds] = useState({});
+  const [hoverGap, setHoverGap] = useState(null);
   const exchangesRef = useRef(exchanges);
   exchangesRef.current = exchanges;
   const onDeleteRef = useRef(onDelete);
@@ -798,6 +827,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // A continuous gesture must not snapshot: one scrub drag would evict the whole
   // 100-entry undo ring. Same reasoning as moveBlock, which has never snapshotted.
   const changeBlockQuietly = updated => setBlocks(previous => previous.map(block => block.id === updated.id ? updated : block));
+  const nudgeGap = (beforeId, delta) => {
+    snapshot();
+    setBlocks(previous => previous.map(block => block.id === beforeId ? { ...block, space: (block.space || 0) + delta } : block));
+  };
   // Inserted blocks land in free space below everything that visually
   // occupies the column strip (dragged nodes, stickies, shapes, ink), then
   // the camera pans down to show them.
@@ -848,6 +881,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const inking = tool === 'pen' || tool === 'highlighter';
   const drawing = inking || shapeTool;
   const cursor = tool === 'hand' ? 'cursor-grab' : inking || tool === 'eraser' || shapeTool ? 'cursor-crosshair' : tool === 'select' ? '' : 'cursor-copy';
+  // The rail answers to the blank canvas right of the column, where its buttons
+  // live; over the cards themselves it would only be in the way. Held by index
+  // rather than by value so the line keeps following the cards as they move.
+  const gaps = gapsFrom(blocks, bounds);
+  const activeGap = hoverGap == null ? null : gaps.find(gap => gap.index === hoverGap) || null;
+  const trackGap = event => {
+    if (drawing || tool !== 'select') return setHoverGap(null);
+    const point = local(event);
+    const found = point.x > COLUMN ? nearestGap(gaps, point.y) : null;
+    setHoverGap(found ? found.index : null);
+  };
   // Ports with a live connection stay visible on both ends of the link.
   const portsInUse = {};
   for (const link of links) {
@@ -856,7 +900,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   }
   return (
     <div className="relative flex h-full min-h-0 flex-col">
-      <div ref={surface} onPointerDown={down} className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor}`}>
+      <div ref={surface} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => setHoverGap(null)} className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor}`}>
         <div style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className="absolute top-0 left-0">
         <svg width="1" height="1" className="pointer-events-none absolute top-0 left-0 overflow-visible">
           {links.map(link => <g key={link.id} data-connection={link.id} className="dark:[filter:brightness(1.5)_saturate(1.2)]">
@@ -877,6 +921,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onFile={onOpenFile} />)}
           {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} />)}
         </div>
+        {activeGap && <GapRail gap={activeGap} zoom={view.z} space={blocks.find(block => block.id === activeGap.beforeId)?.space || 0} onNudge={nudgeGap} />}
         <div className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} />)}
         </div>
