@@ -785,6 +785,9 @@ Scene JSON stays free of this entirely. A scene says `{ "sound": "reveal" }` and
 
 - [ ] `make test-unit` → PASS.
 - [ ] Build and deploy per the documented procedure above. Wait ~20 s.
+
+- [ ] **Close Task 2's outstanding manual gate — first, before anything else.** No browser was available when Task 2 landed, so its acceptance check was reasoned rather than observed, and its reviewer flagged that as the one open item. On the deployment: insert an Animation block, draw ink, drop a sticky, drag the scrubber end to end several times, then press Ctrl+Z repeatedly. **The ink and the sticky must come back.** Then confirm the selection line follows the scrubber with no perceptible lag, and that selecting an object and marking a region are both still undoable. If any of that fails, Task 2 reopens and Gate 1 does not pass.
+
 - [ ] Full e2e: `cd packages/web && node e2e/chat-block-check.mjs`. Report the pass/fail count against Plan A's Gate B baseline of **66 checks, 65 pass** (the one failure being the flaky external Blender render). Three checks are known-flaky — two whiteboard, one external render — and none touches the animation engine. Any *new* failure is a regression from A.5b and blocks the gate.
 - [ ] Report the dev page link.
 
