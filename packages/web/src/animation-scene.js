@@ -8,7 +8,8 @@ const vector = z.object({ x: z.number(), y: z.number() });
 
 const objectSchema = z.object({
   id: z.string().min(1).max(64),
-  type: z.enum(['box', 'text', 'circle', 'arrow', 'line', 'equation', 'code', 'image']),
+  // Primitives that are the mathematical object itself, not a label for it.
+  type: z.enum(['box', 'text', 'circle', 'arrow', 'line', 'equation', 'code', 'image', 'grid', 'strip', 'bars', 'tokens']),
   semanticId: z.string().max(64).optional(),
   conceptId: z.string().max(64).optional(),
   initialState: z.object({
@@ -23,6 +24,12 @@ const objectSchema = z.object({
     color: z.string().max(24).optional(),
     from: vector.optional(),
     to: vector.optional(),
+    rows: z.number().int().positive().max(64).optional(),
+    cols: z.number().int().positive().max(64).optional(),
+    cell: z.number().positive().max(80).optional(),
+    values: z.array(z.number()).max(256).optional(),
+    labels: z.array(z.string().max(24)).max(64).optional(),
+    tokens: z.array(z.string().max(24)).max(48).optional(),
   }).default({}),
 });
 
@@ -34,6 +41,7 @@ const eventSchema = z.object({
     'appear', 'disappear', 'move', 'resize', 'rotate', 'highlight', 'unhighlight',
     'draw_path', 'erase_path', 'change_text', 'type_text', 'change_value',
     'connect', 'disconnect', 'focus_camera', 'pan_camera', 'zoom_camera', 'pause',
+    'set_values', 'highlight_cell', 'sweep', 'emphasize',
   ]),
   target: z.string().max(64).optional(),
   from: z.string().max(64).optional(),
@@ -93,6 +101,20 @@ export function validateScene(raw) {
   return scene;
 }
 
+// Data primitives size themselves from their own contents, so an author
+// writes rows and columns and never pixels. Both the renderer and region
+// hit-testing read the size from here.
+export const BAR = { w: 30, h: 120 }, CHIP = { h: 32, pad: 18, char: 9.5, gap: 8 };
+const sizeOf = object => {
+  const state = object.initialState;
+  const cell = state.cell ?? 18;
+  if (object.type === 'grid') return { w: (state.cols || 1) * cell, h: (state.rows || 1) * cell };
+  if (object.type === 'strip') return { w: (state.values?.length || 1) * cell, h: cell };
+  if (object.type === 'bars') return { w: (state.values?.length || 1) * BAR.w, h: state.h ?? BAR.h };
+  if (object.type === 'tokens') return { w: (state.tokens || []).reduce((total, token) => total + CHIP.pad * 2 + token.length * CHIP.char + CHIP.gap, 0), h: CHIP.h };
+  return { w: state.w ?? (object.type === 'box' ? 160 : undefined), h: state.h ?? (object.type === 'box' ? 56 : undefined) };
+};
+
 // The whole point: same time in, same state out, with no renderer involved.
 export function getSceneState(scene, time) {
   const at = Math.max(0, Math.min(scene.duration, time));
@@ -105,13 +127,22 @@ export function getSceneState(scene, time) {
     opacity: object.initialState.opacity,
     x: object.initialState.x,
     y: object.initialState.y,
-    w: object.initialState.w ?? (object.type === 'box' ? 160 : undefined),
-    h: object.initialState.h ?? (object.type === 'box' ? 56 : undefined),
+    w: object.initialState.w ?? sizeOf(object).w,
+    h: object.initialState.h ?? sizeOf(object).h,
     rotation: object.initialState.rotation,
     color: object.initialState.color || null,
     label: object.initialState.label ?? object.initialState.text ?? '',
     textProgress: 1,
     highlighted: false,
+    rows: object.initialState.rows ?? null,
+    cols: object.initialState.cols ?? null,
+    cell: object.initialState.cell ?? 18,
+    values: object.initialState.values ? [...object.initialState.values] : null,
+    labels: object.initialState.labels ?? null,
+    tokens: object.initialState.tokens ?? null,
+    cellHighlight: null,
+    sweep: null,
+    emphasis: 0,
   }]));
   const connections = [];
   let camera = { ...scene.camera };
@@ -159,6 +190,15 @@ export function getSceneState(scene, time) {
         if (existing) existing.progress = 1 - progress;
         break;
       }
+      // Numbers change into other numbers, so the learner watches the values
+      // move rather than reading two static states.
+      case 'set_values': if (object && Array.isArray(event.value)) {
+        const target = event.value;
+        object.values = (object.values || target.map(() => 0)).map((current, index) => current + ((target[index] ?? current) - current) * progress);
+      } break;
+      case 'highlight_cell': if (object) object.cellHighlight = progress > 0 ? event.value : null; break;
+      case 'sweep': if (object) object.sweep = progress >= 1 ? null : progress; break;
+      case 'emphasize': if (object) object.emphasis = progress; break;
       case 'focus_camera': if (object) camera = { ...camera, x: object.x, y: object.y, zoom: event.value?.zoom ?? camera.zoom }; break;
       case 'pan_camera': if (event.value) camera = { ...camera, x: camera.x + (event.value.x - camera.x) * progress, y: camera.y + (event.value.y - camera.y) * progress }; break;
       case 'zoom_camera': if (event.value) camera = { ...camera, zoom: camera.zoom + ((event.value.zoom ?? event.value) - camera.zoom) * progress }; break;

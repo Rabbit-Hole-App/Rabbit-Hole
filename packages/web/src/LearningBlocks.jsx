@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Code, Loader2, Play, RotateCcw, Search, Sparkles, Volume2, X } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { api, wsHeaders } from './api.js';
@@ -8,9 +8,13 @@ import { CodeBlock } from './ui.jsx';
 import { runPython } from './pyodide-runner.js';
 import { graphRenderers } from './graph-renderers.js';
 import { validateGraph } from '../../control-plane/src/learn-graph-schema.js';
+import SpeakAnswer from './SpeakAnswer.jsx';
 import LearnPaper from './LearnPaper.jsx';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import FlowDiagram from './FlowDiagram.jsx';
+import AnimatedScene from './AnimatedScene.jsx';
+const WhiteboardBlock = lazy(() => import('./WhiteboardBlock.jsx'));
+import { fromTemplate, getSceneState } from './animation-scene.js';
 import InteractiveScene, { sceneSummary } from './InteractiveScene.jsx';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
 import { sceneAssetUrl, sceneList, startScene, startVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
@@ -411,6 +415,80 @@ export const BLOCK_TYPES = {
       attempts: 0,
     }),
   },
+  animation: {
+    label: 'Animation',
+    width: 560,
+    height: 460,
+    autoMax: 900,
+    sample: () => ({
+      id: crypto.randomUUID(),
+      type: 'animation',
+      dx: 0,
+      dy: 0,
+      title: 'One token, all the way through',
+      // Authored scene JSON. The objects are the things themselves - a table
+      // with a row that lights up, a strip of numbers that changes, a
+      // distribution that grows - not labelled rectangles sliding around.
+      scene: {
+        id: 'token-journey',
+        title: 'One token, all the way through',
+        width: 760,
+        height: 400,
+        duration: 13,
+        objects: [
+          { id: 'caption', type: 'text', semanticId: 'caption', initialState: { text: '', x: 40, y: 26, opacity: 0 } },
+          { id: 'chars', type: 'tokens', semanticId: 'tokens', conceptId: 'tokenisation', initialState: { label: 'the text, one character per id', x: 40, y: 58, opacity: 0, tokens: ['h', 'e', 'l', 'l', 'o'], color: '#e8590c' } },
+          { id: 'table', type: 'grid', semanticId: 'embedding-table', conceptId: 'token-embeddings', initialState: { label: 'wte - 65 x 384 (8 x 8 shown)', x: 40, y: 140, opacity: 0, rows: 8, cols: 8, cell: 26, color: '#2383e2', values: Array.from({ length: 64 }, (unused, index) => Number((Math.sin(index * 1.7) * 1.4).toFixed(2))) } },
+          { id: 'vector', type: 'strip', semanticId: 'embedding-row', conceptId: 'token-embeddings', initialState: { label: 'row 42 - this token, as numbers', x: 320, y: 160, opacity: 0, cell: 34, color: '#7c3aed', values: Array.from({ length: 8 }, (unused, index) => Number((Math.sin((24 + index) * 1.7) * 1.4).toFixed(2))) } },
+          { id: 'scores', type: 'bars', semanticId: 'next-token-scores', conceptId: 'softmax', initialState: { label: 'a score for every possible next character', x: 320, y: 260, opacity: 0, h: 96, color: '#1a7f37', values: Array.from({ length: 12 }, () => 0), labels: ['a', 'b', 'c', 'd', 'e', 'h', 'i', 'l', 'n', 'o', 's', 't'] } },
+        ],
+        timeline: [
+          { at: 0, action: 'appear', target: 'caption', duration: 0.3 },
+          { at: 0.2, action: 'type_text', target: 'caption', value: 'text is only a list of ids', duration: 1.3 },
+          { at: 0.6, action: 'appear', target: 'chars', duration: 0.5 },
+          // the sweep walks the characters one at a time
+          { at: 1.8, action: 'sweep', target: 'chars', duration: 1.2 },
+          { at: 3.0, action: 'highlight_cell', target: 'chars', value: 4 },
+          { at: 3.1, action: 'change_text', target: 'caption', value: 'follow this one: it is id 42' },
+          { at: 3.8, action: 'appear', target: 'table', duration: 0.5 },
+          { at: 4.5, action: 'change_text', target: 'caption', value: 'the table holds one learned row per id' },
+          // the row the id selects lights up, then leaves as its own numbers
+          { at: 5.0, action: 'highlight_cell', target: 'table', value: { row: 3 } },
+          { at: 5.6, action: 'appear', target: 'vector', duration: 0.5 },
+          { at: 5.8, action: 'change_text', target: 'caption', value: 'that row is the token now - 384 numbers, 8 shown' },
+          { at: 6.8, action: 'emphasize', target: 'vector', duration: 0.4 },
+          { at: 7.2, action: 'change_text', target: 'caption', value: 'the blocks mix it with every other position' },
+          { at: 7.4, action: 'set_values', target: 'vector', duration: 1.5, value: [0.62, -0.18, 1.07, 0.44, -0.95, 0.23, 0.81, -0.36] },
+          { at: 9.2, action: 'appear', target: 'scores', duration: 0.4 },
+          { at: 9.4, action: 'change_text', target: 'caption', value: 'the head scores every character that could come next' },
+          { at: 9.6, action: 'set_values', target: 'scores', duration: 1.5, value: [0.03, 0.02, 0.05, 0.02, 0.09, 0.04, 0.06, 0.42, 0.05, 0.12, 0.04, 0.06] },
+          { at: 11.3, action: 'highlight_cell', target: 'scores', value: 'max' },
+          { at: 11.5, action: 'change_text', target: 'caption', value: 'the highest score wins: the next character is l' },
+        ],
+      },
+      time: 0,
+      selectedObject: null,
+      marked: null,
+    }),
+  },
+  whiteboard: {
+    label: 'Whiteboard',
+    width: 620,
+    height: 480,
+    autoMax: 1000,
+    sample: () => ({
+      id: crypto.randomUUID(),
+      type: 'whiteboard',
+      dx: 0,
+      dy: 0,
+      title: 'The sigmoid, drawn',
+      narration: 'The sigmoid takes any score and squashes it into a probability between 0 and 1. At x equals 0 it passes through one half.',
+      // Seeded with a drawn lesson so both questions have something to point
+      // at: the whole board, or just the part the learner circles.
+      demo: 'sigmoid',
+      snapshot: null,
+    }),
+  },
   knowledge: {
     // A generic node-link graph the tutor can emit for any explanation:
     // concepts, processes, dependencies, taxonomies. A repository graph is
@@ -653,7 +731,7 @@ function Kicker({ author = 'course', action = null, children }) {
   );
 }
 
-function ChallengeBody({ block, onChange, onFile, onGrade }) {
+function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
   const [draft, setDraft] = useState('');
   const latest = useRef(block);
   latest.current = block;
@@ -688,7 +766,8 @@ function ChallengeBody({ block, onChange, onFile, onGrade }) {
       {!block.answer ? (
         <div onPointerDown={e => e.stopPropagation()}>
           <p className="mt-1 text-xs text-ink-2 italic">{block.hint}</p>
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 flex flex-wrap gap-2">
+            <SpeakAnswer appName={appName} onText={text => setDraft(current => (current ? `${current} ${text}` : text))} />
             <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') commit(); }}
               placeholder={block.mode === 'explain_back' ? 'Explain it in your own words…' : 'Your guess in one sentence…'} className="h-8 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm outline-none focus:border-ink-3" />
             <button type="button" disabled={!draft.trim()} onClick={commit}
@@ -752,7 +831,9 @@ function PaperBody({ block, appName, onChange, onAskRegion }) {
       <LearnPaper app={appName} paper={block.paper} selectRequest={block.selectRequest || 0}
         onPage={page => onChange({ ...block, paper: { ...block.paper, page, selection: undefined } })}
         onSelect={selection => {
-          // The marked region stays drawn on the page after asking.
+          // The marked region stays drawn on the page after asking, until it
+          // is cleared from the toolbar, the header pill or with Esc.
+          if (!selection) { onChange({ ...block, paper: { ...block.paper, selection: undefined } }); return; }
           const next = { ...block, paper: { ...block.paper, selection: { region: selection.region } } };
           onChange(next);
           onAskRegion?.(next, selection);
@@ -814,6 +895,36 @@ function SceneActivityBody({ block, onChange, onAskScene }) {
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       {block.spec.buildGoal && <p data-drag-zone className="mt-0.5 mb-2 cursor-grab text-xs text-ink-2 active:cursor-grabbing">{block.spec.buildGoal}</p>}
       <InteractiveScene block={block} onChange={onChange} />
+    </div>
+  );
+}
+
+// A tldraw board in a block: the learner draws with tldraw's own tools and a
+// selection can be sent to the tutor with a picture of what was selected.
+function WhiteboardBody({ block, appName, onChange, onAskSelection }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
+      <Kicker author="learner">Whiteboard</Kicker>
+      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <div className="mt-2 flex min-h-0 flex-1 flex-col">
+        <Suspense fallback={<p className="p-4 text-xs text-ink-2">Loading the board…</p>}>
+          <WhiteboardBlock block={block} appName={appName} onChange={onChange} onAskSelection={onAskSelection} />
+        </Suspense>
+      </div>
+    </div>
+  );
+}
+
+// A short animation from scene JSON: deterministic playback the learner can
+// pause, scrub and ask about without the scene ever changing.
+function AnimationBody({ block, onChange, onAskAnimation }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
+      <Kicker>Animation</Kicker>
+      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <div className="mt-2 flex min-h-0 flex-1 flex-col">
+        <AnimatedScene block={block} onChange={onChange} onAskRegion={onAskAnimation} />
+      </div>
     </div>
   );
 }
@@ -1334,6 +1445,8 @@ const NEWLINE = String.fromCharCode(10);
 export function describeBlock(block) {
   if (block.type === 'code') return { kind: 'Code exercise', title: block.title, text: `Code exercise: ${block.title}\n${block.brief}\nGiven setup:\n${block.setup}\nLearner's current code:\n${block.draft ?? block.starter}\nChecks it must pass:\n${block.checks}` };
   if (block.type === 'audio') return { kind: 'Narration', title: block.title, text: [`Narration block: ${block.title}`, block.text].join(NEWLINE) };
+  if (block.type === 'whiteboard') return { kind: 'Whiteboard', title: block.title, text: `Learner whiteboard: ${block.title}` };
+  if (block.type === 'animation') return { kind: 'Animation', title: block.title, text: [`Animation: ${block.title} (${block.scene.duration}s)`, `Paused at: ${(block.time ?? 0).toFixed(1)}s`, block.selectedObject ? `Selected object: ${block.selectedObject}` : '', `State at that moment: ${JSON.stringify(getSceneState(block.scene, block.time ?? 0).objects.filter(object => object.visible).map(object => ({ id: object.semanticId, highlighted: object.highlighted })))}`].join(NEWLINE) };
   if (block.type === 'flow') return { kind: 'Diagram', title: block.title, text: [`Laid-out diagram: ${block.title}`, `Nodes: ${block.spec.nodes.map(node => node.label).join(', ')}`, `Edges: ${block.spec.edges.map(edge => `${edge.source} -> ${edge.target}${edge.label ? ` (${edge.label})` : ''}`).join('; ')}`].join(NEWLINE) };
   if (block.type === 'mermaid') return { kind: 'Diagram', title: block.title, text: [`Mermaid diagram: ${block.title}`, block.code].join(NEWLINE) };
   if (block.type === 'knowledge') return { kind: 'Graph', title: block.title, text: [`Knowledge graph: ${block.title}`, `Nodes: ${block.graph.nodes.map(node => node.label).join(', ')}`, `Edges: ${block.graph.edges.map(edge => `${edge.source} ${edge.relation} ${edge.target}`).join('; ')}`, block.selected ? `Learner selected: ${block.selected.label}` : ''].join(NEWLINE) };
@@ -1355,7 +1468,7 @@ export function describeBlock(block) {
 }
 
 export function LearningBlockBody({ block, onChange, onFile, appName, onAskRegion, onGrade, onAskScene }) {
-  if (block.type === 'challenge') return <ChallengeBody block={block} onChange={onChange} onFile={onFile} onGrade={onGrade} />;
+  if (block.type === 'challenge') return <ChallengeBody block={block} onChange={onChange} onFile={onFile} onGrade={onGrade} appName={appName} />;
   if (block.type === 'quiz') return <QuizBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'flashcards') return <FlashcardsBody block={block} onChange={onChange} />;
   if (block.type === 'code') return <CodeBody block={block} onChange={onChange} onFile={onFile} />;
@@ -1365,6 +1478,8 @@ export function LearningBlockBody({ block, onChange, onFile, appName, onAskRegio
   if (block.type === 'model3d') return <ThreeDBody block={block} onChange={onChange} />;
   if (block.type === 'audio') return <AudioBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return <SceneActivityBody block={block} onChange={onChange} onAskScene={onAskScene} />;
+  if (block.type === 'whiteboard') return <WhiteboardBody block={block} appName={appName} onChange={onChange} onAskSelection={onAskRegion} />;
+  if (block.type === 'animation') return <AnimationBody block={block} onChange={onChange} onAskAnimation={onAskRegion} />;
   if (block.type === 'flow') return <FlowBody block={block} />;
   if (block.type === 'mermaid') return <MermaidBody block={block} onChange={onChange} />;
   if (block.type === 'knowledge') return <KnowledgeBody block={block} onChange={onChange} onFile={onFile} />;

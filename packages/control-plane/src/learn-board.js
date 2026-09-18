@@ -6,7 +6,7 @@ import { VIDEO_SCHEMA, validateVideo } from './learn-video-schema.js';
 import { THREE_D_SCHEMA, validateThreeD } from './learn-three-d-schema.js';
 import { GRAPH_SCHEMA, validateGraph } from './learn-graph-schema.js';
 import { sealPreview, openPreview, previewImages } from './learn-preview-review.js';
-import { anthropic, ASK_MODELS } from './ask.js';
+import { anthropic, planModel, ASK_MODELS } from './ask.js';
 import { PLAN_TOOL, validateTeachingPlan, BOARD_REVIEW_SYSTEM, REVIEW_TOOL, validateBoardReview, strictTool } from './learn-board-review.js';
 import { validateLessonSnapshot } from './learn-context.js';
 import { PEXELS_TOOL, INSPECT_IMAGE_TOOL, inspectImage, searchPexels } from './pexels.js';
@@ -120,13 +120,19 @@ export function validateBoardPlan(plan, snapshot) {
   return plan;
 }
 
-export async function generateBoardPlan(env, input, { onProgress = () => {}, callModel = anthropic, searchPhotos = searchPexels, findPapers = searchArxiv, readPaper = readArxivPaper, renderPreviews = false, continuation = null, previews = null } = {}) {
+export async function generateBoardPlan(env, input, { onProgress = () => {}, callModel = planModel, searchPhotos = searchPexels, findPapers = searchArxiv, readPaper = readArxivPaper, renderPreviews = false, continuation = null, previews = null } = {}) {
   const { snapshot, question, answer, model, repositoryEvidence } = input;
   const history = validateTeachingHistory(input.history);
   const messages = [{ role: 'user', content: JSON.stringify({ snapshot, question, answer, history, repositoryEvidence }) }], photos = new Map(), inspected = new Set(), papers = new Map();
   const selectedModel = ASK_MODELS[model] || ASK_MODELS.auto;
   const invoke = async (system, tools, toolChoice, history, max_tokens = 3000) => {
-    const response = await callModel(env, { max_tokens, system, tools: tools.map(tool => [PLAN_TOOL.name, REVIEW_TOOL.name].includes(tool.name) ? strictTool(tool) : tool), tool_choice: toolChoice, messages: history }, selectedModel, null);
+    const strictNames = [PLAN_TOOL.name, REVIEW_TOOL.name];
+    const send = strict => callModel(env, { max_tokens, system, tools: tools.map(tool => strict && strictNames.includes(tool.name) ? strictTool(tool) : tool), tool_choice: toolChoice, messages: history }, selectedModel, null);
+    let response = await send(true);
+    // Structured outputs compile the schema into a grammar; when that request
+    // is rejected the plan is still validated here, so drop strict rather than
+    // lose the whole explanation.
+    if (response.status === 400 && tools.some(tool => strictNames.includes(tool.name))) response = await send(false);
     if (!response.ok) {
       const detail = (await response.json().catch(() => null))?.error?.message;
       throw new Error(`Canvas explanation unavailable (model HTTP ${response.status}${detail ? `: ${String(detail).slice(0, 160)}` : ''}). Try again.`);

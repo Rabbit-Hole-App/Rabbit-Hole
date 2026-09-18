@@ -98,6 +98,26 @@ export default {
       if (!upstream.ok) return Response.json({ error: 'Narration audio unavailable.' }, { status: 502 });
       return new Response(upstream.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } });
     }
+    // The learner can speak an answer instead of typing it; the transcript is
+    // shown before anything is graded, so a misheard word can be corrected.
+    if (path === '/api/learn/transcribe' && req.method === 'POST') {
+      const form = await req.formData().catch(() => null);
+      const clip = form?.get('audio');
+      if (!clip || typeof clip === 'string') return Response.json({ error: 'Attach a recording to transcribe.' }, { status: 400 });
+      if (clip.size > 20 * 1024 * 1024) return Response.json({ error: 'That recording is too long; keep it under a minute.' }, { status: 400 });
+      const access = await authorizedBoardApp(req, env, form.get('app'));
+      if (access instanceof Response) return access;
+      if (!env.OPENAI_API_KEY) return Response.json({ error: 'Speech to text is not configured on this environment.' }, { status: 503 });
+      const upload = new FormData();
+      upload.set('file', clip, 'answer.webm');
+      upload.set('model', 'gpt-4o-transcribe');
+      const upstream = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` }, body: upload,
+      });
+      if (!upstream.ok) return Response.json({ error: 'Could not transcribe that recording.' }, { status: 502 });
+      const heard = await upstream.json();
+      return Response.json({ text: (heard.text || '').trim() });
+    }
     if (path === '/api/learn/paper') return paperFetch(req, env);
     if (path === '/api/learn/board') {
       if (env.SUBSCRIPTION_ONLY === 'true') {

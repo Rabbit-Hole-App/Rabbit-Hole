@@ -1,4 +1,5 @@
-import { DndContext, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
+import { useState } from 'react';
+import { DndContext, DragOverlay, KeyboardSensor, PointerSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { motion } from 'motion/react';
 import { Check, X } from 'lucide-react';
 
@@ -10,9 +11,20 @@ function Piece({ piece, disabled }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: piece.id, disabled });
   return (
     <button ref={setNodeRef} type="button" data-piece={piece.id} {...listeners} {...attributes}
-      className={`rounded-lg border px-2.5 py-1.5 text-xs ${disabled ? 'border-line bg-hover text-ink-3' : 'border-line bg-white text-ink hover:border-ink-3'} ${isDragging ? 'opacity-40' : ''}`}>
+      className={`cursor-grab rounded-lg border px-2.5 py-1.5 text-xs active:cursor-grabbing ${disabled ? 'border-line bg-hover text-ink-3' : 'border-line bg-white text-ink hover:border-ink-3'} ${isDragging ? 'opacity-30' : ''}`}>
       {piece.label}
     </button>
+  );
+}
+
+// The card the learner is actually holding: it floats above everything and
+// follows the cursor, so a drop never feels like a guess.
+function DraggedCard({ piece, reduced }) {
+  return (
+    <motion.div initial={reduced ? false : { scale: 0.96 }} animate={{ scale: 1.04, rotate: reduced ? 0 : -1.5 }} transition={{ duration: reduced ? 0 : 0.12 }}
+      className="pointer-events-none cursor-grabbing rounded-lg border border-accent bg-white px-2.5 py-1.5 text-xs text-ink shadow-xl">
+      {piece.label}
+    </motion.div>
   );
 }
 
@@ -36,12 +48,17 @@ function Slot({ slot, held, correct, reduced, onClear }) {
 
 export default function PipelineScene({ state, run, reduced, selected, onSelect }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
+  const [dragging, setDragging] = useState(null);
   const placedIds = Object.values(state.placed);
   const pieceOf = id => state.pieces.find(piece => piece.id === id);
   return (
-    <DndContext sensors={sensors} onDragEnd={event => {
-      if (event.over) run({ type: 'place_item', slot: event.over.id, piece: event.active.id });
-    }}>
+    <DndContext sensors={sensors} collisionDetection={pointerWithin}
+      onDragStart={event => setDragging(event.active.id)}
+      onDragCancel={() => setDragging(null)}
+      onDragEnd={event => {
+        setDragging(null);
+        if (event.over) run({ type: 'place_item', slot: event.over.id, piece: event.active.id });
+      }}>
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         <div className="space-y-1.5">
           {state.slots.map(slot => (
@@ -72,6 +89,9 @@ export default function PipelineScene({ state, run, reduced, selected, onSelect 
           </div>
         </details>
       </div>
+      <DragOverlay dropAnimation={reduced ? null : undefined}>
+        {dragging ? <DraggedCard piece={pieceOf(dragging)} reduced={reduced} /> : null}
+      </DragOverlay>
     </DndContext>
   );
 }

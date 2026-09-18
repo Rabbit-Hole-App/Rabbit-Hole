@@ -114,11 +114,15 @@ export function Md({ text, onRun, onFile, sourcePath = singleSourcePath(text) })
     }
     const token = l.trim().match(/^\uE000(\d+)\uE001$/);
     const heading = l.match(/^(#{1,6})\s+(\S.*?)\s*#*$/);
+    // A line that is nothing but bold text is a section title in all but syntax.
+    const boldTitle = !heading && l.trim().match(/^\*\*([^*]{3,90})\*\*:?$/);
     if (token && math[Number(token[1])]?.display) {
       out.push(<MathText key={i} {...math[Number(token[1])]} />);
-    } else if (heading) {
-      const Heading = `h${heading[1].length}`;
-      out.push(<Heading key={i} className="mt-3 mb-1 font-semibold text-ink">{inline(heading[2], math, onFile, sourcePath)}</Heading>);
+    } else if (heading || boldTitle) {
+      const Heading = heading ? `h${heading[1].length}` : 'h3';
+      // A long answer reads as one wall without a break before each section.
+      const rule = out.length ? 'mt-4 border-t border-line pt-3' : 'mt-1';
+      out.push(<Heading key={i} className={`${rule} mb-1 font-semibold text-ink`}>{inline(heading ? heading[2] : boldTitle[1], math, onFile, sourcePath)}</Heading>);
     } else if (l.startsWith('Sources: ')) {
       out.push(<SourcesLine key={i} text={l} onRun={onRun} onFile={onFile} />);
     } else if (l.trim()) {

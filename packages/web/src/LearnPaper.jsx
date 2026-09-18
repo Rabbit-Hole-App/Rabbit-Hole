@@ -68,7 +68,10 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
         <button type="button" aria-label="Zoom out paper" title="Zoom out" disabled={zoom <= 0.5} onClick={() => setZoom(z => Math.max(0.5, z - 0.25))} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><Minus size={14} /></button>
         <span aria-label="Paper zoom" className="min-w-9 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
         <button type="button" aria-label="Zoom in paper" title="Zoom in" disabled={zoom >= 3} onClick={() => setZoom(z => Math.min(3, z + 0.25))} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><Plus size={14} /></button>
-        <button type="button" aria-label="Ask about paper selection" title="Select a region to ask about" aria-pressed={selecting} onClick={() => { setSelecting(value => !value); setRectangle(null); }} className={`rounded border p-1 ${selecting ? 'border-red-600 bg-red-50 text-red-600' : 'border-line hover:bg-hover'}`}><Scan size={14} /></button>
+        <button type="button" data-paper-select aria-label={paper.selection ? 'Clear paper selection' : 'Ask about paper selection'}
+          title={paper.selection ? 'Clear the marked region (or press Esc)' : 'Select a region to ask about'} aria-pressed={selecting}
+          onClick={() => (paper.selection ? clearSelection() : (setSelecting(value => !value), setRectangle(null)))}
+          className={`rounded border p-1 ${selecting || paper.selection ? 'border-red-600 bg-red-50 text-red-600' : 'border-line hover:bg-hover'}`}>{paper.selection ? <X size={14} /> : <Scan size={14} />}</button>
       </>}
       <a href={`${paper.pdfUrl}#page=${paper.page}`} target="_blank" rel="noreferrer" title="Open original PDF" aria-label="Open original PDF" className="rounded border border-line p-1 hover:bg-hover"><ExternalLink size={14} /></a>
       {onClose && <button type="button" onClick={onClose} title="Close paper" aria-label="Close paper" className="rounded border border-line p-1 hover:bg-hover"><X size={14} /></button>}

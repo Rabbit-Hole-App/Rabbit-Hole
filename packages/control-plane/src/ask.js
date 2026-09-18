@@ -230,6 +230,13 @@ export function toOpenAI(body, modelId) {
     messages: msgs,
     max_tokens: body.max_tokens,
     ...(body.tools?.length ? { tools: body.tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.input_schema } })) } : {}),
+    // A forced tool is the whole point of the planner calls; without this the
+    // model is free to answer in prose and the caller sees no tool call.
+    ...(body.tool_choice ? {
+      tool_choice: body.tool_choice.type === 'tool' ? { type: 'function', function: { name: body.tool_choice.name } }
+        : body.tool_choice.type === 'any' ? 'required' : 'auto',
+      ...(body.tool_choice.disable_parallel_tool_use ? { parallel_tool_calls: false } : {}),
+    } : {}),
   };
 }
 export function fromOpenAI(j) {
@@ -247,6 +254,24 @@ export function fromOpenAI(j) {
     stop_reason: m.tool_calls?.length ? 'tool_use' : ch.finish_reason === 'length' ? 'max_tokens' : 'end_turn',
     usage: j.usage || {},
   };
+}
+
+export const PLAN_MODEL = 'gpt-4.1-mini';
+export async function planModel(env, body, model, org) {
+  if (!env.OPENAI_API_KEY) return anthropic(env, body, model, org);
+  const { stream, ...rest } = body;
+  const chosen = env.LEARN_PLAN_MODEL || PLAN_MODEL;
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.OPENAI_API_KEY}` },
+    body: JSON.stringify(toOpenAI(rest, chosen)),
+  });
+  if (!response.ok) {
+    console.warn('openai API error', response.status, (await response.clone().text().catch(() => '')).slice(0, 300),
+      JSON.stringify({ model: chosen, tools: (body.tools || []).map(t => t.name) }));
+    return response;
+  }
+  return Response.json(fromOpenAI(await response.json()));
 }
 
 // One chokepoint for every model call. Default: the platform's Anthropic key.

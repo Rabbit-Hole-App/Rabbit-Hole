@@ -55,3 +55,20 @@ test('fromOpenAI: tool calls map to tool_use with parsed args; bad json becomes 
 test('fromOpenAI: length finish maps to max_tokens', () => {
   assert.equal(fromOpenAI({ choices: [{ finish_reason: 'length', message: { content: 'x' } }] }).stop_reason, 'max_tokens');
 });
+
+test('toOpenAI: a forced tool survives translation, so a planner call cannot come back as prose', () => {
+  const forced = toOpenAI({
+    max_tokens: 100,
+    messages: [{ role: 'user', content: 'plan it' }],
+    tools: [{ name: 'plan_explanation', description: 'plan', input_schema: { type: 'object', properties: {} } }],
+    tool_choice: { type: 'tool', name: 'plan_explanation', disable_parallel_tool_use: true },
+  }, 'gpt-4.1-mini');
+  assert.deepEqual(forced.tool_choice, { type: 'function', function: { name: 'plan_explanation' } });
+  assert.equal(forced.parallel_tool_calls, false);
+
+  const any = toOpenAI({ messages: [], tools: [{ name: 't', input_schema: {} }], tool_choice: { type: 'any' } }, 'gpt-4.1-mini');
+  assert.equal(any.tool_choice, 'required');
+  const auto = toOpenAI({ messages: [], tools: [{ name: 't', input_schema: {} }], tool_choice: { type: 'auto' } }, 'gpt-4.1-mini');
+  assert.equal(auto.tool_choice, 'auto');
+  assert.equal('tool_choice' in toOpenAI({ messages: [] }, 'gpt-4.1-mini'), false);
+});

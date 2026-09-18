@@ -249,3 +249,29 @@ test('concrete review findings override a contradictory pass checkbox', () => {
   const result = validateBoardReview({ ...rejectedReview, verdict: 'ready', checks: { ...readyReview.checks } }, 1);
   assert.equal(result.verdict, 'revise'); assert.equal(result.checks.factual_support, false);
 });
+
+test('a rejected structured-output request retries once without strict, and keeps validating the plan', async () => {
+  const seen = [];
+  let planning = 0;
+  const result = await generateBoardPlan({}, boardInput, { callModel: async (_, body) => {
+    const name = body.tool_choice.name || 'explain_on_canvas';
+    const strict = body.tools.some(tool => tool.strict);
+    if (name === 'plan_explanation') {
+      planning++;
+      seen.push(strict);
+      // the grammar-compiled request is refused; the plain tool call is not
+      if (planning === 1) return Response.json({ type: 'error', error: { type: 'invalid_request_error', message: 'Invalid request data' } }, { status: 400 });
+      return toolReply(name, teachingPlan);
+    }
+    if (name === 'review_explanation') return toolReply(name, readyReview);
+    return toolReply(name, plan);
+  } });
+  assert.deepEqual(seen, [true, false]);
+  assert.equal(result.blocks.length, 1);
+  assert.equal(result.review.passes, 1);
+});
+
+test('a rejected request that is not about strict tools still fails loudly', async () => {
+  await assert.rejects(generateBoardPlan({}, boardInput, { callModel: async () => Response.json({ error: { message: 'overloaded' } }, { status: 529 }) }),
+    /model HTTP 529/);
+});

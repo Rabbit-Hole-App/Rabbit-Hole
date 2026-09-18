@@ -566,11 +566,15 @@ await check('vector explorer drags and computes', async () => {
   await node.getByText('Project one vector onto another').waitFor({ timeout: 5000 });
   await node.locator('[data-projection]').getByText('proj_b(a) = 2', { exact: false }).waitFor({ timeout: 5000 });
   const handle = node.locator('[data-vector-handle="a"]');
+  await handle.scrollIntoViewIfNeeded().catch(() => {});
   const box = await handle.boundingBox();
+  const cbox = await canvas.boundingBox();
+  if (box.y < cbox.y || box.y > cbox.y + cbox.height) throw new Error('the handle is outside the canvas viewport');
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 - 40, box.y + box.height / 2, { steps: 8 });
   await page.mouse.up();
+  await page.waitForTimeout(300);
   const text = await node.locator('[data-projection]').innerText();
   if (!/proj_b\(a\) = /.test(text) || /= 2 ·/.test(text)) throw new Error(`projection did not follow the drag: ${text}`);
 });
@@ -608,6 +612,178 @@ await check('explain back is judged, not revealed', async () => {
   const text = await node.innerText();
   if (/VERDICT:/i.test(text)) throw new Error('verdict token leaked');
   if (/Hold that thought/.test(text)) throw new Error('explain back must not reveal an answer');
+});
+
+// the animation engine: deterministic playback, scrub, pause and ask
+await check('animation plays and scrubs', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  await page.getByRole('menuitem', { name: 'Animation', exact: true }).click();
+  const node = canvas.locator('[data-block-id]').last();
+  await node.getByText('One token, all the way through').waitFor({ timeout: 5000 });
+  const drawnAtStart = await node.locator('[data-animation-object]').count();
+  await node.locator('[data-animation-play]').click();
+  await page.waitForTimeout(3500);
+  await node.locator('[data-animation-play]').click(); // pause
+  const drawnLater = await node.locator('[data-animation-object]').count();
+  if (drawnLater <= drawnAtStart) throw new Error(`objects did not appear over time (${drawnAtStart} -> ${drawnLater})`);
+  await node.locator('input[aria-label="Animation time"]').fill('0');
+  await page.waitForTimeout(400);
+  const afterScrub = await node.locator('[data-animation-object]').count();
+  if (afterScrub !== drawnAtStart) throw new Error(`scrubbing back is not deterministic (${drawnAtStart} vs ${afterScrub})`);
+});
+
+await check('replay restarts a finished animation', async () => {
+  const node = canvas.locator('[data-block-id]').last();
+  const slider = node.locator('input[aria-label="Animation time"]');
+  await slider.fill('13');
+  await node.locator('[data-animation-replay]').click();
+  await page.waitForTimeout(700);
+  const now = Number(await slider.inputValue());
+  if (!(now > 0.1 && now < 12)) throw new Error(`replay did not restart a finished scene (time ${now}s)`);
+  await node.locator('[data-animation-play]').click(); // pause again for the next check
+});
+
+await check('pausing and marking a region asks about that moment', async () => {
+  const node = canvas.locator('[data-block-id]').last();
+  await node.locator('input[aria-label="Animation time"]').fill('6');
+  await node.locator('[data-animation-select]').click();
+  const frame = await node.locator('[data-animation-frame]').boundingBox();
+  await page.mouse.move(frame.x + frame.width * 0.2, frame.y + frame.height * 0.05);
+  await page.mouse.down();
+  await page.mouse.move(frame.x + frame.width * 0.8, frame.y + frame.height * 0.3, { steps: 10 });
+  await page.mouse.up();
+  await page.locator('[data-canvas-target]').waitFor({ timeout: 5000 });
+  await node.locator('[data-animation-selection]').getByText('6.0s', { exact: false }).waitFor({ timeout: 3000 }); // the scene stays where it was paused
+  await node.locator('[data-animation-clear]').click();
+  if (await node.locator('[data-animation-selection]').count()) throw new Error('the marked region did not clear');
+});
+
+// the abstraction test: a second subject through the same engine, built from
+// JSON in the page rather than a menu entry
+await check('the numbers change and a winner emerges', async () => {
+  const node = canvas.locator('[data-block-id]').last();
+  const at = async seconds => {
+    await node.locator('input[aria-label="Animation time"]').fill(String(seconds));
+    await page.waitForTimeout(400);
+  };
+  await at(1.0);
+  if (await node.locator('[data-animation-object="tokens"] rect').count() !== 5) throw new Error('the characters are not on screen');
+  // the row the id selects leaves the table as its own numbers, and the
+  // blocks change those numbers rather than swapping one label for another
+  await at(6.5);
+  const before = await node.locator('[data-animation-object="embedding-row"] text').allTextContents();
+  await at(9.2);
+  const after = await node.locator('[data-animation-object="embedding-row"] text').allTextContents();
+  if (before.join() === after.join()) throw new Error(`the embedding numbers never changed: ${after.join(' ')}`);
+  await at(12.6);
+  const bars = await node.locator('[data-animation-object="next-token-scores"] rect').evaluateAll(rects => rects.map(rect => Number(rect.getAttribute('height'))));
+  const tallest = bars.indexOf(Math.max(...bars));
+  if (tallest !== 7) throw new Error(`the winning score is bar ${tallest}, expected the one labelled l`);
+});
+
+// speaking an answer: the mic is offered next to the input and the transcript
+// route is wired, so a spoken answer reaches the same grading path
+await check('an answer can be spoken', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  await page.getByRole('menuitem', { name: 'Explain back' }).click();
+  const node = canvas.locator('[data-block-id]').last();
+  await node.locator('[data-speak-answer]').waitFor({ timeout: 5000 });
+  const wired = await page.evaluate(async () => {
+    const response = await fetch('/api/learn/transcribe', { method: 'POST', body: new FormData() });
+    return { status: response.status, error: (await response.json()).error };
+  });
+  if (wired.status === 404) throw new Error('the transcribe route is not deployed');
+  if (wired.status !== 400) throw new Error(`empty recording should be refused, got HTTP ${wired.status}: ${wired.error}`);
+});
+
+// the whiteboard block: tldraw's own tools, saved with the block
+await check('the sigmoid board asks, draws and saves', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  await page.getByRole('menuitem', { name: 'Whiteboard' }).click();
+  const node = canvas.locator('[data-block-id]').last();
+  await node.locator('.tl-canvas').waitFor({ timeout: 30000 });
+  await page.waitForTimeout(1200);
+  const drawn = await node.locator('.tl-shape').count();
+  if (drawn < 8) throw new Error(`the sigmoid was not drawn on the board (${drawn} shapes)`);
+  // the node floats, so it never satisfies the stability check; the pill
+  // appearing is the proof that the click selected it
+  await node.locator('[data-drag-zone]').first().click({ force: true });
+  await page.getByRole('button', { name: 'Ask selection' }).click({ timeout: 10000 });
+  const frame = await node.locator('.tl-canvas').boundingBox();
+  await page.mouse.move(frame.x + frame.width * 0.3, frame.y + frame.height * 0.3);
+  await page.mouse.down();
+  await page.mouse.move(frame.x + frame.width * 0.75, frame.y + frame.height * 0.7, { steps: 12 });
+  await page.mouse.up();
+  await page.getByText('Whiteboard selection').waitFor({ timeout: 10000 });
+  await node.locator('[data-board-marker]').waitFor({ timeout: 8000 });
+  await page.getByRole('button', { name: 'Clear selection' }).click();
+  if (await node.locator('[data-board-marker]').count()) throw new Error('the marked rectangle did not clear');
+  const board = await node.locator('.tl-canvas').boundingBox();
+  await page.mouse.move(board.x + 120, board.y + 100);
+  await page.keyboard.press('d'); // draw tool
+  await page.mouse.move(board.x + 80, board.y + 80);
+  await page.mouse.down();
+  await page.mouse.move(board.x + 200, board.y + 160, { steps: 10 });
+  await page.mouse.up();
+  await page.waitForTimeout(1200);
+  if (await node.locator('.tl-shape').count() <= drawn) throw new Error('the learner stroke was not added');
+  await page.reload();
+  const reloaded = canvas.locator('[data-block-id]').last();
+  await reloaded.locator('.tl-canvas').waitFor({ timeout: 30000 });
+  await page.waitForTimeout(1500);
+  if (await reloaded.locator('.tl-shape').count() <= drawn) throw new Error('the drawing did not survive a reload');
+});
+
+// the board marker lives in page coordinates, the toolbar folds away, and the
+// answer to a board question can be drawn back onto that same board
+await check('the marked rectangle stays on what it was drawn over', async () => {
+  const node = canvas.locator('[data-block-id]').last();
+  await node.locator('[data-drag-zone]').first().click({ force: true });
+  await page.getByRole('button', { name: 'Ask selection' }).click({ timeout: 10000 });
+  const area = await node.locator('.tl-canvas').boundingBox();
+  await page.mouse.move(area.x + area.width * 0.3, area.y + area.height * 0.3);
+  await page.mouse.down();
+  await page.mouse.move(area.x + area.width * 0.7, area.y + area.height * 0.65, { steps: 10 });
+  await page.mouse.up();
+  const marker = node.locator('[data-board-marker]');
+  await marker.waitFor({ timeout: 8000 });
+  const before = await marker.boundingBox();
+  const frame = await node.locator('.tl-canvas').boundingBox();
+  await page.mouse.move(frame.x + frame.width / 2, frame.y + frame.height / 2);
+  await page.mouse.wheel(0, 220); // pan the board
+  await page.waitForTimeout(600);
+  const after = await marker.boundingBox();
+  if (Math.abs(after.y - before.y) < 60) throw new Error(`the marker did not travel with the board (${Math.round(before.y)} -> ${Math.round(after.y)})`);
+});
+
+await check('the drawing tools fold away', async () => {
+  const node = canvas.locator('[data-block-id]').last();
+  await node.locator('[data-board-tools]').click();
+  await page.waitForTimeout(400);
+  if (await node.locator('.tlui-toolbar').count()) throw new Error('the toolbar is still there');
+  await node.locator('[data-board-tools]').click();
+  await node.locator('.tlui-toolbar').first().waitFor({ timeout: 5000 });
+});
+
+await check('a board answer can be explained back on the board', async () => {
+  const board = canvas.locator('[data-block-id]').last();
+  const shapesBefore = await board.locator('.tl-shape').count();
+  const dock = page.locator('input[placeholder^="Ask about"], textarea[placeholder^="Ask about"]').first();
+  await dock.fill('What does the flat part of this curve mean?');
+  await dock.press('Enter');
+  const answer = canvas.locator('[data-block-id]').filter({ hasText: 'What does the flat part of this curve mean?' }).first();
+  await answer.waitFor({ timeout: 30000 });
+  await answer.locator('[data-scroll]').getByText('sigmoid', { exact: false }).waitFor({ timeout: 120000 }).catch(() => {});
+  await answer.locator('[data-drag-zone]').first().click({ force: true });
+  const pill = page.locator('[data-explain-canvas]');
+  await pill.waitFor({ timeout: 30000 });
+  await pill.click();
+  // the plan is drawn onto the same board, never a copy of it
+  for (let waited = 0; waited < 240000; waited += 4000) {
+    if (await board.locator('.tl-shape').count() > shapesBefore) return;
+    await page.waitForTimeout(4000);
+  }
+  throw new Error('the explanation never reached the board');
 });
 
 // code sample: display-only code with its output shown below
