@@ -5,6 +5,7 @@ import { IconBtn, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
 import { BLOCK_TYPES, LearningBlockBody, describeBlock } from './LearningBlocks.jsx';
 import { gapsFrom, nearestGap } from './learn-gap-rail.js';
+import { panelFor, textStyle, TEXT_LEVELS } from './learn-style-panel.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -291,7 +292,7 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
     );
   }
   return (
-    <div data-block style={{ left: item.x, top: item.y, ...(sticky ? { width: item.w || 160, height: item.h || 160 } : { color: item.color, fontSize: item.size || 14 }) }}
+    <div data-block style={{ left: item.x, top: item.y, ...(sticky ? { width: item.w || 160, height: item.h || 160 } : { color: item.color, ...textStyle(item) }) }}
       className={`absolute z-10 cursor-grab active:cursor-grabbing ${sticky ? '-rotate-1 overflow-hidden rounded-sm border border-[#f0d9a8] bg-[#fef3c7] p-3 text-[13px] leading-snug text-[#6b4e0b] shadow-md' : 'min-w-24 leading-snug'} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
       onPointerDown={down} onDoubleClick={startEdit}>
       <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder={sticky ? 'Note…' : 'Text…'}
@@ -373,6 +374,43 @@ function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResiz
   );
 }
 
+// Colour, thickness and dash used to live in the tool column, which had grown to
+// 26 buttons and scrolled. They sit in their own island now, beside the tools,
+// shown only while a drawing tool is armed or something styleable is selected.
+// Text swaps the thickness row for Notion's heading ladder.
+function StylePanel({ text, color, width, dash, level, onColor, onWidth, onDash, onLevel }) {
+  return (
+    <div role="group" aria-label="Style" onPointerDown={event => event.stopPropagation()}
+      className="absolute top-1/2 right-16 z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md">
+      {COLORS.map(value => (
+        <button key={value} type="button" title="Color" aria-label={`Color ${value}`} aria-pressed={color === value} onClick={() => onColor(value)}
+          className="flex h-6 w-8 items-center justify-center rounded-lg hover:bg-hover">
+          <span style={{ background: value }} className={`h-3.5 w-3.5 rounded-full ${color === value ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`} />
+        </button>
+      ))}
+      <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
+      {text
+        ? TEXT_LEVELS.map(entry => (
+          <button key={entry.id} type="button" title={entry.label} aria-label={entry.label} aria-pressed={level === entry.id} onClick={() => onLevel(entry.id)}
+            className={`flex h-6 w-8 items-center justify-center rounded-lg text-[11px] ${level === entry.id ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover'}`}
+            style={{ fontWeight: entry.weight }}>{entry.label}</button>
+        ))
+        : <>
+          {WIDTHS.map(value => (
+            <button key={value} type="button" title={`Stroke width ${value}`} aria-label={`Stroke width ${value}`} aria-pressed={width === value} onClick={() => onWidth(value)}
+              className={`flex h-6 w-8 items-center justify-center rounded-lg ${width === value ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover'}`}>
+              <span style={{ height: value }} className="w-4 rounded-full bg-current" />
+            </button>
+          ))}
+          <button type="button" title="Dashed" aria-label="Dashed lines" aria-pressed={dash} onClick={onDash}
+            className={`flex h-6 w-8 items-center justify-center rounded-lg ${dash ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover'}`}>
+            <svg width="16" height="4" aria-hidden="true"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="2" strokeDasharray="4 3" /></svg>
+          </button>
+        </>}
+    </div>
+  );
+}
+
 function ToolButton({ Icon, label, active, onPick }) {
   return (
     <button type="button" title={label} aria-label={label} aria-pressed={active}
@@ -435,6 +473,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const [connecting, setConnecting] = useState(null);
   const [bounds, setBounds] = useState({});
   const [hoverGap, setHoverGap] = useState(null);
+  const [level, setLevel] = useState('body');
+  const [styleOpen, setStyleOpen] = useState(false); // the swatch's manual override
   const exchangesRef = useRef(exchanges);
   exchangesRef.current = exchanges;
   const onDeleteRef = useRef(onDelete);
@@ -793,7 +833,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       event.preventDefault();
       snapshot();
       const point = local(event);
-      setItems(previous => [...previous, { id: crypto.randomUUID(), kind: tool, x: point.x, y: point.y, text: '', color, size: width === WIDTHS[0] ? 14 : width === WIDTHS[1] ? 18 : 24, fresh: true }]);
+      setItems(previous => [...previous, { id: crypto.randomUUID(), kind: tool, x: point.x, y: point.y, text: '', color, ...(tool === 'text' ? { level } : {}), fresh: true }]);
       setTool('select');
     } else {
       setSelected(null);
@@ -827,6 +867,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // A continuous gesture must not snapshot: one scrub drag would evict the whole
   // 100-entry undo ring. Same reasoning as moveBlock, which has never snapshotted.
   const changeBlockQuietly = updated => setBlocks(previous => previous.map(block => block.id === updated.id ? updated : block));
+  // A style press sets the default for the next thing drawn, and restyles
+  // whatever is selected. Connectors only carry a colour.
+  const applyStyle = (patch, targets) => {
+    if (!targets.length) return;
+    snapshot();
+    setShapes(previous => previous.map(shape => targets.includes(shape.id) ? { ...shape, ...patch } : shape));
+    setItems(previous => previous.map(item => targets.includes(item.id) ? { ...item, ...patch } : item));
+    if (patch.color) setLinks(previous => previous.map(link => targets.includes(link.id) ? { ...link, color: patch.color } : link));
+  };
   const nudgeGap = (beforeId, delta) => {
     snapshot();
     setBlocks(previous => previous.map(block => block.id === beforeId ? { ...block, space: (block.space || 0) + delta } : block));
@@ -884,6 +933,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // The rail answers to the blank canvas right of the column, where its buttons
   // live; over the cards themselves it would only be in the way. Held by index
   // rather than by value so the line keeps following the cards as they move.
+  const panel = panelFor({ tool, selection, shapes, links, items });
+  const showStyle = panel.open || styleOpen;
   const gaps = gapsFrom(blocks, bounds);
   const activeGap = hoverGap == null ? null : gaps.find(gap => gap.index === hoverGap) || null;
   const trackGap = event => {
@@ -899,7 +950,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     (portsInUse[link.to] = portsInUse[link.to] || {})[link.toSide] = true;
   }
   return (
-    <div className="relative flex h-full min-h-0 flex-col">
+    // Delete, ctrl+z, copy and paste all stand down while a text field has focus,
+    // and the dock composer takes focus on mount - so without this, selecting a
+    // shape or a note and pressing Delete silently did nothing. Any pointer press
+    // outside the focused field hands focus back to the canvas. Pressing inside
+    // the field it belongs to is left alone, so typing still works.
+    <div className="relative flex h-full min-h-0 flex-col"
+      onPointerDownCapture={event => {
+        const active = document.activeElement;
+        if (!active || active === document.body) return;
+        const editable = active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA';
+        if (editable && !active.contains(event.target)) active.blur();
+      }}>
       <div ref={surface} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => setHoverGap(null)} className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor}`}>
         <div style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className="absolute top-0 left-0">
         <svg width="1" height="1" className="pointer-events-none absolute top-0 left-0 overflow-visible">
@@ -961,27 +1023,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
         {SHAPE_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
         <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
-        {COLORS.map(value => (
-          <button key={value} type="button" title="Color" aria-label={`Color ${value}`} aria-pressed={color === value}
-            onPointerDown={e => e.stopPropagation()} onClick={() => { setColor(value); if (links.some(link => link.id === selected)) { snapshot(); setLinks(previous => previous.map(link => link.id === selected ? { ...link, color: value } : link)); } }}
-            className="flex h-6 w-8 items-center justify-center rounded-lg hover:bg-hover">
-            <span style={{ background: value }} className={`h-3.5 w-3.5 rounded-full ${color === value ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`} />
-          </button>
-        ))}
-        <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
-        {WIDTHS.map(value => (
-          <button key={value} type="button" title={`Stroke width ${value}`} aria-label={`Stroke width ${value}`} aria-pressed={width === value}
-            onPointerDown={e => e.stopPropagation()} onClick={() => setWidth(value)}
-            className={`flex h-6 w-8 items-center justify-center rounded-lg ${width === value ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover'}`}>
-            <span style={{ height: value }} className="w-4 rounded-full bg-current" />
-          </button>
-        ))}
-        <button type="button" title="Dashed" aria-label="Dashed lines" aria-pressed={dash}
-          onPointerDown={e => e.stopPropagation()} onClick={() => setDash(previous => !previous)}
-          className={`flex h-6 w-8 items-center justify-center rounded-lg ${dash ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover'}`}>
-          <svg width="16" height="4" aria-hidden="true"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="2" strokeDasharray="4 3" /></svg>
+        {/* The one control that never hides: the way back to the style panel
+            once it has closed itself, showing what colour is currently armed. */}
+        <button type="button" title="Style" aria-label="Style" aria-pressed={showStyle}
+          onPointerDown={e => e.stopPropagation()} onClick={() => setStyleOpen(previous => !previous)}
+          className={`col-span-2 mx-auto flex h-8 w-8 items-center justify-center rounded-lg ${showStyle ? 'bg-hover' : 'hover:bg-hover'}`}>
+          <span style={{ background: color }} className="h-4 w-4 rounded-full ring-1 ring-line" />
         </button>
       </div>
+      {showStyle && (
+        <StylePanel text={panel.text} color={color} width={width} dash={dash} level={level}
+          onColor={value => { setColor(value); applyStyle({ color: value }, panel.targets); }}
+          onWidth={value => { setWidth(value); applyStyle({ width: value }, panel.targets); }}
+          onDash={() => { const next = !dash; setDash(next); applyStyle({ dash: next }, panel.targets); }}
+          onLevel={value => { setLevel(value); applyStyle({ level: value }, panel.targets); }} />
+      )}
       {/* The zoom pill sits level with the composer's bottom edge. */}
       <div className="relative min-h-11 shrink-0 pt-3">
         <div data-zoom aria-label="Zoom controls" className="absolute bottom-0 left-0 z-20 flex items-center rounded-lg border border-line bg-white shadow-sm">
