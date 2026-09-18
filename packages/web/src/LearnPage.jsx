@@ -5,7 +5,7 @@ import { SPEEDS, getSpeed, isMuted, onMuted, setMuted, setSpeed } from './learn-
 import { api, wsHeaders } from './api.js';
 import { requestBoardExplanation } from './learn-board-request.js';
 import { AskPanel } from './ask.jsx';
-import { Button, ExpandedPageFrame, IconBtn, ConfirmDialog, Tabs, TabsList, TabsTrigger } from './ui.jsx';
+import { Button, IconBtn, ConfirmDialog, Tabs, TabsList, TabsTrigger } from './ui.jsx';
 import { captureSelection, selectionSnapshot } from './sigmoid-context.js';
 import RegionPicker from './RegionPicker.jsx';
 import { CourseInterview, CoursePanel, useLearnCourse } from './LearnCourse.jsx';
@@ -21,7 +21,7 @@ import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from '.
 import { architectureLesson, sampleCourse } from './learn-preview.js';
 
 const LearnNotes = lazy(() => import('./LearnNotes.jsx'));
-const LearnCanvas = lazy(() => import('./LearnCanvas.jsx'));
+const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 
 export default function LearnPage({ app, onBack, repositoryContext = null, onGraph = null }) {
   const isRepository = app.kind === 'repository';
@@ -100,31 +100,17 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const [setupChat, setSetupChat] = useState(false);
   const [narration, setNarration] = useState('');
   const [editor, setEditor] = useState(null);
-  // The adaptive canvas keeps its own editor so the old lesson playback
-  // machinery (gated on `editor`) stays inert on this branch.
-  const adaptiveEditor = useRef(null);
-  const chatShapes = useRef(new Map()); // reply id -> canvas shape id
-  const placeExchange = event => {
-    const board = adaptiveEditor.current;
-    if (!board) return;
-    if (event.question !== undefined) {
-      const id = createShapeId();
-      const blocks = board.getCurrentPageShapes().filter(shape => shape.type === 'chat-block');
-      const anchor = blocks.length ? blocks.reduce((a, b) => (b.y + b.props.h > a.y + a.props.h ? b : a)) : null;
-      const x = anchor ? anchor.x : board.getViewportPageBounds().center.x - 240;
-      const y = anchor ? anchor.y + anchor.props.h + 24 : board.getViewportPageBounds().top + 48;
-      board.createShape({ id, type: 'chat-block', x, y, props: { question: event.question } });
-      chatShapes.current.set(event.id, id);
-      board.centerOnPoint({ x: x + 240, y: y + 120 }, { animation: { duration: 250 } });
-      return;
-    }
-    const shapeId = chatShapes.current.get(event.id);
-    const shape = shapeId && board.getShape(shapeId);
-    if (!shape) return;
-    if (event.delta) board.updateShape({ id: shapeId, type: 'chat-block', props: { answer: shape.props.answer + event.delta, status: 'streaming' } });
-    else if (event.stage) board.updateShape({ id: shapeId, type: 'chat-block', props: { status: event.stage } });
-    else if (event.done) board.updateShape({ id: shapeId, type: 'chat-block', props: { status: 'done' } });
-  };
+  // Chat exchanges shown on the adaptive canvas. AskPanel mirrors each dock
+  // turn here; the canvas renders them as movable cards.
+  const [exchanges, setExchanges] = useState([]);
+  const placeExchange = event => setExchanges(previous => {
+    if (event.question !== undefined) return [...previous, { id: event.id, question: event.question, answer: '', status: 'thinking', dx: 0, dy: 0 }];
+    return previous.map(exchange => exchange.id !== event.id ? exchange
+      : event.delta ? { ...exchange, answer: exchange.answer + event.delta, status: 'streaming' }
+      : event.stage ? { ...exchange, status: event.stage }
+      : { ...exchange, status: 'done' });
+  });
+  const moveExchange = (id, dx, dy) => setExchanges(previous => previous.map(exchange => exchange.id === id ? { ...exchange, dx, dy } : exchange));
   const [region, setRegion] = useState(false);
   const cancelRegion = useCallback(() => setRegion(false), []);
   const playback = useRef(null);
@@ -464,7 +450,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         }} />;
   return <main className="flex min-w-0 flex-1 overflow-hidden max-lg:flex-col">
     <section aria-label="Learn" className="min-h-0 min-w-0 flex-1">
-      <ExpandedPageFrame wide>
+      {/* The lesson canvas goes full-bleed so its toolbar and zoom controls sit
+          at the window edges; every other view keeps the centered page frame. */}
+      <div className={`expanded-page-frame mx-auto flex h-full w-full min-h-0 flex-col py-6 ${!courseView && learningView === 'lesson' ? 'px-8' : 'max-w-[900px] px-6'}`}>
         {pendingNoteView && <ConfirmDialog title="Save notes before switching?" body="Save your changes and open the selected view, or cancel to keep editing." confirmLabel="Save notes" confirmVariant="primary" onCancel={() => setPendingNoteView(null)} onConfirm={async () => { if (await noteSave.current?.()) leaveNote(pendingNoteView); }} />}
         <div className="flex items-center justify-between gap-3 pt-1 pb-4">
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1"><h1 className="text-2xl font-semibold">Learn</h1><span aria-label="Course title" className="text-base text-ink-2">{courseTitle}</span></div>
@@ -489,13 +477,13 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             if (view !== 'notebook') setPracticeMode(view);
           }
         }} />}
-        <div className={`${courseView || learningView !== 'lesson' ? 'hidden' : ''} min-h-0 flex-1 overflow-y-auto pr-1`}>
+        <div className={`${courseView || learningView !== 'lesson' ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col overflow-hidden pr-1`}>
         {(!isRepository || progress) && <div aria-label="Current lesson and section" className="mb-4"><h2 className="text-lg font-semibold">Lesson {sampleIndex >= 0 ? sampleIndex + 1 : 1}: {currentLesson?.title}</h2><p className="mt-1 text-sm text-ink-2">Section {(progress?.page || 0) + 1} of {pages.length}: {progress?.label || pages[0].label}</p></div>}
         {graphError && <p role="alert" className="text-sm text-red-700">{graphError}</p>}
         {boardVisible && <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-2"><span>Agent explanation · lesson paused — keep asking, or resume when ready</span><div className="flex gap-2"><button type="button" disabled={!notesLoaded || answering} onClick={addNote} className="rounded border border-line-strong bg-white px-2.5 py-1 font-medium text-ink hover:bg-hover disabled:opacity-40">Save to notes</button><button type="button" onClick={() => { dismissBoard(); playback.current?.play(); }} className="rounded bg-ink px-2.5 py-1 font-medium text-white hover:opacity-90">Resume lesson</button></div></div>}
-        {/* The adaptive canvas: a whiteboard where chat exchanges land as movable
-            blocks. Lesson playback stays parked; this board has its own editor. */}
-        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="relative h-[65vh]"><Suspense fallback={null}><LearnCanvas onReady={board => { adaptiveEditor.current = board; }} showTools nav /></Suspense></div>
+        {/* The adaptive canvas: a plain React whiteboard where chat exchanges
+            land as movable blocks. Lesson playback stays parked. */}
+        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} /></Suspense></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
@@ -515,10 +503,12 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             {pages.map(({ label }, i) => <button key={i} type="button" disabled={!progress || answering} onClick={() => navigateLesson('seek', i)} className="truncate text-left hover:text-ink disabled:opacity-40" title={label}>{i + 1}. {i === 1 && lesson.current?.lessonId === 'sigmoid-demo' ? 'The formula' : label}</button>)}
           </div>
         </div>}
-        <div className="mt-5">{nanoActive ? <NanoLessonReading page={progress?.page || 0} progress={nanoProgress} canvasPick={canvasPick} onSource={source => { pauseLesson(); setPaperOpen(false); setSourceOpen(false); setLessonSource(source); }} /> : isRepository ? <p className="whitespace-pre-wrap text-sm text-ink-2">{narration}</p> : <LessonReading architecture={lesson.current?.lessonId === architectureLesson.id} page={progress?.page || 0} narration={narration} onSource={() => { pauseLesson(); setSourceOpen(true); }} onNotebook={() => changeLearningView('notebook')} />}</div>
+        {/* ponytail: the lesson reading strip is parked while the adaptive canvas
+            fills the lesson surface; its content model moves onto the canvas */}
+        {false && <div className="mt-5">{nanoActive ? <NanoLessonReading page={progress?.page || 0} progress={nanoProgress} canvasPick={canvasPick} onSource={source => { pauseLesson(); setPaperOpen(false); setSourceOpen(false); setLessonSource(source); }} /> : isRepository ? <p className="whitespace-pre-wrap text-sm text-ink-2">{narration}</p> : <LessonReading architecture={lesson.current?.lessonId === architectureLesson.id} page={progress?.page || 0} narration={narration} onSource={() => { pauseLesson(); setSourceOpen(true); }} onNotebook={() => changeLearningView('notebook')} />}</div>}
         </div>
         {/* the agent textbox stays docked under the canvas; the canvas above scrolls */}
-        {!courseView && learningView === 'lesson' && (app.hosting !== 'aws' || app.app_chat) && <div className="mx-auto w-3/4 shrink-0 pt-3">
+        {!courseView && learningView === 'lesson' && (app.hosting !== 'aws' || app.app_chat) && <div className="mx-auto w-full max-w-[720px] shrink-0 pt-3">
           <AskPanel compact composerOnly onExchange={placeExchange} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus />
         </div>}
         {!courseView && learningView === 'notes' && <Suspense fallback={<p className="text-sm text-ink-2">Loading notes...</p>}><LearnNotes saveRef={noteSave} onChange={setNoteChanged} records={noteRecords} editing={noteEditing} onSave={saveNote} onDelete={removeNote} onResume={returnToNoteLesson} onEdit={record => { setNoteChanged(false); setNoteEditing(record); }} onReturn={() => setNoteEditing(null)} loaded={notesLoaded} error={notesError} /></Suspense>}
@@ -527,7 +517,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           if (lesson.current?.lessonId !== architectureLesson.id) await previewLesson(architectureLesson);
           setCourseView(false); changeLearningView('lesson'); navigateLesson('seek', index);
         }} />
-      </ExpandedPageFrame>
+      </div>
     </section>
     <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={480} onClickCapture={openPaperReference} className="px-5 pt-6 pb-4">
       <div className="mb-3 flex shrink-0 items-center gap-3">
