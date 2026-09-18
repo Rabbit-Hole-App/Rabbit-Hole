@@ -366,7 +366,10 @@ with:
         const target = event.value;
         object.values = (object.values || target.map(() => 0)).map((current, index) => {
           const goal = target[index];
-          if (goal === null) return null;            // blanked: there is nothing to tween towards
+          // Before the event starts (progress 0) nothing has happened yet, same
+          // as every other branch here; only once it is under way does a null
+          // goal blank the cell, and it does so immediately rather than fading.
+          if (goal === null) return progress > 0 ? null : current;
           if (goal === undefined) return current;    // untouched
           const from = current == null ? 0 : current; // a blank cell grows back from zero
           return from + (goal - from) * progress;
