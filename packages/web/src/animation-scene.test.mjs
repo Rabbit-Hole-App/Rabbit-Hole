@@ -336,3 +336,19 @@ test('a stroke needs both endpoints or it is an invisible zero-length line', () 
   assert.throws(stroke('line', { from: { x: 0, y: 0 } }), /a line needs a from and a to/);
   assert.doesNotThrow(stroke('arrow', { from: { x: 0, y: 0 }, to: { x: 5, y: 5 } }));
 });
+
+test('a camera event that would blank the frame is refused', () => {
+  const cam = (action, value) => () => validateScene({
+    id: 'cam', duration: 4, objects: [{ id: 'a', type: 'box', initialState: { x: 10, y: 10 } }],
+    timeline: [{ at: 1, action, target: action === 'focus_camera' ? 'a' : undefined, value }],
+  });
+  for (const bad of [{ zoom: 0 }, { zoom: -3 }, { zoom: 'big' }, { zoom: 99 }]) {
+    assert.throws(cam('zoom_camera', bad), /camera zoom must be a number/, `accepted ${JSON.stringify(bad)}`);
+  }
+  assert.throws(cam('focus_camera', { zoom: 0 }), /camera zoom must be a number/);
+  assert.throws(cam('pan_camera', { zoom: 2 }), /pan_camera needs an x and a y/);
+  assert.throws(cam('pan_camera', { x: 10 }), /pan_camera needs an x and a y/);
+  assert.doesNotThrow(cam('zoom_camera', { zoom: 2 }));
+  assert.doesNotThrow(cam('pan_camera', { x: 10, y: 20 }));
+  assert.doesNotThrow(cam('focus_camera', undefined), 'focus with no zoom keeps the current one');
+});

@@ -148,6 +148,20 @@ export function validateScene(raw) {
         throw new Error(`Timeline event at ${event.at}s: set_values sends ${event.value.length} values to "${event.target}", which holds ${authored.length}`);
       }
     }
+    // The camera schema bounds the scene's OPENING camera, but the events that
+    // move it carry a z.any() value, and since the renderer started reading the
+    // camera those events are what draws the frame. An unchecked zoom of 0 or a
+    // pan with no x turns the whole viewBox into Infinity or NaN - a blank block
+    // with nothing said, which is the failure every other refusal here prevents.
+    if (event.action === 'zoom_camera' || event.action === 'focus_camera') {
+      const zoom = event.action === 'zoom_camera' ? (event.value?.zoom ?? event.value) : event.value?.zoom;
+      if (zoom !== undefined && !(Number.isFinite(zoom) && zoom > 0 && zoom <= 8)) {
+        throw new Error(`Timeline event at ${event.at}s: a camera zoom must be a number above 0 and at most 8`);
+      }
+    }
+    if (event.action === 'pan_camera' && !(Number.isFinite(event.value?.x) && Number.isFinite(event.value?.y))) {
+      throw new Error(`Timeline event at ${event.at}s: pan_camera needs an x and a y`);
+    }
     if (event.at + event.duration > scene.duration + 0.001) throw new Error(`Timeline event at ${event.at}s runs past the ${scene.duration}s scene`);
   }
   return scene;

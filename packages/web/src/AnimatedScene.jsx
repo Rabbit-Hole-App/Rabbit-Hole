@@ -217,10 +217,12 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
           return <line key={connection.key} x1={start.x} y1={start.y} x2={tipX} y2={tipY} stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" markerEnd={connection.progress > 0.98 ? 'url(#animation-arrow)' : undefined} />;
         })}
         <defs>
-          {/* ponytail: one grey head for every stroke - a coloured or selected
-              arrow gets a mismatched tip; needs context-stroke or a marker per
-              colour when a lesson authors coloured arrows */}
+          {/* Connections are always drawn in the same grey, so their head is too. */}
           <marker id="animation-arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#94a3b8" /></marker>
+          {/* An authored arrow carries its own colour, and a head in a different
+              colour reads as a mistake. context-stroke takes the colour from the
+              line that references it, so one marker serves every arrow. */}
+          <marker id="animation-arrow-tinted" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="context-stroke" /></marker>
           <filter id="animation-shadow" x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="1" stdDeviation="1.4" floodColor="#37352f" floodOpacity="0.14" />
           </filter>
@@ -261,7 +263,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
                 ? <line x1={object.from?.x ?? object.x} y1={object.from?.y ?? object.y}
                     x2={object.to?.x ?? object.x} y2={object.to?.y ?? object.y}
                     stroke={chosen ? '#b42318' : colour} strokeWidth={chosen ? 3.5 : 2.5} strokeLinecap="round"
-                    markerEnd={object.type === 'arrow' ? 'url(#animation-arrow)' : undefined} />
+                    markerEnd={object.type === 'arrow' ? 'url(#animation-arrow-tinted)' : undefined} />
                 : isCircle
                 ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2} fill={tint(colour, '1a')} stroke={chosen ? '#b42318' : colour} strokeWidth={chosen ? 3 : 2} filter="url(#animation-shadow)" />
                 : isText ? null

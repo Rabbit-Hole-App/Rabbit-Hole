@@ -16,6 +16,7 @@ import AnimatedScene from './AnimatedScene.jsx';
 const WhiteboardBlock = lazy(() => import('./WhiteboardBlock.jsx'));
 import { fromTemplate } from './animation-scene.js';
 import { describeAnimation } from './scene-describe.js';
+import { axisScene, residualScene, sigmoidScene } from './demo-scenes.js';
 import InteractiveScene, { sceneSummary } from './InteractiveScene.jsx';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
 import { sceneAssetUrl, sceneList, startScene, startVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
@@ -471,6 +472,31 @@ export const BLOCK_TYPES = {
       selectedObject: null,
       marked: null,
     }),
+  },
+  // Three authored scenes covering what the renderer gained: a pinned bar axis,
+  // arrows with real endpoints, a camera that moves the frame, value-mapped
+  // fill, typeset maths and monospace code. Their JSON lives in demo-scenes.js
+  // so this registry stays a registry.
+  animationAxis: {
+    label: 'Animation: pinned axis',
+    width: 560,
+    height: 460,
+    autoMax: 900,
+    sample: () => ({ id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: axisScene.title, scene: axisScene, time: 0, selectedObject: null, marked: null }),
+  },
+  animationResidual: {
+    label: 'Animation: residual',
+    width: 620,
+    height: 440,
+    autoMax: 980,
+    sample: () => ({ id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: residualScene.title, scene: residualScene, time: 0, selectedObject: null, marked: null }),
+  },
+  animationSigmoid: {
+    label: 'Animation: sigmoid',
+    width: 560,
+    height: 460,
+    autoMax: 900,
+    sample: () => ({ id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: sigmoidScene.title, scene: sigmoidScene, time: 0, selectedObject: null, marked: null }),
   },
   whiteboard: {
     label: 'Whiteboard',
