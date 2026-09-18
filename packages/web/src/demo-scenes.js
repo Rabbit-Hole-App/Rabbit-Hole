@@ -151,3 +151,12 @@ export const sigmoidScene = {
     { at: 9.0, action: 'type_text', target: 'note', value: 'the fill is the value, so the S shape reads before any numeral does', duration: 2.2 },
   ],
 };
+
+// The three scenes as canvas blocks, each parked at a moment where its picture
+// has fully drawn - a board that opens on three empty frames teaches nobody
+// anything. Press play, or scrub back to zero, to watch them build.
+const RESTING = [[axisScene, 11.6], [residualScene, 12.6], [sigmoidScene, 11.6]];
+export const demoBlocks = () => RESTING.map(([scene, time]) => ({
+  id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0,
+  title: scene.title, scene, time, selectedObject: null, marked: null,
+}));

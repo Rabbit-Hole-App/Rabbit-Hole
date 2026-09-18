@@ -329,7 +329,7 @@ function ToolButton({ Icon, label, active, onPick }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, storageKey = null, composer = null, renderBlockComposer = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null }) {
   const [tool, setTool] = useState('select');
   const [insertOpen, setInsertOpen] = useState(false); // dev-only lesson-block workbench menu
   const [insertFilter, setInsertFilter] = useState('');
@@ -347,7 +347,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const [shapes, setShapes] = useState(stored.current.shapes || []);
   const [liveShape, setLiveShape] = useState(null);
   const [items, setItems] = useState(() => (stored.current.items || []).map(item => ({ ...item, fresh: false }))); // stickies and text
-  const [blocks, setBlocks] = useState(stored.current.blocks || []); // course-authored lesson blocks
+  // seedBlocks fills a board that has never been used; a board with its own
+  // saved state always wins, so seeding cannot overwrite anything.
+  const [blocks, setBlocks] = useState(stored.current.blocks || seedBlocks || []); // course-authored lesson blocks
   const blocksRef = useRef(blocks);
   blocksRef.current = blocks;
   // Selection is a list: ctrl/cmd/shift-click adds to it, so several nodes
