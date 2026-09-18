@@ -150,6 +150,8 @@ export function getSceneState(scene, time) {
     h: object.initialState.h ?? sizeOf(object).h,
     rotation: object.initialState.rotation,
     color: object.initialState.color || null,
+    from: object.initialState.from ?? null,
+    to: object.initialState.to ?? null,
     label: object.initialState.label ?? object.initialState.text ?? '',
     textProgress: 1,
     highlighted: false,

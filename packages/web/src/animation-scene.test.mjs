@@ -198,3 +198,14 @@ test('the camera follows its events and settles on an object centre', () => {
   const focused = getSceneState(built, 4).camera;
   assert.deepEqual({ x: focused.x, y: focused.y }, { x: 650, y: 320 }, 'focus centres the object, not its top-left corner');
 });
+
+test('an arrow carries its endpoints into evaluated state', () => {
+  const built = validateScene({
+    id: 'pointed', duration: 4,
+    objects: [{ id: 'a', type: 'arrow', semanticId: 'residual', initialState: { from: { x: 10, y: 20 }, to: { x: 90, y: 20 } } }],
+    timeline: [],
+  });
+  const object = getSceneState(built, 1).objects[0];
+  assert.deepEqual(object.from, { x: 10, y: 20 });
+  assert.deepEqual(object.to, { x: 90, y: 20 });
+});
