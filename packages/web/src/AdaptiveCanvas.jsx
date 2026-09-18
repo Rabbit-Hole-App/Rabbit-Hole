@@ -504,7 +504,26 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const resizeItem = (id, w, h) => setItems(previous => previous.map(item => item.id === id ? { ...item, w, h } : item));
   const moveBlock = (id, dx, dy) => setBlocks(previous => previous.map(block => block.id === id ? { ...block, dx, dy } : block));
   const changeBlock = updated => { snapshot(); setBlocks(previous => previous.map(block => block.id === updated.id ? updated : block)); };
-  const insertBlock = type => { snapshot(); setBlocks(previous => [...previous, BLOCK_TYPES[type].sample()]); setInsertOpen(false); };
+  // Inserted blocks land in free space below everything that visually
+  // occupies the column strip (dragged nodes, stickies, shapes, ink), then
+  // the camera pans down to show them.
+  const insertBlock = type => {
+    snapshot();
+    const col = column.current, element = surface.current;
+    const flowY = (col?.offsetHeight || 0) + (col?.children.length ? 20 : 0);
+    const inStrip = (left, right) => left < COLUMN && right > 0;
+    const lowest = Math.max(
+      0,
+      ...Object.values(bounds).filter(b => inStrip(b.x, b.x + b.w)).map(b => b.y + b.h),
+      ...items.filter(item => inStrip(item.x, item.x + (item.w || 200))).map(item => item.y + (item.kind === 'sticky' ? (item.h || 160) : (item.size || 14) * 2)),
+      ...shapes.filter(shape => inStrip(Math.min(shape.x1, shape.x2), Math.max(shape.x1, shape.x2))).map(shape => Math.max(shape.y1, shape.y2)),
+      ...strokes.flatMap(stroke => stroke.points.filter(point => point.x > 0 && point.x < COLUMN).map(point => point.y)),
+    );
+    const dy = Math.max(0, lowest - flowY + 24);
+    setBlocks(previous => [...previous, { ...BLOCK_TYPES[type].sample(), dy }]);
+    setInsertOpen(false);
+    if (element) setView(v => ({ ...v, y: Math.min(v.y, element.clientHeight - 280 - (24 + flowY + dy) * v.z) }));
+  };
   const changeItem = (id, text) => {
     if (present.current.items.some(item => item.id === id && item.text !== text)) snapshot();
     setItems(previous => previous.map(item => item.id === id ? { ...item, text, fresh: false } : item));

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, RotateCcw, X } from 'lucide-react';
 import { Md } from './ask.jsx';
 
 // Lesson component library for the adaptive canvas (spec: docs/
@@ -59,11 +59,14 @@ export const BLOCK_TYPES = {
   },
 };
 
-function Kicker({ author = 'course', children }) {
+function Kicker({ author = 'course', action = null, children }) {
   return (
     <div className="mb-2 flex items-center justify-between">
       <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-ink-2 uppercase"><span className="h-1.5 w-1.5 rounded-full bg-ink" />{children}</span>
-      <span className="rounded-full bg-ink px-2 py-px text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">{author}</span>
+      <span className="flex items-center gap-1">
+        {action}
+        <span className="rounded-full bg-ink px-2 py-px text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">{author}</span>
+      </span>
     </div>
   );
 }
@@ -100,7 +103,11 @@ function QuizBody({ block, onChange }) {
   const solved = !!chosen?.correct;
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker author="tutor">Check yourself</Kicker>
+      <Kicker author="tutor" action={block.choice && (
+        <button type="button" aria-label="Reset quiz" title="Try again from scratch"
+          onPointerDown={e => e.stopPropagation()} onClick={() => onChange({ ...block, choice: null })}
+          className="rounded p-1 text-ink-3 hover:bg-hover hover:text-ink"><RotateCcw size={13} /></button>
+      )}>Check yourself</Kicker>
       <div className="text-sm"><Md text={block.question} /></div>
       <div className="mt-2" onPointerDown={e => solved || e.stopPropagation()}>
         {block.options.map(option => {
@@ -121,11 +128,13 @@ function QuizBody({ block, onChange }) {
   );
 }
 
-function FlashcardsBody({ block }) {
+function FlashcardsBody({ block, onChange }) {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const card = block.cards[index];
+  const marks = block.marks || {}; // per-card self-assessment feeding the adaptive engine
   const go = step => { setFlipped(false); setIndex(previous => (previous + step + block.cards.length) % block.cards.length); };
+  const mark = result => { onChange({ ...block, marks: { ...marks, [index]: result } }); go(1); };
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <Kicker author="tutor">Flashcards</Kicker>
@@ -134,9 +143,21 @@ function FlashcardsBody({ block }) {
         className={`flex min-h-28 w-full items-center justify-center rounded-lg border px-5 py-4 text-center text-sm transition-colors ${flipped ? 'border-line bg-hover' : 'border-line bg-white hover:bg-hover'}`}>
         <Md text={flipped ? card.back : card.front} />
       </button>
+      {flipped && (
+        <div className="mt-2 flex justify-center gap-2" onPointerDown={e => e.stopPropagation()}>
+          <button type="button" data-flash-knew onClick={() => mark('right')}
+            className="flex items-center gap-1.5 rounded-lg border border-green-700 px-3 py-1.5 text-sm text-green-700 hover:bg-green-700/5"><Check size={14} />Got it</button>
+          <button type="button" data-flash-missed onClick={() => mark('wrong')}
+            className="flex items-center gap-1.5 rounded-lg border border-red-700 px-3 py-1.5 text-sm text-red-700 hover:bg-red-700/5"><X size={14} />Not yet</button>
+        </div>
+      )}
       <div className="mt-2 flex items-center justify-between" onPointerDown={e => e.stopPropagation()}>
         <button type="button" aria-label="Previous card" onClick={() => go(-1)} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink"><ChevronLeft size={15} /></button>
-        <span className="text-xs tabular-nums text-ink-2">{index + 1} / {block.cards.length} · click the card to flip</span>
+        <span className="flex items-center gap-2 text-xs tabular-nums text-ink-2">
+          {index + 1} / {block.cards.length}
+          <span className="flex gap-1">{block.cards.map((_, i) => <span key={i} className={`h-1.5 w-1.5 rounded-full ${marks[i] === 'right' ? 'bg-green-600' : marks[i] === 'wrong' ? 'bg-red-600' : 'bg-line'} ${i === index ? 'ring-2 ring-line' : ''}`} />)}</span>
+          · flip, then rate yourself
+        </span>
         <button type="button" aria-label="Next card" onClick={() => go(1)} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink"><ChevronRight size={15} /></button>
       </div>
     </div>
@@ -146,6 +167,6 @@ function FlashcardsBody({ block }) {
 export function LearningBlockBody({ block, onChange }) {
   if (block.type === 'challenge') return <ChallengeBody block={block} onChange={onChange} />;
   if (block.type === 'quiz') return <QuizBody block={block} onChange={onChange} />;
-  if (block.type === 'flashcards') return <FlashcardsBody block={block} />;
+  if (block.type === 'flashcards') return <FlashcardsBody block={block} onChange={onChange} />;
   return null;
 }

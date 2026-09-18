@@ -173,6 +173,10 @@ await check('quiz block with equations works', async () => {
   await page.locator('[data-quiz-option="A"]').click();
   await canvas.getByText('✓ Right.', { exact: false }).waitFor({ timeout: 3000 });
 });
+await check('quiz reset clears the attempt', async () => {
+  await page.locator('[aria-label="Reset quiz"]').click();
+  if (await canvas.getByText('✓ Right.', { exact: false }).count()) throw new Error('verdict still shown');
+});
 
 // flashcards: flip and navigate
 await check('flashcards flip and navigate', async () => {
@@ -182,7 +186,7 @@ await check('flashcards flip and navigate', async () => {
   await card.waitFor({ timeout: 5000 });
   await card.click();
   await canvas.getByText('one learned row per vocabulary token', { exact: false }).waitFor({ timeout: 3000 });
-  await page.locator('[aria-label="Next card"]').click();
+  await page.locator('[data-flash-knew]').click();
   await canvas.getByText('2 / 3', { exact: false }).waitFor({ timeout: 3000 });
 });
 
