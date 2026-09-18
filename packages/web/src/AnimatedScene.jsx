@@ -301,7 +301,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
   );
 }
 
-export default function AnimatedScene({ block, onChange, onAskRegion }) {
+export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskRegion }) {
   const [error, setError] = useState('');
   const [scene, setScene] = useState(null);
   const [time, setTime] = useState(block.time || 0);
@@ -333,16 +333,12 @@ export default function AnimatedScene({ block, onChange, onAskRegion }) {
     frame.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame.current);
   }, [playing, scene]);
-  // The paused moment is what a question refers to, so it is committed - on
-  // every scrub, not only when playback stops. A commit snapshots the canvas
-  // for undo, so let the gesture settle first: one commit per scrub rather
-  // than one per 0.05s tick, which would blow the 100-entry undo ring.
-  // While playing, `playing` is true and nothing commits, so the rAF loop
-  // never writes per frame.
+  // The paused moment is what a question refers to, so it is committed on
+  // every scrub. It goes through the quiet path because scrubbing is a view
+  // change and must not be able to destroy the learner's undo history.
   useEffect(() => {
-    if (playing || !scene) return undefined;
-    const settle = setTimeout(() => onChange({ ...latest.current, time: Number(time.toFixed(2)) }), 150);
-    return () => clearTimeout(settle);
+    if (playing || !scene) return;
+    (onChangeQuiet || onChange)({ ...latest.current, time: Number(time.toFixed(2)) });
   }, [playing, time]);
   // The evaluator is time-in, state-out, so honouring reduced motion costs a
   // constant and a branch: states settle where they already were going.

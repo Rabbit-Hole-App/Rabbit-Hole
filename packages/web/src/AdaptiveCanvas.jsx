@@ -206,7 +206,7 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
 
 // A course-authored lesson block (challenge, explanation, quiz, …) in the
 // same chrome as chat nodes; the body renderer comes from LearningBlocks.
-function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onAsk, onFile, appName, onAskRegion, onGrade }) {
+function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onAsk, onFile, appName, onAskRegion, onGrade }) {
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} connected={connected}
       autoMax={BLOCK_TYPES[block.type]?.autoMax} width={BLOCK_TYPES[block.type]?.width} height={BLOCK_TYPES[block.type]?.height}
@@ -239,7 +239,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
           </button>
         </div>
       )}
-      <LearningBlockBody block={block} onChange={onChange} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} />
+      <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} />
     </CanvasNode>
   );
 }
@@ -764,6 +764,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     if (item) shift(x - item.x, y - item.y, groupTargets(id));
   };
   const changeBlock = updated => { snapshot(); setBlocks(previous => previous.map(block => block.id === updated.id ? updated : block)); };
+  // A continuous gesture must not snapshot: one scrub drag would evict the whole
+  // 100-entry undo ring. Same reasoning as moveBlock, which has never snapshotted.
+  const changeBlockQuietly = updated => setBlocks(previous => previous.map(block => block.id === updated.id ? updated : block));
   // Inserted blocks land in free space below everything that visually
   // occupies the column strip (dragged nodes, stickies, shapes, ink), then
   // the camera pans down to show them.
@@ -828,7 +831,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         </svg>
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
           {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onFile={onOpenFile} />)}
-          {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onLayout={measureBlocks} onConnect={connect} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} />)}
+          {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} />)}
         </div>
         <div className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} />)}

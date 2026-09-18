@@ -665,6 +665,9 @@ await check('a scrubbed moment is what a question refers to', async () => {
   await node.locator('[data-animation-selection]').getByText('9.0s', { exact: false }).waitFor({ timeout: 3000 });
   await node.locator('input[aria-label="Animation time"]').fill('3');   // scrub again, still paused
   await node.locator('[data-animation-selection]').getByText('3.0s', { exact: false }).waitFor({ timeout: 3000 });
+  // the quiet commit is synchronous - no debounce left to wait out
+  await node.locator('input[aria-label="Animation time"]').fill('5');
+  await node.locator('[data-animation-selection]').getByText('5.0s', { exact: false }).waitFor({ timeout: 1500 });
   await node.locator('[data-animation-clear]').click();
 });
 
