@@ -162,6 +162,30 @@ await check('challenge block survives reload', async () => {
   await canvas.getByText('embeddings turn IDs into vectors').waitFor({ timeout: 20000 });
 });
 
+// quiz block: math renders, wrong answer retries, right answer locks with why
+await check('quiz block with equations works', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  await page.getByRole('menuitem', { name: 'Quiz' }).click();
+  await page.locator('[data-quiz-option="B"]').waitFor({ timeout: 5000 });
+  if (!(await canvas.locator('.katex').count())) throw new Error('no rendered math');
+  await page.locator('[data-quiz-option="B"]').click();
+  await canvas.getByText('Not quite', { exact: false }).waitFor({ timeout: 3000 });
+  await page.locator('[data-quiz-option="A"]').click();
+  await canvas.getByText('✓ Right.', { exact: false }).waitFor({ timeout: 3000 });
+});
+
+// flashcards: flip and navigate
+await check('flashcards flip and navigate', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  await page.getByRole('menuitem', { name: 'Flashcards' }).click();
+  const card = page.locator('[data-flashcard]');
+  await card.waitFor({ timeout: 5000 });
+  await card.click();
+  await canvas.getByText('one learned row per vocabulary token', { exact: false }).waitFor({ timeout: 3000 });
+  await page.locator('[aria-label="Next card"]').click();
+  await canvas.getByText('2 / 3', { exact: false }).waitFor({ timeout: 3000 });
+});
+
 await page.waitForTimeout(400);
 await page.screenshot({ path: 'e2e/shots/chat-block-moved.png', fullPage: false });
 

@@ -80,7 +80,7 @@ function outlineOf(shape) {
 // Shared node chrome for everything card-shaped on the canvas: drag with
 // lift, corner resize, selection ring, top/bottom connection ports, and the
 // layout observer that keeps connector geometry fresh. Content is children.
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, onSelect, onMove, onLayout, onConnect, nodeRef = null, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, onSelect, onMove, onLayout, onConnect, nodeRef = null, children }) {
   const [lifted, setLifted] = useState(false);
   const [size, setSize] = useState({ w: null, h: null });
   const card = useRef(null);
@@ -107,7 +107,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, onSelect, onMove
   return (
     <div ref={card} data-block data-block-id={id} {...(chat ? { 'data-chat-block': true } : {})} onPointerDown={drag}
       style={{ transform: `translate(${dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, width: size.w || 380, height: size.h || undefined, maxHeight: size.h ? undefined : 420 }}
-      className={`group relative mx-auto flex flex-col rounded-xl border border-line bg-white transition-shadow duration-150 ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${lifted ? 'z-20 cursor-grabbing shadow-xl' : 'cursor-grab shadow-sm hover:shadow-md'}`}>
+      className={`group relative mx-auto flex flex-col rounded-xl border transition-shadow duration-150 ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${lifted ? 'z-20 cursor-grabbing shadow-xl' : `cursor-grab ${ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}`}>
       {children}
       {['top', 'bottom'].map(side => <button key={side} type="button" data-port={side} data-owner={id} aria-label={`Connect ${side}`} title="Drag to connect blocks"
         className={`absolute left-1/2 z-20 h-4 w-4 -translate-x-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white opacity-0 group-hover:opacity-100 focus:opacity-100 ${side === 'top' ? '-top-2' : '-bottom-2'}`}
@@ -164,7 +164,7 @@ function ChatCard({ exchange, zoom, selected, onSelect, onMove, renderComposer, 
 // same chrome as chat nodes; the body renderer comes from LearningBlocks.
 function LessonBlockCard({ block, zoom, selected, onSelect, onMove, onChange, onLayout, onConnect }) {
   return (
-    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected}
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect}>
       <LearningBlockBody block={block} onChange={onChange} />
     </CanvasNode>
