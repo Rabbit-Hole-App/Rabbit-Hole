@@ -32,8 +32,8 @@ await check('dock composer present', () => dock.waitFor({ timeout: 10000 }));
 await dock.fill('Explain me sigmoid');
 await dock.press('Enter');
 
-await check('question bubble on canvas', () => canvas.getByText('Explain me sigmoid', { exact: true }).waitFor({ timeout: 15000 }));
-await check('answer streams into block', () => canvas.getByText(/sigmoid/i).nth(1).waitFor({ timeout: 90000 }));
+await check('question bubble on canvas', () => canvas.locator('[data-chat-block]').getByText('Explain me sigmoid', { exact: true }).waitFor({ timeout: 15000 }));
+await check('answer streams into block', () => canvas.locator('[data-chat-block]').getByText(/sigmoid/i).nth(1).waitFor({ timeout: 90000 }));
 await page.waitForTimeout(2500);
 await page.screenshot({ path: 'e2e/shots/chat-block.png', fullPage: false });
 

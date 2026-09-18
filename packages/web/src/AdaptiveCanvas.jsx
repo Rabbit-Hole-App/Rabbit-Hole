@@ -178,7 +178,7 @@ function ToolButton({ Icon, label, active, onPick }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove }) {
+export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
   const [tool, setTool] = useState('select');
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(WIDTHS[0]);
@@ -318,8 +318,9 @@ export default function AdaptiveCanvas({ exchanges, onMove }) {
   const drawing = inking || shapeTool;
   const cursor = tool === 'hand' ? 'cursor-grab' : inking || tool === 'eraser' || shapeTool ? 'cursor-crosshair' : tool === 'select' ? '' : 'cursor-copy';
   return (
-    <div ref={surface} onPointerDown={down} className={`relative h-full min-h-0 touch-none overflow-hidden ${cursor}`}>
-      <div style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className="absolute top-0 left-0">
+    <div className="relative flex h-full min-h-0 flex-col">
+      <div ref={surface} onPointerDown={down} className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor}`}>
+        <div style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className="absolute top-0 left-0">
         <svg aria-hidden="true" width="1" height="1" className="pointer-events-none absolute top-0 left-0 z-10 overflow-visible">
           {[...shapes, ...(liveShape ? [liveShape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={tool} zoom={view.z} selected={selected === shape.id} onSelect={setSelected} onMoveStart={moveShapeStart} onResize={resizeShape} onDelete={deleteItem} />)}
           {[...strokes, ...(live ? [live] : [])].map((stroke, index) => stroke.tool === 'pen'
@@ -332,8 +333,9 @@ export default function AdaptiveCanvas({ exchanges, onMove }) {
         <div className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={selected === item.id} onSelect={setSelected} onChange={changeItem} onMove={moveItem} onDelete={deleteItem} />)}
         </div>
+        </div>
       </div>
-      <div role="toolbar" aria-label="Canvas tools" className="absolute top-1/2 right-2 z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md">
+      <div role="toolbar" aria-label="Canvas tools" className="absolute top-1/2 -right-6 z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md">
         {NAV_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
         <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
         {DRAW_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
@@ -361,10 +363,14 @@ export default function AdaptiveCanvas({ exchanges, onMove }) {
           <svg width="16" height="4" aria-hidden="true"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="2" strokeDasharray="4 3" /></svg>
         </button>
       </div>
-      <div data-zoom aria-label="Zoom controls" className="absolute bottom-3 left-3 z-20 flex items-center rounded-lg border border-line bg-white shadow-sm">
-        <IconBtn title="Zoom out" onClick={() => zoomCenter(1 / 1.25)}><Minus size={14} /></IconBtn>
-        <button type="button" title="Reset zoom" onClick={() => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 })} className="min-w-11 px-1 text-center text-xs tabular-nums text-ink-2 hover:text-ink">{Math.round(view.z * 100)}%</button>
-        <IconBtn title="Zoom in" onClick={() => zoomCenter(1.25)}><Plus size={14} /></IconBtn>
+      {/* The zoom pill sits level with the composer's bottom edge. */}
+      <div className="relative min-h-11 shrink-0 pt-3">
+        <div data-zoom aria-label="Zoom controls" className="absolute bottom-0 left-0 z-20 flex items-center rounded-lg border border-line bg-white shadow-sm">
+          <IconBtn title="Zoom out" onClick={() => zoomCenter(1 / 1.25)}><Minus size={14} /></IconBtn>
+          <button type="button" title="Reset zoom" onClick={() => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 })} className="min-w-11 px-1 text-center text-xs tabular-nums text-ink-2 hover:text-ink">{Math.round(view.z * 100)}%</button>
+          <IconBtn title="Zoom in" onClick={() => zoomCenter(1.25)}><Plus size={14} /></IconBtn>
+        </div>
+        {composer && <div className="mx-auto w-full max-w-[720px]">{composer}</div>}
       </div>
     </div>
   );
