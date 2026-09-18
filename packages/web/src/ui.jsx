@@ -148,14 +148,15 @@ export function Avatar({ email, className }) {
 
 export const Tabs = TabsPrimitive.Root;
 export function TabsList({ className, pill = false, ...props }) {
-  return <TabsPrimitive.List className={cn(pill ? 'flex gap-1' : 'flex gap-4 border-b border-line', className)} {...props} />;
+  // pill = segmented control: one outer pill track, the active segment fills dark
+  return <TabsPrimitive.List className={cn(pill ? 'inline-flex w-max items-center gap-0.5 rounded-full border border-line bg-hover p-0.5' : 'flex gap-4 border-b border-line', className)} {...props} />;
 }
 export function TabsTrigger({ className, pill = false, ...props }) {
   return (
     <TabsPrimitive.Trigger
       className={cn(
         pill
-          ? 'flex h-7 items-center rounded-full border border-line px-3.5 text-sm text-ink-2 transition-colors duration-100 hover:bg-hover hover:text-ink disabled:pointer-events-none disabled:opacity-40 data-[state=active]:border-line-strong data-[state=active]:bg-active data-[state=active]:font-medium data-[state=active]:text-ink'
+          ? 'flex h-7 items-center rounded-full px-3.5 text-sm text-ink-2 transition-colors duration-100 hover:text-ink disabled:pointer-events-none disabled:opacity-40 data-[state=active]:bg-ink data-[state=active]:font-medium data-[state=active]:text-white'
           : cn(
               '-mb-px flex h-8 items-center border-b-2 border-transparent text-sm text-ink-2 transition-colors duration-100 hover:text-ink',
               'data-[state=active]:border-ink data-[state=active]:font-medium data-[state=active]:text-ink',
