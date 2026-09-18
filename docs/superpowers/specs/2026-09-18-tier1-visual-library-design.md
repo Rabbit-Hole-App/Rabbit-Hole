@@ -455,6 +455,33 @@ acceptance scenes that do not exist yet is the trade this design refuses.
 
 ## Testing
 
+Two **architectural tests**. These are not implementation notes — they are the properties the design
+exists to guarantee, and they are the first things to write and the last things allowed to break.
+
+**AT-1 — one path, one answer.**
+
+```
+same rawInputs → same effectiveInputs → same derived → same visual state → same tutor context
+```
+
+Asserted end to end through `evaluateScene`, and asserted again by driving the canvas path and the
+`describeBlock` path from the same raw inputs and comparing. This is the test that would have caught
+the live bug where the tutor is told an on-screen scene is empty.
+
+**AT-2 — missing derived state degrades, never lies.**
+
+```
+invalid or missing derived state → scene still renders
+                                 → check is not-ready, not failed
+                                 → learner gets a reason
+```
+
+Driven by a derivation returning `{defined: false}`: the frame must still evaluate, no object may
+move to the origin or blank, the check must report `evaluable: false`, and the reason must reach both
+the learner and the tutor.
+
+### Suites
+
 - `node:test` for the evaluator, the input coercion, the derive seam and the check predicates. No
   DOM, no fixtures.
 - The determinism test extends to the new arguments: same `(scene, t, inputs, derived)` in, same
