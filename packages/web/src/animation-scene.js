@@ -144,7 +144,8 @@ export function validateScene(raw) {
       // and the region hit-test reads that size, so a payload of a different
       // length would desynchronise the picture from what the learner can click.
       const authored = byId.get(event.target)?.initialState.values;
-      if (authored && event.value.length !== authored.length) {
+      if (!authored) throw new Error(`Timeline event at ${event.at}s: "${event.target}" has no values to change`);
+      if (event.value.length !== authored.length) {
         throw new Error(`Timeline event at ${event.at}s: set_values sends ${event.value.length} values to "${event.target}", which holds ${authored.length}`);
       }
     }

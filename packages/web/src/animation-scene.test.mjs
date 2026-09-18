@@ -352,3 +352,12 @@ test('a camera event that would blank the frame is refused', () => {
   assert.doesNotThrow(cam('pan_camera', { x: 10, y: 20 }));
   assert.doesNotThrow(cam('focus_camera', undefined), 'focus with no zoom keeps the current one');
 });
+
+test('set_values needs a target that already holds values', () => {
+  const noValues = () => validateScene({
+    id: 'empty', duration: 4,
+    objects: [{ id: 'row', type: 'strip', initialState: { x: 0, y: 0, cell: 30 } }],
+    timeline: [{ at: 0, action: 'set_values', target: 'row', duration: 2, value: [1, 2, 3] }],
+  });
+  assert.throws(noValues, /has no values to change/);
+});
