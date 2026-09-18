@@ -1,16 +1,17 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Pause, Pencil, Play, Scan, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PanelRightClose, Pause, Pencil, Play, Scan, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
 import { createShapeId, getIndices } from 'tldraw';
 import { SPEEDS, getSpeed, isMuted, onMuted, setMuted, setSpeed } from './learn-audio.js';
 import { api, wsHeaders } from './api.js';
 import { requestBoardExplanation } from './learn-board-request.js';
 import { AskPanel } from './ask.jsx';
-import { Button, IconBtn, ConfirmDialog, Tabs, TabsList, TabsTrigger } from './ui.jsx';
+import { Button, IconBtn, ConfirmDialog } from './ui.jsx';
 import { captureSelection, selectionSnapshot } from './sigmoid-context.js';
 import RegionPicker from './RegionPicker.jsx';
 import { CourseInterview, CoursePanel, useLearnCourse } from './LearnCourse.jsx';
 import { LessonNotebook, LessonPractice, LessonReading, LessonSource } from './LearnExtras.jsx';
 import LearnOutline from './LearnOutline.jsx';
+import { lessonMilestones } from './learn-milestones.js';
 import LessonPlanPreview from './LessonPlanPreview.jsx';
 import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
 import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
@@ -63,6 +64,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const [sampleOutline, setSampleOutline] = useState(app.kind !== 'repository');
   const [practiceMode, setPracticeMode] = useState('quiz');
   const [learningView, setLearningView] = useState('lesson');
+  const [panelOpen, setPanelOpen] = useState(true);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [paperOpen, setPaperOpen] = useState(false);
   const [paperContext, setPaperContext] = useState(null);
@@ -471,6 +473,21 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     setSetupChat(value === 'curriculum' && course.canAuthor);
   };
   const leaveNote = value => { setNoteEditing(null); setNoteChanged(false); setPendingNoteView(null); changeLearningView(value); };
+  // Shared by the contents list in the right panel and the author's learner
+  // view in the main area, so both route a click the same way.
+  const toggleSection = key => setCompleted(previous => ({ ...previous, [key]: !previous[key] }));
+  const openFromOutline = async (content, view, index) => {
+    if (view === 'lesson') {
+      if (lesson.current?.lessonId !== content.id) {
+        if (content.id === 'sigmoid-demo') await demo.run(setNarration);
+        else await previewLesson(content);
+      }
+      setCourseView(false); changeLearningView('lesson'); navigateLesson('seek', index, 0);
+    } else {
+      setCourseView(false); changeLearningView(view === 'notebook' ? 'notebook' : 'practice');
+      if (view !== 'notebook') setPracticeMode(view);
+    }
+  };
   const requestLearningView = value => {
     if (noteEditing && noteChanged) { setPendingNoteView(value); return; }
     leaveNote(value);
@@ -486,6 +503,8 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const sectionKeys = suppliedCourse ? [...Array.from({ length: 6 }, (_, i) => `${nanoLesson.id}:${i}`), 'predict-next', 'represent-text', 'training-vs-generation'] : trackedLessons.flatMap(item => [...item.pages.map((_, index) => `${item.id || 'unavailable'}:${index}`), ...(item.id === architectureLesson.id ? ['notebook', 'quiz', 'flashcards'].map(view => `${item.id}:${view}`) : [])]);
   const finishedCount = suppliedCourse ? Object.keys(nanoProgress.saved.pages || {}).filter(key => ['0', '1', '2', '3', '4', '5'].includes(key) && nanoProgress.saved.pages[key]).length + ['encoding', 'prefixTarget', 'generationWeights'].filter(check => nanoProgress.saved[check]?.count).length : sectionKeys.filter(key => completed[key]).length;
   const allFinished = sectionKeys.length > 0 && finishedCount === sectionKeys.length;
+  const milestones = lessonMilestones(sectionKeys);
+  const outlineDisabled = !editor || answering || !!noteEditing;
   const coursePanel = <CoursePanel planningOnly={suppliedCourse} state={course} app={app} onPreview={previewLesson} onDeleted={() => {
           if (lesson.current?.lessonId?.startsWith('course-')) {
             playback.current?.dispose(); playback.current = null;
@@ -514,18 +533,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {planStorageError && <p role="alert" className="mb-3 text-xs text-red-700">{planStorageError}</p>}
         {suppliedCourse && learningView === 'curriculum' && <LessonPlanPreview onPreview={editor && nanoProgress.loaded && !answering ? () => previewLesson(nanoLesson, true) : null} edits={course.canAuthor ? planEdits : {}} selectedSection={sectionTarget?.id} onEdit={target => { setSectionTarget(target); setSetupChat(true); }} course={course.course} learnerView={!course.canAuthor || learnerOpen} editorPanel={courseView ? coursePanel : null} view={planOpen ? 'plan' : 'curriculum'} selected={plannedLesson} onBack={() => { setPlanOpen(false); setSectionTarget(null); }} onSelect={index => { setPlannedLesson(index); setPlanOpen(true); }} />}
         {courseView && !suppliedCourse && coursePanel}
-        {learnerOpen && !suppliedCourse && <LearnOutline allowSample={!isRepository} onToggleComplete={key => setCompleted(previous => ({ ...previous, [key]: !previous[key] }))} completed={completed} state={course} sample={sampleOutline} onSampleChange={setSampleOutline} activeId={lesson.current?.lessonId} activePage={progress?.page} disabled={!editor || answering || !!noteEditing} onOpen={async (content, view, index) => {
-          if (view === 'lesson') {
-            if (lesson.current?.lessonId !== content.id) {
-              if (content.id === 'sigmoid-demo') await demo.run(setNarration);
-              else await previewLesson(content);
-            }
-            setCourseView(false); changeLearningView('lesson'); navigateLesson('seek', index, 0);
-          } else {
-            setCourseView(false); changeLearningView(view === 'notebook' ? 'notebook' : 'practice');
-            if (view !== 'notebook') setPracticeMode(view);
-          }
-        }} />}
+        {learnerOpen && !suppliedCourse && <LearnOutline allowSample={!isRepository} onToggleComplete={toggleSection} completed={completed} state={course} sample={sampleOutline} onSampleChange={setSampleOutline} activeId={lesson.current?.lessonId} activePage={progress?.page} disabled={outlineDisabled} onOpen={openFromOutline} />}
         <div className={`${courseView || learningView !== 'lesson' ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col pr-1`}>
         {(!isRepository || progress) && <div aria-label="Current lesson and section" className="mb-4"><h2 className="text-lg font-semibold">Lesson {sampleIndex >= 0 ? sampleIndex + 1 : 1}: {currentLesson?.title}</h2><p className="mt-1 text-sm text-ink-2">Section {(progress?.page || 0) + 1} of {pages.length}: {progress?.label || pages[0].label}</p></div>}
         {graphError && <p role="alert" className="text-sm text-red-700">{graphError}</p>}
@@ -566,16 +574,26 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         }} />
       </div>
     </section>
-    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={480} onClickCapture={openPaperReference} className="px-5 pt-6 pb-4">
+    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={480} collapsed={!panelOpen} onExpand={() => setPanelOpen(true)} expandLabel="Show Learn panel" onClickCapture={openPaperReference} className="px-5 pt-6 pb-4">
       <div className="mb-3 flex shrink-0 items-center gap-3">
-        <div role="progressbar" aria-label={suppliedCourse ? "Lesson 1 participation progress" : "Course completion"} aria-valuemin={0} aria-valuemax={sectionKeys.length} aria-valuenow={finishedCount} className="h-1.5 flex-1 overflow-hidden rounded-full bg-hover"><div className="h-full rounded-full bg-green-600 transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${sectionKeys.length ? finishedCount / sectionKeys.length * 100 : 0}%` }} /></div>
+        {/* The fill is clipped to the track; the milestone dots sit on top of it
+            and must not be, so the rounding lives on an inner element. */}
+        <div role="progressbar" aria-label={suppliedCourse ? "Lesson 1 participation progress" : "Course completion"} aria-valuemin={0} aria-valuemax={sectionKeys.length} aria-valuenow={finishedCount} className="relative h-1.5 flex-1 rounded-full bg-hover">
+          <div className="absolute inset-0 overflow-hidden rounded-full"><div className="h-full rounded-full bg-green-600 transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${sectionKeys.length ? finishedCount / sectionKeys.length * 100 : 0}%` }} /></div>
+          {milestones.map(milestone => <span key={milestone.id} role="img" aria-label={`${milestone.label}: ${finishedCount >= milestone.done ? 'complete' : 'not complete'}`} title={milestone.label} style={{ left: `${milestone.at * 100}%` }} className={`absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white ${finishedCount >= milestone.done ? 'bg-green-600' : 'bg-line-strong'}`} />)}
+        </div>
         <Trophy size={18} role="img" aria-label={suppliedCourse ? 'Complete all six pages and three objective checks to finish Lesson 1' : allFinished ? 'Course complete' : 'Complete all sections and activities to earn this award'} className={allFinished ? 'text-green-600 drop-shadow-sm' : 'text-ink-3 opacity-35'} />
+        <button type="button" title="Hide panel" aria-label="Hide panel" aria-expanded onClick={() => setPanelOpen(false)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><PanelRightClose size={16} /></button>
       </div>
-      <Tabs value={learningView === 'notes' ? 'notes' : learningView === 'curriculum' ? 'curriculum' : 'lesson'} onValueChange={requestLearningView} className="shrink-0">
-        <TabsList pill className="mb-3">
-          {[['curriculum', 'Curriculum'], ['lesson', 'Lesson'], ['notes', 'My notes']].map(([value, label]) => <TabsTrigger key={value} pill value={value} disabled={!course.loaded || course.dirty && value !== 'curriculum'}>{label}</TabsTrigger>)}
-        </TabsList>
-      </Tabs>
+      <h2 className="mb-2 shrink-0 text-xs font-semibold tracking-wider text-ink-2 uppercase">Table of contents</h2>
+      {/* The contents list is the navigation now that the view pill is gone, so
+          Notebook, Quiz and My notes are entries in it rather than tabs. */}
+      <div className="mb-3 flex max-h-[45%] shrink-0 flex-col overflow-y-auto">
+        <LearnOutline allowSample={!isRepository} onToggleComplete={toggleSection} completed={completed} state={course} sample={sampleOutline} onSampleChange={setSampleOutline} activeId={lesson.current?.lessonId} activePage={progress?.page} disabled={outlineDisabled} onOpen={openFromOutline} />
+        <button type="button" disabled={!course.loaded || course.dirty} aria-current={learningView === 'notes' ? 'page' : undefined} onClick={() => requestLearningView('notes')}
+          className="mt-3 shrink-0 border-t border-line pt-3 text-left text-sm text-ink-2 hover:text-accent aria-[current=page]:font-medium aria-[current=page]:text-accent disabled:text-ink-3">My notes</button>
+      </div>
       {setupChat && <CourseInterview state={course} app={app} sectionEditor={suppliedCourse ? sectionEditor : null} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>
       {narration && !paperOpen && !sourceOpen && !lessonSource && !learnerOpen && <details className="mb-3 max-h-40 overflow-auto rounded border border-line p-3 text-sm" open><summary className="cursor-pointer text-xs font-medium">Current page explanation</summary><p className="mt-2 whitespace-pre-wrap text-ink-2">{narration}</p></details>}
