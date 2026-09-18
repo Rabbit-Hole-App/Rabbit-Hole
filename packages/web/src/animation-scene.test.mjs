@@ -244,6 +244,19 @@ test('an image needs a size it can be drawn at', () => {
   }), /needs a width and height/);
 });
 
+test('an equation needs a size it can be drawn at', () => {
+  assert.throws(() => validateScene({
+    id: 'unsized', duration: 4,
+    objects: [{ id: 'eq', type: 'equation', initialState: { x: 0, y: 0, text: 'x^2' } }],
+    timeline: [],
+  }), /an equation needs a width and height/);
+  assert.throws(() => validateScene({
+    id: 'halfsized', duration: 4,
+    objects: [{ id: 'eq', type: 'equation', initialState: { x: 0, y: 0, w: 40, text: 'x^2' } }],
+    timeline: [],
+  }), /an equation needs a width and height/);
+});
+
 test('a pinned peak survives into evaluated state so the axis holds still', () => {
   const built = validateScene({
     id: 'revealed', duration: 4,

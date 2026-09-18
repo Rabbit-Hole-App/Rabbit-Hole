@@ -102,17 +102,21 @@ export function validateScene(raw) {
   const ids = new Set(byId.keys());
   if (ids.size !== scene.objects.length) throw new Error('Every animation object needs a unique id');
   for (const object of scene.objects) {
-    if (object.type !== 'image') continue;
-    const src = object.initialState.src;
-    if (!src) throw new Error(`Object "${object.id}": an image needs a src`);
-    if (!SAME_ORIGIN.test(src) || src.includes('..') || src.startsWith('//')) {
-      throw new Error(`Object "${object.id}": an image src must be a same-origin path beginning with a single /`);
+    if (object.type === 'image') {
+      const src = object.initialState.src;
+      if (!src) throw new Error(`Object "${object.id}": an image needs a src`);
+      if (!SAME_ORIGIN.test(src) || src.includes('..') || src.startsWith('//')) {
+        throw new Error(`Object "${object.id}": an image src must be a same-origin path beginning with a single /`);
+      }
+      // An image has no intrinsic size here - sizeOf gives it none - so without
+      // a width and height it renders as an element with no dimensions, which is
+      // engine-dependent and silently invisible.
+      if (!(object.initialState.w && object.initialState.h)) {
+        throw new Error(`Object "${object.id}": an image needs a width and height`);
+      }
     }
-    // An image has no intrinsic size here - sizeOf gives it none - so without
-    // a width and height it renders as an element with no dimensions, which is
-    // engine-dependent and silently invisible.
-    if (!(object.initialState.w && object.initialState.h)) {
-      throw new Error(`Object "${object.id}": an image needs a width and height`);
+    if (object.type === 'equation' && !(object.initialState.w && object.initialState.h)) {
+      throw new Error(`Object "${object.id}": an equation needs a width and height to be set in`);
     }
   }
   for (const event of scene.timeline) {
