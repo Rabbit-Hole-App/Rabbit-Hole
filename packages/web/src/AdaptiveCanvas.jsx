@@ -76,8 +76,13 @@ function outlineOf(shape) {
   return { points: relative.map(([u, v]) => ({ x: x + u * w, y: y + v * h })), closed: true };
 }
 
+// One conversation node: the learner's message, a separator, then the agent's
+// reply. Starts at a compact width, grows with content up to a max height
+// (longer replies scroll inside), and resizes from the corner handle.
 function ChatCard({ exchange, zoom, onMove }) {
   const [lifted, setLifted] = useState(false);
+  const [size, setSize] = useState({ w: null, h: null });
+  const card = useRef(null);
   const drag = event => {
     if (event.button !== 0) return;
     setLifted(true);
@@ -85,19 +90,30 @@ function ChatCard({ exchange, zoom, onMove }) {
     apply.done = () => setLifted(false);
     startDrag(event, { x: exchange.dx, y: exchange.dy }, apply, zoom);
   };
+  const resize = event => {
+    if (event.button !== 0) return;
+    const element = card.current;
+    startDrag(event, { x: element.offsetWidth, y: element.offsetHeight },
+      (w, h) => setSize({ w: Math.min(720, Math.max(280, w)), h: Math.min(640, Math.max(140, h)) }), zoom);
+  };
   return (
-    <div data-block data-chat-block onPointerDown={drag}
-      style={{ transform: `translate(${exchange.dx}px, ${exchange.dy}px)${lifted ? ' scale(1.02)' : ''}` }}
-      className={`relative w-full rounded-lg border border-line bg-white px-4 py-3 transition-shadow duration-150 ${lifted ? 'z-20 cursor-grabbing shadow-xl' : 'cursor-grab shadow-sm hover:shadow-md'}`}>
-      <div className="mb-2 flex justify-end"><span className="max-w-[85%] rounded-xl bg-[#2383e2] px-3 py-1.5 text-sm whitespace-pre-wrap text-white">{exchange.question}</span></div>
-      {exchange.answer
-        ? <div className="text-sm"><Md text={exchange.answer} /></div>
-        : <p className="text-sm text-ink-2 italic">{exchange.status === 'thinking' ? 'Thinking…' : `${exchange.status}…`}</p>}
+    <div ref={card} data-block data-chat-block onPointerDown={drag}
+      style={{ transform: `translate(${exchange.dx}px, ${exchange.dy}px)${lifted ? ' scale(1.02)' : ''}`, width: size.w || 380, height: size.h || undefined, maxHeight: size.h ? undefined : 420 }}
+      className={`group relative mx-auto flex flex-col rounded-xl border border-line bg-white transition-shadow duration-150 ${lifted ? 'z-20 cursor-grabbing shadow-xl' : 'cursor-grab shadow-sm hover:shadow-md'}`}>
+      <div className="flex shrink-0 justify-end px-4 pt-3 pb-2"><span className="max-w-[85%] rounded-xl bg-[#2383e2] px-3 py-1.5 text-sm whitespace-pre-wrap text-white">{exchange.question}</span></div>
+      <div className="shrink-0 border-t border-line" />
+      <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+        {exchange.answer
+          ? <div className="text-sm"><Md text={exchange.answer} /></div>
+          : <p className="text-sm text-ink-2 italic">{exchange.status === 'thinking' ? 'Thinking…' : `${exchange.status}…`}</p>}
+      </div>
+      <span aria-label="Resize chat block" className="absolute -right-1.5 -bottom-1.5 z-10 h-3 w-3 cursor-nwse-resize rounded-sm border border-[#2383e2] bg-white opacity-0 group-hover:opacity-100"
+        onPointerDown={resize} />
     </div>
   );
 }
 
-function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, onDelete }) {
+function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, onResize, onGesture, onDelete }) {
   const [editing, setEditing] = useState(item.fresh);
   const body = useRef(null);
   // The rendered children stay pinned to this ref while editing so re-renders
@@ -111,16 +127,20 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
     if (tool === 'eraser') { event.preventDefault(); event.stopPropagation(); onDelete(item.id); return; }
     if (tool !== 'select') return;
     onSelect(item.id);
-    if (!editing) startDrag(event, { x: item.x, y: item.y }, (x, y) => onMove(item.id, x, y), zoom);
+    if (!editing) { onGesture(); startDrag(event, { x: item.x, y: item.y }, (x, y) => onMove(item.id, x, y), zoom); }
     else event.stopPropagation();
   };
   return (
-    <div data-block style={{ left: item.x, top: item.y, ...(sticky ? {} : { color: item.color, fontSize: item.size || 14 }) }}
-      className={`absolute z-10 cursor-grab active:cursor-grabbing ${sticky ? 'h-40 w-40 -rotate-1 overflow-hidden rounded-sm border border-[#f0d9a8] bg-[#fef3c7] p-3 text-[13px] leading-snug text-[#6b4e0b] shadow-md' : 'min-w-24 leading-snug'} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
+    <div data-block style={{ left: item.x, top: item.y, ...(sticky ? { width: item.w || 160, height: item.h || 160 } : { color: item.color, fontSize: item.size || 14 }) }}
+      className={`absolute z-10 cursor-grab active:cursor-grabbing ${sticky ? '-rotate-1 overflow-hidden rounded-sm border border-[#f0d9a8] bg-[#fef3c7] p-3 text-[13px] leading-snug text-[#6b4e0b] shadow-md' : 'min-w-24 leading-snug'} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
       onPointerDown={down} onDoubleClick={startEdit}>
       <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder={sticky ? 'Note…' : 'Text…'}
         onBlur={e => { setEditing(false); const text = e.currentTarget.textContent; shown.current = text; onChange(item.id, text); }}
         className={`outline-none ${sticky ? 'h-full empty:before:text-[#b08a3e]' : 'empty:before:opacity-50'} empty:before:content-[attr(data-placeholder)]`}>{shown.current}</div>
+      {sticky && selected && tool === 'select' && (
+        <span aria-label="Resize note" className="absolute -right-1.5 -bottom-1.5 h-3 w-3 cursor-nwse-resize rounded-sm border border-[#2383e2] bg-white"
+          onPointerDown={event => { if (event.button !== 0) return; onGesture(); startDrag(event, { x: item.w || 160, y: item.h || 160 }, (w, h) => onResize(item.id, Math.max(80, w), Math.max(80, h)), zoom); }} />
+      )}
     </div>
   );
 }
@@ -132,7 +152,7 @@ const arrowHead = (tip, from, stroke) => {
   return <path d={`M${tip.x - size * Math.cos(angle - 0.45)} ${tip.y - size * Math.sin(angle - 0.45)} L${tip.x} ${tip.y} L${tip.x - size * Math.cos(angle + 0.45)} ${tip.y - size * Math.sin(angle + 0.45)}`} {...stroke} strokeDasharray={undefined} />;
 };
 
-function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResize, onDelete }) {
+function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResize, onGesture, onDelete }) {
   const { kind, x1, y1, x2, y2, color, width, dash } = shape;
   const stroke = { stroke: color, strokeWidth: width, fill: 'none', strokeDasharray: dash ? `${width * 3} ${width * 2.5}` : undefined, strokeLinecap: 'round', strokeLinejoin: 'round' };
   const x = Math.min(x1, x2), y = Math.min(y1, y2), w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
@@ -162,7 +182,7 @@ function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResiz
       {selected && tool === 'select' && handles.map(([hx, hy, patch], index) => (
         <circle key={index} cx={hx} cy={hy} r={5 / zoom} fill="white" stroke="#2383e2" strokeWidth={1.5 / zoom}
           style={{ pointerEvents: 'all', cursor: linear ? 'move' : 'nwse-resize' }}
-          onPointerDown={event => { if (event.button !== 0) return; startDrag(event, { x: hx, y: hy }, (px, py) => onResize(shape.id, patch({ x: px, y: py })), zoom); }} />
+          onPointerDown={event => { if (event.button !== 0) return; onGesture(); startDrag(event, { x: hx, y: hy }, (px, py) => onResize(shape.id, patch({ x: px, y: py })), zoom); }} />
       ))}
     </g>
   );
@@ -194,12 +214,25 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
   selectedRef.current = selected;
   const surface = useRef(null);
   const column = useRef(null);
+  // Undo: snapshot the three artifact lists before every mutating gesture.
+  // ponytail: single-level lists + 100-step cap; redo comes when asked for.
+  const present = useRef(null);
+  present.current = { strokes, shapes, items };
+  const history = useRef([]);
+  const snapshot = () => { history.current.push(present.current); if (history.current.length > 100) history.current.shift(); };
+  const undo = () => {
+    const previous = history.current.pop();
+    if (!previous) return;
+    setStrokes(previous.strokes); setShapes(previous.shapes); setItems(previous.items); setSelected(null);
+  };
   useEffect(() => { setView(v => ({ ...v, x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2) })); }, []);
   // Wheel pans the world; ctrl/cmd+wheel zooms at the cursor. Non-passive so
   // the page behind the canvas does not scroll.
   useEffect(() => {
     const element = surface.current;
     const wheel = event => {
+      // Scrollable card bodies keep native wheel scrolling.
+      if (!(event.ctrlKey || event.metaKey) && event.target.closest?.('[data-scroll]')) return;
       event.preventDefault();
       const box = element.getBoundingClientRect();
       if (event.ctrlKey || event.metaKey) zoomAt(event.clientX - box.left, event.clientY - box.top, Math.exp(-event.deltaY * 0.002));
@@ -208,14 +241,22 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
     element.addEventListener('wheel', wheel, { passive: false });
     return () => element.removeEventListener('wheel', wheel);
   }, []);
-  // Delete/Backspace removes the selected sticky, text or shape, unless typing.
+  // Delete/Backspace removes the selected sticky, text or shape; ctrl+z
+  // undoes the last canvas gesture — both stand down while typing.
   useEffect(() => {
     const key = event => {
       if (event.key === 'Escape') { setSelected(null); return; }
-      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
       const active = document.activeElement;
-      if (active && (active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
-      if (!selectedRef.current) return;
+      const typing = active && (active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+        if (typing) return;
+        event.preventDefault();
+        undo();
+        return;
+      }
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+      if (typing || !selectedRef.current) return;
+      snapshot();
       setItems(previous => previous.filter(item => item.id !== selectedRef.current));
       setShapes(previous => previous.filter(shape => shape.id !== selectedRef.current));
       setSelected(null);
@@ -259,7 +300,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
       const up = () => {
         window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
         setLive(null);
-        if (points.length > 1) setStrokes(previous => [...previous, { ...ink, points }]);
+        if (points.length > 1) { snapshot(); setStrokes(previous => [...previous, { ...ink, points }]); }
       };
       window.addEventListener('pointermove', move);
       window.addEventListener('pointerup', up);
@@ -273,13 +314,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
         window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
         const p = local(e);
         setLiveShape(null);
-        if (Math.hypot(p.x - start.x, p.y - start.y) > 4) setShapes(previous => [...previous, { ...draft, x2: p.x, y2: p.y }]);
+        if (Math.hypot(p.x - start.x, p.y - start.y) > 4) { snapshot(); setShapes(previous => [...previous, { ...draft, x2: p.x, y2: p.y }]); }
         setTool('select');
       };
       window.addEventListener('pointermove', move);
       window.addEventListener('pointerup', up);
     } else if (tool === 'eraser') {
       event.preventDefault();
+      snapshot();
       const radius = 12 / view.z;
       const erase = e => {
         const point = local(e);
@@ -298,6 +340,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
     } else if (tool === 'sticky' || tool === 'text') {
       // preventDefault keeps the click from blurring the fresh editable note.
       event.preventDefault();
+      snapshot();
       const point = local(event);
       setItems(previous => [...previous, { id: crypto.randomUUID(), kind: tool, x: point.x, y: point.y, text: '', color, size: width === WIDTHS[0] ? 14 : width === WIDTHS[1] ? 18 : 24, fresh: true }]);
       setTool('select');
@@ -307,13 +350,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
     }
   };
   const moveItem = (id, x, y) => setItems(previous => previous.map(item => item.id === id ? { ...item, x, y } : item));
-  const changeItem = (id, text) => setItems(previous => previous.map(item => item.id === id ? { ...item, text, fresh: false } : item));
-  const deleteItem = id => { setItems(previous => previous.filter(item => item.id !== id)); setShapes(previous => previous.filter(shape => shape.id !== id)); setSelected(current => current === id ? null : current); };
+  const resizeItem = (id, w, h) => setItems(previous => previous.map(item => item.id === id ? { ...item, w, h } : item));
+  const changeItem = (id, text) => {
+    if (present.current.items.some(item => item.id === id && item.text !== text)) snapshot();
+    setItems(previous => previous.map(item => item.id === id ? { ...item, text, fresh: false } : item));
+  };
+  const deleteItem = id => { snapshot(); setItems(previous => previous.filter(item => item.id !== id)); setShapes(previous => previous.filter(shape => shape.id !== id)); setSelected(current => current === id ? null : current); };
   const resizeShape = (id, patch) => setShapes(previous => previous.map(shape => shape.id === id ? { ...shape, ...patch } : shape));
-  const moveShapeStart = (event, shape) => startDrag(event, { x: shape.x1, y: shape.y1 }, (x, y) => {
-    const dx = x - shape.x1, dy = y - shape.y1;
-    setShapes(previous => previous.map(s => s.id === shape.id ? { ...s, x1: shape.x1 + dx, y1: shape.y1 + dy, x2: shape.x2 + dx, y2: shape.y2 + dy } : s));
-  }, view.z);
+  const moveShapeStart = (event, shape) => {
+    snapshot();
+    startDrag(event, { x: shape.x1, y: shape.y1 }, (x, y) => {
+      const dx = x - shape.x1, dy = y - shape.y1;
+      setShapes(previous => previous.map(s => s.id === shape.id ? { ...s, x1: shape.x1 + dx, y1: shape.y1 + dy, x2: shape.x2 + dx, y2: shape.y2 + dy } : s));
+    }, view.z);
+  };
   const inking = tool === 'pen' || tool === 'highlighter';
   const drawing = inking || shapeTool;
   const cursor = tool === 'hand' ? 'cursor-grab' : inking || tool === 'eraser' || shapeTool ? 'cursor-crosshair' : tool === 'select' ? '' : 'cursor-copy';
@@ -322,7 +372,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
       <div ref={surface} onPointerDown={down} className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor}`}>
         <div style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className="absolute top-0 left-0">
         <svg aria-hidden="true" width="1" height="1" className="pointer-events-none absolute top-0 left-0 z-10 overflow-visible">
-          {[...shapes, ...(liveShape ? [liveShape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={tool} zoom={view.z} selected={selected === shape.id} onSelect={setSelected} onMoveStart={moveShapeStart} onResize={resizeShape} onDelete={deleteItem} />)}
+          {[...shapes, ...(liveShape ? [liveShape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={tool} zoom={view.z} selected={selected === shape.id} onSelect={setSelected} onMoveStart={moveShapeStart} onResize={resizeShape} onGesture={snapshot} onDelete={deleteItem} />)}
           {[...strokes, ...(live ? [live] : [])].map((stroke, index) => stroke.tool === 'pen'
             ? <path key={index} d={pathOf(stroke.points)} fill="none" stroke={stroke.color} strokeWidth={stroke.width} strokeDasharray={stroke.dash ? `${stroke.width * 3} ${stroke.width * 2.5}` : undefined} strokeLinecap="round" strokeLinejoin="round" />
             : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />)}
@@ -331,7 +381,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
           {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} onMove={onMove} />)}
         </div>
         <div className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
-          {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={selected === item.id} onSelect={setSelected} onChange={changeItem} onMove={moveItem} onDelete={deleteItem} />)}
+          {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={selected === item.id} onSelect={setSelected} onChange={changeItem} onMove={moveItem} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} />)}
         </div>
         </div>
       </div>

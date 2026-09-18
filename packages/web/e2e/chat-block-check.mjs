@@ -54,6 +54,20 @@ await check('block is movable', async () => {
   if (!after || Math.abs(after.x - before.x) < 80) throw new Error(`did not move (dx=${after ? after.x - before.x : 'gone'})`);
 });
 
+// resizable: drag the corner handle, width grows
+await check('chat block resizes', async () => {
+  const before = await block.boundingBox();
+  const handle = block.locator('[aria-label="Resize chat block"]');
+  await handle.hover({ force: true });
+  const hb = await handle.boundingBox();
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(hb.x + 150, hb.y + 40, { steps: 8 });
+  await page.mouse.up();
+  const after = await block.boundingBox();
+  if (after.width - before.width < 80) throw new Error(`width ${before.width} -> ${after.width}`);
+});
+
 // pen: draw a stroke on empty space
 await check('pen draws a stroke', async () => {
   await page.locator('[aria-label="Pen"]').click();
@@ -64,6 +78,14 @@ await check('pen draws a stroke', async () => {
   await page.mouse.up();
   const paths = await canvas.locator('svg path').count();
   if (!paths) throw new Error('no stroke path');
+});
+
+// ctrl+z: the stroke just drawn disappears
+await check('ctrl+z undoes the stroke', async () => {
+  const before = await canvas.locator('svg path').count();
+  await page.keyboard.press('Control+z');
+  const after = await canvas.locator('svg path').count();
+  if (after !== before - 1) throw new Error(`paths ${before} -> ${after}`);
 });
 
 // sticky: place one and type into it. Left edge is clear of the dragged card,
