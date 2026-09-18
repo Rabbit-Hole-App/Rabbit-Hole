@@ -156,8 +156,21 @@ git commit -m 'fix(learn): a set_values target must already hold values'
 
 **Files:**
 - Modify: `packages/web/src/AdaptiveCanvas.jsx`
+- Modify: `packages/web/src/LearningBlocks.jsx` — the prop crosses this file twice
 - Modify: `packages/web/src/AnimatedScene.jsx`
 - Test: `packages/web/e2e/chat-block-check.mjs` (extend the existing scrub check)
+
+**The exact path the prop travels**, traced so nobody has to hunt for it — anchor on these call sites by text, since the line numbers will drift:
+
+```
+AdaptiveCanvas.jsx   <LessonBlockCard … onChange={changeBlock} …>     add onChangeQuiet={changeBlockQuietly}
+LearningBlocks.jsx     LessonBlockCard renders <LearningBlockBody … onChange={onChange} …>
+LearningBlocks.jsx     LearningBlockBody({ block, onChange, … })      accept it
+LearningBlocks.jsx       <AnimatedScene block={block} onChange={onChange} …>   forward it
+AnimatedScene.jsx    AnimatedScene({ block, onChange, … })            accept and use it
+```
+
+Four edits plus the definition. Do not rename or repurpose `onChange` anywhere on that path.
 
 **Interfaces:**
 - Produces: `AdaptiveCanvas` exposes a quiet block update that does not push an undo snapshot. `AnimatedScene` commits `block.time` synchronously through it; the 150 ms debounce is removed.
