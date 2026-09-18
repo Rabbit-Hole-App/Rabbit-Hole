@@ -3,9 +3,14 @@ import { useState } from 'react';
 import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronDown, Clock, FileCode2, Image, Layers, Link2, ListChecks, MessageSquareText, Mic, Route, Type } from 'lucide-react';
 import curriculum from '../../../docs/courses/nanogpt/quickstart-curriculum.md?raw';
 import lessonOne from '../../../docs/courses/nanogpt/lesson-01-plan.md?raw';
+import lessonTwo from '../../../docs/courses/nanogpt/lesson-02-plan.md?raw';
 
-const lessonOneRevision = lessonOne.match(/Plan revision: (\d+)/)?.[1] || '1';
-const lessonOneTiming = lessonOne.split(/^## /m).find(section => /^Timing\r?\n/.test(section))?.split('\n').slice(1).join('\n').trim();
+// Written material plans, by zero-based lesson index. Lessons without one show
+// their curriculum outline instead.
+const plans = [lessonOne, lessonTwo];
+const revisionOf = plan => plan?.match(/Plan revision: (\d+)/)?.[1] || '1';
+const timingOf = plan => plan?.split(/^## /m).find(section => /^Timing\r?\n/.test(section))?.split('\n').slice(1).join('\n').trim();
+const lessonOneRevision = revisionOf(lessonOne);
 
 // Owner-supplied dev fixture. Content stays in the reviewable Markdown documents;
 // neither rendering a lesson nor generating an asset is triggered by this view.
@@ -65,22 +70,23 @@ function ActivityTabs({ item, index, edits, showSources = true, only, ...editing
     return { ...tab, content, label: tab.key === 'notebook' ? 'Notebook' : content.split('\n')[0] || tab.label };
   });
   const chosen = tabs.find(tab => tab.key === active);
+  const plan = plans[index];
   let blocks = [];
   if (chosen) {
     let content = chosen.content;
-    if (index === 0 && active !== 'sources') {
+    if (plan && active !== 'sources') {
       const heading = { quiz: 'Quiz', cards: 'Flashcards', notebook: 'Optional notebook' }[active];
-      content = lessonOne.split(/^## /m).find(part => part.startsWith(heading)) || content;
+      content = plan.split(/^## /m).find(part => part.startsWith(heading)) || content;
     }
-    if (active === 'cards' && index === 0) {
+    if (active === 'cards' && plan) {
       blocks = content.split('\n').filter(line => line.startsWith('|')).slice(2).map((line, i) => {
         const [, front, back] = line.split('|');
         return { title: `Card ${i + 1}`, text: `**Front:** ${front.trim()}\n\n**Back:** ${back.trim()}` };
       });
-    } else if (index === 0 && ['quiz', 'notebook'].includes(active)) {
+    } else if (plan && ['quiz', 'notebook'].includes(active)) {
       blocks = content.split(/^### /m).slice(1).map(part => { const [title, ...body] = part.split('\n'); return { title, text: body.join('\n').trim() }; });
     } else blocks = [{ title: chosen.label, text: content.split('\n').slice(1).join('\n').trim() }];
-    blocks = blocks.map((block, n) => { const id = `lesson-${index + 1}-${index === 0 ? `r${lessonOneRevision}-` : ''}${active}-${n + 1}`; return { ...block, id, text: edits[id] || block.text }; });
+    blocks = blocks.map((block, n) => { const id = `lesson-${index + 1}-${plan ? `r${revisionOf(plan)}-` : ''}${active}-${n + 1}`; return { ...block, id, text: edits[id] || block.text }; });
   }
   return <>
     {!only && <div role="tablist" aria-label={`Lesson ${index + 1} activities`} className="mt-4 flex flex-wrap gap-2 border-t border-line pt-3">{tabs.map(({ key, icon: Icon, label }) => <button type="button" role="tab" key={key} aria-selected={active === key} onClick={() => setActive(key)} className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-2 text-xs transition-colors ${active === key ? 'border-accent bg-accent/5 text-ink' : 'border-line text-ink-2 hover:bg-hover'}`}>{editing.learnerView && key !== 'sources' ? <CompletionBox label={label} /> : <Icon size={13} />} {label}</button>)}</div>}
@@ -101,7 +107,7 @@ export default function LessonPlanPreview({ view, selected, onSelect, course, ed
         {learnerView ? <CompletionBox label={`Lesson ${index + 1}`} /> : <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-hover text-xs font-medium tabular-nums">{String(index + 1).padStart(2, '0')}</span>}
         <span className="min-w-0 flex-1"><span className="block text-xs text-ink-2">Lesson {index + 1}{saved.minutes ? ` · ~${saved.minutes} min guided` : ''}</span><span className="mt-1 block text-base font-semibold group-hover:underline">{title}</span></span><ArrowRight size={17} className="mt-1 shrink-0 text-ink-3" />
       </button>
-      <p className="mt-3 text-xs text-ink-2">{index === 0 ? 'Material plan ready for review' : 'Outline ready · material plan not written yet'}</p>
+      <p className="mt-3 text-xs text-ink-2">{plans[index] ? 'Material plan ready for review' : 'Outline ready · material plan not written yet'}</p>
       <ul className="mt-3 space-y-2">{topics.map((topic, i) => <li key={i} className="flex items-start gap-2.5 text-sm text-ink-2">{learnerView ? <CompletionBox label={topic} /> : <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-ink-3" />}<span>{topic}</span></li>)}</ul>
       <ActivityTabs item={item} index={index} edits={edits} learnerView={learnerView} selectedSection={selectedSection} onEdit={onEdit} />
     </li>; })}</ol>
@@ -109,24 +115,27 @@ export default function LessonPlanPreview({ view, selected, onSelect, course, ed
   </section>;
   const item = lessons[selected];
   if (!item) return null;
-  const pages = lessonOne.split(/^## /m).filter(section => /^Page \d+ —/.test(section)).map((section, index) => {
+  const plan = plans[selected];
+  const planRevision = revisionOf(plan);
+  const planTiming = timingOf(plan);
+  const pages = (plan || '').split(/^## /m).filter(section => /^Page \d+ —/.test(section)).map((section, index) => {
     const [intro, ...parts] = section.split(/^### /m);
     return { title: intro.trim(), blocks: parts.map((part, n) => {
       const [title, ...body] = part.split('\n');
-      const id = `lesson-1-r${lessonOneRevision}-page-${index + 1}-section-${n + 1}`;
+      const id = `lesson-${selected + 1}-r${planRevision}-page-${index + 1}-section-${n + 1}`;
       return { id, title, text: edits[id] || body.join('\n').trim() };
     }) };
   });
   return <section key={selected} aria-label="Lesson material plan" className="min-h-0 flex-1 overflow-y-auto pr-2">
     <button type="button" onClick={onBack} className="mb-4 inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-xs text-ink-2 hover:bg-hover"><ArrowLeft size={14} />Back to curriculum</button>
-    <h2 className="text-xl font-semibold">{selected === 0 ? item.title.replace(/ —.*$/, '') : item.title}</h2>
-    <p className="mt-2 mb-5 text-sm text-ink-2">{selected === 0 ? 'Draft material plan · review before rendering or generating assets' : 'Curriculum outline · the detailed material plan has not been written yet'}</p>
+    <h2 className="text-xl font-semibold">{plan ? item.title.replace(/ —.*$/, '') : item.title}</h2>
+    <p className="mt-2 mb-5 text-sm text-ink-2">{plan ? 'Draft material plan · review before rendering or generating assets' : 'Curriculum outline · the detailed material plan has not been written yet'}</p>
     {selected === 0 && <button type="button" disabled={!onPreview} onClick={onPreview} className="mb-5 inline-flex items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm text-white hover:opacity-90 disabled:opacity-40"><ArrowRight size={15} />Play Lesson 1</button>}
     {selected === 0 && Object.keys(edits).some(id => id.startsWith(`lesson-1-r${lessonOneRevision}-page-1-`) || id.startsWith(`lesson-1-r${lessonOneRevision}-page-2-`)) && <p className="mb-4 text-sm text-ink-2">This preview uses the saved Markdown plan. Your chat draft edits are retained here; rebuilding from those edits is not available yet.</p>}
-    {selected === 0 && lessonOneTiming && <section aria-label="Lesson timing" className="mb-5 text-sm text-ink-2"><PlanMarkdown text={lessonOneTiming} /></section>}
-    {selected === 0 && course?.revision > 1 && <p className="mb-4 rounded border border-line p-3 text-sm">This plan belongs to the original supplied curriculum. Review it against any curriculum changes before building.</p>}
-    {selected !== 0 ? <Md text={item.body} /> : <div className="space-y-8">
-      <p className="text-sm text-ink-2">All 6 pages · planned learner content, before rendering or generating assets.</p>
+    {plan && planTiming && <section aria-label="Lesson timing" className="mb-5 text-sm text-ink-2"><PlanMarkdown text={planTiming} /></section>}
+    {plan && course?.revision > 1 && <p className="mb-4 rounded border border-line p-3 text-sm">This plan belongs to the original supplied curriculum. Review it against any curriculum changes before building.</p>}
+    {!plan ? <Md text={item.body} /> : <div className="space-y-8">
+      <p className="text-sm text-ink-2">All {pages.length} pages · planned learner content, before rendering or generating assets.</p>
       {pages.map((page, index) => <details key={page.title} open={index === 0} data-plan-page className="group/page rounded-xl border border-line bg-white">
         <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl p-4 hover:bg-hover [&::-webkit-details-marker]:hidden">
           <ChevronDown size={18} aria-hidden="true" className="shrink-0 -rotate-90 text-ink-2 transition-transform group-open/page:rotate-0" />
@@ -140,7 +149,7 @@ export default function LessonPlanPreview({ view, selected, onSelect, course, ed
           <ChevronDown size={18} aria-hidden="true" className="shrink-0 -rotate-90 text-ink-2 transition-transform group-open/activity:rotate-0" />
           <Icon size={18} aria-hidden="true" className="shrink-0" /><h3 className="text-base font-semibold">{label}</h3>
         </summary>
-        <div className="px-4 pb-4"><ActivityTabs item={item} index={0} edits={edits} only={key} learnerView={learnerView} selectedSection={selectedSection} onEdit={onEdit} /></div>
+        <div className="px-4 pb-4"><ActivityTabs item={item} index={selected} edits={edits} only={key} learnerView={learnerView} selectedSection={selectedSection} onEdit={onEdit} /></div>
       </details>)}
     </div>}
   </section>;
