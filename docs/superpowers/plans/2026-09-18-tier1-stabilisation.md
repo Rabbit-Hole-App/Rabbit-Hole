@@ -365,12 +365,13 @@ with:
       case 'set_values': if (object && Array.isArray(event.value)) {
         const target = event.value;
         object.values = (object.values || target.map(() => 0)).map((current, index) => {
+          // Nothing has happened until the event is under way, in either
+          // direction: a blank does not fill in and a value does not blank.
+          // The guard belongs above both branches, not inside one of them.
+          if (progress === 0) return current;
           const goal = target[index];
-          // Before the event starts (progress 0) nothing has happened yet, same
-          // as every other branch here; only once it is under way does a null
-          // goal blank the cell, and it does so immediately rather than fading.
-          if (goal === null) return progress > 0 ? null : current;
-          if (goal === undefined) return current;    // untouched
+          if (goal === null) return null;             // blanked; there is nothing to tween towards
+          if (goal === undefined) return current;     // untouched
           const from = current == null ? 0 : current; // a blank cell grows back from zero
           return from + (goal - from) * progress;
         });
