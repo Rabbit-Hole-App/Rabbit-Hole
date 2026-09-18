@@ -355,7 +355,7 @@ await check('image block renders', async () => {
 
 await check('video block generates a clip', async () => {
   await page.locator('[aria-label="Insert lesson block"]').click();
-  await page.getByRole('menuitem', { name: 'Video', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Video generate' }).click();
   const node = canvas.locator('[data-block-id]').last();
   await node.locator('[data-generate-video]').waitFor({ timeout: 5000 });
   await node.locator('[data-generate-video]').click();
@@ -391,7 +391,7 @@ await check('image block searches photos', async () => {
   await page.locator('[aria-label="Insert lesson block"]').click();
   await page.getByRole('menuitem', { name: 'Image', exact: true }).click();
   const node = canvas.locator('[data-block-id]').last();
-  await node.locator('input[placeholder^="Search a photo"]').fill('mountain');
+  await node.locator('input[placeholder^="Search or describe"]').fill('mountain');
   await node.locator('[data-photo-search]').click();
   const first = node.locator('[data-photo-result]').first();
   await first.waitFor({ timeout: 30000 });
@@ -413,6 +413,47 @@ await check('narration block speaks', async () => {
     setTimeout(() => resolve(audio.readyState > 0), 15000);
   }));
   if (!ok) throw new Error('audio did not load');
+});
+
+// a resized node keeps its size across a reload
+await check('block size survives reload', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  await page.getByRole('menuitem', { name: 'Explanation' }).click();
+  await page.waitForTimeout(400);
+  const node = canvas.locator('[data-block-id]').last();
+  const handle = node.locator('[aria-label="Resize chat block"]');
+  await handle.hover({ force: true });
+  const hb = await handle.boundingBox();
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(hb.x + 140, hb.y + 60, { steps: 8 });
+  await page.mouse.up();
+  const wide = (await node.boundingBox()).width;
+  await page.waitForTimeout(700);
+  await page.reload();
+  await canvas.locator('[data-block-id]').last().waitFor({ timeout: 20000 });
+  const after = (await canvas.locator('[data-block-id]').last().boundingBox()).width;
+  if (Math.abs(after - wide) > 12) throw new Error(`width ${Math.round(wide)} -> ${Math.round(after)} after reload`);
+});
+
+// generated pictures stack up as cached variants with arrows
+await check('image variants navigate', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  await page.getByRole('menuitem', { name: 'Image', exact: true }).click();
+  const node = canvas.locator('[data-block-id]').last();
+  const field = node.locator('input[placeholder^="Search or describe"]');
+  await field.fill('forest path');
+  await node.locator('[data-photo-search]').click();
+  await node.locator('[data-photo-result]').first().waitFor({ timeout: 30000 });
+  await node.locator('[data-photo-result]').first().click();
+  await field.fill('desert dunes');
+  await node.locator('[data-photo-search]').click();
+  await node.locator('[data-photo-result]').first().waitFor({ timeout: 30000 });
+  await node.locator('[data-photo-result]').nth(1).click();
+  // the block ships with one figure already, so two picks make three variants
+  await node.getByText('3 / 3', { exact: false }).waitFor({ timeout: 5000 });
+  await node.locator('[aria-label="Previous picture"]').click();
+  await node.getByText('2 / 3', { exact: false }).waitFor({ timeout: 5000 });
 });
 
 // code sample: display-only code with its output shown below

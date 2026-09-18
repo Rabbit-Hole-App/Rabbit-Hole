@@ -1,3 +1,4 @@
+
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowUpRight, Check, Circle, Clock, Copy, GitBranch, Globe, Hash, Link as LinkIcon, Lock, Maximize2, MoreHorizontal, Plus, Trash2, User as UserIcon, Users, X } from 'lucide-react';
 
@@ -16,6 +17,47 @@ import RepositoryPage from './RepositoryPage.jsx';
 import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
 import Shell from './Shell.jsx';
 import { Avatar, Button, Chk, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, ShareInput, SkeletonRows, Tabs, TabsContent, TabsList, TabsTrigger, Tip, cn, toast } from './ui.jsx';
+
+// Refreshing into Learn must not flash the app-page row skeleton.
+function LearnLoading() {
+  return (
+    <main role="status" aria-label="Loading Learn" className="flex min-w-0 flex-1 overflow-hidden max-lg:flex-col">
+      <section className="min-h-0 min-w-0 flex-1">
+        <div className="mx-auto flex h-full w-full min-h-0 flex-col px-8 py-6">
+          <div className="flex items-baseline gap-3 pt-1 pb-4">
+            <h1 className="text-2xl font-semibold">Learn</h1>
+            <i className="block h-4 w-40 rounded-xs bg-hover" />
+          </div>
+          <div className="relative min-h-0 flex-1 overflow-hidden">
+            <div className="mx-auto mt-10 w-full max-w-[380px] space-y-5">
+              {[0, 1].map(row => (
+                <div key={row} className="rounded-xl border border-line bg-white p-4 shadow-sm">
+                  <div className="mb-3 flex justify-end"><i className="block h-6 w-40 rounded-xl bg-hover" /></div>
+                  <div className="space-y-2 border-t border-line pt-3">
+                    <i className="block h-3 w-full rounded-xs bg-hover" />
+                    <i className="block h-3 w-5/6 rounded-xs bg-hover" />
+                    <i className="block h-3 w-2/3 rounded-xs bg-hover" />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="absolute top-1/2 right-2 flex -translate-y-1/2 flex-col gap-1 rounded-xl border border-line bg-white p-1 shadow-md">
+              {Array.from({ length: 6 }, (_, i) => <i key={i} className="block h-8 w-8 rounded-lg bg-hover" />)}
+            </div>
+          </div>
+          <div className="relative min-h-11 shrink-0 pt-3">
+            <i className="absolute bottom-0 left-0 block h-8 w-28 rounded-lg bg-hover" />
+            <div className="mx-auto h-10 w-full max-w-[504px] rounded-xl border border-line bg-white shadow-sm" />
+          </div>
+        </div>
+      </section>
+      <aside className="w-[480px] shrink-0 border-l border-line px-5 pt-6 max-lg:hidden">
+        <i className="mb-3 block h-1.5 w-full rounded-full bg-hover" />
+        <i className="block h-7 w-56 rounded-full bg-hover" />
+      </aside>
+    </main>
+  );
+}
 
 const Runbook = lazy(() => import('./RunbookEditor.jsx'));
 const learnPreview = import.meta.env.VITE_COACHING_DEV === 'true' && import.meta.env.VITE_PRIVATE_BYOC !== 'true';
@@ -560,6 +602,9 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
       </div>
     </>
   );
+  // Refreshing straight into Learn showed the app-page row skeleton for a
+  // beat; wait on a canvas-shaped placeholder instead.
+  if (learnPreview && tab === 'learn' && !app && !error) return <LearnLoading />;
   if (learnPreview && app?.kind === 'repository' && !error) return <RepositoryPage key={app.name} app={app} />;
   if (learnPreview && tab === 'learn' && app && !error && !runId) {
     return <LearnPage key={JSON.stringify([app.email, app.org, app.name])} app={app} onBack={() => { setTab(null); navigate(`/apps/${encodeURIComponent(app.name)}`); }} />;

@@ -83,9 +83,10 @@ function outlineOf(shape) {
 // Shared node chrome for everything card-shaped on the canvas: drag with
 // lift, corner resize, selection ring, top/bottom connection ports, and the
 // layout observer that keeps connector geometry fresh. Content is children.
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, connected = null, autoMax = 420, width = 380, height = undefined, onSelect, onMove, onLayout, onConnect, nodeRef = null, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, connected = null, autoMax = 420, width = 380, height = undefined, saved = null, onSelect, onMove, onSize, onLayout, onConnect, nodeRef = null, children }) {
   const [lifted, setLifted] = useState(false);
-  const [size, setSize] = useState({ w: null, h: null });
+  // A resized node keeps its size in its own data, so a reload restores it.
+  const [size, setSize] = useState({ w: saved?.w || null, h: saved?.h || null });
   const card = useRef(null);
   useEffect(() => { if (nodeRef) nodeRef.current = card.current; });
   useEffect(() => {
@@ -104,8 +105,10 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, c
   const resize = event => {
     if (event.button !== 0) return;
     const element = card.current;
-    startDrag(event, { x: element.offsetWidth, y: element.offsetHeight },
-      (w, h) => setSize({ w: Math.min(1200, Math.max(280, w)), h: Math.min(1000, Math.max(140, h)) }), zoom);
+    let last = null;
+    const apply = (w, h) => { last = { w: Math.min(1200, Math.max(280, w)), h: Math.min(1000, Math.max(140, h)) }; setSize(last); };
+    apply.done = () => { if (last) onSize?.(id, last.w, last.h); };
+    startDrag(event, { x: element.offsetWidth, y: element.offsetHeight }, apply, zoom);
   };
   return (
     <div ref={card} data-block data-block-id={id} {...(chat ? { 'data-chat-block': true } : {})}
@@ -131,22 +134,19 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, c
 // One conversation node: the learner's message, a separator, then the agent's
 // reply. Starts at a compact width, grows with content up to a max height
 // (longer replies scroll inside), and resizes from the corner handle.
-function ChatCard({ exchange, zoom, selected, connected, onSelect, onMove, renderComposer, onLayout, onConnect, onFile }) {
+function ChatCard({ exchange, zoom, selected, connected, onSelect, onMove, onSize, onReply, renderComposer, onLayout, onConnect, onFile }) {
   const [replyOpen, setReplyOpen] = useState(false);
   const [started, setStarted] = useState(false);
-  const [replies, setReplies] = useState([]);
+  const replies = exchange.replies || [];
   const card = useRef(null);
   const body = useRef(null);
   useEffect(() => { if (body.current && replies.length) body.current.scrollTop = body.current.scrollHeight; }, [replies]);
   useEffect(() => { if (replyOpen) card.current?.querySelector('[data-block-composer] input[placeholder]')?.focus(); }, [replyOpen]);
   const continueReply = () => { setStarted(true); setReplyOpen(true); };
-  const receive = event => setReplies(previous => {
-    if (event.question !== undefined) return [...previous, { id: event.id, question: event.question, answer: '', status: 'thinking' }];
-    return previous.map(turn => turn.id !== event.id ? turn : event.delta ? { ...turn, answer: turn.answer + event.delta }
-      : { ...turn, status: event.done ? 'done' : event.stage });
-  });
+  const receive = event => onReply?.(exchange.id, event);
   return (
     <CanvasNode id={exchange.id} dx={exchange.dx} dy={exchange.dy} zoom={zoom} selected={selected} chat connected={connected}
+      saved={{ w: exchange.w, h: exchange.h }} onSize={onSize}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} nodeRef={card}>
       {/* Selecting the node offers Continue convo above it, which opens the
           in-block composer at the bottom. */}
@@ -183,6 +183,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} connected={connected}
       autoMax={BLOCK_TYPES[block.type]?.autoMax} width={BLOCK_TYPES[block.type]?.width} height={BLOCK_TYPES[block.type]?.height}
+      saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect}>
       {selected && (
         <div className="absolute -top-10 right-0 z-30 flex items-center gap-1.5">
@@ -290,7 +291,7 @@ function ToolButton({ Icon, label, active, onPick }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, appName = null, apiRef = null, storageKey = null, composer = null, renderBlockComposer = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, storageKey = null, composer = null, renderBlockComposer = null }) {
   const [tool, setTool] = useState('select');
   const [insertOpen, setInsertOpen] = useState(false); // dev-only lesson-block workbench menu
   const [color, setColor] = useState(COLORS[0]);
@@ -756,7 +757,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
             : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />)}
         </svg>
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
-          {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} onSelect={select} onMove={moveNode} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onFile={onOpenFile} />)}
+          {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onFile={onOpenFile} />)}
           {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onLayout={measureBlocks} onConnect={connect} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} />)}
         </div>
         <div className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
