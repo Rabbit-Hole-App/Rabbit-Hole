@@ -442,7 +442,10 @@ test('the described state is the state at the paused moment', () => {
 });
 
 test('an unusable scene degrades to a sentence and never throws', () => {
-  for (const broken of [{ scene: null }, { scene: {} }, { scene: { id: 'x', duration: 2, objects: [{ id: 'a', type: 'box' }], timeline: [] } }]) {
+  // `{ id: 'a', type: 'box' }` would NOT belong here: initialState carries
+  // .default({}) and every inner field defaults, so it validates. An unknown
+  // type is what actually fails the enum.
+  for (const broken of [{ scene: null }, { scene: {} }, { scene: { id: 'x', duration: 2, objects: [{ id: 'a', type: 'nonsense' }], timeline: [] } }]) {
     const described = describeAnimation(block(broken));
     assert.equal(typeof described.text, 'string');
     assert.match(described.text, /cannot be read|Invalid animation/);
@@ -654,7 +657,8 @@ Tasks 1 to 5 are done. Everything from here is renderer-local.
 ### Task 6: The camera drives the viewBox and the region hit-test
 
 **Files:**
-- Modify: `packages/web/src/AnimatedScene.jsx:123` (Frame signature), `:132-140` (`find`), `:153` (viewBox)
+- Modify: `packages/web/src/animation-scene.js:62` (camera schema), `:148` (camera resolution), `:202` (`focus_camera`)
+- Modify: `packages/web/src/AnimatedScene.jsx:132-140` (`find`), `:141` (insert `origin`/`span`/`view`), `:153` (viewBox)
 - Test: `packages/web/src/animation-scene.test.mjs`
 
 **Interfaces:**
@@ -1037,7 +1041,13 @@ and insert a branch in the shape ternary, before `isStroke`:
                 : isStroke
 ```
 
-Add `isImage` to the label-placement condition so an image caption sits above the frame rather than across its middle — treat it exactly as `isData` does, using `object.y - 10`.
+An image caption belongs above the frame, not across its middle — the same placement `isData` already uses. Three tasks now extend this one `<text>` element, so name the condition once instead of growing the ternaries. Add beside the other per-object bindings:
+
+```js
+          const labelAbove = isData || isImage;   // caption sits over the top edge
+```
+
+and in the `<text>` element replace every bare `isData` in the `x`, `y`, `textAnchor` and `dominantBaseline` expressions with `labelAbove`. Leave `fontWeight` and `fill` reading `isData` — an image caption takes the data weight and colour, which is what those two already give it.
 
 - [ ] **Step 6: Verify**
 
@@ -1446,17 +1456,39 @@ This is the task that stops the plan's own additions becoming the next `arrow`. 
 Append to `packages/web/src/animation-scene.test.mjs`:
 
 ```js
-import { RENDERED_TYPES } from './animation-scene.js';
+// Asserting a literal list against the exported list would pin nothing - both
+// sides would be constants. Build a real object of every declared type and put
+// it through the gate: that catches a type added to the enum without the fields
+// its renderer needs, which is how arrow, line and image shipped invisible.
+const SAMPLE = {
+  box: {}, text: { text: 'hi' }, circle: { w: 40 },
+  arrow: { from: { x: 0, y: 0 }, to: { x: 10, y: 10 } },
+  line: { from: { x: 0, y: 0 }, to: { x: 10, y: 10 } },
+  equation: { text: 'x = 1', w: 80, h: 30 },
+  code: { text: 'x = 1' },
+  image: { src: '/favicon.svg', w: 40, h: 40 },
+  grid: { rows: 2, cols: 2, values: [1, 2, 3, 4] },
+  strip: { values: [1, 2] },
+  bars: { values: [1, 2] },
+  tokens: { tokens: ['a', 'b'] },
+};
 
-test('every type the schema accepts is a type the renderer draws', () => {
-  // The enum and the renderer must not drift: arrow, line and image each
-  // shipped for months as an object that validated and drew nothing.
-  const accepted = ['box', 'text', 'circle', 'arrow', 'line', 'equation', 'code', 'image', 'grid', 'strip', 'bars', 'tokens'];
-  assert.deepEqual([...RENDERED_TYPES].sort(), accepted.sort());
+test('every declared type has a sample the gate accepts', () => {
+  assert.deepEqual([...RENDERED_TYPES].sort(), Object.keys(SAMPLE).sort(), 'a new type needs a sample here and a branch in AnimatedScene.jsx');
+  for (const type of RENDERED_TYPES) {
+    const built = validateScene({
+      id: `sample-${type}`, duration: 2,
+      objects: [{ id: 'one', type, initialState: { x: 10, y: 10, ...SAMPLE[type] } }],
+      timeline: [],
+    });
+    assert.equal(getSceneState(built, 1).objects[0].type, type, `${type} did not survive the gate`);
+  }
 });
 ```
 
 Add `RENDERED_TYPES` to the existing import line at the top of the test file.
+
+This pins the schema side. The renderer side is held by two things that already exist in this task: the `DataShape` guard in Step 5, which refuses to draw a data type it does not know, and the manual check in Step 6. A `.jsx` file cannot be imported by `node --test`, so there is no honest unit assertion for "a branch exists" — say so rather than writing one that looks like there is.
 
 - [ ] **Step 2: Run it to confirm it fails**
 
