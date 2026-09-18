@@ -1531,7 +1531,37 @@ and change the type field at line 12 to:
 Run: `cd packages/web && node --test src/animation-scene.test.mjs`
 Expected: PASS.
 
-- [ ] **Step 5: Close the `DataShape` fall-through**
+- [ ] **Step 5: Close the same silent failure in the schema's own defaults**
+
+An object authored with no `initialState` key **passes validation and then draws nothing**. Verified:
+
+```
+validateScene({ objects: [{ id: 'a', type: 'box' }] })  ->  initialState: {}
+getSceneState(...)                                      ->  visible: false, x: undefined, opacity: undefined
+```
+
+The cause is a zod 4 pitfall: `.default(value)` supplies that value **literally and unparsed** when the key is absent, so the inner field defaults never run — and neither does inner validation. `.prefault(value)` runs it through the schema instead. Change both uses in `packages/web/src/animation-scene.js`:
+
+```js
+  }).prefault({}),                                                     // objectSchema.initialState
+  camera: z.object({ ... }).prefault({}),                              // replaces .default({ zoom: 1 })
+```
+
+Add the test that pins it:
+
+```js
+test('an object authored without an initialState is still a real object', () => {
+  const built = validateScene({ id: 'bare', duration: 2, objects: [{ id: 'a', type: 'box' }], timeline: [] });
+  const object = getSceneState(built, 1).objects[0];
+  assert.equal(object.visible, true, 'it validated, so it must draw');
+  assert.equal(object.opacity, 1);
+  assert.deepEqual({ x: object.x, y: object.y }, { x: 0, y: 0 });
+});
+```
+
+Run it RED first — it fails on `visible: false` — then apply the change. `camera` moves to the same idiom in the same commit: its current `.default({ zoom: 1 })` is a hand-maintained literal that bypasses `.max(8)`, so a later edit to `{ zoom: 20 }` would not be caught at parse time.
+
+- [ ] **Step 6: Close the `DataShape` fall-through**
 
 `DataShape` currently ends with an unguarded token render, so any future `DATA_TYPES` member with no branch of its own silently draws as chips. In `packages/web/src/AnimatedScene.jsx`, replace the `let offset = 0;` line at 99 with:
 
@@ -1546,7 +1576,7 @@ Expected: PASS.
   let offset = 0;
 ```
 
-- [ ] **Step 6: Verify**
+- [ ] **Step 7: Verify**
 
 Run: `make test-unit`
 Expected: PASS.
@@ -1558,7 +1588,7 @@ Run `npm run dev` and insert an Animation block. Expected: it matches `token-jou
 
 Then confirm the guard fires: temporarily add `'patches'` to `RENDERED_TYPES` and to `DATA_TYPES` in `AnimatedScene.jsx`, author an object of that type, and check the console logs `no renderer for data type "patches"` and nothing is drawn — rather than token chips appearing. Revert both edits before committing; the unit test from Step 1 will fail until you do, which is the point of it.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add packages/web/src/animation-scene.js packages/web/src/AnimatedScene.jsx packages/web/src/animation-scene.test.mjs
