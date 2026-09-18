@@ -1325,12 +1325,6 @@ An equation with no `w`/`h` would render an empty `foreignObject`. In `packages/
     if (object.type === 'equation' && !(object.initialState.w && object.initialState.h)) {
       throw new Error(`Object "${object.id}": an equation needs a width and height to be set in`);
     }
-    // A stroke with no endpoints falls back to its own x/y for both ends, which
-    // is a finite zero-length line - no NaN, but an invisible object that
-    // validated. That is the failure this whole pass exists to stop.
-    if (['arrow', 'line'].includes(object.type) && !(object.initialState.from && object.initialState.to)) {
-      throw new Error(`Object "${object.id}": an ${object.type} needs a from and a to`);
-    }
 ```
 
 - [ ] **Step 4: Verify**
@@ -1586,7 +1580,39 @@ test('an object authored without an initialState is still a real object', () => 
 
 Run it RED first — it fails on `visible: false` — then apply the change. `camera` moves to the same idiom in the same commit: its current `.default({ zoom: 1 })` is a hand-maintained literal that bypasses `.max(8)`, so a later edit to `{ zoom: 20 }` would not be caught at parse time.
 
-- [ ] **Step 6: Close the `DataShape` fall-through**
+- [ ] **Step 6: Refuse a stroke with no endpoints**
+
+The third member of the same family, and the last one outstanding. An `arrow` or `line` with no `from`/`to` falls back to its own `x`/`y` for both ends — a finite zero-length line, never NaN, but an object that validated and is invisible. Exactly what this task exists to stop.
+
+Add to the same per-object loop, as a sibling of the image and equation blocks:
+
+```js
+    // A stroke with no endpoints falls back to its own x/y for both ends, which
+    // is a finite zero-length line - no NaN, but an invisible object that
+    // validated. That is the failure this whole pass exists to stop.
+    if (['arrow', 'line'].includes(object.type) && !(object.initialState.from && object.initialState.to)) {
+      throw new Error(`Object "${object.id}": an ${object.type} needs a from and a to`);
+    }
+```
+
+with its test:
+
+```js
+test('a stroke needs both endpoints or it is an invisible zero-length line', () => {
+  const stroke = (type, state) => () => validateScene({
+    id: 'strokes', duration: 2,
+    objects: [{ id: 's', type, initialState: { x: 10, y: 10, ...state } }],
+    timeline: [],
+  });
+  assert.throws(stroke('arrow', {}), /an arrow needs a from and a to/);
+  assert.throws(stroke('line', { from: { x: 0, y: 0 } }), /a line needs a from and a to/);
+  assert.doesNotThrow(stroke('arrow', { from: { x: 0, y: 0 }, to: { x: 5, y: 5 } }));
+});
+```
+
+Note this makes Task 7's `object.from?.x ?? object.x` fallbacks unreachable for a validated scene. Leave them — they still guard the `describeBlock` path, which evaluates blocks that may predate this rule.
+
+- [ ] **Step 7: Close the `DataShape` fall-through**
 
 `DataShape` currently ends with an unguarded token render, so any future `DATA_TYPES` member with no branch of its own silently draws as chips. In `packages/web/src/AnimatedScene.jsx`, replace the `let offset = 0;` line at 99 with:
 
@@ -1601,7 +1627,7 @@ Run it RED first — it fails on `visible: false` — then apply the change. `ca
   let offset = 0;
 ```
 
-- [ ] **Step 7: Verify**
+- [ ] **Step 8: Verify**
 
 Run: `make test-unit`
 Expected: PASS.
@@ -1613,7 +1639,7 @@ Run `npm run dev` and insert an Animation block. Expected: it matches `token-jou
 
 Then confirm the guard fires: temporarily add `'patches'` to `RENDERED_TYPES` and to `DATA_TYPES` in `AnimatedScene.jsx`, author an object of that type, and check the console logs `no renderer for data type "patches"` and nothing is drawn — rather than token chips appearing. Revert both edits before committing; the unit test from Step 1 will fail until you do, which is the point of it.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add packages/web/src/animation-scene.js packages/web/src/AnimatedScene.jsx packages/web/src/animation-scene.test.mjs
