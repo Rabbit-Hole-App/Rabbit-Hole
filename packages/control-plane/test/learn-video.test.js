@@ -18,7 +18,8 @@ test('board accepts generic video and prohibits multiple clips; agent prompt has
   const block = { kind: 'video', text: 'Pendulum motion', fromObjectId: null, operation: op };
   const plan = { summary: 'Motion intuition', needsClarification: false, blocks: [block] };
   assert.equal(validateBoardPlan(plan, { relatedObjects: [] }), plan);
-  assert.throws(() => validateBoardPlan({ ...plan, blocks: [block, block] }, { relatedObjects: [] }), /one video/);
+  // The one-video cap clamps instead of failing the plan: the extra clip drops.
+  assert.equal(validateBoardPlan({ ...plan, blocks: [block, { ...block }] }, { relatedObjects: [] }).blocks.filter(b => b.kind === 'video').length, 1);
   assert.doesNotMatch(BOARD_SYSTEM, /seedance|veo|fal-ai/i);
 });
 test('adapter translates duration and references, validates provider URLs, and polls without submitting again', async () => {
