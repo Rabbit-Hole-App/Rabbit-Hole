@@ -90,12 +90,20 @@ export function validateBoardPlan(plan, snapshot) {
       if (nodeIds.size !== b.nodes.length || !Array.isArray(b.edges) || b.edges.length > 5 || b.edges.some(e => !e || !nodeIds.has(e.from) || !nodeIds.has(e.to) || e.from === e.to || Object.keys(e).some(k => !['from', 'to'].includes(k)))) throw new Error('Invalid diagram edges');
     } else if (b.nodes !== undefined || b.edges !== undefined) throw new Error('Only diagrams accept nodes and edges');
   }
-  if (plan.blocks.filter(b => b.fromObjectId !== null).length > 2) throw new Error('Too many canvas arrows');
-  if (plan.blocks.filter(b => b.kind === 'image').length > 2) throw new Error('Too many photos');
-  if (plan.blocks.filter(b => b.kind === 'video').length > 1) throw new Error('Only one video per explanation');
-  if (plan.blocks.filter(b => b.kind === 'graph').length > 2) throw new Error('At most two graphs per explanation');
-  if (plan.blocks.filter(b => b.kind === 'three_d').length > 1) throw new Error('At most one 3D model per explanation');
-  if (plan.blocks.filter(b => b.kind === 'scene').length > 1) throw new Error('At most one generated scene per explanation');
+  // Source arrows are decoration, never worth failing the explanation over:
+  // keep the first two anchors and detach the rest.
+  let anchored = 0;
+  for (const b of plan.blocks) if (b.fromObjectId !== null && ++anchored > 2) b.fromObjectId = null;
+  // Per-kind caps are cost/clutter limits, not correctness: keep the first N
+  // of each capped kind and drop the overflow instead of failing the plan.
+  const caps = { image: 2, video: 1, graph: 2, three_d: 1, scene: 1 };
+  const counts = {};
+  plan.blocks = plan.blocks.filter(b => {
+    const cap = caps[b.kind];
+    if (!cap) return true;
+    counts[b.kind] = (counts[b.kind] || 0) + 1;
+    return counts[b.kind] <= cap;
+  });
   return plan;
 }
 
