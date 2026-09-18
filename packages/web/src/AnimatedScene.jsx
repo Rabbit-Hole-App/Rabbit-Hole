@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Pause, Play, RotateCcw, Scan, X } from 'lucide-react';
 import katex from 'katex';
 import { BAR, CHIP, getSceneState, validateScene } from './animation-scene.js';
@@ -35,7 +35,7 @@ const marked = (object, row, column, index) => {
 // The mathematical object itself: a table with a row that lights up, a strip
 // of numbers that change, a distribution that grows. Labelled rectangles do
 // not teach these; the values do.
-function DataShape({ object, colour }) {
+function DataShape({ object, colour, pop }) {
   const emphasis = 1 + (object.emphasis || 0) * 0.06;
   if (object.type === 'grid' || object.type === 'strip') {
     const cell = object.cell || 18;
@@ -65,7 +65,7 @@ function DataShape({ object, colour }) {
             <motion.rect x={object.x + column * cell} y={object.y + row * cell} width={cell} height={cell}
               fill={object.heat ? fill : undefined}
               animate={object.heat ? springs : { fill, ...springs }}
-              transition={POP} />
+              transition={pop} />
             {value != null && cell >= 22 && (
               <text x={object.x + column * cell + cell / 2} y={object.y + row * cell + cell / 2}
                 textAnchor="middle" dominantBaseline="central" fontSize={Math.min(12, cell * 0.42)}
@@ -79,7 +79,7 @@ function DataShape({ object, colour }) {
       <g transform={`translate(${object.x + (object.w || 0) / 2} ${object.y + (object.h || 0) / 2}) scale(${emphasis}) translate(${-(object.x + (object.w || 0) / 2)} ${-(object.y + (object.h || 0) / 2)})`}>
         {cells}
         {object.cellHighlight?.row != null && (
-          <motion.rect key={`band-${object.cellHighlight.row}`} initial={{ opacity: 0, scaleX: 0.92 }} animate={{ opacity: 1, scaleX: 1 }} transition={POP} style={fromCentre}
+          <motion.rect key={`band-${object.cellHighlight.row}`} initial={{ opacity: 0, scaleX: 0.92 }} animate={{ opacity: 1, scaleX: 1 }} transition={pop} style={fromCentre}
             x={object.x - 3} y={object.y + object.cellHighlight.row * cell - 3} width={(object.w || 0) + 6} height={cell + 6}
             rx={4} fill="none" stroke={colour} strokeWidth="2.4" />
         )}
@@ -101,9 +101,9 @@ function DataShape({ object, colour }) {
           const tall = value == null ? 0 : Math.min(height - 4, Math.max(1, (Math.abs(value) / peak) * (height - 4)));
           const lit = marked(object, 0, index, index) || (object.cellHighlight === 'max' && value != null && value === Math.max(...values.map(entry => entry ?? -Infinity)));
           return (
-            <motion.g key={index} animate={{ scale: lit ? 1.06 : 1 }} transition={POP} style={fromCentre}>
+            <motion.g key={index} animate={{ scale: lit ? 1.06 : 1 }} transition={pop} style={fromCentre}>
               <motion.rect x={object.x + index * BAR.w + 3} y={object.y + height - tall} width={BAR.w - 6} height={tall}
-                rx={2.5} animate={{ fill: lit ? colour : tint(colour, '59') }} transition={POP} />
+                rx={2.5} animate={{ fill: lit ? colour : tint(colour, '59') }} transition={pop} />
               {object.labels?.[index] && (
                 <text x={object.x + index * BAR.w + BAR.w / 2} y={object.y + height + 13} textAnchor="middle"
                   fontSize="10" fill={lit ? '#37352f' : '#9b9a97'} style={{ fontFamily: MONO }}>{object.labels[index]}</text>
@@ -123,9 +123,9 @@ function DataShape({ object, colour }) {
         offset += width + CHIP.gap;
         const lit = marked(object, 0, index, index);
         return (
-          <motion.g key={index} animate={{ scale: lit ? 1.12 : 1, y: lit ? -3 : 0 }} transition={POP} style={fromCentre}>
+          <motion.g key={index} animate={{ scale: lit ? 1.12 : 1, y: lit ? -3 : 0 }} transition={pop} style={fromCentre}>
             <motion.rect x={x} y={object.y} width={width} height={CHIP.h} rx={7}
-              animate={{ fill: lit ? tint(colour, '33') : tint(colour, '12'), strokeWidth: lit ? 1.8 : 0.9 }} stroke={colour} transition={POP} />
+              animate={{ fill: lit ? tint(colour, '33') : tint(colour, '12'), strokeWidth: lit ? 1.8 : 0.9 }} stroke={colour} transition={pop} />
             <text x={x + width / 2} y={object.y + CHIP.h / 2} textAnchor="middle" dominantBaseline="central"
               fontSize="14" fill="#37352f" style={{ fontFamily: MONO }}>{token}</text>
           </motion.g>
@@ -160,7 +160,7 @@ const typeset = expression => {
   catch { return null; }
 };
 
-function Frame({ scene, state, selecting, marked, onRegion, onPick, picked }) {
+function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop }) {
   const host = useRef(null);
   const drag = useRef(null);
   const [rectangle, setRectangle] = useState(null);
@@ -245,7 +245,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked }) {
                 ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 7} fill="none" stroke={colour} strokeOpacity="0.28" strokeWidth="6" />
                 : <rect x={object.x - 5} y={object.y - 5} width={(object.w || 0) + 10} height={(object.h || 0) + 10} rx={14} fill="none" stroke={colour} strokeOpacity="0.25" strokeWidth="6" />)}
               {isData
-                ? <DataShape object={object} colour={colour} />
+                ? <DataShape object={object} colour={colour} pop={pop} />
                 : isImage
                 ? <image href={object.src} x={object.x} y={object.y} width={object.w} height={object.h}
                     preserveAspectRatio="xMidYMid slice"
@@ -335,17 +335,25 @@ export default function AnimatedScene({ block, onChange, onAskRegion }) {
     const settle = setTimeout(() => onChange({ ...latest.current, time: Number(time.toFixed(2)) }), 150);
     return () => clearTimeout(settle);
   }, [playing, time]);
+  // The evaluator is time-in, state-out, so honouring reduced motion costs a
+  // constant and a branch: states settle where they already were going.
+  const still = useReducedMotion();
+  const pop = still ? { duration: 0 } : POP;
   if (error) return <div className="grid min-h-24 place-content-center p-4 text-center text-xs text-red-700">{error}</div>;
   if (!scene) return null;
   const state = getSceneState(scene, time);
   const pauseAnd = run => { setPlaying(false); run(); };
   const atEnd = time >= scene.duration - 0.001;
-  const play = () => { if (atEnd && !playing) setTime(0); setPlaying(value => !value); };
-  const replay = () => { setTime(0); setPlaying(true); };
+  const play = () => {
+    if (still) { setTime(atEnd ? 0 : scene.duration); return; }   // no motion: show the end, do not travel to it
+    if (atEnd && !playing) setTime(0);
+    setPlaying(value => !value);
+  };
+  const replay = () => { setTime(0); if (!still) setPlaying(true); };
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
       <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-white">
-        <Frame scene={scene} state={state} selecting={selecting} marked={block.marked} picked={block.selectedObject}
+        <Frame scene={scene} state={state} selecting={selecting} marked={block.marked} picked={block.selectedObject} pop={pop}
           onPick={semanticId => onChange({ ...block, selectedObject: semanticId })}
           onRegion={(area, targets) => {
             setSelecting(false);
