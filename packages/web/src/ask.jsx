@@ -176,7 +176,7 @@ export function FilePeek({ appName, path, line, lineEnd, onClose }) {
       }
     >
       <div data-panel-content className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-5">
-        {err && <div className="text-sm text-ink-2">✗ {err}</div>}
+        {err && <div role="alert" className="flex items-start gap-2 text-sm text-danger"><span className="min-w-0 flex-1">✗ {err}</span><button type="button" aria-label="Copy error" title="Copy error" onClick={() => navigator.clipboard.writeText(String(err))} className="shrink-0 rounded p-1 hover:bg-danger/10"><Copy size={14} /></button></div>}
         {content == null && !err && <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" />Reading source?</span>}
         {content != null && (
           <pre className="rounded-sm bg-code p-3 font-mono text-xs leading-relaxed text-ink">
@@ -671,6 +671,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               />
             ) : m.role === 'run' ? (
               <RunResultCard runId={m.runId} app={fileApp ? { name: fileApp } : null} />
+            ) : m.content?.startsWith('✗ ') ? (
+              <div role="alert" className="flex items-start gap-2 rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-sm text-danger">
+                <span className="min-w-0 flex-1 break-words">{m.content}</span>
+                <button type="button" aria-label="Copy error" title="Copy error" onClick={() => navigator.clipboard.writeText(m.content)} className="shrink-0 rounded p-1 hover:bg-danger/10"><Copy size={14} /></button>
+              </div>
             ) : m.content ? (
               <>{learnChat ? <div className="space-y-2">{answerBlocks(m.content).map((block, blockIndex) => isAnswerMetadata(block) ? <Md key={blockIndex} text={block} sourcePath={singleSourcePath(m.content)} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} /> : <div key={blockIndex} className={cn('relative min-w-0 rounded-lg border border-accent/30 p-3 pr-16', selectedPassage?.reply === (m.id || i) && selectedPassage?.index === blockIndex ? 'ring-2 ring-accent bg-accent/10 text-black' : 'bg-transparent')}>
                 <Md text={block} sourcePath={singleSourcePath(m.content)} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} />

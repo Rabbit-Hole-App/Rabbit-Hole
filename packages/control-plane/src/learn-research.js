@@ -26,7 +26,16 @@ export async function researchAnswer(env, turns, system, model, {
     if (!calls.length) {
       if (result.stop_reason === 'max_tokens') throw new Error('The answer was cut short. Try a narrower question.');
       const answer = result.content?.filter(block => block.type === 'text').map(block => block.text).join('\n\n');
-      if (!answer?.trim()) throw new Error(`No Learn answer returned (${result.stop_reason || result.type || 'unknown'}; ${(result.content || []).map(b => b.type).join(',') || 'no content'})`);
+      if (!answer?.trim()) {
+        // Adaptive thinking can end a turn with only a thinking block; replay it
+        // (blocks must be preserved verbatim) and ask once for the text answer.
+        if (step < 6 && result.content?.some(block => block.type === 'thinking')) {
+          messages.push({ role: 'assistant', content: result.content }, { role: 'user', content: 'Continue with your final answer now, as plain text.' });
+          await onProgress('Preparing answer...');
+          continue;
+        }
+        throw new Error(`No Learn answer returned (${result.stop_reason || result.type || 'unknown'}; ${(result.content || []).map(b => b.type).join(',') || 'no content'})`);
+      }
       return { answer, papers: [...papers.values()] };
     }
     if (step === 6 || calls.length !== 1) throw new Error('Learn research limit reached');

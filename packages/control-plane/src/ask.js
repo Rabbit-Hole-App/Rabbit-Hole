@@ -293,7 +293,14 @@ export async function anthropic(env, body, model, org) {
     body: JSON.stringify(chosen ? { ...body, model: chosen } : { model: MODEL, fallbacks: 'default', ...body }),
   });
   // Surface the API's own reason in logs; callers only relay the status code.
-  if (!resp.ok) console.warn('anthropic API error', resp.status, (await resp.clone().text().catch(() => '')).slice(0, 400));
+  // The fingerprint (shapes and sizes only, never content) identifies which
+  // payload construction produced an invalid_request_error.
+  if (!resp.ok) {
+    const kinds = {};
+    for (const m of body.messages || []) for (const c of Array.isArray(m.content) ? m.content : [{ type: 'string' }]) { kinds[c.type] = (kinds[c.type] || 0) + 1; if (c.type === 'tool_result') for (const inner of Array.isArray(c.content) ? c.content : []) kinds[`tool_result.${inner.type}`] = (kinds[`tool_result.${inner.type}`] || 0) + 1; }
+    console.warn('anthropic API error', resp.status, (await resp.clone().text().catch(() => '')).slice(0, 400),
+      JSON.stringify({ model: chosen || MODEL, messages: (body.messages || []).length, blocks: kinds, tools: (body.tools || []).map(t => t.name), size: JSON.stringify(body).length }));
+  }
   return resp;
 }
 
