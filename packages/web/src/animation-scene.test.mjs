@@ -262,3 +262,16 @@ test('heat is carried so a grid can read as a distribution', () => {
   });
   assert.equal(getSceneState(built, 1).objects[0].heat, true);
 });
+
+test('heat changes how a grid is painted, never what the evaluator says', () => {
+  const build = heat => validateScene({
+    id: 'hot', duration: 4,
+    objects: [{ id: 'g', type: 'grid', initialState: { x: 0, y: 0, rows: 2, cols: 2, values: [0, 1, 2, 3], ...(heat ? { heat: true } : {}) } }],
+    timeline: [{ at: 0, action: 'set_values', target: 'g', duration: 2, easing: 'linear', value: [3, 2, 1, 0] }],
+  });
+  for (const t of [0, 0.5, 1, 1.5, 2]) {
+    const plain = getSceneState(build(false), t).objects[0];
+    const hot = getSceneState(build(true), t).objects[0];
+    assert.deepEqual(hot.values, plain.values, `values must not depend on heat, at t=${t}`);
+  }
+});

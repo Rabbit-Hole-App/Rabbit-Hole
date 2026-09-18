@@ -54,10 +54,16 @@ function DataShape({ object, colour }) {
         const index = row * columns + column;
         const value = object.values?.[index];
         const lit = marked(object, row, column, index);
+        // Motion may spring a value only while that value is discrete. A heat
+        // fill is a continuous function of the cell's number, so it is painted
+        // exactly; a binary lit/unlit fill keeps its pop.
+        const springs = { stroke: lit ? colour : tint(colour, '33'), strokeWidth: lit ? 1.4 : 0.6 };
+        const fill = tint(colour, lit ? '33' : alpha(value));
         cells.push(
           <g key={index}>
             <motion.rect x={object.x + column * cell} y={object.y + row * cell} width={cell} height={cell}
-              animate={{ fill: lit ? tint(colour, '33') : tint(colour, alpha(value)), stroke: lit ? colour : tint(colour, '33'), strokeWidth: lit ? 1.4 : 0.6 }}
+              fill={object.heat ? fill : undefined}
+              animate={object.heat ? springs : { fill, ...springs }}
               transition={POP} />
             {value != null && cell >= 22 && (
               <text x={object.x + column * cell + cell / 2} y={object.y + row * cell + cell / 2}
@@ -91,7 +97,7 @@ function DataShape({ object, colour }) {
       <g>
         <line x1={object.x} y1={object.y + height} x2={object.x + (object.w || 0)} y2={object.y + height} stroke={tint(colour, '55')} strokeWidth="1.5" />
         {values.map((value, index) => {
-          const tall = value == null ? 0 : Math.max(1, (Math.abs(value) / peak) * (height - 4));
+          const tall = value == null ? 0 : Math.min(height - 4, Math.max(1, (Math.abs(value) / peak) * (height - 4)));
           const lit = marked(object, 0, index, index) || (object.cellHighlight === 'max' && value != null && value === Math.max(...values.map(entry => entry ?? -Infinity)));
           return (
             <motion.g key={index} animate={{ scale: lit ? 1.06 : 1 }} transition={POP} style={fromCentre}>
