@@ -296,24 +296,31 @@ git commit -m 'feat(learn): a scene role palette in both themes'
 
 ---
 
-### Task 4: `scene-style.js` — the pure style resolver
+### Task 4: `scene-vocab.js` and `scene-style.js` — the vocabulary and the pure style resolver
 
 **Files:**
-- Create: `packages/web/src/scene-style.js`, `packages/web/src/scene-style.test.mjs`
+- Create: `packages/web/src/scene-vocab.js`, `packages/web/src/scene-style.js`, `packages/web/src/scene-style.test.mjs`
 
-**Interfaces:**
-- Produces:
-  - `ROLES` — the ten role names, frozen
-  - `STATES` — the six state names, frozen
-  - `TYPE_ROLES` — the seven typography roles, frozen
-  - `SPACE` — the spacing scale `[4, 8, 12, 16, 24, 32, 48, 64, 96]`, frozen
-  - `TIMING` — `{ instant: 0, fast: 0.18, normal: 0.35, slow: 0.7, explain: 1.1 }`, frozen
+This task creates **both** modules, because the vocabulary has no other owner and every task after this one imports from it.
+
+**Interfaces — `scene-vocab.js`, zero imports, everything frozen:**
+  - `ROLES` — the ten role names
+  - `STATES` — the six state names
+  - `TYPE_ROLES` — the seven typography roles
+  - `SPACE` — `[4, 8, 12, 16, 24, 32, 48, 64, 96]`
+  - `GEOMETRY` — component dimensions on a 4px baseline, e.g. `{ nodeMinWidth: 176, nodeHeight: 56, barWidth: 28, barHeight: 120, chipHeight: 32, cellPitch: 24 }`
+  - `TIMING` — `{ instant: 0, fast: 0.18, normal: 0.35, slow: 0.7, explain: 1.1 }`
+  - `SOUNDS` — the fifteen sound names
+
+**Interfaces — `scene-style.js`, importing only `scene-vocab.js`:**
   - `roleVar(role) -> 'var(--viz-input)'`
   - `tintOf(role, percent) -> 'color-mix(in srgb, var(--viz-input) 12%, transparent)'`
   - `textStyle(typographyRole) -> { fontSize, fontWeight, fill, fontFamily? }`
   - `shapeStyle(role, state) -> { fill, stroke, strokeWidth }`
 
-No imports at all — not even zod. Everything here is a pure function of its arguments, which is what makes it testable and what kept ~100 lines of Plan A's renderer logic untested.
+Every function here is pure in its arguments. That is what makes them testable, and their absence is why ~100 lines of Plan A's renderer logic shipped with no unit coverage at all.
+
+The test file imports the vocabulary from `scene-vocab.js` and the functions from `scene-style.js`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -322,7 +329,8 @@ Create `packages/web/src/scene-style.test.mjs`:
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ROLES, STATES, TIMING, SPACE, roleVar, tintOf, textStyle, shapeStyle } from './scene-style.js';
+import { ROLES, STATES, TIMING, SPACE } from './scene-vocab.js';
+import { roleVar, tintOf, textStyle, shapeStyle } from './scene-style.js';
 
 test('a role resolves to a token reference, never to a colour', () => {
   for (const role of ROLES) {
@@ -784,6 +792,17 @@ Tokens → Q/K/V → QKᵀ → causal mask → softmax → ×V → output.
 - [ ] **Step 3: Verify locally** in both themes, at 0/25/50/75/100%.
 - [ ] **Step 4: Record what the vocabulary could not express.** This is the task's real output. If you reached for something the vocabularies do not have, write it down rather than working around it — **do not add scene-specific styling, layout arithmetic or animation**. A gap here is a finding about the vocabulary.
 - [ ] **Step 5: Commit** — `feat(learn): the causal attention reference scene`
+
+---
+
+## Vocabulary checkpoint — after Task 12, before Task 13
+
+The causal-attention scene is the first real content the vocabularies have ever met. Three demos written to show off primitives prove nothing; this does.
+
+- [ ] Read Task 12's record of **what the vocabulary could not express**.
+- [ ] Decide, and say which: the gap is real and the vocabulary changes now, or the gap is authoring preference and the vocabulary stands.
+- [ ] **If it changes, it changes here** — before two more scenes are authored against a vocabulary known to be short. A deficiency that propagates through all three scenes costs three migrations instead of one, and every fix after that is made under pressure to not disturb work already done.
+- [ ] Record the decision in the ledger either way. "No gaps found" is a result worth writing down, because it is the evidence the vocabulary is sufficient.
 
 ---
 
