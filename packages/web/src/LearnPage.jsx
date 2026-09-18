@@ -1,11 +1,11 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Minimize2, Network, Pause, Pencil, Play, Scan, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Home, Network, Pause, Pencil, Play, Scan, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
 import { createShapeId, getIndices } from 'tldraw';
 import { SPEEDS, getSpeed, isMuted, onMuted, setMuted, setSpeed } from './learn-audio.js';
-import { api, navigate, wsHeaders } from './api.js';
+import { api, wsHeaders } from './api.js';
 import { requestBoardExplanation } from './learn-board-request.js';
 import { AskPanel } from './ask.jsx';
-import { Button, ExpandedPageFrame, IconBtn, PeekBreadcrumbs, ConfirmDialog } from './ui.jsx';
+import { Button, ExpandedPageFrame, IconBtn, ConfirmDialog } from './ui.jsx';
 import { captureSelection, selectionSnapshot } from './sigmoid-context.js';
 import RegionPicker from './RegionPicker.jsx';
 import { CourseInterview, CoursePanel, useLearnCourse } from './LearnCourse.jsx';
@@ -439,17 +439,12 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     <section aria-label="Learn" className="min-h-0 min-w-0 flex-1">
       <ExpandedPageFrame wide>
         {pendingNoteView && <ConfirmDialog title="Save notes before switching?" body="Save your changes and open the selected view, or cancel to keep editing." confirmLabel="Save notes" confirmVariant="primary" onCancel={() => setPendingNoteView(null)} onConfirm={async () => { if (await noteSave.current?.()) leaveNote(pendingNoteView); }} />}
-        <div className="flex items-start gap-3">
-          <div className="min-w-0 flex-1"><PeekBreadcrumbs items={[
-            { label: 'Apps', onClick: () => navigate('/apps') },
-            { label: app.repo || app.name, onClick: onBack },
-            { label: 'Learn' },
-          ]} /></div>
-          <IconBtn aria-label="Minimize Learn" title="Back to app" onClick={onBack}><Minimize2 size={14} strokeWidth={1.5} /></IconBtn>
-        </div>
-        <div className="flex items-center justify-between gap-3 pb-4">
+        <div className="flex items-center justify-between gap-3 pt-1 pb-4">
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1"><h1 className="text-2xl font-semibold">Learn</h1><span aria-label="Course title" className="text-base text-ink-2">{courseTitle}</span></div>
-          {isRepository&&<Button variant="primary" onClick={onBack}><Network size={15}/>Graph</Button>}
+          <div className="flex items-center gap-2">
+            {isRepository&&<Button variant="primary" onClick={onBack}><Network size={15}/>Graph</Button>}
+            <IconBtn aria-label="Back to app" title="Back to app" onClick={onBack}><Home size={17} strokeWidth={1.5} /></IconBtn>
+          </div>
         </div>
         <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
           <nav aria-label="Lesson views" className="flex flex-wrap gap-1">{['curriculum', 'lesson', 'notes'].map(value => <button key={value} type="button" disabled={!course.loaded || course.dirty && value !== 'curriculum'} aria-pressed={learningView === value} onClick={() => requestLearningView(value)} className={`rounded px-3 py-1.5 text-sm disabled:opacity-40 ${learningView === value ? 'bg-hover font-medium text-ink' : 'text-ink-2 hover:bg-hover'}`}>{value === 'notes' ? 'My notes' : value[0].toUpperCase() + value.slice(1)}</button>)}</nav>
