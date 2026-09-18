@@ -1055,13 +1055,32 @@ and insert a branch in the shape ternary, before `isStroke`:
                 : isStroke
 ```
 
-An image caption belongs above the frame, not across its middle — the same placement `isData` already uses. Three tasks now extend this one `<text>` element, so name the condition once instead of growing the ternaries. Add beside the other per-object bindings:
+**Extract the label placement instead of adding a fourth term.** After Task 7 the `<text>` element carries a compound condition on `x`, `y`, `textAnchor` and `dominantBaseline`, with a nested ternary inside `x`. Task 10 adds equations to the same element. Adding `isImage` as another term would make four tasks' worth of conditions unreadable, so lift it out once, here.
+
+Add above `Frame`:
 
 ```js
-          const labelAbove = isData || isImage;   // caption sits over the top edge
+// Where a label sits depends on what it is labelling: a box or circle centres it,
+// a stroke pins it to its start, and everything that owns a frame - data grids,
+// images - hangs it above the top edge. One place, so the next type added does
+// not grow a fifth condition into four attributes.
+const labelAt = (object, kind, centre) => {
+  if (kind.stroke) return { x: object.from?.x ?? object.x, y: (object.from?.y ?? object.y) - 8, anchor: 'start', baseline: 'auto' };
+  if (kind.above) return { x: object.x, y: object.y - 10, anchor: 'start', baseline: 'auto' };
+  if (kind.text) return { x: object.x, y: object.y, anchor: 'start', baseline: 'auto' };
+  return { x: centre.x, y: centre.y, anchor: 'middle', baseline: 'central' };
+};
 ```
 
-and in the `<text>` element replace every bare `isData` in the `x`, `y`, `textAnchor` and `dominantBaseline` expressions with `labelAbove`. Leave `fontWeight` and `fill` reading `isData` — an image caption takes the data weight and colour, which is what those two already give it.
+In the object map, replace the four compound expressions with one call:
+
+```js
+          const label = labelAt(object, { stroke: isStroke, above: isData || isImage, text: isText }, centre);
+```
+
+and in the `<text>` element use `x={label.x} y={label.y} textAnchor={label.anchor} dominantBaseline={label.baseline}`. Leave `fontSize`, `fontWeight`, `fill` and `style` exactly as they are — an image caption takes the data weight and colour, which is what they already give it.
+
+Check the order carefully: `stroke` must be tested before `above`, and a `text` object must keep `object.y` rather than `object.y - 10`. Getting the order wrong moves labels on scenes that work today, which is the regression the baseline image exists to catch.
 
 - [ ] **Step 6: Verify**
 
@@ -1305,6 +1324,12 @@ An equation with no `w`/`h` would render an empty `foreignObject`. In `packages/
 ```js
     if (object.type === 'equation' && !(object.initialState.w && object.initialState.h)) {
       throw new Error(`Object "${object.id}": an equation needs a width and height to be set in`);
+    }
+    // A stroke with no endpoints falls back to its own x/y for both ends, which
+    // is a finite zero-length line - no NaN, but an invisible object that
+    // validated. That is the failure this whole pass exists to stop.
+    if (['arrow', 'line'].includes(object.type) && !(object.initialState.from && object.initialState.to)) {
+      throw new Error(`Object "${object.id}": an ${object.type} needs a from and a to`);
     }
 ```
 
