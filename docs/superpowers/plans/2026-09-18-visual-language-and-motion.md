@@ -438,15 +438,17 @@ git commit -m 'feat(learn): a pure style resolver for roles, states, typography 
 
 ---
 
-### Task 5: Roles and states in the schema
+### Task 5: Roles in the schema
 
 **Files:**
 - Modify: `packages/web/src/animation-scene.js`
 - Test: `packages/web/src/animation-scene.test.mjs`
 
 **Interfaces:**
-- Consumes: `ROLES`, `STATES` from `scene-vocab.js`.
-- Produces: `initialState.role` (enum, default `neutral`); `initialState.color` removed; evaluated objects carry `role` and the six state booleans.
+- Consumes: `ROLES` from `scene-vocab.js`.
+- Produces: `initialState.role` (enum, default `neutral`); `initialState.color` removed; evaluated objects carry `role`.
+
+**Corrected before dispatch (Ruling 12).** This task was titled "Roles *and states*" and promised that evaluated objects carry the six state booleans. Nothing produces five of them. `highlighted` already exists as a flat evaluated flag driven by the `highlight`/`unhighlight` timeline actions, and `chosen` is computed in the renderer as `picked === object.semanticId`; `active`, `selected`, `blocked` and `disabled` have no authoring path and no writer anywhere in Tier 1. Six schema fields nothing writes is a namespace invented ahead of its first use, and it would have given `highlighted` two homes. States stay out of the schema. Task 7 assembles the state object at the `shapeStyle` call site from the flags that exist.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -584,6 +586,8 @@ Run and record: `grep -c "#[0-9a-fA-F]\{6\}" src/AnimatedScene.jsx` and `grep -n
 Delete `COLORS` and `tint`. Every `fill=`/`stroke=` carrying a colour becomes a `style={{ fill: … }}` / `style={{ stroke: … }}` property.
 
 **Why `style`, accurately:** `fill="var(--c)"` does in fact resolve in current browsers — verified in Chromium, computed `rgb(255, 0, 0)`. The reason to use `style` is not that attributes are broken; it is that a presentation attribute is the weakest source in the cascade, so anything setting `fill` in CSS silently wins over it, and `style` keeps one obvious place where a colour comes from. `color-mix()` was also verified working through `style`, computing `color(srgb 1 0 0 / 0.3)`.
+
+`shapeStyle(role, state)` takes its state as an object of booleans. Build it at the call site from the flags that already exist — `{ highlighted: object.highlighted, chosen }` — and pass nothing else. Per Ruling 12 the evaluator does not carry a state namespace; the other four state names are defined in the vocabulary and will get a writer when the input axis lands, not before. The red `#b42318` that currently marks a chosen object disappears here: `chosen` is a state, so it must change weight and fill through `shapeStyle`, never hue.
 
 `#37352f`, `#787774`, `#9b9a97` are the light values of `--color-ink`, `--color-ink-2`, `--color-ink-3`; those are a 1:1 swap to `var(--color-ink*)`. The canvas background `bg-[#fbfbfa]` becomes `style={{ background: 'var(--viz-surface)' }}`. The shadow `floodColor` and the KaTeX `color` become tokens too.
 
