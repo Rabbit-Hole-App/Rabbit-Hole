@@ -152,6 +152,9 @@ const labelAt = (object, kind, centre) => {
 // KaTeX is synchronous and pure, so a frame can be typeset in the render pass
 // and a scrub never waits on anything. An expression that will not parse shows
 // itself rather than throwing the whole animation away.
+// ponytail: a type_text reveal on an equation feeds this truncated LaTeX each
+// frame, so it shows KaTeX's error rendering until the text completes; give the
+// reveal a plain-text mode when a lesson actually types an equation out.
 const typeset = expression => {
   try { return katex.renderToString(expression, { throwOnError: false, displayMode: false, output: 'html' }); }
   catch { return null; }
@@ -259,6 +262,9 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked }) {
                       fill={tint(colour, object.highlighted ? '1f' : '0f')} stroke={chosen ? '#b42318' : colour} strokeWidth={chosen ? 3 : 1.5} filter="url(#animation-shadow)" />}
               {maths && (
                 <foreignObject x={object.x} y={object.y} width={object.w} height={object.h}>
+                  {/* Only typeset() output may reach this - it is KaTeX markup,
+                      never script. A scene's own strings are authored content and
+                      must never be set as HTML. */}
                   <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontSize: 15, color: '#37352f' }}
                     dangerouslySetInnerHTML={{ __html: maths }} />
                 </foreignObject>

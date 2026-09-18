@@ -116,7 +116,7 @@ export function validateScene(raw) {
       }
     }
     if (object.type === 'equation' && !(object.initialState.w && object.initialState.h)) {
-      throw new Error(`Object "${object.id}": an equation needs a width and height to be set in`);
+      throw new Error(`Object "${object.id}": an equation needs a width and height`);
     }
   }
   for (const event of scene.timeline) {
