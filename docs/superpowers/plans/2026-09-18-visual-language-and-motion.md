@@ -848,10 +848,19 @@ test('coalescing collapses what lands together and keeps what does not', () => {
 
   assert.deepEqual(coalesce([]), []);
 });
+
+// The obvious implementation - Math.floor(at / window) - passes every case
+// above and is still wrong: it lays a fixed grid over the timeline, so two
+// events 10ms apart land in different buckets whenever a grid line falls
+// between them. Cluster greedily from the first event instead.
+test('two events either side of a grid line are still one bucket', () => {
+  const straddling = [{ at: 1.03, sound: 'soft_pop' }, { at: 1.05, sound: 'connect' }];
+  assert.deepEqual(coalesce(straddling).map(e => e.sound), ['connect'], '20ms apart is one moment, wherever it falls');
+});
 ```
 
 - [ ] **Step 2: Run to confirm they fail.**
-- [ ] **Step 3: Write the pure half** — `crossed`, `coalesce`, and the three tiers from the spec. `SOUNDS` lives in `scene-vocab.js`.
+- [ ] **Step 3: Write the pure half** — `crossed`, `coalesce`, and the three tiers from the spec. `SOUNDS` already exists in `scene-vocab.js` with all fifteen names, frozen, shipped in Task 4 — import it, do not redefine it. Cluster greedily: open a bucket at the earliest ungrouped event and take everything within `window` of *that event*, not of a fixed grid.
 - [ ] **Step 4: Run to confirm they pass.**
 - [ ] **Step 5: Add the schema field** — `sound: z.enum(SOUNDS).optional()` on `eventSchema`, with a test that an unknown name is refused. **`getSceneState` must not read it** — assert that the evaluated state contains no sound field.
 - [ ] **Step 6: Write the synthesis** — Web Audio, ~40 lines, one `AudioContext` created or resumed **only on a user gesture**. Play is a sufficient gesture. No files, no new dependency.
@@ -866,13 +875,22 @@ learner preference (persisted once)
    read by every AnimatedScene
 ```
 
-First **look for an existing preference store** in `packages/web/src` — the app already persists an appearance setting, so there may be somewhere this belongs. Report what you found. If there is one, use it. If there is not, create the smallest possible shared module: a `localStorage`-backed value plus a subscribe hook, no dependency, no context provider.
+**Corrected before dispatch (Ruling 22): it already exists — do not build it.** `packages/web/src/learn-audio.js` is 22 lines and is precisely this module: `isMuted()`, `setMuted(value)`, `onMuted(listener)` returning an unsubscribe, backed by `localStorage` under `small.learn-muted`, already owning the mute for lesson narration. Import it.
+
+Scene sound shares that one preference rather than adding a second. A learner who muted a lesson means the lesson, not one of its two audio sources, and two mute toggles in one lesson that mean subtly different things is a worse answer than one that means what it says.
+
+That reuse overrides this step's original instruction to default to muted. `learn-audio.js` defaults to unmuted, and it should stay that way here: scene sound only fires from the rAF loop, which only runs after the learner presses Play, so the sound follows a deliberate act rather than ambushing anyone. If you find a case where it does ambush, stop and say so rather than adding a second preference.
 
 Scene JSON stays free of this entirely. A scene says `{ "sound": "reveal" }` and never knows whether anyone can hear it.
 
 - [ ] **Step 8: Trigger it from the transport** — in the rAF loop only, never on a scrub. Add a mute toggle to the transport row beside Play, reading and writing the shared preference, defaulting to **muted** so nobody is ambushed.
 - [ ] **Step 9: Verify locally** — `make test-unit`, build. Then by hand: play a scene with sound on and confirm beats land; scrub end to end and confirm **silence**; seek backward and confirm silence; press Replay and confirm sound resumes from the start. Confirm every scene still teaches with sound muted.
-- [ ] **Step 10: Commit** — `feat(learn): a semantic sound channel outside the evaluator`
+- [ ] **Step 10: Commit**
+
+```bash
+git add packages/web/src/scene-sound.js packages/web/src/scene-sound.test.mjs packages/web/src/animation-scene.js packages/web/src/animation-scene.test.mjs packages/web/src/AnimatedScene.jsx
+git commit -m 'feat(learn): a semantic sound channel outside the evaluator'
+```
 
 ---
 
