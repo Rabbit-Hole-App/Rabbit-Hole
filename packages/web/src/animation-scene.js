@@ -61,7 +61,7 @@ export const animationSchema = z.object({
   duration: z.number().positive().max(120),
   objects: z.array(objectSchema).max(60),
   timeline: z.array(eventSchema).max(200),
-  camera: z.object({ x: z.number().default(0), y: z.number().default(0), zoom: z.number().positive().max(8).default(1) }).default({}),
+  camera: z.object({ x: z.number().nullable().default(null), y: z.number().nullable().default(null), zoom: z.number().positive().max(8).default(1) }).default({ zoom: 1 }),
 });
 
 const ease = (kind, t) => {
@@ -164,7 +164,10 @@ export function getSceneState(scene, time) {
     emphasis: 0,
   }]));
   const connections = [];
-  let camera = { ...scene.camera };
+  // The camera names the point the frame is centred on. Unset means the middle
+  // of the scene, so a scene that never mentions a camera is framed exactly as
+  // it was before the camera did anything at all.
+  let camera = { x: scene.camera.x ?? scene.width / 2, y: scene.camera.y ?? scene.height / 2, zoom: scene.camera.zoom };
   const events = [...scene.timeline].sort((a, b) => a.at - b.at || a.duration - b.duration);
   for (const event of events) {
     if (event.at > at) break;
@@ -227,7 +230,7 @@ export function getSceneState(scene, time) {
       case 'highlight_cell': if (object) object.cellHighlight = progress > 0 ? event.value : null; break;
       case 'sweep': if (object) object.sweep = progress >= 1 ? null : progress; break;
       case 'emphasize': if (object) object.emphasis = progress; break;
-      case 'focus_camera': if (object) camera = { ...camera, x: object.x, y: object.y, zoom: event.value?.zoom ?? camera.zoom }; break;
+      case 'focus_camera': if (object) camera = { ...camera, x: object.x + (object.w ?? 0) / 2, y: object.y + (object.h ?? 0) / 2, zoom: event.value?.zoom ?? camera.zoom }; break;
       case 'pan_camera': if (event.value) camera = { ...camera, x: camera.x + (event.value.x - camera.x) * progress, y: camera.y + (event.value.y - camera.y) * progress }; break;
       case 'zoom_camera': if (event.value) camera = { ...camera, zoom: camera.zoom + ((event.value.zoom ?? event.value) - camera.zoom) * progress }; break;
       default: break; // pause is a timeline marker, not a state change

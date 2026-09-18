@@ -173,3 +173,28 @@ test('a blanked cell grows back from zero, never from null', () => {
   assert.deepEqual(getSceneState(built, 0).objects[0].values, [null], 'an authored blank is still blank before its event starts');
   assert.deepEqual(getSceneState(built, 1).objects[0].values, [5]);
 });
+
+test('an unset camera sits at the centre of the scene', () => {
+  const built = validateScene({
+    id: 'unset', duration: 2, width: 800, height: 400,
+    objects: [{ id: 'a', type: 'box', initialState: { x: 10, y: 10 } }],
+    timeline: [],
+  });
+  assert.deepEqual(getSceneState(built, 1).camera, { x: 400, y: 200, zoom: 1 }, 'so the default view is the whole scene, unmoved');
+});
+
+test('the camera follows its events and settles on an object centre', () => {
+  const built = validateScene({
+    id: 'looked', duration: 6, width: 800, height: 400,
+    objects: [{ id: 'far', type: 'box', initialState: { x: 600, y: 300, w: 100, h: 40, label: 'over here' } }],
+    timeline: [
+      { at: 1, action: 'zoom_camera', value: { zoom: 2 }, duration: 1, easing: 'linear' },
+      { at: 3, action: 'focus_camera', target: 'far', value: { zoom: 2 } },
+    ],
+  });
+  assert.equal(getSceneState(built, 0).camera.zoom, 1);
+  assert.equal(getSceneState(built, 1.5).camera.zoom, 1.5, 'zoom interpolates');
+  assert.equal(getSceneState(built, 2.5).camera.zoom, 2);
+  const focused = getSceneState(built, 4).camera;
+  assert.deepEqual({ x: focused.x, y: focused.y }, { x: 650, y: 320 }, 'focus centres the object, not its top-left corner');
+});

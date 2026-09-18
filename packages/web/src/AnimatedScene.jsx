@@ -130,14 +130,21 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked }) {
   };
   const region = (a, b) => ({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(a.x - b.x), h: Math.abs(a.y - b.y) });
   const find = at => {
-    // Which authored object sits under the marked region, by semantic id.
+    // Which authored object sits under the marked region, by semantic id. The
+    // region arrives in frame fractions, so it is measured against what the
+    // camera is currently showing, not against the whole scene.
     const inside = state.objects.filter(object => object.visible && object.w && object.h).filter(object => {
-      const left = object.x / scene.width, top = object.y / scene.height;
-      const right = (object.x + object.w) / scene.width, bottom = (object.y + object.h) / scene.height;
+      const left = (object.x - origin.x) / span.w, top = (object.y - origin.y) / span.h;
+      const right = (object.x + object.w - origin.x) / span.w, bottom = (object.y + object.h - origin.y) / span.h;
       return at.x < right && at.x + at.w > left && at.y < bottom && at.y + at.h > top;
     });
     return inside.map(object => object.semanticId);
   };
+  // The evaluator owns where the camera is; this only spends it. Zoom is about
+  // the frame centre, so focusing an object does not also shove it off-screen.
+  const span = { w: scene.width / state.camera.zoom, h: scene.height / state.camera.zoom };
+  const origin = { x: state.camera.x - span.w / 2, y: state.camera.y - span.h / 2 };
+  const view = `${origin.x} ${origin.y} ${span.w} ${span.h}`;
   return (
     <div ref={host} data-animation-frame className="relative h-full w-full select-none"
       onPointerDown={event => { if (!selecting || event.button !== 0) return; event.currentTarget.setPointerCapture(event.pointerId); drag.current = point(event); setRectangle(null); }}
@@ -150,7 +157,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked }) {
         if (area.w < 0.02 || area.h < 0.02) return;
         onRegion(area, find(area));
       }}>
-      <svg viewBox={`0 0 ${scene.width} ${scene.height}`} className="h-full w-full bg-[#fbfbfa]">
+      <svg viewBox={view} className="h-full w-full bg-[#fbfbfa]">
         {state.connections.map(connection => {
           const from = state.objects.find(object => object.id === connection.from);
           const to = state.objects.find(object => object.id === connection.to);
