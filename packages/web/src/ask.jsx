@@ -305,7 +305,7 @@ function OutputRow({ runId, name, size }) {
 
 // One chat, scoped: {app} | {run} | {} (org). Style per the Notion AI reference -
 // user turns as a right-aligned bubble, answers as plain text, pill input at the bottom.
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -373,6 +373,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
 
   useEffect(() => {
     const focus = () => inputRef.current?.focus();
+    if (canvasSeed) return;
     window.addEventListener('small:ask-focus', focus);
     return () => window.removeEventListener('small:ask-focus', focus);
   }, []);
@@ -391,6 +392,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     } catch { /* stale id - stay on the empty chat */ }
   };
   useEffect(() => {
+    if (composerOnly || canvasSeed) return; // Canvas conversations never resume an unrelated thread.
     const request = ++historyRequest.current;
     chatApi(`/api/ask/threads?scope=${historyScope}${scopeRef ? `&ref=${encodeURIComponent(scopeRef)}` : ''}${privateChat ? `&app=${encodeURIComponent(fileApp)}` : ''}`)
       .then(async (d) => {
@@ -410,6 +412,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // @-chips ride at the front of the message text
     const message = [...mentions.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     if (!message || busy) return;
+    if (composerOnly && !canvasSeed) threadId.current = null; // The main composer starts a new block.
     if (selectedPassage && message.length + selectedPassage.text.length > 3850) { setBoardError({ id: selectedPassage.reply, message: 'This passage and question are too long. Ask a shorter question or clear the passage.' }); return; }
     const isDemo = demo && message.toLowerCase().replace(/[.!?]+$/, '') === demo.prompt.toLowerCase() && !file;
     if (isDemo && demo.disabled) return;
@@ -458,6 +461,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(repository ? { repository_context: { ...repositoryContext, commit: sourceRange?.commit || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
         message: passage ? `Question about this previous answer passage:\n${passage.text}\n\nLearner question: ${message}` : message,
         thread_id: threadId.current,
+        ...(canvasSeed && !threadId.current ? { canvas_seed: canvasSeed } : {}),
         ...(srcOpts.length && srcOn.size < srcOpts.length ? { sources: [...srcOn] } : {}),
         ...(model !== 'auto' ? { model } : {}),
       };

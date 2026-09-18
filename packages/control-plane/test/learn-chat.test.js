@@ -1,4 +1,5 @@
 import { paperSelectionImage } from '../src/learn-preview-review.js';
+import { canvasSeed } from '../src/canvas-conversation.js';
 import { arxivId, paperDocument } from '../src/arxiv.js';
 import { LEARN_SYSTEM, validateLessonSnapshot } from '../src/learn-context.js';
 import { captureSelection, selectionSnapshot, sigmoidObjects } from '../../web/src/sigmoid-context.js';
@@ -12,7 +13,7 @@ const source = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8')
 const names = ['apiAsk', 'askThreadForUser', 'apiAskThreads', 'apiAskThread', 'apiAskThreadRename', 'apiAskThreadDelete'];
 const functions = names.map(name => source.match(new RegExp(`async function ${name}\\([^]*?\\n\\}`))[0]).join('\n');
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
-const handlers = new Function('json', 'appForUser', 'appContext', 'askStream', 'ASK_MODELS', 'ASK_TOOLS', 'LEARN_SYSTEM', 'validateLessonSnapshot', 'arxivId', 'readArxivPaper', 'paperDocument', 'paperSelectionImage', `${functions}; return { ${names.join(',')} };`)(
+const handlers = new Function('json', 'appForUser', 'appContext', 'askStream', 'ASK_MODELS', 'ASK_TOOLS', 'LEARN_SYSTEM', 'validateLessonSnapshot', 'arxivId', 'readArxivPaper', 'paperDocument', 'paperSelectionImage', 'canvasSeed', `${functions}; return { ${names.join(',')} };`)(
   json,
   async (env, user, name) => env.apps[name],
   async (env, app) => ({ name: app.name }),
@@ -20,7 +21,7 @@ const handlers = new Function('json', 'appForUser', 'appContext', 'askStream', '
     env.answers.push({ history: [...history], question, context, toolOpts, system, org, blocks, research });
     await onFull('Answer: ' + question);
     return json(metadata);
-  }, {}, [], LEARN_SYSTEM, validateLessonSnapshot, arxivId, async id => ({ id, title: "Test paper", pdfUrl: `https://arxiv.org/pdf/${id}` }), paperDocument, paperSelectionImage,
+  }, {}, [], LEARN_SYSTEM, validateLessonSnapshot, arxivId, async id => ({ id, title: "Test paper", pdfUrl: `https://arxiv.org/pdf/${id}` }), paperDocument, paperSelectionImage, canvasSeed,
 );
 const owner = { email: 'owner@example.test', org: 'workspace-a' };
 const request = (body, path = '/api/learn/ask') => new Request('https://small.example' + path, {
@@ -35,7 +36,7 @@ function fixture(t) {
   return {
     ANTHROPIC_API_KEY: 'test-only', answers: [],
     apps: { counter: { name: 'counter', canView: true, canEdit: false }, other: { name: 'other', canView: true, canEdit: false } },
-    DB: { prepare: sql => ({ bind: (...params) => ({
+    DB: { batch: async statements => Promise.all(statements.map(statement => statement.run())), prepare: sql => ({ bind: (...params) => ({
       first: async () => db.prepare(sql).get(...params) || null,
       all: async () => ({ results: db.prepare(sql).all(...params) }),
       run: async () => { const result = db.prepare(sql).run(...params); return { meta: { last_row_id: Number(result.lastInsertRowid), changes: Number(result.changes) } }; },
@@ -44,6 +45,19 @@ function fixture(t) {
 }
 const send = (env, conversation, message, thread_id, app = 'counter', user = owner) => handlers.apiAsk(request({ scope: { app }, message, thread_id }), env, {}, user, conversation);
 const list = (env, scope) => handlers.apiAskThreads(new Request(`https://small.example/api/ask/threads?scope=${scope}&ref=counter`), env, owner);
+
+test('canvas follow-ups seed separate Learn threads for normal deployed apps', async t => {
+  const env = fixture(t);
+  const start = label => handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'Explain further', canvas_seed: { question: label, answer: `Answer ${label}` } }), env, {}, owner, 'learn');
+  const a = await (await start('Alpha')).json(), b = await (await start('Beta')).json();
+  assert.notEqual(a.threadId, b.threadId);
+  assert.deepEqual(env.answers[0].history.map(m => m.content), ['Alpha', 'Answer Alpha']);
+  assert.deepEqual(env.answers[1].history.map(m => m.content), ['Beta', 'Answer Beta']);
+  await send(env, 'learn', 'Again', a.threadId);
+  assert.doesNotMatch(JSON.stringify(env.answers[2].history), /Beta/);
+  env.apps.counter.canView = false;
+  assert.equal((await start('Blocked')).status, 403);
+});
 
 test('Learn and Agent have separate histories and model context for the same app', async t => {
   const env = fixture(t);

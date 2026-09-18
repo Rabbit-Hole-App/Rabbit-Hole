@@ -1,4 +1,5 @@
 import { arxivId, readArxivPaper, paperDocument } from './arxiv.js';
+import { canvasSeed } from './canvas-conversation.js';
 import { LEARN_SYSTEM, validateLessonSnapshot } from './learn-context.js';
 import { paperSelectionImage } from './learn-preview-review.js';
 import { handleLearnCourse } from './learn-course.js';
@@ -954,6 +955,9 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent') {
     body = await req.json();
   }
   const { scope = {}, message, thread_id, sources, model } = body;
+  let seed;
+  try { seed = canvasSeed(body, conversation); }
+  catch (error) { return json({ error: error.message }, 400); }
   let lessonSnapshot = null;
   const research = conversation === 'learn' ? { papers: [] } : null;
   if (body.lesson_snapshot !== undefined) {
@@ -1038,6 +1042,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent') {
       .bind(user.org, user.email, scopeKind, scopeRef).run();
     threadId = r.meta.last_row_id;
   }
+  if (seed.length) await env.DB.batch(seed.map(turn => env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, turn.role, turn.content)));
   const { results: history } = await env.DB.prepare(
     'SELECT role, content FROM messages WHERE thread_id = ? ORDER BY id DESC LIMIT 10'
   ).bind(threadId).all();

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, Circle, Diamond, Eraser, Hand, Hexagon, Highlighter, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ArrowLeftRight, Reply, X, ArrowUpRight, Circle, Diamond, Eraser, Hand, Hexagon, Highlighter, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn } from './ui.jsx';
 
@@ -79,10 +79,27 @@ function outlineOf(shape) {
 // One conversation node: the learner's message, a separator, then the agent's
 // reply. Starts at a compact width, grows with content up to a max height
 // (longer replies scroll inside), and resizes from the corner handle.
-function ChatCard({ exchange, zoom, onMove }) {
+function ChatCard({ exchange, zoom, onMove, renderComposer, onLayout, onConnect }) {
   const [lifted, setLifted] = useState(false);
+  const [replyOpen, setReplyOpen] = useState(false);
+  const [started, setStarted] = useState(false);
+  const [replies, setReplies] = useState([]);
   const [size, setSize] = useState({ w: null, h: null });
   const card = useRef(null);
+  const body = useRef(null);
+  useEffect(() => {
+    const observer = new ResizeObserver(onLayout);
+    observer.observe(card.current);
+    return () => observer.disconnect();
+  }, [onLayout]);
+  useEffect(() => { if (body.current && replies.length) body.current.scrollTop = body.current.scrollHeight; }, [replies]);
+  useEffect(() => { if (replyOpen) card.current?.querySelector('[data-block-composer] input[placeholder]')?.focus(); }, [replyOpen]);
+  const continueReply = () => { setStarted(true); setReplyOpen(true); };
+  const receive = event => setReplies(previous => {
+    if (event.question !== undefined) return [...previous, { id: event.id, question: event.question, answer: '', status: 'thinking' }];
+    return previous.map(turn => turn.id !== event.id ? turn : event.delta ? { ...turn, answer: turn.answer + event.delta }
+      : { ...turn, status: event.done ? 'done' : event.stage });
+  });
   const drag = event => {
     if (event.button !== 0) return;
     setLifted(true);
@@ -97,18 +114,31 @@ function ChatCard({ exchange, zoom, onMove }) {
       (w, h) => setSize({ w: Math.min(720, Math.max(280, w)), h: Math.min(640, Math.max(140, h)) }), zoom);
   };
   return (
-    <div ref={card} data-block data-chat-block onPointerDown={drag}
+    <div ref={card} data-block data-chat-block data-block-id={exchange.id} onPointerDown={drag}
       style={{ transform: `translate(${exchange.dx}px, ${exchange.dy}px)${lifted ? ' scale(1.02)' : ''}`, width: size.w || 380, height: size.h || undefined, maxHeight: size.h ? undefined : 420 }}
       className={`group relative mx-auto flex flex-col rounded-xl border border-line bg-white transition-shadow duration-150 ${lifted ? 'z-20 cursor-grabbing shadow-xl' : 'cursor-grab shadow-sm hover:shadow-md'}`}>
       <div className="flex shrink-0 justify-end px-4 pt-3 pb-2"><span className="max-w-[85%] rounded-xl bg-[#2383e2] px-3 py-1.5 text-sm whitespace-pre-wrap text-white">{exchange.question}</span></div>
       <div className="shrink-0 border-t border-line" />
-      <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+      <div ref={body} data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {exchange.answer
           ? <div className="text-sm"><Md text={exchange.answer} /></div>
           : <p className="text-sm text-ink-2 italic">{exchange.status === 'thinking' ? 'Thinking…' : `${exchange.status}…`}</p>}
+        {exchange.status === 'done' && renderComposer && <button type="button" aria-label="Reply in this block" title="Continue this conversation" onPointerDown={e => e.stopPropagation()} onClick={continueReply} className="mt-2 rounded p-1 text-ink-2 hover:bg-hover hover:text-accent"><Reply size={15} /></button>}
+        {replies.map(turn => <div key={turn.id} className="mt-3 border-t border-line pt-3">
+          <div className="mb-3 flex justify-end"><span className="rounded-xl bg-accent px-3 py-1.5 text-sm whitespace-pre-wrap text-white">{turn.question}</span></div>
+          <div className="text-sm">{turn.answer ? <Md text={turn.answer} /> : <span className="text-ink-2">{turn.status === 'done' ? 'No answer received. Try again.' : 'Thinking…'}</span>}</div>
+          {turn.status === 'done' && <button type="button" aria-label="Reply in this block" title="Continue this conversation" onPointerDown={e => e.stopPropagation()} onClick={continueReply} className="mt-2 rounded p-1 text-ink-2 hover:bg-hover hover:text-accent"><Reply size={15} /></button>}
+        </div>)}
       </div>
-      <span aria-label="Resize chat block" className="absolute -right-1.5 -bottom-1.5 z-10 h-3 w-3 cursor-nwse-resize rounded-sm border border-[#2383e2] bg-white opacity-0 group-hover:opacity-100"
-        onPointerDown={resize} />
+      {started && <div data-block-composer className={`shrink-0 border-t border-line px-3 pb-3 ${replyOpen ? '' : 'hidden'}`} onPointerDown={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between py-1 text-xs text-ink-2"><span>This conversation</span><button type="button" aria-label="Close block composer" onClick={() => setReplyOpen(false)} className="rounded p-1 hover:bg-hover"><X size={13} /></button></div>
+        {renderComposer(exchange, receive)}
+      </div>}
+      {['left', 'right'].map(side => <button key={side} type="button" data-port={side} data-owner={exchange.id} aria-label={`Connect ${side}`} title="Drag to connect blocks"
+        className={`absolute top-1/2 z-20 h-4 w-4 -translate-y-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white opacity-0 group-hover:opacity-100 focus:opacity-100 ${side === 'left' ? '-left-2' : '-right-2'}`}
+        onPointerDown={event => onConnect(event, exchange.id, side)} />)}
+      <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute -right-3 -bottom-2 z-10 cursor-nwse-resize rounded bg-white px-1 text-accent opacity-0 group-hover:opacity-100 focus:opacity-100"
+        onPointerDown={resize}><ArrowLeftRight size={18} /></button>
     </div>
   );
 }
@@ -198,7 +228,7 @@ function ToolButton({ Icon, label, active, onPick }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, composer = null, renderBlockComposer = null }) {
   const [tool, setTool] = useState('select');
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(WIDTHS[0]);
@@ -210,20 +240,36 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
   const [liveShape, setLiveShape] = useState(null);
   const [items, setItems] = useState([]); // stickies and text
   const [selected, setSelected] = useState(null);
+  const [links, setLinks] = useState([]);
+  const [connecting, setConnecting] = useState(null);
+  const [bounds, setBounds] = useState({});
+  const exchangesRef = useRef(exchanges);
+  exchangesRef.current = exchanges;
+  const connectionCleanup = useRef(null);
   const selectedRef = useRef(null);
   selectedRef.current = selected;
   const surface = useRef(null);
   const column = useRef(null);
+  const measureBlocks = useCallback(() => {
+    const next = {};
+    for (const element of column.current?.querySelectorAll('[data-block-id]') || []) {
+      const exchange = exchangesRef.current.find(item => item.id === element.dataset.blockId);
+      if (exchange) next[exchange.id] = { x: element.offsetLeft + exchange.dx, y: element.offsetTop + exchange.dy, w: element.offsetWidth, h: element.offsetHeight };
+    }
+    setBounds(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
+  }, []);
+  useLayoutEffect(measureBlocks, [exchanges, measureBlocks]);
+  useEffect(() => () => connectionCleanup.current?.(), []);
   // Undo: snapshot the three artifact lists before every mutating gesture.
   // ponytail: single-level lists + 100-step cap; redo comes when asked for.
   const present = useRef(null);
-  present.current = { strokes, shapes, items };
+  present.current = { strokes, shapes, items, links };
   const history = useRef([]);
   const snapshot = () => { history.current.push(present.current); if (history.current.length > 100) history.current.shift(); };
   const undo = () => {
     const previous = history.current.pop();
     if (!previous) return;
-    setStrokes(previous.strokes); setShapes(previous.shapes); setItems(previous.items); setSelected(null);
+    setStrokes(previous.strokes); setShapes(previous.shapes); setItems(previous.items); setLinks(previous.links); setSelected(null);
   };
   useEffect(() => { setView(v => ({ ...v, x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2) })); }, []);
   // Wheel pans the world; ctrl/cmd+wheel zooms at the cursor. Non-passive so
@@ -245,7 +291,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
   // undoes the last canvas gesture — both stand down while typing.
   useEffect(() => {
     const key = event => {
-      if (event.key === 'Escape') { setSelected(null); return; }
+      if (event.key === 'Escape') { connectionCleanup.current?.(); setConnecting(null); setSelected(null); return; }
       const active = document.activeElement;
       const typing = active && (active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
@@ -259,6 +305,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
       snapshot();
       setItems(previous => previous.filter(item => item.id !== selectedRef.current));
       setShapes(previous => previous.filter(shape => shape.id !== selectedRef.current));
+      setLinks(previous => previous.filter(link => link.id !== selectedRef.current));
       setSelected(null);
     };
     window.addEventListener('keydown', key);
@@ -283,6 +330,43 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
   const local = event => {
     const box = surface.current.getBoundingClientRect();
     return { x: (event.clientX - box.left - view.x) / view.z, y: (event.clientY - box.top - view.y) / view.z };
+  };
+  const portPosition = (id, side) => {
+    const box = bounds[id];
+    return box ? { x: box.x + (side === 'right' ? box.w : 0), y: box.y + box.h / 2 } : null;
+  };
+  const connect = (event, from, fromSide) => {
+    if (event.button !== 0) return;
+    event.preventDefault(); event.stopPropagation();
+    connectionCleanup.current?.();
+    setConnecting({ from, fromSide, toPoint: local(event), color });
+    const move = e => setConnecting({ from, fromSide, toPoint: local(e), color });
+    const cleanup = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
+      connectionCleanup.current = null;
+    };
+    const cancel = () => { cleanup(); setConnecting(null); };
+    const up = e => {
+      const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-port]');
+      const to = target?.dataset.owner, toSide = target?.dataset.port;
+      if (to && to !== from && !present.current.links.some(link => link.from === from && link.fromSide === fromSide && link.to === to && link.toSide === toSide)) {
+        snapshot();
+        setLinks(previous => [...previous, { id: crypto.randomUUID(), from, fromSide, to, toSide, color }]);
+      }
+      cancel();
+    };
+    connectionCleanup.current = cleanup;
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel);
+  };
+  const connectionPath = link => {
+    const a = portPosition(link.from, link.fromSide), b = link.toPoint || portPosition(link.to, link.toSide);
+    if (!a || !b) return '';
+    const bend = Math.max(60, Math.abs(b.x - a.x) / 2);
+    return `M${a.x} ${a.y} C${a.x + (link.fromSide === 'right' ? bend : -bend)} ${a.y},${b.x + (link.toSide === 'right' ? bend : -bend)} ${b.y},${b.x} ${b.y}`;
   };
   const shapeTool = SHAPE_TOOLS.some(([kind]) => kind === tool);
   const pan = event => startDrag(event, { x: view.x, y: view.y }, (x, y) => setView(v => ({ ...v, x, y })));
@@ -371,6 +455,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
     <div className="relative flex h-full min-h-0 flex-col">
       <div ref={surface} onPointerDown={down} className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor}`}>
         <div style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className="absolute top-0 left-0">
+        <svg width="1" height="1" className="pointer-events-none absolute top-0 left-0 overflow-visible">
+          {links.map(link => <g key={link.id} data-connection={link.id}>
+            <path d={connectionPath(link)} fill="none" stroke={link.color} strokeWidth={selected === link.id ? 4 : 2.5} />
+            <path d={connectionPath(link)} fill="none" stroke="transparent" strokeWidth={14 / view.z} style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+              onPointerDown={event => { event.stopPropagation(); setSelected(link.id); }}><title>Select connection · choose a color or press Delete</title></path>
+          </g>)}
+          {connecting && <path data-connection-preview d={connectionPath(connecting)} fill="none" stroke={connecting.color} strokeWidth="2.5" strokeDasharray="5 4" />}
+        </svg>
         <svg aria-hidden="true" width="1" height="1" className="pointer-events-none absolute top-0 left-0 z-10 overflow-visible">
           {[...shapes, ...(liveShape ? [liveShape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={tool} zoom={view.z} selected={selected === shape.id} onSelect={setSelected} onMoveStart={moveShapeStart} onResize={resizeShape} onGesture={snapshot} onDelete={deleteItem} />)}
           {[...strokes, ...(live ? [live] : [])].map((stroke, index) => stroke.tool === 'pen'
@@ -378,7 +470,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
             : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />)}
         </svg>
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
-          {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} onMove={onMove} />)}
+          {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} onMove={onMove} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} />)}
         </div>
         <div className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={selected === item.id} onSelect={setSelected} onChange={changeItem} onMove={moveItem} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} />)}
@@ -394,7 +486,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, composer = null }) {
         <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
         {COLORS.map(value => (
           <button key={value} type="button" title="Color" aria-label={`Color ${value}`} aria-pressed={color === value}
-            onPointerDown={e => e.stopPropagation()} onClick={() => setColor(value)}
+            onPointerDown={e => e.stopPropagation()} onClick={() => { setColor(value); if (links.some(link => link.id === selected)) { snapshot(); setLinks(previous => previous.map(link => link.id === selected ? { ...link, color: value } : link)); } }}
             className="flex h-6 w-8 items-center justify-center rounded-lg hover:bg-hover">
             <span style={{ background: value }} className={`h-3.5 w-3.5 rounded-full ${color === value ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`} />
           </button>

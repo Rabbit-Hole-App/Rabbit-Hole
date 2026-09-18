@@ -1,4 +1,5 @@
 import { workerRequest } from './learn-scene.js';
+import { canvasSeed } from './canvas-conversation.js';
 import { handleLearnCourse, generateCourseContent } from './learn-course.js';
 import { askStream, ASK_MODELS } from './ask.js';
 import { LEARN_SYSTEM, validateLessonSnapshot } from './learn-context.js';
@@ -166,6 +167,7 @@ async function repositoryThreads(req,db,user,app,id){
 }
 async function repositoryAsk(req,env,user,app){
   const body=await req.json();
+  const seed=canvasSeed(body);
   if(typeof body.message!=='string'||!body.message.trim()||body.message.length>4000)throw Error('Question must be 1–4000 characters');
   if(body.lesson_snapshot)validateLessonSnapshot(body.lesson_snapshot);
   const db=env.LEARN_DB;
@@ -195,6 +197,7 @@ async function repositoryAsk(req,env,user,app){
   }
   const id=thread?.id||`repochat-${crypto.randomUUID()}`;
   if(!thread)await db.prepare('INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,?,?)').bind(id,user.org,user.email,app.name,commit,body.message.slice(0,120)).run();
+  if(seed.length)await db.batch(seed.map(turn=>db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(id,turn.role,turn.content)));
   const {results}=await db.prepare('SELECT role,content FROM messages WHERE thread_id=? ORDER BY id DESC LIMIT 10').bind(id).all();
   await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(id,'user',question).run();
   return askStream(env,JSON.stringify({repo:app.repo,commit,selected,selectedCode,lesson:body.lesson_snapshot||null,paper:body.paper_context?{id:body.paper_context.id,page:body.paper_context.page}:null}),results.reverse(),question,

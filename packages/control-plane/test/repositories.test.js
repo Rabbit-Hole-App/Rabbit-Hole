@@ -88,6 +88,27 @@ test('graph answers stream an exact view and retain it with the saved answer',as
   const saved=await(await f.send(`threads/${id}`)).json(),answer=saved.messages.find(m=>m.role==='assistant');
   assert.equal(answer.graph.commit,sha);assert.deepEqual(answer.graph.nodes.map(n=>n.id),['model','forward']);assert.equal(answer.graph.edges[0].relation,'contains');
 });
+
+test('canvas block branches have isolated saved histories and remain permission scoped', async t => {
+  const f=fixture(t), original=globalThis.fetch; t.after(()=>{globalThis.fetch=original;});
+  const prompts=[];
+  globalThis.fetch=async(_,options)=>{prompts.push(JSON.parse(options.body));return Response.json({content:[{type:'text',text:'A follow-up answer.'}],stop_reason:'end_turn'});};
+  const branch=async(label)=>{
+    const response=await f.send('ask',{message:`Follow up ${label}`,canvas_seed:{question:`Question ${label}`,answer:`Answer ${label}`}});
+    assert.equal(response.status,200); const events=await response.text();
+    return JSON.parse(events.match(/event: done\ndata: ([^\n]+)/)[1]).threadId;
+  };
+  const a=await branch('Alpha'), b=await branch('Beta'); assert.notEqual(a,b);
+  assert.match(JSON.stringify(prompts[0].messages),/Answer Alpha/);
+  assert.doesNotMatch(JSON.stringify(prompts[1].messages),/Alpha/);
+  const next=await f.send('ask',{message:'Continue Alpha',thread_id:a}); await next.text();
+  assert.match(JSON.stringify(prompts[2].messages),/Answer Alpha/);
+  assert.doesNotMatch(JSON.stringify(prompts[2].messages),/Beta/);
+  const saved=await(await f.send(`threads/${a}`)).json();
+  assert.equal(saved.messages[0].content,'Question Alpha'); assert.equal(saved.messages[1].content,'Answer Alpha');
+  assert.equal((await f.send('ask',{message:'Hijack',thread_id:a},{'x-email':'viewer@test'})).status,404);
+  assert.equal((await f.send('ask',{message:'Replace',thread_id:a,canvas_seed:{question:'X',answer:'Y'}})).status,400);
+});
 test('durable indexing queues, persists new snapshot, preserves old version and reuses unchanged commit',async t=>{
   const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});let calls=0;
   globalThis.fetch=async(url,opts)=>{calls++;assert.equal(opts.headers.Authorization,'Bearer secret');return Response.json(String(url).endsWith('/asset')?{...snapshot,commit:newer}:{status:'ready'});};

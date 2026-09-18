@@ -1,5 +1,40 @@
 # Coaching: product, ideas, tasks, and results
 
+### Canvas conversation blocks (2026-09-17)
+
+Regular dev's adaptive canvas uses these terms:
+
+- **Main composer:** the bottom textbox; every submission starts a new conversation block.
+- **Conversation block:** a movable card containing a question, agent answer, and its own follow-ups.
+- **Block reply button:** the small reply icon after each completed answer.
+- **Block composer:** the shared chat input inside that card; closing and reopening it preserves its thread.
+- **Connection handles:** left/right dots revealed on hover or keyboard focus.
+- **Connection:** a colored visual link between blocks; it does not merge model context.
+
+The first block follow-up creates a separate authorized Learn thread seeded with
+only that card's displayed original exchange. Subsequent follow-ups use its
+thread ID. The server validates the seed before storing it; app/workspace/user
+access checks still apply. A block never resumes the main composer's latest
+thread. Prior assistant text is conversation history, not source evidence.
+
+Drag between connection handles to link cards. The canvas color picker controls
+new links and recolors a selected link. Select a link and press Delete to remove
+it; Ctrl/Cmd+Z undoes link changes. Links track moved/resized blocks. The card's
+resize control is a horizontal double-arrow icon. Existing canvas tools remain.
+
+Scope limitation: the existing adaptive canvas still has session-only card
+positions, connections and displayed exchanges. Backend conversation threads
+are saved, but reloading does not reconstruct the canvas layout. No live or
+private AWS deployment is included.
+
+Verification: 171 control-plane tests and 31 repository unit tests pass. The
+verified regular-dev deployment is `aa378d0f-3666-404b-ac15-8792813216b9`. The
+real dev browser check (`packages/web/e2e/canvas-conversations-check.mjs`) uses
+stubbed model responses to verify branch context, independent thread IDs,
+close/reopen, hover ports, colored connections, movement, resizing, self-link
+rejection and undo without paid model calls. SQLite-backed endpoint tests cover
+history storage and permission isolation for both repository and deployed apps.
+
 Side panels must be resizable. Inline right panels reuse `ResizableSidePanel`
 (drag, arrow keys, double-click reset, bounded width); overlay panels reuse
 `SlidePanel`. Repository Code and Learn use the same inline resize behavior.
