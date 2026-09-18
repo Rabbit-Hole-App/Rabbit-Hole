@@ -103,7 +103,7 @@ export function validateScene(raw) {
   // the drop happens rather than after.
   for (const object of raw.objects ?? []) {
     if (object?.initialState && 'color' in object.initialState) {
-      throw new Error(`Object "${object.id}": a scene names a role, not a color`);
+      throw new Error(`Object "${object.id}": a scene names a role, not a color. Use one of: ${ROLES.join(', ')}`);
     }
   }
   const parsed = animationSchema.safeParse(raw);
