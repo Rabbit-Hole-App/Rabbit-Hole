@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fromTemplate, getSceneState, RENDERED_TYPES, validateScene } from './animation-scene.js';
+import { GEOMETRY, SPACE } from './scene-vocab.js';
 
 const scene = () => validateScene({
   id: 'transformer-flow',
@@ -448,4 +449,30 @@ test('no shipped scene authors a colour', () => {
   const end = blocksSource.indexOf('animationAxis:', start);
   assert.ok(start > -1 && end > start, 'could not locate the token-journey scene to check');
   assert.doesNotMatch(blocksSource.slice(start, end), /\bcolor:\s*'#/, 'the token-journey scene still authors a hex colour');
+});
+
+// This one passes already - Task 4 built GEOMETRY on the baseline. It stays as a
+// guard, because the next person to add a value is the one it is written for.
+test('spacing sits on the scale and geometry sits on a 4px baseline', () => {
+  for (const [name, value] of Object.entries(GEOMETRY)) {
+    assert.equal(value % 4, 0, `GEOMETRY.${name} is ${value}, which is off the 4px baseline`);
+    assert.ok(value > 0, `GEOMETRY.${name} must be positive`);
+  }
+  assert.deepEqual(SPACE, [4, 8, 12, 16, 24, 32, 48, 64, 96]);
+});
+
+test('an object with no authored size takes its size from the geometry vocabulary', () => {
+  const built = validateScene({ id: 'sized', duration: 2, objects: [{ id: 'a', type: 'box' }], timeline: [] });
+  const [box] = getSceneState(built, 1).objects;
+  assert.equal(box.w, GEOMETRY.nodeMinWidth, 'a node width is a vocabulary value, not a loose constant');
+  assert.equal(box.h, GEOMETRY.nodeHeight);
+});
+
+test('a data cell falls back to the vocabulary pitch', () => {
+  const built = validateScene({
+    id: 'celled', duration: 2,
+    objects: [{ id: 'g', type: 'grid', initialState: { rows: 2, cols: 2, values: [1, 2, 3, 4] } }],
+    timeline: [],
+  });
+  assert.equal(getSceneState(built, 1).objects[0].cell, GEOMETRY.cellPitch);
 });

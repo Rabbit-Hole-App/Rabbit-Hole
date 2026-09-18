@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ROLES, TYPE_ROLES } from './scene-vocab.js';
+import { GEOMETRY, ROLES, TYPE_ROLES } from './scene-vocab.js';
 import { adaptLegacyScene } from './scene-legacy.js';
 
 // The animation source of truth: scene JSON plus a pure evaluator. Neither
@@ -179,15 +179,20 @@ export function validateScene(raw) {
 // Data primitives size themselves from their own contents, so an author
 // writes rows and columns and never pixels. Both the renderer and region
 // hit-testing read the size from here.
-export const BAR = { w: 30, h: 120 }, CHIP = { h: 32, pad: 18, char: 9.5, gap: 8 };
+// A chip's padding and gap are spacing, so they sit on SPACE; its char width
+// is a character-to-pixel measurement, neither spacing nor geometry, so it
+// stays a plain constant. Exported individually rather than as one object -
+// AnimatedScene.jsx's chip render needs these exact numbers too, to keep the
+// drawn chip in sync with the width sizeOf already froze.
+export const CHIP_PAD = 16, CHIP_GAP = 8, CHIP_CHAR = 9.5;
 const sizeOf = object => {
   const state = object.initialState;
-  const cell = state.cell ?? 18;
+  const cell = state.cell ?? GEOMETRY.cellPitch;
   if (object.type === 'grid') return { w: (state.cols || 1) * cell, h: (state.rows || 1) * cell };
   if (object.type === 'strip') return { w: (state.values?.length || 1) * cell, h: cell };
-  if (object.type === 'bars') return { w: (state.values?.length || 1) * BAR.w, h: state.h ?? BAR.h };
-  if (object.type === 'tokens') return { w: (state.tokens || []).reduce((total, token) => total + CHIP.pad * 2 + token.length * CHIP.char + CHIP.gap, 0), h: CHIP.h };
-  return { w: state.w ?? (object.type === 'box' ? 160 : undefined), h: state.h ?? (object.type === 'box' ? 56 : undefined) };
+  if (object.type === 'bars') return { w: (state.values?.length || 1) * GEOMETRY.barWidth, h: state.h ?? GEOMETRY.barHeight };
+  if (object.type === 'tokens') return { w: (state.tokens || []).reduce((total, token) => total + CHIP_PAD * 2 + token.length * CHIP_CHAR + CHIP_GAP, 0), h: GEOMETRY.chipHeight };
+  return { w: state.w ?? (object.type === 'box' ? GEOMETRY.nodeMinWidth : undefined), h: state.h ?? (object.type === 'box' ? GEOMETRY.nodeHeight : undefined) };
 };
 
 // The whole point: same time in, same state out, with no renderer involved.
@@ -219,7 +224,7 @@ export function getSceneState(scene, time) {
     highlighted: false,
     rows: object.initialState.rows ?? null,
     cols: object.initialState.cols ?? null,
-    cell: object.initialState.cell ?? 18,
+    cell: object.initialState.cell ?? GEOMETRY.cellPitch,
     values: object.initialState.values ? [...object.initialState.values] : null,
     labels: object.initialState.labels ?? null,
     tokens: object.initialState.tokens ?? null,
@@ -311,7 +316,10 @@ export function getSceneState(scene, time) {
 }
 
 // Templates place objects so the agent supplies A -> B -> C, never pixels.
-const GAP = 80, NODE = { w: 170, h: 58 }, PAD = 48;
+// GAP and PAD are spacing between and around nodes, so they sit on SPACE; a
+// node's own width and height are GEOMETRY - the same values sizeOf gives a
+// box with no authored size.
+const GAP = 64, PAD = 48;
 
 export function fromTemplate({ template = 'flow', id, title, duration = 8, direction = 'vertical', nodes = [] }) {
   if (!nodes.length) throw new Error('A template needs at least one node');
@@ -323,10 +331,10 @@ export function fromTemplate({ template = 'flow', id, title, duration = 8, direc
     conceptId: node.conceptId,
     initialState: {
       label: node.label,
-      x: PAD + (vertical ? 0 : index * (NODE.w + GAP)),
-      y: PAD + (vertical ? index * (NODE.h + GAP) : 0),
-      w: NODE.w,
-      h: NODE.h,
+      x: PAD + (vertical ? 0 : index * (GEOMETRY.nodeMinWidth + GAP)),
+      y: PAD + (vertical ? index * (GEOMETRY.nodeHeight + GAP) : 0),
+      w: GEOMETRY.nodeMinWidth,
+      h: GEOMETRY.nodeHeight,
       opacity: 0,
     },
   }));
@@ -342,8 +350,8 @@ export function fromTemplate({ template = 'flow', id, title, duration = 8, direc
   });
   return validateScene({
     id, title, duration,
-    width: vertical ? 2 * PAD + NODE.w : 2 * PAD + nodes.length * NODE.w + (nodes.length - 1) * GAP,
-    height: vertical ? 2 * PAD + nodes.length * NODE.h + (nodes.length - 1) * GAP : 2 * PAD + NODE.h,
+    width: vertical ? 2 * PAD + GEOMETRY.nodeMinWidth : 2 * PAD + nodes.length * GEOMETRY.nodeMinWidth + (nodes.length - 1) * GAP,
+    height: vertical ? 2 * PAD + nodes.length * GEOMETRY.nodeHeight + (nodes.length - 1) * GAP : 2 * PAD + GEOMETRY.nodeHeight,
     objects, timeline,
   });
 }

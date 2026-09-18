@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Pause, Play, RotateCcw, Scan, X } from 'lucide-react';
 import katex from 'katex';
-import { BAR, CHIP, getSceneState, validateScene } from './animation-scene.js';
+import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './animation-scene.js';
+import { GEOMETRY } from './scene-vocab.js';
 import { roleVar, shapeStyle, textStyle, tintOf } from './scene-style.js';
 
 // Live playback of an animation spec. The evaluator owns what the frame looks
@@ -17,6 +18,7 @@ const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 // Motion only springs the on/off states - what is lit, what just won - which
 // settle wherever the evaluator says they are.
 const POP = { type: 'spring', stiffness: 520, damping: 26 };
+const BAR_GAP = 4; // SPACE: gap between adjacent bars
 const fromCentre = { transformBox: 'fill-box', transformOrigin: 'center' };
 const num = value => (Math.abs(value) >= 10 ? value.toFixed(0) : value.toFixed(2).replace(/^(-?)0\./, '$1.'));
 // Is this cell the one the timeline is pointing at? A highlight can name a
@@ -43,7 +45,7 @@ function DataShape({ object, role, pop }) {
   // is not what this scale governs.
   const numeral = textStyle('annotation');
   if (object.type === 'grid' || object.type === 'strip') {
-    const cell = object.cell || 18;
+    const cell = object.cell || GEOMETRY.cellPitch;
     const columns = object.type === 'strip' ? (object.values?.length || 0) : (object.cols || 1);
     const rows = object.type === 'strip' ? 1 : (object.rows || 1);
     // A heat grid reads as a distribution: fill carries the value, so the shape
@@ -86,10 +88,10 @@ function DataShape({ object, role, pop }) {
         {cells}
         {object.cellHighlight?.row != null && (
           <motion.rect key={`band-${object.cellHighlight.row}`} initial={{ opacity: 0, scaleX: 0.92 }} animate={{ opacity: 1, scaleX: 1 }} transition={pop} style={{ ...fromCentre, stroke: roleVar(role) }}
-            x={object.x - 3} y={object.y + object.cellHighlight.row * cell - 3} width={(object.w || 0) + 6} height={cell + 6}
+            x={object.x - 4} y={object.y + object.cellHighlight.row * cell - 4} width={(object.w || 0) + 8} height={cell + 8}
             rx={4} fill="none" strokeWidth="2.4" />
         )}
-        <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={3} fill="none" style={{ stroke: roleVar(role) }} strokeWidth="1.6" />
+        <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={4} fill="none" style={{ stroke: roleVar(role) }} strokeWidth="1.6" />
       </g>
     );
   }
@@ -99,7 +101,7 @@ function DataShape({ object, role, pop }) {
     // the tweening values, so bars that never changed visibly shrink while a
     // neighbour grows - the learner watches their own answer move.
     const peak = object.peak ?? Math.max(...values.map(entry => Math.abs(entry ?? 0)), 0.0001);
-    const height = object.h || BAR.h;
+    const height = object.h || GEOMETRY.barHeight;
     return (
       <g>
         <line x1={object.x} y1={object.y + height} x2={object.x + (object.w || 0)} y2={object.y + height} style={{ stroke: tintOf(role, 33) }} strokeWidth="1.5" />
@@ -108,10 +110,10 @@ function DataShape({ object, role, pop }) {
           const lit = marked(object, 0, index, index) || (object.cellHighlight === 'max' && value != null && value === Math.max(...values.map(entry => entry ?? -Infinity)));
           return (
             <motion.g key={index} animate={{ scale: lit ? 1.06 : 1 }} transition={pop} style={fromCentre}>
-              <motion.rect x={object.x + index * BAR.w + 3} y={object.y + height - tall} width={BAR.w - 6} height={tall}
-                rx={2.5} animate={{ fill: lit ? roleVar(role) : tintOf(role, 35) }} transition={pop} />
+              <motion.rect x={object.x + index * GEOMETRY.barWidth + BAR_GAP / 2} y={object.y + height - tall} width={GEOMETRY.barWidth - BAR_GAP} height={tall}
+                rx={4} animate={{ fill: lit ? roleVar(role) : tintOf(role, 35) }} transition={pop} />
               {object.labels?.[index] && (
-                <text x={object.x + index * BAR.w + BAR.w / 2} y={object.y + height + 13} textAnchor="middle"
+                <text x={object.x + index * GEOMETRY.barWidth + GEOMETRY.barWidth / 2} y={object.y + height + 12} textAnchor="middle"
                   fontSize={numeral.fontSize} fontWeight={numeral.fontWeight} style={{ fontFamily: MONO, fill: lit ? 'var(--color-ink)' : 'var(--color-ink-3)' }}>{object.labels[index]}</text>
               )}
             </motion.g>
@@ -131,15 +133,15 @@ function DataShape({ object, role, pop }) {
   return (
     <g>
       {(object.tokens || []).map((token, index) => {
-        const width = CHIP.pad * 2 + token.length * CHIP.char;
+        const width = CHIP_PAD * 2 + token.length * CHIP_CHAR;
         const x = object.x + offset;
-        offset += width + CHIP.gap;
+        offset += width + CHIP_GAP;
         const lit = marked(object, 0, index, index);
         return (
           <motion.g key={index} animate={{ scale: lit ? 1.12 : 1, y: lit ? -3 : 0 }} transition={pop} style={fromCentre}>
-            <motion.rect x={x} y={object.y} width={width} height={CHIP.h} rx={7}
+            <motion.rect x={x} y={object.y} width={width} height={GEOMETRY.chipHeight} rx={8}
               animate={{ fill: lit ? tintOf(role, 20) : tintOf(role, 7), strokeWidth: lit ? 1.8 : 0.9 }} style={{ stroke: roleVar(role) }} transition={pop} />
-            <text x={x + width / 2} y={object.y + CHIP.h / 2} textAnchor="middle" dominantBaseline="central"
+            <text x={x + width / 2} y={object.y + GEOMETRY.chipHeight / 2} textAnchor="middle" dominantBaseline="central"
               fontSize={numeral.fontSize} fontWeight={numeral.fontWeight} style={{ fontFamily: MONO, fill: 'var(--color-ink)' }}>{token}</text>
           </motion.g>
         );
@@ -274,8 +276,8 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
                   stray 10x10 outline at its x/y; give strokes their own halo when
                   a lesson actually highlights one */}
               {object.highlighted && !isText && !isData && (isCircle
-                ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 7} fill="none" strokeOpacity="0.28" strokeWidth="6" style={{ stroke: roleVar(role) }} />
-                : <rect x={object.x - 5} y={object.y - 5} width={(object.w || 0) + 10} height={(object.h || 0) + 10} rx={14} fill="none" strokeOpacity="0.25" strokeWidth="6" style={{ stroke: roleVar(role) }} />)}
+                ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 8} fill="none" strokeOpacity="0.28" strokeWidth="8" style={{ stroke: roleVar(role) }} />
+                : <rect x={object.x - 4} y={object.y - 4} width={(object.w || 0) + 8} height={(object.h || 0) + 8} rx={16} fill="none" strokeOpacity="0.25" strokeWidth="8" style={{ stroke: roleVar(role) }} />)}
               {isData
                 ? <DataShape object={object} role={role} pop={pop} />
                 : isImage
