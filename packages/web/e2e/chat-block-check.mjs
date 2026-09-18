@@ -190,6 +190,18 @@ await check('flashcards flip and navigate', async () => {
   await canvas.getByText('2 / 3', { exact: false }).waitFor({ timeout: 3000 });
 });
 
+// select-to-ask: selecting the quiz arms the composer; asking creates a
+// linked conversation node below it
+await check('ask about selected quiz links a node', async () => {
+  await canvas.getByText('what is the derivative', { exact: false }).first().click();
+  await page.locator('[data-canvas-target]').waitFor({ timeout: 5000 });
+  const linksBefore = await canvas.locator('[data-connection]').count();
+  await dock.fill('why is the derivative maximal at zero?');
+  await dock.press('Enter');
+  await canvas.locator('[data-chat-block]').getByText('why is the derivative maximal at zero?', { exact: true }).waitFor({ timeout: 15000 });
+  if ((await canvas.locator('[data-connection]').count()) !== linksBefore + 1) throw new Error('no auto link');
+});
+
 await page.waitForTimeout(400);
 await page.screenshot({ path: 'e2e/shots/chat-block-moved.png', fullPage: false });
 

@@ -305,7 +305,7 @@ function OutputRow({ runId, name, size }) {
 
 // One chat, scoped: {app} | {run} | {} (org). Style per the Notion AI reference -
 // user turns as a right-aligned bubble, answers as plain text, pill input at the bottom.
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -433,9 +433,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     const canvasImage = !isDemo ? boardContext?.preview : null;
     const questionPaper = boardContext?.paper;
     if (!isDemo) boardContext?.removeImage();
+    const target = canvasTarget; // selected lesson block riding as context
+    if (target) onClearCanvasTarget?.();
     const replyId = crypto.randomUUID();
     setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : passage ? { passage: passage.text } : {}) }, { role: 'assistant', content: '', id: replyId, demo: !!isDemo }]);
-    if (!isDemo) onExchange?.({ id: replyId, question: message });
+    if (!isDemo) onExchange?.({ id: replyId, question: message, ...(target ? { linkFrom: target.id } : {}) });
     const append = (t) => setMsgs((m) => {
       const next = m.slice();
       next[next.length - 1] = { ...next[next.length - 1], content: next[next.length - 1].content + t };
@@ -459,7 +461,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(questionPaper ? { paper_context: { id: questionPaper.id, page: questionPaper.page, ...(questionPaper.selection ? { selection: questionPaper.selection } : {}) } } : {}),
         scope: scopeOverride || scope,
         ...(repository ? { repository_context: { ...repositoryContext, commit: sourceRange?.commit || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
-        message: passage ? `Question about this previous answer passage:\n${passage.text}\n\nLearner question: ${message}` : message,
+        message: target ? `Question about this ${target.kind} block on the lesson canvas:\n${target.text}\n\nLearner question: ${message}` : passage ? `Question about this previous answer passage:\n${passage.text}\n\nLearner question: ${message}` : message,
         thread_id: threadId.current,
         ...(canvasSeed && !threadId.current ? { canvas_seed: canvasSeed } : {}),
         ...(srcOpts.length && srcOn.size < srcOpts.length ? { sources: [...srcOn] } : {}),
@@ -774,6 +776,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         </button>}
         {repository && repositoryContext?.label && <div className="mb-2 inline-flex max-w-full self-start items-center gap-1.5 rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800"><span className="min-w-0 truncate">Asking about: {repositoryContext.label} · {(repositoryCommit || repositoryContext?.commit || '').slice(0,7)}</span>{onClearRepository && <button type="button" className="shrink-0 rounded p-0.5 hover:bg-green-100" aria-label="Clear repository selection" onClick={onClearRepository}><X size={12}/></button>}</div>}
         {selectedPassage && <div className="mb-2 flex items-start gap-2 rounded-lg border border-accent/30 bg-accent/10 p-2 text-xs text-black"><div className="min-w-0 flex-1"><span className="font-medium">Asking about this answer</span><div className="mt-1 max-h-24 overflow-auto"><Md text={selectedPassage.text} /></div></div><button type="button" aria-label="Clear answer selection" title="Clear answer selection" onClick={() => setSelectedPassage(null)}><X size={13} /></button></div>}
+        {canvasTarget && <div data-canvas-target className="mb-2 flex items-start gap-2 rounded-lg border border-accent/30 bg-accent/10 p-2 text-xs text-black"><div className="min-w-0 flex-1"><span className="font-medium">Asking about: {canvasTarget.kind}</span><div className="mt-0.5 truncate text-ink-2"><Md text={canvasTarget.title} /></div></div><button type="button" aria-label="Clear block selection" title="Clear block selection" onClick={onClearCanvasTarget}><X size={13} /></button></div>}
         {codeSelection&&<div aria-label="Selected code attachment" className="mb-2 rounded-lg border border-accent/40 bg-accent/5 p-2 text-xs text-ink"><div className="flex items-start gap-2"><div className="min-w-0 flex-1"><div className="text-ink-2">Asking about selected code</div><div className="mt-1 truncate font-mono font-medium">{codeSelection.path}:{codeSelection.start}–{codeSelection.end}</div></div><button type="button" aria-label="Clear code selection" onClick={()=>setCodeSelection(null)}><X size={13}/></button></div><pre className="mt-2 max-h-20 overflow-auto rounded border border-line bg-white p-2 font-mono text-[10px] leading-4">{codeSelection.text.split('\n').slice(0,4).map((line,i)=><div key={i}><span className="mr-2 text-ink-3">{codeSelection.start+i}</span>{colorLine(line)}</div>)}{codeSelection.end-codeSelection.start>=4&&<span className="text-ink-3">… {codeSelection.end-codeSelection.start+1} selected lines</span>}</pre></div>}
         {boardContext?.paper && <div className="mb-2 flex items-center gap-2 rounded border border-line p-2 text-xs"><span className="min-w-0 flex-1">Asking about: {boardContext.paper.title} / Page {boardContext.paper.page}</span><button type="button" aria-label="Clear paper context" onClick={boardContext.clearPaper}><X size={12} /></button></div>}
         {boardContext?.preview && <div className="relative mb-2 w-28" data-canvas-attachment>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { MessageCircle, X, ArrowUpRight, Circle, Diamond, Eraser, Hand, Hexagon, Highlighter, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn } from './ui.jsx';
-import { BLOCK_TYPES, LearningBlockBody } from './LearningBlocks.jsx';
+import { BLOCK_TYPES, LearningBlockBody, describeBlock } from './LearningBlocks.jsx';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -256,7 +256,7 @@ function ToolButton({ Icon, label, active, onPick }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, storageKey = null, composer = null, renderBlockComposer = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, storageKey = null, composer = null, renderBlockComposer = null }) {
   const [tool, setTool] = useState('select');
   const [insertOpen, setInsertOpen] = useState(false); // dev-only lesson-block workbench menu
   const [color, setColor] = useState(COLORS[0]);
@@ -298,6 +298,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   onDeleteRef.current = onDelete;
   const onRestoreRef = useRef(onRestore);
   onRestoreRef.current = onRestore;
+  const onAskTargetRef = useRef(onAskTarget);
+  onAskTargetRef.current = onAskTarget;
   const connectionCleanup = useRef(null);
   const selectedRef = useRef(null);
   selectedRef.current = selected;
@@ -375,6 +377,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, []);
+  // Selecting a lesson block arms the dock composer with it as context.
+  useEffect(() => {
+    const block = blocks.find(item => item.id === selected);
+    const described = block && describeBlock(block);
+    onAskTargetRef.current?.(described ? { id: block.id, ...described } : null);
+  }, [selected, blocks]);
+  // A question asked about a block auto-links that block to its answer node.
+  const autoLinked = useRef(new Set());
+  useEffect(() => {
+    for (const exchange of exchanges) {
+      if (!exchange.linkFrom || autoLinked.current.has(exchange.id)) continue;
+      autoLinked.current.add(exchange.id);
+      if (!present.current.links.some(link => link.from === exchange.linkFrom && link.to === exchange.id)) {
+        setLinks(previous => [...previous, { id: crypto.randomUUID(), from: exchange.linkFrom, fromSide: 'bottom', to: exchange.id, toSide: 'top', color: '#2383e2' }]);
+      }
+    }
+  }, [exchanges]);
   // Keep the newest exchange in sight while it streams.
   useEffect(() => {
     const element = surface.current, col = column.current;

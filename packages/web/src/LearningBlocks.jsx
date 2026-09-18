@@ -138,10 +138,12 @@ function FlashcardsBody({ block, onChange }) {
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <Kicker author="tutor">Flashcards</Kicker>
-      <button type="button" data-flashcard aria-label={flipped ? 'Show front' : 'Show back'}
-        onPointerDown={e => e.stopPropagation()} onClick={() => setFlipped(previous => !previous)}
-        className={`flex min-h-28 w-full items-center justify-center rounded-lg border px-5 py-4 text-center text-sm transition-colors ${flipped ? 'border-line bg-hover' : 'border-line bg-white hover:bg-hover'}`}>
-        <Md text={flipped ? card.back : card.front} />
+      <button type="button" data-flashcard aria-label={flipped ? 'Show front' : 'Show back'} style={{ perspective: 900 }}
+        onPointerDown={e => e.stopPropagation()} onClick={() => setFlipped(previous => !previous)} className="block w-full">
+        <span style={{ transformStyle: 'preserve-3d', transition: 'transform .4s ease', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }} className="relative block h-32 w-full motion-reduce:transition-none">
+          <span style={{ backfaceVisibility: 'hidden' }} className="absolute inset-0 flex items-center justify-center overflow-y-auto rounded-lg border border-line bg-white px-5 py-4 text-center text-sm hover:bg-hover"><Md text={card.front} /></span>
+          <span style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }} className="absolute inset-0 flex items-center justify-center overflow-y-auto rounded-lg border border-line bg-hover px-5 py-4 text-center text-sm"><Md text={card.back} /></span>
+        </span>
       </button>
       {flipped && (
         <div className="mt-2 flex justify-center gap-2" onPointerDown={e => e.stopPropagation()}>
@@ -162,6 +164,14 @@ function FlashcardsBody({ block, onChange }) {
       </div>
     </div>
   );
+}
+
+// Serialize a block for the tutor prompt when the learner asks about it.
+export function describeBlock(block) {
+  if (block.type === 'quiz') return { kind: 'Quiz', title: block.question, text: `Quiz question: ${block.question}\nOptions:\n${block.options.map(option => `${option.key}. ${option.text}${option.correct ? ' (correct answer)' : ''}`).join('\n')}\nLearner's current choice: ${block.choice || 'none yet'}` };
+  if (block.type === 'flashcards') return { kind: 'Flashcards', title: `${block.cards.length} cards`, text: `Flashcards:\n${block.cards.map((card, index) => `- ${card.front} → ${card.back} (learner self-rated: ${(block.marks || {})[index] || 'unrated'})`).join('\n')}` };
+  if (block.type === 'challenge') return { kind: 'Challenge', title: block.prompt, text: `Challenge: ${block.prompt}\nLearner's committed answer: ${block.answer || 'none yet'}` };
+  return null;
 }
 
 export function LearningBlockBody({ block, onChange }) {
