@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { fromTemplate, getSceneState, RENDERED_TYPES, validateScene } from './animation-scene.js';
 
 const scene = () => validateScene({
@@ -369,14 +370,63 @@ test('an object carries a role, and a colour is no longer a thing a scene can sa
     timeline: [],
   });
   assert.equal(getSceneState(built, 1).objects[0].role, 'prediction');
-  assert.throws(() => validateScene({
+  // A known legacy colour is adapted rather than refused - see the adapter
+  // tests below. Only a colour outside the closed table still fails loudly.
+  const adapted = validateScene({
     id: 'hexed', duration: 2,
     objects: [{ id: 'a', type: 'box', initialState: { x: 0, y: 0, color: '#2383e2' } }],
     timeline: [],
-  }), /color/, 'a scene may not name a colour');
+  });
+  assert.equal(getSceneState(adapted, 1).objects[0].role, 'input', 'a known legacy colour adapts to its role rather than refusing');
+  assert.throws(() => validateScene({
+    id: 'unrecognised', duration: 2,
+    objects: [{ id: 'a', type: 'box', initialState: { x: 0, y: 0, color: '#000000' } }],
+    timeline: [],
+  }), /not a known legacy colour/, 'a colour outside the closed table still fails loudly');
 });
 
 test('a role defaults to neutral and never to undefined', () => {
   const built = validateScene({ id: 'bare', duration: 2, objects: [{ id: 'a', type: 'box' }], timeline: [] });
   assert.equal(getSceneState(built, 1).objects[0].role, 'neutral');
+});
+
+test('a scene authored with the old hex colours still loads, through the adapter', () => {
+  const built = validateScene({
+    id: 'legacy', duration: 2,
+    objects: [{ id: 'a', type: 'box', initialState: { x: 0, y: 0, color: '#2383e2' } }],
+    timeline: [],
+  });
+  assert.equal(getSceneState(built, 1).objects[0].role, 'input');
+});
+
+test('a hex nobody recognises fails loudly rather than guessing', () => {
+  assert.throws(() => validateScene({
+    id: 'unknown', duration: 2,
+    objects: [{ id: 'a', type: 'box', initialState: { x: 0, y: 0, color: '#123456' } }],
+    timeline: [],
+  }), /not a known legacy colour/);
+});
+
+test('every shipped scene still loads and evaluates', async () => {
+  const demos = await import('./demo-scenes.js');
+  for (const [name, scene] of Object.entries(demos).filter(([, value]) => value?.objects)) {
+    const built = validateScene(scene);
+    assert.ok(getSceneState(built, built.duration).objects.length, `${name} evaluated to nothing`);
+  }
+});
+
+// token-journey lives inside a sample() factory in a .jsx file, so node:test
+// cannot import it. The next best guarantee is that it cannot carry a colour.
+// LearningBlocks.jsx also hosts unrelated blocks (a manim plot spec, a
+// three.js scene) that legitimately author raw hex for their own renderers -
+// scanning the whole file would flag those false positives, so the token
+// journey scene is checked by name, not the file at large.
+test('no shipped scene authors a colour', () => {
+  const demoSource = readFileSync(new URL('./demo-scenes.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(demoSource, /\bcolor:\s*'#/, './demo-scenes.js still authors a hex colour');
+  const blocksSource = readFileSync(new URL('./LearningBlocks.jsx', import.meta.url), 'utf8');
+  const start = blocksSource.indexOf("id: 'token-journey'");
+  const end = blocksSource.indexOf('animationAxis:', start);
+  assert.ok(start > -1 && end > start, 'could not locate the token-journey scene to check');
+  assert.doesNotMatch(blocksSource.slice(start, end), /\bcolor:\s*'#/, 'the token-journey scene still authors a hex colour');
 });

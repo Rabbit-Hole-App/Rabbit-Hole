@@ -24,10 +24,10 @@ export const axisScene = {
     { id: 'caption', type: 'text', semanticId: 'caption', conceptId: 'reading-a-chart', initialState: { text: '', x: 40, y: 34 } },
     { id: 'loose-label', type: 'text', semanticId: 'loose-axis-label', initialState: { text: 'axis read from the data', x: 96, y: 92, opacity: 0 } },
     { id: 'loose', type: 'bars', semanticId: 'loose-axis', conceptId: 'reading-a-chart',
-      initialState: { label: 'predicted cost', x: 96, y: 130, h: 190, opacity: 0, values: [...PREDICTED], labels: [...PLANS], color: '#b45309' } },
+      initialState: { label: 'predicted cost', x: 96, y: 130, h: 190, opacity: 0, values: [...PREDICTED], labels: [...PLANS], role: 'warning' } },
     { id: 'pinned-label', type: 'text', semanticId: 'pinned-axis-label', initialState: { text: 'axis pinned to the worst case', x: 452, y: 92, opacity: 0 } },
     { id: 'pinned', type: 'bars', semanticId: 'pinned-axis', conceptId: 'reading-a-chart',
-      initialState: { label: 'predicted cost', x: 452, y: 130, h: 190, opacity: 0, peak: 16, values: [...PREDICTED], labels: [...PLANS], color: '#1a7f37' } },
+      initialState: { label: 'predicted cost', x: 452, y: 130, h: 190, opacity: 0, peak: 16, values: [...PREDICTED], labels: [...PLANS], role: 'output' } },
     { id: 'note', type: 'text', semanticId: 'note', initialState: { text: '', x: 40, y: 386 } },
   ],
   timeline: [
@@ -54,13 +54,13 @@ export const axisScene = {
 // part of the picture the sentence is about.
 
 const row = 176;
-const box = (id, label, x, colour) => ({
+const box = (id, label, x, role) => ({
   id, type: 'box', semanticId: id, conceptId: 'residual-connection',
-  initialState: { label, x, y: row, w: 150, h: 58, opacity: 0, color: colour },
+  initialState: { label, x, y: row, w: 150, h: 58, opacity: 0, role },
 });
-const arrow = (id, from, to, colour) => ({
+const arrow = (id, from, to, role) => ({
   id, type: 'arrow', semanticId: id, conceptId: 'residual-connection',
-  initialState: { from, to, opacity: 0, color: colour },
+  initialState: { from, to, opacity: 0, role },
 });
 
 export const residualScene = {
@@ -71,17 +71,17 @@ export const residualScene = {
   duration: 13,
   objects: [
     { id: 'caption', type: 'text', semanticId: 'caption', initialState: { text: '', x: 40, y: 34 } },
-    box('input', 'x', 40, '#2383e2'),
-    box('block', 'attention + MLP', 260, '#7c3aed'),
-    box('sum', 'x + block(x)', 500, '#1a7f37'),
-    box('next', 'next layer', 700, '#2383e2'),
-    arrow('a1', { x: 190, y: row + 29 }, { x: 258, y: row + 29 }, '#787774'),
-    arrow('a2', { x: 410, y: row + 29 }, { x: 498, y: row + 29 }, '#787774'),
-    arrow('a3', { x: 650, y: row + 29 }, { x: 698, y: row + 29 }, '#787774'),
+    box('input', 'x', 40, 'input'),
+    box('block', 'attention + MLP', 260, 'observed'),
+    box('sum', 'x + block(x)', 500, 'output'),
+    box('next', 'next layer', 700, 'input'),
+    arrow('a1', { x: 190, y: row + 29 }, { x: 258, y: row + 29 }, 'neutral'),
+    arrow('a2', { x: 410, y: row + 29 }, { x: 498, y: row + 29 }, 'neutral'),
+    arrow('a3', { x: 650, y: row + 29 }, { x: 698, y: row + 29 }, 'neutral'),
     // the residual itself: straight over the top of the block it skips
-    arrow('skip', { x: 115, y: 150 }, { x: 560, y: 150 }, '#b45309'),
+    arrow('skip', { x: 115, y: 150 }, { x: 560, y: 150 }, 'warning'),
     { id: 'skip-label', type: 'text', semanticId: 'skip-label', conceptId: 'residual-connection',
-      initialState: { text: 'the original x, carried past untouched', x: 190, y: 128, opacity: 0, color: '#b45309' } },
+      initialState: { text: 'the original x, carried past untouched', x: 190, y: 128, opacity: 0, role: 'warning' } },
     { id: 'note', type: 'text', semanticId: 'note', initialState: { text: '', x: 40, y: 320 } },
   ],
   timeline: [
@@ -133,7 +133,7 @@ export const sigmoidScene = {
     // a data object hangs its own label 10px above its top edge, so leave room
     // for it or the two lines collide
     { id: 'curve', type: 'strip', semanticId: 'sigmoid-values', conceptId: 'sigmoid',
-      initialState: { label: 'fill carries the value', x: 40, y: 282, cell: 46, opacity: 0, heat: true, color: '#7c3aed', values: SIGMOID.map(() => 0) } },
+      initialState: { label: 'fill carries the value', x: 40, y: 282, cell: 46, opacity: 0, heat: true, role: 'observed', values: SIGMOID.map(() => 0) } },
     { id: 'note', type: 'text', semanticId: 'note', initialState: { text: '', x: 40, y: 376 } },
   ],
   timeline: [

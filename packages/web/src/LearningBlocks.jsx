@@ -439,10 +439,10 @@ export const BLOCK_TYPES = {
         duration: 13,
         objects: [
           { id: 'caption', type: 'text', semanticId: 'caption', initialState: { text: '', x: 40, y: 26, opacity: 0 } },
-          { id: 'chars', type: 'tokens', semanticId: 'tokens', conceptId: 'tokenisation', initialState: { label: 'the text, one character per id', x: 40, y: 58, opacity: 0, tokens: ['h', 'e', 'l', 'l', 'o'], color: '#e8590c' } },
-          { id: 'table', type: 'grid', semanticId: 'embedding-table', conceptId: 'token-embeddings', initialState: { label: 'wte - 65 x 384 (8 x 8 shown)', x: 40, y: 140, opacity: 0, rows: 8, cols: 8, cell: 26, color: '#2383e2', values: Array.from({ length: 64 }, (unused, index) => Number((Math.sin(index * 1.7) * 1.4).toFixed(2))) } },
-          { id: 'vector', type: 'strip', semanticId: 'embedding-row', conceptId: 'token-embeddings', initialState: { label: 'row 42 - this token, as numbers', x: 320, y: 160, opacity: 0, cell: 34, color: '#7c3aed', values: Array.from({ length: 8 }, (unused, index) => Number((Math.sin((24 + index) * 1.7) * 1.4).toFixed(2))) } },
-          { id: 'scores', type: 'bars', semanticId: 'next-token-scores', conceptId: 'softmax', initialState: { label: 'a score for every possible next character', x: 320, y: 260, opacity: 0, h: 96, color: '#1a7f37', values: Array.from({ length: 12 }, () => 0), labels: ['a', 'b', 'c', 'd', 'e', 'h', 'i', 'l', 'n', 'o', 's', 't'] } },
+          { id: 'chars', type: 'tokens', semanticId: 'tokens', conceptId: 'tokenisation', initialState: { label: 'the text, one character per id', x: 40, y: 58, opacity: 0, tokens: ['h', 'e', 'l', 'l', 'o'], role: 'input' } },
+          { id: 'table', type: 'grid', semanticId: 'embedding-table', conceptId: 'token-embeddings', initialState: { label: 'wte - 65 x 384 (8 x 8 shown)', x: 40, y: 140, opacity: 0, rows: 8, cols: 8, cell: 26, role: 'input', values: Array.from({ length: 64 }, (unused, index) => Number((Math.sin(index * 1.7) * 1.4).toFixed(2))) } },
+          { id: 'vector', type: 'strip', semanticId: 'embedding-row', conceptId: 'token-embeddings', initialState: { label: 'row 42 - this token, as numbers', x: 320, y: 160, opacity: 0, cell: 34, role: 'observed', values: Array.from({ length: 8 }, (unused, index) => Number((Math.sin((24 + index) * 1.7) * 1.4).toFixed(2))) } },
+          { id: 'scores', type: 'bars', semanticId: 'next-token-scores', conceptId: 'softmax', initialState: { label: 'a score for every possible next character', x: 320, y: 260, opacity: 0, h: 96, role: 'output', values: Array.from({ length: 12 }, () => 0), labels: ['a', 'b', 'c', 'd', 'e', 'h', 'i', 'l', 'n', 'o', 's', 't'] } },
         ],
         timeline: [
           { at: 0, action: 'appear', target: 'caption', duration: 0.3 },

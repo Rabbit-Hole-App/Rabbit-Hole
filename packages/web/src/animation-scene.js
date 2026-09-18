@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ROLES } from './scene-vocab.js';
+import { adaptLegacyScene } from './scene-legacy.js';
 
 // The animation source of truth: scene JSON plus a pure evaluator. Neither
 // React nor tldraw is imported here, so the live canvas and the video exporter
@@ -98,14 +99,11 @@ const phase = (event, time) => {
 const SAME_ORIGIN = /^\/[A-Za-z0-9._~\-/]*$/;
 
 export function validateScene(raw) {
-  // Unknown keys are dropped silently by zod, and a dropped colour is exactly
-  // the failure this schema exists to prevent, so it must be caught before
-  // the drop happens rather than after.
-  for (const object of raw.objects ?? []) {
-    if (object?.initialState && 'color' in object.initialState) {
-      throw new Error(`Object "${object.id}": a scene names a role, not a color. Use one of: ${ROLES.join(', ')}`);
-    }
-  }
+  // A legacy scene may still name a hex colour. Translate the closed set we
+  // recognise into a role before zod ever sees `color` - unknown keys are
+  // dropped silently by zod, and a dropped colour is exactly the failure this
+  // gate exists to prevent, so it must be caught before the drop happens.
+  raw = adaptLegacyScene(raw);
   const parsed = animationSchema.safeParse(raw);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
