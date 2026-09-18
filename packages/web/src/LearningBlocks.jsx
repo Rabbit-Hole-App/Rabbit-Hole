@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Loader2, Play, RotateCcw, Search, Sparkles, Volume2, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Code, Loader2, Play, RotateCcw, Search, Sparkles, Volume2, X } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { api, wsHeaders } from './api.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
@@ -10,6 +10,9 @@ import { graphRenderers } from './graph-renderers.js';
 import { validateGraph } from '../../control-plane/src/learn-graph-schema.js';
 import LearnPaper from './LearnPaper.jsx';
 import RepositoryGraph from './RepositoryGraph.jsx';
+import FlowDiagram from './FlowDiagram.jsx';
+import InteractiveScene from './InteractiveScene.jsx';
+import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
 import { sceneAssetUrl, sceneList, startScene, startVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
 
 // Lesson component library for the adaptive canvas (spec: docs/
@@ -202,6 +205,151 @@ export const BLOCK_TYPES = {
         yAxis: { label: 'loss', min: 1, max: 4.4 },
       },
       state: {},
+    }),
+  },
+  flow: {
+    label: 'Flow diagram',
+    width: 560,
+    height: 520,
+    autoMax: 900,
+    sample: () => ({
+      id: crypto.randomUUID(),
+      type: 'flow',
+      dx: 0,
+      dy: 0,
+      title: 'Where a token goes',
+      // ELK lays this out; the agent only names nodes, edges and a direction.
+      spec: {
+        direction: 'DOWN',
+        nodes: [
+          { id: 'ids', label: 'token ids', detail: '(B, T)', tone: 'input' },
+          { id: 'wte', label: 'token embeddings', detail: 'wte', tone: 'step' },
+          { id: 'wpe', label: 'position embeddings', detail: 'wpe', tone: 'step' },
+          { id: 'sum', label: 'token + position', tone: 'step' },
+          { id: 'block', label: 'transformer block', detail: 'x N', tone: 'repeat' },
+          { id: 'norm', label: 'final LayerNorm', detail: 'ln_f', tone: 'step' },
+          { id: 'head', label: 'LM head', detail: 'lm_head', tone: 'step' },
+          { id: 'logits', label: 'logits', detail: 'one score per token', tone: 'output' },
+        ],
+        edges: [
+          { source: 'ids', target: 'wte', label: 'look up' },
+          { source: 'ids', target: 'wpe', label: 'index' },
+          { source: 'wte', target: 'sum' },
+          { source: 'wpe', target: 'sum' },
+          { source: 'sum', target: 'block' },
+          { source: 'block', target: 'norm', label: 'after the last block' },
+          { source: 'norm', target: 'head' },
+          { source: 'head', target: 'logits', animated: true },
+        ],
+      },
+    }),
+  },
+  mermaid: {
+    label: 'Mermaid diagram',
+    width: 560,
+    height: 480,
+    autoMax: 900,
+    sample: () => ({
+      id: crypto.randomUUID(),
+      type: 'mermaid',
+      dx: 0,
+      dy: 0,
+      title: 'One training step',
+      code: [
+        'sequenceDiagram',
+        '  participant D as data',
+        '  participant M as model',
+        '  participant L as loss',
+        '  participant O as optimizer',
+        '  D->>M: batch of token ids',
+        '  M->>L: logits',
+        '  L->>M: gradients',
+        '  M->>O: parameters and grads',
+        '  O-->>M: updated weights',
+      ].join(NEWLINE),
+      showSource: false,
+    }),
+  },
+  walkthrough: {
+    // First activity on the interaction engine: a registered behaviour plus
+    // lesson data. A second dataset below reuses the same behaviour.
+    label: 'Walkthrough',
+    width: 420,
+    height: 460,
+    autoMax: 900,
+    sample: () => ({
+      id: crypto.randomUUID(),
+      type: 'scene',
+      dx: 0,
+      dy: 0,
+      title: 'Walk a token through the model',
+      spec: {
+        type: 'interactive_scene',
+        id: 'token-walkthrough',
+        schemaVersion: 1,
+        behaviorId: 'walkthrough_v1',
+        renderer: 'svg',
+        conceptIds: ['token-embeddings', 'transformer-block'],
+        initialState: {
+          steps: [
+            { id: 'ids', label: 'token ids arrive', detail: 'idx (B, T)' },
+            { id: 'wte', label: 'each id picks a row', detail: 'wte' },
+            { id: 'wpe', label: 'position is added', detail: 'wpe' },
+            { id: 'blocks', label: 'blocks mix the vectors', detail: 'h x N' },
+            { id: 'head', label: 'the head scores tokens', detail: 'lm_head' },
+          ],
+        },
+        interactions: [
+          { input: 'button', label: 'Back', action: 'previous_step' },
+          { input: 'button', label: 'Next', action: 'advance_step' },
+          { input: 'button', label: 'Reset', action: 'reset_attempt' },
+        ],
+        execution: { mode: 'illustration' },
+        buildGoal: 'Step through the path a token takes and name what changes at each stage.',
+        checkGoal: 'Predict what the shape is after the embeddings are added.',
+      },
+      state: null,
+      attempts: 0,
+    }),
+  },
+  walkthroughTraining: {
+    label: 'Walkthrough (training)',
+    width: 420,
+    height: 460,
+    autoMax: 900,
+    sample: () => ({
+      id: crypto.randomUUID(),
+      type: 'scene',
+      dx: 0,
+      dy: 0,
+      title: 'One training step',
+      spec: {
+        type: 'interactive_scene',
+        id: 'training-walkthrough',
+        schemaVersion: 1,
+        behaviorId: 'walkthrough_v1',
+        renderer: 'svg',
+        conceptIds: ['training-loop'],
+        initialState: {
+          steps: [
+            { id: 'batch', label: 'sample a batch', detail: 'get_batch' },
+            { id: 'forward', label: 'forward pass', detail: 'logits, loss' },
+            { id: 'backward', label: 'backward pass', detail: 'loss.backward()' },
+            { id: 'clip', label: 'clip gradients', detail: 'grad_clip' },
+            { id: 'step', label: 'optimizer step', detail: 'AdamW' },
+            { id: 'zero', label: 'zero the gradients', detail: 'set_to_none' },
+          ],
+        },
+        interactions: [
+          { input: 'button', label: 'Back', action: 'previous_step' },
+          { input: 'button', label: 'Next', action: 'advance_step' },
+          { input: 'button', label: 'Reset', action: 'reset_attempt' },
+        ],
+        execution: { mode: 'illustration' },
+        buildGoal: 'Order the training step and say why zeroing the gradients comes last.',
+      },
+      state: null,
+      attempts: 0,
     }),
   },
   knowledge: {
@@ -594,6 +742,52 @@ function AudioBody({ block, appName, onChange }) {
         {error && <span className="text-xs text-red-700">{error}</span>}
       </div>
       {src && <audio data-narration src={src} controls autoPlay onPointerDown={event => event.stopPropagation()} className="mt-2 w-full" />}
+    </div>
+  );
+}
+
+// An activity from the interaction engine: validated spec, registered
+// behaviour, semantic actions. The block only stores committed state.
+function SceneActivityBody({ block, onChange, onAskScene }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
+      <Kicker>Activity</Kicker>
+      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      {block.spec.buildGoal && <p data-drag-zone className="mt-0.5 mb-2 cursor-grab text-xs text-ink-2 active:cursor-grabbing">{block.spec.buildGoal}</p>}
+      <InteractiveScene block={block} onChange={onChange} onAsk={onAskScene} />
+    </div>
+  );
+}
+
+// A laid-out diagram: React Flow draws it, ELK positions it.
+function FlowBody({ block }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
+      <Kicker>Diagram</Kicker>
+      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <div data-flow className="mt-2 min-h-0 flex-1 overflow-hidden rounded-lg border border-line"
+        onPointerDown={event => event.stopPropagation()} onWheel={event => event.stopPropagation()}>
+        <FlowDiagram spec={block.spec} />
+      </div>
+    </div>
+  );
+}
+
+// A text-authored diagram: mermaid renders it, Shiki themes its source.
+function MermaidBody({ block, onChange }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
+      <Kicker action={
+        <button type="button" data-toggle-source title="Show the mermaid source"
+          onPointerDown={event => event.stopPropagation()} onClick={() => onChange({ ...block, showSource: !block.showSource })}
+          className="rounded p-1 text-ink-3 hover:bg-hover hover:text-ink"><Code size={13} /></button>
+      }>Diagram</Kicker>
+      <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
+      <div className="mt-2 min-h-0 flex-1 overflow-auto rounded-lg border border-line p-2"
+        onPointerDown={event => event.stopPropagation()} onWheel={event => event.stopPropagation()}>
+        <MermaidDiagram code={block.code} />
+      </div>
+      {block.showSource && <div className="mt-2 shrink-0" onPointerDown={event => event.stopPropagation()}><MermaidSource code={block.code} /></div>}
     </div>
   );
 }
@@ -1081,7 +1275,10 @@ const NEWLINE = String.fromCharCode(10);
 export function describeBlock(block) {
   if (block.type === 'code') return { kind: 'Code exercise', title: block.title, text: `Code exercise: ${block.title}\n${block.brief}\nGiven setup:\n${block.setup}\nLearner's current code:\n${block.draft ?? block.starter}\nChecks it must pass:\n${block.checks}` };
   if (block.type === 'audio') return { kind: 'Narration', title: block.title, text: [`Narration block: ${block.title}`, block.text].join(NEWLINE) };
+  if (block.type === 'flow') return { kind: 'Diagram', title: block.title, text: [`Laid-out diagram: ${block.title}`, `Nodes: ${block.spec.nodes.map(node => node.label).join(', ')}`, `Edges: ${block.spec.edges.map(edge => `${edge.source} -> ${edge.target}${edge.label ? ` (${edge.label})` : ''}`).join('; ')}`].join(NEWLINE) };
+  if (block.type === 'mermaid') return { kind: 'Diagram', title: block.title, text: [`Mermaid diagram: ${block.title}`, block.code].join(NEWLINE) };
   if (block.type === 'knowledge') return { kind: 'Graph', title: block.title, text: [`Knowledge graph: ${block.title}`, `Nodes: ${block.graph.nodes.map(node => node.label).join(', ')}`, `Edges: ${block.graph.edges.map(edge => `${edge.source} ${edge.relation} ${edge.target}`).join('; ')}`, block.selected ? `Learner selected: ${block.selected.label}` : ''].join(NEWLINE) };
+  if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return { kind: 'Activity', title: block.title, text: [`Interactive activity: ${block.title}`, `Behaviour: ${block.spec.behaviorId} (${block.spec.execution.mode})`, block.spec.buildGoal || '', `Learner state: ${JSON.stringify(block.state || block.spec.initialState)}`].join(NEWLINE) };
   if (block.type === 'scene') return { kind: 'Blender scene', title: block.title, text: [`Generated 3D scene: ${block.title}`, block.brief || '', `Status: ${block.status}`, `Scene specification: ${JSON.stringify(block.operation)}`].join(NEWLINE) };
   if (block.type === 'model3d') return { kind: '3D model', title: block.title, text: [`3D model on the canvas: ${block.title}`, block.brief || '', `Model file: ${block.modelUrl}`, `Animation: ${block.animation?.autoplay ? 'playing' : 'paused'}${block.animation?.clipName ? ` (${block.animation.clipName})` : ''}`].join(NEWLINE) };
   if (block.type === 'image') return { kind: 'Image', title: block.title, text: [`Image on the canvas: ${block.title}`, block.alt || '', block.caption || '', `Source: ${block.src}`].join(NEWLINE) };
@@ -1097,7 +1294,7 @@ export function describeBlock(block) {
   return null;
 }
 
-export function LearningBlockBody({ block, onChange, onFile, appName, onAskRegion, onGrade }) {
+export function LearningBlockBody({ block, onChange, onFile, appName, onAskRegion, onGrade, onAskScene }) {
   if (block.type === 'challenge') return <ChallengeBody block={block} onChange={onChange} onFile={onFile} onGrade={onGrade} />;
   if (block.type === 'quiz') return <QuizBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'flashcards') return <FlashcardsBody block={block} onChange={onChange} />;
@@ -1107,6 +1304,9 @@ export function LearningBlockBody({ block, onChange, onFile, appName, onAskRegio
   if (block.type === 'table') return <TableBody block={block} onFile={onFile} />;
   if (block.type === 'model3d') return <ThreeDBody block={block} onChange={onChange} />;
   if (block.type === 'audio') return <AudioBody block={block} appName={appName} onChange={onChange} />;
+  if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return <SceneActivityBody block={block} onChange={onChange} onAskScene={onAskScene} />;
+  if (block.type === 'flow') return <FlowBody block={block} />;
+  if (block.type === 'mermaid') return <MermaidBody block={block} onChange={onChange} />;
   if (block.type === 'knowledge') return <KnowledgeBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'scene') return <SceneBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'image') return <ImageBody block={block} appName={appName} onChange={onChange} onFile={onFile} />;

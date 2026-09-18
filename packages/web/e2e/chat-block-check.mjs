@@ -456,6 +456,63 @@ await check('image variants navigate', async () => {
   await node.getByText('2 / 3', { exact: false }).waitFor({ timeout: 5000 });
 });
 
+// ELK-laid-out React Flow diagram
+await check('flow diagram lays out', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  await page.getByRole('menuitem', { name: 'Flow diagram' }).click();
+  const node = canvas.locator('[data-block-id]').last();
+  await node.getByText('Where a token goes').waitFor({ timeout: 5000 });
+  await node.locator('.react-flow__node').first().waitFor({ timeout: 20000 });
+  const drawn = await node.locator('.react-flow__node').count();
+  if (drawn !== 8) throw new Error(`${drawn} nodes laid out`);
+  const edges = await node.locator('.react-flow__edge').count();
+  if (edges !== 8) throw new Error(`${edges} edges drawn`);
+});
+
+// mermaid diagram with a Shiki-highlighted source view
+await check('mermaid diagram renders', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  await page.getByRole('menuitem', { name: 'Mermaid diagram' }).click();
+  const node = canvas.locator('[data-block-id]').last();
+  await node.locator('[data-mermaid] svg').waitFor({ timeout: 30000 });
+  await node.locator('[data-toggle-source]').click();
+  await node.getByText('sequenceDiagram', { exact: false }).waitFor({ timeout: 15000 });
+});
+
+// the interaction engine: one behaviour, two lesson datasets, state that
+// survives a reload and feeds the tutor
+await check('walkthrough activity steps and persists', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  await page.getByRole('menuitem', { name: 'Walkthrough', exact: true }).click();
+  const node = canvas.locator('[data-block-id]').last();
+  await node.getByText('Walk a token through the model').waitFor({ timeout: 5000 });
+  await node.getByText('1 / 5 steps', { exact: false }).waitFor({ timeout: 5000 });
+  await node.locator('[data-scene-action="advance_step"]').click();
+  await node.locator('[data-scene-action="advance_step"]').click();
+  await node.getByText('3 / 5 steps', { exact: false }).waitFor({ timeout: 5000 });
+  await page.waitForTimeout(700);
+  await page.reload();
+  await canvas.locator('[data-block-id]').last().getByText('3 / 5 steps', { exact: false }).waitFor({ timeout: 20000 });
+});
+
+await check('walkthrough reset and object ask work', async () => {
+  const node = canvas.locator('[data-block-id]').last();
+  await node.locator('[data-scene-action="reset_attempt"]').click();
+  await node.getByText('1 / 5 steps', { exact: false }).waitFor({ timeout: 5000 });
+  await node.locator('[data-scene-step="1"]').click();
+  await node.locator('[data-scene-ask]').click();
+  await page.locator('[data-canvas-target]').waitFor({ timeout: 5000 });
+  await node.getByText('1 / 5 steps', { exact: false }).waitFor({ timeout: 3000 }); // asking must not reset the activity
+});
+
+await check('the same behaviour runs a second dataset', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  await page.getByRole('menuitem', { name: 'Walkthrough (training)' }).click();
+  const node = canvas.locator('[data-block-id]').last();
+  await node.getByText('One training step').waitFor({ timeout: 5000 });
+  await node.getByText('1 / 6 steps', { exact: false }).waitFor({ timeout: 5000 });
+});
+
 // code sample: display-only code with its output shown below
 await check('code sample shows code and output', async () => {
   await page.locator('[aria-label="Insert lesson block"]').click();

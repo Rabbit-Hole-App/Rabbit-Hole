@@ -179,7 +179,7 @@ function ChatCard({ exchange, zoom, selected, connected, onSelect, onMove, onSiz
 
 // A course-authored lesson block (challenge, explanation, quiz, …) in the
 // same chrome as chat nodes; the body renderer comes from LearningBlocks.
-function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onAsk, onFile, appName, onAskRegion, onGrade }) {
+function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onAsk, onFile, appName, onAskRegion, onGrade, onAskActivity }) {
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} connected={connected}
       autoMax={BLOCK_TYPES[block.type]?.autoMax} width={BLOCK_TYPES[block.type]?.width} height={BLOCK_TYPES[block.type]?.height}
@@ -201,7 +201,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
           </button>
         </div>
       )}
-      <LearningBlockBody block={block} onChange={onChange} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} />
+      <LearningBlockBody block={block} onChange={onChange} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} onAskScene={context => onAskActivity?.(block, context)} />
     </CanvasNode>
   );
 }
@@ -470,6 +470,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     const described = describeBlock(block);
     if (described) onAskTargetRef.current?.({ id: block.id, ...described });
   };
+  // Selecting an object inside an activity arms the composer with the
+  // activity's semantic state, captured at the moment of the question.
+  const askActivity = (block, context) => onAskTargetRef.current?.({
+    id: block.id,
+    kind: 'Activity',
+    title: `${block.title} · ${context.selectedObject}`,
+    text: [`Activity: ${block.title}`, `Behaviour: ${context.behaviorId} (${context.executionMode})`, `Selected object: ${context.selectedObject}`, `State when asked: ${JSON.stringify(context.state)}`, context.checkGoal ? `Check goal: ${context.checkGoal}` : ''].join(String.fromCharCode(10)),
+  });
   // A red region drawn on a paper page arms the composer with its thumbnail
   // and the page context, so the answer node links back to that paper block.
   const askRegion = (block, selection) => {
@@ -758,7 +766,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         </svg>
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
           {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onFile={onOpenFile} />)}
-          {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onLayout={measureBlocks} onConnect={connect} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} />)}
+          {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onLayout={measureBlocks} onConnect={connect} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onAskActivity={askActivity} />)}
         </div>
         <div className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} />)}
