@@ -114,6 +114,13 @@ function DataShape({ object, colour, pop }) {
       </g>
     );
   }
+  // Everything past here draws token chips. A data type that reaches this
+  // point without being `tokens` has no renderer, and chips would be a
+  // confident wrong picture - say so and draw nothing.
+  if (object.type !== 'tokens') {
+    console.error(`AnimatedScene: no renderer for data type "${object.type}"`);
+    return null;
+  }
   let offset = 0;
   return (
     <g>

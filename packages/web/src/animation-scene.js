@@ -6,10 +6,15 @@ import { z } from 'zod';
 
 const vector = z.object({ x: z.number(), y: z.number() });
 
+// Every type here has a branch in AnimatedScene.jsx. Adding a member without
+// one produces an object that validates and draws nothing, which is how arrow,
+// line and image shipped invisible. The renderer's own test reads this list.
+export const RENDERED_TYPES = ['box', 'text', 'circle', 'arrow', 'line', 'equation', 'code', 'image', 'grid', 'strip', 'bars', 'tokens'];
+
 const objectSchema = z.object({
   id: z.string().min(1).max(64),
   // Primitives that are the mathematical object itself, not a label for it.
-  type: z.enum(['box', 'text', 'circle', 'arrow', 'line', 'equation', 'code', 'image', 'grid', 'strip', 'bars', 'tokens']),
+  type: z.enum(RENDERED_TYPES),
   semanticId: z.string().max(64).optional(),
   conceptId: z.string().max(64).optional(),
   initialState: z.object({
@@ -35,7 +40,7 @@ const objectSchema = z.object({
     src: z.string().max(300).optional(),
     heat: z.boolean().optional(),
     peak: z.number().positive().max(1e6).optional(),
-  }).default({}),
+  }).prefault({}),
 });
 
 const EASINGS = ['linear', 'easeIn', 'easeOut', 'easeInOut', 'spring'];
@@ -64,7 +69,7 @@ export const animationSchema = z.object({
   duration: z.number().positive().max(120),
   objects: z.array(objectSchema).max(60),
   timeline: z.array(eventSchema).max(200),
-  camera: z.object({ x: z.number().nullable().default(null), y: z.number().nullable().default(null), zoom: z.number().positive().max(8).default(1) }).default({ zoom: 1 }),
+  camera: z.object({ x: z.number().nullable().default(null), y: z.number().nullable().default(null), zoom: z.number().positive().max(8).default(1) }).prefault({}),
 });
 
 const ease = (kind, t) => {
@@ -117,6 +122,12 @@ export function validateScene(raw) {
     }
     if (object.type === 'equation' && !(object.initialState.w && object.initialState.h)) {
       throw new Error(`Object "${object.id}": an equation needs a width and height`);
+    }
+    // A stroke with no endpoints falls back to its own x/y for both ends - a
+    // finite zero-length line, no NaN, but an invisible object that validated.
+    // That is the failure this whole pass exists to stop.
+    if (['arrow', 'line'].includes(object.type) && !(object.initialState.from && object.initialState.to)) {
+      throw new Error(`Object "${object.id}": ${object.type === 'arrow' ? 'an' : 'a'} ${object.type} needs a from and a to`);
     }
   }
   for (const event of scene.timeline) {

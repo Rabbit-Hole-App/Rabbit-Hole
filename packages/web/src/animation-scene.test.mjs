@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fromTemplate, getSceneState, validateScene } from './animation-scene.js';
+import { fromTemplate, getSceneState, RENDERED_TYPES, validateScene } from './animation-scene.js';
 
 const scene = () => validateScene({
   id: 'transformer-flow',
@@ -287,4 +287,52 @@ test('heat changes how a grid is painted, never what the evaluator says', () => 
     const hot = getSceneState(build(true), t).objects[0];
     assert.deepEqual(hot.values, plain.values, `values must not depend on heat, at t=${t}`);
   }
+});
+
+// Asserting a literal list against the exported list would pin nothing - both
+// sides would be constants. Build a real object of every declared type and put
+// it through the gate: that catches a type added to the enum without the fields
+// its renderer needs, which is how arrow, line and image shipped invisible.
+const SAMPLE = {
+  box: {}, text: { text: 'hi' }, circle: { w: 40 },
+  arrow: { from: { x: 0, y: 0 }, to: { x: 10, y: 10 } },
+  line: { from: { x: 0, y: 0 }, to: { x: 10, y: 10 } },
+  equation: { text: 'x = 1', w: 80, h: 30 },
+  code: { text: 'x = 1' },
+  image: { src: '/favicon.svg', w: 40, h: 40 },
+  grid: { rows: 2, cols: 2, values: [1, 2, 3, 4] },
+  strip: { values: [1, 2] },
+  bars: { values: [1, 2] },
+  tokens: { tokens: ['a', 'b'] },
+};
+
+test('every declared type has a sample the gate accepts', () => {
+  assert.deepEqual([...RENDERED_TYPES].sort(), Object.keys(SAMPLE).sort(), 'a new type needs a sample here and a branch in AnimatedScene.jsx');
+  for (const type of RENDERED_TYPES) {
+    const built = validateScene({
+      id: `sample-${type}`, duration: 2,
+      objects: [{ id: 'one', type, initialState: { x: 10, y: 10, ...SAMPLE[type] } }],
+      timeline: [],
+    });
+    assert.equal(getSceneState(built, 1).objects[0].type, type, `${type} did not survive the gate`);
+  }
+});
+
+test('an object authored without an initialState is still a real object', () => {
+  const built = validateScene({ id: 'bare', duration: 2, objects: [{ id: 'a', type: 'box' }], timeline: [] });
+  const object = getSceneState(built, 1).objects[0];
+  assert.equal(object.visible, true, 'it validated, so it must draw');
+  assert.equal(object.opacity, 1);
+  assert.deepEqual({ x: object.x, y: object.y }, { x: 0, y: 0 });
+});
+
+test('a stroke needs both endpoints or it is an invisible zero-length line', () => {
+  const stroke = (type, state) => () => validateScene({
+    id: 'strokes', duration: 2,
+    objects: [{ id: 's', type, initialState: { x: 10, y: 10, ...state } }],
+    timeline: [],
+  });
+  assert.throws(stroke('arrow', {}), /an arrow needs a from and a to/);
+  assert.throws(stroke('line', { from: { x: 0, y: 0 } }), /a line needs a from and a to/);
+  assert.doesNotThrow(stroke('arrow', { from: { x: 0, y: 0 }, to: { x: 5, y: 5 } }));
 });
