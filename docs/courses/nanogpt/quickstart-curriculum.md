@@ -9,6 +9,7 @@ Guided explanations: approximately 50 minutes, not total course completion time.
 This outline is supplied by the owner for the first iteration. Later, Curriculum Agent will create a reviewable outline. Learn Agent expands only a selected, approved lesson into a separate Markdown plan before rendering or asset generation.
 
 - [Lesson 1 material plan](lesson-01-plan.md)
+- [Lesson 2 material plan](lesson-02-plan.md)
 - [Proposed review workflow](../../features/learn-lesson-plans.md)
 
 ## Lesson 1: What nanoGPT does — ~6 min guided explanation
