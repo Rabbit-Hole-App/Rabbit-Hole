@@ -92,9 +92,7 @@ export function validateScene(raw) {
   if (ids.size !== scene.objects.length) throw new Error('Every animation object needs a unique id');
   for (const event of scene.timeline) {
     for (const key of ['target', 'from', 'to']) {
-      if (event[key] && !ids.has(event[key]) && !(event.action === 'connect' || event.action === 'disconnect' ? false : false)) {
-        if (!ids.has(event[key])) throw new Error(`Timeline event at ${event.at}s refers to unknown object "${event[key]}"`);
-      }
+      if (event[key] && !ids.has(event[key])) throw new Error(`Timeline event at ${event.at}s refers to unknown object "${event[key]}"`);
     }
     if (event.at + event.duration > scene.duration + 0.001) throw new Error(`Timeline event at ${event.at}s runs past the ${scene.duration}s scene`);
   }
@@ -117,7 +115,11 @@ const sizeOf = object => {
 
 // The whole point: same time in, same state out, with no renderer involved.
 export function getSceneState(scene, time) {
-  const at = Math.max(0, Math.min(scene.duration, time));
+  // Time arrives from persisted learner state, so it can be anything. A scene
+  // that cannot be evaluated at a moment is worse than one evaluated at zero:
+  // NaN makes every `event.at > at` false, so the whole timeline applies at once.
+  const requested = Number(time);
+  const at = Number.isNaN(requested) ? 0 : Math.max(0, Math.min(scene.duration, requested));
   const objects = new Map(scene.objects.map(object => [object.id, {
     id: object.id,
     type: object.type,

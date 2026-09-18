@@ -123,3 +123,11 @@ test('the same engine renders a different subject with new json only', () => {
   assert.equal(getSceneState(llm, 8).objects.length, getSceneState(vlm, 8).objects.length);
   assert.notDeepEqual(llm.objects.map(object => object.initialState.label), vlm.objects.map(object => object.initialState.label));
 });
+
+test('a time that is not a number evaluates as the start', () => {
+  const built = scene();
+  assert.deepEqual(getSceneState(built, NaN), getSceneState(built, 0));
+  assert.deepEqual(getSceneState(built, undefined), getSceneState(built, 0));
+  assert.deepEqual(getSceneState(built, 'six'), getSceneState(built, 0));
+  assert.deepEqual(getSceneState(built, Infinity), getSceneState(built, built.duration), 'a huge time still clamps to the end');
+});
