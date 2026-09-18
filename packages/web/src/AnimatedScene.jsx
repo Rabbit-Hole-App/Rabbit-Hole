@@ -257,7 +257,6 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
             : isCode ? textStyle('code')
             : isEquation ? textStyle('equation')
             : object.type === 'text' ? textStyle(object.typography)
-            : isCircle ? textStyle('equation')
             : textStyle('body');
           // Colour comes from role alone (scene-style.js): a text object with a
           // real role keeps that role's colour, and only a neutral one falls
