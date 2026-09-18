@@ -305,7 +305,7 @@ function OutputRow({ runId, name, size }) {
 
 // One chat, scoped: {app} | {run} | {} (org). Style per the Notion AI reference -
 // user turns as a right-aligned bubble, answers as plain text, pill input at the bottom.
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -432,11 +432,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     if (!isDemo) boardContext?.removeImage();
     const replyId = crypto.randomUUID();
     setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : passage ? { passage: passage.text } : {}) }, { role: 'assistant', content: '', id: replyId, demo: !!isDemo }]);
+    if (!isDemo) onExchange?.({ id: replyId, question: message });
     const append = (t) => setMsgs((m) => {
       const next = m.slice();
       next[next.length - 1] = { ...next[next.length - 1], content: next[next.length - 1].content + t };
       return next;
     });
+    const mirror = (t) => { onExchange?.({ id: replyId, delta: t }); append(t); };
     let snapshot = null;
     let selectionAnswer = '';
     let responseGraph = null;
@@ -462,7 +464,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       if (privateChat) {
         const d = await api(askPath, { method: 'POST', body: JSON.stringify({ ...payload,
           scope: { app: fileApp, ...(scope.run ? { run: scope.run } : {}) } }) });
-        append(d.answer);
+        mirror(d.answer);
         threadId.current = d.threadId;
         setThreads((ts) => [d.thread, ...ts.filter((t) => t.id !== d.threadId)]);
         return;
@@ -486,7 +488,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           setMsgs((m) => m.slice(0, -2)); // no turn happened yet - the pills replace it
           setChoices({ message, candidates: d.choose });
         } else {
-          append(`✗ ${d.error || `HTTP ${r.status}`}`);
+          mirror(`✗ ${d.error || `HTTP ${r.status}`}`);
         }
         return;
       }
@@ -504,8 +506,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           const data = (ev.match(/^data: (.+)$/m) || [])[1];
           if (!type || !data) continue;
           const d = JSON.parse(data);
-          if (type === 'chunk') { if (snapshot) selectionAnswer += d.text; else append(d.text); }
-          else if (type === 'progress') setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, status: d.stage } : item));
+          if (type === 'chunk') { if (snapshot) selectionAnswer += d.text; else mirror(d.text); }
+          else if (type === 'progress') { onExchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, status: d.stage } : item)); }
           else if (type === 'graph') { responseGraph=d; setMsgs(messages=>messages.map(item=>item.id===replyId?{...item,graph:d}:item)); }
           else if (type === 'papers') setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, papers: d.papers } : item));
           else if (type === 'proposal') setMsgs((m) => [...m, { role: 'proposal', proposal: d }]);
@@ -515,14 +517,15 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             if (responseGraph && onGraph) onGraph(responseGraph);
             if (learnChat) setThreads(ts => ts.some(t => t.id === d.threadId) ? ts : [{ id: d.threadId, title: message.slice(0, 120) }, ...ts]);
           }
-          else if (type === 'error') append(`✗ ${d.error}`);
+          else if (type === 'error') mirror(`✗ ${d.error}`);
         }
       }
-      if (snapshot) append(boardContext.isCurrent(snapshot) ? selectionAnswer : 'The lesson or selected object changed while answering. Select it again and ask again.');
+      if (snapshot) mirror(boardContext.isCurrent(snapshot) ? selectionAnswer : 'The lesson or selected object changed while answering. Select it again and ask again.');
       if (snapshot && selectionAnswer.trim() && boardContext.isCurrent(snapshot)) setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, board: { snapshot, question: passage ? `${message}\nAbout: ${passage.text}` : message, answer: selectionAnswer, model } } : item));
     } catch (e) {
-      append(`✗ ${e.message}`);
+      mirror(`✗ ${e.message}`);
     } finally {
+      if (!isDemo) onExchange?.({ id: replyId, done: true });
       if (!isDemo) boardContext?.setAnswering(false);
       setBusy(false);
     }

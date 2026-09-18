@@ -21,6 +21,7 @@ import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from '.
 import { architectureLesson, sampleCourse } from './learn-preview.js';
 
 const LearnNotes = lazy(() => import('./LearnNotes.jsx'));
+const LearnCanvas = lazy(() => import('./LearnCanvas.jsx'));
 
 export default function LearnPage({ app, onBack, repositoryContext = null, onGraph = null }) {
   const isRepository = app.kind === 'repository';
@@ -99,6 +100,31 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const [setupChat, setSetupChat] = useState(false);
   const [narration, setNarration] = useState('');
   const [editor, setEditor] = useState(null);
+  // The adaptive canvas keeps its own editor so the old lesson playback
+  // machinery (gated on `editor`) stays inert on this branch.
+  const adaptiveEditor = useRef(null);
+  const chatShapes = useRef(new Map()); // reply id -> canvas shape id
+  const placeExchange = event => {
+    const board = adaptiveEditor.current;
+    if (!board) return;
+    if (event.question !== undefined) {
+      const id = createShapeId();
+      const blocks = board.getCurrentPageShapes().filter(shape => shape.type === 'chat-block');
+      const anchor = blocks.length ? blocks.reduce((a, b) => (b.y + b.props.h > a.y + a.props.h ? b : a)) : null;
+      const x = anchor ? anchor.x : board.getViewportPageBounds().center.x - 240;
+      const y = anchor ? anchor.y + anchor.props.h + 24 : board.getViewportPageBounds().top + 48;
+      board.createShape({ id, type: 'chat-block', x, y, props: { question: event.question } });
+      chatShapes.current.set(event.id, id);
+      board.centerOnPoint({ x: x + 240, y: y + 120 }, { animation: { duration: 250 } });
+      return;
+    }
+    const shapeId = chatShapes.current.get(event.id);
+    const shape = shapeId && board.getShape(shapeId);
+    if (!shape) return;
+    if (event.delta) board.updateShape({ id: shapeId, type: 'chat-block', props: { answer: shape.props.answer + event.delta, status: 'streaming' } });
+    else if (event.stage) board.updateShape({ id: shapeId, type: 'chat-block', props: { status: event.stage } });
+    else if (event.done) board.updateShape({ id: shapeId, type: 'chat-block', props: { status: 'done' } });
+  };
   const [region, setRegion] = useState(false);
   const cancelRegion = useCallback(() => setRegion(false), []);
   const playback = useRef(null);
@@ -467,9 +493,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {(!isRepository || progress) && <div aria-label="Current lesson and section" className="mb-4"><h2 className="text-lg font-semibold">Lesson {sampleIndex >= 0 ? sampleIndex + 1 : 1}: {currentLesson?.title}</h2><p className="mt-1 text-sm text-ink-2">Section {(progress?.page || 0) + 1} of {pages.length}: {progress?.label || pages[0].label}</p></div>}
         {graphError && <p role="alert" className="text-sm text-red-700">{graphError}</p>}
         {boardVisible && <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-2"><span>Agent explanation · lesson paused — keep asking, or resume when ready</span><div className="flex gap-2"><button type="button" disabled={!notesLoaded || answering} onClick={addNote} className="rounded border border-line-strong bg-white px-2.5 py-1 font-medium text-ink hover:bg-hover disabled:opacity-40">Save to notes</button><button type="button" onClick={() => { dismissBoard(); playback.current?.play(); }} className="rounded bg-ink px-2.5 py-1 font-medium text-white hover:opacity-90">Resume lesson</button></div></div>}
-        {/* ponytail: tldraw removed for the lesson-2 canvas redesign - this scrollable
-            document area is the new lesson surface; its content model comes next */}
-        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-[65vh]" />
+        {/* The adaptive canvas: a whiteboard where chat exchanges land as movable
+            blocks. Lesson playback stays parked; this board has its own editor. */}
+        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="relative h-[65vh]"><Suspense fallback={null}><LearnCanvas onReady={board => { adaptiveEditor.current = board; }} showTools nav /></Suspense></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
@@ -493,7 +519,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         </div>
         {/* the agent textbox stays docked under the canvas; the canvas above scrolls */}
         {!courseView && learningView === 'lesson' && (app.hosting !== 'aws' || app.app_chat) && <div className="mx-auto w-3/4 shrink-0 pt-3">
-          <AskPanel compact composerOnly key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus />
+          <AskPanel compact composerOnly onExchange={placeExchange} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus />
         </div>}
         {!courseView && learningView === 'notes' && <Suspense fallback={<p className="text-sm text-ink-2">Loading notes...</p>}><LearnNotes saveRef={noteSave} onChange={setNoteChanged} records={noteRecords} editing={noteEditing} onSave={saveNote} onDelete={removeNote} onResume={returnToNoteLesson} onEdit={record => { setNoteChanged(false); setNoteEditing(record); }} onReturn={() => setNoteEditing(null)} loaded={notesLoaded} error={notesError} /></Suspense>}
         <LessonNotebook active={!courseView && learningView === 'notebook'} />

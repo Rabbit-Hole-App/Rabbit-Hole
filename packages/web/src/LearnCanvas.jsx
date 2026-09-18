@@ -10,7 +10,9 @@ const components = {
   DebugMenu: null, DebugPanel: null, KeyboardShortcutsDialog: null, HelpMenu: null,
 };
 
-export default function LearnCanvas({ onReady, showTools = false }) {
+export default function LearnCanvas({ onReady, showTools = false, nav = false }) {
+  // nav: the adaptive canvas is a whiteboard, so it keeps the zoom controls.
+  const { NavigationPanel, ZoomMenu, ...withNav } = components;
   // ponytail: learner drawings are temporary; approved course content is saved separately.
-  return <div className={`learn-canvas absolute inset-0 isolate ${showTools ? '' : 'tools-hidden'}`}><Tldraw onMount={onReady} shapeUtils={learnShapeUtils} components={components} licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY} /></div>;
+  return <div className={`learn-canvas absolute inset-0 isolate ${showTools ? '' : 'tools-hidden'}`}><Tldraw onMount={onReady} shapeUtils={learnShapeUtils} components={nav ? withNav : components} licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY} /></div>;
 }
