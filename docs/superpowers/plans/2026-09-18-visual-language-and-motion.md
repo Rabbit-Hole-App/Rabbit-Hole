@@ -557,6 +557,31 @@ Call it at the top of `validateScene`, before `safeParse`.
 
 The adapter exists for persisted learner state, not as a licence for our own scenes to stay legacy. Replace every `color:` in `demo-scenes.js` and the `token-journey` scene in `LearningBlocks.jsx` with the equivalent `role:`. Re-run `make test-unit`.
 
+- [ ] **Step 5b: Make the claim in Step 4 testable — added after Task 5 (Ruling 15)**
+
+Task 5 removed `color` from the schema and every shipped scene broke at runtime, while `make test-unit` stayed fully green. Nothing in the suite loads a shipped scene, so "the shipped scene and demos now load unchanged" was a claim no test could check. Close it here, or Task 6 inherits the same blind spot:
+
+```js
+test('every shipped scene still loads and evaluates', async () => {
+  const demos = await import('./demo-scenes.js');
+  for (const [name, scene] of Object.entries(demos).filter(([, value]) => value?.objects)) {
+    const built = validateScene(scene);
+    assert.ok(getSceneState(built, built.duration).objects.length, `${name} evaluated to nothing`);
+  }
+});
+
+// token-journey lives inside a sample() factory in a .jsx file, so node:test
+// cannot import it. The next best guarantee is that it cannot carry a colour.
+test('no shipped scene authors a colour', () => {
+  for (const file of ['./LearningBlocks.jsx', './demo-scenes.js']) {
+    const source = readFileSync(new URL(file, import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /\bcolor:\s*'#/, `${file} still authors a hex colour`);
+  }
+});
+```
+
+Add `readFileSync` to the test file's imports if it is not already there. Run the first test BEFORE doing Step 5's migration and confirm it fails — if it passes against unmigrated scenes it is not reaching them.
+
 - [ ] **Step 6: Commit**
 
 ```bash
