@@ -57,9 +57,9 @@ export default function Shell({ children }) {
     <div className="flex h-screen">
       {collapsed && (
         <button
-          title="Home (reopens the sidebar)"
-          onClick={() => { toggle(false); navigate('/apps'); }}
-          className="fixed top-3 left-2 z-10 rounded-md border border-line bg-hover p-1.5 text-ink-2 hover:bg-active hover:text-ink max-md:hidden"
+          title="Back (reopens the sidebar)"
+          onClick={() => { toggle(false); if (history.length > 1) history.back(); else navigate('/apps'); }}
+          className="fixed top-3 left-2 z-10 rounded-md border border-line-strong bg-active p-1.5 text-ink-2 hover:bg-hover hover:text-ink max-md:hidden"
         >
           <Home size={16} />
         </button>
