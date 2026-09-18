@@ -361,3 +361,22 @@ test('set_values needs a target that already holds values', () => {
   });
   assert.throws(noValues, /has no values to change/);
 });
+
+test('an object carries a role, and a colour is no longer a thing a scene can say', () => {
+  const built = validateScene({
+    id: 'roled', duration: 2,
+    objects: [{ id: 'a', type: 'box', initialState: { x: 0, y: 0, role: 'prediction' } }],
+    timeline: [],
+  });
+  assert.equal(getSceneState(built, 1).objects[0].role, 'prediction');
+  assert.throws(() => validateScene({
+    id: 'hexed', duration: 2,
+    objects: [{ id: 'a', type: 'box', initialState: { x: 0, y: 0, color: '#2383e2' } }],
+    timeline: [],
+  }), /color/, 'a scene may not name a colour');
+});
+
+test('a role defaults to neutral and never to undefined', () => {
+  const built = validateScene({ id: 'bare', duration: 2, objects: [{ id: 'a', type: 'box' }], timeline: [] });
+  assert.equal(getSceneState(built, 1).objects[0].role, 'neutral');
+});

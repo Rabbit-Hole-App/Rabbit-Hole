@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ROLES } from './scene-vocab.js';
 
 // The animation source of truth: scene JSON plus a pure evaluator. Neither
 // React nor tldraw is imported here, so the live canvas and the video exporter
@@ -26,7 +27,7 @@ const objectSchema = z.object({
     h: z.number().positive().max(2000).optional(),
     opacity: z.number().min(0).max(1).default(1),
     rotation: z.number().min(-360).max(360).default(0),
-    color: z.string().max(24).optional(),
+    role: z.enum(ROLES).default('neutral'),
     from: vector.optional(),
     to: vector.optional(),
     rows: z.number().int().positive().max(64).optional(),
@@ -97,6 +98,14 @@ const phase = (event, time) => {
 const SAME_ORIGIN = /^\/[A-Za-z0-9._~\-/]*$/;
 
 export function validateScene(raw) {
+  // Unknown keys are dropped silently by zod, and a dropped colour is exactly
+  // the failure this schema exists to prevent, so it must be caught before
+  // the drop happens rather than after.
+  for (const object of raw.objects ?? []) {
+    if (object?.initialState && 'color' in object.initialState) {
+      throw new Error(`Object "${object.id}": a scene names a role, not a color`);
+    }
+  }
   const parsed = animationSchema.safeParse(raw);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
@@ -201,7 +210,7 @@ export function getSceneState(scene, time) {
     w: object.initialState.w ?? sizeOf(object).w,
     h: object.initialState.h ?? sizeOf(object).h,
     rotation: object.initialState.rotation,
-    color: object.initialState.color || null,
+    role: object.initialState.role,
     from: object.initialState.from ?? null,
     to: object.initialState.to ?? null,
     src: object.initialState.src ?? null,
