@@ -647,13 +647,23 @@ Tasks 1 to 5 are done. Everything from here is renderer-local.
 
 - [ ] Full suite: `make test-unit` → PASS.
 - [ ] Build and deploy:
+  The dev build needs three build-time flags, and the config lives in `packages/web`, not
+  `packages/control-plane`. Procedure copied from [coaching.md](../../features/coaching.md); do not
+  improvise it. The licence key is read from the repo `.env` and must never be echoed.
+
   ```bash
-  cd packages/web && npm run build -- --outDir dist-dev
-  cd ../control-plane && npx wrangler deploy --config wrangler.dev.jsonc
+  cd packages/web
+  export VITE_COACHING_DEV=true VITE_BYOC_DEV=true
+  export VITE_TLDRAW_LICENSE_KEY=$(node --input-type=module -e "import {readFileSync} from 'node:fs'; import {parseEnv} from 'node:util'; const key = parseEnv(readFileSync('../../.env','utf8')).TLDRAW_LICENSE_KEY; if (!key) throw new Error('Missing TLDRAW_LICENSE_KEY'); process.stdout.write(key);")
+  npm run build -- --outDir dist-dev
+  npx wrangler deploy --config wrangler.dev.jsonc
   ```
+
+  Stop if the build fails. `dist-dev` is a separate output, so the live `dist` artifact is untouched,
+  and `wrangler.dev.jsonc` deploys only `small-cp-dev`.
   Wait ~20 s — a new version serves 15-20 s after the deploy returns, and probing early looks exactly like the edit not taking.
 - [ ] Full e2e: `cd packages/web && node e2e/chat-block-check.mjs`. Report the pass/fail count. Every previously passing check must still pass, and `a scrubbed moment is what a question refers to` must now pass.
-- [ ] **Capture the baseline** the next seven tasks are checked against: screenshot the Animation block and save it as `packages/web/e2e/shots/token-journey-baseline.png`. Commit it.
+- [ ] **Capture the baseline** the next seven tasks are checked against: run `node e2e/baseline-shot.mjs`, which writes `packages/web/e2e/shots/token-journey-baseline.png` at t=12.5s — the end state, every object on screen, nothing mid-tween. `e2e/shots` is gitignored, so the **script** is the committed artifact and the image is local and regenerable; do not force a binary past `.gitignore`. Re-run the same script at Gate B so both images come from identical conditions.
 - [ ] Report the dev page link.
 
 ---
