@@ -31,6 +31,7 @@
 - Caps stand: objects ≤ 60, timeline ≤ 200, values ≤ 256, tokens ≤ 48, duration ≤ 120 s.
 - Branch `feat/canvas-block-conversations`. No branch creation, no merge, no push. Deploy only at a named gate.
 - **`git add` named paths only.** Naming a path is not enough — a named file can carry unrelated hunks. Read `git diff --cached` before every commit; use `git add -p` for mixed files. Two untracked files are the user's and stay untracked: `docs/courses/nanogpt/nanogpt-lesson-03-causal-self-attention.md`, `image.png`.
+- **A task's commit command must name every file in that task's Files list.** Where the two disagree, **the Files list wins** — add the missing file and say so in your report. This has already happened twice in this plan: Task 2's `git add` omitted `LearningBlocks.jsx` and Task 4's omitted `scene-vocab.js`, both files those tasks created or had to modify. The narrower command produces a commit that builds and is silently incomplete, which is the hardest kind to notice.
 - Commit messages: no double quotes anywhere; no `Co-Authored-By` or `Claude-Session` trailers; single-quote the `-m` argument.
 - Never `git revert`. To undo, `git reset --soft`, and report it.
 
