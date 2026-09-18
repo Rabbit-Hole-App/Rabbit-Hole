@@ -707,36 +707,52 @@ git commit -m 'feat(learn): text names a typography role instead of a size'
 
 - [ ] **Step 1: Write the failing test**
 
+**Corrected before dispatch (Ruling 20).** This step originally asserted `BAR.w === GEOMETRY.barWidth` and friends, and told you `GEOMETRY` does not exist yet. Both were wrong. `GEOMETRY` shipped in Task 4, with exactly the values this step proposed — do not recreate it. And there is no `BAR` or `CHIP` anywhere in the repo: the bar and chip dimensions are inline literals inside the render branches of `AnimatedScene.jsx`, which `animation-scene.test.mjs` cannot import because it is a `.jsx` file. Creating `BAR`/`CHIP` wrapper objects just to satisfy a test would be design by test suite, and `GEOMETRY` already carries `barWidth`, `barHeight`, `chipHeight` and `cellPitch` under those names. The renderer reads `GEOMETRY` directly.
+
 ```js
 import { SPACE, GEOMETRY } from './scene-vocab.js';
 
+// This one passes already - Task 4 built GEOMETRY on the baseline. It stays as a
+// guard, because the next person to add a value is the one it is written for.
 test('spacing sits on the scale and geometry sits on a 4px baseline', () => {
   for (const [name, value] of Object.entries(GEOMETRY)) {
     assert.equal(value % 4, 0, `GEOMETRY.${name} is ${value}, which is off the 4px baseline`);
     assert.ok(value > 0, `GEOMETRY.${name} must be positive`);
   }
   assert.deepEqual(SPACE, [4, 8, 12, 16, 24, 32, 48, 64, 96]);
-  for (const value of SPACE) assert.equal(value % 4, 0, `the scale itself must sit on the baseline`);
 });
 
-test('the renderer takes its geometry from the vocabulary, not from loose constants', () => {
-  assert.equal(BAR.w, GEOMETRY.barWidth);
-  assert.equal(BAR.h, GEOMETRY.barHeight);
-  assert.equal(CHIP.h, GEOMETRY.chipHeight);
-  assert.ok(SPACE.includes(CHIP.gap), 'a gap between chips is spacing, so it is on the scale');
+// The real assertion of this task, and it is behavioural: an unsized object's
+// size is observable through the evaluator, so no export gymnastics are needed.
+test('an object with no authored size takes its size from the geometry vocabulary', () => {
+  const built = validateScene({ id: 'sized', duration: 2, objects: [{ id: 'a', type: 'box' }], timeline: [] });
+  const [box] = getSceneState(built, 1).objects;
+  assert.equal(box.w, GEOMETRY.nodeMinWidth, 'a node width is a vocabulary value, not a loose constant');
+  assert.equal(box.h, GEOMETRY.nodeHeight);
+});
+
+test('a data cell falls back to the vocabulary pitch', () => {
+  const built = validateScene({
+    id: 'celled', duration: 2,
+    objects: [{ id: 'g', type: 'grid', initialState: { rows: 2, cols: 2, values: [1, 2, 3, 4] } }],
+    timeline: [],
+  });
+  assert.equal(getSceneState(built, 1).objects[0].cell, GEOMETRY.cellPitch);
 });
 ```
 
-- [ ] **Step 2: Run to confirm it fails**
+- [ ] **Step 2: Run to confirm the second and third fail**
 
-Run: `cd packages/web && node --test src/animation-scene.test.mjs`
-Expected: FAIL — `GEOMETRY` does not exist yet, and today `BAR.w` is 30 and `CHIP.pad` is 18, neither on a 4px baseline.
-
-Define `GEOMETRY` in `scene-vocab.js` with values chosen for how they look, then aligned to the baseline — for example `{ nodeMinWidth: 176, nodeHeight: 56, barWidth: 28, barHeight: 120, chipHeight: 32, cellPitch: 24 }`. `CHIP.char` is a text-measurement constant, not geometry; leave it out of both.
+Run: `cd packages/web && node --test src/animation-scene.test.mjs`. Expected: the baseline test passes, and the two behavioural tests fail — `sizeOf` uses a private `NODE = { w: 170, h: 58 }` at `animation-scene.js:314`, neither value in `GEOMETRY`, and the cell default is a literal `18` written in two places.
 - [ ] **Step 3: Move every constant onto the scale.** `BAR`, `CHIP`, `NODE`, `GAP`, `PAD`, the default cell pitch, corner radii, stroke weights. `sizeOf` still derives size from content; only its constants change.
 - [ ] **Step 4: Style each primitive once** — radii, stroke weights, fill strengths, shadow, bar gap, chip shape. One considered default per primitive, all from the scale and `shapeStyle`.
-- [ ] **Step 5: Verify locally** — all four scenes, both themes. Layouts will shift; confirm nothing collides and every label still fits. Screenshot each in your report.
-- [ ] **Step 6: Commit** — `feat(learn): every default geometry sits on one spacing scale`
+- [ ] **Step 5: Verify locally** — all four scenes, both themes. Layouts will shift; confirm nothing collides and every label still fits. Screenshot each in your report. The cell default moving from 18 to `GEOMETRY.cellPitch` (24) only affects data objects that authored no `cell`; token-journey and the sigmoid scene author theirs, so check what actually moved rather than assuming. Local only — Gate 1 is after Task 11.
+- [ ] **Step 6: Commit**
+
+```bash
+git add packages/web/src/animation-scene.js packages/web/src/AnimatedScene.jsx packages/web/src/animation-scene.test.mjs
+git commit -m 'feat(learn): every default geometry sits on one spacing scale'
+```
 
 ---
 
