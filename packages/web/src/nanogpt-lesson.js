@@ -59,7 +59,7 @@ export const nanoLesson = {
         characters: meaning('diagram', 'Hello character positions', 'Hello has five character positions, including two occurrences of l.', ['vocabulary', 'ids']),
         vocabulary: meaning('diagram', 'Toy character vocabulary', 'Toy mapping: H = 0, e = 1, l = 2, o = 3, space = 4. Actual IDs depend on the dataset vocabulary.', ['characters', 'ids']),
         ids: meaning('diagram', 'Encoded Hello: [0, 1, 2, 2, 3]', 'Encoding Hello with the toy vocabulary gives [0, 1, 2, 2, 3]. Both l characters map to ID 2.', ['characters', 'vocabulary', 'decode']),
-        encoding: meaning('diagram', 'Look up each character', 'Each character position maps to its integer ID using the toy vocabulary.', ['vocabulary', 'ids']),
+        encoding: meaning('diagram', 'Encoding arrows: character → ID', 'Each character position maps to its integer ID using the toy vocabulary.', ['vocabulary', 'ids']),
         decode: meaning('annotation', 'Decode IDs back to text', 'Decode [0, 1, 2, 2, 3] with the same dictionary to recover Hello. IDs are labels, not importance scores or learned embeddings.', ['vocabulary', 'ids']),
         check: meaning('question', 'Try encoding a new string', 'Use the same toy vocabulary to encode lo H, including the space. The exercise is below the canvas.', ['vocabulary']),
       },

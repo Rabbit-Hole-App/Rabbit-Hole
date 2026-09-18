@@ -55,7 +55,7 @@ function inline(s, math = [], onFile, sourcePath) {
 function SourcesLine({ text, onFile, onRun, onDecision }) {
   const parts = text.slice(9).split(/[,;]/).map(part => part.trim().replace(/^\x60(.*)\x60$/, '$1')).filter(Boolean);
   return (
-    <div aria-label="Answer evidence" className="flex flex-wrap gap-2 pt-2">
+    <div aria-label="Answer evidence" className="flex flex-col items-start gap-2 pt-2">
       {parts.map((part, i) => {
         const file = part.replace(/[–—]/g, '-').match(FILE_TOKEN);
         const run = part.match(/^(?:run\s+)?(r-[\w-]+)$/i);
