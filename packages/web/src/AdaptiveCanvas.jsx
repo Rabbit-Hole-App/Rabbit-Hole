@@ -252,6 +252,10 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
   const shown = useRef(item.text);
   useEffect(() => { if (editing) body.current?.focus(); }, [editing]);
   const sticky = item.kind === 'sticky';
+  // A section is a rule across the column with a title under it - the thing that
+  // turns a long canvas into chapters. It carries no colour or size of its own,
+  // so it reads as structure rather than as another annotation.
+  const section = item.kind === 'section';
   const startEdit = () => { shown.current = item.text; setEditing(true); };
   const down = event => {
     if (event.button !== 0) return;
@@ -261,6 +265,26 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
     if (!editing) { onGesture(); startDrag(event, { x: item.x, y: item.y }, (x, y) => onMove(item.id, x, y), zoom); }
     else event.stopPropagation();
   };
+  if (section) {
+    return (
+      <div data-block data-section style={{ left: item.x, top: item.y, width: item.w || COLUMN }}
+        className={`group absolute z-10 cursor-grab active:cursor-grabbing ${selected ? 'ring-2 ring-accent ring-offset-2' : ''}`}
+        onPointerDown={down} onDoubleClick={startEdit}>
+        <div className="h-px w-full bg-line" />
+        <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder="Section title…"
+          onBlur={e => { setEditing(false); const text = e.currentTarget.textContent; shown.current = text; onChange(item.id, text); }}
+          className="mt-2 text-sm font-medium text-ink outline-none empty:before:text-ink-3 empty:before:content-[attr(data-placeholder)]">{shown.current}</div>
+        {/* Reachable without selecting first: a section is structure, and removing
+            one should not need the same ceremony as editing it. */}
+        <button type="button" aria-label="Remove section" title="Remove section"
+          onPointerDown={event => event.stopPropagation()}
+          onClick={() => onDelete(item.id)}
+          className="absolute -top-2 right-0 flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-ink-3 opacity-0 hover:bg-hover hover:text-ink focus-visible:opacity-100 group-hover:opacity-100">
+          <X size={13} />
+        </button>
+      </div>
+    );
+  }
   return (
     <div data-block style={{ left: item.x, top: item.y, ...(sticky ? { width: item.w || 160, height: item.h || 160 } : { color: item.color, fontSize: item.size || 14 }) }}
       className={`absolute z-10 cursor-grab active:cursor-grabbing ${sticky ? '-rotate-1 overflow-hidden rounded-sm border border-[#f0d9a8] bg-[#fef3c7] p-3 text-[13px] leading-snug text-[#6b4e0b] shadow-md' : 'min-w-24 leading-snug'} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
@@ -793,6 +817,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     setItems(previous => previous.map(item => item.id === id ? { ...item, text, fresh: false } : item));
   };
   const deleteItem = id => { snapshot(); setItems(previous => previous.filter(item => item.id !== id)); setShapes(previous => previous.filter(shape => shape.id !== id)); setSelection(previous => previous.filter(other => other !== id)); };
+  // A section lands below whatever already occupies the column, the same way an
+  // inserted block does, so adding one never drops a rule on top of existing work.
+  const addSection = () => {
+    snapshot();
+    const inStrip = (left, right) => left < COLUMN && right > 0;
+    const lowest = Math.max(
+      0,
+      ...Object.values(bounds).filter(b => inStrip(b.x, b.x + b.w)).map(b => b.y + b.h),
+      ...items.filter(item => inStrip(item.x, item.x + (item.w || 200))).map(item => item.y + (item.kind === 'sticky' ? (item.h || 160) : (item.size || 14) * 2)),
+      ...shapes.filter(shape => inStrip(Math.min(shape.x1, shape.x2), Math.max(shape.x1, shape.x2))).map(shape => Math.max(shape.y1, shape.y2)),
+    );
+    setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'section', x: 0, y: lowest + 32, w: COLUMN, text: '', fresh: true }]);
+  };
   const resizeShape = (id, patch) => setShapes(previous => previous.map(shape => shape.id === id ? { ...shape, ...patch } : shape));
   const moveShapeStart = (event, shape) => {
     snapshot();
@@ -902,6 +939,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           <IconBtn title="Zoom out" onClick={() => zoomCenter(1 / 1.25)}><Minus size={14} /></IconBtn>
           <button type="button" title="Reset zoom" onClick={() => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 })} className="min-w-11 px-1 text-center text-xs tabular-nums text-ink-2 hover:text-ink">{Math.round(view.z * 100)}%</button>
           <IconBtn title="Zoom in" onClick={() => zoomCenter(1.25)}><Plus size={14} /></IconBtn>
+          <span className="mx-0.5 h-5 w-px bg-line" />
+          <button type="button" title="Add a section divider with a title" onClick={addSection}
+            className="cursor-pointer whitespace-nowrap px-2 text-xs text-ink-2 hover:text-ink">Add section</button>
         </div>
         {composer && <div className="mx-auto w-full max-w-[504px]">{composer}</div>}
       </div>
