@@ -20,7 +20,7 @@
 - Existing caps stand: objects ≤ 60, timeline ≤ 200, values ≤ 256, tokens ≤ 48, duration ≤ 120 s.
 - Validation errors are **one line, human-readable**, and rendered verbatim to the learner.
 - Commit messages: no double quotes, no `Co-Authored-By` or `Claude-Session` trailers.
-- `git add` **named paths only**. Never `git add -A` — the working tree has untracked files that must stay untracked.
+- `git add` **named paths only** — never `git add -A` or `git add .`; the working tree has untracked files that must stay untracked. **Naming the path is not enough:** a named file can itself carry unrelated uncommitted hunks, so read `git diff --cached` before every commit and stage hunks with `git add -p` when a file is mixed. This is not hypothetical — Task 1 staged `packages/web/package.json` by name and swept in an unrelated `gsap` dependency line with it.
 - Work happens on branch `feat/canvas-block-conversations`.
 
 ## Deployment gates
