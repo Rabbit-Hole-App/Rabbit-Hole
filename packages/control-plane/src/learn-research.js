@@ -17,7 +17,10 @@ export async function researchAnswer(env, turns, system, model, {
       tool_choice: step < 6 ? { type: 'auto', disable_parallel_tool_use: true } : { type: 'none' },
       messages,
     }, model, null);
-    if (!response.ok) throw new Error(`Learn answer unavailable (model HTTP ${response.status})`);
+    if (!response.ok) {
+      const detail = (await response.json().catch(() => null))?.error?.message;
+      throw new Error(`Learn answer unavailable (model HTTP ${response.status}${detail ? `: ${String(detail).slice(0, 160)}` : ''})`);
+    }
     const result = await response.json();
     const calls = result.content?.filter(block => block.type === 'tool_use') || [];
     if (!calls.length) {

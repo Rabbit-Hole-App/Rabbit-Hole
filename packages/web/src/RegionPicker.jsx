@@ -35,8 +35,11 @@ export default function RegionPicker({ editor, lesson, onSelect, onCancel }) {
         const local = dragPoints(e, s), b = e.currentTarget.getBoundingClientRect();
         const page = local.map(p => editor.screenToPage({ x: p.x + b.left, y: p.y + b.top }));
         setPoints(local);
-        const found = regionTargets(editor, lesson, page); setResult({ ...found, region: page });
-        if (found.candidates?.length === 1) hint(found.candidates[0]);
+        const found = regionTargets(editor, lesson, page);
+        // One gesture: the best match is selected immediately; only failures
+        // (no object, loop too small) keep the hint panel open for a retry.
+        if (found.candidates?.length) { onSelect(found.candidates[0].shapeIds, page); return; }
+        setResult({ ...found, region: page });
       }}
       onPointerCancel={() => { stroke.current = null; setPoints([]); }}>
       <polyline points={points.map(p => `${p.x},${p.y}`).join(' ')} fill="none" stroke="#dc2626" strokeWidth="3" />
@@ -45,11 +48,6 @@ export default function RegionPicker({ editor, lesson, onSelect, onCancel }) {
       <div className="flex items-center gap-4"><span className="text-sm">Drag an ellipse around an object.</span><button className="text-xs underline" onClick={onCancel}>Cancel</button></div>
       {result?.error && <p className="mt-2 text-xs text-ink-2">{result.error} Try again.</p>}
       {result?.candidates?.length === 0 && <p className="mt-2 text-xs text-ink-2">No lesson object found. Try another loop.</p>}
-      {!!result?.candidates?.length && <div className="mt-2 flex flex-col items-start gap-1">
-        <p className="text-xs text-ink-2">{result.candidates.length > 1 ? 'Which object do you mean?' : 'Confirm this target:'}</p>
-        {result.candidates.map(c => <button key={c.objectId} className="rounded border border-line px-2 py-1 text-sm hover:bg-hover" onMouseEnter={() => hint(c)} onFocus={() => hint(c)} onClick={() => onSelect(c.shapeIds, result.region)}>Ask about: {c.label}</button>)}
-        <p className="text-xs text-ink-2">Selects the whole object.</p>
-      </div>}
     </div>
   </div>;
 }

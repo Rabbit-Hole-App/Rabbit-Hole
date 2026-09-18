@@ -142,17 +142,19 @@ export function drawExplanation(editor, snapshot, plan, { onVideo, onScene, app 
   const width = Math.max(...occupied.slice(initial.length).map(b => b.w), 400);
   // Pan to this explanation, keeping a readable zoom even for a long derivation.
   const zoom = Math.max(0.65, Math.min(1, (screen.w - 100) / width));
-  editor.setCamera({ x: -columnX + 40 / zoom, y: -columnTop + 75 / zoom, z: zoom });
-  followCamera = { ...editor.getCamera() };
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const target = { x: -columnX + 40 / zoom, y: -columnTop + 75 / zoom, z: zoom };
+  // Glide to the explanation and only start writing once the pan lands.
+  editor.setCamera(target, reduced ? undefined : { animation: { duration: 500 } });
+  followCamera = target;
   const tick = () => {
     if (disposed || editor.getCurrentPageId() !== pageId) return;
     while (index < frames.length) { const frame = frames[index++]; frame.apply(); if (!reduced) { timer = setTimeout(tick, frame.delay); return; } }
   };
-  tick();
+  timer = setTimeout(tick, reduced ? 0 : 520);
   return { dispose() {
     disposed = true; clearTimeout(timer);
     editor.run(() => editor.deleteShapes(ids.filter(id => editor.getShape(id)?.meta.explanationId === explanationId && !editor.getShape(id)?.meta.videoOperation && !editor.getShape(id)?.meta.graphOperation && !editor.getShape(id)?.meta.threeDOperation && !editor.getShape(id)?.meta.sceneOperation)), { ignoreShapeLock: true });
-    if (editor.getCurrentPageId() === pageId) editor.setCamera(camera);
+    if (editor.getCurrentPageId() === pageId) editor.setCamera(camera, { animation: { duration: 300 } });
   } };
 }
