@@ -658,6 +658,16 @@ await check('pausing and marking a region asks about that moment', async () => {
   if (await node.locator('[data-animation-selection]').count()) throw new Error('the marked region did not clear');
 });
 
+await check('a scrubbed moment is what a question refers to', async () => {
+  const node = canvas.locator('[data-block-id]').last();
+  await node.locator('input[aria-label="Animation time"]').fill('9');   // commit one moment
+  await node.locator('[data-animation-object="tokens"]').click();       // selection line now visible
+  await node.locator('[data-animation-selection]').getByText('9.0s', { exact: false }).waitFor({ timeout: 3000 });
+  await node.locator('input[aria-label="Animation time"]').fill('3');   // scrub again, still paused
+  await node.locator('[data-animation-selection]').getByText('3.0s', { exact: false }).waitFor({ timeout: 3000 });
+  await node.locator('[data-animation-clear]').click();
+});
+
 // the abstraction test: a second subject through the same engine, built from
 // JSON in the page rather than a menu entry
 await check('the numbers change and a winner emerges', async () => {
