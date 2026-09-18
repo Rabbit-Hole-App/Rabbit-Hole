@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, Diamond, Eraser, Hand, Hexagon, Highlighter, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type } from 'lucide-react';
 import { Md } from './ask.jsx';
-import { IconBtn } from './ui.jsx';
+import { IconBtn, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
 import { BLOCK_TYPES, LearningBlockBody, describeBlock } from './LearningBlocks.jsx';
 
@@ -139,7 +139,6 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
   const [replyOpen, setReplyOpen] = useState(false);
   const [started, setStarted] = useState(false);
   const [drawing, setDrawing] = useState('');
-  const [drawError, setDrawError] = useState('');
   const replies = exchange.replies || [];
   const card = useRef(null);
   const body = useRef(null);
@@ -149,9 +148,14 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
   // The answer is drawn onto the board this question came from, so the
   // explanation lands on the thing it is about.
   const explainOnBoard = async () => {
-    setDrawError(''); setDrawing('Preparing explanation...');
-    try { await boardAsk(boardId)?.explain({ question: exchange.question, answer: exchange.answer, onStage: setDrawing }); }
-    catch (problem) { setDrawError(problem.message); }
+    setDrawing('Preparing explanation...');
+    try {
+      const board = boardAsk(boardId);
+      // Without this the button would quietly reset and look like nothing happened.
+      if (!board) throw new Error('That board is no longer on the canvas.');
+      await board.explain({ question: exchange.question, answer: exchange.answer, onStage: setDrawing });
+    }
+    catch (problem) { toast(problem.message, { tone: 'error' }); }
     finally { setDrawing(''); }
   };
   const receive = event => onReply?.(exchange.id, event);
@@ -187,7 +191,6 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
         {exchange.answer
           ? <div className="text-sm"><Md text={exchange.answer} onFile={onFile} /></div>
           : <p className="text-sm text-ink-2 italic">{exchange.status === 'thinking' ? 'Thinking…' : `${exchange.status}…`}</p>}
-        {drawError && <p className="mt-2 text-xs text-red-700">{drawError}</p>}
         {replies.map(turn => <div key={turn.id} className="mt-3 border-t border-line pt-3">
           <div className="mb-3 flex justify-end"><span className="rounded-xl bg-accent px-3 py-1.5 text-sm whitespace-pre-wrap text-white">{turn.question}</span></div>
           <div className="text-sm">{turn.answer ? <Md text={turn.answer} onFile={onFile} /> : <span className="text-ink-2">{turn.status === 'done' ? 'No answer received. Try again.' : 'Thinking…'}</span>}</div>

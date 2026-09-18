@@ -16,6 +16,13 @@ export const PLAN_TOOL = { name: 'plan_explanation', description: 'Plan what the
 } };
 
 export function validateTeachingPlan(value) {
+  // The plan is internal scaffolding and its list lengths are budget limits,
+  // not correctness: trim an over-long list instead of spending the one format
+  // repair on it, which would leave nothing for a real mistake.
+  const caps = { assumedKnowledge: 4, representations: 5, tools: 5, outline: 5, assets: 5 };
+  if (value && typeof value === 'object') {
+    for (const [key, cap] of Object.entries(caps)) if (Array.isArray(value[key]) && value[key].length > cap) value[key] = value[key].slice(0, cap);
+  }
   validateToolInput(value, PLAN_TOOL.input_schema, 'teachingPlan');
   const text = (s, max) => typeof s === 'string' && !!s.trim() && s.length <= max;
   if (!text(value.objective, 300) || !text(value.reason, 400) || value.assumedKnowledge.some(s => !text(s, 200)) || value.outline.some(s => !text(s, 400)) || value.assets.some(s => !text(s, 400))) throw new Error('Invalid teaching plan');

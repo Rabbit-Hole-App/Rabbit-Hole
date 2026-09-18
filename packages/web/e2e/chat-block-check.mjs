@@ -779,8 +779,11 @@ await check('a board answer can be explained back on the board', async () => {
   await pill.waitFor({ timeout: 30000 });
   await pill.click();
   // the plan is drawn onto the same board, never a copy of it
+  const failure = page.locator('[data-toast-error]');
   for (let waited = 0; waited < 240000; waited += 4000) {
     if (await board.locator('.tl-shape').count() > shapesBefore) return;
+    // a failure is reported in a toast the learner can copy, not swallowed
+    if (await failure.count()) throw new Error(`explaining failed: ${await failure.first().innerText()}`);
     await page.waitForTimeout(4000);
   }
   throw new Error('the explanation never reached the board');

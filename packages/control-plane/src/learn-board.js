@@ -51,9 +51,17 @@ export const BOARD_TOOL = { name: 'explain_on_canvas', description: 'Propose a b
 } };
 
 export function validateBoardPlan(plan, snapshot) {
+  // The block count is a clutter limit, not correctness - the same reason the
+  // per-kind caps below drop overflow - so trim a plan that ran long instead
+  // of losing the whole explanation.
+  if (Array.isArray(plan?.blocks) && plan.blocks.length > 8) plan.blocks = plan.blocks.slice(0, 8);
   // Sanitize diagram edges before schema validation: models decorate edges
   // with labels and stray references, which are droppable, not fatal.
   if (Array.isArray(plan?.blocks)) for (const b of plan.blocks) {
+    // An omitted anchor means the block is not linked to a supplied object,
+    // which is what null already says. Only a schema that enforces required
+    // fields guarantees the key is present, so fill it in rather than failing.
+    if (b && typeof b === 'object' && b.fromObjectId === undefined) b.fromObjectId = null;
     if (b?.kind === 'diagram' && Array.isArray(b.nodes) && Array.isArray(b.edges)) {
       const nodeIds = new Set(b.nodes.map(n => n?.id));
       b.edges = b.edges.map(e => e && nodeIds.has(e.from) && nodeIds.has(e.to) && e.from !== e.to ? { from: e.from, to: e.to } : null).filter(Boolean).slice(0, 5);

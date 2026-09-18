@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Tldraw, getSnapshot, loadSnapshot } from 'tldraw';
-import { Loader2, PanelTopClose, PanelTopOpen, Volume2 } from 'lucide-react';
+import { Eraser, Loader2, PanelTopClose, PanelTopOpen, Volume2 } from 'lucide-react';
 import { learnShapeUtils } from './learn-shape-utils.js';
 import { getSpeed } from './learn-audio.js';
 import { sigmoidBoard } from './sigmoid-board.js';
@@ -38,6 +38,7 @@ export default function WhiteboardBlock({ block, appName, onChange, onAskSelecti
   const [speaking, setSpeaking] = useState(false);
   const [voice, setVoice] = useState(null);
   const [voiceError, setVoiceError] = useState('');
+  const [tutorShapes, setTutorShapes] = useState(0);
   // The board saves itself long after mount, so every write starts from the
   // block as it is now - otherwise a save would revert narration typed since.
   const latest = useRef(block);
@@ -134,9 +135,12 @@ export default function WhiteboardBlock({ block, appName, onChange, onAskSelecti
     instance.sideEffects.registerAfterCreateHandler('shape', shape => {
       if (!shape.meta?.author) instance.updateShape({ id: shape.id, type: shape.type, meta: { ...shape.meta, author: 'learner' } });
     });
+    const countTutor = () => setTutorShapes(instance.getCurrentPageShapes().filter(shape => shape.meta?.author === 'assistant').length);
+    countTutor();
     instance.store.listen(() => {
       clearTimeout(saving.current);
       saving.current = setTimeout(() => {
+        countTutor();
         const snapshot = getSnapshot(instance.store);
         const encoded = JSON.stringify(snapshot);
         // A very large board would blow the canvas storage quota; keep the
@@ -190,6 +194,22 @@ export default function WhiteboardBlock({ block, appName, onChange, onAskSelecti
         )}
       </div>
       {selecting && <p data-board-hint className="shrink-0 text-xs text-ink-2">Drag a rectangle around the part you want to ask about, or press Esc.</p>}
+      {!!tutorShapes && (
+        <div className="flex shrink-0 items-center gap-2">
+          <button type="button" data-board-clear-explanation
+            title="Remove what the tutor drew; your own drawing and the lesson stay"
+            onClick={() => {
+              const instance = editor.current;
+              if (!instance) return;
+              instance.deleteShapes(instance.getCurrentPageShapes().filter(shape => shape.meta?.author === 'assistant').map(shape => shape.id));
+              setTutorShapes(0);
+            }}
+            className="flex h-7 items-center gap-1.5 rounded-lg border border-line px-2.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
+            <Eraser size={13} />Remove explanation
+          </button>
+          <span className="text-xs text-ink-3">{tutorShapes} shapes drawn by the tutor</span>
+        </div>
+      )}
       {block.tooLarge && <span className="shrink-0 text-xs text-amber-700">This board is too large to save; it stays until you reload.</span>}
       <div className="shrink-0 space-y-1.5">
         <textarea value={block.narration || ''} rows={2} placeholder="Narration for this board…"

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { boardFetch, validateBoardPlan, generateBoardPlan } from '../src/learn-board.js';
-import { strictTool, REVIEW_TOOL, validateBoardReview } from '../src/learn-board-review.js';
+import { strictTool, REVIEW_TOOL, validateBoardReview, validateTeachingPlan } from '../src/learn-board-review.js';
 import { searchPexels, inspectImage } from '../src/pexels.js';
 import { connector } from '../../web/src/learn-board-layout.js';
 import { answerBlocks } from '../../web/src/answer-blocks.js';
@@ -274,4 +274,25 @@ test('a rejected structured-output request retries once without strict, and keep
 test('a rejected request that is not about strict tools still fails loudly', async () => {
   await assert.rejects(generateBoardPlan({}, boardInput, { callModel: async () => Response.json({ error: { message: 'overloaded' } }, { status: 529 }) }),
     /model HTTP 529/);
+});
+
+test('a block without an anchor is kept: an omitted fromObjectId means null, not a failed explanation', () => {
+  const missing = { summary: 'Two blocks.', needsClarification: false, blocks: [
+    { kind: 'text', text: 'Saturation means the output stops responding.' },
+    { kind: 'equation', text: "sigma'(x) = sigma(x)(1 - sigma(x))", fromObjectId: 'equation' },
+  ] };
+  const checked = validateBoardPlan(missing, snapshot);
+  assert.equal(checked.blocks[0].fromObjectId, null);
+  assert.equal(checked.blocks[1].fromObjectId, 'equation');
+  // an anchor that was never supplied is still a hard error
+  assert.throws(() => validateBoardPlan({ ...missing, blocks: [{ kind: 'text', text: 'x', fromObjectId: 'invented' }] }, snapshot), /fromObjectId/);
+});
+
+test('over-long lists are trimmed, not failed: a plan that runs long still reaches the board', () => {
+  const long = { summary: 'Ten blocks.', needsClarification: false, blocks: Array.from({ length: 10 }, (unused, index) => ({ kind: 'text', text: `Step ${index + 1}`, fromObjectId: null })) };
+  assert.equal(validateBoardPlan(long, snapshot).blocks.length, 8);
+
+  const plan = validateTeachingPlan({ objective: 'Explain saturation.', depth: 'conceptual', assumedKnowledge: [], representations: ['text'], tools: [],
+    reason: 'Conceptual fits.', outline: Array.from({ length: 6 }, (unused, index) => `Step ${index + 1}`), assets: [] });
+  assert.equal(plan.outline.length, 5);
 });
