@@ -160,17 +160,21 @@ git commit -m 'fix(learn): a set_values target must already hold values'
 - Modify: `packages/web/src/AnimatedScene.jsx`
 - Test: `packages/web/e2e/chat-block-check.mjs` (extend the existing scrub check)
 
-**The exact path the prop travels**, traced so nobody has to hunt for it — anchor on these call sites by text, since the line numbers will drift:
+**The exact path the prop travels** — verified against the source, not assumed. Anchor on these call sites by text; the line numbers will drift.
 
 ```
-AdaptiveCanvas.jsx   <LessonBlockCard … onChange={changeBlock} …>     add onChangeQuiet={changeBlockQuietly}
-LearningBlocks.jsx     LessonBlockCard renders <LearningBlockBody … onChange={onChange} …>
-LearningBlocks.jsx     LearningBlockBody({ block, onChange, … })      accept it
-LearningBlocks.jsx       <AnimatedScene block={block} onChange={onChange} …>   forward it
+AdaptiveCanvas.jsx   const changeBlockQuietly = …                     define it
+AdaptiveCanvas.jsx   <LessonBlockCard … onChange={changeBlock} …>     pass onChangeQuiet
+AdaptiveCanvas.jsx   function LessonBlockCard({ …, onChange, … })     accept it   <- LessonBlockCard lives HERE
+AdaptiveCanvas.jsx     <LearningBlockBody … onChange={onChange} …>    forward it
+LearningBlocks.jsx   LearningBlockBody({ block, onChange, … })        accept it
+LearningBlocks.jsx     <AnimationBody … onChange={onChange} …>        forward it  <- an extra hop
+LearningBlocks.jsx   function AnimationBody({ block, onChange, … })   accept it
+LearningBlocks.jsx     <AnimatedScene block={block} onChange={…} …>   forward it
 AnimatedScene.jsx    AnimatedScene({ block, onChange, … })            accept and use it
 ```
 
-Four edits plus the definition. Do not rename or repurpose `onChange` anywhere on that path.
+Nine touch points across three files. Do not rename or repurpose `onChange` anywhere on that path — it still carries every real edit.
 
 **Interfaces:**
 - Produces: `AdaptiveCanvas` exposes a quiet block update that does not push an undo snapshot. `AnimatedScene` commits `block.time` synchronously through it; the 150 ms debounce is removed.
@@ -225,7 +229,7 @@ The short timeout is the point: it would fail against the debounced version.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/web/src/AdaptiveCanvas.jsx packages/web/src/AnimatedScene.jsx packages/web/e2e/chat-block-check.mjs
+git add packages/web/src/AdaptiveCanvas.jsx packages/web/src/LearningBlocks.jsx packages/web/src/AnimatedScene.jsx packages/web/e2e/chat-block-check.mjs
 git commit -m 'fix(learn): scrubbing commits through a path that does not snapshot undo'
 ```
 
