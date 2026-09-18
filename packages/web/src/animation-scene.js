@@ -32,6 +32,7 @@ const objectSchema = z.object({
     values: z.array(z.number().nullable()).max(256).optional(),
     labels: z.array(z.string().max(24)).max(64).optional(),
     tokens: z.array(z.string().max(24)).max(48).optional(),
+    src: z.string().max(300).optional(),
   }).default({}),
 });
 
@@ -83,6 +84,11 @@ const phase = (event, time) => {
   return ease(event.easing, (time - event.at) / event.duration);
 };
 
+// An image source is a policy, not a length. A third-party origin would make a
+// lesson a tracking beacon, and a data: URI would put megabytes into the
+// learner's persisted canvas. One leading slash, no scheme, no traversal.
+const SAME_ORIGIN = /^\/[A-Za-z0-9._~\-/]*$/;
+
 export function validateScene(raw) {
   const parsed = animationSchema.safeParse(raw);
   if (!parsed.success) {
@@ -93,6 +99,14 @@ export function validateScene(raw) {
   const byId = new Map(scene.objects.map(object => [object.id, object]));
   const ids = new Set(byId.keys());
   if (ids.size !== scene.objects.length) throw new Error('Every animation object needs a unique id');
+  for (const object of scene.objects) {
+    if (object.type !== 'image') continue;
+    const src = object.initialState.src;
+    if (!src) throw new Error(`Object "${object.id}": an image needs a src`);
+    if (!SAME_ORIGIN.test(src) || src.includes('..') || src.startsWith('//')) {
+      throw new Error(`Object "${object.id}": an image src must be a same-origin path beginning with a single /`);
+    }
+  }
   for (const event of scene.timeline) {
     for (const key of ['target', 'from', 'to']) {
       if (event[key] && !ids.has(event[key])) throw new Error(`Timeline event at ${event.at}s refers to unknown object "${event[key]}"`);
@@ -152,6 +166,7 @@ export function getSceneState(scene, time) {
     color: object.initialState.color || null,
     from: object.initialState.from ?? null,
     to: object.initialState.to ?? null,
+    src: object.initialState.src ?? null,
     label: object.initialState.label ?? object.initialState.text ?? '',
     textProgress: 1,
     highlighted: false,

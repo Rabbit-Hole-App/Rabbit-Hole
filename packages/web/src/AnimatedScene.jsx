@@ -120,6 +120,17 @@ function DataShape({ object, colour }) {
 // than a grid of white rectangles.
 const tint = (colour, alpha) => `${colour}${alpha}`;
 
+// Where a label sits depends on what it is labelling: a box or circle centres it,
+// a stroke pins it to its start, and everything that owns a frame - data grids,
+// images - hangs it above the top edge. One place, so the next type added does
+// not grow a fifth condition into four attributes.
+const labelAt = (object, kind, centre) => {
+  if (kind.stroke) return { x: object.from?.x ?? object.x, y: (object.from?.y ?? object.y) - 8, anchor: 'start', baseline: 'auto' };
+  if (kind.above) return { x: object.x, y: object.y - 10, anchor: 'start', baseline: 'auto' };
+  if (kind.text) return { x: object.x, y: object.y, anchor: 'start', baseline: 'auto' };
+  return { x: centre.x, y: centre.y, anchor: 'middle', baseline: 'central' };
+};
+
 function Frame({ scene, state, selecting, marked, onRegion, onPick, picked }) {
   const host = useRef(null);
   const drag = useRef(null);
@@ -186,9 +197,11 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked }) {
           const isCircle = object.type === 'circle';
           const isData = DATA_TYPES.includes(object.type);
           const isStroke = object.type === 'arrow' || object.type === 'line';
+          const isImage = object.type === 'image';
           // A circle is placed by its centre, so its label is centred on the
           // same point; boxes centre inside their frame.
           const centre = isCircle ? { x: object.x, y: object.y } : { x: object.x + (object.w || 0) / 2, y: object.y + (object.h || 0) / 2 };
+          const label = labelAt(object, { stroke: isStroke, above: isData || isImage, text: isText }, centre);
           return (
             <g key={object.id} data-animation-object={object.semanticId} opacity={object.opacity}
               transform={`rotate(${object.rotation} ${centre.x} ${centre.y})`}
@@ -201,6 +214,10 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked }) {
                 : <rect x={object.x - 5} y={object.y - 5} width={(object.w || 0) + 10} height={(object.h || 0) + 10} rx={14} fill="none" stroke={colour} strokeOpacity="0.25" strokeWidth="6" />)}
               {isData
                 ? <DataShape object={object} colour={colour} />
+                : isImage
+                ? <image href={object.src} x={object.x} y={object.y} width={object.w} height={object.h}
+                    preserveAspectRatio="xMidYMid slice"
+                    stroke={chosen ? '#b42318' : 'none'} strokeWidth={chosen ? 3 : 0} />
                 : isStroke
                 ? <line x1={object.from?.x ?? object.x} y1={object.from?.y ?? object.y}
                     x2={object.to?.x ?? object.x} y2={object.to?.y ?? object.y}
@@ -212,10 +229,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked }) {
                   : <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={12}
                       fill={tint(colour, object.highlighted ? '1f' : '0f')} stroke={chosen ? '#b42318' : colour} strokeWidth={chosen ? 3 : 1.5} filter="url(#animation-shadow)" />}
               <text
-                x={isData || isText || isStroke ? (isStroke ? object.from?.x ?? object.x : object.x) : centre.x}
-                y={isData ? object.y - 10 : isText ? object.y : isStroke ? (object.from?.y ?? object.y) - 8 : centre.y}
-                textAnchor={isData || isText || isStroke ? 'start' : 'middle'}
-                dominantBaseline={isData || isText || isStroke ? 'auto' : 'central'}
+                x={label.x} y={label.y} textAnchor={label.anchor} dominantBaseline={label.baseline}
                 fontSize={isCircle ? 16 : 13}
                 fontWeight={isCircle ? 600 : isData ? 500 : isText ? 400 : 500}
                 fill={isText ? '#787774' : isData ? '#787774' : '#37352f'}

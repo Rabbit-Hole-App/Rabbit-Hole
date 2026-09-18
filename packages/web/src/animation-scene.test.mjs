@@ -209,3 +209,24 @@ test('an arrow carries its endpoints into evaluated state', () => {
   assert.deepEqual(object.from, { x: 10, y: 20 });
   assert.deepEqual(object.to, { x: 90, y: 20 });
 });
+
+const pictured = src => validateScene({
+  id: 'shown', duration: 4,
+  objects: [{ id: 'photo', type: 'image', initialState: { x: 0, y: 0, w: 200, h: 150, src } }],
+  timeline: [],
+});
+
+test('an image takes a same-origin path and nothing else', () => {
+  assert.equal(getSceneState(pictured('/api/assets/frame-7.png'), 1).objects[0].src, '/api/assets/frame-7.png');
+  for (const bad of ['https://example.com/x.png', '//example.com/x.png', 'data:image/png;base64,AAAA', 'blob:abc', 'http://localhost/x.png', '../../etc/passwd']) {
+    assert.throws(() => pictured(bad), /same-origin path/, `accepted ${bad}`);
+  }
+});
+
+test('an image needs a source', () => {
+  assert.throws(() => validateScene({
+    id: 'blank', duration: 4,
+    objects: [{ id: 'photo', type: 'image', initialState: { x: 0, y: 0, w: 10, h: 10 } }],
+    timeline: [],
+  }), /image needs a src/);
+});
