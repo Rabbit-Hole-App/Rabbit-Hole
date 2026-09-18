@@ -23,6 +23,25 @@
 - `git add` **named paths only**. Never `git add -A` — the working tree has untracked files that must stay untracked.
 - Work happens on branch `feat/canvas-block-conversations`.
 
+## Deployment gates
+
+Deploying per task would cost eight rollouts for work that is almost entirely local. There are **two** gates.
+
+| | After | What runs |
+|---|---|---|
+| **Gate A** | Task 5 | Build, deploy to `small-cp-dev`, full `chat-block-check.mjs`. Task 5 fixes deployed React persistence behaviour and its check needs the running environment. |
+| **Gate B** | Task 12 | Build, deploy, full `chat-block-check.mjs`, plus a final visual comparison of `token-journey` against the pre-Plan-A screenshot. |
+
+**Correctness is never postponed — only the remote rollout is.** Every task from 6 to 12 must still, before its own commit:
+
+1. pass `make test-unit`;
+2. pass `npm run build` where it touches a renderer file;
+3. pass its own focused local check against `npm run dev`.
+
+Local verification means `cd packages/web && npm run dev`, then opening the Learn canvas and inserting the Animation block. The dev server proxies `/api` to the control plane from the repo `.env`, so the canvas and its blocks work without a deploy.
+
+**Before starting Task 6**, capture the baseline: with the Gate A build deployed, screenshot the Animation block and save it as `packages/web/e2e/shots/token-journey-baseline.png`. Tasks 6 to 12 each claim the shipped scene is visually unchanged; that file is what the claim is checked against, and Gate B compares to it one final time.
+
 ## Deviations from the spec's ordering, and why
 
 The spec orders stabilisation as bugs → persistence compatibility → test execution. This plan runs **test execution first** (Task 1), because every task after it ends with "run the tests", and without the runner each one runs by hand. Same intent, earlier payoff.
@@ -615,6 +634,23 @@ git commit -m 'fix(learn): scrubbing while paused commits the moment a question 
 
 ---
 
+## Gate A — deploy and prove the stabilisation
+
+Tasks 1 to 5 are done. Everything from here is renderer-local.
+
+- [ ] Full suite: `make test-unit` → PASS.
+- [ ] Build and deploy:
+  ```bash
+  cd packages/web && npm run build -- --outDir dist-dev
+  cd ../control-plane && npx wrangler deploy --config wrangler.dev.jsonc
+  ```
+  Wait ~20 s — a new version serves 15-20 s after the deploy returns, and probing early looks exactly like the edit not taking.
+- [ ] Full e2e: `cd packages/web && node e2e/chat-block-check.mjs`. Report the pass/fail count. Every previously passing check must still pass, and `a scrubbed moment is what a question refers to` must now pass.
+- [ ] **Capture the baseline** the next seven tasks are checked against: screenshot the Animation block and save it as `packages/web/e2e/shots/token-journey-baseline.png`. Commit it.
+- [ ] Report the dev page link.
+
+---
+
 ### Task 6: The camera drives the viewBox and the region hit-test
 
 **Files:**
@@ -767,12 +803,19 @@ with:
 
 - [ ] **Step 7: Verify the shipped scene is unmoved**
 
-Build and deploy as in Task 5 Step 4, then open the Learn canvas and insert the Animation block. `token-journey` authors no camera events, so with Step 3's centring it must fill the frame **exactly** as it did before — compare against `e2e/shots/` or a screenshot taken before this task. A scene that shifted by half its width means Step 3 was skipped.
+Run: `cd packages/web && npm run build`
+Expected: succeeds.
 
-Then confirm marking a region still selects the objects under it.
+Run: `cd packages/web && npm run dev`, open the Learn canvas, insert the Animation block.
 
-Run: `cd packages/web && node e2e/chat-block-check.mjs`
-Expected: all animation checks still pass, including `pausing and marking a region asks about that moment`.
+Expected, all three:
+1. `token-journey` authors no camera events, so it must fill the frame **exactly** as before — compare against `e2e/shots/token-journey-baseline.png`. A scene shifted by half its width means Step 3 was skipped.
+2. Marking a region still selects the objects under it.
+3. A temporary `{ at: 1, action: 'zoom_camera', value: { zoom: 2 }, duration: 1 }` added to `token-journey`'s timeline visibly zooms the frame, and marking a region **while zoomed** still names the object under the rectangle. Revert that edit before committing.
+
+Check 3 is the one that matters: the viewBox and the hit-test must move together, and only a zoomed frame can show that they do.
+
+Deployed e2e for this task runs at **Gate B**.
 
 - [ ] **Step 8: Commit**
 
@@ -870,7 +913,14 @@ Leave the remaining `<text>` attributes unchanged.
 Run: `make test-unit`
 Expected: PASS.
 
-Build and deploy as in Task 5 Step 4, then insert an Animation block and confirm the shipped `token-journey` scene is visually unchanged — it authors no `arrow` or `line`, so this must be a no-op for it.
+Run: `cd packages/web && npm run build`
+Expected: succeeds.
+
+Run `npm run dev` and insert an Animation block. `token-journey` authors no `arrow` or `line`, so it must be pixel-identical to `token-journey-baseline.png`.
+
+Then verify the new branch actually draws: temporarily add `{ id: 'res', type: 'arrow', semanticId: 'residual', initialState: { from: { x: 320, y: 120 }, to: { x: 620, y: 120 }, color: '#b45309' } }` to the scene's objects. Expected: a visible arrow with a head at the right end. Revert before committing.
+
+Deployed e2e runs at **Gate B**.
 
 - [ ] **Step 7: Commit**
 
@@ -994,7 +1044,14 @@ Add `isImage` to the label-placement condition so an image caption sits above th
 Run: `make test-unit`
 Expected: PASS.
 
-Build and deploy as in Task 5 Step 4. The shipped scene authors no `image`, so it must be visually unchanged.
+Run: `cd packages/web && npm run build`
+Expected: succeeds.
+
+Run `npm run dev`. The shipped scene authors no `image`, so it must match `token-journey-baseline.png`.
+
+Then verify the branch draws and the policy bites: temporarily add an `image` object with `src: '/favicon.svg'` (a real same-origin asset) — expected, it renders. Change that `src` to `https://example.com/x.png` — expected, the whole block is replaced by the one-line validation error, not a broken image. Revert before committing.
+
+Deployed e2e runs at **Gate B**.
 
 - [ ] **Step 7: Commit**
 
@@ -1119,7 +1176,18 @@ and make the two `values.map`/`Math.max` uses at lines 83-84 null-safe, since Ta
 Run: `make test-unit`
 Expected: PASS.
 
-Build and deploy as in Task 5 Step 4. The shipped scene sets neither `heat` nor `peak`, so its grid stays binary-filled and its bars keep their computed axis — visually unchanged.
+Run: `cd packages/web && npm run build`
+Expected: succeeds.
+
+Run `npm run dev`. The shipped scene sets neither `heat` nor `peak`, so its grid stays binary-filled and its bars keep their computed axis — match against `token-journey-baseline.png`.
+
+Then verify both new fields, because both are about something you can only see moving:
+1. Add `heat: true` to the `table` grid. Expected: cells take a range of fill strengths from their values rather than two.
+2. Add `peak: 0.5` to the `scores` bars and play through the `set_values` at 9.6s. Expected: bars that are not changing hold their height. Remove `peak` and replay — expected: they visibly shrink as the winner grows. That difference is the bug this fixes.
+
+Revert both before committing.
+
+Deployed e2e runs at **Gate B**.
 
 - [ ] **Step 7: Commit**
 
@@ -1221,9 +1289,19 @@ An equation with no `w`/`h` would render an empty `foreignObject`. In `packages/
 Run: `make test-unit`
 Expected: PASS.
 
-Build and deploy as in Task 5 Step 4. Insert an Animation block; the shipped scene has no `equation` or `code` object, so it must look identical.
+Run: `cd packages/web && npm run build`
+Expected: succeeds, and KaTeX adds no new chunk — it is already eager via `MathText.jsx`.
 
-Then confirm the new behaviour by hand: in the browser console on the Learn canvas, there is no insert path for a bare equation yet, so verify by temporarily adding an `equation` object to `token-journey` in `LearningBlocks.jsx` with `text: '\\sigma(x) = \\frac{1}{1 + e^{-x}}'`, `x: 400`, `y: 30`, `w: 220`, `h: 44`, checking it renders as set maths, then reverting that edit before committing.
+Run `npm run dev`. The shipped scene has no `equation` or `code` object, so it must match `token-journey-baseline.png`.
+
+Then verify both branches by temporarily adding to `token-journey` in `LearningBlocks.jsx`:
+1. `{ id: 'eq', type: 'equation', initialState: { text: '\\sigma(x) = \\frac{1}{1 + e^{-x}}', x: 400, y: 30, w: 220, h: 44 } }` — expected: typeset maths with a real fraction bar, not a literal backslash.
+2. `{ id: 'snip', type: 'code', initialState: { text: 'logits = q @ k.T', x: 400, y: 90 } }` — expected: monospace.
+3. Change the equation's text to `\\frac{1}{` (unbalanced) — expected: KaTeX's own error rendering or the plain text fallback, and the rest of the animation still plays. A broken expression must not take the scene down.
+
+Revert all three before committing.
+
+Deployed e2e runs at **Gate B**.
 
 - [ ] **Step 5: Commit**
 
@@ -1328,10 +1406,18 @@ with:
 Run: `make test-unit`
 Expected: PASS — `animation-scene.js` is untouched.
 
-Build and deploy as in Task 5 Step 4. In Chrome DevTools, open Rendering and set `Emulate CSS media feature prefers-reduced-motion` to `reduce`. Insert an Animation block: Play must jump straight to the final frame, cells must change state without springing, and the scrubber must still seek exactly. Set it back to `no-preference` and confirm normal playback returns.
+Run: `cd packages/web && npm run build`
+Expected: succeeds.
 
-Run: `cd packages/web && node e2e/chat-block-check.mjs`
-Expected: all animation checks still pass — Playwright does not set the reduced-motion preference by default, so the normal path is what runs.
+Run `npm run dev`. In Chrome DevTools open Rendering and set `Emulate CSS media feature prefers-reduced-motion` to `reduce`. Insert an Animation block:
+
+- Play must jump straight to the final frame, not travel to it.
+- Cells must change state without springing.
+- The scrubber must still seek exactly — reduced motion removes the animation, never the determinism.
+
+Set it back to `no-preference` and confirm normal playback returns unchanged.
+
+Deployed e2e runs at **Gate B**. Playwright does not set the reduced-motion preference by default, so the normal path is what the suite exercises.
 
 - [ ] **Step 5: Commit**
 
@@ -1419,8 +1505,12 @@ Expected: PASS.
 Run: `make test-unit`
 Expected: PASS.
 
-Build and deploy as in Task 5 Step 4, then run `cd packages/web && node e2e/chat-block-check.mjs`.
-Expected: every check passes, and the console shows no `no renderer for data type` line.
+Run: `cd packages/web && npm run build`
+Expected: succeeds.
+
+Run `npm run dev` and insert an Animation block. Expected: it matches `token-journey-baseline.png`, and the browser console shows no `no renderer for data type` line.
+
+Then confirm the guard fires: temporarily add `'patches'` to `RENDERED_TYPES` and to `DATA_TYPES` in `AnimatedScene.jsx`, author an object of that type, and check the console logs `no renderer for data type "patches"` and nothing is drawn — rather than token chips appearing. Revert both edits before committing; the unit test from Step 1 will fail until you do, which is the point of it.
 
 - [ ] **Step 7: Commit**
 
@@ -1431,14 +1521,27 @@ git commit -m 'feat(learn): the type enum and the renderer cannot drift apart'
 
 ---
 
+## Gate B — deploy and prove the renderer batch
+
+Tasks 6 to 12 are done and each passed locally. This is the one rollout for all seven.
+
+- [ ] Full suite: `make test-unit` → PASS.
+- [ ] Build and deploy, as in Gate A. Wait ~20 s.
+- [ ] Full e2e: `cd packages/web && node e2e/chat-block-check.mjs`. Report the pass/fail count against Gate A's numbers — any check that passed at Gate A and fails here is a regression introduced by Tasks 6-12, and the batch does not ship until it is found.
+- [ ] **Visual regression:** screenshot the Animation block and compare against `e2e/shots/token-journey-baseline.png`. `token-journey` authors no camera, arrow, line, image, `heat`, `peak`, equation or code, so seven tasks of renderer work must leave it identical. Any difference is an unintended change and must be explained before the batch ships.
+- [ ] Report the dev page link.
+
+---
+
 ## Done when
 
 - `make test-unit` runs the Python and both JS suites, and fails if any one of them fails.
 - The four live bugs are fixed, each with a test that fails before its fix.
 - `getSceneState` is total for any persisted time value.
 - Every type in the schema enum draws, and a new one cannot be added without a branch.
-- `node e2e/chat-block-check.mjs` reports no regressions against the dev deployment, and the scrubbed-moment check passes.
-- The shipped `token-journey` scene is visually unchanged throughout. Every task that touches the renderer verifies this explicitly; it is the regression that would be easiest to miss and worst to ship.
+- `node e2e/chat-block-check.mjs` reports no regressions at **both** gates, and the scrubbed-moment check passes from Gate A onward.
+- The shipped `token-journey` scene is visually unchanged throughout, checked against `e2e/shots/token-journey-baseline.png` locally at every renderer task and once more at Gate B. It is the regression easiest to miss and worst to ship.
+- Exactly **two** deploys happened.
 
 ## Next
 
