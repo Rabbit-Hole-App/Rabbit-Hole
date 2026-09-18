@@ -587,12 +587,14 @@ await check('a scrubbed moment is what a question refers to', async () => {
 });
 ```
 
-- [ ] **Step 2: Run it to confirm it fails**
+- [ ] **Step 2: Run it against the currently deployed build to confirm it fails**
+
+The dev deployment is still pre-fix, so the failing run costs no rollout. Run this **before** touching `AnimatedScene.jsx`.
 
 Run: `cd packages/web && node e2e/chat-block-check.mjs`
-Expected: `FAIL: a scrubbed moment is what a question refers to`. The line keeps reading `9.0s` after the scrub to 3, because `block.time` never re-committed.
+Expected: `FAIL: a scrubbed moment is what a question refers to`. The line keeps reading `9.0s` after the scrub to 3, because `block.time` never re-committed. Record the full pass/fail count — Gate A compares against it.
 
-Note: this suite runs against the deployed dev worker, so the fix must be built and deployed before it can pass. Steps 4 and 5 cover that.
+If this check *passes* against the pre-fix build, stop and say so: either the check is not exercising the bug, or the bug is not what the plan claims. Do not proceed to Step 3.
 
 - [ ] **Step 3: Commit on every paused time change**
 
@@ -611,21 +613,19 @@ with:
   useEffect(() => { if (!playing && scene) onChange({ ...block, time: Number(time.toFixed(2)) }); }, [playing, time]);
 ```
 
-- [ ] **Step 4: Build and deploy to dev**
+- [ ] **Step 4: Verify what can be verified without a rollout**
 
-```bash
-cd packages/web && npm run build -- --outDir dist-dev
-cd ../control-plane && npx wrangler deploy --config wrangler.dev.jsonc
-```
+Run: `make test-unit`
+Expected: PASS.
 
-Wait about 20 seconds after the deploy returns: a new version serves roughly 15-20 s later, and probing too early looks exactly like the edit not taking.
+Run: `cd packages/web && npm run build`
+Expected: succeeds.
 
-- [ ] **Step 5: Run the check to verify it passes**
+Run `npm run dev`, insert an Animation block, scrub to 9, click the token row, then scrub to 3. Expected: the selection line reads `3.0s`. This is the same property the e2e check asserts, verified locally.
 
-Run: `cd packages/web && node e2e/chat-block-check.mjs`
-Expected: `ok: a scrubbed moment is what a question refers to`, and every previously passing check still passes. Report the full pass/fail count.
+The deployed confirmation is **Gate A**, immediately after this task. Do not deploy here.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add packages/web/src/AnimatedScene.jsx packages/web/e2e/chat-block-check.mjs
