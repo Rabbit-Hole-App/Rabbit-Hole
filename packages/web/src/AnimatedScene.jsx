@@ -224,6 +224,8 @@ export default function AnimatedScene({ block, onChange, onAskRegion }) {
   const [selecting, setSelecting] = useState(false);
   const frame = useRef(0);
   const clock = useRef(0);
+  const latest = useRef(block);
+  latest.current = block;
   const clearMark = () => { setSelecting(false); onChange({ ...block, marked: null, selectedObject: null }); };
   useEffect(() => {
     const key = event => { if (event.key === 'Escape' && (block.marked || block.selectedObject || selecting)) clearMark(); };
@@ -254,7 +256,7 @@ export default function AnimatedScene({ block, onChange, onAskRegion }) {
   // never writes per frame.
   useEffect(() => {
     if (playing || !scene) return undefined;
-    const settle = setTimeout(() => onChange({ ...block, time: Number(time.toFixed(2)) }), 150);
+    const settle = setTimeout(() => onChange({ ...latest.current, time: Number(time.toFixed(2)) }), 150);
     return () => clearTimeout(settle);
   }, [playing, time]);
   if (error) return <div className="grid min-h-24 place-content-center p-4 text-center text-xs text-red-700">{error}</div>;
