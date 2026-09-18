@@ -604,11 +604,15 @@ This is the largest single task in the plan. `tint()` is string concatenation on
 
 - [ ] **Step 1: Count what you are removing**
 
-Run and record: `grep -c "#[0-9a-fA-F]\{6\}" src/AnimatedScene.jsx` and `grep -n "tint(" src/AnimatedScene.jsx`. Both counts go to zero by the end of this task except inside comments. Report the before and after.
+Run and record: `grep -o "#[0-9a-fA-F]\{6\}" src/AnimatedScene.jsx | wc -l` and `grep -n "tint(" src/AnimatedScene.jsx`. At the time of writing these are 16 lines carrying a hex and 7 lines calling `tint`. Both go to zero by the end of this task except inside comments. Report the before and after.
 
 - [ ] **Step 2: Replace the colour source**
 
-Delete `COLORS` and `tint`. Every `fill=`/`stroke=` carrying a colour becomes a `style={{ fill: … }}` / `style={{ stroke: … }}` property.
+Delete `COLORS` and `tint`.
+
+`COLORS` is keyed by object *type* and is the reason a grid is blue and bars are green today. Line 231 is currently `const colour = object.color || COLORS[object.type] || '#37352f'`, and `object.color` no longer exists on an evaluated object — Task 5 replaced it with `object.role`. **Do not rebuild a type-to-colour map.** An object whose scene did not author a role evaluates to `neutral` and must render neutral; that is the model working, not a regression. Colour now comes from what a thing *means*, and a scene that wants a grid to read as input says so.
+
+One thing this task does not need: a theme listener. `ChartBlock.jsx` and `RunbookEditor.jsx` subscribe to the `small:theme` event because they hand colours to a non-DOM renderer. An SVG driven by CSS variables re-resolves on its own when the `.dark` class changes, so adding a listener here would be dead weight. Verify by toggling appearance with a scene on screen and watching it change without a remount. Every `fill=`/`stroke=` carrying a colour becomes a `style={{ fill: … }}` / `style={{ stroke: … }}` property.
 
 **Why `style`, accurately:** `fill="var(--c)"` does in fact resolve in current browsers — verified in Chromium, computed `rgb(255, 0, 0)`. The reason to use `style` is not that attributes are broken; it is that a presentation attribute is the weakest source in the cascade, so anything setting `fill` in CSS silently wins over it, and `style` keeps one obvious place where a colour comes from. `color-mix()` was also verified working through `style`, computing `color(srgb 1 0 0 / 0.3)`.
 
