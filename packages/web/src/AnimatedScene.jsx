@@ -247,9 +247,16 @@ export default function AnimatedScene({ block, onChange, onAskRegion }) {
     return () => cancelAnimationFrame(frame.current);
   }, [playing, scene]);
   // The paused moment is what a question refers to, so it is committed - on
-  // every scrub, not only when playback stops. While playing, `playing` is
-  // true and nothing commits, so the rAF loop never writes per frame.
-  useEffect(() => { if (!playing && scene) onChange({ ...block, time: Number(time.toFixed(2)) }); }, [playing, time]);
+  // every scrub, not only when playback stops. A commit snapshots the canvas
+  // for undo, so let the gesture settle first: one commit per scrub rather
+  // than one per 0.05s tick, which would blow the 100-entry undo ring.
+  // While playing, `playing` is true and nothing commits, so the rAF loop
+  // never writes per frame.
+  useEffect(() => {
+    if (playing || !scene) return undefined;
+    const settle = setTimeout(() => onChange({ ...block, time: Number(time.toFixed(2)) }), 150);
+    return () => clearTimeout(settle);
+  }, [playing, time]);
   if (error) return <div className="grid min-h-24 place-content-center p-4 text-center text-xs text-red-700">{error}</div>;
   if (!scene) return null;
   const state = getSceneState(scene, time);
