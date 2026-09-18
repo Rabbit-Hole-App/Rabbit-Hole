@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { Pause, Play, RotateCcw, Scan, X } from 'lucide-react';
 import katex from 'katex';
 import { BAR, CHIP, getSceneState, validateScene } from './animation-scene.js';
+import { roleVar, shapeStyle, tintOf } from './scene-style.js';
 
 // Live playback of an animation spec. The evaluator owns what the frame looks
 // like at time t; this only draws it and owns the transport. Learner ink is a
@@ -10,7 +11,6 @@ import { BAR, CHIP, getSceneState, validateScene } from './animation-scene.js';
 // ponytail: SVG layer for lesson objects, learner ink on top; tldraw shapes
 // come in when a lesson needs its full toolset inside the animation.
 
-const COLORS = { box: '#2383e2', circle: '#7c3aed', text: '#37352f', grid: '#2383e2', strip: '#7c3aed', bars: '#1a7f37', tokens: '#e8590c' };
 const DATA_TYPES = ['grid', 'strip', 'bars', 'tokens'];
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 // The evaluator owns every position and value, so scrubbing stays exact.
@@ -35,19 +35,20 @@ const marked = (object, row, column, index) => {
 // The mathematical object itself: a table with a row that lights up, a strip
 // of numbers that change, a distribution that grows. Labelled rectangles do
 // not teach these; the values do.
-function DataShape({ object, colour, pop }) {
+function DataShape({ object, role, pop }) {
   const emphasis = 1 + (object.emphasis || 0) * 0.06;
   if (object.type === 'grid' || object.type === 'strip') {
     const cell = object.cell || 18;
     const columns = object.type === 'strip' ? (object.values?.length || 0) : (object.cols || 1);
     const rows = object.type === 'strip' ? 1 : (object.rows || 1);
     // A heat grid reads as a distribution: fill carries the value, so the shape
-    // is visible before a single numeral is read.
+    // is visible before a single numeral is read. Percent, not a hex alpha
+    // channel - tintOf's color-mix takes 0-100, same curve as before.
     const hottest = object.heat ? Math.max(...(object.values || []).map(entry => Math.abs(entry ?? 0)), 0.0001) : 0;
-    const alpha = value => {
-      if (!object.heat || value == null) return '0a';
+    const heatPercent = value => {
+      if (!object.heat || value == null) return 4;
       const share = Math.min(1, Math.abs(value) / hottest);
-      return Math.round(10 + share * 150).toString(16).padStart(2, '0');
+      return Math.round(4 + share * 59);
     };
     const cells = [];
     for (let row = 0; row < rows; row += 1) {
@@ -57,19 +58,19 @@ function DataShape({ object, colour, pop }) {
         const lit = marked(object, row, column, index);
         // Motion may spring a value only while that value is discrete. A heat
         // fill is a continuous function of the cell's number, so it is painted
-        // exactly; a binary lit/unlit fill keeps its pop.
-        const springs = { stroke: lit ? colour : tint(colour, '33'), strokeWidth: lit ? 1.4 : 0.6 };
-        const fill = tint(colour, lit ? '33' : alpha(value));
+        // exactly (style); a binary lit/unlit fill keeps its pop (animate).
+        const springs = { stroke: lit ? roleVar(role) : tintOf(role, 20), strokeWidth: lit ? 1.4 : 0.6 };
+        const fill = tintOf(role, lit ? 20 : heatPercent(value));
         cells.push(
           <g key={index}>
             <motion.rect x={object.x + column * cell} y={object.y + row * cell} width={cell} height={cell}
-              fill={object.heat ? fill : undefined}
+              style={object.heat ? { fill } : undefined}
               animate={object.heat ? springs : { fill, ...springs }}
               transition={pop} />
             {value != null && cell >= 22 && (
               <text x={object.x + column * cell + cell / 2} y={object.y + row * cell + cell / 2}
                 textAnchor="middle" dominantBaseline="central" fontSize={Math.min(12, cell * 0.42)}
-                fill={lit ? '#37352f' : '#787774'} style={{ fontFamily: MONO }}>{num(value)}</text>
+                style={{ fontFamily: MONO, fill: lit ? 'var(--color-ink)' : 'var(--color-ink-2)' }}>{num(value)}</text>
             )}
           </g>,
         );
@@ -79,11 +80,11 @@ function DataShape({ object, colour, pop }) {
       <g transform={`translate(${object.x + (object.w || 0) / 2} ${object.y + (object.h || 0) / 2}) scale(${emphasis}) translate(${-(object.x + (object.w || 0) / 2)} ${-(object.y + (object.h || 0) / 2)})`}>
         {cells}
         {object.cellHighlight?.row != null && (
-          <motion.rect key={`band-${object.cellHighlight.row}`} initial={{ opacity: 0, scaleX: 0.92 }} animate={{ opacity: 1, scaleX: 1 }} transition={pop} style={fromCentre}
+          <motion.rect key={`band-${object.cellHighlight.row}`} initial={{ opacity: 0, scaleX: 0.92 }} animate={{ opacity: 1, scaleX: 1 }} transition={pop} style={{ ...fromCentre, stroke: roleVar(role) }}
             x={object.x - 3} y={object.y + object.cellHighlight.row * cell - 3} width={(object.w || 0) + 6} height={cell + 6}
-            rx={4} fill="none" stroke={colour} strokeWidth="2.4" />
+            rx={4} fill="none" strokeWidth="2.4" />
         )}
-        <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={3} fill="none" stroke={colour} strokeWidth="1.6" />
+        <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={3} fill="none" style={{ stroke: roleVar(role) }} strokeWidth="1.6" />
       </g>
     );
   }
@@ -96,17 +97,17 @@ function DataShape({ object, colour, pop }) {
     const height = object.h || BAR.h;
     return (
       <g>
-        <line x1={object.x} y1={object.y + height} x2={object.x + (object.w || 0)} y2={object.y + height} stroke={tint(colour, '55')} strokeWidth="1.5" />
+        <line x1={object.x} y1={object.y + height} x2={object.x + (object.w || 0)} y2={object.y + height} style={{ stroke: tintOf(role, 33) }} strokeWidth="1.5" />
         {values.map((value, index) => {
           const tall = value == null ? 0 : Math.min(height - 4, Math.max(1, (Math.abs(value) / peak) * (height - 4)));
           const lit = marked(object, 0, index, index) || (object.cellHighlight === 'max' && value != null && value === Math.max(...values.map(entry => entry ?? -Infinity)));
           return (
             <motion.g key={index} animate={{ scale: lit ? 1.06 : 1 }} transition={pop} style={fromCentre}>
               <motion.rect x={object.x + index * BAR.w + 3} y={object.y + height - tall} width={BAR.w - 6} height={tall}
-                rx={2.5} animate={{ fill: lit ? colour : tint(colour, '59') }} transition={pop} />
+                rx={2.5} animate={{ fill: lit ? roleVar(role) : tintOf(role, 35) }} transition={pop} />
               {object.labels?.[index] && (
                 <text x={object.x + index * BAR.w + BAR.w / 2} y={object.y + height + 13} textAnchor="middle"
-                  fontSize="10" fill={lit ? '#37352f' : '#9b9a97'} style={{ fontFamily: MONO }}>{object.labels[index]}</text>
+                  fontSize="10" style={{ fontFamily: MONO, fill: lit ? 'var(--color-ink)' : 'var(--color-ink-3)' }}>{object.labels[index]}</text>
               )}
             </motion.g>
           );
@@ -132,18 +133,15 @@ function DataShape({ object, colour, pop }) {
         return (
           <motion.g key={index} animate={{ scale: lit ? 1.12 : 1, y: lit ? -3 : 0 }} transition={pop} style={fromCentre}>
             <motion.rect x={x} y={object.y} width={width} height={CHIP.h} rx={7}
-              animate={{ fill: lit ? tint(colour, '33') : tint(colour, '12'), strokeWidth: lit ? 1.8 : 0.9 }} stroke={colour} transition={pop} />
+              animate={{ fill: lit ? tintOf(role, 20) : tintOf(role, 7), strokeWidth: lit ? 1.8 : 0.9 }} style={{ stroke: roleVar(role) }} transition={pop} />
             <text x={x + width / 2} y={object.y + CHIP.h / 2} textAnchor="middle" dominantBaseline="central"
-              fontSize="14" fill="#37352f" style={{ fontFamily: MONO }}>{token}</text>
+              fontSize="14" style={{ fontFamily: MONO, fill: 'var(--color-ink)' }}>{token}</text>
           </motion.g>
         );
       })}
     </g>
   );
 }
-// A tint of the object's own colour, so a scene reads as a diagram rather
-// than a grid of white rectangles.
-const tint = (colour, alpha) => `${colour}${alpha}`;
 
 // Where a label sits depends on what it is labelling: a box or circle centres it,
 // a stroke pins it to its start, and everything that owns a frame - data grids,
@@ -204,7 +202,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
         if (area.w < 0.02 || area.h < 0.02) return;
         onRegion(area, find(area));
       }}>
-      <svg viewBox={view} className="h-full w-full bg-[#fbfbfa]">
+      <svg viewBox={view} className="h-full w-full" style={{ background: 'var(--viz-surface)' }}>
         {state.connections.map(connection => {
           const from = state.objects.find(object => object.id === connection.from);
           const to = state.objects.find(object => object.id === connection.to);
@@ -214,21 +212,21 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
           // Path length interpolation: the line is drawn, not faded in.
           const tipX = start.x + (end.x - start.x) * connection.progress;
           const tipY = start.y + (end.y - start.y) * connection.progress;
-          return <line key={connection.key} x1={start.x} y1={start.y} x2={tipX} y2={tipY} stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" markerEnd={connection.progress > 0.98 ? 'url(#animation-arrow)' : undefined} />;
+          return <line key={connection.key} x1={start.x} y1={start.y} x2={tipX} y2={tipY} style={{ stroke: roleVar('neutral') }} strokeWidth="2.5" strokeLinecap="round" markerEnd={connection.progress > 0.98 ? 'url(#animation-arrow)' : undefined} />;
         })}
         <defs>
           {/* Connections are always drawn in the same grey, so their head is too. */}
-          <marker id="animation-arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#94a3b8" /></marker>
+          <marker id="animation-arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" style={{ fill: roleVar('neutral') }} /></marker>
           {/* An authored arrow carries its own colour, and a head in a different
               colour reads as a mistake. context-stroke takes the colour from the
               line that references it, so one marker serves every arrow. */}
           <marker id="animation-arrow-tinted" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="context-stroke" /></marker>
           <filter id="animation-shadow" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="1" stdDeviation="1.4" floodColor="#37352f" floodOpacity="0.14" />
+            <feDropShadow dx="0" dy="1" stdDeviation="1.4" style={{ floodColor: 'var(--color-ink)' }} floodOpacity="0.14" />
           </filter>
         </defs>
         {state.objects.filter(object => object.visible).map(object => {
-          const colour = object.color || COLORS[object.type] || '#37352f';
+          const role = object.role;
           const shown = object.textProgress >= 1 ? object.label : object.label.slice(0, Math.round(object.label.length * object.textProgress));
           const chosen = picked === object.semanticId;
           const isText = object.type === 'text' || object.type === 'equation' || object.type === 'code';
@@ -243,6 +241,9 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
           // same point; boxes centre inside their frame.
           const centre = isCircle ? { x: object.x, y: object.y } : { x: object.x + (object.w || 0) / 2, y: object.y + (object.h || 0) / 2 };
           const label = labelAt(object, { stroke: isStroke, above: isData || isImage, text: isText }, centre);
+          // State never changes which role's colour is shown, only weight and
+          // fill strength - one resolved look serves every shape below.
+          const look = shapeStyle(role, { highlighted: object.highlighted, chosen });
           return (
             <g key={object.id} data-animation-object={object.semanticId} opacity={object.opacity}
               transform={`rotate(${object.rotation} ${centre.x} ${centre.y})`}
@@ -251,30 +252,30 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
                   stray 10x10 outline at its x/y; give strokes their own halo when
                   a lesson actually highlights one */}
               {object.highlighted && !isText && !isData && (isCircle
-                ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 7} fill="none" stroke={colour} strokeOpacity="0.28" strokeWidth="6" />
-                : <rect x={object.x - 5} y={object.y - 5} width={(object.w || 0) + 10} height={(object.h || 0) + 10} rx={14} fill="none" stroke={colour} strokeOpacity="0.25" strokeWidth="6" />)}
+                ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 7} fill="none" strokeOpacity="0.28" strokeWidth="6" style={{ stroke: roleVar(role) }} />
+                : <rect x={object.x - 5} y={object.y - 5} width={(object.w || 0) + 10} height={(object.h || 0) + 10} rx={14} fill="none" strokeOpacity="0.25" strokeWidth="6" style={{ stroke: roleVar(role) }} />)}
               {isData
-                ? <DataShape object={object} colour={colour} pop={pop} />
+                ? <DataShape object={object} role={role} pop={pop} />
                 : isImage
                 ? <image href={object.src} x={object.x} y={object.y} width={object.w} height={object.h}
                     preserveAspectRatio="xMidYMid slice"
-                    stroke={chosen ? '#b42318' : 'none'} strokeWidth={chosen ? 3 : 0} />
+                    style={{ stroke: look.stroke, strokeWidth: look.strokeWidth }} />
                 : isStroke
                 ? <line x1={object.from?.x ?? object.x} y1={object.from?.y ?? object.y}
                     x2={object.to?.x ?? object.x} y2={object.to?.y ?? object.y}
-                    stroke={chosen ? '#b42318' : colour} strokeWidth={chosen ? 3.5 : 2.5} strokeLinecap="round"
+                    strokeLinecap="round" style={{ stroke: look.stroke, strokeWidth: look.strokeWidth }}
                     markerEnd={object.type === 'arrow' ? 'url(#animation-arrow-tinted)' : undefined} />
                 : isCircle
-                ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2} fill={tint(colour, '1a')} stroke={chosen ? '#b42318' : colour} strokeWidth={chosen ? 3 : 2} filter="url(#animation-shadow)" />
+                ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2} filter="url(#animation-shadow)" style={{ fill: look.fill, stroke: look.stroke, strokeWidth: look.strokeWidth }} />
                 : isText ? null
                   : <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={12}
-                      fill={tint(colour, object.highlighted ? '1f' : '0f')} stroke={chosen ? '#b42318' : colour} strokeWidth={chosen ? 3 : 1.5} filter="url(#animation-shadow)" />}
+                      filter="url(#animation-shadow)" style={{ fill: look.fill, stroke: look.stroke, strokeWidth: look.strokeWidth }} />}
               {maths && (
                 <foreignObject x={object.x} y={object.y} width={object.w} height={object.h}>
                   {/* Only typeset() output may reach this - it is KaTeX markup,
                       never script. A scene's own strings are authored content and
                       must never be set as HTML. */}
-                  <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontSize: 15, color: '#37352f' }}
+                  <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontSize: 15, color: 'var(--color-ink)' }}
                     dangerouslySetInnerHTML={{ __html: maths }} />
                 </foreignObject>
               )}
@@ -283,8 +284,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
                   x={label.x} y={label.y} textAnchor={label.anchor} dominantBaseline={label.baseline}
                   fontSize={isCircle ? 16 : 13}
                   fontWeight={isCircle ? 600 : isData ? 500 : isText ? 400 : 500}
-                  fill={isText ? '#787774' : isData ? '#787774' : '#37352f'}
-                  style={{ fontFamily: isCircle || isCode ? MONO : 'inherit' }}>{shown}</text>
+                  style={{ fontFamily: isCircle || isCode ? MONO : 'inherit', fill: isText || isData ? 'var(--color-ink-2)' : 'var(--color-ink)' }}>{shown}</text>
               )}
               {/* the full label reserves its space so later objects never shift */}
               {object.textProgress < 1 && <text x={-9999} y={-9999} fontSize="13">{object.label}</text>}
@@ -294,7 +294,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
       </svg>
       {(rectangle || marked) && (
         <svg viewBox="0 0 1 1" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full">
-          <rect {...(rectangle || marked)} width={(rectangle || marked).w} height={(rectangle || marked).h} fill="none" stroke="#dc2626" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+          <rect {...(rectangle || marked)} width={(rectangle || marked).w} height={(rectangle || marked).h} fill="none" style={{ stroke: 'var(--color-danger)' }} strokeWidth="2" vectorEffect="non-scaling-stroke" />
         </svg>
       )}
     </div>
