@@ -359,9 +359,13 @@ Each item is independently revertible and lands before any convergence work.
    `[data-scene-step]`, `[data-piece]`, `[data-slot]`, `[data-vector-handle]`, `[data-projection]`,
    plus three `page.reload()` persistence assertions. This is the only irreversible part of the work.
 
-3. **Real unit-test execution.** `npm test` in `packages/web` is Playwright, so the thirteen
-   `node:test` files only ever run by hand; `make test-unit` is Python-only. Add `test:unit`, put it
-   in CI, keep Playwright separate.
+3. **Real unit-test execution.** `npm test` in `packages/web` is Playwright, so the three `node:test`
+   files — `animation-scene.test.mjs`, `chart-data.test.mjs`, `scene-engine.test.mjs` — only ever run
+   by hand. `run.sh test:unit` is `uv run pytest tests/unit_tests/` and nothing else, so
+   `make test-unit`, which CLAUDE.md requires before every commit, cannot fail on a broken web test.
+   There is no CI in this repository (no `.github`), so the entry point *is* `make test-unit`: add a
+   `test:unit` script to `packages/web` and call it from `run.sh test:unit` alongside pytest. Playwright
+   stays separate under `web:test`.
 
 ### T1.0 — renderer honesty
 
