@@ -2,24 +2,39 @@ import { useEffect, useRef, useState } from 'react';
 
 // Text-authored diagrams: the agent writes mermaid, the browser renders it.
 // The source view is highlighted with Shiki so it matches the code blocks.
-// ponytail: one light theme; a dark variant when the canvas gets one.
+// Both follow the app's theme toggle.
 
-let started;
-function mermaidOnce() {
-  if (!started) started = import('mermaid').then(({ default: mermaid }) => {
+// The app's own toggle owns dark mode (.dark on <html>), so the diagram must
+// follow it rather than the OS; light ink on a dark canvas was invisible.
+const isDark = () => typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+
+const palette = dark => dark
+  ? { primaryColor: '#2a2a28', primaryTextColor: '#e9e9e7', primaryBorderColor: '#4f8ff7', lineColor: '#8b93a6',
+      secondaryColor: '#33322f', tertiaryColor: '#33322f', background: '#1f1f1d', mainBkg: '#2a2a28',
+      textColor: '#e9e9e7', nodeTextColor: '#e9e9e7', labelTextColor: '#e9e9e7',
+      actorBkg: '#2a2a28', actorTextColor: '#e9e9e7', actorLineColor: '#8b93a6',
+      signalColor: '#c9c9c5', signalTextColor: '#e9e9e7', noteBkgColor: '#33322f', noteTextColor: '#e9e9e7',
+      sequenceNumberColor: '#1f1f1d', fontSize: '13px' }
+  : { primaryColor: '#ffffff', primaryTextColor: '#37352f', primaryBorderColor: '#2383e2', lineColor: '#94a3b8',
+      secondaryColor: '#f7f7f5', tertiaryColor: '#f7f7f5', textColor: '#37352f', nodeTextColor: '#37352f',
+      labelTextColor: '#37352f', actorBkg: '#ffffff', actorTextColor: '#37352f', actorLineColor: '#94a3b8',
+      signalColor: '#64748b', signalTextColor: '#37352f', noteBkgColor: '#f7f7f5', noteTextColor: '#37352f',
+      fontSize: '13px' };
+
+let loaded;
+function mermaidOnce(dark) {
+  if (!loaded) loaded = import('mermaid').then(({ default: mermaid }) => mermaid);
+  return loaded.then(mermaid => {
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: 'strict', // no click handlers or raw HTML from lesson text
       theme: 'base',
+      darkMode: dark,
       fontFamily: 'ui-sans-serif, system-ui, sans-serif',
-      themeVariables: {
-        primaryColor: '#ffffff', primaryTextColor: '#37352f', primaryBorderColor: '#2383e2',
-        lineColor: '#94a3b8', secondaryColor: '#f7f7f5', tertiaryColor: '#f7f7f5', fontSize: '13px',
-      },
+      themeVariables: palette(dark),
     });
     return mermaid;
   });
-  return started;
 }
 
 export function MermaidSource({ code }) {
@@ -27,7 +42,7 @@ export function MermaidSource({ code }) {
   useEffect(() => {
     let live = true;
     import('shiki').then(async ({ codeToHtml }) => {
-      const marked = await codeToHtml(code, { lang: 'mermaid', theme: 'github-light' });
+      const marked = await codeToHtml(code, { lang: 'mermaid', theme: isDark() ? 'github-dark' : 'github-light' });
       if (live) setHtml(marked);
     }).catch(() => { if (live) setHtml(''); });
     return () => { live = false; };

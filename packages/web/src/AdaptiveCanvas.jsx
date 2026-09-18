@@ -179,7 +179,7 @@ function ChatCard({ exchange, zoom, selected, connected, onSelect, onMove, onSiz
 
 // A course-authored lesson block (challenge, explanation, quiz, …) in the
 // same chrome as chat nodes; the body renderer comes from LearningBlocks.
-function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onAsk, onFile, appName, onAskRegion, onGrade, onAskActivity }) {
+function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onAsk, onFile, appName, onAskRegion, onGrade }) {
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} connected={connected}
       autoMax={BLOCK_TYPES[block.type]?.autoMax} width={BLOCK_TYPES[block.type]?.width} height={BLOCK_TYPES[block.type]?.height}
@@ -201,7 +201,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
           </button>
         </div>
       )}
-      <LearningBlockBody block={block} onChange={onChange} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} onAskScene={context => onAskActivity?.(block, context)} />
+      <LearningBlockBody block={block} onChange={onChange} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} />
     </CanvasNode>
   );
 }
@@ -294,6 +294,7 @@ function ToolButton({ Icon, label, active, onPick }) {
 export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, storageKey = null, composer = null, renderBlockComposer = null }) {
   const [tool, setTool] = useState('select');
   const [insertOpen, setInsertOpen] = useState(false); // dev-only lesson-block workbench menu
+  const [insertFilter, setInsertFilter] = useState('');
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(WIDTHS[0]);
   const [dash, setDash] = useState(false);
@@ -470,14 +471,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     const described = describeBlock(block);
     if (described) onAskTargetRef.current?.({ id: block.id, ...described });
   };
-  // Selecting an object inside an activity arms the composer with the
-  // activity's semantic state, captured at the moment of the question.
-  const askActivity = (block, context) => onAskTargetRef.current?.({
-    id: block.id,
-    kind: 'Activity',
-    title: `${block.title} · ${context.selectedObject}`,
-    text: [`Activity: ${block.title}`, `Behaviour: ${context.behaviorId} (${context.executionMode})`, `Selected object: ${context.selectedObject}`, `State when asked: ${JSON.stringify(context.state)}`, context.checkGoal ? `Check goal: ${context.checkGoal}` : ''].join(String.fromCharCode(10)),
-  });
   // A red region drawn on a paper page arms the composer with its thumbnail
   // and the page context, so the answer node links back to that paper block.
   const askRegion = (block, selection) => {
@@ -721,6 +714,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     const dy = Math.max(0, lowest - flowY + 24);
     setBlocks(previous => [...previous, { ...BLOCK_TYPES[type].sample(), dy }]);
     setInsertOpen(false);
+    setInsertFilter('');
     if (element) setView(v => ({ ...v, y: Math.min(v.y, element.clientHeight - 280 - (24 + flowY + dy) * v.z) }));
   };
   const changeItem = (id, text) => {
@@ -766,7 +760,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         </svg>
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
           {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onFile={onOpenFile} />)}
-          {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onLayout={measureBlocks} onConnect={connect} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onAskActivity={askActivity} />)}
+          {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onLayout={measureBlocks} onConnect={connect} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} />)}
         </div>
         <div className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} />)}
@@ -783,11 +777,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
             <Plus size={15} strokeWidth={1.7} />
           </button>
           {insertOpen && (
-            <div role="menu" aria-label="Lesson blocks" className="absolute top-0 right-10 w-40 rounded-xl border border-line bg-white p-1 shadow-md">
-              {Object.entries(BLOCK_TYPES).map(([type, meta]) => (
-                <button key={type} type="button" role="menuitem" onClick={() => insertBlock(type)}
-                  className="block w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink hover:bg-hover">{meta.label}</button>
-              ))}
+            <div role="menu" aria-label="Lesson blocks" className="absolute top-0 right-10 flex max-h-[70vh] w-44 flex-col overflow-hidden rounded-xl border border-line bg-white shadow-md">
+              <input type="search" autoFocus value={insertFilter} onChange={event => setInsertFilter(event.target.value)}
+                aria-label="Filter blocks" placeholder="Filter…"
+                className="m-1 h-7 shrink-0 rounded-lg border border-line px-2 text-xs outline-none focus:border-ink-3" />
+              {/* the list keeps growing, so it scrolls instead of running off the canvas */}
+              <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto p-1 pt-0">
+                {Object.entries(BLOCK_TYPES)
+                  .filter(([, meta]) => meta.label.toLowerCase().includes(insertFilter.trim().toLowerCase()))
+                  .map(([type, meta]) => (
+                    <button key={type} type="button" role="menuitem" onClick={() => insertBlock(type)}
+                      className="block w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink hover:bg-hover">{meta.label}</button>
+                  ))}
+              </div>
             </div>
           )}
         </div>

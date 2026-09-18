@@ -108,3 +108,52 @@ export const vectorProjection = registerBehavior({
     return { a: state.a, b: state.b, projection: result };
   },
 });
+
+// Assemble a pipeline: drop pieces into ordered slots. The artifact is what
+// the learner built, so completion is the arrangement, never the gesture.
+export const pipelineAssembly = registerBehavior({
+  id: 'pipeline_assembly_v1',
+  renderers: ['dnd'],
+  actions: ['place_item', 'clear_slot', 'reset_attempt'],
+  start(spec) {
+    const { pieces, slots } = spec.initialState;
+    if (!Array.isArray(pieces) || !pieces.length) throw new Error('pipeline_assembly_v1 needs pieces');
+    if (!Array.isArray(slots) || !slots.length) throw new Error('pipeline_assembly_v1 needs slots');
+    for (const slot of slots) {
+      if (!slot.id || !slot.accepts) throw new Error('every slot needs an id and the piece id it accepts');
+      if (!pieces.some(piece => piece.id === slot.accepts)) throw new Error(`slot "${slot.id}" accepts unknown piece "${slot.accepts}"`);
+    }
+    return { pieces, slots, placed: {}, mistakes: 0 };
+  },
+  reduce(state, action) {
+    if (action.type === 'reset_attempt') return { ...state, placed: {}, mistakes: 0 };
+    if (action.type === 'clear_slot') {
+      if (!state.slots.some(slot => slot.id === action.slot)) throw new Error(`no slot "${action.slot}"`);
+      const placed = { ...state.placed };
+      delete placed[action.slot];
+      return { ...state, placed };
+    }
+    if (action.type === 'place_item') {
+      const slot = state.slots.find(entry => entry.id === action.slot);
+      if (!slot) throw new Error(`no slot "${action.slot}"`);
+      if (!state.pieces.some(piece => piece.id === action.piece)) throw new Error(`no piece "${action.piece}"`);
+      // A piece lives in one place: dropping it elsewhere moves it.
+      const placed = Object.fromEntries(Object.entries(state.placed).filter(([, piece]) => piece !== action.piece));
+      placed[action.slot] = action.piece;
+      const wrong = slot.accepts !== action.piece;
+      return { ...state, placed, mistakes: state.mistakes + (wrong ? 1 : 0) };
+    }
+    return state;
+  },
+  progress(state) {
+    const correct = state.slots.filter(slot => state.placed[slot.id] === slot.accepts).length;
+    return { complete: correct === state.slots.length, seen: correct, total: state.slots.length };
+  },
+  describe(state) {
+    return {
+      order: state.slots.map(slot => ({ slot: slot.label || slot.id, holds: state.placed[slot.id] || null, correct: state.placed[slot.id] === slot.accepts })),
+      unplaced: state.pieces.filter(piece => !Object.values(state.placed).includes(piece.id)).map(piece => piece.label),
+      wrongDrops: state.mistakes,
+    };
+  },
+});

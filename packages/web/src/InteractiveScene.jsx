@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { applyAction, prepareScene, sceneContext } from './scene-engine.js';
 import VectorScene from './VectorScene.jsx';
+import PipelineScene from './PipelineScene.jsx';
 import './scene-behaviors.js';
 
 // One block for every registered activity: the spec picks a behaviour and a
@@ -42,11 +43,20 @@ function StepsSvg({ spec, state, behavior, onSelect, selected }) {
 }
 
 // One renderer per behaviour shape; a behaviour declares which it supports.
-const RENDERERS = { walkthrough_v1: StepsSvg, vector_projection_v1: VectorScene };
+const RENDERERS = { walkthrough_v1: StepsSvg, vector_projection_v1: VectorScene, pipeline_assembly_v1: PipelineScene };
 
-export default function InteractiveScene({ block, onChange, onAsk }) {
+// What the tutor is told when the learner asks about this block.
+export function sceneSummary(block) {
+  try {
+    const { spec, behavior, state } = prepareScene(block.spec);
+    return sceneContext(spec, block.state || state, behavior, block.selectedObject);
+  } catch { return { error: 'unsupported activity' }; }
+}
+
+export default function InteractiveScene({ block, onChange }) {
   const [error, setError] = useState('');
-  const [selected, setSelected] = useState(null);
+  const selected = block.selectedObject || null;
+  const setSelected = value => onChange({ ...block, selectedObject: value });
   const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const prepared = useMemo(() => {
     try { setError(''); return prepareScene(block.spec); }
@@ -89,12 +99,8 @@ export default function InteractiveScene({ block, onChange, onAsk }) {
             {interaction.action === 'advance_step' && <ChevronRight size={14} />}
           </button>
         ))}
-        {progress && <span className="ml-auto text-xs tabular-nums text-ink-2">{progress.seen} / {progress.total} steps{progress.complete ? ' · walked through' : ''}</span>}
+        {progress && <span className="ml-auto text-xs tabular-nums text-ink-2">{progress.seen} / {progress.total} {spec.behaviorId === 'pipeline_assembly_v1' ? 'in place' : 'steps'}{progress.complete ? ' · done' : ''}</span>}
       </div>
-      {selected && onAsk && (
-        <button type="button" data-scene-ask onClick={() => onAsk(sceneContext(spec, state, behavior, selected))}
-          className="self-start rounded-lg border border-line px-2.5 py-1 text-xs hover:bg-hover">Ask about “{selected}”</button>
-      )}
       <p className="shrink-0 text-[11px] text-ink-3">{MODE_LABEL[spec.execution.mode]}</p>
     </div>
   );

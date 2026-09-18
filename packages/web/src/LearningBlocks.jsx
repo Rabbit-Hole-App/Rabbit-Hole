@@ -11,7 +11,7 @@ import { validateGraph } from '../../control-plane/src/learn-graph-schema.js';
 import LearnPaper from './LearnPaper.jsx';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import FlowDiagram from './FlowDiagram.jsx';
-import InteractiveScene from './InteractiveScene.jsx';
+import InteractiveScene, { sceneSummary } from './InteractiveScene.jsx';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
 import { sceneAssetUrl, sceneList, startScene, startVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
 
@@ -39,6 +39,25 @@ export const BLOCK_TYPES = {
       hint: 'Commit a guess before we look — the tutor reads it and says what you already have.',
       expects: ['each token id selects a learned embedding row', 'position information is added to the token vector', 'transformer blocks mix the vectors', 'a final linear layer scores every vocabulary token'],
       reveal: 'Hold that thought. The next blocks walk the real path: token IDs pick embedding rows, positions add where each token sits, the transformer tower mixes them, and the LM head scores every vocabulary token.',
+      answer: null,
+    }),
+  },
+  explainBack: {
+    // The other half of a challenge: evidence of understanding, judged after
+    // the learner has worked through the material.
+    label: 'Explain back',
+    width: 440,
+    autoMax: 560,
+    sample: () => ({
+      id: crypto.randomUUID(),
+      type: 'challenge',
+      mode: 'explain_back',
+      dx: 0,
+      dy: 0,
+      prompt: 'In your own words: what happens between token id `2` entering nanoGPT and the model producing next-token scores?',
+      hint: 'Two or three sentences. The tutor judges it against the key ideas, so say what each step does.',
+      expects: ['the id selects a row of the embedding table', 'a position embedding is added', 'transformer blocks mix the vectors across positions', 'the LM head turns the final vector into one score per vocabulary token'],
+      reveal: '',
       answer: null,
     }),
   },
@@ -312,46 +331,6 @@ export const BLOCK_TYPES = {
       attempts: 0,
     }),
   },
-  walkthroughTraining: {
-    label: 'Walkthrough (training)',
-    width: 420,
-    height: 460,
-    autoMax: 900,
-    sample: () => ({
-      id: crypto.randomUUID(),
-      type: 'scene',
-      dx: 0,
-      dy: 0,
-      title: 'One training step',
-      spec: {
-        type: 'interactive_scene',
-        id: 'training-walkthrough',
-        schemaVersion: 1,
-        behaviorId: 'walkthrough_v1',
-        renderer: 'svg',
-        conceptIds: ['training-loop'],
-        initialState: {
-          steps: [
-            { id: 'batch', label: 'sample a batch', detail: 'get_batch' },
-            { id: 'forward', label: 'forward pass', detail: 'logits, loss' },
-            { id: 'backward', label: 'backward pass', detail: 'loss.backward()' },
-            { id: 'clip', label: 'clip gradients', detail: 'grad_clip' },
-            { id: 'step', label: 'optimizer step', detail: 'AdamW' },
-            { id: 'zero', label: 'zero the gradients', detail: 'set_to_none' },
-          ],
-        },
-        interactions: [
-          { input: 'button', label: 'Back', action: 'previous_step' },
-          { input: 'button', label: 'Next', action: 'advance_step' },
-          { input: 'button', label: 'Reset', action: 'reset_attempt' },
-        ],
-        execution: { mode: 'illustration' },
-        buildGoal: 'Order the training step and say why zeroing the gradients comes last.',
-      },
-      state: null,
-      attempts: 0,
-    }),
-  },
   vector: {
     label: 'Vector explorer',
     width: 420,
@@ -380,6 +359,53 @@ export const BLOCK_TYPES = {
         execution: { mode: 'local_calculation' },
         buildGoal: 'Drag or type the vectors so the projection of a onto b has length 2.',
         checkGoal: 'Explain what happens to the projection when b points the other way.',
+      },
+      state: null,
+      attempts: 0,
+    }),
+  },
+  pipeline: {
+    label: 'Pipeline builder',
+    width: 460,
+    height: 520,
+    autoMax: 900,
+    sample: () => ({
+      id: crypto.randomUUID(),
+      type: 'scene',
+      dx: 0,
+      dy: 0,
+      title: 'Assemble the inference pipeline',
+      spec: {
+        type: 'interactive_scene',
+        id: 'inference-pipeline',
+        schemaVersion: 1,
+        behaviorId: 'pipeline_assembly_v1',
+        renderer: 'dnd',
+        conceptIds: ['inference-pipeline'],
+        initialState: {
+          pieces: [
+            { id: 'tokenise', label: 'tokenise the text' },
+            { id: 'embed', label: 'look up embeddings' },
+            { id: 'blocks', label: 'run the transformer blocks' },
+            { id: 'head', label: 'score the vocabulary' },
+            { id: 'sample', label: 'sample the next token' },
+          ],
+          slots: [
+            { id: 'step-1', label: 'first', accepts: 'tokenise' },
+            { id: 'step-2', label: 'then', accepts: 'embed' },
+            { id: 'step-3', label: 'then', accepts: 'blocks' },
+            { id: 'step-4', label: 'then', accepts: 'head' },
+            { id: 'step-5', label: 'last', accepts: 'sample' },
+          ],
+        },
+        interactions: [
+          { input: 'drop_target', action: 'place_item' },
+          { input: 'select', action: 'place_item' },
+          { input: 'button', label: 'Reset', action: 'reset_attempt' },
+        ],
+        execution: { mode: 'local_calculation' },
+        buildGoal: 'Put the inference steps in the order the model actually runs them.',
+        checkGoal: 'Explain why sampling cannot happen before the head scores the vocabulary.',
       },
       state: null,
       attempts: 0,
@@ -657,16 +683,16 @@ function ChallengeBody({ block, onChange, onFile, onGrade }) {
   const verdictText = (block.verdict || '').replace(/VERDICT:\s*(good|partial)\s*/i, '').trim();
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker>Challenge</Kicker>
+      <Kicker>{block.mode === 'explain_back' ? 'Explain back' : 'Challenge'}</Kicker>
       <div className="text-sm"><Md text={block.prompt} onFile={onFile} /></div>
       {!block.answer ? (
         <div onPointerDown={e => e.stopPropagation()}>
           <p className="mt-1 text-xs text-ink-2 italic">{block.hint}</p>
           <div className="mt-2 flex gap-2">
             <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') commit(); }}
-              placeholder="Your guess in one sentence…" className="h-8 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm outline-none focus:border-ink-3" />
+              placeholder={block.mode === 'explain_back' ? 'Explain it in your own words…' : 'Your guess in one sentence…'} className="h-8 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm outline-none focus:border-ink-3" />
             <button type="button" disabled={!draft.trim()} onClick={commit}
-              className="h-8 shrink-0 rounded-lg bg-ink px-3.5 text-sm font-medium text-white disabled:opacity-40">Commit</button>
+              className="h-8 shrink-0 rounded-lg bg-ink px-3.5 text-sm font-medium text-white disabled:opacity-40">{block.mode === 'explain_back' ? 'Submit' : 'Commit'}</button>
           </div>
         </div>
       ) : (
@@ -674,13 +700,13 @@ function ChallengeBody({ block, onChange, onFile, onGrade }) {
           <div className="mt-2 flex justify-end"><span data-answer data-grade={grade || 'pending'} className={`max-w-[85%] rounded-xl border px-3 py-1.5 text-sm whitespace-pre-wrap ${grade === 'good' ? 'border-green-700/30 bg-green-700/10 text-green-800' : grade === 'partial' ? 'border-amber-600/40 bg-amber-500/10 text-amber-800' : 'border-line bg-hover text-ink'}`}>{block.answer}</span></div>
           {(verdictText || block.grading) && (
             <div data-verdict className="mt-3 border-t border-line pt-3 text-sm">
-              <p className="mb-1 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">Tutor</p>
+              <p className="mb-1 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">{block.mode === 'explain_back' ? 'Understanding evidence' : 'Tutor'}</p>
               {verdictText ? <Md text={verdictText} onFile={onFile} /> : <p className="text-ink-2 italic">Reading your answer…</p>}
             </div>
           )}
-          <div className="mt-3 border-t border-line pt-3 text-sm"><Md text={block.reveal} onFile={onFile} /></div>
+          {block.reveal && <div className="mt-3 border-t border-line pt-3 text-sm"><Md text={block.reveal} onFile={onFile} /></div>}
           <div className="mt-2 flex justify-end" onPointerDown={e => e.stopPropagation()}>
-            <button type="button" data-challenge-retry onClick={retry} className="rounded px-2 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">Answer again</button>
+            <button type="button" data-challenge-retry onClick={retry} className="rounded px-2 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">{block.mode === 'explain_back' ? 'Explain again' : 'Answer again'}</button>
           </div>
         </>
       )}
@@ -787,7 +813,7 @@ function SceneActivityBody({ block, onChange, onAskScene }) {
       <Kicker>Activity</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       {block.spec.buildGoal && <p data-drag-zone className="mt-0.5 mb-2 cursor-grab text-xs text-ink-2 active:cursor-grabbing">{block.spec.buildGoal}</p>}
-      <InteractiveScene block={block} onChange={onChange} onAsk={onAskScene} />
+      <InteractiveScene block={block} onChange={onChange} />
     </div>
   );
 }
@@ -1311,7 +1337,7 @@ export function describeBlock(block) {
   if (block.type === 'flow') return { kind: 'Diagram', title: block.title, text: [`Laid-out diagram: ${block.title}`, `Nodes: ${block.spec.nodes.map(node => node.label).join(', ')}`, `Edges: ${block.spec.edges.map(edge => `${edge.source} -> ${edge.target}${edge.label ? ` (${edge.label})` : ''}`).join('; ')}`].join(NEWLINE) };
   if (block.type === 'mermaid') return { kind: 'Diagram', title: block.title, text: [`Mermaid diagram: ${block.title}`, block.code].join(NEWLINE) };
   if (block.type === 'knowledge') return { kind: 'Graph', title: block.title, text: [`Knowledge graph: ${block.title}`, `Nodes: ${block.graph.nodes.map(node => node.label).join(', ')}`, `Edges: ${block.graph.edges.map(edge => `${edge.source} ${edge.relation} ${edge.target}`).join('; ')}`, block.selected ? `Learner selected: ${block.selected.label}` : ''].join(NEWLINE) };
-  if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return { kind: 'Activity', title: block.title, text: [`Interactive activity: ${block.title}`, `Behaviour: ${block.spec.behaviorId} (${block.spec.execution.mode})`, block.spec.buildGoal || '', `Learner state: ${JSON.stringify(block.state || block.spec.initialState)}`].join(NEWLINE) };
+  if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return { kind: 'Activity', title: block.title, text: [`Interactive activity: ${block.title}`, `Behaviour: ${block.spec.behaviorId} (${block.spec.execution.mode})`, block.spec.buildGoal ? `Build goal: ${block.spec.buildGoal}` : '', block.spec.checkGoal ? `Check goal: ${block.spec.checkGoal}` : '', block.selectedObject ? `Learner selected: ${block.selectedObject}` : '', `Activity state: ${JSON.stringify(sceneSummary(block))}`].join(NEWLINE) };
   if (block.type === 'scene') return { kind: 'Blender scene', title: block.title, text: [`Generated 3D scene: ${block.title}`, block.brief || '', `Status: ${block.status}`, `Scene specification: ${JSON.stringify(block.operation)}`].join(NEWLINE) };
   if (block.type === 'model3d') return { kind: '3D model', title: block.title, text: [`3D model on the canvas: ${block.title}`, block.brief || '', `Model file: ${block.modelUrl}`, `Animation: ${block.animation?.autoplay ? 'playing' : 'paused'}${block.animation?.clipName ? ` (${block.animation.clipName})` : ''}`].join(NEWLINE) };
   if (block.type === 'image') return { kind: 'Image', title: block.title, text: [`Image on the canvas: ${block.title}`, block.alt || '', block.caption || '', `Source: ${block.src}`].join(NEWLINE) };
@@ -1323,6 +1349,7 @@ export function describeBlock(block) {
   if (block.type === 'snippet') return { kind: 'Code sample', title: block.title, text: `Code sample: ${block.title}\n${block.brief || ''}\nCode:\n${block.code}\nOutput:\n${block.output || '(none shown)'}` };
   if (block.type === 'quiz') return { kind: 'Quiz', title: block.question, text: `Quiz question: ${block.question}\nOptions:\n${block.options.map(option => `${option.key}. ${option.text}${option.correct ? ' (correct answer)' : ''}`).join('\n')}\nLearner's current choice: ${block.choice || 'none yet'}` };
   if (block.type === 'flashcards') return { kind: 'Flashcards', title: `${block.cards.length} cards`, text: `Flashcards:\n${block.cards.map((card, index) => `- ${card.front} → ${card.back} (learner self-rated: ${(block.marks || {})[index] || 'unrated'})`).join('\n')}` };
+  if (block.type === 'challenge' && block.mode === 'explain_back') return { kind: 'Explain back', title: block.prompt, text: [`Explain-back prompt: ${block.prompt}`, `Key ideas expected: ${(block.expects || []).join('; ')}`, `Learner's explanation: ${block.answer || 'not given yet'}`, block.verdict ? `Understanding evidence: ${block.verdict}` : ''].join(NEWLINE) };
   if (block.type === 'challenge') return { kind: 'Challenge', title: block.prompt, text: [`Challenge: ${block.prompt}`, `Learner's committed answer: ${block.answer || 'none yet'}`, block.verdict ? `Tutor verdict: ${block.verdict}` : ''].join(NEWLINE) };
   return null;
 }

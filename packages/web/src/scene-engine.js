@@ -19,7 +19,7 @@ export const sceneSchema = z.object({
   id: z.string().min(1).max(100),
   schemaVersion: z.literal(1),
   behaviorId: z.string().min(1).max(64),
-  renderer: z.enum(['svg', 'flow']),
+  renderer: z.enum(['svg', 'flow', 'dnd']),
   conceptIds: z.array(z.string().max(80)).max(12).default([]),
   sourceRefs: z.array(z.object({ path: z.string().max(200), line: z.number().int().optional() })).max(8).default([]),
   initialState: z.record(z.any()).default({}),

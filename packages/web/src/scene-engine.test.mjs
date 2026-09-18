@@ -133,3 +133,63 @@ test('an undefined projection is not counted as a finished artifact', () => {
   assert.equal(behavior.progress(zeroed).complete, false);
   assert.equal(behavior.progress(state).complete, true);
 });
+
+const pipelineSpec = () => ({
+  type: 'interactive_scene',
+  id: 'inference-pipeline',
+  schemaVersion: 1,
+  behaviorId: 'pipeline_assembly_v1',
+  renderer: 'dnd',
+  initialState: {
+    pieces: [{ id: 'a', label: 'tokenise' }, { id: 'b', label: 'embed' }, { id: 'c', label: 'score' }],
+    slots: [{ id: 's1', accepts: 'a' }, { id: 's2', accepts: 'b' }, { id: 's3', accepts: 'c' }],
+  },
+  interactions: [{ input: 'drop_target', action: 'place_item' }],
+  execution: { mode: 'local_calculation' },
+});
+
+test('a slot accepting an unknown piece is refused', () => {
+  const broken = pipelineSpec();
+  broken.initialState.slots[0].accepts = 'ghost';
+  assert.throws(() => prepareScene(broken), /unknown piece/);
+});
+
+test('placement validates and counts wrong drops without blocking them', () => {
+  const { spec, behavior, state } = prepareScene(pipelineSpec());
+  const wrong = applyAction(behavior, spec, state, { type: 'place_item', slot: 's1', piece: 'b' }).state;
+  assert.equal(wrong.mistakes, 1);
+  assert.equal(behavior.progress(wrong).complete, false);
+  assert.equal(behavior.describe(wrong).order[0].correct, false);
+});
+
+test('a piece moved to another slot leaves the first one empty', () => {
+  const { spec, behavior, state } = prepareScene(pipelineSpec());
+  let current = applyAction(behavior, spec, state, { type: 'place_item', slot: 's1', piece: 'b' }).state;
+  current = applyAction(behavior, spec, current, { type: 'place_item', slot: 's2', piece: 'b' }).state;
+  assert.equal(current.placed.s1, undefined);
+  assert.equal(current.placed.s2, 'b');
+});
+
+test('the artifact is complete only when every slot is right', () => {
+  const { spec, behavior, state } = prepareScene(pipelineSpec());
+  let current = state;
+  for (const [slot, piece] of [['s1', 'a'], ['s2', 'b'], ['s3', 'c']]) current = applyAction(behavior, spec, current, { type: 'place_item', slot, piece }).state;
+  assert.deepEqual(behavior.progress(current), { complete: true, seen: 3, total: 3 });
+  assert.equal(behavior.describe(current).unplaced.length, 0);
+});
+
+test('unknown slots and pieces are refused without changing the artifact', () => {
+  const { spec, behavior, state } = prepareScene(pipelineSpec());
+  assert.match(applyAction(behavior, spec, state, { type: 'place_item', slot: 'nowhere', piece: 'a' }).error, /no slot/);
+  assert.match(applyAction(behavior, spec, state, { type: 'place_item', slot: 's1', piece: 'nothing' }).error, /no piece/);
+  assert.deepEqual(applyAction(behavior, spec, state, { type: 'clear_slot', slot: 'nowhere' }).state, state);
+});
+
+test('reset empties the build but the pieces remain', () => {
+  const { spec, behavior, state } = prepareScene(pipelineSpec());
+  const filled = applyAction(behavior, spec, state, { type: 'place_item', slot: 's1', piece: 'a' }).state;
+  const reset = applyAction(behavior, spec, filled, { type: 'reset_attempt' }).state;
+  assert.deepEqual(reset.placed, {});
+  assert.equal(reset.pieces.length, 3);
+  assert.equal(reset.mistakes, 0);
+});

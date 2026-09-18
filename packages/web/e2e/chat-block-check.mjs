@@ -477,6 +477,14 @@ await check('mermaid diagram renders', async () => {
   await node.locator('[data-mermaid] svg').waitFor({ timeout: 30000 });
   await node.locator('[data-toggle-source]').click();
   await node.getByText('sequenceDiagram', { exact: false }).waitFor({ timeout: 15000 });
+  // dark mode must not leave the diagram text unreadable
+  await page.evaluate(() => document.documentElement.classList.add('dark'));
+  await page.waitForTimeout(1500);
+  const ink = await node.locator('[data-mermaid] svg text').first().evaluate(text => getComputedStyle(text).fill);
+  const [r, g, b] = ink.match(/\d+/g).map(Number);
+  if (r + g + b < 300) throw new Error(`diagram text stayed dark in dark mode (${ink})`);
+  await page.evaluate(() => document.documentElement.classList.remove('dark'));
+  await page.waitForTimeout(1200);
 });
 
 // the interaction engine: one behaviour, two lesson datasets, state that
@@ -495,22 +503,59 @@ await check('walkthrough activity steps and persists', async () => {
   await canvas.locator('[data-block-id]').last().getByText('3 / 5 steps', { exact: false }).waitFor({ timeout: 20000 });
 });
 
-await check('walkthrough reset and object ask work', async () => {
+await check('walkthrough reset and ask in chat carry the step', async () => {
   const node = canvas.locator('[data-block-id]').last();
   await node.locator('[data-scene-action="reset_attempt"]').click();
   await node.getByText('1 / 5 steps', { exact: false }).waitFor({ timeout: 5000 });
-  await node.locator('[data-scene-step="1"]').click();
-  await node.locator('[data-scene-ask]').click();
+  await node.locator('[data-scene-action="advance_step"]').click();
+  await node.locator('[data-scene-step="2"]').click();
+  if (await node.locator('[data-scene-ask]').count()) throw new Error('the in-block ask button is still there');
+  const handle = await node.locator('[data-drag-handle]').boundingBox();
+  await page.mouse.click(handle.x + handle.width / 2, handle.y + handle.height / 2);
+  const pill = page.getByRole('button', { name: 'Ask in chat' });
+  const pillBox = await pill.boundingBox();
+  await page.mouse.click(pillBox.x + pillBox.width / 2, pillBox.y + pillBox.height / 2);
   await page.locator('[data-canvas-target]').waitFor({ timeout: 5000 });
-  await node.getByText('1 / 5 steps', { exact: false }).waitFor({ timeout: 3000 }); // asking must not reset the activity
+  await node.getByText('2 / 5 steps', { exact: false }).waitFor({ timeout: 3000 }); // asking must not reset the activity
 });
 
-await check('the same behaviour runs a second dataset', async () => {
+// the pipeline builder: drop, validate, keyboard route, saved artifact
+await check('pipeline builder places and validates', async () => {
   await page.locator('[aria-label="Insert lesson block"]').click();
-  await page.getByRole('menuitem', { name: 'Walkthrough (training)' }).click();
+  await page.getByRole('menuitem', { name: 'Pipeline builder' }).click();
   const node = canvas.locator('[data-block-id]').last();
-  await node.getByText('One training step').waitFor({ timeout: 5000 });
-  await node.getByText('1 / 6 steps', { exact: false }).waitFor({ timeout: 5000 });
+  await node.getByText('Assemble the inference pipeline').waitFor({ timeout: 5000 });
+  const piece = await node.locator('[data-piece="tokenise"]').boundingBox();
+  const slot = await node.locator('[data-slot="step-1"]').boundingBox();
+  await page.mouse.move(piece.x + piece.width / 2, piece.y + piece.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(slot.x + slot.width / 2, slot.y + slot.height / 2, { steps: 12 });
+  await page.mouse.up();
+  await node.getByText('1 / 5 in place', { exact: false }).waitFor({ timeout: 5000 });
+});
+
+await check('pipeline keyboard route completes the artifact', async () => {
+  const node = canvas.locator('[data-block-id]').last();
+  await node.getByText('Place without dragging').click();
+  for (const [slot, piece] of [['then', 'embed'], ['step-3', 'blocks'], ['step-4', 'head'], ['last', 'sample']]) {
+    void slot; void piece;
+  }
+  const selects = node.locator('select');
+  await selects.nth(1).selectOption('embed');
+  await selects.nth(2).selectOption('blocks');
+  await selects.nth(3).selectOption('head');
+  await selects.nth(4).selectOption('sample');
+  await node.getByText('5 / 5 in place', { exact: false }).waitFor({ timeout: 5000 });
+  await node.getByText('· done', { exact: false }).waitFor({ timeout: 3000 });
+});
+
+await check('pipeline artifact survives a reload and resets', async () => {
+  await page.waitForTimeout(700);
+  await page.reload();
+  const node = canvas.locator('[data-block-id]').last();
+  await node.getByText('5 / 5 in place', { exact: false }).waitFor({ timeout: 20000 });
+  await node.locator('[data-scene-action="reset_attempt"]').click();
+  await node.getByText('0 / 5 in place', { exact: false }).waitFor({ timeout: 5000 });
 });
 
 // the vector explorer: dragging, keyboard and numbers drive one action
@@ -548,6 +593,21 @@ await check('vector state survives a reload and resets', async () => {
   await node.getByText('zero length', { exact: false }).waitFor({ timeout: 20000 });
   await node.locator('[data-scene-action="reset_attempt"]').click();
   await node.locator('[data-projection]').getByText('proj_b(a) = 2', { exact: false }).waitFor({ timeout: 5000 });
+});
+
+// explain back: evidence of understanding, judged against the key ideas
+await check('explain back is judged, not revealed', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  await page.getByRole('menuitem', { name: 'Explain back' }).click();
+  const node = canvas.locator('[data-block-id]').last();
+  await node.getByText('In your own words', { exact: false }).waitFor({ timeout: 5000 });
+  await node.locator('input[placeholder^="Explain it in your own words"]').fill('the id picks a row of the embedding table');
+  await node.getByRole('button', { name: 'Submit', exact: true }).click();
+  await node.getByText('Understanding evidence', { exact: false }).waitFor({ timeout: 20000 });
+  await node.locator('[data-answer][data-grade="partial"], [data-answer][data-grade="good"]').waitFor({ timeout: 90000 });
+  const text = await node.innerText();
+  if (/VERDICT:/i.test(text)) throw new Error('verdict token leaked');
+  if (/Hold that thought/.test(text)) throw new Error('explain back must not reveal an answer');
 });
 
 // code sample: display-only code with its output shown below
