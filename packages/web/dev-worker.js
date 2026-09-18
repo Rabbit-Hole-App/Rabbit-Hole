@@ -11,6 +11,7 @@ import grantsCode from '../byoc/grants.py';
 import { apiAsk } from '../control-plane/src/index.js';
 import { boardFetch, authorizedBoardApp, paperFetch } from '../control-plane/src/learn-board.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
+import { searchPexels } from '../control-plane/src/pexels.js';
 export { LearnVideos } from '../control-plane/src/learn-video.js';
 
 // Authentication/app actions use the live backend. Dev Learn reuses the Ask handler
@@ -34,6 +35,32 @@ export default {
       const app = await authorizedBoardApp(req, env, new URL(req.url).searchParams.get('app'));
       if (app instanceof Response) return app;
       return Response.json({ desmosApiKey: env.DESMOS_API_KEY || null }, { headers: { 'Cache-Control': 'no-store' } });
+    }
+    if (path === '/api/learn/photos' && req.method === 'GET') {
+      const url = new URL(req.url);
+      const app = await authorizedBoardApp(req, env, url.searchParams.get('app'));
+      if (app instanceof Response) return app;
+      try { return Response.json({ photos: await searchPexels(env, url.searchParams.get('query') || '') }, { headers: { 'Cache-Control': 'no-store' } }); }
+      catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
+    }
+    if (path === '/api/learn/image' && req.method === 'POST') {
+      let body; try { body = await req.json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
+      const access = await authorizedBoardApp(req, env, body?.app);
+      if (access instanceof Response) return access;
+      const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
+      if (!prompt || prompt.length > 1000) return Response.json({ error: 'Provide an image prompt under 1000 characters.' }, { status: 400 });
+      if (!env.OPENAI_API_KEY) return Response.json({ error: 'Image generation is not configured on this environment.' }, { status: 503 });
+      const upstream = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'gpt-image-1', prompt, size: '1024x1024', quality: 'low', n: 1 }),
+        signal: AbortSignal.timeout(120000),
+      });
+      if (!upstream.ok) return Response.json({ error: `Image generation unavailable (${upstream.status})` }, { status: 502 });
+      const result = await upstream.json();
+      const encoded = result.data?.[0]?.b64_json;
+      if (!encoded) return Response.json({ error: 'The provider returned no image.' }, { status: 502 });
+      return Response.json({ image: `data:image/png;base64,${encoded}` }, { headers: { 'Cache-Control': 'no-store' } });
     }
     if (path === '/api/learn/scene') return sceneFetch(req, env);
     if (path === '/api/learn/video') return videoFetch(req, env);

@@ -458,7 +458,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       const requestPath = snapshot?.target ? '/api/learn/selection' : askPath;
       const payload = {
         ...(snapshot ? { lesson_snapshot: snapshot } : {}),
-        ...(questionPaper ? { paper_context: { id: questionPaper.id, page: questionPaper.page, ...(questionPaper.selection ? { selection: questionPaper.selection } : {}) } } : {}),
+        ...(target?.paper ? { paper_context: target.paper } : questionPaper ? { paper_context: { id: questionPaper.id, page: questionPaper.page, ...(questionPaper.selection ? { selection: questionPaper.selection } : {}) } } : {}),
         scope: scopeOverride || scope,
         ...(repository ? { repository_context: { ...repositoryContext, commit: sourceRange?.commit || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
         message: target ? `Question about this ${target.kind} block on the lesson canvas:\n${target.text}\n\nLearner question: ${message}` : passage ? `Question about this previous answer passage:\n${passage.text}\n\nLearner question: ${message}` : message,
@@ -777,6 +777,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         {repository && repositoryContext?.label && <div className="mb-2 inline-flex max-w-full self-start items-center gap-1.5 rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800"><span className="min-w-0 truncate">Asking about: {repositoryContext.label} · {(repositoryCommit || repositoryContext?.commit || '').slice(0,7)}</span>{onClearRepository && <button type="button" className="shrink-0 rounded p-0.5 hover:bg-green-100" aria-label="Clear repository selection" onClick={onClearRepository}><X size={12}/></button>}</div>}
         {selectedPassage && <div className="mb-2 flex items-start gap-2 rounded-lg border border-accent/30 bg-accent/10 p-2 text-xs text-black"><div className="min-w-0 flex-1"><span className="font-medium">Asking about this answer</span><div className="mt-1 max-h-24 overflow-auto"><Md text={selectedPassage.text} /></div></div><button type="button" aria-label="Clear answer selection" title="Clear answer selection" onClick={() => setSelectedPassage(null)}><X size={13} /></button></div>}
         {canvasTarget && <div data-canvas-target className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
+          {canvasTarget.preview && <img src={canvasTarget.preview} alt="Selected region" className="h-7 w-10 shrink-0 rounded border border-line bg-white object-contain" />}
           <span className="shrink-0 font-medium text-ink">{canvasTarget.kind}</span>
           <span className="max-w-[260px] truncate">{String(canvasTarget.title).replace(/\$([^$]*)\$/g, '$1')}</span>
           <button type="button" aria-label="Clear block selection" title="Clear block selection" onClick={onClearCanvasTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>

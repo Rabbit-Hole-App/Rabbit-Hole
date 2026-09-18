@@ -5,7 +5,7 @@ import { Button, IconBtn, Menu } from './ui.jsx';
 
 // Overview is bounded; focusing a symbol expands its actual one-hop relationships.
 // SVG text is React-escaped: graph labels never become HTML or executable markup.
-export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect, query, answerView }) {
+export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect, query, answerView, external = true }) {
   const [answer,setAnswer]=useState(null);
   const graph=answer||sourceGraph;
   const [focus,setFocus]=useState(null),[view,setView]=useState({x:0,y:0,z:1});const drag=useRef(null), simulation=useRef(null), layer=useRef(null), saved=useRef(new Map()), suppressClick=useRef(false), restore=useRef(false);
@@ -138,7 +138,7 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
             <circle data-node-dot r={radius} fill={color(n)} stroke="white" strokeWidth="2.5"/>
             {emphasized&&<circle r={radius+5} fill="none" stroke={color(n)} strokeOpacity=".3" strokeWidth="2" pointerEvents="none"/>}
             <text y={radius+17} textAnchor="middle" fontSize="12" fontWeight={emphasized?600:400} fill="#334155" stroke="#fafbfc" strokeWidth="4" paintOrder="stroke" strokeLinejoin="round">{n.label.length>28?n.label.slice(0,27)+'…':n.label}</text>
-            <title>{n.label}{n.path?` · ${n.path}:${n.line}`:' · External dependency'}</title>
+            <title>{n.label}{n.path?` · ${n.path}${n.line?`:${n.line}`:''}`:external?' · External dependency':''}</title>
           </g>;
         })}
       </g>

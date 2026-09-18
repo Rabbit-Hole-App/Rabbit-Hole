@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, ExternalLink, Minus, Plus, Scan, X } from 'lucide-react';
 import { wsHeaders } from './api.js';
 
-export default function LearnPaper({ app, paper, onClose, onPage, onSelect }) {
+export default function LearnPaper({ app, paper, onClose, onPage, onSelect, selectRequest = 0 }) {
   const [document, setDocument] = useState(null);
   const [error, setError] = useState('');
   const [zoom, setZoom] = useState(1);
@@ -11,6 +11,8 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect }) {
   const drag = useRef(null);
   const canvas = useRef(null);
   useEffect(() => { setSelecting(false); setRectangle(null); drag.current = null; }, [paper.id, paper.page]);
+  // An outside control (the canvas Select-region pill) can arm the picker.
+  useEffect(() => { if (selectRequest) { setSelecting(true); setRectangle(null); } }, [selectRequest]);
   const point = event => { const bounds = event.currentTarget.getBoundingClientRect(); return { x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)), y: Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)) }; };
   const region = (a, b) => ({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(a.x - b.x), h: Math.abs(a.y - b.y) });
   const capture = area => {
@@ -57,20 +59,20 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect }) {
     return () => { active = false; render?.cancel(); };
   }, [document, paper.page, zoom]);
   return <section aria-label="Paper reader" className="flex min-h-0 flex-1 flex-col">
-    <header className="flex items-start gap-2 border-b border-line pb-3">
-      <div className="min-w-0 flex-1"><h3 className="text-sm font-medium">{paper.title}</h3><p className="mt-1 text-xs text-ink-2">arXiv:{paper.id} · Page {paper.page}</p></div>
-      <a href={`${paper.pdfUrl}#page=${paper.page}`} target="_blank" rel="noreferrer" title="Open original PDF" aria-label="Open original PDF"><ExternalLink size={16} /></a>
-      <button type="button" onClick={onClose} title="Close paper" aria-label="Close paper"><X size={16} /></button>
+    {/* One control row: title, pages, zoom and the region picker together. */}
+    <header className="flex shrink-0 items-center gap-2 border-b border-line pb-2 text-xs text-ink">
+      <div className="min-w-0 flex-1"><h3 className="truncate text-sm font-medium">{paper.title}</h3><p className="truncate text-xs text-ink-2">arXiv:{paper.id}{document ? ` · page ${paper.page} of ${document.numPages}` : ''}</p></div>
+      {document && <>
+        <button type="button" aria-label="Previous paper page" title="Previous page" disabled={paper.page <= 1} onClick={() => onPage(paper.page - 1)} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><ChevronLeft size={14} /></button>
+        <button type="button" aria-label="Next paper page" title="Next page" disabled={paper.page >= document.numPages} onClick={() => onPage(paper.page + 1)} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><ChevronRight size={14} /></button>
+        <button type="button" aria-label="Zoom out paper" title="Zoom out" disabled={zoom <= 0.5} onClick={() => setZoom(z => Math.max(0.5, z - 0.25))} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><Minus size={14} /></button>
+        <span aria-label="Paper zoom" className="min-w-9 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
+        <button type="button" aria-label="Zoom in paper" title="Zoom in" disabled={zoom >= 3} onClick={() => setZoom(z => Math.min(3, z + 0.25))} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><Plus size={14} /></button>
+        <button type="button" aria-label="Ask about paper selection" title="Select a region to ask about" aria-pressed={selecting} onClick={() => { setSelecting(value => !value); setRectangle(null); }} className={`rounded border p-1 ${selecting ? 'border-red-600 bg-red-50 text-red-600' : 'border-line hover:bg-hover'}`}><Scan size={14} /></button>
+      </>}
+      <a href={`${paper.pdfUrl}#page=${paper.page}`} target="_blank" rel="noreferrer" title="Open original PDF" aria-label="Open original PDF" className="rounded border border-line p-1 hover:bg-hover"><ExternalLink size={14} /></a>
+      {onClose && <button type="button" onClick={onClose} title="Close paper" aria-label="Close paper" className="rounded border border-line p-1 hover:bg-hover"><X size={14} /></button>}
     </header>
-    {document && <div className="flex shrink-0 items-center gap-2 py-2 text-xs text-ink">
-      <button aria-label="Previous paper page" disabled={paper.page <= 1} onClick={() => onPage(paper.page - 1)}><ChevronLeft size={16} /></button>
-      <span className="mr-auto whitespace-nowrap">Page {paper.page} of {document.numPages}</span>
-      <button type="button" aria-label="Zoom out paper" title="Zoom out" disabled={zoom <= 0.5} onClick={() => setZoom(z => Math.max(0.5, z - 0.25))} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><Minus size={14} /></button>
-      <span aria-label="Paper zoom" className="min-w-10 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
-      <button type="button" aria-label="Zoom in paper" title="Zoom in" disabled={zoom >= 3} onClick={() => setZoom(z => Math.min(3, z + 0.25))} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><Plus size={14} /></button>
-      <button type="button" aria-label="Ask about paper selection" title="Ask about selection" aria-pressed={selecting} onClick={() => { setSelecting(value => !value); setRectangle(null); }} className={`ml-2 rounded border p-1 ${selecting ? 'border-red-600 bg-red-50 text-red-600' : 'border-line hover:bg-hover'}`}><Scan size={14} /></button>
-      <button aria-label="Next paper page" disabled={paper.page >= document.numPages} onClick={() => onPage(paper.page + 1)}><ChevronRight size={16} /></button>
-    </div>}
     {error && <p role="alert" className="p-3 text-sm">{error}</p>}
     {!document && !error && <p role="status" className="p-3 text-sm">Loading paper...</p>}
     <div className="min-h-0 flex-1 overflow-auto bg-white"><div className="relative" style={{ width: `${zoom * 100}%` }}>
