@@ -513,6 +513,43 @@ await check('the same behaviour runs a second dataset', async () => {
   await node.getByText('1 / 6 steps', { exact: false }).waitFor({ timeout: 5000 });
 });
 
+// the vector explorer: dragging, keyboard and numbers drive one action
+await check('vector explorer drags and computes', async () => {
+  await page.locator('[aria-label="Insert lesson block"]').click();
+  await page.getByRole('menuitem', { name: 'Vector explorer' }).click();
+  const node = canvas.locator('[data-block-id]').last();
+  await node.getByText('Project one vector onto another').waitFor({ timeout: 5000 });
+  await node.locator('[data-projection]').getByText('proj_b(a) = 2', { exact: false }).waitFor({ timeout: 5000 });
+  const handle = node.locator('[data-vector-handle="a"]');
+  const box = await handle.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 40, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.up();
+  const text = await node.locator('[data-projection]').innerText();
+  if (!/proj_b\(a\) = /.test(text) || /= 2 ·/.test(text)) throw new Error(`projection did not follow the drag: ${text}`);
+});
+
+await check('keyboard and numbers move the same vector', async () => {
+  const node = canvas.locator('[data-block-id]').last();
+  await node.locator('[data-vector-handle="b"]').focus();
+  await page.keyboard.press('ArrowUp');
+  const afterKey = await node.locator('input[aria-label="b y"]').inputValue();
+  if (Number(afterKey) !== 0.5) throw new Error(`arrow key gave b.y = ${afterKey}`);
+  await node.locator('input[aria-label="b y"]').fill('0');
+  await node.locator('input[aria-label="b x"]').fill('0');
+  await node.getByText('zero length', { exact: false }).waitFor({ timeout: 5000 });
+});
+
+await check('vector state survives a reload and resets', async () => {
+  await page.waitForTimeout(700);
+  await page.reload();
+  const node = canvas.locator('[data-block-id]').last();
+  await node.getByText('zero length', { exact: false }).waitFor({ timeout: 20000 });
+  await node.locator('[data-scene-action="reset_attempt"]').click();
+  await node.locator('[data-projection]').getByText('proj_b(a) = 2', { exact: false }).waitFor({ timeout: 5000 });
+});
+
 // code sample: display-only code with its output shown below
 await check('code sample shows code and output', async () => {
   await page.locator('[aria-label="Insert lesson block"]').click();

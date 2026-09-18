@@ -352,6 +352,39 @@ export const BLOCK_TYPES = {
       attempts: 0,
     }),
   },
+  vector: {
+    label: 'Vector explorer',
+    width: 420,
+    height: 520,
+    autoMax: 900,
+    sample: () => ({
+      id: crypto.randomUUID(),
+      type: 'scene',
+      dx: 0,
+      dy: 0,
+      title: 'Project one vector onto another',
+      spec: {
+        type: 'interactive_scene',
+        id: 'vector-experiment',
+        schemaVersion: 1,
+        behaviorId: 'vector_projection_v1',
+        renderer: 'svg',
+        conceptIds: ['vector-projection', 'dot-product'],
+        initialState: { a: [2, 1], b: [1, 0] },
+        interactions: [
+          { input: 'drag_handle', target: 'a', action: 'set_vector' },
+          { input: 'drag_handle', target: 'b', action: 'set_vector' },
+          { input: 'number', target: 'a', action: 'set_vector' },
+          { input: 'button', label: 'Reset', action: 'reset_attempt' },
+        ],
+        execution: { mode: 'local_calculation' },
+        buildGoal: 'Drag or type the vectors so the projection of a onto b has length 2.',
+        checkGoal: 'Explain what happens to the projection when b points the other way.',
+      },
+      state: null,
+      attempts: 0,
+    }),
+  },
   knowledge: {
     // A generic node-link graph the tutor can emit for any explanation:
     // concepts, processes, dependencies, taxonomies. A repository graph is

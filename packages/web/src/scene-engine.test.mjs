@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { applyAction, prepareScene } from './scene-engine.js';
-import { walkthrough } from './scene-behaviors.js';
+import { project, walkthrough } from './scene-behaviors.js';
 
 const spec = () => ({
   type: 'interactive_scene',
@@ -78,4 +78,58 @@ test('the tutor sees semantic state, not internals', () => {
   assert.equal(described.step, 2);
   assert.equal(described.currentLabel, 'embeddings');
   assert.deepEqual(described.visitedSteps, ['token ids', 'embeddings']);
+});
+
+const vectorSpec = () => ({
+  type: 'interactive_scene',
+  id: 'vector-experiment',
+  schemaVersion: 1,
+  behaviorId: 'vector_projection_v1',
+  renderer: 'svg',
+  initialState: { a: [2, 1], b: [1, 0] },
+  interactions: [{ input: 'drag_handle', target: 'a', action: 'set_vector' }],
+  execution: { mode: 'local_calculation' },
+});
+
+test('projection is computed, not scripted', () => {
+  assert.deepEqual(project([2, 1], [1, 0]), { defined: true, scale: 2, vector: [2, 0], dot: 2, length: 2 });
+  assert.deepEqual(project([1, 1], [0, 2]).vector, [0, 1]);
+  assert.equal(project([3, 4], [3, 4]).scale, 1, 'a vector projects onto itself');
+});
+
+test('a zero-length axis has no projection', () => {
+  const result = project([2, 1], [0, 0]);
+  assert.equal(result.defined, false);
+  assert.match(result.reason, /zero length/);
+});
+
+test('drag, keyboard and numbers all commit the same action', () => {
+  const { spec, behavior, state } = prepareScene(vectorSpec());
+  const dragged = applyAction(behavior, spec, state, { type: 'set_vector', target: 'a', value: [1, 3] }).state;
+  const nudged = applyAction(behavior, spec, state, { type: 'nudge_vector', target: 'a', axis: 'y', by: 2 }).state;
+  assert.deepEqual(dragged.a, [1, 3]);
+  assert.deepEqual(nudged.a, [2, 3], 'nudging moves the same vector through the same state');
+});
+
+test('vectors are clamped and rubbish is refused', () => {
+  const { spec, behavior, state } = prepareScene(vectorSpec());
+  assert.deepEqual(applyAction(behavior, spec, state, { type: 'set_vector', target: 'a', value: [99, -99] }).state.a, [10, -10]);
+  assert.match(applyAction(behavior, spec, state, { type: 'set_vector', target: 'a', value: ['x', 1] }).error, /two finite numbers/);
+  assert.match(applyAction(behavior, spec, state, { type: 'set_vector', target: 'c', value: [1, 1] }).error, /only vectors a and b/);
+  assert.match(applyAction(behavior, spec, state, { type: 'nudge_vector', target: 'a', axis: 'x', by: NaN }).error, /finite amount/);
+});
+
+test('reset restores the starter vectors', () => {
+  const { spec, behavior, state } = prepareScene(vectorSpec());
+  const moved = applyAction(behavior, spec, state, { type: 'set_vector', target: 'a', value: [-4, 4] }).state;
+  const reset = applyAction(behavior, spec, moved, { type: 'reset_attempt' }).state;
+  assert.deepEqual(reset.a, [2, 1]);
+  assert.deepEqual(reset.b, [1, 0]);
+});
+
+test('an undefined projection is not counted as a finished artifact', () => {
+  const { spec, behavior, state } = prepareScene(vectorSpec());
+  const zeroed = applyAction(behavior, spec, state, { type: 'set_vector', target: 'b', value: [0, 0] }).state;
+  assert.equal(behavior.progress(zeroed).complete, false);
+  assert.equal(behavior.progress(state).complete, true);
 });

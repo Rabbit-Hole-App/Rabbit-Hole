@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { applyAction, prepareScene, sceneContext } from './scene-engine.js';
+import VectorScene from './VectorScene.jsx';
 import './scene-behaviors.js';
 
 // One block for every registered activity: the spec picks a behaviour and a
@@ -40,25 +41,27 @@ function StepsSvg({ spec, state, behavior, onSelect, selected }) {
   );
 }
 
-const RENDERERS = { svg: StepsSvg };
+// One renderer per behaviour shape; a behaviour declares which it supports.
+const RENDERERS = { walkthrough_v1: StepsSvg, vector_projection_v1: VectorScene };
 
 export default function InteractiveScene({ block, onChange, onAsk }) {
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
+  const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const prepared = useMemo(() => {
     try { setError(''); return prepareScene(block.spec); }
     catch (problem) { setError(problem.message); return null; }
   }, [block.spec]);
   // Committed state lives on the block; the starter stays in the spec so a
   // reset restores it without losing the attempt history.
-  const state = block.state && prepared && block.state.steps ? block.state : prepared?.state;
+  const state = block.state && prepared ? block.state : prepared?.state;
   const liveRef = useRef(state);
   liveRef.current = state;
   useEffect(() => { if (prepared && !block.state) onChange({ ...block, state: prepared.state, attempts: block.attempts || 0 }); }, [prepared]);
   if (error) return <div className="grid min-h-24 place-content-center p-4 text-center text-xs text-red-700">{error}</div>;
   if (!prepared || !state) return null;
   const { spec, behavior } = prepared;
-  const Renderer = RENDERERS[spec.renderer];
+  const Renderer = RENDERERS[spec.behaviorId];
   const run = action => {
     const result = applyAction(behavior, spec, liveRef.current, action);
     if (result.error) { setError(result.error); return; }
@@ -71,7 +74,9 @@ export default function InteractiveScene({ block, onChange, onAsk }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
       <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white p-2">
-        {Renderer ? <Renderer spec={spec} state={state} behavior={behavior} selected={selected} onSelect={setSelected} /> : <p className="text-xs text-ink-2">No renderer for {spec.renderer}.</p>}
+        {Renderer
+          ? <Renderer spec={spec} state={state} behavior={behavior} selected={selected} onSelect={setSelected} run={run} reduced={reduced} />
+          : <p className="text-xs text-ink-2">No renderer for {spec.behaviorId}.</p>}
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-1.5">
         {buttons.map((interaction, index) => (
