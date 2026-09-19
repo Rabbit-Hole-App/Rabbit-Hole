@@ -122,6 +122,38 @@ A jump in the ramp is a lie about the data: it makes two near-identical values
 look unrelated and two distant values look the same. Contrast is solved by
 changing the *ink*, never by collapsing the *fill*.
 
+**Who owns what, once a mark is quantitative:**
+
+| axis | owns |
+|---|---|
+| **ROLE** | frame, border, labels, legend, semantic context |
+| **IDENTITY** | categorical distinction among peers |
+| **STATE** | selected, highlighted, blocked, chosen — overlays |
+| **VALUE** | the heat cell's interior: sign and magnitude |
+
+A heat cell is **not** an `observed` object with a stronger or weaker fill. It is
+a quantitative mark whose interior belongs to VALUE.
+
+**The quantitative palette must stay strictly quantitative.** `--viz-heat-*`
+tokens must never acquire semantics — nothing that reads as prediction purple or
+observed black. A reader must be able to infer *how much* and *which sign* from a
+cell's colour, and nothing else. The moment a heat token carries meaning, VALUE
+and ROLE are entangled again.
+
+**The three properties a quantitative channel has to prove, independently:**
+
+- **sign fidelity** — negative, neutral and positive stay distinct
+- **magnitude fidelity** — the ramp is continuous enough that neighbouring values look neighbouring
+- **text accessibility** — every level the ramp emits has an ink clearing 4.5:1 in both themes
+
+They are independent, and testing them together is how a broken channel ships
+with green tests: the first implementation passed contrast and sign while failing
+magnitude completely.
+
+**And the human question none of the automated ones replace:** *without reading
+the numbers, can I rank the cells by magnitude?* If the answer is no, VALUE is
+still broken however well contrast and sign score.
+
 It follows that a heat cell's fill token comes from the **value scale**, not from
 the object's role. Role owns the frame, the stroke, the labels and the legend —
 letting it own the cell interior would put an arbitrary token in the quantitative
