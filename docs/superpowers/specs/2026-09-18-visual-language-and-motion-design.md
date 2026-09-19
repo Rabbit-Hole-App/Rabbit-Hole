@@ -82,6 +82,43 @@ be a migration once Plan B adds interaction.
 }
 ```
 
+## The four axes — added at the vocabulary checkpoint, 2026-09-19
+
+The first real benchmark found the model was one axis short. Three objects of the
+*same semantic kind* could not be told apart: Q, K and V are all `observed`, so the
+attention scene rendered entirely in one hue while the reference used three. The
+fix is not to overload role, and not to invent an eleventh role. It is a fourth
+axis.
+
+| axis | answers | owns |
+|---|---|---|
+| **ROLE** | what does this object mean? | semantic treatment and fill tier |
+| **IDENTITY** | which peer is this? | categorical distinction among objects of the same role |
+| **STATE** | what is happening to it? | transient interaction and status |
+| **VALUE** | how much? | quantitative encoding, including sign |
+
+**Identity carries no styling.** A scene says `identity: 'query'` and nothing more —
+never a colour, never a palette slot, never an index. The renderer owns the mapping
+from identity key to categorical slot, assigned in authored object order so the
+same scene always resolves the same way.
+
+This is reusable, not an attention fix: Q/K/V, modality A and B, expert 1 through
+N, candidate trajectories, encoder and decoder streams, attention heads, and any
+set of plotted series are all the same problem — peers of one kind that must stay
+distinguishable.
+
+**Where hue comes from.** With no identity, role picks the hue as before. With an
+identity, the categorical palette picks it and the role still governs fill tier,
+weight and ink. Two hue sources cannot both win, and identity is the more specific
+claim.
+
+**The interpolation invariant.** Only interpolate when the intermediate values are
+mathematically meaningful. Tweening a raw score into a softmax probability invents
+numbers that exist nowhere in the computation — the benchmark caught a frame
+captioned *a probability distribution that sums to one* over a row summing to 5.8
+and containing a negative. A change of quantity is a discrete replacement, not a
+tween.
+
 **Roles** — ten, authored, stable for the life of an object:
 
 ```
