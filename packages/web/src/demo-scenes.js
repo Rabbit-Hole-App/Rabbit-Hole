@@ -161,10 +161,6 @@ export const demoBlocks = () => RESTING.map(([scene, time]) => ({
   title: scene.title, scene, time, selectedObject: null, marked: null,
 }));
 
-// Named review boards. ?board=<name> seeds exactly what is under review and
-// nothing else, so a visual check starts from an empty surface every time.
-// A name with no entry here is simply an empty board, which is the useful
-// default: adding a review board is adding one line.
 // Every role, drawn side by side by the real renderer. Ruling 18 found that
 // five of the ten roles are pixel-identical pairs and that `observed` is the
 // body-text ink exactly - a claim nobody can check from a palette listing, so
@@ -202,6 +198,34 @@ export const rolesScene = {
   })),
 };
 
+// A role is a colour, not a look. The same role paints a box, a stroke, a
+// distribution and a table, and each primitive spends it differently - fill
+// strength and weight carry state, hue never does. Two roles across five
+// primitives, so the question reads as what a role IS rather than what one
+// box looks like.
+const anatomy = (role, top) => [
+  { id: `${role}-caption`, type: 'text', semanticId: `${role}-caption`, initialState: { text: role, x: 40, y: top - 16, typography: 'caption' } },
+  { id: `${role}-box`, type: 'box', semanticId: `${role}-box`, initialState: { label: 'box', role, x: 40, y: top, w: 110, h: 64 } },
+  { id: `${role}-arrow`, type: 'arrow', semanticId: `${role}-arrow`, initialState: { role, from: { x: 170, y: top + 32 }, to: { x: 268, y: top + 32 } } },
+  { id: `${role}-bars`, type: 'bars', semanticId: `${role}-bars`, initialState: { role, x: 290, y: top, w: 112, h: 64, peak: 1, values: [0.35, 0.7, 0.5, 1] } },
+  { id: `${role}-grid`, type: 'grid', semanticId: `${role}-grid`, initialState: { role, x: 430, y: top, rows: 2, cols: 3, cell: 32, values: [0.4, -0.2, 0.9, 0.1, 0.6, -0.5] } },
+  { id: `${role}-strip`, type: 'strip', semanticId: `${role}-strip`, initialState: { role, x: 560, y: top + 16, cell: 32, values: [0.2, 0.8, -0.3] } },
+];
+export const anatomyScene = {
+  id: 'role-anatomy',
+  title: 'What one role paints',
+  width: 760,
+  height: 300,
+  duration: 6,
+  objects: [...anatomy('success', 70), ...anatomy('input', 200)],
+  // Each primitive lights in turn, so the same role is visible at rest and
+  // lit: state moves weight and fill strength, and never the hue.
+  timeline: ['box', 'arrow', 'bars', 'grid', 'strip'].flatMap((kind, index) => [
+    { at: Number((1.5 + index * 0.6).toFixed(2)), action: 'highlight', target: `success-${kind}` },
+    { at: Number((1.5 + index * 0.6).toFixed(2)), action: 'highlight', target: `input-${kind}` },
+  ]),
+};
+
 // Named review boards. ?board=<name> seeds exactly what is under review and
 // nothing else, so a visual check starts from an empty surface every time.
 // A name with no entry here is simply an empty board, which is the useful
@@ -216,4 +240,5 @@ export const BOARDS = {
   // side, and the one shipped scene where a role reading as body ink actually
   // costs the learner something.
   'a5b-visual': () => [block(rolesScene, 3), block(sigmoidScene, 11.6)],
+  'role-anatomy': () => [block(anatomyScene, 6), block(rolesScene, 3)],
 };
