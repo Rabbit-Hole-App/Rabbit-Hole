@@ -49,7 +49,9 @@ const objectSchema = z.object({
     // true predates modes and still means the same thing it always did - the
     // gate below normalises both spellings to { mode } so nothing past it
     // reads a bare boolean.
-    heat: z.union([z.boolean(), z.object({ mode: z.enum(HEAT_MODES) })]).optional(),
+    heat: z.union([z.boolean(), z.object({ mode: z.enum(HEAT_MODES) })], {
+      error: () => `not a heat mode: write true or one of ${HEAT_MODES.join(', ')}`,
+    }).optional(),
     peak: z.number().positive().max(1e6).optional(),
   }).prefault({}),
 });
