@@ -920,11 +920,28 @@ Authored **only** through role, state, typography role, spacing, timing name and
 
 Tokens → Q/K/V → QKᵀ → causal mask → softmax → ×V → output.
 
-- [ ] **Step 1: Author the scene**, validating it against `validateScene` as you go.
-- [ ] **Step 2: Register it** in `BLOCK_TYPES` as `Reference: attention`.
-- [ ] **Step 3: Verify locally** in both themes, at 0/25/50/75/100%.
-- [ ] **Step 4: Record what the vocabulary could not express.** This is the task's real output. If you reached for something the vocabularies do not have, write it down rather than working around it — **do not add scene-specific styling, layout arithmetic or animation**. A gap here is a finding about the vocabulary.
-- [ ] **Step 5: Commit** — `feat(learn): the causal attention reference scene`
+**This is the first real visualisation benchmark, not just another scene.** `viz-benchmarks/illustrated-transformer/` is the one benchmark in the repo with reference material, and its `benchmark-material/dynamic-scene/target.json` asks for exactly this: teaching beats `tokens`, `qkv_projection`, `qk_scores`, `softmax_weights`, `weighted_value_output`, keyframes at 0/0.25/0.5/0.75/1.0, mode passive, `evaluationTarget: semantic_and_pedagogical_parity`, `visualImitationTarget: false`. Its constraints are this plan's constraints restated: `useExistingVocabularyOnly`, `noCustomReact`, `noCustomCSS`, `noFreeformStyle`, and a set of `doNotCopyReference*` flags covering palette, typography, node shapes, arrow style, coordinates and wording.
+
+So the question this task answers is not *can we draw causal attention*. It is: **can the reusable visual language teach causal attention at roughly the benchmark's clarity, with no special-case code?**
+
+The benchmark's beats do not include a causal mask — The Illustrated Transformer covers encoder self-attention, which is unmasked. Author the mask as a sixth beat anyway, because nanoGPT needs it and the lesson is causal attention; a superset satisfies the benchmark and serves the lesson. Say in the report that it is an addition.
+
+**The matrix is the hard part, and it is the real test of compositionality.** Attention shows several distinctions at once — raw scores, masked cells, normalised weights, the selected row, the current query token. None of these may become a new semantic role. The grammar to use:
+
+- **role** — what the data *means* (`observed` for measured values, `prediction` for the model's guess, and so on)
+- **state** — `selected`, `highlighted`, `blocked` for a masked cell
+- **heat** — numeric magnitude, through the existing value-mapped fill
+
+A cell in the attention matrix is `role: observed`, some state, and a heat value. It is **not** a new role named after what it looks like. If you find yourself wanting one, that is the finding — record it, do not add it.
+
+- [ ] **Step 1: Read the benchmark first** — `target.json`, `reference-notes.md`, `teaching-pattern.json`, `benchmark-material/dynamic-scene/agent-prompt.md`, and `shared/benchmark-mode.md`. All exist; verify rather than assume.
+- [ ] **Step 2: Author the scene**, validating it against `validateScene` as you go.
+- [ ] **Step 3: Register it** in `BLOCK_TYPES` as `Reference: attention`, and add a `BOARDS` entry so it can be reviewed on its own board.
+- [ ] **Step 4: Verify locally** in both themes, at 0/25/50/75/100%.
+- [ ] **Step 5: Run the benchmark.** Render the five keyframes and write them into `viz-benchmarks/illustrated-transformer/generated/latest/`, following that directory's own conventions — read `viz-benchmarks/AGENT-INSTRUCTIONS.md` and `shared/benchmark-workflow.md` for how `latest` and `history` are meant to be handled, and archive any previous `latest` the way the workflow says rather than overwriting it.
+- [ ] **Step 6: Run the visual critic** against the benchmark, using `shared/evaluator-prompt.md` and scoring failures with `shared/failure-taxonomy.json`, whose types are `TECHNICAL_CORRECTNESS`, `CONTENT_OMISSION`, `VISUAL_HIERARCHY`, `LAYOUT`, `TYPOGRAPHY`, `COLOR_CONTRAST`, `EDGE_ROUTING`, `MOTION`, `FOCAL_POINT`, `MISSING_PRIMITIVE`, `MISSING_TEMPLATE`, `COORDINATION`, `BESPOKE_CODE`, `REFERENCE_OVERFIT` and `ORIGINALITY_RISK`. Write the report.
+- [ ] **Step 7: Record what the vocabulary could not express.** This is the task's real output. If you reached for something the vocabularies do not have, write it down rather than working around it — **do not add scene-specific styling, layout arithmetic or animation**. `BESPOKE_CODE` and `MISSING_PRIMITIVE` in the critic's report are the machine-checkable form of the same finding.
+- [ ] **Step 8: Commit** — `feat(learn): the causal attention reference scene`
 
 ---
 
@@ -932,8 +949,10 @@ Tokens → Q/K/V → QKᵀ → causal mask → softmax → ×V → output.
 
 The causal-attention scene is the first real content the vocabularies have ever met. Three demos written to show off primitives prove nothing; this does.
 
-- [ ] Read Task 12's record of **what the vocabulary could not express**.
+- [ ] Read Task 12's record of **what the vocabulary could not express**, and the critic's report alongside it. `BESPOKE_CODE`, `MISSING_PRIMITIVE` and `MISSING_TEMPLATE` findings are vocabulary gaps stated in the benchmark's own terms.
 - [ ] Decide, and say which: the gap is real and the vocabulary changes now, or the gap is authoring preference and the vocabulary stands.
+- [ ] **Do not add a semantic role unless the benchmark demonstrates that role, state and heat together cannot express the distinction.** Ten roles is the set going into the first real benchmark; wanting an eleventh is usually a sign that a state or a heat value was the right answer. A role added to avoid composing is a role that will collide later.
+- [ ] **If the scene cannot teach at the benchmark's clarity without special-case code, stop.** Fix the reusable vocabulary, re-run the benchmark, and only then start Tasks 13 and 14. Two more scenes authored against a vocabulary known to be short costs three migrations instead of one.
 - [ ] **If it changes, it changes here** — before two more scenes are authored against a vocabulary known to be short. A deficiency that propagates through all three scenes costs three migrations instead of one, and every fix after that is made under pressure to not disturb work already done.
 - [ ] Record the decision in the ledger either way. "No gaps found" is a result worth writing down, because it is the evidence the vocabulary is sufficient.
 
@@ -996,7 +1015,9 @@ Add `packages/web/e2e/golden/` as a tracked directory; it is not covered by the 
 
 - [ ] **Step 1: Write the capture script**
 
-Modelled on the committed `e2e/baseline-shot.mjs`. For each of the three reference scenes, at 0/25/50/75/100% of its duration, in both themes: **30 images**, named `<scene>-<pct>-<theme>.png`, written to `e2e/golden/`. Switch theme through the app's own appearance control rather than by injecting a class, so the capture exercises the real path.
+Modelled on the committed `e2e/baseline-shot.mjs`. For each of the three reference scenes, at 0/25/50/75/100% of its duration, in both themes: **3 scenes × 5 keyframes × 2 themes = 30 images**, named `<scene>-<pct>-<theme>.png`, written to `e2e/golden/`.
+
+**The golden set is the three reference scenes and nothing else.** The three demo scenes in `demo-scenes.js` stay as regression checks — they are useful for catching a renderer change, and they are not what the completion gate approves. Adding them would make the count 60 and dilute the approval with scenes written to show off primitives rather than to teach. The keyframe percentages match `viz-benchmarks/illustrated-transformer/benchmark-material/dynamic-scene/`, whose reference frames are captured at the same 0/25/50/75/100, so the golden capture and the benchmark run produce comparable frames. Switch theme through the app's own appearance control rather than by injecting a class, so the capture exercises the real path.
 
 - [ ] **Step 2: Test the script locally** against `npm run dev`. It must produce exactly 30 files with no missing or zero-byte images. This step is local — the deployed run happens at Gate 2, which comes after this task.
 
@@ -1051,6 +1072,20 @@ The images are committed at Gate 2, after approval — an unapproved image is no
 - The three reference scenes are authored entirely through the vocabularies, with any gap recorded rather than worked around.
 - **The thirty golden keyframes are approved by the human.**
 
+## The canonical milestone map
+
+One naming scheme, because two were circulating and they cannot both be right.
+
+| name | what it is | state |
+|---|---|---|
+| **Tier 1** | T1.0–T1.3, the runtime convergence: one schema, one evaluator, one renderer, and a scene that moves between passive, interactive and activity without a new renderer | in progress |
+| **Plan A** | stabilisation and renderer honesty | done |
+| **Plan A.5** | the visual language, motion and sound — still inside Tier 1 | A.5a and A.5b done, A.5c open |
+| **Plan B** | **the input axis** — the interactive and activity modes. Still inside Tier 1, not a separate tier | after Gate 2 |
+| **T1.4** | **the control-plane tool that lets a lesson agent emit scenes.** A milestone *after* Tier 1, needing its own trust boundary. Not Plan B | not started |
+
+The mistake to avoid: Plan B is **not** T1.4. The input axis completes Tier 1; T1.4 begins what comes after it. `docs/superpowers/specs/2026-09-18-tier1-visual-library-design.md` has always said this — it was a status summary that conflated them, not the spec.
+
 ## Next
 
-**Plan B — the input axis.** Its first task checks the legacy adapter's deletion condition and removes it if it holds, then carries the four non-visual findings Plan A's final review deferred: `focus_camera` mis-centring circles and strokes, the data types missing from the invisibility gate, the non-data render fall-through, and the unbounded `tokens` in the tutor prompt.
+**Plan B — the input axis, completing Tier 1.** Its first task checks the legacy adapter's deletion condition and removes it if it holds, then carries the four non-visual findings Plan A's final review deferred: `focus_camera` mis-centring circles and strokes, the data types missing from the invisibility gate, the non-data render fall-through, and the unbounded `tokens` in the tutor prompt.
