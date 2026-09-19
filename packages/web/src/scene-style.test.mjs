@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { FILL, HEAT_DIVERGING, HEAT_INK_ZONES, HEAT_SCALE, HEAT_TOKENS, ROLES, ROLE_FILL, STATES, TYPE_ROLES, TIMING, SPACE } from './scene-vocab.js';
-import { roleVar, tintOf, textStyle, shapeStyle, inkOn, heatStyle, heatInk, selectionRing } from './scene-style.js';
+import { roleVar, tintOf, textStyle, shapeStyle, inkOn, heatStyle, heatInk, selectionStyle } from './scene-style.js';
 
 test('a role resolves to a token reference, never to a colour', () => {
   for (const role of ROLES) {
@@ -357,39 +357,114 @@ test('heat styling never reads theme state - CSS resolves the ink, not JS', () =
   assert.match(styleSource, /export function heatStyle\(value, domain, mode\)/, 'heatStyle must stay a 3-argument, theme-blind function');
 });
 
-// A viewer reported being unable to find the selected cell unprompted - a
-// 0.5px stroke difference (highlighted's step 2 vs resting's step 1) was the
-// entire distinction. selectionRing must read the same weight regardless of
-// how saturated the cell it sits on is, and must never perturb the value it
-// sits on top of.
-test('a selected cell rings equally strong at minimum and maximum heat intensity, without touching the fill', () => {
+// D.1 borrowed heat's own ink for the ring - safe against the fill it sat
+// on, but that ink IS page ink at the pale end, and page ink IS the grid's
+// frame colour for a role that aliases it (--viz-observed equals
+// --color-ink in light theme). Selection vanished into the gridlines on a
+// pale cell. D.2's fix: selectionStyle takes no role, identity or value
+// input at all, so there is nothing for it to coincide with.
+test('selectionStyle takes no role, identity or value input, and always returns the same two tokens', () => {
+  assert.equal(selectionStyle.length, 0, 'selectionStyle must not accept a role, identity or heat/value argument');
+  const a = selectionStyle();
+  const b = selectionStyle();
+  assert.deepEqual(a, b, 'two calls with nothing to vary by must produce identical output');
+  assert.equal(a.outer.stroke, 'var(--viz-selection-outer)');
+  assert.equal(a.inner.stroke, 'var(--viz-selection-inner)');
+  assert.notEqual(a.outer.stroke, a.inner.stroke, 'the two strokes must actually differ, or there is only one tone');
+  for (const role of ROLES) assert.doesNotMatch(a.outer.stroke + a.inner.stroke, new RegExp(`--viz-${role}\\b`), `selection must not read the ${role} role's own token`);
+});
+
+test('selecting a heat cell never perturbs the value it sits on top of', () => {
   const domain = { min: 0, max: 1 };
   const pale = heatStyle(0.001, domain, 'magnitude'); // near HEAT_FLOOR
   const saturated = heatStyle(1, domain, 'magnitude'); // full mix
   assert.notEqual(pale.mixPercent, saturated.mixPercent, 'the fixture must actually span low and high intensity');
-
-  const paleRing = selectionRing('observed', pale);
-  const saturatedRing = selectionRing('observed', saturated);
-  assert.equal(paleRing.strokeWidth, saturatedRing.strokeWidth, 'selection must read equally strong regardless of intensity');
-  // Borrowing heat's own ink means the ring is provably safe against this
-  // exact fill - it is exercised at every mixPercent by the accessibility
-  // test above, so a ring built from it inherits that guarantee for free.
-  assert.equal(paleRing.stroke, pale.inkToken);
-  assert.equal(saturatedRing.stroke, saturated.inkToken);
-  assert.notEqual(paleRing.stroke, saturatedRing.stroke, 'a pale and a saturated cell need different ink, which is exactly why the ring borrows it instead of a fixed colour');
-
-  // Selecting a cell must not move VALUE: same mixPercent/fillToken with or
-  // without the ring.
-  const rePale = heatStyle(0.001, domain, 'magnitude');
-  assert.equal(rePale.mixPercent, pale.mixPercent);
-  assert.equal(rePale.fillToken, pale.fillToken);
+  // selectionStyle has no way to see mixPercent/fillToken at all - this
+  // pins that down for regression rather than trusting the signature check
+  // above to imply it forever.
+  assert.deepEqual(selectionStyle(), selectionStyle(), 'pale vs saturated must not be reachable as an argument');
+  assert.equal(heatStyle(0.001, domain, 'magnitude').mixPercent, pale.mixPercent, 'calling selectionStyle must not be a precondition for heatStyle staying pure');
 });
 
-test('a selected non-heat cell still gets the stronger ring weight, in the role colour', () => {
-  const ring = selectionRing('prediction', null);
-  assert.equal(ring.stroke, roleVar('prediction'), 'no heat ink to borrow, so it keeps the role colour');
+// The mathematical guarantee behind two fixed tones rather than one clever
+// colour: for a background of luminance L, contrast against white is
+// 1.05/(L+0.05) and against black is (L+0.05)/0.05. Solve for where they're
+// equal and both come out to ≈4.58:1 - the worst point on either curve, so
+// the BETTER of the two never drops below it against ANY background. This
+// checks that empirically against every real composited heat fill, both
+// themes, rather than trusting the algebra - at WCAG's 3:1 threshold for a
+// non-text UI component (a selection ring is chrome, not text).
+test('two-tone guarantee: at least one of --viz-selection-outer/-inner clears 3:1 against every reachable heat fill, both themes', () => {
+  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+  const lightBlock = css.slice(0, css.indexOf('.dark {'));
+  const darkBlock = css.slice(css.indexOf('.dark {'), css.indexOf('}', css.indexOf('.dark {')));
+  const hex = (block, name) => {
+    const match = block.match(new RegExp(`${name}\\s*:\\s*(#[0-9a-fA-F]{6})`));
+    assert.ok(match, `no ${name} in this theme's block`);
+    return match[1];
+  };
+  const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const relLum = ([r, g, b]) => {
+    const lin = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+    const [rl, gl, bl] = [r, g, b].map(lin);
+    return 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
+  };
+  const contrastRatio = (a, b) => {
+    const [l1, l2] = [relLum(a), relLum(b)].sort((x, y) => y - x);
+    return (l1 + 0.05) / (l2 + 0.05);
+  };
+  const compositeOver = (fillHex, percent, surfaceHex) => {
+    const f = rgb(fillHex), s = rgb(surfaceHex);
+    const a = percent / 100;
+    return f.map((channel, index) => channel * a + s[index] * (1 - a));
+  };
+  const { outer, inner } = selectionStyle();
+  const tokenName = value => value.match(/^var\((--[\w-]+)\)$/)?.[1];
+  const themes = {
+    light: { block: lightBlock, surface: hex(lightBlock, '--viz-surface'), outer: rgb(hex(lightBlock, tokenName(outer.stroke))), inner: rgb(hex(lightBlock, tokenName(inner.stroke))) },
+    dark: { block: darkBlock, surface: hex(darkBlock, '--viz-surface'), outer: rgb(hex(darkBlock, tokenName(outer.stroke))), inner: rgb(hex(darkBlock, tokenName(inner.stroke))) },
+  };
+
+  let checked = 0;
+  for (const themeName of ['light', 'dark']) {
+    const theme = themes[themeName];
+    for (const token of HEAT_TOKENS) {
+      const fillHex = hex(theme.block, `--viz-${token}`);
+      for (let percent = 6; percent <= 100; percent += 1) {
+        const eff = compositeOver(fillHex, percent, theme.surface);
+        const best = Math.max(contrastRatio(eff, theme.outer), contrastRatio(eff, theme.inner));
+        assert.ok(best >= 3, `${themeName}/${token}@${percent}%: neither selection tone cleared 3:1 (best ${best.toFixed(2)})`);
+        checked += 1;
+      }
+    }
+  }
+  assert.equal(checked, 2 * HEAT_TOKENS.length * 95, 'every theme x token x reachable percent must have been checked');
+});
+
+test('selectionStyle draws the same, geometry-agnostic overlay on an ordinary non-heat shape too', () => {
+  // Nothing role- or identity-shaped changes what selectionStyle returns -
+  // shapeStyle output for an arbitrary role is irrelevant to it, which is
+  // the point: a box, a node or a token chip gets the exact same two tokens
+  // a heat cell does.
   const plain = shapeStyle('prediction', {});
-  assert.ok(ring.strokeWidth > plain.strokeWidth, 'still reads stronger than resting');
+  const selection = selectionStyle();
+  assert.ok(selection.outer.strokeWidth > plain.strokeWidth && selection.inner.strokeWidth > 0, 'still reads stronger than an ordinary resting stroke');
+  assert.doesNotMatch(selection.outer.stroke, /prediction/);
+});
+
+// The renderer-side half of the same guarantee: SelectionMark itself must
+// only ever take geometry, and the grid must only ever call it with
+// geometry - not role, not heat, not the cell's own ink. A regression here
+// (someone piping heat.inkToken back into the call, the way D.1 did) is
+// exactly what put this task on the plan a second time.
+test('SelectionMark takes geometry only, and the grid calls it with geometry only', () => {
+  const source = readFileSync(new URL('./AnimatedScene.jsx', import.meta.url), 'utf8');
+  const stripped = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.match(stripped, /function SelectionMark\(\{\s*geometry\s*\}\)/, 'SelectionMark must destructure geometry and nothing else');
+  const callStart = stripped.indexOf('<SelectionMark');
+  assert.ok(callStart > -1, 'the grid must actually render a SelectionMark');
+  const call = stripped.slice(callStart, stripped.indexOf('/>', callStart) + 2);
+  assert.doesNotMatch(call, /\brole\b|\bheat\b|\bink\b|fillToken|mixPercent/, `SelectionMark call must carry geometry only, got: ${call}`);
 });
 
 // Requirement 5: row/column labels are axis names, not data - they must read

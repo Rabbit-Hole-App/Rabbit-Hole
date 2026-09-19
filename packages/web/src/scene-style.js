@@ -148,16 +148,35 @@ export function heatStyle(value, domain, mode) {
   return { fillToken: HEAT_SCALE, mixPercent: percent, inkToken: heatInk(HEAT_SCALE, percent) };
 }
 
-// A selected cell must stay findable whether its own fill is barely tinted or
-// fully saturated - a ring drawn in the role's own colour can vanish into a
-// cell of that same hue at high mix, which was the "0.5px stroke nobody could
-// find" defect this replaces (see AnimatedScene.jsx's grid path for the old
-// `highlighted` ring). Reusing the exact ink heatStyle already proved clears
-// 4.5:1 against THIS fill guarantees the ring reads at any intensity, in
-// either theme, without moving the fill's own hue or mix - state overlays
-// VALUE, it never touches it. A non-heat cell has no such ink to borrow, so
-// it keeps the role's own stroke colour, just at this same stronger weight.
-const SELECTED_RING_WIDTH = 3;
-export function selectionRing(role, heat) {
-  return { stroke: heat ? heat.inkToken : roleVar(role), strokeWidth: SELECTED_RING_WIDTH };
+// D.1 borrowed heat's own ink for the selection ring - safe against the fill
+// it sat on, but that ink IS page ink at the pale end, and page ink IS the
+// grid's own frame colour for a role that aliases it (--viz-observed equals
+// --color-ink in light). Selection vanished into the gridlines on a pale
+// cell. That was never going to generalise: a STATE overlay has to stay
+// perceptible regardless of ROLE, IDENTITY *or* VALUE (see the module
+// comment), so it cannot take its colour from any of them.
+//
+// Two concentric strokes in fixed, universal colours instead. For any
+// background luminance L, contrast against white is 1.05/(L+0.05) and
+// against black is (L+0.05)/0.05 - falling and rising respectively, so they
+// cross exactly once. Solving 1.05/(L+0.05) = (L+0.05)/0.05 gives L ≈ 0.179,
+// where both equal ≈4.58:1 - the worst point on either curve, and therefore
+// the worst case for "whichever is better". Below that luminance white wins
+// by more; above it black does. The BETTER of the two never drops below
+// ≈4.58:1 against ANY background - not tuned per token, per theme or per
+// role, a property of black and white themselves. See scene-style.test.mjs's
+// two-tone guarantee test, which checks this against every real composited
+// heat fill rather than trusting the algebra alone.
+//
+// Geometry-free on purpose: rect, circle and path all need the same two
+// widths and colours, just drawn along a different outline, which is a
+// rendering concern - see AnimatedScene.jsx's SelectionMark, the one place
+// that turns this into an actual shape.
+const SELECTION_OUTER_WIDTH = 5;
+const SELECTION_INNER_WIDTH = 2;
+export function selectionStyle() {
+  return {
+    outer: { stroke: 'var(--viz-selection-outer)', strokeWidth: SELECTION_OUTER_WIDTH },
+    inner: { stroke: 'var(--viz-selection-inner)', strokeWidth: SELECTION_INNER_WIDTH },
+  };
 }

@@ -6,7 +6,7 @@ import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './a
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-sound.js';
 import { GEOMETRY } from './scene-vocab.js';
-import { heatStyle, roleVar, selectionRing, shapeStyle, textStyle } from './scene-style.js';
+import { heatStyle, roleVar, selectionStyle, shapeStyle, textStyle } from './scene-style.js';
 
 // Live playback of an animation spec. The evaluator owns what the frame looks
 // like at time t; this only draws it and owns the transport. Learner ink is a
@@ -40,6 +40,33 @@ const marked = (object, row, column, index) => {
   return true;
 };
 
+// The one place STATE's selection overlay becomes an actual shape - see
+// scene-style.js's selectionStyle for why the two strokes are fixed,
+// universal colours rather than anything read from role, identity or value.
+// Every branch that can be selected draws through this, geometry only: a
+// rect and a circle today (the grid below, and boxes/nodes whenever they
+// wire selection in), a path whenever a trajectory needs one. What must not
+// differ between them is the treatment - this is the one function that owns
+// it, not a copy per shape.
+function SelectionMark({ geometry }) {
+  const { outer, inner } = selectionStyle();
+  if (geometry.kind === 'circle') {
+    return (
+      <>
+        <circle cx={geometry.cx} cy={geometry.cy} r={geometry.r} fill="none" style={{ stroke: outer.stroke }} strokeWidth={outer.strokeWidth} />
+        <circle cx={geometry.cx} cy={geometry.cy} r={geometry.r} fill="none" style={{ stroke: inner.stroke }} strokeWidth={inner.strokeWidth} />
+      </>
+    );
+  }
+  const { x, y, width, height, rx = 0 } = geometry;
+  return (
+    <>
+      <rect x={x} y={y} width={width} height={height} rx={rx} fill="none" style={{ stroke: outer.stroke }} strokeWidth={outer.strokeWidth} />
+      <rect x={x} y={y} width={width} height={height} rx={rx} fill="none" style={{ stroke: inner.stroke }} strokeWidth={inner.strokeWidth} />
+    </>
+  );
+}
+
 // The mathematical object itself: a table with a row that lights up, a strip
 // of numbers that change, a distribution that grows. Labelled rectangles do
 // not teach these; the values do.
@@ -72,33 +99,38 @@ function DataShape({ object, role, pop }) {
         // A blocked or not-yet-measured cell is a different fact than a real
         // small value, so it never reaches heatStyle - it reads as the role's
         // own muted band, the same look "blocked" already has everywhere else.
-        // State (lit) only ever moves the ring below, never this fill: value
-        // owns the fill outright, even while the cell is selected.
+        // State (lit) never moves this fill or this base stroke: value owns
+        // the fill outright, and identity owns the frame, even while the
+        // cell is selected - see the SelectionMark drawn below instead.
         const blocked = heatMode && value == null;
         const look = shapeStyle(role, blocked ? { blocked: true } : { highlighted: lit });
         const heat = heatMode && value != null ? heatStyle(value, domain, heatMode) : null;
         const fill = heat ? `color-mix(in srgb, var(--viz-${heat.fillToken}) ${heat.mixPercent}%, transparent)` : look.fill;
         const ink = heat ? heat.inkToken : (lit ? 'var(--color-ink)' : 'var(--color-ink-2)');
         // Motion may spring a value only while that value is discrete. A heat
-        // fill is a continuous function of the cell's number, so it is painted
-        // exactly (style); the ring is still a binary lit/unlit state and
-        // keeps its pop (animate). A selected (lit, unblocked) cell earns the
-        // stronger, contrast-safe ring from selectionRing - see its comment
-        // in scene-style.js for why it borrows heat's own ink rather than
-        // roleVar once a heat fill is in play. A blocked or resting cell
-        // keeps its existing role-coloured ring unchanged.
-        const ring = (lit && !blocked) ? selectionRing(role, heat) : { stroke: look.stroke, strokeWidth: look.strokeWidth };
+        // fill is a continuous function of the cell's number, so it is
+        // painted exactly (style); the ring is still a binary lit/unlit
+        // state and keeps its pop (animate). The ring's colour is always
+        // roleVar - a stroke is identity, not a quantity or a selection, and
+        // never competes with either.
+        const ring = { stroke: look.stroke, strokeWidth: look.strokeWidth };
+        const cellX = object.x + column * cell, cellY = object.y + row * cell;
         cells.push(
           <g key={index}>
-            <motion.rect x={object.x + column * cell} y={object.y + row * cell} width={cell} height={cell}
+            <motion.rect x={cellX} y={cellY} width={cell} height={cell}
               style={heat ? { fill } : undefined}
               animate={heat ? ring : { fill, ...ring }}
               transition={pop} />
             {value != null && cell >= 22 && (
-              <text x={object.x + column * cell + cell / 2} y={object.y + row * cell + cell / 2}
+              <text x={cellX + cell / 2} y={cellY + cell / 2}
                 textAnchor="middle" dominantBaseline="central" fontSize={Math.min(numeral.fontSize, cell * 0.42)} fontWeight={numeral.fontWeight}
                 style={{ fontFamily: MONO, fill: ink }}>{num(value)}</text>
             )}
+            {/* Selection is a STATE overlay, drawn on top of - never instead
+                of - the cell's own fill and frame, so it stays perceptible
+                regardless of what role, identity or value already painted
+                there (see SelectionMark's comment). */}
+            {lit && !blocked && <SelectionMark geometry={{ kind: 'rect', x: cellX, y: cellY, width: cell, height: cell }} />}
           </g>,
         );
       }

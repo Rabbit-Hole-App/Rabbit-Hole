@@ -82,9 +82,9 @@ html {
      proven to behave well in both themes, kept as its own token so retuning
      one ramp later never drags the other along with it. */
   --viz-heat-scale: #655e73;
-  /* The ink a heat cell's numeral and selection ring sit on top of - not a
-     role's own on-token, because heat's fill can land anywhere along its
-     ramp regardless of which role is carrying it. Two absolute extremes: mid
+  /* The ink a heat cell's own numeral sits on top of - not a role's own
+     on-token, because heat's fill can land anywhere along its ramp
+     regardless of which role is carrying it. Two absolute extremes: mid
      is the pure extreme in --color-ink's own direction (near-black, since
      this page's ink is dark); high is the opposite extreme. Using
      --color-ink alone leaves a real dead zone partway up the ramp where
@@ -102,6 +102,15 @@ html {
      than every other pale label in the app), while dark has already moved to
      white - the one zone that doesn't match the shared --viz-ink-mid pair. */
   --viz-heat-positive-ink-mid: #37352f;
+  /* STATE overlay for selection - deliberately NOT theme-flipped, and never
+     derived from role, identity or heat ink (see scene-style.js's
+     selectionStyle comment for why: page ink IS the frame colour for a role
+     that aliases it, so a value-derived ring vanished into the gridlines on
+     a pale cell). Pure black and white guarantee that whichever one reads
+     better against a given background never drops below ~4.58:1 - a property
+     of the two colours themselves, so both stay identical in .dark below. */
+  --viz-selection-outer: #000000;
+  --viz-selection-inner: #ffffff;
 }
 
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
@@ -154,6 +163,8 @@ html {
   --viz-ink-high: #000000;
   --viz-ink-solid: #000000;
   --viz-heat-positive-ink-mid: #ffffff;
+  --viz-selection-outer: #000000;
+  --viz-selection-inner: #ffffff;
 }
 .dark [class*='bg-accent'],
 .dark [class*='bg-danger'] {
