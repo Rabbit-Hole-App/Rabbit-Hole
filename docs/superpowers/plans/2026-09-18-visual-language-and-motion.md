@@ -958,6 +958,114 @@ The causal-attention scene is the first real content the vocabularies have ever 
 
 ---
 
+# Phase A.5d — the vocabulary checkpoint fixes
+
+The causal-attention benchmark run found five reusable defects. They are fixed
+here, before Tasks 13 and 14, because the next two scenes are matrix-heavy and
+would hit every one of them again — three migrations instead of one.
+
+Four axes from here on: **ROLE** is what a thing means, **IDENTITY** is which peer
+it is, **STATE** is what is happening to it, **VALUE** is how much. See the spec.
+
+---
+
+### Task A: The identity axis
+
+**Files:** `scene-vocab.js`, `animation-scene.js`, `scene-style.js`, `AnimatedScene.jsx`, tests.
+
+`initialState.identity` — an optional short key. **It carries no styling.** A scene
+says `identity: 'query'` and never a colour, a palette slot or an index.
+
+- `IDENTITY_PALETTE` in `scene-vocab.js`: categorical hues as `--viz-id-N` tokens, light and dark, each clearing 3:1 on both surfaces and each at least 60 RGB units from its neighbours. Six slots is enough to start; state the number.
+- Slots are assigned **in authored object order**, first-seen wins, computed at `validateScene` and carried on the evaluated object. Deterministic: the same scene always resolves the same way, so replay is unaffected.
+- With no identity, role picks the hue exactly as today. With an identity, the categorical palette picks the hue and **the role still governs fill tier, weight and ink.**
+- Test: three objects sharing one role and differing only in identity resolve to three different hues and the same fill tier; the same scene evaluated twice gives the same slots; an object with no identity is unchanged from today.
+
+---
+
+### Task B: Discrete semantic transform
+
+**Files:** `animation-scene.js`, tests.
+
+Tweening a raw score into a softmax probability invents numbers that exist in no
+part of the computation. The benchmark caught a frame captioned *a probability
+distribution that sums to one* over a row summing to 5.8 with a negative in it.
+
+Add `replace_values` — a discrete switch between quantities of different domains.
+It does not interpolate: before its `at`, the old values; at or after, the new
+ones. `set_values` keeps interpolating and is for values of the *same* quantity.
+
+An explicit action rather than a flag on `set_values`, because a flag is easy to
+forget and the failure is silent and confident.
+
+- Test: `replace_values` at t=2 shows only old values before 2 and only new at 2.05, with no intermediate ever observable at any sampled time.
+- Record the invariant in the schema comment: **only interpolate when the intermediate values are mathematically meaningful.**
+
+---
+
+### Task C: Signed heat
+
+**Files:** `animation-scene.js`, `scene-vocab.js`, `scene-style.js`, `AnimatedScene.jsx`, tests.
+
+`heat: true` becomes `heat: { mode }` with `magnitude` (today's `Math.abs`),
+`signed` (diverging, negative through neutral to positive) and `sequential`.
+**Keep `heat: true` parsing as `{ mode: 'magnitude' }`** — shipped scenes author it.
+
+The scene names the mode; the design system owns the diverging palette. This
+matters far beyond attention: logits, gradients, residuals, correlations,
+activation deltas, errors, vector components.
+
+- Test: under `signed`, equal-magnitude opposite-sign values resolve to different fills either side of neutral; under `magnitude` they are identical, as today.
+
+---
+
+### Task D: Grid styling and contrast, through the tier system
+
+**Files:** `scene-style.js`, `AnimatedScene.jsx`, tests.
+
+The grid bypasses `shapeStyle` and invents its own 4–63% heat and 20% lit. For a
+solid role like `observed`, band 60–100, none of those are in band — the
+non-overlap invariant this plan promised is violated three lines from the test
+that claims to guard it.
+
+- `shapeStyle` exposes the resolved `fillBand`.
+- New `heatStyle({ role, state, value, mode, band })` maps a value **within the role's own band**, so non-overlap holds everywhere.
+- Cell ink is derived from the **effective fill**, not from `lit`: a contrast resolver picks a dark or light ink token from the actual background. No more unreadable numerals in the most saturated cells.
+- Test: for every role, every heat value lands inside that role's band — the grid path, not just `shapeStyle`. This is the test that should have existed and did not.
+
+**Expect a dynamic-range problem and report it rather than hiding it.** The solid
+band spans 60–100, so a solid role's heat has a quarter the range of a soft
+role's. If heat becomes unreadable for `observed`, say so with a rendered example;
+the answer may be that the band widens or that heat-bearing objects take a soft
+role, and that is a decision to raise, not to make silently.
+
+---
+
+### Task E: Grid row and column labels
+
+**Files:** `animation-scene.js`, `AnimatedScene.jsx`, tests.
+
+`rowLabels` and `columnLabels` on `grid`, generic — never attention-specific. The
+reference's own credited strength is that a cell reads as *this token attending to
+that token*, and we cannot say it at all.
+
+Earns its place beyond attention: confusion matrices, token-token similarity,
+covariance, transition matrices, image patch grids.
+
+- Test: a grid with both label arrays evaluates carrying them; a length mismatch against `rows`/`cols` is refused at the gate with a message naming the expected count.
+
+---
+
+## Checkpoint gate — rerun the benchmark
+
+- [ ] `make test-unit` passes.
+- [ ] Re-author the attention scene using identity for Q/K/V, `replace_values` for the softmax step, signed heat where scores are signed, and grid labels.
+- [ ] Re-run all three Transformer Explainer cases, archiving the current `generated/latest/` to `generated/history/v001/` first — there is now a real run to preserve.
+- [ ] Re-run the critic. The five findings above must be gone. New findings are the next round's input.
+- [ ] Only then Tasks 13 and 14.
+
+---
+
 ### Task 13: VLM patch flow
 
 **Files:**
