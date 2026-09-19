@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fromTemplate, getSceneState, RENDERED_TYPES, validateScene } from './animation-scene.js';
-import { GEOMETRY, SPACE } from './scene-vocab.js';
+import { GEOMETRY, HEAT_DIVERGING, SPACE } from './scene-vocab.js';
 
 const scene = () => validateScene({
   id: 'transformer-flow',
@@ -294,7 +294,52 @@ test('heat is carried so a grid can read as a distribution', () => {
     objects: [{ id: 'g', type: 'grid', initialState: { x: 0, y: 0, rows: 2, cols: 2, values: [0, 1, 2, 3], heat: true } }],
     timeline: [],
   });
-  assert.equal(getSceneState(built, 1).objects[0].heat, true);
+  assert.deepEqual(getSceneState(built, 1).objects[0].heat, { mode: 'magnitude' }, 'heat: true is shorthand for magnitude, not a bare boolean');
+});
+
+test('heat: false and an unauthored heat both evaluate to null, never to false', () => {
+  const built = validateScene({
+    id: 'cold', duration: 2,
+    objects: [
+      { id: 'off', type: 'grid', initialState: { x: 0, y: 0, rows: 1, cols: 1, values: [1], heat: false } },
+      { id: 'unset', type: 'grid', initialState: { x: 0, y: 0, rows: 1, cols: 1, values: [1] } },
+    ],
+    timeline: [],
+  });
+  const [off, unset] = getSceneState(built, 1).objects;
+  assert.equal(off.heat, null);
+  assert.equal(unset.heat, null);
+});
+
+test('a signed or sequential heat mode survives the gate untouched', () => {
+  for (const mode of ['signed', 'sequential']) {
+    const built = validateScene({
+      id: `hot-${mode}`, duration: 2,
+      objects: [{ id: 'g', type: 'grid', initialState: { x: 0, y: 0, rows: 1, cols: 2, values: [1, -1], heat: { mode } } }],
+      timeline: [],
+    });
+    assert.deepEqual(getSceneState(built, 1).objects[0].heat, { mode }, `${mode} did not survive the gate`);
+  }
+});
+
+test('a heat mode outside the closed vocabulary is refused', () => {
+  assert.throws(() => validateScene({
+    id: 'bad-heat', duration: 2,
+    objects: [{ id: 'g', type: 'grid', initialState: { x: 0, y: 0, rows: 1, cols: 1, values: [1], heat: { mode: 'rainbow' } } }],
+    timeline: [],
+  }), /heat/i);
+});
+
+// Mirrors the role-token parity check in scene-style.test.mjs: a token added
+// to one theme and not the other must fail as loudly for heat as for a role.
+test('every heat token has a value in both themes', () => {
+  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+  const light = css.slice(css.indexOf('--viz-neutral'), css.indexOf('.dark {'));
+  const dark = css.slice(css.indexOf('.dark {'), css.indexOf('}', css.indexOf('.dark {')));
+  for (const token of HEAT_DIVERGING) {
+    assert.match(light, new RegExp(`--viz-${token}\\s*:`), `${token} has no light value`);
+    assert.match(dark, new RegExp(`--viz-${token}\\s*:`), `${token} has no dark value`);
+  }
 });
 
 test('heat changes how a grid is painted, never what the evaluator says', () => {

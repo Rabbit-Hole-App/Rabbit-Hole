@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { GEOMETRY, ROLES, SOUNDS, TIMING, TYPE_ROLES } from './scene-vocab.js';
+import { GEOMETRY, HEAT_MODES, ROLES, SOUNDS, TIMING, TYPE_ROLES } from './scene-vocab.js';
 import { adaptLegacyScene } from './scene-legacy.js';
 
 // The animation source of truth: scene JSON plus a pure evaluator. Neither
@@ -46,7 +46,10 @@ const objectSchema = z.object({
     columnLabels: z.array(z.string().max(24)).max(64).optional(),
     tokens: z.array(z.string().max(24)).max(48).optional(),
     src: z.string().max(300).optional(),
-    heat: z.boolean().optional(),
+    // true predates modes and still means the same thing it always did - the
+    // gate below normalises both spellings to { mode } so nothing past it
+    // reads a bare boolean.
+    heat: z.union([z.boolean(), z.object({ mode: z.enum(HEAT_MODES) })]).optional(),
     peak: z.number().positive().max(1e6).optional(),
   }).prefault({}),
 });
@@ -132,6 +135,10 @@ export function validateScene(raw) {
   const ids = new Set(byId.keys());
   if (ids.size !== scene.objects.length) throw new Error('Every animation object needs a unique id');
   for (const object of scene.objects) {
+    // Same normalisation event.duration gets further down: one shape leaves
+    // the gate, whichever one an author wrote going in.
+    const heat = object.initialState.heat;
+    object.initialState.heat = heat === true ? { mode: 'magnitude' } : heat || null;
     if (object.type === 'image') {
       const src = object.initialState.src;
       if (!src) throw new Error(`Object "${object.id}": an image needs a src`);
@@ -269,7 +276,7 @@ export function getSceneState(scene, time) {
     rowLabels: object.initialState.rowLabels ?? null,
     columnLabels: object.initialState.columnLabels ?? null,
     tokens: object.initialState.tokens ?? null,
-    heat: object.initialState.heat ?? false,
+    heat: object.initialState.heat ?? null,
     peak: object.initialState.peak ?? null,
     cellHighlight: null,
     sweep: null,

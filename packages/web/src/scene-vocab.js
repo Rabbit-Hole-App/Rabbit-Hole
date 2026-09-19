@@ -64,3 +64,15 @@ export const SOUNDS = Object.freeze([
   'select', 'toggle_on', 'toggle_off', 'reveal',
   'success', 'incorrect', 'compute', 'drop', 'snap',
 ]);
+
+// How a grid or strip's heat maps a value to fill. heat: true predates modes
+// and stays valid as shorthand for magnitude - the gate in animation-scene.js
+// normalises both forms to { mode }.
+export const HEAT_MODES = Object.freeze(['magnitude', 'signed', 'sequential']);
+
+// The `signed` mode's diverging scale, named apart from ROLES because heat
+// replaces a shape's fill outright rather than tinting a role. Blue/orange
+// rather than red/green, so negative and positive stay distinguishable under
+// protanopia, deuteranopia and tritanopia - see index.css for the values and
+// their measured contrast against --viz-surface.
+export const HEAT_DIVERGING = Object.freeze(['heat-negative', 'heat-midpoint', 'heat-positive']);

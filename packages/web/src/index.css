@@ -68,6 +68,14 @@ html {
      observed is near-black in light and near-white in dark. */
   --viz-on-observed: #ffffff;
   --viz-on-success: #ffffff;
+  /* Heat's `signed` mode: a diverging scale needs its own tokens, because a
+     role's FILL band has no notion of below zero. Blue/orange keeps negative
+     and positive apart under protanopia, deuteranopia and tritanopia, unlike
+     red/green. Each clears 3:1 against --viz-surface: negative 6.39:1,
+     midpoint 5.96:1, positive 5.16:1 (relative-luminance contrast, computed). */
+  --viz-heat-negative: #1a56c4;
+  --viz-heat-midpoint: #655e73;
+  --viz-heat-positive: #a85400;
 }
 
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
@@ -107,6 +115,11 @@ html {
   --viz-surface: #1f1f1f;
   --viz-on-observed: #1f1f1f;
   --viz-on-success: #1f1f1f;
+  /* Heat diverging scale, dark - each clears 3:1 against --viz-surface:
+     negative 7.38:1, midpoint 7.23:1, positive 8.23:1. */
+  --viz-heat-negative: #6fb1ff;
+  --viz-heat-midpoint: #b0a8c0;
+  --viz-heat-positive: #f0a94e;
 }
 .dark [class*='bg-accent'],
 .dark [class*='bg-danger'] {
