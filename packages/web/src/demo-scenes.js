@@ -165,4 +165,55 @@ export const demoBlocks = () => RESTING.map(([scene, time]) => ({
 // nothing else, so a visual check starts from an empty surface every time.
 // A name with no entry here is simply an empty board, which is the useful
 // default: adding a review board is adding one line.
-export const BOARDS = { demo: demoBlocks };
+// Every role, drawn side by side by the real renderer. Ruling 18 found that
+// five of the ten roles are pixel-identical pairs and that `observed` is the
+// body-text ink exactly - a claim nobody can check from a palette listing, so
+// the swatches are boxes the renderer resolves the same way it resolves a
+// lesson. The ink line at the top is the comparison `observed` has to beat.
+const ROLE_ORDER = ['neutral', 'input', 'output', 'prediction', 'observed', 'learner', 'tutor', 'code', 'warning', 'success'];
+export const rolesScene = {
+  id: 'role-palette',
+  title: 'Every role, side by side',
+  width: 760,
+  height: 340,
+  duration: 3,
+  objects: [
+    { id: 'note', type: 'text', semanticId: 'note', initialState: { text: 'plain body text, for comparison', x: 40, y: 34, typography: 'body' } },
+    ...ROLE_ORDER.map((role, index) => ({
+      id: role,
+      type: 'box',
+      semanticId: role,
+      initialState: {
+        label: role,
+        role,
+        x: 40 + (index % 5) * 140,
+        y: 80 + Math.floor(index / 5) * 110,
+        w: 120,
+        h: 72,
+        opacity: 0,
+      },
+    })),
+  ],
+  timeline: ROLE_ORDER.map((role, index) => ({
+    at: Number((0.1 + index * 0.08).toFixed(2)),
+    action: 'appear',
+    target: role,
+    duration: 'fast',
+  })),
+};
+
+// Named review boards. ?board=<name> seeds exactly what is under review and
+// nothing else, so a visual check starts from an empty surface every time.
+// A name with no entry here is simply an empty board, which is the useful
+// default: adding a review board is adding one line.
+const block = (scene, time) => ({
+  id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0,
+  title: scene.title, scene, time, selectedObject: null, marked: null,
+});
+export const BOARDS = {
+  demo: demoBlocks,
+  // Exactly the two pictures the palette question needs: the roles side by
+  // side, and the one shipped scene where a role reading as body ink actually
+  // costs the learner something.
+  'a5b-visual': () => [block(rolesScene, 3), block(sigmoidScene, 11.6)],
+};

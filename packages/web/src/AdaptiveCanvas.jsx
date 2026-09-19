@@ -614,7 +614,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const autoPanKey = useRef('');
   useEffect(() => {
     const element = surface.current, col = column.current;
-    if (!element || !col || (!exchanges.length && !blocks.length)) return;
+    // No exchanges means nothing is streaming, so there is no newest thing to
+    // follow - and panning anyway drags a seeded board past its own first
+    // block. Inserting still pans, through insertBlock's own camera move.
+    if (!element || !col || !exchanges.length) return;
     const last = exchanges[exchanges.length - 1];
     const key = `${exchanges.length}:${blocks.length}:${last?.id || ''}:${last?.status || ''}`;
     if (key === autoPanKey.current) return;
