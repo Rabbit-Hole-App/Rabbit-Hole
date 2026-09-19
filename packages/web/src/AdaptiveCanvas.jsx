@@ -960,7 +960,35 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   };
   const moveItem = (id, x, y) => setItems(previous => previous.map(item => item.id === id ? { ...item, x, y } : item));
   const resizeItem = (id, w, h) => setItems(previous => previous.map(item => item.id === id ? { ...item, w, h } : item));
-  const moveBlock = (id, dx, dy) => setBlocks(previous => previous.map(block => block.id === id ? { ...block, dx, dy } : block));
+  // A separator is a wall: a card may be nudged inside its own band but never
+  // dragged across the line into its neighbour's. Out of room is a deliberate
+  // dead end - [+] on the rail is how you make more. The band is measured from
+  // where the card sits with no offset at all, so it does not move as you drag.
+  const bandFor = id => {
+    const list = blocksRef.current;
+    const index = list.findIndex(block => block.id === id);
+    const box = boundsRef.current[id];
+    if (index < 0 || !box) return null;
+    const flowY = box.y - list[index].dy;
+    const above = index > 0 ? boundsRef.current[list[index - 1].id] : null;
+    const below = boundsRef.current[list[index + 1]?.id];
+    return {
+      flowY,
+      height: box.h,
+      // Same midpoint the rail draws its line at, in learn-gap-rail.js.
+      top: above ? (above.y + above.h + flowY) / 2 : -Infinity,
+      bottom: below ? (flowY + box.h + below.y) / 2 : Infinity,
+    };
+  };
+  const clampToBand = (id, dy) => {
+    const band = bandFor(id);
+    if (!band) return dy;
+    const lowest = band.top - band.flowY;
+    const highest = band.bottom - band.flowY - band.height;
+    // A card taller than its band pins to the top of it rather than jittering.
+    return highest < lowest ? lowest : Math.min(Math.max(dy, lowest), highest);
+  };
+  const moveBlock = (id, dx, dy) => setBlocks(previous => previous.map(block => block.id === id ? { ...block, dx, dy: clampToBand(id, dy) } : block));
   // Dragging one member of a multi-selection carries the whole group.
   const shift = (ddx, ddy, ids) => {
     for (const id of ids) {

@@ -11,6 +11,8 @@ import RegionPicker from './RegionPicker.jsx';
 import { CourseInterview, CoursePanel, useLearnCourse } from './LearnCourse.jsx';
 import { LessonNotebook, LessonPractice, LessonReading, LessonSource } from './LearnExtras.jsx';
 import LearnOutline from './LearnOutline.jsx';
+import ContentsRail from './ContentsRail.jsx';
+import { contentsEntries } from './learn-contents.js';
 import { lessonMilestones } from './learn-milestones.js';
 import LessonPlanPreview from './LessonPlanPreview.jsx';
 import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
@@ -504,6 +506,10 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const finishedCount = suppliedCourse ? Object.keys(nanoProgress.saved.pages || {}).filter(key => ['0', '1', '2', '3', '4', '5'].includes(key) && nanoProgress.saved.pages[key]).length + ['encoding', 'prefixTarget', 'generationWeights'].filter(check => nanoProgress.saved[check]?.count).length : sectionKeys.filter(key => completed[key]).length;
   const allFinished = sectionKeys.length > 0 && finishedCount === sectionKeys.length;
   const milestones = lessonMilestones(sectionKeys);
+  // The retracted panel leaves these ticks behind, so they must agree with the
+  // outline about which lessons exist and which can actually be opened.
+  const railLessons = course.course?.curriculum?.lessons || sampleCourse.lessons;
+  const railEntries = contentsEntries(railLessons, railLessons.map((_, index) => (course.course?.curriculum ? (index === 0 ? course.course?.lesson : null) : railLessons[index])), lesson.current?.lessonId);
   const outlineDisabled = !editor || answering || !!noteEditing;
   const coursePanel = <CoursePanel planningOnly={suppliedCourse} state={course} app={app} onPreview={previewLesson} onDeleted={() => {
           if (lesson.current?.lessonId?.startsWith('course-')) {
@@ -516,7 +522,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             return meta?.author === 'script' && meta.learnLesson?.startsWith('course-');
           }));
         }} />;
-  return <main className="flex min-w-0 flex-1 overflow-hidden max-lg:flex-col">
+  return <main className="relative flex min-w-0 flex-1 overflow-hidden max-lg:flex-col">
     <section aria-label="Learn" className="min-h-0 min-w-0 flex-1">
       {/* The lesson canvas goes full-bleed so its toolbar and zoom controls sit
           at the window edges; every other view keeps the centered page frame. */}
@@ -574,7 +580,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         }} />
       </div>
     </section>
-    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={480} collapsed={!panelOpen} onExpand={() => setPanelOpen(true)} expandLabel="Show Learn panel" onClickCapture={openPaperReference} className="px-5 pt-6 pb-4">
+    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={480} collapsed={!panelOpen} onClickCapture={openPaperReference} className="px-5 pt-6 pb-4">
       <div className="mb-3 flex shrink-0 items-center gap-3">
         {/* The fill is clipped to the track; the milestone dots sit on top of it
             and must not be, so the rounding lives on an inner element. */}
@@ -605,5 +611,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         : <AskPanel onGraph={onGraph} key={app.name} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" headerTitle="Learn Agent" demo={isRepository ? null : demo} boardContext={boardContext} contentPanel={lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : null} onCloseContentPanel={() => { setPaperOpen(false); setSourceOpen(false); setLessonSource(null); }} placeholder={`Ask about ${app.repo || app.name}…`} autoFocus />}
       </div>
     </ResizableSidePanel>
+    {!panelOpen && <ContentsRail entries={railEntries} onExpand={() => setPanelOpen(true)}
+      onOpen={entry => { setPanelOpen(false); openFromOutline(entry.content, 'lesson', 0); }} />}
   </main>;
 }

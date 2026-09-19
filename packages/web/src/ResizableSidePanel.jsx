@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { PanelRightOpen } from 'lucide-react';
 
 // Shared inline right panel. Overlay panels use SlidePanel's existing resizer.
-// Pass `collapsed` to retract it to a rail; the caller owns that state so it can
-// put the hide control wherever suits its own header. Panels that never pass it
-// behave exactly as before.
-export default function ResizableSidePanel({ defaultWidth = 400, resizeLabel = 'Resize panel', collapsed = false, onExpand = null, expandLabel = 'Show panel', className = '', children, ...props }) {
+// Pass `collapsed` to retract it out of the layout entirely; the caller owns
+// that state, the hide control, and whatever it shows in the panel's place.
+// Panels that never pass it behave exactly as before.
+export default function ResizableSidePanel({ defaultWidth = 400, resizeLabel = 'Resize panel', collapsed = false, className = '', children, ...props }) {
   const panel = useRef(null), drag = useRef(null);
   const [width, setWidth] = useState(defaultWidth);
   const [available, setAvailable] = useState(1180);
@@ -17,12 +16,10 @@ export default function ResizableSidePanel({ defaultWidth = 400, resizeLabel = '
     observer.observe(panel.current.parentElement);
     return () => observer.disconnect();
   }, []);
-  // Retracted: a rail wide enough for the one control that brings it back. The
-  // children stay unmounted so nothing keeps running behind a hidden panel.
-  if (collapsed) return <aside {...props} ref={panel} className="relative flex w-11 shrink-0 flex-col items-center border-l border-line bg-white py-3 max-lg:h-auto max-lg:w-full max-lg:flex-row max-lg:justify-end max-lg:border-t max-lg:border-l-0 max-lg:px-3 max-lg:py-2">
-    <button type="button" title={expandLabel} aria-label={expandLabel} aria-expanded={false} onClick={onExpand}
-      className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><PanelRightOpen size={16} /></button>
-  </aside>;
+  // Retracted: nothing at all, not even a rail - the caller owns whatever stands
+  // in for the panel and where its reopen control sits. Children unmount, so
+  // nothing keeps running behind a hidden panel.
+  if (collapsed) return null;
   return <aside {...props} ref={panel} style={{ '--side-panel-width': `${visible}px` }} className={`relative flex min-w-0 w-[var(--side-panel-width)] shrink-0 flex-col border-l border-line bg-white max-lg:h-[45%] max-lg:min-h-64 max-lg:w-full max-lg:border-t max-lg:border-l-0 ${className}`}>
     <div role="separator" aria-label={resizeLabel} aria-orientation="vertical" aria-valuemin={320} aria-valuemax={max} aria-valuenow={visible} tabIndex={0} title="Drag to resize · double-click to reset"
       className="absolute inset-y-0 -left-0.5 z-30 w-1.5 touch-none cursor-col-resize hover:bg-line-strong/70 focus-visible:bg-line max-lg:hidden"
