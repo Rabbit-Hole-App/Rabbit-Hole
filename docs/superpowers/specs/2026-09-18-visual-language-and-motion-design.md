@@ -134,6 +134,25 @@ changing the *ink*, never by collapsing the *fill*.
 A heat cell is **not** an `observed` object with a stronger or weaker fill. It is
 a quantitative mark whose interior belongs to VALUE.
 
+**STATE overlays must remain perceptible regardless of ROLE, IDENTITY or VALUE.**
+
+The first rendered checkpoint found selection inheriting its colour from the
+VALUE channel's ink. At the pale end of a ramp that ink is the page ink, which
+for a grid is also the frame colour — so on a pale cell selection vanished into
+the gridlines while being unmistakable on a saturated one. Selection that only
+works at one end of a ramp is not orthogonal; it is coincidence.
+
+A state overlay therefore takes **dedicated tokens** — `--viz-selection-inner`
+and `--viz-selection-outer` — and draws two concentric strokes. The guarantee is
+mathematical rather than a matter of taste: for any background, the better of a
+light and a dark stroke always clears about 4.6:1, because the two contrast
+curves cross there. One of the pair always separates, whatever is behind it.
+
+It is a **generic primitive**, not logic inside grid rendering. The same
+treatment must serve a matrix cell, a token, a box or node, a trajectory, an
+image patch and a graph node. A state treatment that only knows how to decorate
+one shape will be reimplemented per shape, and the reimplementations will drift.
+
 **The quantitative palette must stay strictly quantitative.** `--viz-heat-*`
 tokens must never acquire semantics — nothing that reads as prediction purple or
 observed black. A reader must be able to infer *how much* and *which sign* from a
