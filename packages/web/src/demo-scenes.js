@@ -160,3 +160,9 @@ export const demoBlocks = () => RESTING.map(([scene, time]) => ({
   id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0,
   title: scene.title, scene, time, selectedObject: null, marked: null,
 }));
+
+// Named review boards. ?board=<name> seeds exactly what is under review and
+// nothing else, so a visual check starts from an empty surface every time.
+// A name with no entry here is simply an empty board, which is the useful
+// default: adding a review board is adding one line.
+export const BOARDS = { demo: demoBlocks };

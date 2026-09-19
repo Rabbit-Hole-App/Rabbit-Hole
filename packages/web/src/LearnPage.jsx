@@ -20,7 +20,7 @@ import LearnPaper from './LearnPaper.jsx';
 import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from './learn-notes.js';
 import { challengePrompt, gradeAnswer } from './learn-grade.js';
 import { architectureLesson, sampleCourse } from './learn-preview.js';
-import { demoBlocks } from './demo-scenes.js';
+import { BOARDS } from './demo-scenes.js';
 
 const LearnNotes = lazy(() => import('./LearnNotes.jsx'));
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
@@ -107,17 +107,24 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // this browser so a refresh does not clear the canvas; a stream cut by a
   // refresh is kept as-is and marked done.
   const canvasKey = `small.adaptive-canvas:${app.org}:${app.email || app.owner_email}:${app.name}`;
-  // ?board=demo opens a SEPARATE board seeded with the authored demo scenes, so
-  // trying them out never touches the learner's own canvas. Its state persists
-  // under its own key, so edits there survive a reload and stay out of the way.
-  const demoBoard = new URLSearchParams(window.location.search).get('board') === 'demo';
+  // ?board=<name> opens a SEPARATE board under its own storage key, so trying
+  // something out never touches the learner's own canvas, and edits there
+  // survive a reload. A name listed in BOARDS seeds the scenes under review;
+  // any other name is an empty board to work in. The name is slugged rather
+  // than validated, because a rejected name would silently fall through to the
+  // learner's real canvas - the one place a test board must never land.
+  const named = new URLSearchParams(window.location.search).get('board');
+  const board = named ? named.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || 'test' : null;
+  // The chat cards live on the board too, so a review board that inherited
+  // the learner's conversation would not be the empty surface it promises.
+  const chatKey = `${canvasKey}${board ? `:${board}` : ''}:chat`;
   const [exchanges, setExchanges] = useState(() => {
-    try { return (JSON.parse(localStorage.getItem(`${canvasKey}:chat`) || '[]')).map(exchange => ({ ...exchange, status: 'done' })); } catch { return []; }
+    try { return (JSON.parse(localStorage.getItem(chatKey) || '[]')).map(exchange => ({ ...exchange, status: 'done' })); } catch { return []; }
   });
   useEffect(() => {
-    const timer = setTimeout(() => { try { localStorage.setItem(`${canvasKey}:chat`, JSON.stringify(exchanges)); } catch { /* full or blocked storage loses layout only */ } }, 400);
+    const timer = setTimeout(() => { try { localStorage.setItem(chatKey, JSON.stringify(exchanges)); } catch { /* full or blocked storage loses layout only */ } }, 400);
     return () => clearTimeout(timer);
-  }, [exchanges, canvasKey]);
+  }, [exchanges, chatKey]);
   const placeExchange = event => setExchanges(previous => {
     if (event.question !== undefined) return [...previous, { id: event.id, question: event.question, linkFrom: event.linkFrom || null, answer: '', status: 'thinking', dx: 0, dy: 0 }];
     return previous.map(exchange => exchange.id !== event.id ? exchange
@@ -521,7 +528,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {boardVisible && <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-2"><span>Agent explanation · lesson paused — keep asking, or resume when ready</span><div className="flex gap-2"><button type="button" disabled={!notesLoaded || answering} onClick={addNote} className="rounded border border-line-strong bg-white px-2.5 py-1 font-medium text-ink hover:bg-hover disabled:opacity-40">Save to notes</button><button type="button" onClick={() => { dismissBoard(); playback.current?.play(); }} className="rounded bg-ink px-2.5 py-1 font-medium text-white hover:opacity-90">Resume lesson</button></div></div>}
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
-        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} storageKey={demoBoard ? `${canvasKey}:demo` : `${canvasKey}:ink`} seedBlocks={demoBoard ? demoBlocks() : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
+        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} storageKey={board ? `${canvasKey}:${board}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
