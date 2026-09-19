@@ -979,6 +979,7 @@ says `identity: 'query'` and never a colour, a palette slot or an index.
 - `IDENTITY_PALETTE` in `scene-vocab.js`: categorical hues as `--viz-id-N` tokens, light and dark, each clearing 3:1 on both surfaces and each at least 60 RGB units from its neighbours. Six slots is enough to start; state the number.
 - Slots are assigned **in authored object order**, first-seen wins, computed at `validateScene` and carried on the evaluated object. Deterministic: the same scene always resolves the same way, so replay is unaffected.
 - With no identity, role picks the hue exactly as today. With an identity, the categorical palette picks the hue and **the role still governs fill tier, weight and ink.**
+- The resolved mapping is computed **once at validation** and reused everywhere in that scene. A repeated identity key always gets the same slot. **Do not promise cross-scene colour consistency** — that is a later decision, and claiming it now would be a promise the first-seen rule cannot keep.
 - Test: three objects sharing one role and differing only in identity resolve to three different hues and the same fill tier; the same scene evaluated twice gives the same slots; an object with no identity is unchanged from today.
 
 ---
@@ -1019,25 +1020,42 @@ activation deltas, errors, vector components.
 
 ---
 
-### Task D: Grid styling and contrast, through the tier system
+### Task D: Grid quantitative rendering, through the pure style layer
 
 **Files:** `scene-style.js`, `AnimatedScene.jsx`, tests.
 
-The grid bypasses `shapeStyle` and invents its own 4–63% heat and 20% lit. For a
-solid role like `observed`, band 60–100, none of those are in band — the
-non-overlap invariant this plan promised is violated three lines from the test
-that claims to guard it.
+**Corrected after the checkpoint decision.** This task originally bound heat inside
+the role's fill band. That is wrong, and the four-axis model says why: when a mark
+is quantitatively encoded, **VALUE owns the quantitative visual channel.** Forcing
+heat into a role band would make one axis compensate for another, and the solid
+band's 60–100 range would have left `observed` with a quarter of the dynamic range
+it needs.
 
-- `shapeStyle` exposes the resolved `fillBand`.
-- New `heatStyle({ role, state, value, mode, band })` maps a value **within the role's own band**, so non-overlap holds everywhere.
-- Cell ink is derived from the **effective fill**, not from `lit`: a contrast resolver picks a dark or light ink token from the actual background. No more unreadable numerals in the most saturated cells.
-- Test: for every role, every heat value lands inside that role's band — the grid path, not just `shapeStyle`. This is the test that should have existed and did not.
+The split:
 
-**Expect a dynamic-range problem and report it rather than hiding it.** The solid
-band spans 60–100, so a solid role's heat has a quarter the range of a soft
-role's. If heat becomes unreadable for `observed`, say so with a rendered example;
-the answer may be that the band widens or that heat-bearing objects take a soft
-role, and that is a decision to raise, not to make silently.
+| mark | fill comes from |
+|---|---|
+| ordinary categorical shape | identity hue if present, else role hue → role fill tier → state modulation |
+| quantitative heat cell | **VALUE** — intensity, or a signed diverging scale |
+
+ROLE and IDENTITY stay meaningful on a heat grid: they drive the matrix frame,
+its stroke, its labels and its legend, and the identity of the object as a whole.
+They simply do not drive the cell interiors.
+
+**Do not give a heatmap a soft role to make the picture work.** That corrupts the
+semantics to fix a rendering problem, which is the exact failure this model exists
+to prevent.
+
+- `shapeStyle` exposes the resolved `fillBand` for categorical marks; the non-overlap invariant continues to apply **there**, and only there.
+- New `heatStyle({ value, mode, extent })` in `scene-style.js` — pure, the quantitative channel. `magnitude` and `sequential` map into one ramp; `signed` maps negative through neutral to positive on a diverging scale the design system owns. The scene names the mode and never a colour.
+- **Ink is derived from the effective cell fill**, not from `lit`. A contrast resolver picks the readable ink token for the background actually rendered, so the most saturated cells stop being the least readable.
+- **No `tintOf()` escape path.** The renderer's data-shape branch currently calls `tintOf(role, …)` directly with its own 4–63% and 20% numbers, bypassing every tested invariant. After this task, grid, strip and bars take their fills from the style layer like everything else.
+
+Tests, and the last one is the one that should have existed already:
+
+- Under `signed`, equal-magnitude opposite-sign values resolve either side of neutral; under `magnitude` they are identical.
+- Ink flips to the light token once the effective fill passes the contrast threshold, and the pair clears 4.5:1 at every step of the ramp.
+- **No `tintOf(` call remains in `AnimatedScene.jsx` outside comments.** Read the source and assert it, the same way the role and table parity tests do. A quantitative channel that can be reached around is not a channel.
 
 ---
 
@@ -1055,6 +1073,23 @@ covariance, transition matrices, image patch grids.
 - Test: a grid with both label arrays evaluates carrying them; a length mismatch against `rows`/`cols` is refused at the gate with a message naming the expected count.
 
 ---
+
+## What to borrow from the reference, and what not to
+
+The Transformer Explainer is a Svelte app driving D3 and animated SVG gradients.
+**Do not copy its implementation architecture.** Borrow the capabilities: reusable
+matrices, vectors and token rows; quantitative scales; coordinated row and column
+selection; overview to expand to detail; real runtime values; semantic flow
+animation. Our implementation stays declarative and deterministic — a scene is
+data, and `getSceneState` is pure, total and silent. That is what makes scrubbing
+exact and replay possible, and it is worth more than any effect it costs us.
+
+**Backlog, not this phase:** a reusable `flow` / `flowPulse` action for showing
+information travelling along a static edge. Much of the reference's polish comes
+from animated gradients along its connections, and the capability generalises to
+VLM patch flow, MoE routing, world models, agents and robotics. It is a new action
+with a continuous visual, so it needs its own design pass against the Motion
+invariant rather than being squeezed into this one.
 
 ## Checkpoint gate — rerun the benchmark
 

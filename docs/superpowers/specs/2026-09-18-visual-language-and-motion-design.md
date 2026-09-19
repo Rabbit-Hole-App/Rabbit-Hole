@@ -107,6 +107,16 @@ N, candidate trajectories, encoder and decoder streams, attention heads, and any
 set of plotted series are all the same problem — peers of one kind that must stay
 distinguishable.
 
+**No axis compensates for another.** If a picture is failing, the fix is in the axis
+that owns the problem. Giving a heatmap a soft role to widen its dynamic range,
+or inventing a role to distinguish two peers, trades a rendering problem for a
+semantic lie and the lie outlives the frame that caused it.
+
+**VALUE owns the quantitative channel.** When a mark is quantitatively encoded —
+a heat cell, a diverging scale — the value drives its fill, and role and identity
+keep the frame, the stroke, the labels and the legend. Binding heat inside a
+role's fill band would be exactly the compensation the rule above forbids.
+
 **Where hue comes from.** With no identity, role picks the hue as before. With an
 identity, the categorical palette picks it and the role still governs fill tier,
 weight and ink. Two hue sources cannot both win, and identity is the more specific
