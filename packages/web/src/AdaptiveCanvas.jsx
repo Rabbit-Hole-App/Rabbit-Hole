@@ -52,9 +52,9 @@ const RAIL_INSET = 56;
 // looks like and what it says, so a deck or a lesson can be skimmed without the
 // canvas needing a tree underneath it.
 const SECTION_LEVELS = [
-  { level: 1, label: 'Add section', size: 28, weight: 650, placeholder: 'Section' },
-  { level: 2, label: 'Add sub-section', size: 21, weight: 600, placeholder: 'Sub-section' },
-  { level: 3, label: 'Add sub-sub-section', size: 17, weight: 550, placeholder: 'Sub-sub-section' },
+  { level: 1, label: 'Add section', size: 40, weight: 650, placeholder: 'Section' },
+  { level: 2, label: 'Add sub-section', size: 30, weight: 600, placeholder: 'Sub-section' },
+  { level: 3, label: 'Add sub-sub-section', size: 23, weight: 550, placeholder: 'Sub-sub-section' },
 ];
 const levelOf = block => SECTION_LEVELS.find(entry => entry.level === block.level) || SECTION_LEVELS[0];
 const POLYGONS = {
@@ -362,20 +362,23 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
 
 // The lesson-block picker. Used by the corner button, which appends, and by the
 // rail, which inserts at the gap you are pointing at.
-function BlockMenu({ className, filter, onFilter, onPick, onLevel = null }) {
+// What the rail's [...] offers: section depths and nothing else. Each is drawn at
+// the size it produces, so the choice is its own preview.
+function SectionMenu({ className, onLevel }) {
   return (
-    <div role="menu" aria-label="Lesson blocks" className={`absolute z-40 flex max-h-[70vh] w-52 flex-col overflow-hidden rounded-xl border border-line bg-white shadow-md ${className}`}>
-      {/* Each level is drawn at the size it will produce, so the choice is the
-          preview - no need to read "sub-sub" to know how deep it sits. */}
-      {onLevel && (
-        <div className="shrink-0 border-b border-line p-1">
-          {SECTION_LEVELS.map(entry => (
-            <button key={entry.level} type="button" role="menuitem" onClick={() => onLevel(entry.level)}
-              style={{ fontSize: Math.round(entry.size * 0.62), fontWeight: entry.weight }}
-              className="block w-full rounded-lg px-3 py-1 text-left leading-tight text-ink hover:bg-hover">{entry.label}</button>
-          ))}
-        </div>
-      )}
+    <div role="menu" aria-label="Insert a section" className={`absolute z-40 flex w-52 flex-col overflow-hidden rounded-xl border border-line bg-white p-1 shadow-md ${className}`}>
+      {SECTION_LEVELS.map(entry => (
+        <button key={entry.level} type="button" role="menuitem" onClick={() => onLevel(entry.level)}
+          style={{ fontSize: Math.round(entry.size * 0.62), fontWeight: entry.weight }}
+          className="block w-full rounded-lg px-3 py-1 text-left leading-tight text-ink hover:bg-hover">{entry.label}</button>
+      ))}
+    </div>
+  );
+}
+
+function BlockMenu({ className, filter, onFilter, onPick }) {
+  return (
+    <div role="menu" aria-label="Lesson blocks" className={`absolute z-40 flex max-h-[70vh] w-44 flex-col overflow-hidden rounded-xl border border-line bg-white shadow-md ${className}`}>
       <input type="search" autoFocus value={filter} onChange={event => onFilter(event.target.value)}
         aria-label="Filter blocks" placeholder="Filter…"
         className="m-1 h-7 shrink-0 rounded-lg border border-line px-2 text-xs outline-none focus:border-ink-3" />
@@ -396,7 +399,7 @@ function BlockMenu({ className, filter, onFilter, onPick, onLevel = null }) {
 // the blank canvas beside it. Press either as often as you like - [+] pushes the
 // pair apart, [-] pulls it together and then straight past flush into an
 // overlap, because the space is only a margin and margins go negative.
-function GapRail({ gap, zoom, span, space, adding, filter, onNudge, onAdding, onFilter, onAdd, onAddHeading }) {
+function GapRail({ gap, zoom, span, space, adding, onNudge, onAdding, onAddHeading }) {
   const chrome = 'flex h-6 items-center justify-center rounded-lg border border-line bg-white text-ink-2 shadow-md hover:bg-hover hover:text-ink';
   const button = (delta, Icon, label) => (
     <button type="button" aria-label={label} title={label} onClick={() => onNudge(gap.beforeId, delta)}
@@ -418,15 +421,12 @@ function GapRail({ gap, zoom, span, space, adding, filter, onNudge, onAdding, on
         {button(-SPACE_STEP, Minus, `Pull these cards together — ${space}px apart`)}
         {button(SPACE_STEP, Plus, `Push these cards apart — ${space}px apart`)}
         {/* Same dev gate as the corner button this came from. */}
-        {onAdd && (
-          <span className="relative">
-            <button type="button" aria-label="Insert here" title="Insert a section or a block in this gap" aria-expanded={adding}
-              onPointerDown={event => event.stopPropagation()} onClick={() => onAdding(!adding)}
-              className={`${chrome} w-6`}><Ellipsis size={14} strokeWidth={1.8} /></button>
-            {adding && <BlockMenu className="top-7 left-0" filter={filter} onFilter={onFilter}
-              onLevel={level => onAddHeading(level, gap.index + 1)} onPick={type => onAdd(type, gap.index + 1)} />}
-          </span>
-        )}
+        <span className="relative">
+          <button type="button" aria-label="Insert a section here" title="Insert a section in this gap" aria-expanded={adding}
+            onPointerDown={event => event.stopPropagation()} onClick={() => onAdding(!adding)}
+            className={`${chrome} w-6`}><Ellipsis size={14} strokeWidth={1.8} /></button>
+          {adding && <SectionMenu className="top-7 left-0" onLevel={level => onAddHeading(level, gap.index + 1)} />}
+        </span>
       </div>
     </div>
   );
@@ -1122,20 +1122,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     setShapes(previous => reorder(previous, targets, toFront));
     setItems(previous => reorder(previous, targets, toFront));
   };
-  // Appending lands a block below everything; inserting at a gap puts it into
-  // the column flow between two cards, so it needs no offset of its own.
-  const insertBlockAt = (type, index) => {
-    snapshot();
-    setBlocks(previous => [...previous.slice(0, index), { ...BLOCK_TYPES[type].sample(), dy: 0 }, ...previous.slice(index)]);
-    setGapAdding(false);
-    setInsertFilter('');
-  };
+  // Inserted into the column flow between two cards, so it needs no offset.
   const insertHeadingAt = (level, index) => {
     snapshot();
     const heading = { id: crypto.randomUUID(), type: 'heading', dx: 0, dy: 0, level, text: '' };
     setBlocks(previous => [...previous.slice(0, index), heading, ...previous.slice(index)]);
     setGapAdding(false);
-    setInsertFilter('');
   };
   const nudgeGap = (beforeId, delta) => {
     snapshot();
@@ -1265,8 +1257,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} />)}
         </div>
         {activeGap && <GapRail gap={activeGap} zoom={view.z} span={railSpan} space={blocks.find(block => block.id === activeGap.beforeId)?.space || 0} onNudge={nudgeGap}
-          adding={gapAdding} filter={insertFilter} onAdding={setGapAdding} onFilter={setInsertFilter}
-          onAdd={import.meta.env.VITE_COACHING_DEV === 'true' ? insertBlockAt : null} onAddHeading={insertHeadingAt} />}
+          adding={gapAdding} onAdding={setGapAdding} onAddHeading={insertHeadingAt} />}
         {/* Alignment guides, live only while something is being dragged. */}
         {!!guides.length && (
           <svg width="1" height="1" aria-hidden="true" className="pointer-events-none absolute top-0 left-0 z-30 overflow-visible">
