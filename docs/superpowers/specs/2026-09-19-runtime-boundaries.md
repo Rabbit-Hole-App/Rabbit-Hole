@@ -127,6 +127,17 @@ highlighting, expand and drill-down, quantitative colour scales.
 Each earns its place by serving more than the scene that motivated it. A component
 that can only draw attention is a scene with extra steps.
 
+## Backlog — migrate the remaining selectable marks to `SelectionMark`
+
+A.5d's D.2 built a generic two-tone selection overlay: `selectionStyle()` takes no
+arguments and returns the same two tokens always, so selection cannot inherit a
+hue from role, identity or value. Only the grid cell path calls it today.
+
+The box and circle `highlighted` halo still derives its colour from the role and
+carries the same latent bug — it will be invisible wherever the role colour
+matches what is behind it. **Migrate those paths when they are next touched**, not
+as a widening of a phase that has already passed its checkpoint.
+
 ## Backlog — `flowPulse`
 
 The reference gets much of its polish from animated gradients travelling along
