@@ -176,6 +176,25 @@ test('a blanked cell grows back from zero, never from null', () => {
   assert.deepEqual(getSceneState(built, 1).objects[0].values, [5]);
 });
 
+test('a change of quantity is a replacement, never a tween', () => {
+  const built = validateScene({
+    id: 'domains', duration: 6,
+    objects: [{ id: 'row', type: 'strip', initialState: { values: [2.3, 1.1, -0.4] } }],
+    timeline: [{ at: 2, action: 'replace_values', target: 'row', value: [0.72, 0.21, 0.07], duration: 1 }],
+  });
+  const at = time => getSceneState(built, time).objects[0].values;
+  assert.deepEqual(at(1.9), [2.3, 1.1, -0.4], 'before the switch, the old quantity');
+  assert.deepEqual(at(2.05), [0.72, 0.21, 0.07], 'at the switch, the new one');
+  assert.deepEqual(at(5), [0.72, 0.21, 0.07]);
+  // the whole point: no sampled moment may show a value from neither set
+  const legal = new Set([2.3, 1.1, -0.4, 0.72, 0.21, 0.07]);
+  for (let t = 0; t <= 6; t += 0.05) {
+    for (const value of at(Number(t.toFixed(2)))) {
+      assert.ok(legal.has(value), `t=${t.toFixed(2)} invented the value ${value}`);
+    }
+  }
+});
+
 test('an unset camera sits at the centre of the scene', () => {
   const built = validateScene({
     id: 'unset', duration: 2, width: 800, height: 400,

@@ -50,11 +50,17 @@ const EASINGS = ['linear', 'easeIn', 'easeOut', 'easeInOut', 'spring'];
 
 const eventSchema = z.object({
   at: z.number().min(0).max(600),
+  // Only interpolate when the intermediate values are mathematically
+  // meaningful: set_values eases within one quantity, so every step of the
+  // way is a real reading of it. replace_values swaps to a different
+  // quantity outright, because no value between the two is real - the
+  // mid-point of raw scores and the probabilities they become is not a
+  // score, not a probability, and not a thing that ever occurred.
   action: z.enum([
     'appear', 'disappear', 'move', 'resize', 'rotate', 'highlight', 'unhighlight',
     'draw_path', 'erase_path', 'change_text', 'type_text', 'change_value',
     'connect', 'disconnect', 'focus_camera', 'pan_camera', 'zoom_camera', 'pause',
-    'set_values', 'highlight_cell', 'sweep', 'emphasize',
+    'set_values', 'replace_values', 'highlight_cell', 'sweep', 'emphasize',
   ]),
   target: z.string().max(64).optional(),
   from: z.string().max(64).optional(),
@@ -153,11 +159,14 @@ export function validateScene(raw) {
     for (const key of ['target', 'from', 'to']) {
       if (event[key] && !ids.has(event[key])) throw new Error(`Timeline event at ${event.at}s refers to unknown object "${event[key]}"`);
     }
-    if (event.action === 'set_values') {
-      if (!event.target) throw new Error(`Timeline event at ${event.at}s: set_values needs a target`);
-      if (!Array.isArray(event.value)) throw new Error(`Timeline event at ${event.at}s: set_values needs an array of numbers`);
+    if (event.action === 'set_values' || event.action === 'replace_values') {
+      // A discrete switch still needs a real target and a real payload - the
+      // domains differ, but the refusals that keep set_values honest apply
+      // here for the same reasons, unrelated to whether it tweens.
+      if (!event.target) throw new Error(`Timeline event at ${event.at}s: ${event.action} needs a target`);
+      if (!Array.isArray(event.value)) throw new Error(`Timeline event at ${event.at}s: ${event.action} needs an array of numbers`);
       if (event.value.some(entry => entry !== null && !Number.isFinite(entry))) {
-        throw new Error(`Timeline event at ${event.at}s: set_values takes numbers or null, nothing else`);
+        throw new Error(`Timeline event at ${event.at}s: ${event.action} takes numbers or null, nothing else`);
       }
       // The object's own size is frozen from its authored values at build time
       // and the region hit-test reads that size, so a payload of a different
@@ -165,7 +174,7 @@ export function validateScene(raw) {
       const authored = byId.get(event.target)?.initialState.values;
       if (!authored) throw new Error(`Timeline event at ${event.at}s: "${event.target}" has no values to change`);
       if (event.value.length !== authored.length) {
-        throw new Error(`Timeline event at ${event.at}s: set_values sends ${event.value.length} values to "${event.target}", which holds ${authored.length}`);
+        throw new Error(`Timeline event at ${event.at}s: ${event.action} sends ${event.value.length} values to "${event.target}", which holds ${authored.length}`);
       }
     }
     // The camera schema bounds the scene's OPENING camera, but the events that
@@ -309,6 +318,12 @@ export function getSceneState(scene, time) {
           return from + (goal - from) * progress;
         });
       } break;
+      // A change of quantity, not a tween within one: the loop above already
+      // withholds this event until event.at has passed, so landing here means
+      // the switch is due. duration and easing are accepted on every event
+      // schema alike, but there is no honest mid-point to ease through, so
+      // they are read for every other action and never for this one.
+      case 'replace_values': if (object && Array.isArray(event.value)) object.values = [...event.value]; break;
       case 'highlight_cell': if (object) object.cellHighlight = progress > 0 ? event.value : null; break;
       case 'sweep': if (object) object.sweep = progress >= 1 ? null : progress; break;
       case 'emphasize': if (object) object.emphasis = progress; break;
