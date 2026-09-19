@@ -1076,20 +1076,26 @@ covariance, transition matrices, image patch grids.
 
 ## What to borrow from the reference, and what not to
 
-The Transformer Explainer is a Svelte app driving D3 and animated SVG gradients.
-**Do not copy its implementation architecture.** Borrow the capabilities: reusable
-matrices, vectors and token rows; quantitative scales; coordinated row and column
-selection; overview to expand to detail; real runtime values; semantic flow
-animation. Our implementation stays declarative and deterministic — a scene is
-data, and `getSceneState` is pure, total and silent. That is what makes scrubbing
-exact and replay possible, and it is worth more than any effect it costs us.
+The Transformer Explainer is a Svelte app driving D3, GSAP and ONNX Runtime Web.
+**Do not adopt its implementation stack.** It is evidence of capabilities our
+runtime should support, not an architecture to copy.
 
-**Backlog, not this phase:** a reusable `flow` / `flowPulse` action for showing
-information travelling along a static edge. Much of the reference's polish comes
-from animated gradients along its connections, and the capability generalises to
-VLM patch flow, MoE routing, world models, agents and robotics. It is a new action
-with a continuous visual, so it needs its own design pass against the Motion
-invariant rather than being squeezed into this one.
+The full decision record is
+[2026-09-19-runtime-boundaries.md](../specs/2026-09-19-runtime-boundaries.md).
+In short: Svelte no; D3 yes as a pure calculation layer that never owns DOM state;
+GSAP not for timing or state, and later only for renderer-local effects that stay
+reproducible from evaluator state; ONNX later as an execution adapter the
+visualization runtime does not depend on; shared semantic state in Plan B as
+declared inputs rather than component callbacks.
+
+What survives every borrowing: a scene is data, `getSceneState` is pure, total and
+silent, and the same time in gives the same state out.
+
+**Backlog, not this phase:** a reusable `flowPulse(edgeId)` action for information
+travelling along a static edge. It is a continuous visual, so it needs its own pass
+against the Motion invariant rather than being squeezed into a phase that is fixing
+something else. Not implemented during the five fixes unless the attention
+benchmark demonstrates it is necessary.
 
 ## Checkpoint gate — rerun the benchmark
 
