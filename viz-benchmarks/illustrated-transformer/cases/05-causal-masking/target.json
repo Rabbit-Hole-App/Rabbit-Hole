@@ -2,6 +2,7 @@
   "project": "illustrated-transformer",
   "case": "05-causal-masking",
   "status": "skeleton",
+  "referenceType": "not_captured",
   "source": "https://jalammar.github.io/illustrated-transformer/",
   "objective": "How a decoder prevents a position from attending to later positions, and what the masked score matrix looks like.",
   "scope": "Not yet extracted from the source. reference/ is empty until it is.",

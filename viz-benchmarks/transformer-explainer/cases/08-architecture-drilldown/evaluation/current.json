@@ -1,0 +1,12 @@
+{
+  "project": "transformer-explainer",
+  "case": "08-architecture-drilldown",
+  "iteration": 0,
+  "status": "not_run",
+  "scores": {},
+  "hardFails": [],
+  "failures": [],
+  "recommendedSystemChanges": [],
+  "imitationRisk": null,
+  "humanApproved": false
+}

@@ -2,6 +2,8 @@
   "project": "illustrated-transformer",
   "case": "01-self-attention-computation-flow",
   "status": "ready",
+  "referenceType": "synthetic_internal",
+  "referenceProvenance": "The PNGs in reference/ were created by us as benchmark reconstructions. They are NOT captures of The Illustrated Transformer. This case tests our own machinery and guards against regression; it is not evidence that we reproduced an existing visualization.",
   "source": "https://jalammar.github.io/illustrated-transformer/",
   "objective": "Teach how a token gains a context-aware representation through self-attention: tokens to Q/K/V to QK scores to softmax weights to weighted V to output.",
   "scope": "The unmasked self-attention computation flow. Causal masking is case 05 and is not visualised in this case reference material.",

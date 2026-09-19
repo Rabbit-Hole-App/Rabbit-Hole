@@ -1,0 +1,12 @@
+{
+  "project": "transformer-explainer",
+  "case": "04-multi-head-stacking",
+  "iteration": 0,
+  "status": "not_run",
+  "scores": {},
+  "hardFails": [],
+  "failures": [],
+  "recommendedSystemChanges": [],
+  "imitationRisk": null,
+  "humanApproved": false
+}

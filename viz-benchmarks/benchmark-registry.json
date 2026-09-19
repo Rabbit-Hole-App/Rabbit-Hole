@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 7,
   "rootInstructions": "AGENT-INSTRUCTIONS.md",
   "coreRule": "1:1 conceptual capability, intentionally non-1:1 visual appearance",
   "projects": [
@@ -19,7 +19,8 @@
             "matrix_operation",
             "zoom_drilldown",
             "process_scrubbing"
-          ]
+          ],
+          "referenceType": "synthetic_internal"
         },
         {
           "id": "02-qkv-projection",
@@ -27,7 +28,8 @@
           "objective": "How one token vector becomes separate query, key and value vectors, and why three roles are needed rather than one.",
           "patterns": [
             "flow"
-          ]
+          ],
+          "referenceType": "not_captured"
         },
         {
           "id": "03-attention-score-matrix",
@@ -35,7 +37,8 @@
           "objective": "How comparing every query against every key produces a score matrix, and what a cell in it means.",
           "patterns": [
             "matrix_operation"
-          ]
+          ],
+          "referenceType": "not_captured"
         },
         {
           "id": "04-softmax-attention-weights",
@@ -44,7 +47,8 @@
           "patterns": [
             "matrix_operation",
             "live_computation"
-          ]
+          ],
+          "referenceType": "not_captured"
         },
         {
           "id": "05-causal-masking",
@@ -52,7 +56,8 @@
           "objective": "How a decoder prevents a position from attending to later positions, and what the masked score matrix looks like.",
           "patterns": [
             "matrix_operation"
-          ]
+          ],
+          "referenceType": "not_captured"
         },
         {
           "id": "06-matrix-self-attention",
@@ -61,7 +66,8 @@
           "patterns": [
             "matrix_operation",
             "flow"
-          ]
+          ],
+          "referenceType": "not_captured"
         },
         {
           "id": "07-multi-head-attention",
@@ -70,7 +76,8 @@
           "patterns": [
             "routing",
             "flow"
-          ]
+          ],
+          "referenceType": "not_captured"
         },
         {
           "id": "08-transformer-block",
@@ -79,7 +86,8 @@
           "patterns": [
             "flow",
             "graphs"
-          ]
+          ],
+          "referenceType": "not_captured"
         },
         {
           "id": "09-encoder-decoder-attention",
@@ -88,7 +96,8 @@
           "patterns": [
             "flow",
             "coordinated_views"
-          ]
+          ],
+          "referenceType": "not_captured"
         },
         {
           "id": "10-positional-encoding",
@@ -97,7 +106,8 @@
           "patterns": [
             "live_computation",
             "matrix_operation"
-          ]
+          ],
+          "referenceType": "not_captured"
         }
       ],
       "candidatePatterns": [
@@ -109,17 +119,100 @@
     },
     {
       "id": "transformer-explainer",
-      "status": "skeleton",
-      "source": null,
+      "status": "ready",
+      "source": "https://poloclub.github.io/transformer-explainer/",
       "generatedFolderRequired": true,
       "humanReviewRequired": true,
-      "cases": [],
+      "cases": [
+        {
+          "id": "01-embedding-and-positional",
+          "status": "ready",
+          "referenceType": "external_real",
+          "objective": "Show text becoming tokens, each token becoming a vector by lookup, and position being added to it.",
+          "patterns": [
+            "flow",
+            "matrix_operation"
+          ]
+        },
+        {
+          "id": "02-qkv-projection",
+          "status": "ready",
+          "referenceType": "external_real",
+          "objective": "Show one embedding becoming three different vectors - query, key and value - through learned weights, with each keeping a stable identity.",
+          "patterns": [
+            "matrix_operation",
+            "flow"
+          ]
+        },
+        {
+          "id": "03-masked-attention-matrix",
+          "status": "ready",
+          "referenceType": "external_real",
+          "objective": "Show queries compared against keys to fill a score matrix, and that a position can only attend to itself and earlier positions - the matrix is triangular.",
+          "patterns": [
+            "matrix_operation"
+          ]
+        },
+        {
+          "id": "04-multi-head-stacking",
+          "status": "ready",
+          "referenceType": "external_real",
+          "objective": "Show that several heads run the same computation in parallel over the same input, and that one of them is being looked at while the others exist behind it.",
+          "patterns": [
+            "routing",
+            "flow"
+          ]
+        },
+        {
+          "id": "05-mlp-expansion",
+          "status": "ready",
+          "referenceType": "external_real",
+          "objective": "Show the representation widening into a larger hidden layer and being compressed back, and why the round trip is not a no-op.",
+          "patterns": [
+            "flow",
+            "matrix_operation"
+          ]
+        },
+        {
+          "id": "06-temperature-sampling",
+          "status": "blocked",
+          "referenceType": "external_real",
+          "objective": "Show a learner moving temperature and top-k and the probability distribution responding continuously.",
+          "patterns": [
+            "parameter_exploration",
+            "live_computation"
+          ],
+          "blocked_by": "input_axis"
+        },
+        {
+          "id": "07-output-probabilities",
+          "status": "ready",
+          "referenceType": "external_real",
+          "objective": "Show the final distribution over candidate next tokens, with magnitude readable before any number is read.",
+          "patterns": [
+            "live_computation",
+            "matrix_operation"
+          ]
+        },
+        {
+          "id": "08-architecture-drilldown",
+          "status": "blocked",
+          "referenceType": "external_real",
+          "objective": "Show the whole model at once, then one component expanded, without the learner losing where they were.",
+          "patterns": [
+            "zoom_drilldown"
+          ],
+          "blocked_by": "input_axis"
+        }
+      ],
       "candidatePatterns": [
         "parameter_exploration",
         "coordinated_views",
         "matrix_operation",
         "process_scrubbing"
-      ]
+      ],
+      "repository": "https://github.com/poloclub/transformer-explainer",
+      "licence": "MIT"
     },
     {
       "id": "brendan-bycroft-llm-visualization",
@@ -314,5 +407,14 @@
     "Archive a useful generated/latest/ to generated/history/vNNN/ before replacing it."
   ],
   "patternsFile": "patterns.json",
-  "coverageRule": "The suite is measured by which reusable visualization patterns have a ready case, never by how many cases exist. Start from cases that already have real reference material; add external references one project at a time."
+  "coverageRule": "The suite is measured by which reusable visualization patterns have a ready case, never by how many cases exist. Start from cases that already have real reference material; add external references one project at a time.",
+  "referenceTypes": {
+    "external_real": "Captured from an existing published visualization. Tests us against a proven system.",
+    "synthetic_internal": "Created by us. Tests our own machinery and guards regression. Never counts as external coverage.",
+    "not_captured": "No reference material yet."
+  },
+  "blockedPatterns": [
+    "parameter_exploration",
+    "coordinated_views"
+  ]
 }

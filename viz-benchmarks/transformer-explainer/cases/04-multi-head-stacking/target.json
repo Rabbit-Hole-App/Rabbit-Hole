@@ -1,0 +1,30 @@
+{
+  "project": "transformer-explainer",
+  "case": "04-multi-head-stacking",
+  "status": "ready",
+  "referenceType": "external_real",
+  "referenceProvenance": "Screenshots captured 2026-09-19 from the live Transformer Explainer (MIT). See ../../SOURCE.md for attribution.",
+  "source": "https://poloclub.github.io/transformer-explainer/",
+  "licence": "MIT",
+  "objective": "Show that several heads run the same computation in parallel over the same input, and that one of them is being looked at while the others exist behind it.",
+  "evaluationTarget": "semantic_and_pedagogical_parity",
+  "visualImitationTarget": false,
+  "patterns": [
+    "routing",
+    "flow"
+  ],
+  "constraints": {
+    "noCustomReact": true,
+    "noCustomCSS": true,
+    "noFreeformStyle": true,
+    "useExistingVocabularyOnly": true,
+    "noSceneSpecificRenderer": true,
+    "doNotCopyReferencePalette": true,
+    "doNotCopyReferenceTypography": true,
+    "doNotCopyReferenceNodeShapes": true,
+    "doNotCopyReferenceArrowStyle": true,
+    "doNotCopyReferenceCoordinates": true,
+    "doNotCopyReferenceWording": true,
+    "useLearnVisualLanguage": true
+  }
+}

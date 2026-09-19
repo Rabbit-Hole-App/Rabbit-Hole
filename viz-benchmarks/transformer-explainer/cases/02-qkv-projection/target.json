@@ -1,0 +1,30 @@
+{
+  "project": "transformer-explainer",
+  "case": "02-qkv-projection",
+  "status": "ready",
+  "referenceType": "external_real",
+  "referenceProvenance": "Screenshots captured 2026-09-19 from the live Transformer Explainer (MIT). See ../../SOURCE.md for attribution.",
+  "source": "https://poloclub.github.io/transformer-explainer/",
+  "licence": "MIT",
+  "objective": "Show one embedding becoming three different vectors - query, key and value - through learned weights, with each keeping a stable identity.",
+  "evaluationTarget": "semantic_and_pedagogical_parity",
+  "visualImitationTarget": false,
+  "patterns": [
+    "matrix_operation",
+    "flow"
+  ],
+  "constraints": {
+    "noCustomReact": true,
+    "noCustomCSS": true,
+    "noFreeformStyle": true,
+    "useExistingVocabularyOnly": true,
+    "noSceneSpecificRenderer": true,
+    "doNotCopyReferencePalette": true,
+    "doNotCopyReferenceTypography": true,
+    "doNotCopyReferenceNodeShapes": true,
+    "doNotCopyReferenceArrowStyle": true,
+    "doNotCopyReferenceCoordinates": true,
+    "doNotCopyReferenceWording": true,
+    "useLearnVisualLanguage": true
+  }
+}

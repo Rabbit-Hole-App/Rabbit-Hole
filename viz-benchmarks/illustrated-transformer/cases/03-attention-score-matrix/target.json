@@ -2,6 +2,7 @@
   "project": "illustrated-transformer",
   "case": "03-attention-score-matrix",
   "status": "skeleton",
+  "referenceType": "not_captured",
   "source": "https://jalammar.github.io/illustrated-transformer/",
   "objective": "How comparing every query against every key produces a score matrix, and what a cell in it means.",
   "scope": "Not yet extracted from the source. reference/ is empty until it is.",

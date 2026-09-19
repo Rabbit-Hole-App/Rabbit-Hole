@@ -2,6 +2,7 @@
   "project": "illustrated-transformer",
   "case": "07-multi-head-attention",
   "status": "skeleton",
+  "referenceType": "not_captured",
   "source": "https://jalammar.github.io/illustrated-transformer/",
   "objective": "How several attention heads run in parallel over the same input and are recombined into one output.",
   "scope": "Not yet extracted from the source. reference/ is empty until it is.",

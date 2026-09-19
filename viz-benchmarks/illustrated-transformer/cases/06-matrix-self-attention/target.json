@@ -2,6 +2,7 @@
   "project": "illustrated-transformer",
   "case": "06-matrix-self-attention",
   "status": "skeleton",
+  "referenceType": "not_captured",
   "source": "https://jalammar.github.io/illustrated-transformer/",
   "objective": "The same computation expressed once over whole matrices instead of per token.",
   "scope": "Not yet extracted from the source. reference/ is empty until it is.",

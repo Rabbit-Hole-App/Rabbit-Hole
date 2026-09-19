@@ -1,0 +1,30 @@
+{
+  "project": "transformer-explainer",
+  "case": "05-mlp-expansion",
+  "status": "ready",
+  "referenceType": "external_real",
+  "referenceProvenance": "Screenshots captured 2026-09-19 from the live Transformer Explainer (MIT). See ../../SOURCE.md for attribution.",
+  "source": "https://poloclub.github.io/transformer-explainer/",
+  "licence": "MIT",
+  "objective": "Show the representation widening into a larger hidden layer and being compressed back, and why the round trip is not a no-op.",
+  "evaluationTarget": "semantic_and_pedagogical_parity",
+  "visualImitationTarget": false,
+  "patterns": [
+    "flow",
+    "matrix_operation"
+  ],
+  "constraints": {
+    "noCustomReact": true,
+    "noCustomCSS": true,
+    "noFreeformStyle": true,
+    "useExistingVocabularyOnly": true,
+    "noSceneSpecificRenderer": true,
+    "doNotCopyReferencePalette": true,
+    "doNotCopyReferenceTypography": true,
+    "doNotCopyReferenceNodeShapes": true,
+    "doNotCopyReferenceArrowStyle": true,
+    "doNotCopyReferenceCoordinates": true,
+    "doNotCopyReferenceWording": true,
+    "useLearnVisualLanguage": true
+  }
+}

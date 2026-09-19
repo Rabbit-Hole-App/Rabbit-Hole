@@ -2,6 +2,7 @@
   "project": "illustrated-transformer",
   "case": "04-softmax-attention-weights",
   "status": "skeleton",
+  "referenceType": "not_captured",
   "source": "https://jalammar.github.io/illustrated-transformer/",
   "objective": "How raw scores become normalised attention weights, and how those weights select a blend of values.",
   "scope": "Not yet extracted from the source. reference/ is empty until it is.",

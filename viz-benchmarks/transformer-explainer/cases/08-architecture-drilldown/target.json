@@ -1,0 +1,31 @@
+{
+  "project": "transformer-explainer",
+  "case": "08-architecture-drilldown",
+  "status": "blocked",
+  "referenceType": "external_real",
+  "referenceProvenance": "Screenshots captured 2026-09-19 from the live Transformer Explainer (MIT). See ../../SOURCE.md for attribution.",
+  "source": "https://poloclub.github.io/transformer-explainer/",
+  "licence": "MIT",
+  "objective": "Show the whole model at once, then one component expanded, without the learner losing where they were.",
+  "evaluationTarget": "semantic_and_pedagogical_parity",
+  "visualImitationTarget": false,
+  "patterns": [
+    "zoom_drilldown"
+  ],
+  "constraints": {
+    "noCustomReact": true,
+    "noCustomCSS": true,
+    "noFreeformStyle": true,
+    "useExistingVocabularyOnly": true,
+    "noSceneSpecificRenderer": true,
+    "doNotCopyReferencePalette": true,
+    "doNotCopyReferenceTypography": true,
+    "doNotCopyReferenceNodeShapes": true,
+    "doNotCopyReferenceArrowStyle": true,
+    "doNotCopyReferenceCoordinates": true,
+    "doNotCopyReferenceWording": true,
+    "useLearnVisualLanguage": true
+  },
+  "blocked_by": "input_axis",
+  "blockedReason": "Needs a learner input that changes the picture. The runtime has no input axis until Plan B, so running this would measure something that does not exist. The reference is captured now; the run waits."
+}

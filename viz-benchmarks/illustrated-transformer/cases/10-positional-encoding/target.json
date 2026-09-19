@@ -2,6 +2,7 @@
   "project": "illustrated-transformer",
   "case": "10-positional-encoding",
   "status": "skeleton",
+  "referenceType": "not_captured",
   "source": "https://jalammar.github.io/illustrated-transformer/",
   "objective": "How order is injected into a model that is otherwise order-free.",
   "scope": "Not yet extracted from the source. reference/ is empty until it is.",

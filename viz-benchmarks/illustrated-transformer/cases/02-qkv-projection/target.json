@@ -2,6 +2,7 @@
   "project": "illustrated-transformer",
   "case": "02-qkv-projection",
   "status": "skeleton",
+  "referenceType": "not_captured",
   "source": "https://jalammar.github.io/illustrated-transformer/",
   "objective": "How one token vector becomes separate query, key and value vectors, and why three roles are needed rather than one.",
   "scope": "Not yet extracted from the source. reference/ is empty until it is.",

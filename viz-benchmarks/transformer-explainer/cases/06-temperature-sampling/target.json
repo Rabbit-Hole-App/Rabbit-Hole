@@ -1,0 +1,32 @@
+{
+  "project": "transformer-explainer",
+  "case": "06-temperature-sampling",
+  "status": "blocked",
+  "referenceType": "external_real",
+  "referenceProvenance": "Screenshots captured 2026-09-19 from the live Transformer Explainer (MIT). See ../../SOURCE.md for attribution.",
+  "source": "https://poloclub.github.io/transformer-explainer/",
+  "licence": "MIT",
+  "objective": "Show a learner moving temperature and top-k and the probability distribution responding continuously.",
+  "evaluationTarget": "semantic_and_pedagogical_parity",
+  "visualImitationTarget": false,
+  "patterns": [
+    "parameter_exploration",
+    "live_computation"
+  ],
+  "constraints": {
+    "noCustomReact": true,
+    "noCustomCSS": true,
+    "noFreeformStyle": true,
+    "useExistingVocabularyOnly": true,
+    "noSceneSpecificRenderer": true,
+    "doNotCopyReferencePalette": true,
+    "doNotCopyReferenceTypography": true,
+    "doNotCopyReferenceNodeShapes": true,
+    "doNotCopyReferenceArrowStyle": true,
+    "doNotCopyReferenceCoordinates": true,
+    "doNotCopyReferenceWording": true,
+    "useLearnVisualLanguage": true
+  },
+  "blocked_by": "input_axis",
+  "blockedReason": "Needs a learner input that changes the picture. The runtime has no input axis until Plan B, so running this would measure something that does not exist. The reference is captured now; the run waits."
+}
