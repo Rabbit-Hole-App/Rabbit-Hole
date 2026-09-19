@@ -1047,7 +1047,15 @@ semantics to fix a rendering problem, which is the exact failure this model exis
 to prevent.
 
 - `shapeStyle` exposes the resolved `fillBand` for categorical marks; the non-overlap invariant continues to apply **there**, and only there.
-- New `heatStyle({ value, mode, extent })` in `scene-style.js` — pure, the quantitative channel. `magnitude` and `sequential` map into one ramp; `signed` maps negative through neutral to positive on a diverging scale the design system owns. The scene names the mode and never a colour.
+- New `heatStyle()` in `scene-style.js` — pure, dependency-free, and it returns **tokens, never colours**, so theme resolution stays CSS-side:
+
+```text
+value + domain + heatMode + semantic tokens  ->  { fillToken, mixPercent, inkToken }
+```
+
+  The renderer composes the `color-mix` from those three. Do **not** add D3 for this: its colour interpolators want concrete values in JavaScript, and resolving tokens to hex at evaluation time would lose the property that a scene re-skins itself when the learner switches appearance. A diverging scale here is a value-to-percentage mapping plus a token choice, which is arithmetic. D3 earns its place later, at axes, curves, path geometry and deterministic layout.
+
+- `heatStyle` in detail — pure, the quantitative channel. `magnitude` and `sequential` map into one ramp; `signed` maps negative through neutral to positive on a diverging scale the design system owns. The scene names the mode and never a colour.
 - **Ink is derived from the effective cell fill**, not from `lit`. A contrast resolver picks the readable ink token for the background actually rendered, so the most saturated cells stop being the least readable.
 - **No `tintOf()` escape path.** The renderer's data-shape branch currently calls `tintOf(role, …)` directly with its own 4–63% and 20% numbers, bypassing every tested invariant. After this task, grid, strip and bars take their fills from the style layer like everything else.
 
@@ -1096,6 +1104,17 @@ travelling along a static edge. It is a continuous visual, so it needs its own p
 against the Motion invariant rather than being squeezed into a phase that is fixing
 something else. Not implemented during the five fixes unless the attention
 benchmark demonstrates it is necessary.
+
+## Task D gates Task A
+
+Run D before A, and **look at the result before starting A**. If signed heat,
+contrast or fill behaviour is still visually weak after D, fix that first.
+Categorical identity colours would otherwise mask a broken quantitative channel:
+a matrix whose cells are the wrong intensity still looks lively once Q, K and V
+are three different hues, and the defect survives into every later scene.
+
+Identity is the more visible change and the more satisfying one to ship. That is
+exactly why it goes last.
 
 ## Checkpoint gate — rerun the benchmark
 

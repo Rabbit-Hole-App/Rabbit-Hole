@@ -10,10 +10,22 @@ are not architectures to adopt. The thing that must survive every borrowing:
 declarative scene spec  →  pure deterministic evaluator  →  generic renderer
 ```
 
-`getSceneState(scene, t, inputs, derived)` stays authoritative. Same time in, same
-state out, with no renderer involved. That is what makes scrubbing exact, replay
-possible and screenshots reproducible, and it is worth more than any effect it
-costs us.
+The evaluator stays authoritative. Same time in, same state out, with no renderer
+involved — that is what makes scrubbing exact, replay possible and screenshots
+reproducible, and it is worth more than any effect it costs us.
+
+**Do not read the target shape as the current one.**
+
+| | signature |
+|---|---|
+| **Today** | `getSceneState(scene, t)` |
+| **Target, after Plan B** | `evaluateScene(scene, t, rawInputs) -> { inputs, derived, state }` |
+
+Nothing in A.5d changes the evaluator's arity. The target shape is what the
+boundaries below protect, and the input axis is what introduces it: raw inputs
+coerced once, a named derive seam producing `derived`, and `state` evaluated from
+both. Code written now should not assume the second form exists, and code written
+now must not make the second form harder to reach.
 
 ## The stack decisions
 
@@ -45,8 +57,25 @@ scene re-skins itself when the learner switches appearance**. So D3's colour
 interpolators are the one part we should not reach for; the diverging heat scale
 is a value-to-percentage mapping plus a token choice, which is arithmetic.
 
+**The pure boundary that keeps theme resolution CSS-side.** A quantitative style
+resolver takes values and tokens and returns tokens — never a resolved colour:
+
+```text
+value + domain + heatMode + semantic tokens
+        ↓
+     heatStyle()
+        ↓
+{ fillToken, mixPercent, inkToken }
+```
+
+The renderer composes `color-mix(in srgb, var(<fillToken>) <mixPercent>%, transparent)`
+and the browser resolves it per theme. Nothing in the evaluator or the style layer
+ever holds a hex value, so a scene re-skins itself on an appearance change without
+being re-evaluated.
+
 Where D3 will genuinely earn its place: axis generation, curve and path geometry,
-and layout that is deterministic. Add it when one of those lands, not before.
+scales with non-trivial ticks, and deterministic layout. Add it when one of those
+lands — not to be able to say we use D3.
 
 ### GSAP — renderer-local presentation only
 
