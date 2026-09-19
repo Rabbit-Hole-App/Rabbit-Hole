@@ -6,7 +6,7 @@ import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './a
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-sound.js';
 import { GEOMETRY } from './scene-vocab.js';
-import { roleVar, shapeStyle, textStyle, tintOf } from './scene-style.js';
+import { heatStyle, roleVar, shapeStyle, textStyle } from './scene-style.js';
 
 // Live playback of an animation spec. The evaluator owns what the frame looks
 // like at time t; this only draws it and owns the transport. Learner ink is a
@@ -52,36 +52,47 @@ function DataShape({ object, role, pop }) {
     const cell = object.cell || GEOMETRY.cellPitch;
     const columns = object.type === 'strip' ? (object.values?.length || 0) : (object.cols || 1);
     const rows = object.type === 'strip' ? 1 : (object.rows || 1);
-    // A heat grid reads as a distribution: fill carries the value, so the shape
-    // is visible before a single numeral is read. Percent, not a hex alpha
-    // channel - tintOf's color-mix takes 0-100, same curve as before.
-    const hottest = object.heat ? Math.max(...(object.values || []).map(entry => Math.abs(entry ?? 0)), 0.0001) : 0;
-    const heatPercent = value => {
-      if (!object.heat || value == null) return 4;
-      const share = Math.min(1, Math.abs(value) / hottest);
-      return Math.round(4 + share * 59);
-    };
+    const heatMode = object.heat?.mode;
+    // A heat grid reads as a distribution: fill carries the value, so the
+    // shape is visible before a single numeral is read. The domain is the
+    // object's own authored values, not a fixed range, so a strip of small
+    // numbers spends just as much of the ramp as one of large ones.
+    const domain = heatMode ? (object.values || []).reduce(
+      (range, entry) => entry == null ? range : { min: Math.min(range.min, entry), max: Math.max(range.max, entry) },
+      { min: Infinity, max: -Infinity },
+    ) : null;
     const cells = [];
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
         const index = row * columns + column;
         const value = object.values?.[index];
         const lit = marked(object, row, column, index);
+        // A blocked or not-yet-measured cell is a different fact than a real
+        // small value, so it never reaches heatStyle - it reads as the role's
+        // own muted band, the same look "blocked" already has everywhere else.
+        // State (lit) only ever moves the ring below, never this fill: value
+        // owns the fill outright, even while the cell is selected.
+        const blocked = heatMode && value == null;
+        const look = shapeStyle(role, blocked ? { blocked: true } : { highlighted: lit });
+        const heat = heatMode && value != null ? heatStyle(value, domain, heatMode, role) : null;
+        const fill = heat ? `color-mix(in srgb, var(--viz-${heat.fillToken}) ${heat.mixPercent}%, transparent)` : look.fill;
+        const ink = heat ? heat.inkToken : (lit ? 'var(--color-ink)' : 'var(--color-ink-2)');
         // Motion may spring a value only while that value is discrete. A heat
         // fill is a continuous function of the cell's number, so it is painted
-        // exactly (style); a binary lit/unlit fill keeps its pop (animate).
-        const springs = { stroke: lit ? roleVar(role) : tintOf(role, 20), strokeWidth: lit ? 1.4 : 0.6 };
-        const fill = tintOf(role, lit ? 20 : heatPercent(value));
+        // exactly (style); the ring is still a binary lit/unlit state and
+        // keeps its pop (animate). The ring's colour is always roleVar - a
+        // stroke is identity, not a quantity, and never competes with heat.
+        const ring = { stroke: look.stroke, strokeWidth: look.strokeWidth };
         cells.push(
           <g key={index}>
             <motion.rect x={object.x + column * cell} y={object.y + row * cell} width={cell} height={cell}
-              style={object.heat ? { fill } : undefined}
-              animate={object.heat ? springs : { fill, ...springs }}
+              style={heat ? { fill } : undefined}
+              animate={heat ? ring : { fill, ...ring }}
               transition={pop} />
             {value != null && cell >= 22 && (
               <text x={object.x + column * cell + cell / 2} y={object.y + row * cell + cell / 2}
                 textAnchor="middle" dominantBaseline="central" fontSize={Math.min(numeral.fontSize, cell * 0.42)} fontWeight={numeral.fontWeight}
-                style={{ fontFamily: MONO, fill: lit ? 'var(--color-ink)' : 'var(--color-ink-2)' }}>{num(value)}</text>
+                style={{ fontFamily: MONO, fill: ink }}>{num(value)}</text>
             )}
           </g>,
         );
@@ -121,14 +132,18 @@ function DataShape({ object, role, pop }) {
     const height = object.h || GEOMETRY.barHeight;
     return (
       <g>
-        <line x1={object.x} y1={object.y + height} x2={object.x + (object.w || 0)} y2={object.y + height} style={{ stroke: tintOf(role, 33) }} strokeWidth="1.5" />
+        <line x1={object.x} y1={object.y + height} x2={object.x + (object.w || 0)} y2={object.y + height} style={{ stroke: roleVar(role) }} strokeWidth="1.5" />
         {values.map((value, index) => {
           const tall = value == null ? 0 : Math.min(height - 4, Math.max(1, (Math.abs(value) / peak) * (height - 4)));
           const lit = marked(object, 0, index, index) || (object.cellHighlight === 'max' && value != null && value === Math.max(...values.map(entry => entry ?? -Infinity)));
+          // Categorical, not value-encoded - a bar's height already carries
+          // the number, so its fill is state (is this the one being pointed
+          // at) and lands in the role's own band like every other shape.
+          const look = shapeStyle(role, { chosen: lit });
           return (
             <motion.g key={index} animate={{ scale: lit ? 1.06 : 1 }} transition={pop} style={fromCentre}>
               <motion.rect x={object.x + index * GEOMETRY.barWidth + BAR_GAP / 2} y={object.y + height - tall} width={GEOMETRY.barWidth - BAR_GAP} height={tall}
-                rx={4} animate={{ fill: lit ? roleVar(role) : tintOf(role, 35) }} transition={pop} />
+                rx={4} animate={{ fill: look.fill }} transition={pop} />
               {object.labels?.[index] && (
                 <text x={object.x + index * GEOMETRY.barWidth + GEOMETRY.barWidth / 2} y={object.y + height + 12} textAnchor="middle"
                   fontSize={numeral.fontSize} fontWeight={numeral.fontWeight} style={{ fontFamily: MONO, fill: lit ? 'var(--color-ink)' : 'var(--color-ink-3)' }}>{object.labels[index]}</text>
@@ -154,10 +169,11 @@ function DataShape({ object, role, pop }) {
         const x = object.x + offset;
         offset += width + CHIP_GAP;
         const lit = marked(object, 0, index, index);
+        const look = shapeStyle(role, { highlighted: lit });
         return (
           <motion.g key={index} animate={{ scale: lit ? 1.12 : 1, y: lit ? -3 : 0 }} transition={pop} style={fromCentre}>
             <motion.rect x={x} y={object.y} width={width} height={GEOMETRY.chipHeight} rx={8}
-              animate={{ fill: lit ? tintOf(role, 20) : tintOf(role, 7), strokeWidth: lit ? 1.8 : 0.9 }} style={{ stroke: roleVar(role) }} transition={pop} />
+              animate={{ fill: look.fill, strokeWidth: look.strokeWidth }} style={{ stroke: look.stroke }} transition={pop} />
             <text x={x + width / 2} y={object.y + GEOMETRY.chipHeight / 2} textAnchor="middle" dominantBaseline="central"
               fontSize={numeral.fontSize} fontWeight={numeral.fontWeight} style={{ fontFamily: MONO, fill: 'var(--color-ink)' }}>{token}</text>
           </motion.g>

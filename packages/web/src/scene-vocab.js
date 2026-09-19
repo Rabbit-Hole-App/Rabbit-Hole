@@ -76,3 +76,21 @@ export const HEAT_MODES = Object.freeze(['magnitude', 'signed', 'sequential']);
 // protanopia, deuteranopia and tritanopia - see index.css for the values and
 // their measured contrast against --viz-surface.
 export const HEAT_DIVERGING = Object.freeze(['heat-negative', 'heat-midpoint', 'heat-positive']);
+
+// Heat can't ask the browser what a mix actually rendered to - the fill is a
+// custom property, resolved after this code has run - so each token that
+// heatStyle can choose as a fill declares, beside its name, the mix percentage
+// above which its companion ink (--viz-on-<token> in index.css) beats the page
+// ink. A token missing here has no companion: heatStyle leaves it on the page
+// ink at every mix, the same fallback shapeStyle's inkOn already gives a
+// non-solid role. One number per token, not per theme - heatStyle only ever
+// produces mixPercent values from two measured-safe bands (see scene-style.js),
+// so any threshold between them classifies every value the same way in both
+// themes at once.
+export const HEAT_INK_FLIP = Object.freeze({
+  observed: 60,
+  success: 60,
+  'heat-negative': 60,
+  'heat-midpoint': 60,
+  'heat-positive': 60,
+});

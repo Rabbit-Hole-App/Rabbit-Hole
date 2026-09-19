@@ -76,6 +76,15 @@ html {
   --viz-heat-negative: #1a56c4;
   --viz-heat-midpoint: #655e73;
   --viz-heat-positive: #a85400;
+  /* Heat's own companion inks - same idea as --viz-on-observed above, but for
+     a fill whose mix percentage ranges far below the solid band. Each token's
+     colour sits at a middling luminance, so a blended mid-mix leaves neither
+     ink at 4.5:1 against it - white is only safe once the mix is heavy enough
+     to read as this token's own colour, which is what scene-style.js's
+     HEAT_INK_FLIP threshold is timed to. */
+  --viz-on-heat-negative: #ffffff;
+  --viz-on-heat-midpoint: #ffffff;
+  --viz-on-heat-positive: #ffffff;
 }
 
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
@@ -120,6 +129,13 @@ html {
   --viz-heat-negative: #6fb1ff;
   --viz-heat-midpoint: #b0a8c0;
   --viz-heat-positive: #f0a94e;
+  /* Dark companion inks - matches --viz-surface, same convention as
+     --viz-on-observed/--viz-on-success above: once the mix is heavy the fill
+     approaches its own light-on-dark colour, and the surface's own dark reads
+     best on top of it. */
+  --viz-on-heat-negative: #1f1f1f;
+  --viz-on-heat-midpoint: #1f1f1f;
+  --viz-on-heat-positive: #1f1f1f;
 }
 .dark [class*='bg-accent'],
 .dark [class*='bg-danger'] {
