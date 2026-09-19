@@ -56,10 +56,16 @@ export function inkOn(role) {
   return ROLE_FILL[role] === 'solid' ? `var(--viz-on-${role})` : 'var(--color-ink)';
 }
 
-export function shapeStyle(role, state = {}) {
+// defaultTier only ever weakens the fallback FILL uses for a role ROLE_FILL
+// doesn't name - an explicit ROLE_FILL entry (the loud four) always wins. A
+// comparison mark like a bar chart needs its resting bars to still read as
+// bars; the soft tier's 6-28 band was tuned for a passive shape like a box,
+// not a value a learner is meant to compare at a glance. See its one caller
+// in AnimatedScene.jsx's bars, which is the mark this is for.
+export function shapeStyle(role, state = {}, defaultTier = 'soft') {
   const matched = STATE_PRIORITY.find(name => state[name]);
   const { step, strokeWidth } = matched ? STATE_STYLE[matched] : RESTING;
-  const band = FILL[ROLE_FILL[role]] ?? FILL.soft;
+  const band = FILL[ROLE_FILL[role] ?? defaultTier] ?? FILL.soft;
   // Exposed so a caller can prove its own fill landed in this band, rather
   // than trusting that it did - see the grid-path test in scene-style.test.mjs,
   // which is exactly the test that was missing.

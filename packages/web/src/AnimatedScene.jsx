@@ -139,7 +139,10 @@ function DataShape({ object, role, pop }) {
           // Categorical, not value-encoded - a bar's height already carries
           // the number, so its fill is state (is this the one being pointed
           // at) and lands in the role's own band like every other shape.
-          const look = shapeStyle(role, { chosen: lit });
+          // 'strong' is the fallback tier, not 'soft': a resting bar still
+          // has to read as a bar, which the soft band's 6-28 does not - see
+          // shapeStyle's comment.
+          const look = shapeStyle(role, { chosen: lit }, 'strong');
           return (
             <motion.g key={index} animate={{ scale: lit ? 1.06 : 1 }} transition={pop} style={fromCentre}>
               <motion.rect x={object.x + index * GEOMETRY.barWidth + BAR_GAP / 2} y={object.y + height - tall} width={GEOMETRY.barWidth - BAR_GAP} height={tall}

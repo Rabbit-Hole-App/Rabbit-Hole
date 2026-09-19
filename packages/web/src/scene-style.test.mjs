@@ -141,6 +141,20 @@ test('every state still lands inside its own role band', () => {
   }
 });
 
+// Bars asked for a stronger fallback than soft (see shapeStyle's comment and
+// AnimatedScene.jsx's bars) - an explicit ROLE_FILL entry must still win, and
+// the invariant above must still hold for whichever band actually gets used.
+test('a caller may raise the fallback tier, but an explicit ROLE_FILL entry always wins', () => {
+  for (const role of ROLES) {
+    const band = FILL[ROLE_FILL[role] ?? 'strong'];
+    const { fill, fillBand } = shapeStyle(role, {}, 'strong');
+    assert.deepEqual(fillBand, band);
+    const percent = fill === roleVar(role) ? 100 : Number(fill.match(/ (\d+)%/)?.[1]);
+    assert.ok(band.includes(percent), `${role} with a 'strong' fallback gave ${percent}, outside ${band.join('/')}`);
+  }
+  assert.deepEqual(shapeStyle('observed', {}, 'strong').fillBand, FILL.solid, 'observed is explicit in ROLE_FILL - the fallback must not override it');
+});
+
 // This is the test that should have existed and did not: the grid path never
 // called shapeStyle, so the non-overlap invariant above was never actually
 // exercised against what a learner sees. Blocked and highlighted are exactly
