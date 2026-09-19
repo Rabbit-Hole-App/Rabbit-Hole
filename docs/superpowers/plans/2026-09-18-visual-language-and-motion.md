@@ -1055,7 +1055,7 @@ value + domain + heatMode + semantic tokens  ->  { fillToken, mixPercent, inkTok
 
   The renderer composes the `color-mix` from those three. Do **not** add D3 for this: its colour interpolators want concrete values in JavaScript, and resolving tokens to hex at evaluation time would lose the property that a scene re-skins itself when the learner switches appearance. A diverging scale here is a value-to-percentage mapping plus a token choice, which is arithmetic. D3 earns its place later, at axes, curves, path geometry and deterministic layout.
 
-- `heatStyle` in detail — pure, the quantitative channel. `magnitude` and `sequential` map into one ramp; `signed` maps negative through neutral to positive on a diverging scale the design system owns. The scene names the mode and never a colour.
+- The modes: `magnitude` and `sequential` map into one ramp; `signed` maps negative through neutral to positive on a diverging scale the design system owns. The scene names the mode and never a colour.
 - **Ink is derived from the effective cell fill**, not from `lit`. A contrast resolver picks the readable ink token for the background actually rendered, so the most saturated cells stop being the least readable.
 - **No `tintOf()` escape path.** The renderer's data-shape branch currently calls `tintOf(role, …)` directly with its own 4–63% and 20% numbers, bypassing every tested invariant. After this task, grid, strip and bars take their fills from the style layer like everything else.
 
