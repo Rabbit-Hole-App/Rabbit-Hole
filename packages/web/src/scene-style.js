@@ -2,16 +2,30 @@
 // vocabulary, so it never needs to know about the renderer or the evaluator.
 // Colour comes from role alone; state modulates weight and fill strength,
 // never hue - see docs/superpowers/specs/2026-09-18-visual-language-and-motion-design.md.
-import { FILL, HEAT_INK_ZONES, HEAT_SCALE, ROLES, ROLE_FILL } from './scene-vocab.js';
+import { FILL, HEAT_INK_ZONES, HEAT_SCALE, IDENTITY_SLOTS, ROLES, ROLE_FILL } from './scene-vocab.js';
 
 export function roleVar(role) {
   return ROLES.includes(role) ? `var(--viz-${role})` : 'var(--viz-neutral)';
 }
 
-export function tintOf(role, percent) {
+// IDENTITY's own resolver, mirroring roleVar - but with no fallback, because
+// "no identity" and "an unrecognised identity" are the same fact: there is no
+// hue to hand back, so the caller falls back to role's own (see shapeStyle).
+export function identityVar(slot) {
+  return IDENTITY_SLOTS.includes(slot) ? `var(--viz-${slot})` : null;
+}
+
+// Shared by tintOf and shapeStyle: a colour-mix against a resolved hue
+// reference, not a role name - shapeStyle needs to tint whichever hue won
+// (role's or identity's), and tintOf below is just this called with role's.
+function tintHue(hue, percent) {
   if (percent === 0) return 'transparent';
-  if (percent === 100) return roleVar(role);
-  return `color-mix(in srgb, ${roleVar(role)} ${percent}%, transparent)`;
+  if (percent === 100) return hue;
+  return `color-mix(in srgb, ${hue} ${percent}%, transparent)`;
+}
+
+export function tintOf(role, percent) {
+  return tintHue(roleVar(role), percent);
 }
 
 const TEXT_STYLE = {
@@ -62,14 +76,23 @@ export function inkOn(role) {
 // bars; the soft tier's 6-28 band was tuned for a passive shape like a box,
 // not a value a learner is meant to compare at a glance. See its one caller
 // in AnimatedScene.jsx's bars, which is the mark this is for.
-export function shapeStyle(role, state = {}, defaultTier = 'soft') {
+// identitySlot defaults to null so every existing 2- and 3-arg call site is
+// unchanged: no identity in, no identity out, hue still comes from role
+// alone. When a slot IS resolved (see animation-scene.js's validateScene) it
+// takes over the hue everywhere role's hue would otherwise have gone - fill,
+// frame, stroke - but never the fill TIER (still ROLE_FILL[role] above),
+// never strokeWidth (state's job) and never ink (inkOn(role) below): IDENTITY
+// is "which peer", not "how loud" or "what's readable on top", so it must
+// not be able to touch either.
+export function shapeStyle(role, state = {}, defaultTier = 'soft', identitySlot = null) {
   const matched = STATE_PRIORITY.find(name => state[name]);
   const { step, strokeWidth } = matched ? STATE_STYLE[matched] : RESTING;
   const band = FILL[ROLE_FILL[role] ?? defaultTier] ?? FILL.soft;
+  const hue = identityVar(identitySlot) ?? roleVar(role);
   // Exposed so a caller can prove its own fill landed in this band, rather
   // than trusting that it did - see the grid-path test in scene-style.test.mjs,
   // which is exactly the test that was missing.
-  return { fill: tintOf(role, band[step]), stroke: roleVar(role), strokeWidth, onFill: inkOn(role), fillBand: band };
+  return { fill: tintHue(hue, band[step]), stroke: hue, strokeWidth, onFill: inkOn(role), fillBand: band };
 }
 
 // Heat's own ramp, kept apart from FILL on purpose (see scene-vocab.js's

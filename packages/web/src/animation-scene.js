@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { GEOMETRY, HEAT_MODES, ROLES, SOUNDS, TIMING, TYPE_ROLES } from './scene-vocab.js';
+import { GEOMETRY, HEAT_MODES, IDENTITY_SLOTS, ROLES, SOUNDS, TIMING, TYPE_ROLES } from './scene-vocab.js';
 import { adaptLegacyScene } from './scene-legacy.js';
 
 // The animation source of truth: scene JSON plus a pure evaluator. Neither
@@ -29,6 +29,10 @@ const objectSchema = z.object({
     opacity: z.number().min(0).max(1).default(1),
     rotation: z.number().min(-360).max(360).default(0),
     role: z.enum(ROLES).default('neutral'),
+    // A short authoring key, not a palette slot - see validateScene's own
+    // assignment pass below for why a scene never gets to name a colour here
+    // either, the same rule role already follows.
+    identity: z.string().min(1).max(40).optional(),
     typography: z.enum(TYPE_ROLES).default('body'),
     from: vector.optional(),
     to: vector.optional(),
@@ -136,11 +140,24 @@ export function validateScene(raw) {
   const byId = new Map(scene.objects.map(object => [object.id, object]));
   const ids = new Set(byId.keys());
   if (ids.size !== scene.objects.length) throw new Error('Every animation object needs a unique id');
+  // IDENTITY's slot assignment: first-seen wins, in authored object order,
+  // computed once here and carried on the object (getSceneState just reads
+  // it back) - so replaying or scrubbing the same scene can never re-roll
+  // it. This map is scoped to THIS validateScene call alone; it is not a
+  // registry, on purpose (see scene-vocab.js's IDENTITY_SLOTS comment).
+  const identitySlots = new Map();
   for (const object of scene.objects) {
     // Same normalisation event.duration gets further down: one shape leaves
     // the gate, whichever one an author wrote going in.
     const heat = object.initialState.heat;
     object.initialState.heat = heat === true ? { mode: 'magnitude' } : heat || null;
+    const identity = object.initialState.identity;
+    if (identity == null) {
+      object.identitySlot = null;
+    } else {
+      if (!identitySlots.has(identity)) identitySlots.set(identity, IDENTITY_SLOTS[identitySlots.size % IDENTITY_SLOTS.length]);
+      object.identitySlot = identitySlots.get(identity);
+    }
     if (object.type === 'image') {
       const src = object.initialState.src;
       if (!src) throw new Error(`Object "${object.id}": an image needs a src`);
@@ -263,6 +280,12 @@ export function getSceneState(scene, time) {
     h: object.initialState.h ?? sizeOf(object).h,
     rotation: object.initialState.rotation,
     role: object.initialState.role,
+    // The raw authoring key and the slot validateScene resolved it to - see
+    // its own comment above for why the slot is carried rather than
+    // recomputed here: recomputing per call would let two evaluations of the
+    // same scene disagree the moment an object order ever changed mid-flight.
+    identity: object.initialState.identity ?? null,
+    identitySlot: object.identitySlot ?? null,
     typography: object.initialState.typography,
     from: object.initialState.from ?? null,
     to: object.initialState.to ?? null,

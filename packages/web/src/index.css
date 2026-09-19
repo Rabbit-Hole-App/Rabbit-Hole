@@ -111,6 +111,26 @@ html {
      of the two colours themselves, so both stay identical in .dark below. */
   --viz-selection-outer: #000000;
   --viz-selection-inner: #ffffff;
+  /* IDENTITY: "which peer is this", never "what kind of thing is this" - a
+     categorical palette in its own hue territory, not borrowed from any role
+     or heat token, so a peer can never be misread as implying a role's
+     meaning (see scene-vocab.js's IDENTITY_SLOTS comment). Three slots
+     because Q/K/V - the benchmark that motivated this axis - only ever
+     needed three.
+     Verified, not eyeballed (scene-identity.test.mjs checks these numbers
+     exactly, every integer, not sampled): each clears 3:1 against
+     --viz-surface (identity-1 8.27:1, identity-2 3.59:1, identity-3
+     13.92:1); each sits at least 60 RGB units from every heat token in this
+     theme (closest: identity-2 vs heat-positive, 75.9); every pair sits at
+     least 70 RGB units apart (closest: identity-1 vs identity-2, 118.4).
+     Also checked (self-imposed, no required minimum) against a simplified
+     protanopia/deuteranopia/tritanopia simulation: every pair still sits at
+     least 67 RGB units apart post-simulation - none of the three is red or
+     green, on purpose, since that pairing is exactly what a deuteranope or
+     protanope cannot tell apart. */
+  --viz-identity-1: #970c44;
+  --viz-identity-2: #9b823b;
+  --viz-identity-3: #0e0b8e;
 }
 
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
@@ -165,6 +185,15 @@ html {
   --viz-heat-positive-ink-mid: #ffffff;
   --viz-selection-outer: #000000;
   --viz-selection-inner: #ffffff;
+  /* IDENTITY, dark - light block above holds the rationale. Each clears 3:1
+     against --viz-surface (identity-1 6.08:1, identity-2 13.59:1, identity-3
+     4.47:1); each sits at least 60 RGB units from every heat token in this
+     theme (closest: identity-3 vs heat-negative, 86.0); every pair sits at
+     least 70 RGB units apart (closest: identity-1 vs identity-2, 122.4);
+     post-CVD-simulation every pair still sits at least 68 RGB units apart. */
+  --viz-identity-1: #f471a5;
+  --viz-identity-2: #f7eb9c;
+  --viz-identity-3: #9966ff;
 }
 .dark [class*='bg-accent'],
 .dark [class*='bg-danger'] {

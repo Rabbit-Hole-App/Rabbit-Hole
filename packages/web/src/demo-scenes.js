@@ -190,6 +190,35 @@ export const heatCheckScene = {
   ],
 };
 
+// --- 5. the identity checkpoint probe: the exact benchmark gap that
+// motivated IDENTITY - Q, K and V are all legitimately `observed` (one role),
+// so before this axis existed they rendered pixel-identical (see
+// reference-scenes.js's own comment on causalAttentionScene). No heat here on
+// purpose: this probe isolates IDENTITY's OWN contribution to the fill and
+// frame, unmixed with VALUE's ramp - the heat-carrying version lives in the
+// real causalAttentionScene instead. A fourth strip carries no identity at
+// all, so "unchanged from today" is something a reviewer can also just look
+// at, not only trust the test suite for.
+
+export const identityCheckScene = {
+  id: 'identity-check-strips',
+  title: 'Identity check: one role, three identities, clearly distinguishable',
+  width: 560,
+  height: 380,
+  duration: 1,
+  objects: [
+    { id: 'q', type: 'strip', semanticId: 'identity-check-query', conceptId: 'identity-check',
+      initialState: { label: 'identity: query', x: 60, y: 60, cell: 44, role: 'observed', identity: 'query', values: [1.2, 0.9, 1.3, 1.1, 1.5] } },
+    { id: 'k', type: 'strip', semanticId: 'identity-check-key', conceptId: 'identity-check',
+      initialState: { label: 'identity: key', x: 60, y: 140, cell: 44, role: 'observed', identity: 'key', values: [1.0, 1.6, 0.5, 0.8, 1.1] } },
+    { id: 'v', type: 'strip', semanticId: 'identity-check-value', conceptId: 'identity-check',
+      initialState: { label: 'identity: value', x: 60, y: 220, cell: 44, role: 'observed', identity: 'value', values: [1.0, 2.0, 0.5, 1.5, 0.8] } },
+    { id: 'plain', type: 'strip', semanticId: 'identity-check-plain', conceptId: 'identity-check',
+      initialState: { label: 'same role, no identity - unchanged from today', x: 60, y: 300, cell: 44, role: 'observed', values: [1.0, 1.0, 1.0, 1.0, 1.0] } },
+  ],
+  timeline: [],
+};
+
 // The three scenes as canvas blocks, each parked at a moment where its picture
 // has fully drawn - a board that opens on three empty frames teaches nobody
 // anything. Press play, or scrub back to zero, to watch them build.
@@ -290,4 +319,9 @@ export const BOARDS = {
   // Task D's checkpoint: one matrix carrying every heat fact a reader has to
   // pull apart at a glance - sign, near-zero, blocked, selection, labels.
   'heat-check': () => [block(heatCheckScene, 0.5)],
+  // IDENTITY's checkpoint: the exact Q/K/V collision that motivated the axis,
+  // isolated from heat so identity's own fill and frame contribution is
+  // unmistakable, plus the plain fourth strip that proves nothing changed
+  // for a scene that never authors an identity.
+  'identity-check': () => [block(identityCheckScene, 0.5)],
 };

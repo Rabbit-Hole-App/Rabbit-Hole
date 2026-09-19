@@ -6,7 +6,7 @@ import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './a
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-sound.js';
 import { GEOMETRY } from './scene-vocab.js';
-import { heatStyle, roleVar, selectionStyle, shapeStyle, textStyle } from './scene-style.js';
+import { heatStyle, identityVar, roleVar, selectionStyle, shapeStyle, textStyle } from './scene-style.js';
 
 // Live playback of an animation spec. The evaluator owns what the frame looks
 // like at time t; this only draws it and owns the transport. Learner ink is a
@@ -90,6 +90,11 @@ function DataShape({ object, role, pop }) {
       (range, entry) => entry == null ? range : { min: Math.min(range.min, entry), max: Math.max(range.max, entry) },
       { min: Infinity, max: -Infinity },
     ) : null;
+    // Resolved once for the whole grid/strip: identity (if this object has
+    // one) takes over the hue everywhere role's would otherwise have gone -
+    // every cell's ring below and the object's own frame at the bottom of
+    // this group - while VALUE keeps sole ownership of a heat cell's fill.
+    const hue = identityVar(object.identitySlot) ?? roleVar(role);
     const cells = [];
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
@@ -103,16 +108,17 @@ function DataShape({ object, role, pop }) {
         // the fill outright, and identity owns the frame, even while the
         // cell is selected - see the SelectionMark drawn below instead.
         const blocked = heatMode && value == null;
-        const look = shapeStyle(role, blocked ? { blocked: true } : { highlighted: lit });
+        const look = shapeStyle(role, blocked ? { blocked: true } : { highlighted: lit }, undefined, object.identitySlot);
         const heat = heatMode && value != null ? heatStyle(value, domain, heatMode) : null;
         const fill = heat ? `color-mix(in srgb, var(--viz-${heat.fillToken}) ${heat.mixPercent}%, transparent)` : look.fill;
         const ink = heat ? heat.inkToken : (lit ? 'var(--color-ink)' : 'var(--color-ink-2)');
         // Motion may spring a value only while that value is discrete. A heat
         // fill is a continuous function of the cell's number, so it is
         // painted exactly (style); the ring is still a binary lit/unlit
-        // state and keeps its pop (animate). The ring's colour is always
-        // roleVar - a stroke is identity, not a quantity or a selection, and
-        // never competes with either.
+        // state and keeps its pop (animate). The ring's colour is IDENTITY's
+        // hue when this object has one, role's otherwise (look.stroke - see
+        // shapeStyle) - a frame, never a quantity or a selection, so it
+        // never competes with either even when heat owns the fill beneath it.
         const ring = { stroke: look.stroke, strokeWidth: look.strokeWidth };
         const cellX = object.x + column * cell, cellY = object.y + row * cell;
         cells.push(
@@ -152,11 +158,11 @@ function DataShape({ object, role, pop }) {
             style={{ fontFamily: MONO, fill: 'var(--color-ink-3)' }}>{text}</text>
         ))}
         {object.cellHighlight?.row != null && (
-          <motion.rect key={`band-${object.cellHighlight.row}`} initial={{ opacity: 0, scaleX: 0.92 }} animate={{ opacity: 1, scaleX: 1 }} transition={pop} style={{ ...fromCentre, stroke: roleVar(role) }}
+          <motion.rect key={`band-${object.cellHighlight.row}`} initial={{ opacity: 0, scaleX: 0.92 }} animate={{ opacity: 1, scaleX: 1 }} transition={pop} style={{ ...fromCentre, stroke: hue }}
             x={object.x - 4} y={object.y + object.cellHighlight.row * cell - 4} width={(object.w || 0) + 8} height={cell + 8}
             rx={4} fill="none" strokeWidth="2.4" />
         )}
-        <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={4} fill="none" style={{ stroke: roleVar(role) }} strokeWidth="1.6" />
+        <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={4} fill="none" style={{ stroke: hue }} strokeWidth="1.6" />
       </g>
     );
   }
@@ -167,9 +173,10 @@ function DataShape({ object, role, pop }) {
     // neighbour grows - the learner watches their own answer move.
     const peak = object.peak ?? Math.max(...values.map(entry => Math.abs(entry ?? 0)), 0.0001);
     const height = object.h || GEOMETRY.barHeight;
+    const hue = identityVar(object.identitySlot) ?? roleVar(role);
     return (
       <g>
-        <line x1={object.x} y1={object.y + height} x2={object.x + (object.w || 0)} y2={object.y + height} style={{ stroke: roleVar(role) }} strokeWidth="1.5" />
+        <line x1={object.x} y1={object.y + height} x2={object.x + (object.w || 0)} y2={object.y + height} style={{ stroke: hue }} strokeWidth="1.5" />
         {values.map((value, index) => {
           const tall = value == null ? 0 : Math.min(height - 4, Math.max(1, (Math.abs(value) / peak) * (height - 4)));
           const lit = marked(object, 0, index, index) || (object.cellHighlight === 'max' && value != null && value === Math.max(...values.map(entry => entry ?? -Infinity)));
@@ -179,7 +186,7 @@ function DataShape({ object, role, pop }) {
           // 'strong' is the fallback tier, not 'soft': a resting bar still
           // has to read as a bar, which the soft band's 6-28 does not - see
           // shapeStyle's comment.
-          const look = shapeStyle(role, { chosen: lit }, 'strong');
+          const look = shapeStyle(role, { chosen: lit }, 'strong', object.identitySlot);
           return (
             <motion.g key={index} animate={{ scale: lit ? 1.06 : 1 }} transition={pop} style={fromCentre}>
               <motion.rect x={object.x + index * GEOMETRY.barWidth + BAR_GAP / 2} y={object.y + height - tall} width={GEOMETRY.barWidth - BAR_GAP} height={tall}
@@ -209,7 +216,7 @@ function DataShape({ object, role, pop }) {
         const x = object.x + offset;
         offset += width + CHIP_GAP;
         const lit = marked(object, 0, index, index);
-        const look = shapeStyle(role, { highlighted: lit });
+        const look = shapeStyle(role, { highlighted: lit }, undefined, object.identitySlot);
         return (
           <motion.g key={index} animate={{ scale: lit ? 1.12 : 1, y: lit ? -3 : 0 }} transition={pop} style={fromCentre}>
             <motion.rect x={x} y={object.y} width={width} height={GEOMETRY.chipHeight} rx={8}
@@ -326,7 +333,9 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
           const label = labelAt(object, { stroke: isStroke, above: isData || isImage, text: isText }, centre);
           // State never changes which role's colour is shown, only weight and
           // fill strength - one resolved look serves every shape below.
-          const look = shapeStyle(role, { highlighted: object.highlighted, chosen });
+          // IDENTITY (if this object has one) takes the hue role would
+          // otherwise have supplied - see shapeStyle's own comment.
+          const look = shapeStyle(role, { highlighted: object.highlighted, chosen }, undefined, object.identitySlot);
           // A label is named by what it is doing, not by what it looks like: a
           // text object carries its own typography, every other kind draws a
           // caption on the shape beside it. Circle labels borrow the equation
@@ -343,7 +352,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
           // that survives there; a data or stroke label sits on the surface
           // and keeps the page's ink.
           const textFill = object.type === 'text'
-            ? (role !== 'neutral' ? roleVar(role) : type.fill)
+            ? (role !== 'neutral' ? (identityVar(object.identitySlot) ?? roleVar(role)) : type.fill)
             : (isText || isData ? 'var(--color-ink-2)' : look.onFill);
           return (
             <g key={object.id} data-animation-object={object.semanticId} opacity={object.opacity}
@@ -353,8 +362,8 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
                   stray 10x10 outline at its x/y; give strokes their own halo when
                   a lesson actually highlights one */}
               {object.highlighted && !isText && !isData && (isCircle
-                ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 8} fill="none" strokeOpacity="0.28" strokeWidth="8" style={{ stroke: roleVar(role) }} />
-                : <rect x={object.x - 4} y={object.y - 4} width={(object.w || 0) + 8} height={(object.h || 0) + 8} rx={16} fill="none" strokeOpacity="0.25" strokeWidth="8" style={{ stroke: roleVar(role) }} />)}
+                ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 8} fill="none" strokeOpacity="0.28" strokeWidth="8" style={{ stroke: look.stroke }} />
+                : <rect x={object.x - 4} y={object.y - 4} width={(object.w || 0) + 8} height={(object.h || 0) + 8} rx={16} fill="none" strokeOpacity="0.25" strokeWidth="8" style={{ stroke: look.stroke }} />)}
               {isData
                 ? <DataShape object={object} role={role} pop={pop} />
                 : isImage

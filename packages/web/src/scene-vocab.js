@@ -37,6 +37,17 @@ export const FILL = Object.freeze({
 // the one moment a scene is allowed to shout.
 export const ROLE_FILL = Object.freeze({ observed: 'solid', success: 'solid', learner: 'strong', warning: 'strong' });
 
+// IDENTITY answers "which peer is this" - orthogonal to ROLE (what kind of
+// thing this is), STATE (what's happening to it) and VALUE (how much). A
+// slot is an anonymous, per-scene categorical palette index: animation-scene
+// .js's validateScene resolves a scene's own authored identity keys to one
+// of these, first-seen wins, and that assignment is NOT a cross-scene
+// registry - the same key can and will land on a different slot in a
+// different scene. Three slots because the benchmark that motivated this
+// axis (Q, K, V rendering identically because all three share one role) only
+// ever needed three; grow the list the day a scene needs a fourth.
+export const IDENTITY_SLOTS = Object.freeze(['identity-1', 'identity-2', 'identity-3']);
+
 export const SPACE = Object.freeze([4, 8, 12, 16, 24, 32, 48, 64, 96]);
 
 // Component dimensions on a 4px baseline, chosen for how they look - not

@@ -9,7 +9,12 @@
 // is", which the object's own label already says, not what the data means.
 // The one role reserved for a genuinely different meaning - the final mixed
 // result - is `output`. See the vocabulary-gap notes in the Task 12 report
-// for what this scene could not express with role/state/heat alone.
+// for what this scene could not express with role/state/heat alone: at the
+// time, that gap was real - all three strips rendered pixel-identical,
+// because `observed` was the only channel available and all three legitimately
+// are observed. IDENTITY (scene-vocab.js's IDENTITY_SLOTS) is that missing
+// axis: `query`/`key`/`value` below distinguish the three PEERS while
+// `observed` still correctly names what KIND of thing each one is.
 
 const TOKENS = ['h', 'e', 'l', 'l', 'o'];
 
@@ -60,11 +65,11 @@ export const causalAttentionScene = {
     { id: 'chars', type: 'tokens', semanticId: 'tokens', conceptId: 'qkv-projection',
       initialState: { label: 'five tokens, before attention', x: 40, y: 74, opacity: 0, tokens: [...TOKENS], role: 'input' } },
     { id: 'q', type: 'strip', semanticId: 'query-vector', conceptId: 'qkv-projection',
-      initialState: { label: 'query (Q)', x: 40, y: 150, cell: 42, opacity: 0, heat: true, role: 'observed', values: [...Q] } },
+      initialState: { label: 'query (Q)', x: 40, y: 150, cell: 42, opacity: 0, heat: true, role: 'observed', identity: 'query', values: [...Q] } },
     { id: 'k', type: 'strip', semanticId: 'key-vector', conceptId: 'qkv-projection',
-      initialState: { label: 'key (K)', x: 40, y: 214, cell: 42, opacity: 0, heat: true, role: 'observed', values: [...K] } },
+      initialState: { label: 'key (K)', x: 40, y: 214, cell: 42, opacity: 0, heat: true, role: 'observed', identity: 'key', values: [...K] } },
     { id: 'v', type: 'strip', semanticId: 'value-vector', conceptId: 'qkv-projection',
-      initialState: { label: 'value (V)', x: 40, y: 278, cell: 42, opacity: 0, heat: true, role: 'observed', values: [...V] } },
+      initialState: { label: 'value (V)', x: 40, y: 278, cell: 42, opacity: 0, heat: true, role: 'observed', identity: 'value', values: [...V] } },
     { id: 'arrow-tok-q', type: 'arrow', semanticId: 'arrow-tok-q', conceptId: 'qkv-projection',
       initialState: { from: { x: 160, y: 106 }, to: { x: 145, y: 150 }, opacity: 0, role: 'neutral' } },
     { id: 'arrow-tok-k', type: 'arrow', semanticId: 'arrow-tok-k', conceptId: 'qkv-projection',
