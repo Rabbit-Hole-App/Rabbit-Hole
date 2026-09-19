@@ -107,6 +107,27 @@ N, candidate trajectories, encoder and decoder streams, attention heads, and any
 set of plotted series are all the same problem — peers of one kind that must stay
 distinguishable.
 
+**The quantitative ramp, and what may interrupt it.** Added after the first
+rendered checkpoint, where a contrast-safe implementation turned out to be safe
+only because it had destroyed the encoding it existed to carry.
+
+| | rule |
+|---|---|
+| **VALUE** | continuous magnitude and sign. Neighbouring values produce neighbouring intensities, always |
+| **INK** | changes discretely, and only to preserve readability |
+| **STATE** | overlays selection and emphasis without corrupting VALUE |
+| **ROLE / IDENTITY** | do not distort the quantitative ramp |
+
+A jump in the ramp is a lie about the data: it makes two near-identical values
+look unrelated and two distant values look the same. Contrast is solved by
+changing the *ink*, never by collapsing the *fill*.
+
+It follows that a heat cell's fill token comes from the **value scale**, not from
+the object's role. Role owns the frame, the stroke, the labels and the legend —
+letting it own the cell interior would put an arbitrary token in the quantitative
+channel, and the range the ramp can safely cover would then depend on which role
+the author happened to pick.
+
 **No axis compensates for another.** If a picture is failing, the fix is in the axis
 that owns the problem. Giving a heatmap a soft role to widen its dynamic range,
 or inventing a role to distinguish two peers, trades a rendering problem for a

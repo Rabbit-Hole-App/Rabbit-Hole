@@ -1131,6 +1131,23 @@ inside the system, never around it.
 direct `tintOf()` call or fixed-ink behaviour does not fail a test, the invariant
 is not protected — it is only described.
 
+### Task D.1: The ramp must be continuous
+
+**Task D is not approved.** It is contrast-safe only because it destroyed
+quantitative resolution, which defeats the purpose of the VALUE axis.
+
+Measured from the shipped `heatStyle`, over 101 samples it emits only these mix
+percentages: **6-28, then 96-100.** Nothing between. The bottom half of the value
+range gets 23 distinct steps and the top half gets 5, with a cliff at the
+midpoint: 0.4 renders at 24% and 0.5 at 96%. In the probe matrix `-7` and `-5`
+are indistinguishable, `5` and `6` are indistinguishable, and `3` and `5` look
+completely different. Sign reads; magnitude does not.
+
+The five requirements are in the task brief. The measured contrast data that
+makes it solvable is recorded there too, so it is not rediscovered.
+
+---
+
 ## Task D gates Task A
 
 Run D before A, and **look at the result before starting A**. If signed heat,
