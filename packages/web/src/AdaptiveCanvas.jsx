@@ -327,26 +327,58 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
   );
 }
 
+// The lesson-block picker. Used by the corner button, which appends, and by the
+// rail, which inserts at the gap you are pointing at.
+function BlockMenu({ className, filter, onFilter, onPick }) {
+  return (
+    <div role="menu" aria-label="Lesson blocks" className={`absolute z-40 flex max-h-[70vh] w-44 flex-col overflow-hidden rounded-xl border border-line bg-white shadow-md ${className}`}>
+      <input type="search" autoFocus value={filter} onChange={event => onFilter(event.target.value)}
+        aria-label="Filter blocks" placeholder="Filter…"
+        className="m-1 h-7 shrink-0 rounded-lg border border-line px-2 text-xs outline-none focus:border-ink-3" />
+      {/* the list keeps growing, so it scrolls instead of running off the canvas */}
+      <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto p-1 pt-0">
+        {Object.entries(BLOCK_TYPES)
+          .filter(([, meta]) => meta.label.toLowerCase().includes(filter.trim().toLowerCase()))
+          .map(([type, meta]) => (
+            <button key={type} type="button" role="menuitem" onClick={() => onPick(type)}
+              className="block w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink hover:bg-hover">{meta.label}</button>
+          ))}
+      </div>
+    </div>
+  );
+}
+
 // The insert rail: a dotted line across the column, with [-] and [+] parked on
 // the blank canvas beside it. Press either as often as you like - [+] pushes the
 // pair apart, [-] pulls it together and then straight past flush into an
 // overlap, because the space is only a margin and margins go negative.
-function GapRail({ gap, zoom, space, onNudge }) {
+function GapRail({ gap, zoom, space, adding, filter, onNudge, onAdding, onFilter, onAdd }) {
+  const chrome = 'flex h-6 items-center justify-center rounded-lg border border-line bg-white text-ink-2 shadow-md hover:bg-hover hover:text-ink';
   const button = (delta, Icon, label) => (
     <button type="button" aria-label={label} title={label} onClick={() => onNudge(gap.beforeId, delta)}
       onPointerDown={event => event.stopPropagation()} // a press here must not start a pan
-      className="flex h-6 w-6 items-center justify-center rounded-lg border border-line bg-white text-ink-2 shadow-md hover:bg-hover hover:text-ink">
+      className={`${chrome} w-6`}>
       <Icon size={13} strokeWidth={1.8} />
     </button>
   );
   return (
     <div style={{ top: gap.y }} className="pointer-events-none absolute left-0 z-10">
       <div style={{ width: COLUMN }} className="absolute -translate-y-1/2 border-t border-dashed border-ink-3/50" />
-      {/* Counter-scaled so the buttons stay the same size to press at any zoom. */}
-      <div style={{ left: COLUMN + 12, transform: `translateY(-50%) scale(${1 / zoom})`, transformOrigin: 'left center' }}
+      {/* Counter-scaled so the buttons stay the same size to press at any zoom.
+          They sit off the left edge of the column, on blank canvas. */}
+      <div style={{ left: -12, transform: `translate(-100%, -50%) scale(${1 / zoom})`, transformOrigin: 'right center' }}
         className="pointer-events-auto absolute flex items-center gap-1">
         {button(-SPACE_STEP, Minus, `Pull these cards together — ${space}px apart`)}
         {button(SPACE_STEP, Plus, `Push these cards apart — ${space}px apart`)}
+        {/* Same dev gate as the corner button this came from. */}
+        {onAdd && (
+          <span className="relative">
+            <button type="button" aria-label="Add section here" title="Add a section in this gap" aria-expanded={adding}
+              onPointerDown={event => event.stopPropagation()} onClick={() => onAdding(!adding)}
+              className={`${chrome} gap-1 px-2 text-xs whitespace-nowrap`}><Plus size={12} strokeWidth={1.8} />Add section</button>
+            {adding && <BlockMenu className="top-7 left-0" filter={filter} onFilter={onFilter} onPick={type => onAdd(type, gap.index + 1)} />}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -550,6 +582,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const [connecting, setConnecting] = useState(null);
   const [bounds, setBounds] = useState({});
   const [hoverGap, setHoverGap] = useState(null);
+  const [gapAdding, setGapAdding] = useState(false);
   const [guides, setGuides] = useState([]);
   const [grid, setGrid] = useState(false);
   const itemsLayer = useRef(null);
@@ -1013,6 +1046,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     setShapes(previous => reorder(previous, targets, toFront));
     setItems(previous => reorder(previous, targets, toFront));
   };
+  // Appending lands a block below everything; inserting at a gap puts it into
+  // the column flow between two cards, so it needs no offset of its own.
+  const insertBlockAt = (type, index) => {
+    snapshot();
+    setBlocks(previous => [...previous.slice(0, index), { ...BLOCK_TYPES[type].sample(), dy: 0 }, ...previous.slice(index)]);
+    setGapAdding(false);
+    setInsertFilter('');
+  };
   const nudgeGap = (beforeId, delta) => {
     snapshot();
     setBlocks(previous => previous.map(block => block.id === beforeId ? { ...block, space: (block.space || 0) + delta } : block));
@@ -1079,9 +1120,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const gaps = gapsFrom(blocks, bounds);
   const activeGap = hoverGap == null ? null : gaps.find(gap => gap.index === hoverGap) || null;
   const trackGap = event => {
+    if (gapAdding) return; // the rail must not slide away while its menu is open
     if (drawing || tool !== 'select') return setHoverGap(null);
     const point = local(event);
-    const found = point.x > COLUMN ? nearestGap(gaps, point.y) : null;
+    const found = point.x < 0 ? nearestGap(gaps, point.y) : null;
     setHoverGap(found ? found.index : null);
   };
   // Ports with a live connection stay visible on both ends of the link.
@@ -1107,7 +1149,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           the page's: these ride the camera, so the grid you snap to is the grid
           you can see. An opaque surface keeps the page dots from showing through
           and doubling them up. */}
-      <div ref={surface} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => setHoverGap(null)}
+      <div ref={surface} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
         style={grid ? { background: 'var(--color-white)', backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: `${GRID * view.z}px ${GRID * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` } : undefined}
         className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor}`}>
         <div style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className="absolute top-0 left-0">
@@ -1130,7 +1172,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />)}
           {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} />)}
         </div>
-        {activeGap && <GapRail gap={activeGap} zoom={view.z} space={blocks.find(block => block.id === activeGap.beforeId)?.space || 0} onNudge={nudgeGap} />}
+        {activeGap && <GapRail gap={activeGap} zoom={view.z} space={blocks.find(block => block.id === activeGap.beforeId)?.space || 0} onNudge={nudgeGap}
+          adding={gapAdding} filter={insertFilter} onAdding={setGapAdding} onFilter={setInsertFilter}
+          onAdd={import.meta.env.VITE_COACHING_DEV === 'true' ? insertBlockAt : null} />}
         {/* Alignment guides, live only while something is being dragged. */}
         {!!guides.length && (
           <svg width="1" height="1" aria-hidden="true" className="pointer-events-none absolute top-0 left-0 z-30 overflow-visible">
@@ -1155,22 +1199,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
             className="flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink">
             <Plus size={15} strokeWidth={1.7} />
           </button>
-          {insertOpen && (
-            <div role="menu" aria-label="Lesson blocks" className="absolute top-0 right-10 flex max-h-[70vh] w-44 flex-col overflow-hidden rounded-xl border border-line bg-white shadow-md">
-              <input type="search" autoFocus value={insertFilter} onChange={event => setInsertFilter(event.target.value)}
-                aria-label="Filter blocks" placeholder="Filter…"
-                className="m-1 h-7 shrink-0 rounded-lg border border-line px-2 text-xs outline-none focus:border-ink-3" />
-              {/* the list keeps growing, so it scrolls instead of running off the canvas */}
-              <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto p-1 pt-0">
-                {Object.entries(BLOCK_TYPES)
-                  .filter(([, meta]) => meta.label.toLowerCase().includes(insertFilter.trim().toLowerCase()))
-                  .map(([type, meta]) => (
-                    <button key={type} type="button" role="menuitem" onClick={() => insertBlock(type)}
-                      className="block w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink hover:bg-hover">{meta.label}</button>
-                  ))}
-              </div>
-            </div>
-          )}
+          {insertOpen && <BlockMenu className="top-0 right-10" filter={insertFilter} onFilter={setInsertFilter} onPick={insertBlock} />}
         </div>
       )}
       <div role="toolbar" aria-label="Canvas tools" className="absolute top-1/2 -right-6 z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md">
