@@ -26,5 +26,14 @@
     "doNotCopyReferenceCoordinates": true,
     "doNotCopyReferenceWording": true,
     "useLearnVisualLanguage": true
-  }
+  },
+  "volatileReferenceFields": [
+    "sampled token",
+    "sampled token id",
+    "exact probability values"
+  ],
+  "knownReferenceLimitations": [
+    "persistent onboarding panel cropped from probability view"
+  ],
+  "comparisonRule": "Compare structure and teaching behaviour, never the sampled token or the exact numbers. A difference in volatileReferenceFields is not a finding."
 }

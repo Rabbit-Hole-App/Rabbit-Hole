@@ -27,5 +27,12 @@
     "useLearnVisualLanguage": true
   },
   "blocked_by": "input_axis",
-  "blockedReason": "Needs a learner input that changes the picture. The runtime has no input axis until Plan B, so running this would measure something that does not exist. The reference is captured now; the run waits."
+  "blockedReason": "Needs a learner input that changes the picture. The runtime has no input axis until Plan B, so running this would measure something that does not exist. The reference is captured now; the run waits.",
+  "volatileReferenceFields": [
+    "input token sequence"
+  ],
+  "knownReferenceLimitations": [
+    "persistent onboarding panel present in the tool chrome"
+  ],
+  "comparisonRule": "Compare structure and teaching behaviour, never the sampled token or the exact numbers. A difference in volatileReferenceFields is not a finding."
 }

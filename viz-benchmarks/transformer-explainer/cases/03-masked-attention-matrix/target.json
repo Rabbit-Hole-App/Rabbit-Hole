@@ -25,5 +25,10 @@
     "doNotCopyReferenceCoordinates": true,
     "doNotCopyReferenceWording": true,
     "useLearnVisualLanguage": true
-  }
+  },
+  "volatileReferenceFields": [
+    "input token sequence",
+    "exact attention weight values"
+  ],
+  "comparisonRule": "Compare structure and teaching behaviour, never the sampled token or the exact numbers. A difference in volatileReferenceFields is not a finding."
 }

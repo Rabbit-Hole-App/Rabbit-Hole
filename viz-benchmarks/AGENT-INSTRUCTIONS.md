@@ -109,6 +109,15 @@ project-wide files and `shared/`; every benchmark artifact lives in a case under
 19. Re-run previously passing benchmarks after a shared runtime/vocabulary change.
 20. Human approval is the final quality gate.
 
+# 2b. References that are not deterministic
+
+Several benchmark tools run a real model, so the sampled token and the exact
+numbers change on every reload. A case declares those in `volatileReferenceFields`,
+and capture artefacts in `knownReferenceLimitations`. **Neither may be scored.**
+Read `shared/stochastic-references.md` before evaluating any case that has them.
+
+The test for a finding: would it still be true if the reference were reloaded?
+
 # 3. Generated folder is mandatory
 
 Every **case** must maintain its own, at `cases/NN-name/`:
