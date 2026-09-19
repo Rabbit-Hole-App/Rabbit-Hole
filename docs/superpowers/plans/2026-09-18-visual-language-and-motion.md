@@ -1105,6 +1105,32 @@ against the Motion invariant rather than being squeezed into a phase that is fix
 something else. Not implemented during the five fixes unless the attention
 benchmark demonstrates it is necessary.
 
+## The rendered checkpoint — the eight questions
+
+Task D is judged on one matrix showing negative, near-zero and positive values, a
+selected cell, a blocked or `null` cell, and row and column labels, captured in
+both themes. A unit test cannot answer whether sign is *obvious*.
+
+- [ ] Are negative, near-zero and positive immediately distinguishable?
+- [ ] Do the darkest and the lightest cells both keep readable numerals?
+- [ ] Does a blocked or `null` cell stay visually separate from a genuinely small value? These must not collapse — a masked cell and a near-zero weight mean completely different things.
+- [ ] Is the selected or highlighted state still visible on top of heat?
+- [ ] Do the row and column labels avoid competing with the data?
+- [ ] Does the matrix frame and its role stay readable while the cells use VALUE encoding?
+- [ ] Do light and dark convey the same structure?
+- [ ] Do the bars still look intentional after being routed through `shapeStyle`?
+
+**If bars come out washed out, do not exempt them.** Reintroducing a direct
+`tintOf` call for bars recreates the bypass this task exists to close, and it
+would be worse than the original because it would look deliberate. Fix it inside
+the system: adjust the role and fill treatment, or add a bar-specific geometry or
+style vocabulary entry that still resolves through the style layer. The fix lives
+inside the system, never around it.
+
+**And the invariant is only real if a mutation trips it.** If reintroducing a
+direct `tintOf()` call or fixed-ink behaviour does not fail a test, the invariant
+is not protected — it is only described.
+
 ## Task D gates Task A
 
 Run D before A, and **look at the result before starting A**. If signed heat,
