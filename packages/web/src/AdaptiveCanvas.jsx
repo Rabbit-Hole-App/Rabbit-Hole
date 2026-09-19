@@ -46,6 +46,8 @@ const WIDTHS = [2, 3.5, 6];
 const COLUMN = 560;
 // How much blank space one press of [+] adds between two cards, and [-] removes.
 const SPACE_STEP = 120;
+// Blank canvas left at each end of a gap separator, in screen pixels.
+const RAIL_INSET = 56;
 const POLYGONS = {
   triangle: [[0.5, 0], [1, 1], [0, 1]],
   diamond: [[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]],
@@ -352,7 +354,7 @@ function BlockMenu({ className, filter, onFilter, onPick }) {
 // the blank canvas beside it. Press either as often as you like - [+] pushes the
 // pair apart, [-] pulls it together and then straight past flush into an
 // overlap, because the space is only a margin and margins go negative.
-function GapRail({ gap, zoom, space, adding, filter, onNudge, onAdding, onFilter, onAdd }) {
+function GapRail({ gap, zoom, span, space, adding, filter, onNudge, onAdding, onFilter, onAdd }) {
   const chrome = 'flex h-6 items-center justify-center rounded-lg border border-line bg-white text-ink-2 shadow-md hover:bg-hover hover:text-ink';
   const button = (delta, Icon, label) => (
     <button type="button" aria-label={label} title={label} onClick={() => onNudge(gap.beforeId, delta)}
@@ -363,7 +365,10 @@ function GapRail({ gap, zoom, space, adding, filter, onNudge, onAdding, onFilter
   );
   return (
     <div style={{ top: gap.y }} className="pointer-events-none absolute left-0 z-10">
-      <div style={{ width: COLUMN }} className="absolute -translate-y-1/2 border-t border-dashed border-ink-3/50" />
+      {/* Runs the width of the visible canvas less an equal margin at each end,
+          rather than stopping at the column. The buttons carry their own white
+          background, so they read as a badge sitting on the line. */}
+      <div style={{ left: span.left, width: span.width }} className="absolute -translate-y-1/2 border-t border-dashed border-ink-3/50" />
       {/* Counter-scaled so the buttons stay the same size to press at any zoom.
           They sit off the left edge of the column, on blank canvas. */}
       <div style={{ left: -12, transform: `translate(-100%, -50%) scale(${1 / zoom})`, transformOrigin: 'right center' }}
@@ -1117,6 +1122,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // rather than by value so the line keeps following the cards as they move.
   const panel = panelFor({ tool, selection, shapes, links, items });
   const showStyle = panel.open || styleOpen;
+  // The separator spans the viewport, converted into world units, so it looks
+  // the same width at any zoom instead of growing and shrinking with the column.
+  const railSpan = (() => {
+    const width = surface.current?.clientWidth || 0;
+    const inset = RAIL_INSET / view.z;
+    return width
+      ? { left: -view.x / view.z + inset, width: Math.max(COLUMN, width / view.z - inset * 2) }
+      : { left: 0, width: COLUMN };
+  })();
   const gaps = gapsFrom(blocks, bounds);
   const activeGap = hoverGap == null ? null : gaps.find(gap => gap.index === hoverGap) || null;
   const trackGap = event => {
@@ -1172,7 +1186,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />)}
           {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} />)}
         </div>
-        {activeGap && <GapRail gap={activeGap} zoom={view.z} space={blocks.find(block => block.id === activeGap.beforeId)?.space || 0} onNudge={nudgeGap}
+        {activeGap && <GapRail gap={activeGap} zoom={view.z} span={railSpan} space={blocks.find(block => block.id === activeGap.beforeId)?.space || 0} onNudge={nudgeGap}
           adding={gapAdding} filter={insertFilter} onAdding={setGapAdding} onFilter={setInsertFilter}
           onAdd={import.meta.env.VITE_COACHING_DEV === 'true' ? insertBlockAt : null} />}
         {/* Alignment guides, live only while something is being dragged. */}
