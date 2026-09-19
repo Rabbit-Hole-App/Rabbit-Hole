@@ -3,10 +3,11 @@ import { motion, useReducedMotion } from 'motion/react';
 import { Pause, Play, RotateCcw, Scan, Volume2, VolumeX, X } from 'lucide-react';
 import katex from 'katex';
 import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './animation-scene.js';
+import { isDark } from './api.js';
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-sound.js';
 import { GEOMETRY } from './scene-vocab.js';
-import { heatStyle, roleVar, shapeStyle, textStyle } from './scene-style.js';
+import { heatStyle, roleVar, selectionRing, shapeStyle, textStyle } from './scene-style.js';
 
 // Live playback of an animation spec. The evaluator owns what the frame looks
 // like at time t; this only draws it and owns the transport. Learner ink is a
@@ -38,10 +39,24 @@ const marked = (object, row, column, index) => {
   return true;
 };
 
+// Follow the Settings -> Appearance toggle live (applyTheme fires
+// small:theme) - heatStyle needs to know which theme's ink thresholds apply,
+// since one flip percent can't serve both (see scene-vocab.js's
+// HEAT_INK_FLIP comment).
+function useDark() {
+  const [dark, setDark] = useState(isDark);
+  useEffect(() => {
+    const on = e => setDark(e.detail);
+    window.addEventListener('small:theme', on);
+    return () => window.removeEventListener('small:theme', on);
+  }, []);
+  return dark;
+}
+
 // The mathematical object itself: a table with a row that lights up, a strip
 // of numbers that change, a distribution that grows. Labelled rectangles do
 // not teach these; the values do.
-function DataShape({ object, role, pop }) {
+function DataShape({ object, role, pop, dark }) {
   const emphasis = 1 + (object.emphasis || 0) * 0.06;
   // Every number a data shape draws - a cell, a bar's tick, a token's chip -
   // is a datum, not a caption, so all three share the smallest named size.
@@ -74,15 +89,18 @@ function DataShape({ object, role, pop }) {
         // owns the fill outright, even while the cell is selected.
         const blocked = heatMode && value == null;
         const look = shapeStyle(role, blocked ? { blocked: true } : { highlighted: lit });
-        const heat = heatMode && value != null ? heatStyle(value, domain, heatMode, role) : null;
+        const heat = heatMode && value != null ? heatStyle(value, domain, heatMode, dark) : null;
         const fill = heat ? `color-mix(in srgb, var(--viz-${heat.fillToken}) ${heat.mixPercent}%, transparent)` : look.fill;
         const ink = heat ? heat.inkToken : (lit ? 'var(--color-ink)' : 'var(--color-ink-2)');
         // Motion may spring a value only while that value is discrete. A heat
         // fill is a continuous function of the cell's number, so it is painted
         // exactly (style); the ring is still a binary lit/unlit state and
-        // keeps its pop (animate). The ring's colour is always roleVar - a
-        // stroke is identity, not a quantity, and never competes with heat.
-        const ring = { stroke: look.stroke, strokeWidth: look.strokeWidth };
+        // keeps its pop (animate). A selected (lit, unblocked) cell earns the
+        // stronger, contrast-safe ring from selectionRing - see its comment
+        // in scene-style.js for why it borrows heat's own ink rather than
+        // roleVar once a heat fill is in play. A blocked or resting cell
+        // keeps its existing role-coloured ring unchanged.
+        const ring = (lit && !blocked) ? selectionRing(role, heat) : { stroke: look.stroke, strokeWidth: look.strokeWidth };
         cells.push(
           <g key={index}>
             <motion.rect x={object.x + column * cell} y={object.y + row * cell} width={cell} height={cell}
@@ -214,6 +232,7 @@ const typeset = expression => {
 function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop }) {
   const host = useRef(null);
   const drag = useRef(null);
+  const dark = useDark();
   const [rectangle, setRectangle] = useState(null);
   const point = event => {
     const box = host.current.getBoundingClientRect();
@@ -319,7 +338,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
                 ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 8} fill="none" strokeOpacity="0.28" strokeWidth="8" style={{ stroke: roleVar(role) }} />
                 : <rect x={object.x - 4} y={object.y - 4} width={(object.w || 0) + 8} height={(object.h || 0) + 8} rx={16} fill="none" strokeOpacity="0.25" strokeWidth="8" style={{ stroke: roleVar(role) }} />)}
               {isData
-                ? <DataShape object={object} role={role} pop={pop} />
+                ? <DataShape object={object} role={role} pop={pop} dark={dark} />
                 : isImage
                 ? <image href={object.src} x={object.x} y={object.y} width={object.w} height={object.h}
                     preserveAspectRatio="xMidYMid slice"

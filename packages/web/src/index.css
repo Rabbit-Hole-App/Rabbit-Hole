@@ -76,15 +76,23 @@ html {
   --viz-heat-negative: #1a56c4;
   --viz-heat-midpoint: #655e73;
   --viz-heat-positive: #a85400;
-  /* Heat's own companion inks - same idea as --viz-on-observed above, but for
-     a fill whose mix percentage ranges far below the solid band. Each token's
-     colour sits at a middling luminance, so a blended mid-mix leaves neither
-     ink at 4.5:1 against it - white is only safe once the mix is heavy enough
-     to read as this token's own colour, which is what scene-style.js's
-     HEAT_INK_FLIP threshold is timed to. */
-  --viz-on-heat-negative: #ffffff;
-  --viz-on-heat-midpoint: #ffffff;
-  --viz-on-heat-positive: #ffffff;
+  /* magnitude and sequential are one ramp, one hue - see scene-vocab.js's
+     HEAT_SCALE comment for why they don't borrow a role or the diverging
+     tokens above. Same hex as --viz-heat-midpoint on purpose: it is already
+     proven to behave well in both themes, kept as its own token so retuning
+     one ramp later never drags the other along with it. */
+  --viz-heat-scale: #655e73;
+  /* The ink a heat cell's numeral and selection ring sit on top of - not a
+     role's own on-token, because heat's fill can land anywhere along its
+     ramp regardless of which role is carrying it. Two absolute extremes: mid
+     is the pure extreme in --color-ink's own direction (near-black, since
+     this page's ink is dark); high is the opposite extreme. Using
+     --color-ink alone leaves a real dead zone partway up the ramp where
+     neither light nor dark text clears 4.5:1 - see scene-style.js's
+     heatStyle comment for the measured proof - which is what these two exist
+     to close. */
+  --viz-ink-mid: #000000;
+  --viz-ink-high: #ffffff;
 }
 
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
@@ -129,13 +137,12 @@ html {
   --viz-heat-negative: #6fb1ff;
   --viz-heat-midpoint: #b0a8c0;
   --viz-heat-positive: #f0a94e;
-  /* Dark companion inks - matches --viz-surface, same convention as
-     --viz-on-observed/--viz-on-success above: once the mix is heavy the fill
-     approaches its own light-on-dark colour, and the surface's own dark reads
-     best on top of it. */
-  --viz-on-heat-negative: #1f1f1f;
-  --viz-on-heat-midpoint: #1f1f1f;
-  --viz-on-heat-positive: #1f1f1f;
+  --viz-heat-scale: #b0a8c0;
+  /* mid/high flip with --color-ink's own direction - see the light block's
+     comment above. This page's ink is light here, so mid is white and high
+     is black - the opposite pairing from light, same two absolute colours. */
+  --viz-ink-mid: #ffffff;
+  --viz-ink-high: #000000;
 }
 .dark [class*='bg-accent'],
 .dark [class*='bg-danger'] {

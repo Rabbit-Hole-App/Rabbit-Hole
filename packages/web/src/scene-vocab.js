@@ -77,20 +77,35 @@ export const HEAT_MODES = Object.freeze(['magnitude', 'signed', 'sequential']);
 // their measured contrast against --viz-surface.
 export const HEAT_DIVERGING = Object.freeze(['heat-negative', 'heat-midpoint', 'heat-positive']);
 
-// Heat can't ask the browser what a mix actually rendered to - the fill is a
-// custom property, resolved after this code has run - so each token that
-// heatStyle can choose as a fill declares, beside its name, the mix percentage
-// above which its companion ink (--viz-on-<token> in index.css) beats the page
-// ink. A token missing here has no companion: heatStyle leaves it on the page
-// ink at every mix, the same fallback shapeStyle's inkOn already gives a
-// non-solid role. One number per token, not per theme - heatStyle only ever
-// produces mixPercent values from two measured-safe bands (see scene-style.js),
-// so any threshold between them classifies every value the same way in both
-// themes at once.
+// magnitude and sequential don't diverge - one ramp, one hue - so they share
+// this single token rather than borrowing a role. A role's hue in a heat cell
+// is exactly the ROLE/VALUE entanglement this system forbids: a reader must
+// not be able to guess what a cell MEANS from its heat colour, only how much
+// and (for `signed`) which sign - see scene-style.js's heatStyle comment.
+export const HEAT_SCALE = 'heat-scale';
+
+// Every token heatStyle can put under a heat fill - exactly what
+// HEAT_INK_FLIP below has to cover.
+export const HEAT_TOKENS = Object.freeze([...HEAT_DIVERGING, HEAT_SCALE]);
+
+// heatStyle can't ask the browser what a mix actually rendered to - the fill
+// is a custom property, resolved after this code has run - so each heat
+// token declares the two mix percentages where its ink has to flip: below
+// `mid`, the page ink (--color-ink) clears 4.5:1 against the composited fill;
+// from `mid` up to `high`, the pure extreme in --color-ink's own direction
+// (--viz-ink-mid: black on light, white on dark) does; from `high` on, the
+// opposite extreme (--viz-ink-high) does.
+//
+// This is keyed by theme, not one number for both - measuring these four
+// tokens (compositing each over --viz-surface, WCAG 4.5:1) found that a
+// single flip percent cannot serve both themes even for well-behaved tokens:
+// heat-negative's black-to-white crossover lands at 82 in light but 61 in
+// dark, a real 21-point gap, because its light and dark hex are each tuned
+// against their own surface, not against each other. The trap is trying to
+// force one number to cover both - see scene-style.js's heatStyle comment.
 export const HEAT_INK_FLIP = Object.freeze({
-  observed: 60,
-  success: 60,
-  'heat-negative': 60,
-  'heat-midpoint': 60,
-  'heat-positive': 60,
+  'heat-negative': Object.freeze({ light: [57, 82], dark: [44, 61] }),
+  'heat-midpoint': Object.freeze({ light: [62, 87], dark: [44, 61] }),
+  'heat-positive': Object.freeze({ light: [63, 91], dark: [41, 57] }),
+  'heat-scale': Object.freeze({ light: [62, 87], dark: [44, 61] }),
 });
