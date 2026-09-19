@@ -1,0 +1,54 @@
+{
+  "id": "self_attention_progressive_matrix_flow",
+  "derivedFromBenchmark": "The Illustrated Transformer",
+  "purpose": "Reusable teaching pattern, not a visual clone",
+  "objective": "Explain how a token obtains a context-aware representation through self-attention.",
+  "conceptualBeats": [
+    {
+      "id": "concrete_input",
+      "intent": "Start from tokens/representations the learner recognizes."
+    },
+    {
+      "id": "derive_qkv",
+      "intent": "Separate query, key and value roles with stable identity."
+    },
+    {
+      "id": "compare_qk",
+      "intent": "Make the comparison operation and score matrix spatially explicit."
+    },
+    {
+      "id": "normalize_scores",
+      "intent": "Show scores becoming normalized attention weights."
+    },
+    {
+      "id": "weight_values",
+      "intent": "Use attention weights to combine values."
+    },
+    {
+      "id": "return_to_meaning",
+      "intent": "Reconnect the computation to the resulting representation."
+    }
+  ],
+  "requiredRelationships": [
+    "Q compares against K",
+    "QK^T produces pairwise attention scores",
+    "softmax converts a row of scores into weights",
+    "weights determine contributions from V",
+    "the weighted values combine into an output representation"
+  ],
+  "preferredReusablePatterns": [
+    "flow",
+    "matrix_operation",
+    "progressive_reveal",
+    "focus_and_expand"
+  ],
+  "visualRealizationIsFreeToVary": [
+    "layout orientation",
+    "palette",
+    "node shape",
+    "edge style",
+    "typography",
+    "caption wording",
+    "animation timing within the Learn motion grammar"
+  ]
+}

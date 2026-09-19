@@ -1,0 +1,202 @@
+{
+  "version": 4,
+  "rootInstructions": "AGENT-INSTRUCTIONS.md",
+  "coreRule": "1:1 conceptual capability, intentionally non-1:1 visual appearance",
+  "projects": [
+    {
+      "id": "illustrated-transformer",
+      "status": "ready",
+      "source": "https://jalammar.github.io/illustrated-transformer/",
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": [
+        {
+          "id": "01-self-attention-computation-flow",
+          "status": "ready",
+          "objective": "Teach how a token gains a context-aware representation through self-attention: tokens to Q/K/V to QK scores to softmax weights to weighted V to output."
+        },
+        {
+          "id": "02-qkv-projection",
+          "status": "skeleton",
+          "objective": "How one token vector becomes separate query, key and value vectors, and why three roles are needed rather than one."
+        },
+        {
+          "id": "03-attention-score-matrix",
+          "status": "skeleton",
+          "objective": "How comparing every query against every key produces a score matrix, and what a cell in it means."
+        },
+        {
+          "id": "04-softmax-attention-weights",
+          "status": "skeleton",
+          "objective": "How raw scores become normalised attention weights, and how those weights select a blend of values."
+        },
+        {
+          "id": "05-causal-masking",
+          "status": "skeleton",
+          "objective": "How a decoder prevents a position from attending to later positions, and what the masked score matrix looks like."
+        },
+        {
+          "id": "06-matrix-self-attention",
+          "status": "skeleton",
+          "objective": "The same computation expressed once over whole matrices instead of per token."
+        },
+        {
+          "id": "07-multi-head-attention",
+          "status": "skeleton",
+          "objective": "How several attention heads run in parallel over the same input and are recombined into one output."
+        },
+        {
+          "id": "08-transformer-block",
+          "status": "skeleton",
+          "objective": "Attention, residual connection, normalisation and feed-forward as one repeating block."
+        },
+        {
+          "id": "09-encoder-decoder-attention",
+          "status": "skeleton",
+          "objective": "How the decoder attends to encoder output, and how that differs from self-attention."
+        },
+        {
+          "id": "10-positional-encoding",
+          "status": "skeleton",
+          "objective": "How order is injected into a model that is otherwise order-free."
+        }
+      ]
+    },
+    {
+      "id": "transformer-explainer",
+      "status": "skeleton",
+      "source": null,
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": []
+    },
+    {
+      "id": "brendan-bycroft-llm-visualization",
+      "status": "skeleton",
+      "source": "https://bbycroft.net/llm",
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": []
+    },
+    {
+      "id": "3blue1brown-transformers",
+      "status": "skeleton",
+      "source": null,
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": []
+    },
+    {
+      "id": "tensorflow-playground",
+      "status": "skeleton",
+      "source": null,
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": []
+    },
+    {
+      "id": "google-pair-explorables",
+      "status": "skeleton",
+      "source": null,
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": []
+    },
+    {
+      "id": "distill",
+      "status": "skeleton",
+      "source": "https://distill.pub/",
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": []
+    },
+    {
+      "id": "abhik-sarkar-transformer-visualizations",
+      "status": "skeleton",
+      "source": null,
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": []
+    },
+    {
+      "id": "attention-variants",
+      "status": "skeleton",
+      "source": null,
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": []
+    },
+    {
+      "id": "mixture-of-experts-visual-guide",
+      "status": "skeleton",
+      "source": null,
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": []
+    },
+    {
+      "id": "modular-llm-inference-handbook",
+      "status": "skeleton",
+      "source": null,
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": []
+    },
+    {
+      "id": "apple-embedding-atlas",
+      "status": "skeleton",
+      "source": null,
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": []
+    },
+    {
+      "id": "diffusion-explainer",
+      "status": "skeleton",
+      "source": null,
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": []
+    },
+    {
+      "id": "neuronpedia",
+      "status": "skeleton",
+      "source": null,
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": []
+    },
+    {
+      "id": "seeing-theory",
+      "status": "skeleton",
+      "source": null,
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": []
+    },
+    {
+      "id": "cnn-explainer",
+      "status": "skeleton",
+      "source": null,
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": []
+    },
+    {
+      "id": "gan-lab",
+      "status": "skeleton",
+      "source": null,
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": []
+    }
+  ],
+  "hierarchy": "project -> case -> mode -> iteration",
+  "unitOfEvaluation": "a single case of a single project at one generated iteration, for example illustrated-transformer -> 05-causal-masking -> dynamic -> v003",
+  "caseRules": [
+    "Every benchmark artifact belongs to a case under the project cases/ directory. A project root holds only project-wide files and shared/.",
+    "Static, dynamic and interactive are MODES of one conceptual case, distinguished by filename inside reference/ and generated/latest/, never by separate cases or projects.",
+    "A case owns its own reference/, generated/latest/, generated/history/, evaluation/current.json and evaluation/history/.",
+    "Archive a useful generated/latest/ to generated/history/vNNN/ before replacing it."
+  ]
+}

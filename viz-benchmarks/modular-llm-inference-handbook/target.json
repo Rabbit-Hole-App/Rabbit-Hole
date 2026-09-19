@@ -1,0 +1,22 @@
+{
+  "benchmark": "modular-llm-inference-handbook",
+  "status": "todo",
+  "evaluationTarget": "semantic_and_pedagogical_parity",
+  "visualImitationTarget": false,
+  "objective": "TODO",
+  "mode": "TODO: static | dynamic | interactive",
+  "constraints": {
+    "noCustomReact": true,
+    "noCustomCSS": true,
+    "noFreeformStyle": true,
+    "useExistingVocabularyOnly": true,
+    "noSceneSpecificRenderer": true,
+    "doNotCopyReferencePalette": true,
+    "doNotCopyReferenceTypography": true,
+    "doNotCopyReferenceNodeShapes": true,
+    "doNotCopyReferenceArrowStyle": true,
+    "doNotCopyReferenceCoordinates": true,
+    "doNotCopyReferenceWording": true,
+    "useLearnVisualLanguage": true
+  }
+}

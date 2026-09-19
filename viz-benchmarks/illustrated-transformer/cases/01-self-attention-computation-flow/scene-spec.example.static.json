@@ -1,0 +1,50 @@
+{
+  "id": "benchmark-static-self-attention",
+  "duration": 4,
+  "modeNote": "Mode belongs to the block in Learn; included here only as benchmark metadata.",
+  "objects": [
+    {
+      "id": "tokens",
+      "type": "tokens",
+      "role": "input",
+      "semanticId": "attention.tokens"
+    },
+    {
+      "id": "q",
+      "type": "box",
+      "role": "input",
+      "semanticId": "attention.query"
+    },
+    {
+      "id": "k",
+      "type": "box",
+      "role": "input",
+      "semanticId": "attention.key"
+    },
+    {
+      "id": "v",
+      "type": "box",
+      "role": "input",
+      "semanticId": "attention.value"
+    },
+    {
+      "id": "scores",
+      "type": "grid",
+      "role": "prediction",
+      "semanticId": "attention.scores"
+    },
+    {
+      "id": "weights",
+      "type": "grid",
+      "role": "observed",
+      "semanticId": "attention.weights"
+    },
+    {
+      "id": "output",
+      "type": "box",
+      "role": "output",
+      "semanticId": "attention.output"
+    }
+  ],
+  "timeline": []
+}

@@ -1,0 +1,30 @@
+{
+  "id": "self_attention_progression",
+  "beats": [
+    {
+      "progress": 0.0,
+      "focus": "tokens",
+      "intent": "Start concrete."
+    },
+    {
+      "progress": 0.25,
+      "focus": "qkv",
+      "intent": "Introduce projections."
+    },
+    {
+      "progress": 0.5,
+      "focus": "scores",
+      "intent": "Show QK^T as the comparison operation."
+    },
+    {
+      "progress": 0.75,
+      "focus": "weights",
+      "intent": "Normalize scores into attention."
+    },
+    {
+      "progress": 1.0,
+      "focus": "output",
+      "intent": "Use weights on V and return to representation."
+    }
+  ]
+}

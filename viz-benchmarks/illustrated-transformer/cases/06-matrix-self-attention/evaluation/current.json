@@ -1,0 +1,12 @@
+{
+  "project": "illustrated-transformer",
+  "case": "06-matrix-self-attention",
+  "iteration": 0,
+  "status": "not_run",
+  "scores": {},
+  "hardFails": [],
+  "failures": [],
+  "recommendedSystemChanges": [],
+  "imitationRisk": null,
+  "humanApproved": false
+}

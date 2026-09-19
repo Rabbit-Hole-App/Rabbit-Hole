@@ -1,0 +1,16 @@
+{
+  "name": "production_originality_check",
+  "required": [
+    "uses_only_learn_design_tokens",
+    "uses_only_registered_components_and_templates",
+    "uses_only_registered_semantic_roles",
+    "uses_only_registered_typography_roles",
+    "uses_only_registered_motion_and_sound_vocabularies",
+    "contains_no_external_reference_assets",
+    "contains_no_reference_specific_palette",
+    "contains_no_reference_specific_coordinates",
+    "contains_no_copied_explanatory_prose",
+    "contains_no_scene_specific_css_or_jsx"
+  ],
+  "note": "Standard technical terms such as Query, Key, Value, Softmax, QK^T, attention, and Transformer are not treated as copied expression."
+}

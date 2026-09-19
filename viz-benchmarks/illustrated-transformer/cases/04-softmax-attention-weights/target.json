@@ -1,0 +1,39 @@
+{
+  "project": "illustrated-transformer",
+  "case": "04-softmax-attention-weights",
+  "status": "skeleton",
+  "source": "https://jalammar.github.io/illustrated-transformer/",
+  "objective": "How raw scores become normalised attention weights, and how those weights select a blend of values.",
+  "scope": "Not yet extracted from the source. reference/ is empty until it is.",
+  "evaluationTarget": "semantic_and_pedagogical_parity",
+  "visualImitationTarget": false,
+  "requiredConcepts": [
+    "qk_scores",
+    "softmax",
+    "attention_weights",
+    "weighted_values"
+  ],
+  "requiredPatterns": [],
+  "constraints": {
+    "noCustomReact": true,
+    "noCustomCSS": true,
+    "noFreeformStyle": true,
+    "useExistingVocabularyOnly": true,
+    "noSceneSpecificRenderer": true,
+    "doNotCopyReferencePalette": true,
+    "doNotCopyReferenceTypography": true,
+    "doNotCopyReferenceNodeShapes": true,
+    "doNotCopyReferenceArrowStyle": true,
+    "doNotCopyReferenceCoordinates": true,
+    "doNotCopyReferenceWording": true,
+    "useLearnVisualLanguage": true
+  },
+  "modes": {
+    "static": {
+      "status": "not_extracted"
+    },
+    "dynamic": {
+      "status": "not_extracted"
+    }
+  }
+}

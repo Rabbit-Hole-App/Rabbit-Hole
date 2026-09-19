@@ -1,0 +1,97 @@
+{
+  "id": "benchmark-dynamic-self-attention",
+  "duration": 10,
+  "objects": [
+    {
+      "id": "tokens",
+      "type": "tokens",
+      "role": "input",
+      "semanticId": "attention.tokens"
+    },
+    {
+      "id": "q",
+      "type": "box",
+      "role": "input",
+      "semanticId": "attention.query"
+    },
+    {
+      "id": "k",
+      "type": "box",
+      "role": "input",
+      "semanticId": "attention.key"
+    },
+    {
+      "id": "v",
+      "type": "box",
+      "role": "input",
+      "semanticId": "attention.value"
+    },
+    {
+      "id": "scores",
+      "type": "grid",
+      "role": "prediction",
+      "semanticId": "attention.scores"
+    },
+    {
+      "id": "weights",
+      "type": "grid",
+      "role": "observed",
+      "semanticId": "attention.weights"
+    },
+    {
+      "id": "output",
+      "type": "box",
+      "role": "output",
+      "semanticId": "attention.output"
+    }
+  ],
+  "timeline": [
+    {
+      "at": 0,
+      "action": "appear",
+      "target": "tokens",
+      "duration": "normal",
+      "sound": "soft_pop"
+    },
+    {
+      "at": 2,
+      "action": "appear",
+      "target": "q",
+      "duration": "normal",
+      "sound": "split"
+    },
+    {
+      "at": 2,
+      "action": "appear",
+      "target": "k",
+      "duration": "normal"
+    },
+    {
+      "at": 2,
+      "action": "appear",
+      "target": "v",
+      "duration": "normal"
+    },
+    {
+      "at": 4,
+      "action": "appear",
+      "target": "scores",
+      "duration": "slow",
+      "sound": "compute"
+    },
+    {
+      "at": 6,
+      "action": "appear",
+      "target": "weights",
+      "duration": "slow",
+      "sound": "reveal"
+    },
+    {
+      "at": 8,
+      "action": "appear",
+      "target": "output",
+      "duration": "slow",
+      "sound": "reveal"
+    }
+  ]
+}

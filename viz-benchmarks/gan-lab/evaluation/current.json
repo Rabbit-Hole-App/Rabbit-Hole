@@ -1,0 +1,11 @@
+{
+  "benchmark": "gan-lab",
+  "iteration": 0,
+  "status": "not_run",
+  "scores": {},
+  "hardFails": [],
+  "failures": [],
+  "recommendedSystemChanges": [],
+  "imitationRisk": null,
+  "humanApproved": false
+}

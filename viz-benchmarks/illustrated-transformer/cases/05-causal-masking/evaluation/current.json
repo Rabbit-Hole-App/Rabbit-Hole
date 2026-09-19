@@ -1,0 +1,12 @@
+{
+  "project": "illustrated-transformer",
+  "case": "05-causal-masking",
+  "iteration": 0,
+  "status": "not_run",
+  "scores": {},
+  "hardFails": [],
+  "failures": [],
+  "recommendedSystemChanges": [],
+  "imitationRisk": null,
+  "humanApproved": false
+}

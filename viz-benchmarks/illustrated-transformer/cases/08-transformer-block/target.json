@@ -1,0 +1,40 @@
+{
+  "project": "illustrated-transformer",
+  "case": "08-transformer-block",
+  "status": "skeleton",
+  "source": "https://jalammar.github.io/illustrated-transformer/",
+  "objective": "Attention, residual connection, normalisation and feed-forward as one repeating block.",
+  "scope": "Not yet extracted from the source. reference/ is empty until it is.",
+  "evaluationTarget": "semantic_and_pedagogical_parity",
+  "visualImitationTarget": false,
+  "requiredConcepts": [
+    "self_attention",
+    "residual_connection",
+    "layer_norm",
+    "feed_forward",
+    "block_repetition"
+  ],
+  "requiredPatterns": [],
+  "constraints": {
+    "noCustomReact": true,
+    "noCustomCSS": true,
+    "noFreeformStyle": true,
+    "useExistingVocabularyOnly": true,
+    "noSceneSpecificRenderer": true,
+    "doNotCopyReferencePalette": true,
+    "doNotCopyReferenceTypography": true,
+    "doNotCopyReferenceNodeShapes": true,
+    "doNotCopyReferenceArrowStyle": true,
+    "doNotCopyReferenceCoordinates": true,
+    "doNotCopyReferenceWording": true,
+    "useLearnVisualLanguage": true
+  },
+  "modes": {
+    "static": {
+      "status": "not_extracted"
+    },
+    "dynamic": {
+      "status": "not_extracted"
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "project": "illustrated-transformer",
+  "case": "05-causal-masking",
+  "status": "skeleton",
+  "source": "https://jalammar.github.io/illustrated-transformer/",
+  "objective": "How a decoder prevents a position from attending to later positions, and what the masked score matrix looks like.",
+  "scope": "Not yet extracted from the source. reference/ is empty until it is.",
+  "evaluationTarget": "semantic_and_pedagogical_parity",
+  "visualImitationTarget": false,
+  "requiredConcepts": [
+    "score_matrix",
+    "causal_mask",
+    "masked_positions",
+    "softmax",
+    "attention_weights"
+  ],
+  "requiredPatterns": [],
+  "constraints": {
+    "noCustomReact": true,
+    "noCustomCSS": true,
+    "noFreeformStyle": true,
+    "useExistingVocabularyOnly": true,
+    "noSceneSpecificRenderer": true,
+    "doNotCopyReferencePalette": true,
+    "doNotCopyReferenceTypography": true,
+    "doNotCopyReferenceNodeShapes": true,
+    "doNotCopyReferenceArrowStyle": true,
+    "doNotCopyReferenceCoordinates": true,
+    "doNotCopyReferenceWording": true,
+    "useLearnVisualLanguage": true
+  },
+  "modes": {
+    "static": {
+      "status": "not_extracted"
+    },
+    "dynamic": {
+      "status": "not_extracted"
+    }
+  }
+}

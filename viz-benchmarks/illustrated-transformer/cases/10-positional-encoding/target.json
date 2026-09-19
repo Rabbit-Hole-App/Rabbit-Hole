@@ -1,0 +1,39 @@
+{
+  "project": "illustrated-transformer",
+  "case": "10-positional-encoding",
+  "status": "skeleton",
+  "source": "https://jalammar.github.io/illustrated-transformer/",
+  "objective": "How order is injected into a model that is otherwise order-free.",
+  "scope": "Not yet extracted from the source. reference/ is empty until it is.",
+  "evaluationTarget": "semantic_and_pedagogical_parity",
+  "visualImitationTarget": false,
+  "requiredConcepts": [
+    "token_order",
+    "position_vector",
+    "encoding_addition",
+    "order_sensitivity"
+  ],
+  "requiredPatterns": [],
+  "constraints": {
+    "noCustomReact": true,
+    "noCustomCSS": true,
+    "noFreeformStyle": true,
+    "useExistingVocabularyOnly": true,
+    "noSceneSpecificRenderer": true,
+    "doNotCopyReferencePalette": true,
+    "doNotCopyReferenceTypography": true,
+    "doNotCopyReferenceNodeShapes": true,
+    "doNotCopyReferenceArrowStyle": true,
+    "doNotCopyReferenceCoordinates": true,
+    "doNotCopyReferenceWording": true,
+    "useLearnVisualLanguage": true
+  },
+  "modes": {
+    "static": {
+      "status": "not_extracted"
+    },
+    "dynamic": {
+      "status": "not_extracted"
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "scale": "1-5",
+  "dimensions": [
+    {
+      "name": "technicalCorrectness",
+      "weight": 2
+    },
+    {
+      "name": "conceptualCompleteness",
+      "weight": 2
+    },
+    {
+      "name": "teachingClarity",
+      "weight": 2
+    },
+    {
+      "name": "visualHierarchy",
+      "weight": 1
+    },
+    {
+      "name": "layout",
+      "weight": 1
+    },
+    {
+      "name": "readability",
+      "weight": 1
+    },
+    {
+      "name": "spatialRelationships",
+      "weight": 1
+    },
+    {
+      "name": "progressiveReveal",
+      "weight": 1
+    },
+    {
+      "name": "interactionQuality",
+      "weight": 1
+    },
+    {
+      "name": "motionChoreography",
+      "weight": 1
+    },
+    {
+      "name": "focalPoint",
+      "weight": 1
+    },
+    {
+      "name": "genericComposition",
+      "weight": 2
+    },
+    {
+      "name": "originality",
+      "weight": 1
+    }
+  ],
+  "hardFails": [
+    "bespoke renderer code for a benchmark",
+    "technically false explanation",
+    "reference-specific visual cloning",
+    "major unreadable overlap"
+  ]
+}

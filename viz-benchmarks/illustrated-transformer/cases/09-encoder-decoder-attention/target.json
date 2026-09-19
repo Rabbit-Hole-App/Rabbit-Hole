@@ -1,0 +1,39 @@
+{
+  "project": "illustrated-transformer",
+  "case": "09-encoder-decoder-attention",
+  "status": "skeleton",
+  "source": "https://jalammar.github.io/illustrated-transformer/",
+  "objective": "How the decoder attends to encoder output, and how that differs from self-attention.",
+  "scope": "Not yet extracted from the source. reference/ is empty until it is.",
+  "evaluationTarget": "semantic_and_pedagogical_parity",
+  "visualImitationTarget": false,
+  "requiredConcepts": [
+    "encoder_output",
+    "decoder_query",
+    "cross_attention",
+    "encoder_decoder_link"
+  ],
+  "requiredPatterns": [],
+  "constraints": {
+    "noCustomReact": true,
+    "noCustomCSS": true,
+    "noFreeformStyle": true,
+    "useExistingVocabularyOnly": true,
+    "noSceneSpecificRenderer": true,
+    "doNotCopyReferencePalette": true,
+    "doNotCopyReferenceTypography": true,
+    "doNotCopyReferenceNodeShapes": true,
+    "doNotCopyReferenceArrowStyle": true,
+    "doNotCopyReferenceCoordinates": true,
+    "doNotCopyReferenceWording": true,
+    "useLearnVisualLanguage": true
+  },
+  "modes": {
+    "static": {
+      "status": "not_extracted"
+    },
+    "dynamic": {
+      "status": "not_extracted"
+    }
+  }
+}

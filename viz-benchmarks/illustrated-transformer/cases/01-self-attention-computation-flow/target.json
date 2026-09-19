@@ -1,0 +1,86 @@
+{
+  "project": "illustrated-transformer",
+  "case": "01-self-attention-computation-flow",
+  "status": "ready",
+  "source": "https://jalammar.github.io/illustrated-transformer/",
+  "objective": "Teach how a token gains a context-aware representation through self-attention: tokens to Q/K/V to QK scores to softmax weights to weighted V to output.",
+  "scope": "The unmasked self-attention computation flow. Causal masking is case 05 and is not visualised in this case reference material.",
+  "evaluationTarget": "semantic_and_pedagogical_parity",
+  "visualImitationTarget": false,
+  "requiredConcepts": [
+    "input_tokens",
+    "query",
+    "key",
+    "value",
+    "qk_scores",
+    "softmax",
+    "attention_weights",
+    "weighted_values",
+    "output"
+  ],
+  "requiredPatterns": [
+    "flow",
+    "matrix_operation",
+    "progressive_reveal",
+    "focus_and_expand"
+  ],
+  "constraints": {
+    "noCustomReact": true,
+    "noCustomCSS": true,
+    "noFreeformStyle": true,
+    "useExistingVocabularyOnly": true,
+    "noSceneSpecificRenderer": true,
+    "doNotCopyReferencePalette": true,
+    "doNotCopyReferenceTypography": true,
+    "doNotCopyReferenceNodeShapes": true,
+    "doNotCopyReferenceArrowStyle": true,
+    "doNotCopyReferenceCoordinates": true,
+    "doNotCopyReferenceWording": true,
+    "useLearnVisualLanguage": true
+  },
+  "modes": {
+    "static": {
+      "objective": "Explain self-attention in one readable frame.",
+      "mode": "passive",
+      "requiredPatterns": [
+        "flow",
+        "matrix_operation",
+        "progressive_hierarchy"
+      ],
+      "reference": [
+        "reference/static-00.png"
+      ]
+    },
+    "dynamic": {
+      "objective": "Teach self-attention as a progressive visual sequence.",
+      "mode": "passive",
+      "requiredTeachingBeats": [
+        "tokens",
+        "qkv_projection",
+        "qk_scores",
+        "softmax_weights",
+        "weighted_value_output"
+      ],
+      "requiredControls": [
+        "play",
+        "pause",
+        "replay",
+        "scrub"
+      ],
+      "keyframes": [
+        0,
+        0.25,
+        0.5,
+        0.75,
+        1
+      ],
+      "reference": [
+        "reference/dynamic-00.png",
+        "reference/dynamic-25.png",
+        "reference/dynamic-50.png",
+        "reference/dynamic-75.png",
+        "reference/dynamic-100.png"
+      ]
+    }
+  }
+}
