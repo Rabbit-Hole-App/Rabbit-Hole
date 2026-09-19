@@ -39,6 +39,11 @@ const objectSchema = z.object({
     // must read as absent rather than as a real measurement of nothing.
     values: z.array(z.number().nullable()).max(256).optional(),
     labels: z.array(z.string().max(24)).max(64).optional(),
+    // A grid's own axis names - query words down the left, key words across
+    // the top - never attention-specific, so a confusion matrix or a
+    // covariance table can name its axes exactly the same way.
+    rowLabels: z.array(z.string().max(24)).max(64).optional(),
+    columnLabels: z.array(z.string().max(24)).max(64).optional(),
     tokens: z.array(z.string().max(24)).max(48).optional(),
     src: z.string().max(300).optional(),
     heat: z.boolean().optional(),
@@ -142,6 +147,20 @@ export function validateScene(raw) {
     }
     if (object.type === 'equation' && !(object.initialState.w && object.initialState.h)) {
       throw new Error(`Object "${object.id}": an equation needs a width and height`);
+    }
+    // One name per row or column, or the renderer would have to guess which
+    // label belongs to which line - silently wrong for any grid that is not
+    // square.
+    if (object.type === 'grid') {
+      const { rows, cols, rowLabels, columnLabels } = object.initialState;
+      const rowCount = rows || 1;
+      const colCount = cols || 1;
+      if (rowLabels && rowLabels.length !== rowCount) {
+        throw new Error(`Object "${object.id}": a grid with ${rowCount} rows needs ${rowCount} rowLabels, got ${rowLabels.length}`);
+      }
+      if (columnLabels && columnLabels.length !== colCount) {
+        throw new Error(`Object "${object.id}": a grid with ${colCount} cols needs ${colCount} columnLabels, got ${columnLabels.length}`);
+      }
     }
     // A stroke with no endpoints falls back to its own x/y for both ends - a
     // finite zero-length line, no NaN, but an invisible object that validated.
@@ -247,6 +266,8 @@ export function getSceneState(scene, time) {
     cell: object.initialState.cell ?? GEOMETRY.cellPitch,
     values: object.initialState.values ? [...object.initialState.values] : null,
     labels: object.initialState.labels ?? null,
+    rowLabels: object.initialState.rowLabels ?? null,
+    columnLabels: object.initialState.columnLabels ?? null,
     tokens: object.initialState.tokens ?? null,
     heat: object.initialState.heat ?? false,
     peak: object.initialState.peak ?? null,

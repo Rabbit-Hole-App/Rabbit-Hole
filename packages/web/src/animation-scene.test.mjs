@@ -310,6 +310,30 @@ test('heat changes how a grid is painted, never what the evaluator says', () => 
   }
 });
 
+test('a grid can name its rows and columns', () => {
+  const built = validateScene({
+    id: 'labelled', duration: 2,
+    objects: [{ id: 'm', type: 'grid', initialState: {
+      rows: 2, cols: 3, values: [1, 2, 3, 4, 5, 6],
+      rowLabels: ['q1', 'q2'], columnLabels: ['k1', 'k2', 'k3'],
+    } }],
+    timeline: [],
+  });
+  const [grid] = getSceneState(built, 1).objects;
+  assert.deepEqual(grid.rowLabels, ['q1', 'q2']);
+  assert.deepEqual(grid.columnLabels, ['k1', 'k2', 'k3']);
+});
+
+test('a label array that does not match the grid is refused at the gate', () => {
+  const scene = extra => ({
+    id: 'bad', duration: 2,
+    objects: [{ id: 'm', type: 'grid', initialState: { rows: 2, cols: 3, values: [1, 2, 3, 4, 5, 6], ...extra } }],
+    timeline: [],
+  });
+  assert.throws(() => validateScene(scene({ rowLabels: ['only one'] })), /2/, 'the message names the expected count');
+  assert.throws(() => validateScene(scene({ columnLabels: ['a', 'b'] })), /3/);
+});
+
 // Asserting a literal list against the exported list would pin nothing - both
 // sides would be constants. Build a real object of every declared type and put
 // it through the gate: that catches a type added to the enum without the fields

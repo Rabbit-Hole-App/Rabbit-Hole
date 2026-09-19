@@ -21,6 +21,8 @@ const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 // settle wherever the evaluator says they are.
 const POP = { type: 'spring', stiffness: 520, damping: 26 };
 const BAR_GAP = 4; // SPACE: gap between adjacent bars
+const ROW_LABEL_GAP = 8; // SPACE: gap between a row label and the grid's left edge
+const COLUMN_LABEL_GAP = 8; // SPACE: gap between a column label and the grid's top edge
 const fromCentre = { transformBox: 'fill-box', transformOrigin: 'center' };
 const num = value => (Math.abs(value) >= 10 ? value.toFixed(0) : value.toFixed(2).replace(/^(-?)0\./, '$1.'));
 // Is this cell the one the timeline is pointing at? A highlight can name a
@@ -88,6 +90,19 @@ function DataShape({ object, role, pop }) {
     return (
       <g transform={`translate(${object.x + (object.w || 0) / 2} ${object.y + (object.h || 0) / 2}) scale(${emphasis}) translate(${-(object.x + (object.w || 0) / 2)} ${-(object.y + (object.h || 0) / 2)})`}>
         {cells}
+        {/* Axis names, not captions: the same numeral scale as the cells they
+            name, one per row down the left and one per column across the top -
+            drawn in this same group so they scale and move with the grid. */}
+        {object.type === 'grid' && object.rowLabels?.map((text, row) => (
+          <text key={`row-label-${row}`} x={object.x - ROW_LABEL_GAP} y={object.y + row * cell + cell / 2}
+            textAnchor="end" dominantBaseline="central" fontSize={numeral.fontSize} fontWeight={numeral.fontWeight}
+            style={{ fontFamily: MONO, fill: 'var(--color-ink-3)' }}>{text}</text>
+        ))}
+        {object.type === 'grid' && object.columnLabels?.map((text, column) => (
+          <text key={`column-label-${column}`} x={object.x + column * cell + cell / 2} y={object.y - COLUMN_LABEL_GAP}
+            textAnchor="middle" fontSize={numeral.fontSize} fontWeight={numeral.fontWeight}
+            style={{ fontFamily: MONO, fill: 'var(--color-ink-3)' }}>{text}</text>
+        ))}
         {object.cellHighlight?.row != null && (
           <motion.rect key={`band-${object.cellHighlight.row}`} initial={{ opacity: 0, scaleX: 0.92 }} animate={{ opacity: 1, scaleX: 1 }} transition={pop} style={{ ...fromCentre, stroke: roleVar(role) }}
             x={object.x - 4} y={object.y + object.cellHighlight.row * cell - 4} width={(object.w || 0) + 8} height={cell + 8}
@@ -158,7 +173,10 @@ function DataShape({ object, role, pop }) {
 // not grow a fifth condition into four attributes.
 const labelAt = (object, kind, centre) => {
   if (kind.stroke) return { x: object.from?.x ?? object.x, y: (object.from?.y ?? object.y) - 8, anchor: 'start', baseline: 'auto' };
-  if (kind.above) return { x: object.x, y: object.y - 10, anchor: 'start', baseline: 'auto' };
+  // A grid that also names its columns needs its own title pushed clear of
+  // those headers - both read top-down as title, then header, then cell - or
+  // the two would print on top of each other just above the grid.
+  if (kind.above) return { x: object.x, y: object.y - (object.type === 'grid' && object.columnLabels?.length ? 24 : 10), anchor: 'start', baseline: 'auto' };
   if (kind.text) return { x: object.x, y: object.y, anchor: 'start', baseline: 'auto' };
   return { x: centre.x, y: centre.y, anchor: 'middle', baseline: 'central' };
 };
