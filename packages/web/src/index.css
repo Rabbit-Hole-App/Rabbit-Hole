@@ -93,6 +93,15 @@ html {
      to close. */
   --viz-ink-mid: #000000;
   --viz-ink-high: #ffffff;
+  /* Third zone in the middle of the ramp where literal black clears in BOTH
+     themes at once (see scene-vocab.js's HEAT_INK_ZONES) - not a flip, so the
+     same value repeats in .dark below rather than being --color-ink-shaped. */
+  --viz-ink-solid: #000000;
+  /* heat-positive's own zone right after page ink: light stays on page's own
+     value here (moved to --viz-ink-mid too early would have been harsher
+     than every other pale label in the app), while dark has already moved to
+     white - the one zone that doesn't match the shared --viz-ink-mid pair. */
+  --viz-heat-positive-ink-mid: #37352f;
 }
 
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
@@ -143,6 +152,8 @@ html {
      is black - the opposite pairing from light, same two absolute colours. */
   --viz-ink-mid: #ffffff;
   --viz-ink-high: #000000;
+  --viz-ink-solid: #000000;
+  --viz-heat-positive-ink-mid: #ffffff;
 }
 .dark [class*='bg-accent'],
 .dark [class*='bg-danger'] {

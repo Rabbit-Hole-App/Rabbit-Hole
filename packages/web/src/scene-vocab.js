@@ -89,23 +89,40 @@ export const HEAT_SCALE = 'heat-scale';
 export const HEAT_TOKENS = Object.freeze([...HEAT_DIVERGING, HEAT_SCALE]);
 
 // heatStyle can't ask the browser what a mix actually rendered to - the fill
-// is a custom property, resolved after this code has run - so each heat
-// token declares the two mix percentages where its ink has to flip: below
-// `mid`, the page ink (--color-ink) clears 4.5:1 against the composited fill;
-// from `mid` up to `high`, the pure extreme in --color-ink's own direction
-// (--viz-ink-mid: black on light, white on dark) does; from `high` on, the
-// opposite extreme (--viz-ink-high) does.
+// is a custom property, resolved after this code has run - and it never asks
+// the browser what THEME is active either: an SVG driven entirely by CSS
+// variables re-skins itself on an appearance change with no listener at all,
+// and a theme-aware heatStyle would have thrown that away for nothing. So the
+// zone boundaries below are theme-blind numbers, and each zone names a CSS
+// custom property whose VALUE flips in index.css's .dark block - the browser
+// resolves which literal colour wins, the same as every other --viz- token.
 //
-// This is keyed by theme, not one number for both - measuring these four
-// tokens (compositing each over --viz-surface, WCAG 4.5:1) found that a
-// single flip percent cannot serve both themes even for well-behaved tokens:
-// heat-negative's black-to-white crossover lands at 82 in light but 61 in
-// dark, a real 21-point gap, because its light and dark hex are each tuned
-// against their own surface, not against each other. The trap is trying to
-// force one number to cover both - see scene-style.js's heatStyle comment.
-export const HEAT_INK_FLIP = Object.freeze({
-  'heat-negative': Object.freeze({ light: [57, 82], dark: [44, 61] }),
-  'heat-midpoint': Object.freeze({ light: [62, 87], dark: [44, 61] }),
-  'heat-positive': Object.freeze({ light: [63, 91], dark: [41, 57] }),
-  'heat-scale': Object.freeze({ light: [62, 87], dark: [44, 61] }),
+// A single (mid, high) pair - one flip percent, same ink either side in both
+// themes - cannot cover the whole ramp: light and dark need their own ink to
+// flip at different points (heat-negative's black-to-white edge is at 82 in
+// light but 61 in dark, a real 21-point gap). The fix is not a per-theme
+// threshold - it's a threshold that's the UNION of both themes' edges, with
+// each resulting zone naming a token whose CSS value differs per theme.
+// heat-positive is the one token where the zone right after `page` keeps
+// page's own light value while dark has already moved to white - that zone
+// gets its own property instead of reusing the shared --viz-ink-mid.
+//
+// Each entry is an ordered [uptoPercent, cssValue] list - the first entry
+// whose uptoPercent a mix percent doesn't exceed is the ink. Boundaries and
+// the (light, dark) pair each names were verified by compositing every real
+// hex in index.css against every integer mix 6-100, WCAG 4.5:1 - see
+// scene-style.test.mjs's exhaustive contrast test.
+export const HEAT_INK_ZONES = Object.freeze({
+  'heat-negative': Object.freeze([
+    [43, 'var(--color-ink)'], [61, 'var(--viz-ink-mid)'], [83, 'var(--viz-ink-solid)'], [100, 'var(--viz-ink-high)'],
+  ]),
+  'heat-midpoint': Object.freeze([
+    [43, 'var(--color-ink)'], [62, 'var(--viz-ink-mid)'], [87, 'var(--viz-ink-solid)'], [100, 'var(--viz-ink-high)'],
+  ]),
+  'heat-positive': Object.freeze([
+    [40, 'var(--color-ink)'], [57, 'var(--viz-heat-positive-ink-mid)'], [92, 'var(--viz-ink-solid)'], [100, 'var(--viz-ink-high)'],
+  ]),
+  'heat-scale': Object.freeze([
+    [43, 'var(--color-ink)'], [62, 'var(--viz-ink-mid)'], [87, 'var(--viz-ink-solid)'], [100, 'var(--viz-ink-high)'],
+  ]),
 });

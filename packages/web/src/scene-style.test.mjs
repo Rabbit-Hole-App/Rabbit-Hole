@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FILL, HEAT_DIVERGING, HEAT_INK_FLIP, HEAT_SCALE, HEAT_TOKENS, ROLES, ROLE_FILL, STATES, TYPE_ROLES, TIMING, SPACE } from './scene-vocab.js';
+import { FILL, HEAT_DIVERGING, HEAT_INK_ZONES, HEAT_SCALE, HEAT_TOKENS, ROLES, ROLE_FILL, STATES, TYPE_ROLES, TIMING, SPACE } from './scene-vocab.js';
 import { roleVar, tintOf, textStyle, shapeStyle, inkOn, heatStyle, heatInk, selectionRing } from './scene-style.js';
 
 test('a role resolves to a token reference, never to a colour', () => {
@@ -171,15 +171,16 @@ test('a grid cell (blocked or highlighted) still lands inside its role band, thr
   }
 });
 
-test('every HEAT_INK_FLIP entry names a token heatStyle can actually produce, with both themes present', () => {
-  assert.deepEqual(Object.keys(HEAT_INK_FLIP).sort(), [...HEAT_TOKENS].sort());
-  for (const token of Object.keys(HEAT_INK_FLIP)) {
+test('every HEAT_INK_ZONES entry names a token heatStyle can actually produce, ordered and covering 100', () => {
+  assert.deepEqual(Object.keys(HEAT_INK_ZONES).sort(), [...HEAT_TOKENS].sort());
+  for (const [token, zones] of Object.entries(HEAT_INK_ZONES)) {
     assert.ok(HEAT_TOKENS.includes(token), `${token} names neither a diverging heat token nor the scale token`);
-    for (const theme of ['light', 'dark']) {
-      const flip = HEAT_INK_FLIP[token][theme];
-      assert.equal(flip.length, 2, `${token}/${theme} needs exactly [mid, high]`);
-      assert.ok(flip[0] < flip[1], `${token}/${theme} mid threshold must precede high`);
+    assert.ok(zones.length >= 2, `${token} needs at least two zones to be a real partition`);
+    assert.equal(zones[zones.length - 1][0], 100, `${token}'s last zone must reach 100`);
+    for (let i = 1; i < zones.length; i += 1) {
+      assert.ok(zones[i][0] > zones[i - 1][0], `${token}'s zone boundaries must strictly increase`);
     }
+    for (const [, cssValue] of zones) assert.match(cssValue, /^var\(--/, `${token} zone ink must be a var() reference, not a literal colour`);
   }
 });
 
@@ -193,18 +194,18 @@ test('no tintOf( call remains in AnimatedScene.jsx outside comments', () => {
 
 // --- Sign fidelity: independent of magnitude and of contrast (Task E's
 // three-way split from the coordinator's review - a combined test hides
-// which property actually broke). value + domain + heatMode + dark ->
-// { fillToken, mixPercent, inkToken }.
+// which property actually broke). value + domain + heatMode ->
+// { fillToken, mixPercent, inkToken }, theme-blind throughout.
 test('sign fidelity: signed picks a different token either side of zero; magnitude and sequential never do', () => {
   const domain = { min: -8, max: 8 };
   for (const magnitude of [1, 4, 8]) {
-    const negative = heatStyle(-magnitude, domain, 'signed', false);
-    const positive = heatStyle(magnitude, domain, 'signed', false);
+    const negative = heatStyle(-magnitude, domain, 'signed');
+    const positive = heatStyle(magnitude, domain, 'signed');
     assert.notEqual(negative.fillToken, positive.fillToken, `signed +-${magnitude} shared a token`);
     assert.ok(HEAT_DIVERGING.includes(negative.fillToken) && HEAT_DIVERGING.includes(positive.fillToken));
 
-    const negMag = heatStyle(-magnitude, domain, 'magnitude', false);
-    const posMag = heatStyle(magnitude, domain, 'magnitude', false);
+    const negMag = heatStyle(-magnitude, domain, 'magnitude');
+    const posMag = heatStyle(magnitude, domain, 'magnitude');
     assert.equal(negMag.fillToken, posMag.fillToken, `magnitude +-${magnitude} disagreed on a token`);
     assert.equal(negMag.mixPercent, posMag.mixPercent, `magnitude +-${magnitude} disagreed on how hot it reads`);
     // The token this reads from must be its own quantitative name, never a
@@ -213,13 +214,13 @@ test('sign fidelity: signed picks a different token either side of zero; magnitu
     assert.equal(negMag.fillToken, HEAT_SCALE, 'magnitude must paint with the quantitative scale token, not a role');
     assert.ok(!HEAT_DIVERGING.includes(negMag.fillToken), 'magnitude must not borrow the signed scale either');
   }
-  assert.equal(heatStyle(0, domain, 'signed', false).fillToken, 'heat-midpoint', 'zero is neither sign');
+  assert.equal(heatStyle(0, domain, 'signed').fillToken, 'heat-midpoint', 'zero is neither sign');
 });
 
 test('sign fidelity: sequential paints with the scale token, never a role, regardless of sign', () => {
   const domain = { min: -10, max: 10 };
   for (const value of [-10, -0.5, 0, 0.5, 10]) {
-    const { fillToken } = heatStyle(value, domain, 'sequential', false);
+    const { fillToken } = heatStyle(value, domain, 'sequential');
     assert.equal(fillToken, HEAT_SCALE, `sequential at ${value} used ${fillToken}, not the scale token`);
   }
 });
@@ -231,7 +232,7 @@ test('magnitude fidelity: mixPercent is monotonic and steps by at most 1 across 
   const domain = { min: 0, max: 1 };
   const samples = 101; // requirement: at least 101 values from 0 to 1
   const percents = [];
-  for (let i = 0; i < samples; i += 1) percents.push(heatStyle(i / (samples - 1), domain, 'magnitude', false).mixPercent);
+  for (let i = 0; i < samples; i += 1) percents.push(heatStyle(i / (samples - 1), domain, 'magnitude').mixPercent);
   for (let i = 1; i < percents.length; i += 1) {
     assert.ok(percents[i] >= percents[i - 1], `share ${((i) / (samples - 1)).toFixed(2)} (${percents[i]}%) read cooler than the previous share (${percents[i - 1]}%)`);
     // The ramp's slope is (100 - HEAT_FLOOR) per unit share; over a 1/100
@@ -246,14 +247,14 @@ test('magnitude fidelity: mixPercent is monotonic and steps by at most 1 across 
 test('magnitude fidelity: sequential preserves order by raw value; magnitude preserves order by |value|', () => {
   const domain = { min: -10, max: 10 };
   const values = [-10, -6, -2, -0.5, 0, 0.5, 2, 6, 10];
-  const percents = values.map(value => heatStyle(value, domain, 'sequential', false).mixPercent);
+  const percents = values.map(value => heatStyle(value, domain, 'sequential').mixPercent);
   for (let i = 1; i < percents.length; i += 1) {
     assert.ok(percents[i] >= percents[i - 1], `${values[i]} (${percents[i]}%) read cooler than ${values[i - 1]} (${percents[i - 1]}%)`);
   }
   const byAbs = [...values].sort((a, b) => Math.abs(a) - Math.abs(b));
   for (let i = 1; i < byAbs.length; i += 1) {
-    const a = heatStyle(byAbs[i - 1], domain, 'magnitude', false).mixPercent;
-    const b = heatStyle(byAbs[i], domain, 'magnitude', false).mixPercent;
+    const a = heatStyle(byAbs[i - 1], domain, 'magnitude').mixPercent;
+    const b = heatStyle(byAbs[i], domain, 'magnitude').mixPercent;
     assert.ok(b >= a, `magnitude did not preserve order by |value|: |${byAbs[i - 1]}| then |${byAbs[i]}|`);
   }
 });
@@ -266,7 +267,7 @@ test('magnitude fidelity: sequential preserves order by raw value; magnitude pre
 test('invariant: contrast is solved by ink, never by distorting the fill ramp', () => {
   const domain = { min: 0, max: 1 };
   const percents = new Set();
-  for (let i = 0; i <= 100; i += 1) percents.add(heatStyle(i / 100, domain, 'magnitude', false).mixPercent);
+  for (let i = 0; i <= 100; i += 1) percents.add(heatStyle(i / 100, domain, 'magnitude').mixPercent);
   assert.ok(percents.size >= 90, `only ${percents.size} distinct mixPercent levels - the ramp must stay continuous regardless of what the ink does`);
 });
 
@@ -287,8 +288,8 @@ test('text accessibility: every mixPercent the ramp can emit clears 4.5:1 ink co
     return match[1];
   };
   const themes = {
-    light: { block: lightBlock, dark: false, surface: hex(lightBlock, '--viz-surface'), page: hex(lightBlock, '--color-ink') },
-    dark: { block: darkBlock, dark: true, surface: hex(darkBlock, '--viz-surface'), page: hex(darkBlock, '--color-ink') },
+    light: { block: lightBlock, surface: hex(lightBlock, '--viz-surface'), page: hex(lightBlock, '--color-ink') },
+    dark: { block: darkBlock, surface: hex(darkBlock, '--viz-surface'), page: hex(darkBlock, '--color-ink') },
   };
   const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
   const relLum = ([r, g, b]) => {
@@ -305,20 +306,26 @@ test('text accessibility: every mixPercent the ramp can emit clears 4.5:1 ink co
     const a = percent / 100;
     return f.map((channel, index) => channel * a + s[index] * (1 - a));
   };
+  // heatInk() returns a bare var() reference, same string in both themes -
+  // this is the CSS-resolves-it half of the fix. Whatever name it returns,
+  // look that custom property up in THIS theme's own block; --color-ink is
+  // the one exception, already resolved above since it lives outside :root.
   const inkHex = (theme, inkToken) => {
     if (inkToken === 'var(--color-ink)') return theme.page;
-    if (inkToken === 'var(--viz-ink-mid)') return hex(theme.block, '--viz-ink-mid');
-    if (inkToken === 'var(--viz-ink-high)') return hex(theme.block, '--viz-ink-high');
-    assert.fail(`unrecognised inkToken shape: ${inkToken}`);
+    const name = inkToken.match(/^var\((--[\w-]+)\)$/)?.[1];
+    assert.ok(name, `unrecognised inkToken shape: ${inkToken}`);
+    return hex(theme.block, name);
   };
 
   let checked = 0;
-  for (const themeName of ['light', 'dark']) {
-    const theme = themes[themeName];
-    for (const token of HEAT_TOKENS) {
-      const fillHex = hex(theme.block, `--viz-${token}`);
-      for (let percent = 6; percent <= 100; percent += 1) {
-        const inkToken = heatInk(token, percent, theme.dark);
+  for (const token of HEAT_TOKENS) {
+    for (let percent = 6; percent <= 100; percent += 1) {
+      // heatStyle/heatInk never see a theme - called once per (token, percent),
+      // and the SAME returned inkToken is resolved against both themes' CSS.
+      const inkToken = heatInk(token, percent);
+      for (const themeName of ['light', 'dark']) {
+        const theme = themes[themeName];
+        const fillHex = hex(theme.block, `--viz-${token}`);
         const eff = compositeOver(fillHex, percent, theme.surface);
         const ink = rgb(inkHex(theme, inkToken));
         const ratio = contrastRatio(eff, ink);
@@ -331,6 +338,25 @@ test('text accessibility: every mixPercent the ramp can emit clears 4.5:1 ink co
   assert.equal(checked, 2 * HEAT_TOKENS.length * 95, 'every theme x token x reachable percent must have been checked');
 });
 
+// The property the coordinator rejected a `dark` parameter to protect: an SVG
+// driven entirely by CSS variables re-skins itself on an appearance change
+// with no listener at all. A previous version of this fix threaded `dark`
+// through heatStyle and added a useDark() subscription to pick a theme-aware
+// ink - this is the regression test that stops that coming back. It reads
+// the actual sources rather than trusting a comment, the same way the
+// tintOf( test above does.
+test('heat styling never reads theme state - CSS resolves the ink, not JS', () => {
+  const strip = source => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  const styleSource = strip(readFileSync(new URL('./scene-style.js', import.meta.url), 'utf8'));
+  const sceneSource = strip(readFileSync(new URL('./AnimatedScene.jsx', import.meta.url), 'utf8'));
+  const themeReads = /isDark|useDark|matchMedia|prefers-color-scheme|small:theme|classList\.[a-z]+\(['"]dark['"]\)/i;
+  assert.doesNotMatch(styleSource, themeReads, 'scene-style.js must not read or accept theme state');
+  assert.doesNotMatch(sceneSource, themeReads, 'AnimatedScene.jsx must not read or accept theme state');
+  // heatStyle's own signature is the other half of this: no fourth parameter
+  // for a caller to smuggle a theme flag through.
+  assert.match(styleSource, /export function heatStyle\(value, domain, mode\)/, 'heatStyle must stay a 3-argument, theme-blind function');
+});
+
 // A viewer reported being unable to find the selected cell unprompted - a
 // 0.5px stroke difference (highlighted's step 2 vs resting's step 1) was the
 // entire distinction. selectionRing must read the same weight regardless of
@@ -338,8 +364,8 @@ test('text accessibility: every mixPercent the ramp can emit clears 4.5:1 ink co
 // sits on top of.
 test('a selected cell rings equally strong at minimum and maximum heat intensity, without touching the fill', () => {
   const domain = { min: 0, max: 1 };
-  const pale = heatStyle(0.001, domain, 'magnitude', false); // near HEAT_FLOOR
-  const saturated = heatStyle(1, domain, 'magnitude', false); // full mix
+  const pale = heatStyle(0.001, domain, 'magnitude'); // near HEAT_FLOOR
+  const saturated = heatStyle(1, domain, 'magnitude'); // full mix
   assert.notEqual(pale.mixPercent, saturated.mixPercent, 'the fixture must actually span low and high intensity');
 
   const paleRing = selectionRing('observed', pale);
@@ -354,7 +380,7 @@ test('a selected cell rings equally strong at minimum and maximum heat intensity
 
   // Selecting a cell must not move VALUE: same mixPercent/fillToken with or
   // without the ring.
-  const rePale = heatStyle(0.001, domain, 'magnitude', false);
+  const rePale = heatStyle(0.001, domain, 'magnitude');
   assert.equal(rePale.mixPercent, pale.mixPercent);
   assert.equal(rePale.fillToken, pale.fillToken);
 });

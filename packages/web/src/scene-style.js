@@ -2,7 +2,7 @@
 // vocabulary, so it never needs to know about the renderer or the evaluator.
 // Colour comes from role alone; state modulates weight and fill strength,
 // never hue - see docs/superpowers/specs/2026-09-18-visual-language-and-motion-design.md.
-import { FILL, HEAT_INK_FLIP, HEAT_SCALE, ROLES, ROLE_FILL } from './scene-vocab.js';
+import { FILL, HEAT_INK_ZONES, HEAT_SCALE, ROLES, ROLE_FILL } from './scene-vocab.js';
 
 export function roleVar(role) {
   return ROLES.includes(role) ? `var(--viz-${role})` : 'var(--viz-neutral)';
@@ -92,28 +92,31 @@ const heatPercent = share => Math.round(HEAT_FLOOR + Math.max(0, Math.min(1, sha
 
 // Contrast is ink's job, never the fill's (see the module comment) - a heat
 // cell's own colour can land anywhere along the ramp above, so the ink has to
-// be picked from where THIS fill actually sits, never from a role or a
-// single theme-blind threshold. Measuring the four heat tokens (compositing
-// each over --viz-surface, WCAG 4.5:1) found that one flip percent cannot
-// serve both themes even for these well-behaved tokens - see
-// scene-vocab.js's HEAT_INK_FLIP comment for the measured gap - so the
-// threshold is per token AND per theme; `dark` only selects which already-
-// measured pair applies, it never resolves a colour itself.
-export const heatInk = (token, percent, dark) => {
-  const flip = HEAT_INK_FLIP[token]?.[dark ? 'dark' : 'light'];
-  if (!flip) return 'var(--color-ink)';
-  const [mid, high] = flip;
-  if (percent >= high) return 'var(--viz-ink-high)';
-  if (percent >= mid) return 'var(--viz-ink-mid)';
-  return 'var(--color-ink)';
+// be picked from where THIS fill actually sits, never from a role. It is NOT
+// picked from the theme: heatStyle has no idea whether the page is light or
+// dark, on purpose (see this function's own comment below), so each zone in
+// scene-vocab.js's HEAT_INK_ZONES names a CSS custom property whose value
+// flips in index.css's .dark block instead of a threshold JS would have to
+// pick between. The zone boundaries themselves are still theme-blind numbers
+// - the union of both themes' own safe edges - and are the same regardless
+// of which theme is actually showing.
+export const heatInk = (token, percent) => {
+  const zones = HEAT_INK_ZONES[token];
+  if (!zones) return 'var(--color-ink)';
+  return (zones.find(([upto]) => percent <= upto) ?? zones[zones.length - 1])[1];
 };
 
-// value + domain + heatMode + dark -> { fillToken, mixPercent, inkToken }.
-// Pure and dependency-free: fillToken and inkToken are ready-to-use CSS
-// values (a var() reference), so nothing here ever holds a hex value, and a
-// scene re-skins for free when the learner switches appearance - `dark` only
-// picks which of two already-themed inks is correct, exactly like the
-// `.dark` block in index.css does for every other token.
+// value + domain + heatMode -> { fillToken, mixPercent, inkToken }. Pure and
+// theme-blind: fillToken and inkToken are ready-to-use CSS values (a var()
+// reference), so nothing here ever holds a hex value, and - critically -
+// nothing here ever reads which theme is active either. An SVG driven
+// entirely by CSS variables re-skins itself on an appearance change with no
+// listener at all; a `dark` parameter threaded in here (an earlier version
+// of this fix had one) would have thrown that property away for a problem
+// CSS alone already solves, since every value this function returns is a
+// var() reference whose own resolution already flips with .dark. See
+// scene-style.test.mjs's regression test, which asserts neither this file
+// nor AnimatedScene.jsx ever reads theme state.
 //
 // role no longer reaches the fill. It used to: magnitude and sequential
 // painted with the object's own role, which meant a heat cell's colour could
@@ -122,27 +125,27 @@ export const heatInk = (token, percent, dark) => {
 // HEAT_SCALE instead, so a heat cell's hue only ever says sign or "how much",
 // never what the object is; role still owns the grid's frame and stroke (see
 // AnimatedScene.jsx's grid path), just not the cell interior.
-export function heatStyle(value, domain, mode, dark = false) {
+export function heatStyle(value, domain, mode) {
   const extent = Math.max(Math.abs(domain.min), Math.abs(domain.max), 0.0001);
   if (mode === 'sequential') {
     // One ramp over the signed range, low to high - order is what this mode
     // promises, not magnitude, so the raw value is what's normalised.
     const span = domain.max - domain.min || 0.0001;
     const percent = heatPercent((value - domain.min) / span);
-    return { fillToken: HEAT_SCALE, mixPercent: percent, inkToken: heatInk(HEAT_SCALE, percent, dark) };
+    return { fillToken: HEAT_SCALE, mixPercent: percent, inkToken: heatInk(HEAT_SCALE, percent) };
   }
   if (mode === 'signed') {
     // Sign picks the token - negative and positive never share one, even at
     // equal distance from zero - and that distance alone drives the mix.
     const token = value > 0 ? 'heat-positive' : value < 0 ? 'heat-negative' : 'heat-midpoint';
     const percent = heatPercent(Math.abs(value) / extent);
-    return { fillToken: token, mixPercent: percent, inkToken: heatInk(token, percent, dark) };
+    return { fillToken: token, mixPercent: percent, inkToken: heatInk(token, percent) };
   }
   // magnitude (and the true/undefined shorthand the gate already normalised
   // away): sign carries no meaning, so every value shares HEAT_SCALE's one
   // ramp - never the role, see this function's own comment above.
   const percent = heatPercent(Math.abs(value) / extent);
-  return { fillToken: HEAT_SCALE, mixPercent: percent, inkToken: heatInk(HEAT_SCALE, percent, dark) };
+  return { fillToken: HEAT_SCALE, mixPercent: percent, inkToken: heatInk(HEAT_SCALE, percent) };
 }
 
 // A selected cell must stay findable whether its own fill is barely tinted or

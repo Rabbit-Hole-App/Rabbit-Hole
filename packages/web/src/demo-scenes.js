@@ -156,9 +156,11 @@ export const sigmoidScene = {
 
 // --- 4. the checkpoint probe: everything a signed heat matrix has to prove at
 // once - negative, near-zero and positive cells, a blocked (unmeasured) cell
-// sitting right next to a genuinely small one, a selected cell on top of the
-// heat, and row/column labels the eye has to keep separate from the data.
-// One frame, no animation: a human judges this by looking, not by scrubbing.
+// sitting right next to a genuinely small one, TWO selected cells on top of
+// the heat - one pale, one saturated, so selection is proven orthogonal to
+// VALUE rather than only demonstrated at one middling intensity - and
+// row/column labels the eye has to keep separate from the data. One frame,
+// no animation: a human judges this by looking, not by scrubbing.
 
 export const heatCheckScene = {
   id: 'heat-check-matrix',
@@ -174,13 +176,17 @@ export const heatCheckScene = {
         columnLabels: ['k1', 'k2', 'k3', 'k4'],
         // row0: strongly negative -> near-zero -> positive. row1: a near-zero
         // value sits right beside a null (blocked/unmeasured) cell - the pair
-        // this whole check exists to keep apart. row2: the mirror image, and
-        // a selected cell (index 3, a clear positive) on top of real heat.
+        // this whole check exists to keep apart. row2: the mirror image.
+        // Index 0 (-7, the domain's own extreme - fully saturated) and index
+        // 6 (0.2, barely off zero - the palest real value on the board) are
+        // the two selected cells: if a viewer can find both unprompted, the
+        // selection ring is proven independent of how much heat the cell it
+        // sits on is carrying.
         values: [-7, -2, 0, 3, -0.3, null, 0.2, 6, 5, -5, 1, -0.1],
       } },
   ],
   timeline: [
-    { at: 0, action: 'highlight_cell', target: 'matrix', value: 3 },
+    { at: 0, action: 'highlight_cell', target: 'matrix', value: [0, 6] },
   ],
 };
 
