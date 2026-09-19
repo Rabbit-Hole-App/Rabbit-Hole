@@ -13,7 +13,6 @@
     "matrix_multiplication",
     "output_matrix"
   ],
-  "requiredPatterns": [],
   "constraints": {
     "noCustomReact": true,
     "noCustomCSS": true,
@@ -35,5 +34,9 @@
     "dynamic": {
       "status": "not_extracted"
     }
-  }
+  },
+  "patterns": [
+    "matrix_operation",
+    "flow"
+  ]
 }

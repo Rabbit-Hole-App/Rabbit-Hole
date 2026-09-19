@@ -18,12 +18,6 @@
     "weighted_values",
     "output"
   ],
-  "requiredPatterns": [
-    "flow",
-    "matrix_operation",
-    "progressive_reveal",
-    "focus_and_expand"
-  ],
   "constraints": {
     "noCustomReact": true,
     "noCustomCSS": true,
@@ -82,5 +76,11 @@
         "reference/dynamic-100.png"
       ]
     }
-  }
+  },
+  "patterns": [
+    "flow",
+    "matrix_operation",
+    "zoom_drilldown",
+    "process_scrubbing"
+  ]
 }

@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "purpose": "The reusable visualization patterns the benchmark program exists to cover. A case is worth running because it exercises one or more of these, not because it appears in some article's table of contents. Coverage of this list is the measure of the suite; the number of cases is not.",
+  "rule": "Every case declares the patterns it exercises in its target.json `patterns` field. A pattern with no ready case is an untested capability of the visual language, and that gap is the thing to close next.",
+  "patterns": [
+    {
+      "id": "flow",
+      "name": "Flow",
+      "tests": "A left-to-right or staged pipeline where a thing is transformed step by step and keeps its identity throughout.",
+      "capability": "stable object identity across stages, directional connection, staged reveal"
+    },
+    {
+      "id": "matrix_operation",
+      "name": "Matrix operations",
+      "tests": "A grid whose cells carry values, and an operation over it that the learner must see rather than infer - multiplication, masking, normalisation along an axis.",
+      "capability": "value-carrying cells, row and column emphasis, per-axis operations, magnitude as fill"
+    },
+    {
+      "id": "zoom_drilldown",
+      "name": "Zoom and drill-down",
+      "tests": "Moving between a whole system and one part of it without the learner losing where they were.",
+      "capability": "camera focus and return, level-of-detail, part-to-whole orientation"
+    },
+    {
+      "id": "parameter_exploration",
+      "name": "Parameter exploration",
+      "tests": "A control the learner moves, with the picture responding continuously so cause and effect are felt rather than described.",
+      "capability": "input binding, derived values, continuous re-evaluation"
+    },
+    {
+      "id": "coordinated_views",
+      "name": "Coordinated views",
+      "tests": "Two or more representations of the same thing, where acting on one visibly updates the others.",
+      "capability": "shared selection across views, linked highlighting, one state many renderings"
+    },
+    {
+      "id": "routing",
+      "name": "Routing",
+      "tests": "Something choosing a path among alternatives - gating, dispatch, branching - where the choice and the not-chosen are both legible.",
+      "capability": "conditional emphasis, path highlighting, showing the road not taken"
+    },
+    {
+      "id": "process_scrubbing",
+      "name": "Process scrubbing",
+      "tests": "A process the learner can move back and forth through at will, landing on any moment and reading it exactly.",
+      "capability": "deterministic evaluation at any time, transport control, a scrubbed moment that is addressable"
+    },
+    {
+      "id": "live_computation",
+      "name": "Live computation",
+      "tests": "Numbers actually being computed and shown changing, not a static picture of a result.",
+      "capability": "derived values, value transitions, magnitude encoding that survives change"
+    },
+    {
+      "id": "graphs",
+      "name": "Graphs and networks",
+      "tests": "Nodes and edges where the topology itself is the lesson - connectivity, depth, fan-in and fan-out.",
+      "capability": "edge routing without collision, layered layout, degree and path emphasis"
+    },
+    {
+      "id": "embeddings",
+      "name": "Embeddings and high-dimensional spaces",
+      "tests": "Many points in a space where position means similarity, and structure emerges from density rather than from individual labels.",
+      "capability": "dense point rendering, neighbourhood emphasis, projection without implying false axes"
+    },
+    {
+      "id": "spatial_3d",
+      "name": "3D and spatial systems",
+      "tests": "A structure whose meaning depends on arrangement in space - volume, depth, or a camera that must move to reveal it.",
+      "capability": "depth cues, camera movement as explanation, spatial layout that survives a 2D frame"
+    }
+  ]
+}

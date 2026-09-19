@@ -13,7 +13,6 @@
     "qk_scores",
     "score_matrix"
   ],
-  "requiredPatterns": [],
   "constraints": {
     "noCustomReact": true,
     "noCustomCSS": true,
@@ -35,5 +34,8 @@
     "dynamic": {
       "status": "not_extracted"
     }
-  }
+  },
+  "patterns": [
+    "matrix_operation"
+  ]
 }

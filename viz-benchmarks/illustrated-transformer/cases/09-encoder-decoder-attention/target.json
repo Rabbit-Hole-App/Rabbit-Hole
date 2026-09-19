@@ -13,7 +13,6 @@
     "cross_attention",
     "encoder_decoder_link"
   ],
-  "requiredPatterns": [],
   "constraints": {
     "noCustomReact": true,
     "noCustomCSS": true,
@@ -35,5 +34,9 @@
     "dynamic": {
       "status": "not_extracted"
     }
-  }
+  },
+  "patterns": [
+    "flow",
+    "coordinated_views"
+  ]
 }

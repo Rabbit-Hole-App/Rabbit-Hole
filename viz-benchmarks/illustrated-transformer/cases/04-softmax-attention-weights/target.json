@@ -13,7 +13,6 @@
     "attention_weights",
     "weighted_values"
   ],
-  "requiredPatterns": [],
   "constraints": {
     "noCustomReact": true,
     "noCustomCSS": true,
@@ -35,5 +34,9 @@
     "dynamic": {
       "status": "not_extracted"
     }
-  }
+  },
+  "patterns": [
+    "matrix_operation",
+    "live_computation"
+  ]
 }

@@ -14,7 +14,6 @@
     "softmax",
     "attention_weights"
   ],
-  "requiredPatterns": [],
   "constraints": {
     "noCustomReact": true,
     "noCustomCSS": true,
@@ -36,5 +35,8 @@
     "dynamic": {
       "status": "not_extracted"
     }
-  }
+  },
+  "patterns": [
+    "matrix_operation"
+  ]
 }

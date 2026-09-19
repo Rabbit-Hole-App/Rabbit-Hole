@@ -1,3 +1,40 @@
+# Visualization benchmarks
+
+**What this suite measures: which reusable visualization patterns the Learn visual
+language can actually carry.** Not how many cases exist, and not how closely a
+generated scene resembles someone else's artwork.
+
+- `patterns.json` — the eleven reusable patterns the program exists to cover
+- `COVERAGE.md` — which patterns have a case with real reference material, and
+  which are still untested. This is the scoreboard
+- `benchmark-registry.json` — projects, their cases, and the patterns each exercises
+- `AGENT-INSTRUCTIONS.md` — read before doing anything
+
+## Hierarchy
+
+```text
+project -> case -> mode -> iteration
+```
+
+A **project** is one external source. A **case** is one distinct visualization or
+teaching capability from it. A **mode** is static, dynamic or interactive, told
+apart by filename rather than by folder, because the same idea taught in one
+frame and taught over time is the same idea. An **iteration** is one generated run.
+
+## How this grows
+
+Start from cases that already have real reference material, and add external
+references **one project at a time**, choosing the project that closes the largest
+gap in `COVERAGE.md`. A case is worth adding because it exercises a pattern that
+nothing else covers - never because it appears in an article's table of contents.
+
+Reference material must be real and legitimately obtainable. Prefer sources that
+can be run locally under a permissive licence over artwork that cannot be
+redistributed; where neither is possible, document the reference in writing rather
+than copying it.
+
+---
+
 # viz-benchmarks
 
 Benchmark suite for evaluating and improving the Learn visualization runtime.

@@ -13,7 +13,6 @@
     "encoding_addition",
     "order_sensitivity"
   ],
-  "requiredPatterns": [],
   "constraints": {
     "noCustomReact": true,
     "noCustomCSS": true,
@@ -35,5 +34,9 @@
     "dynamic": {
       "status": "not_extracted"
     }
-  }
+  },
+  "patterns": [
+    "live_computation",
+    "matrix_operation"
+  ]
 }
