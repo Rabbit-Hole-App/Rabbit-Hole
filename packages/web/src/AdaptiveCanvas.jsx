@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
+import { ChevronDown, ChevronUp, Ellipsis, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
@@ -48,6 +48,15 @@ const COLUMN = 560;
 const SPACE_STEP = 120;
 // Blank canvas left at each end of a gap separator, in screen pixels.
 const RAIL_INSET = 56;
+// Section headings. A heading is flat, not a container - the depth is what it
+// looks like and what it says, so a deck or a lesson can be skimmed without the
+// canvas needing a tree underneath it.
+const SECTION_LEVELS = [
+  { level: 1, label: 'Add section', size: 28, weight: 650, placeholder: 'Section' },
+  { level: 2, label: 'Add sub-section', size: 21, weight: 600, placeholder: 'Sub-section' },
+  { level: 3, label: 'Add sub-sub-section', size: 17, weight: 550, placeholder: 'Sub-sub-section' },
+];
+const levelOf = block => SECTION_LEVELS.find(entry => entry.level === block.level) || SECTION_LEVELS[0];
 const POLYGONS = {
   triangle: [[0.5, 0], [1, 1], [0, 1]],
   diamond: [[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]],
@@ -227,7 +236,29 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
 
 // A course-authored lesson block (challenge, explanation, quiz, …) in the
 // same chrome as chat nodes; the body renderer comes from LearningBlocks.
+// A heading carries no card chrome of its own - it should read as a title on the
+// canvas, not another box - so it borrows the ghost treatment blocks already use.
+function HeadingCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onSnap }) {
+  const level = levelOf(block);
+  const body = useRef(null);
+  const shown = useRef(block.text);
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost space={block.space}
+      connected={connected} width={COLUMN} autoMax={240}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      <div data-scroll className="min-h-0 flex-1 px-4 pt-1 pb-3">
+        <div ref={body} contentEditable suppressContentEditableWarning data-placeholder={level.placeholder}
+          style={{ fontSize: level.size, fontWeight: level.weight }}
+          onPointerDown={event => event.stopPropagation()}
+          onBlur={event => { const text = event.currentTarget.textContent; shown.current = text; onChange({ ...block, text }); }}
+          className="leading-tight outline-none empty:before:text-ink-3 empty:before:content-[attr(data-placeholder)]">{shown.current}</div>
+      </div>
+    </CanvasNode>
+  );
+}
+
 function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade }) {
+  if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       autoMax={BLOCK_TYPES[block.type]?.autoMax}
@@ -331,9 +362,20 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
 
 // The lesson-block picker. Used by the corner button, which appends, and by the
 // rail, which inserts at the gap you are pointing at.
-function BlockMenu({ className, filter, onFilter, onPick }) {
+function BlockMenu({ className, filter, onFilter, onPick, onLevel = null }) {
   return (
-    <div role="menu" aria-label="Lesson blocks" className={`absolute z-40 flex max-h-[70vh] w-44 flex-col overflow-hidden rounded-xl border border-line bg-white shadow-md ${className}`}>
+    <div role="menu" aria-label="Lesson blocks" className={`absolute z-40 flex max-h-[70vh] w-52 flex-col overflow-hidden rounded-xl border border-line bg-white shadow-md ${className}`}>
+      {/* Each level is drawn at the size it will produce, so the choice is the
+          preview - no need to read "sub-sub" to know how deep it sits. */}
+      {onLevel && (
+        <div className="shrink-0 border-b border-line p-1">
+          {SECTION_LEVELS.map(entry => (
+            <button key={entry.level} type="button" role="menuitem" onClick={() => onLevel(entry.level)}
+              style={{ fontSize: Math.round(entry.size * 0.62), fontWeight: entry.weight }}
+              className="block w-full rounded-lg px-3 py-1 text-left leading-tight text-ink hover:bg-hover">{entry.label}</button>
+          ))}
+        </div>
+      )}
       <input type="search" autoFocus value={filter} onChange={event => onFilter(event.target.value)}
         aria-label="Filter blocks" placeholder="Filter…"
         className="m-1 h-7 shrink-0 rounded-lg border border-line px-2 text-xs outline-none focus:border-ink-3" />
@@ -354,7 +396,7 @@ function BlockMenu({ className, filter, onFilter, onPick }) {
 // the blank canvas beside it. Press either as often as you like - [+] pushes the
 // pair apart, [-] pulls it together and then straight past flush into an
 // overlap, because the space is only a margin and margins go negative.
-function GapRail({ gap, zoom, span, space, adding, filter, onNudge, onAdding, onFilter, onAdd }) {
+function GapRail({ gap, zoom, span, space, adding, filter, onNudge, onAdding, onFilter, onAdd, onAddHeading }) {
   const chrome = 'flex h-6 items-center justify-center rounded-lg border border-line bg-white text-ink-2 shadow-md hover:bg-hover hover:text-ink';
   const button = (delta, Icon, label) => (
     <button type="button" aria-label={label} title={label} onClick={() => onNudge(gap.beforeId, delta)}
@@ -378,10 +420,11 @@ function GapRail({ gap, zoom, span, space, adding, filter, onNudge, onAdding, on
         {/* Same dev gate as the corner button this came from. */}
         {onAdd && (
           <span className="relative">
-            <button type="button" aria-label="Add section here" title="Add a section in this gap" aria-expanded={adding}
+            <button type="button" aria-label="Insert here" title="Insert a section or a block in this gap" aria-expanded={adding}
               onPointerDown={event => event.stopPropagation()} onClick={() => onAdding(!adding)}
-              className={`${chrome} gap-1 px-2 text-xs whitespace-nowrap`}><Plus size={12} strokeWidth={1.8} />Add section</button>
-            {adding && <BlockMenu className="top-7 left-0" filter={filter} onFilter={onFilter} onPick={type => onAdd(type, gap.index + 1)} />}
+              className={`${chrome} w-6`}><Ellipsis size={14} strokeWidth={1.8} /></button>
+            {adding && <BlockMenu className="top-7 left-0" filter={filter} onFilter={onFilter}
+              onLevel={level => onAddHeading(level, gap.index + 1)} onPick={type => onAdd(type, gap.index + 1)} />}
           </span>
         )}
       </div>
@@ -1087,6 +1130,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     setGapAdding(false);
     setInsertFilter('');
   };
+  const insertHeadingAt = (level, index) => {
+    snapshot();
+    const heading = { id: crypto.randomUUID(), type: 'heading', dx: 0, dy: 0, level, text: '' };
+    setBlocks(previous => [...previous.slice(0, index), heading, ...previous.slice(index)]);
+    setGapAdding(false);
+    setInsertFilter('');
+  };
   const nudgeGap = (beforeId, delta) => {
     snapshot();
     setBlocks(previous => previous.map(block => block.id === beforeId ? { ...block, space: (block.space || 0) + delta } : block));
@@ -1216,7 +1266,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         </div>
         {activeGap && <GapRail gap={activeGap} zoom={view.z} span={railSpan} space={blocks.find(block => block.id === activeGap.beforeId)?.space || 0} onNudge={nudgeGap}
           adding={gapAdding} filter={insertFilter} onAdding={setGapAdding} onFilter={setInsertFilter}
-          onAdd={import.meta.env.VITE_COACHING_DEV === 'true' ? insertBlockAt : null} />}
+          onAdd={import.meta.env.VITE_COACHING_DEV === 'true' ? insertBlockAt : null} onAddHeading={insertHeadingAt} />}
         {/* Alignment guides, live only while something is being dragged. */}
         {!!guides.length && (
           <svg width="1" height="1" aria-hidden="true" className="pointer-events-none absolute top-0 left-0 z-30 overflow-visible">
