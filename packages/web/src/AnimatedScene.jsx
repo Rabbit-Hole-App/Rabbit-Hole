@@ -264,12 +264,13 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
             : textStyle('body');
           // Colour comes from role alone (scene-style.js): a text object with a
           // real role keeps that role's colour, and only a neutral one falls
-          // back to its typography's ink. Every other kind of label already
-          // read a flat legibility ink before this task and still does - their
-          // shape, not their words, carries the role.
+          // back to its typography's ink. A label sitting INSIDE a shape reads
+          // against that shape's own fill, so a solid role hands it the ink
+          // that survives there; a data or stroke label sits on the surface
+          // and keeps the page's ink.
           const textFill = object.type === 'text'
             ? (role !== 'neutral' ? roleVar(role) : type.fill)
-            : (isText || isData ? 'var(--color-ink-2)' : 'var(--color-ink)');
+            : (isText || isData ? 'var(--color-ink-2)' : look.onFill);
           return (
             <g key={object.id} data-animation-object={object.semanticId} opacity={object.opacity}
               transform={`rotate(${object.rotation} ${centre.x} ${centre.y})`}

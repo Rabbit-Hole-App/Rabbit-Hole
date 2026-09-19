@@ -2,7 +2,7 @@
 // vocabulary, so it never needs to know about the renderer or the evaluator.
 // Colour comes from role alone; state modulates weight and fill strength,
 // never hue - see docs/superpowers/specs/2026-09-18-visual-language-and-motion-design.md.
-import { ROLES } from './scene-vocab.js';
+import { FILL, ROLES, ROLE_FILL } from './scene-vocab.js';
 
 export function roleVar(role) {
   return ROLES.includes(role) ? `var(--viz-${role})` : 'var(--viz-neutral)';
@@ -31,26 +31,34 @@ export function textStyle(typographyRole) {
   return TEXT_STYLE[typographyRole] ?? TEXT_STYLE.body;
 }
 
-// One considered default per state: fill strength and stroke weight only.
-// Colour (`stroke`, below) never appears here - that is the orthogonality
-// the whole model rests on.
-const DEFAULT_STYLE = { fillPercent: 12, strokeWidth: 1.5 };
+// A state picks a step along its role's own fill band, and a stroke weight.
+// Colour never appears here - that is the orthogonality the whole model rests
+// on. `step` indexes FILL's [muted, rest, lit, peak].
 const STATE_STYLE = {
-  chosen: { fillPercent: 28, strokeWidth: 2.5 },
-  selected: { fillPercent: 24, strokeWidth: 2.5 },
-  highlighted: { fillPercent: 20, strokeWidth: 2 },
-  active: { fillPercent: 18, strokeWidth: 2 },
-  blocked: { fillPercent: 8, strokeWidth: 1.5 },
-  disabled: { fillPercent: 6, strokeWidth: 1 },
+  chosen: { step: 3, strokeWidth: 2.5 },
+  selected: { step: 3, strokeWidth: 2.5 },
+  highlighted: { step: 2, strokeWidth: 2 },
+  active: { step: 2, strokeWidth: 2 },
+  blocked: { step: 0, strokeWidth: 1.5 },
+  disabled: { step: 0, strokeWidth: 1 },
 };
+const RESTING = { step: 1, strokeWidth: 1.5 };
 // A multi-state object resolves to one considered look instead of an arbitrary
 // key-order pick. Availability outranks attention: something the learner cannot
 // act on must keep reading that way even while it is selected or highlighted,
 // or the frame promises an interaction that will not answer.
 const STATE_PRIORITY = ['disabled', 'blocked', 'chosen', 'selected', 'highlighted', 'active'];
 
+// What ink reads on top of this role's own fill. Only a solid role is its own
+// background; everything else is a tint over the surface, so the page's ink
+// still wins. The token flips with the theme, which a fixed white could not.
+export function inkOn(role) {
+  return ROLE_FILL[role] === 'solid' ? `var(--viz-on-${role})` : 'var(--color-ink)';
+}
+
 export function shapeStyle(role, state = {}) {
   const matched = STATE_PRIORITY.find(name => state[name]);
-  const { fillPercent, strokeWidth } = matched ? STATE_STYLE[matched] : DEFAULT_STYLE;
-  return { fill: tintOf(role, fillPercent), stroke: roleVar(role), strokeWidth };
+  const { step, strokeWidth } = matched ? STATE_STYLE[matched] : RESTING;
+  const band = FILL[ROLE_FILL[role]] ?? FILL.soft;
+  return { fill: tintOf(role, band[step]), stroke: roleVar(role), strokeWidth, onFill: inkOn(role) };
 }

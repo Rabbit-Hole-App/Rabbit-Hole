@@ -166,13 +166,17 @@ export const demoBlocks = () => RESTING.map(([scene, time]) => ({
 // body-text ink exactly - a claim nobody can check from a palette listing, so
 // the swatches are boxes the renderer resolves the same way it resolves a
 // lesson. The ink line at the top is the comparison `observed` has to beat.
-const ROLE_ORDER = ['neutral', 'input', 'output', 'prediction', 'observed', 'learner', 'tutor', 'code', 'warning', 'success'];
+// Roles in tier order - the six soft ones, then the two strong, then the two
+// solid - so the picture teaches the fill vocabulary by its own layout. The
+// same scene parked at two times gives rest beside lit without drawing
+// twenty boxes: state is a moment, so it is shown as one.
+const ROLE_ORDER = ['neutral', 'code', 'input', 'tutor', 'prediction', 'output', 'learner', 'warning', 'observed', 'success'];
 export const rolesScene = {
   id: 'role-palette',
   title: 'Every role, side by side',
   width: 760,
   height: 340,
-  duration: 3,
+  duration: 4,
   objects: [
     { id: 'note', type: 'text', semanticId: 'note', initialState: { text: 'plain body text, for comparison', x: 40, y: 34, typography: 'body' } },
     ...ROLE_ORDER.map((role, index) => ({
@@ -190,12 +194,10 @@ export const rolesScene = {
       },
     })),
   ],
-  timeline: ROLE_ORDER.map((role, index) => ({
-    at: Number((0.1 + index * 0.08).toFixed(2)),
-    action: 'appear',
-    target: role,
-    duration: 'fast',
-  })),
+  timeline: [
+    ...ROLE_ORDER.map((role, index) => ({ at: Number((0.1 + index * 0.06).toFixed(2)), action: 'appear', target: role, duration: 'fast' })),
+    ...ROLE_ORDER.map(role => ({ at: 2.5, action: 'highlight', target: role })),
+  ],
 };
 
 // A role is a colour, not a look. The same role paints a box, a stroke, a
@@ -240,5 +242,8 @@ export const BOARDS = {
   // side, and the one shipped scene where a role reading as body ink actually
   // costs the learner something.
   'a5b-visual': () => [block(rolesScene, 3), block(sigmoidScene, 11.6)],
-  'role-anatomy': () => [block(anatomyScene, 6), block(rolesScene, 3)],
+  'role-anatomy': () => [block(anatomyScene, 6), block(rolesScene, 2)],
+  // The same palette twice, parked either side of the highlight, so resting
+  // and lit sit one above the other. Click any box to see chosen.
+  'role-tiers': () => [block(rolesScene, 2), block(rolesScene, 4)],
 };

@@ -54,15 +54,20 @@ html {
 :root {
   --viz-neutral: #787774;
   --viz-input: #2383e2;
-  --viz-output: #448361;
+  --viz-output: #2f855a;
   --viz-prediction: #9065b0;
   --viz-observed: #37352f;
   --viz-learner: #d9730d;
-  --viz-tutor: #2383e2;
+  --viz-tutor: #0e7490;
   --viz-code: #787774;
-  --viz-warning: #d9730d;
-  --viz-success: #448361;
+  --viz-warning: #c0392b;
+  --viz-success: #157f43;
   --viz-surface: #fbfbfa;
+  /* A solid-filled role carries its own readable ink, because the fill is the
+     background at that point and which ink reads on it flips with the theme:
+     observed is near-black in light and near-white in dark. */
+  --viz-on-observed: #ffffff;
+  --viz-on-success: #ffffff;
 }
 
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
@@ -91,15 +96,17 @@ html {
      not body text, so they don't need --color-ink's 4.5:1. */
   --viz-neutral: #979797;
   --viz-input: #5ba3f5;
-  --viz-output: #6fbf8e;
+  --viz-output: #5fc08a;
   --viz-prediction: #b79ae3;
-  --viz-observed: #d4d4d4;
-  --viz-learner: #e8a15c;
-  --viz-tutor: #5ba3f5;
+  --viz-observed: #e4e4e4;
+  --viz-learner: #f2b06a;
+  --viz-tutor: #2fc4b8;
   --viz-code: #979797;
-  --viz-warning: #e8a15c;
-  --viz-success: #6fbf8e;
+  --viz-warning: #ef6351;
+  --viz-success: #49d67f;
   --viz-surface: #1f1f1f;
+  --viz-on-observed: #1f1f1f;
+  --viz-on-success: #1f1f1f;
 }
 .dark [class*='bg-accent'],
 .dark [class*='bg-danger'] {
