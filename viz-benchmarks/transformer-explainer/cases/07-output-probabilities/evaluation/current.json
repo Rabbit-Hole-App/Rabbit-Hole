@@ -1,12 +1,30 @@
 {
   "project": "transformer-explainer",
   "case": "07-output-probabilities",
-  "iteration": 0,
-  "status": "not_run",
-  "scores": {},
+  "iteration": 1,
+  "status": "reviewed",
+  "scores": {
+    "technicalCorrectness": 3,
+    "conceptualCompleteness": 3,
+    "teachingClarity": 3,
+    "visualHierarchy": 4,
+    "layout": 4,
+    "readability": 4,
+    "spatialRelationships": 3,
+    "progressiveReveal": 4,
+    "interactionQuality": 2,
+    "motionChoreography": 4,
+    "focalPoint": 5,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedTotal": "63/85 (74.1%)",
   "hardFails": [],
-  "failures": [],
+  "failures": [
+    "TECHNICAL_CORRECTNESS: the shown distribution is per-query attention weights over positions, not a vocabulary distribution over next-token candidates - a real pattern overlap, not a concept match; stated in notes.md, not in the scene itself",
+    "CONTENT_OMISSION: no zero-probability tail to demonstrate at this example's scale (5 tokens) - a worked-example limitation, not a vocabulary gap"
+  ],
   "recommendedSystemChanges": [],
-  "imitationRisk": null,
+  "imitationRisk": "none",
   "humanApproved": false
 }

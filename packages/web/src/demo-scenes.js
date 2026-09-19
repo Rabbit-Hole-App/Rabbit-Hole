@@ -4,6 +4,8 @@
 // code. Each one teaches something rather than demonstrating a primitive -
 // a scene that only shows off is a scene nobody learns the engine from.
 
+import { causalAttentionScene } from './reference-scenes.js';
+
 // --- 1. why an axis must hold still -----------------------------------------
 // The same reveal drawn twice. On the left the axis is recomputed from the
 // values every frame, so two plans the learner never touched appear to get
@@ -246,4 +248,7 @@ export const BOARDS = {
   // The same palette twice, parked either side of the highlight, so resting
   // and lit sit one above the other. Click any box to see chosen.
   'role-tiers': () => [block(rolesScene, 2), block(rolesScene, 4)],
+  // Task 12's benchmark scene, parked at its final frame - output computed,
+  // every reveal already landed.
+  'reference-attention': () => [block(causalAttentionScene, 17.2)],
 };

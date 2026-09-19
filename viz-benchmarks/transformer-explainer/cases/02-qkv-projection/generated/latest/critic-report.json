@@ -1,0 +1,57 @@
+{
+  "project": "transformer-explainer",
+  "case": "02-qkv-projection",
+  "iteration": 1,
+  "generatedFrom": "packages/web/src/reference-scenes.js (causal-self-attention)",
+  "framesReviewed": ["00.png", "25.png"],
+  "note": "50.png, 75.png and 100.png are included for continuity (same scene, later beats) but are scored under case 03 and case 07, not here.",
+  "volatileFieldsExcludedFromScoring": [
+    "input token sequence (ours: h e l l o; the reference resamples a phrase on every load)",
+    "exact vector values (ours are authored scalars chosen to make the downstream arithmetic checkable, not a claim about real GPT-2 weights)"
+  ],
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 4,
+    "teachingClarity": 4,
+    "visualHierarchy": 4,
+    "layout": 4,
+    "readability": 3,
+    "spatialRelationships": 4,
+    "progressiveReveal": 4,
+    "interactionQuality": 2,
+    "motionChoreography": 4,
+    "focalPoint": 3,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedTotal": "69/85 (81.2%)",
+  "hardFails": [],
+  "findings": [
+    {
+      "severity": "medium",
+      "type": "COLOR_CONTRAST",
+      "frame": "25.png",
+      "observation": "Same system-level issue as case 03: the heat-mapped cell holding the largest magnitude in each strip (1.50 in Q, 1.60 in K, 2.00 in V) has the lowest-contrast numeral of its row, because numeral ink never adapts to fill strength.",
+      "cause": "Shared with case 03 - DataShape's grid/strip branch, not specific to this scene.",
+      "recommendation": "See case 03's recommendedSystemChanges - the same fix covers both."
+    },
+    {
+      "severity": "low",
+      "type": "FOCAL_POINT",
+      "frame": "25.png",
+      "observation": "Q, K and V appear with equal visual weight and no single moment draws the eye to 'these three come from the same row.' The three arrows fanning from one point say it structurally, but nothing highlights it in time (e.g. a brief pulse on the shared source token when the first arrow starts).",
+      "cause": "Authoring choice in this scene, not a vocabulary gap - emphasize/highlight exist and were not used here.",
+      "recommendation": "Not a system change. Worth a highlight or emphasize event on the source token chip in a future iteration."
+    }
+  ],
+  "strengths": [
+    "Technically the strongest beat in the scene: RAW_FULL is computed as Q[i]*K[j] in code, so the Q and K numbers on screen are provably the ones that produce the matrix two beats later - not independently hand-picked numbers that merely look plausible.",
+    "One shared role for Q/K/V, differentiated by label and position rather than by three new hues, is a correct application of role-as-meaning and avoids the eleventh-role trap the brief warns about.",
+    "Three arrows fanning from one token strip communicate 'one embedding, three views' structurally, without narration."
+  ],
+  "recommendedSystemChanges": [
+    "Contrast-aware numeral ink for heat-mapped cells (shared with case 03 - do not fix twice)."
+  ],
+  "imitationRisk": "none - the reference colour-codes Q/K/V with three hues; this scene deliberately does not, which is a further departure, not a closer match.",
+  "humanApproved": false
+}

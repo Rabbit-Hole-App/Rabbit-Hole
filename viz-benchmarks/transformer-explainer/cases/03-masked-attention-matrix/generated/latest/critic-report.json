@@ -1,0 +1,83 @@
+{
+  "project": "transformer-explainer",
+  "case": "03-masked-attention-matrix",
+  "iteration": 1,
+  "generatedFrom": "packages/web/src/reference-scenes.js (causal-self-attention)",
+  "framesReviewed": ["00.png", "25.png", "50.png", "75.png", "100.png"],
+  "volatileFieldsExcludedFromScoring": [
+    "input token sequence (ours: h e l l o, chosen for continuity with the token-journey demo; reference resamples a phrase on every load)",
+    "exact attention weight values (ours are computed from an authored Q/K so the arithmetic is checkable; the reference's are real GPT-2 weights and differ every reload)"
+  ],
+  "scores": {
+    "technicalCorrectness": 3,
+    "conceptualCompleteness": 4,
+    "teachingClarity": 4,
+    "visualHierarchy": 3,
+    "layout": 4,
+    "readability": 2,
+    "spatialRelationships": 3,
+    "progressiveReveal": 4,
+    "interactionQuality": 2,
+    "motionChoreography": 3,
+    "focalPoint": 4,
+    "genericComposition": 4,
+    "originality": 5
+  },
+  "weightedTotal": "60/85 (70.6%)",
+  "hardFails": [],
+  "findings": [
+    {
+      "severity": "high",
+      "type": "TECHNICAL_CORRECTNESS",
+      "frame": "50.png",
+      "observation": "During the raw-scores-to-softmax set_values tween (8.4s-9.8s), the matrix displays linearly-interpolated numbers that are neither the raw score nor the softmax weight nor any real quantity - e.g. row4/col1 reads 2.32 at t=8.6s, where the real values only ever pass through 2.40 (raw) and 0.450 (softmax). Softmax is nonlinear, so no point on a linear lerp between its input and output is a real intermediate value.",
+      "cause": "set_values always linearly interpolates per cell; there is no way to author a transition as 'reveal only, intermediate readouts are not claims' versus a linear change a viewer may reasonably read at any frame.",
+      "recommendation": "Reusable-system fix, not a benchmark patch: either a non-numeral tween mode for set_values (fade/blur the digits, or hold-then-snap) for transitions between two different derived quantities, or an authoring convention (near-zero duration for nonlinear transitions) documented next to set_values in animation-scene.js."
+    },
+    {
+      "severity": "high",
+      "type": "MISSING_PRIMITIVE",
+      "frame": "50.png, 75.png, 100.png",
+      "observation": "The reference's own strength for this exact case is 'Query labels run down the left and key labels across, both as words, so a cell can be read as this word attending to that word.' Our grid has no row or column labels at all - a learner cannot tell which row is which query token or which column is which key token without cross-referencing the caption text.",
+      "cause": "grid and strip have no labels field. bars does (rendered under each bar) - grid does not gain the same treatment.",
+      "recommendation": "Add an axis-label capability to grid (row labels down the left, column labels across the top), generic across any lesson that puts a matrix on the canvas - not a one-off text-object placement for this scene, which AGENT-INSTRUCTIONS.md rightly treats as bad repair (benchmark-specific coordinates)."
+    },
+    {
+      "severity": "medium",
+      "type": "COLOR_CONTRAST",
+      "frame": "50.png, 100.png",
+      "observation": "Grid/strip numerals are always var(--color-ink-2) regardless of the cell's heat fill. The most heat-saturated cells - the ones a learner most wants to read exactly, since they carry the largest magnitude - have the least contrast against their own background. Visible directly: '2.32' and '-.72' in the bottom row of 50.png are markedly harder to read than '1.07' or the blank cells beside them.",
+      "cause": "DataShape's grid/strip branch hardcodes fill: lit ? 'var(--color-ink)' : 'var(--color-ink-2)', keyed only to the lit/unlit highlight state, never to heatPercent.",
+      "recommendation": "Contrast-aware numeral ink for heat-mapped cells - pick ink or ink-on-role depending on the resolved fill's lightness, the same way inkOn(role) already exists for solid-role shapes."
+    },
+    {
+      "severity": "medium",
+      "type": "MISSING_PRIMITIVE",
+      "frame": "25.png",
+      "observation": "Heat is unsigned: heatPercent maps Math.abs(value) to fill. The raw-score matrix has real negative cells (e.g. -0.75 at its most negative) and K has a real negative entry (-0.50); neither reads as negative in the fill, only as low-magnitude, which happens to look similar to a small positive score.",
+      "cause": "heatPercent in AnimatedScene.jsx takes Math.abs(value) with no diverging-scale option.",
+      "recommendation": "A signed/diverging heat mode (e.g. two role hues either side of zero, or a lightness-only + separate sign glyph) for scenes that show scored/signed quantities such as raw attention logits, embeddings, or residual deltas."
+    },
+    {
+      "severity": "low",
+      "type": "COORDINATION",
+      "frame": "all",
+      "observation": "STATES lists selected and blocked as first-class states, resolved through shapeStyle/STATE_STYLE for box/circle/arrow. Neither reaches a grid cell that way. Masking is (correctly) expressed by setting values[i] to null - a value-channel device, not a per-cell state - and row selection is expressed through highlight_cell's row-band rectangle, a grid-only mechanism. Both work, and both are the intended use of the existing vocabulary, but a scene author reading STATES and looking for state: 'blocked' on a cell will not find one.",
+      "cause": "A grid cell is an index into an object's values array, not a first-class object with its own initialState.role/state - STATES has no path to it.",
+      "recommendation": "None required to ship - documenting the mapping (null = blocked, highlight_cell{row} = selected) next to the STATES export would prevent the next scene author from re-discovering this by trial and error."
+    }
+  ],
+  "strengths": [
+    "Causal masking reads as shape, not explanation: the blank upper-right triangle is visible in 50.png/75.png/100.png before any caption is read, matching the reference's own praised trait.",
+    "The one row walked through end-to-end (row 4, the last token) is legible: highlighted row band in the matrix, the same five weights redrawn as bars with per-key letters, the tallest bar the same colour intensity as the matrix's own hottest cell.",
+    "Zero bespoke code: the whole case is grid + strip + bars + arrow + text + equation, all pre-existing RENDERED_TYPES."
+  ],
+  "recommendedSystemChanges": [
+    "Axis-label field for grid (see MISSING_PRIMITIVE finding above) - highest priority, this case's own reference explicitly credits it.",
+    "Contrast-aware numeral ink for heat-mapped grid/strip cells.",
+    "Signed/diverging heat mode.",
+    "A documented, non-lerp path for set_values transitions between two different derived quantities (raw -> softmax is the concrete case here)."
+  ],
+  "imitationRisk": "none - different shapes (rectangles, not discs), different palette (theme CSS variables, not the reference's purple/blue/green), different layout, own wording throughout.",
+  "humanApproved": false
+}

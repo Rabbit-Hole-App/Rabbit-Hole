@@ -1,12 +1,37 @@
 {
   "project": "transformer-explainer",
   "case": "03-masked-attention-matrix",
-  "iteration": 0,
-  "status": "not_run",
-  "scores": {},
+  "iteration": 1,
+  "status": "reviewed",
+  "scores": {
+    "technicalCorrectness": 3,
+    "conceptualCompleteness": 4,
+    "teachingClarity": 4,
+    "visualHierarchy": 3,
+    "layout": 4,
+    "readability": 2,
+    "spatialRelationships": 3,
+    "progressiveReveal": 4,
+    "interactionQuality": 2,
+    "motionChoreography": 3,
+    "focalPoint": 4,
+    "genericComposition": 4,
+    "originality": 5
+  },
+  "weightedTotal": "60/85 (70.6%)",
   "hardFails": [],
-  "failures": [],
-  "recommendedSystemChanges": [],
-  "imitationRisk": null,
+  "failures": [
+    "TECHNICAL_CORRECTNESS: linear tween through a nonlinear transform (raw scores -> softmax) shows numerically meaningless intermediate numerals",
+    "MISSING_PRIMITIVE: grid has no row/column axis-label field, unlike bars' labels - the reference's own credited strength is absent here",
+    "COLOR_CONTRAST: heat-mapped numeral ink never adapts to fill strength, so the highest-magnitude cells are the hardest to read",
+    "MISSING_PRIMITIVE: heat is magnitude-only (Math.abs), no diverging/signed mode"
+  ],
+  "recommendedSystemChanges": [
+    "Axis-label field for grid (highest priority)",
+    "Contrast-aware numeral ink for heat-mapped grid/strip cells",
+    "Signed/diverging heat mode",
+    "A documented, non-lerp path for set_values transitions between two different derived quantities"
+  ],
+  "imitationRisk": "none",
   "humanApproved": false
 }

@@ -1,0 +1,55 @@
+{
+  "project": "transformer-explainer",
+  "case": "07-output-probabilities",
+  "iteration": 1,
+  "generatedFrom": "packages/web/src/reference-scenes.js (causal-self-attention)",
+  "framesReviewed": ["75.png", "100.png"],
+  "note": "00.png/25.png/50.png are included for continuity (same scene, earlier beats) but are scored under case 02 and case 03, not here.",
+  "volatileFieldsExcludedFromScoring": [
+    "sampled token / sampled token id - not applicable, this scene has no LM head or sampling step",
+    "exact probability values (ours are computed from an authored, checkable Q/K/V, not real model output)"
+  ],
+  "scores": {
+    "technicalCorrectness": 3,
+    "conceptualCompleteness": 3,
+    "teachingClarity": 3,
+    "visualHierarchy": 4,
+    "layout": 4,
+    "readability": 4,
+    "spatialRelationships": 3,
+    "progressiveReveal": 4,
+    "interactionQuality": 2,
+    "motionChoreography": 4,
+    "focalPoint": 5,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedTotal": "63/85 (74.1%)",
+  "hardFails": [],
+  "findings": [
+    {
+      "severity": "high",
+      "type": "TECHNICAL_CORRECTNESS",
+      "frame": "75.png, 100.png",
+      "observation": "The distribution shown is attention weights over sequence positions for one query, not a vocabulary distribution over next-token candidates. The two are structurally similar (both are softmax outputs, both are 'a probability distribution') but are not the same computed object, and nothing in the scene itself states this - only this case's notes.md does. A viewer who has only seen the reference's Probabilities panel and not read these notes could reasonably mistake one for the other.",
+      "cause": "Scope of this task: a single causal self-attention layer has no LM head, so no true next-token distribution exists to show. The overlap with case 07 is at the level of teaching pattern (live_computation, matrix_operation), not at the level of the concept.",
+      "recommendation": "Not a vocabulary gap - a labeling opportunity. A future scene that reaches the LM head could add one caption line distinguishing 'a distribution over positions' from 'a distribution over the vocabulary' explicitly, so the two patterns are never conflated even by omission."
+    },
+    {
+      "severity": "low",
+      "type": "CONTENT_OMISSION",
+      "frame": "75.png, 100.png",
+      "observation": "The reference credits showing the long zero-probability tail as what makes the concentration at the top mean something. This scene's row has only 5 candidates (a 5-token toy sequence), so there is no tail to show at all.",
+      "cause": "Scale of the worked example, not a vocabulary limit - bars accepts up to 256 values and would show a long tail exactly the same way with more tokens.",
+      "recommendation": "None needed - not a system gap, just a smaller worked example than the reference's."
+    }
+  ],
+  "strengths": [
+    "The single darkened bar against four uniform, lighter bars is the clearest focal point in the whole scene - it reproduces exactly the reference's 'one coloured row, everything else grey' grammar using only the existing lit/unlit bar fill and highlight_cell 'max'.",
+    "Bar length still reads as magnitude before any number is read, matching the reference's core claim, even without vocabulary scale.",
+    "Per-bar key-token labels (bars' native labels field) recover, for this one row, exactly the row/column identity that case 03 found missing on the grid."
+  ],
+  "recommendedSystemChanges": [],
+  "imitationRisk": "none - bars kept in position order rather than sorted by magnitude, a structural departure from the reference as well as a visual one.",
+  "humanApproved": false
+}

@@ -1,12 +1,32 @@
 {
   "project": "transformer-explainer",
   "case": "02-qkv-projection",
-  "iteration": 0,
-  "status": "not_run",
-  "scores": {},
+  "iteration": 1,
+  "status": "reviewed",
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 4,
+    "teachingClarity": 4,
+    "visualHierarchy": 4,
+    "layout": 4,
+    "readability": 3,
+    "spatialRelationships": 4,
+    "progressiveReveal": 4,
+    "interactionQuality": 2,
+    "motionChoreography": 4,
+    "focalPoint": 3,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedTotal": "69/85 (81.2%)",
   "hardFails": [],
-  "failures": [],
-  "recommendedSystemChanges": [],
-  "imitationRisk": null,
+  "failures": [
+    "COLOR_CONTRAST: heat-mapped numeral ink never adapts to fill strength (shared root cause with case 03)",
+    "FOCAL_POINT: no single moment emphasises that Q, K and V derive from the same token row (structural only, not temporal)"
+  ],
+  "recommendedSystemChanges": [
+    "Contrast-aware numeral ink for heat-mapped cells (shared with case 03 - fix once)"
+  ],
+  "imitationRisk": "none",
   "humanApproved": false
 }

@@ -17,6 +17,7 @@ const WhiteboardBlock = lazy(() => import('./WhiteboardBlock.jsx'));
 import { fromTemplate } from './animation-scene.js';
 import { describeAnimation } from './scene-describe.js';
 import { axisScene, residualScene, sigmoidScene } from './demo-scenes.js';
+import { causalAttentionScene } from './reference-scenes.js';
 import InteractiveScene, { sceneSummary } from './InteractiveScene.jsx';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
 import { sceneAssetUrl, sceneList, startScene, startVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
@@ -497,6 +498,16 @@ export const BLOCK_TYPES = {
     height: 460,
     autoMax: 900,
     sample: () => ({ id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: sigmoidScene.title, scene: sigmoidScene, time: 0, selectedObject: null, marked: null }),
+  },
+  // Task 12: the causal-attention reference scene, benchmarked against
+  // viz-benchmarks/transformer-explainer/. JSON lives in reference-scenes.js
+  // for the same reason the three demo scenes above live in demo-scenes.js.
+  referenceAttention: {
+    label: 'Reference: attention',
+    width: 640,
+    height: 480,
+    autoMax: 1000,
+    sample: () => ({ id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: causalAttentionScene.title, scene: causalAttentionScene, time: 0, selectedObject: null, marked: null }),
   },
   whiteboard: {
     label: 'Whiteboard',
