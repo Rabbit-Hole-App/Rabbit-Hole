@@ -12,6 +12,16 @@
 
 ## Global Constraints
 
+**Committing while another agent is working.** Naming paths in `git add` controls
+only what *you* add; `git commit` then commits the whole index, including anything
+a concurrent agent staged — and `git mv` stages immediately. That happened here:
+a two-file documentation commit swept up 29 of a subagent's archive renames.
+Inspect the staged column of `git status --short` before every commit, and use
+`git commit --only <paths>` whenever a subagent may be running. Never rewrite
+shared history to correct attribution afterwards.
+
+
+
 - `packages/web/src/animation-scene.js` imports **zod and `scene-vocab.js`, nothing else**. `scene-vocab.js` is a pure module of frozen enums with no imports of its own, so the evaluator still pulls in no renderer code, no React and no style logic. The dependency graph is:
 
   ```
