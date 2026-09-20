@@ -1,0 +1,77 @@
+{
+  "project": "transformer-explainer",
+  "case": "03-masked-attention-matrix",
+  "iteration": 2,
+  "generatedFrom": "packages/web/src/reference-scenes.js (causal-self-attention)",
+  "framesReviewed": ["00.png", "25.png", "50.png", "75.png", "100.png"],
+  "phase": "A.5d completion gate - re-run after six passes fixing the five findings from iteration 1",
+  "volatileFieldsExcludedFromScoring": [
+    "input token sequence (ours: h e l l o, chosen for continuity with the token-journey demo; reference resamples a phrase on every load)",
+    "exact attention weight values (ours are computed from an authored Q/K so the arithmetic is checkable; the reference's are real GPT-2 weights and differ every reload)"
+  ],
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 4,
+    "teachingClarity": 5,
+    "visualHierarchy": 4,
+    "layout": 4,
+    "readability": 5,
+    "spatialRelationships": 4,
+    "progressiveReveal": 4,
+    "interactionQuality": 2,
+    "motionChoreography": 4,
+    "focalPoint": 4,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedTotal": "74/85 (87.1%)",
+  "hardFails": [],
+  "iteration1Findings": [
+    {
+      "type": "TECHNICAL_CORRECTNESS",
+      "status": "RESOLVED",
+      "evidence": "50.png (t=8.6s): the matrix already shows the full softmax row (row4: .18/.45/.02/.14/.21) - not a value between raw score and softmax weight. Verified at the data level: getSceneState(scene, 8.6).matrix.values[20..24] equals SOFTMAX.slice(20,25) exactly, with no intermediate. The timeline event at 8.4s changed from `set_values` (linear tween) to `replace_values` (discrete swap); scene-style.js/animation-scene.js's replace_values action assigns `object.values = [...event.value]` outright, so no lerp between raw score and softmax weight can ever render."
+    },
+    {
+      "type": "MISSING_PRIMITIVE",
+      "status": "RESOLVED",
+      "evidence": "50.png, 75.png, 100.png: the matrix now carries `rowLabels: ['h','e','l','l','o']` and `columnLabels: ['h','e','l','l','o']`, rendered above and to the left of the grid (visible in packages/web/e2e/shots/gate-a5d-benchmark/50.png and the zoomed crop). A cell now reads as this token attending to that token without cross-referencing the caption - the exact strength the reference itself was credited for in reference-notes.md."
+    },
+    {
+      "type": "COLOR_CONTRAST",
+      "status": "RESOLVED",
+      "evidence": "Zoomed crop of the matrix at 100% (data-animation-object=\"attention-matrix\"): the most heat-saturated cell (\"1.00\", full orange) renders with white ink; low-magnitude cells (\".04\", \".05\", \".02\") render with dark ink; every numeral is legible against its own fill. Ink is no longer fixed to lit/unlit - it now derives from heatStyle's own mixPercent through HEAT_INK_ZONES's per-zone CSS custom properties."
+    },
+    {
+      "type": "MISSING_PRIMITIVE",
+      "status": "RESOLVED",
+      "evidence": "The key (K) strip now carries heat: { mode: 'signed' } with a real negative entry (-.50). Zoomed crop (data-animation-object=\"key-vector\") shows -.50 filled with the diverging blue heat-negative token, visually distinct from the orange heat-positive fill on every other (positive) cell in the same strip - confirmed at the style level: the rendered rect's raw style attribute references var(--viz-heat-negative), not var(--viz-heat-positive). The matrix itself also carries heat:{mode:'signed'} and, when scrubbed to its pre-mask raw-score state (t=6.6s, outside the five delivered frames), renders real negative cells (e.g. -.60) with the same diverging blue against positive cells' orange - see the new COORDINATION finding below for a caveat on when this fill can fail to update during a gradual scrub."
+    },
+    {
+      "type": "COORDINATION",
+      "status": "RESOLVED",
+      "evidence": "100.png: the output strip's index-4 cell (\"1.47\") carries a black/white two-tone selection ring, drawn by the same generic SelectionMark used on box/circle/arrow, now reaching a grid/strip cell. The matrix's row-4 selection band (visible from 75.png onward) uses the same mechanism. Selection is visibly independent of the cell's own heat fill in both cases."
+    }
+  ],
+  "findings": [
+    {
+      "severity": "high",
+      "type": "COORDINATION",
+      "frame": "none of the delivered frames - found via manual scrub diagnostics between t=5.2s and t=8.4s, outside 00/25/50/75/100",
+      "newDuringThisGate": true,
+      "observation": "A heat-mapped grid/strip cell's fill can freeze at its pre-reveal 'blocked' role-tint and never update to the value-driven heat colour, even though the correct number keeps being drawn and getSceneState computes the correct value and heat token throughout. Reproduced on packages/web/src/reference-scenes.js's own matrix object: scrubbing the Animation time input gradually through several intermediate positions while a cell is still null (e.g. 0,1,2,3,4,4.4,4.8,5.0,5.2) - the natural way a human drags a range slider - then on to where its value becomes real and non-null (5.4 onward) leaves EVERY cell in the row rendering an identical, frozen `color-mix(in srgb, var(--viz-observed) ~58.5%, transparent)` fill instead of each cell's own distinct heat colour, for the remainder of the scene. Confirmed in both the dev server and a production build (npm run build + vite preview), so it is not a dev-only artifact. Confirmed NOT present when the same times are reached by discrete jumps only (the pattern the benchmark capture script and, most likely, every prior capture used) - which is why none of iteration 1's or iteration 2's official frames show it.",
+      "cause": "packages/web/src/AnimatedScene.jsx's grid/strip cell (~line 110-129): `style={heat ? { fill } : undefined}` and `animate={heat ? ring : { fill, ...ring }}` on the same motion.rect. While a cell is blocked (heatMode && value==null), 'fill' is driven through Framer Motion's `animate` (and springs via the `pop` transition). The moment the value first becomes real, 'fill' is dropped from `animate` and handed to the plain `style` prop instead - but if Framer Motion had already started animating 'fill' for that DOM node (i.e. the cell rendered at least one intermediate blocked frame with a live spring, not just a single jump straight past it), it continues to own and render that motion value from wherever it last was, and the plain `style.fill` this code relies on for every subsequent value never wins again for that element's lifetime.",
+      "recommendation": "Reusable-system fix, not a benchmark patch: a heat-mapped cell's fill must never be handed to Framer Motion's `animate` at all (put the blocked/role-tint look on `style` too, or force a fresh element identity - e.g. a `key` that changes across the blocked/revealed boundary - so no motion value survives the transition). This is general to every grid/strip cell that reveals a heat-mapped value from a blocked start, not specific to this scene; the original v1 scene had the identical reveal shape and would show the same failure under a gradual scrub."
+    }
+  ],
+  "strengths": [
+    "Causal masking still reads as shape before any caption: the blank upper-right triangle is visible in 50/75/100.png.",
+    "The one row walked through end-to-end (row 4) is now fully legible end-to-end: row/column labels name every cell, the bars below repeat the same five weights with per-key labels, and the output strip's selection ring lands on the same index without disturbing its fill.",
+    "Zero bespoke code, and less incidental complexity than iteration 1: the whole case is still grid + strip + bars + arrow + text + equation, now additionally exercising rowLabels/columnLabels, heat mode, replace_values and identity - all pre-existing, generic RENDERED_TYPES fields, none scene-specific."
+  ],
+  "recommendedSystemChanges": [
+    "Fix the Framer Motion animate/style handoff for heat-mapped grid/strip cells so a value-driven fill cannot get stuck on a stale STATE-driven one after a gradual reveal (see the new COORDINATION finding above - this is the blocking item for this iteration)."
+  ],
+  "imitationRisk": "none - different shapes (rectangles, not discs), different palette (theme CSS variables, not the reference's purple/blue/green), different layout, own wording throughout.",
+  "humanApproved": false
+}

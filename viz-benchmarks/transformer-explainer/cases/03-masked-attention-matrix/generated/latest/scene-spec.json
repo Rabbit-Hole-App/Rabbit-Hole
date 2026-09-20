@@ -1,0 +1,870 @@
+{
+  "id": "causal-self-attention",
+  "title": "How one token attends to the tokens before it",
+  "width": 920,
+  "height": 600,
+  "duration": 17.2,
+  "objects": [
+    {
+      "id": "caption",
+      "type": "text",
+      "semanticId": "caption",
+      "initialState": {
+        "text": "",
+        "x": 40,
+        "y": 30,
+        "opacity": 1,
+        "rotation": 0,
+        "role": "neutral",
+        "typography": "body",
+        "heat": null
+      },
+      "identitySlot": null
+    },
+    {
+      "id": "chars",
+      "type": "tokens",
+      "semanticId": "tokens",
+      "conceptId": "qkv-projection",
+      "initialState": {
+        "label": "five tokens, before attention",
+        "x": 40,
+        "y": 74,
+        "opacity": 0,
+        "rotation": 0,
+        "role": "input",
+        "typography": "body",
+        "tokens": [
+          "h",
+          "e",
+          "l",
+          "l",
+          "o"
+        ],
+        "heat": null
+      },
+      "identitySlot": null
+    },
+    {
+      "id": "q",
+      "type": "strip",
+      "semanticId": "query-vector",
+      "conceptId": "qkv-projection",
+      "initialState": {
+        "label": "query (Q)",
+        "x": 40,
+        "y": 150,
+        "opacity": 0,
+        "rotation": 0,
+        "role": "observed",
+        "identity": "query",
+        "typography": "body",
+        "cell": 42,
+        "values": [
+          1.2,
+          0.9,
+          1.3,
+          1.1,
+          1.5
+        ],
+        "heat": {
+          "mode": "signed"
+        }
+      },
+      "identitySlot": "identity-1"
+    },
+    {
+      "id": "k",
+      "type": "strip",
+      "semanticId": "key-vector",
+      "conceptId": "qkv-projection",
+      "initialState": {
+        "label": "key (K)",
+        "x": 40,
+        "y": 214,
+        "opacity": 0,
+        "rotation": 0,
+        "role": "observed",
+        "identity": "key",
+        "typography": "body",
+        "cell": 42,
+        "values": [
+          1,
+          1.6,
+          -0.5,
+          0.8,
+          1.1
+        ],
+        "heat": {
+          "mode": "signed"
+        }
+      },
+      "identitySlot": "identity-2"
+    },
+    {
+      "id": "v",
+      "type": "strip",
+      "semanticId": "value-vector",
+      "conceptId": "qkv-projection",
+      "initialState": {
+        "label": "value (V)",
+        "x": 40,
+        "y": 278,
+        "opacity": 0,
+        "rotation": 0,
+        "role": "observed",
+        "identity": "value",
+        "typography": "body",
+        "cell": 42,
+        "values": [
+          1,
+          2,
+          0.5,
+          1.5,
+          0.8
+        ],
+        "heat": {
+          "mode": "magnitude"
+        }
+      },
+      "identitySlot": "identity-3"
+    },
+    {
+      "id": "arrow-tok-q",
+      "type": "arrow",
+      "semanticId": "arrow-tok-q",
+      "conceptId": "qkv-projection",
+      "initialState": {
+        "x": 0,
+        "y": 0,
+        "opacity": 0,
+        "rotation": 0,
+        "role": "neutral",
+        "typography": "body",
+        "from": {
+          "x": 160,
+          "y": 106
+        },
+        "to": {
+          "x": 145,
+          "y": 150
+        },
+        "heat": null
+      },
+      "identitySlot": null
+    },
+    {
+      "id": "arrow-tok-k",
+      "type": "arrow",
+      "semanticId": "arrow-tok-k",
+      "conceptId": "qkv-projection",
+      "initialState": {
+        "x": 0,
+        "y": 0,
+        "opacity": 0,
+        "rotation": 0,
+        "role": "neutral",
+        "typography": "body",
+        "from": {
+          "x": 160,
+          "y": 106
+        },
+        "to": {
+          "x": 145,
+          "y": 214
+        },
+        "heat": null
+      },
+      "identitySlot": null
+    },
+    {
+      "id": "arrow-tok-v",
+      "type": "arrow",
+      "semanticId": "arrow-tok-v",
+      "conceptId": "qkv-projection",
+      "initialState": {
+        "x": 0,
+        "y": 0,
+        "opacity": 0,
+        "rotation": 0,
+        "role": "neutral",
+        "typography": "body",
+        "from": {
+          "x": 160,
+          "y": 106
+        },
+        "to": {
+          "x": 145,
+          "y": 278
+        },
+        "heat": null
+      },
+      "identitySlot": null
+    },
+    {
+      "id": "matrix",
+      "type": "grid",
+      "semanticId": "attention-matrix",
+      "conceptId": "causal-self-attention",
+      "initialState": {
+        "label": "attention scores - not yet computed",
+        "x": 420,
+        "y": 150,
+        "opacity": 0,
+        "rotation": 0,
+        "role": "observed",
+        "typography": "body",
+        "rows": 5,
+        "cols": 5,
+        "cell": 46,
+        "values": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "rowLabels": [
+          "h",
+          "e",
+          "l",
+          "l",
+          "o"
+        ],
+        "columnLabels": [
+          "h",
+          "e",
+          "l",
+          "l",
+          "o"
+        ],
+        "heat": {
+          "mode": "signed"
+        }
+      },
+      "identitySlot": null
+    },
+    {
+      "id": "arrow-q-matrix",
+      "type": "arrow",
+      "semanticId": "arrow-q-matrix",
+      "conceptId": "causal-self-attention",
+      "initialState": {
+        "x": 0,
+        "y": 0,
+        "opacity": 0,
+        "rotation": 0,
+        "role": "neutral",
+        "typography": "body",
+        "from": {
+          "x": 250,
+          "y": 171
+        },
+        "to": {
+          "x": 420,
+          "y": 190
+        },
+        "heat": null
+      },
+      "identitySlot": null
+    },
+    {
+      "id": "arrow-k-matrix",
+      "type": "arrow",
+      "semanticId": "arrow-k-matrix",
+      "conceptId": "causal-self-attention",
+      "initialState": {
+        "x": 0,
+        "y": 0,
+        "opacity": 0,
+        "rotation": 0,
+        "role": "neutral",
+        "typography": "body",
+        "from": {
+          "x": 250,
+          "y": 235
+        },
+        "to": {
+          "x": 420,
+          "y": 260
+        },
+        "heat": null
+      },
+      "identitySlot": null
+    },
+    {
+      "id": "bars-row",
+      "type": "bars",
+      "semanticId": "row4-distribution",
+      "conceptId": "softmax-attention-weights",
+      "initialState": {
+        "label": "the last token's row, as a distribution",
+        "x": 420,
+        "y": 430,
+        "h": 90,
+        "opacity": 0,
+        "rotation": 0,
+        "role": "observed",
+        "typography": "body",
+        "values": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "labels": [
+          "h",
+          "e",
+          "l",
+          "l",
+          "o"
+        ],
+        "peak": 1,
+        "heat": null
+      },
+      "identitySlot": null
+    },
+    {
+      "id": "arrow-matrix-bars",
+      "type": "arrow",
+      "semanticId": "arrow-matrix-bars",
+      "conceptId": "softmax-attention-weights",
+      "initialState": {
+        "x": 0,
+        "y": 0,
+        "opacity": 0,
+        "rotation": 0,
+        "role": "neutral",
+        "typography": "body",
+        "from": {
+          "x": 462,
+          "y": 380
+        },
+        "to": {
+          "x": 462,
+          "y": 430
+        },
+        "heat": null
+      },
+      "identitySlot": null
+    },
+    {
+      "id": "equation",
+      "type": "equation",
+      "semanticId": "attention-equation",
+      "conceptId": "attention-output",
+      "initialState": {
+        "text": "\\text{softmax}\\left(\\dfrac{QK^T}{\\sqrt{d_k}}\\right)V",
+        "x": 650,
+        "y": 150,
+        "w": 240,
+        "h": 60,
+        "opacity": 0,
+        "rotation": 0,
+        "role": "neutral",
+        "typography": "body",
+        "heat": null
+      },
+      "identitySlot": null
+    },
+    {
+      "id": "output",
+      "type": "strip",
+      "semanticId": "attention-output",
+      "conceptId": "attention-output",
+      "initialState": {
+        "label": "output - the weighted mix of V",
+        "x": 650,
+        "y": 250,
+        "opacity": 0,
+        "rotation": 0,
+        "role": "output",
+        "typography": "body",
+        "cell": 42,
+        "values": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "heat": {
+          "mode": "magnitude"
+        }
+      },
+      "identitySlot": null
+    },
+    {
+      "id": "arrow-v-output",
+      "type": "arrow",
+      "semanticId": "arrow-v-output",
+      "conceptId": "attention-output",
+      "initialState": {
+        "x": 0,
+        "y": 0,
+        "opacity": 0,
+        "rotation": 0,
+        "role": "neutral",
+        "typography": "body",
+        "from": {
+          "x": 250,
+          "y": 299
+        },
+        "to": {
+          "x": 650,
+          "y": 271
+        },
+        "heat": null
+      },
+      "identitySlot": null
+    },
+    {
+      "id": "arrow-matrix-output",
+      "type": "arrow",
+      "semanticId": "arrow-matrix-output",
+      "conceptId": "attention-output",
+      "initialState": {
+        "x": 0,
+        "y": 0,
+        "opacity": 0,
+        "rotation": 0,
+        "role": "neutral",
+        "typography": "body",
+        "from": {
+          "x": 650,
+          "y": 380
+        },
+        "to": {
+          "x": 755,
+          "y": 250
+        },
+        "heat": null
+      },
+      "identitySlot": null
+    },
+    {
+      "id": "note",
+      "type": "text",
+      "semanticId": "note",
+      "initialState": {
+        "text": "",
+        "x": 40,
+        "y": 566,
+        "opacity": 1,
+        "rotation": 0,
+        "role": "neutral",
+        "typography": "body",
+        "heat": null
+      },
+      "identitySlot": null
+    }
+  ],
+  "timeline": [
+    {
+      "at": 0,
+      "action": "type_text",
+      "target": "caption",
+      "duration": 1.6,
+      "easing": "easeInOut",
+      "value": "an attention layer starts from embeddings the tokens already have"
+    },
+    {
+      "at": 0.6,
+      "action": "appear",
+      "target": "chars",
+      "duration": 0.5,
+      "easing": "easeInOut"
+    },
+    {
+      "at": 1.8,
+      "action": "change_text",
+      "target": "caption",
+      "duration": 0,
+      "easing": "easeInOut",
+      "value": "each embedding is projected three ways: a query, a key and a value"
+    },
+    {
+      "at": 2,
+      "action": "appear",
+      "target": "q",
+      "duration": 0.5,
+      "easing": "easeInOut"
+    },
+    {
+      "at": 2,
+      "action": "appear",
+      "target": "arrow-tok-q",
+      "duration": 0.4,
+      "easing": "easeInOut"
+    },
+    {
+      "at": 2.3,
+      "action": "appear",
+      "target": "k",
+      "duration": 0.5,
+      "easing": "easeInOut"
+    },
+    {
+      "at": 2.3,
+      "action": "appear",
+      "target": "arrow-tok-k",
+      "duration": 0.4,
+      "easing": "easeInOut"
+    },
+    {
+      "at": 2.6,
+      "action": "appear",
+      "target": "v",
+      "duration": 0.5,
+      "easing": "easeInOut"
+    },
+    {
+      "at": 2.6,
+      "action": "appear",
+      "target": "arrow-tok-v",
+      "duration": 0.4,
+      "easing": "easeInOut"
+    },
+    {
+      "at": 3.6,
+      "action": "change_text",
+      "target": "caption",
+      "duration": 0,
+      "easing": "easeInOut",
+      "value": "the query asks, the key answers, and the value is what actually gets carried forward"
+    },
+    {
+      "at": 4.4,
+      "action": "appear",
+      "target": "matrix",
+      "duration": 0.5,
+      "easing": "easeInOut"
+    },
+    {
+      "at": 4.4,
+      "action": "appear",
+      "target": "arrow-q-matrix",
+      "duration": 0.4,
+      "easing": "easeInOut"
+    },
+    {
+      "at": 4.4,
+      "action": "appear",
+      "target": "arrow-k-matrix",
+      "duration": 0.4,
+      "easing": "easeInOut"
+    },
+    {
+      "at": 4.8,
+      "action": "change_text",
+      "target": "caption",
+      "duration": 0,
+      "easing": "easeInOut",
+      "value": "compare every query against every key - a raw score for every pair"
+    },
+    {
+      "at": 5,
+      "action": "change_text",
+      "target": "matrix",
+      "duration": 0,
+      "easing": "easeInOut",
+      "value": "raw scores: QKᵀ"
+    },
+    {
+      "at": 5.2,
+      "action": "set_values",
+      "target": "matrix",
+      "duration": 1.4,
+      "easing": "easeInOut",
+      "value": [
+        1.2,
+        1.92,
+        -0.6,
+        0.96,
+        1.32,
+        0.9,
+        1.44,
+        -0.45,
+        0.72,
+        0.99,
+        1.3,
+        2.08,
+        -0.65,
+        1.04,
+        1.43,
+        1.1,
+        1.76,
+        -0.55,
+        0.88,
+        1.21,
+        1.5,
+        2.4,
+        -0.75,
+        1.2,
+        1.65
+      ]
+    },
+    {
+      "at": 6.8,
+      "action": "change_text",
+      "target": "caption",
+      "duration": 0,
+      "easing": "easeInOut",
+      "value": "a token must never see the future, so every score above the diagonal is masked out"
+    },
+    {
+      "at": 7,
+      "action": "change_text",
+      "target": "matrix",
+      "duration": 0,
+      "easing": "easeInOut",
+      "value": "causal mask: future positions blocked"
+    },
+    {
+      "at": 7.2,
+      "action": "set_values",
+      "target": "matrix",
+      "duration": 0.5,
+      "easing": "easeInOut",
+      "value": [
+        1.2,
+        null,
+        null,
+        null,
+        null,
+        0.9,
+        1.44,
+        null,
+        null,
+        null,
+        1.3,
+        2.08,
+        -0.65,
+        null,
+        null,
+        1.1,
+        1.76,
+        -0.55,
+        0.88,
+        null,
+        1.5,
+        2.4,
+        -0.75,
+        1.2,
+        1.65
+      ]
+    },
+    {
+      "at": 8,
+      "action": "change_text",
+      "target": "caption",
+      "duration": 0,
+      "easing": "easeInOut",
+      "value": "softmax turns every unmasked row into a probability distribution that sums to one"
+    },
+    {
+      "at": 8.2,
+      "action": "change_text",
+      "target": "matrix",
+      "duration": 0,
+      "easing": "easeInOut",
+      "value": "softmax: each row sums to 1"
+    },
+    {
+      "at": 8.4,
+      "action": "replace_values",
+      "target": "matrix",
+      "duration": 0,
+      "easing": "easeInOut",
+      "value": [
+        1,
+        null,
+        null,
+        null,
+        null,
+        0.368,
+        0.632,
+        null,
+        null,
+        null,
+        0.301,
+        0.656,
+        0.043,
+        null,
+        null,
+        0.254,
+        0.492,
+        0.049,
+        0.204,
+        null,
+        0.183,
+        0.45,
+        0.019,
+        0.135,
+        0.212
+      ]
+    },
+    {
+      "at": 10,
+      "action": "highlight_cell",
+      "target": "chars",
+      "duration": 0,
+      "easing": "easeInOut",
+      "value": 4
+    },
+    {
+      "at": 10,
+      "action": "highlight_cell",
+      "target": "matrix",
+      "duration": 0,
+      "easing": "easeInOut",
+      "value": {
+        "row": 4
+      }
+    },
+    {
+      "at": 10.2,
+      "action": "change_text",
+      "target": "caption",
+      "duration": 0,
+      "easing": "easeInOut",
+      "value": "follow the last token's row - what did it actually attend to?"
+    },
+    {
+      "at": 10.6,
+      "action": "appear",
+      "target": "bars-row",
+      "duration": 0.5,
+      "easing": "easeInOut"
+    },
+    {
+      "at": 10.6,
+      "action": "appear",
+      "target": "arrow-matrix-bars",
+      "duration": 0.4,
+      "easing": "easeInOut"
+    },
+    {
+      "at": 10.8,
+      "action": "set_values",
+      "target": "bars-row",
+      "duration": 1,
+      "easing": "easeInOut",
+      "value": [
+        0.183,
+        0.45,
+        0.019,
+        0.135,
+        0.212
+      ]
+    },
+    {
+      "at": 12,
+      "action": "highlight_cell",
+      "target": "bars-row",
+      "duration": 0,
+      "easing": "easeInOut",
+      "value": "max"
+    },
+    {
+      "at": 12.2,
+      "action": "change_text",
+      "target": "caption",
+      "duration": 0,
+      "easing": "easeInOut",
+      "value": "multiply every value vector by its weight, and add them up"
+    },
+    {
+      "at": 12.6,
+      "action": "appear",
+      "target": "output",
+      "duration": 0.5,
+      "easing": "easeInOut"
+    },
+    {
+      "at": 12.6,
+      "action": "appear",
+      "target": "equation",
+      "duration": 0.5,
+      "easing": "easeInOut"
+    },
+    {
+      "at": 12.6,
+      "action": "appear",
+      "target": "arrow-v-output",
+      "duration": 0.4,
+      "easing": "easeInOut"
+    },
+    {
+      "at": 12.6,
+      "action": "appear",
+      "target": "arrow-matrix-output",
+      "duration": 0.4,
+      "easing": "easeInOut"
+    },
+    {
+      "at": 13,
+      "action": "set_values",
+      "target": "output",
+      "duration": 1,
+      "easing": "easeInOut",
+      "value": [
+        1,
+        1.632,
+        1.635,
+        1.569,
+        1.465
+      ]
+    },
+    {
+      "at": 14.2,
+      "action": "highlight_cell",
+      "target": "output",
+      "duration": 0,
+      "easing": "easeInOut",
+      "value": 4
+    },
+    {
+      "at": 14.4,
+      "action": "change_text",
+      "target": "caption",
+      "duration": 0,
+      "easing": "easeInOut",
+      "value": "the same pattern repeats for every position, all at once"
+    },
+    {
+      "at": 14.8,
+      "action": "type_text",
+      "target": "note",
+      "duration": 2,
+      "easing": "easeInOut",
+      "value": "the causal mask is the only thing that differs per position - the same Q, K and V weights are reused everywhere"
+    }
+  ],
+  "camera": {
+    "x": null,
+    "y": null,
+    "zoom": 1
+  }
+}

@@ -1,32 +1,34 @@
 {
   "project": "transformer-explainer",
   "case": "02-qkv-projection",
-  "iteration": 1,
+  "iteration": 2,
   "status": "reviewed",
+  "phase": "A.5d completion gate",
   "scores": {
     "technicalCorrectness": 5,
-    "conceptualCompleteness": 4,
-    "teachingClarity": 4,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 5,
     "visualHierarchy": 4,
     "layout": 4,
-    "readability": 3,
+    "readability": 5,
     "spatialRelationships": 4,
     "progressiveReveal": 4,
     "interactionQuality": 2,
     "motionChoreography": 4,
-    "focalPoint": 3,
+    "focalPoint": 4,
     "genericComposition": 5,
     "originality": 5
   },
-  "weightedTotal": "69/85 (81.2%)",
+  "weightedTotal": "76/85 (89.4%)",
   "hardFails": [],
+  "iteration1FindingsResolved": [
+    "COLOR_CONTRAST: shared fix with case 03 - Q/K/V numerals are legible against every fill strength"
+  ],
+  "motivatingFindingResolved": "Q, K and V now render with three distinct identity hues, resolving the finding that motivated Phase A.5d, while VALUE (heat fill) stays untouched by identity.",
   "failures": [
-    "COLOR_CONTRAST: heat-mapped numeral ink never adapts to fill strength (shared root cause with case 03)",
-    "FOCAL_POINT: no single moment emphasises that Q, K and V derive from the same token row (structural only, not temporal)"
+    "FOCAL_POINT: still open, unchanged from iteration 1 - no single moment emphasises that Q, K and V derive from the same token row (an authoring choice, not a vocabulary gap)"
   ],
-  "recommendedSystemChanges": [
-    "Contrast-aware numeral ink for heat-mapped cells (shared with case 03 - fix once)"
-  ],
+  "recommendedSystemChanges": [],
   "imitationRisk": "none",
   "humanApproved": false
 }

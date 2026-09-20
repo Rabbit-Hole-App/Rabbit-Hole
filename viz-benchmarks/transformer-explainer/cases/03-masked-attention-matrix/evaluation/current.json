@@ -1,36 +1,38 @@
 {
   "project": "transformer-explainer",
   "case": "03-masked-attention-matrix",
-  "iteration": 1,
+  "iteration": 2,
   "status": "reviewed",
+  "phase": "A.5d completion gate",
   "scores": {
-    "technicalCorrectness": 3,
+    "technicalCorrectness": 5,
     "conceptualCompleteness": 4,
-    "teachingClarity": 4,
-    "visualHierarchy": 3,
+    "teachingClarity": 5,
+    "visualHierarchy": 4,
     "layout": 4,
-    "readability": 2,
-    "spatialRelationships": 3,
+    "readability": 5,
+    "spatialRelationships": 4,
     "progressiveReveal": 4,
     "interactionQuality": 2,
-    "motionChoreography": 3,
+    "motionChoreography": 4,
     "focalPoint": 4,
-    "genericComposition": 4,
+    "genericComposition": 5,
     "originality": 5
   },
-  "weightedTotal": "60/85 (70.6%)",
+  "weightedTotal": "74/85 (87.1%)",
   "hardFails": [],
+  "iteration1FindingsResolved": [
+    "TECHNICAL_CORRECTNESS: raw-scores -> softmax now uses replace_values, a discrete swap - no frame shows a value outside {raw score, softmax weight}",
+    "MISSING_PRIMITIVE: grid gained rowLabels/columnLabels - a cell reads as this token attending to that token",
+    "COLOR_CONTRAST: heat-mapped numeral ink now derives from the cell's own fill strength through HEAT_INK_ZONES",
+    "MISSING_PRIMITIVE: heat gained a signed mode - K's and the matrix's real negative values render in a diverging colour, not a paler shade of positive",
+    "COORDINATION: selection now reaches grid and strip cells through a generic two-tone SelectionMark"
+  ],
   "failures": [
-    "TECHNICAL_CORRECTNESS: linear tween through a nonlinear transform (raw scores -> softmax) shows numerically meaningless intermediate numerals",
-    "MISSING_PRIMITIVE: grid has no row/column axis-label field, unlike bars' labels - the reference's own credited strength is absent here",
-    "COLOR_CONTRAST: heat-mapped numeral ink never adapts to fill strength, so the highest-magnitude cells are the hardest to read",
-    "MISSING_PRIMITIVE: heat is magnitude-only (Math.abs), no diverging/signed mode"
+    "NEW (found during this gate, not one of the original five): COORDINATION - a heat-mapped grid/strip cell's fill can freeze at its pre-reveal role-tint and never update to the value-driven heat colour, under a gradual (human-paced) scrub through a blocked-to-revealed transition. Confirmed in a production build. Does not affect any of this case's delivered frames."
   ],
   "recommendedSystemChanges": [
-    "Axis-label field for grid (highest priority)",
-    "Contrast-aware numeral ink for heat-mapped grid/strip cells",
-    "Signed/diverging heat mode",
-    "A documented, non-lerp path for set_values transitions between two different derived quantities"
+    "Fix the Framer Motion animate/style handoff for heat-mapped grid/strip cells (AnimatedScene.jsx) so a value-driven fill cannot get stuck on a stale STATE-driven one after a gradual reveal."
   ],
   "imitationRisk": "none",
   "humanApproved": false

@@ -1,0 +1,61 @@
+{
+  "project": "transformer-explainer",
+  "case": "02-qkv-projection",
+  "iteration": 2,
+  "generatedFrom": "packages/web/src/reference-scenes.js (causal-self-attention)",
+  "framesReviewed": ["00.png", "25.png"],
+  "phase": "A.5d completion gate - re-run after six passes fixing the five findings from iteration 1",
+  "note": "50.png, 75.png and 100.png are included for continuity (same scene, later beats) but are scored under case 03 and case 07, not here.",
+  "volatileFieldsExcludedFromScoring": [
+    "input token sequence (ours: h e l l o; the reference resamples a phrase on every load)",
+    "exact vector values (ours are authored scalars chosen to make the downstream arithmetic checkable, not a claim about real GPT-2 weights)"
+  ],
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 5,
+    "visualHierarchy": 4,
+    "layout": 4,
+    "readability": 5,
+    "spatialRelationships": 4,
+    "progressiveReveal": 4,
+    "interactionQuality": 2,
+    "motionChoreography": 4,
+    "focalPoint": 4,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedTotal": "76/85 (89.4%)",
+  "hardFails": [],
+  "iteration1Findings": [
+    {
+      "type": "COLOR_CONTRAST",
+      "status": "RESOLVED",
+      "evidence": "Shared fix with case 03 (contrast-aware ink through HEAT_INK_ZONES) - 25.png's Q/K/V numerals are legible against every fill strength, including the strips' own most-saturated cells (1.50 in Q, 1.60 in K, 2.00 in V)."
+    }
+  ],
+  "findings": [
+    {
+      "severity": "low",
+      "type": "FOCAL_POINT",
+      "frame": "25.png",
+      "status": "still open - unchanged from iteration 1, not one of the five findings this phase targeted",
+      "observation": "Q, K and V now carry distinct identity hues (see the motivating-finding note below), which helps them read as three separate things, but nothing still highlights the moment they all come from the SAME source token - the three arrows fanning from one point say it structurally, with no emphasis event timed to it.",
+      "cause": "Authoring choice in this scene, not a vocabulary gap - emphasize/highlight exist and were not used here.",
+      "recommendation": "Not a system change. Worth a highlight or emphasize event on the source token chip in a future iteration."
+    }
+  ],
+  "motivatingFindingResolved": {
+    "description": "The finding that motivated Phase A.5d's IDENTITY axis - Q, K and V all rendering pixel-identical because all three are legitimately `observed` - is this case's own core subject, and is now resolved.",
+    "evidence": "25.png: Q, K and V render with three visually distinct frame/border hues (identity-1/2/3) while all three keep the SAME role (observed) and the SAME fill tier - confirmed at the data level via scene-identity.test.mjs's existing suite (three objects sharing one role and differing only in identity resolve to three different hues and the same fill tier) and visually in the captured frame. VALUE (the heat fill itself) is untouched by identity - scene-identity.test.mjs's mutation-proof test asserts the heat fill construction in AnimatedScene.jsx never names identity, and this still passes."
+  },
+  "newReusableDefectCrossReference": "case 03's critic-report.json documents a new COORDINATION defect (a heat-mapped grid/strip cell's fill can freeze mid-reveal under a gradual scrub). It does not affect this case's Q/K/V strips: their `values` are populated in initialState (never start null), so heat is truthy from t=0 and the vulnerable blocked-to-revealed transition never occurs for these three objects. Confirmed no cross-contamination.",
+  "strengths": [
+    "Technically the strongest beat in the scene: RAW_FULL is computed as Q[i]*K[j] in code, so the Q and K numbers on screen are provably the ones that produce the matrix two beats later.",
+    "Q, K and V now read as three distinguishable peers without a new role and without touching VALUE - identity colours the frame, heat still owns the fill, exactly the intended separation of channels.",
+    "Three arrows fanning from one token strip communicate 'one embedding, three views' structurally, without narration."
+  ],
+  "recommendedSystemChanges": [],
+  "imitationRisk": "none - the reference colour-codes Q/K/V with three hues for the same reason (telling three views apart); ours arrives at that through a generic IDENTITY axis rather than three bespoke role-like colours, a different mechanism reaching a comparable but not copied result.",
+  "humanApproved": false
+}

@@ -1,0 +1,55 @@
+{
+  "project": "transformer-explainer",
+  "case": "07-output-probabilities",
+  "iteration": 2,
+  "generatedFrom": "packages/web/src/reference-scenes.js (causal-self-attention)",
+  "framesReviewed": ["75.png", "100.png"],
+  "phase": "A.5d completion gate - re-run after six passes fixing the five findings from iteration 1",
+  "note": "00.png/25.png/50.png are included for continuity (same scene, earlier beats) but are scored under case 02 and case 03, not here.",
+  "volatileFieldsExcludedFromScoring": [
+    "sampled token / sampled token id - not applicable, this scene has no LM head or sampling step",
+    "exact probability values (ours are computed from an authored, checkable Q/K/V, not real model output)"
+  ],
+  "scores": {
+    "technicalCorrectness": 3,
+    "conceptualCompleteness": 3,
+    "teachingClarity": 4,
+    "visualHierarchy": 4,
+    "layout": 4,
+    "readability": 4,
+    "spatialRelationships": 4,
+    "progressiveReveal": 4,
+    "interactionQuality": 2,
+    "motionChoreography": 4,
+    "focalPoint": 5,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedTotal": "66/85 (77.6%)",
+  "hardFails": [],
+  "iteration1Findings": [
+    {
+      "type": "TECHNICAL_CORRECTNESS",
+      "status": "STILL OPEN - unchanged from iteration 1, not one of the five findings this phase targeted",
+      "observation": "The distribution shown is still attention weights over sequence positions for one query, not a vocabulary distribution over next-token candidates - the same conceptual-scope point iteration 1 made. This is a labeling opportunity for a future scene reaching an LM head, not a rendering defect, and was never claimed to be fixed by this phase."
+    },
+    {
+      "type": "CONTENT_OMISSION",
+      "status": "STILL OPEN - unchanged, was never claimed as a system gap",
+      "observation": "No zero-probability tail with only 5 candidates - a smaller worked example than the reference's, not a limitation of bars (which accepts up to 256 values)."
+    }
+  ],
+  "findings": [],
+  "resolvedByThisPhase": {
+    "type": "COORDINATION",
+    "evidence": "100.png: the output strip's index-4 cell carries the same generic two-tone SelectionMark now confirmed in case 03 (a black outer / white inner ring, independent of the cell's own heat fill). This case's `highlight_cell` calls on `bars-row` (value 'max') and `output` (value 4) were already authored in iteration 1; what changed is that the shared selection primitive now actually reaches a strip cell, where iteration 1's finding #5 said it did not reliably do so. The single darkened bar against four lighter ones (this case's strongest praised trait) is unaffected - it was never selection-primitive-dependent."
+  },
+  "strengths": [
+    "The single darkened bar against four uniform, lighter bars remains the clearest focal point in the whole scene.",
+    "Bar length still reads as magnitude before any number is read.",
+    "Per-bar key-token labels recover, for this one row, the row/column identity that case 03's grid now also carries natively via rowLabels/columnLabels - the two primitives are consistent with each other rather than one compensating for a gap in the other."
+  ],
+  "recommendedSystemChanges": [],
+  "imitationRisk": "none - bars kept in position order rather than sorted by magnitude, a structural departure from the reference as well as a visual one.",
+  "humanApproved": false
+}

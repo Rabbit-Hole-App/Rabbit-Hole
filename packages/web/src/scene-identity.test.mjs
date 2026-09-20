@@ -182,3 +182,66 @@ test('mutation-proof: slot assignment in animation-scene.js does not call a non-
   const block = source.slice(start, source.indexOf('if (object.type ===', start));
   assert.doesNotMatch(block, /Math\.random|Date\.now|crypto\./, `slot assignment must be a pure function of authored order, not a random or time-based source: ${block}`);
 });
+
+// --- CVD regression: plain RGB distance is not enough ----------------------
+//
+// Task A's first identity palette (a gold and an olive) cleared every
+// numeric constraint it was given - contrast against both surfaces, distance
+// from every heat token, distance from every other identity slot, all in
+// plain RGB. Simulated under deuteranopia, that pair collapsed to 11.5 RGB
+// units apart: two identities a red-green colour-blind reader would see as
+// one, passing every rule this file checked at the time. That check was run
+// by hand once and thrown away. It is captured here so a future slot cannot
+// reintroduce it silently.
+//
+// The three matrices below are a standard simplified dichromacy
+// approximation applied directly in sRGB space (no LMS round-trip - "a
+// simplified... simulation", index.css's own IDENTITY comment already calls
+// it that). They are not a physiologically exact model, but they reproduce
+// the exact numbers that comment already claims by hand: light's closest
+// pair sits at 67.0 RGB units apart under deuteranopia, dark's at 68.4 - see
+// the assertions below, which check the real numbers, not a rounded claim.
+const CVD_MATRICES = Object.freeze({
+  protanopia: [[0.567, 0.433, 0.000], [0.558, 0.442, 0.000], [0.000, 0.242, 0.758]],
+  deuteranopia: [[0.625, 0.375, 0.000], [0.700, 0.300, 0.000], [0.000, 0.300, 0.700]],
+  tritanopia: [[0.950, 0.050, 0.000], [0.000, 0.433, 0.567], [0.000, 0.475, 0.525]],
+});
+const hexToRgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+const simulateCVD = (rgb, kind) => CVD_MATRICES[kind].map(row => row[0] * rgb[0] + row[1] * rgb[1] + row[2] * rgb[2]);
+const rgbDistance = (a, b) => Math.sqrt(a.reduce((sum, value, i) => sum + (value - b[i]) ** 2, 0));
+// Well below every real minimum this palette actually reaches (67.0 and
+// 68.4 - see above), and dramatically above the 11.5 that sank the first
+// palette, so a regression anywhere near that severity still fails loudly
+// long before it reaches this floor.
+const CVD_MIN_DISTANCE = 60;
+
+const identityHexByTheme = () => {
+  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8');
+  const light = css.slice(css.indexOf('--viz-neutral'), css.indexOf('.dark {'));
+  const darkStart = css.indexOf('.dark {');
+  const dark = css.slice(darkStart, css.indexOf('}', darkStart));
+  const hexOf = (block, slot) => block.match(new RegExp(`--viz-${slot}\\s*:\\s*(#[0-9a-fA-F]{6})`))?.[1];
+  return {
+    light: Object.fromEntries(IDENTITY_SLOTS.map(slot => [slot, hexOf(light, slot)])),
+    dark: Object.fromEntries(IDENTITY_SLOTS.map(slot => [slot, hexOf(dark, slot)])),
+  };
+};
+
+test('identity slots stay separated under protanopia, deuteranopia and tritanopia simulation, in both themes', () => {
+  const byTheme = identityHexByTheme();
+  for (const themeName of ['light', 'dark']) {
+    const hexes = byTheme[themeName];
+    for (const slot of IDENTITY_SLOTS) assert.ok(hexes[slot], `${themeName} theme is missing a hex value for ${slot}`);
+    for (const kind of Object.keys(CVD_MATRICES)) {
+      for (let i = 0; i < IDENTITY_SLOTS.length; i += 1) {
+        for (let j = i + 1; j < IDENTITY_SLOTS.length; j += 1) {
+          const a = simulateCVD(hexToRgb(hexes[IDENTITY_SLOTS[i]]), kind);
+          const b = simulateCVD(hexToRgb(hexes[IDENTITY_SLOTS[j]]), kind);
+          const distance = rgbDistance(a, b);
+          assert.ok(distance >= CVD_MIN_DISTANCE,
+            `${themeName} ${kind}: ${IDENTITY_SLOTS[i]} vs ${IDENTITY_SLOTS[j]} collapse to ${distance.toFixed(1)} RGB units apart (need >= ${CVD_MIN_DISTANCE})`);
+        }
+      }
+    }
+  }
+});
