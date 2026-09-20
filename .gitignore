@@ -168,3 +168,7 @@ __pycache__/
 # JupyterLite local build cache (generated, not lesson content)
 .jupyterlite.doit.db*
 packages/web/e2e/shots/
+
+# Restrictively licensed benchmark references: URL and metadata are committed,
+# the captures are not. See viz-benchmarks/REFERENCE-LICENSING.md
+.local-benchmark-cache/
