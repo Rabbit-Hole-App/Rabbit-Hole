@@ -112,21 +112,47 @@ function DataShape({ object, role, pop }) {
         const heat = heatMode && value != null ? heatStyle(value, domain, heatMode) : null;
         const fill = heat ? `color-mix(in srgb, var(--viz-${heat.fillToken}) ${heat.mixPercent}%, transparent)` : look.fill;
         const ink = heat ? heat.inkToken : (lit ? 'var(--color-ink)' : 'var(--color-ink-2)');
-        // Motion may spring a value only while that value is discrete. A heat
-        // fill is a continuous function of the cell's number, so it is
-        // painted exactly (style); the ring is still a binary lit/unlit
-        // state and keeps its pop (animate). The ring's colour is IDENTITY's
-        // hue when this object has one, role's otherwise (look.stroke - see
-        // shapeStyle) - a frame, never a quantity or a selection, so it
-        // never competes with either even when heat owns the fill beneath it.
+        // INVARIANT: A CONTINUOUSLY VARYING VISUAL PROPERTY MUST HAVE ONE
+        // OWNERSHIP PATH FOR THE LIFETIME OF THE ELEMENT. This cell used to
+        // read `style={heat ? {fill} : undefined}` / `animate={heat ? ring :
+        // {fill, ...ring}}` - keyed on `heat` (this cell's per-value
+        // heatStyle() result, which flips between null and real as `value`
+        // arrives), not `heatMode` (object.heat?.mode, fixed for the
+        // object's whole life). Fill's ownership crossed from `animate`
+        // (blocked) to `style` (revealed) on the SAME <motion.rect> - the
+        // old rule ("paint a continuous value exactly, never spring it") was
+        // obeyed in both branches, which is exactly why this looked correct.
+        //
+        // Re-keying the branch on the stable `heatMode` was NOT sufficient
+        // on its own, proved with an isolated repro outside this component:
+        // a fill whose CSS variable reference itself swaps between renders
+        // (here, --viz-observed while blocked to --viz-heat-scale once
+        // revealed - a different token, not just a different mix percentage
+        // of the same one) can still freeze at its first-seen value even
+        // with a single, stable `animate`-only ownership path, for this
+        // Motion version. Bars' and tokens' own animate-driven fill do NOT
+        // freeze the same way under the identical gradual-scrub test (see
+        // heat-motion-invariant.spec.js) - checked, not assumed - because
+        // their lit/unlit states share ONE base token at different mix
+        // percentages, which Motion can genuinely interpolate; heat's fill
+        // can swap which token it names outright.
+        //
+        // The fix: take the fill out of Motion's ownership entirely. A heat
+        // cell's fill is a plain, ordinary <rect> - it has exactly one
+        // ownership path (React's own re-render, ALWAYS reactive) for its
+        // entire life, satisfying the invariant trivially. The ring
+        // (stroke/strokeWidth - IDENTITY's hue when this object has one,
+        // role's otherwise; a frame, never a quantity or a selection) is a
+        // SEPARATE <motion.rect> layered on top, `fill="none"`, so Motion
+        // keeps its bouncy pop for state changes without ever touching the
+        // property that broke.
         const ring = { stroke: look.stroke, strokeWidth: look.strokeWidth };
         const cellX = object.x + column * cell, cellY = object.y + row * cell;
         cells.push(
           <g key={index}>
-            <motion.rect x={cellX} y={cellY} width={cell} height={cell}
-              style={heat ? { fill } : undefined}
-              animate={heat ? ring : { fill, ...ring }}
-              transition={pop} />
+            <rect x={cellX} y={cellY} width={cell} height={cell} style={{ fill }} />
+            <motion.rect x={cellX} y={cellY} width={cell} height={cell} fill="none"
+              animate={ring} transition={pop} />
             {value != null && cell >= 22 && (
               <text x={cellX + cell / 2} y={cellY + cell / 2}
                 textAnchor="middle" dominantBaseline="central" fontSize={Math.min(numeral.fontSize, cell * 0.42)} fontWeight={numeral.fontWeight}
