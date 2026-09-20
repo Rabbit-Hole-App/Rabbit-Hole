@@ -134,6 +134,21 @@ changing the *ink*, never by collapsing the *fill*.
 A heat cell is **not** an `observed` object with a stronger or weaker fill. It is
 a quantitative mark whose interior belongs to VALUE.
 
+**A categorical palette must pass colour-vision-deficiency simulation, not only
+numeric separation.** This is a permanent test, not a one-off check.
+
+Task A's first identity palette — a gold and an olive — cleared every numeric
+constraint written for it: contrast against both surfaces, distance from every
+heat token, distance from each other. Simulated under deuteranopia the pair
+collapsed to **11.5 RGB units apart**. Two identities that a red-green
+colour-blind reader would see as one, passing every rule we had.
+
+Euclidean distance in sRGB does not model how a deficiency collapses hues, so a
+palette verified only that way is verified against the wrong thing. Every
+identity slot must stay separated from every other slot **after** protanopia,
+deuteranopia and tritanopia simulation, and the simulation lives in the test
+suite so the next slot cannot reintroduce it.
+
 **STATE overlays must remain perceptible regardless of ROLE, IDENTITY or VALUE.**
 
 The first rendered checkpoint found selection inheriting its colour from the
