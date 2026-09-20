@@ -39,6 +39,31 @@ actual published visual for internal evaluation, and for restrictively licensed
 sources follow [REFERENCE-LICENSING.md](REFERENCE-LICENSING.md): metadata
 committed, captures in `.local-benchmark-cache/`.
 
+### Phase 1 is not complete until every case is captured
+
+**Static first means finishing static first, not having one populated case.**
+
+Truthful status, 2026-09-20:
+
+```text
+illustrated-transformer
+├─ case 01
+│  ├─ synthetic internal fixture   done
+│  └─ real external capture        done
+└─ cases 02-10
+   └─ real external references     NOT CAPTURED
+```
+
+The order of remaining work, and nothing skips ahead of it:
+
+1. Renderer invariant cleanup — a deterministic ownership check, not a behavioural test that passes against both the broken and the fixed implementation
+2. Protect the synthetic fixtures structurally
+3. Capture real references for cases 02-10 under [REFERENCE-LICENSING.md](REFERENCE-LICENSING.md)
+4. Populate each case's `SOURCE.md`, manifest, reference notes and cache metadata
+5. Run the static benchmark cases
+6. Refine the static vocabulary from what they find
+7. **Only then** Phase 2
+
 ## Phase 2 — simple dynamic visualizations
 
 Published explainers with contained motion, such as Diffusion Explainer.
