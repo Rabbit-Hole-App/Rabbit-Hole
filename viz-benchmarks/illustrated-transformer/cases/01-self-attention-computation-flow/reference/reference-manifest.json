@@ -1,0 +1,52 @@
+{
+  "entries": [
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/transformer_self_attention_vectors.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Self-Attention in Detail — computing Q, K and V",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_reference_only",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/transformer_self_attention_vectors.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:d6415b63f3cfb5d802719aebf111283bbcdab3cb33b40194f3b2d8a65522117c"
+    },
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/transformer_self_attention_score.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Self-Attention in Detail — QKᵀ score",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_reference_only",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/transformer_self_attention_score.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:d6633178eec663f2c0014cf812289a35da96382dbff34cf6390570a7ffbe1c08"
+    },
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/self-attention_softmax.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Self-Attention in Detail — softmax",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_reference_only",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/self-attention_softmax.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:201803c86248cea5949d05fd8831ee4a7c42fbcf504f8c570660998ae72d1786"
+    },
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/self-attention-output.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Self-Attention in Detail — full flow, embedding through weighted sum",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_reference_only",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/self-attention-output.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:0818b251e33eee8d20ff69235d87bab54588e4abbcab2d7a12eb2d05d3f83709"
+    }
+  ]
+}

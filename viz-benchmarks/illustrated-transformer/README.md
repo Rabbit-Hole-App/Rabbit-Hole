@@ -17,7 +17,7 @@ project -> case -> mode -> iteration
 
 | case | status |
 |---|---|
-| `01-self-attention-computation-flow` | ready — the only case with reference material |
+| `01-self-attention-computation-flow` | ready — `reference/*.png` is a declared synthetic internal fixture (see `target.json`'s `referenceType`); real external reference now also catalogued in `reference/reference-manifest.json` per REFERENCE-LICENSING.md, captures in `.local-benchmark-cache/` |
 | `02-qkv-projection` | skeleton |
 | `03-attention-score-matrix` | skeleton |
 | `04-softmax-attention-weights` | skeleton |
