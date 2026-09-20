@@ -49,14 +49,46 @@ cases/<case>/reference/
   "sourceUrl": "https://jalammar.github.io/illustrated-transformer/",
   "section": "Self-Attention in Detail",
   "license": "CC BY-NC-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+  "capturedAt": "2026-09-19",
   "referenceType": "external_reference_only",
   "localPath": ".local-benchmark-cache/illustrated-transformer/self-attention-detail.png",
-  "productionAllowed": false
+  "productionAllowed": false,
+  "contentHash": "sha256:..."
 }
 ```
 
+**`contentHash` is what makes a gitignored reference auditable.** It proves which
+exact version of a reference an evaluation ran against without the image itself
+ever being committed. A source article can be re-edited, and without the hash a
+score from six months ago is a claim about a picture nobody can identify.
+`capturedAt` and `licenseUrl` exist for the same reason: a licence can change,
+and a reader needs to know which one applied at capture time.
+
 The benchmark runner reads the cache. Anyone can re-capture from `sourceUrl`.
 Nothing restricted enters git history or a product bundle.
+
+## A missing capture fails loudly
+
+**The runner must never silently substitute synthetic material for an absent
+external reference.** That would produce an evaluation labelled external that is
+in fact internal — a suite reporting coverage it does not have, which is the one
+failure this whole programme is built to avoid.
+
+When a manifest entry's `localPath` is missing, stop with the reason and the fix:
+
+```text
+REFERENCE_MISSING
+
+Capture required from:
+  https://jalammar.github.io/illustrated-transformer/  (Self-Attention in Detail)
+
+Expected local cache:
+  .local-benchmark-cache/illustrated-transformer/self-attention-detail.png
+```
+
+A hash mismatch is the same class of problem and gets the same treatment: say
+which reference changed, and do not score against it until a human has looked.
 
 ## The separation must be enforced, not merely written
 
