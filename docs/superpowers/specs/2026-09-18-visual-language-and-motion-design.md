@@ -149,6 +149,32 @@ identity slot must stay separated from every other slot **after** protanopia,
 deuteranopia and tritanopia simulation, and the simulation lives in the test
 suite so the next slot cannot reintroduce it.
 
+**A continuously varying visual property must have one ownership path for the
+lifetime of the element.**
+
+Plan A's original rule was *Motion may spring a value only while that value is
+discrete*. A grid cell obeyed it in both of its branches and still broke: while a
+cell was blocked its fill sat inside Motion's `animate`, and once a value arrived
+the fill moved to a plain `style`. Motion had already taken ownership and kept
+painting its last value, so the number updated and the colour did not. Scrubbing
+gradually through the reveal — the way a person drags a slider — left the cell
+lying for the rest of the scene.
+
+The rule above is stronger in two ways that matter. It names the defect, which is
+**switching ownership**, rather than the symptom; the old rule was satisfied on
+both sides of the switch, which is why three reviews passed over it. And it
+generalises past `fill` to any continuously varying property — opacity, transform,
+stroke width, a colour-mix percentage. The next instance will not be a fill.
+
+Branch such decisions on something stable for the element's lifetime — an
+object-level mode — never on a per-frame value.
+
+**And it needs a test that can see it.** The freeze is Motion's runtime behaviour,
+not a state-computation error: the evaluator reports the correct fill while the
+DOM shows the frozen one, so comparing two evaluated states passes while the bug
+is live. A regression here has to drive the rendered component through many small
+steps across the transition.
+
 **STATE overlays must remain perceptible regardless of ROLE, IDENTITY or VALUE.**
 
 The first rendered checkpoint found selection inheriting its colour from the
