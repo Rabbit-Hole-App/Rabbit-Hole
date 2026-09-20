@@ -1,17 +1,18 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, PanelRightClose, Pause, Pencil, Play, Scan, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pause, Pencil, Play, Scan, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
 import { createShapeId, getIndices } from 'tldraw';
 import { SPEEDS, getSpeed, isMuted, onMuted, setMuted, setSpeed } from './learn-audio.js';
 import { api, wsHeaders } from './api.js';
 import { requestBoardExplanation } from './learn-board-request.js';
 import { AskPanel } from './ask.jsx';
-import { Button, IconBtn, ConfirmDialog } from './ui.jsx';
+import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
 import { captureSelection, selectionSnapshot } from './sigmoid-context.js';
 import RegionPicker from './RegionPicker.jsx';
 import { CourseInterview, CoursePanel, useLearnCourse } from './LearnCourse.jsx';
 import { LessonNotebook, LessonPractice, LessonReading, LessonSource } from './LearnExtras.jsx';
 import LearnOutline from './LearnOutline.jsx';
 import ContentsRail from './ContentsRail.jsx';
+import CanvasMenubar from './CanvasMenubar.jsx';
 import { contentsEntries } from './learn-contents.js';
 import { lessonMilestones } from './learn-milestones.js';
 import LessonPlanPreview from './LessonPlanPreview.jsx';
@@ -67,6 +68,12 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const [practiceMode, setPracticeMode] = useState('quiz');
   const [learningView, setLearningView] = useState('lesson');
   const [panelOpen, setPanelOpen] = useState(true);
+  // Mirrored from the canvas so the View menu can tick what is on. Held by value
+  // rather than by ref, and returned unchanged when nothing moved, or the effect
+  // that publishes it would re-render forever.
+  const [canvasState, setCanvasState] = useState({ grid: false, lock: false });
+  const onCanvasState = useCallback(next => setCanvasState(previous =>
+    (previous.grid === next.grid && previous.lock === next.lock ? previous : next)), []);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [paperOpen, setPaperOpen] = useState(false);
   const [paperContext, setPaperContext] = useState(null);
@@ -505,6 +512,48 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const sectionKeys = suppliedCourse ? [...Array.from({ length: 6 }, (_, i) => `${nanoLesson.id}:${i}`), 'predict-next', 'represent-text', 'training-vs-generation'] : trackedLessons.flatMap(item => [...item.pages.map((_, index) => `${item.id || 'unavailable'}:${index}`), ...(item.id === architectureLesson.id ? ['notebook', 'quiz', 'flashcards'].map(view => `${item.id}:${view}`) : [])]);
   const finishedCount = suppliedCourse ? Object.keys(nanoProgress.saved.pages || {}).filter(key => ['0', '1', '2', '3', '4', '5'].includes(key) && nanoProgress.saved.pages[key]).length + ['encoding', 'prefixTarget', 'generationWeights'].filter(check => nanoProgress.saved[check]?.count).length : sectionKeys.filter(key => completed[key]).length;
   const allFinished = sectionKeys.length > 0 && finishedCount === sectionKeys.length;
+  const canvas = () => canvasApi.current;
+  const canvasMenus = [
+    {
+      title: 'Import',
+      items: [
+        // Enabled even with no connection: a greyed row naming a place it will
+        // not take you is worse than one that explains the next step.
+        { label: 'Google Slides…', onSelect: () => toast('Connect Google under Settings → Connections to import a deck.') },
+      ],
+    },
+    {
+      title: 'Insert',
+      items: [
+        { label: 'Section', size: 19, weight: 650, onSelect: () => canvas()?.insertHeading(1) },
+        { label: 'Sub-section', size: 16, weight: 600, onSelect: () => canvas()?.insertHeading(2) },
+        { label: 'Sub-sub-section', size: 14, weight: 550, onSelect: () => canvas()?.insertHeading(3) },
+      ],
+    },
+    {
+      title: 'Edit',
+      items: [
+        { label: 'Undo', hint: 'Ctrl Z', onSelect: () => canvas()?.undo() },
+        { divider: true },
+        { label: 'Select all', onSelect: () => canvas()?.selectAll() },
+        { label: 'Delete selection', hint: 'Del', onSelect: () => canvas()?.deleteSelection() },
+      ],
+    },
+    {
+      title: 'View',
+      items: [
+        { label: 'Zoom in', onSelect: () => canvas()?.zoomIn() },
+        { label: 'Zoom out', onSelect: () => canvas()?.zoomOut() },
+        { label: 'Reset zoom', onSelect: () => canvas()?.zoomReset() },
+        { label: 'Zoom to fit', onSelect: () => canvas()?.zoomFit() },
+        { divider: true },
+        { label: 'Snap to grid', checked: canvasState.grid, onSelect: () => canvas()?.toggleGrid() },
+        { label: 'Keep tool active', checked: canvasState.lock, onSelect: () => canvas()?.toggleLock() },
+        { divider: true },
+        { label: 'Right panel', checked: panelOpen, onSelect: () => setPanelOpen(previous => !previous) },
+      ],
+    },
+  ];
   const milestones = lessonMilestones(sectionKeys);
   // The retracted panel leaves these ticks behind, so they must agree with the
   // outline about which lessons exist and which can actually be opened.
@@ -532,9 +581,10 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1"><h1 className="text-2xl font-semibold">Learn</h1><span aria-label="Course title" className="text-base text-ink-2">{courseTitle}</span></div>
         </div>
         {/* the Curriculum | Lesson | My notes switcher now lives in the right panel as tabs */}
-        {!isRepository && <div className="mb-4 flex shrink-0 flex-wrap items-center justify-end gap-3 border-b border-line pb-3">
-          <div className="flex gap-1">{['notebook', 'practice'].map(value => <button key={value} disabled={course.dirty} aria-pressed={learningView === value} onClick={() => requestLearningView(value)} className="rounded border border-line px-3 py-1.5 text-sm hover:bg-hover">{value === 'notebook' ? 'Notebook' : 'Quiz & flashcards'}</button>)}</div>
-        </div>}
+        <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
+          <CanvasMenubar menus={canvasMenus} />
+          {!isRepository && <div className="flex gap-1">{['notebook', 'practice'].map(value => <button key={value} disabled={course.dirty} aria-pressed={learningView === value} onClick={() => requestLearningView(value)} className="rounded border border-line px-3 py-1.5 text-sm hover:bg-hover">{value === 'notebook' ? 'Notebook' : 'Quiz & flashcards'}</button>)}</div>}
+        </div>
         {learningView === 'curriculum' && course.canAuthor && !(suppliedCourse && planOpen) && <div role="tablist" aria-label="Curriculum views" className="mb-4 flex gap-1">{[['edit', 'Edit course'], ['learner', 'Learner view']].map(([value, label]) => <button key={value} role="tab" aria-selected={value === 'edit' ? courseView : learnerOpen} disabled={course.dirty} className={`rounded px-3 py-1.5 text-xs hover:bg-hover ${(value === 'edit' ? courseView : learnerOpen) ? 'bg-hover font-medium' : 'text-ink-2'}`} onClick={() => { setCourseView(value === 'edit'); setSetupChat(value === 'edit'); setLearnerOpen(value === 'learner'); }}>{label}</button>)}</div>}
         {planStorageError && <p role="alert" className="mb-3 text-xs text-red-700">{planStorageError}</p>}
         {suppliedCourse && learningView === 'curriculum' && <LessonPlanPreview onPreview={editor && nanoProgress.loaded && !answering ? () => previewLesson(nanoLesson, true) : null} edits={course.canAuthor ? planEdits : {}} selectedSection={sectionTarget?.id} onEdit={target => { setSectionTarget(target); setSetupChat(true); }} course={course.course} learnerView={!course.canAuthor || learnerOpen} editorPanel={courseView ? coursePanel : null} view={planOpen ? 'plan' : 'curriculum'} selected={plannedLesson} onBack={() => { setPlanOpen(false); setSectionTarget(null); }} onSelect={index => { setPlannedLesson(index); setPlanOpen(true); }} />}
@@ -547,7 +597,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
-        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
+        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onState={onCanvasState} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
@@ -589,8 +639,6 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           {milestones.map(milestone => <span key={milestone.id} role="img" aria-label={`${milestone.label}: ${finishedCount >= milestone.done ? 'complete' : 'not complete'}`} title={milestone.label} style={{ left: `${milestone.at * 100}%` }} className={`absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white ${finishedCount >= milestone.done ? 'bg-green-600' : 'bg-line-strong'}`} />)}
         </div>
         <Trophy size={18} role="img" aria-label={suppliedCourse ? 'Complete all six pages and three objective checks to finish Lesson 1' : allFinished ? 'Course complete' : 'Complete all sections and activities to earn this award'} className={allFinished ? 'text-green-600 drop-shadow-sm' : 'text-ink-3 opacity-35'} />
-        <button type="button" title="Hide panel" aria-label="Hide panel" aria-expanded onClick={() => setPanelOpen(false)}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><PanelRightClose size={16} /></button>
       </div>
       <h2 className="mb-2 shrink-0 text-xs font-semibold tracking-wider text-ink-2 uppercase">Table of contents</h2>
       {/* The contents list is the navigation now that the view pill is gone, so
@@ -611,7 +659,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         : <AskPanel onGraph={onGraph} key={app.name} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" headerTitle="Learn Agent" demo={isRepository ? null : demo} boardContext={boardContext} contentPanel={lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : null} onCloseContentPanel={() => { setPaperOpen(false); setSourceOpen(false); setLessonSource(null); }} placeholder={`Ask about ${app.repo || app.name}…`} autoFocus />}
       </div>
     </ResizableSidePanel>
-    {!panelOpen && <ContentsRail entries={railEntries} onExpand={() => setPanelOpen(true)}
+    {!panelOpen && <ContentsRail entries={railEntries}
       onOpen={entry => { setPanelOpen(false); openFromOutline(entry.content, 'lesson', 0); }} />}
   </main>;
 }

@@ -572,7 +572,7 @@ function ToolButton({ Icon, label, active, onPick }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null }) {
   const [tool, setTool] = useState('select');
   const [insertOpen, setInsertOpen] = useState(false); // dev-only lesson-block workbench menu
   const [insertFilter, setInsertFilter] = useState('');
@@ -644,7 +644,40 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   onRestoreRef.current = onRestore;
   const onAskTargetRef = useRef(onAskTarget);
   onAskTargetRef.current = onAskTarget;
-  useEffect(() => { if (apiRef) apiRef.current = { deselect: () => setSelected(null) }; });
+  // Frame everything on the canvas. An infinite surface you can pan forever needs
+  // a way back to your own work.
+  const zoomFit = () => {
+    const element = surface.current;
+    const boxes = [...Object.values(boundsRef.current),
+      ...shapesRef.current.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) }))];
+    if (!element || !boxes.length) return;
+    const left = Math.min(...boxes.map(box => box.x)), top = Math.min(...boxes.map(box => box.y));
+    const right = Math.max(...boxes.map(box => box.x + box.w)), bottom = Math.max(...boxes.map(box => box.y + box.h));
+    const pad = 48;
+    const z = Math.max(0.2, Math.min(1, (element.clientWidth - pad * 2) / Math.max(1, right - left), (element.clientHeight - pad * 2) / Math.max(1, bottom - top)));
+    setView({ z, x: (element.clientWidth - (right - left) * z) / 2 - left * z, y: pad - top * z });
+  };
+  const selectAll = () => setSelection([
+    ...blocksRef.current.map(block => block.id),
+    ...itemsRef.current.map(item => item.id),
+    ...shapesRef.current.map(shape => shape.id),
+  ]);
+  // The page owns the menubar, so every canvas-wide command it offers is published
+  // here rather than lifting the canvas's own state out of it.
+  useEffect(() => {
+    if (apiRef) apiRef.current = {
+      deselect: () => setSelected(null),
+      undo, selectAll, deleteSelection, zoomFit,
+      zoomIn: () => zoomCenter(1.25),
+      zoomOut: () => zoomCenter(1 / 1.25),
+      zoomReset: () => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 }),
+      insertHeading: level => insertHeadingAt(level, blocksRef.current.length),
+      toggleGrid: () => setGrid(previous => !previous),
+      toggleLock: () => setLock(previous => !previous),
+    };
+  });
+  // Menu checkmarks need these as state on the page, not as a ref it cannot watch.
+  useEffect(() => { onState?.({ grid, lock }); }, [grid, lock, onState]);
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);
@@ -669,6 +702,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   onAddRef.current = onAdd;
   useLayoutEffect(measureBlocks, [exchanges, blocks, measureBlocks]);
   useEffect(() => () => connectionCleanup.current?.(), []);
+  // Deleting is a command as well as a key, so it lives outside the key handler.
+  const deleteSelection = () => {
+    const ids = selectedRef.current;
+    if (!ids.length) return;
+    const chats = ids.filter(id => exchangesRef.current.some(exchange => exchange.id === id));
+    snapshot(chats.length > 0);
+    // Selected nodes delete with their attached connections.
+    for (const id of chats) onDeleteRef.current?.(id);
+    const nodes = new Set([...chats, ...ids.filter(id => blocksRef.current.some(block => block.id === id))]);
+    setBlocks(previous => previous.filter(block => !ids.includes(block.id)));
+    setItems(previous => previous.filter(item => !ids.includes(item.id)));
+    setShapes(previous => previous.filter(shape => !ids.includes(shape.id)));
+    setLinks(previous => previous.filter(link => !ids.includes(link.id) && !nodes.has(link.from) && !nodes.has(link.to)));
+    setSelection([]);
+  };
+  const deleteSelectionRef = useRef(deleteSelection);
+  deleteSelectionRef.current = deleteSelection;
   // Undo: snapshot the three artifact lists before every mutating gesture.
   // ponytail: single-level lists + 100-step cap; redo comes when asked for.
   const present = useRef(null);
@@ -747,18 +797,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         return;
       }
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
-      const ids = selectedRef.current;
-      if (typing || !ids.length) return;
-      const chats = ids.filter(id => exchangesRef.current.some(exchange => exchange.id === id));
-      snapshot(chats.length > 0);
-      // Selected nodes delete with their attached connections.
-      for (const id of chats) onDeleteRef.current?.(id);
-      const nodes = new Set([...chats, ...ids.filter(id => blocksRef.current.some(block => block.id === id))]);
-      setBlocks(previous => previous.filter(block => !ids.includes(block.id)));
-      setItems(previous => previous.filter(item => !ids.includes(item.id)));
-      setShapes(previous => previous.filter(shape => !ids.includes(shape.id)));
-      setLinks(previous => previous.filter(link => !ids.includes(link.id) && !nodes.has(link.from) && !nodes.has(link.to)));
-      setSelection([]);
+      if (typing) return;
+      deleteSelectionRef.current();
     };
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);

@@ -1,18 +1,15 @@
 import { useState } from 'react';
-import { PanelRightOpen } from 'lucide-react';
 
 // What is left of the Learn panel once it is retracted: a column of ticks down
-// the right edge, one per lesson, and a button to bring the panel back. Hovering
-// the ticks opens the contents list, so the course stays navigable without
-// giving the panel its width back.
-export default function ContentsRail({ entries, onOpen, onExpand, expandLabel = 'Show Learn panel' }) {
+// the right edge, one per lesson. Hovering them opens the contents list, so the
+// course stays navigable without giving the panel its width back.
+//
+// The way back to the panel is View -> Right panel on the menubar, so the rail
+// carries no button of its own - it is the contents, and nothing else.
+export default function ContentsRail({ entries, onOpen }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" title={expandLabel} aria-label={expandLabel} aria-expanded={false} onClick={onExpand}
-        className="absolute top-3 right-3 z-30 flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-white text-ink-2 shadow-sm hover:bg-hover hover:text-ink">
-        <PanelRightOpen size={16} />
-      </button>
       {!!entries.length && (
         <div onPointerEnter={() => setOpen(true)} onPointerLeave={() => setOpen(false)}
           className="absolute top-1/2 right-0 z-30 -translate-y-1/2 pr-2 pl-6 max-lg:hidden">
