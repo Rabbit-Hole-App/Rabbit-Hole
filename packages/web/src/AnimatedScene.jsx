@@ -131,12 +131,17 @@ function DataShape({ object, role, pop }) {
         // of the same one) can still freeze at its first-seen value even
         // with a single, stable `animate`-only ownership path, for this
         // Motion version. Bars' and tokens' own animate-driven fill do NOT
-        // freeze the same way under the identical gradual-scrub test (see
-        // heat-motion-invariant.spec.js) - checked, not assumed - because
-        // their lit/unlit states share ONE base token at different mix
-        // percentages, which Motion can genuinely interpolate; heat's fill
-        // can swap which token it names outright.
+        // freeze the same way under a manual gradual-scrub check (e2e/
+        // heat-motion-manual-check.spec.js, run by hand - not automated
+        // regression, see its own comment for why) - checked, not assumed -
+        // because their lit/unlit states share ONE base token at different
+        // mix percentages, which Motion can genuinely interpolate; heat's
+        // fill can swap which token it names outright.
         //
+        // src/motion-ownership.test.mjs is the actual, deterministic
+        // regression coverage: it parses this file's AST and asserts no
+        // motion.* element owns one property through both `style` and
+        // `animate`, with its own mutation proof against the defect above.
         // The fix: take the fill out of Motion's ownership entirely. A heat
         // cell's fill is a plain, ordinary <rect> - it has exactly one
         // ownership path (React's own re-render, ALWAYS reactive) for its

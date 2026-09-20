@@ -101,10 +101,6 @@ function test:unit {
     uv run pytest "$THIS_DIR/tests/unit_tests/"
     (cd "$THIS_DIR/packages/web" && npm run test:unit)
     (cd "$THIS_DIR/packages/control-plane" && npm test)
-    # Rendered-page regression for the Motion invariant (AnimatedScene.jsx) -
-    # a plain evaluator comparison cannot see a Motion runtime freeze. Own
-    # dev server, no auth, no network - fits "fast tests only" above.
-    (cd "$THIS_DIR/packages/web" && npx playwright test --config=playwright.heat-motion.config.js)
 }
 
 # full integration tests: real deploy to Fly through the published CLI (~30s)

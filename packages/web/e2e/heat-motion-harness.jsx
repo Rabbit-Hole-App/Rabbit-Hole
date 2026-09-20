@@ -2,7 +2,8 @@
 // AnimatedScene is a leaf component (block + callbacks in, SVG out). Vite
 // dev serves this file directly from disk; it is never part of the real
 // build (not an entry in vite.config.js's rollupOptions.input), so it never
-// ships. See heat-motion-invariant.spec.js for what this proves.
+// ships. See heat-motion-manual-check.spec.js - a manual reproduction aid,
+// not automated regression coverage (that's src/motion-ownership.test.mjs).
 import { createRoot } from 'react-dom/client';
 import AnimatedScene from '../src/AnimatedScene.jsx';
 import '../src/index.css';
@@ -13,7 +14,7 @@ import '../src/index.css';
 // and one token chip, each starting unlit and becoming lit later, to audit
 // whether the SAME renderer's other animate-only fill usages (never
 // switching style/animate branches at all) also freeze under a gradual
-// scrub - see heat-motion-invariant.spec.js.
+// scrub - see heat-motion-manual-check.spec.js.
 const scene = {
   id: 'heat-motion-invariant-check',
   width: 300,
