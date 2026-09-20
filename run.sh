@@ -101,6 +101,7 @@ function test:unit {
     uv run pytest "$THIS_DIR/tests/unit_tests/"
     (cd "$THIS_DIR/packages/web" && npm run test:unit)
     (cd "$THIS_DIR/packages/control-plane" && npm test)
+    node --test "$THIS_DIR/viz-benchmarks/check-synthetic-fixtures.test.mjs"
 }
 
 # full integration tests: real deploy to Fly through the published CLI (~30s)

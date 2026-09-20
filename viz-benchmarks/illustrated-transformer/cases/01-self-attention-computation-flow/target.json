@@ -3,8 +3,17 @@
   "case": "01-self-attention-computation-flow",
   "status": "ready",
   "referenceType": "synthetic_internal",
-  "referenceProvenance": "The PNGs in reference/ were created by us as benchmark reconstructions. They are NOT captures of The Illustrated Transformer. This case tests our own machinery and guards against regression; it is not evidence that we reproduced an existing visualization.",
+  "referenceProvenance": "The PNGs in reference/synthetic/ were created by us as benchmark reconstructions. They are NOT captures of The Illustrated Transformer. This case tests our own machinery and guards against regression; it is not evidence that we reproduced an existing visualization. A real external reference now also exists at reference/external/ (metadata only, per REFERENCE-LICENSING.md) - see reference/external/SOURCE.md.",
   "source": "https://jalammar.github.io/illustrated-transformer/",
+  "syntheticReferenceFiles": [
+    "reference/synthetic/static-00.png",
+    "reference/synthetic/dynamic-00.png",
+    "reference/synthetic/dynamic-25.png",
+    "reference/synthetic/dynamic-50.png",
+    "reference/synthetic/dynamic-75.png",
+    "reference/synthetic/dynamic-100.png",
+    "reference/synthetic/contact-sheet.png"
+  ],
   "objective": "Teach how a token gains a context-aware representation through self-attention: tokens to Q/K/V to QK scores to softmax weights to weighted V to output.",
   "scope": "The unmasked self-attention computation flow. Causal masking is case 05 and is not visualised in this case reference material.",
   "evaluationTarget": "semantic_and_pedagogical_parity",
@@ -44,7 +53,7 @@
         "progressive_hierarchy"
       ],
       "reference": [
-        "reference/static-00.png"
+        "reference/synthetic/static-00.png"
       ]
     },
     "dynamic": {
@@ -71,11 +80,11 @@
         1
       ],
       "reference": [
-        "reference/dynamic-00.png",
-        "reference/dynamic-25.png",
-        "reference/dynamic-50.png",
-        "reference/dynamic-75.png",
-        "reference/dynamic-100.png"
+        "reference/synthetic/dynamic-00.png",
+        "reference/synthetic/dynamic-25.png",
+        "reference/synthetic/dynamic-50.png",
+        "reference/synthetic/dynamic-75.png",
+        "reference/synthetic/dynamic-100.png"
       ]
     }
   },
