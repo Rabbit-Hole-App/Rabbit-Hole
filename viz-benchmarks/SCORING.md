@@ -65,33 +65,39 @@ The rule it leaves behind: **report a check that resolved no operands as inert,
 never as OK.** A green line in a gate report is a claim that something was
 verified, and a check with nothing to chew on makes no such claim.
 
-## Open question — coherence at displayed precision
+## Coherence at displayed precision — resolved
 
-**Not yet a rule. Deliberately unresolved pending evidence that it matters.**
+A caption reading "sums to 1" beside cells displaying `1.01` is a learner-visible
+contradiction even when every underlying float is correct. A learner checking the
+arithmetic by hand is exactly the learner a teaching tool is for.
 
-A scene's displayed cells can fail to hand-sum by 0.01 while the underlying values
-are entirely consistent: each term is an independently rounded two-decimal view of
-a correct three-decimal number.
+**For probability rows, round display-aware.** Distribute the rounding residual
+deterministically so the shown values sum to exactly `1.00`, rather than rounding
+each cell independently and letting the error accumulate.
 
-This is a **different class** from the arithmetic defects that preceded it. Those
-were data inconsistencies — a scene displaying a number its own inputs contradict.
-This one has one numerical truth and a presentation artefact on top of it.
+Weakening the caption to "approximately 1" was rejected: when the concept being
+taught **is** normalisation, the sum being exactly one is the lesson, not a
+detail.
 
-The candidate rule, if it turns out to matter:
+This resolves what was an open question. Independent review found one instance in
+three comparable rows, which was enough evidence that it reaches a reader.
 
-> When a visualization presents an arithmetic relationship using rounded operands
-> and a rounded result, the displayed values should remain arithmetically coherent
-> **at the displayed precision**.
+## Pattern accounting must be honest about what a static case can show
 
-Possible answers include residual-aware rounding, or deriving one displayed term
-or the result from the rounded presentation values rather than from the precise
-ones.
+A pattern declared by a case does not count as exercised if the case cannot
+demonstrate it. `routing`, `zoom_drilldown` and `coordinated_views` were declared
+on static cases that have no way to show branching, drill-down or linked views.
 
-**Do not widen scope to fix this before a critic has looked at the rendered
-image and said whether it actually impedes comprehension.** A learner may never
-notice; a learner checking the arithmetic by hand certainly will. That is an
-empirical question about the picture, not a question to settle by reasoning about
-it.
+Such a declaration is recorded as:
+
+```json
+{ "declared": true, "assessable": false, "reason": "requires the dynamic or interactive phase" }
+```
+
+and **excluded from static coverage totals.** The capability does not need
+building now; the accounting needs to stop claiming it was tested. A coverage
+table that counts unexercised patterns reports progress that did not happen —
+which is the same failure the external-versus-synthetic split exists to prevent.
 
 ## What a visual case is scored on
 

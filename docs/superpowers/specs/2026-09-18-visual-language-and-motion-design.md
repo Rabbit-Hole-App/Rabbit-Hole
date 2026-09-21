@@ -171,6 +171,15 @@ truth:
 exampleData  ->  vectors  ->  derived calculation  ->  matrix  ->  equation
 ```
 
+**The rule, stated narrowly:** if a displayed numeric result **claims to be
+computed from other visible values**, it must be mechanically bound to that
+computation.
+
+That is deliberately narrower than "every number must be derived". Literal
+constants and illustrative values are legitimate — a dimension, a token count, a
+sketch. What may not happen is a result presented as following from operands the
+reader can see, while being typed by hand beside them.
+
 **If a number is the result of an operation the scene already represents, it must
 not be independently authored.** Dot products, softmax outputs, sums, averages,
 dimensions, head sizes, probabilities, scores. Either derive it from the authored
