@@ -1,12 +1,30 @@
 {
-  "project": "illustrated-transformer",
+  "benchmark": "illustrated-transformer",
   "case": "07-multi-head-attention",
-  "iteration": 0,
-  "status": "not_run",
-  "scores": {},
+  "mode": "static",
+  "iteration": "v001",
+  "status": "scored",
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 4,
+    "visualHierarchy": 4,
+    "layout": 5,
+    "readability": 4,
+    "spatialRelationships": 5,
+    "progressiveReveal": 4,
+    "focalPoint": 4,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedAverage": 4.53,
   "hardFails": [],
-  "failures": [],
+  "failures": [
+    "unvalued-observed-role-renders-stark (VISUAL_HIERARCHY / content, minor, cosmetic)"
+  ],
   "recommendedSystemChanges": [],
-  "imitationRisk": null,
+  "imitationRisk": "low - vertical head stacking instead of the reference's side-by-side divided columns; no shared coordinates or palette",
+  "bespokeSceneWorkaround": false,
+  "patternMismatch": "target.json declares 'routing' but multi-head attention has no choice/branching structure - see notes.md",
   "humanApproved": false
 }

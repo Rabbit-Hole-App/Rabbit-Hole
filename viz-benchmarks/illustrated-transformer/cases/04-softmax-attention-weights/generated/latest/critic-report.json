@@ -1,0 +1,42 @@
+{
+  "status": "scored",
+  "case": "04-softmax-attention-weights",
+  "mode": "static",
+  "iteration": "v001",
+  "bespokeSceneWorkaround": false,
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 5,
+    "visualHierarchy": 5,
+    "layout": 5,
+    "readability": 5,
+    "spatialRelationships": 5,
+    "progressiveReveal": 4,
+    "interactionQuality": "not_applicable - static mode, Phase 1",
+    "motionChoreography": "not_applicable - static mode, Phase 1",
+    "focalPoint": 5,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedAverage": "4.93 / 5 (interactionQuality and motionChoreography excluded - not exercised by a static frame)",
+  "patterns": {
+    "matrix_operation": "pass - five 1xN grids in sequence (raw, scaled, softmax, weighted contribution, output), each a real computed row",
+    "live_computation": "not_exercised as intended - live_computation tests values actually changing over time (derived values, value transitions); a static frame shows one already-computed state, not a computation happening. Recording the numbers as genuinely computed (not decorative) satisfies technicalCorrectness, but the pattern itself is dynamic-only and belongs to Phase 2."
+  },
+  "failures": [
+    {
+      "id": "first-draft-arrow-crossed-column-label",
+      "taxonomy": "LAYOUT",
+      "cause": "layout",
+      "severity": "minor - caught and fixed before finalizing",
+      "description": "An arrow from the reference V grid straight down into the weighted-contributions grid ran through x=745, which is exactly the centre of that grid's 'flows' column header (columnLabels are drawn as a solid row spanning almost the full grid width, so a vertical entry from directly above will cross one of them almost regardless of x). Removed the arrow - V sits directly above 'weight x value' and the two labels ('value (V) - for reference', 'weight x value') already say the relationship, the same reasoning case01 used for tokens -> Q/K/V.",
+      "recommendedSystemChange": null
+    }
+  ],
+  "hardFails": [],
+  "vocabularyGaps": [],
+  "notesForReusableSystem": [
+    "THIRD case in a row (01, 02, 04) where a straight-line arrow crossed a label and had to be manually rerouted or removed. All three were authoring fixes, not renderer bugs - arrows draw exactly where authored, and every fix was either a coordinate change or an omission-in-favour-of-alignment. This is now a clear pattern worth naming explicitly rather than re-discovering per case: there is no collision check between an authored arrow and another object's label/shape, so avoiding it costs one render-and-look cycle every time a stage sits close to a grid with column or row labels. A dev-time lint (arrow bounding line intersects another object's label rect -> warn) would remove the render-and-look cost, but this is authoring tooling, not a rendering defect - nothing is drawn incorrectly, so it does not block the run. Recording it as the interval finding rather than fixing it mid-run."
+  ]
+}

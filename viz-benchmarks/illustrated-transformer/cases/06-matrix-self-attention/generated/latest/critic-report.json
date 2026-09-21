@@ -1,0 +1,33 @@
+{
+  "status": "scored",
+  "case": "06-matrix-self-attention",
+  "mode": "static",
+  "iteration": "v001",
+  "bespokeSceneWorkaround": false,
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 5,
+    "visualHierarchy": 5,
+    "layout": 5,
+    "readability": 5,
+    "spatialRelationships": 5,
+    "progressiveReveal": 5,
+    "interactionQuality": "not_applicable - static mode, Phase 1",
+    "motionChoreography": "not_applicable - static mode, Phase 1",
+    "focalPoint": 4,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedAverage": "4.93 / 5 (interactionQuality and motionChoreography excluded - not exercised by a static frame)",
+  "patterns": {
+    "matrix_operation": "pass - every grid carries real, computed values (a genuine 3x4 . 4x3 matrix product, a real QKt/root(dk), a real per-row softmax), not decoration",
+    "flow": "pass - X -> Q/K/V -> scores -> softmax -> Z reads as one staged sequence even condensed into a single row, each stage keeping its own identity"
+  },
+  "failures": [],
+  "hardFails": [],
+  "vocabularyGaps": [],
+  "notesForReusableSystem": [
+    "First case in this run with zero first-draft layout defects - no overflow, no crossing, no clipped text. The accumulated lessons from cases 01/02/04/09/10 (size boxes generously for their labels, keep scene width generous for headings/captions, avoid arrows where alignment already says enough) were applied proactively rather than discovered by rendering. Recording this as a positive signal, not a new finding: the recurring cross-case pattern is real, but it is learnable and was in fact learned within a single run."
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "status": "scored",
+  "case": "07-multi-head-attention",
+  "mode": "static",
+  "iteration": "v001",
+  "bespokeSceneWorkaround": false,
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 4,
+    "visualHierarchy": 4,
+    "layout": 5,
+    "readability": 4,
+    "spatialRelationships": 5,
+    "progressiveReveal": 4,
+    "interactionQuality": "not_applicable - static mode, Phase 1",
+    "motionChoreography": "not_applicable - static mode, Phase 1",
+    "focalPoint": 4,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedAverage": "4.53 / 5 (interactionQuality and motionChoreography excluded - not exercised by a static frame)",
+  "patterns": {
+    "flow": "pass - input -> per-head projection -> concatenate -> project -> output is a legible staged pipeline",
+    "routing": "MISMATCH, not scored as pass or fail - routing tests a choice among alternatives where the path not taken stays legible (gating, dispatch, branching). Multi-head attention has no such choice: every head always runs, none is skipped or preferred. The pattern declaration in this case's target.json does not match what the mechanism actually does. Recorded as a target.json authoring mismatch, not a vocabulary gap or a scene failure."
+  },
+  "failures": [
+    {
+      "id": "unvalued-observed-role-renders-stark",
+      "taxonomy": "VISUAL_HIERARCHY",
+      "cause": "content",
+      "severity": "minor",
+      "description": "Z0/Z1/Z7 use role 'observed' with no identity and no values, which resolves to the RESTING step of ROLE_FILL.observed's 'solid' band - a bold, dark, hue-less fill (no identity to warm it up, unlike case02's Q/K/V output vectors, which used the same solid-observed treatment but WITH an identity hue, and read well). The result reads as a stark near-black square with no number - correct per the role system's own convention (observed = measured data, drawn boldly) but visually more like a void than 'this holds this head's real output' to an unfamiliar viewer.",
+      "recommendedSystemChange": null,
+      "note": "Not filed as a system defect - this is a predictable consequence of choosing role=observed with neither identity nor a value on a scene where head identity is deliberately NOT colour-coded (see below). An authoring choice, and a defensible one, just cosmetically stark."
+    }
+  ],
+  "hardFails": [],
+  "vocabularyGaps": [],
+  "designValidation": [
+    "This case could plausibly have needed more than 3 identity slots (8 heads), which would have been a real gap (IDENTITY_SLOTS has exactly 3). It did not: head identity is conveyed through LAYOUT (position, 'head N' labels) rather than colour, and IDENTITY is reserved for its actual purpose within one head - distinguishing Q, K and V as peers of the same role. Recorded because it is a positive validation of the four-axis model, not because anything needed fixing: colour-coding 8 peers was never attempted, so the 3-slot ceiling was never tested here. A case that truly needed 8 colour-distinct peers (not this one) would be the one that finds this gap for real."
+  ],
+  "notesForReusableSystem": []
+}

@@ -1,0 +1,42 @@
+{
+  "status": "scored",
+  "case": "03-attention-score-matrix",
+  "mode": "static",
+  "iteration": "v001",
+  "bespokeSceneWorkaround": false,
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 5,
+    "visualHierarchy": 5,
+    "layout": 5,
+    "readability": 5,
+    "spatialRelationships": 5,
+    "progressiveReveal": 4,
+    "interactionQuality": "not_applicable - static mode, Phase 1",
+    "motionChoreography": "not_applicable - static mode, Phase 1",
+    "focalPoint": 5,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedAverage": "4.93 / 5 (interactionQuality and motionChoreography excluded - not exercised by a static frame)",
+  "patterns": {
+    "matrix_operation": "pass - one row is derived as three explicit, named-operand equations, then shown taking its place in the full 3x3 score grid, matching the reference's own winning technique (verifiable arithmetic) without copying its layout"
+  },
+  "failures": [
+    {
+      "id": "first-draft-equation-overflow-and-misalignment",
+      "taxonomy": "LAYOUT",
+      "cause": "layout",
+      "severity": "minor - caught and fixed before finalizing",
+      "description": "First draft tried to align three ~200px-wide equations directly above a 60px-pitch grid's three columns and set the scene width from the grid alone - the third equation overflowed the canvas, and the equations could never actually line up with 60px columns at that text size regardless of width. Replaced with a vertically-stacked equation block (top-to-bottom in the row's own column order) connected to the grid by one arrow, and widened the scene to fit.",
+      "recommendedSystemChange": null
+    }
+  ],
+  "hardFails": [],
+  "vocabularyGaps": [],
+  "reusableSystemFixesThisRun": [
+    "None new here - this case is the first to exercise the katex CSS fix made during case 01 (see that case's critic-report.json). Confirmed working: q_{river}, k_{flows} etc. render as properly italicised KaTeX with real subscripts, not flat text."
+  ],
+  "notesForReusableSystem": []
+}

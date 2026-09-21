@@ -1,0 +1,60 @@
+{
+  "id": "case09-encoder-decoder-attention",
+  "title": "A new sublayer: attending to the encoder's output",
+  "width": 780,
+  "height": 650,
+  "duration": 1,
+  "objects": [
+    { "id": "heading", "type": "text", "semanticId": "heading",
+      "initialState": { "text": "A new sublayer: attending to the encoder's output", "x": 20, "y": 26, "typography": "heading" } },
+    { "id": "note", "type": "text", "semanticId": "note",
+      "initialState": { "text": "every decoder layer repeats the same three sublayers - the middle one is new, and the top encoder feeds all of them", "x": 20, "y": 58, "typography": "caption" } },
+
+    { "id": "encoder1", "type": "box", "semanticId": "encoder-1",
+      "initialState": { "label": "encoder 1", "x": 40, "y": 560, "w": 160, "h": 50, "role": "neutral" } },
+    { "id": "arrow-e1-e2", "type": "arrow", "semanticId": "arrow-e1-e2",
+      "initialState": { "from": { "x": 120, "y": 560 }, "to": { "x": 120, "y": 530 }, "role": "neutral" } },
+    { "id": "encoder2", "type": "box", "semanticId": "encoder-2",
+      "initialState": { "label": "encoder 2", "x": 40, "y": 480, "w": 160, "h": 50, "role": "neutral" } },
+    { "id": "arrow-e2-e3", "type": "arrow", "semanticId": "arrow-e2-e3",
+      "initialState": { "from": { "x": 120, "y": 480 }, "to": { "x": 120, "y": 450 }, "role": "neutral" } },
+    { "id": "encoder3", "type": "box", "semanticId": "encoder-top",
+      "initialState": { "label": "encoder 3 (top)", "x": 40, "y": 400, "w": 160, "h": 50, "role": "output" } },
+
+    { "id": "fanout-1", "type": "arrow", "semanticId": "fanout-to-layer1",
+      "initialState": { "from": { "x": 200, "y": 420 }, "to": { "x": 420, "y": 505 }, "role": "neutral" } },
+    { "id": "fanout-2", "type": "arrow", "semanticId": "fanout-to-layer2",
+      "initialState": { "from": { "x": 200, "y": 420 }, "to": { "x": 420, "y": 245 }, "role": "neutral" } },
+
+    { "id": "selfattn1", "type": "box", "semanticId": "decoder1-self-attention",
+      "initialState": { "label": "self-attention", "x": 420, "y": 560, "w": 220, "h": 50, "role": "neutral" } },
+    { "id": "arrow-sa1-ed1", "type": "arrow", "semanticId": "arrow-sa1-ed1",
+      "initialState": { "from": { "x": 530, "y": 560 }, "to": { "x": 530, "y": 530 }, "role": "neutral" } },
+    { "id": "encdec1", "type": "box", "semanticId": "decoder1-encoder-decoder-attention",
+      "initialState": { "label": "encoder-decoder attention", "x": 420, "y": 480, "w": 220, "h": 50, "role": "neutral" } },
+    { "id": "arrow-ed1-ff1", "type": "arrow", "semanticId": "arrow-ed1-ff1",
+      "initialState": { "from": { "x": 530, "y": 480 }, "to": { "x": 530, "y": 450 }, "role": "neutral" } },
+    { "id": "ff1", "type": "box", "semanticId": "decoder1-feed-forward",
+      "initialState": { "label": "feed forward", "x": 420, "y": 400, "w": 220, "h": 50, "role": "neutral" } },
+
+    { "id": "arrow-layer1-layer2", "type": "arrow", "semanticId": "arrow-layer1-layer2",
+      "initialState": { "from": { "x": 530, "y": 400 }, "to": { "x": 530, "y": 350 }, "role": "neutral" } },
+
+    { "id": "selfattn2", "type": "box", "semanticId": "decoder2-self-attention",
+      "initialState": { "label": "self-attention", "x": 420, "y": 300, "w": 220, "h": 50, "role": "neutral" } },
+    { "id": "arrow-sa2-ed2", "type": "arrow", "semanticId": "arrow-sa2-ed2",
+      "initialState": { "from": { "x": 530, "y": 300 }, "to": { "x": 530, "y": 270 }, "role": "neutral" } },
+    { "id": "encdec2", "type": "box", "semanticId": "decoder2-encoder-decoder-attention",
+      "initialState": { "label": "encoder-decoder attention", "x": 420, "y": 220, "w": 220, "h": 50, "role": "neutral" } },
+    { "id": "arrow-ed2-ff2", "type": "arrow", "semanticId": "arrow-ed2-ff2",
+      "initialState": { "from": { "x": 530, "y": 220 }, "to": { "x": 530, "y": 190 }, "role": "neutral" } },
+    { "id": "ff2", "type": "box", "semanticId": "decoder2-feed-forward",
+      "initialState": { "label": "feed forward", "x": 420, "y": 140, "w": 220, "h": 50, "role": "neutral" } },
+
+    { "id": "arrow-top", "type": "arrow", "semanticId": "arrow-top",
+      "initialState": { "from": { "x": 530, "y": 140 }, "to": { "x": 530, "y": 100 }, "role": "neutral" } },
+    { "id": "next-note", "type": "text", "semanticId": "next-note",
+      "initialState": { "text": "-> output layer", "x": 550, "y": 120, "typography": "caption" } }
+  ],
+  "timeline": []
+}

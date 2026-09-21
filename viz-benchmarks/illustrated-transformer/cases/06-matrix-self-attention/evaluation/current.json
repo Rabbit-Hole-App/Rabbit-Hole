@@ -1,12 +1,27 @@
 {
-  "project": "illustrated-transformer",
+  "benchmark": "illustrated-transformer",
   "case": "06-matrix-self-attention",
-  "iteration": 0,
-  "status": "not_run",
-  "scores": {},
+  "mode": "static",
+  "iteration": "v001",
+  "status": "scored",
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 5,
+    "visualHierarchy": 5,
+    "layout": 5,
+    "readability": 5,
+    "spatialRelationships": 5,
+    "progressiveReveal": 5,
+    "focalPoint": 4,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedAverage": 4.93,
   "hardFails": [],
   "failures": [],
   "recommendedSystemChanges": [],
-  "imitationRisk": null,
+  "imitationRisk": "low - the case's own conceptual technique (condense the per-token pipeline to one row of matrix operations) is reused deliberately; palette, coordinates and wording are original",
+  "bespokeSceneWorkaround": false,
   "humanApproved": false
 }

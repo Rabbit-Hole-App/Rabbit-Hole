@@ -1,12 +1,31 @@
 {
-  "project": "illustrated-transformer",
+  "benchmark": "illustrated-transformer",
   "case": "09-encoder-decoder-attention",
-  "iteration": 0,
-  "status": "not_run",
-  "scores": {},
+  "mode": "static",
+  "iteration": "v001",
+  "status": "scored",
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 5,
+    "visualHierarchy": 5,
+    "layout": 4,
+    "readability": 5,
+    "spatialRelationships": 5,
+    "progressiveReveal": 4,
+    "focalPoint": 5,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedAverage": 4.8,
   "hardFails": [],
-  "failures": [],
-  "recommendedSystemChanges": [],
-  "imitationRisk": null,
+  "failures": [
+    "first-draft-heading-clipped-and-box-labels-overflowed (LAYOUT / layout, moderate, fixed pre-finalization; fourth instance of the label/arrow-overlap pattern across cases 01/02/04/09)"
+  ],
+  "recommendedSystemChanges": [
+    "dev-time lint: warn when an authored label's estimated width exceeds its box width, and when an arrow's line intersects another object's bounding box - not urgent, but four independent instances across this run alone"
+  ],
+  "imitationRisk": "low - two-stack side-by-side layout and fan-out arrows are generic diagramming technique; no reference palette, coordinates or wording copied",
+  "bespokeSceneWorkaround": false,
   "humanApproved": false
 }

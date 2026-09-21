@@ -1,11 +1,32 @@
 {
   "benchmark": "illustrated-transformer",
-  "iteration": 0,
-  "status": "not_run",
-  "scores": {},
+  "case": "01-self-attention-computation-flow",
+  "mode": "static",
+  "iteration": "v001",
+  "status": "scored",
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 4,
+    "visualHierarchy": 4,
+    "layout": 4,
+    "readability": 4,
+    "spatialRelationships": 5,
+    "progressiveReveal": 4,
+    "focalPoint": 4,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedAverage": 4.8,
   "hardFails": [],
-  "failures": [],
-  "recommendedSystemChanges": [],
-  "imitationRisk": null,
+  "failures": [
+    "row-highlight-crowds-row-label (LAYOUT / template, minor)",
+    "no-explicit-tokens-to-qkv-connector (VISUAL_HIERARCHY / content, trivial, deliberate)"
+  ],
+  "recommendedSystemChanges": [
+    "grid row-band highlight should clear an authored rowLabel by more than 4px when both are present"
+  ],
+  "imitationRisk": "low - structure, palette and layout are original; only standard QKV/softmax terminology is shared with the source",
+  "bespokeSceneWorkaround": false,
   "humanApproved": false
 }

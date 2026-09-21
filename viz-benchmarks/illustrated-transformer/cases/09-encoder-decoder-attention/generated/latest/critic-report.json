@@ -1,0 +1,43 @@
+{
+  "status": "scored",
+  "case": "09-encoder-decoder-attention",
+  "mode": "static",
+  "iteration": "v001",
+  "bespokeSceneWorkaround": false,
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 5,
+    "visualHierarchy": 5,
+    "layout": 4,
+    "readability": 5,
+    "spatialRelationships": 5,
+    "progressiveReveal": 4,
+    "interactionQuality": "not_applicable - static mode, Phase 1",
+    "motionChoreography": "not_applicable - static mode, Phase 1",
+    "focalPoint": 5,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedAverage": "4.80 / 5 (interactionQuality and motionChoreography excluded - not exercised by a static frame; layout marked down one point for a first-draft defect caught before finalizing)",
+  "patterns": {
+    "flow": "pass - bottom-to-top decoder stack, encoder stack alongside, both keep identity",
+    "coordinated_views": "pass, loosely - two representations of 'the same encoder output' (the highlighted top encoder box, and its arrival as an input at two different decoder layers) are shown as one linked fact via the fan-out arrows, rather than two separate unlinked diagrams"
+  },
+  "failures": [
+    {
+      "id": "first-draft-heading-clipped-and-box-labels-overflowed",
+      "taxonomy": "LAYOUT",
+      "cause": "layout",
+      "severity": "moderate - caught and fixed before finalizing, would have been a real defect if shipped",
+      "description": "Two compounding first-draft mistakes: (1) the heading text (85 characters) exceeded the 680px scene width and was clipped mid-word - genuinely unreadable, not a nitpick. (2) 'encoder-decoder attention' (26 characters) was given a 160px box, narrower than even GEOMETRY.nodeMinWidth (176px), and overflowed both sides of the box - the incoming fan-out arrow then terminated inside that overflowing text, reading as an arrow crossing a label. Fixed by shortening the heading, widening the scene to 780px, and widening the decoder boxes to 220px.",
+      "recommendedSystemChange": null
+    }
+  ],
+  "hardFails": [],
+  "vocabularyGaps": [],
+  "crossCaseFindingUpdated": [
+    "This is the FOURTH instance across the run (after case01's arrow-through-strip, case02's arrow-through-caption, case04's arrow-through-column-label) of the same underlying shape: authored geometry overlapping unintentionally, caught only by rendering and looking. This one has a different flavour - a box's own label overflowing an explicitly-authored width that was smaller than the label needs - but the root cause is the same as the others: nothing in validateScene or sizeOf checks whether a label fits its shape, or whether an arrow's line intersects another object's bounds. Every one of the four was fixed by an ordinary coordinate/size change, never a renderer bug. This is the clearest evidence yet that a dev-time lint (label-width-vs-box-width, arrow-line-vs-label-bbox) would be worth building - not urgent (nothing was left unreadable in a finalized case), but worth naming as the run's most concrete, recurring, cross-case finding rather than four separate minor notes."
+  ],
+  "notesForReusableSystem": []
+}

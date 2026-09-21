@@ -1,3 +1,63 @@
 {
-  "status": "not_generated_yet"
+  "status": "scored",
+  "case": "01-self-attention-computation-flow",
+  "mode": "static",
+  "iteration": "v001",
+  "bespokeSceneWorkaround": false,
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 4,
+    "visualHierarchy": 4,
+    "layout": 4,
+    "readability": 4,
+    "spatialRelationships": 5,
+    "progressiveReveal": 4,
+    "interactionQuality": "not_applicable - static mode, Phase 1",
+    "motionChoreography": "not_applicable - static mode, Phase 1",
+    "focalPoint": 4,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedAverage": "4.80 / 5 (interactionQuality and motionChoreography excluded from the denominator - not exercised by a static frame)",
+  "patterns": {
+    "flow": "pass - tokens -> Q/K/V -> scores -> softmax -> output reads left to right with stable object identity",
+    "matrix_operation": "pass - scores/softmax grids carry real values, heat encodes magnitude/sign, row 'south' is emphasised across every stage as a per-axis (row) operation",
+    "zoom_drilldown": "not_exercised - dynamic-only capability (camera focus/return), deferred to Phase 2",
+    "process_scrubbing": "not_exercised - dynamic-only capability (transport/scrub), deferred to Phase 2"
+  },
+  "failures": [
+    {
+      "id": "row-highlight-crowds-row-label",
+      "taxonomy": "LAYOUT",
+      "cause": "template",
+      "severity": "minor",
+      "description": "When a grid has both rowLabels and a cellHighlight row-band, the row label (drawn at object.x - ROW_LABEL_GAP = x-8) sits only 4px clear of the row-band rect (drawn at object.x - 4). On 'south' in both the scores and softmax grids the label crowds the band's left edge - not unreadable, but tight enough to look like a collision rather than a deliberate gap.",
+      "recommendedSystemChange": "AnimatedScene.jsx: when a grid has rowLabels, either grow ROW_LABEL_GAP so it clears the row-band's -4 outset, or inset the row-band's left edge to x (not x-4) whenever rowLabels are present. A renderer constant, not a scene-level fix.",
+      "watchAcrossCases": "Any case pairing a grid's rowLabels with a row highlight will reproduce this - tracked across the run, not re-reported per case unless it worsens."
+    },
+    {
+      "id": "no-explicit-tokens-to-qkv-connector",
+      "taxonomy": "VISUAL_HIERARCHY",
+      "cause": "content",
+      "severity": "trivial",
+      "description": "Q/K/V's derivation from the input tokens is shown by vertical alignment and a caption ('each token is projected into three learned roles'), not an explicit arrow - a deliberate choice (see notes.md) to avoid three arrows crossing the stacked Q/K/V strips, matching how the source's own equivalent figure omits arrows at this exact step too. Flagged in case a reviewer expects a drawn connector.",
+      "recommendedSystemChange": null
+    }
+  ],
+  "hardFails": [],
+  "vocabularyGaps": [],
+  "reusableSystemFixesThisRun": [
+    {
+      "id": "animated-scene-missing-katex-css",
+      "found": "The equation object ('softmax(QK^T)V') rendered with no KaTeX styling at all - flat text, no superscript, no proper spacing - in the standalone render harness.",
+      "diagnosis": "AnimatedScene.jsx calls katex.renderToString but never imports 'katex/dist/katex.min.css' itself. CORRECTED after first writing this entry: this is NOT a live production defect. main.jsx statically imports ask.jsx (MathText's caller) at the app root, and dist/index.html confirms ask's CSS is an eager top-level <link rel=\"stylesheet\">, present on every page load regardless of route - so a real lesson page has always rendered equations correctly. The break was specific to this benchmark's standalone render harness (scene-render-harness.jsx), which mounts AnimatedScene alone, without main.jsx's import graph, and so never pulled in that CSS. My first pass wrongly generalised a harness gap into a claimed product bug - see notes.md for the correction and why it happened.",
+      "fix": "Added `import 'katex/dist/katex.min.css';` to AnimatedScene.jsx, next to its existing katex import. Still worth keeping even though the original urgency claim was wrong: a component that calls katex.renderToString should own its stylesheet rather than depend on a sibling component's import order, and the fix also makes this benchmark's own harness correct.",
+      "whyItCouldNotWait": "Downgraded from the original claim. Cases 03/06/07/08 use equation objects and would have reproduced the same HARNESS-level symptom (not a product-level one), which would have made every subsequent screenshot in this run look broken for a reason that had nothing to do with the scene or the runtime being evaluated - worth fixing once, immediately, for that reason alone, independent of whether it was ever a shipped defect.",
+      "verification": "Re-rendered this case's static-00.png after the fix - the equation now shows a correctly italicised, properly spaced softmax(QK^T)V with a real superscript T."
+    }
+  ],
+  "notesForReusableSystem": [
+    "arrow objects are a single straight segment with no waypoints - fine here once V was given its own uncluttered row, but any topology where a later stage needs input from two sources separated by intervening content will hit the same routing ceiling. Not filed as a gap because a layout choice avoided it this time; watching for a case where no such choice exists."
+  ]
 }

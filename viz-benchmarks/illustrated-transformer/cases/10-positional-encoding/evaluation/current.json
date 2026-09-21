@@ -1,12 +1,29 @@
 {
-  "project": "illustrated-transformer",
+  "benchmark": "illustrated-transformer",
   "case": "10-positional-encoding",
-  "iteration": 0,
-  "status": "not_run",
-  "scores": {},
+  "mode": "static",
+  "iteration": "v001",
+  "status": "scored",
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 5,
+    "visualHierarchy": 5,
+    "layout": 4,
+    "readability": 5,
+    "spatialRelationships": 5,
+    "progressiveReveal": 5,
+    "focalPoint": 4,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedAverage": 4.87,
   "hardFails": [],
-  "failures": [],
+  "failures": [
+    "first-draft-bottom-caption-overflowed-canvas (LAYOUT / layout, minor, fixed pre-finalization; fifth instance of the content-exceeds-container pattern across cases 01/02/04/09/10)"
+  ],
   "recommendedSystemChanges": [],
-  "imitationRisk": null,
+  "imitationRisk": "low - worked-example-then-heatmap structure is standard technical-explanation practice, not the source's distinctive artwork; palette, coordinates and wording are original",
+  "bespokeSceneWorkaround": false,
   "humanApproved": false
 }

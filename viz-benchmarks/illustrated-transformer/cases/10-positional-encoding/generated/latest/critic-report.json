@@ -1,0 +1,43 @@
+{
+  "status": "scored",
+  "case": "10-positional-encoding",
+  "mode": "static",
+  "iteration": "v001",
+  "bespokeSceneWorkaround": false,
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 5,
+    "visualHierarchy": 5,
+    "layout": 4,
+    "readability": 5,
+    "spatialRelationships": 5,
+    "progressiveReveal": 5,
+    "interactionQuality": "not_applicable - static mode, Phase 1",
+    "motionChoreography": "not_applicable - static mode, Phase 1",
+    "focalPoint": 4,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedAverage": "4.87 / 5 (interactionQuality and motionChoreography excluded - not exercised by a static frame; layout marked down one point for a first-draft caption overflow caught before finalizing)",
+  "patterns": {
+    "matrix_operation": "pass - an 8x8 heatmap of genuinely computed sin/cos values, one consistent scale, real per-axis structure (fast-changing low dimensions vs near-constant high dimensions)",
+    "live_computation": "not_exercised - tests values changing over time (Phase 2); this is one static, already-computed heatmap. The values ARE real (computed with the actual sinusoidal formula, not decorative), which satisfies technicalCorrectness, but the pattern itself needs motion to be exercised."
+  },
+  "failures": [
+    {
+      "id": "first-draft-bottom-caption-overflowed-canvas",
+      "taxonomy": "LAYOUT",
+      "cause": "layout",
+      "severity": "minor - caught and fixed before finalizing",
+      "description": "The closing caption ('low dimensions oscillate fast ... a different wavelength per dimension', ~155 characters) ran past the 720px scene width and was clipped mid-sentence. A shorter caption at the same width and typography fit cleanly elsewhere in the same scene (113 characters), so this was a text-length judgement call, not a systemic width problem. Shortened to ~110 characters.",
+      "recommendedSystemChange": null
+    }
+  ],
+  "hardFails": [],
+  "vocabularyGaps": [],
+  "crossCaseFindingUpdated": [
+    "Fifth instance of the same family (case01/02/04/09, now 10): authored content exceeding its container, caught only by rendering and looking. This one is the simplest variant - a plain caption text wider than the scene - and confirms the finding is broader than 'arrows crossing labels': it is 'nothing checks that authored text fits its intended space,' whether that space is a box, a column header zone, or the scene's own width. See case09's critic-report.json for the fuller writeup; not repeating the recommendation here beyond noting the count."
+  ],
+  "notesForReusableSystem": []
+}

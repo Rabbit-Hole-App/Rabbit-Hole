@@ -1,0 +1,41 @@
+{
+  "status": "scored",
+  "case": "02-qkv-projection",
+  "mode": "static",
+  "iteration": "v001",
+  "bespokeSceneWorkaround": false,
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 5,
+    "visualHierarchy": 5,
+    "layout": 5,
+    "readability": 5,
+    "spatialRelationships": 5,
+    "progressiveReveal": 4,
+    "interactionQuality": "not_applicable - static mode, Phase 1",
+    "motionChoreography": "not_applicable - static mode, Phase 1",
+    "focalPoint": 4,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedAverage": "4.93 / 5 (interactionQuality and motionChoreography excluded - not exercised by a static frame)",
+  "patterns": {
+    "flow": "pass - one token -> embedding -> three parallel projections reads cleanly, each row keeps its own identity end to end"
+  },
+  "failures": [
+    {
+      "id": "first-draft-arrow-crossed-embedding-label",
+      "taxonomy": "LAYOUT",
+      "cause": "layout",
+      "severity": "minor - caught and fixed before finalizing",
+      "description": "The token-to-embedding arrow's first authored endpoint (60,152) landed directly under the embedding strip's own caption ('embedding (X)', drawn at x=40,y=142), so the arrowhead crossed the word 'embedding'. Re-routed to enter the strip further right (150,152), clear of the caption's text span. No renderer change needed - this was a coordinate choice, not a capability gap.",
+      "recommendedSystemChange": null
+    }
+  ],
+  "hardFails": [],
+  "vocabularyGaps": [],
+  "notesForReusableSystem": [
+    "Second scene in a row where a straight-line arrow needed manual rerouting to avoid crossing a label or another shape (case01: arrows through a stacked strip; case02: an arrow through the target's own caption). Neither was a capability gap - both were fixed by moving coordinates - but there is no assistance in the vocabulary for catching an arrow/label collision before a render is inspected by eye. Watching whether this becomes frequent enough to justify a reusable check (e.g. a dev-time warning when an authored arrow's bounding box intersects another object's label rect)."
+  ]
+}

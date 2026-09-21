@@ -1,0 +1,64 @@
+{
+  "id": "case08-transformer-block",
+  "title": "A residual path lets each sublayer's output be added back to its own input",
+  "width": 820,
+  "height": 620,
+  "duration": 1,
+  "objects": [
+    { "id": "heading", "type": "text", "semanticId": "heading",
+      "initialState": { "text": "A residual path lets each sublayer's output be added back to its own input", "x": 40, "y": 26, "typography": "heading" } },
+    { "id": "note-repeat", "type": "text", "semanticId": "note-repeat",
+      "initialState": { "text": "this whole block repeats, stacked N times", "x": 400, "y": 480, "typography": "caption" } },
+
+    { "id": "top-arrow", "type": "arrow", "semanticId": "top-arrow",
+      "initialState": { "from": { "x": 280, "y": 120 }, "to": { "x": 280, "y": 70 }, "role": "neutral" } },
+    { "id": "next-block", "type": "text", "semanticId": "next-block",
+      "initialState": { "text": "-> next encoder block", "x": 300, "y": 90, "typography": "caption" } },
+
+    { "id": "addnorm2", "type": "box", "semanticId": "add-normalize-2",
+      "initialState": { "label": "add & normalize", "x": 200, "y": 120, "w": 160, "h": 50, "role": "neutral" } },
+    { "id": "eq2", "type": "equation", "semanticId": "eq-addnorm2",
+      "initialState": { "text": "\\text{LayerNorm}(Z + \\text{FFN}(Z))", "x": 400, "y": 128, "w": 280, "h": 36 } },
+
+    { "id": "arrow-ff-addnorm2", "type": "arrow", "semanticId": "arrow-ff-addnorm2",
+      "initialState": { "from": { "x": 280, "y": 220 }, "to": { "x": 280, "y": 170 }, "role": "neutral" } },
+
+    { "id": "feedforward", "type": "box", "semanticId": "feed-forward",
+      "initialState": { "label": "feed forward", "x": 200, "y": 220, "w": 160, "h": 60, "role": "neutral" } },
+
+    { "id": "bypass2-out", "type": "line", "semanticId": "bypass2-out",
+      "initialState": { "from": { "x": 200, "y": 330 }, "to": { "x": 140, "y": 330 }, "role": "neutral" } },
+    { "id": "bypass2-up", "type": "line", "semanticId": "bypass2-up",
+      "initialState": { "from": { "x": 140, "y": 330 }, "to": { "x": 140, "y": 145 }, "role": "neutral" } },
+    { "id": "bypass2-in", "type": "arrow", "semanticId": "bypass2-in",
+      "initialState": { "from": { "x": 140, "y": 145 }, "to": { "x": 200, "y": 145 }, "role": "neutral" } },
+
+    { "id": "arrow-addnorm1-ff", "type": "arrow", "semanticId": "arrow-addnorm1-ff",
+      "initialState": { "from": { "x": 280, "y": 330 }, "to": { "x": 280, "y": 280 }, "role": "neutral" } },
+
+    { "id": "addnorm1", "type": "box", "semanticId": "add-normalize-1",
+      "initialState": { "label": "add & normalize", "x": 200, "y": 330, "w": 160, "h": 50, "role": "neutral" } },
+    { "id": "eq1", "type": "equation", "semanticId": "eq-addnorm1",
+      "initialState": { "text": "\\text{LayerNorm}(X + Z)", "x": 400, "y": 338, "w": 230, "h": 36 } },
+
+    { "id": "arrow-selfattn-addnorm1", "type": "arrow", "semanticId": "arrow-selfattn-addnorm1",
+      "initialState": { "from": { "x": 280, "y": 430 }, "to": { "x": 280, "y": 380 }, "role": "neutral" } },
+
+    { "id": "selfattention", "type": "box", "semanticId": "self-attention",
+      "initialState": { "label": "self-attention", "x": 200, "y": 430, "w": 160, "h": 60, "role": "neutral" } },
+
+    { "id": "bypass1-out", "type": "line", "semanticId": "bypass1-out",
+      "initialState": { "from": { "x": 200, "y": 530 }, "to": { "x": 100, "y": 530 }, "role": "neutral" } },
+    { "id": "bypass1-up", "type": "line", "semanticId": "bypass1-up",
+      "initialState": { "from": { "x": 100, "y": 530 }, "to": { "x": 100, "y": 355 }, "role": "neutral" } },
+    { "id": "bypass1-in", "type": "arrow", "semanticId": "bypass1-in",
+      "initialState": { "from": { "x": 100, "y": 355 }, "to": { "x": 200, "y": 355 }, "role": "neutral" } },
+
+    { "id": "arrow-x-selfattn", "type": "arrow", "semanticId": "arrow-x-selfattn",
+      "initialState": { "from": { "x": 280, "y": 520 }, "to": { "x": 280, "y": 490 }, "role": "neutral" } },
+
+    { "id": "input-x", "type": "box", "semanticId": "input-x",
+      "initialState": { "label": "input X", "x": 200, "y": 520, "w": 160, "h": 50, "role": "input" } }
+  ],
+  "timeline": []
+}

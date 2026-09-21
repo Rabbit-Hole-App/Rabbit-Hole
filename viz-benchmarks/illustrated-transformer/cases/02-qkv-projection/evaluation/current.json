@@ -1,12 +1,29 @@
 {
-  "project": "illustrated-transformer",
+  "benchmark": "illustrated-transformer",
   "case": "02-qkv-projection",
-  "iteration": 0,
-  "status": "not_run",
-  "scores": {},
+  "mode": "static",
+  "iteration": "v001",
+  "status": "scored",
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 5,
+    "visualHierarchy": 5,
+    "layout": 5,
+    "readability": 5,
+    "spatialRelationships": 5,
+    "progressiveReveal": 4,
+    "focalPoint": 4,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedAverage": 4.93,
   "hardFails": [],
-  "failures": [],
+  "failures": [
+    "first-draft-arrow-crossed-embedding-label (LAYOUT / layout, minor, fixed pre-finalization)"
+  ],
   "recommendedSystemChanges": [],
-  "imitationRisk": null,
+  "imitationRisk": "low - shape/colour-only teaching, no reference palette, wording or coordinates copied",
+  "bespokeSceneWorkaround": false,
   "humanApproved": false
 }

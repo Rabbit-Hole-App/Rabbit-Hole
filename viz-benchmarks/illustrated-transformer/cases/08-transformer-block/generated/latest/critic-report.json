@@ -1,0 +1,51 @@
+{
+  "status": "scored",
+  "case": "08-transformer-block",
+  "mode": "static",
+  "iteration": "v001",
+  "bespokeSceneWorkaround": false,
+  "scores": {
+    "technicalCorrectness": 5,
+    "conceptualCompleteness": 5,
+    "teachingClarity": 5,
+    "visualHierarchy": 4,
+    "layout": 5,
+    "readability": 5,
+    "spatialRelationships": 5,
+    "progressiveReveal": 4,
+    "interactionQuality": "not_applicable - static mode, Phase 1",
+    "motionChoreography": "not_applicable - static mode, Phase 1",
+    "focalPoint": 4,
+    "genericComposition": 5,
+    "originality": 5
+  },
+  "weightedAverage": "4.80 / 5 (interactionQuality and motionChoreography excluded - not exercised by a static frame)",
+  "patterns": {
+    "flow": "pass - bottom-to-top staged pipeline, X keeps its identity through the bypass",
+    "graphs": "pass - genuine fan-in at each add & normalize box (the main sublayer path and the residual bypass converge there); this is a case where the declared pattern actually matches the mechanism, unlike case07's routing mismatch"
+  },
+  "failures": [
+    {
+      "id": "uniform-neutral-role-for-distinct-operations",
+      "taxonomy": "VISUAL_HIERARCHY",
+      "cause": "content",
+      "severity": "trivial - considered and kept, not a defect",
+      "description": "self-attention, both add & normalize boxes, and feed-forward all use role 'neutral' and are visually identical apart from their text label. The reference distinguishes these by colour. Considered and rejected: none of the ten roles represents 'a computation step' as its own category separate from data (input/output/observed/prediction/etc.) - ROLE answers what an object MEANS, not which operation it performs - so 'neutral' for all four is the semantically correct choice, not a missed distinction. The boxes stay legible through their labels alone, which the case's own reference-notes.md treats as sufficient.",
+      "recommendedSystemChange": null
+    },
+    {
+      "id": "equations-leave-dead-space",
+      "taxonomy": "LAYOUT",
+      "cause": "layout",
+      "severity": "minor",
+      "description": "The two LayerNorm equations sit far to the right of their boxes with a large gap of empty space around them (particularly between 'feed forward' and its equation), lowering information density without adding clarity. Not a crossing or a correctness issue, just loose use of space.",
+      "recommendedSystemChange": null
+    }
+  ],
+  "hardFails": [],
+  "vocabularyGaps": [],
+  "reusableTechniqueFound": [
+    "The residual connection needed a straight-line arrow to visually loop AROUND a box (self-attention, then feed-forward) rather than just point at it. Composed from two `line` segments (out and up, no arrowhead) plus one `arrow` segment (the final approach, with the head) - an L-shaped bypass. Two nested instances (bypass1 wraps self-attention at x=100, bypass2 wraps feed-forward at x=140, offset so they never visually merge) produced exactly the 'residual skips this one sublayer' picture with zero crossings. Naming this pattern (bypass-loop) alongside case02's spine-and-branch, for reuse in case09's encoder-decoder link."
+  ],
+  "notesForReusableSystem": []
+}
