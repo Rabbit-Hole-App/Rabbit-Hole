@@ -94,6 +94,25 @@ multi-head attention and is a mismatch — every head always runs, nothing branc
 - [ ] an **independent** critic — one that did not author or repair the scenes — approves at the agreed quality bar
 - [ ] the human reviewer agrees the flagship cases are production quality
 
+## The app-review finish line
+
+After the blind critic passes and the regression run is green, the last step
+before the hard stop is the **Static App Review Gallery** — five realistic lesson
+canvases on a dev-only `?board=static-app-review`, reviewed by hand in the running
+application.
+
+Specified at
+[docs/features/static-app-review-gallery.md](../docs/features/static-app-review-gallery.md):
+nanoGPT self-attention, nanoGPT transformer block, a VLM image-to-patches flow, a
+world model's branching futures, and a large-codebase architecture orientation.
+
+**These are product review cases, not benchmark cases.** No reference matching, no
+new capability. The benchmark asked whether the language can match a published
+explanation; this asks whether it produces lessons someone would want to learn
+from — including one case, the codebase orientation, that deliberately leaves the
+ML-diagram comfort zone to test whether this is a repo-learning product or a
+visualization demo.
+
 ## HARD STOP after Phase 1
 
 **The roadmap describes an order, not a permission.**
