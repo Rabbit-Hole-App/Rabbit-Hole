@@ -177,6 +177,29 @@ dimensions, head sizes, probabilities, scores. Either derive it from the authore
 data, or mark it explicitly illustrative with no claim that it came from the
 inputs shown.
 
+**A correctness gate must never be bypassable by a presentation choice.**
+
+The consistency checker first classified a matrix as relational — and therefore
+subject to the math checks — by whether **both axes carried labels**. That is a
+presentation property. An author could omit one axis label, by accident or to get
+a stubborn scene through, and the arithmetic gate would silently stop applying.
+
+Semantics decide whether a gate applies; presentation never does. A matrix
+declares what it **is**:
+
+| `matrixKind` | meaning | gate |
+|---|---|---|
+| `input` | authored data, a table of given values | literal values allowed |
+| `relational` | states a relationship between things the scene draws | consistency checks required |
+| `derived` | computed from declared inputs | consistency checks required |
+
+Labels are still checked — for readability, by the layout lint. They do not decide
+whether the arithmetic is verified.
+
+The general form, because this will recur: **if a check can be switched off by
+changing how something looks, it is not a check.** Any gate whose applicability is
+inferred from styling, labelling or layout has the same hole.
+
 ## Provenance: three kinds of number
 
 Every value a scene shows carries where it came from, so a critic or a tutor can
