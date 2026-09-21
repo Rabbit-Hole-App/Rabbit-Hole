@@ -94,6 +94,28 @@ multi-head attention and is a mismatch — every head always runs, nothing branc
 - [ ] an **independent** critic — one that did not author or repair the scenes — approves at the agreed quality bar
 - [ ] the human reviewer agrees the flagship cases are production quality
 
+## HARD STOP after Phase 1
+
+**The roadmap describes an order, not a permission.**
+
+When static Phase 1 passes its five conditions and an independent critic approves
+it, the work **stops** until the human has reviewed the app themselves, generated
+several real canvases, and explicitly said to continue.
+
+Nothing below this line starts before that:
+
+- Phase 2 dynamic benchmark work, including Diffusion Explainer
+- Plan B, or the input axis
+- coordinated views
+- any interactive runtime work
+- ONNX Runtime Web
+- GSAP
+
+This exists because momentum at the end of a successful pass is exactly when work
+rolls into the next phase without anyone deciding to. An idle agent waiting on a
+decision is the correct state here. An agent that started Phase 2 because nothing
+told it not to is not.
+
 ## Phase 2 — simple dynamic visualizations
 
 Published explainers with contained motion, such as Diffusion Explainer.
