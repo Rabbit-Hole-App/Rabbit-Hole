@@ -177,6 +177,31 @@ dimensions, head sizes, probabilities, scores. Either derive it from the authore
 data, or mark it explicitly illustrative with no claim that it came from the
 inputs shown.
 
+## Provenance: three kinds of number
+
+Every value a scene shows carries where it came from, so a critic or a tutor can
+tell what it is:
+
+| provenance | meaning |
+|---|---|
+| `literal` | an authored fact or value |
+| `derived` | mechanically computed from declared inputs |
+| `illustrative` | a schematic or example value, with **no claim** of being computed |
+
+**Illustrative is allowed. Masquerading as computed is not.**
+
+- A displayed equation or result — anything of the form `q · k = 0.54` — must be `derived`.
+- A matrix cell claimed to result from visible vectors must be `derived`.
+- `illustrative` may sit in a diagram as a sketch, but it may **not** appear on the right-hand side of an equals sign whose left-hand side is drawn on screen.
+
+The failure this closes is an author who hits the consistency gate, cannot be
+bothered to wire the derivation, and marks the false result `illustrative` to get
+it through. That is strictly worse than the original defect: the scene would then
+carry an explicit claim of honesty while still showing a wrong equation.
+
+A number whose provenance is unknowable is the problem being fixed, so provenance
+travels with the value rather than living in a comment.
+
 ## The order of priorities
 
 When these compete, this is the order:
