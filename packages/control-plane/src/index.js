@@ -1,6 +1,6 @@
 import { arxivId, readArxivPaper, paperDocument } from './arxiv.js';
 import { canvasSeed } from './canvas-conversation.js';
-import { LEARN_SYSTEM, validateLessonSnapshot } from './learn-context.js';
+import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from './learn-context.js';
 import { paperSelectionImage } from './learn-preview-review.js';
 import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
 import { handleLearnCourse } from './learn-course.js';
@@ -969,6 +969,12 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent') {
     try { lessonSnapshot = validateLessonSnapshot(body.lesson_snapshot); }
     catch (error) { return json({ error: error.message }, 400); }
   }
+  if (body.outline !== undefined) {
+    try {
+      if (conversation !== 'learn') throw new Error('Outline is a Learn idea');
+      validateOutline(body.outline);
+    } catch { return json({ error: 'Invalid lesson outline' }, 400); }
+  }
   if (body.paper_context !== undefined) {
     try {
       // A learner's own upload is a paper too; only the source of the bytes differs.
@@ -1001,6 +1007,12 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent') {
     if (!app.canView) return json({ error: 'no access' }, 403);
     scopedApp = app;
     context = lessonSnapshot ? JSON.stringify(lessonSnapshot) : await appContext(env, app, useSet);
+    // The lesson's own table of contents, so a question about its structure is
+    // answered from the outline rather than inferred from the cards.
+    if (body.outline?.length) context = `${context}
+
+This lesson's table of contents, as the learner sees it:
+${renderOutline(body.outline)}`;
     canAct = !lessonSnapshot && !!app.canEdit;
     scopeKind = conversation === 'learn' ? 'learn' : 'app';
     scopeRef = scope.app;

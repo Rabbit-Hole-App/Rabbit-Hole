@@ -32,3 +32,22 @@ export function validateLessonSnapshot(value) {
   if (context.courseBrief !== undefined && (!context.courseBrief || Array.isArray(context.courseBrief) || typeof context.courseBrief !== 'object' || Object.entries(context.courseBrief).some(([key, value]) => !['audience', 'goal', 'knowledge', 'duration'].includes(key) || !text(value, 600)))) throw new Error('Invalid course brief');
   return value;
 }
+
+// The lesson's table of contents, as the learner sees it in the right panel.
+// It is what the canvas's heading blocks say, so the model can answer about
+// structure instead of guessing at it. Data, never instructions.
+export function validateOutline(value) {
+  const text = (s, max) => typeof s === 'string' && s.length > 0 && s.length <= max;
+  if (!Array.isArray(value) || value.length > 60) throw new Error('Invalid lesson outline');
+  for (const entry of value) {
+    if (!entry || !text(entry.id, 150) || !text(entry.label, 200)
+      || ![1, 2, 3].includes(entry.level) || typeof entry.done !== 'boolean') throw new Error('Invalid outline entry');
+  }
+  if (new Set(value.map(entry => entry.id)).size !== value.length) throw new Error('Duplicate outline entry');
+  return value;
+}
+
+// Indented so depth is legible without the model parsing a level field.
+export function renderOutline(outline) {
+  return outline.map(entry => `${'  '.repeat(entry.level - 1)}- [${entry.done ? 'x' : ' '}] ${entry.label}`).join('\n');
+}

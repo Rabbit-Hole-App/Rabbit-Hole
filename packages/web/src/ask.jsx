@@ -436,6 +436,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     setFile(null);
     const canvasImage = !isDemo ? boardContext?.preview : null;
     const questionPaper = boardContext?.paper;
+    const questionOutline = boardContext?.outline?.();
     if (!isDemo) boardContext?.removeImage();
     const target = canvasTarget; // selected lesson block riding as context
     if (target) onClearCanvasTarget?.();
@@ -462,6 +463,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       const requestPath = snapshot?.target ? '/api/learn/selection' : askPath;
       const payload = {
         ...(snapshot ? { lesson_snapshot: snapshot } : {}),
+        // The lesson's table of contents. Separate from lesson_snapshot, which
+        // is tldraw-shaped and would reject it.
+        ...(questionOutline?.length ? { outline: questionOutline } : {}),
         ...(target?.paper ? { paper_context: target.paper } : questionPaper ? { paper_context: { id: questionPaper.id, page: questionPaper.page, ...(questionPaper.selection ? { selection: questionPaper.selection } : {}) } } : {}),
         scope: scopeOverride || scope,
         ...(repository && repositoryContext ? { repository_context: { ...repositoryContext, commit: sourceRange?.commit || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),

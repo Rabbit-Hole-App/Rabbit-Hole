@@ -2,7 +2,7 @@ import { paperSelectionImage } from '../src/learn-preview-review.js';
 import { canvasSeed } from '../src/canvas-conversation.js';
 import { arxivId, paperDocument } from '../src/arxiv.js';
 import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT } from '../src/learn-paper.js';
-import { LEARN_SYSTEM, validateLessonSnapshot } from '../src/learn-context.js';
+import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { captureSelection, selectionSnapshot, sigmoidObjects } from '../../web/src/sigmoid-context.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,7 +14,7 @@ const source = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8')
 const names = ['apiAsk', 'askThreadForUser', 'apiAskThreads', 'apiAskThread', 'apiAskThreadRename', 'apiAskThreadDelete'];
 const functions = names.map(name => source.match(new RegExp(`async function ${name}\\([^]*?\\n\\}`))[0]).join('\n');
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
-const handlers = new Function('json', 'appForUser', 'appContext', 'askStream', 'ASK_MODELS', 'ASK_TOOLS', 'LEARN_SYSTEM', 'validateLessonSnapshot', 'arxivId', 'readArxivPaper', 'paperDocument', 'paperSelectionImage', 'isUploadedPaperId', 'uploadedPaperAsDocument', 'paperIdentity', 'PAPER_PAGE_LIMIT', 'canvasSeed', `${functions}; return { ${names.join(',')} };`)(
+const handlers = new Function('json', 'appForUser', 'appContext', 'askStream', 'ASK_MODELS', 'ASK_TOOLS', 'LEARN_SYSTEM', 'validateLessonSnapshot', 'validateOutline', 'renderOutline', 'arxivId', 'readArxivPaper', 'paperDocument', 'paperSelectionImage', 'isUploadedPaperId', 'uploadedPaperAsDocument', 'paperIdentity', 'PAPER_PAGE_LIMIT', 'canvasSeed', `${functions}; return { ${names.join(',')} };`)(
   json,
   async (env, user, name) => env.apps[name],
   async (env, app) => ({ name: app.name }),
@@ -22,7 +22,7 @@ const handlers = new Function('json', 'appForUser', 'appContext', 'askStream', '
     env.answers.push({ history: [...history], question, context, toolOpts, system, org, blocks, research });
     await onFull('Answer: ' + question);
     return json(metadata);
-  }, {}, [], LEARN_SYSTEM, validateLessonSnapshot, arxivId, async id => ({ id, title: "Test paper", pdfUrl: `https://arxiv.org/pdf/${id}` }), paperDocument, paperSelectionImage,
+  }, {}, [], LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline, arxivId, async id => ({ id, title: "Test paper", pdfUrl: `https://arxiv.org/pdf/${id}` }), paperDocument, paperSelectionImage,
   isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT, canvasSeed,
 );
 const owner = { email: 'owner@example.test', org: 'workspace-a' };
@@ -221,6 +221,53 @@ test('paper questions attach the actual PDF, disable app actions, and validate a
   env.apps.counter.canView = false;
   assert.equal((await handlers.apiAsk(request(body), env, {}, owner, 'learn')).status, 403);
   assert.equal(env.answers.length, 1);
+});
+
+// The lesson's structure is the one thing the model could not see: heading
+// blocks live on the canvas and describeBlock has no branch for them.
+test('the lesson outline reaches the model, with depth and what is done', async t => {
+  const env = fixture(t);
+  const outline = [
+    { id: 'h1', level: 1, label: 'Attention', done: true },
+    { id: 'h2', level: 2, label: 'Queries and keys', done: false },
+    { id: 'h3', level: 1, label: 'Training', done: false },
+  ];
+  const response = await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'what sections are there?', outline }), env, {}, owner, 'learn');
+  assert.equal(response.status, 200, await response.clone().text());
+  const { context } = env.answers[0];
+  assert.match(context, /table of contents/i);
+  assert.match(context, /- \[x\] Attention/);
+  assert.match(context, /  - \[ \] Queries and keys/, 'a sub-section is indented');
+  assert.match(context, /- \[ \] Training/);
+});
+
+test('a malformed outline is refused rather than half-read', async t => {
+  const env = fixture(t);
+  const bad = [
+    'not an array at all',
+    [{ id: 'h1', level: 4, label: 'Too deep', done: false }],
+    [{ id: 'h1', level: 1, label: 'No done flag' }],
+    [{ id: 'h1', level: 1, label: 'Twice', done: false }, { id: 'h1', level: 1, label: 'Twice', done: false }],
+    [{ id: 'h1', level: 1, label: 'x'.repeat(201), done: false }],
+    Array.from({ length: 61 }, (_, i) => ({ id: `h${i}`, level: 1, label: 'x', done: false })),
+  ];
+  for (const outline of bad) {
+    assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', outline }), env, {}, owner, 'learn')).status, 400, JSON.stringify(outline).slice(0, 40));
+  }
+  assert.equal(env.answers.length, 0);
+});
+
+test('an outline outside Learn is refused; it is a Learn idea', async t => {
+  const env = fixture(t);
+  const outline = [{ id: 'h1', level: 1, label: 'Attention', done: false }];
+  assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', outline }), env, {}, owner, 'agent')).status, 400);
+});
+
+test('no outline leaves the context exactly as it was', async t => {
+  const env = fixture(t);
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi' }), env, {}, owner, 'learn');
+  // the harness's appContext double answers with an object; production returns a string
+  assert.doesNotMatch(String(JSON.stringify(env.answers[0].context)), /table of contents/i);
 });
 
 // A PDF the learner uploaded is private, so the model gets the bytes rather than

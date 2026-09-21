@@ -74,6 +74,10 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // rather than by ref, and returned unchanged when nothing moved, or the effect
   // that publishes it would re-render forever.
   const [canvasState, setCanvasState] = useState({ grid: false, lock: false, minimap: true, pages: false, presenting: false, outline: [] });
+  // boardContext is rebuilt every render but read inside a send; a ref keeps the
+  // outline current without making the composer re-render on every tick.
+  const canvasStateRef = useRef(canvasState);
+  canvasStateRef.current = canvasState;
   const onCanvasState = useCallback(next => setCanvasState(previous =>
     (previous.grid === next.grid && previous.lock === next.lock && previous.minimap === next.minimap && previous.pages === next.pages && previous.presenting === next.presenting && JSON.stringify(previous.outline) === JSON.stringify(next.outline) ? previous : next)), []);
   const [sourceOpen, setSourceOpen] = useState(false);
@@ -377,6 +381,8 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   };
   const boardContext = {
     ready: !!editor, status: boardStage, paper: paperContext, clearPaper: () => { setPaperContext(null); setPaperOpen(false); },
+    // Read at send time, so a question always carries the outline as it is now.
+    outline: () => canvasStateRef.current.outline || [],
     explain: async ({ snapshot, question, answer, model, paperIds = [], history = [], repository_context = null }) => {
       if (noteEditing) throw new Error('Return to the lesson before explaining on canvas.');
       if (!editor) throw new Error('The canvas is still loading. Try again in a moment.');
