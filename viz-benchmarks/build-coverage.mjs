@@ -11,10 +11,22 @@ const label = entry => `${entry.project}/${entry.id}`;
 const ready = type => cases.filter(entry => entry.status === 'ready' && entry.referenceType === type);
 const candidatesFor = id => registry.projects.filter(p => (p.candidatePatterns || []).includes(id) && !(p.cases || []).some(c => c.status === 'ready')).map(p => p.id);
 
+// A case can declare a pattern it has no way to demonstrate - routing,
+// zoom_drilldown and coordinated_views need branching, drill-down or linked
+// views none of the current static cases can show. patternAssessability
+// records that per pattern id without touching `patterns` itself (every
+// other reader of `patterns` still sees a plain list of declared ids). Only
+// an explicit `assessable: false` excludes a declaration from coverage; its
+// absence means ordinary, assessable coverage, same as before this field
+// existed.
+const isAssessable = (entry, patternId) => entry.patternAssessability?.[patternId]?.assessable !== false;
+const declaredHas = (entry, patternId) => entry.patterns.includes(patternId);
+
 const rows = patterns.map(pattern => ({
   pattern,
-  external: ready('external_real').filter(c => c.patterns.includes(pattern.id)),
-  synthetic: ready('synthetic_internal').filter(c => c.patterns.includes(pattern.id)),
+  external: ready('external_real').filter(c => declaredHas(c, pattern.id) && isAssessable(c, pattern.id)),
+  synthetic: ready('synthetic_internal').filter(c => declaredHas(c, pattern.id) && isAssessable(c, pattern.id)),
+  unassessable: cases.filter(c => c.status === 'ready' && declaredHas(c, pattern.id) && !isAssessable(c, pattern.id)),
   blocked: (registry.blockedPatterns || []).includes(pattern.id),
   candidates: candidatesFor(pattern.id),
 }));
@@ -57,6 +69,26 @@ prove the machinery, not the result.
 `;
 for (const row of rows.filter(r => r.synthetic.length)) {
   md += `| **${row.pattern.name}** | ${row.synthetic.map(label).join('<br>')} |\n`;
+}
+
+const unassessable = rows.filter(row => row.unassessable.length);
+if (unassessable.length) {
+  md += `
+## Declared, not assessable
+
+A case can only prove a pattern it is able to show. These declare a pattern a
+**static** case has no way to demonstrate - no branching, no drill-down, no
+linked views - so the declaration is recorded but excluded from the coverage
+totals above, rather than counted as tested.
+
+| pattern | case | reason |
+|---|---|---|
+`;
+  for (const row of unassessable) {
+    for (const c of row.unassessable) {
+      md += `| **${row.pattern.name}** | ${label(c)} | ${c.patternAssessability[row.pattern.id].reason} |\n`;
+    }
+  }
 }
 
 md += `

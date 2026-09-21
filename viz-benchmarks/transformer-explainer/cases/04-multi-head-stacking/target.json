@@ -13,6 +13,9 @@
     "routing",
     "flow"
   ],
+  "patternAssessability": {
+    "routing": { "declared": true, "assessable": false, "reason": "requires the dynamic or interactive phase" }
+  },
   "constraints": {
     "noCustomReact": true,
     "noCustomCSS": true,

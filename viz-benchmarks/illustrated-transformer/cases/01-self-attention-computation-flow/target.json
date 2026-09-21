@@ -93,5 +93,8 @@
     "matrix_operation",
     "zoom_drilldown",
     "process_scrubbing"
-  ]
+  ],
+  "patternAssessability": {
+    "zoom_drilldown": { "declared": true, "assessable": false, "reason": "requires the dynamic or interactive phase" }
+  }
 }
