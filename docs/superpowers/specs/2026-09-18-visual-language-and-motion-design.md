@@ -196,6 +196,34 @@ declares what it **is**:
 Labels are still checked — for readability, by the layout lint. They do not decide
 whether the arithmetic is verified.
 
+**A check on source state is not evidence about a generated artifact.** If the
+artifact is what humans inspect or ship, the provenance from source to artifact
+must itself be mechanically verified.
+
+Case 03's scene was repaired and its checkers ran green. The committed PNG was
+never re-rendered, so the image a reviewer opened still displayed the false
+`.54` that the repair had removed. Both statements were true at once: the scene
+was fixed, and the artifact was wrong. A blind critic reviewing the images found
+the defect the source no longer had.
+
+**Do not use file modification time as the freshness gate.** Checkouts, copies,
+CI and restores all make timestamps lie. A committed render must carry a
+deterministic **fingerprint of the inputs that produced it** — the scene
+specification, and the render configuration or version where it matters — and the
+check recomputes that fingerprint and fails when the artifact does not correspond
+to current inputs.
+
+This generalises the failures before it. The same shape recurred three times:
+
+| bypass | the gate was checking |
+|---|---|
+| a label decided whether math was verified | presentation, not semantics |
+| an absent field exempted a grid entirely | a gate that was off by default |
+| a green checker certified a stale image | the source, not the artifact |
+
+Each time the check was real and looked at the wrong thing. **Green must refer to
+what a learner actually sees**, not to the specification behind it.
+
 **Semantic gates are explicit and mandatory. Absence of semantic metadata never
 exempts a numeric object from validation.**
 
