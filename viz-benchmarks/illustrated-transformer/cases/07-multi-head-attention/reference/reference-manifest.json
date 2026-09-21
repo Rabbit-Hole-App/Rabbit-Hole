@@ -1,0 +1,52 @@
+{
+  "entries": [
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/transformer_attention_heads_qkv.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Multi-headed attention — per-head Q/K/V projection",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/transformer_attention_heads_qkv.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:d360b9199193a6db44e8608c80f0987a5bc824a2d1061d425d22b49f71981aca"
+    },
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/transformer_attention_heads_z.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Multi-headed attention — parallel per-head output Z0..Z7",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/transformer_attention_heads_z.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:d198af28a747da599f9f79c202a98cebbe4b69304cdcc7ef2fe33bca18e7f36c"
+    },
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/transformer_attention_heads_weight_matrix_o.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Multi-headed attention — concatenate and project with W^O",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/transformer_attention_heads_weight_matrix_o.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:606c0e2a4d2c4dba858496226a1040dcd374122d2a2a3568390a06915edfaba7"
+    },
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/transformer_multi-headed_self-attention-recap.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Multi-headed attention — full pipeline recap",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/transformer_multi-headed_self-attention-recap.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:735985b936126abbe79796f3a9b1fbbc4f6a64c5ffe4efa603fb95e88337a413"
+    }
+  ]
+}

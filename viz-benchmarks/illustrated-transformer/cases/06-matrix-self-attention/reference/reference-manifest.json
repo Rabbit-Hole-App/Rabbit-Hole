@@ -1,0 +1,28 @@
+{
+  "entries": [
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/self-attention-matrix-calculation.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Matrix Calculation of Self-Attention — projecting X to Q/K/V",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/self-attention-matrix-calculation.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:61aaabda50b93058dad22cb79766d09dbde0c61374b19a8e217fa5b76f39bfd6"
+    },
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/self-attention-matrix-calculation-2.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Matrix Calculation of Self-Attention — Z = softmax(QK^T/sqrt(dk))V",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/self-attention-matrix-calculation-2.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:fd6e2158c1ec73294a2915b5637d77f6913fe361316b3df397c398cc6128b8a1"
+    }
+  ]
+}

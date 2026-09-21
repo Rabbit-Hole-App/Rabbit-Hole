@@ -1,0 +1,16 @@
+{
+  "entries": [
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/transformer_self_attention_vectors.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Self-Attention in Detail — computing Q, K and V",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/transformer_self_attention_vectors.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:d6415b63f3cfb5d802719aebf111283bbcdab3cb33b40194f3b2d8a65522117c"
+    }
+  ]
+}

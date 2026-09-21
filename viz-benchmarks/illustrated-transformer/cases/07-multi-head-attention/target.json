@@ -1,11 +1,11 @@
 {
   "project": "illustrated-transformer",
   "case": "07-multi-head-attention",
-  "status": "skeleton",
-  "referenceType": "not_captured",
+  "status": "ready",
+  "referenceType": "external_real",
   "source": "https://jalammar.github.io/illustrated-transformer/",
   "objective": "How several attention heads run in parallel over the same input and are recombined into one output.",
-  "scope": "Not yet extracted from the source. reference/ is empty until it is.",
+  "scope": "Per-head Q/K/V projection, parallel per-head output (Z0..Z7), concatenation, and the final W^O projection back to one output matrix.",
   "evaluationTarget": "semantic_and_pedagogical_parity",
   "visualImitationTarget": false,
   "requiredConcepts": [
@@ -30,7 +30,8 @@
   },
   "modes": {
     "static": {
-      "status": "not_extracted"
+      "status": "captured",
+      "reference": "see reference/reference-manifest.json - images are restrictively licensed, cached at .local-benchmark-cache/, not committed"
     },
     "dynamic": {
       "status": "not_extracted"

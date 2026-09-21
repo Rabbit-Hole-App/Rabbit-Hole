@@ -1,11 +1,11 @@
 {
   "project": "illustrated-transformer",
   "case": "03-attention-score-matrix",
-  "status": "skeleton",
-  "referenceType": "not_captured",
+  "status": "ready",
+  "referenceType": "external_real",
   "source": "https://jalammar.github.io/illustrated-transformer/",
   "objective": "How comparing every query against every key produces a score matrix, and what a cell in it means.",
-  "scope": "Not yet extracted from the source. reference/ is empty until it is.",
+  "scope": "The per-position dot-product score (q . k), not yet normalised. Softmax is case 04, the matrix-wide form is case 06.",
   "evaluationTarget": "semantic_and_pedagogical_parity",
   "visualImitationTarget": false,
   "requiredConcepts": [
@@ -30,7 +30,8 @@
   },
   "modes": {
     "static": {
-      "status": "not_extracted"
+      "status": "captured",
+      "reference": "see reference/reference-manifest.json - image is restrictively licensed, cached at .local-benchmark-cache/, not committed"
     },
     "dynamic": {
       "status": "not_extracted"

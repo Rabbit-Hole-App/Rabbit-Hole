@@ -1,0 +1,28 @@
+{
+  "entries": [
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/Transformer_decoder.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "The Decoder Side — Encoder-Decoder Attention as its own sublayer",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/Transformer_decoder.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:0ea792bf69bb0866b550e332675bb25e207c3f7e5f34a27f73f399a9eb5b8219"
+    },
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/The_transformer_encoder_decoder_stack.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "The Decoder Side — top encoder output fanning into every decoder layer",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/The_transformer_encoder_decoder_stack.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:bdc0fd6444dd03385e53f0789b370c3ffab9045d221949a180d5a0a317f44708"
+    }
+  ]
+}

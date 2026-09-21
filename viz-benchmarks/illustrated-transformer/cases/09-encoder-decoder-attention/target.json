@@ -1,11 +1,11 @@
 {
   "project": "illustrated-transformer",
   "case": "09-encoder-decoder-attention",
-  "status": "skeleton",
-  "referenceType": "not_captured",
+  "status": "ready",
+  "referenceType": "external_real",
   "source": "https://jalammar.github.io/illustrated-transformer/",
   "objective": "How the decoder attends to encoder output, and how that differs from self-attention.",
-  "scope": "Not yet extracted from the source. reference/ is empty until it is.",
+  "scope": "The decoder's Encoder-Decoder Attention sublayer as a distinct block from its own self-attention, and the encoder-stack-to-every-decoder-layer connection that feeds it K/V.",
   "evaluationTarget": "semantic_and_pedagogical_parity",
   "visualImitationTarget": false,
   "requiredConcepts": [
@@ -30,7 +30,8 @@
   },
   "modes": {
     "static": {
-      "status": "not_extracted"
+      "status": "captured",
+      "reference": "see reference/reference-manifest.json - images are restrictively licensed, cached at .local-benchmark-cache/, not committed"
     },
     "dynamic": {
       "status": "not_extracted"

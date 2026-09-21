@@ -1,11 +1,12 @@
 {
   "project": "illustrated-transformer",
   "case": "05-causal-masking",
-  "status": "skeleton",
-  "referenceType": "not_captured",
+  "status": "ready",
+  "referenceType": "external_real",
+  "referenceMedium": "text",
   "source": "https://jalammar.github.io/illustrated-transformer/",
   "objective": "How a decoder prevents a position from attending to later positions, and what the masked score matrix looks like.",
-  "scope": "Not yet extracted from the source. reference/ is empty until it is.",
+  "scope": "This source has no diagram of a masked score matrix - only one paragraph of text under 'The Decoder Side', captured verbatim (see reference/reference-manifest.json). The 'what it looks like' half of the objective has no reference image to capture from this article; none was invented. A masked-matrix visual, if this case runs, would need either a different cited source or to be flagged as not benchmarked against a real reference.",
   "evaluationTarget": "semantic_and_pedagogical_parity",
   "visualImitationTarget": false,
   "requiredConcepts": [
@@ -31,7 +32,8 @@
   },
   "modes": {
     "static": {
-      "status": "not_extracted"
+      "status": "captured_text_only",
+      "reference": "see reference/reference-manifest.json - text quote is restrictively licensed, cached at .local-benchmark-cache/, not committed"
     },
     "dynamic": {
       "status": "not_extracted"

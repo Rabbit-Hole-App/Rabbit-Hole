@@ -1,0 +1,18 @@
+{
+  "entries": [
+    {
+      "sourceUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "The Decoder Side",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "referenceMedium": "text",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/decoder-masked-self-attention-quote.txt",
+      "productionAllowed": false,
+      "contentHash": "sha256:85ff8e33ea78747867df2ab9c70d4c576223dd233c3c7e7d8b5ef3ce96070f69",
+      "note": "No dedicated diagram exists in this source for causal masking - text only, no image invented."
+    }
+  ]
+}

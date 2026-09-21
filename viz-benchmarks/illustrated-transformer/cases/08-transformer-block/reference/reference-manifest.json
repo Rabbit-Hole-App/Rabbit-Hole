@@ -1,0 +1,40 @@
+{
+  "entries": [
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/Transformer_encoder.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "The Encoder — self-attention and feed-forward as one block",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/Transformer_encoder.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:c6d3360f8c0a4701b73348186ef0ac01e635a297a99cec1c59451b4f7cdce691"
+    },
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/transformer_resideual_layer_norm_2.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Now We're Encoding! — residual connection and LayerNorm(X + Z)",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/transformer_resideual_layer_norm_2.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:3ae6698b615563cec67ebe3699f113ff80223fd75909f944fcbab3fe834621d6"
+    },
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/encoder_with_tensors.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Now We're Encoding! — the block with real tensor shapes",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/encoder_with_tensors.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:af71b4568ca9cba9c67163e5482f9e1820f5bf3c0fcb8decee81a4551a2c8fdb"
+    }
+  ]
+}

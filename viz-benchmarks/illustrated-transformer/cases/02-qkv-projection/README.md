@@ -2,9 +2,9 @@
 
 How one token vector becomes separate query, key and value vectors, and why three roles are needed rather than one.
 
-**Status: skeleton.** No reference material has been extracted yet, so this case
-cannot be run. Populate `reference/` from the source article, fill in
-`reference-notes.md` and `target.json`, then set status to `ready`.
+**Status: ready.** Real reference captured per REFERENCE-LICENSING.md - image
+cached in `.local-benchmark-cache/`, catalogued in `reference/reference-manifest.json`,
+no scene generated (a separate decision, not made here).
 
 Static, dynamic and interactive are modes of this one case, distinguished by
 filename inside `reference/` and `generated/latest/` - never by separate folders.

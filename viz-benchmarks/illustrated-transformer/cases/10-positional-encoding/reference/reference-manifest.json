@@ -1,0 +1,40 @@
+{
+  "entries": [
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/transformer_positional_encoding_vectors.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Positional Encoding — added to embeddings before the first encoder",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/transformer_positional_encoding_vectors.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:1447f2a6561e5aef3ca9ab3792490d744b81c34c873d19b1396ed770ca19b669"
+    },
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/transformer_positional_encoding_example.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Positional Encoding — small worked example",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/transformer_positional_encoding_example.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:e4a0bc8a3abdc088f9c64dd8d0d474d450d5549686b12b0ae7b76ec16b313909"
+    },
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/transformer_positional_encoding_large_example.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Positional Encoding — full-scale heatmap, sine/cosine halves",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/transformer_positional_encoding_large_example.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:ff0abbce5538575bf1049cf76e1379af4e67873ded586432c038ff34b4f88f2a"
+    }
+  ]
+}

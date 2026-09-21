@@ -1,0 +1,16 @@
+{
+  "entries": [
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/transformer_self_attention_score.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Self-Attention in Detail — QKᵀ score",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/transformer_self_attention_score.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:d6633178eec663f2c0014cf812289a35da96382dbff34cf6390570a7ffbe1c08"
+    }
+  ]
+}

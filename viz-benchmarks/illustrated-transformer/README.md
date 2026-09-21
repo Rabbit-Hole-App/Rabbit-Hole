@@ -18,18 +18,21 @@ project -> case -> mode -> iteration
 | case | status |
 |---|---|
 | `01-self-attention-computation-flow` | ready — `reference/synthetic/` is a declared internal fixture (see `target.json`'s `referenceType` and `syntheticReferenceFiles`); `reference/external/` catalogues the real capture per REFERENCE-LICENSING.md, images in `.local-benchmark-cache/` |
-| `02-qkv-projection` | skeleton |
-| `03-attention-score-matrix` | skeleton |
-| `04-softmax-attention-weights` | skeleton |
-| `05-causal-masking` | skeleton |
-| `06-matrix-self-attention` | skeleton |
-| `07-multi-head-attention` | skeleton |
-| `08-transformer-block` | skeleton |
-| `09-encoder-decoder-attention` | skeleton |
-| `10-positional-encoding` | skeleton |
+| `02-qkv-projection` | ready — real capture, `reference/reference-manifest.json` |
+| `03-attention-score-matrix` | ready — real capture, `reference/reference-manifest.json` |
+| `04-softmax-attention-weights` | ready — real capture, `reference/reference-manifest.json` |
+| `05-causal-masking` | ready, text-only — this source has no masking diagram, only a quoted passage; see the case's `target.json` scope |
+| `06-matrix-self-attention` | ready — real capture, `reference/reference-manifest.json` |
+| `07-multi-head-attention` | ready — real capture, `reference/reference-manifest.json` |
+| `08-transformer-block` | ready — real capture, `reference/reference-manifest.json` |
+| `09-encoder-decoder-attention` | ready — real capture, `reference/reference-manifest.json` |
+| `10-positional-encoding` | ready — real capture, `reference/reference-manifest.json` |
 
-A skeleton has the full folder contract and an empty `reference/`. It cannot be
-run until reference material is extracted from the source.
+Every case now has real reference material captured per REFERENCE-LICENSING.md:
+images cached in `.local-benchmark-cache/` (gitignored), `SOURCE.md` and
+`reference-manifest.json` committed under each case's `reference/`. No scene
+has been generated for any case - which cases run against the engine is a
+separate decision, not made here.
 
 ## Modes are not cases
 

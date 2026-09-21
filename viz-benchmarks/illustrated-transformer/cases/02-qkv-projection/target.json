@@ -1,11 +1,11 @@
 {
   "project": "illustrated-transformer",
   "case": "02-qkv-projection",
-  "status": "skeleton",
-  "referenceType": "not_captured",
+  "status": "ready",
+  "referenceType": "external_real",
   "source": "https://jalammar.github.io/illustrated-transformer/",
   "objective": "How one token vector becomes separate query, key and value vectors, and why three roles are needed rather than one.",
-  "scope": "Not yet extracted from the source. reference/ is empty until it is.",
+  "scope": "The projection step only: one embedding times three learned weight matrices producing Q, K and V. See reference-notes.md.",
   "evaluationTarget": "semantic_and_pedagogical_parity",
   "visualImitationTarget": false,
   "requiredConcepts": [
@@ -31,7 +31,8 @@
   },
   "modes": {
     "static": {
-      "status": "not_extracted"
+      "status": "captured",
+      "reference": "see reference/reference-manifest.json - image is restrictively licensed, cached at .local-benchmark-cache/, not committed"
     },
     "dynamic": {
       "status": "not_extracted"

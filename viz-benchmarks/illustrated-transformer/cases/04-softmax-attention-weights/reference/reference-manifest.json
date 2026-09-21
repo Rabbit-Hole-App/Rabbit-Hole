@@ -1,0 +1,28 @@
+{
+  "entries": [
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/self-attention_softmax.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Self-Attention in Detail — softmax",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/self-attention_softmax.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:201803c86248cea5949d05fd8831ee4a7c42fbcf504f8c570660998ae72d1786"
+    },
+    {
+      "sourceUrl": "https://jalammar.github.io/images/t/self-attention-output.png",
+      "pageUrl": "https://jalammar.github.io/illustrated-transformer/",
+      "section": "Self-Attention in Detail — full flow through the weighted sum",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "capturedAt": "2026-09-20",
+      "referenceType": "external_real",
+      "localPath": ".local-benchmark-cache/illustrated-transformer/self-attention-output.png",
+      "productionAllowed": false,
+      "contentHash": "sha256:0818b251e33eee8d20ff69235d87bab54588e4abbcab2d7a12eb2d05d3f83709"
+    }
+  ]
+}

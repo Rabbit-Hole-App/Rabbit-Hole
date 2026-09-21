@@ -1,11 +1,11 @@
 {
   "project": "illustrated-transformer",
   "case": "08-transformer-block",
-  "status": "skeleton",
-  "referenceType": "not_captured",
+  "status": "ready",
+  "referenceType": "external_real",
   "source": "https://jalammar.github.io/illustrated-transformer/",
   "objective": "Attention, residual connection, normalisation and feed-forward as one repeating block.",
-  "scope": "Not yet extracted from the source. reference/ is empty until it is.",
+  "scope": "One encoder block: self-attention, LayerNorm(X + sublayer output), feed-forward, LayerNorm again. Encoder only - the decoder's extra encoder-attention sublayer is case 09.",
   "evaluationTarget": "semantic_and_pedagogical_parity",
   "visualImitationTarget": false,
   "requiredConcepts": [
@@ -31,7 +31,8 @@
   },
   "modes": {
     "static": {
-      "status": "not_extracted"
+      "status": "captured",
+      "reference": "see reference/reference-manifest.json - images are restrictively licensed, cached at .local-benchmark-cache/, not committed"
     },
     "dynamic": {
       "status": "not_extracted"

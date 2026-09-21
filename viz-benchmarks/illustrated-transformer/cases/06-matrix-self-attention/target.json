@@ -1,11 +1,11 @@
 {
   "project": "illustrated-transformer",
   "case": "06-matrix-self-attention",
-  "status": "skeleton",
-  "referenceType": "not_captured",
+  "status": "ready",
+  "referenceType": "external_real",
   "source": "https://jalammar.github.io/illustrated-transformer/",
   "objective": "The same computation expressed once over whole matrices instead of per token.",
-  "scope": "Not yet extracted from the source. reference/ is empty until it is.",
+  "scope": "The 'Matrix Calculation' section: X times W^Q/W^K/W^V to get Q/K/V matrices, then the whole score-softmax-weighted-sum pipeline as one matrix expression Z = softmax(QK^T / sqrt(dk))V.",
   "evaluationTarget": "semantic_and_pedagogical_parity",
   "visualImitationTarget": false,
   "requiredConcepts": [
@@ -30,7 +30,8 @@
   },
   "modes": {
     "static": {
-      "status": "not_extracted"
+      "status": "captured",
+      "reference": "see reference/reference-manifest.json - images are restrictively licensed, cached at .local-benchmark-cache/, not committed"
     },
     "dynamic": {
       "status": "not_extracted"
