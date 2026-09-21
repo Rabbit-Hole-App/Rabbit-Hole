@@ -15,7 +15,7 @@ import 'katex/dist/katex.min.css';
 import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './animation-scene.js';
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-sound.js';
-import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, labelAt } from './scene-layout.js';
+import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, labelAt, requiredLeftMargin } from './scene-layout.js';
 import { GEOMETRY } from './scene-vocab.js';
 import { heatStyle, identityVar, roleVar, selectionStyle, shapeStyle, textStyle } from './scene-style.js';
 
@@ -307,8 +307,16 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
   };
   // The evaluator owns where the camera is; this only spends it. Zoom is about
   // the frame centre, so focusing an object does not also shove it off-screen.
-  const span = { w: scene.width / state.camera.zoom, h: scene.height / state.camera.zoom };
-  const origin = { x: state.camera.x - span.w / 2, y: state.camera.y - span.h / 2 };
+  const visibleObjects = state.objects.filter(object => object.visible);
+  // A row label drawing leftward from a grid near the default left edge can
+  // need more room than x=0 leaves it (see requiredLeftMargin). Widening the
+  // canvas only by what is actually needed leaves every scene without the
+  // problem pixel-identical - this only ever extends the left edge further
+  // left, never moves authored content or the right edge.
+  const leftMargin = requiredLeftMargin(visibleObjects);
+  const baseSpanW = scene.width / state.camera.zoom;
+  const span = { w: baseSpanW + leftMargin, h: scene.height / state.camera.zoom };
+  const origin = { x: state.camera.x - baseSpanW / 2 - leftMargin, y: state.camera.y - span.h / 2 };
   const view = `${origin.x} ${origin.y} ${span.w} ${span.h}`;
   return (
     <div ref={host} data-animation-frame className="relative h-full w-full select-none"
@@ -345,7 +353,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
             <feDropShadow dx="0" dy="1" stdDeviation="1.4" style={{ floodColor: 'var(--color-ink)' }} floodOpacity="0.14" />
           </filter>
         </defs>
-        {state.objects.filter(object => object.visible).map(object => {
+        {visibleObjects.map(object => {
           const role = object.role;
           const shown = object.textProgress >= 1 ? object.label : object.label.slice(0, Math.round(object.label.length * object.textProgress));
           const chosen = picked === object.semanticId;
@@ -360,7 +368,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
           // A circle is placed by its centre, so its label is centred on the
           // same point; boxes centre inside their frame.
           const centre = centreOf(object);
-          const label = labelAt(object, { stroke: isStroke, above: isData || isImage, text: isText }, centre);
+          const label = labelAt(object, { stroke: isStroke, above: isData || isImage, text: isText }, centre, visibleObjects);
           // State never changes which role's colour is shown, only weight and
           // fill strength - one resolved look serves every shape below.
           // IDENTITY (if this object has one) takes the hue role would

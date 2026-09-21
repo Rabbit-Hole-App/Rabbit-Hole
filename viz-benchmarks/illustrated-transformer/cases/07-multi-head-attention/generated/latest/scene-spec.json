@@ -68,7 +68,7 @@
     { "id": "arrow-concat-wo", "type": "arrow", "semanticId": "arrow-concat-wo",
       "initialState": { "from": { "x": 340, "y": 485 }, "to": { "x": 410, "y": 485 }, "role": "neutral" } },
     { "id": "wo", "type": "grid", "semanticId": "output-projection-weights",
-      "initialState": { "label": "2) project with learned Wo", "x": 410, "y": 460, "rows": 4, "cols": 2, "cell": 26, "role": "neutral" } },
+      "initialState": { "label": "2) project with learned Wo", "x": 410, "y": 460, "rows": 4, "cols": 3, "cell": 26, "role": "neutral" } },
     { "id": "eq-final", "type": "text", "semanticId": "eq-final",
       "initialState": { "text": "=", "x": 500, "y": 490, "typography": "body" } },
     { "id": "final-output", "type": "grid", "semanticId": "final-output",

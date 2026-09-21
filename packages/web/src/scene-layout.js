@@ -7,6 +7,15 @@
 // written." AnimatedScene.jsx is a .jsx file node:test cannot import, so
 // anything the lint needs has to live here instead.
 import { SPACE } from './scene-vocab.js';
+import { textStyle } from './scene-style.js';
+
+// No DOM exists outside the browser, so there is no real text-measurement API
+// to call from a lint or a node:test file. This is a deliberate approximation
+// - generous enough to catch an obvious collision, not a font-accurate
+// metric - tuned against the MONO annotation labels (11px) grid axes use,
+// which is the one place this has been checked against a real render.
+const CHAR_WIDTH_RATIO = 0.6;
+const LINE_HEIGHT_RATIO = 1.2;
 
 // Proven against the committed case 01 scene at the old SPACE[1] (8) gap
 // first (see scene-layout-lint.js and viz-benchmarks' case 01 for the
@@ -30,17 +39,72 @@ const ABOVE_LABEL_GAP = SPACE[4];
 // (16) is the header row's own rough line height.
 const TITLE_ABOVE_COLUMN_HEADERS_GAP = COLUMN_LABEL_GAP + SPACE[3];
 
+// A rough {xMin, xMax, yMin, yMax} for any evaluated object, used only to
+// find what else in the scene occupies space near it. A shape with a real
+// frame (grid, strip, box, ...) uses it directly. A freestanding text,
+// equation or code object has none - getSceneState's sizeOf leaves w/h
+// undefined for those - so it is estimated from its own rendered text the
+// same way a label's box already is (see estimateTextBox), at anchor
+// 'start', baseline 'auto', the same as kind.text actually draws it. Without
+// this, a caption sitting just above a grid's own label was invisible to
+// the stacking check below - it has no frame, so nothing said it was there.
+function footprint(object) {
+  if (object.h != null) return { xMin: object.x, xMax: object.x + (object.w || 0), yMin: object.y, yMax: object.y + object.h };
+  const fontSize = textStyle(object.typography || 'body').fontSize;
+  return estimateTextBox({ text: object.label || '', x: object.x, y: object.y, fontSize, anchor: 'start', baseline: 'auto' });
+}
+
+// The bottom edge of the closest OTHER object sitting above this one and
+// horizontally overlapping its x-range - what a stacked label's "the thing
+// right above it" actually means, whether that thing is a grid, a strip or
+// just a caption someone typed a few pixels too close. Exported for its own
+// test coverage, not just via labelAt.
+export function nearestAboveBottom(object, objects) {
+  let bottom = null;
+  const target = footprint(object);
+  for (const other of objects) {
+    if (other === object || other.y == null) continue;
+    const box = footprint(other);
+    if (box.yMax > object.y) continue; // not above this object at all
+    if (box.xMax <= target.xMin || box.xMin >= target.xMax) continue; // no horizontal overlap
+    if (bottom == null || box.yMax > bottom) bottom = box.yMax;
+  }
+  return bottom;
+}
+
 // Where a label sits depends on what it is labelling: a box or circle centres
 // it, a stroke pins it to its start, and everything that owns a frame - data
 // grids, images - hangs it above the top edge. One place, so the next type
 // added does not grow a fifth condition into four attributes.
-export const labelAt = (object, kind, centre) => {
+//
+// `objects` (optional, defaults to none) is the scene's other evaluated
+// objects - needed only for the `above` branch, to fix a stacked-group bug:
+// a fixed gap measured from this object's OWN y put the label the right
+// distance below its own content, but said nothing about how close the
+// PREVIOUS object in the stack already was above it, so two labelled groups
+// packed tightly (a strip/grid template, not a one-off scene mistake) drew
+// the label closer to the wrong neighbour, in four cases badly enough to
+// overlap. If the object immediately above leaves less than a full gap of
+// clearance, split the available room evenly instead of only ever protecting
+// the gap to this object's own content.
+export const labelAt = (object, kind, centre, objects = []) => {
   if (kind.stroke) return { x: object.from?.x ?? object.x, y: (object.from?.y ?? object.y) - 8, anchor: 'start', baseline: 'auto' };
   // A grid that also names its columns needs its own title pushed clear of
   // those headers - both read top-down as title, then header, then cell - or
-  // the two would print on top of each other just above the grid.
-  const gap = object.type === 'grid' && object.columnLabels?.length ? TITLE_ABOVE_COLUMN_HEADERS_GAP : ABOVE_LABEL_GAP;
-  if (kind.above) return { x: object.x, y: object.y - gap, anchor: 'start', baseline: 'auto' };
+  // the two would print on top of each other just above the grid. That also
+  // means the header row, not the grid's cell top, is this object's own
+  // "near edge" when a squeeze (below) has to choose how much room to give
+  // each side - splitting toward object.y instead once collided with the
+  // header row itself in exactly the case this was meant to fix (case 10).
+  const hasColumnHeaders = object.type === 'grid' && object.columnLabels?.length;
+  const gap = hasColumnHeaders ? TITLE_ABOVE_COLUMN_HEADERS_GAP : ABOVE_LABEL_GAP;
+  const ownEdge = hasColumnHeaders ? object.y - COLUMN_LABEL_GAP : object.y;
+  if (kind.above) {
+    const naturalY = object.y - gap;
+    const aboveBottom = nearestAboveBottom(object, objects);
+    const y = aboveBottom != null && naturalY - aboveBottom < gap ? (aboveBottom + ownEdge) / 2 : naturalY;
+    return { x: object.x, y, anchor: 'start', baseline: 'auto' };
+  }
   if (kind.text) return { x: object.x, y: object.y, anchor: 'start', baseline: 'auto' };
   return { x: centre.x, y: centre.y, anchor: 'middle', baseline: 'central' };
 };
@@ -66,13 +130,32 @@ export function gridAxisLabelBoxes(object) {
   return boxes;
 }
 
-// No DOM exists outside the browser, so there is no real text-measurement API
-// to call from a lint or a node:test file. This is a deliberate approximation
-// - generous enough to catch an obvious collision, not a font-accurate
-// metric - tuned against the MONO annotation labels (11px) grid axes use,
-// which is the one place this has been checked against a real render.
-const CHAR_WIDTH_RATIO = 0.6;
-const LINE_HEIGHT_RATIO = 1.2;
+// Grid row labels always draw at the 'annotation' typography (11px) - see
+// scene-style.js and scene-layout-lint.js's collectLabels, the one other
+// place this number is asserted. Kept local rather than threaded through as
+// a parameter: it is a fact about what a row label IS, not a per-call choice.
+const ROW_LABEL_FONT_SIZE = 11;
+
+// How far a grid's row-label text (anchor 'end', so it draws LEFTWARD from
+// object.x - ROW_LABEL_GAP) would extend past x=0, the renderer's default
+// left edge - "river" clipping to "ver", "pos0" to "os0". A grid placed near
+// the standard left margin used throughout this vocabulary has no built-in
+// protection against this: the label draws off-canvas the moment its own
+// text is wider than `object.x - ROW_LABEL_GAP`. Generic and scene-agnostic -
+// callers widen the visible canvas by exactly this amount only when a grid
+// actually needs it, so scenes with no row-labelled grid near the edge are
+// unaffected.
+export function requiredLeftMargin(objects) {
+  let margin = 0;
+  for (const object of objects) {
+    for (const box of gridAxisLabelBoxes(object)) {
+      if (box.anchor !== 'end') continue; // only row labels draw leftward
+      const { xMin } = estimateTextBox({ ...box, fontSize: ROW_LABEL_FONT_SIZE });
+      if (xMin < -margin) margin = -xMin;
+    }
+  }
+  return margin;
+}
 
 export function estimateTextBox({ text, x, y, fontSize, anchor, baseline }) {
   const width = (text?.length || 0) * fontSize * CHAR_WIDTH_RATIO;

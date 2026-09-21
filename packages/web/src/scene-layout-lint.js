@@ -53,7 +53,7 @@ function collectLabels(objects) {
     const isStroke = ['arrow', 'line'].includes(object.type);
     const isImage = object.type === 'image';
     if (object.label) {
-      const position = labelAt(object, { stroke: isStroke, above: isData || isImage, text: isText }, centreOf(object));
+      const position = labelAt(object, { stroke: isStroke, above: isData || isImage, text: isText }, centreOf(object), objects);
       const typography = isData ? 'caption' : object.type === 'code' ? 'code' : object.type === 'text' ? (object.typography || 'body') : 'body';
       labels.push({ ownerId: object.id, text: object.label, ...position, fontSize: textStyle(typography).fontSize });
     }
