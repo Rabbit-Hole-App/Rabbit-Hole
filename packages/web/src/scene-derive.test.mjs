@@ -44,9 +44,17 @@ test('weighted_sum combines rows by weight, and refuses a weight/row count misma
   assert.match(bad.reason, /one weight per row/);
 });
 
-test('scale multiplies a vector by a numeric factor', () => {
+test('scale multiplies a vector by a numeric factor, and a list of rows alike', () => {
   assert.deepEqual(DERIVATIONS.scale.derive([[1, -2, 3], 0.5]), { defined: true, value: [0.5, -1, 1.5] });
+  assert.deepEqual(DERIVATIONS.scale.derive([[[1, -2], [3, 4]], 0.5]), { defined: true, value: [[0.5, -1], [1.5, 2]] });
   assert.equal(DERIVATIONS.scale.derive([[1, 2], 'not a number']).defined, false);
+});
+
+test('add sums two equal-length vectors position by position, and refuses mismatched lengths', () => {
+  assert.deepEqual(DERIVATIONS.add.derive([[0.3, -0.2, 0.5, 0.1], [0, 1, 0, 1]]), { defined: true, value: [0.3, 0.8, 0.5, 1.1] });
+  const bad = DERIVATIONS.add.derive([[1, 2], [1, 2, 3]]);
+  assert.equal(bad.defined, false);
+  assert.match(bad.reason, /equal-length/);
 });
 
 test('elementwise multiplies two equal-length vectors position by position', () => {

@@ -14,6 +14,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './animation-scene.js';
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
+import { distributeRounding } from './scene-derive.js';
 import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-sound.js';
 import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, labelAt, requiredLeftMargin } from './scene-layout.js';
 import { GEOMETRY } from './scene-vocab.js';
@@ -109,6 +110,16 @@ function DataShape({ object, role, pop }) {
     // every cell's ring below and the object's own frame at the bottom of
     // this group - while VALUE keeps sole ownership of a heat cell's fill.
     const hue = identityVar(object.identitySlot) ?? roleVar(role);
+    // `distribution: true` (see checkProbabilityClaims, scene-consistency.js)
+    // is a row-level claim - "these sum to one" - and independent per-cell
+    // rounding can violate it even when every underlying float is right (see
+    // distributeRounding's own comment in scene-derive.js). Row by row, not
+    // once for the whole object: a grid's rows are separate distributions.
+    // This only ever changes what the TEXT below reads - `value` (heat fill,
+    // the blocked check, the domain) stays the real float throughout.
+    const displayValues = object.distribution
+      ? Array.from({ length: rows }, (unused, row) => distributeRounding((object.values || []).slice(row * columns, (row + 1) * columns), 2)).flat()
+      : object.values;
     const cells = [];
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
@@ -175,7 +186,7 @@ function DataShape({ object, role, pop }) {
             {value != null && cell >= 22 && (
               <text x={cellX + cell / 2} y={cellY + cell / 2}
                 textAnchor="middle" dominantBaseline="central" fontSize={Math.min(numeral.fontSize, cell * 0.42)} fontWeight={numeral.fontWeight}
-                style={{ fontFamily: MONO, fill: ink }}>{num(value)}</text>
+                style={{ fontFamily: MONO, fill: ink }}>{num(displayValues[index])}</text>
             )}
             {/* Selection is a STATE overlay, drawn on top of - never instead
                 of - the cell's own fill and frame, so it stays perceptible

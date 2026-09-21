@@ -17,6 +17,48 @@ export const round = value => {
   return Object.is(r, -0) ? 0 : r;
 };
 
+// A row captioned "sums to 1" whose cells are each rounded independently for
+// display can total 1.01 even though every underlying float is correct -
+// case 01's softmax row [0.086, 0.139, 0.775] displays as .09 + .14 + .78.
+// Rounding the concept away ("approximately 1") is not the fix: when the
+// concept being taught IS normalisation, the sum being exactly one is the
+// lesson. This distributes the rounding residual instead, so the DISPLAYED
+// values sum to exactly 1 at the given precision - see docs/superpowers/
+// specs/2026-09-18-visual-language-and-motion-design.md.
+//
+// Standard largest-remainder apportionment (the method elections use to
+// allocate seats to an exact total): floor every cell to `decimals` places,
+// which can only ever undershoot the target, then hand the leftover units
+// one each to the cells with the largest fractional remainder - or, on the
+// rarer other side, take a unit back from the smallest remainder - until the
+// residual is gone. Deterministic: ties break by position. `null` (a masked
+// cell) passes through untouched and takes no part in the total.
+export function distributeRounding(values, decimals = 2) {
+  const scale = 10 ** decimals;
+  const idx = [];
+  const floors = [];
+  const remainders = [];
+  values.forEach((v, i) => {
+    if (typeof v !== 'number' || !Number.isFinite(v)) return;
+    const scaled = v * scale;
+    idx.push(i);
+    floors.push(Math.floor(scaled));
+    remainders.push(scaled - Math.floor(scaled));
+  });
+  const target = Math.round(scale); // "1" at this precision - 100 for 2 decimals
+  let deficit = target - floors.reduce((sum, f) => sum + f, 0);
+  if (deficit > 0) {
+    const order = floors.map((_, k) => k).sort((a, b) => remainders[b] - remainders[a]);
+    for (let k = 0; k < order.length && deficit > 0; k += 1, deficit -= 1) floors[order[k]] += 1;
+  } else if (deficit < 0) {
+    const order = floors.map((_, k) => k).sort((a, b) => remainders[a] - remainders[b]);
+    for (let k = 0; k < order.length && deficit < 0; k += 1, deficit += 1) floors[order[k]] -= 1;
+  }
+  const out = [...values];
+  idx.forEach((i, k) => { out[i] = floors[k] / scale; });
+  return out;
+}
+
 const isVector = value => Array.isArray(value) && value.length > 0 && value.every(entry => typeof entry === 'number' && Number.isFinite(entry));
 
 export const DERIVATIONS = {
@@ -87,14 +129,19 @@ export const DERIVATIONS = {
   },
   // A vector times a scalar factor - dividing raw scores by root(dk) before
   // softmax is the instance that motivated it, but rescaling a vector by a
-  // named constant is generic (a temperature, a learning rate).
+  // named constant is generic (a temperature, a learning rate). Also accepts
+  // a list of equal-length vectors, the same single/matrix duality softmax
+  // already supports - case 06 needs a whole raw-score matrix divided by
+  // root(dk) at once, not one row at a time.
   scale: {
     outputs: ['value'],
     derive([vector, factor]) {
-      if (!isVector(vector) || typeof factor !== 'number' || !Number.isFinite(factor)) {
-        return { defined: false, reason: 'scale needs a vector and a finite numeric factor' };
+      if (typeof factor !== 'number' || !Number.isFinite(factor)) {
+        return { defined: false, reason: 'scale needs a finite numeric factor' };
       }
-      return { defined: true, value: vector.map(x => round(x * factor)) };
+      if (isVector(vector)) return { defined: true, value: vector.map(x => round(x * factor)) };
+      if (Array.isArray(vector) && vector.every(isVector)) return { defined: true, value: vector.map(row => row.map(x => round(x * factor))) };
+      return { defined: false, reason: 'scale needs a vector, or a list of equal-length vectors, of numbers' };
     },
   },
   // Two equal-length vectors multiplied position by position - "weight times
@@ -106,6 +153,17 @@ export const DERIVATIONS = {
       if (!isVector(a) || !isVector(b)) return { defined: false, reason: 'elementwise needs two vectors of numbers' };
       if (a.length !== b.length) return { defined: false, reason: `elementwise needs equal-length vectors, got lengths ${a.length} and ${b.length}` };
       return { defined: true, value: a.map((x, i) => round(x * b[i])) };
+    },
+  },
+  // Two equal-length vectors added position by position - an embedding plus
+  // a positional encoding is the instance case 10 needs; any elementwise
+  // combination (a residual add, a bias) is the same operation.
+  add: {
+    outputs: ['value'],
+    derive([a, b]) {
+      if (!isVector(a) || !isVector(b)) return { defined: false, reason: 'add needs two vectors of numbers' };
+      if (a.length !== b.length) return { defined: false, reason: `add needs equal-length vectors, got lengths ${a.length} and ${b.length}` };
+      return { defined: true, value: a.map((x, i) => round(x + b[i])) };
     },
   },
   // Combines several already-named numbers (or vectors) into one row, in the

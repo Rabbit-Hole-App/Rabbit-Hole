@@ -4,6 +4,20 @@
   "width": 940,
   "height": 480,
   "duration": 1,
+  "exampleData": {
+    "Q": [[-0.12, 0.54, 0.24], [0.57, -0.33, -0.3], [0.0, -0.3, 0.48]],
+    "K": [[-0.3, -0.18, 0.45], [0.51, 0.12, -0.03], [-0.06, 0.6, -0.42]],
+    "V": [[0.66, -0.12, 0.72], [-0.15, 0.48, -0.27], [-0.33, -0.15, -0.24]]
+  },
+  "derived": {
+    "raw_scores": { "op": "matmul", "args": ["Q", "K"] },
+    "scores": { "op": "scale", "args": ["raw_scores", 0.5773502691896258] },
+    "weights": { "op": "softmax", "args": ["scores"] },
+    "z_row0": { "op": "weighted_sum", "args": ["weights.0", "V"] },
+    "z_row1": { "op": "weighted_sum", "args": ["weights.1", "V"] },
+    "z_row2": { "op": "weighted_sum", "args": ["weights.2", "V"] },
+    "z": { "op": "concat", "args": ["z_row0", "z_row1", "z_row2"] }
+  },
   "objects": [
     { "id": "heading", "type": "text", "semanticId": "heading",
       "initialState": { "text": "The same computation, written once over whole matrices", "x": 20, "y": 26, "typography": "heading" } },
@@ -21,7 +35,7 @@
       "initialState": { "text": "=", "x": 420, "y": 182, "typography": "body" } },
     { "id": "q-matrix-1", "type": "grid", "semanticId": "query-matrix",
       "initialState": { "label": "Q - still one row per token", "x": 450, "y": 100, "rows": 3, "cols": 3, "cell": 40, "role": "observed", "identity": "query", "heat": { "mode": "signed" }, "matrixKind": "derived", "valueScale": "shared", "valueScaleGroup": "qkv-matrices",
-        "rowLabels": ["river", "flows", "south"], "values": [-0.12, 0.54, 0.24, 0.57, -0.33, -0.3, 0.0, -0.3, 0.48] } },
+        "rowLabels": ["river", "flows", "south"], "values": { "$derive": "Q" } } },
 
     { "id": "part1-note", "type": "text", "semanticId": "part1-note",
       "initialState": { "text": "the same multiplication happens for K and V, with their own learned weight matrices", "x": 40, "y": 264, "typography": "caption" } },
@@ -31,32 +45,32 @@
 
     { "id": "q-matrix-2", "type": "grid", "semanticId": "query-matrix-2",
       "initialState": { "label": "Q", "x": 40, "y": 340, "rows": 3, "cols": 3, "cell": 34, "role": "observed", "identity": "query", "heat": { "mode": "signed" }, "matrixKind": "derived", "valueScale": "shared", "valueScaleGroup": "qkv-matrices",
-        "values": [-0.12, 0.54, 0.24, 0.57, -0.33, -0.3, 0.0, -0.3, 0.48] } },
+        "values": { "$derive": "Q" } } },
     { "id": "arrow-txt-1", "type": "text", "semanticId": "arrow-txt-1",
       "initialState": { "text": "->", "x": 156, "y": 400, "typography": "body" } },
     { "id": "k-matrix-2", "type": "grid", "semanticId": "key-matrix-2",
       "initialState": { "label": "K", "x": 186, "y": 340, "rows": 3, "cols": 3, "cell": 34, "role": "observed", "identity": "key", "heat": { "mode": "signed" }, "matrixKind": "derived", "valueScale": "shared", "valueScaleGroup": "qkv-matrices",
-        "values": [-0.3, -0.18, 0.45, 0.51, 0.12, -0.03, -0.06, 0.6, -0.42] } },
+        "values": { "$derive": "K" } } },
     { "id": "arrow-txt-2", "type": "text", "semanticId": "arrow-txt-2",
       "initialState": { "text": "->", "x": 302, "y": 400, "typography": "body" } },
     { "id": "v-matrix-2", "type": "grid", "semanticId": "value-matrix-2",
       "initialState": { "label": "V", "x": 332, "y": 340, "rows": 3, "cols": 3, "cell": 34, "role": "observed", "identity": "value", "heat": { "mode": "signed" }, "matrixKind": "derived", "valueScale": "shared", "valueScaleGroup": "qkv-matrices",
-        "values": [0.66, -0.12, 0.72, -0.15, 0.48, -0.27, -0.33, -0.15, -0.24] } },
+        "values": { "$derive": "V" } } },
     { "id": "arrow-txt-3", "type": "text", "semanticId": "arrow-txt-3",
       "initialState": { "text": "->", "x": 448, "y": 400, "typography": "body" } },
     { "id": "scores-matrix", "type": "grid", "semanticId": "score-matrix",
       "initialState": { "label": "QKt / root(dk)", "x": 478, "y": 340, "rows": 3, "cols": 3, "cell": 34, "role": "observed", "heat": { "mode": "signed" }, "matrixKind": "relational", "valueScale": "shared", "valueScaleGroup": "attention-scores",
-        "values": [0.027, -0.002, 0.133, -0.143, 0.15, -0.061, 0.156, -0.029, -0.221] } },
+        "values": { "$derive": "scores" } } },
     { "id": "arrow-txt-4", "type": "text", "semanticId": "arrow-txt-4",
       "initialState": { "text": "->", "x": 594, "y": 400, "typography": "body" } },
     { "id": "softmax-matrix", "type": "grid", "semanticId": "softmax-matrix",
       "initialState": { "label": "softmax", "x": 624, "y": 340, "rows": 3, "cols": 3, "cell": 34, "role": "observed", "heat": { "mode": "magnitude" }, "matrixKind": "relational", "distribution": true, "valueScale": "fixed",
-        "values": [0.324, 0.315, 0.361, 0.292, 0.391, 0.317, 0.397, 0.33, 0.273] } },
+        "values": { "$derive": "weights" } } },
     { "id": "arrow-txt-5", "type": "text", "semanticId": "arrow-txt-5",
       "initialState": { "text": "->", "x": 740, "y": 400, "typography": "body" } },
     { "id": "z-matrix", "type": "grid", "semanticId": "output-matrix",
       "initialState": { "label": "Z - output matrix", "x": 770, "y": 340, "rows": 3, "cols": 3, "cell": 34, "role": "output", "heat": { "mode": "signed" }, "matrixKind": "derived", "valueScale": "shared", "valueScaleGroup": "attention-output",
-        "values": [0.047, 0.058, 0.062, 0.029, 0.105, 0.029, 0.122, 0.07, 0.131] } }
+        "values": { "$derive": "z" } } }
   ],
   "timeline": []
 }

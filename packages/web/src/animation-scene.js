@@ -447,6 +447,12 @@ export function getSceneState(scene, time) {
     cols: object.initialState.cols ?? null,
     cell: object.initialState.cell ?? GEOMETRY.cellPitch,
     values: object.initialState.values ? [...object.initialState.values] : null,
+    // Read by AnimatedScene.jsx to decide whether a row's DISPLAYED cells
+    // need distributeRounding (see scene-derive.js) - without this, "was this
+    // authored as a normalised row" is invisible past validateScene, and every
+    // reader of getSceneState's output (the renderer, the critic, the tutor)
+    // would have to re-derive it from the raw scene instead of being told.
+    distribution: object.initialState.distribution ?? false,
     labels: object.initialState.labels ?? null,
     rowLabels: object.initialState.rowLabels ?? null,
     columnLabels: object.initialState.columnLabels ?? null,
