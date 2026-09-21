@@ -39,3 +39,34 @@ export function outlineProgress(outline) {
   });
   return { total, done, fraction: total ? done / total : 0, milestones };
 }
+
+// Apply a proposal the learner accepted. Pure: it takes the blocks and returns
+// new blocks, so the caller wraps it in one snapshot and Ctrl+Z reverts the
+// whole restructure rather than one heading at a time.
+//
+// Stale ids are skipped, not thrown. A proposal is made against the outline as
+// it was when the question was asked; by the time Apply is pressed the learner
+// may have deleted one of those sections, and losing the rest of a good
+// proposal over it would be worse than quietly doing what still applies.
+export function applyOutlineOps(blocks, ops, newId = () => crypto.randomUUID()) {
+  let next = [...(blocks || [])];
+  const minted = new Map();
+  const indexOf = id => next.findIndex(block => block.id === id);
+  for (const op of ops || []) {
+    if (op.op === 'add') {
+      const heading = { id: newId(), type: 'heading', dx: 0, dy: 0, level: op.level, text: op.text, done: false };
+      if (op.key) minted.set(op.key, heading.id);
+      // No anchor, or an anchor the learner has since removed: keep the section
+      // and put it at the end rather than losing it.
+      const anchor = op.after == null ? -1 : indexOf(minted.get(op.after) ?? op.after);
+      if (anchor < 0) next.push(heading);
+      else next.splice(anchor + 1, 0, heading);
+      continue;
+    }
+    const at = indexOf(op.id);
+    if (at < 0) continue; // the learner removed it between proposal and Apply
+    if (op.op === 'retitle') next[at] = { ...next[at], text: op.text };
+    else if (op.op === 'set_level') next[at] = { ...next[at], level: op.level };
+  }
+  return next;
+}

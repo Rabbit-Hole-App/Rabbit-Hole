@@ -3,6 +3,7 @@ import { canvasSeed } from './canvas-conversation.js';
 import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from './learn-context.js';
 import { paperSelectionImage } from './learn-preview-review.js';
 import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
+import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
 import { handleLearnCourse } from './learn-course.js';
 // small control plane: CLI API + browser auth wall + router. One Worker + D1.
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
@@ -960,7 +961,22 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent') {
   try { seed = canvasSeed(body, conversation); }
   catch (error) { return json({ error: error.message }, 400); }
   let lessonSnapshot = null;
-  const research = conversation === 'learn' ? { papers: [] } : null;
+  // The tutor may propose outline changes when the learner's canvas has sections.
+  // runTool only records: canvas blocks are browser state, so nothing here can
+  // reach them. The ops travel back over SSE and the learner presses Apply.
+  let proposedOps = null;
+  const research = conversation === 'learn' ? {
+    papers: [],
+    tools: body.outline?.length ? [OUTLINE_TOOL] : [],
+    system: body.outline?.length ? OUTLINE_SYSTEM : null,
+    runTool: async (name, input) => {
+      if (name !== OUTLINE_TOOL.name) throw new Error('Unknown Learn tool');
+      if (proposedOps) throw new Error('One outline proposal per answer; describe the rest in your reply');
+      proposedOps = validateOutlineOps(input?.ops, body.outline);
+      return { proposed: proposedOps.length, applied: false, note: 'Shown to the learner for approval. Say what you proposed.' };
+    },
+    proposed: () => proposedOps,
+  } : null;
   // Held so the paper block can key an upload by the same app identity that
   // stored it; `app` above is scoped to its own branch.
   let scopedApp = null;

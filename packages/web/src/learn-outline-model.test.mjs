@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { outlineFrom, outlineProgress } from './learn-outline-model.js';
+import { outlineFrom, outlineProgress, applyOutlineOps } from './learn-outline-model.js';
 
 const h = (id, level, text, done = false) => ({ id, type: 'heading', level, text, done });
 const card = id => ({ id, type: 'explanation' });
@@ -70,4 +70,73 @@ test('content before the first section does not invent a dot', () => {
 
 test('fraction is the share of entries done', () => {
   assert.equal(outlineProgress(outlineFrom([h('a', 1, 'A', true), h('b', 1, 'B')])).fraction, 0.5);
+});
+
+// --- applying a proposal the learner accepted ---
+const ids = () => { let n = 0; return () => `new${++n}`; };
+const blocks = () => [
+  { id: 'h1', type: 'heading', level: 1, text: 'Attention', done: false },
+  { id: 'c1', type: 'explanation' },
+  { id: 'h2', type: 'heading', level: 2, text: 'Queries and keys', done: false },
+];
+
+test('add with no anchor appends at the end', () => {
+  const out = applyOutlineOps(blocks(), [{ op: 'add', text: 'Training', level: 1, after: null }], ids());
+  assert.equal(out.length, 4);
+  assert.deepEqual(out[3], { id: 'new1', type: 'heading', dx: 0, dy: 0, level: 1, text: 'Training', done: false });
+});
+
+test('add after a heading lands directly after it, before its cards', () => {
+  const out = applyOutlineOps(blocks(), [{ op: 'add', text: 'Scaling', level: 2, after: 'h1' }], ids());
+  assert.deepEqual(out.map(b => b.id), ['h1', 'new1', 'c1', 'h2']);
+});
+
+test('a later op can build on a heading minted earlier in the same batch', () => {
+  const out = applyOutlineOps(blocks(), [
+    { op: 'add', text: 'Training', level: 1, after: null, key: 'k' },
+    { op: 'add', text: 'Optimiser', level: 2, after: 'k' },
+  ], ids());
+  assert.deepEqual(out.map(b => b.id), ['h1', 'c1', 'h2', 'new1', 'new2']);
+});
+
+test('retitle and set_level change only their own heading', () => {
+  const out = applyOutlineOps(blocks(), [{ op: 'retitle', id: 'h2', text: 'Keys' }, { op: 'set_level', id: 'h2', level: 1 }], ids());
+  assert.equal(out[2].text, 'Keys');
+  assert.equal(out[2].level, 1);
+  assert.deepEqual(out[0], blocks()[0], 'the other heading is untouched');
+  assert.deepEqual(out[1], blocks()[1], 'the card between them is untouched');
+});
+
+// A proposal is made against the outline as it was when the question was asked.
+test('a section deleted between proposal and Apply is skipped, not fatal', () => {
+  const out = applyOutlineOps(blocks(), [
+    { op: 'retitle', id: 'gone', text: 'x' },
+    { op: 'add', text: 'Training', level: 1, after: null },
+  ], ids());
+  assert.equal(out.length, 4);
+  assert.equal(out[3].text, 'Training', 'the rest of the proposal still applies');
+});
+
+test('an add whose anchor has gone still keeps the section, at the end', () => {
+  const out = applyOutlineOps(blocks(), [{ op: 'add', text: 'Orphan', level: 1, after: 'gone' }], ids());
+  assert.equal(out.length, 4);
+  assert.equal(out[3].text, 'Orphan');
+});
+
+test('applying nothing changes nothing', () => {
+  assert.deepEqual(applyOutlineOps(blocks(), [], ids()).map(b => b.id), ['h1', 'c1', 'h2']);
+  assert.deepEqual(applyOutlineOps(blocks(), undefined, ids()).map(b => b.id), ['h1', 'c1', 'h2']);
+});
+
+test('the blocks handed in are not mutated', () => {
+  const original = blocks();
+  const copy = JSON.parse(JSON.stringify(original));
+  applyOutlineOps(original, [{ op: 'retitle', id: 'h1', text: 'Changed' }], ids());
+  assert.deepEqual(original, copy);
+});
+
+test('a new heading is shaped like one the menu would insert', () => {
+  const [added] = applyOutlineOps([], [{ op: 'add', text: 'First', level: 3, after: null }], ids());
+  assert.deepEqual(Object.keys(added).sort(), ['done', 'dx', 'dy', 'id', 'level', 'text', 'type']);
+  assert.equal(added.type, 'heading');
 });

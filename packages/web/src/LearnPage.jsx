@@ -76,6 +76,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const [canvasState, setCanvasState] = useState({ grid: false, lock: false, minimap: true, pages: false, presenting: false, outline: [] });
   // boardContext is rebuilt every render but read inside a send; a ref keeps the
   // outline current without making the composer re-render on every tick.
+  // A proposal from the tutor. It sits here until the learner applies or
+  // discards it; nothing reaches the canvas on its own.
+  const [proposal, setProposal] = useState(null);
   const canvasStateRef = useRef(canvasState);
   canvasStateRef.current = canvasState;
   const onCanvasState = useCallback(next => setCanvasState(previous =>
@@ -383,6 +386,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     ready: !!editor, status: boardStage, paper: paperContext, clearPaper: () => { setPaperContext(null); setPaperOpen(false); },
     // Read at send time, so a question always carries the outline as it is now.
     outline: () => canvasStateRef.current.outline || [],
+    onOutlineProposal: ops => setProposal(ops),
     explain: async ({ snapshot, question, answer, model, paperIds = [], history = [], repository_context = null }) => {
       if (noteEditing) throw new Error('Return to the lesson before explaining on canvas.');
       if (!editor) throw new Error('The canvas is still loading. Try again in a moment.');
@@ -732,6 +736,26 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
       {/* This IS the lesson's structure, not a view onto another document: both
           the learner and the agent author it through the same section tool. */}
       <div className="mb-3 flex max-h-[45%] shrink-0 flex-col overflow-y-auto">
+        {/* The tutor proposes; the learner decides. Applying is one undoable
+            step, and nothing here has touched the canvas yet. */}
+        {proposal?.length > 0 && (
+          <div className="mb-3 shrink-0 rounded-lg border border-accent/40 bg-accent/5 p-2">
+            <p className="mb-1 text-xs font-medium text-ink">Proposed: {proposal.length} change{proposal.length === 1 ? '' : 's'}</p>
+            <ul className="mb-2 space-y-0.5 text-xs text-ink-2">
+              {proposal.map((op, index) => (
+                <li key={index} className="truncate">
+                  {op.op === 'add' ? `+ ${op.text}${op.level > 1 ? ` (${op.level === 2 ? 'sub-section' : 'sub-sub-section'})` : ''}`
+                    : op.op === 'retitle' ? `rename to "${op.text}"`
+                    : `move to ${op.level === 1 ? 'section' : op.level === 2 ? 'sub-section' : 'sub-sub-section'}`}
+                </li>
+              ))}
+            </ul>
+            <div className="flex justify-end gap-1">
+              <Button size="sm" variant="ghost" onClick={() => setProposal(null)}>Discard</Button>
+              <Button size="sm" variant="secondary" onClick={() => { canvasApi.current?.applyOutline(proposal); setProposal(null); }}>Apply</Button>
+            </div>
+          </div>
+        )}
         {canvasOutline.length > 0 ? (
           <ol className="space-y-0.5">
             {canvasOutline.map(entry => (

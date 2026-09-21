@@ -365,7 +365,11 @@ export function askStream(env, context, history, message, onDone, meta = {}, ext
     let full = '';
     try {
       if (research) {
-        const result = await researchAnswer(env, turns, system, model, { callModel: anthropic, initialPapers: research.papers || [], tools: research.tools || [], runTool: research.runTool, onProgress: stage => send('progress', { stage }) });
+        // The outline instructions ride with the tool, so the capability is only
+        // stated when it is actually offered.
+        const researchSystem = research.system ? `${system}
+${research.system}` : system;
+        const result = await researchAnswer(env, turns, researchSystem, model, { callModel: anthropic, initialPapers: research.papers || [], tools: research.tools || [], runTool: research.runTool, onProgress: stage => send('progress', { stage }) });
         full = result.answer;
         if (result.papers.length) {
           const references = result.papers.map(p => `[${p.title} (arXiv:${p.id})](${p.pdfUrl})`).join(' | ');
@@ -375,6 +379,9 @@ export function askStream(env, context, history, message, onDone, meta = {}, ext
         await send('chunk', { text: full });
         const graph = research.getGraphView?.();
         if (graph) await send('graph', graph);
+        // A proposal, not a change: the page shows it and the learner applies it.
+        const ops = research.proposed?.();
+        if (ops?.length) await send('outline', { ops });
       } else if (toolOpts) {
         // tools attached (user has edit): one non-streaming call so tool_use blocks
         // arrive whole; each becomes a proposal - never an execution

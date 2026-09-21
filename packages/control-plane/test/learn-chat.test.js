@@ -1,6 +1,7 @@
 import { paperSelectionImage } from '../src/learn-preview-review.js';
 import { canvasSeed } from '../src/canvas-conversation.js';
 import { arxivId, paperDocument } from '../src/arxiv.js';
+import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from '../src/learn-outline-tool.js';
 import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT } from '../src/learn-paper.js';
 import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { captureSelection, selectionSnapshot, sigmoidObjects } from '../../web/src/sigmoid-context.js';
@@ -14,17 +15,39 @@ const source = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8')
 const names = ['apiAsk', 'askThreadForUser', 'apiAskThreads', 'apiAskThread', 'apiAskThreadRename', 'apiAskThreadDelete'];
 const functions = names.map(name => source.match(new RegExp(`async function ${name}\\([^]*?\\n\\}`))[0]).join('\n');
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
-const handlers = new Function('json', 'appForUser', 'appContext', 'askStream', 'ASK_MODELS', 'ASK_TOOLS', 'LEARN_SYSTEM', 'validateLessonSnapshot', 'validateOutline', 'renderOutline', 'arxivId', 'readArxivPaper', 'paperDocument', 'paperSelectionImage', 'isUploadedPaperId', 'uploadedPaperAsDocument', 'paperIdentity', 'PAPER_PAGE_LIMIT', 'canvasSeed', `${functions}; return { ${names.join(',')} };`)(
+// One object, so adding a dependency to apiAsk is one line here instead of
+// three in parallel lists. Getting that wrong surfaces as a ReferenceError
+// swallowed into a 502, which reads like a broken feature; it has cost this
+// file four debugging rounds already.
+const deps = {
   json,
-  async (env, user, name) => env.apps[name],
-  async (env, app) => ({ name: app.name }),
-  async (env, context, history, question, onFull, metadata, blocks, toolOpts, model, org, system, research) => {
+  appForUser: async (env, user, name) => env.apps[name],
+  appContext: async (env, app) => ({ name: app.name }),
+  askStream: async (env, context, history, question, onFull, metadata, blocks, toolOpts, model, org, system, research) => {
     env.answers.push({ history: [...history], question, context, toolOpts, system, org, blocks, research });
     await onFull('Answer: ' + question);
     return json(metadata);
-  }, {}, [], LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline, arxivId, async id => ({ id, title: "Test paper", pdfUrl: `https://arxiv.org/pdf/${id}` }), paperDocument, paperSelectionImage,
-  isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT, canvasSeed,
-);
+  },
+  ASK_MODELS: {},
+  ASK_TOOLS: [],
+  LEARN_SYSTEM,
+  validateLessonSnapshot,
+  validateOutline,
+  renderOutline,
+  arxivId,
+  readArxivPaper: async id => ({ id, title: 'Test paper', pdfUrl: `https://arxiv.org/pdf/${id}` }),
+  paperDocument,
+  paperSelectionImage,
+  isUploadedPaperId,
+  uploadedPaperAsDocument,
+  paperIdentity,
+  PAPER_PAGE_LIMIT,
+  OUTLINE_TOOL,
+  OUTLINE_SYSTEM,
+  validateOutlineOps,
+  canvasSeed,
+};
+const handlers = new Function(...Object.keys(deps), `${functions}; return { ${names.join(',')} };`)(...Object.values(deps));
 const owner = { email: 'owner@example.test', org: 'workspace-a' };
 const request = (body, path = '/api/learn/ask') => new Request('https://small.example' + path, {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -66,7 +89,10 @@ test('Learn and Agent have separate histories and model context for the same app
   const agent = await (await send(env, 'agent', 'Agent question')).json();
   const learn = await (await send(env, 'learn', 'Learn question')).json();
   assert.notEqual(agent.threadId, learn.threadId);
-  assert.deepEqual(env.answers[1].research, { papers: [] });
+  // Learn carries a research object; Agent carries none. It holds the outline
+  // tool too now, offered only when the canvas actually has sections.
+  assert.deepEqual(env.answers[1].research.papers, []);
+  assert.deepEqual(env.answers[1].research.tools, [], 'no outline was sent, so no outline tool is offered');
   assert.equal(env.answers[1].system, LEARN_SYSTEM);
   assert.equal(env.answers[0].research, null);
   assert.equal(env.answers[1].history.length, 0);
@@ -239,6 +265,48 @@ test('the lesson outline reaches the model, with depth and what is done', async 
   assert.match(context, /- \[x\] Attention/);
   assert.match(context, /  - \[ \] Queries and keys/, 'a sub-section is indented');
   assert.match(context, /- \[ \] Training/);
+});
+
+test('the outline tool is offered only when the lesson has sections', async t => {
+  const env = fixture(t);
+  const outline = [{ id: 'h1', level: 1, label: 'Attention', done: false }];
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi' }), env, {}, owner, 'learn');
+  assert.deepEqual(env.answers[0].research.tools, [], 'nothing to restructure, nothing offered');
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', outline }), env, {}, owner, 'learn');
+  assert.deepEqual(env.answers[1].research.tools.map(tool => tool.name), ['propose_lesson_outline']);
+  assert.match(env.answers[1].research.system, /learner presses Apply/);
+});
+
+// The tool records; it never mutates. Canvas blocks are browser state and the
+// worker cannot reach them, which is exactly why the learner has to apply.
+test('calling the tool records a proposal and says it was not applied', async t => {
+  const env = fixture(t);
+  const outline = [{ id: 'h1', level: 1, label: 'Attention', done: false }];
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'add a section', outline }), env, {}, owner, 'learn');
+  const { research } = env.answers[0];
+  assert.equal(research.proposed(), null, 'nothing proposed until the tool is called');
+  const result = await research.runTool('propose_lesson_outline', { ops: [{ op: 'add', text: 'Positional encoding', level: 1, after: 'h1' }] });
+  assert.deepEqual(result, { proposed: 1, applied: false, note: 'Shown to the learner for approval. Say what you proposed.' });
+  assert.deepEqual(research.proposed(), [{ op: 'add', text: 'Positional encoding', level: 1, after: 'h1' }]);
+});
+
+test('a second call in one answer is refused, and the first proposal survives', async t => {
+  const env = fixture(t);
+  const outline = [{ id: 'h1', level: 1, label: 'Attention', done: false }];
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'x', outline }), env, {}, owner, 'learn');
+  const { research } = env.answers[0];
+  await research.runTool('propose_lesson_outline', { ops: [{ op: 'retitle', id: 'h1', text: 'Self-attention' }] });
+  await assert.rejects(() => research.runTool('propose_lesson_outline', { ops: [{ op: 'add', text: 'Other', level: 1 }] }), /one outline proposal/i);
+  assert.equal(research.proposed()[0].text, 'Self-attention');
+});
+
+test('the tool cannot reach a heading the learner never sent', async t => {
+  const env = fixture(t);
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'x', outline: [{ id: 'h1', level: 1, label: 'A', done: false }] }), env, {}, owner, 'learn');
+  const { research } = env.answers[0];
+  await assert.rejects(() => research.runTool('propose_lesson_outline', { ops: [{ op: 'retitle', id: 'somewhere-else', text: 'x' }] }), /No section/);
+  await assert.rejects(() => research.runTool('some_other_tool', {}), /Unknown Learn tool/);
+  assert.equal(research.proposed(), null);
 });
 
 test('a malformed outline is refused rather than half-read', async t => {
