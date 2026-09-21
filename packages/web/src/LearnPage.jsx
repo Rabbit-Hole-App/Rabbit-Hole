@@ -14,6 +14,7 @@ import LearnOutline from './LearnOutline.jsx';
 import ContentsRail from './ContentsRail.jsx';
 import CanvasMenubar from './CanvasMenubar.jsx';
 import { contentsEntries } from './learn-contents.js';
+import { withSource, toggleSource, isAttached } from './learn-sources.js';
 import { lessonMilestones } from './learn-milestones.js';
 import LessonPlanPreview from './LessonPlanPreview.jsx';
 import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
@@ -140,6 +141,21 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     const timer = setTimeout(() => { try { localStorage.setItem(chatKey, JSON.stringify(exchanges)); } catch { /* full or blocked storage loses layout only */ } }, 400);
     return () => clearTimeout(timer);
   }, [exchanges, chatKey]);
+  // What this canvas was built from. Attached means the Learn agent is handed it
+  // when answering; detaching removes nothing from the canvas.
+  const [sources, setSources] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`${canvasKey}:sources`) || '[]'); } catch { return []; }
+  });
+  useEffect(() => {
+    const timer = setTimeout(() => { try { localStorage.setItem(`${canvasKey}:sources`, JSON.stringify(sources)); } catch { /* full or blocked storage loses the list only */ } }, 400);
+    return () => clearTimeout(timer);
+  }, [sources, canvasKey]);
+  const registerSource = useCallback(source => setSources(previous => withSource(previous, source)), []);
+  const repoSourceId = app.repo ? `repo:${app.repo}` : null;
+  // The repository is the one source that exists on day one, and detaching it
+  // genuinely stops repository_context reaching the agent (ask.jsx:467).
+  useEffect(() => { if (repoSourceId) registerSource({ id: repoSourceId, kind: 'repository', label: app.repo }); }, [repoSourceId, app.repo, registerSource]);
+  const repoAttached = !repoSourceId || isAttached(sources, repoSourceId);
   const placeExchange = event => setExchanges(previous => {
     if (event.question !== undefined) return [...previous, { id: event.id, question: event.question, linkFrom: event.linkFrom || null, answer: '', status: 'thinking', dx: 0, dy: 0 }];
     return previous.map(exchange => exchange.id !== event.id ? exchange
@@ -318,6 +334,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           const paper = shape?.meta.paper || { id: match[1], title: link.textContent, pdfUrl: `https://arxiv.org/pdf/${match[1]}`, page: 1 };
           event.preventDefault(); event.stopPropagation();
           pauseLesson(); setPaperContext({ ...paper, page: Number(url.hash.match(/page=(\d+)/)?.[1]) || paper.page }); setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false);
+          registerSource({ id: `paper:${paper.id}`, kind: 'paper', label: paper.title || `arXiv ${paper.id}` });
   };
   const teachingSnapshot = snapshot => {
     if (!snapshot || !snapshot.lessonId.startsWith('course-') || !course.course?.brief) return snapshot;
@@ -515,8 +532,17 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const canvas = () => canvasApi.current;
   const canvasMenus = [
     {
-      title: 'Import',
+      title: 'Sources',
       items: [
+        // A tick is not provenance, it is whether the agent is given this when
+        // it answers. Detaching takes nothing off the canvas.
+        ...sources.map(source => ({
+          label: source.label,
+          checked: !!source.attached,
+          hint: source.attached ? 'in context' : 'detached',
+          onSelect: () => setSources(previous => toggleSource(previous, source.id)),
+        })),
+        ...(sources.length ? [{ divider: true }] : []),
         // Enabled even with no connection: a greyed row naming a place it will
         // not take you is worse than one that explains the next step.
         { label: 'Google Slides…', onSelect: () => toast('Connect Google under Settings → Connections to import a deck.') },
@@ -598,7 +624,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
-        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onState={onCanvasState} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
+        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onState={onCanvasState} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
@@ -657,7 +683,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         : !courseView && learningView === 'lesson'
         // lesson view: chat is docked under the canvas - the panel only displays papers and source
         ? (lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : <p className="text-sm text-ink-3">Papers and source code open here when the lesson references them.</p>)
-        : <AskPanel onGraph={onGraph} key={app.name} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" headerTitle="Learn Agent" demo={isRepository ? null : demo} boardContext={boardContext} contentPanel={lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : null} onCloseContentPanel={() => { setPaperOpen(false); setSourceOpen(false); setLessonSource(null); }} placeholder={`Ask about ${app.repo || app.name}…`} autoFocus />}
+        : <AskPanel onGraph={onGraph} key={app.name} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" headerTitle="Learn Agent" demo={isRepository ? null : demo} boardContext={boardContext} contentPanel={lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : null} onCloseContentPanel={() => { setPaperOpen(false); setSourceOpen(false); setLessonSource(null); }} placeholder={`Ask about ${app.repo || app.name}…`} autoFocus />}
       </div>
     </ResizableSidePanel>
     {!panelOpen && <ContentsRail entries={railEntries}
