@@ -45,6 +45,26 @@ The **bespoke-workaround question** is a plain yes or no per case, and it exists
 because a superficially passing case can hide a vocabulary failure. A workaround
 is a gap that got absorbed instead of recorded. Prefer the gap and a failing case.
 
+## Checker coverage debt
+
+A gate that runs and resolves nothing has not verified anything, and must never be
+reported as having passed.
+
+**Known debt, 2026-09-21.** `dot-arithmetic` is inert on Illustrated Transformer
+case 03. Its regex matches all three equations and resolves **zero** operands,
+because `k` is now authored as a grid with `matrixKind: input` while the check
+only resolves operands from `strip` objects carrying an `identity`. The very check
+that caught the original false `.54` no longer verifies the case it fixed.
+
+This is **debt, not a blocker.** The case is still protected: claiming
+`provenance: derived` without a wired derivation throws, so the obvious attack —
+a false literal marked derived — is caught by `provenance-required`. That was
+tested, not assumed.
+
+The rule it leaves behind: **report a check that resolved no operands as inert,
+never as OK.** A green line in a gate report is a claim that something was
+verified, and a check with nothing to chew on makes no such claim.
+
 ## Calibrating the critic without contaminating the cases
 
 An independent critic must be blind — no prior scores, no prior findings, not even
