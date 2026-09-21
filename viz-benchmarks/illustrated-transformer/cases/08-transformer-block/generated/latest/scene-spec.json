@@ -48,11 +48,11 @@
       "initialState": { "label": "self-attention", "x": 200, "y": 430, "w": 160, "h": 60, "role": "neutral" } },
 
     { "id": "bypass1-out", "type": "line", "semanticId": "bypass1-out",
-      "initialState": { "from": { "x": 200, "y": 530 }, "to": { "x": 100, "y": 530 }, "role": "neutral" } },
+      "initialState": { "from": { "x": 200, "y": 530 }, "to": { "x": 140, "y": 530 }, "role": "neutral" } },
     { "id": "bypass1-up", "type": "line", "semanticId": "bypass1-up",
-      "initialState": { "from": { "x": 100, "y": 530 }, "to": { "x": 100, "y": 355 }, "role": "neutral" } },
+      "initialState": { "from": { "x": 140, "y": 530 }, "to": { "x": 140, "y": 355 }, "role": "neutral" } },
     { "id": "bypass1-in", "type": "arrow", "semanticId": "bypass1-in",
-      "initialState": { "from": { "x": 100, "y": 355 }, "to": { "x": 200, "y": 355 }, "role": "neutral" } },
+      "initialState": { "from": { "x": 140, "y": 355 }, "to": { "x": 200, "y": 355 }, "role": "neutral" } },
 
     { "id": "arrow-x-selfattn", "type": "arrow", "semanticId": "arrow-x-selfattn",
       "initialState": { "from": { "x": 280, "y": 520 }, "to": { "x": 280, "y": 490 }, "role": "neutral" } },
