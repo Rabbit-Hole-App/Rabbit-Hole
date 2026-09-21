@@ -1,6 +1,7 @@
 import { SCENE_SCHEMA, validateScene } from './learn-scene-schema.js';
 import { TEACHING_POLICY, validateTeachingHistory } from './learn-teaching.js';
 import { SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, arxivId, searchArxiv, readArxivPaper, paperDocument, fetchArxivPdf } from './arxiv.js';
+import { isUploadedPaperId, putUploadedPaper, readUploadedPaper, paperIdentity } from './learn-paper.js';
 import { validateToolInput } from './learn-validation.js';
 import { VIDEO_SCHEMA, validateVideo } from './learn-video-schema.js';
 import { THREE_D_SCHEMA, validateThreeD } from './learn-three-d-schema.js';
@@ -371,12 +372,31 @@ export async function authorizedBoardApp(req, env, name) {
 }
 
 // Browser PDF rendering uses an authenticated, fixed-host fetch, never a model URL.
+// POST stores a learner's own PDF; GET serves either that or an arXiv paper, so
+// the reader is identical whichever a canvas block points at.
 export async function paperFetch(req, env) {
-  if (req.method !== 'GET') return Response.json({ error: 'GET required' }, { status: 405 });
+  if (!['GET', 'POST'].includes(req.method)) return Response.json({ error: 'GET or POST required' }, { status: 405 });
   const url = new URL(req.url);
   const access = await authorizedBoardApp(req, env, url.searchParams.get('app'));
   if (access instanceof Response) return access;
-  let id; try { id = arxivId(url.searchParams.get('id')); } catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
+  const identity = paperIdentity(access);
+  if (req.method === 'POST') {
+    // This route was read-only until now, so it had no CSRF guard to inherit.
+    if (req.headers.has('origin') && req.headers.get('origin') !== url.origin) return Response.json({ error: 'Invalid origin' }, { status: 403 });
+    let file;
+    try { file = (await req.formData()).get('file'); } catch { return Response.json({ error: 'Send the PDF as multipart form data' }, { status: 400 }); }
+    if (!file || typeof file === 'string') return Response.json({ error: 'No file received' }, { status: 400 });
+    try { return Response.json(await putUploadedPaper(env, identity, file)); }
+    catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
+  }
+  const raw = url.searchParams.get('id');
+  if (isUploadedPaperId(raw)) {
+    try {
+      const { bytes } = await readUploadedPaper(env, identity, raw);
+      return new Response(bytes, { headers: { 'Content-Type': 'application/pdf', 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
+    } catch (error) { return Response.json({ error: error.message }, { status: 404 }); }
+  }
+  let id; try { id = arxivId(raw); } catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
   try {
     return new Response(await fetchArxivPdf(id), { headers: { 'Content-Type': 'application/pdf', 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
   } catch (error) { return Response.json({ error: error.message }, { status: 502 }); }

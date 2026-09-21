@@ -1,6 +1,7 @@
 import { paperSelectionImage } from '../src/learn-preview-review.js';
 import { canvasSeed } from '../src/canvas-conversation.js';
 import { arxivId, paperDocument } from '../src/arxiv.js';
+import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT } from '../src/learn-paper.js';
 import { LEARN_SYSTEM, validateLessonSnapshot } from '../src/learn-context.js';
 import { captureSelection, selectionSnapshot, sigmoidObjects } from '../../web/src/sigmoid-context.js';
 import { test } from 'node:test';
@@ -13,7 +14,7 @@ const source = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8')
 const names = ['apiAsk', 'askThreadForUser', 'apiAskThreads', 'apiAskThread', 'apiAskThreadRename', 'apiAskThreadDelete'];
 const functions = names.map(name => source.match(new RegExp(`async function ${name}\\([^]*?\\n\\}`))[0]).join('\n');
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
-const handlers = new Function('json', 'appForUser', 'appContext', 'askStream', 'ASK_MODELS', 'ASK_TOOLS', 'LEARN_SYSTEM', 'validateLessonSnapshot', 'arxivId', 'readArxivPaper', 'paperDocument', 'paperSelectionImage', 'canvasSeed', `${functions}; return { ${names.join(',')} };`)(
+const handlers = new Function('json', 'appForUser', 'appContext', 'askStream', 'ASK_MODELS', 'ASK_TOOLS', 'LEARN_SYSTEM', 'validateLessonSnapshot', 'arxivId', 'readArxivPaper', 'paperDocument', 'paperSelectionImage', 'isUploadedPaperId', 'uploadedPaperAsDocument', 'paperIdentity', 'PAPER_PAGE_LIMIT', 'canvasSeed', `${functions}; return { ${names.join(',')} };`)(
   json,
   async (env, user, name) => env.apps[name],
   async (env, app) => ({ name: app.name }),
@@ -21,7 +22,8 @@ const handlers = new Function('json', 'appForUser', 'appContext', 'askStream', '
     env.answers.push({ history: [...history], question, context, toolOpts, system, org, blocks, research });
     await onFull('Answer: ' + question);
     return json(metadata);
-  }, {}, [], LEARN_SYSTEM, validateLessonSnapshot, arxivId, async id => ({ id, title: "Test paper", pdfUrl: `https://arxiv.org/pdf/${id}` }), paperDocument, paperSelectionImage, canvasSeed,
+  }, {}, [], LEARN_SYSTEM, validateLessonSnapshot, arxivId, async id => ({ id, title: "Test paper", pdfUrl: `https://arxiv.org/pdf/${id}` }), paperDocument, paperSelectionImage,
+  isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT, canvasSeed,
 );
 const owner = { email: 'owner@example.test', org: 'workspace-a' };
 const request = (body, path = '/api/learn/ask') => new Request('https://small.example' + path, {
@@ -219,6 +221,42 @@ test('paper questions attach the actual PDF, disable app actions, and validate a
   env.apps.counter.canView = false;
   assert.equal((await handlers.apiAsk(request(body), env, {}, owner, 'learn')).status, 403);
   assert.equal(env.answers.length, 1);
+});
+
+// A PDF the learner uploaded is private, so the model gets the bytes rather than
+// a URL - but everything around it, the page especially, is the arXiv contract.
+test('an uploaded PDF reaches the model as bytes, with the page the learner is on', async t => {
+  const env = fixture(t);
+  const pdf = new TextEncoder().encode('%PDF-1.4 uploaded');
+  env.RUNS = {
+    async get() { return { arrayBuffer: async () => pdf.buffer, customMetadata: { title: 'lecture-notes.pdf' } }; },
+  };
+  const body = { scope: { app: 'counter' }, message: 'Explain this page', paper_context: { id: 'upload:0123456789ab', page: 7 } };
+  const response = await handlers.apiAsk(request(body), env, {}, owner, 'learn');
+  assert.equal(response.status, 200, await response.clone().text());
+  const [answer] = env.answers;
+  const document = answer.blocks.find(block => block.type === 'document');
+  assert.ok(document, 'the whole PDF is attached');
+  assert.equal(document.source.type, 'base64', 'as bytes, not a public URL');
+  assert.equal(document.source.media_type, 'application/pdf');
+  assert.equal(new TextDecoder().decode(Uint8Array.from(atob(document.source.data), c => c.charCodeAt(0))), '%PDF-1.4 uploaded');
+  assert.equal(document.title, 'lecture-notes.pdf');
+  // The page is what the whole feature is for.
+  assert.match(answer.context, /"page":7/);
+  // The bytes must never ride on what is serialised back to the browser.
+  assert.equal(JSON.stringify(answer.research).includes(document.source.data), false);
+  assert.match(JSON.stringify(answer.research), /lecture-notes\.pdf/);
+});
+
+test('a malformed upload id is refused before anything is read', async t => {
+  const env = fixture(t);
+  env.RUNS = { async get() { throw new Error('should not be reached'); } };
+  for (const id of ['upload:xyz', 'upload:0123456789abc', 'upload:../secret']) {
+    assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', paper_context: { id, page: 1 } }), env, {}, owner, 'learn')).status, 400, id);
+  }
+  // and the page ceiling still holds for an upload
+  assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', paper_context: { id: 'upload:0123456789ab', page: 101 } }), env, {}, owner, 'learn')).status, 400);
+  assert.equal(env.answers.length, 0);
 });
 
 test('paper selection sends cropped pixels and page coordinates, rejecting invalid regions', async t => {
