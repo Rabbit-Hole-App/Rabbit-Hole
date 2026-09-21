@@ -71,9 +71,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // Mirrored from the canvas so the View menu can tick what is on. Held by value
   // rather than by ref, and returned unchanged when nothing moved, or the effect
   // that publishes it would re-render forever.
-  const [canvasState, setCanvasState] = useState({ grid: false, lock: false });
+  const [canvasState, setCanvasState] = useState({ grid: false, lock: false, minimap: true });
   const onCanvasState = useCallback(next => setCanvasState(previous =>
-    (previous.grid === next.grid && previous.lock === next.lock ? previous : next)), []);
+    (previous.grid === next.grid && previous.lock === next.lock && previous.minimap === next.minimap ? previous : next)), []);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [paperOpen, setPaperOpen] = useState(false);
   const [paperContext, setPaperContext] = useState(null);
@@ -547,6 +547,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         { label: 'Reset zoom', onSelect: () => canvas()?.zoomReset() },
         { label: 'Zoom to fit', onSelect: () => canvas()?.zoomFit() },
         { divider: true },
+        { label: 'Minimap', checked: canvasState.minimap, onSelect: () => canvas()?.toggleMinimap() },
         { label: 'Snap to grid', checked: canvasState.grid, onSelect: () => canvas()?.toggleGrid() },
         { label: 'Keep tool active', checked: canvasState.lock, onSelect: () => canvas()?.toggleLock() },
         { divider: true },

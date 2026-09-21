@@ -6,6 +6,7 @@ import { boardAsk } from './board-ask.js';
 import { BLOCK_TYPES, LearningBlockBody, describeBlock } from './LearningBlocks.jsx';
 import { gapsFrom, nearestGap } from './learn-gap-rail.js';
 import { panelFor, textStyle, dashArray, dashStyle, reorder, TEXT_LEVELS, DASH_STYLES, OPACITIES } from './learn-style-panel.js';
+import CanvasMinimap from './CanvasMinimap.jsx';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
@@ -633,6 +634,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const [gapAdding, setGapAdding] = useState(false);
   const [guides, setGuides] = useState([]);
   const [grid, setGrid] = useState(false);
+  const [minimap, setMinimap] = useState(true);
   const itemsLayer = useRef(null);
   const [level, setLevel] = useState('body');
   const [styleOpen, setStyleOpen] = useState(false); // the swatch's manual override
@@ -673,11 +675,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       zoomReset: () => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 }),
       insertHeading: level => insertHeadingAt(level, blocksRef.current.length),
       toggleGrid: () => setGrid(previous => !previous),
+      toggleMinimap: () => setMinimap(previous => !previous),
       toggleLock: () => setLock(previous => !previous),
     };
   });
   // Menu checkmarks need these as state on the page, not as a ref it cannot watch.
-  useEffect(() => { onState?.({ grid, lock }); }, [grid, lock, onState]);
+  useEffect(() => { onState?.({ grid, lock, minimap }); }, [grid, lock, minimap, onState]);
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);
@@ -1241,6 +1244,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       ? { left: -view.x / view.z + inset, width: Math.max(COLUMN, width / view.z - inset * 2) }
       : { left: 0, width: COLUMN };
   })();
+  const minimapBoxes = [
+    ...Object.values(bounds),
+    ...shapes.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) })),
+    ...items.map(item => ({ x: item.x, y: item.y, w: item.w || 160, h: item.h || 40 })),
+  ];
   const gaps = gapsFrom(blocks, bounds);
   const activeGap = hoverGap == null ? null : gaps.find(gap => gap.index === hoverGap) || null;
   const trackGap = event => {
@@ -1312,6 +1320,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} />)}
         </div>
         </div>
+        {/* Inside the surface but outside the camera, so it holds still. */}
+        {minimap && <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
+          surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
+          onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />}
       </div>
       {/* Dev-only workbench: drop any lesson block on the canvas to review its
           look before lessons are assembled. */}
