@@ -196,6 +196,28 @@ declares what it **is**:
 Labels are still checked — for readability, by the layout lint. They do not decide
 whether the arithmetic is verified.
 
+**A blind evaluation is blind with respect to the evaluator's complete
+information surface, not merely its prompt.**
+
+The prompt forbade reading prior reviews, and the critic obeyed. The calibration
+design had been written into `SCORING.md` — which the same prompt assigned as
+required reading. It named the calibration case, listed the exact defect
+categories planted in it, and recorded a known-false finding retained as a
+specificity trap. Both calibration measurements were void before the run started.
+
+The critic disclosed this rather than laundering the answers into independent
+findings, which is the only reason it was caught.
+
+The surface includes **docs, filenames, directory names, comments, manifests, git
+metadata, repair notes and the scoring instructions themselves.** A case named
+`critic-calibration` tells an evaluator what it is before a word of the prompt is
+read.
+
+Evaluation secrets therefore live in **operator-private state outside the tree**,
+and what an evaluator may read is checked mechanically rather than trusted to the
+person writing the prompt — the leak above was written by the same person who
+wrote the isolation rules, two days apart, without noticing.
+
 **A check on source state is not evidence about a generated artifact.** If the
 artifact is what humans inspect or ship, the provenance from source to artifact
 must itself be mechanically verified.

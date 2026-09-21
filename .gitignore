@@ -172,3 +172,7 @@ packages/web/e2e/shots/
 # Restrictively licensed benchmark references: URL and metadata are committed,
 # the captures are not. See viz-benchmarks/REFERENCE-LICENSING.md
 .local-benchmark-cache/
+
+# Operator-private evaluation state: calibration answer keys, trap mappings.
+# Never readable by an evaluator agent, never committed.
+.operator/

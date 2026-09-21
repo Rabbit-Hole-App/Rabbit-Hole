@@ -69,10 +69,9 @@ verified, and a check with nothing to chew on makes no such claim.
 
 **Not yet a rule. Deliberately unresolved pending evidence that it matters.**
 
-Case 04's displayed cells can fail to hand-sum by 0.01 while the underlying values
+A scene's displayed cells can fail to hand-sum by 0.01 while the underlying values
 are entirely consistent: each term is an independently rounded two-decimal view of
-a correct three-decimal number, so `.16 + .00 + .34` reads as `.50` on screen
-beside a result shown as `.49`.
+a correct three-decimal number.
 
 This is a **different class** from the arithmetic defects that preceded it. Those
 were data inconsistencies — a scene displaying a number its own inputs contradict.
@@ -93,47 +92,6 @@ image and said whether it actually impedes comprehension.** A learner may never
 notice; a learner checking the arithmetic by hand certainly will. That is an
 empirical question about the picture, not a question to settle by reasoning about
 it.
-
-## Calibrating the critic without contaminating the cases
-
-An independent critic must be blind — no prior scores, no prior findings, not even
-confirmed ones. But a blind critic's clean report is ambiguous: the scenes may be
-clean, or the critic may not have looked. Handing it a known defect as a
-calibration check solves that and reintroduces anchoring.
-
-The answer is a **separate calibration case**, at `viz-benchmarks/critic-calibration/`.
-It is **excluded from pattern coverage, from Phase 1 acceptance, and from every
-reported score.** It exists only to measure the critic.
-
-One or two defects are planted in it — an arrow crossing a label, a deliberately
-wrong numeric result, a duplicated output that should differ. It must look like an
-ordinary case; a critic that can tell which one is the test is not being tested.
-
-**The answer key is never written anywhere the critic can read.** During a critic
-run it lives only in the controller's hands — the author reports what it planted
-and the file is committed for the record only *after* the critic has reported. A
-"do not read this file" note in the repository is not isolation; a thorough critic
-greps.
-
-The run becomes:
-
-```text
-clean real cases  +  one hidden calibration case  ->  fresh blind critic
-```
-
-Two signals come back, in opposite directions:
-
-| observation | reading |
-|---|---|
-| planted defect **missed** | the critic is too weak to trust a clean report from |
-| a **disproven** finding repeated | the critic is overclaiming |
-
-The second is free once a finding has been disproven. The Illustrated Transformer
-case 09 "decoder columns are never chained" finding was checked against the
-committed scene and the chaining arrow is there — that finding is retained
-precisely so a later critic repeating it exposes itself.
-
-Both together bound the critic from either side, and the real cases stay blind.
 
 ## What a visual case is scored on
 
