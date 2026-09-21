@@ -58,7 +58,20 @@
       "initialState": { "from": { "x": 280, "y": 520 }, "to": { "x": 280, "y": 490 }, "role": "neutral" } },
 
     { "id": "input-x", "type": "box", "semanticId": "input-x",
-      "initialState": { "label": "input X", "x": 200, "y": 520, "w": 160, "h": 50, "role": "input" } }
+      "initialState": { "label": "input X", "x": 200, "y": 520, "w": 160, "h": 50, "role": "input" } },
+
+    { "id": "block-repeat-5", "type": "box", "semanticId": "block-repeat-5",
+      "initialState": { "x": 100, "y": 30, "w": 260, "h": 500, "role": "neutral", "opacity": 0.55 } },
+    { "id": "block-repeat-4", "type": "box", "semanticId": "block-repeat-4",
+      "initialState": { "x": 100, "y": 38, "w": 260, "h": 500, "role": "neutral", "opacity": 0.55 } },
+    { "id": "block-repeat-3", "type": "box", "semanticId": "block-repeat-3",
+      "initialState": { "x": 100, "y": 46, "w": 260, "h": 500, "role": "neutral", "opacity": 0.55 } },
+    { "id": "block-repeat-2", "type": "box", "semanticId": "block-repeat-2",
+      "initialState": { "x": 100, "y": 54, "w": 260, "h": 500, "role": "neutral", "opacity": 0.55 } },
+    { "id": "block-repeat-1", "type": "box", "semanticId": "block-repeat-1",
+      "initialState": { "x": 100, "y": 62, "w": 260, "h": 500, "role": "neutral", "opacity": 0.55 } },
+    { "id": "block-repeat-label", "type": "text", "semanticId": "block-repeat-label",
+      "initialState": { "text": "#6 total, stacked", "x": 368, "y": 280, "typography": "caption" } }
   ],
   "timeline": []
 }

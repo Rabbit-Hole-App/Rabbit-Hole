@@ -4,6 +4,16 @@
   "width": 1500,
   "height": 440,
   "duration": 1,
+  "exampleData": {
+    "Q": [[0.9, -0.4, 1.3], [0.2, 0.7, -0.5], [-0.6, 0.1, 0.9]],
+    "K": [[0.6, 1.1, -0.7], [-0.3, 0.8, 0.2], [0.5, -0.4, 0.6]],
+    "V": [[1.0, 0.3, -0.5], [0.2, -0.6, 0.4], [-0.3, 0.5, 0.7]]
+  },
+  "derived": {
+    "scores": { "op": "matmul", "args": ["Q", "K"] },
+    "weights": { "op": "softmax", "args": ["scores"] },
+    "output": { "op": "weighted_sum", "args": ["weights.2", "V"] }
+  },
   "objects": [
     { "id": "heading", "type": "text", "semanticId": "heading",
       "initialState": { "text": "How one token gathers context from every token in the sequence", "x": 40, "y": 26, "typography": "heading" } },
@@ -22,7 +32,7 @@
     { "id": "scores", "type": "grid", "semanticId": "attention-scores",
       "initialState": { "label": "raw scores: Q . Kᵀ", "x": 420, "y": 155, "rows": 3, "cols": 3, "cell": 46, "role": "observed", "heat": { "mode": "signed" },
         "rowLabels": ["river", "flows", "south"], "columnLabels": ["river", "flows", "south"],
-        "values": [0.54, 0.99, -0.63, -0.24, -0.44, 0.28, 0.78, 1.43, -0.91] } },
+        "values": { "$derive": "scores" } } },
     { "id": "arrow-q-scores", "type": "arrow", "semanticId": "arrow-q-scores",
       "initialState": { "from": { "x": 166, "y": 176 }, "to": { "x": 420, "y": 195 }, "role": "neutral" } },
     { "id": "arrow-k-scores", "type": "arrow", "semanticId": "arrow-k-scores",
@@ -30,11 +40,11 @@
     { "id": "softmax", "type": "grid", "semanticId": "attention-weights",
       "initialState": { "label": "softmax weights - each row sums to 1", "x": 780, "y": 155, "rows": 3, "cols": 3, "cell": 46, "role": "observed", "heat": { "mode": "magnitude" },
         "rowLabels": ["river", "flows", "south"], "columnLabels": ["river", "flows", "south"],
-        "values": [0.347, 0.545, 0.108, 0.286, 0.234, 0.480, 0.323, 0.618, 0.059] } },
+        "values": { "$derive": "weights" } } },
     { "id": "arrow-scores-softmax", "type": "arrow", "semanticId": "arrow-scores-softmax",
       "initialState": { "from": { "x": 558, "y": 224 }, "to": { "x": 780, "y": 224 }, "role": "neutral" } },
     { "id": "output", "type": "strip", "semanticId": "attention-output",
-      "initialState": { "label": "output - weighted mix of V", "x": 1120, "y": 345, "cell": 42, "role": "output", "heat": { "mode": "signed" }, "values": [0.457, 0.116, 0.478] } },
+      "initialState": { "label": "output - weighted mix of V", "x": 1120, "y": 345, "cell": 42, "role": "output", "heat": { "mode": "signed" }, "values": { "$derive": "output" } } },
     { "id": "arrow-softmax-output", "type": "arrow", "semanticId": "arrow-softmax-output",
       "initialState": { "from": { "x": 898, "y": 245 }, "to": { "x": 1120, "y": 345 }, "role": "neutral" } },
     { "id": "arrow-v-output", "type": "arrow", "semanticId": "arrow-v-output",

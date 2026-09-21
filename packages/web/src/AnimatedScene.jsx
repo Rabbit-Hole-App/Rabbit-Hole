@@ -15,6 +15,7 @@ import 'katex/dist/katex.min.css';
 import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './animation-scene.js';
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-sound.js';
+import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, labelAt } from './scene-layout.js';
 import { GEOMETRY } from './scene-vocab.js';
 import { heatStyle, identityVar, roleVar, selectionStyle, shapeStyle, textStyle } from './scene-style.js';
 
@@ -31,8 +32,6 @@ const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 // settle wherever the evaluator says they are.
 const POP = { type: 'spring', stiffness: 520, damping: 26 };
 const BAR_GAP = 4; // SPACE: gap between adjacent bars
-const ROW_LABEL_GAP = 8; // SPACE: gap between a row label and the grid's left edge
-const COLUMN_LABEL_GAP = 8; // SPACE: gap between a column label and the grid's top edge
 const fromCentre = { transformBox: 'fill-box', transformOrigin: 'center' };
 const num = value => (Math.abs(value) >= 10 ? value.toFixed(0) : value.toFixed(2).replace(/^(-?)0\./, '$1.'));
 // Is this cell the one the timeline is pointing at? A highlight can name a
@@ -271,19 +270,9 @@ function DataShape({ object, role, pop }) {
   );
 }
 
-// Where a label sits depends on what it is labelling: a box or circle centres it,
-// a stroke pins it to its start, and everything that owns a frame - data grids,
-// images - hangs it above the top edge. One place, so the next type added does
-// not grow a fifth condition into four attributes.
-const labelAt = (object, kind, centre) => {
-  if (kind.stroke) return { x: object.from?.x ?? object.x, y: (object.from?.y ?? object.y) - 8, anchor: 'start', baseline: 'auto' };
-  // A grid that also names its columns needs its own title pushed clear of
-  // those headers - both read top-down as title, then header, then cell - or
-  // the two would print on top of each other just above the grid.
-  if (kind.above) return { x: object.x, y: object.y - (object.type === 'grid' && object.columnLabels?.length ? 24 : 10), anchor: 'start', baseline: 'auto' };
-  if (kind.text) return { x: object.x, y: object.y, anchor: 'start', baseline: 'auto' };
-  return { x: centre.x, y: centre.y, anchor: 'middle', baseline: 'central' };
-};
+// labelAt lives in scene-layout.js now, shared with the layout lint (see its
+// own comment) - node:test cannot import this .jsx file, so anything the
+// lint needs to reason about identically has to live where it can reach it.
 
 // KaTeX is synchronous and pure, so a frame can be typeset in the render pass
 // and a scrub never waits on anything. An expression that will not parse shows
@@ -370,7 +359,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
           const maths = isEquation ? typeset(shown) : null;
           // A circle is placed by its centre, so its label is centred on the
           // same point; boxes centre inside their frame.
-          const centre = isCircle ? { x: object.x, y: object.y } : { x: object.x + (object.w || 0) / 2, y: object.y + (object.h || 0) / 2 };
+          const centre = centreOf(object);
           const label = labelAt(object, { stroke: isStroke, above: isData || isImage, text: isText }, centre);
           // State never changes which role's colour is shown, only weight and
           // fill strength - one resolved look serves every shape below.

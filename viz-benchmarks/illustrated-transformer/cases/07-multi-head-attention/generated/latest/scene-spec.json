@@ -27,7 +27,7 @@
     { "id": "head0-arrow-label", "type": "text", "semanticId": "head0-arrow-label",
       "initialState": { "text": "attn ->", "x": 240, "y": 187, "typography": "caption" } },
     { "id": "head0-z", "type": "grid", "semanticId": "head0-output",
-      "initialState": { "label": "Z0", "x": 300, "y": 164, "rows": 1, "cols": 1, "cell": 36, "role": "observed" } },
+      "initialState": { "label": "Z0", "x": 300, "y": 164, "rows": 1, "cols": 1, "cell": 36, "role": "observed", "identity": "head-0" } },
 
     { "id": "branch-head1", "type": "arrow", "semanticId": "branch-head1",
       "initialState": { "from": { "x": 60, "y": 244 }, "to": { "x": 140, "y": 244 }, "role": "neutral" } },
@@ -42,7 +42,7 @@
     { "id": "head1-arrow-label", "type": "text", "semanticId": "head1-arrow-label",
       "initialState": { "text": "attn ->", "x": 240, "y": 267, "typography": "caption" } },
     { "id": "head1-z", "type": "grid", "semanticId": "head1-output",
-      "initialState": { "label": "Z1", "x": 300, "y": 244, "rows": 1, "cols": 1, "cell": 36, "role": "observed" } },
+      "initialState": { "label": "Z1", "x": 300, "y": 244, "rows": 1, "cols": 1, "cell": 36, "role": "observed", "identity": "head-1" } },
 
     { "id": "note-more-heads", "type": "text", "semanticId": "note-more-heads",
       "initialState": { "text": "... 5 more heads, computed the same independent way ...", "x": 140, "y": 316, "typography": "caption" } },
@@ -60,7 +60,7 @@
     { "id": "head7-arrow-label", "type": "text", "semanticId": "head7-arrow-label",
       "initialState": { "text": "attn ->", "x": 240, "y": 377, "typography": "caption" } },
     { "id": "head7-z", "type": "grid", "semanticId": "head7-output",
-      "initialState": { "label": "Z7", "x": 300, "y": 354, "rows": 1, "cols": 1, "cell": 36, "role": "observed" } },
+      "initialState": { "label": "Z7", "x": 300, "y": 354, "rows": 1, "cols": 1, "cell": 36, "role": "observed", "identity": "head-7" } },
 
     { "id": "concat", "type": "grid", "semanticId": "concatenated-heads",
       "initialState": { "label": "1) concatenate every head's Z", "x": 140, "y": 460, "rows": 1, "cols": 4, "cell": 50, "role": "neutral",

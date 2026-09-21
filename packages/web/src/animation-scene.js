@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { GEOMETRY, HEAT_MODES, IDENTITY_SLOTS, ROLES, SOUNDS, TIMING, TYPE_ROLES } from './scene-vocab.js';
 import { adaptLegacyScene } from './scene-legacy.js';
+import { resolveDerived } from './scene-derive.js';
 
 // The animation source of truth: scene JSON plus a pure evaluator. Neither
 // React nor tldraw is imported here, so the live canvas and the video exporter
@@ -33,6 +34,14 @@ const objectSchema = z.object({
     // assignment pass below for why a scene never gets to name a colour here
     // either, the same rule role already follows.
     identity: z.string().min(1).max(40).optional(),
+    // What a displayed number IS, not what it means: an authored fact, a
+    // mechanically derived result, or an explicit sketch with no claim of
+    // being computed. Defaults to literal because most authored numbers are
+    // - a drawn vector's own components, for instance. resolveDerived (see
+    // scene-derive.js) is the only path that may stamp "derived", and the
+    // consistency checker is the only thing that enforces which objects must
+    // carry it.
+    provenance: z.enum(['literal', 'derived', 'illustrative']).default('literal'),
     typography: z.enum(TYPE_ROLES).default('body'),
     from: vector.optional(),
     to: vector.optional(),
@@ -126,6 +135,12 @@ const phase = (event, time) => {
 const SAME_ORIGIN = /^\/[A-Za-z0-9._~\-/]*$/;
 
 export function validateScene(raw) {
+  // exampleData -> derived -> everything else: any $derive marker or {{name}}
+  // interpolation is materialised into a literal number here, before zod
+  // ever sees it, and the object it touched is stamped provenance: derived.
+  // See scene-derive.js - this is the one place duplicated numbers stop
+  // being possible, so it must run before anything else.
+  raw = resolveDerived(raw);
   // A legacy scene may still name a hex colour. Translate the closed set we
   // recognise into a role before zod ever sees `color` - unknown keys are
   // dropped silently by zod, and a dropped colour is exactly the failure this
@@ -286,6 +301,9 @@ export function getSceneState(scene, time) {
     // same scene disagree the moment an object order ever changed mid-flight.
     identity: object.initialState.identity ?? null,
     identitySlot: object.identitySlot ?? null,
+    // Travels with the value so the critic and the tutor can both tell what a
+    // number is, without re-deriving it themselves - see scene-derive.js.
+    provenance: object.initialState.provenance,
     typography: object.initialState.typography,
     from: object.initialState.from ?? null,
     to: object.initialState.to ?? null,

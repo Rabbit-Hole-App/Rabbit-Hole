@@ -4,34 +4,45 @@
   "width": 900,
   "height": 400,
   "duration": 1,
+  "exampleData": {
+    "Q": [[0.9, -0.4, 1.3]],
+    "K": [[0.6, 1.1, -0.7], [-0.3, 0.8, 0.2], [0.5, -0.4, 0.6]]
+  },
+  "derived": {
+    "qk_river": { "op": "dot", "args": ["Q.0", "K.0"] },
+    "qk_flows": { "op": "dot", "args": ["Q.0", "K.1"] },
+    "qk_south": { "op": "dot", "args": ["Q.0", "K.2"] },
+    "row": { "op": "matmul", "args": ["Q", "K"] }
+  },
   "objects": [
     { "id": "heading", "type": "text", "semanticId": "heading",
       "initialState": { "text": "Comparing one query against every key produces one row of scores", "x": 40, "y": 26, "typography": "heading" } },
 
     { "id": "q", "type": "strip", "semanticId": "query-vector",
       "initialState": { "label": "query (Q)", "x": 40, "y": 150, "cell": 42, "role": "observed", "identity": "query", "heat": { "mode": "signed" }, "values": [0.9, -0.4, 1.3] } },
-    { "id": "k", "type": "strip", "semanticId": "key-vector",
-      "initialState": { "label": "key (K)", "x": 40, "y": 230, "cell": 42, "role": "observed", "identity": "key", "heat": { "mode": "signed" }, "values": [0.6, 1.1, -0.7] } },
+    { "id": "k", "type": "grid", "semanticId": "key-vectors",
+      "initialState": { "label": "every key (K) - one row per token", "x": 40, "y": 230, "rows": 3, "cols": 3, "cell": 30, "role": "observed", "identity": "key", "heat": { "mode": "signed" },
+        "rowLabels": ["river", "flows", "south"], "values": [0.6, 1.1, -0.7, -0.3, 0.8, 0.2, 0.5, -0.4, 0.6] } },
 
     { "id": "arrow-q-eq", "type": "arrow", "semanticId": "arrow-q-eq",
       "initialState": { "from": { "x": 166, "y": 171 }, "to": { "x": 320, "y": 160 }, "role": "neutral" } },
     { "id": "arrow-k-eq", "type": "arrow", "semanticId": "arrow-k-eq",
-      "initialState": { "from": { "x": 166, "y": 251 }, "to": { "x": 320, "y": 280 }, "role": "neutral" } },
+      "initialState": { "from": { "x": 190, "y": 260 }, "to": { "x": 320, "y": 280 }, "role": "neutral" } },
 
     { "id": "eq-1", "type": "equation", "semanticId": "eq-river-river",
-      "initialState": { "text": "q_{river}\\cdot k_{river} = .54", "x": 320, "y": 148, "w": 220, "h": 36 } },
+      "initialState": { "text": "q_{river}\\cdot k_{river} = {{qk_river}}", "x": 320, "y": 148, "w": 260, "h": 36 } },
     { "id": "eq-2", "type": "equation", "semanticId": "eq-river-flows",
-      "initialState": { "text": "q_{river}\\cdot k_{flows} = .99", "x": 320, "y": 202, "w": 220, "h": 36 } },
+      "initialState": { "text": "q_{river}\\cdot k_{flows} = {{qk_flows}}", "x": 320, "y": 202, "w": 260, "h": 36 } },
     { "id": "eq-3", "type": "equation", "semanticId": "eq-river-south",
-      "initialState": { "text": "q_{river}\\cdot k_{south} = -.63", "x": 320, "y": 256, "w": 220, "h": 36 } },
+      "initialState": { "text": "q_{river}\\cdot k_{south} = {{qk_south}}", "x": 320, "y": 256, "w": 260, "h": 36 } },
 
     { "id": "arrow-eq-scores", "type": "arrow", "semanticId": "arrow-eq-scores",
-      "initialState": { "from": { "x": 545, "y": 220 }, "to": { "x": 620, "y": 195 }, "role": "neutral" } },
+      "initialState": { "from": { "x": 585, "y": 220 }, "to": { "x": 620, "y": 195 }, "role": "neutral" } },
 
     { "id": "scores", "type": "grid", "semanticId": "attention-scores",
-      "initialState": { "label": "every query's row: Q . Kᵀ", "x": 620, "y": 150, "rows": 3, "cols": 3, "cell": 60, "role": "observed", "heat": { "mode": "signed" },
-        "rowLabels": ["river", "flows", "south"], "columnLabels": ["river", "flows", "south"],
-        "values": [0.54, 0.99, -0.63, -0.24, -0.44, 0.28, 0.78, 1.43, -0.91] } }
+      "initialState": { "label": "one query's row: Q . Kᵀ", "x": 620, "y": 150, "rows": 1, "cols": 3, "cell": 60, "role": "observed", "heat": { "mode": "signed" },
+        "rowLabels": ["river"], "columnLabels": ["river", "flows", "south"],
+        "values": { "$derive": "row" } } }
   ],
   "timeline": [
     { "at": 0, "duration": 0, "action": "highlight_cell", "target": "scores", "value": { "row": 0 } },
