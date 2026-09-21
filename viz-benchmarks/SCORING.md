@@ -19,6 +19,32 @@ article that all exercise `flow` prove one thing well and nine things not at all
 Patterns are declared per case in its `target.json`; see `patterns.json` for the
 eleven and what each tests.
 
+## The evaluation stack
+
+Five separate questions. Keeping them separate is what makes a result actionable
+rather than just a number.
+
+| layer | question |
+|---|---|
+| **pattern coverage** | what capability are we testing? |
+| **failure taxonomy** | what went wrong? |
+| **cause axis** | where does the fix belong? |
+| **recurrence tally** | is it local or systemic? |
+| **bespoke workaround?** | did we cheat around the vocabulary? |
+
+The **cause axis** is `content`, `layout`, `primitive` or `template`. It is not
+the same axis as the taxonomy and both are reported: a `LAYOUT` finding caused by
+a missing `template` and one caused by careless authoring read identically in the
+taxonomy and need completely different fixes.
+
+The **recurrence tally** is what makes the stop rule usable. A failure appearing
+once is a scene problem; the same failure across three cases is a system problem
+wearing a disguise. Notice it at the interval, not in the final report.
+
+The **bespoke-workaround question** is a plain yes or no per case, and it exists
+because a superficially passing case can hide a vocabulary failure. A workaround
+is a gap that got absorbed instead of recorded. Prefer the gap and a failing case.
+
 ## What a visual case is scored on
 
 - technical correctness
