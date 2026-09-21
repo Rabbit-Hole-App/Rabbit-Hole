@@ -282,9 +282,14 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
       <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
         <span className="h-1.5 w-1.5 rounded-full bg-ink" />PDF<span className="truncate normal-case tracking-normal text-ink-3">{block.label}</span>
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-line" onPointerDown={event => event.stopPropagation()}>
+      {/* Until the card is selected the page ignores the pointer, so the first
+          press selects the card and keeps focus in this document. A focused
+          iframe receives keydown in its own document, where the canvas never
+          sees it - copy, paste, undo and delete would all be dead on this card. */}
+      <div className="min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-line"
+        onPointerDown={event => { if (selected) event.stopPropagation(); }}>
         {url
-          ? <iframe src={url} title={block.label || 'PDF'} className="h-full w-full" />
+          ? <iframe src={url} title={block.label || 'PDF'} className={`h-full w-full ${selected ? '' : 'pointer-events-none'}`} />
           : <p className="p-4 text-sm text-ink-2">{missing ? 'This PDF is not in this browser. Upload it again from Sources.' : 'Opening…'}</p>}
       </div>
     </CanvasNode>
@@ -703,7 +708,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   useEffect(() => {
     if (apiRef) apiRef.current = {
       deselect: () => setSelected(null),
-      undo, selectAll, deleteSelection, zoomFit,
+      undo, redo, selectAll, deleteSelection, zoomFit,
       zoomIn: () => zoomCenter(1.25),
       zoomOut: () => zoomCenter(1 / 1.25),
       zoomReset: () => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 }),
@@ -760,21 +765,37 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   };
   const deleteSelectionRef = useRef(deleteSelection);
   deleteSelectionRef.current = deleteSelection;
-  // Undo: snapshot the three artifact lists before every mutating gesture.
-  // ponytail: single-level lists + 100-step cap; redo comes when asked for.
+  // Undo and redo: snapshot the artifact lists before every mutating gesture.
+  // ponytail: single-level lists + 100-step cap; both stacks die with the tab.
   const present = useRef(null);
   present.current = { strokes, shapes, items, links, blocks };
   const history = useRef([]);
+  const future = useRef([]);
   // withExchanges captures the chat blocks too, so deleting a block undoes.
+  const capture = (withExchanges = false) => ({ ...present.current, ...(withExchanges ? { exchanges: exchangesRef.current } : {}) });
   const snapshot = (withExchanges = false) => {
-    history.current.push({ ...present.current, ...(withExchanges ? { exchanges: exchangesRef.current } : {}) });
+    history.current.push(capture(withExchanges));
     if (history.current.length > 100) history.current.shift();
+    // A fresh gesture is a new branch, so anything redone is no longer reachable.
+    future.current = [];
+  };
+  const restore = state => {
+    setStrokes(state.strokes); setShapes(state.shapes); setItems(state.items); setLinks(state.links); setBlocks(state.blocks); setSelected(null);
+    if (state.exchanges) onRestoreRef.current?.(state.exchanges);
   };
   const undo = () => {
     const previous = history.current.pop();
     if (!previous) return;
-    setStrokes(previous.strokes); setShapes(previous.shapes); setItems(previous.items); setLinks(previous.links); setBlocks(previous.blocks); setSelected(null);
-    if (previous.exchanges) onRestoreRef.current?.(previous.exchanges);
+    // Carry the exchange list onto the redo entry whenever the step it undoes
+    // held one, or redoing a deleted chat card would not bring it back.
+    future.current.push(capture(!!previous.exchanges));
+    restore(previous);
+  };
+  const redo = () => {
+    const next = future.current.pop();
+    if (!next) return;
+    history.current.push(capture(!!next.exchanges));
+    restore(next);
   };
   useEffect(() => { setView(v => ({ ...v, x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2) })); }, []);
   // Wheel pans the world; ctrl/cmd+wheel zooms at the cursor. Non-passive so
@@ -805,44 +826,79 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         undo();
         return;
       }
-      // Copy and paste work on every selected node, note and shape.
+      // Redo answers to both spellings: Ctrl+Y on Windows, Ctrl+Shift+Z elsewhere.
+      if ((event.ctrlKey || event.metaKey) && (event.key.toLowerCase() === 'y' || (event.shiftKey && event.key.toLowerCase() === 'z'))) {
+        if (typing) return;
+        event.preventDefault();
+        redo();
+        return;
+      }
+      // Copy and paste work on every selected node, note and shape. The clipboard
+      // holds ids, never the objects: copy then edit then paste has to produce
+      // what is on the canvas now, not a snapshot taken at the moment of copy.
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
-        if (typing || !selectedRef.current.length || window.getSelection()?.toString()) return;
+        // Only a real text selection should defer to the browser. Testing the
+        // document for any selection at all let a stray highlight anywhere on
+        // the page silently kill the copy.
+        const text = window.getSelection();
+        if (typing || !selectedRef.current.length || (text && !text.isCollapsed && text.toString())) return;
         const picked = selectedRef.current;
-        clipboard.current = {
-          blocks: blocksRef.current.filter(block => picked.includes(block.id)),
-          items: itemsRef.current.filter(item => picked.includes(item.id)),
-          shapes: shapesRef.current.filter(shape => picked.includes(shape.id)),
-          chats: exchangesRef.current.filter(exchange => picked.includes(exchange.id)),
-        };
+        const has = list => list.some(entry => picked.includes(entry.id));
+        // A connector is selectable but not copyable. Without this the clipboard
+        // was wiped by a copy that captured nothing.
+        if (!has(blocksRef.current) && !has(itemsRef.current) && !has(shapesRef.current) && !has(exchangesRef.current)) return;
+        event.preventDefault();
+        clipboard.current = picked.slice();
+        toast(`Copied ${picked.length} item${picked.length === 1 ? '' : 's'}`);
         return;
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
-        const clip = clipboard.current;
-        if (typing || !clip) return;
+        const picked = clipboard.current;
+        if (typing || !picked?.length) return;
+        // Resolved now, so the copy carries the latest text and position.
+        const pickedBlocks = blocksRef.current.filter(block => picked.includes(block.id));
+        const pickedItems = itemsRef.current.filter(item => picked.includes(item.id));
+        const pickedShapes = shapesRef.current.filter(shape => picked.includes(shape.id));
+        const pickedChats = exchangesRef.current.filter(exchange => picked.includes(exchange.id));
+        if (!pickedBlocks.length && !pickedItems.length && !pickedShapes.length && !pickedChats.length) return;
         event.preventDefault();
-        snapshot(clip.chats.length > 0);
+        snapshot(pickedChats.length > 0);
         const step = 28;
         const fresh = [];
         const copyNode = node => { const id = crypto.randomUUID(); fresh.push(id); return { ...node, id, dx: node.dx + step, dy: node.dy + step }; };
-        const blocksCopy = clip.blocks.map(copyNode);
-        const chatsCopy = clip.chats.map(node => ({ ...copyNode(node), linkFrom: null }));
-        const itemsCopy = clip.items.map(item => { const id = crypto.randomUUID(); fresh.push(id); return { ...item, id, x: item.x + step, y: item.y + step, fresh: false }; });
-        const shapesCopy = clip.shapes.map(shape => { const id = crypto.randomUUID(); fresh.push(id); return { ...shape, id, x1: shape.x1 + step, y1: shape.y1 + step, x2: shape.x2 + step, y2: shape.y2 + step }; });
-        if (blocksCopy.length) setBlocks(previous => [...previous, ...blocksCopy]);
+        const blocksCopy = pickedBlocks.map(copyNode);
+        // A card copied mid-answer would never receive its stream: deltas are
+        // routed by id and the copy has a new one. Settle it instead.
+        const chatsCopy = pickedChats.map(node => ({ ...copyNode(node), linkFrom: null, status: 'done' }));
+        const itemsCopy = pickedItems.map(item => { const id = crypto.randomUUID(); fresh.push(id); return { ...item, id, x: item.x + step, y: item.y + step, fresh: false }; });
+        const shapesCopy = pickedShapes.map(shape => { const id = crypto.randomUUID(); fresh.push(id); return { ...shape, id, x1: shape.x1 + step, y1: shape.y1 + step, x2: shape.x2 + step, y2: shape.y2 + step }; });
+        // Each copy lands directly after its source rather than at the end of the
+        // column, where on a long canvas it was off-screen and read as nothing
+        // having happened.
+        if (blocksCopy.length) setBlocks(previous => {
+          const next = [...previous];
+          blocksCopy.forEach((copy, index) => {
+            const at = next.findIndex(block => block.id === pickedBlocks[index].id);
+            next.splice(at < 0 ? next.length : at + 1, 0, copy);
+          });
+          return next;
+        });
         if (itemsCopy.length) setItems(previous => [...previous, ...itemsCopy]);
         if (shapesCopy.length) setShapes(previous => [...previous, ...shapesCopy]);
         if (chatsCopy.length) onAddRef.current?.(chatsCopy);
         setSelection(fresh);
-        clipboard.current = { ...clip, blocks: blocksCopy, items: itemsCopy, shapes: shapesCopy, chats: chatsCopy };
+        clipboard.current = fresh; // paste again and it stacks from the newest
         return;
       }
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
       if (typing) return;
       deleteSelectionRef.current();
     };
-    window.addEventListener('keydown', key);
-    return () => window.removeEventListener('keydown', key);
+    // Capture phase: several lesson blocks stop keydown on their own container
+    // (an embedded graph, a chart, a 3D view), which otherwise kills copy,
+    // paste, undo and delete for the whole canvas while one is focused.
+    window.addEventListener('keydown', key, true);
+    return () => window.removeEventListener('keydown', key, true);
   }, []);
   // The Ask-in-chat button on a selected block arms the dock composer with
   // that block as context; plain selection stays just a selection.

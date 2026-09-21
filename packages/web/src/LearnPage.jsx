@@ -575,6 +575,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
       title: 'Edit',
       items: [
         { label: 'Undo', hint: 'Ctrl Z', onSelect: () => canvas()?.undo() },
+        { label: 'Redo', hint: 'Ctrl Y', onSelect: () => canvas()?.redo() },
         { divider: true },
         { label: 'Select all', onSelect: () => canvas()?.selectAll() },
         { label: 'Delete selection', hint: 'Del', onSelect: () => canvas()?.deleteSelection() },
