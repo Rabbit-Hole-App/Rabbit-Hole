@@ -28,18 +28,20 @@ const statesAComputedRelationship = text => HAS_OPERATOR.test(text || '') && HAS
 const DOT_EQUATION = /([a-zA-Z])_\{[^}]+\}\s*\\cdot\s*([a-zA-Z])_\{[^}]+\}\s*=\s*(-?\d*\.?\d+)/g;
 
 // How many source vectors this scene actually draws: one per `strip`, and
-// one per row of an input-table grid (rowLabels but no columnLabels - see
-// checkProvenanceOnComputedClaims's comment on that distinction). A full
-// Q/K/V matrix drawn as a labelled grid is a legitimate source of N vectors,
-// the same as N separate strips would be - only a RELATIONAL grid (both axes
-// labelled) is excluded, because that is what these checks are asking
-// whether enough vectors exist to have produced.
+// one per row of a grid explicitly declared matrixKind: 'input' - a full
+// Q/K/V matrix drawn as such a grid is a legitimate source of N vectors, the
+// same as N separate strips would be. Gated on the explicit declaration, not
+// on whether the grid happens to carry rowLabels - a labelling choice must
+// not decide whether a downstream arithmetic gate applies (see
+// checkProvenanceOnComputedClaims's comment, and docs/superpowers/specs/
+// 2026-09-18-visual-language-and-motion-design.md's audit note: a check
+// switched off by changing how something looks is not a check).
 function vectorSupply(scene) {
   let count = 0;
   for (const object of scene.objects) {
     const state = object.initialState;
     if (object.type === 'strip' && Array.isArray(state.values)) count += 1;
-    if (object.type === 'grid' && state.rowLabels && !state.columnLabels) count += state.rowLabels.length;
+    if (object.type === 'grid' && state.matrixKind === 'input') count += state.rows || 1;
   }
   return count;
 }
@@ -49,9 +51,16 @@ function vectorSupply(scene) {
 // result illustrative does not exempt it, because "illustrative" only covers
 // a value with NO claim of being computed, and stating "a . b = x" for
 // visible a and b is exactly that claim.
+//
+// A grid's gate is matrixKind, an explicit authored declaration - never
+// rowLabels/columnLabels/heat, all three of which are presentation and can
+// be added, omitted or restyled without changing what the matrix claims to
+// be. An author who deletes an axis label, or draws the same matrix with no
+// heat at all, cannot switch this check off - matrixKind is the one thing
+// that does, and only by declaring 'input' (a fact about the data, not a
+// claimed relationship).
 function checkProvenanceOnComputedClaims(scene) {
   const issues = [];
-  const vectorObjectCount = vectorSupply(scene);
   for (const object of scene.objects) {
     const state = object.initialState;
     if (object.type === 'equation' && statesAComputedRelationship(state.text)) {
@@ -62,18 +71,11 @@ function checkProvenanceOnComputedClaims(scene) {
         });
       }
     }
-    // A relational matrix names BOTH axes - river/flows/south against
-    // river/flows/south is "these entities compared with those entities",
-    // the same claim an equation makes with "=". An input table names at
-    // most one axis (tokens down the side, dimensions across the top stay
-    // unnamed) and is a fact about the data, not a relationship computed
-    // from something else visible - K's own values are exactly this, and
-    // must NOT be forced through the seam just for carrying rowLabels.
-    if (object.type === 'grid' && state.heat && state.rowLabels && state.columnLabels && vectorObjectCount > 0) {
+    if (object.type === 'grid' && (state.matrixKind === 'relational' || state.matrixKind === 'derived')) {
       if (state.provenance !== 'derived') {
         issues.push({
           check: 'provenance-required', objectId: object.id,
-          message: `grid "${object.id}" is a labelled, heat-mapped matrix alongside ${vectorObjectCount} vector object(s), so its provenance must be "derived" - it is "${state.provenance}"`,
+          message: `grid "${object.id}" declares matrixKind "${state.matrixKind}", so its provenance must be "derived" - it is "${state.provenance}"`,
         });
       }
     }
@@ -135,21 +137,23 @@ function checkDotProductArithmetic(scene) {
   return issues;
 }
 
-// A RELATIONAL grid claiming N distinct rows or columns (named by distinct
-// rowLabels AND columnLabels - see checkProvenanceOnComputedClaims for why
-// both, not either) needs at least N drawn vector objects to have produced
-// them. Generic dimension agreement, not "every key needs its own box": the
-// same shape check applies to a confusion matrix, a cost table or a
-// per-expert score row. An input table (rows named, columns not) is not
-// claiming to have been produced FROM anything and is exempt, the same as it
-// is from the provenance rule.
+// A RELATIONAL grid (matrixKind explicitly 'relational' - see
+// checkProvenanceOnComputedClaims) claiming N distinct rows or columns needs
+// at least N drawn source vectors to have produced them. Generic dimension
+// agreement, not "every key needs its own box": the same shape check applies
+// to a confusion matrix, a cost table or a per-expert score row. 'derived'
+// is exempt from THIS check on purpose - a general computed tensor (a
+// projection, an elementwise transform) is not necessarily a pairwise
+// comparison of two vector sets, so "enough vectors to have produced N rows"
+// is not a claim it makes. 'input' is exempt as it is from the provenance
+// rule, for the same reason: a fact about the data, not a claimed
+// relationship.
 function checkMatrixDimensionsMatchVectors(scene) {
   const issues = [];
   const vectorObjectCount = vectorSupply(scene);
   for (const object of scene.objects) {
-    if (object.type !== 'grid') continue;
+    if (object.type !== 'grid' || object.initialState.matrixKind !== 'relational') continue;
     const { rows = 1, cols = 1, rowLabels, columnLabels } = object.initialState;
-    if (!(rowLabels && columnLabels)) continue;
     const need = Math.max(rows, cols);
     if (need > 1 && vectorObjectCount > 0 && vectorObjectCount < need) {
       const labels = [...(rowLabels || []), ...(columnLabels || [])].join(', ') || 'none';
@@ -162,19 +166,19 @@ function checkMatrixDimensionsMatchVectors(scene) {
   return issues;
 }
 
-const isProbabilityLike = object => /softmax|probabilit/i.test(object.initialState.label || '');
-
-// Probabilities in range, and softmax rows summing to ~1 - only where a scene
-// itself claims the values are one (via its own label), never inferred from
-// the numbers alone.
+// Probabilities in range, and softmax rows summing to ~1 - only where a
+// scene itself EXPLICITLY DECLARES the values are one (distribution: true),
+// never inferred from a caption's wording. A caption is prose; rewording it
+// ("attention weights" instead of "softmax weights") must not turn this
+// check off, and omitting a caption entirely must not either.
 function checkProbabilityClaims(scene) {
   const issues = [];
   for (const object of scene.objects) {
-    if (!['grid', 'strip', 'bars'].includes(object.type) || !isProbabilityLike(object)) continue;
+    if (!['grid', 'strip', 'bars'].includes(object.type) || !object.initialState.distribution) continue;
     const values = object.initialState.values || [];
     for (const value of values) {
       if (value != null && (value < -0.001 || value > 1.001)) {
-        issues.push({ check: 'probability-range', objectId: object.id, message: `"${object.id}" is labelled as a probability/softmax but holds ${value}, outside [0, 1]` });
+        issues.push({ check: 'probability-range', objectId: object.id, message: `"${object.id}" declares distribution: true but holds ${value}, outside [0, 1]` });
       }
     }
     if (object.type === 'grid') {
@@ -185,7 +189,7 @@ function checkProbabilityClaims(scene) {
         if (!row.length) continue;
         const total = round(row.reduce((sum, value) => sum + value, 0));
         if (Math.abs(total - 1) > 0.02) {
-          issues.push({ check: 'softmax-row-sum', objectId: object.id, message: `"${object.id}" row ${r} is labelled as softmax/probability but sums to ${total}, not 1` });
+          issues.push({ check: 'softmax-row-sum', objectId: object.id, message: `"${object.id}" row ${r} declares distribution: true but sums to ${total}, not 1` });
         }
       }
     }

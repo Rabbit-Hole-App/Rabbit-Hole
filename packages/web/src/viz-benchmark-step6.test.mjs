@@ -6,8 +6,25 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { getSceneState, validateScene } from './animation-scene.js';
+import { checkSceneConsistency } from './scene-consistency.js';
+import { checkLayoutLint } from './scene-layout-lint.js';
 
 const load = relativePath => JSON.parse(readFileSync(new URL(`../../../viz-benchmarks/illustrated-transformer/cases/${relativePath}`, import.meta.url), 'utf8'));
+const CASE_PATHS = [
+  '01-self-attention-computation-flow/generated/latest/scene-spec.json',
+  '03-attention-score-matrix/generated/latest/scene-spec.json',
+  '07-multi-head-attention/generated/latest/scene-spec.json',
+  '08-transformer-block/generated/latest/scene-spec.json',
+  '09-encoder-decoder-attention/generated/latest/scene-spec.json',
+];
+
+test('all five rerun cases pass both the consistency checker and the layout lint', () => {
+  for (const path of CASE_PATHS) {
+    const scene = validateScene(load(path));
+    assert.deepEqual(checkSceneConsistency(scene), { passed: true, issues: [] }, `${path}: consistency`);
+    assert.deepEqual(checkLayoutLint(scene), { passed: true, issues: [] }, `${path}: layout`);
+  }
+});
 
 test('case 07: the three drawn head outputs (Z0, Z1, Z7) now resolve to three distinct identity slots, so they no longer render as the same fill', () => {
   const scene = validateScene(load('07-multi-head-attention/generated/latest/scene-spec.json'));

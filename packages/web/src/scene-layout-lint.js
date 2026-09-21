@@ -5,16 +5,26 @@
 // reports is a collision the renderer would actually draw - never a guess
 // built separately from what AnimatedScene.jsx does.
 import { getSceneState } from './animation-scene.js';
-import { textStyle } from './scene-style.js';
+import { shapeStyle, textStyle } from './scene-style.js';
 import { centreOf, estimateTextBox, gridAxisLabelBoxes, labelAt } from './scene-layout.js';
 
 // An arrowhead is not a point. The SVG marker (AnimatedScene.jsx's
-// #animation-arrow-tinted, markerWidth 9 in strokeWidth units, refX 7) draws
-// back from the line's own endpoint by several strokeWidths along the line's
-// direction. This is a deliberate approximation of that footprint - a fixed
-// radius around the endpoint, not a font-and-marker-accurate polygon - big
-// enough to catch an obvious collision, which is the lint's whole job.
-const ARROWHEAD_RADIUS = 14;
+// #animation-arrow-tinted) is markerWidth="9" with refX="7", in marker units
+// - and marker units default to strokeWidth, so the marker's back edge sits
+// refX (7) strokeWidths behind the line's own endpoint. Computed per arrow
+// from the SAME shapeStyle() the renderer calls for it, not a flat guess: a
+// flat 14px was tuned for the diagonal, thicker-stroke arrows that motivated
+// this check and over-flagged short, resting-stroke (1.5px) horizontal
+// arrows landing a genuine ~10.5px away from a label - a false positive this
+// removes without weakening the real collisions (see scene-layout-lint.test.mjs).
+const MARKER_REF_X = 7;
+// A `line` carries no marker at all (AnimatedScene.jsx's markerEnd is
+// arrow-only), so its endpoint is a bare stroke, not a triangle - half its
+// own width, not seven strokeWidths, is the honest footprint.
+const arrowheadRadius = object => {
+  const strokeWidth = shapeStyle(object.role, { highlighted: object.highlighted }, undefined, object.identitySlot).strokeWidth;
+  return (object.type === 'arrow' ? MARKER_REF_X : 0.5) * strokeWidth;
+};
 
 const overlaps = (box, x, y, radius) => x + radius > box.xMin && x - radius < box.xMax && y + radius > box.yMin && y - radius < box.yMax;
 
@@ -67,9 +77,10 @@ function checkArrowIntoLabel(objects) {
     if (!['arrow', 'line'].includes(object.type)) continue;
     const tip = object.to ?? object.from;
     if (!tip) continue;
+    const radius = arrowheadRadius(object);
     for (const { label, box } of boxes) {
       if (label.ownerId === object.id) continue; // an arrow's own caption sits at its own `from`, never its tip
-      if (overlaps(box, tip.x, tip.y, ARROWHEAD_RADIUS)) {
+      if (overlaps(box, tip.x, tip.y, radius)) {
         issues.push({
           check: 'edge-intersects-label', objectId: object.id,
           message: `"${object.id}" lands its arrowhead at (${tip.x}, ${tip.y}), inside the label "${label.text}" owned by "${label.ownerId}" (estimated box x:[${box.xMin.toFixed(0)},${box.xMax.toFixed(0)}] y:[${box.yMin.toFixed(0)},${box.yMax.toFixed(0)}])`,

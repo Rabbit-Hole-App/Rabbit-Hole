@@ -42,6 +42,24 @@ const objectSchema = z.object({
     // consistency checker is the only thing that enforces which objects must
     // carry it.
     provenance: z.enum(['literal', 'derived', 'illustrative']).default('literal'),
+    // What a grid IS, semantically - never inferred from whether it happens
+    // to carry row/column labels or a heat ramp, both of which are
+    // presentation choices an author can add, omit or reword without
+    // changing what the matrix actually claims. input: authored ground
+    // truth, a table of given values. relational: states a relationship
+    // between two labelled sets the scene draws (a score, similarity or
+    // cost matrix). derived: itself the result of a computation on
+    // declared inputs, without necessarily comparing two sets (a
+    // projection, an elementwise transform). Only relational and derived
+    // are subject to the consistency checker's arithmetic gates - see
+    // scene-consistency.js.
+    matrixKind: z.enum(['input', 'relational', 'derived']).optional(),
+    // Does every row of this object's values claim to be a probability
+    // distribution (each entry in [0, 1], summing to ~1)? An explicit claim,
+    // not inferred from a label containing the word "softmax" - a caption
+    // is prose an author can reword freely without that changing what the
+    // numbers themselves assert.
+    distribution: z.boolean().optional(),
     typography: z.enum(TYPE_ROLES).default('body'),
     from: vector.optional(),
     to: vector.optional(),

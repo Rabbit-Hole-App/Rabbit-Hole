@@ -22,9 +22,9 @@
       "initialState": { "label": "encoder 3 (top)", "x": 40, "y": 400, "w": 160, "h": 50, "role": "output" } },
 
     { "id": "fanout-1", "type": "arrow", "semanticId": "fanout-to-layer1",
-      "initialState": { "from": { "x": 200, "y": 420 }, "to": { "x": 420, "y": 505 }, "role": "neutral" } },
+      "initialState": { "from": { "x": 200, "y": 420 }, "to": { "x": 420, "y": 484 }, "role": "neutral" } },
     { "id": "fanout-2", "type": "arrow", "semanticId": "fanout-to-layer2",
-      "initialState": { "from": { "x": 200, "y": 420 }, "to": { "x": 420, "y": 245 }, "role": "neutral" } },
+      "initialState": { "from": { "x": 200, "y": 420 }, "to": { "x": 420, "y": 224 }, "role": "neutral" } },
 
     { "id": "selfattn1", "type": "box", "semanticId": "decoder1-self-attention",
       "initialState": { "label": "self-attention", "x": 420, "y": 560, "w": 220, "h": 50, "role": "neutral" } },

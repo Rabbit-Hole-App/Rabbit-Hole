@@ -12,10 +12,10 @@
     { "id": "note-per-head", "type": "text", "semanticId": "note-per-head",
       "initialState": { "text": "each head learns its own Q, K and V from the same input", "x": 140, "y": 128, "typography": "caption" } },
     { "id": "spine", "type": "line", "semanticId": "spine",
-      "initialState": { "from": { "x": 60, "y": 116 }, "to": { "x": 60, "y": 356 }, "role": "neutral" } },
+      "initialState": { "from": { "x": 60, "y": 116 }, "to": { "x": 60, "y": 372 }, "role": "neutral" } },
 
     { "id": "branch-head0", "type": "arrow", "semanticId": "branch-head0",
-      "initialState": { "from": { "x": 60, "y": 164 }, "to": { "x": 140, "y": 164 }, "role": "neutral" } },
+      "initialState": { "from": { "x": 60, "y": 182 }, "to": { "x": 140, "y": 182 }, "role": "neutral" } },
     { "id": "head0-label", "type": "text", "semanticId": "head0-label",
       "initialState": { "text": "head 0", "x": 140, "y": 158, "typography": "caption" } },
     { "id": "head0-q", "type": "grid", "semanticId": "head0-query",
@@ -30,7 +30,7 @@
       "initialState": { "label": "Z0", "x": 300, "y": 164, "rows": 1, "cols": 1, "cell": 36, "role": "observed", "identity": "head-0" } },
 
     { "id": "branch-head1", "type": "arrow", "semanticId": "branch-head1",
-      "initialState": { "from": { "x": 60, "y": 244 }, "to": { "x": 140, "y": 244 }, "role": "neutral" } },
+      "initialState": { "from": { "x": 60, "y": 262 }, "to": { "x": 140, "y": 262 }, "role": "neutral" } },
     { "id": "head1-label", "type": "text", "semanticId": "head1-label",
       "initialState": { "text": "head 1", "x": 140, "y": 238, "typography": "caption" } },
     { "id": "head1-q", "type": "grid", "semanticId": "head1-query",
@@ -48,7 +48,7 @@
       "initialState": { "text": "... 5 more heads, computed the same independent way ...", "x": 140, "y": 316, "typography": "caption" } },
 
     { "id": "branch-head7", "type": "arrow", "semanticId": "branch-head7",
-      "initialState": { "from": { "x": 60, "y": 354 }, "to": { "x": 140, "y": 354 }, "role": "neutral" } },
+      "initialState": { "from": { "x": 60, "y": 372 }, "to": { "x": 140, "y": 372 }, "role": "neutral" } },
     { "id": "head7-label", "type": "text", "semanticId": "head7-label",
       "initialState": { "text": "head 7", "x": 140, "y": 348, "typography": "caption" } },
     { "id": "head7-q", "type": "grid", "semanticId": "head7-query",

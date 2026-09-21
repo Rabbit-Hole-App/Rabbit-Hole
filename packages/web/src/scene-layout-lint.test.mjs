@@ -68,3 +68,24 @@ test('evidence: the committed case 01 scene-spec passes the layout lint, after t
   const scene = validateScene(loadCase01());
   assert.deepEqual(checkLayoutLint(scene), { passed: true, issues: [] });
 });
+
+// Regression guard for the arrowhead-radius refinement (flat 14px -> per-arrow
+// 7 * strokeWidth, matching the real SVG marker geometry - see
+// scene-layout-lint.js). It was tightened to clear a false positive on short,
+// resting-stroke horizontal arrows (cases 08/09's ~13px true gaps); this
+// proves it did not also stop catching a smaller, genuine one. An 8px gap
+// (case 01's original margin, independent of today's ROW_LABEL_GAP value)
+// is still well inside a resting arrow's ~10.5px true footprint.
+test('the strokeWidth-based arrowhead radius still catches an 8px gap', () => {
+  const scene = validateScene({
+    id: 'still-genuine', duration: 1,
+    objects: [
+      { id: 'caption', type: 'text', initialState: { text: 'careful here', x: 428, y: 265 } },
+      { id: 'diagonal', type: 'arrow', initialState: { from: { x: 166, y: 256 }, to: { x: 420, y: 265 }, role: 'neutral' } },
+    ],
+    timeline: [],
+  });
+  const { passed, issues } = checkLayoutLint(scene);
+  assert.equal(passed, false, 'an 8px gap on a diagonal arrow must still be caught');
+  assert.ok(issues.some(issue => issue.check === 'edge-intersects-label'));
+});
