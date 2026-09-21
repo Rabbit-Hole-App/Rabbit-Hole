@@ -15,7 +15,6 @@ import ContentsRail from './ContentsRail.jsx';
 import CanvasMenubar from './CanvasMenubar.jsx';
 import { contentsEntries } from './learn-contents.js';
 import { withSource, toggleSource, isAttached } from './learn-sources.js';
-import { cacheAsset } from './learn-asset-cache.js';
 import { lessonMilestones } from './learn-milestones.js';
 import LessonPlanPreview from './LessonPlanPreview.jsx';
 import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
@@ -158,12 +157,29 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const pdfPicker = useRef(null);
   const takePdf = async file => {
     if (!file) return;
-    const assetKey = `pdf:${crypto.randomUUID()}`;
-    // cacheAsset swallows a blocked or full store and answers null, so a failed
-    // write must stop here rather than leaving a block pointing at nothing.
-    if (!(await cacheAsset(assetKey, file))) { toast('This browser would not store the PDF. Free some space and try again.'); return; }
-    canvasApi.current?.insertPdf({ assetKey, label: file.name });
-    registerSource({ id: assetKey, kind: 'pdf', label: file.name });
+    // The reader can only take the learner to a page the model will also read,
+    // and paper_context refuses anything past 100. Say so before the upload
+    // rather than failing on every question afterwards.
+    try {
+      const { getDocument } = await import('./learn-paper-figures.js');
+      const pages = (await getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise).numPages;
+      if (pages > 100) { toast(`That PDF has ${pages} pages. The tutor can read up to 100.`); return; }
+    } catch { toast('That file could not be read as a PDF.'); return; }
+    const body = new FormData();
+    body.append('file', file, file.name);
+    let stored;
+    try {
+      const response = await fetch(`/api/learn/paper?app=${encodeURIComponent(app.name)}`, { method: 'POST', body, headers: wsHeaders() });
+      stored = await response.json();
+      if (!response.ok) throw new Error(stored?.error || 'Upload failed');
+    } catch (error) { toast(error.message || 'That PDF could not be uploaded.'); return; }
+    // Opening it in the reader is what makes the tutor page-aware: boardContext
+    // carries paperContext, and ask.jsx turns that into paper_context with the
+    // page the learner is actually on.
+    pauseLesson();
+    setPaperContext({ ...stored, pdfUrl: null, page: 1 });
+    setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false);
+    registerSource({ id: stored.id, kind: 'pdf', label: stored.title });
   };
   const repoSourceId = app.repo ? `repo:${app.repo}` : null;
   // The repository is the one source that exists on day one, and detaching it
@@ -640,7 +656,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
-        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onState={onCanvasState} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
+        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onState={onCanvasState} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly boardContext={boardContext} onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">

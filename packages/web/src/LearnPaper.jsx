@@ -10,6 +10,8 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
   const [rectangle, setRectangle] = useState(null);
   const drag = useRef(null);
   const canvas = useRef(null);
+  // An upload has no public identity: no arXiv number and no public URL.
+  const uploaded = String(paper.id).startsWith('upload:');
   useEffect(() => { setSelecting(false); setRectangle(null); drag.current = null; }, [paper.id, paper.page]);
   // An outside control (the canvas Select-region pill) can arm the picker.
   useEffect(() => { if (selectRequest) { setSelecting(true); setRectangle(null); } }, [selectRequest]);
@@ -34,7 +36,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
     setDocument(null); setError(''); setZoom(1);
     (async () => {
       const response = await fetch(`/api/learn/paper?app=${encodeURIComponent(app)}&id=${encodeURIComponent(paper.id)}`, { headers: wsHeaders(), signal: controller.signal });
-      if (!response.ok) throw new Error('Could not load this paper.');
+      if (!response.ok) throw new Error((await response.json().catch(() => null))?.error || 'Could not load this paper.');
       const data = new Uint8Array(await response.arrayBuffer());
       const { getDocument } = await import('./learn-paper-figures.js');
       if (controller.signal.aborted) return;
@@ -61,7 +63,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
   return <section aria-label="Paper reader" className="flex min-h-0 flex-1 flex-col">
     {/* One control row: title, pages, zoom and the region picker together. */}
     <header className="flex shrink-0 items-center gap-2 border-b border-line pb-2 text-xs text-ink">
-      <div className="min-w-0 flex-1"><h3 className="truncate text-sm font-medium">{paper.title}</h3><p className="truncate text-xs text-ink-2">arXiv:{paper.id}{document ? ` · page ${paper.page} of ${document.numPages}` : ''}</p></div>
+      <div className="min-w-0 flex-1"><h3 className="truncate text-sm font-medium">{paper.title}</h3><p className="truncate text-xs text-ink-2">{uploaded ? 'Your upload' : `arXiv:${paper.id}`}{document ? ` · page ${paper.page} of ${document.numPages}` : ''}</p></div>
       {document && <>
         <button type="button" aria-label="Previous paper page" title="Previous page" disabled={paper.page <= 1} onClick={() => onPage(paper.page - 1)} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><ChevronLeft size={14} /></button>
         <button type="button" aria-label="Next paper page" title="Next page" disabled={paper.page >= document.numPages} onClick={() => onPage(paper.page + 1)} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><ChevronRight size={14} /></button>
@@ -73,7 +75,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
           onClick={() => (paper.selection ? (onSelect?.(null), setSelecting(false), setRectangle(null)) : (setSelecting(value => !value), setRectangle(null)))}
           className={`rounded border p-1 ${selecting || paper.selection ? 'border-red-600 bg-red-50 text-red-600' : 'border-line hover:bg-hover'}`}>{paper.selection ? <X size={14} /> : <Scan size={14} />}</button>
       </>}
-      <a href={`${paper.pdfUrl}#page=${paper.page}`} target="_blank" rel="noreferrer" title="Open original PDF" aria-label="Open original PDF" className="rounded border border-line p-1 hover:bg-hover"><ExternalLink size={14} /></a>
+      <a href={paper.pdfUrl ? `${paper.pdfUrl}#page=${paper.page}` : `/api/learn/paper?app=${encodeURIComponent(app)}&id=${encodeURIComponent(paper.id)}`} target="_blank" rel="noreferrer" title="Open original PDF" aria-label="Open original PDF" className="rounded border border-line p-1 hover:bg-hover"><ExternalLink size={14} /></a>
       {onClose && <button type="button" onClick={onClose} title="Close paper" aria-label="Close paper" className="rounded border border-line p-1 hover:bg-hover"><X size={14} /></button>}
     </header>
     {error && <p role="alert" className="p-3 text-sm">{error}</p>}
