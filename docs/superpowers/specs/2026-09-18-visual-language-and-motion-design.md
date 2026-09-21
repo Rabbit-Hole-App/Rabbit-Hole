@@ -196,6 +196,34 @@ declares what it **is**:
 Labels are still checked — for readability, by the layout lint. They do not decide
 whether the arithmetic is verified.
 
+**Semantic gates are explicit and mandatory. Absence of semantic metadata never
+exempts a numeric object from validation.**
+
+Replacing the label heuristic with a declared `matrixKind` closed one hole and
+opened another: an undeclared grid was exempt from every check. The bypass moved
+from *omit a label* to *omit a field* — and that is the worse of the two, because
+omission is the default state of every scene not yet migrated and every new scene
+an author writes. A gate that is off by default is not a gate.
+
+So `matrixKind` is **required** for any grid carrying values, with no default:
+
+| declaration | meaning |
+|---|---|
+| `input` | source data, a table of given values; no relational computation implied |
+| `relational` | states a relationship between things the scene draws; consistency checks apply |
+| `derived` | values must be backed by a declared derivation and provenance |
+
+There is deliberately **no default**, not even a strict one. Defaulting an absent
+field to `relational` would silently assign semantics the author never stated, and
+would make honest input tables fail checks that do not apply to them. Omission
+must be invalid, not reinterpreted.
+
+The general rule for any future gate of this shape:
+
+> When a semantic field controls **whether correctness checking applies**, that
+> field must either be **required**, or have a **conservative, provably safe
+> default**. Where no safe default exists, required is the only correct design.
+
 The general form, because this will recur: **if a check can be switched off by
 changing how something looks, it is not a check.** Any gate whose applicability is
 inferred from styling, labelling or layout has the same hole.
