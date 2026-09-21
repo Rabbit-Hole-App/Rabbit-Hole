@@ -149,6 +149,60 @@ identity slot must stay separated from every other slot **after** protanopia,
 deuteranopia and tritanopia simulation, and the simulation lives in the test
 suite so the next slot cannot reintroduce it.
 
+**A teaching visualization must never display a numeric relationship that is not
+mechanically consistent with the data it visibly presents.**
+
+This now outranks every typography, spacing and edge-routing rule in this
+document. A diagram that is beautiful and wrong is worse than a plain one that is
+right, because the beauty is what earns the learner's trust.
+
+It was found by an independent critic hand-computing what a scene claimed. Case
+03 of the Illustrated Transformer benchmark drew `q = [0.9, -0.4, 1.3]` and
+`k = [0.6, 1.1, -0.7]` beside the worked equation `q·k = .54`. The actual dot
+product is **-0.81**. The scene's own author had scored that case
+`technicalCorrectness: 5/5` and cited its "verifiable arithmetic" as a strength.
+Nobody verified it. It rendered, it looked authoritative, and it was false.
+
+**The cause is duplicated numbers.** The vectors were authored, the result was
+authored separately, and nothing tied them together. The fix is one source of
+truth:
+
+```text
+exampleData  ->  vectors  ->  derived calculation  ->  matrix  ->  equation
+```
+
+**If a number is the result of an operation the scene already represents, it must
+not be independently authored.** Dot products, softmax outputs, sums, averages,
+dimensions, head sizes, probabilities, scores. Either derive it from the authored
+data, or mark it explicitly illustrative with no claim that it came from the
+inputs shown.
+
+## The order of priorities
+
+When these compete, this is the order:
+
+```text
+technical truth  ->  structural continuity  ->  readability and layout  ->  aesthetics
+```
+
+An arrow crossing a label is a real defect. A displayed equation that contradicts
+the vectors beside it is a different kind of thing entirely, and polishing the
+first while the second ships is how a system becomes convincing and untrue.
+
+## The author cannot be the final grader
+
+The same run scored itself 4.83/5. An independent critic, forbidden from reading
+those scores before writing its own, scored the same nine cases **3.58/5** and
+rejected them. It found a hard fail the author had called a strength.
+
+From here the chain is:
+
+```text
+author agent  ->  consistency checks  ->  render  ->  independent critic  ->  human review
+```
+
+A self-score is **debugging feedback, never acceptance evidence.**
+
 **A continuously varying visual property must have one ownership path for the
 lifetime of the element.**
 
