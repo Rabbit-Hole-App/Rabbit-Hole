@@ -422,6 +422,28 @@ that owns the problem. Giving a heatmap a soft role to widen its dynamic range,
 or inventing a role to distinguish two peers, trades a rendering problem for a
 semantic lie and the lie outlives the frame that caused it.
 
+**Requiring a declaration removes ambiguity. Validating that declaration against
+context establishes truth.**
+
+Three separate failures turned out to be the same one:
+
+| declaration | the hole | the fix |
+|---|---|---|
+| `matrixKind` | omission exempted a numeric grid entirely | required — absence cannot exempt |
+| `illustrative` | explicit provenance could impersonate computation | legal, but never as the result of an equation whose inputs are drawn |
+| `valueScale: local` | explicit intent could contradict the scene's own structure | rejected where a comparison already exists |
+
+Each time, making the field explicit fixed the *silent* error and left the
+*declared* one open. A misleading lesson is no less misleading for having been
+typed deliberately.
+
+**Prefer evidence from structure over authored metadata when rejecting.** A
+`valueScaleGroup` and a pattern declaration are things an author wrote; derivation
+lineage is what the scene actually computes. Metadata can be omitted or
+mis-stated by the same author whose claim is under test, so a rule that reads the
+computational structure catches cases the author never labelled — and a chain is
+a comparison whether or not anyone declared it one.
+
 **A quantitative encoding optimises contrast subject to quantitative truth, never
 instead of it.**
 
