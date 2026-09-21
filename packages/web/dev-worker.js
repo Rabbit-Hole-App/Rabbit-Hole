@@ -9,7 +9,7 @@ import signerCode from '../byoc/signer.py';
 import permissionsCode from '../byoc/permissions.py';
 import grantsCode from '../byoc/grants.py';
 import { apiAsk } from '../control-plane/src/index.js';
-import { boardFetch, authorizedBoardApp, paperFetch } from '../control-plane/src/learn-board.js';
+import { boardFetch, authorizedBoardApp, paperFetch, paperSearch } from '../control-plane/src/learn-board.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 export { LearnVideos } from '../control-plane/src/learn-video.js';
@@ -119,6 +119,7 @@ export default {
       return Response.json({ text: (heard.text || '').trim() });
     }
     if (path === '/api/learn/paper') return paperFetch(req, env);
+    if (path === '/api/learn/arxiv') return paperSearch(req, env);
     if (path === '/api/learn/board') {
       if (env.SUBSCRIPTION_ONLY === 'true') {
         let body; try { body = await req.clone().json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }

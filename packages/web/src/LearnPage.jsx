@@ -13,6 +13,7 @@ import { LessonNotebook, LessonPractice, LessonReading, LessonSource } from './L
 import LearnOutline from './LearnOutline.jsx';
 import ContentsRail from './ContentsRail.jsx';
 import CanvasMenubar from './CanvasMenubar.jsx';
+import PaperSearch from './PaperSearch.jsx';
 import { contentsEntries } from './learn-contents.js';
 import { withSource, toggleSource, isAttached } from './learn-sources.js';
 import { lessonMilestones } from './learn-milestones.js';
@@ -79,6 +80,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // A proposal from the tutor. It sits here until the learner applies or
   // discards it; nothing reaches the canvas on its own.
   const [proposal, setProposal] = useState(null);
+  const [paperSearchOpen, setPaperSearchOpen] = useState(false);
   const canvasStateRef = useRef(canvasState);
   canvasStateRef.current = canvasState;
   const onCanvasState = useCallback(next => setCanvasState(previous =>
@@ -159,6 +161,13 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     return () => clearTimeout(timer);
   }, [sources, canvasKey]);
   const registerSource = useCallback(source => setSources(previous => withSource(previous, source)), []);
+  // Open a paper the learner chose, by the same road a canvas link takes.
+  const openPaper = paper => {
+    pauseLesson();
+    setPaperContext({ ...paper, page: 1 });
+    setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false); setPanelOpen(true);
+    registerSource({ id: `paper:${paper.id}`, kind: 'paper', label: paper.title || `arXiv ${paper.id}` });
+  };
   // A PDF needs no account and no server: the bytes go to this browser's asset
   // store and the block keeps only the key. The file picker is hidden and
   // triggered from the Sources menu, so there is no dialog to dismiss.
@@ -586,6 +595,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         ...(sources.length ? [{ divider: true }] : []),
         // Enabled even with no connection: a greyed row naming a place it will
         // not take you is worse than one that explains the next step.
+        { label: 'arXiv paper…', onSelect: () => setPaperSearchOpen(true) },
         { label: 'PDF…', onSelect: () => pdfPicker.current?.click() },
         { label: 'Google Slides…', onSelect: () => toast('Connect Google under Settings → Connections to import a deck.') },
       ],
@@ -661,8 +671,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1"><h1 className="text-2xl font-semibold">Learn</h1><span aria-label="Course title" className="text-base text-ink-2">{courseTitle}</span></div>
         </div>}
         {/* the Curriculum | Lesson | My notes switcher now lives in the right panel as tabs */}
-        {!canvasState.presenting && <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
+        {!canvasState.presenting && <div className="relative mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
           <CanvasMenubar menus={canvasMenus} />
+          {paperSearchOpen && <PaperSearch app={app.name} onPick={openPaper} onClose={() => setPaperSearchOpen(false)} />}
           {/* The two things you reach for without opening a menu, so they sit in
               the strip rather than inside one. */}
           <div className="flex items-center gap-0.5">

@@ -371,6 +371,21 @@ export async function authorizedBoardApp(req, env, name) {
   return app;
 }
 
+// Finding a paper to put on the canvas. The same search the tutor's research
+// loop uses, exposed so the learner can reach it directly instead of waiting for
+// a link to appear in an answer.
+export async function paperSearch(req, env) {
+  if (req.method !== 'GET') return Response.json({ error: 'GET required' }, { status: 405 });
+  const url = new URL(req.url);
+  const access = await authorizedBoardApp(req, env, url.searchParams.get('app'));
+  if (access instanceof Response) return access;
+  const query = (url.searchParams.get('q') || '').trim();
+  // A pasted id or link is not a search: answer with that one paper.
+  try { return Response.json({ papers: [await readArxivPaper(query)] }); } catch { /* not an id, search for it */ }
+  try { return Response.json({ papers: await searchArxiv(query) }); }
+  catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
+}
+
 // Browser PDF rendering uses an authenticated, fixed-host fetch, never a model URL.
 // POST stores a learner's own PDF; GET serves either that or an arXiv paper, so
 // the reader is identical whichever a canvas block points at.
