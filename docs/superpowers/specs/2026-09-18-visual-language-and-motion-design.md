@@ -422,6 +422,49 @@ that owns the problem. Giving a heatmap a soft role to widen its dynamic range,
 or inventing a role to distinguish two peers, trades a rendering problem for a
 semantic lie and the lie outlives the frame that caused it.
 
+**A quantitative encoding optimises contrast subject to quantitative truth, never
+instead of it.**
+
+The renderer normalised every heat object to its own local minimum and maximum,
+so each object's largest value painted at 100% whatever that value was. `.57`,
+`.60` and `.72` rendered pixel-identically. In one computational chain a `.34`
+rendered **more saturated** than the `.44` it descended from: the visual ordering
+inverted the arithmetic.
+
+That was deliberate — it maximises contrast inside one object — and its cost was
+never measured. Across objects the encoding was meaningless, which is precisely
+the comparison a computational story invites a reader to make.
+
+**The rule:** if two quantitative objects participate in the same comparison,
+transformation or computational story, they may **not** independently normalise
+their VALUE encoding.
+
+So scaling becomes an authored semantic choice rather than a renderer default:
+
+| `valueScale` | meaning |
+|---|---|
+| `local` | maximise contrast inside one isolated object; **makes no cross-object magnitude claim** |
+| `shared` | every object in the scale group uses one common domain |
+| `fixed` | a known semantic domain, such as probabilities on `[0, 1]` |
+
+`valueScaleGroup` names the objects that share a domain, so a chain — scores,
+contributions, outputs — can be compared honestly. For signed data a shared group
+uses a **symmetric** domain `[-M, +M]` where `M` is the largest absolute value
+across the group, so zero stays at the neutral midpoint for every member.
+
+**`local` is not removed. It is made honest.** "Look at the pattern within this
+one matrix" is a legitimate thing to say; saying it silently while a reader
+compares two matrices is not.
+
+Consequences that follow:
+
+- `matrix_operation` and `live_computation` require `shared` or `fixed` — a pattern whose whole subject is a transformation cannot let its stages self-normalise.
+- Raw scores or logits: shared symmetric. Probabilities or softmax output: `fixed [0, 1]`. Matrices shown only for structure, claiming no magnitude: `local`.
+- The field is **required** on any heat object, following the same rule as `matrixKind`: a scaling gate that is absent-by-default reinstates exactly the silent behaviour it replaced.
+
+The regression that pins it: **within one scale group, a smaller value may never
+render more intensely than a larger one.**
+
 **VALUE owns the quantitative channel.** When a mark is quantitatively encoded —
 a heat cell, a diverging scale — the value drives its fill, and role and identity
 keep the frame, the stroke, the labels and the legend. Binding heat inside a
