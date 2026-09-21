@@ -113,6 +113,24 @@ from — including one case, the codebase orientation, that deliberately leaves 
 ML-diagram comfort zone to test whether this is a repo-learning product or a
 visualization demo.
 
+## The benchmark milestone closes when regression passes
+
+Once the closing pass and its regression are green, **the static benchmark
+milestone is done** — including if the hands-on app review then finds product
+problems.
+
+Those findings belong to the **next** milestone. They do not automatically reopen
+this one. A UX problem discovered in the gallery is evidence about the product,
+not evidence that the visual language failed its benchmarks; three independent
+blind reviews already answered that question.
+
+This exists because the opposite is the natural drift. Every report in this phase
+surfaced something real, and every one justified another round — which is what a
+repair ratchet looks like from the inside. The question changes here, from *can
+the visual system survive another benchmark* to *does this feel like a product
+someone would want to learn in.* Those are different questions with different
+work behind them, and mixing them means neither gets finished.
+
 ## HARD STOP after Phase 1
 
 **The roadmap describes an order, not a permission.**
