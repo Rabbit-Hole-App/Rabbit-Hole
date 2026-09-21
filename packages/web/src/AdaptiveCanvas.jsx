@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Ellipsis, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
+import { ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
@@ -7,6 +7,7 @@ import { BLOCK_TYPES, LearningBlockBody, describeBlock } from './LearningBlocks.
 import { gapsFrom, nearestGap } from './learn-gap-rail.js';
 import { panelFor, textStyle, dashArray, dashStyle, reorder, TEXT_LEVELS, DASH_STYLES, OPACITIES } from './learn-style-panel.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
+import { presentSteps } from './learn-present.js';
 import { cachedAsset } from './learn-asset-cache.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 
@@ -156,10 +157,11 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, s
       </div>
       {children}
       {['top', 'bottom'].map(side => <button key={side} type="button" data-port={side} data-owner={id} aria-label={`Connect ${side}`} title="Drag to connect blocks"
+        data-node-tool
         className={`absolute left-1/2 z-20 h-4 w-4 -translate-x-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white focus:opacity-100 ${connected?.[side] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${side === 'top' ? '-top-2' : '-bottom-2'}`}
         onPointerDown={event => onConnect(event, id, side)} />)}
       <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute right-0 bottom-0 z-10 cursor-nwse-resize p-1 text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink-2 focus:opacity-100"
-        onPointerDown={resize}><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg></button>
+        data-node-tool onPointerDown={resize}><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg></button>
     </div>
   );
 }
@@ -674,6 +676,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const [guides, setGuides] = useState([]);
   const [grid, setGrid] = useState(false);
   const [minimap, setMinimap] = useState(true);
+  // Present mode: null when editing, otherwise the step being shown.
+  const [presenting, setPresenting] = useState(null);
   const itemsLayer = useRef(null);
   const [level, setLevel] = useState('body');
   const [styleOpen, setStyleOpen] = useState(false); // the swatch's manual override
@@ -685,19 +689,48 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   onRestoreRef.current = onRestore;
   const onAskTargetRef = useRef(onAskTarget);
   onAskTargetRef.current = onAskTarget;
-  // Frame everything on the canvas. An infinite surface you can pan forever needs
-  // a way back to your own work.
-  const zoomFit = () => {
+  // Put the camera around a set of boxes. Used both to find your way back to
+  // everything, and to land on one section while presenting.
+  const frame = (boxes, pad = 48, maxZoom = 1) => {
     const element = surface.current;
-    const boxes = [...Object.values(boundsRef.current),
-      ...shapesRef.current.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) }))];
     if (!element || !boxes.length) return;
     const left = Math.min(...boxes.map(box => box.x)), top = Math.min(...boxes.map(box => box.y));
     const right = Math.max(...boxes.map(box => box.x + box.w)), bottom = Math.max(...boxes.map(box => box.y + box.h));
-    const pad = 48;
-    const z = Math.max(0.2, Math.min(1, (element.clientWidth - pad * 2) / Math.max(1, right - left), (element.clientHeight - pad * 2) / Math.max(1, bottom - top)));
-    setView({ z, x: (element.clientWidth - (right - left) * z) / 2 - left * z, y: pad - top * z });
+    const z = Math.max(0.2, Math.min(maxZoom, (element.clientWidth - pad * 2) / Math.max(1, right - left), (element.clientHeight - pad * 2) / Math.max(1, bottom - top)));
+    // Centred horizontally; vertically too when the section is short enough to
+    // sit in the middle of the screen, which is what reads as a slide.
+    const height = (bottom - top) * z;
+    setView({
+      z,
+      x: (element.clientWidth - (right - left) * z) / 2 - left * z,
+      y: (height + pad * 2 < element.clientHeight ? (element.clientHeight - height) / 2 : pad) - top * z,
+    });
   };
+  // Frame everything on the canvas. An infinite surface you can pan forever needs
+  // a way back to your own work.
+  const zoomFit = () => frame([...Object.values(boundsRef.current),
+    ...shapesRef.current.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) }))]);
+  // Stepping frames one section at a time; nothing re-renders, the camera just
+  // lands somewhere else, so ink and notes drawn over a section come with it.
+  const stepsRef = useRef([]);
+  const showStep = index => {
+    const steps = stepsRef.current;
+    if (!steps.length) return;
+    const at = Math.max(0, Math.min(index, steps.length - 1));
+    setPresenting(at);
+    frame(steps[at].boxes, 64, 1.6);
+  };
+  const startPresenting = () => {
+    stepsRef.current = presentSteps(blocksRef.current, boundsRef.current);
+    if (!stepsRef.current.length) { toast('Add a section or a card to present.'); return; }
+    setSelected(null);
+    showStep(0);
+  };
+  const stopPresenting = () => { setPresenting(null); zoomFit(); };
+  const showStepRef = useRef(showStep);
+  showStepRef.current = showStep;
+  const stopPresentingRef = useRef(stopPresenting);
+  stopPresentingRef.current = stopPresenting;
   const selectAll = () => setSelection([
     ...blocksRef.current.map(block => block.id),
     ...itemsRef.current.map(item => item.id),
@@ -708,7 +741,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   useEffect(() => {
     if (apiRef) apiRef.current = {
       deselect: () => setSelected(null),
-      undo, redo, selectAll, deleteSelection, zoomFit,
+      undo, redo, selectAll, deleteSelection, zoomFit, present: startPresenting,
       zoomIn: () => zoomCenter(1.25),
       zoomOut: () => zoomCenter(1 / 1.25),
       zoomReset: () => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 }),
@@ -723,7 +756,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     };
   });
   // Menu checkmarks need these as state on the page, not as a ref it cannot watch.
-  useEffect(() => { onState?.({ grid, lock, minimap }); }, [grid, lock, minimap, onState]);
+  useEffect(() => { onState?.({ grid, lock, minimap, presenting: presenting !== null }); }, [grid, lock, minimap, presenting, onState]);
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);
@@ -763,6 +796,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     setLinks(previous => previous.filter(link => !ids.includes(link.id) && !nodes.has(link.from) && !nodes.has(link.to)));
     setSelection([]);
   };
+  const presentingRef = useRef(null);
+  presentingRef.current = presenting;
   const deleteSelectionRef = useRef(deleteSelection);
   deleteSelectionRef.current = deleteSelection;
   // Undo and redo: snapshot the artifact lists before every mutating gesture.
@@ -817,6 +852,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // undoes the last canvas gesture — both stand down while typing.
   useEffect(() => {
     const key = event => {
+      // Presenting owns the keyboard: a walk, not an editing surface.
+      if (presentingRef.current !== null) {
+        if (event.key === 'Escape') { event.preventDefault(); stopPresentingRef.current(); return; }
+        if ([' ', 'ArrowRight', 'ArrowDown', 'PageDown', 'Enter'].includes(event.key)) { event.preventDefault(); showStepRef.current(presentingRef.current + 1); return; }
+        if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) { event.preventDefault(); showStepRef.current(presentingRef.current - 1); return; }
+        return;
+      }
       if (event.key === 'Escape') { connectionCleanup.current?.(); setConnecting(null); setSelected(null); return; }
       const active = document.activeElement;
       const typing = active && (active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
@@ -1378,7 +1420,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           the page's: these ride the camera, so the grid you snap to is the grid
           you can see. An opaque surface keeps the page dots from showing through
           and doubling them up. */}
-      <div ref={surface} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
+      <div ref={surface} data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
         style={grid ? { background: 'var(--color-white)', backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: `${GRID * view.z}px ${GRID * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` } : undefined}
         className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor}`}>
         <div style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className="absolute top-0 left-0">
@@ -1401,7 +1443,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />)}
           {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} />)}
         </div>
-        {activeGap && <GapRail gap={activeGap} zoom={view.z} span={railSpan} space={blocks.find(block => block.id === activeGap.beforeId)?.space || 0} onNudge={nudgeGap}
+        {presenting === null && activeGap && <GapRail gap={activeGap} zoom={view.z} span={railSpan} space={blocks.find(block => block.id === activeGap.beforeId)?.space || 0} onNudge={nudgeGap}
           adding={gapAdding} onAdding={setGapAdding} onAddHeading={insertHeadingAt} />}
         {/* Alignment guides, live only while something is being dragged. */}
         {!!guides.length && (
@@ -1418,13 +1460,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         </div>
         </div>
         {/* Inside the surface but outside the camera, so it holds still. */}
-        {minimap && <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
+        {presenting === null && minimap && <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
           surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
           onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />}
       </div>
       {/* Dev-only workbench: drop any lesson block on the canvas to review its
           look before lessons are assembled. */}
-      {import.meta.env.VITE_COACHING_DEV === 'true' && (
+      {presenting === null && import.meta.env.VITE_COACHING_DEV === 'true' && (
         <div className="absolute top-3 -right-6 z-20">
           <button type="button" aria-label="Insert lesson block" title="Insert a sample lesson block" aria-expanded={insertOpen}
             onClick={() => setInsertOpen(previous => !previous)}
@@ -1434,7 +1476,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           {insertOpen && <BlockMenu className="top-0 right-10" filter={insertFilter} onFilter={setInsertFilter} onPick={insertBlock} />}
         </div>
       )}
-      <div role="toolbar" aria-label="Canvas tools" className="absolute top-1/2 -right-6 z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md">
+      {presenting === null && <div role="toolbar" aria-label="Canvas tools" className="absolute top-1/2 -right-6 z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md">
         {NAV_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
         <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
         {DRAW_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
@@ -1454,8 +1496,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           className={`flex h-8 w-8 items-center justify-center rounded-lg ${showStyle ? 'bg-hover' : 'hover:bg-hover'}`}>
           <span style={{ background: color }} className="h-4 w-4 rounded-full ring-1 ring-line" />
         </button>
-      </div>
-      {showStyle && (
+      </div>}
+      {presenting === null && showStyle && (
         <StylePanel text={panel.text} showFill={panel.fill} fill={fill} corners={panel.corners} order={panel.order}
           color={color} width={width} dash={dash} opacity={opacity} round={round} level={level}
           onColor={value => { setColor(value); applyStyle({ color: value }, panel.targets); }}
@@ -1467,8 +1509,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           onLevel={value => { setLevel(value); applyStyle({ level: value }, panel.targets); }}
           onOrder={toFront => reorderSelection(toFront, panel.targets)} />
       )}
+      {/* Presenting replaces the zoom pill and composer with a step counter: the
+          canvas is being shown, not worked on. */}
+      {presenting !== null && (
+        <div className="relative min-h-11 shrink-0 pt-3">
+          <div className="absolute bottom-0 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-line bg-white px-1 py-0.5 shadow-md">
+            <IconBtn title="Previous section" aria-label="Previous section" disabled={presenting === 0} onClick={() => showStep(presenting - 1)}><Back size={14} /></IconBtn>
+            <span aria-live="polite" className="max-w-56 truncate px-2 text-xs text-ink-2">{presenting + 1} / {stepsRef.current.length} · {stepsRef.current[presenting]?.label}</span>
+            <IconBtn title="Next section" aria-label="Next section" disabled={presenting >= stepsRef.current.length - 1} onClick={() => showStep(presenting + 1)}><Forward size={14} /></IconBtn>
+            <span className="mx-0.5 h-5 w-px bg-line" />
+            <button type="button" onClick={stopPresenting} className="rounded px-2 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">Exit</button>
+          </div>
+        </div>
+      )}
       {/* The zoom pill sits level with the composer's bottom edge. */}
-      <div className="relative min-h-11 shrink-0 pt-3">
+      {presenting === null && <div className="relative min-h-11 shrink-0 pt-3">
         <div data-zoom aria-label="Zoom controls" className="absolute bottom-0 left-0 z-20 flex items-center rounded-lg border border-line bg-white shadow-sm">
           <IconBtn title="Scroll up" onClick={() => scrollBy(-1)}><ChevronUp size={14} /></IconBtn>
           <IconBtn title="Scroll down" onClick={() => scrollBy(1)}><ChevronDown size={14} /></IconBtn>
@@ -1481,7 +1536,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
             className="cursor-pointer whitespace-nowrap px-2 text-xs text-ink-2 hover:text-ink">Add section</button>
         </div>
         {composer && <div className="mx-auto w-full max-w-[504px]">{composer}</div>}
-      </div>
+      </div>}
     </div>
   );
 }

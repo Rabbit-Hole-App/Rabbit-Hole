@@ -411,3 +411,8 @@ tr.cursor-pointer:active > td {
 @media (prefers-reduced-motion: reduce) {
   .confetti-piece { animation: none; opacity: 0; }
 }
+
+/* Present mode shows the canvas, not the tools for editing it: a card's drag
+   strip, connection ports and resize corner stay down even under the pointer. */
+[data-presenting] [data-drag-handle],
+[data-presenting] [data-node-tool] { display: none; }
