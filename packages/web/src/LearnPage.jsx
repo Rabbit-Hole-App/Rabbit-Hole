@@ -72,9 +72,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // Mirrored from the canvas so the View menu can tick what is on. Held by value
   // rather than by ref, and returned unchanged when nothing moved, or the effect
   // that publishes it would re-render forever.
-  const [canvasState, setCanvasState] = useState({ grid: false, lock: false, minimap: true, presenting: false });
+  const [canvasState, setCanvasState] = useState({ grid: false, lock: false, minimap: true, pages: false, presenting: false });
   const onCanvasState = useCallback(next => setCanvasState(previous =>
-    (previous.grid === next.grid && previous.lock === next.lock && previous.minimap === next.minimap && previous.presenting === next.presenting ? previous : next)), []);
+    (previous.grid === next.grid && previous.lock === next.lock && previous.minimap === next.minimap && previous.pages === next.pages && previous.presenting === next.presenting ? previous : next)), []);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [paperOpen, setPaperOpen] = useState(false);
   const [paperContext, setPaperContext] = useState(null);
@@ -607,6 +607,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         { divider: true },
         { label: 'Minimap', checked: canvasState.minimap, onSelect: () => canvas()?.toggleMinimap() },
         { label: 'Snap to grid', checked: canvasState.grid, onSelect: () => canvas()?.toggleGrid() },
+        { label: 'Page guides (A4)', checked: canvasState.pages, onSelect: () => canvas()?.togglePages() },
         { label: 'Keep tool active', checked: canvasState.lock, onSelect: () => canvas()?.toggleLock() },
       ],
     },

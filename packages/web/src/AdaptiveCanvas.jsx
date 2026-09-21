@@ -8,6 +8,7 @@ import { gapsFrom, nearestGap } from './learn-gap-rail.js';
 import { panelFor, textStyle, dashArray, dashStyle, reorder, TEXT_LEVELS, DASH_STYLES, OPACITIES } from './learn-style-panel.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
 import { presentSteps } from './learn-present.js';
+import { pageRects, PAGE_W } from './learn-pages.js';
 import { cachedAsset } from './learn-asset-cache.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 
@@ -676,6 +677,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const [guides, setGuides] = useState([]);
   const [grid, setGrid] = useState(false);
   const [minimap, setMinimap] = useState(true);
+  const [pages, setPages] = useState(false);
   // Present mode: null when editing, otherwise the step being shown.
   const [presenting, setPresenting] = useState(null);
   const itemsLayer = useRef(null);
@@ -752,11 +754,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       },
       toggleGrid: () => setGrid(previous => !previous),
       toggleMinimap: () => setMinimap(previous => !previous),
+      togglePages: () => setPages(previous => !previous),
       toggleLock: () => setLock(previous => !previous),
     };
   });
   // Menu checkmarks need these as state on the page, not as a ref it cannot watch.
-  useEffect(() => { onState?.({ grid, lock, minimap, presenting: presenting !== null }); }, [grid, lock, minimap, presenting, onState]);
+  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null }); }, [grid, lock, minimap, pages, presenting, onState]);
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);
@@ -1383,6 +1386,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       ? { left: -view.x / view.z + inset, width: Math.max(COLUMN, width / view.z - inset * 2) }
       : { left: 0, width: COLUMN };
   })();
+  // Enough pages to cover the content and whatever is on screen, so there is
+  // always a page under the pen rather than a boundary you have run past.
+  const pageGuides = pages
+    ? pageRects(Math.max(
+        ...Object.values(bounds).map(box => box.y + box.h),
+        ...shapes.map(shape => Math.max(shape.y1, shape.y2)),
+        ...items.map(item => item.y + (item.h || 40)),
+        ((surface.current?.clientHeight || 0) - view.y) / view.z,
+        0,
+      ), COLUMN)
+    : [];
   const minimapBoxes = [
     ...Object.values(bounds),
     ...shapes.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) })),
@@ -1424,6 +1438,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         style={grid ? { background: 'var(--color-white)', backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: `${GRID * view.z}px ${GRID * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` } : undefined}
         className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor}`}>
         <div style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className="absolute top-0 left-0">
+        {/* Page guides sit inside the camera, so they pin to the content: the
+            boundary keeps its width in cards, not in screen pixels. */}
+        {pages && (
+          <svg width="1" height="1" aria-hidden="true" className="pointer-events-none absolute top-0 left-0 -z-10 overflow-visible">
+            {pageGuides.map(page => (
+              <g key={page.n}>
+                <rect x={page.x} y={page.y} width={page.w} height={page.h} fill="none" stroke="var(--color-line-strong)" strokeWidth={1 / view.z} />
+                <text x={page.x + page.w - 8} y={page.y + page.h - 8} textAnchor="end" fill="var(--color-ink-3)" fontSize={12 / view.z}>{page.n}</text>
+              </g>
+            ))}
+          </svg>
+        )}
         <svg width="1" height="1" className="pointer-events-none absolute top-0 left-0 overflow-visible">
           {links.map(link => <g key={link.id} data-connection={link.id} className="dark:[filter:brightness(1.5)_saturate(1.2)]">
             <path d={connectionPath(link)} fill="none" stroke={link.color} strokeWidth={isSelected(link.id) ? 4 : 2.5} />
