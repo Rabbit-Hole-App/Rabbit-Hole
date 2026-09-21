@@ -5,6 +5,7 @@
 // a scene that only shows off is a scene nobody learns the engine from.
 
 import { causalAttentionScene } from './reference-scenes.js';
+import { staticAppReviewBlocks } from './gallery-scenes.js';
 
 // --- 1. why an axis must hold still -----------------------------------------
 // The same reveal drawn twice. On the left the axis is recomputed from the
@@ -335,4 +336,9 @@ export const BOARDS = {
   // unmistakable, plus the plain fourth strip that proves nothing changed
   // for a scene that never authors an identity.
   'identity-check': () => [block(identityCheckScene, 0.5)],
+  // The Static App Review Gallery (docs/features/static-app-review-gallery.md):
+  // five realistic Learn lesson compositions - explanation, visualization,
+  // code, source reference, static knowledge check - reviewed by hand after
+  // the visual-language benchmark phase. See gallery-scenes.js.
+  'static-app-review': staticAppReviewBlocks,
 };
