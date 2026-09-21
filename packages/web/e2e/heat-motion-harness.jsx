@@ -23,13 +23,13 @@ const scene = {
   objects: [
     {
       id: 'cell', type: 'grid', semanticId: 'cell',
-      initialState: { x: 40, y: 40, rows: 1, cols: 1, cell: 80, heat: { mode: 'magnitude' }, role: 'observed', values: [null] },
+      initialState: { x: 40, y: 40, rows: 1, cols: 1, cell: 80, heat: { mode: 'magnitude' }, role: 'observed', matrixKind: 'input', values: [null] },
     },
     // Same value, same heat mode, never blocked - the ground truth a
     // gradually-revealed cell must match once it catches up.
     {
       id: 'reference', type: 'grid', semanticId: 'reference',
-      initialState: { x: 180, y: 40, rows: 1, cols: 1, cell: 80, heat: { mode: 'magnitude' }, role: 'observed', values: [8] },
+      initialState: { x: 180, y: 40, rows: 1, cols: 1, cell: 80, heat: { mode: 'magnitude' }, role: 'observed', matrixKind: 'input', values: [8] },
     },
     {
       id: 'bar', type: 'bars', semanticId: 'bar',

@@ -9,35 +9,35 @@
       "initialState": { "text": "A near-zero weight makes its value nearly vanish from the output", "x": 40, "y": 26, "typography": "heading" } },
 
     { "id": "v", "type": "grid", "semanticId": "value-vector",
-      "initialState": { "label": "value (V) - for reference", "x": 670, "y": 70, "rows": 1, "cols": 3, "cell": 50, "role": "observed", "identity": "value", "heat": { "mode": "signed" },
+      "initialState": { "label": "value (V) - for reference", "x": 670, "y": 70, "rows": 1, "cols": 3, "cell": 50, "role": "observed", "identity": "value", "heat": { "mode": "signed" }, "matrixKind": "input",
         "columnLabels": ["river", "flows", "south"], "values": [1.0, 0.3, -0.5] } },
 
     { "id": "raw", "type": "grid", "semanticId": "raw-scores",
-      "initialState": { "label": "raw score (south's row)", "x": 40, "y": 200, "rows": 1, "cols": 3, "cell": 50, "role": "observed", "heat": { "mode": "signed" },
+      "initialState": { "label": "raw score (south's row)", "x": 40, "y": 200, "rows": 1, "cols": 3, "cell": 50, "role": "observed", "heat": { "mode": "signed" }, "matrixKind": "derived",
         "columnLabels": ["river", "flows", "south"], "values": [4.33, 0.17, -3.11] } },
     { "id": "arrow-raw-scaled", "type": "arrow", "semanticId": "arrow-raw-scaled",
       "initialState": { "from": { "x": 190, "y": 225 }, "to": { "x": 250, "y": 225 }, "role": "neutral" } },
 
     { "id": "scaled", "type": "grid", "semanticId": "scaled-scores",
-      "initialState": { "label": "divide by root(dk)", "x": 250, "y": 200, "rows": 1, "cols": 3, "cell": 50, "role": "observed", "heat": { "mode": "signed" },
+      "initialState": { "label": "divide by root(dk)", "x": 250, "y": 200, "rows": 1, "cols": 3, "cell": 50, "role": "observed", "heat": { "mode": "signed" }, "matrixKind": "derived",
         "columnLabels": ["river", "flows", "south"], "values": [2.5, 0.1, -1.8] } },
     { "id": "arrow-scaled-softmax", "type": "arrow", "semanticId": "arrow-scaled-softmax",
       "initialState": { "from": { "x": 400, "y": 225 }, "to": { "x": 460, "y": 225 }, "role": "neutral" } },
 
     { "id": "softmax", "type": "grid", "semanticId": "attention-weights",
-      "initialState": { "label": "softmax - sums to 1", "x": 460, "y": 200, "rows": 1, "cols": 3, "cell": 50, "role": "observed", "heat": { "mode": "magnitude" },
+      "initialState": { "label": "softmax - sums to 1", "x": 460, "y": 200, "rows": 1, "cols": 3, "cell": 50, "role": "observed", "heat": { "mode": "magnitude" }, "matrixKind": "derived", "distribution": true,
         "columnLabels": ["river", "flows", "south"], "values": [0.906, 0.082, 0.012] } },
     { "id": "arrow-softmax-contrib", "type": "arrow", "semanticId": "arrow-softmax-contrib",
       "initialState": { "from": { "x": 610, "y": 225 }, "to": { "x": 670, "y": 225 }, "role": "neutral" } },
 
     { "id": "contrib", "type": "grid", "semanticId": "weighted-contributions",
-      "initialState": { "label": "weight x value", "x": 670, "y": 200, "rows": 1, "cols": 3, "cell": 50, "role": "observed", "heat": { "mode": "signed" },
+      "initialState": { "label": "weight x value", "x": 670, "y": 200, "rows": 1, "cols": 3, "cell": 50, "role": "observed", "heat": { "mode": "signed" }, "matrixKind": "derived",
         "columnLabels": ["river", "flows", "south"], "values": [0.906, 0.025, -0.006] } },
     { "id": "arrow-contrib-output", "type": "arrow", "semanticId": "arrow-contrib-output",
       "initialState": { "from": { "x": 820, "y": 225 }, "to": { "x": 900, "y": 225 }, "role": "neutral" } },
 
     { "id": "output", "type": "grid", "semanticId": "attention-output",
-      "initialState": { "label": "sum = output", "x": 900, "y": 200, "rows": 1, "cols": 1, "cell": 50, "role": "output", "heat": { "mode": "signed" },
+      "initialState": { "label": "sum = output", "x": 900, "y": 200, "rows": 1, "cols": 1, "cell": 50, "role": "output", "heat": { "mode": "signed" }, "matrixKind": "derived",
         "values": [0.924] } }
   ],
   "timeline": [

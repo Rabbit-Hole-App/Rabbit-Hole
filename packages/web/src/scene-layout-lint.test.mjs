@@ -45,7 +45,7 @@ test('a grid row label sitting right where an arrow terminates is caught, using 
     // than at the grid's own edge, so this proves the collision LOGIC
     // itself rather than re-deriving today's gap value by hand.
     objects: [
-      { id: 'g', type: 'grid', initialState: { x: 200, y: 0, rows: 1, cols: 1, cell: 40, rowLabels: ['a row'], values: [1] } },
+      { id: 'g', type: 'grid', initialState: { x: 200, y: 0, rows: 1, cols: 1, cell: 40, matrixKind: 'input', rowLabels: ['a row'], values: [1] } },
       { id: 'in', type: 'arrow', initialState: { from: { x: 0, y: 20 }, to: { x: 160, y: 20 } } },
     ],
     timeline: [],

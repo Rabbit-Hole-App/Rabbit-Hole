@@ -138,13 +138,33 @@ test('a matrixKind: relational grid requires derived provenance, even alongside 
   assert.ok(issues.some(issue => issue.check === 'provenance-required' && issue.objectId === 'scores'));
 });
 
-test('a grid with no matrixKind at all is treated as a plain fact, not a claim - the declaration is what makes a check apply, never its absence', () => {
-  const scene = validateScene({
-    id: 'undeclared', duration: 1,
-    objects: [
-      { id: 'q', type: 'strip', initialState: { identity: 'query', values: [1, 2] } },
-      { id: 'grid', type: 'grid', initialState: { rows: 2, cols: 2, heat: true, rowLabels: ['a', 'b'], columnLabels: ['a', 'b'], values: [1, 2, 3, 4] } },
+test('a valued grid with no matrixKind at all is refused at validateScene - omission is invalid, never a silent exemption', () => {
+  // The first version of this rule let an undeclared grid pass cleanly,
+  // which meant every scene not yet migrated - the default state of the
+  // whole repository - got a free pass. Omission must fail loudly instead,
+  // at the gate, before the checker is ever reached.
+  //
+  // Built from a JSON string, deliberately - the repo-wide scan in
+  // matrix-kind-declared.test.mjs reads JS *source* for exactly the shape
+  // this test needs to construct (a grid with values and no matrixKind), and
+  // a literal object expression here would be indistinguishable from a real,
+  // accidental omission to that scanner. Parsing a string at runtime is
+  // honest about the difference: this omission is deliberate, not authored.
+  const missingMatrixKind = JSON.parse(`{
+    "id": "undeclared", "duration": 1,
+    "objects": [
+      { "id": "q", "type": "strip", "initialState": { "identity": "query", "values": [1, 2] } },
+      { "id": "grid", "type": "grid", "initialState": { "rows": 2, "cols": 2, "heat": true, "rowLabels": ["a", "b"], "columnLabels": ["a", "b"], "values": [1, 2, 3, 4] } }
     ],
+    "timeline": []
+  }`);
+  assert.throws(() => validateScene(missingMatrixKind), /grid "grid" carries values and must declare matrixKind: input, relational, or derived/);
+});
+
+test('a grid with no values at all needs no matrixKind - there is nothing to be honest or dishonest about', () => {
+  const scene = validateScene({
+    id: 'shape-only', duration: 1,
+    objects: [{ id: 'placeholder', type: 'grid', initialState: { rows: 2, cols: 2, role: 'neutral' } }],
     timeline: [],
   });
   assert.deepEqual(checkSceneConsistency(scene), { passed: true, issues: [] });
@@ -165,7 +185,7 @@ test('a scene with no computed claims passes cleanly', () => {
 test('a distribution: true row that does not sum to one is caught, whatever its caption says', () => {
   const scene = validateScene({
     id: 'bad-softmax', duration: 1,
-    objects: [{ id: 'w', type: 'grid', initialState: { label: 'attention weights', distribution: true, rows: 1, cols: 3, values: [0.91, 0.03, -0.01] } }],
+    objects: [{ id: 'w', type: 'grid', initialState: { label: 'attention weights', matrixKind: 'input', distribution: true, rows: 1, cols: 3, values: [0.91, 0.03, -0.01] } }],
     timeline: [],
   });
   const { passed, issues } = checkSceneConsistency(scene);
@@ -179,7 +199,7 @@ test('a probability row with no distribution declaration is not checked, even wh
   // ON either. A caption is prose; distribution is the claim.
   const scene = validateScene({
     id: 'undeclared-softmax', duration: 1,
-    objects: [{ id: 'w', type: 'grid', initialState: { label: 'softmax weights', rows: 1, cols: 3, values: [0.91, 0.03, -0.01] } }],
+    objects: [{ id: 'w', type: 'grid', initialState: { label: 'softmax weights', matrixKind: 'input', rows: 1, cols: 3, values: [0.91, 0.03, -0.01] } }],
     timeline: [],
   });
   assert.deepEqual(checkSceneConsistency(scene), { passed: true, issues: [] });

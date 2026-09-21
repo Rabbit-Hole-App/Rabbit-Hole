@@ -208,6 +208,7 @@
       "conceptId": "causal-self-attention",
       "initialState": {
         "label": "attention scores - not yet computed",
+        "matrixKind": "relational",
         "x": 420,
         "y": 150,
         "opacity": 0,

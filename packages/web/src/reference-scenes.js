@@ -81,6 +81,9 @@ export const causalAttentionScene = {
     // the Task 12 report - the timeline caption is what disambiguates them.
     { id: 'matrix', type: 'grid', semanticId: 'attention-matrix', conceptId: 'causal-self-attention',
       initialState: { label: 'attention scores - not yet computed', x: 420, y: 150, rows: 5, cols: 5, cell: 46, opacity: 0, heat: { mode: 'signed' }, role: 'observed',
+        // A real Q x Kt comparison (see RAW_FULL above) - both axes name the
+        // same five tokens, which is exactly the relational shape.
+        matrixKind: 'relational',
         rowLabels: [...TOKENS], columnLabels: [...TOKENS], values: Array(25).fill(null) } },
     { id: 'arrow-q-matrix', type: 'arrow', semanticId: 'arrow-q-matrix', conceptId: 'causal-self-attention',
       initialState: { from: { x: 250, y: 171 }, to: { x: 420, y: 190 }, opacity: 0, role: 'neutral' } },

@@ -211,7 +211,7 @@ export function validateScene(raw) {
     // label belongs to which line - silently wrong for any grid that is not
     // square.
     if (object.type === 'grid') {
-      const { rows, cols, rowLabels, columnLabels } = object.initialState;
+      const { rows, cols, rowLabels, columnLabels, values, matrixKind } = object.initialState;
       const rowCount = rows || 1;
       const colCount = cols || 1;
       if (rowLabels && rowLabels.length !== rowCount) {
@@ -219,6 +219,15 @@ export function validateScene(raw) {
       }
       if (columnLabels && columnLabels.length !== colCount) {
         throw new Error(`Object "${object.id}": a grid with ${colCount} cols needs ${colCount} columnLabels, got ${columnLabels.length}`);
+      }
+      // matrixKind decides whether the consistency checker's arithmetic gates
+      // apply (see scene-consistency.js) - undeclared must never mean exempt,
+      // or omission (the default state of every scene not yet migrated, and
+      // every new one an author writes) would be a wider bypass than the
+      // label heuristic this replaced. No default: a grid that carries
+      // values must say what it is.
+      if (Array.isArray(values) && !matrixKind) {
+        throw new Error(`grid "${object.id}" carries values and must declare matrixKind: input, relational, or derived`);
       }
     }
     // A stroke with no endpoints falls back to its own x/y for both ends - a

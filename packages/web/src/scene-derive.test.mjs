@@ -83,7 +83,7 @@ test('a $derive reference flattens a matmul result into a flat values array', ()
     id: 'x', duration: 1,
     exampleData: { q: [[1, 0], [0, 1]], k: [[2, 3], [4, 5]] },
     derived: { scores: { op: 'matmul', args: ['q', 'k'] } },
-    objects: [{ id: 'g', type: 'grid', initialState: { rows: 2, cols: 2, values: { $derive: 'scores' } } }],
+    objects: [{ id: 'g', type: 'grid', initialState: { rows: 2, cols: 2, matrixKind: 'derived', values: { $derive: 'scores' } } }],
     timeline: [],
   };
   const scene = validateScene(raw);
