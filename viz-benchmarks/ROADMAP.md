@@ -124,6 +124,17 @@ this one. A UX problem discovered in the gallery is evidence about the product,
 not evidence that the visual language failed its benchmarks; three independent
 blind reviews already answered that question.
 
+**The one exception, and only this one:** a finding that reveals a true
+**correctness regression** does reopen the milestone. A false number, a broken
+invariant, an encoding that lies about magnitude — those are benchmark failures
+wherever they surface, and the gallery is as valid a place to find one as a
+benchmark case.
+
+The distinction is between *this is dense, awkwardly paced, badly balanced,
+crowded, or confusing* — product findings, next milestone — and *this is wrong*.
+The first is a judgement about quality; the second is a fact about truth, and the
+gates exist precisely so it can be settled by checking rather than arguing.
+
 This exists because the opposite is the natural drift. Every report in this phase
 surfaced something real, and every one justified another round — which is what a
 repair ratchet looks like from the inside. The question changes here, from *can
