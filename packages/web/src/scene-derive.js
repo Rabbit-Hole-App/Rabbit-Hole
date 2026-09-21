@@ -85,6 +85,45 @@ export const DERIVATIONS = {
       return { defined: true, value };
     },
   },
+  // A vector times a scalar factor - dividing raw scores by root(dk) before
+  // softmax is the instance that motivated it, but rescaling a vector by a
+  // named constant is generic (a temperature, a learning rate).
+  scale: {
+    outputs: ['value'],
+    derive([vector, factor]) {
+      if (!isVector(vector) || typeof factor !== 'number' || !Number.isFinite(factor)) {
+        return { defined: false, reason: 'scale needs a vector and a finite numeric factor' };
+      }
+      return { defined: true, value: vector.map(x => round(x * factor)) };
+    },
+  },
+  // Two equal-length vectors multiplied position by position - "weight times
+  // value" is the instance case 04 needs; a mask, a per-element gate or a
+  // cost weighting are the same operation.
+  elementwise: {
+    outputs: ['value'],
+    derive([a, b]) {
+      if (!isVector(a) || !isVector(b)) return { defined: false, reason: 'elementwise needs two vectors of numbers' };
+      if (a.length !== b.length) return { defined: false, reason: `elementwise needs equal-length vectors, got lengths ${a.length} and ${b.length}` };
+      return { defined: true, value: a.map((x, i) => round(x * b[i])) };
+    },
+  },
+  // Combines several already-named numbers (or vectors) into one row, in the
+  // order given - the one place a scene needs "these three separately
+  // computed scalars, side by side" rather than a shape matmul or
+  // weighted_sum already produces as a single call.
+  concat: {
+    outputs: ['value'],
+    derive(args) {
+      const flat = [];
+      for (const arg of args) {
+        if (typeof arg === 'number' && Number.isFinite(arg)) flat.push(round(arg));
+        else if (isVector(arg)) flat.push(...arg.map(round));
+        else return { defined: false, reason: 'concat needs numbers or vectors of numbers' };
+      }
+      return { defined: true, value: flat };
+    },
+  },
 };
 
 // A dotted path into a scene's exampleData - "q" or, for a named matrix,
@@ -100,7 +139,11 @@ const lookupPath = (data, path) => path.split('.').reduce((node, key) => (node =
 function resolveOneDerivation(name, spec, pool) {
   const entry = DERIVATIONS[spec?.op];
   if (!entry) throw new Error(`Scene "derived.${name}": unknown op "${spec?.op}" - known ops are ${Object.keys(DERIVATIONS).join(', ')}`);
-  const args = (spec.args || []).map(path => lookupPath(pool, path));
+  // An arg is a path into the pool (a name, or "name.2" for a row) UNLESS it
+  // is itself already a number - a literal numeric parameter of the
+  // operation (root(dk)'s reciprocal for `scale`), never a second way to
+  // author a result the seam should have derived instead.
+  const args = (spec.args || []).map(arg => (typeof arg === 'number' ? arg : lookupPath(pool, arg)));
   const result = entry.derive(args);
   if (!result.defined) throw new Error(`Scene "derived.${name}" (${spec.op}): ${result.reason}`);
   return result;
@@ -112,17 +155,23 @@ function resolveOneDerivation(name, spec, pool) {
 // it from) can be told apart from the real thing.
 const usesDeriveMarker = node => /"\$derive"|\{\{\w+\}\}/.test(JSON.stringify(node ?? null));
 
-function walk(node, resolvedDerived) {
-  if (Array.isArray(node)) return node.map(entry => walk(entry, resolvedDerived));
+// pool (exampleData plus every resolved derivation's .value) is what both a
+// derivation's own args AND a scene's $derive/{{}} markers read from - one
+// lookup mechanism, not two. "scores.2" reaches row 2 of a matmul result the
+// same way "Q.0" reaches a row of exampleData, because by the time a marker
+// is resolved, a derived matrix and an authored one are the same shape of
+// thing: a named value in the pool.
+function walk(node, pool) {
+  if (Array.isArray(node)) return node.map(entry => walk(entry, pool));
   if (node && typeof node === 'object') {
     if (typeof node.$derive === 'string' && Object.keys(node).length === 1) {
-      const entry = resolvedDerived[node.$derive];
-      if (!entry) throw new Error(`"$derive": "${node.$derive}" names no entry in the scene's "derived" block`);
-      return entry.value;
+      const value = lookupPath(pool, node.$derive);
+      if (value === undefined) throw new Error(`"$derive": "${node.$derive}" names no entry in the scene's "derived" block (or "exampleData")`);
+      return value;
     }
     const out = {};
     for (const [key, value] of Object.entries(node)) {
-      const resolved = walk(value, resolvedDerived);
+      const resolved = walk(value, pool);
       // A grid or strip's `values` is always the flat array the schema
       // expects; a matmul's own shape is two-dimensional, so it is flattened
       // row-major exactly here, the one place a derived value ever meets it.
@@ -131,11 +180,11 @@ function walk(node, resolvedDerived) {
     return out;
   }
   if (typeof node === 'string' && /\{\{\w+\}\}/.test(node)) {
-    return node.replace(/\{\{(\w+)\}\}/g, (_, name) => {
-      const entry = resolvedDerived[name];
-      if (!entry) throw new Error(`"{{${name}}}" names no entry in the scene's "derived" block`);
-      if (Array.isArray(entry.value)) throw new Error(`"{{${name}}}" resolves to a list, not a number - reference it as a value instead of inside text`);
-      return String(entry.value);
+    return node.replace(/\{\{([\w.]+)\}\}/g, (_, name) => {
+      const value = lookupPath(pool, name);
+      if (value === undefined) throw new Error(`"{{${name}}}" names no entry in the scene's "derived" block (or "exampleData")`);
+      if (Array.isArray(value)) throw new Error(`"{{${name}}}" resolves to a list, not a number - reference it as a value instead of inside text`);
+      return String(value);
     });
   }
   return node;
@@ -154,10 +203,8 @@ export function resolveDerived(raw) {
   // reference entry one by name - a real pipeline (scores -> softmax ->
   // weighted output), not three unrelated lookups into exampleData.
   const pool = { ...(raw?.exampleData || {}) };
-  const resolvedDerived = {};
   for (const [name, spec] of Object.entries(derivedSpecs)) {
     const result = resolveOneDerivation(name, spec, pool);
-    resolvedDerived[name] = result;
     pool[name] = result.value;
   }
   const objects = (raw?.objects || []).map(object => {
@@ -167,7 +214,7 @@ export function resolveDerived(raw) {
     // provenance check below instead of passing through untouched.
     const authoredState = object.initialState || {};
     const usesDerive = usesDeriveMarker(authoredState);
-    const initialState = walk(authoredState, resolvedDerived);
+    const initialState = walk(authoredState, pool);
     if (usesDerive) {
       // Earned, not claimed: a derived value stamps its own provenance so an
       // author cannot separately mark the same object illustrative or
@@ -186,7 +233,7 @@ export function resolveDerived(raw) {
     }
     return { ...object, initialState };
   });
-  const timeline = (raw?.timeline || []).map(event => walk(event, resolvedDerived));
+  const timeline = (raw?.timeline || []).map(event => walk(event, pool));
   const { exampleData: _exampleData, derived: _derived, ...rest } = raw || {};
   return { ...rest, objects, timeline };
 }

@@ -35,6 +35,20 @@ test('case 07: the three drawn head outputs (Z0, Z1, Z7) now resolve to three di
   assert.equal(slots.size, 3, 'each head output needs its own identity slot to render as a different colour');
 });
 
+test('case 04: the output equals the sum of the displayed weight x value cells - the critic\'s .93-vs-.92 rounding-display artifact is now structurally impossible', () => {
+  // The independent critic found the old, hand-authored contrib cells
+  // (.91, .03, -.01 on screen) summed to .93 while the separately-authored
+  // output read .92 - two independently rounded numbers that disagreed.
+  // Both now come from the same derivation chain: output is literally
+  // sum(contrib), so it cannot drift from what the contrib row shows.
+  const scene = validateScene(load('04-softmax-attention-weights/generated/latest/scene-spec.json'));
+  const state = getSceneState(scene, scene.duration);
+  const contrib = state.objects.find(o => o.id === 'contrib').values;
+  const output = state.objects.find(o => o.id === 'output').values;
+  const roundTo3 = v => Object.is(Math.round(v * 1000) / 1000, -0) ? 0 : Math.round(v * 1000) / 1000;
+  assert.deepEqual(output, [roundTo3(contrib.reduce((sum, v) => sum + v, 0))]);
+});
+
 test('case 08: the repeated block carries a real, visible stack of ghost copies, not only its caption', () => {
   const scene = validateScene(load('08-transformer-block/generated/latest/scene-spec.json'));
   const state = getSceneState(scene, scene.duration);

@@ -44,6 +44,44 @@ test('weighted_sum combines rows by weight, and refuses a weight/row count misma
   assert.match(bad.reason, /one weight per row/);
 });
 
+test('scale multiplies a vector by a numeric factor', () => {
+  assert.deepEqual(DERIVATIONS.scale.derive([[1, -2, 3], 0.5]), { defined: true, value: [0.5, -1, 1.5] });
+  assert.equal(DERIVATIONS.scale.derive([[1, 2], 'not a number']).defined, false);
+});
+
+test('elementwise multiplies two equal-length vectors position by position', () => {
+  assert.deepEqual(DERIVATIONS.elementwise.derive([[2, 3, 4], [1, 0, -1]]), { defined: true, value: [2, 0, -4] });
+  assert.equal(DERIVATIONS.elementwise.derive([[1, 2], [1, 2, 3]]).defined, false);
+});
+
+test('concat combines named scalars and vectors into one row, in order', () => {
+  assert.deepEqual(DERIVATIONS.concat.derive([1, [2, 3], 4]), { defined: true, value: [1, 2, 3, 4] });
+  assert.equal(DERIVATIONS.concat.derive([1, 'nope']).defined, false);
+});
+
+test('a $derive marker can index a row out of a derived matrix, the same dotted-path convention as an exampleData row', () => {
+  const scene = validateScene({
+    id: 'row-index', duration: 1,
+    exampleData: { Q: [[1, 0], [0, 1]], K: [[1, 0], [0, 1]] },
+    derived: { scores: { op: 'matmul', args: ['Q', 'K'] } },
+    objects: [{ id: 'row', type: 'strip', initialState: { values: { $derive: 'scores.1' } } }],
+    timeline: [],
+  });
+  assert.deepEqual(scene.objects[0].initialState.values, [0, 1]);
+});
+
+test('a derivation may take a literal numeric argument alongside a named path', () => {
+  const raw = {
+    id: 'literal-arg', duration: 1,
+    exampleData: { v: [2, 4, 6] },
+    derived: { halved: { op: 'scale', args: ['v', 0.5] } },
+    objects: [{ id: 's', type: 'strip', initialState: { values: { $derive: 'halved' } } }],
+    timeline: [],
+  };
+  const scene = validateScene(raw);
+  assert.deepEqual(scene.objects[0].initialState.values, [1, 2, 3]);
+});
+
 test('a derivation may reference an earlier derivation by name, chained through the same pool', () => {
   const raw = {
     id: 'chain', duration: 1,

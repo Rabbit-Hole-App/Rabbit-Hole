@@ -1,0 +1,7 @@
+{
+  "_comment": "The one canonical worked example cases 01, 03 and 04 all reference. Not read at render time by any case - each committed scene-spec.json carries its own exampleData copy so it stays independently reproducible with no other case having run. What ties them together is packages/web/src/shared-example-data.test.mjs, which asserts each case's exampleData.Q/K/V is byte-identical to this file. Change a number here, update the three cases to match, or the test names which case fell out of sync.",
+  "tokens": ["river", "flows", "south"],
+  "Q": [[0.9, -0.4, 1.3], [0.2, 0.7, -0.5], [-0.6, 0.1, 0.9]],
+  "K": [[0.6, 1.1, -0.7], [-0.3, 0.8, 0.2], [0.5, -0.4, 0.6]],
+  "V": [[1.0, 0.3, -0.5], [0.2, -0.6, 0.4], [-0.3, 0.5, 0.7]]
+}
