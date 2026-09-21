@@ -87,3 +87,36 @@ export async function fetchArxivPdf(value, fetcher = arxivFetch) {
   if (new TextDecoder().decode(bytes.slice(0, 5)) !== '%PDF-') throw new Error('arXiv did not return a PDF');
   return bytes;
 }
+
+// Putting a paper in front of the learner. The agent can already read a paper;
+// this is how it says "look at this one, at this page" instead of leaving a
+// link in its answer for the learner to find and click.
+//
+// The worker cannot open a reader - that is browser state - so the call is
+// recorded and travels back over SSE, the same road the outline proposal takes.
+// Unlike that one it needs no Apply: opening a reader destroys nothing, and a
+// tutor asking permission to show you the figure it is describing is worse than
+// one that just shows you.
+export const SHOW_PAPER_TOOL = {
+  name: 'show_paper',
+  description: 'Open a paper in the learner\'s reader, at a specific page. Use it when pointing at a figure, equation or passage they should look at, and say in your reply what to look for. Read the paper first so the page number is real. Only for a paper the learner asked about or you are citing in this answer.',
+  input_schema: {
+    type: 'object',
+    required: ['id', 'page'],
+    properties: {
+      id: { type: 'string', description: 'The arXiv id of a paper you have read.' },
+      page: { type: 'integer', minimum: 1, description: 'The PDF page to open, 1-based.' },
+    },
+  },
+};
+
+// `read` is the papers already read this turn: the agent may only display one it
+// has actually opened, so the page number comes from the document rather than
+// from a guess.
+export function validateShowPaper(input, read) {
+  const id = arxivId(input?.id);
+  if (!read.some(paper => paper.id === id)) throw new Error('Read the paper before showing it');
+  if (!Number.isInteger(input?.page) || input.page < 1 || input.page > 100) throw new Error('Page must be between 1 and 100');
+  const paper = read.find(entry => entry.id === id);
+  return { id, page: input.page, title: paper.title, pdfUrl: paper.pdfUrl };
+}

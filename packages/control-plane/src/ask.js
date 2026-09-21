@@ -382,6 +382,9 @@ ${research.system}` : system;
         // A proposal, not a change: the page shows it and the learner applies it.
         const ops = research.proposed?.();
         if (ops?.length) await send('outline', { ops });
+        // Opening a reader destroys nothing, so unlike an outline proposal this
+        // needs no approval - the learner closes it or detaches the source.
+        if (result.shown) await send('paper', result.shown);
       } else if (toolOpts) {
         // tools attached (user has edit): one non-streaming call so tool_use blocks
         // arrive whole; each becomes a proposal - never an execution

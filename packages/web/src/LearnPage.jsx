@@ -164,7 +164,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // Open a paper the learner chose, by the same road a canvas link takes.
   const openPaper = paper => {
     pauseLesson();
-    setPaperContext({ ...paper, page: 1 });
+    // The search panel supplies no page; the tutor supplies the one it is
+    // pointing at, and that must win.
+    setPaperContext({ ...paper, page: paper.page || 1 });
     setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false); setPanelOpen(true);
     registerSource({ id: `paper:${paper.id}`, kind: 'paper', label: paper.title || `arXiv ${paper.id}` });
   };
@@ -396,6 +398,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     // Read at send time, so a question always carries the outline as it is now.
     outline: () => canvasStateRef.current.outline || [],
     onOutlineProposal: ops => setProposal(ops),
+    onShowPaper: paper => openPaper(paper),
     explain: async ({ snapshot, question, answer, model, paperIds = [], history = [], repository_context = null }) => {
       if (noteEditing) throw new Error('Return to the lesson before explaining on canvas.');
       if (!editor) throw new Error('The canvas is still loading. Try again in a moment.');

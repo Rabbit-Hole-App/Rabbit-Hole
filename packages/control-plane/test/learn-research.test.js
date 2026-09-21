@@ -51,3 +51,50 @@ test('dev routes plain Learn questions locally rather than requiring canvas cont
   assert.doesNotMatch(block, /if \(body\.lesson_snapshot/);
   assert.match(block, /authorizedBoardApp/); assert.match(block, /return apiAsk/);
 });
+
+// Putting a paper in front of the learner. The tool only exists once a paper has
+// been read, so the page it opens on comes from a real document.
+test('show_paper is not offered until a paper has been read', async () => {
+  let offered = null;
+  await researchAnswer({}, [], 'Tutor', null, {
+    callModel: async (_, body) => { offered = body.tools.map(t => t.name); return text('No paper needed.'); },
+  });
+  assert.ok(!offered.includes('show_paper'), offered.join(','));
+});
+
+test('after reading, the agent can open that paper at a page', async () => {
+  let calls = 0, offered = null;
+  const result = await researchAnswer({}, [{ role: 'user', content: 'Show me figure 2' }], 'Tutor', null, {
+    callModel: async (_, body) => {
+      offered = body.tools.map(t => t.name);
+      if (!calls++) return tool('read_arxiv_paper', { id: paper.id });
+      if (calls === 2) return tool('show_paper', { id: paper.id, page: 4 });
+      return text('Figure 2 is on the page now open.');
+    },
+    readPaper: async () => paper,
+  });
+  assert.ok(offered.includes('show_paper'), 'offered once a paper is read');
+  assert.deepEqual(result.shown, { id: paper.id, page: 4, title: paper.title, pdfUrl: paper.pdfUrl });
+  assert.equal(result.answer, 'Figure 2 is on the page now open.');
+});
+
+test('a paper it never read cannot be opened, and the refusal goes back to the model', async () => {
+  let calls = 0;
+  const result = await researchAnswer({}, [], 'Tutor', null, {
+    callModel: async (_, body) => {
+      if (!calls++) return tool('read_arxiv_paper', { id: paper.id });
+      if (calls === 2) return tool('show_paper', { id: '1706.03762', page: 1 });
+      const back = body.messages.at(-1).content[0];
+      assert.equal(back.is_error, true);
+      assert.match(back.content[0].text, /Read the paper/);
+      return text('I will read it first.');
+    },
+    readPaper: async () => paper,
+  });
+  assert.equal(result.shown, null, 'nothing is opened');
+});
+
+test('nothing is shown when the tool is never called', async () => {
+  const result = await researchAnswer({}, [], 'Tutor', null, { callModel: async () => text('Plain answer.') });
+  assert.equal(result.shown, null);
+});
