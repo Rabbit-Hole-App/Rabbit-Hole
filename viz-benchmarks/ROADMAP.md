@@ -64,6 +64,36 @@ The order of remaining work, and nothing skips ahead of it:
 6. Refine the static vocabulary from what they find
 7. **Only then** Phase 2
 
+### Phase 1 status, 2026-09-20
+
+**Vocabulary coverage complete; visual-quality acceptance pending.**
+
+Not "Phase 1 complete". What the static run proved is real but narrower than the
+headline suggested:
+
+- the current vocabulary expressed all nine static cases **without bespoke renderer work**
+- `flow`, `matrix_operation` and basic `graphs` / `coordinated_views` are working
+- **no new primitive or template gap surfaced** — every failure was `layout` or `content`, fixed by re-authoring
+- **zero bespoke workarounds** across nine cases
+- A.5d fixed the right underlying capabilities
+
+What it did **not** prove: production visual quality. The author graded its own
+work, averaging 4.83/5, while the flagship case ships an arrow drawn straight
+through a row label. A self-score is not an acceptance.
+
+Four of eleven patterns were exercised. `zoom_drilldown`, `process_scrubbing` and
+`live_computation` are dynamic-only and deferred; `routing` was declared on
+multi-head attention and is a mismatch — every head always runs, nothing branches.
+**Unexercised and mismatched patterns never become passes.**
+
+### Phase 1 static quality passes only when all five hold
+
+- [ ] exercised pattern coverage stays green
+- [ ] no bespoke workarounds exist
+- [ ] the authoring lint passes
+- [ ] an **independent** critic — one that did not author or repair the scenes — approves at the agreed quality bar
+- [ ] the human reviewer agrees the flagship cases are production quality
+
 ## Phase 2 — simple dynamic visualizations
 
 Published explainers with contained motion, such as Diffusion Explainer.
