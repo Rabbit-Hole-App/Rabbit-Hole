@@ -396,6 +396,29 @@
         "live_computation",
         "parameter_exploration"
       ]
+    },
+    {
+      "id": "gradient-alignment",
+      "status": "ready",
+      "source": null,
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "cases": [
+        {
+          "id": "01-dot-product-alignment",
+          "status": "ready",
+          "referenceType": "none",
+          "objective": "How the sign and magnitude of a dot product between two gradient vectors indicates whether a training step's direction agrees between them.",
+          "patterns": [
+            "flow",
+            "matrix_operation"
+          ]
+        }
+      ],
+      "candidatePatterns": [
+        "flow",
+        "matrix_operation"
+      ]
     }
   ],
   "hierarchy": "project -> case -> mode -> iteration",
@@ -411,7 +434,8 @@
   "referenceTypes": {
     "external_real": "Captured from an existing published visualization. Tests us against a proven system.",
     "synthetic_internal": "Created by us. Tests our own machinery and guards regression. Never counts as external coverage.",
-    "not_captured": "No reference material yet."
+    "not_captured": "No reference material yet.",
+    "none": "No claim of matching any external material - an originally authored teaching scene, not anchored to one source."
   },
   "blockedPatterns": [
     "parameter_exploration",

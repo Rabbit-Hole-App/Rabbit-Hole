@@ -1,0 +1,12 @@
+{
+  "project": "gradient-alignment",
+  "case": "01-dot-product-alignment",
+  "iteration": 0,
+  "status": "not_run",
+  "scores": {},
+  "hardFails": [],
+  "failures": [],
+  "recommendedSystemChanges": [],
+  "imitationRisk": null,
+  "humanApproved": false
+}

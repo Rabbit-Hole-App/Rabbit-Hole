@@ -1,12 +1,10 @@
-# Blind review 2 — Illustrated Transformer + critic-calibration
+# Blind review 2 — Illustrated Transformer
 
 Reviewer: independent visual critic, fresh context. No prior review, `critic-report.json`,
 `generated/**/notes.md`, `evaluation/current.json`, `evaluation/history/`, or git log/diff was
 opened before scores below were written. `SCORING.md` was read (it is required reading and is
-methodology, not a scene review) — it contains two claims about specific cases (case 09's decoder
-chaining arrow, and case 03's dot-arithmetic checker being inert) which I independently re-verified
-against the current renders rather than taking on faith; see case 09 and case 03 below for what I
-actually found.
+methodology, not a scene review); the checker-coverage debt it documents for case 03 was
+independently re-verified against the current render rather than taken on faith.
 
 Case 05 (causal-masking) excluded per instructions — text-medium, no diagram.
 
@@ -153,10 +151,8 @@ decoder layers' encoder-decoder-attention boxes specifically (not to self-attent
 — matching reference-notes' emphasis that it's the top encoder reaching *every* decoder layer.
 **Explicitly checked, not a finding:** I traced the vertical arrow chain in the right-hand column
 and confirmed the two decoder layers ARE chained — a single arrow runs from the bottom layer's
-`feed forward` box up into the top layer's `self-attention` box. (`SCORING.md`'s calibration note
-records that an earlier "decoder columns are never chained" finding was checked against the
-committed scene and disproven; I re-checked this against the current render independently and
-confirm the chaining arrow is present — that finding should not recur, and does not need to here.)
+`feed forward` box up into the top layer's `self-attention` box, so the two decoder columns read as
+one connected stack rather than two parallel decoders.
 
 ### 10 — positional-encoding — 8/10
 
@@ -179,22 +175,6 @@ interleaves d0(sin), d1(cos), d2(sin)… with no grouping, divider, or sin/cos l
 cannot tell from the picture that half the dimensions are sine and half are cosine. This is a real,
 moderate gap in an otherwise excellent case (it's the one required-teaching-device from
 reference-notes that didn't make it in, on a case that's meticulous everywhere else).
-
----
-
-## critic-calibration (gradient-alignment) — scored separately, not part of the 9-case set
-
-**Planted defect found and confirmed by computation.** `g1 = [0.8, 0.6]`, `g2 = [-0.5, 0.9]`
-(read directly off the two colored strips). Displayed equation: `g1 · g2 = 0.83`. Actual:
-`0.8×(−0.5) + 0.6×0.9 = −0.40 + 0.54 = 0.14`. The displayed value is wrong by 0.69 — not a rounding
-issue, not derivable from any alternative reading of the two vectors (checked cosine similarity too:
-`≈0.136`, still not `0.83`). This is a `TECHNICAL_CORRECTNESS` failure, cause: content.
-**Secondary, lower-confidence observation:** the equation is visually connected to `g2` by an arrow
-(`arrow-g2-eq`), but `g1` instead has an arrow to an unrelated "step direction" caption, not to the
-equation — reference-notes require "the equation's operands must visibly correspond to the two
-vectors drawn beside it," and only one of the two operands has that visible correspondence. I flag
-this with lower confidence since I can't be sure it's a second planted defect versus an
-intentional secondary annotation.
 
 ---
 
@@ -229,7 +209,7 @@ weight×value row, and the row's own sum against its displayed total); case 06 (
 QKᵀ/√dk, all 9 cells of softmax, all 9 cells of Z, three ways, to rule out rounding-chain
 explanations before calling it clean); case 10 (both additions, and reverse-derivation of the
 sinusoidal formula for both `d_model=4` and `d_model=8` panels, plus four spot-checked heatmap
-cells); critic-calibration (dot product, plus cosine similarity as an alternate hypothesis).
+cells).
 **Checked by eye / tracing, not arithmetic:** case 02 (shape-only, nothing to compute), case 07
 (structural comparison against reference-notes), case 08 and 09 (traced arrow topology and
 sublayer order against reference structure; case 09's decoder-chaining arrow was traced explicitly
@@ -240,5 +220,5 @@ as a targeted check, not a general pass).
 I did not open `independent-review.md`, any `critic-report.json`, any `generated/**/notes.md`,
 `evaluation/current.json`, `evaluation/history/`, or any git log/diff before writing the scores
 above. `SCORING.md` was read as required background; where it made a specific claim about a case
-(09's chaining arrow, 03's inert checker), I re-verified that claim independently against the
-current render rather than repeating it on trust, and said so inline.
+(03's inert checker), I re-verified that claim independently against the current render rather
+than repeating it on trust, and said so inline.

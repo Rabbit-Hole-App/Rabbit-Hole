@@ -1,0 +1,29 @@
+{
+  "id": "calib-gradient-alignment",
+  "title": "How aligned are two gradient vectors during a training step?",
+  "width": 700,
+  "height": 320,
+  "duration": 1,
+  "objects": [
+    { "id": "heading", "type": "text", "semanticId": "heading",
+      "initialState": { "text": "How aligned are two gradient vectors during a training step?", "x": 30, "y": 26, "typography": "heading" } },
+    { "id": "note", "type": "text", "semanticId": "note",
+      "initialState": { "text": "a positive dot product means the two steps pull in the same direction", "x": 30, "y": 56, "typography": "caption" } },
+
+    { "id": "g1", "type": "strip", "semanticId": "gradient-one",
+      "initialState": { "label": "gradient 1 (g1)", "x": 30, "y": 110, "cell": 42, "role": "observed", "identity": "first", "heat": { "mode": "signed" }, "values": [0.8, 0.6] } },
+    { "id": "g2", "type": "strip", "semanticId": "gradient-two",
+      "initialState": { "label": "gradient 2 (g2)", "x": 30, "y": 190, "cell": 42, "role": "observed", "identity": "second", "heat": { "mode": "signed" }, "values": [-0.5, 0.9] } },
+
+    { "id": "arrow-g1-note", "type": "arrow", "semanticId": "arrow-g1-note",
+      "initialState": { "from": { "x": 30, "y": 96 }, "to": { "x": 280, "y": 130 }, "role": "neutral" } },
+    { "id": "note-direction", "type": "text", "semanticId": "note-direction",
+      "initialState": { "text": "step direction", "x": 280, "y": 130, "typography": "caption" } },
+
+    { "id": "arrow-g2-eq", "type": "arrow", "semanticId": "arrow-g2-eq",
+      "initialState": { "from": { "x": 156, "y": 211 }, "to": { "x": 280, "y": 250 }, "role": "neutral" } },
+    { "id": "eq", "type": "equation", "semanticId": "eq-alignment",
+      "initialState": { "text": "g_{1}\\cdot g_{2} = 0.83", "x": 280, "y": 235, "w": 260, "h": 36 } }
+  ],
+  "timeline": []
+}

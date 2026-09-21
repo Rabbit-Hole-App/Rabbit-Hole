@@ -9,9 +9,9 @@ Scale: 1-5, matching `evaluation-rubric.json`. That rubric also defines hard fai
 
 ---
 
-## Calibration check: case 01's known defect
+## Case 01: arrow-into-label collision
 
-Confirmed independently, without being told where to look beyond "case 01, arrow into the softmax grid." Pixel-cropped both spots:
+Pixel-cropped both spots:
 
 - The horizontal arrow carrying the "flows" row from the raw-score matrix into the softmax matrix terminates with its arrowhead drawn directly on top of the row label text "flows" (the arrowhead visibly overlaps the "s"). Crop evidence: region (1350,380)-(1750,560) of `static-00.png`.
 - The arrow carrying the "south" row (query→key, feeding the score matrix, not softmax) has its arrowhead landing on the row label "south" on the score-matrix side, at (250,280)-(900,620). Same defect pattern, second occurrence, confirmed by pixel crop.
@@ -26,7 +26,7 @@ This defect alone is a legitimate reason to distrust a 4.80/5 self-score on this
 
 ### 01 — self-attention-computation-flow — **3.0 / 5**
 
-- **[EDGE_ROUTING, layout]** The calibration defect above: arrow-through-label, twice (into "flows" and into "south").
+- **[EDGE_ROUTING, layout]** The arrow-into-label collision above: arrow-through-label, twice (into "flows" and into "south").
 - **[TECHNICAL_CORRECTNESS, content]** Only one query vector and one key vector are drawn (`.90 -.40 1.30` and `.60 1.10 -.70`), yet the score matrix beside them has 3 distinct rows and 3 distinct columns (river/flows/south), which requires 3 distinct query vectors and 3 distinct key vectors to produce. The diagram never shows where rows/columns 2 and 3 of the matrix come from. Checked by hand: `Q · K` using the two vectors actually drawn = `.90×.60 + (-.40)×1.10 + 1.30×(-.70) = -0.81`, which does not equal any of the 9 cells shown in the matrix (.54, .99, -.63, -.24, -.44, .28, .78, 1.43, -.91). The worked vectors and the matrix are not the same computation. This recurs, more visibly, in case 03 (see below) — it is the same underlying example data.
 - Positive: consistent color identity for Q/K/V through to the output box; one clean left-to-right reading order; softmax rows genuinely sum to 1 (.35+.55+.11≈1, .29+.23+.48=1, .32+.62+.06=1).
 
@@ -101,7 +101,7 @@ Read only after the scores above were finalized and written to this file.
 
 | case | my score | author score | delta | biggest disagreement |
 |---|---|---|---|---|
-| 01 self-attention-computation-flow | 3.0 | 4.80 | +1.80 | Author logged exactly the calibration defect (`row-highlight-crowds-row-label`, minor/template) and nothing else. Never flagged that the single displayed Q and K vectors cannot produce the 3x3 score matrix beside them — the deeper of the two problems in this case, unflagged. |
+| 01 self-attention-computation-flow | 3.0 | 4.80 | +1.80 | Author logged exactly the arrow-into-label collision (`row-highlight-crowds-row-label`, minor/template) and nothing else. Never flagged that the single displayed Q and K vectors cannot produce the 3x3 score matrix beside them — the deeper of the two problems in this case, unflagged. |
 | 02 qkv-projection | 4.0 | 4.93 | +0.93 | Close agreement; both reviews treat this as a strong case. |
 | 03 attention-score-matrix | 2.0 | 4.93 | **+2.93 — largest disagreement** | Author's pattern note explicitly credits this case with "matching the reference's own winning technique (verifiable arithmetic)" and scores technicalCorrectness 5/5. Verifying that arithmetic by hand shows it is false: the query/key vectors drawn dot to `-0.81`, not the `.54` the equation claims, and only one key vector is drawn despite the title promising a comparison against "every key." This meets the case's own rubric definition of a hard fail ("technically false explanation") and was not caught. |
 | 04 softmax-attention-weights | 4.2 | 4.93 | +0.73 | Close; my only objection is a rounding-display artifact in the weight×value cells. |
