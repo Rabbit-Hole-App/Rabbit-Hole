@@ -142,6 +142,21 @@ the visual system survive another benchmark* to *does this feel like a product
 someone would want to learn in.* Those are different questions with different
 work behind them, and mixing them means neither gets finished.
 
+## Carried to the next milestone — a gap in the freshness gate
+
+`rendererHash` is computed from the **renderer source files on disk**, but a
+render is produced by a **running dev server** that may be serving something
+else. A stale server from the previous day served old renderer code through two
+full capture passes, and a fix appeared not to work when it already did.
+
+So a fingerprint can certify a render as current while stale code produced it.
+The gate proves the *spec* and the *source* match the artifact; it does not prove
+the *process that produced it* was running that source.
+
+**Process hardening, not a correctness regression.** The affected renders were
+redone against a verified-fresh server and checked. Logged here for the next
+milestone rather than reopening this one — see the closure rule below.
+
 ## HARD STOP after Phase 1
 
 **The roadmap describes an order, not a permission.**
