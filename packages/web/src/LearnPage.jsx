@@ -16,6 +16,7 @@ import CanvasMenubar from './CanvasMenubar.jsx';
 import { contentsEntries } from './learn-contents.js';
 import { withSource, toggleSource, isAttached } from './learn-sources.js';
 import { lessonMilestones } from './learn-milestones.js';
+import { outlineProgress } from './learn-outline-model.js';
 import LessonPlanPreview from './LessonPlanPreview.jsx';
 import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
 import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
@@ -72,9 +73,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // Mirrored from the canvas so the View menu can tick what is on. Held by value
   // rather than by ref, and returned unchanged when nothing moved, or the effect
   // that publishes it would re-render forever.
-  const [canvasState, setCanvasState] = useState({ grid: false, lock: false, minimap: true, pages: false, presenting: false });
+  const [canvasState, setCanvasState] = useState({ grid: false, lock: false, minimap: true, pages: false, presenting: false, outline: [] });
   const onCanvasState = useCallback(next => setCanvasState(previous =>
-    (previous.grid === next.grid && previous.lock === next.lock && previous.minimap === next.minimap && previous.pages === next.pages && previous.presenting === next.presenting ? previous : next)), []);
+    (previous.grid === next.grid && previous.lock === next.lock && previous.minimap === next.minimap && previous.pages === next.pages && previous.presenting === next.presenting && JSON.stringify(previous.outline) === JSON.stringify(next.outline) ? previous : next)), []);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [paperOpen, setPaperOpen] = useState(false);
   const [paperContext, setPaperContext] = useState(null);
@@ -613,6 +614,17 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     },
   ];
   const milestones = lessonMilestones(sectionKeys);
+  // Once the lesson has sections of its own, the bar measures those. A canvas
+  // with no headings keeps the course-completion meaning it has today.
+  const canvasOutline = canvasState.outline || [];
+  const canvasProgress = outlineProgress(canvasOutline);
+  const usingCanvas = canvasOutline.length > 0;
+  const barTotal = usingCanvas ? canvasProgress.total : sectionKeys.length;
+  const barDone = usingCanvas ? canvasProgress.done : finishedCount;
+  const barFraction = usingCanvas ? canvasProgress.fraction : (sectionKeys.length ? finishedCount / sectionKeys.length : 0);
+  const barMilestones = usingCanvas
+    ? canvasProgress.milestones.map(milestone => ({ ...milestone, reached: milestone.done }))
+    : milestones.map(milestone => ({ ...milestone, id: milestone.id || milestone.label, reached: finishedCount >= milestone.done }));
   // The retracted panel leaves these ticks behind, so they must agree with the
   // outline about which lessons exist and which can actually be opened.
   const railLessons = course.course?.curriculum?.lessons || sampleCourse.lessons;
@@ -704,17 +716,41 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
       <div className="mb-3 flex shrink-0 items-center gap-3">
         {/* The fill is clipped to the track; the milestone dots sit on top of it
             and must not be, so the rounding lives on an inner element. */}
-        <div role="progressbar" aria-label={suppliedCourse ? "Lesson 1 participation progress" : "Course completion"} aria-valuemin={0} aria-valuemax={sectionKeys.length} aria-valuenow={finishedCount} className="relative h-1.5 flex-1 rounded-full bg-hover">
-          <div className="absolute inset-0 overflow-hidden rounded-full"><div className="h-full rounded-full bg-green-600 transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${sectionKeys.length ? finishedCount / sectionKeys.length * 100 : 0}%` }} /></div>
-          {milestones.map(milestone => <span key={milestone.id} role="img" aria-label={`${milestone.label}: ${finishedCount >= milestone.done ? 'complete' : 'not complete'}`} title={milestone.label} style={{ left: `${milestone.at * 100}%` }} className={`absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white ${finishedCount >= milestone.done ? 'bg-green-600' : 'bg-line-strong'}`} />)}
+        <div role="progressbar" aria-label={canvasOutline.length ? 'Lesson sections completed' : suppliedCourse ? 'Lesson 1 participation progress' : 'Course completion'} aria-valuemin={0} aria-valuemax={barTotal} aria-valuenow={barDone} className="relative h-1.5 flex-1 rounded-full bg-hover">
+          <div className="absolute inset-0 overflow-hidden rounded-full"><div className="h-full rounded-full bg-green-600 transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${barFraction * 100}%` }} /></div>
+          {barMilestones.map(milestone => <span key={milestone.id} role="img" aria-label={`${milestone.label}: ${milestone.reached ? 'complete' : 'not complete'}`} title={milestone.label} style={{ left: `${milestone.at * 100}%` }} className={`absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white ${milestone.reached ? 'bg-green-600' : 'bg-line-strong'}`} />)}
         </div>
         <Trophy size={18} role="img" aria-label={suppliedCourse ? 'Complete all six pages and three objective checks to finish Lesson 1' : allFinished ? 'Course complete' : 'Complete all sections and activities to earn this award'} className={allFinished ? 'text-green-600 drop-shadow-sm' : 'text-ink-3 opacity-35'} />
       </div>
       <h2 className="mb-2 shrink-0 text-xs font-semibold tracking-wider text-ink-2 uppercase">Table of contents</h2>
-      {/* The contents list is the navigation now that the view pill is gone, so
-          Notebook, Quiz and My notes are entries in it rather than tabs. */}
+      {/* This IS the lesson's structure, not a view onto another document: both
+          the learner and the agent author it through the same section tool. */}
       <div className="mb-3 flex max-h-[45%] shrink-0 flex-col overflow-y-auto">
-        <LearnOutline allowSample={!isRepository} onToggleComplete={toggleSection} completed={completed} state={course} sample={sampleOutline} onSampleChange={setSampleOutline} activeId={lesson.current?.lessonId} activePage={progress?.page} disabled={outlineDisabled} onOpen={openFromOutline} />
+        {canvasOutline.length > 0 ? (
+          <ol className="space-y-0.5">
+            {canvasOutline.map(entry => (
+              <li key={entry.id} style={{ paddingLeft: (entry.level - 1) * 16 }} className="flex items-start gap-2">
+                <input type="checkbox" checked={entry.done} aria-label={`${entry.label} done`}
+                  onChange={() => canvasApi.current?.toggleSectionDone(entry.id)}
+                  className="mt-1 h-3.5 w-3.5 shrink-0 cursor-pointer accent-green-600" />
+                <button type="button" onClick={() => { setPanelOpen(true); canvasApi.current?.showSection(entry.id); }}
+                  className={`flex-1 rounded text-left hover:text-accent ${entry.level === 1 ? 'text-sm font-medium' : 'text-sm text-ink-2'} ${entry.done ? 'line-through decoration-ink-3' : ''}`}>
+                  {entry.label}
+                </button>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="text-sm text-ink-3">No sections yet. Add one from the rail between two cards, or Insert &rarr; Section.</p>
+        )}
+        {/* The course's own lessons stay reachable beneath, since the outline
+            above describes this lesson rather than the course around it. */}
+        {course.course?.curriculum && (
+          <details className="mt-3 shrink-0 border-t border-line pt-3">
+            <summary className="cursor-pointer text-xs text-ink-2">Course lessons</summary>
+            <div className="mt-2"><LearnOutline allowSample={!isRepository} onToggleComplete={toggleSection} completed={completed} state={course} sample={sampleOutline} onSampleChange={setSampleOutline} activeId={lesson.current?.lessonId} activePage={progress?.page} disabled={outlineDisabled} onOpen={openFromOutline} /></div>
+          </details>
+        )}
         <button type="button" disabled={!course.loaded || course.dirty} aria-current={learningView === 'notes' ? 'page' : undefined} onClick={() => requestLearningView('notes')}
           className="mt-3 shrink-0 border-t border-line pt-3 text-left text-sm text-ink-2 hover:text-accent aria-[current=page]:font-medium aria-[current=page]:text-accent disabled:text-ink-3">My notes</button>
       </div>

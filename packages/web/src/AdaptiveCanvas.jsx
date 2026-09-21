@@ -9,6 +9,7 @@ import { panelFor, textStyle, dashArray, dashStyle, reorder, TEXT_LEVELS, DASH_S
 import CanvasMinimap from './CanvasMinimap.jsx';
 import { presentSteps } from './learn-present.js';
 import { pageRects, PAGE_W } from './learn-pages.js';
+import { outlineFrom } from './learn-outline-model.js';
 import { cachedAsset } from './learn-asset-cache.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 
@@ -755,11 +756,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       toggleGrid: () => setGrid(previous => !previous),
       toggleMinimap: () => setMinimap(previous => !previous),
       togglePages: () => setPages(previous => !previous),
+      toggleSectionDone: id => { snapshot(); setBlocks(previous => previous.map(block => block.id === id ? { ...block, done: !block.done } : block)); },
+      // Frame the section rather than scroll to it: a section is a heading plus
+      // what follows, and the camera already knows how to land on one.
+      showSection: id => {
+        const steps = presentSteps(blocksRef.current, boundsRef.current);
+        const step = steps.find(entry => entry.ids[0] === id) || steps.find(entry => entry.ids.includes(id));
+        if (step) frame(step.boxes, 64, 1.2);
+      },
       toggleLock: () => setLock(previous => !previous),
     };
   });
   // Menu checkmarks need these as state on the page, not as a ref it cannot watch.
-  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null }); }, [grid, lock, minimap, pages, presenting, onState]);
+  const outline = outlineFrom(blocks);
+  // Serialised for the comparison on the page: the outline changes whenever a
+  // heading is added, retitled, reordered or ticked, and only then.
+  const outlineKey = JSON.stringify(outline);
+  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey) }); }, [grid, lock, minimap, pages, presenting, outlineKey, onState]);
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);
