@@ -65,6 +65,35 @@ The rule it leaves behind: **report a check that resolved no operands as inert,
 never as OK.** A green line in a gate report is a claim that something was
 verified, and a check with nothing to chew on makes no such claim.
 
+## Open question — coherence at displayed precision
+
+**Not yet a rule. Deliberately unresolved pending evidence that it matters.**
+
+Case 04's displayed cells can fail to hand-sum by 0.01 while the underlying values
+are entirely consistent: each term is an independently rounded two-decimal view of
+a correct three-decimal number, so `.16 + .00 + .34` reads as `.50` on screen
+beside a result shown as `.49`.
+
+This is a **different class** from the arithmetic defects that preceded it. Those
+were data inconsistencies — a scene displaying a number its own inputs contradict.
+This one has one numerical truth and a presentation artefact on top of it.
+
+The candidate rule, if it turns out to matter:
+
+> When a visualization presents an arithmetic relationship using rounded operands
+> and a rounded result, the displayed values should remain arithmetically coherent
+> **at the displayed precision**.
+
+Possible answers include residual-aware rounding, or deriving one displayed term
+or the result from the rounded presentation values rather than from the precise
+ones.
+
+**Do not widen scope to fix this before a critic has looked at the rendered
+image and said whether it actually impedes comprehension.** A learner may never
+notice; a learner checking the arithmetic by hand certainly will. That is an
+empirical question about the picture, not a question to settle by reasoning about
+it.
+
 ## Calibrating the critic without contaminating the cases
 
 An independent critic must be blind — no prior scores, no prior findings, not even
