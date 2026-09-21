@@ -945,8 +945,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       title: `${block.title} · page ${block.paper.page}`,
       text: `${described?.text || ''}\nThe learner marked this region of the page (normalized x, y, w, h): ${JSON.stringify(selection.region)}.`,
       preview: selection.preview,
-      // The server validates selection.region, not a bare rectangle.
-      paper: { id: block.paper.id, page: block.paper.page, selection: { region: selection.region } },
+      // The server validates selection.region and reads selection.preview for the
+      // crop it shows the model (paperSelectionImage). The sibling `preview`
+      // above is the composer's thumbnail, a different field - without this one
+      // asking about a marked region failed before it reached the model.
+      paper: { id: block.paper.id, page: block.paper.page, selection: { region: selection.region, preview: selection.preview } },
     });
   };
   // A question asked about a block auto-links that block to its answer node,

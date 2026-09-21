@@ -70,7 +70,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
         <button type="button" aria-label="Zoom in paper" title="Zoom in" disabled={zoom >= 3} onClick={() => setZoom(z => Math.min(3, z + 0.25))} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><Plus size={14} /></button>
         <button type="button" data-paper-select aria-label={paper.selection ? 'Clear paper selection' : 'Ask about paper selection'}
           title={paper.selection ? 'Clear the marked region (or press Esc)' : 'Select a region to ask about'} aria-pressed={selecting}
-          onClick={() => (paper.selection ? clearSelection() : (setSelecting(value => !value), setRectangle(null)))}
+          onClick={() => (paper.selection ? (onSelect?.(null), setSelecting(false), setRectangle(null)) : (setSelecting(value => !value), setRectangle(null)))}
           className={`rounded border p-1 ${selecting || paper.selection ? 'border-red-600 bg-red-50 text-red-600' : 'border-line hover:bg-hover'}`}>{paper.selection ? <X size={14} /> : <Scan size={14} />}</button>
       </>}
       <a href={`${paper.pdfUrl}#page=${paper.page}`} target="_blank" rel="noreferrer" title="Open original PDF" aria-label="Open original PDF" className="rounded border border-line p-1 hover:bg-hover"><ExternalLink size={14} /></a>
