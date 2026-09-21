@@ -113,6 +113,29 @@ from — including one case, the codebase orientation, that deliberately leaves 
 ML-diagram comfort zone to test whether this is a repo-learning product or a
 visualization demo.
 
+## What each phase can and cannot find
+
+The benchmark phase answered **correctness and reusable visual semantics**: is
+the arithmetic true, does the encoding preserve ordering, can the language say
+this without bespoke code. Three blind reviews settled those, and the gates now
+hold them settled.
+
+The gallery exposes something benchmarks structurally cannot — **product
+hierarchy**. The sharpest finding from the first look was that a learner's eye is
+drawn more strongly to the playback controls than to the thing they are meant to
+understand. No benchmark case could have surfaced that: a case is scored against
+a reference, and the reference has no transport bar.
+
+The same look found annotation type too small everywhere, explanatory text too
+faint, diagrams too small for their cards, and a VLM scene that showed an icon
+beside a grid rather than an image being sliced into patches — a pedagogical
+failure in a scene that passed every correctness gate.
+
+**Different classes of problem, found by different means.** Correctness is
+settled by checking. Hierarchy and pacing are settled by using the thing as a
+learner. Neither substitutes for the other, and a suite of green gates says
+nothing about whether a lesson is worth reading.
+
 ## The benchmark milestone closes when regression passes
 
 Once the closing pass and its regression are green, **the static benchmark
