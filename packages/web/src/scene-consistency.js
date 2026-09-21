@@ -12,6 +12,7 @@
 // exists to enforce and viz-benchmarks/illustrated-transformer/
 // independent-review.md for the case that motivated it.
 import { round, DERIVATIONS } from './scene-derive.js';
+import { GEOMETRY } from './scene-vocab.js';
 
 const dot = DERIVATIONS.dot.derive;
 
@@ -223,14 +224,135 @@ function checkDimensionLabelText(scene) {
   return issues;
 }
 
+// An arrow's landing row/column must carry the same token identity as the
+// object it left - the same class of defect as a displayed number its
+// inputs contradict (see docs/superpowers/specs/2026-09-18-visual-language-
+// and-motion-design.md): an arrow asserting a provenance its own endpoints
+// contradict. Generic across any teaching scene that draws an identified
+// vector (a strip, or a labelled row of a grid) feeding an arrow into a
+// labelled grid - not specific to Q/K/V or to any one case's token names.
+//
+// An arrow carries no object reference (`from`/`to` are bare points - see
+// animation-scene.js's objectSchema), so "which object is this arrow
+// leaving/entering" is resolved geometrically: the object whose own frame
+// contains the point. The source's implied row/column is then resolved by
+// matching a whole word of its own label/text against the destination
+// grid's rowLabels/columnLabels, case-insensitively - "query (Q) - south"
+// names "south", the same word a grid's rowLabels can carry. An object with
+// no such word in its label makes no identity claim this check can verify,
+// so it is silently skipped rather than guessed at - no false positive.
+const WORD = /[a-z][a-z0-9]*/g;
+const wordsOf = text => (text || '').toLowerCase().match(WORD) || [];
+
+function bboxOf(object) {
+  const state = object.initialState;
+  const cell = state.cell || GEOMETRY.cellPitch;
+  const w = state.w ?? (object.type === 'grid' ? (state.cols || 1) * cell : object.type === 'strip' ? (state.values?.length || 1) * cell : 0);
+  const h = state.h ?? (object.type === 'grid' ? (state.rows || 1) * cell : object.type === 'strip' ? cell : 0);
+  return { x: state.x ?? 0, y: state.y ?? 0, w, h };
+}
+const containsPoint = (box, point, pad = 0.5) =>
+  point.x >= box.x - pad && point.x <= box.x + box.w + pad && point.y >= box.y - pad && point.y <= box.y + box.h + pad;
+
+function checkArrowIdentityIntoGrid(scene) {
+  const issues = [];
+  const boxed = scene.objects.filter(object => !['arrow', 'line'].includes(object.type) && object.initialState.x != null);
+  for (const arrow of scene.objects) {
+    if (arrow.type !== 'arrow' || !arrow.initialState.from || !arrow.initialState.to) continue;
+    const { from, to } = arrow.initialState;
+    const source = boxed.find(object => containsPoint(bboxOf(object), from));
+    const grid = boxed.find(object => object.type === 'grid' && (object.initialState.rowLabels?.length || object.initialState.columnLabels?.length) && containsPoint(bboxOf(object), to));
+    if (!source || !grid || source === grid) continue;
+    // Scoped to objects that carry IDENTITY (scene-vocab.js's own peer axis -
+    // "which Q/K/V is this"), not any word a free-text caption happens to
+    // share with a grid's row/column label. A caption naming which query a
+    // whole vector belongs to (case 04's "raw score (south's row)") is
+    // metadata about the OBJECT, not a claim about which slot of a
+    // differently-indexed destination it lands in - IDENTITY is the axis
+    // this rule is actually about (see the spec's "same token identity"
+    // language), and scoping to it is what keeps the check from guessing at
+    // captions that were never making a positional claim at all.
+    if (!source.initialState.identity) continue;
+    const sourceWords = new Set([...wordsOf(source.initialState.label), ...wordsOf(source.initialState.text)]);
+    if (!sourceWords.size) continue;
+    const { rowLabels, columnLabels } = grid.initialState;
+    const rows = grid.initialState.rows || 1, cols = grid.initialState.cols || 1;
+    const cell = grid.initialState.cell || GEOMETRY.cellPitch;
+    const box = bboxOf(grid);
+    const landedRow = Math.min(rows - 1, Math.max(0, Math.floor((to.y - box.y) / cell)));
+    const landedCol = Math.min(cols - 1, Math.max(0, Math.floor((to.x - box.x) / cell)));
+    // Which axis is this arrow actually CLAIMING - not "does the source's
+    // word happen to also spell a column name", which false-fires the
+    // moment a grid's row and column labels are the same token set (a
+    // self-attention score matrix, rows and columns both the sequence). An
+    // arrow's own entry side says which axis it means: entering near the
+    // LEFT edge is a row claim (a row header's own side), entering near the
+    // TOP edge is a column claim (a column header's own side) - the same
+    // convention this renderer already draws rowLabels/columnLabels on (see
+    // scene-layout.js's gridAxisLabelBoxes). Whichever edge the landing
+    // point sits closer to wins; the other axis is not this arrow's claim
+    // to make, so it is left unchecked rather than guessed at.
+    const distLeft = Math.abs(to.x - box.x), distTop = Math.abs(to.y - box.y);
+    if (rowLabels && (!columnLabels || distLeft <= distTop)) {
+      const impliedRow = rowLabels.findIndex(label => sourceWords.has(label.toLowerCase()));
+      if (impliedRow !== -1 && impliedRow !== landedRow) {
+        issues.push({
+          check: 'arrow-identity', objectId: arrow.id,
+          message: `arrow "${arrow.id}" leaves "${source.id}" (${rowLabels[impliedRow]}) but lands in grid "${grid.id}"'s "${rowLabels[landedRow]}" row, not "${rowLabels[impliedRow]}" - the arrow, its source and the row it lands in must carry the same identity`,
+        });
+      }
+    } else if (columnLabels) {
+      const impliedCol = columnLabels.findIndex(label => sourceWords.has(label.toLowerCase()));
+      if (impliedCol !== -1 && impliedCol !== landedCol) {
+        issues.push({
+          check: 'arrow-identity', objectId: arrow.id,
+          message: `arrow "${arrow.id}" leaves "${source.id}" (${columnLabels[impliedCol]}) but lands in grid "${grid.id}"'s "${columnLabels[landedCol]}" column, not "${columnLabels[impliedCol]}" - the arrow, its source and the column it lands in must carry the same identity`,
+        });
+      }
+    }
+  }
+  return issues;
+}
+
+// The third of the three ways "local" gets refused (see animation-scene.js's
+// valueScaleGroup and derive-chain gates for the other two): a case whose
+// own pattern coverage declares matrix_operation or live_computation has, by
+// definition, a transformation the learner must see rather than infer - the
+// whole subject of the pattern is a computation, so its stages cannot let
+// each other self-normalise. No scene-local signal says this - `patterns`
+// is authored in a benchmark case's target.json, not the scene - so a
+// caller that knows the case's patterns passes them in; a caller that does
+// not (an ordinary scene with no case context) passes none, and this check
+// is simply inert rather than refusing something it cannot see.
+const PATTERNS_REQUIRING_SHARED_SCALE = new Set(['matrix_operation', 'live_computation']);
+function checkPatternRequiresSharedScale(scene, patterns) {
+  if (!patterns?.some(pattern => PATTERNS_REQUIRING_SHARED_SCALE.has(pattern))) return [];
+  const matched = patterns.filter(pattern => PATTERNS_REQUIRING_SHARED_SCALE.has(pattern));
+  const issues = [];
+  for (const object of scene.objects) {
+    if (object.initialState.heat && object.initialState.valueScale === 'local') {
+      issues.push({
+        check: 'pattern-requires-shared-scale', objectId: object.id,
+        message: `"${object.id}" declares valueScale "local", but this case declares pattern(s) ${matched.join(', ')} - a transformation the learner must see cannot let its own stages self-normalise, so valueScale must be shared or fixed`,
+      });
+    }
+  }
+  return issues;
+}
+
 // The single entry point. Takes a scene already through validateScene.
-export function checkSceneConsistency(scene) {
+// `patterns` (optional) is the benchmark case's own target.json `patterns`
+// array - see checkPatternRequiresSharedScale above for why it is not part
+// of the scene itself.
+export function checkSceneConsistency(scene, { patterns } = {}) {
   const issues = [
     ...checkProvenanceOnComputedClaims(scene),
     ...checkDotProductArithmetic(scene),
     ...checkMatrixDimensionsMatchVectors(scene),
     ...checkProbabilityClaims(scene),
     ...checkDimensionLabelText(scene),
+    ...checkArrowIdentityIntoGrid(scene),
+    ...checkPatternRequiresSharedScale(scene, patterns),
   ];
   return { passed: issues.length === 0, issues };
 }

@@ -135,7 +135,10 @@ export const sigmoidScene = {
     // a data object hangs its own label 10px above its top edge, so leave room
     // for it or the two lines collide
     { id: 'curve', type: 'strip', semanticId: 'sigmoid-values', conceptId: 'sigmoid',
-      initialState: { label: 'fill carries the value', x: 40, y: 282, cell: 46, opacity: 0, heat: true, role: 'observed', values: SIGMOID.map(() => 0) } },
+      // A single isolated curve, compared to nothing else on screen - exactly
+      // what "local" is for: maximise contrast inside this one strip, no
+      // cross-object claim to make honest.
+      initialState: { label: 'fill carries the value', x: 40, y: 282, cell: 46, opacity: 0, heat: true, valueScale: 'local', role: 'observed', values: SIGMOID.map(() => 0) } },
     { id: 'note', type: 'text', semanticId: 'note', initialState: { text: '', x: 40, y: 376 } },
   ],
   timeline: [
@@ -175,8 +178,11 @@ export const heatCheckScene = {
         // A visual check board, not a claimed relationship - the q/k-style
         // labels exist only to give the ramp realistic, distinguishable axis
         // names, the same reason a colour-blindness test chart uses letters
-        // instead of blanks. matrixKind: input, not relational.
-        matrixKind: 'input',
+        // instead of blanks. matrixKind: input, not relational. It is also
+        // alone on screen, comparing nothing to anything else - "local" is
+        // not merely allowed here, it is what this probe needs: full
+        // contrast across its own extremes is the whole point of the check.
+        matrixKind: 'input', valueScale: 'local',
         rowLabels: ['q1', 'q2', 'q3'],
         columnLabels: ['k1', 'k2', 'k3', 'k4'],
         // row0: strongly negative -> near-zero -> positive. row1: a near-zero

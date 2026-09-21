@@ -91,14 +91,19 @@ function DataShape({ object, role, pop }) {
     const columns = object.type === 'strip' ? (object.values?.length || 0) : (object.cols || 1);
     const rows = object.type === 'strip' ? 1 : (object.rows || 1);
     const heatMode = object.heat?.mode;
-    // A heat grid reads as a distribution: fill carries the value, so the
-    // shape is visible before a single numeral is read. The domain is the
-    // object's own authored values, not a fixed range, so a strip of small
-    // numbers spends just as much of the ramp as one of large ones.
-    const domain = heatMode ? (object.values || []).reduce(
+    // A heat grid reads as a distribution: fill carries the value. VALUE's
+    // own scale (validateScene, animation-scene.js) decides whose numbers
+    // set that distribution's ends: "local" maximises contrast inside this
+    // one object's CURRENT frame - a strip of small numbers spends just as
+    // much of the ramp as one of large ones, but makes no cross-object
+    // magnitude claim - while "shared"/"fixed" read the domain validateScene
+    // already resolved once for the whole scale group, so two objects in the
+    // same comparison never independently normalise against each other. See
+    // docs/superpowers/specs/2026-09-18-visual-language-and-motion-design.md.
+    const domain = !heatMode ? null : object.valueScale === 'local' ? (object.values || []).reduce(
       (range, entry) => entry == null ? range : { min: Math.min(range.min, entry), max: Math.max(range.max, entry) },
       { min: Infinity, max: -Infinity },
-    ) : null;
+    ) : object.valueDomain;
     // Resolved once for the whole grid/strip: identity (if this object has
     // one) takes over the hue everywhere role's would otherwise have gone -
     // every cell's ring below and the object's own frame at the bottom of

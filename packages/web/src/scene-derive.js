@@ -190,6 +190,51 @@ function walk(node, pool) {
   return node;
 }
 
+// A DECLARATION IS NOT AUTOMATICALLY HONEST. Requiring valueScale (see
+// animation-scene.js) stops a scene shipping with no scaling gate at all,
+// but an author can still type `valueScale: 'local'` on an object that is
+// plainly mid-computation - the same shape as the `illustrative` dodge this
+// module's own provenance rule already closes (a false result cannot buy an
+// exemption by claiming to be a sketch). So a chain that exists in the
+// scene's OWN `derived` graph is one of the places `local` is refused at the
+// gate, whether or not an author also wrote a valueScaleGroup: the object's
+// values are derived from, or feed into, another heat object in the same
+// scene's computation, and that is a comparison whether or not anyone
+// declared it one.
+//
+// Returns Map<objectId, groupKey> - objects absent from the map author no
+// $derive reference on their own `values` at all, so they have nothing this
+// particular rule can catch (a plain authored literal is not, by this
+// mechanism, provably part of a chain - see valueScaleGroup and the
+// pattern-level gate in scene-consistency.js for the other two ways `local`
+// gets refused). Two objects share a groupKey exactly when their backing
+// derived/exampleData names are connected - directly, or through any chain
+// of derived-op arguments - in the scene's OWN `derived` block.
+export function computeValueChainGroups(raw) {
+  const derivedSpecs = raw?.derived || {};
+  const parent = new Map();
+  const find = key => { let root = key; while (parent.get(root) !== root) root = parent.get(root); return root; };
+  const ensure = key => { if (!parent.has(key)) parent.set(key, key); return key; };
+  const union = (a, b) => { const rootA = find(ensure(a)), rootB = find(ensure(b)); if (rootA !== rootB) parent.set(rootA, rootB); };
+  const rootOf = arg => (typeof arg === 'string' ? arg.split('.')[0] : null);
+  for (const [name, spec] of Object.entries(derivedSpecs)) {
+    ensure(name);
+    for (const arg of spec?.args || []) {
+      const root = rootOf(arg);
+      if (root) union(name, root);
+    }
+  }
+  const objectName = new Map();
+  for (const object of raw?.objects || []) {
+    const values = object?.initialState?.values;
+    const name = values && typeof values === 'object' && typeof values.$derive === 'string' ? rootOf(values.$derive) : null;
+    if (name && object.id) { objectName.set(object.id, name); ensure(name); }
+  }
+  const groups = new Map();
+  for (const [id, name] of objectName) groups.set(id, find(name));
+  return groups;
+}
+
 // The authored-data boundary: exampleData -> derived -> everything else.
 // exampleData is the one place a lesson's ground-truth numbers are typed in;
 // `derived` names, once each, every calculation the scene performs on it;

@@ -157,6 +157,31 @@ export function requiredLeftMargin(objects) {
   return margin;
 }
 
+// Generic edge routing / label avoidance: does the straight segment p0->p1
+// pass THROUGH a box at any point along its length - not only land inside
+// it at an endpoint (checkArrowIntoLabel in scene-layout-lint.js already
+// catches that, at the arrowhead only). An arrow re-routed clear of a
+// label's start point can still cut straight through the label's body on
+// its way to a different, honest landing spot - a different defect from a
+// spacing problem, and this is the shape check that tells them apart.
+// Liang-Barsky segment/rectangle clipping: standard, not scene-specific -
+// the same test serves any arrow against any label, anywhere.
+function clipTest(p, q, t) {
+  if (p === 0) return q >= 0;
+  const r = q / p;
+  if (p < 0) { if (r > t[1]) return false; if (r > t[0]) t[0] = r; }
+  else { if (r < t[0]) return false; if (r < t[1]) t[1] = r; }
+  return true;
+}
+export function segmentIntersectsBox(p0, p1, box) {
+  const dx = p1.x - p0.x, dy = p1.y - p0.y;
+  const t = [0, 1];
+  return clipTest(-dx, p0.x - box.xMin, t)
+    && clipTest(dx, box.xMax - p0.x, t)
+    && clipTest(-dy, p0.y - box.yMin, t)
+    && clipTest(dy, box.yMax - p0.y, t);
+}
+
 export function estimateTextBox({ text, x, y, fontSize, anchor, baseline }) {
   const width = (text?.length || 0) * fontSize * CHAR_WIDTH_RATIO;
   const height = fontSize * LINE_HEIGHT_RATIO;

@@ -122,6 +122,113 @@ function sourceGridViolations(path) {
   return violations;
 }
 
+// --- VALUE's own scaling gate, the same rule matrixKind already follows
+// (see animation-scene.js's validateScene and docs/superpowers/specs/
+// 2026-09-18-visual-language-and-motion-design.md): a heat object with no
+// declared valueScale silently reinstates the exact per-object
+// normalisation this axis exists to replace. validateScene's own refusal
+// only catches a scene that is actually validated - this is what closes the
+// same gap matrixKind's repo-wide scan closes, for a committed benchmark
+// scene-spec nothing loads, a test fixture, or a board seed reached by only
+// one code path.
+//
+// "carries heat" is authored true, or an object ({mode: ...}) - `false` and
+// `null` both mean OFF, the same two spellings validateScene itself
+// normalises to null, and neither needs a scale to be honest about.
+const hasAuthoredHeat = heat => heat === true || (heat != null && typeof heat === 'object');
+
+function jsonValueScaleViolations(path) {
+  const raw = JSON.parse(readFileSync(path, 'utf8'));
+  const violations = [];
+  for (const object of raw.objects || []) {
+    const state = object.initialState || {};
+    if (hasAuthoredHeat(state.heat) && !state.valueScale) violations.push(object.id || '(no id)');
+  }
+  return violations;
+}
+
+// AST-level: a `heat` property present with anything other than a literal
+// `false`/`null` (true, an object expression, or even a variable reference -
+// heat's own shape is a scene author's choice this scanner does not need to
+// resolve, only "is something there") and no sibling `valueScale`.
+function sourceValueScaleViolations(path) {
+  const source = readFileSync(path, 'utf8');
+  const loader = path.endsWith('.jsx') ? 'jsx' : 'js';
+  let code;
+  try {
+    ({ code } = esbuild.transformSync(source, { loader, jsx: 'automatic', format: 'esm' }));
+  } catch {
+    return [];
+  }
+  let ast;
+  try {
+    ast = acorn.parse(code, { ecmaVersion: 'latest', sourceType: 'module', locations: true });
+  } catch {
+    return [];
+  }
+  const violations = [];
+  walk(ast, node => {
+    if (node.type !== 'ObjectExpression') return;
+    const initialState = propValue(node, 'initialState');
+    if (!initialState || initialState.type !== 'ObjectExpression') return;
+    const heat = propValue(initialState, 'heat');
+    if (!heat) return;
+    if (heat.type === 'Literal' && (heat.value === false || heat.value === null)) return;
+    const valueScale = propValue(initialState, 'valueScale');
+    if (valueScale === undefined) {
+      const idValue = propValue(node, 'id');
+      const label = idValue?.type === 'Literal' ? idValue.value : (idValue?.type === 'TemplateLiteral' ? '(templated id)' : '(no literal id)');
+      violations.push(`${label} at line ${node.loc?.start.line ?? '?'}`);
+    }
+  });
+  return violations;
+}
+
+test('every heat-bearing object in every JSON scene-spec file declares valueScale', () => {
+  const files = findSceneSpecJsonFiles();
+  assert.ok(files.length > 5, `expected to find several scene-spec.json files under the repo, found ${files.length} - did the scan break?`);
+  const failures = [];
+  for (const file of files) {
+    const violations = jsonValueScaleViolations(file);
+    if (violations.length) failures.push(`${file}: ${violations.join(', ')}`);
+  }
+  assert.deepEqual(failures, [], `undeclared heat object(s):\n${failures.join('\n')}`);
+});
+
+test('every heat-bearing object authored in packages/web source (src and e2e) declares valueScale', () => {
+  const files = findSourceFiles();
+  assert.ok(files.length > 10, `expected to find several source files, found ${files.length} - did the scan break?`);
+  const failures = [];
+  for (const file of files) {
+    const violations = sourceValueScaleViolations(file);
+    if (violations.length) failures.push(`${file}: ${violations.join(', ')}`);
+  }
+  assert.deepEqual(failures, [], `undeclared heat object(s):\n${failures.join('\n')}`);
+});
+
+// Mutation proof, self-contained: stripping valueScale from a real, clean
+// scene-spec.json's heat object must fail this exact test and name the file.
+test('mutation proof: the JSON scan actually fails, and names the file, when valueScale is stripped', () => {
+  const files = findSceneSpecJsonFiles();
+  const target = files.find(file => {
+    if (jsonValueScaleViolations(file).length !== 0) return false;
+    const objects = JSON.parse(readFileSync(file, 'utf8')).objects || [];
+    return objects.some(o => hasAuthoredHeat(o.initialState?.heat));
+  });
+  assert.ok(target, 'expected at least one clean scene-spec.json with a heat object to mutate');
+  const original = readFileSync(target, 'utf8');
+  try {
+    const mutated = JSON.parse(original);
+    const object = mutated.objects.find(o => hasAuthoredHeat(o.initialState?.heat));
+    delete object.initialState.valueScale;
+    writeFileSync(target, JSON.stringify(mutated, null, 2));
+    const violations = jsonValueScaleViolations(target);
+    assert.ok(violations.length > 0, 'stripping valueScale must produce a violation');
+  } finally {
+    writeFileSync(target, original); // restore - this is a real committed file
+  }
+});
+
 test('every valued grid in every JSON scene-spec file declares matrixKind', () => {
   const files = findSceneSpecJsonFiles();
   assert.ok(files.length > 5, `expected to find several scene-spec.json files under the repo, found ${files.length} - did the scan break?`);

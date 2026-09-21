@@ -13,13 +13,13 @@ import { checkSceneConsistency } from './scene-consistency.js';
 const BROKEN_CASE_03_SNAPSHOT = () => ({
   id: 'case03-attention-score-matrix', duration: 1,
   objects: [
-    { id: 'q', type: 'strip', initialState: { label: 'query (Q)', identity: 'query', heat: { mode: 'signed' }, values: [0.9, -0.4, 1.3] } },
-    { id: 'k', type: 'strip', initialState: { label: 'key (K)', identity: 'key', heat: { mode: 'signed' }, values: [0.6, 1.1, -0.7] } },
+    { id: 'q', type: 'strip', initialState: { label: 'query (Q)', identity: 'query', heat: { mode: 'signed' }, valueScale: 'local', values: [0.9, -0.4, 1.3] } },
+    { id: 'k', type: 'strip', initialState: { label: 'key (K)', identity: 'key', heat: { mode: 'signed' }, valueScale: 'local', values: [0.6, 1.1, -0.7] } },
     { id: 'eq-1', type: 'equation', initialState: { text: 'q_{river}\\cdot k_{river} = .54', x: 320, y: 148, w: 220, h: 36 } },
     { id: 'eq-2', type: 'equation', initialState: { text: 'q_{river}\\cdot k_{flows} = .99', x: 320, y: 202, w: 220, h: 36 } },
     { id: 'eq-3', type: 'equation', initialState: { text: 'q_{river}\\cdot k_{south} = -.63', x: 320, y: 256, w: 220, h: 36 } },
     { id: 'scores', type: 'grid', initialState: {
-      label: "every query's row: Q . Kᵀ", rows: 3, cols: 3, heat: { mode: 'signed' }, matrixKind: 'relational',
+      label: "every query's row: Q . Kᵀ", rows: 3, cols: 3, heat: { mode: 'signed' }, valueScale: 'local', matrixKind: 'relational',
       rowLabels: ['river', 'flows', 'south'], columnLabels: ['river', 'flows', 'south'],
       values: [0.54, 0.99, -0.63, -0.24, -0.44, 0.28, 0.78, 1.43, -0.91],
     } },
@@ -117,7 +117,7 @@ test('a matrixKind: input grid is not forced through the derive seam, however it
     id: 'input-table', duration: 1,
     objects: [
       { id: 'q', type: 'strip', initialState: { identity: 'query', values: [0.9, -0.4, 1.3] } },
-      { id: 'K', type: 'grid', initialState: { matrixKind: 'input', rows: 3, cols: 3, heat: true, rowLabels: ['river', 'flows', 'south'], values: [0.6, 1.1, -0.7, -0.3, 0.8, 0.2, 0.5, -0.4, 0.6] } },
+      { id: 'K', type: 'grid', initialState: { matrixKind: 'input', rows: 3, cols: 3, heat: true, valueScale: 'local', rowLabels: ['river', 'flows', 'south'], values: [0.6, 1.1, -0.7, -0.3, 0.8, 0.2, 0.5, -0.4, 0.6] } },
     ],
     timeline: [],
   });
@@ -129,7 +129,7 @@ test('a matrixKind: relational grid requires derived provenance, even alongside 
     id: 'both', duration: 1,
     objects: [
       { id: 'q', type: 'strip', initialState: { identity: 'query', values: [1, 2] } },
-      { id: 'scores', type: 'grid', initialState: { matrixKind: 'relational', rows: 2, cols: 2, heat: true, rowLabels: ['a', 'b'], columnLabels: ['a', 'b'], values: [1, 2, 3, 4] } },
+      { id: 'scores', type: 'grid', initialState: { matrixKind: 'relational', rows: 2, cols: 2, heat: true, valueScale: 'local', rowLabels: ['a', 'b'], columnLabels: ['a', 'b'], values: [1, 2, 3, 4] } },
     ],
     timeline: [],
   });
@@ -154,7 +154,7 @@ test('a valued grid with no matrixKind at all is refused at validateScene - omis
     "id": "undeclared", "duration": 1,
     "objects": [
       { "id": "q", "type": "strip", "initialState": { "identity": "query", "values": [1, 2] } },
-      { "id": "grid", "type": "grid", "initialState": { "rows": 2, "cols": 2, "heat": true, "rowLabels": ["a", "b"], "columnLabels": ["a", "b"], "values": [1, 2, 3, 4] } }
+      { "id": "grid", "type": "grid", "initialState": { "rows": 2, "cols": 2, "heat": true, "valueScale": "local", "rowLabels": ["a", "b"], "columnLabels": ["a", "b"], "values": [1, 2, 3, 4] } }
     ],
     "timeline": []
   }`);
@@ -295,4 +295,37 @@ test('audit/layout: reordering the same objects in the array does not change whi
   const forwards = checkSceneConsistency(validateScene({ id: 'forwards', duration: 1, objects, timeline: [] }));
   const backwards = checkSceneConsistency(validateScene({ id: 'backwards', duration: 1, objects: [...objects].reverse(), timeline: [] }));
   assert.deepEqual(forwards.issues.map(i => i.check).sort(), backwards.issues.map(i => i.check).sort());
+});
+
+// The third way "local" is refused (see value-scale.test.mjs for the other
+// two, scene-level ones): a case whose own target.json declares
+// matrix_operation or live_computation. No scene-local signal says this -
+// `patterns` lives in a benchmark case's target.json, not the scene itself -
+// so the caller passes it through as an explicit second argument, and an
+// ordinary caller who passes none leaves this check inert rather than
+// refusing something it has no way to see.
+test('"local" is refused when the case declares matrix_operation or live_computation, passed in from target.json', () => {
+  const scene = validateScene({
+    id: 'pattern-gate', duration: 1,
+    objects: [{ id: 'g', type: 'grid', initialState: { rows: 1, cols: 2, values: [1, -1], heat: { mode: 'signed' }, matrixKind: 'input', valueScale: 'local' } }],
+    timeline: [],
+  });
+  const { passed, issues } = checkSceneConsistency(scene, { patterns: ['matrix_operation'] });
+  assert.equal(passed, false);
+  assert.ok(issues.some(issue => issue.check === 'pattern-requires-shared-scale' && issue.objectId === 'g'));
+});
+
+// Mutation proof: the SAME scene, with no patterns passed in at all (an
+// ordinary scene with no benchmark-case context) - the only thing that
+// changed is the signal this gate looks at, and the refusal disappears with
+// it, proving the pattern argument is what triggered the check rather than
+// "local" being refused unconditionally.
+test('mutation proof: the same scene with no patterns passed in is not refused', () => {
+  const scene = validateScene({
+    id: 'pattern-gate-2', duration: 1,
+    objects: [{ id: 'g', type: 'grid', initialState: { rows: 1, cols: 2, values: [1, -1], heat: { mode: 'signed' }, matrixKind: 'input', valueScale: 'local' } }],
+    timeline: [],
+  });
+  assert.deepEqual(checkSceneConsistency(scene), { passed: true, issues: [] });
+  assert.deepEqual(checkSceneConsistency(scene, { patterns: ['flow'] }), { passed: true, issues: [] }, 'a pattern not in the matrix_operation/live_computation set must not trigger it either');
 });

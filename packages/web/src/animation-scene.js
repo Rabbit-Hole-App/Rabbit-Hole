@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { GEOMETRY, HEAT_MODES, IDENTITY_SLOTS, ROLES, SOUNDS, TIMING, TYPE_ROLES } from './scene-vocab.js';
 import { adaptLegacyScene } from './scene-legacy.js';
-import { resolveDerived } from './scene-derive.js';
+import { computeValueChainGroups, resolveDerived } from './scene-derive.js';
 
 // The animation source of truth: scene JSON plus a pure evaluator. Neither
 // React nor tldraw is imported here, so the live canvas and the video exporter
@@ -84,6 +84,19 @@ const objectSchema = z.object({
       error: () => `not a heat mode: write true or one of ${HEAT_MODES.join(', ')}`,
     }).optional(),
     peak: z.number().positive().max(1e6).optional(),
+    // VALUE's own scaling gate, following matrixKind's own rule: required on
+    // any heat object (checked below, once heat is normalised), no default -
+    // an absent field would silently reinstate the exact per-object
+    // normalisation this whole axis exists to replace. local: honest only
+    // about the pattern inside this one object, makes no cross-object claim.
+    // shared: every object naming the same valueScaleGroup uses one common
+    // domain. fixed: a known semantic domain (today: probabilities, [0, 1]).
+    // See docs/superpowers/specs/2026-09-18-visual-language-and-motion-design.md.
+    valueScale: z.enum(['local', 'shared', 'fixed']).optional(),
+    // Names the objects a "shared" valueScale compares honestly against.
+    // Meaningless (and refused below) on "local" or "fixed" - fixed's domain
+    // is a constant, not a negotiation between group members.
+    valueScaleGroup: z.string().min(1).max(60).optional(),
   }).prefault({}),
 });
 
@@ -153,6 +166,12 @@ const phase = (event, time) => {
 const SAME_ORIGIN = /^\/[A-Za-z0-9._~\-/]*$/;
 
 export function validateScene(raw) {
+  // Computed from the scene AS AUTHORED - raw.derived and every $derive
+  // marker - before resolveDerived below flattens them away. See scene-
+  // derive.js's own comment: an object here is one whose values are derived
+  // from, or feed into, another object's, through the scene's own derived
+  // graph, whether or not an author declared a valueScaleGroup to say so.
+  const valueChainGroups = computeValueChainGroups(raw);
   // exampleData -> derived -> everything else: any $derive marker or {{name}}
   // interpolation is materialised into a literal number here, before zod
   // ever sees it, and the object it touched is stamped provenance: derived.
@@ -179,11 +198,49 @@ export function validateScene(raw) {
   // it. This map is scoped to THIS validateScene call alone; it is not a
   // registry, on purpose (see scene-vocab.js's IDENTITY_SLOTS comment).
   const identitySlots = new Map();
+  // How many heat objects sit in each derive-chain component (see
+  // computeValueChainGroups) - computed once, before the per-object loop
+  // below needs to ask "does this object share its chain with another heat
+  // object", so a chain of exactly one heat object (nothing to compare
+  // against) does not itself refuse "local".
+  const heatChainGroupCounts = new Map();
+  for (const object of scene.objects) {
+    if (!object.initialState.heat) continue;
+    const group = valueChainGroups.get(object.id);
+    if (group != null) heatChainGroupCounts.set(group, (heatChainGroupCounts.get(group) || 0) + 1);
+  }
   for (const object of scene.objects) {
     // Same normalisation event.duration gets further down: one shape leaves
     // the gate, whichever one an author wrote going in.
     const heat = object.initialState.heat;
     object.initialState.heat = heat === true ? { mode: 'magnitude' } : heat || null;
+    // VALUE's scaling gate, required on any heat object for the same reason
+    // matrixKind is required on any valued grid: no default, or the field
+    // reinstates by omission the exact silent per-object normalisation it
+    // replaces. A DECLARATION IS NOT AUTOMATICALLY HONEST, so "local" is
+    // additionally refused - not merely discouraged - wherever the object
+    // provably participates in a comparison: it names a valueScaleGroup (a
+    // stated intent to share, contradicted by also opting out of sharing),
+    // or its values sit in a multi-member component of the scene's own
+    // derive graph (a chain nobody had to declare for it to be real). The
+    // third way "local" gets refused - a case-level matrix_operation or
+    // live_computation pattern - has no scene-local signal to check against
+    // here and lives in scene-consistency.js instead.
+    if (object.initialState.heat) {
+      const { valueScale, valueScaleGroup } = object.initialState;
+      if (!valueScale) {
+        throw new Error(`Object "${object.id}": a heat object must declare valueScale: local, shared, or fixed`);
+      }
+      if (valueScale === 'local') {
+        if (valueScaleGroup) {
+          throw new Error(`Object "${object.id}": shares valueScaleGroup "${valueScaleGroup}", so valueScale must be shared or fixed, not local - a grouped object cannot self-normalise`);
+        }
+        const chainGroup = valueChainGroups.get(object.id);
+        if (chainGroup != null && (heatChainGroupCounts.get(chainGroup) || 0) > 1) {
+          throw new Error(`Object "${object.id}": its values are derived from, or feed into, another heat object in this scene's computation chain, so valueScale must be shared or fixed, not local`);
+        }
+      }
+    }
     const identity = object.initialState.identity;
     if (identity == null) {
       object.identitySlot = null;
@@ -280,6 +337,54 @@ export function validateScene(raw) {
     }
     if (event.at + event.duration > scene.duration + 0.001) throw new Error(`Timeline event at ${event.at}s runs past the ${scene.duration}s scene`);
   }
+  // VALUE's domain, resolved once here rather than re-guessed per frame from
+  // whatever a single moment's values happen to be (the fix this whole axis
+  // exists to make: see the module comment above heatChainGroupCounts). Every
+  // number an object could EVER show - its own authored values, plus every
+  // set_values/replace_values payload later aimed at it - is the same "true
+  // maximum a bar will reach" computation this spec's A.5a section already
+  // established as the honest one for a clamp; used here for VALUE's own
+  // domain instead.
+  const candidateRange = object => {
+    const numbers = [...(object.initialState.values || [])];
+    for (const event of scene.timeline) {
+      if (event.target === object.id && Array.isArray(event.value)) numbers.push(...event.value);
+    }
+    return numbers.filter(value => value != null);
+  };
+  // For signed data in a shared group, a symmetric domain [-M, +M] - M the
+  // largest absolute value across the group - keeps zero at the neutral
+  // midpoint for every member, per the spec. A group with no negative
+  // candidate at all (pure magnitude data) keeps its natural [0, max] instead
+  // of manufacturing a negative half nothing in the group ever shows.
+  const domainFor = numbers => {
+    if (!numbers.length) return { min: 0, max: 1 };
+    const min = Math.min(...numbers), max = Math.max(...numbers);
+    if (min < 0) {
+      const bound = Math.max(Math.abs(min), Math.abs(max), 0.0001);
+      return { min: -bound, max: bound };
+    }
+    return { min: 0, max: Math.max(max, 0.0001) };
+  };
+  const sharedGroups = new Map();
+  for (const object of scene.objects) {
+    if (!object.initialState.heat || object.initialState.valueScale !== 'shared') continue;
+    const group = object.initialState.valueScaleGroup;
+    if (!group) throw new Error(`Object "${object.id}": valueScale "shared" needs a valueScaleGroup naming which objects share the domain`);
+    if (!sharedGroups.has(group)) sharedGroups.set(group, []);
+    sharedGroups.get(group).push(object);
+  }
+  for (const members of sharedGroups.values()) {
+    const domain = domainFor(members.flatMap(candidateRange));
+    for (const object of members) object.valueDomain = domain;
+  }
+  for (const object of scene.objects) {
+    // fixed: a known semantic domain - today, probabilities on [0, 1], the
+    // one example the spec names. A future second semantic domain is a
+    // schema extension for the day a scene actually needs one, not a guess
+    // made now.
+    if (object.initialState.heat && object.initialState.valueScale === 'fixed') object.valueDomain = { min: 0, max: 1 };
+  }
   return scene;
 }
 
@@ -348,6 +453,13 @@ export function getSceneState(scene, time) {
     tokens: object.initialState.tokens ?? null,
     heat: object.initialState.heat ?? null,
     peak: object.initialState.peak ?? null,
+    // Both static for the object's whole life (validateScene resolves them
+    // once, the same way identitySlot already is) - carried through rather
+    // than recomputed per frame, or a "shared"/"fixed" domain would drift
+    // with whatever a single moment's values happen to be, defeating the
+    // point of not self-normalising.
+    valueScale: object.initialState.valueScale ?? null,
+    valueDomain: object.valueDomain ?? null,
     cellHighlight: null,
     sweep: null,
     emphasis: 0,

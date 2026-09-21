@@ -6,7 +6,7 @@
 // built separately from what AnimatedScene.jsx does.
 import { getSceneState } from './animation-scene.js';
 import { shapeStyle, textStyle } from './scene-style.js';
-import { centreOf, estimateTextBox, gridAxisLabelBoxes, labelAt } from './scene-layout.js';
+import { centreOf, estimateTextBox, gridAxisLabelBoxes, labelAt, segmentIntersectsBox } from './scene-layout.js';
 
 // An arrowhead is not a point. The SVG marker (AnimatedScene.jsx's
 // #animation-arrow-tinted) is markerWidth="9" with refX="7", in marker units
@@ -91,6 +91,34 @@ function checkArrowIntoLabel(objects) {
   return issues;
 }
 
+// Edge routing and label avoidance: an arrow whose ENDPOINT clears every
+// label (checkArrowIntoLabel above) can still cut straight through a
+// label's body on the way there - re-routing the tip is a spacing fix, not
+// a routing one, and they are different defects that happen to look
+// similar (see docs/superpowers/specs/2026-09-18-visual-language-and-motion-
+// design.md's case-02 note). Generic: any arrow or line segment, against
+// every label any scene can draw, using the same segment/rectangle test
+// regardless of which two objects happen to be involved.
+function checkArrowCrossesLabel(objects) {
+  const labels = collectLabels(objects);
+  const boxes = labels.map(label => ({ label, box: estimateTextBox(label) }));
+  const issues = [];
+  for (const object of objects) {
+    if (!['arrow', 'line'].includes(object.type)) continue;
+    const { from, to } = object;
+    if (!from || !to) continue;
+    for (const { label, box } of boxes) {
+      if (label.ownerId === object.id) continue; // an arrow's own caption sits at its own `from`, never on its path
+      if (!segmentIntersectsBox(from, to, box)) continue;
+      issues.push({
+        check: 'edge-crosses-label', objectId: object.id,
+        message: `"${object.id}" runs from (${from.x}, ${from.y}) to (${to.x}, ${to.y}), passing through the label "${label.text}" owned by "${label.ownerId}" (estimated box x:[${box.xMin.toFixed(0)},${box.xMax.toFixed(0)}] y:[${box.yMin.toFixed(0)},${box.yMax.toFixed(0)}]) - route the edge clear of the label, not only its endpoint`,
+      });
+    }
+  }
+  return issues;
+}
+
 // Text exceeding the box it was given, for the object types that declare
 // one (equation - anything with an authored w). Not font-accurate; it exists
 // to catch an equation authored far too narrow for what it says.
@@ -115,6 +143,6 @@ function checkTextExceedsBox(objects) {
 // renderer calls, so the lint checks the picture that would actually appear.
 export function checkLayoutLint(scene, time = scene.duration) {
   const objects = getSceneState(scene, time).objects.filter(object => object.visible);
-  const issues = [...checkArrowIntoLabel(objects), ...checkTextExceedsBox(objects)];
+  const issues = [...checkArrowIntoLabel(objects), ...checkArrowCrossesLabel(objects), ...checkTextExceedsBox(objects)];
   return { passed: issues.length === 0, issues };
 }

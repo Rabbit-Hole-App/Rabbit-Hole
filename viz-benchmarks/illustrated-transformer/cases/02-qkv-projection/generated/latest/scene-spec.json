@@ -10,7 +10,7 @@
     { "id": "token", "type": "tokens", "semanticId": "input-token",
       "initialState": { "label": "one input token", "x": 40, "y": 64, "role": "input", "tokens": ["word"] } },
     { "id": "arrow-token-embedding", "type": "arrow", "semanticId": "arrow-token-embedding",
-      "initialState": { "from": { "x": 100, "y": 100 }, "to": { "x": 150, "y": 152 }, "role": "neutral" } },
+      "initialState": { "from": { "x": 120, "y": 96 }, "to": { "x": 170, "y": 152 }, "role": "neutral" } },
     { "id": "embedding", "type": "strip", "semanticId": "embedding",
       "initialState": { "label": "embedding (X)", "x": 40, "y": 152, "cell": 36, "role": "input", "values": [null, null, null, null] } },
     { "id": "note", "type": "text", "semanticId": "note",

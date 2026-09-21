@@ -69,7 +69,9 @@
         ],
         "heat": {
           "mode": "signed"
-        }
+        },
+        "valueScale": "shared",
+        "valueScaleGroup": "qk-vectors"
       },
       "identitySlot": "identity-1"
     },
@@ -97,7 +99,9 @@
         ],
         "heat": {
           "mode": "signed"
-        }
+        },
+        "valueScale": "shared",
+        "valueScaleGroup": "qk-vectors"
       },
       "identitySlot": "identity-2"
     },
@@ -125,7 +129,9 @@
         ],
         "heat": {
           "mode": "magnitude"
-        }
+        },
+        "valueScale": "shared",
+        "valueScaleGroup": "value-chain"
       },
       "identitySlot": "identity-3"
     },
@@ -261,7 +267,9 @@
         ],
         "heat": {
           "mode": "signed"
-        }
+        },
+        "valueScale": "shared",
+        "valueScaleGroup": "attention-matrix"
       },
       "identitySlot": null
     },
@@ -412,7 +420,9 @@
         ],
         "heat": {
           "mode": "magnitude"
-        }
+        },
+        "valueScale": "shared",
+        "valueScaleGroup": "value-chain"
       },
       "identitySlot": null
     },

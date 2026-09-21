@@ -11,9 +11,9 @@
       "initialState": { "text": "a positive dot product means the two steps pull in the same direction", "x": 30, "y": 56, "typography": "caption" } },
 
     { "id": "g1", "type": "strip", "semanticId": "gradient-one",
-      "initialState": { "label": "gradient 1 (g1)", "x": 30, "y": 110, "cell": 42, "role": "observed", "identity": "first", "heat": { "mode": "signed" }, "values": [0.8, 0.6] } },
+      "initialState": { "label": "gradient 1 (g1)", "x": 30, "y": 110, "cell": 42, "role": "observed", "identity": "first", "heat": { "mode": "signed" }, "valueScale": "shared", "valueScaleGroup": "gradient-comparison", "values": [0.8, 0.6] } },
     { "id": "g2", "type": "strip", "semanticId": "gradient-two",
-      "initialState": { "label": "gradient 2 (g2)", "x": 30, "y": 190, "cell": 42, "role": "observed", "identity": "second", "heat": { "mode": "signed" }, "values": [-0.5, 0.9] } },
+      "initialState": { "label": "gradient 2 (g2)", "x": 30, "y": 190, "cell": 42, "role": "observed", "identity": "second", "heat": { "mode": "signed" }, "valueScale": "shared", "valueScaleGroup": "gradient-comparison", "values": [-0.5, 0.9] } },
 
     { "id": "arrow-g1-note", "type": "arrow", "semanticId": "arrow-g1-note",
       "initialState": { "from": { "x": 30, "y": 96 }, "to": { "x": 280, "y": 130 }, "role": "neutral" } },

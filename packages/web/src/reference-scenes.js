@@ -65,11 +65,11 @@ export const causalAttentionScene = {
     { id: 'chars', type: 'tokens', semanticId: 'tokens', conceptId: 'qkv-projection',
       initialState: { label: 'five tokens, before attention', x: 40, y: 74, opacity: 0, tokens: [...TOKENS], role: 'input' } },
     { id: 'q', type: 'strip', semanticId: 'query-vector', conceptId: 'qkv-projection',
-      initialState: { label: 'query (Q)', x: 40, y: 150, cell: 42, opacity: 0, heat: { mode: 'signed' }, role: 'observed', identity: 'query', values: [...Q] } },
+      initialState: { label: 'query (Q)', x: 40, y: 150, cell: 42, opacity: 0, heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'qk-vectors', role: 'observed', identity: 'query', values: [...Q] } },
     { id: 'k', type: 'strip', semanticId: 'key-vector', conceptId: 'qkv-projection',
-      initialState: { label: 'key (K)', x: 40, y: 214, cell: 42, opacity: 0, heat: { mode: 'signed' }, role: 'observed', identity: 'key', values: [...K] } },
+      initialState: { label: 'key (K)', x: 40, y: 214, cell: 42, opacity: 0, heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'qk-vectors', role: 'observed', identity: 'key', values: [...K] } },
     { id: 'v', type: 'strip', semanticId: 'value-vector', conceptId: 'qkv-projection',
-      initialState: { label: 'value (V)', x: 40, y: 278, cell: 42, opacity: 0, heat: true, role: 'observed', identity: 'value', values: [...V] } },
+      initialState: { label: 'value (V)', x: 40, y: 278, cell: 42, opacity: 0, heat: true, valueScale: 'shared', valueScaleGroup: 'value-chain', role: 'observed', identity: 'value', values: [...V] } },
     { id: 'arrow-tok-q', type: 'arrow', semanticId: 'arrow-tok-q', conceptId: 'qkv-projection',
       initialState: { from: { x: 160, y: 106 }, to: { x: 145, y: 150 }, opacity: 0, role: 'neutral' } },
     { id: 'arrow-tok-k', type: 'arrow', semanticId: 'arrow-tok-k', conceptId: 'qkv-projection',
@@ -80,7 +80,7 @@ export const causalAttentionScene = {
     // the same visual (a blank cell), which is exactly the ambiguity noted in
     // the Task 12 report - the timeline caption is what disambiguates them.
     { id: 'matrix', type: 'grid', semanticId: 'attention-matrix', conceptId: 'causal-self-attention',
-      initialState: { label: 'attention scores - not yet computed', x: 420, y: 150, rows: 5, cols: 5, cell: 46, opacity: 0, heat: { mode: 'signed' }, role: 'observed',
+      initialState: { label: 'attention scores - not yet computed', x: 420, y: 150, rows: 5, cols: 5, cell: 46, opacity: 0, heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'attention-matrix', role: 'observed',
         // A real Q x Kt comparison (see RAW_FULL above) - both axes name the
         // same five tokens, which is exactly the relational shape.
         matrixKind: 'relational',
@@ -99,7 +99,7 @@ export const causalAttentionScene = {
     { id: 'equation', type: 'equation', semanticId: 'attention-equation', conceptId: 'attention-output',
       initialState: { text: '\\text{softmax}\\left(\\dfrac{QK^T}{\\sqrt{d_k}}\\right)V', x: 650, y: 150, w: 240, h: 60, opacity: 0 } },
     { id: 'output', type: 'strip', semanticId: 'attention-output', conceptId: 'attention-output',
-      initialState: { label: 'output - the weighted mix of V', x: 650, y: 250, cell: 42, opacity: 0, heat: true, role: 'output', values: [0, 0, 0, 0, 0] } },
+      initialState: { label: 'output - the weighted mix of V', x: 650, y: 250, cell: 42, opacity: 0, heat: true, valueScale: 'shared', valueScaleGroup: 'value-chain', role: 'output', values: [0, 0, 0, 0, 0] } },
     { id: 'arrow-v-output', type: 'arrow', semanticId: 'arrow-v-output', conceptId: 'attention-output',
       initialState: { from: { x: 250, y: 299 }, to: { x: 650, y: 271 }, opacity: 0, role: 'neutral' } },
     { id: 'arrow-matrix-output', type: 'arrow', semanticId: 'arrow-matrix-output', conceptId: 'attention-output',

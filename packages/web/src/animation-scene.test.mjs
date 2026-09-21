@@ -291,7 +291,7 @@ test('a pinned peak survives into evaluated state so the axis holds still', () =
 test('heat is carried so a grid can read as a distribution', () => {
   const built = validateScene({
     id: 'hot', duration: 2,
-    objects: [{ id: 'g', type: 'grid', initialState: { x: 0, y: 0, rows: 2, cols: 2, values: [0, 1, 2, 3], heat: true, matrixKind: 'input' } }],
+    objects: [{ id: 'g', type: 'grid', initialState: { x: 0, y: 0, rows: 2, cols: 2, values: [0, 1, 2, 3], heat: true, valueScale: 'local', matrixKind: 'input' } }],
     timeline: [],
   });
   assert.deepEqual(getSceneState(built, 1).objects[0].heat, { mode: 'magnitude' }, 'heat: true is shorthand for magnitude, not a bare boolean');
@@ -315,7 +315,7 @@ test('a signed or sequential heat mode survives the gate untouched', () => {
   for (const mode of ['signed', 'sequential']) {
     const built = validateScene({
       id: `hot-${mode}`, duration: 2,
-      objects: [{ id: 'g', type: 'grid', initialState: { x: 0, y: 0, rows: 1, cols: 2, values: [1, -1], heat: { mode }, matrixKind: 'input' } }],
+      objects: [{ id: 'g', type: 'grid', initialState: { x: 0, y: 0, rows: 1, cols: 2, values: [1, -1], heat: { mode }, valueScale: 'local', matrixKind: 'input' } }],
       timeline: [],
     });
     assert.deepEqual(getSceneState(built, 1).objects[0].heat, { mode }, `${mode} did not survive the gate`);
@@ -325,7 +325,7 @@ test('a signed or sequential heat mode survives the gate untouched', () => {
 test('a heat mode outside the closed vocabulary is refused', () => {
   assert.throws(() => validateScene({
     id: 'bad-heat', duration: 2,
-    objects: [{ id: 'g', type: 'grid', initialState: { x: 0, y: 0, rows: 1, cols: 1, values: [1], heat: { mode: 'rainbow' }, matrixKind: 'input' } }],
+    objects: [{ id: 'g', type: 'grid', initialState: { x: 0, y: 0, rows: 1, cols: 1, values: [1], heat: { mode: 'rainbow' }, valueScale: 'local', matrixKind: 'input' } }],
     timeline: [],
   }), /heat/i);
 });
@@ -345,7 +345,7 @@ test('every heat token has a value in both themes', () => {
 test('heat changes how a grid is painted, never what the evaluator says', () => {
   const build = heat => validateScene({
     id: 'hot', duration: 4,
-    objects: [{ id: 'g', type: 'grid', initialState: { x: 0, y: 0, rows: 2, cols: 2, values: [0, 1, 2, 3], matrixKind: 'input', ...(heat ? { heat: true } : {}) } }],
+    objects: [{ id: 'g', type: 'grid', initialState: { x: 0, y: 0, rows: 2, cols: 2, values: [0, 1, 2, 3], matrixKind: 'input', ...(heat ? { heat: true, valueScale: 'local' } : {}) } }],
     timeline: [{ at: 0, action: 'set_values', target: 'g', duration: 2, easing: 'linear', value: [3, 2, 1, 0] }],
   });
   for (const t of [0, 0.5, 1, 1.5, 2]) {
