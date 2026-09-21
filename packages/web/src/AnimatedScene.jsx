@@ -2,6 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Pause, Play, RotateCcw, Scan, Volume2, VolumeX, X } from 'lucide-react';
 import katex from 'katex';
+// Equation objects render through katex.renderToString below, and without
+// its own stylesheet the output is unstyled markup. In the shipped app this
+// was never actually broken - main.jsx imports ask.jsx (MathText's caller)
+// eagerly, so its katex CSS is always on the page - but that made it an
+// accidental dependency on a sibling component's import graph rather than
+// something this file owns. A standalone render of this component (no
+// main.jsx in the tree - see viz-benchmarks' scene-render-harness.jsx) had
+// no such CSS and rendered every equation as flat, unstyled text. Importing
+// it here directly makes AnimatedScene correct on its own.
+import 'katex/dist/katex.min.css';
 import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './animation-scene.js';
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-sound.js';
