@@ -24,6 +24,7 @@ import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
 import RepositorySource from './RepositorySource.jsx';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
 import LearnPaper from './LearnPaper.jsx';
+import { cacheAsset } from './learn-asset-cache.js';
 import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from './learn-notes.js';
 import { challengePrompt, gradeAnswer } from './learn-grade.js';
 import { architectureLesson, sampleCourse } from './learn-preview.js';
@@ -192,9 +193,16 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
       stored = await response.json();
       if (!response.ok) throw new Error(stored?.error || 'Upload failed');
     } catch (error) { toast(error.message || 'That PDF could not be uploaded.'); return; }
+    // The card is the canvas-resident copy - the browser's own viewer, every
+    // page, native scrolling - and it survives a reload because the bytes are
+    // in this browser's asset store and the block keeps only the key.
+    const assetKey = `pdf:${stored.id}`;
+    await cacheAsset(assetKey, file);
+    canvas()?.insertPdf({ assetKey, label: stored.title });
     // Opening it in the reader is what makes the tutor page-aware: boardContext
     // carries paperContext, and ask.jsx turns that into paper_context with the
-    // page the learner is actually on.
+    // page the learner is actually on. The card cannot do that job - an iframe
+    // never says which page is on screen.
     pauseLesson();
     setPaperContext({ ...stored, pdfUrl: null, page: 1 });
     setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false);
