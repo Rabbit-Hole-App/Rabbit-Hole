@@ -7,6 +7,7 @@ import { BLOCK_TYPES, LearningBlockBody, describeBlock } from './LearningBlocks.
 import { gapsFrom, nearestGap } from './learn-gap-rail.js';
 import { panelFor, textStyle, dashArray, dashStyle, reorder, TEXT_LEVELS, DASH_STYLES, OPACITIES } from './learn-style-panel.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
+import { cachedAsset } from './learn-asset-cache.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
@@ -258,7 +259,40 @@ function HeadingCard({ block, zoom, selected, connected, onSelect, onMove, onCha
   );
 }
 
+// An uploaded PDF, read by the browser's own viewer. The block carries a key,
+// never the bytes: a data URL of any size over 120kB is stripped on save, and a
+// PDF is far past that. The file itself sits in IndexedDB and survives reloads.
+function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onSnap }) {
+  const [url, setUrl] = useState(null);
+  const [missing, setMissing] = useState(false);
+  useEffect(() => {
+    let revoke = null;
+    cachedAsset(block.assetKey).then(file => {
+      if (!file) { setMissing(true); return; }
+      revoke = URL.createObjectURL(file);
+      setUrl(revoke);
+    });
+    return () => { if (revoke) URL.revokeObjectURL(revoke); };
+  }, [block.assetKey]);
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
+      connected={connected} width={COLUMN} height={block.h || 640} autoMax={undefined} saved={{ w: block.w, h: block.h }}
+      onSize={(id, w, h) => onChange({ ...block, w, h })}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
+        <span className="h-1.5 w-1.5 rounded-full bg-ink" />PDF<span className="truncate normal-case tracking-normal text-ink-3">{block.label}</span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-line" onPointerDown={event => event.stopPropagation()}>
+        {url
+          ? <iframe src={url} title={block.label || 'PDF'} className="h-full w-full" />
+          : <p className="p-4 text-sm text-ink-2">{missing ? 'This PDF is not in this browser. Upload it again from Sources.' : 'Opening…'}</p>}
+      </div>
+    </CanvasNode>
+  );
+}
+
 function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade }) {
+  if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
@@ -674,6 +708,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       zoomOut: () => zoomCenter(1 / 1.25),
       zoomReset: () => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 }),
       insertHeading: level => insertHeadingAt(level, blocksRef.current.length),
+      insertPdf: ({ assetKey, label }) => {
+        snapshot();
+        setBlocks(previous => [...previous, { id: crypto.randomUUID(), type: 'pdf', dx: 0, dy: 0, assetKey, label }]);
+      },
       toggleGrid: () => setGrid(previous => !previous),
       toggleMinimap: () => setMinimap(previous => !previous),
       toggleLock: () => setLock(previous => !previous),

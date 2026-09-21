@@ -15,6 +15,7 @@ import ContentsRail from './ContentsRail.jsx';
 import CanvasMenubar from './CanvasMenubar.jsx';
 import { contentsEntries } from './learn-contents.js';
 import { withSource, toggleSource, isAttached } from './learn-sources.js';
+import { cacheAsset } from './learn-asset-cache.js';
 import { lessonMilestones } from './learn-milestones.js';
 import LessonPlanPreview from './LessonPlanPreview.jsx';
 import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
@@ -151,6 +152,19 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     return () => clearTimeout(timer);
   }, [sources, canvasKey]);
   const registerSource = useCallback(source => setSources(previous => withSource(previous, source)), []);
+  // A PDF needs no account and no server: the bytes go to this browser's asset
+  // store and the block keeps only the key. The file picker is hidden and
+  // triggered from the Sources menu, so there is no dialog to dismiss.
+  const pdfPicker = useRef(null);
+  const takePdf = async file => {
+    if (!file) return;
+    const assetKey = `pdf:${crypto.randomUUID()}`;
+    // cacheAsset swallows a blocked or full store and answers null, so a failed
+    // write must stop here rather than leaving a block pointing at nothing.
+    if (!(await cacheAsset(assetKey, file))) { toast('This browser would not store the PDF. Free some space and try again.'); return; }
+    canvasApi.current?.insertPdf({ assetKey, label: file.name });
+    registerSource({ id: assetKey, kind: 'pdf', label: file.name });
+  };
   const repoSourceId = app.repo ? `repo:${app.repo}` : null;
   // The repository is the one source that exists on day one, and detaching it
   // genuinely stops repository_context reaching the agent (ask.jsx:467).
@@ -545,6 +559,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         ...(sources.length ? [{ divider: true }] : []),
         // Enabled even with no connection: a greyed row naming a place it will
         // not take you is worse than one that explains the next step.
+        { label: 'PDF…', onSelect: () => pdfPicker.current?.click() },
         { label: 'Google Slides…', onSelect: () => toast('Connect Google under Settings → Connections to import a deck.') },
       ],
     },
@@ -686,6 +701,8 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         : <AskPanel onGraph={onGraph} key={app.name} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" headerTitle="Learn Agent" demo={isRepository ? null : demo} boardContext={boardContext} contentPanel={lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : null} onCloseContentPanel={() => { setPaperOpen(false); setSourceOpen(false); setLessonSource(null); }} placeholder={`Ask about ${app.repo || app.name}…`} autoFocus />}
       </div>
     </ResizableSidePanel>
+    <input ref={pdfPicker} type="file" accept="application/pdf" className="hidden"
+      onChange={event => { takePdf(event.target.files?.[0]); event.target.value = ''; }} />
     {!panelOpen && <ContentsRail entries={railEntries}
       onOpen={entry => { setPanelOpen(false); openFromOutline(entry.content, 'lesson', 0); }} />}
   </main>;
