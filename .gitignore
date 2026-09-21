@@ -176,3 +176,6 @@ packages/web/e2e/shots/
 # Operator-private evaluation state. Never readable by an evaluator agent,
 # never committed.
 .operator/
+
+# Exported evaluator input. Built fresh per run, never committed.
+.critic-packet/

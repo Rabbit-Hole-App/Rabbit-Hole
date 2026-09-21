@@ -196,6 +196,23 @@ declares what it **is**:
 Labels are still checked — for readability, by the layout lint. They do not decide
 whether the arithmetic is verified.
 
+**If information must stay hidden from an evaluator, make it inaccessible rather
+than instructing the evaluator not to look.**
+
+An instruction not to read `.git` is a rule the evaluator must choose to follow,
+and it fails silently when ignored or forgotten. A packet with no `.git` in it
+cannot be read at all.
+
+So an evaluator is handed an **exported, allowlisted packet** — the cases under
+review, their rendered artifacts, the reference material, the scoring and rubric
+documents, and nothing else. No repository, no history, no operator state, no
+prior reviews, no repair reports, no commit messages. The isolation check runs
+against **the packet**, not against the repository it came from.
+
+This also disposes of residue that cannot be removed in place: an old commit
+still naming a case `critic-calibration` is unreachable once history is not
+shipped, and no rewrite is needed.
+
 **A blind evaluation is blind with respect to the evaluator's complete
 information surface, not merely its prompt.**
 
