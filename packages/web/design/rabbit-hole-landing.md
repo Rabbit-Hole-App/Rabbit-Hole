@@ -9,6 +9,25 @@ in a browser; they are standalone, like the other files in this folder.
 
 Nothing here is wired into the app. The mount point is still undecided.
 
+## The page below the hole
+
+Once the shaft lets go you scroll into Blog / Features / Pricing. A floating glass bar
+arrives at that point and leaves again on the way back up.
+
+It is driven by a `scroll` listener, not the render loop. Toggling it inside
+`requestAnimationFrame` looks equivalent but breaks twice: rAF is paused while a tab is
+backgrounded, and it is switched off entirely under `prefers-reduced-motion`, so the bar
+would simply never appear for those users. The listener toggles a class and CSS does the
+transition, which keeps position work off the scroll path.
+
+`backdrop-filter` only reads as glass when something passes underneath it. Over a blank
+white page it is indistinguishable from flat white — the placeholder sections exist
+partly so the bar has something to blur.
+
+The bar is **not** styled after the TypeSafe reference. That reference governs the hero's
+grid and type metrics only; the chrome is its own thing — crisp `#0A0A0A` on white, Inter
+for UI, a pill with a real shadow, and a solid CTA.
+
 ## Reference
 
 The layout grid and type metrics were measured off `typesafe.ai` with the browser's

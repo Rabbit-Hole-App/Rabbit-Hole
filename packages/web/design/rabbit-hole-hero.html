@@ -4,24 +4,24 @@
 <meta charset="utf-8">
 <title>Rabbit Hole — hero</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <style>
-  /* Grid and type metrics are measured off typesafe.ai at viewport 1536 (body 1521):
-     1240px content frame centred, crop marks at x140/x1370, headline 150px/120px. */
   :root{
-    --ink:#1E1E1E;
-    --ink86:rgba(30,30,30,.86);
-    --paper:#FEFEFE;
-    --grot:Arial,"Helvetica Neue",Helvetica,sans-serif;
+    --fg:#0A0A0A;                        /* crisp near-black, not the old muddy grey */
+    --muted:rgba(10,10,10,.56);
+    --hair:rgba(10,10,10,.08);
+    --paper:#FFFFFF;
+    --ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
     /* working choice — the six candidates are in headline-font-candidates.html */
-    --display:"Space Grotesk",Arial,sans-serif;
+    --display:"Space Grotesk","Inter",sans-serif;
   }
   *{margin:0;padding:0;box-sizing:border-box}
   html{overflow-y:scroll}
   /* no overflow-x here: it would make <body> a scroll container and kill the
      sticky shaft below */
-  body{background:var(--paper);font-family:var(--grot);color:var(--ink);
-       width:100%;height:1740px;position:relative}
+  body{background:var(--paper);font-family:var(--ui);color:var(--fg);
+       -webkit-font-smoothing:antialiased;
+       width:100%;height:2900px;position:relative}
 
   /* ---- hero shaft: you are falling down it. The title is drawn into the canvas, so
      there is no overlay element and nothing that can lag behind the scroll. ---- */
@@ -32,6 +32,42 @@
          image-rendering:pixelated}
   @media (prefers-reduced-motion:reduce){ #shaft{position:absolute} }
 
+  /* ---- floating glass bar: arrives once the shaft lets go, leaves on the way up ---- */
+  #bar{position:fixed;left:50%;top:18px;z-index:20;
+       display:flex;align-items:center;gap:6px;
+       padding:7px 7px 7px 20px;border-radius:999px;
+       background:rgba(255,255,255,.7);
+       -webkit-backdrop-filter:blur(24px) saturate(180%);
+       backdrop-filter:blur(24px) saturate(180%);
+       border:1px solid var(--hair);
+       box-shadow:0 1px 2px rgba(10,10,10,.04), 0 12px 32px rgba(10,10,10,.10);
+       transform:translate(-50%,calc(-100% - 18px));opacity:0;pointer-events:none;
+       transition:transform .42s cubic-bezier(.22,.61,.36,1),opacity .3s ease}
+  #bar.on{transform:translate(-50%,0);opacity:1;pointer-events:auto}
+  #bar .brand{font:600 16px/1 var(--display);letter-spacing:-.015em;
+              color:var(--fg);margin-right:22px;white-space:nowrap}
+  #bar a{font:500 14.5px/1 var(--ui);letter-spacing:-.005em;color:var(--muted);
+         text-decoration:none;padding:9px 14px;border-radius:999px;
+         transition:color .18s ease,background .18s ease}
+  #bar a:hover{color:var(--fg);background:rgba(10,10,10,.05)}
+  #bar .cta{margin-left:14px;background:var(--fg);color:#fff;padding:9px 18px}
+  #bar .cta:hover{background:#000;color:#fff}
+  @media (prefers-reduced-motion:reduce){ #bar,#bar a{transition:none} }
+
+  /* ---- what you scroll into once you are through the hole ---- */
+  #below{position:absolute;left:0;top:1740px;width:100%;padding:140px 40px 180px}
+  #below section{max-width:1080px;margin:0 auto 140px}
+  #below h2{font:600 72px/.95 var(--display);letter-spacing:-.035em;margin-bottom:20px}
+  #below p{font:400 18px/1.55 var(--ui);color:var(--muted);max-width:620px}
+  #below .rows{margin-top:44px;border-top:1px solid var(--hair)}
+  #below .row{display:flex;gap:28px;padding:22px 4px;
+              border-bottom:1px solid var(--hair);
+              font:400 16.5px/1.45 var(--ui);
+              transition:background .18s ease}
+  #below .row:hover{background:rgba(10,10,10,.025)}
+  #below .row span:first-child{width:96px;color:var(--muted);flex:none;
+                               font-variant-numeric:tabular-nums}
+
 
 
 </style>
@@ -40,7 +76,47 @@
 
 <!-- Sized in script to the viewport in device pixels. The low-res wall buffer lives
      offscreen and is blown up into this one. -->
+<header id="bar">
+  <span class="brand">Rabbit Hole</span>
+  <a href="#blog">Blog</a>
+  <a href="#features">Features</a>
+  <a href="#pricing">Pricing</a>
+  <a class="cta" href="#">Get started</a>
+</header>
+
 <div id="shaft-track"><canvas id="shaft"></canvas></div>
+
+<div id="below">
+  <section id="blog">
+    <h2>Blog</h2>
+    <p>Notes from down the hole — what we are building and what we got wrong.</p>
+    <div class="rows">
+      <div class="row"><span>Sept 2026</span><span>Why a landing page should teach you something</span></div>
+      <div class="row"><span>Sept 2026</span><span>Dithering, and why low resolution is a choice</span></div>
+      <div class="row"><span>Aug 2026</span><span>What we mean by infinite</span></div>
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>Features</h2>
+    <p>Placeholder copy. The real list depends on what Rabbit Hole actually does.</p>
+    <div class="rows">
+      <div class="row"><span>01</span><span>Follow a question as far down as it goes</span></div>
+      <div class="row"><span>02</span><span>Every answer opens the next one</span></div>
+      <div class="row"><span>03</span><span>Keep the thread you pulled</span></div>
+    </div>
+  </section>
+
+  <section id="pricing">
+    <h2>Pricing</h2>
+    <p>Placeholder tiers, here so the bar has something to scroll over.</p>
+    <div class="rows">
+      <div class="row"><span>Free</span><span>Enough to get lost</span></div>
+      <div class="row"><span>Pro</span><span>For people who go deeper</span></div>
+      <div class="row"><span>Team</span><span>Everyone down the same hole</span></div>
+    </div>
+  </section>
+</div>
 
 
 
@@ -57,6 +133,8 @@
   // drawn on top at native size. Drawing the type into the small buffer instead made the
   // glyph edges blocky.
   const cv = document.getElementById('shaft');
+  const bar = document.getElementById('bar');
+  const track = document.getElementById('shaft-track');
   const ctx = cv.getContext('2d');
   const wall = document.createElement('canvas');
   wall.width = 520; wall.height = 260;
@@ -133,6 +211,16 @@
   }
   rebuild();
   addEventListener('resize', rebuild);
+
+  // The bar belongs to the page, not the hero: it arrives once the shaft has let go and
+  // leaves on the way back up. Driven by a scroll listener rather than the render loop,
+  // so it still works when rAF is paused or switched off for reduced motion. A class
+  // toggle keeps it off the scroll path entirely — CSS does the transition.
+  function bars() {
+    bar.classList.toggle('on', window.scrollY > track.offsetHeight - window.innerHeight + 24);
+  }
+  addEventListener('scroll', bars, { passive: true });
+  bars();
 
   function put(i, c) { img.data[i] = c[0]; img.data[i+1] = c[1]; img.data[i+2] = c[2]; img.data[i+3] = 255; }
 
