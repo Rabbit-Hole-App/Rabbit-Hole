@@ -2,6 +2,7 @@ import { SCENE_SCHEMA, validateScene } from './learn-scene-schema.js';
 import { TEACHING_POLICY, validateTeachingHistory } from './learn-teaching.js';
 import { SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, arxivId, searchArxiv, readArxivPaper, paperDocument, fetchArxivPdf } from './arxiv.js';
 import { isUploadedPaperId, putUploadedPaper, readUploadedPaper, paperIdentity } from './learn-paper.js';
+import { isUploadedMediaId, putUploadedMedia, readUploadedMedia } from './learn-media.js';
 import { fetchWikipediaArticle, searchWikipediaTitles } from './learn-wiki.js';
 import { searchYouTube } from './learn-youtube.js';
 import { validateToolInput } from './learn-validation.js';
@@ -453,4 +454,29 @@ export async function paperFetch(req, env) {
   try {
     return new Response(await fetchArxivPdf(id), { headers: { 'Content-Type': 'application/pdf', 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
   } catch (error) { return Response.json({ error: error.message }, { status: 502 }); }
+}
+
+// Images dropped on the canvas. Same shape as paperFetch: POST stores this
+// learner's image, GET serves it back to the same identity. The card renders
+// from the browser's IndexedDB copy; this copy is for the tutor's ask path.
+export async function mediaFetch(req, env) {
+  if (!['GET', 'POST'].includes(req.method)) return Response.json({ error: 'GET or POST required' }, { status: 405 });
+  const url = new URL(req.url);
+  const access = await authorizedBoardApp(req, env, url.searchParams.get('app'));
+  if (access instanceof Response) return access;
+  const identity = paperIdentity(access);
+  if (req.method === 'POST') {
+    if (req.headers.has('origin') && req.headers.get('origin') !== url.origin) return Response.json({ error: 'Invalid origin' }, { status: 403 });
+    let file;
+    try { file = (await req.formData()).get('file'); } catch { return Response.json({ error: 'Send the image as multipart form data' }, { status: 400 }); }
+    if (!file || typeof file === 'string') return Response.json({ error: 'No file received' }, { status: 400 });
+    try { return Response.json(await putUploadedMedia(env, identity, file)); }
+    catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
+  }
+  const id = url.searchParams.get('id');
+  if (!isUploadedMediaId(id)) return Response.json({ error: 'Not an uploaded image id' }, { status: 400 });
+  try {
+    const { bytes, contentType } = await readUploadedMedia(env, identity, id);
+    return new Response(bytes, { headers: { 'Content-Type': contentType, 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
+  } catch (error) { return Response.json({ error: error.message }, { status: 404 }); }
 }
