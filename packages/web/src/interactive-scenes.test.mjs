@@ -174,32 +174,42 @@ test('I03: costs 4, 1, 9 are derived mechanically from the terminal positions', 
   }
 });
 
-test('I03: before reveal the costs are blank everywhere - display, and the tutor payload', () => {
+test('I03: before reveal the costs are blank everywhere - display hidden, and the tutor payload', () => {
   const { derived, state } = evaluatedFuture({ candidate: 'B' });
   assert.deepEqual(derived.shownCosts, [null, null, null]);
-  assert.deepEqual(state.objects.find(object => object.semanticId === 'candidate-costs').values, [null, null, null]);
+  const chart = state.objects.find(object => object.semanticId === 'candidate-costs');
+  assert.deepEqual(chart.values, [null, null, null]);
+  assert.equal(chart.opacity, 0, 'the whole cost chart is invisible pre-commit');
+  assert.equal(state.objects.find(object => object.semanticId === 'cost-placeholder').opacity, 1, 'and a placeholder says why');
   const described = describeAnimation({ scene: structuredClone(candidateFutureScene), inputs: { candidate: 'B' }, time: 3, title: 'I03' });
   assert.ok(!described.text.includes('"costs"'), 'raw costs leaked into the payload');
   assert.ok(!/[^0-9]4,1,9|\[4, ?1, ?9\]/.test(described.text), 'cost numbers leaked into the payload');
-  assert.match(described.text, /shownCosts.*\[null,null,null\]/s);
+  // the cost chart is hidden pre-commit, so nothing visible references the
+  // gated costs and they ride along nowhere - stronger than carrying blanks
+  assert.ok(!/\bcosts\b/.test(described.text), 'no cost field of any kind before commit');
 });
 
-test('I03: choosing a candidate moves the inspection ring and every bound detail', () => {
+test('I03: choosing a candidate moves the inspection pointer and the caption', () => {
   const b = evaluatedFuture({ candidate: 'B' });
   const c = evaluatedFuture({ candidate: 'C' });
-  const ringB = b.state.objects.find(object => object.semanticId === 'inspecting-marker');
-  const ringC = c.state.objects.find(object => object.semanticId === 'inspecting-marker');
-  assert.notDeepEqual({ x: ringB.x, y: ringB.y }, { x: ringC.x, y: ringC.y });
-  assert.match(b.state.objects.find(object => object.semanticId === 'caption').label, /path B: it ends at \(1, 0\), offset from goal \(1, 0\)/);
-  assert.match(c.state.objects.find(object => object.semanticId === 'caption').label, /path C: it ends at \(0, 3\), offset from goal \(0, 3\)/);
+  const markB = b.state.objects.find(object => object.semanticId === 'inspecting-marker');
+  const markC = c.state.objects.find(object => object.semanticId === 'inspecting-marker');
+  assert.notEqual(markB.y, markC.y, 'the inspecting pointer follows the choice');
+  assert.match(b.state.objects.find(object => object.semanticId === 'caption').label, /inspecting Path B/);
+  assert.match(c.state.objects.find(object => object.semanticId === 'caption').label, /inspecting Path C/);
+  // three predicted-future boxes in identity colours, one per candidate
+  for (const L of ['a', 'b', 'c']) assert.ok(c.state.objects.find(object => object.semanticId === `predicted-future-${L}`), `future ${L} box present`);
 });
 
 test('I03: the revealed best candidate is highlighted; nothing is highlighted pre-reveal', () => {
   const before = evaluatedFuture({ candidate: 'A' }).state.objects.find(object => object.semanticId === 'candidate-costs');
   assert.equal(before.cellHighlight, null, 'no winner mark before commitment');
-  const after = evaluatedFuture({ candidate: 'A', resultsRevealed: true }).state.objects.find(object => object.semanticId === 'candidate-costs');
+  const afterState = evaluatedFuture({ candidate: 'A', resultsRevealed: true }).state.objects;
+  const after = afterState.find(object => object.semanticId === 'candidate-costs');
   assert.equal(after.cellHighlight, 1, 'B (index 1) is the revealed minimum');
-  assert.equal(after.cellHighlightKind, 'highlight', 'a downstream consequence, not a second selection');
+  assert.equal(after.opacity, 1, 'the cost chart is visible after commit');
+  assert.equal(afterState.find(object => object.semanticId === 'cost-placeholder').opacity, 0, 'placeholder gone after reveal');
+  assert.equal(after.cellHighlightKind, 'select', 'the winner carries the selection ring against the neutral cost cells');
 });
 
 test('I03: the reveal latch cannot be written through the learner command path', () => {

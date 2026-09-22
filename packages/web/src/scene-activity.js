@@ -96,11 +96,38 @@ function withPracticeState(block) {
   return { ...block, inputs: { ...current, ...fixed }, inputRevision: (block.inputRevision || 0) + 1 };
 }
 
-// The learner edits a draft answer only while the attempt is open; a
-// submitted attempt is immutable until New attempt explicitly reopens.
-// The FIRST touch of the answer is when the attempt begins - the declared
-// practice state is applied to the visualization right then.
+// One truth at a time: a card with a practice task is EITHER exploring or
+// practising. Entering practice applies the declared task state and locks
+// the inputs it names (the lock is enforced in the command path, not just
+// the widgets); leaving returns to free exploration and collapses the task.
+export function isPracticing(block) {
+  return !!block.activity && !!block.practiceActive;
+}
+
+export function enterPractice(block) {
+  if (!block.activity || block.practiceActive) return block;
+  return { ...withPracticeState(block), practiceActive: true };
+}
+
+export function leavePractice(block) {
+  if (!block.practiceActive) return block;
+  return { ...block, practiceActive: false };
+}
+
+// Which experiment inputs the active practice has locked to its declared
+// values - the set every input write path refuses while practising.
+export function lockedInputNames(block) {
+  if (!isPracticing(block)) return [];
+  return Object.keys(block.activity.fixedInputs || {});
+}
+
+// The learner edits a draft answer only while the attempt is open AND the
+// card is in practice mode; a submitted attempt is immutable until New
+// attempt explicitly reopens.
+// The FIRST touch of the answer also re-applies the declared practice state
+// (belt to enterPractice's braces - the diagram can never drift from the task).
 export function setActivityAnswer(block, value) {
+  if (!isPracticing(block)) return block;
   if (!(block.activityOpen ?? true)) return block;
   const declaration = block.activity?.answer;
   const coerced = declaration
@@ -116,6 +143,7 @@ export function setActivityAnswer(block, value) {
 export function applyCheck(block) {
   const activity = block.activity;
   if (!activity) return block;
+  if (!isPracticing(block)) return block;
   const status = checkStatus(block);
   if (status.state !== 'ready') return block;
   // The grading moment shows the graded state: snap to the declared practice

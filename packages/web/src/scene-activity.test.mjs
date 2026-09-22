@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PREDICATES, applyCheck, applyNewAttempt, checkStatus, describeActivity, revealHiddenInputs, setActivityAnswer, validateActivity } from './scene-activity.js';
+import { PREDICATES, applyCheck, applyNewAttempt, checkStatus, describeActivity, enterPractice, leavePractice, lockedInputNames, revealHiddenInputs, setActivityAnswer, validateActivity } from './scene-activity.js';
 
 // T09: the shared practice layer. Everything here is generic - tasks are
 // data, predicates are a closed set, attempts are append-only.
@@ -14,7 +14,9 @@ const setTask = () => ({
   feedbackFail: 'Not quite - remember the query position itself is included.',
 });
 const sceneStub = { exampleData: { tokens: ['a', 'b', 'c', 'd'] } };
-const setBlock = (extra = {}) => ({ id: 'blk', type: 'animation', scene: sceneStub, activity: setTask(), ...extra });
+// practiceActive: most tests exercise the practice flow itself; the mode
+// gate has its own tests below.
+const setBlock = (extra = {}) => ({ id: 'blk', type: 'animation', scene: sceneStub, activity: setTask(), practiceActive: true, ...extra });
 
 test('activity definitions validate: unknown checks, missing feedback and missing expected are refused', () => {
   assert.equal(validateActivity(null), null);
@@ -82,7 +84,7 @@ test('reveal is derived from commitment alone - no learner input can mint it', (
 
 test('projection_zero: defined-and-zero passes, a zero axis is not ready, never graded', () => {
   const task = { id: 'i04-practice', check: 'projection_zero', prompt: 'Make the projection zero with a valid nonzero axis.', feedbackPass: 'Zero - a is perpendicular to b.', feedbackFail: 'Not zero yet.' };
-  const engine = state => ({ id: 'blk', type: 'scene', spec: {}, state, activity: task });
+  const engine = state => ({ id: 'blk', type: 'scene', spec: {}, state, activity: task, practiceActive: true });
   assert.equal(checkStatus(engine({ a: [0, 3], b: [2, 0] })).state, 'ready');
   assert.equal(applyCheck(engine({ a: [0, 3], b: [2, 0] })).attemptLog[0].result, 'passed');
   assert.equal(applyCheck(engine({ a: [3, 2], b: [2, 0] })).attemptLog[0].result, 'failed');
@@ -113,6 +115,39 @@ test('state truth: beginning an attempt, Check and New attempt all snap the visu
   // and a task WITHOUT fixedInputs never touches the experiment
   const free = setActivityAnswer(setBlock({ inputs: { queryIndex: 1 } }), [0]);
   assert.deepEqual(free.inputs, { queryIndex: 1 });
+});
+
+test('one truth at a time: answers, Check and locks exist only inside practice mode', () => {
+  const exploring = setBlock({ practiceActive: false, inputs: { queryIndex: 0 } });
+  assert.equal(setActivityAnswer(exploring, [1]), exploring, 'no answer edits while exploring');
+  const withAnswer = { ...exploring, activityAnswer: [0, 1, 2] };
+  assert.equal(applyCheck(withAnswer), withAnswer, 'Check is inert while exploring');
+  assert.deepEqual(lockedInputNames(exploring), [], 'nothing locked while exploring');
+  const task = { ...setTask(), fixedInputs: { queryIndex: 2, maskEnabled: true } };
+  const entered = enterPractice({ ...exploring, activity: task });
+  assert.equal(entered.practiceActive, true);
+  assert.deepEqual(entered.inputs, { queryIndex: 2, maskEnabled: true }, 'entering practice applies the declared state');
+  assert.deepEqual(lockedInputNames(entered).sort(), ['maskEnabled', 'queryIndex'], 'and locks exactly the declared inputs');
+  const left = leavePractice(entered);
+  assert.equal(left.practiceActive, false);
+  assert.deepEqual(lockedInputNames(left), [], 'leaving unlocks');
+});
+
+test('the command path refuses writes to task-locked inputs while practising', async () => {
+  const { applyInputToBlock } = await import('./scene-evaluate.js');
+  const scene = {
+    inputs: [
+      { name: 'queryIndex', type: 'index', label: 'Query token', of: 'tokens', default: 0 },
+      { name: 'maskEnabled', type: 'bool', label: 'Causal mask', default: true },
+    ],
+    exampleData: { tokens: ['a', 'b', 'c', 'd'] },
+  };
+  const task = { ...setTask(), fixedInputs: { queryIndex: 2, maskEnabled: true } };
+  const practising = { id: 'blk', type: 'animation', scene, activity: task, practiceActive: true, inputs: { queryIndex: 2, maskEnabled: true } };
+  assert.equal(applyInputToBlock(practising, 'queryIndex', 0), practising, 'locked index write refused');
+  assert.equal(applyInputToBlock(practising, 'maskEnabled', false), practising, 'locked bool write refused');
+  const exploring = { ...practising, practiceActive: false };
+  assert.equal(applyInputToBlock(exploring, 'queryIndex', 0).inputs.queryIndex, 0, 'the same write is free while exploring');
 });
 
 test('the tutor summary carries status and the learner answer, never the expected value', () => {

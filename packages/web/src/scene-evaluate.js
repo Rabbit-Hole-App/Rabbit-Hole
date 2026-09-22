@@ -68,6 +68,10 @@ export function applyInputToBlock(block, name, value) {
   // replayed gesture can flip a reveal that only a committed attempt grants.
   const declared = declarations.find(declaration => declaration.name === name);
   if (!declared || declared.hidden) return block;
+  // While the card is practising, the inputs the task declares are LOCKED to
+  // its values - refused here, in the one write path, not merely disabled in
+  // a widget. One truth at a time.
+  if (block.practiceActive && block.activity?.fixedInputs && name in block.activity.fixedInputs) return block;
   const data = block.scene?.exampleData;
   const before = coerceInputs(declarations, block.inputs, data);
   const after = coerceInputs(declarations, { ...before, [name]: value }, data);

@@ -130,7 +130,7 @@ export function InputWidget({ declaration, value, data, onInput, disabled = fals
   );
 }
 
-export default function SceneControls({ declarations, inputs, data, onInput, onReset }) {
+export default function SceneControls({ declarations, inputs, data, onInput, onReset, locked = [] }) {
   // 'visual' index inputs are controlled ON the scene (pickInput items are
   // real accessible controls there) - a strip widget would be a duplicate
   // control for the same input, which is exactly the confusion to avoid.
@@ -140,6 +140,17 @@ export default function SceneControls({ declarations, inputs, data, onInput, onR
     <div data-scene-controls className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-line bg-white px-3 py-2">
       {rows.map(declaration => {
         const Widget = declaration.type === 'index' && declaration.presentation === 'slider' ? IndexSlider : WIDGETS[declaration.type];
+        // An input the active practice task fixed: shown at the task's value,
+        // read-only, and saying who locked it. The command path refuses
+        // writes regardless - this is the honest face of that refusal.
+        if (locked.includes(declaration.name)) {
+          return (
+            <fieldset key={declaration.name} disabled data-input-locked={declaration.name} className="contents">
+              <Widget declaration={declaration} value={inputs[declaration.name]} data={data} onInput={onInput} />
+              <span className="-ml-2 text-xs text-ink-2">· set by the task</span>
+            </fieldset>
+          );
+        }
         return <Widget key={declaration.name} declaration={declaration} value={inputs[declaration.name]} data={data} onInput={onInput} />;
       })}
       {/* Left flow, never pinned to the card's right edge - a wide card can

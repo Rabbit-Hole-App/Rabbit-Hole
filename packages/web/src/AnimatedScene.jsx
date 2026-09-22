@@ -14,7 +14,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './animation-scene.js';
 import { applyInputToBlock, evaluateScene } from './scene-evaluate.js';
-import { revealHiddenInputs } from './scene-activity.js';
+import { lockedInputNames, revealHiddenInputs } from './scene-activity.js';
 import SceneControls from './SceneControls.jsx';
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { distributeRounding } from './scene-derive.js';
@@ -362,7 +362,7 @@ const typeset = expression => {
   catch { return null; }
 };
 
-function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop, onInputPick = null }) {
+function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop, onInputPick = null, lockedInputs = [] }) {
   const host = useRef(null);
   const drag = useRef(null);
   const [rectangle, setRectangle] = useState(null);
@@ -512,7 +512,8 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
                 ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 8} fill="none" strokeOpacity="0.28" strokeWidth="8" style={{ stroke: look.stroke }} />
                 : <rect x={object.x - 4} y={object.y - 4} width={(object.w || 0) + 8} height={(object.h || 0) + 8} rx={16} fill="none" strokeOpacity="0.25" strokeWidth="8" style={{ stroke: look.stroke }} />)}
               {isData
-                ? <DataShape object={object} role={role} pop={pop} chosen={chosen} onInputPick={onInputPick} />
+                ? <DataShape object={object} role={role} pop={pop} chosen={chosen}
+                    onInputPick={object.pickInput && lockedInputs.includes(object.pickInput) ? null : onInputPick} />
                 : isImage
                 ? (object.crop
                   // A crop is the same picture through a smaller window: the
@@ -635,12 +636,18 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
     setPlaying(false);
     (live && onChangeQuiet ? onChangeQuiet : onChange)(next);
   };
+  // Which inputs the active practice has locked - the widgets show it and
+  // the command path enforces it (applyInputToBlock refuses locked names).
+  const lockedInputs = lockedInputNames(block);
   // Only this card's experiment resets: declared inputs return, the inspected
   // object and marked region clear, notes and every other card stay put.
+  // While practising, the task's locked inputs stay exactly where the task
+  // put them - reset may not drift the diagram off the graded state.
   const resetExperiment = () => {
     setPlaying(false);
     setSelecting(false);
-    onChange({ ...latest.current, inputs: {}, inputRevision: (latest.current.inputRevision || 0) + 1, marked: null, selectedObject: null });
+    const kept = latest.current.practiceActive && latest.current.activity?.fixedInputs ? { ...latest.current.activity.fixedInputs } : {};
+    onChange({ ...latest.current, inputs: kept, inputRevision: (latest.current.inputRevision || 0) + 1, marked: null, selectedObject: null });
   };
   useEffect(() => {
     if (!playing || !scene) return;
@@ -711,11 +718,11 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
     <div className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
       {interactive && evaluated && (
         <SceneControls declarations={evaluated.declarations} inputs={evaluated.inputs}
-          data={block.scene.exampleData} onInput={setInput} onReset={resetExperiment} />
+          data={block.scene.exampleData} onInput={setInput} onReset={resetExperiment} locked={lockedInputs} />
       )}
       <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-white">
         <Frame scene={scene} state={state} selecting={selecting} marked={block.marked} picked={block.selectedObject} pop={pop}
-          onInputPick={interactive ? setInput : null}
+          onInputPick={interactive ? setInput : null} lockedInputs={lockedInputs}
           onPick={semanticId => onChange({ ...block, selectedObject: semanticId })}
           onRegion={(area, targets) => {
             setSelecting(false);

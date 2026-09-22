@@ -7,6 +7,7 @@
 import { causalAttentionScene } from './reference-scenes.js';
 import { staticAppReviewBlocks } from './gallery-scenes.js';
 import { interactiveAppReviewBlocks } from './interactive-scenes.js';
+import { holdoutBoardBlocks } from './interactive-holdouts.js';
 
 // --- 1. why an axis must hold still -----------------------------------------
 // The same reveal drawn twice. On the left the axis is recomputed from the
@@ -349,6 +350,10 @@ export const BOARDS = {
   // futures, vector projection - each with its practice task. Seeds fresh
   // through the same versioned mechanism as every other review board.
   'interactive-app-review': interactiveAppReviewBlocks,
+  // The generalization holdouts (repo navigator + CNN inspector): unseen
+  // scenes built only from existing input types, to test whether the
+  // interaction vocabulary generalizes beyond the four it was built on.
+  'interactive-holdouts': holdoutBoardBlocks,
 };
 
 // Bump a board's entry here whenever its seed content changes. The version is
@@ -361,4 +366,5 @@ export const BOARD_SEED_VERSIONS = {
   'static-app-review-2': 2,
   'static-app-review-3': 1,
   'interactive-app-review': 2,
+  'interactive-holdouts': 1,
 };
