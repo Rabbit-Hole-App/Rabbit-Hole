@@ -9,7 +9,7 @@
 // Our own observations only - nothing of YouTube's is stored.
 
 import { fetchCaptions } from './learn-captions.js';
-import { cutWindows } from './learn-moment-retrieve.js';
+import { cutWindows, clock } from './learn-moment-retrieve.js';
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 const HOUR = 60 * 60 * 1000, DAY = 24 * HOUR;
@@ -159,6 +159,79 @@ export async function enqueueForIndex(env, videos) {
     catch { /* the next cold answer retries */ }
   }
   return sent;
+}
+
+// The one knob that keeps the flywheel from making answers worse: below this
+// best-match score the index does not cover the topic, and warm must fall
+// through to cold - a mediocre indexed answer never beats a fresh search.
+// Tuned against the eval harness, not guessed further.
+export const RECALL_MIN = 0.55;
+// Phase 4's bar is higher: only a near-restatement of an accepted question
+// takes the hot path.
+export const HOT_MIN = 0.8;
+
+const cosine = (a, b) => {
+  let dot = 0, na = 0, nb = 0;
+  for (let at = 0; at < a.length; at++) { dot += a[at] * b[at]; na += a[at] * a[at]; nb += b[at] * b[at]; }
+  return dot / (Math.sqrt(na) * Math.sqrt(nb) || 1);
+};
+
+// The cold path's phase-3 scorer: embed the question and every window, rank
+// by cosine. The same windows get re-embedded by the consumer for indexing -
+// a known duplicate cost the spec accepts; Queue messages cannot carry them.
+export function semanticWindowScorer(env) {
+  return async (question, windows) => {
+    if (!windows.length) return [];
+    const [query, ...vectors] = await embedTexts(env, [question, ...windows.map(window => window.text)]);
+    return vectors.map(vector => cosine(query, vector));
+  };
+}
+
+// Warm verify sends excerpts, never transcripts: the candidate window plus
+// this much surrounding caption, enough to tighten 4:00-5:00 into 4:12-5:38
+// without rereading a lecture.
+export const EXCERPT_PAD_S = 45;
+export function excerptAround(lines, start, end, pad = EXCERPT_PAD_S) {
+  const from = Math.max(0, start - pad), to = end + pad;
+  const kept = lines.filter(line => line.start + (line.duration || 0) > from && line.start < to);
+  return kept.map(line => `[${clock(line.start)}] ${line.text}`).join('\n');
+}
+
+// The warm path: question -> Vectorize -> recall check -> excerpts for the
+// top videos -> the same {videos, passages} shape the cold path returns.
+// Any failure returns null and cold takes over; warm may degrade, never break.
+export async function warmMoments(query, env, { captions = fetchCaptions } = {}) {
+  if (!env?.AI || !env?.MOMENTS) return null;
+  try {
+    const [vector] = await embedTexts(env, [query]);
+    const result = await env.MOMENTS.query(vector, { topK: 20, namespace: 'windows', returnMetadata: 'all' });
+    const matches = (result?.matches || []).filter(match => match.metadata?.videoId);
+    if (!matches.length || (matches[0].score ?? 0) < RECALL_MIN) return null;
+    // The prototype's per-video cap, so one long lecture cannot crowd the field.
+    const byVideo = new Map();
+    for (const match of matches) {
+      const list = byVideo.get(match.metadata.videoId) || [];
+      if (list.length < 3) { list.push(match); byVideo.set(match.metadata.videoId, list); }
+    }
+    const candidates = [...byVideo.entries()].slice(0, 3);
+    const fetchCached = guardedCaptions(env, captions);
+    const videos = [], passages = [];
+    for (const [videoId, windows] of candidates) {
+      const outcome = await fetchCached(videoId);
+      if (!outcome.lines) continue;
+      const title = outcome.title || videoId;
+      videos.push({ videoId, title, channel: null, hasCaptions: true, hasPassages: true, duration: outcome.duration ?? null, warm: true });
+      for (const match of windows) {
+        passages.push({
+          videoId, title,
+          start: match.metadata.start, end: match.metadata.end,
+          text: excerptAround(outcome.lines, match.metadata.start, match.metadata.end),
+        });
+      }
+    }
+    if (!passages.length) return null;
+    return { videos, passages, warm: true };
+  } catch { return null; }
 }
 
 // fetchCaptions with the record wrapped around it: a fresh negative skips the

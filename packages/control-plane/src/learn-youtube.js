@@ -7,7 +7,7 @@
 // from the learner (or, in phase 2, from a transcript the model has read).
 
 import { fetchCaptions } from './learn-captions.js';
-import { guardedCaptions, enqueueForIndex } from './learn-moment-index.js';
+import { guardedCaptions, enqueueForIndex, warmMoments, semanticWindowScorer } from './learn-moment-index.js';
 import { topPassages } from './learn-moment-retrieve.js';
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
@@ -161,6 +161,11 @@ export async function setMomentFeedback(env, org, momentId, accepted) {
 // discover -> captions (best effort, bounded) -> retrieve. Injection points
 // exist for tests; production wiring passes nothing.
 export async function findVideoMoments(query, env, { search = searchYouTube, captions = fetchCaptions, retrieve = topPassages } = {}) {
+  // Warm first: an indexed topic answers from Vectorize plus excerpt
+  // refetches in a couple of seconds. A recall miss - or no bindings at
+  // all - falls through to the cold path below, unchanged.
+  const warm = await warmMoments(query, env, { captions });
+  if (warm) return warm;
   // The R2 record wraps the fetch: a video that recently had no captions is
   // not re-probed on every question, and a fresh failure is written down.
   const getCaptions = guardedCaptions(env, captions);
@@ -172,9 +177,9 @@ export async function findVideoMoments(query, env, { search = searchYouTube, cap
   for (let at = 0; at < candidates.length; at += 2) {
     fetched.push(...await Promise.all(candidates.slice(at, at + 2).map(async video => ({ video, result: await getCaptions(video.videoId) }))));
   }
-  const passages = pick(query, fetched.filter(({ result }) => result.lines).map(({ video, result }) => ({
+  const passages = await pick(query, fetched.filter(({ result }) => result.lines).map(({ video, result }) => ({
     videoId: video.videoId, title: result.title || video.title, lines: result.lines,
-  })));
+  })), env?.AI ? { score: semanticWindowScorer(env) } : undefined);
   const withPassages = new Set(passages.map(passage => passage.videoId));
   const videos = fetched.map(({ video, result }) => ({
     videoId: video.videoId,

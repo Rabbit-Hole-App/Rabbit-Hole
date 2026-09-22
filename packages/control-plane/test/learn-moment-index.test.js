@@ -182,3 +182,42 @@ test('a cold answer enqueues captioned candidates, skipping the already indexed'
   assert.equal(sent, 1);
   assert.deepEqual(env.INDEX_QUEUE.sent, [{ videoId: 'FaHHWdsIYQg' }]);
 });
+
+// --- step 5: warm path, semantic scorer, excerpts ---
+test('excerpts clamp to the video and carry per-line timestamps', async () => {
+  const { excerptAround } = await import('../src/learn-moment-index.js');
+  const text = excerptAround(LINES, 60, 120);
+  assert.match(text, /^\[0:1[56]\]/m, 'starts ~45s before the window');
+  assert.match(text, /\[2:4[0-6]\]/, 'ends ~45s after');
+  assert.doesNotMatch(text, /\[6:/, 'nowhere near the tail');
+  const head = excerptAround(LINES, 0, 30);
+  assert.match(head, /^\[0:00\]/, 'clamped at the start');
+});
+
+test('warm answers from the index and falls through below the recall floor', async () => {
+  const { warmMoments, RECALL_MIN } = await import('../src/learn-moment-index.js');
+  const matchAt = (videoId, start, score) => ({ id: `${videoId}:1:${start}`, score, metadata: { videoId, start, end: start + 60, cut: 1 } });
+  const env = aiEnv();
+  env.MOMENTS.query = async () => ({ matches: [matchAt(VID, 60, 0.8), matchAt(VID, 120, 0.7), matchAt(VID, 180, 0.65), matchAt(VID, 240, 0.6), matchAt('FaHHWdsIYQg', 300, 0.58)] });
+  const warm = await warmMoments('how does backprop work', env, { captions: CAPTIONS });
+  assert.equal(warm.warm, true);
+  assert.equal(warm.videos.length, 2);
+  assert.ok(warm.videos.every(video => video.hasPassages));
+  assert.equal(warm.passages.filter(p => p.videoId === VID).length, 3, 'per-video cap');
+  assert.match(warm.passages[0].text, /\[\d+:\d\d\]/);
+  env.MOMENTS.query = async () => ({ matches: [matchAt(VID, 60, RECALL_MIN - 0.05)] });
+  assert.equal(await warmMoments('unknown topic', env, { captions: CAPTIONS }), null, 'recall floor falls through');
+  env.MOMENTS.query = async () => { throw new Error('vectorize down'); };
+  assert.equal(await warmMoments('anything', env, { captions: CAPTIONS }), null, 'warm degrades, never breaks');
+});
+
+test('findVideoMoments takes the warm path when the index answers', async () => {
+  const env = aiEnv();
+  env.MOMENTS.query = async () => ({ matches: [{ id: `${VID}:1:60`, score: 0.9, metadata: { videoId: VID, start: 60, end: 120, cut: 1 } }] });
+  const result = await findVideoMoments('backprop', env, {
+    search: async () => { throw new Error('cold path must not run'); },
+    captions: CAPTIONS,
+  });
+  assert.equal(result.warm, true);
+  assert.equal(result.videos[0].videoId, VID);
+});
