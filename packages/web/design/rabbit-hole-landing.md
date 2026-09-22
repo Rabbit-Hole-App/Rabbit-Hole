@@ -40,6 +40,18 @@ each frame only samples the wall pattern at `(angle, z + t)`. The buffer is 760�
 upscaled with `image-rendering: pixelated`, which is what produces the 1-bit dither
 grain — a 4×4 Bayer matrix quantising to three tones.
 
+## Performance
+
+The inner loop runs once per buffer pixel per frame, so everything in it is a lookup
+or a multiply. A `Math.sin` for the rings plus a sin-based hash for the grain came to
+roughly 600k `sin` calls a frame and pinned the main thread; both are tables now.
+Pixels are written as one packed 32-bit store rather than four byte stores through a
+helper, and the thresholds bucket out-of-range values so the per-pixel clamps are
+gone. The buffer itself is the biggest lever — cost is quadratic in its dimensions,
+and it is upscaled with `image-rendering: pixelated` anyway, so a small buffer is what
+produces the grain in the first place. Measured 19.1ms → 11.4ms per frame, against a
+16.7ms budget at 60fps.
+
 Two things move with the scrollbar, and they are deliberately driven differently:
 
 - **The wall rushes** on `t`, a slow clock plus an *eased* scroll position, so the
@@ -66,16 +78,19 @@ Four details make that work, and each had an obvious-looking alternative that fa
   nothing and you get white text on a white page.
 - Neither the title nor the shaft track carries a `z-index`. Both have to sit in the
   root stacking context or, again, there is nothing for the blend to invert against.
-- The type is `color: #fff` with `mix-blend-mode: difference`, so it reads as ink on
-  the white page and flips to white exactly where it crosses the black core. No
-  scrim, no JavaScript colour switching, and it stays correct as the hole grows.
-  Note the inner ring band has to be genuinely dark, not mid-grey: `|255 - 168|` is
-  still dark, so a mid tone gives muddy letters rather than white ones.
-- It scales by writing `font-size`, and fades by driving the text colour to black.
-  A `transform` would promote the layer; `opacity` would isolate it into its own
-  group. Either one silently disables the blend. Overflow is clipped on the title
-  wrapper rather than the body, because overflow on the body would make it a scroll
-  container and break the sticky canvas.
+- The dark-to-white grade is a radial gradient painted into the glyphs
+  (`background-clip: text`), not a blend against the canvas. `mix-blend-mode:
+  difference` was tried first and cannot reach white over a mid tone — `|255 - 72|`
+  is 182, a muddy grey — so the centre is set explicitly instead. Dropping the blend
+  also freed the title to use `transform` and `position: fixed`, which the blend had
+  ruled out.
+- Nothing about the title is driven from `requestAnimationFrame`. It is `position:
+  fixed` so the browser pins it, and it scales through a scroll-driven CSS animation
+  (`animation-timeline: scroll(root block)`), which runs on the compositor. Writing
+  `top` or `transform` from rAF lands a frame *after* the scroll has happened, and
+  that one-frame lag is exactly what reads as jiggling type.
+- Overflow is clipped on the title wrapper rather than the body, because overflow on
+  the body would make it a scroll container and break the sticky canvas.
 
 The mouth sits dead centre and stays circular in any window: `SQUASH` corrects `dy` by
 the ratio between the buffer's aspect and the canvas's. `LIGHT` reaches the far corners

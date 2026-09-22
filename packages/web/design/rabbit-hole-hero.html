@@ -38,36 +38,48 @@
      setting `top` from script rather than position:fixed or a transform: both of those
      promote it to its own compositing layer, and a promoted layer cannot blend with
      the canvas below it, which kills the difference blend. */
-  /* overflow clipped here, not on <body>: overflow on the body would make it a scroll
-     container and kill the sticky shaft */
-  #title{position:absolute;left:0;top:0;width:100%;height:100vh;overflow:hidden;
+  /* Pinned by the browser, not by script. Writing `top` from rAF lands a frame after
+     the scroll has already happened, so the title lags and shakes.
+     Overflow is clipped here rather than on <body>: clipping the body would make it a
+     scroll container and kill the sticky shaft. */
+  #title{position:fixed;inset:0;overflow:hidden;
          display:flex;align-items:center;justify-content:center;pointer-events:none}
   /* difference blend: ink on the white page, white where it crosses the black core,
      so the title stays readable wherever the hole happens to sit behind it */
-  /* line-height is unitless so it tracks font-size as the camera closes on the text */
+  /* The gradient is painted into the glyphs themselves rather than blended against the
+     canvas. mix-blend-mode: difference cannot reach white over a mid tone — |255 - 72|
+     is 182, a muddy grey — so the centre is set explicitly here instead. */
   #title h1{font-family:var(--display);font-weight:500;font-size:190px;line-height:.8;
             text-align:center;white-space:nowrap;
-            color:#fff;mix-blend-mode:difference}
+            background-image:radial-gradient(circle at 50% 50%,
+                             #FFFFFF 0%, #FFFFFF 20%, #B8B8B8 33%, #1E1E1E 52%);
+            -webkit-background-clip:text;background-clip:text;color:transparent;
+            transform-origin:50% 50%;will-change:transform,opacity;
+            /* Scroll-driven and composited, so the type is locked to the scrollbar with
+               no frame of lag. Keyframes approximate a perspective approach: slow at
+               first, then rushing past. ENTER in the script is the same 700px. */
+            animation:approach linear both;
+            animation-timeline:scroll(root block);
+            animation-range:0 700px}
+  @keyframes approach{
+    0%   {transform:scale(1);    opacity:1}
+    22%  {transform:scale(1.28); opacity:1}
+    50%  {transform:scale(2.4);  opacity:0}
+    100% {transform:scale(18);   opacity:0}
+  }
+  @media (prefers-reduced-motion:reduce){ #title h1{animation:none} }
 
-  /* ---- crop marks on the 1240px content frame (x 140 → 1380) ---- */
-  .mark{position:absolute;width:10px;height:10px;z-index:6}
-  .mark.tl{border-top:1px solid var(--ink);border-left:1px solid var(--ink)}
-  .mark.tr{border-top:1px solid var(--ink);border-right:1px solid var(--ink)}
-  .mark.bl{border-bottom:1px solid var(--ink);border-left:1px solid var(--ink)}
-  .mark.br{border-bottom:1px solid var(--ink);border-right:1px solid var(--ink)}
 
 </style>
 </head>
 <body>
 
-<div id="shaft-track"><canvas id="shaft" width="760" height="380"></canvas></div>
+<!-- Buffer is deliberately small: it is upscaled with image-rendering: pixelated, which
+     is what makes the dither grain, and cost is quadratic in these numbers. -->
+<div id="shaft-track"><canvas id="shaft" width="520" height="260"></canvas></div>
 
 <div id="title"><h1>Knowledge is<br>infinite.</h1></div>
 
-<div class="mark tl" style="left:140px;top:561px"></div>
-<div class="mark tr" style="left:1370px;top:561px"></div>
-<div class="mark bl" style="left:140px;top:1506px"></div>
-<div class="mark br" style="left:1370px;top:1506px"></div>
 
 <script>
 /* The fall — the page opens looking straight down the shaft.
@@ -77,10 +89,7 @@
    with a pixelated upscale gives the 1-bit dither grain. */
 (function () {
   const cv = document.getElementById('shaft');
-  const title = document.getElementById('title');
-  const heading = title.querySelector('h1');
-  const TYPE = 190;                      // px at the mouth, before the camera closes in
-  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  const ctx = cv.getContext('2d');
   const W = cv.width, H = cv.height;
   const img = ctx.createImageData(W, H);
 
@@ -90,7 +99,7 @@
   // where the wall behind them is genuinely dark.
   const GREY  = [196, 196, 196];         // the ripples: outer band, keeps the title ink
   const SLATE = [ 72,  72,  72];         // inner band, flips the title to white
-  const INK   = [30, 30, 30];            // the bottom of the hole
+  const INK   = [0, 0, 0];               // the bottom of the hole: pitch black, not charcoal
 
   const BAYER = [0,8,2,10, 12,4,14,6, 3,11,1,9, 15,7,13,5].map(v => (v + 0.5) / 16);
   const clamp = v => v < 0 ? 0 : v > 1 ? 1 : v;
@@ -106,6 +115,23 @@
   const dTab = new Float32Array(W * H);  // texture weight — 0 across the core edge
   let SQUASH = 1, LIGHT = W / 2;
 
+  // Lookups instead of transcendentals. The inner loop runs W*H times a frame, so a
+  // Math.sin for the rings plus a sin-based hash for the grain is ~600k sin calls per
+  // frame — enough to saturate the main thread and make the whole page feel sticky.
+  // These must be declared before rebuild() runs; it fills gTab.
+  const hash = (a, b) => { const s = Math.sin(a * 91.7 + b * 47.3) * 43758.5453; return s - Math.floor(s); };
+  const RINGS = 8;                       // ring frequency along depth
+  const SIN_N = 2048, SIN_MASK = SIN_N - 1;
+  const SIN = new Float32Array(SIN_N);   // pre-biased into 0..1
+  for (let i = 0; i < SIN_N; i++) SIN[i] = 0.5 + 0.5 * Math.sin(i / SIN_N * Math.PI * 2);
+  const RING_K = RINGS * SIN_N / (Math.PI * 2);
+
+  const GU = 40, GV = 512, GV_MASK = GV - 1;   // grain: 40 bands around, 512 down
+  const GRAIN = new Float32Array(GU * GV);
+  for (let u = 0; u < GU; u++)
+    for (let v = 0; v < GV; v++) GRAIN[u * GV + v] = hash(u, v);
+  const gTab = new Int32Array(W * H);    // per-pixel row offset into GRAIN
+
   function rebuild() {
     // The buffer is 2:1 but the canvas is stretched to the viewport, so correct dy by
     // the ratio of the two aspects — that is what keeps the rings circular on screen.
@@ -119,6 +145,8 @@
         const r = Math.max(Math.sqrt(dx * dx + dy * dy), 0.75);
         zTab[p] = Math.min(SCALE / r, ZFAR);
         uTab[p] = Math.atan2(dy, dx) / (Math.PI * 2) + 0.5; // 0..1 around the shaft
+        let ui = (uTab[p] * GU) | 0; if (ui >= GU) ui = GU - 1;
+        gTab[p] = ui * GV;
         // exponent sets how wide the black core starts: lower = tighter core
         sTab[p] = clamp(Math.pow(r / LIGHT, 1.1));          // 0 at the vanishing point
         // Texture is faded out across the core boundary. Letting the rings modulate
@@ -130,24 +158,29 @@
   rebuild();
   addEventListener('resize', rebuild);
 
-  const hash = (a, b) => { const s = Math.sin(a * 91.7 + b * 47.3) * 43758.5453; return s - Math.floor(s); };
   function put(i, c) { img.data[i] = c[0]; img.data[i+1] = c[1]; img.data[i+2] = c[2]; img.data[i+3] = 255; }
+
+  // One 32-bit store per pixel instead of four byte stores plus a call. At 288k pixels
+  // a frame the call overhead alone was costing milliseconds.
+  const buf32 = new Uint32Array(img.data.buffer);
+  const pack = c => (255 << 24) | (c[2] << 16) | (c[1] << 8) | c[0];   // little-endian RGBA
+  const C_INK = pack(INK), C_SLATE = pack(SLATE), C_GREY = pack(GREY), C_WHITE = pack(WHITE);
 
   // `open` shrinks from 1 to 0 as you enter: less light reaches the wall, so the black
   // core swallows the frame outward until the screen is solid black.
   function frame(t, open) {
+    const K = open * 1.2;                                  // hoisted out of the inner loop
     for (let y = 0, p = 0; y < H; y++) {
+      const brow = (y & 3) * 4;
       for (let x = 0; x < W; x++, p++) {
         const v = zTab[p] + t;
-        const ring  = 0.5 + 0.5 * Math.sin(v * 8.0);       // courses of earth rushing past
-        const grain = hash(Math.floor(uTab[p] * 40), Math.floor(v * 7));
+        const ring  = SIN[(v * RING_K) & SIN_MASK];        // courses of earth rushing past
+        const grain = GRAIN[gTab[p] + (((v * 7) | 0) & GV_MASK)];
         const tex = 0.6 * ring + 0.4 * grain;
-        const lum = clamp(sTab[p] * open * 1.2 *
-                          (0.62 + 0.38 * (0.5 + (tex - 0.5) * dTab[p])));
-
-        const b = BAYER[(y & 3) * 4 + (x & 3)];
-        const lit = clamp(lum + (b - 0.5) * 0.16);         // ordered dither across the steps
-        put(p * 4, lit < 0.30 ? INK : lit < 0.50 ? SLATE : lit < 0.74 ? GREY : WHITE);
+        const lum = sTab[p] * K * (0.62 + 0.38 * (0.5 + (tex - 0.5) * dTab[p]));
+        // no clamp: the thresholds below already bucket anything outside 0..1
+        const lit = lum + (BAYER[brow + (x & 3)] - 0.5) * 0.16;
+        buf32[p] = lit < 0.30 ? C_INK : lit < 0.50 ? C_SLATE : lit < 0.74 ? C_GREY : C_WHITE;
       }
     }
     ctx.putImageData(img, 0, 0);
@@ -160,22 +193,15 @@
   const t0 = performance.now();
   let sm = window.scrollY;
   (function tick() {
-    sm += (window.scrollY - sm) * 0.10;                     // eased: the rush glides
+    sm += (window.scrollY - sm) * 0.28;                     // eased, but tight to the scroll
     // Size tracks the scrollbar directly — the mouth should open exactly as far as you
     // have scrolled, with no lag. Only the wall's motion is eased.
     const enter = clamp(window.scrollY / ENTER);
     const open = still ? 1 : Math.pow(1 - enter, 1.6);      // hole widens as you go in
     frame(still ? 0.8 : (performance.now() - t0) * 0.00016 + sm * 0.0022, open);
-    // The title is a fixed object in the shaft. It never moves; the camera closes on
-    // it, so it grows and finally passes us. Scale via font-size, not transform: a
-    // transform would promote the layer and kill the difference blend. Fading uses the
-    // text colour for the same reason — opacity would isolate it into its own group.
-    title.style.top = window.scrollY + 'px';
-    const near = 1 / (1 - enter * 0.88);                   // perspective-ish approach
-    heading.style.fontSize = (TYPE * near).toFixed(1) + 'px';
-    const gone = clamp((enter - 0.6) / 0.4);               // it slips past the camera
-    const v = Math.round(255 * (1 - gone));
-    heading.style.color = 'rgb(' + v + ',' + v + ',' + v + ')';
+    // The title is a fixed object in the shaft: the browser pins it and a scroll-driven
+    // CSS animation grows it. Nothing here touches it — driving position or scale from
+    // rAF lands a frame behind the scroll, which is exactly what makes type jiggle.
     if (!still) requestAnimationFrame(tick);                // every frame, no chug
   })();
 
