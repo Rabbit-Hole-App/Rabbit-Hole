@@ -1,15 +1,15 @@
 {
-  "capturedAt": "2026-09-22T22:00:42.356Z",
-  "baseCommit": "3f97b68eb84cbcd0c3230d51345e7a6d173b429d",
+  "capturedAt": "2026-09-22T22:36:53.799Z",
+  "baseCommit": "96cbb0e2741a704c23ef19996960acfc65b9988a",
   "branch": "feat/canvas-block-conversations",
   "client": {
     "mode": "local-vite-dev",
     "port": 5199
   },
-  "sceneSpecHash": "79a6c6b95c27424baf63d202bab6af7bdd727c12195d11f5a605df8d0bc1e274",
-  "rendererHash": "9a7de04e8aa9a3dcedf3ca8148dc608de67967d54f01aa954e902accb55daddd",
+  "sceneSpecHash": "33d2aaaede1da05d83b57c4344fa961cee38cddf37fcd999c6c3df616a34f667",
+  "rendererHash": "fe92de96c878b1775cbd6a6582eeeaf0f1d0d92208ace5fa4334e7cc4f873fc6",
   "screenshots": {
-    "holdout-cnn-initial.png": "f2b9a17c5c5d545f91d518832899cecd099681f8b69c3aed37732fac956d4d5a",
-    "holdout-cnn-parts-3.png": "0ca17e76f90c07c667ea4c3db44fe320f96f15d4ee60df73ed29533781f1f52d"
+    "holdout-cnn-initial.png": "18e6ba79073b678856722f1c0abacbc28bf949cba0149005b3dab16e95084454",
+    "holdout-cnn-parts-3.png": "3b3db6525e5c20aad3d017548132a21e0993b20fcda26b1a363fac990b1b57cd"
   }
 }

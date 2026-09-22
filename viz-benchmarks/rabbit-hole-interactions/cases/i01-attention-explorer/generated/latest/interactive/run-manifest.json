@@ -1,15 +1,15 @@
 {
-  "capturedAt": "2026-09-22T21:46:27.443Z",
-  "baseCommit": "135d4258d03502448ae153fa3e028cee832e9941",
+  "capturedAt": "2026-09-22T22:36:42.181Z",
+  "baseCommit": "96cbb0e2741a704c23ef19996960acfc65b9988a",
   "branch": "feat/canvas-block-conversations",
-  "trackedFilesDirtyAtCapture": 39,
+  "trackedFilesDirtyAtCapture": 56,
   "client": {
     "mode": "local-vite-dev",
     "port": 5199,
     "note": "deployed-build + seed verification happens in the T12 handoff run"
   },
-  "sceneSpecHash": "fe2a6bbbe0de5fb972a4abffbfe2f4b8206da9edbd35b680c6dfb29e21d9cf44",
-  "rendererHash": "9a7de04e8aa9a3dcedf3ca8148dc608de67967d54f01aa954e902accb55daddd",
+  "sceneSpecHash": "db98332693bba6254b98785f55288ecc6743b57ed7cc350113e6f43ba7868e2f",
+  "rendererHash": "fe92de96c878b1775cbd6a6582eeeaf0f1d0d92208ace5fa4334e7cc4f873fc6",
   "browser": "chromium (playwright)",
   "viewport": "1600x1400 (scenario scripts vary; see each script)",
   "devicePixelRatio": 1,
@@ -20,13 +20,13 @@
   "reducedMotionChecked": true,
   "keyboardPathChecked": true,
   "screenshots": {
-    "light/i01-initial.png": "c063a1bb45a6fd25201f0d0b587354418abafb49cca2034f9aacdd7720d89523",
-    "light/i01-query-south.png": "793bb346e4dc1cf12b901b236498ace09b17bc97cb8d0d5dc88384dab6a0e58d",
-    "light/i01-mask-off.png": "95c6e76f7457e6df34912e140c9e8f2c42dbdc0b88a79a4a07fbf57623897bdf",
-    "light/i01-mask-restored.png": "e1940c914bf2d9f9fc6939b759f8e7a3248315957defeb3267d4717a610b71dc",
-    "light/t09-i01-practice.png": "c66e3b551b22d5a6a0ff4fdfce68a1bba9caf664338c67b2cd6878bc7dc131da",
-    "light/t09-i01-statesnap.png": "a3b9653feca7156e06582fb45ff4b518d73cc97e826e8536210d5c1203cb6ddc",
-    "dark/i01-dark.png": "c23b90a3480fcc93f0c97f0728d26464954927582929126ff6f73c71af6dfe32"
+    "light/i01-initial.png": "b78e1d95bafb809e47230fd95966e71bee70df98a0db0b6d4ab08ff83d822aa4",
+    "light/i01-query-south.png": "cc10a860c904056c1d9dc88f28c4df82427f7b09b75f1882b19acd030f49756e",
+    "light/i01-mask-off.png": "7ca0a826d0051d1e3899761982b8072686c7c8d23976de153a4e1da99db9a91b",
+    "light/i01-mask-restored.png": "86cd8fdcfbdf8483f77f4d57c33fc072b257b684dfaf1d9fc197afce7700eab1",
+    "light/t09-i01-practice.png": "a1b74fce9bf13c95569111ce9726b534ad5071d9eeec0bd9444d7117cca03150",
+    "light/t09-i01-statesnap.png": "bdcb0b9c5c8a157bfdd4bc40604e6714572b516429f94dd5f746c9fbfcd1a793",
+    "dark/i01-dark.png": "b61361aaa5837c07d0821a0b6d886e96033e10c87833d32a76ffdfdda24b625e"
   },
   "gates": {
     "unit": "cd packages/web && npm run test:unit (482 tests green at capture)",

@@ -441,13 +441,15 @@ export const BLOCK_TYPES = {
     sizeFor: block => {
       const report = block.scene ? sceneLegibility(block.scene) : null;
       if (!report) return null;
-      // An interactive scene renders its experiment controls above the frame;
-      // the frame itself must not shrink to make room for them, so the block
-      // grows by the control strip instead. One wrapped row of h-8 controls
-      // with the strip's own padding and gap; a second row for a control set
-      // long enough to wrap at this width.
-      const declarations = Array.isArray(block.scene.inputs) ? block.scene.inputs.filter(input => !input.hidden).length : 0;
-      const controls = declarations ? 56 + (declarations > 2 ? 44 : 0) : 0;
+      // An interactive scene renders its INTERACT zone below the frame and
+      // transport; the frame must not shrink to make room, so the block grows
+      // by the zone instead - the label, one wrapped row of h-8 controls, and
+      // a second row once more than two controls (or a chip-picker over a long
+      // domain) wrap at this width.
+      const inputs = Array.isArray(block.scene.inputs) ? block.scene.inputs.filter(input => !input.hidden) : [];
+      const declarations = inputs.length;
+      const widePicker = inputs.some(input => input.type === 'index' && input.presentation !== 'slider' && (block.scene.exampleData?.[input.of] || []).length > 4);
+      const controls = declarations ? 84 + (declarations > 2 || widePicker ? 44 : 0) : 0;
       // The practice section: prompt, an answer widget row (two rows once
       // the answer domain wraps), feedback line.
       const domain = block.activity?.answer?.of ? (block.scene.exampleData?.[block.activity.answer.of] || []).length : 0;

@@ -131,13 +131,17 @@ export function InputWidget({ declaration, value, data, onInput, disabled = fals
 }
 
 export default function SceneControls({ declarations, inputs, data, onInput, onReset, locked = [] }) {
-  // 'visual' index inputs are controlled ON the scene (pickInput items are
-  // real accessible controls there) - a strip widget would be a duplicate
-  // control for the same input, which is exactly the confusion to avoid.
-  const rows = declarations.filter(declaration => !declaration.hidden && !(declaration.type === 'index' && declaration.presentation === 'visual') && WIDGETS[declaration.type]);
+  // EVERY meaningful input gets an obvious control here, below the visual -
+  // the primary way to operate the experiment. An input whose scene object
+  // also offers direct manipulation ('visual' index, a dragged vec2) keeps
+  // that as a synchronized SHORTCUT, but the learner never has to discover
+  // that diagram text is secretly clickable: the control is always here too.
+  const rows = declarations.filter(declaration => !declaration.hidden && WIDGETS[declaration.type]);
   if (!rows.length) return null;
   return (
-    <div data-scene-controls className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-line bg-white px-3 py-2">
+    <div data-scene-controls className="shrink-0 rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">
+      <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       {rows.map(declaration => {
         const Widget = declaration.type === 'index' && declaration.presentation === 'slider' ? IndexSlider : WIDGETS[declaration.type];
         // An input the active practice task fixed: shown at the task's value,
@@ -153,15 +157,15 @@ export default function SceneControls({ declarations, inputs, data, onInput, onR
         }
         return <Widget key={declaration.name} declaration={declaration} value={inputs[declaration.name]} data={data} onInput={onInput} />;
       })}
-      {/* Left flow, never pinned to the card's right edge - a wide card can
-          run under the floating drawing toolbar, and a control hidden there
-          is a control that does not exist. */}
-      {/* Asking the tutor lives in ONE place: the existing Ask-in-chat pill on
-          a selected card, feeding the bottom composer. No card-level Ask. */}
-      <button type="button" data-scene-reset onClick={onReset}
-        className="flex h-8 items-center rounded-lg px-2.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
-        Reset experiment
-      </button>
+        {/* Reset flows with the controls (left), never pinned right - a wide
+            card can run under the floating drawing toolbar, and a control
+            hidden there is a control that does not exist. Asking the tutor
+            lives only in the Ask-in-chat pill + bottom composer. */}
+        <button type="button" data-scene-reset onClick={onReset}
+          className="flex h-8 items-center rounded-lg px-2.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
+          Reset experiment
+        </button>
+      </div>
     </div>
   );
 }

@@ -92,20 +92,28 @@ export default function InteractiveScene({ block, onChange }) {
           ? <Renderer spec={spec} state={state} behavior={behavior} selected={selected} onSelect={setSelected} run={run} reduced={reduced} />
           : <p className="text-xs text-ink-2">No renderer for {spec.behaviorId}.</p>}
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-        {buttons.map((interaction, index) => (
-          <button key={index} type="button" data-scene-action={interaction.action}
-            onClick={() => run({ type: interaction.action })}
-            className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
-            {interaction.action === 'previous_step' && <ChevronLeft size={14} />}
-            {interaction.action === 'reset_attempt' && <RotateCcw size={13} />}
-            {interaction.label || interaction.action.replace('_', ' ')}
-            {interaction.action === 'advance_step' && <ChevronRight size={14} />}
-          </button>
-        ))}
-        {/* Asking the tutor lives in ONE place: the Ask-in-chat pill on a
-            selected card, feeding the bottom composer. No card-level Ask. */}
-        {progress && <span className="ml-auto text-xs tabular-nums text-ink-2">{progress.seen} / {progress.total} {behavior.progressNoun || 'steps'}{progress.complete ? ' · done' : ''}</span>}
+      {/* INTERACT zone: the spec's controls (the renderer's own inputs - e.g.
+          the vec2 coordinate fields - sit directly under its visual above;
+          the transport-independent action buttons like Reset live here under
+          one label, matching the card grammar). Asking the tutor lives only
+          in the Ask-in-chat pill + bottom composer - no card-level Ask. */}
+      <div className="shrink-0 rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">
+        <div className="mb-1.5 flex items-center justify-between">
+          <p className="text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>
+          {progress && <span className="text-xs tabular-nums text-ink-2">{progress.seen} / {progress.total} {behavior.progressNoun || 'steps'}{progress.complete ? ' · done' : ''}</span>}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {buttons.map((interaction, index) => (
+            <button key={index} type="button" data-scene-action={interaction.action}
+              onClick={() => run({ type: interaction.action })}
+              className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
+              {interaction.action === 'previous_step' && <ChevronLeft size={14} />}
+              {interaction.action === 'reset_attempt' && <RotateCcw size={13} />}
+              {interaction.label || interaction.action.replace('_', ' ')}
+              {interaction.action === 'advance_step' && <ChevronRight size={14} />}
+            </button>
+          ))}
+        </div>
       </div>
       <p className="shrink-0 text-xs text-ink-2">{MODE_LABEL[spec.execution.mode]}</p>
     </div>

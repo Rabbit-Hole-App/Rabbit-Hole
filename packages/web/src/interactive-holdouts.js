@@ -54,7 +54,7 @@ export const repoNavigatorScene = {
     { id: 'caption', type: 'text', semanticId: 'caption', conceptId: 'repo-navigation',
       initialState: { text: '{{sel.crumb}}', x: 40, y: 34 } },
     { id: 'symbols', type: 'tokens', semanticId: 'symbol-path', conceptId: 'repo-navigation',
-      initialState: { label: 'click a symbol to drill in', x: 40, y: 78, w: 760, h: 32, opacity: 0, role: 'input',
+      initialState: { label: 'the current symbol (also selectable with Interact below)', x: 40, y: 78, w: 760, h: 32, opacity: 0, role: 'input',
         tokens: H1_NODES.map(node => node.label), pickInput: 'nodeIndex', cellHighlight: { $derive: 'nodeIndex' } } },
     // The architecture column - one box per level, the current level ringed.
     { id: 'architecture', type: 'grid', semanticId: 'architecture', conceptId: 'repo-navigation',
@@ -115,7 +115,7 @@ export const cnnInspectorScene = {
     // "layer N: name" form overran the card's right edge. The caption carries
     // the full "layer N" phrasing.
     { id: 'layer-picker', type: 'tokens', semanticId: 'layer-path', conceptId: 'cnn-features',
-      initialState: { label: 'pick a layer to inspect', x: 320, y: 90, w: 300, h: 32, opacity: 0, role: 'input',
+      initialState: { label: 'the inspected layer (also selectable with Interact below)', x: 320, y: 90, w: 300, h: 32, opacity: 0, role: 'input',
         tokens: [...H2_LAYERS],
         pickInput: 'layerIndex', cellHighlight: { $derive: 'layerIndex' } } },
     // The feature map: a 4x4 heat grid of activations for the chosen (layer,

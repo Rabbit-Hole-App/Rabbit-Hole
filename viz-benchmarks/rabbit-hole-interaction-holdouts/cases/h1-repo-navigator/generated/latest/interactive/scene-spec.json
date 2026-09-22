@@ -89,7 +89,7 @@
         "semanticId": "symbol-path",
         "conceptId": "repo-navigation",
         "initialState": {
-          "label": "click a symbol to drill in",
+          "label": "the current symbol (also selectable with Interact below)",
           "x": 40,
           "y": 78,
           "w": 760,

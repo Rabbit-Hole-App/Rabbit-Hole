@@ -716,10 +716,6 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
   const replay = () => { setTime(0); setRun(count => count + 1); if (!still) setPlaying(true); };
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
-      {interactive && evaluated && (
-        <SceneControls declarations={evaluated.declarations} inputs={evaluated.inputs}
-          data={block.scene.exampleData} onInput={setInput} onReset={resetExperiment} locked={lockedInputs} />
-      )}
       <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-white">
         <Frame scene={scene} state={state} selecting={selecting} marked={block.marked} picked={block.selectedObject} pop={pop}
           onInputPick={interactive ? setInput : null} lockedInputs={lockedInputs}
@@ -761,6 +757,14 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
           onChange={event => pauseAnd(() => setTime(Number(event.target.value)))} className="h-8 min-w-0 flex-1 accent-accent" />
         <span className="w-14 shrink-0 text-right text-xs tabular-nums text-ink-2">{time.toFixed(1)}s</span>
       </div>
+      {/* INTERACT zone: the controls that change the concept, below the
+          visualization and its transport, never scattered inside the diagram
+          (spec: inside the visual = understand, below = manipulate). Direct
+          on-scene manipulation stays as a synchronized shortcut. */}
+      {interactive && evaluated && (
+        <SceneControls declarations={evaluated.declarations} inputs={evaluated.inputs}
+          data={block.scene.exampleData} onInput={setInput} onReset={resetExperiment} locked={lockedInputs} />
+      )}
       {(block.selectedObject || block.marked) && (
         <p data-animation-selection className="flex shrink-0 items-center gap-2 text-[11px] text-ink-3">
           {block.selectedObject ? `Selected: ${block.selectedObject}` : 'Region marked'} at {(block.time ?? time).toFixed(1)}s

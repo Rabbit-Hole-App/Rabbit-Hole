@@ -327,7 +327,7 @@
         "semanticId": "layer-path",
         "conceptId": "cnn-features",
         "initialState": {
-          "label": "pick a layer to inspect",
+          "label": "the inspected layer (also selectable with Interact below)",
           "x": 320,
           "y": 90,
           "w": 300,

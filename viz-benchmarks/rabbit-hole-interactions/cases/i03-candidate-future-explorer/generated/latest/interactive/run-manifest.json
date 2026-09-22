@@ -1,15 +1,15 @@
 {
-  "capturedAt": "2026-09-22T21:46:27.443Z",
-  "baseCommit": "135d4258d03502448ae153fa3e028cee832e9941",
+  "capturedAt": "2026-09-22T22:36:42.181Z",
+  "baseCommit": "96cbb0e2741a704c23ef19996960acfc65b9988a",
   "branch": "feat/canvas-block-conversations",
-  "trackedFilesDirtyAtCapture": 39,
+  "trackedFilesDirtyAtCapture": 56,
   "client": {
     "mode": "local-vite-dev",
     "port": 5199,
     "note": "deployed-build + seed verification happens in the T12 handoff run"
   },
   "sceneSpecHash": "75d0b0a88214fd15d5b085bda1c7ff7288d3ed1b071c20c41b319246917a2303",
-  "rendererHash": "9a7de04e8aa9a3dcedf3ca8148dc608de67967d54f01aa954e902accb55daddd",
+  "rendererHash": "fe92de96c878b1775cbd6a6582eeeaf0f1d0d92208ace5fa4334e7cc4f873fc6",
   "browser": "chromium (playwright)",
   "viewport": "1600x1400 (scenario scripts vary; see each script)",
   "devicePixelRatio": 1,
@@ -20,12 +20,12 @@
   "reducedMotionChecked": true,
   "keyboardPathChecked": true,
   "screenshots": {
-    "light/i03-initial.png": "9e916cc2eecbf8db926bfe29c3d4507053b6be281556cbbf6ff910c638701cb5",
-    "light/i03-choose-c.png": "b88de3732dbbe64d1a257a53e46a35c858c8b5b07e2a8cbfbc1eadd0c45db8c0",
-    "light/i03-revealed.png": "c5a9a596795eca76e09fa243cf764dae3c9eb96fe3289d9713483570336648ad",
+    "light/i03-initial.png": "033af814db8d057684766cc211a178d1a3a2ce98aa11a5af9331c783bd3ad7de",
+    "light/i03-choose-c.png": "9985aaf9468452ce0e9669c2194b9540ac9f4a23b8cc1f09a3f103da7170c79b",
+    "light/i03-revealed.png": "161dc361cbf02c7fe6299ec176e253751746c60789f74ae5bf383485e3217e86",
     "light/t09-i03-practice.png": "8da2fa540d79c6a2cc538b71ebe6d6d650848fae2694699c7824a6e6ec3c6806",
-    "light/t09-i03-revealed.png": "6acb1365efb13cfde27949724a8c63a61f6f6c39c35da0158823c504a7dfe902",
-    "dark/i03-dark.png": "b8d0e75bd8dfd207ec7635e49285e5dcb65ad1efe318d248fa15e71faa91f1eb"
+    "light/t09-i03-revealed.png": "5fa20186e0f2744d7178415532267acfe34eae0f21272767851971e0209fcd15",
+    "dark/i03-dark.png": "ca9862f08eb898ded4c67906a0adc461a8634d834ed51c76642e10f43edca4ff"
   },
   "gates": {
     "unit": "cd packages/web && npm run test:unit (482 tests green at capture)",

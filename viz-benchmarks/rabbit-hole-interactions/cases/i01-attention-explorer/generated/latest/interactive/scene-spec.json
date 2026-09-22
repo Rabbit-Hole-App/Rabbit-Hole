@@ -178,7 +178,7 @@
         "semanticId": "tokens",
         "conceptId": "qkv-projection",
         "initialState": {
-          "label": "click (or focus and press Enter on) a token to change the query",
+          "label": "the query token (also selectable with Interact below)",
           "x": 40,
           "y": 88,
           "opacity": 0,

@@ -315,7 +315,7 @@ export const attentionExplorerScene = {
     { id: 'caption', type: 'text', semanticId: 'caption', conceptId: 'causal-self-attention',
       initialState: { text: 'query: {{qword}} — follow one row: token → its Q row → its weights → its output', x: 40, y: 36 } },
     { id: 'chars', type: 'tokens', semanticId: 'tokens', conceptId: 'qkv-projection',
-      initialState: { label: 'click (or focus and press Enter on) a token to change the query', x: 40, y: 88, opacity: 0, tokens: [...I01_TOKENS], role: 'input',
+      initialState: { label: 'the query token (also selectable with Interact below)', x: 40, y: 88, opacity: 0, tokens: [...I01_TOKENS], role: 'input',
         pickInput: 'queryIndex', cellHighlight: { $derive: 'queryIndex' } } },
     { id: 'q-row', type: 'strip', semanticId: 'selected-query-vector', conceptId: 'qkv-projection',
       initialState: { label: 'Q[{{queryIndex}}] — its query row', x: 40, y: 208, cell: 46, w: 92, h: 46, opacity: 0, role: 'observed', identity: 'query',
