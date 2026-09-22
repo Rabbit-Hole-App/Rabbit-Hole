@@ -33,7 +33,7 @@ export default function LearnWiki({ app, article, openAt = 0, onNavigate, onSect
 
   useEffect(() => {
     const controller = new AbortController();
-    setPage(null); setError('');
+    setPage(null); setError(''); setMark(null);
     (async () => {
       const response = await fetch(`/api/learn/wiki?app=${encodeURIComponent(app)}&title=${encodeURIComponent(current.title)}`, { headers: wsHeaders(), signal: controller.signal });
       const data = await response.json();
@@ -46,19 +46,61 @@ export default function LearnWiki({ app, article, openAt = 0, onNavigate, onSect
   // Land once the article is on screen. Runs on each loaded article and on each
   // explicit open, which is what makes "open this one, at this section" work
   // even when the article is already the one being read.
+  // Landing somewhere specific also marks it: a scroll alone says "you are
+  // near it", the tint says "this one". Re-adding the class restarts the
+  // animation, so a second jump to the same place still flashes.
+  // The tint is an overlay in our own tree, never a mark written into the
+  // article's nodes: React re-creates dangerouslySetInnerHTML children whenever
+  // it likes, and an attribute set on one of them was gone within a frame. An
+  // element React owns survives; it also cannot be forged, because nothing an
+  // editor writes can put a node outside the sanitized subtree. Keyed so a
+  // second jump to the same place restarts the animation.
+  const [mark, setMark] = useState(null);
+  const arrive = target => {
+    target.scrollIntoView({ block: 'start' });
+    // Hold the target's identity, never the node: React re-creates the
+    // innerHTML children whenever it likes, and the article reflows for as
+    // long as its images take to load or fail. The overlay follows the
+    // element for exactly as long as the tint animates - the follow loop
+    // below runs while mark exists, and the animation's own end clears it.
+    const selector = target.id
+      ? `[id="${CSS.escape(target.id)}"]`
+      : `[data-mw-section-id="${target.getAttribute('data-mw-section-id')}"]`;
+    setMark(previous => ({ key: (previous?.key || 0) + 1, selector, top: 0, height: 0 }));
+  };
+
+  useEffect(() => {
+    if (!mark) return;
+    let live = true;
+    const follow = () => {
+      if (!live) return;
+      const container = body.current;
+      const found = container?.querySelector(mark.selector);
+      if (found) {
+        const box = container.getBoundingClientRect();
+        const at = found.getBoundingClientRect();
+        const top = at.top - box.top + container.scrollTop;
+        setMark(previous => (previous && (previous.top !== top || previous.height !== at.height) ? { ...previous, top, height: at.height } : previous));
+      }
+      requestAnimationFrame(follow);
+    };
+    follow();
+    return () => { live = false; };
+  }, [mark?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!page || !body.current) return;
     const land = landing.current;
     landing.current = null;
     if (!land) return;
     const anchor = land.anchor && body.current.querySelector(`[id="${CSS.escape(land.anchor)}"]`);
-    if (anchor) return anchor.scrollIntoView({ block: 'start' });
+    if (anchor) return arrive(anchor);
     // A back step restores the exact offset, which is what makes this read as a
     // browser rather than as a reset. It has to happen here: the article is
     // refetched, so at the moment Back is pressed this element does not exist.
     if (land.scrollTop) { body.current.scrollTop = land.scrollTop; return; }
     const section = land.section && body.current.querySelector(`[data-mw-section-id="${land.section}"]`);
-    if (section) return section.scrollIntoView({ block: 'start' });
+    if (section) return arrive(section);
     body.current.scrollTop = 0;
   }, [page, openAt]);
 
@@ -95,7 +137,7 @@ export default function LearnWiki({ app, article, openAt = 0, onNavigate, onSect
     if (kind === 'file') return window.open(`https://en.wikipedia.org/wiki/${encodeURIComponent(link.getAttribute('data-wiki-title'))}`, '_blank', 'noreferrer');
     const anchor = link.getAttribute('data-wiki-anchor');
     const target = anchor && body.current?.querySelector(`[id="${CSS.escape(anchor)}"]`);
-    if (target) target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    if (target) arrive(target);
   };
 
   const scrolled = () => onSection?.(sectionInView(body.current));
@@ -127,11 +169,14 @@ export default function LearnWiki({ app, article, openAt = 0, onNavigate, onSect
         of scrolling the article inside a card. */}
     {page && <div ref={body} data-scroll onScroll={scrolled} onClick={click} onMouseUp={selected} onKeyUp={selected}
       onKeyDown={event => { if (event.key === 'Enter') click(event); }}
-      className={`wiki-article min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white px-4 py-3 ${compact ? 'text-[13px]' : 'text-sm'}`}
-      // The sanitizer is the boundary: an allowlist over tags, attributes and
-      // href schemes, so no style attribute, no handler and no scheme but https
-      // reaches this. See learn-wiki-html.js.
-      dangerouslySetInnerHTML={{ __html: page.html }} />}
+      className={`wiki-article relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white px-4 py-3 ${compact ? 'text-[13px]' : 'text-sm'}`}>
+      {/* The sanitizer is the boundary: an allowlist over tags, attributes and
+          href schemes, so no style attribute, no handler and no scheme but
+          https reaches this. See learn-wiki-html.js. */}
+      <div dangerouslySetInnerHTML={{ __html: page.html }} />
+      {mark && <div key={mark.key} aria-hidden data-arrived onAnimationEnd={() => setMark(null)}
+        className="pointer-events-none absolute right-1 left-1" style={{ top: mark.top, height: mark.height }} />}
+    </div>}
     {page && <footer className="shrink-0 border-t border-line px-4 py-1.5 text-[11px] text-ink-3">
       From <a href={page.url} target="_blank" rel="noreferrer" className="underline">Wikipedia</a>, licensed <a href={page.licence.url} target="_blank" rel="noreferrer" className="underline">{page.licence.title}</a>
     </footer>}

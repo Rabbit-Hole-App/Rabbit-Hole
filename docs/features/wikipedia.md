@@ -235,6 +235,14 @@ as a press.
   HTML carries ids `tocdata` does not always list, and losing the whole question
   over a heading is worse than answering from the introduction.
 
+Arriving at a section — the tutor's open, a citation jump, a same-article
+section link — briefly tints it, so *"look here"* has a here. The tint is an
+overlay owned by React, never a mark written into the article's nodes: the
+innerHTML children can be re-created at any render, and nothing an editor
+writes can forge an element outside the sanitized subtree. It follows its
+section for exactly as long as it animates, because articles reflow for as long
+as their images take to load.
+
 The tutor-initiated open travels back as `event: wiki` with
 `{lang, title, displayTitle, section, sectionTitle, url}`, sent from `ask.js`
 beside the existing `paper` event and read from `research.shownWiki()`.

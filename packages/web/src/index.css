@@ -464,3 +464,17 @@ tr.cursor-pointer:active > td {
 .wiki-article .wiki-hlist li { display: inline; }
 .wiki-article .wiki-hlist li:not(:last-child)::after { content: " · "; color: var(--color-ink-3); }
 .wiki-article .wiki-navbox, .wiki-article .wiki-sistersitebox, .wiki-article .wiki-metadata.wiki-plainlinks { display: none; }
+
+/* Arriving at a section - the tutor's show_wikipedia, a contents jump, a
+   citation click - tints it briefly so "look here" has a here. The tint is an
+   overlay owned by React, never a mark written into the article's own nodes:
+   innerHTML children can be re-created at any render, and nothing an editor
+   writes can forge an element outside the sanitized subtree. */
+@keyframes wiki-arrive {
+  from { background: rgba(35, 131, 226, 0.14); }
+  to { background: transparent; }
+}
+.wiki-article [data-arrived] { animation: wiki-arrive 2s ease-out 1 forwards; border-radius: 4px; background: transparent; }
+@media (prefers-reduced-motion: reduce) {
+  .wiki-article [data-arrived] { animation-duration: 4s; }
+}

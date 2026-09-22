@@ -21,6 +21,7 @@ const ML = [
   '<img id="bad-img" src="x" onerror="window.__pwned=2" alt="">',
   '<img id="good-img" src="//upload.wikimedia.org/a.png" srcset="//upload.wikimedia.org/a.png 1.5x" alt="Diagram">',
   '<iframe id="frame" src="https://evil.test"></iframe>',
+  '<p id="fake-mark" class="arrived" data-arrived>pre-marked by an editor</p>',
   '<p><a id="cite" href="#cite_note-1">[1]</a></p></section>',
   '<section data-mw-section-id="1"><div class="mw-heading"><h2 id="History">History</h2><span class="mw-editsection">edit</span></div>',
   '<p>Arthur Samuel coined the term in 1959.</p><p class="tall">filler</p></section>',
@@ -96,6 +97,10 @@ ok('an article cannot reach the app utility classes', await page.evaluate(() => 
   const node = document.querySelector('#overlay-class');
   return !!node && getComputedStyle(node).position !== 'fixed';
 }));
+ok('an editor cannot pre-tint their own text as if the tutor pointed at it', await page.evaluate(() => {
+  const node = document.querySelector('#fake-mark');
+  return !!node && !node.hasAttribute('data-arrived') && node.getAttribute('class') === 'wiki-arrived' && getComputedStyle(node).animationName === 'none';
+}));
 ok('its classes are namespaced instead of dropped', (await body.locator('#overlay-class').getAttribute('class')) === 'wiki-fixed wiki-inset-0 wiki-z-50 wiki-flex wiki-items-center wiki-justify-center wiki-bg-white');
 ok('the inline stylesheet did not become visible text', !(await body.textContent())?.includes('.evil'));
 ok('an onerror image is dropped, handler and all', (await body.locator('#bad-img').count()) === 0);
@@ -149,12 +154,23 @@ ok('a question carries the article being read', asks.at(-1)?.wiki_context?.title
 sse = `event: delta\ndata: {"text":"Look at the history."}\n\nevent: wiki\ndata: ${JSON.stringify({ lang: 'en', title: 'Machine_learning', displayTitle: 'Machine learning', section: 1, sectionTitle: 'History', url: 'https://en.wikipedia.org/wiki/Machine_learning' })}\n\nevent: done\ndata: {}\n\n`;
 await page.getByPlaceholder(/Ask about/).first().fill('when did this start?');
 await page.keyboard.press('Enter');
-await page.waitForTimeout(3000);
+// The tint removes itself when its 2s animation ends, so look while it lives.
+await page.waitForTimeout(1200);
 ok('the tutor can open an article at a section', await page.evaluate(() => {
   const root = [...document.querySelectorAll('.wiki-article')].find(node => node.scrollTop > 0);
   if (!root) return false;
   const history = root.querySelector('[data-mw-section-id="1"]');
   return !!history && Math.abs(history.getBoundingClientRect().top - root.getBoundingClientRect().top) < 40;
+}));
+ok('and the section it points at is visibly marked', await page.evaluate(async () => {
+  // The tint follows its section one frame behind a reflow, so give it one.
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  const root = [...document.querySelectorAll('.wiki-article')].find(node => node.scrollTop > 0);
+  const mark = root?.querySelector('[data-arrived]');
+  if (!mark || getComputedStyle(mark).animationName !== 'wiki-arrive') return false;
+  // over the section it named, not somewhere else in the article
+  const section = root.querySelector('[data-mw-section-id="1"]');
+  return Math.abs(mark.getBoundingClientRect().top - section.getBoundingClientRect().top) < 8;
 }));
 
 // --- it survives a reload ---
