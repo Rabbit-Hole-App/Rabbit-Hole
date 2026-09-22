@@ -3,8 +3,8 @@
 Design exploration for the Rabbit Hole landing page. Open the HTML files directly
 in a browser; they are standalone, like the other files in this folder.
 
-- `rabbit-hole-hero.html` — the hero: a shaft you fall down. Motion only at this
-  stage; there is deliberately no copy, nav, or button on the page yet.
+- `rabbit-hole-hero.html` — the hero: a shaft you fall down, with the title over it.
+  No nav or buttons yet.
 - `headline-font-candidates.html` — six display faces set at size, for picking one.
 
 Nothing here is wired into the app. The mount point is still undecided.
@@ -49,8 +49,23 @@ Two things move with the scrollbar, and they are deliberately driven differently
   over `ENTER` px, scaling the light reaching the wall, so the black core grows outward
   until the screen is solid black and you are inside.
 
-The canvas is `position: sticky` for the first ~780px of scroll, then releases.
-`prefers-reduced-motion` freezes a single frame.
+The canvas is `position: sticky` over a track as tall as the page, so it stays put for
+the whole descent. `prefers-reduced-motion` freezes a single frame.
+
+## The title
+
+"Knowledge is infinite." never moves — only the camera travels. Three details make
+that work, and each one had an obvious-looking alternative that fails:
+
+- It is pinned by writing `top = window.scrollY` from script. `position: fixed` and a
+  `transform` both promote the element to its own compositing layer, and **a promoted
+  layer cannot blend with the canvas beneath it** — the difference blend silently does
+  nothing and you get white text on a white page.
+- Neither the title nor the shaft track carries a `z-index`. Both have to sit in the
+  root stacking context or, again, there is nothing for the blend to invert against.
+- The type is `color: #fff` with `mix-blend-mode: difference`, so it reads as ink on
+  the white page and flips to white exactly where it crosses the black core. No
+  scrim, no JavaScript colour switching, and it stays correct as the hole grows.
 
 The mouth sits dead centre and stays circular in any window: `SQUASH` corrects `dy` by
 the ratio between the buffer's aspect and the canvas's. `LIGHT` reaches the far corners
@@ -72,8 +87,13 @@ Three bugs worth remembering, all caught by the self-check or by screenshotting:
 
 Load with `?selftest=1` for an assert panel: depth falls off with radius, depth clamps
 at `ZFAR`, angle stays in 0..1, the core is darker than the rim, the mouth is circular
-rather than oval, advancing `t` actually redraws the wall, and entering all the way
-closes to solid black.
+rather than oval, advancing `t` redraws the wall, the core holds still while the rings
+move through it, and entering all the way closes to solid black.
+
+Every brightness comparison in those asserts uses luminance, never the red channel.
+Red is not a stand-in for brightness across palettes: pink and magenta share red 255,
+so a red-only diff reported no motion at all, and a mid-blue's red of 79 was counted
+as part of the black core. Both produced failures on a render that was correct.
 
 The circularity assert measures the core's radius along each axis and converts both to
 screen pixels. Finding that edge needs care, and both naive versions gave false
@@ -85,12 +105,11 @@ counting every dark pixel on the ray overcounts the dark rings beyond the core
 ## Decided
 
 - Concept: the fall — looking down the shaft, scrolling takes you deeper.
-- Headline text will be "Knowledge is infinite." It is not on the page yet; the hole
-  is being tuned on its own first.
-- Black core with the rings lit in light blue — `#BFE3F7` out at the edges, `#4FA3DC`
-  through the middle. A warm-brown burrow and a magenta version were both tried first.
-- The ring field bleeds off all four edges. Sizing the rim to the shorter axis kept the
-  mouth fully visible but left wide white margins down the sides, which read worse.
+- Headline: "Knowledge is infinite.", 190px, centred on the mouth.
+- White page, grey ripples, black core. A warm-brown burrow, TypeSafe's magenta, and a
+  light blue were all tried and dropped; only the ripples carry tone, the page stays
+  white.
+- The title holds still and stays readable at every depth via the difference blend.
 - No news dialogs, no CTA row, no objects falling past the walls.
 - The mouth is centred, circular, and fully visible — no clipping at any window size.
 - Scrolling widens the mouth until the screen is solid black: you enter the hole.
