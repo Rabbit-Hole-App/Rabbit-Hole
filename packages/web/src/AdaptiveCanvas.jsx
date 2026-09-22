@@ -794,10 +794,11 @@ function ToolButton({ Icon, label, active, onPick }) {
 
 // The name tag of a group, floating just above its top-left corner. Click
 // selects the whole group; double-click renames it in place.
-function GroupChip({ group, left, top, onSelect, onLabel }) {
+function GroupChip({ group, left, top, onSelect, onLabel, editOn = false }) {
   const [editing, setEditing] = useState(false);
   const body = useRef(null);
   useEffect(() => { if (editing) body.current?.focus(); }, [editing]);
+  useEffect(() => { if (editOn) setEditing(true); }, [editOn]);
   return (
     <div data-group-chip={group.id} style={{ left, top: top - 28 }}
       className="absolute z-20 flex cursor-pointer items-center rounded-md border border-line bg-white/90 px-1.5 py-0.5 text-[11px] text-ink-2 shadow-sm backdrop-blur-sm hover:text-ink"
@@ -810,13 +811,14 @@ function GroupChip({ group, left, top, onSelect, onLabel }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null }) {
   const [tool, setTool] = useState('select');
   // OS drag-and-drop of files onto the surface; the page owns what each kind
   // becomes, the canvas only announces the hover and hands the files over.
   const [dropHover, setDropHover] = useState(false);
   const [marquee, setMarquee] = useState(null);
   const [menuAt, setMenuAt] = useState(null); // right-click canvas actions
+  const [chipEdit, setChipEdit] = useState(null); // group id whose chip should open for renaming
   // The tool palette hangs on the right by default; a drag on its handle can
   // park it on either edge. While dragging it follows the pointer.
   const [toolSide, setToolSide] = useState('right');
@@ -904,6 +906,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   onRestoreRef.current = onRestore;
   const onAskTargetRef = useRef(onAskTarget);
   onAskTargetRef.current = onAskTarget;
+  const onCardActionRef = useRef(onCardAction);
+  onCardActionRef.current = onCardAction;
   // Put the camera around a set of boxes. Used both to find your way back to
   // everything, and to land on one section while presenting.
   const frame = (boxes, pad = 48, maxZoom = 1) => {
@@ -1040,6 +1044,45 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);
+  // Shared by Ctrl+V and the context menu's Duplicate. Ids in, fresh copies
+  // out; the copy carries the latest text and position, never a snapshot.
+  // Copies leave their group - a duplicate is new material, not a new member.
+  const pasteIds = picked => {
+    const pickedBlocks = blocksRef.current.filter(block => picked.includes(block.id));
+    const pickedItems = itemsRef.current.filter(item => picked.includes(item.id));
+    const pickedShapes = shapesRef.current.filter(shape => picked.includes(shape.id));
+    const pickedChats = exchangesRef.current.filter(exchange => picked.includes(exchange.id));
+    if (!pickedBlocks.length && !pickedItems.length && !pickedShapes.length && !pickedChats.length) return false;
+    snapshot(pickedChats.length > 0);
+    const step = 28;
+    const fresh = [];
+    const copyNode = node => { const id = crypto.randomUUID(); fresh.push(id); return { ...node, id, groupId: undefined, dx: node.dx + step, dy: node.dy + step }; };
+    const blocksCopy = pickedBlocks.map(copyNode);
+    // A card copied mid-answer would never receive its stream: deltas are
+    // routed by id and the copy has a new one. Settle it instead.
+    const chatsCopy = pickedChats.map(node => ({ ...copyNode(node), linkFrom: null, status: 'done' }));
+    const itemsCopy = pickedItems.map(item => { const id = crypto.randomUUID(); fresh.push(id); return { ...item, id, groupId: undefined, x: item.x + step, y: item.y + step, fresh: false }; });
+    const shapesCopy = pickedShapes.map(shape => { const id = crypto.randomUUID(); fresh.push(id); return { ...shape, id, groupId: undefined, x1: shape.x1 + step, y1: shape.y1 + step, x2: shape.x2 + step, y2: shape.y2 + step }; });
+    // Each copy lands directly after its source rather than at the end of the
+    // column, where on a long canvas it was off-screen and read as nothing
+    // having happened.
+    if (blocksCopy.length) setBlocks(previous => {
+      const next = [...previous];
+      blocksCopy.forEach((copy, index) => {
+        const at = next.findIndex(block => block.id === pickedBlocks[index].id);
+        next.splice(at < 0 ? next.length : at + 1, 0, copy);
+      });
+      return next;
+    });
+    if (itemsCopy.length) setItems(previous => [...previous, ...itemsCopy]);
+    if (shapesCopy.length) setShapes(previous => [...previous, ...shapesCopy]);
+    if (chatsCopy.length) onAddRef.current?.(chatsCopy);
+    setSelection(fresh);
+    clipboard.current = fresh; // paste again and it stacks from the newest
+    return true;
+  };
+  const pasteIdsRef = useRef(pasteIds);
+  pasteIdsRef.current = pasteIds;
   const shapesRef = useRef([]);
   const onAddRef = useRef(null);
   const selectedRef = useRef([]);
@@ -1071,6 +1114,27 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     snapshot(exchangesRef.current.some(exchange => gids.has(exchange.groupId)));
     setGroupIds(members, null);
     setGroups(previous => previous.filter(group => !gids.has(group.id)));
+  };
+  const boxesOf = ids => {
+    const boxes = [];
+    for (const id of ids) {
+      const box = boundsRef.current[id];
+      if (box) { boxes.push(box); continue; }
+      const shape = shapesRef.current.find(entry => entry.id === id);
+      if (shape) { boxes.push({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) }); continue; }
+      const node = itemsLayer.current?.querySelector(`[data-item-id="${id}"]`);
+      if (node) boxes.push({ x: node.offsetLeft, y: node.offsetTop, w: node.offsetWidth, h: node.offsetHeight });
+    }
+    return boxes;
+  };
+  const zoomToSelection = () => { const boxes = boxesOf(selectedRef.current); if (boxes.length) frame(boxes, 64, 1.2); };
+  const presentFrom = id => {
+    const steps = presentSteps(blocksRef.current, boundsRef.current);
+    const index = steps.findIndex(entry => entry.ids[0] === id || entry.ids.includes(id));
+    if (index < 0) return;
+    stepsRef.current = steps;
+    setSelected(null);
+    showStep(index);
   };
   const itemsRef = useRef(items);
   itemsRef.current = items;
@@ -1203,41 +1267,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         return;
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
-        const picked = clipboard.current;
-        if (typing || !picked?.length) return;
-        // Resolved now, so the copy carries the latest text and position.
-        const pickedBlocks = blocksRef.current.filter(block => picked.includes(block.id));
-        const pickedItems = itemsRef.current.filter(item => picked.includes(item.id));
-        const pickedShapes = shapesRef.current.filter(shape => picked.includes(shape.id));
-        const pickedChats = exchangesRef.current.filter(exchange => picked.includes(exchange.id));
-        if (!pickedBlocks.length && !pickedItems.length && !pickedShapes.length && !pickedChats.length) return;
-        event.preventDefault();
-        snapshot(pickedChats.length > 0);
-        const step = 28;
-        const fresh = [];
-        const copyNode = node => { const id = crypto.randomUUID(); fresh.push(id); return { ...node, id, dx: node.dx + step, dy: node.dy + step }; };
-        const blocksCopy = pickedBlocks.map(copyNode);
-        // A card copied mid-answer would never receive its stream: deltas are
-        // routed by id and the copy has a new one. Settle it instead.
-        const chatsCopy = pickedChats.map(node => ({ ...copyNode(node), linkFrom: null, status: 'done' }));
-        const itemsCopy = pickedItems.map(item => { const id = crypto.randomUUID(); fresh.push(id); return { ...item, id, x: item.x + step, y: item.y + step, fresh: false }; });
-        const shapesCopy = pickedShapes.map(shape => { const id = crypto.randomUUID(); fresh.push(id); return { ...shape, id, x1: shape.x1 + step, y1: shape.y1 + step, x2: shape.x2 + step, y2: shape.y2 + step }; });
-        // Each copy lands directly after its source rather than at the end of the
-        // column, where on a long canvas it was off-screen and read as nothing
-        // having happened.
-        if (blocksCopy.length) setBlocks(previous => {
-          const next = [...previous];
-          blocksCopy.forEach((copy, index) => {
-            const at = next.findIndex(block => block.id === pickedBlocks[index].id);
-            next.splice(at < 0 ? next.length : at + 1, 0, copy);
-          });
-          return next;
-        });
-        if (itemsCopy.length) setItems(previous => [...previous, ...itemsCopy]);
-        if (shapesCopy.length) setShapes(previous => [...previous, ...shapesCopy]);
-        if (chatsCopy.length) onAddRef.current?.(chatsCopy);
-        setSelection(fresh);
-        clipboard.current = fresh; // paste again and it stacks from the newest
+        if (typing || !clipboard.current?.length) return;
+        if (pasteIdsRef.current(clipboard.current)) event.preventDefault();
         return;
       }
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
@@ -1792,7 +1823,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           const id = hit?.dataset.blockId || hit?.dataset.itemId || hit?.dataset.shapeId || null;
           if (id && !selectedRef.current.includes(id)) select(id);
           const root = surface.current.getBoundingClientRect();
-          setMenuAt({ x: event.clientX - root.left, y: event.clientY - root.top });
+          setMenuAt({ x: event.clientX - root.left, y: event.clientY - root.top, id });
         }}
         onDragOver={event => { if (onDropFiles && event.dataTransfer.types.includes('Files')) { event.preventDefault(); setDropHover(true); } }}
         onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setDropHover(false); }}
@@ -1861,9 +1892,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
             if (member.x !== undefined) { left = Math.min(left, member.x); top = Math.min(top, member.y); }
           }
           if (!Number.isFinite(left)) return null;
-          return <GroupChip key={group.id} group={group} left={left} top={top}
+          return <GroupChip key={group.id} group={group} left={left} top={top} editOn={chipEdit === group.id}
             onSelect={() => setSelection(membersOf(group.id))}
-            onLabel={label => setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry))} />;
+            onLabel={label => { setChipEdit(null); setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry)); }} />;
         })}
         <div ref={itemsLayer} className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
@@ -1871,15 +1902,57 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         </div>
         </div>
         {menuAt && presenting === null && (() => {
-          const grouped = selection.some(id => [...blocks, ...items, ...shapes, ...exchanges].find(entry => entry.id === id)?.groupId);
+          const grouped = selection.map(id => [...blocks, ...items, ...shapes, ...exchanges].find(entry => entry.id === id)?.groupId).filter(Boolean);
           const row = 'flex w-full items-center rounded px-2 py-1.5 text-left text-sm text-ink hover:bg-hover disabled:cursor-default disabled:text-ink-3 disabled:hover:bg-transparent';
           const act = action => () => { action(); setMenuAt(null); };
+          // What was actually clicked decides the top rows; the core set below
+          // acts on the whole selection.
+          const block = blocks.find(entry => entry.id === menuAt.id) || null;
+          const chat = exchanges.find(entry => entry.id === menuAt.id) || null;
+          const attached = sourceId => (attachedIds ? attachedIds.includes(sourceId) : true);
+          const attachRow = (sourceId, label) => (
+            <button key={sourceId} type="button" role="menuitem" onClick={act(() => onCardActionRef.current?.('attach-toggle', { sourceId }))} className={row}>
+              {attached(sourceId) ? `Detach ${label} from tutor` : `Attach ${label} to tutor`}
+            </button>
+          );
+          const typed = [];
+          if (block?.type === 'wiki') {
+            typed.push(<button key="wr" type="button" role="menuitem" onClick={act(() => onCardActionRef.current?.('wiki-reader', { title: block.title, section: block.section || 0 }))} className={row}>Open in reader</button>);
+            typed.push(<button key="ww" type="button" role="menuitem" onClick={act(() => window.open(`https://en.wikipedia.org/wiki/${encodeURIComponent(block.title)}`, '_blank', 'noopener'))} className={row}>Open on Wikipedia</button>);
+            typed.push(attachRow(`wiki:${block.id}`, 'article'));
+          }
+          if (block?.type === 'video') {
+            typed.push(<button key="vy" type="button" role="menuitem" onClick={act(() => window.open(`https://www.youtube.com/watch?v=${block.videoId}${block.start ? `&t=${Math.floor(block.start)}s` : ''}`, '_blank', 'noopener'))} className={row}>Open on YouTube</button>);
+            typed.push(attachRow(`video:${block.id}`, 'video'));
+          }
+          if (block?.type === 'pdf' && block.assetKey?.startsWith('pdf:')) {
+            typed.push(<button key="pr" type="button" role="menuitem" onClick={act(() => onCardActionRef.current?.('pdf-reader', { id: block.assetKey.slice(4), title: block.label }))} className={row}>Open in reader</button>);
+          }
+          if (block?.type === 'file' && block.kind === 'image' && block.mediaId) {
+            typed.push(<button key="ia" type="button" role="menuitem" onClick={act(() => onCardActionRef.current?.('image-attach', { blockId: block.id, mediaId: block.mediaId, label: block.label }))} className={row}>Show the tutor this image</button>);
+            typed.push(attachRow(`image:${block.id}`, 'image'));
+          }
+          if (block?.type === 'heading') {
+            typed.push(<button key="hd" type="button" role="menuitem" onClick={act(() => { snapshot(); setBlocks(previous => previous.map(entry => entry.id === block.id ? { ...entry, done: !entry.done } : entry)); })} className={row}>{block.done ? 'Mark not done' : 'Mark done'}</button>);
+            typed.push(<button key="hp" type="button" role="menuitem" onClick={act(() => presentFrom(block.id))} className={row}>Present from here</button>);
+          }
+          if (chat) {
+            typed.push(<button key="ct" type="button" role="menuitem" onClick={act(() => navigator.clipboard?.writeText([chat.question, chat.answer].filter(Boolean).join('\n\n')))} className={row}>Copy text</button>);
+          }
+          const described = block ? describeBlock(block) : null;
           return (
             <div role="menu" aria-label="Canvas actions" style={{ left: menuAt.x, top: menuAt.y }}
-              className="absolute z-40 w-44 rounded-md border border-line bg-white p-1 shadow-pop"
+              className="absolute z-40 w-52 rounded-md border border-line bg-white p-1 shadow-pop"
               onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation(); }}>
+              {described && <button type="button" role="menuitem" onClick={act(() => askBlock(block))} className={row}>Ask about this</button>}
+              {typed}
+              {(described || typed.length > 0) && <div className="my-1 h-px bg-line" />}
+              <button type="button" role="menuitem" disabled={!selection.length} onClick={act(() => pasteIds(selection))} className={row}>Duplicate</button>
+              <button type="button" role="menuitem" disabled={!selection.length} onClick={act(zoomToSelection)} className={row}>Zoom to selection</button>
+              <div className="my-1 h-px bg-line" />
               <button type="button" role="menuitem" disabled={selection.length < 2} onClick={act(groupSelection)} className={row}>Group</button>
-              <button type="button" role="menuitem" disabled={!grouped} onClick={act(ungroupSelection)} className={row}>Ungroup</button>
+              <button type="button" role="menuitem" disabled={!grouped.length} onClick={act(ungroupSelection)} className={row}>Ungroup</button>
+              <button type="button" role="menuitem" disabled={!grouped.length} onClick={act(() => setChipEdit(grouped[0]))} className={row}>Rename group</button>
               <div className="my-1 h-px bg-line" />
               <button type="button" role="menuitem" onClick={act(selectAll)} className={row}>Select all</button>
               <button type="button" role="menuitem" disabled={!selection.length} onClick={act(deleteSelection)} className={row}>Delete</button>

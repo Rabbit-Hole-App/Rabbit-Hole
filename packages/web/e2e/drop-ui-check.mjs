@@ -183,6 +183,18 @@ await page.waitForTimeout(400);
 const b6 = await cardB.boundingBox();
 ok('after Ungroup, a plain click moves only that card', Math.abs(b6.x - b5.x) < 4 && Math.abs(b6.y - b5.y) < 4, `other moved ${Math.round(b6.x - b5.x)},${Math.round(b6.y - b5.y)}`);
 
+// --- card-aware rows: image re-attach and Duplicate ---
+const a4 = await cardA.boundingBox();
+await page.mouse.click(a4.x + 40, a4.y + 20, { button: 'right' });
+await page.waitForTimeout(300);
+ok('an image card offers re-attaching to the tutor', (await actions.getByRole('menuitem', { name: 'Show the tutor this image' }).count()) === 1);
+await actions.getByRole('menuitem', { name: 'Duplicate' }).click();
+await page.waitForTimeout(400);
+ok('Duplicate copies the card', (await canvas.locator('img[alt="diagram.png"]').count()) === 2);
+await page.keyboard.press('Delete');
+await page.waitForTimeout(300);
+ok('the copy was selected, so Delete removes it again', (await canvas.locator('img[alt="diagram.png"]').count()) === 1);
+
 // --- toolbar handle snaps to the left edge ---
 const handle = page.locator('[aria-label="Move the toolbar"]');
 ok('the toolbar has a drag handle', (await handle.count()) === 1);
