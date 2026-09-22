@@ -86,6 +86,32 @@ export const patchExplorerScene = {
   ],
 };
 
+// --- I04: vector-projection explorer -------------------------------------------
+// Rides the existing vector_projection_v1 behaviour and its project()
+// calculation (scene-behaviors.js) - the spec's "existing named projection
+// calculation", not a second implementation. This is the activity spec the
+// review board seeds as a lesson block.
+export const vectorProjectionSpec = {
+  type: 'interactive_scene',
+  id: 'vector-projection-explorer',
+  schemaVersion: 1,
+  behaviorId: 'vector_projection_v1',
+  renderer: 'svg',
+  conceptIds: ['vector-projection', 'dot-product'],
+  // The scene-declared symmetric domain the spec names: ±5, clamped on every
+  // write path and drawn by the renderer.
+  initialState: { a: [3, 2], b: [2, 0], range: 5 },
+  interactions: [
+    { input: 'drag_handle', target: 'a', action: 'set_vector' },
+    { input: 'drag_handle', target: 'b', action: 'set_vector' },
+    { input: 'number', action: 'set_vector' },
+    { input: 'button', label: 'Reset experiment', action: 'reset_attempt' },
+  ],
+  execution: { mode: 'local_calculation' },
+  buildGoal: 'Drag a vector or its axis - or type coordinates - and watch the projection recompute live.',
+  checkGoal: 'Make the projection zero using a valid, nonzero axis b.',
+};
+
 // --- I03: candidate-future explorer -------------------------------------------
 // Three candidate futures under one stated toy cost (squared distance to the
 // goal), inspected through a choice input. The costs 4, 1, 9 are DERIVED from

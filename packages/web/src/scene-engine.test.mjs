@@ -127,6 +127,29 @@ test('reset restores the starter vectors', () => {
   assert.deepEqual(reset.b, [1, 0]);
 });
 
+test('I04 spec oracles: (3,2) onto (2,0) is (3,0); (0,3) onto (2,0) is the zero vector', () => {
+  assert.deepEqual(project([3, 2], [2, 0]).vector, [3, 0]);
+  const zero = project([0, 3], [2, 0]);
+  assert.deepEqual(zero.vector, [0, 0]);
+  assert.equal(zero.length, 0);
+  assert.equal(project([0, 3], [0, 0]).defined, false, 'a zero axis is not-ready, never a passing answer');
+});
+
+test('a scene-declared range clamps every write path to its own symmetric domain', () => {
+  const ranged = () => ({ ...vectorSpec(), initialState: { a: [3, 2], b: [2, 0], range: 5 } });
+  const { spec, behavior, state } = prepareScene(ranged());
+  assert.equal(state.range, 5);
+  assert.deepEqual(applyAction(behavior, spec, state, { type: 'set_vector', target: 'a', value: [12, -12] }).state.a, [5, -5]);
+  assert.deepEqual(applyAction(behavior, spec, state, { type: 'nudge_vector', target: 'b', axis: 'x', by: 99 }).state.b, [5, 0]);
+  assert.throws(() => prepareScene({ ...vectorSpec(), initialState: { a: [0, 0], b: [1, 0], range: -1 } }), /range/);
+});
+
+test('negative zero never survives into a committed vector', () => {
+  const { spec, behavior, state } = prepareScene(vectorSpec());
+  const committed = applyAction(behavior, spec, state, { type: 'set_vector', target: 'a', value: [-0.0001, 1] }).state.a;
+  assert.equal(Object.is(committed[0], -0), false);
+});
+
 test('an undefined projection is not counted as a finished artifact', () => {
   const { spec, behavior, state } = prepareScene(vectorSpec());
   const zeroed = applyAction(behavior, spec, state, { type: 'set_vector', target: 'b', value: [0, 0] }).state;

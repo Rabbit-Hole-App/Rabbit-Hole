@@ -1,4 +1,8 @@
 import { registerBehavior } from './scene-engine.js';
+// One rounding rule for the whole codebase (scene-derive's own: 3 decimals,
+// negative zero normalised) - a second local rule here let -0 survive into
+// geometry and readouts.
+import { round } from './scene-derive.js';
 
 // Reviewed behaviours. Each one owns its legal actions, its state transitions
 // and how its result is produced; a new lesson reuses a behaviour with new
@@ -8,6 +12,7 @@ import { registerBehavior } from './scene-engine.js';
 // it does not compute anything.
 export const walkthrough = registerBehavior({
   id: 'walkthrough_v1',
+  progressNoun: 'steps',
   renderers: ['svg', 'flow'],
   actions: ['advance_step', 'previous_step', 'go_to_step', 'reset_attempt'],
   start(spec) {
@@ -51,8 +56,6 @@ export const walkthrough = registerBehavior({
 
 // Pull a vector, read its projection. Local calculation: the numbers below are
 // computed here from the learner's own values, not scripted.
-const round = value => Math.round(value * 1000) / 1000;
-
 export function project(a, b) {
   const denominator = b[0] * b[0] + b[1] * b[1];
   // A zero-length axis has no direction to project onto; say so instead of
@@ -69,31 +72,38 @@ export function project(a, b) {
   };
 }
 
-const LIMIT = 10;
-const clampVector = value => {
+const DEFAULT_LIMIT = 10;
+const clampVector = (value, limit = DEFAULT_LIMIT) => {
   if (!Array.isArray(value) || value.length !== 2 || !value.every(Number.isFinite)) throw new Error('a vector needs two finite numbers');
-  return value.map(component => Math.max(-LIMIT, Math.min(LIMIT, round(component))));
+  return value.map(component => Math.max(-limit, Math.min(limit, round(component))));
 };
 
 export const vectorProjection = registerBehavior({
   id: 'vector_projection_v1',
+  progressNoun: 'projection defined',
   renderers: ['svg'],
   actions: ['set_vector', 'nudge_vector', 'reset_attempt'],
   start(spec) {
-    const { a, b } = spec.initialState;
-    return { a: clampVector(a), b: clampVector(b), starter: { a: clampVector(a), b: clampVector(b) } };
+    // The scene-declared symmetric domain: every write path (drag, nudge,
+    // typed coordinates) clamps to ±range, and the renderer draws the same
+    // domain, so a handle can never leave the picture or the contract.
+    const { a, b, range } = spec.initialState;
+    const limit = range === undefined ? DEFAULT_LIMIT : range;
+    if (!(Number.isFinite(limit) && limit > 0)) throw new Error('range must be one positive number - the symmetric ±range');
+    return { a: clampVector(a, limit), b: clampVector(b, limit), range: limit, starter: { a: clampVector(a, limit), b: clampVector(b, limit) } };
   },
   reduce(state, action) {
     if (action.type === 'reset_attempt') return { ...state, a: [...state.starter.a], b: [...state.starter.b] };
     const target = action.target;
     if (target !== 'a' && target !== 'b') throw new Error('only vectors a and b can change');
-    if (action.type === 'set_vector') return { ...state, [target]: clampVector(action.value) };
+    const limit = state.range ?? DEFAULT_LIMIT;
+    if (action.type === 'set_vector') return { ...state, [target]: clampVector(action.value, limit) };
     if (action.type === 'nudge_vector') {
       const axis = action.axis === 'y' ? 1 : 0;
       const next = [...state[target]];
       if (!Number.isFinite(action.by)) throw new Error('nudge needs a finite amount');
       next[axis] = next[axis] + action.by;
-      return { ...state, [target]: clampVector(next) };
+      return { ...state, [target]: clampVector(next, limit) };
     }
     return state;
   },
@@ -113,6 +123,7 @@ export const vectorProjection = registerBehavior({
 // the learner built, so completion is the arrangement, never the gesture.
 export const pipelineAssembly = registerBehavior({
   id: 'pipeline_assembly_v1',
+  progressNoun: 'in place',
   renderers: ['dnd'],
   actions: ['place_item', 'clear_slot', 'reset_attempt'],
   start(spec) {

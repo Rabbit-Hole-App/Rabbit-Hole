@@ -53,7 +53,7 @@ export function sceneSummary(block) {
   } catch { return { error: 'unsupported activity' }; }
 }
 
-export default function InteractiveScene({ block, onChange }) {
+export default function InteractiveScene({ block, onChange, onAsk = null }) {
   const [error, setError] = useState('');
   const selected = block.selectedObject || null;
   const setSelected = value => onChange({ ...block, selectedObject: value });
@@ -83,7 +83,11 @@ export default function InteractiveScene({ block, onChange }) {
   const buttons = spec.interactions.filter(interaction => interaction.input === 'button');
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
-      <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white p-2">
+      {/* A flex column, not plain block flow: renderers size against the
+          card's real height (a square vector frame stays inside the card
+          instead of growing to its own width and scrolling the handles out
+          of reach); a renderer taller than the card still scrolls. */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-auto rounded-lg border border-line bg-white p-2">
         {Renderer
           ? <Renderer spec={spec} state={state} behavior={behavior} selected={selected} onSelect={setSelected} run={run} reduced={reduced} />
           : <p className="text-xs text-ink-2">No renderer for {spec.behaviorId}.</p>}
@@ -99,7 +103,16 @@ export default function InteractiveScene({ block, onChange }) {
             {interaction.action === 'advance_step' && <ChevronRight size={14} />}
           </button>
         ))}
-        {progress && <span className="ml-auto text-xs tabular-nums text-ink-2">{progress.seen} / {progress.total} {spec.behaviorId === 'pipeline_assembly_v1' ? 'in place' : 'steps'}{progress.complete ? ' · done' : ''}</span>}
+        {/* Same contract as every interactive card: attaches this activity's
+            current committed state to the existing bottom composer, focuses
+            it, sends nothing. */}
+        {onAsk && (
+          <button type="button" data-scene-ask onClick={() => onAsk(block)}
+            className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
+            Ask about this
+          </button>
+        )}
+        {progress && <span className="ml-auto text-xs tabular-nums text-ink-2">{progress.seen} / {progress.total} {behavior.progressNoun || 'steps'}{progress.complete ? ' · done' : ''}</span>}
       </div>
       <p className="shrink-0 text-[11px] text-ink-3">{MODE_LABEL[spec.execution.mode]}</p>
     </div>

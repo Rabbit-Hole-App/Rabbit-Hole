@@ -980,13 +980,13 @@ function AudioBody({ block, appName, onChange }) {
 
 // An activity from the interaction engine: validated spec, registered
 // behaviour, semantic actions. The block only stores committed state.
-function SceneActivityBody({ block, onChange, onAskScene }) {
+function SceneActivityBody({ block, onChange, onAskScene, onAsk }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
       <Kicker>Activity</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       {block.spec.buildGoal && <p data-drag-zone className="mt-0.5 mb-2 cursor-grab text-xs text-ink-2 active:cursor-grabbing">{block.spec.buildGoal}</p>}
-      <InteractiveScene block={block} onChange={onChange} />
+      <InteractiveScene block={block} onChange={onChange} onAsk={onAsk} />
     </div>
   );
 }
@@ -1571,7 +1571,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'table') return <TableBody block={block} onFile={onFile} />;
   if (block.type === 'model3d') return <ThreeDBody block={block} onChange={onChange} />;
   if (block.type === 'audio') return <AudioBody block={block} appName={appName} onChange={onChange} />;
-  if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return <SceneActivityBody block={block} onChange={onChange} onAskScene={onAskScene} />;
+  if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return <SceneActivityBody block={block} onChange={onChange} onAskScene={onAskScene} onAsk={onAsk} />;
   if (block.type === 'whiteboard') return <WhiteboardBody block={block} appName={appName} onChange={onChange} onAskSelection={onAskRegion} />;
   if (block.type === 'animation') return <AnimationBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskAnimation={onAskRegion} onAsk={onAsk} />;
   if (block.type === 'flow') return <FlowBody block={block} />;
