@@ -208,6 +208,16 @@ the dev D1 (announced migration); then the phase-3 live check — same
 question twice, second answer warm, same video, measurably faster — and the
 phase-4 check — an accepted moment answers a re-asked paraphrase.
 
+## Status
+
+Steps 1-7 are code-complete with green unit tests as of 2026-09-23; nothing
+warm, hot, or indexed serves a learner yet. Still deploy-gated, each with its
+own explicit go: the Vectorize index + Queue + `AI` binding (shared-state
+event), the announced `learn_moments` migration on the dev D1 (until then
+keep/dismiss shows on cards but the update 400s), and the live warm/hot
+checks. The eval harness (`tests/evals/moment-eval.mjs`) waits on a filled
+gold set from `packages/control-plane/export-gold.mjs`.
+
 ## Deliberately not in this round
 
 - Whisper, the reranker stage, transcript storage, answer caching,
