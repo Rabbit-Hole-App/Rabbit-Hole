@@ -1,0 +1,2 @@
+# Optional: transcribe videos that have no captions. Needs ffmpeg on PATH.
+faster-whisper>=1.0
