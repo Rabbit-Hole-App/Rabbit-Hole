@@ -77,8 +77,9 @@ function BoolToggle({ declaration, value, onInput }) {
 // matter - the value IS the canonical set the coercion layer keeps sorted.
 function IndicesMarks({ declaration, value, data, onInput }) {
   const labels = positionLabels(declaration, data);
-  const chosen = new Set(value);
-  const toggle = index => onInput(declaration.name, chosen.has(index) ? value.filter(entry => entry !== index) : [...value, index]);
+  const current = value || []; // null = "no answer yet", distinct from the empty set only in who set it
+  const chosen = new Set(current);
+  const toggle = index => onInput(declaration.name, chosen.has(index) ? current.filter(entry => entry !== index) : [...current, index]);
   return (
     <div role="group" aria-label={declaration.label} className="flex flex-wrap items-center gap-1.5">
       <span className="text-xs font-medium text-ink-2">{declaration.label}:</span>
@@ -113,6 +114,19 @@ const WIDGETS = {
   indices: IndicesMarks,
   choice: ChoiceButtons,
 };
+
+// One typed input, one widget - the same registry the experiment strip uses,
+// exported so the practice section renders its answer input through the
+// exact same code path (spec T09: no second widget family for answers).
+export function InputWidget({ declaration, value, data, onInput, disabled = false }) {
+  const Widget = declaration.type === 'index' && declaration.presentation === 'slider' ? IndexSlider : WIDGETS[declaration.type];
+  if (!Widget) return null;
+  return (
+    <fieldset disabled={disabled} className="contents">
+      <Widget declaration={declaration} value={value} data={data} onInput={onInput} />
+    </fieldset>
+  );
+}
 
 export default function SceneControls({ declarations, inputs, data, onInput, onReset, onAsk = null }) {
   const rows = declarations.filter(declaration => !declaration.hidden && WIDGETS[declaration.type]);

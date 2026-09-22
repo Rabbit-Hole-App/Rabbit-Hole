@@ -86,6 +86,49 @@ export const patchExplorerScene = {
   ],
 };
 
+// --- Practice tasks (spec T09) -------------------------------------------------
+// Authored task data for the shared activity layer (scene-activity.js).
+// Expected values live here and only here; the runtime keeps them out of
+// every display, tooltip and tutor payload until their own rules allow.
+
+export const attentionActivity = {
+  id: 'i01-practice', check: 'set_equals', version: 1,
+  prompt: 'With the query fixed on the THIRD token and the causal mask on, select every position that query may attend to.',
+  answer: { type: 'indices', label: 'Your prediction', of: 'tokens', default: [] },
+  expected: [0, 1, 2],
+  notReady: 'Select at least one position first.',
+  feedbackPass: 'Right - a causal query attends to itself and every earlier position, so positions 1, 2 and 3 are all allowed.',
+  feedbackFail: 'Not quite - a causal query sees every earlier position AND itself, never a later one. Try again with a new attempt.',
+};
+
+export const patchActivity = {
+  id: 'i02-practice', check: 'index_equals', version: 1,
+  prompt: 'Which patch sits at row 3, column 2 of the grid? Pick its number.',
+  answer: { type: 'index', label: 'Your answer', of: 'patches', default: 0 },
+  expected: 9,
+  feedbackPass: 'Right - patches count row-major, so row 3 starts at patch 9 and its second column is patch 10.',
+  feedbackFail: 'Not quite - the grid counts row-major: patches 1-4 are row 1, 5-8 row 2, so row 3 column 2 is patch 10. Try a new attempt.',
+};
+
+export const candidateActivity = {
+  id: 'i03-practice', check: 'choice_equals', version: 1,
+  prompt: 'Under the squared-distance cost, which candidate future should be preferred? Committing a prediction reveals the example costs.',
+  answer: { type: 'choice', label: 'Your prediction', options: [{ id: 'A', label: 'Path A' }, { id: 'B', label: 'Path B' }, { id: 'C', label: 'Path C' }], default: 'A' },
+  expected: 'B',
+  revealInput: 'resultsRevealed',
+  checkLabel: 'Check prediction',
+  feedbackPass: 'Right - B ends at (1, 0), one unit from the goal, the smallest squared distance of the three.',
+  feedbackFail: 'The revealed costs show B is cheapest: it ends one unit from the goal. Your committed answer stays recorded; start a new attempt to predict again.',
+};
+
+export const projectionActivity = {
+  id: 'i04-practice', check: 'projection_zero', version: 1,
+  prompt: 'Make the projection zero using a valid, nonzero axis b.',
+  checkLabel: 'Check zero projection',
+  feedbackPass: 'Zero - a and b are perpendicular, so a has no component along the axis.',
+  feedbackFail: 'The projection is not zero yet - move a (or the axis b) until a·b vanishes, then check again.',
+};
+
 // --- I04: vector-projection explorer -------------------------------------------
 // Rides the existing vector_projection_v1 behaviour and its project()
 // calculation (scene-behaviors.js) - the spec's "existing named projection

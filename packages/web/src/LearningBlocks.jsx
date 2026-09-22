@@ -20,6 +20,8 @@ import { sceneLegibility } from './scene-layout.js';
 import { axisScene, residualScene, sigmoidScene } from './demo-scenes.js';
 import { causalAttentionScene } from './reference-scenes.js';
 import InteractiveScene, { sceneSummary } from './InteractiveScene.jsx';
+import SceneActivity from './SceneActivity.jsx';
+import { describeActivity } from './scene-activity.js';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
 import { sceneAssetUrl, sceneList, startScene, startVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
 
@@ -444,9 +446,13 @@ export const BLOCK_TYPES = {
       // grows by the control strip instead. One wrapped row of h-8 controls
       // with the strip's own padding and gap; a second row for a control set
       // long enough to wrap at this width.
-      const declarations = Array.isArray(block.scene.inputs) ? block.scene.inputs.length : 0;
+      const declarations = Array.isArray(block.scene.inputs) ? block.scene.inputs.filter(input => !input.hidden).length : 0;
       const controls = declarations ? 56 + (declarations > 2 ? 44 : 0) : 0;
-      return { width: Math.round(report.viewport.w + FRAME_CHROME.w), height: Math.round(report.viewport.h + FRAME_CHROME.h + controls) };
+      // The practice section: prompt, an answer widget row (two rows once
+      // the answer domain wraps), feedback line.
+      const domain = block.activity?.answer?.of ? (block.scene.exampleData?.[block.activity.answer.of] || []).length : 0;
+      const practice = block.activity ? 150 + (domain > 8 ? 44 : 0) : 0;
+      return { width: Math.round(report.viewport.w + FRAME_CHROME.w), height: Math.round(report.viewport.h + FRAME_CHROME.h + controls + practice) };
     },
     sample: () => ({
       id: crypto.randomUUID(),
@@ -987,6 +993,7 @@ function SceneActivityBody({ block, onChange, onAskScene, onAsk }) {
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       {block.spec.buildGoal && <p data-drag-zone className="mt-0.5 mb-2 cursor-grab text-xs text-ink-2 active:cursor-grabbing">{block.spec.buildGoal}</p>}
       <InteractiveScene block={block} onChange={onChange} onAsk={onAsk} />
+      <SceneActivity block={block} onChange={onChange} />
     </div>
   );
 }
@@ -1017,6 +1024,7 @@ function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onAsk }
       <div className="mt-2 flex min-h-0 flex-1 flex-col">
         <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onAsk={onAsk} />
       </div>
+      <SceneActivity block={block} onChange={onChange} />
     </div>
   );
 }
@@ -1544,7 +1552,7 @@ export function describeBlock(block) {
   if (block.type === 'flow') return { kind: 'Diagram', title: block.title, text: [`Laid-out diagram: ${block.title}`, `Nodes: ${block.spec.nodes.map(node => node.label).join(', ')}`, `Edges: ${block.spec.edges.map(edge => `${edge.source} -> ${edge.target}${edge.label ? ` (${edge.label})` : ''}`).join('; ')}`].join(NEWLINE) };
   if (block.type === 'mermaid') return { kind: 'Diagram', title: block.title, text: [`Mermaid diagram: ${block.title}`, block.code].join(NEWLINE) };
   if (block.type === 'knowledge') return { kind: 'Graph', title: block.title, text: [`Knowledge graph: ${block.title}`, `Nodes: ${block.graph.nodes.map(node => node.label).join(', ')}`, `Edges: ${block.graph.edges.map(edge => `${edge.source} ${edge.relation} ${edge.target}`).join('; ')}`, block.selected ? `Learner selected: ${block.selected.label}` : ''].join(NEWLINE) };
-  if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return { kind: 'Activity', title: block.title, text: [`Interactive activity: ${block.title}`, `Behaviour: ${block.spec.behaviorId} (${block.spec.execution.mode})`, block.spec.buildGoal ? `Build goal: ${block.spec.buildGoal}` : '', block.spec.checkGoal ? `Check goal: ${block.spec.checkGoal}` : '', block.selectedObject ? `Learner selected: ${block.selectedObject}` : '', `Activity state: ${JSON.stringify(sceneSummary(block))}`].join(NEWLINE) };
+  if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return { kind: 'Activity', title: block.title, text: [`Interactive activity: ${block.title}`, `Behaviour: ${block.spec.behaviorId} (${block.spec.execution.mode})`, block.spec.buildGoal ? `Build goal: ${block.spec.buildGoal}` : '', block.spec.checkGoal ? `Check goal: ${block.spec.checkGoal}` : '', block.selectedObject ? `Learner selected: ${block.selectedObject}` : '', `Activity state: ${JSON.stringify(sceneSummary(block))}`, describeActivity(block)].filter(Boolean).join(NEWLINE) };
   if (block.type === 'scene') return { kind: 'Blender scene', title: block.title, text: [`Generated 3D scene: ${block.title}`, block.brief || '', `Status: ${block.status}`, `Scene specification: ${JSON.stringify(block.operation)}`].join(NEWLINE) };
   if (block.type === 'model3d') return { kind: '3D model', title: block.title, text: [`3D model on the canvas: ${block.title}`, block.brief || '', `Model file: ${block.modelUrl}`, `Animation: ${block.animation?.autoplay ? 'playing' : 'paused'}${block.animation?.clipName ? ` (${block.animation.clipName})` : ''}`].join(NEWLINE) };
   if (block.type === 'image') return { kind: 'Image', title: block.title, text: [`Image on the canvas: ${block.title}`, block.alt || '', block.caption || '', `Source: ${block.src}`].join(NEWLINE) };

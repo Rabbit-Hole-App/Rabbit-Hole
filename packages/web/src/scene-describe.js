@@ -1,5 +1,6 @@
 import { getSceneState, validateScene } from './animation-scene.js';
 import { evaluateScene } from './scene-evaluate.js';
+import { describeActivity, revealHiddenInputs } from './scene-activity.js';
 
 // What the tutor is told about an animation. The canvas renders a VALIDATED
 // scene, so this must validate too: raw JSON leaves every default unapplied,
@@ -61,7 +62,10 @@ export function describeAnimation(block) {
   let problem = '';
   try {
     if (interactive) {
-      evaluated = evaluateScene(block.scene, block.time ?? 0, block.inputs);
+      // The same merged inputs the card renders with: the learner's raw
+      // values plus whatever commitment has revealed - so the payload can
+      // never show more, or less, than the screen does.
+      evaluated = evaluateScene(block.scene, block.time ?? 0, { ...(block.inputs || {}), ...revealHiddenInputs(block) });
       scene = evaluated.scene;
       state = evaluated.state;
     } else {
@@ -116,6 +120,7 @@ export function describeAnimation(block) {
           ? `Computed locally from the declared example data: ${JSON.stringify(Object.fromEntries([...referencedDerived].map(name => [name, sampleDeep(evaluated.derived[name])])))}`
           : '',
         'Execution: local calculation - the values above are derived mechanically from the scene’s declared example data, not from a model run.',
+        describeActivity(block),
       ] : []),
       concepts.length ? `Concepts: ${concepts.join(', ')}` : '',
       block.selectedObject ? `Selected object: ${block.selectedObject}` : '',

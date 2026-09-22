@@ -14,6 +14,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './animation-scene.js';
 import { applyInputToBlock, evaluateScene } from './scene-evaluate.js';
+import { revealHiddenInputs } from './scene-activity.js';
 import SceneControls from './SceneControls.jsx';
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { distributeRounding } from './scene-derive.js';
@@ -592,11 +593,14 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
   // A passive scene takes the old two-argument path verbatim.
   const interactive = Array.isArray(block.scene?.inputs) && block.scene.inputs.length > 0;
   const [evaluated, setEvaluated] = useState(null);
-  const inputsKey = interactive ? JSON.stringify(block.inputs || {}) : '';
+  // The learner's raw values plus whatever commitment has revealed (a hidden
+  // reveal latch is an activity fact, never a control) - one merged snapshot
+  // for rendering, checks and the composer context alike.
+  const inputsKey = interactive ? JSON.stringify([block.inputs || {}, revealHiddenInputs(block)]) : '';
   useEffect(() => {
     try {
       if (interactive) {
-        const result = evaluateScene(block.scene, 0, block.inputs);
+        const result = evaluateScene(block.scene, 0, { ...(block.inputs || {}), ...revealHiddenInputs(block) });
         setEvaluated(result);
         setScene(result.scene);
       } else {

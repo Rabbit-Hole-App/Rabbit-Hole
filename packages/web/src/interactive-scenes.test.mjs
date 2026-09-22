@@ -192,6 +192,31 @@ for (const inputs of [{}, { candidate: 'B' }, { candidate: 'C' }, { candidate: '
   });
 }
 
+// --- The four practice tasks ---------------------------------------------------
+
+test('all four activity definitions validate against the closed vocabulary', async () => {
+  const { validateActivity } = await import('./scene-activity.js');
+  const { attentionActivity, patchActivity, candidateActivity, projectionActivity } = await import('./interactive-scenes.js');
+  for (const activity of [attentionActivity, patchActivity, candidateActivity, projectionActivity]) validateActivity(activity);
+  // the facts the tasks grade against are the fixtures' own facts
+  assert.deepEqual(attentionActivity.expected, [0, 1, 2]);
+  assert.equal(patchActivity.expected, 9);
+  assert.equal(candidateActivity.expected, 'B');
+});
+
+test('I02 practice: expected index 9 IS row 3, column 2 in the fixture data itself', () => {
+  const { derived } = evaluatedPatch({ patchIndex: 9 });
+  assert.equal(derived.patch.human, 'Patch 10 of 16 · row 3, column 2');
+});
+
+test('I03 practice: the reveal input the activity grants is the hidden latch the scene gates on', async () => {
+  const { candidateActivity } = await import('./interactive-scenes.js');
+  const declaration = candidateFutureScene.inputs.find(input => input.name === candidateActivity.revealInput);
+  assert.equal(declaration.hidden, true);
+  assert.equal(declaration.type, 'bool');
+  assert.equal(declaration.default, false);
+});
+
 test('tokens list renaming still binds (anti-hardcoding: no shared code reads these words)', () => {
   const renamed = JSON.parse(JSON.stringify(attentionExplorerScene)
     .replaceAll('river', 'eins').replaceAll('flows', 'zwei').replaceAll('south', 'drei').replaceAll('today', 'vier'));
