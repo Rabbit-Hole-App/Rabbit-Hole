@@ -32,13 +32,16 @@ Windows have no fixed length. The model returns whatever tightly answers —
 
 Caption text is YouTube's content and storing it durably is a ToS grey zone.
 Embeddings are one-way — the text cannot be reconstructed — so what this
-system persists is derived numbers and coordinates, nothing quotable.
+system persists is derived numbers and coordinates, nothing quotable. That is
+**risk minimisation, not zero exposure**: derived representations do not by
+themselves settle contractual or copyright questions, they just remove the
+worst version of them (a durable store of YouTube's text).
 
-| stored durably | contains | ToS exposure |
+| stored durably | contains | exposure |
 | --- | --- | --- |
-| Vectorize | vectors + `{videoId, start, end}` metadata | none — numbers and timestamps |
-| R2 | a "no captions" marker per probed video | none — a boolean |
-| D1 | chosen moments: question, videoId, window, confidence, accepted | none — our own log |
+| Vectorize | vectors + `{videoId, start, end}` metadata | minimised — numbers and timestamps |
+| R2 | a caption-probe record per video (see negative cache below) | minimal — our own observation |
+| D1 | chosen moments: question, videoId, window, confidence, accepted | our own log |
 
 Caption text exists **only in flight**: fetched, embedded, shown to the model,
 gone. The standard 1-hour Cache API layer applies to the caption fetch itself —
@@ -62,19 +65,30 @@ COLD  never seen                         Exa + captions    ~10–20 s
 ### Cold — and every cold question warms the corpus
 
 1. `search_videos(question)` — Exa restricted to youtube.com (shipped).
-2. Fetch timed captions for up to 5 candidates, best-effort. YouTube serves
-   captions, including auto-generated ones, over plain HTTP; no Whisper, no
-   audio. A candidate without captions stays in the running on title alone.
-3. One model call reads all fetched transcripts with per-line timestamps and
-   picks **the video and its window together**, plus a confidence and a
-   one-line reason — the prototype's `answer.py` contract.
-4. `show_video(videoId, start, end)` travels back over SSE and lands on the
+2. Fetch timed captions for up to 5 candidates, best-effort. A candidate
+   without captions stays in the running on title alone.
+3. **Retrieve before reasoning.** Five transcripts can be five hour-long
+   lectures — tens of thousands of words a model would have to search as a
+   haystack. Instead: cut every transcript into 60 s windows (30 s stride),
+   score windows against the question, keep the **top ~10–20 across all
+   videos** with a per-video cap. In phase 2 the scorer is lexical — the
+   prototype's BM25 leg, stdlib, no bindings. Phase 3 swaps that one function
+   for bge-m3 similarity; nothing around it moves.
+4. One model call sees those passages together — each with timestamps, video
+   title and a few lines of surrounding context — and picks **the video and
+   its window jointly**, plus a confidence and a one-line reason: the
+   prototype's `answer.py` contract, over a pre-filtered field. The
+   single-decision principle survives; only the haystack shrinks.
+5. `show_video(videoId, start, end)` travels back over SSE and lands on the
    existing card (`insertVideo` already takes a moment). The chosen moment is
    written to the D1 log from day one — phase 4 only starts *reading* it.
-5. **In the background** (`ctx.waitUntil`, learner never waits): each fetched
-   transcript is cut into 60 s windows at 30 s stride, embedded with
-   `@cf/baai/bge-m3`, and upserted to Vectorize as `videoId:windowN` with
-   `{videoId, start, end}` metadata. The text is then discarded.
+6. **Indexing goes to a Queue, not `ctx.waitUntil`.** Five hour-long videos
+   are ~600 windows to embed and upsert; `waitUntil` grants ~30 seconds after
+   the response, and losing the work silently is exactly the failure a
+   flywheel cannot see. The cold answer enqueues `{videosToIndex}` and
+   returns; a Queue consumer (retries, up to 15-minute invocations) fetches,
+   cuts, batch-embeds with `@cf/baai/bge-m3`, and upserts to Vectorize. The
+   text is then discarded.
 
 The gate on `show_video` is the same bargain `show_paper` and `show_wikipedia`
 strike: only a video whose transcript was read this answer (or that arrived as
@@ -92,17 +106,24 @@ deleted only for videos whose transcript the model actually read.
    through to cold — the index does not cover this topic yet, and a mediocre
    indexed answer must never beat a fresh search. This threshold is the one
    knob that keeps the flywheel from making answers worse.
-4. Refetch captions for the top 2–3 videos; the model verifies, tightens the
-   window, answers.
+4. Refetch captions for the top 2–3 videos, but hand the model **excerpts,
+   not transcripts**: each candidate window plus ±30–60 s of surrounding
+   lines. That is enough to tighten retrieved 4:00–5:00 into final 4:12–5:38
+   without rereading a 90-minute lecture.
 
 ### Hot
 
-Before anything: embed the question and compare against the D1 moment log's
-accepted answers (their questions are embedded too, in the same index under a
-`question:` namespace). A strong match returns the logged moment immediately,
-with the model asked only to confirm fit. The log also becomes, for free, a
-growing gold set for `moment/eval/run_eval.py` and, later, "learners also
-watched".
+Not a D1 lookup — semantic search cannot come from D1. The actual path:
+
+```
+question → bge-m3 → Vectorize (question vectors, workspace-scoped)
+         → momentId → D1 moment record → confirm fit
+```
+
+So "hot" costs one embedding call, one vector query and usually one short
+model confirmation: **fast, not instant** — seconds, not the milliseconds a
+cache-hit table read would suggest. The log also becomes, for free, a growing
+gold set for `moment/eval/run_eval.py` and, later, "learners also watched".
 
 ## Chunking
 
@@ -113,13 +134,25 @@ video can be re-cut and re-upserted alone.
 
 ## Sharing and invalidation
 
-- The vector index and "no captions" markers are derived from public data:
-  **one global index, all workspaces**. The D1 moment log records learner
-  behaviour: **keyed per workspace**. (Stated default — flag if wrong.)
-- Captions are effectively immutable; nothing expires. A deleted video is
-  pruned when playback reports it gone, not on a schedule.
-- Every Vectorize row carries a `cut` version, so a chunking change re-indexes
-  incrementally, video by video.
+- Two kinds of vectors, deliberately not mixed. **Public video windows**:
+  derived from public data, one global namespace shared by every workspace.
+  **Accepted-question vectors**: derived from learner behaviour, stored in
+  workspace-scoped Vectorize namespaces (or a separate index) so one
+  workspace's history never shapes another's hot retrieval. The D1 moment log
+  is likewise keyed per workspace.
+- A transcript, once it exists, is effectively immutable. **Its absence is
+  not.** The negative cache is a record, never a verdict:
+  `{videoId, checkedAt, reason}` — a genuine no-captions probe retries after
+  weeks; a 429 or network failure retries within hours. A permanent "no
+  captions forever" marker would let one transient failure poison the corpus
+  for good.
+- A deleted video is pruned when playback reports it gone, not on a schedule.
+- Every Vectorize row carries `cut` (chunking version), `embeddingModel`,
+  `captionLanguage`, `captionKind` (manual/auto when known) and `indexedAt`.
+  `cut` makes a chunking change an incremental per-video re-index. The
+  embedding model is different: Vectorize indexes have fixed dimensions, so
+  replacing bge-m3 is a **new index and a planned migration**, not a metadata
+  bump — the field exists so the migration can tell old vectors from new.
 
 ## Failure is data
 
@@ -127,23 +160,36 @@ video can be re-cut and re-upserted alone.
 | --- | --- |
 | no captions on a candidate | recommend on title, no window, say contents unverified |
 | no captions anywhere | best video honestly, no window |
-| YouTube rate-limits the fetch | fall back to already-fetched candidates; say so |
+| YouTube rate-limits the fetch | fall back to already-fetched candidates; say so; short-TTL negative record |
 | Vectorize/Workers AI unavailable | warm path degrades to cold; cold path has no such dependency |
 | model window fails bounds | refuse the window, keep the video recommendation |
 
-The prototype's README warns that cloud IPs get rate-limited fetching
-captions. That is the one risk only a deployed worker can measure, and it is
-why the caption fetcher ships behind small concurrency with per-video Cache
-API absorption, and why phase 2's verification explicitly includes a live-dev
-measurement of caption fetch success rate.
+### Caption acquisition is an experimental provider, not a platform fact
+
+There is no supported public API for downloading arbitrary videos' captions:
+the official Data API's `captions.download` requires edit permission on the
+video. Fetching timed text therefore rides an undocumented endpoint that may
+be rate-limited, blocked from cloud IPs, or changed without notice — the
+prototype's README warns about exactly this, and it deserves its own terms
+review.
+
+So it is a **go/no-go gate, not a verification item**: phase 2 *begins* with a
+tiny deployed worker probing 50–100 representative educational videos —
+has captions? fetch succeeds from Cloudflare? timed lines parse? auto vs
+manual? latency? 429/blocking rate? — before anything else is built. If that
+probe fails badly, the architecture changes (Whisper via Workers AI moves from
+"deliberately not included" to the acquisition path, at real cost per video).
+The caption fetcher itself is isolated behind one module boundary so a
+provider change replaces a file, not the pipeline.
 
 ## Phases — each ships alone
 
 | phase | delivers | new platform surface |
 | --- | --- | --- |
-| **2** | cold path: captions → one model call → `show_video` over SSE onto the existing card | none — HTTP fetches and the existing loop |
-| **3** | flywheel: background embedding + Vectorize, warm path with recall check | **Vectorize index + Workers AI binding** on small-cp |
-| **4** | hot path: question-embedding lookup over the D1 moment log; self-growing gold set | none — the table exists from phase 2 |
+| **2a** | the go/no-go gate: deployed caption probe over 50–100 eval videos | a throwaway probe worker |
+| **2** | cold path: captions → lexical window retrieval → one model call over passages → `show_video` | none beyond 2a — HTTP fetches and the existing loop |
+| **3** | flywheel: Queue-consumer indexing, bge-m3 retrieval, warm path with recall check | **Vectorize index + Workers AI binding + Queue** on small-cp |
+| **4** | hot path: question vectors (workspace namespace) → D1 moment record | none — the table exists from phase 2 |
 
 Phase 3's bindings are shared live state across every worktree — creating the
 index and adding bindings is a deploy-coordination event of the same class as
