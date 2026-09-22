@@ -437,6 +437,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     const canvasImage = !isDemo ? boardContext?.preview : null;
     const questionPaper = boardContext?.paper;
     const questionWiki = boardContext?.wiki;
+    const questionVideo = boardContext?.video;
     const questionOutline = boardContext?.outline?.();
     if (!isDemo) boardContext?.removeImage();
     const target = canvasTarget; // selected lesson block riding as context
@@ -471,6 +472,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         // One reader holds one thing, so an open paper is what rides; a detached
         // wiki source arrives here as null and the key is simply absent.
         ...(!target?.paper && !questionPaper && questionWiki?.title ? { wiki_context: { title: questionWiki.title, section: questionWiki.section || 0, ...(questionWiki.selection ? { selection: questionWiki.selection } : {}) } } : {}),
+        // A video card is the quietest context: any open reader outranks it.
+        ...(!target?.paper && !questionPaper && !questionWiki?.title && questionVideo?.videoId ? { video_context: { videoId: questionVideo.videoId, start: questionVideo.start || 0, ...(questionVideo.end != null ? { end: questionVideo.end } : {}), ...(questionVideo.title ? { title: questionVideo.title } : {}) } } : {}),
         scope: scopeOverride || scope,
         ...(repository && repositoryContext ? { repository_context: { ...repositoryContext, commit: sourceRange?.commit || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
         message: target ? `Question about this ${target.kind} block on the lesson canvas:\n${target.text}\n\nLearner question: ${message}` : passage ? `Question about this previous answer passage:\n${passage.text}\n\nLearner question: ${message}` : message,

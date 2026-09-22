@@ -55,6 +55,10 @@ await page.route('**/api/**', async route => {
 });
 // Make the stub article tall enough that scrolling to a section is a real move.
 await page.addStyleTag; // no-op guard for older versions
+// The fixture image must not reach the real network: whether and when it
+// fails decides when the article reflows, and a reflow racing an assertion
+// made this check flaky.
+await page.route('**upload.wikimedia.org/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64') }));
 page.on('pageerror', error => console.log('PAGEERROR:', error.message));
 
 let failed = 0;
@@ -154,8 +158,9 @@ ok('a question carries the article being read', asks.at(-1)?.wiki_context?.title
 sse = `event: delta\ndata: {"text":"Look at the history."}\n\nevent: wiki\ndata: ${JSON.stringify({ lang: 'en', title: 'Machine_learning', displayTitle: 'Machine learning', section: 1, sectionTitle: 'History', url: 'https://en.wikipedia.org/wiki/Machine_learning' })}\n\nevent: done\ndata: {}\n\n`;
 await page.getByPlaceholder(/Ask about/).first().fill('when did this start?');
 await page.keyboard.press('Enter');
-// The tint removes itself when its 2s animation ends, so look while it lives.
-await page.waitForTimeout(1200);
+// The tint removes itself when its 2s animation ends, so look early in its
+// life - at 1.2s a slow run sometimes arrived after the animation was over.
+await page.waitForTimeout(600);
 ok('the tutor can open an article at a section', await page.evaluate(() => {
   const root = [...document.querySelectorAll('.wiki-article')].find(node => node.scrollTop > 0);
   if (!root) return false;

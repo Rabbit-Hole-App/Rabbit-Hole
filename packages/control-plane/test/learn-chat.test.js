@@ -3,6 +3,7 @@ import { canvasSeed } from '../src/canvas-conversation.js';
 import { arxivId, paperDocument } from '../src/arxiv.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from '../src/learn-outline-tool.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, wikiTitle, validateShowWikipedia } from '../src/learn-wiki.js';
+import { validateVideoContext } from '../src/learn-youtube.js';
 import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT } from '../src/learn-paper.js';
 import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { captureSelection, selectionSnapshot, sigmoidObjects } from '../../web/src/sigmoid-context.js';
@@ -47,6 +48,7 @@ const deps = {
   OUTLINE_SYSTEM,
   validateOutlineOps,
   canvasSeed,
+  validateVideoContext,
   SEARCH_WIKIPEDIA_TOOL,
   READ_WIKIPEDIA_TOOL,
   SHOW_WIKIPEDIA_TOOL,
@@ -510,6 +512,67 @@ test('a malformed Wikipedia context is refused before anything is fetched', asyn
 test('Wikipedia context outside Learn is refused; it is a Learn idea', async t => {
   const env = fixture(t);
   const body = { scope: { app: 'counter' }, message: 'hi', wiki_context: { title: 'Machine_learning', section: 0 } };
+  assert.equal((await handlers.apiAsk(request(body), env, {}, owner, 'agent')).status, 400);
+  assert.equal(env.answers.length, 0);
+});
+
+
+// --- YouTube moments (phase 1: display only, no transcript) ---
+
+test('a video the learner is watching reaches the model as a window, not a transcript', async t => {
+  const env = fixture(t);
+  const video_context = { videoId: 'Ilg3gGewQ5U', start: 252, end: 338, title: 'Backpropagation, intuitively' };
+  assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'what is he showing here?', video_context }), env, {}, owner, 'learn')).status, 200);
+  const context = JSON.parse(env.answers[0].context);
+  assert.equal(context.video.title, 'Backpropagation, intuitively');
+  assert.equal(context.video.window, '4:12 to 5:38');
+  assert.match(context.video.url, /watch\?v=Ilg3gGewQ5U&t=252s/);
+  assert.match(context.instruction, /have no transcript.*never invent quotes/);
+  assert.equal(env.answers[0].toolOpts, null, 'watching a video is not a reason to gain app actions');
+});
+
+test('a reader outranks a video card: paper context wins when both ride', async t => {
+  const env = fixture(t);
+  const body = {
+    scope: { app: 'counter' }, message: 'hi',
+    paper_context: { id: '1706.03762', page: 2 },
+    video_context: { videoId: 'Ilg3gGewQ5U', start: 0 },
+  };
+  assert.equal((await handlers.apiAsk(request(body), env, {}, owner, 'learn')).status, 200);
+  const context = JSON.parse(env.answers[0].context);
+  assert.equal(context.video, undefined, 'one context at a time');
+  assert.ok(context.paper);
+});
+
+test('an open article also outranks a video card', async t => {
+  const env = fixture(t);
+  const body = {
+    scope: { app: 'counter' }, message: 'hi',
+    wiki_context: { title: 'Machine_learning', section: 1 },
+    video_context: { videoId: 'Ilg3gGewQ5U', start: 0 },
+  };
+  assert.equal((await handlers.apiAsk(request(body), env, {}, owner, 'learn')).status, 200);
+  const context = JSON.parse(env.answers[0].context);
+  assert.equal(context.video, undefined, 'one context at a time');
+  assert.equal(context.article.title, 'Machine learning');
+});
+
+test('a malformed video context is refused before anything is sent', async t => {
+  const env = fixture(t);
+  for (const video_context of [
+    { videoId: 'nope' },
+    { videoId: 'Ilg3gGewQ5U', start: 90, end: 10 },
+    { videoId: 'https://evil.example/watch?v=Ilg3gGewQ5U' },
+    null,
+  ]) {
+    assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', video_context }), env, {}, owner, 'learn')).status, 400, JSON.stringify(video_context));
+  }
+  assert.equal(env.answers.length, 0);
+});
+
+test('video context outside Learn is refused; it is a Learn idea', async t => {
+  const env = fixture(t);
+  const body = { scope: { app: 'counter' }, message: 'hi', video_context: { videoId: 'Ilg3gGewQ5U', start: 0 } };
   assert.equal((await handlers.apiAsk(request(body), env, {}, owner, 'agent')).status, 400);
   assert.equal(env.answers.length, 0);
 });

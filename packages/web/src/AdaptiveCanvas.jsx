@@ -12,6 +12,7 @@ import { pageRects, PAGE_W } from './learn-pages.js';
 import { outlineFrom, applyOutlineOps } from './learn-outline-model.js';
 import { cachedAsset } from './learn-asset-cache.js';
 import LearnWiki from './LearnWiki.jsx';
+import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
@@ -301,6 +302,69 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
   );
 }
 
+// A YouTube moment on the canvas: the embed starts at `start` and stops at
+// `end`, because the window rides the URL and playback enforces it. YouTube's
+// own scrubber is cross-origin and cannot be drawn on, so the moment is shown
+// on our bar underneath - and clicking that bar reloads the embed there.
+function VideoCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onSnap, onWatch }) {
+  // Where playback was sent, not persisted: a seek is a glance, and writing it
+  // through onChange would spend an undo step per click on the bar. The counter
+  // keys the iframe, so seeking to the second you already named still reloads -
+  // playback has moved on even when the number has not.
+  const [playFrom, setPlayFrom] = useState(null);
+  const start = playFrom?.at ?? block.start ?? 0;
+  const inMoment = playFrom == null || (playFrom.at >= (block.start || 0) && (block.end == null || playFrom.at < block.end));
+  const playEnd = inMoment ? block.end ?? null : null;
+  const geometry = momentGeometry(block.start || 0, block.end ?? null, block.duration ?? null);
+  const bar = event => {
+    const box = event.currentTarget.getBoundingClientRect();
+    const at = seekTo((event.clientX - box.left) / box.width, block.start || 0, block.end ?? null, block.duration ?? null);
+    setPlayFrom(previous => ({ at, n: (previous?.n || 0) + 1 }));
+    // The whole identity, so the page can rebuild context for a card it has
+    // never met - one restored from storage, or the second card on a canvas.
+    // `end` is what playback will actually do, not a guess: inside the moment
+    // the player still stops at the block's end.
+    const stillIn = at >= (block.start || 0) && (block.end == null || at < block.end);
+    onWatch?.({ id: block.id, videoId: block.videoId, title: block.title, start: at, end: stillIn ? block.end ?? null : null });
+  };
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
+      connected={connected} width={COLUMN} height={block.h || 420} autoMax={undefined} saved={{ w: block.w, h: block.h }}
+      onSize={(id, w, h) => onChange({ ...block, w, h })}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
+        <span className="h-1.5 w-1.5 rounded-full bg-ink" />Video<span className="truncate normal-case tracking-normal text-ink-3">{block.title}</span>
+      </div>
+      {/* Same bargain as PdfCard: the player ignores the pointer until the
+          card is selected, so canvas keys and drags stay alive. */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl border-t border-line"
+        onPointerDown={event => { if (selected) event.stopPropagation(); }}>
+        {embedUrl(block.videoId, start, playEnd)
+          ? <iframe key={playFrom ? `seek-${playFrom.n}` : 'moment'} src={embedUrl(block.videoId, start, playEnd)}
+              title={block.title || 'Video'} allow="encrypted-media; picture-in-picture; fullscreen"
+              className={`min-h-0 w-full flex-1 ${selected ? '' : 'pointer-events-none'}`} />
+          : <p className="p-4 text-sm text-ink-2">This card does not name a YouTube video. Delete it and add the video again from Sources.</p>}
+        <div className="shrink-0 px-3 py-2">
+          <div role="slider" aria-label="Video timeline" tabIndex={0}
+            aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(geometry.left * 100)}
+            aria-valuetext={`Moment ${clock(block.start || 0)}${block.end != null ? ` to ${clock(block.end)}` : ''}`}
+            onPointerDown={event => { event.stopPropagation(); bar(event); }}
+            className="relative h-2 cursor-pointer rounded-full bg-hover">
+            <div data-moment className="absolute inset-y-0 rounded-full bg-accent/60"
+              style={{ left: `${geometry.left * 100}%`, width: `${geometry.width * 100}%` }} />
+          </div>
+          <div className="mt-1 flex justify-between text-[11px] tabular-nums text-ink-3">
+            <span>{clock(block.start || 0)}{block.end != null ? ` → ${clock(block.end)}` : ''}</span>
+            {/* No total when the duration is unknown - a guessed length would
+                read as a fact about the video. */}
+            <span>{geometry.known ? clock(block.duration) : ''}</span>
+          </div>
+        </div>
+      </div>
+    </CanvasNode>
+  );
+}
+
 // An article on the canvas. Unlike PdfCard this is not an iframe: the markup is
 // sanitized and rendered in our own document, so canvas keys keep working while
 // it has focus and the card can say which section is on screen.
@@ -331,7 +395,8 @@ function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove,
   );
 }
 
-function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade, onWiki }) {
+function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade, onWiki, onWatch }) {
+  if (block.type === 'video') return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
@@ -648,7 +713,7 @@ function ToolButton({ Icon, label, active, onPick }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null }) {
   const [tool, setTool] = useState('select');
   const [insertOpen, setInsertOpen] = useState(false); // dev-only lesson-block workbench menu
   const [insertFilter, setInsertFilter] = useState('');
@@ -794,6 +859,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         snapshot();
         const id = crypto.randomUUID();
         setBlocks(previous => [...previous, { id, type: 'wiki', dx: 0, dy: 0, title, section }]);
+        return id;
+      },
+      insertVideo: ({ videoId, title, channel = null, start = 0, end = null }) => {
+        const existing = blocksRef.current.find(block => block.type === 'video' && block.videoId === videoId);
+        if (existing) return existing.id;
+        snapshot();
+        const id = crypto.randomUUID();
+        setBlocks(previous => [...previous, { id, type: 'video', dx: 0, dy: 0, videoId, title, channel, start, end }]);
         return id;
       },
       toggleGrid: () => setGrid(previous => !previous),
@@ -1526,7 +1599,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         </svg>
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
           {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />)}
-          {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} />)}
+          {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} />)}
         </div>
         {presenting === null && activeGap && <GapRail gap={activeGap} zoom={view.z} span={railSpan} space={blocks.find(block => block.id === activeGap.beforeId)?.space || 0} onNudge={nudgeGap}
           adding={gapAdding} onAdding={setGapAdding} onAddHeading={insertHeadingAt} />}

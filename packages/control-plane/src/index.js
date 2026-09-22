@@ -5,6 +5,7 @@ import { paperSelectionImage } from './learn-preview-review.js';
 import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, searchWikipedia, readWikipedia, validateShowWikipedia, wikiTitle } from './learn-wiki.js';
+import { validateVideoContext } from './learn-youtube.js';
 import { handleLearnCourse } from './learn-course.js';
 // small control plane: CLI API + browser auth wall + router. One Worker + D1.
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
@@ -1032,6 +1033,15 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent') {
       if (body.wiki_context.selection !== undefined && (typeof body.wiki_context.selection !== 'string' || body.wiki_context.selection.length > 2000)) throw new Error('Invalid selection');
     } catch { return json({ error: 'Invalid Learn Wikipedia context' }, 400); }
   }
+  // What the learner is watching. No transcript in phase 1, so this is the
+  // window on screen, not evidence - the instruction below says as much.
+  let videoContext = null;
+  if (body.video_context !== undefined) {
+    try {
+      if (conversation !== 'learn') throw new Error('Video is a Learn idea');
+      videoContext = validateVideoContext(body.video_context);
+    } catch { return json({ error: 'Invalid Learn video context' }, 400); }
+  }
   if (conversation === 'learn' && (!scope?.app || scope.run)) return json({ error: 'Learn requires an app scope' }, 400);
   if (!message || typeof message !== 'string' || message.length > 4000) return json({ error: 'message required (max 4000 chars)' }, 400);
   // sources picker (Notion "My sources"): only the toggled context rides; model from the allowlist
@@ -1118,6 +1128,17 @@ ${renderOutline(body.outline)}`;
       });
       canAct = false;
     } catch (error) { return json({ error: 'Could not read that Wikipedia article. Try again.' }, 502); }
+  }
+  // One context at a time, and a reader outranks a card: paper, then article,
+  // then the video card the learner is watching.
+  if (videoContext && !body.paper_context && !body.wiki_context) {
+    const seconds = value => `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}`;
+    context = JSON.stringify({
+      lesson: context,
+      video: { title: videoContext.title, url: `https://www.youtube.com/watch?v=${videoContext.videoId}${videoContext.start ? `&t=${videoContext.start}s` : ''}`, window: `${seconds(videoContext.start)}${videoContext.end != null ? ` to ${seconds(videoContext.end)}` : ''}` },
+      instruction: 'The learner is watching this YouTube video at this window. You have NOT seen the video and have no transcript: never invent quotes or claim to know what is said in it. Answer from your own knowledge of the topic, name the video when referring to it, and say plainly when knowing its actual contents would change the answer.',
+    });
+    canAct = false;
   }
   // thread per scope and user; follow-ups ride the same thread
   let threadId = thread_id || null;

@@ -15,6 +15,7 @@ import ContentsRail from './ContentsRail.jsx';
 import CanvasMenubar from './CanvasMenubar.jsx';
 import PaperSearch from './PaperSearch.jsx';
 import WikiSearch from './WikiSearch.jsx';
+import VideoSearch from './VideoSearch.jsx';
 import LearnWiki from './LearnWiki.jsx';
 import { contentsEntries } from './learn-contents.js';
 import { withSource, toggleSource, isAttached } from './learn-sources.js';
@@ -85,6 +86,8 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const [proposal, setProposal] = useState(null);
   const [paperSearchOpen, setPaperSearchOpen] = useState(false);
   const [wikiSearchOpen, setWikiSearchOpen] = useState(false);
+  const [videoSearchOpen, setVideoSearchOpen] = useState(false);
+  const [videoContext, setVideoContext] = useState(null);
   const [wikiOpen, setWikiOpen] = useState(false);
   // Bumped only by an explicit open, so the reader can tell "go to this section"
   // apart from "you are now looking at this section".
@@ -170,6 +173,23 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     return () => clearTimeout(timer);
   }, [sources, canvasKey]);
   const registerSource = useCallback(source => setSources(previous => withSource(previous, source)), []);
+  // A video is a card only - there is no video reader panel; the embed IS the
+  // display. Adding one makes it what the next question is about.
+  const addVideo = video => {
+    pauseLesson();
+    const blockId = canvas()?.insertVideo(video);
+    if (blockId) {
+      registerSource({ id: `video:${blockId}`, kind: 'video', label: video.title });
+      setVideoContext({ blockId, videoId: video.videoId, start: video.start || 0, end: video.end ?? null, title: video.title });
+    }
+  };
+  // A seek on a card's window bar moves what "here" means for the next
+  // question. Built from the event alone, never from previous state: the card
+  // may have been restored from storage or be the second one on the canvas,
+  // and either way the one the learner just touched is the one they mean.
+  const watchVideo = ({ id, videoId, title, start, end }) =>
+    setVideoContext({ blockId: id, videoId, title, start, end: end ?? null });
+  const videoAttached = !videoContext?.blockId || isAttached(sources, `video:${videoContext.blockId}`);
   // Every article on the canvas is a card, whoever brought it - the picker and
   // the tutor's show_wikipedia take this same road, so there is one shape to
   // reason about and one place a source is registered.
@@ -452,6 +472,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     // Detaching the source is a context switch, not a deletion: the card stays
     // on the canvas and the reader stays open, the tutor just stops being told.
     wiki: wikiAttached ? wikiContext : null,
+    video: videoAttached ? videoContext : null,
     onShowWiki: article => openWiki(article),
     // Read at send time, so a question always carries the outline as it is now.
     outline: () => canvasStateRef.current.outline || [],
@@ -659,6 +680,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         { label: 'arXiv paper…', onSelect: () => setPaperSearchOpen(true) },
         { label: 'PDF…', onSelect: () => pdfPicker.current?.click() },
         { label: 'Wikipedia article…', onSelect: () => setWikiSearchOpen(true) },
+        { label: 'YouTube video…', onSelect: () => setVideoSearchOpen(true) },
         { label: 'Google Slides…', onSelect: () => toast('Connect Google under Settings → Connections to import a deck.') },
       ],
     },
@@ -737,6 +759,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           <CanvasMenubar menus={canvasMenus} />
           {paperSearchOpen && <PaperSearch app={app.name} onPick={openPaper} onClose={() => setPaperSearchOpen(false)} />}
           {wikiSearchOpen && <WikiSearch app={app.name} onPick={page => openWiki({ title: page.title })} onClose={() => setWikiSearchOpen(false)} />}
+          {videoSearchOpen && <VideoSearch app={app.name} onPick={video => addVideo(video)} onClose={() => setVideoSearchOpen(false)} />}
           {/* The two things you reach for without opening a menu, so they sit in
               the strip rather than inside one. */}
           <div className="flex items-center gap-0.5">
@@ -763,7 +786,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
-        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onState={onCanvasState} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly boardContext={boardContext} onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
+        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onState={onCanvasState} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly boardContext={boardContext} onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">

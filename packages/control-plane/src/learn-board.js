@@ -3,6 +3,7 @@ import { TEACHING_POLICY, validateTeachingHistory } from './learn-teaching.js';
 import { SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, arxivId, searchArxiv, readArxivPaper, paperDocument, fetchArxivPdf } from './arxiv.js';
 import { isUploadedPaperId, putUploadedPaper, readUploadedPaper, paperIdentity } from './learn-paper.js';
 import { fetchWikipediaArticle, searchWikipediaTitles } from './learn-wiki.js';
+import { searchYouTube } from './learn-youtube.js';
 import { validateToolInput } from './learn-validation.js';
 import { VIDEO_SCHEMA, validateVideo } from './learn-video-schema.js';
 import { THREE_D_SCHEMA, validateThreeD } from './learn-three-d-schema.js';
@@ -384,6 +385,17 @@ export async function paperSearch(req, env) {
   // A pasted id or link is not a search: answer with that one paper.
   try { return Response.json({ papers: [await readArxivPaper(query)] }); } catch { /* not an id, search for it */ }
   try { return Response.json({ papers: await searchArxiv(query) }); }
+  catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
+}
+
+// Video discovery: one Exa call restricted to youtube.com, semantic, so a
+// question finds the video that answers it. The key stays a worker secret.
+export async function youtubeSearch(req, env) {
+  if (req.method !== 'GET') return Response.json({ error: 'GET required' }, { status: 405 });
+  const url = new URL(req.url);
+  const access = await authorizedBoardApp(req, env, url.searchParams.get('app'));
+  if (access instanceof Response) return access;
+  try { return Response.json({ videos: await searchYouTube((url.searchParams.get('q') || '').trim(), env) }); }
   catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
 }
 
