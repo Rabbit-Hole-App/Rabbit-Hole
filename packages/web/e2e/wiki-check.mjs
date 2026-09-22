@@ -76,7 +76,7 @@ await page.waitForTimeout(3000);
 
 // --- the learner adds one ---
 ok('no article on the canvas to begin with', (await card.count()) === 0);
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Sources/ }).click();
+await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).click();
 await page.waitForTimeout(250);
 await page.getByRole('menuitem', { name: /Wikipedia article/ }).click();
 await page.waitForTimeout(300);

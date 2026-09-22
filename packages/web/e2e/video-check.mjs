@@ -41,7 +41,7 @@ await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 30000 });
 await page.waitForTimeout(3000);
 
 // --- picking one ---
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Sources/ }).click();
+await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).click();
 await page.waitForTimeout(250);
 await page.getByRole('menuitem', { name: /YouTube video/ }).click();
 await page.waitForTimeout(300);
@@ -77,7 +77,7 @@ const sent = asks.at(-1)?.video_context;
 ok('a question carries the video and where the learner is in it', sent?.videoId === 'Ilg3gGewQ5U' && sent?.start > 0, JSON.stringify(sent));
 
 // --- detaching stops it ---
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Sources/ }).click();
+await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).click();
 await page.waitForTimeout(250);
 await page.getByRole('menuitem', { name: /Backpropagation, intuitively/ }).click();
 await page.waitForTimeout(300);

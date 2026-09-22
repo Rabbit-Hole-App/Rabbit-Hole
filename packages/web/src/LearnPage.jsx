@@ -712,7 +712,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   };
   const canvasMenus = [
     {
-      title: 'Sources',
+      title: 'Files',
       items: [
         // A tick is not provenance, it is whether the agent is given this when
         // it answers. Detaching takes nothing off the canvas.
@@ -806,10 +806,10 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             title, the menubar, and the three one-press actions. No page
             heading, no rule underneath - the canvas has no boundary. */}
         {!canvasState.presenting && <div className="relative flex shrink-0 items-center justify-center gap-1 px-3 pt-3 pb-1">
-          <input aria-label="Canvas title" value={canvasTitle} placeholder={courseTitle || app.repo || app.name}
+          <input aria-label="Canvas title" title="Rename this canvas" value={canvasTitle} placeholder={courseTitle || app.repo || app.name}
             onChange={event => setCanvasTitle(event.target.value)} onBlur={event => saveTitle(event.target.value)}
             onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
-            className="h-8 min-w-16 max-w-96 shrink truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none [field-sizing:content] placeholder:text-ink-2 hover:border-line focus:border-line" />
+            className="h-8 min-w-16 max-w-96 shrink cursor-text truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none [field-sizing:content] placeholder:text-ink-2 hover:border-line focus:border-line" />
           <CanvasMenubar menus={canvasMenus} />
           {paperSearchOpen && <PaperSearch app={app.name} onPick={openPaper} onClose={() => setPaperSearchOpen(false)} />}
           {wikiSearchOpen && <WikiSearch app={app.name} onPick={page => openWiki({ title: page.title })} onClose={() => setWikiSearchOpen(false)} />}
