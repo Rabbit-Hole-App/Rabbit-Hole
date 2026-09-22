@@ -1,0 +1,116 @@
+{
+  "cases": {
+    "i01-attention-explorer": {
+      "scores": {
+        "discoverability": 5,
+        "consequence": 5,
+        "continuity": 4,
+        "recovery": 5,
+        "feedback": 5,
+        "composer": 5
+      },
+      "grounds": {
+        "discoverability": "A labelled control bar (Query token chips, a Causal mask toggle showing On/Off, Reset experiment, Ask about this) plus the in-scene hint 'click a token to change the query' makes every control self-explanatory.",
+        "consequence": "Every input change is visibly and correctly propagated - I recomputed the softmax by hand and the screenshots show masked cells filling with the exact scaled scores (.71/.00/-.71), the ~0.109 future-weight bar appearing on mask-off, and output moving (0.75,0.75)->(0.56,0.67).",
+        "continuity": "Inputs are discrete (chips and a toggle), so continuous intermediates are not applicable; every transition endpoint is oracle-asserted, but temporal smoothness itself is unassessed as the packet's README concedes.",
+        "recovery": "Reset-to-defaults, reload-preserves-effective-state, and mask-restored (row back to [.248,.248,.503,blank]) are all evidenced by passed assertions and the i01-mask-restored screenshot, and q3 is documented as a control case so a no-op toggle there is honest.",
+        "feedback": "Practice shows an explanatory pass message, a not-ready reason ('Select at least one position first'), and an append-only '2 committed attempts' count in the screenshot.",
+        "composer": "Passed assertions state the payload carries query word+index, mask state, revision and inspected cell, the draft survives, nothing auto-sends, and in-flight sends are frozen against later changes."
+      },
+      "notAssessable": [
+        "Actual composer payload bytes - only the passed-assertion lines are archived, not the payload itself",
+        "Temporal smoothness as a subjective quality (screenshots and endpoint assertions cannot carry it)",
+        "The e2e scripts themselves (untracked by repo policy; only their output is in the packet)"
+      ],
+      "hardFailures": []
+    },
+    "i02-image-patch-explorer": {
+      "scores": {
+        "discoverability": 5,
+        "consequence": 5,
+        "continuity": 4,
+        "recovery": 5,
+        "feedback": 5,
+        "composer": 5
+      },
+      "grounds": {
+        "discoverability": "The Patch slider with '6 of 16' readout, Previous/Next steppers, and the on-image label '16 fixed-size patches - click one' make all three input routes obvious.",
+        "consequence": "Caption, slider readout, grid highlight and crop all follow one patchIndex (patch-5 crop {0.25,0.25,0.25,0.25} matches my row-major arithmetic and the crop pixels genuinely show that region of the dog photo), and in the refreshed capture the linked token-chip highlight is clearly visible in both themes (the selected chip enlarges and its fill inverts against its neighbours).",
+        "continuity": "Stepper/slider/keyboard transitions and both non-wrapping bounds are asserted step by step; between-detent intermediate feedback is not applicable for a discrete data-slice slider.",
+        "recovery": "Reset + reload preserving effective state, disabled steppers at both ends, and zero tutor/model/image requests during exploration are all covered by passed assertions.",
+        "feedback": "Practice feedback is clear and correct (fail on 6, pass on 10, '2 committed attempts'), and the repaired '16 patches as a token sequence' strip is now fully inside the card with legible chip digits in both themes.",
+        "composer": "The passed assertion records the payload carrying 'Patch = 11 of 16 (index 10)' - human label and index in parity with the visible state - with the shared composer contract (draft preserved, no auto-send, retarget, deleted-target warning) also green."
+      },
+      "notAssessable": [
+        "Actual composer payload bytes - only passed-assertion lines are archived",
+        "Practice block readability in dark theme (practice screenshots exist only in light)"
+      ],
+      "hardFailures": []
+    },
+    "i03-candidate-future-explorer": {
+      "scores": {
+        "discoverability": 5,
+        "consequence": 5,
+        "continuity": 4,
+        "recovery": 5,
+        "feedback": 5,
+        "composer": 5
+      },
+      "grounds": {
+        "discoverability": "Three labelled Path A/B/C chips, Reset experiment and Ask about this sit in one control bar, and the caption plus 'cost: squared distance - shown after commit' label explain what inspecting and committing will do.",
+        "consequence": "Choosing C visibly moves the inspection ring and rewrites the caption to 'ends at (0,3), displacement (0,3)', and the revealed bars are proportional to the costs 4/1/9 that I re-derived as squared distances from the goal.",
+        "continuity": "The input is a discrete choice so continuous intermediates are not applicable; the commit->reveal ordering is temporally evidenced (pre-commit shownCosts [null,null,null], post-commit [4,1,9], and the dark screenshot shows blank bars pre-reveal).",
+        "recovery": "Reset-to-path-A is asserted, attempts and feedback surviving reload are asserted in the shared t09 run, and the committed A is asserted never rewritten.",
+        "feedback": "The card carries an explicit provenance note ('a toy prediction over declared example data - an example result, not an observed outcome'), the gate is labelled 'shown after commit', and pass/fail texts explain why B is cheapest.",
+        "composer": "Pre-commit payload carrying nulls (no cost leak) and post-commit payload carrying the derived 4/1/9 are both passed assertions, matching exactly what the learner sees at each moment."
+      },
+      "notAssessable": [
+        "Actual composer payload bytes - only passed-assertion lines are archived",
+        "Bar-height exactness beyond visual proportion (no numeric labels on the revealed bars in the screenshots)"
+      ],
+      "hardFailures": []
+    },
+    "i04-vector-projection": {
+      "scores": {
+        "discoverability": 5,
+        "consequence": 5,
+        "continuity": 5,
+        "recovery": 5,
+        "feedback": 5,
+        "composer": 5
+      },
+      "grounds": {
+        "discoverability": "The subtitle 'Drag a vector or its axis - or type coordinates - and watch the projection recompute live', visible circular drag handles on both vectors, paired number inputs, and a '1 / 1 projection defined' status make every entry point plain.",
+        "consequence": "The readout 'proj_b(a) = 1.5 · b = (3, 0) · a·b = 6' matches my hand computation of (a·b/|b|^2)b at every snapshot, and the mid-drag screenshot shows the number inputs and readout tracking the gesture live at a=(0,2).",
+        "continuity": "This is the one card with real continuous evidence: the passed assertion records 5 distinct intermediate projections during the drag plus a zoomed-drag landing at world (1,1), so intermediate feedback is real, though the five values themselves are not enumerated in the packet.",
+        "recovery": "Escape restoring committed coordinates, outside-release clamping to +5, the '-' edit buffer never becoming NaN, typed 12 clamping to 5, zero-axis not-ready recovering on edit, and reset+reload are all passed assertions with the zero-axis state also shown in pixels.",
+        "feedback": "The zero-axis state shows the exact explanatory reason in red ('The projection axis has zero length, so it has no direction') with the gate reading '0 / 1 projection defined', and the provenance line 'Calculated here from the values you set' is honest.",
+        "composer": "The passed assertion records the Ask payload carrying the just-dragged vector, on top of the shared composer contract run."
+      },
+      "notAssessable": [
+        "The five intermediate projection values themselves (asserted in-browser but not enumerated in the packet)",
+        "Actual composer payload bytes - only passed-assertion lines are archived",
+        "The zero-axis screenshot shows a=(5,3) while observed-states records the zero-axis snapshot at a=(1,1); different capture moments, so the exact screenshot state is not cross-checkable against observed-states"
+      ],
+      "hardFailures": []
+    }
+  },
+  "crossCard": {
+    "hardFailures": [],
+    "observations": [
+      "All four run-manifests share the identical rendererHash (29f3d15d... in the refreshed 2026-09-22 capture; 11ed0a2d... in round 1), which is packet-level evidence for one shared renderer and against scene-specific or lesson-title branching; nothing in any scene-spec, trace or screenshot suggests lesson-specific runtime behavior.",
+      "Every observed value I could recompute (softmax weights and outputs at 5 snapshots, 3 squared-distance costs, 3 projection states, 4 crop rectangles) matches its oracle; the i01 seam that rounds each named stage to 3 decimals before the weighted sum (0.248+0.503=0.751 vs exact 0.7517) is declared in expected-states and within its stated 2e-3 tolerance, so it is not a math failure.",
+      "Provenance is honest but limited: capture ran on local-vite-dev with 4 dirty tracked files, and the manifests themselves defer deployed-build + seed verification to a T12 handoff, so this packet proves the dev build only.",
+      "Composer, board-immutability, persistence and practice-immutability guarantees rest on archived passed-assertion lines from scripts that exit nonzero on failure; the scripts and raw payloads are outside the packet, so I assessed the claims via their outputs, not their code.",
+      "The i03 'shown after commit' bars label is partially occluded by the floating canvas toolbar in two screenshots - an overlay artifact of the capture viewport, not a card defect.",
+      "externalReferenceStatus 'not_captured' is consistently and honestly declared on all four targets, so external-reference comparison is not applicable rather than failed.",
+      "Practice screenshots exist only in the light theme for all four cards; dark-theme practice readability is not evaluated."
+    ]
+  },
+  "verdict": "pass - round 1's single hard failure (i02's clipped, near-illegible token strip) is repaired in the refreshed 2026-09-22 capture: the strip is fully inside the card and every chip digit, including the highlighted chip, is legible in both themes; the i02 behavioral run is fully green again and no other card shows a regression from the repair",
+  "readOutsidePacket": false,
+  "round2": {
+    "confirmedBy": "second independent reviewer",
+    "finding": "In the refreshed capture (all four run-manifests: capturedAt 2026-09-22T08:25:01Z, shared rendererHash 29f3d15d...), the i02 '16 patches as a token sequence' strip is fully visible and uncut in light initial, light patch-6 and dark screenshots, sitting inside the card above the Replay bar. Chip digits are legible in both themes with theme-correct ink: light theme renders white digits on dark chip fills, dark theme renders dark digits on light chip fills, and the highlighted chip (enlarged '1' in initial, '6' in patch-6 and dark) is readable in every shot. i02's assertions.json and interaction-trace.json show the i02-patch-check.mjs run ending in PASS with all seven behavioral lines green. The ink change did not regress i01: the river/flows/south/today word chips and all matrix cell values remain readable in both themes. i03 and i04 screenshots show no new visual regression; i03's 'shown after commit' label is still partially under the floating toolbar in two shots, the same capture-viewport overlay artifact already noted in round 1, not new. Verdict changed to pass."
+  }
+}

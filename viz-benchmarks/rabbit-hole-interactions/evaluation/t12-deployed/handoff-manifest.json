@@ -1,0 +1,23 @@
+{
+  "handoffUrl": "https://small-cp-dev-small-deploy.zeroshothq.workers.dev/apps/repo-06745f10-nanogpt?tab=learn&board=interactive-app-review",
+  "worker": "small-cp-dev-small-deploy (this session's clone per docs/features/parallel-dev-deploys.md)",
+  "workerVersionId": "b09c52aa-7137-42d5-b2be-bdebe40bf08a",
+  "loadedClientBundle": "/static/index-B_eQpwnI.js",
+  "bundleIdentity": "served index.html bundle == bundle the loaded page executes == local dist-dev build",
+  "sourceCommit": "d60f349f9c2177a63942331460ac034fac2d3671",
+  "boardSeed": "interactive-app-review s1; stale s0 storage planted first and verified ignored; unknown board name shows the visible notice",
+  "interactionsPerformedOnDeployedPage": [
+    "I01 token click + mask toggle",
+    "I02 grid click + stepper",
+    "I03 choice + commit + reveal",
+    "I04 typed coordinates + pointer drag",
+    "Ask-about-this + real Send (payload carried the visible experiment state)",
+    "reload persistence"
+  ],
+  "knownLimitsAtHandoff": [
+    "Tutor ANSWERS on this clone return the designed no-credential error (model HTTP 401) - true wrangler secrets do not clone; the request path and payload were verified; full answers require the shared worker after explicit promotion",
+    "I01 practice runs ungated (deliberate deviation recorded in the ledger; the commit->reveal gate is demonstrated by I03 and shared)",
+    "The widest card (I01) can extend under the floating drawing toolbar at narrow viewports; cards are movable and the canvas pans",
+    "No external interaction reference captured; temporal smoothness beyond intermediate-value traces unassessed"
+  ]
+}
