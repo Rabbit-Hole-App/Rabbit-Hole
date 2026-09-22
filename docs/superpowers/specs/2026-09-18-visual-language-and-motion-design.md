@@ -329,6 +329,34 @@ carry an explicit claim of honesty while still showing a wrong equation.
 A number whose provenance is unknowable is the problem being fixed, so provenance
 travels with the value rather than living in a comment.
 
+**If you need to zoom the canvas to read the lesson, the lesson rendering is
+wrong.**
+
+Product review proved this needs to be an invariant, not taste. At 146% canvas
+zoom the transformer-block diagram occupied most of the card's width — geometry
+was fine — while node labels, residual annotations, shape labels and explanatory
+text were still footnote-sized. Framing and typography are separate failures:
+camera fitting fixed the first and could never fix the second, because the
+authored font sizes were legible only before scene scaling shrank them.
+
+The rule: **camera fitting may shrink geometry, but it may not shrink
+instructional text below its legibility floor.** Every semantic text class has a
+minimum *effective* screen size —
+
+```text
+effectiveFontPx = authoredFontSize x finalSceneScale
+```
+
+— and a scene whose text lands below its class floor fails a mechanical gate,
+exactly as a false number does. If the scene cannot fit while respecting the
+floors, the layout wraps or the viewport grows; permitting 8px effective text is
+never the resolution. And the fix is not a global font multiply, which only
+recreates overflow: layout must respond to the effective sizes.
+
+The hierarchy check that goes with it: lesson content must never look
+typographically subordinate to the transport controls. A learner's eye should
+land on the teaching, not on the Replay button.
+
 ## The order of priorities
 
 When these compete, this is the order:
