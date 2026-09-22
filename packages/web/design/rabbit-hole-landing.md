@@ -52,11 +52,14 @@ Two things move with the scrollbar, and they are deliberately driven differently
 The canvas is `position: sticky` for the first ~780px of scroll, then releases.
 `prefers-reduced-motion` freezes a single frame.
 
-The mouth sits dead centre and is never clipped: `SQUASH` corrects `dy` by the ratio
-between the buffer's aspect and the canvas's, so the hole stays circular in any window,
-and `LIGHT` puts the rim inside whichever axis is shorter with an 8% margin. Both are
-recomputed on `resize` — precomputing them once at load makes the rings go oval the
-moment the window changes shape.
+The mouth sits dead centre and stays circular in any window: `SQUASH` corrects `dy` by
+the ratio between the buffer's aspect and the canvas's. `LIGHT` reaches the far corners
+so the ripples run to every edge; the black core is far smaller than that and stays well
+inside the frame. Both are recomputed on `resize` — precomputing them once at load makes
+the rings go oval the moment the window changes shape.
+
+The exponent on `sTab` sets how wide the core starts, independently of `LIGHT`: lower is
+a tighter core. That is the knob for "bigger ripples, smaller hole".
 
 Three bugs worth remembering, all caught by the self-check or by screenshotting:
 
@@ -73,16 +76,21 @@ rather than oval, advancing `t` actually redraws the wall, and entering all the 
 closes to solid black.
 
 The circularity assert measures the core's radius along each axis and converts both to
-screen pixels. Count dark pixels along the ray — do not walk outward until the first
-light one, because the dither punches single light pixels through the core and ends the
-walk early. That mistake reported a 1.287 aspect on a hole that was actually round.
+screen pixels. Finding that edge needs care, and both naive versions gave false
+failures on a hole that was actually round: stopping at the first light pixel ends the
+walk early because the dither punches holes through the core (reported 1.287), and
+counting every dark pixel on the ray overcounts the dark rings beyond the core
+(reported 1.209). It now walks out to the first run of six consecutive light pixels.
 
 ## Decided
 
 - Concept: the fall — looking down the shaft, scrolling takes you deeper.
 - Headline text will be "Knowledge is infinite." It is not on the page yet; the hole
   is being tuned on its own first.
-- Monochrome. A warm-brown burrow and a magenta version were both tried and dropped.
+- Black core with the rings lit in light blue — `#BFE3F7` out at the edges, `#4FA3DC`
+  through the middle. A warm-brown burrow and a magenta version were both tried first.
+- The ring field bleeds off all four edges. Sizing the rim to the shorter axis kept the
+  mouth fully visible but left wide white margins down the sides, which read worse.
 - No news dialogs, no CTA row, no objects falling past the walls.
 - The mouth is centred, circular, and fully visible — no clipping at any window size.
 - Scrolling widens the mouth until the screen is solid black: you enter the hole.

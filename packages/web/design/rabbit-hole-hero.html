@@ -57,9 +57,9 @@
   const W = cv.width, H = cv.height;
   const img = ctx.createImageData(W, H);
 
-  const WHITE = [254, 254, 254];
-  const GREY  = [196, 196, 196];
-  const INK   = [30, 30, 30];
+  const PALE = [191, 227, 247];          // light blue, lighting the wall
+  const BLUE = [ 79, 163, 220];
+  const INK  = [30, 30, 30];             // the bottom of the hole
 
   const BAYER = [0,8,2,10, 12,4,14,6, 3,11,1,9, 15,7,13,5].map(v => (v + 0.5) / 16);
   const clamp = v => v < 0 ? 0 : v > 1 ? 1 : v;
@@ -78,16 +78,17 @@
     // The buffer is 2:1 but the canvas is stretched to the viewport, so correct dy by
     // the ratio of the two aspects — that is what keeps the rings circular on screen.
     SQUASH = (W / H) / (cv.clientWidth / cv.clientHeight);
-    // Rim lands inside whichever axis is shorter, with an 8% margin: never clipped.
-    LIGHT = 0.92 * Math.min(W / 2, (H / 2) * SQUASH);
+    // Reach the far corners, so the ripples run to every edge instead of stopping short
+    // and leaving white down the sides. The black core stays well inside the frame.
+    LIGHT = Math.sqrt((W / 2) * (W / 2) + ((H / 2) * SQUASH) * ((H / 2) * SQUASH));
     for (let y = 0, p = 0; y < H; y++) {
       for (let x = 0; x < W; x++, p++) {
         const dx = x - CX, dy = (y - CY) * SQUASH;
         const r = Math.max(Math.sqrt(dx * dx + dy * dy), 0.75);
         zTab[p] = Math.min(SCALE / r, ZFAR);
         uTab[p] = Math.atan2(dy, dx) / (Math.PI * 2) + 0.5; // 0..1 around the shaft
-        // exponent sets how wide the black core starts: higher = darker further out
-        sTab[p] = clamp(Math.pow(r / LIGHT, 1.35));         // 0 at the vanishing point
+        // exponent sets how wide the black core starts: lower = tighter core
+        sTab[p] = clamp(Math.pow(r / LIGHT, 0.6));          // 0 at the vanishing point
       }
     }
   }
@@ -103,13 +104,13 @@
     for (let y = 0, p = 0; y < H; y++) {
       for (let x = 0; x < W; x++, p++) {
         const v = zTab[p] + t;
-        const ring  = 0.5 + 0.5 * Math.sin(v * 22.0);      // courses of earth rushing past
+        const ring  = 0.5 + 0.5 * Math.sin(v * 14.0);      // courses of earth rushing past
         const grain = hash(Math.floor(uTab[p] * 40), Math.floor(v * 12));
         const lum = clamp(sTab[p] * open * (0.62 + 0.38 * (0.6 * ring + 0.4 * grain)) * 1.2);
 
         const b = BAYER[(y & 3) * 4 + (x & 3)];
         const lit = clamp(lum + (b - 0.5) * 0.16);         // ordered dither across the steps
-        put(p * 4, lit < 0.30 ? INK : lit < 0.62 ? GREY : WHITE);
+        put(p * 4, lit < 0.30 ? INK : lit < 0.62 ? BLUE : PALE);
       }
     }
     ctx.putImageData(img, 0, 0);
@@ -146,17 +147,26 @@
     // along each axis to where the core ends, and convert both to screen pixels
     const px = ctx.getImageData(0, 0, W, H).data;
     const darkAt = (x, y) => px[(y * W + x) * 4] < 90;
-    // count dark pixels along each ray rather than stopping at the first light one —
-    // the dither punches single light pixels through the core and would end the walk early
-    let rx = 0, ry = 0;
-    for (let x = CX; x < W; x++) if (darkAt(x, CY)) rx++;
-    for (let y = CY; y < H; y++) if (darkAt(CX, y)) ry++;
+    // Walk out to the first RUN of light pixels. Stopping at the first single light
+    // pixel ends the walk early (the dither punches holes through the core); counting
+    // every dark pixel on the ray overcounts the dark rings beyond the core.
+    const RUN = 6;
+    function edge(stepX, stepY, limit) {
+      let light = 0;
+      for (let i = 0; i < limit; i++) {
+        if (darkAt(CX + stepX * i, CY + stepY * i)) light = 0;
+        else if (++light >= RUN) return i - RUN + 1;
+      }
+      return limit;
+    }
+    const rx = edge(1, 0, W - CX - 1), ry = edge(0, 1, H - CY - 1);
     const sx = cv.clientWidth / W, sy = cv.clientHeight / H;
     const ratio = (rx * sx) / (ry * sy);
     ok('mouth is circular, not oval (' + ratio.toFixed(3) + ')', Math.abs(ratio - 1) < 0.08);
 
     // only the wall moves — measure inside the mouth, not across the static page
-    const bw = Math.round(LIGHT), bh = Math.round(LIGHT / SQUASH);
+    const bw = Math.min(Math.round(LIGHT), CX);            // LIGHT now reaches the corners
+    const bh = Math.min(Math.round(LIGHT / SQUASH), CY);   // so clamp inside the canvas
     const box = [CX - bw, CY - bh, bw * 2, bh * 2];
     const before = ctx.getImageData(box[0], box[1], box[2], box[3]).data.slice();
     frame(0.5, 1);
