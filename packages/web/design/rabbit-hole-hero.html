@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rabbit Hole — hero</title>
+<style>
+  /* Grid and type metrics are measured off typesafe.ai at viewport 1536 (body 1521):
+     1240px content frame centred, crop marks at x140/x1370, headline 150px/120px. */
+  :root{
+    --ink:#1E1E1E;
+    --ink86:rgba(30,30,30,.86);
+    --paper:#FEFEFE;
+    --grot:Arial,"Helvetica Neue",Helvetica,sans-serif;   /* placeholder — font not chosen yet */
+    --term:"JetBrains Mono",monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{overflow-y:scroll}
+  /* no overflow-x here: it would make <body> a scroll container and kill the
+     sticky shaft below */
+  body{background:var(--paper);font-family:var(--grot);color:var(--ink);
+       width:100%;height:1740px;position:relative}
+
+  /* ---- hero shaft: you are falling down it ---- */
+  #shaft-track{position:absolute;left:0;top:0;width:100%;height:1540px;z-index:0}
+  /* full viewport height so the mouth sits dead centre of the page */
+  #shaft{position:sticky;top:0;width:100%;height:100vh;display:block;
+         image-rendering:pixelated}
+  @media (prefers-reduced-motion:reduce){ #shaft{position:absolute} }
+
+  /* ---- crop marks on the 1240px content frame (x 140 → 1380) ---- */
+  .mark{position:absolute;width:10px;height:10px;z-index:6}
+  .mark.tl{border-top:1px solid var(--ink);border-left:1px solid var(--ink)}
+  .mark.tr{border-top:1px solid var(--ink);border-right:1px solid var(--ink)}
+  .mark.bl{border-bottom:1px solid var(--ink);border-left:1px solid var(--ink)}
+  .mark.br{border-bottom:1px solid var(--ink);border-right:1px solid var(--ink)}
+
+</style>
+</head>
+<body>
+
+<div id="shaft-track"><canvas id="shaft" width="760" height="380"></canvas></div>
+
+<div class="mark tl" style="left:140px;top:561px"></div>
+<div class="mark tr" style="left:1370px;top:561px"></div>
+<div class="mark bl" style="left:140px;top:1506px"></div>
+<div class="mark br" style="left:1370px;top:1506px"></div>
+
+<script>
+/* The fall — the page opens looking straight down the shaft.
+   Polar tunnel: depth z = SCALE / radius, so the centre is infinitely far away and
+   goes black on its own. Per-pixel depth, angle and light never change, so they are
+   computed once; each frame only samples the wall at (angle, z + t). Low-res buffer
+   with a pixelated upscale gives the 1-bit dither grain. */
+(function () {
+  const cv = document.getElementById('shaft');
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  const W = cv.width, H = cv.height;
+  const img = ctx.createImageData(W, H);
+
+  const WHITE = [254, 254, 254];
+  const GREY  = [196, 196, 196];
+  const INK   = [30, 30, 30];
+
+  const BAYER = [0,8,2,10, 12,4,14,6, 3,11,1,9, 15,7,13,5].map(v => (v + 0.5) / 16);
+  const clamp = v => v < 0 ? 0 : v > 1 ? 1 : v;
+
+  const CX = Math.round(W / 2), CY = Math.round(H * 0.50);   // vanishing point, dead centre
+  const SCALE = 300;                     // shaft radius in buffer px at z = 1
+  const ZFAR = 8;                        // past this the wall is pure ink
+  // per-pixel geometry never changes with time — pay for it once, and again only when
+  // the window aspect changes (otherwise the rings would go oval on resize)
+  const zTab = new Float32Array(W * H);  // depth, drives the texture
+  const uTab = new Float32Array(W * H);  // angle around the shaft
+  const sTab = new Float32Array(W * H);  // how much light gets here
+  let SQUASH = 1, LIGHT = W / 2;
+
+  function rebuild() {
+    // The buffer is 2:1 but the canvas is stretched to the viewport, so correct dy by
+    // the ratio of the two aspects — that is what keeps the rings circular on screen.
+    SQUASH = (W / H) / (cv.clientWidth / cv.clientHeight);
+    // Rim lands inside whichever axis is shorter, with an 8% margin: never clipped.
+    LIGHT = 0.92 * Math.min(W / 2, (H / 2) * SQUASH);
+    for (let y = 0, p = 0; y < H; y++) {
+      for (let x = 0; x < W; x++, p++) {
+        const dx = x - CX, dy = (y - CY) * SQUASH;
+        const r = Math.max(Math.sqrt(dx * dx + dy * dy), 0.75);
+        zTab[p] = Math.min(SCALE / r, ZFAR);
+        uTab[p] = Math.atan2(dy, dx) / (Math.PI * 2) + 0.5; // 0..1 around the shaft
+        // exponent sets how wide the black core starts: higher = darker further out
+        sTab[p] = clamp(Math.pow(r / LIGHT, 1.35));         // 0 at the vanishing point
+      }
+    }
+  }
+  rebuild();
+  addEventListener('resize', rebuild);
+
+  const hash = (a, b) => { const s = Math.sin(a * 91.7 + b * 47.3) * 43758.5453; return s - Math.floor(s); };
+  function put(i, c) { img.data[i] = c[0]; img.data[i+1] = c[1]; img.data[i+2] = c[2]; img.data[i+3] = 255; }
+
+  // `open` shrinks from 1 to 0 as you enter: less light reaches the wall, so the black
+  // core swallows the frame outward until the screen is solid black.
+  function frame(t, open) {
+    for (let y = 0, p = 0; y < H; y++) {
+      for (let x = 0; x < W; x++, p++) {
+        const v = zTab[p] + t;
+        const ring  = 0.5 + 0.5 * Math.sin(v * 22.0);      // courses of earth rushing past
+        const grain = hash(Math.floor(uTab[p] * 40), Math.floor(v * 12));
+        const lum = clamp(sTab[p] * open * (0.62 + 0.38 * (0.6 * ring + 0.4 * grain)) * 1.2);
+
+        const b = BAYER[(y & 3) * 4 + (x & 3)];
+        const lit = clamp(lum + (b - 0.5) * 0.16);         // ordered dither across the steps
+        put(p * 4, lit < 0.30 ? INK : lit < 0.62 ? GREY : WHITE);
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  // Depth = a slow clock plus an eased scroll position. Scrolling IS falling, and the
+  // hole lets go before the headline arrives so the type never lands on black.
+  const ENTER = 700;                     // px of scroll from mouth to solid black
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const t0 = performance.now();
+  let sm = window.scrollY;
+  (function tick() {
+    sm += (window.scrollY - sm) * 0.10;                     // eased: the rush glides
+    // Size tracks the scrollbar directly — the mouth should open exactly as far as you
+    // have scrolled, with no lag. Only the wall's motion is eased.
+    const enter = clamp(window.scrollY / ENTER);
+    const open = still ? 1 : Math.pow(1 - enter, 1.6);      // hole widens as you go in
+    frame(still ? 0.8 : (performance.now() - t0) * 0.00016 + sm * 0.0022, open);
+    if (!still) requestAnimationFrame(tick);                // every frame, no chug
+  })();
+
+  // --- self-check: load with ?selftest=1 ---
+  if (location.search.includes('selftest')) {
+    const out = [], at = (x, y) => zTab[Math.round(y) * W + Math.round(x)];
+    const ok = (name, cond) => out.push((cond ? 'PASS ' : 'FAIL ') + name);
+    ok('z falls off with radius', at(CX + 10, CY) > at(CX + 100, CY) && at(CX + 100, CY) > at(CX + 300, CY));
+    ok('z clamps at ZFAR', Math.abs(at(CX, CY) - ZFAR) < 1e-6);
+    ok('angle stays in 0..1', uTab.every(v => v >= 0 && v <= 1));
+    frame(0, 1);
+    ok('core darker than rim',
+       ctx.getImageData(CX, CY, 1, 1).data[0] < ctx.getImageData(2, 2, 1, 1).data[0]);
+
+    // the mouth must be a circle on screen, not an oval: walk out from the centre
+    // along each axis to where the core ends, and convert both to screen pixels
+    const px = ctx.getImageData(0, 0, W, H).data;
+    const darkAt = (x, y) => px[(y * W + x) * 4] < 90;
+    // count dark pixels along each ray rather than stopping at the first light one —
+    // the dither punches single light pixels through the core and would end the walk early
+    let rx = 0, ry = 0;
+    for (let x = CX; x < W; x++) if (darkAt(x, CY)) rx++;
+    for (let y = CY; y < H; y++) if (darkAt(CX, y)) ry++;
+    const sx = cv.clientWidth / W, sy = cv.clientHeight / H;
+    const ratio = (rx * sx) / (ry * sy);
+    ok('mouth is circular, not oval (' + ratio.toFixed(3) + ')', Math.abs(ratio - 1) < 0.08);
+
+    // only the wall moves — measure inside the mouth, not across the static page
+    const bw = Math.round(LIGHT), bh = Math.round(LIGHT / SQUASH);
+    const box = [CX - bw, CY - bh, bw * 2, bh * 2];
+    const before = ctx.getImageData(box[0], box[1], box[2], box[3]).data.slice();
+    frame(0.5, 1);
+    const after = ctx.getImageData(box[0], box[1], box[2], box[3]).data;
+    let moved = 0;
+    for (let i = 0; i < before.length; i += 4) if (before[i] !== after[i]) moved++;
+    ok('advancing t redraws the wall', moved > box[2] * box[3] * 0.05);
+
+    // entering all the way takes the whole screen to black
+    frame(0.5, 0);
+    const shut = ctx.getImageData(0, 0, W, H).data;
+    let lightPx = 0;
+    for (let i = 0; i < shut.length; i += 4) if (shut[i] > 90) lightPx++;
+    ok('entering closes to solid black', lightPx === 0);
+    const el = document.createElement('pre');
+    el.id = 'selftest';
+    el.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:99;background:#000;' +
+                       'color:#6f6;padding:8px;font:11px/1.4 monospace';
+    el.textContent = out.join('\n');
+    document.body.appendChild(el);
+  }
+})();
+</script>
+</body>
+</html>
