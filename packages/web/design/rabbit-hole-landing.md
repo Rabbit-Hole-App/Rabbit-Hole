@@ -87,6 +87,22 @@ Hard-won specifics, all measured off the photo rather than eyeballed:
 - The face is deliberately untouched — painted eye/mouth marks were tried and merged
   with the photo's darks into a blotch.
 
+### Animation
+
+The pipeline is a sprite factory, not just a display. Pass 3 dithers the same coverage
+three times with shifted Bayer phases: identical figure, different grain. Cycled at
+8fps this is the "boil" of hand-drawn animation and costs no extra art. The three
+frames are also baked side by side into `rabbit-sprite.png` (via `window.__bakeSheet()`
+plus the dev server's PUT handler), so the rabbit is reusable anywhere as a plain
+sprite sheet — `background-position` + `steps(3)`, no pipeline, no jpg.
+
+Behaviours come from squash-and-stretch transforms on the `#hop` wrapper, not from
+extra drawings: idle bob → crouch (compress into the ground) → jump (an arc with
+stretch, occasionally a full spin) → landing squash. `transform-origin` is the ground
+line, which is what makes scaling read as weight. Distinct true poses (a real crouch
+drawing, stride frames) require more reference frames of the same character through
+the factory. `prefers-reduced-motion` gets the static first frame, no behaviours.
+
 ## Reference
 
 The layout grid and type metrics were measured off `typesafe.ai` with the browser's

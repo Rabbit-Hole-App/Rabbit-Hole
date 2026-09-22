@@ -125,6 +125,8 @@
   #rabbit{width:340px;height:auto;display:block;image-rendering:pixelated;
           opacity:0;transition:opacity .5s ease}
   #warren.seen #rabbit{opacity:1}
+  /* behaviours act on this wrapper; origin is the ground line so squash reads right */
+  #hop{transform-origin:50% 100%;will-change:transform}
 
   footer{border-top:1px solid var(--hair);padding:36px 40px 44px;
          display:flex;align-items:center;gap:20px;
@@ -238,7 +240,7 @@
     </div>
   </section>
 
-  <div id="warren"><canvas id="rabbit" width="240" height="160"></canvas></div>
+  <div id="warren"><div id="hop"><canvas id="rabbit" width="240" height="160"></canvas></div></div>
 
   <section id="pricing">
     <h2>Pricing</h2>
@@ -686,26 +688,83 @@
     }
     for (let q = 0; q < cov.length; q++) if (label[q] !== best) cov[q] = 0;
 
-    // --- pass 3: Bayer-dither the coverage to 1-bit ---
-    for (let y = 0, q = 0; y < H; y++) {
-      for (let x = 0; x < W; x++, q++) {
-        const i = q * 4;
-        const on = cov[q] > BAYER[(y & 3) * 4 + (x & 3)];
-        d[i] = INK[0]; d[i + 1] = INK[1]; d[i + 2] = INK[2];
-        d[i + 3] = on ? 255 : 0;
+    // --- pass 3: Bayer-dither the coverage to 1-bit, three times with shifted
+    //     phases. Same figure, different grain: cycled slowly this is the "boil" of
+    //     hand-drawn animation, and it costs no extra art. ---
+    const frames = [];
+    for (let ph = 0; ph < 3; ph++) {
+      const fid = ctx.createImageData(W, H);
+      const fd = fid.data;
+      for (let y = 0, q = 0; y < H; y++) {
+        for (let x = 0; x < W; x++, q++) {
+          const i = q * 4;
+          const on = cov[q] > BAYER[((y + ph) & 3) * 4 + ((x + ph * 2) & 3)];
+          fd[i] = INK[0]; fd[i + 1] = INK[1]; fd[i + 2] = INK[2];
+          fd[i + 3] = on ? 255 : 0;
+        }
       }
+      frames.push(fid);
     }
-    ctx.putImageData(id, 0, 0);
+    ctx.putImageData(frames[0], 0, 0);
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      let f = 0;
+      setInterval(() => { f = (f + 1) % 3; ctx.putImageData(frames[f], 0, 0); }, 125);
+    }
+
+    // The reusable sprite: all three boil frames side by side on one sheet. Play it
+    // anywhere with background-position + steps(3). window.__bakeSheet() returns the
+    // PNG; the dev server accepts PUT, so the factory can write it to disk.
+    const sheet = document.createElement('canvas');
+    sheet.width = W * 3; sheet.height = H;
+    const sg = sheet.getContext('2d');
+    for (let k = 0; k < 3; k++) sg.putImageData(frames[k], k * W, 0);
+    window.__bakeSheet = () => sheet.toDataURL('image/png');
   };
   ref.src = 'rabbit_1.jpg';
 
   // fade in when it comes into view; no motion, it just arrives
   const host = document.getElementById('warren');
   const show = () => host.classList.add('seen');
-  if (!('IntersectionObserver' in window)) { show(); return; }
-  new IntersectionObserver((es, o) => {
-    es.forEach(e => { if (e.isIntersecting) { show(); o.disconnect(); } });
-  }, { threshold: 0.3 }).observe(host);
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver((es, o) => {
+      es.forEach(e => { if (e.isIntersecting) { show(); o.disconnect(); } });
+    }, { threshold: 0.3 }).observe(host);
+  } else show();
+
+  // Behaviours from one sprite. There are no crouch or jump drawings — squash-and-
+  // stretch transforms on the wrapper sell them: compress into the ground to crouch,
+  // release and stretch through an arc to jump, sometimes a full spin at the top,
+  // squash on landing. transform-origin is the ground line, so it all reads as
+  // weight, not scaling.
+  const hop = document.getElementById('hop');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  (function behave() {
+    const spin = Math.random() < 0.35;           // most jumps plain, sometimes a flip
+    const seq = [
+      { dur: 2400 + Math.random() * 2200, f: t =>          // idle: a soft bob
+          'translateY(' + (Math.sin(t * Math.PI * 4) * 3).toFixed(1) + 'px)' },
+      { dur: 420, f: t => { const k = ease(t);             // crouch: load the spring
+          return 'translateY(' + (k * 7).toFixed(1) + 'px) scale(' +
+                 (1 + k * 0.06).toFixed(3) + ',' + (1 - k * 0.16).toFixed(3) + ')'; } },
+      { dur: 800, f: t => { const a = Math.sin(t * Math.PI);   // jump: the arc
+          const rot = spin ? t * 360 : Math.sin(t * Math.PI) * -8;
+          return 'translateY(' + (7 - a * 64).toFixed(1) + 'px) rotate(' +
+                 rot.toFixed(1) + 'deg) scale(' + (1 - a * 0.05).toFixed(3) + ',' +
+                 (1 + a * 0.10).toFixed(3) + ')'; } },
+      { dur: 380, f: t => { const k = Math.sin(t * Math.PI);   // land: squash, recover
+          return 'translateY(' + (7 - 7 * ease(t)).toFixed(1) + 'px) scale(' +
+                 (1 + k * 0.10).toFixed(3) + ',' + (1 - k * 0.14).toFixed(3) + ')'; } },
+    ];
+    let i = 0, t0 = performance.now();
+    (function tick(now) {
+      const s = seq[i];
+      const t = Math.min((now - t0) / s.dur, 1);
+      hop.style.transform = s.f(t);
+      if (t >= 1) { i++; t0 = now; if (i >= seq.length) return behave(); }
+      requestAnimationFrame(tick);
+    })(t0);
+  })();
 })();
 </script>
 </body>
