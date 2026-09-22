@@ -7,7 +7,7 @@ const base = 'https://small-cp-dev.zeroshothq.workers.dev';
 const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
 const { session } = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-gallery-shots' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
 const browser = await chromium.launch();
-const context = await browser.newContext({ viewport: { width: 1400, height: 950 } });
+const context = await browser.newContext({ viewport: { width: 1760, height: 1100 } });
 await context.addCookies([{ name: 'small_session', value: session, domain: new URL(base).hostname, path: '/' }]);
 const page = await context.newPage();
 page.on('pageerror', e => console.log('PAGEERROR:', e.message));
