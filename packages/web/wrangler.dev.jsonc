@@ -1,5 +1,8 @@
 {
   "name": "small-cp-dev",
+  // Each uploaded version gets its own <hash>-small-cp-dev URL, so parallel
+  // sessions can test without replacing what the shared dev worker serves.
+  "preview_urls": true,
   "main": "dev-worker.js",
   "compatibility_date": "2026-08-01",
   "workers_dev": true,
