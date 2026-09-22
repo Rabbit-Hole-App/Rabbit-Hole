@@ -17,6 +17,12 @@ export { LearnVideos } from '../control-plane/src/learn-video.js';
 // Authentication/app actions use the live backend. Dev Learn reuses the Ask handler
 // and shared chat history, with support for selectable AI canvas objects.
 export default {
+  // The moment-index Queue consumer (flywheel phase 3), same as the live
+  // worker's: bound only on clones whose config declares the consumer.
+  async queue(batch, env) {
+    const { consumeIndexQueue } = await import('../control-plane/src/learn-moment-index.js');
+    await consumeIndexQueue(batch, env);
+  },
   async fetch(req, env, ctx) {
     const path = new URL(req.url).pathname;
     if (path.startsWith('/api/repositories')) return repositoriesFetch(req, env, ctx);
