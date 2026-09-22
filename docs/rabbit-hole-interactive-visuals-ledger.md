@@ -344,6 +344,60 @@ applied with the generic system, no new primitives:
     /static/index--ESSB3nF.js verified served == loaded == local; full T12
     rerun green; screenshots inspected by eye in both themes.
 
+## Review pass 3 — state separation, candidate redesign, holdouts (2026-09-22)
+
+The user accepted the interaction runtime but named two product issues and
+asked for a generalization test. All addressed; an independent reviewer
+scored all six cards on ten dimensions and returned **pass** (state truth
+resolved, every oracle verified, both holdouts generalized).
+
+**Explore vs Practice (state truth, the prior gap):** a practice card is now
+explicitly one mode at a time. Explore collapses the task behind "Start
+practice"; entering Practice applies the declared state and LOCKS the inputs
+it names - enforced in the write path (`applyInputToBlock` refuses a locked
+name; the scene's pick items stop being targets), not merely greyed - and
+prints a generated "Locked by this task — …" line. `enterPractice` /
+`leavePractice` / `lockedInputNames` in scene-activity.js; the reducers own
+the snap so the diagram can never show a state the task does not.
+
+**Candidate-futures rebuilt** to branching-futures: current state → three
+identity-coloured arrows (real heads) → predicted-future boxes; no
+coordinates without axes. The cost chart is hidden behind a placeholder until
+a committed attempt, then shows numeric 4/1/9 with the minimum ringed (heat
+dropped - a magnitude ramp made the largest cost look emphasised). New derive
+ops `choose` (state-selected captions/labels) and `argmin` (null-tolerant
+winner); `pick` unchanged.
+
+**Two generalization holdouts** (`interactive-holdouts` board),
+`interactive-holdouts.js` + evidence under
+`viz-benchmarks/rabbit-hole-interaction-holdouts/`: a repo navigator
+(repo→file→class→function; one `index` + `pick` coordinating breadcrumb,
+architecture highlight and code) and a CNN feature-map inspector (`layer`
+picker + `channel` slider + nested `pick`). Both express with NO runtime
+change - no new primitive, input type, scene-ID branch or bespoke renderer.
+Three vocabulary gaps reported rather than worked around: single-line SVG
+text has no multi-line/wrap/ellipsis (the code excerpt is one signature
+line); a dependent per-level domain (level N options depending on N-1) is not
+expressible (the tree is flattened to one index); a vertical clickable text
+list has no primitive (chips are horizontal).
+
+**Review fixes applied (round 1, within the two-round cap):** the reviewer
+found one real new defect and two edge clips, all in the holdouts, all fixed
+and re-verified in pixels — h2's heat legend was inverted in light theme
+("brighter" read as weaker) → theme-neutral "a more saturated cell is a
+stronger response"; h1's code line clipped at the card edge → shortened to
+fit; h2's layer chips overran → shortened to the layer names.
+
+**Handoff:** deployed to `small-cp-dev-small-deploy` (worker version
+042b8ea9), both boards verified in a clean context - four-card
+`interactive-app-review` (seed s2) and `interactive-holdouts` (seed s1) -
+loaded bundle == served == local build, all interactions performed and
+inspected in both themes. Full repo `make test-unit` green (492 web tests).
+Report archived at
+`viz-benchmarks/rabbit-hole-interactions/evaluation/current.json`; the
+reviewer's only standing note is that all capture is local/deployed-dev, not
+live promotion (which needs explicit approval anyway).
+
 **Known deliberate deviation (for the user's call at review):** spec §8-I01
 asks that mask/answer-coded views hide behind the reveal gate DURING the I01
 prediction. The masked scores matrix is the exploration content itself -

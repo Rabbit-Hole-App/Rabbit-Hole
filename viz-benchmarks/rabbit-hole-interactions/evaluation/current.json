@@ -1,116 +1,202 @@
 {
-  "cases": {
+  "cards": {
     "i01-attention-explorer": {
       "scores": {
         "discoverability": 5,
-        "consequence": 5,
-        "continuity": 4,
-        "recovery": 5,
-        "feedback": 5,
-        "composer": 5
+        "predictability": 5,
+        "causality": 5,
+        "coordination": 5,
+        "stateTruth": 5,
+        "responsiveness": 4,
+        "reversibility": 5,
+        "persistence": 4,
+        "accessibility": 4,
+        "teachingValue": 5
       },
       "grounds": {
-        "discoverability": "A labelled control bar (Query token chips, a Causal mask toggle showing On/Off, Reset experiment, Ask about this) plus the in-scene hint 'click a token to change the query' makes every control self-explanatory.",
-        "consequence": "Every input change is visibly and correctly propagated - I recomputed the softmax by hand and the screenshots show masked cells filling with the exact scaled scores (.71/.00/-.71), the ~0.109 future-weight bar appearing on mask-off, and output moving (0.75,0.75)->(0.56,0.67).",
-        "continuity": "Inputs are discrete (chips and a toggle), so continuous intermediates are not applicable; every transition endpoint is oracle-asserted, but temporal smoothness itself is unassessed as the packet's README concedes.",
-        "recovery": "Reset-to-defaults, reload-preserves-effective-state, and mask-restored (row back to [.248,.248,.503,blank]) are all evidenced by passed assertions and the i01-mask-restored screenshot, and q3 is documented as a control case so a no-op toggle there is honest.",
-        "feedback": "Practice shows an explanatory pass message, a not-ready reason ('Select at least one position first'), and an append-only '2 committed attempts' count in the screenshot.",
-        "composer": "Passed assertions state the payload carries query word+index, mask state, revision and inspected cell, the draft survives, nothing auto-sends, and in-flight sends are frozen against later changes."
+        "discoverability": "The card states its affordances in place ('click (or focus and press Enter on) a token to change the query'), the mask toggle is a labeled switch, and token chips read as buttons.",
+        "predictability": "Every control names its effect before use — 'Query token' chips, 'Causal mask' toggle — and the caption template announces the row-to-output flow that will follow.",
+        "causality": "Selecting 'south' moves caption, chip highlight, Q[2] strip, weights labels and output together, and toggling the mask visibly fills/blanks the future cells while the scores caption and legend flip text.",
+        "coordination": "In all five light screenshots the caption, chip, Q-row label, weights row, output strip, scores-matrix caption and mask legend agree on one (query, mask) state, and the numbers match my own softmax arithmetic (q2 mask-on 0.248/0.248/0.503 out 0.752/0.752; mask-off future weight 0.109 out 0.561/0.670; q3 unchanged by the mask).",
+        "stateTruth": "The practice snapshot shows the visualization snapped to the declared graded state (south, mask on) with 'set by the task' beside the mask toggle, a 'Locked by this task — Query token = south (index 2) · Causal mask = On' line, and a separate 'Your prediction' answer row — no second contradictory state appears anywhere.",
+        "responsiveness": "temporal: partially assessed — assertion lines confirm each step updated every bound view but the trace carries no timing, so immediacy is inferred, not measured.",
+        "reversibility": "The mask-restored screenshot is pixel-consistent with the pre-toggle state (.25/.25/.50, masked cell, legend restored) and 'reset: defaults back, lesson intact' passed in the browser script.",
+        "persistence": "'reload: same effective state' and the shared 'reload: all attempts and feedback survive' assertions passed, though no post-reload screenshot is in the packet.",
+        "accessibility": "A keyboard path is explicit in the UI copy and asserted ('Enter on beta chip updates every bound view', keyboardPathChecked, reduced motion honoured), but no contrast/focus-order evidence beyond that.",
+        "teachingValue": "Toggling the mask on query 3 and seeing nothing change (no future to mask) against query 2 gaining weight 0.109 is a control-case relationship you only get by manipulating it."
       },
+      "hardFailures": [],
       "notAssessable": [
-        "Actual composer payload bytes - only the passed-assertion lines are archived, not the payload itself",
-        "Temporal smoothness as a subjective quality (screenshots and endpoint assertions cannot carry it)",
-        "The e2e scripts themselves (untracked by repo policy; only their output is in the packet)"
-      ],
-      "hardFailures": []
+        "actual latency (traces are pass/fail lines without timestamps)",
+        "deployed-build behavior (capture is local vite dev on port 5199, 39 tracked files dirty; the manifest says deployed verification happens in a later handoff run)"
+      ]
     },
     "i02-image-patch-explorer": {
       "scores": {
         "discoverability": 5,
-        "consequence": 5,
-        "continuity": 4,
-        "recovery": 5,
-        "feedback": 5,
-        "composer": 5
+        "predictability": 5,
+        "causality": 5,
+        "coordination": 5,
+        "stateTruth": 5,
+        "responsiveness": 4,
+        "reversibility": 4,
+        "persistence": 4,
+        "accessibility": 4,
+        "teachingValue": 4
       },
       "grounds": {
-        "discoverability": "The Patch slider with '6 of 16' readout, Previous/Next steppers, and the on-image label '16 fixed-size patches - click one' make all three input routes obvious.",
-        "consequence": "Caption, slider readout, grid highlight and crop all follow one patchIndex (patch-5 crop {0.25,0.25,0.25,0.25} matches my row-major arithmetic and the crop pixels genuinely show that region of the dog photo), and in the refreshed capture the linked token-chip highlight is clearly visible in both themes (the selected chip enlarges and its fill inverts against its neighbours).",
-        "continuity": "Stepper/slider/keyboard transitions and both non-wrapping bounds are asserted step by step; between-detent intermediate feedback is not applicable for a discrete data-slice slider.",
-        "recovery": "Reset + reload preserving effective state, disabled steppers at both ends, and zero tutor/model/image requests during exploration are all covered by passed assertions.",
-        "feedback": "Practice feedback is clear and correct (fail on 6, pass on 10, '2 committed attempts'), and the repaired '16 patches as a token sequence' strip is now fully inside the card with legible chip digits in both themes.",
-        "composer": "The passed assertion records the payload carrying 'Patch = 11 of 16 (index 10)' - human label and index in parity with the visible state - with the shared composer contract (draft preserved, no auto-send, retarget, deleted-target warning) also green."
+        "discoverability": "'16 fixed-size patches - click one', a labeled Patch slider with Previous/Next steppers and a '1 of 16' readout make the interactive surface obvious without help.",
+        "predictability": "Three redundant controls (grid click, slider, steppers) all advertise the same single patch index, and the caption promises row/column feedback.",
+        "causality": "Clicking cell 5 moves the pink cell highlight, changes the caption to 'Patch 6 of 16 · row 2, column 2', slides the readout to 6 of 16, swaps the crop to the matching image region and lights token chip 6.",
+        "coordination": "All four linked views agree in each screenshot, and the row/column/crop arithmetic checks out (index 5 -> row 2 col 2, crop 0.25/0.25; index 9 -> row 3 col 2, crop 0.25/0.5; index 15 -> 0.75/0.75; no wrap at either end asserted).",
+        "stateTruth": "Practice grades a separate 'Your answer' index (chip 10 committed) while the explorer patchIndex is asserted untouched, so no contradictory state is possible on screen.",
+        "responsiveness": "temporal: partially assessed — per-step assertions passed but the packet has endpoint screenshots and untimed trace lines only.",
+        "reversibility": "'reset + reload: effective state preserved' passed in the case script, but there is no reset screenshot to inspect.",
+        "persistence": "Reload preservation is asserted by both the case script and the shared activities script.",
+        "accessibility": "ArrowLeft on the slider and stepper buttons give a full non-drag path (asserted), though the lit token chip's contrast against unlit chips is subtle in light theme.",
+        "teachingValue": "Manipulating any of the three controls teaches the row-major patch<->token correspondence and that the crop is a window on the same file, which the practice question then exercises; solid but a modest relationship."
       },
+      "hardFailures": [],
       "notAssessable": [
-        "Actual composer payload bytes - only passed-assertion lines are archived",
-        "Practice block readability in dark theme (practice screenshots exist only in light)"
-      ],
-      "hardFailures": []
+        "actual latency (untimed assertion lines)",
+        "the asserted 'zero tutor/model/image requests' claim (no network log is included in the packet)"
+      ]
     },
     "i03-candidate-future-explorer": {
       "scores": {
-        "discoverability": 5,
-        "consequence": 5,
-        "continuity": 4,
-        "recovery": 5,
-        "feedback": 5,
-        "composer": 5
+        "discoverability": 4,
+        "predictability": 4,
+        "causality": 4,
+        "coordination": 5,
+        "stateTruth": 5,
+        "responsiveness": 4,
+        "reversibility": 4,
+        "persistence": 4,
+        "accessibility": 4,
+        "teachingValue": 4
       },
       "grounds": {
-        "discoverability": "Three labelled Path A/B/C chips, Reset experiment and Ask about this sit in one control bar, and the caption plus 'cost: squared distance - shown after commit' label explain what inspecting and committing will do.",
-        "consequence": "Choosing C visibly moves the inspection ring and rewrites the caption to 'ends at (0,3), displacement (0,3)', and the revealed bars are proportional to the costs 4/1/9 that I re-derived as squared distances from the goal.",
-        "continuity": "The input is a discrete choice so continuous intermediates are not applicable; the commit->reveal ordering is temporally evidenced (pre-commit shownCosts [null,null,null], post-commit [4,1,9], and the dark screenshot shows blank bars pre-reveal).",
-        "recovery": "Reset-to-path-A is asserted, attempts and feedback surviving reload are asserted in the shared t09 run, and the committed A is asserted never rewritten.",
-        "feedback": "The card carries an explicit provenance note ('a toy prediction over declared example data - an example result, not an observed outcome'), the gate is labelled 'shown after commit', and pass/fail texts explain why B is cheapest.",
-        "composer": "Pre-commit payload carrying nulls (no cost leak) and post-commit payload carrying the derived 4/1/9 are both passed assertions, matching exactly what the learner sees at each moment."
+        "discoverability": "'Inspect candidate' chips and the placeholder 'costs appear after you commit a prediction' tell you what is interactive and what is gated, though nothing hints the future boxes themselves are not clickable.",
+        "predictability": "Chips clearly move the inspection ring, but the caption delivers less than interaction-scenarios.json promises — the scenario expects 'terminal (0,3) and offset from goal (0,3)' in the caption and the built caption only says 'inspecting Path C — one of three futures...'.",
+        "causality": "The '◀ inspecting' marker and pressed chip track the choice cleanly, and after commit the revealed 4.00/1.00/9.00 bars with the minimum ringed make the cost relationship visible; pre-reveal, inspection deliberately changes little else.",
+        "coordination": "Chip state, caption and marker agree in every screenshot, costs match my squared-distance arithmetic (A(2,0)->4, B(1,0)->1, C(0,3)->9), and the reveal state persists consistently while inspecting other candidates.",
+        "stateTruth": "Inspection ('Inspect candidate: Path C') and the committed prediction ('Your prediction: Path B', solid chip) are two distinctly labeled, differently rendered controls, and observed pre-commit shownCosts are [null,null,null] — no leak and no contradictory state.",
+        "responsiveness": "temporal: partially assessed — endpoint screenshots plus untimed assertion lines.",
+        "reversibility": "'reset: back to path A' passed and attempts are correctly append-only rather than reversible (committed A is never rewritten), which matches the declared contract.",
+        "persistence": "Attempts and feedback surviving reload is asserted by the shared activities script.",
+        "accessibility": "All interaction is buttons/chips (no drag anywhere) and the manifest says keyboardPathChecked, but no card-specific keyboard assertion exists.",
+        "teachingValue": "Commit-then-reveal forces a prediction before showing the derived costs, a genuinely better-than-animation loop, though the explorable surface before commit is thin."
       },
+      "hardFailures": [],
       "notAssessable": [
-        "Actual composer payload bytes - only passed-assertion lines are archived",
-        "Bar-height exactness beyond visual proportion (no numeric labels on the revealed bars in the screenshots)"
-      ],
-      "hardFailures": []
+        "the ask-payload content pre-commit (asserted 'no cost leak in payload' but the payload itself is not in the packet)"
+      ]
     },
     "i04-vector-projection": {
       "scores": {
-        "discoverability": 5,
-        "consequence": 5,
-        "continuity": 5,
-        "recovery": 5,
-        "feedback": 5,
-        "composer": 5
+        "discoverability": 4,
+        "predictability": 5,
+        "causality": 5,
+        "coordination": 5,
+        "stateTruth": 5,
+        "responsiveness": 5,
+        "reversibility": 5,
+        "persistence": 4,
+        "accessibility": 5,
+        "teachingValue": 5
       },
       "grounds": {
-        "discoverability": "The subtitle 'Drag a vector or its axis - or type coordinates - and watch the projection recompute live', visible circular drag handles on both vectors, paired number inputs, and a '1 / 1 projection defined' status make every entry point plain.",
-        "consequence": "The readout 'proj_b(a) = 1.5 · b = (3, 0) · a·b = 6' matches my hand computation of (a·b/|b|^2)b at every snapshot, and the mid-drag screenshot shows the number inputs and readout tracking the gesture live at a=(0,2).",
-        "continuity": "This is the one card with real continuous evidence: the passed assertion records 5 distinct intermediate projections during the drag plus a zoomed-drag landing at world (1,1), so intermediate feedback is real, though the five values themselves are not enumerated in the packet.",
-        "recovery": "Escape restoring committed coordinates, outside-release clamping to +5, the '-' edit buffer never becoming NaN, typed 12 clamping to 5, zero-axis not-ready recovering on edit, and reset+reload are all passed assertions with the zero-axis state also shown in pixels.",
-        "feedback": "The zero-axis state shows the exact explanatory reason in red ('The projection axis has zero length, so it has no direction') with the gate reading '0 / 1 projection defined', and the provenance line 'Calculated here from the values you set' is honest.",
-        "composer": "The passed assertion records the Ask payload carrying the just-dragged vector, on top of the shared composer contract run."
+        "discoverability": "The subtitle says exactly what to do ('Drag a vector or its axis - or type coordinates') and the labeled a/b coordinate fields are unmistakable, though the small circular drag handles themselves are easy to miss at first glance.",
+        "predictability": "Vectors are labeled on-canvas ('a (3, 2)', 'b (2, 0)') and the readout displays the exact formula that will recompute, so the effect of any move is stated before you make it.",
+        "causality": "The initial readout proj_b(a) = 1.5 · b = (3, 0) · a·b = 6 matches my arithmetic, the mid-drag shot shows the readout already at 0 with a=(0,2), and the zero-axis state explains itself in red ('The projection axis has zero length, so it has no direction.').",
+        "coordination": "Canvas labels, typed fields and the formula readout agree in every screenshot including dark theme and the 0/1 'projection defined' counter.",
+        "stateTruth": "One state drives canvas, fields and readout; Escape-restores-committed and outside-release-commits-clamped semantics are asserted, and the practice check grades the same visible geometry.",
+        "responsiveness": "'drag: 5 distinct intermediate projections' is asserted, which is live-recomputation evidence beyond endpoints, so the response is proven continuous even without timestamps.",
+        "reversibility": "Escape mid-drag restoring committed coordinates plus 'reset + reload: both honest' passed in the browser script.",
+        "persistence": "Reload honesty is asserted but not screenshotted.",
+        "accessibility": "Typed coordinates with spinners are a first-class equal path to dragging ('typed input equals dragging', '-' edit buffer never NaN, 12 clamps to 5 — all asserted and the fields are visible in the shots).",
+        "teachingValue": "Hunting for the zero projection by making a perpendicular to b — with the zero-axis degenerate case refused as not-ready rather than passed — teaches the dot-product relationship in a way watching cannot."
       },
+      "hardFailures": [],
       "notAssessable": [
-        "The five intermediate projection values themselves (asserted in-browser but not enumerated in the packet)",
-        "Actual composer payload bytes - only passed-assertion lines are archived",
-        "The zero-axis screenshot shows a=(5,3) while observed-states records the zero-axis snapshot at a=(1,1); different capture moments, so the exact screenshot state is not cross-checkable against observed-states"
-      ],
+        "the zoomed-drag transform correctness beyond the asserted line (no zoomed screenshot in the packet)"
+      ]
+    }
+  },
+  "holdouts": {
+    "h1-repo-navigator": {
+      "scores": {
+        "discoverability": 4,
+        "predictability": 4,
+        "causality": 4,
+        "coordination": 5,
+        "stateTruth": 5,
+        "responsiveness": 3,
+        "reversibility": "not evaluated",
+        "persistence": 4,
+        "accessibility": 3,
+        "teachingValue": 3
+      },
+      "grounds": {
+        "discoverability": "'click a symbol to drill in' plus button-styled chips is clear, but the dark empty architecture cells look vaguely clickable and are not.",
+        "predictability": "Chips obviously select a symbol, though 'drill in' oversells it — the tree is flattened to one index (a reported gap), so clicking forward() jumps straight to depth 4.",
+        "causality": "One click moves breadcrumb, architecture highlight and code excerpt together, but the one-line code excerpt is clipped mid-token at the card edge ('for _ in range(r...'), blunting the payoff.",
+        "coordination": "Both screenshots show crumb, chip highlight, architecture row and code excerpt in perfect agreement with observed-states for node 0 and node 3.",
+        "stateTruth": "A single nodeIndex drives everything; no second state exists to contradict it.",
+        "responsiveness": "temporal: partially assessed — two endpoint screenshots and one coarse assertion line.",
+        "reversibility": "not evaluated — no reset control is visible in the holdout screenshots and the holdout script asserts nothing about reset.",
+        "persistence": "'reload: holdout state persists' passed.",
+        "accessibility": "The chips are the same tokens primitive that is keyboard-activatable on the cards, but no keyboard assertion, dark capture or non-click path is evidenced for the holdouts themselves.",
+        "teachingValue": "It proves coordinated views generalize, but the flattened hierarchy and one-line excerpt make it a labeled lookup more than a revealed relationship."
+      },
+      "generalized": true,
+      "gapsHonest": true,
+      "hardFailures": []
+    },
+    "h2-cnn-inspector": {
+      "scores": {
+        "discoverability": 5,
+        "predictability": 4,
+        "causality": 3,
+        "coordination": 5,
+        "stateTruth": 5,
+        "responsiveness": 3,
+        "reversibility": 3,
+        "persistence": 4,
+        "accessibility": 4,
+        "teachingValue": 4
+      },
+      "grounds": {
+        "discoverability": "A labeled control bar (Layer chips, Channel slider with Previous/Next and a '1 of 4' readout, Reset experiment) plus 'pick a layer to inspect' makes everything findable.",
+        "predictability": "Both inputs name their target and the caption template says what will update, with slider bounds visibly enforced (Previous disabled at 1 of 4, Next at 4 of 4).",
+        "causality": "The map updates correctly for both inputs, but the legend 'brighter means a stronger response' is contradicted by the light-theme rendering where stronger activations (.74, .90) are the DARKER cells — a learner following the label reads the encoding inverted.",
+        "coordination": "Caption, layer chip, slider readout and the 16 grid values agree with maps[layer][channel] exactly in both screenshots, and all twelve declared maps are distinct per layer/channel as required.",
+        "stateTruth": "One (layerIndex, channelIndex) pair drives every view; no contradictory state can appear.",
+        "responsiveness": "temporal: partially assessed — endpoint screenshots and one coarse assertion line.",
+        "reversibility": "A 'Reset experiment' control is visible but no reset recovery is asserted for the holdouts.",
+        "persistence": "'reload: holdout state persists' passed.",
+        "accessibility": "Previous/Next buttons and the slider give a non-drag path on-screen, though no keyboard assertion or dark capture exists for the holdouts.",
+        "teachingValue": "Sweeping channel and layer genuinely shows activations growing sparser with depth (checkable against the caption's claim), a real manipulation-revealed relationship despite the legend defect."
+      },
+      "generalized": true,
+      "gapsHonest": true,
       "hardFailures": []
     }
   },
-  "crossCard": {
+  "crossCase": {
+    "stateTruthResolved": true,
     "hardFailures": [],
     "observations": [
-      "All four run-manifests share the identical rendererHash (29f3d15d... in the refreshed 2026-09-22 capture; 11ed0a2d... in round 1), which is packet-level evidence for one shared renderer and against scene-specific or lesson-title branching; nothing in any scene-spec, trace or screenshot suggests lesson-specific runtime behavior.",
-      "Every observed value I could recompute (softmax weights and outputs at 5 snapshots, 3 squared-distance costs, 3 projection states, 4 crop rectangles) matches its oracle; the i01 seam that rounds each named stage to 3 decimals before the weighted sum (0.248+0.503=0.751 vs exact 0.7517) is declared in expected-states and within its stated 2e-3 tolerance, so it is not a math failure.",
-      "Provenance is honest but limited: capture ran on local-vite-dev with 4 dirty tracked files, and the manifests themselves defer deployed-build + seed verification to a T12 handoff, so this packet proves the dev build only.",
-      "Composer, board-immutability, persistence and practice-immutability guarantees rest on archived passed-assertion lines from scripts that exit nonzero on failure; the scripts and raw payloads are outside the packet, so I assessed the claims via their outputs, not their code.",
-      "The i03 'shown after commit' bars label is partially occluded by the floating canvas toolbar in two screenshots - an overlay artifact of the capture viewport, not a card defect.",
-      "externalReferenceStatus 'not_captured' is consistently and honestly declared on all four targets, so external-reference comparison is not applicable rather than failed.",
-      "Practice screenshots exist only in the light theme for all four cards; dark-theme practice readability is not evaluated."
+      "State truth on i01 is genuinely fixed: entering practice snaps the diagram to the declared graded state (south, mask on), stamps 'set by the task' on the locked toggle, prints a 'Locked by this task' setup line, and grades a separate 'Your prediction' control — the t09 script asserts the snap+lock and the statesnap screenshot corroborates it; the diagram always shows the state being graded.",
+      "All four oracles verify by independent arithmetic: attention softmax (0.248/0.248/0.503 -> 0.752/0.752; future weight 0.109 -> 0.561/0.670; q3 mask-invariant), patch row-major/crop mapping, squared distances 4/1/9 with reveal gated on commit (pre-commit shownCosts all null), and projection (6/4)·(2,0)=(3,0) with the zero-axis case refused as not-ready.",
+      "DEFECT (h2): the feature-map legend 'brighter means a stronger response' is inverted relative to the light-theme heat encoding, where stronger values render darker; no dark capture of h2 exists to show the theme where the words would be true. The label should be theme-neutral (e.g. 'stronger response = more saturated').",
+      "Minor drift (i03): interaction-scenarios.json expects the caption to state the terminal (0,3) and offset from goal, but the built caption only names the inspected path; the trace's 'details follow' is looser than the scenario's promise.",
+      "Known-gap visible (h1): the one-line code excerpt clips mid-token at the card edge with no ellipsis, and (h2) the 'layer 3: parts' chip overruns the right card edge — both are instances of the honestly reported vocabulary gaps (single-line SVG text; horizontal-only chips), reported rather than worked around.",
+      "No lesson-specific runtime branching is evident: i01-i03 and both holdouts share one rendererHash (9a7de04e...) and express through the same input types and derive ops; i04 uses a declared behaviorId 'vector_projection_v1', which is the reuse of the pre-existing projection calculation its target names, not a title-matched branch.",
+      "Provenance is honest but not deployed: all captures are local-vite-dev on port 5199 with 39 dirty tracked files, and the manifests say deployed-build verification belongs to a later handoff run.",
+      "Holdout evidence is thinner than card evidence by design (no dark theme, no reset/keyboard assertions, endpoint screenshots only), so several holdout dimensions are only partially assessed; within that evidence the vocabulary generalized without any new primitive, input type, or renderer."
     ]
   },
-  "verdict": "pass - round 1's single hard failure (i02's clipped, near-illegible token strip) is repaired in the refreshed 2026-09-22 capture: the strip is fully inside the card and every chip digit, including the highlighted chip, is legible in both themes; the i02 behavioral run is fully green again and no other card shows a regression from the repair",
-  "readOutsidePacket": false,
-  "round2": {
-    "confirmedBy": "second independent reviewer",
-    "finding": "In the refreshed capture (all four run-manifests: capturedAt 2026-09-22T08:25:01Z, shared rendererHash 29f3d15d...), the i02 '16 patches as a token sequence' strip is fully visible and uncut in light initial, light patch-6 and dark screenshots, sitting inside the card above the Replay bar. Chip digits are legible in both themes with theme-correct ink: light theme renders white digits on dark chip fills, dark theme renders dark digits on light chip fills, and the highlighted chip (enlarged '1' in initial, '6' in patch-6 and dark) is readable in every shot. i02's assertions.json and interaction-trace.json show the i02-patch-check.mjs run ending in PASS with all seven behavioral lines green. The ink change did not regress i01: the river/flows/south/today word chips and all matrix cell values remain readable in both themes. i03 and i04 screenshots show no new visual regression; i03's 'shown after commit' label is still partially under the floating toolbar in two shots, the same capture-viewport overlay artifact already noted in round 1, not new. Verdict changed to pass."
-  }
+  "verdict": "pass — the prior failure is resolved: practice explicitly snaps and locks the graded state and the diagram never contradicts the declaration; every checkable number matches independent arithmetic, no hidden answers leak before commit, and no hard failure appears in any of the six cases. Required fixes before promotion: correct the h2 heat legend (inverted in light theme) and stop the h1 code excerpt / h2 chip row clipping at the card edge; also note all evidence is local-dev, not the deployed build.",
+  "readOutsidePacket": false
 }

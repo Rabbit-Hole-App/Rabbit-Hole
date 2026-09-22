@@ -1,15 +1,15 @@
 {
-  "capturedAt": "2026-09-22T20:17:23.206Z",
-  "baseCommit": "3e84ecb53bedf24264bf5594179941fed7301c6b",
+  "capturedAt": "2026-09-22T21:46:27.443Z",
+  "baseCommit": "135d4258d03502448ae153fa3e028cee832e9941",
   "branch": "feat/canvas-block-conversations",
-  "trackedFilesDirtyAtCapture": 33,
+  "trackedFilesDirtyAtCapture": 39,
   "client": {
     "mode": "local-vite-dev",
     "port": 5199,
     "note": "deployed-build + seed verification happens in the T12 handoff run"
   },
   "sceneSpecHash": "43dba2ae929cc0b2d0d4739120f82246732adbed6e4acd2219665758baf3694d",
-  "rendererHash": "9ca9cf512afbb7ddcff23e6288e448446b1524fe67f3c78783d2565616a57679",
+  "rendererHash": "9a7de04e8aa9a3dcedf3ca8148dc608de67967d54f01aa954e902accb55daddd",
   "browser": "chromium (playwright)",
   "viewport": "1600x1400 (scenario scripts vary; see each script)",
   "devicePixelRatio": 1,
@@ -20,9 +20,9 @@
   "reducedMotionChecked": true,
   "keyboardPathChecked": true,
   "screenshots": {
-    "light/i02-initial.png": "c581ea3f8cb7c7bf6c5f73984329af8f0fe8b5bdf8652bdfed54d2365df44fb4",
-    "light/i02-patch-6.png": "043aa5af23e63ceb040d049bb11ad3bd91bfe99e2992e1d15d361498369536b7",
-    "light/t09-i02-practice.png": "b3f295cfe165e20fbd601b01399fbd0f5601150382c03f8909f2bff2a494ea54",
+    "light/i02-initial.png": "413f7e893f72a3b14a3f3b630669e36e041d8bee0aa86758ac98712c518126a1",
+    "light/i02-patch-6.png": "69af4dc041fcd2de4eccc16f8965120a64cf20b5d03afc0c553729d4cb2bff8d",
+    "light/t09-i02-practice.png": "5495bddc93ad78a0389d7b8092a53f98601f7f10cfdbebe687e154805c6e0de9",
     "dark/i02-dark.png": "a4ec80e20d649741d5e0291c3e1ad52108bd106c7bab3dd266cd4813188993d6"
   },
   "gates": {

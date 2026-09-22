@@ -1,10 +1,10 @@
 {
   "handoffUrl": "https://small-cp-dev-small-deploy.zeroshothq.workers.dev/apps/repo-06745f10-nanogpt?tab=learn&board=interactive-app-review",
   "worker": "small-cp-dev-small-deploy (this session's clone per docs/features/parallel-dev-deploys.md)",
-  "workerVersionId": "8c87c252-0f1b-428a-85c8-d0e9d39be039",
+  "workerVersionId": "042b8ea9-af37-462d-8076-900d5b00fb06",
   "loadedClientBundle": "/static/index--ESSB3nF.js",
   "bundleIdentity": "served index.html bundle == bundle the loaded page executes == local dist-dev build",
-  "sourceCommit": "907cc8b7d09a4c2b0e8e82c3cb04230dac9b1c6e",
+  "sourceCommit": "3f97b68eb84cbcd0c3230d51345e7a6d173b429d",
   "boardSeed": "interactive-app-review s2; a stale s1 blob written into storage first and verified ignored; unknown board name shows the visible notice",
   "interactionsPerformedOnDeployedPage": [
     "I01 token click + mask toggle",
@@ -26,5 +26,23 @@
     "I03: Inspect candidate vs Your prediction labels; committed chip renders solid; revealed minimum bar highlighted via argmin; offset-from-goal wording; learner-facing provenance note",
     "I04: projection line, endpoint marker and proj_b(a) label; x/y column headers on the coordinate fields",
     "legibility: axis/bar labels and helper text moved up one chrome step (ink-2), verified at 100% zoom in both themes"
-  ]
+  ],
+  "reviewPass3": {
+    "verdict": "pass (independent, six cases) - state truth resolved; all four oracles verified; both holdouts generalized on existing input types",
+    "stateTruthResolved": true,
+    "changes": [
+      "attention (and all practice cards): explicit Explore vs Practice; entering Practice applies + LOCKS the declared inputs (command-path enforced), collapses the task in Explore, and prints a generated Locked-by-this-task line",
+      "candidate-futures: rebuilt as current state -> identity-coloured arrows -> predicted-future boxes; cost chart hidden behind a placeholder until commit, then numeric with the minimum ringed (no misleading heat)",
+      "two holdouts (repo navigator, CNN inspector) built on existing input types only; three vocabulary gaps reported, not worked around"
+    ],
+    "reviewFixesApplied": [
+      "h2 CNN legend was inverted in light theme (brighter read as weaker) -> theme-neutral \"a more saturated cell is a stronger response\"",
+      "h1 code excerpt clipped at the card edge -> shortened each signature line to fit (single-line SVG text does not wrap - a reported gap)",
+      "h2 layer chips overran the card -> shortened to the layer names (edges/textures/parts); the caption keeps the \"layer N\" phrasing"
+    ],
+    "boards": {
+      "interactive-app-review": "the four cards, seed s2",
+      "interactive-holdouts": "the two generalization holdouts, seed s1"
+    }
+  }
 }

@@ -2,7 +2,7 @@
   "scene": {
     "id": "candidate-future-explorer",
     "title": "Candidate-future explorer",
-    "width": 900,
+    "width": 960,
     "height": 560,
     "duration": 3,
     "inputs": [
@@ -51,46 +51,15 @@
         0,
         3
       ],
-      "terminals": {
-        "A": [
-          2,
-          0
-        ],
-        "B": [
-          1,
-          0
-        ],
-        "C": [
-          0,
-          3
-        ]
+      "markY": {
+        "A": 188,
+        "B": 298,
+        "C": 408
       },
-      "markerX": {
-        "A": 245,
-        "B": 175,
-        "C": 105
-      },
-      "markerY": {
-        "A": 331,
-        "B": 331,
-        "C": 121
-      }
+      "oneV": 1,
+      "zeroV": 0
     },
     "derived": {
-      "terminal": {
-        "op": "pick",
-        "args": [
-          "terminals",
-          "candidate"
-        ]
-      },
-      "displacement": {
-        "op": "sub",
-        "args": [
-          "terminal",
-          "goal"
-        ]
-      },
       "dA": {
         "op": "sub",
         "args": [
@@ -154,18 +123,27 @@
           "shownCosts"
         ]
       },
-      "markX": {
+      "inspectY": {
         "op": "pick",
         "args": [
-          "markerX",
+          "markY",
           "candidate"
         ]
       },
-      "markY": {
-        "op": "pick",
+      "chartOpacity": {
+        "op": "choose",
         "args": [
-          "markerY",
-          "candidate"
+          "resultsRevealed",
+          "oneV",
+          "zeroV"
+        ]
+      },
+      "placeholderOpacity": {
+        "op": "choose",
+        "args": [
+          "resultsRevealed",
+          "zeroV",
+          "oneV"
         ]
       }
     },
@@ -176,54 +154,39 @@
         "semanticId": "caption",
         "conceptId": "candidate-futures",
         "initialState": {
-          "text": "inspecting path {{candidate}}: it ends at ({{terminal.0}}, {{terminal.1}}), offset from goal ({{displacement.0}}, {{displacement.1}})",
+          "text": "inspecting Path {{candidate}} — one of three futures the world model predicts from the current state",
           "x": 40,
           "y": 36
         }
       },
       {
-        "id": "start",
-        "type": "circle",
-        "semanticId": "start-observation",
+        "id": "current-state",
+        "type": "box",
+        "semanticId": "current-state",
         "conceptId": "candidate-futures",
         "initialState": {
-          "label": "start",
-          "x": 320,
-          "y": 126,
-          "w": 48,
-          "h": 48,
+          "label": "current state",
+          "x": 40,
+          "y": 232,
+          "w": 160,
+          "h": 56,
           "opacity": 0,
           "role": "observed"
         }
       },
       {
-        "id": "goal",
-        "type": "circle",
-        "semanticId": "goal",
-        "conceptId": "candidate-futures",
-        "initialState": {
-          "label": "goal",
-          "x": 110,
-          "y": 336,
-          "w": 48,
-          "h": 48,
-          "opacity": 0,
-          "role": "success"
-        }
-      },
-      {
-        "id": "path-a",
-        "type": "line",
-        "semanticId": "path-a",
+        "id": "arrow-a",
+        "type": "arrow",
+        "semanticId": "branch-a",
         "conceptId": "candidate-futures",
         "initialState": {
           "from": {
-            "x": 344,
-            "y": 150
+            "x": 202,
+            "y": 252
           },
           "to": {
-            "x": 274,
-            "y": 360
+            "x": 392,
+            "y": 178
           },
           "opacity": 0,
           "role": "prediction",
@@ -231,18 +194,18 @@
         }
       },
       {
-        "id": "path-b",
-        "type": "line",
-        "semanticId": "path-b",
+        "id": "arrow-b",
+        "type": "arrow",
+        "semanticId": "branch-b",
         "conceptId": "candidate-futures",
         "initialState": {
           "from": {
-            "x": 344,
-            "y": 150
+            "x": 202,
+            "y": 260
           },
           "to": {
-            "x": 204,
-            "y": 360
+            "x": 392,
+            "y": 288
           },
           "opacity": 0,
           "role": "prediction",
@@ -250,18 +213,18 @@
         }
       },
       {
-        "id": "path-c",
-        "type": "line",
-        "semanticId": "path-c",
+        "id": "arrow-c",
+        "type": "arrow",
+        "semanticId": "branch-c",
         "conceptId": "candidate-futures",
         "initialState": {
           "from": {
-            "x": 344,
-            "y": 150
+            "x": 202,
+            "y": 268
           },
           "to": {
-            "x": 134,
-            "y": 150
+            "x": 392,
+            "y": 398
           },
           "opacity": 0,
           "role": "prediction",
@@ -269,48 +232,48 @@
         }
       },
       {
-        "id": "terminal-a",
-        "type": "circle",
-        "semanticId": "terminal-a",
+        "id": "future-a",
+        "type": "box",
+        "semanticId": "predicted-future-a",
         "conceptId": "candidate-futures",
         "initialState": {
-          "label": "A",
-          "x": 257,
-          "y": 343,
-          "w": 34,
-          "h": 34,
+          "label": "Path A → future A",
+          "x": 400,
+          "y": 150,
+          "w": 220,
+          "h": 56,
           "opacity": 0,
           "role": "prediction",
           "identity": "future-a"
         }
       },
       {
-        "id": "terminal-b",
-        "type": "circle",
-        "semanticId": "terminal-b",
+        "id": "future-b",
+        "type": "box",
+        "semanticId": "predicted-future-b",
         "conceptId": "candidate-futures",
         "initialState": {
-          "label": "B",
-          "x": 187,
-          "y": 343,
-          "w": 34,
-          "h": 34,
+          "label": "Path B → future B",
+          "x": 400,
+          "y": 260,
+          "w": 220,
+          "h": 56,
           "opacity": 0,
           "role": "prediction",
           "identity": "future-b"
         }
       },
       {
-        "id": "terminal-c",
-        "type": "circle",
-        "semanticId": "terminal-c",
+        "id": "future-c",
+        "type": "box",
+        "semanticId": "predicted-future-c",
         "conceptId": "candidate-futures",
         "initialState": {
-          "label": "C",
-          "x": 117,
-          "y": 133,
-          "w": 34,
-          "h": 34,
+          "label": "Path C → future C",
+          "x": 400,
+          "y": 370,
+          "w": 220,
+          "h": 56,
           "opacity": 0,
           "role": "prediction",
           "identity": "future-c"
@@ -318,50 +281,37 @@
       },
       {
         "id": "inspecting",
-        "type": "circle",
+        "type": "text",
         "semanticId": "inspecting-marker",
         "conceptId": "candidate-futures",
         "initialState": {
-          "x": {
-            "$derive": "markX"
-          },
+          "text": "◀ inspecting",
+          "x": 632,
           "y": {
-            "$derive": "markY"
+            "$derive": "inspectY"
           },
-          "w": 58,
-          "h": 58,
-          "opacity": 0,
-          "role": "learner"
-        }
-      },
-      {
-        "id": "facts",
-        "type": "text",
-        "semanticId": "terminal-facts",
-        "conceptId": "candidate-futures",
-        "initialState": {
-          "text": "terminals: A ends at (2, 0) · B at (1, 0) · C at (0, 3) - the goal is (0, 0)",
-          "x": 40,
-          "y": 440,
+          "role": "learner",
           "typography": "annotation"
         }
       },
       {
-        "id": "cost-bars",
-        "type": "bars",
+        "id": "cost-chart",
+        "type": "grid",
         "semanticId": "candidate-costs",
         "conceptId": "candidate-futures",
         "initialState": {
-          "label": "cost: squared distance - shown after commit",
-          "x": 520,
-          "y": 170,
-          "w": 180,
-          "h": 140,
-          "cell": 60,
-          "peak": 9,
-          "opacity": 0,
+          "label": "cost to goal — squared distance (lower is better)",
+          "x": 742,
+          "y": 220,
+          "rows": 1,
+          "cols": 3,
+          "cell": 56,
+          "opacity": {
+            "$derive": "chartOpacity"
+          },
           "role": "output",
-          "labels": [
+          "matrixKind": "derived",
+          "columnLabels": [
             "A",
             "B",
             "C"
@@ -372,7 +322,34 @@
           "cellHighlight": {
             "$derive": "bestAt"
           },
-          "cellHighlightKind": "highlight"
+          "cellHighlightKind": "select"
+        }
+      },
+      {
+        "id": "cost-placeholder",
+        "type": "text",
+        "semanticId": "cost-placeholder",
+        "conceptId": "candidate-futures",
+        "initialState": {
+          "text": "costs appear after you commit a prediction",
+          "x": 700,
+          "y": 250,
+          "opacity": {
+            "$derive": "placeholderOpacity"
+          },
+          "typography": "annotation"
+        }
+      },
+      {
+        "id": "cost-note",
+        "type": "text",
+        "semanticId": "cost-note",
+        "conceptId": "candidate-futures",
+        "initialState": {
+          "text": "cost = squared distance from each predicted end to the goal — computed from the declared example data",
+          "x": 40,
+          "y": 480,
+          "typography": "annotation"
         }
       },
       {
@@ -383,7 +360,7 @@
         "initialState": {
           "text": "Toy example — these are predicted outcomes, not observations.",
           "x": 40,
-          "y": 480,
+          "y": 510,
           "typography": "annotation"
         }
       }
@@ -392,62 +369,44 @@
       {
         "at": 0,
         "action": "appear",
-        "target": "start",
+        "target": "current-state",
         "duration": 0.3
       },
       {
-        "at": 0.2,
+        "at": 0.4,
         "action": "appear",
-        "target": "goal",
-        "duration": 0.3
-      },
-      {
-        "at": 0.5,
-        "action": "appear",
-        "target": "path-a",
+        "target": "arrow-a",
         "duration": 0.4
       },
       {
-        "at": 0.6,
+        "at": 0.55,
         "action": "appear",
-        "target": "path-b",
+        "target": "arrow-b",
         "duration": 0.4
       },
       {
         "at": 0.7,
         "action": "appear",
-        "target": "path-c",
+        "target": "arrow-c",
         "duration": 0.4
       },
       {
         "at": 0.9,
         "action": "appear",
-        "target": "terminal-a",
+        "target": "future-a",
         "duration": 0.3
       },
       {
-        "at": 1,
+        "at": 1.05,
         "action": "appear",
-        "target": "terminal-b",
+        "target": "future-b",
         "duration": 0.3
       },
       {
-        "at": 1.1,
+        "at": 1.2,
         "action": "appear",
-        "target": "terminal-c",
+        "target": "future-c",
         "duration": 0.3
-      },
-      {
-        "at": 1.5,
-        "action": "appear",
-        "target": "inspecting",
-        "duration": 0.4
-      },
-      {
-        "at": 1.9,
-        "action": "appear",
-        "target": "cost-bars",
-        "duration": 0.4
       }
     ]
   },

@@ -330,14 +330,14 @@
           "label": "pick a layer to inspect",
           "x": 320,
           "y": 90,
-          "w": 420,
+          "w": 300,
           "h": 32,
           "opacity": 0,
           "role": "input",
           "tokens": [
-            "layer 1: edges",
-            "layer 2: textures",
-            "layer 3: parts"
+            "edges",
+            "textures",
+            "parts"
           ],
           "pickInput": "layerIndex",
           "cellHighlight": {
@@ -351,7 +351,7 @@
         "semanticId": "feature-map",
         "conceptId": "cnn-features",
         "initialState": {
-          "label": "activation map — brighter means a stronger response",
+          "label": "activation map — a more saturated cell is a stronger response",
           "x": 320,
           "y": 160,
           "rows": 4,

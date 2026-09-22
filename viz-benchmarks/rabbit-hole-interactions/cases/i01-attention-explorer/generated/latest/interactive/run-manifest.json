@@ -1,15 +1,15 @@
 {
-  "capturedAt": "2026-09-22T20:17:23.206Z",
-  "baseCommit": "3e84ecb53bedf24264bf5594179941fed7301c6b",
+  "capturedAt": "2026-09-22T21:46:27.443Z",
+  "baseCommit": "135d4258d03502448ae153fa3e028cee832e9941",
   "branch": "feat/canvas-block-conversations",
-  "trackedFilesDirtyAtCapture": 33,
+  "trackedFilesDirtyAtCapture": 39,
   "client": {
     "mode": "local-vite-dev",
     "port": 5199,
     "note": "deployed-build + seed verification happens in the T12 handoff run"
   },
   "sceneSpecHash": "fe2a6bbbe0de5fb972a4abffbfe2f4b8206da9edbd35b680c6dfb29e21d9cf44",
-  "rendererHash": "9ca9cf512afbb7ddcff23e6288e448446b1524fe67f3c78783d2565616a57679",
+  "rendererHash": "9a7de04e8aa9a3dcedf3ca8148dc608de67967d54f01aa954e902accb55daddd",
   "browser": "chromium (playwright)",
   "viewport": "1600x1400 (scenario scripts vary; see each script)",
   "devicePixelRatio": 1,
@@ -20,11 +20,12 @@
   "reducedMotionChecked": true,
   "keyboardPathChecked": true,
   "screenshots": {
-    "light/i01-initial.png": "53288204a4200502b233a7d2ecf014b8ca5ffe3eff8de9958a4241b69b96d14f",
-    "light/i01-query-south.png": "81f771ea44ada53a3e5c5b05b2505b3de0e7cab6e112482daeea68183dd37990",
-    "light/i01-mask-off.png": "46f90e8d5e606c3ec4e6bb036fce2a9e140cbb520ad9101a3c65ca7541c5614f",
-    "light/i01-mask-restored.png": "83f07798261f09537bd7f9e402f75faa13a13884d90dd0fbdb6d71eabfbe0547",
-    "light/t09-i01-practice.png": "a60e8c74845b122ae78406a6b1131a56fc16a81aa4294c31bc0338afea550718",
+    "light/i01-initial.png": "c063a1bb45a6fd25201f0d0b587354418abafb49cca2034f9aacdd7720d89523",
+    "light/i01-query-south.png": "793bb346e4dc1cf12b901b236498ace09b17bc97cb8d0d5dc88384dab6a0e58d",
+    "light/i01-mask-off.png": "95c6e76f7457e6df34912e140c9e8f2c42dbdc0b88a79a4a07fbf57623897bdf",
+    "light/i01-mask-restored.png": "e1940c914bf2d9f9fc6939b759f8e7a3248315957defeb3267d4717a610b71dc",
+    "light/t09-i01-practice.png": "c66e3b551b22d5a6a0ff4fdfce68a1bba9caf664338c67b2cd6878bc7dc131da",
+    "light/t09-i01-statesnap.png": "a3b9653feca7156e06582fb45ff4b518d73cc97e826e8536210d5c1203cb6ddc",
     "dark/i01-dark.png": "c23b90a3480fcc93f0c97f0728d26464954927582929126ff6f73c71af6dfe32"
   },
   "gates": {

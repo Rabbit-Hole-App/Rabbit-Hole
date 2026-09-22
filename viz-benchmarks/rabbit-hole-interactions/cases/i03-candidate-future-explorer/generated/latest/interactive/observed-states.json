@@ -4,10 +4,6 @@
       null,
       null,
       null
-    ],
-    "terminal": [
-      1,
-      0
     ]
   },
   "post-commit": {

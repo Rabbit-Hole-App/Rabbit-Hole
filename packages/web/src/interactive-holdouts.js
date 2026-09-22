@@ -18,15 +18,18 @@
 // One signature line per node - the SVG text primitive renders a single line
 // (multi-line code is a reported vocabulary gap), so the excerpt is the one
 // line that names what the symbol IS.
+// One signature line per node, kept short enough to fit the code box's width
+// (single-line SVG text does not wrap or ellipsize - a reported gap - so the
+// excerpt must fit on its own).
 const H1_NODES = [
   { label: 'model.py', crumb: 'nanoGPT › model.py', arch: 0,
-    code: 'class GPT(nn.Module):  self.blocks = [Block(config) for _ in range(n_layer)]' },
+    code: 'class GPT(nn.Module): self.blocks = [Block(c) ...]' },
   { label: 'Block', crumb: 'nanoGPT › model.py › Block', arch: 1,
-    code: 'class Block(nn.Module):  self.attn = CausalSelfAttention(config); self.mlp = MLP(config)' },
+    code: 'class Block: self.attn = CausalSelfAttention(c)' },
   { label: 'CausalSelfAttention', crumb: 'nanoGPT › model.py › Block › CausalSelfAttention', arch: 2,
-    code: 'class CausalSelfAttention(nn.Module):  self.c_attn = nn.Linear(n_embd, 3*n_embd)' },
+    code: 'class CausalSelfAttention: self.c_attn = Linear(...)' },
   { label: 'forward()', crumb: 'nanoGPT › model.py › Block › CausalSelfAttention › forward()', arch: 3,
-    code: 'def forward(self, x):  att = (q @ k.T) * scale;  att = att.masked_fill(mask==0, -inf)' },
+    code: 'def forward(x): att = (q @ k.T) * scale' },
 ];
 // The architecture column, one box per level, highlighted at the node's own
 // `arch` row. A 4x1 grid whose highlighted row IS the selection - no values,
@@ -108,14 +111,19 @@ export const cnnInspectorScene = {
       initialState: { src: '/lesson-assets/vlm-patch-source.jpg', x: 40, y: 90, w: 220, h: 220, opacity: 0, role: 'input' } },
     { id: 'image-label', type: 'text', semanticId: 'image-label', conceptId: 'cnn-features',
       initialState: { text: 'input image', x: 40, y: 318, typography: 'annotation' } },
+    // Short chip labels (the layer NAME; the number is the position): the
+    // "layer N: name" form overran the card's right edge. The caption carries
+    // the full "layer N" phrasing.
     { id: 'layer-picker', type: 'tokens', semanticId: 'layer-path', conceptId: 'cnn-features',
-      initialState: { label: 'pick a layer to inspect', x: 320, y: 90, w: 420, h: 32, opacity: 0, role: 'input',
-        tokens: H2_LAYERS.map((name, index) => `layer ${index + 1}: ${name}`),
+      initialState: { label: 'pick a layer to inspect', x: 320, y: 90, w: 300, h: 32, opacity: 0, role: 'input',
+        tokens: [...H2_LAYERS],
         pickInput: 'layerIndex', cellHighlight: { $derive: 'layerIndex' } } },
     // The feature map: a 4x4 heat grid of activations for the chosen (layer,
-    // channel), on a fixed [0,1]-style local scale so brighter = stronger.
+    // channel). Theme-neutral legend: the heat ramp saturates with magnitude,
+    // so "more saturated = stronger" is true in both light and dark themes
+    // (the earlier "brighter" read inverted under the light-theme ramp).
     { id: 'feature-map', type: 'grid', semanticId: 'feature-map', conceptId: 'cnn-features',
-      initialState: { label: 'activation map — brighter means a stronger response', x: 320, y: 160, rows: 4, cols: 4, cell: 52, opacity: 0, role: 'observed',
+      initialState: { label: 'activation map — a more saturated cell is a stronger response', x: 320, y: 160, rows: 4, cols: 4, cell: 52, opacity: 0, role: 'observed',
         matrixKind: 'derived', heat: true, valueScale: 'local', values: { $derive: 'featureMap' } } },
     { id: 'hint', type: 'text', semanticId: 'hint', conceptId: 'cnn-features',
       initialState: { text: 'the same channel across layers shows how features grow from edges to parts', x: 40, y: 470, typography: 'annotation' } },

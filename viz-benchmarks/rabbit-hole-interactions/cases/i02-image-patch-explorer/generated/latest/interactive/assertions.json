@@ -33,7 +33,7 @@
       "PASS - one composer, full T04 contract"
     ],
     "t09-activities-check.mjs": [
-      "state truth: answering snapped the explorer to south + mask on",
+      "state truth + lock: Practice snapped to south + mask on and locked them",
       "I01: fail -> new attempt -> pass, replay changes nothing, payload honest",
       "I02: separate answer index graded, explorer input untouched",
       "I03: commit A -> reveal -> immutable -> new attempt B passes",
