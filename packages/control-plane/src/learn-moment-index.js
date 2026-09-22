@@ -234,6 +234,42 @@ export async function warmMoments(query, env, { captions = fetchCaptions } = {})
   } catch { return null; }
 }
 
+// The hot path: has a learner already accepted a moment for this phrasing?
+// question -> bge-m3 -> workspace-scoped question vectors -> momentId -> the
+// D1 log, accepted rows only. Fast, not instant - and a candidate, never an
+// auto-show: the model still confirms it fits this question.
+export async function hotMoment(query, env, org) {
+  if (!env?.AI || !env?.MOMENTS || !env?.DB || !org) return null;
+  try {
+    const [vector] = await embedTexts(env, [query]);
+    const result = await env.MOMENTS.query(vector, { topK: 3, namespace: `questions:${org}`, returnMetadata: 'all' });
+    const best = (result?.matches || [])[0];
+    if (!best || (best.score ?? 0) < HOT_MIN || !best.metadata?.momentId) return null;
+    const row = await env.DB.prepare('SELECT question, video_id, start, end, reason FROM learn_moments WHERE id = ? AND org = ? AND accepted = 1')
+      .bind(Number(best.metadata.momentId), String(org)).first();
+    if (!row) return null;
+    return { momentId: Number(best.metadata.momentId), videoId: row.video_id, start: row.start, end: row.end, reason: row.reason || null, pastQuestion: row.question, score: best.score ?? null };
+  } catch { return null; }
+}
+
+// On Keep, the question becomes the workspace's retrieval key for this
+// moment; on Dismiss the key is withdrawn. Vector ids are unique per index,
+// so q:<momentId> needs no namespace in the delete.
+export async function upsertAcceptedQuestion(env, org, momentId, question) {
+  if (!env?.AI || !env?.MOMENTS || !org || !question) return false;
+  try {
+    const [vector] = await embedTexts(env, [question]);
+    await env.MOMENTS.upsert([{ id: `q:${momentId}`, values: vector, namespace: `questions:${org}`, metadata: { momentId } }]);
+    return true;
+  } catch { return false; }
+}
+
+export async function withdrawAcceptedQuestion(env, momentId) {
+  if (!env?.MOMENTS) return false;
+  try { await env.MOMENTS.deleteByIds([`q:${momentId}`]); return true; }
+  catch { return false; }
+}
+
 // fetchCaptions with the record wrapped around it: a fresh negative skips the
 // fetch entirely, a failed fetch writes its reason for next time. Without R2
 // (unit tests, other deployments) it is a plain pass-through.

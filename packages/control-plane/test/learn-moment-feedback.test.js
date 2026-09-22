@@ -35,3 +35,23 @@ test('garbage never reaches the database', async () => {
   await assert.rejects(() => setMomentFeedback(env, 'workspace-a', 1.5, true), /Invalid moment id/);
   await assert.rejects(() => setMomentFeedback(env, 'workspace-a', 1, 'yes'), /true or false/);
 });
+
+test('Keep upserts the question vector; Dismiss withdraws it', async () => {
+  const { db, env } = fixture();
+  // the shim again, with first() support this test needs
+  const prepare = sql => ({ bind: (...args) => ({
+    run: async () => { const info = db.prepare(sql).run(...args); return { meta: { changes: info.changes } }; },
+    first: async () => db.prepare(sql).get(...args) ?? null,
+  }) });
+  env.DB = { prepare };
+  env.AI = { run: async (model, { text }) => ({ data: text.map(() => [0.5, 0.5]) }) };
+  env.MOMENTS = { ops: [], upsert: async rows => env.MOMENTS.ops.push(['upsert', rows]), deleteByIds: async ids => env.MOMENTS.ops.push(['delete', ids]) };
+  await setMomentFeedback(env, 'workspace-a', 1, true);
+  const [kind, rows] = env.MOMENTS.ops.at(-1);
+  assert.equal(kind, 'upsert');
+  assert.equal(rows[0].id, 'q:1');
+  assert.equal(rows[0].namespace, 'questions:workspace-a');
+  assert.deepEqual(rows[0].metadata, { momentId: 1 });
+  await setMomentFeedback(env, 'workspace-a', 1, false);
+  assert.deepEqual(env.MOMENTS.ops.at(-1), ['delete', ['q:1']]);
+});

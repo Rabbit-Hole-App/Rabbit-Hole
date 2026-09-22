@@ -221,3 +221,48 @@ test('findVideoMoments takes the warm path when the index answers', async () => 
   assert.equal(result.warm, true);
   assert.equal(result.videos[0].videoId, VID);
 });
+
+// --- step 6: the hot path ---
+const hotEnv = row => {
+  const env = aiEnv();
+  env.MOMENTS.query = async (vector, options) => (options.namespace?.startsWith('questions:')
+    ? { matches: [{ id: 'q:7', score: 0.92, metadata: { momentId: 7 } }] }
+    : { matches: [] });
+  env.DB = { prepare: sql => ({ bind: (...args) => ({ first: async () => (sql.includes('accepted = 1') && args[1] === 'workspace-a' ? row : null) }) }) };
+  return env;
+};
+const ROW = { question: 'how does backprop work', video_id: VID, start: 120, end: 210, reason: 'shows the chain rule' };
+
+test('an accepted near-duplicate question surfaces as a trusted hot candidate', async () => {
+  const { hotMoment } = await import('../src/learn-moment-index.js');
+  const hot = await hotMoment('how does backpropagation work?', hotEnv(ROW), 'workspace-a');
+  assert.equal(hot.videoId, VID);
+  assert.equal(hot.start, 120);
+  assert.equal(hot.pastQuestion, ROW.question);
+  assert.equal(await hotMoment('anything', hotEnv(ROW), 'workspace-b'), null, 'another workspace sees nothing');
+  assert.equal(await hotMoment('anything', hotEnv(null), 'workspace-a'), null, 'an unaccepted row never rides');
+});
+
+test('below the hot floor the candidate stays cold', async () => {
+  const { hotMoment, HOT_MIN } = await import('../src/learn-moment-index.js');
+  const env = hotEnv(ROW);
+  env.MOMENTS.query = async () => ({ matches: [{ id: 'q:7', score: HOT_MIN - 0.01, metadata: { momentId: 7 } }] });
+  assert.equal(await hotMoment('vaguely related', env, 'workspace-a'), null);
+});
+
+test('findVideoMoments carries the hot candidate and the gate trusts it', async () => {
+  const { validateShowVideo } = await import('../src/learn-youtube.js');
+  const env = hotEnv(ROW);
+  const result = await findVideoMoments('how does backprop work', env, {
+    org: 'workspace-a',
+    search: async () => [{ videoId: 'FaHHWdsIYQg', title: 'Other', channel: null }],
+    captions: async () => ({ lines: null, reason: 'no-track' }),
+  });
+  assert.equal(result.hot.videoId, VID);
+  assert.equal(result.hot.pastQuestion, ROW.question);
+  const found = new Map(result.videos.map(video => [video.videoId, video]));
+  assert.equal(found.get(VID).trusted, true);
+  const shown = validateShowVideo({ videoId: VID, start: 120, end: 210 }, found);
+  assert.equal(shown.start, 120);
+  assert.throws(() => validateShowVideo({ videoId: 'FaHHWdsIYQg', start: 10, end: 60 }, found), /without a window/, 'an untrusted passage-less video still refuses');
+});

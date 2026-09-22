@@ -995,7 +995,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent') {
         return article;
       }
       if (name === FIND_VIDEO_MOMENTS_TOOL.name) {
-        const found = await findVideoMoments(String(input?.query || ''), env);
+        const found = await findVideoMoments(String(input?.query || ''), env, { org: user.org });
         for (const video of found.videos) foundVideos.set(video.videoId, video);
         return found;
       }
