@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { evaluateScene } from './scene-evaluate.js';
 import { checkSceneConsistency } from './scene-consistency.js';
 import { checkLayoutLint } from './scene-layout-lint.js';
-import { attentionExplorerScene } from './interactive-scenes.js';
+import { attentionExplorerScene, patchExplorerScene } from './interactive-scenes.js';
 
 const TOKENS = ['river', 'flows', 'south', 'today'];
 const Q = [[1, 0], [0, 1], [1, 1], [1, -1]];
@@ -106,6 +106,37 @@ for (const [index, inputs] of SNAPSHOTS.entries()) {
     assert.deepEqual(consistency.issues, []);
     const layout = checkLayoutLint(scene);
     assert.deepEqual(layout.issues, []);
+  });
+}
+
+// --- I02 image-patch explorer ------------------------------------------------
+
+const evaluatedPatch = (inputs = {}) => evaluateScene(structuredClone(patchExplorerScene), 3, inputs);
+
+test('I02: internal index 5 is Patch 6 of 16, row 2, column 2 - and the crop is that exact region', () => {
+  const { state, derived } = evaluatedPatch({ patchIndex: 5 });
+  assert.equal(derived.patch.human, 'Patch 6 of 16 · row 2, column 2');
+  const objects = Object.fromEntries(state.objects.map(object => [object.semanticId, object]));
+  assert.match(objects.caption.label, /Patch 6 of 16/);
+  assert.deepEqual({ x: objects['patch-crop'].crop.x, y: objects['patch-crop'].crop.y }, { x: 0.25, y: 0.25 });
+  assert.equal(objects['patch-grid'].cellHighlight, 5);
+  assert.equal(objects['patch-positions'].cellHighlight, 5);
+  // source and crop draw the same file - they cannot disagree
+  assert.equal(objects['patch-crop'].src, objects['source-image'].src);
+});
+
+test('I02: the domain has real ends - 0 and 15 evaluate, out-of-range resets, nothing wraps', () => {
+  assert.equal(evaluatedPatch({ patchIndex: 0 }).derived.patch.human, 'Patch 1 of 16 · row 1, column 1');
+  assert.equal(evaluatedPatch({ patchIndex: 15 }).derived.patch.human, 'Patch 16 of 16 · row 4, column 4');
+  assert.equal(evaluatedPatch({ patchIndex: 16 }).inputs.patchIndex, 0);
+  assert.equal(evaluatedPatch({ patchIndex: -1 }).inputs.patchIndex, 0);
+});
+
+for (const patchIndex of [0, 5, 15]) {
+  test(`I02 snapshot patch ${patchIndex}: consistency and layout gates pass`, () => {
+    const { scene } = evaluatedPatch({ patchIndex });
+    assert.deepEqual(checkSceneConsistency(scene).issues, []);
+    assert.deepEqual(checkLayoutLint(scene).issues, []);
   });
 }
 

@@ -270,7 +270,7 @@ function resolveOneDerivation(name, spec, pool) {
 // a selection bound to a learning input says which part is looked at, not
 // where the object's own numbers came from, so it must not be able to flip
 // an input matrix's provenance to "derived".
-const usesDeriveMarker = ({ cellHighlight: _selection, ...node } = {}) => /"\$derive"|\{\{\w+\}\}/.test(JSON.stringify(node ?? null));
+const usesDeriveMarker = ({ cellHighlight: _selection, ...node } = {}) => /"\$derive"|\{\{[\w.]+\}\}/.test(JSON.stringify(node ?? null));
 
 // pool (exampleData plus every resolved derivation's .value) is what both a
 // derivation's own args AND a scene's $derive/{{}} markers read from - one
@@ -296,7 +296,7 @@ function walk(node, pool) {
     }
     return out;
   }
-  if (typeof node === 'string' && /\{\{\w+\}\}/.test(node)) {
+  if (typeof node === 'string' && /\{\{[\w.]+\}\}/.test(node)) {
     return node.replace(/\{\{([\w.]+)\}\}/g, (_, name) => {
       const value = lookupPath(pool, name);
       if (value === undefined) throw new Error(`"{{${name}}}" names no entry in the scene's "derived" block (or "exampleData")`);

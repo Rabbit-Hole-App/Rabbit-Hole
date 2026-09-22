@@ -18,6 +18,74 @@ const I01_Q = [[1, 0], [0, 1], [1, 1], [1, -1]];
 const I01_K = [[1, 0], [0, 1], [1, 1], [-1, 1]];
 const I01_V = [[1, 0], [0, 1], [1, 1], [-1, 0]];
 
+// --- I02: image-patch explorer -----------------------------------------------
+// One real local image, a fixed 4x4 grid over it, and a single patchIndex
+// input that a click on the image, the slider, and the steppers all write.
+// The enlarged view is a WINDOW onto the same file (the renderer's crop
+// fractions), so source and crop can never disagree - and no request of any
+// kind fires when a patch is selected.
+
+// Zero-based data, one-based people: internal index 5 is patch 6 of 16,
+// row 2, column 2, and the record says so in its own words.
+const I02_PATCHES = Array.from({ length: 16 }, (unused, index) => {
+  const row = Math.floor(index / 4), column = index % 4;
+  return {
+    x: column * 0.25, y: row * 0.25, w: 0.25, h: 0.25,
+    human: `Patch ${index + 1} of 16 · row ${row + 1}, column ${column + 1}`,
+  };
+});
+
+export const patchExplorerScene = {
+  id: 'image-patch-explorer',
+  title: 'Image-patch explorer',
+  width: 960,
+  height: 590,
+  duration: 3,
+  inputs: [
+    { name: 'patchIndex', type: 'index', label: 'Patch', of: 'patches', default: 0, presentation: 'slider' },
+  ],
+  exampleData: { patches: I02_PATCHES },
+  derived: {
+    patch: { op: 'pick', args: ['patches', 'patchIndex'] },
+  },
+  objects: [
+    { id: 'caption', type: 'text', semanticId: 'caption', conceptId: 'vlm-pipeline',
+      initialState: { text: '{{patch.human}} - click the image, drag the slider, or step', x: 40, y: 36 } },
+    { id: 'photo', type: 'image', semanticId: 'source-image', conceptId: 'vlm-pipeline',
+      initialState: { src: '/lesson-assets/vlm-patch-source.jpg', x: 40, y: 100, w: 320, h: 320, opacity: 0, role: 'input' } },
+    // Overlaid on the image, drawn after so it paints on top; carries the
+    // learner's pick (SelectionMark ring on the chosen cell) and the click
+    // targets that write patchIndex.
+    { id: 'patch-grid', type: 'grid', semanticId: 'patch-grid', conceptId: 'vlm-pipeline',
+      initialState: { label: '16 fixed-size patches - click one', x: 40, y: 100, rows: 4, cols: 4, cell: 80, opacity: 0, role: 'input',
+        pickInput: 'patchIndex', cellHighlight: { $derive: 'patchIndex' } } },
+    { id: 'patch-crop', type: 'image', semanticId: 'patch-crop', conceptId: 'vlm-pipeline',
+      initialState: { src: '/lesson-assets/vlm-patch-source.jpg', x: 520, y: 140, w: 220, h: 220, opacity: 0, role: 'input',
+        crop: { $derive: 'patch' } } },
+    // SVG will not stroke an <image>, so the crop's frame is its own box -
+    // a related highlight tied to the source cell's selection by content,
+    // not a second independent selection.
+    { id: 'patch-crop-outline', type: 'box', semanticId: 'patch-crop-outline', conceptId: 'vlm-pipeline',
+      initialState: { x: 520, y: 140, w: 220, h: 220, opacity: 0, role: 'neutral' } },
+    { id: 'crop-label', type: 'text', semanticId: 'crop-label', conceptId: 'vlm-pipeline',
+      initialState: { text: 'the same patch, enlarged - a window onto the same file', x: 520, y: 384, opacity: 0, typography: 'annotation' } },
+    // The patch as a sequence position: one chip per patch token, the chosen
+    // one lit as a downstream consequence of the selection above.
+    { id: 'positions', type: 'tokens', semanticId: 'patch-positions', conceptId: 'vlm-pipeline',
+      initialState: { label: 'the 16 patches as a token sequence', x: 40, y: 490, opacity: 0, role: 'observed',
+        tokens: I02_PATCHES.map((unused, index) => String(index + 1)),
+        cellHighlight: { $derive: 'patchIndex' }, cellHighlightKind: 'highlight' } },
+  ],
+  timeline: [
+    { at: 0.0, action: 'appear', target: 'photo', duration: 0.4 },
+    { at: 0.3, action: 'appear', target: 'patch-grid', duration: 0.4 },
+    { at: 0.8, action: 'appear', target: 'patch-crop', duration: 0.4 },
+    { at: 0.8, action: 'appear', target: 'patch-crop-outline', duration: 0.4 },
+    { at: 1.0, action: 'appear', target: 'crop-label', duration: 0.3 },
+    { at: 1.6, action: 'appear', target: 'positions', duration: 0.4 },
+  ],
+};
+
 export const attentionExplorerScene = {
   id: 'attention-explorer',
   title: 'Attention explorer',

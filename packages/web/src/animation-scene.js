@@ -77,6 +77,14 @@ const objectSchema = z.object({
     columnLabels: z.array(z.string().max(24)).max(64).optional(),
     tokens: z.array(z.string().max(24)).max(48).optional(),
     src: z.string().max(300).optional(),
+    // Show only this region of the image, as fractions of the object's own
+    // displayed box (0..1 each). The renderer maps the fractions through the
+    // same centre-slice fit the full image uses, so a crop names exactly the
+    // region a grid overlaid on the displayed image would name.
+    crop: z.object({
+      x: z.number().min(0).max(1), y: z.number().min(0).max(1),
+      w: z.number().gt(0).max(1), h: z.number().gt(0).max(1),
+    }).optional(),
     // true predates modes and still means the same thing it always did - the
     // gate below normalises both spellings to { mode } so nothing past it
     // reads a bare boolean.
@@ -492,6 +500,7 @@ export function getSceneState(scene, time) {
     cellHighlight: object.initialState.cellHighlight ?? null,
     cellHighlightKind: object.initialState.cellHighlightKind ?? null,
     pickInput: object.initialState.pickInput ?? null,
+    crop: object.initialState.crop ?? null,
     sweep: null,
     emphasis: 0,
   }]));

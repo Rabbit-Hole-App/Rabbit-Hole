@@ -499,9 +499,21 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
               {isData
                 ? <DataShape object={object} role={role} pop={pop} chosen={chosen} onInputPick={onInputPick} />
                 : isImage
-                ? <image href={object.src} x={object.x} y={object.y} width={object.w} height={object.h}
-                    preserveAspectRatio="xMidYMid slice"
-                    style={{ stroke: look.stroke, strokeWidth: look.strokeWidth }} />
+                ? (object.crop
+                  // A crop is the same picture through a smaller window: the
+                  // inner svg normalises the displayed box to 1000x1000 with
+                  // the SAME centre-slice fit the plain <image> path uses, so
+                  // crop fractions name exactly the region a grid overlaid on
+                  // the displayed image names. No second copy of the pixels,
+                  // no per-patch asset - one source file, one window onto it.
+                  ? <svg x={object.x} y={object.y} width={object.w} height={object.h}
+                      viewBox={`${object.crop.x * 1000} ${object.crop.y * 1000} ${object.crop.w * 1000} ${object.crop.h * 1000}`}
+                      preserveAspectRatio="xMidYMid slice">
+                      <image href={object.src} x="0" y="0" width="1000" height="1000" preserveAspectRatio="xMidYMid slice" />
+                    </svg>
+                  : <image href={object.src} x={object.x} y={object.y} width={object.w} height={object.h}
+                      preserveAspectRatio="xMidYMid slice"
+                      style={{ stroke: look.stroke, strokeWidth: look.strokeWidth }} />)
                 : isStroke
                 ? <line x1={object.from?.x ?? object.x} y1={object.from?.y ?? object.y}
                     x2={object.to?.x ?? object.x} y2={object.to?.y ?? object.y}
@@ -596,11 +608,14 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
   }, [block.scene, inputsKey]);
   // Changing a learning input pauses playback and keeps the current time -
   // the scrubber never jumps because the learner asked a what-if question.
-  const setInput = (name, value) => {
+  // live: a mid-gesture update (a slider sweep) - accepted and visible to
+  // every reader immediately, but through the quiet path so one drag is not
+  // fifteen undo steps. The gesture's final call commits normally.
+  const setInput = (name, value, { live = false } = {}) => {
     const next = applyInputToBlock(latest.current, name, value);
     if (next === latest.current) return;
     setPlaying(false);
-    onChange(next);
+    (live && onChangeQuiet ? onChangeQuiet : onChange)(next);
   };
   // Only this card's experiment resets: declared inputs return, the inspected
   // object and marked region clear, notes and every other card stay put.

@@ -20,6 +20,30 @@ const positionLabels = (declaration, data) => {
 const CHIP = 'flex h-8 items-center rounded-lg border px-3 text-sm';
 const chipClass = active => `${CHIP} ${active ? 'border-ink-3 bg-hover font-medium text-ink' : 'border-line text-ink-2 hover:bg-hover hover:text-ink'}`;
 
+// The slider presentation of an index input: a labelled integer slider with
+// Previous/Next steppers over the same declared domain. Ends are ends - the
+// steppers disable at the bounds, and nothing wraps. Slider drags flow
+// through the live (non-snapshotting) path so one sweep is not fifteen undo
+// steps; steppers and keyboard arrows are discrete and commit normally.
+function IndexSlider({ declaration, value, data, onInput }) {
+  const length = (data?.[declaration.of] || []).length;
+  const stepButton = 'flex h-8 items-center rounded-lg border border-line px-2.5 text-xs text-ink hover:bg-hover disabled:cursor-default disabled:opacity-40';
+  return (
+    <div role="group" aria-label={declaration.label} className="flex flex-wrap items-center gap-1.5">
+      <span className="text-xs font-medium text-ink-2">{declaration.label}:</span>
+      <button type="button" data-input-step={`${declaration.name}:previous`} disabled={value <= 0}
+        onClick={() => onInput(declaration.name, value - 1)} className={stepButton}>Previous</button>
+      <input type="range" data-input-control={declaration.name} min={0} max={length - 1} step={1} value={value}
+        aria-label={declaration.label} aria-valuetext={`${value + 1} of ${length}`}
+        onChange={event => onInput(declaration.name, Number(event.target.value), { live: true })}
+        className="h-8 w-44 accent-accent" />
+      <button type="button" data-input-step={`${declaration.name}:next`} disabled={value >= length - 1}
+        onClick={() => onInput(declaration.name, value + 1)} className={stepButton}>Next</button>
+      <span data-input-readout={declaration.name} className="text-xs tabular-nums text-ink-2">{value + 1} of {length}</span>
+    </div>
+  );
+}
+
 function IndexPicker({ declaration, value, data, onInput }) {
   const labels = positionLabels(declaration, data);
   return (
@@ -79,7 +103,7 @@ export default function SceneControls({ declarations, inputs, data, onInput, onR
   return (
     <div data-scene-controls className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-line bg-white px-3 py-2">
       {rows.map(declaration => {
-        const Widget = WIDGETS[declaration.type];
+        const Widget = declaration.type === 'index' && declaration.presentation === 'slider' ? IndexSlider : WIDGETS[declaration.type];
         return <Widget key={declaration.name} declaration={declaration} value={inputs[declaration.name]} data={data} onInput={onInput} />;
       })}
       {/* Left flow, never pinned to the card's right edge - a wide card can
