@@ -1,11 +1,11 @@
 {
   "handoffUrl": "https://small-cp-dev-small-deploy.zeroshothq.workers.dev/apps/repo-06745f10-nanogpt?tab=learn&board=interactive-app-review",
   "worker": "small-cp-dev-small-deploy (this session's clone per docs/features/parallel-dev-deploys.md)",
-  "workerVersionId": "b09c52aa-7137-42d5-b2be-bdebe40bf08a",
-  "loadedClientBundle": "/static/index-B_eQpwnI.js",
+  "workerVersionId": "8c87c252-0f1b-428a-85c8-d0e9d39be039",
+  "loadedClientBundle": "/static/index--ESSB3nF.js",
   "bundleIdentity": "served index.html bundle == bundle the loaded page executes == local dist-dev build",
-  "sourceCommit": "d60f349f9c2177a63942331460ac034fac2d3671",
-  "boardSeed": "interactive-app-review s1; a stale s0 blob written into storage first and verified ignored; unknown board name shows the visible notice",
+  "sourceCommit": "907cc8b7d09a4c2b0e8e82c3cb04230dac9b1c6e",
+  "boardSeed": "interactive-app-review s2; a stale s1 blob written into storage first and verified ignored; unknown board name shows the visible notice",
   "interactionsPerformedOnDeployedPage": [
     "I01 token click + mask toggle",
     "I02 grid click + stepper",
@@ -19,5 +19,12 @@
     "I01 practice runs ungated (deliberate deviation recorded in the ledger; the commit->reveal gate is demonstrated by I03 and shared)",
     "The widest card (I01) can extend under the floating drawing toolbar at narrow viewports; cards are movable and the canvas pans",
     "No external interaction reference captured; temporal smoothness beyond intermediate-value traces unassessed"
+  ],
+  "reviewPass2": [
+    "card-level Ask about this removed everywhere; the selection pill + bottom composer is the one ask surface and still receives live card context",
+    "I01: practice snaps the visualization to its declared state (south, mask on) at answer-begin/Check/New attempt, with a generated Practice setup line; single query control (accessible token chips on the visual); mask caption and legend follow the mask state; pipeline band with numeric weights dominates, full matrices secondary",
+    "I03: Inspect candidate vs Your prediction labels; committed chip renders solid; revealed minimum bar highlighted via argmin; offset-from-goal wording; learner-facing provenance note",
+    "I04: projection line, endpoint marker and proj_b(a) label; x/y column headers on the coordinate fields",
+    "legibility: axis/bar labels and helper text moved up one chrome step (ink-2), verified at 100% zoom in both themes"
   ]
 }

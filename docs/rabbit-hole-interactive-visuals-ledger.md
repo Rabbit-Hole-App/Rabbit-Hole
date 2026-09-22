@@ -296,6 +296,54 @@ full answers need the shared worker after explicit promotion); I01 practice
 ungated (deviation below); the widest card can sit under the floating
 toolbar at narrow viewports; no external interaction reference captured.
 
+## Review pass 2 — state clarity (commits a6e5c96, seed bump, 2026-09-22)
+
+The user's hands-on review: interaction system works; the learner-experience
+gap is STATE CLARITY - never show two contradicting states. All twelve items
+applied with the generic system, no new primitives:
+
+1. Card-level "Ask about this" removed from all four cards and the shared UI;
+   the existing selection pill + bottom composer is the one ask surface, and
+   it still receives the live card context (chip re-arm + at-Send getter
+   untouched). All e2e flows repointed at the pill; T12 asserts zero
+   `data-scene-ask` on the deployed board.
+2. Explore-vs-practice state truth: `activity.fixedInputs` + a
+   `withPracticeState` snap applied at answer-begin, Check and New attempt,
+   plus a GENERATED "Practice setup" line (describeInputValue over the same
+   declarations, so line and state cannot diverge). Browser-proven: explore to
+   "today, mask off", touch the answer, the card snaps to "south, mask on".
+3. Single query control: index presentation 'visual' (no strip widget);
+   pickInput items on the scene are real controls - tabIndex, role=button,
+   aria-pressed, Enter/Space.
+4. Mask presentation follows the mask state: `choose` derive op selects
+   between authored captions; legend text appears only while masking is on;
+   asserted in unit + pixels for both states.
+5. Teaching order: a left-to-right band (token → Q row → numeric weights →
+   output → equation) dominates; Q/K/V + scores matrix sit below as "the full
+   picture". Weights render as a 1x4 fixed-[0,1] heat row with numerals and
+   key-token column labels (values on the probabilities, per review).
+6. I02 preserved as-is; the indexing-style practice question kept for this
+   milestone. RECORDED FOR LATER: a real lesson should ask something
+   conceptual (e.g. pick the token for a highlighted image region).
+7. I03: "Inspect candidate" vs "Your prediction"; committed chip renders
+   solid dark (locked-in), distinct from inspection outline; the revealed
+   minimum bar is highlighted via a null-tolerant `argmin` op.
+8. Wording: "offset from goal (1, 0)" (the value IS terminal - goal);
+   provenance note now "Toy example — these are predicted outcomes, not
+   observations."
+9. I04: solid projection core line + endpoint marker + proj_b(a) label;
+   x/y column headers over the coordinate fields; perpendicular guide kept.
+10. Legibility: axis and bar labels + helper text moved one chrome step up
+    (ink-3 → ink-2); the pinned scene-style test updated with the rationale
+    (the invariant is ONE generic muted token, not which step).
+11. Nothing rebuilt: typed inputs, controls, derive path, checks, persistence
+    untouched; 490 unit tests + all seven browser scenarios green; statics
+    re-rendered; T10 evidence recaptured.
+12. Seed bumped to s2 (seed content changed - saved s1 boards must not mask
+    the revision); deployed worker version 8c87c252, bundle
+    /static/index--ESSB3nF.js verified served == loaded == local; full T12
+    rerun green; screenshots inspected by eye in both themes.
+
 **Known deliberate deviation (for the user's call at review):** spec §8-I01
 asks that mask/answer-coded views hide behind the reveal gate DURING the I01
 prediction. The masked scores matrix is the exploration content itself -
