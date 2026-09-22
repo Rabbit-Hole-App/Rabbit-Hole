@@ -59,6 +59,28 @@ export const writeNegative = (env, videoId, reason, now = Date.now()) => writeRe
 export const writeIndexed = (env, videoId, { cut, starts }, now = Date.now()) =>
   writeRecord(env, videoId, { reason: null, cut, starts, indexedAt: new Date(now).toISOString() }, now);
 
+// The deterministic vector ids the ledger can reconstruct - <videoId>:<cut>:<start> -
+// because Vectorize offers no delete-by-prefix.
+export function vectorIds(record) {
+  if (!record?.starts?.length || record.cut == null) return [];
+  return record.starts.map(start => `${record.videoId}:${record.cut}:${start}`);
+}
+
+// A deleted video, as reported by a card whose thumbnail 404ed. The signal is
+// client-reported, so it prunes derived data only - vectors and the record -
+// never the D1 log, which is our own history.
+export async function pruneVideo(env, videoId) {
+  const record = await readMomentRecord(env, videoId);
+  const ids = vectorIds(record);
+  let pruned = 0;
+  if (ids.length && env?.MOMENTS) {
+    try { await env.MOMENTS.deleteByIds(ids); pruned = ids.length; }
+    catch { /* the record still flips to deleted; a re-report retries */ }
+  }
+  await writeNegative(env, videoId, 'deleted');
+  return { pruned };
+}
+
 // fetchCaptions with the record wrapped around it: a fresh negative skips the
 // fetch entirely, a failed fetch writes its reason for next time. Without R2
 // (unit tests, other deployments) it is a plain pass-through.

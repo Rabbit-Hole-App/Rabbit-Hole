@@ -91,3 +91,25 @@ test('findVideoMoments consults the record before fetching', async () => {
   assert.equal(result.videos[0].hasCaptions, false);
   assert.equal(result.videos[0].captionNote, 'no-track');
 });
+
+test('pruning reconstructs vector ids from the ledger and flips the record to deleted', async () => {
+  const { vectorIds, pruneVideo } = await import('../src/learn-moment-index.js');
+  const env = { RUNS: bucket(), MOMENTS: { deleted: null, deleteByIds: async ids => { env.MOMENTS.deleted = ids; } } };
+  await writeIndexed(env, VID, { cut: 1, starts: [0, 30] });
+  const before = await readMomentRecord(env, VID);
+  assert.deepEqual(vectorIds(before), [`${VID}:1:0`, `${VID}:1:30`]);
+  const result = await pruneVideo(env, VID);
+  assert.equal(result.pruned, 2);
+  assert.deepEqual(env.MOMENTS.deleted, [`${VID}:1:0`, `${VID}:1:30`]);
+  const after = await readMomentRecord(env, VID);
+  assert.equal(after.reason, 'deleted');
+  assert.deepEqual(after.starts, [0, 30], 'the ledger survives for a retried delete');
+});
+
+test('pruning an unindexed video still writes the deleted record, without a vector call', async () => {
+  const { pruneVideo } = await import('../src/learn-moment-index.js');
+  const env = { RUNS: bucket() };
+  const result = await pruneVideo(env, VID);
+  assert.equal(result.pruned, 0);
+  assert.equal((await readMomentRecord(env, VID)).reason, 'deleted');
+});

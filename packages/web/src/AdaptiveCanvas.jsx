@@ -349,6 +349,10 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
 // own scrubber is cross-origin and cannot be drawn on, so the moment is shown
 // on our bar underneath - and clicking that bar reloads the embed there.
 function VideoCard({ block, zoom, selected, connected, appName, onSelect, onMove, onChange, onLayout, onConnect, onSnap, onWatch }) {
+  // The embed is a cross-origin iframe, so a deleted video is invisible to us.
+  // The observable is this thumbnail: deleted videos 404 it, and one report
+  // lets the worker prune the video's derived data. Once per card, ever.
+  const reportedGone = useRef(false);
   // Where playback was sent, not persisted: a seek is a glance, and writing it
   // through onChange would spend an undo step per click on the bar. The counter
   // keys the iframe, so seeking to the second you already named still reloads -
@@ -387,6 +391,18 @@ function VideoCard({ block, zoom, selected, connected, appName, onSelect, onMove
           card is selected, so canvas keys and drags stay alive. */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl border-t border-line"
         onPointerDown={event => { if (selected) event.stopPropagation(); }}>
+        {embedUrl(block.videoId, start, playEnd) && (
+          <img src={`https://i.ytimg.com/vi/${block.videoId}/mqdefault.jpg`} alt="" aria-hidden="true"
+            className="absolute h-px w-px opacity-0"
+            onError={() => {
+              if (reportedGone.current) return;
+              reportedGone.current = true;
+              fetch('/api/learn/video-gone', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', ...wsHeaders() },
+                body: JSON.stringify({ app: appName, videoId: block.videoId }),
+              }).catch(() => { /* a signal, not a duty */ });
+            }} />
+        )}
         {embedUrl(block.videoId, start, playEnd)
           ? <iframe key={playFrom ? `seek-${playFrom.n}` : 'moment'} src={embedUrl(block.videoId, start, playEnd)}
               title={block.title || 'Video'} allow="encrypted-media; picture-in-picture; fullscreen"

@@ -4,7 +4,8 @@ import { SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, arxivId, searchArxiv, readArxivPape
 import { isUploadedPaperId, putUploadedPaper, readUploadedPaper, paperIdentity } from './learn-paper.js';
 import { isUploadedMediaId, putUploadedMedia, readUploadedMedia } from './learn-media.js';
 import { fetchWikipediaArticle, searchWikipediaTitles } from './learn-wiki.js';
-import { searchYouTube, setMomentFeedback } from './learn-youtube.js';
+import { searchYouTube, setMomentFeedback, videoIdFrom } from './learn-youtube.js';
+import { pruneVideo } from './learn-moment-index.js';
 import { validateToolInput } from './learn-validation.js';
 import { VIDEO_SCHEMA, validateVideo } from './learn-video-schema.js';
 import { THREE_D_SCHEMA, validateThreeD } from './learn-three-d-schema.js';
@@ -467,6 +468,20 @@ export async function momentFeedback(req, env) {
   if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return Response.json({ error: 'Invalid origin' }, { status: 403 });
   try { return Response.json(await setMomentFeedback(env, access.org, body.momentId, body.accepted)); }
   catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
+}
+
+// A card reporting its video gone (the thumbnail 404ed). A signal, not a
+// verdict: derived data is pruned, the moment log is untouched, and a false
+// report costs one re-index.
+export async function videoGone(req, env) {
+  if (req.method !== 'POST') return Response.json({ error: 'POST required' }, { status: 405 });
+  let body;
+  try { body = await req.json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  const access = await authorizedBoardApp(req, env, body.app);
+  if (access instanceof Response) return access;
+  const videoId = videoIdFrom(body.videoId);
+  if (!videoId) return Response.json({ error: 'Invalid video' }, { status: 400 });
+  return Response.json(await pruneVideo(env, videoId));
 }
 
 // Images dropped on the canvas. Same shape as paperFetch: POST stores this

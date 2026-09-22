@@ -9,7 +9,7 @@ import signerCode from '../byoc/signer.py';
 import permissionsCode from '../byoc/permissions.py';
 import grantsCode from '../byoc/grants.py';
 import { apiAsk } from '../control-plane/src/index.js';
-import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback, paperSearch, wikiArticle, wikiSearch, youtubeSearch } from '../control-plane/src/learn-board.js';
+import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback, videoGone, paperSearch, wikiArticle, wikiSearch, youtubeSearch } from '../control-plane/src/learn-board.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 export { LearnVideos } from '../control-plane/src/learn-video.js';
@@ -121,6 +121,7 @@ export default {
     if (path === '/api/learn/paper') return paperFetch(req, env);
     if (path === '/api/learn/media') return mediaFetch(req, env);
     if (path === '/api/learn/moment-feedback') return momentFeedback(req, env);
+    if (path === '/api/learn/video-gone') return videoGone(req, env);
     if (path === '/api/learn/arxiv') return paperSearch(req, env);
     if (path === '/api/learn/wiki') return wikiArticle(req, env);
     if (path === '/api/learn/wiki/search') return wikiSearch(req, env);

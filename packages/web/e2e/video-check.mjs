@@ -12,6 +12,7 @@ const browser = await chromium.launch();
 const page = await (await browser.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
 const asks = [];
 const feedback = [];
+const gone = [];
 let sse = null;
 await page.route('**/api/**', async route => {
   const request = route.request();
@@ -20,6 +21,10 @@ await page.route('**/api/**', async route => {
     { videoId: 'Ilg3gGewQ5U', title: 'Backpropagation, intuitively | Chapter 3', channel: '3Blue1Brown', url: 'https://www.youtube.com/watch?v=Ilg3gGewQ5U' },
     { videoId: 'FaHHWdsIYQg', title: 'Backpropagation Explained', channel: null, url: 'https://www.youtube.com/watch?v=FaHHWdsIYQg' },
   ] } });
+  if (url.pathname === '/api/learn/video-gone' && request.method() === 'POST') {
+    try { gone.push(JSON.parse(request.postData() || '{}')); } catch { /* asserted below */ }
+    return route.fulfill({ json: { pruned: 0 } });
+  }
   if (url.pathname === '/api/learn/moment-feedback' && request.method() === 'POST') {
     try { feedback.push(JSON.parse(request.postData() || '{}')); } catch { /* shape asserted below */ }
     return route.fulfill({ json: { updated: true } });
@@ -34,7 +39,10 @@ await page.route('**/api/**', async route => {
 });
 // The embed is YouTube's; the check never talks to it.
 await page.route('**youtube-nocookie.com/**', route => route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>player</body></html>' }));
-await page.route('**i.ytimg.com/**', route => route.fulfill({ status: 200, contentType: 'image/jpeg', body: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) }));
+// One video's thumbnail 404s - the deleted-video observable.
+await page.route('**i.ytimg.com/**', route => route.request().url().includes('aircAruvnKk')
+  ? route.fulfill({ status: 404, contentType: 'text/plain', body: 'gone' })
+  : route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64') }));
 page.on('pageerror', error => console.log('PAGEERROR:', error.message));
 
 let failed = 0;
@@ -152,6 +160,8 @@ await page.waitForTimeout(2500);
 const fresh = canvas.locator('iframe[src*="aircAruvnKk"]');
 ok('an unverified video arrives as a card with no window', (await fresh.getAttribute('src')) === 'https://www.youtube-nocookie.com/embed/aircAruvnKk', await fresh.getAttribute('src'));
 ok('and says so to the learner, not only to the model', (await canvas.getByText('contents unverified').count()) === 1);
+await page.waitForTimeout(800);
+ok('a 404ing thumbnail reports the video gone, once', gone.length === 1 && gone[0].videoId === 'aircAruvnKk' && gone[0].app === 'nanogpt', JSON.stringify(gone));
 
 await page.screenshot({ path: 'e2e/shots/video-card.png' });
 await browser.close();
