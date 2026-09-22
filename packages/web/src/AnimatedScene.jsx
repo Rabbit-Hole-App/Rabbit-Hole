@@ -88,7 +88,13 @@ function SelectionMark({ geometry }) {
 // The mathematical object itself: a table with a row that lights up, a strip
 // of numbers that change, a distribution that grows. Labelled rectangles do
 // not teach these; the values do.
-function DataShape({ object, role, pop, chosen }) {
+function DataShape({ object, role, pop, chosen, onInputPick }) {
+  // Direct manipulation: an object bound to a learning input turns its items
+  // into that input's own click targets. The click writes the input and stops
+  // there - it must not double as an inspection pick of the whole object.
+  const pickItem = object.pickInput && onInputPick
+    ? index => event => { event.stopPropagation(); onInputPick(object.pickInput, index); }
+    : null;
   const emphasis = 1 + (object.emphasis || 0) * 0.06;
   // Every number a data shape draws - a cell, a bar's tick, a token's chip -
   // is a datum, not a caption, so all three share the smallest named size.
@@ -202,7 +208,7 @@ function DataShape({ object, role, pop, chosen }) {
         const ring = { stroke: look.stroke, strokeWidth: look.strokeWidth };
         const cellX = object.x + column * cell, cellY = object.y + row * cell;
         cells.push(
-          <g key={index}>
+          <g key={index} data-scene-item={pickItem ? index : undefined} onClick={pickItem ? pickItem(index) : undefined}>
             <rect x={cellX} y={cellY} width={cell} height={cell} style={{ fill }} />
             <motion.rect x={cellX} y={cellY} width={cell} height={cell} fill="none"
               animate={ring} transition={pop} />
@@ -258,6 +264,9 @@ function DataShape({ object, role, pop, chosen }) {
   }
   if (object.type === 'bars') {
     const values = object.values || [];
+    // Same per-object pitch sizeOf froze (animation-scene.js): word-labelled
+    // bars author a wider cell so neighbouring labels never run together.
+    const pitch = object.cell ?? GEOMETRY.barWidth;
     // An authored peak pins the axis. Without it the scale is recomputed from
     // the tweening values, so bars that never changed visibly shrink while a
     // neighbour grows - the learner watches their own answer move.
@@ -279,16 +288,16 @@ function DataShape({ object, role, pop, chosen }) {
           const look = shapeStyle(role, { chosen: lit }, 'strong', object.identitySlot);
           return (
             <motion.g key={index} animate={{ scale: lit ? 1.06 : 1 }} transition={pop} style={fromCentre}>
-              <motion.rect x={object.x + index * GEOMETRY.barWidth + BAR_GAP / 2} y={object.y + height - tall} width={GEOMETRY.barWidth - BAR_GAP} height={tall}
+              <motion.rect x={object.x + index * pitch + BAR_GAP / 2} y={object.y + height - tall} width={pitch - BAR_GAP} height={tall}
                 rx={4} animate={{ fill: look.fill }} transition={pop} />
               {object.labels?.[index] && (
-                <text x={object.x + index * GEOMETRY.barWidth + GEOMETRY.barWidth / 2} y={object.y + height + 12} textAnchor="middle"
+                <text x={object.x + index * pitch + pitch / 2} y={object.y + height + 12} textAnchor="middle"
                   fontSize={numeral.fontSize} fontWeight={numeral.fontWeight} style={{ fontFamily: MONO, fill: lit ? 'var(--color-ink)' : 'var(--color-ink-3)' }}>{object.labels[index]}</text>
               )}
             </motion.g>
           );
         })}
-        {chosen && <SelectionMark geometry={{ kind: 'rect', x: object.x, y: object.y, width: object.w || (values.length * GEOMETRY.barWidth), height }} />}
+        {chosen && <SelectionMark geometry={{ kind: 'rect', x: object.x, y: object.y, width: object.w || (values.length * pitch), height }} />}
       </g>
     );
   }
@@ -309,7 +318,8 @@ function DataShape({ object, role, pop, chosen }) {
         const lit = marked(object, 0, index, index);
         const look = shapeStyle(role, { highlighted: lit }, undefined, object.identitySlot);
         return (
-          <motion.g key={index} animate={{ scale: lit ? 1.12 : 1, y: lit ? -3 : 0 }} transition={pop} style={fromCentre}>
+          <motion.g key={index} data-scene-item={pickItem ? index : undefined} onClick={pickItem ? pickItem(index) : undefined}
+            animate={{ scale: lit ? 1.12 : 1, y: lit ? -3 : 0 }} transition={pop} style={fromCentre}>
             <motion.rect x={x} y={object.y} width={width} height={GEOMETRY.chipHeight} rx={8}
               animate={{ fill: look.fill, strokeWidth: look.strokeWidth }} style={{ stroke: look.stroke }} transition={pop} />
             <text x={x + width / 2} y={object.y + GEOMETRY.chipHeight / 2} textAnchor="middle" dominantBaseline="central"
@@ -337,7 +347,7 @@ const typeset = expression => {
   catch { return null; }
 };
 
-function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop }) {
+function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop, onInputPick = null }) {
   const host = useRef(null);
   const drag = useRef(null);
   const [rectangle, setRectangle] = useState(null);
@@ -487,7 +497,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
                 ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 8} fill="none" strokeOpacity="0.28" strokeWidth="8" style={{ stroke: look.stroke }} />
                 : <rect x={object.x - 4} y={object.y - 4} width={(object.w || 0) + 8} height={(object.h || 0) + 8} rx={16} fill="none" strokeOpacity="0.25" strokeWidth="8" style={{ stroke: look.stroke }} />)}
               {isData
-                ? <DataShape object={object} role={role} pop={pop} chosen={chosen} />
+                ? <DataShape object={object} role={role} pop={pop} chosen={chosen} onInputPick={onInputPick} />
                 : isImage
                 ? <image href={object.src} x={object.x} y={object.y} width={object.w} height={object.h}
                     preserveAspectRatio="xMidYMid slice"
@@ -673,6 +683,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
       )}
       <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-white">
         <Frame scene={scene} state={state} selecting={selecting} marked={block.marked} picked={block.selectedObject} pop={pop}
+          onInputPick={interactive ? setInput : null}
           onPick={semanticId => onChange({ ...block, selectedObject: semanticId })}
           onRegion={(area, targets) => {
             setSelecting(false);

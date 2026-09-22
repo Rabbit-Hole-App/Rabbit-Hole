@@ -60,6 +60,10 @@ export function distributeRounding(values, decimals = 2) {
 }
 
 const isVector = value => Array.isArray(value) && value.length > 0 && value.every(entry => typeof entry === 'number' && Number.isFinite(entry));
+// A vector that may carry masked entries: null means "excluded from this
+// computation", a different fact from zero, and it survives the operation
+// (softmax keeps the blank blank; weighted_sum lets it contribute nothing).
+const isMaskableVector = value => Array.isArray(value) && value.length > 0 && value.every(entry => entry === null || (typeof entry === 'number' && Number.isFinite(entry)));
 
 export const DERIVATIONS = {
   dot: {
@@ -89,15 +93,37 @@ export const DERIVATIONS = {
   softmax: {
     outputs: ['value'],
     derive([a]) {
+      // A masked (null) entry is excluded from the distribution and stays
+      // null in the result: the remaining entries normalise among themselves,
+      // exactly what a causal mask means. null in, null out - never a zero,
+      // which would claim "measured, and found to be nothing".
       const row = values => {
-        const max = Math.max(...values);
-        const exps = values.map(x => Math.exp(x - max));
+        const kept = values.filter(x => x !== null);
+        if (!kept.length) return values.map(() => null);
+        const max = Math.max(...kept);
+        const exps = kept.map(x => Math.exp(x - max));
         const total = exps.reduce((sum, x) => sum + x, 0);
-        return exps.map(x => round(x / total));
+        let cursor = 0;
+        return values.map(x => (x === null ? null : round(exps[cursor++] / total)));
       };
-      if (isVector(a)) return { defined: true, value: row(a) };
-      if (Array.isArray(a) && a.every(isVector)) return { defined: true, value: a.map(row) };
-      return { defined: false, reason: 'softmax needs a vector, or a list of equal-length vectors, of numbers' };
+      if (isMaskableVector(a)) return { defined: true, value: row(a) };
+      if (Array.isArray(a) && a.every(isMaskableVector)) return { defined: true, value: a.map(row) };
+      return { defined: false, reason: 'softmax needs a vector, or a list of equal-length vectors, of numbers (null marks a masked entry)' };
+    },
+  },
+  // Blank out every strictly-future position of a square matrix - row i keeps
+  // columns 0..i - when the second arg is true; hand the matrix back
+  // untouched when it is false. The toggle is data, so turning masking off
+  // recomputes the real full-attention numbers rather than repainting cells.
+  causal_mask: {
+    outputs: ['value'],
+    derive([matrix, enabled]) {
+      if (typeof enabled !== 'boolean') return { defined: false, reason: 'causal_mask needs a boolean saying whether the mask is on' };
+      if (!Array.isArray(matrix) || !matrix.every(isVector) || matrix.some(row => row.length !== matrix.length)) {
+        return { defined: false, reason: 'causal_mask needs a square matrix (a list of equal-length numeric rows)' };
+      }
+      if (!enabled) return { defined: true, value: matrix.map(row => [...row]) };
+      return { defined: true, value: matrix.map((row, i) => row.map((value, j) => (j <= i ? value : null))) };
     },
   },
   sum: {
@@ -115,15 +141,18 @@ export const DERIVATIONS = {
   weighted_sum: {
     outputs: ['value'],
     derive([weights, rows]) {
-      if (!isVector(weights) || !Array.isArray(rows) || !rows.every(isVector)) {
-        return { defined: false, reason: 'weighted_sum needs a vector of weights and a list of equal-length vectors' };
+      // A null weight is a masked row: it takes no part in the mix, which is
+      // mathematically exactly a weight of zero but semantically "excluded",
+      // so the same masked softmax row drives this without a translation step.
+      if (!isMaskableVector(weights) || !Array.isArray(rows) || !rows.every(isVector)) {
+        return { defined: false, reason: 'weighted_sum needs a vector of weights (null marks a masked row) and a list of equal-length vectors' };
       }
       if (rows.length !== weights.length) {
         return { defined: false, reason: `weighted_sum needs one weight per row, got ${weights.length} weight(s) and ${rows.length} row(s)` };
       }
       const width = rows[0].length;
       if (!rows.every(row => row.length === width)) return { defined: false, reason: 'weighted_sum needs every row to share the same length' };
-      const value = Array.from({ length: width }, (_, j) => round(rows.reduce((sum, row, i) => sum + weights[i] * row[j], 0)));
+      const value = Array.from({ length: width }, (_, j) => round(rows.reduce((sum, row, i) => sum + (weights[i] ?? 0) * row[j], 0)));
       return { defined: true, value };
     },
   },

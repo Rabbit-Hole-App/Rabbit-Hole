@@ -16,9 +16,33 @@ import { coerceInputs, validateInputDeclarations } from './scene-inputs.js';
 // (the caller shows the existing scene error box) - a diagnostic, never a
 // stale result labelled current.
 
+// How many clickable items an object offers a pickInput binding: chips for
+// tokens, cells for a grid, entries for a strip. Anything else cannot bind.
+const itemCount = state => {
+  if (Array.isArray(state?.tokens)) return state.tokens.length;
+  if (state?.rows || state?.cols) return (state.rows || 1) * (state.cols || 1);
+  if (Array.isArray(state?.values)) return state.values.length;
+  return null;
+};
+
 export function evaluateScene(raw, time, rawInputs) {
   const declarations = validateInputDeclarations(raw?.inputs || [], raw?.exampleData, Object.keys(raw?.derived || {}));
   const inputs = coerceInputs(declarations, rawInputs, raw?.exampleData);
+  // A pickInput binding is validated against the DECLARED contract, not
+  // trusted: it must name an index input, and this object must offer exactly
+  // that input's domain of clickable items - a mismatch would let a click
+  // write a position the data does not have.
+  for (const object of raw?.objects || []) {
+    const name = object?.initialState?.pickInput;
+    if (!name) continue;
+    const declaration = declarations.find(entry => entry.name === name && entry.type === 'index');
+    if (!declaration) throw new Error(`Object "${object.id}": pickInput "${name}" names no declared index input`);
+    const domain = (raw?.exampleData?.[declaration.of] || []).length;
+    const items = itemCount(object.initialState);
+    if (items !== domain) {
+      throw new Error(`Object "${object.id}": pickInput "${name}" spans ${domain} positions but the object draws ${items ?? 'no'} items`);
+    }
+  }
   // Inputs join the pool by name (collisions were refused above), and the
   // root `inputs` key is dropped before validation - the validated scene is a
   // plain animation scene whose numbers happen to come from this evaluation.

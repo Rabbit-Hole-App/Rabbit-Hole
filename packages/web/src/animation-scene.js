@@ -112,6 +112,11 @@ const objectSchema = z.object({
       z.object({ row: z.number().int().optional(), col: z.number().int().optional() }),
       z.literal('max'),
     ]).optional(),
+    // Direct manipulation on the visual: clicking this object's Nth item (a
+    // token chip, a grid cell) writes N to the named learning input. Names an
+    // input declaration, never behaviour - evaluateScene refuses a name that
+    // is not a declared index input over a domain of this object's item count.
+    pickInput: z.string().min(1).max(40).optional(),
   }).prefault({}),
 });
 
@@ -417,7 +422,10 @@ const sizeOf = object => {
   const cell = state.cell ?? GEOMETRY.cellPitch;
   if (object.type === 'grid') return { w: (state.cols || 1) * cell, h: (state.rows || 1) * cell };
   if (object.type === 'strip') return { w: (state.values?.length || 1) * cell, h: cell };
-  if (object.type === 'bars') return { w: (state.values?.length || 1) * GEOMETRY.barWidth, h: state.h ?? GEOMETRY.barHeight };
+  // Bars accept the same per-object `cell` pitch grids and strips already
+  // have: the default suits single-character labels, but a bar labelled with
+  // a word needs the pitch its own label actually occupies.
+  if (object.type === 'bars') return { w: (state.values?.length || 1) * (state.cell ?? GEOMETRY.barWidth), h: state.h ?? GEOMETRY.barHeight };
   if (object.type === 'tokens') return { w: (state.tokens || []).reduce((total, token) => total + CHIP_PAD * 2 + token.length * CHIP_CHAR + CHIP_GAP, 0), h: GEOMETRY.chipHeight };
   return { w: state.w ?? (object.type === 'box' ? GEOMETRY.nodeMinWidth : undefined), h: state.h ?? (object.type === 'box' ? GEOMETRY.nodeHeight : undefined) };
 };
@@ -483,6 +491,7 @@ export function getSceneState(scene, time) {
     valueDomain: object.valueDomain ?? null,
     cellHighlight: object.initialState.cellHighlight ?? null,
     cellHighlightKind: object.initialState.cellHighlightKind ?? null,
+    pickInput: object.initialState.pickInput ?? null,
     sweep: null,
     emphasis: 0,
   }]));

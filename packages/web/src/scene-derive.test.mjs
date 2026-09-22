@@ -31,6 +31,26 @@ test('softmax normalises a row and a list of rows alike, and always sums to 1', 
   assert.deepEqual(rows.value[1], [round(1 / 3), round(1 / 3), round(1 / 3)]);
 });
 
+test('softmax carries masked entries: null in, null out, the rest normalise among themselves', () => {
+  const masked = DERIVATIONS.softmax.derive([[0.5, 0.5, null]]);
+  assert.deepEqual(masked.value, [0.5, 0.5, null]);
+  const allMasked = DERIVATIONS.softmax.derive([[null, null]]);
+  assert.deepEqual(allMasked.value, [null, null]);
+});
+
+test('causal_mask blanks strictly-future positions when on, hands back the matrix when off', () => {
+  const matrix = [[1, 2], [3, 4]];
+  assert.deepEqual(DERIVATIONS.causal_mask.derive([matrix, true]).value, [[1, null], [3, 4]]);
+  assert.deepEqual(DERIVATIONS.causal_mask.derive([matrix, false]).value, matrix);
+  assert.equal(DERIVATIONS.causal_mask.derive([matrix, 'yes']).defined, false);
+  assert.equal(DERIVATIONS.causal_mask.derive([[[1, 2, 3], [4, 5, 6]], true]).defined, false); // not square
+});
+
+test('weighted_sum lets a null weight contribute nothing, exactly like exclusion', () => {
+  const result = DERIVATIONS.weighted_sum.derive([[1, null], [[2, 0], [5, 5]]]);
+  assert.deepEqual(result.value, [2, 0]);
+});
+
 test('sum adds a vector and refuses a non-vector', () => {
   assert.deepEqual(DERIVATIONS.sum.derive([[1, 2, 3.5]]), { defined: true, value: 6.5 });
   assert.equal(DERIVATIONS.sum.derive([42]).defined, false);

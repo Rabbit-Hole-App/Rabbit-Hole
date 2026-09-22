@@ -49,9 +49,28 @@ function BoolToggle({ declaration, value, onInput }) {
   );
 }
 
+// A set of positions: each chip toggles membership, so click order can never
+// matter - the value IS the canonical set the coercion layer keeps sorted.
+function IndicesMarks({ declaration, value, data, onInput }) {
+  const labels = positionLabels(declaration, data);
+  const chosen = new Set(value);
+  const toggle = index => onInput(declaration.name, chosen.has(index) ? value.filter(entry => entry !== index) : [...value, index]);
+  return (
+    <div role="group" aria-label={declaration.label} className="flex flex-wrap items-center gap-1.5">
+      <span className="text-xs font-medium text-ink-2">{declaration.label}:</span>
+      {labels.map((text, index) => (
+        <button key={index} type="button" data-input-control={declaration.name} data-input-value={index}
+          aria-pressed={chosen.has(index)} onClick={() => toggle(index)}
+          className={chipClass(chosen.has(index))}>{text}</button>
+      ))}
+    </div>
+  );
+}
+
 const WIDGETS = {
   index: IndexPicker,
   bool: BoolToggle,
+  indices: IndicesMarks,
 };
 
 export default function SceneControls({ declarations, inputs, data, onInput, onReset, onAsk = null }) {
@@ -63,7 +82,10 @@ export default function SceneControls({ declarations, inputs, data, onInput, onR
         const Widget = WIDGETS[declaration.type];
         return <Widget key={declaration.name} declaration={declaration} value={inputs[declaration.name]} data={data} onInput={onInput} />;
       })}
-      <div className="ml-auto flex items-center gap-1">
+      {/* Left flow, never pinned to the card's right edge - a wide card can
+          run under the floating drawing toolbar, and a control hidden there
+          is a control that does not exist. */}
+      <div className="flex items-center gap-1">
         <button type="button" data-scene-reset onClick={onReset}
           className="flex h-8 items-center rounded-lg px-2.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
           Reset experiment
