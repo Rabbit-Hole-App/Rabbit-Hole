@@ -79,8 +79,11 @@
   const img = ctx.createImageData(W, H);
 
   const WHITE = [254, 254, 254];         // the page
-  const GREY  = [196, 196, 196];         // the ripples: two greys lighting the wall
-  const SLATE = [168, 168, 168];
+  // The inner band is dark, not mid-grey. Difference blending cannot make the title
+  // white over a mid tone — |255 - 168| is still dark — so the letters only go white
+  // where the wall behind them is genuinely dark.
+  const GREY  = [196, 196, 196];         // the ripples: outer band, keeps the title ink
+  const SLATE = [ 72,  72,  72];         // inner band, flips the title to white
   const INK   = [30, 30, 30];            // the bottom of the hole
 
   const BAYER = [0,8,2,10, 12,4,14,6, 3,11,1,9, 15,7,13,5].map(v => (v + 0.5) / 16);
