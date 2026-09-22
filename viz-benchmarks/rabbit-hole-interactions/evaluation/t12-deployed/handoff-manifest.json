@@ -5,7 +5,7 @@
   "loadedClientBundle": "/static/index-B_eQpwnI.js",
   "bundleIdentity": "served index.html bundle == bundle the loaded page executes == local dist-dev build",
   "sourceCommit": "d60f349f9c2177a63942331460ac034fac2d3671",
-  "boardSeed": "interactive-app-review s1; stale s0 storage planted first and verified ignored; unknown board name shows the visible notice",
+  "boardSeed": "interactive-app-review s1; a stale s0 blob written into storage first and verified ignored; unknown board name shows the visible notice",
   "interactionsPerformedOnDeployedPage": [
     "I01 token click + mask toggle",
     "I02 grid click + stepper",
