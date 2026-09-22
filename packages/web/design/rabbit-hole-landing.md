@@ -60,6 +60,33 @@ the one that is easy to miss — whenever the bar itself leaves on scroll up, so
 sheet can never outlive the thing it hangs from. `aria-expanded` and `aria-controls`
 are wired to the button.
 
+## The rabbit
+
+A dithered White Rabbit runs through the gap between Features and Pricing. It is not
+drawn: it is `rabbit_1.jpg` (the user's reference image, shipped next to this page)
+pushed through a pixel pipeline at load — crop to the figure, colour-key the
+background, Bayer-dither to 1-bit, then keep only ink connected to the figure.
+
+Hard-won specifics, all measured off the photo rather than eyeballed:
+
+- Hand-drawn silhouettes (ellipse unions, then bezier outlines) were tried across many
+  rounds and always read as "generic bunny". Sampling the reference ended that.
+- The sky cannot be separated from white fur by luminance — they overlap. It is keyed
+  by colour in two bands: pale-and-mildly-blue, and darker-but-strongly-blue. The
+  figure's grey-blue shading slips between the bands.
+- The cloud bank OVERLAPS the ears in x (cloud to photo 0.588, ears from 0.398), so
+  every corner-box mask cut ear tips. Measurement showed the cloud is itself strongly
+  blue, so the sky key handles it and no mask is needed at all.
+- The crop is `{x 0.045, y 0.02, w 0.745, h 0.93}`: tighter bottoms sliced the
+  trailing paw flat at photo y 0.87 (the foot runs to 0.92). The taller window pulls
+  in the grass band, hence a green colour key.
+- Cleanup keeps the largest 8-connected ink component after a 2px dilation — 1px
+  bridges let the pass amputate sparse toe fragments, which read as clipped feet.
+- White fur on white paper barely dithers, so the ear span and both paw tips get local
+  coverage lifts; the near ear gets a second one.
+- The face is deliberately untouched — painted eye/mouth marks were tried and merged
+  with the photo's darks into a blotch.
+
 ## Reference
 
 The layout grid and type metrics were measured off `typesafe.ai` with the browser's
