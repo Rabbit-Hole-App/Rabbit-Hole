@@ -71,8 +71,12 @@ export const patchExplorerScene = {
       initialState: { text: 'the same patch, enlarged - a window onto the same file', x: 520, y: 384, opacity: 0, typography: 'annotation' } },
     // The patch as a sequence position: one chip per patch token, the chosen
     // one lit as a downstream consequence of the selection above.
+    // Authored w/h: a tokens row has no authored box by default, and the
+    // content-bounds fit then under-measures it - which cropped this strip at
+    // the frame's bottom edge in review. 859 = the exact chip-run width for
+    // '1'..'16' at the shared chip metrics; 32 = the chip height.
     { id: 'positions', type: 'tokens', semanticId: 'patch-positions', conceptId: 'vlm-pipeline',
-      initialState: { label: 'the 16 patches as a token sequence', x: 40, y: 490, opacity: 0, role: 'observed',
+      initialState: { label: 'the 16 patches as a token sequence', x: 40, y: 490, w: 859, h: 32, opacity: 0, role: 'observed',
         tokens: I02_PATCHES.map((unused, index) => String(index + 1)),
         cellHighlight: { $derive: 'patchIndex' }, cellHighlightKind: 'highlight' } },
   ],

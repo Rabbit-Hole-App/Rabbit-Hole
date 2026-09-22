@@ -323,8 +323,11 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
             animate={{ scale: lit ? 1.12 : 1, y: lit ? -3 : 0 }} transition={pop} style={fromCentre}>
             <motion.rect x={x} y={object.y} width={width} height={GEOMETRY.chipHeight} rx={8}
               animate={{ fill: look.fill, strokeWidth: look.strokeWidth }} style={{ stroke: look.stroke }} transition={pop} />
+            {/* Ink follows the chip's own resolved fill (a strong-band role
+                paints dark chips; page ink vanished on them in review) - the
+                contrast rule everywhere else: change the ink, never the fill. */}
             <text x={x + width / 2} y={object.y + GEOMETRY.chipHeight / 2} textAnchor="middle" dominantBaseline="central"
-              fontSize={numeral.fontSize} fontWeight={numeral.fontWeight} style={{ fontFamily: MONO, fill: 'var(--color-ink)' }}>{token}</text>
+              fontSize={numeral.fontSize} fontWeight={numeral.fontWeight} style={{ fontFamily: MONO, fill: look.onFill }}>{token}</text>
           </motion.g>
         );
       })}

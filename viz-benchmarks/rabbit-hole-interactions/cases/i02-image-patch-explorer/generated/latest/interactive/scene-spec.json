@@ -241,6 +241,8 @@
           "label": "the 16 patches as a token sequence",
           "x": 40,
           "y": 490,
+          "w": 859,
+          "h": 32,
           "opacity": 0,
           "role": "observed",
           "tokens": [

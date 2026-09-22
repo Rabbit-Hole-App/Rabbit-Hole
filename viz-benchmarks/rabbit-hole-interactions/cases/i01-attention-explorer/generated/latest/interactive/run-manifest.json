@@ -1,15 +1,15 @@
 {
-  "capturedAt": "2026-09-22T08:06:12.673Z",
-  "baseCommit": "3f05f07ab29451bf4b60af5f3943ed939d68683e",
+  "capturedAt": "2026-09-22T08:25:01.708Z",
+  "baseCommit": "808970c152e951f40800416827d9159d96fe55fd",
   "branch": "feat/canvas-block-conversations",
-  "trackedFilesDirtyAtCapture": 4,
+  "trackedFilesDirtyAtCapture": 16,
   "client": {
     "mode": "local-vite-dev",
     "port": 5199,
     "note": "deployed-build + seed verification happens in the T12 handoff run"
   },
   "sceneSpecHash": "87a8a315890727e2930f3b7637368633c820cd8bf71dcfbe8dd02ce71ddf5787",
-  "rendererHash": "11ed0a2d7a64dc483fab550e3ff745346714776abe333c4777be99671f92b5c5",
+  "rendererHash": "29f3d15d61789d83c1871baad83db315db748605e1cd15385b2020e09b60588c",
   "browser": "chromium (playwright)",
   "viewport": "1600x1400 (scenario scripts vary; see each script)",
   "devicePixelRatio": 1,
@@ -20,10 +20,10 @@
   "reducedMotionChecked": true,
   "keyboardPathChecked": true,
   "screenshots": {
-    "light/i01-initial.png": "87ad534e11ecac93db6debf788b285d185a7f22fc103f70a3a259a5ebce0e075",
-    "light/i01-query-south.png": "aa87c0564b8170f78984346b6b2615d0cac6f0291319a6b49e36d5d9b66a1e00",
-    "light/i01-mask-off.png": "e866f9b48903cfdb84a86ac7446efdedf8dc9e0a4d510bb513d445ea089d2c26",
-    "light/i01-mask-restored.png": "6e71e790c1314c2d0e76dce16f797fde8eda9329238f4a57eef9afbd53a52568",
+    "light/i01-initial.png": "1be5c371966c66967a6e30b7c44c9409ff39910f02e539a3446ce7cf9b87554e",
+    "light/i01-query-south.png": "7dd4a24286ac6f49cc987b89ac9a3f88b9674da0a220585cce9af5b766b03161",
+    "light/i01-mask-off.png": "c4f6ae20817401d4a6d2e57d34e78341d32f0ce04948eef26dbdb0ebca263723",
+    "light/i01-mask-restored.png": "142815dd8ecde5b8fdaab93419d008e345343d8047bf63344fe425f164f84149",
     "light/t09-i01-practice.png": "1ddc329c2f3bbef7ce07dac03a2f8c9dc220da0f85001d4b7be4dc593b6c67e8",
     "dark/i01-dark.png": "431fb1b8d5aa32158da8dc94ef76d9988ce51263985137bb0282a1087c3fd72a"
   },
