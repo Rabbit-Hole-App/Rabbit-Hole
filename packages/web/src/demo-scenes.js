@@ -341,4 +341,7 @@ export const BOARDS = {
   // code, source reference, static knowledge check - reviewed by hand after
   // the visual-language benchmark phase. See gallery-scenes.js.
   'static-app-review': staticAppReviewBlocks,
+  // A seeded board keeps whatever localStorage saved on first visit, so a
+  // re-review after the scenes change needs a fresh name. v2 = post-fix pass.
+  'static-app-review-2': staticAppReviewBlocks,
 };
