@@ -360,5 +360,5 @@ export const BOARD_SEED_VERSIONS = {
   'static-app-review': 5,
   'static-app-review-2': 2,
   'static-app-review-3': 1,
-  'interactive-app-review': 1,
+  'interactive-app-review': 2,
 };
