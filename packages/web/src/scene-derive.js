@@ -166,6 +166,26 @@ export const DERIVATIONS = {
       return { defined: true, value: a.map((x, i) => round(x + b[i])) };
     },
   },
+  // The generic indexed selector: one declared collection, one key, one
+  // record out. A list takes a whole integer position; a record map takes a
+  // string key (a choice input's stable option id). This is how a learning
+  // input selects "its" row/record for every bound view at once - the
+  // selection happens here, in the seam, never re-derived per view.
+  pick: {
+    outputs: ['value'],
+    derive([table, key]) {
+      if (Array.isArray(table)) {
+        if (!Number.isInteger(key)) return { defined: false, reason: `pick into a list needs a whole-number position, got ${JSON.stringify(key)}` };
+        if (key < 0 || key >= table.length) return { defined: false, reason: `pick position ${key} is outside 0..${table.length - 1}` };
+        return { defined: true, value: table[key] };
+      }
+      if (table && typeof table === 'object') {
+        if (typeof key !== 'string' || !(key in table)) return { defined: false, reason: `pick key ${JSON.stringify(key)} names no entry in the record map` };
+        return { defined: true, value: table[key] };
+      }
+      return { defined: false, reason: 'pick needs a list or a record map to select from' };
+    },
+  },
   // Combines several already-named numbers (or vectors) into one row, in the
   // order given - the one place a scene needs "these three separately
   // computed scalars, side by side" rather than a shape matmul or
@@ -200,8 +220,15 @@ function resolveOneDerivation(name, spec, pool) {
   // An arg is a path into the pool (a name, or "name.2" for a row) UNLESS it
   // is itself already a number - a literal numeric parameter of the
   // operation (root(dk)'s reciprocal for `scale`), never a second way to
-  // author a result the seam should have derived instead.
-  const args = (spec.args || []).map(arg => (typeof arg === 'number' ? arg : lookupPath(pool, arg)));
+  // author a result the seam should have derived instead. A path that names
+  // nothing is reported by name here, before the op can produce a vaguer
+  // complaint about the undefined it would have received.
+  const args = (spec.args || []).map(arg => {
+    if (typeof arg === 'number') return arg;
+    const value = lookupPath(pool, arg);
+    if (value === undefined) throw new Error(`Scene "derived.${name}" (${spec.op}): arg "${arg}" names no entry in the scene's "derived" block (or "exampleData")`);
+    return value;
+  });
   const result = entry.derive(args);
   if (!result.defined) throw new Error(`Scene "derived.${name}" (${spec.op}): ${result.reason}`);
   return result;
@@ -210,8 +237,11 @@ function resolveOneDerivation(name, spec, pool) {
 // True the moment a node contains an unresolved marker anywhere inside it -
 // checked against the ORIGINAL initialState, before walk() has a chance to
 // resolve anything, so a lie ("provenance: derived" with nothing to derive
-// it from) can be told apart from the real thing.
-const usesDeriveMarker = node => /"\$derive"|\{\{\w+\}\}/.test(JSON.stringify(node ?? null));
+// it from) can be told apart from the real thing. cellHighlight is excluded:
+// a selection bound to a learning input says which part is looked at, not
+// where the object's own numbers came from, so it must not be able to flip
+// an input matrix's provenance to "derived".
+const usesDeriveMarker = ({ cellHighlight: _selection, ...node } = {}) => /"\$derive"|\{\{\w+\}\}/.test(JSON.stringify(node ?? null));
 
 // pool (exampleData plus every resolved derivation's .value) is what both a
 // derivation's own args AND a scene's $derive/{{}} markers read from - one
@@ -300,16 +330,21 @@ export function computeValueChainGroups(raw) {
 // must reference the name rather than repeat the number. Runs once, at the
 // authoring gate, before validateScene's zod parse - never inside
 // getSceneState, which stays pure, total and silent and does no arithmetic.
-export function resolveDerived(raw) {
-  const derivedSpecs = raw?.derived || {};
-  // Grows by one entry per derivation, in declared order, so entry two may
-  // reference entry one by name - a real pipeline (scores -> softmax ->
-  // weighted output), not three unrelated lookups into exampleData.
+// The pool alone - exampleData plus every derivation's value, in declared
+// order, so entry two may reference entry one by name (a real pipeline:
+// scores -> softmax -> weighted output). Exported for evaluateScene, which
+// hands the derived values to checks and the tutor context without re-doing
+// the arithmetic a second way.
+export function buildPool(raw) {
   const pool = { ...(raw?.exampleData || {}) };
-  for (const [name, spec] of Object.entries(derivedSpecs)) {
-    const result = resolveOneDerivation(name, spec, pool);
-    pool[name] = result.value;
+  for (const [name, spec] of Object.entries(raw?.derived || {})) {
+    pool[name] = resolveOneDerivation(name, spec, pool).value;
   }
+  return pool;
+}
+
+export function resolveDerived(raw) {
+  const pool = buildPool(raw);
   const objects = (raw?.objects || []).map(object => {
     // An object may author no initialState at all - the schema defaults it
     // to {} at the zod stage, which runs after this - so the same default

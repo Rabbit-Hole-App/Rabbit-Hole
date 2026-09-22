@@ -103,6 +103,15 @@ const objectSchema = z.object({
     // highlighted-role-ring treatment, so the two never read the same way.
     // See AnimatedScene.jsx's grid/strip path.
     cellHighlightKind: z.enum(['select', 'highlight']).optional(),
+    // An authored opening highlight, same shapes highlight_cell events carry
+    // (a flat index, several, a row/col band, bars' 'max'). Exists so an
+    // interactive scene can bind the lit part to a learning input through the
+    // derive pool; a later highlight_cell event still overrides it.
+    cellHighlight: z.union([
+      z.number().int(), z.array(z.number().int()).max(256),
+      z.object({ row: z.number().int().optional(), col: z.number().int().optional() }),
+      z.literal('max'),
+    ]).optional(),
   }).prefault({}),
 });
 
@@ -472,7 +481,7 @@ export function getSceneState(scene, time) {
     // point of not self-normalising.
     valueScale: object.initialState.valueScale ?? null,
     valueDomain: object.valueDomain ?? null,
-    cellHighlight: null,
+    cellHighlight: object.initialState.cellHighlight ?? null,
     cellHighlightKind: object.initialState.cellHighlightKind ?? null,
     sweep: null,
     emphasis: 0,
