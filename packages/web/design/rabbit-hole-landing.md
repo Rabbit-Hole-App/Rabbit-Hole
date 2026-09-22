@@ -93,9 +93,15 @@ knowing before anyone reaches for one again:
 - Pinning an overlay by writing `top` from `requestAnimationFrame` lands a frame *after*
   the scroll has happened, and that one-frame lag is exactly what reads as jiggle.
 
-The cost is that the type renders at buffer resolution, so the glyph edges are blocky.
-That is the same pixel grid as the rest of the piece, so it reads as intentional, but
-it does rule out fine typographic detail in the headline.
+There are two surfaces, and the split matters. The wall is computed in a small
+offscreen buffer — that low resolution *is* the dither grain, and cost is quadratic in
+it. The visible canvas is the viewport in device pixels: the wall is blown up into it
+with `imageSmoothingEnabled = false`, then the title is drawn on top at native size.
+Drawing the type into the small buffer instead is what made the glyph edges blocky.
+
+The texture lands only where the wall has texture, which is the middle of the line.
+The outer letters sit over the flat white page, and `|255 - 254|` is black, so they
+stay solid. That falls out of the method rather than needing a mask.
 
 The mouth sits dead centre and stays circular in any window: `SQUASH` corrects `dy` by
 the ratio between the buffer's aspect and the canvas's. `LIGHT` reaches the far corners

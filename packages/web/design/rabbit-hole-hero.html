@@ -38,9 +38,9 @@
 </head>
 <body>
 
-<!-- Buffer is deliberately small: it is upscaled with image-rendering: pixelated, which
-     is what makes the dither grain, and cost is quadratic in these numbers. -->
-<div id="shaft-track"><canvas id="shaft" width="520" height="260"></canvas></div>
+<!-- Sized in script to the viewport in device pixels. The low-res wall buffer lives
+     offscreen and is blown up into this one. -->
+<div id="shaft-track"><canvas id="shaft"></canvas></div>
 
 
 
@@ -51,10 +51,18 @@
    computed once; each frame only samples the wall at (angle, z + t). Low-res buffer
    with a pixelated upscale gives the 1-bit dither grain. */
 (function () {
+  // Two surfaces. The wall is computed in a small offscreen buffer — that low resolution
+  // IS the dither grain, and cost is quadratic in it. The visible canvas is full
+  // resolution: the wall is blown up into it with nearest-neighbour, then the title is
+  // drawn on top at native size. Drawing the type into the small buffer instead made the
+  // glyph edges blocky.
   const cv = document.getElementById('shaft');
   const ctx = cv.getContext('2d');
-  const W = cv.width, H = cv.height;
-  const img = ctx.createImageData(W, H);
+  const wall = document.createElement('canvas');
+  wall.width = 520; wall.height = 260;
+  const wctx = wall.getContext('2d');
+  const W = wall.width, H = wall.height;
+  const img = wctx.createImageData(W, H);
 
   const WHITE = [254, 254, 254];         // the page
   // The inner band is dark, not mid-grey. Difference blending cannot make the title
@@ -95,7 +103,12 @@
     for (let v = 0; v < GV; v++) GRAIN[u * GV + v] = hash(u, v);
   const gTab = new Int32Array(W * H);    // per-pixel row offset into GRAIN
 
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+
   function rebuild() {
+    // Visible canvas matches the viewport in device pixels, so the type is crisp.
+    cv.width  = Math.round(cv.clientWidth  * DPR);
+    cv.height = Math.round(cv.clientHeight * DPR);
     // The buffer is 2:1 but the canvas is stretched to the viewport, so correct dy by
     // the ratio of the two aspects — that is what keeps the rings circular on screen.
     SQUASH = (W / H) / (cv.clientWidth / cv.clientHeight);
@@ -139,7 +152,7 @@
   const LINES = ['Knowledge is', 'infinite.'];
   function drawTitle(scale, alpha) {
     if (!(alpha > 0.004)) return;
-    const px = 190 * (W / cv.clientWidth) * scale;         // 190 CSS px at the mouth
+    const px = 190 * DPR * scale;                          // 190 CSS px at the mouth
     ctx.save();
     ctx.globalCompositeOperation = 'difference';
     ctx.globalAlpha = alpha;
@@ -147,9 +160,9 @@
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = '500 ' + px.toFixed(1) + 'px "Space Grotesk", Arial, sans-serif';
-    const lead = px * 0.8;
+    const lead = px * 0.8, cx = cv.width / 2, cy = cv.height / 2;
     for (let i = 0; i < LINES.length; i++)
-      ctx.fillText(LINES[i], CX, CY + (i - (LINES.length - 1) / 2) * lead);
+      ctx.fillText(LINES[i], cx, cy + (i - (LINES.length - 1) / 2) * lead);
     ctx.restore();
   }
 
@@ -168,7 +181,11 @@
         buf32[p] = lit < 0.30 ? C_INK : lit < 0.50 ? C_SLATE : lit < 0.74 ? C_GREY : C_WHITE;
       }
     }
-    ctx.putImageData(img, 0, 0);
+    wctx.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = false;                     // keep the grain hard-edged
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.drawImage(wall, 0, 0, cv.width, cv.height);
     drawTitle(titleScale, titleAlpha);
   }
 
@@ -202,7 +219,7 @@
     // 255, so a red-only diff sees no motion, and a blue mid-tone reads as core.
     const lumOf = (d, i) => 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
     const lumAt = (x, y) => {
-      const d = ctx.getImageData(x, y, 1, 1).data;
+      const d = wctx.getImageData(x, y, 1, 1).data;
       return lumOf(d, 0);
     };
     ok('z falls off with radius', at(CX + 10, CY) > at(CX + 100, CY) && at(CX + 100, CY) > at(CX + 300, CY));
@@ -213,7 +230,7 @@
 
     // the mouth must be a circle on screen, not an oval: walk out from the centre
     // along each axis to where the core ends, and convert both to screen pixels
-    const px = ctx.getImageData(0, 0, W, H).data;
+    const px = wctx.getImageData(0, 0, W, H).data;
     const darkAt = (x, y) => lumOf(px, (y * W + x) * 4) < 90;
     // Walk out to the first RUN of light pixels. Stopping at the first single light
     // pixel ends the walk early (the dither punches holes through the core); counting
@@ -236,9 +253,9 @@
     const bw = Math.min(Math.round(LIGHT), CX);            // LIGHT now reaches the corners
     const bh = Math.min(Math.round(LIGHT / SQUASH), CY);   // so clamp inside the canvas
     const box = [CX - bw, CY - bh, bw * 2, bh * 2];
-    const before = ctx.getImageData(box[0], box[1], box[2], box[3]).data.slice();
+    const before = wctx.getImageData(box[0], box[1], box[2], box[3]).data.slice();
     frame(0.5, 1, 1, 0);
-    const after = ctx.getImageData(box[0], box[1], box[2], box[3]).data;
+    const after = wctx.getImageData(box[0], box[1], box[2], box[3]).data;
     let moved = 0;
     for (let i = 0; i < before.length; i += 4)
       if (Math.abs(lumOf(before, i) - lumOf(after, i)) > 1) moved++;
@@ -258,7 +275,7 @@
 
     // entering all the way takes the whole screen to black
     frame(0.5, 0, 1, 0);
-    const shut = ctx.getImageData(0, 0, W, H).data;
+    const shut = wctx.getImageData(0, 0, W, H).data;
     let lightPx = 0;
     for (let i = 0; i < shut.length; i += 4) if (lumOf(shut, i) > 90) lightPx++;
     ok('entering closes to solid black', lightPx === 0);
