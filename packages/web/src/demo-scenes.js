@@ -351,7 +351,7 @@ export const BOARDS = {
 // earlier seed can never silently override a newer one, and nobody has to
 // mint a new board name per review round.
 export const BOARD_SEED_VERSIONS = {
-  'static-app-review': 3,
+  'static-app-review': 4,
   'static-app-review-2': 2,
   'static-app-review-3': 1,
 };

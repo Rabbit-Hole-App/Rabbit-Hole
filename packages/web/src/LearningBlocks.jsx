@@ -16,6 +16,7 @@ import AnimatedScene from './AnimatedScene.jsx';
 const WhiteboardBlock = lazy(() => import('./WhiteboardBlock.jsx'));
 import { fromTemplate } from './animation-scene.js';
 import { describeAnimation } from './scene-describe.js';
+import { sceneLegibility } from './scene-layout.js';
 import { axisScene, residualScene, sigmoidScene } from './demo-scenes.js';
 import { causalAttentionScene } from './reference-scenes.js';
 import InteractiveScene, { sceneSummary } from './InteractiveScene.jsx';
@@ -33,6 +34,12 @@ import { sceneAssetUrl, sceneList, startScene, startVideo, videoAssetUrl, videoL
 
 // Small inline figure so the Image sample never depends on an outside host.
 const SIGMOID_FIGURE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMjAgMTgwIiB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCI+PHJlY3Qgd2lkdGg9IjMyMCIgaGVpZ2h0PSIxODAiIGZpbGw9IiNmZmZmZmYiLz48bGluZSB4MT0iMjQiIHkxPSIxNTAiIHgyPSIzMDAiIHkyPSIxNTAiIHN0cm9rZT0iI2M5YzljNSIgc3Ryb2tlLXdpZHRoPSIxIi8+PGxpbmUgeDE9IjE2MiIgeTE9IjI0IiB4Mj0iMTYyIiB5Mj0iMTYyIiBzdHJva2U9IiNjOWM5YzUiIHN0cm9rZS13aWR0aD0iMSIvPjxwYXRoIGQ9Ik0yNCAxNDggQzEwNCAxNDggMTI4IDE0MCAxNjIgODcgQzE5NiAzNCAyMjAgMjYgMzAwIDI2IiBmaWxsPSJub25lIiBzdHJva2U9IiMyMzgzZTIiIHN0cm9rZS13aWR0aD0iMyIvPjxjaXJjbGUgY3g9IjE2MiIgY3k9Ijg3IiByPSI0IiBmaWxsPSIjMjM4M2UyIi8+PHRleHQgeD0iMTcwIiB5PSIzNiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTEiIGZpbGw9IiMzNzM1MmYiPjEuMDwvdGV4dD48dGV4dCB4PSIxNzAiIHk9Ijg0IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMSIgZmlsbD0iIzM3MzUyZiI+MC41PC90ZXh0Pjx0ZXh0IHg9IjE3MCIgeT0iMTY0IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMSIgZmlsbD0iIzM3MzUyZiI+MC4wPC90ZXh0Pjwvc3ZnPg==';
+
+// Everything an animation block draws around its scene frame: the card's own
+// horizontal padding (px-4, both sides) and, vertically, the drag strip, the
+// ANIMATION kicker, the title, and the transport row under the frame. Measured
+// against the shipped 560x460 block, whose frame renders at 528x~320.
+const FRAME_CHROME = { w: 32, h: 140 };
 
 export const BLOCK_TYPES = {
   challenge: {
@@ -423,6 +430,17 @@ export const BLOCK_TYPES = {
     width: 560,
     height: 460,
     autoMax: 900,
+    // An animation block is the one block whose right size is a property of
+    // its content: a scene is only readable if the camera does not have to
+    // shrink its text below the legibility floors (scene-layout.js), and the
+    // only free variable left once the floors are fixed is how much room the
+    // block gets. Generic - it reads the scene's own content bounds and the
+    // typography classes it draws, never which scene it is.
+    sizeFor: block => {
+      const report = block.scene ? sceneLegibility(block.scene) : null;
+      if (!report) return null;
+      return { width: Math.round(report.viewport.w + FRAME_CHROME.w), height: Math.round(report.viewport.h + FRAME_CHROME.h) };
+    },
     sample: () => ({
       id: crypto.randomUUID(),
       type: 'animation',

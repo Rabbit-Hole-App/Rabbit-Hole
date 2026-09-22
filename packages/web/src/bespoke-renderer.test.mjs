@@ -68,6 +68,27 @@ test('mutation proof: a hardcoded per-object id comparison - the shape a scene-s
   assert.equal(violations[0].comparedAgainst, 'case01-south-token');
 });
 
+// Two spellings of the same branch the gate used to miss entirely: a scene's
+// TITLE names one authored thing exactly as its id does, and a hardcoded
+// membership list is `id === 'a' || id === 'b'` written shorter. Either would
+// have let a per-scene typography or fit special-case through.
+test('mutation proof: a scene title comparison and a hardcoded id membership list are both caught', () => {
+  const mutated = `
+    function fit(scene, object) {
+      if (scene.title === 'nanoGPT — Transformer Block') return wideCamera();
+      if (['caption', 'note'].includes(object.semanticId)) return bigFont();
+    }
+  `;
+  const violations = findBespokeComparisons(mutated, 'js');
+  assert.deepEqual(violations.map(v => v.property).sort(), ['semanticId', 'title']);
+});
+
+// ...and a membership test against a list that is not hardcoded - a set of
+// visible ids the scene itself produced - is ordinary generic work.
+test('a membership test against a non-literal list is not flagged', () => {
+  assert.deepEqual(findBespokeComparisons(`function f(o, shown) { if (shown.includes(o.id)) return 1; }`, 'js'), []);
+});
+
 // The same proof, the other direction: semanticId, conceptId, label and
 // text are all identity fields too - a scene could be special-cased by any
 // of them, not only `id`.

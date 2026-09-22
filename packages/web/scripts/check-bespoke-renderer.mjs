@@ -35,7 +35,14 @@ import { RENDERER_FILES } from './render-fingerprint.mjs';
 // KIND of thing it is (type/role/heat.mode/matrixKind/...) - the latter are
 // the closed vocabularies the renderer is built to dispatch on, and are
 // deliberately excluded so this gate only fires on per-case special-casing.
-const IDENTITY_FIELDS = new Set(['id', 'semanticId', 'conceptId', 'label', 'text']);
+// `title` joins them: a scene's title is as much a name for one specific
+// authored thing as its id is, and branching on it is the same defect wearing
+// a different field.
+const IDENTITY_FIELDS = new Set(['id', 'semanticId', 'conceptId', 'label', 'text', 'title']);
+// Set membership is the other spelling of the same branch: `['a','b'].includes
+// (object.id)` and `object.id === 'a' || object.id === 'b'` are one check. A
+// gate that only knew the second would be switched off by a refactor.
+const MEMBERSHIP_METHODS = new Set(['includes', 'indexOf', 'has']);
 const COMPARISON_OPERATORS = new Set(['===', '!==', '==', '!=']);
 
 function walk(node, visit) {
@@ -72,6 +79,29 @@ export function findBespokeComparisons(source, loader) {
       property,
       comparedAgainst: literalSide.value,
       snippet: `.${property} ${node.operator} ${JSON.stringify(literalSide.value)}`,
+    });
+  });
+  walk(ast, node => {
+    if (node.type !== 'CallExpression' || node.arguments.length !== 1) return;
+    const method = memberPropertyName(node.callee);
+    if (!MEMBERSHIP_METHODS.has(method)) return;
+    const property = memberPropertyName(node.arguments[0]);
+    if (!property || !IDENTITY_FIELDS.has(property)) return;
+    // Only a hardcoded list is a per-case branch; a lookup against a value
+    // that arrived from the scene (a selection, a set of visible ids) is
+    // ordinary generic work and must not be flagged.
+    const subject = node.callee.object;
+    const literals = subject?.type === 'ArrayExpression'
+      ? subject.elements.filter(element => element?.type === 'Literal' && typeof element.value === 'string').map(element => element.value)
+      : subject?.type === 'NewExpression' && subject.callee?.name === 'Set' && subject.arguments[0]?.type === 'ArrayExpression'
+        ? subject.arguments[0].elements.filter(element => element?.type === 'Literal' && typeof element.value === 'string').map(element => element.value)
+        : null;
+    if (!literals || !literals.length) return;
+    violations.push({
+      line: node.loc?.start.line ?? null,
+      property,
+      comparedAgainst: literals.join(', '),
+      snippet: `[${literals.map(value => JSON.stringify(value)).join(', ')}].${method}(.${property})`,
     });
   });
   return violations;

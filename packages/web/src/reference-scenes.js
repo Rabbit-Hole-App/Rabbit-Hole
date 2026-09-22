@@ -101,14 +101,22 @@ const EMBEDDING = [0.5, -0.2, 0.9, 0.3, -0.4];
 //     instead of a single diagonal that would have crossed the grid's own row
 //     labels or the bars' caption - the same spine-and-branch decomposition
 //     case 08's residual bypass uses for "around", not "through".
+  // The right-hand column (equation, output strip) and the matrix pair sit 60
+  // and 90px further left than they were authored, and the equation's frame is
+  // 430 rather than 460. Nothing about the composition changes - the gaps
+  // between stages were simply wider than anything needed - and it is what
+  // brings this scene's content bounds inside the frame its own typography
+  // floors demand (scene-layout.js's sceneLegibility): at 1180 units wide the
+  // camera had to run at 0.91 scale in the widest lesson column there is,
+  // which put every caption under 13 effective pixels.
 export const causalAttentionScene = {
   id: 'causal-self-attention',
   // Causal attention includes the token itself - row 4 (the last token) keeps
   // all five columns unmasked (causalRow keeps col <= row), so "before it"
   // alone understated what the last row actually shows.
   title: 'How one token attends to itself and the tokens before it',
-  width: 1280,
-  height: 680,
+  width: 1120,
+  height: 712,
   duration: 17.6,
   // The derive seam (scene-derive.js), used here for exactly the one number
   // that needs it: the matrix below declares matrixKind 'relational', which
@@ -152,7 +160,7 @@ export const causalAttentionScene = {
     // rather than "small": the later set_values to RAW_MASKED blanks a cell
     // to null (a real state change, not a starting placeholder).
     { id: 'matrix', type: 'grid', semanticId: 'attention-matrix', conceptId: 'causal-self-attention',
-      initialState: { label: 'raw scores: QKᵀ', x: 460, y: 210, rows: 5, cols: 5, cell: 46, opacity: 0, heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'attention-matrix', role: 'observed',
+      initialState: { label: 'raw scores: QKᵀ', x: 400, y: 210, rows: 5, cols: 5, cell: 46, opacity: 0, heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'attention-matrix', role: 'observed',
         // A real Q x Kt comparison (see RAW_FULL above) - both axes name the
         // same five tokens, which is exactly the relational shape.
         matrixKind: 'relational',
@@ -187,7 +195,7 @@ export const causalAttentionScene = {
     // reassert the SAME comparison a second time and pull in the
     // matrix-vector-count check for a second object making no new claim.
     { id: 'matrix-softmax', type: 'grid', semanticId: 'attention-matrix-softmax', conceptId: 'softmax-attention-weights',
-      initialState: { label: 'softmax: each row sums to 1', x: 460, y: 210, rows: 5, cols: 5, cell: 46, opacity: 0, heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'attention-matrix', role: 'observed',
+      initialState: { label: 'softmax: each row sums to 1', x: 400, y: 210, rows: 5, cols: 5, cell: 46, opacity: 0, heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'attention-matrix', role: 'observed',
         matrixKind: 'input', distribution: true,
         rowLabels: [...TOKENS], columnLabels: [...TOKENS], values: Array(25).fill(null) } },
     // Horizontal, not diagonal, and each pinned to a row BORDER (a cell
@@ -197,43 +205,43 @@ export const causalAttentionScene = {
     // token happens to be on that row. Q enters higher, K lower, so the two
     // inputs stay visually distinct without a diagonal doing it.
     { id: 'arrow-q-matrix', type: 'arrow', semanticId: 'arrow-q-matrix', conceptId: 'causal-self-attention',
-      initialState: { from: { x: 250, y: 256 }, to: { x: 460, y: 256 }, opacity: 0, role: 'neutral' } },
+      initialState: { from: { x: 250, y: 256 }, to: { x: 400, y: 256 }, opacity: 0, role: 'neutral' } },
     { id: 'arrow-k-matrix', type: 'arrow', semanticId: 'arrow-k-matrix', conceptId: 'causal-self-attention',
-      initialState: { from: { x: 250, y: 348 }, to: { x: 460, y: 348 }, opacity: 0, role: 'neutral' } },
+      initialState: { from: { x: 250, y: 348 }, to: { x: 400, y: 348 }, opacity: 0, role: 'neutral' } },
     // The one row walked all the way through: token 4 ("o"), the only query
     // that can see every earlier position, so its distribution has the most
     // to show. Bars carry per-key labels natively - grid cannot (see report).
     { id: 'bars-row', type: 'bars', semanticId: 'row4-distribution', conceptId: 'softmax-attention-weights',
-      initialState: { label: "the last token's row, as a distribution", x: 460, y: 500, h: 90, peak: 1, opacity: 0, role: 'observed', labels: [...TOKENS], values: [0, 0, 0, 0, 0] } },
+      initialState: { label: "the last token's row, as a distribution", x: 400, y: 500, h: 120, peak: 1, opacity: 0, role: 'observed', labels: [...TOKENS], values: [0, 0, 0, 0, 0] } },
     // The elbow: out from the matrix's row-4 band, left past the grid's own
     // row labels, straight down clear of the bars' own caption (which spans
     // almost the whole width above it), then back in at the bars' left edge -
     // never a single diagonal through the label, which is what the original
     // straight arrow did.
     { id: 'arrow-matrix-bars-out', type: 'line', semanticId: 'arrow-matrix-bars-out', conceptId: 'softmax-attention-weights',
-      initialState: { from: { x: 505, y: 440 }, to: { x: 440, y: 440 }, opacity: 0, role: 'neutral' } },
+      initialState: { from: { x: 445, y: 440 }, to: { x: 380, y: 440 }, opacity: 0, role: 'neutral' } },
     { id: 'arrow-matrix-bars-down', type: 'line', semanticId: 'arrow-matrix-bars-down', conceptId: 'softmax-attention-weights',
-      initialState: { from: { x: 440, y: 440 }, to: { x: 440, y: 520 }, opacity: 0, role: 'neutral' } },
+      initialState: { from: { x: 380, y: 440 }, to: { x: 380, y: 520 }, opacity: 0, role: 'neutral' } },
     { id: 'arrow-matrix-bars-in', type: 'arrow', semanticId: 'arrow-matrix-bars-in', conceptId: 'softmax-attention-weights',
-      initialState: { from: { x: 440, y: 520 }, to: { x: 475, y: 520 }, opacity: 0, role: 'neutral' } },
+      initialState: { from: { x: 380, y: 520 }, to: { x: 415, y: 520 }, opacity: 0, role: 'neutral' } },
     // Widened from the original's 240px, which was 176px short of what this
     // expression actually needs (text-exceeds-box) - the reviewer's "cramped
     // equation" finding was this box being authored too narrow for its own
     // text, not a font problem.
     { id: 'equation', type: 'equation', semanticId: 'attention-equation', conceptId: 'attention-output',
-      initialState: { text: '\\text{softmax}\\left(\\dfrac{QK^T}{\\sqrt{d_k}}\\right)V', x: 760, y: 295, w: 460, h: 60, opacity: 0 } },
+      initialState: { text: '\\text{softmax}\\left(\\dfrac{QK^T}{\\sqrt{d_k}}\\right)V', x: 670, y: 295, w: 430, h: 60, opacity: 0 } },
     { id: 'output', type: 'strip', semanticId: 'attention-output', conceptId: 'attention-output',
-      initialState: { label: 'output - the weighted mix of V', x: 760, y: 395, cell: 42, opacity: 0, heat: true, valueScale: 'shared', valueScaleGroup: 'value-chain', role: 'output', values: [0, 0, 0, 0, 0] } },
+      initialState: { label: 'output - the weighted mix of V', x: 670, y: 395, cell: 42, opacity: 0, heat: true, valueScale: 'shared', valueScaleGroup: 'value-chain', role: 'output', values: [0, 0, 0, 0, 0] } },
     // No arrow from V to output: the equation's own trailing "V" and the
     // timeline caption already say V feeds the output, and a straight line
     // from V's column to output's would have cut diagonally through the
     // entire matrix to get there (the "messy arrows... into the matrix" the
     // reviewer saw) - see the repair-pass note above.
     { id: 'arrow-matrix-output', type: 'arrow', semanticId: 'arrow-matrix-output', conceptId: 'attention-output',
-      initialState: { from: { x: 690, y: 440 }, to: { x: 758, y: 416 }, opacity: 0, role: 'neutral' } },
+      initialState: { from: { x: 630, y: 440 }, to: { x: 668, y: 416 }, opacity: 0, role: 'neutral' } },
     // Below the bars' own per-key labels (bottom edge 500+90+12=602), so the
     // closing line never overlaps them.
-    { id: 'note', type: 'text', semanticId: 'note', initialState: { text: '', x: 40, y: 640 } },
+    { id: 'note', type: 'text', semanticId: 'note', initialState: { text: '', x: 40, y: 672 } },
   ],
   timeline: [
     { at: 0.0, action: 'type_text', target: 'caption', value: 'an attention layer starts from embeddings the tokens already have', duration: 1.6 },

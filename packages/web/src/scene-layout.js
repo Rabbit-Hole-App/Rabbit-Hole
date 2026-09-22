@@ -134,7 +134,12 @@ export function gridAxisLabelBoxes(object) {
 // scene-style.js and scene-layout-lint.js's collectLabels, the one other
 // place this number is asserted. Kept local rather than threaded through as
 // a parameter: it is a fact about what a row label IS, not a per-call choice.
-const ROW_LABEL_FONT_SIZE = 11;
+// (Read from scene-style.js rather than repeated as a literal: it was written
+// as 11 when `annotation` was 11px and silently stopped matching the renderer
+// when that size was raised, which made every estimate built on it - the left
+// margin, the content bounds, the legibility floors - narrower than what is
+// actually drawn.)
+const ROW_LABEL_FONT_SIZE = textStyle('annotation').fontSize;
 
 // How far a grid's row-label text (anchor 'end', so it draws LEFTWARD from
 // object.x - ROW_LABEL_GAP) would extend past x=0, the renderer's default
@@ -197,33 +202,186 @@ export function segmentIntersectsBox(p0, p1, box) {
 // above already makes for row labels; upgrade to a per-frame union (fold
 // getSceneState's evaluated objects across every timeline event's `at`) if a
 // scene with real motion ever needs this.
+// Actions that put an object on screen. An object whose initial opacity is 0
+// and which no such event ever targets is drawn by nobody, at any time on the
+// timeline - it is not content, and letting it stretch the bounds is how a
+// scene ends up framed around something the learner never sees. Content-blind:
+// this reads the action name and the object's own opacity, never an id, a
+// label or a scene.
+const REVEALING_ACTIONS = new Set(['appear', 'type_text', 'change_text', 'change_value', 'highlight', 'emphasize', 'move', 'resize', 'set_values', 'replace_values', 'draw_path', 'connect']);
+
+// The widest text this object ever holds. A `text` object authored with an
+// empty string that the timeline later types a full sentence into (the normal
+// caption/note idiom in this vocabulary) had a ZERO-width footprint here,
+// which is how the fit could be computed around content that is not what the
+// scene ends up drawing. Generic: the timeline's own values for THIS object,
+// longest wins, whatever they say.
+function widestText(scene, object) {
+  let text = object.initialState?.label || object.initialState?.text || '';
+  for (const event of scene.timeline || []) {
+    if (event.target !== object.id) continue;
+    if (!['type_text', 'change_text', 'change_value'].includes(event.action)) continue;
+    const value = String(event.value ?? '');
+    if (value.length > text.length) text = value;
+  }
+  return text;
+}
+
+function everDrawn(scene, object) {
+  if ((object.initialState?.opacity ?? 1) > 0) return true;
+  return (scene.timeline || []).some(event => event.target === object.id && REVEALING_ACTIONS.has(event.action));
+}
+
+// The union of every VISIBLE object's own footprint, plus, per object, which
+// one owns each extreme edge (`contributors`) - so a framing problem can be
+// read off the numbers instead of guessed at from a screenshot.
 export function sceneContentBounds(scene) {
   let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
-  const grow = box => {
-    if (box.xMin < xMin) xMin = box.xMin;
-    if (box.xMax > xMax) xMax = box.xMax;
-    if (box.yMin < yMin) yMin = box.yMin;
-    if (box.yMax > yMax) yMax = box.yMax;
+  const contributors = { xMin: null, xMax: null, yMin: null, yMax: null };
+  const grow = (box, id) => {
+    if (box.xMin < xMin) { xMin = box.xMin; contributors.xMin = id; }
+    if (box.xMax > xMax) { xMax = box.xMax; contributors.xMax = id; }
+    if (box.yMin < yMin) { yMin = box.yMin; contributors.yMin = id; }
+    if (box.yMax > yMax) { yMax = box.yMax; contributors.yMax = id; }
   };
   for (const object of scene.objects || []) {
+    if (!everDrawn(scene, object)) continue;
     const state = object.initialState || {};
     const x = state.x ?? 0, y = state.y ?? 0;
     if (state.from && state.to) {
       grow({ xMin: Math.min(state.from.x, state.to.x), xMax: Math.max(state.from.x, state.to.x),
-        yMin: Math.min(state.from.y, state.to.y), yMax: Math.max(state.from.y, state.to.y) });
+        yMin: Math.min(state.from.y, state.to.y), yMax: Math.max(state.from.y, state.to.y) }, object.id);
       continue;
     }
     if (state.w != null && state.h != null) {
-      grow({ xMin: x, xMax: x + state.w, yMin: y, yMax: y + state.h });
+      grow({ xMin: x, xMax: x + state.w, yMin: y, yMax: y + state.h }, object.id);
     } else {
       const fontSize = textStyle(state.typography || 'body').fontSize;
-      grow(estimateTextBox({ text: state.label || state.text || '', x, y, fontSize, anchor: 'start', baseline: 'auto' }));
+      grow(estimateTextBox({ text: widestText(scene, object), x, y, fontSize, anchor: 'start', baseline: 'auto' }), object.id);
     }
     for (const box of gridAxisLabelBoxes({ type: object.type, ...state })) {
-      grow(estimateTextBox({ ...box, fontSize: ROW_LABEL_FONT_SIZE }));
+      grow(estimateTextBox({ ...box, fontSize: ROW_LABEL_FONT_SIZE }), object.id);
     }
   }
-  return Number.isFinite(xMin) ? { xMin, xMax, yMin, yMax } : null;
+  return Number.isFinite(xMin) ? { xMin, xMax, yMin, yMax, contributors } : null;
+}
+
+// --- screen-space typography legibility --------------------------------------
+// "If you need to zoom the canvas to read the lesson, the lesson rendering is
+// wrong" (docs/superpowers/specs/2026-09-18-visual-language-and-motion-design.md).
+// Camera fitting may shrink geometry; it may not shrink instructional text
+// below its class floor, where
+//
+//   effectiveFontPx = authoredFontSize x finalSceneScale
+//
+// These are MINIMUM EFFECTIVE CSS PIXELS per semantic text class, not per
+// scene and not per object - the floors key on the typography class alone, so
+// no gallery content can ever reach them. They are set at the authored sizes
+// scene-style.js already uses, which is the real claim being made: those sizes
+// were chosen as readable CSS pixels, so the invariant is simply that the
+// camera must not scale them DOWN. The consequence, deliberately, is that a
+// scene too wide for its viewport cannot be fixed by shrinking it - the
+// viewport grows (legibleViewport below) or the scene is re-authored.
+export const LEGIBILITY_FLOORS = Object.freeze({
+  display: 20,     // scene title-weight text
+  heading: 17,     // section text inside a scene
+  equation: 15,    // a displayed equation
+  body: 15,        // primary node labels, captions, explanation lines
+  caption: 14,     // a data shape's own name
+  annotation: 13,  // axis names, shape/dimension annotations, residual labels
+  code: 13,        // inline code
+  metadata: 12,    // grid row/column axis numerals - the smallest class there is
+});
+
+export const legibilityFloor = typographyRole => LEGIBILITY_FLOORS[typographyRole] ?? LEGIBILITY_FLOORS.body;
+
+// Every typography class a scene actually draws, keyed on object TYPE and the
+// object's own declared `typography` - never on an id, a label or a scene.
+export function typographyClassesUsed(scene) {
+  const classes = new Set();
+  for (const object of scene.objects || []) {
+    if (!everDrawn(scene, object)) continue;
+    const state = object.initialState || {};
+    if (object.type === 'text') classes.add(state.typography || 'body');
+    else if (object.type === 'code') classes.add('code');
+    else if (object.type === 'equation') classes.add('equation');
+    else if (['grid', 'strip', 'bars', 'tokens'].includes(object.type)) { classes.add('caption'); classes.add('metadata'); }
+    else if (state.label) classes.add('body');
+  }
+  return [...classes].sort();
+}
+
+// Padding around the content, in scene units, applied to the LIMITING
+// dimension. The old fit spent 15% of BOTH axes on padding and then handed
+// the result to an SVG whose preserveAspectRatio already letterboxes the
+// non-limiting axis - paying for dead space twice. A flat pad is the honest
+// version: the content fills everything else.
+export const SCENE_PAD = 24;
+
+// The viewBox for a content-fitted scene in a viewport of the given aspect.
+// The span is grown (never shrunk) on whichever axis is short of the
+// viewport's aspect, so `finalSceneScale` is exactly viewport.w / span.w on
+// both axes and no letterboxing happens inside the SVG - the scale the
+// legibility floors are checked against is then the scale actually rendered.
+export function sceneViewBox(bounds, viewportAspect) {
+  let w = (bounds.xMax - bounds.xMin) + SCENE_PAD * 2;
+  let h = (bounds.yMax - bounds.yMin) + SCENE_PAD * 2;
+  if (Number.isFinite(viewportAspect) && viewportAspect > 0) {
+    if (w / h < viewportAspect) w = h * viewportAspect;
+    else h = w / viewportAspect;
+  }
+  return { origin: { x: (bounds.xMin + bounds.xMax) / 2 - w / 2, y: (bounds.yMin + bounds.yMax) / 2 - h / 2 }, span: { w, h } };
+}
+
+// A block can only grow so far before it stops fitting the lesson column's own
+// surface. Beyond this the answer is a re-authored scene, not a wider block -
+// and the legibility gate says so by name rather than silently shipping 8px
+// text. Width is the binding one; the height cap is generous because a canvas
+// scrolls vertically and does not scroll horizontally.
+export const MAX_SCENE_VIEWPORT = Object.freeze({ w: 1120, h: 860 });
+
+// What viewport (in CSS px, the SVG's own box) this scene needs for every
+// typography class it draws to clear its floor - `scale` 1 means the authored
+// units already ARE CSS pixels. Returns the clamped viewport plus the scale
+// and the per-class effective sizes that viewport actually produces, so a
+// caller can size a block with it and a gate can check it, from one function.
+export function sceneLegibility(scene, viewport = null) {
+  const bounds = sceneContentBounds(scene);
+  if (!bounds) return null;
+  const classes = typographyClassesUsed(scene);
+  // The scale every class needs: authored sizes are CSS pixels, so this is 1
+  // unless an author wrote something smaller than its own floor.
+  const required = classes.reduce((worst, name) => {
+    const authored = name === 'metadata' ? ROW_LABEL_FONT_SIZE : textStyle(name).fontSize;
+    return Math.max(worst, legibilityFloor(name) / authored);
+  }, 0) || 1;
+  const contentW = (bounds.xMax - bounds.xMin) + SCENE_PAD * 2;
+  const contentH = (bounds.yMax - bounds.yMin) + SCENE_PAD * 2;
+  const wanted = { w: contentW * required, h: contentH * required };
+  const box = viewport ?? {
+    w: Math.min(wanted.w, MAX_SCENE_VIEWPORT.w),
+    h: Math.min(Math.max(wanted.h, wanted.w > MAX_SCENE_VIEWPORT.w ? contentH * (MAX_SCENE_VIEWPORT.w / contentW) : wanted.h), MAX_SCENE_VIEWPORT.h),
+  };
+  const { span } = sceneViewBox(bounds, box.w / box.h);
+  const scale = box.w / span.w;
+  const effective = {};
+  for (const name of classes) {
+    const authored = name === 'metadata' ? ROW_LABEL_FONT_SIZE : textStyle(name).fontSize;
+    effective[name] = { authored, effectivePx: authored * scale, floor: legibilityFloor(name) };
+  }
+  return { bounds, classes, scale, viewport: box, span, effective, clamped: wanted.w > MAX_SCENE_VIEWPORT.w };
+}
+
+// Every class that lands under its floor at this viewport, named. Empty means
+// the scene is readable at 100% canvas zoom - the whole point.
+export function legibilityIssues(scene, viewport = null) {
+  const report = sceneLegibility(scene, viewport);
+  if (!report) return [];
+  // Half a pixel of slack: the estimate is a float, the floors are integers,
+  // and nobody can see 0.4px. Anything worse is a real failure.
+  return Object.entries(report.effective)
+    .filter(([, size]) => size.effectivePx < size.floor - 0.5)
+    .map(([name, size]) => ({ scene: scene.id, textClass: name, authored: size.authored, effectivePx: Number(size.effectivePx.toFixed(2)), floor: size.floor }));
 }
 
 export function estimateTextBox({ text, x, y, fontSize, anchor, baseline }) {

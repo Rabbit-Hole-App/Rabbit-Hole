@@ -215,11 +215,30 @@ export function heatStyle(value, domain, mode) {
 // widths and colours, just drawn along a different outline, which is a
 // rendering concern - see AnimatedScene.jsx's SelectionMark, the one place
 // that turns this into an actual shape.
-const SELECTION_OUTER_WIDTH = 5;
-const SELECTION_INNER_WIDTH = 2;
+// Widened from 5/2 to 8/2.5, with the magenta ring pushed OUTSIDE the shape's
+// own outline (SELECTION_OUTER_OFFSET) rather than sitting concentric on it.
+// The app review's reference for "instantly readable selection" is the
+// Projector box in the VLM canvas (AnimatedScene.jsx's box branch, which draws
+// the same SelectionMark): on a large box a 5px ring reads at a glance, and on
+// a 46px grid cell or a strip row exactly the same 5px reads as a slightly
+// heavier gridline. Spending the extra weight OUTSIDE the outline is what
+// makes a small mark carry as much as a large one, because the magenta is then
+// against the surface rather than against the shape's own frame.
+//
+// The contrast guarantee is untouched, in colours AND in intent: the two
+// tokens are the same pair scene-style.test.mjs proves against every reachable
+// composited heat fill in both themes, and the black inner stroke still sits
+// directly on the shape's outline, which is the stroke that guarantee is
+// about. A wider ring can only ever add contrast, never remove it.
+const SELECTION_OUTER_WIDTH = 8;
+const SELECTION_INNER_WIDTH = 2.5;
+// How far outside the shape's own outline the magenta ring's CENTRELINE sits:
+// half the inner stroke plus half the outer, so the two strokes meet edge to
+// edge and the magenta never paints over the black.
+export const SELECTION_OUTER_OFFSET = (SELECTION_INNER_WIDTH + SELECTION_OUTER_WIDTH) / 2;
 export function selectionStyle() {
   return {
-    outer: { stroke: 'var(--viz-selection-outer)', strokeWidth: SELECTION_OUTER_WIDTH },
+    outer: { stroke: 'var(--viz-selection-outer)', strokeWidth: SELECTION_OUTER_WIDTH, offset: SELECTION_OUTER_OFFSET },
     inner: { stroke: 'var(--viz-selection-inner)', strokeWidth: SELECTION_INNER_WIDTH },
   };
 }

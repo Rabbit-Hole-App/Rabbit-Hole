@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Pause, Play, RotateCcw, Scan, Volume2, VolumeX, X } from 'lucide-react';
 import katex from 'katex';
@@ -16,7 +16,7 @@ import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './a
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { distributeRounding } from './scene-derive.js';
 import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-sound.js';
-import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, labelAt, requiredLeftMargin, sceneContentBounds } from './scene-layout.js';
+import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, labelAt, requiredLeftMargin, sceneContentBounds, sceneViewBox } from './scene-layout.js';
 import { GEOMETRY } from './scene-vocab.js';
 import { heatStyle, identityVar, roleVar, selectionStyle, shapeStyle, textStyle } from './scene-style.js';
 
@@ -60,18 +60,24 @@ const marked = (object, row, column, index) => {
 // it, not a copy per shape.
 function SelectionMark({ geometry }) {
   const { outer, inner } = selectionStyle();
+  // The magenta ring is offset outward from the shape's own outline (see
+  // selectionStyle) so a selected grid cell or strip row carries the same
+  // instant read a selected box does, instead of looking like a thicker
+  // gridline. Geometry only - the offset is applied to whichever outline this
+  // shape has, never per shape kind beyond that.
   if (geometry.kind === 'circle') {
     return (
       <>
-        <circle cx={geometry.cx} cy={geometry.cy} r={geometry.r} fill="none" style={{ stroke: outer.stroke }} strokeWidth={outer.strokeWidth} />
+        <circle cx={geometry.cx} cy={geometry.cy} r={geometry.r + outer.offset} fill="none" style={{ stroke: outer.stroke }} strokeWidth={outer.strokeWidth} />
         <circle cx={geometry.cx} cy={geometry.cy} r={geometry.r} fill="none" style={{ stroke: inner.stroke }} strokeWidth={inner.strokeWidth} />
       </>
     );
   }
   const { x, y, width, height, rx = 0 } = geometry;
+  const spread = outer.offset;
   return (
     <>
-      <rect x={x} y={y} width={width} height={height} rx={rx} fill="none" style={{ stroke: outer.stroke }} strokeWidth={outer.strokeWidth} />
+      <rect x={x - spread} y={y - spread} width={width + spread * 2} height={height + spread * 2} rx={rx ? rx + spread : 0} fill="none" style={{ stroke: outer.stroke }} strokeWidth={outer.strokeWidth} />
       <rect x={x} y={y} width={width} height={height} rx={rx} fill="none" style={{ stroke: inner.stroke }} strokeWidth={inner.strokeWidth} />
     </>
   );
@@ -315,6 +321,20 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
   const host = useRef(null);
   const drag = useRef(null);
   const [rectangle, setRectangle] = useState(null);
+  // The real rendered box, so the viewBox can be built at the viewport's own
+  // aspect instead of the scene's - see sceneViewBox. Until it is measured the
+  // scene's declared aspect is the best available guess, which is what the
+  // first paint uses; the observer corrects it on the same frame.
+  const [aspect, setAspect] = useState(null);
+  useLayoutEffect(() => {
+    const element = host.current;
+    if (!element) return;
+    const read = () => { const box = element.getBoundingClientRect(); if (box.width > 0 && box.height > 0) setAspect(box.width / box.height); };
+    read();
+    const observer = new ResizeObserver(read);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const point = event => {
     const box = host.current.getBoundingClientRect();
     return { x: (event.clientX - box.left) / box.width, y: (event.clientY - box.top) / box.height };
@@ -349,14 +369,13 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
   const bounds = cameraAuthored ? null : sceneContentBounds(scene);
   let origin, span;
   if (bounds) {
-    // 80-90% fill of the usable viewport, sensible padding either side -
-    // the review's own target. 0.85 sits in the middle of that band.
-    const FILL = 0.85;
-    const PAD_MIN = 24;
-    const contentW = Math.max(bounds.xMax - bounds.xMin, 1);
-    const contentH = Math.max(bounds.yMax - bounds.yMin, 1);
-    span = { w: Math.max(contentW / FILL, contentW + PAD_MIN * 2), h: Math.max(contentH / FILL, contentH + PAD_MIN * 2) };
-    origin = { x: (bounds.xMin + bounds.xMax) / 2 - span.w / 2, y: (bounds.yMin + bounds.yMax) / 2 - span.h / 2 };
+    // Pad the content and match the VIEWPORT's aspect, not the scene's. The
+    // previous fit padded both axes by 15% and then let preserveAspectRatio
+    // letterbox the non-limiting one on top of that - the dead space the app
+    // review saw around the Transformer Block row. sceneViewBox grows the
+    // short axis to the viewport's aspect instead, so the rendered scale is
+    // exactly viewport.w / span.w and nothing is paid for twice.
+    ({ origin, span } = sceneViewBox(bounds, aspect ?? (scene.width / scene.height)));
   } else {
     const baseSpanW = scene.width / state.camera.zoom;
     span = { w: baseSpanW + leftMargin, h: scene.height / state.camera.zoom };

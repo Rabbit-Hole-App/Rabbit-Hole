@@ -29,9 +29,23 @@ const uid = () => crypto.randomUUID();
 // the card's height. Box top (y=90) stays put, so the skip elbows' anchors
 // (pinned to that top edge) need no change - only the row's own connector
 // arrows, pinned to the row's vertical centre, move with it (90 + 90/2).
-const tbBox = (id, label, x, role) => ({
+//
+// Pitch tightened from 170 (130 box + 40 gap) to 150 (126 + 24) and the
+// longest box label shortened, so the seven-box row's own content bounds fit
+// the viewport the legibility floors demand (scene-layout.js's
+// sceneLegibility / MAX_SCENE_VIEWPORT). At the old pitch the row needed a
+// 1275px frame to keep 13px annotations at 13 EFFECTIVE pixels, which is
+// wider than a lesson column can give it - so the camera made up the
+// difference by shrinking every label to about 5px, which is the defect.
+// Nothing here is a renderer change: the scene is authored to a size it can
+// actually be read at.
+const TB_BOX_W = 126;
+const TB_PITCH = 150;
+const tbX = index => 40 + index * TB_PITCH;
+const tbCentre = index => tbX(index) + TB_BOX_W / 2;
+const tbBox = (id, label, index, role) => ({
   id, type: 'box', semanticId: id, conceptId: 'transformer-block',
-  initialState: { label, x, y: 90, w: 130, h: 90, opacity: 0, role },
+  initialState: { label, x: tbX(index), y: 90, w: TB_BOX_W, h: 90, opacity: 0, role },
 });
 const tbArrow = (id, from, to) => ({
   id, type: 'arrow', semanticId: id, conceptId: 'transformer-block',
@@ -41,24 +55,28 @@ const tbArrow = (id, from, to) => ({
 export const transformerBlockScene = {
   id: 'nanogpt-transformer-block',
   title: 'nanoGPT — Transformer Block',
-  width: 1240,
+  width: 1120,
   height: 340,
   duration: 11,
   objects: [
     { id: 'caption', type: 'text', semanticId: 'caption', initialState: { text: '', x: 40, y: 26 } },
-    tbBox('input', 'x', 40, 'input'),
-    tbBox('ln1', 'LayerNorm', 210, 'neutral'),
-    tbBox('attn', 'Self-Attention', 380, 'observed'),
-    tbBox('add1', '+', 550, 'output'),
-    tbBox('ln2', 'LayerNorm', 720, 'neutral'),
-    tbBox('mlp', 'MLP', 890, 'observed'),
-    tbBox('add2', '+', 1060, 'output'),
-    tbArrow('a-in-ln1', { x: 180, y: 135 }, { x: 200, y: 135 }),
-    tbArrow('a-ln1-attn', { x: 350, y: 135 }, { x: 370, y: 135 }),
-    tbArrow('a-attn-add1', { x: 520, y: 135 }, { x: 540, y: 135 }),
-    tbArrow('a-add1-ln2', { x: 690, y: 135 }, { x: 710, y: 135 }),
-    tbArrow('a-ln2-mlp', { x: 860, y: 135 }, { x: 880, y: 135 }),
-    tbArrow('a-mlp-add2', { x: 1030, y: 135 }, { x: 1050, y: 135 }),
+    tbBox('input', 'x', 0, 'input'),
+    tbBox('ln1', 'LayerNorm', 1, 'neutral'),
+    // "Attention", not "Self-Attention": at the body floor (15 effective px)
+    // the longer label is wider than the box that has to contain it, and a
+    // label overflowing its own frame is the same defect at a different size.
+    // The sub-layer is named in full by the caption and by the note.
+    tbBox('attn', 'Attention', 2, 'observed'),
+    tbBox('add1', '+', 3, 'output'),
+    tbBox('ln2', 'LayerNorm', 4, 'neutral'),
+    tbBox('mlp', 'MLP', 5, 'observed'),
+    tbBox('add2', '+', 6, 'output'),
+    tbArrow('a-in-ln1', { x: tbX(0) + TB_BOX_W + 4, y: 135 }, { x: tbX(1) - 4, y: 135 }),
+    tbArrow('a-ln1-attn', { x: tbX(1) + TB_BOX_W + 4, y: 135 }, { x: tbX(2) - 4, y: 135 }),
+    tbArrow('a-attn-add1', { x: tbX(2) + TB_BOX_W + 4, y: 135 }, { x: tbX(3) - 4, y: 135 }),
+    tbArrow('a-add1-ln2', { x: tbX(3) + TB_BOX_W + 4, y: 135 }, { x: tbX(4) - 4, y: 135 }),
+    tbArrow('a-ln2-mlp', { x: tbX(4) + TB_BOX_W + 4, y: 135 }, { x: tbX(5) - 4, y: 135 }),
+    tbArrow('a-mlp-add2', { x: tbX(5) + TB_BOX_W + 4, y: 135 }, { x: tbX(6) - 4, y: 135 }),
     // The residual stream, drawn as an elbow rather than a floating straight
     // line: a `line` up out of the source box's own top edge, a `line`
     // across at y=60 (clear of both boxes and the row's own connector
@@ -72,26 +90,31 @@ export const transformerBlockScene = {
     // used the way the benchmark already proved it. The old skip1/skip2 were
     // a single arrow floating at y=60 that never touched either box, reading
     // as an unrelated blue line rather than a residual path.
+    // Residual label text shortened from "residual: x carried forward" and
+    // "residual: carried forward again". At a readable 13px those ran most of
+    // the way across their own sub-layer and read as a second caption; the
+    // elbow already shows what is carried and where it lands, so the label
+    // only has to name the thing.
     { id: 'skip1-up', type: 'line', semanticId: 'skip1-up', conceptId: 'transformer-block',
-      initialState: { from: { x: 105, y: 90 }, to: { x: 105, y: 60 }, opacity: 0, role: 'input' } },
+      initialState: { from: { x: tbCentre(0), y: 90 }, to: { x: tbCentre(0), y: 60 }, opacity: 0, role: 'input' } },
     { id: 'skip1-across', type: 'line', semanticId: 'skip1-across', conceptId: 'transformer-block',
-      initialState: { from: { x: 105, y: 60 }, to: { x: 615, y: 60 }, opacity: 0, role: 'input' } },
+      initialState: { from: { x: tbCentre(0), y: 60 }, to: { x: tbCentre(3), y: 60 }, opacity: 0, role: 'input' } },
     { id: 'skip1-in', type: 'arrow', semanticId: 'skip1-in', conceptId: 'transformer-block',
-      initialState: { from: { x: 615, y: 60 }, to: { x: 615, y: 90 }, opacity: 0, role: 'input' } },
+      initialState: { from: { x: tbCentre(3), y: 60 }, to: { x: tbCentre(3), y: 90 }, opacity: 0, role: 'input' } },
     { id: 'skip1-label', type: 'text', semanticId: 'skip1-label', conceptId: 'transformer-block',
-      initialState: { text: 'residual: x carried forward', x: 130, y: 38, opacity: 0, typography: 'annotation', role: 'input' } },
+      initialState: { text: 'residual path', x: 150, y: 40, opacity: 0, typography: 'annotation', role: 'input' } },
     { id: 'skip2-up', type: 'line', semanticId: 'skip2-up', conceptId: 'transformer-block',
-      initialState: { from: { x: 615, y: 90 }, to: { x: 615, y: 60 }, opacity: 0, role: 'input' } },
+      initialState: { from: { x: tbCentre(3), y: 90 }, to: { x: tbCentre(3), y: 60 }, opacity: 0, role: 'input' } },
     { id: 'skip2-across', type: 'line', semanticId: 'skip2-across', conceptId: 'transformer-block',
-      initialState: { from: { x: 615, y: 60 }, to: { x: 1125, y: 60 }, opacity: 0, role: 'input' } },
+      initialState: { from: { x: tbCentre(3), y: 60 }, to: { x: tbCentre(6), y: 60 }, opacity: 0, role: 'input' } },
     { id: 'skip2-in', type: 'arrow', semanticId: 'skip2-in', conceptId: 'transformer-block',
-      initialState: { from: { x: 1125, y: 60 }, to: { x: 1125, y: 90 }, opacity: 0, role: 'input' } },
+      initialState: { from: { x: tbCentre(6), y: 60 }, to: { x: tbCentre(6), y: 90 }, opacity: 0, role: 'input' } },
     { id: 'skip2-label', type: 'text', semanticId: 'skip2-label', conceptId: 'transformer-block',
-      initialState: { text: 'residual: carried forward again', x: 660, y: 38, opacity: 0, typography: 'annotation', role: 'input' } },
+      initialState: { text: 'residual path', x: 650, y: 40, opacity: 0, typography: 'annotation', role: 'input' } },
     { id: 'shape-input', type: 'text', semanticId: 'shape-input', conceptId: 'transformer-block',
-      initialState: { text: '(B, T, C)', x: 55, y: 246, opacity: 0, typography: 'annotation' } },
+      initialState: { text: '(B, T, C)', x: 52, y: 246, opacity: 0, typography: 'annotation' } },
     { id: 'shape-mlp', type: 'text', semanticId: 'shape-mlp', conceptId: 'transformer-block',
-      initialState: { text: 'MLP expands to 4C, then back to C — (B, T, C) throughout', x: 830, y: 246, opacity: 0, typography: 'annotation' } },
+      initialState: { text: 'MLP: C to 4C to C', x: 790, y: 246, opacity: 0, typography: 'annotation' } },
     { id: 'note', type: 'text', semanticId: 'note', initialState: { text: '', x: 40, y: 290 } },
   ],
   timeline: [
