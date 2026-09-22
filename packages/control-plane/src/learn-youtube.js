@@ -7,6 +7,7 @@
 // from the learner (or, in phase 2, from a transcript the model has read).
 
 import { fetchCaptions } from './learn-captions.js';
+import { guardedCaptions } from './learn-moment-index.js';
 import { topPassages } from './learn-moment-retrieve.js';
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
@@ -148,7 +149,9 @@ export function validateShowVideo(input, found) {
 // discover -> captions (best effort, bounded) -> retrieve. Injection points
 // exist for tests; production wiring passes nothing.
 export async function findVideoMoments(query, env, { search = searchYouTube, captions = fetchCaptions, retrieve = topPassages } = {}) {
-  const getCaptions = captions;
+  // The R2 record wraps the fetch: a video that recently had no captions is
+  // not re-probed on every question, and a fresh failure is written down.
+  const getCaptions = guardedCaptions(env, captions);
   const pick = retrieve;
   const candidates = (await search(query, env)).slice(0, 5);
   // Concurrency 2: the caption provider is the fragile leg, and a burst of
