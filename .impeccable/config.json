@@ -16,6 +16,15 @@
           "packages/web/src/Shell.jsx"
         ],
         "createdAt": "2026-09-05T22:26:24.741Z"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "packages/web/src/index.css"
+        ],
+        "createdAt": "2026-09-22T05:19:05.997Z",
+        "reason": "L438 is a blockquote left rule inside rendered Wikipedia article typography (neutral --color-line), not a card accent tab"
       }
     ]
   }
