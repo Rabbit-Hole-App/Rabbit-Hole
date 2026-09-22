@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Rabbit Hole — hero</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
@@ -29,8 +30,10 @@
      there is no overlay element and nothing that can lag behind the scroll. ---- */
   /* as tall as the page, so the canvas stays stuck for the whole descent */
   #shaft-track{position:absolute;left:0;top:0;width:100%;height:1740px}
-  /* full viewport height so the mouth sits dead centre of the page */
-  #shaft{position:sticky;top:0;width:100%;height:100vh;display:block;
+  /* full viewport height so the mouth sits dead centre of the page. svh, not vh: on
+     phones vh is the *largest* viewport, so with the URL bar showing the canvas would
+     hang below the fold and the hole would sit off-centre. */
+  #shaft{position:sticky;top:0;width:100%;height:100vh;height:100svh;display:block;
          image-rendering:pixelated}
   @media (prefers-reduced-motion:reduce){ #shaft{position:absolute} }
 
@@ -114,6 +117,33 @@
   @media (max-width:900px){
     .cards,.tiers{grid-template-columns:1fr}
     #below h2{font-size:44px}
+  }
+
+  /* ---- phones ---- */
+  @media (max-width:700px){
+    /* The pill spans the width and drops the links. A full nav will not fit legibly at
+       this size; a menu button is the next step and is deliberately not built yet. */
+    #bar{left:12px;right:12px;top:12px;transform:translateY(calc(-100% - 12px));
+         padding:8px 8px 8px 16px;border-radius:18px;gap:0}
+    #bar.on{transform:translateY(0)}
+    #bar .brand{font-size:15px;margin-right:auto}
+    #bar a:not(.cta){display:none}
+    #bar .cta{margin-left:0;padding:10px 16px;font-size:14px}
+
+    #below{padding:96px 20px 0}
+    #below section{margin-bottom:96px}
+    #below h2{font-size:38px;letter-spacing:-.03em}
+    #below .lede{font-size:16.5px}
+    .rows{margin-top:32px}
+    .row{gap:14px;padding:18px 2px;font-size:15.5px;flex-wrap:wrap}
+    .row .meta{width:100%;font-size:13px}
+    .row .arrow{display:none}
+    .cards,.tiers{margin-top:32px;gap:14px}
+    .card{padding:22px 20px 24px;border-radius:16px}
+    .tier{padding:24px 22px 26px;border-radius:18px}
+    .tier .price{font-size:38px}
+    footer{flex-wrap:wrap;gap:8px;padding:28px 20px 36px;font-size:13.5px}
+    footer .brand{width:100%;margin-right:0;margin-bottom:4px}
   }
 
 
@@ -267,11 +297,20 @@
   const gTab = new Int32Array(W * H);    // per-pixel row offset into GRAIN
 
   const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  let TYPE = 190;                        // headline size in CSS px, set by rebuild
+  let lastW = 0, lastH = 0;
 
   function rebuild() {
+    // Phones fire resize every time the URL bar slides, and this function is O(W*H).
+    // Skip when the box has not actually changed.
+    if (cv.clientWidth === lastW && cv.clientHeight === lastH) return;
+    lastW = cv.clientWidth; lastH = cv.clientHeight;
     // Visible canvas matches the viewport in device pixels, so the type is crisp.
     cv.width  = Math.round(cv.clientWidth  * DPR);
     cv.height = Math.round(cv.clientHeight * DPR);
+    // Headline scales with the viewport: "Knowledge is" is ~6.3 ems wide, so this keeps
+    // it inside ~88% of the width at any size instead of running off a phone screen.
+    TYPE = Math.min(190, cv.clientWidth * 0.14);
     // The buffer is 2:1 but the canvas is stretched to the viewport, so correct dy by
     // the ratio of the two aspects — that is what keeps the rings circular on screen.
     SQUASH = (W / H) / (cv.clientWidth / cv.clientHeight);
@@ -325,7 +364,7 @@
   const LINES = ['Knowledge is', 'infinite.'];
   function drawTitle(scale, alpha) {
     if (!(alpha > 0.004)) return;
-    const px = 190 * DPR * scale;                          // 190 CSS px at the mouth
+    const px = TYPE * DPR * scale;                         // TYPE CSS px at the mouth
     ctx.save();
     ctx.globalCompositeOperation = 'difference';
     ctx.globalAlpha = alpha;

@@ -6,6 +6,9 @@ in a browser; they are standalone, like the other files in this folder.
 - `rabbit-hole-hero.html` — the hero: a shaft you fall down, with the title over it.
   No nav or buttons yet.
 - `headline-font-candidates.html` — six display faces set at size, for picking one.
+- `rabbit-hole-mobile-check.html` — the hero in three 390×844 frames, so the phone
+  layout can be seen without a device. Serve the folder over HTTP; the frames are
+  same-origin and get scrolled from the parent.
 
 Nothing here is wired into the app. The mount point is still undecided.
 
@@ -34,6 +37,23 @@ exactly what you cannot control.
 The bar is **not** styled after the TypeSafe reference. That reference governs the hero's
 grid and type metrics only; the chrome is its own thing — crisp `#0A0A0A` on white, Inter
 for UI, a pill with a real shadow, and a solid CTA.
+
+## Phones
+
+The page had no `<meta name="viewport">` at all, so a phone rendered it at desktop
+width and zoomed out — everything else here was moot until that was added.
+
+Four things are handled specifically for small screens:
+
+- **Height uses `svh`, not `vh`.** `vh` is the *largest* viewport, so with the URL bar
+  showing, a `100vh` canvas hangs below the fold and the mouth sits off-centre.
+- **The headline is sized from the viewport**, `min(190px, 14% of width)`. At a fixed
+  190px, "Knowledge is" runs off a 390px screen.
+- **`rebuild()` early-returns when the box has not changed.** Phones fire `resize` every
+  time the URL bar slides, and that function is O(W·H).
+- **The bar spans the width and drops its links**, keeping the brand and the CTA. A
+  full nav does not fit legibly at 390px. A menu button is the obvious next step and is
+  deliberately not built.
 
 ## Reference
 
