@@ -471,7 +471,7 @@ tr.cursor-pointer:active > td {
    innerHTML children can be re-created at any render, and nothing an editor
    writes can forge an element outside the sanitized subtree. */
 @keyframes wiki-arrive {
-  from { background: rgba(35, 131, 226, 0.14); }
+  from { background: rgba(125, 195, 255, 0.3); }
   to { background: transparent; }
 }
 .wiki-article [data-arrived] { animation: wiki-arrive 2s ease-out 1 forwards; border-radius: 4px; background: transparent; }

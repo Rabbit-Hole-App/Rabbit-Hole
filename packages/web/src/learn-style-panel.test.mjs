@@ -132,7 +132,7 @@ test('reorder returns the same list when nothing selected is in it', () => {
 });
 
 test('the levels run big to small so the panel reads like Notion', () => {
-  assert.deepEqual(TEXT_LEVELS.map(entry => entry.id), ['h1', 'h2', 'h3', 'body']);
+  assert.deepEqual(TEXT_LEVELS.map(entry => entry.id), ['h1', 'h2', 'h3', 'h4', 'body']);
   const sizes = TEXT_LEVELS.map(entry => entry.size);
   assert.deepEqual(sizes, [...sizes].sort((a, b) => b - a));
 });

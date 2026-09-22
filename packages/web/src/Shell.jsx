@@ -59,7 +59,7 @@ export default function Shell({ children }) {
         <button
           title="Back (reopens the sidebar)"
           onClick={() => { toggle(false); if (history.length > 1) history.back(); else navigate('/apps'); }}
-          className="fixed top-3 left-2 z-10 rounded-md border border-line-strong bg-active p-1.5 text-ink-2 hover:bg-hover hover:text-ink max-md:hidden"
+          className="fixed top-3 left-2 z-10 rounded-md border border-line-strong bg-active p-1.5 text-ink hover:bg-hover max-md:hidden"
         >
           <Home size={16} />
         </button>

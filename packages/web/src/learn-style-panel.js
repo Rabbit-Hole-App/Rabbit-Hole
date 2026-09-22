@@ -39,6 +39,7 @@ export const TEXT_LEVELS = [
   { id: 'h1', label: 'H1', size: 32, weight: 600 },
   { id: 'h2', label: 'H2', size: 24, weight: 600 },
   { id: 'h3', label: 'H3', size: 19, weight: 500 },
+  { id: 'h4', label: 'H4', size: 16, weight: 500 },
   { id: 'body', label: 'Text', size: 14, weight: 400 },
 ];
 
