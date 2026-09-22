@@ -25,9 +25,11 @@ backgrounded, and it is switched off entirely under `prefers-reduced-motion`, so
 would simply never appear for those users. The listener toggles a class and CSS does the
 transition, which keeps position work off the scroll path.
 
-`backdrop-filter` only reads as glass when something passes underneath it. Over a blank
-white page it is indistinguishable from flat white — the placeholder sections exist
-partly so the bar has something to blur.
+The bar is **solid white**, not glass. A translucent pill takes its tone from whatever
+sits behind it, and this page spends half its scroll over a pitch-black hero, which
+turned the bar grey. Two properties of `backdrop-filter` make it the wrong tool here:
+it only reads as glass when something is passing underneath, and what it reads is
+exactly what you cannot control.
 
 The bar is **not** styled after the TypeSafe reference. That reference governs the hero's
 grid and type metrics only; the chrome is its own thing — crisp `#0A0A0A` on white, Inter

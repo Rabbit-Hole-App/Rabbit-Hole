@@ -38,11 +38,11 @@
   #bar{position:fixed;left:50%;top:18px;z-index:20;
        display:flex;align-items:center;gap:6px;
        padding:7px 7px 7px 20px;border-radius:999px;
-       background:rgba(255,255,255,.7);
-       -webkit-backdrop-filter:blur(24px) saturate(180%);
-       backdrop-filter:blur(24px) saturate(180%);
+       /* Solid white, not translucent. A glass pill takes its tone from whatever is
+          behind it, and over the black hero that turned it grey. */
+       background:#FFFFFF;
        border:1px solid var(--hair);
-       box-shadow:0 1px 2px rgba(10,10,10,.04), 0 12px 32px rgba(10,10,10,.10);
+       box-shadow:0 1px 2px rgba(10,10,10,.05), 0 14px 36px rgba(10,10,10,.14);
        transform:translate(-50%,calc(-100% - 18px));opacity:0;pointer-events:none;
        transition:transform .42s cubic-bezier(.22,.61,.36,1),opacity .3s ease}
   #bar.on{transform:translate(-50%,0);opacity:1;pointer-events:auto}
