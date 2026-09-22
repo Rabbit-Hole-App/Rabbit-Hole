@@ -104,3 +104,133 @@ green before any interactive work. No pre-existing failures to carry.
 
 **T00 done:** composer integration point, scene APIs, board mechanism, gates,
 port and deploy owner all named from the checkout. No product code touched.
+
+## T01 — typed inputs (commit c913976)
+
+`packages/web/src/scene-inputs.js` + `scene-inputs.test.mjs` (failing-first).
+Declarations throw with the field named; raw values normalise, never throw,
+idempotent, non-mutating. Content-version rules are structural: choice ids
+are identity (reorder-proof), out-of-domain resets to the default rather than
+reinterpreting, unknown keys drop. No writer migration happened - `block.state`
+(Engine B) and all passive blocks untouched. Verified: 10 unit tests + full
+suite green.
+
+## T02 — evaluateScene + generic bindings (commit 501bac9)
+
+`scene-evaluate.js` (+test): coerced inputs join the derive pool by name;
+collisions refused; one snapshot for derive, display, captions, highlights.
+`scene-derive.js`: `pick` (the generic indexed/record selector), `buildPool`
+export, named-arg diagnostics; `usesDeriveMarker` excludes `cellHighlight` so
+a bound selection cannot flip an input matrix's provenance. `animation-scene.js`:
+authored `cellHighlight` (same shapes as highlight_cell). Renamed-fixture
+binding proof, determinism/mode-blindness, time-vs-inputs separation all
+tested. Static renders re-captured; freshness gate green.
+
+## T03 — in-card controls (commit 7b1d126)
+
+`SceneControls.jsx` (index picker, bool toggle; dispatch by type/presentation),
+`applyInputToBlock` (canonical value + monotonic `inputRevision`, no-ops free),
+AnimatedScene wiring (input change pauses, preserves time; reset clears only
+this card's inputs/inspection), animation `sizeFor` grows for the control
+strip. Browser proof (interactive-loop-check): real click + keyboard chip
+activation drive caption/strip/highlight; card fixed; persistence + reload;
+reset. Pixels inspected. Gotcha fixed en route: vite must run with
+`VITE_COACHING_DEV=true` and `SMALL_API=<dev worker>` or the Learn canvas
+never mounts locally.
+
+## T04 — Ask-about-this on the dock composer (commit 0fd003a)
+
+`describeAnimation` carries experiment inputs (by control label), revision,
+locally computed values, execution mode; chip label = title + current input
+phrases. `AdaptiveCanvas.askBlock` arms a LIVE target (text getter resolves
+from the canvas's own state ref at Send; chip re-arms on the armed block's
+change; deleted target flips to a visible warning). `ask.jsx` resolves
+function-valued target text once at Send - frozen thereafter. `SceneControls`
+gained the Ask button (left-flow, clear of the floating toolbar).
+Browser proof (composer-context-check): draft survives, nothing auto-sends,
+chip follows input changes, in-flight payload immutable, B-after-A sends B,
+clear restores unscoped, deleted target warns, composer keys never reach
+canvas hotkeys, exactly one composer.
+
+## T05 — I01 attention explorer (commit 5c587bc)
+
+`interactive-scenes.js` (attentionExplorerScene: spec Q/K/V fixture, derive
+pipeline matmul->scale->causal_mask->softmax->weighted_sum, token chips with
+`pickInput`), derive ops `causal_mask` + null-aware softmax/weighted_sum,
+renderer `pickInput` item clicks, bars gained per-object `cell` pitch.
+Oracles (independent full-precision recomputation, tol 2e-3): q0 [1,0];
+q2 mask-on 0.248/0.248/0.503 -> (0.751,0.751); q2 mask-off future 0.109057 ->
+(0.561,0.670); q3 no-change control. Consistency + layout gates green at five
+input snapshots; renamed-tokens binding proof. Browser proof + pixel
+inspection both themes (output strip visibly matches the oracle after the
+mask toggle - numbers, not paint).
+
+## T06 — I02 image-patch explorer (commit fbca8a7)
+
+Generic image `crop` (fractions of the displayed box; same centre-slice fit,
+so the crop names exactly what the overlaid grid names - one file, no
+per-patch assets), `IndexSlider` presentation (Previous/Next, no wrap, live
+slider path that does not eat the undo ring), patch fixture with one-based
+`human` labels (index 5 = Patch 6 of 16, row 2, column 2 - unit-tested and
+read back in pixels on the asymmetric puppy photo: the ear tip in the crop
+matches the selected cell's top edge). Browser proof: click=slider=stepper=
+keyboard equivalence, ends-are-ends, zero model calls during exploration,
+payload carries the patch input, reset/reload. `{{path.dotted}}` interpolation
+guard fixed in scene-derive (dots were rejected by the marker regex).
+
+## T07 — I03 candidate-future explorer (commit 4f6dd2f)
+
+Ops `sub` and `gate` (commit-gated window: real values or same-shape nulls);
+hidden inputs (`hidden: true`) - no widget, and `applyInputToBlock` REFUSES
+them (command-path latch, not button-hiding); choice widget; leak-proof
+payloads (describeAnimation only describes derived values referenced by
+VISIBLE objects, so raw `costs` behind the gate never ride along). Costs
+4/1/9 derived from terminal positions via sub+dot, never typed. Browser proof:
+ring/details follow the choice, pre-reveal blank in pixels AND payload,
+seeded-reveal shows 4/1/9 in view and payload, reset. Pixels inspected;
+start/goal sizing and bar caption fixed after inspection.
+
+## T08 — I04 vector projection (commit ba4b23c)
+
+Engine B extended, no second projection implementation: `project()` stays the
+one calculation. `vector_projection_v1` gains a scene-declared symmetric
+`range` (clamped on every write path) and shares scene-derive's `round` (-0
+cannot survive). `VectorScene`: pointer capture, Escape/pointercancel restores
+the gesture-start snapshot, edit buffers ("-" is never NaN and never a
+premature 0), declared-range mapping. Two real layout defects found by the
+browser run and fixed generically: the square svg inflated past its card
+(intrinsic aspect in block flow -> handles parked on unreachable pixels;
+InteractiveScene's renderer host is now a flex column and the svg a
+bounded square), and behaviours now own their progress noun. Browser proof:
+5 distinct mid-drag projections, Escape cancel, outside release commits
+clamped, typed=dragged, "-" buffer, 12->5 clamp, zero-axis not-ready +
+recovery, drag after canvas zoom lands at world (1,1), Ask carries the
+just-dragged vector, reset/reload. Spec oracles (3,2)->(3,0), (0,3)->(0,0),
+b=0 undefined in scene-engine tests.
+
+## T09 — shared practice layer (commit 3f05f07)
+
+`scene-activity.js`: closed predicates (set_equals, index_equals,
+choice_equals, projection_zero), `checkStatus` with not_attempted/not_ready/
+ready/submitted all distinct, `applyCheck` (snapshots answer + revision +
+graded geometry, idempotent, closes the attempt), `applyNewAttempt`
+(append-only history), `revealHiddenInputs` (derived from the log alone),
+`describeActivity` (status + learner answer, never expected). `SceneActivity.jsx`
+renders prompt/answer widget (same registry via `InputWidget`)/Check/feedback/
+New attempt inside the card; no default pre-pick, so not-ready is honest.
+Both engines evaluate with `{...inputs, ...revealHiddenInputs(block)}` - the
+render, the checks and the composer payload share one merged snapshot.
+Browser proof on all four cards (t09-activities-check): wrong->new->right on
+I01/I02/I03, I03 commit-A -> reveal 4/1/9 -> A immutable under later
+inspection, I04 zero-axis Check disabled then perpendicular passes with the
+graded geometry recorded, replay changes nothing, reload keeps [2,2,2,1]
+attempts. Payload assertions: failed status + committed answer present,
+expected sets/costs absent pre-reveal. Pixels inspected.
+
+**Known deliberate deviation (for the user's call at review):** spec §8-I01
+asks that mask/answer-coded views hide behind the reveal gate DURING the I01
+prediction. The masked scores matrix is the exploration content itself -
+gating it would blank the explorer until the practice is committed - so I01
+practice runs ungated while I03 demonstrates the full commit->reveal gate.
+The gate mechanism is shared and mutation-tested; wiring I01's matrix to it
+is a one-line scene change if you want it strict.

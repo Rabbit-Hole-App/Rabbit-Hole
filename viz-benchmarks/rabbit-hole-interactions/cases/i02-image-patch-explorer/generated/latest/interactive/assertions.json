@@ -1,0 +1,47 @@
+{
+  "method": "every line below is printed only after its browser assertions passed; the script exits nonzero on any failure",
+  "caseScript": {
+    "i02-patch-check.mjs": [
+      "click cell 5: caption, slider readout agree (Patch 6, row 2, col 2)",
+      "steppers: next/previous move the same input",
+      "slider + keyboard: bounds respected, Next disabled at 16, ArrowLeft steps back",
+      "ends are ends: no wrap in either direction",
+      "zero tutor/model calls during local exploration",
+      "ask: payload carries Patch = 11 of 16 (index 10)",
+      "reset + reload: effective state preserved",
+      "PASS - shots: i02-initial / i02-patch-6 / i02-dark"
+    ]
+  },
+  "sharedScripts": {
+    "interactive-loop-check.mjs": [
+      "T00.4 canvas + composer present, toolbars: \u001b[33m1\u001b[39m",
+      "initial: caption ok, pressed: alpha blocks: \u001b[33m1\u001b[39m",
+      "after click: caption row2/11 ok, pressed gamma, card fixed, time label: 0.0s",
+      "keyboard: Enter on beta chip updates every bound view",
+      "reload: same effective state",
+      "reset: defaults restored",
+      "PASS - shots at e2e/shots/t03-loop-card.png / t03-loop-page.png"
+    ],
+    "composer-context-check.mjs": [
+      "ask: attaches + focuses, draft intact, nothing sent",
+      "input change: chip label follows",
+      "send: latest revision frozen; later change did not rewrite it",
+      "retarget: card B sends card B",
+      "clear: unscoped send is plain",
+      "deleted target: chip warns",
+      "hotkeys: typing is safe",
+      "PASS - one composer, full T04 contract"
+    ],
+    "t09-activities-check.mjs": [
+      "I01: fail -> new attempt -> pass, replay changes nothing, payload honest",
+      "I02: separate answer index graded, explorer input untouched",
+      "I03: commit A -> reveal -> immutable -> new attempt B passes",
+      "I04: zero axis not-ready, perpendicular passes with recorded geometry",
+      "reload: all attempts and feedback survive",
+      "PASS - practice layer proven on all four cards"
+    ]
+  },
+  "reducedMotion": [
+    "reduced motion: query click updates every bound view with motion preferences honoured"
+  ]
+}

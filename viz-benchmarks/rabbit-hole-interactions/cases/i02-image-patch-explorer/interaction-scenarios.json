@@ -1,0 +1,25 @@
+{
+  "case": "i02-image-patch-explorer",
+  "scenarios": [
+    {
+      "action": "click grid cell 5 on the photo",
+      "expect": "caption reads Patch 6 of 16 · row 2, column 2; slider readout 6 of 16; crop shows that exact region of the same file; token chip 6 lit"
+    },
+    {
+      "action": "Next / Previous steppers",
+      "expect": "same input as the click; disabled at patch 16 and patch 1; no wrap"
+    },
+    {
+      "action": "drag the slider to 16; ArrowLeft on it",
+      "expect": "bounds hold; keyboard steps the same input"
+    },
+    {
+      "action": "any selection",
+      "expect": "zero tutor/model/image requests fire"
+    },
+    {
+      "action": "practice: answer patch 6, Check; New attempt; answer patch 10, Check",
+      "expect": "fail then pass; the explorer patchIndex is a separate input and never moves"
+    }
+  ]
+}

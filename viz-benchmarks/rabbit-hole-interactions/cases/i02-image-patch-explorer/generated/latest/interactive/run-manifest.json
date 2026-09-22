@@ -1,0 +1,32 @@
+{
+  "capturedAt": "2026-09-22T08:06:12.673Z",
+  "baseCommit": "3f05f07ab29451bf4b60af5f3943ed939d68683e",
+  "branch": "feat/canvas-block-conversations",
+  "trackedFilesDirtyAtCapture": 4,
+  "client": {
+    "mode": "local-vite-dev",
+    "port": 5199,
+    "note": "deployed-build + seed verification happens in the T12 handoff run"
+  },
+  "sceneSpecHash": "4c3c549b833b489bd3aa31982f0d84f91c4ee9699f60bce9b36d676306265e0e",
+  "rendererHash": "11ed0a2d7a64dc483fab550e3ff745346714776abe333c4777be99671f92b5c5",
+  "browser": "chromium (playwright)",
+  "viewport": "1600x1400 (scenario scripts vary; see each script)",
+  "devicePixelRatio": 1,
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "reducedMotionChecked": true,
+  "keyboardPathChecked": true,
+  "screenshots": {
+    "light/i02-initial.png": "1b3622523761fc5b647dbe20531ac84e6d2ea673dd449323f72fe37ba45baa38",
+    "light/i02-patch-6.png": "891c8712eebf57f091a8011d18ca1e0843b588bc36b124216f7aba81facb0a6c",
+    "light/t09-i02-practice.png": "86110d5391ccef232b3198c9c19251d37b595082ef7c2c505a345601b7e18895",
+    "dark/i02-dark.png": "1a405c7c74839cc6914ee65ec4b3a8a8148df41d6fec8542e7c529bb0c9c8d5e"
+  },
+  "gates": {
+    "unit": "cd packages/web && npm run test:unit (482 tests green at capture)",
+    "mutations": "src/interaction-mutations.test.mjs + src/scene-activity.test.mjs + browser scripts (see project README table)"
+  }
+}

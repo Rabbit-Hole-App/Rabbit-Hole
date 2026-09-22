@@ -6,6 +6,7 @@
 
 import { causalAttentionScene } from './reference-scenes.js';
 import { staticAppReviewBlocks } from './gallery-scenes.js';
+import { interactiveAppReviewBlocks } from './interactive-scenes.js';
 
 // --- 1. why an axis must hold still -----------------------------------------
 // The same reveal drawn twice. On the left the axis is recomputed from the
@@ -343,6 +344,11 @@ export const BOARDS = {
   'static-app-review': staticAppReviewBlocks,
   'static-app-review-2': staticAppReviewBlocks,
   'static-app-review-3': staticAppReviewBlocks,
+  // The interactive review (docs/rabbit-hole-interactive-visuals-agent-spec-v2.md
+  // T12): the four interactive cards - attention, image patches, candidate
+  // futures, vector projection - each with its practice task. Seeds fresh
+  // through the same versioned mechanism as every other review board.
+  'interactive-app-review': interactiveAppReviewBlocks,
 };
 
 // Bump a board's entry here whenever its seed content changes. The version is
@@ -354,4 +360,5 @@ export const BOARD_SEED_VERSIONS = {
   'static-app-review': 5,
   'static-app-review-2': 2,
   'static-app-review-3': 1,
+  'interactive-app-review': 1,
 };

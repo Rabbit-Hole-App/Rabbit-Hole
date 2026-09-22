@@ -1,0 +1,44 @@
+{
+  "method": "every line below is printed only after its browser assertions passed; the script exits nonzero on any failure",
+  "caseScript": {
+    "i03-candidate-check.mjs": [
+      "choice C: ring moved, details follow",
+      "pre-reveal: no cost leak on card or in payload",
+      "post-reveal: derived 4,1,9 in view and payload",
+      "reset: back to path A",
+      "PASS - shots: i03-initial / i03-choose-c / i03-revealed / i03-dark"
+    ]
+  },
+  "sharedScripts": {
+    "interactive-loop-check.mjs": [
+      "T00.4 canvas + composer present, toolbars: \u001b[33m1\u001b[39m",
+      "initial: caption ok, pressed: alpha blocks: \u001b[33m1\u001b[39m",
+      "after click: caption row2/11 ok, pressed gamma, card fixed, time label: 0.0s",
+      "keyboard: Enter on beta chip updates every bound view",
+      "reload: same effective state",
+      "reset: defaults restored",
+      "PASS - shots at e2e/shots/t03-loop-card.png / t03-loop-page.png"
+    ],
+    "composer-context-check.mjs": [
+      "ask: attaches + focuses, draft intact, nothing sent",
+      "input change: chip label follows",
+      "send: latest revision frozen; later change did not rewrite it",
+      "retarget: card B sends card B",
+      "clear: unscoped send is plain",
+      "deleted target: chip warns",
+      "hotkeys: typing is safe",
+      "PASS - one composer, full T04 contract"
+    ],
+    "t09-activities-check.mjs": [
+      "I01: fail -> new attempt -> pass, replay changes nothing, payload honest",
+      "I02: separate answer index graded, explorer input untouched",
+      "I03: commit A -> reveal -> immutable -> new attempt B passes",
+      "I04: zero axis not-ready, perpendicular passes with recorded geometry",
+      "reload: all attempts and feedback survive",
+      "PASS - practice layer proven on all four cards"
+    ]
+  },
+  "reducedMotion": [
+    "reduced motion: query click updates every bound view with motion preferences honoured"
+  ]
+}

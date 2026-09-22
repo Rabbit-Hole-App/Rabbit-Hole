@@ -86,6 +86,16 @@ export const patchExplorerScene = {
   ],
 };
 
+// --- The review board (spec T12) ------------------------------------------------
+// Four cards, seeded fresh: exploration inputs at their declared defaults,
+// no attempts, everything at its useful paused checkpoint.
+export const interactiveAppReviewBlocks = () => [
+  { id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: attentionExplorerScene.title, scene: attentionExplorerScene, time: 4, selectedObject: null, marked: null, activity: attentionActivity },
+  { id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: patchExplorerScene.title, scene: patchExplorerScene, time: 3, selectedObject: null, marked: null, activity: patchActivity },
+  { id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: candidateFutureScene.title, scene: candidateFutureScene, time: 3, selectedObject: null, marked: null, activity: candidateActivity },
+  { id: crypto.randomUUID(), type: 'scene', dx: 0, dy: 0, title: 'Vector-projection explorer', spec: vectorProjectionSpec, state: null, attempts: 0, selectedObject: null, activity: projectionActivity, h: 680 },
+];
+
 // --- Practice tasks (spec T09) -------------------------------------------------
 // Authored task data for the shared activity layer (scene-activity.js).
 // Expected values live here and only here; the runtime keeps them out of
