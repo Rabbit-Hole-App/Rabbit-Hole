@@ -1,15 +1,15 @@
 {
-  "capturedAt": "2026-09-22T08:25:01.708Z",
-  "baseCommit": "808970c152e951f40800416827d9159d96fe55fd",
+  "capturedAt": "2026-09-22T20:17:23.206Z",
+  "baseCommit": "3e84ecb53bedf24264bf5594179941fed7301c6b",
   "branch": "feat/canvas-block-conversations",
-  "trackedFilesDirtyAtCapture": 16,
+  "trackedFilesDirtyAtCapture": 33,
   "client": {
     "mode": "local-vite-dev",
     "port": 5199,
     "note": "deployed-build + seed verification happens in the T12 handoff run"
   },
   "sceneSpecHash": "79a4c707217d977c783b3aa92a198093a01c85baffa1ece42c48ebb6f7bf2c13",
-  "rendererHash": "29f3d15d61789d83c1871baad83db315db748605e1cd15385b2020e09b60588c",
+  "rendererHash": "9ca9cf512afbb7ddcff23e6288e448446b1524fe67f3c78783d2565616a57679",
   "browser": "chromium (playwright)",
   "viewport": "1600x1400 (scenario scripts vary; see each script)",
   "devicePixelRatio": 1,
@@ -20,11 +20,11 @@
   "reducedMotionChecked": true,
   "keyboardPathChecked": true,
   "screenshots": {
-    "light/i04-initial.png": "14f42b091f8e115a1803fcb5e3cb6bf2ee146cdbb5a95317096e039b31fc3e69",
-    "light/i04-mid-drag.png": "6b68a8ea4df6ceb11669cc88eebf82e42cadb70d56b786e56fca75b705d059c3",
-    "light/i04-zero-axis.png": "2d5c62a850a01a577eebc2f645a21e37b2fbfaa56b97c0d8e962f15ec153ef4d",
-    "light/t09-i04-practice.png": "ad9366f5a1534a7178a46c564637c606c707920a8f87934b9bf082809063ea92",
-    "dark/i04-dark.png": "07bbb042f53b365c08873dbe6d9e2920861db146b407292d79992df623c98e33"
+    "light/i04-initial.png": "80a1f172cea3103c02c97e43414a4a1f0ccffe514fbced897704591e7d24aed4",
+    "light/i04-mid-drag.png": "ec1b3fd06e6fcf2a0f6864a31250501f49c1da63a8bf0b0c2d7a5dd9765199e0",
+    "light/i04-zero-axis.png": "a044da9781fe0b6216e55a1faef38b6859390f1707b1a649004047ba174ac5ca",
+    "light/t09-i04-practice.png": "6e478ed1bf8e6105609e9bece852b6389401252784183e910dbb2a221b6b2a37",
+    "dark/i04-dark.png": "f581f48d9970d3272f334bafef8803d5a51922e0a2924fa87166743452edfd47"
   },
   "gates": {
     "unit": "cd packages/web && npm run test:unit (482 tests green at capture)",

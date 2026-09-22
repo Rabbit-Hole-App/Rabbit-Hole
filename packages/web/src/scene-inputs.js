@@ -37,10 +37,11 @@ const TYPE_FIELDS = {
 };
 
 // How an index control presents: 'picker' (one labelled chip per position,
-// the default) or 'slider' (an integer slider with Previous/Next steppers,
-// for domains too long to read as chips). Presentation only - both edit the
-// same declared input the same way.
-const INDEX_PRESENTATIONS = ['picker', 'slider'];
+// the default), 'slider' (an integer slider with Previous/Next steppers, for
+// domains too long to read as chips), or 'visual' (the scene object bound
+// via pickInput IS the control - accessible items on the visual itself, no
+// duplicate strip widget). Presentation only - all edit the same input.
+const INDEX_PRESENTATIONS = ['picker', 'slider', 'visual'];
 // `hidden: true` declares an input the ACTIVITY machinery owns - a commit/
 // reveal latch. It renders no widget, and the generic learner command path
 // refuses to write it (see applyInputToBlock); only the activity reducer
@@ -154,6 +155,23 @@ function coerceOne(declaration, raw, exampleData) {
     return pair.map(component => round(Math.max(-declaration.range, Math.min(declaration.range, component))));
   }
   return declaration.default;
+}
+
+// One human-readable statement for an input's current value, in the words
+// its own control shows: the domain entry for an index, the option label for
+// a choice, On/Off for a bool. Shared by the tutor serializer and the
+// practice-setup line, so the two can never phrase the same state apart.
+export function describeInputValue(declaration, value, data) {
+  if (declaration.type === 'index') {
+    const list = data?.[declaration.of];
+    const word = Array.isArray(list) && typeof list[value] === 'string' ? `${list[value]} (index ${value})` : `${value + 1} of ${list?.length ?? '?'} (index ${value})`;
+    return `${declaration.label} = ${word}`;
+  }
+  if (declaration.type === 'bool') return `${declaration.label} = ${value ? 'On' : 'Off'}`;
+  if (declaration.type === 'choice') return `${declaration.label} = ${declaration.options.find(option => option.id === value)?.label ?? value}`;
+  if (declaration.type === 'indices') return `${declaration.label} = [${(value || []).join(', ')}]`;
+  if (declaration.type === 'vec2') return `${declaration.label} = (${value[0]}, ${value[1]})`;
+  return `${declaration.label} = ${JSON.stringify(value)}`;
 }
 
 export function coerceInputs(declarations, raw, exampleData = {}) {

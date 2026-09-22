@@ -95,6 +95,26 @@ test('projection_zero: defined-and-zero passes, a zero axis is not ready, never 
   assert.deepEqual(attempt.b, [2, 0]);
 });
 
+test('state truth: beginning an attempt, Check and New attempt all snap the visualization to the declared practice state', () => {
+  const task = { ...setTask(), fixedInputs: { queryIndex: 2, maskEnabled: true } };
+  // the learner explored away first
+  const exploring = setBlock({ activity: task, inputs: { queryIndex: 3, maskEnabled: false }, inputRevision: 5 });
+  const begun = setActivityAnswer(exploring, [0]);
+  assert.deepEqual(begun.inputs, { queryIndex: 2, maskEnabled: true }, 'first answer touch snaps the experiment');
+  assert.equal(begun.inputRevision, 6, 'the snap is an accepted revision');
+  // exploring away mid-answer, then Check: the grading moment snaps back
+  const wandered = { ...begun, inputs: { queryIndex: 0, maskEnabled: false }, inputRevision: 7 };
+  const checked = applyCheck(wandered);
+  assert.deepEqual(checked.inputs, { queryIndex: 2, maskEnabled: true });
+  assert.deepEqual(checked.attemptLog[0].practiceInputs, { queryIndex: 2, maskEnabled: true });
+  // New attempt restores the declared state too
+  const drifted = { ...checked, inputs: { queryIndex: 1, maskEnabled: false } };
+  assert.deepEqual(applyNewAttempt(drifted).inputs, { queryIndex: 2, maskEnabled: true });
+  // and a task WITHOUT fixedInputs never touches the experiment
+  const free = setActivityAnswer(setBlock({ inputs: { queryIndex: 1 } }), [0]);
+  assert.deepEqual(free.inputs, { queryIndex: 1 });
+});
+
 test('the tutor summary carries status and the learner answer, never the expected value', () => {
   const submitted = applyCheck(setActivityAnswer(setBlock(), [0, 1]));
   const text = describeActivity(submitted);

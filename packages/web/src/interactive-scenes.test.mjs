@@ -96,6 +96,23 @@ test('every bound view reads the one snapshot: highlight row, caption word, weig
   assert.deepEqual(objects['selected-query-vector'].values, [1, 1]);
 });
 
+test('the mask presentation follows the mask state - caption and legend are data the toggle selects', () => {
+  const on = evaluated({ maskEnabled: true }).state.objects;
+  const off = evaluated({ maskEnabled: false }).state.objects;
+  assert.match(on.find(o => o.semanticId === 'scores-matrix').label, /future positions masked/);
+  assert.match(off.find(o => o.semanticId === 'scores-matrix').label, /all positions available/);
+  assert.match(on.find(o => o.semanticId === 'mask-legend').label, /gray cells = masked/);
+  assert.equal(off.find(o => o.semanticId === 'mask-legend').label, '');
+  // mask off: no cell reads as causally blocked
+  assert.ok(off.find(o => o.semanticId === 'scores-matrix').values.every(value => value !== null));
+});
+
+test('queryIndex presents as visual: the token chips are the one control, no duplicate strip widget', () => {
+  const declaration = attentionExplorerScene.inputs.find(input => input.name === 'queryIndex');
+  assert.equal(declaration.presentation, 'visual');
+  assert.equal(attentionExplorerScene.objects.find(object => object.id === 'chars').initialState.pickInput, 'queryIndex');
+});
+
 // An interactive scene is a family of scenes: gate every snapshot the four
 // review interactions actually visit, not only the default.
 const SNAPSHOTS = [
@@ -173,8 +190,16 @@ test('I03: choosing a candidate moves the inspection ring and every bound detail
   const ringB = b.state.objects.find(object => object.semanticId === 'inspecting-marker');
   const ringC = c.state.objects.find(object => object.semanticId === 'inspecting-marker');
   assert.notDeepEqual({ x: ringB.x, y: ringB.y }, { x: ringC.x, y: ringC.y });
-  assert.match(b.state.objects.find(object => object.semanticId === 'caption').label, /path B: it ends at \(1, 0\)/);
-  assert.match(c.state.objects.find(object => object.semanticId === 'caption').label, /path C: it ends at \(0, 3\), displacement to the goal \(0, 3\)/);
+  assert.match(b.state.objects.find(object => object.semanticId === 'caption').label, /path B: it ends at \(1, 0\), offset from goal \(1, 0\)/);
+  assert.match(c.state.objects.find(object => object.semanticId === 'caption').label, /path C: it ends at \(0, 3\), offset from goal \(0, 3\)/);
+});
+
+test('I03: the revealed best candidate is highlighted; nothing is highlighted pre-reveal', () => {
+  const before = evaluatedFuture({ candidate: 'A' }).state.objects.find(object => object.semanticId === 'candidate-costs');
+  assert.equal(before.cellHighlight, null, 'no winner mark before commitment');
+  const after = evaluatedFuture({ candidate: 'A', resultsRevealed: true }).state.objects.find(object => object.semanticId === 'candidate-costs');
+  assert.equal(after.cellHighlight, 1, 'B (index 1) is the revealed minimum');
+  assert.equal(after.cellHighlightKind, 'highlight', 'a downstream consequence, not a second selection');
 });
 
 test('I03: the reveal latch cannot be written through the learner command path', () => {

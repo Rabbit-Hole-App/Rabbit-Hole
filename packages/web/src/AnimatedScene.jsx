@@ -91,11 +91,22 @@ function SelectionMark({ geometry }) {
 // not teach these; the values do.
 function DataShape({ object, role, pop, chosen, onInputPick }) {
   // Direct manipulation: an object bound to a learning input turns its items
-  // into that input's own click targets. The click writes the input and stops
-  // there - it must not double as an inspection pick of the whole object.
+  // into that input's own REAL controls - clickable, focusable, keyboard-
+  // activable - so a 'visual' presentation needs no duplicate strip widget.
+  // The activation writes the input and stops there - it must not double as
+  // an inspection pick of the whole object.
   const pickItem = object.pickInput && onInputPick
     ? index => event => { event.stopPropagation(); onInputPick(object.pickInput, index); }
     : null;
+  const pickProps = pickItem ? (index, lit, name) => ({
+    'data-scene-item': index,
+    onClick: pickItem(index),
+    tabIndex: 0,
+    role: 'button',
+    'aria-pressed': lit,
+    'aria-label': name,
+    onKeyDown: event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); pickItem(index)(event); } },
+  }) : null;
   const emphasis = 1 + (object.emphasis || 0) * 0.06;
   // Every number a data shape draws - a cell, a bar's tick, a token's chip -
   // is a datum, not a caption, so all three share the smallest named size.
@@ -209,7 +220,7 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
         const ring = { stroke: look.stroke, strokeWidth: look.strokeWidth };
         const cellX = object.x + column * cell, cellY = object.y + row * cell;
         cells.push(
-          <g key={index} data-scene-item={pickItem ? index : undefined} onClick={pickItem ? pickItem(index) : undefined}>
+          <g key={index} {...(pickProps ? pickProps(index, lit, `${object.semanticId} item ${index + 1}`) : {})}>
             <rect x={cellX} y={cellY} width={cell} height={cell} style={{ fill }} />
             <motion.rect x={cellX} y={cellY} width={cell} height={cell} fill="none"
               animate={ring} transition={pop} />
@@ -236,12 +247,12 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
         {object.type === 'grid' && object.rowLabels?.map((text, row) => (
           <text key={`row-label-${row}`} x={object.x - ROW_LABEL_GAP} y={object.y + row * cell + cell / 2}
             textAnchor="end" dominantBaseline="central" fontSize={numeral.fontSize} fontWeight={numeral.fontWeight}
-            style={{ fontFamily: MONO, fill: 'var(--color-ink-3)' }}>{text}</text>
+            style={{ fontFamily: MONO, fill: 'var(--color-ink-2)' }}>{text}</text>
         ))}
         {object.type === 'grid' && object.columnLabels?.map((text, column) => (
           <text key={`column-label-${column}`} x={object.x + column * cell + cell / 2} y={object.y - COLUMN_LABEL_GAP}
             textAnchor="middle" fontSize={numeral.fontSize} fontWeight={numeral.fontWeight}
-            style={{ fontFamily: MONO, fill: 'var(--color-ink-3)' }}>{text}</text>
+            style={{ fontFamily: MONO, fill: 'var(--color-ink-2)' }}>{text}</text>
         ))}
         {/* Row-shaped selection (row set, no col): one SelectionMark around
             the whole row band, replacing what used to be a differently-styled
@@ -293,7 +304,7 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
                 rx={4} animate={{ fill: look.fill }} transition={pop} />
               {object.labels?.[index] && (
                 <text x={object.x + index * pitch + pitch / 2} y={object.y + height + 12} textAnchor="middle"
-                  fontSize={numeral.fontSize} fontWeight={numeral.fontWeight} style={{ fontFamily: MONO, fill: lit ? 'var(--color-ink)' : 'var(--color-ink-3)' }}>{object.labels[index]}</text>
+                  fontSize={numeral.fontSize} fontWeight={numeral.fontWeight} style={{ fontFamily: MONO, fill: lit ? 'var(--color-ink)' : 'var(--color-ink-2)' }}>{object.labels[index]}</text>
               )}
             </motion.g>
           );
@@ -319,7 +330,7 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
         const lit = marked(object, 0, index, index);
         const look = shapeStyle(role, { highlighted: lit }, undefined, object.identitySlot);
         return (
-          <motion.g key={index} data-scene-item={pickItem ? index : undefined} onClick={pickItem ? pickItem(index) : undefined}
+          <motion.g key={index} {...(pickProps ? pickProps(index, lit, token) : {})}
             animate={{ scale: lit ? 1.12 : 1, y: lit ? -3 : 0 }} transition={pop} style={fromCentre}>
             <motion.rect x={x} y={object.y} width={width} height={GEOMETRY.chipHeight} rx={8}
               animate={{ fill: look.fill, strokeWidth: look.strokeWidth }} style={{ stroke: look.stroke }} transition={pop} />
@@ -570,7 +581,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
   );
 }
 
-export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskRegion, onAsk = null }) {
+export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskRegion }) {
   const [error, setError] = useState('');
   const [scene, setScene] = useState(null);
   const [time, setTime] = useState(block.time || 0);
@@ -700,8 +711,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
     <div className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
       {interactive && evaluated && (
         <SceneControls declarations={evaluated.declarations} inputs={evaluated.inputs}
-          data={block.scene.exampleData} onInput={setInput} onReset={resetExperiment}
-          onAsk={onAsk ? () => onAsk(latest.current) : null} />
+          data={block.scene.exampleData} onInput={setInput} onReset={resetExperiment} />
       )}
       <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-white">
         <Frame scene={scene} state={state} selecting={selecting} marked={block.marked} picked={block.selectedObject} pop={pop}

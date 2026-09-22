@@ -1,6 +1,7 @@
 import { getSceneState, validateScene } from './animation-scene.js';
 import { evaluateScene } from './scene-evaluate.js';
 import { describeActivity, revealHiddenInputs } from './scene-activity.js';
+import { describeInputValue } from './scene-inputs.js';
 
 // What the tutor is told about an animation. The canvas renders a VALIDATED
 // scene, so this must validate too: raw JSON leaves every default unapplied,
@@ -26,21 +27,8 @@ const sampleDeep = value => {
   return sample(value.map(row => (Array.isArray(row) ? sample(row) : row)));
 };
 
-// One human-readable statement per effective input: the label the learner
-// sees on the control, and the value in the same words the control shows.
-// Built from the declarations alone - never from what the input is about.
-const describeInput = (declaration, value, data) => {
-  if (declaration.type === 'index') {
-    const list = data?.[declaration.of];
-    const word = Array.isArray(list) && typeof list[value] === 'string' ? `${list[value]} (index ${value})` : `${value + 1} of ${list?.length ?? '?'} (index ${value})`;
-    return `${declaration.label} = ${word}`;
-  }
-  if (declaration.type === 'bool') return `${declaration.label} = ${value ? 'On' : 'Off'}`;
-  if (declaration.type === 'choice') return `${declaration.label} = ${declaration.options.find(option => option.id === value)?.label ?? value}`;
-  if (declaration.type === 'indices') return `${declaration.label} = [${value.join(', ')}]`;
-  if (declaration.type === 'vec2') return `${declaration.label} = (${value[0]}, ${value[1]})`;
-  return `${declaration.label} = ${JSON.stringify(value)}`;
-};
+// Input phrasing is shared with the practice-setup line - see
+// describeInputValue in scene-inputs.js.
 
 // The short value phrase alone, for the composer's context chip.
 const inputPhrase = (declaration, value, data) => {
@@ -115,7 +103,7 @@ export function describeAnimation(block) {
       // hidden expected answer (those live behind the activity reveal gate
       // and are stripped before a block ever reaches this serializer).
       ...(interactive ? [
-        `Experiment inputs (revision ${block.inputRevision || 0}): ${declared.map(declaration => describeInput(declaration, evaluated.inputs[declaration.name], data)).join('; ')}`,
+        `Experiment inputs (revision ${block.inputRevision || 0}): ${declared.map(declaration => describeInputValue(declaration, evaluated.inputs[declaration.name], data)).join('; ')}`,
         referencedDerived.size
           ? `Computed locally from the declared example data: ${JSON.stringify(Object.fromEntries([...referencedDerived].map(name => [name, sampleDeep(evaluated.derived[name])])))}`
           : '',

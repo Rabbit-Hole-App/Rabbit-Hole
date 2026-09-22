@@ -2,7 +2,7 @@
   "case": "i01-attention-explorer",
   "scenarios": [
     {
-      "action": "click token chip index 2 (direct manipulation) OR the Query token control chip",
+      "action": "click (or keyboard-activate) token chip index 2 on the visual - the one query control",
       "expect": "caption, Q-row highlight, selected query strip, weights bars and output strip all follow index 2; K/V, time, other cards unchanged"
     },
     {
@@ -18,8 +18,12 @@
       "expect": "no numerical change - the last position has no future (control case, not a broken toggle)"
     },
     {
-      "action": "inspect a matrix cell, press Ask about this, Send",
+      "action": "inspect a matrix cell, select the card, press the existing Ask in chat pill, Send",
       "expect": "payload carries query word + index, mask state, revision, inspected object; draft preserved; nothing auto-sent"
+    },
+    {
+      "action": "explore away (today, mask off), then begin the practice answer",
+      "expect": "the visualization snaps to the declared practice state (south, mask on) and a Practice setup line states it - the diagram always shows the state being graded"
     },
     {
       "action": "practice: select positions {0,1}, Check; New attempt; select {2,0,1}, Check",

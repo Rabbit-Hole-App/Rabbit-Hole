@@ -18,7 +18,9 @@ const positionLabels = (declaration, data) => {
 };
 
 const CHIP = 'flex h-8 items-center rounded-lg border px-3 text-sm';
-const chipClass = active => `${CHIP} ${active ? 'border-ink-3 bg-hover font-medium text-ink' : 'border-line text-ink-2 hover:bg-hover hover:text-ink'}`;
+const chipClass = (active, committed = false) => `${CHIP} ${committed && active
+  ? 'border-ink bg-ink font-medium text-white' // a committed answer: solid, unmistakably locked in
+  : active ? 'border-ink-3 bg-hover font-medium text-ink' : 'border-line text-ink-2 hover:bg-hover hover:text-ink'}`;
 
 // The slider presentation of an index input: a labelled integer slider with
 // Previous/Next steppers over the same declared domain. Ends are ends - the
@@ -44,7 +46,7 @@ function IndexSlider({ declaration, value, data, onInput }) {
   );
 }
 
-function IndexPicker({ declaration, value, data, onInput }) {
+function IndexPicker({ declaration, value, data, onInput, committed = false }) {
   const labels = positionLabels(declaration, data);
   return (
     <div role="group" aria-label={declaration.label} className="flex flex-wrap items-center gap-1.5">
@@ -52,7 +54,7 @@ function IndexPicker({ declaration, value, data, onInput }) {
       {labels.map((text, index) => (
         <button key={index} type="button" data-input-control={declaration.name} data-input-value={index}
           aria-pressed={index === value} onClick={() => onInput(declaration.name, index)}
-          className={chipClass(index === value)}>{text}</button>
+          className={chipClass(index === value, committed)}>{text}</button>
       ))}
     </div>
   );
@@ -75,7 +77,7 @@ function BoolToggle({ declaration, value, onInput }) {
 
 // A set of positions: each chip toggles membership, so click order can never
 // matter - the value IS the canonical set the coercion layer keeps sorted.
-function IndicesMarks({ declaration, value, data, onInput }) {
+function IndicesMarks({ declaration, value, data, onInput, committed = false }) {
   const labels = positionLabels(declaration, data);
   const current = value || []; // null = "no answer yet", distinct from the empty set only in who set it
   const chosen = new Set(current);
@@ -86,7 +88,7 @@ function IndicesMarks({ declaration, value, data, onInput }) {
       {labels.map((text, index) => (
         <button key={index} type="button" data-input-control={declaration.name} data-input-value={index}
           aria-pressed={chosen.has(index)} onClick={() => toggle(index)}
-          className={chipClass(chosen.has(index))}>{text}</button>
+          className={chipClass(chosen.has(index), committed)}>{text}</button>
       ))}
     </div>
   );
@@ -95,14 +97,14 @@ function IndicesMarks({ declaration, value, data, onInput }) {
 // One declared option per segment; identity is the option id, never its
 // position, so a reordered spec keeps every saved choice meaning the same
 // thing.
-function ChoiceButtons({ declaration, value, onInput }) {
+function ChoiceButtons({ declaration, value, onInput, committed = false }) {
   return (
     <div role="group" aria-label={declaration.label} className="flex flex-wrap items-center gap-1.5">
       <span className="text-xs font-medium text-ink-2">{declaration.label}:</span>
       {declaration.options.map(option => (
         <button key={option.id} type="button" data-input-control={declaration.name} data-input-value={option.id}
           aria-pressed={option.id === value} onClick={() => onInput(declaration.name, option.id)}
-          className={chipClass(option.id === value)}>{option.label}</button>
+          className={chipClass(option.id === value, committed)}>{option.label}</button>
       ))}
     </div>
   );
@@ -123,13 +125,16 @@ export function InputWidget({ declaration, value, data, onInput, disabled = fals
   if (!Widget) return null;
   return (
     <fieldset disabled={disabled} className="contents">
-      <Widget declaration={declaration} value={value} data={data} onInput={onInput} />
+      <Widget declaration={declaration} value={value} data={data} onInput={onInput} committed={disabled} />
     </fieldset>
   );
 }
 
-export default function SceneControls({ declarations, inputs, data, onInput, onReset, onAsk = null }) {
-  const rows = declarations.filter(declaration => !declaration.hidden && WIDGETS[declaration.type]);
+export default function SceneControls({ declarations, inputs, data, onInput, onReset }) {
+  // 'visual' index inputs are controlled ON the scene (pickInput items are
+  // real accessible controls there) - a strip widget would be a duplicate
+  // control for the same input, which is exactly the confusion to avoid.
+  const rows = declarations.filter(declaration => !declaration.hidden && !(declaration.type === 'index' && declaration.presentation === 'visual') && WIDGETS[declaration.type]);
   if (!rows.length) return null;
   return (
     <div data-scene-controls className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-line bg-white px-3 py-2">
@@ -140,21 +145,12 @@ export default function SceneControls({ declarations, inputs, data, onInput, onR
       {/* Left flow, never pinned to the card's right edge - a wide card can
           run under the floating drawing toolbar, and a control hidden there
           is a control that does not exist. */}
-      <div className="flex items-center gap-1">
-        <button type="button" data-scene-reset onClick={onReset}
-          className="flex h-8 items-center rounded-lg px-2.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
-          Reset experiment
-        </button>
-        {/* Attaches this card's current state to the existing bottom composer
-            and focuses it. Nothing is sent - the learner types and presses
-            the composer's own Send. */}
-        {onAsk && (
-          <button type="button" data-scene-ask onClick={onAsk}
-            className="flex h-8 items-center rounded-lg border border-line px-2.5 text-xs text-ink hover:bg-hover">
-            Ask about this
-          </button>
-        )}
-      </div>
+      {/* Asking the tutor lives in ONE place: the existing Ask-in-chat pill on
+          a selected card, feeding the bottom composer. No card-level Ask. */}
+      <button type="button" data-scene-reset onClick={onReset}
+        className="flex h-8 items-center rounded-lg px-2.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
+        Reset experiment
+      </button>
     </div>
   );
 }

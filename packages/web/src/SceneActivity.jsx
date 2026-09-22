@@ -1,5 +1,6 @@
 import { InputWidget } from './SceneControls.jsx';
 import { applyCheck, applyNewAttempt, checkStatus, setActivityAnswer } from './scene-activity.js';
+import { describeInputValue } from './scene-inputs.js';
 
 // The practice section of an interactive card (spec T09). Renders the
 // authored task, the answer input (same widget registry as the experiment
@@ -18,6 +19,18 @@ export default function SceneActivity({ block, onChange }) {
       onPointerDown={event => event.stopPropagation()}>
       <p className="text-xs font-semibold tracking-wide text-ink-2 uppercase">Practice</p>
       <p className="mt-1 text-sm text-ink">{activity.prompt}</p>
+      {/* The declared practice state, in the same words the controls use -
+          generated from the task's own fixedInputs against the scene's input
+          declarations, so this line and the snapped visualization can never
+          disagree. */}
+      {activity.fixedInputs && (
+        <p data-practice-setup className="mt-1 text-xs text-ink-2">
+          Practice setup — {Object.entries(activity.fixedInputs).map(([name, value]) => {
+            const declaration = (block.scene?.inputs || []).find(input => input.name === name);
+            return declaration ? describeInputValue(declaration, value, block.scene?.exampleData) : `${name} = ${JSON.stringify(value)}`;
+          }).join(' · ')}
+        </p>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
         {/* No default-answer fallback: an untouched task shows NO pick, so
             the not-ready state is honest and nothing pre-selects a winner. */}
@@ -50,7 +63,7 @@ export default function SceneActivity({ block, onChange }) {
         </p>
       )}
       {(block.attemptLog || []).length > 0 && (
-        <p className="mt-1 text-[11px] tabular-nums text-ink-3">{block.attemptLog.length} committed attempt{block.attemptLog.length === 1 ? '' : 's'}</p>
+        <p className="mt-1 text-xs tabular-nums text-ink-2">{block.attemptLog.length} committed attempt{block.attemptLog.length === 1 ? '' : 's'}</p>
       )}
     </div>
   );

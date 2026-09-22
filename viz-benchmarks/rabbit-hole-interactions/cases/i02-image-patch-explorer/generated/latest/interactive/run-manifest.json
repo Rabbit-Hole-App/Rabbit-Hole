@@ -1,15 +1,15 @@
 {
-  "capturedAt": "2026-09-22T08:25:01.708Z",
-  "baseCommit": "808970c152e951f40800416827d9159d96fe55fd",
+  "capturedAt": "2026-09-22T20:17:23.206Z",
+  "baseCommit": "3e84ecb53bedf24264bf5594179941fed7301c6b",
   "branch": "feat/canvas-block-conversations",
-  "trackedFilesDirtyAtCapture": 16,
+  "trackedFilesDirtyAtCapture": 33,
   "client": {
     "mode": "local-vite-dev",
     "port": 5199,
     "note": "deployed-build + seed verification happens in the T12 handoff run"
   },
   "sceneSpecHash": "43dba2ae929cc0b2d0d4739120f82246732adbed6e4acd2219665758baf3694d",
-  "rendererHash": "29f3d15d61789d83c1871baad83db315db748605e1cd15385b2020e09b60588c",
+  "rendererHash": "9ca9cf512afbb7ddcff23e6288e448446b1524fe67f3c78783d2565616a57679",
   "browser": "chromium (playwright)",
   "viewport": "1600x1400 (scenario scripts vary; see each script)",
   "devicePixelRatio": 1,
@@ -20,10 +20,10 @@
   "reducedMotionChecked": true,
   "keyboardPathChecked": true,
   "screenshots": {
-    "light/i02-initial.png": "dbcd9b6bf54b1a5a8197854573f3e065b94b7232f5679694edbb96464905532a",
-    "light/i02-patch-6.png": "d77b0c705874c0272c808cbe9abc2864dd7287c5d0a61243ae00ced12d63b595",
-    "light/t09-i02-practice.png": "6f6bd3c59acb7028a3236714826bf084e8019a9507890458e0717eec7a98931a",
-    "dark/i02-dark.png": "d4764c2095805647d8c6667e1c1a1f0e6e08a067426cbe19bb8c1b0a4821ae12"
+    "light/i02-initial.png": "c581ea3f8cb7c7bf6c5f73984329af8f0fe8b5bdf8652bdfed54d2365df44fb4",
+    "light/i02-patch-6.png": "043aa5af23e63ceb040d049bb11ad3bd91bfe99e2992e1d15d361498369536b7",
+    "light/t09-i02-practice.png": "b3f295cfe165e20fbd601b01399fbd0f5601150382c03f8909f2bff2a494ea54",
+    "dark/i02-dark.png": "a4ec80e20d649741d5e0291c3e1ad52108bd106c7bab3dd266cd4813188993d6"
   },
   "gates": {
     "unit": "cd packages/web && npm run test:unit (482 tests green at capture)",

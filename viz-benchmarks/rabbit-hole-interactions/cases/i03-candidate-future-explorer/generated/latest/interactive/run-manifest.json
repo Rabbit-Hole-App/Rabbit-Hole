@@ -1,15 +1,15 @@
 {
-  "capturedAt": "2026-09-22T08:25:01.708Z",
-  "baseCommit": "808970c152e951f40800416827d9159d96fe55fd",
+  "capturedAt": "2026-09-22T20:17:23.206Z",
+  "baseCommit": "3e84ecb53bedf24264bf5594179941fed7301c6b",
   "branch": "feat/canvas-block-conversations",
-  "trackedFilesDirtyAtCapture": 16,
+  "trackedFilesDirtyAtCapture": 33,
   "client": {
     "mode": "local-vite-dev",
     "port": 5199,
     "note": "deployed-build + seed verification happens in the T12 handoff run"
   },
-  "sceneSpecHash": "dcb21107c5002261e54182c4cb2cabc417727aa8be6558a4b7c7a1bd71809db3",
-  "rendererHash": "29f3d15d61789d83c1871baad83db315db748605e1cd15385b2020e09b60588c",
+  "sceneSpecHash": "003ec5bcfa227459b5938ce40feb40f75116ee00eb546afbc8925f026c753ba8",
+  "rendererHash": "9ca9cf512afbb7ddcff23e6288e448446b1524fe67f3c78783d2565616a57679",
   "browser": "chromium (playwright)",
   "viewport": "1600x1400 (scenario scripts vary; see each script)",
   "devicePixelRatio": 1,
@@ -20,12 +20,12 @@
   "reducedMotionChecked": true,
   "keyboardPathChecked": true,
   "screenshots": {
-    "light/i03-initial.png": "638a2395dd71efe0732ff973bf3ba5fd240f00417e294e99833a460d7a6d99da",
-    "light/i03-choose-c.png": "8288a382008a4add0d2630ecd20e79da33ea9b8a0390dac33e8484d8a3383db3",
-    "light/i03-revealed.png": "ab48ffae7f2294729e21539674b4df76f99fb4ce35ac6ac5537e8ceb0ac74bf0",
-    "light/t09-i03-practice.png": "42e27b292d1efa1e86146f3801c14d694d9a4bbea6edc5e9a9032777d071c879",
-    "light/t09-i03-revealed.png": "e05413b4c0a34b5ed7f2f28c19b24143e81897d719f7b929075fb24b00c58116",
-    "dark/i03-dark.png": "b541f010c96d533900a9f00d9c73d8be85e4f5e7aa78c3f1e2d2955f60edaa78"
+    "light/i03-initial.png": "88b07ef57a10023635aa4f1cd49de74d67c68ef5d4daeebf8e3cb8ae55e66653",
+    "light/i03-choose-c.png": "adcc899827402feeaa1b71093764d3118634f49371dde4a7468683b7515982dc",
+    "light/i03-revealed.png": "1dbe2afe2e837686ca3120e9451ba5842781b1062cfc9fae3828720c7e9865d7",
+    "light/t09-i03-practice.png": "24ac3057301046e0b20b39c582de15947e51d5e03c34e510323220531cdbc588",
+    "light/t09-i03-revealed.png": "269d39eaa036c58bc4caf0c6647f93d5481841ad052cb7e2296aa31552b62d2e",
+    "dark/i03-dark.png": "58251205d4f757479572c4c2d4231f0e50348379e0d9a21c4f0f64b8fec7a967"
   },
   "gates": {
     "unit": "cd packages/web && npm run test:unit (482 tests green at capture)",

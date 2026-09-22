@@ -9,7 +9,7 @@
       {
         "name": "candidate",
         "type": "choice",
-        "label": "Candidate future",
+        "label": "Inspect candidate",
         "default": "A",
         "options": [
           {
@@ -148,6 +148,12 @@
           "resultsRevealed"
         ]
       },
+      "bestAt": {
+        "op": "argmin",
+        "args": [
+          "shownCosts"
+        ]
+      },
       "markX": {
         "op": "pick",
         "args": [
@@ -170,7 +176,7 @@
         "semanticId": "caption",
         "conceptId": "candidate-futures",
         "initialState": {
-          "text": "inspecting path {{candidate}}: it ends at ({{terminal.0}}, {{terminal.1}}), displacement to the goal ({{displacement.0}}, {{displacement.1}})",
+          "text": "inspecting path {{candidate}}: it ends at ({{terminal.0}}, {{terminal.1}}), offset from goal ({{displacement.0}}, {{displacement.1}})",
           "x": 40,
           "y": 36
         }
@@ -362,7 +368,11 @@
           ],
           "values": {
             "$derive": "shownCosts"
-          }
+          },
+          "cellHighlight": {
+            "$derive": "bestAt"
+          },
+          "cellHighlightKind": "highlight"
         }
       },
       {
@@ -371,7 +381,7 @@
         "semanticId": "provenance-note",
         "conceptId": "candidate-futures",
         "initialState": {
-          "text": "a toy prediction over declared example data - an example result, not an observed outcome",
+          "text": "Toy example — these are predicted outcomes, not observations.",
           "x": 40,
           "y": 480,
           "typography": "annotation"

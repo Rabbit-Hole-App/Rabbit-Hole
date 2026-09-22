@@ -2,8 +2,8 @@
   "case": "i03-candidate-future-explorer",
   "scenarios": [
     {
-      "action": "choose Path C",
-      "expect": "inspection ring moves to C; caption states terminal (0,3) and displacement (0,3); cost bars stay blank"
+      "action": "Inspect candidate: choose Path C",
+      "expect": "inspection ring moves to C; caption states terminal (0,3) and offset from goal (0,3); cost bars stay blank"
     },
     {
       "action": "Ask before any commit",
@@ -11,7 +11,7 @@
     },
     {
       "action": "practice: predict Path A, Check prediction",
-      "expect": "attempt records A, fails, costs reveal as derived 4,1,9; the committed A is never rewritten"
+      "expect": "attempt records A (committed chip renders solid, distinct from inspection), fails, costs reveal as derived 4,1,9 with the minimum bar highlighted; the committed A is never rewritten"
     },
     {
       "action": "inspect other candidates after reveal; New attempt; predict B, Check",

@@ -106,8 +106,12 @@ export const interactiveAppReviewBlocks = () => [
 // every display, tooltip and tutor payload until their own rules allow.
 
 export const attentionActivity = {
-  id: 'i01-practice', check: 'set_equals', version: 1,
+  id: 'i01-practice', check: 'set_equals', version: 2,
   prompt: 'With the query fixed on the THIRD token and the causal mask on, select every position that query may attend to.',
+  // State truth: the moment an attempt begins (and at Check, and on New
+  // attempt) the visualization snaps to exactly this declared state, so the
+  // diagram the learner sees while answering IS the state being asked about.
+  fixedInputs: { queryIndex: 2, maskEnabled: true },
   answer: { type: 'indices', label: 'Your prediction', of: 'tokens', default: [] },
   expected: [0, 1, 2],
   notReady: 'Select at least one position first.',
@@ -197,7 +201,7 @@ export const candidateFutureScene = {
   height: 560,
   duration: 3,
   inputs: [
-    { name: 'candidate', type: 'choice', label: 'Candidate future', default: 'A',
+    { name: 'candidate', type: 'choice', label: 'Inspect candidate', default: 'A',
       options: [{ id: 'A', label: 'Path A' }, { id: 'B', label: 'Path B' }, { id: 'C', label: 'Path C' }] },
     // The commit/reveal latch. hidden: the activity reducer alone writes it -
     // the learner command path refuses it and no widget renders for it.
@@ -221,12 +225,13 @@ export const candidateFutureScene = {
     costC: { op: 'dot', args: ['dC', 'dC'] },
     costs: { op: 'concat', args: ['costA', 'costB', 'costC'] },
     shownCosts: { op: 'gate', args: ['costs', 'resultsRevealed'] },
+    bestAt: { op: 'argmin', args: ['shownCosts'] },
     markX: { op: 'pick', args: ['markerX', 'candidate'] },
     markY: { op: 'pick', args: ['markerY', 'candidate'] },
   },
   objects: [
     { id: 'caption', type: 'text', semanticId: 'caption', conceptId: 'candidate-futures',
-      initialState: { text: 'inspecting path {{candidate}}: it ends at ({{terminal.0}}, {{terminal.1}}), displacement to the goal ({{displacement.0}}, {{displacement.1}})', x: 40, y: 36 } },
+      initialState: { text: 'inspecting path {{candidate}}: it ends at ({{terminal.0}}, {{terminal.1}}), offset from goal ({{displacement.0}}, {{displacement.1}})', x: 40, y: 36 } },
     { id: 'start', type: 'circle', semanticId: 'start-observation', conceptId: 'candidate-futures',
       initialState: { label: 'start', ...i03Circle(I03_START, I03_WAYPOINT), opacity: 0, role: 'observed' } },
     { id: 'goal', type: 'circle', semanticId: 'goal', conceptId: 'candidate-futures',
@@ -251,9 +256,10 @@ export const candidateFutureScene = {
       initialState: { text: 'terminals: A ends at (2, 0) · B at (1, 0) · C at (0, 3) - the goal is (0, 0)', x: 40, y: 440, typography: 'annotation' } },
     { id: 'cost-bars', type: 'bars', semanticId: 'candidate-costs', conceptId: 'candidate-futures',
       initialState: { label: 'cost: squared distance - shown after commit', x: 520, y: 170, w: 180, h: 140, cell: 60, peak: 9, opacity: 0,
-        role: 'output', labels: ['A', 'B', 'C'], values: { $derive: 'shownCosts' } } },
+        role: 'output', labels: ['A', 'B', 'C'], values: { $derive: 'shownCosts' },
+        cellHighlight: { $derive: 'bestAt' }, cellHighlightKind: 'highlight' } },
     { id: 'provenance-note', type: 'text', semanticId: 'provenance-note', conceptId: 'candidate-futures',
-      initialState: { text: 'a toy prediction over declared example data - an example result, not an observed outcome', x: 40, y: 480, typography: 'annotation' } },
+      initialState: { text: 'Toy example — these are predicted outcomes, not observations.', x: 40, y: 480, typography: 'annotation' } },
   ],
   timeline: [
     { at: 0.0, action: 'appear', target: 'start', duration: 0.3 },
@@ -272,14 +278,25 @@ export const candidateFutureScene = {
 export const attentionExplorerScene = {
   id: 'attention-explorer',
   title: 'Attention explorer',
-  width: 1040,
-  height: 700,
+  width: 980,
+  height: 720,
   duration: 4,
   inputs: [
-    { name: 'queryIndex', type: 'index', label: 'Query token', of: 'tokens', default: 0 },
+    // 'visual': the token chips ON the scene are the one query control -
+    // real, focusable, keyboard-activable items - so no duplicate strip
+    // widget renders for the same input.
+    { name: 'queryIndex', type: 'index', label: 'Query token', of: 'tokens', default: 0, presentation: 'visual' },
     { name: 'maskEnabled', type: 'bool', label: 'Causal mask', default: true },
   ],
-  exampleData: { tokens: I01_TOKENS, Q: I01_Q, K: I01_K, V: I01_V },
+  exampleData: {
+    tokens: I01_TOKENS, Q: I01_Q, K: I01_K, V: I01_V,
+    // The mask presentation follows the mask STATE - captions are data the
+    // toggle selects between, never a renderer branch.
+    scoresCaptionOn: 'scores QKᵀ/√dk — future positions masked',
+    scoresCaptionOff: 'scores QKᵀ/√dk — all positions available',
+    maskLegendOn: 'gray cells = masked (unavailable to this query)',
+    maskLegendOff: '',
+  },
   derived: {
     scoresRaw: { op: 'matmul', args: ['Q', 'K'] },
     // 1/sqrt(dk) for dk = 2 - the literal numeric parameter form scale takes.
@@ -290,55 +307,74 @@ export const attentionExplorerScene = {
     qrow: { op: 'pick', args: ['Q', 'queryIndex'] },
     wrow: { op: 'pick', args: ['weights', 'queryIndex'] },
     output: { op: 'weighted_sum', args: ['wrow', 'V'] },
+    scoresCaption: { op: 'choose', args: ['maskEnabled', 'scoresCaptionOn', 'scoresCaptionOff'] },
+    maskLegend: { op: 'choose', args: ['maskEnabled', 'maskLegendOn', 'maskLegendOff'] },
   },
   objects: [
+    // --- the story of the selected query: one band, read left to right ---
     { id: 'caption', type: 'text', semanticId: 'caption', conceptId: 'causal-self-attention',
-      initialState: { text: 'query: {{qword}} - scores, weights and output below all follow it', x: 40, y: 36 } },
+      initialState: { text: 'query: {{qword}} — follow one row: token → its Q row → its weights → its output', x: 40, y: 36 } },
     { id: 'chars', type: 'tokens', semanticId: 'tokens', conceptId: 'qkv-projection',
-      initialState: { label: 'click a token to change the query', x: 40, y: 88, opacity: 0, tokens: [...I01_TOKENS], role: 'input',
+      initialState: { label: 'click (or focus and press Enter on) a token to change the query', x: 40, y: 88, opacity: 0, tokens: [...I01_TOKENS], role: 'input',
         pickInput: 'queryIndex', cellHighlight: { $derive: 'queryIndex' } } },
+    { id: 'q-row', type: 'strip', semanticId: 'selected-query-vector', conceptId: 'qkv-projection',
+      initialState: { label: 'Q[{{queryIndex}}] — its query row', x: 40, y: 208, cell: 46, w: 92, h: 46, opacity: 0, role: 'observed', identity: 'query',
+        heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'qk-inputs', values: { $derive: 'qrow' } } },
+    { id: 'arrow-q-weights', type: 'arrow', semanticId: 'arrow-q-weights', conceptId: 'softmax-attention-weights',
+      initialState: { from: { x: 142, y: 231 }, to: { x: 196, y: 231 }, opacity: 0, role: 'neutral' } },
+    // The weights as VALUES, not just bar heights: a 1x4 heat row on the
+    // fixed probability domain, each cell carrying its own numeral, key
+    // tokens named across the top.
+    { id: 'weights-row', type: 'grid', semanticId: 'attention-weights', conceptId: 'softmax-attention-weights',
+      initialState: { label: 'attention weights for {{qword}} — the row sums to 1', x: 206, y: 208, rows: 1, cols: 4, cell: 52, opacity: 0,
+        role: 'observed', matrixKind: 'derived', distribution: true, heat: true, valueScale: 'fixed',
+        columnLabels: [...I01_TOKENS], values: { $derive: 'wrow' } } },
+    { id: 'arrow-weights-output', type: 'arrow', semanticId: 'arrow-weights-output', conceptId: 'attention-output',
+      initialState: { from: { x: 424, y: 231 }, to: { x: 478, y: 231 }, opacity: 0, role: 'neutral' } },
+    { id: 'output-row', type: 'strip', semanticId: 'attention-output', conceptId: 'attention-output',
+      initialState: { label: 'output — the weighted mix of V', x: 488, y: 208, cell: 46, w: 92, h: 46, opacity: 0, role: 'output',
+        heat: true, valueScale: 'shared', valueScaleGroup: 'v-chain', values: { $derive: 'output' } } },
+    { id: 'equation', type: 'equation', semanticId: 'attention-equation', conceptId: 'attention-output',
+      initialState: { text: '\\text{softmax}\\left(\\dfrac{QK^T}{\\sqrt{d_k}}\\right)V', x: 640, y: 196, w: 430, h: 60, opacity: 0 } },
+    // --- the full picture underneath, secondary to the band above ---
+    { id: 'full-picture', type: 'text', semanticId: 'full-picture-heading', conceptId: 'causal-self-attention',
+      initialState: { text: 'the full picture — every query at once', x: 40, y: 316, typography: 'annotation' } },
     { id: 'q-matrix', type: 'grid', semanticId: 'query-matrix', conceptId: 'qkv-projection',
-      initialState: { label: 'Q', x: 110, y: 220, rows: 4, cols: 2, cell: 46, opacity: 0, role: 'observed', identity: 'query',
+      initialState: { label: 'Q', x: 90, y: 360, rows: 4, cols: 2, cell: 40, opacity: 0, role: 'observed', identity: 'query',
         heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'qk-inputs', matrixKind: 'input',
         rowLabels: [...I01_TOKENS], values: I01_Q.flat(),
         cellHighlight: { row: { $derive: 'queryIndex' } }, cellHighlightKind: 'highlight' } },
     { id: 'k-matrix', type: 'grid', semanticId: 'key-matrix', conceptId: 'qkv-projection',
-      initialState: { label: 'K', x: 330, y: 220, rows: 4, cols: 2, cell: 46, opacity: 0, role: 'observed', identity: 'key',
+      initialState: { label: 'K', x: 270, y: 360, rows: 4, cols: 2, cell: 40, opacity: 0, role: 'observed', identity: 'key',
         heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'qk-inputs', matrixKind: 'input',
         rowLabels: [...I01_TOKENS], values: I01_K.flat() } },
     { id: 'v-matrix', type: 'grid', semanticId: 'value-matrix', conceptId: 'qkv-projection',
-      initialState: { label: 'V', x: 550, y: 220, rows: 4, cols: 2, cell: 46, opacity: 0, role: 'observed', identity: 'value',
+      initialState: { label: 'V', x: 450, y: 360, rows: 4, cols: 2, cell: 40, opacity: 0, role: 'observed', identity: 'value',
         heat: true, valueScale: 'shared', valueScaleGroup: 'v-chain', matrixKind: 'input',
         rowLabels: [...I01_TOKENS], values: I01_V.flat() } },
     // The real comparison, recomputed from the inputs on every change: raw
     // QKᵀ/√dk with the causal mask applied when the toggle says so. A masked
-    // cell is null - excluded - and softmax below never sees it.
+    // cell is null - excluded - and softmax never sees it. Caption and
+    // legend both follow the mask input through the derive pool.
     { id: 'scores-matrix', type: 'grid', semanticId: 'scores-matrix', conceptId: 'causal-self-attention',
-      initialState: { label: 'scores: QKᵀ/√dk, masked cells excluded', x: 790, y: 220, rows: 4, cols: 4, cell: 50, opacity: 0, role: 'observed',
+      initialState: { label: '{{scoresCaption}}', x: 680, y: 360, rows: 4, cols: 4, cell: 50, opacity: 0, role: 'observed',
         heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'scores-view', matrixKind: 'relational',
         rowLabels: [...I01_TOKENS], columnLabels: [...I01_TOKENS], values: { $derive: 'masked' },
         cellHighlight: { row: { $derive: 'queryIndex' } }, cellHighlightKind: 'highlight' } },
-    { id: 'q-row', type: 'strip', semanticId: 'selected-query-vector', conceptId: 'qkv-projection',
-      initialState: { label: 'selected query row Q[{{queryIndex}}]', x: 110, y: 500, cell: 46, w: 92, h: 46, opacity: 0, role: 'observed', identity: 'query',
-        heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'qk-inputs', values: { $derive: 'qrow' } } },
-    { id: 'weights-row', type: 'bars', semanticId: 'attention-weights', conceptId: 'softmax-attention-weights',
-      initialState: { label: 'attention weights for {{qword}} - each bar is a probability', x: 330, y: 480, w: 240, h: 110, cell: 60, peak: 1, opacity: 0,
-        role: 'observed', distribution: true, labels: [...I01_TOKENS], values: { $derive: 'wrow' } } },
-    { id: 'output-row', type: 'strip', semanticId: 'attention-output', conceptId: 'attention-output',
-      initialState: { label: 'output - the weighted mix of V', x: 790, y: 500, cell: 46, w: 92, h: 46, opacity: 0, role: 'output',
-        heat: true, valueScale: 'shared', valueScaleGroup: 'v-chain', values: { $derive: 'output' } } },
-    { id: 'equation', type: 'equation', semanticId: 'attention-equation', conceptId: 'attention-output',
-      initialState: { text: '\\text{softmax}\\left(\\dfrac{QK^T}{\\sqrt{d_k}}\\right)V', x: 330, y: 630, w: 430, h: 60, opacity: 0 } },
+    { id: 'mask-legend', type: 'text', semanticId: 'mask-legend', conceptId: 'causal-self-attention',
+      initialState: { text: '{{maskLegend}}', x: 680, y: 600, typography: 'annotation' } },
   ],
   timeline: [
     { at: 0.0, action: 'appear', target: 'chars', duration: 0.4 },
-    { at: 0.4, action: 'appear', target: 'q-matrix', duration: 0.4 },
-    { at: 0.6, action: 'appear', target: 'k-matrix', duration: 0.4 },
-    { at: 0.8, action: 'appear', target: 'v-matrix', duration: 0.4 },
-    { at: 1.4, action: 'appear', target: 'scores-matrix', duration: 0.5 },
-    { at: 2.2, action: 'appear', target: 'q-row', duration: 0.4 },
-    { at: 2.4, action: 'appear', target: 'weights-row', duration: 0.4 },
-    { at: 2.6, action: 'appear', target: 'output-row', duration: 0.4 },
-    { at: 3.0, action: 'appear', target: 'equation', duration: 0.4 },
+    { at: 0.5, action: 'appear', target: 'q-row', duration: 0.4 },
+    { at: 0.7, action: 'appear', target: 'arrow-q-weights', duration: 0.3 },
+    { at: 0.9, action: 'appear', target: 'weights-row', duration: 0.4 },
+    { at: 1.1, action: 'appear', target: 'arrow-weights-output', duration: 0.3 },
+    { at: 1.3, action: 'appear', target: 'output-row', duration: 0.4 },
+    { at: 1.6, action: 'appear', target: 'equation', duration: 0.4 },
+    { at: 2.2, action: 'appear', target: 'q-matrix', duration: 0.4 },
+    { at: 2.4, action: 'appear', target: 'k-matrix', duration: 0.4 },
+    { at: 2.6, action: 'appear', target: 'v-matrix', duration: 0.4 },
+    { at: 3.0, action: 'appear', target: 'scores-matrix', duration: 0.5 },
   ],
 };

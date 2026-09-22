@@ -119,6 +119,9 @@ const objectSchema = z.object({
       z.number().int(), z.array(z.number().int()).max(256),
       z.object({ row: z.number().int().optional(), col: z.number().int().optional() }),
       z.literal('max'),
+      // A derived highlight may resolve to "nothing selected" (argmin over a
+      // fully gated vector) - an explicit null, distinct from never authored.
+      z.null(),
     ]).optional(),
     // Direct manipulation on the visual: clicking this object's Nth item (a
     // token chip, a grid cell) writes N to the named learning input. Names an

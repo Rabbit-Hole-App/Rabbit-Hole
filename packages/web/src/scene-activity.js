@@ -82,15 +82,32 @@ export function checkStatus(block) {
   return { state: 'ready', attempts: attempts.length };
 }
 
+// State truth for a task that declares its premise: when the task grades a
+// specific experiment state (activity.fixedInputs), the visualization must
+// SHOW that state at every moment the practice engages - the learner may
+// never be looking at "today, mask off" while answering about "south, mask
+// on". Applied when an attempt begins (first answer touch), at Check, and on
+// New attempt. Exploration in between stays free; grading moments snap back.
+function withPracticeState(block) {
+  const fixed = block.activity?.fixedInputs;
+  if (!fixed) return block;
+  const current = block.inputs || {};
+  if (Object.entries(fixed).every(([name, value]) => JSON.stringify(current[name]) === JSON.stringify(value))) return block;
+  return { ...block, inputs: { ...current, ...fixed }, inputRevision: (block.inputRevision || 0) + 1 };
+}
+
 // The learner edits a draft answer only while the attempt is open; a
 // submitted attempt is immutable until New attempt explicitly reopens.
+// The FIRST touch of the answer is when the attempt begins - the declared
+// practice state is applied to the visualization right then.
 export function setActivityAnswer(block, value) {
   if (!(block.activityOpen ?? true)) return block;
   const declaration = block.activity?.answer;
   const coerced = declaration
     ? coerceInputs([{ ...declaration, name: 'answer' }], { answer: value }, block.activity.answerData || block.scene?.exampleData).answer
     : value;
-  return { ...block, activityAnswer: coerced };
+  const beginning = block.activityAnswer == null;
+  return { ...(beginning ? withPracticeState(block) : block), activityAnswer: coerced };
 }
 
 // Check: grade the exact current snapshot ONCE. Closes the attempt; calling
@@ -101,22 +118,27 @@ export function applyCheck(block) {
   if (!activity) return block;
   const status = checkStatus(block);
   if (status.state !== 'ready') return block;
-  const context = { answer: block.activityAnswer, engineState: block.state };
+  // The grading moment shows the graded state: snap to the declared practice
+  // inputs (a no-op when the learner never explored away).
+  const snapped = withPracticeState(block);
+  const context = { answer: snapped.activityAnswer, engineState: snapped.state };
   const passed = !!PREDICATES[activity.check](context, activity);
   const attempt = {
     taskVersion: activity.version ?? 1,
-    answer: block.activityAnswer ?? null,
-    ...(activity.check === 'projection_zero' && block.state ? { a: [...block.state.a], b: [...block.state.b] } : {}),
-    inputRevision: block.inputRevision || 0,
+    answer: snapped.activityAnswer ?? null,
+    ...(activity.fixedInputs ? { practiceInputs: { ...activity.fixedInputs } } : {}),
+    ...(activity.check === 'projection_zero' && snapped.state ? { a: [...snapped.state.a], b: [...snapped.state.b] } : {}),
+    inputRevision: snapped.inputRevision || 0,
     result: passed ? 'passed' : 'failed',
   };
-  return { ...block, attemptLog: [...(block.attemptLog || []), attempt], activityOpen: false };
+  return { ...snapped, attemptLog: [...(snapped.attemptLog || []), attempt], activityOpen: false };
 }
 
-// New attempt: reopens with a fresh draft. The log is history and stays.
+// New attempt: reopens with a fresh draft, restoring the declared practice
+// state. The log is history and stays.
 export function applyNewAttempt(block) {
   if (block.activityOpen ?? true) return block;
-  return { ...block, activityOpen: true, activityAnswer: null };
+  return { ...withPracticeState(block), activityOpen: true, activityAnswer: null };
 }
 
 // What commitment has revealed, as the hidden-input map the scene evaluates

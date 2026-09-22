@@ -90,15 +90,30 @@ export default function VectorScene({ state, run, selected, onSelect, reduced })
         <line x1={SIZE / 2} y1={0} x2={SIZE / 2} y2={SIZE} stroke="#e9e9e7" />
         {result.defined && (
           <>
-            <line x1={SIZE / 2} y1={SIZE / 2} x2={px} y2={py} stroke="#1a7f37" strokeWidth="6" strokeOpacity=".25"
+            {/* The projection IS the lesson: a wide soft band plus a solid
+                core line and a labelled endpoint marker, so proj_b(a) reads
+                straight off the picture rather than only from the numbers. */}
+            <line x1={SIZE / 2} y1={SIZE / 2} x2={px} y2={py} stroke="#1a7f37" strokeWidth="7" strokeOpacity=".22"
               style={reduced ? undefined : { transition: 'all .12s linear' }} />
+            <line x1={SIZE / 2} y1={SIZE / 2} x2={px} y2={py} stroke="#1a7f37" strokeWidth="2.5"
+              style={reduced ? undefined : { transition: 'all .12s linear' }} />
+            {/* the perpendicular guide from a's endpoint down to the projection */}
             <line x1={toScreen(live.a)[0]} y1={toScreen(live.a)[1]} x2={px} y2={py} stroke="#94a3b8" strokeWidth="1" strokeDasharray="4 3" />
+            <rect data-projection-marker x={px - 4} y={py - 4} width="8" height="8" fill="#1a7f37"
+              style={reduced ? undefined : { transition: 'all .12s linear' }} />
+            <text x={px + 10} y={py + 16} fontSize="11" fill="#1a7f37" fontFamily="ui-monospace, monospace">proj_b(a)</text>
           </>
         )}
         {handle('b', '#b45309')}
         {handle('a', '#2383e2')}
       </svg>
       <div className="shrink-0 space-y-1.5 text-xs">
+        {/* column headers, so nobody has to guess which field is which axis */}
+        <div className="flex items-center gap-2 text-ink-2">
+          <span className="w-3" />
+          <span className="w-16 text-center font-mono">x</span>
+          <span className="w-16 text-center font-mono">y</span>
+        </div>
         {['a', 'b'].map(target => (
           <div key={target} className="flex items-center gap-2">
             <span className="w-3 font-mono text-ink-2">{target}</span>

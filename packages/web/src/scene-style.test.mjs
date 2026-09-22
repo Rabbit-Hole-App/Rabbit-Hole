@@ -468,14 +468,18 @@ test('SelectionMark takes geometry only, and the grid calls it with geometry onl
 });
 
 // Requirement 5: row/column labels are axis names, not data - they must read
-// as muted chrome (--color-ink-3) in every matrix, not a role or a heat
-// token, and not hardcoded to one lesson's own scene.
+// as a muted CHROME token in every matrix, not a role or a heat token, and
+// not hardcoded to one lesson's own scene. Which muted step: --color-ink-2.
+// It was ink-3 through the static milestone; the interactive review found
+// ink-3 axis labels fading in dark mode next to interactive controls, and
+// the fix is the next chrome step up - still muted, still generic, one
+// token for every matrix.
 test('grid row and column labels use the muted text token, generically', () => {
   const source = readFileSync(new URL('./AnimatedScene.jsx', import.meta.url), 'utf8');
   const rowLabelBlock = source.slice(source.indexOf('rowLabels?.map'), source.indexOf('rowLabels?.map') + 400);
   const columnLabelBlock = source.slice(source.indexOf('columnLabels?.map'), source.indexOf('columnLabels?.map') + 400);
   for (const [name, block] of [['row', rowLabelBlock], ['column', columnLabelBlock]]) {
-    assert.match(block, /fill:\s*'var\(--color-ink-3\)'/, `${name} labels must use the muted text token`);
+    assert.match(block, /fill:\s*'var\(--color-ink-2\)'/, `${name} labels must use the muted text token`);
     assert.doesNotMatch(block, /roleVar|--viz-|heat/, `${name} labels must not read a role or heat colour`);
   }
 });

@@ -184,6 +184,29 @@ export const DERIVATIONS = {
       return { defined: true, value: a.map((x, i) => round(x * b[i])) };
     },
   },
+  // A state-driven selection between two already-named values (usually
+  // authored caption strings): the flag picks, nothing is computed. This is
+  // how a label follows a toggle - "future positions masked" vs "all
+  // positions available" - without any renderer branch on what the scene is.
+  choose: {
+    outputs: ['value'],
+    derive([flag, whenTrue, whenFalse]) {
+      if (typeof flag !== 'boolean') return { defined: false, reason: 'choose needs a boolean flag as its first argument' };
+      return { defined: true, value: flag ? whenTrue : whenFalse };
+    },
+  },
+  // The position of the smallest non-null entry - "which candidate is
+  // cheapest". Masked entries take no part; a fully masked vector selects
+  // nothing (null), so a gated input yields no highlight rather than a lie.
+  argmin: {
+    outputs: ['value'],
+    derive([a]) {
+      if (!isMaskableVector(a)) return { defined: false, reason: 'argmin needs a vector of numbers (null marks a masked entry)' };
+      let best = null;
+      a.forEach((value, index) => { if (value !== null && (best === null || value < a[best])) best = index; });
+      return { defined: true, value: best };
+    },
+  },
   // The elementwise difference - a displacement from a goal, a residual
   // error. add's mirror, with the same shape rules.
   sub: {

@@ -53,7 +53,7 @@ export function sceneSummary(block) {
   } catch { return { error: 'unsupported activity' }; }
 }
 
-export default function InteractiveScene({ block, onChange, onAsk = null }) {
+export default function InteractiveScene({ block, onChange }) {
   const [error, setError] = useState('');
   const selected = block.selectedObject || null;
   const setSelected = value => onChange({ ...block, selectedObject: value });
@@ -103,18 +103,11 @@ export default function InteractiveScene({ block, onChange, onAsk = null }) {
             {interaction.action === 'advance_step' && <ChevronRight size={14} />}
           </button>
         ))}
-        {/* Same contract as every interactive card: attaches this activity's
-            current committed state to the existing bottom composer, focuses
-            it, sends nothing. */}
-        {onAsk && (
-          <button type="button" data-scene-ask onClick={() => onAsk(block)}
-            className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
-            Ask about this
-          </button>
-        )}
+        {/* Asking the tutor lives in ONE place: the Ask-in-chat pill on a
+            selected card, feeding the bottom composer. No card-level Ask. */}
         {progress && <span className="ml-auto text-xs tabular-nums text-ink-2">{progress.seen} / {progress.total} {behavior.progressNoun || 'steps'}{progress.complete ? ' · done' : ''}</span>}
       </div>
-      <p className="shrink-0 text-[11px] text-ink-3">{MODE_LABEL[spec.execution.mode]}</p>
+      <p className="shrink-0 text-xs text-ink-2">{MODE_LABEL[spec.execution.mode]}</p>
     </div>
   );
 }
