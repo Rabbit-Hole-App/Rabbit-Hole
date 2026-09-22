@@ -19,7 +19,9 @@ const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1760, height: 1100 } });
 await ctx.addCookies([{ name: 'small_session', value: session, domain: new URL(base).hostname, path: '/' }]);
 const page = await ctx.newPage();
-page.on('pageerror', e => console.log('PAGEERROR:', e.message.slice(0, 200)));
+page.on('pageerror', e => console.log('PAGEERROR:', e.message.slice(0, 300)));
+page.on('console', m => { if (m.type() === 'error') console.log('CONSOLE-ERR:', m.text().slice(0, 300)); });
+page.on('response', r => { if (r.url().includes('/api/learn/') || r.url().includes('/api/repositories/')) console.log('HTTP', r.status(), new URL(r.url()).pathname); });
 const feedbackResponses = [];
 page.on('response', async response => {
   if (response.url().includes('/api/learn/moment-feedback')) {
@@ -37,7 +39,12 @@ const ask = async question => {
   const before = Date.now();
   await composer.fill(question);
   await page.keyboard.press('Enter');
-  await canvas.locator('iframe[src*="youtube-nocookie.com"]').first().waitFor({ timeout: 300000 });
+  try { await canvas.locator('iframe[src*="youtube-nocookie.com"]').first().waitFor({ timeout: 180000 }); }
+  catch (error) {
+    await page.screenshot({ path: 'e2e/shots/live-moment-stuck.png' });
+    console.log('no card; canvas text:', (await canvas.innerText().catch(() => '')).slice(0, 500).replace(/\s+/g, ' '));
+    throw error;
+  }
   return Math.round((Date.now() - before) / 1000);
 };
 

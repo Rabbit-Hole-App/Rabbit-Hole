@@ -210,13 +210,27 @@ phase-4 check — an accepted moment answers a re-asked paraphrase.
 
 ## Status
 
-Steps 1-7 are code-complete with green unit tests as of 2026-09-23; nothing
-warm, hot, or indexed serves a learner yet. Still deploy-gated, each with its
-own explicit go: the Vectorize index + Queue + `AI` binding (shared-state
-event), the announced `learn_moments` migration on the dev D1 (until then
-keep/dismiss shows on cards but the update 400s), and the live warm/hot
-checks. The eval harness (`tests/evals/moment-eval.mjs`) waits on a filled
-gold set from `packages/control-plane/export-gold.mjs`.
+Verified live on `small-cp-dev-small-parallel`, 2026-09-23, with all gates
+opened by explicit user go: `learn_moments` created on the shared D1,
+Vectorize `small-learn-moments` + Queue `small-learn-index` created, and the
+clone deployed from `wrangler.parallel.jsonc` (AI + MOMENTS + queue producer
+and consumer; the shared dev config deliberately keeps none of these - one
+queue allows one consumer). Secrets on the clone: EXA_API_KEY,
+ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID (the key is org-scoped and needs
+the workspace header).
+
+The live check (`e2e/live-moment-check.mjs`): a cold ask landed a real card
+with a 0:25-1:50 window in 28 s; Keep wrote the real row (`updated: true`);
+the consumer indexed 24 windows (ledger record confirmed in R2); the repeat
+ask answered in 25 s with a window starting at 627 s - exactly a ledger
+window start, the warm-retrieval signature. Video tools also had to be added
+to `repositoryAsk`, which had none - repository canvases could never have
+shown a moment.
+
+Remaining: the hot-path live check (accept, re-ask a paraphrase), and the
+eval harness (`tests/evals/moment-eval.mjs`) waits on a filled gold set from
+`packages/control-plane/export-gold.mjs`. The shared dev worker and live
+`small-cp` still run cold-only until their own promotion go.
 
 ## Deliberately not in this round
 
