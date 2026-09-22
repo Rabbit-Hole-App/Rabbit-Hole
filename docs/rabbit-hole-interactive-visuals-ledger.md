@@ -398,6 +398,40 @@ Report archived at
 reviewer's only standing note is that all capture is local/deployed-dev, not
 live promotion (which needs explicit approval anyway).
 
+## Review pass 4 — interaction grammar (2026-09-22)
+
+The user set a placement convention: **inside the visual = understand/inspect;
+a labeled INTERACT zone below the visual (and its transport) = manipulate;
+PRACTICE only when a task exists; bottom chat = ask.** The prior failure was
+that the attention query was operable only by discovering that diagram tokens
+were secretly clickable.
+
+- **Every meaningful input now renders an obvious control in a labeled
+  INTERACT zone below the visualization and transport.** `SceneControls` no
+  longer suppresses `presentation: 'visual'` inputs - it renders a widget for
+  every non-hidden declared input, under an "Interact" heading, with Reset.
+  Moved from above the frame to below the transport in `AnimatedScene`;
+  `InteractiveScene` (Engine B) got the same labeled zone for its buttons.
+- **Direct on-scene manipulation stays a synchronized shortcut** writing the
+  SAME input: the attention query chips, the patch grid, the repo/CNN chips,
+  the dragged vector - all still work, but the learner never needs to guess
+  they are clickable, because the control is always in INTERACT too. Their
+  in-scene labels now say "(also selectable with Interact below)".
+- **Transport (replay/timeline) is a separate row** above INTERACT; **Practice
+  is a separate collapsed section** rendered only when the block has an
+  `activity`. The two holdouts (interactive-only) correctly show INTERACT and
+  no Practice - confirming Practice is not auto-added.
+- Generic throughout: the shell builds the zones from declared inputs/mode;
+  no scene-ID branch, no token words, no per-lesson placement in runtime code.
+  Sizing (`sizeFor`) grows the block by the INTERACT label + wrapped control
+  rows so the frame never shrinks.
+
+500 web tests + full repo gate green; statics re-rendered; all eight browser
+scenarios pass; seeds bumped (interactive-app-review s3, interactive-holdouts
+s2); deployed to `small-cp-dev-small-deploy` (worker 17300b81, bundle
+index-B1URkmrv) and T12-verified in a clean context with pixels inspected in
+both themes. No new input family added, per instruction.
+
 **Known deliberate deviation (for the user's call at review):** spec §8-I01
 asks that mask/answer-coded views hide behind the reveal gate DURING the I01
 prediction. The masked scores matrix is the exploration content itself -

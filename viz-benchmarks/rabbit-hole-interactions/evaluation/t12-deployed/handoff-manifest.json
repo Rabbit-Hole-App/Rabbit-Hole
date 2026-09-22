@@ -1,11 +1,11 @@
 {
   "handoffUrl": "https://small-cp-dev-small-deploy.zeroshothq.workers.dev/apps/repo-06745f10-nanogpt?tab=learn&board=interactive-app-review",
   "worker": "small-cp-dev-small-deploy (this session's clone per docs/features/parallel-dev-deploys.md)",
-  "workerVersionId": "042b8ea9-af37-462d-8076-900d5b00fb06",
-  "loadedClientBundle": "/static/index--ESSB3nF.js",
+  "workerVersionId": "17300b81-3c5e-44ff-a24e-07e3fda97851",
+  "loadedClientBundle": "/static/index-B1URkmrv.js",
   "bundleIdentity": "served index.html bundle == bundle the loaded page executes == local dist-dev build",
-  "sourceCommit": "3f97b68eb84cbcd0c3230d51345e7a6d173b429d",
-  "boardSeed": "interactive-app-review s2; a stale s1 blob written into storage first and verified ignored; unknown board name shows the visible notice",
+  "sourceCommit": "a84148bbd352728a72b6652ecdb18991dd1042ea",
+  "boardSeed": "interactive-app-review s3, interactive-holdouts s2; a stale prior-seed blob planted and verified ignored; unknown board name shows the visible notice",
   "interactionsPerformedOnDeployedPage": [
     "I01 token click + mask toggle",
     "I02 grid click + stepper",
@@ -44,5 +44,10 @@
       "interactive-app-review": "the four cards, seed s2",
       "interactive-holdouts": "the two generalization holdouts, seed s1"
     }
+  },
+  "interactionGrammar": {
+    "rule": "inside the visual = understand/inspect; a labeled INTERACT zone below the visual+transport = manipulate; PRACTICE only when a task exists; bottom chat = ask",
+    "implementation": "the card shell renders the INTERACT zone generically from the declared non-hidden inputs (every input gets an obvious control there); direct on-scene manipulation (visual index chips, dragged vec2, clicked patch) remains a synchronized shortcut writing the SAME input; transport (replay/timeline) stays a separate row; Practice is a separate collapsed section present only when the block has an activity; no scene-ID branch, no per-lesson placement in runtime code",
+    "verifiedCards": "i01/i02/i03/i04 + both holdouts; holdouts (interactive-only) correctly render INTERACT and NO Practice"
   }
 }
