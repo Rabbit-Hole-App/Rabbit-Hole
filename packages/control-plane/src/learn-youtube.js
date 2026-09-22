@@ -7,7 +7,7 @@
 // from the learner (or, in phase 2, from a transcript the model has read).
 
 import { fetchCaptions } from './learn-captions.js';
-import { guardedCaptions } from './learn-moment-index.js';
+import { guardedCaptions, enqueueForIndex } from './learn-moment-index.js';
 import { topPassages } from './learn-moment-retrieve.js';
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
@@ -186,5 +186,8 @@ export async function findVideoMoments(query, env, { search = searchYouTube, cap
     ...(result.lines ? {} : { captionNote: result.reason }),
     duration: result.duration ?? null,
   }));
+  // Indexing goes to the Queue, never onto this answer's clock: the sends
+  // are quick, the embedding work happens in the consumer.
+  await enqueueForIndex(env, videos);
   return { videos, passages };
 }

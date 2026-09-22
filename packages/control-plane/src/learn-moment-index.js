@@ -8,6 +8,9 @@
 // (<videoId>:<cut>:<start>) without a prefix query Vectorize does not offer.
 // Our own observations only - nothing of YouTube's is stored.
 
+import { fetchCaptions } from './learn-captions.js';
+import { cutWindows } from './learn-moment-retrieve.js';
+
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 const HOUR = 60 * 60 * 1000, DAY = 24 * HOUR;
 
@@ -79,6 +82,83 @@ export async function pruneVideo(env, videoId) {
   }
   await writeNegative(env, videoId, 'deleted');
   return { pruned };
+}
+
+export const CUT_VERSION = 1;
+export const EMBEDDING_MODEL = '@cf/baai/bge-m3';
+// Workers AI takes batches; 50 keeps each call well under its input caps.
+const EMBED_BATCH = 50;
+
+export async function embedTexts(env, texts) {
+  const vectors = [];
+  for (let at = 0; at < texts.length; at += EMBED_BATCH) {
+    const result = await env.AI.run(EMBEDDING_MODEL, { text: texts.slice(at, at + EMBED_BATCH) });
+    vectors.push(...(result?.data || []));
+  }
+  if (vectors.length !== texts.length) throw new Error('Embedding batch came back short');
+  return vectors;
+}
+
+// One video, cold to indexed: captions -> 60/30 windows -> embeddings ->
+// Vectorize rows -> the ledger. The text is embedded and discarded - the
+// storage rule - and every row carries the versioning fields the spec pins.
+export async function indexVideo(videoId, env, { captions = fetchCaptions, now = Date.now } = {}) {
+  if (!env?.AI || !env?.MOMENTS) return { videoId, indexed: 0, skipped: 'no-bindings' };
+  const record = await readMomentRecord(env, videoId);
+  if (negativeFresh(record)) return { videoId, indexed: 0, skipped: record.reason };
+  if (record?.indexedAt && record.cut === CUT_VERSION && !record.reason) return { videoId, indexed: 0, skipped: 'indexed' };
+  const outcome = await captions(videoId);
+  if (!outcome.lines) {
+    if (outcome.reason) await writeNegative(env, videoId, outcome.reason, now());
+    return { videoId, indexed: 0, skipped: outcome.reason || 'empty' };
+  }
+  const windows = cutWindows(outcome.lines);
+  if (!windows.length) {
+    await writeNegative(env, videoId, 'empty', now());
+    return { videoId, indexed: 0, skipped: 'empty' };
+  }
+  const values = await embedTexts(env, windows.map(window => window.text));
+  const indexedAt = new Date(now()).toISOString();
+  const rows = windows.map((window, at) => ({
+    id: `${videoId}:${CUT_VERSION}:${window.start}`,
+    values: values[at],
+    namespace: 'windows',
+    metadata: {
+      videoId, start: window.start, end: window.end,
+      cut: CUT_VERSION, embeddingModel: EMBEDDING_MODEL, indexedAt,
+      ...(outcome.language ? { captionLanguage: outcome.language } : {}),
+      ...(outcome.kind ? { captionKind: outcome.kind } : {}),
+    },
+  }));
+  await env.MOMENTS.upsert(rows);
+  await writeIndexed(env, videoId, { cut: CUT_VERSION, starts: windows.map(window => window.start) }, now());
+  return { videoId, indexed: rows.length };
+}
+
+// The Queue consumer. One message per video, acked or retried alone, so a
+// poison video cannot take its batchmates down with it.
+export async function consumeIndexQueue(batch, env, options = {}) {
+  for (const message of batch?.messages || []) {
+    try {
+      await indexVideo(message.body?.videoId, env, options);
+      message.ack?.();
+    } catch { message.retry?.(); }
+  }
+}
+
+// The producer half: every cold answer warms the corpus. Fire-and-forget per
+// video; without the binding, nothing is sent and nothing is owed.
+export async function enqueueForIndex(env, videos) {
+  if (!env?.INDEX_QUEUE) return 0;
+  let sent = 0;
+  for (const video of videos || []) {
+    if (!video?.hasCaptions || !VIDEO_ID.test(String(video.videoId))) continue;
+    const record = await readMomentRecord(env, video.videoId);
+    if (record?.indexedAt && record.cut === CUT_VERSION && !record.reason) continue;
+    try { await env.INDEX_QUEUE.send({ videoId: video.videoId }); sent += 1; }
+    catch { /* the next cold answer retries */ }
+  }
+  return sent;
 }
 
 // fetchCaptions with the record wrapped around it: a fresh negative skips the

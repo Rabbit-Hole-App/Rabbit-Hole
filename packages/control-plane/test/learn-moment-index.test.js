@@ -113,3 +113,72 @@ test('pruning an unindexed video still writes the deleted record, without a vect
   assert.equal(result.pruned, 0);
   assert.equal((await readMomentRecord(env, VID)).reason, 'deleted');
 });
+
+// --- step 4: consumer + producer ---
+const aiEnv = () => {
+  const env = {
+    RUNS: bucket(),
+    AI: { calls: [], run: async (model, { text }) => { env.AI.calls.push({ model, count: text.length }); return { data: text.map(() => [0.1, 0.2, 0.3]) }; } },
+    MOMENTS: { rows: null, upsert: async rows => { env.MOMENTS.rows = rows; } },
+  };
+  return env;
+};
+const LINES = Array.from({ length: 240 }, (_, at) => ({ start: at * 2, duration: 2, text: `line ${at} about backprop` }));
+const CAPTIONS = async () => ({ lines: LINES, kind: 'manual', language: 'en', duration: 480, title: 'Backprop' });
+
+test('indexVideo embeds every window in batches and upserts versioned rows', async () => {
+  const env = aiEnv();
+  const result = await import('../src/learn-moment-index.js').then(m => m.indexVideo(VID, env, { captions: CAPTIONS, now: () => Date.parse('2026-09-22T12:00:00Z') }));
+  assert.ok(result.indexed > 1);
+  assert.equal(env.MOMENTS.rows.length, result.indexed);
+  const row = env.MOMENTS.rows[0];
+  assert.equal(row.id, `${VID}:1:0`);
+  assert.equal(row.namespace, 'windows');
+  assert.deepEqual(Object.keys(row.metadata).sort(), ['captionKind', 'captionLanguage', 'cut', 'embeddingModel', 'end', 'indexedAt', 'start', 'videoId']);
+  assert.equal(row.metadata.embeddingModel, '@cf/baai/bge-m3');
+  assert.ok(env.AI.calls.every(call => call.count <= 50), JSON.stringify(env.AI.calls));
+  const record = await readMomentRecord(env, VID);
+  assert.equal(record.cut, 1);
+  assert.equal(record.starts.length, result.indexed);
+  assert.equal(record.reason, null);
+});
+
+test('an indexed video is not re-embedded; a fresh negative is not probed', async () => {
+  const env = aiEnv();
+  const { indexVideo } = await import('../src/learn-moment-index.js');
+  await indexVideo(VID, env, { captions: CAPTIONS });
+  const calls = env.AI.calls.length;
+  assert.equal((await indexVideo(VID, env, { captions: CAPTIONS })).skipped, 'indexed');
+  assert.equal(env.AI.calls.length, calls);
+  await writeNegative(env, 'FaHHWdsIYQg', 'no-track');
+  assert.equal((await indexVideo('FaHHWdsIYQg', env, { captions: CAPTIONS })).skipped, 'no-track');
+});
+
+test('without bindings indexing declines instead of failing', async () => {
+  const { indexVideo } = await import('../src/learn-moment-index.js');
+  assert.equal((await indexVideo(VID, { RUNS: bucket() }, { captions: CAPTIONS })).skipped, 'no-bindings');
+});
+
+test('a poison message retries alone; its batchmates ack', async () => {
+  const env = aiEnv();
+  const { consumeIndexQueue } = await import('../src/learn-moment-index.js');
+  const outcomes = [];
+  const message = (videoId, poison = false) => ({ body: { videoId }, ack: () => outcomes.push(`ack:${videoId}`), retry: () => outcomes.push(`retry:${videoId}`) });
+  const captions = async videoId => { if (videoId === 'FaHHWdsIYQg') throw new Error('boom'); return CAPTIONS(); };
+  await consumeIndexQueue({ messages: [message(VID), message('FaHHWdsIYQg'), message('aircAruvnKk')] }, env, { captions });
+  assert.deepEqual(outcomes, [`ack:${VID}`, 'retry:FaHHWdsIYQg', 'ack:aircAruvnKk']);
+});
+
+test('a cold answer enqueues captioned candidates, skipping the already indexed', async () => {
+  const env = aiEnv();
+  const { indexVideo, enqueueForIndex } = await import('../src/learn-moment-index.js');
+  await indexVideo(VID, env, { captions: CAPTIONS });
+  env.INDEX_QUEUE = { sent: [], send: async body => env.INDEX_QUEUE.sent.push(body) };
+  const sent = await enqueueForIndex(env, [
+    { videoId: VID, hasCaptions: true },
+    { videoId: 'FaHHWdsIYQg', hasCaptions: true },
+    { videoId: 'aircAruvnKk', hasCaptions: false },
+  ]);
+  assert.equal(sent, 1);
+  assert.deepEqual(env.INDEX_QUEUE.sent, [{ videoId: 'FaHHWdsIYQg' }]);
+});

@@ -2345,6 +2345,12 @@ async function proxyApp(req, env, org, name, rest, baseUrl) {
 }
 
 export default {
+  // The moment-index Queue consumer (phase 3). Bound on small-cp only once
+  // the queue exists; harmless to ship ahead of the binding.
+  async queue(batch, env) {
+    const { consumeIndexQueue } = await import('./learn-moment-index.js');
+    await consumeIndexQueue(batch, env);
+  },
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
     const baseUrl = `${url.protocol}//${url.host}`;
