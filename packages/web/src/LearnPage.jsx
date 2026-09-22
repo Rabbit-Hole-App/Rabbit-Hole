@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, PanelRightClose, PanelRightOpen, Pause, Pencil, Play, Scan, Share2, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, PanelRightClose, PanelRightOpen, Pause, Pencil, Play, Scan, Share2, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
 import { createShapeId, getIndices } from 'tldraw';
 import { SPEEDS, getSpeed, isMuted, onMuted, setMuted, setSpeed } from './learn-audio.js';
 import { api, wsHeaders } from './api.js';
@@ -702,6 +702,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // and the main canvas each keep theirs; empty falls back to the course title.
   const titleKey = `${canvasKey}${board ? `:${board}` : ''}:title`;
   const [canvasTitle, setCanvasTitle] = useState(() => { try { return localStorage.getItem(titleKey) || ''; } catch { return ''; } });
+  // The copy confirmation lives on the button itself - a toast in the far
+  // corner reads as unrelated to the press that caused it.
+  const [shareCopied, setShareCopied] = useState(false);
   const saveTitle = value => {
     const clean = value.trim().slice(0, 120);
     setCanvasTitle(clean);
@@ -802,11 +805,11 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {/* One centered strip is all the chrome the canvas gets: an editable
             title, the menubar, and the three one-press actions. No page
             heading, no rule underneath - the canvas has no boundary. */}
-        {!canvasState.presenting && <div className="relative flex shrink-0 flex-wrap items-center justify-center gap-1 px-3 pt-3 pb-1">
+        {!canvasState.presenting && <div className="relative flex shrink-0 items-center justify-center gap-1 px-3 pt-3 pb-1">
           <input aria-label="Canvas title" value={canvasTitle} placeholder={courseTitle || app.repo || app.name}
             onChange={event => setCanvasTitle(event.target.value)} onBlur={event => saveTitle(event.target.value)}
             onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
-            className="h-8 w-48 min-w-0 truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none placeholder:text-ink-2 hover:border-line focus:border-line" />
+            className="h-8 w-48 min-w-16 shrink truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none placeholder:text-ink-2 hover:border-line focus:border-line" />
           <CanvasMenubar menus={canvasMenus} />
           {paperSearchOpen && <PaperSearch app={app.name} onPick={openPaper} onClose={() => setPaperSearchOpen(false)} />}
           {wikiSearchOpen && <WikiSearch app={app.name} onPick={page => openWiki({ title: page.title })} onClose={() => setWikiSearchOpen(false)} />}
@@ -815,9 +818,10 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             <button type="button" title="Present" aria-label="Present"
               onClick={() => { setPanelOpen(false); canvasApi.current?.present(); }}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Play size={15} strokeWidth={1.8} /></button>
-            <button type="button" title="Copy a link to this canvas" aria-label="Share"
-              onClick={() => { navigator.clipboard?.writeText(window.location.href).then(() => toast('Link copied.')).catch(() => toast(window.location.href)); }}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Share2 size={15} strokeWidth={1.8} /></button>
+            <button type="button" title={shareCopied ? 'Link copied' : 'Copy a link to this canvas'} aria-label="Share"
+              onClick={() => { navigator.clipboard?.writeText(window.location.href).then(() => { setShareCopied(true); setTimeout(() => setShareCopied(false), 1600); }).catch(() => toast(window.location.href)); }}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg ${shareCopied ? 'text-green-600' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
+              {shareCopied ? <Check size={15} strokeWidth={2} /> : <Share2 size={15} strokeWidth={1.8} />}</button>
             <button type="button" title={panelOpen ? 'Hide the right panel' : 'Show the right panel'}
               aria-label={panelOpen ? 'Hide the right panel' : 'Show the right panel'} aria-pressed={panelOpen}
               onClick={() => setPanelOpen(previous => !previous)}

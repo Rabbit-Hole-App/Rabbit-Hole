@@ -46,6 +46,11 @@ const SHAPE_TOOLS = [
   ['curve', Spline, 'Curved arrow'],
 ];
 const COLORS = ['#37352f', '#2383e2', '#b42318', '#1a7f37', '#f59e0b', '#7c3aed'];
+// The default ink is Notion's near-black, stored as a hex in every saved
+// stroke and text item - so dark mode must translate it at render time or all
+// default writing reads as dark gray on a dark canvas. Only the default maps;
+// deliberate colors stay themselves (connections brighten via a dark: filter).
+const inkAware = color => (color === '#37352f' ? 'var(--learn-canvas-ink)' : color);
 // Connectors take the colour of the node they start from, so a canvas reads
 // at a glance; picking an ink colour first overrides this.
 const LINK_COLORS = { chat: '#2383e2', quiz: '#7c3aed', flashcards: '#f59e0b', challenge: '#37352f', explanation: '#6b7280', table: '#0891b2', snippet: '#1a7f37', code: '#1a7f37', graph: '#2383e2', paper: '#b42318', model3d: '#7c3aed', image: '#0891b2', video: '#b42318' };
@@ -524,7 +529,7 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
     );
   }
   return (
-    <div data-block data-item-id={item.id} style={{ left: item.x, top: item.y, opacity: item.opacity, ...(sticky ? { width: item.w || 160, height: item.h || 160 } : { color: item.color, ...textStyle(item) }) }}
+    <div data-block data-item-id={item.id} style={{ left: item.x, top: item.y, opacity: item.opacity, ...(sticky ? { width: item.w || 160, height: item.h || 160 } : { color: inkAware(item.color), ...textStyle(item), ...(item.w ? { width: item.w } : {}), ...(item.h ? { minHeight: item.h } : {}) }) }}
       className={`absolute z-10 cursor-grab active:cursor-grabbing ${sticky
         // Text has no card behind it, so its box is invisible until you are on
         // it. The border is always there and only gains a colour on hover, so
@@ -551,9 +556,17 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
       <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder={sticky ? 'Note…' : 'Text…'}
         onBlur={e => { setEditing(false); const text = e.currentTarget.textContent; shown.current = text; onChange(item.id, text); }}
         className={`outline-none ${sticky ? 'h-full empty:before:text-[#b08a3e]' : 'empty:before:opacity-50'} empty:before:content-[attr(data-placeholder)]`}>{shown.current}</div>
-      {sticky && selected && tool === 'select' && (
-        <span aria-label="Resize note" className="absolute -right-1.5 -bottom-1.5 h-3 w-3 cursor-nwse-resize rounded-sm border border-[#2383e2] bg-white"
-          onPointerDown={event => { if (event.button !== 0) return; onGesture(); startDrag(event, { x: item.w || 160, y: item.h || 160 }, (w, h) => onResize(item.id, Math.max(80, w), Math.max(80, h)), zoom); }} />
+      {/* Text gets the same corner handle as a note: the box scales, the type
+          does not - wrapping is what changes, never the font size. */}
+      {(sticky || item.kind === 'text') && selected && tool === 'select' && (
+        <span aria-label={sticky ? 'Resize note' : 'Resize text box'} className="absolute -right-1.5 -bottom-1.5 h-3 w-3 cursor-nwse-resize rounded-sm border border-[#2383e2] bg-white"
+          onPointerDown={event => {
+            if (event.button !== 0) return;
+            onGesture();
+            const box = sticky ? null : event.currentTarget.parentElement.getBoundingClientRect();
+            const start = sticky ? { x: item.w || 160, y: item.h || 160 } : { x: item.w || box.width / zoom, y: item.h || box.height / zoom };
+            startDrag(event, start, (w, h) => onResize(item.id, Math.max(sticky ? 80 : 96, w), Math.max(sticky ? 80 : 28, h)), zoom);
+          }} />
       )}
     </div>
   );
@@ -643,7 +656,7 @@ function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResiz
   // Unfilled shapes paint a transparent fill so the pointer can grab the
   // interior, not just the hairline outline. Transparent paint still hit-tests
   // under visiblePainted; opacity 0 keeps it invisible.
-  const stroke = { stroke: color, strokeWidth: width, fill: fill || 'transparent', fillOpacity: fill ? 0.25 : 0, opacity, strokeDasharray: dashArray(dash, width), strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const stroke = { stroke: inkAware(color), strokeWidth: width, fill: fill ? inkAware(fill) : 'transparent', fillOpacity: fill ? 0.25 : 0, opacity, strokeDasharray: dashArray(dash, width), strokeLinecap: 'round', strokeLinejoin: 'round' };
   const x = Math.min(x1, x2), y = Math.min(y1, y2), w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
   const control = kind === 'curve' ? curveControl(shape) : null;
   const linear = kind === 'line' || kind === 'arrow' || kind === 'curve';
@@ -779,6 +792,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // OS drag-and-drop of files onto the surface; the page owns what each kind
   // becomes, the canvas only announces the hover and hands the files over.
   const [dropHover, setDropHover] = useState(false);
+  const [marquee, setMarquee] = useState(null);
   // The tool palette hangs on the right by default; a drag on its handle can
   // park it on either edge. While dragging it follows the pointer.
   const [toolSide, setToolSide] = useState('right');
@@ -1350,7 +1364,37 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   };
   const shapeTool = SHAPE_TOOLS.some(([kind]) => kind === tool);
   const pan = event => startDrag(event, { x: view.x, y: view.y }, (x, y) => setView(v => ({ ...v, x, y })));
+  // Ctrl-drag (either button) rubber-bands a selection: every card, shape and
+  // text box the rectangle touches becomes one group the next drag moves.
+  const marqueeRef = useRef(null);
+  const selectWithin = rect => {
+    const x = Math.min(rect.x1, rect.x2), y = Math.min(rect.y1, rect.y2);
+    const w = Math.abs(rect.x2 - rect.x1), h = Math.abs(rect.y2 - rect.y1);
+    if (w < 4 && h < 4) return;
+    const touches = box => box.x + box.w > x && box.x < x + w && box.y + box.h > y && box.y < y + h;
+    const ids = Object.entries(boundsRef.current).filter(([, box]) => touches(box)).map(([id]) => id);
+    for (const shape of shapesRef.current) {
+      if (touches({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) })) ids.push(shape.id);
+    }
+    for (const node of itemsLayer.current?.querySelectorAll('[data-item-id]') || []) {
+      if (touches({ x: node.offsetLeft, y: node.offsetTop, w: node.offsetWidth, h: node.offsetHeight })) ids.push(node.dataset.itemId);
+    }
+    setSelection([...new Set(ids)]);
+  };
   const down = event => {
+    // A press on the canvas dismisses the floating chrome - the style island
+    // and the dev insert menu - the way it already dismisses a menubar menu.
+    setStyleOpen(false); setInsertOpen(false);
+    if ((event.ctrlKey || event.metaKey) && tool === 'select' && (event.button === 0 || event.button === 2)
+      && !event.target.closest('[data-block],[role="toolbar"],[data-zoom]')) {
+      const start = local(event);
+      marqueeRef.current = { x1: start.x, y1: start.y, x2: start.x, y2: start.y };
+      setMarquee(marqueeRef.current);
+      const apply = (px, py) => { marqueeRef.current = { x1: start.x, y1: start.y, x2: px, y2: py }; setMarquee(marqueeRef.current); };
+      apply.done = () => { if (marqueeRef.current) selectWithin(marqueeRef.current); marqueeRef.current = null; setMarquee(null); };
+      startDrag(event, start, apply, view.z);
+      return;
+    }
     if (event.button !== 0) return;
     if (tool === 'hand') { pan(event); return; }
     if (event.target.closest('[data-block],[role="toolbar"],[data-zoom]')) return;
@@ -1665,6 +1709,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           you can see. An opaque surface keeps the page dots from showing through
           and doubling them up. */}
       <div ref={surface} data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
+        onContextMenu={event => { if (event.ctrlKey || marqueeRef.current) event.preventDefault(); }}
         onDragOver={event => { if (onDropFiles && event.dataTransfer.types.includes('Files')) { event.preventDefault(); setDropHover(true); } }}
         onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setDropHover(false); }}
         onDrop={event => { if (!onDropFiles) return; event.preventDefault(); setDropHover(false); onDropFiles([...event.dataTransfer.files]); }}
@@ -1695,7 +1740,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         <svg aria-hidden="true" data-ink width="1" height="1" className="pointer-events-none absolute top-0 left-0 z-10 overflow-visible">
           {[...shapes, ...(liveShape ? [liveShape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={tool} zoom={view.z} selected={isSelected(shape.id)} onSelect={select} onMoveStart={moveShapeStart} onResize={resizeShape} onGesture={snapshot} onDelete={deleteItem} />)}
           {[...strokes, ...(live ? [live] : [])].map((stroke, index) => stroke.tool === 'pen'
-            ? <path key={index} d={pathOf(stroke.points)} fill="none" stroke={stroke.color} strokeWidth={stroke.width} opacity={stroke.opacity} strokeDasharray={dashArray(stroke.dash, stroke.width)} strokeLinecap="round" strokeLinejoin="round" />
+            ? <path key={index} d={pathOf(stroke.points)} fill="none" stroke={inkAware(stroke.color)} strokeWidth={stroke.width} opacity={stroke.opacity} strokeDasharray={dashArray(stroke.dash, stroke.width)} strokeLinecap="round" strokeLinejoin="round" />
             : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />)}
         </svg>
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
@@ -1704,6 +1749,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         </div>
         {presenting === null && activeGap && <GapRail gap={activeGap} zoom={view.z} span={railSpan} space={blocks.find(block => block.id === activeGap.beforeId)?.space || 0} onNudge={nudgeGap}
           adding={gapAdding} onAdding={setGapAdding} onAddHeading={insertHeadingAt} />}
+        {marquee && (
+          <svg width="1" height="1" aria-hidden="true" className="pointer-events-none absolute top-0 left-0 z-30 overflow-visible">
+            <rect x={Math.min(marquee.x1, marquee.x2)} y={Math.min(marquee.y1, marquee.y2)}
+              width={Math.abs(marquee.x2 - marquee.x1)} height={Math.abs(marquee.y2 - marquee.y1)}
+              fill="rgba(35, 131, 226, 0.08)" stroke="#2383e2" strokeWidth={1 / view.z} strokeDasharray={`${4 / view.z} ${3 / view.z}`} />
+          </svg>
+        )}
         {/* Alignment guides, live only while something is being dragged. */}
         {!!guides.length && (
           <svg width="1" height="1" aria-hidden="true" className="pointer-events-none absolute top-0 left-0 z-30 overflow-visible">
@@ -1806,8 +1858,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       {/* The zoom pill, the composer, and the minimap all share one lower
           edge; small insets keep them off the window border now that the
           canvas runs full-bleed. */}
-      {presenting === null && <div className="relative min-h-11 shrink-0 px-2 pt-3 pb-2">
-        <div data-zoom aria-label="Zoom controls" className="absolute bottom-2 left-2 z-20 flex items-center rounded-lg border border-line bg-white shadow-sm">
+      {presenting === null && <div className="relative min-h-11 shrink-0 px-3 pt-3 pb-4">
+        <div data-zoom aria-label="Zoom controls" className="absolute bottom-4 left-3 z-20 flex items-center rounded-lg border border-line bg-white shadow-sm">
           <IconBtn title="Scroll up" onClick={() => scrollBy(-1)}><ChevronUp size={14} /></IconBtn>
           <IconBtn title="Scroll down" onClick={() => scrollBy(1)}><ChevronDown size={14} /></IconBtn>
           <span className="mx-0.5 h-5 w-px bg-line" />

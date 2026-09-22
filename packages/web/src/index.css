@@ -145,7 +145,14 @@ html {
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
    so one override block re-skins every token - including bg-white surfaces via
    --color-white. Elements on accent/danger re-pin white so their text stays white. */
+:root {
+  /* What the canvas's default pen and text render as. Light mode keeps the
+     stored Notion near-black; dark mode goes full white - the ink token's
+     #d4d4d4 reads as gray handwriting on a dark board. */
+  --learn-canvas-ink: #37352f;
+}
 .dark {
+  --learn-canvas-ink: #ffffff;
   --tok-c: #82817d;
   --tok-s: #6fbf8e;
   --tok-k: #b79ae3;

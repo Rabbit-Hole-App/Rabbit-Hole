@@ -23,7 +23,7 @@ export default function CanvasMinimap({ boxes, view, surface, onView, onFit }) {
   };
   return (
     <div style={{ width: SIZE.w, height: SIZE.h }}
-      className="absolute right-2 bottom-2 z-20 overflow-hidden rounded-xl border border-line bg-white/90 shadow-md backdrop-blur-sm">
+      className="absolute right-3 bottom-4 z-20 overflow-hidden rounded-xl border border-line bg-white/90 shadow-md backdrop-blur-sm">
       <svg ref={frame} role="img" aria-label="Canvas overview" width={SIZE.w} height={SIZE.h} className="block cursor-pointer touch-none"
         onPointerDown={drag} onPointerMove={event => { if (event.currentTarget.hasPointerCapture(event.pointerId)) goTo(event); }}>
         {layout.boxes.map((box, index) => (

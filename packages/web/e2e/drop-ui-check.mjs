@@ -122,6 +122,28 @@ await page.waitForTimeout(300);
 const after = await rect.boundingBox();
 ok('a shape drags from its interior, not just its outline', Math.abs(after.x - before.x - 80) < 6 && Math.abs(after.y - before.y - 40) < 6, `moved ${Math.round(after.x - before.x)},${Math.round(after.y - before.y)}`);
 
+// --- ctrl-drag rubber band: the cards become one movable group ---
+const cardA = canvas.locator('img[alt="diagram.png"]');
+const cardB = canvas.locator('video[controls]');
+const a1 = await cardA.boundingBox();
+const b1 = await cardB.boundingBox();
+const left = Math.max(box.x + 4, Math.min(a1.x, b1.x) - 30), top = Math.max(box.y + 4, Math.min(a1.y, b1.y) - 30);
+const right = Math.max(a1.x + a1.width, b1.x + b1.width) + 30, bottom = Math.max(a1.y + a1.height, b1.y + b1.height) + 30;
+await page.keyboard.down('Control');
+await page.mouse.move(left, top);
+await page.mouse.down();
+await page.mouse.move(right, bottom, { steps: 6 });
+await page.mouse.up();
+await page.keyboard.up('Control');
+await page.waitForTimeout(300);
+await page.mouse.move(a1.x + 40, a1.y + 40);
+await page.mouse.down();
+await page.mouse.move(a1.x + 100, a1.y + 70, { steps: 6 });
+await page.mouse.up();
+await page.waitForTimeout(400);
+const b2 = await cardB.boundingBox();
+ok('ctrl-drag selects the cards as a group that moves together', Math.abs(b2.x - b1.x - 60) < 10 && Math.abs(b2.y - b1.y - 30) < 10, `other card moved ${Math.round(b2.x - b1.x)},${Math.round(b2.y - b1.y)}`);
+
 // --- toolbar handle snaps to the left edge ---
 const handle = page.locator('[aria-label="Move the toolbar"]');
 ok('the toolbar has a drag handle', (await handle.count()) === 1);
