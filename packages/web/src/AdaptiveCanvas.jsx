@@ -371,9 +371,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const [shapes, setShapes] = useState(stored.current.shapes || []);
   const [liveShape, setLiveShape] = useState(null);
   const [items, setItems] = useState(() => (stored.current.items || []).map(item => ({ ...item, fresh: false }))); // stickies and text
-  // seedBlocks fills a board that has never been used; a board with its own
-  // saved state always wins, so seeding cannot overwrite anything.
-  const [blocks, setBlocks] = useState(stored.current.blocks || seedBlocks || []); // course-authored lesson blocks
+  // seedBlocks fills a board that has never been used. A board with its own
+  // saved CONTENT always wins - but a saved EMPTY board re-seeds, because [] is
+  // truthy and an empty array in storage is how a visit during a deploy
+  // rollout, or to a then-unregistered name, permanently froze a board blank.
+  const [blocks, setBlocks] = useState(stored.current.blocks?.length ? stored.current.blocks : (seedBlocks || [])); // course-authored lesson blocks
   const blocksRef = useRef(blocks);
   blocksRef.current = blocks;
   // Selection is a list: ctrl/cmd/shift-click adds to it, so several nodes

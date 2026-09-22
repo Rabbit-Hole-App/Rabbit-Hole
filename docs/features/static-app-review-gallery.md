@@ -82,3 +82,26 @@ views, ONNX, GSAP, or any interactive work. The human reviews these five in the
 running application and decides what happens next.
 
 This gallery is the app-review finish line after the critic and regression pass.
+
+## Review-board verification invariant
+
+**A review canvas is not verified until the rendered pixels have been inspected.**
+
+Block counts, DOM presence, "animations rendering", seed code reading correctly -
+all of those were green while the reviewer saw a blank canvas, twice in one
+review. The failure chain: a seeded board saves itself to localStorage on first
+visit and thereafter ignores new seeds; a deploy takes ~20s to roll out, so a
+visit inside that window saved an EMPTY board that then always won; and an
+unregistered board name silently rendered blank instead of erroring.
+
+Mechanics now in place:
+- `BOARD_SEED_VERSIONS` (demo-scenes.js): the seed version is part of the board's
+  storage key, so bumping it moves every browser to a fresh namespace. Bump it
+  whenever a review board's seed content changes.
+- An empty saved board re-seeds (AdaptiveCanvas) - `[]` is truthy and used to win.
+- An unknown `?board=` name shows a visible notice, never a silent blank.
+
+Handoff procedure, every time: seed from current code, wait out the deploy
+rollout, open the exact URL in a CLEAN browser context, confirm the board is
+populated, screenshot the full canvas and key scenes, LOOK at the screenshots,
+and only then send the link.

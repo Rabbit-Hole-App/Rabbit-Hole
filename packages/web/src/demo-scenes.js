@@ -341,7 +341,17 @@ export const BOARDS = {
   // code, source reference, static knowledge check - reviewed by hand after
   // the visual-language benchmark phase. See gallery-scenes.js.
   'static-app-review': staticAppReviewBlocks,
-  // A seeded board keeps whatever localStorage saved on first visit, so a
-  // re-review after the scenes change needs a fresh name. v2 = post-fix pass.
   'static-app-review-2': staticAppReviewBlocks,
+  'static-app-review-3': staticAppReviewBlocks,
+};
+
+// Bump a board's entry here whenever its seed content changes. The version is
+// part of the board's storage key, so a bump moves every browser to a fresh
+// namespace and re-seeds from current code - stale localStorage from an
+// earlier seed can never silently override a newer one, and nobody has to
+// mint a new board name per review round.
+export const BOARD_SEED_VERSIONS = {
+  'static-app-review': 2,
+  'static-app-review-2': 2,
+  'static-app-review-3': 1,
 };
