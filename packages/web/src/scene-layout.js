@@ -182,6 +182,50 @@ export function segmentIntersectsBox(p0, p1, box) {
     && clipTest(dy, box.yMax - p0.y, t);
 }
 
+// Generic content-bounds fit (app-review item 2): the union of every
+// authored object's own footprint (frame, or estimated text box, plus a
+// grid's own axis labels), so AnimatedScene.jsx can fit its viewBox to what a
+// scene actually draws instead of trusting scene.width/height - authors
+// habitually oversize those, leaving dead space around correctly-sized
+// content. Computed from the scene's DECLARED initialState geometry, not a
+// per-frame evaluation: none of this vocabulary's review scenes move or
+// resize an object once placed (no scene here uses the 'move'/'resize'
+// actions), so the declared geometry already IS every frame's geometry, and
+// a static bound means the viewBox does not jitter as opacity/values/text
+// animate in and out over the timeline. A scene that does move objects would
+// under/over-fit around that motion - the same lazy tradeoff requiredLeftMargin
+// above already makes for row labels; upgrade to a per-frame union (fold
+// getSceneState's evaluated objects across every timeline event's `at`) if a
+// scene with real motion ever needs this.
+export function sceneContentBounds(scene) {
+  let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+  const grow = box => {
+    if (box.xMin < xMin) xMin = box.xMin;
+    if (box.xMax > xMax) xMax = box.xMax;
+    if (box.yMin < yMin) yMin = box.yMin;
+    if (box.yMax > yMax) yMax = box.yMax;
+  };
+  for (const object of scene.objects || []) {
+    const state = object.initialState || {};
+    const x = state.x ?? 0, y = state.y ?? 0;
+    if (state.from && state.to) {
+      grow({ xMin: Math.min(state.from.x, state.to.x), xMax: Math.max(state.from.x, state.to.x),
+        yMin: Math.min(state.from.y, state.to.y), yMax: Math.max(state.from.y, state.to.y) });
+      continue;
+    }
+    if (state.w != null && state.h != null) {
+      grow({ xMin: x, xMax: x + state.w, yMin: y, yMax: y + state.h });
+    } else {
+      const fontSize = textStyle(state.typography || 'body').fontSize;
+      grow(estimateTextBox({ text: state.label || state.text || '', x, y, fontSize, anchor: 'start', baseline: 'auto' }));
+    }
+    for (const box of gridAxisLabelBoxes({ type: object.type, ...state })) {
+      grow(estimateTextBox({ ...box, fontSize: ROW_LABEL_FONT_SIZE }));
+    }
+  }
+  return Number.isFinite(xMin) ? { xMin, xMax, yMin, yMax } : null;
+}
+
 export function estimateTextBox({ text, x, y, fontSize, anchor, baseline }) {
   const width = (text?.length || 0) * fontSize * CHAR_WIDTH_RATIO;
   const height = fontSize * LINE_HEIGHT_RATIO;

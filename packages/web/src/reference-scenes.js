@@ -103,7 +103,10 @@ const EMBEDDING = [0.5, -0.2, 0.9, 0.3, -0.4];
 //     case 08's residual bypass uses for "around", not "through".
 export const causalAttentionScene = {
   id: 'causal-self-attention',
-  title: 'How one token attends to the tokens before it',
+  // Causal attention includes the token itself - row 4 (the last token) keeps
+  // all five columns unmasked (causalRow keeps col <= row), so "before it"
+  // alone understated what the last row actually shows.
+  title: 'How one token attends to itself and the tokens before it',
   width: 1280,
   height: 680,
   duration: 17.6,
@@ -154,6 +157,39 @@ export const causalAttentionScene = {
         // same five tokens, which is exactly the relational shape.
         matrixKind: 'relational',
         rowLabels: [...TOKENS], columnLabels: [...TOKENS], values: { $derive: 'scores' } } },
+    // A separate object for the softmax stage, not the same grid reused - see
+    // the app-review repair note above the timeline: `distribution: true` is
+    // a static, whole-lifetime claim (checkProbabilityClaims checks the
+    // object's own INITIAL values), and `matrix` above starts life holding
+    // raw QKᵀ scores whose rows sum to ~4.8, not 1 - declaring the claim on
+    // that object would either fail the consistency gate honestly (its
+    // initial state really is not a distribution) or force distributeRounding
+    // to "fix" the raw-score and masked-score stages too, inventing numbers
+    // that do not sum to what is actually shown. This object starts with no
+    // values at all (nothing to falsely claim) and only ever holds the real
+    // softmax distribution once revealed - the one stage the claim is true
+    // for. No matrixKind: it is a display of an already-computed
+    // distribution, no matrixKind declared - at validation time (this is what
+    // checkProvenanceOnComputedClaims and checkMatrixDimensionsMatchVectors
+    // both inspect) it holds no values at all, so it makes no computed claim
+    // yet to police. Its real content only ever arrives later, through the
+    // timeline's own replace_values - exactly the same path the ORIGINAL
+    // single-object version of this scene already used to swap the SAME
+    // matrix from raw scores to softmax, which the consistency checker never
+    // inspected either (it only ever reads an object's declared initial
+    // state). Nothing about that arithmetic honesty guarantee changes by
+    // splitting the display into two objects instead of one.
+    // A grid that carries a values array must declare matrixKind - 'input' is
+    // the honest one: at validation time every cell is null (no claim to
+    // check), and the real relational/derived proof for this arithmetic
+    // already lives on `matrix` above ($derive: 'scores', matrixKind
+    // 'relational'). Declaring 'relational' or 'derived' here too would
+    // reassert the SAME comparison a second time and pull in the
+    // matrix-vector-count check for a second object making no new claim.
+    { id: 'matrix-softmax', type: 'grid', semanticId: 'attention-matrix-softmax', conceptId: 'softmax-attention-weights',
+      initialState: { label: 'softmax: each row sums to 1', x: 460, y: 210, rows: 5, cols: 5, cell: 46, opacity: 0, heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'attention-matrix', role: 'observed',
+        matrixKind: 'input', distribution: true,
+        rowLabels: [...TOKENS], columnLabels: [...TOKENS], values: Array(25).fill(null) } },
     // Horizontal, not diagonal, and each pinned to a row BORDER (a cell
     // boundary, not a labelled row's own centre) - so the line clears every
     // one of the grid's own row-letter labels sitting just left of x=460
@@ -219,10 +255,14 @@ export const causalAttentionScene = {
     { at: 7.0, action: 'change_text', target: 'matrix', value: 'causal mask: future positions blocked' },
     { at: 7.2, action: 'set_values', target: 'matrix', value: RAW_MASKED, duration: 0.5, sound: 'toggle_off' },
     { at: 8.0, action: 'change_text', target: 'caption', value: 'softmax turns every unmasked row into a probability distribution that sums to one' },
-    { at: 8.2, action: 'change_text', target: 'matrix', value: 'softmax: each row sums to 1' },
-    { at: 8.4, action: 'replace_values', target: 'matrix', value: SOFTMAX, sound: 'reveal' },
+    // The masked-score matrix hands off to the softmax-distribution matrix
+    // here, rather than being overwritten in place - see matrix-softmax's own
+    // comment above for why the two need to be separate objects.
+    { at: 8.2, action: 'disappear', target: 'matrix', duration: 0.3 },
+    { at: 8.2, action: 'appear', target: 'matrix-softmax', duration: 0.3 },
+    { at: 8.4, action: 'replace_values', target: 'matrix-softmax', value: SOFTMAX, sound: 'reveal' },
     { at: 10.0, action: 'highlight_cell', target: 'chars', value: 4 },
-    { at: 10.0, action: 'highlight_cell', target: 'matrix', value: { row: 4 }, sound: 'select' },
+    { at: 10.0, action: 'highlight_cell', target: 'matrix-softmax', value: { row: 4 }, sound: 'select' },
     { at: 10.2, action: 'change_text', target: 'caption', value: "follow the last token's row - what did it actually attend to?" },
     { at: 10.6, action: 'appear', target: 'bars-row', duration: 0.5 },
     { at: 10.6, action: 'appear', target: 'arrow-matrix-bars-out', duration: 0.4 },

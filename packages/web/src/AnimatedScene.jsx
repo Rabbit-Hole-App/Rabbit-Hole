@@ -16,7 +16,7 @@ import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './a
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { distributeRounding } from './scene-derive.js';
 import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-sound.js';
-import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, labelAt, requiredLeftMargin } from './scene-layout.js';
+import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, labelAt, requiredLeftMargin, sceneContentBounds } from './scene-layout.js';
 import { GEOMETRY } from './scene-vocab.js';
 import { heatStyle, identityVar, roleVar, selectionStyle, shapeStyle, textStyle } from './scene-style.js';
 
@@ -80,7 +80,7 @@ function SelectionMark({ geometry }) {
 // The mathematical object itself: a table with a row that lights up, a strip
 // of numbers that change, a distribution that grows. Labelled rectangles do
 // not teach these; the values do.
-function DataShape({ object, role, pop }) {
+function DataShape({ object, role, pop, chosen }) {
   const emphasis = 1 + (object.emphasis || 0) * 0.06;
   // Every number a data shape draws - a cell, a bar's tick, a token's chip -
   // is a datum, not a caption, so all three share the smallest named size.
@@ -219,6 +219,14 @@ function DataShape({ object, role, pop }) {
             rx={4} fill="none" strokeWidth="2.4" />
         )}
         <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={4} fill="none" style={{ stroke: hue }} strokeWidth="1.6" />
+        {/* Whole-object selection (picked, not a per-cell cellHighlight) -
+            migrated onto the same generic SelectionMark the grid's own cells
+            already use, rather than the old role-derived 'chosen' fill/stroke
+            bump, which read as no visible change at all against a soft-tier
+            role. Grid itself is left alone here: its per-cell cellHighlight
+            already carries this exact treatment for the case a grid scene
+            actually selects. */}
+        {chosen && object.type === 'strip' && <SelectionMark geometry={{ kind: 'rect', x: object.x, y: object.y, width: object.w, height: object.h }} />}
       </g>
     );
   }
@@ -254,6 +262,7 @@ function DataShape({ object, role, pop }) {
             </motion.g>
           );
         })}
+        {chosen && <SelectionMark geometry={{ kind: 'rect', x: object.x, y: object.y, width: object.w || (values.length * GEOMETRY.barWidth), height }} />}
       </g>
     );
   }
@@ -282,6 +291,7 @@ function DataShape({ object, role, pop }) {
           </motion.g>
         );
       })}
+      {chosen && <SelectionMark geometry={{ kind: 'rect', x: object.x, y: object.y, width: object.w || offset, height: GEOMETRY.chipHeight }} />}
     </g>
   );
 }
@@ -330,9 +340,28 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
   // problem pixel-identical - this only ever extends the left edge further
   // left, never moves authored content or the right edge.
   const leftMargin = requiredLeftMargin(visibleObjects);
-  const baseSpanW = scene.width / state.camera.zoom;
-  const span = { w: baseSpanW + leftMargin, h: scene.height / state.camera.zoom };
-  const origin = { x: state.camera.x - baseSpanW / 2 - leftMargin, y: state.camera.y - span.h / 2 };
+  // A scene that authors its own camera work (focus/pan/zoom_camera anywhere
+  // on its timeline) keeps exactly the framing it always had - the camera
+  // wins, full stop. Everything else gets a generic content-bounds fit
+  // instead of trusting the scene's own (habitually oversized) width/height:
+  // the app-review framing finding, fixed once, here, rather than per scene.
+  const cameraAuthored = scene.timeline.some(event => event.action === 'focus_camera' || event.action === 'pan_camera' || event.action === 'zoom_camera');
+  const bounds = cameraAuthored ? null : sceneContentBounds(scene);
+  let origin, span;
+  if (bounds) {
+    // 80-90% fill of the usable viewport, sensible padding either side -
+    // the review's own target. 0.85 sits in the middle of that band.
+    const FILL = 0.85;
+    const PAD_MIN = 24;
+    const contentW = Math.max(bounds.xMax - bounds.xMin, 1);
+    const contentH = Math.max(bounds.yMax - bounds.yMin, 1);
+    span = { w: Math.max(contentW / FILL, contentW + PAD_MIN * 2), h: Math.max(contentH / FILL, contentH + PAD_MIN * 2) };
+    origin = { x: (bounds.xMin + bounds.xMax) / 2 - span.w / 2, y: (bounds.yMin + bounds.yMax) / 2 - span.h / 2 };
+  } else {
+    const baseSpanW = scene.width / state.camera.zoom;
+    span = { w: baseSpanW + leftMargin, h: scene.height / state.camera.zoom };
+    origin = { x: state.camera.x - baseSpanW / 2 - leftMargin, y: state.camera.y - span.h / 2 };
+  }
   const view = `${origin.x} ${origin.y} ${span.w} ${span.h}`;
   return (
     <div ref={host} data-animation-frame className="relative h-full w-full select-none"
@@ -419,7 +448,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
                 ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 8} fill="none" strokeOpacity="0.28" strokeWidth="8" style={{ stroke: look.stroke }} />
                 : <rect x={object.x - 4} y={object.y - 4} width={(object.w || 0) + 8} height={(object.h || 0) + 8} rx={16} fill="none" strokeOpacity="0.25" strokeWidth="8" style={{ stroke: look.stroke }} />)}
               {isData
-                ? <DataShape object={object} role={role} pop={pop} />
+                ? <DataShape object={object} role={role} pop={pop} chosen={chosen} />
                 : isImage
                 ? <image href={object.src} x={object.x} y={object.y} width={object.w} height={object.h}
                     preserveAspectRatio="xMidYMid slice"
@@ -434,6 +463,17 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
                 : isText ? null
                   : <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={12}
                       filter="url(#animation-shadow)" style={{ fill: look.fill, stroke: look.stroke, strokeWidth: look.strokeWidth }} />}
+              {/* Selection (picked, via onPick/selectedObject) migrated onto
+                  the same generic SelectionMark the grid already uses for its
+                  cells - see SelectionMark's own comment. Boxes and circles
+                  used to rely on shapeStyle's 'chosen' state alone (a role-
+                  tinted fill/stroke bump), which World Model's "Selected:
+                  action-b" footer exposed as no visible change at all against
+                  a soft-tier role - the runtime-boundaries backlog item this
+                  closes. */}
+              {chosen && !isText && !isData && !isStroke && (isCircle
+                ? <SelectionMark geometry={{ kind: 'circle', cx: centre.x, cy: centre.y, r: (object.w || 60) / 2 }} />
+                : <SelectionMark geometry={{ kind: 'rect', x: object.x, y: object.y, width: object.w || 0, height: object.h || 0 }} />)}
               {maths && (
                 <foreignObject x={object.x} y={object.y} width={object.w} height={object.h}>
                   {/* Only typeset() output may reach this - it is KaTeX markup,
@@ -574,11 +614,18 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
         </button>
         <button type="button" data-animation-replay title="Replay from the start" onClick={replay}
           className="flex h-8 items-center rounded-lg border border-line px-2.5 hover:bg-hover"><RotateCcw size={13} /></button>
-        <button type="button" data-animation-mute title={muted ? 'Unmute' : 'Mute'} aria-pressed={muted}
-          onClick={() => setMuted(!muted)}
-          className="flex h-8 items-center rounded-lg border border-line px-2.5 hover:bg-hover">
-          {muted ? <VolumeX size={13} /> : <Volume2 size={13} />}
-        </button>
+        {/* Item 6 (app-review): a mute control for a scene with no sound
+            events at all is a control that lies about what it does. Hidden,
+            not merely disabled - scene.timeline is the same source of truth
+            the playback effect above already filters on (soundEvents), so
+            "has sound" here can never disagree with what actually plays. */}
+        {scene.timeline.some(event => event.sound) && (
+          <button type="button" data-animation-mute title={muted ? 'Unmute' : 'Mute'} aria-pressed={muted}
+            onClick={() => setMuted(!muted)}
+            className="flex h-8 items-center rounded-lg border border-line px-2.5 hover:bg-hover">
+            {muted ? <VolumeX size={13} /> : <Volume2 size={13} />}
+          </button>
+        )}
         <button type="button" data-animation-select
           title={block.marked ? 'Clear the marked region' : 'Mark a region to ask about'} aria-pressed={selecting}
           onClick={() => (block.marked ? clearMark() : pauseAnd(() => setSelecting(value => !value)))}

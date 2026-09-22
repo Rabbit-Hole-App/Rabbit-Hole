@@ -183,8 +183,21 @@ export const vlmScene = {
     // 120..170) - the exact region vlm-patch-detail.png was cropped from.
     { id: 'detail-arrow', type: 'arrow', semanticId: 'detail-arrow', conceptId: 'vlm-pipeline',
       initialState: { from: { x: 165, y: 145 }, to: { x: 280, y: 180 }, opacity: 0, role: 'neutral' } },
+    // Ties the source cell to its magnified crop: composed entirely from
+    // existing vocabulary (a plain `box`, IDENTITY) rather than a new marker
+    // type - the same shared authoring key on both boxes resolves to one hue
+    // (validateScene's identity-slot assignment), so "this grid square becomes
+    // this enlarged patch" reads directly from the matching outline colour,
+    // the same way causalAttentionScene already ties Q/K/V peers together.
+    // A plain stroke on `patch-detail` itself would not show this: SVG does
+    // not render a stroke on an <image> element, which is why the tie is two
+    // outline boxes (one over the grid cell, one over the crop) instead.
+    { id: 'source-cell-outline', type: 'box', semanticId: 'source-cell-outline', conceptId: 'vlm-pipeline',
+      initialState: { x: 140, y: 120, w: 50, h: 50, opacity: 0, role: 'neutral', identity: 'patch-tie' } },
     { id: 'patch-detail', type: 'image', semanticId: 'patch-detail', conceptId: 'vlm-pipeline',
       initialState: { src: '/lesson-assets/vlm-patch-detail.png', x: 280, y: 110, w: 140, h: 140, opacity: 0, role: 'input' } },
+    { id: 'patch-detail-outline', type: 'box', semanticId: 'patch-detail-outline', conceptId: 'vlm-pipeline',
+      initialState: { x: 280, y: 110, w: 140, h: 140, opacity: 0, role: 'neutral', identity: 'patch-tie' } },
     { id: 'detail-label', type: 'text', semanticId: 'detail-label', conceptId: 'vlm-pipeline',
       initialState: { text: 'one patch, magnified', x: 280, y: 264, opacity: 0, typography: 'annotation' } },
     { id: 'a-patch-enc', type: 'arrow', semanticId: 'a-patch-enc', conceptId: 'vlm-pipeline',
@@ -199,8 +212,13 @@ export const vlmScene = {
       initialState: { from: { x: 400, y: 375 }, to: { x: 440, y: 375 }, opacity: 0, role: 'neutral' } },
     { id: 'projector', type: 'box', semanticId: 'projector', conceptId: 'vlm-pipeline',
       initialState: { label: 'Projector', x: 440, y: 340, w: 160, h: 70, opacity: 0, role: 'observed' } },
+    // y raised from 428 to 446 - the app-review "breathing room from the
+    // projector box shadow" finding: the box's own bottom edge sits at
+    // 340+70=410, and the box carries animation-shadow's drop shadow
+    // (AnimatedScene.jsx), so the original 18px gap read as the annotation
+    // sitting inside that shadow rather than clear of it.
     { id: 'dim', type: 'text', semanticId: 'dim-annotation', conceptId: 'vlm-pipeline',
-      initialState: { text: '1152 → 4096', x: 452, y: 428, opacity: 0, typography: 'annotation' } },
+      initialState: { text: '1152 → 4096', x: 452, y: 446, opacity: 0, typography: 'annotation' } },
     { id: 'a-proj-ltok', type: 'arrow', semanticId: 'a-proj-ltok', conceptId: 'vlm-pipeline',
       initialState: { from: { x: 600, y: 375 }, to: { x: 640, y: 375 }, opacity: 0, role: 'neutral' } },
     { id: 'ltoken', type: 'strip', semanticId: 'language-tokens', conceptId: 'vlm-pipeline',
@@ -218,6 +236,8 @@ export const vlmScene = {
     { at: 2.2, action: 'change_text', target: 'caption', value: 'the image is sliced into fixed-size patches - here is one of them, close up' },
     { at: 2.4, action: 'appear', target: 'detail-arrow', duration: 0.3 },
     { at: 2.6, action: 'appear', target: 'patch-detail', duration: 0.4 },
+    { at: 2.6, action: 'appear', target: 'source-cell-outline', duration: 0.4 },
+    { at: 2.6, action: 'appear', target: 'patch-detail-outline', duration: 0.4 },
     { at: 2.6, action: 'appear', target: 'detail-label', duration: 0.3 },
     { at: 4.2, action: 'change_text', target: 'caption', value: 'every patch like this one is encoded, then the encoder is done' },
     { at: 4.4, action: 'appear', target: 'a-patch-enc', duration: 0.3 },
@@ -254,7 +274,7 @@ export const worldModelScene = {
   id: 'world-model-branching-futures',
   title: 'World Model — Branching Futures',
   width: 1000,
-  height: 630,
+  height: 730,
   duration: 8.2,
   objects: [
     { id: 'caption', type: 'text', semanticId: 'caption', initialState: { text: '', x: 40, y: 26 } },
@@ -288,11 +308,19 @@ export const worldModelScene = {
       initialState: { from: { x: 460, y: 412 }, to: { x: 530, y: 412 }, opacity: 0, role: 'neutral' } },
     { id: 'a-fb-obs', type: 'arrow', semanticId: 'a-fb-obs', conceptId: 'world-model-planning',
       initialState: { from: { x: 760, y: 252 }, to: { x: 785, y: 252 }, opacity: 0, role: 'success' } },
+    // y raised from 292 to 312 - the app-review "cramped under the observed
+    // box" finding: observed's own bottom edge sits at 220+64=284, so the
+    // original y left only an 8px gap between the box and the label's own
+    // glyph top, effectively touching it.
     { id: 'chosen-label', type: 'text', semanticId: 'chosen-label', conceptId: 'world-model-planning',
-      initialState: { text: 'only this branch actually happens', x: 800, y: 292, opacity: 0, typography: 'annotation', role: 'success' } },
+      initialState: { text: 'only this branch actually happens', x: 800, y: 312, opacity: 0, typography: 'annotation', role: 'success' } },
+    // h raised from 90 to 160 - the app-review "tiny A/B/C cost chart doesn't
+    // support the headline claim" finding: a 90px-tall chart read as a minor
+    // footnote next to three 64px-tall boxes it is meant to justify; this
+    // gives it real visual weight instead of trimming its own claim down.
     { id: 'cost-bars', type: 'bars', semanticId: 'predicted-cost', conceptId: 'world-model-planning',
-      initialState: { label: 'predicted cost (lower is better)', x: 260, y: 460, h: 90, peak: 10, opacity: 0, role: 'prediction', labels: ['A', 'B', 'C'], values: [...COSTS] } },
-    { id: 'note', type: 'text', semanticId: 'note', initialState: { text: '', x: 40, y: 585 } },
+      initialState: { label: 'predicted cost (lower is better)', x: 260, y: 480, h: 160, peak: 10, opacity: 0, role: 'prediction', labels: ['A', 'B', 'C'], values: [...COSTS] } },
+    { id: 'note', type: 'text', semanticId: 'note', initialState: { text: '', x: 40, y: 685 } },
   ],
   timeline: [
     { at: 0.0, action: 'type_text', target: 'caption', value: 'the model predicts what happens under a few different actions before picking one', duration: 1.6 },
@@ -344,22 +372,46 @@ export const worldModelScene = {
 //    object group - the diagram stays a flow diagram, and the file index
 //    stays a file index, rather than one object type doing both jobs.
 
+// The app-review "two disagreeing orientation levels" finding: "you are
+// here" pointed at the subsystem-level `model` box while the breadcrumb below
+// it named a specific function four levels deeper (repo -> file -> class ->
+// function) - a reader could not tell which of those levels was actually
+// meant. Fixed by drawing the intermediate levels the breadcrumb already
+// claimed but the diagram never showed: model.py (file, the existing `model`
+// box, relabelled), Block (class, a new box under it), and its three methods
+// LayerNorm/CausalSelfAttention/MLP (function, three new boxes under that) -
+// composed entirely from existing vocabulary (box, arrow, text, highlight),
+// no new primitive. "you are here" now rings the CausalSelfAttention box
+// itself, agreeing with the breadcrumb's own deepest segment.
 export const codebaseOrientationScene = {
   id: 'codebase-architecture-orientation',
   title: 'Large Codebase — Architecture Orientation',
   width: 900,
-  height: 380,
-  duration: 8.4,
+  height: 650,
+  duration: 10.2,
   objects: [
     { id: 'caption', type: 'text', semanticId: 'caption', initialState: { text: '', x: 40, y: 24 } },
+    // Level 1: repo -> subsystems.
     { id: 'dataprep', type: 'box', semanticId: 'subsystem-dataprep', conceptId: 'repo-architecture',
       initialState: { label: 'Data Prep', x: 40, y: 90, w: 170, h: 64, opacity: 0, role: 'neutral' } },
     { id: 'training', type: 'box', semanticId: 'subsystem-training', conceptId: 'repo-architecture',
       initialState: { label: 'Training', x: 280, y: 90, w: 170, h: 64, opacity: 0, role: 'neutral' } },
     { id: 'sampling', type: 'box', semanticId: 'subsystem-sampling', conceptId: 'repo-architecture',
       initialState: { label: 'Sampling', x: 520, y: 90, w: 170, h: 64, opacity: 0, role: 'neutral' } },
+    // Level 2: subsystem -> file.
     { id: 'model', type: 'box', semanticId: 'subsystem-model', conceptId: 'repo-architecture',
-      initialState: { label: 'Model', x: 280, y: 230, w: 410, h: 64, opacity: 0, role: 'neutral' } },
+      initialState: { label: 'model.py', x: 280, y: 230, w: 450, h: 64, opacity: 0, role: 'neutral' } },
+    // Level 3: file -> class.
+    { id: 'block', type: 'box', semanticId: 'class-block', conceptId: 'repo-architecture',
+      initialState: { label: 'Block', x: 280, y: 354, w: 450, h: 56, opacity: 0, role: 'neutral' } },
+    // Level 4: class -> function/method. Three sub-layers a Block actually
+    // owns, matching model.py's own Block.forward() (canvas 2 above).
+    { id: 'layernorm', type: 'box', semanticId: 'method-layernorm', conceptId: 'repo-architecture',
+      initialState: { label: 'LayerNorm', x: 280, y: 460, w: 110, h: 56, opacity: 0, role: 'neutral' } },
+    { id: 'attn', type: 'box', semanticId: 'method-attn', conceptId: 'repo-architecture',
+      initialState: { label: 'CausalSelfAttention', x: 405, w: 210, y: 460, h: 56, opacity: 0, role: 'neutral' } },
+    { id: 'mlp', type: 'box', semanticId: 'method-mlp', conceptId: 'repo-architecture',
+      initialState: { label: 'MLP', x: 630, y: 460, w: 100, h: 56, opacity: 0, role: 'neutral' } },
     { id: 'a-dp-tr', type: 'arrow', semanticId: 'a-dp-tr', conceptId: 'repo-architecture',
       initialState: { from: { x: 210, y: 122 }, to: { x: 278, y: 122 }, opacity: 0, role: 'neutral' } },
     { id: 'a-tr-sp', type: 'arrow', semanticId: 'a-tr-sp', conceptId: 'repo-architecture',
@@ -368,11 +420,19 @@ export const codebaseOrientationScene = {
       initialState: { from: { x: 365, y: 230 }, to: { x: 365, y: 154 }, opacity: 0, role: 'neutral' } },
     { id: 'a-model-sp', type: 'arrow', semanticId: 'a-model-sp', conceptId: 'repo-architecture',
       initialState: { from: { x: 600, y: 230 }, to: { x: 600, y: 154 }, opacity: 0, role: 'neutral' } },
+    { id: 'a-model-block', type: 'arrow', semanticId: 'a-model-block', conceptId: 'repo-architecture',
+      initialState: { from: { x: 505, y: 294 }, to: { x: 505, y: 354 }, opacity: 0, role: 'neutral' } },
+    { id: 'a-block-ln', type: 'arrow', semanticId: 'a-block-ln', conceptId: 'repo-architecture',
+      initialState: { from: { x: 335, y: 410 }, to: { x: 335, y: 460 }, opacity: 0, role: 'neutral' } },
+    { id: 'a-block-attn', type: 'arrow', semanticId: 'a-block-attn', conceptId: 'repo-architecture',
+      initialState: { from: { x: 505, y: 410 }, to: { x: 510, y: 460 }, opacity: 0, role: 'neutral' } },
+    { id: 'a-block-mlp', type: 'arrow', semanticId: 'a-block-mlp', conceptId: 'repo-architecture',
+      initialState: { from: { x: 680, y: 410 }, to: { x: 680, y: 460 }, opacity: 0, role: 'neutral' } },
     { id: 'here-label', type: 'text', semanticId: 'here-label', conceptId: 'repo-architecture',
-      initialState: { text: 'you are here ↓', x: 440, y: 200, opacity: 0, typography: 'annotation', role: 'tutor' } },
+      initialState: { text: '↑ you are here', x: 405, y: 542, opacity: 0, typography: 'annotation', role: 'tutor' } },
     { id: 'breadcrumb', type: 'text', semanticId: 'breadcrumb', conceptId: 'repo-architecture',
-      initialState: { text: 'nanoGPT → model.py → Block → CausalSelfAttention.forward()', x: 40, y: 320, opacity: 0, typography: 'annotation', role: 'code' } },
-    { id: 'note', type: 'text', semanticId: 'note', initialState: { text: '', x: 40, y: 352 } },
+      initialState: { text: 'nanoGPT → model.py → Block → CausalSelfAttention.forward()', x: 40, y: 578, opacity: 0, typography: 'annotation', role: 'code' } },
+    { id: 'note', type: 'text', semanticId: 'note', initialState: { text: '', x: 40, y: 610 } },
   ],
   timeline: [
     { at: 0.0, action: 'type_text', target: 'caption', value: "before reading one function, get oriented: where does it sit in the whole repo?", duration: 1.8 },
@@ -385,11 +445,21 @@ export const codebaseOrientationScene = {
     { at: 2.8, action: 'appear', target: 'model', duration: 0.5 },
     { at: 3.4, action: 'appear', target: 'a-model-tr', duration: 0.4 },
     { at: 3.4, action: 'appear', target: 'a-model-sp', duration: 0.4 },
-    { at: 4.2, action: 'appear', target: 'here-label', duration: 0.3 },
-    { at: 4.5, action: 'highlight', target: 'model' },
-    { at: 5.0, action: 'change_text', target: 'caption', value: 'the breadcrumb below is the exact path to the function canvases 1 and 2 animated' },
-    { at: 5.4, action: 'appear', target: 'breadcrumb', duration: 0.4 },
-    { at: 6.2, action: 'type_text', target: 'note', value: 'orientation first, implementation second - knowing WHERE a function lives is half of understanding it', duration: 2.0 },
+    { at: 4.0, action: 'change_text', target: 'caption', value: 'inside model.py, the Block class defines one transformer layer' },
+    { at: 4.2, action: 'appear', target: 'a-model-block', duration: 0.3 },
+    { at: 4.2, action: 'appear', target: 'block', duration: 0.4 },
+    { at: 4.8, action: 'change_text', target: 'caption', value: 'Block owns three sub-layers - LayerNorm, self-attention, and an MLP' },
+    { at: 5.0, action: 'appear', target: 'a-block-ln', duration: 0.3 },
+    { at: 5.0, action: 'appear', target: 'a-block-attn', duration: 0.3 },
+    { at: 5.0, action: 'appear', target: 'a-block-mlp', duration: 0.3 },
+    { at: 5.2, action: 'appear', target: 'layernorm', duration: 0.4 },
+    { at: 5.2, action: 'appear', target: 'attn', duration: 0.4 },
+    { at: 5.2, action: 'appear', target: 'mlp', duration: 0.4 },
+    { at: 6.0, action: 'appear', target: 'here-label', duration: 0.3 },
+    { at: 6.3, action: 'highlight', target: 'attn' },
+    { at: 6.8, action: 'change_text', target: 'caption', value: 'Follow the path from the repository to the function we are studying.' },
+    { at: 7.2, action: 'appear', target: 'breadcrumb', duration: 0.4 },
+    { at: 8.0, action: 'type_text', target: 'note', value: 'orientation first, implementation second - knowing WHERE a function lives is half of understanding it', duration: 2.0 },
   ],
 };
 
@@ -452,8 +522,8 @@ export function staticAppReviewBlocks() {
 
     // 5. Large Codebase - Architecture Orientation.
     explanation('Large Codebase — Architecture Orientation',
-      "Before reading one function, it helps to know where it sits. nanoGPT has four real subsystems: data preparation, the model definition, training, and sampling. `model.py` is the one piece shared by both training and sampling — it's highlighted below as *you are here*, because canvases 1 and 2 already walked through what's inside it.\n\nThe breadcrumb under the diagram is the exact path from the repo root to the function those two canvases animated."),
-    animation(codebaseOrientationScene, 8.2),
+      "Before reading one function, it helps to know where it sits. nanoGPT has four real subsystems: data preparation, the model definition, training, and sampling. `model.py` is the one piece shared by both training and sampling, and inside it, the `Block` class's `CausalSelfAttention` method — the exact function explained earlier — is highlighted below as *you are here*.\n\nThe breadcrumb under the diagram is the exact path from the repo root down to that function."),
+    animation(codebaseOrientationScene, 10.2),
     table('Where the code lives', "Five files across nanoGPT's four subsystems.", ['File', 'Subsystem', 'Key symbol'], [
       ['`data/prepare.py`', 'Data Prep', 'tokenizes raw text into `train.bin` / `val.bin`'],
       ['`model.py`', 'Model', '`GPT`, `Block`, `CausalSelfAttention`'],
@@ -461,7 +531,7 @@ export function staticAppReviewBlocks() {
       ['`sample.py`', 'Sampling', 'generation from a checkpoint'],
       ['`configurator.py`', '(all)', 'plain-text CLI config overrides'],
     ]),
-    snippet("nanoGPT's CausalSelfAttention.forward() (model.py)", 'Reached by the breadcrumb above — the same function canvas 1 walks through visually.', ATTENTION_SNIPPET),
+    snippet("nanoGPT's CausalSelfAttention.forward() (model.py)", 'Reached by the breadcrumb above — the same function explained at the start of this lesson.', ATTENTION_SNIPPET),
     quiz('Why does model.py sit below Training and Sampling in the diagram, feeding both, instead of next to them in the same row?', [
       { key: 'A', text: 'Because it is a shared dependency, not a pipeline stage — both Training and Sampling load the same GPT implementation.', correct: true },
       { key: 'B', text: 'Because model.py runs after both Training and Sampling finish.' },

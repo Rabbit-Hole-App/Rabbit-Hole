@@ -22,7 +22,7 @@ console.log('blocks on board:', await canvas.locator('[data-block-id]').count())
 // timeline), not the scene title - several titles are reused verbatim as
 // the sibling explanation block's title, which would otherwise match first.
 const animations = [
-  ['How one token attends to the tokens before it', 'canvas1-attention'],
+  ['How one token attends to itself and the tokens before it', 'canvas1-attention'],
   ['each sub-layer only has to learn the change it adds', 'canvas2-transformer-block'],
   ['only the projector is new', 'canvas3-vlm'],
   ['the other two branches were predicted but never happened', 'canvas4-world-model'],
@@ -36,6 +36,7 @@ const extras = [
 ];
 
 async function shootAll(themeSlug) {
+  await page.screenshot({ path: `e2e/shots/gallery-board-full-${themeSlug}.png`, fullPage: true });
   for (const [text, slug] of [...animations, ...extras]) {
     const node = canvas.locator('[data-block-id]').filter({ hasText: text }).first();
     await node.scrollIntoViewIfNeeded();
