@@ -24,9 +24,14 @@ const uid = () => crypto.randomUUID();
 // residual stream with two taps - the same convention demo-scenes.js's own
 // residualScene established, extended to a full block.
 
+// h: 90, not the original 64 - the reviewer's "too much empty space, worst
+// in Transformer Block" finding: the row only ever used the top third of
+// the card's height. Box top (y=90) stays put, so the skip elbows' anchors
+// (pinned to that top edge) need no change - only the row's own connector
+// arrows, pinned to the row's vertical centre, move with it (90 + 90/2).
 const tbBox = (id, label, x, role) => ({
   id, type: 'box', semanticId: id, conceptId: 'transformer-block',
-  initialState: { label, x, y: 90, w: 130, h: 64, opacity: 0, role },
+  initialState: { label, x, y: 90, w: 130, h: 90, opacity: 0, role },
 });
 const tbArrow = (id, from, to) => ({
   id, type: 'arrow', semanticId: id, conceptId: 'transformer-block',
@@ -48,20 +53,39 @@ export const transformerBlockScene = {
     tbBox('ln2', 'LayerNorm', 720, 'neutral'),
     tbBox('mlp', 'MLP', 890, 'observed'),
     tbBox('add2', '+', 1060, 'output'),
-    tbArrow('a-in-ln1', { x: 180, y: 122 }, { x: 200, y: 122 }),
-    tbArrow('a-ln1-attn', { x: 350, y: 122 }, { x: 370, y: 122 }),
-    tbArrow('a-attn-add1', { x: 520, y: 122 }, { x: 540, y: 122 }),
-    tbArrow('a-add1-ln2', { x: 690, y: 122 }, { x: 710, y: 122 }),
-    tbArrow('a-ln2-mlp', { x: 860, y: 122 }, { x: 880, y: 122 }),
-    tbArrow('a-mlp-add2', { x: 1030, y: 122 }, { x: 1050, y: 122 }),
-    // The residual stream: two segments at the same height, meeting at add1 -
-    // in one side, out the other, exactly where the first residual rejoins.
-    { id: 'skip1', type: 'arrow', semanticId: 'skip1', conceptId: 'transformer-block',
-      initialState: { from: { x: 105, y: 60 }, to: { x: 552, y: 60 }, opacity: 0, role: 'input' } },
+    tbArrow('a-in-ln1', { x: 180, y: 135 }, { x: 200, y: 135 }),
+    tbArrow('a-ln1-attn', { x: 350, y: 135 }, { x: 370, y: 135 }),
+    tbArrow('a-attn-add1', { x: 520, y: 135 }, { x: 540, y: 135 }),
+    tbArrow('a-add1-ln2', { x: 690, y: 135 }, { x: 710, y: 135 }),
+    tbArrow('a-ln2-mlp', { x: 860, y: 135 }, { x: 880, y: 135 }),
+    tbArrow('a-mlp-add2', { x: 1030, y: 135 }, { x: 1050, y: 135 }),
+    // The residual stream, drawn as an elbow rather than a floating straight
+    // line: a `line` up out of the source box's own top edge, a `line`
+    // across at y=60 (clear of both boxes and the row's own connector
+    // arrows, which all sit at y=135), then an `arrow` back down into the
+    // target box's top edge. This is the same spine-and-branch decomposition
+    // case 08 of the illustrated-transformer benchmark uses for a residual
+    // bypass ("a residual connection needs an arrow that visually goes
+    // AROUND a box, not just to it - arrows are a single straight segment,
+    // so 'around' has to be built... composed from two `line` objects... and
+    // one `arrow` object") - not a new primitive, the existing vocabulary
+    // used the way the benchmark already proved it. The old skip1/skip2 were
+    // a single arrow floating at y=60 that never touched either box, reading
+    // as an unrelated blue line rather than a residual path.
+    { id: 'skip1-up', type: 'line', semanticId: 'skip1-up', conceptId: 'transformer-block',
+      initialState: { from: { x: 105, y: 90 }, to: { x: 105, y: 60 }, opacity: 0, role: 'input' } },
+    { id: 'skip1-across', type: 'line', semanticId: 'skip1-across', conceptId: 'transformer-block',
+      initialState: { from: { x: 105, y: 60 }, to: { x: 615, y: 60 }, opacity: 0, role: 'input' } },
+    { id: 'skip1-in', type: 'arrow', semanticId: 'skip1-in', conceptId: 'transformer-block',
+      initialState: { from: { x: 615, y: 60 }, to: { x: 615, y: 90 }, opacity: 0, role: 'input' } },
     { id: 'skip1-label', type: 'text', semanticId: 'skip1-label', conceptId: 'transformer-block',
       initialState: { text: 'residual: x carried forward', x: 130, y: 38, opacity: 0, typography: 'annotation', role: 'input' } },
-    { id: 'skip2', type: 'arrow', semanticId: 'skip2', conceptId: 'transformer-block',
-      initialState: { from: { x: 615, y: 60 }, to: { x: 1062, y: 60 }, opacity: 0, role: 'input' } },
+    { id: 'skip2-up', type: 'line', semanticId: 'skip2-up', conceptId: 'transformer-block',
+      initialState: { from: { x: 615, y: 90 }, to: { x: 615, y: 60 }, opacity: 0, role: 'input' } },
+    { id: 'skip2-across', type: 'line', semanticId: 'skip2-across', conceptId: 'transformer-block',
+      initialState: { from: { x: 615, y: 60 }, to: { x: 1125, y: 60 }, opacity: 0, role: 'input' } },
+    { id: 'skip2-in', type: 'arrow', semanticId: 'skip2-in', conceptId: 'transformer-block',
+      initialState: { from: { x: 1125, y: 60 }, to: { x: 1125, y: 90 }, opacity: 0, role: 'input' } },
     { id: 'skip2-label', type: 'text', semanticId: 'skip2-label', conceptId: 'transformer-block',
       initialState: { text: 'residual: carried forward again', x: 660, y: 38, opacity: 0, typography: 'annotation', role: 'input' } },
     { id: 'shape-input', type: 'text', semanticId: 'shape-input', conceptId: 'transformer-block',
@@ -78,7 +102,9 @@ export const transformerBlockScene = {
     { at: 1.6, action: 'appear', target: 'a-ln1-attn', duration: 0.3 },
     { at: 1.6, action: 'appear', target: 'attn', duration: 0.4 },
     { at: 2.6, action: 'change_text', target: 'caption', value: 'attention mixes information across positions - but the residual carries x forward untouched' },
-    { at: 2.8, action: 'appear', target: 'skip1', duration: 0.8 },
+    { at: 2.8, action: 'appear', target: 'skip1-up', duration: 0.4 },
+    { at: 2.8, action: 'appear', target: 'skip1-across', duration: 0.4, sound: 'connect' },
+    { at: 3.0, action: 'appear', target: 'skip1-in', duration: 0.4 },
     { at: 2.8, action: 'appear', target: 'skip1-label', duration: 0.4 },
     { at: 3.4, action: 'appear', target: 'a-attn-add1', duration: 0.3 },
     { at: 3.4, action: 'appear', target: 'add1', duration: 0.4 },
@@ -87,7 +113,9 @@ export const transformerBlockScene = {
     { at: 4.4, action: 'appear', target: 'ln2', duration: 0.4 },
     { at: 5.0, action: 'appear', target: 'a-ln2-mlp', duration: 0.3 },
     { at: 5.0, action: 'appear', target: 'mlp', duration: 0.4 },
-    { at: 5.6, action: 'appear', target: 'skip2', duration: 0.8 },
+    { at: 5.6, action: 'appear', target: 'skip2-up', duration: 0.4 },
+    { at: 5.6, action: 'appear', target: 'skip2-across', duration: 0.4, sound: 'connect' },
+    { at: 5.8, action: 'appear', target: 'skip2-in', duration: 0.4 },
     { at: 5.6, action: 'appear', target: 'skip2-label', duration: 0.4 },
     { at: 6.4, action: 'appear', target: 'a-mlp-add2', duration: 0.3 },
     { at: 6.4, action: 'appear', target: 'add2', duration: 0.4 },
@@ -101,73 +129,111 @@ export const transformerBlockScene = {
 };
 
 // --- canvas 3: VLM - Image to Patches to Projector to LLM --------------------
-// A real local asset (packages/web/public/icon-512.png) stands in for the
-// photograph, so `image`'s same-origin src rule is exercised against a real
-// file rather than the test suite's own favicon. The patch grid is
-// deliberately a plain, valueless grid - GAP NOTE: a grid with no `values`
+// Repaired post-review: the original used /icon-512.png (a generic app icon)
+// with the patch grid drawn as a SEPARATE object beside it, so the lesson
+// read "icon -> grid -> encoder" instead of "image -> sliced into patches ->
+// encoder" - the learner never saw the transformation happen. Fixed with a
+// real photograph (packages/web/public/lesson-assets/vlm-patch-source.jpg, a
+// square crop fetched from Pexels at authoring time - never a runtime fetch,
+// and never a third-party or data: src: `image`'s same-origin policy in
+// animation-scene.js requires a local, same-origin path) and the patch grid
+// drawn AT THE SAME x/y/w/h as the image, one object layered directly on the
+// other, so the grid reads as dividing lines ON the photo rather than a
+// second, unrelated picture next to it. `patch-detail` is one of those 16
+// patches (row 1, column 2 of the 4x4 grid) pre-cropped to its own file
+// (vlm-patch-detail.png) and shown enlarged beside the grid, with a short
+// arrow back to the cell it came from - "ideally one patch enlarged to show
+// what a single patch is", per the review.
+//
+// Both files live under public/lesson-assets/, not public/ directly: the
+// dev worker (packages/web/dev-worker.js) and the live control-plane worker
+// (packages/control-plane/src/index.js) each only forward a fixed allowlist
+// of top-level paths to their ASSETS binding (/static/, /icon-*, favicon,
+// apple-touch-icon) - anything else falls through to the app worker and 404s
+// as the SPA shell instead of the image. /lesson-assets/ is a new entry in
+// that same allowlist (both workers), the minimal fix that makes a real,
+// locally-hosted lesson image servable at all, and the one any future scene
+// needing a real image will also want.
+//
+// The grid still carries no `values` - GAP NOTE: a grid with no `values`
 // still paints every cell in its role's own fill (AnimatedScene.jsx's
 // DataShape draws `look.fill` regardless of whether a cell has a numeral), so
 // this is a real, working patch overlay with no numeric claim attached and no
-// matrixKind needed - nothing here is a computed relationship.
+// matrixKind needed - nothing here is a computed relationship. Its `input`
+// role fill sits in the soft tier (6-28%, scene-vocab.js's FILL), which is
+// exactly what lets the photograph show through underneath rather than being
+// covered by it.
 
 export const vlmScene = {
   id: 'vlm-image-to-llm',
   title: 'VLM — Image to Patches to Projector to LLM',
-  width: 1300,
-  height: 300,
-  duration: 10.6,
+  width: 1080,
+  height: 500,
+  duration: 12.4,
   objects: [
     { id: 'caption', type: 'text', semanticId: 'caption', initialState: { text: '', x: 40, y: 26 } },
     { id: 'image', type: 'image', semanticId: 'source-image', conceptId: 'vlm-pipeline',
-      initialState: { src: '/icon-512.png', x: 40, y: 90, w: 120, h: 120, opacity: 0, role: 'input' } },
-    { id: 'a-img-patch', type: 'arrow', semanticId: 'a-img-patch', conceptId: 'vlm-pipeline',
-      initialState: { from: { x: 170, y: 150 }, to: { x: 190, y: 150 }, opacity: 0, role: 'neutral' } },
+      initialState: { src: '/lesson-assets/vlm-patch-source.jpg', x: 40, y: 70, w: 200, h: 200, opacity: 0, role: 'input' } },
+    // Overlaid on the image above, not beside it: same x/y/w/h, drawn after
+    // (so it paints on top), its soft-tier fill translucent enough to still
+    // show the photo through the grid lines.
     { id: 'patch-grid', type: 'grid', semanticId: 'patch-grid', conceptId: 'vlm-pipeline',
-      initialState: { label: '16 fixed-size patches', x: 200, y: 90, rows: 4, cols: 4, cell: 30, opacity: 0, role: 'input' } },
+      initialState: { label: '16 fixed-size patches', x: 40, y: 70, rows: 4, cols: 4, cell: 50, opacity: 0, role: 'input' } },
+    // Row 1, column 2 of the grid above (x: 40+2*50=140..190, y: 70+1*50=
+    // 120..170) - the exact region vlm-patch-detail.png was cropped from.
+    { id: 'detail-arrow', type: 'arrow', semanticId: 'detail-arrow', conceptId: 'vlm-pipeline',
+      initialState: { from: { x: 165, y: 145 }, to: { x: 280, y: 180 }, opacity: 0, role: 'neutral' } },
+    { id: 'patch-detail', type: 'image', semanticId: 'patch-detail', conceptId: 'vlm-pipeline',
+      initialState: { src: '/lesson-assets/vlm-patch-detail.png', x: 280, y: 110, w: 140, h: 140, opacity: 0, role: 'input' } },
+    { id: 'detail-label', type: 'text', semanticId: 'detail-label', conceptId: 'vlm-pipeline',
+      initialState: { text: 'one patch, magnified', x: 280, y: 264, opacity: 0, typography: 'annotation' } },
     { id: 'a-patch-enc', type: 'arrow', semanticId: 'a-patch-enc', conceptId: 'vlm-pipeline',
-      initialState: { from: { x: 330, y: 150 }, to: { x: 350, y: 150 }, opacity: 0, role: 'neutral' } },
+      initialState: { from: { x: 140, y: 270 }, to: { x: 120, y: 340 }, opacity: 0, role: 'neutral' } },
     { id: 'encoder', type: 'box', semanticId: 'vision-encoder', conceptId: 'vlm-pipeline',
-      initialState: { label: 'Vision Encoder', x: 360, y: 118, w: 140, h: 64, opacity: 0, role: 'observed' } },
+      initialState: { label: 'Vision Encoder', x: 40, y: 340, w: 160, h: 70, opacity: 0, role: 'observed' } },
     { id: 'a-enc-vtok', type: 'arrow', semanticId: 'a-enc-vtok', conceptId: 'vlm-pipeline',
-      initialState: { from: { x: 510, y: 150 }, to: { x: 530, y: 150 }, opacity: 0, role: 'neutral' } },
+      initialState: { from: { x: 200, y: 375 }, to: { x: 240, y: 375 }, opacity: 0, role: 'neutral' } },
     { id: 'vtoken', type: 'strip', semanticId: 'visual-tokens', conceptId: 'vlm-pipeline',
-      initialState: { label: 'visual tokens · dim 1152', x: 540, y: 130, cell: 40, opacity: 0, heat: true, valueScale: 'local', role: 'observed', values: [0.8, 0.3, 0.6, 0.9] } },
+      initialState: { label: 'visual tokens · dim 1152', x: 240, y: 355, cell: 40, opacity: 0, heat: true, valueScale: 'local', role: 'observed', values: [0.8, 0.3, 0.6, 0.9] } },
     { id: 'a-vtok-proj', type: 'arrow', semanticId: 'a-vtok-proj', conceptId: 'vlm-pipeline',
-      initialState: { from: { x: 710, y: 150 }, to: { x: 730, y: 150 }, opacity: 0, role: 'neutral' } },
+      initialState: { from: { x: 400, y: 375 }, to: { x: 440, y: 375 }, opacity: 0, role: 'neutral' } },
     { id: 'projector', type: 'box', semanticId: 'projector', conceptId: 'vlm-pipeline',
-      initialState: { label: 'Projector', x: 740, y: 118, w: 140, h: 64, opacity: 0, role: 'observed' } },
+      initialState: { label: 'Projector', x: 440, y: 340, w: 160, h: 70, opacity: 0, role: 'observed' } },
     { id: 'dim', type: 'text', semanticId: 'dim-annotation', conceptId: 'vlm-pipeline',
-      initialState: { text: '1152 → 4096', x: 750, y: 192, opacity: 0, typography: 'annotation' } },
+      initialState: { text: '1152 → 4096', x: 452, y: 428, opacity: 0, typography: 'annotation' } },
     { id: 'a-proj-ltok', type: 'arrow', semanticId: 'a-proj-ltok', conceptId: 'vlm-pipeline',
-      initialState: { from: { x: 890, y: 150 }, to: { x: 910, y: 150 }, opacity: 0, role: 'neutral' } },
+      initialState: { from: { x: 600, y: 375 }, to: { x: 640, y: 375 }, opacity: 0, role: 'neutral' } },
     { id: 'ltoken', type: 'strip', semanticId: 'language-tokens', conceptId: 'vlm-pipeline',
-      initialState: { label: 'projected tokens · dim 4096', x: 920, y: 130, cell: 40, opacity: 0, heat: true, valueScale: 'local', role: 'observed', values: [0.5, 0.7, 0.2, 0.4] } },
+      initialState: { label: 'projected tokens · dim 4096', x: 640, y: 355, cell: 40, opacity: 0, heat: true, valueScale: 'local', role: 'observed', values: [0.5, 0.7, 0.2, 0.4] } },
     { id: 'a-ltok-llm', type: 'arrow', semanticId: 'a-ltok-llm', conceptId: 'vlm-pipeline',
-      initialState: { from: { x: 1090, y: 150 }, to: { x: 1110, y: 150 }, opacity: 0, role: 'neutral' } },
+      initialState: { from: { x: 800, y: 375 }, to: { x: 840, y: 375 }, opacity: 0, role: 'neutral' } },
     { id: 'llm', type: 'box', semanticId: 'llm', conceptId: 'vlm-pipeline',
-      initialState: { label: 'Language Model', x: 1120, y: 118, w: 140, h: 64, opacity: 0, role: 'output' } },
-    { id: 'note', type: 'text', semanticId: 'note', initialState: { text: '', x: 40, y: 252 } },
+      initialState: { label: 'Language Model', x: 840, y: 340, w: 160, h: 70, opacity: 0, role: 'output' } },
+    { id: 'note', type: 'text', semanticId: 'note', initialState: { text: '', x: 40, y: 462 } },
   ],
   timeline: [
     { at: 0.0, action: 'type_text', target: 'caption', value: 'a picture is turned into tokens the language model can read', duration: 1.6 },
-    { at: 0.6, action: 'appear', target: 'image', duration: 0.4 },
-    { at: 1.2, action: 'appear', target: 'a-img-patch', duration: 0.3 },
-    { at: 1.4, action: 'appear', target: 'patch-grid', duration: 0.4 },
-    { at: 2.2, action: 'change_text', target: 'caption', value: 'the image is split into fixed-size patches, then encoded' },
-    { at: 2.4, action: 'appear', target: 'a-patch-enc', duration: 0.3 },
-    { at: 2.6, action: 'appear', target: 'encoder', duration: 0.4 },
-    { at: 3.6, action: 'appear', target: 'a-enc-vtok', duration: 0.3 },
-    { at: 3.8, action: 'appear', target: 'vtoken', duration: 0.4 },
-    { at: 4.6, action: 'change_text', target: 'caption', value: "a projector maps each visual token into the language model's own width" },
-    { at: 4.8, action: 'appear', target: 'a-vtok-proj', duration: 0.3 },
-    { at: 5.0, action: 'appear', target: 'projector', duration: 0.4 },
-    { at: 5.4, action: 'appear', target: 'dim', duration: 0.3 },
-    { at: 6.0, action: 'appear', target: 'a-proj-ltok', duration: 0.3 },
-    { at: 6.2, action: 'appear', target: 'ltoken', duration: 0.4 },
-    { at: 7.0, action: 'appear', target: 'a-ltok-llm', duration: 0.3 },
-    { at: 7.2, action: 'appear', target: 'llm', duration: 0.4 },
-    { at: 8.0, action: 'highlight', target: 'projector' },
-    { at: 8.4, action: 'type_text', target: 'note', value: 'only the projector is new - the vision encoder and the language model are both pretrained separately', duration: 2.0 },
+    { at: 0.6, action: 'appear', target: 'image', duration: 0.4, sound: 'soft_pop' },
+    { at: 1.4, action: 'appear', target: 'patch-grid', duration: 0.4, sound: 'split' },
+    { at: 2.2, action: 'change_text', target: 'caption', value: 'the image is sliced into fixed-size patches - here is one of them, close up' },
+    { at: 2.4, action: 'appear', target: 'detail-arrow', duration: 0.3 },
+    { at: 2.6, action: 'appear', target: 'patch-detail', duration: 0.4 },
+    { at: 2.6, action: 'appear', target: 'detail-label', duration: 0.3 },
+    { at: 4.2, action: 'change_text', target: 'caption', value: 'every patch like this one is encoded, then the encoder is done' },
+    { at: 4.4, action: 'appear', target: 'a-patch-enc', duration: 0.3 },
+    { at: 4.6, action: 'appear', target: 'encoder', duration: 0.4, sound: 'compute' },
+    { at: 5.6, action: 'appear', target: 'a-enc-vtok', duration: 0.3 },
+    { at: 5.8, action: 'appear', target: 'vtoken', duration: 0.4 },
+    { at: 6.6, action: 'change_text', target: 'caption', value: "a projector maps each visual token into the language model's own width" },
+    { at: 6.8, action: 'appear', target: 'a-vtok-proj', duration: 0.3 },
+    { at: 7.0, action: 'appear', target: 'projector', duration: 0.4 },
+    { at: 7.4, action: 'appear', target: 'dim', duration: 0.3 },
+    { at: 8.0, action: 'appear', target: 'a-proj-ltok', duration: 0.3 },
+    { at: 8.2, action: 'appear', target: 'ltoken', duration: 0.4 },
+    { at: 9.0, action: 'appear', target: 'a-ltok-llm', duration: 0.3 },
+    { at: 9.2, action: 'appear', target: 'llm', duration: 0.4 },
+    { at: 10.0, action: 'highlight', target: 'projector', sound: 'select' },
+    { at: 10.4, action: 'type_text', target: 'note', value: 'only the projector is new - the vision encoder and the language model are both pretrained separately', duration: 2.0 },
   ],
 };
 

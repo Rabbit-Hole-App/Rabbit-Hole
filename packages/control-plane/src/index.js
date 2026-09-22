@@ -2350,7 +2350,7 @@ export default {
       // /dash is a clean alias while the poisoned /apps cache entry ages out.
       if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path.startsWith('/apps/'))
         return new Response(SHELL, { headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' } });
-      if (env.ASSETS && (path.startsWith('/static/') || path === '/favicon.svg' || path.startsWith('/icon-') || path === '/apple-touch-icon.png')) return env.ASSETS.fetch(req);
+      if (env.ASSETS && (path.startsWith('/static/') || path.startsWith('/lesson-assets/') || path === '/favicon.svg' || path.startsWith('/icon-') || path === '/apple-touch-icon.png')) return env.ASSETS.fetch(req);
       // the dashboard IS the front page — /apps bounces to /login when there is no session
       if (path === '/') return new Response(null, { status: 302, headers: { Location: '/apps' } });
       return html('<p>Not found.</p>', 404);

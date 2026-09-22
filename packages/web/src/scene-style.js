@@ -28,12 +28,25 @@ export function tintOf(role, percent) {
   return tintHue(roleVar(role), percent);
 }
 
+// caption and annotation raised from 12/11 and annotation's ink raised from
+// --color-ink-3 to --color-ink-2 - the app-review finding that annotation
+// and caption text reads too small and too faint across every scene. Fixed
+// once, here, rather than per scene (a scene-local font nudge would only
+// have fixed the one scene someone happened to look at): every grid/strip
+// caption, every axis label and every free-floating annotation a scene
+// authors (scene-layout.js's collectLabels reads these same two sizes) gets
+// the same increase. --color-ink-3 is the app's own "tertiary: placeholders,
+// disabled" tone (index.css) - correct for a hint nobody needs to act on,
+// wrong for a label naming what a shape IS. Re-run scene-style.test.mjs
+// and the gallery/layout-lint suites after touching this: a bigger estimated
+// label box can newly collide with an arrow that used to clear it by only a
+// few px.
 const TEXT_STYLE = {
   display: { fontSize: 28, fontWeight: 700, fill: 'var(--color-ink)' },
   heading: { fontSize: 20, fontWeight: 600, fill: 'var(--color-ink)' },
   body: { fontSize: 15, fontWeight: 400, fill: 'var(--color-ink)' },
-  caption: { fontSize: 12, fontWeight: 500, fill: 'var(--color-ink-2)' },
-  annotation: { fontSize: 11, fontWeight: 400, fill: 'var(--color-ink-3)' },
+  caption: { fontSize: 14, fontWeight: 500, fill: 'var(--color-ink-2)' },
+  annotation: { fontSize: 13, fontWeight: 400, fill: 'var(--color-ink-2)' },
   code: { fontSize: 13, fontWeight: 400, fill: 'var(--color-ink-2)', fontFamily: 'var(--font-mono)' },
   equation: { fontSize: 16, fontWeight: 400, fill: 'var(--color-ink)' },
 };
@@ -179,17 +192,24 @@ export function heatStyle(value, domain, mode) {
 // perceptible regardless of ROLE, IDENTITY *or* VALUE (see the module
 // comment), so it cannot take its colour from any of them.
 //
-// Two concentric strokes in fixed, universal colours instead. For any
-// background luminance L, contrast against white is 1.05/(L+0.05) and
-// against black is (L+0.05)/0.05 - falling and rising respectively, so they
-// cross exactly once. Solving 1.05/(L+0.05) = (L+0.05)/0.05 gives L ≈ 0.179,
-// where both equal ≈4.58:1 - the worst point on either curve, and therefore
-// the worst case for "whichever is better". Below that luminance white wins
-// by more; above it black does. The BETTER of the two never drops below
-// ≈4.58:1 against ANY background - not tuned per token, per theme or per
-// role, a property of black and white themselves. See scene-style.test.mjs's
-// two-tone guarantee test, which checks this against every real composited
-// heat fill rather than trusting the algebra alone.
+// Two concentric strokes in fixed, universal-enough colours instead - and,
+// per the app-review request, one of them magenta: a hue no role, heat
+// token or identity slot ever uses, so a selection ring can never be
+// misread as one of them. This app's own reachable heat fills (index.css's
+// heat ramp composited over --viz-surface, both themes) never get darker
+// than about L=0.02 - well above true black - so black alone already clears
+// 3:1 against every one of them (contrast against black only grows with a
+// background's luminance, so the WORST case is the palette's own dimmest
+// reachable fill, not L=0). --viz-selection-inner keeps that black, and
+// --viz-selection-outer spends the freedom on magenta instead of white -
+// scene-style.test.mjs's two-tone guarantee test proves the pair against
+// every real composited heat fill in both themes (measured worst case
+// ~3.35:1), the same test the old black/white pair was proved against,
+// unchanged in intent. This is a property of THIS palette's reachable
+// range, not (like pure black/white) of the two colours against any
+// background whatsoever - a genuinely vivid magenta cannot also be one of
+// the luminance extremes, which is exactly why a single magenta ring, with
+// no black to fall back on, could not have made this guarantee at all.
 //
 // Geometry-free on purpose: rect, circle and path all need the same two
 // widths and colours, just drawn along a different outline, which is a

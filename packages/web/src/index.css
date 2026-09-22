@@ -106,11 +106,20 @@ html {
      derived from role, identity or heat ink (see scene-style.js's
      selectionStyle comment for why: page ink IS the frame colour for a role
      that aliases it, so a value-derived ring vanished into the gridlines on
-     a pale cell). Pure black and white guarantee that whichever one reads
-     better against a given background never drops below ~4.58:1 - a property
-     of the two colours themselves, so both stay identical in .dark below. */
-  --viz-selection-outer: #000000;
-  --viz-selection-inner: #ffffff;
+     a pale cell). Magenta per the app-review request - deliberately outside
+     the semantic palette (no role, heat token or identity slot uses this
+     hue), so a selection ring can never be misread as one of them. Paired
+     with pure black rather than white: against every reachable heat fill in
+     both themes (scene-style.test.mjs's two-tone guarantee test - the same
+     test the old black/white pair proved itself against, unchanged in
+     intent), black alone already clears 3:1 down to this palette's lowest
+     reachable luminance, so black stays the universal-enough companion and
+     magenta only has to read well against everything ABOVE that, which it
+     does with margin (measured worst case ~3.35:1, both themes). Kept
+     identical in .dark below - the pairing was verified against the DARK
+     theme's own reachable fills too, not assumed from light. */
+  --viz-selection-outer: #ff9bf0;
+  --viz-selection-inner: #000000;
   /* IDENTITY: "which peer is this", never "what kind of thing is this" - a
      categorical palette in its own hue territory, not borrowed from any role
      or heat token, so a peer can never be misread as implying a role's
@@ -183,8 +192,11 @@ html {
   --viz-ink-high: #000000;
   --viz-ink-solid: #000000;
   --viz-heat-positive-ink-mid: #ffffff;
-  --viz-selection-outer: #000000;
-  --viz-selection-inner: #ffffff;
+  /* Same pairing as the light block above, and the same reason - see its
+     comment. Verified separately against THIS theme's own reachable heat
+     fills (measured worst case ~3.35:1), not just kept identical on faith. */
+  --viz-selection-outer: #ff9bf0;
+  --viz-selection-inner: #000000;
   /* IDENTITY, dark - light block above holds the rationale. Each clears 3:1
      against --viz-surface (identity-1 6.08:1, identity-2 13.59:1, identity-3
      4.47:1); each sits at least 60 RGB units from every heat token in this

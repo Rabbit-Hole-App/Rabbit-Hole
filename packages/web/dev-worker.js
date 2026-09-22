@@ -135,7 +135,7 @@ export default {
         headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
       });
     }
-    if (path.startsWith('/static/') || path.startsWith('/audio/') || path === '/favicon.svg' || path.startsWith('/icon-') || path === '/apple-touch-icon.png') {
+    if (path.startsWith('/static/') || path.startsWith('/audio/') || path.startsWith('/lesson-assets/') || path === '/favicon.svg' || path.startsWith('/icon-') || path === '/apple-touch-icon.png') {
       return env.ASSETS.fetch(req);
     }
     // Keep the dev request URL so sign-in links and cookies stay on the dev host.
