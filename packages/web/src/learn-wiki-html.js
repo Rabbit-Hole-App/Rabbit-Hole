@@ -67,10 +67,14 @@ export const keepsAttribute = name => ATTRIBUTES.has(String(name || '').toLowerC
 export function linkAttributes(href, current) {
   const link = classifyHref(href, current);
   if (link.kind === 'external') return { 'data-wiki': 'external', href: link.url, target: '_blank', rel: 'noreferrer nofollow' };
-  if (link.kind === 'article') return { 'data-wiki': 'article', 'data-wiki-title': link.title, ...(link.anchor ? { 'data-wiki-anchor': link.anchor } : {}) };
-  if (link.kind === 'section' && link.anchor) return { 'data-wiki': 'section', 'data-wiki-anchor': link.anchor };
-  if (link.kind === 'reference') return { 'data-wiki': 'reference', 'data-wiki-anchor': link.anchor };
-  if (link.kind === 'file') return { 'data-wiki': 'file', 'data-wiki-title': link.title };
+  // Stripping href also strips what makes an anchor a link: it stops being
+  // announced as one and stops being reachable by keyboard. These put both
+  // back; LearnWiki treats Enter on one as a press.
+  const navigable = { role: 'link', tabindex: '0' };
+  if (link.kind === 'article') return { ...navigable, 'data-wiki': 'article', 'data-wiki-title': link.title, ...(link.anchor ? { 'data-wiki-anchor': link.anchor } : {}) };
+  if (link.kind === 'section' && link.anchor) return { ...navigable, 'data-wiki': 'section', 'data-wiki-anchor': link.anchor };
+  if (link.kind === 'reference') return { ...navigable, 'data-wiki': 'reference', 'data-wiki-anchor': link.anchor };
+  if (link.kind === 'file') return { ...navigable, 'data-wiki': 'file', 'data-wiki-title': link.title };
   // A red link and anything unusable keep their text and lose the affordance:
   // no href, so the app's global link styling has nothing to dress up.
   return { 'data-wiki': 'dead' };

@@ -203,7 +203,15 @@ characters, so HTML stored under any other name would exhaust the localStorage
 quota and take the learner's ink with it. The article is refetched on mount.
 
 Unlike the PDF card this is not an iframe, so keyboard events stay in our
-document and copy, paste, undo and delete keep working while it is focused.
+document and copy, paste, undo and delete keep working while it is focused. As
+with the PDF card the first press selects it and the second reaches the
+article, so a drag on the board does not begin inside a document the learner is
+only reading. The card tracks the article it has navigated to itself, because
+navigation is deliberately not written to the block.
+
+Stripping `href` also strips what makes an anchor a link: every navigable one
+carries `role="link"` and `tabindex="0"`, and Enter on a focused link is treated
+as a press.
 
 ## What the agent is given
 

@@ -305,6 +305,11 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
 // sanitized and rendered in our own document, so canvas keys keep working while
 // it has focus and the card can say which section is on screen.
 function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove, onChange, onLayout, onConnect, onSnap, onWiki }) {
+  // Navigation is not written to the block - changeBlock snapshots, and link
+  // clicks must not spend the learner's undo history - so the card tracks what
+  // it is showing itself. Without this, scrolling and selecting after a
+  // navigation still reported the article the card was created with.
+  const [showing, setShowing] = useState({ title: block.title, section: block.section || 0 });
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={COLUMN} height={block.h || 640} autoMax={undefined} saved={{ w: block.w, h: block.h }}
@@ -318,9 +323,9 @@ function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove,
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl border-t border-line"
         onPointerDown={event => { if (selected) event.stopPropagation(); }}>
         <LearnWiki app={appName} compact article={{ title: block.title, section: block.section || 0 }}
-          onNavigate={next => onWiki?.({ id: block.id, ...next })}
-          onSection={section => onWiki?.({ id: block.id, title: block.title, section })}
-          onSelect={text => onWiki?.({ id: block.id, title: block.title, section: block.section || 0, selection: text })} />
+          onNavigate={next => { setShowing(next); onWiki?.({ id: block.id, ...next }); }}
+          onSection={section => { setShowing(previous => ({ ...previous, section })); onWiki?.({ id: block.id, title: showing.title, section }); }}
+          onSelect={text => onWiki?.({ id: block.id, title: showing.title, section: showing.section, selection: text })} />
       </div>
     </CanvasNode>
   );

@@ -165,6 +165,19 @@ ok('the card keeps the wheel, so it scrolls instead of panning the canvas', (awa
 ok('the card is still on the canvas after a reload', (await card.count()) >= 1);
 ok('and still shows the article, not an empty shell', (await card.first().getByText(/Machine learning is a field of study/).count()) > 0);
 
+// Navigating inside a card must change what it reports, or a question asked
+// afterwards is about the article the card was created with.
+// A card takes the pointer only once it is selected, like the PDF card: the
+// first press selects it, so a drag on the board does not start inside a
+// document the learner is only reading.
+await card.locator('#lead').click();
+await page.waitForTimeout(400);
+await card.getByRole('link', { name: 'Neural networks', exact: true }).first().click();
+await page.waitForTimeout(2200);
+ok('a card reports the article it navigated to, not the one it was created with',
+  (await card.locator('h3').textContent()) === 'Neural network', await card.locator('h3').textContent());
+
+
 await page.screenshot({ path: 'e2e/shots/wiki-card.png' });
 await browser.close();
 process.exit(failed ? 1 : 0);

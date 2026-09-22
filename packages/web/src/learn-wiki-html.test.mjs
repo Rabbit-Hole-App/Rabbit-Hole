@@ -85,13 +85,28 @@ test('an image keeps the attributes that make it an image', () => {
 
 test('an internal link records where it goes and keeps no href', () => {
   const attributes = linkAttributes('./Neural_network#Training', 'Machine_learning');
-  assert.deepEqual(attributes, { 'data-wiki': 'article', 'data-wiki-title': 'Neural_network', 'data-wiki-anchor': 'Training' });
+  assert.deepEqual(attributes, { role: 'link', tabindex: '0', 'data-wiki': 'article', 'data-wiki-title': 'Neural_network', 'data-wiki-anchor': 'Training' });
   assert.equal('href' in attributes, false, 'a navigable link must not also be followable by the browser');
 });
 
+// Stripping href also strips what makes an anchor a link to a screen reader
+// and to the keyboard, so every kind we do navigate puts both back.
+test('every navigable link stays announced and reachable by keyboard', () => {
+  for (const href of ['./Neural_network', '#History', '#cite_note-4', './File:X.jpg']) {
+    const attributes = linkAttributes(href, 'Machine_learning');
+    assert.equal(attributes.role, 'link', href);
+    assert.equal(attributes.tabindex, '0', href);
+  }
+});
+
+test('a link that goes nowhere is not focusable either', () => {
+  assert.equal('tabindex' in linkAttributes('javascript:alert(1)'), false);
+  assert.equal('tabindex' in linkAttributes('./Nothing?action=edit&redlink=1'), false);
+});
+
 test('a link into the article on screen becomes a scroll', () => {
-  assert.deepEqual(linkAttributes('#History', 'Machine_learning'), { 'data-wiki': 'section', 'data-wiki-anchor': 'History' });
-  assert.deepEqual(linkAttributes('./Machine_learning#History', 'Machine_learning'), { 'data-wiki': 'section', 'data-wiki-anchor': 'History' });
+  assert.equal(linkAttributes('#History', 'Machine_learning')['data-wiki'], 'section');
+  assert.equal(linkAttributes('./Machine_learning#History', 'Machine_learning')['data-wiki-anchor'], 'History');
 });
 
 test('a citation becomes a scroll to the reference', () => {
@@ -122,5 +137,6 @@ test('a red link loses its affordance rather than looking broken', () => {
 });
 
 test('a file link is marked as an image, not a navigation', () => {
-  assert.deepEqual(linkAttributes('./File:Einstein.jpg'), { 'data-wiki': 'file', 'data-wiki-title': 'File:Einstein.jpg' });
+  assert.equal(linkAttributes('./File:Einstein.jpg')['data-wiki'], 'file');
+  assert.equal(linkAttributes('./File:Einstein.jpg')['data-wiki-title'], 'File:Einstein.jpg');
 });

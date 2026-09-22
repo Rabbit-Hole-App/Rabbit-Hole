@@ -126,6 +126,7 @@ export default function LearnWiki({ app, article, openAt = 0, onNavigate, onSect
     {/* data-scroll: without it the canvas wheel handler pans the board instead
         of scrolling the article inside a card. */}
     {page && <div ref={body} data-scroll onScroll={scrolled} onClick={click} onMouseUp={selected} onKeyUp={selected}
+      onKeyDown={event => { if (event.key === 'Enter') click(event); }}
       className={`wiki-article min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white px-4 py-3 ${compact ? 'text-[13px]' : 'text-sm'}`}
       // The sanitizer is the boundary: an allowlist over tags, attributes and
       // href schemes, so no style attribute, no handler and no scheme but https
