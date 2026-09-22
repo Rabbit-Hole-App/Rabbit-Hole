@@ -38,11 +38,15 @@
      setting `top` from script rather than position:fixed or a transform: both of those
      promote it to its own compositing layer, and a promoted layer cannot blend with
      the canvas below it, which kills the difference blend. */
-  #title{position:absolute;left:0;top:0;width:100%;height:100vh;
+  /* overflow clipped here, not on <body>: overflow on the body would make it a scroll
+     container and kill the sticky shaft */
+  #title{position:absolute;left:0;top:0;width:100%;height:100vh;overflow:hidden;
          display:flex;align-items:center;justify-content:center;pointer-events:none}
   /* difference blend: ink on the white page, white where it crosses the black core,
      so the title stays readable wherever the hole happens to sit behind it */
-  #title h1{font:500 190px/152px var(--display);text-align:center;
+  /* line-height is unitless so it tracks font-size as the camera closes on the text */
+  #title h1{font-family:var(--display);font-weight:500;font-size:190px;line-height:.8;
+            text-align:center;white-space:nowrap;
             color:#fff;mix-blend-mode:difference}
 
   /* ---- crop marks on the 1240px content frame (x 140 → 1380) ---- */
@@ -74,6 +78,8 @@
 (function () {
   const cv = document.getElementById('shaft');
   const title = document.getElementById('title');
+  const heading = title.querySelector('h1');
+  const TYPE = 190;                      // px at the mouth, before the camera closes in
   const ctx = cv.getContext('2d', { willReadFrequently: true });
   const W = cv.width, H = cv.height;
   const img = ctx.createImageData(W, H);
@@ -160,7 +166,16 @@
     const enter = clamp(window.scrollY / ENTER);
     const open = still ? 1 : Math.pow(1 - enter, 1.6);      // hole widens as you go in
     frame(still ? 0.8 : (performance.now() - t0) * 0.00016 + sm * 0.0022, open);
-    title.style.top = window.scrollY + 'px';   // never moves: only the camera travels
+    // The title is a fixed object in the shaft. It never moves; the camera closes on
+    // it, so it grows and finally passes us. Scale via font-size, not transform: a
+    // transform would promote the layer and kill the difference blend. Fading uses the
+    // text colour for the same reason — opacity would isolate it into its own group.
+    title.style.top = window.scrollY + 'px';
+    const near = 1 / (1 - enter * 0.88);                   // perspective-ish approach
+    heading.style.fontSize = (TYPE * near).toFixed(1) + 'px';
+    const gone = clamp((enter - 0.6) / 0.4);               // it slips past the camera
+    const v = Math.round(255 * (1 - gone));
+    heading.style.color = 'rgb(' + v + ',' + v + ',' + v + ')';
     if (!still) requestAnimationFrame(tick);                // every frame, no chug
   })();
 

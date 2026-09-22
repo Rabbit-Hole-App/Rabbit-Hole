@@ -54,8 +54,11 @@ the whole descent. `prefers-reduced-motion` freezes a single frame.
 
 ## The title
 
-"Knowledge is infinite." never moves — only the camera travels. Three details make
-that work, and each one had an obvious-looking alternative that fails:
+"Knowledge is infinite." is a fixed object down in the shaft. It never moves; the
+camera closes on it, so it grows, passes you, and is gone. Growth is
+`1 / (1 - enter * 0.88)`, which accelerates the way an approach does.
+
+Four details make that work, and each had an obvious-looking alternative that fails:
 
 - It is pinned by writing `top = window.scrollY` from script. `position: fixed` and a
   `transform` both promote the element to its own compositing layer, and **a promoted
@@ -66,6 +69,13 @@ that work, and each one had an obvious-looking alternative that fails:
 - The type is `color: #fff` with `mix-blend-mode: difference`, so it reads as ink on
   the white page and flips to white exactly where it crosses the black core. No
   scrim, no JavaScript colour switching, and it stays correct as the hole grows.
+  Note the inner ring band has to be genuinely dark, not mid-grey: `|255 - 168|` is
+  still dark, so a mid tone gives muddy letters rather than white ones.
+- It scales by writing `font-size`, and fades by driving the text colour to black.
+  A `transform` would promote the layer; `opacity` would isolate it into its own
+  group. Either one silently disables the blend. Overflow is clipped on the title
+  wrapper rather than the body, because overflow on the body would make it a scroll
+  container and break the sticky canvas.
 
 The mouth sits dead centre and stays circular in any window: `SQUASH` corrects `dy` by
 the ratio between the buffer's aspect and the canvas's. `LIGHT` reaches the far corners
