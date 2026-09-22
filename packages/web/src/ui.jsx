@@ -230,7 +230,9 @@ export function Toasts() {
   const errors = items.filter((t) => t.tone === 'error');
   return (
     <>
-      {!!notes.length && <div className="fixed bottom-4 left-4 z-50 flex flex-col gap-2">
+      {/* Always bottom-right, like the error stack - a corner the eye already
+          checks. Never bottom-left. */}
+      {!!notes.length && <div className="fixed right-4 bottom-4 z-50 flex flex-col gap-2">
         {notes.map((t) => (
           <div key={t.id} className="rounded-md bg-ink px-3 py-2.5 text-sm text-white shadow-pop animate-[toast-in_150ms_ease-out]">
             {t.msg}

@@ -538,10 +538,11 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
         ? '-rotate-1 overflow-hidden rounded-sm border border-[#f0d9a8] bg-[#fef3c7] p-3 text-[13px] leading-snug text-[#6b4e0b] shadow-md'
         : `min-w-24 -mx-1 -my-0.5 rounded border border-transparent px-1 py-0.5 leading-snug ${tool === 'select' ? 'hover:border-line' : ''}`} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
       onPointerDown={down} onDoubleClick={startEdit}>
-      {/* A fresh or reopened text box offers its ladder right there - H1 to
-          text - instead of asking the learner to find the style panel.
-          pointerdown is swallowed so choosing a level never blurs the text. */}
-      {editing && !sticky && item.kind === 'text' && onLevel && (
+      {/* A selected or editing text box offers its ladder right there - H1 to
+          text - instead of asking the learner to find the style panel. One
+          click reaches it; no double-click needed. pointerdown is swallowed
+          so choosing a level never blurs or deselects the text. */}
+      {!sticky && item.kind === 'text' && onLevel && (editing || (selected && tool === 'select')) && (
         <div role="group" aria-label="Text level" data-keep-focus style={{ fontSize: 12, fontWeight: 400 }}
           className="absolute bottom-full left-0 z-20 mb-1 flex items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 shadow-md"
           onPointerDown={event => { event.preventDefault(); event.stopPropagation(); }}>
@@ -556,17 +557,21 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
       <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder={sticky ? 'Note…' : 'Text…'}
         onBlur={e => { setEditing(false); const text = e.currentTarget.textContent; shown.current = text; onChange(item.id, text); }}
         className={`outline-none ${sticky ? 'h-full empty:before:text-[#b08a3e]' : 'empty:before:opacity-50'} empty:before:content-[attr(data-placeholder)]`}>{shown.current}</div>
-      {/* Text gets the same corner handle as a note: the box scales, the type
-          does not - wrapping is what changes, never the font size. */}
+      {/* Text gets the same corner control as a note: the box scales, the
+          type does not - wrapping is what changes, never the font size. The
+          glyph is the card nodes' diagonal-lines corner, not a square. */}
       {(sticky || item.kind === 'text') && selected && tool === 'select' && (
-        <span aria-label={sticky ? 'Resize note' : 'Resize text box'} className="absolute -right-1.5 -bottom-1.5 h-3 w-3 cursor-nwse-resize rounded-sm border border-[#2383e2] bg-white"
+        <button type="button" aria-label={sticky ? 'Resize note' : 'Resize text box'} title="Resize"
+          className={`absolute -right-0.5 -bottom-0.5 z-10 cursor-nwse-resize p-1 ${sticky ? 'text-[#b08a3e] hover:text-[#6b4e0b]' : 'text-ink-3 hover:text-ink-2'}`}
           onPointerDown={event => {
             if (event.button !== 0) return;
             onGesture();
             const box = sticky ? null : event.currentTarget.parentElement.getBoundingClientRect();
             const start = sticky ? { x: item.w || 160, y: item.h || 160 } : { x: item.w || box.width / zoom, y: item.h || box.height / zoom };
             startDrag(event, start, (w, h) => onResize(item.id, Math.max(sticky ? 80 : 96, w), Math.max(sticky ? 80 : 28, h)), zoom);
-          }} />
+          }}>
+          <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg>
+        </button>
       )}
     </div>
   );
@@ -902,11 +907,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     setPresenting(at);
     frame(steps[at].boxes, 64, 1.6);
   };
+  // Returns whether presenting actually started, so the page only rearranges
+  // its chrome (closing the side panel) around a presentation that exists.
   const startPresenting = () => {
     stepsRef.current = presentSteps(blocksRef.current, boundsRef.current);
-    if (!stepsRef.current.length) { toast('Add a section or a card to present.'); return; }
+    if (!stepsRef.current.length) { toast('Add a section or a card to present.'); return false; }
     setSelected(null);
     showStep(0);
+    return true;
   };
   const stopPresenting = () => { setPresenting(null); zoomFit(); };
   const showStepRef = useRef(showStep);

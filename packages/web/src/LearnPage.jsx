@@ -809,14 +809,14 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           <input aria-label="Canvas title" value={canvasTitle} placeholder={courseTitle || app.repo || app.name}
             onChange={event => setCanvasTitle(event.target.value)} onBlur={event => saveTitle(event.target.value)}
             onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
-            className="h-8 w-48 min-w-16 shrink truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none placeholder:text-ink-2 hover:border-line focus:border-line" />
+            className="h-8 min-w-16 max-w-96 shrink truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none [field-sizing:content] placeholder:text-ink-2 hover:border-line focus:border-line" />
           <CanvasMenubar menus={canvasMenus} />
           {paperSearchOpen && <PaperSearch app={app.name} onPick={openPaper} onClose={() => setPaperSearchOpen(false)} />}
           {wikiSearchOpen && <WikiSearch app={app.name} onPick={page => openWiki({ title: page.title })} onClose={() => setWikiSearchOpen(false)} />}
           {videoSearchOpen && <VideoSearch app={app.name} onPick={video => addVideo(video)} onClose={() => setVideoSearchOpen(false)} />}
           <div className="flex items-center gap-0.5">
             <button type="button" title="Present" aria-label="Present"
-              onClick={() => { setPanelOpen(false); canvasApi.current?.present(); }}
+              onClick={() => { if (canvasApi.current?.present()) setPanelOpen(false); }}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Play size={15} strokeWidth={1.8} /></button>
             <button type="button" title={shareCopied ? 'Link copied' : 'Copy a link to this canvas'} aria-label="Share"
               onClick={() => { navigator.clipboard?.writeText(window.location.href).then(() => { setShareCopied(true); setTimeout(() => setShareCopied(false), 1600); }).catch(() => toast(window.location.href)); }}

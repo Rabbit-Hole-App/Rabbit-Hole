@@ -41,6 +41,8 @@ const item = page.locator('[data-item-id="t1"]');
 await item.click();
 const handle = page.locator('[aria-label="Resize text box"]');
 ok('the text box has the corner handle', (await handle.count()) === 1);
+ok('one click shows the level ladder - no double-click', (await page.locator('[aria-label="Text level"]').count()) === 1);
+ok('the handle is the card glyph, not a square', (await handle.locator('svg path').count()) === 1);
 const before = await item.boundingBox();
 const grip = await handle.boundingBox();
 await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
