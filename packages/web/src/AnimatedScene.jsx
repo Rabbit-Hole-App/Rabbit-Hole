@@ -544,7 +544,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop 
   );
 }
 
-export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskRegion }) {
+export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskRegion, onAsk = null }) {
   const [error, setError] = useState('');
   const [scene, setScene] = useState(null);
   const [time, setTime] = useState(block.time || 0);
@@ -668,7 +668,8 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
     <div className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
       {interactive && evaluated && (
         <SceneControls declarations={evaluated.declarations} inputs={evaluated.inputs}
-          data={block.scene.exampleData} onInput={setInput} onReset={resetExperiment} />
+          data={block.scene.exampleData} onInput={setInput} onReset={resetExperiment}
+          onAsk={onAsk ? () => onAsk(latest.current) : null} />
       )}
       <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-white">
         <Frame scene={scene} state={state} selecting={selecting} marked={block.marked} picked={block.selectedObject} pop={pop}

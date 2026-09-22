@@ -440,7 +440,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
           </button>
         </div>
       )}
-      <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} />
+      <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} onAsk={onAsk} />
     </CanvasNode>
   );
 }
@@ -719,7 +719,7 @@ function ToolButton({ Icon, label, active, onPick }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null }) {
   const [tool, setTool] = useState('select');
   const [insertOpen, setInsertOpen] = useState(false); // dev-only lesson-block workbench menu
   const [insertFilter, setInsertFilter] = useState('');
@@ -1101,11 +1101,47 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     return () => window.removeEventListener('keydown', key, true);
   }, []);
   // The Ask-in-chat button on a selected block arms the dock composer with
-  // that block as context; plain selection stays just a selection.
-  const askBlock = block => {
-    const described = describeBlock(block);
-    if (described) onAskTargetRef.current?.({ id: block.id, ...described });
+  // that block as context; plain selection stays just a selection. The armed
+  // text is a getter the composer resolves AT SEND, reading the block as it
+  // is then - a learner who changes an input after arming still sends the
+  // state they can see, and a deleted block says so instead of silently
+  // becoming a question about something else.
+  const liveAskText = (id, armed) => () => {
+    const current = present.current.blocks.find(entry => entry.id === id);
+    const described = current && describeBlock(current);
+    return described?.text ?? `${armed.text}${String.fromCharCode(10)}[Warning: this block was deleted from the canvas after the question was attached; the state above is the last one the learner saw.]`;
   };
+  const armTarget = block => {
+    const described = describeBlock(block);
+    if (described) onAskTargetRef.current?.({ id: block.id, ...described, text: liveAskText(block.id, described) });
+    return !!described;
+  };
+  const askBlock = block => {
+    if (armTarget(block)) window.dispatchEvent(new Event('small:ask-focus'));
+  };
+  // Keep the armed chip's label honest while the learner keeps experimenting:
+  // a changed input re-arms the same target with its fresh description, and a
+  // deleted target flips to a visible warning rather than being dropped.
+  const lastArmed = useRef(null);
+  useEffect(() => {
+    if (!askTargetId) { lastArmed.current = null; return; }
+    const current = blocks.find(entry => entry.id === askTargetId);
+    // Untouched blocks keep their identity through every setBlocks map, so a
+    // same-reference armed block means nothing about IT changed - re-arming
+    // then would re-render the composer once per frame of an unrelated drag.
+    if (current) {
+      if (lastArmed.current === current) return;
+      lastArmed.current = current;
+      armTarget(current);
+      return;
+    }
+    if (lastArmed.current === 'removed') return;
+    lastArmed.current = 'removed';
+    onAskTargetRef.current?.({
+      id: askTargetId, kind: 'Removed block', title: 'This block was deleted from the canvas',
+      text: () => 'The lesson card this question was attached to was deleted from the canvas before the question was sent.',
+    });
+  }, [blocks, askTargetId]);
   // A red region drawn on a paper page arms the composer with its thumbnail
   // and the page context, so the answer node links back to that paper block.
   const askRegion = (block, selection) => {

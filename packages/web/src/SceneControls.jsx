@@ -54,7 +54,7 @@ const WIDGETS = {
   bool: BoolToggle,
 };
 
-export default function SceneControls({ declarations, inputs, data, onInput, onReset }) {
+export default function SceneControls({ declarations, inputs, data, onInput, onReset, onAsk = null }) {
   const rows = declarations.filter(declaration => WIDGETS[declaration.type]);
   if (!rows.length) return null;
   return (
@@ -63,10 +63,21 @@ export default function SceneControls({ declarations, inputs, data, onInput, onR
         const Widget = WIDGETS[declaration.type];
         return <Widget key={declaration.name} declaration={declaration} value={inputs[declaration.name]} data={data} onInput={onInput} />;
       })}
-      <button type="button" data-scene-reset onClick={onReset}
-        className="ml-auto flex h-8 items-center rounded-lg px-2.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
-        Reset experiment
-      </button>
+      <div className="ml-auto flex items-center gap-1">
+        <button type="button" data-scene-reset onClick={onReset}
+          className="flex h-8 items-center rounded-lg px-2.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
+          Reset experiment
+        </button>
+        {/* Attaches this card's current state to the existing bottom composer
+            and focuses it. Nothing is sent - the learner types and presses
+            the composer's own Send. */}
+        {onAsk && (
+          <button type="button" data-scene-ask onClick={onAsk}
+            className="flex h-8 items-center rounded-lg border border-line px-2.5 text-xs text-ink hover:bg-hover">
+            Ask about this
+          </button>
+        )}
+      </div>
     </div>
   );
 }

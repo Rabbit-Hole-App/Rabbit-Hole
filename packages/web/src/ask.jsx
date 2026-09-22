@@ -441,6 +441,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     const questionOutline = boardContext?.outline?.();
     if (!isDemo) boardContext?.removeImage();
     const target = canvasTarget; // selected lesson block riding as context
+    // The attachment follows its card until this exact moment: a function-
+    // valued text resolves the card's CURRENT visible state now, and the
+    // string it returns is frozen into this one request. A later input
+    // change can never rewrite an in-flight question's evidence.
+    const targetText = target ? (typeof target.text === 'function' ? target.text() : target.text) : null;
     if (target) onClearCanvasTarget?.();
     const replyId = crypto.randomUUID();
     setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : passage ? { passage: passage.text } : {}) }, { role: 'assistant', content: '', id: replyId, demo: !!isDemo }]);
@@ -476,7 +481,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(!target?.paper && !questionPaper && !questionWiki?.title && questionVideo?.videoId ? { video_context: { videoId: questionVideo.videoId, start: questionVideo.start || 0, ...(questionVideo.end != null ? { end: questionVideo.end } : {}), ...(questionVideo.title ? { title: questionVideo.title } : {}) } } : {}),
         scope: scopeOverride || scope,
         ...(repository && repositoryContext ? { repository_context: { ...repositoryContext, commit: sourceRange?.commit || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
-        message: target ? `Question about this ${target.kind} block on the lesson canvas:\n${target.text}\n\nLearner question: ${message}` : passage ? `Question about this previous answer passage:\n${passage.text}\n\nLearner question: ${message}` : message,
+        message: target ? `Question about this ${target.kind} block on the lesson canvas:\n${targetText}\n\nLearner question: ${message}` : passage ? `Question about this previous answer passage:\n${passage.text}\n\nLearner question: ${message}` : message,
         thread_id: threadId.current,
         ...(canvasSeed && !threadId.current ? { canvas_seed: canvasSeed } : {}),
         ...(srcOpts.length && srcOn.size < srcOpts.length ? { sources: [...srcOn] } : {}),
