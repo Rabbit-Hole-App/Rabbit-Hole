@@ -11,8 +11,13 @@ Nothing here is wired into the app. The mount point is still undecided.
 
 ## The page below the hole
 
-Once the shaft lets go you scroll into Blog / Features / Pricing. A floating glass bar
+Once the shaft lets go you scroll into Blog (a hover list), Features (three cards),
+Pricing (three tiers, the middle one inverted), and a footer. A floating glass bar
 arrives at that point and leaves again on the way back up.
+
+The hero reserves its scroll with a `#spacer` in normal flow rather than a hard-coded
+`body { height }`, and everything below simply flows. Adding a section then cannot
+desync the page height from the shaft track, which is what the bar's trigger measures.
 
 It is driven by a `scroll` listener, not the render loop. Toggling it inside
 `requestAnimationFrame` looks equivalent but breaks twice: rAF is paused while a tab is

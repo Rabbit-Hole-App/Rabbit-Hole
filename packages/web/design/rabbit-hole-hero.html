@@ -19,9 +19,11 @@
   html{overflow-y:scroll}
   /* no overflow-x here: it would make <body> a scroll container and kill the
      sticky shaft below */
+  /* No fixed body height: the hero reserves its scroll with a spacer in normal flow and
+     the page below it flows, so adding a section cannot desync the two. */
   body{background:var(--paper);font-family:var(--ui);color:var(--fg);
-       -webkit-font-smoothing:antialiased;
-       width:100%;height:2900px;position:relative}
+       -webkit-font-smoothing:antialiased;width:100%;position:relative}
+  #spacer{height:1740px}
 
   /* ---- hero shaft: you are falling down it. The title is drawn into the canvas, so
      there is no overlay element and nothing that can lag behind the scroll. ---- */
@@ -55,18 +57,64 @@
   @media (prefers-reduced-motion:reduce){ #bar,#bar a{transition:none} }
 
   /* ---- what you scroll into once you are through the hole ---- */
-  #below{position:absolute;left:0;top:1740px;width:100%;padding:140px 40px 180px}
-  #below section{max-width:1080px;margin:0 auto 140px}
-  #below h2{font:600 72px/.95 var(--display);letter-spacing:-.035em;margin-bottom:20px}
-  #below p{font:400 18px/1.55 var(--ui);color:var(--muted);max-width:620px}
-  #below .rows{margin-top:44px;border-top:1px solid var(--hair)}
-  #below .row{display:flex;gap:28px;padding:22px 4px;
-              border-bottom:1px solid var(--hair);
-              font:400 16.5px/1.45 var(--ui);
+  #below{position:relative;width:100%;padding:150px 40px 0}
+  #below section{max-width:1080px;margin:0 auto 150px}
+  #below h2{font:600 68px/.95 var(--display);letter-spacing:-.035em;margin-bottom:18px}
+  #below .lede{font:400 18px/1.55 var(--ui);color:var(--muted);max-width:620px}
+
+  /* blog: a list that responds to the pointer */
+  .rows{margin-top:48px;border-top:1px solid var(--hair)}
+  .row{display:flex;align-items:baseline;gap:28px;padding:24px 4px;
+       border-bottom:1px solid var(--hair);font:400 16.5px/1.45 var(--ui);
+       transition:background .18s ease,padding-left .18s ease}
+  a.row{color:inherit;text-decoration:none}
+  .row:hover{background:rgba(10,10,10,.025);padding-left:12px}
+  .row .meta{width:96px;color:var(--muted);flex:none;font-variant-numeric:tabular-nums}
+  .row .arrow{margin-left:auto;color:var(--muted);opacity:0;transition:opacity .18s ease}
+  .row:hover .arrow{opacity:1}
+
+  /* features: cards */
+  .cards{margin-top:52px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .card{border:1px solid var(--hair);border-radius:18px;padding:28px 26px 30px;
+        background:#fff;transition:box-shadow .2s ease,transform .2s ease}
+  .card:hover{box-shadow:0 10px 34px rgba(10,10,10,.08);transform:translateY(-2px)}
+  .card .n{font:500 13px/1 var(--ui);color:var(--muted);letter-spacing:.04em}
+  .card h3{font:600 21px/1.25 var(--ui);letter-spacing:-.015em;margin:16px 0 8px}
+  .card p{font:400 15.5px/1.5 var(--ui);color:var(--muted)}
+
+  /* pricing: three tiers, the middle one carries the weight */
+  .tiers{margin-top:52px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .tier{border:1px solid var(--hair);border-radius:20px;padding:30px 28px 32px;
+        display:flex;flex-direction:column}
+  .tier.hero-tier{background:var(--fg);border-color:var(--fg);color:#fff}
+  .tier .name{font:500 14px/1 var(--ui);letter-spacing:.04em;text-transform:uppercase;
+              color:var(--muted)}
+  .tier.hero-tier .name{color:rgba(255,255,255,.62)}
+  .tier .price{font:600 46px/1 var(--display);letter-spacing:-.03em;margin:18px 0 6px}
+  .tier .per{font:400 14.5px/1 var(--ui);color:var(--muted);margin-bottom:24px}
+  .tier.hero-tier .per{color:rgba(255,255,255,.62)}
+  .tier ul{list-style:none;margin-bottom:28px}
+  .tier li{font:400 15.5px/1.6 var(--ui);color:var(--muted);
+           padding-left:20px;position:relative}
+  .tier li::before{content:"";position:absolute;left:4px;top:.62em;
+                   width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.5}
+  .tier.hero-tier li{color:rgba(255,255,255,.76)}
+  .tier .pick{margin-top:auto;text-align:center;text-decoration:none;
+              font:500 15px/1 var(--ui);padding:13px 18px;border-radius:999px;
+              border:1px solid var(--hair);color:var(--fg);
               transition:background .18s ease}
-  #below .row:hover{background:rgba(10,10,10,.025)}
-  #below .row span:first-child{width:96px;color:var(--muted);flex:none;
-                               font-variant-numeric:tabular-nums}
+  .tier .pick:hover{background:rgba(10,10,10,.05)}
+  .tier.hero-tier .pick{background:#fff;border-color:#fff;color:var(--fg)}
+
+  footer{border-top:1px solid var(--hair);padding:36px 40px 44px;
+         display:flex;align-items:center;gap:20px;
+         font:400 14.5px/1 var(--ui);color:var(--muted)}
+  footer .brand{font:600 15px/1 var(--display);color:var(--fg);margin-right:auto}
+
+  @media (max-width:900px){
+    .cards,.tiers{grid-template-columns:1fr}
+    #below h2{font-size:44px}
+  }
 
 
 
@@ -86,37 +134,74 @@
 
 <div id="shaft-track"><canvas id="shaft"></canvas></div>
 
+<div id="spacer"></div>
+
+<!-- Copy throughout this block is placeholder and stays that way until the product
+     pitch is settled. The layout is the deliverable, not the words. -->
 <div id="below">
   <section id="blog">
     <h2>Blog</h2>
-    <p>Notes from down the hole — what we are building and what we got wrong.</p>
+    <p class="lede">Notes from down the hole — what we are building, and what we got wrong.</p>
     <div class="rows">
-      <div class="row"><span>Sept 2026</span><span>Why a landing page should teach you something</span></div>
-      <div class="row"><span>Sept 2026</span><span>Dithering, and why low resolution is a choice</span></div>
-      <div class="row"><span>Aug 2026</span><span>What we mean by infinite</span></div>
+      <a class="row" href="#"><span class="meta">Sept 2026</span>
+        <span>Why a landing page should teach you something</span><span class="arrow">→</span></a>
+      <a class="row" href="#"><span class="meta">Sept 2026</span>
+        <span>Dithering, and why low resolution is a choice</span><span class="arrow">→</span></a>
+      <a class="row" href="#"><span class="meta">Aug 2026</span>
+        <span>What we mean by infinite</span><span class="arrow">→</span></a>
     </div>
   </section>
 
   <section id="features">
     <h2>Features</h2>
-    <p>Placeholder copy. The real list depends on what Rabbit Hole actually does.</p>
-    <div class="rows">
-      <div class="row"><span>01</span><span>Follow a question as far down as it goes</span></div>
-      <div class="row"><span>02</span><span>Every answer opens the next one</span></div>
-      <div class="row"><span>03</span><span>Keep the thread you pulled</span></div>
+    <p class="lede">Placeholder. The real list depends on what Rabbit Hole actually does.</p>
+    <div class="cards">
+      <div class="card"><div class="n">01</div>
+        <h3>Follow the question</h3>
+        <p>Start anywhere and keep going. Each answer is a door, not a full stop.</p></div>
+      <div class="card"><div class="n">02</div>
+        <h3>Keep the thread</h3>
+        <p>The path you took stays with you, so you can retrace it or hand it over.</p></div>
+      <div class="card"><div class="n">03</div>
+        <h3>Go as deep as you like</h3>
+        <p>No floor. The further down you go, the more specific it gets.</p></div>
     </div>
   </section>
 
   <section id="pricing">
     <h2>Pricing</h2>
-    <p>Placeholder tiers, here so the bar has something to scroll over.</p>
-    <div class="rows">
-      <div class="row"><span>Free</span><span>Enough to get lost</span></div>
-      <div class="row"><span>Pro</span><span>For people who go deeper</span></div>
-      <div class="row"><span>Team</span><span>Everyone down the same hole</span></div>
+    <p class="lede">Placeholder tiers. Numbers are invented.</p>
+    <div class="tiers">
+      <div class="tier">
+        <div class="name">Free</div>
+        <div class="price">$0</div>
+        <div class="per">forever</div>
+        <ul><li>Enough to get lost</li><li>Three threads a day</li><li>Community support</li></ul>
+        <a class="pick" href="#">Start free</a>
+      </div>
+      <div class="tier hero-tier">
+        <div class="name">Pro</div>
+        <div class="price">$12</div>
+        <div class="per">per month</div>
+        <ul><li>Unlimited threads</li><li>Saved paths and history</li><li>Priority support</li></ul>
+        <a class="pick" href="#">Get Pro</a>
+      </div>
+      <div class="tier">
+        <div class="name">Team</div>
+        <div class="price">$40</div>
+        <div class="per">per month</div>
+        <ul><li>Everyone down the same hole</li><li>Shared threads</li><li>Admin and billing</li></ul>
+        <a class="pick" href="#">Talk to us</a>
+      </div>
     </div>
   </section>
 </div>
+
+<footer>
+  <span class="brand">Rabbit Hole</span>
+  <span>Knowledge is infinite.</span>
+  <span>© 2026</span>
+</footer>
 
 
 
