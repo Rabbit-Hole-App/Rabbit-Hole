@@ -105,3 +105,35 @@ data. Its AWS preview has a separate connection-metadata database and scoped AWS
 installer credentials; job data stays in customer AWS. Sessions, Sources,
 Capture, and Decisions remain sample UI enabled only in dev builds. Preserve
 both dev build flags using the Coaching deployment steps above.
+
+## Deploy rule for parallel sessions
+
+Never run bare `wrangler deploy` - that is the shared `small-cp-dev` worker and
+other sessions are testing on it. Deploy to your own clone instead. Full
+procedure is in [docs/features/parallel-dev-deploys.md](docs/features/parallel-dev-deploys.md)
+(on main); read it first.
+
+**Your session name is the git worktree directory you are in.** A session in the
+`smart-landing-page` worktree deploys as `small-cp-dev-smart-landing-page`; one
+in `small-parallel` deploys as `small-cp-dev-small-parallel`. Never invent a
+different name.
+
+Short version:
+
+```bash
+cd packages/web
+# env vars BEFORE the build
+export VITE_COACHING_DEV=true VITE_BYOC_DEV=true
+export VITE_TLDRAW_LICENSE_KEY=<from root .env - never print it>
+npm run build -- --outDir dist-dev
+npx wrangler deploy --config wrangler.dev.jsonc --name small-cp-dev-<worktree-name>
+```
+
+Your app is then at `https://small-cp-dev-<worktree-name>.zeroshothq.workers.dev`
+- test sessions, boards and screenshots all work there (verified). Constraints:
+the dev D1 is shared across all clones, so announce any schema migration before
+running it; true wrangler secrets do not clone, so a feature needing one shows
+its no-credential message on your clone; rebase onto main before pushing; and
+delete your clone when the session ends:
+`npx wrangler delete --name small-cp-dev-<worktree-name> --config wrangler.dev.jsonc`.
+Only deploy to the shared worker (no `--name`) when explicitly told to promote.
