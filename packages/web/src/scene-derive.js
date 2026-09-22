@@ -184,6 +184,30 @@ export const DERIVATIONS = {
       return { defined: true, value: a.map((x, i) => round(x * b[i])) };
     },
   },
+  // The elementwise difference - a displacement from a goal, a residual
+  // error. add's mirror, with the same shape rules.
+  sub: {
+    outputs: ['value'],
+    derive([a, b]) {
+      if (!isVector(a) || !isVector(b)) return { defined: false, reason: 'sub needs two vectors of numbers' };
+      if (a.length !== b.length) return { defined: false, reason: `sub needs equal-length vectors, got lengths ${a.length} and ${b.length}` };
+      return { defined: true, value: a.map((x, i) => round(x - b[i])) };
+    },
+  },
+  // A commit-gated window onto an already-computed value: the real numbers
+  // when the boolean says revealed, the same SHAPE of nulls (blank, not
+  // zero) when it does not. This is how an activity's expected results stay
+  // out of every display, tooltip and tutor payload until the learner has
+  // committed - the value simply is not there yet.
+  gate: {
+    outputs: ['value'],
+    derive([value, enabled]) {
+      if (typeof enabled !== 'boolean') return { defined: false, reason: 'gate needs a boolean saying whether the value is revealed' };
+      if (enabled) return { defined: true, value };
+      if (Array.isArray(value)) return { defined: true, value: value.map(entry => (Array.isArray(entry) ? entry.map(() => null) : null)) };
+      return { defined: true, value: null };
+    },
+  },
   // Two equal-length vectors added position by position - an embedding plus
   // a positional encoding is the instance case 10 needs; any elementwise
   // combination (a residual add, a bias) is the same operation.

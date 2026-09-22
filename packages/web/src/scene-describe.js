@@ -77,11 +77,28 @@ export function describeAnimation(block) {
   const shown = state.objects.filter(object => object.visible);
   const concepts = [...new Set(state.objects.map(object => object.conceptId).filter(Boolean))];
   const data = block.scene.exampleData;
+  // Only derived values a VISIBLE object actually references are described.
+  // The payload is the learner's own information surface: an expected answer
+  // computed behind a reveal gate is referenced by nothing on screen (the
+  // gated display references the gate's output, which is blank until
+  // commit), so it never rides along to the tutor either.
+  const visibleIds = new Set(shown.map(object => object.id));
+  const referencedDerived = new Set();
+  if (interactive) {
+    for (const object of block.scene.objects || []) {
+      if (!visibleIds.has(object.id)) continue;
+      for (const match of JSON.stringify(object.initialState || {}).matchAll(/"\$derive":\s*"([\w.]+)"|\{\{([\w.]+)\}\}/g)) {
+        const root = (match[1] || match[2]).split('.')[0];
+        if (block.scene.derived?.[root]) referencedDerived.add(root);
+      }
+    }
+  }
   // The chip label carries enough to detect ambiguity at a glance: the card,
   // then the first couple of current input values.
-  const phrases = interactive
-    ? evaluated.declarations.map(declaration => inputPhrase(declaration, evaluated.inputs[declaration.name], data)).filter(Boolean).slice(0, 2)
-    : [];
+  // Hidden (activity-owned) inputs are attempt machinery, not experiment
+  // state - the activity section describes them when that is visible.
+  const declared = interactive ? evaluated.declarations.filter(declaration => !declaration.hidden) : [];
+  const phrases = declared.map(declaration => inputPhrase(declaration, evaluated.inputs[declaration.name], data)).filter(Boolean).slice(0, 2);
   return {
     kind: interactive ? 'Interactive scene' : 'Animation',
     title: [title, ...phrases].join(' · '),
@@ -94,9 +111,9 @@ export function describeAnimation(block) {
       // hidden expected answer (those live behind the activity reveal gate
       // and are stripped before a block ever reaches this serializer).
       ...(interactive ? [
-        `Experiment inputs (revision ${block.inputRevision || 0}): ${evaluated.declarations.map(declaration => describeInput(declaration, evaluated.inputs[declaration.name], data)).join('; ')}`,
-        Object.keys(block.scene.derived || {}).length
-          ? `Computed locally from the declared example data: ${JSON.stringify(Object.fromEntries(Object.keys(block.scene.derived).map(name => [name, sampleDeep(evaluated.derived[name])])))}`
+        `Experiment inputs (revision ${block.inputRevision || 0}): ${declared.map(declaration => describeInput(declaration, evaluated.inputs[declaration.name], data)).join('; ')}`,
+        referencedDerived.size
+          ? `Computed locally from the declared example data: ${JSON.stringify(Object.fromEntries([...referencedDerived].map(name => [name, sampleDeep(evaluated.derived[name])])))}`
           : '',
         'Execution: local calculation - the values above are derived mechanically from the scene’s declared example data, not from a model run.',
       ] : []),

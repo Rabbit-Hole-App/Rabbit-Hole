@@ -41,7 +41,12 @@ const TYPE_FIELDS = {
 // for domains too long to read as chips). Presentation only - both edit the
 // same declared input the same way.
 const INDEX_PRESENTATIONS = ['picker', 'slider'];
-const COMMON_FIELDS = ['name', 'type', 'label', 'default'];
+// `hidden: true` declares an input the ACTIVITY machinery owns - a commit/
+// reveal latch. It renders no widget, and the generic learner command path
+// refuses to write it (see applyInputToBlock); only the activity reducer
+// supplies its value at evaluation time. Hiding the widget alone would not
+// be enforcement - this is the command-path half of the latch.
+const COMMON_FIELDS = ['name', 'type', 'label', 'default', 'hidden'];
 
 const domainLength = (declaration, exampleData) => {
   const list = exampleData?.[declaration.of];
@@ -65,6 +70,9 @@ export function validateInputDeclarations(declarations, exampleData = {}, reserv
     }
     if (seen.has(declaration.name)) throw new Error(`${where}: declared twice`);
     seen.add(declaration.name);
+    if (declaration.hidden !== undefined && typeof declaration.hidden !== 'boolean') {
+      throw new Error(`${where}: hidden must be true or false`);
+    }
     if (reserved.has(declaration.name)) {
       throw new Error(`${where}: collides with "${declaration.name}" in the scene's exampleData/derived - inputs join the same pool and may not shadow data`);
     }

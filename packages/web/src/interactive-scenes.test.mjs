@@ -8,7 +8,9 @@ import assert from 'node:assert/strict';
 import { evaluateScene } from './scene-evaluate.js';
 import { checkSceneConsistency } from './scene-consistency.js';
 import { checkLayoutLint } from './scene-layout-lint.js';
-import { attentionExplorerScene, patchExplorerScene } from './interactive-scenes.js';
+import { attentionExplorerScene, candidateFutureScene, patchExplorerScene } from './interactive-scenes.js';
+import { describeAnimation } from './scene-describe.js';
+import { applyInputToBlock } from './scene-evaluate.js';
 
 const TOKENS = ['river', 'flows', 'south', 'today'];
 const Q = [[1, 0], [0, 1], [1, 1], [1, -1]];
@@ -135,6 +137,56 @@ test('I02: the domain has real ends - 0 and 15 evaluate, out-of-range resets, no
 for (const patchIndex of [0, 5, 15]) {
   test(`I02 snapshot patch ${patchIndex}: consistency and layout gates pass`, () => {
     const { scene } = evaluatedPatch({ patchIndex });
+    assert.deepEqual(checkSceneConsistency(scene).issues, []);
+    assert.deepEqual(checkLayoutLint(scene).issues, []);
+  });
+}
+
+// --- I03 candidate-future explorer --------------------------------------------
+
+const evaluatedFuture = (inputs = {}) => evaluateScene(structuredClone(candidateFutureScene), 3, inputs);
+
+test('I03: costs 4, 1, 9 are derived mechanically from the terminal positions', () => {
+  const { derived } = evaluatedFuture({ resultsRevealed: true });
+  assert.deepEqual(derived.costs, [4, 1, 9]);
+  // independent oracle: squared distance to the goal, from scratch
+  const goal = [0, 0];
+  for (const [id, terminal, expected] of [['A', [2, 0], 4], ['B', [1, 0], 1], ['C', [0, 3], 9]]) {
+    const cost = (terminal[0] - goal[0]) ** 2 + (terminal[1] - goal[1]) ** 2;
+    assert.equal(cost, expected, `oracle self-check ${id}`);
+  }
+});
+
+test('I03: before reveal the costs are blank everywhere - display, and the tutor payload', () => {
+  const { derived, state } = evaluatedFuture({ candidate: 'B' });
+  assert.deepEqual(derived.shownCosts, [null, null, null]);
+  assert.deepEqual(state.objects.find(object => object.semanticId === 'candidate-costs').values, [null, null, null]);
+  const described = describeAnimation({ scene: structuredClone(candidateFutureScene), inputs: { candidate: 'B' }, time: 3, title: 'I03' });
+  assert.ok(!described.text.includes('"costs"'), 'raw costs leaked into the payload');
+  assert.ok(!/[^0-9]4,1,9|\[4, ?1, ?9\]/.test(described.text), 'cost numbers leaked into the payload');
+  assert.match(described.text, /shownCosts.*\[null,null,null\]/s);
+});
+
+test('I03: choosing a candidate moves the inspection ring and every bound detail', () => {
+  const b = evaluatedFuture({ candidate: 'B' });
+  const c = evaluatedFuture({ candidate: 'C' });
+  const ringB = b.state.objects.find(object => object.semanticId === 'inspecting-marker');
+  const ringC = c.state.objects.find(object => object.semanticId === 'inspecting-marker');
+  assert.notDeepEqual({ x: ringB.x, y: ringB.y }, { x: ringC.x, y: ringC.y });
+  assert.match(b.state.objects.find(object => object.semanticId === 'caption').label, /path B: it ends at \(1, 0\)/);
+  assert.match(c.state.objects.find(object => object.semanticId === 'caption').label, /path C: it ends at \(0, 3\), displacement to the goal \(0, 3\)/);
+});
+
+test('I03: the reveal latch cannot be written through the learner command path', () => {
+  const block = { id: 'b', type: 'animation', scene: structuredClone(candidateFutureScene), inputs: {} };
+  assert.equal(applyInputToBlock(block, 'resultsRevealed', true), block);
+  // while the ordinary choice input still writes fine
+  assert.equal(applyInputToBlock(block, 'candidate', 'C').inputs.candidate, 'C');
+});
+
+for (const inputs of [{}, { candidate: 'B' }, { candidate: 'C' }, { candidate: 'B', resultsRevealed: true }]) {
+  test(`I03 snapshot ${JSON.stringify(inputs)}: consistency and layout gates pass`, () => {
+    const { scene } = evaluatedFuture(inputs);
     assert.deepEqual(checkSceneConsistency(scene).issues, []);
     assert.deepEqual(checkLayoutLint(scene).issues, []);
   });

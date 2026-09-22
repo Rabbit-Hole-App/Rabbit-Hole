@@ -86,6 +86,106 @@ export const patchExplorerScene = {
   ],
 };
 
+// --- I03: candidate-future explorer -------------------------------------------
+// Three candidate futures under one stated toy cost (squared distance to the
+// goal), inspected through a choice input. The costs 4, 1, 9 are DERIVED from
+// the terminal positions - never typed as output - and stay behind a commit
+// gate: until the activity reveals them, the bars hold blanks and the tutor
+// payload carries blanks, because the gated value simply is not there yet.
+// A toy prediction with declared example data - not an observed outcome.
+
+// World coordinates (the learner-facing facts).
+const I03_GOAL = [0, 0];
+const I03_TERMINALS = { A: [2, 0], B: [1, 0], C: [0, 3] };
+const I03_START = [3, 3];
+// One linear map from world to scene pixels, applied once here at authoring
+// time: sx = 134 + wx*70, sy = 360 - wy*70.
+const i03x = wx => 134 + wx * 70;
+const i03y = wy => 360 - wy * 70;
+const I03_MARKER = 58; // the inspection ring's diameter - a terminal sits clearly inside it
+const I03_NODE = 34;   // a terminal circle's diameter
+const I03_WAYPOINT = 48; // start/goal are labelled with words, so they get the room the word needs
+const i03Circle = ([wx, wy], size) => ({ x: i03x(wx) - size / 2, y: i03y(wy) - size / 2, w: size, h: size });
+
+export const candidateFutureScene = {
+  id: 'candidate-future-explorer',
+  title: 'Candidate-future explorer',
+  width: 900,
+  height: 560,
+  duration: 3,
+  inputs: [
+    { name: 'candidate', type: 'choice', label: 'Candidate future', default: 'A',
+      options: [{ id: 'A', label: 'Path A' }, { id: 'B', label: 'Path B' }, { id: 'C', label: 'Path C' }] },
+    // The commit/reveal latch. hidden: the activity reducer alone writes it -
+    // the learner command path refuses it and no widget renders for it.
+    { name: 'resultsRevealed', type: 'bool', label: 'Results revealed', default: false, hidden: true },
+  ],
+  exampleData: {
+    goal: I03_GOAL,
+    A: I03_TERMINALS.A, B: I03_TERMINALS.B, C: I03_TERMINALS.C,
+    terminals: I03_TERMINALS,
+    markerX: { A: i03Circle(I03_TERMINALS.A, I03_MARKER).x, B: i03Circle(I03_TERMINALS.B, I03_MARKER).x, C: i03Circle(I03_TERMINALS.C, I03_MARKER).x },
+    markerY: { A: i03Circle(I03_TERMINALS.A, I03_MARKER).y, B: i03Circle(I03_TERMINALS.B, I03_MARKER).y, C: i03Circle(I03_TERMINALS.C, I03_MARKER).y },
+  },
+  derived: {
+    terminal: { op: 'pick', args: ['terminals', 'candidate'] },
+    displacement: { op: 'sub', args: ['terminal', 'goal'] },
+    dA: { op: 'sub', args: ['A', 'goal'] },
+    dB: { op: 'sub', args: ['B', 'goal'] },
+    dC: { op: 'sub', args: ['C', 'goal'] },
+    costA: { op: 'dot', args: ['dA', 'dA'] },
+    costB: { op: 'dot', args: ['dB', 'dB'] },
+    costC: { op: 'dot', args: ['dC', 'dC'] },
+    costs: { op: 'concat', args: ['costA', 'costB', 'costC'] },
+    shownCosts: { op: 'gate', args: ['costs', 'resultsRevealed'] },
+    markX: { op: 'pick', args: ['markerX', 'candidate'] },
+    markY: { op: 'pick', args: ['markerY', 'candidate'] },
+  },
+  objects: [
+    { id: 'caption', type: 'text', semanticId: 'caption', conceptId: 'candidate-futures',
+      initialState: { text: 'inspecting path {{candidate}}: it ends at ({{terminal.0}}, {{terminal.1}}), displacement to the goal ({{displacement.0}}, {{displacement.1}})', x: 40, y: 36 } },
+    { id: 'start', type: 'circle', semanticId: 'start-observation', conceptId: 'candidate-futures',
+      initialState: { label: 'start', ...i03Circle(I03_START, I03_WAYPOINT), opacity: 0, role: 'observed' } },
+    { id: 'goal', type: 'circle', semanticId: 'goal', conceptId: 'candidate-futures',
+      initialState: { label: 'goal', ...i03Circle(I03_GOAL, I03_WAYPOINT), opacity: 0, role: 'success' } },
+    { id: 'path-a', type: 'line', semanticId: 'path-a', conceptId: 'candidate-futures',
+      initialState: { from: { x: i03x(I03_START[0]), y: i03y(I03_START[1]) }, to: { x: i03x(I03_TERMINALS.A[0]), y: i03y(I03_TERMINALS.A[1]) }, opacity: 0, role: 'prediction', identity: 'future-a' } },
+    { id: 'path-b', type: 'line', semanticId: 'path-b', conceptId: 'candidate-futures',
+      initialState: { from: { x: i03x(I03_START[0]), y: i03y(I03_START[1]) }, to: { x: i03x(I03_TERMINALS.B[0]), y: i03y(I03_TERMINALS.B[1]) }, opacity: 0, role: 'prediction', identity: 'future-b' } },
+    { id: 'path-c', type: 'line', semanticId: 'path-c', conceptId: 'candidate-futures',
+      initialState: { from: { x: i03x(I03_START[0]), y: i03y(I03_START[1]) }, to: { x: i03x(I03_TERMINALS.C[0]), y: i03y(I03_TERMINALS.C[1]) }, opacity: 0, role: 'prediction', identity: 'future-c' } },
+    { id: 'terminal-a', type: 'circle', semanticId: 'terminal-a', conceptId: 'candidate-futures',
+      initialState: { label: 'A', ...i03Circle(I03_TERMINALS.A, I03_NODE), opacity: 0, role: 'prediction', identity: 'future-a' } },
+    { id: 'terminal-b', type: 'circle', semanticId: 'terminal-b', conceptId: 'candidate-futures',
+      initialState: { label: 'B', ...i03Circle(I03_TERMINALS.B, I03_NODE), opacity: 0, role: 'prediction', identity: 'future-b' } },
+    { id: 'terminal-c', type: 'circle', semanticId: 'terminal-c', conceptId: 'candidate-futures',
+      initialState: { label: 'C', ...i03Circle(I03_TERMINALS.C, I03_NODE), opacity: 0, role: 'prediction', identity: 'future-c' } },
+    // The inspection ring: a learner-role circle whose position IS the choice
+    // input, resolved through the derive pool like any other bound value.
+    { id: 'inspecting', type: 'circle', semanticId: 'inspecting-marker', conceptId: 'candidate-futures',
+      initialState: { x: { $derive: 'markX' }, y: { $derive: 'markY' }, w: I03_MARKER, h: I03_MARKER, opacity: 0, role: 'learner' } },
+    { id: 'facts', type: 'text', semanticId: 'terminal-facts', conceptId: 'candidate-futures',
+      initialState: { text: 'terminals: A ends at (2, 0) · B at (1, 0) · C at (0, 3) - the goal is (0, 0)', x: 40, y: 440, typography: 'annotation' } },
+    { id: 'cost-bars', type: 'bars', semanticId: 'candidate-costs', conceptId: 'candidate-futures',
+      initialState: { label: 'cost: squared distance - shown after commit', x: 520, y: 170, w: 180, h: 140, cell: 60, peak: 9, opacity: 0,
+        role: 'output', labels: ['A', 'B', 'C'], values: { $derive: 'shownCosts' } } },
+    { id: 'provenance-note', type: 'text', semanticId: 'provenance-note', conceptId: 'candidate-futures',
+      initialState: { text: 'a toy prediction over declared example data - an example result, not an observed outcome', x: 40, y: 480, typography: 'annotation' } },
+  ],
+  timeline: [
+    { at: 0.0, action: 'appear', target: 'start', duration: 0.3 },
+    { at: 0.2, action: 'appear', target: 'goal', duration: 0.3 },
+    { at: 0.5, action: 'appear', target: 'path-a', duration: 0.4 },
+    { at: 0.6, action: 'appear', target: 'path-b', duration: 0.4 },
+    { at: 0.7, action: 'appear', target: 'path-c', duration: 0.4 },
+    { at: 0.9, action: 'appear', target: 'terminal-a', duration: 0.3 },
+    { at: 1.0, action: 'appear', target: 'terminal-b', duration: 0.3 },
+    { at: 1.1, action: 'appear', target: 'terminal-c', duration: 0.3 },
+    { at: 1.5, action: 'appear', target: 'inspecting', duration: 0.4 },
+    { at: 1.9, action: 'appear', target: 'cost-bars', duration: 0.4 },
+  ],
+};
+
 export const attentionExplorerScene = {
   id: 'attention-explorer',
   title: 'Attention explorer',

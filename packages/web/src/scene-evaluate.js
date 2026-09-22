@@ -63,7 +63,11 @@ export function applyInputToBlock(block, name, value) {
   try {
     declarations = validateInputDeclarations(block.scene?.inputs || [], block.scene?.exampleData, Object.keys(block.scene?.derived || {}));
   } catch { return block; } // a scene broken enough to fail here renders the error box, not controls
-  if (!declarations.some(declaration => declaration.name === name)) return block;
+  // A hidden input is the activity's latch, never the learner's control: the
+  // generic command path refuses it outright, so no widget, shortcut, or
+  // replayed gesture can flip a reveal that only a committed attempt grants.
+  const declared = declarations.find(declaration => declaration.name === name);
+  if (!declared || declared.hidden) return block;
   const data = block.scene?.exampleData;
   const before = coerceInputs(declarations, block.inputs, data);
   const after = coerceInputs(declarations, { ...before, [name]: value }, data);

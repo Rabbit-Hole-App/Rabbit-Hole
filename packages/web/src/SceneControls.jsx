@@ -91,14 +91,31 @@ function IndicesMarks({ declaration, value, data, onInput }) {
   );
 }
 
+// One declared option per segment; identity is the option id, never its
+// position, so a reordered spec keeps every saved choice meaning the same
+// thing.
+function ChoiceButtons({ declaration, value, onInput }) {
+  return (
+    <div role="group" aria-label={declaration.label} className="flex flex-wrap items-center gap-1.5">
+      <span className="text-xs font-medium text-ink-2">{declaration.label}:</span>
+      {declaration.options.map(option => (
+        <button key={option.id} type="button" data-input-control={declaration.name} data-input-value={option.id}
+          aria-pressed={option.id === value} onClick={() => onInput(declaration.name, option.id)}
+          className={chipClass(option.id === value)}>{option.label}</button>
+      ))}
+    </div>
+  );
+}
+
 const WIDGETS = {
   index: IndexPicker,
   bool: BoolToggle,
   indices: IndicesMarks,
+  choice: ChoiceButtons,
 };
 
 export default function SceneControls({ declarations, inputs, data, onInput, onReset, onAsk = null }) {
-  const rows = declarations.filter(declaration => WIDGETS[declaration.type]);
+  const rows = declarations.filter(declaration => !declaration.hidden && WIDGETS[declaration.type]);
   if (!rows.length) return null;
   return (
     <div data-scene-controls className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-line bg-white px-3 py-2">
