@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
+import { ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
@@ -302,6 +302,42 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
   );
 }
 
+// A file the learner dropped on the canvas: an image, a GIF, or a video clip.
+// Same storage bargain as the PDF card - the bytes live in this browser's
+// asset store, the block keeps only the key, so the 120 kB src strip never
+// applies and a reload keeps the card.
+function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onSnap }) {
+  const [url, setUrl] = useState(null);
+  const [missing, setMissing] = useState(false);
+  useEffect(() => {
+    let revoke = null;
+    cachedAsset(block.assetKey).then(file => {
+      if (!file) { setMissing(true); return; }
+      revoke = URL.createObjectURL(file);
+      setUrl(revoke);
+    });
+    return () => { if (revoke) URL.revokeObjectURL(revoke); };
+  }, [block.assetKey]);
+  const clip = block.kind === 'clip';
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
+      connected={connected} width={COLUMN} autoMax={620} saved={{ w: block.w }}
+      onSize={(id, w) => onChange({ ...block, w })}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
+        <span className="h-1.5 w-1.5 rounded-full bg-ink" />{clip ? 'Video' : 'Image'}<span className="truncate normal-case tracking-normal text-ink-3">{block.label}</span>
+      </div>
+      <div className="min-h-0 px-3 pb-3" onPointerDown={event => { if (clip && selected) event.stopPropagation(); }}>
+        {url
+          ? clip
+            ? <video src={url} controls className="w-full rounded-lg border border-line bg-black" />
+            : <img src={url} alt={block.label || 'Dropped image'} className="w-full rounded-lg border border-line bg-white object-contain" />
+          : <p className="p-2 text-sm text-ink-2">{missing ? 'This file is not in this browser. Drop it here again.' : 'Opening…'}</p>}
+      </div>
+    </CanvasNode>
+  );
+}
+
 // A YouTube moment on the canvas: the embed starts at `start` and stops at
 // `end`, because the window rides the URL and playback enforces it. YouTube's
 // own scrubber is cross-origin and cannot be drawn on, so the moment is shown
@@ -404,6 +440,7 @@ function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove,
 function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade, onWiki, onWatch }) {
   if (block.type === 'video') return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
+  if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   return (
@@ -445,7 +482,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
   );
 }
 
-function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, onResize, onGesture, onDelete, onSnap = null }) {
+function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, onResize, onGesture, onDelete, onSnap = null, onLevel = null }) {
   const [editing, setEditing] = useState(item.fresh);
   const body = useRef(null);
   // The rendered children stay pinned to this ref while editing so re-renders
@@ -496,6 +533,21 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
         ? '-rotate-1 overflow-hidden rounded-sm border border-[#f0d9a8] bg-[#fef3c7] p-3 text-[13px] leading-snug text-[#6b4e0b] shadow-md'
         : `min-w-24 -mx-1 -my-0.5 rounded border border-transparent px-1 py-0.5 leading-snug ${tool === 'select' ? 'hover:border-line' : ''}`} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
       onPointerDown={down} onDoubleClick={startEdit}>
+      {/* A fresh or reopened text box offers its ladder right there - H1 to
+          text - instead of asking the learner to find the style panel.
+          pointerdown is swallowed so choosing a level never blurs the text. */}
+      {editing && !sticky && item.kind === 'text' && onLevel && (
+        <div role="group" aria-label="Text level" data-keep-focus style={{ fontSize: 12, fontWeight: 400 }}
+          className="absolute bottom-full left-0 z-20 mb-1 flex items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 shadow-md"
+          onPointerDown={event => { event.preventDefault(); event.stopPropagation(); }}>
+          {TEXT_LEVELS.map(entry => (
+            <button key={entry.id} type="button" aria-pressed={(item.level || 'body') === entry.id}
+              onClick={() => onLevel(item.id, entry.id)}
+              className={`rounded px-1.5 py-0.5 text-[11px] ${(item.level || 'body') === entry.id ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}
+              style={{ fontWeight: entry.weight }}>{entry.label}</button>
+          ))}
+        </div>
+      )}
       <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder={sticky ? 'Note…' : 'Text…'}
         onBlur={e => { setEditing(false); const text = e.currentTarget.textContent; shown.current = text; onChange(item.id, text); }}
         className={`outline-none ${sticky ? 'h-full empty:before:text-[#b08a3e]' : 'empty:before:opacity-50'} empty:before:content-[attr(data-placeholder)]`}>{shown.current}</div>
@@ -588,7 +640,10 @@ const arrowHead = (tip, from, stroke) => {
 
 function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResize, onGesture, onDelete }) {
   const { kind, x1, y1, x2, y2, color, width, dash, fill, opacity, round } = shape;
-  const stroke = { stroke: color, strokeWidth: width, fill: fill || 'none', fillOpacity: fill ? 0.25 : undefined, opacity, strokeDasharray: dashArray(dash, width), strokeLinecap: 'round', strokeLinejoin: 'round' };
+  // Unfilled shapes paint a transparent fill so the pointer can grab the
+  // interior, not just the hairline outline. Transparent paint still hit-tests
+  // under visiblePainted; opacity 0 keeps it invisible.
+  const stroke = { stroke: color, strokeWidth: width, fill: fill || 'transparent', fillOpacity: fill ? 0.25 : 0, opacity, strokeDasharray: dashArray(dash, width), strokeLinecap: 'round', strokeLinejoin: 'round' };
   const x = Math.min(x1, x2), y = Math.min(y1, y2), w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
   const control = kind === 'curve' ? curveControl(shape) : null;
   const linear = kind === 'line' || kind === 'arrow' || kind === 'curve';
@@ -604,7 +659,7 @@ function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResiz
     ? [[x1, y1, p => ({ x1: p.x, y1: p.y })], [x2, y2, p => ({ x2: p.x, y2: p.y })]]
     : [[x1, y1, p => ({ x1: p.x, y1: p.y })], [x2, y1, p => ({ x2: p.x, y1: p.y })], [x2, y2, p => ({ x2: p.x, y2: p.y })], [x1, y2, p => ({ x1: p.x, y2: p.y })]];
   return (
-    <g style={{ pointerEvents: 'visibleStroke', cursor: tool === 'select' ? 'grab' : undefined }} onPointerDown={down}>
+    <g style={{ pointerEvents: 'visiblePainted', cursor: tool === 'select' ? 'grab' : undefined }} onPointerDown={down}>
       {kind === 'rect' && <rect x={x} y={y} width={w} height={h} rx={round ? 14 : 2} {...stroke} />}
       {kind === 'ellipse' && <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...stroke} />}
       {POLYGONS[kind] && <polygon points={POLYGONS[kind].map(([u, v]) => `${x + u * w},${y + v * h}`).join(' ')} {...stroke} />}
@@ -626,11 +681,11 @@ function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResiz
 // 26 buttons and scrolled. They sit in their own island now, beside the tools,
 // shown only while a drawing tool is armed or something styleable is selected.
 // Text swaps the thickness row for Notion's heading ladder.
-function StylePanel({ text, showFill, corners, order, color, fill, width, dash, opacity, round, level, onColor, onFill, onWidth, onDash, onOpacity, onRound, onLevel, onOrder }) {
+function StylePanel({ side = 'right', text, showFill, corners, order, color, fill, width, dash, opacity, round, level, onColor, onFill, onWidth, onDash, onOpacity, onRound, onLevel, onOrder }) {
   const rule = <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />;
   return (
     <div role="group" aria-label="Style" onPointerDown={event => event.stopPropagation()}
-      className="absolute top-1/2 right-16 z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md">
+      className={`absolute top-1/2 ${side === 'left' ? 'left-16' : 'right-16'} z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md`}>
       {COLORS.map(value => (
         <button key={value} type="button" title="Color" aria-label={`Color ${value}`} aria-pressed={color === value} onClick={() => onColor(value)}
           className="flex h-6 w-8 items-center justify-center rounded-lg hover:bg-hover">
@@ -719,8 +774,15 @@ function ToolButton({ Icon, label, active, onPick }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null }) {
   const [tool, setTool] = useState('select');
+  // OS drag-and-drop of files onto the surface; the page owns what each kind
+  // becomes, the canvas only announces the hover and hands the files over.
+  const [dropHover, setDropHover] = useState(false);
+  // The tool palette hangs on the right by default; a drag on its handle can
+  // park it on either edge. While dragging it follows the pointer.
+  const [toolSide, setToolSide] = useState('right');
+  const [toolDrag, setToolDrag] = useState(null);
   const [insertOpen, setInsertOpen] = useState(false); // dev-only lesson-block workbench menu
   const [insertFilter, setInsertFilter] = useState('');
   const [color, setColor] = useState(COLORS[0]);
@@ -856,6 +918,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         snapshot();
         setBlocks(previous => [...previous, { id: crypto.randomUUID(), type: 'pdf', dx: 0, dy: 0, assetKey, label }]);
       },
+      // A dropped image, GIF, or clip. `mediaId` is the server copy an image
+      // context can name later; GIFs and clips never have one.
+      insertFile: ({ assetKey, kind, label, mediaId = null }) => {
+        snapshot();
+        const id = crypto.randomUUID();
+        setBlocks(previous => [...previous, { id, type: 'file', dx: 0, dy: 0, kind, assetKey, label, ...(mediaId ? { mediaId } : {}) }]);
+        return id;
+      },
       // The block keeps only where to look, never the article: the save path
       // strips an oversized `src` and nothing else, so HTML under any other
       // field would fill the quota and take the learner's ink with it.
@@ -892,6 +962,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         setBlocks(previous => [...previous, { id, type: 'video', dx: 0, dy: 0, videoId, title, channel, start, end, ...(unverified ? { unverified: true } : {}) }]);
         return id;
       },
+      // The divider used to live on the zoom pill; the menubar is its home now.
+      addSection,
       toggleGrid: () => setGrid(previous => !previous),
       toggleMinimap: () => setMinimap(previous => !previous),
       togglePages: () => setPages(previous => !previous),
@@ -1583,15 +1655,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         const active = document.activeElement;
         if (!active || active === document.body) return;
         const editable = active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA';
-        if (editable && !active.contains(event.target)) active.blur();
+        // data-keep-focus marks controls that act ON the focused text - the
+        // level pill - where a press must restyle, never blur. This runs in
+        // the capture phase, so the pill's own stopPropagation cannot save it.
+        if (editable && !active.contains(event.target) && !event.target.closest?.('[data-keep-focus]')) active.blur();
       }}>
       {/* With the grid on, the canvas draws its own dots instead of borrowing
           the page's: these ride the camera, so the grid you snap to is the grid
           you can see. An opaque surface keeps the page dots from showing through
           and doubling them up. */}
       <div ref={surface} data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
+        onDragOver={event => { if (onDropFiles && event.dataTransfer.types.includes('Files')) { event.preventDefault(); setDropHover(true); } }}
+        onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setDropHover(false); }}
+        onDrop={event => { if (!onDropFiles) return; event.preventDefault(); setDropHover(false); onDropFiles([...event.dataTransfer.files]); }}
         style={grid ? { background: 'var(--color-white)', backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: `${GRID * view.z}px ${GRID * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` } : undefined}
-        className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor}`}>
+        className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor} ${dropHover ? 'ring-2 ring-accent ring-inset' : ''}`}>
         <div style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className="absolute top-0 left-0">
         {/* Page guides sit inside the camera, so they pin to the content: the
             boundary keeps its width in cards, not in screen pixels. */}
@@ -1637,18 +1715,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           </svg>
         )}
         <div ref={itemsLayer} className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
-          {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} />)}
+          {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
+            onLevel={(id, value) => { snapshot(); setItems(previous => previous.map(entry => entry.id === id ? { ...entry, level: value } : entry)); }} />)}
         </div>
         </div>
-        {/* Inside the surface but outside the camera, so it holds still. */}
-        {presenting === null && minimap && <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
-          surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
-          onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />}
       </div>
       {/* Dev-only workbench: drop any lesson block on the canvas to review its
           look before lessons are assembled. */}
       {presenting === null && import.meta.env.VITE_COACHING_DEV === 'true' && (
-        <div className="absolute top-3 -right-6 z-20">
+        <div className="absolute top-3 right-2 z-20">
           <button type="button" aria-label="Insert lesson block" title="Insert a sample lesson block" aria-expanded={insertOpen}
             onClick={() => setInsertOpen(previous => !previous)}
             className="flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink">
@@ -1657,7 +1732,32 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           {insertOpen && <BlockMenu className="top-0 right-10" filter={insertFilter} onFilter={setInsertFilter} onPick={insertBlock} />}
         </div>
       )}
-      {presenting === null && <div role="toolbar" aria-label="Canvas tools" className="absolute top-1/2 -right-6 z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md">
+      {presenting === null && <div role="toolbar" aria-label="Canvas tools"
+        style={toolDrag ? { left: toolDrag.x, top: toolDrag.y, transform: 'none' } : undefined}
+        className={`absolute z-20 grid max-h-full grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md ${toolDrag ? '' : `top-1/2 -translate-y-1/2 ${toolSide === 'left' ? 'left-2' : 'right-2'}`}`}>
+        {/* The handle: drag the palette and it parks on whichever edge you let
+            go nearer to - left or right - never floating mid-canvas. */}
+        <div role="button" aria-label="Move the toolbar" title="Drag to the left or right edge"
+          className="col-span-2 flex h-5 cursor-grab items-center justify-center rounded-lg text-ink-3 hover:bg-hover hover:text-ink active:cursor-grabbing"
+          onPointerDown={event => {
+            if (event.button !== 0) return;
+            event.preventDefault(); event.stopPropagation();
+            const root = event.currentTarget.closest('[role="toolbar"]').parentElement.getBoundingClientRect();
+            const palette = event.currentTarget.closest('[role="toolbar"]').getBoundingClientRect();
+            const grip = { x: event.clientX - palette.left, y: event.clientY - palette.top };
+            const move = pointer => setToolDrag({ x: pointer.clientX - root.left - grip.x, y: pointer.clientY - root.top - grip.y });
+            move(event);
+            const up = pointer => {
+              window.removeEventListener('pointermove', move);
+              window.removeEventListener('pointerup', up);
+              setToolDrag(null);
+              setToolSide(pointer.clientX < root.left + root.width / 2 ? 'left' : 'right');
+            };
+            window.addEventListener('pointermove', move);
+            window.addEventListener('pointerup', up);
+          }}>
+          <GripHorizontal size={13} />
+        </div>
         {NAV_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
         <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
         {DRAW_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
@@ -1679,7 +1779,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         </button>
       </div>}
       {presenting === null && showStyle && (
-        <StylePanel text={panel.text} showFill={panel.fill} fill={fill} corners={panel.corners} order={panel.order}
+        <StylePanel side={toolSide} text={panel.text} showFill={panel.fill} fill={fill} corners={panel.corners} order={panel.order}
           color={color} width={width} dash={dash} opacity={opacity} round={round} level={level}
           onColor={value => { setColor(value); applyStyle({ color: value }, panel.targets); }}
           onFill={value => { setFill(value); applyStyle({ fill: value }, panel.targets); }}
@@ -1703,20 +1803,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           </div>
         </div>
       )}
-      {/* The zoom pill sits level with the composer's bottom edge. */}
-      {presenting === null && <div className="relative min-h-11 shrink-0 pt-3">
-        <div data-zoom aria-label="Zoom controls" className="absolute bottom-0 left-0 z-20 flex items-center rounded-lg border border-line bg-white shadow-sm">
+      {/* The zoom pill, the composer, and the minimap all share one lower
+          edge; small insets keep them off the window border now that the
+          canvas runs full-bleed. */}
+      {presenting === null && <div className="relative min-h-11 shrink-0 px-2 pt-3 pb-2">
+        <div data-zoom aria-label="Zoom controls" className="absolute bottom-2 left-2 z-20 flex items-center rounded-lg border border-line bg-white shadow-sm">
           <IconBtn title="Scroll up" onClick={() => scrollBy(-1)}><ChevronUp size={14} /></IconBtn>
           <IconBtn title="Scroll down" onClick={() => scrollBy(1)}><ChevronDown size={14} /></IconBtn>
           <span className="mx-0.5 h-5 w-px bg-line" />
           <IconBtn title="Zoom out" onClick={() => zoomCenter(1 / 1.25)}><Minus size={14} /></IconBtn>
           <button type="button" title="Reset zoom" onClick={() => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 })} className="min-w-11 px-1 text-center text-xs tabular-nums text-ink-2 hover:text-ink">{Math.round(view.z * 100)}%</button>
           <IconBtn title="Zoom in" onClick={() => zoomCenter(1.25)}><Plus size={14} /></IconBtn>
-          <span className="mx-0.5 h-5 w-px bg-line" />
-          <button type="button" title="Add a section divider with a title" onClick={addSection}
-            className="cursor-pointer whitespace-nowrap px-2 text-xs text-ink-2 hover:text-ink">Add section</button>
         </div>
         {composer && <div className="mx-auto w-full max-w-[504px]">{composer}</div>}
+        {/* Level with the composer's bottom edge, like the zoom pill. */}
+        {minimap && <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
+          surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
+          onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />}
       </div>}
     </div>
   );

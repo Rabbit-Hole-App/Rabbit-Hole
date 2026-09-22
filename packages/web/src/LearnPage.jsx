@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, PanelRightClose, PanelRightOpen, Pause, Pencil, Play, Scan, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PanelRightClose, PanelRightOpen, Pause, Pencil, Play, Scan, Share2, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
 import { createShapeId, getIndices } from 'tldraw';
 import { SPEEDS, getSpeed, isMuted, onMuted, setMuted, setSpeed } from './learn-audio.js';
 import { api, wsHeaders } from './api.js';
@@ -28,6 +28,7 @@ import RepositorySource from './RepositorySource.jsx';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
 import LearnPaper from './LearnPaper.jsx';
 import { cacheAsset } from './learn-asset-cache.js';
+import { classifyDrop } from './learn-drop.js';
 import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from './learn-notes.js';
 import { challengePrompt, gradeAnswer } from './learn-grade.js';
 import { architectureLesson, sampleCourse } from './learn-preview.js';
@@ -278,6 +279,35 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false);
     registerSource({ id: stored.id, kind: 'pdf', label: stored.title });
   };
+  // Files dropped straight onto the canvas. Each kind takes its own road: a
+  // PDF rides the existing paper pipeline; a static image also gets a server
+  // copy so a question can put it in front of the tutor; GIFs and clips stay
+  // in this browser by design - the tutor never sees them.
+  const [imageContext, setImageContext] = useState(null);
+  const imageAttached = !imageContext?.blockId || isAttached(sources, `image:${imageContext.blockId}`);
+  const takeDrop = async files => {
+    for (const file of files) {
+      const { kind, error } = classifyDrop(file);
+      if (error) { toast(error); continue; }
+      if (kind === 'pdf') { await takePdf(file); continue; }
+      const assetKey = `drop:${crypto.randomUUID()}`;
+      await cacheAsset(assetKey, file);
+      if (kind !== 'image') { canvas()?.insertFile({ assetKey, kind: kind === 'gif' ? 'image' : kind, label: file.name }); continue; }
+      let stored = null;
+      try {
+        const body = new FormData();
+        body.append('file', file, file.name);
+        const response = await fetch(`/api/learn/media?app=${encodeURIComponent(app.name)}`, { method: 'POST', body, headers: wsHeaders() });
+        stored = await response.json();
+        if (!response.ok) throw new Error(stored?.error || 'Upload failed');
+      } catch (problem) { toast(`${file.name}: ${problem.message}. The card is here, but the tutor will not see this image.`); stored = null; }
+      const blockId = canvas()?.insertFile({ assetKey, kind: 'image', label: stored?.title || file.name, mediaId: stored?.id || null });
+      if (stored && blockId) {
+        setImageContext({ blockId, id: stored.id, title: stored.title });
+        registerSource({ id: `image:${blockId}`, kind: 'image', label: stored.title });
+      }
+    }
+  };
   const repoSourceId = app.repo ? `repo:${app.repo}` : null;
   // The repository is the one source that exists on day one, and detaching it
   // genuinely stops repository_context reaching the agent (ask.jsx:467).
@@ -477,6 +507,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     // on the canvas and the reader stays open, the tutor just stops being told.
     wiki: wikiAttached ? wikiContext : null,
     video: videoAttached ? videoContext : null,
+    image: imageAttached ? imageContext : null,
     onShowWiki: article => openWiki(article),
     onShowVideo: moment => addVideo(moment),
     // Read at send time, so a question always carries the outline as it is now.
@@ -667,6 +698,15 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const finishedCount = suppliedCourse ? Object.keys(nanoProgress.saved.pages || {}).filter(key => ['0', '1', '2', '3', '4', '5'].includes(key) && nanoProgress.saved.pages[key]).length + ['encoding', 'prefixTarget', 'generationWeights'].filter(check => nanoProgress.saved[check]?.count).length : sectionKeys.filter(key => completed[key]).length;
   const allFinished = sectionKeys.length > 0 && finishedCount === sectionKeys.length;
   const canvas = () => canvasApi.current;
+  // The canvas's own name, editable in the strip. Local like the ink: a board
+  // and the main canvas each keep theirs; empty falls back to the course title.
+  const titleKey = `${canvasKey}${board ? `:${board}` : ''}:title`;
+  const [canvasTitle, setCanvasTitle] = useState(() => { try { return localStorage.getItem(titleKey) || ''; } catch { return ''; } });
+  const saveTitle = value => {
+    const clean = value.trim().slice(0, 120);
+    setCanvasTitle(clean);
+    try { clean ? localStorage.setItem(titleKey, clean) : localStorage.removeItem(titleKey); } catch { /* a full store loses the name only */ }
+  };
   const canvasMenus = [
     {
       title: 'Sources',
@@ -695,6 +735,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         { label: 'Section', size: 19, weight: 650, onSelect: () => canvas()?.insertHeading(1) },
         { label: 'Sub-section', size: 16, weight: 600, onSelect: () => canvas()?.insertHeading(2) },
         { label: 'Sub-sub-section', size: 14, weight: 550, onSelect: () => canvas()?.insertHeading(3) },
+        { divider: true },
+        // Lived on the zoom pill as "Add section"; the menubar is its home now.
+        { label: 'Section divider', onSelect: () => canvas()?.addSection() },
       ],
     },
     {
@@ -754,23 +797,27 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     <section aria-label="Learn" className="min-h-0 min-w-0 flex-1">
       {/* The lesson canvas goes full-bleed so its toolbar and zoom controls sit
           at the window edges; every other view keeps the centered page frame. */}
-      <div className={`expanded-page-frame mx-auto flex h-full w-full min-h-0 flex-col py-6 ${!courseView && learningView === 'lesson' ? 'px-8' : 'max-w-[900px] px-6'}`}>
+      <div className={`expanded-page-frame mx-auto flex h-full w-full min-h-0 flex-col ${!courseView && learningView === 'lesson' ? '' : 'max-w-[900px] px-6 py-6'}`}>
         {pendingNoteView && <ConfirmDialog title="Save notes before switching?" body="Save your changes and open the selected view, or cancel to keep editing." confirmLabel="Save notes" confirmVariant="primary" onCancel={() => setPendingNoteView(null)} onConfirm={async () => { if (await noteSave.current?.()) leaveNote(pendingNoteView); }} />}
-        {!canvasState.presenting && <div className="flex items-center justify-between gap-3 pt-1 pb-4">
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1"><h1 className="text-2xl font-semibold">Learn</h1><span aria-label="Course title" className="text-base text-ink-2">{courseTitle}</span></div>
-        </div>}
-        {/* the Curriculum | Lesson | My notes switcher now lives in the right panel as tabs */}
-        {!canvasState.presenting && <div className="relative mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
+        {/* One centered strip is all the chrome the canvas gets: an editable
+            title, the menubar, and the three one-press actions. No page
+            heading, no rule underneath - the canvas has no boundary. */}
+        {!canvasState.presenting && <div className="relative flex shrink-0 flex-wrap items-center justify-center gap-1 px-3 pt-3 pb-1">
+          <input aria-label="Canvas title" value={canvasTitle} placeholder={courseTitle || app.repo || app.name}
+            onChange={event => setCanvasTitle(event.target.value)} onBlur={event => saveTitle(event.target.value)}
+            onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+            className="h-8 w-48 min-w-0 truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none placeholder:text-ink-2 hover:border-line focus:border-line" />
           <CanvasMenubar menus={canvasMenus} />
           {paperSearchOpen && <PaperSearch app={app.name} onPick={openPaper} onClose={() => setPaperSearchOpen(false)} />}
           {wikiSearchOpen && <WikiSearch app={app.name} onPick={page => openWiki({ title: page.title })} onClose={() => setWikiSearchOpen(false)} />}
           {videoSearchOpen && <VideoSearch app={app.name} onPick={video => addVideo(video)} onClose={() => setVideoSearchOpen(false)} />}
-          {/* The two things you reach for without opening a menu, so they sit in
-              the strip rather than inside one. */}
           <div className="flex items-center gap-0.5">
             <button type="button" title="Present" aria-label="Present"
               onClick={() => { setPanelOpen(false); canvasApi.current?.present(); }}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Play size={15} strokeWidth={1.8} /></button>
+            <button type="button" title="Copy a link to this canvas" aria-label="Share"
+              onClick={() => { navigator.clipboard?.writeText(window.location.href).then(() => toast('Link copied.')).catch(() => toast(window.location.href)); }}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Share2 size={15} strokeWidth={1.8} /></button>
             <button type="button" title={panelOpen ? 'Hide the right panel' : 'Show the right panel'}
               aria-label={panelOpen ? 'Hide the right panel' : 'Show the right panel'} aria-pressed={panelOpen}
               onClick={() => setPanelOpen(previous => !previous)}
@@ -791,7 +838,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
-        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onState={onCanvasState} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly boardContext={boardContext} onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
+        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onState={onCanvasState} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly boardContext={boardContext} onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
@@ -899,7 +946,12 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     </ResizableSidePanel>
     <input ref={pdfPicker} type="file" accept="application/pdf" className="hidden"
       onChange={event => { takePdf(event.target.files?.[0]); event.target.value = ''; }} />
-    {!panelOpen && <ContentsRail entries={railEntries}
-      onOpen={entry => { setPanelOpen(false); openFromOutline(entry.content, 'lesson', 0); }} />}
+    {/* With sections on the canvas the rail mirrors the panel's table of
+        contents - hover opens it, a click frames that section, and the panel
+        stays closed. A sectionless canvas falls back to the course lessons. */}
+    {!panelOpen && <ContentsRail entries={canvasOutline.length
+        ? canvasOutline.map((entry, index) => ({ n: index + 1, label: entry.label, available: true, active: false, section: entry.id }))
+        : railEntries}
+      onOpen={entry => { if (entry.section) { canvasApi.current?.showSection(entry.section); return; } setPanelOpen(false); openFromOutline(entry.content, 'lesson', 0); }} />}
   </main>;
 }
