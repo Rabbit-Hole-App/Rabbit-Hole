@@ -3,6 +3,7 @@ import { ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, E
 import { Md } from './ask.jsx';
 import { IconBtn, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
+import { wsHeaders } from './api.js';
 import { BLOCK_TYPES, LearningBlockBody, describeBlock } from './LearningBlocks.jsx';
 import { gapsFrom, nearestGap } from './learn-gap-rail.js';
 import { panelFor, textStyle, dashArray, dashStyle, reorder, TEXT_LEVELS, DASH_STYLES, OPACITIES } from './learn-style-panel.js';
@@ -347,7 +348,7 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
 // `end`, because the window rides the URL and playback enforces it. YouTube's
 // own scrubber is cross-origin and cannot be drawn on, so the moment is shown
 // on our bar underneath - and clicking that bar reloads the embed there.
-function VideoCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onSnap, onWatch }) {
+function VideoCard({ block, zoom, selected, connected, appName, onSelect, onMove, onChange, onLayout, onConnect, onSnap, onWatch }) {
   // Where playback was sent, not persisted: a seek is a glance, and writing it
   // through onChange would spend an undo step per click on the bar. The counter
   // keys the iframe, so seeking to the second you already named still reloads -
@@ -406,6 +407,27 @@ function VideoCard({ block, zoom, selected, connected, onSelect, onMove, onChang
                 read as a fact about the video. */}
             <span>{geometry.known ? clock(block.duration) : ''}</span>
           </div>
+          {/* A tutor-shown moment asks for a verdict. This is what turns the
+              moment log into a gold set - and, later, the hot path. Latest
+              press wins; the row updates server-side, the card remembers. */}
+          {block.momentId && (
+            <div className="mt-1.5 flex items-center justify-end gap-1" onPointerDown={event => event.stopPropagation()}>
+              <span className="mr-auto text-[11px] text-ink-3">Did this moment help?</span>
+              {[['Keep', true], ['Dismiss', false]].map(([label, value]) => (
+                <button key={label} type="button" aria-pressed={block.accepted === value}
+                  onClick={() => {
+                    onChange({ ...block, accepted: value });
+                    fetch('/api/learn/moment-feedback', {
+                      method: 'POST', headers: { 'Content-Type': 'application/json', ...wsHeaders() },
+                      body: JSON.stringify({ app: appName, momentId: block.momentId, accepted: value }),
+                    }).catch(() => { /* the card's memory stands; the log catches up next time */ });
+                  }}
+                  className={`rounded px-2 py-0.5 text-[11px] ${block.accepted === value ? (value ? 'bg-green-600 text-white' : 'bg-ink text-white') : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </CanvasNode>
@@ -443,7 +465,7 @@ function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove,
 }
 
 function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade, onWiki, onWatch }) {
-  if (block.type === 'video') return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
+  if (block.type === 'video') return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
   if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
@@ -991,7 +1013,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         setBlocks(previous => [...previous, { id, type: 'wiki', dx: 0, dy: 0, title, section }]);
         return id;
       },
-      insertVideo: ({ videoId, title, channel = null, start = 0, end = null, unverified = false }) => {
+      insertVideo: ({ videoId, title, channel = null, start = 0, end = null, unverified = false, momentId = null }) => {
         const existing = blocksRef.current.find(block => block.type === 'video' && block.videoId === videoId);
         if (existing) {
           // A caller with no window - the picker re-picking, or a window-less
@@ -1002,18 +1024,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
             // One snapshot per retarget - a tutor pointing somewhere is a
             // deliberate act, not a scroll.
             snapshot();
-            setBlocks(previous => previous.map(block => block.id === existing.id ? { ...block, start, end, unverified, ...(title ? { title } : {}) } : block));
+            setBlocks(previous => previous.map(block => block.id === existing.id ? { ...block, start, end, unverified, momentId: momentId ?? block.momentId, accepted: undefined, ...(title ? { title } : {}) } : block));
           } else if (hasWindow) {
             // The same window again: playback may have wandered, so the show
             // still means "look here now". A nonce remounts the embed without
             // spending an undo step on a no-change edit.
-            setBlocks(previous => previous.map(block => block.id === existing.id ? { ...block, momentNonce: (block.momentNonce || 0) + 1 } : block));
+            setBlocks(previous => previous.map(block => block.id === existing.id ? { ...block, momentNonce: (block.momentNonce || 0) + 1, momentId: momentId ?? block.momentId } : block));
           }
           return existing.id;
         }
         snapshot();
         const id = crypto.randomUUID();
-        setBlocks(previous => [...previous, { id, type: 'video', dx: 0, dy: 0, videoId, title, channel, start, end, ...(unverified ? { unverified: true } : {}) }]);
+        setBlocks(previous => [...previous, { id, type: 'video', dx: 0, dy: 0, videoId, title, channel, start, end, ...(unverified ? { unverified: true } : {}), ...(momentId ? { momentId } : {}) }]);
         return id;
       },
       // The divider used to live on the zoom pill; the menubar is its home now.

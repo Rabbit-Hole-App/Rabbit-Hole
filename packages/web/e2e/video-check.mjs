@@ -11,6 +11,7 @@ const replies = { '/api/apps': { org: app.org, orgName: app.orgName, email: app.
 const browser = await chromium.launch();
 const page = await (await browser.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
 const asks = [];
+const feedback = [];
 let sse = null;
 await page.route('**/api/**', async route => {
   const request = route.request();
@@ -19,6 +20,10 @@ await page.route('**/api/**', async route => {
     { videoId: 'Ilg3gGewQ5U', title: 'Backpropagation, intuitively | Chapter 3', channel: '3Blue1Brown', url: 'https://www.youtube.com/watch?v=Ilg3gGewQ5U' },
     { videoId: 'FaHHWdsIYQg', title: 'Backpropagation Explained', channel: null, url: 'https://www.youtube.com/watch?v=FaHHWdsIYQg' },
   ] } });
+  if (url.pathname === '/api/learn/moment-feedback' && request.method() === 'POST') {
+    try { feedback.push(JSON.parse(request.postData() || '{}')); } catch { /* shape asserted below */ }
+    return route.fulfill({ json: { updated: true } });
+  }
   if (request.method() === 'POST' && /ask|selection/.test(url.pathname)) {
     try { asks.push(JSON.parse(request.postData() || '{}')); } catch { /* not this check's business */ }
     const body = sse || 'event: delta\ndata: {"text":"Here."}\n\nevent: done\ndata: {}\n\n';
@@ -119,13 +124,25 @@ ok('a seek on a restored card carries its own video, not a stale one',
   afterReload?.videoId === 'FaHHWdsIYQg' && afterReload?.title === 'Backpropagation Explained', JSON.stringify(afterReload));
 
 // --- the tutor puts a moment in front of the learner ---
-sse = `event: delta\ndata: {"text":"Watch the update rule."}\n\nevent: video\ndata: ${JSON.stringify({ videoId: 'FaHHWdsIYQg', title: 'Backpropagation Explained', start: 100, end: 190, unverified: false, reason: 'shows the rule' })}\n\nevent: done\ndata: {}\n\n`;
+sse = `event: delta\ndata: {"text":"Watch the update rule."}\n\nevent: video\ndata: ${JSON.stringify({ videoId: 'FaHHWdsIYQg', title: 'Backpropagation Explained', start: 100, end: 190, unverified: false, reason: 'shows the rule', momentId: 41 })}\n\nevent: done\ndata: {}\n\n`;
 await page.getByPlaceholder(/Ask about/).first().fill('show me the update rule');
 await page.keyboard.press('Enter');
 await page.waitForTimeout(2500);
 ok('the tutor retargets the existing card to its moment, not a twin', (await card.count()) === 2);
 ok('and the embed plays exactly that window',
   (await seeded.getAttribute('src')) === 'https://www.youtube-nocookie.com/embed/FaHHWdsIYQg?start=100&end=190', await seeded.getAttribute('src'));
+
+// --- keep / dismiss on a tutor-shown moment ---
+const verdict = canvas.getByText('Did this moment help?');
+ok('a tutor-shown moment asks for a verdict', (await verdict.count()) === 1);
+await canvas.getByRole('button', { name: 'Keep', exact: true }).click();
+await page.waitForTimeout(600);
+const graded = feedback.at(-1);
+ok('Keep updates the moment log', graded?.momentId === 41 && graded?.accepted === true && graded?.app === 'nanogpt', JSON.stringify(graded));
+ok('the card remembers the verdict', (await canvas.getByRole('button', { name: 'Keep', exact: true }).getAttribute('aria-pressed')) === 'true');
+await canvas.getByRole('button', { name: 'Dismiss', exact: true }).click();
+await page.waitForTimeout(600);
+ok('the latest press wins', feedback.at(-1)?.accepted === false);
 
 // a brand-new video from the tutor lands as a new card
 sse = `event: video\ndata: ${JSON.stringify({ videoId: 'aircAruvnKk', title: 'But what is a neural network?', start: 0, end: null, unverified: true, reason: null })}\n\nevent: done\ndata: {}\n\n`;

@@ -145,6 +145,18 @@ export function validateShowVideo(input, found) {
   return { videoId, title, start, end, unverified: false, confidence, reason: String(input?.reason || '').slice(0, 300) || null };
 }
 
+// A learner keeping or dismissing a tutor-shown moment. This single column is
+// what turns the log into a gold set - and, in phase 4, the hot path. Latest
+// write wins; org-scoped so one workspace cannot grade another's rows.
+export async function setMomentFeedback(env, org, momentId, accepted) {
+  const id = Number(momentId);
+  if (!Number.isInteger(id) || id < 1) throw new Error('Invalid moment id');
+  if (typeof accepted !== 'boolean') throw new Error('accepted must be true or false');
+  const result = await env.DB.prepare('UPDATE learn_moments SET accepted = ? WHERE id = ? AND org = ?')
+    .bind(accepted ? 1 : 0, id, String(org || '')).run();
+  return { updated: (result.meta?.changes ?? result.meta?.rows_written ?? 0) > 0 };
+}
+
 // The whole cold path up to the model's choice, as one tool result:
 // discover -> captions (best effort, bounded) -> retrieve. Injection points
 // exist for tests; production wiring passes nothing.

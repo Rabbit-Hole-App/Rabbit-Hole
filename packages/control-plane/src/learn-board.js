@@ -4,7 +4,7 @@ import { SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, arxivId, searchArxiv, readArxivPape
 import { isUploadedPaperId, putUploadedPaper, readUploadedPaper, paperIdentity } from './learn-paper.js';
 import { isUploadedMediaId, putUploadedMedia, readUploadedMedia } from './learn-media.js';
 import { fetchWikipediaArticle, searchWikipediaTitles } from './learn-wiki.js';
-import { searchYouTube } from './learn-youtube.js';
+import { searchYouTube, setMomentFeedback } from './learn-youtube.js';
 import { validateToolInput } from './learn-validation.js';
 import { VIDEO_SCHEMA, validateVideo } from './learn-video-schema.js';
 import { THREE_D_SCHEMA, validateThreeD } from './learn-three-d-schema.js';
@@ -454,6 +454,19 @@ export async function paperFetch(req, env) {
   try {
     return new Response(await fetchArxivPdf(id), { headers: { 'Content-Type': 'application/pdf', 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
   } catch (error) { return Response.json({ error: error.message }, { status: 502 }); }
+}
+
+// A learner's verdict on a tutor-shown moment: one org-scoped UPDATE. The
+// same CSRF stance as the other POST routes here.
+export async function momentFeedback(req, env) {
+  if (req.method !== 'POST') return Response.json({ error: 'POST required' }, { status: 405 });
+  let body;
+  try { body = await req.json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  const access = await authorizedBoardApp(req, env, body.app);
+  if (access instanceof Response) return access;
+  if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return Response.json({ error: 'Invalid origin' }, { status: 403 });
+  try { return Response.json(await setMomentFeedback(env, access.org, body.momentId, body.accepted)); }
+  catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
 }
 
 // Images dropped on the canvas. Same shape as paperFetch: POST stores this
