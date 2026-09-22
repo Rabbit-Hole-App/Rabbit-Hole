@@ -51,9 +51,14 @@ Four things are handled specifically for small screens:
   190px, "Knowledge is" runs off a 390px screen.
 - **`rebuild()` early-returns when the box has not changed.** Phones fire `resize` every
   time the URL bar slides, and that function is O(W·H).
-- **The bar spans the width and drops its links**, keeping the brand and the CTA. A
-  full nav does not fit legibly at 390px. A menu button is the obvious next step and is
-  deliberately not built.
+- **The bar spans the width and drops its links** into a menu, keeping the brand and
+  the CTA inline. A full nav does not fit legibly at 390px.
+
+The menu is a hamburger that morphs into a close mark, opening a solid white sheet
+under the bar. It closes on link tap, on `Escape`, on a tap anywhere outside, and —
+the one that is easy to miss — whenever the bar itself leaves on scroll up, so the
+sheet can never outlive the thing it hangs from. `aria-expanded` and `aria-controls`
+are wired to the button.
 
 ## Reference
 

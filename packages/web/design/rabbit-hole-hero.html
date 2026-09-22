@@ -57,6 +57,17 @@
   #bar a:hover{color:var(--fg);background:rgba(10,10,10,.05)}
   #bar .cta{margin-left:14px;background:var(--fg);color:#fff;padding:9px 18px}
   #bar .cta:hover{background:#000;color:#fff}
+
+  /* hamburger + sheet: phones only, hidden outright on desktop */
+  #menu{display:none;margin-left:10px;width:40px;height:40px;flex:none;
+        align-items:center;justify-content:center;gap:5px;flex-direction:column;
+        background:none;border:1px solid var(--hair);border-radius:12px;cursor:pointer;
+        -webkit-tap-highlight-color:transparent}
+  #menu i{display:block;width:16px;height:1.5px;background:var(--fg);border-radius:2px;
+          transition:transform .26s cubic-bezier(.22,.61,.36,1),opacity .18s ease}
+  #menu[aria-expanded="true"] i:nth-child(1){transform:translateY(3.25px) rotate(45deg)}
+  #menu[aria-expanded="true"] i:nth-child(2){transform:translateY(-3.25px) rotate(-45deg)}
+  #sheet{display:none}
   @media (prefers-reduced-motion:reduce){ #bar,#bar a{transition:none} }
 
   /* ---- what you scroll into once you are through the hole ---- */
@@ -129,6 +140,20 @@
     #bar .brand{font-size:15px;margin-right:auto}
     #bar a:not(.cta){display:none}
     #bar .cta{margin-left:0;padding:10px 16px;font-size:14px}
+    #menu{display:flex}
+
+    /* The links live in a sheet under the bar. It rides with the bar, so it is pinned
+       the same way and closes whenever the bar leaves. */
+    #sheet{display:flex;position:fixed;left:12px;right:12px;top:74px;z-index:19;
+           flex-direction:column;padding:8px;
+           background:#FFFFFF;border:1px solid var(--hair);border-radius:18px;
+           box-shadow:0 1px 2px rgba(10,10,10,.05), 0 18px 44px rgba(10,10,10,.18);
+           transform:translateY(-10px);opacity:0;pointer-events:none;
+           transition:transform .26s cubic-bezier(.22,.61,.36,1),opacity .2s ease}
+    #sheet.open{transform:none;opacity:1;pointer-events:auto}
+    #sheet a{padding:14px 16px;border-radius:12px;text-decoration:none;
+             font:500 16.5px/1 var(--ui);color:var(--fg)}
+    #sheet a:active{background:rgba(10,10,10,.06)}
 
     #below{padding:96px 20px 0}
     #below section{margin-bottom:96px}
@@ -160,7 +185,16 @@
   <a href="#features">Features</a>
   <a href="#pricing">Pricing</a>
   <a class="cta" href="#">Get started</a>
+  <button id="menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="sheet">
+    <i></i><i></i>
+  </button>
 </header>
+
+<nav id="sheet" aria-label="Sections">
+  <a href="#blog">Blog</a>
+  <a href="#features">Features</a>
+  <a href="#pricing">Pricing</a>
+</nav>
 
 <div id="shaft-track"><canvas id="shaft"></canvas></div>
 
@@ -340,11 +374,29 @@
   // leaves on the way back up. Driven by a scroll listener rather than the render loop,
   // so it still works when rAF is paused or switched off for reduced motion. A class
   // toggle keeps it off the scroll path entirely — CSS does the transition.
+  const menu = document.getElementById('menu');
+  const sheet = document.getElementById('sheet');
+
+  function setMenu(open) {
+    sheet.classList.toggle('open', open);
+    menu.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
   function bars() {
-    bar.classList.toggle('on', window.scrollY > track.offsetHeight - window.innerHeight + 24);
+    const on = window.scrollY > track.offsetHeight - window.innerHeight + 24;
+    bar.classList.toggle('on', on);
+    if (!on) setMenu(false);           // the sheet never outlives the bar it hangs from
   }
   addEventListener('scroll', bars, { passive: true });
   bars();
+
+  menu.addEventListener('click', () => setMenu(sheet.classList.contains('open') === false));
+  sheet.addEventListener('click', e => { if (e.target.tagName === 'A') setMenu(false); });
+  addEventListener('keydown', e => { if (e.key === 'Escape') setMenu(false); });
+  addEventListener('pointerdown', e => {          // tap anywhere else closes it
+    if (sheet.classList.contains('open') && !sheet.contains(e.target) && !menu.contains(e.target))
+      setMenu(false);
+  }, true);
 
   function put(i, c) { img.data[i] = c[0]; img.data[i+1] = c[1]; img.data[i+2] = c[2]; img.data[i+3] = 255; }
 
