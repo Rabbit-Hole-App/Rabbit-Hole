@@ -175,12 +175,16 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const registerSource = useCallback(source => setSources(previous => withSource(previous, source)), []);
   // A video is a card only - there is no video reader panel; the embed IS the
   // display. Adding one makes it what the next question is about.
+  // One road for both: the picker and the tutor's show_video. insertVideo
+  // retargets an existing card's moment, so the tutor pointing at a new
+  // passage of a video already on the canvas moves that card rather than
+  // stacking a twin next to it.
   const addVideo = video => {
     pauseLesson();
     const blockId = canvas()?.insertVideo(video);
     if (blockId) {
-      registerSource({ id: `video:${blockId}`, kind: 'video', label: video.title });
-      setVideoContext({ blockId, videoId: video.videoId, start: video.start || 0, end: video.end ?? null, title: video.title });
+      registerSource({ id: `video:${blockId}`, kind: 'video', label: video.title || video.videoId });
+      setVideoContext({ blockId, videoId: video.videoId, start: video.start || 0, end: video.end ?? null, title: video.title || null });
     }
   };
   // A seek on a card's window bar moves what "here" means for the next
@@ -474,6 +478,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     wiki: wikiAttached ? wikiContext : null,
     video: videoAttached ? videoContext : null,
     onShowWiki: article => openWiki(article),
+    onShowVideo: moment => addVideo(moment),
     // Read at send time, so a question always carries the outline as it is now.
     outline: () => canvasStateRef.current.outline || [],
     onOutlineProposal: ops => setProposal(ops),

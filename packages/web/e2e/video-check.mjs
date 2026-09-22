@@ -11,6 +11,7 @@ const replies = { '/api/apps': { org: app.org, orgName: app.orgName, email: app.
 const browser = await chromium.launch();
 const page = await (await browser.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
 const asks = [];
+let sse = null;
 await page.route('**/api/**', async route => {
   const request = route.request();
   const url = new URL(request.url());
@@ -20,7 +21,9 @@ await page.route('**/api/**', async route => {
   ] } });
   if (request.method() === 'POST' && /ask|selection/.test(url.pathname)) {
     try { asks.push(JSON.parse(request.postData() || '{}')); } catch { /* not this check's business */ }
-    return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: 'event: delta\ndata: {"text":"Here."}\n\nevent: done\ndata: {}\n\n' });
+    const body = sse || 'event: delta\ndata: {"text":"Here."}\n\nevent: done\ndata: {}\n\n';
+    sse = null;
+    return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body });
   }
   return route.fulfill({ json: replies[url.pathname] || {} });
 });
@@ -114,6 +117,24 @@ await page.waitForTimeout(1500);
 const afterReload = asks.at(-1)?.video_context;
 ok('a seek on a restored card carries its own video, not a stale one',
   afterReload?.videoId === 'FaHHWdsIYQg' && afterReload?.title === 'Backpropagation Explained', JSON.stringify(afterReload));
+
+// --- the tutor puts a moment in front of the learner ---
+sse = `event: delta\ndata: {"text":"Watch the update rule."}\n\nevent: video\ndata: ${JSON.stringify({ videoId: 'FaHHWdsIYQg', title: 'Backpropagation Explained', start: 100, end: 190, unverified: false, reason: 'shows the rule' })}\n\nevent: done\ndata: {}\n\n`;
+await page.getByPlaceholder(/Ask about/).first().fill('show me the update rule');
+await page.keyboard.press('Enter');
+await page.waitForTimeout(2500);
+ok('the tutor retargets the existing card to its moment, not a twin', (await card.count()) === 2);
+ok('and the embed plays exactly that window',
+  (await seeded.getAttribute('src')) === 'https://www.youtube-nocookie.com/embed/FaHHWdsIYQg?start=100&end=190', await seeded.getAttribute('src'));
+
+// a brand-new video from the tutor lands as a new card
+sse = `event: video\ndata: ${JSON.stringify({ videoId: 'aircAruvnKk', title: 'But what is a neural network?', start: 0, end: null, unverified: true, reason: null })}\n\nevent: done\ndata: {}\n\n`;
+await page.getByPlaceholder(/Ask about/).first().fill('and neural nets generally?');
+await page.keyboard.press('Enter');
+await page.waitForTimeout(2500);
+const fresh = canvas.locator('iframe[src*="aircAruvnKk"]');
+ok('an unverified video arrives as a card with no window', (await fresh.getAttribute('src')) === 'https://www.youtube-nocookie.com/embed/aircAruvnKk', await fresh.getAttribute('src'));
+ok('and says so to the learner, not only to the model', (await canvas.getByText('contents unverified').count()) === 1);
 
 await page.screenshot({ path: 'e2e/shots/video-card.png' });
 await browser.close();

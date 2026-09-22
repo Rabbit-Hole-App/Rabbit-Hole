@@ -5,7 +5,7 @@ import { paperSelectionImage } from './learn-preview-review.js';
 import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, searchWikipedia, readWikipedia, validateShowWikipedia, wikiTitle } from './learn-wiki.js';
-import { validateVideoContext } from './learn-youtube.js';
+import { validateVideoContext, FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, findVideoMoments, validateShowVideo } from './learn-youtube.js';
 import { handleLearnCourse } from './learn-course.js';
 // small control plane: CLI API + browser auth wall + router. One Worker + D1.
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
@@ -972,14 +972,19 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent') {
   // front of the learner that it has not checked exists.
   const articles = new Map();
   let shownWiki = null;
+  // Videos this answer has searched: videoId -> {title, hasCaptions, duration}.
+  // show_video may only point at one of these, and only with a window when its
+  // passages were actually readable - the show_paper bargain, for video.
+  const foundVideos = new Map();
+  let shownVideo = null;
   const research = conversation === 'learn' ? {
     papers: [],
     // Shared with the context assembly below: an article already on the
     // learner's screen counts as read, so the tutor can point at another of
     // its sections without fetching it twice.
     articles,
-    tools: [SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, ...(body.outline?.length ? [OUTLINE_TOOL] : [])],
-    system: [WIKI_SYSTEM, body.outline?.length ? OUTLINE_SYSTEM : null].filter(Boolean).join('\n'),
+    tools: [SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, ...(body.outline?.length ? [OUTLINE_TOOL] : [])],
+    system: [WIKI_SYSTEM, VIDEO_SYSTEM, body.outline?.length ? OUTLINE_SYSTEM : null].filter(Boolean).join('\n'),
     runTool: async (name, input) => {
       if (name === SEARCH_WIKIPEDIA_TOOL.name) return searchWikipedia(input?.query);
       if (name === READ_WIKIPEDIA_TOOL.name) {
@@ -987,6 +992,16 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent') {
         const article = await readWikipedia(input?.title, input?.section);
         articles.set(article.title, article);
         return article;
+      }
+      if (name === FIND_VIDEO_MOMENTS_TOOL.name) {
+        const found = await findVideoMoments(String(input?.query || ''), env);
+        for (const video of found.videos) foundVideos.set(video.videoId, video);
+        return found;
+      }
+      if (name === SHOW_VIDEO_TOOL.name) {
+        if (shownVideo) throw new Error('One video per answer; name the alternatives in your reply');
+        shownVideo = validateShowVideo(input, foundVideos);
+        return { opened: true, window: shownVideo.end != null ? `${shownVideo.start}s to ${shownVideo.end}s` : 'from the start', note: 'The learner now sees it playing. Say what to watch for.' };
       }
       if (name === SHOW_WIKIPEDIA_TOOL.name) {
         if (shownWiki) throw new Error('One article per answer; point at the rest in your reply');
@@ -1000,6 +1015,9 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent') {
     },
     proposed: () => proposedOps,
     shownWiki: () => shownWiki,
+    shownVideo: () => shownVideo,
+    // For the moment log: the askStream org parameter is nulled for learn.
+    org: user.org,
   } : null;
   // Held so the paper block can key an upload by the same app identity that
   // stored it; `app` above is scoped to its own branch.
@@ -1131,12 +1149,17 @@ ${renderOutline(body.outline)}`;
   }
   // One context at a time, and a reader outranks a card: paper, then article,
   // then the video card the learner is watching.
+  if (videoContext) {
+    // The card on screen counts as found, so the tutor can re-show it - but
+    // with no passages read it is captionless as far as windows go.
+    foundVideos.set(videoContext.videoId, { title: videoContext.title, hasCaptions: false, duration: null });
+  }
   if (videoContext && !body.paper_context && !body.wiki_context) {
     const seconds = value => `${Math.floor(value / 60)}:${String(value % 60).padStart(2, '0')}`;
     context = JSON.stringify({
       lesson: context,
       video: { title: videoContext.title, url: `https://www.youtube.com/watch?v=${videoContext.videoId}${videoContext.start ? `&t=${videoContext.start}s` : ''}`, window: `${seconds(videoContext.start)}${videoContext.end != null ? ` to ${seconds(videoContext.end)}` : ''}` },
-      instruction: 'The learner is watching this YouTube video at this window. You have NOT seen the video and have no transcript: never invent quotes or claim to know what is said in it. Answer from your own knowledge of the topic, name the video when referring to it, and say plainly when knowing its actual contents would change the answer.',
+      instruction: 'The learner is watching this YouTube video at this window. You have not read its transcript yet: never invent quotes from it. To know what it actually says, call find_video_moments with a query about its topic and read the passages before quoting or pointing at timestamps. Otherwise answer from your own knowledge and name the video when referring to it.',
     });
     canAct = false;
   }

@@ -91,11 +91,13 @@ COLD  never seen                         Exa + captions    ~10–20 s
    text is then discarded.
 
 The gate on `show_video` is the same bargain `show_paper` and `show_wikipedia`
-strike: only a video whose transcript was read this answer (or that arrived as
-`video_context`) may be shown **with a window**. A captionless video may be
-recommended, window-less, with an honest "couldn't verify contents". The
-phase-1 instruction — *you have no transcript, never invent quotes* — is
-deleted only for videos whose transcript the model actually read.
+strike, keyed on **passages the model was actually shown** — not on captions
+merely existing, because captions can parse and still yield zero relevant
+passages, and a window for such a video would be cited from nothing. A video
+without passages — unreadable captions, or nothing retrieved from them — may
+be recommended window-less, marked "contents unverified" on the card. The
+learner's own `video_context` card counts as found but never as read, so the
+tutor can re-show it, only without inventing a window into it.
 
 ### Warm
 
@@ -173,8 +175,11 @@ be rate-limited, blocked from cloud IPs, or changed without notice — the
 prototype's README warns about exactly this, and it deserves its own terms
 review.
 
-So it is a **go/no-go gate, not a verification item**: phase 2 *begins* with a
-tiny deployed worker probing 50–100 representative educational videos —
+So it is a **go/no-go gate, not a verification item**: phase 2 code may be
+written against stubs, but nothing ships to learners before a deployed worker
+probes 50–100 representative educational videos —
+(`probe-captions.mjs` carries an initial 16-video corpus for the local
+baseline; the deployed run extends it from the eval set) —
 has captions? fetch succeeds from Cloudflare? timed lines parse? auto vs
 manual? latency? 429/blocking rate? — before anything else is built. If that
 probe fails badly, the architecture changes (Whisper via Workers AI moves from

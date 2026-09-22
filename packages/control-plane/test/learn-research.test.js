@@ -34,7 +34,7 @@ test('search is metadata only; failed reading returns an error to the model, not
   });
   assert.deepEqual(result.papers, []);
 });
-test('research stops after six retrieval calls and cannot execute app tools', async () => {
+test('research stops after eight retrieval calls and cannot execute app tools', async () => {
   let calls = 0, searches = 0;
   const result = await researchAnswer({}, [], 'Tutor', null, {
     callModel: async (_, body) => {
@@ -43,7 +43,7 @@ test('research stops after six retrieval calls and cannot execute app tools', as
       return body.tool_choice.type === 'none' ? text('Insufficient evidence.') : tool('search_arxiv', { query: 'topic' });
     }, findPapers: async () => { searches++; return []; },
   });
-  assert.equal(calls, 7); assert.equal(searches, 6); assert.equal(result.papers.length, 0);
+  assert.equal(calls, 9); assert.equal(searches, 8); assert.equal(result.papers.length, 0);
 });
 test('dev routes plain Learn questions locally rather than requiring canvas context', async () => {
   const source = readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8');

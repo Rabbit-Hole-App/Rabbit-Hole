@@ -312,6 +312,8 @@ function VideoCard({ block, zoom, selected, connected, onSelect, onMove, onChang
   // keys the iframe, so seeking to the second you already named still reloads -
   // playback has moved on even when the number has not.
   const [playFrom, setPlayFrom] = useState(null);
+  // A retargeted moment (the tutor pointing somewhere new) beats a stale seek.
+  useEffect(() => { setPlayFrom(null); }, [block.start, block.end, block.momentNonce]);
   const start = playFrom?.at ?? block.start ?? 0;
   const inMoment = playFrom == null || (playFrom.at >= (block.start || 0) && (block.end == null || playFrom.at < block.end));
   const playEnd = inMoment ? block.end ?? null : null;
@@ -334,6 +336,10 @@ function VideoCard({ block, zoom, selected, connected, onSelect, onMove, onChang
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
         <span className="h-1.5 w-1.5 rounded-full bg-ink" />Video<span className="truncate normal-case tracking-normal text-ink-3">{block.title}</span>
+        {/* The tutor could not read this video's captions, so the moment is a
+            recommendation on title alone - the spec's failure table says the
+            learner hears that, not just the model. */}
+        {block.unverified && <span className="shrink-0 rounded bg-hover px-1.5 py-0.5 normal-case tracking-normal text-ink-3" title="The tutor could not read this video's captions, so its contents are unverified.">contents unverified</span>}
       </div>
       {/* Same bargain as PdfCard: the player ignores the pointer until the
           card is selected, so canvas keys and drags stay alive. */}
@@ -861,12 +867,29 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         setBlocks(previous => [...previous, { id, type: 'wiki', dx: 0, dy: 0, title, section }]);
         return id;
       },
-      insertVideo: ({ videoId, title, channel = null, start = 0, end = null }) => {
+      insertVideo: ({ videoId, title, channel = null, start = 0, end = null, unverified = false }) => {
         const existing = blocksRef.current.find(block => block.type === 'video' && block.videoId === videoId);
-        if (existing) return existing.id;
+        if (existing) {
+          // A caller with no window - the picker re-picking, or a window-less
+          // re-show - must never wipe a real moment off the card. Only an
+          // actual window retargets.
+          const hasWindow = end != null || start > 0;
+          if (hasWindow && (existing.start !== start || (existing.end ?? null) !== end)) {
+            // One snapshot per retarget - a tutor pointing somewhere is a
+            // deliberate act, not a scroll.
+            snapshot();
+            setBlocks(previous => previous.map(block => block.id === existing.id ? { ...block, start, end, unverified, ...(title ? { title } : {}) } : block));
+          } else if (hasWindow) {
+            // The same window again: playback may have wandered, so the show
+            // still means "look here now". A nonce remounts the embed without
+            // spending an undo step on a no-change edit.
+            setBlocks(previous => previous.map(block => block.id === existing.id ? { ...block, momentNonce: (block.momentNonce || 0) + 1 } : block));
+          }
+          return existing.id;
+        }
         snapshot();
         const id = crypto.randomUUID();
-        setBlocks(previous => [...previous, { id, type: 'video', dx: 0, dy: 0, videoId, title, channel, start, end }]);
+        setBlocks(previous => [...previous, { id, type: 'video', dx: 0, dy: 0, videoId, title, channel, start, end, ...(unverified ? { unverified: true } : {}) }]);
         return id;
       },
       toggleGrid: () => setGrid(previous => !previous),

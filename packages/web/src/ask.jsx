@@ -533,6 +533,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           else if (type === 'outline') { boardContext?.onOutlineProposal?.(d.ops); }
           else if (type === 'paper') { boardContext?.onShowPaper?.(d); }
           else if (type === 'wiki') { boardContext?.onShowWiki?.(d); }
+          else if (type === 'video') { boardContext?.onShowVideo?.(d); }
           else if (type === 'papers') setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, papers: d.papers } : item));
           else if (type === 'proposal') setMsgs((m) => [...m, { role: 'proposal', proposal: d }]);
           else if (type === 'done' && d.threadId) {

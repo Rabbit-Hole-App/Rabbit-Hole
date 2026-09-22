@@ -5,17 +5,19 @@ Read results supply the actual PDF, including figures. Cite the exact returned p
 Answer in chat first. When you have read a paper and are pointing at a specific figure, equation or passage, call show_paper with its page so the learner is looking at it while you explain; say what to look for rather than only naming it. Do not claim that drawing on the canvas already happened. You cannot execute code, deploy, or change app resources. Any tool supplied beyond the research tools is described in the instructions above; use only what is actually supplied.`;
 
 // Read-only research is separate from app-action proposals. Limit the loop to
-// six retrieval calls and two papers so a question cannot trigger endless research.
+// eight retrieval calls and two papers so a question cannot trigger endless
+// research; eight, because a thorough answer can legitimately spend
+// search+read+read+show on one source family and still consult another.
 export async function researchAnswer(env, turns, system, model, {
   callModel, onProgress = async () => {}, findPapers = searchArxiv, readPaper = readArxivPaper, initialPapers = [], tools = [], runTool,
 }) {
   const messages = [...turns], papers = new Map(initialPapers.map(p => [p.id, p]));
   let shown = null; // a paper the agent asked to put in front of the learner
-  for (let step = 0; step <= 6; step++) {
+  for (let step = 0; step <= 8; step++) {
     const response = await callModel(env, {
       max_tokens: 2400, system: `${system}\n${LEARN_RESEARCH_SYSTEM}`,
       tools: [...tools, SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, ...(papers.size ? [SHOW_PAPER_TOOL] : [])],
-      tool_choice: step < 6 ? { type: 'auto', disable_parallel_tool_use: true } : { type: 'none' },
+      tool_choice: step < 8 ? { type: 'auto', disable_parallel_tool_use: true } : { type: 'none' },
       messages,
     }, model, null);
     if (!response.ok) {
@@ -30,7 +32,7 @@ export async function researchAnswer(env, turns, system, model, {
       if (!answer?.trim()) {
         // Adaptive thinking can end a turn with only a thinking block; replay it
         // (blocks must be preserved verbatim) and ask once for the text answer.
-        if (step < 6 && result.content?.some(block => block.type === 'thinking')) {
+        if (step < 8 && result.content?.some(block => block.type === 'thinking')) {
           messages.push({ role: 'assistant', content: result.content }, { role: 'user', content: 'Continue with your final answer now, as plain text.' });
           await onProgress('Preparing answer...');
           continue;
@@ -39,7 +41,7 @@ export async function researchAnswer(env, turns, system, model, {
       }
       return { answer, papers: [...papers.values()], shown };
     }
-    if (step === 6 || calls.length !== 1) throw new Error('Learn research limit reached');
+    if (step === 8 || calls.length !== 1) throw new Error('Learn research limit reached');
     const call = calls[0];
     let content, is_error = false;
     try {

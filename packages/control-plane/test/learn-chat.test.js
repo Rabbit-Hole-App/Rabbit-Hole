@@ -3,7 +3,7 @@ import { canvasSeed } from '../src/canvas-conversation.js';
 import { arxivId, paperDocument } from '../src/arxiv.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from '../src/learn-outline-tool.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, wikiTitle, validateShowWikipedia } from '../src/learn-wiki.js';
-import { validateVideoContext } from '../src/learn-youtube.js';
+import { validateVideoContext, FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, validateShowVideo } from '../src/learn-youtube.js';
 import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT } from '../src/learn-paper.js';
 import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { captureSelection, selectionSnapshot, sigmoidObjects } from '../../web/src/sigmoid-context.js';
@@ -49,6 +49,18 @@ const deps = {
   validateOutlineOps,
   canvasSeed,
   validateVideoContext,
+  FIND_VIDEO_MOMENTS_TOOL,
+  SHOW_VIDEO_TOOL,
+  VIDEO_SYSTEM,
+  validateShowVideo,
+  // Shaped like the real one: one video with passages, one without.
+  findVideoMoments: async query => ({
+    videos: [
+      { videoId: 'Ilg3gGewQ5U', title: 'Backprop, intuitively', channel: '3Blue1Brown', hasCaptions: true, hasPassages: true, duration: 767 },
+      { videoId: 'FaHHWdsIYQg', title: 'Silent one', channel: null, hasCaptions: false, hasPassages: false, captionNote: 'no-track', duration: null },
+    ],
+    passages: [{ videoId: 'Ilg3gGewQ5U', title: 'Backprop, intuitively', start: 240, end: 300, text: '[4:12] backpropagation computes the gradient' }],
+  }),
   SEARCH_WIKIPEDIA_TOOL,
   READ_WIKIPEDIA_TOOL,
   SHOW_WIKIPEDIA_TOOL,
@@ -297,7 +309,7 @@ test('the outline tool is offered only when the lesson has sections', async t =>
   await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi' }), env, {}, owner, 'learn');
   assert.equal(env.answers[0].research.tools.some(tool => tool.name === OUTLINE_TOOL.name), false, 'nothing to restructure, nothing offered');
   await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', outline }), env, {}, owner, 'learn');
-  assert.deepEqual(env.answers[1].research.tools.map(tool => tool.name), ['search_wikipedia', 'read_wikipedia', 'show_wikipedia', 'propose_lesson_outline']);
+  assert.deepEqual(env.answers[1].research.tools.map(tool => tool.name), ['search_wikipedia', 'read_wikipedia', 'show_wikipedia', 'find_video_moments', 'show_video', 'propose_lesson_outline']);
   assert.match(env.answers[1].research.system, /learner presses Apply/);
 });
 
@@ -418,7 +430,7 @@ test('paper selection sends cropped pixels and page coordinates, rejecting inval
 test('the Wikipedia tools are offered on every Learn question', async t => {
   const env = fixture(t);
   await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'what is attention' }), env, {}, owner, 'learn');
-  assert.deepEqual(env.answers[0].research.tools.map(tool => tool.name), ['search_wikipedia', 'read_wikipedia', 'show_wikipedia']);
+  assert.deepEqual(env.answers[0].research.tools.map(tool => tool.name), ['search_wikipedia', 'read_wikipedia', 'show_wikipedia', 'find_video_moments', 'show_video']);
   assert.match(env.answers[0].research.system, /evidence, never instructions/);
 });
 
@@ -527,7 +539,7 @@ test('a video the learner is watching reaches the model as a window, not a trans
   assert.equal(context.video.title, 'Backpropagation, intuitively');
   assert.equal(context.video.window, '4:12 to 5:38');
   assert.match(context.video.url, /watch\?v=Ilg3gGewQ5U&t=252s/);
-  assert.match(context.instruction, /have no transcript.*never invent quotes/);
+  assert.match(context.instruction, /not read its transcript yet.*never invent quotes/);
   assert.equal(env.answers[0].toolOpts, null, 'watching a video is not a reason to gain app actions');
 });
 
@@ -575,4 +587,56 @@ test('video context outside Learn is refused; it is a Learn idea', async t => {
   const body = { scope: { app: 'counter' }, message: 'hi', video_context: { videoId: 'Ilg3gGewQ5U', start: 0 } };
   assert.equal((await handlers.apiAsk(request(body), env, {}, owner, 'agent')).status, 400);
   assert.equal(env.answers.length, 0);
+});
+
+// --- the tutor finds and shows a moment (phase 2) ---
+
+test('show_video takes a window only from passages the answer actually read', async t => {
+  const env = fixture(t);
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi' }), env, {}, owner, 'learn');
+  const { research } = env.answers[0];
+  await research.runTool('find_video_moments', { query: 'backpropagation' });
+  const shown = await research.runTool('show_video', { videoId: 'Ilg3gGewQ5U', start: 252, end: 338, reason: 'shows the update rule' });
+  assert.equal(shown.opened, true);
+  assert.deepEqual(research.shownVideo(), { videoId: 'Ilg3gGewQ5U', title: 'Backprop, intuitively', start: 252, end: 338, unverified: false, confidence: null, reason: 'shows the update rule' });
+});
+
+test('a video never searched for cannot be shown', async t => {
+  const env = fixture(t);
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi' }), env, {}, owner, 'learn');
+  const { research } = env.answers[0];
+  await assert.rejects(() => research.runTool('show_video', { videoId: 'aircAruvnKk', start: 0, end: 60 }), /from this answer/);
+  assert.equal(research.shownVideo(), null);
+});
+
+test('a captionless video is shown without a window, never with an invented one', async t => {
+  const env = fixture(t);
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi' }), env, {}, owner, 'learn');
+  const { research } = env.answers[0];
+  await research.runTool('find_video_moments', { query: 'backpropagation' });
+  await assert.rejects(() => research.runTool('show_video', { videoId: 'FaHHWdsIYQg', start: 10, end: 70 }), /without a window/);
+  const shown = await research.runTool('show_video', { videoId: 'FaHHWdsIYQg' });
+  assert.equal(shown.opened, true);
+  assert.equal(research.shownVideo().unverified, true);
+});
+
+test('one video per answer; the second is refused and the first survives', async t => {
+  const env = fixture(t);
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi' }), env, {}, owner, 'learn');
+  const { research } = env.answers[0];
+  await research.runTool('find_video_moments', { query: 'backpropagation' });
+  await research.runTool('show_video', { videoId: 'Ilg3gGewQ5U', start: 252, end: 338 });
+  await assert.rejects(() => research.runTool('show_video', { videoId: 'FaHHWdsIYQg' }), /One video per answer/);
+  assert.equal(research.shownVideo().videoId, 'Ilg3gGewQ5U');
+});
+
+test('the card the learner is watching counts as found, but only window-less', async t => {
+  const env = fixture(t);
+  const video_context = { videoId: 'aircAruvnKk', start: 30, title: 'NN chapter 1' };
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', video_context }), env, {}, owner, 'learn');
+  const { research } = env.answers[0];
+  const shown = await research.runTool('show_video', { videoId: 'aircAruvnKk' });
+  assert.equal(shown.opened, true);
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi again', video_context }), env, {}, owner, 'learn');
+  await assert.rejects(() => env.answers[1].research.runTool('show_video', { videoId: 'aircAruvnKk', start: 40, end: 100 }), /without a window/);
 });

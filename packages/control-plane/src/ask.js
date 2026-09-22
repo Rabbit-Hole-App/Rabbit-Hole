@@ -389,6 +389,21 @@ ${research.system}` : system;
         // read its actual pages; the article is named in the reply either way.
         const article = research.shownWiki?.();
         if (article && !result.shown) await send('wiki', article);
+        // A video is a card, not the reader, so it does not compete with a
+        // paper or an article for the panel - it can always land.
+        const moment = research.shownVideo?.();
+        if (moment) {
+          await send('video', moment);
+          // The moment log is written from day one; the hot path only starts
+          // reading it in phase 4. A missing table must never cost an answer.
+          try {
+            // `org` the parameter is null for learn conversations by design, so
+            // the workspace rides on the research object instead - the log is
+            // keyed per workspace or it is useless to the hot path.
+            await env.DB.prepare('INSERT INTO learn_moments (org, question, video_id, start, end, confidence, reason) VALUES (?, ?, ?, ?, ?, ?, ?)')
+              .bind(research.org || org || 'unknown', message.slice(0, 500), moment.videoId, moment.start, moment.end, moment.confidence, moment.reason).run();
+          } catch { /* logging is never worth an error mid-answer */ }
+        }
       } else if (toolOpts) {
         // tools attached (user has edit): one non-streaming call so tool_use blocks
         // arrive whole; each becomes a proposal - never an execution
