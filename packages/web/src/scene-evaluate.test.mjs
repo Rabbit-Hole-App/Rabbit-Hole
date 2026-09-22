@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateScene } from './scene-evaluate.js';
+import { applyInputToBlock, evaluateScene } from './scene-evaluate.js';
 import { DERIVATIONS } from './scene-derive.js';
 
 // T02: one evaluation path. Raw learner values are coerced ONCE, the coerced
@@ -116,6 +116,24 @@ test('renamed ids, labels and input names still bind - nothing keys on the fixtu
   assert.deepEqual(derived.gewaehlt, [5, 6]);
   assert.deepEqual(state.objects.find(o => o.id === 'gewaehlte').values, [5, 6]);
   assert.equal(state.objects.find(o => o.id === 'beschriftung').label, 'row 2 sums to 11');
+});
+
+test('applyInputToBlock: canonical value stored, revision monotonic, no-ops spend nothing', () => {
+  const block = { id: 'b1', type: 'animation', scene: scene(), time: 0 };
+  const first = applyInputToBlock(block, 'rowIndex', 2);
+  assert.equal(first.inputs.rowIndex, 2);
+  assert.equal(first.inputRevision, 1);
+  // out-of-domain resets to the default - which IS a change from 2, so it counts
+  const second = applyInputToBlock(first, 'rowIndex', 99);
+  assert.equal(second.inputs.rowIndex, 0);
+  assert.equal(second.inputRevision, 2);
+  // the same effective value again is a no-op: same object, no revision spent
+  assert.equal(applyInputToBlock(second, 'rowIndex', 0), second);
+  assert.equal(applyInputToBlock(second, 'rowIndex', 0.4), second);
+  // an undeclared name changes nothing
+  assert.equal(applyInputToBlock(second, 'ghost', 5), second);
+  // untouched block fields ride along
+  assert.equal(second.time, 0);
 });
 
 test('evaluateScene mutates neither the scene nor the raw inputs', () => {

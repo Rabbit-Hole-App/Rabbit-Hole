@@ -29,12 +29,18 @@ const NAME = /^[a-zA-Z][a-zA-Z0-9_]{0,39}$/;
 // options" is a confusion about what the input is, and silence would let the
 // author believe the options do something.
 const TYPE_FIELDS = {
-  index: ['of'],
+  index: ['of', 'presentation'],
   bool: [],
   choice: ['options'],
   indices: ['of'],
   vec2: ['range'],
 };
+
+// How an index control presents: 'picker' (one labelled chip per position,
+// the default) or 'slider' (an integer slider with Previous/Next steppers,
+// for domains too long to read as chips). Presentation only - both edit the
+// same declared input the same way.
+const INDEX_PRESENTATIONS = ['picker', 'slider'];
 const COMMON_FIELDS = ['name', 'type', 'label', 'default'];
 
 const domainLength = (declaration, exampleData) => {
@@ -73,6 +79,9 @@ export function validateInputDeclarations(declarations, exampleData = {}, reserv
       }
       if (declaration.type === 'index' && !(Number.isInteger(declaration.default) && declaration.default >= 0 && declaration.default < length)) {
         throw new Error(`${where}: default ${declaration.default} is outside 0..${length - 1}`);
+      }
+      if (declaration.type === 'index' && declaration.presentation !== undefined && !INDEX_PRESENTATIONS.includes(declaration.presentation)) {
+        throw new Error(`${where}: presentation must be one of ${INDEX_PRESENTATIONS.join(', ')}`);
       }
       if (declaration.type === 'indices' && !(Array.isArray(declaration.default) && declaration.default.every(i => Number.isInteger(i) && i >= 0 && i < length))) {
         throw new Error(`${where}: default must be a list of positions inside 0..${length - 1}`);

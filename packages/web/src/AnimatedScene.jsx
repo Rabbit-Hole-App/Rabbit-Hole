@@ -13,6 +13,8 @@ import katex from 'katex';
 // it here directly makes AnimatedScene correct on its own.
 import 'katex/dist/katex.min.css';
 import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './animation-scene.js';
+import { applyInputToBlock, evaluateScene } from './scene-evaluate.js';
+import SceneControls from './SceneControls.jsx';
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { distributeRounding } from './scene-derive.js';
 import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-sound.js';
@@ -562,10 +564,41 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, [block.marked, block.selectedObject, selecting]);
+  // A scene that declares learning inputs evaluates through the input path:
+  // the block's raw persisted values are coerced once and join the derive
+  // pool, so the validated scene below IS the scene for this input snapshot.
+  // A passive scene takes the old two-argument path verbatim.
+  const interactive = Array.isArray(block.scene?.inputs) && block.scene.inputs.length > 0;
+  const [evaluated, setEvaluated] = useState(null);
+  const inputsKey = interactive ? JSON.stringify(block.inputs || {}) : '';
   useEffect(() => {
-    try { setScene(validateScene(block.scene)); setError(''); }
-    catch (problem) { setError(problem.message); setScene(null); }
-  }, [block.scene]);
+    try {
+      if (interactive) {
+        const result = evaluateScene(block.scene, 0, block.inputs);
+        setEvaluated(result);
+        setScene(result.scene);
+      } else {
+        setEvaluated(null);
+        setScene(validateScene(block.scene));
+      }
+      setError('');
+    } catch (problem) { setError(problem.message); setScene(null); }
+  }, [block.scene, inputsKey]);
+  // Changing a learning input pauses playback and keeps the current time -
+  // the scrubber never jumps because the learner asked a what-if question.
+  const setInput = (name, value) => {
+    const next = applyInputToBlock(latest.current, name, value);
+    if (next === latest.current) return;
+    setPlaying(false);
+    onChange(next);
+  };
+  // Only this card's experiment resets: declared inputs return, the inspected
+  // object and marked region clear, notes and every other card stay put.
+  const resetExperiment = () => {
+    setPlaying(false);
+    setSelecting(false);
+    onChange({ ...latest.current, inputs: {}, inputRevision: (latest.current.inputRevision || 0) + 1, marked: null, selectedObject: null });
+  };
   useEffect(() => {
     if (!playing || !scene) return;
     clock.current = performance.now() - time * 1000;
@@ -633,6 +666,10 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
   const replay = () => { setTime(0); setRun(count => count + 1); if (!still) setPlaying(true); };
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
+      {interactive && evaluated && (
+        <SceneControls declarations={evaluated.declarations} inputs={evaluated.inputs}
+          data={block.scene.exampleData} onInput={setInput} onReset={resetExperiment} />
+      )}
       <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-white">
         <Frame scene={scene} state={state} selecting={selecting} marked={block.marked} picked={block.selectedObject} pop={pop}
           onPick={semanticId => onChange({ ...block, selectedObject: semanticId })}

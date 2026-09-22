@@ -439,7 +439,14 @@ export const BLOCK_TYPES = {
     sizeFor: block => {
       const report = block.scene ? sceneLegibility(block.scene) : null;
       if (!report) return null;
-      return { width: Math.round(report.viewport.w + FRAME_CHROME.w), height: Math.round(report.viewport.h + FRAME_CHROME.h) };
+      // An interactive scene renders its experiment controls above the frame;
+      // the frame itself must not shrink to make room for them, so the block
+      // grows by the control strip instead. One wrapped row of h-8 controls
+      // with the strip's own padding and gap; a second row for a control set
+      // long enough to wrap at this width.
+      const declarations = Array.isArray(block.scene.inputs) ? block.scene.inputs.length : 0;
+      const controls = declarations ? 56 + (declarations > 2 ? 44 : 0) : 0;
+      return { width: Math.round(report.viewport.w + FRAME_CHROME.w), height: Math.round(report.viewport.h + FRAME_CHROME.h + controls) };
     },
     sample: () => ({
       id: crypto.randomUUID(),

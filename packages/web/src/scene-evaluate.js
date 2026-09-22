@@ -28,3 +28,21 @@ export function evaluateScene(raw, time, rawInputs) {
   const scene = validateScene(augmented);
   return { inputs, derived, state: getSceneState(scene, time), scene, declarations };
 }
+
+// The one write path for a learning input on a canvas block. Returns the same
+// block object when the EFFECTIVE snapshot would not change - no revision is
+// spent on a no-op - and otherwise stores the canonical coerced value with a
+// monotonically bumped inputRevision, the number every later reader (views,
+// checks, the composer context) uses to say which snapshot it saw.
+export function applyInputToBlock(block, name, value) {
+  let declarations;
+  try {
+    declarations = validateInputDeclarations(block.scene?.inputs || [], block.scene?.exampleData, Object.keys(block.scene?.derived || {}));
+  } catch { return block; } // a scene broken enough to fail here renders the error box, not controls
+  if (!declarations.some(declaration => declaration.name === name)) return block;
+  const data = block.scene?.exampleData;
+  const before = coerceInputs(declarations, block.inputs, data);
+  const after = coerceInputs(declarations, { ...before, [name]: value }, data);
+  if (JSON.stringify(after[name]) === JSON.stringify(before[name])) return block;
+  return { ...block, inputs: { ...(block.inputs || {}), [name]: after[name] }, inputRevision: (block.inputRevision || 0) + 1 };
+}
