@@ -1,0 +1,195 @@
+{
+  "scene": {
+    "id": "repo-navigator",
+    "title": "Codebase navigator",
+    "width": 980,
+    "height": 480,
+    "duration": 2,
+    "inputs": [
+      {
+        "name": "nodeIndex",
+        "type": "index",
+        "label": "Symbol",
+        "of": "nodes",
+        "default": 0,
+        "presentation": "visual"
+      }
+    ],
+    "exampleData": {
+      "nodes": [
+        {
+          "label": "model.py",
+          "crumb": "nanoGPT › model.py",
+          "arch": 0,
+          "code": "class GPT(nn.Module):  self.blocks = [Block(config) for _ in range(n_layer)]"
+        },
+        {
+          "label": "Block",
+          "crumb": "nanoGPT › model.py › Block",
+          "arch": 1,
+          "code": "class Block(nn.Module):  self.attn = CausalSelfAttention(config); self.mlp = MLP(config)"
+        },
+        {
+          "label": "CausalSelfAttention",
+          "crumb": "nanoGPT › model.py › Block › CausalSelfAttention",
+          "arch": 2,
+          "code": "class CausalSelfAttention(nn.Module):  self.c_attn = nn.Linear(n_embd, 3*n_embd)"
+        },
+        {
+          "label": "forward()",
+          "crumb": "nanoGPT › model.py › Block › CausalSelfAttention › forward()",
+          "arch": 3,
+          "code": "def forward(self, x):  att = (q @ k.T) * scale;  att = att.masked_fill(mask==0, -inf)"
+        }
+      ],
+      "arch": [
+        "Repository",
+        "file: model.py",
+        "class hierarchy",
+        "attention forward"
+      ],
+      "nodeArch": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    "derived": {
+      "sel": {
+        "op": "pick",
+        "args": [
+          "nodes",
+          "nodeIndex"
+        ]
+      },
+      "archRow": {
+        "op": "pick",
+        "args": [
+          "nodeArch",
+          "nodeIndex"
+        ]
+      }
+    },
+    "objects": [
+      {
+        "id": "caption",
+        "type": "text",
+        "semanticId": "caption",
+        "conceptId": "repo-navigation",
+        "initialState": {
+          "text": "{{sel.crumb}}",
+          "x": 40,
+          "y": 34
+        }
+      },
+      {
+        "id": "symbols",
+        "type": "tokens",
+        "semanticId": "symbol-path",
+        "conceptId": "repo-navigation",
+        "initialState": {
+          "label": "click a symbol to drill in",
+          "x": 40,
+          "y": 78,
+          "w": 760,
+          "h": 32,
+          "opacity": 0,
+          "role": "input",
+          "tokens": [
+            "model.py",
+            "Block",
+            "CausalSelfAttention",
+            "forward()"
+          ],
+          "pickInput": "nodeIndex",
+          "cellHighlight": {
+            "$derive": "nodeIndex"
+          }
+        }
+      },
+      {
+        "id": "architecture",
+        "type": "grid",
+        "semanticId": "architecture",
+        "conceptId": "repo-navigation",
+        "initialState": {
+          "label": "architecture",
+          "x": 40,
+          "y": 150,
+          "rows": 4,
+          "cols": 1,
+          "cell": 46,
+          "opacity": 0,
+          "role": "observed",
+          "matrixKind": "input",
+          "rowLabels": [
+            "Repository",
+            "file: model.py",
+            "class hierarchy",
+            "attention forward"
+          ],
+          "values": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "cellHighlight": {
+            "row": {
+              "$derive": "nodeIndex"
+            }
+          },
+          "cellHighlightKind": "select"
+        }
+      },
+      {
+        "id": "code",
+        "type": "code",
+        "semanticId": "code-excerpt",
+        "conceptId": "repo-navigation",
+        "initialState": {
+          "text": "{{sel.code}}",
+          "x": 420,
+          "y": 150,
+          "w": 520,
+          "h": 220,
+          "opacity": 0,
+          "role": "code"
+        }
+      },
+      {
+        "id": "hint",
+        "type": "text",
+        "semanticId": "hint",
+        "conceptId": "repo-navigation",
+        "initialState": {
+          "text": "breadcrumb, architecture highlight and code all follow the one selection",
+          "x": 40,
+          "y": 420,
+          "typography": "annotation"
+        }
+      }
+    ],
+    "timeline": [
+      {
+        "at": 0,
+        "action": "appear",
+        "target": "symbols",
+        "duration": 0.4
+      },
+      {
+        "at": 0.3,
+        "action": "appear",
+        "target": "architecture",
+        "duration": 0.4
+      },
+      {
+        "at": 0.5,
+        "action": "appear",
+        "target": "code",
+        "duration": 0.4
+      }
+    ]
+  }
+}

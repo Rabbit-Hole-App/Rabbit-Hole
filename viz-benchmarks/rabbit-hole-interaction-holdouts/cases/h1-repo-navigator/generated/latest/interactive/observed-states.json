@@ -1,0 +1,34 @@
+{
+  "node-0": {
+    "crumb": "nanoGPT › model.py",
+    "code": "class GPT(nn.Module):  self.blocks = [Block(config) for _ in range(n_layer)]",
+    "archRow": {
+      "row": 0
+    },
+    "sel": "model.py"
+  },
+  "node-1": {
+    "crumb": "nanoGPT › model.py › Block",
+    "code": "class Block(nn.Module):  self.attn = CausalSelfAttention(config); self.mlp = MLP(config)",
+    "archRow": {
+      "row": 1
+    },
+    "sel": "Block"
+  },
+  "node-2": {
+    "crumb": "nanoGPT › model.py › Block › CausalSelfAttention",
+    "code": "class CausalSelfAttention(nn.Module):  self.c_attn = nn.Linear(n_embd, 3*n_embd)",
+    "archRow": {
+      "row": 2
+    },
+    "sel": "CausalSelfAttention"
+  },
+  "node-3": {
+    "crumb": "nanoGPT › model.py › Block › CausalSelfAttention › forward()",
+    "code": "def forward(self, x):  att = (q @ k.T) * scale;  att = att.masked_fill(mask==0, -inf)",
+    "archRow": {
+      "row": 3
+    },
+    "sel": "forward()"
+  }
+}

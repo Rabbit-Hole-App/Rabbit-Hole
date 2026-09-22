@@ -1,0 +1,15 @@
+{
+  "capturedAt": "2026-09-22T21:47:30.233Z",
+  "baseCommit": "135d4258d03502448ae153fa3e028cee832e9941",
+  "branch": "feat/canvas-block-conversations",
+  "client": {
+    "mode": "local-vite-dev",
+    "port": 5199
+  },
+  "sceneSpecHash": "c0342cff6e5e65404d418f724881293e9a19fb53a7b9c8fe7d43c501c508f0d1",
+  "rendererHash": "9a7de04e8aa9a3dcedf3ca8148dc608de67967d54f01aa954e902accb55daddd",
+  "screenshots": {
+    "holdout-repo-initial.png": "203a597324abd477f96f144cac5061633eb3b99f69ac17aab23a87df72202ce3",
+    "holdout-repo-forward.png": "e22bf7e080f950ea985a9e2eceb7b0ddd20e5bdee63d5a7978c3f2c637e11813"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "script": "holdouts-check.mjs",
+  "lines": [
+    "H1 repo navigator: chip click coordinates breadcrumb + code + architecture",
+    "H2 CNN inspector: layer pick + channel slider both drive the feature map",
+    "reload: holdout state persists",
+    "PASS - holdouts express on existing input types"
+  ]
+}

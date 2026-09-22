@@ -1,0 +1,15 @@
+{
+  "capturedAt": "2026-09-22T21:47:30.233Z",
+  "baseCommit": "135d4258d03502448ae153fa3e028cee832e9941",
+  "branch": "feat/canvas-block-conversations",
+  "client": {
+    "mode": "local-vite-dev",
+    "port": 5199
+  },
+  "sceneSpecHash": "14772051ecaef70687a8338d013282be1574e9b34499e4bcdcf7492f7e1ee3d0",
+  "rendererHash": "9a7de04e8aa9a3dcedf3ca8148dc608de67967d54f01aa954e902accb55daddd",
+  "screenshots": {
+    "holdout-cnn-initial.png": "e476def45c2a9755e66f980d1c64ebb0603d42cb99aaf7b5acdf34e14eb606d7",
+    "holdout-cnn-parts-3.png": "c9ef9eb83b511e2ad220e05779fc60dbf4b60e45262865204b206bdcd9be4c0f"
+  }
+}
