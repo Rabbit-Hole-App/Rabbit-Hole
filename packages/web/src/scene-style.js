@@ -230,7 +230,11 @@ export function heatStyle(value, domain, mode) {
 // composited heat fill in both themes, and the black inner stroke still sits
 // directly on the shape's outline, which is the stroke that guarantee is
 // about. A wider ring can only ever add contrast, never remove it.
-const SELECTION_OUTER_WIDTH = 8;
+// Outer width brought down from 8 to 5.5 - the app-review finding that the
+// magenta ring reads as "every selected cell wrapped in thick pink" rather
+// than a crisp mark. Still clearly wider than the 2.5px inner stroke (so the
+// two-tone read survives), just no longer the loudest thing on the canvas.
+const SELECTION_OUTER_WIDTH = 5.5;
 const SELECTION_INNER_WIDTH = 2.5;
 // How far outside the shape's own outline the magenta ring's CENTRELINE sits:
 // half the inner stroke plus half the outer, so the two strokes meet edge to

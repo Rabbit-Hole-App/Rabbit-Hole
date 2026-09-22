@@ -97,6 +97,12 @@ const objectSchema = z.object({
     // Meaningless (and refused below) on "local" or "fixed" - fixed's domain
     // is a constant, not a negotiation between group members.
     valueScaleGroup: z.string().min(1).max(60).optional(),
+    // Which STATE a cellHighlight/highlight_cell draws as: 'select' (default)
+    // is a genuine learner pick and gets the SelectionMark two-tone ring;
+    // 'highlight' is a downstream consequence and gets only the existing
+    // highlighted-role-ring treatment, so the two never read the same way.
+    // See AnimatedScene.jsx's grid/strip path.
+    cellHighlightKind: z.enum(['select', 'highlight']).optional(),
   }).prefault({}),
 });
 
@@ -467,6 +473,7 @@ export function getSceneState(scene, time) {
     valueScale: object.initialState.valueScale ?? null,
     valueDomain: object.valueDomain ?? null,
     cellHighlight: null,
+    cellHighlightKind: object.initialState.cellHighlightKind ?? null,
     sweep: null,
     emphasis: 0,
   }]));

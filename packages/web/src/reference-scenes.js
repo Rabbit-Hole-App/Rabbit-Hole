@@ -230,8 +230,13 @@ export const causalAttentionScene = {
     // text, not a font problem.
     { id: 'equation', type: 'equation', semanticId: 'attention-equation', conceptId: 'attention-output',
       initialState: { text: '\\text{softmax}\\left(\\dfrac{QK^T}{\\sqrt{d_k}}\\right)V', x: 670, y: 295, w: 430, h: 60, opacity: 0 } },
+    // cellHighlightKind: 'highlight' - the output cell the timeline marks
+    // below (highlight_cell, value 4) is a downstream consequence of the
+    // selected row above it, not a second, independent selection - see
+    // AnimatedScene.jsx's cellState/highlightKind for why this stays the
+    // role-hue ring rather than the SelectionMark two-tone ring.
     { id: 'output', type: 'strip', semanticId: 'attention-output', conceptId: 'attention-output',
-      initialState: { label: 'output - the weighted mix of V', x: 670, y: 395, cell: 42, opacity: 0, heat: true, valueScale: 'shared', valueScaleGroup: 'value-chain', role: 'output', values: [0, 0, 0, 0, 0] } },
+      initialState: { label: 'output - the weighted mix of V', x: 670, y: 395, cell: 42, opacity: 0, heat: true, valueScale: 'shared', valueScaleGroup: 'value-chain', role: 'output', values: [0, 0, 0, 0, 0], cellHighlightKind: 'highlight' } },
     // No arrow from V to output: the equation's own trailing "V" and the
     // timeline caption already say V feeds the output, and a straight line
     // from V's column to output's would have cut diagonally through the

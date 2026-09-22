@@ -103,14 +103,23 @@ export const transformerBlockScene = {
       initialState: { from: { x: tbCentre(3), y: 60 }, to: { x: tbCentre(3), y: 90 }, opacity: 0, role: 'input' } },
     { id: 'skip1-label', type: 'text', semanticId: 'skip1-label', conceptId: 'transformer-block',
       initialState: { text: 'residual path', x: 150, y: 40, opacity: 0, typography: 'annotation', role: 'input' } },
+    // Second residual runs at its own height (44, not skip1's 60) so the two
+    // paths never share one horizontal line - the app-review finding that the
+    // top routing could be read as one continuous skip from x to both `+`
+    // nodes. skip1's own across-segment ends exactly where skip2's up-segment
+    // starts (both anchored to add1's top edge, tbCentre(3)), so at the old
+    // shared height=60 the two segments were collinear with no visible seam:
+    // x -> add1 -> add2 read as a single unbroken line. Anchoring skip2 to a
+    // different elevation makes it visibly climb its OWN path out of add1,
+    // rather than pass straight through as a continuation of skip1's.
     { id: 'skip2-up', type: 'line', semanticId: 'skip2-up', conceptId: 'transformer-block',
-      initialState: { from: { x: tbCentre(3), y: 90 }, to: { x: tbCentre(3), y: 60 }, opacity: 0, role: 'input' } },
+      initialState: { from: { x: tbCentre(3), y: 90 }, to: { x: tbCentre(3), y: 44 }, opacity: 0, role: 'input' } },
     { id: 'skip2-across', type: 'line', semanticId: 'skip2-across', conceptId: 'transformer-block',
-      initialState: { from: { x: tbCentre(3), y: 60 }, to: { x: tbCentre(6), y: 60 }, opacity: 0, role: 'input' } },
+      initialState: { from: { x: tbCentre(3), y: 44 }, to: { x: tbCentre(6), y: 44 }, opacity: 0, role: 'input' } },
     { id: 'skip2-in', type: 'arrow', semanticId: 'skip2-in', conceptId: 'transformer-block',
-      initialState: { from: { x: tbCentre(6), y: 60 }, to: { x: tbCentre(6), y: 90 }, opacity: 0, role: 'input' } },
+      initialState: { from: { x: tbCentre(6), y: 44 }, to: { x: tbCentre(6), y: 90 }, opacity: 0, role: 'input' } },
     { id: 'skip2-label', type: 'text', semanticId: 'skip2-label', conceptId: 'transformer-block',
-      initialState: { text: 'residual path', x: 650, y: 40, opacity: 0, typography: 'annotation', role: 'input' } },
+      initialState: { text: 'residual path', x: 650, y: 24, opacity: 0, typography: 'annotation', role: 'input' } },
     { id: 'shape-input', type: 'text', semanticId: 'shape-input', conceptId: 'transformer-block',
       initialState: { text: '(B, T, C)', x: 52, y: 246, opacity: 0, typography: 'annotation' } },
     { id: 'shape-mlp', type: 'text', semanticId: 'shape-mlp', conceptId: 'transformer-block',

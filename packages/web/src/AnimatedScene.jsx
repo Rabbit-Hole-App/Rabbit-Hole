@@ -126,6 +126,20 @@ function DataShape({ object, role, pop, chosen }) {
     const displayValues = object.distribution
       ? Array.from({ length: rows }, (unused, row) => distributeRounding((object.values || []).slice(row * columns, (row + 1) * columns), 2)).flat()
       : object.values;
+    // Selection shape, not scene identity, decides how the mark renders: a
+    // row-shaped cellHighlight (row set, no col - "this whole row is the
+    // thing the learner picked") gets ONE ring around the row band below,
+    // never five separately-ringed cells. A cell/list/index highlight keeps
+    // its own per-cell ring, same as always. See marked()'s own comment.
+    const at = object.cellHighlight;
+    const rowSelected = at != null && typeof at === 'object' && !Array.isArray(at) && at.row != null && at.col == null;
+    // STATE, not scene identity, carries the selected/related distinction
+    // (see scene-style.js's STATE_STYLE): a cellHighlight is a genuine
+    // 'selected' pick unless the object opts into 'highlight' instead - the
+    // existing highlighted-role-ring treatment for a downstream consequence
+    // that must read as distinct from a selection. No scene id or string is
+    // read here, only this generic per-object field.
+    const highlightKind = object.cellHighlightKind === 'highlight' ? 'highlight' : 'select';
     const cells = [];
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
@@ -139,7 +153,8 @@ function DataShape({ object, role, pop, chosen }) {
         // the fill outright, and identity owns the frame, even while the
         // cell is selected - see the SelectionMark drawn below instead.
         const blocked = heatMode && value == null;
-        const look = shapeStyle(role, blocked ? { blocked: true } : { highlighted: lit }, undefined, object.identitySlot);
+        const cellState = highlightKind === 'highlight' ? { highlighted: lit } : { selected: lit };
+        const look = shapeStyle(role, blocked ? { blocked: true } : cellState, undefined, object.identitySlot);
         const heat = heatMode && value != null ? heatStyle(value, domain, heatMode) : null;
         const fill = heat ? `color-mix(in srgb, var(--viz-${heat.fillToken}) ${heat.mixPercent}%, transparent)` : look.fill;
         const ink = heat ? heat.inkToken : (lit ? 'var(--color-ink)' : 'var(--color-ink-2)');
@@ -198,7 +213,7 @@ function DataShape({ object, role, pop, chosen }) {
                 of - the cell's own fill and frame, so it stays perceptible
                 regardless of what role, identity or value already painted
                 there (see SelectionMark's comment). */}
-            {lit && !blocked && <SelectionMark geometry={{ kind: 'rect', x: cellX, y: cellY, width: cell, height: cell }} />}
+            {lit && !blocked && highlightKind === 'select' && !rowSelected && <SelectionMark geometry={{ kind: 'rect', x: cellX, y: cellY, width: cell, height: cell }} />}
           </g>,
         );
       }
@@ -219,10 +234,13 @@ function DataShape({ object, role, pop, chosen }) {
             textAnchor="middle" fontSize={numeral.fontSize} fontWeight={numeral.fontWeight}
             style={{ fontFamily: MONO, fill: 'var(--color-ink-3)' }}>{text}</text>
         ))}
-        {object.cellHighlight?.row != null && (
-          <motion.rect key={`band-${object.cellHighlight.row}`} initial={{ opacity: 0, scaleX: 0.92 }} animate={{ opacity: 1, scaleX: 1 }} transition={pop} style={{ ...fromCentre, stroke: hue }}
-            x={object.x - 4} y={object.y + object.cellHighlight.row * cell - 4} width={(object.w || 0) + 8} height={cell + 8}
-            rx={4} fill="none" strokeWidth="2.4" />
+        {/* Row-shaped selection (row set, no col): one SelectionMark around
+            the whole row band, replacing what used to be a differently-styled
+            ad hoc rect drawn ON TOP OF five already-ringed cells above - see
+            rowSelected's own comment. Same treatment a selected cell gets,
+            just sized to the row. */}
+        {rowSelected && highlightKind === 'select' && (
+          <SelectionMark geometry={{ kind: 'rect', x: object.x, y: object.y + at.row * cell, width: object.w || columns * cell, height: cell }} />
         )}
         <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={4} fill="none" style={{ stroke: hue }} strokeWidth="1.6" />
         {/* Whole-object selection (picked, not a per-cell cellHighlight) -
