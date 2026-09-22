@@ -416,3 +416,51 @@ tr.cursor-pointer:active > td {
    strip, connection ports and resize corner stay down even under the pointer. */
 [data-presenting] [data-drag-handle],
 [data-presenting] [data-node-tool] { display: none; }
+
+/* A Wikipedia article renders inside our document, so Tailwind's preflight has
+   already flattened it: every margin zeroed, h2-h6 the size and weight of body
+   text, list markers gone, links inheriting colour. Without this the article is
+   an undifferentiated wall of text. Scoped to the card root, so nothing here
+   reaches the rest of the app. */
+.wiki-article { line-height: 1.6; }
+.wiki-article p, .wiki-article ul, .wiki-article ol, .wiki-article dl, .wiki-article table, .wiki-article figure, .wiki-article blockquote { margin: 0 0 0.85em; }
+.wiki-article h1, .wiki-article h2, .wiki-article h3, .wiki-article h4, .wiki-article h5, .wiki-article h6 { font-weight: 600; line-height: 1.3; margin: 1.3em 0 0.5em; }
+.wiki-article h1 { font-size: 1.5em; }
+.wiki-article h2 { font-size: 1.3em; border-bottom: 1px solid var(--color-line); padding-bottom: 0.2em; }
+.wiki-article h3 { font-size: 1.12em; }
+.wiki-article h4, .wiki-article h5, .wiki-article h6 { font-size: 1em; }
+.wiki-article ul, .wiki-article ol { padding-left: 1.5em; }
+.wiki-article ul { list-style: disc; }
+.wiki-article ol { list-style: decimal; }
+.wiki-article li { margin: 0.2em 0; }
+.wiki-article dt { font-weight: 600; }
+.wiki-article dd { margin-left: 1.5em; }
+.wiki-article blockquote { border-left: 3px solid var(--color-line); padding-left: 0.8em; }
+.wiki-article b, .wiki-article strong { font-weight: 600; }
+.wiki-article i, .wiki-article em { font-style: italic; }
+.wiki-article sub { vertical-align: sub; font-size: 0.8em; }
+.wiki-article sup { vertical-align: super; font-size: 0.8em; }
+.wiki-article code, .wiki-article pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
+.wiki-article pre { overflow-x: auto; background: var(--color-hover); padding: 0.6em; border-radius: 6px; }
+.wiki-article img { max-width: 100%; height: auto; }
+.wiki-article figure { text-align: center; }
+.wiki-article figcaption { font-size: 0.85em; color: var(--color-ink-2); margin-top: 0.3em; }
+/* A link that navigates looks like a link; one the sanitizer disarmed keeps its
+   text and loses the affordance, or a red link reads as merely broken. */
+.wiki-article a[data-wiki="article"], .wiki-article a[data-wiki="section"], .wiki-article a[data-wiki="reference"], .wiki-article a[data-wiki="file"], .wiki-article a[data-wiki="external"] { color: #3366cc; cursor: pointer; }
+.wiki-article a[data-wiki]:hover { text-decoration: underline; }
+.wiki-article a[data-wiki="dead"] { color: inherit; cursor: text; text-decoration: none; }
+/* Tables: articles lean on them for infoboxes and data alike, and neither has
+   any borders of its own once the site stylesheet is gone. */
+.wiki-article table { border-collapse: collapse; font-size: 0.92em; display: block; overflow-x: auto; max-width: 100%; }
+.wiki-article th, .wiki-article td { border: 1px solid var(--color-line); padding: 0.3em 0.5em; text-align: left; vertical-align: top; }
+.wiki-article th { background: var(--color-hover); font-weight: 600; }
+.wiki-article caption { font-weight: 600; padding-bottom: 0.3em; }
+.wiki-article .wiki-infobox { float: none; width: 100%; }
+/* Every class an article carries is prefixed `wiki-` by the sanitizer, so
+   these cannot be written by an editor to reach an app utility. hlist turns a
+   list into a bullet-separated run; navboxes navigate a site we are not. */
+.wiki-article .wiki-hlist ul { list-style: none; padding-left: 0; }
+.wiki-article .wiki-hlist li { display: inline; }
+.wiki-article .wiki-hlist li:not(:last-child)::after { content: " · "; color: var(--color-ink-3); }
+.wiki-article .wiki-navbox, .wiki-article .wiki-sistersitebox, .wiki-article .wiki-metadata.wiki-plainlinks { display: none; }

@@ -2,6 +2,7 @@ import { paperSelectionImage } from '../src/learn-preview-review.js';
 import { canvasSeed } from '../src/canvas-conversation.js';
 import { arxivId, paperDocument } from '../src/arxiv.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from '../src/learn-outline-tool.js';
+import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, wikiTitle, validateShowWikipedia } from '../src/learn-wiki.js';
 import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT } from '../src/learn-paper.js';
 import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { captureSelection, selectionSnapshot, sigmoidObjects } from '../../web/src/sigmoid-context.js';
@@ -46,6 +47,27 @@ const deps = {
   OUTLINE_SYSTEM,
   validateOutlineOps,
   canvasSeed,
+  SEARCH_WIKIPEDIA_TOOL,
+  READ_WIKIPEDIA_TOOL,
+  SHOW_WIKIPEDIA_TOOL,
+  WIKI_SYSTEM,
+  wikiTitle,
+  validateShowWikipedia,
+  searchWikipedia: async query => [{ title: 'Machine_learning', displayTitle: 'Machine learning', description: 'A field of study', url: 'https://en.wikipedia.org/wiki/Machine_learning' }],
+  // Shaped like the real one: section 1 is History, anything else the contents
+  // list does not name is refused, so the fallback to the lead is exercised.
+  readWikipedia: async (title, section) => {
+    const key = wikiTitle(title).title;
+    const named = section == null || section === '' ? 0 : /^history$/i.test(String(section)) ? 1 : Number(section);
+    if (named !== 0 && named !== 1) throw new Error(`No section ${JSON.stringify(String(section))} in ${key}`);
+    return {
+      title: key, displayTitle: key.replace(/_/g, ' '),
+      section: named, sectionTitle: named === 0 ? 'Introduction' : 'History',
+      toc: [{ index: 1, level: 1, title: 'History', anchor: 'History' }],
+      text: named === 0 ? 'Lead text.' : 'History text.', truncated: false,
+      url: `https://en.wikipedia.org/wiki/${key}`,
+    };
+  },
 };
 const handlers = new Function(...Object.keys(deps), `${functions}; return { ${names.join(',')} };`)(...Object.values(deps));
 const owner = { email: 'owner@example.test', org: 'workspace-a' };
@@ -92,7 +114,7 @@ test('Learn and Agent have separate histories and model context for the same app
   // Learn carries a research object; Agent carries none. It holds the outline
   // tool too now, offered only when the canvas actually has sections.
   assert.deepEqual(env.answers[1].research.papers, []);
-  assert.deepEqual(env.answers[1].research.tools, [], 'no outline was sent, so no outline tool is offered');
+  assert.equal(env.answers[1].research.tools.some(tool => tool.name === OUTLINE_TOOL.name), false, 'no outline was sent, so no outline tool is offered');
   assert.equal(env.answers[1].system, LEARN_SYSTEM);
   assert.equal(env.answers[0].research, null);
   assert.equal(env.answers[1].history.length, 0);
@@ -271,9 +293,9 @@ test('the outline tool is offered only when the lesson has sections', async t =>
   const env = fixture(t);
   const outline = [{ id: 'h1', level: 1, label: 'Attention', done: false }];
   await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi' }), env, {}, owner, 'learn');
-  assert.deepEqual(env.answers[0].research.tools, [], 'nothing to restructure, nothing offered');
+  assert.equal(env.answers[0].research.tools.some(tool => tool.name === OUTLINE_TOOL.name), false, 'nothing to restructure, nothing offered');
   await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', outline }), env, {}, owner, 'learn');
-  assert.deepEqual(env.answers[1].research.tools.map(tool => tool.name), ['propose_lesson_outline']);
+  assert.deepEqual(env.answers[1].research.tools.map(tool => tool.name), ['search_wikipedia', 'read_wikipedia', 'show_wikipedia', 'propose_lesson_outline']);
   assert.match(env.answers[1].research.system, /learner presses Apply/);
 });
 
@@ -385,4 +407,109 @@ test('paper selection sends cropped pixels and page coordinates, rejecting inval
   assert.equal(env.answers[0].toolOpts, null);
   for (const bad of [{ ...selection, region: { ...selection.region, x: 0.9 } }, { ...selection, preview: 'https://example.test/private.png' }]) assert.equal((await handlers.apiAsk(request({ ...body, paper_context: { ...body.paper_context, selection: bad } }), env, {}, owner, 'learn')).status, 400);
   assert.equal(env.answers.length, 1);
+});
+
+// --- Wikipedia ---
+// The tutor can reach Wikipedia on any Learn question, unlike the outline tool,
+// because looking something up does not depend on the canvas having sections.
+
+test('the Wikipedia tools are offered on every Learn question', async t => {
+  const env = fixture(t);
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'what is attention' }), env, {}, owner, 'learn');
+  assert.deepEqual(env.answers[0].research.tools.map(tool => tool.name), ['search_wikipedia', 'read_wikipedia', 'show_wikipedia']);
+  assert.match(env.answers[0].research.system, /evidence, never instructions/);
+});
+
+test('an article the learner is reading reaches the model as that section', async t => {
+  const env = fixture(t);
+  const wiki_context = { lang: 'en', title: 'Machine_learning', section: 1 };
+  assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'what does this mean', wiki_context }), env, {}, owner, 'learn')).status, 200);
+  const context = JSON.parse(env.answers[0].context);
+  assert.equal(context.article.title, 'Machine learning');
+  assert.equal(context.article.section, 'History', 'the section the learner is on, not the whole article');
+  assert.equal(context.article.text, 'History text.');
+  assert.deepEqual(context.article.sections, ['History'], 'other sections are named, not pasted');
+  assert.match(context.instruction, /evidence, never instructions/);
+  assert.equal(env.answers[0].toolOpts, null, 'reading an article is not a reason to gain app actions');
+});
+
+// The rendered HTML carries section ids the contents list does not always name,
+// so a heading the toc has never heard of must not lose the whole question.
+test('a section the contents list does not name falls back to the lead', async t => {
+  const env = fixture(t);
+  const wiki_context = { lang: 'en', title: 'Machine_learning', section: 7 };
+  assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'what is this', wiki_context }), env, {}, owner, 'learn')).status, 200);
+  assert.equal(JSON.parse(env.answers[0].context).article.section, 'Introduction');
+});
+
+test('selected text rides with the question it is about', async t => {
+  const env = fixture(t);
+  const wiki_context = { lang: 'en', title: 'Machine_learning', section: 1, selection: 'Arthur Samuel coined the term' };
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'who?', wiki_context }), env, {}, owner, 'learn');
+  assert.equal(JSON.parse(env.answers[0].context).article.selected, 'Arthur Samuel coined the term');
+});
+
+test('the article already on screen counts as read, so it can be shown again', async t => {
+  const env = fixture(t);
+  const wiki_context = { lang: 'en', title: 'Machine_learning', section: 0 };
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', wiki_context }), env, {}, owner, 'learn');
+  const { research } = env.answers[0];
+  const shown = await research.runTool('show_wikipedia', { title: 'Machine learning', section: 'History' });
+  assert.equal(shown.opened, true);
+  assert.deepEqual(research.shownWiki(), {
+    lang: 'en', title: 'Machine_learning', displayTitle: 'Machine learning',
+    section: 1, sectionTitle: 'History', url: 'https://en.wikipedia.org/wiki/Machine_learning',
+  });
+});
+
+test('an article it never read cannot be put in front of the learner', async t => {
+  const env = fixture(t);
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi' }), env, {}, owner, 'learn');
+  const { research } = env.answers[0];
+  await assert.rejects(() => research.runTool('show_wikipedia', { title: 'Quantum computing' }), /Read the article before showing it/);
+  assert.equal(research.shownWiki(), null);
+});
+
+test('one article per answer; the second call is refused and the first survives', async t => {
+  const env = fixture(t);
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi' }), env, {}, owner, 'learn');
+  const { research } = env.answers[0];
+  await research.runTool('read_wikipedia', { title: 'Machine learning' });
+  await research.runTool('read_wikipedia', { title: 'Neural network' });
+  await research.runTool('show_wikipedia', { title: 'Machine learning' });
+  await assert.rejects(() => research.runTool('show_wikipedia', { title: 'Neural network' }), /One article per answer/);
+  assert.equal(research.shownWiki().title, 'Machine_learning');
+});
+
+test('a fourth article is refused rather than reading the whole encyclopedia', async t => {
+  const env = fixture(t);
+  await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi' }), env, {}, owner, 'learn');
+  const { research } = env.answers[0];
+  for (const title of ['Machine learning', 'Neural network', 'Backpropagation']) await research.runTool('read_wikipedia', { title });
+  await assert.rejects(() => research.runTool('read_wikipedia', { title: 'Gradient descent' }), /already read/);
+  await assert.doesNotReject(() => research.runTool('read_wikipedia', { title: 'Machine learning', section: 'History' }), 'another section of one it has is fine');
+});
+
+test('a malformed Wikipedia context is refused before anything is fetched', async t => {
+  const env = fixture(t);
+  const bad = [
+    { title: 'Special:Random', section: 0 },
+    { title: 'https://example.com/wiki/X', section: 0 },
+    { title: 'Machine_learning' },
+    { title: 'Machine_learning', section: -1 },
+    { title: 'Machine_learning', section: 1.5 },
+    { title: 'Machine_learning', section: 0, selection: 'x'.repeat(2001) },
+    { title: '', section: 0 },
+  ];
+  for (const wiki_context of bad) {
+    assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', wiki_context }), env, {}, owner, 'learn')).status, 400, JSON.stringify(wiki_context));
+  }
+  assert.equal(env.answers.length, 0);
+});
+
+test('Wikipedia context outside Learn is refused; it is a Learn idea', async t => {
+  const env = fixture(t);
+  const body = { scope: { app: 'counter' }, message: 'hi', wiki_context: { title: 'Machine_learning', section: 0 } };
+  assert.equal((await handlers.apiAsk(request(body), env, {}, owner, 'agent')).status, 400);
+  assert.equal(env.answers.length, 0);
 });

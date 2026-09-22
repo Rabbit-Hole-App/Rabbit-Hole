@@ -11,6 +11,7 @@ import { presentSteps } from './learn-present.js';
 import { pageRects, PAGE_W } from './learn-pages.js';
 import { outlineFrom, applyOutlineOps } from './learn-outline-model.js';
 import { cachedAsset } from './learn-asset-cache.js';
+import LearnWiki from './LearnWiki.jsx';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
@@ -300,7 +301,33 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
   );
 }
 
-function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade }) {
+// An article on the canvas. Unlike PdfCard this is not an iframe: the markup is
+// sanitized and rendered in our own document, so canvas keys keep working while
+// it has focus and the card can say which section is on screen.
+function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove, onChange, onLayout, onConnect, onSnap, onWiki }) {
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
+      connected={connected} width={COLUMN} height={block.h || 640} autoMax={undefined} saved={{ w: block.w, h: block.h }}
+      onSize={(id, w, h) => onChange({ ...block, w, h })}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
+        <span className="h-1.5 w-1.5 rounded-full bg-ink" />Wikipedia
+      </div>
+      {/* Once selected the card keeps the pointer, so a drag inside it selects
+          text instead of moving the card out from under the selection. */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl border-t border-line"
+        onPointerDown={event => { if (selected) event.stopPropagation(); }}>
+        <LearnWiki app={appName} compact article={{ title: block.title, section: block.section || 0 }}
+          onNavigate={next => onWiki?.({ id: block.id, ...next })}
+          onSection={section => onWiki?.({ id: block.id, title: block.title, section })}
+          onSelect={text => onWiki?.({ id: block.id, title: block.title, section: block.section || 0, selection: text })} />
+      </div>
+    </CanvasNode>
+  );
+}
+
+function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade, onWiki }) {
+  if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   return (
@@ -616,7 +643,7 @@ function ToolButton({ Icon, label, active, onPick }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null }) {
   const [tool, setTool] = useState('select');
   const [insertOpen, setInsertOpen] = useState(false); // dev-only lesson-block workbench menu
   const [insertFilter, setInsertFilter] = useState('');
@@ -752,6 +779,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       insertPdf: ({ assetKey, label }) => {
         snapshot();
         setBlocks(previous => [...previous, { id: crypto.randomUUID(), type: 'pdf', dx: 0, dy: 0, assetKey, label }]);
+      },
+      // The block keeps only where to look, never the article: the save path
+      // strips an oversized `src` and nothing else, so HTML under any other
+      // field would fill the quota and take the learner's ink with it.
+      insertWiki: ({ title, section = 0 }) => {
+        const existing = blocksRef.current.find(block => block.type === 'wiki' && block.title === title);
+        if (existing) return existing.id;
+        snapshot();
+        const id = crypto.randomUUID();
+        setBlocks(previous => [...previous, { id, type: 'wiki', dx: 0, dy: 0, title, section }]);
+        return id;
       },
       toggleGrid: () => setGrid(previous => !previous),
       toggleMinimap: () => setMinimap(previous => !previous),
@@ -1483,7 +1521,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         </svg>
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
           {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />)}
-          {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} />)}
+          {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} />)}
         </div>
         {presenting === null && activeGap && <GapRail gap={activeGap} zoom={view.z} span={railSpan} space={blocks.find(block => block.id === activeGap.beforeId)?.space || 0} onNudge={nudgeGap}
           adding={gapAdding} onAdding={setGapAdding} onAddHeading={insertHeadingAt} />}

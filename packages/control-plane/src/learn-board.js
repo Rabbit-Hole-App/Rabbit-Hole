@@ -2,6 +2,7 @@ import { SCENE_SCHEMA, validateScene } from './learn-scene-schema.js';
 import { TEACHING_POLICY, validateTeachingHistory } from './learn-teaching.js';
 import { SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, arxivId, searchArxiv, readArxivPaper, paperDocument, fetchArxivPdf } from './arxiv.js';
 import { isUploadedPaperId, putUploadedPaper, readUploadedPaper, paperIdentity } from './learn-paper.js';
+import { fetchWikipediaArticle, searchWikipediaTitles } from './learn-wiki.js';
 import { validateToolInput } from './learn-validation.js';
 import { VIDEO_SCHEMA, validateVideo } from './learn-video-schema.js';
 import { THREE_D_SCHEMA, validateThreeD } from './learn-three-d-schema.js';
@@ -383,6 +384,31 @@ export async function paperSearch(req, env) {
   // A pasted id or link is not a search: answer with that one paper.
   try { return Response.json({ papers: [await readArxivPaper(query)] }); } catch { /* not an id, search for it */ }
   try { return Response.json({ papers: await searchArxiv(query) }); }
+  catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
+}
+
+// The picker's type-ahead. Debounced and aborted on the client, because this is
+// the first place in the product that could issue one upstream request per
+// keystroke, and Wikimedia's allowance is 200 a minute.
+export async function wikiSearch(req, env) {
+  if (req.method !== 'GET') return Response.json({ error: 'GET required' }, { status: 405 });
+  const url = new URL(req.url);
+  const access = await authorizedBoardApp(req, env, url.searchParams.get('app'));
+  if (access instanceof Response) return access;
+  try { return Response.json({ pages: await searchWikipediaTitles((url.searchParams.get('q') || '').trim()) }); }
+  catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
+}
+
+// The article itself, for a card or the reader. Fetched here rather than in the
+// browser for two reasons measured against the live API: Wikimedia 403s a
+// request with no User-Agent, which a browser cannot set, and the section
+// endpoint sends no CORS header at all.
+export async function wikiArticle(req, env) {
+  if (req.method !== 'GET') return Response.json({ error: 'GET required' }, { status: 405 });
+  const url = new URL(req.url);
+  const access = await authorizedBoardApp(req, env, url.searchParams.get('app'));
+  if (access instanceof Response) return access;
+  try { return Response.json(await fetchWikipediaArticle(url.searchParams.get('title') || '')); }
   catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
 }
 

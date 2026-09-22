@@ -14,6 +14,8 @@ import LearnOutline from './LearnOutline.jsx';
 import ContentsRail from './ContentsRail.jsx';
 import CanvasMenubar from './CanvasMenubar.jsx';
 import PaperSearch from './PaperSearch.jsx';
+import WikiSearch from './WikiSearch.jsx';
+import LearnWiki from './LearnWiki.jsx';
 import { contentsEntries } from './learn-contents.js';
 import { withSource, toggleSource, isAttached } from './learn-sources.js';
 import { lessonMilestones } from './learn-milestones.js';
@@ -82,6 +84,12 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // discards it; nothing reaches the canvas on its own.
   const [proposal, setProposal] = useState(null);
   const [paperSearchOpen, setPaperSearchOpen] = useState(false);
+  const [wikiSearchOpen, setWikiSearchOpen] = useState(false);
+  const [wikiOpen, setWikiOpen] = useState(false);
+  // Bumped only by an explicit open, so the reader can tell "go to this section"
+  // apart from "you are now looking at this section".
+  const [wikiOpenAt, setWikiOpenAt] = useState(0);
+  const [wikiContext, setWikiContext] = useState(null);
   const canvasStateRef = useRef(canvasState);
   canvasStateRef.current = canvasState;
   const onCanvasState = useCallback(next => setCanvasState(previous =>
@@ -162,12 +170,49 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     return () => clearTimeout(timer);
   }, [sources, canvasKey]);
   const registerSource = useCallback(source => setSources(previous => withSource(previous, source)), []);
+  // Every article on the canvas is a card, whoever brought it - the picker and
+  // the tutor's show_wikipedia take this same road, so there is one shape to
+  // reason about and one place a source is registered.
+  const openWiki = ({ title, section = 0 }) => {
+    pauseLesson();
+    const blockId = canvas()?.insertWiki({ title, section });
+    setWikiContext({ blockId: blockId || null, title, section, selection: null });
+    setWikiOpenAt(previous => previous + 1);
+    // One reader holds one thing. Leaving paperContext set would keep sending
+    // the paper instead - ask.jsx prefers it - for the rest of the session.
+    setPaperContext(null);
+    setWikiOpen(true); setPaperOpen(false); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false); setPanelOpen(true);
+    if (blockId) registerSource({ id: `wiki:${blockId}`, kind: 'wiki', label: String(title).replace(/_/g, ' ') });
+  };
+  // The id names the card, never the article, so clicking through twenty links
+  // refreshes one row instead of leaving twenty behind.
+  // Called on every scroll tick as well as on navigation, so nothing here may
+  // allocate unless something actually changed: rewriting the source list each
+  // frame churns localStorage, and a fresh context object re-renders the card
+  // under the learner's pointer.
+  const trackWiki = next => {
+    const id = `wiki:${next.id}`;
+    const label = String(next.title).replace(/_/g, ' ');
+    setSources(previous => (previous.some(entry => entry.id === id && entry.label === label) ? previous : withSource(previous, { id, kind: 'wiki', label })));
+    // The reader wins while it is open, the way it does for a paper's page.
+    if (wikiOpen) return;
+    setWikiContext(previous => {
+      // Only a selection event carries a selection; scrolling must not clear one.
+      const selection = 'selection' in next ? next.selection : previous?.selection ?? null;
+      const section = next.section || 0;
+      return previous?.blockId === next.id && previous.title === next.title && previous.section === section && previous.selection === selection
+        ? previous
+        : { blockId: next.id, title: next.title, section, selection };
+    });
+  };
+  const wikiAttached = !wikiContext?.blockId || isAttached(sources, `wiki:${wikiContext.blockId}`);
   // Open a paper the learner chose, by the same road a canvas link takes.
   const openPaper = paper => {
     pauseLesson();
     // The search panel supplies no page; the tutor supplies the one it is
     // pointing at, and that must win.
     setPaperContext({ ...paper, page: paper.page || 1 });
+    setWikiContext(null); setWikiOpen(false);
     setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false); setPanelOpen(true);
     registerSource({ id: `paper:${paper.id}`, kind: 'paper', label: paper.title || `arXiv ${paper.id}` });
   };
@@ -205,6 +250,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     // never says which page is on screen.
     pauseLesson();
     setPaperContext({ ...stored, pdfUrl: null, page: 1 });
+    setWikiContext(null); setWikiOpen(false);
     setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false);
     registerSource({ id: stored.id, kind: 'pdf', label: stored.title });
   };
@@ -402,7 +448,11 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     return { ...snapshot, lessonContext: { ...snapshot.lessonContext, courseBrief } };
   };
   const boardContext = {
-    ready: !!editor, status: boardStage, paper: paperContext, clearPaper: () => { setPaperContext(null); setPaperOpen(false); },
+    ready: !!editor, status: boardStage, paper: paperContext, clearPaper: () => { setPaperContext(null); setPaperOpen(false); setWikiContext(null); setWikiOpen(false); },
+    // Detaching the source is a context switch, not a deletion: the card stays
+    // on the canvas and the reader stays open, the tutor just stops being told.
+    wiki: wikiAttached ? wikiContext : null,
+    onShowWiki: article => openWiki(article),
     // Read at send time, so a question always carries the outline as it is now.
     outline: () => canvasStateRef.current.outline || [],
     onOutlineProposal: ops => setProposal(ops),
@@ -608,6 +658,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         // not take you is worse than one that explains the next step.
         { label: 'arXiv paper…', onSelect: () => setPaperSearchOpen(true) },
         { label: 'PDF…', onSelect: () => pdfPicker.current?.click() },
+        { label: 'Wikipedia article…', onSelect: () => setWikiSearchOpen(true) },
         { label: 'Google Slides…', onSelect: () => toast('Connect Google under Settings → Connections to import a deck.') },
       ],
     },
@@ -685,6 +736,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {!canvasState.presenting && <div className="relative mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
           <CanvasMenubar menus={canvasMenus} />
           {paperSearchOpen && <PaperSearch app={app.name} onPick={openPaper} onClose={() => setPaperSearchOpen(false)} />}
+          {wikiSearchOpen && <WikiSearch app={app.name} onPick={page => openWiki({ title: page.title })} onClose={() => setWikiSearchOpen(false)} />}
           {/* The two things you reach for without opening a menu, so they sit in
               the strip rather than inside one. */}
           <div className="flex items-center gap-0.5">
@@ -711,7 +763,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
-        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onState={onCanvasState} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly boardContext={boardContext} onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
+        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onState={onCanvasState} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly boardContext={boardContext} onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
@@ -808,13 +860,13 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
       </div>
       {setupChat && <CourseInterview state={course} app={app} sectionEditor={suppliedCourse ? sectionEditor : null} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>
-      {narration && !paperOpen && !sourceOpen && !lessonSource && !learnerOpen && <details className="mb-3 max-h-40 overflow-auto rounded border border-line p-3 text-sm" open><summary className="cursor-pointer text-xs font-medium">Current page explanation</summary><p className="mt-2 whitespace-pre-wrap text-ink-2">{narration}</p></details>}
+      {narration && !paperOpen && !wikiOpen && !sourceOpen && !lessonSource && !learnerOpen && <details className="mb-3 max-h-40 overflow-auto rounded border border-line p-3 text-sm" open><summary className="cursor-pointer text-xs font-medium">Current page explanation</summary><p className="mt-2 whitespace-pre-wrap text-ink-2">{narration}</p></details>}
       {app.hosting === 'aws' && !app.app_chat
         ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p>
         : !courseView && learningView === 'lesson'
         // lesson view: chat is docked under the canvas - the panel only displays papers and source
-        ? (lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : <p className="text-sm text-ink-3">Papers and source code open here when the lesson references them.</p>)
-        : <AskPanel onGraph={onGraph} key={app.name} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" headerTitle="Learn Agent" demo={isRepository ? null : demo} boardContext={boardContext} contentPanel={lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : null} onCloseContentPanel={() => { setPaperOpen(false); setSourceOpen(false); setLessonSource(null); }} placeholder={`Ask about ${app.repo || app.name}…`} autoFocus />}
+        ? (lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : wikiOpen && wikiContext ? <LearnWiki app={app.name} article={wikiContext} openAt={wikiOpenAt} onNavigate={next => setWikiContext(previous => ({ ...previous, ...next, selection: null }))} onSection={section => setWikiContext(previous => (previous?.section === section ? previous : { ...previous, section }))} onSelect={text => setWikiContext(previous => ({ ...previous, selection: text }))} onClose={() => setWikiOpen(false)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : <p className="text-sm text-ink-3">Papers and source code open here when the lesson references them.</p>)
+        : <AskPanel onGraph={onGraph} key={app.name} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" headerTitle="Learn Agent" demo={isRepository ? null : demo} boardContext={boardContext} contentPanel={lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : wikiOpen && wikiContext ? <LearnWiki app={app.name} article={wikiContext} openAt={wikiOpenAt} onNavigate={next => setWikiContext(previous => ({ ...previous, ...next, selection: null }))} onSection={section => setWikiContext(previous => (previous?.section === section ? previous : { ...previous, section }))} onSelect={text => setWikiContext(previous => ({ ...previous, selection: text }))} onClose={() => setWikiOpen(false)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : null} onCloseContentPanel={() => { setPaperOpen(false); setWikiOpen(false); setSourceOpen(false); setLessonSource(null); }} placeholder={`Ask about ${app.repo || app.name}…`} autoFocus />}
       </div>
     </ResizableSidePanel>
     <input ref={pdfPicker} type="file" accept="application/pdf" className="hidden"

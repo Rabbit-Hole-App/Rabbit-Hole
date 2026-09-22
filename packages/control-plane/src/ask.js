@@ -385,6 +385,10 @@ ${research.system}` : system;
         // Opening a reader destroys nothing, so unlike an outline proposal this
         // needs no approval - the learner closes it or detaches the source.
         if (result.shown) await send('paper', result.shown);
+        // One reader, so one thing can be open. A paper wins because the tutor
+        // read its actual pages; the article is named in the reply either way.
+        const article = research.shownWiki?.();
+        if (article && !result.shown) await send('wiki', article);
       } else if (toolOpts) {
         // tools attached (user has edit): one non-streaming call so tool_use blocks
         // arrive whole; each becomes a proposal - never an execution

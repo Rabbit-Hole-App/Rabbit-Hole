@@ -436,6 +436,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     setFile(null);
     const canvasImage = !isDemo ? boardContext?.preview : null;
     const questionPaper = boardContext?.paper;
+    const questionWiki = boardContext?.wiki;
     const questionOutline = boardContext?.outline?.();
     if (!isDemo) boardContext?.removeImage();
     const target = canvasTarget; // selected lesson block riding as context
@@ -467,6 +468,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         // is tldraw-shaped and would reject it.
         ...(questionOutline?.length ? { outline: questionOutline } : {}),
         ...(target?.paper ? { paper_context: target.paper } : questionPaper ? { paper_context: { id: questionPaper.id, page: questionPaper.page, ...(questionPaper.selection ? { selection: questionPaper.selection } : {}) } } : {}),
+        // One reader holds one thing, so an open paper is what rides; a detached
+        // wiki source arrives here as null and the key is simply absent.
+        ...(!target?.paper && !questionPaper && questionWiki?.title ? { wiki_context: { title: questionWiki.title, section: questionWiki.section || 0, ...(questionWiki.selection ? { selection: questionWiki.selection } : {}) } } : {}),
         scope: scopeOverride || scope,
         ...(repository && repositoryContext ? { repository_context: { ...repositoryContext, commit: sourceRange?.commit || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
         message: target ? `Question about this ${target.kind} block on the lesson canvas:\n${target.text}\n\nLearner question: ${message}` : passage ? `Question about this previous answer passage:\n${passage.text}\n\nLearner question: ${message}` : message,
@@ -525,6 +529,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           else if (type === 'graph') { responseGraph=d; setMsgs(messages=>messages.map(item=>item.id===replyId?{...item,graph:d}:item)); }
           else if (type === 'outline') { boardContext?.onOutlineProposal?.(d.ops); }
           else if (type === 'paper') { boardContext?.onShowPaper?.(d); }
+          else if (type === 'wiki') { boardContext?.onShowWiki?.(d); }
           else if (type === 'papers') setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, papers: d.papers } : item));
           else if (type === 'proposal') setMsgs((m) => [...m, { role: 'proposal', proposal: d }]);
           else if (type === 'done' && d.threadId) {
