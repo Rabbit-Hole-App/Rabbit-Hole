@@ -6,9 +6,9 @@ window that answers a question. The design comes from the `moment/` prototype
 in this repo, whose pipeline is discover → transcribe → retrieve → answer.
 
 This spec is **phase 1**: the learner finds a video and puts it on the canvas,
-and a card can display a moment. Phase 2 — the tutor proposing a moment with a
-`show_video` tool — needs transcript retrieval the worker cannot run today
-(the prototype's rerank stage alone is 2.5 GB of models) and gets its own spec.
+and a card can display a moment. The tutor proposing a moment - `show_video`,
+transcripts, the vector index and everything long-term - is specified in
+[youtube-moment-recommendation.md](youtube-moment-recommendation.md).
 
 ## Terms
 
