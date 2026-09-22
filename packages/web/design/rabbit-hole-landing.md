@@ -70,27 +70,32 @@ the whole descent. `prefers-reduced-motion` freezes a single frame.
 camera closes on it, so it grows, passes you, and is gone. Growth is
 `1 / (1 - enter * 0.88)`, which accelerates the way an approach does.
 
-Four details make that work, and each had an obvious-looking alternative that fails:
+**The title is drawn into the canvas, not laid over it in the DOM.** `drawTitle` fills
+the two lines with `globalCompositeOperation: 'difference'` straight onto the buffer
+after the wall. That single decision solves three separate problems at once:
 
-- It is pinned by writing `top = window.scrollY` from script. `position: fixed` and a
-  `transform` both promote the element to its own compositing layer, and **a promoted
-  layer cannot blend with the canvas beneath it** — the difference blend silently does
-  nothing and you get white text on a white page.
-- Neither the title nor the shaft track carries a `z-index`. Both have to sit in the
-  root stacking context or, again, there is nothing for the blend to invert against.
-- The dark-to-white grade is a radial gradient painted into the glyphs
-  (`background-clip: text`), not a blend against the canvas. `mix-blend-mode:
-  difference` was tried first and cannot reach white over a mid tone — `|255 - 72|`
-  is 182, a muddy grey — so the centre is set explicitly instead. Dropping the blend
-  also freed the title to use `transform` and `position: fixed`, which the blend had
-  ruled out.
-- Nothing about the title is driven from `requestAnimationFrame`. It is `position:
-  fixed` so the browser pins it, and it scales through a scroll-driven CSS animation
-  (`animation-timeline: scroll(root block)`), which runs on the compositor. Writing
-  `top` or `transform` from rAF lands a frame *after* the scroll has happened, and
-  that one-frame lag is exactly what reads as jiggling type.
-- Overflow is clipped on the title wrapper rather than the body, because overflow on
-  the body would make it a scroll container and break the sticky canvas.
+- **The ripple pixels show inside the letters.** Differencing against the dithered wall
+  means the glyphs are literally made of wall pixels. A DOM overlay — whether blended
+  or gradient-filled — gives flat letters with no texture.
+- **The centre resolves to a true white.** `difference` against the pitch-black core is
+  `|255 - 0| = 255`. This is why `INK` must be `#000` and not `#1E1E1E`.
+- **It cannot jiggle.** The text sits at a fixed point inside a canvas the browser pins
+  with `position: sticky`, so only its scale changes per frame.
+
+Three DOM approaches were tried first and each failed in its own way, which is worth
+knowing before anyone reaches for one again:
+
+- `mix-blend-mode: difference` on an overlay cannot reach white over a mid tone —
+  `|255 - 72|` is 182, a muddy grey.
+- The same blend silently does nothing at all if the element is promoted to its own
+  compositing layer, which `position: fixed`, a `transform`, or `opacity` all do. That
+  shows up as white text on a white page, not as an error.
+- Pinning an overlay by writing `top` from `requestAnimationFrame` lands a frame *after*
+  the scroll has happened, and that one-frame lag is exactly what reads as jiggle.
+
+The cost is that the type renders at buffer resolution, so the glyph edges are blocky.
+That is the same pixel grid as the rest of the piece, so it reads as intentional, but
+it does rule out fine typographic detail in the headline.
 
 The mouth sits dead centre and stays circular in any window: `SQUASH` corrects `dy` by
 the ratio between the buffer's aspect and the canvas's. `LIGHT` reaches the far corners

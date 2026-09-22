@@ -23,9 +23,8 @@
   body{background:var(--paper);font-family:var(--grot);color:var(--ink);
        width:100%;height:1740px;position:relative}
 
-  /* ---- hero shaft: you are falling down it ---- */
-  /* no z-index on either the track or the title: both must sit in the root stacking
-     context or the title's difference blend has nothing to invert against */
+  /* ---- hero shaft: you are falling down it. The title is drawn into the canvas, so
+     there is no overlay element and nothing that can lag behind the scroll. ---- */
   /* as tall as the page, so the canvas stays stuck for the whole descent */
   #shaft-track{position:absolute;left:0;top:0;width:100%;height:1740px}
   /* full viewport height so the mouth sits dead centre of the page */
@@ -33,41 +32,6 @@
          image-rendering:pixelated}
   @media (prefers-reduced-motion:reduce){ #shaft{position:absolute} }
 
-  /* ---- the title, centred on the mouth ---- */
-  /* The title holds still while the camera travels into the hole. It is pinned by
-     setting `top` from script rather than position:fixed or a transform: both of those
-     promote it to its own compositing layer, and a promoted layer cannot blend with
-     the canvas below it, which kills the difference blend. */
-  /* Pinned by the browser, not by script. Writing `top` from rAF lands a frame after
-     the scroll has already happened, so the title lags and shakes.
-     Overflow is clipped here rather than on <body>: clipping the body would make it a
-     scroll container and kill the sticky shaft. */
-  #title{position:fixed;inset:0;overflow:hidden;
-         display:flex;align-items:center;justify-content:center;pointer-events:none}
-  /* difference blend: ink on the white page, white where it crosses the black core,
-     so the title stays readable wherever the hole happens to sit behind it */
-  /* The gradient is painted into the glyphs themselves rather than blended against the
-     canvas. mix-blend-mode: difference cannot reach white over a mid tone — |255 - 72|
-     is 182, a muddy grey — so the centre is set explicitly here instead. */
-  #title h1{font-family:var(--display);font-weight:500;font-size:190px;line-height:.8;
-            text-align:center;white-space:nowrap;
-            background-image:radial-gradient(circle at 50% 50%,
-                             #FFFFFF 0%, #FFFFFF 20%, #B8B8B8 33%, #1E1E1E 52%);
-            -webkit-background-clip:text;background-clip:text;color:transparent;
-            transform-origin:50% 50%;will-change:transform,opacity;
-            /* Scroll-driven and composited, so the type is locked to the scrollbar with
-               no frame of lag. Keyframes approximate a perspective approach: slow at
-               first, then rushing past. ENTER in the script is the same 700px. */
-            animation:approach linear both;
-            animation-timeline:scroll(root block);
-            animation-range:0 700px}
-  @keyframes approach{
-    0%   {transform:scale(1);    opacity:1}
-    22%  {transform:scale(1.28); opacity:1}
-    50%  {transform:scale(2.4);  opacity:0}
-    100% {transform:scale(18);   opacity:0}
-  }
-  @media (prefers-reduced-motion:reduce){ #title h1{animation:none} }
 
 
 </style>
@@ -78,7 +42,6 @@
      is what makes the dither grain, and cost is quadratic in these numbers. -->
 <div id="shaft-track"><canvas id="shaft" width="520" height="260"></canvas></div>
 
-<div id="title"><h1>Knowledge is<br>infinite.</h1></div>
 
 
 <script>
@@ -168,7 +131,29 @@
 
   // `open` shrinks from 1 to 0 as you enter: less light reaches the wall, so the black
   // core swallows the frame outward until the screen is solid black.
-  function frame(t, open) {
+  // The title is drawn into the buffer, not laid over it in the DOM. That is what puts
+  // the ripple pixels inside the letters: `difference` against the dithered wall means
+  // the glyphs are made of wall pixels, and over the pure-black core it resolves to a
+  // true white rather than the muddy mid-grey a CSS blend gave. It also cannot jiggle,
+  // because the text lives at a fixed point in a canvas the browser pins.
+  const LINES = ['Knowledge is', 'infinite.'];
+  function drawTitle(scale, alpha) {
+    if (!(alpha > 0.004)) return;
+    const px = 190 * (W / cv.clientWidth) * scale;         // 190 CSS px at the mouth
+    ctx.save();
+    ctx.globalCompositeOperation = 'difference';
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '500 ' + px.toFixed(1) + 'px "Space Grotesk", Arial, sans-serif';
+    const lead = px * 0.8;
+    for (let i = 0; i < LINES.length; i++)
+      ctx.fillText(LINES[i], CX, CY + (i - (LINES.length - 1) / 2) * lead);
+    ctx.restore();
+  }
+
+  function frame(t, open, titleScale, titleAlpha) {
     const K = open * 1.2;                                  // hoisted out of the inner loop
     for (let y = 0, p = 0; y < H; y++) {
       const brow = (y & 3) * 4;
@@ -184,6 +169,7 @@
       }
     }
     ctx.putImageData(img, 0, 0);
+    drawTitle(titleScale, titleAlpha);
   }
 
   // Depth = a slow clock plus an eased scroll position. Scrolling IS falling, and the
@@ -198,7 +184,10 @@
     // have scrolled, with no lag. Only the wall's motion is eased.
     const enter = clamp(window.scrollY / ENTER);
     const open = still ? 1 : Math.pow(1 - enter, 1.6);      // hole widens as you go in
-    frame(still ? 0.8 : (performance.now() - t0) * 0.00016 + sm * 0.0022, open);
+    // The camera closes on the title: it grows, then slips past us.
+    const near = still ? 1 : 1 / (1 - enter * 0.94);
+    const alpha = still ? 1 : 1 - clamp((enter - 0.22) / 0.28);
+    frame(still ? 0.8 : (performance.now() - t0) * 0.00016 + sm * 0.0022, open, near, alpha);
     // The title is a fixed object in the shaft: the browser pins it and a scroll-driven
     // CSS animation grows it. Nothing here touches it — driving position or scale from
     // rAF lands a frame behind the scroll, which is exactly what makes type jiggle.
@@ -219,7 +208,7 @@
     ok('z falls off with radius', at(CX + 10, CY) > at(CX + 100, CY) && at(CX + 100, CY) > at(CX + 300, CY));
     ok('z clamps at ZFAR', Math.abs(at(CX, CY) - ZFAR) < 1e-6);
     ok('angle stays in 0..1', uTab.every(v => v >= 0 && v <= 1));
-    frame(0, 1);
+    frame(0, 1, 1, 0);
     ok('core darker than rim', lumAt(CX, CY) < lumAt(2, 2));
 
     // the mouth must be a circle on screen, not an oval: walk out from the centre
@@ -248,7 +237,7 @@
     const bh = Math.min(Math.round(LIGHT / SQUASH), CY);   // so clamp inside the canvas
     const box = [CX - bw, CY - bh, bw * 2, bh * 2];
     const before = ctx.getImageData(box[0], box[1], box[2], box[3]).data.slice();
-    frame(0.5, 1);
+    frame(0.5, 1, 1, 0);
     const after = ctx.getImageData(box[0], box[1], box[2], box[3]).data;
     let moved = 0;
     for (let i = 0; i < before.length; i += 4)
@@ -268,7 +257,7 @@
     ok('core holds still, no beating (' + coreMoved + 'px)', coreMoved < coreArea * 0.002);
 
     // entering all the way takes the whole screen to black
-    frame(0.5, 0);
+    frame(0.5, 0, 1, 0);
     const shut = ctx.getImageData(0, 0, W, H).data;
     let lightPx = 0;
     for (let i = 0; i < shut.length; i += 4) if (lumOf(shut, i) > 90) lightPx++;
