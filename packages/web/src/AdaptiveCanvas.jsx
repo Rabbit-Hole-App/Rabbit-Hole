@@ -1545,7 +1545,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       event.preventDefault();
       snapshot();
       const point = local(event);
-      setItems(previous => [...previous, { id: crypto.randomUUID(), kind: tool, x: point.x, y: point.y, text: '', color, opacity, ...(tool === 'text' ? { level } : {}), fresh: true }]);
+      // A fresh text box opens long - a full writing line, not a stamp-sized
+      // target - and the corner handle takes it anywhere from there.
+      setItems(previous => [...previous, { id: crypto.randomUUID(), kind: tool, x: point.x, y: point.y, text: '', color, opacity, ...(tool === 'text' ? { level, w: 420 } : {}), fresh: true }]);
       if (!lock) setTool('select');
     } else {
       setSelected(null);

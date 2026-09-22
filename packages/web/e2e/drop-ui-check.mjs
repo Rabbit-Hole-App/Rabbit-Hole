@@ -96,6 +96,8 @@ await page.mouse.click(box.x + 800, box.y + 600);
 await page.waitForTimeout(400);
 const levels = page.getByRole('group', { name: 'Text level' });
 ok('a fresh text box offers the level ladder', (await levels.count()) === 1);
+const freshBox = await canvas.locator('[data-item-id]').last().boundingBox();
+ok('a fresh text box opens long', freshBox && freshBox.width >= 380, `${Math.round(freshBox?.width || 0)}px`);
 ok('the ladder reaches H4', (await levels.getByRole('button', { name: 'H4' }).count()) === 1);
 await levels.getByRole('button', { name: 'H2' }).click();
 await page.keyboard.type('Chapter');
