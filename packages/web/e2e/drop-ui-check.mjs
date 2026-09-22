@@ -122,7 +122,7 @@ await page.waitForTimeout(300);
 const after = await rect.boundingBox();
 ok('a shape drags from its interior, not just its outline', Math.abs(after.x - before.x - 80) < 6 && Math.abs(after.y - before.y - 40) < 6, `moved ${Math.round(after.x - before.x)},${Math.round(after.y - before.y)}`);
 
-// --- ctrl-drag rubber band: the cards become one movable group ---
+// --- ctrl-drag rubber band + right-click Group / Ungroup ---
 const cardA = canvas.locator('img[alt="diagram.png"]');
 const cardB = canvas.locator('video[controls]');
 const a1 = await cardA.boundingBox();
@@ -136,13 +136,52 @@ await page.mouse.move(right, bottom, { steps: 6 });
 await page.mouse.up();
 await page.keyboard.up('Control');
 await page.waitForTimeout(300);
-await page.mouse.move(a1.x + 40, a1.y + 40);
+await page.mouse.click(a1.x + 40, a1.y + 20, { button: 'right' });
+await page.waitForTimeout(300);
+const actions = page.getByRole('menu', { name: 'Canvas actions' });
+ok('right-click opens the canvas actions menu', (await actions.count()) === 1);
+await actions.getByRole('menuitem', { name: 'Group', exact: true }).click();
+await page.waitForTimeout(300);
+ok('marquee then Group gives the set a name chip', (await page.locator('[data-group-chip]').count()) === 1);
+// deselect, then a plain click on one member picks the whole group
+await page.mouse.click(box.x + 40, box.y + 700);
+await page.waitForTimeout(200);
+await page.mouse.click(a1.x + 40, a1.y + 20);
+await page.waitForTimeout(200);
+// drag by the card's drag strip; the whole group must follow
+const dragStrip = canvas.locator('[data-block-id]:has(img[alt="diagram.png"]) [data-drag-handle]');
+const grip2 = await dragStrip.boundingBox();
+const b3 = await cardB.boundingBox();
+await page.mouse.move(grip2.x + grip2.width / 2, grip2.y + grip2.height / 2);
 await page.mouse.down();
-await page.mouse.move(a1.x + 100, a1.y + 70, { steps: 6 });
+await page.mouse.move(grip2.x + grip2.width / 2 + 40, grip2.y + grip2.height / 2 + 20, { steps: 5 });
 await page.mouse.up();
 await page.waitForTimeout(400);
-const b2 = await cardB.boundingBox();
-ok('ctrl-drag selects the cards as a group that moves together', Math.abs(b2.x - b1.x - 60) < 10 && Math.abs(b2.y - b1.y - 30) < 10, `other card moved ${Math.round(b2.x - b1.x)},${Math.round(b2.y - b1.y)}`);
+const b4 = await cardB.boundingBox();
+ok('a grouped set moves together', Math.abs(b4.x - b3.x - 40) < 10 && Math.abs(b4.y - b3.y - 20) < 10, `moved ${Math.round(b4.x - b3.x)},${Math.round(b4.y - b3.y)}`);
+const chip = page.locator('[data-group-chip]');
+await chip.dblclick();
+await page.keyboard.type('Backprop set');
+await page.mouse.click(box.x + 40, box.y + 700);
+await page.waitForTimeout(300);
+ok('the group can be named from its chip', (await chip.textContent()) === 'Backprop set', await chip.textContent());
+const a3 = await cardA.boundingBox();
+await page.mouse.click(a3.x + 40, a3.y + 20, { button: 'right' });
+await page.waitForTimeout(300);
+await actions.getByRole('menuitem', { name: 'Ungroup' }).click();
+await page.waitForTimeout(300);
+ok('Ungroup removes the chip', (await page.locator('[data-group-chip]').count()) === 0);
+await page.mouse.click(box.x + 40, box.y + 700);
+await page.mouse.click(a3.x + 40, a3.y + 20);
+const stripAgain = await dragStrip.boundingBox();
+const b5 = await cardB.boundingBox();
+await page.mouse.move(stripAgain.x + stripAgain.width / 2, stripAgain.y + stripAgain.height / 2);
+await page.mouse.down();
+await page.mouse.move(stripAgain.x + stripAgain.width / 2 + 50, stripAgain.y + stripAgain.height / 2, { steps: 5 });
+await page.mouse.up();
+await page.waitForTimeout(400);
+const b6 = await cardB.boundingBox();
+ok('after Ungroup, a plain click moves only that card', Math.abs(b6.x - b5.x) < 4 && Math.abs(b6.y - b5.y) < 4, `other moved ${Math.round(b6.x - b5.x)},${Math.round(b6.y - b5.y)}`);
 
 // --- toolbar handle snaps to the left edge ---
 const handle = page.locator('[aria-label="Move the toolbar"]');

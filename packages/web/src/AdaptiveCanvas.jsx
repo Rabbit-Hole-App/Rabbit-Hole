@@ -677,7 +677,7 @@ function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResiz
     ? [[x1, y1, p => ({ x1: p.x, y1: p.y })], [x2, y2, p => ({ x2: p.x, y2: p.y })]]
     : [[x1, y1, p => ({ x1: p.x, y1: p.y })], [x2, y1, p => ({ x2: p.x, y1: p.y })], [x2, y2, p => ({ x2: p.x, y2: p.y })], [x1, y2, p => ({ x1: p.x, y2: p.y })]];
   return (
-    <g style={{ pointerEvents: 'visiblePainted', cursor: tool === 'select' ? 'grab' : undefined }} onPointerDown={down}>
+    <g data-shape-id={shape.id} style={{ pointerEvents: 'visiblePainted', cursor: tool === 'select' ? 'grab' : undefined }} onPointerDown={down}>
       {kind === 'rect' && <rect x={x} y={y} width={w} height={h} rx={round ? 14 : 2} {...stroke} />}
       {kind === 'ellipse' && <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...stroke} />}
       {POLYGONS[kind] && <polygon points={POLYGONS[kind].map(([u, v]) => `${x + u * w},${y + v * h}`).join(' ')} {...stroke} />}
@@ -792,12 +792,31 @@ function ToolButton({ Icon, label, active, onPick }) {
   );
 }
 
+// The name tag of a group, floating just above its top-left corner. Click
+// selects the whole group; double-click renames it in place.
+function GroupChip({ group, left, top, onSelect, onLabel }) {
+  const [editing, setEditing] = useState(false);
+  const body = useRef(null);
+  useEffect(() => { if (editing) body.current?.focus(); }, [editing]);
+  return (
+    <div data-group-chip={group.id} style={{ left, top: top - 28 }}
+      className="absolute z-20 flex cursor-pointer items-center rounded-md border border-line bg-white/90 px-1.5 py-0.5 text-[11px] text-ink-2 shadow-sm backdrop-blur-sm hover:text-ink"
+      onPointerDown={event => { event.stopPropagation(); if (!editing) onSelect(); }}
+      onDoubleClick={() => setEditing(true)}>
+      <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder="Group"
+        onBlur={event => { setEditing(false); onLabel(event.currentTarget.textContent.trim().slice(0, 60)); }}
+        className="min-w-6 outline-none empty:before:opacity-60 empty:before:content-[attr(data-placeholder)]">{group.label}</div>
+    </div>
+  );
+}
+
 export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null }) {
   const [tool, setTool] = useState('select');
   // OS drag-and-drop of files onto the surface; the page owns what each kind
   // becomes, the canvas only announces the hover and hands the files over.
   const [dropHover, setDropHover] = useState(false);
   const [marquee, setMarquee] = useState(null);
+  const [menuAt, setMenuAt] = useState(null); // right-click canvas actions
   // The tool palette hangs on the right by default; a drag on its handle can
   // park it on either edge. While dragging it follows the pointer.
   const [toolSide, setToolSide] = useState('right');
@@ -843,18 +862,27 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     const active = document.activeElement;
     if (id && active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) active.blur();
     const additive = event && (event.ctrlKey || event.metaKey || event.shiftKey);
-    if (!additive) { setSelection(id == null ? [] : [id]); return; }
+    // A plain click on a grouped thing picks up its whole group; ctrl+click
+    // still reaches the single member underneath.
+    if (!additive) {
+      const gid = id == null ? null : groupOf(id);
+      setSelection(id == null ? [] : gid ? membersOf(gid) : [id]);
+      return;
+    }
     setSelection(previous => previous.includes(id) ? previous.filter(other => other !== id) : [...previous, id]);
   };
   const [links, setLinks] = useState(stored.current.links || []);
+  // Named groups. Membership lives on the members themselves (groupId), so
+  // undo restores it with them; this list only carries each group's label.
+  const [groups, setGroups] = useState(stored.current.groups || []);
   useEffect(() => {
     if (!storageKey) return;
     // ponytail: generated images are large data URLs; keep the prompt, drop the
     // bytes so one illustration cannot fill the browser's storage quota.
     const light = blocks.map(block => block.src?.startsWith('data:') && block.src.length > 120000 ? { ...block, src: '' } : block);
-    const timer = setTimeout(() => { try { localStorage.setItem(storageKey, JSON.stringify({ strokes, shapes, items, links, blocks: light })); } catch { /* full or blocked storage loses drawings only */ } }, 400);
+    const timer = setTimeout(() => { try { localStorage.setItem(storageKey, JSON.stringify({ strokes, shapes, items, links, blocks: light, groups })); } catch { /* full or blocked storage loses drawings only */ } }, 400);
     return () => clearTimeout(timer);
-  }, [strokes, shapes, items, links, blocks, storageKey]);
+  }, [strokes, shapes, items, links, blocks, groups, storageKey]);
   const [connecting, setConnecting] = useState(null);
   const [bounds, setBounds] = useState({});
   const [hoverGap, setHoverGap] = useState(null);
@@ -1016,6 +1044,34 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const onAddRef = useRef(null);
   const selectedRef = useRef([]);
   selectedRef.current = selection;
+  const everything = () => [...blocksRef.current, ...itemsRef.current, ...shapesRef.current, ...exchangesRef.current];
+  const groupOf = id => everything().find(entry => entry.id === id)?.groupId || null;
+  const membersOf = gid => everything().filter(entry => entry.groupId === gid).map(entry => entry.id);
+  // groupId: undefined rather than a delete, so one map covers set and clear;
+  // JSON drops undefined keys on save.
+  const setGroupIds = (ids, gid) => {
+    const patch = entry => (ids.includes(entry.id) ? { ...entry, groupId: gid || undefined } : entry);
+    setBlocks(previous => previous.map(patch));
+    setItems(previous => previous.map(patch));
+    setShapes(previous => previous.map(patch));
+    onRestoreRef.current?.(previous => previous.map(patch));
+  };
+  const groupSelection = () => {
+    const ids = selectedRef.current;
+    if (ids.length < 2) return;
+    snapshot(ids.some(id => exchangesRef.current.some(exchange => exchange.id === id)));
+    const gid = crypto.randomUUID();
+    setGroupIds(ids, gid);
+    setGroups(previous => [...previous, { id: gid, label: '' }]);
+  };
+  const ungroupSelection = () => {
+    const gids = new Set(selectedRef.current.map(groupOf).filter(Boolean));
+    if (!gids.size) return;
+    const members = everything().filter(entry => gids.has(entry.groupId)).map(entry => entry.id);
+    snapshot(exchangesRef.current.some(exchange => gids.has(exchange.groupId)));
+    setGroupIds(members, null);
+    setGroups(previous => previous.filter(group => !gids.has(group.id)));
+  };
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const surface = useRef(null);
@@ -1392,7 +1448,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const down = event => {
     // A press on the canvas dismisses the floating chrome - the style island
     // and the dev insert menu - the way it already dismisses a menubar menu.
-    setStyleOpen(false); setInsertOpen(false);
+    setStyleOpen(false); setInsertOpen(false); setMenuAt(null);
     if ((event.ctrlKey || event.metaKey) && tool === 'select' && (event.button === 0 || event.button === 2)
       && !event.target.closest('[data-block],[role="toolbar"],[data-zoom]')) {
       const start = local(event);
@@ -1504,7 +1560,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       const block = blocksRef.current.find(item => item.id === id);
       if (block) { moveBlock(id, block.dx + ddx, block.dy + ddy); continue; }
       const item = itemsRef.current.find(entry => entry.id === id);
-      if (item) setItems(previous => previous.map(entry => entry.id === id ? { ...entry, x: item.x + ddx, y: item.y + ddy } : entry));
+      if (item) { setItems(previous => previous.map(entry => entry.id === id ? { ...entry, x: item.x + ddx, y: item.y + ddy } : entry)); continue; }
+      const shape = shapesRef.current.find(entry => entry.id === id);
+      if (shape) setShapes(previous => previous.map(entry => entry.id === id ? { ...entry, x1: entry.x1 + ddx, y1: entry.y1 + ddy, x2: entry.x2 + ddx, y2: entry.y2 + ddy } : entry));
     }
   };
   const groupTargets = id => selectedRef.current.includes(id) && selectedRef.current.length > 1 ? selectedRef.current : [id];
@@ -1639,6 +1697,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const resizeShape = (id, patch) => setShapes(previous => previous.map(shape => shape.id === id ? { ...shape, ...patch } : shape));
   const moveShapeStart = (event, shape) => {
     snapshot();
+    // A shape inside a selection drags the whole selection, the way cards do.
+    const targets = groupTargets(shape.id);
+    if (targets.length > 1) {
+      let last = { x: shape.x1, y: shape.y1 };
+      startDrag(event, { x: shape.x1, y: shape.y1 }, (x, y) => {
+        shift(x - last.x, y - last.y, targets);
+        last = { x, y };
+      }, view.z);
+      return;
+    }
     // x1 is not always the left edge - a shape dragged out right-to-left has
     // x2 smaller - so the base carries the gap between the corner and the box.
     const base = { x: Math.min(shape.x1, shape.x2) - shape.x1, y: Math.min(shape.y1, shape.y2) - shape.y1 };
@@ -1717,7 +1785,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           you can see. An opaque surface keeps the page dots from showing through
           and doubling them up. */}
       <div ref={surface} data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
-        onContextMenu={event => { if (event.ctrlKey || marqueeRef.current) event.preventDefault(); }}
+        onContextMenu={event => {
+          event.preventDefault();
+          if (event.ctrlKey || marqueeRef.current || presenting !== null) return;
+          const hit = event.target.closest('[data-block-id],[data-item-id],[data-shape-id]');
+          const id = hit?.dataset.blockId || hit?.dataset.itemId || hit?.dataset.shapeId || null;
+          if (id && !selectedRef.current.includes(id)) select(id);
+          const root = surface.current.getBoundingClientRect();
+          setMenuAt({ x: event.clientX - root.left, y: event.clientY - root.top });
+        }}
         onDragOver={event => { if (onDropFiles && event.dataTransfer.types.includes('Files')) { event.preventDefault(); setDropHover(true); } }}
         onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setDropHover(false); }}
         onDrop={event => { if (!onDropFiles) return; event.preventDefault(); setDropHover(false); onDropFiles([...event.dataTransfer.files]); }}
@@ -1774,11 +1850,42 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
             ))}
           </svg>
         )}
+        {presenting === null && groups.map(group => {
+          const members = [...blocks, ...items, ...shapes, ...exchanges].filter(entry => entry.groupId === group.id);
+          if (members.length < 2) return null;
+          let left = Infinity, top = Infinity;
+          for (const member of members) {
+            const box = bounds[member.id];
+            if (box) { left = Math.min(left, box.x); top = Math.min(top, box.y); continue; }
+            if (member.x1 !== undefined) { left = Math.min(left, Math.min(member.x1, member.x2)); top = Math.min(top, Math.min(member.y1, member.y2)); continue; }
+            if (member.x !== undefined) { left = Math.min(left, member.x); top = Math.min(top, member.y); }
+          }
+          if (!Number.isFinite(left)) return null;
+          return <GroupChip key={group.id} group={group} left={left} top={top}
+            onSelect={() => setSelection(membersOf(group.id))}
+            onLabel={label => setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry))} />;
+        })}
         <div ref={itemsLayer} className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
             onLevel={(id, value) => { snapshot(); setItems(previous => previous.map(entry => entry.id === id ? { ...entry, level: value } : entry)); }} />)}
         </div>
         </div>
+        {menuAt && presenting === null && (() => {
+          const grouped = selection.some(id => [...blocks, ...items, ...shapes, ...exchanges].find(entry => entry.id === id)?.groupId);
+          const row = 'flex w-full items-center rounded px-2 py-1.5 text-left text-sm text-ink hover:bg-hover disabled:cursor-default disabled:text-ink-3 disabled:hover:bg-transparent';
+          const act = action => () => { action(); setMenuAt(null); };
+          return (
+            <div role="menu" aria-label="Canvas actions" style={{ left: menuAt.x, top: menuAt.y }}
+              className="absolute z-40 w-44 rounded-md border border-line bg-white p-1 shadow-pop"
+              onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation(); }}>
+              <button type="button" role="menuitem" disabled={selection.length < 2} onClick={act(groupSelection)} className={row}>Group</button>
+              <button type="button" role="menuitem" disabled={!grouped} onClick={act(ungroupSelection)} className={row}>Ungroup</button>
+              <div className="my-1 h-px bg-line" />
+              <button type="button" role="menuitem" onClick={act(selectAll)} className={row}>Select all</button>
+              <button type="button" role="menuitem" disabled={!selection.length} onClick={act(deleteSelection)} className={row}>Delete</button>
+            </div>
+          );
+        })()}
       </div>
       {/* Dev-only workbench: drop any lesson block on the canvas to review its
           look before lessons are assembled. */}
