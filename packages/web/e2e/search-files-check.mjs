@@ -51,7 +51,17 @@ await page.waitForTimeout(2500);
 
 // --- the menubar ---
 const labels = await menubar.getByRole('menuitem').allInnerTexts();
-ok('the menubar reads Files, Search, Insert, Edit, View', labels.map(label => label.trim()).join(',') === 'Files,Search,Insert,Edit,View', labels.join(','));
+ok('the menubar reads Search, Files, Insert, Edit, View', labels.map(label => label.trim()).join(',') === 'Search,Files,Insert,Edit,View', labels.join(','));
+for (const title of ['Edit', 'View']) {
+  await menubar.getByRole('menuitem', { name: new RegExp(`^${title}`) }).click();
+  await page.waitForTimeout(200);
+  const rows = page.locator('[role="menubar"] [class*="top-9"] button[role="menuitem"]');
+  const count = await rows.count();
+  const withIcon = await rows.evaluateAll(buttons => buttons.filter(button => button.querySelector('svg.lucide')).length);
+  ok(`every ${title} row has an icon`, count > 0 && withIcon === count, `${withIcon}/${count}`);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
+}
 await menubar.getByRole('menuitem', { name: /^Files/ }).click();
 await page.waitForTimeout(250);
 const filesText = await page.locator('[role="menubar"]').innerText();
@@ -81,6 +91,15 @@ ok('closing added nothing and searched nothing', searches.length === 0 && (await
 // --- idle: examples, no search per keystroke ---
 await openSearch();
 ok('idle state offers example searches', (await bar.getByRole('button', { name: 'I want to understand backpropagation' }).count()) === 1);
+ok('no instruction line above them', !/Ask in plain words/.test(await bar.innerText()));
+const chips = await bar.getByRole('button', { name: /backpropagation|transformers|gradient descent/ }).evaluateAll(buttons => buttons.map(button => button.getBoundingClientRect().top));
+ok('the examples stack one under another', chips.length === 3 && chips[1] > chips[0] + 10 && chips[2] > chips[1] + 10, chips.map(Math.round).join(','));
+for (const source of ['youtube', 'arxiv', 'wikipedia']) {
+  await bar.getByRole('combobox', { name: 'Search in' }).selectOption(source);
+  const fits = await bar.getByRole('textbox').evaluate(input => { const probe = document.createElement('span'); const style = getComputedStyle(input); probe.style.font = style.font; probe.style.whiteSpace = 'nowrap'; probe.textContent = input.placeholder; document.body.append(probe); const width = probe.offsetWidth; probe.remove(); return width <= input.clientWidth; });
+  ok(`the ${source} placeholder fits on one line`, fits);
+}
+await bar.getByRole('combobox', { name: 'Search in' }).selectOption('youtube');
 await bar.getByRole('textbox').pressSequentially('backprop', { delay: 40 });
 await page.waitForTimeout(600);
 ok('typing does not search - Enter does', searches.length === 0);
@@ -91,6 +110,9 @@ await bar.getByRole('textbox').fill('I want to understand backpropagation');
 await page.keyboard.press('Enter');
 await page.waitForTimeout(100);
 ok('a busy line while it searches, no trailing dots', /Finding the best YouTube videos for that$/.test((await bar.innerText()).split('\n').find(line => line.startsWith('Finding')) || ''));
+const spinner = await bar.locator('[role="status"] svg.animate-spin').evaluate(node => ({ color: getComputedStyle(node).color, animation: getComputedStyle(node).animationName }));
+ok('with a coloured, moving spinner', spinner.animation !== 'none' && spinner.color === 'rgb(35, 131, 226)', JSON.stringify(spinner));
+ok('and placeholder rows in the shape of results', (await bar.locator('[role="status"] .animate-pulse').count()) === 3);
 await page.waitForTimeout(500);
 ok('results show title, channel, and why', (await bar.getByRole('listbox').getByRole('option').count()) === 2 && (await bar.getByText('Animates how each weight gets its nudge.').count()) === 1);
 ok('the query went to the chosen source', searches.at(-1)?.source === 'youtube' && searches.at(-1)?.q === 'I want to understand backpropagation');

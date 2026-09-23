@@ -12,9 +12,9 @@ import { wsHeaders } from './api.js';
 // Esc, the X, or a click outside closes it; nothing is added until a result
 // is chosen.
 export const SOURCES = [
-  { id: 'youtube', label: 'YouTube', noun: 'videos', placeholder: 'Describe what you want explained - e.g. I want to understand backpropagation', examples: ['I want to understand backpropagation', 'how transformers pay attention', 'gradient descent visually'] },
-  { id: 'arxiv', label: 'arXiv', noun: 'papers', placeholder: 'A topic, an exact title, or an arXiv ID or link', examples: ['Attention is all you need', 'why does batch normalization help', '1706.03762'] },
-  { id: 'wikipedia', label: 'Wikipedia', noun: 'articles', placeholder: 'A topic, an article name, or a wikipedia.org link', examples: ['how gradients flow backwards', 'Backpropagation', 'softmax function'] },
+  { id: 'youtube', label: 'YouTube', noun: 'videos', placeholder: 'What do you want to learn?', examples: ['I want to understand backpropagation', 'how transformers pay attention', 'gradient descent visually'] },
+  { id: 'arxiv', label: 'arXiv', noun: 'papers', placeholder: 'A topic, a paper title, or an arXiv link', examples: ['Attention is all you need', 'why does batch normalization help', '1706.03762'] },
+  { id: 'wikipedia', label: 'Wikipedia', noun: 'articles', placeholder: 'A topic, an article, or a wikipedia.org link', examples: ['how gradients flow backwards', 'Backpropagation', 'softmax function'] },
 ];
 const REMEMBER = 'small.learn.search-source';
 
@@ -97,9 +97,9 @@ export default function SearchBar({ app, initialSource = null, onPick, onClose }
               if (event.key === 'ArrowDown') { event.preventDefault(); setActive(at => Math.min(results.length - 1, at + 1)); }
               if (event.key === 'ArrowUp') { event.preventDefault(); setActive(at => Math.max(0, at - 1)); }
             }}
-            className="h-8 min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-3" />
+            className="h-8 min-w-0 flex-1 truncate bg-transparent text-sm text-ink outline-none placeholder:text-ink-3" />
           {busy
-            ? <Loader2 size={16} className="shrink-0 animate-spin text-ink-3" aria-label="Searching" />
+            ? <Loader2 size={16} className="shrink-0 animate-spin text-accent" aria-label="Searching" />
             : query.trim() && !current && <span className="flex shrink-0 items-center gap-1 text-[11px] text-ink-3"><CornerDownLeft size={12} />to search</span>}
           <button type="button" aria-label="Close search" title="Close (Esc)" onClick={onClose}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-ink-3 hover:bg-hover hover:text-ink"><X size={15} /></button>
@@ -107,7 +107,23 @@ export default function SearchBar({ app, initialSource = null, onPick, onClose }
 
         <div className="max-h-[56vh] overflow-y-auto p-2">
           {busy && (
-            <p className="px-2 py-3 text-sm text-ink-2">Finding the best {meta.label} {meta.noun} for that</p>
+            <div role="status" aria-live="polite">
+              <p className="flex items-center gap-2 px-2 py-2 text-sm text-ink-2">
+                <Loader2 size={15} className="animate-spin text-accent" />Finding the best {meta.label} {meta.noun} for that
+              </p>
+              {/* Placeholder rows in the shape results will take, so the bar
+                  does not jump when they arrive. */}
+              {[0, 1, 2].map(row => (
+                <div key={row} className="flex animate-pulse items-start gap-3 px-2.5 py-2" style={{ animationDelay: `${row * 150}ms` }}>
+                  {source === 'youtube' && <div className="h-12 w-20 shrink-0 rounded-md bg-accent/15" />}
+                  <div className="min-w-0 flex-1 space-y-1.5 pt-0.5">
+                    <div className="h-3 w-2/3 rounded bg-accent/20" />
+                    <div className="h-2.5 w-1/3 rounded bg-line" />
+                    <div className="h-2.5 w-11/12 rounded bg-line" />
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
           {!busy && error && (
             <div role="alert" className="flex items-center justify-between gap-3 rounded-lg bg-hover px-3 py-2.5">
@@ -117,8 +133,7 @@ export default function SearchBar({ app, initialSource = null, onPick, onClose }
           )}
           {!busy && !error && results === null && (
             <div className="px-2 py-2">
-              <p className="text-xs text-ink-3">Ask in plain words, name something exactly, or paste a link. Try</p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
+              <div className="flex flex-col items-start gap-1.5">
                 {meta.examples.map(example => (
                   <button key={example} type="button" onClick={() => { setQuery(example); run(example); }}
                     className="rounded-full border border-line px-2.5 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">{example}</button>

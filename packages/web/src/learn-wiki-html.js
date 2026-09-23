@@ -54,9 +54,13 @@ const ATTRIBUTES = new Set(['id', 'alt', 'title', 'dir', 'lang', 'colspan', 'row
 // `fixed` becomes `wiki-fixed`, which matches nothing.
 export const wikiClass = value => String(value || '').split(/\s+/).filter(Boolean).map(token => `wiki-${token}`).join(' ');
 
-// Article furniture that means nothing outside Wikipedia: the edit pencils, and
-// the raster duplicate of every MathML block that renders alongside it.
-const FURNITURE = '.mw-editsection, .mwe-math-fallback-image-inline, .mwe-math-fallback-image-display, .noprint, .mw-empty-elt, link, style, meta';
+// Article furniture that means nothing outside Wikipedia: the edit pencils,
+// the raster duplicate of every MathML block that renders alongside it, and
+// the site's navigation chrome - "This article is about..." hatnotes, the
+// "Part of a series on" sidebar, navboxes and maintenance banners. Flattened
+// into a card they read as a wall of link text before the article starts.
+export const FURNITURE = '.mw-editsection, .mwe-math-fallback-image-inline, .mwe-math-fallback-image-display, .noprint, .mw-empty-elt, link, style, meta, '
+  + '.hatnote, .dablink, .sidebar, .vertical-navbox, .navbox, .navbox-styles, [role="navigation"], .ambox, .metadata, .shortdescription, .sistersitebox, .side-box';
 
 export const dropsEntirely = tag => DROP.has(String(tag || '').toLowerCase());
 export const keepsElement = tag => KEEP.has(String(tag || '').toLowerCase());

@@ -38,11 +38,15 @@ export default function CanvasMenubar({ menus, className = '' }) {
                 aria-checked={item.checked === undefined ? undefined : !!item.checked}
                 onClick={() => { setOpen(null); item.onSelect?.(); }}
                 className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-ink hover:bg-hover disabled:cursor-default disabled:text-ink-3 disabled:hover:bg-transparent">
-                {/* The tick column is always reserved so labels do not shuffle
-                    sideways as things are switched on and off. */}
-                <span className="flex w-4 shrink-0 justify-center text-accent">{item.checked ? <Check size={14} strokeWidth={2.5} /> : null}</span>
+                {/* An icon, when the row has one, leads; the tick then sits at
+                    the end. Without icons the tick column is always reserved so
+                    labels do not shuffle as things are switched on and off. */}
+                {item.icon
+                  ? <item.icon size={15} strokeWidth={1.8} className="shrink-0 text-ink-2" />
+                  : <span className="flex w-4 shrink-0 justify-center text-accent">{item.checked ? <Check size={14} strokeWidth={2.5} /> : null}</span>}
                 <span className="flex-1" style={item.size ? { fontSize: item.size, fontWeight: item.weight } : undefined}>{item.label}</span>
                 {item.hint && <span className="shrink-0 text-xs text-ink-3">{item.hint}</span>}
+                {item.icon && item.checked !== undefined && <span className="flex w-4 shrink-0 justify-center text-accent">{item.checked ? <Check size={14} strokeWidth={2.5} /> : null}</span>}
               </button>
             )))}
           </Menu>

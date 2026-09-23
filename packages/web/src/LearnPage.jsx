@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, PanelRightClose, PanelRightOpen, Pause, Pencil, Play, Scan, Search, Share2, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
+import { BoxSelect, Check, ChevronLeft, ChevronRight, FileText, Grid3x3, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Pencil, Play, Redo2, RotateCcw, Scan, Search, Share2, Trash2, Trophy, NotebookPen, Undo2, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
 import { createShapeId, getIndices } from 'tldraw';
 import { SPEEDS, getSpeed, isMuted, onMuted, setMuted, setSpeed } from './learn-audio.js';
 import { api, wsHeaders } from './api.js';
@@ -769,6 +769,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     if (paperId && paperContext?.id === paperId) { setPaperContext(null); setPaperOpen(false); }
   };
   const canvasMenus = [
+    // One search bar for YouTube, arXiv and Wikipedia; a connector like
+    // Google Slides will live under Files once it exists, not here.
+    { title: 'Search', icon: Search, onSelect: () => setSearchOpen(true) },
     {
       title: 'Files',
       panel: close => <FilesPanel sources={listedSources} close={close}
@@ -776,9 +779,6 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         onLocate={locateSource} onRemove={removeSource}
         onUpload={() => filePicker.current?.click()} />,
     },
-    // One search bar for YouTube, arXiv and Wikipedia; a connector like
-    // Google Slides will live under Files once it exists, not here.
-    { title: 'Search', icon: Search, onSelect: () => setSearchOpen(true) },
     {
       title: 'Insert',
       items: [
@@ -794,25 +794,25 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     {
       title: 'Edit',
       items: [
-        { label: 'Undo', hint: 'Ctrl Z', onSelect: () => canvas()?.undo() },
-        { label: 'Redo', hint: 'Ctrl Y', onSelect: () => canvas()?.redo() },
+        { label: 'Undo', icon: Undo2, hint: 'Ctrl Z', onSelect: () => canvas()?.undo() },
+        { label: 'Redo', icon: Redo2, hint: 'Ctrl Y', onSelect: () => canvas()?.redo() },
         { divider: true },
-        { label: 'Select all', onSelect: () => canvas()?.selectAll() },
-        { label: 'Delete selection', hint: 'Del', onSelect: () => canvas()?.deleteSelection() },
+        { label: 'Select all', icon: BoxSelect, onSelect: () => canvas()?.selectAll() },
+        { label: 'Delete selection', icon: Trash2, hint: 'Del', onSelect: () => canvas()?.deleteSelection() },
       ],
     },
     {
       title: 'View',
       items: [
-        { label: 'Zoom in', onSelect: () => canvas()?.zoomIn() },
-        { label: 'Zoom out', onSelect: () => canvas()?.zoomOut() },
-        { label: 'Reset zoom', onSelect: () => canvas()?.zoomReset() },
-        { label: 'Zoom to fit', onSelect: () => canvas()?.zoomFit() },
+        { label: 'Zoom in', icon: ZoomIn, onSelect: () => canvas()?.zoomIn() },
+        { label: 'Zoom out', icon: ZoomOut, onSelect: () => canvas()?.zoomOut() },
+        { label: 'Reset zoom', icon: RotateCcw, hint: '100%', onSelect: () => canvas()?.zoomReset() },
+        { label: 'Zoom to fit', icon: Maximize2, onSelect: () => canvas()?.zoomFit() },
         { divider: true },
-        { label: 'Minimap', checked: canvasState.minimap, onSelect: () => canvas()?.toggleMinimap() },
-        { label: 'Snap to grid', checked: canvasState.grid, onSelect: () => canvas()?.toggleGrid() },
-        { label: 'Page guides (A4)', checked: canvasState.pages, onSelect: () => canvas()?.togglePages() },
-        { label: 'Keep tool active', checked: canvasState.lock, onSelect: () => canvas()?.toggleLock() },
+        { label: 'Minimap', icon: MapIcon, checked: canvasState.minimap, onSelect: () => canvas()?.toggleMinimap() },
+        { label: 'Snap to grid', icon: Grid3x3, checked: canvasState.grid, onSelect: () => canvas()?.toggleGrid() },
+        { label: 'Page guides (A4)', icon: FileText, checked: canvasState.pages, onSelect: () => canvas()?.togglePages() },
+        { label: 'Keep tool active', icon: Lock, checked: canvasState.lock, onSelect: () => canvas()?.toggleLock() },
       ],
     },
   ];

@@ -477,6 +477,13 @@ tr.cursor-pointer:active > td {
    overlay owned by React, never a mark written into the article's own nodes:
    innerHTML children can be re-created at any render, and nothing an editor
    writes can forge an element outside the sanitized subtree. */
+/* Learner highlights on a Wikipedia card (learn-wiki-highlights.js). The
+   Custom Highlight API paints ranges without touching the article's DOM. Dark
+   text on the yellow in both themes, or dark mode's light text would vanish. */
+::highlight(wiki-highlight) {
+  background-color: #fde047;
+  color: #1f1f1f;
+}
 @keyframes wiki-arrive {
   from { background: rgba(125, 195, 255, 0.3); }
   to { background: transparent; }

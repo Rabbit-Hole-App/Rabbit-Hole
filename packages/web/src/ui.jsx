@@ -475,7 +475,9 @@ export function Menu({ open, onClose, className, style, portal = false, children
     const t = setTimeout(() => document.addEventListener('pointerdown', close, true), 0);
     // a portaled menu is pinned to viewport coords - scrolling under it must close it
     if (portal) window.addEventListener('scroll', close, true);
-    return () => { clearTimeout(t); document.removeEventListener('pointerdown', close, true); if (portal) window.removeEventListener('scroll', close, true); };
+    const escape = event => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', escape);
+    return () => { clearTimeout(t); document.removeEventListener('pointerdown', close, true); window.removeEventListener('keydown', escape); if (portal) window.removeEventListener('scroll', close, true); };
   }, [open]);
   if (!open) return null;
   const node = (

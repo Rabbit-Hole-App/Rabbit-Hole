@@ -463,6 +463,9 @@ function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove,
   // it is showing itself. Without this, scrolling and selecting after a
   // navigation still reported the article the card was created with.
   const [showing, setShowing] = useState({ title: block.title, section: block.section || 0 });
+  // Highlighter mode is a moment, not a setting - it is not saved. The marks
+  // themselves and the scroll lock are, on the block.
+  const [highlighting, setHighlighting] = useState(false);
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={COLUMN} height={block.h || 640} autoMax={undefined} saved={{ w: block.w, h: block.h }}
@@ -471,11 +474,14 @@ function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove,
       <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
         <span className="h-1.5 w-1.5 rounded-full bg-ink" />Wikipedia
       </div>
-      {/* Once selected the card keeps the pointer, so a drag inside it selects
-          text instead of moving the card out from under the selection. */}
+      {/* Once selected - or while highlighting - the card keeps the pointer,
+          so a drag inside it selects text instead of moving the card. */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl border-t border-line"
-        onPointerDown={event => { if (selected) event.stopPropagation(); }}>
+        onPointerDown={event => { if (selected || highlighting) event.stopPropagation(); }}>
         <LearnWiki app={appName} compact article={{ title: block.title, section: block.section || 0 }}
+          paintKey={block.id} highlights={block.highlights || []} onHighlights={next => onChange({ ...block, highlights: next })}
+          highlighting={highlighting} onHighlighting={setHighlighting}
+          locked={!!block.scrollLocked} onLock={value => onChange({ ...block, scrollLocked: value })}
           onNavigate={next => { setShowing(next); onWiki?.({ id: block.id, ...next }); }}
           onSection={section => { setShowing(previous => ({ ...previous, section })); onWiki?.({ id: block.id, title: showing.title, section }); }}
           onSelect={text => onWiki?.({ id: block.id, title: showing.title, section: showing.section, selection: text })} />
@@ -729,6 +735,10 @@ function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResiz
       {POLYGONS[kind] && <polygon points={POLYGONS[kind].map(([u, v]) => `${x + u * w},${y + v * h}`).join(' ')} {...stroke} />}
       {(kind === 'line' || kind === 'arrow') && <line x1={x1} y1={y1} x2={x2} y2={y2} {...stroke} />}
       {kind === 'curve' && <path d={`M${x1} ${y1} Q${control.x} ${control.y} ${x2} ${y2}`} {...stroke} />}
+      {/* A 2px line is a 2px target. This invisible band gives lines, arrows
+          and curves the same easy grab a filled shape's interior has. */}
+      {(kind === 'line' || kind === 'arrow') && <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinecap="round" />}
+      {kind === 'curve' && <path d={`M${x1} ${y1} Q${control.x} ${control.y} ${x2} ${y2}`} fill="none" stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinecap="round" />}
       {kind === 'arrow' && arrowHead({ x: x2, y: y2 }, { x: x1, y: y1 }, stroke)}
       {kind === 'curve' && arrowHead({ x: x2, y: y2 }, control, stroke)}
       {selected && !linear && <rect x={x - 5} y={y - 5} width={w + 10} height={h + 10} fill="none" stroke="#2383e2" strokeWidth="1" strokeDasharray="4 3" />}
@@ -1337,7 +1347,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) { event.preventDefault(); showStepRef.current(presentingRef.current - 1); return; }
         return;
       }
-      if (event.key === 'Escape') { connectionCleanup.current?.(); setConnecting(null); setSelected(null); return; }
+      // Esc is the way home from anywhere: back to the pointer, nothing armed,
+      // nothing half-done. A text box being typed in commits and lets go.
+      if (event.key === 'Escape') {
+        connectionCleanup.current?.(); setConnecting(null); setSelected(null);
+        setTool('select'); setMenuAt(null); setStyleOpen(null);
+        const focused = document.activeElement;
+        if (focused?.isContentEditable && focused.closest('[data-item-id],[data-block-id]')) focused.blur();
+        return;
+      }
       const active = document.activeElement;
       const typing = active && (active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
