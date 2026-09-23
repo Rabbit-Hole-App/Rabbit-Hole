@@ -832,14 +832,14 @@ function ToolButton({ Icon, label, active, onPick }) {
 
 // The name tag of a group, floating just above its top-left corner. Click
 // selects the whole group; double-click renames it in place.
-function GroupChip({ group, left, top, onSelect, onLabel, editOn = false }) {
+function GroupChip({ group, onSelect, onLabel, editOn = false }) {
   const [editing, setEditing] = useState(false);
   const body = useRef(null);
   useEffect(() => { if (editing) body.current?.focus(); }, [editing]);
   useEffect(() => { if (editOn) setEditing(true); }, [editOn]);
   return (
-    <div data-group-chip={group.id} style={{ left, top: top - 28 }}
-      className="absolute z-20 flex cursor-pointer items-center rounded-md border border-line bg-white/90 px-1.5 py-0.5 text-[11px] text-ink-2 shadow-sm backdrop-blur-sm hover:text-ink"
+    <div data-group-chip={group.id}
+      className="flex cursor-pointer items-center rounded-md border border-line bg-white/90 px-1.5 py-0.5 text-[11px] text-ink-2 shadow-sm backdrop-blur-sm hover:text-ink"
       onPointerDown={event => { event.stopPropagation(); if (!editing) onSelect(); }}
       onDoubleClick={() => setEditing(true)}>
       <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder="Group"
@@ -1862,6 +1862,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           const hit = event.target.closest('[data-block-id],[data-item-id],[data-shape-id]');
           const id = hit?.dataset.blockId || hit?.dataset.itemId || hit?.dataset.shapeId || null;
           if (id && !selectedRef.current.includes(id)) select(id);
+          const groupHit = !id && event.target.closest('[data-group-box]');
+          if (groupHit) setSelection(membersOf(groupHit.dataset.groupBox));
           const root = surface.current.getBoundingClientRect();
           setMenuAt({ x: event.clientX - root.left, y: event.clientY - root.top, id });
         }}
@@ -1924,17 +1926,62 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         {presenting === null && groups.map(group => {
           const members = [...blocks, ...items, ...shapes, ...exchanges].filter(entry => entry.groupId === group.id);
           if (members.length < 2) return null;
-          let left = Infinity, top = Infinity;
+          let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+          const grow = (x, y, w, h) => { left = Math.min(left, x); top = Math.min(top, y); right = Math.max(right, x + w); bottom = Math.max(bottom, y + h); };
           for (const member of members) {
             const box = bounds[member.id];
-            if (box) { left = Math.min(left, box.x); top = Math.min(top, box.y); continue; }
-            if (member.x1 !== undefined) { left = Math.min(left, Math.min(member.x1, member.x2)); top = Math.min(top, Math.min(member.y1, member.y2)); continue; }
-            if (member.x !== undefined) { left = Math.min(left, member.x); top = Math.min(top, member.y); }
+            if (box) { grow(box.x, box.y, box.w, box.h); continue; }
+            if (member.x1 !== undefined) { grow(Math.min(member.x1, member.x2), Math.min(member.y1, member.y2), Math.abs(member.x2 - member.x1), Math.abs(member.y2 - member.y1)); continue; }
+            // Text and stickies: state carries no measured height, so estimate.
+            if (member.x !== undefined) grow(member.x, member.y, member.w || (member.kind === 'sticky' ? 160 : 220), member.h || (member.kind === 'sticky' ? 160 : 40));
           }
           if (!Number.isFinite(left)) return null;
-          return <GroupChip key={group.id} group={group} left={left} top={top} editOn={chipEdit === group.id}
-            onSelect={() => setSelection(membersOf(group.id))}
-            onLabel={label => { setChipEdit(null); setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry)); }} />;
+          const pad = 12;
+          const active = members.some(member => selection.includes(member.id));
+          return (
+            <div key={group.id}>
+              {/* The group's own body: an outline you can see, and a surface
+                  you can grab - press anywhere inside, empty space included,
+                  and the whole group moves. It sits under the members (no
+                  z-index), so their own handlers still win on top of them.
+                  Ctrl presses and non-select tools fall through to the canvas. */}
+              <div data-group-box={group.id}
+                style={{ left: left - pad, top: top - pad, width: right - left + pad * 2, height: bottom - top + pad * 2 }}
+                className={`absolute rounded-xl border ${active ? 'border-[#2383e2] bg-[#2383e2]/[0.03]' : 'border-line-strong'} cursor-grab active:cursor-grabbing`}
+                onPointerDown={event => {
+                  if (event.button !== 0 || tool !== 'select' || event.ctrlKey || event.metaKey) return;
+                  event.stopPropagation();
+                  const targets = membersOf(group.id);
+                  setSelection(targets);
+                  let last = local(event);
+                  startDrag(event, last, (x, y) => { shift(x - last.x, y - last.y, targets); last = { x, y }; }, view.z);
+                }} />
+              <div style={{ left: left - pad, top: top - pad - 28 }} className="absolute z-20 flex items-center gap-1">
+                <GroupChip group={group} editOn={chipEdit === group.id}
+                  onSelect={() => setSelection(membersOf(group.id))}
+                  onLabel={label => { setChipEdit(null); setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry)); }} />
+                {/* The same door every card has: arm the composer with what
+                    this group holds, so the next question is about it. */}
+                <button type="button" data-group-ask aria-label="Ask about this group" title="Ask about this group"
+                  className="flex items-center gap-1 rounded-md border border-line bg-white/90 px-1.5 py-0.5 text-[11px] text-ink-2 shadow-sm backdrop-blur-sm hover:text-ink"
+                  onPointerDown={event => event.stopPropagation()}
+                  onClick={() => {
+                    const parts = [];
+                    for (const member of members) {
+                      const block = blocksRef.current.find(entry => entry.id === member.id);
+                      if (block) { const described = describeBlock(block); if (described?.text) parts.push(described.text); continue; }
+                      const exchange = exchangesRef.current.find(entry => entry.id === member.id);
+                      if (exchange) { parts.push(`Q: ${exchange.question}\nA: ${String(exchange.answer || '').slice(0, 600)}`); continue; }
+                      const item = itemsRef.current.find(entry => entry.id === member.id);
+                      if (item?.text) parts.push(item.text);
+                    }
+                    onAskTargetRef.current?.({ id: group.id, kind: group.label ? `group "${group.label}"` : 'group', text: parts.join('\n\n').slice(0, 4000) || 'An empty group of drawings.' });
+                  }}>
+                  <MessageCircle size={11} strokeWidth={1.8} />Ask
+                </button>
+              </div>
+            </div>
+          );
         })}
         <div ref={itemsLayer} className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
