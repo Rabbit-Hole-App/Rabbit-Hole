@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { BoxSelect, Check, ChevronLeft, ChevronRight, FileText, Grid3x3, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Pencil, Play, Redo2, RotateCcw, Scan, Search, Share2, Trash2, Trophy, NotebookPen, Undo2, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
+import { BoxSelect, Check, ChevronLeft, ChevronRight, FileText, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Pencil, Play, Redo2, RotateCcw, Scan, Search, Share2, Trash2, Trophy, NotebookPen, Undo2, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
 import { createShapeId, getIndices } from 'tldraw';
 import { SPEEDS, getSpeed, isMuted, onMuted, setMuted, setSpeed } from './learn-audio.js';
 import { api, wsHeaders } from './api.js';
@@ -192,6 +192,33 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const watchVideo = ({ id, videoId, title, start, end }) =>
     setVideoContext({ blockId: id, videoId, title, start, end: end ?? null });
   const videoAttached = !videoContext?.blockId || isAttached(sources, `video:${videoContext.blockId}`);
+  // Search and the tutor put things on the canvas as cards; the side panel
+  // only opens through "Open in reader". What rides the next question is the
+  // card just added - one context at a time, as before.
+  const addWiki = ({ title, section = 0 }) => {
+    pauseLesson();
+    const blockId = canvas()?.insertWiki({ title, section });
+    if (!blockId) return;
+    setWikiContext({ blockId, title, section, selection: null });
+    setPaperContext(null);
+    registerSource({ id: `wiki:${blockId}`, kind: 'wiki', label: String(title).replace(/_/g, ' ') });
+  };
+  const addPaper = paper => {
+    pauseLesson();
+    const page = paper.page || 1;
+    const blockId = canvas()?.insertPaper({ id: paper.id, title: paper.title, page });
+    if (!blockId) return;
+    setPaperContext({ ...paper, page });
+    setWikiContext(null);
+    registerSource({ id: `paper:${paper.id}`, kind: 'paper', label: paper.title || `arXiv ${paper.id}` });
+  };
+  // A paper card turning its page is where the learner is now - unless the
+  // reader is open, which wins, as it does for a wiki card's section.
+  const trackPaper = next => {
+    if (paperOpen) return;
+    setPaperContext(previous => (previous?.id === next.paperId && previous.page === next.page ? previous
+      : { id: next.paperId, title: next.title, pdfUrl: previous?.id === next.paperId ? previous.pdfUrl : `https://arxiv.org/pdf/${next.paperId}`, page: next.page }));
+  };
   // Every article on the canvas is a card, whoever brought it - the picker and
   // the tutor's show_wikipedia take this same road, so there is one shape to
   // reason about and one place a source is registered.
@@ -311,6 +338,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const cardAction = (action, payload) => {
     if (action === 'wiki-reader') openWiki({ title: payload.title, section: payload.section || 0 });
     else if (action === 'pdf-reader') openPaper({ id: payload.id, title: payload.title, pdfUrl: null, page: 1 });
+    else if (action === 'paper-reader') openPaper({ id: payload.id, title: payload.title, pdfUrl: `https://arxiv.org/pdf/${payload.id}`, page: payload.page || 1 });
     else if (action === 'attach-toggle') setSources(previous => toggleSource(previous, payload.sourceId));
     else if (action === 'image-attach') {
       // Re-arm an older dropped image as the one the tutor sees; only the
@@ -514,8 +542,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           const shape = editor?.getCurrentPageShapes().find(shape => shape.meta?.paper?.id === match[1]);
           const paper = shape?.meta.paper || { id: match[1], title: link.textContent, pdfUrl: `https://arxiv.org/pdf/${match[1]}`, page: 1 };
           event.preventDefault(); event.stopPropagation();
-          pauseLesson(); setPaperContext({ ...paper, page: Number(url.hash.match(/page=(\d+)/)?.[1]) || paper.page }); setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false);
-          registerSource({ id: `paper:${paper.id}`, kind: 'paper', label: paper.title || `arXiv ${paper.id}` });
+          addPaper({ ...paper, page: Number(url.hash.match(/page=(\d+)/)?.[1]) || paper.page });
   };
   const teachingSnapshot = snapshot => {
     if (!snapshot || !snapshot.lessonId.startsWith('course-') || !course.course?.brief) return snapshot;
@@ -532,12 +559,12 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     wiki: wikiAttached ? wikiContext : null,
     video: videoAttached ? videoContext : null,
     image: imageAttached ? imageContext : null,
-    onShowWiki: article => openWiki(article),
+    onShowWiki: article => addWiki(article),
     onShowVideo: moment => addVideo(moment),
     // Read at send time, so a question always carries the outline as it is now.
     outline: () => canvasStateRef.current.outline || [],
     onOutlineProposal: ops => setProposal(ops),
-    onShowPaper: paper => openPaper(paper),
+    onShowPaper: paper => addPaper(paper),
     explain: async ({ snapshot, question, answer, model, paperIds = [], history = [], repository_context = null }) => {
       if (noteEditing) throw new Error('Return to the lesson before explaining on canvas.');
       if (!editor) throw new Error('The canvas is still loading. Try again in a moment.');
@@ -741,6 +768,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const cardOf = source => {
     if (['wiki', 'video', 'image'].includes(source.kind)) return source.id.slice(source.id.indexOf(':') + 1);
     if (source.kind === 'pdf') return (canvasState.cards || []).find(([, assetKey]) => assetKey === `pdf:${source.id}`)?.[0] || null;
+    if (source.kind === 'paper') return (canvasState.cards || []).find(([, , paperId]) => paperId === source.id.slice('paper:'.length))?.[0] || null;
     return null;
   };
   // A row whose card was deleted is gone from the list; the stored flag stays,
@@ -752,9 +780,10 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     removable: source.kind !== 'repository',
   }));
   const locateSource = source => {
-    if (source.kind === 'paper') { openPaper({ id: source.id.slice('paper:'.length), title: source.label, pdfUrl: `https://arxiv.org/pdf/${source.id.slice('paper:'.length)}` }); return; }
     const blockId = cardOf(source);
-    if (blockId) canvas()?.focusBlock(blockId);
+    if (blockId) { canvas()?.focusBlock(blockId); return; }
+    // A paper read before papers became cards has only the reader.
+    if (source.kind === 'paper') openPaper({ id: source.id.slice('paper:'.length), title: source.label, pdfUrl: `https://arxiv.org/pdf/${source.id.slice('paper:'.length)}` });
   };
   // Removing is removing: the card leaves the canvas, the row leaves the list,
   // and whatever context pointed at it stops riding the next question.
@@ -782,13 +811,13 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     {
       title: 'Insert',
       items: [
-        { label: 'Section', size: 19, weight: 650, onSelect: () => canvas()?.insertHeading(1) },
-        { label: 'Sub-section', size: 16, weight: 600, onSelect: () => canvas()?.insertHeading(2) },
-        { label: 'Sub-sub-section', size: 14, weight: 550, onSelect: () => canvas()?.insertHeading(3) },
+        { label: 'Section', icon: Heading1, size: 19, weight: 650, onSelect: () => canvas()?.insertHeading(1) },
+        { label: 'Sub-section', icon: Heading2, size: 16, weight: 600, onSelect: () => canvas()?.insertHeading(2) },
+        { label: 'Sub-sub-section', icon: Heading3, size: 14, weight: 550, onSelect: () => canvas()?.insertHeading(3) },
         { divider: true },
-        { label: 'Text box', onSelect: () => canvas()?.insertText() },
-        { label: 'Sticky note', onSelect: () => canvas()?.insertSticky() },
-        { label: 'Divider line', onSelect: () => canvas()?.insertDivider() },
+        { label: 'Text box', icon: Type, onSelect: () => canvas()?.insertText() },
+        { label: 'Sticky note', icon: StickyNote, onSelect: () => canvas()?.insertSticky() },
+        { label: 'Divider line', icon: SeparatorHorizontal, onSelect: () => canvas()?.insertDivider() },
       ],
     },
     {
@@ -875,7 +904,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             className="h-8 min-w-16 max-w-96 shrink cursor-text truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none [field-sizing:content] placeholder:text-ink-2 hover:border-line focus:border-line" />
           <CanvasMenubar menus={canvasMenus} />
           {searchOpen && <SearchBar app={app.name} onClose={() => setSearchOpen(false)}
-            onPick={(source, item) => (source === 'arxiv' ? openPaper(item) : source === 'wikipedia' ? openWiki({ title: item.title }) : addVideo(item))} />}
+            onPick={(source, item) => (source === 'arxiv' ? addPaper(item) : source === 'wikipedia' ? addWiki({ title: item.title }) : addVideo(item))} />}
           <div className="flex items-center gap-0.5">
             <button type="button" title="Present" aria-label="Present"
               onClick={() => { if (canvasApi.current?.present()) setPanelOpen(false); }}
@@ -904,7 +933,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
-        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onState={onCanvasState} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly boardContext={boardContext} onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
+        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onState={onCanvasState} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly boardContext={boardContext} onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">

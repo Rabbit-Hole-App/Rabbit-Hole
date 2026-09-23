@@ -478,7 +478,7 @@ function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove,
           so a drag inside it selects text instead of moving the card. */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl border-t border-line"
         onPointerDown={event => { if (selected || highlighting) event.stopPropagation(); }}>
-        <LearnWiki app={appName} compact article={{ title: block.title, section: block.section || 0 }}
+        <LearnWiki app={appName} compact article={{ title: block.title, section: block.section || 0 }} openAt={block.openNonce || 0}
           paintKey={block.id} highlights={block.highlights || []} onHighlights={next => onChange({ ...block, highlights: next })}
           highlighting={highlighting} onHighlighting={setHighlighting}
           locked={!!block.scrollLocked} onLock={value => onChange({ ...block, scrollLocked: value })}
@@ -882,7 +882,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onPaper = null }) {
   const [tool, setTool] = useState('select');
   // OS drag-and-drop of files onto the surface; the page owns what each kind
   // becomes, the canvas only announces the hover and hands the files over.
@@ -987,6 +987,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   onCardActionRef.current = onCardAction;
   const onGroupShotRef = useRef(onGroupShot);
   onGroupShotRef.current = onGroupShot;
+  const onPaperRef = useRef(onPaper);
+  onPaperRef.current = onPaper;
   // Put the camera around a set of boxes. Used both to find your way back to
   // everything, and to land on one section while presenting.
   const frame = (boxes, pad = 48, maxZoom = 1) => {
@@ -1061,6 +1063,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         snapshot();
         return insertAtView({ id: crypto.randomUUID(), type: 'file', dx: 0, dy: 0, kind, assetKey, label, ...(mediaId ? { mediaId } : {}) });
       },
+      // An arXiv paper as a card: the full reader - pages, zoom, Ask selection -
+      // on the canvas. One card per paper; pointing at it again turns the page.
+      insertPaper: ({ id, title, page = 1 }) => {
+        const existing = blocksRef.current.find(block => block.type === 'paper' && block.paper?.id === id);
+        if (existing) {
+          if ((existing.paper.page || 1) !== page) { snapshot(); setBlocks(previous => previous.map(block => block.id === existing.id ? { ...block, paper: { ...block.paper, page, selection: undefined } } : block)); }
+          bringIntoView(existing.id);
+          return existing.id;
+        }
+        snapshot();
+        return insertAtView({ id: crypto.randomUUID(), type: 'paper', dx: 0, dy: 0, title: title || `arXiv ${id}`, paper: { id, page } });
+      },
       insertDivider: () => {
         snapshot();
         const center = viewCenter();
@@ -1095,7 +1109,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       // field would fill the quota and take the learner's ink with it.
       insertWiki: ({ title, section = 0 }) => {
         const existing = blocksRef.current.find(block => block.type === 'wiki' && block.title === title);
-        if (existing) return existing.id;
+        if (existing) {
+          // Pointed at again - by the tutor, or a second pick: the card goes
+          // back to that article and section, and comes into view.
+          setBlocks(previous => previous.map(block => block.id === existing.id ? { ...block, section, openNonce: (block.openNonce || 0) + 1 } : block));
+          bringIntoView(existing.id);
+          return existing.id;
+        }
         snapshot();
         return insertAtView({ id: crypto.randomUUID(), type: 'wiki', dx: 0, dy: 0, title, section });
       },
@@ -1145,7 +1165,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // Serialised for the comparison on the page: the outline changes whenever a
   // heading is added, retitled, reordered or ticked, and only then.
   const outlineKey = JSON.stringify(outline);
-  const cardsKey = JSON.stringify(blocks.map(block => [block.id, block.assetKey || null]));
+  const cardsKey = JSON.stringify(blocks.map(block => [block.id, block.assetKey || null, block.paper?.id || null]));
   useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey) }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, onState]);
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
@@ -1255,16 +1275,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     setBounds(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
   }, []);
   boundsRef.current = bounds;
+  // Move the camera only if the card is off screen - one in view stays put.
+  const bringIntoView = id => {
+    const box = boundsRef.current[id];
+    const element = surface.current;
+    if (!box || !element) return false;
+    const top = box.y * view.z + view.y, bottom = (box.y + box.h) * view.z + view.y;
+    if (top < 0 || bottom > element.clientHeight) setView(v => ({ ...v, y: element.clientHeight / 2 - (box.y + Math.min(box.h, element.clientHeight / v.z) / 2) * v.z }));
+    return true;
+  };
   useEffect(() => {
     const id = revealRef.current;
-    const box = id && bounds[id];
-    const element = surface.current;
-    if (!box || !element) return;
-    revealRef.current = null;
-    const top = box.y * view.z + view.y, bottom = (box.y + box.h) * view.z + view.y;
-    if (top >= 0 && bottom <= element.clientHeight) return;
-    setView(v => ({ ...v, y: element.clientHeight / 2 - (box.y + Math.min(box.h, element.clientHeight / v.z) / 2) * v.z }));
-  }, [bounds]);
+    if (id && bringIntoView(id)) revealRef.current = null;
+  }, [bounds]); // eslint-disable-line react-hooks/exhaustive-deps
   shapesRef.current = shapes;
   onAddRef.current = onAdd;
   useLayoutEffect(measureBlocks, [exchanges, blocks, measureBlocks]);
@@ -1736,7 +1759,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     const item = itemsRef.current.find(entry => entry.id === id);
     if (item) shift(x - item.x, y - item.y, groupTargets(id));
   };
-  const changeBlock = updated => { snapshot(); setBlocks(previous => previous.map(block => block.id === updated.id ? updated : block)); };
+  const changeBlock = updated => {
+    snapshot();
+    setBlocks(previous => previous.map(block => block.id === updated.id ? updated : block));
+    // A paper card's page is what the tutor is told, the way a wiki card's
+    // section is.
+    if (updated.type === 'paper' && updated.paper?.id) onPaperRef.current?.({ id: updated.id, paperId: updated.paper.id, page: updated.paper.page || 1, title: updated.title });
+  };
   // A continuous gesture must not snapshot: one scrub drag would evict the whole
   // 100-entry undo ring. Same reasoning as moveBlock, which has never snapshotted.
   const changeBlockQuietly = updated => setBlocks(previous => previous.map(block => block.id === updated.id ? updated : block));
@@ -2127,6 +2156,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           if (block?.type === 'video') {
             typed.push(<button key="vy" type="button" role="menuitem" onClick={act(() => window.open(`https://www.youtube.com/watch?v=${block.videoId}${block.start ? `&t=${Math.floor(block.start)}s` : ''}`, '_blank', 'noopener'))} className={row}>Open on YouTube</button>);
             typed.push(attachRow(`video:${block.id}`, 'video'));
+          }
+          if (block?.type === 'paper' && block.paper?.id) {
+            typed.push(<button key="pp" type="button" role="menuitem" onClick={act(() => onCardActionRef.current?.('paper-reader', { id: block.paper.id, title: block.title, page: block.paper.page || 1 }))} className={row}>Open in reader</button>);
+            typed.push(attachRow(`paper:${block.paper.id}`, 'paper'));
           }
           if (block?.type === 'pdf' && block.assetKey?.startsWith('pdf:')) {
             typed.push(<button key="pr" type="button" role="menuitem" onClick={act(() => onCardActionRef.current?.('pdf-reader', { id: block.assetKey.slice(4), title: block.label }))} className={row}>Open in reader</button>);
