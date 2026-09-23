@@ -244,7 +244,8 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // A PDF needs no account and no server: the bytes go to this browser's asset
   // store and the block keeps only the key. The file picker is hidden and
   // triggered from the Sources menu, so there is no dialog to dismiss.
-  const pdfPicker = useRef(null);
+  // The Files menu's Upload: same router as a drop, one picker for all kinds.
+  const filePicker = useRef(null);
   const takePdf = async file => {
     if (!file) return;
     // The reader can only take the learner to a page the model will also read,
@@ -731,6 +732,8 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // The copy confirmation lives on the button itself - a toast in the far
   // corner reads as unrelated to the press that caused it.
   const [shareCopied, setShareCopied] = useState(false);
+  const fallbackTitle = courseTitle || app.repo || app.name;
+  const [titleDraft, setTitleDraft] = useState(null); // non-null only while the title is focused
   const saveTitle = value => {
     const clean = value.trim().slice(0, 120);
     setCanvasTitle(clean);
@@ -740,22 +743,24 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     {
       title: 'Files',
       items: [
-        // A tick is not provenance, it is whether the agent is given this when
-        // it answers. Detaching takes nothing off the canvas.
+        // A switch, not provenance: on means the agent is handed this when it
+        // answers. Detaching takes nothing off the canvas.
         ...sources.map(source => ({
           label: source.label,
+          toggle: true,
           checked: !!source.attached,
-          hint: source.attached ? 'in context' : 'detached',
+          hint: source.attached ? 'in context' : 'off',
           onSelect: () => setSources(previous => toggleSource(previous, source.id)),
         })),
         ...(sources.length ? [{ divider: true }] : []),
-        // Enabled even with no connection: a greyed row naming a place it will
-        // not take you is worse than one that explains the next step.
-        { label: 'arXiv paper…', onSelect: () => setPaperSearchOpen(true) },
-        { label: 'PDF…', onSelect: () => pdfPicker.current?.click() },
-        { label: 'Wikipedia article…', onSelect: () => setWikiSearchOpen(true) },
-        { label: 'YouTube video…', onSelect: () => setVideoSearchOpen(true) },
-        { label: 'Google Slides…', onSelect: () => toast('Connect Google under Settings → Connections to import a deck.') },
+        // One Upload for anything on disk - same routing as dropping it on
+        // the canvas. The pickers below reach the world instead.
+        { label: 'Upload', hint: 'image · GIF · video · PDF', onSelect: () => filePicker.current?.click() },
+        { divider: true },
+        { label: 'arXiv paper', onSelect: () => setPaperSearchOpen(true) },
+        { label: 'Wikipedia article', onSelect: () => setWikiSearchOpen(true) },
+        { label: 'YouTube video', onSelect: () => setVideoSearchOpen(true) },
+        { label: 'Google Slides', onSelect: () => toast('Connect Google under Settings → Connections to import a deck.') },
       ],
     },
     {
@@ -764,6 +769,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         { label: 'Section', size: 19, weight: 650, onSelect: () => canvas()?.insertHeading(1) },
         { label: 'Sub-section', size: 16, weight: 600, onSelect: () => canvas()?.insertHeading(2) },
         { label: 'Sub-sub-section', size: 14, weight: 550, onSelect: () => canvas()?.insertHeading(3) },
+        { divider: true },
+        { label: 'Text box', onSelect: () => canvas()?.armTool('text') },
+        { label: 'Sticky note', onSelect: () => canvas()?.armTool('sticky') },
         { divider: true },
         // Lived on the zoom pill as "Add section"; the menubar is its home now.
         { label: 'Section divider', onSelect: () => canvas()?.addSection() },
@@ -832,9 +840,24 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             title, the menubar, and the three one-press actions. No page
             heading, no rule underneath - the canvas has no boundary. */}
         {!canvasState.presenting && <div className="relative flex shrink-0 items-center justify-center gap-1 px-3 pt-3 pb-1">
-          <input aria-label="Canvas title" title="Rename this canvas" value={canvasTitle} placeholder={courseTitle || app.repo || app.name}
-            onChange={event => setCanvasTitle(event.target.value)} onBlur={event => saveTitle(event.target.value)}
+          <input aria-label="Canvas title" title="Rename this canvas"
+            // The name on screen is always the value - editing edits IT, via a
+            // focus-scoped draft so the fallback never fights the keystrokes.
+            // Saving the fallback verbatim stores nothing, so an untouched
+            // name keeps tracking the course title.
+            value={titleDraft ?? (canvasTitle || fallbackTitle)}
+            onChange={event => setTitleDraft(event.target.value)}
+            onBlur={event => { const value = event.target.value.trim().slice(0, 120); setTitleDraft(null); saveTitle(value === fallbackTitle ? '' : value); }}
             onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+            onFocus={event => {
+              setTitleDraft(canvasTitle || fallbackTitle);
+              const node = event.currentTarget;
+              // Only rescue a caret parked at the very start - the complaint.
+              // A deliberate placement (or a select-all) is left alone.
+              requestAnimationFrame(() => {
+                if (document.activeElement === node && node.selectionStart === 0 && node.selectionEnd === 0) node.setSelectionRange(node.value.length, node.value.length);
+              });
+            }}
             className="h-8 min-w-16 max-w-96 shrink cursor-text truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none [field-sizing:content] placeholder:text-ink-2 hover:border-line focus:border-line" />
           <CanvasMenubar menus={canvasMenus} />
           {paperSearchOpen && <PaperSearch app={app.name} onPick={openPaper} onClose={() => setPaperSearchOpen(false)} />}
@@ -965,8 +988,8 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         : <AskPanel onGraph={onGraph} key={app.name} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" headerTitle="Learn Agent" demo={isRepository ? null : demo} boardContext={boardContext} contentPanel={lessonSource ? <RepositorySource appName={app.name} {...lessonSource} onClose={() => setLessonSource(null)} /> : wikiOpen && wikiContext ? <LearnWiki app={app.name} article={wikiContext} openAt={wikiOpenAt} onNavigate={next => setWikiContext(previous => ({ ...previous, ...next, selection: null }))} onSection={section => setWikiContext(previous => (previous?.section === section ? previous : { ...previous, section }))} onSelect={text => setWikiContext(previous => ({ ...previous, selection: text }))} onClose={() => setWikiOpen(false)} /> : paperOpen && paperContext ? <LearnPaper app={app.name} paper={paperContext} onPage={page => setPaperContext(previous => ({ ...previous, page, selection: undefined }))} onSelect={selection => { removeImage(); pinned.current = null; setPaperContext(previous => ({ ...previous, selection })); }} onClose={() => setPaperOpen(false)} /> : sourceOpen ? <LessonSource onClose={() => setSourceOpen(false)} /> : null} onCloseContentPanel={() => { setPaperOpen(false); setWikiOpen(false); setSourceOpen(false); setLessonSource(null); }} placeholder={`Ask about ${app.repo || app.name}…`} autoFocus />}
       </div>
     </ResizableSidePanel>
-    <input ref={pdfPicker} type="file" accept="application/pdf" className="hidden"
-      onChange={event => { takePdf(event.target.files?.[0]); event.target.value = ''; }} />
+    <input ref={filePicker} type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.pdf" className="hidden"
+      onChange={event => { takeDrop([...(event.target.files || [])]); event.target.value = ''; }} />
     {/* With sections on the canvas the rail mirrors the panel's table of
         contents - hover opens it, a click frames that section, and the panel
         stays closed. A sectionless canvas falls back to the course lessons. */}

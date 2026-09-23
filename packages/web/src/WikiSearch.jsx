@@ -42,7 +42,7 @@ export default function WikiSearch({ app, onPick, onClose }) {
   useEffect(() => () => flight.current?.abort(), []);
 
   return (
-    <div role="dialog" aria-label="Add a Wikipedia article" className="absolute top-10 left-0 z-40 w-96 rounded-xl border border-line bg-white p-2 shadow-md">
+    <div role="dialog" aria-label="Add a Wikipedia article" className="fixed top-1/2 left-1/2 z-50 w-[26rem] max-w-[92vw] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-line bg-white p-2 shadow-pop">
       <div className="flex items-center gap-1">
         <input autoFocus value={query} onChange={event => setQuery(event.target.value)} aria-label="Search Wikipedia"
           placeholder="An article title, or a wikipedia.org link"

@@ -26,13 +26,14 @@ export default function CanvasMenubar({ menus, className = '' }) {
             {menu.items.map((item, index) => (item.divider ? (
               <div key={`rule-${index}`} className="my-1 h-px bg-line" />
             ) : (
-              <button key={item.label} type="button" role="menuitem" disabled={item.disabled}
+              <button key={item.label} type="button" role={item.toggle ? 'menuitemcheckbox' : 'menuitem'} disabled={item.disabled}
                 aria-checked={item.checked === undefined ? undefined : !!item.checked}
                 onClick={() => { setOpen(null); item.onSelect?.(); }}
                 className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-ink hover:bg-hover disabled:cursor-default disabled:text-ink-3 disabled:hover:bg-transparent">
                 {/* The tick column is always reserved so labels do not shuffle
                     sideways as things are switched on and off. */}
-                <span className="flex w-4 shrink-0 justify-center text-accent">{item.checked ? <Check size={14} strokeWidth={2.5} /> : null}</span>
+                {!item.toggle && <span className="flex w-4 shrink-0 justify-center text-accent">{item.checked ? <Check size={14} strokeWidth={2.5} /> : null}</span>}
+                {item.toggle && <span aria-hidden="true" className={`flex h-3.5 w-6 shrink-0 items-center rounded-full p-0.5 transition-colors ${item.checked ? 'bg-accent' : 'bg-line-strong'}`}><span className={`h-2.5 w-2.5 rounded-full bg-white shadow-sm transition-transform ${item.checked ? 'translate-x-2.5' : ''}`} /></span>}
                 <span className="flex-1" style={item.size ? { fontSize: item.size, fontWeight: item.weight } : undefined}>{item.label}</span>
                 {item.hint && <span className="shrink-0 text-xs text-ink-3">{item.hint}</span>}
               </button>

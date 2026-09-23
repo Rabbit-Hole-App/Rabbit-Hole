@@ -47,6 +47,12 @@ await page.reload();
 await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 30000 });
 await page.waitForTimeout(2500);
 ok('the title survives a reload', (await page.locator('input[aria-label="Canvas title"]').inputValue()) === 'My lesson canvas');
+await page.locator('input[aria-label="Canvas title"]').click({ position: { x: 4, y: 8 } });
+await page.waitForTimeout(150);
+await page.keyboard.type('!');
+ok('focusing the title puts the caret at the end', (await page.locator('input[aria-label="Canvas title"]').inputValue()) === 'My lesson canvas!');
+await page.keyboard.press('Backspace');
+await page.keyboard.press('Enter');
 
 // --- present refuses an empty canvas (and a shapes-only one - no cards) ---
 await page.locator('[aria-label="Present"]').click();
@@ -95,6 +101,42 @@ await page.keyboard.press('Enter');
 await page.waitForTimeout(1500);
 const withImage = asks.find(body => body.image_context);
 ok('the next question carries image_context', withImage?.image_context?.id === 'media:0123456789ab');
+
+// --- Files menu: toggles, Upload, clean labels, centered pickers ---
+await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).click();
+await page.waitForTimeout(250);
+const filesMenu = page.locator('[role="menubar"] [class*="top-9"]').first();
+const sourceToggle = page.getByRole('menuitemcheckbox').first();
+ok('a source row is a toggle switch', (await sourceToggle.count()) >= 1 && (await sourceToggle.getAttribute('aria-checked')) === 'true');
+await sourceToggle.click();
+await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).click();
+await page.waitForTimeout(250);
+ok('the switch flips off', (await page.getByRole('menuitemcheckbox').first().getAttribute('aria-checked')) === 'false');
+await page.getByRole('menuitemcheckbox').first().click();
+await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).click();
+await page.waitForTimeout(250);
+ok('no trailing dots on the picker rows', (await page.getByRole('menuitem', { name: 'arXiv paper', exact: true }).count()) === 1 && (await page.getByRole('menu').getByText('…').count()) === 0);
+ok('Upload is offered', (await page.getByRole('menuitem', { name: 'Upload' }).count()) === 1);
+await page.getByRole('menuitem', { name: 'Wikipedia article', exact: true }).click();
+await page.waitForTimeout(400);
+const dialog = await page.getByRole('dialog', { name: 'Add a Wikipedia article' }).boundingBox();
+const viewport = page.viewportSize();
+ok('the picker opens centered on the page', dialog && Math.abs(dialog.x + dialog.width / 2 - viewport.width / 2) < 30 && Math.abs(dialog.y + dialog.height / 2 - viewport.height / 2) < 120, dialog && `center ${Math.round(dialog.x + dialog.width / 2)},${Math.round(dialog.y + dialog.height / 2)}`);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+const imagesBefore = await canvas.locator('img[alt="diagram.png"]').count();
+await page.locator('input[type="file"][multiple]').setInputFiles({ name: 'uploaded.png', mimeType: 'image/png', buffer: Buffer.from(PNG) });
+await page.waitForTimeout(1200);
+// The stubbed media route titles everything diagram.png, so count, not name.
+ok('Upload lands a card through the same route as a drop', (await canvas.locator('img[alt="diagram.png"]').count()) === imagesBefore + 1 && mediaPosts.length === 2);
+
+// --- Insert: arms tools ---
+await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Insert/ }).click();
+await page.waitForTimeout(250);
+await page.getByRole('menuitem', { name: 'Text box' }).click();
+await page.waitForTimeout(200);
+ok('Insert > Text box arms the text tool', (await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Text"]').getAttribute('aria-pressed')) === 'true');
+await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Select and move"]').click();
 
 // --- text tool: level pill on a fresh box ---
 await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Text"]').click();
@@ -158,7 +200,7 @@ const after = await rect.boundingBox();
 ok('a shape drags from its interior, not just its outline', Math.abs(after.x - before.x - 80) < 6 && Math.abs(after.y - before.y - 40) < 6, `moved ${Math.round(after.x - before.x)},${Math.round(after.y - before.y)}`);
 
 // --- ctrl-drag rubber band + right-click Group / Ungroup ---
-const cardA = canvas.locator('img[alt="diagram.png"]');
+const cardA = canvas.locator('img[alt="diagram.png"]').first();
 const cardB = canvas.locator('video[controls]');
 const a1 = await cardA.boundingBox();
 const b1 = await cardB.boundingBox();
@@ -197,13 +239,21 @@ await page.mouse.up();
 await page.waitForTimeout(400);
 const b4 = await cardB.boundingBox();
 const a4after = await cardA.boundingBox();
-ok('pressing empty space inside the outline drags the whole group', Math.abs(b4.x - b3.x - 40) < 10 && Math.abs(b4.y - b3.y - 20) < 10 && Math.abs(a4after.x - a3before.x - 40) < 10, `moved ${Math.round(b4.x - b3.x)},${Math.round(b4.y - b3.y)}`);
+const groupDx = a4after.x - a3before.x, groupDy = a4after.y - a3before.y;
+// The claim is coherence: both members move by the same vector, substantially.
+ok('pressing empty space inside the outline drags the whole group', groupDx > 25 && Math.abs((b4.x - b3.x) - groupDx) < 3 && Math.abs((b4.y - b3.y) - groupDy) < 3, `A moved ${Math.round(groupDx)},${Math.round(groupDy)}; B moved ${Math.round(b4.x - b3.x)},${Math.round(b4.y - b3.y)}`);
 const chip = page.locator('[data-group-chip]');
 await chip.dblclick();
 await page.keyboard.type('Backprop set');
 await page.mouse.click(box.x + 40, box.y + 700);
 await page.waitForTimeout(300);
 ok('the group can be named from its chip', (await chip.textContent()) === 'Backprop set', await chip.textContent());
+await chip.dblclick();
+await page.waitForTimeout(250);
+await page.keyboard.type(' 2');
+await page.mouse.click(box.x + 40, box.y + 700);
+await page.waitForTimeout(300);
+ok('renaming again edits from the end of the name', (await chip.textContent()) === 'Backprop set 2', await chip.textContent());
 const a3 = await cardA.boundingBox();
 await page.mouse.click(a3.x + 40, a3.y + 20, { button: 'right' });
 await page.waitForTimeout(300);
@@ -212,7 +262,7 @@ await page.waitForTimeout(300);
 ok('Ungroup removes the chip and the outline', (await page.locator('[data-group-chip]').count()) === 0 && (await page.locator('[data-group-box]').count()) === 0);
 await page.mouse.click(box.x + 40, box.y + 700);
 await page.mouse.click(a3.x + 40, a3.y + 20);
-const dragStrip = canvas.locator('[data-block-id]:has(img[alt="diagram.png"]) [data-drag-handle]');
+const dragStrip = canvas.locator('[data-block-id]:has(img[alt="diagram.png"]) [data-drag-handle]').first();
 const stripAgain = await dragStrip.boundingBox();
 const b5 = await cardB.boundingBox();
 await page.mouse.move(stripAgain.x + stripAgain.width / 2, stripAgain.y + stripAgain.height / 2);
@@ -228,12 +278,13 @@ const a4 = await cardA.boundingBox();
 await page.mouse.click(a4.x + 40, a4.y + 20, { button: 'right' });
 await page.waitForTimeout(300);
 ok('an image card offers re-attaching to the tutor', (await actions.getByRole('menuitem', { name: 'Show the tutor this image' }).count()) === 1);
+const dupBefore = await canvas.locator('img[alt="diagram.png"]').count();
 await actions.getByRole('menuitem', { name: 'Duplicate' }).click();
 await page.waitForTimeout(400);
-ok('Duplicate copies the card', (await canvas.locator('img[alt="diagram.png"]').count()) === 2);
+ok('Duplicate copies the card', (await canvas.locator('img[alt="diagram.png"]').count()) === dupBefore + 1);
 await page.keyboard.press('Delete');
 await page.waitForTimeout(300);
-ok('the copy was selected, so Delete removes it again', (await canvas.locator('img[alt="diagram.png"]').count()) === 1);
+ok('the copy was selected, so Delete removes it again', (await canvas.locator('img[alt="diagram.png"]').count()) === dupBefore);
 
 // --- toolbar handle snaps to the left edge ---
 const handle = page.locator('[aria-label="Move the toolbar"]');

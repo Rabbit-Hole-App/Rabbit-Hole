@@ -837,7 +837,22 @@ function ToolButton({ Icon, label, active, onPick }) {
 function GroupChip({ group, onSelect, onLabel, editOn = false }) {
   const [editing, setEditing] = useState(false);
   const body = useRef(null);
-  useEffect(() => { if (editing) body.current?.focus(); }, [editing]);
+  useEffect(() => {
+    if (!editing) return;
+    // Caret at the END of the existing name, so editing means editing - not
+    // typing in front of it. rAF outruns the double-click's own selection.
+    requestAnimationFrame(() => {
+      const node = body.current;
+      if (!node) return;
+      node.focus();
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      range.collapse(false);
+      const chosen = window.getSelection();
+      chosen.removeAllRanges();
+      chosen.addRange(range);
+    });
+  }, [editing]);
   useEffect(() => { if (editOn) setEditing(true); }, [editOn]);
   return (
     <div data-group-chip={group.id}
@@ -1076,6 +1091,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         if (step) frame(step.boxes, 64, 1.2);
       },
       toggleLock: () => setLock(previous => !previous),
+      // The Insert menu arms drawing tools the same way the toolbar does.
+      armTool: value => setTool(value),
     };
   });
   // Menu checkmarks need these as state on the page, not as a ref it cannot watch.
@@ -1628,14 +1645,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     // A card taller than its band pins to the top of it rather than jittering.
     return highest < lowest ? lowest : Math.min(Math.max(dy, lowest), highest);
   };
-  const moveBlock = (id, dx, dy) => setBlocks(previous => previous.map(block => block.id === id ? { ...block, dx, dy: clampToBand(id, dy) } : block));
+  const moveBlock = (id, dx, dy, clamp = true) => setBlocks(previous => previous.map(block => block.id === id ? { ...block, dx, dy: clamp ? clampToBand(id, dy) : dy } : block));
   // Dragging one member of a multi-selection carries the whole group.
   const shift = (ddx, ddy, ids) => {
     for (const id of ids) {
       const exchange = exchangesRef.current.find(item => item.id === id);
       if (exchange) { onMove(id, exchange.dx + ddx, exchange.dy + ddy); continue; }
       const block = blocksRef.current.find(item => item.id === id);
-      if (block) { moveBlock(id, block.dx + ddx, block.dy + ddy); continue; }
+      // A band is a wall between a card and its NEIGHBOURS - but a group's
+      // neighbours are moving with it, so clamping each member against the
+      // others' old seats tears the group apart. Multi-member shifts move
+      // free; the single card keeps its walls.
+      if (block) { moveBlock(id, block.dx + ddx, block.dy + ddy, ids.length === 1); continue; }
       const item = itemsRef.current.find(entry => entry.id === id);
       if (item) { setItems(previous => previous.map(entry => entry.id === id ? { ...entry, x: item.x + ddx, y: item.y + ddy } : entry)); continue; }
       const shape = shapesRef.current.find(entry => entry.id === id);

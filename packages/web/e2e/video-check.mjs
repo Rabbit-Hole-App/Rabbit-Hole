@@ -92,7 +92,7 @@ ok('a question carries the video and where the learner is in it', sent?.videoId 
 // --- detaching stops it ---
 await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).click();
 await page.waitForTimeout(250);
-await page.getByRole('menuitem', { name: /Backpropagation, intuitively/ }).click();
+await page.getByRole('menuitemcheckbox', { name: /Backpropagation, intuitively/ }).click();
 await page.waitForTimeout(300);
 await page.keyboard.press('Escape');
 await page.getByPlaceholder(/Ask about/).first().fill('and now?');
