@@ -839,7 +839,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
   useEffect(() => { if (editOn) setEditing(true); }, [editOn]);
   return (
     <div data-group-chip={group.id}
-      className="flex cursor-pointer items-center rounded-md border border-line bg-white/90 px-1.5 py-0.5 text-[11px] text-ink-2 shadow-sm backdrop-blur-sm hover:text-ink"
+      className="flex cursor-pointer items-center rounded-md border border-line bg-white/90 px-1.5 py-0.5 text-[11px] whitespace-nowrap text-ink-2 shadow-sm backdrop-blur-sm hover:text-ink"
       onPointerDown={event => { event.stopPropagation(); if (!editing) onSelect(); }}
       onDoubleClick={() => setEditing(true)}>
       <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder="Group"
@@ -1960,26 +1960,31 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
                 <GroupChip group={group} editOn={chipEdit === group.id}
                   onSelect={() => setSelection(membersOf(group.id))}
                   onLabel={label => { setChipEdit(null); setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry)); }} />
-                {/* The same door every card has: arm the composer with what
-                    this group holds, so the next question is about it. */}
-                <button type="button" data-group-ask aria-label="Ask about this group" title="Ask about this group"
-                  className="flex items-center gap-1 rounded-md border border-line bg-white/90 px-1.5 py-0.5 text-[11px] text-ink-2 shadow-sm backdrop-blur-sm hover:text-ink"
-                  onPointerDown={event => event.stopPropagation()}
-                  onClick={() => {
-                    const parts = [];
-                    for (const member of members) {
-                      const block = blocksRef.current.find(entry => entry.id === member.id);
-                      if (block) { const described = describeBlock(block); if (described?.text) parts.push(described.text); continue; }
-                      const exchange = exchangesRef.current.find(entry => entry.id === member.id);
-                      if (exchange) { parts.push(`Q: ${exchange.question}\nA: ${String(exchange.answer || '').slice(0, 600)}`); continue; }
-                      const item = itemsRef.current.find(entry => entry.id === member.id);
-                      if (item?.text) parts.push(item.text);
-                    }
-                    onAskTargetRef.current?.({ id: group.id, kind: group.label ? `group "${group.label}"` : 'group', text: parts.join('\n\n').slice(0, 4000) || 'An empty group of drawings.' });
-                  }}>
-                  <MessageCircle size={11} strokeWidth={1.8} />Ask
-                </button>
               </div>
+              {/* The same pill every card shows when selected, in the same
+                  place: right above the outline, right-aligned. It arms the
+                  composer with what the group holds. */}
+              {active && (
+                <div style={{ left: right + pad, top: top - pad - 40 }} className="absolute z-30 -translate-x-full">
+                  <button type="button" data-group-ask title="Ask the tutor about this group"
+                    onPointerDown={event => event.stopPropagation()}
+                    onClick={() => {
+                      const parts = [];
+                      for (const member of members) {
+                        const block = blocksRef.current.find(entry => entry.id === member.id);
+                        if (block) { const described = describeBlock(block); if (described?.text) parts.push(described.text); continue; }
+                        const exchange = exchangesRef.current.find(entry => entry.id === member.id);
+                        if (exchange) { parts.push(`Q: ${exchange.question}\nA: ${String(exchange.answer || '').slice(0, 600)}`); continue; }
+                        const item = itemsRef.current.find(entry => entry.id === member.id);
+                        if (item?.text) parts.push(item.text);
+                      }
+                      onAskTargetRef.current?.({ id: group.id, kind: group.label ? `group "${group.label}"` : 'group', text: parts.join('\n\n').slice(0, 4000) || 'An empty group of drawings.' });
+                    }}
+                    className="flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
+                    <MessageCircle size={13} />Ask in chat
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
