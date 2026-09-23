@@ -129,17 +129,21 @@ metadata and next action**, not only by the type chip:
 | Job | last run and result, schedule, who can run it | View last run |
 | Server | last deploy, access | Open app ↗ (new tab) |
 
-### 3.3 Start
+### 3.3 Start (revised 2026-09-23)
 
-`[Repository] [Sources] [Question] [Blank canvas]` open the Start dialog (§5)
-on that path. They call the same commands as the bar.
+One **primary** button, **`[Start a rabbit hole]`**, opens the Start dialog
+(§5), where the four paths live: Repository, Sources, Question, Blank canvas.
+The four paths are **not** four equally prominent permanent buttons on Home.
+
+The Agent Bar is the natural-language route into the same commands. The dialog
+and the bar call the same registry entries; no backend logic is duplicated.
 
 ### States
 
 | State | Shows |
 |---|---|
 | Loading | Skeleton rows in the three blocks. The bar is usable at once. |
-| First visit (empty catalog) | Start first, with one line: "Start from a repository, sources, a question, or a blank canvas." Nothing else. |
+| First visit (empty catalog) | `[Start a rabbit hole]` first, with one line: "Start from a repository, sources, a question, or a blank canvas." Nothing else. |
 | Catalog error | The Shell error (`{error}`) plus Retry. The bar stays usable for Settings. |
 
 ## 4. Library (`/library`, `/apps?s=…`, `/apps?f=…`)
