@@ -1,9 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
-import { assertCardGates, assertEvidence } from '../card-gates.mjs';
+import { assertCardGates, assertEvidence, assertSources } from '../card-gates.mjs';
 import { sceneContentBounds } from '../../scene-layout.js';
-import { scene, evidence } from './c17-lr-schedule.js';
+import { scene, evidence, sources } from './c17-lr-schedule.js';
 
 // Independent oracle: train.py:231-242 get_lr re-implemented in plain JS with
 // config/train_shakespeare_char.py's values (lines 27-33 @3adf61e), and
@@ -40,7 +44,7 @@ const ALL = [0, 1, 2].flatMap(schedule => I.map((u, inspect) => ({ schedule, ins
 // checked against the oracle, so a mis-indexed or backwards note fails.
 const NOTE_RULES = [
   [/^Not zero, just too small to see at this scale/, /^Still warmup/, /^First cosine iteration.*exactly learning_rate - the peak/,
-    /^Cosine decay: the cosine starts flat/, /^Cosine decay: near the middle/, /^Last iteration.*lands on min_lr.*never runs: train\.py:332 breaks/],
+    /^Cosine decay: the cosine starts flat/, /^Cosine decay: near the middle/, /^Last iteration.*lands on min_lr.*never runs: training stops/],
   [/^decay_lr = False: .*full learning_rate/, /^decay_lr = False: .*still ramping/, /^decay_lr = False: .*matches the configured schedule/,
     /^decay_lr = False: .*above the configured value/, /^decay_lr = False: .*gap to the grey dot keeps widening/, /^decay_lr = False: .*not min_lr/],
   [/^What-if: .*starts lower.*too small to see/, /^What-if: .*far below the peak and the grey dot/, /^What-if: .*still be warming up.*near min_lr by coincidence/,
@@ -106,7 +110,7 @@ test('gates pass at every state (all 18 preset x iteration picks)', () => {
   assertCardGates(scene, ALL);
 });
 
-test('curve, boundary, dots, readouts, source lines and notes follow the pick', () => {
+test('curve, boundary, dots, readouts, formula and notes follow the pick', () => {
   const results = assertCardGates(scene, ALL);
   ALL.forEach((inputs, n) => {
     const result = results[n];
@@ -149,11 +153,11 @@ test('curve, boundary, dots, readouts, source lines and notes follow the pick', 
     if (p === 0) assert.ok(ref.opacity === 0 && refText.opacity === 0 && hint.opacity === 1, `${where} reference hidden (hint shown) on the configured preset`);
     else assert.ok(ref.opacity > 0 && refText.opacity === 1 && hint.opacity === 0, `${where} reference shown`);
     assert.equal(byId(result, 'curve-caption').label, `Curve: stored preset “${S.presets[p].label}”`);
-    // the source lines shown are the branch the oracle says ran
-    const lines = ['lineA', 'lineB', 'lineC'].map(id => byId(result, id).label).join('\n');
-    if (p === 1) assert.match(lines, /^train\.py:258\s+lr = get_lr\(iter_num\) if decay_lr else learning_rate$/m);
-    else if (it < WARMUP[p]) assert.match(lines, /^train\.py:234\s+return learning_rate \* \(it \+ 1\) \/ \(warmup_iters \+ 1\)$/m);
-    else assert.match(lines, /^train\.py:242\s+return min_lr \+ coeff \* \(learning_rate - min_lr\)$/m);
+    // the formula shown is the branch the oracle says ran
+    const lines = ['formula', 'formula-2'].map(id => byId(result, id).label).join('\n');
+    if (p === 1) assert.match(lines, /^lr = learning_rate$/m);
+    else if (it < WARMUP[p]) assert.match(lines, /^lr = learning_rate × \(it \+ 1\) \/ \(warmup_iters \+ 1\)$/m);
+    else assert.match(lines, /^lr = min_lr \+ ½ \(1 \+ cos\(π × decay_ratio\)\) × \(learning_rate − min_lr\)$/m);
     // the note says what this state teaches, and its direction claim matches the oracle
     const note = `${byId(result, 'note').label} ${byId(result, 'note-2').label}`;
     assert.match(note, NOTE_RULES[p][k], `${where} note`);
@@ -174,12 +178,51 @@ test('taught states read as specified', () => {
   assert.equal(byId(c23, 'readout').label, 'Orange dot (inspected): iteration 1000 - lr = 1.00e-3 - phase: cosine decay');
   assert.match(byId(c05, 'note').label, /lands on min_lr/);
   assert.equal(byId(c05, 'readout').label, 'Orange dot (inspected): iteration 5000 - lr = 1.00e-4 - phase: cosine decay');
-  assert.equal(byId(c05, 'preset-line').label, 'config/train_shakespeare_char.py: warmup_iters=100, lr_decay_iters=5000, min_lr=1e-4');
-  assert.equal(byId(c05, 'source-3').label, 'learning_rate 1e-3, warmup_iters 100, min_lr 1e-4, lr_decay_iters 5000, max_iters 5000.');
-  // the on-card provenance does not claim :258 was executed
-  assert.match(byId(c05, 'source-1').label, /executed train\.py's get_lr \(:231-242\)/);
-  assert.doesNotMatch(byId(c05, 'source-1').label, /:258/);
-  assert.match(byId(c05, 'source-2').label, /applies :258's else-branch/);
+  assert.equal(byId(c05, 'preset-line').label, 'shakespeare_char config: warmup_iters=100, lr_decay_iters=5000, min_lr=1e-4');
+  // one short status line says which curves are source values and which are what-ifs
+  assert.match(byId(c05, 'status').label, /“as configured” is a Source value, the other two are What-if; the plot is a Live calculation/);
+});
+
+test('sources: well-formed, statuses on the card, key citations pinned', () => {
+  assertSources(sources, scene);
+  const cites = sources.filter(s => s.kind === 'code').map(s => `${s.path}:${s.lines.join('-')}`);
+  for (const cite of ['train.py:231-242', 'config/train_shakespeare_char.py:27-33', 'train.py:232-234', 'train.py:238-242',
+    'train.py:258-260', 'train.py:65-65', 'train.py:235-237', 'train.py:332-333']) assert.ok(cites.includes(cite), cite);
+  assert.deepEqual(sources.filter(s => s.kind === 'calculation').map(s => s.status), ['Source value', 'What-if', 'Live calculation']);
+  // the nine train.py lines the card used to list are quoted verbatim in the notes
+  const notes = sources.filter(s => s.kind === 'code').map(s => s.note).join('\n');
+  for (const line of ['# 1) linear warmup for warmup_iters steps', 'if it < warmup_iters:', 'return learning_rate * (it + 1) / (warmup_iters + 1)',
+    'decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)', 'coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1',
+    'return min_lr + coeff * (learning_rate - min_lr)', 'lr = get_lr(iter_num) if decay_lr else learning_rate',
+    'for param_group in optimizer.param_groups:', "param_group['lr'] = lr"]) assert.ok(notes.includes(`"${line}"`), line);
+  // the what-if entry does not claim the decay_lr = False branch was executed
+  assert.match(sources.find(s => s.status === 'What-if').note, /nothing was executed/);
+});
+
+// Every "quoted" fragment in a code source's note appears in its cited lines,
+// checked against the sha256-pinned files generate_fixtures.py caches.
+const cached = path => {
+  const sha = fx.provenance.nanogpt.files[path];
+  const file = join(tmpdir(), 'nanogpt-fixture-cache', sha);
+  if (!existsSync(file)) return null;
+  const bytes = readFileSync(file);
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), sha, `${path} cache is not the pinned file`);
+  return bytes.toString('utf8').split('\n');
+};
+const pinned = { 'train.py': cached('train.py'), 'config/train_shakespeare_char.py': cached('config/train_shakespeare_char.py') };
+test('source quotes and line numbers match NanoGPT @3adf61e', { skip: !Object.values(pinned).every(Boolean) && 'pinned source cache absent' }, () => {
+  const squash = t => t.replace(/\s+/g, ' ').trim();
+  for (const source of sources.filter(s => s.kind === 'code')) {
+    const [start, end] = source.lines;
+    const cited = squash(pinned[source.path].slice(start - 1, end).join(' '));
+    for (const [, quote] of source.note.matchAll(/"([^"]+)"/g)) assert.ok(cited.includes(squash(quote)), `${source.path}:${start}-${end} lacks "${quote}"`);
+  }
+  assert.match(pinned['train.py'][231 - 1], /^def get_lr\(it\):/);
+  assert.match(pinned['train.py'][242 - 1], /return min_lr \+ coeff/);
+  const config = pinned['config/train_shakespeare_char.py'].slice(27 - 1, 33).join('\n');
+  for (const [k, v] of [['learning_rate', '1e-3'], ['max_iters', '5000'], ['lr_decay_iters', '5000'], ['min_lr', '1e-4'], ['warmup_iters', '100']]) {
+    assert.match(config, new RegExp(`^${k} = ${v}\\b`, 'm'), k);
+  }
 });
 
 test('layout budget and product rules', () => {

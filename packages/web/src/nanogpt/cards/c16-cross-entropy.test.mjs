@@ -1,8 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
-import { scene, evidence } from './c16-cross-entropy.js';
-import { assertCardGates, assertEvidence } from '../card-gates.mjs';
+import { scene, evidence, sources } from './c16-cross-entropy.js';
+import { assertCardGates, assertEvidence, assertSources } from '../card-gates.mjs';
 
 const CE = fx.crossEntropy;
 const STATES = [{ prediction: 0 }, { prediction: 1 }, { prediction: 2 }];
@@ -82,7 +86,7 @@ test('displayed numbers match the oracle at every preset', () => {
     assert.ok(Math.abs(uniformLine.from.y - barTop('prob-bars', UNIFORM_P)) < 0.01);
     assert.equal(uniformLine.from.y, uniformLine.to.y);
     // NanoGPT-scale anchor, stated apart from the toy
-    assert.ok(byId(result, 'uniform65-note').label.includes(`ln 65 = ${Math.log(65).toFixed(2)} `));
+    assert.ok(byId(result, 'uniform65-note').label.endsWith(`ln 65 = ${Math.log(65).toFixed(2)}.`));
 
     // loss-by-preset rows: every preset visible, ▶ on the selected row
     assert.equal(byId(result, 'selected-row').y, byId(result, `preset-name-${k}`).y);
@@ -122,6 +126,45 @@ test('the card\'s comparative captions hold in the fixture', () => {
   assert.notEqual(c.top, CE.target);
   assert.ok(c.loss > b.loss && c.loss > a.loss);
   assert.ok(c.pTarget < UNIFORM_P && a.pTarget > UNIFORM_P && b.pTarget > UNIFORM_P);
+});
+
+// Every line the card used to cite is now a source entry (quotes checked
+// against the pinned files below); the card keeps the maths and status labels.
+test('sources: provenance lives under the card, not on it', () => {
+  assertSources(sources, scene);
+  const at = (path, a, b) => sources.find(s => s.kind === 'code' && s.path === path && s.lines[0] === a && s.lines[1] === b);
+  assert.ok(at('model.py', 187, 187).note.includes('loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)'));
+  assert.ok(at('data/shakespeare_char/prepare.py', 24, 25).note.includes('chars = sorted(list(set(data)))'));
+  assert.ok(at('model.py', 111, 111).note.includes('vocab_size: int = 50304'));
+  assert.ok(at('train.py', 155, 155));
+  assert.ok(sources.some(s => s.kind === 'dataset'));
+  assert.deepEqual(sources.filter(s => s.kind === 'calculation').map(s => s.status), ['Calculated toy example', 'Live calculation']);
+  assert.ok(sources.find(s => s.status === 'Calculated toy example').note.includes(`ln 65 = ${CE.uniform65}`));
+  const [first] = assertCardGates(scene, [{ prediction: 0 }]);
+  assert.equal(first.state.objects.find(o => o.id === 'average-note').label,
+    "NanoGPT's training loss is the mean of this −ln p(target) over every position in the batch.");
+});
+
+// The sha256-pinned NanoGPT files generate_fixtures.py caches; the line check
+// is skipped where that cache is absent.
+const cached = path => {
+  const sha = fx.provenance.nanogpt.files[path];
+  const file = sha && join(tmpdir(), 'nanogpt-fixture-cache', sha);
+  if (!file || !existsSync(file)) return null;
+  const bytes = readFileSync(file);
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), sha, `${path} cache is not the pinned file`);
+  return bytes.toString('utf8').split('\n');
+};
+
+test('sources: what each code entry quotes is inside its cited lines', () => {
+  for (const { path, lines: [start, end], note } of sources.filter(s => s.kind === 'code')) {
+    const quotes = [...note.matchAll(/“([^”]+)”/g)].map(m => m[1]);
+    assert.ok(quotes.length, `${path}:${start}-${end} quotes its line`);
+    const file = cached(path);
+    if (!file) continue;
+    const cited = file.slice(start - 1, end).join('\n');
+    for (const quote of quotes) assert.ok(cited.includes(quote), `${path}:${start}-${end} contains "${quote}"`);
+  }
 });
 
 test('evidence record is complete', () => {

@@ -39,6 +39,10 @@ NANOGPT_FILES = {
     'model.py': '7c01703240dbec5d554527dc666e35b3df8391d0b117fddc07afcf325a21d11c',
     'config/train_shakespeare_char.py': '9b41cdfb2c917259d796a8184d835221a349c23cd18a0a63b46da431d95d9c05',
     'data/shakespeare_char/prepare.py': 'd5fbea0686d146748cf36017d6c34136a2fe9c41f065f1429529ad55a992c692',
+    # Cited by the cards' sources only; pinned so their tests can check the cited lines.
+    'sample.py': '1c4bb3716ec55395be2e6ad136693614b0b38de9defda889041efe2057a0c1f1',
+    'README.md': '8d969370683849a2cc4e46c81bf2449717f2daff657586888151933c3590f85f',
+    'data/shakespeare/prepare.py': 'f8d47267f00963138314bb969e75071211bf1140c248bf31b9e60e7750027f06',
 }
 DATASET_URL = 'https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt'
 DATASET_SHA = '86c4e6aa9db7c042ec79f339dcb96d42b0075e16b8fc2e86bf0ca57e2dc565ed'
@@ -394,8 +398,8 @@ def temperature():
 def build():
     train_src = nanogpt('train.py')
     config_src = nanogpt('config/train_shakespeare_char.py')
-    nanogpt('model.py')
-    nanogpt('data/shakespeare_char/prepare.py')
+    for path in NANOGPT_FILES:  # verify every pinned file, and leave it in the cache the card tests read
+        nanogpt(path)
     text = fetch(DATASET_URL, DATASET_SHA).decode('utf-8')
     cfg = resolved_config(train_src, config_src)
     defaults = train_py_defaults(train_src)

@@ -1,8 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
-import { scene, evidence } from './c13-multi-head.js';
-import { assertCardGates, assertEvidence } from '../card-gates.mjs';
+import { scene, evidence, sources } from './c13-multi-head.js';
+import { assertCardGates, assertEvidence, assertSources } from '../card-gates.mjs';
 import { distributeRounding } from '../../scene-derive.js';
 
 const STATES = [{ head: 0, query: 3 }, { head: 1, query: 3 }, { head: 2, query: 3 }, { head: 0, query: 1 }];
@@ -145,6 +149,48 @@ test('the taught states show what the card claims', () => {
   assert.deepEqual(byId(h0, 'concat').values, byId(h1, 'concat').values);
   assert.deepEqual(byId(h1, 'concat').values, byId(h2, 'concat').values);
   assert.ok(byId(h0q1, 'mask-note').label.includes(`"${tokens[1]}"`));
+});
+
+// The sha256-pinned NanoGPT files generate_fixtures.py caches; the quote check
+// is skipped where that cache is absent.
+const cached = path => {
+  const sha = fx.provenance.nanogpt.files[path];
+  const file = join(tmpdir(), 'nanogpt-fixture-cache', sha);
+  if (!existsSync(file)) return null;
+  const bytes = readFileSync(file);
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), sha, `${path} cache is not the pinned file`);
+  return bytes.toString('utf8').split('\n');
+};
+const pinned = { 'model.py': cached('model.py'), 'config/train_shakespeare_char.py': cached('config/train_shakespeare_char.py') };
+
+test('sources: provenance lives under the card, not on it', () => {
+  assertSources(sources, scene);
+  const at = (path, lines) => sources.find(s => s.kind === 'code' && s.path === path && s.lines.join('-') === lines.join('-'));
+  for (const [path, lines, quotes] of [
+    ['model.py', [56, 59], ['q, k, v  = self.c_attn(x).split(self.n_embd, dim=2)', 'q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)']],
+    ['model.py', [66, 71], ['# manual implementation of attention', 'att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))', "att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))",
+      'att = F.softmax(att, dim=-1)', 'att = self.attn_dropout(att)', 'y = att @ v']],
+    ['model.py', [72, 72], ['y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side']],
+    ['model.py', [75, 75], ['y = self.resid_dropout(self.c_proj(y))']],
+    ['model.py', [35, 37], ['self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias)', 'self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)']],
+    ['model.py', [62, 64], ['torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout if self.training else 0, is_causal=True)']],
+    ['config/train_shakespeare_char.py', [23, 24], [`n_head = ${fx.architecture.n_head}`, `n_embd = ${fx.architecture.n_embd}`]],
+  ]) {
+    const entry = at(path, lines);
+    assert.ok(entry, `cites ${path}:${lines.join('-')}`);
+    const file = pinned[path]?.slice(lines[0] - 1, lines[1]).join('\n');
+    for (const quoted of quotes) {
+      assert.ok(entry.note.includes(`“${quoted}”`), `${path}:${lines.join('-')} quotes "${quoted}"`);
+      if (file) assert.ok(file.includes(quoted), `${path}:${lines.join('-')} really says "${quoted}"`);
+    }
+  }
+  if (pinned['model.py']) assert.match(pinned['model.py'][45 - 1], /self\.flash = hasattr\(torch\.nn\.functional, 'scaled_dot_product_attention'\)/);
+  assert.deepEqual(sources.filter(s => s.kind === 'calculation').map(s => s.status), ['Calculated toy example', 'Live calculation']);
+  assert.equal(sources.find(s => s.status === 'Calculated toy example').reproduce, undefined, 'authored here, not by the fixture generator');
+  assert.ok(sources.some(s => s.kind === 'dataset'));
+  // The card shows a prefix of the recorded encoding, and says who recorded it.
+  const tok = sources.find(s => s.kind === 'doc' && s.title.startsWith('tiktoken'));
+  assert.ok(tok.note.includes(`first 4 of the ${fx.tokenizer.tokenizers[1].count}`) && tok.note.includes('generate_fixtures.py'));
 });
 
 test('evidence record is complete', () => {

@@ -1,10 +1,12 @@
 // Card 21 - temperature. NanoGPT's generate() divides the last position's
-// logits by `temperature` (model.py:318), softmaxes (:324) and ALWAYS samples
-// with torch.multinomial (:326). Low positive T is sharper, never greedy.
+// logits by `temperature`, softmaxes and ALWAYS samples with
+// torch.multinomial. Low positive T is sharper, never greedy.
 // Logits are a calculated toy example; the softmax is a live calculation here;
-// the 20 draws per preset are a recorded toy run: seeded random.choices in
-// generate_fixtures.py, not NanoGPT and not live sampling.
+// the 20 draws per preset are a recorded toy run (seeded random.choices), not
+// NanoGPT and not live sampling. The code lines and how each number was made
+// are the card's `sources`, shown collapsed under it.
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
+import { code, calculation, tinyShakespeare } from '../sources.js';
 
 const T = fx.temperature;
 const presets = T.presets;
@@ -25,13 +27,12 @@ const CELL = 46;
 const BARS_Y = 318;
 const BARS_H = 140;
 const DRAWS_Y = 538;
-const SRC_Y = 778;
 
 export const scene = {
   id: 'nanogpt-c21-temperature',
   title: 'Temperature: sharper or flatter sampling',
   width: 960,
-  height: 936,
+  height: 776,
   duration: 3,
   inputs: [
     { name: 'temperature', type: 'index', label: 'Temperature preset', of: 'presetLabels', default: 2, presentation: 'slider' },
@@ -101,7 +102,7 @@ export const scene = {
         role: 'output', matrixKind: 'derived', distribution: true, heat: true, valueScale: 'fixed',
         columnLabels: [...shown], values: { $derive: 'probs' } } },
     { id: 'provenance-note', type: 'text', semanticId: 'provenance-note', conceptId: 'temperature',
-      initialState: { text: 'Toy logits for {{candidateCount}} candidates: calculated toy example (generate_fixtures.py), not NanoGPT output.', x: 24, y: 202, typography: 'annotation' } },
+      initialState: { text: 'Toy logits for {{candidateCount}} candidates: calculated toy example, not NanoGPT output.', x: 24, y: 202, typography: 'annotation' } },
     { id: 'vocab-note', type: 'text', semanticId: 'toy-vocabulary', conceptId: 'temperature',
       initialState: { text: 'The real shakespeare_char softmax covers all {{vocabSize}} characters. sp = the space character.', x: 24, y: 220, typography: 'annotation' } },
     { id: 'live-note', type: 'text', semanticId: 'live-note', conceptId: 'temperature',
@@ -133,7 +134,7 @@ export const scene = {
 
     // Recorded toy draws - seeded random.choices in the generator, not NanoGPT.
     { id: 'draws-a', type: 'tokens', semanticId: 'recorded-draws-1', conceptId: 'sampling',
-      initialState: { label: '{{draws}} recorded toy draws at {{tLabel}}: seeded random.choices in generate_fixtures.py, not NanoGPT', x: 24, y: DRAWS_Y, opacity: 0,
+      initialState: { label: 'Recorded toy run: {{draws}} seeded draws at {{tLabel}}, not NanoGPT', x: 24, y: DRAWS_Y, opacity: 0,
         role: 'observed', tokenStyle: 'labels', tokens: { $derive: 'drawsA' }, cellHighlight: { $derive: 'markA' } } },
     { id: 'draws-b', type: 'tokens', semanticId: 'recorded-draws-2', conceptId: 'sampling',
       initialState: { x: 24, y: DRAWS_Y + 34, opacity: 0,
@@ -149,29 +150,15 @@ export const scene = {
     { id: 'not-greedy', type: 'text', semanticId: 'not-greedy', conceptId: 'sampling',
       initialState: { text: '{{nonTop}} of {{draws}} recorded draws were not ‘{{topName}}’, drawn from these toy probabilities.', x: 24, y: 646 } },
     { id: 'multinomial', type: 'text', semanticId: 'always-samples', conceptId: 'sampling',
-      initialState: { text: 'generate() always draws with torch.multinomial (model.py:326), never argmax.', x: 24, y: 672 } },
+      initialState: { text: 'generate(): p = softmax(logits ÷ T), then one random draw from p (torch.multinomial), never argmax.', x: 24, y: 672 } },
     { id: 'not-greedy-2', type: 'text', semanticId: 'not-greedy-2', conceptId: 'sampling',
       initialState: { text: 'At {{tLabel}} the other {{otherCount}} still share {{pRest}} of the probability, so a draw can land on them.', x: 24, y: 698, typography: 'annotation' } },
     { id: 'not-greedy-3', type: 'text', semanticId: 'sharper-not-greedy', conceptId: 'sampling',
       initialState: { text: 'So a low positive T is sharper, not greedy: greedy (argmax) would pick ‘{{topName}}’ every time.', x: 24, y: 716, typography: 'annotation' } },
     { id: 'not-greedy-4', type: 'text', semanticId: 'no-argmax-mode', conceptId: 'sampling',
-      initialState: { text: 'generate() has no argmax mode, and T = 0 would divide the logits by zero at model.py:318.', x: 24, y: 734, typography: 'annotation' } },
-
-    // Source, quoted verbatim from NanoGPT @3adf61e.
-    { id: 'source-head', type: 'text', semanticId: 'source-head', conceptId: 'temperature',
-      initialState: { text: 'source: NanoGPT @3adf61e, model.py generate() and sample.py', x: 24, y: SRC_Y, typography: 'annotation' } },
-    { id: 'src-318', type: 'code', semanticId: 'source-318', conceptId: 'temperature',
-      initialState: { text: 'model.py:318  logits = logits[:, -1, :] / temperature', x: 24, y: SRC_Y + 24, role: 'code' } },
-    { id: 'src-324', type: 'code', semanticId: 'source-324', conceptId: 'softmax',
-      initialState: { text: 'model.py:324  probs = F.softmax(logits, dim=-1)', x: 24, y: SRC_Y + 46, role: 'code' } },
-    { id: 'src-326', type: 'code', semanticId: 'source-326', conceptId: 'sampling',
-      initialState: { text: 'model.py:326  idx_next = torch.multinomial(probs, num_samples=1)', x: 24, y: SRC_Y + 68, role: 'code' } },
-    { id: 'topk-note', type: 'text', semanticId: 'topk-note', conceptId: 'temperature',
-      initialState: { text: 'An optional top-k crop (model.py:320-322) can run between :318 and :324; this card applies none.', x: 24, y: SRC_Y + 90, typography: 'annotation' } },
-    { id: 'src-17', type: 'code', semanticId: 'source-sample-17', conceptId: 'temperature',
-      initialState: { text: 'sample.py:17  temperature = 0.8 # 1.0 = no change, < 1.0 = less random, > 1.0 = more random', x: 24, y: SRC_Y + 120, role: 'code' } },
+      initialState: { text: 'generate() has no argmax mode, and T = 0 would divide the logits by zero.', x: 24, y: 734, typography: 'annotation' } },
     { id: 'default-note', type: 'text', semanticId: 'default-temperature', conceptId: 'temperature',
-      initialState: { text: 'NanoGPT’s own default T is below 1: sharpened, still sampled. This card has no preset at that value.', x: 24, y: SRC_Y + 142, typography: 'annotation' } },
+      initialState: { text: 'NanoGPT’s own default, T = 0.8, is below 1: sharpened, still sampled.', x: 24, y: 752, typography: 'annotation' } },
   ],
   timeline: [
     { at: 0.0, action: 'appear', target: 'logits', duration: 0.4 },
@@ -185,6 +172,24 @@ export const scene = {
     { at: 2.3, action: 'appear', target: 'draws-b', duration: 0.4 },
   ],
 };
+
+// Most important first: generate()'s three lines, the optional crop, the
+// sampling default, then how the toy numbers were made.
+export const sources = [
+  code('model.py', 318, 318, 'Keep the last position\'s logits and divide by T: "logits = logits[:, -1, :] / temperature". T = 0 would divide by zero; generate() has no argmax mode.'),
+  code('model.py', 324, 324, 'Softmax turns the scaled logits into probabilities: "probs = F.softmax(logits, dim=-1)".'),
+  code('model.py', 326, 326, 'Always one random draw from those probabilities, never argmax: "idx_next = torch.multinomial(probs, num_samples=1)".'),
+  code('model.py', 320, 322, 'Optional top-k crop between the division and the softmax: "v, _ = torch.topk(logits, min(top_k, logits.size(-1)))" then logits below the k-th are set to -Inf. This card applies none.'),
+  code('sample.py', 17, 17, 'NanoGPT\'s own sampling default, below 1 - sharpened, still sampled; the card has no preset at this value: "temperature = 0.8 # 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions".'),
+  calculation('Calculated toy example', `${T.display.length} toy logits`,
+    `generate_fixtures.py temperature(): hand-set logits [${T.logits.join(', ')}] for the characters ${T.vocab.map(c => (c === ' ' ? 'space' : c)).join(', ')} after "${T.context}" - not NanoGPT output. The space is shown as sp.`),
+  calculation('Recorded toy run', `${T.draws} draws per preset`,
+    `For preset k the generator seeds random.Random(${T.seed} + k) and takes ${T.draws} draws in one random.choices call over the ${T.display.length} candidates, weighted by that preset's softmax(logits / T) - Python's sampler on the toy probabilities, not NanoGPT, not torch.multinomial and not live sampling. One small seeded sample: counts vary with the seed.`),
+  calculation('Live calculation', 'Scaled logits, probabilities and counts',
+    'Computed on the card for the selected preset: scale(logits, 1/T), then softmax; softmax(logits) for the T = 1.0 comparison; the top token as argmin of -p; 1 - p(top) with sub; the expected top count as draws × p(top) with scale; the non-top count as draws minus the recorded top count with sub. Rounded to 3 decimals; cells and bars show 2.'),
+  code('data/shakespeare_char/prepare.py', 24, 25, `The real vocabulary the card compares against: "chars = sorted(list(set(data)))" and "vocab_size = len(chars)" - ${charVocab.vocabSize} characters for Tiny Shakespeare.`),
+  tinyShakespeare(`The text whose ${charVocab.vocabSize} distinct characters make the shakespeare_char vocabulary.`),
+];
 
 export const evidence = {
   card: 'c21-temperature',

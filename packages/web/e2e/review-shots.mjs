@@ -11,6 +11,7 @@
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { BOARDS } from '../src/demo-scenes.js';
+import { reveal } from './canvas-reveal.mjs';
 
 const [, , base, board, outArg] = process.argv;
 if (!base || !board) throw new Error('usage: node e2e/review-shots.mjs <deployed-base> <board> [outDir]');
@@ -71,19 +72,20 @@ const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').m
 const { session } = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-review-shots' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
 if (!session) throw new Error('no session from deployed worker');
 const browser = await chromium.launch();
-const context = await browser.newContext({ viewport: { width: 1720, height: 11000 } }); // tall enough that no card needs canvas panning
+const context = await browser.newContext({ viewport: { width: 1720, height: 2400 } }); // taller than any card; the canvas is panned to each
 await context.addCookies([{ name: 'small_session', value: session, domain: new URL(base).hostname, path: '/' }]);
 const page = await context.newPage();
 await page.goto(`${base}/apps/repo-06745f10-nanogpt?tab=learn&board=${board}`);
 const canvas = page.locator('[aria-label="Lesson canvas"]');
 await canvas.waitFor({ timeout: 30000 });
-const blocks = BOARDS[board]();
+const blocks = BOARDS[board]().filter(block => block.scene); // cards only; section headings carry no scene
 await page.getByText(blocks[0].title).first().waitFor({ timeout: 30000 });
 await page.waitForTimeout(1500);
 const bundle = await page.evaluate(() => [...document.querySelectorAll('script[src]')].map(s => s.getAttribute('src')).find(src => src.includes('/static/index')));
 
 async function drive(card, d, value, current) {
   if (value === current) return;
+  await reveal(page, canvas, card.locator('[data-scene-controls]'));
   if (d.type === 'bool') await card.locator(`[data-scene-controls] [data-input-control="${d.name}"]`).click();
   else if (d.type === 'index' && d.presentation === 'slider') {
     const step = value > current ? 'next' : 'previous';
@@ -109,6 +111,7 @@ for (const block of blocks) {
     const target = { ...defaultsOf(scene), ...state };
     for (const d of visibleInputs(scene)) { await drive(card, d, target[d.name], current[d.name]); current[d.name] = target[d.name]; }
     await page.waitForTimeout(600);
+    await reveal(page, canvas, card);
     const described = describe(scene, target);
     const file = `${String(order).padStart(2, '0')}-${slug(key(scene))}__${n + 1}-${slug(describe(scene, target, true))}.png`;
     await card.screenshot({ path: `${OUT}/${file}` });
@@ -116,6 +119,7 @@ for (const block of blocks) {
     console.log(`${file}`);
   }
   index.push('');
+  await reveal(page, canvas, card.locator('[data-scene-controls]'));
   await card.locator('[data-scene-controls] [data-scene-reset]').click();
   await page.waitForTimeout(300);
 }

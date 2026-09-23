@@ -4,8 +4,10 @@
 // fixture. Every head runs model.py:67-71 (scale, causal mask, softmax,
 // att @ v) through the derive seam; the three head outputs are concatenated
 // (model.py:72) and the selected head's slice is framed. c_proj (:75) is
-// named, not computed.
+// named, not computed. Those lines, the head split (:56-59) and the fused
+// flash path (:62-64) are the card's `sources`, shown collapsed under it.
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
+import { code, calculation, tiktoken, tinyShakespeare } from '../sources.js';
 
 const TOKENS = fx.tokenizer.tokenizers[1].tokens.slice(0, 4);
 const N_HEAD = 3, HS = 4, C = N_HEAD * HS;
@@ -53,11 +55,11 @@ const headPipeline = h => ({
 
 const ANN = 'annotation';
 const COL = 32;
-const TOKENS_Y = 214;
-const ROW_Y = 360; // the selected head's score / weight / output row
+const TOKENS_Y = 192;
+const ROW_Y = 338; // the selected head's score / weight / output row
 const RIGHT = 640; // the head-output column
-const CONCAT_CELL = 48, CONCAT_Y = 620;
-const FOOT = 732;
+const CONCAT_CELL = 48, CONCAT_Y = 598;
+const FOOT = 710;
 
 const corners = ({ x, y, w, h }) => ({ tl: { x, y }, tr: { x: x + w, y }, bl: { x, y: y + h }, br: { x: x + w, y: y + h } });
 // Four lines around a rectangle - static corners, or a derived corner record.
@@ -75,7 +77,7 @@ export const scene = {
   id: 'nanogpt-c13-multi-head',
   title: 'Multi-head attention: one query, several heads',
   width: 960,
-  height: FOOT + 144,
+  height: FOOT + 56,
   duration: 4,
   inputs: [
     { name: 'head', type: 'index', label: 'Head (preset)', of: 'heads', default: 0, presentation: 'picker' },
@@ -136,13 +138,12 @@ export const scene = {
   objects: [
     { id: 'question', type: 'text', semanticId: 'question', conceptId: 'multi-head-attention',
       initialState: { text: 'How can heads attend differently to the same tokens, and how are their outputs combined?', x: COL, y: 30 } },
-    note('provenance', 'multi-head-attention', 'Calculated toy example, live calculation: each head\'s Q, K, V is hand-built here, not from a trained model.', 56),
+    note('provenance', 'multi-head-attention', 'Calculated toy example, live calculation: each head\'s Q, K, V is hand-built, not from a trained model.', 56),
     note('config', 'multi-head-attention', 'Toy sizes: n_head {{nHead}}, hs {{hs}}, C (= n_embd) {{C}}; NanoGPT shakespeare_char uses n_head {{realNHead}}, n_embd {{realC}}.', 78),
     note('keys-note', 'multi-head-attention', 'Keys are hand-built one-hot positions, so the token text does not enter these numbers.', 100),
-    note('split-note', 'multi-head-attention', 'In NanoGPT each head\'s q, k, v are its own hs-wide slices of one learned projection c_attn(x) (:35, :56-59),', 122),
-    note('split-note-2', 'multi-head-attention', 'so each head has its own learned weights; the concat below lays the head outputs back side by side (:72).', 144),
+    note('split-note', 'multi-head-attention', 'In NanoGPT q, k, v = c_attn(x), each cut into n_head slices of width hs: each head has its own learned weights.', 122),
     { id: 'tokens', type: 'tokens', semanticId: 'tokens', conceptId: 'multi-head-attention',
-      initialState: { label: 'GPT-2 BPE tokens: tiktoken gpt2 output recorded by generate_fixtures.py (␣ = space); bold = query', x: COL, y: TOKENS_Y, opacity: 0,
+      initialState: { label: 'GPT-2 BPE tokens (␣ = space); bold = query', x: COL, y: TOKENS_Y, opacity: 0,
         tokens: [...TOKENS], role: 'observed', tokenStyle: 'labels', cellHighlight: { $derive: 'query' } } },
     { id: 'inspecting', type: 'text', semanticId: 'inspecting', conceptId: 'multi-head-attention',
       initialState: { text: 'Inspecting {{headName}} at query "{{qword}}" - one row of that head only', x: COL, y: ROW_Y - 78 } },
@@ -180,13 +181,13 @@ export const scene = {
         heat: true, valueScale: 'shared', valueScaleGroup: 'c13-head-outputs', values: { $derive: 'vTop' } } },
     // Left column under the rows: ends before the V row at x = RIGHT.
     note('mask-note', 'causal-mask', '{{maskNote}}', ROW_Y + 94),
-    note('mask-legend', 'causal-mask', 'masked, not a value: blank score = -inf (:68); gray weight = exactly 0 (:69)', ROW_Y + 116),
+    note('mask-legend', 'causal-mask', 'masked, not a value: blank score = -inf; gray weight = exactly 0', ROW_Y + 116),
     note('top-note', 'softmax-attention-weights', 'Largest weight (computed): {{headName}} puts most of it on "{{topWord}}".', ROW_Y + 138),
     note('role-note', 'multi-head-attention', '{{roleNote}}', ROW_Y + 196),
     // Every head's output at this query, side by side.
     ...frame('slice-frame', 'sliceFrame'),
     { id: 'concat', type: 'strip', semanticId: 'concat-heads', conceptId: 'head-concat',
-      initialState: { label: 'concat at query "{{qword}}": all {{nHead}} head outputs side by side = {{C}} numbers (model.py:72)', x: COL, y: CONCAT_Y, cell: CONCAT_CELL, opacity: 0, role: 'output',
+      initialState: { label: 'concat at query "{{qword}}": all {{nHead}} head outputs side by side = {{C}} numbers', x: COL, y: CONCAT_Y, cell: CONCAT_CELL, opacity: 0, role: 'output',
         heat: true, valueScale: 'shared', valueScaleGroup: 'c13-head-outputs', values: { $derive: 'concatOut' },
         cellHighlight: { $derive: 'slice' }, cellHighlightKind: 'highlight' } },
     ...HEADS.map((name, h) => ({ id: `concat-head-${h}`, type: 'text', semanticId: `concat-head-${h}`, conceptId: 'head-concat',
@@ -196,13 +197,9 @@ export const scene = {
     { id: 'slice-note-2', type: 'text', semanticId: 'slice-note-2', conceptId: 'head-concat',
       initialState: { text: 'same numbers as its framed output above', x: 636, y: CONCAT_Y + 40, typography: ANN } },
     { id: 'cproj-note', type: 'text', semanticId: 'cproj-note', conceptId: 'head-concat',
-      initialState: { text: 'Then c_proj (model.py:75, nn.Linear(C, C) at :37) mixes all {{C}} entries across heads - not computed here.', x: COL, y: FOOT, typography: 'caption' } },
-    // Footer: caveat and citations.
+      initialState: { text: 'Then c_proj, a learned C × C linear layer, mixes all {{C}} entries across heads - not computed here.', x: COL, y: FOOT, typography: 'caption' } },
+    // Footer: caveat.
     note('caveat', 'multi-head-attention', 'Trained heads can overlap or have no clean human-readable role; nothing guarantees every pair of heads differs.', FOOT + 34),
-    note('source', 'multi-head-attention', 'source, model.py @3adf61e: :57-59 q, k, v split into n_head heads of size C // n_head;', FOOT + 56),
-    note('source-2', 'multi-head-attention', ':67 (q @ kᵀ) × 1/√hs · :68 future set to -inf · :69 softmax · :71 y = att @ v · :72 side by side.', FOOT + 78),
-    note('source-3', 'multi-head-attention', 'Not shown: :70 attn_dropout (training only). :66-71 is the manual path; with PyTorch >= 2.0 NanoGPT runs', FOOT + 100),
-    note('source-4', 'multi-head-attention', 'the fused scaled_dot_product_attention at :64 (is_causal=True) instead, which computes the same thing.', FOOT + 122),
   ],
   timeline: [
     { at: 0.0, action: 'appear', target: 'tokens', duration: 0.4 },
@@ -218,6 +215,25 @@ export const scene = {
   ],
 };
 
+const { n_head: realNHead, n_embd: realC } = fx.architecture;
+
+export const sources = [
+  code('model.py', 56, 59, 'The head split: “q, k, v  = self.c_attn(x).split(self.n_embd, dim=2)”, then each is viewed as n_head heads of size hs = C // n_head, e.g. “q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)”. Each head gets its own hs-wide slice of one learned projection.'),
+  code('model.py', 66, 71, 'The manual attention path (“# manual implementation of attention”) every head runs on the card: “att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))” (step 1); “att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float(\'-inf\'))” (blank masked scores); “att = F.softmax(att, dim=-1)” (step 2, masked weights exactly 0); “y = att @ v” (step 3). “att = self.attn_dropout(att)” acts only in training and is not shown.'),
+  code('model.py', 72, 72, 'The concatenation: “y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side”.'),
+  code('model.py', 75, 75, 'Named on the card, not computed: “y = self.resid_dropout(self.c_proj(y))” - c_proj mixes the C concatenated entries across heads.'),
+  code('model.py', 35, 37, 'The two learned projections: “self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias)” makes q, k, v for all heads at once; “self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)” is the C × C output mix.'),
+  code('model.py', 62, 64, 'What NanoGPT runs by default with PyTorch >= 2.0 (self.flash, line 45): the fused “torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout if self.training else 0, is_causal=True)”, which computes the same attention as the manual path the card draws.'),
+  code('config/train_shakespeare_char.py', 23, 24, `“n_head = ${realNHead}” and “n_embd = ${realC}” - the real sizes the card sets its toy ones against, read by the fixture generator from this config resolved over train.py defaults.`),
+  tiktoken(`The four tokens ${TOKENS.map(t => `“${t}”`).join(', ')} (␣ = space) are the first ${TOKENS.length} of the ${fx.tokenizer.tokenizers[1].count} that tiktoken “gpt2” encode_ordinary makes of “${fx.tokenizer.text}” - the call data/shakespeare/prepare.py makes - recorded by generate_fixtures.py. They only label the columns: the keys are one-hot positions, so the token text does not enter the numbers.`),
+  tinyShakespeare(`“${fx.tokenizer.text}”, the text the four tokens come from, is from line 2 of the dataset.`),
+  // Authored on this card, not by the fixture generator - so no reproduce command.
+  { kind: 'calculation', status: 'Calculated toy example', title: 'Q, K, V for each head',
+    note: `Typed into this card, not trained: n_head = ${N_HEAD} heads of size hs = ${HS} (C = ${C}). Each head’s Q and V are small integer matrices and every K is the identity (one-hot positions), so a raw score q·k_j is entry j of the query row. Head 0’s query rows point at the previous token, head 1’s at the first token, head 2’s at the token itself. Tail entries are chosen so every displayed 2-decimal weight row is the plain rounding of the true weights and sums to exactly 1.` },
+  calculation('Live calculation', 'Scores, weights, head outputs and the concatenation',
+    'Computed on the card by derive ops, for the selected head and for all three heads at the selected query: matmul (q @ kᵀ), scale by 0.5 = 1/√hs, causal_mask (future scores -inf), softmax, pick (the query row), weighted_sum (Σ w·V), then concat of the three head outputs. The largest weight is argmin of the negated masked scores.'),
+];
+
 export const evidence = {
   card: 'c13-multi-head',
   title: scene.title,
@@ -229,5 +245,5 @@ export const evidence = {
   consequence: 'From the second token on, head moves the weight mass (head 0 -> previous token, head 1 -> first token, head 2 -> itself in this hand-built example; at the second token heads 0 and 1 coincide on the first token), changes the head output and its dominant V row, and moves the orange frame to that head\'s slice of the 12-number concatenation. At the first token every head puts all its weight on it, so heads cannot differ there. Query changes which key positions are visible (future scores -inf drawn blank, weights exactly 0 drawn gray) and every head\'s output in the concatenation.',
   interactionPurpose: 'Compare heads on the same query to see different attention patterns from the same tokens, and see that the per-head outputs are only placed side by side before c_proj mixes them.',
   task: 'Pick each head at the last query and say where its weight goes; then pick an earlier query and see which positions disappear, and why the first token leaves the heads no choice.',
-  capability: 'two index pickers; per-head derive pipelines (matmul, scale, causal_mask, softmax, pick, weighted_sum) plus concat; argmax composed as argmin of negated masked scores; head x query caption table picked twice; masked cells drawn blank (scores, no heat) or gray (weights) and explained in words; scores carry no heat (a per-row scale is all they could honestly have); frames drawn as four lines with picked (derived) corner coordinates. Illustrates the manual attention path (:66-71); the default flash path (:64) is named on the card, not drawn.',
+  capability: 'two index pickers; per-head derive pipelines (matmul, scale, causal_mask, softmax, pick, weighted_sum) plus concat; argmax composed as argmin of negated masked scores; head x query caption table picked twice; masked cells drawn blank (scores, no heat) or gray (weights) and explained in words; scores carry no heat (a per-row scale is all they could honestly have); frames drawn as four lines with picked (derived) corner coordinates. Illustrates the manual attention path (:66-71); the default flash path (:64) is cited in the card\'s sources, not drawn.',
 };

@@ -6,6 +6,7 @@
 // Dropout on/off is a SEPARATE switch (model.train()/eval()), shown as such.
 // The two call sites are a PRESET view of the source - nothing runs here.
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
+import { calculation, code, tinyShakespeare } from '../sources.js';
 
 const A = fx.architecture;
 const CONCEPT = 'gpt-forward-pass';
@@ -48,7 +49,7 @@ export const scene = {
   id: 'nanogpt-c01-forward-pass',
   title: 'NanoGPT forward pass: token IDs to logits',
   width: 960,
-  height: 656,
+  height: 636,
   duration: 5.2,
   inputs: [
     { name: 'mode', type: 'index', label: 'Call site (preset)', of: 'modes', default: 0, presentation: 'picker' },
@@ -60,28 +61,28 @@ export const scene = {
     // computes it (all resolved by generate_fixtures.py).
     B: A.batch_size, T: A.block_size, C: A.n_embd, V: A.vocab_size, L: A.n_layer, p: A.dropout,
     modeCaptions: [
-      'Training step (train.py:300): model(X, Y) → forward(idx=X, targets=Y)',
-      'Generation step (model.py:316): self(idx_cond) → forward(idx=idx_cond), targets=None',
+      'Training step: model(X, Y) → forward(idx=X, targets=Y)',
+      'Generation step: self(idx_cond) → forward(idx=idx_cond), targets=None',
     ],
     btNotes: [
-      'In this call: B = batch_size sequences, T = block_size characters each (get_batch, train.py:123-124)',
-      'In this call: B = prompts in idx (sample.py:81 passes one), T = tokens so far, cropped to block_size (model.py:314)',
+      'In this call: B = batch_size sequences, T = block_size characters each',
+      'In this call: B = prompts in idx (one when sampling), T = tokens so far, cropped to block_size',
     ],
     // Dropout follows train()/eval(), not targets: estimate_loss passes
     // targets under model.eval() (train.py:218-227).
-    dropNotes: ['dropout on: model.train() (train.py:227)', 'dropout off: model.eval() (sample.py:51)'],
+    dropNotes: ['dropout on: model.train()', 'dropout off: model.eval()'],
     sliceLabels: ['x, all T positions (B, T, C)', 'x[:, [-1], :]  (B, 1, C)'],
     sliceRoles: ['neutral', 'prediction'],
-    sliceSubs: ['targets given (:184): lm_head gets every position', 'targets None (:188-190): only the last position'],
-    headSubs: ['lm_head(x) (:186)', 'lm_head(x[:, [-1], :]) (:190)'],
+    sliceSubs: ['targets given: lm_head gets every position', 'targets None: only the last position'],
+    headSubs: ['lm_head(x)', 'lm_head(x[:, [-1], :])'],
     logitsLabels: ['logits (B, T, V)', 'logits (B, 1, V)'],
     logitsSubs: ['a score row for every position', 'scores for the last position only'],
-    lossLabels: ['loss (scalar)', 'loss = None (:191)'],
+    lossLabels: ['loss (scalar)', 'loss = None'],
     lossRoles: ['output', 'neutral'],
-    lossSubs: ['F.cross_entropy (:187)', 'targets is None (:184)'],
+    lossSubs: ['F.cross_entropy', 'targets is None'],
     targetsLabels: ['targets Y (B, T)', 'targets = None'],
     targetsRoles: ['observed', 'neutral'],
-    targetsSubs: ['truth: next IDs (train.py:125)', 'default: targets=None (:170)'],
+    targetsSubs: ['truth: next IDs', 'default: targets=None'],
     // logits feed the loss only when targets are given. In generation the
     // arrow's reveal step is a 'pause' marker, which changes no state, so the
     // arrow never shows and every object still enters in data-flow order.
@@ -109,8 +110,8 @@ export const scene = {
     { id: 'question', type: 'text', semanticId: 'question', conceptId: CONCEPT,
       initialState: { text: 'What does each stage turn the tensor into - and what changes when the model generates?', x: 40, y: 34 } },
     header('mode-caption', '{{modeCaption}}', 62, 'caption'),
-    header('config', 'train_shakespeare_char.py (source): B = batch_size = {{B}} · T = block_size = {{T}} · C = n_embd = {{C}} · n_layer = {{L}}', 86),
-    header('vocab', 'V = vocab_size = {{V}}: len(chars), data/shakespeare_char/prepare.py:25 (read via meta.pkl, train.py:143)', 105),
+    header('config', 'Source value (no model runs here): B = batch_size = {{B}} · T = block_size = {{T}} · C = n_embd = {{C}} · n_layer = {{L}}', 86),
+    header('vocab', 'V = vocab_size = {{V}}: the distinct characters in the Shakespeare text', 105),
     header('bt-note', '{{btNote}}', 124),
 
     // Row 1: IDs -> learned vectors, plus one vector per position, summed, dropout.
@@ -118,18 +119,18 @@ export const scene = {
     note('idx-sub', 'integer token IDs', 40, 214),
     arrow('a-idx-tok', { x: 174, y: 172 }, { x: 200, y: 172 }),
     box('tok-emb', 'wte → tok_emb (B, T, C)', 204, 150, 230, 44, { identity: 'tied-weight' }),
-    note('tok-emb-sub', 'ID → learned vector (:177)', 204, 214),
+    note('tok-emb-sub', 'ID → learned vector', 204, 214),
     box('pos-emb', 'wpe → pos_emb (T, C)', 204, 232, 230, 44),
-    note('pos-emb-sub', 'arange(T): a vector per position (:174, :178)', 204, 294),
+    note('pos-emb-sub', 'arange(T): a vector per position', 204, 294),
     arrow('a-tok-plus', { x: 438, y: 182 }, { x: 462, y: 202 }),
     arrow('a-pos-plus', { x: 438, y: 244 }, { x: 462, y: 224 }),
     { id: 'plus', type: 'circle', semanticId: 'plus', conceptId: CONCEPT,
       initialState: { label: '+', x: 478, y: 213, w: 36, opacity: 0 } },
     arrow('a-plus-x', { x: 498, y: 213 }, { x: 522, y: 213 }),
     box('x-emb', 'drop → x (B, T, C)', 526, 191, 190, 44),
-    note('x-sub-call', 'x = drop(tok_emb + pos_emb) (:179)', 526, 156),
+    note('x-sub-call', 'x = drop(tok_emb + pos_emb)', 526, 156),
     note('x-sub-bcast', 'the + broadcasts pos_emb (T, C) over B', 526, 174),
-    note('x-sub-p', 'dropout p = {{p}} (train_shakespeare_char.py:25)', 580, 256),
+    note('x-sub-p', 'dropout p = {{p}}', 580, 256),
     note('x-sub-mode', '{{dropNote}}', 580, 274),
     note('x-sub-switch', 'model.train()/eval() switches it, not targets', 580, 292),
 
@@ -142,8 +143,8 @@ export const scene = {
     ...blockObjects,
     arrow('a-blocks-ln', { x: lastBlockRight + 4, y: ROW2_MID }, { x: 572, y: ROW2_MID }),
     box('ln-f', 'ln_f → x (B, T, C)', 576, ROW2_Y, 180, 40),
-    note('ln-f-sub', 'final LayerNorm (:182)', 770, 354),
-    note('blocks-sub-1', '{{L}} separate Blocks: h = nn.ModuleList (model.py:130), run in order (:180-181)', 40, 394),
+    note('ln-f-sub', 'final LayerNorm', 770, 354),
+    note('blocks-sub-1', '{{L}} separate Blocks in h (a ModuleList), run in order', 40, 394),
     note('blocks-sub-2', 'same architecture, each with its own learned weights - (B, T, C) in and out', 40, 412),
 
     // Row 2 -> the tensor lm_head receives, which depends on targets.
@@ -168,8 +169,7 @@ export const scene = {
     note('targets-sub', '{{targetsSub}}', 702, SUB1),
 
     // Footer.
-    note('tying', 'Weight tying (model.py:138): wte.weight = lm_head.weight - one V × C matrix used by both coloured boxes.', 40, 618),
-    note('provenance', 'Source, NanoGPT @3adf61e: model.py, train.py, sample.py; sizes and p via generate_fixtures.py. No model runs here.', 40, 638, { opacity: 1 }),
+    note('tying', 'Weight tying: wte.weight = lm_head.weight - one V × C matrix used by both coloured boxes.', 40, 618),
   ],
   timeline: [
     // Data-flow order in both presets: IDs, the two embeddings, their sum and
@@ -206,6 +206,27 @@ export const scene = {
   ],
 };
 
+// Shown collapsed under the card; every line reference the card used to print lives here.
+export const sources = [
+  code('model.py', 170, 193, 'GPT.forward, the whole function this card draws. "def forward(self, idx, targets=None)": targets default to None.'),
+  code('model.py', 184, 191, 'The branch the call site picks: with targets, "logits = self.lm_head(x)" and a cross-entropy loss; without, "logits = self.lm_head(x[:, [-1], :])" and "loss = None".'),
+  code('model.py', 174, 179, 'Embeddings: "pos = torch.arange(0, t, dtype=torch.long, device=device)", "tok_emb = self.transformer.wte(idx)", "pos_emb = self.transformer.wpe(pos)", then "x = self.transformer.drop(tok_emb + pos_emb)".'),
+  code('model.py', 180, 182, 'Each Block in transformer.h runs in order ("for block in self.transformer.h:", "x = block(x)"), then the final LayerNorm: "x = self.transformer.ln_f(x)".'),
+  code('model.py', 130, 130, '"h = nn.ModuleList([Block(config) for _ in range(config.n_layer)])": n_layer separate Blocks, each with its own weights.'),
+  code('model.py', 138, 138, 'Weight tying: "self.transformer.wte.weight = self.lm_head.weight".'),
+  code('train.py', 300, 300, 'The training call site passes targets: "logits, loss = model(X, Y)".'),
+  code('model.py', 314, 316, 'The generation call site: generate() crops idx to the last block_size tokens, then calls "logits, _ = self(idx_cond)" with no targets.'),
+  code('train.py', 123, 125, 'get_batch: batch_size random offsets, block_size characters from each (B = batch_size, T = block_size); the targets are the same windows shifted one character: "y = torch.stack([torch.from_numpy((data[i+1:i+1+block_size]).astype(np.int64)) for i in ix])".'),
+  code('sample.py', 81, 81, 'sample.py builds idx from one prompt: "x = (torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...])", so B = 1.'),
+  code('train.py', 218, 227, 'estimate_loss calls model(X, Y) with targets under model.eval(), then restores "model.train()" (line 227): dropout follows train()/eval(), not targets.'),
+  code('sample.py', 51, 51, '"model.eval()" before sampling: dropout is off during generation.'),
+  code('config/train_shakespeare_char.py', 18, 25, 'The sizes on the card: batch_size = 64, block_size = 256, n_layer = 6, n_embd = 384, and "dropout = 0.2" (line 25).'),
+  code('data/shakespeare_char/prepare.py', 24, 25, '"chars = sorted(list(set(data)))" and "vocab_size = len(chars)": V is the number of distinct characters.'),
+  code('train.py', 143, 143, "train.py reads V from the meta.pkl prepare.py wrote: \"meta_vocab_size = meta['vocab_size']\"."),
+  calculation('Source value', 'B, T, C, n_layer, dropout p and V', "generate_fixtures.py read train.py's top-level defaults, executed config/train_shakespeare_char.py over them as configurator.py does, and took batch_size, block_size, n_embd, n_layer and dropout from the result; V = len(sorted(set(text))) over the sha-pinned Tiny Shakespeare file, as prepare.py computes it. No model runs on this card; the call-site picker only switches labels."),
+  tinyShakespeare(`V = ${A.vocab_size} is the number of distinct characters in this file.`),
+];
+
 export const evidence = {
   card: 'c01-forward-pass',
   title: scene.title,
@@ -214,7 +235,7 @@ export const evidence = {
   sourceRevision: `${fx.provenance.nanogpt.repo}@${fx.provenance.nanogpt.commit}`,
   provenance: 'source: model.py:64,75,91,130,138,170-193,314,316; train.py:123-125,143,218-227,300; sample.py:51,81; config/train_shakespeare_char.py:18-25; data/shakespeare_char/prepare.py:25 (read at 3adf61e). Sizes and p: source, fx.architecture (config/train_shakespeare_char.py over train.py defaults; vocab_size = len(chars)) via generate_fixtures.py. No calculated toy example, recorded run or live calculation displays a number here; derive ops only pick state-following labels, roles and one reveal step.',
   control: 'mode (index, picker, labelled "Call site (preset)"): training step = train.py:300 model(X, Y) -> forward(idx=X, targets=Y); generation step = model.py:316 self(idx_cond) -> forward(idx=idx_cond), targets=None.',
-  consequence: 'training: lm_head receives x with all T positions, logits (B, T, V), targets Y (B, T) feed a cross-entropy loss box, dropout on under model.train(); generation: lm_head receives x[:, [-1], :] (B, 1, C), logits (B, 1, V), targets = None and loss = None (:191), no logits -> loss arrow, dropout off under model.eval() - labelled as a separate switch from targets.',
+  consequence: 'training: lm_head receives x with all T positions, logits (B, T, V), targets Y (B, T) feed a cross-entropy loss box, dropout on under model.train(); generation: lm_head receives x[:, [-1], :] (B, 1, C), logits (B, 1, V), targets = None and loss = None, no logits -> loss arrow, dropout off under model.eval() - labelled as a separate switch from targets.',
   interactionPurpose: 'Contrast the two call sites of the same forward(): the code path and tensor shapes up to ln_f are the same; dropout (at :179 and inside each Block, :64/:75/:91) is active only in train mode, which train()/eval() sets independently of targets; the head (which positions are projected, whether a loss exists) and the meaning of B/T change.',
   task: 'none (explore only - no Practice on this card)',
   capability: 'index picker input; pick-derived state-following labels and roles (lm_head input, logits, targets, loss); timeline reveals every stage in data-flow order in both presets, with no derived opacity - the one mode-only object (the logits -> loss arrow) gets a pick-derived reveal step (appear vs a no-op pause marker); n_layer Block boxes generated from fx.architecture; identity hue marks the tied wte/lm_head weight.',

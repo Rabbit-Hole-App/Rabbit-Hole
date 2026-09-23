@@ -1,7 +1,8 @@
 // The nanogpt-deep-dive board, first batch (docs/nanogpt-deep-dive-board-plan.md).
 // Ten cards from the 26-card inventory, in teaching order. Each card module
 // exports its scene, an optional practice activity (only where the task
-// needs reasoning), and an evidence record (concept, source revision, data
+// needs reasoning), its sources (shown collapsed under the card, see
+// ../card-sources.js), and an evidence record (concept, source revision, data
 // provenance, control, consequence, capability exercised).
 import * as forwardPass from './cards/c01-forward-pass.js';
 import * as residual from './cards/c03-residual.js';
@@ -19,9 +20,13 @@ export const NANOGPT_FIRST_BATCH = [
   crossEntropy, trainVal, lrSchedule, optimizer, temperature,
 ];
 
-export const nanogptDeepDiveBlocks = () => NANOGPT_FIRST_BATCH.map(card => ({
+// One card module as a board block, shown at its end state.
+export const cardBlock = card => ({
   id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0,
   title: card.scene.title, scene: card.scene, time: card.scene.duration,
   selectedObject: null, marked: null,
   ...(card.activity ? { activity: card.activity } : {}),
-}));
+  ...(card.sources ? { sources: card.sources } : {}),
+});
+
+export const nanogptDeepDiveBlocks = () => NANOGPT_FIRST_BATCH.map(cardBlock);

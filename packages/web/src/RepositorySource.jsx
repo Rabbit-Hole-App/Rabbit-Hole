@@ -1,11 +1,14 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { ArrowUpRight, X } from 'lucide-react';
 import { api } from './api.js';
 import { colorLine } from './code.jsx';
+import { repositoryUrl } from './card-sources.js';
 
 export const SourceSelectionContext = createContext(null);
 
-export default function RepositorySource({ appName, path, line = 1, lineEnd, commit, onClose }) {
+// `repo` ("owner/name"), when the caller knows it, adds a link to the same file
+// at the same revision on its host.
+export default function RepositorySource({ appName, path, line = 1, lineEnd, commit, repo, onClose }) {
   const [data,setData]=useState(null),[error,setError]=useState('');const selected=useRef(null);
   const selection=useContext(SourceSelectionContext), root=useRef(null), anchor=useRef(null);
   const current=selection?.value;
@@ -28,8 +31,9 @@ export default function RepositorySource({ appName, path, line = 1, lineEnd, com
   },[appName,path,commit]);
   useEffect(()=>{selected.current?.scrollIntoView({block:'center'});},[data,line]);
   return <section ref={root} onPointerUp={selectText} onKeyUp={selectText} className="flex min-h-0 flex-1 flex-col" aria-label="Repository source">
-    <div className="flex shrink-0 items-center gap-2 border-b border-line pb-2 text-xs"><span className="min-w-0 flex-1 truncate font-mono" title={path}>{path}{line ? `:${line}` : ''}</span>{data && <span className="text-ink-3">{data.commit.slice(0,7)}</span>}{onClose && <button aria-label="Close source" onClick={onClose}><X size={14}/></button>}</div>
-    {error && <p role="alert" className="py-3 text-sm text-danger">{error}</p>}{!data&&!error&&<p className="py-3 text-sm text-ink-2">Reading source…</p>}
+    <div className="flex shrink-0 items-center gap-2 border-b border-line pb-2 text-xs"><span className="min-w-0 flex-1 truncate font-mono" title={path}>{path}{line ? `:${line}${lineEnd > line ? `-${lineEnd}` : ''}` : ''}</span>{data && <span data-source-commit={data.commit} className="text-ink-3">{data.commit.slice(0,7)}</span>}{repo && commit && <a data-source-open-repository href={repositoryUrl({repo,commit,path,line,lineEnd})} target="_blank" rel="noreferrer" className="flex items-center gap-0.5 text-ink-2 hover:text-ink">Open in repository<ArrowUpRight size={12}/></a>}{onClose && <button aria-label="Close source" onClick={onClose}><X size={14}/></button>}</div>
+    {/* Only the cited revision: the server reads exactly this commit, so a missing one is reported, never replaced by current code. */}
+    {error && <p role="alert" className="py-3 text-sm text-danger">{commit ? `Not available at ${commit.slice(0,7)}: ` : ''}{error}</p>}{!data&&!error&&<p className="py-3 text-sm text-ink-2">Reading source…</p>}
     {data&&<div className="min-h-0 flex-1 overflow-auto py-3"><pre className="min-w-max font-mono text-xs leading-6">{data.content.split('\n').map((text,i)=>{const highlighted=i+1>=(range?.start||line)&&i+1<=(range?.end||lineEnd||line);return <div key={i} ref={i+1===line?selected:null} data-source-line={i+1} data-highlighted={highlighted?'true':undefined} className={`flex gap-3 pr-3 ${highlighted?'bg-accent/10':''}`}><button type="button" aria-label={`Select line ${i+1}`} title="Select line · Shift-click to select a range" className="w-9 shrink-0 text-right text-ink-3 select-none hover:text-ink" onClick={e=>{window.getSelection()?.removeAllRanges();const from=e.shiftKey&&anchor.current?anchor.current:i+1;anchor.current=from;select(Math.min(from,i+1),Math.max(from,i+1));}}>{i+1}</button><span data-source-text>{colorLine(text)}</span></div>;})}</pre></div>}
   </section>;
 }

@@ -5,6 +5,7 @@
 // file, and tiktoken's "gpt2" encoding that data/shakespeare/prepare.py calls.
 // The card computes nothing; the preset only selects which stored result is shown.
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
+import { calculation, code, tiktoken, tinyShakespeare } from '../sources.js';
 
 const { tokenizer: tk, provenance: pv } = fx;
 const [charTk, bpeTk] = tk.tokenizers;
@@ -38,7 +39,7 @@ export const scene = {
   id: 'c06-tokenizer',
   title: "The same text through NanoGPT's two tokenizers",
   width: 960,
-  height: 570,
+  height: 468,
   duration: 2,
   inputs: [
     { name: 'tokenizer', type: 'index', label: 'Tokenizer preset', of: 'presetNames', default: 0, presentation: 'picker' },
@@ -54,20 +55,16 @@ export const scene = {
       'Large vocabulary, short sequence: here each word is one ID, carrying the space before it.',
     ],
     modelNotes: [
-      [`Model: train.py:137-144 reads vocab_size = ${charTk.vocabSize} from the meta.pkl that prepare.py:55-61 writes;`,
-        'from scratch, train.py:155 passes it to GPTConfig - the padded default at model.py:111 is not used.'],
-      [`From scratch: no meta.pkl, so train.py:153-155 uses vocab_size = ${modelVocab} (${bpeTk.vocabSize} padded to a multiple of 64).`,
-        `Finetuning from a GPT-2 checkpoint (README.md:160-166): model.py:223 sets vocab_size = ${bpeTk.vocabSize}.`],
+      [`Model: vocab_size = ${charTk.vocabSize} is read from the meta.pkl the character data prep writes;`,
+        'a from-scratch model is built with it - the padded default is not used.'],
+      [`From scratch: no meta.pkl, so the model uses vocab_size = ${modelVocab} (${bpeTk.vocabSize} padded to a multiple of 64).`,
+        `Finetuning from a GPT-2 checkpoint keeps vocab_size = ${bpeTk.vocabSize}.`],
     ],
-    // Where each tokenizer lives in NanoGPT @3adf61e, and those lines verbatim
-    // (the test checks each against the pinned file).
-    cites: ['data/shakespeare_char/prepare.py:24 and :30', 'data/shakespeare/prepare.py:20-21'],
-    sourceLines: [
-      ['chars = sorted(list(set(data)))', 'stoi = { ch:i for i,ch in enumerate(chars) }'],
-      ['enc = tiktoken.get_encoding("gpt2")', 'train_ids = enc.encode_ordinary(train_data)'],
+    // How each vocabulary is made, in words (the code is in `sources`).
+    vocabRules: [
+      `Vocabulary: Tiny Shakespeare's ${charTk.vocabSize} distinct characters, sorted; an ID is a position in that list.`,
+      `Vocabulary: GPT-2's fixed table of ${bpeTk.vocabSize} BPE tokens, the same for any text.`,
     ],
-    shortSha: pv.nanogpt.commit.slice(0, 7),
-    tiktoken: pv.tiktoken,
   },
   derived: {
     sel: { op: 'pick', args: ['tokenizers', 'tokenizer'] },
@@ -75,8 +72,7 @@ export const scene = {
     top: { op: 'pick', args: ['rowTop', 'tokenizer'] },
     takeaway: { op: 'pick', args: ['takeaways', 'tokenizer'] },
     modelNote: { op: 'pick', args: ['modelNotes', 'tokenizer'] },
-    cite: { op: 'pick', args: ['cites', 'tokenizer'] },
-    code: { op: 'pick', args: ['sourceLines', 'tokenizer'] },
+    vocabRule: { op: 'pick', args: ['vocabRules', 'tokenizer'] },
   },
   objects: [
     { id: 'question', type: 'text', semanticId: 'question', conceptId: 'tokenization',
@@ -84,7 +80,7 @@ export const scene = {
     { id: 'input-text', type: 'text', semanticId: 'input-text', conceptId: 'tokenization',
       initialState: { text: 'Same input text for both presets (from tinyshakespeare): “{{text}}”', x: 32, y: 66, role: 'input' } },
     { id: 'selected', type: 'text', semanticId: 'selected-preset', conceptId: 'tokenization',
-      initialState: { text: 'Selected preset: {{sel.label}} - a stored result; no tokenizer runs in this card', x: 32, y: 96, typography: 'caption' } },
+      initialState: { text: 'Selected preset: {{sel.label}} · Calculated toy example (stored result)', x: 32, y: 96, typography: 'caption' } },
     { id: 'readout', type: 'text', semanticId: 'token-count-readout', conceptId: 'tokenization',
       initialState: { text: '{{sel.count}} tokens  ·  vocabulary of {{sel.vocabSize}} possible token IDs', x: 32, y: 132, typography: 'heading', role: 'output', opacity: 0 } },
     { id: 'compare', type: 'text', semanticId: 'compare-presets', conceptId: 'tokenization',
@@ -105,20 +101,12 @@ export const scene = {
       initialState: { x: 32, y: 320, tokenStyle: 'labels', role: 'output', tokens: { $derive: 'row.id.1' }, opacity: 0 } },
     { id: 'ids-seen', type: 'text', semanticId: 'ids-caption', conceptId: 'tokenization',
       initialState: { text: 'The model sees only these integer IDs, never the characters.', x: 32, y: 372, typography: 'annotation', role: 'output', opacity: 0 } },
+    { id: 'vocab-rule', type: 'text', semanticId: 'vocab-rule', conceptId: 'tokenization',
+      initialState: { text: '{{vocabRule}}', x: 32, y: 404, typography: 'annotation' } },
     { id: 'model-1', type: 'text', semanticId: 'model-vocab-note', conceptId: 'tokenization',
-      initialState: { text: '{{modelNote.0}}', x: 32, y: 404, typography: 'annotation' } },
+      initialState: { text: '{{modelNote.0}}', x: 32, y: 432, typography: 'annotation' } },
     { id: 'model-2', type: 'text', semanticId: 'model-vocab-note-2', conceptId: 'tokenization',
-      initialState: { text: '{{modelNote.1}}', x: 32, y: 424, typography: 'annotation' } },
-    { id: 'source-head', type: 'text', semanticId: 'source-head', conceptId: 'tokenization',
-      initialState: { text: 'Source - NanoGPT @{{shortSha}}, {{cite}}:', x: 32, y: 458, typography: 'annotation' } },
-    { id: 'source-1', type: 'text', semanticId: 'source-line', conceptId: 'tokenization',
-      initialState: { text: '{{code.0}}', x: 32, y: 480, typography: 'code', role: 'code' } },
-    { id: 'source-2', type: 'text', semanticId: 'source-line-2', conceptId: 'tokenization',
-      initialState: { text: '{{code.1}}', x: 32, y: 500, typography: 'code', role: 'code' } },
-    { id: 'provenance-1', type: 'text', semanticId: 'provenance', conceptId: 'tokenization',
-      initialState: { text: "Provenance: generate_fixtures.py rebuilt the character map with prepare.py:24-33's logic (sha-pinned dataset);", x: 32, y: 534, typography: 'annotation' } },
-    { id: 'provenance-2', type: 'text', semanticId: 'provenance-2', conceptId: 'tokenization',
-      initialState: { text: "GPT-2 BPE is tiktoken {{tiktoken}}, the generator's own pin - NanoGPT pins no tiktoken version (README.md:22).", x: 32, y: 554, typography: 'annotation' } },
+      initialState: { text: '{{modelNote.1}}', x: 32, y: 452, typography: 'annotation' } },
   ],
   timeline: [
     { at: 0.1, action: 'appear', target: 'tokens-1', duration: 0.4 },
@@ -130,6 +118,24 @@ export const scene = {
   ],
 };
 
+// Shown collapsed under the card; the code lines, line references and the
+// generator note the card used to print live here.
+export const sources = [
+  code('data/shakespeare_char/prepare.py', 24, 33, 'The character tokenizer: "chars = sorted(list(set(data)))" is the vocabulary (line 24) and "stoi = { ch:i for i,ch in enumerate(chars) }" gives each character its ID (line 30); encode() maps a string through stoi.'),
+  code('data/shakespeare/prepare.py', 20, 21, 'The GPT-2 BPE route: "enc = tiktoken.get_encoding("gpt2")" then "train_ids = enc.encode_ordinary(train_data)".'),
+  code('train.py', 137, 144, "When the dataset has a meta.pkl, train.py reads its vocabulary size: \"meta_vocab_size = meta['vocab_size']\"."),
+  code('train.py', 153, 155, "From scratch the model gets that size, or the padded default without a meta.pkl: \"model_args['vocab_size'] = meta_vocab_size if meta_vocab_size is not None else 50304\"."),
+  code('data/shakespeare_char/prepare.py', 55, 61, "The character prep saves vocab_size, itos and stoi to meta.pkl (\"'vocab_size': vocab_size,\")."),
+  code('model.py', 111, 111, 'GPTConfig\'s padded default: "vocab_size: int = 50304 # GPT-2 vocab_size of 50257, padded up to nearest multiple of 64 for efficiency".'),
+  code('model.py', 223, 223, "Loading a GPT-2 checkpoint forces its vocabulary: \"config_args['vocab_size'] = 50257 # always 50257 for GPT model checkpoints\"."),
+  code('README.md', 160, 166, 'Finetuning on Shakespeare: data/shakespeare/prepare.py tokenizes with GPT-2 BPE, then training starts from a GPT-2 checkpoint via init_from.'),
+  code('README.md', 22, 22, 'Dependencies: "pip install torch numpy transformers datasets tiktoken wandb tqdm" - tiktoken with no version pin.'),
+  calculation('Calculated toy example', 'Token strings, IDs, counts and vocabulary sizes',
+    `generate_fixtures.py used the sentence "${tk.text}" (from line 2 of the sha-pinned Tiny Shakespeare file; it asserts the sentence occurs there); rebuilt the character vocabulary with data/shakespeare_char/prepare.py's logic (lines 24-33: sorted(list(set(data))), then stoi) over the whole file and mapped the sentence through stoi (${charTk.count} IDs, vocabulary ${charTk.vocabSize}); and encoded it with tiktoken ${pv.tiktoken} get_encoding("gpt2").encode_ordinary (${bpeTk.count} IDs, n_vocab ${bpeTk.vocabSize}). The card only picks the stored result for the selected preset; no tokenizer runs here.`),
+  tiktoken(`Version ${pv.tiktoken} is the fixture generator's own pin; NanoGPT pins no tiktoken version (README.md:22).`),
+  tinyShakespeare('The character vocabulary is built from this whole file; the example sentence is taken from it.'),
+];
+
 export const evidence = {
   card: 'c06-tokenizer',
   title: scene.title,
@@ -138,8 +144,8 @@ export const evidence = {
   sourceRevision: `${pv.nanogpt.repo}@${pv.nanogpt.commit}`,
   provenance: "recorded by generate_fixtures.py: the character map rebuilt with data/shakespeare_char/prepare.py:24-33's logic over the sha-pinned tinyshakespeare file, and tiktoken \"gpt2\" at the generator's pin (NanoGPT pins none, README.md:22). Citations checked against data/shakespeare_char/prepare.py:24,30,55-61, data/shakespeare/prepare.py:20-21, train.py:137-155,181-185, model.py:111,223, README.md:160-166.",
   control: 'tokenizer - index input, picker over two stored presets: character-level | GPT-2 BPE',
-  consequence: `The same text re-tokenizes: the token/ID rows change from ${charTk.count} one-character tokens with IDs below ${charTk.vocabSize} to ${bpeTk.count} subword tokens from a ${bpeTk.vocabSize}-entry vocabulary; the count/vocabulary readout, takeaway, model-side vocab notes and verbatim source lines switch with it, while a fixed line compares both counts.`,
+  consequence: `The same text re-tokenizes: the token/ID rows change from ${charTk.count} one-character tokens with IDs below ${charTk.vocabSize} to ${bpeTk.count} subword tokens from a ${bpeTk.vocabSize}-entry vocabulary; the count/vocabulary readout, takeaway, vocabulary rule and model-side vocab notes switch with it, while a fixed line compares both counts.`,
   interactionPurpose: 'Compare two real tokenizations of one text, so the learner sees that token count and IDs depend on the tokenizer: the same text gives different counts and IDs; the char vocabulary comes from the corpus, the GPT-2 BPE vocabulary is fixed.',
   task: 'Switch the preset and compare how many tokens the same text becomes, how large the IDs get, and how big each vocabulary is.',
-  capability: 'Index input picking stored records: tokens-as-labels rows (token over ID, padded to shared column centres), per-preset caption/code lines, and a picked row position that centres the one-line preset in the same band; {{a.0.b}} path interpolation.',
+  capability: 'Index input picking stored records: tokens-as-labels rows (token over ID, padded to shared column centres), per-preset caption lines, and a picked row position that centres the one-line preset in the same band; {{a.0.b}} path interpolation.',
 };

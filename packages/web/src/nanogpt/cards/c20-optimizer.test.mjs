@@ -5,8 +5,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
-import { scene, evidence } from './c20-optimizer.js';
-import { assertCardGates, assertEvidence } from '../card-gates.mjs';
+import { scene, evidence, sources } from './c20-optimizer.js';
+import { assertCardGates, assertEvidence, assertSources } from '../card-gates.mjs';
 
 const opt = fx.optimizer;
 const STATES = [0, 1, 2, 3].map(optimizer => ({ optimizer }));
@@ -131,15 +131,26 @@ test('betas, wd and grad_clip are the fx.config source values, and the toy run u
   const [result] = assertCardGates(scene, [{ optimizer: 0 }]);
   const label = id => byId(result, id).label;
   assert.ok(label('settings-note').includes(`betas (${defaults.beta1}, ${defaults.beta2}) and wd ${defaults.weight_decay} are source values`));
-  assert.ok(label('beta2-note').includes(`beta2 to ${shakespeareChar.beta2} (source,`));
+  assert.ok(label('settings-note').endsWith(`lr ${opt.lr} is a toy choice.`));
+  assert.ok(label('beta2-note').includes(`beta2 to ${shakespeareChar.beta2};`));
   assert.ok(label('beta2-note').endsWith(`the toy keeps ${defaults.beta2}.`));
-  assert.ok(label('clip-note').includes(`grad_clip ${defaults.grad_clip}, source`));
+  assert.ok(label('clip-note').includes(`gradient norm to ${defaults.grad_clip} before each step`));
   assert.ok(label('decay-note-2').includes(`(wd ${defaults.weight_decay})`));
-  assert.ok(!scene.objects.some(object => /^code-(beta2|clip)$/.test(object.id)), 'no hand-typed code quotes for config values');
+  assert.ok(!scene.objects.some(object => object.type === 'code'), 'no code listings on the card: they are sources');
 });
 
-// Source quotes on the card, checked against the sha256-pinned NanoGPT files
-// that generate_fixtures.py caches. Skipped where that cache is absent.
+test('sources: code citations, toy provenance and the status labels the card shows', () => {
+  assertSources(sources, scene);
+  const cites = sources.filter(entry => entry.kind === 'code').map(entry => `${entry.path}:${entry.lines.join('-')}`);
+  for (const cite of ['model.py:284-284', 'model.py:268-275', 'model.py:23-23', 'train.py:56-56', 'train.py:60-63',
+    'config/train_shakespeare_char.py:31-31', 'train.py:307-309']) assert.ok(cites.includes(cite), `cites ${cite}`);
+  assert.equal(cites[0], 'model.py:284-284', 'the AdamW line comes first');
+  const statuses = sources.filter(entry => entry.kind === 'calculation').map(entry => entry.status);
+  assert.deepEqual([...new Set(statuses)].sort(), ['Calculated toy example', 'Live calculation', 'Source value']);
+});
+
+// Source quotes in the sources' notes, checked against the sha256-pinned
+// NanoGPT files that generate_fixtures.py caches. Skipped where that cache is absent.
 const cached = path => {
   const sha = fx.provenance.nanogpt.files[path];
   const file = join(tmpdir(), 'nanogpt-fixture-cache', sha);
@@ -148,30 +159,29 @@ const cached = path => {
   assert.equal(createHash('sha256').update(bytes).digest('hex'), sha, `${path} cache is not the pinned file`);
   return bytes.toString('utf8').split('\n');
 };
-const model = cached('model.py'), train = cached('train.py'), config = cached('config/train_shakespeare_char.py');
-test('source quotes and line numbers match NanoGPT @3adf61e', { skip: !(model && train && config) && 'pinned source cache absent' }, () => {
-  const text = id => scene.objects.find(object => object.id === id).initialState.text;
-  assert.equal(model[284 - 1].trim(), text('code-adamw'));
+const files = { 'model.py': cached('model.py'), 'train.py': cached('train.py'), 'config/train_shakespeare_char.py': cached('config/train_shakespeare_char.py') };
+test('source quotes and line numbers match NanoGPT @3adf61e', { skip: !Object.values(files).every(Boolean) && 'pinned source cache absent' }, () => {
+  // Every "quoted" span in a code note sits inside the lines that entry cites.
+  for (const { path, lines: [start, end], note } of sources.filter(entry => entry.kind === 'code')) {
+    const cited = files[path].slice(start - 1, end).join('\n');
+    const quotes = [...note.matchAll(/"([^"]+)"/g)].map(match => match[1]);
+    assert.ok(quotes.length, `${path}:${start} note quotes the source`);
+    for (const quote of quotes) assert.ok(cited.includes(quote), `${path}:${start}-${end} does not contain "${quote}"`);
+  }
+  const { 'model.py': model, 'train.py': train, 'config/train_shakespeare_char.py': config } = files;
   assert.match(model[263 - 1], /def configure_optimizers/);
-  assert.match(model[269 - 1], /all biases and layernorms don't/);
   assert.match(model[270 - 1], /p\.dim\(\) >= 2/);
   assert.match(model[271 - 1], /p\.dim\(\) < 2/);
   assert.match(model[274 - 1], /'weight_decay': 0\.0/);
-  assert.match(model[23 - 1], /self\.weight = nn\.Parameter\(torch\.ones\(ndim\)\)/, 'LayerNorm weight is 1-D');
-  assert.ok(train[56 - 1].startsWith('bias = False'));
   assert.ok(!config.some(line => /^bias\s*=/.test(line)), 'the char config keeps bias');
-  // Every fx.config value the card shows sits on the line it cites.
+  // Every fx.config value the card shows sits on the line its source cites.
   const value = (lines, line, name) => Number(new RegExp(`^${name} = ([0-9.e-]+)`).exec(lines[line - 1])[1]);
   const { defaults, shakespeareChar } = fx.config;
-  assert.match(text('settings-note'), /train\.py:60-62 defaults/);
   assert.equal(value(train, 60, 'weight_decay'), defaults.weight_decay);
   assert.equal(value(train, 61, 'beta1'), defaults.beta1);
   assert.equal(value(train, 62, 'beta2'), defaults.beta2);
-  assert.match(text('clip-note'), /train\.py:307-309\) .* source train\.py:63\.$/);
   assert.equal(value(train, 63, 'grad_clip'), defaults.grad_clip);
-  assert.match(text('beta2-note'), /config\/train_shakespeare_char\.py:31\)/);
   assert.equal(value(config, 31, 'beta2'), shakespeareChar.beta2);
-  assert.match(train.slice(307 - 1, 309).join('\n'), /clip_grad_norm_\(model\.parameters\(\), grad_clip\)/);
   assert.match(train[311 - 1], /scaler\.step\(optimizer\)/);
 });
 

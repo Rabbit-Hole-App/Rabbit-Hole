@@ -1,13 +1,15 @@
-// Card 18 - train vs validation loss, and which checkpoint train.py's save
+// Card 18 - train vs validation loss, and which checkpoint NanoGPT's save
 // rule keeps. Two curves on ONE shared loss axis from a RECORDED toy run (a
-// character-bigram table trained by generate_fixtures.py - not NanoGPT's
-// transformer). The slider inspects one checkpoint; the practice asks which
-// one the "save only if val improved" rule (train.py:274) leaves in ckpt.pt
-// when applied at THIS run's evaluations (every 50 iterations - the
-// shakespeare_char config evaluates less often). Nothing marks the minimum
-// until a committed attempt flips the hidden bestRevealed latch.
+// character-bigram table - not NanoGPT's transformer). The slider inspects one
+// checkpoint; the practice asks which one the "save only if val improved"
+// rule leaves in ckpt.pt when applied at THIS run's evaluations (every 50
+// iterations - the shakespeare_char config evaluates less often). Nothing
+// marks the minimum until a committed attempt flips the hidden bestRevealed
+// latch. How the run was made, and the cited train.py / config lines, are in
+// `sources` below.
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
 import { axesObjects, seriesMapping, seriesObjects } from '../plot.js';
+import { code, calculation, tinyShakespeare } from '../sources.js';
 
 const run = fx.toyRun;
 // Iteration 0 (~ln 65) sits far above the rest; it is stated in text, not plotted.
@@ -43,7 +45,7 @@ export const scene = {
   id: 'nanogpt-c18-train-val',
   title: 'Train vs validation loss: which checkpoint to keep',
   width: 960,
-  height: 628,
+  height: 566,
   duration: 3,
   inputs: [
     { name: 'checkpoint', type: 'index', label: 'Inspect recorded checkpoint', of: 'checkpointLabels', default: FINAL, presentation: 'slider' },
@@ -63,18 +65,13 @@ export const scene = {
     ...trainMap.exampleData,
     ...valMap.exampleData,
     initialLossNote: run.initialLossNote,
-    seed: run.seed,
-    rev: fx.provenance.nanogpt.commit.slice(0, 7),
     trainChars: chars(run.config.train_chars),
     valChars: chars(run.config.val_chars),
-    evalInterval: every,
-    charEvalInterval: cs.eval_interval,
-    charAlwaysSave: py(cs.always_save_checkpoint),
     signs: ['', '+'],
     refPrev: 'Change since the previous checkpoint',
     refKept: 'Change vs the kept checkpoint',
     statusHidden: 'Nothing marks the best checkpoint yet - step through them and compare the val numbers in the readout.',
-    statusRevealed: `Green ring = target: lowest val loss among this run's every-${every}-iteration evaluations - what train.py:274 keeps.`,
+    statusRevealed: `Green ring = target: lowest val loss of this run's every-${every}-iteration evaluations - what the save rule keeps.`,
   },
   derived: {
     // The recorded 4-decimal losses, rounded once by the seam to 3 decimals so
@@ -145,11 +142,8 @@ export const scene = {
     text('change', { text: '{{refName}} (iter {{refIt}}): train {{dTrainSign}}{{dTrain}}, val {{dValSign}}{{dVal}}', x: 40, y: 474, opacity: 0 }),
     text('status', { text: '{{status}}', x: 40, y: 500, typography: 'annotation' }, 'checkpoint-selection'),
     text('initial-loss', { text: 'Off the chart - {{initialLossNote}}', x: 40, y: 522, typography: 'annotation' }),
-    // One provenance paragraph, pre-split into single lines (text never wraps).
-    text('prov-1', { text: "Recorded toy run (generate_fixtures.py, seed {{seed}}): a character-bigram table, NOT NanoGPT's transformer, trained", x: 40, y: 552, typography: 'annotation' }, 'provenance'),
-    text('prov-2', { text: "with AdamW + NanoGPT's get_lr; exact whole-slice losses every {{evalInterval}} iters (NanoGPT's estimate_loss, train.py:216-228,", x: 40, y: 571, typography: 'annotation' }, 'provenance'),
-    text('prov-3', { text: 'averages random batches). Live calculation: gap, changes, ring. Source @{{rev}}: train.py:274 saves only if', x: 40, y: 590, typography: 'annotation' }, 'provenance'),
-    text('prov-4', { text: 'val < best_val_loss or always_save_checkpoint - {{charAlwaysSave}} in train_shakespeare_char.py:10, which evals every {{charEvalInterval}} (:5).', x: 40, y: 609, typography: 'annotation' }, 'provenance'),
+    // Status label only; how the run was made is in `sources`.
+    text('provenance', { text: "Recorded toy run: a character-bigram table, not NanoGPT's transformer. Gap, changes, ring: Live calculation.", x: 40, y: 548, typography: 'annotation' }, 'provenance'),
   ],
   timeline: [
     ...Array.from({ length: N - 1 }, (unused, i) => [
@@ -174,16 +168,29 @@ export const activity = {
   id: 'c18-practice',
   check: 'index_equals',
   version: 1,
-  prompt: `train.py:274 (always_save_checkpoint = ${py(cs.always_save_checkpoint)}, as in shakespeare_char) saves only when validation loss beats the best earlier evaluation. Applied at this toy run's evaluations, every ${every} iterations, which checkpoint would be left in ckpt.pt?`,
+  prompt: `NanoGPT's save rule (always_save_checkpoint = ${py(cs.always_save_checkpoint)}, as in shakespeare_char) saves only when validation loss beats the best earlier evaluation. Applied at this toy run's evaluations, every ${every} iterations, which checkpoint would be left in ckpt.pt?`,
   // ponytail: SceneActivity shows no pick for an untouched answer, so this
   // naive default never renders; the Explore slider's default is the anchor.
   answer: { type: 'index', label: 'Checkpoint to keep', of: 'checkpointLabels', default: FINAL },
   expected: BEST,
   revealInput: 'bestRevealed',
   checkLabel: 'Check',
-  feedbackPass: `Right: iter ${best.iteration} has the lowest validation loss (${f3(best.val)}) of these evaluations, so train.py:274's rule leaves it in ckpt.pt. ${whyNotFinal} The shakespeare_char config evaluates every ${cs.eval_interval} iterations, with the comment "keep frequent because we'll overfit" (config/train_shakespeare_char.py:5).`,
+  feedbackPass: `Right: iter ${best.iteration} has the lowest validation loss (${f3(best.val)}) of these evaluations, so the save rule leaves it in ckpt.pt. ${whyNotFinal} The shakespeare_char config evaluates every ${cs.eval_interval} iterations, with the comment "keep frequent because we'll overfit".`,
   feedbackFail: `Not the lowest validation loss. The rule keeps the minimum of the VALIDATION curve - not the lowest training loss and not simply the last checkpoint. The kept checkpoint is iter ${best.iteration} (val ${f3(best.val)}); neighbouring checkpoints look almost level on the plot, so compare the val numbers in the readout. ${whyNotFinal} The green ring now marks it.`,
 };
+
+export const sources = [
+  code('train.py', 274, 286, `The save rule: "if losses['val'] < best_val_loss or always_save_checkpoint:" then "best_val_loss = losses['val']"; from iteration 1 on it writes ckpt.pt. The card applies it at this toy run's evaluations every ${every} iterations.`),
+  code('config/train_shakespeare_char.py', 9, 10, `"# we expect to overfit on this small dataset, so only save when val improves" and "always_save_checkpoint = ${py(cs.always_save_checkpoint)}" - so only an improving validation loss saves.`),
+  code('config/train_shakespeare_char.py', 5, 5, `"eval_interval = ${cs.eval_interval} # keep frequent because we'll overfit" - NanoGPT evaluates every ${cs.eval_interval} iterations; this toy run evaluates every ${every}.`),
+  code('train.py', 263, 264, '"if iter_num % eval_interval == 0 and master_process:" then "losses = estimate_loss()" - when both splits are evaluated and the save rule runs.'),
+  code('train.py', 216, 228, 'estimate_loss: for each split, "out[split] = losses.mean()" over eval_iters random batches. The toy run instead uses exact losses over the whole train and validation slices.'),
+  code('train.py', 231, 242, "get_lr, executed by the fixture generator to set the toy run's learning rate each iteration (with the toy's own schedule values)."),
+  code('data/shakespeare_char/prepare.py', 37, 40, '"train_data = data[:int(n*0.9)]" and "val_data = data[int(n*0.9):]" - the 90/10 split the toy run takes its slices from.'),
+  calculation('Recorded toy run', 'Train and validation losses at every checkpoint', `generate_fixtures.py trained a ${run.model}. Seed ${run.seed}; weights N(0, 0.02), a faithful AdamW update (decoupled weight decay), global-norm gradient clipping, and NanoGPT's get_lr compiled from the pinned train.py. From source (${run.configFromSource.from}): ${settings(run.configFromSource.keys)}. Toy-scale choices, not source: ${settings(run.configToyChoices)}. Training text: the first ${chars(run.config.train_chars)} characters of the 90% split; validation: the first ${chars(run.config.val_chars)} of the 10% split. Every ${every} iterations it recorded the exact average loss over each whole slice, to 4 decimals.`),
+  calculation('Live calculation', 'Rounding, gap, change line and ring', 'On the card: scale rounds each recorded loss once to 3 decimals; sub gives the gap (val - train) and the change vs the previous or the kept checkpoint (sign via argmin/pick); argmin over the validation series places the green ring; pick places the dots.'),
+  tinyShakespeare('The text the toy run trains and validates on, split 90/10 as prepare.py does.'),
+];
 
 export const evidence = {
   card: 'c18-train-val',

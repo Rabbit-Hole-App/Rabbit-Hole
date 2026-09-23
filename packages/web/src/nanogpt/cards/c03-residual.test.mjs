@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { scene, evidence } from './c03-residual.js';
-import { assertCardGates, assertEvidence } from '../card-gates.mjs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import fx from '../fixtures/nanogpt-fixtures.generated.js';
+import { scene, evidence, sources } from './c03-residual.js';
+import { assertCardGates, assertEvidence, assertSources } from '../card-gates.mjs';
 
 const STATES = [{ residual: true }, { residual: false }];
 const byId = (result, id) => result.state.objects.find(object => object.id === id);
@@ -52,7 +57,7 @@ test('x keeps its colours across states (shared domain is identical) and caption
   const labels = (result, ids) => ids.map(id => byId(result, id).label);
   const captions = ['status', 'out-box', 'skip-note', 'out-strip', 'change-strip', 'takeaway'];
   assert.deepEqual(labels(on, captions), [
-    'Residual add ON: out = x + u, which is what NanoGPT’s Block.forward does',
+    'Residual add ON: out = x + u, which is what every NanoGPT block does',
     'out = x + u', 'carries x',
     'out = x + u: the new x, goes on to ln_2 and the MLP',
     'out − x = u: only the small update changed',
@@ -75,7 +80,34 @@ test('x keeps its colours across states (shared domain is identical) and caption
   // No arrowhead lands on out when the add is off.
   assert.equal(byId(on, 'skip-3').opacity, 1);
   assert.equal(byId(off, 'skip-3').opacity, 0);
-  assert.match(byId(on, 'source-note').label, /@3adf61e model\.py:104-105/);
+});
+
+// The sha256-pinned NanoGPT files generate_fixtures.py caches; the quote check
+// is skipped where that cache is absent.
+const cached = path => {
+  const sha = fx.provenance.nanogpt.files[path];
+  const file = join(tmpdir(), 'nanogpt-fixture-cache', sha);
+  if (!existsSync(file)) return null;
+  const bytes = readFileSync(file);
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), sha, `${path} cache is not the pinned file`);
+  return bytes.toString('utf8').split('\n');
+};
+const model = cached('model.py');
+
+test('sources: provenance lives under the card, not on it', () => {
+  assertSources(sources, scene);
+  const at = line => sources.find(s => s.kind === 'code' && s.path === 'model.py' && s.lines.join('-') === `${line}-${line}`);
+  const QUOTES = { 104: 'x = x + self.attn(self.ln_1(x))', 105: 'x = x + self.mlp(self.ln_2(x))' };
+  for (const [line, quoted] of Object.entries(QUOTES)) {
+    assert.ok(at(line)?.note.includes(`“${quoted}”`), `model.py:${line} is cited with its line quoted`);
+    if (model) assert.equal(model[line - 1].trim(), quoted, `model.py:${line} really says "${quoted}"`);
+  }
+  assert.deepEqual(sources.filter(s => s.kind === 'calculation').map(s => s.status), ['Calculated toy example', 'Live calculation']);
+  // Authored numbers are not the fixture generator's, so no reproduce command.
+  assert.equal(sources.find(s => s.status === 'Calculated toy example').reproduce, undefined);
+  // The two adds survive on the card as maths, without the code listing.
+  const [on] = assertCardGates(scene, STATES);
+  assert.equal(byId(on, 'twice-note').label, 'Every NanoGPT block adds twice:  x ← x + attn(ln_1(x)),  then  x ← x + mlp(ln_2(x))');
 });
 
 test('evidence record is complete', () => {

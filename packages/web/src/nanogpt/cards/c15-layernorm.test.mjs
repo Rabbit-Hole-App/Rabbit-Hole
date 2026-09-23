@@ -1,8 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
-import { assertCardGates, assertEvidence } from '../card-gates.mjs';
-import { scene, evidence } from './c15-layernorm.js';
+import { assertCardGates, assertEvidence, assertSources } from '../card-gates.mjs';
+import { scene, evidence, sources } from './c15-layernorm.js';
 
 const STATES = [{ input: 0 }, { input: 1 }, { input: 2 }];
 const { presets, gamma } = fx.layernorm;
@@ -120,13 +124,56 @@ test('x-hat, y and their colour scale do not move between presets; x does', () =
   }
 });
 
-test('source lines are quoted one per code object, with their citations', () => {
-  const text = scene.objects.map(o => o.initialState.text || '').join('\n');
-  assert.match(text, /x = x \+ self\.attn\(self\.ln_1\(x\)\) {3}# model\.py:104/);
-  assert.match(text, /x = x \+ self\.mlp\(self\.ln_2\(x\)\) {3}# model\.py:105/);
-  assert.match(text, /model\.py:131, applied after the last Block at :182/);
-  assert.match(text, /bias = True \(model\.py:225\)/);
-  assert.match(text, /train\.py:56/);
+// Every line the card used to cite is now a source entry, and each note that
+// quotes a line quotes it verbatim (checked against the pinned files below).
+test('sources: provenance lives under the card, not on it', () => {
+  assertSources(sources, scene);
+  const at = (path, lines) => sources.find(s => s.kind === 'code' && s.path === path && s.lines.join('-') === lines.join('-'));
+  for (const [path, lines, quoted] of [
+    ['model.py', [18, 27], 'return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)'],
+    ['model.py', [23, 23], 'self.weight = nn.Parameter(torch.ones(ndim))'],
+    ['model.py', [24, 24], 'self.bias = nn.Parameter(torch.zeros(ndim)) if bias else None'],
+    ['train.py', [56, 56], 'bias = False # do we use bias inside LayerNorm and Linear layers?'],
+    ['model.py', [225, 225], "config_args['bias'] = True # always True for GPT model checkpoints"],
+    ['model.py', [104, 105], 'x = x + self.attn(self.ln_1(x))'],
+    ['model.py', [98, 100], 'ln_1'],
+    ['model.py', [131, 131], 'ln_f'],
+    ['model.py', [182, 182], 'x = self.transformer.ln_f(x)'],
+    ['config/train_shakespeare_char.py', [24, 24], `n_embd = ${fx.architecture.n_embd}`],
+  ]) {
+    const entry = at(path, lines);
+    assert.ok(entry, `cites ${path}:${lines.join('-')}`);
+    assert.ok(entry.note.includes(quoted), `${path}:${lines.join('-')} note has "${quoted}"`);
+  }
+  assert.deepEqual(sources.filter(s => s.kind === 'calculation').map(s => s.status), ['Calculated toy example', 'Live calculation']);
+  // The residual add stays on the card as maths, without the code listing.
+  const shown = results[0].state.objects.filter(o => o.visible && o.label).map(o => o.label).join(' | ');
+  assert.match(shown, /x ← x \+ attn\(ln_1\(x\)\), {2}then {2}x ← x \+ mlp\(ln_2\(x\)\)/);
+});
+
+// The sha256-pinned NanoGPT files generate_fixtures.py caches; the line check
+// is skipped where that cache is absent.
+const cached = path => {
+  const sha = fx.provenance.nanogpt.files[path];
+  const file = sha && join(tmpdir(), 'nanogpt-fixture-cache', sha);
+  if (!file || !existsSync(file)) return null;
+  const bytes = readFileSync(file);
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), sha, `${path} cache is not the pinned file`);
+  return bytes.toString('utf8').split('\n');
+};
+// Entries whose note paraphrases instead of quoting: what the cited lines must hold.
+const UNQUOTED = { 'model.py:98-100': ['self.ln_1 = LayerNorm', 'self.ln_2 = LayerNorm'], 'model.py:131-131': ['ln_f = LayerNorm'] };
+
+test('sources: what each code entry quotes is inside its cited lines', () => {
+  for (const { path, lines: [start, end], note } of sources.filter(s => s.kind === 'code')) {
+    const quotes = [...note.matchAll(/“([^”]+)”/g)].map(m => m[1]);
+    const expected = quotes.length ? quotes : UNQUOTED[`${path}:${start}-${end}`];
+    assert.ok(expected, `${path}:${start}-${end} quotes its line or is listed in UNQUOTED`);
+    const file = cached(path);
+    if (!file) continue;
+    const cited = file.slice(start - 1, end).join('\n');
+    for (const quote of expected) assert.ok(cited.includes(quote), `${path}:${start}-${end} contains "${quote}"`);
+  }
 });
 
 test('evidence record is complete', () => {

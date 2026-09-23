@@ -1,19 +1,16 @@
-// Card 20 - one update step, SGD through AdamW. Grounding (NanoGPT @3adf61e):
-// model.py:263-284 configure_optimizers builds torch.optim.AdamW(optim_groups,
-// lr=learning_rate, betas=betas) (:284) with weight decay only for params with
-// p.dim() >= 2 (:268-275; :269 "all biases and layernorms don't"); LayerNorm's
-// 1-D param is named weight (model.py:23); train.py:56 bias = False;
-// train.py:60-63 defaults weight_decay, beta1, beta2, grad_clip;
-// train.py:307-309 clips before the step at :311;
-// config/train_shakespeare_char.py:31 overrides beta2.
+// Card 20 - one update step, SGD through AdamW: NanoGPT builds
+// torch.optim.AdamW with weight decay only on params with 2+ dimensions, so
+// 1-D biases and LayerNorm weights are exempt.
 //
-// The toy numbers are fx.optimizer - a calculated toy example from
-// generate_fixtures.py: four parameters, one seeded 20-step gradient sequence
-// fed to all four optimizers (with its per-parameter mean and RMS), the last
-// step's update in units of lr. betas, weight decay and grad_clip are source
-// values, fx.config (train.py defaults; the char config resolved over them).
-// The one live calculation is AdamW - Adam (a sub op): the decoupled-decay part.
+// The toy numbers are fx.optimizer - a calculated toy example: four
+// parameters, one seeded 20-step gradient sequence fed to all four optimizers
+// (with its per-parameter mean and RMS), the last step's update in units of lr.
+// betas, weight decay and grad_clip are source values (fx.config). The one live
+// calculation is AdamW - Adam (a sub op): the decoupled-decay part. The code
+// lines and how each number was made are the card's `sources`, shown collapsed
+// under it.
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
+import { code, calculation } from '../sources.js';
 
 const opt = fx.optimizer;
 const byId = id => opt.optimizers.find(entry => entry.id === id);
@@ -67,13 +64,12 @@ export const scene = {
   id: 'nanogpt-c20-optimizer',
   title: 'One update step: from SGD to AdamW',
   width: 960,
-  height: 968,
+  height: 922,
   duration: 3,
   inputs: [
     { name: 'optimizer', type: 'index', label: 'Optimizer preset (stored toy results)', of: 'optimizerLabels', default: 0, presentation: 'picker' },
   ],
   exampleData: {
-    commit: fx.provenance.nanogpt.commit.slice(0, 7),
     optimizerLabels: LABELS,
     params: opt.params,
     steps: opt.steps,
@@ -109,7 +105,7 @@ export const scene = {
     { id: 'question', type: 'text', semanticId: 'question', conceptId: 'optimizer',
       initialState: { text: 'Same gradients, four optimizers: how big is each parameter’s step, and what does AdamW add?', x: 40, y: 30 } },
     { id: 'toy-note', type: 'text', semanticId: 'provenance-note', conceptId: 'optimizer',
-      initialState: { text: 'Calculated toy example (generate_fixtures.py): every optimizer gets the same {{steps}} seeded gradients, not from a loss', x: 40, y: 54, typography: 'annotation' } },
+      initialState: { text: 'Calculated toy example: every optimizer gets the same {{steps}} seeded gradients, not from a loss', x: 40, y: 54, typography: 'annotation' } },
     { id: 'baseline-note', type: 'text', semanticId: 'optimizer-progression', conceptId: 'optimizer',
       initialState: { text: 'SGD is the baseline; AdamW is what NanoGPT uses. Each preset is a stored toy result.', x: 40, y: 84 } },
 
@@ -153,21 +149,17 @@ export const scene = {
     { id: 'decay-note-3', type: 'text', semanticId: 'decay-note-3', conceptId: 'weight-decay',
       initialState: { text: 'cells are rounded; the decay row uses unrounded values', x: RIGHT_X, y: NOTE_Y + 40, typography: 'annotation' } },
 
-    // Source, toy settings, and what is deliberately not modelled.
-    { id: 'source-note', type: 'text', semanticId: 'source-note', conceptId: 'optimizer',
-      initialState: { text: 'Source, NanoGPT @{{commit}} model.py:284 (weight decay only where p.dim() >= 2, lines 268-275):', x: 40, y: 808, typography: 'annotation' } },
-    { id: 'code-adamw', type: 'code', semanticId: 'code-adamw', conceptId: 'optimizer',
-      initialState: { text: 'optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=betas, **extra_args)', x: 40, y: 830, role: 'code' } },
+    // Decay exemptions, toy settings, and what is deliberately not modelled.
     { id: 'exempt-note-1', type: 'text', semanticId: 'exempt-note-1', conceptId: 'weight-decay',
-      initialState: { text: 'No decay for 1-D params (p.dim() < 2): biases and LayerNorm weights; the toy b stands for them.', x: 40, y: 854, typography: 'annotation' } },
+      initialState: { text: 'No decay for 1-D params (biases, LayerNorm weights); the toy b stands for them.', x: 40, y: 808, typography: 'annotation' } },
     { id: 'exempt-note-2', type: 'text', semanticId: 'exempt-note-2', conceptId: 'weight-decay',
-      initialState: { text: 'train.py:56 sets bias = {{biasFlag}} (the char config keeps it), so there only LayerNorm weights are exempt.', x: 40, y: 874, typography: 'annotation' } },
+      initialState: { text: 'NanoGPT sets bias = {{biasFlag}}, so there only LayerNorm weights are exempt.', x: 40, y: 828, typography: 'annotation' } },
     { id: 'settings-note', type: 'text', semanticId: 'settings-note', conceptId: 'optimizer',
-      initialState: { text: 'Toy lr {{lr}} is a toy choice; betas ({{b1}}, {{b2}}) and wd {{wd}} are source values, the train.py:60-62 defaults.', x: 40, y: 898, typography: 'annotation' } },
+      initialState: { text: 'betas ({{b1}}, {{b2}}) and wd {{wd}} are source values, NanoGPT’s defaults; lr {{lr}} is a toy choice.', x: 40, y: 852, typography: 'annotation' } },
     { id: 'beta2-note', type: 'text', semanticId: 'beta2-note', conceptId: 'optimizer',
-      initialState: { text: 'The char config raises beta2 to {{charB2}} (source, config/train_shakespeare_char.py:31); the toy keeps {{b2}}.', x: 40, y: 920, typography: 'annotation' } },
+      initialState: { text: 'NanoGPT’s Shakespeare-char config raises beta2 to {{charB2}}; the toy keeps {{b2}}.', x: 40, y: 874, typography: 'annotation' } },
     { id: 'clip-note', type: 'text', semanticId: 'clip-note', conceptId: 'optimizer',
-      initialState: { text: 'Not modelled: gradient clipping before each step (train.py:307-309) at grad_clip {{clip}}, source train.py:63.', x: 40, y: 942, typography: 'annotation' } },
+      initialState: { text: 'Not modelled: NanoGPT clips the gradient norm to {{clip}} before each step.', x: 40, y: 896, typography: 'annotation' } },
   ],
   timeline: [
     { at: 0.2, action: 'appear', target: 'grad-grid', duration: 0.4 },
@@ -177,6 +169,27 @@ export const scene = {
     { at: 1.8, action: 'appear', target: 'decay-grid', duration: 0.4 },
   ],
 };
+
+// Most important first: the AdamW line and its decay groups, then the values
+// the card shows, then how the toy numbers were made.
+const { defaults, shakespeareChar } = fx.config;
+export const sources = [
+  code('model.py', 284, 284, 'configure_optimizers() (from line 263) builds NanoGPT\'s optimizer: "optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=betas, **extra_args)".'),
+  code('model.py', 268, 275, `Two optimizer groups: params with p.dim() >= 2 get weight_decay, the rest 0.0 - "all weight tensors in matmuls + embeddings decay, all biases and layernorms don't."`),
+  code('model.py', 23, 23, `LayerNorm's gain is a 1-D parameter named weight, so it lands in the no-decay group: "self.weight = nn.Parameter(torch.ones(ndim))".`),
+  code('train.py', 56, 56, `"bias = False # do we use bias inside LayerNorm and Linear layers?" - the char config does not override it (bias = ${fx.architecture.bias ? 'True' : 'False'} resolved), so only LayerNorm weights are exempt.`),
+  code('train.py', 60, 63, 'The defaults behind wd, betas and grad_clip on the card: "weight_decay = 1e-1", "beta1 = 0.9", "beta2 = 0.95", "grad_clip = 1.0 # clip gradients at this value, or disable if == 0.0".'),
+  code('config/train_shakespeare_char.py', 31, 31, `The char config's override, "beta2 = 0.99 # make a bit bigger because number of tokens per iter is small"; the toy keeps ${defaults.beta2}.`),
+  code('train.py', 307, 309, 'Not modelled on the card: when grad_clip != 0.0, "torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)" runs before the optimizer step (scaler.step(optimizer), line 311).'),
+  calculation('Calculated toy example', `Four toy parameters and their ${opt.steps} gradients`,
+    `generate_fixtures.py optimizer(): the four parameters and starting values shown, and one ${opt.steps}-step gradient sequence drawn with random.Random(${fx.provenance.seed}).gauss around a per-parameter mean (w₁ 5 ± 0.2, w₂ 0.05 ± 0.005, w₃ 0 ± 1, b 0.5 ± 0.05) - not from a loss. The same sequence feeds all four optimizers; the grid shows the last gradient and each parameter's mean and RMS, rounded to 4 decimals.`),
+  calculation('Calculated toy example', 'The four stored updates',
+    `The generator runs each rule in plain Python on those gradients (not NanoGPT's code): SGD θ -= lr·g; momentum buf = 0.9·buf + g, θ -= lr·buf; Adam with bias-corrected m and v and eps 1e-8 (torch.optim.AdamW's default); AdamW = Adam plus θ *= (1 - lr·wd) on w₁, w₂, w₃ only. lr ${opt.lr} and momentum 0.9 are toy choices, betas and wd the train.py defaults. Each preset shows the last step's Δθ ÷ lr.`),
+  calculation('Source value', 'betas, weight decay, grad_clip and bias',
+    `Read by generate_fixtures.py from train.py's top-level assignments at the pinned revision (ast literal_eval): beta1 ${defaults.beta1}, beta2 ${defaults.beta2}, weight_decay ${defaults.weight_decay}, grad_clip ${defaults.grad_clip}, bias ${defaults.bias ? 'True' : 'False'}. The char beta2 ${shakespeareChar.beta2} is config/train_shakespeare_char.py executed over those defaults, as configurator.py does.`),
+  calculation('Live calculation', 'The + decay row',
+    `Computed on the card: a sub op, AdamW's stored Δθ ÷ lr minus Adam's, per parameter from the unrounded values; a concat op stacks Adam, + decay and = AdamW.`),
+];
 
 export const evidence = {
   card: 'c20-optimizer',
@@ -189,5 +202,5 @@ export const evidence = {
   consequence: 'The selected bars and the selected row of the update grid switch to that optimizer while the SGD baseline bars and row stay, on one scale per preset: momentum piles steady gradients up far past SGD, Adam gives every steady parameter about one lr (w2 now as far as w1), AdamW adds a pull toward zero on the weights and leaves the 1-D b alone. The heading and six explanation lines follow the selection.',
   interactionPurpose: 'Compare each update rule against SGD on the same gradients, to see where step size stops tracking gradient size and what decoupled decay adds on top of Adam.',
   task: 'Explore only (no practice): pick each optimizer and compare its w1 vs w2 step sizes with the SGD row, the noisy w3, and the exempt b.',
-  capability: 'index picker -> pick of stored fixture rows (grid, two bars objects sharing a picked per-preset peak, picked sentence lists); concat ops for a baseline+selected grid and an Adam / + decay / = AdamW grid; sub op for the live decay row; grid row highlight for the selected row; a verbatim source code line (model.py:284); fx.config source values bound into text.',
+  capability: 'index picker -> pick of stored fixture rows (grid, two bars objects sharing a picked per-preset peak, picked sentence lists); concat ops for a baseline+selected grid and an Adam / + decay / = AdamW grid; sub op for the live decay row; grid row highlight for the selected row; fx.config source values bound into text; code citations and number provenance as collapsed sources.',
 };

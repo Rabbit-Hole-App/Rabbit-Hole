@@ -143,6 +143,26 @@ bottom composer are the ask surface), selected / inspected / preferred / truth
 states distinguished in style and words, no full-matrix dashboards where one
 row answers the question.
 
+**Sources & evidence (revision 3).** The card body carries the concept and a
+short status label only — *Calculated toy example*, *Recorded toy run*, *Live
+calculation*, *What-if*, *Source value*, *Recorded model output* — never file
+names, line references, revisions, generator notes or code listings. Each card
+module exports `sources` (schema: `src/card-sources.js`; kinds `code`, `paper`,
+`doc`, `web`, `dataset`, `calculation`), and the board attaches them to the
+block. `SourcesDisclosure` renders one collapsed row under every card that has
+them, **▸ Sources & evidence (N)**, grouped Code / Paper/documentation /
+Dataset/source material / Example/calculation provenance. A code entry opens
+the Learn page's right-side source panel (`RepositorySource`) at its pinned
+revision with its lines highlighted and an *Open in repository* link; a
+revision or file the server cannot load is reported as unavailable at that
+revision, never replaced by current code. arXiv entries open in the paper
+reader and Wikipedia entries in the wiki reader, through the lesson page's
+existing link interception; other links open in a new tab; calculation entries
+explain themselves in place. The chat composer is untouched — inspecting a
+source makes no chat request. Gates: `assertCardGates` fails on any visible
+code object or citation-looking text; `assertSources` checks the list, the pin,
+and that every status the sources name is also labelled on the card.
+
 ## 7. The 26-card inventory (revised) and the first batch
 
 **B1** = built in batch 1.

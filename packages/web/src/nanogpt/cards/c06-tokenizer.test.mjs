@@ -1,13 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
-import { assertCardGates, assertEvidence } from '../card-gates.mjs';
+import { assertCardGates, assertEvidence, assertSources, pinnedFile } from '../card-gates.mjs';
 import { CHIP_CHAR, CHIP_GAP, CHIP_PAD } from '../../animation-scene.js';
 import { sceneContentBounds } from '../../scene-layout.js';
-import { scene, evidence } from './c06-tokenizer.js';
+import { scene, evidence, sources } from './c06-tokenizer.js';
 
 const STATES = [{ tokenizer: 0 }, { tokenizer: 1 }];
 const tk = fx.tokenizer;
@@ -63,8 +61,8 @@ test('c06: displayed values follow the selected preset', () => {
     assert.equal(byId(result, 'readout').label, `${t.count} tokens  ·  vocabulary of ${t.vocabSize} possible token IDs`);
     assert.equal(byId(result, 'selected').label.startsWith(`Selected preset: ${t.label}`), true);
     assert.equal(byId(result, 'compare').label, `Same text: ${char.count} tokens (character-level) vs ${bpe.count} tokens (GPT-2 BPE)`);
-    assert.equal(byId(result, 'source-1').label, scene.exampleData.sourceLines[i][0]);
-    assert.equal(byId(result, 'source-2').label, scene.exampleData.sourceLines[i][1]);
+    assert.equal(byId(result, 'vocab-rule').label, scene.exampleData.vocabRules[i]);
+    assert.ok(byId(result, 'vocab-rule').label.includes(String(t.vocabSize)));
     assert.ok(byId(result, 'input-text').label.includes(tk.text));
     // The lower block starts below the last drawn line pair.
     const lastIds = byId(result, tokRows[1].length ? 'ids-2' : 'ids-1');
@@ -83,22 +81,37 @@ test('c06: displayed values follow the selected preset', () => {
   assert.ok(scene.objects[0].semanticId === 'question' && scene.objects[0].initialState.text.length <= 95);
 });
 
+test('c06: sources are well-formed and the card names their status', () => {
+  assertSources(sources, scene);
+  const cited = sources.filter(source => source.kind === 'code').map(source => `${source.path}:${source.lines.join('-')}`);
+  for (const ref of ['data/shakespeare_char/prepare.py:24-33', 'data/shakespeare/prepare.py:20-21', 'train.py:137-144', 'train.py:153-155',
+    'data/shakespeare_char/prepare.py:55-61', 'model.py:111-111', 'model.py:223-223', 'README.md:160-166', 'README.md:22-22']) {
+    assert.ok(cited.includes(ref), `cites ${ref}`);
+  }
+  assert.deepEqual(sources.filter(source => source.kind === 'calculation').map(source => source.status), ['Calculated toy example']);
+  assert.ok(sources.some(source => source.kind === 'doc' && source.title.includes(fx.provenance.tiktoken)), 'tiktoken pin');
+  assert.ok(sources.some(source => source.kind === 'dataset' && source.sha256 === fx.provenance.dataset.sha256), 'dataset pin');
+});
+
 test('c06: evidence record is complete', () => {
   assertEvidence(evidence);
 });
 
-// The cited lines, checked against the pinned NanoGPT copy when it is on disk.
-const PINNED = process.env.NANOGPT_PINNED
-  || 'C:/Users/cyudhist/AppData/Local/Temp/claude/C--Users-cyudhist-Desktop-workspace-small-deploy/a0a20b94-1113-4966-863f-feffed07c1b6/scratchpad/nanogpt-3adf61e';
-test('c06: file:line citations match the pinned revision', { skip: !existsSync(PINNED) && 'pinned NanoGPT copy not present' }, () => {
-  const line = (file, n) => readFileSync(join(PINNED, file), 'utf8').split('\n')[n - 1].replace(/\r$/, '');
+// The cited lines, checked against the pinned NanoGPT files when they are cached.
+const pinned = ['train.py', 'model.py', 'README.md', 'data/shakespeare_char/prepare.py', 'data/shakespeare/prepare.py'].every(path => pinnedFile(path));
+test('c06: file:line citations match the pinned revision', { skip: !pinned && 'pinned NanoGPT cache not present (run generate_fixtures.py)' }, () => {
+  const line = (file, n) => pinnedFile(file)[n - 1];
   const charPrep = 'data/shakespeare_char/prepare.py', bpePrep = 'data/shakespeare/prepare.py';
-  // Verbatim source lines shown on the card, at the lines cited.
-  const [charCode, bpeCode] = scene.exampleData.sourceLines;
-  assert.equal(line(charPrep, 24), charCode[0]);
-  assert.equal(line(charPrep, 30), charCode[1]);
-  assert.equal(line(bpePrep, 20), bpeCode[0]);
-  assert.equal(line(bpePrep, 21), bpeCode[1]);
+  // The source lines the card used to show, quoted verbatim in the entries that cite them.
+  const note = (path, start) => sources.find(source => source.kind === 'code' && source.path === path && source.lines[0] === start).note;
+  for (const n of [24, 30]) assert.ok(note(charPrep, 24).includes(`"${line(charPrep, n)}"`), `${charPrep}:${n} quoted`);
+  for (const n of [20, 21]) assert.ok(note(bpePrep, 20).includes(`"${line(bpePrep, n).trim()}"`), `${bpePrep}:${n} quoted`);
+  assert.ok(note('train.py', 137).includes(line('train.py', 143).trim()));
+  assert.ok(note('train.py', 153).includes(line('train.py', 155).trim()));
+  assert.ok(note(charPrep, 55).includes(line(charPrep, 56).trim()));
+  assert.ok(note('model.py', 111).includes(line('model.py', 111).trim()));
+  assert.ok(note('model.py', 223).includes(line('model.py', 223).trim()));
+  assert.ok(note('README.md', 22).includes(line('README.md', 22).trim()));
   // The oracle vocabulary is prepare.py's own printed output (lines 64-66).
   assert.deepEqual(['\n', ...line(charPrep, 65).slice('# '.length)], CHARS);
   assert.equal(Number(line(charPrep, 66).match(/vocab size: (\d+)/)[1]), char.vocabSize);
@@ -124,7 +137,7 @@ test('c06: file:line citations match the pinned revision', { skip: !existsSync(P
   assert.match(line('README.md', 163), /config\/finetune_shakespeare\.py/);
   assert.match(line('README.md', 166), /initialize from a GPT2 checkpoint with `init_from`/);
   assert.match(line('README.md', 22), /pip install .*tiktoken(?![=<>])/);
-  assert.ok(!existsSync(join(PINNED, 'data/shakespeare/meta.pkl')) && !/meta/.test(readFileSync(join(PINNED, bpePrep), 'utf8')), 'data/shakespeare writes no meta.pkl');
+  assert.ok(!/meta/.test(pinnedFile(bpePrep).join('\n')), 'data/shakespeare writes no meta.pkl');
 });
 
 // The GPT-2 side against tiktoken itself, when uv can run it offline.

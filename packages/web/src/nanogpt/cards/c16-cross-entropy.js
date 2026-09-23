@@ -1,16 +1,17 @@
 // Card 16 - cross-entropy at ONE position: the same top prediction can carry
-// a very different loss. Grounding (NanoGPT @3adf61e): model.py:187
-//   loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)
-// averages -ln p(target) over every non-ignored position; this card shows one
-// of them. It deliberately does not teach the averaging (another card).
+// a very different loss. NanoGPT's loss line averages -ln p(target) over every
+// non-ignored position; this card shows one of them and deliberately does not
+// teach the averaging (another card). The NanoGPT lines, the dataset and how
+// the numbers were made are the card's `sources`, shown collapsed under it.
 //
-// Numbers: fx.crossEntropy is a calculated toy example (generate_fixtures.py):
+// Numbers: fx.crossEntropy is a calculated toy example (fixture generator):
 // three stored logit presets over a toy 5-token vocabulary, target 'k'. The
 // probabilities are a LIVE softmax here; the top choice is argmin(scale(p,-1))
 // (argmax by composition); the toy's uniform guess is a live softmax over zero
 // logits. The losses and ln 65 come from the fixture, because the evaluator has
 // no log op. Picking a preset runs no model.
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
+import { code, calculation, tinyShakespeare } from '../sources.js';
 
 const CE = fx.crossEntropy;
 const VOCAB = CE.vocab;
@@ -28,7 +29,7 @@ const BAR_SPAN = BARS.h - 4;
 const MARK_ABOVE_BAR = 12;
 const CELLS_Y = 394;
 // Loss by preset: one row per preset (name | model's top choice | loss, bar).
-const ROWS = { title: 344, head: 366, first: 390, step: 24 };
+const ROWS = { title: 326, head: 348, first: 372, step: 24 };
 const rowY = k => ROWS.first + k * ROWS.step;
 const COLS = { marker: 482, name: 498, top: 632, loss: 776, bar: 816 };
 const PX_PER_NAT = 30; // loss bar length, layout only; the number prints beside it
@@ -43,20 +44,18 @@ export const scene = {
   id: 'nanogpt-c16-cross-entropy',
   title: 'Cross-entropy: same top prediction, different loss',
   width: 960,
-  height: 640,
+  height: 596,
   duration: 3,
   inputs: [
     { name: 'prediction', type: 'index', label: 'Stored prediction preset', of: 'presetLabels', default: 0, presentation: 'picker' },
   ],
   exampleData: {
-    commit: fx.provenance.nanogpt.commit.slice(0, 7),
     context: CE.context,
     vocab: VOCAB,
     target: TARGET,
     targetToken: VOCAB[TARGET],
     toyVocabSize: VOCAB.length,
     vocabSize: fx.architecture.vocab_size,
-    modelVocabNote: fx.tokenizer.modelVocabNote,
     presetLabels: CE.presets.map(preset => preset.label),
     presetLogits: CE.presets.map(preset => preset.logits),
     presetLosses: CE.presets.map(preset => preset.loss),
@@ -112,7 +111,7 @@ export const scene = {
     line('question', 'If two predictions pick the same top token, why can their losses differ so much?', 40, 32),
     note('context', 'Context “{{context}}” → which character comes next? The target (truth) is \'{{targetToken}}\'.', 40, 58),
     { id: 'logits', type: 'grid', semanticId: 'logits', conceptId: 'cross-entropy',
-      initialState: { label: 'logits: selected preset (calculated toy example)', x: COL_X, y: 128, rows: 1, cols: VOCAB.length, cell: CELL,
+      initialState: { label: 'logits: selected preset', x: COL_X, y: 128, rows: 1, cols: VOCAB.length, cell: CELL,
         opacity: 0, role: 'input', matrixKind: 'input', columnLabels: [...VOCAB], values: { $derive: 'logits' } } },
     note('softmax-note', '↓ p = softmax(logits): live calculation', COL_X, 214, { opacity: 0 }),
     note('top-mark', '▼ model\'s top choice', { $derive: 'topMarkX' }, { $derive: 'topMarkY' }, { opacity: 0, role: 'prediction' }),
@@ -142,9 +141,8 @@ export const scene = {
     line('p-readout', '▲ p(target \'{{targetToken}}\') = {{pTarget}}', PANEL_X, 198, { opacity: 0, role: 'success' }),
     line('loss-readout', 'loss at this position = −ln p(target) = {{lossText}}', PANEL_X, 224, { opacity: 0 }),
     note('loss-prov-1', 'p: live softmax (3 d.p.). loss: calculated toy example', PANEL_X, 250, { opacity: 0 }),
-    note('loss-prov-2', '(generate_fixtures.py; the card cannot take a log)', PANEL_X, 268, { opacity: 0 }),
-    note('insight-a', '{{insightA}}', PANEL_X, 298, { opacity: 0 }),
-    note('insight-b', '{{insightB}}', PANEL_X, 316, { opacity: 0 }),
+    note('insight-a', '{{insightA}}', PANEL_X, 280, { opacity: 0 }),
+    note('insight-b', '{{insightB}}', PANEL_X, 298, { opacity: 0 }),
 
     // Every preset's loss side by side; ▶ marks the selected one.
     note('loss-chart-title', 'All three presets side by side (▶ = selected preset):', PANEL_X, ROWS.title, { opacity: 0 }),
@@ -159,14 +157,11 @@ export const scene = {
         initialState: { x: COLS.bar, y: rowY(k) - 11, w: { $derive: `lossBarW.${k}` }, h: 12, opacity: 0, role: 'observed' } },
     ]),
 
-    // Scale and source.
-    note('toy-note', 'Toy slice: {{toyVocabSize}} tokens here. NanoGPT\'s softmax covers all {{vocabSize}} characters (source: data/shakespeare_char/prepare.py).', 40, 518),
-    note('uniform65-note', 'NanoGPT scale: a uniform guess over its {{vocabSize}} characters scores ln {{vocabSize}} = {{uniformText}} (calculated, generate_fixtures.py).', 40, 538),
+    // Scale.
+    note('toy-note', 'Toy slice: {{toyVocabSize}} tokens here. NanoGPT\'s softmax covers all {{vocabSize}} characters.', 40, 518),
+    note('uniform65-note', 'NanoGPT scale: a uniform guess over its {{vocabSize}} characters scores ln {{vocabSize}} = {{uniformText}}.', 40, 538),
     note('uniform65-scope', 'That is NanoGPT\'s reference, not this toy\'s: here a uniform guess is the p = {{uniformP}} line on the bars.', 40, 556),
-    note('gpt2-note', 'From-scratch GPT-2: {{modelVocabNote}} (source).', 40, 576),
-    note('source-label', 'Source, NanoGPT @{{commit}} model.py:187 - its loss averages this per-position value over all positions:', 40, 602),
-    { id: 'source-code', type: 'code', semanticId: 'source-code', conceptId: 'cross-entropy',
-      initialState: { text: 'loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)', x: 40, y: 624, role: 'code' } },
+    note('average-note', 'NanoGPT\'s training loss is the mean of this −ln p(target) over every position in the batch.', 40, 578),
   ],
   timeline: [
     { at: 0.0, action: 'appear', target: 'logits', duration: 0.4 },
@@ -182,7 +177,6 @@ export const scene = {
     { at: 1.8, action: 'appear', target: 'p-readout', duration: 0.3 },
     { at: 2.0, action: 'appear', target: 'loss-readout', duration: 0.3 },
     { at: 2.0, action: 'appear', target: 'loss-prov-1', duration: 0.3 },
-    { at: 2.0, action: 'appear', target: 'loss-prov-2', duration: 0.3 },
     { at: 2.2, action: 'appear', target: 'insight-a', duration: 0.3 },
     { at: 2.2, action: 'appear', target: 'insight-b', duration: 0.3 },
     ...['loss-chart-title', 'loss-head-top', 'loss-head-loss',
@@ -190,6 +184,20 @@ export const scene = {
       .map(target => ({ at: 2.4, action: 'appear', target, duration: 0.4 })),
   ],
 };
+
+const fmt = values => `[${values.join(', ')}]`;
+
+export const sources = [
+  code('model.py', 187, 187, 'NanoGPT’s loss, verbatim: “loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)” - logits are flattened to one row per (batch, time) position and −ln p(target) is averaged over those rows (PyTorch’s default mean), skipping targets of −1.'),
+  calculation('Calculated toy example', 'Context, toy vocabulary, logit presets, losses and ln 65',
+    `generate_fixtures.py cross_entropy(): context “${CE.context}”, toy vocabulary ${VOCAB.join(' ')}, target '${VOCAB[TARGET]}'; three hand-set logit presets (${CE.presets.map(preset => `${preset.label} ${fmt(preset.logits)}`).join('; ')}). For each: softmax in float64, top choice = argmax, loss = −ln p(target) rounded to 4 decimals; ln 65 = ${CE.uniform65} likewise. Computed there because the card cannot take a log; no randomness, no model run.`),
+  calculation('Live calculation', 'p, the top choice and the uniform-guess line',
+    `Computed on the card when a preset is picked: p by the softmax derive op over the stored logits (shown to 3 decimals); top choice = argmin of scale(p, −1); p(target) picked from p; the toy uniform guess is a softmax over ${VOCAB.length} zero logits (p = 1/${VOCAB.length}); bar, marker and row positions come from scale/add ops.`),
+  code('data/shakespeare_char/prepare.py', 24, 25, `“chars = sorted(list(set(data)))” and “vocab_size = len(chars)” - the ${fx.architecture.vocab_size} distinct characters that NanoGPT’s softmax covers on this dataset.`),
+  tinyShakespeare(`The ${fx.architecture.vocab_size}-character vocabulary is rebuilt from this file exactly as prepare.py does.`),
+  code('model.py', 111, 111, '“vocab_size: int = 50304 # GPT-2 vocab_size of 50257, padded up to nearest multiple of 64 for efficiency” - the softmax width for from-scratch GPT-2.'),
+  code('train.py', 155, 155, '“model_args[\'vocab_size\'] = meta_vocab_size if meta_vocab_size is not None else 50304” - from-scratch training without a meta.pkl vocabulary uses 50304.'),
+];
 
 export const evidence = {
   card: 'c16-cross-entropy',

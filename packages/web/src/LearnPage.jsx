@@ -205,7 +205,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     // One reader holds one thing. Leaving paperContext set would keep sending
     // the paper instead - ask.jsx prefers it - for the rest of the session.
     setPaperContext(null);
-    setWikiOpen(true); setPaperOpen(false); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false); setPanelOpen(true);
+    setWikiOpen(true); setPaperOpen(false); setSourceOpen(false); setLessonSource(null); setLearnerOpen(false); setSetupChat(false); setPanelOpen(true);
     if (blockId) registerSource({ id: `wiki:${blockId}`, kind: 'wiki', label: String(title).replace(/_/g, ' ') });
   };
   // The id names the card, never the article, so clicking through twenty links
@@ -237,7 +237,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     // pointing at, and that must win.
     setPaperContext({ ...paper, page: paper.page || 1 });
     setWikiContext(null); setWikiOpen(false);
-    setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false); setPanelOpen(true);
+    setPaperOpen(true); setSourceOpen(false); setLessonSource(null); setLearnerOpen(false); setSetupChat(false); setPanelOpen(true);
     registerSource({ id: `paper:${paper.id}`, kind: 'paper', label: paper.title || `arXiv ${paper.id}` });
   };
   // A PDF needs no account and no server: the bytes go to this browser's asset
@@ -312,7 +312,12 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     onDelta,
   });
   // A file reference clicked inside a canvas block opens in the right panel.
-  const openCanvasFile = (path, line, lineEnd) => { setPaperOpen(false); setSourceOpen(false); setLessonSource({ path, line, lineEnd, commit: nanoActive ? nanoSourceVersion : repositoryContext?.commit }); };
+  // A cited source names its own revision (and repository, for the link out);
+  // a bare path reference reads the lesson's.
+  const openCanvasFile = (path, line, lineEnd, cited = {}) => {
+    setPaperOpen(false); setSourceOpen(false); setWikiOpen(false); setPanelOpen(true);
+    setLessonSource({ path, line, lineEnd, commit: cited.commit || (nanoActive ? nanoSourceVersion : repositoryContext?.commit), repo: cited.repo });
+  };
   const clearAskTarget = () => { setAskTarget(null); canvasApi.current?.deselect(); };
   const [region, setRegion] = useState(false);
   const cancelRegion = useCallback(() => setRegion(false), []);
@@ -453,6 +458,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           const link = event.target.closest?.('a');
           const href = link?.getAttribute('href');
           if (!href || link.closest('[aria-label="Paper reader"]')) return;
+          // A card's Wikipedia source opens in the wiki reader, like the tutor's.
+          const wiki = link.getAttribute('data-source-wiki');
+          if (wiki) { if (event.type === 'click') { event.preventDefault(); event.stopPropagation(); openWiki({ title: wiki }); } else event.stopPropagation(); return; }
           let url; try { url = new URL(href); } catch { return; }
           if (url.protocol !== 'https:' || url.hostname !== 'arxiv.org') return;
           const match = url.pathname.match(/^\/(?:pdf|abs)\/(\d{4}\.\d{4,5}(?:v\d+)?|[a-z.-]+\/\d{7}(?:v\d+)?)(?:\.pdf)?$/i);

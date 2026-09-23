@@ -1,8 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
-import { scene, evidence } from './c21-temperature.js';
-import { assertCardGates, assertEvidence } from '../card-gates.mjs';
+import { scene, evidence, sources } from './c21-temperature.js';
+import { assertCardGates, assertEvidence, assertSources } from '../card-gates.mjs';
 
 const T = fx.temperature;
 const presets = T.presets;
@@ -74,7 +78,7 @@ test('live probabilities match the oracle and the fixture at every taught preset
     assert.equal(topCount, p.drawnTop);
     assert.equal(label(result, 'draw-count'), `${topCount} of 20 draws were the top token ‘${TOP_NAME}’`);
     assert.equal(label(result, 'not-greedy'), `${20 - topCount} of 20 recorded draws were not ‘${TOP_NAME}’, drawn from these toy probabilities.`);
-    assert.equal(label(result, 'draws-a'), `20 recorded toy draws at ${p.label}: seeded random.choices in generate_fixtures.py, not NanoGPT`);
+    assert.equal(label(result, 'draws-a'), `Recorded toy run: 20 seeded draws at ${p.label}, not NanoGPT`);
     const bold = [...byId(result, 'draws-a').cellHighlight.map(i => shown[i]), ...byId(result, 'draws-b').cellHighlight.map(i => shown[10 + i])];
     assert.ok(bold.every(d => d !== TOP_NAME) && bold.length === 20 - topCount, `${where} bold marks exactly the non-top draws`);
   }
@@ -96,21 +100,55 @@ test('sharper vs flatter, and a low T is still not greedy', () => {
   assert.ok(presets.every(p => p.temperature > 0), 'positive temperatures only');
 });
 
-test('source quotes and provenance wording stay on the card', () => {
+test('status labels and caveats stay on the card; code lives in its sources', () => {
   const [result] = assertCardGates(scene, [{ temperature: 2 }]);
-  // Verbatim NanoGPT @3adf61e lines (checked against the pinned files).
-  assert.equal(label(result, 'src-318'), 'model.py:318  logits = logits[:, -1, :] / temperature');
-  assert.equal(label(result, 'src-324'), 'model.py:324  probs = F.softmax(logits, dim=-1)');
-  assert.equal(label(result, 'src-326'), 'model.py:326  idx_next = torch.multinomial(probs, num_samples=1)');
-  assert.equal(label(result, 'src-17'), 'sample.py:17  temperature = 0.8 # 1.0 = no change, < 1.0 = less random, > 1.0 = more random');
-  assert.match(label(result, 'source-head'), /^source: NanoGPT @3adf61e/);
-  assert.match(label(result, 'provenance-note'), /calculated toy example \(generate_fixtures\.py\), not NanoGPT output/);
+  assert.match(label(result, 'provenance-note'), /calculated toy example, not NanoGPT output/);
   assert.match(label(result, 'live-note'), /live calculation in this card/);
-  assert.match(label(result, 'draws-a'), /recorded toy draws .*not NanoGPT$/);
+  assert.match(label(result, 'draws-a'), /^Recorded toy run: .*not NanoGPT$/);
   assert.equal(label(result, 'vocab-note'), `The real shakespeare_char softmax covers all ${VOCAB} characters. sp = the space character.`);
   assert.match(label(result, 'zero-note'), /^A \.00 cell is rounded, not zero/);
-  assert.equal(label(result, 'multinomial'), 'generate() always draws with torch.multinomial (model.py:326), never argmax.');
+  assert.equal(label(result, 'multinomial'), 'generate(): p = softmax(logits ÷ T), then one random draw from p (torch.multinomial), never argmax.');
   assert.match(label(result, 'wobble'), /counts vary run to run/);
+  assert.ok(!scene.objects.some(object => object.type === 'code'), 'no code listings on the card: they are sources');
+});
+
+test('sources: generate() lines, the sampling default and how the toy numbers were made', () => {
+  assertSources(sources, scene);
+  const cites = sources.filter(entry => entry.kind === 'code').map(entry => `${entry.path}:${entry.lines.join('-')}`);
+  assert.deepEqual(cites.slice(0, 3), ['model.py:318-318', 'model.py:324-324', 'model.py:326-326'], 'divide, softmax, sample - in that order, first');
+  for (const cite of ['model.py:320-322', 'sample.py:17-17', 'data/shakespeare_char/prepare.py:24-25']) assert.ok(cites.includes(cite), `cites ${cite}`);
+  const statuses = sources.filter(entry => entry.kind === 'calculation').map(entry => entry.status);
+  assert.deepEqual(statuses, ['Calculated toy example', 'Recorded toy run', 'Live calculation']);
+  assert.ok(sources.some(entry => entry.kind === 'dataset'), 'the dataset behind the vocabulary size');
+  // The sample.py default the notes quote (sample.py is not in the fixture's
+  // sha-pinned cache, so its line was checked by hand at 3adf61e).
+  const sample = sources.find(entry => entry.path === 'sample.py');
+  assert.match(sample.note, /"temperature = 0\.8 # 1\.0 = no change, < 1\.0 = less random, > 1\.0 = more random, in predictions"/);
+  // The card shows that default as a value, the same one the source quotes.
+  const [result] = assertCardGates(scene, [{ temperature: 2 }]);
+  const quoted = /"temperature = ([\d.]+) /.exec(sample.note)[1];
+  assert.equal(label(result, 'default-note'), `NanoGPT’s own default, T = ${quoted}, is below 1: sharpened, still sampled.`);
+});
+
+// Quotes in the code notes, checked against the sha256-pinned NanoGPT files
+// that generate_fixtures.py caches. Skipped where that cache is absent.
+const cached = path => {
+  const sha = fx.provenance.nanogpt.files[path];
+  const file = join(tmpdir(), 'nanogpt-fixture-cache', sha);
+  if (!existsSync(file)) return null;
+  const bytes = readFileSync(file);
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), sha, `${path} cache is not the pinned file`);
+  return bytes.toString('utf8').split('\n');
+};
+const files = { 'model.py': cached('model.py'), 'data/shakespeare_char/prepare.py': cached('data/shakespeare_char/prepare.py') };
+test('source quotes and line numbers match NanoGPT @3adf61e', { skip: !Object.values(files).every(Boolean) && 'pinned source cache absent' }, () => {
+  for (const { path, lines: [start, end], note } of sources.filter(entry => entry.kind === 'code' && files[entry.path])) {
+    const cited = files[path].slice(start - 1, end).join('\n');
+    const quotes = [...note.matchAll(/"([^"]+)"/g)].map(match => match[1]);
+    assert.ok(quotes.length, `${path}:${start} note quotes the source`);
+    for (const quote of quotes) assert.ok(cited.includes(quote), `${path}:${start}-${end} does not contain "${quote}"`);
+  }
+  assert.match(files['model.py'][322 - 1], /-float\('Inf'\)/);
 });
 
 test('evidence record is complete', () => {

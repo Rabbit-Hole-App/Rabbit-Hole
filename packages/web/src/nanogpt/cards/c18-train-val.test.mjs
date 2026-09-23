@@ -1,9 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
-import { assertCardGates, assertEvidence } from '../card-gates.mjs';
+import { assertCardGates, assertEvidence, assertSources } from '../card-gates.mjs';
 import { validateActivity, PREDICATES } from '../../scene-activity.js';
-import { scene, activity, evidence } from './c18-train-val.js';
+import { scene, activity, evidence, sources } from './c18-train-val.js';
 
 // Independent oracle: plain JS over the fixture, never the scene's own derive graph.
 const run = fx.toyRun;
@@ -75,19 +79,54 @@ test('readout, change line, markers and ring match the oracle at each state', ()
   assert.match(byId(results[4], 'change').label, /train -\d.*val \+\d/);
 });
 
-test('provenance lines say what is toy, live and source', () => {
+test('card keeps only its status label; sources carry the provenance', () => {
   const [result] = assertCardGates(scene, [STATES[0]]);
-  const prov = ['prov-1', 'prov-2', 'prov-3', 'prov-4'].map(id => byId(result, id).label).join(' ');
-  assert.match(prov, /Recorded toy run/);
-  assert.match(prov, /NOT NanoGPT's transformer/);
-  assert.match(prov, /Live calculation/);
-  assert.ok(prov.includes(`Source @${fx.provenance.nanogpt.commit.slice(0, 7)}`));
-  assert.ok(prov.includes(`every ${run.config.eval_interval} iters`));
-  assert.match(prov, /estimate_loss, train\.py:216-228/);
-  // shakespeare_char's save flag and eval cadence, bound from fx.config (source).
-  assert.ok(prov.includes(`always_save_checkpoint - ${pyBool(cs.always_save_checkpoint)} in train_shakespeare_char.py:10`));
-  assert.ok(prov.includes(`which evals every ${cs.eval_interval} (:5)`));
+  assert.equal(byId(result, 'provenance').label, "Recorded toy run: a character-bigram table, not NanoGPT's transformer. Gap, changes, ring: Live calculation.");
   assert.match(byId(result, 'initial-loss').label, new RegExp(`^Off the chart - ${run.initialLossNote.replace(/[()]/g, '\\$&')}$`));
+  assertSources(sources, scene);
+  const cites = sources.filter(s => s.kind === 'code').map(s => `${s.path}:${s.lines.join('-')}`);
+  for (const cite of ['train.py:274-286', 'config/train_shakespeare_char.py:9-10', 'config/train_shakespeare_char.py:5-5', 'train.py:216-228',
+    'train.py:263-264', 'train.py:231-242', 'data/shakespeare_char/prepare.py:37-40']) assert.ok(cites.includes(cite), cite);
+  const [toy, live] = sources.filter(s => s.kind === 'calculation');
+  assert.equal(toy.status, 'Recorded toy run');
+  assert.equal(live.status, 'Live calculation');
+  // what used to be on the card: seed, toy model, eval cadence, source vs toy settings
+  assert.ok(toy.note.includes(`Seed ${run.seed}`) && toy.note.includes("not NanoGPT's transformer"));
+  assert.ok(toy.note.includes(`Every ${run.config.eval_interval} iterations`));
+  for (const k of run.configFromSource.keys) assert.ok(toy.note.includes(`${k} ${cs[k]}`), `${k} named as source`);
+  const [, toyPart] = toy.note.split('Toy-scale choices, not source:');
+  for (const k of run.configToyChoices) assert.ok(toyPart.includes(`${k} ${run.config[k]}`), `${k} named as toy`);
+  assert.ok(sources.find(s => s.path === 'config/train_shakespeare_char.py' && s.lines[0] === 9).note.includes(`always_save_checkpoint = ${pyBool(cs.always_save_checkpoint)}`));
+  assert.ok(sources.some(s => s.kind === 'dataset'));
+});
+
+// Every "quoted" fragment in a code source's note appears in its cited lines,
+// checked against the sha256-pinned files generate_fixtures.py caches.
+const cached = path => {
+  const sha = fx.provenance.nanogpt.files[path];
+  const file = join(tmpdir(), 'nanogpt-fixture-cache', sha);
+  if (!existsSync(file)) return null;
+  const bytes = readFileSync(file);
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), sha, `${path} cache is not the pinned file`);
+  return bytes.toString('utf8').split('\n');
+};
+const PINNED_PATHS = ['train.py', 'config/train_shakespeare_char.py', 'data/shakespeare_char/prepare.py'];
+const pinned = Object.fromEntries(PINNED_PATHS.map(path => [path, cached(path)]));
+test('source quotes and line numbers match NanoGPT @3adf61e', { skip: !Object.values(pinned).every(Boolean) && 'pinned source cache absent' }, () => {
+  const squash = t => t.replace(/\s+/g, ' ').trim();
+  let quotes = 0;
+  for (const source of sources.filter(s => s.kind === 'code')) {
+    const [start, end] = source.lines;
+    const cited = squash(pinned[source.path].slice(start - 1, end).join(' '));
+    for (const [, quote] of source.note.matchAll(/"([^"]+)"/g)) {
+      quotes += 1;
+      assert.ok(cited.includes(squash(quote)), `${source.path}:${start}-${end} lacks "${quote}"`);
+    }
+  }
+  assert.ok(quotes >= 8, `${quotes} quotes checked`);
+  assert.match(pinned['train.py'][216 - 1], /^def estimate_loss\(\):/);
+  assert.match(pinned['train.py'][228 - 1], /return out/);
+  assert.match(pinned['train.py'][286 - 1], /torch\.save\(checkpoint, os\.path\.join\(out_dir, 'ckpt\.pt'\)\)/);
 });
 
 test('final checkpoint: lower train, higher val than the best', () => {
@@ -108,7 +147,9 @@ test('practice activity', () => {
   assert.equal(PREDICATES.index_equals({ answer: BEST }, activity), true);
   assert.equal(PREDICATES.index_equals({ answer: FINAL }, activity), false);
   // The task is the save rule at THIS run's evaluations, not the whole config.
-  assert.match(activity.prompt, /train\.py:274/);
+  assert.match(activity.prompt, /^NanoGPT's save rule/);
+  // no file/line citations in the practice text either - they are in sources
+  for (const text of [activity.prompt, activity.feedbackPass, activity.feedbackFail]) assert.doesNotMatch(text, /\.py\b|:\d+|generate_fixtures/);
   assert.ok(activity.prompt.includes(`every ${run.config.eval_interval} iterations`));
   assert.ok(activity.prompt.includes(`always_save_checkpoint = ${pyBool(cs.always_save_checkpoint)}, as in shakespeare_char`));
   assert.ok(activity.feedbackPass.includes(`evaluates every ${cs.eval_interval} iterations`));

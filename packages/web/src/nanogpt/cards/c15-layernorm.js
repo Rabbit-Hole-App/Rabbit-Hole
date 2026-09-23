@@ -1,21 +1,18 @@
 // Card 15 - LayerNorm, the full step: subtract the mean, divide by
-// std = sqrt(var + eps), multiply by the learned weight gamma. Grounding
-// (NanoGPT @3adf61e): model.py:18-27 LayerNorm (weight = ones :23, bias None
-// unless bias=True :24, forward = F.layer_norm(input, weight.shape, weight,
-// bias, 1e-5) :27); train.py:56 bias = False by default (so no beta), while
-// GPTConfig defaults bias=True (model.py:116) and GPT-2 checkpoints force it
-// (model.py:225); ln_1/ln_2 in every Block (model.py:98-100), ln_f built at
-// model.py:131 and applied at :182; the residual add (model.py:104-105) adds
-// each update to the UN-normalized x.
+// std = sqrt(var + eps), multiply by the learned weight gamma. The NanoGPT
+// lines this rests on (the LayerNorm class, bias defaults, where ln_1 / ln_2 /
+// ln_f sit, the residual add) are the card's `sources`, shown collapsed under
+// it; the card itself keeps only the maths and short status labels.
 //
 // Naming: x is always the vector going into LayerNorm (as in model.py); the
 // reference preset is x0, so "x" never means two things on the card.
 //
-// Numbers: fx.layernorm is a calculated toy example (generate_fixtures.py -
-// the evaluator has no sqrt, so mean/var/std/x-hat come from there). y = gamma
+// Numbers: fx.layernorm is a calculated toy example (the evaluator has no
+// sqrt, so mean/var/std/x-hat come from the fixture generator). y = gamma
 // * x-hat and the x-hat - x-hat(x0) check row are computed live by derive ops.
 // The three presets are stored results, picked - nothing runs on a switch.
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
+import { code, calculation } from '../sources.js';
 
 const LN = fx.layernorm;
 const REF = LN.presets[0];
@@ -39,7 +36,6 @@ const normStrip = { cell: CELL, heat: { mode: 'signed' }, valueScale: 'shared', 
 const text = (id, value, x, y, extra = {}) => ({ id, type: 'text', semanticId: id, conceptId: 'layernorm',
   initialState: { text: value, x, y, ...extra } });
 const note = (id, value, x, y, extra = {}) => text(id, value, x, y, { typography: 'annotation', ...extra });
-const code = (id, value, x, y) => ({ id, type: 'code', semanticId: id, conceptId: 'layernorm', initialState: { text: value, x, y } });
 const arrow = (id, fromY, toY) => ({ id, type: 'arrow', semanticId: id, conceptId: 'layernorm',
   initialState: { from: { x: ARROW_X, y: fromY }, to: { x: ARROW_X, y: toY }, opacity: 0, role: 'neutral' } });
 const strip = (id, semanticId, extra) => ({ id, type: 'strip', semanticId, conceptId: 'layernorm', initialState: { x: STRIP_X, ...extra } });
@@ -53,13 +49,12 @@ export const scene = {
   id: 'nanogpt-c15-layernorm',
   title: 'LayerNorm: normalize each token vector, then scale',
   width: 960,
-  height: 864,
+  height: 820,
   duration: 4,
   inputs: [
     { name: 'input', type: 'index', label: 'Stored input preset', of: 'presets', default: 0, presentation: 'picker' },
   ],
   exampleData: {
-    commit: fx.provenance.nanogpt.commit.slice(0, 7),
     nEmbd: fx.architecture.n_embd,
     presets: LN.presets.map(preset => presetName(preset.label)),
     xs: LN.presets.map(preset => preset.x),
@@ -118,7 +113,7 @@ export const scene = {
   },
   objects: [
     text('question', 'What does LayerNorm compute for one token vector, and what is the result insensitive to?', 40, 32),
-    note('provenance', 'Calculated toy example (generate_fixtures.py): a short vector stands in for one token’s features.', 40, 58),
+    note('provenance', 'Calculated toy example: a short vector stands in for one token’s features.', 40, 58),
 
     // --- the pipeline: two arrowed steps, then x-hat x gamma = y ----------------
     strip('x-strip', 'input-vector', { ...rawStrip, label: 'x = {{presetLabel}}: the vector going into LayerNorm', y: ROW.x, role: 'input', values: { $derive: 'xSel' } }),
@@ -141,11 +136,11 @@ export const scene = {
     text('std-read', '② divide by std = √(var + eps) = {{std}}', TEXT_X, ROW.xhat + 16, { opacity: 0 }),
     note('std-detail', 'var = {{variance}} (mean of (x − mean)², ÷ n) · eps = {{eps}}', TEXT_X, ROW.xhat + 36, { opacity: 0 }),
     note('std-ref', '{{stdRef}}', TEXT_X, ROW.xhat + 56, { opacity: 0 }),
-    note('gamma-note-1', 'γ = LayerNorm.weight: ones at init (model.py:23), then learned.', TEXT_X, ROW.gamma + 22, { opacity: 0 }),
+    note('gamma-note-1', 'γ = LayerNorm.weight: ones at init, then learned.', TEXT_X, ROW.gamma + 22, { opacity: 0 }),
     note('gamma-note-2', 'These γ values are illustrative, not read from a trained model.', TEXT_X, ROW.gamma + 40, { opacity: 0 }),
     text('y-read', '③ multiply by γ, entry by entry (live calculation)', TEXT_X, ROW.y + 16, { opacity: 0 }),
-    note('beta-note-1', 'no β with train.py’s default bias = False (train.py:56; model.py:24);', TEXT_X, ROW.y + 36, { opacity: 0 }),
-    note('beta-note-2', 'GPT-2 checkpoints load bias = True (model.py:225) and add + β.', TEXT_X, ROW.y + 54, { opacity: 0 }),
+    note('beta-note-1', 'no + β: training defaults to bias = False;', TEXT_X, ROW.y + 36, { opacity: 0 }),
+    note('beta-note-2', 'GPT-2 checkpoints load bias = True and add + β.', TEXT_X, ROW.y + 54, { opacity: 0 }),
 
     // --- the consequence: a live check row and its verdict --------------------------
     strip('check-strip', 'invariance-check', { ...rawStrip, label: `x̂ − x̂ of ${refName} (live calculation on stored x̂)`, y: ROW.check, values: { $derive: 'xhatDiff' } }),
@@ -154,15 +149,12 @@ export const scene = {
     text('verdict', '{{verdictA}}', TEXT_X + 14, ROW.check + 19, { role: 'output', opacity: 0 }),
     note('verdict-2', '{{verdictB}}', TEXT_X + 14, ROW.check + 41, { opacity: 0 }),
 
-    // --- scope and source ----------------------------------------------------------
+    // --- scope ------------------------------------------------------------------------
     note('legend', 'Heat colour on x̂ and y only, on one shared scale that does not move between presets.', 40, 716, { opacity: 0 }),
     note('scope-1', 'Scope: the invariance holds for LayerNorm’s output, the input attn, the MLP and lm_head read.', 40, 740),
     note('scope-2', 'The residual stream is not normalized: each Block adds its update to the un-normalized x.', 40, 760),
-    code('scope-code-1', 'x = x + self.attn(self.ln_1(x))   # model.py:104', 40, 782),
-    code('scope-code-2', 'x = x + self.mlp(self.ln_2(x))   # model.py:105', 480, 782),
-    note('source-1', 'Source, NanoGPT @{{commit}}: model.py:18-27, per token over n_embd = {{nEmbd}} (config/train_shakespeare_char.py:24):', 40, 808),
-    code('source-code', 'return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)   # model.py:27', 40, 828),
-    note('source-2', 'ln_1 / ln_2 in every Block (model.py:98-100); ln_f built at model.py:131, applied after the last Block at :182.', 40, 850),
+    note('scope-3', 'Every Block:  x ← x + attn(ln_1(x)),  then  x ← x + mlp(ln_2(x));  ln_f once more after the last Block.', 40, 782),
+    note('scope-4', 'NanoGPT does this per token, over its n_embd = {{nEmbd}} features.', 40, 804),
   ],
   timeline: [
     { at: 0.0, action: 'appear', target: 'x-strip', duration: 0.4 },
@@ -192,6 +184,26 @@ export const scene = {
     { at: 3.2, action: 'appear', target: 'verdict-2', duration: 0.4 },
   ],
 };
+
+const fmt = values => `[${values.join(', ')}]`;
+
+export const sources = [
+  code('model.py', 18, 27, 'The LayerNorm module: forward is “return F.layer_norm(input, self.weight.shape, self.weight, self.bias, 1e-5)” - mean and biased variance over the last dimension, eps = 1e-5, then weight (and bias, if any).'),
+  calculation('Calculated toy example', 'x₀, its shift and rescale, mean, var, std, x̂ and γ',
+    `generate_fixtures.py layernorm(): x₀ = ${fmt(REF.x)}, x₀ + 3 and 2 · x₀; for each, mean, x − mean, biased variance (÷ n, as F.layer_norm), std = sqrt(var + ${LN.eps}) and x̂ = (x − mean) / std, rounded to 4 decimals. γ = ${fmt(LN.gamma)} is illustrative, not from a trained model. Computed there because the card cannot take a square root; no randomness, no model run.`),
+  calculation('Live calculation', 'y = γ · x̂ and the x̂ − x̂(x₀) check row',
+    'Computed on the card when a preset is picked: y by the elementwise derive op (γ times the stored x̂, entry by entry, 3 decimals); the check row by the sub derive op (the selected preset’s stored x̂ minus x₀’s). Picking a preset selects stored numbers; nothing else runs.'),
+  code('model.py', 23, 23, '“self.weight = nn.Parameter(torch.ones(ndim))” - γ starts as ones and is learned.'),
+  code('model.py', 24, 24, '“self.bias = nn.Parameter(torch.zeros(ndim)) if bias else None” - β exists only when bias=True.'),
+  code('train.py', 56, 56, '“bias = False # do we use bias inside LayerNorm and Linear layers?” - training defaults to no β.'),
+  code('model.py', 116, 116, 'GPTConfig itself defaults to “bias: bool = True”; train.py’s bias = False overrides it for training.'),
+  code('model.py', 225, 225, "“config_args['bias'] = True # always True for GPT model checkpoints” - loading GPT-2 weights brings a β."),
+  code('model.py', 104, 105, 'The residual adds, verbatim: “x = x + self.attn(self.ln_1(x))” and “x = x + self.mlp(self.ln_2(x))” - each update is added to the un-normalized x.'),
+  code('model.py', 98, 100, 'Every Block builds ln_1 (before attention) and ln_2 (before the MLP).'),
+  code('model.py', 131, 131, 'ln_f, the final LayerNorm, is built once for the whole model.'),
+  code('model.py', 182, 182, '“x = self.transformer.ln_f(x)” - applied after the last Block, before lm_head.'),
+  code('config/train_shakespeare_char.py', 24, 24, `“n_embd = ${fx.architecture.n_embd}” - the width of each token vector LayerNorm normalizes in the Shakespeare-char model.`),
+];
 
 export const evidence = {
   card: 'c15-layernorm',
