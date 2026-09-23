@@ -8,6 +8,7 @@ import { causalAttentionScene } from './reference-scenes.js';
 import { staticAppReviewBlocks } from './gallery-scenes.js';
 import { interactiveAppReviewBlocks } from './interactive-scenes.js';
 import { holdoutBoardBlocks } from './interactive-holdouts.js';
+import { nanogptDeepDiveBlocks } from './nanogpt/board.js';
 
 // --- 1. why an axis must hold still -----------------------------------------
 // The same reveal drawn twice. On the left the axis is recomputed from the
@@ -354,6 +355,10 @@ export const BOARDS = {
   // scenes built only from existing input types, to test whether the
   // interaction vocabulary generalizes beyond the four it was built on.
   'interactive-holdouts': holdoutBoardBlocks,
+  // The NanoGPT deep dive (docs/nanogpt-deep-dive-board-plan.md): first
+  // batch of ten cards bound to karpathy/nanoGPT@3adf61e - the revision the
+  // Rabbit Hole app is connected to - with fixtures generated from it.
+  'nanogpt-deep-dive': nanogptDeepDiveBlocks,
 };
 
 // Bump a board's entry here whenever its seed content changes. The version is
@@ -367,4 +372,5 @@ export const BOARD_SEED_VERSIONS = {
   'static-app-review-3': 1,
   'interactive-app-review': 8,
   'interactive-holdouts': 2,
+  'nanogpt-deep-dive': 1,
 };
