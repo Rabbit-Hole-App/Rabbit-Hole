@@ -48,22 +48,36 @@ export function panelFor({ tool, selection, shapes = [], links = [], items = [] 
   const pickedShapes = shapes.filter(has);
   const pickedLinks = links.filter(has);
   const pickedTexts = items.filter(entry => has(entry) && entry.kind === 'text');
-  const targets = [...pickedShapes, ...pickedLinks, ...pickedTexts].map(entry => entry.id);
+  const pickedStickies = items.filter(entry => has(entry) && entry.kind === 'sticky');
+  const targets = [...pickedShapes, ...pickedLinks, ...pickedTexts, ...pickedStickies].map(entry => entry.id);
   // A control only shows when it applies to everything it would act on, so a
   // press can never quietly mean something different per object.
-  const allShapes = kinds => pickedShapes.length > 0 && !pickedLinks.length && !pickedTexts.length
+  const allShapes = kinds => pickedShapes.length > 0 && !pickedLinks.length && !pickedTexts.length && !pickedStickies.length
     && pickedShapes.every(shape => kinds.has(shape.kind));
   return {
     open: STYLED_TOOLS.has(tool) || targets.length > 0,
     // Text levels replace stroke widths, but only when nothing else is in the
     // selection - a mixed pick falls back to the ink controls both understand.
-    text: tool === 'text' || (pickedTexts.length > 0 && !pickedShapes.length && !pickedLinks.length),
+    text: tool === 'text' || (pickedTexts.length > 0 && !pickedShapes.length && !pickedLinks.length && !pickedStickies.length),
     fill: CLOSED_SHAPES.has(tool) || allShapes(CLOSED_SHAPES),
     corners: tool === 'rect' || allShapes(new Set(['rect'])),
     order: targets.length > 0,
     targets,
   };
 }
+
+// Post-it papers: each palette ink maps to a pastel note. The default and
+// amber both keep the classic yellow; colors were never stored before, so
+// old notes fall back to it untouched.
+export const STICKY_TONES = {
+  '#37352f': { bg: '#fef3c7', border: '#f0d9a8', text: '#6b4e0b', placeholder: '#b08a3e' },
+  '#f59e0b': { bg: '#fef3c7', border: '#f0d9a8', text: '#6b4e0b', placeholder: '#b08a3e' },
+  '#2383e2': { bg: '#dbeafe', border: '#bcd6fa', text: '#1e3a8a', placeholder: '#7096d8' },
+  '#b42318': { bg: '#fee2e2', border: '#fac5c5', text: '#7f1d1d', placeholder: '#d08b8b' },
+  '#1a7f37': { bg: '#dcfce7', border: '#bbe7cb', text: '#14532d', placeholder: '#76b789' },
+  '#7c3aed': { bg: '#ede9fe', border: '#d8cffc', text: '#4c1d95', placeholder: '#9c86e0' },
+};
+export const stickyTone = color => STICKY_TONES[color] || STICKY_TONES['#37352f'];
 
 // Text written before levels existed carries a raw `size` off the old stroke
 // width picker. Keep rendering it rather than migrating anyone's canvas.

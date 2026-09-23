@@ -6,6 +6,8 @@ import { LEARN_SYSTEM, validateLessonSnapshot } from './learn-context.js';
 import { REPOSITORY_TOOLS, REPOSITORY_SYSTEM, repositoryTool } from './repository-context.js';
 import { readArxivPaper, paperDocument } from './arxiv.js';
 import { paperSelectionImage } from './learn-preview-review.js';
+import { isUploadedMediaId, uploadedMediaAsImage } from './learn-media.js';
+import { paperIdentity } from './learn-paper.js';
 import { FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, validateShowVideo, findVideoMoments } from './learn-youtube.js';
 
 const json=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
@@ -209,6 +211,13 @@ async function repositoryAsk(req,env,user,app){
     if(!Number.isInteger(page)||page<1||page>100)throw Error('Invalid paper page');
     const paper=await readArxivPaper(body.paper_context.id);papers.push(paper);extraBlocks.push(paperDocument(paper));
     if(body.paper_context.selection)extraBlocks.push(paperSelectionImage(body.paper_context.selection));
+  }
+  // A canvas image the learner attached - a dropped picture, or a group's
+  // rendered snapshot - rides as a vision block, same as on regular apps.
+  if(body.image_context){
+    if(!isUploadedMediaId(body.image_context.id))throw Error('Invalid image context');
+    const media=await uploadedMediaAsImage(env,paperIdentity(app),body.image_context.id);
+    extraBlocks.push(media.image);
   }
   const id=thread?.id||`repochat-${crypto.randomUUID()}`;
   if(!thread)await db.prepare('INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,?,?)').bind(id,user.org,user.email,app.name,commit,body.message.slice(0,120)).run();

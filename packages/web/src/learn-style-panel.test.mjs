@@ -39,9 +39,12 @@ test('connectors are styleable too', () => {
   assert.deepEqual(panel.targets, ['l1']);
 });
 
-test('selecting a block or sticky styles nothing, so the panel stays shut', () => {
+test('selecting a block styles nothing; a sticky opens the palette for its paper color', () => {
   assert.equal(panelFor({ tool: 'select', selection: ['block-1'] }).open, false);
-  assert.equal(panelFor({ tool: 'select', selection: ['n1'], items: [sticky('n1')] }).open, false);
+  const note = panelFor({ tool: 'select', selection: ['n1'], items: [sticky('n1')] });
+  assert.equal(note.open, true);
+  assert.deepEqual(note.targets, ['n1']);
+  assert.equal(note.text, false, 'a sticky shows ink controls, not the heading ladder');
 });
 
 test('text shows levels; ink shows widths', () => {

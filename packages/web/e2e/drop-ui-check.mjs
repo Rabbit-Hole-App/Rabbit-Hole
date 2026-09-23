@@ -48,6 +48,13 @@ await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 30000 });
 await page.waitForTimeout(2500);
 ok('the title survives a reload', (await page.locator('input[aria-label="Canvas title"]').inputValue()) === 'My lesson canvas');
 
+// --- present refuses an empty canvas (and a shapes-only one - no cards) ---
+await page.locator('[aria-label="Present"]').click();
+await page.waitForTimeout(400);
+ok('presenting an empty canvas refuses with a toast', (await page.getByText('Add a section or a card to present.').count()) >= 1);
+ok('and no step counter appears', (await page.getByText(/1 \/ \d+/).count()) === 0);
+ok('and the panel stays open', (await page.locator('[aria-label="Learn agent chat"]').count()) === 1);
+
 // --- zoom pill: Add section moved to Insert ---
 ok('Add section is off the zoom pill', (await page.locator('[data-zoom]').getByText('Add section').count()) === 0);
 await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Insert/ }).click();
@@ -106,6 +113,32 @@ await page.waitForTimeout(500);
 const chapter = canvas.locator('[data-item-id]', { hasText: 'Chapter' }).first();
 const size = (await chapter.count()) ? await chapter.evaluate(node => getComputedStyle(node).fontSize) : 'no item';
 ok('picking H2 styles the box', size === '24px', String(size));
+
+// --- stickies: color from the style panel; highlighter panel closable ---
+await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Sticky note"]').click();
+await page.mouse.click(box.x + 640, box.y + 620);
+await page.waitForTimeout(300);
+await page.mouse.click(box.x + 40, box.y + 500); // settle out of editing
+await page.waitForTimeout(200);
+const note = canvas.locator('[data-item-id]').last();
+await note.click();
+await page.waitForTimeout(300);
+await page.getByRole('group', { name: 'Style' }).locator('[aria-label="Color #2383e2"]').click();
+await page.waitForTimeout(300);
+const noteBg = await note.evaluate(node => getComputedStyle(node).backgroundColor);
+ok('a post-it takes a color from the style panel', noteBg === 'rgb(219, 234, 254)', noteBg);
+await page.keyboard.press('Delete');
+await page.waitForTimeout(200);
+await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Highlighter"]').click();
+await page.waitForTimeout(200);
+ok('arming the highlighter opens the style island', (await page.getByRole('group', { name: 'Style' }).count()) === 1);
+await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Style"]').click();
+await page.waitForTimeout(200);
+ok('the swatch closes it even while the tool is armed', (await page.getByRole('group', { name: 'Style' }).count()) === 0);
+await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Style"]').click();
+await page.waitForTimeout(200);
+ok('and reopens it', (await page.getByRole('group', { name: 'Style' }).count()) === 1);
+await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Select and move"]').click();
 
 // --- shapes: drag by the interior ---
 await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Rectangle"]').click();

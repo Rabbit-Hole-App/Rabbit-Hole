@@ -6,12 +6,13 @@ import { boardAsk } from './board-ask.js';
 import { wsHeaders } from './api.js';
 import { BLOCK_TYPES, LearningBlockBody, describeBlock } from './LearningBlocks.jsx';
 import { gapsFrom, nearestGap } from './learn-gap-rail.js';
-import { panelFor, textStyle, dashArray, dashStyle, reorder, TEXT_LEVELS, DASH_STYLES, OPACITIES } from './learn-style-panel.js';
+import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, TEXT_LEVELS, DASH_STYLES, OPACITIES } from './learn-style-panel.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
 import { presentSteps } from './learn-present.js';
 import { pageRects, PAGE_W } from './learn-pages.js';
 import { outlineFrom, applyOutlineOps } from './learn-outline-model.js';
 import { cachedAsset } from './learn-asset-cache.js';
+import { groupShot } from './learn-group-shot.js';
 import LearnWiki from './LearnWiki.jsx';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
@@ -567,13 +568,13 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
     );
   }
   return (
-    <div data-block data-item-id={item.id} style={{ left: item.x, top: item.y, opacity: item.opacity, ...(sticky ? { width: item.w || 160, height: item.h || 160 } : { color: inkAware(item.color), ...textStyle(item), ...(item.w ? { width: item.w } : {}), ...(item.h ? { minHeight: item.h } : {}) }) }}
+    <div data-block data-item-id={item.id} style={{ left: item.x, top: item.y, opacity: item.opacity, ...(sticky ? { width: item.w || 160, height: item.h || 160, background: stickyTone(item.color).bg, borderColor: stickyTone(item.color).border, color: stickyTone(item.color).text, '--sticky-ph': stickyTone(item.color).placeholder } : { color: inkAware(item.color), ...textStyle(item), ...(item.w ? { width: item.w } : {}), ...(item.h ? { minHeight: item.h } : {}) }) }}
       className={`absolute z-10 cursor-grab active:cursor-grabbing ${sticky
         // Text has no card behind it, so its box is invisible until you are on
         // it. The border is always there and only gains a colour on hover, so
         // nothing shifts; the padding is cancelled by the margin for the same
         // reason - glyphs stay exactly where they were placed.
-        ? '-rotate-1 overflow-hidden rounded-sm border border-[#f0d9a8] bg-[#fef3c7] p-3 text-[13px] leading-snug text-[#6b4e0b] shadow-md'
+        ? '-rotate-1 overflow-hidden rounded-sm border p-3 text-[13px] leading-snug shadow-md'
         : `min-w-24 -mx-1 -my-0.5 rounded border border-transparent px-1 py-0.5 leading-snug ${tool === 'select' ? 'hover:border-line' : ''}`} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
       onPointerDown={down} onDoubleClick={startEdit}>
       {/* A selected or editing text box offers its ladder right there - H1 to
@@ -594,13 +595,14 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
       )}
       <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder={sticky ? 'Note…' : 'Text…'}
         onBlur={e => { setEditing(false); const text = e.currentTarget.textContent; shown.current = text; onChange(item.id, text); }}
-        className={`outline-none ${sticky ? 'h-full empty:before:text-[#b08a3e]' : 'empty:before:opacity-50'} empty:before:content-[attr(data-placeholder)]`}>{shown.current}</div>
+        className={`outline-none ${sticky ? 'h-full empty:before:text-[color:var(--sticky-ph)]' : 'empty:before:opacity-50'} empty:before:content-[attr(data-placeholder)]`}>{shown.current}</div>
       {/* Text gets the same corner control as a note: the box scales, the
           type does not - wrapping is what changes, never the font size. The
           glyph is the card nodes' diagonal-lines corner, not a square. */}
       {(sticky || item.kind === 'text') && selected && tool === 'select' && (
         <button type="button" aria-label={sticky ? 'Resize note' : 'Resize text box'} title="Resize"
-          className={`absolute -right-0.5 -bottom-0.5 z-10 cursor-nwse-resize p-1 ${sticky ? 'text-[#b08a3e] hover:text-[#6b4e0b]' : 'text-ink-3 hover:text-ink-2'}`}
+          style={sticky ? { color: stickyTone(item.color).placeholder } : undefined}
+          className={`absolute -right-0.5 -bottom-0.5 z-10 cursor-nwse-resize p-1 ${sticky ? '' : 'text-ink-3 hover:text-ink-2'}`}
           onPointerDown={event => {
             if (event.button !== 0) return;
             onGesture();
@@ -849,7 +851,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null }) {
   const [tool, setTool] = useState('select');
   // OS drag-and-drop of files onto the surface; the page owns what each kind
   // becomes, the canvas only announces the hover and hands the files over.
@@ -935,7 +937,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const [presenting, setPresenting] = useState(null);
   const itemsLayer = useRef(null);
   const [level, setLevel] = useState('body');
-  const [styleOpen, setStyleOpen] = useState(false); // the swatch's manual override
+  const [styleOpen, setStyleOpen] = useState(null); // null = follow the tool; true/false = the learner's explicit choice
+  useEffect(() => { setStyleOpen(null); }, [tool]);
   const exchangesRef = useRef(exchanges);
   exchangesRef.current = exchanges;
   const onDeleteRef = useRef(onDelete);
@@ -946,6 +949,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   onAskTargetRef.current = onAskTarget;
   const onCardActionRef = useRef(onCardAction);
   onCardActionRef.current = onCardAction;
+  const onGroupShotRef = useRef(onGroupShot);
+  onGroupShotRef.current = onGroupShot;
   // Put the camera around a set of boxes. Used both to find your way back to
   // everything, and to land on one section while presenting.
   const frame = (boxes, pad = 48, maxZoom = 1) => {
@@ -1517,7 +1522,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const down = event => {
     // A press on the canvas dismisses the floating chrome - the style island
     // and the dev insert menu - the way it already dismisses a menubar menu.
-    setStyleOpen(false); setInsertOpen(false); setMenuAt(null);
+    if (showStyle) setStyleOpen(false);
+    setInsertOpen(false); setMenuAt(null);
     if ((event.ctrlKey || event.metaKey) && tool === 'select' && (event.button === 0 || event.button === 2)
       && !event.target.closest('[data-block],[role="toolbar"],[data-zoom]')) {
       const start = local(event);
@@ -1794,7 +1800,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // live; over the cards themselves it would only be in the way. Held by index
   // rather than by value so the line keeps following the cards as they move.
   const panel = panelFor({ tool, selection, shapes, links, items });
-  const showStyle = panel.open || styleOpen;
+  const showStyle = styleOpen === null ? panel.open : styleOpen;
   // The separator spans the viewport, converted into world units, so it looks
   // the same width at any zoom instead of growing and shrinking with the column.
   const railSpan = (() => {
@@ -1979,6 +1985,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
                         if (item?.text) parts.push(item.text);
                       }
                       onAskTargetRef.current?.({ id: group.id, kind: group.label ? `group "${group.label}"` : 'group', text: parts.join('\n\n').slice(0, 4000) || 'An empty group of drawings.' });
+                      // The visuals ride too: a rendered snapshot of the
+                      // outline area becomes this question's image context.
+                      const memberIds = new Set(members.map(member => member.id));
+                      groupShot({
+                        box: { left, top, right, bottom }, members: memberIds,
+                        strokes: strokes.filter(stroke => stroke.points?.some(point => point.x >= left && point.x <= right && point.y >= top && point.y <= bottom)),
+                        shapes, items, blocks, bounds, cachedAsset,
+                        dark: document.documentElement.classList.contains('dark'),
+                      }).then(blob => { if (blob) onGroupShotRef.current?.(blob, group.label || 'group'); }).catch(() => { /* text still asks */ });
                     }}
                     className="flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
                     <MessageCircle size={13} />Ask in chat
@@ -2105,7 +2120,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         {/* The one control that never hides: the way back to the style panel
             once it has closed itself, showing what colour is currently armed. */}
         <button type="button" title="Style" aria-label="Style" aria-pressed={showStyle}
-          onPointerDown={e => e.stopPropagation()} onClick={() => setStyleOpen(previous => !previous)}
+          onPointerDown={e => e.stopPropagation()} onClick={() => setStyleOpen(!showStyle)}
           className={`flex h-8 w-8 items-center justify-center rounded-lg ${showStyle ? 'bg-hover' : 'hover:bg-hover'}`}>
           <span style={{ background: color }} className="h-4 w-4 rounded-full ring-1 ring-line" />
         </button>
