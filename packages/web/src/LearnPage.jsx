@@ -34,6 +34,7 @@ import { architectureLesson, sampleCourse } from './learn-preview.js';
 import { BOARDS, BOARD_SEED_VERSIONS } from './demo-scenes.js';
 
 const LearnNotes = lazy(() => import('./LearnNotes.jsx'));
+const boardSlug = name => String(name).toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || 'test';
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 
 export default function LearnPage({ app, onBack, repositoryContext = null, onGraph = null }) {
@@ -150,7 +151,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // canvas: a blank is indistinguishable from a broken deploy, and it burned a
   // review twice. Scratch boards are still available - any name works as an
   // empty board - but the emptiness is now announced, never silent.
-  const board = named ? named.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || 'test' : null;
+  const board = named ? boardSlug(named) : null;
   // The chat cards live on the board too, so a review board that inherited
   // the learner's conversation would not be the empty surface it promises.
   const chatKey = `${canvasKey}${board ? `:${board}` : ''}:chat`;
@@ -184,6 +185,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
       registerSource({ id: `video:${blockId}`, kind: 'video', label: video.title || video.videoId });
       setVideoContext({ blockId, videoId: video.videoId, start: video.start || 0, end: video.end ?? null, title: video.title || null });
     }
+    return blockId;
   };
   // A seek on a card's window bar moves what "here" means for the next
   // question. Built from the event alone, never from previous state: the card
@@ -202,6 +204,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     setWikiContext({ blockId, title, section, selection: null });
     setPaperContext(null);
     registerSource({ id: `wiki:${blockId}`, kind: 'wiki', label: String(title).replace(/_/g, ' ') });
+    return blockId;
   };
   const addPaper = paper => {
     pauseLesson();
@@ -211,7 +214,11 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     setPaperContext({ ...paper, page });
     setWikiContext(null);
     registerSource({ id: `paper:${paper.id}`, kind: 'paper', label: paper.title || `arXiv ${paper.id}` });
+    return blockId;
   };
+  // One road from a search result to a card: the Search bar and the Agent Bar
+  // handoff both take it. Returns the card's block id.
+  const pickResult = (source, item) => (source === 'arxiv' ? addPaper(item) : source === 'wikipedia' ? addWiki({ title: item.title }) : addVideo(item));
   // A paper card turning its page is where the learner is now - unless the
   // reader is open, which wins, as it does for a wiki card's section.
   const trackPaper = next => {
@@ -749,6 +756,89 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const finishedCount = suppliedCourse ? Object.keys(nanoProgress.saved.pages || {}).filter(key => ['0', '1', '2', '3', '4', '5'].includes(key) && nanoProgress.saved.pages[key]).length + ['encoding', 'prefixTarget', 'generationWeights'].filter(check => nanoProgress.saved[check]?.count).length : sectionKeys.filter(key => completed[key]).length;
   const allFinished = sectionKeys.length > 0 && finishedCount === sectionKeys.length;
   const canvas = () => canvasApi.current;
+  // The Agent Bar's way in, from Home, Library and Project. A request arrives
+  // as the one-shot sessionStorage key small.learn.request, written before
+  // navigating here, or as a small:learn-request event while Learn is open:
+  //   { id, kind: 'teach', app, prompt }
+  //   { id, kind: 'research', app, board?, source: { kind: 'arxiv' | 'wiki' | 'youtube', ref } }
+  // Each id gets one small:learn-result { id, kind, status, reason?, resourceId? },
+  // also kept at small.learn.result:<id> for a caller that remounted. A
+  // repeated id replays its result and does nothing twice. Teach only fills
+  // the dock composer - the learner sends it, with whatever context Send adds.
+  const handoff = useRef({ busy: new Set() });
+  handoff.current.latest = { app: app.name, board, pickResult, lessonShown: learningView === 'lesson' && !courseView, requestLearningView };
+  useEffect(() => {
+    const until = async (check, ms) => {
+      for (const end = Date.now() + ms; ; await new Promise(resolve => setTimeout(resolve, 50))) {
+        const value = check();
+        if (value || Date.now() > end) return value;
+      }
+    };
+    const settle = result => {
+      try { sessionStorage.setItem(`small.learn.result:${result.id}`, JSON.stringify(result)); } catch { /* the event still carries it */ }
+      window.dispatchEvent(new CustomEvent('small:learn-result', { detail: result }));
+    };
+    const run = async (id, kind, request) => {
+      const latest = handoff.current.latest;
+      const no = (status, reason) => ({ id, kind, status, reason });
+      if (request.app !== latest.app) return no('rejected', `This request is for ${request.app || 'no app'}, but Learn is open on ${latest.app}.`);
+      if ((request.board ? boardSlug(request.board) : null) !== latest.board) return no('rejected', `Learn is open on another canvas. Open /apps/${latest.app}?tab=learn${request.board ? `&board=${boardSlug(request.board)}` : ''} first.`);
+      if (kind === 'research' && request.source?.kind === 'pdf') return no('rejected', 'Uploaded PDFs do not have a portable source reference for this handoff. Add/upload the PDF from Learn instead.');
+      const from = kind === 'research' && { arxiv: 'arxiv', wiki: 'wikipedia', youtube: 'youtube' }[request.source?.kind];
+      const ref = String(request.source?.ref || '').trim();
+      if (kind === 'research' && !from) return no('rejected', 'Unsupported source kind. Use arxiv, wiki or youtube.');
+      if (kind === 'research' && !ref) return no('rejected', 'The source reference is empty.');
+      const prompt = typeof request.prompt === 'string' ? request.prompt.trim() : '';
+      if (kind === 'teach' && !prompt) return no('rejected', 'The prompt is empty.');
+      if (!latest.lessonShown) latest.requestLearningView('lesson');
+      if (kind === 'teach') {
+        const input = await until(() => window.document.querySelector('[data-learn-dock] [data-chat-composer] input:not([type="file"])'), 10000);
+        if (!input) return no('failed', 'The Learn chat did not open. Open Learn and try again.');
+        if (input.value.trim() && input.value !== prompt) return no('rejected', 'The Learn chat already has a draft. Send or clear it, then try again.');
+        // The composer is React-controlled: set the value the way typing does,
+        // so its own onChange takes it.
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, prompt);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        if (!input.isConnected || input.value !== prompt) return no('failed', 'The prompt could not be placed in the Learn chat.');
+        input.focus(); input.setSelectionRange(prompt.length, prompt.length);
+        return { id, kind, status: 'prefilled' };
+      }
+      if (!await until(() => canvasApi.current, 10000)) return no('failed', 'The Learn canvas did not open. Open Learn and try again.');
+      let results;
+      try {
+        // The Search bar's own lookup, so a link or id resolves exactly and a
+        // title finds what Search would put first.
+        const response = await fetch(`/api/learn/search?app=${encodeURIComponent(latest.app)}&source=${from}&q=${encodeURIComponent(ref)}`, { headers: wsHeaders() });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data?.error || 'Search failed. Try again.');
+        results = data.results || [];
+      } catch (problem) { return no('failed', problem.message); }
+      if (!results[0]?.item) return no('rejected', `Nothing on ${request.source.kind} matched ${ref}.`);
+      const blockId = handoff.current.latest.pickResult(from, results[0].item);
+      const card = blockId && await until(() => window.document.querySelector(`[data-block-id="${CSS.escape(blockId)}"]`), 5000);
+      return card ? { id, kind, status: 'added', resourceId: blockId } : no('failed', 'The card did not appear on the canvas.');
+    };
+    const take = async request => {
+      const id = typeof request?.id === 'string' ? request.id : '';
+      if (!id || handoff.current.busy.has(id)) return; // no id, nothing to answer; in flight, it will answer once
+      let done = null;
+      try { done = JSON.parse(sessionStorage.getItem(`small.learn.result:${id}`) || 'null'); } catch { /* treat as new */ }
+      if (done) { window.dispatchEvent(new CustomEvent('small:learn-result', { detail: done })); return; }
+      const kind = request.kind === 'teach' || request.kind === 'research' ? request.kind : null;
+      if (!kind) { settle({ id, kind: request.kind, status: 'rejected', reason: 'Unknown request kind. Use teach or research.' }); return; }
+      handoff.current.busy.add(id);
+      try { settle(await run(id, kind, request)); }
+      catch (problem) { settle({ id, kind, status: 'failed', reason: problem.message }); }
+      finally { handoff.current.busy.delete(id); }
+    };
+    const onRequest = event => take(event.detail);
+    window.addEventListener('small:learn-request', onRequest);
+    let pending = null;
+    try { pending = JSON.parse(sessionStorage.getItem('small.learn.request') || 'null'); sessionStorage.removeItem('small.learn.request'); } catch { /* blocked storage: the live event still works */ }
+    if (pending) take(pending);
+    return () => window.removeEventListener('small:learn-request', onRequest);
+  }, []);
   // The canvas's own name, editable in the strip. Local like the ink: a board
   // and the main canvas each keep theirs; empty falls back to the course title.
   const titleKey = `${canvasKey}${board ? `:${board}` : ''}:title`;
@@ -904,7 +994,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             className="h-8 min-w-16 max-w-96 shrink cursor-text truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none [field-sizing:content] placeholder:text-ink-2 hover:border-line focus:border-line" />
           <CanvasMenubar menus={canvasMenus} />
           {searchOpen && <SearchBar app={app.name} onClose={() => setSearchOpen(false)}
-            onPick={(source, item) => (source === 'arxiv' ? addPaper(item) : source === 'wikipedia' ? addWiki({ title: item.title }) : addVideo(item))} />}
+            onPick={pickResult} />}
           <div className="flex items-center gap-0.5">
             <button type="button" title="Present" aria-label="Present"
               onClick={() => { if (canvasApi.current?.present()) setPanelOpen(false); }}
@@ -933,7 +1023,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
-        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onState={onCanvasState} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <AskPanel compact composerOnly boardContext={boardContext} onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /> : null} /></Suspense></div>
+        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onState={onCanvasState} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <div data-learn-dock className="contents"><AskPanel compact composerOnly boardContext={boardContext} onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /></div> : null} /></Suspense></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
