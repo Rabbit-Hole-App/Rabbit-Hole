@@ -17,9 +17,9 @@ let sse = null;
 await page.route('**/api/**', async route => {
   const request = route.request();
   const url = new URL(request.url());
-  if (url.pathname === '/api/learn/youtube') return route.fulfill({ json: { videos: [
-    { videoId: 'Ilg3gGewQ5U', title: 'Backpropagation, intuitively | Chapter 3', channel: '3Blue1Brown', url: 'https://www.youtube.com/watch?v=Ilg3gGewQ5U' },
-    { videoId: 'FaHHWdsIYQg', title: 'Backpropagation Explained', channel: null, url: 'https://www.youtube.com/watch?v=FaHHWdsIYQg' },
+  if (url.pathname === '/api/learn/search') return route.fulfill({ json: { results: [
+    { key: 'Ilg3gGewQ5U', title: 'Backpropagation, intuitively | Chapter 3', subtitle: '3Blue1Brown', why: 'Animates the weight updates.', thumbnail: null, item: { videoId: 'Ilg3gGewQ5U', title: 'Backpropagation, intuitively | Chapter 3', channel: '3Blue1Brown' } },
+    { key: 'FaHHWdsIYQg', title: 'Backpropagation Explained', subtitle: null, why: null, thumbnail: null, item: { videoId: 'FaHHWdsIYQg', title: 'Backpropagation Explained', channel: null } },
   ] } });
   if (url.pathname === '/api/learn/video-gone' && request.method() === 'POST') {
     try { gone.push(JSON.parse(request.postData() || '{}')); } catch { /* asserted below */ }
@@ -54,15 +54,15 @@ await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 30000 });
 await page.waitForTimeout(3000);
 
 // --- picking one ---
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).click();
-await page.waitForTimeout(250);
-await page.getByRole('menuitem', { name: /YouTube video/ }).click();
+await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Search/ }).click();
 await page.waitForTimeout(300);
-const box = page.getByRole('dialog', { name: 'Add a YouTube video' });
+const box = page.getByRole('dialog', { name: 'Search' });
+await box.getByRole('combobox', { name: 'Search in' }).selectOption('youtube');
 await box.getByRole('textbox').fill('backpropagation intuitively');
+await page.keyboard.press('Enter');
 await page.waitForTimeout(1200);
 ok('results show title and channel', (await box.getByText('3Blue1Brown').count()) === 1);
-await box.locator('li').first().click();
+await box.getByRole('listbox').getByRole('option').first().click();
 await page.waitForTimeout(2000);
 
 const card = canvas.locator('iframe[src*="youtube-nocookie.com"]');
@@ -92,7 +92,7 @@ ok('a question carries the video and where the learner is in it', sent?.videoId 
 // --- detaching stops it ---
 await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).click();
 await page.waitForTimeout(250);
-await page.getByRole('menuitemcheckbox', { name: /Backpropagation, intuitively/ }).click();
+await page.getByRole('switch', { name: /Tutor reads Backpropagation, intuitively/ }).click();
 await page.waitForTimeout(300);
 await page.keyboard.press('Escape');
 await page.getByPlaceholder(/Ask about/).first().fill('and now?');

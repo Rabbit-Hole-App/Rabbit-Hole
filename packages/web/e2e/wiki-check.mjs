@@ -44,7 +44,7 @@ await page.route('**/api/**', async route => {
   const url = new URL(request.url());
   const path = url.pathname;
   if (path === '/api/learn/wiki') return route.fulfill({ json: ARTICLES[url.searchParams.get('title')] || { error: 'No Wikipedia article called that' } });
-  if (path === '/api/learn/wiki/search') return route.fulfill({ json: { pages: [{ title: 'Machine_learning', displayTitle: 'Machine learning', description: 'A field of study', thumbnail: null }] } });
+  if (path === '/api/learn/search') return route.fulfill({ json: { results: [{ key: 'Machine_learning', title: 'Machine learning', subtitle: 'Wikipedia', why: 'The field itself.', thumbnail: null, item: { title: 'Machine_learning' } }] } });
   if (request.method() === 'POST' && /ask|selection/.test(path)) {
     try { asks.push(JSON.parse(request.postData() || '{}')); } catch { /* not JSON, not this check's business */ }
     const body = sse || 'event: delta\ndata: {"text":"Here."}\n\nevent: done\ndata: {}\n\n';
@@ -76,15 +76,14 @@ await page.waitForTimeout(3000);
 
 // --- the learner adds one ---
 ok('no article on the canvas to begin with', (await card.count()) === 0);
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).click();
-await page.waitForTimeout(250);
-await page.getByRole('menuitem', { name: /Wikipedia article/ }).click();
+await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Search/ }).click();
 await page.waitForTimeout(300);
-const box = page.getByRole('dialog', { name: 'Add a Wikipedia article' });
-ok('the picker searches as you type, with no button to press', (await box.getByRole('button').count()) === 0);
-await box.getByRole('textbox').fill('machine');
+const box = page.getByRole('dialog', { name: 'Search' });
+await box.getByRole('combobox', { name: 'Search in' }).selectOption('wikipedia');
+await box.getByRole('textbox').fill('machine learning');
+await page.keyboard.press('Enter');
 await page.waitForTimeout(1200);
-await box.locator('li').first().click();
+await box.getByRole('listbox').getByRole('option').first().click();
 await page.waitForTimeout(2500);
 ok('picking an article puts a card on the canvas', (await card.count()) === 1);
 ok('and opens the reader', await reader.isVisible());

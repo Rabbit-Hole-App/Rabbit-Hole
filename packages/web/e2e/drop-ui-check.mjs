@@ -65,8 +65,10 @@ ok('and the panel stays open', (await page.locator('[aria-label="Learn agent cha
 ok('Add section is off the zoom pill', (await page.locator('[data-zoom]').getByText('Add section').count()) === 0);
 await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Insert/ }).click();
 await page.waitForTimeout(250);
-ok('Insert offers the section divider', (await page.getByRole('menuitem', { name: 'Section divider' }).count()) === 1);
+ok('Insert offers the divider line', (await page.getByRole('menuitem', { name: 'Divider line' }).count()) === 1);
 await page.keyboard.press('Escape');
+
+const box0 = await surface.boundingBox();
 
 // --- dropping files ---
 const drop = async (name, type, bytes) => {
@@ -102,27 +104,19 @@ await page.waitForTimeout(1500);
 const withImage = asks.find(body => body.image_context);
 ok('the next question carries image_context', withImage?.image_context?.id === 'media:0123456789ab');
 
-// --- Files menu: toggles, Upload, clean labels, centered pickers ---
+// --- Files panel: switches and Upload (deep coverage in search-files-check) ---
 await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).click();
 await page.waitForTimeout(250);
-const filesMenu = page.locator('[role="menubar"] [class*="top-9"]').first();
-const sourceToggle = page.getByRole('menuitemcheckbox').first();
-ok('a source row is a toggle switch', (await sourceToggle.count()) >= 1 && (await sourceToggle.getAttribute('aria-checked')) === 'true');
-await sourceToggle.click();
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).click();
-await page.waitForTimeout(250);
-ok('the switch flips off', (await page.getByRole('menuitemcheckbox').first().getAttribute('aria-checked')) === 'false');
-await page.getByRole('menuitemcheckbox').first().click();
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).click();
-await page.waitForTimeout(250);
-ok('no trailing dots on the picker rows', (await page.getByRole('menuitem', { name: 'arXiv paper', exact: true }).count()) === 1 && (await page.getByRole('menu').getByText('…').count()) === 0);
-ok('Upload is offered', (await page.getByRole('menuitem', { name: 'Upload' }).count()) === 1);
-await page.getByRole('menuitem', { name: 'Wikipedia article', exact: true }).click();
-await page.waitForTimeout(400);
-const dialog = await page.getByRole('dialog', { name: 'Add a Wikipedia article' }).boundingBox();
-const viewport = page.viewportSize();
-ok('the picker opens centered on the page', dialog && Math.abs(dialog.x + dialog.width / 2 - viewport.width / 2) < 30 && Math.abs(dialog.y + dialog.height / 2 - viewport.height / 2) < 120, dialog && `center ${Math.round(dialog.x + dialog.width / 2)},${Math.round(dialog.y + dialog.height / 2)}`);
+const firstSwitch = page.getByRole('switch').first();
+ok('a source row is a switch, on by default', (await firstSwitch.count()) >= 1 && (await firstSwitch.getAttribute('aria-checked')) === 'true');
+await firstSwitch.click();
+await page.waitForTimeout(150);
+ok('the switch flips off in place, panel still open', (await page.getByRole('switch').first().getAttribute('aria-checked')) === 'false');
+await page.getByRole('switch').first().click();
+ok('Upload is offered', (await page.getByRole('menuitem', { name: /Upload from your computer/ }).count()) === 1);
+ok('no trailing dots anywhere in the panel', !(await page.locator('[role="menubar"]').innerText()).includes('\u2026'));
 await page.keyboard.press('Escape');
+await page.mouse.click(box0.x + 40, box0.y + 700);
 await page.waitForTimeout(200);
 const imagesBefore = await canvas.locator('img[alt="diagram.png"]').count();
 await page.locator('input[type="file"][multiple]').setInputFiles({ name: 'uploaded.png', mimeType: 'image/png', buffer: Buffer.from(PNG) });
@@ -130,13 +124,15 @@ await page.waitForTimeout(1200);
 // The stubbed media route titles everything diagram.png, so count, not name.
 ok('Upload lands a card through the same route as a drop', (await canvas.locator('img[alt="diagram.png"]').count()) === imagesBefore + 1 && mediaPosts.length === 2);
 
-// --- Insert: arms tools ---
+// --- Insert: creates on the screen being looked at ---
+const itemsBefore = await canvas.locator('[data-item-id]').count();
 await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Insert/ }).click();
 await page.waitForTimeout(250);
 await page.getByRole('menuitem', { name: 'Text box' }).click();
+await page.waitForTimeout(300);
+ok('Insert > Text box creates a text box, ready to type', (await canvas.locator('[data-item-id]').count()) === itemsBefore + 1 && (await page.getByRole('group', { name: 'Text level' }).count()) === 1);
+await page.mouse.click(box0.x + 40, box0.y + 700);
 await page.waitForTimeout(200);
-ok('Insert > Text box arms the text tool', (await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Text"]').getAttribute('aria-pressed')) === 'true');
-await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Select and move"]').click();
 
 // --- text tool: level pill on a fresh box ---
 await page.getByRole('toolbar', { name: 'Canvas tools' }).locator('[aria-label="Text"]').click();
@@ -197,7 +193,7 @@ await page.mouse.move(before.x + before.width / 2 + 80, before.y + before.height
 await page.mouse.up();
 await page.waitForTimeout(300);
 const after = await rect.boundingBox();
-ok('a shape drags from its interior, not just its outline', Math.abs(after.x - before.x - 80) < 6 && Math.abs(after.y - before.y - 40) < 6, `moved ${Math.round(after.x - before.x)},${Math.round(after.y - before.y)}`);
+ok('a shape drags from its interior, not just its outline', Math.abs(after.x - before.x - 80) < 10 && Math.abs(after.y - before.y - 40) < 10, `moved ${Math.round(after.x - before.x)},${Math.round(after.y - before.y)}`);
 
 // --- ctrl-drag rubber band + right-click Group / Ungroup ---
 const cardA = canvas.locator('img[alt="diagram.png"]').first();

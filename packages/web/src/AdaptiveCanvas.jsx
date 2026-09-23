@@ -53,6 +53,9 @@ const COLORS = ['#37352f', '#2383e2', '#b42318', '#1a7f37', '#f59e0b', '#7c3aed'
 // default writing reads as dark gray on a dark canvas. Only the default maps;
 // deliberate colors stay themselves (connections brighten via a dark: filter).
 const inkAware = color => (color === '#37352f' ? 'var(--learn-canvas-ink)' : color);
+// A divider is a plain rule, wider than the card column so it reads as a
+// break across the page rather than another card.
+const DIVIDER_W = 1040;
 // Connectors take the colour of the node they start from, so a canvas reads
 // at a glance; picking an ink colour first overrides this.
 const LINK_COLORS = { chat: '#2383e2', quiz: '#7c3aed', flashcards: '#f59e0b', challenge: '#37352f', explanation: '#6b7280', table: '#0891b2', snippet: '#1a7f37', code: '#1a7f37', graph: '#2383e2', paper: '#b42318', model3d: '#7c3aed', image: '#0891b2', video: '#b42318' };
@@ -548,17 +551,20 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
     else event.stopPropagation();
   };
   if (section) {
+    // A divider is only a rule now - Section / Sub-section headings do the
+    // titling. Dividers made before that keep the title they were given.
+    const titled = !!item.text;
     return (
       <div data-block data-section style={{ left: item.x, top: item.y, width: item.w || COLUMN }}
-        className={`group absolute z-10 cursor-grab active:cursor-grabbing ${selected ? 'ring-2 ring-accent ring-offset-2' : ''}`}
-        onPointerDown={down} onDoubleClick={startEdit}>
-        <div className="h-px w-full bg-line" />
-        <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder="Section title…"
+        className={`group absolute z-10 cursor-grab py-2 active:cursor-grabbing ${selected ? 'rounded ring-2 ring-accent ring-offset-2' : ''}`}
+        onPointerDown={down} onDoubleClick={titled ? startEdit : undefined}>
+        <div className="h-px w-full bg-line-strong" />
+        {titled && <div ref={body} contentEditable={editing} suppressContentEditableWarning
           onBlur={e => { setEditing(false); const text = e.currentTarget.textContent; shown.current = text; onChange(item.id, text); }}
-          className="mt-2 text-sm font-medium text-ink outline-none empty:before:text-ink-3 empty:before:content-[attr(data-placeholder)]">{shown.current}</div>
+          className="mt-2 text-sm font-medium text-ink outline-none">{shown.current}</div>}
         {/* Reachable without selecting first: a section is structure, and removing
             one should not need the same ceremony as editing it. */}
-        <button type="button" aria-label="Remove section" title="Remove section"
+        <button type="button" aria-label="Remove divider" title="Remove divider"
           onPointerDown={event => event.stopPropagation()}
           onClick={() => onDelete(item.id)}
           className="absolute -top-2 right-0 flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-ink-3 opacity-0 hover:bg-hover hover:text-ink focus-visible:opacity-100 group-hover:opacity-100">
@@ -899,7 +905,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const [live, setLive] = useState(null);
   const [shapes, setShapes] = useState(stored.current.shapes || []);
   const [liveShape, setLiveShape] = useState(null);
-  const [items, setItems] = useState(() => (stored.current.items || []).map(item => ({ ...item, fresh: false }))); // stickies and text
+  const [items, setItems] = useState(() => (stored.current.items || []).map(item => ({
+    ...item, fresh: false,
+    // Untitled dividers from before the wider rule widen in place, centred on
+    // the column they were drawn across.
+    ...(item.kind === 'section' && !item.text && item.w === COLUMN ? { x: item.x - (DIVIDER_W - COLUMN) / 2, w: DIVIDER_W } : {}),
+  }))); // stickies and text
   // seedBlocks fills a board that has never been used. A board with its own
   // saved CONTENT always wins - but a saved EMPTY board re-seeds, because [] is
   // truthy and an empty array in storage is how a visit during a deploy
@@ -1025,18 +1036,49 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       zoomIn: () => zoomCenter(1.25),
       zoomOut: () => zoomCenter(1 / 1.25),
       zoomReset: () => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 }),
-      insertHeading: level => insertHeadingAt(level, blocksRef.current.length),
+      // Everything inserted lands where the learner is looking: headings and
+      // cards join the column at the card nearest the middle of the screen,
+      // free items land at its centre, and the camera only moves if the new
+      // thing would otherwise be off screen.
+      insertHeading: level => revealAfter(insertHeadingAt(level, flowIndexAtView())),
       insertPdf: ({ assetKey, label }) => {
         snapshot();
-        setBlocks(previous => [...previous, { id: crypto.randomUUID(), type: 'pdf', dx: 0, dy: 0, assetKey, label }]);
+        insertAtView({ id: crypto.randomUUID(), type: 'pdf', dx: 0, dy: 0, assetKey, label });
       },
       // A dropped image, GIF, or clip. `mediaId` is the server copy an image
       // context can name later; GIFs and clips never have one.
       insertFile: ({ assetKey, kind, label, mediaId = null }) => {
         snapshot();
-        const id = crypto.randomUUID();
-        setBlocks(previous => [...previous, { id, type: 'file', dx: 0, dy: 0, kind, assetKey, label, ...(mediaId ? { mediaId } : {}) }]);
-        return id;
+        return insertAtView({ id: crypto.randomUUID(), type: 'file', dx: 0, dy: 0, kind, assetKey, label, ...(mediaId ? { mediaId } : {}) });
+      },
+      insertDivider: () => {
+        snapshot();
+        const center = viewCenter();
+        setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'section', x: center.x - DIVIDER_W / 2, y: center.y, w: DIVIDER_W, text: '' }]);
+      },
+      insertText: () => {
+        snapshot();
+        const center = viewCenter();
+        setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'text', x: center.x - 210, y: center.y - 16, w: 420, text: '', color, opacity, level, fresh: true }]);
+      },
+      insertSticky: () => {
+        snapshot();
+        const center = viewCenter();
+        setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'sticky', x: center.x - 80, y: center.y - 80, text: '', color, opacity, fresh: true }]);
+      },
+      // The Files panel's show and remove.
+      focusBlock: id => {
+        const box = boundsRef.current[id];
+        if (!box) return;
+        setSelection([id]);
+        frame([box], 64, 1);
+      },
+      removeBlock: id => {
+        if (!blocksRef.current.some(block => block.id === id)) return;
+        snapshot();
+        setBlocks(previous => previous.filter(block => block.id !== id));
+        setLinks(previous => previous.filter(link => link.from !== id && link.to !== id));
+        setSelection(previous => previous.filter(other => other !== id));
       },
       // The block keeps only where to look, never the article: the save path
       // strips an oversized `src` and nothing else, so HTML under any other
@@ -1045,9 +1087,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         const existing = blocksRef.current.find(block => block.type === 'wiki' && block.title === title);
         if (existing) return existing.id;
         snapshot();
-        const id = crypto.randomUUID();
-        setBlocks(previous => [...previous, { id, type: 'wiki', dx: 0, dy: 0, title, section }]);
-        return id;
+        return insertAtView({ id: crypto.randomUUID(), type: 'wiki', dx: 0, dy: 0, title, section });
       },
       insertVideo: ({ videoId, title, channel = null, start = 0, end = null, unverified = false, momentId = null }) => {
         const existing = blocksRef.current.find(block => block.type === 'video' && block.videoId === videoId);
@@ -1070,12 +1110,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           return existing.id;
         }
         snapshot();
-        const id = crypto.randomUUID();
-        setBlocks(previous => [...previous, { id, type: 'video', dx: 0, dy: 0, videoId, title, channel, start, end, ...(unverified ? { unverified: true } : {}), ...(momentId ? { momentId } : {}) }]);
-        return id;
+        return insertAtView({ id: crypto.randomUUID(), type: 'video', dx: 0, dy: 0, videoId, title, channel, start, end, ...(unverified ? { unverified: true } : {}), ...(momentId ? { momentId } : {}) });
       },
       // The divider used to live on the zoom pill; the menubar is its home now.
-      addSection,
       toggleGrid: () => setGrid(previous => !previous),
       toggleMinimap: () => setMinimap(previous => !previous),
       togglePages: () => setPages(previous => !previous),
@@ -1091,8 +1128,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         if (step) frame(step.boxes, 64, 1.2);
       },
       toggleLock: () => setLock(previous => !previous),
-      // The Insert menu arms drawing tools the same way the toolbar does.
-      armTool: value => setTool(value),
     };
   });
   // Menu checkmarks need these as state on the page, not as a ref it cannot watch.
@@ -1100,7 +1135,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // Serialised for the comparison on the page: the outline changes whenever a
   // heading is added, retitled, reordered or ticked, and only then.
   const outlineKey = JSON.stringify(outline);
-  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey) }); }, [grid, lock, minimap, pages, presenting, outlineKey, onState]);
+  const cardsKey = JSON.stringify(blocks.map(block => [block.id, block.assetKey || null]));
+  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey) }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, onState]);
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);
@@ -1209,6 +1245,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     setBounds(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
   }, []);
   boundsRef.current = bounds;
+  useEffect(() => {
+    const id = revealRef.current;
+    const box = id && bounds[id];
+    const element = surface.current;
+    if (!box || !element) return;
+    revealRef.current = null;
+    const top = box.y * view.z + view.y, bottom = (box.y + box.h) * view.z + view.y;
+    if (top >= 0 && bottom <= element.clientHeight) return;
+    setView(v => ({ ...v, y: element.clientHeight / 2 - (box.y + Math.min(box.h, element.clientHeight / v.z) / 2) * v.z }));
+  }, [bounds]);
   shapesRef.current = shapes;
   onAddRef.current = onAdd;
   useLayoutEffect(measureBlocks, [exchanges, blocks, measureBlocks]);
@@ -1748,7 +1794,31 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     const heading = { id: crypto.randomUUID(), type: 'heading', dx: 0, dy: 0, level, text: '' };
     setBlocks(previous => [...previous.slice(0, index), heading, ...previous.slice(index)]);
     setGapAdding(false);
+    return heading.id;
   };
+  // Where the learner is looking, in world coordinates.
+  const viewCenter = () => {
+    const element = surface.current;
+    const w = element?.clientWidth || 0, h = element?.clientHeight || 0;
+    return { x: (w / 2 - view.x) / view.z, y: (h / 2 - view.y) / view.z };
+  };
+  // The column slot nearest the middle of the screen: before the first card
+  // whose middle is below the screen's middle.
+  const flowIndexAtView = () => {
+    const { y } = viewCenter();
+    const list = blocksRef.current;
+    const at = list.findIndex(block => { const box = boundsRef.current[block.id]; return box && box.y + box.h / 2 > y; });
+    return at < 0 ? list.length : at;
+  };
+  const insertAtView = block => {
+    const index = flowIndexAtView();
+    setBlocks(previous => [...previous.slice(0, index), block, ...previous.slice(index)]);
+    return revealAfter(block.id);
+  };
+  // Once the new card is measured, nudge the camera only if it landed off
+  // screen - a card inserted in view leaves the view alone.
+  const revealRef = useRef(null);
+  const revealAfter = id => { revealRef.current = id; return id; };
   const nudgeGap = (beforeId, delta) => {
     snapshot();
     setBlocks(previous => previous.map(block => block.id === beforeId ? { ...block, space: (block.space || 0) + delta } : block));
@@ -1779,19 +1849,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     setItems(previous => previous.map(item => item.id === id ? { ...item, text, fresh: false } : item));
   };
   const deleteItem = id => { snapshot(); setItems(previous => previous.filter(item => item.id !== id)); setShapes(previous => previous.filter(shape => shape.id !== id)); setSelection(previous => previous.filter(other => other !== id)); };
-  // A section lands below whatever already occupies the column, the same way an
-  // inserted block does, so adding one never drops a rule on top of existing work.
-  const addSection = () => {
-    snapshot();
-    const inStrip = (left, right) => left < COLUMN && right > 0;
-    const lowest = Math.max(
-      0,
-      ...Object.values(bounds).filter(b => inStrip(b.x, b.x + b.w)).map(b => b.y + b.h),
-      ...items.filter(item => inStrip(item.x, item.x + (item.w || 200))).map(item => item.y + (item.kind === 'sticky' ? (item.h || 160) : (item.size || 14) * 2)),
-      ...shapes.filter(shape => inStrip(Math.min(shape.x1, shape.x2), Math.max(shape.x1, shape.x2))).map(shape => Math.max(shape.y1, shape.y2)),
-    );
-    setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'section', x: 0, y: lowest + 32, w: COLUMN, text: '', fresh: true }]);
-  };
   const resizeShape = (id, patch) => setShapes(previous => previous.map(shape => shape.id === id ? { ...shape, ...patch } : shape));
   const moveShapeStart = (event, shape) => {
     snapshot();

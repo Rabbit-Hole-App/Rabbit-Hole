@@ -3,8 +3,9 @@ import { TEACHING_POLICY, validateTeachingHistory } from './learn-teaching.js';
 import { SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, arxivId, searchArxiv, readArxivPaper, paperDocument, fetchArxivPdf } from './arxiv.js';
 import { isUploadedPaperId, putUploadedPaper, readUploadedPaper, paperIdentity } from './learn-paper.js';
 import { isUploadedMediaId, putUploadedMedia, readUploadedMedia } from './learn-media.js';
-import { fetchWikipediaArticle, searchWikipediaTitles } from './learn-wiki.js';
-import { searchYouTube, setMomentFeedback, videoIdFrom } from './learn-youtube.js';
+import { fetchWikipediaArticle } from './learn-wiki.js';
+import { searchCanvasSource } from './learn-search.js';
+import { setMomentFeedback, videoIdFrom } from './learn-youtube.js';
 import { pruneVideo } from './learn-moment-index.js';
 import { validateToolInput } from './learn-validation.js';
 import { VIDEO_SCHEMA, validateVideo } from './learn-video-schema.js';
@@ -375,41 +376,14 @@ export async function authorizedBoardApp(req, env, name) {
   return app;
 }
 
-// Finding a paper to put on the canvas. The same search the tutor's research
-// loop uses, exposed so the learner can reach it directly instead of waiting for
-// a link to appear in an answer.
-export async function paperSearch(req, env) {
+// The canvas search bar: one query, one source (YouTube, arXiv, Wikipedia),
+// the five best results. See learn-search.js. The Exa key stays a worker secret.
+export async function canvasSearch(req, env) {
   if (req.method !== 'GET') return Response.json({ error: 'GET required' }, { status: 405 });
   const url = new URL(req.url);
   const access = await authorizedBoardApp(req, env, url.searchParams.get('app'));
   if (access instanceof Response) return access;
-  const query = (url.searchParams.get('q') || '').trim();
-  // A pasted id or link is not a search: answer with that one paper.
-  try { return Response.json({ papers: [await readArxivPaper(query)] }); } catch { /* not an id, search for it */ }
-  try { return Response.json({ papers: await searchArxiv(query) }); }
-  catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
-}
-
-// Video discovery: one Exa call restricted to youtube.com, semantic, so a
-// question finds the video that answers it. The key stays a worker secret.
-export async function youtubeSearch(req, env) {
-  if (req.method !== 'GET') return Response.json({ error: 'GET required' }, { status: 405 });
-  const url = new URL(req.url);
-  const access = await authorizedBoardApp(req, env, url.searchParams.get('app'));
-  if (access instanceof Response) return access;
-  try { return Response.json({ videos: await searchYouTube((url.searchParams.get('q') || '').trim(), env) }); }
-  catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
-}
-
-// The picker's type-ahead. Debounced and aborted on the client, because this is
-// the first place in the product that could issue one upstream request per
-// keystroke, and Wikimedia's allowance is 200 a minute.
-export async function wikiSearch(req, env) {
-  if (req.method !== 'GET') return Response.json({ error: 'GET required' }, { status: 405 });
-  const url = new URL(req.url);
-  const access = await authorizedBoardApp(req, env, url.searchParams.get('app'));
-  if (access instanceof Response) return access;
-  try { return Response.json({ pages: await searchWikipediaTitles((url.searchParams.get('q') || '').trim()) }); }
+  try { return Response.json(await searchCanvasSource(url.searchParams.get('source') || '', url.searchParams.get('q') || '', env)); }
   catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
 }
 

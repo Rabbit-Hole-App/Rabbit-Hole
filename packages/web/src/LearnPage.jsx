@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, PanelRightClose, PanelRightOpen, Pause, Pencil, Play, Scan, Share2, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, PanelRightClose, PanelRightOpen, Pause, Pencil, Play, Scan, Search, Share2, Trophy, NotebookPen, Volume2, VolumeX } from 'lucide-react';
 import { createShapeId, getIndices } from 'tldraw';
 import { SPEEDS, getSpeed, isMuted, onMuted, setMuted, setSpeed } from './learn-audio.js';
 import { api, wsHeaders } from './api.js';
@@ -13,9 +13,8 @@ import { LessonNotebook, LessonPractice, LessonReading, LessonSource } from './L
 import LearnOutline from './LearnOutline.jsx';
 import ContentsRail from './ContentsRail.jsx';
 import CanvasMenubar from './CanvasMenubar.jsx';
-import PaperSearch from './PaperSearch.jsx';
-import WikiSearch from './WikiSearch.jsx';
-import VideoSearch from './VideoSearch.jsx';
+import SearchBar from './SearchBar.jsx';
+import FilesPanel from './FilesPanel.jsx';
 import LearnWiki from './LearnWiki.jsx';
 import { contentsEntries } from './learn-contents.js';
 import { withSource, toggleSource, isAttached } from './learn-sources.js';
@@ -85,9 +84,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // A proposal from the tutor. It sits here until the learner applies or
   // discards it; nothing reaches the canvas on its own.
   const [proposal, setProposal] = useState(null);
-  const [paperSearchOpen, setPaperSearchOpen] = useState(false);
-  const [wikiSearchOpen, setWikiSearchOpen] = useState(false);
-  const [videoSearchOpen, setVideoSearchOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [videoContext, setVideoContext] = useState(null);
   const [wikiOpen, setWikiOpen] = useState(false);
   // Bumped only by an explicit open, so the reader can tell "go to this section"
@@ -97,7 +94,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const canvasStateRef = useRef(canvasState);
   canvasStateRef.current = canvasState;
   const onCanvasState = useCallback(next => setCanvasState(previous =>
-    (previous.grid === next.grid && previous.lock === next.lock && previous.minimap === next.minimap && previous.pages === next.pages && previous.presenting === next.presenting && JSON.stringify(previous.outline) === JSON.stringify(next.outline) ? previous : next)), []);
+    (previous.grid === next.grid && previous.lock === next.lock && previous.minimap === next.minimap && previous.pages === next.pages && previous.presenting === next.presenting && JSON.stringify(previous.outline) === JSON.stringify(next.outline) && JSON.stringify(previous.cards) === JSON.stringify(next.cards) ? previous : next)), []);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [paperOpen, setPaperOpen] = useState(false);
   const [paperContext, setPaperContext] = useState(null);
@@ -739,30 +736,49 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     setCanvasTitle(clean);
     try { clean ? localStorage.setItem(titleKey, clean) : localStorage.removeItem(titleKey); } catch { /* a full store loses the name only */ }
   };
+  // Which card a source row stands for. Papers from arXiv open in the reader
+  // rather than as a card, and the repository is not a card at all.
+  const cardOf = source => {
+    if (['wiki', 'video', 'image'].includes(source.kind)) return source.id.slice(source.id.indexOf(':') + 1);
+    if (source.kind === 'pdf') return (canvasState.cards || []).find(([, assetKey]) => assetKey === `pdf:${source.id}`)?.[0] || null;
+    return null;
+  };
+  // A row whose card was deleted is gone from the list; the stored flag stays,
+  // harmless, in case undo brings the card back.
+  const listedSources = sources.filter(source => !['wiki', 'video', 'image', 'pdf'].includes(source.kind) || !canvasState.cards
+    || canvasState.cards.some(([id]) => id === cardOf(source))).map(source => ({
+    ...source,
+    locatable: !!cardOf(source) || source.kind === 'paper',
+    removable: source.kind !== 'repository',
+  }));
+  const locateSource = source => {
+    if (source.kind === 'paper') { openPaper({ id: source.id.slice('paper:'.length), title: source.label, pdfUrl: `https://arxiv.org/pdf/${source.id.slice('paper:'.length)}` }); return; }
+    const blockId = cardOf(source);
+    if (blockId) canvas()?.focusBlock(blockId);
+  };
+  // Removing is removing: the card leaves the canvas, the row leaves the list,
+  // and whatever context pointed at it stops riding the next question.
+  const removeSource = source => {
+    const blockId = cardOf(source);
+    if (blockId) canvas()?.removeBlock(blockId);
+    setSources(previous => previous.filter(entry => entry.id !== source.id));
+    if (wikiContext?.blockId && wikiContext.blockId === blockId) { setWikiContext(null); setWikiOpen(false); }
+    if (videoContext?.blockId && videoContext.blockId === blockId) setVideoContext(null);
+    if (imageContext?.blockId && imageContext.blockId === blockId) setImageContext(null);
+    const paperId = source.kind === 'paper' ? source.id.slice('paper:'.length) : source.kind === 'pdf' ? source.id : null;
+    if (paperId && paperContext?.id === paperId) { setPaperContext(null); setPaperOpen(false); }
+  };
   const canvasMenus = [
     {
       title: 'Files',
-      items: [
-        // A switch, not provenance: on means the agent is handed this when it
-        // answers. Detaching takes nothing off the canvas.
-        ...sources.map(source => ({
-          label: source.label,
-          toggle: true,
-          checked: !!source.attached,
-          hint: source.attached ? 'in context' : 'off',
-          onSelect: () => setSources(previous => toggleSource(previous, source.id)),
-        })),
-        ...(sources.length ? [{ divider: true }] : []),
-        // One Upload for anything on disk - same routing as dropping it on
-        // the canvas. The pickers below reach the world instead.
-        { label: 'Upload', hint: 'image · GIF · video · PDF', onSelect: () => filePicker.current?.click() },
-        { divider: true },
-        { label: 'arXiv paper', onSelect: () => setPaperSearchOpen(true) },
-        { label: 'Wikipedia article', onSelect: () => setWikiSearchOpen(true) },
-        { label: 'YouTube video', onSelect: () => setVideoSearchOpen(true) },
-        { label: 'Google Slides', onSelect: () => toast('Connect Google under Settings → Connections to import a deck.') },
-      ],
+      panel: close => <FilesPanel sources={listedSources} close={close}
+        onToggle={id => setSources(previous => toggleSource(previous, id))}
+        onLocate={locateSource} onRemove={removeSource}
+        onUpload={() => filePicker.current?.click()} />,
     },
+    // One search bar for YouTube, arXiv and Wikipedia; a connector like
+    // Google Slides will live under Files once it exists, not here.
+    { title: 'Search', icon: Search, onSelect: () => setSearchOpen(true) },
     {
       title: 'Insert',
       items: [
@@ -770,11 +786,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         { label: 'Sub-section', size: 16, weight: 600, onSelect: () => canvas()?.insertHeading(2) },
         { label: 'Sub-sub-section', size: 14, weight: 550, onSelect: () => canvas()?.insertHeading(3) },
         { divider: true },
-        { label: 'Text box', onSelect: () => canvas()?.armTool('text') },
-        { label: 'Sticky note', onSelect: () => canvas()?.armTool('sticky') },
-        { divider: true },
-        // Lived on the zoom pill as "Add section"; the menubar is its home now.
-        { label: 'Section divider', onSelect: () => canvas()?.addSection() },
+        { label: 'Text box', onSelect: () => canvas()?.insertText() },
+        { label: 'Sticky note', onSelect: () => canvas()?.insertSticky() },
+        { label: 'Divider line', onSelect: () => canvas()?.insertDivider() },
       ],
     },
     {
@@ -860,9 +874,8 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             }}
             className="h-8 min-w-16 max-w-96 shrink cursor-text truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none [field-sizing:content] placeholder:text-ink-2 hover:border-line focus:border-line" />
           <CanvasMenubar menus={canvasMenus} />
-          {paperSearchOpen && <PaperSearch app={app.name} onPick={openPaper} onClose={() => setPaperSearchOpen(false)} />}
-          {wikiSearchOpen && <WikiSearch app={app.name} onPick={page => openWiki({ title: page.title })} onClose={() => setWikiSearchOpen(false)} />}
-          {videoSearchOpen && <VideoSearch app={app.name} onPick={video => addVideo(video)} onClose={() => setVideoSearchOpen(false)} />}
+          {searchOpen && <SearchBar app={app.name} onClose={() => setSearchOpen(false)}
+            onPick={(source, item) => (source === 'arxiv' ? openPaper(item) : source === 'wikipedia' ? openWiki({ title: item.title }) : addVideo(item))} />}
           <div className="flex items-center gap-0.5">
             <button type="button" title="Present" aria-label="Present"
               onClick={() => { if (canvasApi.current?.present()) setPanelOpen(false); }}
