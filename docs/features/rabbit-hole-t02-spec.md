@@ -1,8 +1,9 @@
 # Rabbit Hole — T02 UX spec: Home, Library, Project, Agent Bar
 
 Status: **Gate A approved on 2026-09-23**, including Q1 (§16) and the
-content-not-on-this-device state (§8.3). **T03 mockups are done and awaiting
-Gate B review:**
+content-not-on-this-device state (§8.3). **T03 mockups (with the Gate-B revision
+of 2026-09-23: scope-chip rule, Continue model, flat Pinned, realistic cards,
+extracted vs inferred) are awaiting Gate B review:**
 [Rabbit Hole — Home & Projects](https://www.figma.com/design/ef9SfiemEsPQF2bd8B1os3).
 No production UI is built. Nothing in `packages/` has changed.
 
@@ -67,6 +68,9 @@ with the twelve amendments approved on 2026-09-23. File:line references are to
 - **Pinned** is new and device-local, stored in
   `small.pinned:<org>:<email>` as an ordered list of resource slugs. Unknown
   slugs are dropped silently when the catalog loads.
+  - Keep it **small and flat**. Projects and canvases are pinned as
+    independent resources: a canvas is never nested under its project, and
+    the sidebar is not a filesystem.
 - **APPS** is today's folder tree and Private/Shared sections, unchanged. They
   keep their stored collapse state (`small.secClosed`). New users see them
   collapsed.
@@ -85,31 +89,45 @@ There is no marketing copy. The page has three blocks and no others.
 ### 3.1 Continue — on this device
 
 This is derived only from data in this browser, and it is labeled that way.
+The default is **Last explored + Next**. Rabbit Hole content adapts and
+grows, so there is no universal "N of M" progress.
 
 1. Walk `small.recent` in order, keeping slugs that are in the current
    catalog.
 2. For the first slug that has a local canvas
    (`small.adaptive-canvas:<org>:<email>:<slug>`, `LearnPage.jsx:143`),
    show:
-   - title, type chip
-   - `N of M sections ticked`, counting heading blocks and their `done`
-     flags (`AdaptiveCanvas.jsx:901`)
-   - `Next: <first unticked heading>`
+   - title and type chip
+   - **Last explored:** the most recent question asked on that canvas (the
+     local `:chat` key)
+   - **Next:** the first unticked heading of the learner's own outline
+     (`AdaptiveCanvas.jsx:901`). It is omitted when the canvas has no
+     headings.
    - buttons `[Continue learning]` and `[Open project]` (the latter only for a
      project)
-3. If no recent item has a canvas, show the first recent item with
+3. **Finite step counts** (`Step 3 of 7` plus ticks) appear only for a
+   genuinely bounded authored path: an approved course revision with fixed
+   steps (`learn_courses`). This is a separate "Authored path" card.
+4. If no recent item has a canvas, show the first recent item with
    `[Open]` only.
-4. If nothing is recent, skip the Continue block and show §3.3 first.
+5. If nothing is recent, skip the Continue block and show §3.3 first.
 
 One small read-only module owns the canvas read. If the blob shape changes on
-the Learn branches, Continue drops the progress line and never errors. It
-never shows mastery, streaks, or percentages of "knowledge".
+the Learn branches, Continue drops those lines and never errors. It never
+shows mastery, streaks, or percentages of "knowledge".
 
 ### 3.2 Recent
 
-Up to 5 items: `small.recent` ∩ catalog, each with a type chip (Project,
-Canvas, Job, Server). One click opens the item. Canvas cards carry the small
-note "Content stays in this browser".
+Up to 5 items: `small.recent` ∩ catalog. Kinds differ by **meaningful
+metadata and next action**, not only by the type chip:
+
+| Kind | Metadata | Next action |
+|---|---|---|
+| Project | revision, map status, number of canvases, visibility | Open project |
+| Canvas | where it lives (project or standalone), last explored, "Content in this browser" | Continue learning |
+| Canvas on another device | "On another device" (§8.3) | explanation only, no Open |
+| Job | last run and result, schedule, who can run it | View last run |
+| Server | last deploy, access | Open app ↗ (new tab) |
 
 ### 3.3 Start
 
@@ -203,8 +221,24 @@ merely look alike is not the end state.
   The chosen mode appears as a pill, `[/teach ×]`. Backspace on an empty
   input, or `×`, returns to Auto. A mode the current scope can't serve is
   shown dimmed with its reason (§6.4).
-- **Scope chips** are Workspace, then one of Project, App, or Canvas, then
-  Selected (optional). Each chip below Workspace has `×` to widen the scope.
+- **Scope chips appear only when context changes what the agent will do.**
+  The bar never tells you where you already know you are:
+
+  | Where | Chips |
+  |---|---|
+  | Home, Library, Explore | none (these are places, not conversational scope) |
+  | Project | `[nanoGPT ×]` |
+  | App | `[counter ×]` |
+  | Canvas / Learn | shown by the Learn surface (the bar yields there) |
+  | Selected object | optional second chip, `[CausalSelfAttention ×]` |
+
+  - The workspace is not repeated under the bar; the workspace switcher
+    already shows it. It appears **explicitly on confirmation and action
+    cards** where it matters for safety.
+  - `×` widens the scope. Scope still exists internally when no chip is
+    rendered (workspace plus route), and it is **still frozen at Send**.
+  - An in-flight answer names its own scope in the status line
+    (`Answering in nanoGPT…`), even when the current page shows no chip.
 - **Keys.**
   - Enter sends. Shift+Enter adds a new line.
   - Ctrl/Cmd+J focuses the bar (the existing `small:ask-focus` event).
@@ -267,6 +301,11 @@ merely look alike is not the end state.
   └────────────────────────────────────────────────────────┘
   ```
 
+  - **Selected** separates relationships extracted from code (solid) from
+    inferred ones (dashed, with the extractor's confidence), matching the
+    solid and dashed edges on the graph.
+  - **Source** is the evidence and code inspector. Later, code-source links
+    on learning cards will open it at the exact lines.
   - The existing `AskPanel` in `RepositoryPage.jsx:46-49` and
     `SharePage.jsx:830-836` is removed from these two places. The bar is the
     only text input there.
