@@ -592,13 +592,26 @@ Request shapes. Each `id` is a non-empty string, unique per request:
   flight produce one action.
 
 **Bar behaviour:**
-- The bar claims success **only on a matching result**.
-- Wait times:
-  - `teach`: 3 seconds
-  - `research`: 20 seconds, with "Adding to canvas…" shown meanwhile, because
-    the result arrives only once the card is on the canvas
-- If no result arrives in time, or the status is `rejected` or `failed`, the
-  bar shows the fallback or the reason. It never shows fake success.
+- `flags.js` exports `learnHandoff`, a constant that is `false` until the
+  handoff code reaches this branch's `main`. The PR that merges it flips the
+  constant to `true`. It is not detected at runtime, because a missing hook
+  and a slow hook look the same.
+- **`learnHandoff === false`:** nothing is sent.
+  - `/teach` says "Opened Learn. Your prompt wasn't transferred; it's kept
+    here."
+  - `/research` lists sources with no Add-to-canvas.
+- **`learnHandoff === true`:** the bar sends the request and claims success
+  **only on a matching result**.
+  - Timeouts are 12 s for teach and 30 s for research, with "Adding to
+    canvas…" shown meanwhile. These bounds come from the owner: Learn waits
+    up to 10 s for the composer or canvas to mount; research then runs an
+    uncached `/api/learn/search` call with no client timeout, and waits up to
+    5 s for the card to render.
+  - A timeout **does not cancel anything**. The card may still land later.
+    On timeout the copy is **"Still working, check the canvas"**, never "not
+    added". The bar reconciles later by reading
+    `sessionStorage['small.learn.result:<id>']` when the sheet reopens.
+  - `rejected` or `failed` show Learn's `reason` verbatim.
 
 ## 10. Jev: designed, disabled
 
