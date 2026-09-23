@@ -217,10 +217,10 @@ export const candidateFutureScene = {
     { id: 'outcome', type: 'box', semanticId: 'predicted-outcome', conceptId: 'world-model',
       initialState: { label: '{{selRoll.2}}', x: 662, y: 120, w: 180, h: 56, opacity: 0, role: 'prediction' } },
     { id: 'rollout-note', type: 'text', semanticId: 'rollout-note', conceptId: 'world-model',
-      initialState: { text: 'the rollout above is the world model’s prediction for “{{actionName}}”', x: 40, y: 198, typography: 'annotation' } },
-    // The selected action's cost, read straight from the derived vectors.
+      initialState: { text: 'Inspecting action: “{{actionName}}” — the rollout above is its predicted future', x: 40, y: 198, typography: 'annotation' } },
+    // The INSPECTED action's cost, read straight from the derived vectors.
     { id: 'cost-readout', type: 'text', semanticId: 'cost-readout', conceptId: 'world-model',
-      initialState: { text: '“{{actionName}}” — collision risk {{selColl}} · time {{selTime}} · total cost {{selTotal}}', x: 40, y: 250, role: 'output' } },
+      initialState: { text: 'cost of “{{actionName}}” — collision risk {{selColl}} · time {{selTime}} · total cost {{selTotal}}', x: 40, y: 250, role: 'output' } },
     // Total cost per action UNDER THIS GOAL. Changing the goal re-weights the
     // costs, so the ringed cheapest action moves - same futures, different pick.
     { id: 'cost-chart', type: 'grid', semanticId: 'action-costs', conceptId: 'world-model',
@@ -229,7 +229,7 @@ export const candidateFutureScene = {
         columnLabels: ['left', 'brake', 'continue'], values: { $derive: 'totals' },
         cellHighlight: { $derive: 'preferredAt' }, cellHighlightKind: 'select' } },
     { id: 'preferred-note', type: 'text', semanticId: 'preferred-note', conceptId: 'world-model',
-      initialState: { text: 'under “{{goalName}}” the planner prefers “{{preferredName}}” — the future with the lowest total cost', x: 40, y: 452, typography: 'annotation' } },
+      initialState: { text: 'Preferred under “{{goalName}}”: “{{preferredName}}” — the ringed (lowest-cost) action, may differ from the one you inspect', x: 40, y: 452, typography: 'annotation' } },
     { id: 'provenance-note', type: 'text', semanticId: 'provenance-note', conceptId: 'world-model',
       initialState: { text: 'Toy example — rollouts and costs come from the declared example data, not observations.', x: 40, y: 480, typography: 'annotation' } },
   ],
@@ -293,8 +293,11 @@ export const attentionExplorerScene = {
     // counterfactuals a learner comes here to see.
     { id: 'caption', type: 'text', semanticId: 'caption', conceptId: 'causal-self-attention',
       initialState: { text: 'query: {{qword}} — its Q row → scores against each key → attention weights → output', x: 40, y: 36 } },
+    // Display-only token labels (no pill, no click) - the query control is the
+    // INTERACT picker below, so these read as a labeled sequence, not a second
+    // control row. The highlighted word is the current query.
     { id: 'chars', type: 'tokens', semanticId: 'tokens', conceptId: 'qkv-projection',
-      initialState: { label: 'the four tokens — the highlighted one is the current query', x: 40, y: 84, opacity: 0, tokens: [...I01_TOKENS], role: 'input',
+      initialState: { label: 'the four tokens — the highlighted one is the current query', x: 40, y: 84, opacity: 0, tokens: [...I01_TOKENS], role: 'observed', tokenStyle: 'labels',
         cellHighlight: { $derive: 'queryIndex' } } },
     { id: 'q-row', type: 'strip', semanticId: 'selected-query-vector', conceptId: 'qkv-projection',
       initialState: { label: 'Q[{{qword}}]', x: 40, y: 190, cell: 44, w: 88, h: 44, opacity: 0, role: 'observed', identity: 'query',

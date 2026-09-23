@@ -38,7 +38,7 @@ await page.evaluate(() => {
   const anyKey = Object.keys(localStorage).find(k => k.startsWith('small.adaptive-canvas:'));
   if (!anyKey) return;
   const prefix = anyKey.split(':').slice(0, 4).join(':');
-  localStorage.setItem(`${prefix}:interactive-app-review:s5`, JSON.stringify({ strokes: [], shapes: [], items: [], links: [], blocks: [{ id: 'stale-junk', type: 'heading', dx: 0, dy: 0, text: 'STALE OLD SEED', level: 1 }] }));
+  localStorage.setItem(`${prefix}:interactive-app-review:s7`, JSON.stringify({ strokes: [], shapes: [], items: [], links: [], blocks: [{ id: 'stale-junk', type: 'heading', dx: 0, dy: 0, text: 'STALE OLD SEED', level: 1 }] }));
 });
 
 const boardUrl = `${base}/apps/repo-06745f10-nanogpt?tab=learn&board=interactive-app-review`;
@@ -57,10 +57,10 @@ if (await page.getByText('STALE OLD SEED').count()) throw new Error('old seed-ve
 let seedKey = null;
 for (let attempt = 0; attempt < 15 && !seedKey; attempt += 1) {
   await page.waitForTimeout(400); // the board blob write is debounced
-  seedKey = await page.evaluate(() => Object.keys(localStorage).find(k => /:interactive-app-review:s6$/.test(k)));
+  seedKey = await page.evaluate(() => Object.keys(localStorage).find(k => /:interactive-app-review:s8$/.test(k)));
 }
-if (!seedKey) throw new Error('seed-version-6 storage key missing');
-console.log('board: 4 cards, seed s6, stale s5 storage ignored');
+if (!seedKey) throw new Error('seed-version-8 storage key missing');
+console.log('board: 4 cards, seed s8, stale s7 storage ignored');
 
 // Unknown board name reports itself instead of a silent blank.
 await page.goto(`${base}/apps/repo-06745f10-nanogpt?tab=learn&board=no-such-board-xyz`);
@@ -99,10 +99,10 @@ console.log('I02: click + stepper live');
 await card(i03).locator('[data-input-control="action"][data-input-value="1"]').click();
 await page.getByText('safe stop').waitFor({ timeout: 5000 });
 await card(i03).locator('[data-input-control="goal"][data-input-value="1"]').click();
-await card(i03).getByText(/prefers .Continue./).waitFor({ timeout: 5000 });
+await card(i03).getByText(/Preferred under .Fastest.*Continue/).waitFor({ timeout: 5000 });
 await card(i03).screenshot({ path: 'e2e/shots/t12/i03-fastest-continue-light.png' });
 await card(i03).locator('[data-input-control="goal"][data-input-value="0"]').click();
-await card(i03).getByText(/prefers .Brake./).waitFor({ timeout: 5000 });
+await card(i03).getByText(/Preferred under .Safest.*Brake/).waitFor({ timeout: 5000 });
 console.log('I03: action changes the rollout; the goal flips the preferred action');
 
 // --- I04: typed coordinates + a real drag ---

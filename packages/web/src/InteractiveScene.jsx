@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { applyAction, prepareScene, sceneContext } from './scene-engine.js';
-import VectorScene from './VectorScene.jsx';
+import VectorScene, { VectorControls } from './VectorScene.jsx';
 import PipelineScene from './PipelineScene.jsx';
 import './scene-behaviors.js';
 
@@ -44,6 +44,9 @@ function StepsSvg({ spec, state, behavior, onSelect, selected }) {
 
 // One renderer per behaviour shape; a behaviour declares which it supports.
 const RENDERERS = { walkthrough_v1: StepsSvg, vector_projection_v1: VectorScene, pipeline_assembly_v1: PipelineScene };
+// Optional per-behaviour control panel rendered in the INTERACT zone below the
+// visualization (keeps the card grammar: explanation above, controls below).
+const CONTROLS = { vector_projection_v1: VectorControls };
 
 // What the tutor is told when the learner asks about this block.
 export function sceneSummary(block) {
@@ -81,6 +84,7 @@ export default function InteractiveScene({ block, onChange }) {
   };
   const progress = behavior.progress ? behavior.progress(state) : null;
   const buttons = spec.interactions.filter(interaction => interaction.input === 'button');
+  const Controls = CONTROLS[spec.behaviorId];
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
       {/* A flex column, not plain block flow: renderers size against the
@@ -92,16 +96,17 @@ export default function InteractiveScene({ block, onChange }) {
           ? <Renderer spec={spec} state={state} behavior={behavior} selected={selected} onSelect={setSelected} run={run} reduced={reduced} />
           : <p className="text-xs text-ink-2">No renderer for {spec.behaviorId}.</p>}
       </div>
-      {/* INTERACT zone: the spec's controls (the renderer's own inputs - e.g.
-          the vec2 coordinate fields - sit directly under its visual above;
-          the transport-independent action buttons like Reset live here under
-          one label, matching the card grammar). Asking the tutor lives only
-          in the Ask-in-chat pill + bottom composer - no card-level Ask. */}
+      {/* INTERACT zone: a behaviour's control panel (e.g. the vec2 coordinate
+          fields, via CONTROLS) plus the transport-independent action buttons
+          like Reset, all below the visualization under one label - the card
+          grammar (explanation above, controls below the divider). Asking the
+          tutor lives only in the Ask-in-chat pill + bottom composer. */}
       <div className="shrink-0 rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">
         <div className="mb-1.5 flex items-center justify-between">
           <p className="text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>
           {progress && <span className="text-xs tabular-nums text-ink-2">{progress.seen} / {progress.total} {behavior.progressNoun || 'steps'}{progress.complete ? ' · done' : ''}</span>}
         </div>
+        {Controls && <div className="mb-2"><Controls state={state} run={run} /></div>}
         <div className="flex flex-wrap items-center gap-1.5">
           {buttons.map((interaction, index) => (
             <button key={index} type="button" data-scene-action={interaction.action}

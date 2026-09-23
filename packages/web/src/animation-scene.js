@@ -128,6 +128,11 @@ const objectSchema = z.object({
     // input declaration, never behaviour - evaluateScene refuses a name that
     // is not a declared index input over a domain of this object's item count.
     pickInput: z.string().min(1).max(40).optional(),
+    // How a token sequence is drawn. 'chips' (the default) is the affordance
+    // of something operable; 'labels' draws plain text, for a sequence that
+    // NAMES things and must not read as a second control row - the card
+    // grammar puts the real control in the INTERACT zone below the visual.
+    tokenStyle: z.enum(['chips', 'labels']).optional(),
   }).prefault({}),
 });
 
@@ -491,6 +496,10 @@ export function getSceneState(scene, time) {
     rowLabels: object.initialState.rowLabels ?? null,
     columnLabels: object.initialState.columnLabels ?? null,
     tokens: object.initialState.tokens ?? null,
+    // 'labels' draws a token sequence as plain display-only text instead of
+    // chips - the renderer's cue that this is a labeled sequence, not a
+    // control row (the control lives in the INTERACT zone below).
+    tokenStyle: object.initialState.tokenStyle ?? null,
     heat: object.initialState.heat ?? null,
     peak: object.initialState.peak ?? null,
     // Both static for the object's whole life (validateScene resolves them

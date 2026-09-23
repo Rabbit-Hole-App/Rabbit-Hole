@@ -320,6 +320,11 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
     console.error(`AnimatedScene: no renderer for data type "${object.type}"`);
     return null;
   }
+  // display: 'labels' draws the tokens as plain text (the highlighted one
+  // emphasised), NOT filled chips - a display-only token sequence that reads as
+  // labels, never as a control row. Used where the tokens name a sequence and
+  // the actual control lives in the INTERACT zone below.
+  const asLabels = object.tokenStyle === 'labels';
   let offset = 0;
   return (
     <g>
@@ -329,6 +334,13 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
         offset += width + CHIP_GAP;
         const lit = marked(object, 0, index, index);
         const look = shapeStyle(role, { highlighted: lit }, undefined, object.identitySlot);
+        if (asLabels) {
+          return (
+            <text key={index} x={x + width / 2} y={object.y + GEOMETRY.chipHeight / 2} textAnchor="middle" dominantBaseline="central"
+              fontSize={numeral.fontSize} fontWeight={lit ? 700 : numeral.fontWeight}
+              style={{ fontFamily: MONO, fill: lit ? 'var(--color-ink)' : 'var(--color-ink-2)' }}>{token}</text>
+          );
+        }
         return (
           <motion.g key={index} {...(pickProps ? pickProps(index, lit, token) : {})}
             animate={{ scale: lit ? 1.12 : 1, y: lit ? -3 : 0 }} transition={pop} style={fromCentre}>
@@ -342,7 +354,7 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
           </motion.g>
         );
       })}
-      {chosen && <SelectionMark geometry={{ kind: 'rect', x: object.x, y: object.y, width: object.w || offset, height: GEOMETRY.chipHeight }} />}
+      {chosen && !asLabels && <SelectionMark geometry={{ kind: 'rect', x: object.x, y: object.y, width: object.w || offset, height: GEOMETRY.chipHeight }} />}
     </g>
   );
 }

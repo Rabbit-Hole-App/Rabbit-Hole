@@ -65,6 +65,9 @@ export default function VectorScene({ state, run, selected, onSelect, reduced })
   const handle = (target, colour) => {
     const [x, y] = toScreen(live[target]);
     const active = selected === target;
+    // Flip the label to the inboard side near an edge so it never clips the
+    // square viewBox (endpoints can sit hard against the right/top).
+    const nearRight = x > SIZE - 72;
     return (
       <g key={target}>
         <line x1={SIZE / 2} y1={SIZE / 2} x2={x} y2={y} stroke={colour} strokeWidth={active ? 3 : 2} />
@@ -72,7 +75,8 @@ export default function VectorScene({ state, run, selected, onSelect, reduced })
           role="slider" tabIndex={0} aria-label={`Vector ${target}`} aria-valuetext={`${target} is ${live[target][0]}, ${live[target][1]}`}
           className="cursor-grab focus:outline-none focus-visible:stroke-[3]"
           onPointerDown={event => startDrag(event, target)} onKeyDown={event => key(event, target)} onFocus={() => onSelect(target)} />
-        <text x={x + 11} y={y - 9} fontSize="11" fill={colour} fontFamily="ui-monospace, monospace">{target} ({live[target][0]}, {live[target][1]})</text>
+        <text x={nearRight ? x - 11 : x + 11} y={y < 16 ? y + 18 : y - 9} textAnchor={nearRight ? 'end' : 'start'}
+          fontSize="11" fill={colour} fontFamily="ui-monospace, monospace">{target} ({live[target][0]}, {live[target][1]})</text>
       </g>
     );
   };
@@ -101,51 +105,65 @@ export default function VectorScene({ state, run, selected, onSelect, reduced })
             <line x1={toScreen(live.a)[0]} y1={toScreen(live.a)[1]} x2={px} y2={py} stroke="#94a3b8" strokeWidth="1" strokeDasharray="4 3" />
             <rect data-projection-marker x={px - 4} y={py - 4} width="8" height="8" fill="#1a7f37"
               style={reduced ? undefined : { transition: 'all .12s linear' }} />
-            <text x={px + 10} y={py + 16} fontSize="11" fill="#1a7f37" fontFamily="ui-monospace, monospace">proj_b(a)</text>
+            <text x={px > SIZE - 72 ? px - 10 : px + 10} y={py > SIZE - 22 ? py - 8 : py + 16}
+              textAnchor={px > SIZE - 72 ? 'end' : 'start'} fontSize="11" fill="#1a7f37" fontFamily="ui-monospace, monospace">proj_b(a)</text>
           </>
         )}
         {handle('b', '#b45309')}
         {handle('a', '#2383e2')}
       </svg>
-      <div className="shrink-0 space-y-1.5 text-xs">
-        {/* column headers, so nobody has to guess which field is which axis */}
-        <div className="flex items-center gap-2 text-ink-2">
-          <span className="w-3" />
-          <span className="w-16 text-center font-mono">x</span>
-          <span className="w-16 text-center font-mono">y</span>
-        </div>
-        {['a', 'b'].map(target => (
-          <div key={target} className="flex items-center gap-2">
-            <span className="w-3 font-mono text-ink-2">{target}</span>
-            {['x', 'y'].map((axis, index) => {
-              const field = `${target}.${axis}`;
-              return (
-                <input key={axis} type="number" step="0.5" aria-label={`${target} ${axis}`}
-                  value={buffers[field] ?? live[target][index]}
-                  onChange={event => {
-                    const text = event.target.value;
-                    setBuffers(previous => ({ ...previous, [field]: text }));
-                    // Only a finished, finite number becomes the experiment's
-                    // value; "-" and "" stay in the buffer, never as NaN or a
-                    // premature zero in geometry.
-                    const numeric = Number(text);
-                    if (text.trim() === '' || !Number.isFinite(numeric)) return;
-                    const value = [...state[target]];
-                    value[index] = numeric;
-                    run({ type: 'set_vector', target, value });
-                  }}
-                  onBlur={() => setBuffers(previous => { const { [field]: _gone, ...rest } = previous; return rest; })}
-                  className="h-7 w-16 rounded border border-line px-2 text-xs outline-none focus:border-ink-3" />
-              );
-            })}
-          </div>
-        ))}
-        <p data-projection className={result.defined ? 'text-ink-2' : 'text-red-700'}>
-          {result.defined
-            ? `proj_b(a) = ${result.scale} · b = (${result.vector[0]}, ${result.vector[1]}) · a·b = ${result.dot}`
-            : result.reason}
-        </p>
+      {/* The readout is EXPLANATION (what the geometry computes), so it stays
+          in the visualization area. The coordinate FIELDS are controls and
+          live in the INTERACT zone below the divider - see VectorControls,
+          rendered by InteractiveScene. */}
+      <p data-projection className={`shrink-0 text-xs ${result.defined ? 'text-ink-2' : 'text-red-700'}`}>
+        {result.defined
+          ? `proj_b(a) = ${result.scale} · b = (${result.vector[0]}, ${result.vector[1]}) · a·b = ${result.dot}`
+          : result.reason}
+      </p>
+    </div>
+  );
+}
+
+// The coordinate fields, rendered in the INTERACT zone below the visualization
+// (the card grammar: controls live below, separated from the explanation). A
+// drag on the plot and a typed value here both commit the same set_vector
+// action, so the two stay in sync.
+export function VectorControls({ state, run }) {
+  const [buffers, setBuffers] = useState({});
+  return (
+    <div className="space-y-1.5 text-xs">
+      <div className="flex items-center gap-2 text-ink-2">
+        <span className="w-3" />
+        <span className="w-16 text-center font-mono">x</span>
+        <span className="w-16 text-center font-mono">y</span>
       </div>
+      {['a', 'b'].map(target => (
+        <div key={target} className="flex items-center gap-2">
+          <span className="w-3 font-mono text-ink-2">{target}</span>
+          {['x', 'y'].map((axis, index) => {
+            const field = `${target}.${axis}`;
+            return (
+              <input key={axis} type="number" step="0.5" aria-label={`${target} ${axis}`}
+                value={buffers[field] ?? state[target][index]}
+                onChange={event => {
+                  const text = event.target.value;
+                  setBuffers(previous => ({ ...previous, [field]: text }));
+                  // Only a finished, finite number becomes the experiment's
+                  // value; "-" and "" stay in the buffer, never as NaN or a
+                  // premature zero in geometry.
+                  const numeric = Number(text);
+                  if (text.trim() === '' || !Number.isFinite(numeric)) return;
+                  const value = [...state[target]];
+                  value[index] = numeric;
+                  run({ type: 'set_vector', target, value });
+                }}
+                onBlur={() => setBuffers(previous => { const { [field]: _gone, ...rest } = previous; return rest; })}
+                className="h-7 w-16 rounded border border-line px-2 text-xs outline-none focus:border-ink-3" />
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }

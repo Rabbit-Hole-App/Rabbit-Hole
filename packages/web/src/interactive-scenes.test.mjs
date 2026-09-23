@@ -106,6 +106,17 @@ test('the query token chips are labels, not a second control: no pickInput on th
   assert.equal(chars.initialState.pickInput, undefined, 'no in-diagram toolbar; the query control is the INTERACT picker');
 });
 
+// The tokens must not merely be inert - they must not LOOK like a control row.
+// tokenStyle travels all the way to the renderer: validateScene's schema strips
+// any key it does not declare, so an undeclared prop would silently vanish and
+// the chips would still render as pills (exactly the review defect).
+test('tokenStyle: labels survives validation into the evaluated object the renderer reads', () => {
+  const chars = attentionExplorerScene.objects.find(object => object.id === 'chars');
+  assert.equal(chars.initialState.tokenStyle, 'labels');
+  const rendered = evaluated({}).state.objects.find(object => object.semanticId === 'tokens');
+  assert.equal(rendered.tokenStyle, 'labels', 'a dropped prop would silently re-draw the chips as a control row');
+});
+
 test('the mask presentation follows the mask state - caption and legend are data the toggle selects', () => {
   const on = evaluated({ maskEnabled: true }).state.objects;
   const off = evaluated({ maskEnabled: false }).state.objects;
