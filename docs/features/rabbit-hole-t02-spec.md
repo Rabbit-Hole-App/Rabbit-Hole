@@ -552,30 +552,53 @@ Add `device_id TEXT` to the §8.1 table.
   deletes local content, and Restore brings the canvas back. Permanent delete
   is deferred.
 
-## 9. Learn hook (names agreed by both Learn owners, not built)
+## 9. Learn hook (built on `feature/parallel-work`, not yet on main)
 
-Both Learn branch owners agreed on these names and payloads on 2026-09-23:
-`feat/canvas-block-conversations` and `feature/parallel-work`. **Neither has
-built it yet.** Each is waiting for its own user's approval and will reply
-"built" once the hook is committed and deployed. Fallbacks stay active until
-then.
+The `feature/parallel-work` owner built the handoff in commit `cc0cbf8`. They
+deployed it to `small-cp-dev-small-parallel` and cover it with
+`packages/web/e2e/learn-handoff-check.mjs` (30 checks). It reaches this branch
+only after that branch merges to `main`. **Until then the bar uses the
+fallback copy.** The `feat/canvas-block-conversations` owner agreed to the same
+names but has not built it.
 
-- **Request.** Before navigating to `/apps/<slug>?tab=learn[&board=<board>]`,
-  write the sessionStorage key `small.learn.request`. Learn reads it once on
-  mount and deletes it. If Learn is already mounted, dispatch
-  `window.dispatchEvent(new CustomEvent('small:learn-request', { detail }))`
-  instead.
-  - teach: `{ id, kind: 'teach', app, prompt }`. **Prefill only, never
-    auto-send.**
-  - add source: `{ id, kind: 'add-source', app, board?, source: { kind: 'arxiv'|'wiki'|'youtube', ref } }`.
-    `ref` is the arXiv id or link, the Wikipedia title or link, or the
-    YouTube id or URL. `pdf` is rejected with a reason ("upload the PDF on the
-    canvas").
-- **Result.** Learn emits `small:learn-result` with `{ id, status: 'prefilled'|'added'|'rejected', reason }`.
-  It also writes the same object to sessionStorage `small.learn.result:<id>`,
-  so a bar that unmounted during navigation can still read it.
-- The bar claims success **only on a matching result**. If none arrives
-  within 3 seconds, it shows the fallback copy (§6.4).
+**Request.** Send it one of two ways:
+- Before navigating to `/apps/<app>?tab=learn[&board=<board>]`, write
+  `sessionStorage['small.learn.request'] = JSON.stringify(request)`. Learn
+  reads it once on mount and deletes it.
+- If Learn is already mounted, dispatch
+  `window.dispatchEvent(new CustomEvent('small:learn-request', { detail: request }))`.
+
+Request shapes. Each `id` is a non-empty string, unique per request:
+- `{ id, kind: 'teach', app, board?, prompt }` fills the dock composer, focuses
+  it, and puts the caret at the end. It **never sends**. It is rejected if the
+  composer already holds different text, and that text is left untouched.
+- `{ id, kind: 'research', app, board?, source: { kind: 'arxiv'|'wiki'|'youtube', ref } }`
+  looks up `ref` through the same path as Learn Search (`/api/learn/search`):
+  - a link or id resolves exactly
+  - a title or topic takes the first result
+  - the source is added as a normal card and registered in Files
+  - `pdf` is rejected with a reason
+- `app` must equal the open app's slug, and `board` must match the open canvas
+  (leave `board` out for the main canvas). A mismatch is rejected.
+
+**Result.** There is exactly one result per id: the window event
+`small:learn-result` with detail
+`{ id, kind, status: 'prefilled'|'added'|'rejected'|'failed', reason?, resourceId? }`.
+- `resourceId` is set only when the status is `added`.
+- The same object is stored at `sessionStorage['small.learn.result:<id>']`.
+- `rejected` means the input or state was refused. `failed` means Learn tried
+  and broke (search error, timeout).
+- Idempotency: a repeated id replays the stored result; duplicate deliveries in
+  flight produce one action.
+
+**Bar behaviour:**
+- The bar claims success **only on a matching result**.
+- Wait times:
+  - `teach`: 3 seconds
+  - `research`: 20 seconds, with "Adding to canvas…" shown meanwhile, because
+    the result arrives only once the card is on the canvas
+- If no result arrives in time, or the status is `rejected` or `failed`, the
+  bar shows the fallback or the reason. It never shows fake success.
 
 ## 10. Jev: designed, disabled
 
