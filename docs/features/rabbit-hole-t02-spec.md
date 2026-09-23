@@ -1,8 +1,10 @@
 # Rabbit Hole — T02 UX spec: Home, Library, Project, Agent Bar
 
 Status: **Gate A approved on 2026-09-23**, including Q1 (§16) and the
-content-not-on-this-device state (§8.3). T03 (Figma) is in progress. No
-production UI is built before Figma review. Nothing in `packages/` has changed.
+content-not-on-this-device state (§8.3). **T03 mockups are done and awaiting
+Gate B review:**
+[Rabbit Hole — Home & Projects](https://www.figma.com/design/ef9SfiemEsPQF2bd8B1os3).
+No production UI is built. Nothing in `packages/` has changed.
 
 > **Rabbit Hole is not a chat app with pages. The interface is a learning
 > environment, and the agent is its steering wheel.**
@@ -507,24 +509,30 @@ Add `device_id TEXT` to the §8.1 table.
   deletes local content, and Restore brings the canvas back. Permanent delete
   is deferred.
 
-## 9. Learn hook (proposed by the Learn owner, not final)
+## 9. Learn hook (names agreed by both Learn owners, not built)
 
-`feat/canvas-block-conversations`'s owner proposed this shape. It is pending
-their user's approval. **Fallbacks stay active until they confirm it
-merged.**
+Both Learn branch owners agreed on these names and payloads on 2026-09-23:
+`feat/canvas-block-conversations` and `feature/parallel-work`. **Neither has
+built it yet.** Each is waiting for its own user's approval and will reply
+"built" once the hook is committed and deployed. Fallbacks stay active until
+then.
 
-- Before navigating to `/apps/<slug>?tab=learn`, the bar writes a one-shot
-  sessionStorage key `learn:pending` =
-  `{ id, kind: 'teach'|'add-source', scope:{app}, prompt?, source? }`. Learn
-  reads and deletes it on mount.
-- If Learn is already mounted, the bar dispatches
-  `window.dispatchEvent(new CustomEvent('learn:request', { detail }))`.
-- Learn answers with `learn:result {id, status:'prefilled'|'added'|'rejected', reason?}`.
-- `teach` = **prefill only, never auto-send**.
-- Source kinds: `arxiv` (ref = arXiv id), `wiki` (ref = title), `youtube`
-  (ref = URL). `pdf` is rejected with a reason.
-- The bar claims success **only on a matching `learn:result`**. If none
-  arrives within 3 seconds, it shows the fallback copy (§6.4).
+- **Request.** Before navigating to `/apps/<slug>?tab=learn[&board=<board>]`,
+  write the sessionStorage key `small.learn.request`. Learn reads it once on
+  mount and deletes it. If Learn is already mounted, dispatch
+  `window.dispatchEvent(new CustomEvent('small:learn-request', { detail }))`
+  instead.
+  - teach: `{ id, kind: 'teach', app, prompt }`. **Prefill only, never
+    auto-send.**
+  - add source: `{ id, kind: 'add-source', app, board?, source: { kind: 'arxiv'|'wiki'|'youtube', ref } }`.
+    `ref` is the arXiv id or link, the Wikipedia title or link, or the
+    YouTube id or URL. `pdf` is rejected with a reason ("upload the PDF on the
+    canvas").
+- **Result.** Learn emits `small:learn-result` with `{ id, status: 'prefilled'|'added'|'rejected', reason }`.
+  It also writes the same object to sessionStorage `small.learn.result:<id>`,
+  so a bar that unmounted during navigation can still read it.
+- The bar claims success **only on a matching result**. If none arrives
+  within 3 seconds, it shows the fallback copy (§6.4).
 
 ## 10. Jev: designed, disabled
 
