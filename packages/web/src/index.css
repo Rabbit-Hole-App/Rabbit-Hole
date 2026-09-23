@@ -484,6 +484,52 @@ tr.cursor-pointer:active > td {
   background-color: #fde047;
   color: #1f1f1f;
 }
+
+/* A paper page's selectable text: pdf.js's text layer (the minimum of
+   pdfjs-dist/web/pdf_viewer.css), invisible spans laid exactly over the
+   rendered glyphs. --total-scale-factor is CSS px per PDF unit, set by
+   LearnPaper from the page's displayed width. */
+.textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  z-index: 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+.textLayer > :not(.markedContent),
+.textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  --scale-x: 1;
+  --rotate: 0deg;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.textLayer .markedContent { display: contents; }
+/* While a drag selects, this sheet under the words catches the gaps between
+   them, so the selection does not jump to the top of the page. */
+.textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: 0; cursor: default; user-select: none; }
+.textLayer.selecting .endOfContent { top: 0; }
+.textLayer ::selection { background: rgb(0 0 255 / 0.25); color: transparent; }
+/* The page image already shows the words - a highlight only tints them. */
+.textLayer ::highlight(wiki-highlight) { background-color: rgb(250 204 21 / 0.45); color: transparent; }
 @keyframes wiki-arrive {
   from { background: rgba(125, 195, 255, 0.3); }
   to { background: transparent; }

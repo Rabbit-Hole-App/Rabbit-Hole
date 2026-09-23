@@ -911,11 +911,15 @@ function QuizBody({ block, onChange, onFile }) {
 // The lesson paper reader, embedded as a canvas block: page navigation and
 // the red region-select both come from the existing LearnPaper component.
 // The first press on an unselected card selects it - so its Ask selection
-// pill appears - and only then do presses belong to the paper.
+// pill appears - and only then do presses belong to the paper. Highlights are
+// saved on the block with their page; highlighter mode is a moment, not saved.
 function PaperBody({ block, appName, onChange, onAskRegion, selected = true }) {
+  const [highlighting, setHighlighting] = useState(false);
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-2 pb-2" onPointerDown={event => { if (selected) event.stopPropagation(); }}>
+    <div className="flex min-h-0 flex-1 flex-col px-2 pb-2" onPointerDown={event => { if (selected || highlighting) event.stopPropagation(); }}>
       <LearnPaper app={appName} paper={block.paper} selectRequest={block.selectRequest || 0} selectButton={false}
+        paintKey={block.id} highlights={block.highlights || []} onHighlights={next => onChange({ ...block, highlights: next })}
+        highlighting={highlighting} onHighlighting={setHighlighting}
         onPage={page => onChange({ ...block, paper: { ...block.paper, page, selection: undefined } })}
         onSelect={selection => {
           // The marked region stays drawn on the page after asking, until it
