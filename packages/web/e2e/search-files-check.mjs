@@ -15,6 +15,16 @@ const VIDEOS = [
 const PAPER = { key: '1706.03762', title: 'Attention Is All You Need', subtitle: 'Vaswani et al. · arXiv:1706.03762', why: 'Exactly the paper you pasted.', exact: true, thumbnail: null, item: { id: '1706.03762', title: 'Attention Is All You Need', pdfUrl: 'https://arxiv.org/pdf/1706.03762' } };
 const ARTICLE = { key: 'Backpropagation', title: 'Backpropagation', subtitle: 'Wikipedia', why: 'The algorithm itself.', thumbnail: null, item: { title: 'Backpropagation' } };
 
+// A real, minimal one-page PDF, so the paper card renders its toolbar.
+const tinyPdf = () => {
+  const objects = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Contents 4 0 R /Resources << >> >>', '<< /Length 8 >>\nstream\n0 0 m S\nendstream'];
+  let body = '%PDF-1.4\n';
+  const offsets = objects.map((object, at) => { const offset = body.length; body += `${at + 1} 0 obj\n${object}\nendobj\n`; return offset; });
+  const xref = body.length;
+  body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map(offset => `${String(offset).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return Buffer.from(body, 'latin1');
+};
+
 const browser = await chromium.launch();
 const page = await (await browser.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
 const searches = [];
@@ -31,6 +41,7 @@ await page.route('**/api/**', async route => {
     if (source === 'wikipedia') return route.fulfill({ json: { results: [ARTICLE] } });
     return route.fulfill({ json: { results: VIDEOS } });
   }
+  if (url.pathname === '/api/learn/paper') return route.fulfill({ status: 200, contentType: 'application/pdf', body: tinyPdf() });
   if (url.pathname === '/api/learn/wiki') return route.fulfill({ json: { title: 'Backpropagation', displayTitle: 'Backpropagation', html: '<section><p>Backpropagation computes gradients.</p></section>', toc: [], licence: { name: 'CC BY-SA 4.0', url: 'https://creativecommons.org/licenses/by-sa/4.0/' } } });
   return route.fulfill({ json: replies[url.pathname] || {} });
 });
@@ -135,6 +146,16 @@ await page.waitForTimeout(1000);
 const paperCard = canvas.locator('[aria-label="Paper reader"]');
 ok('picking a paper puts a paper card on the canvas', (await paperCard.count()) === 1);
 ok('and not the side panel', (await page.locator('aside [aria-label="Paper reader"]').count()) === 0);
+await paperCard.locator('[aria-label="Next paper page"]').waitFor({ timeout: 15000 });
+await paperCard.click({ position: { x: 40, y: 12 } });
+await page.waitForTimeout(250);
+ok('a selected paper card has exactly one Ask selection - the pill above it', (await canvas.getByRole('button', { name: 'Ask selection' }).count()) === 1 && (await paperCard.locator('[data-paper-select]').count()) === 0);
+await paperCard.click({ button: 'right', position: { x: 40, y: 12 } });
+await page.waitForTimeout(250);
+await page.getByRole('menu', { name: 'Canvas actions' }).getByRole('menuitem', { name: 'Open in reader' }).click();
+await page.locator('aside [aria-label="Paper reader"] [aria-label="Next paper page"]').waitFor({ timeout: 15000 });
+ok('the side-panel reader keeps its own region button', (await page.locator('aside [aria-label="Paper reader"] [data-paper-select]').count()) === 1);
+await page.locator('aside [aria-label="Close paper"]').click();
 
 // --- nothing found: one click to try elsewhere, same words ---
 await openSearch();

@@ -910,10 +910,12 @@ function QuizBody({ block, onChange, onFile }) {
 
 // The lesson paper reader, embedded as a canvas block: page navigation and
 // the red region-select both come from the existing LearnPaper component.
-function PaperBody({ block, appName, onChange, onAskRegion }) {
+// The first press on an unselected card selects it - so its Ask selection
+// pill appears - and only then do presses belong to the paper.
+function PaperBody({ block, appName, onChange, onAskRegion, selected = true }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-2 pb-2" onPointerDown={event => event.stopPropagation()}>
-      <LearnPaper app={appName} paper={block.paper} selectRequest={block.selectRequest || 0}
+    <div className="flex min-h-0 flex-1 flex-col px-2 pb-2" onPointerDown={event => { if (selected) event.stopPropagation(); }}>
+      <LearnPaper app={appName} paper={block.paper} selectRequest={block.selectRequest || 0} selectButton={false}
         onPage={page => onChange({ ...block, paper: { ...block.paper, page, selection: undefined } })}
         onSelect={selection => {
           // The marked region stays drawn on the page after asking, until it
@@ -1554,7 +1556,7 @@ export function describeBlock(block) {
   return null;
 }
 
-export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appName, onAskRegion, onGrade, onAskScene }) {
+export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appName, onAskRegion, onGrade, onAskScene, selected = true }) {
   if (block.type === 'challenge') return <ChallengeBody block={block} onChange={onChange} onFile={onFile} onGrade={onGrade} appName={appName} />;
   if (block.type === 'quiz') return <QuizBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'flashcards') return <FlashcardsBody block={block} onChange={onChange} />;
@@ -1573,7 +1575,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'scene') return <SceneBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'image') return <ImageBody block={block} appName={appName} onChange={onChange} onFile={onFile} />;
   if (block.type === 'video') return <VideoBody block={block} appName={appName} onChange={onChange} onFile={onFile} />;
-  if (block.type === 'paper') return <PaperBody block={block} appName={appName} onChange={onChange} onAskRegion={onAskRegion} />;
+  if (block.type === 'paper') return <PaperBody block={block} appName={appName} onChange={onChange} onAskRegion={onAskRegion} selected={selected} />;
   if (block.type === 'graph') return <GraphBody block={block} appName={appName} onChange={onChange} />;
   return null;
 }

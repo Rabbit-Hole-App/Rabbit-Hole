@@ -530,7 +530,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
           </button>
         </div>
       )}
-      <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} />
+      <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} selected={selected} />
     </CanvasNode>
   );
 }
