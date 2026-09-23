@@ -1,7 +1,8 @@
 # Rabbit Hole — T02 UX spec: Home, Library, Project, Agent Bar
 
-Status: **written, awaiting your approval (Gate A).** Figma (T03) starts only
-after this document is approved. Nothing in `packages/` has changed.
+Status: **Gate A approved on 2026-09-23**, including Q1 (§16) and the
+content-not-on-this-device state (§8.3). T03 (Figma) is in progress. No
+production UI is built before Figma review. Nothing in `packages/` has changed.
 
 > **Rabbit Hole is not a chat app with pages. The interface is a learning
 > environment, and the agent is its steering wheel.**
@@ -345,7 +346,7 @@ Nothing is migrated speculatively.
 | Risk | Commands |
 |---|---|
 | Immediate | `open_resource`, `open_tab`, `open_settings(tab, focus)`, `filter_library`, `search_resources`, `find_apps_ai`, `find_runs_ai`, `new_thread` |
-| Undo | `pin` / `unpin`, `set_theme`, `create_canvas` (Undo only while the canvas is untouched, §8.3) |
+| Undo | `pin` / `unpin`, `set_theme`, `create_canvas` (Undo only while the canvas is untouched, §8.4) |
 | Confirm | `connect_repository`, and the existing Ask tools `run`, `run_again`, `set_schedule`, `pause_schedule`, `resume_schedule`, `share`, `unshare` |
 | Opens a screen only | Rename, duplicate, trash, restore, visibility, folders, workspaces, members, teams, AI provider, AWS, Slack, Watch dismiss |
 
@@ -417,7 +418,8 @@ even outside a clone.
 - Immediate and Undo commands that touch only device storage or `LEARN_DB`
   are allowed.
 - `connect_repository` writes only to `LEARN_DB` rows and to R2 objects under
-  `learn-repositories-dev/` (`repositories.js:90`). **See open question Q1.**
+  `learn-repositories-dev/` (`repositories.js:90`). It is allowed on the
+  review copy under the §16 conditions.
 
 ## 8. Canvas identity (D1b, dev only)
 
@@ -430,6 +432,7 @@ CREATE TABLE IF NOT EXISTS canvases (
  id INTEGER PRIMARY KEY, org TEXT NOT NULL, name TEXT NOT NULL,        -- name = 'canvas-' + 8 hex
  owner_email TEXT NOT NULL, title TEXT NOT NULL, project TEXT,          -- project = 'repo-…' or NULL
  created_at TEXT NOT NULL DEFAULT (datetime('now')), archived_at TEXT,
+ device_id TEXT,                                                      -- §8.3
  UNIQUE(org,name));
 ```
 
@@ -444,7 +447,7 @@ There is no migration on the live D1 `small`.
 | `GET /api/apps/canvas-*` | Owner | Returns the canvas object (shape mirrors `repositoryApp`) |
 | `PATCH /api/apps/canvas-* {title}` | Owner | Renames. The title changes; the slug never does. |
 | `POST /api/apps/canvas-*/archive` and `/restore` | Owner | Sets or clears `archived_at` |
-| `DELETE /api/apps/canvas-*` | — | Returns 405 in phase 1 (touched canvases: see §8.3) |
+| `DELETE /api/apps/canvas-*` | — | Returns 405 in phase 1 (touched canvases: see §8.4) |
 
 - **Visibility:** owner only in phase 1. Content is browser-local, so sharing
   a canvas is honestly unavailable.
@@ -460,7 +463,38 @@ There is no migration on the live D1 `small`.
   `small.adaptive-canvas:<org>:<email>:canvas-<id>`. Nothing in Learn changes.
 - **PDF uploads** in a canvas behave as they do today (per-identity R2 key).
 
-### 8.3 Undo and removal (amendment 6)
+### 8.3 Content not on this device
+
+The canvas record lives on the server, but its content lives in one browser.
+The page must never open that record as an empty, editable canvas on a device
+that doesn't hold the content. That would look like lost work, and editing it
+would create two divergent local versions under one canvas identity.
+
+- `create_canvas` stores `device_id`, an opaque random id from
+  `localStorage small.device` that is created on first use and is not
+  personal data.
+- Opening `/apps/canvas-<id>`: before Learn mounts, the canvas route checks
+  whether the local blob is absent.
+  - **Local blob absent and `device_id` ≠ this device's id:** show this state
+    instead of Learn:
+
+    > **This canvas's content isn't in this browser.**
+    > It was created on another device, and its learning content is stored
+    > only there. It may also have been cleared from this browser's storage.
+    > `[Open project]` (if linked) · `[New canvas here]` · `[About local-only storage]`
+
+  - **Local blob absent and the `device_id` matches:** open normally. The
+    canvas is new or untouched here.
+- Nothing edits the record's content, and there is no "edit anyway".
+  `[New canvas here]` creates a separate canvas with its own identity.
+- Home and Library canvas cards on another device carry the chip
+  `On another device` instead of "Content stays in this browser".
+- Cross-device sync and versioning are **out of scope for this milestone**.
+  They are the long-term fix.
+
+Add `device_id TEXT` to the §8.1 table.
+
+### 8.4 Undo and removal (amendment 6)
 
 - After `create_canvas`, the result line shows `Canvas created · Undo`.
 - **Undo is offered only while the canvas is untouched.** Untouched means the
@@ -610,7 +644,7 @@ github.com/karpathy/nanoGPT · master @ 3f2a1c9 · Map ready
 | Home | First-visit Start | Skeletons | Shell error + Retry | — |
 | Library | "Nothing here yet" + Start | Existing table loading | Existing | Viewers see the existing Denied/Request access |
 | Project | — | Snapshot loading | Map `failed` panel + Refresh (importer) and a usable Learn | Non-importer: no Refresh |
-| Canvas | Learn's own empty canvas | Learn | Learn | Non-owner: 403 "This canvas is private to its owner" |
+| Canvas | Learn's own empty canvas | Learn | Learn; **content not on this device** (§8.3) | Non-owner: 403 "This canvas is private to its owner" |
 | Agent Bar | Placeholder per scope | Streaming + Stop | Error line, text kept, `[Retry]` | Mode dimmed with its reason; Blocked card (D7) |
 | Confirmation card | — | Executing | Failed (kept) | No longer allowed / Expired / Cancelled |
 
@@ -633,6 +667,7 @@ auto-layout, using synthetic data only.
   8. Create after editing: Archive, not Undo
   9. Streaming while navigating
   10. Routing/provider failure with the text preserved
+  11. Canvas content not on this device (§8.3), plus its Home/Library card chip
 - Both themes for Home, Project, and Map. One narrow-width variant for each.
 
 ## 15. Traceability
@@ -667,11 +702,27 @@ auto-layout, using synthetic data only.
 - The canvas routes use `/apps/canvas-*` although the brief says canvases
   aren't apps. It is a URL only; labels always say "Canvas".
 
-## 16. Open question
+## 16. Resolved: Q1 and the meaning of D7 (2026-09-23)
 
-**Q1 — `connect_repository` on the review clone.** It writes new rows to the
-dev-only `LEARN_DB`, plus new R2 objects under `learn-repositories-dev/`. It
-never changes an existing live app, member, or share. The existing Import
-button already does exactly this on dev. I propose treating it as **allowed**
-under D7, because D7 targets changes to live app data. If you read D7 more
-strictly, the Repository start path can't be exercised on the clone.
+**D7 means:** the review environment must not mutate production-visible user
+or application state. It does **not** mean the environment can never write
+anything.
+
+`connect_repository` **may execute on the review copy.** It stays
+Confirm-class, because it creates persistent state. It is exempt from the
+Blocked treatment only while all of these hold, and T04 verifies each against
+the code:
+
+1. The repository row goes only into `small-learn-dev` (`LEARN_DB`).
+2. Artifacts stay under `learn-repositories-dev/` (`repositories.js:90`).
+3. No existing production artifact can be overwritten. Keys contain the
+   `LEARN_DB` id and the commit, and production writes nothing under that
+   prefix.
+4. It never calls a live app, share, or member mutation API.
+5. Review-created records can be identified and cleaned up separately
+   (`LEARN_DB` rows by `org`, `owner_email`, and `created_at`, and their R2
+   keys through `repository_versions`).
+6. The UI still says that imported public repositories are workspace-visible.
+
+**If implementation finds any of these false, D7 wins and the action is
+blocked.**
