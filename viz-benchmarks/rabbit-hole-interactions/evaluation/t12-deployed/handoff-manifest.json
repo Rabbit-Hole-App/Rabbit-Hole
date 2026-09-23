@@ -1,53 +1,39 @@
 {
   "handoffUrl": "https://small-cp-dev-small-deploy.zeroshothq.workers.dev/apps/repo-06745f10-nanogpt?tab=learn&board=interactive-app-review",
   "worker": "small-cp-dev-small-deploy (this session's clone per docs/features/parallel-dev-deploys.md)",
-  "workerVersionId": "17300b81-3c5e-44ff-a24e-07e3fda97851",
-  "loadedClientBundle": "/static/index-B1URkmrv.js",
+  "workerVersionId": "7ed65592-9a0d-4a45-9a04-56b05e186fa0",
+  "loadedClientBundle": "/static/index-MP0hRY20.js",
   "bundleIdentity": "served index.html bundle == bundle the loaded page executes == local dist-dev build",
-  "sourceCommit": "a84148bbd352728a72b6652ecdb18991dd1042ea",
-  "boardSeed": "interactive-app-review s3, interactive-holdouts s2; a stale prior-seed blob planted and verified ignored; unknown board name shows the visible notice",
+  "sourceCommit": "82633956248f8824cdff9749b17a98899119c740 + this session's pass-5 working tree",
+  "boardSeed": "interactive-app-review s6, interactive-holdouts s2; a stale prior-seed blob written into storage and verified ignored; unknown board name shows the visible notice",
+  "pass": "5 - raise the interaction quality bar: every interaction must reveal a relationship, counterfactual, or consequence a static picture could not",
+  "cardsAreExploreOnly": true,
   "interactionsPerformedOnDeployedPage": [
-    "I01 token click + mask toggle",
-    "I02 grid click + stepper",
-    "I03 choice + commit + reveal",
-    "I04 typed coordinates + pointer drag",
-    "Ask-about-this + real Send (payload carried the visible experiment state)",
+    "I01 attention: query picker changes the whole pipeline; mask toggle blanks/fills the future scores and reshapes the distribution and output",
+    "I02 image-patch: grid click + stepper move the enlarged crop window onto the same file",
+    "I03 world-model: the Action changes the actual predicted rollout (t+1/t+2/outcome) and its cost readout; the Goal (Safest/Fastest) re-weights the costs so the ringed preferred action flips (Safest->Brake, Fastest->Continue) with the futures unchanged",
+    "I04 vector projection: typed coordinates + pointer drag recompute the projection live",
+    "selection pill + bottom composer is the one ask surface; the request payload carried the visible experiment state",
     "reload persistence"
   ],
+  "counterfactualPerCard": {
+    "I01": "toggle the causal mask -> future-position scores blank, the softmax redistributes over the visible keys, the output vector changes",
+    "I02": "step the patch index -> the enlarged crop is a different window onto the same image (inspection, not a highlight)",
+    "I03": "change the objective with the SAME three predicted futures -> the planner's lowest-cost action changes (Brake vs Continue); change the action -> the predicted trajectory itself changes",
+    "I04": "drag b or type a -> proj_b(a), its endpoint and a.b recompute; set a orthogonal to b -> the projection collapses to zero"
+  },
+  "declutter": {
+    "attention": "one dominant left-to-right pipeline (query token -> Q[query] -> scores QK^T/sqrt(dk) -> attention weights (sum to 1) -> output). The duplicated full Q/K/V matrices and the full 4x4 score matrix were removed; the tokens in the visual are labels that highlight the query, not a second query toolbar (the one query control is the INTERACT picker below)."
+  },
+  "practice": "removed from all four cards - they are explore-only. The generic Explore/Practice activity layer still exists in the runtime and keeps its own unit tests, but no card on this board attaches a task.",
   "knownLimitsAtHandoff": [
     "Tutor ANSWERS on this clone return the designed no-credential error (model HTTP 401) - true wrangler secrets do not clone; the request path and payload were verified; full answers require the shared worker after explicit promotion",
-    "I01 practice runs ungated (deliberate deviation recorded in the ledger; the commit->reveal gate is demonstrated by I03 and shared)",
     "The widest card (I01) can extend under the floating drawing toolbar at narrow viewports; cards are movable and the canvas pans",
     "No external interaction reference captured; temporal smoothness beyond intermediate-value traces unassessed"
   ],
-  "reviewPass2": [
-    "card-level Ask about this removed everywhere; the selection pill + bottom composer is the one ask surface and still receives live card context",
-    "I01: practice snaps the visualization to its declared state (south, mask on) at answer-begin/Check/New attempt, with a generated Practice setup line; single query control (accessible token chips on the visual); mask caption and legend follow the mask state; pipeline band with numeric weights dominates, full matrices secondary",
-    "I03: Inspect candidate vs Your prediction labels; committed chip renders solid; revealed minimum bar highlighted via argmin; offset-from-goal wording; learner-facing provenance note",
-    "I04: projection line, endpoint marker and proj_b(a) label; x/y column headers on the coordinate fields",
-    "legibility: axis/bar labels and helper text moved up one chrome step (ink-2), verified at 100% zoom in both themes"
-  ],
-  "reviewPass3": {
-    "verdict": "pass (independent, six cases) - state truth resolved; all four oracles verified; both holdouts generalized on existing input types",
-    "stateTruthResolved": true,
-    "changes": [
-      "attention (and all practice cards): explicit Explore vs Practice; entering Practice applies + LOCKS the declared inputs (command-path enforced), collapses the task in Explore, and prints a generated Locked-by-this-task line",
-      "candidate-futures: rebuilt as current state -> identity-coloured arrows -> predicted-future boxes; cost chart hidden behind a placeholder until commit, then numeric with the minimum ringed (no misleading heat)",
-      "two holdouts (repo navigator, CNN inspector) built on existing input types only; three vocabulary gaps reported, not worked around"
-    ],
-    "reviewFixesApplied": [
-      "h2 CNN legend was inverted in light theme (brighter read as weaker) -> theme-neutral \"a more saturated cell is a stronger response\"",
-      "h1 code excerpt clipped at the card edge -> shortened each signature line to fit (single-line SVG text does not wrap - a reported gap)",
-      "h2 layer chips overran the card -> shortened to the layer names (edges/textures/parts); the caption keeps the \"layer N\" phrasing"
-    ],
-    "boards": {
-      "interactive-app-review": "the four cards, seed s2",
-      "interactive-holdouts": "the two generalization holdouts, seed s1"
-    }
-  },
   "interactionGrammar": {
-    "rule": "inside the visual = understand/inspect; a labeled INTERACT zone below the visual+transport = manipulate; PRACTICE only when a task exists; bottom chat = ask",
-    "implementation": "the card shell renders the INTERACT zone generically from the declared non-hidden inputs (every input gets an obvious control there); direct on-scene manipulation (visual index chips, dragged vec2, clicked patch) remains a synchronized shortcut writing the SAME input; transport (replay/timeline) stays a separate row; Practice is a separate collapsed section present only when the block has an activity; no scene-ID branch, no per-lesson placement in runtime code",
-    "verifiedCards": "i01/i02/i03/i04 + both holdouts; holdouts (interactive-only) correctly render INTERACT and NO Practice"
+    "rule": "inside the visual = understand/inspect; a labeled INTERACT zone below the visual+transport = manipulate; PRACTICE only when a task exists (none here); bottom chat = ask",
+    "implementation": "the card shell renders the INTERACT zone generically from the declared non-hidden inputs (every input gets an obvious control there); direct on-scene manipulation (clicked patch, dragged vec2) remains a synchronized shortcut writing the SAME input; transport (replay/timeline) stays a separate row; no scene-ID branch, no per-lesson placement in runtime code; the world-model card was authored with existing input types (two index inputs) and existing derive ops (pick/scale/add/argmin) - no new primitive",
+    "verifiedCards": "i01/i02/i03/i04 at 1:1 capture in both themes"
   }
 }

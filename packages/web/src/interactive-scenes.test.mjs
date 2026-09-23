@@ -9,8 +9,6 @@ import { evaluateScene } from './scene-evaluate.js';
 import { checkSceneConsistency } from './scene-consistency.js';
 import { checkLayoutLint } from './scene-layout-lint.js';
 import { attentionExplorerScene, candidateFutureScene, patchExplorerScene } from './interactive-scenes.js';
-import { describeAnimation } from './scene-describe.js';
-import { applyInputToBlock } from './scene-evaluate.js';
 
 const TOKENS = ['river', 'flows', 'south', 'today'];
 const Q = [[1, 0], [0, 1], [1, 1], [1, -1]];
@@ -84,33 +82,44 @@ test('the mask toggle changes actual numbers, and Q/K/V fixtures never move', ()
   assert.deepEqual(on.derived.V, off.derived.V);
 });
 
-test('every bound view reads the one snapshot: highlight row, caption word, weights bars', () => {
+test('one dominant pipeline: the selected query drives its score row, weights and output', () => {
   const { state } = evaluated({ queryIndex: 2, maskEnabled: true });
   const objects = Object.fromEntries(state.objects.map(object => [object.semanticId, object]));
-  assert.deepEqual(objects['query-matrix'].cellHighlight, { row: 2 });
-  assert.deepEqual(objects['scores-matrix'].cellHighlight, { row: 2 });
-  assert.equal(objects.tokens.cellHighlight, 2);
+  assert.equal(objects.tokens.cellHighlight, 2, 'the token is a highlighted label');
   assert.match(objects.caption.label, /south/);
-  assert.match(objects['attention-weights'].label, /south/);
-  assert.equal(objects['scores-matrix'].values[11], null, 'future score in row 2 stays masked');
   assert.deepEqual(objects['selected-query-vector'].values, [1, 1]);
+  // the scores row is THIS query's scores against every key; its future is masked
+  assert.equal(objects['scores-row'].values[3], null, 'the future key stays masked in the score row');
+  assert.deepEqual(objects['scores-row'].values.slice(0, 3).map(v => Math.round(v * 100) / 100), [0.71, 0.71, 1.41]);
+});
+
+test('the full Q/K/V and score matrices are gone - one representation per teaching purpose', () => {
+  const { state } = evaluated({});
+  const ids = state.objects.map(object => object.semanticId);
+  for (const gone of ['query-matrix', 'key-matrix', 'value-matrix', 'scores-matrix', 'full-picture-heading']) {
+    assert.ok(!ids.includes(gone), `${gone} should not be duplicated in the pipeline view`);
+  }
+});
+
+test('the query token chips are labels, not a second control: no pickInput on the tokens', () => {
+  const chars = attentionExplorerScene.objects.find(object => object.id === 'chars');
+  assert.equal(chars.initialState.pickInput, undefined, 'no in-diagram toolbar; the query control is the INTERACT picker');
 });
 
 test('the mask presentation follows the mask state - caption and legend are data the toggle selects', () => {
   const on = evaluated({ maskEnabled: true }).state.objects;
   const off = evaluated({ maskEnabled: false }).state.objects;
-  assert.match(on.find(o => o.semanticId === 'scores-matrix').label, /future positions masked/);
-  assert.match(off.find(o => o.semanticId === 'scores-matrix').label, /all positions available/);
-  assert.match(on.find(o => o.semanticId === 'mask-legend').label, /gray cells = masked/);
-  assert.equal(off.find(o => o.semanticId === 'mask-legend').label, '');
-  // mask off: no cell reads as causally blocked
-  assert.ok(off.find(o => o.semanticId === 'scores-matrix').values.every(value => value !== null));
+  assert.match(on.find(o => o.semanticId === 'scores-row').label, /future masked/);
+  assert.match(off.find(o => o.semanticId === 'scores-row').label, /all visible/);
+  assert.match(on.find(o => o.semanticId === 'mask-legend').label, /masked/);
+  assert.match(off.find(o => o.semanticId === 'mask-legend').label, /mask off/);
 });
 
-test('queryIndex presents as visual: the token chips are the one control, no duplicate strip widget', () => {
-  const declaration = attentionExplorerScene.inputs.find(input => input.name === 'queryIndex');
-  assert.equal(declaration.presentation, 'visual');
-  assert.equal(attentionExplorerScene.objects.find(object => object.id === 'chars').initialState.pickInput, 'queryIndex');
+test('counterfactual: toggling the mask changes the weights and output, not just paint', () => {
+  const on = evaluated({ queryIndex: 2, maskEnabled: true }).derived;
+  const off = evaluated({ queryIndex: 2, maskEnabled: false }).derived;
+  assert.notDeepEqual(on.wrow, off.wrow, 'the attention distribution changes');
+  assert.notDeepEqual(on.output, off.output, 'the output changes');
 });
 
 // An interactive scene is a family of scenes: gate every snapshot the four
@@ -159,67 +168,57 @@ for (const patchIndex of [0, 5, 15]) {
   });
 }
 
-// --- I03 candidate-future explorer --------------------------------------------
+// --- I03 world-model planner --------------------------------------------------
 
 const evaluatedFuture = (inputs = {}) => evaluateScene(structuredClone(candidateFutureScene), 3, inputs);
 
-test('I03: costs 4, 1, 9 are derived mechanically from the terminal positions', () => {
-  const { derived } = evaluatedFuture({ resultsRevealed: true });
-  assert.deepEqual(derived.costs, [4, 1, 9]);
-  // independent oracle: squared distance to the goal, from scratch
-  const goal = [0, 0];
-  for (const [id, terminal, expected] of [['A', [2, 0], 4], ['B', [1, 0], 1], ['C', [0, 3], 9]]) {
-    const cost = (terminal[0] - goal[0]) ** 2 + (terminal[1] - goal[1]) ** 2;
-    assert.equal(cost, expected, `oracle self-check ${id}`);
-  }
+test('I03: total cost per action is derived (collision*wC + time*wT), not typed', () => {
+  const { derived } = evaluatedFuture({}); // Safest goal: collision weight 8, time weight 1
+  assert.deepEqual(derived.totals, [6, 3.8, 7.4]);
+  // independent oracle from the raw example data
+  const collision = [0.5, 0.1, 0.8], time = [2, 3, 1];
+  const oracle = collision.map((c, i) => c * 8 + time[i] * 1);
+  assert.deepEqual(derived.totals.map(v => Number(v.toFixed(2))), oracle);
+  // every total stays under 10 so the grid cell and the readout format alike
+  assert.ok(derived.totals.every(v => Math.abs(v) < 10));
 });
 
-test('I03: before reveal the costs are blank everywhere - display hidden, and the tutor payload', () => {
-  const { derived, state } = evaluatedFuture({ candidate: 'B' });
-  assert.deepEqual(derived.shownCosts, [null, null, null]);
-  const chart = state.objects.find(object => object.semanticId === 'candidate-costs');
-  assert.deepEqual(chart.values, [null, null, null]);
-  assert.equal(chart.opacity, 0, 'the whole cost chart is invisible pre-commit');
-  assert.equal(state.objects.find(object => object.semanticId === 'cost-placeholder').opacity, 1, 'and a placeholder says why');
-  const described = describeAnimation({ scene: structuredClone(candidateFutureScene), inputs: { candidate: 'B' }, time: 3, title: 'I03' });
-  assert.ok(!described.text.includes('"costs"'), 'raw costs leaked into the payload');
-  assert.ok(!/[^0-9]4,1,9|\[4, ?1, ?9\]/.test(described.text), 'cost numbers leaked into the payload');
-  // the cost chart is hidden pre-commit, so nothing visible references the
-  // gated costs and they ride along nowhere - stronger than carrying blanks
-  assert.ok(!/\bcosts\b/.test(described.text), 'no cost field of any kind before commit');
+test('I03 counterfactual: the same futures, a different objective, a different preferred action', () => {
+  const safest = evaluatedFuture({ goal: 0 });
+  const fastest = evaluatedFuture({ goal: 1 });
+  // Safest rings Brake (index 1); Fastest rings Continue (index 2)
+  assert.equal(safest.derived.preferredAt, 1);
+  assert.equal(fastest.derived.preferredAt, 2);
+  assert.equal(safest.derived.preferredName, 'Brake');
+  assert.equal(fastest.derived.preferredName, 'Continue');
+  // the rollouts themselves are unchanged by the goal - only the cost weighting moved
+  assert.deepEqual(safest.derived.selRoll, fastest.derived.selRoll);
+  assert.notDeepEqual(safest.derived.totals, fastest.derived.totals);
 });
 
-test('I03: choosing a candidate moves the inspection pointer and the caption', () => {
-  const b = evaluatedFuture({ candidate: 'B' });
-  const c = evaluatedFuture({ candidate: 'C' });
-  const markB = b.state.objects.find(object => object.semanticId === 'inspecting-marker');
-  const markC = c.state.objects.find(object => object.semanticId === 'inspecting-marker');
-  assert.notEqual(markB.y, markC.y, 'the inspecting pointer follows the choice');
-  assert.match(b.state.objects.find(object => object.semanticId === 'caption').label, /inspecting Path B/);
-  assert.match(c.state.objects.find(object => object.semanticId === 'caption').label, /inspecting Path C/);
-  // three predicted-future boxes in identity colours, one per candidate
-  for (const L of ['a', 'b', 'c']) assert.ok(c.state.objects.find(object => object.semanticId === `predicted-future-${L}`), `future ${L} box present`);
+test('I03: choosing an action changes the predicted rollout, not just a highlight', () => {
+  const left = evaluatedFuture({ action: 0 });
+  const brake = evaluatedFuture({ action: 1 });
+  const rollLeft = left.state.objects.find(object => object.semanticId === 'predicted-outcome').label;
+  const rollBrake = brake.state.objects.find(object => object.semanticId === 'predicted-outcome').label;
+  assert.match(rollLeft, /collision risk/);
+  assert.match(rollBrake, /safe stop/);
+  assert.notEqual(rollLeft, rollBrake, 'the outcome box text is the model prediction for that action');
+  // and the cost readout tracks the selected action
+  assert.equal(left.derived.selColl, 0.5);
+  assert.equal(brake.derived.selColl, 0.1);
 });
 
-test('I03: the revealed best candidate is highlighted; nothing is highlighted pre-reveal', () => {
-  const before = evaluatedFuture({ candidate: 'A' }).state.objects.find(object => object.semanticId === 'candidate-costs');
-  assert.equal(before.cellHighlight, null, 'no winner mark before commitment');
-  const afterState = evaluatedFuture({ candidate: 'A', resultsRevealed: true }).state.objects;
-  const after = afterState.find(object => object.semanticId === 'candidate-costs');
-  assert.equal(after.cellHighlight, 1, 'B (index 1) is the revealed minimum');
-  assert.equal(after.opacity, 1, 'the cost chart is visible after commit');
-  assert.equal(afterState.find(object => object.semanticId === 'cost-placeholder').opacity, 0, 'placeholder gone after reveal');
-  assert.equal(after.cellHighlightKind, 'select', 'the winner carries the selection ring against the neutral cost cells');
+test('I03: the cost chart rings the planner-preferred action and is shown while exploring', () => {
+  const { state } = evaluatedFuture({ goal: 1 }); // Fastest
+  const chart = state.objects.find(object => object.semanticId === 'action-costs');
+  assert.deepEqual(chart.values, [4.5, 6.1, 2.8]);
+  assert.equal(chart.opacity, 1, 'no commit gate - costs are visible while exploring');
+  assert.equal(chart.cellHighlight, 2, 'Continue (index 2) is cheapest when Fastest');
+  assert.equal(chart.cellHighlightKind, 'select');
 });
 
-test('I03: the reveal latch cannot be written through the learner command path', () => {
-  const block = { id: 'b', type: 'animation', scene: structuredClone(candidateFutureScene), inputs: {} };
-  assert.equal(applyInputToBlock(block, 'resultsRevealed', true), block);
-  // while the ordinary choice input still writes fine
-  assert.equal(applyInputToBlock(block, 'candidate', 'C').inputs.candidate, 'C');
-});
-
-for (const inputs of [{}, { candidate: 'B' }, { candidate: 'C' }, { candidate: 'B', resultsRevealed: true }]) {
+for (const inputs of [{}, { action: 1 }, { action: 2, goal: 1 }, { goal: 1 }]) {
   test(`I03 snapshot ${JSON.stringify(inputs)}: consistency and layout gates pass`, () => {
     const { scene } = evaluatedFuture(inputs);
     assert.deepEqual(checkSceneConsistency(scene).issues, []);
@@ -227,30 +226,8 @@ for (const inputs of [{}, { candidate: 'B' }, { candidate: 'C' }, { candidate: '
   });
 }
 
-// --- The four practice tasks ---------------------------------------------------
-
-test('all four activity definitions validate against the closed vocabulary', async () => {
-  const { validateActivity } = await import('./scene-activity.js');
-  const { attentionActivity, patchActivity, candidateActivity, projectionActivity } = await import('./interactive-scenes.js');
-  for (const activity of [attentionActivity, patchActivity, candidateActivity, projectionActivity]) validateActivity(activity);
-  // the facts the tasks grade against are the fixtures' own facts
-  assert.deepEqual(attentionActivity.expected, [0, 1, 2]);
-  assert.equal(patchActivity.expected, 9);
-  assert.equal(candidateActivity.expected, 'B');
-});
-
-test('I02 practice: expected index 9 IS row 3, column 2 in the fixture data itself', () => {
-  const { derived } = evaluatedPatch({ patchIndex: 9 });
-  assert.equal(derived.patch.human, 'Patch 10 of 16 · row 3, column 2');
-});
-
-test('I03 practice: the reveal input the activity grants is the hidden latch the scene gates on', async () => {
-  const { candidateActivity } = await import('./interactive-scenes.js');
-  const declaration = candidateFutureScene.inputs.find(input => input.name === candidateActivity.revealInput);
-  assert.equal(declaration.hidden, true);
-  assert.equal(declaration.type, 'bool');
-  assert.equal(declaration.default, false);
-});
+// The four cards are explore-only - no practice tasks attach to them. The
+// generic activity layer keeps its own tests in scene-activity.test.mjs.
 
 test('tokens list renaming still binds (anti-hardcoding: no shared code reads these words)', () => {
   const renamed = JSON.parse(JSON.stringify(attentionExplorerScene)

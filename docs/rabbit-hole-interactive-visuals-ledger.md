@@ -439,3 +439,59 @@ gating it would blank the explorer until the practice is committed - so I01
 practice runs ungated while I03 demonstrates the full commit->reveal gate.
 The gate mechanism is shared and mutation-tested; wiring I01's matrix to it
 is a one-line scene change if you want it strict.
+
+## Review pass 5 — raise the interaction quality bar (2026-09-23)
+
+The bar the user set: **an interaction earns its place only if changing it
+reveals a relationship, counterfactual, or consequence that would be hard to
+see in the static picture.** "Click X and X gets outlined" fails; "change X, Y
+meaningfully changes, compare before vs after" passes. Two directives followed
+from it, plus a scope rule (no engine rebuild, no new primitives/input types/
+scene-ID branches).
+
+- **All Practice removed from the four cards — they are explore-only.** The
+  `activity` field is gone from every `interactiveAppReviewBlocks()` block and
+  the four `*Activity` exports were deleted. The generic Explore/Practice
+  layer still exists in the runtime (and keeps its own unit tests), but nothing
+  on this board attaches a task, so no card renders a Practice section. The
+  earlier I01-ungated-practice deviation is moot — there is no practice.
+
+- **Candidate Futures rebuilt into a world-model planner** (was "a fancy radio
+  button"). Two index inputs, Action and Goal. Selecting an **Action** changes
+  the ACTUAL predicted rollout — three predicted-state boxes (t+1 / t+2 /
+  outcome) whose text is the model's prediction for that action — and its cost
+  readout. Selecting a **Goal** (Safest / Fastest) re-weights the costs so the
+  planner's cheapest action flips — **Safest → Brake, Fastest → Continue** —
+  while the three futures are identical. That flip is the counterfactual: the
+  world model predicts futures; the objective decides which future the planner
+  prefers. Every number (collision risk, time, total cost, the ringed pick) is
+  derived through `pick`/`scale`/`add`/`argmin` from the declared example data —
+  none is typed. Built entirely on existing input types and derive ops; no new
+  primitive. Costs are tuned to stay under 10 so the shared cell formatter (two
+  decimals below 10, none above) shows the grid and the readout the same value.
+
+- **Attention decluttered to one dominant pipeline.** query token → Q[query] →
+  scores QKᵀ/√dk → attention weights (sum to 1) → output, read left to right.
+  The duplicated full Q/K/V matrices and the full 4×4 score matrix were
+  removed (one representation per teaching purpose). The four token words in
+  the visual are now **labels** that highlight the current query, not a second
+  query toolbar — the single query control is the INTERACT picker below; the
+  in-visual token pickInput was dropped. Counterfactuals: change the query and
+  every stage updates; toggle the causal mask and the future scores blank, the
+  softmax redistributes over the visible keys, and the output changes. Captions
+  are data the mask toggle selects (`choose`), never static text.
+
+- **Image-patch and vector-projection kept** — each already passes the bar
+  (stepping the patch moves the enlarged crop window onto the same file;
+  dragging/typing recomputes the projection and a·b, and an orthogonal vector
+  collapses the projection to zero). No card-level Ask anywhere; the selection
+  pill + bottom composer is the one ask surface.
+
+498 web unit tests + the viz isolation/fixture gates green; scene consistency
+and layout-lint pass for every snapshot of both rewritten scenes; seed bumped
+to interactive-app-review **s6** (holdouts s2). Deployed to
+`small-cp-dev-small-deploy` (worker 7ed65592, bundle index-MP0hRY20) and
+T12-verified in a clean browser context — 4 cards, stale prior-seed blob
+ignored, unknown-board notice, every interaction driven on the deployed page,
+composer payload carried the visible state, reload persisted — with the cards
+pixel-inspected at 1:1 in both themes. No new input family, no engine rebuild.

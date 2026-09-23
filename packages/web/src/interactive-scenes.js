@@ -91,61 +91,19 @@ export const patchExplorerScene = {
 };
 
 // --- The review board (spec T12) ------------------------------------------------
-// Four cards, seeded fresh: exploration inputs at their declared defaults,
-// no attempts, everything at its useful paused checkpoint.
+// Four EXPLORE-ONLY cards: the learner inspects the concept; there is no
+// practice task on any of them. (The activity layer still exists generically
+// for lessons that genuinely need a task, but these four do not attach one.)
 export const interactiveAppReviewBlocks = () => [
-  { id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: attentionExplorerScene.title, scene: attentionExplorerScene, time: 4, selectedObject: null, marked: null, activity: attentionActivity },
-  { id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: patchExplorerScene.title, scene: patchExplorerScene, time: 3, selectedObject: null, marked: null, activity: patchActivity },
-  { id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: candidateFutureScene.title, scene: candidateFutureScene, time: 3, selectedObject: null, marked: null, activity: candidateActivity },
-  { id: crypto.randomUUID(), type: 'scene', dx: 0, dy: 0, title: 'Vector-projection explorer', spec: vectorProjectionSpec, state: null, attempts: 0, selectedObject: null, activity: projectionActivity, h: 680 },
+  { id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: attentionExplorerScene.title, scene: attentionExplorerScene, time: 4, selectedObject: null, marked: null },
+  { id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: patchExplorerScene.title, scene: patchExplorerScene, time: 3, selectedObject: null, marked: null },
+  { id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: candidateFutureScene.title, scene: candidateFutureScene, time: 3, selectedObject: null, marked: null },
+  { id: crypto.randomUUID(), type: 'scene', dx: 0, dy: 0, title: 'Vector-projection explorer', spec: vectorProjectionSpec, state: null, attempts: 0, selectedObject: null, h: 680 },
 ];
 
-// --- Practice tasks (spec T09) -------------------------------------------------
-// Authored task data for the shared activity layer (scene-activity.js).
-// Expected values live here and only here; the runtime keeps them out of
-// every display, tooltip and tutor payload until their own rules allow.
-
-export const attentionActivity = {
-  id: 'i01-practice', check: 'set_equals', version: 2,
-  prompt: 'With the query fixed on the THIRD token and the causal mask on, select every position that query may attend to.',
-  // State truth: the moment an attempt begins (and at Check, and on New
-  // attempt) the visualization snaps to exactly this declared state, so the
-  // diagram the learner sees while answering IS the state being asked about.
-  fixedInputs: { queryIndex: 2, maskEnabled: true },
-  answer: { type: 'indices', label: 'Your prediction', of: 'tokens', default: [] },
-  expected: [0, 1, 2],
-  notReady: 'Select at least one position first.',
-  feedbackPass: 'Right - a causal query attends to itself and every earlier position, so positions 1, 2 and 3 are all allowed.',
-  feedbackFail: 'Not quite - a causal query sees every earlier position AND itself, never a later one. Try again with a new attempt.',
-};
-
-export const patchActivity = {
-  id: 'i02-practice', check: 'index_equals', version: 1,
-  prompt: 'Which patch sits at row 3, column 2 of the grid? Pick its number.',
-  answer: { type: 'index', label: 'Your answer', of: 'patches', default: 0 },
-  expected: 9,
-  feedbackPass: 'Right - patches count row-major, so row 3 starts at patch 9 and its second column is patch 10.',
-  feedbackFail: 'Not quite - the grid counts row-major: patches 1-4 are row 1, 5-8 row 2, so row 3 column 2 is patch 10. Try a new attempt.',
-};
-
-export const candidateActivity = {
-  id: 'i03-practice', check: 'choice_equals', version: 1,
-  prompt: 'Under the squared-distance cost, which candidate future should be preferred? Committing a prediction reveals the example costs.',
-  answer: { type: 'choice', label: 'Your prediction', options: [{ id: 'A', label: 'Path A' }, { id: 'B', label: 'Path B' }, { id: 'C', label: 'Path C' }], default: 'A' },
-  expected: 'B',
-  revealInput: 'resultsRevealed',
-  checkLabel: 'Check prediction',
-  feedbackPass: 'Right - B ends at (1, 0), one unit from the goal, the smallest squared distance of the three.',
-  feedbackFail: 'The revealed costs show B is cheapest: it ends one unit from the goal. Your committed answer stays recorded; start a new attempt to predict again.',
-};
-
-export const projectionActivity = {
-  id: 'i04-practice', check: 'projection_zero', version: 1,
-  prompt: 'Make the projection zero using a valid, nonzero axis b.',
-  checkLabel: 'Check zero projection',
-  feedbackPass: 'Zero - a and b are perpendicular, so a has no component along the axis.',
-  feedbackFail: 'The projection is not zero yet - move a (or the axis b) until a·b vanishes, then check again.',
-};
+// No practice tasks: these four cards are explore-only. The generic activity
+// layer (scene-activity.js / SceneActivity.jsx) still exists for a lesson
+// that genuinely needs a task, but nothing on this board attaches one.
 
 // --- I04: vector-projection explorer -------------------------------------------
 // Rides the existing vector_projection_v1 behaviour and its project()
@@ -173,129 +131,142 @@ export const vectorProjectionSpec = {
   checkGoal: 'Make the projection zero using a valid, nonzero axis b.',
 };
 
-// --- I03: candidate-future explorer -------------------------------------------
-// A world model predicts three candidate futures from the current state; the
-// learner inspects them, commits a prediction, and only then sees the costs.
-// Branching-futures composition: current state -> Path A/B/C arrows ->
-// predicted-future boxes, in identity colours with real arrowheads - never a
-// coordinate picture without axes. The costs 4, 1, 9 are DERIVED from the
-// declared terminals (squared distance to the goal) and the whole cost chart
-// is invisible until a committed attempt reveals it; an explicit placeholder
-// says so, so hidden never reads as broken.
-
-const I03_GOAL = [0, 0];
-const I03_TERMINALS = { A: [2, 0], B: [1, 0], C: [0, 3] };
-// Where the inspecting pointer sits, per candidate - scene pixels, derived
-// through the pool exactly like every other bound value.
-const I03_ROW_Y = { A: 150, B: 260, C: 370 };
+// --- I03: world-model planner -------------------------------------------------
+// A world model rolls each candidate ACTION forward into a short predicted
+// trajectory (t+1 -> t+2 -> outcome). Two things are manipulated and each
+// changes real state, not a highlight:
+//   1. Action  -> the predicted rollout boxes and that action's cost readout
+//                 both change to the model's prediction for THAT action.
+//   2. Goal    -> the cost weights change, so the SAME three futures yield a
+//                 different cheapest action. Safest rings Brake; Fastest rings
+//                 Continue. This is the counterfactual: the world model predicts
+//                 futures; the objective decides which future the planner prefers.
+// Every number (collision risk, time, total cost, the ringed pick) is DERIVED
+// from the declared example data through scale/add/argmin - none is typed.
 
 export const candidateFutureScene = {
   id: 'candidate-future-explorer',
-  title: 'Candidate-future explorer',
-  width: 960,
-  height: 560,
+  title: 'World-model planner',
+  width: 980,
+  height: 510,
   duration: 3,
   inputs: [
-    { name: 'candidate', type: 'choice', label: 'Inspect candidate', default: 'A',
-      options: [{ id: 'A', label: 'Path A' }, { id: 'B', label: 'Path B' }, { id: 'C', label: 'Path C' }] },
-    // The commit/reveal latch. hidden: the activity reducer alone writes it -
-    // the learner command path refuses it and no widget renders for it.
-    { name: 'resultsRevealed', type: 'bool', label: 'Results revealed', default: false, hidden: true },
+    { name: 'action', type: 'index', label: 'Action', of: 'actions', default: 0, presentation: 'picker' },
+    { name: 'goal', type: 'index', label: 'Goal', of: 'goals', default: 0, presentation: 'picker' },
   ],
   exampleData: {
-    goal: I03_GOAL,
-    A: I03_TERMINALS.A, B: I03_TERMINALS.B, C: I03_TERMINALS.C,
-    markY: { A: I03_ROW_Y.A + 38, B: I03_ROW_Y.B + 38, C: I03_ROW_Y.C + 38 },
-    oneV: 1, zeroV: 0,
+    actions: ['Turn left', 'Brake', 'Continue'],
+    goals: ['Safest', 'Fastest'],
+    // One predicted trajectory per action: t+1, t+2, outcome.
+    rollouts: [
+      ['veers left', 'crosses lane', 'collision risk'],
+      ['slows', 'stops short', 'safe stop'],
+      ['holds speed', 'closes gap', 'near miss'],
+    ],
+    collision: [0.5, 0.1, 0.8], // collision risk per action
+    time: [2, 3, 1],            // steps to goal per action (higher = slower)
+    cWeightByGoal: [8, 1],      // how much each goal weights collision risk
+    tWeightByGoal: [1, 2],      // how much each goal weights time
+    // Weights are chosen so every total stays under 10 - the cell formatter
+    // keeps two decimals below 10 and drops them above, so this keeps the grid
+    // and the readout showing the same number.
   },
   derived: {
-    dA: { op: 'sub', args: ['A', 'goal'] },
-    dB: { op: 'sub', args: ['B', 'goal'] },
-    dC: { op: 'sub', args: ['C', 'goal'] },
-    costA: { op: 'dot', args: ['dA', 'dA'] },
-    costB: { op: 'dot', args: ['dB', 'dB'] },
-    costC: { op: 'dot', args: ['dC', 'dC'] },
-    costs: { op: 'concat', args: ['costA', 'costB', 'costC'] },
-    shownCosts: { op: 'gate', args: ['costs', 'resultsRevealed'] },
-    bestAt: { op: 'argmin', args: ['shownCosts'] },
-    inspectY: { op: 'pick', args: ['markY', 'candidate'] },
-    chartOpacity: { op: 'choose', args: ['resultsRevealed', 'oneV', 'zeroV'] },
-    placeholderOpacity: { op: 'choose', args: ['resultsRevealed', 'zeroV', 'oneV'] },
+    actionName: { op: 'pick', args: ['actions', 'action'] },
+    goalName: { op: 'pick', args: ['goals', 'goal'] },
+    selRoll: { op: 'pick', args: ['rollouts', 'action'] },
+    selColl: { op: 'pick', args: ['collision', 'action'] },
+    selTime: { op: 'pick', args: ['time', 'action'] },
+    cWeight: { op: 'pick', args: ['cWeightByGoal', 'goal'] },
+    tWeight: { op: 'pick', args: ['tWeightByGoal', 'goal'] },
+    wColl: { op: 'scale', args: ['collision', 'cWeight'] },
+    wTime: { op: 'scale', args: ['time', 'tWeight'] },
+    totals: { op: 'add', args: ['wColl', 'wTime'] },
+    selTotal: { op: 'pick', args: ['totals', 'action'] },
+    preferredAt: { op: 'argmin', args: ['totals'] },
+    preferredName: { op: 'pick', args: ['actions', 'preferredAt'] },
   },
   objects: [
-    { id: 'caption', type: 'text', semanticId: 'caption', conceptId: 'candidate-futures',
-      initialState: { text: 'inspecting Path {{candidate}} — one of three futures the world model predicts from the current state', x: 40, y: 36 } },
-    { id: 'current-state', type: 'box', semanticId: 'current-state', conceptId: 'candidate-futures',
-      initialState: { label: 'current state', x: 40, y: 232, w: 160, h: 56, opacity: 0, role: 'observed' } },
-    // One branch per candidate: an ARROW (real head) in the candidate's own
-    // identity colour, into its predicted-future box.
-    { id: 'arrow-a', type: 'arrow', semanticId: 'branch-a', conceptId: 'candidate-futures',
-      initialState: { from: { x: 202, y: 252 }, to: { x: 392, y: I03_ROW_Y.A + 28 }, opacity: 0, role: 'prediction', identity: 'future-a' } },
-    { id: 'arrow-b', type: 'arrow', semanticId: 'branch-b', conceptId: 'candidate-futures',
-      initialState: { from: { x: 202, y: 260 }, to: { x: 392, y: I03_ROW_Y.B + 28 }, opacity: 0, role: 'prediction', identity: 'future-b' } },
-    { id: 'arrow-c', type: 'arrow', semanticId: 'branch-c', conceptId: 'candidate-futures',
-      initialState: { from: { x: 202, y: 268 }, to: { x: 392, y: I03_ROW_Y.C + 28 }, opacity: 0, role: 'prediction', identity: 'future-c' } },
-    { id: 'future-a', type: 'box', semanticId: 'predicted-future-a', conceptId: 'candidate-futures',
-      initialState: { label: 'Path A → future A', x: 400, y: I03_ROW_Y.A, w: 220, h: 56, opacity: 0, role: 'prediction', identity: 'future-a' } },
-    { id: 'future-b', type: 'box', semanticId: 'predicted-future-b', conceptId: 'candidate-futures',
-      initialState: { label: 'Path B → future B', x: 400, y: I03_ROW_Y.B, w: 220, h: 56, opacity: 0, role: 'prediction', identity: 'future-b' } },
-    { id: 'future-c', type: 'box', semanticId: 'predicted-future-c', conceptId: 'candidate-futures',
-      initialState: { label: 'Path C → future C', x: 400, y: I03_ROW_Y.C, w: 220, h: 56, opacity: 0, role: 'prediction', identity: 'future-c' } },
-    // The inspection pointer: its y IS the choice input, resolved through the
-    // derive pool like any other bound value. A pointer beside the box - one
-    // object, never a second shape stacked on the same spot.
-    { id: 'inspecting', type: 'text', semanticId: 'inspecting-marker', conceptId: 'candidate-futures',
-      initialState: { text: '◀ inspecting', x: 632, y: { $derive: 'inspectY' }, role: 'learner', typography: 'annotation' } },
-    // The cost chart exists only after commitment - values, numerals and the
-    // lowest-cost highlight all arrive through the reveal gate, and the
-    // whole object is invisible until then.
-    { id: 'cost-chart', type: 'grid', semanticId: 'candidate-costs', conceptId: 'candidate-futures',
-      // No heat: under a magnitude ramp the LARGEST cost would read as the
-      // most emphasised cell, which fights "lower is better". The numerals
-      // carry magnitude; the highlight marks the winner (the smallest).
-      initialState: { label: 'cost to goal — squared distance (lower is better)', x: 742, y: 220, rows: 1, cols: 3, cell: 56, opacity: { $derive: 'chartOpacity' },
+    { id: 'caption', type: 'text', semanticId: 'caption', conceptId: 'world-model',
+      initialState: { text: 'Goal: {{goalName}} — pick an action; its predicted rollout and its cost both change', x: 40, y: 34 } },
+    // The predicted trajectory for the SELECTED action: current state, then two
+    // predicted steps, then the outcome. Each box's text is the model's
+    // prediction for this action, so changing the action changes the future.
+    // Step headers sit above the strip (short, clear of the arrow line); the
+    // box text is just the predicted state, so it never overruns its box.
+    { id: 'head-now', type: 'text', semanticId: 'head-now', conceptId: 'world-model',
+      initialState: { text: 'now', x: 40, y: 100, typography: 'annotation' } },
+    { id: 'head-t1', type: 'text', semanticId: 'head-t1', conceptId: 'world-model',
+      initialState: { text: 't+1', x: 234, y: 100, typography: 'annotation' } },
+    { id: 'head-t2', type: 'text', semanticId: 'head-t2', conceptId: 'world-model',
+      initialState: { text: 't+2', x: 448, y: 100, typography: 'annotation' } },
+    { id: 'head-out', type: 'text', semanticId: 'head-out', conceptId: 'world-model',
+      initialState: { text: 'outcome', x: 662, y: 100, typography: 'annotation' } },
+    { id: 'current-state', type: 'box', semanticId: 'current-state', conceptId: 'world-model',
+      initialState: { label: 'current state', x: 40, y: 120, w: 150, h: 56, opacity: 0, role: 'observed' } },
+    { id: 'arrow-1', type: 'arrow', semanticId: 'step-1', conceptId: 'world-model',
+      initialState: { from: { x: 194, y: 148 }, to: { x: 206, y: 148 }, opacity: 0, role: 'prediction' } },
+    { id: 'step-1', type: 'box', semanticId: 'predicted-t1', conceptId: 'world-model',
+      initialState: { label: '{{selRoll.0}}', x: 234, y: 120, w: 170, h: 56, opacity: 0, role: 'prediction' } },
+    { id: 'arrow-2', type: 'arrow', semanticId: 'step-2', conceptId: 'world-model',
+      initialState: { from: { x: 408, y: 148 }, to: { x: 420, y: 148 }, opacity: 0, role: 'prediction' } },
+    { id: 'step-2', type: 'box', semanticId: 'predicted-t2', conceptId: 'world-model',
+      initialState: { label: '{{selRoll.1}}', x: 448, y: 120, w: 170, h: 56, opacity: 0, role: 'prediction' } },
+    { id: 'arrow-3', type: 'arrow', semanticId: 'step-3', conceptId: 'world-model',
+      initialState: { from: { x: 622, y: 148 }, to: { x: 634, y: 148 }, opacity: 0, role: 'prediction' } },
+    { id: 'outcome', type: 'box', semanticId: 'predicted-outcome', conceptId: 'world-model',
+      initialState: { label: '{{selRoll.2}}', x: 662, y: 120, w: 180, h: 56, opacity: 0, role: 'prediction' } },
+    { id: 'rollout-note', type: 'text', semanticId: 'rollout-note', conceptId: 'world-model',
+      initialState: { text: 'the rollout above is the world model’s prediction for “{{actionName}}”', x: 40, y: 198, typography: 'annotation' } },
+    // The selected action's cost, read straight from the derived vectors.
+    { id: 'cost-readout', type: 'text', semanticId: 'cost-readout', conceptId: 'world-model',
+      initialState: { text: '“{{actionName}}” — collision risk {{selColl}} · time {{selTime}} · total cost {{selTotal}}', x: 40, y: 250, role: 'output' } },
+    // Total cost per action UNDER THIS GOAL. Changing the goal re-weights the
+    // costs, so the ringed cheapest action moves - same futures, different pick.
+    { id: 'cost-chart', type: 'grid', semanticId: 'action-costs', conceptId: 'world-model',
+      initialState: { label: 'total cost per action under this goal (lower is better)', x: 40, y: 336, rows: 1, cols: 3, cell: 64, opacity: 0,
         role: 'output', matrixKind: 'derived',
-        columnLabels: ['A', 'B', 'C'], values: { $derive: 'shownCosts' },
-        cellHighlight: { $derive: 'bestAt' }, cellHighlightKind: 'select' } },
-    { id: 'cost-placeholder', type: 'text', semanticId: 'cost-placeholder', conceptId: 'candidate-futures',
-      initialState: { text: 'costs appear after you commit a prediction', x: 700, y: 250, opacity: { $derive: 'placeholderOpacity' }, typography: 'annotation' } },
-    { id: 'cost-note', type: 'text', semanticId: 'cost-note', conceptId: 'candidate-futures',
-      initialState: { text: 'cost = squared distance from each predicted end to the goal — computed from the declared example data', x: 40, y: 480, typography: 'annotation' } },
-    { id: 'provenance-note', type: 'text', semanticId: 'provenance-note', conceptId: 'candidate-futures',
-      initialState: { text: 'Toy example — these are predicted outcomes, not observations.', x: 40, y: 510, typography: 'annotation' } },
+        columnLabels: ['left', 'brake', 'continue'], values: { $derive: 'totals' },
+        cellHighlight: { $derive: 'preferredAt' }, cellHighlightKind: 'select' } },
+    { id: 'preferred-note', type: 'text', semanticId: 'preferred-note', conceptId: 'world-model',
+      initialState: { text: 'under “{{goalName}}” the planner prefers “{{preferredName}}” — the future with the lowest total cost', x: 40, y: 452, typography: 'annotation' } },
+    { id: 'provenance-note', type: 'text', semanticId: 'provenance-note', conceptId: 'world-model',
+      initialState: { text: 'Toy example — rollouts and costs come from the declared example data, not observations.', x: 40, y: 480, typography: 'annotation' } },
   ],
   timeline: [
     { at: 0.0, action: 'appear', target: 'current-state', duration: 0.3 },
-    { at: 0.4, action: 'appear', target: 'arrow-a', duration: 0.4 },
-    { at: 0.55, action: 'appear', target: 'arrow-b', duration: 0.4 },
-    { at: 0.7, action: 'appear', target: 'arrow-c', duration: 0.4 },
-    { at: 0.9, action: 'appear', target: 'future-a', duration: 0.3 },
-    { at: 1.05, action: 'appear', target: 'future-b', duration: 0.3 },
-    { at: 1.2, action: 'appear', target: 'future-c', duration: 0.3 },
+    { at: 0.3, action: 'appear', target: 'arrow-1', duration: 0.25 },
+    { at: 0.45, action: 'appear', target: 'step-1', duration: 0.3 },
+    { at: 0.6, action: 'appear', target: 'arrow-2', duration: 0.25 },
+    { at: 0.75, action: 'appear', target: 'step-2', duration: 0.3 },
+    { at: 0.9, action: 'appear', target: 'arrow-3', duration: 0.25 },
+    { at: 1.05, action: 'appear', target: 'outcome', duration: 0.3 },
+    { at: 1.3, action: 'appear', target: 'cost-readout', duration: 0.3 },
+    { at: 1.5, action: 'appear', target: 'cost-chart', duration: 0.4 },
   ],
 };
 
 export const attentionExplorerScene = {
   id: 'attention-explorer',
   title: 'Attention explorer',
-  width: 980,
-  height: 720,
+  width: 860,
+  height: 410,
   duration: 4,
   inputs: [
-    // 'visual': the token chips ON the scene are the one query control -
-    // real, focusable, keyboard-activable items - so no duplicate strip
-    // widget renders for the same input.
-    { name: 'queryIndex', type: 'index', label: 'Query token', of: 'tokens', default: 0, presentation: 'visual' },
+    // One query control, in the INTERACT zone below (a picker). The tokens
+    // in the visual are LABELS that highlight the selection - not a second
+    // toolbar - so the learner never sees two query selectors.
+    { name: 'queryIndex', type: 'index', label: 'Query token', of: 'tokens', default: 0 },
     { name: 'maskEnabled', type: 'bool', label: 'Causal mask', default: true },
   ],
   exampleData: {
     tokens: I01_TOKENS, Q: I01_Q, K: I01_K, V: I01_V,
     // The mask presentation follows the mask STATE - captions are data the
     // toggle selects between, never a renderer branch.
-    scoresCaptionOn: 'scores QKᵀ/√dk — future positions masked',
-    scoresCaptionOff: 'scores QKᵀ/√dk — all positions available',
-    maskLegendOn: 'gray cells = masked (unavailable to this query)',
-    maskLegendOff: '',
+    scoresCaptionOn: 'scores QKᵀ/√dk — future masked',
+    scoresCaptionOff: 'scores QKᵀ/√dk — all visible',
+    maskLegendOn: 'gray = masked (this query cannot see the future)',
+    maskLegendOff: 'mask off — every position is available to this query',
   },
   derived: {
     scoresRaw: { op: 'matmul', args: ['Q', 'K'] },
@@ -305,76 +276,60 @@ export const attentionExplorerScene = {
     weights: { op: 'softmax', args: ['masked'] },
     qword: { op: 'pick', args: ['tokens', 'queryIndex'] },
     qrow: { op: 'pick', args: ['Q', 'queryIndex'] },
+    // The one thing the learner is following: the SELECTED query's scores
+    // against every key, and the weights and output that follow from them.
+    // One representation per purpose - no full 4x4 matrix duplicating this.
+    scoreRow: { op: 'pick', args: ['masked', 'queryIndex'] },
     wrow: { op: 'pick', args: ['weights', 'queryIndex'] },
     output: { op: 'weighted_sum', args: ['wrow', 'V'] },
     scoresCaption: { op: 'choose', args: ['maskEnabled', 'scoresCaptionOn', 'scoresCaptionOff'] },
     maskLegend: { op: 'choose', args: ['maskEnabled', 'maskLegendOn', 'maskLegendOff'] },
   },
   objects: [
-    // --- the story of the selected query: one band, read left to right ---
+    // One dominant pipeline, read left to right: the selected query token,
+    // its Q row, its scores against every key, the attention weights, the
+    // output. Changing the query changes every stage; toggling the mask fills
+    // or blanks the future scores and reshapes the whole distribution - the
+    // counterfactuals a learner comes here to see.
     { id: 'caption', type: 'text', semanticId: 'caption', conceptId: 'causal-self-attention',
-      initialState: { text: 'query: {{qword}} — follow one row: token → its Q row → its weights → its output', x: 40, y: 36 } },
+      initialState: { text: 'query: {{qword}} — its Q row → scores against each key → attention weights → output', x: 40, y: 36 } },
     { id: 'chars', type: 'tokens', semanticId: 'tokens', conceptId: 'qkv-projection',
-      initialState: { label: 'the query token (also selectable with Interact below)', x: 40, y: 88, opacity: 0, tokens: [...I01_TOKENS], role: 'input',
-        pickInput: 'queryIndex', cellHighlight: { $derive: 'queryIndex' } } },
+      initialState: { label: 'the four tokens — the highlighted one is the current query', x: 40, y: 84, opacity: 0, tokens: [...I01_TOKENS], role: 'input',
+        cellHighlight: { $derive: 'queryIndex' } } },
     { id: 'q-row', type: 'strip', semanticId: 'selected-query-vector', conceptId: 'qkv-projection',
-      initialState: { label: 'Q[{{queryIndex}}] — its query row', x: 40, y: 208, cell: 46, w: 92, h: 46, opacity: 0, role: 'observed', identity: 'query',
+      initialState: { label: 'Q[{{qword}}]', x: 40, y: 190, cell: 44, w: 88, h: 44, opacity: 0, role: 'observed', identity: 'query',
         heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'qk-inputs', values: { $derive: 'qrow' } } },
-    { id: 'arrow-q-weights', type: 'arrow', semanticId: 'arrow-q-weights', conceptId: 'softmax-attention-weights',
-      initialState: { from: { x: 142, y: 231 }, to: { x: 196, y: 231 }, opacity: 0, role: 'neutral' } },
-    // The weights as VALUES, not just bar heights: a 1x4 heat row on the
-    // fixed probability domain, each cell carrying its own numeral, key
-    // tokens named across the top.
+    { id: 'arrow-q-scores', type: 'arrow', semanticId: 'arrow-q-scores', conceptId: 'causal-self-attention',
+      initialState: { from: { x: 132, y: 212 }, to: { x: 172, y: 212 }, opacity: 0, role: 'neutral' } },
+    { id: 'scores-row', type: 'grid', semanticId: 'scores-row', conceptId: 'causal-self-attention',
+      initialState: { label: '{{scoresCaption}}', x: 178, y: 190, rows: 1, cols: 4, cell: 46, opacity: 0,
+        role: 'observed', matrixKind: 'derived', heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'scores-view',
+        columnLabels: [...I01_TOKENS], values: { $derive: 'scoreRow' } } },
+    { id: 'arrow-scores-weights', type: 'arrow', semanticId: 'arrow-scores-weights', conceptId: 'softmax-attention-weights',
+      initialState: { from: { x: 366, y: 212 }, to: { x: 442, y: 212 }, opacity: 0, role: 'neutral' } },
     { id: 'weights-row', type: 'grid', semanticId: 'attention-weights', conceptId: 'softmax-attention-weights',
-      initialState: { label: 'attention weights for {{qword}} — the row sums to 1', x: 206, y: 208, rows: 1, cols: 4, cell: 52, opacity: 0,
+      initialState: { label: 'attention weights (sum to 1)', x: 448, y: 190, rows: 1, cols: 4, cell: 46, opacity: 0,
         role: 'observed', matrixKind: 'derived', distribution: true, heat: true, valueScale: 'fixed',
         columnLabels: [...I01_TOKENS], values: { $derive: 'wrow' } } },
     { id: 'arrow-weights-output', type: 'arrow', semanticId: 'arrow-weights-output', conceptId: 'attention-output',
-      initialState: { from: { x: 424, y: 231 }, to: { x: 478, y: 231 }, opacity: 0, role: 'neutral' } },
+      initialState: { from: { x: 636, y: 212 }, to: { x: 702, y: 212 }, opacity: 0, role: 'neutral' } },
     { id: 'output-row', type: 'strip', semanticId: 'attention-output', conceptId: 'attention-output',
-      initialState: { label: 'output — the weighted mix of V', x: 488, y: 208, cell: 46, w: 92, h: 46, opacity: 0, role: 'output',
+      initialState: { label: 'output = Σ wᵢ·Vᵢ', x: 708, y: 190, cell: 44, w: 88, h: 44, opacity: 0, role: 'output',
         heat: true, valueScale: 'shared', valueScaleGroup: 'v-chain', values: { $derive: 'output' } } },
-    { id: 'equation', type: 'equation', semanticId: 'attention-equation', conceptId: 'attention-output',
-      initialState: { text: '\\text{softmax}\\left(\\dfrac{QK^T}{\\sqrt{d_k}}\\right)V', x: 640, y: 196, w: 430, h: 60, opacity: 0 } },
-    // --- the full picture underneath, secondary to the band above ---
-    { id: 'full-picture', type: 'text', semanticId: 'full-picture-heading', conceptId: 'causal-self-attention',
-      initialState: { text: 'the full picture — every query at once', x: 40, y: 316, typography: 'annotation' } },
-    { id: 'q-matrix', type: 'grid', semanticId: 'query-matrix', conceptId: 'qkv-projection',
-      initialState: { label: 'Q', x: 90, y: 360, rows: 4, cols: 2, cell: 40, opacity: 0, role: 'observed', identity: 'query',
-        heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'qk-inputs', matrixKind: 'input',
-        rowLabels: [...I01_TOKENS], values: I01_Q.flat(),
-        cellHighlight: { row: { $derive: 'queryIndex' } }, cellHighlightKind: 'highlight' } },
-    { id: 'k-matrix', type: 'grid', semanticId: 'key-matrix', conceptId: 'qkv-projection',
-      initialState: { label: 'K', x: 270, y: 360, rows: 4, cols: 2, cell: 40, opacity: 0, role: 'observed', identity: 'key',
-        heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'qk-inputs', matrixKind: 'input',
-        rowLabels: [...I01_TOKENS], values: I01_K.flat() } },
-    { id: 'v-matrix', type: 'grid', semanticId: 'value-matrix', conceptId: 'qkv-projection',
-      initialState: { label: 'V', x: 450, y: 360, rows: 4, cols: 2, cell: 40, opacity: 0, role: 'observed', identity: 'value',
-        heat: true, valueScale: 'shared', valueScaleGroup: 'v-chain', matrixKind: 'input',
-        rowLabels: [...I01_TOKENS], values: I01_V.flat() } },
-    // The real comparison, recomputed from the inputs on every change: raw
-    // QKᵀ/√dk with the causal mask applied when the toggle says so. A masked
-    // cell is null - excluded - and softmax never sees it. Caption and
-    // legend both follow the mask input through the derive pool.
-    { id: 'scores-matrix', type: 'grid', semanticId: 'scores-matrix', conceptId: 'causal-self-attention',
-      initialState: { label: '{{scoresCaption}}', x: 680, y: 360, rows: 4, cols: 4, cell: 50, opacity: 0, role: 'observed',
-        heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'scores-view', matrixKind: 'relational',
-        rowLabels: [...I01_TOKENS], columnLabels: [...I01_TOKENS], values: { $derive: 'masked' },
-        cellHighlight: { row: { $derive: 'queryIndex' } }, cellHighlightKind: 'highlight' } },
     { id: 'mask-legend', type: 'text', semanticId: 'mask-legend', conceptId: 'causal-self-attention',
-      initialState: { text: '{{maskLegend}}', x: 680, y: 600, typography: 'annotation' } },
+      initialState: { text: '{{maskLegend}}', x: 178, y: 290, typography: 'annotation' } },
+    { id: 'equation', type: 'equation', semanticId: 'attention-equation', conceptId: 'attention-output',
+      initialState: { text: '\\text{output} = \\text{softmax}\\left(\\dfrac{QK^T}{\\sqrt{d_k}}\\right)V', x: 178, y: 330, w: 560, h: 60, opacity: 0 } },
   ],
   timeline: [
     { at: 0.0, action: 'appear', target: 'chars', duration: 0.4 },
-    { at: 0.5, action: 'appear', target: 'q-row', duration: 0.4 },
-    { at: 0.7, action: 'appear', target: 'arrow-q-weights', duration: 0.3 },
-    { at: 0.9, action: 'appear', target: 'weights-row', duration: 0.4 },
-    { at: 1.1, action: 'appear', target: 'arrow-weights-output', duration: 0.3 },
-    { at: 1.3, action: 'appear', target: 'output-row', duration: 0.4 },
-    { at: 1.6, action: 'appear', target: 'equation', duration: 0.4 },
-    { at: 2.2, action: 'appear', target: 'q-matrix', duration: 0.4 },
-    { at: 2.4, action: 'appear', target: 'k-matrix', duration: 0.4 },
-    { at: 2.6, action: 'appear', target: 'v-matrix', duration: 0.4 },
-    { at: 3.0, action: 'appear', target: 'scores-matrix', duration: 0.5 },
+    { at: 0.4, action: 'appear', target: 'q-row', duration: 0.4 },
+    { at: 0.6, action: 'appear', target: 'arrow-q-scores', duration: 0.3 },
+    { at: 0.8, action: 'appear', target: 'scores-row', duration: 0.4 },
+    { at: 1.0, action: 'appear', target: 'arrow-scores-weights', duration: 0.3 },
+    { at: 1.2, action: 'appear', target: 'weights-row', duration: 0.4 },
+    { at: 1.4, action: 'appear', target: 'arrow-weights-output', duration: 0.3 },
+    { at: 1.6, action: 'appear', target: 'output-row', duration: 0.4 },
+    { at: 2.0, action: 'appear', target: 'equation', duration: 0.4 },
   ],
 };
