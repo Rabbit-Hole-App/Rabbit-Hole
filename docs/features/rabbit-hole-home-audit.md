@@ -1,7 +1,8 @@
 # Rabbit Hole Home & Project — T00 audit and T01 directions
 
-Status: **awaiting approval** of a direction (T01). Nothing in `packages/` has
-changed. The brief is [rabbit-hole-home-project-uiux-brief-v2.md](../rabbit-hole-home-project-uiux-brief-v2.md)
+Status: T00 audit done. Directions A and B below are **superseded** by
+[Direction C](rabbit-hole-direction-c.md), which records decisions D1–D7.
+Nothing in `packages/` has changed. The brief is [rabbit-hole-home-project-uiux-brief-v2.md](../rabbit-hole-home-project-uiux-brief-v2.md)
 (copied from the smart-landing-page worktree, 2026-09-23).
 
 Checkout: worktree `smart-home`, branch `feature/smart-home`, base and HEAD
