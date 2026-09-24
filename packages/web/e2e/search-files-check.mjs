@@ -62,8 +62,8 @@ await page.waitForTimeout(2500);
 
 // --- the menubar ---
 const labels = await menubar.getByRole('menuitem').allInnerTexts();
-ok('the menubar reads Search, Files, Insert, Edit, View', labels.map(label => label.trim()).join(',') === 'Search,Files,Insert,Edit,View', labels.join(','));
-for (const title of ['Insert', 'Edit', 'View']) {
+ok('the menubar reads Search, Files, Insert, Edit, Arrange, View', labels.map(label => label.trim()).join(',') === 'Search,Files,Insert,Edit,Arrange,View', labels.join(','));
+for (const title of ['Insert', 'Edit', 'Arrange', 'View']) {
   await menubar.getByRole('menuitem', { name: new RegExp(`^${title}`) }).click();
   await page.waitForTimeout(200);
   const rows = page.locator('[role="menubar"] [class*="top-9"] button[role="menuitem"]');

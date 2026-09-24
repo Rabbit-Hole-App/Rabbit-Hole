@@ -1008,8 +1008,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   };
   // Frame everything on the canvas. An infinite surface you can pan forever needs
   // a way back to your own work.
-  const zoomFit = () => frame([...Object.values(boundsRef.current),
-    ...shapesRef.current.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) }))]);
+  // Notes and text boxes count too - a board of only stickies has to fit.
+  const zoomFit = () => frame([...Object.values(boundsRef.current), ...boxesOf([...shapesRef.current, ...itemsRef.current].map(entry => entry.id))]);
   // Stepping frames one section at a time; nothing re-renders, the camera just
   // lands somewhere else, so ink and notes drawn over a section come with it.
   const stepsRef = useRef([]);
@@ -1041,10 +1041,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   ]);
   // The page owns the menubar, so every canvas-wide command it offers is published
   // here rather than lifting the canvas's own state out of it.
+  // The same table serves the keyboard, so a shortcut and its menu row can
+  // never drift apart.
+  const commandsRef = useRef(null);
   useEffect(() => {
-    if (apiRef) apiRef.current = {
+    commandsRef.current = {
       deselect: () => setSelected(null),
       undo, redo, selectAll, deleteSelection, zoomFit, present: startPresenting,
+      copy: copySelection,
+      paste: () => !!clipboard.current?.length && pasteIds(clipboard.current),
+      duplicate: () => pasteIds(selectedRef.current),
+      group: groupSelection, ungroup: ungroupSelection, arrange,
       zoomIn: () => zoomCenter(1.25),
       zoomOut: () => zoomCenter(1 / 1.25),
       zoomReset: () => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 }),
@@ -1159,6 +1166,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       },
       toggleLock: () => setLock(previous => !previous),
     };
+    if (apiRef) apiRef.current = commandsRef.current;
   });
   // Menu checkmarks need these as state on the page, not as a ref it cannot watch.
   const outline = outlineFrom(blocks);
@@ -1166,10 +1174,24 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // heading is added, retitled, reordered or ticked, and only then.
   const outlineKey = JSON.stringify(outline);
   const cardsKey = JSON.stringify(blocks.map(block => [block.id, block.assetKey || null, block.paper?.id || null]));
-  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey) }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, onState]);
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);
+  const [canPaste, setCanPaste] = useState(false);
+  // Copy works on every selected node, note and shape. The clipboard holds
+  // ids, never the objects: copy then edit then paste has to produce what is
+  // on the canvas now, not a snapshot taken at the moment of copy.
+  const copySelection = () => {
+    const picked = selectedRef.current;
+    const has = list => list.some(entry => picked.includes(entry.id));
+    // A connector is selectable but not copyable. Without this the clipboard
+    // was wiped by a copy that captured nothing.
+    if (!has(blocksRef.current) && !has(itemsRef.current) && !has(shapesRef.current) && !has(exchangesRef.current)) return false;
+    clipboard.current = picked.slice();
+    setCanPaste(true);
+    toast(`Copied ${picked.length} item${picked.length === 1 ? '' : 's'}`);
+    return true;
+  };
   // Shared by Ctrl+V and the context menu's Duplicate. Ids in, fresh copies
   // out; the copy carries the latest text and position, never a snapshot.
   // Copies leave their group - a duplicate is new material, not a new member.
@@ -1205,6 +1227,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     if (chatsCopy.length) onAddRef.current?.(chatsCopy);
     setSelection(fresh);
     clipboard.current = fresh; // paste again and it stacks from the newest
+    setCanPaste(true);
     return true;
   };
   const pasteIdsRef = useRef(pasteIds);
@@ -1253,6 +1276,54 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     }
     return boxes;
   };
+  // Arrange: line the selection up on an edge or a centre, or space it evenly.
+  // A group moves as one piece - unless it is the whole selection, when its
+  // members line up among themselves. Every move goes through `shift`, so each
+  // kind moves the way a drag moves it, free of the card bands like a group.
+  const arrangeUnits = ids => {
+    const gids = new Set(ids.map(groupOf));
+    const whole = gids.size === 1 && !gids.has(null);
+    const units = new Map();
+    for (const id of ids) {
+      const key = whole ? id : groupOf(id) || id;
+      units.set(key, [...(units.get(key) || []), id]);
+    }
+    return [...units.values()].map(members => {
+      const boxes = boxesOf(members);
+      if (!boxes.length) return null; // a connector has no box to line up
+      const x = Math.min(...boxes.map(box => box.x)), y = Math.min(...boxes.map(box => box.y));
+      return { members, x, y, w: Math.max(...boxes.map(box => box.x + box.w)) - x, h: Math.max(...boxes.map(box => box.y + box.h)) - y };
+    }).filter(Boolean);
+  };
+  const arrange = how => {
+    const units = arrangeUnits(selectedRef.current);
+    const spread = how === 'spread-x' || how === 'spread-y';
+    if (units.length < (spread ? 3 : 2)) return;
+    snapshot(units.some(unit => unit.members.some(id => exchangesRef.current.some(exchange => exchange.id === id))));
+    const left = Math.min(...units.map(unit => unit.x)), top = Math.min(...units.map(unit => unit.y));
+    const right = Math.max(...units.map(unit => unit.x + unit.w)), bottom = Math.max(...units.map(unit => unit.y + unit.h));
+    const moves = [];
+    if (spread) {
+      // Equal gaps between neighbours; the first and last stay put.
+      const across = how === 'spread-x';
+      const start = unit => (across ? unit.x : unit.y), size = unit => (across ? unit.w : unit.h);
+      const sorted = [...units].sort((a, b) => start(a) - start(b));
+      const gap = ((across ? right - left : bottom - top) - sorted.reduce((sum, unit) => sum + size(unit), 0)) / (sorted.length - 1);
+      let at = across ? left : top;
+      for (const unit of sorted) { moves.push([unit, across ? at - unit.x : 0, across ? 0 : at - unit.y]); at += size(unit) + gap; }
+    } else {
+      const to = {
+        left: unit => [left - unit.x, 0],
+        center: unit => [(left + right) / 2 - (unit.x + unit.w / 2), 0],
+        right: unit => [right - (unit.x + unit.w), 0],
+        top: unit => [0, top - unit.y],
+        middle: unit => [0, (top + bottom) / 2 - (unit.y + unit.h / 2)],
+        bottom: unit => [0, bottom - (unit.y + unit.h)],
+      }[how];
+      for (const unit of units) moves.push([unit, ...to(unit)]);
+    }
+    for (const [unit, ddx, ddy] of moves) if (ddx || ddy) shift(ddx, ddy, unit.members, true);
+  };
   const zoomToSelection = () => { const boxes = boxesOf(selectedRef.current); if (boxes.length) frame(boxes, 64, 1.2); };
   const presentFrom = id => {
     const steps = presentSteps(blocksRef.current, boundsRef.current);
@@ -1291,6 +1362,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   shapesRef.current = shapes;
   onAddRef.current = onAdd;
   useLayoutEffect(measureBlocks, [exchanges, blocks, measureBlocks]);
+  // What Edit and Arrange can act on right now, so their rows grey out
+  // instead of doing nothing.
+  const selectedCount = selection.length;
+  const units = selectedCount > 1 ? arrangeUnits(selection).length : selectedCount;
+  const grouped = selection.some(id => groupOf(id));
+  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, onState]);
   useEffect(() => () => connectionCleanup.current?.(), []);
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = () => {
@@ -1394,23 +1471,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         redo();
         return;
       }
-      // Copy and paste work on every selected node, note and shape. The clipboard
-      // holds ids, never the objects: copy then edit then paste has to produce
-      // what is on the canvas now, not a snapshot taken at the moment of copy.
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
+      const mod = event.ctrlKey || event.metaKey;
+      const commands = commandsRef.current;
+      // The rest of the Edit and View menus, each standing down while typing
+      // so text fields keep their own select-all and the browser keeps its
+      // zoom there. Ctrl+D and Ctrl+G would otherwise bookmark and find.
+      if (mod && !event.shiftKey && event.key.toLowerCase() === 'a') { if (typing) return; event.preventDefault(); commands.selectAll(); return; }
+      if (mod && !event.shiftKey && event.key.toLowerCase() === 'd') { if (typing || !selectedRef.current.length) return; event.preventDefault(); commands.duplicate(); return; }
+      if (mod && event.key.toLowerCase() === 'g') { if (typing) return; event.preventDefault(); (event.shiftKey ? commands.ungroup : commands.group)(); return; }
+      if (mod && ['=', '+', '-', '_'].includes(event.key)) { if (typing) return; event.preventDefault(); (event.key === '-' || event.key === '_' ? commands.zoomOut : commands.zoomIn)(); return; }
+      if (!mod && event.shiftKey && (event.code === 'Digit1' || event.code === 'Digit0')) { if (typing) return; event.preventDefault(); (event.code === 'Digit1' ? commands.zoomFit : commands.zoomReset)(); return; }
+      if (mod && event.key.toLowerCase() === 'c') {
         // Only a real text selection should defer to the browser. Testing the
         // document for any selection at all let a stray highlight anywhere on
         // the page silently kill the copy.
         const text = window.getSelection();
         if (typing || !selectedRef.current.length || (text && !text.isCollapsed && text.toString())) return;
-        const picked = selectedRef.current;
-        const has = list => list.some(entry => picked.includes(entry.id));
-        // A connector is selectable but not copyable. Without this the clipboard
-        // was wiped by a copy that captured nothing.
-        if (!has(blocksRef.current) && !has(itemsRef.current) && !has(shapesRef.current) && !has(exchangesRef.current)) return;
-        event.preventDefault();
-        clipboard.current = picked.slice();
-        toast(`Copied ${picked.length} item${picked.length === 1 ? '' : 's'}`);
+        if (commands.copy()) event.preventDefault();
         return;
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
@@ -1734,7 +1811,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   };
   const moveBlock = (id, dx, dy, clamp = true) => setBlocks(previous => previous.map(block => block.id === id ? { ...block, dx, dy: clamp ? clampToBand(id, dy) : dy } : block));
   // Dragging one member of a multi-selection carries the whole group.
-  const shift = (ddx, ddy, ids) => {
+  const shift = (ddx, ddy, ids, free = ids.length > 1) => {
     for (const id of ids) {
       const exchange = exchangesRef.current.find(item => item.id === id);
       if (exchange) { onMove(id, exchange.dx + ddx, exchange.dy + ddy); continue; }
@@ -1743,7 +1820,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       // neighbours are moving with it, so clamping each member against the
       // others' old seats tears the group apart. Multi-member shifts move
       // free; the single card keeps its walls.
-      if (block) { moveBlock(id, block.dx + ddx, block.dy + ddy, ids.length === 1); continue; }
+      if (block) { moveBlock(id, block.dx + ddx, block.dy + ddy, !free); continue; }
       const item = itemsRef.current.find(entry => entry.id === id);
       if (item) { setItems(previous => previous.map(entry => entry.id === id ? { ...entry, x: item.x + ddx, y: item.y + ddy } : entry)); continue; }
       const shape = shapesRef.current.find(entry => entry.id === id);

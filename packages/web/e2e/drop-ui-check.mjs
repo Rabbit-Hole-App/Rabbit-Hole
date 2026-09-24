@@ -113,7 +113,7 @@ await firstSwitch.click();
 await page.waitForTimeout(150);
 ok('the switch flips off in place, panel still open', (await page.getByRole('switch').first().getAttribute('aria-checked')) === 'false');
 await page.getByRole('switch').first().click();
-ok('Upload is offered', (await page.getByRole('menuitem', { name: /Upload from your computer/ }).count()) === 1);
+ok('Upload lives in Insert, not Files', (await page.getByRole('menuitem', { name: /Upload/ }).count()) === 0);
 ok('no trailing dots anywhere in the panel', !(await page.locator('[role="menubar"]').innerText()).includes('\u2026'));
 await page.keyboard.press('Escape');
 await page.mouse.click(box0.x + 40, box0.y + 700);

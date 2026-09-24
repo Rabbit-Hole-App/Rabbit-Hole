@@ -1,4 +1,4 @@
-import { BookOpen, Crosshair, FileText, FolderGit2, Image as ImageIcon, PlaySquare, Trash2, Upload } from 'lucide-react';
+import { BookOpen, Crosshair, FileText, FolderGit2, Image as ImageIcon, PlaySquare, Trash2 } from 'lucide-react';
 
 // The Files menu: bring something in from this computer, and see everything
 // the canvas was built from - with one switch per item for whether the tutor
@@ -12,18 +12,9 @@ const KIND = {
   paper: { Icon: FileText, noun: 'arXiv' },
 };
 
-export default function FilesPanel({ sources, onToggle, onLocate, onRemove, onUpload, close }) {
+export default function FilesPanel({ sources, onToggle, onLocate, onRemove, close }) {
   return (
     <div className="w-[22rem] max-w-[92vw]">
-      <button type="button" role="menuitem" onClick={() => { close(); onUpload(); }}
-        className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-hover">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line text-ink-2"><Upload size={15} /></span>
-        <span className="min-w-0">
-          <span className="block text-sm text-ink">Upload from your computer</span>
-          <span className="block text-xs text-ink-3">Images, GIFs, videos, PDFs - or drop them on the canvas</span>
-        </span>
-      </button>
-      <div className="my-1 h-px bg-line" />
       <p className="flex items-center justify-between px-2 pt-1.5 pb-1 text-[11px] font-semibold tracking-wider text-ink-3 uppercase">
         <span>On this canvas</span>
         {!!sources.length && <span className="font-normal normal-case tracking-normal">Tutor reads</span>}
@@ -59,7 +50,7 @@ export default function FilesPanel({ sources, onToggle, onLocate, onRemove, onUp
           })}
         </ul>
       ) : (
-        <p className="px-2 pb-2 text-xs text-ink-3">Nothing yet. Upload a file, or use Search to add a video, paper, or article.</p>
+        <p className="px-2 pb-2 text-xs text-ink-3">Nothing yet. Upload a file from Insert or drop it on the canvas, or use Search to add a video, paper, or article.</p>
       )}
     </div>
   );

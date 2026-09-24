@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { BoxSelect, Check, ChevronLeft, ChevronRight, FileText, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Pencil, Play, Redo2, RotateCcw, Scan, Search, Share2, Trash2, Trophy, NotebookPen, Undo2, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, Copy, CopyPlus, FileText, Group, Keyboard, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Pencil, Play, Redo2, RotateCcw, Scan, Search, Share2, Trash2, Trophy, NotebookPen, Undo2, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
 import { createShapeId, getIndices } from 'tldraw';
 import { SPEEDS, getSpeed, isMuted, onMuted, setMuted, setSpeed } from './learn-audio.js';
 import { api, wsHeaders } from './api.js';
@@ -14,6 +14,7 @@ import LearnOutline from './LearnOutline.jsx';
 import ContentsRail from './ContentsRail.jsx';
 import CanvasMenubar from './CanvasMenubar.jsx';
 import SearchBar from './SearchBar.jsx';
+import ShortcutsSheet from './ShortcutsSheet.jsx';
 import FilesPanel from './FilesPanel.jsx';
 import LearnWiki from './LearnWiki.jsx';
 import { contentsEntries } from './learn-contents.js';
@@ -79,13 +80,28 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // Mirrored from the canvas so the View menu can tick what is on. Held by value
   // rather than by ref, and returned unchanged when nothing moved, or the effect
   // that publishes it would re-render forever.
-  const [canvasState, setCanvasState] = useState({ grid: false, lock: false, minimap: true, pages: false, presenting: false, outline: [] });
+  const [canvasState, setCanvasState] = useState({ grid: false, lock: false, minimap: true, pages: false, presenting: false, outline: [], selected: 0, units: 0, grouped: false, canPaste: false });
   // boardContext is rebuilt every render but read inside a send; a ref keeps the
   // outline current without making the composer re-render on every tick.
   // A proposal from the tutor. It sits here until the learner applies or
   // discards it; nothing reaches the canvas on its own.
   const [proposal, setProposal] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // / opens Search and ? the shortcuts sheet - the keys the page owns; the
+  // canvas owns the rest. Neither fires while typing or presenting.
+  useEffect(() => {
+    const key = event => {
+      if (event.ctrlKey || event.metaKey || event.altKey || (event.key !== '/' && event.key !== '?')) return;
+      const active = window.document.activeElement;
+      if (active && (active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) return;
+      if (canvasStateRef.current.presenting) return;
+      event.preventDefault();
+      if (event.key === '/') { setShortcutsOpen(false); setSearchOpen(true); } else setShortcutsOpen(open => !open);
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, []);
   const [videoContext, setVideoContext] = useState(null);
   const [wikiOpen, setWikiOpen] = useState(false);
   // Bumped only by an explicit open, so the reader can tell "go to this section"
@@ -95,7 +111,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const canvasStateRef = useRef(canvasState);
   canvasStateRef.current = canvasState;
   const onCanvasState = useCallback(next => setCanvasState(previous =>
-    (previous.grid === next.grid && previous.lock === next.lock && previous.minimap === next.minimap && previous.pages === next.pages && previous.presenting === next.presenting && JSON.stringify(previous.outline) === JSON.stringify(next.outline) && JSON.stringify(previous.cards) === JSON.stringify(next.cards) ? previous : next)), []);
+    (previous.grid === next.grid && previous.lock === next.lock && previous.minimap === next.minimap && previous.pages === next.pages && previous.presenting === next.presenting && previous.selected === next.selected && previous.units === next.units && previous.grouped === next.grouped && previous.canPaste === next.canPaste && JSON.stringify(previous.outline) === JSON.stringify(next.outline) && JSON.stringify(previous.cards) === JSON.stringify(next.cards) ? previous : next)), []);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [paperOpen, setPaperOpen] = useState(false);
   const [paperContext, setPaperContext] = useState(null);
@@ -890,13 +906,12 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const canvasMenus = [
     // One search bar for YouTube, arXiv and Wikipedia; a connector like
     // Google Slides will live under Files once it exists, not here.
-    { title: 'Search', icon: Search, onSelect: () => setSearchOpen(true) },
+    { title: 'Search', icon: Search, hint: '/', onSelect: () => setSearchOpen(true) },
     {
       title: 'Files',
       panel: close => <FilesPanel sources={listedSources} close={close}
         onToggle={id => setSources(previous => toggleSource(previous, id))}
-        onLocate={locateSource} onRemove={removeSource}
-        onUpload={() => filePicker.current?.click()} />,
+        onLocate={locateSource} onRemove={removeSource} />,
     },
     {
       title: 'Insert',
@@ -908,6 +923,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         { label: 'Text box', icon: Type, onSelect: () => canvas()?.insertText() },
         { label: 'Sticky note', icon: StickyNote, onSelect: () => canvas()?.insertSticky() },
         { label: 'Divider line', icon: SeparatorHorizontal, onSelect: () => canvas()?.insertDivider() },
+        { divider: true },
+        // The one way to add a file besides dropping it on the canvas.
+        { label: 'Upload a file', icon: Upload, onSelect: () => filePicker.current?.click() },
       ],
     },
     {
@@ -916,22 +934,47 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         { label: 'Undo', icon: Undo2, hint: 'Ctrl Z', onSelect: () => canvas()?.undo() },
         { label: 'Redo', icon: Redo2, hint: 'Ctrl Y', onSelect: () => canvas()?.redo() },
         { divider: true },
-        { label: 'Select all', icon: BoxSelect, onSelect: () => canvas()?.selectAll() },
-        { label: 'Delete selection', icon: Trash2, hint: 'Del', onSelect: () => canvas()?.deleteSelection() },
+        { label: 'Copy', icon: Copy, hint: 'Ctrl C', disabled: !canvasState.selected, onSelect: () => canvas()?.copy() },
+        { label: 'Paste', icon: ClipboardPaste, hint: 'Ctrl V', disabled: !canvasState.canPaste, onSelect: () => canvas()?.paste() },
+        { label: 'Duplicate', icon: CopyPlus, hint: 'Ctrl D', disabled: !canvasState.selected, onSelect: () => canvas()?.duplicate() },
+        { divider: true },
+        { label: 'Group', icon: Group, hint: 'Ctrl G', disabled: canvasState.selected < 2, onSelect: () => canvas()?.group() },
+        { label: 'Ungroup', icon: Ungroup, hint: 'Ctrl Shift G', disabled: !canvasState.grouped, onSelect: () => canvas()?.ungroup() },
+        { divider: true },
+        { label: 'Select all', icon: BoxSelect, hint: 'Ctrl A', onSelect: () => canvas()?.selectAll() },
+        { label: 'Delete selection', icon: Trash2, hint: 'Del', disabled: !canvasState.selected, onSelect: () => canvas()?.deleteSelection() },
+      ],
+    },
+    {
+      // Lines up what is selected; a group counts as one piece.
+      title: 'Arrange',
+      items: [
+        { label: 'Align left', icon: AlignStartVertical, disabled: canvasState.units < 2, onSelect: () => canvas()?.arrange('left') },
+        { label: 'Align center', icon: AlignCenterVertical, disabled: canvasState.units < 2, onSelect: () => canvas()?.arrange('center') },
+        { label: 'Align right', icon: AlignEndVertical, disabled: canvasState.units < 2, onSelect: () => canvas()?.arrange('right') },
+        { divider: true },
+        { label: 'Align top', icon: AlignStartHorizontal, disabled: canvasState.units < 2, onSelect: () => canvas()?.arrange('top') },
+        { label: 'Align middle', icon: AlignCenterHorizontal, disabled: canvasState.units < 2, onSelect: () => canvas()?.arrange('middle') },
+        { label: 'Align bottom', icon: AlignEndHorizontal, disabled: canvasState.units < 2, onSelect: () => canvas()?.arrange('bottom') },
+        { divider: true },
+        { label: 'Distribute horizontally', icon: AlignHorizontalSpaceBetween, disabled: canvasState.units < 3, onSelect: () => canvas()?.arrange('spread-x') },
+        { label: 'Distribute vertically', icon: AlignVerticalSpaceBetween, disabled: canvasState.units < 3, onSelect: () => canvas()?.arrange('spread-y') },
       ],
     },
     {
       title: 'View',
       items: [
-        { label: 'Zoom in', icon: ZoomIn, onSelect: () => canvas()?.zoomIn() },
-        { label: 'Zoom out', icon: ZoomOut, onSelect: () => canvas()?.zoomOut() },
-        { label: 'Reset zoom', icon: RotateCcw, hint: '100%', onSelect: () => canvas()?.zoomReset() },
-        { label: 'Zoom to fit', icon: Maximize2, onSelect: () => canvas()?.zoomFit() },
+        { label: 'Zoom in', icon: ZoomIn, hint: 'Ctrl +', onSelect: () => canvas()?.zoomIn() },
+        { label: 'Zoom out', icon: ZoomOut, hint: 'Ctrl -', onSelect: () => canvas()?.zoomOut() },
+        { label: 'Zoom to 100%', icon: RotateCcw, hint: 'Shift 0', onSelect: () => canvas()?.zoomReset() },
+        { label: 'Zoom to fit', icon: Maximize2, hint: 'Shift 1', onSelect: () => canvas()?.zoomFit() },
         { divider: true },
         { label: 'Minimap', icon: MapIcon, checked: canvasState.minimap, onSelect: () => canvas()?.toggleMinimap() },
         { label: 'Snap to grid', icon: Grid3x3, checked: canvasState.grid, onSelect: () => canvas()?.toggleGrid() },
         { label: 'Page guides (A4)', icon: FileText, checked: canvasState.pages, onSelect: () => canvas()?.togglePages() },
         { label: 'Keep tool active', icon: Lock, checked: canvasState.lock, onSelect: () => canvas()?.toggleLock() },
+        { divider: true },
+        { label: 'Keyboard shortcuts', icon: Keyboard, hint: '?', onSelect: () => setShortcutsOpen(true) },
       ],
     },
   ];
@@ -993,6 +1036,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             }}
             className="h-8 min-w-16 max-w-96 shrink cursor-text truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none [field-sizing:content] placeholder:text-ink-2 hover:border-line focus:border-line" />
           <CanvasMenubar menus={canvasMenus} />
+          {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
           {searchOpen && <SearchBar app={app.name} onClose={() => setSearchOpen(false)}
             onPick={pickResult} />}
           <div className="flex items-center gap-0.5">
