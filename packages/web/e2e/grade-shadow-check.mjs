@@ -10,6 +10,9 @@ const BOARD = 'grade-shadow-1';
 const KEY = `small.adaptive-canvas:example-team:b@e.test:nanogpt:${BOARD}:s0`;
 const CHALLENGE = { id: 'c1', type: 'challenge', dx: 0, dy: 0, prompt: 'Why does softmax use exp?', hint: '', expects: ['exp makes every score positive', 'dividing by the sum makes them add to one'], reveal: '', answer: null };
 const SSE = `event: chunk\ndata: ${JSON.stringify({ text: 'VERDICT: good\nYou have both ideas.' })}\n\nevent: done\ndata: {"ok":true}\n\n`;
+// A real AWS-hosted app's api_url is a lambda function URL (packages/cli/lib/byoc-client.mjs);
+// scenario 6 mocks that origin too, so the app loads the same way a real AWS-hosted app does.
+const LAMBDA_URL = 'https://gradeshadowcheck123.lambda-url.us-east-1.on.aws/';
 
 let failed = 0;
 const ok = (name, condition, extra = '') => { if (!condition) failed += 1; console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${extra ? `  (${extra})` : ''}`); };
@@ -17,7 +20,7 @@ const browser = await chromium.launch();
 
 // One fresh learner per scenario. `grade` decides the shadow reply, `baseline`
 // the baseline reply, `opus` the tutor reply.
-async function scenario({ grade = { status: 200 }, gradeDelay = 0, baseline = 200, opus = 'ok' } = {}) {
+async function scenario({ grade = { status: 200 }, gradeDelay = 0, baseline = 200, opus = 'ok', extraRoutes = [] } = {}) {
   const context = await browser.newContext({ viewport: { width: 1500, height: 950 } });
   await context.addInitScript(([key, block]) => {
     if (sessionStorage.getItem('seeded')) return;
@@ -26,6 +29,7 @@ async function scenario({ grade = { status: 200 }, gradeDelay = 0, baseline = 20
   }, [KEY, CHALLENGE]);
   const page = await context.newPage();
   const seen = { grades: [], baselines: [], asks: 0 };
+  for (const { url, handler } of extraRoutes) await page.route(url, handler);
   await page.route('**/api/**', async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -142,10 +146,19 @@ const shown = async card => ({ grade: await card.locator('[data-answer]').getAtt
 
 // 6. An AWS-hosted app sends no shadow request (LearnPage passes the app object with .hosting).
 {
-  const saved = { app: replies['/api/apps/nanogpt'], list: replies['/api/apps'] };
-  replies['/api/apps/nanogpt'] = { ...app, hosting: 'aws', app_chat: true };
-  replies['/api/apps'] = { ...saved.list, apps: [{ ...app, hosting: 'aws', app_chat: true }] };
-  const s = await scenario();
+  // A real AWS-hosted app always carries `aws_connection` (packages/web/src/app-data.js
+  // withAwsApp); app-data.js's appApi/awsClient read it to build the AWS job client
+  // before LearnPage ever mounts, so the mock needs one too, plus the grant + lambda
+  // endpoints that client calls. RepositoryPage also re-fetches /api/repositories/:name
+  // on mount and replaces its `app` state with that reply, so it needs `hosting` too,
+  // or the card would mount with a plain (non-AWS) app and the bail-out would never see it.
+  const saved = { app: replies['/api/apps/nanogpt'], list: replies['/api/apps'], repo: replies['/api/repositories/nanogpt'], grant: replies['/api/byoc/grant'] };
+  const connection = { state: 'connected', org: app.org, owner_email: app.owner_email, can_deploy: true, job_name: 'nanogpt', api_url: LAMBDA_URL, account_id: '000000000000', region: 'us-east-1' };
+  replies['/api/apps/nanogpt'] = { ...app, hosting: 'aws', app_chat: true, aws_connection: connection };
+  replies['/api/apps'] = { ...saved.list, apps: [{ ...app, hosting: 'aws', app_chat: true, aws_connection: connection }] };
+  replies['/api/repositories/nanogpt'] = { ...saved.repo, hosting: 'aws', app_chat: true, aws_connection: connection };
+  replies['/api/byoc/grant'] = { api_url: LAMBDA_URL, token: 'test-grant', expires_at: Date.now() / 1000 + 3600 };
+  const s = await scenario({ extraRoutes: [{ url: LAMBDA_URL + '**', handler: route => route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }) }] });
   await s.card.locator('input').fill('an answer');
   await s.card.getByRole('button', { name: 'Commit' }).click();
   await s.card.locator('[data-verdict]', { hasText: 'You have both ideas.' }).waitFor({ timeout: 10000 });
@@ -154,6 +167,8 @@ const shown = async card => ({ grade: await card.locator('[data-answer]').getAtt
   await s.context.close();
   replies['/api/apps/nanogpt'] = saved.app;
   replies['/api/apps'] = saved.list;
+  replies['/api/repositories/nanogpt'] = saved.repo;
+  if (saved.grant === undefined) delete replies['/api/byoc/grant']; else replies['/api/byoc/grant'] = saved.grant;
 }
 
 // 5. A block without key ideas sends no shadow request.
