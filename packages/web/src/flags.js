@@ -14,3 +14,9 @@ export const learnHandoff = false;
 // (wrangler.dev.jsonc:69-72), and /api/ask writes live chat history, so the preview's
 // workspace and app asks stay unavailable. Project and canvas asks use LEARN_DB and stay on.
 export const askLiveOnPreview = false;
+
+// G5 (Gate C, 2026-09-24): /api/apps/find and /api/runs/find each run a model on the live control
+// plane (control-plane/src/index.js:595-638). Read-only is not isolated, so the preview never calls
+// them until the user approves live model-backed reads. The live build is unchanged.
+export const aiReadsOnPreview = false;
+export const aiFindAllowed = (preview = learnPreview) => !preview || aiReadsOnPreview;

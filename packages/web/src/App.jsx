@@ -4,6 +4,7 @@ import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } f
 import Panel from './Panel.jsx';
 import RepositoryImport from './RepositoryImport.jsx';
 import Shell from './Shell.jsx';
+import { aiFindAllowed } from './flags.js';
 import { isPrivateByoc } from './private-auth.js';
 import { Avatar, Chk, cn, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, toast, useHeaderDrag, ValuePicker } from './ui.jsx';
 
@@ -124,7 +125,7 @@ function AppContent({ data, load }) {
   // picks apps by description; short strings stay instant name matching
   const [aiFind, setAiFind] = useState(null); // null | 'loading' | { names, note }
   useEffect(() => {
-    if (!search || search.trim().split(/\s+/).length < 4) { setAiFind(null); return; }
+    if (!search || !aiFindAllowed() || search.trim().split(/\s+/).length < 4) { setAiFind(null); return; }
     setAiFind('loading');
     const t = setTimeout(() => {
       api('/api/apps/find', { method: 'POST', body: JSON.stringify({ q: search }) })

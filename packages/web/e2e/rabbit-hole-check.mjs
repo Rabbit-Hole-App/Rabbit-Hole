@@ -97,6 +97,21 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   // ── shell-home checks end: later shell-home tasks insert above this line ──
 }
 
+{
+  await check('G5: preview sentence searches never call the live model (/api/apps/find)', async () => {
+    const page = await open();
+    const hits = [];
+    // Recorded and aborted in the browser, so even a failing run never reaches the live model (G5).
+    await page.route(/[/]api[/](apps|runs)[/]find$/, (route) => { hits.push(route.request().url()); return route.abort(); });
+    await loaded(page);
+    await page.keyboard.press('Control+k'); // Search.jsx:21
+    await page.keyboard.type('apps that write logs to s3 every day');
+    await page.waitForTimeout(1500); // Search.jsx debounces 600 ms before it calls the model
+    must(hits.length === 0, `called ${hits.join(', ')}`);
+    await page.context().close();
+  });
+}
+
 // ── journey checks: each area inserts its block above this line, wrapped in { } ──
 
 await browser.close();

@@ -9,6 +9,7 @@ import {
 import { ago, api, fmtTime, navigate, wsHeaders } from './api.js';
 import { appApi } from './app-data.js';
 import { AskPanel } from './ask.jsx';
+import { aiFindAllowed } from './flags.js';
 import {
   Avatar, Button, Chk, cn, CodeBlock, Dropzone, Field, fmtBytes, IconBtn, Input,
   Menu, MenuItem, Pill, Select, SkeletonRows, SlidePanel, Slider, StatusPill, SubMenu, Tip, toast, Toggle, useHeaderDrag, ValuePicker,
@@ -809,7 +810,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
   // status/inputs/when; short strings stay instant substring matching
   const [aiRuns, setAiRuns] = useState(null); // null | 'loading' | { ids, note }
   useEffect(() => {
-    if (app.hosting === 'aws' || !q || q.trim().split(/\s+/).length < 4) { setAiRuns(null); return; }
+    if (app.hosting === 'aws' || !aiFindAllowed() || !q || q.trim().split(/\s+/).length < 4) { setAiRuns(null); return; }
     setAiRuns('loading');
     const t = setTimeout(() => {
       api('/api/runs/find', { method: 'POST', body: JSON.stringify({ app: slug, q }) })

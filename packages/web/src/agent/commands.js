@@ -1,6 +1,6 @@
 import { api, getTheme, navigate, setTheme, wsName } from '../api.js';
 import { openedNotice } from '../connections.js';
-import { learnPreview } from '../flags.js';
+import { aiReadsOnPreview, learnPreview } from '../flags.js';
 import { canvasKeys, deviceId, hasLocalContent } from '../home/canvas-local.js';
 import { readPinned, togglePin } from '../home/pinned.js';
 import { kindLabel, lookup, titleOf } from './catalog.js';
@@ -12,6 +12,9 @@ import { scopeOf } from './scope.js';
 // A command that navigates does so inside run(); callers never navigate after it.
 // ponytail: §7.1 requires(ctx) is left out; the server rechecks edit rights at approve (index.js:1425-1430).
 export const D7_REASON = 'Blocked on this preview: it would change live apps.';
+export const AI_READS_REASON = 'Model-backed search is off on this preview: it would call the live control plane.';
+const AI_READS = new Set(['find_apps_ai', 'find_runs_ai']);
+const aiReadsOff = (ctx) => ctx.devBuild && !aiReadsOnPreview;
 
 // The one ctx. The Start dialog, the Project hub and the canvas gate pass ctxOf(getSurface()); the bar
 // passes the scope it froze at Send (T02 §6.3), ctxOf(getSurface(), { scope }). scope is the only override.
@@ -113,7 +116,8 @@ export const COMMANDS = {
   },
   // Reads on the live control plane, each one model call (index.js:595-638). Immediate, so D7 never blocks a read.
   find_apps_ai: {
-    risk: 'immediate', touchesLive: true, available: ok,
+    risk: 'immediate', touchesLive: true,
+    available: (ctx) => (aiReadsOff(ctx) ? { ok: false, reason: AI_READS_REASON } : { ok: true }),
     run: async ({ q }, ctx) => {
       const { apps = [], note } = await api('/api/apps/find', { method: 'POST', body: JSON.stringify({ q }) });
       const results = apps.map((slug) => ({ slug, title: titleFor(ctx, slug), kind: rowOf(ctx, slug)?.kind || 'app', detail: kindLabel(rowOf(ctx, slug)?.kind) }));
@@ -122,7 +126,8 @@ export const COMMANDS = {
   },
   find_runs_ai: {
     risk: 'immediate', touchesLive: true,
-    available: (ctx) => (ctx.scope?.kind === 'app' ? { ok: true } : { ok: false, reason: 'Open an app to search its runs.' }),
+    available: (ctx) => (aiReadsOff(ctx) ? { ok: false, reason: AI_READS_REASON }
+      : ctx.scope?.kind === 'app' ? { ok: true } : { ok: false, reason: 'Open an app to search its runs.' }),
     run: async ({ q }, ctx) => {
       const app = ctx.scope.slug;
       const { runs = [], note } = await api('/api/runs/find', { method: 'POST', body: JSON.stringify({ app, q }) });
@@ -224,6 +229,7 @@ export async function executeCommand(name, args, ctx) {
   const command = COMMANDS[name];
   const unsupported = command?.unsupported?.(args, ctx);
   if (unsupported) return { message: unsupported };
+  if (AI_READS.has(name) && aiReadsOff(ctx)) return { message: AI_READS_REASON };
   const { blocked, reason } = policy(name, ctx);
   if (blocked) throw Error(reason);
   return command.run(args, ctx);

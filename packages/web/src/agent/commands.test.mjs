@@ -4,7 +4,7 @@ import { openedNotice } from '../connections.js';
 import { learnPreview } from '../flags.js';
 import { canvasKeys } from '../home/canvas-local.js';
 import { readPinned } from '../home/pinned.js';
-import { COMMANDS, D7_REASON, ctxOf, executeCommand, policy, prepareCommand } from './commands.js';
+import { AI_READS_REASON, COMMANDS, D7_REASON, ctxOf, executeCommand, policy, prepareCommand } from './commands.js';
 
 // Just enough browser for api.js, navigate() and setTheme(): fetch, history, storage, theme.
 const memory = () => { const items = new Map(); return { getItem: (key) => (items.has(key) ? items.get(key) : null), setItem: (key, value) => items.set(key, String(value)), removeItem: (key) => items.delete(key) }; };
@@ -59,7 +59,8 @@ test('risk comes from the registry and matches T02 §7.2', () => {
 test('D7: on the preview every live-touching Confirm card is blocked, and nothing else is', () => {
   for (const name of ASK) assert.equal(COMMANDS[name].touchesLive, true, name);
   for (const [name, command] of Object.entries(COMMANDS)) {
-    const expected = command.risk === 'confirm' && command.touchesLive ? { risk: 'confirm', blocked: true, reason: D7_REASON } : { risk: command.risk, blocked: false };
+    const expected = command.risk === 'confirm' && command.touchesLive ? { risk: 'confirm', blocked: true, reason: D7_REASON }
+      : ['find_apps_ai', 'find_runs_ai'].includes(name) ? { risk: 'immediate', blocked: true, reason: AI_READS_REASON } : { risk: command.risk, blocked: false };
     assert.deepEqual(policy(name, CTX), expected, name);
   }
   assert.equal(D7_REASON, 'Blocked on this preview: it would change live apps.');
@@ -72,7 +73,7 @@ test('connect_repository runs on the preview: its writes stay in LEARN_DB and le
 });
 
 test('an unknown command, or one the scope cannot serve, is blocked with its reason, and execute refuses it too', async () => {
-  const home = { ...CTX, scope: { org: 'gmail-com', kind: 'workspace', slug: null, title: null, selected: null } };
+  const home = { ...LIVE, scope: { org: 'gmail-com', kind: 'workspace', slug: null, title: null, selected: null } };
   assert.deepEqual(policy('rename', CTX), { risk: null, blocked: true, reason: 'Unknown command: rename' });
   assert.deepEqual(policy('find_runs_ai', home), { risk: 'immediate', blocked: true, reason: 'Open an app to search its runs.' });
   await assert.rejects(executeCommand('find_runs_ai', { q: 'failed yesterday' }, home), { message: 'Open an app to search its runs.' });
@@ -150,12 +151,12 @@ test('opens and Library filters navigate inside run; Settings opens by event wit
 test('search lists catalog titles; the AI finds list what their endpoints return', async () => {
   assert.deepEqual(await executeCommand('search_resources', { text: 'attention' }, CTX), { results: [{ slug: 'canvas-0f9e8d7c', title: 'Attention deep dive', kind: 'canvas', detail: 'Canvas' }] });
   reply = () => ({ body: { apps: ['s3-log'], note: '' } });
-  assert.deepEqual(await executeCommand('find_apps_ai', { q: 'the job that copies logs to s3' }, CTX), { results: [{ slug: 's3-log', title: 's3-log', kind: 'job', detail: 'App · job' }] });
+  assert.deepEqual(await executeCommand('find_apps_ai', { q: 'the job that copies logs to s3' }, LIVE), { results: [{ slug: 's3-log', title: 's3-log', kind: 'job', detail: 'App · job' }] });
   assert.deepEqual(calls.at(-1), { path: '/api/apps/find', method: 'POST', body: { q: 'the job that copies logs to s3' } });
   reply = () => ({ body: { apps: [], note: 'Nothing here copies logs yet.' } });
-  assert.deepEqual(await executeCommand('find_apps_ai', { q: 'log copier' }, CTX), { results: [], message: 'Nothing here copies logs yet.' });
+  assert.deepEqual(await executeCommand('find_apps_ai', { q: 'log copier' }, LIVE), { results: [], message: 'Nothing here copies logs yet.' });
   reply = () => ({ body: { runs: ['r-abc'], note: '' } });
-  assert.deepEqual(await executeCommand('find_runs_ai', { q: 'the failed run yesterday' }, CTX), { results: [{ slug: 's3-log/runs/r-abc', title: 'r-abc', kind: 'run', detail: 'Run of s3-log' }] });
+  assert.deepEqual(await executeCommand('find_runs_ai', { q: 'the failed run yesterday' }, LIVE), { results: [{ slug: 's3-log/runs/r-abc', title: 'r-abc', kind: 'run', detail: 'Run of s3-log' }] });
   assert.deepEqual(calls.at(-1), { path: '/api/runs/find', method: 'POST', body: { app: 's3-log', q: 'the failed run yesterday' } });
 });
 
@@ -219,4 +220,20 @@ test('pin and unpin change the device list once, name what changed, and Undo rev
   await COMMANDS.unpin.undo(noop, ctx);
   assert.deepEqual(readPinned(ctx.storage, 'gmail-com', 'a@gmail.com'), ['repo-1a2b3c4d-nanogpt']);
   assert.equal(heard, 3);
+});
+
+test('G5: on the preview, model-backed find is unavailable and never reaches the network', async () => {
+  const realFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (...args) => { calls.push(args); throw new Error('no network in this test'); };
+  try {
+    const ctx = { devBuild: true, scope: { kind: 'app', slug: 'counter' }, catalog: [] };
+    for (const name of ['find_apps_ai', 'find_runs_ai']) {
+      assert.deepEqual(COMMANDS[name].available(ctx), { ok: false, reason: AI_READS_REASON }, name);
+      assert.deepEqual(await executeCommand(name, { q: 'failed runs from yesterday morning' }, ctx), { message: AI_READS_REASON }, name);
+    }
+    assert.equal(calls.length, 0);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
