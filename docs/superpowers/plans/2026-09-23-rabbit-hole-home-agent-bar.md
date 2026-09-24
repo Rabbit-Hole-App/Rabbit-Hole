@@ -1,6 +1,6 @@
 # Rabbit Hole Home, Library, Project and Agent Bar — Implementation Plan (T04)
 
-> **DRAFT — Gate B pending.** This plan is provisional. Gate B (visual verification of the remaining Figma frames) is still open; nothing here is approved for implementation. No production code may be edited until the user approves this plan at **Gate C**.
+> **Approved for implementation.** Gate B closed on 2026-09-24 after the user inspected the remaining Figma frames and two stale states were fixed (see *Gate-B visual findings*). Gate C (this plan) is active. Execution starts with WP1.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans, run by **one orchestrating agent** through the seven work packages in *Execution strategy*. After each package a fresh reviewer (superpowers:requesting-code-review) checks it before the next package starts. The checkboxes are the implementation ledger, not separate engineering sessions.
 
@@ -44,12 +44,12 @@
 
 Each line is pinned by tests in the owning tasks (surface/scope and the bar helpers for frozen scope; the commands policy tests for D7; canvas-local and the canvas route for the device gate and Undo; learn-hook for timeouts and the missing hook; the live-build case in routes.test plus the plain `vite build` check in the Start dialog task for the live build).
 
-## Pending Gate-B visual findings
+## Gate-B visual findings (closed 2026-09-24)
 
-Gate B stays open until the user reports on the 16 frames listed below. This section is reconciled before Gate C.
+The user inspected F2a, F4a, F4b, F4d, F5a, F5b, F6, F7, F9, F10, S2, S3, S11, S12, dark Home, dark Map and narrow Home in Figma. Two stale states were fixed and re-inspected: **F4b** showed an empty `⋯` in the Project header (removed from the Project Header component, so every project header matches T02 §17 row 10; Share stays disabled), and **S11** showed the Agent Bar on the canvas gate (removed; canvas routes hide the bar). Every other frame passed. Nothing in the plan changed as a result: both fixes bring Figma in line with the plan. The items below record the known Figma-versus-plan differences and the visual details the implementation must follow.
 
 1. **Home primary CTA (user change, 2026-09-23).** Home shows one primary **Start a rabbit hole** button that opens the four-path Start dialog (T02 §3.3). The Figma frames still show four equal Start buttons (F1, F2a, F3, F4a, F6, F7, F8, F10, S5, S6, S7, S12, dark Home, narrow Home). Figma was not updated because the Starter-plan MCP quota is exhausted; this plan implements T02 §3.3, and the frames are to be updated when the quota allows.
-2. **Frames awaiting the user's inspection:** F2a, F4a, F4b, F4d, F5, F6, F7, F9, F10, S2, S3, S11, S12, dark Home, dark Map, narrow Home. None is used as approved evidence.
+2. **Inspected and passed:** F2a, F4a, F4b (after fix), F4d, F5a, F5b, F6, F7, F9, F10, S2, S3, S11 (after fix), S12, dark Home, dark Map, narrow Home.
 3. **Start dialog not mocked.** The four-path Start dialog (T02 §5) has no Figma frame; its layout follows T02 §5 and the existing ConfirmDialog style.
 4. Shell, Home, Library, Sidebar: Home composition: Continue card layout (title row, Last explored and Next lines, button pair), the Recent grid (card size, meta order and wording), where the single primary Start a rabbit hole sits (planned after Recent; first on first visit), and the loading skeletons
 5. Shell, Home, Library, Sidebar: Sidebar: nav icons (House, Library, Compass), the 'preview' tag on Explore, the Pinned heading style, Pin and Unpin in the row ⋯ menu with no menu on Pinned rows, Apps, Shared and Private collapsed for new users, and the disabled Share tooltip on canvases
@@ -101,7 +101,7 @@ Gate B stays open until the user reports on the 16 frames listed below. This sec
 
 ## Gate C decisions (recorded 2026-09-24)
 
-**Gate C is approved, conditional on Gate B** (user, 2026-09-24). Implementation starts only when the remaining Gate-B frames are verified with no material issue; until then no production code, and WP1 does not start.
+**Gate C is approved and active** (user, 2026-09-24; conditional on Gate B, which closed the same day).
 
 - **G1 — preview asks that would write live chat history: (b) OFF.** Workspace and app asks stay unavailable on the review clone (`askLiveOnPreview = false`). Project and canvas asks through `LEARN_DB` remain.
 - **G2 — phase-1 deviations: approved selectively.** Approved: `[+]` attachment may defer; Authored-path Continue may defer; canvas rename UI may defer; canvas routes yield to Learn's composer; no empty `[⋯]` menu; `/research` unavailable until the agreed Learn hook lands. **Question → clipboard is fallback-only** while `learnHandoff === false`; once the hook lands, Question creates the canvas and prefills the Learn composer, unsent. **Shift+Enter is not deferred:** the Agent Bar gets a multiline input (Enter sends, Shift+Enter adds a line) through an opt-in `ChatComposer` prop (Task: *Multiline Agent Bar input*). Also approved (2026-09-24): Undo is required only for canvases created from the Agent Bar (Start-created canvases open Learn; removal is Archive/Restore); no branch select while GitHub names a real default, and when it names none the bar and Start dialog stop and ask for a branch link, never assuming main, master or the first branch (the worker now reports defaultBranchKnown; Task: *Gate C G2 branch rule*); source line ranges do not join the bar scope, the selected graph node stays the code-context scope.
