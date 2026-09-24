@@ -13,15 +13,7 @@ export default function CanvasMenubar({ menus, className = '' }) {
   const [open, setOpen] = useState(null);
   return (
     <div role="menubar" aria-label="Canvas menu" className={`flex items-center gap-0.5 ${className}`}>
-      {menus.map(menu => (menu.onSelect ? (
-        // A menu with nothing to choose from is a button: Search opens the
-        // search bar directly instead of a one-item dropdown.
-        <button key={menu.title} type="button" role="menuitem" title={menu.hint ? `${menu.title} (${menu.hint})` : undefined} onClick={() => { setOpen(null); menu.onSelect(); }}
-          onPointerEnter={() => setOpen(previous => (previous ? null : previous))}
-          className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-sm whitespace-nowrap text-ink-2 hover:bg-hover hover:text-ink">
-          {menu.icon && <menu.icon size={14} strokeWidth={1.8} />}{menu.title}
-        </button>
-      ) : (
+      {menus.map(menu => (
         <div key={menu.title} className="relative">
           <button type="button" role="menuitem" aria-haspopup="menu" aria-expanded={open === menu.title}
             onClick={() => setOpen(previous => (previous === menu.title ? null : menu.title))}
@@ -51,7 +43,7 @@ export default function CanvasMenubar({ menus, className = '' }) {
             )))}
           </Menu>
         </div>
-      )))}
+      ))}
     </div>
   );
 }

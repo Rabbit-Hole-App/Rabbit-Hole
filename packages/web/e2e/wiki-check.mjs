@@ -76,7 +76,7 @@ await page.waitForTimeout(3000);
 
 // --- the learner adds one ---
 ok('no article on the canvas to begin with', (await card.count()) === 0);
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Search/ }).click();
+await page.getByRole('button', { name: 'Search YouTube, arXiv and Wikipedia' }).click();
 await page.waitForTimeout(300);
 const box = page.getByRole('dialog', { name: 'Search' });
 await box.getByRole('combobox', { name: 'Search in' }).selectOption('wikipedia');

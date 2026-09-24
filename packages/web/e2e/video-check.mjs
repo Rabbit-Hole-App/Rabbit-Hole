@@ -54,7 +54,7 @@ await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 30000 });
 await page.waitForTimeout(3000);
 
 // --- picking one ---
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Search/ }).click();
+await page.getByRole('button', { name: 'Search YouTube, arXiv and Wikipedia' }).click();
 await page.waitForTimeout(300);
 const box = page.getByRole('dialog', { name: 'Search' });
 await box.getByRole('combobox', { name: 'Search in' }).selectOption('youtube');

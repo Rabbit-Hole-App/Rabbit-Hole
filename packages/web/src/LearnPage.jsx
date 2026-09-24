@@ -904,9 +904,6 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     if (paperId && paperContext?.id === paperId) { setPaperContext(null); setPaperOpen(false); }
   };
   const canvasMenus = [
-    // One search bar for YouTube, arXiv and Wikipedia; a connector like
-    // Google Slides will live under Files once it exists, not here.
-    { title: 'Search', icon: Search, hint: '/', onSelect: () => setSearchOpen(true) },
     {
       title: 'Files',
       panel: close => <FilesPanel sources={listedSources} close={close}
@@ -1040,6 +1037,10 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           {searchOpen && <SearchBar app={app.name} onClose={() => setSearchOpen(false)}
             onPick={pickResult} />}
           <div className="flex items-center gap-0.5">
+            {/* One search bar for YouTube, arXiv and Wikipedia, beside Present. */}
+            <button type="button" title="Search YouTube, arXiv and Wikipedia (/)" aria-label="Search YouTube, arXiv and Wikipedia"
+              onClick={() => setSearchOpen(true)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Search size={15} strokeWidth={1.8} /></button>
             <button type="button" title="Present" aria-label="Present"
               onClick={() => { if (canvasApi.current?.present()) setPanelOpen(false); }}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Play size={15} strokeWidth={1.8} /></button>

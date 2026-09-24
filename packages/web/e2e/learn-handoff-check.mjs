@@ -149,7 +149,7 @@ ok('teach-1 did not run again on reload', (await resultsFor('teach-1')) === 0 &&
 
 // --- manual Search still adds a card the old way ---
 const answered = await page.evaluate(() => window.__results.length);
-await page.getByRole('menubar').getByRole('menuitem', { name: /^Search/ }).click();
+await page.getByRole('button', { name: 'Search YouTube, arXiv and Wikipedia' }).click();
 const bar = page.getByRole('dialog', { name: 'Search' });
 await bar.getByRole('combobox', { name: 'Search in' }).selectOption('wikipedia');
 await bar.getByRole('textbox').fill('Cross entropy');

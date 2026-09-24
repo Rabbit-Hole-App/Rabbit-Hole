@@ -136,7 +136,10 @@ await page.keyboard.press('Escape');
 
 // --- / and ? ---
 await blank();
-ok('the Search button tells its key', (await menubar.getByRole('menuitem', { name: /^Search/ }).getAttribute('title')) === 'Search (/)');
+const searchButton = page.getByRole('button', { name: 'Search YouTube, arXiv and Wikipedia' });
+ok('Search is an icon beside Present, and tells its key', (await searchButton.innerText()).trim() === '' && (await searchButton.getAttribute('title')).endsWith('(/)')
+  && await searchButton.evaluate(button => button.nextElementSibling?.getAttribute('aria-label') === 'Present'));
+ok('and is no longer in the menubar', (await menubar.getByRole('menuitem', { name: /^Search/ }).count()) === 0);
 await page.keyboard.press('/');
 await page.waitForTimeout(250);
 ok('/ opens Search', (await page.getByRole('dialog', { name: 'Search' }).count()) === 1);

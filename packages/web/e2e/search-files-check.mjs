@@ -54,7 +54,7 @@ const ok = (name, condition, extra = '') => { if (!condition) failed += 1; conso
 const canvas = page.locator('[aria-label="Lesson canvas"]');
 const menubar = page.getByRole('menubar', { name: 'Canvas menu' });
 const bar = page.getByRole('dialog', { name: 'Search' });
-const openSearch = async () => { await menubar.getByRole('menuitem', { name: /^Search/ }).click(); await page.waitForTimeout(250); };
+const openSearch = async () => { await page.getByRole('button', { name: 'Search YouTube, arXiv and Wikipedia' }).click(); await page.waitForTimeout(250); };
 
 await page.goto('http://localhost:5189/apps/nanogpt?tab=learn&board=search-files-1');
 await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 30000 });
@@ -62,7 +62,7 @@ await page.waitForTimeout(2500);
 
 // --- the menubar ---
 const labels = await menubar.getByRole('menuitem').allInnerTexts();
-ok('the menubar reads Search, Files, Insert, Edit, Arrange, View', labels.map(label => label.trim()).join(',') === 'Search,Files,Insert,Edit,Arrange,View', labels.join(','));
+ok('the menubar reads Files, Insert, Edit, Arrange, View', labels.map(label => label.trim()).join(',') === 'Files,Insert,Edit,Arrange,View', labels.join(','));
 for (const title of ['Insert', 'Edit', 'Arrange', 'View']) {
   await menubar.getByRole('menuitem', { name: new RegExp(`^${title}`) }).click();
   await page.waitForTimeout(200);
