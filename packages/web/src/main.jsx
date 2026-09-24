@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Minimize2 } from 'lucide-react';
 import './index.css';
@@ -12,8 +12,12 @@ import { applyTheme, getTheme, navigate, wsName } from './api.js';
 import { ExpandedPageFrame, Toasts } from './ui.jsx';
 import { isPrivateByoc } from './private-auth.js';
 import PrivateAuthGate from './PrivateAuthGate.jsx';
+import { getSurface, setSurface } from './agent/surface.js';
+import { learnPreview, PRODUCT } from './flags.js';
+import { baseSurfaceFor, canonicalPath, pageFor } from './routes.js';
 
 applyTheme(getTheme()); // before first paint - no light flash for dark users
+if (learnPreview) document.title = PRODUCT; // the live build keeps index.html's title
 
 // org-wide chat as a page - same panel as the app Agent tab, textbox pinned bottom.
 // /chat?app=<slug> narrows the scope to one app (the Agent tab's open-as-page).
@@ -53,10 +57,9 @@ function ChatPage() {
 
 function Root() {
   // PrivateAuthGate consumes Cognito callbacks before normalizing app routes.
-  // /dash aliases /apps (see the control-plane cache note). No router dep.
-  if (!/^\/(apps(\/[a-z0-9-]+(\/runs\/[\w-]+)?)?|dash|members|chat)$/.test(window.location.pathname)) {
-    window.history.replaceState(null, '', '/apps');
-  }
+  // /dash aliases /apps (see the control-plane cache note). No router dep: routes.js.
+  const fixed = canonicalPath(window.location.pathname, learnPreview);
+  if (fixed) window.history.replaceState(null, '', fixed);
   // pathname + search so ?s=shared section switches re-render too
   const [path, setPath] = useState(window.location.pathname + window.location.search);
   useEffect(() => {
@@ -64,10 +67,16 @@ function Root() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
-  const m = path.split('?')[0].match(/^\/apps\/([a-z0-9-]+)(?:\/runs\/([\w-]+))?$/);
+  const [pathname, search = ''] = path.split('?');
+  const at = pageFor(pathname, search, learnPreview);
+  // The Agent Bar's starting surface for this URL (T02 §6). Layout effects run before every
+  // child's useEffect, so a page's own refinement always lands on top of this baseline.
+  useLayoutEffect(() => {
+    if (learnPreview) setSurface(baseSurfaceFor(pathname, search, getSurface()));
+  }, [path]);
   return (
     <>
-      {m ? <SharePage slug={m[1]} runId={m[2]} /> : path.split('?')[0] === '/members' ? <MembersPage /> : path.split('?')[0] === '/chat' ? <ChatPage /> : <App />}
+      {at.page === 'app' ? <SharePage slug={at.slug} runId={at.runId} /> : at.page === 'members' ? <MembersPage /> : at.page === 'chat' ? <ChatPage /> : <App />}
       <SearchModal />
       <Toasts />
     </>

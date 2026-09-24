@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { getSurface, patchSurface, setSurface } from './agent/surface.js';
 import { baseSurfaceFor, canonicalPath, pageFor, sectionActive, sectionHref } from './routes.js';
 
 test('the live build routes exactly as today (main.jsx:57-70)', () => {
@@ -61,4 +62,20 @@ test('the baseline clears page state, keeps the workspace identity it is given, 
   assert.deepEqual(baseSurfaceFor('/apps/counter', '', previous),
     { ...identity, place: 'app', resource: null, selected: null, barHidden: false, resultsHost: 'sheet', handlers: {} });
   assert.deepEqual(Object.keys(baseSurfaceFor('/apps', '')).sort(), ['barHidden', 'handlers', 'place', 'resource', 'resultsHost', 'selected']);
+});
+
+// main.jsx Root keeps pathname + search in one string (main.jsx:61) and splits it on '?', so
+// search arrives WITHOUT its '?'; `from` is agent-core's live surface after Shell's patch.
+const rootInputs = (path) => { const [pathname, search = ''] = path.split('?'); return [pathname, search, getSurface()]; };
+
+test('Root inputs: a split path and getSurface(); a chip click keeps who is looking and drops the old page', () => {
+  const identity = { org: 'gmail-com', email: 'a@gmail.com', orgName: 'Gmail', catalog: [{ name: 'counter' }] };
+  patchSurface(identity);
+  setSurface({ place: 'project', resource: { kind: 'project', slug: 'repo-x', title: 'x' }, selected: { id: 'n1' }, resultsHost: 'panel', handlers: { onGraph() {} } });
+  setSurface(baseSurfaceFor(...rootInputs('/library?type=canvases&s=private')));
+  assert.deepEqual(getSurface(), { ...identity, place: 'library', resource: null, selected: null, barHidden: false, resultsHost: 'sheet', handlers: {} });
+  for (const [path, place, hidden] of [['/apps?s=shared', 'library', false], ['/apps/counter?tab=learn', 'learn', true], ['/apps/canvas-1a2b3c4d', 'canvas', true], ['/apps/repo-1a2b3c4d-nanogpt?tab=map', 'project', false]]) {
+    setSurface(baseSurfaceFor(...rootInputs(path)));
+    assert.deepEqual([getSurface().place, getSurface().barHidden, getSurface().org], [place, hidden, 'gmail-com'], path);
+  }
 });

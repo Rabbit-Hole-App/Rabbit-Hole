@@ -83,6 +83,20 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   await page.context().close();
 });
 
+// ── shell-home (T02 §1-4, §8.3-8.4, §11): routes, Home, Explore, Library, Sidebar ──
+{
+  await check('sh-title: the preview is titled Rabbit Hole and serves /library without a redirect (T02 §1)', async () => {
+    const page = await open();
+    await loaded(page, '/apps');
+    must(await page.title() === 'Rabbit Hole', `title is ${await page.title()}`);
+    await loaded(page, '/library');
+    must(new URL(page.url()).pathname === '/library', `/library became ${new URL(page.url()).pathname}`);
+    await page.context().close();
+  });
+
+  // ── shell-home checks end: later shell-home tasks insert above this line ──
+}
+
 // ── journey checks: each area inserts its block above this line, wrapped in { } ──
 
 await browser.close();
