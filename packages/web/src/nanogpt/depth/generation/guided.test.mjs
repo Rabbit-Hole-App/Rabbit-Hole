@@ -75,16 +75,8 @@ test('live numbers match the oracle at every preset, and the relationships hold'
     assert.equal(label(result, 'ratio-2'), '= (141 ÷ 82)^(1/T) = e^(gap ÷ T)');
     assert.equal(label(result, 'ratio-3'), `rounded p: ${result.derived.pTop} ÷ ${result.derived.pSecond} ≈ ${p.ratio}`);
     assert.ok(Math.abs(result.derived.pTop / result.derived.pSecond - p.ratio) / p.ratio < 0.01, `${where} rounded p give the ratio`);
-    // Cells of 10 or more print whole numbers; only then is the exact pair shown, and it agrees with the gap line.
-    const whole = F.logits.some(l => Math.abs(l / p.temperature) >= 10);
-    assert.equal(whole, p.temperature === 0.25, `${where} whole-number cells`);
-    assert.equal(byId(result, 'whole').visible, whole);
-    if (whole) {
-      // The cells hold the canonical values; the caption shows them to three decimals.
-      const [a, b] = byId(result, 'scaled').values;
-      assert.equal(label(result, 'whole'), `exact cells: ${r3(a)} − ${r3(b)} = ${result.derived.gap}`);
-      assert.ok(Math.abs(r3(a - b) - result.derived.gap) <= 0.001);
-    }
+    // The card shows its numbers; it does not explain how the renderer prints them.
+    assert.equal(scene.objects.some(o => o.id === 'whole' || o.id === 'cells-note'), false);
     // The count share at T = 1 is stated at every preset and is a live fraction.
     assert.equal(label(result, 'share-2'), `${F.counts[0]} ÷ ${F.total} = ${r3(F.counts[0] / F.total)}`);
     // Sharper / flatter than T = 1, judged by the oracle.

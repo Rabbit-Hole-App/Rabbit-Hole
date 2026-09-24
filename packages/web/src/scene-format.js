@@ -8,6 +8,16 @@
 // them (`numberFormat: 'integer'`: token IDs, counts); a value is never made
 // an integer because of its size. A value that rounds to zero shows "0.00",
 // not "-0.00".
+// The one font size for every number in a grid or strip: the numeral style's
+// own size, capped by the cell's height and by its width for the object's
+// longest formatted number (0.6em per monospace character). One size per
+// object, so a row never mixes sizes because one cell holds a minus sign. The
+// renderer draws with it and the legibility gate (scene-layout.js) checks it.
+export function cellNumeralSize(texts, cell, base) {
+  const longest = texts.reduce((most, text) => Math.max(most, text.length), 4);
+  return Math.min(base, cell * 0.42, (cell - 6) / (0.6 * longest));
+}
+
 export function formatCell(value, format = 'decimal') {
   if (format === 'integer') {
     const whole = Math.round(value);

@@ -293,8 +293,8 @@ const anatomy = (role, top) => [
   { id: `${role}-box`, type: 'box', semanticId: `${role}-box`, initialState: { label: 'box', role, x: 40, y: top, w: 110, h: 64 } },
   { id: `${role}-arrow`, type: 'arrow', semanticId: `${role}-arrow`, initialState: { role, from: { x: 170, y: top + 32 }, to: { x: 268, y: top + 32 } } },
   { id: `${role}-bars`, type: 'bars', semanticId: `${role}-bars`, initialState: { role, x: 290, y: top, w: 112, h: 64, peak: 1, values: [0.35, 0.7, 0.5, 1] } },
-  { id: `${role}-grid`, type: 'grid', semanticId: `${role}-grid`, initialState: { role, x: 430, y: top, rows: 2, cols: 3, cell: 32, matrixKind: 'input', values: [0.4, -0.2, 0.9, 0.1, 0.6, -0.5] } },
-  { id: `${role}-strip`, type: 'strip', semanticId: `${role}-strip`, initialState: { role, x: 560, y: top + 16, cell: 32, values: [0.2, 0.8, -0.3] } },
+  { id: `${role}-grid`, type: 'grid', semanticId: `${role}-grid`, initialState: { role, x: 430, y: top, rows: 2, cols: 3, cell: 42, matrixKind: 'input', values: [0.4, -0.2, 0.9, 0.1, 0.6, -0.5] } },
+  { id: `${role}-strip`, type: 'strip', semanticId: `${role}-strip`, initialState: { role, x: 580, y: top + 16, cell: 42, values: [0.2, 0.8, -0.3] } },
 ];
 export const anatomyScene = {
   id: 'role-anatomy',

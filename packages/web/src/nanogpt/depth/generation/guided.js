@@ -6,9 +6,7 @@
 // is the character's count share (141 ÷ 296); ÷ T stretches every logit gap by
 // 1/T, so the order never changes while the spread does; the leader's lead is
 // p(z) ÷ p(o) = e^(gap ÷ T) = (141 ÷ 82)^(1/T); lower T puts more of the same
-// 20 seeded draws on the top character. Grid cells of 10 or more print whole
-// numbers (the renderer's rule), so at T = 0.25 a line gives the two leading
-// ÷ T cells exactly.
+// 20 seeded draws on the top character.
 //
 // Numbers: counts, logits = ln(count) and the p(z) ÷ p(o) ratio per preset
 // are a calculated toy example, and
@@ -27,9 +25,6 @@ const TOP = F.display[0];
 const CONCEPT = 'temperature-sampling';
 const T1 = P.findIndex(p => p.temperature === 1);
 const notTop = (drawn, from) => drawn.slice(from, from + HALF).flatMap((d, i) => (d === TOP ? [] : [i]));
-// The renderer prints a cell of 10 or more as a whole number; flag the presets
-// where a ÷ T cell does, so the exact leading cells are shown beside the grid.
-const WHOLE = P.map(p => (F.logits.some(l => Math.abs(l * p.invT) >= 10) ? 1 : 0));
 
 const text = (id, value, x, y, extra = {}) => ({ id, type: 'text', semanticId: id, conceptId: CONCEPT,
   initialState: { text: value, x, y, ...extra } });
@@ -62,7 +57,6 @@ export const scene = {
     invTByPreset: P.map(p => p.invT),
     relationByPreset: P.map(p => (p.temperature < 1 ? 'Sharper than' : p.temperature > 1 ? 'Flatter than' : 'The same as')),
     ratioByPreset: P.map(p => p.ratio),
-    wholeByPreset: WHOLE,
     logits: F.logits,
     counts: F.counts,
     total: F.total,
@@ -104,14 +98,6 @@ export const scene = {
     rawGap: { op: 'pick', args: ['rawGapVec', 0] },
     gapVec: { op: 'scale', args: ['rawGapVec', 'invT'] },
     gap: { op: 'pick', args: ['gapVec', 0] },
-    // The same gap read off the ÷ T row itself, for presets whose cells print whole.
-    scaledTop: { op: 'pick', args: ['scaled', 0] },
-    scaledSecond: { op: 'pick', args: ['scaled', 1] },
-    scaledTopVec: { op: 'concat', args: ['scaledTop'] },
-    scaledSecondVec: { op: 'concat', args: ['scaledSecond'] },
-    cellGapVec: { op: 'sub', args: ['scaledTopVec', 'scaledSecondVec'] },
-    cellGap: { op: 'pick', args: ['cellGapVec', 0] },
-    wholeCells: { op: 'pick', args: ['wholeByPreset', 'temperature'] },
     ratio: { op: 'pick', args: ['ratioByPreset', 'temperature'] },
     // At T = 1, softmax(ln count) is count ÷ total.
     shares: { op: 'scale', args: ['counts', 'invTotal'] },
@@ -151,12 +137,9 @@ export const scene = {
     text('p-top', 'p(“{{top}}”) = {{pTop}},  p(“{{second}}”) = {{pSecond}}', RX, ROW_Y[0] + 56),
     text('order', 'Top is still “{{topName}}”: ÷ T keeps the order.', RX, ROW_Y[0] + 82),
     text('gap', 'Gap “{{top}}” − “{{second}}”: {{rawGap}} ÷ T = {{gap}}', RX, ROW_Y[1] + 34),
-    note('whole', 'exact cells: {{scaledTop}} − {{scaledSecond}} = {{cellGap}}', RX, ROW_Y[1] + 72,
-      { opacity: { $derive: 'wholeCells' } }),
     text('share', 'At {{t1Label}}, p = count ÷ total:', RX, ROW_Y[2] + 20),
     text('share-2', '{{topCount}} ÷ {{total}} = {{shareTop}}', RX, ROW_Y[2] + 44),
     note('share-3', 'Softmax undoes the ln: e^ln(count) = count.', RX, ROW_Y[2] + 64),
-    note('cells-note', 'Cells: 2 decimals (whole from 10), text 3.', RX, ROW_Y[1] + 54),
 
     // Recorded seeded draws at this temperature, the same seed every time.
     { id: 'draws-a', type: 'tokens', semanticId: 'recorded-draws-1', conceptId: CONCEPT,
@@ -191,7 +174,7 @@ export const sources = [
     `gen_generation.py: how often each character followed “${F.window}” in Tiny Shakespeare's training split (${F.display.map((c, i) => `${c} ${F.counts[i]}`).join(', ')}; total ${F.total}), and logit = ln(count) rounded to 4 decimals - a toy counting model that reads the last ${g.block} characters, not NanoGPT's transformer. With logit = ln(count), softmax at T = 1 returns count ÷ total exactly. The ratio p(${TOP}) ÷ p(${F.display[1]}) per preset is taken from the unrounded probabilities, to 3 decimals; it equals e^(gap ÷ T) = (${F.counts[0]} ÷ ${F.counts[1]})^(1/T).`),
     reproduce: REPRODUCE },
   calculation('Live calculation', 'logits ÷ T, softmax and the checks beside them',
-    'Computed on the card when T moves: scale(logits, 1/T), softmax, the top character (argmin of −p), the gap between the two leading logits before and after ÷ T (sub), the same gap read off the ÷ T row where its cells print whole, the count shares (scale(counts, 1/total)) and the expected count 20 × p(top). Results rounded to 3 decimals; cells show 2, or whole numbers from 10.'),
+    'Computed on the card when T moves: scale(logits, 1/T), softmax, the top character (argmin of −p), the gap between the two leading logits before and after ÷ T (sub), the count shares (scale(counts, 1/total)) and the expected count 20 × p(top). Captions show 3 decimals; cells show 2, formatted once from the unrounded value.'),
   { ...calculation('Recorded toy run', `${g.guided.draws} seeded draws per temperature preset`,
     `gen_generation.py: for each preset, Python's random.choices(seed ${g.seed}) draws ${g.guided.draws} characters from that preset's probabilities. The seed is the same at every preset, so the draws change only because the probabilities do. Not torch.multinomial and not live sampling.`),
     reproduce: REPRODUCE },
@@ -206,7 +189,7 @@ export const evidence = {
   sourceRevision: g.provenance.nanogpt,
   provenance: 'Calculated toy example: counts after "iti", logits = ln(count) and p(z) ÷ p(o) per preset from gen_generation.py. Live calculation: scale, softmax, argmin(−p), sub of the two leading logits (and of the two leading ÷ T cells), scale(counts, 1/total), 20 × p(top). Recorded toy run: 20 random.choices draws per preset, seed 1337 at every preset. Code: model.py 318, 324, 326, 306; sample.py 17.',
   control: 'temperature (index slider) over six presets T = 0.25, 0.5, 0.8 (sample.py\'s value), 1.0 (generate()\'s default), 1.5, 2.0; default T = 1.0.',
-  consequence: 'The ÷ T row, the probability row and bars recompute; p of the top two, the gap after ÷ T, the p(z) ÷ p(o) ratio and the "sharper/flatter than T = 1.0" caption update; at T = 0.25, where the ÷ T cells print whole numbers, a line gives the two leading cells exactly; the recorded draws and their top count switch to the preset, beside the live expected count.',
+  consequence: 'The ÷ T row, the probability row and bars recompute; p of the top two, the gap after ÷ T, the p(z) ÷ p(o) ratio and the "sharper/flatter than T = 1.0" caption update; the recorded draws and their top count switch to the preset, beside the live expected count.',
   interactionPurpose: 'Sweep T and verify four relationships by hand: the gap after ÷ T equals the ln-count gap divided by T; the top character never changes; p(z) ÷ p(o) = (141 ÷ 82)^(1/T) = e^(gap ÷ T); at T = 1 p(z) equals 141 ÷ 296. Then compare how many of the same 20 seeded draws land on z at low and high T.',
   task: 'Set T = 0.5 and check that the z − o gap doubled; say what happened to p(z) and to the number of z draws. Then set T = 2.0 and explain why only 4 of the 20 draws are z while f, v and c turn up (none of them did at T = 1.0).',
   capability: 'index slider over presets; scale/softmax/argmin/sub/concat/pick derive ops; three column-aligned grids with row labels (input, derived, fixed-scale heat distribution); bars on a fixed peak; derived token rows with derived bold marks; live text relationships.',

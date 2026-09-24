@@ -18,7 +18,7 @@ import { lockedInputNames, revealHiddenInputs } from './scene-activity.js';
 import SceneControls from './SceneControls.jsx';
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { distributeRounding } from './scene-derive.js';
-import { formatCell } from './scene-format.js';
+import { cellNumeralSize, formatCell } from './scene-format.js';
 import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-sound.js';
 import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, labelAt, requiredLeftMargin, sceneContentBounds, sceneViewBox } from './scene-layout.js';
 import { GEOMETRY } from './scene-vocab.js';
@@ -41,10 +41,6 @@ const fromCentre = { transformBox: 'fill-box', transformOrigin: 'center' };
 // Motion places an SVG element's transform origin itself, from originX/originY
 // (fractions of the element's own box) - a CSS transformOrigin is overwritten.
 const fromBaseline = { transformBox: 'fill-box', originX: 0.5, originY: 1 };
-// A cell's number fits its cell: the numeral's own size, capped by the cell's
-// height and by its width for this many monospace characters (0.6em each), so
-// "-10.01" shrinks to fit rather than running over the cell's frame.
-const cellFontSize = (text, cell, base) => Math.min(base, cell * 0.42, (cell - 6) / (0.6 * text.length));
 // Is this cell the one the timeline is pointing at? A highlight can name a
 // row, a single cell, a list of cell indices, or a bare index, and a sweep
 // walks the index itself.
@@ -157,7 +153,7 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
     // share one font size - the one its longest number fits - so a row never
     // mixes sizes because one cell holds a minus sign.
     const cellTexts = (displayValues || []).map(value => (value == null ? '' : formatCell(value, object.numberFormat || undefined)));
-    const cellFont = cellFontSize(cellTexts.reduce((longest, text) => (text.length > longest.length ? text : longest), '0.00'), cell, numeral.fontSize);
+    const cellFont = cellNumeralSize(cellTexts, cell, numeral.fontSize);
     // Selection shape, not scene identity, decides how the mark renders: a
     // row-shaped cellHighlight (row set, no col - "this whole row is the
     // thing the learner picked") gets ONE ring around the row band below,

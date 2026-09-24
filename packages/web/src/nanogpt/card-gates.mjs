@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import { evaluateScene } from '../scene-evaluate.js';
 import { checkSceneConsistency } from '../scene-consistency.js';
 import { checkLayoutLint } from '../scene-layout-lint.js';
+import { cellLegibilityIssues } from '../scene-layout.js';
 import { textStyle } from '../scene-style.js';
 import { sourceProblems } from '../card-sources.js';
 import fx from './fixtures/nanogpt-fixtures.generated.js';
@@ -54,6 +55,7 @@ export function assertCardGates(scene, snapshots = [{}]) {
     assert.deepEqual(checkLayoutLint(result.scene).issues, [], `layout lint at ${where}`);
     assert.deepEqual(textOverflow(result.state, scene.width), [], `text overflow at ${where}`);
     assert.deepEqual(citationsOnSurface(result.state), [], `citations on the teaching surface at ${where}`);
+    assert.deepEqual(cellLegibilityIssues(result.state), [], `cell numbers below the 12px floor at ${where}`);
     return result;
   });
 }

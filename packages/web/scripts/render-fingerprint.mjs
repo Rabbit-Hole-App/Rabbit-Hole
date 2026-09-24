@@ -31,6 +31,7 @@ export const RENDERER_FILES = [
   'src/scene-style.js',
   'src/scene-layout.js',
   'src/AnimatedScene.jsx',
+  'src/scene-format.js', // what a data cell prints
 ];
 
 const sha256 = buffer => createHash('sha256').update(buffer).digest('hex');

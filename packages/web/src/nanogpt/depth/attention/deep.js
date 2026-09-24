@@ -35,9 +35,9 @@ const SAT = att.saturation;
 const COL = 24;
 const STEP_W = 262, STEP_H = 34, STEP_Y = 176, PITCH = 44;
 const SHAPE_X = COL + STEP_W + 12;
-const GRID_X = 560, GRID_Y = 214, CELL = 30;
+const GRID_X = 560, GRID_Y = 214, CELL = 36; // 36: "1.00" clears the 12px numeral floor
 const NOTE_X = 504, NOTE_Y = GRID_Y + T * CELL + 28;
-const STRIP_Y = NOTE_Y + 70, STRIP_CELL = 34;
+const STRIP_Y = NOTE_Y + 70, STRIP_CELL = 42; // 42: "-0.82" clears the 12px numeral floor
 const MEM_Y = 560; // left column, under the steps and the memory title
 const SAT_Y = 776, SAT_PITCH = 312, SAT_CELL = 24, SAT_H = 80;
 const BOX_MID = COL + 235; // centre of the 470-wide fused box
