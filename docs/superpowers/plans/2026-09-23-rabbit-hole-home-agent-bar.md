@@ -12,7 +12,7 @@
 
 **Spec:** [docs/features/rabbit-hole-t02-spec.md](../../features/rabbit-hole-t02-spec.md) (Gate A approved), with [Direction C](../../features/rabbit-hole-direction-c.md) and the [T00 audit](../../features/rabbit-hole-home-audit.md). Figma: [Rabbit Hole — Home & Projects](https://www.figma.com/design/ef9SfiemEsPQF2bd8B1os3).
 
-**Assembly:** generated from the `v5` area plans (seven read-only planners grounded in the checkout at `feature/smart-home`, plus consistency checks).
+**Assembly:** generated from the `v6` area plans (seven read-only planners grounded in the checkout at `feature/smart-home`, plus consistency checks).
 
 ## Global Constraints
 
@@ -29,6 +29,7 @@
 - Every behaviour change starts with a failing test (`node:test` for pure modules; the shared e2e harness for browser behaviour).
 - One e2e harness: `packages/web/e2e/rabbit-hole-check.mjs`. Blocks go above the marker line, wrapped in `{ }`; no top-level declarations; one `browser.close()`.
 - Commit messages single-quoted, no double quotes, no `Co-Authored-By` trailer. `git add` named paths only and use `git commit --only` in this shared tree.
+- The shared dev worker `small-lesson-renderer-dev` is redeployed only after its unit tests are green, the change is confirmed additive (`defaultBranchKnown` only, no rendering change), every peer session is notified, and the exact deploy command and target are shown to the user immediately before running it. The old Import flow keeps using `defaultBranch` unchanged.
 - Deploy only to `small-cp-dev-smart-home` (never bare `wrangler deploy`). Never print `VITE_TLDRAW_LICENSE_KEY`. Never copy `.env` files without asking.
 - Every UI task ends with the change deployed to the clone and the rendered pixels inspected before hand-off.
 - `make test-unit` before every commit; `make test-integration` before merge (user go-ahead first: it touches live small-cp).
@@ -3243,16 +3244,34 @@ cd /c/Users/cyudhist/Desktop/workspace/smart-home/packages/web && npm run test:u
 
 Expected: PASS, including every earlier router and commands test (connect() still matches bare repository links).
 
-- [ ] **Step 7: Announce the worker redeploy, then deploy it**
+- [ ] **Step 7: Redeploy gate 1 and 2: unit tests green, and the change is additive only**
 
 Run:
 ```bash
-echo 'Announce to peer sessions first (SendMessage): small-lesson-renderer-dev is being redeployed from feature/smart-home. The only change is a new defaultBranchKnown field in /repository-metadata; scene rendering is untouched.' && cd /c/Users/cyudhist/Desktop/workspace/smart-home/packages/lesson-renderer && fly deploy --config fly.dev.toml --app small-lesson-renderer-dev
+cd /c/Users/cyudhist/Desktop/workspace/smart-home/packages/lesson-renderer && python -m unittest test_repository test_validation -v && cd ../.. && git diff --stat main -- packages/lesson-renderer && git diff main -- packages/lesson-renderer/repository_jobs.py
 ```
 
-Expected: The announcement goes out before the deploy. fly reports the new release of small-lesson-renderer-dev (app name from fly.dev.toml:1; the command form follows docs/features/learn-math-animation.md:58). No other branch changes packages/lesson-renderer (git diff main...feature/parallel-work and main...feat/canvas-block-conversations are empty).
+Expected: All lesson-renderer tests pass. The diff touches only repository_jobs.py and test_repository.py; in repository_jobs.py it only extracts parse_refs and listing and adds defaultBranchKnown. server.py, compile_scene.py, validation.py and index_repository.py (rendering and indexing) are unchanged. If anything else changed, stop.
 
-- [ ] **Step 8: Add the e2e check above the harness marker and run it**
+- [ ] **Step 8: Redeploy gate 3: notify every peer session that uses the shared worker**
+
+Run:
+```bash
+ListAgents, then SendMessage to every listed peer session: 'small-lesson-renderer-dev (Fly) will be redeployed from feature/smart-home. Additive only: /repository-metadata gains defaultBranchKnown; defaultBranch, scene rendering and indexing are unchanged. Reply here if you are mid-run on that worker.'
+```
+
+Expected: Every peer session is notified; a held or refused delivery is reported to the user rather than treated as consent.
+
+- [ ] **Step 9: Redeploy gate 4: show the user the exact command and target, and wait for their go-ahead**
+
+Run:
+```bash
+cd /c/Users/cyudhist/Desktop/workspace/smart-home/packages/lesson-renderer && fly deploy --config fly.dev.toml --app small-lesson-renderer-dev
+```
+
+Expected: Show this exact command and the target (Fly app small-lesson-renderer-dev, from fly.dev.toml:1; form from docs/features/learn-math-animation.md:58) to the user immediately before running it, and run it only on their explicit yes. Fly then reports the new release.
+
+- [ ] **Step 10: Add the e2e check above the harness marker and run it**
 
 ```js
 {
@@ -3272,7 +3291,7 @@ cd /c/Users/cyudhist/Desktop/workspace/smart-home/packages/web && SMALL_BASE=htt
 
 Expected: ok: G2-branch (karpathy/nanoGPT reports defaultBranchKnown true). Before the worker deploy the same check fails because the field is absent.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 11: Commit**
 
 Run:
 ```bash
