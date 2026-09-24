@@ -1,10 +1,14 @@
-// The canvas tools never cover canvas content, checked on a DEPLOYED board.
-// Desktop (the review viewport): the widest card is panned hard right; the
-// toolbar must sit wholly outside the canvas surface, and at points along the
-// card's visible right edge the element on top must be the card, never the
-// toolbar. Zoom stays 100%, so card typography is unchanged. Phone width: the
-// tools become a strip below the canvas - still outside it - and a tool can be
-// picked and the strip scrolled to its last control. Screenshots go to outDir.
+// Canvas utilities (the tools and the overview minimap) never cover canvas
+// content, checked on a DEPLOYED board.
+// Desktop (the review viewport, 1720 x 1100): the widest card is panned hard
+// right; the toolbar and the overview sit wholly outside the canvas surface -
+// collapsed by default at this width, and still outside once opened - and at
+// points along the card's visible right edge the element on top is the card.
+// A wheel over empty gutter space pans the canvas; the tools still work; zoom
+// stays 100%. Wide screen (2200 x 1200): the overview is open by default and
+// outside the canvas. Phone (390 x 844): the canvas has a real working height,
+// the tools are a scrolling strip below it, the overview opens below the strip
+// (not over the card), and the table of contents is reachable by scrolling.
 //
 // Usage: node e2e/canvas-toolbar-check.mjs <deployed-base> <board> <outDir>
 import { chromium } from '@playwright/test';
@@ -24,14 +28,19 @@ const fail = message => { failures.push(message); console.log(`  ✗ ${message}`
 const browser = await chromium.launch();
 const results = {};
 
-// Surface and toolbar rectangles, straight from the DOM.
+// Surface, gutter, toolbar and overview rectangles, straight from the DOM.
 const geometry = page => page.evaluate(() => {
-  const gutter = document.querySelector('[data-tool-gutter]');
-  const box = element => { const r = element.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom }; };
-  const toolbar = document.querySelector('[role="toolbar"][aria-label="Canvas tools"]');
-  return { surface: box(document.querySelector('[data-canvas-surface]')), toolbar: box(toolbar), gutter: box(gutter), zoom: document.querySelector('[title="Reset zoom"]')?.textContent?.trim() };
+  const box = element => { if (!element) return null; const r = element.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom }; };
+  return {
+    surface: box(document.querySelector('[data-canvas-surface]')),
+    gutter: box(document.querySelector('[data-tool-gutter]')),
+    toolbar: box(document.querySelector('[role="toolbar"][aria-label="Canvas tools"]')),
+    overview: box(document.querySelector('[aria-label="Canvas overview"]')?.parentElement),
+    zoom: document.querySelector('[title="Reset zoom"]')?.textContent?.trim(),
+  };
 });
-const disjoint = (a, b) => a.right <= b.x || b.right <= a.x || a.bottom <= b.y || b.bottom <= a.y;
+const disjoint = (a, b) => !a || !b || a.right <= b.x || b.right <= a.x || a.bottom <= b.y || b.bottom <= a.y;
+const round = box => box && Object.fromEntries(Object.entries(box).map(([k, v]) => [k, Math.round(v)]));
 
 async function open(viewport) {
   const context = await browser.newContext({ viewport });
@@ -44,81 +53,140 @@ async function open(viewport) {
   await page.waitForTimeout(1200);
   return { context, page, canvas };
 }
+const cardLocator = (canvas, block) => canvas.locator('[data-block-id]:not([data-chat-block])').filter({ hasText: block.title }).first();
 
-// --- desktop: the review viewport, the widest card pushed under where the toolbar used to float ---
-{
-  const { context, page, canvas } = await open({ width: 1720, height: 1100 });
-  const widths = [];
-  for (const block of cards) {
-    const card = canvas.locator('[data-block-id]:not([data-chat-block])').filter({ hasText: block.title }).first();
-    widths.push({ block, width: (await card.boundingBox())?.width || 0 });
-  }
-  const widest = widths.sort((a, b) => b.width - a.width)[0];
-  const card = canvas.locator('[data-block-id]:not([data-chat-block])').filter({ hasText: widest.block.title }).first();
-  await reveal(page, canvas, card);
-  let g = await geometry(page);
-  // Pan right until the card's right edge runs 120px past the surface's right edge.
+// Push a card until its right edge runs `past` px beyond the surface's right edge.
+async function pushRight(page, card, past) {
   for (let i = 0; i < 20; i += 1) {
-    const box = await card.boundingBox();
-    const dx = box.x + box.width - (g.surface.right + 120);
-    if (Math.abs(dx) < 4) break;
+    const g = await geometry(page), box = await card.boundingBox();
+    const dx = box.x + box.width - (g.surface.right + past);
+    if (Math.abs(dx) < 4) return;
     await page.mouse.move(g.surface.x + 40, g.surface.y + g.surface.h / 2);
     await page.mouse.wheel(dx, 0);
     await page.waitForTimeout(80);
   }
-  g = await geometry(page);
-  const box = await card.boundingBox();
-  if (!disjoint(g.toolbar, g.surface)) fail(`desktop: toolbar ${JSON.stringify(g.toolbar)} overlaps the canvas ${JSON.stringify(g.surface)}`);
-  if (g.zoom !== '100%') fail(`desktop: zoom is ${g.zoom}, not 100%`);
-  // The scenario must really have happened: the card runs past the surface's right edge, level with the toolbar.
-  if (!(box.x + box.width > g.surface.right + 60 && box.y < g.toolbar.bottom && box.y + box.height > g.toolbar.y)) fail(`desktop: the card was not panned under the toolbar's side (${JSON.stringify(box)})`);
-  // On-top test along the card's visible right edge, within the surface.
-  const xs = [g.surface.right - 2, g.surface.right - 30, g.surface.right - 60];
-  const ys = [0.2, 0.4, 0.5, 0.6, 0.8].map(f => Math.max(g.surface.y + 4, Math.min(g.surface.bottom - 4, box.y + box.height * f)));
+}
+// Probe points along the surface's right edge, level with the card: the card must be on top.
+async function probeEdge(page, card, title, label) {
+  const g = await geometry(page), box = await card.boundingBox();
   let probes = 0, onCard = 0;
-  for (const x of xs) for (const y of ys) {
-    probes += 1;
-    const hit = await page.evaluate(([px, py, title]) => {
-      const el = document.elementFromPoint(px, py);
-      return { card: !!el?.closest('[data-block-id]')?.textContent?.includes(title), toolbar: !!el?.closest('[role="toolbar"]') };
-    }, [x, y, widest.block.title]);
-    if (hit.toolbar) fail(`desktop: the toolbar is on top at (${Math.round(x)}, ${Math.round(y)})`);
-    if (hit.card) onCard += 1;
+  for (const x of [g.surface.right - 2, g.surface.right - 30, g.surface.right - 60]) {
+    for (const f of [0.2, 0.4, 0.5, 0.6, 0.8]) {
+      const y = Math.max(g.surface.y + 4, Math.min(g.surface.bottom - 4, box.y + box.height * f));
+      probes += 1;
+      const hit = await page.evaluate(([px, py, t]) => {
+        const el = document.elementFromPoint(px, py);
+        return { card: !!el?.closest('[data-block-id]')?.textContent?.includes(t), utility: !!el?.closest('[role="toolbar"],[data-tool-gutter]') };
+      }, [x, y, title]);
+      if (hit.utility) fail(`${label}: a canvas utility is on top at (${Math.round(x)}, ${Math.round(y)})`);
+      if (hit.card) onCard += 1;
+    }
   }
-  if (onCard < probes * 0.8) fail(`desktop: only ${onCard}/${probes} edge probes landed on the card`);
-  // The tools still work: arm the pen, then go back to select.
+  if (onCard < probes * 0.8) fail(`${label}: only ${onCard}/${probes} edge probes landed on the card`);
+  return { probes, onCard };
+}
+
+// --- desktop: the review viewport ---
+{
+  const { context, page, canvas } = await open({ width: 1720, height: 1100 });
+  const widths = [];
+  for (const block of cards) widths.push({ block, width: (await cardLocator(canvas, block).boundingBox())?.width || 0 });
+  const widest = widths.sort((a, b) => b.width - a.width)[0];
+  const card = cardLocator(canvas, widest.block);
+  await reveal(page, canvas, card);
+  await pushRight(page, card, 120);
+  let g = await geometry(page);
+  let box = await card.boundingBox();
+  if (!(box.x + box.width > g.surface.right + 60 && box.y < g.toolbar.bottom && box.y + box.height > g.toolbar.y)) fail(`desktop: the card was not panned under the toolbar's side (${JSON.stringify(round(box))})`);
+  if (!disjoint(g.toolbar, g.surface)) fail(`desktop: toolbar ${JSON.stringify(round(g.toolbar))} overlaps the canvas ${JSON.stringify(round(g.surface))}`);
+  if (g.overview) fail('desktop: the overview is open by default at this canvas width');
+  if (!disjoint(g.overview, g.surface)) fail('desktop: the overview overlaps the canvas');
+  if (g.zoom !== '100%') fail(`desktop: zoom is ${g.zoom}, not 100%`);
+  const collapsed = { surface: round(g.surface), toolbar: round(g.toolbar), ...(await probeEdge(page, card, widest.block.title, 'desktop, overview collapsed')) };
+
+  // Open the overview: it takes gutter space, the canvas narrows, nothing floats over the card.
+  await page.getByRole('button', { name: 'Show overview', exact: true }).click();
+  await page.waitForTimeout(400);
+  await pushRight(page, card, 120);
+  g = await geometry(page);
+  if (!g.overview) fail('desktop: Show overview did not open it');
+  if (!disjoint(g.overview, g.surface)) fail(`desktop: the open overview ${JSON.stringify(round(g.overview))} overlaps the canvas ${JSON.stringify(round(g.surface))}`);
+  if (!disjoint(g.toolbar, g.surface)) fail('desktop: with the overview open the toolbar overlaps the canvas');
+  const opened = { surface: round(g.surface), overview: round(g.overview), ...(await probeEdge(page, card, widest.block.title, 'desktop, overview open')) };
+  await page.screenshot({ path: `${OUT}/desktop-wide-card-toolbar-overview.png`, clip: { x: Math.max(0, g.surface.right - 820), y: g.surface.y, width: Math.min(1100, g.gutter.right + 40 - Math.max(0, g.surface.right - 820)), height: Math.min(1000, g.surface.h) } });
+
+  // Wheel over empty gutter space pans the canvas.
+  const empty = await page.evaluate(() => {
+    const gutter = document.querySelector('[data-tool-gutter]'), r = gutter.getBoundingClientRect();
+    for (let y = r.top + 8; y < r.bottom - 8; y += 8) for (let x = r.left + 4; x < r.right - 4; x += 8) {
+      if (document.elementFromPoint(x, y) === gutter) return { x, y };
+    }
+    return null;
+  });
+  if (!empty) fail('desktop: no empty gutter space found to wheel over');
+  else {
+    const before = (await card.boundingBox()).y;
+    await page.mouse.move(empty.x, empty.y);
+    await page.mouse.wheel(0, 240);
+    await page.waitForTimeout(200);
+    const moved = before - (await card.boundingBox()).y;
+    if (Math.abs(moved - 240) > 4) fail(`desktop: wheel over the empty gutter moved the canvas ${Math.round(moved)}px, expected 240`);
+    results.gutterWheel = { at: round(empty), moved: Math.round(moved) };
+  }
+  // The tools still work.
   await page.getByRole('button', { name: 'Pen', exact: true }).click();
   const armed = await page.getByRole('button', { name: 'Pen', exact: true }).getAttribute('aria-pressed');
   await page.getByRole('button', { name: 'Select and move', exact: true }).click();
   if (armed !== 'true') fail('desktop: the pen tool did not arm');
-  await page.screenshot({ path: `${OUT}/desktop-widest-card-panned-right.png`, clip: { x: Math.max(0, g.surface.right - 900), y: g.surface.y, width: Math.min(1100, g.gutter.right + 40 - Math.max(0, g.surface.right - 900)), height: Math.min(1000, g.surface.h) } });
-  results.desktop = { card: widest.block.title, cardWidth: Math.round(widest.width), surface: g.surface, toolbar: g.toolbar, zoom: g.zoom, probes, probesOnCard: onCard, penArmed: armed === 'true' };
-  console.log(`desktop: widest card "${widest.block.title}" (${Math.round(widest.width)}px), toolbar clear of the canvas, ${onCard}/${probes} edge probes hit the card, zoom ${g.zoom}`);
+  results.desktop = { card: widest.block.title, cardWidth: Math.round(widest.width), zoom: g.zoom, collapsed, opened, penArmed: armed === 'true' };
+  console.log(`desktop: "${widest.block.title}" (${Math.round(widest.width)}px) pushed past the edge; toolbar and overview outside the canvas (collapsed ${collapsed.onCard}/${collapsed.probes}, open ${opened.onCard}/${opened.probes} edge probes on the card); gutter wheel moved ${results.gutterWheel?.moved}px; pen arms; zoom ${g.zoom}`);
   await context.close();
 }
 
-// --- phone: the tools become a strip under the canvas ---
+// --- wide screen: the overview is open by default, beside the tools ---
+{
+  const { context, page } = await open({ width: 2200, height: 1200 });
+  const g = await geometry(page);
+  if (!g.overview) fail(`wide: the overview is not open by default (canvas ${Math.round(g.surface.w + g.gutter.w)}px)`);
+  if (!disjoint(g.overview, g.surface) || !disjoint(g.toolbar, g.surface)) fail('wide: a utility overlaps the canvas');
+  results.wide = { surface: round(g.surface), overview: round(g.overview), toolbar: round(g.toolbar) };
+  console.log(`wide: overview open by default beside the tools, outside the canvas`);
+  await context.close();
+}
+
+// --- phone ---
 {
   const { context, page, canvas } = await open({ width: 390, height: 844 });
-  const g = await geometry(page);
-  if (!disjoint(g.toolbar, g.surface)) fail(`phone: toolbar ${JSON.stringify(g.toolbar)} overlaps the canvas ${JSON.stringify(g.surface)}`);
-  if (g.toolbar.y < g.surface.bottom - 1) fail('phone: the toolbar is not below the canvas');
-  if (g.toolbar.x < 0 || g.toolbar.right > 390) fail(`phone: the toolbar runs off screen (${g.toolbar.x}..${g.toolbar.right})`);
+  let g = await geometry(page);
+  if (g.surface.h < 0.45 * 844) fail(`phone: the canvas is only ${Math.round(g.surface.h)}px tall`);
+  if (!disjoint(g.toolbar, g.surface) || g.toolbar.y < g.surface.bottom - 1) fail('phone: the tool strip is not below the canvas');
+  if (g.toolbar.x < 0 || g.toolbar.right > 390) fail('phone: the tool strip runs off screen');
+  if (g.overview) fail('phone: the overview is open by default');
   await page.getByRole('button', { name: 'Pen', exact: true }).click();
   const armed = await page.getByRole('button', { name: 'Pen', exact: true }).getAttribute('aria-pressed');
   if (armed !== 'true') fail('phone: the pen tool did not arm');
   await page.getByRole('button', { name: 'Select and move', exact: true }).click();
-  // The last control is reachable by scrolling the strip.
-  await page.locator('[role="toolbar"][aria-label="Canvas tools"]').evaluate(el => { el.scrollLeft = el.scrollWidth; });
-  const style = page.locator('[role="toolbar"][aria-label="Canvas tools"] [aria-label="Style"]');
-  const styleBox = await style.boundingBox();
-  if (!styleBox || styleBox.x < 0 || styleBox.x + styleBox.width > 390) fail('phone: the Style control cannot be scrolled into view');
-  await page.locator('[role="toolbar"][aria-label="Canvas tools"]').evaluate(el => { el.scrollLeft = 0; });
-  const first = cards[0];
-  await reveal(page, canvas, canvas.locator('[data-block-id]:not([data-chat-block])').filter({ hasText: first.title }).first());
-  await page.screenshot({ path: `${OUT}/phone-canvas-and-tool-strip.png`, fullPage: false });
-  results.phone = { surface: g.surface, toolbar: g.toolbar, penArmed: armed === 'true', styleReachable: !!styleBox };
-  console.log(`phone: tool strip below the canvas (${Math.round(g.toolbar.y)} >= ${Math.round(g.surface.bottom)}), pen arms, Style reachable by scrolling`);
+  const strip = page.locator('[role="toolbar"][aria-label="Canvas tools"]');
+  const scrollable = await strip.evaluate(el => el.scrollWidth > el.clientWidth);
+  await strip.evaluate(el => { el.scrollLeft = el.scrollWidth; });
+  const styleBox = await strip.locator('[aria-label="Style"]').boundingBox();
+  if (!scrollable || !styleBox || styleBox.x < 0 || styleBox.x + styleBox.width > 390) fail('phone: the strip does not scroll its last control into view');
+  await strip.evaluate(el => { el.scrollLeft = 0; });
+  await page.getByRole('button', { name: 'Show overview', exact: true }).click();
+  await page.waitForTimeout(400);
+  g = await geometry(page);
+  if (!g.overview) fail('phone: Show overview did not open it');
+  if (!disjoint(g.overview, g.surface)) fail('phone: the open overview overlaps the canvas');
+  if (g.overview && g.overview.y < g.toolbar.bottom - 1) fail('phone: the open overview is not below the strip');
+  await reveal(page, canvas, cardLocator(canvas, cards[0]));
+  await page.screenshot({ path: `${OUT}/phone-canvas-strip-overview.png` });
+  const heightWithOverview = Math.round(g.surface.h);
+  const toc = page.getByText('Table of contents', { exact: false }).first();
+  await toc.scrollIntoViewIfNeeded();
+  const tocVisible = await toc.isVisible();
+  if (!tocVisible) fail('phone: the table of contents cannot be scrolled into view');
+  results.phone = { surface: round((await geometry(page)).surface), heightWithOverview, strip: round(g.toolbar), overview: round(g.overview), penArmed: armed === 'true', stripScrolls: scrollable, tocReachable: tocVisible };
+  console.log(`phone: canvas ${results.phone.surface.h}px tall (${heightWithOverview}px with the overview open), strip below it scrolls, overview opens below the strip, table of contents reachable`);
   await context.close();
 }
 

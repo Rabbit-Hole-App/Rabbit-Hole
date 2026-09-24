@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
+import { Map as MapIcon, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
@@ -930,6 +930,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const surface = useRef(null);
+  const gutter = useRef(null), shell = useRef(null);
+  const [shellWidth, setShellWidth] = useState(0);
+  // null follows the width (open from 1400px of canvas); a click makes it the learner's choice.
+  const [overview, setOverview] = useState(null);
   const column = useRef(null);
   const measureBlocks = useCallback(() => {
     const next = {};
@@ -997,9 +1001,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   };
   useEffect(() => { setView(v => ({ ...v, x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2) })); }, []);
   // Wheel pans the world; ctrl/cmd+wheel zooms at the cursor. Non-passive so
-  // the page behind the canvas does not scroll.
+  // the page behind the canvas does not scroll. Empty space in the tools'
+  // gutter pans too, so the gutter is no dead zone; its controls, menus and
+  // scrolling strips keep their own wheel.
   useEffect(() => {
-    const element = surface.current;
+    const element = surface.current, rail = gutter.current;
+    const railWheel = event => {
+      if (event.target.closest?.('[role="toolbar"],[role="menu"],[role="group"],[aria-label="Canvas overview"],button,input')) return;
+      wheel(event);
+    };
     const wheel = event => {
       // Scrollable card bodies keep native wheel scrolling.
       if (!(event.ctrlKey || event.metaKey) && event.target.closest?.('[data-scroll]')) return;
@@ -1009,7 +1019,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       else setView(v => ({ ...v, x: v.x - event.deltaX, y: v.y - event.deltaY }));
     };
     element.addEventListener('wheel', wheel, { passive: false });
-    return () => element.removeEventListener('wheel', wheel);
+    rail?.addEventListener('wheel', railWheel, { passive: false });
+    return () => { element.removeEventListener('wheel', wheel); rail?.removeEventListener('wheel', railWheel); };
+  }, [presenting === null]);
+  // The canvas's own width decides whether the overview opens by default: on a
+  // wide canvas it sits beside the tools, anywhere narrower it starts collapsed.
+  useEffect(() => {
+    const observer = new ResizeObserver(([entry]) => setShellWidth(entry.contentRect.width));
+    observer.observe(shell.current);
+    return () => observer.disconnect();
   }, []);
   // Delete/Backspace removes the selected sticky, text or shape; ctrl+z
   // undoes the last canvas gesture — both stand down while typing.
@@ -1598,6 +1616,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     ...shapes.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) })),
     ...items.map(item => ({ x: item.x, y: item.y, w: item.w || 160, h: item.h || 40 })),
   ];
+  const overviewOpen = minimap && (overview ?? shellWidth >= 1400);
   const gaps = gapsFrom(blocks, bounds);
   const activeGap = hoverGap == null ? null : gaps.find(gap => gap.index === hoverGap) || null;
   const trackGap = event => {
@@ -1619,7 +1638,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     // shape or a note and pressing Delete silently did nothing. Any pointer press
     // outside the focused field hands focus back to the canvas. Pressing inside
     // the field it belongs to is left alone, so typing still works.
-    <div className="@container relative flex h-full min-h-0 flex-col"
+    <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       onPointerDownCapture={event => {
         const active = document.activeElement;
         if (!active || active === document.body) return;
@@ -1685,18 +1704,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} />)}
         </div>
         </div>
-        {/* Inside the surface but outside the camera, so it holds still. */}
-        {presenting === null && minimap && <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
-          surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
-          onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />}
       </div>
-      {/* The tools' gutter: 60px beside the canvas, the toolbar hanging the rest of
-          its width into the page edge as before. Below 640px of canvas it is a
-          scrolling strip under the canvas instead. The style panel opens from it. */}
+      {/* The tools' gutter: 60px beside the canvas (168px while the overview is
+          open), the toolbar and overview hanging the rest of their width into the
+          page edge as before. Below 640px of canvas it is one row under the canvas
+          instead - the toolbar scrolling in it - with the overview on the next row. The style
+          panel opens from it. */}
       {presenting === null && (
-        <div data-tool-gutter className="relative w-[60px] shrink-0 @max-[640px]:flex @max-[640px]:w-full @max-[640px]:items-center @max-[640px]:gap-2 @max-[640px]:pt-2">
+        <div ref={gutter} data-tool-gutter className={`relative flex shrink-0 flex-col items-end justify-center gap-2 ${overviewOpen ? 'w-[168px]' : 'w-[60px]'} @max-[640px]:grid @max-[640px]:w-full @max-[640px]:grid-cols-[auto_minmax(0,1fr)_auto] @max-[640px]:items-center @max-[640px]:pt-2`}>
         {import.meta.env.VITE_COACHING_DEV === 'true' && (
-          <div className="absolute top-3 -right-6 z-20 @max-[640px]:static @max-[640px]:shrink-0">
+          <div className="absolute top-3 -right-6 z-20 @max-[640px]:static @max-[640px]:col-start-1">
             <button type="button" aria-label="Insert lesson block" title="Insert a sample lesson block" aria-expanded={insertOpen}
               onClick={() => setInsertOpen(previous => !previous)}
               className="flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink">
@@ -1705,7 +1722,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
             {insertOpen && <BlockMenu className="top-0 right-10" filter={insertFilter} onFilter={setInsertFilter} onPick={insertBlock} />}
           </div>
         )}
-        <div role="toolbar" aria-label="Canvas tools" className="absolute top-1/2 -right-6 z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md @max-[640px]:static @max-[640px]:min-w-0 @max-[640px]:translate-y-0 @max-[640px]:grid-flow-col @max-[640px]:grid-cols-none @max-[640px]:grid-rows-1 @max-[640px]:overflow-x-auto">
+        <div role="toolbar" aria-label="Canvas tools" className="z-20 -mr-6 grid max-h-full shrink-0 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md @max-[640px]:col-start-2 @max-[640px]:mr-0 @max-[640px]:min-w-0 @max-[640px]:grid-flow-col @max-[640px]:grid-cols-none @max-[640px]:grid-rows-1 @max-[640px]:overflow-x-auto">
           {NAV_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
           {DRAW_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
@@ -1726,6 +1743,22 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
             <span style={{ background: color }} className="h-4 w-4 rounded-full ring-1 ring-line" />
           </button>
         </div>
+        {/* The overview lives here, never over the canvas: open, the gutter
+            widens to hold it (on a phone it takes its own line under the strip). */}
+        {minimap && (
+          <button type="button" aria-label={overviewOpen ? 'Hide overview' : 'Show overview'} title={overviewOpen ? 'Hide overview' : 'Show overview'}
+            aria-expanded={overviewOpen} onClick={() => setOverview(!overviewOpen)}
+            className={`-mr-6 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-line shadow-md hover:text-ink @max-[640px]:col-start-3 @max-[640px]:mr-0 ${overviewOpen ? 'bg-hover text-ink' : 'bg-white text-ink-2'}`}>
+            <MapIcon size={15} strokeWidth={1.7} />
+          </button>
+        )}
+        {overviewOpen && (
+          <div className="-mr-6 shrink-0 @max-[640px]:col-span-3 @max-[640px]:mr-0 @max-[640px]:justify-self-start">
+            <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
+              surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
+              onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />
+          </div>
+        )}
         {showStyle && (
           <StylePanel text={panel.text} showFill={panel.fill} fill={fill} corners={panel.corners} order={panel.order}
             color={color} width={width} dash={dash} opacity={opacity} round={round} level={level}
