@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { openedNotice } from '../connections.js';
 import { learnPreview } from '../flags.js';
 import { canvasKeys } from '../home/canvas-local.js';
+import { readPinned } from '../home/pinned.js';
 import { COMMANDS, D7_REASON, ctxOf, executeCommand, policy, prepareCommand } from './commands.js';
 
 // Just enough browser for api.js, navigate() and setTheme(): fetch, history, storage, theme.
@@ -50,7 +51,7 @@ test('risk comes from the registry and matches T02 §7.2', () => {
   for (const names of Object.values(byRisk)) names.sort();
   assert.deepEqual(byRisk, {
     immediate: ['filter_library', 'find_apps_ai', 'find_runs_ai', 'new_thread', 'open_resource', 'open_settings', 'open_tab', 'search_resources'],
-    undo: ['create_canvas', 'set_theme'],
+    undo: ['create_canvas', 'pin', 'set_theme', 'unpin'],
     confirm: ['connect_repository', 'pause_schedule', 'resume_schedule', 'run', 'run_again', 'set_schedule', 'share', 'unshare'],
   });
 });
@@ -201,4 +202,21 @@ test('set_theme is undone by restoring the previous theme', async () => {
   await COMMANDS.set_theme.undo(done, CTX);
   assert.equal(localStorage.getItem('small.theme'), 'light');
   await assert.rejects(executeCommand('set_theme', { theme: 'purple' }, CTX), { message: 'Theme is system, light or dark.' });
+});
+
+test('pin and unpin change the device list once, name what changed, and Undo reverses only a real change', async () => {
+  const ctx = { ...CTX, storage: memory() };
+  let heard = 0;
+  window.addEventListener('small:pinned', () => { heard += 1; });
+  assert.deepEqual(await executeCommand('pin', { slug: 'repo-1a2b3c4d-nanogpt' }, ctx), { message: 'Pinned · karpathy/nanoGPT', undoable: true, data: { slug: 'repo-1a2b3c4d-nanogpt', changed: true } });
+  assert.deepEqual(await executeCommand('pin', { slug: 'repo-1a2b3c4d-nanogpt' }, ctx), { message: 'Already pinned · karpathy/nanoGPT', undoable: false, data: { slug: 'repo-1a2b3c4d-nanogpt', changed: false } });
+  const unpinned = await executeCommand('unpin', { slug: 'repo-1a2b3c4d-nanogpt' }, ctx);
+  assert.deepEqual(unpinned, { message: 'Unpinned · karpathy/nanoGPT', undoable: true, data: { slug: 'repo-1a2b3c4d-nanogpt', changed: true } });
+  await COMMANDS.unpin.undo(unpinned, ctx);
+  assert.deepEqual(readPinned(ctx.storage, 'gmail-com', 'a@gmail.com'), ['repo-1a2b3c4d-nanogpt']);
+  const noop = await executeCommand('unpin', { slug: 'counter' }, ctx);
+  assert.deepEqual(noop, { message: 'Not pinned · counter', undoable: false, data: { slug: 'counter', changed: false } });
+  await COMMANDS.unpin.undo(noop, ctx);
+  assert.deepEqual(readPinned(ctx.storage, 'gmail-com', 'a@gmail.com'), ['repo-1a2b3c4d-nanogpt']);
+  assert.equal(heard, 3);
 });

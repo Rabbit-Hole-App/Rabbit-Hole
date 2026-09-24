@@ -2,6 +2,7 @@ import { api, getTheme, navigate, setTheme, wsName } from '../api.js';
 import { openedNotice } from '../connections.js';
 import { learnPreview } from '../flags.js';
 import { canvasKeys, deviceId, hasLocalContent } from '../home/canvas-local.js';
+import { readPinned, togglePin } from '../home/pinned.js';
 import { kindLabel, lookup, titleOf } from './catalog.js';
 import { scopeOf } from './scope.js';
 
@@ -68,6 +69,25 @@ function proposal(name) {
   };
 }
 
+// Pinned is device-local (T02 §2); togglePin announces small:pinned so the sidebar re-reads.
+// Never toggle blindly: a repeat changes nothing, and Undo reverses only a real change.
+function pinCommand(on) {
+  return {
+    risk: 'undo',
+    touchesLive: false,
+    available: ok,
+    run: async ({ slug }, ctx) => {
+      const changed = readPinned(ctx.storage, ctx.org, ctx.email).includes(slug) !== on;
+      if (changed) togglePin(ctx.storage, ctx.org, ctx.email, slug);
+      const verb = changed ? (on ? 'Pinned' : 'Unpinned') : on ? 'Already pinned' : 'Not pinned';
+      return { message: `${verb} · ${titleFor(ctx, slug)}`, undoable: changed, data: { slug, changed } };
+    },
+    undo: async ({ data }, ctx) => {
+      if (data.changed) togglePin(ctx.storage, ctx.org, ctx.email, data.slug);
+    },
+  };
+}
+
 // ponytail: the 'opens a screen only' actions of §7.2 have no entry; no rule or Ask tool reaches them in phase 1.
 export const COMMANDS = {
   open_resource: { risk: 'immediate', touchesLive: false, available: ok, run: async ({ slug }) => go(`/apps/${slug}`) },
@@ -112,6 +132,8 @@ export const COMMANDS = {
     },
   },
   new_thread: { risk: 'immediate', touchesLive: false, available: ok, run: async () => ({ resetThread: true }) },
+  pin: pinCommand(true),
+  unpin: pinCommand(false),
   set_theme: {
     risk: 'undo', touchesLive: false, available: ok,
     run: async ({ theme }) => {
