@@ -10605,7 +10605,7 @@ Do NOT run 'make cp-deploy' (Makefile:49 -> run.sh:113-117: builds packages/web 
 - The 12.5 clone binds the live D1 'small' as DB (wrangler.dev.jsonc:71-72). The pm checks only read it. Their one write is a canvas row in small-learn-dev, which the check deletes again.
 
 **Canvas record (LEARN_DB) and dev worker**
-- DRAFT, Gate B pending. This area is backend only and uses no Figma frame as evidence. Its Undo-only-while-untouched, Archive-not-Undo and device_id contracts come from the approved T02 sections 8.3 and 8.4.
+- This area is backend only and uses no Figma frame as evidence. Its Undo-only-while-untouched, Archive-not-Undo and device_id contracts come from the approved T02 sections 8.3 and 8.4.
 - Wrong-database hazard in T12 prep. Running repository-schema.sql against live 'small' would create repository_apps, repository_versions and canvases on live D1. The command names small-learn-dev explicitly and uses --config wrangler.dev.jsonc (:80-84). The read-only pre-check must STOP if apps, runs or proposals are listed.
 - Ordering gate. T12 prep (order 5) must complete, confirmed by the verify SELECT row, before any clone serves Task 6.4. Otherwise ownerCanvases throws inside GET /api/apps (dev-worker.js:23-28 has no try/catch) and that clone's Apps list returns 500. The table is created before the code that reads it, and the create is additive IF NOT EXISTS, so other clones are unaffected.
 - Shared index.js. Contract v2 orders canvases backend (6) before proposals fixes (7). The seam adds 8 lines inside apiAsk, from 928 on, so apiAskApprove, apiAskReject and apiAskThreadDelete shift by +8. The proposals area must anchor on content. No edit may add a column-0 '}' inside apiAsk (learn-chat.test.js:16-18).
