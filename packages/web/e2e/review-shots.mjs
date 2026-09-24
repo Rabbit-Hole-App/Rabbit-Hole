@@ -66,7 +66,9 @@ function describe(scene, inputs, short = false) {
     return short ? `${d.name}-${label}` : `${d.label || d.name} = ${label}`;
   }).join(short ? '_' : ' · ');
 }
-const slug = text => String(text).toLowerCase().replace(/[^a-z0-9_]+/g, '-').replace(/^-|-$/g, '').slice(0, 90);
+// A sign before a number is part of the value (× −1, + 2): spell it so filenames keep it.
+const slug = text => String(text).toLowerCase().replace(/(^|[\s=×(_-])[−-](?=\s?\d)/g, '$1minus').replace(/(^|[\s=×(_-])\+(?=\s?\d)/g, '$1plus')
+  .replace(/[^a-z0-9_]+/g, '-').replace(/^-|-$/g, '').slice(0, 90);
 
 const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
 const { session } = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-review-shots' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
