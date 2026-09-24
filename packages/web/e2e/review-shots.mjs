@@ -10,7 +10,7 @@
 // otherwise are chosen generically (defaults, then other values of each input).
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { BOARDS } from '../src/demo-scenes.js';
+import { BOARDS, BOARD_REVIEW_STATES } from '../src/demo-scenes.js';
 import { reveal } from './canvas-reveal.mjs';
 
 const [, , base, board, outArg] = process.argv;
@@ -100,7 +100,7 @@ for (const block of blocks) {
   const scene = block.scene;
   order += 1;
   const card = canvas.locator('[data-block-id]:not([data-chat-block])').filter({ hasText: scene.title }).first();
-  const states = (REVIEW_STATES[key(scene)] || genericStates(scene)).slice(0, MAX_SHOTS);
+  const states = (REVIEW_STATES[key(scene)] || BOARD_REVIEW_STATES[board]?.[scene.id] || genericStates(scene)).slice(0, MAX_SHOTS);
   const available = visibleInputs(scene).reduce((n, d) => n * Math.max(1, optionCount(scene, d)), 1);
   index.push(`## ${String(order).padStart(2, '0')} · ${scene.title}`, '');
   index.push(states.length >= available

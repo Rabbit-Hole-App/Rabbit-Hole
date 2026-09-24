@@ -9,6 +9,7 @@ import { staticAppReviewBlocks } from './gallery-scenes.js';
 import { interactiveAppReviewBlocks } from './interactive-scenes.js';
 import { holdoutBoardBlocks } from './interactive-holdouts.js';
 import { nanogptDeepDiveBlocks } from './nanogpt/board.js';
+import { nanogptDepthLadderBlocks, DEPTH_REVIEW_STATES } from './nanogpt/depth/board.js';
 
 // --- 1. why an axis must hold still -----------------------------------------
 // The same reveal drawn twice. On the left the axis is recomputed from the
@@ -359,7 +360,12 @@ export const BOARDS = {
   // batch of ten cards bound to karpathy/nanoGPT@3adf61e - the revision the
   // Rabbit Hole app is connected to - with fixtures generated from it.
   'nanogpt-deep-dive': nanogptDeepDiveBlocks,
+  'nanogpt-depth-ladder': nanogptDepthLadderBlocks,
 };
+
+// Per board, the input states a reviewer should see each card in, keyed by
+// scene id (e2e/review-shots.mjs, e2e/board-interaction-check.mjs).
+export const BOARD_REVIEW_STATES = { 'nanogpt-depth-ladder': DEPTH_REVIEW_STATES };
 
 // Bump a board's entry here whenever its seed content changes. The version is
 // part of the board's storage key, so a bump moves every browser to a fresh
@@ -373,4 +379,5 @@ export const BOARD_SEED_VERSIONS = {
   'interactive-app-review': 8,
   'interactive-holdouts': 2,
   'nanogpt-deep-dive': 2,
+  'nanogpt-depth-ladder': 1,
 };
