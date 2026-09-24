@@ -1,4 +1,4 @@
-import { repositoryIdentity } from './repositories.js';
+import { repositoryIdentity, repositoryThreads } from './repositories.js';
 
 // Dev-only canvas records (T02 section 8). A row is identity and title only; the
 // canvas content stays in the learner's browser under small.adaptive-canvas:*.
@@ -30,6 +30,22 @@ export async function ownerCanvases(env, user, archived = false) {
   return results.map(row => canvasApp(row, user));
 }
 
+// Which dev requests are canvas traffic. dev-worker.js cannot be imported under node, so the rule lives here, tested.
+export function canvasRoute(url) {
+  const path = url.pathname;
+  return path === '/api/canvases' || /^\/api\/apps\/canvas-/.test(path) || /^\/api\/ask\/threads\/canvaschat-/.test(path)
+    || (path === '/api/ask/threads' && /^canvas-/.test(url.searchParams.get('ref') || ''));
+}
+// Multipart asks skip the dev Learn router (dev-worker.js:72) and reach live small-cp, which stores the
+// attachment in live R2 (index.js:954) before it finds no such app. Canvases refuse them here.
+export async function refuseCanvasAttachment(req) {
+  const path = new URL(req.url).pathname;
+  if (req.method !== 'POST' || !['/api/ask', '/api/learn/ask', '/api/learn/selection'].includes(path) || !req.headers.get('content-type')?.includes('multipart/form-data')) return null;
+  let app = null;
+  try { app = JSON.parse((await req.clone().formData()).get('body') || '{}').scope?.app; } catch { /* live small-cp answers malformed bodies as today */ }
+  return typeof app === 'string' && app.startsWith('canvas-') ? json({ error: 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' }, 400) : null;
+}
+
 export async function canvasesFetch(req, env) {
   const url = new URL(req.url), path = url.pathname, db = env.LEARN_DB;
   const user = await repositoryIdentity(req, env); if (user instanceof Response) return user;
@@ -45,6 +61,15 @@ export async function canvasesFetch(req, env) {
       const row = await db.prepare('INSERT INTO canvases(org,name,owner_email,title,project,device_id) VALUES(?,?,?,?,?,?) RETURNING *')
         .bind(user.org, `canvas-${crypto.randomUUID().slice(0, 8)}`, user.email, title, project, device).first();
       return json(canvasApp(row, user), 201);
+    }
+    // Learn's chat keeps its /api/ask/threads calls (ask.jsx:388,401,601,622); canvas history lives in LEARN_DB.
+    const thread = path.match(/^\/api\/ask\/threads(?:\/(canvaschat-[a-f0-9-]+)(?:\/(delete|rename))?)?$/);
+    if (thread) {
+      const [, id, action] = thread;
+      const ref = id ? (await db.prepare('SELECT scope_ref FROM threads WHERE id=? AND org=? AND user=?').bind(id, user.org, user.email).first())?.scope_ref : url.searchParams.get('ref');
+      if (!ref) return json({ error: 'Chat not found' }, 404);
+      const app = await ownedCanvas(env, user, ref); if (app instanceof Response) return app;
+      return repositoryThreads(new Request(req, { method: action === 'delete' ? 'DELETE' : action === 'rename' ? 'PATCH' : req.method }), db, user, app, id);
     }
     const match = path.match(/^\/api\/apps\/(canvas-[a-f0-9]{8})(?:\/(archive|restore|learn-course))?$/);
     if (!match) return json({ error: 'Not found' }, 404);

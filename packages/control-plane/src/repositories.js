@@ -158,7 +158,7 @@ export async function repositoriesFetch(req,env,ctx){
     return json({error:'Not found'},404);
   }catch(error){return json({error:error.message},400);}
 }
-async function repositoryThreads(req,db,user,app,id){
+export async function repositoryThreads(req,db,user,app,id){
   if(!id){const {results}=await db.prepare('SELECT id,title,created_at,commit_sha FROM threads WHERE org=? AND user=? AND scope_ref=? ORDER BY created_at DESC LIMIT 20').bind(user.org,user.email,app.name).all();return json({threads:results});}
   const thread=await db.prepare('SELECT * FROM threads WHERE id=? AND org=? AND user=? AND scope_ref=?').bind(id,user.org,user.email,app.name).first();if(!thread)return json({error:'Chat not found'},404);
   if(req.method==='DELETE'){await db.batch([db.prepare('DELETE FROM messages WHERE thread_id=?').bind(id),db.prepare('DELETE FROM threads WHERE id=?').bind(id)]);return json({ok:true});}

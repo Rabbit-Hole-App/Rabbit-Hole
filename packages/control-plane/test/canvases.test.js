@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
-import { canvasesFetch } from '../src/canvases.js';
+import { canvasesFetch, canvasRoute, refuseCanvasAttachment } from '../src/canvases.js';
+import { authorizedBoardApp } from '../src/learn-board.js';
 
 const schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
 
@@ -78,4 +79,37 @@ test('rename keeps the slug, archive hides, the archived list is owner-only, res
   assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM canvases WHERE name=?').get(untouched).n, 0);
   assert.deepEqual(await (await f.send('GET', `/api/apps/${name}/learn-course`)).json(), { course: null, revision: 0, canAuthor: false });
   assert.equal((await f.send('POST', `/api/apps/${name}/learn-course`, { action: 'draft' })).status, 405);
+});
+
+// ---- Learn resolves canvas-* (Task 6.2) ----
+test('canvas chat history lists, reads, renames and deletes only the owner canvas threads in LEARN_DB', async t => {
+  const f = fixture(t);
+  const { name } = await (await f.send('POST', '/api/canvases', { title: 'Chat' })).json();
+  f.sqlite.exec(`INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES('canvaschat-a','team','owner@test','${name}','','First'),('canvaschat-b','team','owner@test','repo-example','','Repo'); INSERT INTO messages(thread_id,role,content) VALUES('canvaschat-a','user','Hi'),('canvaschat-a','assistant','Hello');`);
+  assert.deepEqual((await (await f.send('GET', `/api/ask/threads?scope=learn&ref=${name}`)).json()).threads.map(x => x.id), ['canvaschat-a']);
+  assert.deepEqual((await (await f.send('GET', '/api/ask/threads/canvaschat-a')).json()).messages.map(m => m.content), ['Hi', 'Hello']);
+  assert.equal((await f.send('GET', `/api/ask/threads?scope=learn&ref=${name}`, null, colleague)).status, 403);
+  assert.equal((await f.send('GET', '/api/ask/threads/canvaschat-a', null, colleague)).status, 404);
+  assert.equal((await f.send('GET', '/api/ask/threads/canvaschat-b')).status, 404);
+  assert.equal((await f.send('POST', '/api/ask/threads/canvaschat-a/rename', { title: 'Renamed' })).status, 200);
+  assert.equal(f.sqlite.prepare("SELECT title FROM threads WHERE id='canvaschat-a'").get().title, 'Renamed');
+  assert.equal((await f.send('POST', '/api/ask/threads/canvaschat-a/delete')).status, 200);
+  assert.equal(f.sqlite.prepare("SELECT count(*) AS n FROM messages WHERE thread_id='canvaschat-a'").get().n, 0);
+});
+
+test('canvas traffic routes to LEARN_DB, canvas attachments are refused, and Learn endpoints resolve canvases', async t => {
+  const f = fixture(t);
+  for (const [url, expected] of [['/api/canvases', true], ['/api/canvases?archived=1', true], ['/api/apps/canvas-0a1b2c3d', true], ['/api/apps/canvas-0a1b2c3d/archive', true], ['/api/ask/threads/canvaschat-1', true], ['/api/ask/threads?scope=learn&ref=canvas-0a1b2c3d', true], ['/api/ask/threads?scope=learn&ref=counter', false], ['/api/ask/threads/42', false], ['/api/apps/counter', false], ['/api/apps', false], ['/api/apps/repo-x', false]])
+    assert.equal(canvasRoute(new URL(url, 'https://dev.test')), expected, url);
+  const form = app => { const body = new FormData(); body.set('body', JSON.stringify({ scope: { app }, message: 'Hi' })); body.set('file', new Blob(['x']), 'x.txt'); return new Request('https://dev.test/api/learn/ask', { method: 'POST', body }); };
+  const refused = await refuseCanvasAttachment(form('canvas-0a1b2c3d'));
+  assert.equal(refused.status, 400); assert.match((await refused.json()).error, /Attachments are not available on canvases yet/);
+  assert.equal(await refuseCanvasAttachment(form('counter')), null);
+  assert.equal(await refuseCanvasAttachment(new Request('https://dev.test/api/learn/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })), null);
+  const { name } = await (await f.send('POST', '/api/canvases', { title: 'Board' })).json();
+  const board = (headers = {}) => authorizedBoardApp(new Request('https://dev.test/api/learn/board', { headers }), f.env, name);
+  const app = await board();
+  assert.deepEqual([app.kind, app.org, app.name, app.email], ['canvas', 'team', name, 'owner@test']);
+  assert.equal((await board(colleague)).status, 403);
+  assert.ok(f.seen.every(call => call === 'GET /api/apps'), f.seen.join());
 });
