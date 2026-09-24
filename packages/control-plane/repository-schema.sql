@@ -24,3 +24,37 @@ CREATE TABLE IF NOT EXISTS learn_courses (
  curriculum TEXT, approved_revision INTEGER, lesson TEXT, source_version TEXT,
  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+-- One row per graded attempt: Jev's per-idea judgment beside today's Opus
+-- verdict. Experiment data: pruned after 90 days on the next grade or report
+-- call, and deleted at the switch decision. Learner identity stays here; the
+-- grading service never sees it. docs/features/jev-grading.md
+CREATE TABLE IF NOT EXISTS learn_grades (
+  id INTEGER PRIMARY KEY,
+  org TEXT NOT NULL,
+  email TEXT NOT NULL,
+  app TEXT NOT NULL,
+  board TEXT,
+  block_id TEXT,
+  mode TEXT NOT NULL,
+  attempt_id TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'canvas',
+  bench_run TEXT,
+  bench_set TEXT,
+  grader_protocol_version TEXT NOT NULL,
+  prompt TEXT NOT NULL,
+  expects TEXT NOT NULL,
+  answer TEXT NOT NULL,
+  jev TEXT,
+  jev_error TEXT,
+  jev_ms INTEGER,
+  jev_tokens INTEGER,
+  jev_cost REAL,
+  jev_model TEXT,
+  jev_generation_id TEXT,
+  baseline_verdict TEXT,
+  baseline_ms INTEGER,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (org, email, app, attempt_id)
+);
+CREATE INDEX IF NOT EXISTS idx_learn_grades_learner ON learn_grades(org, email, app, created_at);
+CREATE INDEX IF NOT EXISTS idx_learn_grades_created ON learn_grades(created_at);
