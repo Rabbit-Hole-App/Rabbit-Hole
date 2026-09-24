@@ -127,7 +127,8 @@ Content-Type: application/json
   revision is not reproducible through the gateway, so a fresh held-out run is
   required close to any switch decision (see Switch conditions).
 - Errors use TypeSafe's shape, `{ message, error_type }`, and are passed
-  through unchanged.
+  through unchanged. A failure is recorded as
+  `Jev <status> <error_type>: <message>`.
 - **Vendor-stated and unverified until the bench:** about 100 ms per query;
   1,200 requests/min and 250k tokens/s, "adjusting dynamically"; 429 and 529
   with `Retry-After`; $0.042 per million input tokens. Sources:
@@ -253,6 +254,8 @@ The rule ("option B"):
 
 **`POST /api/learn/grade`** (always `source = 'canvas'`)
 - **Body:** `{ app, attempt_id, board?, block_id?, mode, prompt, expects[], answer }`.
+  - `board` and `block_id` are optional labels of up to 200 characters. Longer
+    values are stored as null, because they are never used for grading.
   - The body cannot choose `source`. Any `source` field is ignored.
 - **Rejected with 400 unless all of these hold:**
   - `attempt_id` matches `^[A-Za-z0-9:_-]{8,120}$`;
@@ -288,10 +291,13 @@ The rule ("option B"):
     Worker died mid-call.
 - **Response contract.** Every response carries `grade_id` and `status`.
   - **Fresh `done`, or a duplicate of a `done` row:** 200.
-    `{ grade_id, status: 'done', duplicate, jev: { ideas: [{ text, p }], misconception, non_attempt, verdict }, ms, model, generation_id, grader_protocol_version }`.
-    For a duplicate, the ideas are rebuilt from the stored `expects` and
-    probabilities, and the verdict is recomputed with the current `THRESHOLDS`.
-    `ms`, `model` and `generation_id` are the stored values.
+    `{ grade_id, status: 'done', duplicate, jev: { ideas: [{ text, p }], misconception, non_attempt, verdict }, ms, model, generation_id, grader_protocol_version, cost }`.
+    - `cost` is the gateway's reported USD cost.
+    - For a duplicate, the ideas are rebuilt from the stored `expects` and
+      probabilities, and the verdict is recomputed with the current
+      `THRESHOLDS`. A holdout row stores only hashes, so a holdout duplicate
+      takes its idea text from the request instead.
+    - `ms`, `model`, `generation_id` and `cost` are the stored values.
   - **Fresh `failed`, or a duplicate of a `failed` row:** 502.
     `{ grade_id, status: 'failed', duplicate, error }`. The stored failure is
     returned, and Jev is not called again.
@@ -392,6 +398,10 @@ The rule ("option B"):
 - It is stored on the block with the answer, so re-sends, remounts and reloads
   of that committed answer all reuse it.
 - `retry()` clears it along with the answer, so a new answer gets a new ID.
+- `commit` keeps the block's `latest` ref in step with every write it makes.
+  Today, a tutor stream that lands in one tick lets the closing write erase the
+  verdict, an existing race that the browser check exposes. The fix only stops
+  a verdict from vanishing.
 - **In-flight guard.** `inFlight.current = true` is set before
   `onChange(committed)` and cleared in a `finally` around the whole commit
   body, including the `if (!onGrade) return` path.
@@ -528,8 +538,10 @@ CREATE INDEX IF NOT EXISTS idx_learn_grades_created ON learn_grades(created_at);
     Unrelated UI, canvas, Home, graph or rendering changes do not burn it. A
     burned holdout needs a new `benchmark-v2-holdout.json`.
   - **Burns are checked mechanically.** Every holdout results file records
-    `GRADER_PROTOCOL_VERSION`, `THRESHOLDS`, `VERDICT_LOGIC_VERSION` and the
-    model route. `bench.mjs --holdout` compares these with the earliest viewed
+    `GRADER_PROTOCOL_VERSION`, `THRESHOLDS`, `VERDICT_LOGIC_VERSION`, the model
+    route and the holdout file's SHA-256. A file edited after a viewed run
+    therefore counts as a new holdout. These results files are committed, so the
+    check always reads the earliest committed run. `bench.mjs --holdout` compares these with the earliest viewed
     run of the same holdout, and refuses to report a pass if any differ:
     `holdout burned by <field>: write benchmark-v2-holdout`.
 
