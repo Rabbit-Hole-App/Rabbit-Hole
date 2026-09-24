@@ -117,3 +117,37 @@ export async function verdictLogicFingerprint() {
   }
   return (await sha256Hex(out)).slice(0, 16);
 }
+
+// One POST to the gateway. 3 s per attempt; a 429 or 529 is retried once after
+// min(Retry-After, 1 s); a timeout is never retried. `ms` is the whole wall
+// time, retry wait included.
+export async function askJev(env, request, { timeoutMs = 3000, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), fetchImpl = (...args) => fetch(...args) } = {}) {
+  const started = Date.now();
+  for (let attempt = 0; ; attempt += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let response;
+    let body;
+    try {
+      response = await fetchImpl(JEV_URL, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { Authorization: `Bearer ${env.VERCEL_TYPESAFE_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      });
+      body = await response.json().catch(() => null);
+    } catch (error) {
+      if (controller.signal.aborted) throw new JevError('timeout', `Jev timed out after ${timeoutMs} ms`);
+      throw new JevError('network', `Jev unreachable: ${error.message}`);
+    } finally {
+      clearTimeout(timer);
+    }
+    if ((response.status === 429 || response.status === 529) && attempt === 0) {
+      const seconds = Number(response.headers.get('retry-after'));
+      await sleep(Math.min(Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 0, 1000));
+      continue;
+    }
+    if (!response.ok) throw new JevError('http', `Jev ${response.status}${body?.error_type ? ` ${body.error_type}` : ''}: ${body?.message || body?.error?.message || 'request failed'}`, response.status);
+    return { body, ms: Date.now() - started, ...readJevMeta(body) };
+  }
+}
