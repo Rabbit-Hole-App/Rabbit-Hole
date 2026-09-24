@@ -925,7 +925,9 @@ function b64(bytes) {
   return btoa(s);
 }
 
-export async function apiAsk(req, env, ctx, user, conversation = 'agent') {
+// seam: dev canvases only (canvases.js canvasAskSeam). It supplies the app, its context and a
+// LEARN_DB thread store, so that turn never touches env.DB.
+export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam = null) {
   if (!env.ANTHROPIC_API_KEY && env.SUBSCRIPTION_ONLY !== 'true') return json({ error: 'ask is not configured on this control plane' }, 503);
   // JSON, or multipart when a file rides along (images/PDFs as model blocks, CSVs as text)
   let body, extraBlocks = [], attachedName = null, uploadNote = null;
@@ -1079,11 +1081,12 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent') {
     scopeKind = 'run';
     scopeRef = scope.run;
   } else if (scope.app) {
-    const app = await appForUser(env, user, scope.app);
+    const app = seam ? seam.app : await appForUser(env, user, scope.app);
     if (!app) return json({ error: `no app named ${scope.app}` }, 404);
     if (!app.canView) return json({ error: 'no access' }, 403);
     scopedApp = app;
-    context = lessonSnapshot ? JSON.stringify(lessonSnapshot) : await appContext(env, app, useSet);
+    // appContext reads live runs/members by app.id, and LEARN_DB canvas ids overlap live ids.
+    context = lessonSnapshot ? JSON.stringify(lessonSnapshot) : seam ? seam.context : await appContext(env, app, useSet);
     // The lesson's own table of contents, so a question about its structure is
     // answered from the outline rather than inferred from the cards.
     if (body.outline?.length) context = `${context}
@@ -1164,24 +1167,27 @@ ${renderOutline(body.outline)}`;
     canAct = false;
   }
   // thread per scope and user; follow-ups ride the same thread
+  const db = seam ? seam.db : env.DB;
   let threadId = thread_id || null;
   if (threadId) {
-    const t = await askThreadForUser(env, user, threadId);
+    const t = seam ? await seam.findThread(threadId) : await askThreadForUser(env, user, threadId);
     if (!t) return json({ error: 'no such thread' }, 404);
     if ((scopeKind === 'learn' || t.scope === 'learn') && (t.scope !== scopeKind || t.scope_ref !== scopeRef)) {
       return json({ error: 'thread does not belong to this conversation' }, 409);
     }
+  } else if (seam) {
+    threadId = await seam.newThread(message);
   } else {
     const r = await env.DB.prepare('INSERT INTO threads (org, user, scope, scope_ref) VALUES (?, ?, ?, ?)')
       .bind(user.org, user.email, scopeKind, scopeRef).run();
     threadId = r.meta.last_row_id;
   }
-  if (seed.length) await env.DB.batch(seed.map(turn => env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, turn.role, turn.content)));
-  const { results: history } = await env.DB.prepare(
+  if (seed.length) await db.batch(seed.map(turn => db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, turn.role, turn.content)));
+  const { results: history } = await db.prepare(
     'SELECT role, content FROM messages WHERE thread_id = ? ORDER BY id DESC LIMIT 10'
   ).bind(threadId).all();
   history.reverse();
-  await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)')
+  await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)')
     .bind(threadId, 'user', attachedName ? `${message} [attached: ${attachedName}]` : message).run();
 
   const q = [note, uploadNote && `(${uploadNote})`, message].filter(Boolean).join(' ');
@@ -1197,8 +1203,10 @@ ${renderOutline(body.outline)}`;
         },
       }
     : null;
-  return askStream(env, context, history, q, async (full) => {
-    await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
+  // A canvas turn hands askStream LEARN_DB as DB, so its learn_moments insert (ask.js:403) cannot reach live D1.
+  // ponytail: LEARN_DB has no learn_moments table, so canvas answers skip the moment log (ask.js:399-405 swallows it); add the table to repository-schema.sql when the log needs canvases.
+  return askStream(seam ? { ...env, DB: db } : env, context, history, q, async (full) => {
+    await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
   }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId, conversation === 'learn' ? null : user.org, conversation === 'learn' ? LEARN_SYSTEM : undefined, research);
 }
 

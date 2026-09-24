@@ -97,3 +97,19 @@ export async function canvasesFetch(req, env) {
     return json({ error: 'Method not allowed' }, 405);
   } catch (error) { return json({ error: error.message }, 400); }
 }
+
+// apiAsk's seam (index.js): the app, its context and the thread store all come from LEARN_DB,
+// so a canvas turn never reads or writes live D1. Threads reuse repository-schema.sql threads/messages.
+export function canvasAskSeam(env, app) {
+  const db = env.LEARN_DB;
+  return {
+    app, db,
+    context: `SCOPE: canvas ${JSON.stringify(app.title)} - a standalone learning canvas whose content lives in the learner's browser. Teach as a general tutor.`,
+    findThread: id => db.prepare("SELECT id, 'learn' AS scope, scope_ref FROM threads WHERE id=? AND org=? AND user=?").bind(id, app.org, app.email).first(),
+    newThread: async title => {
+      const id = `canvaschat-${crypto.randomUUID()}`;
+      await db.prepare("INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,'',?)").bind(id, app.org, app.email, app.name, title.slice(0, 120)).run();
+      return id;
+    },
+  };
+}
