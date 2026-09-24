@@ -635,7 +635,7 @@ function StylePanel({ text, showFill, corners, order, color, fill, width, dash, 
   const rule = <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />;
   return (
     <div role="group" aria-label="Style" onPointerDown={event => event.stopPropagation()}
-      className="absolute top-1/2 right-16 z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md">
+      className="absolute top-1/2 right-16 z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md @max-[640px]:top-auto @max-[640px]:right-0 @max-[640px]:bottom-full @max-[640px]:mb-2 @max-[640px]:max-h-[60vh] @max-[640px]:translate-y-0">
       {COLORS.map(value => (
         <button key={value} type="button" title="Color" aria-label={`Color ${value}`} aria-pressed={color === value} onClick={() => onColor(value)}
           className="flex h-6 w-8 items-center justify-center rounded-lg hover:bg-hover">
@@ -1619,13 +1619,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     // shape or a note and pressing Delete silently did nothing. Any pointer press
     // outside the focused field hands focus back to the canvas. Pressing inside
     // the field it belongs to is left alone, so typing still works.
-    <div className="relative flex h-full min-h-0 flex-col"
+    <div className="@container relative flex h-full min-h-0 flex-col"
       onPointerDownCapture={event => {
         const active = document.activeElement;
         if (!active || active === document.body) return;
         const editable = active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA';
         if (editable && !active.contains(event.target)) active.blur();
       }}>
+      {/* The canvas and its tools share this row and never overlap: the tools get
+          their own gutter (a strip below when too narrow for one), so nothing on
+          the canvas can be panned under them and no card has to know they exist. */}
+      <div className="flex min-h-0 flex-1 @max-[640px]:flex-col">
       {/* With the grid on, the canvas draws its own dots instead of borrowing
           the page's: these ride the camera, so the grid you snap to is the grid
           you can see. An opaque surface keeps the page dots from showing through
@@ -1686,51 +1690,57 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
           onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />}
       </div>
-      {/* Dev-only workbench: drop any lesson block on the canvas to review its
-          look before lessons are assembled. */}
-      {presenting === null && import.meta.env.VITE_COACHING_DEV === 'true' && (
-        <div className="absolute top-3 -right-6 z-20">
-          <button type="button" aria-label="Insert lesson block" title="Insert a sample lesson block" aria-expanded={insertOpen}
-            onClick={() => setInsertOpen(previous => !previous)}
-            className="flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink">
-            <Plus size={15} strokeWidth={1.7} />
+      {/* The tools' gutter: 60px beside the canvas, the toolbar hanging the rest of
+          its width into the page edge as before. Below 640px of canvas it is a
+          scrolling strip under the canvas instead. The style panel opens from it. */}
+      {presenting === null && (
+        <div data-tool-gutter className="relative w-[60px] shrink-0 @max-[640px]:flex @max-[640px]:w-full @max-[640px]:items-center @max-[640px]:gap-2 @max-[640px]:pt-2">
+        {import.meta.env.VITE_COACHING_DEV === 'true' && (
+          <div className="absolute top-3 -right-6 z-20 @max-[640px]:static @max-[640px]:shrink-0">
+            <button type="button" aria-label="Insert lesson block" title="Insert a sample lesson block" aria-expanded={insertOpen}
+              onClick={() => setInsertOpen(previous => !previous)}
+              className="flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink">
+              <Plus size={15} strokeWidth={1.7} />
+            </button>
+            {insertOpen && <BlockMenu className="top-0 right-10" filter={insertFilter} onFilter={setInsertFilter} onPick={insertBlock} />}
+          </div>
+        )}
+        <div role="toolbar" aria-label="Canvas tools" className="absolute top-1/2 -right-6 z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md @max-[640px]:static @max-[640px]:min-w-0 @max-[640px]:translate-y-0 @max-[640px]:grid-flow-col @max-[640px]:grid-cols-none @max-[640px]:grid-rows-1 @max-[640px]:overflow-x-auto">
+          {NAV_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
+          <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
+          {DRAW_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
+          <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
+          {SHAPE_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
+          <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
+          {/* Keeps the armed tool armed after a draw, so shapes come in runs. */}
+          <ToolButton Icon={lock ? Lock : LockOpen} label={lock ? 'Keep tool active — on' : 'Keep tool active — off'}
+            active={lock} onPick={() => setLock(previous => !previous)} />
+          {/* Alignment guides always run; this is the harder 18px grid on top. */}
+          <ToolButton Icon={Grid3x3} label={grid ? 'Snap to grid — on' : 'Snap to grid — off'}
+            active={grid} onPick={() => setGrid(previous => !previous)} />
+          {/* The one control that never hides: the way back to the style panel
+              once it has closed itself, showing what colour is currently armed. */}
+          <button type="button" title="Style" aria-label="Style" aria-pressed={showStyle}
+            onPointerDown={e => e.stopPropagation()} onClick={() => setStyleOpen(previous => !previous)}
+            className={`flex h-8 w-8 items-center justify-center rounded-lg ${showStyle ? 'bg-hover' : 'hover:bg-hover'}`}>
+            <span style={{ background: color }} className="h-4 w-4 rounded-full ring-1 ring-line" />
           </button>
-          {insertOpen && <BlockMenu className="top-0 right-10" filter={insertFilter} onFilter={setInsertFilter} onPick={insertBlock} />}
+        </div>
+        {showStyle && (
+          <StylePanel text={panel.text} showFill={panel.fill} fill={fill} corners={panel.corners} order={panel.order}
+            color={color} width={width} dash={dash} opacity={opacity} round={round} level={level}
+            onColor={value => { setColor(value); applyStyle({ color: value }, panel.targets); }}
+            onFill={value => { setFill(value); applyStyle({ fill: value }, panel.targets); }}
+            onWidth={value => { setWidth(value); applyStyle({ width: value }, panel.targets); }}
+            onDash={value => { setDash(value); applyStyle({ dash: value }, panel.targets); }}
+            onOpacity={value => { setOpacity(value); applyStyle({ opacity: value }, panel.targets); }}
+            onRound={value => { setRound(value); applyStyle({ round: value }, panel.targets); }}
+            onLevel={value => { setLevel(value); applyStyle({ level: value }, panel.targets); }}
+            onOrder={toFront => reorderSelection(toFront, panel.targets)} />
+        )}
         </div>
       )}
-      {presenting === null && <div role="toolbar" aria-label="Canvas tools" className="absolute top-1/2 -right-6 z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md">
-        {NAV_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
-        <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
-        {DRAW_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
-        <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
-        {SHAPE_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
-        <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
-        {/* Keeps the armed tool armed after a draw, so shapes come in runs. */}
-        <ToolButton Icon={lock ? Lock : LockOpen} label={lock ? 'Keep tool active — on' : 'Keep tool active — off'}
-          active={lock} onPick={() => setLock(previous => !previous)} />
-        {/* Alignment guides always run; this is the harder 18px grid on top. */}
-        <ToolButton Icon={Grid3x3} label={grid ? 'Snap to grid — on' : 'Snap to grid — off'}
-          active={grid} onPick={() => setGrid(previous => !previous)} />
-        {/* The one control that never hides: the way back to the style panel
-            once it has closed itself, showing what colour is currently armed. */}
-        <button type="button" title="Style" aria-label="Style" aria-pressed={showStyle}
-          onPointerDown={e => e.stopPropagation()} onClick={() => setStyleOpen(previous => !previous)}
-          className={`flex h-8 w-8 items-center justify-center rounded-lg ${showStyle ? 'bg-hover' : 'hover:bg-hover'}`}>
-          <span style={{ background: color }} className="h-4 w-4 rounded-full ring-1 ring-line" />
-        </button>
-      </div>}
-      {presenting === null && showStyle && (
-        <StylePanel text={panel.text} showFill={panel.fill} fill={fill} corners={panel.corners} order={panel.order}
-          color={color} width={width} dash={dash} opacity={opacity} round={round} level={level}
-          onColor={value => { setColor(value); applyStyle({ color: value }, panel.targets); }}
-          onFill={value => { setFill(value); applyStyle({ fill: value }, panel.targets); }}
-          onWidth={value => { setWidth(value); applyStyle({ width: value }, panel.targets); }}
-          onDash={value => { setDash(value); applyStyle({ dash: value }, panel.targets); }}
-          onOpacity={value => { setOpacity(value); applyStyle({ opacity: value }, panel.targets); }}
-          onRound={value => { setRound(value); applyStyle({ round: value }, panel.targets); }}
-          onLevel={value => { setLevel(value); applyStyle({ level: value }, panel.targets); }}
-          onOrder={toFront => reorderSelection(toFront, panel.targets)} />
-      )}
+      </div>
       {/* Presenting replaces the zoom pill and composer with a step counter: the
           canvas is being shown, not worked on. */}
       {presenting !== null && (
