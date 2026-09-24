@@ -299,6 +299,7 @@ test('the report reads app from the query, covers only my canvas rows, and prune
   assert.equal(report.overall.eligible, 1);
   assert.deepEqual(report.overall.jev.incomplete, { k: 1, n: 1, pct: 100 });
   assert.equal(w.sqlite.prepare("SELECT COUNT(*) AS n FROM learn_grades WHERE attempt_id = 'attempt-ancient'").get().n, 0, 'report pruned');
+  assert.equal((await w.get('/api/learn/grade/report')).status, 400, 'no app in the query');
   assert.ok(!JSON.stringify(report).includes('exp makes'), 'no answer or idea text in the report');
 });
 
