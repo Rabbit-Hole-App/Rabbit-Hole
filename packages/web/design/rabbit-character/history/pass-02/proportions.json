@@ -1,0 +1,31 @@
+{
+  "version": "2.1",
+  "status": "proposed canonical drawing contract; user visual approval pending",
+  "units": "standing height H including neutral ear tips",
+  "height_pixels": 432,
+  "canvas": [512, 512],
+  "root_pixels": [256, 480],
+  "dimensions_H": {
+    "head_height": 0.145, "head_width": 0.160, "head_depth": 0.190,
+    "muzzle_projection": 0.050, "ear_length": 0.280,
+    "ear_root_spacing": 0.075, "ear_width": 0.065,
+    "shoulder_width": 0.240, "torso_length": 0.255, "torso_depth": 0.170,
+    "hip_width": 0.205, "hip_depth": 0.165,
+    "upper_arm": 0.130, "forearm": 0.115, "hand": 0.055,
+    "upper_leg": 0.155, "lower_leg": 0.145,
+    "foot_length": 0.175, "foot_width": 0.065, "foot_thickness": 0.035,
+    "foot_spacing": 0.145, "watch_diameter": 0.125, "watch_grip_to_center": 0.076
+  },
+  "landmarks_y_H": {
+    "ear_roots": 0.235, "eyes": 0.285, "chin": 0.380,
+    "shoulders": 0.425, "elbows": 0.555, "wrists": 0.670,
+    "hips": 0.680, "coat_front": 0.720, "coat_hem": 0.765,
+    "knees": 0.835, "trouser_cuffs": 0.855, "ankles": 0.980, "soles": 1.000
+  },
+  "neutral_ear_pitch_back_degrees": 33,
+  "neutral_ear_outward_cant_degrees": 10,
+  "watch_hand": "anatomical right",
+  "watch_attachment": "right paw pinches bow/ring; no invented belt or coat chain",
+  "mirror_allowed": false,
+  "turnaround_order": ["front", "front_left", "left", "back_left", "back", "back_right", "right", "front_right"]
+}

@@ -1,0 +1,79 @@
+{
+  "tested_at": "2026-09-24T00:18:44.429Z",
+  "url": "https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/#warren",
+  "results": [
+    {
+      "name": "public landing preserves the hero and links to three dedicated pages",
+      "pass": true
+    },
+    {
+      "name": "front-facing presence, upright upper A and lower B",
+      "pass": true
+    },
+    {
+      "name": "living actions remain usable at a resting point",
+      "pass": true
+    },
+    {
+      "name": "scroll down turns, crouches, enters A, hides, emerges from B and recovers",
+      "pass": true
+    },
+    {
+      "name": "scroll up uses the same sequence with B as entrance and A as exit",
+      "pass": true
+    },
+    {
+      "name": "partial scroll holds pixels; reversing mid-entry retains the same opening",
+      "pass": true
+    },
+    {
+      "name": "aperture white pixels",
+      "shallow": 2270,
+      "deep": 0
+    },
+    {
+      "name": "paper silhouette stays opaque and is progressively occluded by the page rim",
+      "pass": true
+    },
+    {
+      "name": "runtime pointer and keyboard portal placement affects the scroll path",
+      "pass": true
+    },
+    {
+      "name": "pause holds the current scroll pose and resume catches up",
+      "pass": true
+    },
+    {
+      "name": "exact pink clouds animate below and the pause frame contains visible clouds",
+      "pass": true
+    },
+    {
+      "name": "mobile scroll journey, touch-sized controls and reduced motion",
+      "pass": true
+    },
+    {
+      "name": "blog has its own navigable, reloadable public page",
+      "pass": true
+    },
+    {
+      "name": "features has its own navigable, reloadable public page",
+      "pass": true
+    },
+    {
+      "name": "pricing has its own navigable, reloadable public page",
+      "pass": true
+    },
+    {
+      "name": "mascot remains absent from regular app",
+      "pass": true
+    },
+    {
+      "name": "mascot remains absent from repository app",
+      "pass": true
+    }
+  ],
+  "console_errors": [],
+  "real_deployed_landing": true,
+  "model_calls": 0,
+  "visual_approval": false
+}

@@ -5,6 +5,67 @@ next. The working artifact is [packages/web/design/rabbit-hole-hero.html](../../
 deeper implementation notes live in
 [packages/web/design/rabbit-hole-landing.md](../../packages/web/design/rabbit-hole-landing.md).
 
+## Current validation — 2026-09-23
+
+**Removed from the landing page on 2026-09-24 at the user's request.** The mascot,
+A/B portal interaction, controls and reserved scroll region are no longer mounted.
+The hero and pink clouds remain; Blog, Features and Pricing keep their own pages.
+The app interfaces also remain mascot-free. The experiments below are historical.
+
+The latest user direction is the [living mascot MVP](rabbit-living-mascot.md):
+breathing, left/right looks, a right-paw watch check, crouch, and reversible
+scroll-controlled vertical screen portals on the existing Rabbit Hole landing
+page after the hero. Blog, Features and Pricing now have separate pages.
+The user's explicit correction removes all Mascot app tabs. A/B positions are movable;
+entry and exit use rim occlusion with hidden transfer. Scroll down travels from
+upper A to lower B; scroll up reverses the same normalized timeline, including
+mid-transition reversals. The final
+[hybrid 07 pass](../../packages/web/design/rabbit-character/hybrid-07/REVIEW.md)
+does not clearly outperform Pass 04 visually. It is parked, and the user-authorized
+Pass 04 is the temporary run. **No further run refinements without a new request.**
+This overrides the earlier run-approval gate blocking living actions and portals;
+it does not approve the failed skinning or freeze Character Bible v1.
+
+### Earlier run experiments
+
+The user approved [joint guide 04](rabbit-run-joint-guide.md) as the motion basis.
+The user rejected pass 05's deformed raster legs and authorized a continuous rig.
+The latest [articulated run experiment](../../packages/web/design/rabbit-character/articulated-06/REVIEW.md)
+evaluates the fixed guide at render frequency, skins connected meshes and anchors
+support toes in world space. Actual Chrome ground-edge drift is 1–2 display px
+at the common test speed, substantially reduced. However, tucked ankle contours
+remain pinched: **the skinning quality gate fails**. Custom refinement stops at
+the requested fallback gate, with dedicated skeletal authoring recommended.
+No further sprite strip or tool migration was made. The seed, refined proportions
+and eight standing views are unchanged. Character Bible v1 remains pending run
+approval. The living/portal milestone above now proceeds under the user's newer
+explicit authorization.
+
+The existing candidate eight-frame `run_right`, a canonical proportion sheet, and
+eight authored viewing directions now live in
+[packages/web/design/rabbit-character/](../../packages/web/design/rabbit-character/).
+The seed is extracted from the shipped sprite; the action is generated together,
+then registered and processed into the same 1-bit dither. GIF and WebP previews,
+individual frames, source sheets, and comparisons are included. They await the
+user's visual approval. Pass 04 and the living rig now replace the old landing-page
+bitmap transform behavior under the user's explicit MVP authorization.
+The earlier candidates are preserved for old/new comparison. Prior refinement 03
+trims coat/hip volume, improves the connected arm arcs and torso contribution,
+and tests the strip against continuous horizontal world movement. Pose-to-pose
+support alignment improves, but held-frame foot sliding remains visible; the
+character bible is still unapproved. See the [proportion contract](rabbit-character-proportions.md).
+
+See [run validation and evidence](rabbit-hole-run-preview.md) and
+[direction, turning, and planned portal traversal](rabbit-hole-directions-and-portals.md).
+The latter includes explicit opposite-side artwork, a four-view approval gate,
+movement-vector-based facing, authored turns, and a later crouch/entry/exit proof
+using real rim occlusion. The current MVP uses the existing web renderer and a
+dedicated portal controller; Phaser gameplay remains outside this milestone.
+
+The original frame-by-frame proposal below records the earlier plan. The current
+validation supersedes it with coherent action generation from the canonical
+reference, an eight-frame run, and a turnaround before further directional strips.
+
 ## What we did
 
 A running rabbit, rendered in the page's 1-bit dither language, sits in the landing

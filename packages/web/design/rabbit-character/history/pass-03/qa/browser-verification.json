@@ -1,0 +1,41 @@
+{
+  "environment": "isolated headless Chrome; local artifact files over localhost",
+  "browser": "Chrome/152.0.7977.83",
+  "tested_at": "2026-09-23T17:21:32.630Z",
+  "images": [
+    {
+      "id": "seed",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": "gif",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": "webp",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": "compare",
+      "width": 1024,
+      "height": 560
+    },
+    {
+      "id": "seam",
+      "width": 512,
+      "height": 560
+    }
+  ],
+  "source_sha256": "7f2d961f409de0937934d9d9a52ecc3ca9b1db29119bc41ce279fc568ec4489d",
+  "distinct_visible_frames": {
+    "gif": 8,
+    "webp": 8,
+    "compare": 8,
+    "seam": 8
+  },
+  "console_errors": [],
+  "pass": true
+}

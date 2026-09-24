@@ -1,0 +1,160 @@
+{
+  "tested_at": "2026-09-23T21:53:09.751Z",
+  "approved_guide_samples": 832,
+  "max_guide_error": 2.2737367544323206e-13,
+  "max_bone_error": 7.105427357601002e-14,
+  "max_world_anchor_error": 9.094947017729282e-13,
+  "unchanged_inputs": 16,
+  "worst_mesh_diagnostics": {
+    "left_leg": {
+      "phase": 4.25,
+      "name": "left_leg",
+      "flipped": 0,
+      "collapsed": 0,
+      "min_area_ratio": 0.1122351178637966,
+      "max_edge_stretch": 5.977927236751286
+    },
+    "right_leg": {
+      "phase": 1.05,
+      "name": "right_leg",
+      "flipped": 0,
+      "collapsed": 0,
+      "min_area_ratio": 0.11789653587199996,
+      "max_edge_stretch": 4.653579038924459
+    },
+    "left_arm": {
+      "phase": 4,
+      "name": "left_arm",
+      "flipped": 0,
+      "collapsed": 0,
+      "min_area_ratio": 0.1816935861383488,
+      "max_edge_stretch": 2.4062854164450034
+    },
+    "tail": {
+      "phase": 0.65,
+      "name": "tail",
+      "flipped": 0,
+      "collapsed": 0,
+      "min_area_ratio": 0.9408514076950804,
+      "max_edge_stretch": 0.9979714439660754
+    },
+    "pelvis": {
+      "phase": 0.65,
+      "name": "pelvis",
+      "flipped": 0,
+      "collapsed": 0,
+      "min_area_ratio": 0.940851407695074,
+      "max_edge_stretch": 0.9979714439660754
+    },
+    "torso_coat": {
+      "phase": 1.95,
+      "name": "torso_coat",
+      "flipped": 0,
+      "collapsed": 0,
+      "min_area_ratio": 0.9408514076950693,
+      "max_edge_stretch": 0.9979714439660754
+    },
+    "left_ear": {
+      "phase": 1.75,
+      "name": "left_ear",
+      "flipped": 0,
+      "collapsed": 0,
+      "min_area_ratio": 0.9969293080246129,
+      "max_edge_stretch": 1.0104379735565407
+    },
+    "right_ear": {
+      "phase": 4.45,
+      "name": "right_ear",
+      "flipped": 0,
+      "collapsed": 0,
+      "min_area_ratio": 0.99667586485873,
+      "max_edge_stretch": 1.007717531341377
+    },
+    "head": {
+      "phase": 0,
+      "name": "head",
+      "flipped": 0,
+      "collapsed": 0,
+      "min_area_ratio": 1,
+      "max_edge_stretch": 1
+    },
+    "right_arm": {
+      "phase": 6.85,
+      "name": "right_arm",
+      "flipped": 0,
+      "collapsed": 0,
+      "min_area_ratio": 0.5500229184866805,
+      "max_edge_stretch": 1.5035109714001755
+    },
+    "watch": {
+      "phase": 0.9,
+      "name": "watch",
+      "flipped": 0,
+      "collapsed": 0,
+      "min_area_ratio": 0.9999999999999722,
+      "max_edge_stretch": 1.000000000000008
+    },
+    "watch_bow": {
+      "phase": 6.75,
+      "name": "watch_bow",
+      "flipped": 0,
+      "collapsed": 0,
+      "min_area_ratio": 1.0108759806104346,
+      "max_edge_stretch": 1.0096118356117398
+    }
+  },
+  "worst_surface_stretch": {
+    "left_leg": {
+      "phase": 4.25,
+      "max_edge_stretch": 5.977927236751286
+    },
+    "right_leg": {
+      "phase": 0.25,
+      "max_edge_stretch": 5.091759526910214
+    },
+    "left_arm": {
+      "phase": 4,
+      "max_edge_stretch": 2.4062854164450034
+    },
+    "tail": {
+      "phase": 0.7,
+      "max_edge_stretch": 0.9979714439660856
+    },
+    "pelvis": {
+      "phase": 2.65,
+      "max_edge_stretch": 0.9979714439660882
+    },
+    "torso_coat": {
+      "phase": 0.4,
+      "max_edge_stretch": 0.9979714439660888
+    },
+    "left_ear": {
+      "phase": 1.75,
+      "max_edge_stretch": 1.0104379735565407
+    },
+    "right_ear": {
+      "phase": 1.85,
+      "max_edge_stretch": 1.0090946238108882
+    },
+    "head": {
+      "phase": 0,
+      "max_edge_stretch": 1
+    },
+    "right_arm": {
+      "phase": 4.85,
+      "max_edge_stretch": 1.5035109714001975
+    },
+    "watch": {
+      "phase": 5.4,
+      "max_edge_stretch": 1.0000000000000204
+    },
+    "watch_bow": {
+      "phase": 2.3,
+      "max_edge_stretch": 1.0096118356117516
+    }
+  },
+  "max_surface_seam_error": 0,
+  "mathematical_checks_pass": true,
+  "visual_gate": "failed: pinched recovery ankles",
+  "visual_approval": false
+}

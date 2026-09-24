@@ -1,0 +1,55 @@
+{
+  "tested_at": "2026-09-23T23:05:40.469Z",
+  "url": "https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/apps/counter?tab=mascot",
+  "app": "counter",
+  "results": [
+    {
+      "name": "live app and preserved navigation",
+      "pass": true
+    },
+    {
+      "name": "breathing changes the actual rendered artwork",
+      "pass": true
+    },
+    {
+      "name": "Look left",
+      "pass": true
+    },
+    {
+      "name": "Look right",
+      "pass": true
+    },
+    {
+      "name": "Check watch",
+      "pass": true
+    },
+    {
+      "name": "Crouch",
+      "pass": true
+    },
+    {
+      "name": "pointer and keyboard move the same reusable portal",
+      "pass": true
+    },
+    {
+      "name": "portal A reversible flow and visible occlusion",
+      "pass": true
+    },
+    {
+      "name": "portal B reversible flow and visible occlusion",
+      "pass": true
+    },
+    {
+      "name": "pause and reset recover the visible rabbit",
+      "pass": true
+    },
+    {
+      "name": "small viewport and reduced-motion trips remain usable",
+      "pass": true
+    }
+  ],
+  "console_errors": [],
+  "real_deployed_app": true,
+  "model_calls": 0,
+  "visual_approval": false
+}

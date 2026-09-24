@@ -1,0 +1,111 @@
+{
+  "verified_at": "2026-09-23T15:27:39.286556+00:00",
+  "pass": true,
+  "seed_matches_original_visible_pixels_and_alpha": true,
+  "frame_size": [
+    512,
+    512
+  ],
+  "distinct_run_frames": 8,
+  "run_ink_bounds": [
+    [
+      140,
+      128,
+      392,
+      408
+    ],
+    [
+      158,
+      152,
+      368,
+      408
+    ],
+    [
+      140,
+      124,
+      374,
+      400
+    ],
+    [
+      142,
+      116,
+      400,
+      388
+    ],
+    [
+      146,
+      120,
+      406,
+      408
+    ],
+    [
+      164,
+      146,
+      370,
+      408
+    ],
+    [
+      136,
+      122,
+      368,
+      382
+    ],
+    [
+      136,
+      142,
+      392,
+      398
+    ]
+  ],
+  "stance_baseline_y": 408,
+  "transparent_ink_only": true,
+  "strip_matches_individual_frames": true,
+  "encoded_previews": {
+    "gif": {
+      "frames": 8,
+      "durations_ms": [
+        80,
+        70,
+        80,
+        80,
+        70,
+        80,
+        80,
+        80
+      ],
+      "cycle_ms": 620,
+      "loop": "infinite",
+      "pixels_match_normalized_frames": true
+    },
+    "webp": {
+      "frames": 8,
+      "durations_ms": [
+        77,
+        77,
+        77,
+        77,
+        77,
+        77,
+        77,
+        77
+      ],
+      "cycle_ms": 616,
+      "loop": "infinite",
+      "pixels_match_normalized_frames": true
+    }
+  },
+  "turnaround_views": [
+    "front",
+    "back",
+    "left",
+    "right"
+  ],
+  "mirroring": false,
+  "source_hashes_match_manifest": true,
+  "browser_verification": "browser-verification.json",
+  "visual_approval": "pending user review",
+  "limits": [
+    "In-place preview does not verify foot sliding against world travel.",
+    "Turnaround includes proposed unseen views and costume details."
+  ]
+}

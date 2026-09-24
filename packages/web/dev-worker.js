@@ -3,6 +3,10 @@ import { repositoriesFetch, repositoryIdentity, repositoryApp } from '../control
 export { RepositoryImports } from '../control-plane/src/repositories.js';
 export { LearnScenes } from '../control-plane/src/learn-scene.js';
 import SHELL from './dist-dev/index.html';
+import LANDING from './dist-dev/design/rabbit-hole-hero.html';
+import BLOG from './dist-dev/design/rabbit-hole-blog.html';
+import FEATURES from './dist-dev/design/rabbit-hole-features.html';
+import PRICING from './dist-dev/design/rabbit-hole-pricing.html';
 import { byocFetch } from '../control-plane/src/byoc.js';
 import apiCode from '../byoc/api.py';
 import signerCode from '../byoc/signer.py';
@@ -19,6 +23,10 @@ export { LearnVideos } from '../control-plane/src/learn-video.js';
 export default {
   async fetch(req, env, ctx) {
     const path = new URL(req.url).pathname;
+    const publicPage = {'/': LANDING, '/blog': BLOG, '/features': FEATURES, '/pricing': PRICING}[path.replace(/\/$/, '') || '/'];
+    if (typeof publicPage === 'string') return new Response(publicPage, {
+      headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
+    });
     if (path.startsWith('/api/repositories')) return repositoriesFetch(req, env, ctx);
     if (path === '/api/apps' && req.method === 'GET') {
       const catalog = await repositoryIdentity(req, env);
@@ -139,7 +147,7 @@ export default {
         headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
       });
     }
-    if (path.startsWith('/static/') || path.startsWith('/audio/') || path.startsWith('/lesson-assets/') || path === '/favicon.svg' || path.startsWith('/icon-') || path === '/apple-touch-icon.png') {
+    if (path.startsWith('/static/') || path.startsWith('/audio/') || path.startsWith('/lesson-assets/') || path.startsWith('/mascot/') || path.startsWith('/landing/') || path === '/favicon.svg' || path.startsWith('/icon-') || path === '/apple-touch-icon.png') {
       return env.ASSETS.fetch(req);
     }
     // Keep the dev request URL so sign-in links and cookies stay on the dev host.

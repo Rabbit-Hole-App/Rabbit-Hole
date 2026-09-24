@@ -1,0 +1,177 @@
+
+  :root{
+    --fg:#0A0A0A;                        /* crisp near-black, not the old muddy grey */
+    --muted:rgba(10,10,10,.56);
+    --hair:rgba(10,10,10,.08);
+    --paper:#FFFFFF;
+    --ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+    /* working choice — the six candidates are in headline-font-candidates.html */
+    --display:"Space Grotesk","Inter",sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{overflow-y:scroll}
+  /* no overflow-x here: it would make <body> a scroll container and kill the
+     sticky shaft below */
+  /* No fixed body height: the hero reserves its scroll with a spacer in normal flow and
+     the page below it flows, so adding a section cannot desync the two. */
+  body{background:var(--paper);font-family:var(--ui);color:var(--fg);
+       -webkit-font-smoothing:antialiased;width:100%;position:relative}
+  #spacer{height:1740px}
+
+  /* ---- hero shaft: you are falling down it. The title is drawn into the canvas, so
+     there is no overlay element and nothing that can lag behind the scroll. ---- */
+  /* as tall as the page, so the canvas stays stuck for the whole descent */
+  #shaft-track{position:absolute;left:0;top:0;width:100%;height:1740px}
+  /* full viewport height so the mouth sits dead centre of the page. svh, not vh: on
+     phones vh is the *largest* viewport, so with the URL bar showing the canvas would
+     hang below the fold and the hole would sit off-centre. */
+  #shaft{position:sticky;top:0;width:100%;height:100vh;height:100svh;display:block;
+         image-rendering:pixelated}
+  @media (prefers-reduced-motion:reduce){ #shaft{position:absolute} }
+
+  /* ---- floating glass bar: arrives once the shaft lets go, leaves on the way up ---- */
+  #bar{position:fixed;left:50%;top:18px;z-index:20;
+       display:flex;align-items:center;gap:6px;
+       padding:7px 7px 7px 20px;border-radius:999px;
+       /* Solid white, not translucent. A glass pill takes its tone from whatever is
+          behind it, and over the black hero that turned it grey. */
+       background:#FFFFFF;
+       border:1px solid var(--hair);
+       box-shadow:0 1px 2px rgba(10,10,10,.05), 0 14px 36px rgba(10,10,10,.14);
+       transform:translate(-50%,calc(-100% - 18px));opacity:0;pointer-events:none;
+       transition:transform .42s cubic-bezier(.22,.61,.36,1),opacity .3s ease}
+  #bar.on{transform:translate(-50%,0);opacity:1;pointer-events:auto}
+  #bar .brand{font:600 16px/1 var(--display);letter-spacing:-.015em;
+              color:var(--fg);margin-right:22px;white-space:nowrap}
+  #bar a{font:500 14.5px/1 var(--ui);letter-spacing:-.005em;color:var(--muted);
+         text-decoration:none;padding:9px 14px;border-radius:999px;
+         transition:color .18s ease,background .18s ease}
+  #bar a:hover{color:var(--fg);background:rgba(10,10,10,.05)}
+  #bar .cta{margin-left:14px;background:var(--fg);color:#fff;padding:9px 18px}
+  #bar .cta:hover{background:#000;color:#fff}
+
+  /* hamburger + sheet: phones only, hidden outright on desktop */
+  #menu{display:none;margin-left:10px;width:40px;height:40px;flex:none;
+        align-items:center;justify-content:center;gap:5px;flex-direction:column;
+        background:none;border:1px solid var(--hair);border-radius:12px;cursor:pointer;
+        -webkit-tap-highlight-color:transparent}
+  #menu i{display:block;width:16px;height:1.5px;background:var(--fg);border-radius:2px;
+          transition:transform .26s cubic-bezier(.22,.61,.36,1),opacity .18s ease}
+  #menu[aria-expanded="true"] i:nth-child(1){transform:translateY(3.25px) rotate(45deg)}
+  #menu[aria-expanded="true"] i:nth-child(2){transform:translateY(-3.25px) rotate(-45deg)}
+  #sheet{display:none}
+  @media (prefers-reduced-motion:reduce){ #bar,#bar a{transition:none} }
+
+  /* ---- what you scroll into once you are through the hole ---- */
+  #below{position:relative;width:100%;padding:150px 40px 0}
+  #below section{max-width:1080px;margin:0 auto 150px}
+  #below h2{font:600 68px/.95 var(--display);letter-spacing:-.035em;margin-bottom:18px}
+  #below .lede{font:400 18px/1.55 var(--ui);color:var(--muted);max-width:620px}
+
+  /* blog: a list that responds to the pointer */
+  .rows{margin-top:48px;border-top:1px solid var(--hair)}
+  .row{display:flex;align-items:baseline;gap:28px;padding:24px 4px;
+       border-bottom:1px solid var(--hair);font:400 16.5px/1.45 var(--ui);
+       transition:background .18s ease,padding-left .18s ease}
+  a.row{color:inherit;text-decoration:none}
+  .row:hover{background:rgba(10,10,10,.025);padding-left:12px}
+  .row .meta{width:96px;color:var(--muted);flex:none;font-variant-numeric:tabular-nums}
+  .row .arrow{margin-left:auto;color:var(--muted);opacity:0;transition:opacity .18s ease}
+  .row:hover .arrow{opacity:1}
+
+  /* features: cards */
+  .cards{margin-top:52px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .card{border:1px solid var(--hair);border-radius:18px;padding:28px 26px 30px;
+        background:#fff;transition:box-shadow .2s ease,transform .2s ease}
+  .card:hover{box-shadow:0 10px 34px rgba(10,10,10,.08);transform:translateY(-2px)}
+  .card .n{font:500 13px/1 var(--ui);color:var(--muted);letter-spacing:.04em}
+  .card h3{font:600 21px/1.25 var(--ui);letter-spacing:-.015em;margin:16px 0 8px}
+  .card p{font:400 15.5px/1.5 var(--ui);color:var(--muted)}
+
+  /* pricing: three tiers, the middle one carries the weight */
+  .tiers{margin-top:52px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .tier{border:1px solid var(--hair);border-radius:20px;padding:30px 28px 32px;
+        display:flex;flex-direction:column}
+  .tier.hero-tier{background:var(--fg);border-color:var(--fg);color:#fff}
+  .tier .name{font:500 14px/1 var(--ui);letter-spacing:.04em;text-transform:uppercase;
+              color:var(--muted)}
+  .tier.hero-tier .name{color:rgba(255,255,255,.62)}
+  .tier .price{font:600 46px/1 var(--display);letter-spacing:-.03em;margin:18px 0 6px}
+  .tier .per{font:400 14.5px/1 var(--ui);color:var(--muted);margin-bottom:24px}
+  .tier.hero-tier .per{color:rgba(255,255,255,.62)}
+  .tier ul{list-style:none;margin-bottom:28px}
+  .tier li{font:400 15.5px/1.6 var(--ui);color:var(--muted);
+           padding-left:20px;position:relative}
+  .tier li::before{content:"";position:absolute;left:4px;top:.62em;
+                   width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.5}
+  .tier.hero-tier li{color:rgba(255,255,255,.76)}
+  .tier .pick{margin-top:auto;text-align:center;text-decoration:none;
+              font:500 15px/1 var(--ui);padding:13px 18px;border-radius:999px;
+              border:1px solid var(--hair);color:var(--fg);
+              transition:background .18s ease}
+  .tier .pick:hover{background:rgba(10,10,10,.05)}
+  .tier.hero-tier .pick{background:#fff;border-color:#fff;color:var(--fg)}
+
+
+  footer{border-top:1px solid var(--hair);padding:36px 40px 44px;
+         display:flex;align-items:center;gap:20px;
+         font:400 14.5px/1 var(--ui);color:var(--muted)}
+  footer .brand{font:600 15px/1 var(--display);color:var(--fg);margin-right:auto}
+
+  @media (max-width:900px){
+    .cards,.tiers{grid-template-columns:1fr}
+    #below h2{font-size:44px}
+  }
+
+  /* ---- phones ---- */
+  @media (max-width:700px){
+    /* The pill spans the width and drops the links. A full nav will not fit legibly at
+       this size; a menu button is the next step and is deliberately not built yet. */
+    #bar{left:12px;right:12px;top:12px;transform:translateY(calc(-100% - 12px));
+         padding:8px 8px 8px 16px;border-radius:18px;gap:0}
+    #bar.on{transform:translateY(0)}
+    #bar .brand{font-size:15px;margin-right:auto}
+    #bar a:not(.cta):not(.brand){display:none}
+    #bar .cta{margin-left:0;padding:10px 16px;font-size:14px}
+    #menu{display:flex}
+
+    /* The links live in a sheet under the bar. It rides with the bar, so it is pinned
+       the same way and closes whenever the bar leaves. */
+    #sheet{display:flex;position:fixed;left:12px;right:12px;top:74px;z-index:19;
+           flex-direction:column;padding:8px;
+           background:#FFFFFF;border:1px solid var(--hair);border-radius:18px;
+           box-shadow:0 1px 2px rgba(10,10,10,.05), 0 18px 44px rgba(10,10,10,.18);
+           transform:translateY(-10px);opacity:0;pointer-events:none;
+           transition:transform .26s cubic-bezier(.22,.61,.36,1),opacity .2s ease}
+    #sheet.open{transform:none;opacity:1;pointer-events:auto}
+    #sheet a{padding:14px 16px;border-radius:12px;text-decoration:none;
+             font:500 16.5px/1 var(--ui);color:var(--fg)}
+    #sheet a:active{background:rgba(10,10,10,.06)}
+
+    #below{padding:96px 20px 0}
+    #below section{margin-bottom:96px}
+    #below h2{font-size:38px;letter-spacing:-.03em}
+    #below .lede{font-size:16.5px}
+    .rows{margin-top:32px}
+    .row{gap:14px;padding:18px 2px;font-size:15.5px;flex-wrap:wrap}
+    .row .meta{width:100%;font-size:13px}
+    .row .arrow{display:none}
+    .cards,.tiers{margin-top:32px;gap:14px}
+    .card{padding:22px 20px 24px;border-radius:16px}
+    .tier{padding:24px 22px 26px;border-radius:18px}
+    .tier .price{font-size:38px}
+    footer{flex-wrap:wrap;gap:8px;padding:28px 20px 36px;font-size:13.5px}
+    footer .brand{width:100%;margin-right:0;margin-bottom:4px}
+  }
+
+
+
+
+/* Shared content pages retain the landing typography and navigation. */
+.content-page #below{min-height:calc(100svh - 120px);padding-top:170px}
+.content-page #below section{margin-bottom:100px}
+.content-page #below h1{font:600 68px/.95 var(--display);letter-spacing:-.035em;margin-bottom:18px}
+#bar a[aria-current=page]{color:var(--fg);background:rgba(10,10,10,.05)}
+#bar .brand{text-decoration:none;padding:0}
+#sheet[inert]{visibility:hidden}
+@media(max-width:700px){.content-page #below{padding-top:140px}.content-page #below h1{font-size:38px}}

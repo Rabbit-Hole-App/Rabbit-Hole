@@ -1125,22 +1125,93 @@ From `packages/web`, in PowerShell:
 ```powershell
 $env:VITE_COACHING_DEV = 'true'
 $env:VITE_BYOC_DEV = 'true'
-$env:VITE_TLDRAW_LICENSE_KEY = node --input-type=module -e "import {readFileSync} from 'node:fs'; import {parseEnv} from 'node:util'; const key = parseEnv(readFileSync('../../.env', 'utf8')).TLDRAW_LICENSE_KEY; if (!key) throw new Error('Missing TLDRAW_LICENSE_KEY'); process.stdout.write(key);"
-if ($LASTEXITCODE -ne 0) { throw 'Cannot build dev without the tldraw license' }
-npm run build -- --outDir dist-dev
-Remove-Item Env:VITE_COACHING_DEV
-Remove-Item Env:VITE_BYOC_DEV
-Remove-Item Env:VITE_TLDRAW_LICENSE_KEY
-npx wrangler deploy --config wrangler.dev.jsonc
+$devLicenseLine = [IO.File]::ReadAllLines((Resolve-Path ../../.env)) | Where-Object { $_.StartsWith('TLDRAW_LICENSE_KEY=') } | Select-Object -First 1
+if (-not $devLicenseLine) { throw 'Cannot build dev without the tldraw license' }
+$env:VITE_TLDRAW_LICENSE_KEY = $devLicenseLine.Substring('TLDRAW_LICENSE_KEY='.Length).Trim().Trim('"').Trim("'")
+try {
+  npm run build -- --outDir dist-dev
+  $devBuildResult = $LASTEXITCODE
+} finally {
+  Remove-Item Env:VITE_COACHING_DEV, Env:VITE_BYOC_DEV, Env:VITE_TLDRAW_LICENSE_KEY
+  Remove-Variable devLicenseLine
+}
+if ($devBuildResult -ne 0) { throw 'Dev build failed; do not deploy' }
+$devSessionName = Split-Path (Resolve-Path ../..) -Leaf
+npx wrangler deploy --config wrangler.dev.jsonc --name "small-cp-dev-$devSessionName"
 ```
 
 Stop if the build fails. The separate `dist-dev` output leaves the live `dist`
-artifact untouched. `wrangler.dev.jsonc` deploys only `small-cp-dev`; live deploys
-continue using the existing control-plane configuration.
+artifact untouched. Follow [parallel dev deployments](parallel-dev-deploys.md):
+the explicit name deploys this worktree's clone, never the shared dev worker.
+Live deploys continue using the existing control-plane configuration.
 Keep both flags enabled for the dev build so a Coaching UI deployment also
 preserves the approved AWS app integration. Default builds disable both previews.
 
+On a fresh worktree without `dist/index.html`, create that local default build
+once before setting the dev flags. The dev worker's imported control-plane module
+still resolves the production shell even though dev pages use `dist-dev/index.html`.
+Building the missing local artifact does not deploy it. Do not replace an existing
+live build merely to prepare a dev deployment.
+
 ## Release and verification
+
+### Rabbit removed from landing — session clone, 2026-09-24
+
+At the user's request, version `222410fb-f94c-4f92-9c26-c01caf981380` of
+`small-cp-dev-smart-landing-page` removes the rabbit, A/B portal interaction,
+controls and reserved scroll region. The original hero, pink clouds and separate
+Blog, Features and Pricing pages remain. Cloud controls now load independently
+from the retired mascot entry. Both dev flags remain enabled.
+
+Deployed Chrome verification confirmed the rabbit/portal DOM is absent, no
+mascot assets are requested, cloud pause/resume works, mobile reduced motion
+works without horizontal overflow, and all three public navigation links work.
+Desktop/mobile screenshots were inspected; zero page errors. Evidence:
+`tmp/rabbit-mascot/removal-verification.json`. No shared-worker or live deployment.
+
+### Landing-only scroll mascot and public pages — session clone, 2026-09-23
+
+Clone `small-cp-dev-smart-landing-page`, version
+`450b3b20-64e0-45df-8462-93bd4c095b9e`, serves the Rabbit Hole landing at `/`,
+with separate `/blog`, `/features` and `/pricing` pages. The user's explicit
+landing-only direction supersedes the earlier Mascot app-tab placement; both
+regular and repository app interfaces retain their original tabs. Both dev flags
+remain enabled. The shared worker, live installation and databases were not changed.
+
+The landing includes a front-facing mascot, scroll-reversible upper/lower vertical
+page portals, runtime portal placement and the exact requested TypeSafe cloud.
+Seven controller tests and 16 deployed Chrome scenarios passed, with zero page
+errors and no model calls. Checks exercised actual wheel input in both directions,
+partial reversals, held poses, rim occlusion, pointer/keyboard positioning, living
+gestures, mobile/reduced motion, cloud pixels, page navigation/reload and absence
+from both app interfaces. Screenshots were visually inspected. Evidence:
+`packages/web/design/rabbit-character/living-08/qa/scroll-portals/browser-verification.json`.
+The portal effect remains an MVP for user visual review; no final art approval is inferred.
+
+### Living mascot prototype — previous app placement, 2026-09-23
+
+Superseded by the user's landing-only correction. The app tabs described below
+are removed. Current implementation and scroll-portal verification are recorded in
+[the living mascot specification](rabbit-living-mascot.md). The landing and its
+Blog, Features and Pricing pages are separate Vite entries in regular dev builds;
+private BYOC and production app builds retain their existing entry points.
+
+`small-cp-dev-smart-landing-page`, version `339ab997-ea8e-477e-a401-52b0deea6cc5`,
+adds a dev-only **Mascot** tab alongside the existing app tabs. Both preview flags
+remain enabled. It uses the shared enlarged app layout and existing buttons;
+`/mascot/` artwork is served by the dev asset binding. Existing Graph, Runbook,
+Logs and Learn flows remain available. Leaving Mascot retains the chosen app tab.
+
+The [living mascot milestone](rabbit-living-mascot.md) includes five actions and
+movable reversible page portals. Six controller tests and 11 real deployed Chrome
+scenarios passed, including the existing counter app's navigation, all actions,
+both portal directions, moved exit during hidden transfer, pause/reset, keyboard
+and pointer dragging, mobile layout and reduced motion. No model calls, mocks,
+database migrations, shared-worker or live deployments were used. Browser evidence:
+`packages/web/design/rabbit-character/living-08/qa/browser-verification.json`.
+Visual character approval remains pending; Pass 04 is explicitly temporary.
+
+### Previous releases
 
 Private dev `0.1.0-dev.3` and live `0.1.0-pilot.6.2` enable the existing Logs and
 Agent chat composers. Both reached `UPDATE_COMPLETE`; nine dev and eight live

@@ -1,0 +1,18 @@
+{
+  "character-seed.png": "6a161e3773313fd644f3382275003c6d1fb4c72acb6bdad407c0cee644f51092",
+  "proportions.json": "3a8025568b9c14c600c7c85e02823ce04437e90e866f54c5fcc735e87e3b2649",
+  "canonical-proportion-sheet.png": "249701a611f61ed5e0cbece4661cfa8696d2b11c354bc0bfbeda51aa2b635fd3",
+  "turnaround-sheet.png": "81cbfafd503d66e9e74e88f678a4b9a307947f0771e1552e00df47db7844ca88",
+  "turnaround-8-view-sheet.png": "9165e2875c46235a7aac319efba182adf93eec27bee644980a9fe65367c3065e",
+  "run-strip.png": "911d73d672b0a285078eeb31eabb81316d92680d1e2d76c73c9cfd002523ac28",
+  "generated/run-source-sheet.png": "9f3d59530d3e611aae50cf488f084c5bb54cbb2c2a084385e99a5bab243f7cec",
+  "motion/run_right/guide-04/joint-data.json": "6908369926d2bc3ac7cf73b0bdfbcc00ad2cd01d7a212409c633a5a154670d48",
+  "turnaround/back.png": "3cc07772b433042ba081a59d2ba13df1ffe5b0046599ca894c3f7876114c207b",
+  "turnaround/back_left.png": "2792d591046ecf32f07966f9d85858ef0eae7e5b90a70d62b5e6159f3c6f4dd6",
+  "turnaround/back_right.png": "f17b251ed95078c857e9574f10789239e8a07d67eb3faa0206d03c3713752f19",
+  "turnaround/front.png": "93a49cba47faea3d53c33e8b7faa92b08060f4248e67ae44854bf8a08d62fedf",
+  "turnaround/front_left.png": "50219fd6e35bc6c3c353f8fa08006bf91451aa18898b7075fb5420b840a2c40a",
+  "turnaround/front_right.png": "93fafb8175cf68dd87614c0da690aa2d69c32be134bbdee69a76ecd0c6d8c942",
+  "turnaround/left.png": "036b52ed6889fbf9a9e9b8207efef1abde5f9a913891c02f6bbd87a22d529f3f",
+  "turnaround/right.png": "24c9a9b676558d3ab5e6a440a208b7e1e7f3f2ddf571aa20121d03a0e44b5333"
+}

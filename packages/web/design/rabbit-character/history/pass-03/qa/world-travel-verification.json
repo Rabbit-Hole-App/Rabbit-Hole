@@ -1,0 +1,1073 @@
+{
+  "tested_at": "2026-09-23T17:18:55.427Z",
+  "browser": "Chrome/152.0.7977.83",
+  "environment": "isolated Chrome, local artifact QA; no application runtime added",
+  "fps": 13,
+  "display_scale": 0.375,
+  "live_raf_ticks": 74,
+  "live_pose_frames": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "linear_world_travel": true,
+  "root_moves_during_held_sprite_frame": true,
+  "fixed_ground_baselines": true,
+  "camera_motion": false,
+  "root_correction_per_frame": false,
+  "test_speeds": [
+    {
+      "fps": 13,
+      "speed_ratio": 0.8,
+      "speed_source_px_s": 988,
+      "frames": [
+        {
+          "seconds": 0.038461538461538464,
+          "speed": 988,
+          "fps": 13,
+          "frame": 1,
+          "root_x": 184.25,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 1,
+              "root_x": 184.25,
+              "foot_x": 229.625,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 1,
+              "root_x": 184.25,
+              "foot_x": 235.625,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.11538461538461539,
+          "speed": 988,
+          "fps": 13,
+          "frame": 2,
+          "root_x": 212.75,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 2,
+              "root_x": 212.75,
+              "foot_x": 228.125,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 2,
+              "root_x": 212.75,
+              "foot_x": 228.125,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.19230769230769232,
+          "speed": 988,
+          "fps": 13,
+          "frame": 3,
+          "root_x": 241.25,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 3,
+              "root_x": 241.25,
+              "foot_x": 211.625,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 3,
+              "root_x": 241.25,
+              "foot_x": 220.625,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.2692307692307692,
+          "speed": 988,
+          "fps": 13,
+          "frame": 4,
+          "root_x": 269.75,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 4,
+              "root_x": 269.75,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 4,
+              "root_x": 269.75,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.34615384615384615,
+          "speed": 988,
+          "fps": 13,
+          "frame": 5,
+          "root_x": 298.25,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 5,
+              "root_x": 298.25,
+              "foot_x": 345.875,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 5,
+              "root_x": 298.25,
+              "foot_x": 347.375,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.4230769230769231,
+          "speed": 988,
+          "fps": 13,
+          "frame": 6,
+          "root_x": 326.75,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 6,
+              "root_x": 326.75,
+              "foot_x": 340.625,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 6,
+              "root_x": 326.75,
+              "foot_x": 336.875,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.5,
+          "speed": 988,
+          "fps": 13,
+          "frame": 7,
+          "root_x": 355.25,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 7,
+              "root_x": 355.25,
+              "foot_x": 318.125,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 7,
+              "root_x": 355.25,
+              "foot_x": 333.875,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.5769230769230769,
+          "speed": 988,
+          "fps": 13,
+          "frame": 8,
+          "root_x": 383.75,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 8,
+              "root_x": 383.75,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 8,
+              "root_x": 383.75,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 600
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fps": 13,
+      "speed_ratio": 1,
+      "speed_source_px_s": 1235,
+      "frames": [
+        {
+          "seconds": 0.038461538461538464,
+          "speed": 1235,
+          "fps": 13,
+          "frame": 1,
+          "root_x": 187.8125,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 1,
+              "root_x": 187.8125,
+              "foot_x": 233.1875,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 1,
+              "root_x": 187.8125,
+              "foot_x": 239.1875,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.11538461538461539,
+          "speed": 1235,
+          "fps": 13,
+          "frame": 2,
+          "root_x": 223.4375,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 2,
+              "root_x": 223.4375,
+              "foot_x": 238.8125,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 2,
+              "root_x": 223.4375,
+              "foot_x": 238.8125,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.19230769230769232,
+          "speed": 1235,
+          "fps": 13,
+          "frame": 3,
+          "root_x": 259.0625,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 3,
+              "root_x": 259.0625,
+              "foot_x": 229.4375,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 3,
+              "root_x": 259.0625,
+              "foot_x": 238.4375,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.2692307692307692,
+          "speed": 1235,
+          "fps": 13,
+          "frame": 4,
+          "root_x": 294.6875,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 4,
+              "root_x": 294.6875,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 4,
+              "root_x": 294.6875,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.34615384615384615,
+          "speed": 1235,
+          "fps": 13,
+          "frame": 5,
+          "root_x": 330.3125,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 5,
+              "root_x": 330.3125,
+              "foot_x": 377.9375,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 5,
+              "root_x": 330.3125,
+              "foot_x": 379.4375,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.4230769230769231,
+          "speed": 1235,
+          "fps": 13,
+          "frame": 6,
+          "root_x": 365.9375,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 6,
+              "root_x": 365.9375,
+              "foot_x": 379.8125,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 6,
+              "root_x": 365.9375,
+              "foot_x": 376.0625,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.5,
+          "speed": 1235,
+          "fps": 13,
+          "frame": 7,
+          "root_x": 401.5625,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 7,
+              "root_x": 401.5625,
+              "foot_x": 364.4375,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 7,
+              "root_x": 401.5625,
+              "foot_x": 380.1875,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.5769230769230769,
+          "speed": 1235,
+          "fps": 13,
+          "frame": 8,
+          "root_x": 437.18749999999994,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 8,
+              "root_x": 437.18749999999994,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 8,
+              "root_x": 437.18749999999994,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 600
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fps": 13,
+      "speed_ratio": 1.2,
+      "speed_source_px_s": 1482,
+      "frames": [
+        {
+          "seconds": 0.038461538461538464,
+          "speed": 1482,
+          "fps": 13,
+          "frame": 1,
+          "root_x": 191.375,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 1,
+              "root_x": 191.375,
+              "foot_x": 236.75,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 1,
+              "root_x": 191.375,
+              "foot_x": 242.75,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.11538461538461539,
+          "speed": 1482,
+          "fps": 13,
+          "frame": 2,
+          "root_x": 234.125,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 2,
+              "root_x": 234.125,
+              "foot_x": 249.5,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 2,
+              "root_x": 234.125,
+              "foot_x": 249.5,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.19230769230769232,
+          "speed": 1482,
+          "fps": 13,
+          "frame": 3,
+          "root_x": 276.875,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 3,
+              "root_x": 276.875,
+              "foot_x": 247.25,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 3,
+              "root_x": 276.875,
+              "foot_x": 256.25,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.2692307692307692,
+          "speed": 1482,
+          "fps": 13,
+          "frame": 4,
+          "root_x": 319.625,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 4,
+              "root_x": 319.625,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 4,
+              "root_x": 319.625,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.34615384615384615,
+          "speed": 1482,
+          "fps": 13,
+          "frame": 5,
+          "root_x": 362.375,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 5,
+              "root_x": 362.375,
+              "foot_x": 410,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 5,
+              "root_x": 362.375,
+              "foot_x": 411.5,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.4230769230769231,
+          "speed": 1482,
+          "fps": 13,
+          "frame": 6,
+          "root_x": 405.125,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 6,
+              "root_x": 405.125,
+              "foot_x": 419,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 6,
+              "root_x": 405.125,
+              "foot_x": 415.25,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.5,
+          "speed": 1482,
+          "fps": 13,
+          "frame": 7,
+          "root_x": 447.875,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 7,
+              "root_x": 447.875,
+              "foot_x": 410.75,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 7,
+              "root_x": 447.875,
+              "foot_x": 426.5,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.5769230769230769,
+          "speed": 1482,
+          "fps": 13,
+          "frame": 8,
+          "root_x": 490.62499999999994,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 8,
+              "root_x": 490.62499999999994,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 8,
+              "root_x": 490.62499999999994,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 600
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fps": 11,
+      "speed_ratio": 1,
+      "speed_source_px_s": 1235,
+      "frames": [
+        {
+          "seconds": 0.045454545454545456,
+          "speed": 1235,
+          "fps": 11,
+          "frame": 1,
+          "root_x": 191.05113636363637,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 1,
+              "root_x": 191.05113636363637,
+              "foot_x": 236.42613636363637,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 1,
+              "root_x": 191.05113636363637,
+              "foot_x": 242.42613636363637,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.13636363636363635,
+          "speed": 1235,
+          "fps": 11,
+          "frame": 2,
+          "root_x": 233.1534090909091,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 2,
+              "root_x": 233.1534090909091,
+              "foot_x": 248.5284090909091,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 2,
+              "root_x": 233.1534090909091,
+              "foot_x": 248.5284090909091,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.22727272727272727,
+          "speed": 1235,
+          "fps": 11,
+          "frame": 3,
+          "root_x": 275.2556818181818,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 3,
+              "root_x": 275.2556818181818,
+              "foot_x": 245.6306818181818,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 3,
+              "root_x": 275.2556818181818,
+              "foot_x": 254.6306818181818,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.3181818181818182,
+          "speed": 1235,
+          "fps": 11,
+          "frame": 4,
+          "root_x": 317.3579545454545,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 4,
+              "root_x": 317.3579545454545,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 4,
+              "root_x": 317.3579545454545,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.4090909090909091,
+          "speed": 1235,
+          "fps": 11,
+          "frame": 5,
+          "root_x": 359.46022727272725,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 5,
+              "root_x": 359.46022727272725,
+              "foot_x": 407.08522727272725,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 5,
+              "root_x": 359.46022727272725,
+              "foot_x": 408.58522727272725,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.5,
+          "speed": 1235,
+          "fps": 11,
+          "frame": 6,
+          "root_x": 401.5625,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 6,
+              "root_x": 401.5625,
+              "foot_x": 415.4375,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 6,
+              "root_x": 401.5625,
+              "foot_x": 411.6875,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.5909090909090909,
+          "speed": 1235,
+          "fps": 11,
+          "frame": 7,
+          "root_x": 443.66477272727275,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 7,
+              "root_x": 443.66477272727275,
+              "foot_x": 406.53977272727275,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 7,
+              "root_x": 443.66477272727275,
+              "foot_x": 422.28977272727275,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.6818181818181818,
+          "speed": 1235,
+          "fps": 11,
+          "frame": 8,
+          "root_x": 485.76704545454544,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 8,
+              "root_x": 485.76704545454544,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 8,
+              "root_x": 485.76704545454544,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 600
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "fps": 15,
+      "speed_ratio": 1,
+      "speed_source_px_s": 1235,
+      "frames": [
+        {
+          "seconds": 0.03333333333333333,
+          "speed": 1235,
+          "fps": 15,
+          "frame": 1,
+          "root_x": 185.4375,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 1,
+              "root_x": 185.4375,
+              "foot_x": 230.8125,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 1,
+              "root_x": 185.4375,
+              "foot_x": 236.8125,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.1,
+          "speed": 1235,
+          "fps": 15,
+          "frame": 2,
+          "root_x": 216.3125,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 2,
+              "root_x": 216.3125,
+              "foot_x": 231.6875,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 2,
+              "root_x": 216.3125,
+              "foot_x": 231.6875,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.16666666666666666,
+          "speed": 1235,
+          "fps": 15,
+          "frame": 3,
+          "root_x": 247.1875,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 3,
+              "root_x": 247.1875,
+              "foot_x": 217.5625,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 3,
+              "root_x": 247.1875,
+              "foot_x": 226.5625,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.23333333333333334,
+          "speed": 1235,
+          "fps": 15,
+          "frame": 4,
+          "root_x": 278.0625,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 4,
+              "root_x": 278.0625,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 4,
+              "root_x": 278.0625,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.3,
+          "speed": 1235,
+          "fps": 15,
+          "frame": 5,
+          "root_x": 308.9375,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 5,
+              "root_x": 308.9375,
+              "foot_x": 356.5625,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 5,
+              "root_x": 308.9375,
+              "foot_x": 358.0625,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.36666666666666664,
+          "speed": 1235,
+          "fps": 15,
+          "frame": 6,
+          "root_x": 339.8125,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 6,
+              "root_x": 339.8125,
+              "foot_x": 353.6875,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 6,
+              "root_x": 339.8125,
+              "foot_x": 349.9375,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.43333333333333335,
+          "speed": 1235,
+          "fps": 15,
+          "frame": 7,
+          "root_x": 370.6875,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 7,
+              "root_x": 370.6875,
+              "foot_x": 333.5625,
+              "foot_y": 298.875,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 7,
+              "root_x": 370.6875,
+              "foot_x": 349.3125,
+              "foot_y": 598.875,
+              "baseline": 600
+            }
+          ]
+        },
+        {
+          "seconds": 0.5,
+          "speed": 1235,
+          "fps": 15,
+          "frame": 8,
+          "root_x": 401.5625,
+          "measurements": [
+            {
+              "row": 0,
+              "frame": 8,
+              "root_x": 401.5625,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 300
+            },
+            {
+              "row": 1,
+              "frame": 8,
+              "root_x": 401.5625,
+              "foot_x": null,
+              "foot_y": null,
+              "baseline": 600
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "captures": {
+    "count": 64,
+    "sampling_fps": 52,
+    "cycles": 2,
+    "directory": "tmp\\rabbit-mascot\\world-captures"
+  },
+  "source_sha256": "7f2d961f409de0937934d9d9a52ecc3ca9b1db29119bc41ce279fc568ec4489d",
+  "console_errors": [],
+  "pass": true,
+  "visual_quality_approved": false,
+  "limits": [
+    "Passing validates the travel fixture; measured and visible foot sliding are assessed separately."
+  ]
+}

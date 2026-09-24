@@ -24,7 +24,19 @@ const proxy = process.env.VITE_PRIVATE_BYOC === 'true' ? undefined
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   // /assets/* is cache-poisoned on workers.dev (stale edge entries that outlive deploys); /static is virgin
-  build: { assetsDir: 'static' },
+  build: {
+    assetsDir: 'static',
+    // The existing Rabbit Hole landing belongs to the regular dev preview only.
+    ...(process.env.VITE_COACHING_DEV === 'true' && process.env.VITE_PRIVATE_BYOC !== 'true' ? {
+      rolldownOptions: { input: {
+        app: fileURLToPath(new URL('./index.html', import.meta.url)),
+        landing: fileURLToPath(new URL('./design/rabbit-hole-hero.html', import.meta.url)),
+        blog: fileURLToPath(new URL('./design/rabbit-hole-blog.html', import.meta.url)),
+        features: fileURLToPath(new URL('./design/rabbit-hole-features.html', import.meta.url)),
+        pricing: fileURLToPath(new URL('./design/rabbit-hole-pricing.html', import.meta.url)),
+      } },
+    } : {}),
+  },
   server: { proxy },
   preview: { proxy }, // `vite preview` = production bundle against the same control plane
 });

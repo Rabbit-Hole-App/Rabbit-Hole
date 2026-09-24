@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pricing — Rabbit Hole</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./rabbit-hole.css">
+</head>
+<body class="content-page">
+<header id="bar" class="on">
+  <a class="brand" href="/" aria-label="Rabbit Hole home">Rabbit Hole</a>
+  <a href="/blog">Blog</a>
+  <a href="/features">Features</a>
+  <a href="/pricing" aria-current="page">Pricing</a>
+  <a class="cta" href="/apps">Get started</a>
+  <button id="menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="sheet">
+    <i></i><i></i>
+  </button>
+</header>
+
+<nav id="sheet" aria-label="Sections">
+  <a href="/blog">Blog</a>
+  <a href="/features">Features</a>
+  <a href="/pricing" aria-current="page">Pricing</a>
+</nav>
+<main id="below">
+  <section id="pricing">
+    <h1>Pricing</h1>
+    <p class="lede">Placeholder tiers. Numbers are invented.</p>
+    <div class="tiers">
+      <div class="tier">
+        <div class="name">Free</div>
+        <div class="price">$0</div>
+        <div class="per">forever</div>
+        <ul><li>Enough to get lost</li><li>Three threads a day</li><li>Community support</li></ul>
+        <a class="pick" href="#">Start free</a>
+      </div>
+      <div class="tier hero-tier">
+        <div class="name">Pro</div>
+        <div class="price">$12</div>
+        <div class="per">per month</div>
+        <ul><li>Unlimited threads</li><li>Saved paths and history</li><li>Priority support</li></ul>
+        <a class="pick" href="#">Get Pro</a>
+      </div>
+      <div class="tier">
+        <div class="name">Team</div>
+        <div class="price">$40</div>
+        <div class="per">per month</div>
+        <ul><li>Everyone down the same hole</li><li>Shared threads</li><li>Admin and billing</li></ul>
+        <a class="pick" href="#">Talk to us</a>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  <span class="brand">Rabbit Hole</span>
+  <span>Knowledge is infinite.</span>
+  <span>© 2026</span>
+</footer>
+<script type="module" src="../src/landing/navigation.js"></script>
+</body>
+</html>

@@ -1,7 +1,22 @@
 # Rabbit Hole — landing page
 
-Design exploration for the Rabbit Hole landing page. Open the HTML files directly
-in a browser; they are standalone, like the other files in this folder.
+The rabbit and its portal interaction were removed at the user's request on
+2026-09-24. The landing is served at the root of this worktree's dev clone:
+https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/
+Use Vite to serve/build the HTML. The landing no longer mounts or loads the mascot
+renderer; it is also absent from the regular and repository app interfaces.
+The hero, navigation and footer are preserved. Blog, Features and
+Pricing retain their content and shared styles on `/blog`, `/features`, `/pricing`.
+These are independent public HTML entries with direct navigation and reload.
+
+The user also requested the exact pink cloud from [TypeSafe](https://typesafe.ai/).
+The original GIF is served locally as `public/landing/typesafe-pink-cloud.gif`,
+unmodified, in a full-width band after the hero. Its source
+URL, dimensions, frame count and SHA-256 are in `typesafe-cloud-source.json`.
+A pause button and reduced-motion preference show an unchanged decoded PNG
+(frame 60). The blank first GIF frame is not used as a still.
+
+## Earlier design notes
 
 - `rabbit-hole-hero.html` — the hero: a shaft you fall down, with the title over it.
   No nav or buttons yet.
@@ -10,7 +25,8 @@ in a browser; they are standalone, like the other files in this folder.
   layout can be seen without a device. Serve the folder over HTTP; the frames are
   same-origin and get scrolled from the parent.
 
-Nothing here is wired into the app. The mount point is still undecided.
+The notes below describe the original exploration. The landing root above is now
+the chosen mount; it deliberately does not appear as a tab inside the app.
 
 ## The page below the hole
 
@@ -87,7 +103,7 @@ Hard-won specifics, all measured off the photo rather than eyeballed:
 - The face is deliberately untouched — painted eye/mouth marks were tried and merged
   with the photo's darks into a blotch.
 
-### Animation
+### Original animation (superseded by the living mascot)
 
 The pipeline is a sprite factory, not just a display. Pass 3 dithers the same coverage
 three times with shifted Bayer phases: identical figure, different grain. Cycled at
@@ -244,10 +260,9 @@ counting every dark pixel on the ray overcounts the dark rings beyond the core
 - The mouth is centred, circular, and fully visible — no clipping at any window size.
 - Scrolling widens the mouth until the screen is solid black: you enter the hole.
 
-## Open
+## Remaining design decisions
 
 - Display face for the headline — six candidates rendered in
   `headline-font-candidates.html`; currently Arial as a placeholder.
 - The kicker line reads `<one-line pitch goes here>`; it needs the product's pitch.
-- Where the page mounts: the worker root as a signed-out landing, or a route inside
-  the existing app.
+- The landing is now the dev worker root. Live promotion remains separate.

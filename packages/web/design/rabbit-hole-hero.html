@@ -3,272 +3,43 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Rabbit Hole — hero</title>
+<title>Rabbit Hole</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --fg:#0A0A0A;                        /* crisp near-black, not the old muddy grey */
-    --muted:rgba(10,10,10,.56);
-    --hair:rgba(10,10,10,.08);
-    --paper:#FFFFFF;
-    --ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
-    /* working choice — the six candidates are in headline-font-candidates.html */
-    --display:"Space Grotesk","Inter",sans-serif;
-  }
-  *{margin:0;padding:0;box-sizing:border-box}
-  html{overflow-y:scroll}
-  /* no overflow-x here: it would make <body> a scroll container and kill the
-     sticky shaft below */
-  /* No fixed body height: the hero reserves its scroll with a spacer in normal flow and
-     the page below it flows, so adding a section cannot desync the two. */
-  body{background:var(--paper);font-family:var(--ui);color:var(--fg);
-       -webkit-font-smoothing:antialiased;width:100%;position:relative}
-  #spacer{height:1740px}
-
-  /* ---- hero shaft: you are falling down it. The title is drawn into the canvas, so
-     there is no overlay element and nothing that can lag behind the scroll. ---- */
-  /* as tall as the page, so the canvas stays stuck for the whole descent */
-  #shaft-track{position:absolute;left:0;top:0;width:100%;height:1740px}
-  /* full viewport height so the mouth sits dead centre of the page. svh, not vh: on
-     phones vh is the *largest* viewport, so with the URL bar showing the canvas would
-     hang below the fold and the hole would sit off-centre. */
-  #shaft{position:sticky;top:0;width:100%;height:100vh;height:100svh;display:block;
-         image-rendering:pixelated}
-  @media (prefers-reduced-motion:reduce){ #shaft{position:absolute} }
-
-  /* ---- floating glass bar: arrives once the shaft lets go, leaves on the way up ---- */
-  #bar{position:fixed;left:50%;top:18px;z-index:20;
-       display:flex;align-items:center;gap:6px;
-       padding:7px 7px 7px 20px;border-radius:999px;
-       /* Solid white, not translucent. A glass pill takes its tone from whatever is
-          behind it, and over the black hero that turned it grey. */
-       background:#FFFFFF;
-       border:1px solid var(--hair);
-       box-shadow:0 1px 2px rgba(10,10,10,.05), 0 14px 36px rgba(10,10,10,.14);
-       transform:translate(-50%,calc(-100% - 18px));opacity:0;pointer-events:none;
-       transition:transform .42s cubic-bezier(.22,.61,.36,1),opacity .3s ease}
-  #bar.on{transform:translate(-50%,0);opacity:1;pointer-events:auto}
-  #bar .brand{font:600 16px/1 var(--display);letter-spacing:-.015em;
-              color:var(--fg);margin-right:22px;white-space:nowrap}
-  #bar a{font:500 14.5px/1 var(--ui);letter-spacing:-.005em;color:var(--muted);
-         text-decoration:none;padding:9px 14px;border-radius:999px;
-         transition:color .18s ease,background .18s ease}
-  #bar a:hover{color:var(--fg);background:rgba(10,10,10,.05)}
-  #bar .cta{margin-left:14px;background:var(--fg);color:#fff;padding:9px 18px}
-  #bar .cta:hover{background:#000;color:#fff}
-
-  /* hamburger + sheet: phones only, hidden outright on desktop */
-  #menu{display:none;margin-left:10px;width:40px;height:40px;flex:none;
-        align-items:center;justify-content:center;gap:5px;flex-direction:column;
-        background:none;border:1px solid var(--hair);border-radius:12px;cursor:pointer;
-        -webkit-tap-highlight-color:transparent}
-  #menu i{display:block;width:16px;height:1.5px;background:var(--fg);border-radius:2px;
-          transition:transform .26s cubic-bezier(.22,.61,.36,1),opacity .18s ease}
-  #menu[aria-expanded="true"] i:nth-child(1){transform:translateY(3.25px) rotate(45deg)}
-  #menu[aria-expanded="true"] i:nth-child(2){transform:translateY(-3.25px) rotate(-45deg)}
-  #sheet{display:none}
-  @media (prefers-reduced-motion:reduce){ #bar,#bar a{transition:none} }
-
-  /* ---- what you scroll into once you are through the hole ---- */
-  #below{position:relative;width:100%;padding:150px 40px 0}
-  #below section{max-width:1080px;margin:0 auto 150px}
-  #below h2{font:600 68px/.95 var(--display);letter-spacing:-.035em;margin-bottom:18px}
-  #below .lede{font:400 18px/1.55 var(--ui);color:var(--muted);max-width:620px}
-
-  /* blog: a list that responds to the pointer */
-  .rows{margin-top:48px;border-top:1px solid var(--hair)}
-  .row{display:flex;align-items:baseline;gap:28px;padding:24px 4px;
-       border-bottom:1px solid var(--hair);font:400 16.5px/1.45 var(--ui);
-       transition:background .18s ease,padding-left .18s ease}
-  a.row{color:inherit;text-decoration:none}
-  .row:hover{background:rgba(10,10,10,.025);padding-left:12px}
-  .row .meta{width:96px;color:var(--muted);flex:none;font-variant-numeric:tabular-nums}
-  .row .arrow{margin-left:auto;color:var(--muted);opacity:0;transition:opacity .18s ease}
-  .row:hover .arrow{opacity:1}
-
-  /* features: cards */
-  .cards{margin-top:52px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-  .card{border:1px solid var(--hair);border-radius:18px;padding:28px 26px 30px;
-        background:#fff;transition:box-shadow .2s ease,transform .2s ease}
-  .card:hover{box-shadow:0 10px 34px rgba(10,10,10,.08);transform:translateY(-2px)}
-  .card .n{font:500 13px/1 var(--ui);color:var(--muted);letter-spacing:.04em}
-  .card h3{font:600 21px/1.25 var(--ui);letter-spacing:-.015em;margin:16px 0 8px}
-  .card p{font:400 15.5px/1.5 var(--ui);color:var(--muted)}
-
-  /* pricing: three tiers, the middle one carries the weight */
-  .tiers{margin-top:52px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-  .tier{border:1px solid var(--hair);border-radius:20px;padding:30px 28px 32px;
-        display:flex;flex-direction:column}
-  .tier.hero-tier{background:var(--fg);border-color:var(--fg);color:#fff}
-  .tier .name{font:500 14px/1 var(--ui);letter-spacing:.04em;text-transform:uppercase;
-              color:var(--muted)}
-  .tier.hero-tier .name{color:rgba(255,255,255,.62)}
-  .tier .price{font:600 46px/1 var(--display);letter-spacing:-.03em;margin:18px 0 6px}
-  .tier .per{font:400 14.5px/1 var(--ui);color:var(--muted);margin-bottom:24px}
-  .tier.hero-tier .per{color:rgba(255,255,255,.62)}
-  .tier ul{list-style:none;margin-bottom:28px}
-  .tier li{font:400 15.5px/1.6 var(--ui);color:var(--muted);
-           padding-left:20px;position:relative}
-  .tier li::before{content:"";position:absolute;left:4px;top:.62em;
-                   width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.5}
-  .tier.hero-tier li{color:rgba(255,255,255,.76)}
-  .tier .pick{margin-top:auto;text-align:center;text-decoration:none;
-              font:500 15px/1 var(--ui);padding:13px 18px;border-radius:999px;
-              border:1px solid var(--hair);color:var(--fg);
-              transition:background .18s ease}
-  .tier .pick:hover{background:rgba(10,10,10,.05)}
-  .tier.hero-tier .pick{background:#fff;border-color:#fff;color:var(--fg)}
-
-  /* the rabbit: sits in the gap between sections, no caption, no explanation */
-  #warren{max-width:1080px;margin:0 auto 150px;display:flex;justify-content:flex-end}
-  #rabbit{width:340px;height:auto;display:block;image-rendering:pixelated;
-          opacity:0;transition:opacity .5s ease}
-  #warren.seen #rabbit{opacity:1}
-  /* behaviours act on this wrapper; origin is the ground line so squash reads right */
-  #hop{transform-origin:50% 100%;will-change:transform}
-
-  footer{border-top:1px solid var(--hair);padding:36px 40px 44px;
-         display:flex;align-items:center;gap:20px;
-         font:400 14.5px/1 var(--ui);color:var(--muted)}
-  footer .brand{font:600 15px/1 var(--display);color:var(--fg);margin-right:auto}
-
-  @media (max-width:900px){
-    .cards,.tiers{grid-template-columns:1fr}
-    #below h2{font-size:44px}
-  }
-
-  /* ---- phones ---- */
-  @media (max-width:700px){
-    /* The pill spans the width and drops the links. A full nav will not fit legibly at
-       this size; a menu button is the next step and is deliberately not built yet. */
-    #bar{left:12px;right:12px;top:12px;transform:translateY(calc(-100% - 12px));
-         padding:8px 8px 8px 16px;border-radius:18px;gap:0}
-    #bar.on{transform:translateY(0)}
-    #bar .brand{font-size:15px;margin-right:auto}
-    #bar a:not(.cta){display:none}
-    #bar .cta{margin-left:0;padding:10px 16px;font-size:14px}
-    #menu{display:flex}
-
-    /* The links live in a sheet under the bar. It rides with the bar, so it is pinned
-       the same way and closes whenever the bar leaves. */
-    #sheet{display:flex;position:fixed;left:12px;right:12px;top:74px;z-index:19;
-           flex-direction:column;padding:8px;
-           background:#FFFFFF;border:1px solid var(--hair);border-radius:18px;
-           box-shadow:0 1px 2px rgba(10,10,10,.05), 0 18px 44px rgba(10,10,10,.18);
-           transform:translateY(-10px);opacity:0;pointer-events:none;
-           transition:transform .26s cubic-bezier(.22,.61,.36,1),opacity .2s ease}
-    #sheet.open{transform:none;opacity:1;pointer-events:auto}
-    #sheet a{padding:14px 16px;border-radius:12px;text-decoration:none;
-             font:500 16.5px/1 var(--ui);color:var(--fg)}
-    #sheet a:active{background:rgba(10,10,10,.06)}
-
-    #below{padding:96px 20px 0}
-    #below section{margin-bottom:96px}
-    #below h2{font-size:38px;letter-spacing:-.03em}
-    #below .lede{font-size:16.5px}
-    .rows{margin-top:32px}
-    .row{gap:14px;padding:18px 2px;font-size:15.5px;flex-wrap:wrap}
-    .row .meta{width:100%;font-size:13px}
-    .row .arrow{display:none}
-    .cards,.tiers{margin-top:32px;gap:14px}
-    .card{padding:22px 20px 24px;border-radius:16px}
-    .tier{padding:24px 22px 26px;border-radius:18px}
-    .tier .price{font-size:38px}
-    footer{flex-wrap:wrap;gap:8px;padding:28px 20px 36px;font-size:13.5px}
-    footer .brand{width:100%;margin-right:0;margin-bottom:4px}
-  }
-
-
-
-</style>
+<link rel="stylesheet" href="./rabbit-hole.css">
 </head>
 <body>
 
 <!-- Sized in script to the viewport in device pixels. The low-res wall buffer lives
      offscreen and is blown up into this one. -->
 <header id="bar">
-  <span class="brand">Rabbit Hole</span>
-  <a href="#blog">Blog</a>
-  <a href="#features">Features</a>
-  <a href="#pricing">Pricing</a>
-  <a class="cta" href="#">Get started</a>
+  <a class="brand" href="/" aria-label="Rabbit Hole home">Rabbit Hole</a>
+  <a href="/blog">Blog</a>
+  <a href="/features">Features</a>
+  <a href="/pricing">Pricing</a>
+  <a class="cta" href="/apps">Get started</a>
   <button id="menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="sheet">
     <i></i><i></i>
   </button>
 </header>
 
 <nav id="sheet" aria-label="Sections">
-  <a href="#blog">Blog</a>
-  <a href="#features">Features</a>
-  <a href="#pricing">Pricing</a>
+  <a href="/blog">Blog</a>
+  <a href="/features">Features</a>
+  <a href="/pricing">Pricing</a>
 </nav>
 
 <div id="shaft-track"><canvas id="shaft"></canvas></div>
 
 <div id="spacer"></div>
 
-<!-- Copy throughout this block is placeholder and stays that way until the product
-     pitch is settled. The layout is the deliverable, not the words. -->
 <div id="below">
-  <section id="blog">
-    <h2>Blog</h2>
-    <p class="lede">Notes from down the hole — what we are building, and what we got wrong.</p>
-    <div class="rows">
-      <a class="row" href="#"><span class="meta">Sept 2026</span>
-        <span>Why a landing page should teach you something</span><span class="arrow">→</span></a>
-      <a class="row" href="#"><span class="meta">Sept 2026</span>
-        <span>Dithering, and why low resolution is a choice</span><span class="arrow">→</span></a>
-      <a class="row" href="#"><span class="meta">Aug 2026</span>
-        <span>What we mean by infinite</span><span class="arrow">→</span></a>
-    </div>
-  </section>
+  <div id="pink-cloud" aria-label="Pink dithered clouds">
+    <img id="cloud-motion" src="/landing/typesafe-pink-cloud.gif" width="1440" height="540" alt="Pink halftone clouds opening onto a pale blue sky" loading="lazy" decoding="async">
+    <img id="cloud-still" src="/landing/typesafe-pink-cloud-still.png" width="1440" height="540" alt="Pink halftone clouds opening onto a pale blue sky" loading="lazy" decoding="async" hidden>
+    <button id="cloud-pause" type="button" aria-label="Pause clouds">Pause clouds</button>
+  </div>
 
-  <section id="features">
-    <h2>Features</h2>
-    <p class="lede">Placeholder. The real list depends on what Rabbit Hole actually does.</p>
-    <div class="cards">
-      <div class="card"><div class="n">01</div>
-        <h3>Follow the question</h3>
-        <p>Start anywhere and keep going. Each answer is a door, not a full stop.</p></div>
-      <div class="card"><div class="n">02</div>
-        <h3>Keep the thread</h3>
-        <p>The path you took stays with you, so you can retrace it or hand it over.</p></div>
-      <div class="card"><div class="n">03</div>
-        <h3>Go as deep as you like</h3>
-        <p>No floor. The further down you go, the more specific it gets.</p></div>
-    </div>
-  </section>
-
-  <div id="warren"><div id="hop"><canvas id="rabbit" width="240" height="160"></canvas></div></div>
-
-  <section id="pricing">
-    <h2>Pricing</h2>
-    <p class="lede">Placeholder tiers. Numbers are invented.</p>
-    <div class="tiers">
-      <div class="tier">
-        <div class="name">Free</div>
-        <div class="price">$0</div>
-        <div class="per">forever</div>
-        <ul><li>Enough to get lost</li><li>Three threads a day</li><li>Community support</li></ul>
-        <a class="pick" href="#">Start free</a>
-      </div>
-      <div class="tier hero-tier">
-        <div class="name">Pro</div>
-        <div class="price">$12</div>
-        <div class="per">per month</div>
-        <ul><li>Unlimited threads</li><li>Saved paths and history</li><li>Priority support</li></ul>
-        <a class="pick" href="#">Get Pro</a>
-      </div>
-      <div class="tier">
-        <div class="name">Team</div>
-        <div class="price">$40</div>
-        <div class="per">per month</div>
-        <ul><li>Everyone down the same hole</li><li>Shared threads</li><li>Admin and billing</li></ul>
-        <a class="pick" href="#">Talk to us</a>
-      </div>
-    </div>
-  </section>
 </div>
 
 <footer>
@@ -563,209 +334,6 @@
 })();
 </script>
 
-<script>
-/* The rabbit. Static for now — this is here to judge the silhouette, nothing else.
-   Shape comes from vector ellipses so it can be nudged without hand-pixelling; the
-   look comes from dithering that shape's alpha with the same 4x4 Bayer matrix as the
-   shaft, so it belongs to the same world. Small buffer, pixelated upscale, as ever. */
-(function () {
-  const cv = document.getElementById('rabbit');
-  if (!cv) return;
-  const ctx = cv.getContext('2d', { willReadFrequently: true });
-  const W = cv.width, H = cv.height;
-  const BAYER = [0,8,2,10, 12,4,14,6, 3,11,1,9, 15,7,13,5].map(v => (v + 0.5) / 16);
-  const INK = [10, 10, 10];
-
-  // --- 1:1 from the user's reference (rabbit_1.jpg), not hand-drawn. The photo is
-  //     cropped to the figure, tones are mapped so the pale sky falls away to paper
-  //     while the figure's own shading carries the ink, and the result goes through
-  //     the same 4x4 Bayer dither as the rest of the page. Hand-placed curves kept
-  //     reading as "generic bunny"; sampling the reference keeps every proportion. ---
-  // Wide enough that neither foot is clipped: the trailing toes reach ~0.19 of the
-  // frame and the leading foot bottoms out just past 0.86.
-  // Measured off the photo, not eyeballed: ear ink spans x 0.398-0.630, ear tops at
-  // y 0.111, the cloud bank reaches x 0.588. Left edge clear of the trailing toes.
-  // Bottom at 0.95: the trailing paw's underside runs to photo y 0.92, and a 0.87
-  // bottom edge was slicing it flat. The window now includes the grass band, which is
-  // why the green key below exists.
-  const CROP = { x: 0.045, y: 0.02, w: 0.745, h: 0.93 };  // the figure inside the photo
-  const WHITE_AT = 0.88;              // luminance above this is paper
-  const BLACK_AT = 0.25;              // luminance below this is solid ink
-  const ref = new Image();
-  ref.onload = () => {
-
-    const sx = ref.naturalWidth * CROP.x, sw = ref.naturalWidth * CROP.w;
-    const sy = ref.naturalHeight * CROP.y, sh = ref.naturalHeight * CROP.h;
-    cv.height = Math.round(cv.width * sh / sw);         // hold the crop's aspect
-    const W = cv.width, H = cv.height;
-    ctx.drawImage(ref, sx, sy, sw, sh, 0, 0, W, H);
-
-    // Nothing is painted over the figure: the face is the photo's own, 1:1. Painted
-    // eye and mouth marks were tried and merged with the photo's darks into a blotch.
-    const id = ctx.getImageData(0, 0, W, H);
-    const d = id.data;
-
-    // --- pass 1: ink coverage per pixel ---
-    const cov = new Float32Array(W * H);
-    for (let y = 0, q = 0; y < H; y++) {
-      for (let x = 0; x < W; x++, q++) {
-        const i = q * 4;
-        const lum = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) / 255;
-        // The sky and the fur overlap in brightness, so luminance alone cannot part
-        // them. Two bands: the pale sky is light and mildly blue; the deeper corner
-        // sky is darker but STRONGLY blue. The figure's grey-blue shading is only
-        // mildly blue at mid luminance, so it slips between the two bands and stays.
-        const db = d[i + 2] - d[i];
-        const sky = (lum > 0.52 && db > 12) || (lum > 0.38 && db > 28);
-        // The grass band inside the taller crop is green; the rabbit is not.
-        const grass = d[i + 1] > d[i] + 8 && d[i + 1] > d[i + 2] + 8;
-        let c = (sky || grass) ? 0 : (WHITE_AT - lum) / (WHITE_AT - BLACK_AT);
-        // No cloud mask at all. Measured: the cloud over the ear zone is strongly BLUE
-        // (db ≈ +40..60), so the ordinary sky key above already removes it — while the
-        // lit fur of the near ear sits at db ≈ -7, which is exactly what the earlier
-        // "neutral haze" mask kept eating. Boxes and haze keys both cut ear; the data
-        // says neither is needed.
-        // Ears: white fur on white paper barely dithers. Lift what shading there is
-        // across the measured ear span so both ears actually read.
-        if (c > 0.03 && x > W * 0.46 && x < W * 0.80 && y < H * 0.32) c = c * 1.45 + 0.10;
-        // The near (left) ear is the fainter of the two — give its span a second lift.
-        if (c > 0.02 && x > W * 0.46 && x < W * 0.64 && y > H * 0.10 && y < H * 0.31)
-          c = c * 1.35 + 0.08;
-        // Paw ends: the photo motion-blurs both feet, so their tips quantise into a
-        // sparse dissolve that reads as an abrupt stop. Firm the taper in two small
-        // ellipses over the measured paw tips — same trick as the ears.
-        // y anchors rescaled for the taller crop (×0.85/0.93)
-        const tfx = x / W - 0.13, tfy = y / H - 0.795;
-        const lfx = x / W - 0.76, lfy = y / H - 0.777;
-        if (c > 0.02 && (tfx * tfx / 0.010 + tfy * tfy / 0.010 < 1 ||
-                         lfx * lfx / 0.006 + lfy * lfy / 0.008 < 1))
-          c = c * 1.7 + 0.10;
-        cov[q] = c < 0 ? 0 : c > 1 ? 1 : c;
-      }
-    }
-
-    // --- pass 2: keep only ink connected to the figure. What the keying leaves
-    //     behind — ground specks under the feet, hill dots at the left edge, cloud
-    //     fragments — is all disconnected from the rabbit. Binarise, dilate by one
-    //     pixel so dither checkerboards and hairline joins count as connected, take
-    //     the largest 8-connected component, and drop everything else. ---
-    const bin = new Uint8Array(W * H);
-    for (let q = 0; q < cov.length; q++) bin[q] = cov[q] > 0.12 ? 1 : 0;
-    // Dilate by TWO pixels: sparse dither at the toe tips breaks into fragments more
-    // than one pixel from the body, and a 1px bridge let the component pass amputate
-    // them — which read as clipped feet.
-    const grown = new Uint8Array(W * H);
-    for (let y = 0; y < H; y++)
-      for (let x = 0; x < W; x++) {
-        let v = 0;
-        for (let dy = -2; dy <= 2 && !v; dy++)
-          for (let dx = -2; dx <= 2 && !v; dx++) {
-            const nx = x + dx, ny = y + dy;
-            if (nx >= 0 && ny >= 0 && nx < W && ny < H && bin[ny * W + nx]) v = 1;
-          }
-        grown[y * W + x] = v;
-      }
-    const label = new Int32Array(W * H);
-    const stack = new Int32Array(W * H);
-    let best = 0, bestSize = 0, next = 0;
-    for (let seed = 0; seed < grown.length; seed++) {
-      if (!grown[seed] || label[seed]) continue;
-      const mark = ++next;
-      let size = 0, top = 0;
-      stack[top++] = seed; label[seed] = mark;
-      while (top) {
-        const q = stack[--top]; size++;
-        const x = q % W, y = (q / W) | 0;
-        for (let dy = -1; dy <= 1; dy++)
-          for (let dx = -1; dx <= 1; dx++) {
-            const nx = x + dx, ny = y + dy;
-            if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-            const n = ny * W + nx;
-            if (grown[n] && !label[n]) { label[n] = mark; stack[top++] = n; }
-          }
-      }
-      if (size > bestSize) { bestSize = size; best = mark; }
-    }
-    for (let q = 0; q < cov.length; q++) if (label[q] !== best) cov[q] = 0;
-
-    // --- pass 3: Bayer-dither the coverage to 1-bit, three times with shifted
-    //     phases. Same figure, different grain: cycled slowly this is the "boil" of
-    //     hand-drawn animation, and it costs no extra art. ---
-    const frames = [];
-    for (let ph = 0; ph < 3; ph++) {
-      const fid = ctx.createImageData(W, H);
-      const fd = fid.data;
-      for (let y = 0, q = 0; y < H; y++) {
-        for (let x = 0; x < W; x++, q++) {
-          const i = q * 4;
-          const on = cov[q] > BAYER[((y + ph) & 3) * 4 + ((x + ph * 2) & 3)];
-          fd[i] = INK[0]; fd[i + 1] = INK[1]; fd[i + 2] = INK[2];
-          fd[i + 3] = on ? 255 : 0;
-        }
-      }
-      frames.push(fid);
-    }
-    ctx.putImageData(frames[0], 0, 0);
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      let f = 0;
-      setInterval(() => { f = (f + 1) % 3; ctx.putImageData(frames[f], 0, 0); }, 125);
-    }
-
-    // The reusable sprite: all three boil frames side by side on one sheet. Play it
-    // anywhere with background-position + steps(3). window.__bakeSheet() returns the
-    // PNG; the dev server accepts PUT, so the factory can write it to disk.
-    const sheet = document.createElement('canvas');
-    sheet.width = W * 3; sheet.height = H;
-    const sg = sheet.getContext('2d');
-    for (let k = 0; k < 3; k++) sg.putImageData(frames[k], k * W, 0);
-    window.__bakeSheet = () => sheet.toDataURL('image/png');
-  };
-  ref.src = 'rabbit_1.jpg';
-
-  // fade in when it comes into view; no motion, it just arrives
-  const host = document.getElementById('warren');
-  const show = () => host.classList.add('seen');
-  if ('IntersectionObserver' in window) {
-    new IntersectionObserver((es, o) => {
-      es.forEach(e => { if (e.isIntersecting) { show(); o.disconnect(); } });
-    }, { threshold: 0.3 }).observe(host);
-  } else show();
-
-  // Behaviours from one sprite. There are no crouch or jump drawings — squash-and-
-  // stretch transforms on the wrapper sell them: compress into the ground to crouch,
-  // release and stretch through an arc to jump, sometimes a full spin at the top,
-  // squash on landing. transform-origin is the ground line, so it all reads as
-  // weight, not scaling.
-  const hop = document.getElementById('hop');
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-  (function behave() {
-    const spin = Math.random() < 0.35;           // most jumps plain, sometimes a flip
-    const seq = [
-      { dur: 2400 + Math.random() * 2200, f: t =>          // idle: a soft bob
-          'translateY(' + (Math.sin(t * Math.PI * 4) * 3).toFixed(1) + 'px)' },
-      { dur: 420, f: t => { const k = ease(t);             // crouch: load the spring
-          return 'translateY(' + (k * 7).toFixed(1) + 'px) scale(' +
-                 (1 + k * 0.06).toFixed(3) + ',' + (1 - k * 0.16).toFixed(3) + ')'; } },
-      { dur: 800, f: t => { const a = Math.sin(t * Math.PI);   // jump: the arc
-          const rot = spin ? t * 360 : Math.sin(t * Math.PI) * -8;
-          return 'translateY(' + (7 - a * 64).toFixed(1) + 'px) rotate(' +
-                 rot.toFixed(1) + 'deg) scale(' + (1 - a * 0.05).toFixed(3) + ',' +
-                 (1 + a * 0.10).toFixed(3) + ')'; } },
-      { dur: 380, f: t => { const k = Math.sin(t * Math.PI);   // land: squash, recover
-          return 'translateY(' + (7 - 7 * ease(t)).toFixed(1) + 'px) scale(' +
-                 (1 + k * 0.10).toFixed(3) + ',' + (1 - k * 0.14).toFixed(3) + ')'; } },
-    ];
-    let i = 0, t0 = performance.now();
-    (function tick(now) {
-      const s = seq[i];
-      const t = Math.min((now - t0) / s.dur, 1);
-      hop.style.transform = s.f(t);
-      if (t >= 1) { i++; t0 = now; if (i >= seq.length) return behave(); }
-      requestAnimationFrame(tick);
-    })(t0);
-  })();
-})();
-</script>
+<script type="module" src="../src/landing/pink-cloud.js"></script>
 </body>
 </html>

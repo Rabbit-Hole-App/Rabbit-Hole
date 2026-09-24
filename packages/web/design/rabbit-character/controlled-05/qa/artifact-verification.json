@@ -1,0 +1,62 @@
+{
+  "tested_at": "2026-09-23T21:07:05.128352+00:00",
+  "pass": true,
+  "frozen_input_hashes_checked": 16,
+  "unique_frames": 16,
+  "max_key_joint_error_source_px": 0.0,
+  "max_bone_length_error_source_px": 4.263256414560601e-14,
+  "cycle_restart_pixels_identical": true,
+  "seam_displacements": {
+    "pelvis": {
+      "seam_step_source_px": 5.5625,
+      "max_other_step_source_px": 8.8125
+    },
+    "watch": {
+      "seam_step_source_px": 2.2875154917906775,
+      "max_other_step_source_px": 46.601417241342524
+    },
+    "right_ankle": {
+      "seam_step_source_px": 7.066886416782486,
+      "max_other_step_source_px": 51.43260296936528
+    },
+    "left_ankle": {
+      "seam_step_source_px": 25.608570729755957,
+      "max_other_step_source_px": 51.43260296936528
+    }
+  },
+  "codecs": {
+    "run-16.gif": {
+      "frames": 16,
+      "duration_ms": 620
+    },
+    "run-16.webp": {
+      "frames": 16,
+      "duration_ms": 615
+    },
+    "run-16-slow.gif": {
+      "frames": 16,
+      "duration_ms": 2400
+    },
+    "run-16-slow.webp": {
+      "frames": 16,
+      "duration_ms": 2400
+    },
+    "cycle-seam.gif": {
+      "frames": 16,
+      "duration_ms": 2400
+    },
+    "cycle-seam.webp": {
+      "frames": 16,
+      "duration_ms": 2400
+    }
+  },
+  "watch_owner": "anatomical_right",
+  "watch_diameter_source_px": 54,
+  "visual_quality_approved": false,
+  "continuous_foot_lock": false,
+  "limits": [
+    "Mathematical constraints and raster coverage do not certify appealing motion.",
+    "Passing legs overlap in the approved side projection; depth remains a visual judgment.",
+    "The 16-frame output still holds drawings; no continuous runtime has been implemented."
+  ]
+}

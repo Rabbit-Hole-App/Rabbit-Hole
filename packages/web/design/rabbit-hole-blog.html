@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Blog — Rabbit Hole</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./rabbit-hole.css">
+</head>
+<body class="content-page">
+<header id="bar" class="on">
+  <a class="brand" href="/" aria-label="Rabbit Hole home">Rabbit Hole</a>
+  <a href="/blog" aria-current="page">Blog</a>
+  <a href="/features">Features</a>
+  <a href="/pricing">Pricing</a>
+  <a class="cta" href="/apps">Get started</a>
+  <button id="menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="sheet">
+    <i></i><i></i>
+  </button>
+</header>
+
+<nav id="sheet" aria-label="Sections">
+  <a href="/blog" aria-current="page">Blog</a>
+  <a href="/features">Features</a>
+  <a href="/pricing">Pricing</a>
+</nav>
+<main id="below">
+  <section id="blog">
+    <h1>Blog</h1>
+    <p class="lede">Notes from down the hole — what we are building, and what we got wrong.</p>
+    <div class="rows">
+      <a class="row" href="#"><span class="meta">Sept 2026</span>
+        <span>Why a landing page should teach you something</span><span class="arrow">→</span></a>
+      <a class="row" href="#"><span class="meta">Sept 2026</span>
+        <span>Dithering, and why low resolution is a choice</span><span class="arrow">→</span></a>
+      <a class="row" href="#"><span class="meta">Aug 2026</span>
+        <span>What we mean by infinite</span><span class="arrow">→</span></a>
+    </div>
+  </section>
+</main>
+<footer>
+  <span class="brand">Rabbit Hole</span>
+  <span>Knowledge is infinite.</span>
+  <span>© 2026</span>
+</footer>
+<script type="module" src="../src/landing/navigation.js"></script>
+</body>
+</html>

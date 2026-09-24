@@ -1,0 +1,16 @@
+{
+  "tested_at": "2026-09-23T22:18:27.450Z",
+  "guide_samples": 800,
+  "old_ankle_max_edge_stretch": 5.977927236751286,
+  "max_rigid_section_distance_error": 1.2079226507921703e-13,
+  "max_world_anchor_error": 8.038873388460929e-14,
+  "max_surface_seam_error": 0,
+  "min_positive_knee_cross": 3220.8060861606245,
+  "approved_ankle_angle_range": [
+    0.0807607531655481,
+    100.55930822065395
+  ],
+  "unchanged_inputs": 16,
+  "technical_checks_pass": true,
+  "visual_approval": false
+}

@@ -1,0 +1,49 @@
+{
+  "state": "exit",
+  "time": 4.8,
+  "phase": 0.4358974358974147,
+  "gesture": 0,
+  "crouch": 1,
+  "position": {
+    "x": 0.8,
+    "y": 0.43
+  },
+  "heading": {
+    "x": 1,
+    "y": 0
+  },
+  "distance": 239.2815110877197,
+  "trip": {
+    "from": "A",
+    "to": "B"
+  },
+  "portals": {
+    "A": {
+      "id": "A",
+      "x": 0.43,
+      "y": 0.72,
+      "rx": 0.065,
+      "ry": 0.026,
+      "angle": 0
+    },
+    "B": {
+      "id": "B",
+      "x": 0.8,
+      "y": 0.43,
+      "rx": 0.065,
+      "ry": 0.026,
+      "angle": 0
+    }
+  },
+  "hidden": false,
+  "depth": 0.5956270334968873,
+  "history": [
+    "idle_breathe",
+    "approach",
+    "crouch",
+    "enter",
+    "hidden",
+    "transfer",
+    "exit"
+  ]
+}
