@@ -12,6 +12,7 @@ import { scopeOf } from './scope.js';
 // A command that navigates does so inside run(); callers never navigate after it.
 // ponytail: §7.1 requires(ctx) is left out; the server rechecks edit rights at approve (index.js:1425-1430).
 export const D7_REASON = 'Blocked on this preview: it would change live apps.';
+export const noDefaultBranch = (repo, branches) => `${repo} has no default branch, so none was assumed. Paste the link to the branch you want, for example https://github.com/${repo}/tree/${branches[0]}. Branches: ${branches.slice(0, 8).join(', ')}${branches.length > 8 ? ', …' : ''}.`;
 export const AI_READS_REASON = 'Model-backed search is off on this preview: it would call the live control plane.';
 const AI_READS = new Set(['find_apps_ai', 'find_runs_ai']);
 const aiReadsOff = (ctx) => ctx.devBuild && !aiReadsOnPreview;
@@ -177,12 +178,25 @@ export const COMMANDS = {
     risk: 'confirm', touchesLive: false, available: ok,
     // prepareCommand runs this before the card, so the card shows the exact branch and a
     // repository that is not public fails before any card.
-    resolve: async ({ url, repo }) => {
+    resolve: async ({ url, repo, branch }) => {
+      let meta;
       try {
-        return { url, repo, branch: (await api(`/api/repositories/branches?url=${encodeURIComponent(url)}`)).defaultBranch };
+        meta = await api(`/api/repositories/branches?url=${encodeURIComponent(url)}`);
       } catch (error) {
         throw Error(/not found/i.test(error.message) ? `Can't connect ${repo}: no public repository found there. Private repositories aren't supported yet; public GitHub works.` : error.message);
       }
+      // An explicit /tree/<branch> link is the user's choice. It may go on into a folder and branch names
+      // may hold '/', so the longest real branch it starts with wins; otherwise it is used as given and
+      // the import validates it (repository_jobs.py 'Branch not found').
+      if (branch) {
+        const parts = branch.split('/');
+        const known = parts.map((_, i) => parts.slice(0, parts.length - i).join('/')).find((name) => meta.branches?.includes(name));
+        return { url, repo, branch: known || branch };
+      }
+      // Gate C G2: never assume a branch. Before the worker is redeployed the field is absent,
+      // which keeps today's behaviour; once deployed, a repository GitHub names no default for stops here.
+      if (meta.defaultBranchKnown === false) throw Error(noDefaultBranch(repo, meta.branches));
+      return { url, repo, branch: meta.defaultBranch };
     },
     preview: (args, ctx) => card(ctx, {
       title: `Connect ${args.repo}`,

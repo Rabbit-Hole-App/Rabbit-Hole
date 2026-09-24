@@ -33,7 +33,7 @@ test('a mode pill wins over the rules; Auto is no pill; /do still runs the rules
 test('rule 2: a GitHub repository URL connects it, wherever it sits in the sentence', () => {
   assert.deepEqual(at('https://github.com/karpathy/nanoGPT'), connect('karpathy/nanoGPT'));
   assert.deepEqual(at('Start a rabbit hole with https://github.com/karpathy/nanoGPT.git'), connect('karpathy/nanoGPT'));
-  assert.deepEqual(at('look at http://www.github.com/karpathy/nanoGPT/tree/master/model.py.'), connect('karpathy/nanoGPT'));
+  assert.deepEqual(at('look at http://www.github.com/karpathy/nanoGPT/tree/master/model.py.'), { ...connect('karpathy/nanoGPT'), args: { ...connect('karpathy/nanoGPT').args, branch: 'master/model.py' } });
   assert.deepEqual(at('what is https://github.com/karpathy/nanoGPT.'), connect('karpathy/nanoGPT'));
 });
 
@@ -103,4 +103,9 @@ test('rules 9-10: share names anything in the catalog, run names jobs', () => {
 
 test('anything else is a question for Ask in the frozen scope', () => {
   assert.deepEqual(at('  explain the training loop '), { type: 'ask', mode: 'ask', text: 'explain the training loop' });
+});
+
+test('rule 2: a GitHub branch link carries its branch; credentials never do (Gate C G2)', () => {
+  assert.deepEqual(at('connect https://github.com/o/r/tree/feature/x'), { type: 'command', name: 'connect_repository', args: { url: 'https://github.com/o/r', repo: 'o/r', branch: 'feature/x' } });
+  assert.deepEqual(at('https://user:token@github.com/o/r'), connect('o/r'));
 });

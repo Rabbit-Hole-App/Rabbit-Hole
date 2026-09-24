@@ -4,9 +4,9 @@ import { kindLabel, lookup } from './catalog.js';
 // RulesRouter (T02 §6.6): deterministic, first match wins, no model call. Anything
 // unmatched goes to Ask in the frozen scope, whose tools come back as Confirm cards.
 const SETTINGS = { settings: {}, preferences: { tab: 'preferences' }, connections: { tab: 'connections' }, theme: { tab: 'preferences' } };
-// owner/repository from a GitHub URL anywhere in the text. Only those two parts are kept, so a
-// pasted token or branch path never leaves the draft (parseRepository wants the bare URL, repositories.js:11-17).
-const GITHUB = /(?:^|[\s(<"'])(?:https?:\/\/)?(?:[^\s/@]+@)?(?:www\.)?github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)/i;
+// owner/repository from a GitHub URL anywhere in the text, plus an explicit /tree/<branch>, are kept;
+// credentials before '@' never are (parseRepository wants the bare URL, repositories.js:11-17).
+const GITHUB = /(?:^|[\s(<"'])(?:https?:\/\/)?(?:[^\s/@]+@)?(?:www\.)?github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)(?:\/tree\/([^\s?#<>"')]+))?/i;
 
 const ask = (text, mode = 'ask') => ({ type: 'ask', mode, text });
 const command = (name, args) => ({ type: 'command', name, args });
@@ -36,7 +36,7 @@ export function route(text, { mode = null, catalog = [], scope = null } = {}) {
   const github = message.match(GITHUB);
   if (github) {
     const repo = `${github[1]}/${github[2].replace(/\.+$/, '').replace(/\.git$/i, '')}`;
-    return command('connect_repository', { url: `https://github.com/${repo}`, repo });
+    return command('connect_repository', { url: `https://github.com/${repo}`, repo, ...(github[3] ? { branch: decodeURIComponent(github[3]).replace(/\.+$/, '') } : {}) });
   }
   if (/https?:\/\/\S/i.test(message)) return ask(message);
   // 3. open|go to|show <name>. A Settings word is never looked up: "open settings" opens Settings.

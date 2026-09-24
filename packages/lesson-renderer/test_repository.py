@@ -4,6 +4,7 @@ import unittest
 import zipfile
 from pathlib import Path
 from index_repository import unpack, MAX_FILE
+from repository_jobs import parse_refs, listing
 
 def archive(items):
     result=io.BytesIO()
@@ -26,5 +27,21 @@ class RepositoryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             files,skipped=unpack(archive([('repo/a.py','a'*(MAX_FILE+1)),('repo/b.txt',b'\x00')]),Path(root))
             self.assertFalse(files);self.assertEqual(len(skipped),2)
+
+SHA = 'a' * 40
+
+class BranchTests(unittest.TestCase):
+    def test_a_default_github_names_is_known(self):
+        default, branches = parse_refs(f'ref: refs/heads/dev\tHEAD\n{SHA}\tHEAD\n{SHA}\trefs/heads/dev\n{SHA}\trefs/heads/alpha\n')
+        out = listing('o/r', default, branches, 1)
+        self.assertEqual(out['defaultBranch'], 'dev')
+        self.assertTrue(out['defaultBranchKnown'])
+
+    def test_no_default_is_reported_not_invented(self):
+        default, branches = parse_refs(f'{SHA}\trefs/heads/zeta\n{SHA}\trefs/heads/alpha\n')
+        out = listing('o/r', default, branches, 1)
+        self.assertFalse(out['defaultBranchKnown'])
+        self.assertEqual(out['defaultBranch'], 'alpha')  # kept for RepositoryImport.jsx:14
+        self.assertEqual(out['branches'], ['alpha', 'zeta'])
 
 if __name__=='__main__':unittest.main()

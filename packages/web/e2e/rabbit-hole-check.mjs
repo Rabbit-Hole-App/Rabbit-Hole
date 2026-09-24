@@ -112,6 +112,15 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   });
 }
 
+{
+  await check('G2-branch: the repository worker says whether the default branch is real', async () => {
+    const r = await fetch(`${base}/api/repositories/branches?url=${encodeURIComponent('https://github.com/karpathy/nanoGPT')}`, { headers: { ...UA, Cookie: `small_session=${session}` } });
+    must(r.ok, `HTTP ${r.status}`);
+    const meta = await r.json();
+    must(meta.defaultBranchKnown === true && typeof meta.defaultBranch === 'string', `got ${JSON.stringify({ defaultBranch: meta.defaultBranch, defaultBranchKnown: meta.defaultBranchKnown })}`);
+  });
+}
+
 // ── journey checks: each area inserts its block above this line, wrapped in { } ──
 
 await browser.close();

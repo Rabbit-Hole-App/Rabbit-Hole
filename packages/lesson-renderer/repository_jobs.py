@@ -11,6 +11,24 @@ from pathlib import Path
 
 JOBS = {}; LOCK = threading.Lock(); SLOT = threading.BoundedSemaphore(1)
 
+def parse_refs(stdout):
+    '''Branches from `git ls-remote --symref`, and the default GitHub names (None when HEAD has no symref).'''
+    branches = {}; default = None
+    for line in stdout.splitlines():
+        if line.startswith('ref: refs/heads/') and line.endswith('\tHEAD'): default = line.split('\t')[0][len('ref: refs/heads/'):]
+        else:
+            parts = line.split('\t')
+            if len(parts) == 2 and parts[1].startswith('refs/heads/') and re.fullmatch('[a-f0-9]{40}', parts[0]): branches[parts[1][11:]] = parts[0]
+    return default, branches
+
+def listing(repo, default, branches, page):
+    names = sorted(branches)
+    # defaultBranch keeps its old fallback, because RepositoryImport.jsx:14 preselects it.
+    # defaultBranchKnown says whether GitHub named one, so the Agent Bar stops and asks
+    # instead of assuming a branch (Gate C G2).
+    return {'repo': repo, 'defaultBranch': default or names[0], 'defaultBranchKnown': default is not None,
+            'branches': names[(page - 1) * 100:page * 100], 'hasMore': len(names) > page * 100, 'page': page}
+
 def metadata(handler):
     if not handler.authorized(): return
     try:
@@ -26,18 +44,13 @@ def metadata(handler):
                                   env=env,cwd=directory,timeout=15,capture_output=True,text=True)
         if result.returncode: raise ValueError('Public repository was not found or GitHub is unavailable')
         if len(result.stdout)>1024*1024: raise ValueError('Repository has too many branch references')
-        branches={};default=None
-        for line in result.stdout.splitlines():
-            if line.startswith('ref: refs/heads/') and line.endswith('\tHEAD'):default=line.split('\t')[0][len('ref: refs/heads/'):]
-            else:
-                parts=line.split('\t')
-                if len(parts)==2 and parts[1].startswith('refs/heads/') and re.fullmatch('[a-f0-9]{40}',parts[0]):branches[parts[1][11:]]=parts[0]
+        default,branches=parse_refs(result.stdout)
         if not branches:raise ValueError('Repository has no branches')
         if body.get('branch') is not None:
             if body['branch'] not in branches:raise ValueError('Branch not found')
             handler.send_json({'commit':branches[body['branch']]});return
-        page=max(1,min(100,int(body.get('page',1))));names=sorted(branches)
-        handler.send_json({'repo':repo,'defaultBranch':default or names[0],'branches':names[(page-1)*100:page*100],'hasMore':len(names)>page*100,'page':page})
+        page=max(1,min(100,int(body.get('page',1))))
+        handler.send_json(listing(repo,default,branches,page))
     except (ValueError,TypeError,KeyError,subprocess.TimeoutExpired) as error:handler.send_json({'error':str(error)},400)
 
 def run(key, body):

@@ -4,7 +4,7 @@ import { openedNotice } from '../connections.js';
 import { learnPreview } from '../flags.js';
 import { canvasKeys } from '../home/canvas-local.js';
 import { readPinned } from '../home/pinned.js';
-import { AI_READS_REASON, COMMANDS, D7_REASON, ctxOf, executeCommand, policy, prepareCommand } from './commands.js';
+import { AI_READS_REASON, COMMANDS, D7_REASON, ctxOf, executeCommand, noDefaultBranch, policy, prepareCommand } from './commands.js';
 
 // Just enough browser for api.js, navigate() and setTheme(): fetch, history, storage, theme.
 const memory = () => { const items = new Map(); return { getItem: (key) => (items.has(key) ? items.get(key) : null), setItem: (key, value) => items.set(key, String(value)), removeItem: (key) => items.delete(key) }; };
@@ -236,4 +236,24 @@ test('G5: on the preview, model-backed find is unavailable and never reaches the
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+test('Gate C G2: a repository without a known default branch stops and asks; nothing is assumed', async () => {
+  reply = () => ({ body: { repo: 'o/r', defaultBranch: 'alpha', defaultBranchKnown: false, branches: ['alpha', 'zeta'], hasMore: false, page: 1 } });
+  const before = calls.length;
+  await assert.rejects(prepareCommand('connect_repository', { url: 'https://github.com/o/r', repo: 'o/r' }, CTX), { message: noDefaultBranch('o/r', ['alpha', 'zeta']) });
+  assert.equal(calls.slice(before).some((c) => c.path === '/api/repositories' && c.method === 'POST'), false);
+});
+
+test('Gate C G2: an explicit branch link is used as given', async () => {
+  reply = () => ({ body: { repo: 'o/r', defaultBranch: 'alpha', defaultBranchKnown: false, branches: ['alpha', 'zeta'], hasMore: false, page: 1 } });
+  const prepared = await prepareCommand('connect_repository', { url: 'https://github.com/o/r', repo: 'o/r', branch: 'zeta' }, CTX);
+  assert.equal(prepared.args.branch, 'zeta');
+});
+
+// A /tree/ link can go on into a folder, and branch names can hold '/', so the listing decides where the branch ends.
+test('Gate C G2: a branch link into a folder uses the longest real branch it starts with', async () => {
+  reply = () => ({ body: { repo: 'o/r', defaultBranch: 'main', defaultBranchKnown: true, branches: ['feature', 'feature/x', 'main'], hasMore: false, page: 1 } });
+  assert.equal((await prepareCommand('connect_repository', { url: 'https://github.com/o/r', repo: 'o/r', branch: 'feature/x/docs/model.py' }, CTX)).args.branch, 'feature/x');
+  assert.equal((await prepareCommand('connect_repository', { url: 'https://github.com/o/r', repo: 'o/r', branch: 'gone/docs' }, CTX)).args.branch, 'gone/docs');
 });
