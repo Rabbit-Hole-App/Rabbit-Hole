@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/index.css"
+        ],
+        "createdAt": "2026-09-24T22:45:40.199Z",
+        "reason": "prior decision in commit 8df43cf (suppress side-tab false positive on wiki blockquote typography): L438 is the wiki reader's blockquote rule, not a card accent; existing ignore is keyed to the repo-root path and misses when the hook runs from packages/web"
+      }
+    ]
+  }
+}
