@@ -12,7 +12,7 @@
 
 **Spec:** [docs/features/rabbit-hole-t02-spec.md](../../features/rabbit-hole-t02-spec.md) (Gate A approved), with [Direction C](../../features/rabbit-hole-direction-c.md) and the [T00 audit](../../features/rabbit-hole-home-audit.md). Figma: [Rabbit Hole — Home & Projects](https://www.figma.com/design/ef9SfiemEsPQF2bd8B1os3).
 
-**Assembly:** generated from the `v4` area plans (seven read-only planners grounded in the checkout at `feature/smart-home`, plus consistency checks).
+**Assembly:** generated from the `v5` area plans (seven read-only planners grounded in the checkout at `feature/smart-home`, plus consistency checks).
 
 ## Global Constraints
 
@@ -100,10 +100,10 @@ Gate B stays open until the user reports on the 16 frames listed below. This sec
 
 ## Gate C decisions (recorded 2026-09-24)
 
-Decided by the user while Gate B is still open. Implementation still waits for Gate B to close and for Gate C approval of this plan.
+**Gate C is approved, conditional on Gate B** (user, 2026-09-24). Implementation starts only when the remaining Gate-B frames are verified with no material issue; until then no production code, and WP1 does not start.
 
 - **G1 — preview asks that would write live chat history: (b) OFF.** Workspace and app asks stay unavailable on the review clone (`askLiveOnPreview = false`). Project and canvas asks through `LEARN_DB` remain.
-- **G2 — phase-1 deviations: approved selectively.** Approved: `[+]` attachment may defer; Authored-path Continue may defer; canvas rename UI may defer; canvas routes yield to Learn's composer; no empty `[⋯]` menu; `/research` unavailable until the agreed Learn hook lands. **Question → clipboard is fallback-only** while `learnHandoff === false`; once the hook lands, Question creates the canvas and prefills the Learn composer, unsent. **Shift+Enter is not deferred:** the Agent Bar gets a multiline input (Enter sends, Shift+Enter adds a line) through an opt-in `ChatComposer` prop (Task: *Multiline Agent Bar input*). Still pending: Undo only for bar-created canvases, no branch select, source ranges not joining the scope (T02 §17 rows 2, 9, 11).
+- **G2 — phase-1 deviations: approved selectively.** Approved: `[+]` attachment may defer; Authored-path Continue may defer; canvas rename UI may defer; canvas routes yield to Learn's composer; no empty `[⋯]` menu; `/research` unavailable until the agreed Learn hook lands. **Question → clipboard is fallback-only** while `learnHandoff === false`; once the hook lands, Question creates the canvas and prefills the Learn composer, unsent. **Shift+Enter is not deferred:** the Agent Bar gets a multiline input (Enter sends, Shift+Enter adds a line) through an opt-in `ChatComposer` prop (Task: *Multiline Agent Bar input*). Also approved (2026-09-24): Undo is required only for canvases created from the Agent Bar (Start-created canvases open Learn; removal is Archive/Restore); no branch select while GitHub names a real default, and when it names none the bar and Start dialog stop and ask for a branch link, never assuming main, master or the first branch (the worker now reports defaultBranchKnown; Task: *Gate C G2 branch rule*); source line ranges do not join the bar scope, the selected graph node stays the code-context scope.
 - **G3 — no live `small-cp` promotion yet.** The four proposal lifecycle fixes are implemented and covered by control-plane unit tests; `make test-integration` runs as the pre-merge regression gate. Integration coverage of the fixes themselves needs a control-plane deploy target, which waits for the separate promotion approval. Server-backed `/do` stays Blocked.
 - **G4 — coordinated; resolved upstream.** The stale "Connect Google under Settings → Connections" toast (`LearnPage.jsx:689` on `main`) is already gone on `feature/parallel-work`: its Sources menu is split into Search and Files, and Google Slides stays hidden until a connector exists (confirmed by the owner of that branch, 2026-09-24). It disappears from `main` when that branch merges. smart-home edits nothing in Learn.
 - **G5 — model-backed live reads on the preview: OFF.** `find_apps_ai` and `find_runs_ai` are unavailable on the review clone, and the existing Search, Library and runs AI find skip their endpoints on dev builds (Task: *G5*). Deterministic local title and resource search stays available. This is a cost and privacy boundary even though the endpoints are read-only.
@@ -114,13 +114,13 @@ One orchestrating agent executes the tasks in order, grouped into seven work pac
 
 | Package | Tasks (by number) | Scope |
 |---|---|---|
-| WP1 Foundation and routing | 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 | flags, routes, surface and scope, catalog, connections, canvas-local, pinned, continue, and the pure command, router, ask-stream and learn-hook modules the Start dialog needs, plus G5. |
-| WP2 Canvas backend | 16, 17, 18, 19, 20, 21 | the announced LEARN_DB schema apply, the canvas record API, Learn resolving canvas-* with LEARN_DB chat, the apiAsk seam, dev-worker wiring, and the §16 regression pin. |
-| WP3 Proposal safety | 22, 23, 24, 25, 26 | the four approval lifecycle fixes and their documented response bodies (not promoted to live, G3). |
-| WP4 Home, Library, Settings and Start | 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37 | the Confirm card and bar helpers the Start dialog reuses, the Start dialog and its single host, Home, Explore, Library, Sidebar, Archived, Settings, and the first deployed pixel check. |
-| WP5 Agent Bar | 38, 39, 40 | the bar frame, multiline input, and routing every send through the registry with results, confirmations and streaming. |
-| WP6 Project and Map | 41, 42, 43, 44, 45, 46, 47 | graph tokens, the Context and Source inspector, the Project hub, the canvas route gate, app pages, and the bar checks on project and app pages. |
-| WP7 Integration and deployed verification | 48, 49, 50, 51, 52 | the canvas API checks, the full browser journeys on the clone, pixel inspection in both themes and at 390 px, the T02 §17 record, the pre-merge integration gate, and the promotion note. |
+| WP1 Foundation and routing | 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 | flags, routes, surface and scope, catalog, connections, canvas-local, pinned, continue, and the pure command, router, ask-stream and learn-hook modules the Start dialog needs, plus G5 and the branch rule. |
+| WP2 Canvas backend | 17, 18, 19, 20, 21, 22 | the announced LEARN_DB schema apply, the canvas record API, Learn resolving canvas-* with LEARN_DB chat, the apiAsk seam, dev-worker wiring, and the §16 regression pin. |
+| WP3 Proposal safety | 23, 24, 25, 26, 27 | the four approval lifecycle fixes and their documented response bodies (not promoted to live, G3). |
+| WP4 Home, Library, Settings and Start | 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38 | the Confirm card and bar helpers the Start dialog reuses, the Start dialog and its single host, Home, Explore, Library, Sidebar, Archived, Settings, and the first deployed pixel check. |
+| WP5 Agent Bar | 39, 40, 41 | the bar frame, multiline input, and routing every send through the registry with results, confirmations and streaming. |
+| WP6 Project and Map | 42, 43, 44, 45, 46, 47, 48 | graph tokens, the Context and Source inspector, the Project hub, the canvas route gate, app pages, and the bar checks on project and app pages. |
+| WP7 Integration and deployed verification | 49, 50, 51, 52, 53 | the canvas API checks, the full browser journeys on the clone, pixel inspection in both themes and at 390 px, the T02 §17 record, the pre-merge integration gate, and the promotion note. |
 
 The package order differs slightly from a pure layer split: the pure router, command, ask-stream and learn-hook modules sit in WP1 because the Start dialog in WP4 depends on them, and the Confirm card and bar helpers (task order 7.8) open WP4 for the same reason. The Agent Bar package keeps the bar UI and send routing.
 
@@ -133,6 +133,7 @@ The final consistency check (after three planning rounds) reported four problems
 - T02 §17 lists the phase-1 deviations, including /research unreachable in phase 1, the Start Question clipboard fallback, no branch select, no [⋯] menu, and source ranges not joining the scope.
 - Home, Sidebar and Library tasks (9.1, 9.4, 9.5) now run their new e2e labels red against the clone before implementing.
 - Gate C decisions of 2026-09-24 applied: a G5 task (order 4.2) keeps model-backed live reads off on the preview; a multiline Agent Bar task (order 10.25) restores Enter sends / Shift+Enter newline; the T02 §17 table gains a Gate C column (Shift+Enter is no longer a deviation; G5 is row 12).
+- Remaining G2 decisions recorded (2026-09-24): Undo only for bar-created canvases; no branch select, but never assume a branch (new task at order 4.3 makes the worker report defaultBranchKnown, because repository_jobs.py:40 substituted the first branch); source line ranges stay out of the bar scope.
 
 ## File map
 
@@ -153,6 +154,8 @@ The final consistency check (after three planning rounds) reported four problems
 | `packages/control-plane/test/learn-chat.test.js` | modify | Canvas record (LEARN_DB) and dev worker | no-env.DB-write test for canvas Learn asks; deps.askStream records env.DB |
 | `packages/control-plane/test/repositories.test.js` | modify | Canvas record (LEARN_DB) and dev worker | T02 section 16 regression pin (a pin, not TDD) |
 | `packages/control-plane/test/slack.test.js` | modify | Proposal lifecycle blockers | Cancel calls rejectHandler as the resolved actor; a stale Cancel shows an ephemeral '✗ already approved' |
+| `packages/lesson-renderer/repository_jobs.py` | modify | Agent Bar logic (pure modules) | parse_refs and listing extracted; the branches response adds defaultBranchKnown (Gate C G2). |
+| `packages/lesson-renderer/test_repository.py` | modify | Agent Bar logic (pure modules) | unittest for a known and an absent default branch. |
 | `packages/web/dev-worker.js` | modify | Shell, Home, Library, Sidebar | Serves the SPA shell for /library and /explore |
 | `packages/web/e2e/app-tabs-check.mjs` | modify | Project page, Map, Context panel, canvas route | Removed with git rm in 11.5. All 10 of its checks assert the pre-Rabbit-Hole dev page; pm/context and pm/apptabs cover the same ground in the one harness. |
 | `packages/web/e2e/coaching.preview.js` | modify | Project page, Map, Context panel, canvas route | The Capture test asserts the Context region instead of the removed AskPanel History and New chat |
@@ -239,43 +242,44 @@ The final consistency check (after three planning rounds) reported four problems
 | 13 | 4 | T05 | Agent Bar logic (pure modules) | Command registry: ctxOf, prepareCommand, executeCommand, the Result shape and the D7 guard (agent/commands.js) |
 | 14 | 4.1 | T05 | Agent Bar logic (pure modules) | Pin and unpin on the device-local list (after home/pinned.js lands) |
 | 15 | 4.2 | T05 | Agent Bar logic (pure modules) | G5: model-backed live reads stay off on the preview (flags.aiReadsOnPreview, the find commands, and the three existing AI find calls) |
-| 16 | 5 | T12 | Canvas record (LEARN_DB) and dev worker | T12 prep: canvases table in repository-schema.sql, announce it to peers, apply it to the shared small-learn-dev with a verified command, and verify it with a sqlite_master SELECT |
-| 17 | 6.1 | T06 | Canvas record (LEARN_DB) and dev worker | Owner-only canvas record API in LEARN_DB: create, get, rename, archive, restore, GET /api/canvases[?archived=1], untouched-only DELETE, learn-course stub |
-| 18 | 6.2 | T06 | Canvas record (LEARN_DB) and dev worker | Learn resolves canvas-*: authorizedBoardApp branch, canvas chat history in LEARN_DB on the /api/ask/threads paths, dev routing predicate, attachment guard |
-| 19 | 6.3 | T06 | Canvas record (LEARN_DB) and dev worker | apiAsk seam: canvas Learn asks are answered by the general tutor, with threads in LEARN_DB and zero env.DB access (keeps the no-env.DB-write test) |
-| 20 | 6.4 | T06 | Canvas record (LEARN_DB) and dev worker | Dev worker wiring (route canvas traffic, merge owner canvases into GET /api/apps, refuse canvas attachments, pass the Learn seam), plus recording the API additions in T02 section 8.2 |
-| 21 | 6.5 | T11 | Canvas record (LEARN_DB) and dev worker | REGRESSION PIN (not TDD): the T02 section 16 conditions hold for connect_repository (LEARN_DB rows only, learn-repositories-dev keys, no live mutation API) |
-| 22 | 7.1 | T10 | Proposal lifecycle blockers | A5.1 Cross-org: the recheck acts only in the proposal's frozen workspace, and a failed recheck is 403 |
-| 23 | 7.2 | T10 | Proposal lifecycle blockers | A5.2 One transition, once: a conditional claim with a 15-minute expiry, reopened if the tool refuses |
-| 24 | 7.3 | T10 | Proposal lifecycle blockers | A5.3 Cancel is final: POST /api/ask/reject, and Slack Cancel calls it |
-| 25 | 7.4 | T10 | Proposal lifecycle blockers | A5.4 Deleting a thread invalidates its open proposals |
-| 26 | 7.5 | T10 | Proposal lifecycle blockers | Document the lifecycle and the exact response bodies for the UI (docs/features/web.md) |
-| 27 | 7.8 | T05 | Agent Bar UI | Agent Bar pure helpers (bar.js) and ConfirmCard: results keyed by resultsKey, SSE fold, per-scope drafts, card states with the 409 statuses, modes with the askLiveOnPreview guard, Learn outcomes, History paths; the §7.3 card the Start dialog reuses |
-| 28 | 8 | T06 | Settings, Connections, Start dialog, e2e, deploy | Start a rabbit hole: pure start.js, then the UI-only StartDialog on the shared registry, ConfirmCard and learnAction |
-| 29 | 8.5 | T06 | Agent Bar UI | One Start dialog host in Root, and Shell publishes the workspace identity that every command ctx reads |
-| 30 | 8.6 | T06 | Settings, Connections, Start dialog, e2e, deploy | Prove the Start dialog on the clone after agent-ui's StartHost lands |
-| 31 | 9.1 | T06 | Shell, Home, Library, Sidebar | Home at /apps (preview): Continue, Recent, and one primary Start that sends small:start; the canvas case in KindIcon; e2e checks |
-| 32 | 9.2 | T05 | Shell, Home, Library, Sidebar | Explore preview: a tested fixture store (home/explore.js) and the /explore page |
-| 33 | 9.3 | T07 | Shell, Home, Library, Sidebar | Library chips: library-filter.js (tested), type and scope chips, ops columns hidden for Projects and Canvases, an empty state that sends small:start, canvas rows with the On another device pill |
-| 34 | 9.4 | T05 | Shell, Home, Library, Sidebar | Sidebar: Home, Library and Explore nav; a flat Pinned section with Pin and Unpin; Recent moves to Home; collapsed defaults; titleOf rows; canvas rows get no live-app actions |
-| 35 | 9.5 | T06 | Shell, Home, Library, Sidebar | Library Archived chip with Restore, and Archive with confirmation from a canvas row menu (T02 §8.4) |
-| 36 | 9.8 | T05 | Settings, Connections, Start dialog, e2e, deploy | Settings reused (dev only): portal, Escape, the small:settings {tab, focus} event, Planned badges and disabled no-ops, PRODUCT copy, and Connections as a catalog |
-| 37 | 9.9 | T07 | Shell, Home, Library, Sidebar | Deploy the smart-home clone, run the shell-home checks, inspect the pixels, and return the link |
-| 38 | 10.2 | T05 | Agent Bar UI | Agent Bar frame: one bar in Root that follows the sidebar and pads pages; per-scope drafts with the retarget offer and chip ×; per-scope placeholder; frozen-scope ask via askBody with Stop and Retry, refused in workspace and app scope while askLiveOnPreview is false; ResultList with History and New chat; toasts bottom-right |
-| 39 | 10.25 | T05 | Agent Bar UI | Multiline Agent Bar input: Enter sends, Shift+Enter adds a line (T02 §6.2, Gate C G2); the Learn dock and chats keep the single-line input |
-| 40 | 10.3 | T05 | Agent Bar UI | Route every send: rules, then prepareCommand/executeCommand with ctxOf(surface, { scope }). Render Result message, notice, results as <title> · <Kind>, Undo and new thread. Confirm cards with D7 Blocked, 409 mapping and Cancel to reject. Ask proposals as cards. Mode picker and pill. /teach and research through learnAction, which navigates and words the outcome. |
-| 41 | 11.1 | T09 | Project page, Map, Context panel, canvas route | Graph colours move to --graph-* tokens so the Map works in dark mode |
-| 42 | 11.2 | T09 | Project page, Map, Context panel, canvas route | Context panel (Results, Selected, Source) replaces the Graph Agent input on Map and on the dev app Graph tab; the Coaching Chat tooltip follows |
-| 43 | 11.3 | T08 | Project page, Map, Context panel, canvas route | Project hub: Overview, Learn, Map and Sources tabs; Learn enabled at once; Share not available; surface (with map status) published |
-| 44 | 11.4 | T08 | Project page, Map, Context panel, canvas route | Canvas route: /apps/canvas-<id> opens Learn or the content-not-on-this-device gate (T02 §8.3); canvas 403 copy |
-| 45 | 11.5 | T09 | Project page, Map, Context panel, canvas route | App pages: working ?tab=runbook, run and logs; dev lands on Runbook while there is no graph (D3); app surface published |
-| 46 | 11.6 | T05 | Agent Bar UI | Agent Bar checks on project and app pages |
-| 47 | 12.5 | T12 | Project page, Map, Context panel, canvas route | Deploy this worktree's clone, run the project-map browser checks, inspect the pixels, and return the review link |
-| 48 | 12.9 | T12 | Canvas record (LEARN_DB) and dev worker | Insert canvas API checks above the shared e2e harness marker and run them against the deployed smart-home clone |
-| 49 | 13 | T11 | Settings, Connections, Start dialog, e2e, deploy | Complete the e2e (J01, J02, J06, J11, J15 with a bar draft, J17 via the bar), check the harness structure and askLiveOnPreview, run everything on the clone, inspect the pixels, record web.md, and hand off the review link |
-| 50 | 13.5 | T11 | Settings, Connections, Start dialog, e2e, deploy | Record the phase-1 spec deviations in T02 §17 for Gate C, with the LearnPage.jsx:689 copy as a coordination item for the Learn owners (docs only) |
-| 51 | 13.8 | T12 | Settings, Connections, Start dialog, e2e, deploy | Pre-merge gate: make test-integration, run once, only after the user says go and has provided the root .env (no task copies an .env) |
-| 52 | 13.9 | T10 | Proposal lifecycle blockers | Promotion note: the A5 fixes stay unpromoted until the user approves; make test-integration is settings-deploy's 13.8 gate, not run here |
+| 16 | 4.3 | T06 | Agent Bar logic (pure modules) | Gate C G2 branch rule: the worker reports whether the default branch is real, and connect_repository stops and asks instead of assuming one |
+| 17 | 5 | T12 | Canvas record (LEARN_DB) and dev worker | T12 prep: canvases table in repository-schema.sql, announce it to peers, apply it to the shared small-learn-dev with a verified command, and verify it with a sqlite_master SELECT |
+| 18 | 6.1 | T06 | Canvas record (LEARN_DB) and dev worker | Owner-only canvas record API in LEARN_DB: create, get, rename, archive, restore, GET /api/canvases[?archived=1], untouched-only DELETE, learn-course stub |
+| 19 | 6.2 | T06 | Canvas record (LEARN_DB) and dev worker | Learn resolves canvas-*: authorizedBoardApp branch, canvas chat history in LEARN_DB on the /api/ask/threads paths, dev routing predicate, attachment guard |
+| 20 | 6.3 | T06 | Canvas record (LEARN_DB) and dev worker | apiAsk seam: canvas Learn asks are answered by the general tutor, with threads in LEARN_DB and zero env.DB access (keeps the no-env.DB-write test) |
+| 21 | 6.4 | T06 | Canvas record (LEARN_DB) and dev worker | Dev worker wiring (route canvas traffic, merge owner canvases into GET /api/apps, refuse canvas attachments, pass the Learn seam), plus recording the API additions in T02 section 8.2 |
+| 22 | 6.5 | T11 | Canvas record (LEARN_DB) and dev worker | REGRESSION PIN (not TDD): the T02 section 16 conditions hold for connect_repository (LEARN_DB rows only, learn-repositories-dev keys, no live mutation API) |
+| 23 | 7.1 | T10 | Proposal lifecycle blockers | A5.1 Cross-org: the recheck acts only in the proposal's frozen workspace, and a failed recheck is 403 |
+| 24 | 7.2 | T10 | Proposal lifecycle blockers | A5.2 One transition, once: a conditional claim with a 15-minute expiry, reopened if the tool refuses |
+| 25 | 7.3 | T10 | Proposal lifecycle blockers | A5.3 Cancel is final: POST /api/ask/reject, and Slack Cancel calls it |
+| 26 | 7.4 | T10 | Proposal lifecycle blockers | A5.4 Deleting a thread invalidates its open proposals |
+| 27 | 7.5 | T10 | Proposal lifecycle blockers | Document the lifecycle and the exact response bodies for the UI (docs/features/web.md) |
+| 28 | 7.8 | T05 | Agent Bar UI | Agent Bar pure helpers (bar.js) and ConfirmCard: results keyed by resultsKey, SSE fold, per-scope drafts, card states with the 409 statuses, modes with the askLiveOnPreview guard, Learn outcomes, History paths; the §7.3 card the Start dialog reuses |
+| 29 | 8 | T06 | Settings, Connections, Start dialog, e2e, deploy | Start a rabbit hole: pure start.js, then the UI-only StartDialog on the shared registry, ConfirmCard and learnAction |
+| 30 | 8.5 | T06 | Agent Bar UI | One Start dialog host in Root, and Shell publishes the workspace identity that every command ctx reads |
+| 31 | 8.6 | T06 | Settings, Connections, Start dialog, e2e, deploy | Prove the Start dialog on the clone after agent-ui's StartHost lands |
+| 32 | 9.1 | T06 | Shell, Home, Library, Sidebar | Home at /apps (preview): Continue, Recent, and one primary Start that sends small:start; the canvas case in KindIcon; e2e checks |
+| 33 | 9.2 | T05 | Shell, Home, Library, Sidebar | Explore preview: a tested fixture store (home/explore.js) and the /explore page |
+| 34 | 9.3 | T07 | Shell, Home, Library, Sidebar | Library chips: library-filter.js (tested), type and scope chips, ops columns hidden for Projects and Canvases, an empty state that sends small:start, canvas rows with the On another device pill |
+| 35 | 9.4 | T05 | Shell, Home, Library, Sidebar | Sidebar: Home, Library and Explore nav; a flat Pinned section with Pin and Unpin; Recent moves to Home; collapsed defaults; titleOf rows; canvas rows get no live-app actions |
+| 36 | 9.5 | T06 | Shell, Home, Library, Sidebar | Library Archived chip with Restore, and Archive with confirmation from a canvas row menu (T02 §8.4) |
+| 37 | 9.8 | T05 | Settings, Connections, Start dialog, e2e, deploy | Settings reused (dev only): portal, Escape, the small:settings {tab, focus} event, Planned badges and disabled no-ops, PRODUCT copy, and Connections as a catalog |
+| 38 | 9.9 | T07 | Shell, Home, Library, Sidebar | Deploy the smart-home clone, run the shell-home checks, inspect the pixels, and return the link |
+| 39 | 10.2 | T05 | Agent Bar UI | Agent Bar frame: one bar in Root that follows the sidebar and pads pages; per-scope drafts with the retarget offer and chip ×; per-scope placeholder; frozen-scope ask via askBody with Stop and Retry, refused in workspace and app scope while askLiveOnPreview is false; ResultList with History and New chat; toasts bottom-right |
+| 40 | 10.25 | T05 | Agent Bar UI | Multiline Agent Bar input: Enter sends, Shift+Enter adds a line (T02 §6.2, Gate C G2); the Learn dock and chats keep the single-line input |
+| 41 | 10.3 | T05 | Agent Bar UI | Route every send: rules, then prepareCommand/executeCommand with ctxOf(surface, { scope }). Render Result message, notice, results as <title> · <Kind>, Undo and new thread. Confirm cards with D7 Blocked, 409 mapping and Cancel to reject. Ask proposals as cards. Mode picker and pill. /teach and research through learnAction, which navigates and words the outcome. |
+| 42 | 11.1 | T09 | Project page, Map, Context panel, canvas route | Graph colours move to --graph-* tokens so the Map works in dark mode |
+| 43 | 11.2 | T09 | Project page, Map, Context panel, canvas route | Context panel (Results, Selected, Source) replaces the Graph Agent input on Map and on the dev app Graph tab; the Coaching Chat tooltip follows |
+| 44 | 11.3 | T08 | Project page, Map, Context panel, canvas route | Project hub: Overview, Learn, Map and Sources tabs; Learn enabled at once; Share not available; surface (with map status) published |
+| 45 | 11.4 | T08 | Project page, Map, Context panel, canvas route | Canvas route: /apps/canvas-<id> opens Learn or the content-not-on-this-device gate (T02 §8.3); canvas 403 copy |
+| 46 | 11.5 | T09 | Project page, Map, Context panel, canvas route | App pages: working ?tab=runbook, run and logs; dev lands on Runbook while there is no graph (D3); app surface published |
+| 47 | 11.6 | T05 | Agent Bar UI | Agent Bar checks on project and app pages |
+| 48 | 12.5 | T12 | Project page, Map, Context panel, canvas route | Deploy this worktree's clone, run the project-map browser checks, inspect the pixels, and return the review link |
+| 49 | 12.9 | T12 | Canvas record (LEARN_DB) and dev worker | Insert canvas API checks above the shared e2e harness marker and run them against the deployed smart-home clone |
+| 50 | 13 | T11 | Settings, Connections, Start dialog, e2e, deploy | Complete the e2e (J01, J02, J06, J11, J15 with a bar draft, J17 via the bar), check the harness structure and askLiveOnPreview, run everything on the clone, inspect the pixels, record web.md, and hand off the review link |
+| 51 | 13.5 | T11 | Settings, Connections, Start dialog, e2e, deploy | Record the phase-1 spec deviations in T02 §17 for Gate C, with the LearnPage.jsx:689 copy as a coordination item for the Learn owners (docs only) |
+| 52 | 13.8 | T12 | Settings, Connections, Start dialog, e2e, deploy | Pre-merge gate: make test-integration, run once, only after the user says go and has provided the root .env (no task copies an .env) |
+| 53 | 13.9 | T10 | Proposal lifecycle blockers | Promotion note: the A5 fixes stay unpromoted until the user approves; make test-integration is settings-deploy's 13.8 gate, not run here |
 
 ---
 
@@ -3078,7 +3082,208 @@ Expected: make test-unit is green; the commit contains exactly these eight paths
 
 ---
 
-### Task 16: T12 prep: canvases table in repository-schema.sql, announce it to peers, apply it to the shared small-learn-dev with a verified command, and verify it with a sqlite_master SELECT
+### Task 16: Gate C G2 branch rule: the worker reports whether the default branch is real, and connect_repository stops and asks instead of assuming one
+
+*Area:* Agent Bar logic (pure modules) · *Brief:* T06 · *Order:* 4.3
+
+**Files:**
+- `packages/lesson-renderer/repository_jobs.py`
+- `packages/lesson-renderer/test_repository.py`
+- `packages/web/src/agent/router.js`
+- `packages/web/src/agent/router.test.mjs`
+- `packages/web/src/agent/commands.js`
+- `packages/web/src/agent/commands.test.mjs`
+- `packages/web/e2e/rabbit-hole-check.mjs`
+
+**Interfaces:**
+- Consumes: router.js rule 2 and GITHUB (order 3.35); commands.js connect_repository.resolve and the test fixture (reply, calls, CTX) (order 4); the harness base with base, session, UA, check and must (order 0.5).
+- Produces: repository_jobs.py parse_refs(stdout) and listing(repo, default, branches, page); the branches response gains defaultBranchKnown (defaultBranch unchanged for RepositoryImport.jsx). router.js keeps an explicit /tree/<branch> as args.branch. commands.js exports noDefaultBranch(repo, branches); resolve() throws it when defaultBranchKnown === false and uses an explicit branch as given. The Start dialog inherits this because repositoryArgs() uses the router.
+
+- [ ] **Step 1: Write the failing worker tests**
+
+```js
+# ===== append to packages/lesson-renderer/test_repository.py (above `if __name__`) and add
+# `from repository_jobs import parse_refs, listing` next to the existing import =====
+SHA = 'a' * 40
+
+class BranchTests(unittest.TestCase):
+    def test_a_default_github_names_is_known(self):
+        default, branches = parse_refs(f'ref: refs/heads/dev\tHEAD\n{SHA}\tHEAD\n{SHA}\trefs/heads/dev\n{SHA}\trefs/heads/alpha\n')
+        out = listing('o/r', default, branches, 1)
+        self.assertEqual(out['defaultBranch'], 'dev')
+        self.assertTrue(out['defaultBranchKnown'])
+
+    def test_no_default_is_reported_not_invented(self):
+        default, branches = parse_refs(f'{SHA}\trefs/heads/zeta\n{SHA}\trefs/heads/alpha\n')
+        out = listing('o/r', default, branches, 1)
+        self.assertFalse(out['defaultBranchKnown'])
+        self.assertEqual(out['defaultBranch'], 'alpha')  # kept for RepositoryImport.jsx:14
+        self.assertEqual(out['branches'], ['alpha', 'zeta'])
+```
+
+- [ ] **Step 2: Run them and see them fail**
+
+Run:
+```bash
+cd /c/Users/cyudhist/Desktop/workspace/smart-home/packages/lesson-renderer && python -m unittest test_repository -v
+```
+
+Expected: ERROR: cannot import name parse_refs from repository_jobs.
+
+- [ ] **Step 3: Extract parse_refs and listing, and report defaultBranchKnown**
+
+```js
+# ===== packages/lesson-renderer/repository_jobs.py =====
+# a) add below the JOBS/LOCK/SLOT line:
+def parse_refs(stdout):
+    '''Branches from `git ls-remote --symref`, and the default GitHub names (None when HEAD has no symref).'''
+    branches = {}; default = None
+    for line in stdout.splitlines():
+        if line.startswith('ref: refs/heads/') and line.endswith('\tHEAD'): default = line.split('\t')[0][len('ref: refs/heads/'):]
+        else:
+            parts = line.split('\t')
+            if len(parts) == 2 and parts[1].startswith('refs/heads/') and re.fullmatch('[a-f0-9]{40}', parts[0]): branches[parts[1][11:]] = parts[0]
+    return default, branches
+
+def listing(repo, default, branches, page):
+    names = sorted(branches)
+    # defaultBranch keeps its old fallback, because RepositoryImport.jsx:14 preselects it.
+    # defaultBranchKnown says whether GitHub named one, so the Agent Bar stops and asks
+    # instead of assuming a branch (Gate C G2).
+    return {'repo': repo, 'defaultBranch': default or names[0], 'defaultBranchKnown': default is not None,
+            'branches': names[(page - 1) * 100:page * 100], 'hasMore': len(names) > page * 100, 'page': page}
+
+# b) in metadata(), replace the inline parse (from `branches={};default=None` through the
+#    `for line in result.stdout.splitlines():` loop) with:
+        default,branches=parse_refs(result.stdout)
+# c) and replace the final send line
+#        page=max(1,min(100,int(body.get('page',1))));names=sorted(branches)
+#        handler.send_json({'repo':repo,'defaultBranch':default or names[0],...})
+#    with:
+        page=max(1,min(100,int(body.get('page',1))))
+        handler.send_json(listing(repo,default,branches,page))
+```
+
+Run:
+```bash
+cd /c/Users/cyudhist/Desktop/workspace/smart-home/packages/lesson-renderer && python -m unittest test_repository -v
+```
+
+Expected: OK: the three existing tests and the two new ones pass.
+
+- [ ] **Step 4: Write the failing client tests**
+
+```js
+// ===== append to packages/web/src/agent/commands.test.mjs, and add noDefaultBranch to its import =====
+test('Gate C G2: a repository without a known default branch stops and asks; nothing is assumed', async () => {
+  reply = () => ({ body: { repo: 'o/r', defaultBranch: 'alpha', defaultBranchKnown: false, branches: ['alpha', 'zeta'], hasMore: false, page: 1 } });
+  await assert.rejects(prepareCommand('connect_repository', { url: 'https://github.com/o/r', repo: 'o/r' }, CTX), { message: noDefaultBranch('o/r', ['alpha', 'zeta']) });
+  assert.equal(calls.some((c) => c.path === '/api/repositories' && c.method === 'POST'), false);
+});
+
+test('Gate C G2: an explicit branch link is used as given', async () => {
+  reply = () => ({ body: { repo: 'o/r', defaultBranch: 'alpha', defaultBranchKnown: false, branches: ['alpha', 'zeta'], hasMore: false, page: 1 } });
+  const prepared = await prepareCommand('connect_repository', { url: 'https://github.com/o/r', repo: 'o/r', branch: 'zeta' }, CTX);
+  assert.equal(prepared.args.branch, 'zeta');
+});
+
+// ===== append to packages/web/src/agent/router.test.mjs =====
+test('rule 2: a GitHub branch link carries its branch; credentials never do (Gate C G2)', () => {
+  assert.deepEqual(at('connect https://github.com/o/r/tree/feature/x'), { type: 'command', name: 'connect_repository', args: { url: 'https://github.com/o/r', repo: 'o/r', branch: 'feature/x' } });
+  assert.deepEqual(at('https://user:token@github.com/o/r'), connect('o/r'));
+});
+```
+
+- [ ] **Step 5: Run them and see them fail**
+
+Run:
+```bash
+cd /c/Users/cyudhist/Desktop/workspace/smart-home/packages/web && npm run test:unit
+```
+
+Expected: FAIL: noDefaultBranch is not exported, and the router drops /tree/feature/x.
+
+- [ ] **Step 6: Keep an explicit branch in the router, and stop instead of assuming in resolve()**
+
+```js
+// ===== packages/web/src/agent/router.js =====
+// a) append the optional branch group to GITHUB (the owner/repo groups are unchanged):
+const GITHUB = /(?:^|[\s(<"'])(?:https?:\/\/)?(?:[^\s/@]+@)?(?:www\.)?github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)(?:\/tree\/([^\s?#<>"')]+))?/i;
+// b) in rule 2, replace
+//     return command('connect_repository', { url: `https://github.com/${repo}`, repo });
+// with
+    return command('connect_repository', { url: `https://github.com/${repo}`, repo, ...(github[3] ? { branch: decodeURIComponent(github[3]) } : {}) });
+// and update the GITHUB comment: owner/repository, plus an explicit /tree/<branch>, are kept;
+// credentials before '@' never are.
+
+// ===== packages/web/src/agent/commands.js =====
+// a) next to D7_REASON:
+export const noDefaultBranch = (repo, branches) => `${repo} has no default branch, so none was assumed. Paste the link to the branch you want, for example https://github.com/${repo}/tree/${branches[0]}. Branches: ${branches.slice(0, 8).join(', ')}${branches.length > 8 ? ', …' : ''}.`;
+// b) replace connect_repository.resolve with:
+    resolve: async ({ url, repo, branch }) => {
+      let meta;
+      try {
+        meta = await api(`/api/repositories/branches?url=${encodeURIComponent(url)}`);
+      } catch (error) {
+        throw Error(/not found/i.test(error.message) ? `Can't connect ${repo}: no public repository found there. Private repositories aren't supported yet; public GitHub works.` : error.message);
+      }
+      // An explicit /tree/<branch> link is used as given; the import validates it (repository_jobs.py 'Branch not found').
+      if (branch) return { url, repo, branch };
+      // Gate C G2: never assume a branch. Before the worker is redeployed the field is absent,
+      // which keeps today's behaviour; once deployed, a repository GitHub names no default for stops here.
+      if (meta.defaultBranchKnown === false) throw Error(noDefaultBranch(repo, meta.branches));
+      return { url, repo, branch: meta.defaultBranch };
+    },
+```
+
+Run:
+```bash
+cd /c/Users/cyudhist/Desktop/workspace/smart-home/packages/web && npm run test:unit
+```
+
+Expected: PASS, including every earlier router and commands test (connect() still matches bare repository links).
+
+- [ ] **Step 7: Announce the worker redeploy, then deploy it**
+
+Run:
+```bash
+echo 'Announce to peer sessions first (SendMessage): small-lesson-renderer-dev is being redeployed from feature/smart-home. The only change is a new defaultBranchKnown field in /repository-metadata; scene rendering is untouched.' && cd /c/Users/cyudhist/Desktop/workspace/smart-home/packages/lesson-renderer && fly deploy --config fly.dev.toml --app small-lesson-renderer-dev
+```
+
+Expected: The announcement goes out before the deploy. fly reports the new release of small-lesson-renderer-dev (app name from fly.dev.toml:1; the command form follows docs/features/learn-math-animation.md:58). No other branch changes packages/lesson-renderer (git diff main...feature/parallel-work and main...feat/canvas-block-conversations are empty).
+
+- [ ] **Step 8: Add the e2e check above the harness marker and run it**
+
+```js
+{
+  await check('G2-branch: the repository worker says whether the default branch is real', async () => {
+    const r = await fetch(`${base}/api/repositories/branches?url=${encodeURIComponent('https://github.com/karpathy/nanoGPT')}`, { headers: { ...UA, Cookie: `small_session=${session}` } });
+    must(r.ok, `HTTP ${r.status}`);
+    const meta = await r.json();
+    must(meta.defaultBranchKnown === true && typeof meta.defaultBranch === 'string', `got ${JSON.stringify({ defaultBranch: meta.defaultBranch, defaultBranchKnown: meta.defaultBranchKnown })}`);
+  });
+}
+```
+
+Run:
+```bash
+cd /c/Users/cyudhist/Desktop/workspace/smart-home/packages/web && SMALL_BASE=https://small-cp-dev-smart-home.zeroshothq.workers.dev SMALL_ENV_FILE=C:/Users/cyudhist/Desktop/workspace/small-deploy/.env ONLY=G2-branch node e2e/rabbit-hole-check.mjs
+```
+
+Expected: ok: G2-branch (karpathy/nanoGPT reports defaultBranchKnown true). Before the worker deploy the same check fails because the field is absent.
+
+- [ ] **Step 9: Commit**
+
+Run:
+```bash
+cd /c/Users/cyudhist/Desktop/workspace/smart-home && make test-unit && P='packages/lesson-renderer/repository_jobs.py packages/lesson-renderer/test_repository.py packages/web/src/agent/router.js packages/web/src/agent/router.test.mjs packages/web/src/agent/commands.js packages/web/src/agent/commands.test.mjs packages/web/e2e/rabbit-hole-check.mjs' && git add $P && git commit --only $P -m 'feat(repositories): report whether the default branch is real; connect stops and asks instead of assuming one'
+```
+
+Expected: make test-unit is green; the commit contains exactly these seven paths.
+
+---
+
+### Task 17: T12 prep: canvases table in repository-schema.sql, announce it to peers, apply it to the shared small-learn-dev with a verified command, and verify it with a sqlite_master SELECT
 
 *Area:* Canvas record (LEARN_DB) and dev worker · *Brief:* T12 · *Order:* 5
 
@@ -3192,7 +3397,7 @@ Expected: Exactly one row: name canvases, with sql containing device_id TEXT and
 
 ---
 
-### Task 17: Owner-only canvas record API in LEARN_DB: create, get, rename, archive, restore, GET /api/canvases[?archived=1], untouched-only DELETE, learn-course stub
+### Task 18: Owner-only canvas record API in LEARN_DB: create, get, rename, archive, restore, GET /api/canvases[?archived=1], untouched-only DELETE, learn-course stub
 
 *Area:* Canvas record (LEARN_DB) and dev worker · *Brief:* T06 · *Order:* 6.1
 
@@ -3382,7 +3587,7 @@ Expected: make test-unit green; one commit, two paths
 
 ---
 
-### Task 18: Learn resolves canvas-*: authorizedBoardApp branch, canvas chat history in LEARN_DB on the /api/ask/threads paths, dev routing predicate, attachment guard
+### Task 19: Learn resolves canvas-*: authorizedBoardApp branch, canvas chat history in LEARN_DB on the /api/ask/threads paths, dev routing predicate, attachment guard
 
 *Area:* Canvas record (LEARN_DB) and dev worker · *Brief:* T06 · *Order:* 6.2
 
@@ -3522,7 +3727,7 @@ Expected: make test-unit green; one commit, four paths
 
 ---
 
-### Task 19: apiAsk seam: canvas Learn asks are answered by the general tutor, with threads in LEARN_DB and zero env.DB access (keeps the no-env.DB-write test)
+### Task 20: apiAsk seam: canvas Learn asks are answered by the general tutor, with threads in LEARN_DB and zero env.DB access (keeps the no-env.DB-write test)
 
 *Area:* Canvas record (LEARN_DB) and dev worker · *Brief:* T06 · *Order:* 6.3
 
@@ -3687,7 +3892,7 @@ Expected: make test-unit green; one commit, three paths. Live small-cp is unaffe
 
 ---
 
-### Task 20: Dev worker wiring (route canvas traffic, merge owner canvases into GET /api/apps, refuse canvas attachments, pass the Learn seam), plus recording the API additions in T02 section 8.2
+### Task 21: Dev worker wiring (route canvas traffic, merge owner canvases into GET /api/apps, refuse canvas attachments, pass the Learn seam), plus recording the API additions in T02 section 8.2
 
 *Area:* Canvas record (LEARN_DB) and dev worker · *Brief:* T06 · *Order:* 6.4
 
@@ -3792,7 +3997,7 @@ Expected: One canvases row. If there is none, do not deploy: that clone's GET /a
 
 ---
 
-### Task 21: REGRESSION PIN (not TDD): the T02 section 16 conditions hold for connect_repository (LEARN_DB rows only, learn-repositories-dev keys, no live mutation API)
+### Task 22: REGRESSION PIN (not TDD): the T02 section 16 conditions hold for connect_repository (LEARN_DB rows only, learn-repositories-dev keys, no live mutation API)
 
 *Area:* Canvas record (LEARN_DB) and dev worker · *Brief:* T11 · *Order:* 6.5
 
@@ -3849,7 +4054,7 @@ Expected: npm test 334 pass (326 + 8), 0 fail; one commit, one path
 
 ---
 
-### Task 22: A5.1 Cross-org: the recheck acts only in the proposal's frozen workspace, and a failed recheck is 403
+### Task 23: A5.1 Cross-org: the recheck acts only in the proposal's frozen workspace, and a failed recheck is 403
 
 *Area:* Proposal lifecycle blockers · *Brief:* T10 · *Order:* 7.1
 
@@ -3996,7 +4201,7 @@ Expected: make test-unit exit 0; one commit containing exactly those two paths
 
 ---
 
-### Task 23: A5.2 One transition, once: a conditional claim with a 15-minute expiry, reopened if the tool refuses
+### Task 24: A5.2 One transition, once: a conditional claim with a 15-minute expiry, reopened if the tool refuses
 
 *Area:* Proposal lifecycle blockers · *Brief:* T10 · *Order:* 7.2
 
@@ -4127,7 +4332,7 @@ Expected: make test-unit exit 0; one commit, two paths
 
 ---
 
-### Task 24: A5.3 Cancel is final: POST /api/ask/reject, and Slack Cancel calls it
+### Task 25: A5.3 Cancel is final: POST /api/ask/reject, and Slack Cancel calls it
 
 *Area:* Proposal lifecycle blockers · *Brief:* T10 · *Order:* 7.3
 
@@ -4273,7 +4478,7 @@ Expected: make test-unit exit 0; one commit, four paths
 
 ---
 
-### Task 25: A5.4 Deleting a thread invalidates its open proposals
+### Task 26: A5.4 Deleting a thread invalidates its open proposals
 
 *Area:* Proposal lifecycle blockers · *Brief:* T10 · *Order:* 7.4
 
@@ -4353,7 +4558,7 @@ Expected: make test-unit exit 0; one commit, three paths
 
 ---
 
-### Task 26: Document the lifecycle and the exact response bodies for the UI (docs/features/web.md)
+### Task 27: Document the lifecycle and the exact response bodies for the UI (docs/features/web.md)
 
 *Area:* Proposal lifecycle blockers · *Brief:* T10 · *Order:* 7.5
 
@@ -4440,7 +4645,7 @@ Expected: make test-unit exit 0; one commit, one path
 
 ---
 
-### Task 27: Agent Bar pure helpers (bar.js) and ConfirmCard: results keyed by resultsKey, SSE fold, per-scope drafts, card states with the 409 statuses, modes with the askLiveOnPreview guard, Learn outcomes, History paths; the §7.3 card the Start dialog reuses
+### Task 28: Agent Bar pure helpers (bar.js) and ConfirmCard: results keyed by resultsKey, SSE fold, per-scope drafts, card states with the 409 statuses, modes with the askLiveOnPreview guard, Learn outcomes, History paths; the §7.3 card the Start dialog reuses
 
 *Area:* Agent Bar UI · *Brief:* T05 · *Order:* 7.8
 
@@ -4935,7 +5140,7 @@ Expected: make test-unit is green. One commit containing only these 3 paths, bef
 
 ---
 
-### Task 28: Start a rabbit hole: pure start.js, then the UI-only StartDialog on the shared registry, ConfirmCard and learnAction
+### Task 29: Start a rabbit hole: pure start.js, then the UI-only StartDialog on the shared registry, ConfirmCard and learnAction
 
 *Area:* Settings, Connections, Start dialog, e2e, deploy · *Brief:* T06 · *Order:* 8
 
@@ -5373,7 +5578,7 @@ Expected: make test-unit is green, with the web suite 5 higher than before this 
 
 ---
 
-### Task 29: One Start dialog host in Root, and Shell publishes the workspace identity that every command ctx reads
+### Task 30: One Start dialog host in Root, and Shell publishes the workspace identity that every command ctx reads
 
 *Area:* Agent Bar UI · *Brief:* T06 · *Order:* 8.5
 
@@ -5509,7 +5714,7 @@ Expected: make test-unit is green. One commit containing only these 4 paths.
 
 ---
 
-### Task 30: Prove the Start dialog on the clone after agent-ui's StartHost lands
+### Task 31: Prove the Start dialog on the clone after agent-ui's StartHost lands
 
 *Area:* Settings, Connections, Start dialog, e2e, deploy · *Brief:* T06 · *Order:* 8.6
 
@@ -5540,7 +5745,7 @@ Expected: ok for build, start-host (agent-ui's label also matches the 'start' pr
 
 ---
 
-### Task 31: Home at /apps (preview): Continue, Recent, and one primary Start that sends small:start; the canvas case in KindIcon; e2e checks
+### Task 32: Home at /apps (preview): Continue, Recent, and one primary Start that sends small:start; the canvas case in KindIcon; e2e checks
 
 *Area:* Shell, Home, Library, Sidebar · *Brief:* T06 · *Order:* 9.1
 
@@ -5781,7 +5986,7 @@ Expected: One commit with 4 files
 
 ---
 
-### Task 32: Explore preview: a tested fixture store (home/explore.js) and the /explore page
+### Task 33: Explore preview: a tested fixture store (home/explore.js) and the /explore page
 
 *Area:* Shell, Home, Library, Sidebar · *Brief:* T05 · *Order:* 9.2
 
@@ -5951,7 +6156,7 @@ Expected: One commit with 5 files
 
 ---
 
-### Task 33: Library chips: library-filter.js (tested), type and scope chips, ops columns hidden for Projects and Canvases, an empty state that sends small:start, canvas rows with the On another device pill
+### Task 34: Library chips: library-filter.js (tested), type and scope chips, ops columns hidden for Projects and Canvases, an empty state that sends small:start, canvas rows with the On another device pill
 
 *Area:* Shell, Home, Library, Sidebar · *Brief:* T07 · *Order:* 9.3
 
@@ -6201,7 +6406,7 @@ Expected: One commit with 4 files
 
 ---
 
-### Task 34: Sidebar: Home, Library and Explore nav; a flat Pinned section with Pin and Unpin; Recent moves to Home; collapsed defaults; titleOf rows; canvas rows get no live-app actions
+### Task 35: Sidebar: Home, Library and Explore nav; a flat Pinned section with Pin and Unpin; Recent moves to Home; collapsed defaults; titleOf rows; canvas rows get no live-app actions
 
 *Area:* Shell, Home, Library, Sidebar · *Brief:* T05 · *Order:* 9.4
 
@@ -6368,7 +6573,7 @@ Expected: One commit with 2 files
 
 ---
 
-### Task 35: Library Archived chip with Restore, and Archive with confirmation from a canvas row menu (T02 §8.4)
+### Task 36: Library Archived chip with Restore, and Archive with confirmation from a canvas row menu (T02 §8.4)
 
 *Area:* Shell, Home, Library, Sidebar · *Brief:* T06 · *Order:* 9.5
 
@@ -6524,7 +6729,7 @@ Expected: One commit with 2 files
 
 ---
 
-### Task 36: Settings reused (dev only): portal, Escape, the small:settings {tab, focus} event, Planned badges and disabled no-ops, PRODUCT copy, and Connections as a catalog
+### Task 37: Settings reused (dev only): portal, Escape, the small:settings {tab, focus} event, Planned badges and disabled no-ops, PRODUCT copy, and Connections as a catalog
 
 *Area:* Settings, Connections, Start dialog, e2e, deploy · *Brief:* T05 · *Order:* 9.8
 
@@ -6872,7 +7077,7 @@ Expected: make test-unit is green. The commit contains exactly these 2 paths.
 
 ---
 
-### Task 37: Deploy the smart-home clone, run the shell-home checks, inspect the pixels, and return the link
+### Task 38: Deploy the smart-home clone, run the shell-home checks, inspect the pixels, and return the link
 
 *Area:* Shell, Home, Library, Sidebar · *Brief:* T07 · *Order:* 9.9
 
@@ -6949,7 +7154,7 @@ Expected: One commit with 1 file
 
 ---
 
-### Task 38: Agent Bar frame: one bar in Root that follows the sidebar and pads pages; per-scope drafts with the retarget offer and chip ×; per-scope placeholder; frozen-scope ask via askBody with Stop and Retry, refused in workspace and app scope while askLiveOnPreview is false; ResultList with History and New chat; toasts bottom-right
+### Task 39: Agent Bar frame: one bar in Root that follows the sidebar and pads pages; per-scope drafts with the retarget offer and chip ×; per-scope placeholder; frozen-scope ask via askBody with Stop and Retry, refused in workspace and app scope while askLiveOnPreview is false; ResultList with History and New chat; toasts bottom-right
 
 *Area:* Agent Bar UI · *Brief:* T05 · *Order:* 10.2
 
@@ -7516,7 +7721,7 @@ Expected: make test-unit is green. One commit containing only these 7 paths.
 
 ---
 
-### Task 39: Multiline Agent Bar input: Enter sends, Shift+Enter adds a line (T02 §6.2, Gate C G2); the Learn dock and chats keep the single-line input
+### Task 40: Multiline Agent Bar input: Enter sends, Shift+Enter adds a line (T02 §6.2, Gate C G2); the Learn dock and chats keep the single-line input
 
 *Area:* Agent Bar UI · *Brief:* T05 · *Order:* 10.25
 
@@ -7669,7 +7874,7 @@ Expected: The commit contains exactly these five paths.
 
 ---
 
-### Task 40: Route every send: rules, then prepareCommand/executeCommand with ctxOf(surface, { scope }). Render Result message, notice, results as <title> · <Kind>, Undo and new thread. Confirm cards with D7 Blocked, 409 mapping and Cancel to reject. Ask proposals as cards. Mode picker and pill. /teach and research through learnAction, which navigates and words the outcome.
+### Task 41: Route every send: rules, then prepareCommand/executeCommand with ctxOf(surface, { scope }). Render Result message, notice, results as <title> · <Kind>, Undo and new thread. Confirm cards with D7 Blocked, 409 mapping and Cancel to reject. Ask proposals as cards. Mode picker and pill. /teach and research through learnAction, which navigates and words the outcome.
 
 *Area:* Agent Bar UI · *Brief:* T05 · *Order:* 10.3
 
@@ -8113,7 +8318,7 @@ Expected: make test-unit is green. One commit containing only these 3 paths.
 
 ---
 
-### Task 41: Graph colours move to --graph-* tokens so the Map works in dark mode
+### Task 42: Graph colours move to --graph-* tokens so the Map works in dark mode
 
 *Area:* Project page, Map, Context panel, canvas route · *Brief:* T09 · *Order:* 11.1
 
@@ -8327,7 +8532,7 @@ Expected: 1 commit, 4 files; git status shows nothing else staged by this task
 
 ---
 
-### Task 42: Context panel (Results, Selected, Source) replaces the Graph Agent input on Map and on the dev app Graph tab; the Coaching Chat tooltip follows
+### Task 43: Context panel (Results, Selected, Source) replaces the Graph Agent input on Map and on the dev app Graph tab; the Coaching Chat tooltip follows
 
 *Area:* Project page, Map, Context panel, canvas route · *Brief:* T09 · *Order:* 11.2
 
@@ -8733,7 +8938,7 @@ Expected: 1 commit, 9 files
 
 ---
 
-### Task 43: Project hub: Overview, Learn, Map and Sources tabs; Learn enabled at once; Share not available; surface (with map status) published
+### Task 44: Project hub: Overview, Learn, Map and Sources tabs; Learn enabled at once; Share not available; surface (with map status) published
 
 *Area:* Project page, Map, Context panel, canvas route · *Brief:* T08 · *Order:* 11.3
 
@@ -9088,7 +9293,7 @@ Expected: 1 commit, 5 files
 
 ---
 
-### Task 44: Canvas route: /apps/canvas-<id> opens Learn or the content-not-on-this-device gate (T02 §8.3); canvas 403 copy
+### Task 45: Canvas route: /apps/canvas-<id> opens Learn or the content-not-on-this-device gate (T02 §8.3); canvas 403 copy
 
 *Area:* Project page, Map, Context panel, canvas route · *Brief:* T08 · *Order:* 11.4
 
@@ -9296,7 +9501,7 @@ Expected: 1 commit, 5 files
 
 ---
 
-### Task 45: App pages: working ?tab=runbook, run and logs; dev lands on Runbook while there is no graph (D3); app surface published
+### Task 46: App pages: working ?tab=runbook, run and logs; dev lands on Runbook while there is no graph (D3); app surface published
 
 *Area:* Project page, Map, Context panel, canvas route · *Brief:* T09 · *Order:* 11.5
 
@@ -9529,7 +9734,7 @@ Expected: 1 commit, 6 files (one deletion)
 
 ---
 
-### Task 46: Agent Bar checks on project and app pages
+### Task 47: Agent Bar checks on project and app pages
 
 *Area:* Agent Bar UI · *Brief:* T05 · *Order:* 11.6
 
@@ -9702,7 +9907,7 @@ Expected: make test-unit is green. One commit containing only the harness.
 
 ---
 
-### Task 47: Deploy this worktree's clone, run the project-map browser checks, inspect the pixels, and return the review link
+### Task 48: Deploy this worktree's clone, run the project-map browser checks, inspect the pixels, and return the review link
 
 *Area:* Project page, Map, Context panel, canvas route · *Brief:* T12 · *Order:* 12.5
 
@@ -9759,7 +9964,7 @@ Expected: Six files: pm-map-dark.png, pm-map-drawer-375-light.png, pm-map-drawer
 
 ---
 
-### Task 48: Insert canvas API checks above the shared e2e harness marker and run them against the deployed smart-home clone
+### Task 49: Insert canvas API checks above the shared e2e harness marker and run them against the deployed smart-home clone
 
 *Area:* Canvas record (LEARN_DB) and dev worker · *Brief:* T12 · *Order:* 12.9
 
@@ -9852,7 +10057,7 @@ Expected: make test-unit green; one commit, one path
 
 ---
 
-### Task 49: Complete the e2e (J01, J02, J06, J11, J15 with a bar draft, J17 via the bar), check the harness structure and askLiveOnPreview, run everything on the clone, inspect the pixels, record web.md, and hand off the review link
+### Task 50: Complete the e2e (J01, J02, J06, J11, J15 with a bar draft, J17 via the bar), check the harness structure and askLiveOnPreview, run everything on the clone, inspect the pixels, record web.md, and hand off the review link
 
 *Area:* Settings, Connections, Start dialog, e2e, deploy · *Brief:* T11 · *Order:* 13
 
@@ -10153,7 +10358,7 @@ Expected: Use only if the final deploy breaks review. It restores the second-new
 
 ---
 
-### Task 50: Record the phase-1 spec deviations in T02 §17 for Gate C, with the LearnPage.jsx:689 copy as a coordination item for the Learn owners (docs only)
+### Task 51: Record the phase-1 spec deviations in T02 §17 for Gate C, with the LearnPage.jsx:689 copy as a coordination item for the Learn owners (docs only)
 
 *Area:* Settings, Connections, Start dialog, e2e, deploy · *Brief:* T11 · *Order:* 13.5
 
@@ -10186,16 +10391,16 @@ decisions of 2026-09-24.
 | # | Spec | Phase 1 | Why | To close it | Gate C (2026-09-24) |
 |---|---|---|---|---|---|
 | 1 | §6.2: `[+]` attaches one file to `/ask`. | The bar has no `[+]`. | The bar does not own attachments yet; the existing chat keeps its own (`ask.jsx:822-834`). | Add `[+]` with the same hidden-scope rules. | Approved: may defer. |
-| 2 | §8.4: after `create_canvas`, the result line shows `Canvas created · Undo`. | Only a canvas created from the Agent Bar shows it. A canvas created from the Start dialog opens in Learn, where the bar is hidden (§6.1). | Nothing on the canvas route can host the line. | Removal stays Archive from the Library row menu (§8.4). | Pending. |
+| 2 | §8.4: after `create_canvas`, the result line shows `Canvas created · Undo`. | Only a canvas created from the Agent Bar shows it. A canvas created from the Start dialog opens in Learn, where the bar is hidden (§6.1). | Nothing on the canvas route can host the line. | Removal stays Archive/Restore from the Library row menu (§8.4). | Approved: Undo only for bar-created canvases; Start-created canvases use Archive/Restore. |
 | 3 | §3.1 rule 3: an "Authored path" card with `Step 3 of 7`. | Not built. | `learn_courses` keeps one course per app and no per-learner step, so a step count would be invented. | Store per-learner progress, then build the card. | Approved: may defer. |
 | 4 | §8.2: `PATCH /api/apps/canvas-* {title}` renames a canvas. | The API exists; no screen offers Rename. | Not in the phase-1 UI. | A Rename item in the canvas row menu. | Approved: may defer. |
 | 5 | §6.1: the bar is hidden on Learn and on all canvases. | Every `/apps/canvas-*` route hides the bar, including the §8.3 not-on-this-device state. | Learn owns the bottom composer. | — | Approved: expected. |
 | 6 | §6.4: `/ask` is available in all scopes. | On dev builds `askLiveOnPreview` is `false`: `/ask` in workspace or app scope is unavailable; project and canvas asks (`LEARN_DB`) work. | Workspace and app threads live in the live D1, which the review copy binds (D7). | — | Decided G1 (b): stays off. |
 | 7 | §6.4: `/research` gathers sources, and results offer Add to canvas. | Not reachable until the Learn handoff lands. | Research runs in canvas scope, every canvas route hides the bar, and `learnHandoff` is `false`. | Merge the Learn handoff (`feature/parallel-work` `cc0cbf8`). | Approved: unavailable until the hook lands. |
 | 8 | §5 and §9: a Start Question hands the question to Learn. | With `learnHandoff === false` only, the question is copied to the clipboard during the submit and the line says so (or says it wasn't transferred). With the hook, Question creates the canvas and prefills the Learn composer, unsent. | The hook is not on `main` yet. | Flip `learnHandoff` when the hook merges. | Approved as fallback only; not the product UX. |
-| 9 | §5: a branch select appears when the repository has no default branch. | No select. | The metadata worker always returns a default branch (`repository_jobs.py:40`). | Add the select when a repository without a default is possible. | Pending. |
+| 9 | §5: a branch select appears when the repository has no default branch. | No select. When GitHub names no default, the bar and the Start dialog stop and ask for a branch link; no branch is assumed. | The worker used to substitute the first branch (`repository_jobs.py:40`); it now reports `defaultBranchKnown`. The command stays branch-aware (`/tree/<branch>`). | — | Approved: omit the select; never assume main, master or the first branch. |
 | 10 | §12: the Project header has a `[⋯]` menu. | Omitted. | §12 names no items for it. | Add it with its first real item. | Approved. |
-| 11 | §6.5: Source selections join the bar's scope. | Only the selected graph node joins the scope; source line ranges do not. | `askBody` carries the node, not a range. | Add ranges to `askBody`. | Pending. |
+| 11 | §6.5: Source selections join the bar's scope. | Only the selected graph node joins the scope; source line ranges do not. | `askBody` carries the node, not a range. | Add ranges to `askBody`. | Approved: the selected graph node is the code-context scope; source line ranges stay inspector and evidence state. |
 | 12 | §6.6 and §7.2: `find_apps_ai` and `find_runs_ai` are immediate reads. | On dev builds `aiReadsOnPreview` is `false`: both are unavailable, and the existing Search, Library and runs AI find skip `/api/apps/find` and `/api/runs/find`. Local title search stays. | Both run a model on the live control plane: read-only is not isolated. | Your explicit approval of live model-backed reads. | Decided G5: off. |
 
 **Coordination with the Learn owners (no edit on this branch).** The canvas
@@ -10226,7 +10431,7 @@ Expected: make test-unit is green. The commit contains exactly this one path.
 
 ---
 
-### Task 51: Pre-merge gate: make test-integration, run once, only after the user says go and has provided the root .env (no task copies an .env)
+### Task 52: Pre-merge gate: make test-integration, run once, only after the user says go and has provided the root .env (no task copies an .env)
 
 *Area:* Settings, Connections, Start dialog, e2e, deploy · *Brief:* T12 · *Order:* 13.8
 
@@ -10270,7 +10475,7 @@ Tell the user the result. The root .env is theirs: ask whether to keep or delete
 
 ---
 
-### Task 52: Promotion note: the A5 fixes stay unpromoted until the user approves; make test-integration is settings-deploy's 13.8 gate, not run here
+### Task 53: Promotion note: the A5 fixes stay unpromoted until the user approves; make test-integration is settings-deploy's 13.8 gate, not run here
 
 *Area:* Proposal lifecycle blockers · *Brief:* T10 · *Order:* 13.9
 
