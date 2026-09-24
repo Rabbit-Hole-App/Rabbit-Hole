@@ -24,7 +24,8 @@ const catalogResponse = await fetch(`${base}/api/apps`, { headers: { ...UA, Cook
 if (!catalogResponse.ok) throw new Error(`/api/apps: HTTP ${catalogResponse.status}`);
 const data = await catalogResponse.json(); // { org, orgName, email, apps }
 const apps = data.apps || [];
-const repo = apps.find((a) => a.kind === 'repository');
+// nanoGPT is the journeys' project; a newer test repository (octocat/Hello-World) must not displace it.
+const repo = apps.find((a) => a.kind === 'repository' && /^karpathy\/nanogpt$/i.test(a.repo || '')) || apps.find((a) => a.kind === 'repository');
 const plain = apps.find((a) => a.kind === 'job' || a.kind === 'server');
 // api.js:4, copied: api.js is not imported because it pulls the OIDC client in through private-auth.js.
 const wsName = (org) => ((org || '').split('-')[0] || org || '').replace(/^./, (c) => c.toUpperCase());
