@@ -105,7 +105,7 @@ Decided by the user while Gate B is still open. Implementation still waits for G
 - **G1 — preview asks that would write live chat history: (b) OFF.** Workspace and app asks stay unavailable on the review clone (`askLiveOnPreview = false`). Project and canvas asks through `LEARN_DB` remain.
 - **G2 — phase-1 deviations: approved selectively.** Approved: `[+]` attachment may defer; Authored-path Continue may defer; canvas rename UI may defer; canvas routes yield to Learn's composer; no empty `[⋯]` menu; `/research` unavailable until the agreed Learn hook lands. **Question → clipboard is fallback-only** while `learnHandoff === false`; once the hook lands, Question creates the canvas and prefills the Learn composer, unsent. **Shift+Enter is not deferred:** the Agent Bar gets a multiline input (Enter sends, Shift+Enter adds a line) through an opt-in `ChatComposer` prop (Task: *Multiline Agent Bar input*). Still pending: Undo only for bar-created canvases, no branch select, source ranges not joining the scope (T02 §17 rows 2, 9, 11).
 - **G3 — no live `small-cp` promotion yet.** The four proposal lifecycle fixes are implemented and covered by control-plane unit tests; `make test-integration` runs as the pre-merge regression gate. Integration coverage of the fixes themselves needs a control-plane deploy target, which waits for the separate promotion approval. Server-backed `/do` stays Blocked.
-- **G4 — yes, coordinate.** The stale "Connect Google under Settings → Connections" toast (`LearnPage.jsx:689`) is raised with the Learn owners; smart-home does not edit their files.
+- **G4 — coordinated; resolved upstream.** The stale "Connect Google under Settings → Connections" toast (`LearnPage.jsx:689` on `main`) is already gone on `feature/parallel-work`: its Sources menu is split into Search and Files, and Google Slides stays hidden until a connector exists (confirmed by the owner of that branch, 2026-09-24). It disappears from `main` when that branch merges. smart-home edits nothing in Learn.
 - **G5 — model-backed live reads on the preview: OFF.** `find_apps_ai` and `find_runs_ai` are unavailable on the review clone, and the existing Search, Library and runs AI find skip their endpoints on dev builds (Task: *G5*). Deterministic local title and resource search stays available. This is a cost and privacy boundary even though the endpoints are read-only.
 
 ## Execution strategy
@@ -10199,10 +10199,11 @@ decisions of 2026-09-24.
 | 12 | §6.6 and §7.2: `find_apps_ai` and `find_runs_ai` are immediate reads. | On dev builds `aiReadsOnPreview` is `false`: both are unavailable, and the existing Search, Library and runs AI find skip `/api/apps/find` and `/api/runs/find`. Local title search stays. | Both run a model on the live control plane: read-only is not isolated. | Your explicit approval of live model-backed reads. | Decided G5: off. |
 
 **Coordination with the Learn owners (no edit on this branch).** The canvas
-Sources menu toasts "Connect Google under Settings → Connections to import a
-deck." (`LearnPage.jsx:689`), but Settings lists Google Slides as Planned
-(§11). `LearnPage.jsx` belongs to the Learn branches, so the copy change is
-theirs, for example "Google Slides import is planned."
+Sources menu on `main` toasts "Connect Google under Settings → Connections to
+import a deck." (`LearnPage.jsx:689`), but Settings lists Google Slides as Planned
+(§11). `feature/parallel-work` already removes that item (its Sources menu is split
+into Search and Files, and Google Slides stays hidden until a connector exists), so
+the copy disappears when that branch merges.
 ```
 
 - [ ] **Step 3: Verify: one §17, twelve rows, nothing else changed**
