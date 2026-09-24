@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { kindLabel, lookup, titleOf } from './catalog.js';
+import { kindLabel, lookup, repositoriesOf, titleOf } from './catalog.js';
 
 const CATALOG = [
   { name: 'repo-1a2b3c4d-nanogpt', kind: 'repository', repo: 'karpathy/nanoGPT' },
@@ -30,4 +30,12 @@ test('an exact name wins over longer names that contain it', () => {
 test('blank text finds nothing, and so does a missing catalog', () => {
   assert.deepEqual(lookup(CATALOG, '   '), []);
   assert.deepEqual(lookup(undefined, 'counter'), []);
+});
+
+test('a connected repository is found by owner/repository whatever its casing or .git', () => {
+  const rows = [...CATALOG, { name: 'repo-9f8e7d6c-nanogpt', kind: 'repository', repo: 'Karpathy/NanoGPT.git', branch: 'dev' }];
+  assert.deepEqual(repositoriesOf(rows, 'KARPATHY/nanogpt').map((row) => row.name), ['repo-1a2b3c4d-nanogpt', 'repo-9f8e7d6c-nanogpt']);
+  assert.deepEqual(repositoriesOf(rows, 'karpathy/nanoGPT.git').length, 2);
+  assert.deepEqual(repositoriesOf(rows, 'karpathy/minGPT'), []);
+  assert.deepEqual(repositoriesOf(undefined, 'karpathy/nanoGPT'), []);
 });

@@ -1,5 +1,5 @@
 import { findConnection } from '../connections.js';
-import { kindLabel, lookup } from './catalog.js';
+import { kindLabel, lookup, onBranch, repositoriesOf, titleOf } from './catalog.js';
 
 // RulesRouter (T02 §6.6): deterministic, first match wins, no model call. Anything
 // unmatched goes to Ask in the frozen scope, whose tools come back as Confirm cards.
@@ -7,6 +7,8 @@ const SETTINGS = { settings: {}, preferences: { tab: 'preferences' }, connection
 // owner/repository from a GitHub URL anywhere in the text, plus an explicit /tree/<branch>, are kept;
 // credentials before '@' never are (parseRepository wants the bare URL, repositories.js:11-17).
 const GITHUB = /(?:^|[\s(<"'])(?:https?:\/\/)?(?:[^\s/@]+@)?(?:www\.)?github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)(?:\/tree\/([^\s?#<>"')]+))?/i;
+// The only words that turn a link into a new project; anything else around a link is a question.
+const CREATE = /^(?:start a rabbit hole(?: (?:with|from|on|in))?|connect(?: to)?|import)$/i;
 
 const ask = (text, mode = 'ask') => ({ type: 'ask', mode, text });
 const command = (name, args) => ({ type: 'command', name, args });
@@ -32,11 +34,33 @@ export function route(text, { mode = null, catalog = [], scope = null } = {}) {
   // 1. A slash mode at position 0.
   const slash = !pill && message.match(/^\/(ask|teach|research|do)(?:\s+|$)/i);
   if (slash) return { type: 'mode', mode: slash[1].toLowerCase(), text: message.slice(slash[0].length) };
-  // 2. A GitHub repository connects; any other URL is a question.
+  // 2. A GitHub repository link. A URL appearing is not a request to create a project (user decision,
+  // 2026-09-24): a bare link or explicit creation language connects, and a repository already
+  // connected here opens instead. A link inside a question stays a question. Any other URL is a question.
   const github = message.match(GITHUB);
   if (github) {
     const repo = `${github[1]}/${github[2].replace(/\.+$/, '').replace(/\.git$/i, '')}`;
-    return command('connect_repository', { url: `https://github.com/${repo}`, repo, ...(github[3] ? { branch: decodeURIComponent(github[3]).replace(/\.+$/, '') } : {}) });
+    const branch = github[3] ? decodeURIComponent(github[3]).replace(/\.+$/, '') : null;
+    const connect = { url: `https://github.com/${repo}`, repo, ...(branch ? { branch } : {}) };
+    const same = repositoriesOf(catalog, repo);
+    const open = (row) => ({ slug: row.name, kind: row.kind, title: titleOf(row) });
+    // The words around the link, without the rest of the link, its brackets or punctuation.
+    const rest = `${message.slice(0, github.index)} ${message.slice(github.index + github[0].length).replace(/^\S*/, '')}`.replace(/[\s<>()"'`.,;:!?]+/g, ' ').trim();
+    if (!rest || CREATE.test(rest)) {
+      if (!same.length) return command('connect_repository', connect);
+      const exact = branch ? onBranch(same, branch) : same.length === 1 && same[0];
+      if (exact) return command('open_resource', open(exact));
+      // Never overwrite or duplicate silently: open what is connected, or connect the named branch too.
+      return {
+        type: 'choose',
+        options: [
+          ...same.map((row) => ({ label: `${titleOf(row)}${row.branch ? ` (${row.branch})` : ''} · ${kindLabel(row.kind)}`, name: 'open_resource', args: open(row) })),
+          ...(branch ? [{ label: `Connect ${repo} at ${branch}`, name: 'connect_repository', args: { ...connect, newBranch: true } }] : []),
+        ],
+      };
+    }
+    if (same.length) return { ...ask(message), about: open((branch && onBranch(same, branch)) || same[0]) };
+    return { ...ask(message), note: `${repo} isn't connected, so answers can't read its code yet.`, offer: { label: `Connect ${repo}`, name: 'connect_repository', args: connect } };
   }
   if (/https?:\/\/\S/i.test(message)) return ask(message);
   // 3. open|go to|show <name>. A Settings word is never looked up: "open settings" opens Settings.

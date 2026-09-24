@@ -14,6 +14,8 @@ const HOME = { org: 'gmail-com', kind: 'workspace', slug: null, title: null, sel
 const NANOGPT = { org: 'gmail-com', kind: 'project', slug: 'repo-1a2b3c4d-nanogpt', title: 'karpathy/nanoGPT', selected: null };
 const at = (text, options = {}) => route(text, { catalog: CATALOG, scope: HOME, ...options });
 const connect = (repo) => ({ type: 'command', name: 'connect_repository', args: { url: `https://github.com/${repo}`, repo } });
+const OPEN_NANOGPT = { type: 'command', name: 'open_resource', args: { slug: 'repo-1a2b3c4d-nanogpt', kind: 'repository', title: 'karpathy/nanoGPT' } };
+const ABOUT_NANOGPT = { slug: 'repo-1a2b3c4d-nanogpt', kind: 'repository', title: 'karpathy/nanoGPT' };
 
 test('rule 1: a slash mode at position 0 comes before every other rule', () => {
   assert.deepEqual(at('/teach https://github.com/karpathy/nanoGPT'), { type: 'mode', mode: 'teach', text: 'https://github.com/karpathy/nanoGPT' });
@@ -25,16 +27,57 @@ test('a mode pill wins over the rules; Auto is no pill; /do still runs the rules
   assert.deepEqual(at('https://github.com/karpathy/nanoGPT', { mode: 'ask' }), { type: 'ask', mode: 'ask', text: 'https://github.com/karpathy/nanoGPT' });
   assert.deepEqual(at('open counter', { mode: 'teach' }), { type: 'ask', mode: 'teach', text: 'open counter' });
   assert.deepEqual(at('open counter', { mode: 'research' }), { type: 'ask', mode: 'research', text: 'open counter' });
-  assert.deepEqual(at('https://github.com/karpathy/nanoGPT', { mode: 'auto' }), connect('karpathy/nanoGPT'));
+  assert.deepEqual(at('https://github.com/karpathy/nanoGPT', { mode: 'auto' }), OPEN_NANOGPT);
   assert.equal(at('share counter with y@example.com', { mode: 'do' }).name, 'share');
   assert.deepEqual(at('explain the training loop', { mode: 'do' }), { type: 'ask', mode: 'ask', text: 'explain the training loop' });
 });
 
-test('rule 2: a GitHub repository URL connects it, wherever it sits in the sentence', () => {
-  assert.deepEqual(at('https://github.com/karpathy/nanoGPT'), connect('karpathy/nanoGPT'));
-  assert.deepEqual(at('Start a rabbit hole with https://github.com/karpathy/nanoGPT.git'), connect('karpathy/nanoGPT'));
-  assert.deepEqual(at('look at http://www.github.com/karpathy/nanoGPT/tree/master/model.py.'), { ...connect('karpathy/nanoGPT'), args: { ...connect('karpathy/nanoGPT').args, branch: 'master/model.py' } });
-  assert.deepEqual(at('what is https://github.com/karpathy/nanoGPT.'), connect('karpathy/nanoGPT'));
+// A URL appearing is not a request to create a project (user decision, 2026-09-24): only a bare link
+// or explicit creation language connects, and an already-connected repository opens instead.
+test('rule 2: a bare repository link connects it when new and opens its project when already connected', () => {
+  assert.deepEqual(at('https://github.com/karpathy/minGPT'), connect('karpathy/minGPT'));
+  assert.deepEqual(at('https://github.com/karpathy/nanoGPT'), OPEN_NANOGPT);
+});
+
+test('rule 2: host and owner/repository casing, .git, a trailing slash, query and fragment all name the same repository', () => {
+  for (const text of ['https://GitHub.com/Karpathy/NanoGPT', 'https://github.com/karpathy/nanoGPT.git', 'https://github.com/karpathy/nanoGPT/', 'github.com/KARPATHY/nanogpt?tab=readme-ov-file#install', '<https://www.github.com/karpathy/nanoGPT.git/>']) {
+    assert.deepEqual(at(text), OPEN_NANOGPT, text);
+  }
+});
+
+test('rule 2: explicit creation language still connects: start a rabbit hole with, connect, import', () => {
+  assert.deepEqual(at('Start a rabbit hole with https://github.com/karpathy/minGPT.git'), connect('karpathy/minGPT'));
+  assert.deepEqual(at('connect https://github.com/karpathy/minGPT'), connect('karpathy/minGPT'));
+  assert.deepEqual(at('Import github.com/karpathy/minGPT'), connect('karpathy/minGPT'));
+  assert.deepEqual(at('Start a rabbit hole with https://github.com/karpathy/nanoGPT'), OPEN_NANOGPT);
+});
+
+test('rule 2: a link inside a question is a question; a connected repository comes along as context, never a Connect card', () => {
+  for (const text of ['How does attention work in https://github.com/karpathy/nanoGPT?', 'look at http://www.github.com/karpathy/nanoGPT/tree/master/model.py.', 'what is https://github.com/karpathy/nanoGPT.']) {
+    assert.deepEqual(at(text), { type: 'ask', mode: 'ask', text, about: ABOUT_NANOGPT }, text);
+  }
+});
+
+test('rule 2: a question about a repository that is not connected asks, and offers Connect only as an explicit next step', () => {
+  const text = 'How does attention work in https://github.com/karpathy/minGPT?';
+  assert.deepEqual(at(text), {
+    type: 'ask', mode: 'ask', text,
+    note: "karpathy/minGPT isn't connected, so answers can't read its code yet.",
+    offer: { label: 'Connect karpathy/minGPT', name: 'connect_repository', args: { url: 'https://github.com/karpathy/minGPT', repo: 'karpathy/minGPT' } },
+  });
+});
+
+test('rule 2: a different /tree/ branch of a connected repository asks: open the project, or connect that branch', () => {
+  const catalog = [{ name: 'repo-1a2b3c4d-nanogpt', kind: 'repository', repo: 'karpathy/nanoGPT', branch: 'master' }];
+  assert.deepEqual(route('https://github.com/karpathy/nanoGPT/tree/master', { catalog, scope: HOME }), OPEN_NANOGPT);
+  assert.deepEqual(route('https://github.com/karpathy/nanoGPT/tree/master/model.py', { catalog, scope: HOME }), OPEN_NANOGPT);
+  assert.deepEqual(route('https://github.com/karpathy/nanoGPT/tree/dev', { catalog, scope: HOME }), {
+    type: 'choose',
+    options: [
+      { label: 'karpathy/nanoGPT (master) · Project', name: 'open_resource', args: ABOUT_NANOGPT },
+      { label: 'Connect karpathy/nanoGPT at dev', name: 'connect_repository', args: { url: 'https://github.com/karpathy/nanoGPT', repo: 'karpathy/nanoGPT', branch: 'dev', newBranch: true } },
+    ],
+  });
 });
 
 // Privacy is decided by the server's public-refs lookup, never guessed from the URL.

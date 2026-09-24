@@ -16,3 +16,12 @@ export function lookup(catalog, text) {
   const exact = items.filter((item) => item.slug.toLowerCase() === q || item.title.toLowerCase() === q);
   return exact.length ? exact : items.filter((item) => item.slug.toLowerCase().includes(q) || item.title.toLowerCase().includes(q));
 }
+
+// Connected repositories named by owner/repository, compared the way GitHub does: case-insensitive
+// and without .git. The router and connect_repository both use it, so neither creates a duplicate.
+const repoKey = (repo) => String(repo || '').toLowerCase().replace(/\.git$/, '');
+export const repositoriesOf = (catalog, repo) => (catalog || []).filter((row) => row.kind === 'repository' && repoKey(row.repo) === repoKey(repo));
+// The connected project on this branch. A /tree/ link may run on into a folder, so the longest
+// connected branch the link starts with counts.
+export const onBranch = (rows, branch) =>
+  rows.filter((row) => row.branch && (branch === row.branch || branch.startsWith(`${row.branch}/`))).sort((a, b) => b.branch.length - a.branch.length)[0] || null;

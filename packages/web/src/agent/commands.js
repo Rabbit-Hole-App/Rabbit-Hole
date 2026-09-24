@@ -3,7 +3,7 @@ import { openedNotice } from '../connections.js';
 import { aiReadsOnPreview, learnPreview } from '../flags.js';
 import { canvasKeys, deviceId, hasLocalContent } from '../home/canvas-local.js';
 import { readPinned, togglePin } from '../home/pinned.js';
-import { kindLabel, lookup, titleOf } from './catalog.js';
+import { kindLabel, lookup, onBranch, repositoriesOf, titleOf } from './catalog.js';
 import { scopeOf } from './scope.js';
 
 // One registry for the Agent Bar and the buttons that do the same things (T02 §7).
@@ -33,6 +33,17 @@ const go = (to) => {
   navigate(to);
   return {};
 };
+// One repository, one project (user decision, 2026-09-24): the project to open instead of creating,
+// or null to create. A different explicit branch creates only when the user chose it (newBranch);
+// otherwise it stops and asks, so nothing is duplicated or overwritten silently.
+function connectedProject(rows, { repo, branch, newBranch }) {
+  const same = repositoriesOf(rows, repo);
+  if (!same.length) return null;
+  if (!branch) return same[0];
+  const project = onBranch(same, branch);
+  if (project || newBranch) return project;
+  throw Error(`${titleOf(same[0])} is already connected on ${same[0].branch}. Open it, or connect ${branch} as a separate project.`);
+}
 function targetOf(ctx, slug) {
   const row = rowOf(ctx, slug);
   return row ? `${titleOf(row)} (${row.kind}) · /apps/${slug}` : `${slug} · /apps/${slug}`;
@@ -178,7 +189,9 @@ export const COMMANDS = {
     risk: 'confirm', touchesLive: false, available: ok,
     // prepareCommand runs this before the card, so the card shows the exact branch and a
     // repository that is not public fails before any card.
-    resolve: async ({ url, repo, branch }) => {
+    resolve: async ({ url, repo, branch, newBranch }, ctx) => {
+      const project = connectedProject(ctx.catalog, { repo, branch, newBranch });
+      if (project) return { url, repo, existing: project.name };
       let meta;
       try {
         meta = await api(`/api/repositories/branches?url=${encodeURIComponent(url)}`);
@@ -191,7 +204,7 @@ export const COMMANDS = {
       if (branch) {
         const parts = branch.split('/');
         const known = parts.map((_, i) => parts.slice(0, parts.length - i).join('/')).find((name) => meta.branches?.includes(name));
-        return { url, repo, branch: known || branch };
+        return { url, repo, branch: known || branch, ...(newBranch ? { newBranch } : {}) };
       }
       // Gate C G2: never assume a branch. Before the worker is redeployed the field is absent,
       // which keeps today's behaviour; once deployed, a repository GitHub names no default for stops here.
@@ -203,9 +216,16 @@ export const COMMANDS = {
       target: `${args.repo} · public GitHub · ${args.url}`,
       operation: 'connect_repository',
       params: { branch: args.branch },
-      effect: `Visible to everyone in ${workspace(ctx)}. Connected repositories can't be deleted yet.`,
+      effect: `${args.newBranch ? `${args.repo} is already connected on ${repositoriesOf(ctx.catalog, args.repo)[0]?.branch}; this connects ${args.branch} as a separate project. ` : ''}Visible to everyone in ${workspace(ctx)}. Connected repositories can't be deleted yet.`,
     }),
-    run: async ({ url, branch }) => {
+    run: async ({ url, repo, branch, newBranch, existing }) => {
+      // Checked again against a fresh catalog right before creating: the page's copy can be stale.
+      // ponytail: two tabs connecting the same repository at the same moment can still both create; a server-side unique check if that shows up.
+      const project = existing ? { name: existing } : connectedProject((await api('/api/apps')).apps, { repo, branch, newBranch });
+      if (project) {
+        navigate(`/apps/${project.name}`);
+        return { message: `${repo} is already connected; opened its project.`, href: `/apps/${project.name}`, data: { name: project.name, existing: true } };
+      }
       const { name } = await api('/api/repositories', { method: 'POST', body: JSON.stringify({ url, branch }) });
       navigate(`/apps/${name}`);
       return { href: `/apps/${name}`, data: { name } };
@@ -234,6 +254,8 @@ export async function prepareCommand(name, args, ctx) {
   const command = COMMANDS[name];
   if (command?.unsupported?.(args, ctx)) return { args, card: null, policy: { risk: 'immediate', blocked: false } };
   const resolved = (await command?.resolve?.(args, ctx)) ?? args;
+  // Resolved to something that already exists (connect_repository's project): nothing to confirm.
+  if (resolved.existing) return { args: resolved, card: null, policy: { risk: 'immediate', blocked: false } };
   return { args: resolved, card: command?.preview?.(resolved, ctx) ?? null, policy: policy(name, ctx) };
 }
 
