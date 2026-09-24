@@ -103,6 +103,8 @@ test('deep: V, padding and every product follow the branch, checked against plai
     assert.ok(Math.abs(wte.x - (body.x + body.w)) < 0.01);
     assert.ok(Math.abs(wte.w / body.w - (V * C) / (params(V) - V * C)) < 1e-3);
     assert.equal(byId(result, 'param-wte-label').label, `wte: ${g(V * C)} of ${g(params(V))}`);
+    // The bar's N is the count NanoGPT reports (wpe left out of it, not out of training).
+    assert.equal(byId(result, 'param-title').label, "N = NanoGPT's reported non-position-embedding parameter count (wpe still trains), 20 px per million");
     // No large number is printed without grouping (shape tuples excepted).
     const printed = result.state.objects.filter(o => o.visible && o.label && ['text', 'box'].includes(o.type)).map(o => o.label.replace(/\([^)]*\)/g, ''));
     assert.deepEqual(printed.filter(l => /\d{5,}/.test(l)), []);
@@ -188,7 +190,7 @@ test('deep: every cited range says what its note claims, at the pinned revision'
     'model.py:133-133': [/self\.lm_head = nn\.Linear\(config\.n_embd, config\.vocab_size, bias=False\)/],
     'model.py:138-138': [/self\.transformer\.wte\.weight = self\.lm_head\.weight/],
     'model.py:184-191': [/if targets is not None:/, /logits = self\.lm_head\(x\)/, /logits = self\.lm_head\(x\[:, \[-1\], :\]\)/],
-    'model.py:150-160': [/def get_num_params\(self, non_embedding=True\):/, /n_params -= self\.transformer\.wpe\.weight\.numel\(\)/],
+    'model.py:147-160': [/print\("number of parameters: %\.2fM" % \(self\.get_num_params\(\)\/1e6,\)\)/, /def get_num_params\(self, non_embedding=True\):/, /n_params -= self\.transformer\.wpe\.weight\.numel\(\)/],
     'model.py:35-37': [/c_attn = nn\.Linear\(config\.n_embd, 3 \* config\.n_embd, bias=config\.bias\)/, /c_proj = nn\.Linear\(config\.n_embd, config\.n_embd, bias=config\.bias\)/],
     'model.py:82-84': [/c_fc {4}= nn\.Linear\(config\.n_embd, 4 \* config\.n_embd, bias=config\.bias\)/, /c_proj {2}= nn\.Linear\(4 \* config\.n_embd, config\.n_embd, bias=config\.bias\)/],
     'model.py:96-101': [/ln_1 = LayerNorm\(config\.n_embd, bias=config\.bias\)/, /ln_2 = LayerNorm/, /self\.attn = /, /self\.mlp = /],

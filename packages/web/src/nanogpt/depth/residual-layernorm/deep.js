@@ -9,7 +9,8 @@
 //      vector (variance 0: without eps the division is 0/0) and a nearly
 //      constant one (variance below eps: eps shrinks x-hat);
 //   C. the scaled init of the residual projections: _init_weights gives every
-//      Linear std 0.02, then every c_proj is re-drawn at 0.02 / sqrt(2 *
+//      Linear and Embedding std 0.02, then only the parameters named
+//      *c_proj.weight (attn.c_proj, mlp.c_proj) are re-drawn at 0.02 / sqrt(2 *
 //      n_layer), so the std of what the 2 * n_layer residual adds write into
 //      the stream stays at one branch's worth however deep the model is. The
 //      bars show std, not variance: on one linear axis the scaled bars (1)
@@ -69,7 +70,7 @@ export const scene = {
       options: [{ id: 'pre', label: 'Pre-LN (NanoGPT)' }, { id: 'post', label: 'Post-LN (what-if)' }] },
     { name: 'vector', type: 'choice', label: 'Vector entering LayerNorm', default: 'x0',
       options: [{ id: 'x0', label: 'x₀ (as in Guided)' }, { id: 'near', label: 'Nearly constant' }, { id: 'constant', label: 'Constant (σ² = 0)' }] },
-    { name: 'scaledInit', type: 'bool', label: 'Scaled c_proj init (as NanoGPT)', default: true },
+    { name: 'scaledInit', type: 'bool', label: 'Scale the c_proj weights only (as NanoGPT)', default: true },
   ],
   exampleData: {
     preOnlyBy: { pre: 1, post: 0 },
@@ -199,10 +200,13 @@ export const scene = {
     note('bias', 'then × γ; + β only if bias=True (GPT-2 checkpoints)', BX, 724),
 
     // --- C. the scaled init -----------------------------------------------------------
-    note('init-head', `every Linear: std ${D.initStd}; then c_proj (C, C), (C, 4·C):`, CX, TOP),
+    // Scaled: only the two residual projections' weights (named *c_proj.weight).
+    note('init-head', 'only attn.c_proj (C, C), mlp.c_proj (C, 4·C):', CX, TOP),
     // Full-size slash, not a fraction: a text-style fraction shrinks 0.02 to
     // about 7px, and a display-style one has its digits clipped at the box top.
     obj('init-eq', 'equation', { text: '\\sigma_{c\\_proj} = {{initStd}}\\,/\\sqrt{2L}', x: CX, y: TOP + 20, w: 340, h: 40 }),
+    // Secondary, beside the equation (whose drawn formula ends near x = 650).
+    note('init-rest', `other Linear/Embedding: std ${D.initStd}`, 690, TOP + 38),
     // The growing sum exists only in pre-LN: in the post-LN what-if the rest of
     // this region gives way to a note.
     obj('sum-eq', 'equation', { text: '\\mathrm{std}(\\sum_{k<2L}F_k)\\propto\\sigma\\sqrt{2L}', x: CX, y: TOP + 74, w: 450, h: 34, ...PRE }),
@@ -213,10 +217,9 @@ export const scene = {
       labels: D.init.map((d, i) => `${d.nLayer}: ×{{bars.${i}}}`), values: { $derive: 'bars' } }),
     note('std-text', '{{stdText}}', CX, 700, PRE),
     note('unit', `Source value: ×1 = one branch at std ${D.initStd}`, CX, 722, PRE),
-    // At the bars' top edge: lower, post-3 would run into region B's ratio line (x = 320, y = 636).
-    note('post-1', 'Post-LN re-normalizes after every add, so no sum of', CX, BARS.y, { role: 'warning', ...POST }),
-    note('post-2', 'branches builds up: the bars apply to pre-LN only,', CX, BARS.y + 20, { role: 'warning', ...POST }),
-    note('post-3', 'and so does the scaled c_proj init switch.', CX, BARS.y + 40, { role: 'warning', ...POST }),
+    // At the bars' top edge: lower, it would run into region B's ratio line (x = 320, y = 636).
+    note('post-1', 'Post-LN re-normalizes after every add, so no branch sum', CX, BARS.y, { role: 'warning', ...POST }),
+    note('post-2', 'builds up: the bars and c_proj switch are pre-LN only.', CX, BARS.y + 20, { role: 'warning', ...POST }),
   ],
   timeline: [
     { at: 0.0, action: 'appear', target: 'x-strip', duration: 0.3 },
@@ -239,7 +242,7 @@ export const sources = [
   code('model.py', 180, 182, '“for block in self.transformer.h: x = block(x)” then “x = self.transformer.ln_f(x)” - pre-LN leaves the stream un-normalized until ln_f.'),
   code('model.py', 133, 133, '“self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)” - it reads ln_f’s output.'),
   code('model.py', 162, 168, '_init_weights: “torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)” for every nn.Linear and nn.Embedding.'),
-  code('model.py', 142, 145, 'The scaled init: “if pn.endswith(\'c_proj.weight\'): torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * config.n_layer))” - “per GPT-2 paper”.'),
+  code('model.py', 142, 145, 'The scaled init: “if pn.endswith(\'c_proj.weight\'): torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * config.n_layer))” - “per GPT-2 paper”. Only two weights per Block match, attn.c_proj.weight and mlp.c_proj.weight; c_attn, c_fc, lm_head and the embeddings keep std 0.02.'),
   code('model.py', 37, 37, '“self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)” - weight (C, C): the attention branch’s last projection into the stream.'),
   code('model.py', 84, 84, '“self.c_proj = nn.Linear(4 * config.n_embd, config.n_embd, bias=config.bias)” - weight (C, 4·C): the MLP branch’s last projection into the stream.'),
   code('train.py', 56, 56, '“bias = False # do we use bias inside LayerNorm and Linear layers?” - no β by default.'),
@@ -271,7 +274,7 @@ export const evidence = {
   card: 'depth-residual-layernorm-deep',
   title: scene.title,
   learningQuestion: scene.objects[0].initialState.text,
-  concept: 'NanoGPT is pre-LN: x_{k+1} = x_k + F_k(LN_k(x_k)), so the identity path carries x₀ untouched to ln_f and the un-normalized stream needs ln_f at the end and a depth-scaled init of every c_proj (std 0.02/√(2·n_layer)) so the summed variance of the 2L residual branches does not grow with depth. Post-LN (the original Transformer) re-normalizes x₀ at every add and needs warmup. LayerNorm’s eps = 1e-5 keeps a constant vector finite (x̂ = 0 instead of 0/0) and shrinks x̂ when σ² < ε.',
+  concept: 'NanoGPT is pre-LN: x_{k+1} = x_k + F_k(LN_k(x_k)), so the identity path carries x₀ untouched to ln_f and the un-normalized stream needs ln_f at the end and a depth-scaled init of the residual projections only (the attn.c_proj and mlp.c_proj weights, std 0.02/√(2·n_layer); every other Linear and Embedding keeps std 0.02) so the summed variance of the 2L residual branches does not grow with depth. Post-LN (the original Transformer) re-normalizes x₀ at every add and needs warmup. LayerNorm’s eps = 1e-5 keeps a constant vector finite (x̂ = 0 instead of 0/0) and shrinks x̂ when σ² < ε.',
   sourceRevision: `${fx.provenance.nanogpt.repo} @ ${fx.provenance.nanogpt.commit}`,
   provenance: 'source value: model.py:103-106, :98-101, :18-27, :53, :130-131, :180-182, :133, :162-168, :142-145, :37, :84, :225, :216-221; train.py:52, :56, :66, :232-234; config/train_shakespeare_char.py:18-24, :33 (eps, 0.02 and the scaled init parsed by gen_residual-layernorm.py); papers: arXiv 1706.03762 (post-LN), 2002.04745 (warmup), GPT-2 section 2.3; calculated toy example: LayerNorm cases from gen_residual-layernorm.py; live calculation: bars = choose(scaled, elementwise(√(2L), std / 0.02), √(2L)).',
   control: 'layout (choice: pre-LN NanoGPT / post-LN what-if), vector (choice: x₀ / nearly constant / constant), scaledInit (bool, default true).',

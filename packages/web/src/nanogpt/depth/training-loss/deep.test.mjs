@@ -30,6 +30,11 @@ test('deep passes every gate at every reviewed state; two controls, one of them 
   assert.ok(scene.objects.filter(o => o.type === 'equation').length >= 5);
   assert.ok(!scene.objects.some(o => o.type === 'code'), 'no code listing on the card');
   assert.match(byId(results[0], 'prerequisites').label, /^Builds on: Guided/);
+  // The AdamW equation is labelled as the conceptual update, on the equation's row; decay stays on the dim >= 2 group.
+  const [label, adamw] = ['adamw-label', 'adamw-eq'].map(id => byId(results[0], id));
+  assert.equal(label.label, 'AdamW, conceptual update');
+  assert.ok(label.visible && label.y > adamw.y && label.y < adamw.y + adamw.h);
+  assert.match(byId(results[0], 'decay').label, /only where dim ≥ 2/);
   const shown = results[0].state.objects.filter(o => o.visible && o.label).map(o => o.label).join('\n');
   assert.doesNotMatch(shown, /beginner|intermediate|advanced|expert|newcomer/i);
 });

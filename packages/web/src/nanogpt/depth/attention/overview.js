@@ -29,7 +29,7 @@ const spoken = c => (c === '␣' ? 'the space' : `“${c}”`);
 const named = c => (c === '␣' ? 'space' : c); // the ␣ glyph reads as an underscore in the tile font
 
 // Per reading position: each tile's state (the reader, an earlier character
-// it can look at, a character not read yet) - layout, not numbers.
+// it can look at, a character hidden from it) - layout, not numbers.
 const range = Array.from({ length: T }, (unused, i) => i);
 const ROLE_TABLE = range.map(i => range.map(j => (j === i ? 'learner' : j < i ? 'input' : 'neutral')));
 const OPACITY_TABLE = range.map(i => range.map(j => (j > i ? 0.3 : 1)));
@@ -56,9 +56,9 @@ export const scene = {
     futureOpacity: range.map(i => (i < LAST ? 1 : 0)),
     firstOpacity: range.map(i => (i === 0 ? 1 : 0)),
     laterOpacity: range.map(i => (i === 0 ? 0 : 1)),
-    futureNotes: range.map(i => (i === LAST ? 'Nothing to its right has been read yet, so no bar can go there.'
-      : i === LAST - 1 ? 'The character to its right is not read yet, so it gets no bar.'
-        : 'The characters to its right are not read yet, so they get no bar.')),
+    futureNotes: range.map(i => (i === LAST ? 'Future characters are hidden from this position.'
+      : i === LAST - 1 ? 'The character to its right is hidden from this position, so it gets no bar.'
+        : 'The characters to its right are hidden from this position, so they get no bar.')),
     spokenTokens: TOKENS.map(spoken),
   },
   derived: {
@@ -104,7 +104,7 @@ export const scene = {
       initialState: { label: named(token), x: tileX(j), y: TILE_Y, w: TILE_W, h: TILE_H,
         role: { $derive: `tileRoles.${j}` }, opacity: { $derive: `tileOpacity.${j}` } } })),
     { id: 'not-read', type: 'text', semanticId: 'not-read-yet', conceptId: 'causal-mask',
-      initialState: { text: 'not read yet', x: { $derive: 'futureX' }, y: BARS_Y + BARS_H - 12, typography: 'annotation', opacity: { $derive: 'futureShown' } } },
+      initialState: { text: 'hidden', x: { $derive: 'futureX' }, y: BARS_Y + BARS_H - 12, typography: 'annotation', opacity: { $derive: 'futureShown' } } },
     { id: 'reader-arrow', type: 'arrow', semanticId: 'reader-marker', conceptId: 'attention',
       initialState: { from: { x: { $derive: 'markerX' }, y: TILE_Y + TILE_H + 40 }, to: { x: { $derive: 'markerX' }, y: TILE_Y + TILE_H + 6 }, role: 'learner', opacity: 0 } },
     { id: 'reader-label', type: 'text', semanticId: 'reader-label', conceptId: 'attention',
@@ -148,7 +148,7 @@ export const evidence = {
   sourceRevision: `${att.provenance.nanogpt.repo} @ ${att.provenance.nanogpt.commit}`,
   provenance: 'context: attention.generated.js context.tokens (first 9 shakespeare_char tokens of the base fixture sample); pattern: head 0 q/k of gen_attention.py (calculated toy example); live calculation on the card: matmul, scale 0.5, causal_mask, softmax, pick, argmin of the negated row; code: model.py:67-69 manual path and :64 fused default at @3adf61e.',
   control: '"Character being read" index picker over the nine characters (default the last, “e”).',
-  consequence: 'The bars always add up to the same total, marked by a line at full height (all of it); the tallest bar moves with the reader and always sits on the character just before it, so most of what the reader passes on comes from that character; the reader itself and a few earlier characters keep short bars; every character to its right is faded, labelled not read yet and never gets a bar. At the first character the single bar is on itself, and everything it passes on comes from itself.',
+  consequence: 'The bars always add up to the same total, marked by a line at full height (all of it); the tallest bar moves with the reader and always sits on the character just before it, so most of what the reader passes on comes from that character; the reader itself and a few earlier characters keep short bars; every character to its right is faded, labelled hidden and never gets a bar. At the first character the single bar is on itself, and everything it passes on comes from itself.',
   interactionPurpose: 'See cause and effect: moving the reader changes where it looks back, and the future never lights up.',
   task: 'Move the reader from the last character to the first and watch where the tallest bar goes and which tiles fade.',
   capability: 'one index picker; bars on a fixed axis (peak 1, drawn as an all-of-it line) from a live masked-softmax row; tile role and opacity picked per reader from a state table; reader arrow and labels placed by picked x positions; captions switch by derived opacity.',

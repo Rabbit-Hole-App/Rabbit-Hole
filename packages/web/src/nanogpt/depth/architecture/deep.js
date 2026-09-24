@@ -69,7 +69,7 @@ export const scene = {
     { name: 'call', type: 'choice', label: 'Call site (branch)', default: 'train', options: [
       { id: 'train', label: 'training: model(X, Y)' },
       { id: 'generate', label: `generate() on “${PROMPT}”` },
-      { id: 'crop', label: `generate(), ${TOO_LONG}-character prompt` },
+      { id: 'crop', label: `generate() crops a ${TOO_LONG}-character prompt` },
       { id: 'direct', label: `model(idx), T = ${TOO_LONG} (What-if)` },
     ] },
     { name: 'tied', type: 'bool', label: 'lm_head shares its weight with wte', default: true },
@@ -82,7 +82,9 @@ export const scene = {
     Ts: byCall([TB, PROMPT.length, TB, TOO_LONG]),
     // lm_head's time dimension: every position with targets, the last without.
     Touts: byCall([TB, 1, 1, 1]),
-    callBoxes: byCall(['get_batch → model(X, Y)', 'generate(): self(idx_cond)', 'generate(): crop idx_cond', 'model(idx): no crop']),
+    callBoxes: byCall(['get_batch → model(X, Y)', 'generate(): self(idx_cond)', `generate(): idx[:, -${TB}:]`, 'model(idx): no crop']),
+    // What forward receives: generate() crops idx into idx_cond before the call.
+    callShapes: byCall(['idx: (B, T)', 'idx: (B, T)', 'idx → idx_cond: (B, T)', 'idx: (B, T)']),
     asserts: byCall([`${TB} ≤ ${TB}: passes`, `${PROMPT.length} ≤ ${TB}: passes`, `${TB} ≤ ${TB} after the crop`, `${TOO_LONG} > ${TB}: AssertionError`]),
     assertRoles: byCall(['neutral', 'neutral', 'neutral', 'warning']),
     assertNumRoles: byCall(['output', 'output', 'output', 'warning']),
@@ -90,7 +92,7 @@ export const scene = {
     cropPrefixes: byCall(['', '', `(1, ${TOO_LONG}) → `, '']),
     edges: byCall([
       `Training never trips the assert: get_batch always cuts exactly block_size = ${TB} characters.`,
-      `A short prompt passes: T = ${PROMPT.length} ≤ ${TB}, and T grows by one with every generated character.`,
+      `A short prompt passes: T = ${PROMPT.length} ≤ ${TB}; T grows by one per generated character, up to ${TB}.`,
       `Edge case handled: a long prompt, or any sample grown past ${TB}, is cropped to its last ${TB} characters.`,
       `Edge case: AssertionError, "Cannot forward sequence of length ${TOO_LONG}, block size is only ${TB}". Nothing below runs.`,
     ]),
@@ -137,6 +139,7 @@ export const scene = {
     logitsUntiedEq: { op: 'pick', args: ['logitsUntied', 'call'] },
     logitsEq: { op: 'choose', args: ['tied', 'logitsTiedEq', 'logitsUntiedEq'] },
     callBox: { op: 'pick', args: ['callBoxes', 'call'] },
+    callShape: { op: 'pick', args: ['callShapes', 'call'] },
     assertText: { op: 'pick', args: ['asserts', 'call'] },
     assertRole: { op: 'pick', args: ['assertRoles', 'call'] },
     assertNumRole: { op: 'pick', args: ['assertNumRoles', 'call'] },
@@ -165,7 +168,7 @@ export const scene = {
     { id: 'header-rule', type: 'line', semanticId: 'header-rule', conceptId: CONCEPT,
       initialState: { from: { x: BOX_X - 10, y: 97 }, to: { x: EQ_X + EQ_W, y: 97 }, role: 'neutral', opacity: 0.3 } },
 
-    ...step('call', '{{callBox}}', 'idx: (B, T)', '{{cropPrefix}}({{B}}, {{T}})'),
+    ...step('call', '{{callBox}}', '{{callShape}}', '{{cropPrefix}}({{B}}, {{T}})'),
     ...step('assert', 'assert t <= block_size', 't = T, block_size = {{Tb}}', '{{assertText}}', { role: { $derive: 'assertRole' }, numRole: { $derive: 'assertNumRole' } }),
     ...step('embed', 'wte(idx) + wpe(pos)', 'x: (B, T, C) + (T, C)', '({{B}}, {{T}}, {{C}})', down),
     note('block-header', 'Block.forward, run n_layer = {{L}} times, each Block with its own weights:', BOX_X, ROW.qkv - 12, { opacity: { $derive: 'downOpacity' } }),
@@ -238,8 +241,8 @@ export const evidence = {
   concept: 'idx (B, T) -> assert T <= block_size -> wte + wpe (B, T, C) -> n_layer x [ln_1 -> q, k, v (B, nh, T, hs) -> att (B, nh, T, T) -> c_proj, residual -> ln_2 -> c_fc (B, T, 4C) -> c_proj, residual] -> ln_f -> lm_head: (B, T, V) with targets and cross-entropy over B·T rows, or (B, 1, V) from x[:, [-1], :] and loss None. generate() crops prompts longer than block_size; calling forward directly with them fails the assert. wte is lm_head\'s weight (tied).',
   sourceRevision: `${fx.provenance.nanogpt.repo}@${fx.provenance.nanogpt.commit}`,
   provenance: 'Source value: B, T, C, n_head, n_layer, V (fx.architecture), the 12-character prompt (fx.crossEntropy.context), train.py default n_embd 768 (fx.config.defaults) and fallback vocab 50304 (fx.tokenizer.modelVocabNote, checked against the pinned train.py and model.py). Live calculation: hs, 4C, B·T, logits counts, V × C. What-if: model(idx) called directly at T = block_size + 1 = 257, and untied lm_head (the crop at 257 is ordinary generate() behaviour).',
-  control: 'call (choice): training model(X, Y) | generate() on "hear me spea" | generate() with a 257-character prompt | model(idx) with T = 257. tied (bool): lm_head shares wte\'s weight (NanoGPT) or not (what-if).',
-  consequence: 'training: (64, 256) ... logits (64, 256, 65), loss over (16384, 65) vs (16384), 1064960 logits. generate: (1, 12) ... logits (1, 1, 65), loss None, 65 logits instead of 780. crop: T becomes 256 after the crop, logits (1, 1, 65). direct: 257 > 256, AssertionError in warning colour, every later step dimmed with its numbers removed, the replay stops at the assert. The logits equation reads LN_f(x) W^T for training and LN_f(x)_{:,T-1} W^T for every targets-None call, matching the (B, 1, V) shape beside it; the att equation is softmax(qk^T/sqrt(hs) + M), matching att: (B, nh, T, T), and y = att v sits on the c_proj row; the att row always carries its note that only the manual path stores (B, nh, T, T) - on the default scaled_dot_product_attention path the model never holds att. generate/crop: the cost line adds that all T positions (12, 256) still run every Block - no KV cache, so the saving is lm_head only. untied: the logits equation switches W_te to W_lm and the tie line reads +24960 parameters (+38633472 at V = 50304, C = 768).',
+  control: 'call (choice): training model(X, Y) | generate() on "hear me spea" | generate() cropping a 257-character prompt to its last 256 before forward | model(idx) with T = 257. tied (bool): lm_head shares wte\'s weight (NanoGPT) or not (what-if).',
+  consequence: 'training: (64, 256) ... logits (64, 256, 65), loss over (16384, 65) vs (16384), 1064960 logits. generate: (1, 12) ... logits (1, 1, 65), loss None, 65 logits instead of 780. crop: the call row reads generate(): idx[:, -256:], idx → idx_cond: (B, T), (1, 257) → (1, 256), so forward only ever sees T = 256; logits (1, 1, 65). generate: the edge line says T grows up to 256. direct: 257 > 256, AssertionError in warning colour, every later step dimmed with its numbers removed, the replay stops at the assert. The logits equation reads LN_f(x) W^T for training and LN_f(x)_{:,T-1} W^T for every targets-None call, matching the (B, 1, V) shape beside it; the att equation is softmax(qk^T/sqrt(hs) + M), matching att: (B, nh, T, T), and y = att v sits on the c_proj row; the att row always carries its note that only the manual path stores (B, nh, T, T) - on the default scaled_dot_product_attention path the model never holds att. generate/crop: the cost line adds that all T positions (12, 256) still run every Block - no KV cache, so the saving is lm_head only. untied: the logits equation switches W_te to W_lm and the tie line reads +24960 parameters (+38633472 at V = 50304, C = 768).',
   interactionPurpose: 'Trace the same forward pass through each real call site and see exactly which shapes change (B, T and the head), where the crop and the assert sit, and what the last-position projection and the weight tie buy.',
   task: 'none (explore only - no Practice on this board)',
   capability: 'choice input over four call sites (record-map picks) plus a bool what-if; derived labels, roles, opacities and equation text; equation objects; a highlight walk whose later steps are derive-resolved (highlight vs pause) so it stops at a failed assert.',

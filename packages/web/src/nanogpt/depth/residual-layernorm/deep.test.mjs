@@ -77,13 +77,13 @@ test('the layout control rewires the Block: LN on the branches (pre) or on the s
   results.forEach((result, s) => {
     const pre = reviewStates[s].layout === 'pre';
     for (const id of ['sum-eq', 'bars-ref', 'bars', 'std-text', 'unit']) assert.equal(byId(result, id).visible, pre, `${id} @${reviewStates[s].layout}`);
-    for (const id of ['post-1', 'post-2', 'post-3']) assert.equal(byId(result, id).visible, !pre, id);
+    for (const id of ['post-1', 'post-2']) assert.equal(byId(result, id).visible, !pre, id);
     for (const id of ['init-head', 'init-eq']) assert.ok(byId(result, id).visible, id);
   });
   assert.match(byId(results[1], 'post-1').label + ' ' + byId(results[1], 'post-2').label, /re-normalizes after every add.*pre-LN only/);
   // The scaledInit switch stays visible in post-LN; the note says it acts on pre-LN only,
   // and indeed nothing drawn in post-LN moves with it.
-  assert.match(byId(results[1], 'post-3').label, /scaled c_proj init switch/);
+  assert.match(byId(results[1], 'post-2').label, /c_proj switch are pre-LN only/);
   const drawn = result => JSON.stringify(shown(result).map(o => [o.id, o.label, o.values, o.role]));
   for (const vector of ['x0', 'near', 'constant']) {
     assert.equal(drawn(evaluated(scene, { layout: 'post', vector, scaledInit: true })), drawn(evaluated(scene, { layout: 'post', vector, scaledInit: false })), vector);
@@ -190,6 +190,13 @@ test('the scaled init: std 0.02 / √(2L) per depth, and the live bars show the 
   const bars = scene.objects.find(o => o.id === 'bars').initialState;
   assert.ok((1 / bars.peak) * (bars.h - 4) >= 8, 'scaled bar height');
   assert.equal(byId(results[0], 'unit').label, `Source value: ×1 = one branch at std ${D.initStd}`);
+  // Only the residual projections are scaled (GPT.__init__: pn.endswith('c_proj.weight')); every other
+  // Linear and Embedding keeps _init_weights' std 0.02 - in both layouts, and on the toggle.
+  for (const result of results) {
+    assert.equal(byId(result, 'init-head').label, 'only attn.c_proj (C, C), mlp.c_proj (C, 4·C):');
+    assert.equal(byId(result, 'init-rest').label, `other Linear/Embedding: std ${D.initStd}`);
+  }
+  assert.match(scene.inputs.find(d => d.name === 'scaledInit').label, /c_proj weights only/);
 });
 
 test('the fractions are readable: LayerNorm in display style, no text-style fraction anywhere', () => {

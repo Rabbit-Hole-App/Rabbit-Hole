@@ -3,11 +3,13 @@
 // sampling equations, and three of its branches as controls: the crop when
 // the context is longer than block_size, the optional top-k crop (None, 1, 3,
 // and sample.py's 200, which is a no-op on a 65-character vocabulary), and the
-// temperature (sample.py's 0.8, generate()'s 1.0, and the edge case 0: ÷ 0
-// makes the logits +∞, NaN and −∞, softmax returns all NaN and
-// torch.multinomial raises a RuntimeError, so generate() crashes - checked
-// with torch 2.14.0 on this row. generate() has no greedy branch; top_k = 1 is
-// greedy unless the top logits tie, since ties with the k-th value survive).
+// temperature (sample.py's 0.8, generate()'s 1.0, and 0 as an invalid What-if:
+// generate() divides by T, so it needs T > 0. ÷ 0 makes the logits +∞, NaN and
+// −∞, softmax returns all NaN and torch.multinomial raises a RuntimeError, so
+// generate() crashes - checked with torch 2.14.0 on this row. The card says
+// Invalid at ÷ T and dims top-k to cat; it never stands in an argmax. generate()
+// has no greedy branch; top_k = 1 is greedy unless the top logits tie, since
+// ties with the k-th value survive).
 // Under the softmax bars the renormalisation over K is checked numerically:
 // p(z) over K = uncut p(z) ÷ the uncut p summed over K. Every pipeline step
 // has a code source; the card itself carries no code listing.
@@ -70,8 +72,8 @@ const EDGE_Y = 720;
 const text = (id, value, x, y, extra = {}) => ({ id, type: 'text', semanticId: id, conceptId: CONCEPT,
   initialState: { text: value, x, y, ...extra } });
 const note = (id, value, x, y, extra = {}) => text(id, value, x, y, { typography: 'annotation', ...extra });
-const box = (id, label, y) => ({ id, type: 'box', semanticId: id, conceptId: CONCEPT,
-  initialState: { label, x: BOX.x, y, w: BOX.w, h: BOX.h, opacity: 0, role: 'neutral' } });
+const box = (id, label, y, extra = {}) => ({ id, type: 'box', semanticId: id, conceptId: CONCEPT,
+  initialState: { label, x: BOX.x, y, w: BOX.w, h: BOX.h, opacity: 0, role: 'neutral', ...extra } });
 const STEPS = [
   ['crop', 'crop to block_size', '(B, t) → (B, t_c)'],
   ['forward', 'forward: self(idx_cond)', '(B, t_c) → (B, 1, V)'],
@@ -81,11 +83,15 @@ const STEPS = [
   ['draw', 'multinomial draw', '(B, V) → (B, 1)'],
   ['cat', 'cat: append', '(B, t) → (B, t+1)'],
 ];
+// At T = 0 the steps after ÷ T are not valid: they start dimmed and never
+// appear. Every other temperature fades them in like the rest.
+const DOWN = 3; // STEPS index of top-k
+const down = i => (i >= DOWN ? { opacity: { $derive: 'stepStart' } } : {});
 const stepObjects = STEPS.flatMap(([id, label, shape], i) => [
-  box(`step-${id}`, label, ROW[id]),
-  note(`shape-${id}`, shape, SHAPE_X, ROW[id] + BOX.h / 2 + 5),
+  box(`step-${id}`, label, ROW[id], id === 'scale' ? { role: { $derive: 'scaleRole' } } : down(i)),
+  note(`shape-${id}`, shape, SHAPE_X, ROW[id] + BOX.h / 2 + 5, i >= DOWN ? { opacity: { $derive: 'stepOpacity' } } : {}),
   ...(i < STEPS.length - 1 ? [{ id: `next-${id}`, type: 'arrow', semanticId: `next-${id}`, conceptId: CONCEPT,
-    initialState: { from: { x: BOX.x + BOX.w / 2, y: ROW[id] + BOX.h + 2 }, to: { x: BOX.x + BOX.w / 2, y: ROW[STEPS[i + 1][0]] - 4 }, opacity: 0, role: 'neutral' } }] : []),
+    initialState: { from: { x: BOX.x + BOX.w / 2, y: ROW[id] + BOX.h + 2 }, to: { x: BOX.x + BOX.w / 2, y: ROW[STEPS[i + 1][0]] - 4 }, opacity: 0, role: 'neutral', ...down(i + 1) } }] : []),
 ]);
 
 export const scene = {
@@ -100,7 +106,7 @@ export const scene = {
     { name: 'topK', type: 'choice', label: 'top_k', default: `k${SAMPLE_K}`,
       options: TOP_KS.map(o => ({ id: o.id, label: o.k === null ? 'None (generate default)' : o.k === SAMPLE_K ? `${o.k} (sample default)` : String(o.k) })) },
     { name: 'temperature', type: 'choice', label: 'temperature', default: `t${String(SAMPLE_T).replace('.', '')}`,
-      options: TEMPS.map(o => ({ id: o.id, label: o.T === 0 ? '0 (edge case)' : o.T === SAMPLE_T ? `${o.T} (sample default)` : o.T === GEN_T ? '1.0 (generate default)' : String(o.T) })) },
+      options: TEMPS.map(o => ({ id: o.id, label: o.T === 0 ? '0 - invalid (What-if)' : o.T === SAMPLE_T ? `${o.T} (sample default)` : o.T === GEN_T ? '1.0 (generate default)' : String(o.T) })) },
   ],
   exampleData: {
     logits: F.logits,
@@ -112,7 +118,12 @@ export const scene = {
     validById: byId(TEMPS, o => o.T !== 0),
     shownById: byId(TEMPS, o => (o.T === 0 ? 0 : 1)),
     edgeById: byId(TEMPS, o => (o.T === 0 ? 1 : 0)),
-    tLineById: byId(TEMPS, o => (o.T === 0 ? 'Edge case T = 0: ÷ 0 gives +∞, NaN and −∞ logits, so softmax is all NaN.'
+    // T = 0 is invalid: ÷ T turns warning, top-k to cat dim and never appear.
+    scaleRoleById: byId(TEMPS, o => (o.T === 0 ? 'warning' : 'neutral')),
+    stepStartById: byId(TEMPS, o => (o.T === 0 ? 0.3 : 0)),
+    stepOpacityById: byId(TEMPS, o => (o.T === 0 ? 0.3 : 1)),
+    stepAppearById: byId(TEMPS, o => (o.T === 0 ? 'pause' : 'appear')),
+    tLineById: byId(TEMPS, o => (o.T === 0 ? `T = 0: ÷ 0 makes ${TO_INF} +∞, ${TO_NAN} NaN (0 ÷ 0) and unseen −∞.`
       : o.T === GEN_T ? `T = ${GEN_T.toFixed(1)}: the logits pass through unchanged.`
         : `T = ${o.T}: every logit gap is multiplied by 1/T = ${1 / o.T}.`)),
     // top-k branch: which of the toy's finite logits survive (generator, by
@@ -165,6 +176,10 @@ export const scene = {
     tLine: { op: 'pick', args: ['tLineById', 'temperature'] },
     edge: { op: 'pick', args: ['edgeById', 'temperature'] },
     shown: { op: 'pick', args: ['shownById', 'temperature'] },
+    scaleRole: { op: 'pick', args: ['scaleRoleById', 'temperature'] },
+    stepStart: { op: 'pick', args: ['stepStartById', 'temperature'] },
+    stepOpacity: { op: 'pick', args: ['stepOpacityById', 'temperature'] },
+    stepAppear: { op: 'pick', args: ['stepAppearById', 'temperature'] },
     // The −∞ key shows only when something is cut and T allows logits.
     anyCut: { op: 'pick', args: ['anyCutById', 'topK'] },
     anyCutVec: { op: 'concat', args: ['anyCut'] },
@@ -209,13 +224,13 @@ export const scene = {
     note('k-line', '{{kLine}}', DATA_X, ROW.topk + 46, { opacity: { $derive: 'shown' } }),
     // 5 softmax.
     { id: 'probs', type: 'bars', semanticId: 'probabilities', conceptId: CONCEPT,
-      initialState: { x: DATA_X, y: ROW.softmax, h: BARS_H, cell: CELL, peak: 1, opacity: 0, role: 'output', distribution: true,
+      initialState: { x: DATA_X, y: ROW.softmax, h: BARS_H, cell: CELL, peak: 1, opacity: { $derive: 'stepStart' }, role: 'output', distribution: true,
         labels: [...F.display], values: { $derive: 'probs' } } },
     note('kept-count', '{{kept}} of {{n}}', DATA_X + N * CELL + 12, ROW.softmax + BARS_H - 24, { opacity: { $derive: 'shown' } }),
     note('kept-count-2', 'drawable', DATA_X + N * CELL + 12, ROW.softmax + BARS_H - 6, { opacity: { $derive: 'shown' } }),
     // T = 0: say so where the numbers would be.
-    text('no-logits', `T = 0: ${TO_INF} → +∞, ${TO_NAN} → NaN (0 ÷ 0), unseen → −∞`, DATA_X, ROW.scale + 14 + CELL + 22, { opacity: { $derive: 'edge' }, role: 'output' }),
-    text('no-probs', 'softmax → NaN everywhere: nothing valid to draw', DATA_X + 16, ROW.softmax + BARS_H / 2, { opacity: { $derive: 'edge' }, role: 'output' }),
+    text('no-logits', 'Invalid: generate() requires T > 0', DATA_X, ROW.scale + 14 + CELL + 22, { opacity: { $derive: 'edge' }, role: 'warning' }),
+    text('no-probs', 'softmax → NaN everywhere: nothing valid to draw', DATA_X + 16, ROW.softmax + BARS_H / 2, { opacity: { $derive: 'edge' }, role: 'warning' }),
     // The equation's denominator, checked: p over K is the uncut p ÷ their sum over K.
     note('renorm', 'over K: p(z) = {{pAllTop}} (uncut) ÷ {{keptMass}} (uncut sum over K) ≈ {{pTop}}', DATA_X, ROW.softmax + BARS_H + 36, { opacity: { $derive: 'cutKey' } }),
     note('renorm-none', 'nothing cut: K = all V, the sum over K is 1, so p(z) stays {{pTop}}', DATA_X, ROW.softmax + BARS_H + 36, { opacity: { $derive: 'noCut' } }),
@@ -243,13 +258,14 @@ export const scene = {
   ],
   timeline: [
     ...STEPS.flatMap(([id], i) => [
-      { at: i * 0.3, action: 'appear', target: `step-${id}`, duration: 0.25 },
-      ...(i < STEPS.length - 1 ? [{ at: i * 0.3 + 0.2, action: 'appear', target: `next-${id}`, duration: 0.15 }] : []),
+      { at: i * 0.3, action: i >= DOWN ? { $derive: 'stepAppear' } : 'appear', target: `step-${id}`, duration: 0.25 },
+      ...(i < STEPS.length - 1 ? [{ at: i * 0.3 + 0.2, action: i + 1 >= DOWN ? { $derive: 'stepAppear' } : 'appear', target: `next-${id}`, duration: 0.15 }] : []),
     ]),
     { at: 0.1, action: 'appear', target: 'idx', duration: 0.3 },
     { at: 0.7, action: 'appear', target: 'scaled', duration: 0.3 },
-    { at: 1.3, action: 'appear', target: 'probs', duration: 0.3 },
-    { at: 1.9, action: 'appear', target: 'idx-next', duration: 0.3 },
+    { at: 1.3, action: { $derive: 'stepAppear' }, target: 'probs', duration: 0.3 },
+    // cat never runs at T = 0, so there is no grown idx to show.
+    { at: 1.9, action: { $derive: 'stepAppear' }, target: 'idx-next', duration: 0.3 },
     { at: 2.3, action: 'appear', target: 'eq-softmax', duration: 0.3 },
     { at: 2.5, action: 'appear', target: 'eq-topk', duration: 0.3 },
   ],
@@ -280,7 +296,7 @@ export const sources = [
     `gen_generation.py: how often each character followed “${F.window}” in Tiny Shakespeare's training split (${F.display.map((c, i) => `${c} ${F.counts[i]}`).join(', ')}) and logit = ln(count). The toy's block_size is ${BLOCK}: its forward reads the last ${BLOCK} characters; the ${V - N} characters never seen after them have logit −∞. The kept set for each top_k is computed there by generate()'s own rule. Not NanoGPT's transformer.`),
     reproduce: REPRODUCE },
   calculation('Live calculation', '÷ T, the top-k cut, softmax, the kept count and the renormalisation',
-    `Computed on the card: scale(logits, 1/T); top-k adds −${CUT} to each cut logit (a finite stand-in for −∞: exp(−${CUT}) is exactly 0 in floating point, so a cut character gets p = 0); softmax; the kept count is a sum. The renormalisation check is the softmax without the cut, its dot product with the kept mask (the uncut p summed over K) and p(z) both ways; results are rounded to 3 decimals, hence ≈. At T = 0 nothing is computed: the cells and bars are gated blank, because torch gives +∞, NaN and −∞ logits and an all-NaN p there.`),
+    `Computed on the card: scale(logits, 1/T); top-k adds −${CUT} to each cut logit (a finite stand-in for −∞: exp(−${CUT}) is exactly 0 in floating point, so a cut character gets p = 0); softmax; the kept count is a sum. The renormalisation check is the softmax without the cut, its dot product with the kept mask (the uncut p summed over K) and p(z) both ways; results are rounded to 3 decimals, hence ≈. T = 0 is not a generate() setting: it divides by T, so T must be > 0, and the card marks 0 invalid (What-if) instead of running it. Nothing is computed there: the cells and bars are gated blank, because torch gives +∞, NaN and −∞ logits and an all-NaN p.`),
   { ...calculation('Recorded toy run', 'The draw for each (top_k, temperature) branch',
     `gen_generation.py: Python's random.choices with seed ${g.seed}, one draw from that branch's probabilities - the first random number of the seed, the same one the Overview's first step used. Not torch.multinomial and not live sampling.`),
     reproduce: REPRODUCE },
@@ -294,14 +310,14 @@ export const evidence = {
   card: 'depth-generation-deep',
   title: scene.title,
   learningQuestion: scene.objects[0].initialState.text,
-  concept: 'One generate() iteration: crop idx to its last block_size tokens (the forward asserts t ≤ block_size), forward with no targets so only the last position is projected (B, 1, V), divide by T, optionally set every logit below the k-th largest (k = min(top_k, V)) to −∞, softmax, draw one index with torch.multinomial, and cat it on. Over K the kept p are the uncut p divided by their sum over K. T = 0 crashes generate(): ÷ 0 gives +∞, NaN and −∞ logits, softmax is all NaN and torch.multinomial raises RuntimeError; there is no greedy branch - top_k = 1 is greedy unless the top logits tie. sample.py\'s top_k = 200 is a no-op on the 65-character vocabulary.',
+  concept: 'One generate() iteration: crop idx to its last block_size tokens (the forward asserts t ≤ block_size), forward with no targets so only the last position is projected (B, 1, V), divide by T, optionally set every logit below the k-th largest (k = min(top_k, V)) to −∞, softmax, draw one index with torch.multinomial, and cat it on. Over K the kept p are the uncut p divided by their sum over K. T = 0 is invalid - generate() requires T > 0 and crashes at 0: ÷ 0 gives +∞, NaN and −∞ logits, softmax is all NaN and torch.multinomial raises RuntimeError; there is no greedy branch - top_k = 1 is greedy unless the top logits tie. sample.py\'s top_k = 200 is a no-op on the 65-character vocabulary.',
   sourceRevision: g.provenance.nanogpt,
   provenance: 'Code: model.py 313-328 (every step), 173, 189-190, 306, 223; sample.py 14-18, 80-81, 87; config/train_shakespeare_char.py 19; prepare.py 24-25. Calculated toy example: counts/logits after "iti" and the kept sets (gen_generation.py). Live calculation: scale, sub/scale/add for the −1000 cut, softmax, gate at T = 0, sum, and the uncut softmax dotted with the kept mask for the renormalisation. T = 0 behaviour checked with torch 2.14.0. Recorded toy run: one random.choices draw per branch. Source values: defaults and sizes parsed by the generator.',
-  control: 'prompt (choice: "First Citi" t = 10 / "iti" t = 3), top_k (choice: None, 1, 3, 200), temperature (choice: 0, 0.8, 1.0); defaults = sample.py\'s settings (top_k 200, T 0.8) on the long prompt.',
-  consequence: 'Prompt: the lit idx_cond window and the crop line change (dropped vs no crop) while every number downstream stays the same. top_k: the ringed survivors, the cut bars, the kept count, the renormalisation line (p(z) = uncut p(z) ÷ uncut mass of K; with nothing cut, K = all V and p(z) stays) and the recorded draw change; k = 200 and None change nothing here. temperature: the ÷ T row and bars reshape; T = 0 blanks them, says which logits become +∞, NaN and −∞, says softmax is all NaN and torch.multinomial raises RuntimeError, and shows the no-greedy note.',
-  interactionPurpose: 'Trigger each branch and predict first: does a longer prompt change p (no - only the last block_size characters are read)? does top_k = 200 cut anything on V = 65 (no)? what does T = 0 do (it crashes; top_k = 1 is greedy unless the top logits tie)? And check the equation\'s denominator: at k = 3, T = 0.8, p(z) = 0.548 ÷ 0.905 ≈ 0.605.',
+  control: 'prompt (choice: "First Citi" t = 10 / "iti" t = 3), top_k (choice: None, 1, 3, 200), temperature (choice: 0 - invalid (What-if), 0.8, 1.0); defaults = sample.py\'s settings (top_k 200, T 0.8) on the long prompt.',
+  consequence: 'Prompt: the lit idx_cond window and the crop line change (dropped vs no crop) while every number downstream stays the same. top_k: the ringed survivors, the cut bars, the kept count, the renormalisation line (p(z) = uncut p(z) ÷ uncut mass of K; with nothing cut, K = all V and p(z) stays) and the recorded draw change; k = 200 and None change nothing here. temperature: the ÷ T row and bars reshape; T = 0 (invalid, What-if): the ÷ T step turns warning with "Invalid: generate() requires T > 0" under its blank cells, top-k to cat and the empty bars dim as not valid, the grown idx is not shown; the lines say softmax is all NaN, torch.multinomial raises RuntimeError and which logits ÷ 0 makes +∞, NaN and −∞, and the no-greedy note shows.',
+  interactionPurpose: 'Trigger each branch and predict first: does a longer prompt change p (no - only the last block_size characters are read)? does top_k = 200 cut anything on V = 65 (no)? is T = 0 greedy (no - it is invalid and crashes; top_k = 1 is greedy unless the top logits tie)? And check the equation\'s denominator: at k = 3, T = 0.8, p(z) = 0.548 ÷ 0.905 ≈ 0.605.',
   task: 'Switch the prompt and explain why the bars do not move; set top_k = 3 and check with the renormalisation line that p(z) rose from 0.548 to 0.605 because the denominator sums K only; set T = 0, say why generate() crashes, and name the setting that gives greedy decoding instead.',
-  capability: 'three choice inputs over record maps; nested pick; scale/sub/add/softmax/gate/sum derive ops; a derived −1000 cut as a finite −∞; gated grid and bars; derived token rows with derived highlight and x; derived opacity; two LaTeX equations; step boxes with arrows and shape annotations.',
+  capability: 'three choice inputs over record maps; nested pick; scale/sub/add/softmax/gate/sum derive ops; a derived −1000 cut as a finite −∞; gated grid and bars; derived token rows with derived highlight and x; derived opacity; derived box role and derived appear/pause timeline actions for the invalid T = 0 path; two LaTeX equations; step boxes with arrows and shape annotations.',
   depth: 'Deep dive',
   prerequisites: 'Guided; tensor shapes (B, t, V); the k-th largest value.',
   ladderRole: 'Only this depth follows generate() step by step with tensor shapes and equations, checks the softmax equation\'s denominator over K against numbers, and lets the learner trigger its branches and edge cases (the crop, the top-k cap, the T = 0 crash) against the source.',

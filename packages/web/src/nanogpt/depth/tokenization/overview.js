@@ -110,7 +110,7 @@ export const scene = {
     text('kinds', '{{sel.kinds}}', 200, 294, { typography: 'body', opacity: 0 }),
 
     // Cause and effect, both options always shown; the selected row is lit.
-    text('length-title', 'Pieces in this line', 40, 336, { typography: 'caption' }),
+    text('length-title', 'Pieces in this line: characters, or word pieces (text chunks)', 40, 336, { typography: 'caption' }),
     ...barRows('length', lengthValues, LENGTH_Y),
     text('kinds-title', 'Kinds of piece the model must learn', 40, 430, { typography: 'caption' }),
     ...barRows('kind', kindValues, KIND_Y),

@@ -54,7 +54,7 @@ test('bar heights are the oracle attention row; the future never gets a bar', ()
     const expected = oracleRow(i);
     const bars = byId(result, 'look-bars').values;
     bars.forEach((value, j) => {
-      if (j > i) assert.equal(value, null, `reader ${i}: character ${j} is not read yet`);
+      if (j > i) assert.equal(value, null, `reader ${i}: character ${j} is hidden`);
       else assert.ok(Math.abs(value - expected[j]) <= 2e-3, `reader ${i} bar ${j}: ${value} vs ${expected[j]}`);
     });
     assert.ok(Math.abs(bars.filter(v => v !== null).reduce((s, v) => s + v, 0) - 1) <= 3e-3, 'bars add up to one');
@@ -97,7 +97,7 @@ test('captions name what the bars show', () => {
       assert.equal(byId(result, 'caption-yield-first').visible, false);
     }
     const future = byId(result, 'caption-future').label;
-    if (i === T - 1) assert.match(future, /^Nothing to its right/);
+    if (i === T - 1) assert.equal(future, 'Future characters are hidden from this position.');
     else assert.ok(future.startsWith(T - 1 - i === 1 ? 'The character to its right is' : 'The characters to its right are'), future);
   }
 });

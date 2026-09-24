@@ -68,6 +68,12 @@ test('guided: the live lookup finds every character\'s entry number, and decode 
     assert.equal(byId(result, `vocab-ch-${row}`).cellHighlight, col);
     for (let r = 0; r < 5; r += 1) if (r !== row) assert.equal(byId(result, `vocab-ch-${r}`).cellHighlight, null);
     assert.equal(byId(result, 'found-box').x, startX(entries, col) - 4);
+    // The list is quieted; the found entry is drawn again at full strength in place.
+    for (let r = 0; r < 5; r += 1) for (const kind of ['ch', 'rank']) assert.ok(byId(result, `vocab-${kind}-${r}`).opacity < 1);
+    const foundCh = byId(result, 'found-ch'), foundRank = byId(result, 'found-rank');
+    assert.ok(foundCh.opacity === 1 && foundRank.opacity === 1);
+    assert.deepEqual([foundCh.tokens[0].trim(), foundRank.tokens[0].trim()], [show(CHARS[id]), String(id)]);
+    assert.deepEqual([foundCh.x, foundCh.y, foundRank.y], [startX(entries, col), byId(result, `vocab-ch-${row}`).y, byId(result, `vocab-rank-${row}`).y]);
     // The selected column in the encoded line holds this character over this ID.
     const line = pos < 15 ? 1 : 2, k = pos % 15;
     const toks = byId(result, `seq-tok-${line}`).tokens, ids = byId(result, `seq-id-${line}`).tokens;
@@ -111,7 +117,7 @@ test('guided: GPT-2 mode - the piece holding each character, its ID, the charact
     assert.ok(shown(result, 'piece-box'));
     assert.equal(byId(result, 'piece-bars').cellHighlight ?? null, null);
     assert.equal(byId(result, 'seq-tok-1').cellHighlight, k);
-    assert.ok(!shown(result, 'lookup-char') && !shown(result, 'found-box') && !shown(result, 'vocab-ch-0'));
+    assert.ok(!shown(result, 'lookup-char') && !shown(result, 'found-box') && !shown(result, 'vocab-ch-0') && !shown(result, 'found-ch'));
     // The piece spelled out under its column; the selected character lit and boxed.
     const offset = pos - pieces.slice(0, k).reduce((n, p) => n + p.length, 0);
     const spelled = byId(result, 'spelled');

@@ -81,6 +81,13 @@ test('displayed numbers and positions match the oracle at every stop', () => {
     const dot = byId(result, 'avg-dot');
     assert.ok(Math.abs(dot.x - (90 + s.iteration * 0.42)) < 0.01);
     assert.ok(Math.abs(dot.y - (500 - (avgAt(k) - 2) * 110 / 2.4)) < 0.01);
+    // The curve is drawn only up to this stop, ending at the dot: the rest of the run stays unseen.
+    const at = run.checkpoints.findIndex(c => c.iteration === s.iteration);
+    run.checkpoints.slice(1).forEach((unused, i) => assert.equal(byId(result, `avg-seg-${i}`).visible, i < at, `stop ${k}: segment ${i}`));
+    if (at > 0) {
+      const end = byId(result, `avg-seg-${at - 1}`).to;
+      assert.ok(Math.abs(end.x - dot.x) < 0.01 && Math.abs(end.y - dot.y) < 0.01, 'the drawn curve ends at the dot');
+    }
   });
 });
 

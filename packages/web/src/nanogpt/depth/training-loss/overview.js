@@ -2,8 +2,9 @@
 // guessing the next letter, as cause and effect: one fixed context ("First
 // Citiz", the right next letter is "e"), the model's whole guess over its 65
 // characters at four points of a recorded toy run, and the average loss over
-// the practice text with a marker at the same point. One control: how much
-// practice. Plain words; no equations, no shapes.
+// the practice text, drawn only up to that point (the rest of the run is not
+// shown until the learner practises further), with a marker at its end. One
+// control: how much practice. Plain words; no equations, no shapes.
 //
 // Numbers: all RECORDED from the toy run generate_fixtures.py performs (a
 // character bigram table trained on 1,200 characters of Tiny Shakespeare -
@@ -53,7 +54,7 @@ export const scene = {
   title: 'Training and loss · Overview: practice moves the guess',
   width: 960,
   height: 530,
-  duration: 2.4,
+  duration: 1.6,
   inputs: [
     { name: 'stop', type: 'index', label: 'How much practice', of: 'stopLabels', default: 0, presentation: 'picker' },
   ],
@@ -73,6 +74,8 @@ export const scene = {
     captionsB: CAPTIONS.map(c => c[1]),
     // The flat carpet is ~2px tall, so before practice a note says how low it is.
     flatOpacities: O.stops.map((unused, k) => (k === 0 ? 1 : 0)),
+    // The average-loss curve so far: segment i (checkpoint i to i + 1) shows once the stop has reached i + 1.
+    segOpacities: STOP_AT.map(at => Array.from({ length: N - 1 }, (unused, i) => (i < at ? 1 : 0))),
     ...avgMap.exampleData,
   },
   derived: {
@@ -92,6 +95,7 @@ export const scene = {
     captionB: { op: 'pick', args: ['captionsB', 'stop'] },
     stopLabel: { op: 'pick', args: ['stopLabels', 'stop'] },
     flatOpacity: { op: 'pick', args: ['flatOpacities', 'stop'] },
+    segOpacity: { op: 'pick', args: ['segOpacities', 'stop'] },
   },
   objects: [
     text('question', { text: 'How does practice make the model better at guessing the next letter?', x: 40, y: 34, typography: 'heading' }),
@@ -127,13 +131,14 @@ export const scene = {
     { at: 0.3, action: 'appear', target: 'piles', duration: 0.5 },
     { at: 0.5, action: 'appear', target: 'target-mark', duration: 0.3 },
     { at: 0.8, action: 'appear', target: 'loss-here', duration: 0.3 },
-    ...Array.from({ length: N - 1 }, (unused, i) => ({ at: 1.0 + i * 0.04, action: 'appear', target: `avg-seg-${i}`, duration: 0.1 })),
-    { at: 1.9, action: 'appear', target: 'avg-dot', duration: 0.3 },
-    { at: 2.1, action: 'appear', target: 'avg-readout', duration: 0.3 },
+    // No appear on the curve's segments: an appear would override their input-bound opacity.
+    { at: 1.1, action: 'appear', target: 'avg-dot', duration: 0.3 },
+    { at: 1.3, action: 'appear', target: 'avg-readout', duration: 0.3 },
   ],
 };
 for (const object of scene.objects) {
-  if (/^avg-seg-/.test(object.id)) object.initialState.opacity = 0;
+  const seg = /^avg-seg-(\d+)$/.exec(object.id);
+  if (seg) object.initialState.opacity = { $derive: `segOpacity.${seg[1]}` };
 }
 
 const REPRODUCE = 'python packages/web/src/nanogpt/depth/fixtures/gen_training_loss.py --check';
@@ -155,10 +160,10 @@ export const evidence = {
   sourceRevision: `${fx.provenance.nanogpt.repo} @ ${fx.provenance.nanogpt.commit}`,
   provenance: 'Recorded toy run: gen_training_loss.py taps generate_fixtures.py’s seeded bigram run (not NanoGPT’s transformer) for the 65 shares after “z” at iterations 0, 50, 200 and 1000 and the loss on that guess; the average loss curve is fx.toyRun (exact mean over the 1,200-character training slice). Bar heights, the marker and the dot position are live pick/scale/add ops on those values.',
   control: 'stop (index, picker) "How much practice": before practice / after 50 / 200 / 1,000 steps - four recorded checkpoints; nothing trains when one is picked.',
-  consequence: 'The 65 bars go from a flat carpet (every share 1.4% to 1.6%, said by a note since the bars are barely visible) to one spike on “e” (98%); the ▼ mark rides the “e” bar with its share; the loss on this guess drops from 4.12 to 0.02; the dot on the average-loss curve moves down the curve; the two caption lines follow the stop.',
+  consequence: 'The 65 bars go from a flat carpet (every share 1.4% to 1.6%, said by a note since the bars are barely visible) to one spike on “e” (98%); the ▼ mark rides the “e” bar with its share; the loss on this guess drops from 4.12 to 0.02; the average-loss curve is drawn only up to the stop (nothing before practice, the first 50 steps, the first 200, the whole run), with the dot at its end; the two caption lines follow the stop.',
   interactionPurpose: 'Step from before practice to after 1,000 steps and watch cause and effect: the share on the right letter grows and the loss falls with it.',
   task: 'Click through the four stops; say what happens to the share on “e” and to the loss, and why the average loss stays higher than the loss on this one easy guess.',
-  capability: 'bars (65 values, fixed peak, constant highlight) bound to a picked fixture vector; a text mark whose y rides the target bar via scale/add/pick; a plot.js line plot with a derived marker; state-keyed captions via pick.',
+  capability: 'bars (65 values, fixed peak, constant highlight) bound to a picked fixture vector; a text mark whose y rides the target bar via scale/add/pick; a plot.js line plot whose segments get input-bound opacity (picked 0/1 vector), with a derived marker; state-keyed captions via pick.',
   depth: 'Overview',
   prerequisites: 'None.',
   ladderRole: 'Gives the cause-and-effect intuition with one discrete control and no symbols: practice moves the guess onto the right letter and the loss falls; Guided names the number (−ln p) and the stopping rule, Deep dive opens train.py’s loop.',

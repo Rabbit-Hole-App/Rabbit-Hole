@@ -41,6 +41,8 @@ test('deep dive passes every gate in every configuration; structure of the depth
   const [first] = assertCardGates(scene, reviewStates);
   assert.match(label(first, 'prerequisites'), /^Builds on: Guided; tensor shapes/);
   assert.equal(scene.objects.filter(o => o.type === 'equation').length, 2);
+  // T = 0 is offered only as an invalid What-if, not as a generate() setting.
+  assert.equal(scene.inputs.find(i => i.name === 'temperature').options.find(o => o.id === 't0').label, '0 - invalid (What-if)');
   assert.ok(!scene.objects.some(o => o.type === 'code'), 'no code listing on the card');
   const surface = [scene.title, ...scene.inputs.flatMap(i => [i.label, ...i.options.map(o => o.label)]), ...shown(first)].join('\n');
   assert.doesNotMatch(surface, /beginner|intermediate|advanced|expert|newcomer|novice/i);
@@ -62,6 +64,15 @@ test('probabilities follow the oracle on every branch; T = 0 shows none', () => 
     if (T === 0) {
       assert.ok(bars.every(v => v === null) && cells.every(v => v === null), `${where} nothing computed at T = 0`);
       assert.equal(byId(result, 'appended').visible, false);
+      // T = 0 is invalid, never an argmax: ÷ T is flagged, the steps after it
+      // are dimmed as not valid, and cat never runs, so no grown idx.
+      assert.equal(label(result, 'no-logits'), 'Invalid: generate() requires T > 0');
+      assert.equal(byId(result, 'no-logits').role, 'warning');
+      assert.equal(byId(result, 'step-scale').role, 'warning');
+      for (const id of ['step-topk', 'step-softmax', 'step-draw', 'step-cat', 'next-scale', 'next-draw', 'shape-cat', 'probs']) {
+        assert.equal(byId(result, id).opacity, 0.3, `${where} ${id} dimmed`);
+      }
+      assert.equal(byId(result, 'idx-next').visible, false, `${where} cat never runs`);
       assert.equal(byId(result, 'no-greedy').visible, true);
       assert.equal(byId(result, 'no-logits').visible, true);
       assert.equal(byId(result, 'kept-count').visible, false);
@@ -72,11 +83,10 @@ test('probabilities follow the oracle on every branch; T = 0 shows none', () => 
       // What torch does at T = 0 (checked with torch 2.14.0): positive logits
       // ÷ 0 are +inf, the 0 logit is 0/0 = NaN, unseen stay -inf; softmax is
       // all NaN and torch.multinomial raises, so generate() crashes.
-      assert.equal(label(result, 't-line'), 'Edge case T = 0: ÷ 0 gives +∞, NaN and −∞ logits, so softmax is all NaN.');
       const inf = F.counts.flatMap((c, i) => (Math.log(c) / 0 === Infinity ? [F.display[i]] : []));
       const nan = F.counts.flatMap((c, i) => (Number.isNaN(Math.log(c) / 0) ? [F.display[i]] : []));
       assert.deepEqual([inf.length, nan], [7, ['c']]);
-      assert.equal(label(result, 'no-logits'), `T = 0: ${inf.join(' ')} → +∞, ${nan.join(' ')} → NaN (0 ÷ 0), unseen → −∞`);
+      assert.equal(label(result, 't-line'), `T = 0: ÷ 0 makes ${inf.join(' ')} +∞, ${nan.join(' ')} NaN (0 ÷ 0) and unseen −∞.`);
       assert.equal(label(result, 'no-probs'), 'softmax → NaN everywhere: nothing valid to draw');
       assert.equal(label(result, 'draw-line'), 'torch.multinomial raises RuntimeError: generate() crashes.');
       assert.equal(label(result, 'no-greedy'), 'generate() has no greedy branch: top_k = 1 is greedy unless the top logits tie.');
@@ -87,6 +97,8 @@ test('probabilities follow the oracle on every branch; T = 0 shows none', () => 
     assert.equal(byId(result, 'no-greedy').visible, false);
     assert.equal(byId(result, 'no-logits').visible, false);
     assert.equal(byId(result, 'k-line').visible, true);
+    assert.equal(byId(result, 'step-scale').role, 'neutral');
+    for (const id of ['step-topk', 'step-cat', 'next-scale', 'shape-cat', 'probs', 'idx-next']) assert.equal(byId(result, id).opacity, 1, `${where} ${id} runs`);
     const expected = oracle(k, T);
     bars.forEach((v, i) => assert.ok(Math.abs(v - expected[i]) <= 0.0015, `${where} p[${i}] ${v} vs ${expected[i]}`));
     expected.forEach((v, i) => { if (v === 0) assert.equal(bars[i], 0, `${where} cut p[${i}] is exactly 0`); });

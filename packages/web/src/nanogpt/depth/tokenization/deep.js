@@ -228,7 +228,7 @@ export const scene = {
     eq('eq-uint16', '\\max x = {{fig.tex.maxId}} \\le 2^{16} - 1 = {{uint16Tex}}', 500, EQ.r3, 420),
 
     // Where the parameters go: blocks + ln_f against the token table, same scale in both branches.
-    text('param-title', 'N as get_num_params counts it (position table excluded), 20 px per million', 40, PARAM.title, { typography: 'caption' }),
+    text('param-title', "N = NanoGPT's reported non-position-embedding parameter count (wpe still trains), 20 px per million", 40, PARAM.title, { typography: 'caption' }),
     { id: 'param-body', type: 'box', semanticId: 'param-body', conceptId: CONCEPT,
       initialState: { label: 'blocks + ln_f', x: PARAM.x, y: PARAM.y, w: { $derive: 'bodyW.0' }, h: PARAM.h, role: 'neutral' } },
     { id: 'param-wte', type: 'box', semanticId: 'param-wte', conceptId: CONCEPT,
@@ -266,7 +266,7 @@ export const sources = [
   code('model.py', 138, 138, 'Weight tying: "self.transformer.wte.weight = self.lm_head.weight" - the V x C table is counted once.'),
   code('model.py', 184, 191, 'With targets (training) lm_head scores every position; without (generation) "logits = self.lm_head(x[:, [-1], :])", the last position only.'),
   // The parameter count.
-  code('model.py', 150, 160, 'get_num_params: every parameter, minus the position table wpe when non_embedding=True; wte stays in because lm_head shares it.'),
+  code('model.py', 147, 160, 'The count NanoGPT reports: "print("number of parameters: %.2fM" % (self.get_num_params()/1e6,))", and get_num_params(non_embedding=True) by default is every parameter minus the position table wpe. wpe is still a trained parameter, only left out of this count; wte stays in because lm_head shares it.'),
   code('model.py', 35, 37, 'Attention weights per block: c_attn C x 3C and c_proj C x C (bias=False in this config).'),
   code('model.py', 82, 84, 'MLP weights per block: c_fc C x 4C and c_proj 4C x C.'),
   code('model.py', 96, 101, 'A Block: ln_1, attn, ln_2, mlp - two LayerNorms of C weights each.'),

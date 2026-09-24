@@ -7,8 +7,9 @@ import { join } from 'node:path';
 import fx from '../../fixtures/nanogpt-fixtures.generated.js';
 import tl from '../fixtures/training-loss.generated.js';
 import { scene, sources, evidence, reviewStates } from './guided.js';
-import { assertCardGates, assertEvidence, assertSources } from '../../card-gates.mjs';
+import { assertCardGates, assertEvidence, assertSources, evaluated } from '../../card-gates.mjs';
 import { sceneContentBounds } from '../../../scene-layout.js';
+import { textStyle } from '../../../scene-style.js';
 
 const run = fx.toyRun;
 const R = tl.recorded;
@@ -93,6 +94,9 @@ test('inspecting a position links its dot, its drop lines, its two cells and the
       for (let j = 0; j < count; j += 1) assert.equal(byId(result, `${pre}-dot-${j}`).w, pre === prefix && j === i ? 20 : 12);
     }
     const dot = byId(result, `${prefix}-dot-${i}`);
+    // The stage-1 dot sits exactly on the inspected dot, at its size.
+    const focusDot = byId(result, 'focus-dot');
+    assert.ok(focusDot.x === dot.x && focusDot.y === dot.y && focusDot.w === dot.w && focusDot.role === dot.role);
     // Drop lines from the dot's centre to the x axis (at p) and the y axis (at -ln p).
     const dx = byId(result, 'focus-drop-x'), dy = byId(result, 'focus-drop-y');
     assert.ok(Math.abs(dx.from.x - dot.x) < 0.01 && Math.abs(dx.from.y - dot.y) < 0.01);
@@ -112,6 +116,31 @@ test('inspecting a position links its dot, its drop lines, its two cells and the
     assert.match(pctShown, /^[1-9]|^0\./);
     assert.equal(byId(result, 'focus').role, focus < 6 ? 'input' : 'prediction');
   });
+});
+
+// One idea at a time: the inspected position's p -> -ln p, then the training
+// word and its mean loss, then held-out text and the checkpoint to keep - each
+// stage fully on screen before the next starts, each set in quieter type.
+test('the replay stages the three ideas in order, each quieter than the one before', () => {
+  const dots = prefix => Array.from({ length: 6 }, (unused, i) => `${prefix}-dot-${i}`);
+  const stages = [
+    ['focus-dot', 'focus-drop-x', 'focus-drop-y', 'focus'],
+    ['train-title', 'trainTable', 'train-mean', ...dots('tr')],
+    ['held-title', 'heldTable', 'held-mean', 'slices', 'best', 'regime', ...dots('ho')],
+  ];
+  const starts = ids => ids.map(id => scene.timeline.find(e => e.target === id && e.action === 'appear').at);
+  const ends = ids => ids.map(id => { const e = scene.timeline.find(x => x.target === id && x.action === 'appear'); return e.at + e.duration; });
+  stages.forEach((ids, n) => {
+    if (n === 0) return;
+    const before = Math.min(...starts(ids));
+    assert.ok(Math.max(...ends(stages[n - 1])) < before, `stage ${n} is finished before stage ${n + 1} starts`);
+    const { state } = evaluated(scene, {}, before - 0.01);
+    stages.forEach((other, m) => other.forEach(id => assert.equal(byId({ state }, id).visible, m < n, `t=${before - 0.01}: ${id}`)));
+  });
+  const size = id => textStyle(scene.objects.find(o => o.id === id).initialState.typography || 'body').fontSize;
+  assert.ok(size('focus') >= size('train-mean') && size('train-mean') > size('slices') && size('slices') >= size('held-mean'));
+  assert.equal(size('best'), size('slices'));
+  assert.ok(size('regime') <= size('slices'));
 });
 
 // The camera fits the content's bounds: they must not move between checkpoints

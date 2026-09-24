@@ -4,9 +4,11 @@
 // learner multiplies and shifts the token vector (x = a * x0 + b) and compares
 // it, column by column, with the unchanged reference x0: the mean moves with
 // both controls and the std with the multiplier, x-hat and therefore the
-// sublayer's change stay identical for a positive multiplier (x -1, the
-// contrast, flips both), and out = x + change keeps the shift and scale,
-// because the stream itself is never normalized.
+// sublayer's change stay the same for a positive multiplier - exactly at x 1
+// (a shift only moves the mean), nearly at the others (eps, added to the
+// variance, is not rescaled; it is tiny next to every variance on this card) -
+// x -1, the contrast, flips both, and out = x + change keeps the shift and
+// scale, because the stream itself is never normalized.
 //
 // Grounding: model.py LayerNorm.forward (F.layer_norm, eps 1e-5, weight gamma,
 // no bias by default) and Block.forward's first add. Numbers: x0 is the same
@@ -32,10 +34,14 @@ const ROW = [164, 284, 404, 524]; // strip tops: x, x-hat, change, out
 const n = REF.x.length;
 const shiftText = b => (b < 0 ? `− ${-b}` : `+ ${b}`);
 const aText = a => (a < 0 ? `−${-a}` : String(a));
-// The relationship notes hold for a positive multiplier; × −1 flips x̂ and the change.
+// The relationship notes, per multiplier. × 1: a shift cancels exactly. Any other
+// positive multiplier: nearly - ε is added to the variance and not rescaled with
+// it (ε ÷ σ² ≤ 1.1e-5 at every setting here). × −1 (|a| = 1): exactly flipped.
 const REL = {
-  positive: { xhat1: 'Same in both columns: shift and a', xhat2: 'positive multiplier cancel out.',
+  one: { xhat1: 'Same in both columns: subtracting', xhat2: 'the mean cancels any shift.',
     change1: 'Same too: the layer only', change2: 'sees x̂, never x itself.', out: '= (a − 1)·x₀ + b: shift and scale kept' },
+  positive: { xhat1: 'Nearly the same here; ε is tiny', xhat2: 'relative to this variance.',
+    change1: 'Nearly the same too: the layer', change2: 'only sees x̂, never x itself.', out: '≈ (a − 1)·x₀ + b: shift and scale kept' },
   negative: { xhat1: 'Signs flipped: shift and size', xhat2: 'cancel, a negative sign does not.',
     change1: 'Flipped too: the toy layer is', change2: 'linear and sees only x̂.', out: '= (a − 1)·x₀ + b − 2 × reference change' },
 };
@@ -60,7 +66,7 @@ export const scene = {
     multipliers: G.scales.map(a => `× ${aText(a)}`),
     shifts: G.shifts.map(shiftText),
     aTexts: G.scales.map(aText),
-    rels: G.scales.map(a => (a > 0 ? REL.positive : REL.negative)),
+    rels: G.scales.map(a => (a === 1 ? REL.one : a > 0 ? REL.positive : REL.negative)),
     table: G.table,
     ref: REF,
     gamma: GAMMA,
@@ -108,7 +114,7 @@ export const scene = {
     note('rel-stats-2', 'live: std ÷ reference std = {{stdRatio.0}}', NOTE_X, ROW[0] + 62, { opacity: 0, role: 'output' }),
 
     // ② x-hat = (x - mean) / sqrt(var + eps)
-    strip('xhat-ref', LX, ROW[1], 'ref.xhat', { label: '② x̂ = (x − mean) ÷ std', ...heat('xhat') }),
+    strip('xhat-ref', LX, ROW[1], 'ref.xhat', { label: '② x̂ = (x − mean) ÷ √(variance + ε)', ...heat('xhat') }),
     strip('xhat-sel', RX, ROW[1], 'sel.xhat', { ...heat('xhat') }),
     note('check-sel', 'live: sum {{xhatSum}} · mean of squares {{xhatMeanSq.0}}', RX, ROW[1] + CELL + 20, { opacity: 0, role: 'output' }),
     text('rel-xhat-1', '{{rel.xhat1}}', NOTE_X, ROW[1] + 18, { opacity: 0 }),
@@ -170,11 +176,11 @@ export const evidence = {
   card: 'depth-residual-layernorm-guided',
   title: scene.title,
   learningQuestion: scene.objects[0].initialState.text,
-  concept: 'LayerNorm subtracts a token vector’s mean and divides by sqrt(var + eps), so the normalized x̂ (mean 0, mean of squares 1) - and anything a sublayer computes from it - does not depend on a shift or positive rescale of the vector; the block then adds the sublayer’s change to the un-normalized x, so the stream keeps the shift and scale.',
+  concept: 'LayerNorm subtracts a token vector’s mean and divides by sqrt(var + eps), so the normalized x̂ (mean 0, mean of squares 1) - and anything a sublayer computes from it - does not depend on a shift, and nearly does not depend on a positive rescale (eps is not rescaled, but is tiny next to the variance here); the block then adds the sublayer’s change to the un-normalized x, so the stream keeps the shift and scale.',
   sourceRevision: `${fx.provenance.nanogpt.repo} @ ${fx.provenance.nanogpt.commit}`,
   provenance: 'calculated toy example: x = a·x0 + b, mean, biased var, std = sqrt(var + 1e-5), x-hat (4 decimals) from gen_residual-layernorm.py, x0 from generate_fixtures.layernorm(), illustrative gamma from the base fixture, seeded 6x6 toy layer; live calculation: gamma * x-hat (elementwise), change (weighted_sum), out (add), sum of x-hat (sum), mean of squares (dot, concat, scale by 1/6), std ÷ reference std (scale), out − reference out (scale by −1, add); source: model.py:18-27, :23, :104, train.py:56.',
   control: 'multiplier (index slider over × −1, × 0.5, × 1, × 1.5, × 2; default × 2) and shift (index picker over − 2, + 0, + 2; default + 2): x = a · x₀ + b, compared with the reference x₀.',
-  consequence: 'The selected mean moves with the shift and the multiplier and the std with the multiplier only; for a positive multiplier x̂ and the change are identical to the reference column, and at × −1 every sign flips (live check at every setting: x̂ sums to 0, mean of squares 1); live readouts show std ÷ reference std = |a| and out − reference out = (a − 1) · x₀ + b entry by entry, minus 2 × the reference change at × −1.',
+  consequence: 'The selected mean moves with the shift and the multiplier and the std with the multiplier only; x̂ and the change are identical to the reference column at × 1 and the same to the printed digits at the other positive multipliers (“Nearly the same here; ε is tiny relative to this variance”), and at × −1 every sign flips (live check at every setting: x̂ sums to 0, mean of squares 1); live readouts show std ÷ reference std = |a| and out − reference out = (a − 1) · x₀ + b entry by entry, minus 2 × the reference change at × −1.',
   interactionPurpose: 'Manipulate the input with two numeric controls and verify, on the card’s numbers, which stages of the sub-block are invariant and which carry the change - and break the invariance with a negative multiplier.',
   task: 'Explore only: move the multiplier and shift; check that std scales with the multiplier, that x̂ and the change match the reference for a positive multiplier and flip at × −1, and that x + change = out entry by entry.',
   capability: 'index slider + index picker; pick into a 5 x 3 record table and a per-multiplier record of relationship notes; elementwise, weighted_sum (vector times matrix), add, sum, dot, concat and scale derive ops (std ratio, out minus reference out); signed heat strips on shared groups whose values do not move between settings; {{}} readouts from picked records.',

@@ -10,8 +10,10 @@
 // The card also subtracts wpe from the total, which is the count
 // get_num_params() returns, and shows it the way GPT.__init__ prints it at
 // start-up (millions, two decimals). A gutter of the Overview's stage names
-// (number lists, blocks, scores) marks which rows implement which stage; the
-// scores stage's lm_head has no row of its own because it is wte's matrix.
+// (number lists, blocks, scores) marks which rows implement which stage, each
+// with a short role: the embeddings, the blocks' share of all parameters
+// (compared live, so it flips with V), and the token matrix reused as the
+// output. The scores stage's lm_head has no row of its own: it is wte's matrix.
 //
 // Numbers: C = 384 and V = 65 are the shakespeare_char config generate_fixtures.py
 // resolved (fx.architecture); C = 768 is train.py's own default (fx.config);
@@ -39,11 +41,12 @@ const ROW = { wte: 118, wpe: 176, blocks: 246, lnf: 316, lmhead: 374 };
 const BAR_H = 34;
 const AXIS_Y = 430;
 const TICKS = [0, 10e6, 20e6, 30e6, 40e6];
-// The Overview's stages, as a gutter beside the rows that implement them.
+// The Overview's stages, as a gutter beside the rows that implement them:
+// the stage name, then what those parameters are.
 const GUTTER = [
-  ['gutter-lists', 'number lists', ROW.wte, ROW.wpe + BAR_H],
-  ['gutter-blocks', '{{L}} blocks', ROW.blocks, ROW.blocks + BAR_H],
-  ['gutter-scores', '{{V}} scores', ROW.lnf, ROW.lmhead + BAR_H],
+  ['gutter-lists', 'number lists', ['token + position', 'embeddings'], ROW.wte, ROW.wpe + BAR_H],
+  ['gutter-blocks', '{{L}} blocks', ['{{blocksShare}}', 'parameters'], ROW.blocks - 14, ROW.blocks + BAR_H + 14],
+  ['gutter-scores', '{{V}} scores', ['token matrix,', 'reused (tied)'], ROW.lnf, ROW.lmhead + BAR_H],
 ];
 
 const text = (id, value, x, y, extra = {}) => ({ id, type: 'text', semanticId: id, conceptId: CONCEPT,
@@ -57,8 +60,17 @@ const dividers = Array.from({ length: A.n_layer - 1 }, (unused, i) => ({
   id: `block-divider-${i}`, type: 'line', semanticId: `block-divider-${i}`, conceptId: CONCEPT,
   initialState: { from: { x: { $derive: `divX.${i}` }, y: ROW.blocks }, to: { x: { $derive: `divX.${i}` }, y: ROW.blocks + BAR_H },
     role: 'prediction', opacity: 0 } }));
-const gutter = GUTTER.map(([id, label, top, bottom]) => ({ id, type: 'box', semanticId: id, conceptId: CONCEPT,
-  initialState: { label, x: 40, y: top, w: 116, h: bottom - top, role: 'neutral' } }));
+// Box labels are one centred line, so the three-line stack is text objects
+// centred in the box.
+const gutter = GUTTER.flatMap(([id, stage, [role0, role1], top, bottom]) => {
+  const y = (top + bottom) / 2 - 13;
+  return [
+    { id, type: 'box', semanticId: id, conceptId: CONCEPT, initialState: { x: 40, y: top, w: 116, h: bottom - top, role: 'neutral' } },
+    text(`${id}-stage`, stage, 50, y),
+    note(`${id}-role-0`, role0, 50, y + 18),
+    note(`${id}-role-1`, role1, 50, y + 34),
+  ];
+});
 const ticks = TICKS.map((value, i) => note(`tick-${i}`, value ? `${value / 1e6}M` : '0',
   BAR_X + value * PX - (value ? 12 : 3), AXIS_Y + 20));
 
@@ -81,6 +93,7 @@ export const scene = {
     divOrigin: Array.from({ length: A.n_layer - 1 }, () => BAR_X),
     // The status of the selected sizes: [width][vocab]; only 384 / 65 is shipped.
     sizeTags: [['Source value sizes', 'What-if sizes'], ['What-if sizes', 'What-if sizes']],
+    blocksShares: ['most of the', 'under half the'],
   },
   derived: {
     C: { op: 'pick', args: ['Cs', 'width'] },
@@ -111,6 +124,13 @@ export const scene = {
     // millions and multiplying back by 10 rounds it to 2.
     tenthM: { op: 'scale', args: ['nonEmbV', 1e-7] },
     printedM: { op: 'scale', args: ['tenthM', 10] },
+    // The blocks' role: most of the parameters, or under half (argmin is 0
+    // when everything else together is smaller than the blocks).
+    totalV: { op: 'concat', args: ['total'] },
+    rest: { op: 'sub', args: ['totalV', 'blocks'] },
+    restVsBlocks: { op: 'concat', args: ['rest', 'blocks'] },
+    blocksMinor: { op: 'argmin', args: ['restVsBlocks'] },
+    blocksShare: { op: 'pick', args: ['blocksShares', 'blocksMinor'] },
     // Geometry on the fixed axis.
     wteW: { op: 'scale', args: ['wte', PX] },
     wpeW: { op: 'scale', args: ['wpe', PX] },
@@ -202,10 +222,10 @@ export const evidence = {
   sourceRevision: `${fx.provenance.nanogpt.repo}@${fx.provenance.nanogpt.commit}`,
   provenance: 'Source value: C = 384, n_layer = 6, block_size = 256, V = 65 (fx.architecture), C = 768 (fx.config.defaults), V = 50304 (fx.tokenizer.modelVocabNote, checked against model.py and train.py). Live calculation: every count via elementwise/scale/sum/concat derive ops. What-if: any setting other than C = 384 with V = 65.',
   control: 'width (index picker): n_embd 384 or 768. vocab (index picker): V = 65 characters or 50304 GPT-2 tokens.',
-  consequence: 'At 384/65: attention 589824, MLP 1179648, LN 768 per block, blocks 10621440, wte 24960, wpe 98304, total 10745088, start-up count 10646784, printed as number of parameters: 10.65M (42.53M, 29.94M, 81.11M at the other settings). C = 768: each block and the blocks bar grow ×4 (to 42476544), wte and wpe ×2. V = 50304: only wte grows (19316736 at C = 384, 38633472 at C = 768), and its bar becomes comparable to all six blocks. The stage gutter reads number lists / 6 blocks / 65 scores (50304 scores with GPT-2 tokens); lm_head adds +0. Under the block split, each weight matrix as rows × columns: c_attn C × 3C = 3C², c_proj C × C = C², c_fc C × 4C = 4C², c_proj 4C × C = 4C². The total is tagged (Source value sizes) at 384/65 and (What-if sizes) at the other three settings.',
+  consequence: 'At 384/65: attention 589824, MLP 1179648, LN 768 per block, blocks 10621440, wte 24960, wpe 98304, total 10745088, start-up count 10646784, printed as number of parameters: 10.65M (42.53M, 29.94M, 81.11M at the other settings). C = 768: each block and the blocks bar grow ×4 (to 42476544), wte and wpe ×2. V = 50304: only wte grows (19316736 at C = 384, 38633472 at C = 768), and its bar becomes comparable to all six blocks. The stage gutter reads number lists (token + position embeddings) / 6 blocks (most of the parameters; under half the parameters at C = 384 with V = 50304, where wte outgrows them) / 65 scores (50304 scores with GPT-2 tokens; token matrix, reused (tied)); lm_head adds +0. Under the block split, each weight matrix as rows × columns: c_attn C × 3C = 3C², c_proj C × C = C², c_fc C × 4C = 4C², c_proj 4C × C = 4C². The total is tagged (Source value sizes) at 384/65 and (What-if sizes) at the other three settings.',
   interactionPurpose: 'Let the learner check the scaling laws on real counts - C² for the blocks, C and V × C for the embeddings - and reconcile the total with the number NanoGPT prints.',
   task: 'none (explore only - no Practice on this board)',
-  capability: 'two index pickers; live elementwise/scale/sum/concat/add derive chain; derived box widths and divider positions on one fixed pixel scale; two-step 3-decimal rounding for the %.2f print; {{}} labels bound to derived counts.',
+  capability: 'two index pickers; live elementwise/scale/sum/concat/add derive chain; derived box widths and divider positions on one fixed pixel scale; two-step 3-decimal rounding for the %.2f print; a live sub/argmin comparison picks the blocks role; {{}} labels bound to derived counts.',
 };
 
 // All four settings.

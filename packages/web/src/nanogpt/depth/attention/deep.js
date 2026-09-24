@@ -1,9 +1,9 @@
 // Attention at Deep dive depth: CausalSelfAttention.forward as shapes,
 // heads and branches. Left, the forward pass as a column of steps named after
 // the source lines, each with its tensor shape; the implementation branch
-// (manual path vs the fused scaled_dot_product_attention NanoGPT uses by
-// default) swaps five of them for one kernel. Right, one head's (T, T) slice
-// of att for the same nine characters as the other two cards - three hand-set
+// (manual path vs the fused scaled_dot_product_attention NanoGPT uses when
+// it is available, PyTorch >= 2.0) swaps five of them for one kernel. Right,
+// one head's (T, T) slice of att for the same nine characters as the other two cards - three hand-set
 // heads from gen_attention.py, picked by a head control - with a context-
 // length slider whose T = 1 end is the edge case (one character, one weight)
 // and which shows that growing T never changes earlier rows. Bottom, the
@@ -11,9 +11,10 @@
 // random keys at hs = 4, 16, 64 (the first of the generator's 2000 draws per
 // hs), with and without the factor, on a 0-1 weight axis, next to the Monte
 // Carlo statistics over all 2000 draws, and the softmax gradient p(1 - p)
-// that saturation starves. The memory side of the branch is in bytes: the
-// manual path's att at shakespeare_char sizes, 4 bytes an fp32 entry, per
-// layer and over the 6 layers. Every number is a live
+// that saturation starves. The memory side of the branch is in bytes, labelled
+// as the manual path's illustrative cost (fused SDPA need not build att): its
+// att at shakespeare_char sizes, 4 bytes an fp32 entry, per layer and over
+// the 6 layers. Every number is a live
 // calculation on generated or source values; code and provenance are the
 // card's `sources`, one code entry per step.
 import fx from '../../fixtures/nanogpt-fixtures.generated.js';
@@ -37,8 +38,8 @@ const SHAPE_X = COL + STEP_W + 12;
 const GRID_X = 560, GRID_Y = 214, CELL = 30;
 const NOTE_X = 504, NOTE_Y = GRID_Y + T * CELL + 28;
 const STRIP_Y = NOTE_Y + 70, STRIP_CELL = 34;
-const MEM_Y = 540; // left column, under the steps
-const SAT_Y = 756, SAT_PITCH = 312, SAT_CELL = 24, SAT_H = 80;
+const MEM_Y = 560; // left column, under the steps and the memory title
+const SAT_Y = 776, SAT_PITCH = 312, SAT_CELL = 24, SAT_H = 80;
 const BOX_MID = COL + 235; // centre of the 470-wide fused box
 const centredAt = text => Math.round(BOX_MID - text.length * 2.63); // annotation text is ~5.26 px a character
 const stepY = k => STEP_Y + k * PITCH;
@@ -66,13 +67,13 @@ export const scene = {
   id: 'depth-attention-deep',
   title: 'Attention · Deep dive: heads, shapes and the 1/√hs factor',
   width: 960,
-  height: 952,
+  height: 972,
   duration: 2,
   inputs: [
     { name: 'head', type: 'index', label: 'Head', of: 'headLabels', default: 0, presentation: 'picker' },
     { name: 'Tidx', type: 'index', label: 'Context length T', of: 'Tlabels', default: LAST, presentation: 'slider' },
     { name: 'path', type: 'choice', label: 'Path', default: 'manual',
-      options: [{ id: 'manual', label: 'manual (flash False)' }, { id: 'fused', label: 'fused SDPA (NanoGPT default)' }] },
+      options: [{ id: 'manual', label: 'manual (flash False)' }, { id: 'fused', label: 'fused SDPA (NanoGPT default when available)' }] },
     { name: 'scaleOn', type: 'bool', label: 'Scale by 1/√hs (off = What-if)', default: true },
   ],
   exampleData: {
@@ -97,7 +98,7 @@ export const scene = {
     fusedOnly: { manual: 0, fused: 1 },
     gridOpacity: { manual: 1, fused: 0.25 },
     pathNotes: { manual: 'manual: att is built whole in every layer and kept for backward', fused: 'fused: flash / memory-efficient kernels never hold the whole att;' },
-    pathNotes2: { manual: '', fused: 'the math version (non-CUDA, or inputs they reject) still builds it.' },
+    pathNotes2: { manual: 'fused SDPA need not materialize this full matrix.', fused: 'the math version (non-CUDA, or inputs they reject) still builds it.' },
     fusedLabels: { on: 'scaled_dot_product_attention(is_causal=True)', off: 'scaled_dot_product_attention(is_causal=True, scale=1.0)' },
     fusedScales: FUSED_SCALE,
     fusedScaleX: { on: centredAt(FUSED_SCALE.on), off: centredAt(FUSED_SCALE.off) },
@@ -228,7 +229,10 @@ export const scene = {
     { id: 'v-first', type: 'strip', semanticId: 'v-first', conceptId: 'heads',
       initialState: { label: 'v of row 0', x: GRID_X + 180, y: STRIP_Y, cell: STRIP_CELL, role: 'input', values: { $derive: 'vFirst' } } },
 
-    // The tradeoff the branch makes, at shakespeare_char sizes.
+    // The tradeoff the branch makes, at shakespeare_char sizes - the manual
+    // path's cost, not what the fused default stores.
+    { id: 'mem-title', type: 'text', semanticId: 'mem-title', conceptId: 'memory',
+      initialState: { text: 'Manual attention, fp32 illustrative memory:', x: COL, y: MEM_Y - 16, typography: 'caption' } },
     { id: 'eq-memory', type: 'equation', semanticId: 'eq-memory', conceptId: 'memory',
       initialState: { text: `B\\cdot n_h\\cdot T^2=${B}\\cdot ${NH}\\cdot ${BLOCK}^2={{attEntries}}`, x: COL, y: MEM_Y, w: 470, h: 30 } },
     { id: 'eq-bytes', type: 'equation', semanticId: 'eq-bytes', conceptId: 'memory',
@@ -264,8 +268,11 @@ export const scene = {
     ]),
     { id: 'eq-variance', type: 'equation', semanticId: 'eq-variance', conceptId: 'scaling',
       initialState: { text: `\\text{${SAT.samples} draws, }hs=${SAT.hs.join(',')}:\\ \\mathrm{std}(\\text{score})={{std0}},{{std1}},{{std2}};\\ \\ \\overline{w_{\\max}}={{mean0}},{{mean1}},{{mean2}}`, x: COL, y: SAT_Y + SAT_H + 44, w: 912, h: 30 } },
+    // One diagonal softmax derivative, claimed for that weight only. ∂ and →
+    // are KaTeX's own \partial and \to, typed as glyphs so the layout lint's
+    // per-source-character width estimate fits the 912px box.
     { id: 'eq-gradient', type: 'equation', semanticId: 'eq-gradient', conceptId: 'scaling',
-      initialState: { text: 'g_i=\\partial w_i/\\partial s_i=w_i(1-w_i)\\to 0\\text{ as }w_i\\to 1\\text{: saturated rows barely learn}', x: COL, y: SAT_Y + SAT_H + 80, w: 912, h: 30 } },
+      initialState: { text: 'g_i=∂w_i/∂s_i=w_i(1-w_i)→0\\text{ near 0 or 1: that probability becomes locally less sensitive to its own score}', x: COL, y: SAT_Y + SAT_H + 80, w: 912, h: 30 } },
   ],
   timeline: SAT.hs.map((hs, k) => ({ at: 0.3 + k * 0.4, action: 'appear', target: `sat-bars-${k}`, duration: 0.4 })),
 };
@@ -276,7 +283,7 @@ export const sources = [
   code('model.py', 56, 56, 'Step c_attn(x).split: one linear layer makes q, k and v for all heads at once, cut along the last dimension: “q, k, v  = self.c_attn(x).split(self.n_embd, dim=2)”.'),
   code('model.py', 35, 37, 'The two learned projections: “self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias)” (C → 3C) and “self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)” (C → C).'),
   code('model.py', 57, 59, 'Step view · transpose: each of q, k, v becomes n_head heads of size hs = C // n_head, with the head moved in front of T: “q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)”.'),
-  code('model.py', 45, 45, 'Which branch runs: “self.flash = hasattr(torch.nn.functional, \'scaled_dot_product_attention\')” - True on PyTorch 2.0 or later, so the fused call is the default.'),
+  code('model.py', 45, 45, 'Which branch runs: “self.flash = hasattr(torch.nn.functional, \'scaled_dot_product_attention\')” - True on PyTorch 2.0 or later, so the fused call is NanoGPT’s default when that function is available.'),
   code('model.py', 62, 64, 'The fused branch - one call replaces the five manual steps, with the causal mask as a flag and dropout only in training: “y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout if self.training else 0, is_causal=True)”.'),
   code('model.py', 67, 67, 'Steps q @ kᵀ and × 1/√hs, one line: “att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))” - (B, nh, T, hs) × (B, nh, hs, T) → (B, nh, T, T); k.size(-1) is hs.'),
   code('model.py', 49, 50, 'The mask the manual branch reads, registered only when flash is unavailable: a lower-triangular block_size × block_size buffer, “self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size))”.'),
@@ -314,11 +321,11 @@ export const evidence = {
   card: 'depth-attention-deep',
   title: scene.title,
   learningQuestion: scene.objects[0].initialState.text,
-  concept: 'CausalSelfAttention.forward: c_attn makes q, k, v (B, T, C), view/transpose splits them into (B, nh, T, hs), q @ kᵀ × 1/√hs gives att (B, nh, T, T), masked_fill with the sliced tril buffer sets later positions to −∞, softmax (then dropout in training), att @ v gives (B, nh, T, hs), and transpose/view/c_proj return (B, T, C). With PyTorch 2.0+ the fused scaled_dot_product_attention(is_causal=True) replaces the five middle steps; its flash and memory-efficient kernels (CUDA) never hold the whole att, while its math version (every other backend, or inputs the kernels reject) still builds it; it applies its own default scale 1/√hs. The manual att at shakespeare_char sizes is 25,165,824 entries, 100.663 MB in fp32 per layer, 603.98 MB over 6 layers. The 1/√hs keeps the score spread near 1 whatever hs; without it softmax saturates toward one-hot as hs grows and its gradient w(1 − w) vanishes.',
+  concept: 'CausalSelfAttention.forward: c_attn makes q, k, v (B, T, C), view/transpose splits them into (B, nh, T, hs), q @ kᵀ × 1/√hs gives att (B, nh, T, T), masked_fill with the sliced tril buffer sets later positions to −∞, softmax (then dropout in training), att @ v gives (B, nh, T, hs), and transpose/view/c_proj return (B, T, C). With PyTorch 2.0+ the fused scaled_dot_product_attention(is_causal=True) replaces the five middle steps; its flash and memory-efficient kernels (CUDA) never hold the whole att, while its math version (every other backend, or inputs the kernels reject) still builds it; it applies its own default scale 1/√hs. Illustrative fp32 memory for the manual att at shakespeare_char sizes: 25,165,824 entries, 100.663 MB per layer, 603.98 MB over 6 layers - fused SDPA need not materialize that full matrix. The 1/√hs keeps the score spread near 1 whatever hs; without it softmax saturates toward one-hot as hs grows, and w(1 − w), the slope of each weight to its own score, goes to 0 near 0 or 1: that probability becomes locally less sensitive to its own score.',
   sourceRevision: `${fx.provenance.nanogpt.repo} @ ${fx.provenance.nanogpt.commit}`,
   provenance: 'code: model.py:35-37, :45, :49-50, :53, :56, :57-59, :62-64, :67, :68, :69-70, :71, :72, :75, :173, train.py:112 and config/train_shakespeare_char.py:18-19, :22-25 at @3adf61e; source values: fx.architecture; calculated toy example: attention.generated.js heads (3 hand-set heads) and saturation (first seeded draw per hs + 2000-draw statistics) from gen_attention.py; live calculation: matmul, scale, causal_mask, softmax, weighted_sum, argmin, sub, elementwise, dot, concat, scale for bytes/MB/layers; papers arXiv 1706.03762 §3.2.1 footnote and 2205.14135; PyTorch SDPA documentation (scale default, backends).',
-  control: '"Head" picker (head 0 previous character, head 1 same letter, head 2 first character); "Context length T" slider 1-9; "Path" choice manual (flash False) / fused SDPA (NanoGPT default); "Scale by 1/√hs" toggle (off = What-if).',
-  consequence: 'Head changes the (T, T) pattern: a band just below the diagonal, same-letter spots, a first column. T grows the grid by a row and a column without changing earlier rows; T = 1 leaves att = [1] and y equal to its own v. Path swaps five step boxes for one fused box, dims att (the flash and memory-efficient kernels never hold it whole; the math version still does) and switches the memory note under 100.663 MB fp32 per layer. The scale toggle rewrites the equation, the × step and the fused call (scale=1.0), sharpens the toy att, and makes the random rows at hs = 16 and 64 nearly one-hot: the measured score spread goes from 1, 1, 1 to 2, 4, 8, the mean largest weight from about a third to near 0.9, and the largest w(1 − w) at hs = 64 toward 0.',
+  control: '"Head" picker (head 0 previous character, head 1 same letter, head 2 first character); "Context length T" slider 1-9; "Path" choice manual (flash False) / fused SDPA (NanoGPT default when available); "Scale by 1/√hs" toggle (off = What-if).',
+  consequence: 'Head changes the (T, T) pattern: a band just below the diagonal, same-letter spots, a first column. T grows the grid by a row and a column without changing earlier rows; T = 1 leaves att = [1] and y equal to its own v. Path swaps five step boxes for one fused box, dims att (the flash and memory-efficient kernels never hold it whole; the math version still does) and switches the note under the manual path’s illustrative 100.663 MB fp32 per layer. The scale toggle rewrites the equation, the × step and the fused call (scale=1.0), sharpens the toy att, and makes the random rows at hs = 16 and 64 nearly one-hot: the measured score spread goes from 1, 1, 1 to 2, 4, 8, the mean largest weight from about a third to near 0.9, and the largest w(1 − w) at hs = 64 toward 0.',
   interactionPurpose: 'Connect the equation to the exact tensor shapes and source lines, compare implementation branches that compute the same thing, trigger the one-character edge case, and quantify why the 1/√hs exists.',
   task: 'Set T = 1 and explain the single weight; switch to the fused path and say which of the 100.663 MB per layer is no longer stored, and when it still is; turn the scaling off and read how the hs = 64 row and its gradient change.',
   capability: 'head picker, T slider, path choice, bool what-if; derived grid shape (rows/cols/labels follow T); live per-head masked softmax on prefixes; step boxes with input-bound opacity for the branch; equations with live values (memory in bytes); fused-call label and scale note picked by the toggle; three bar rows for hs = 4, 16, 64 from seeded draws on a labelled 0-1 axis; generator statistics picked by the toggle.',

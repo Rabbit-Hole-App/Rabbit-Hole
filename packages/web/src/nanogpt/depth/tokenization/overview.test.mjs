@@ -45,6 +45,8 @@ test('overview: the ladder contract - one discrete control, no equations, shapes
     const question = byId(result, 'question'), prereq = byId(result, 'prerequisites');
     assert.equal(prereq.label, 'No prerequisites.');
     assert.ok(prereq.y > question.y && shown.every(o => o === question || o.y >= prereq.y));
+    // "word pieces" is glossed once, in plain words.
+    assert.equal((all.match(/word pieces \(text chunks\)/g) || []).length, 1);
   }
 });
 
@@ -75,6 +77,10 @@ test('overview: set sizes, whole-play counts and the lit row follow the choice',
   assert.deepEqual([letters.length, digits.length, punctuation.length], [52, 1, 10]);
   assert.equal(letters.length + 2 + digits.length + punctuation.length, CHARS.length);
   assert.equal(byId(letters_, 'kinds').label, 'from 65 kinds: letters, space, new line, punctuation, one digit');
+  // In the default state the gloss comes before any other mention of word pieces.
+  const gloss = byId(letters_, 'length-title');
+  assert.match(gloss.label, /word pieces \(text chunks\)/);
+  assert.ok(letters_.state.objects.filter(o => o.visible && o !== gloss && /word piece/i.test(o.label || '')).every(o => o.y > gloss.y));
   // The space note is true of each split: a space is its own character piece; a GPT-2 piece carries its leading space.
   assert.ok(char.tokens.filter(t => unshow(t) === ' ').length === [...fx.tokenizer.text].filter(c => c === ' ').length);
   assert.ok(bpe.tokens.slice(1).every(t => unshow(t).startsWith(' ') && !unshow(t).slice(1).includes(' ')));

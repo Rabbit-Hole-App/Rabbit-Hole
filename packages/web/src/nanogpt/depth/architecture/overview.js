@@ -23,14 +23,16 @@ const TOY = CE.presets.find(preset => preset.id === 'confident-right');
 const CONCEPT = 'transformer-end-to-end';
 const shown = ch => (ch === ' ' ? '␣' : ch);
 const PIECES = [...CE.context].map(shown);
-const STAGES = ['text', 'pieces', 'number lists', 'blocks', 'scores', 'the pick'];
-const STAGE_LABELS = ['text', 'pieces', 'number lists', '{{L}} blocks', '{{V}} scores', 'the pick'];
+const STAGES = ['text', 'pieces', 'number lists', 'blocks', 'next-character scores', 'the pick'];
+const STAGE_LABELS = ['text', 'pieces', 'number lists', '{{L}} blocks', '{{V}} next-character scores', 'the pick'];
 const N = STAGES.length;
 
-// Pipeline row: one box per stage, dimmed until the stepper reaches it.
-const BOX_X0 = 40, BOX_PITCH = 152, BOX_W = 124, BOX_Y = 104, BOX_H = 46;
-const boxX = i => BOX_X0 + i * BOX_PITCH;
-const boxMid = i => boxX(i) + BOX_W / 2;
+// Pipeline row: one box per stage, dimmed until the stepper reaches it. Each
+// box is as wide as its label needs; the scores box says what it scores.
+const BOX_X0 = 40, BOX_GAP = 28, BOX_Y = 104, BOX_H = 46;
+const BOX_WS = [90, 90, 124, 108, 232, 100];
+const boxX = i => BOX_X0 + BOX_WS.slice(0, i).reduce((sum, w) => sum + w, 0) + i * BOX_GAP;
+const boxMid = i => boxX(i) + BOX_WS[i] / 2;
 const LOOP_Y = 174;
 // The example panel under the pipeline. Chips are 41.5px wide on a 49.5px
 // pitch (CHIP_PAD 16 + 9.5 per character, CHIP_GAP 8 - animation-scene.js).
@@ -58,11 +60,11 @@ const stroke = (type, id, from, to, extra = {}) => ({ id, type, semanticId: id, 
 
 const stageBoxes = STAGES.map((unused, i) => ({
   id: `stage-${i}`, type: 'box', semanticId: `stage-${i}`, conceptId: CONCEPT,
-  initialState: { label: STAGE_LABELS[i], x: boxX(i), y: BOX_Y, w: BOX_W, h: BOX_H,
+  initialState: { label: STAGE_LABELS[i], x: boxX(i), y: BOX_Y, w: BOX_WS[i], h: BOX_H,
     role: { $derive: `stageRole${i}` }, opacity: { $derive: `stageOpacity${i}` } },
 }));
 const stageArrows = STAGES.slice(1).map((unused, i) => stroke('arrow', `stage-arrow-${i}`,
-  { x: boxX(i) + BOX_W + 4, y: BOX_Y + BOX_H / 2 }, { x: boxX(i + 1) - 4, y: BOX_Y + BOX_H / 2 },
+  { x: boxX(i) + BOX_WS[i] + 4, y: BOX_Y + BOX_H / 2 }, { x: boxX(i + 1) - 4, y: BOX_Y + BOX_H / 2 },
   { opacity: { $derive: `stageOpacity${i + 1}` } }));
 // Stage 2's picture: the last piece's own list plus its place's list, a few
 // cells of each standing for all C numbers, and their sum - what the piece
@@ -184,7 +186,7 @@ export const scene = {
       initialState: { tokens: [...PIECES, '{{next}}'], x: PANEL_X, y: CHIP_Y, role: 'input', cellHighlight: PIECES.length, opacity: { $derive: 'showNext' } } },
     note('next-note', '{{next}} is added. Now {{countNext}} characters go in, and the model guesses the one after.', PANEL_X, CHIP_Y + 72, { opacity: { $derive: 'showNext' } }),
 
-    stroke('line', 'panel-floor', { x: PANEL_X - 4, y: PANEL_FLOOR }, { x: boxX(N - 1) + BOX_W, y: PANEL_FLOOR }, { opacity: DIM }),
+    stroke('line', 'panel-floor', { x: PANEL_X - 4, y: PANEL_FLOOR }, { x: boxX(N - 1) + BOX_WS[N - 1], y: PANEL_FLOOR }, { opacity: DIM }),
   ],
   // The replay walks the pipeline left to right.
   timeline: STAGES.flatMap((unused, i) => [
@@ -218,7 +220,7 @@ export const evidence = {
   concept: 'Text is cut into pieces (characters), each piece becomes a list of learned numbers plus one for its place (added), each block lets every piece mix in itself and earlier pieces and then reworks every piece on its own, the last piece becomes a score per character, one is picked and appended, and the trip repeats.',
   sourceRevision: `${fx.provenance.nanogpt.repo}@${fx.provenance.nanogpt.commit}`,
   provenance: 'Source value: n_layer, n_embd, vocab_size from fx.architecture (config/train_shakespeare_char.py over train.py defaults; distinct characters of the pinned dataset). Calculated toy example: fx.crossEntropy context "hear me spea" and its "confident, right" logits over five candidates. Live: argmax of those logits picks the chosen character.',
-  control: 'stage (index, slider with Previous/Next): text, pieces, number lists, blocks, scores, next character.',
+  control: 'stage (index, slider with Previous/Next): text, pieces, number lists, blocks, next-character scores, the pick.',
   consequence: 'The current stage box lights and every later stage dims; the plain cause/effect line changes; the example panel swaps to that stage\'s picture: the quoted text, 12 character chips, the last piece\'s list plus its place\'s list (ten tinted cells standing for 384 numbers each) and their sum, a fan of earlier pieces into the last one with the block\'s two steps, five toy score bars with k lit, and the text with k appended while the loop arrow lights.',
   interactionPurpose: 'Walk one example through the whole model in order, one visible change per step, so every later depth has a place to hang its detail.',
   task: 'none (explore only - no Practice on this board)',

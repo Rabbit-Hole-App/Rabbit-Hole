@@ -116,8 +116,22 @@ test('each row sits beside the Overview stage it implements, and lm_head adds no
   for (const inputs of reviewStates) {
     const objects = byId(evaluated(scene, inputs));
     const { V } = configOf(inputs);
-    assert.deepEqual(['gutter-lists', 'gutter-blocks', 'gutter-scores'].map(id => objects.get(id).label),
+    assert.deepEqual(['gutter-lists', 'gutter-blocks', 'gutter-scores'].map(id => objects.get(`${id}-stage`).label),
       ['number lists', '6 blocks', `${V} scores`]);
+    // Each stage names what its parameters are; the blocks' share is compared
+    // live against the oracle (at C = 384 with GPT-2 tokens wte outgrows them).
+    const want = inventory(configOf(inputs));
+    const most = want.blocks > want.total - want.blocks;
+    assert.deepEqual(['gutter-lists', 'gutter-blocks', 'gutter-scores'].map(id => `${objects.get(`${id}-role-0`).label} ${objects.get(`${id}-role-1`).label}`),
+      ['token + position embeddings', `${most ? 'most of the' : 'under half the'} parameters`, 'token matrix, reused (tied)'], JSON.stringify(inputs));
+    assert.equal(most, !(inputs.width === 0 && inputs.vocab === 1), JSON.stringify(inputs));
+    for (const id of ['gutter-lists', 'gutter-blocks', 'gutter-scores']) {
+      const box = objects.get(id);
+      for (const line of ['stage', 'role-0', 'role-1']) {
+        const { y } = objects.get(`${id}-${line}`);
+        assert.ok(y - 12 > box.y && y + 4 < box.y + box.h, `${id}-${line} sits inside its gutter box`);
+      }
+    }
     assert.ok(inside(objects.get('wte-bar'), objects.get('gutter-lists')) && inside(objects.get('wpe-bar'), objects.get('gutter-lists')));
     assert.ok(inside(objects.get('blocks-bar'), objects.get('gutter-blocks')));
     assert.ok(inside(objects.get('lnf-bar'), objects.get('gutter-scores')));

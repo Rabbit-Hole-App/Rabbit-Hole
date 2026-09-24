@@ -80,6 +80,19 @@ test('every shape matches the forward-pass oracle at every call site', () => {
   assert.equal(crop.get('call-numbers').label, '(1, 257) → (1, 256)');
 });
 
+test('generate() never sends more than block_size positions into forward (model.py:314 crops first)', () => {
+  const crop = byId(evaluated(scene, { call: 'crop' }));
+  assert.equal(scene.inputs[0].options.find(option => option.id === 'crop').label, 'generate() crops a 257-character prompt');
+  assert.equal(crop.get('call-step').label, 'generate(): idx[:, -256:]');
+  assert.equal(crop.get('call-shape').label, 'idx → idx_cond: (B, T)');
+  assert.match(byId(evaluated(scene, { call: 'generate' })).get('edge').label, /up to 256\.$/);
+  // 257 appears only as the prompt generate() received and in the status line's model(idx) What-if.
+  for (const call of ['generate', 'crop']) {
+    const ids = shownText(scene, { call }).filter(o => o.label.includes(String(A.block_size + 1))).map(o => o.id);
+    assert.deepEqual(ids, call === 'crop' ? ['status', 'call-numbers'] : ['status'], call);
+  }
+});
+
 test('edge case: forward() with T > block_size fails the assert and nothing below it runs', () => {
   const want = forward('direct');
   assert.equal(want.error, 'Cannot forward sequence of length 257, block size is only 256');

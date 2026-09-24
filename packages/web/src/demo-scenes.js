@@ -379,5 +379,5 @@ export const BOARD_SEED_VERSIONS = {
   'interactive-app-review': 8,
   'interactive-holdouts': 2,
   'nanogpt-deep-dive': 2,
-  'nanogpt-depth-ladder': 1,
+  'nanogpt-depth-ladder': 2,
 };

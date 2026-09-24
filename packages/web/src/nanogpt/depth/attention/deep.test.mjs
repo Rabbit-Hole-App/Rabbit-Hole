@@ -141,7 +141,10 @@ test('branch: the fused path swaps five steps for one call and dims the unstored
   assert.equal(byId(fused, 'att').opacity, 0.25);
   assert.deepEqual(byId(fused, 'att').values, byId(manual, 'att').values, 'same math on both paths');
   assert.match(byId(manual, 'path-note').label, /^manual: att is built whole in every layer/);
-  assert.equal(byId(manual, 'path-note-2').label, '');
+  // The memory line is the manual path's illustrative cost, not the fused default's.
+  assert.equal(byId(manual, 'path-note-2').label, 'fused SDPA need not materialize this full matrix.');
+  for (const result of [manual, fused]) assert.equal(byId(result, 'mem-title').label, 'Manual attention, fp32 illustrative memory:');
+  assert.equal(scene.inputs.find(d => d.name === 'path').options.find(o => o.id === 'fused').label, 'fused SDPA (NanoGPT default when available)');
   // The fused note matches the SDPA documentation: only CUDA gets the fused
   // kernels; the math version still builds att.
   assert.match(byId(fused, 'path-note').label, /^fused: flash \/ memory-efficient kernels never hold the whole att;$/);
@@ -200,7 +203,7 @@ test('what-if: without 1/sqrt(hs) the rows saturate as hs grows, and the softmax
   });
   assert.ok(sat.meanMax.unscaled[0] < sat.meanMax.unscaled[1] && sat.meanMax.unscaled[1] < sat.meanMax.unscaled[2]);
   assert.ok(Math.max(...sat.meanMax.scaled) - Math.min(...sat.meanMax.scaled) < 0.05, 'scaled rows do not saturate with hs');
-  assert.ok(sat.meanMaxGrad.unscaled[2] < sat.meanMaxGrad.scaled[2] / 2, 'saturated rows pass back less gradient');
+  assert.ok(sat.meanMaxGrad.unscaled[2] < sat.meanMaxGrad.scaled[2] / 2, 'the largest w(1 - w) shrinks when the row saturates');
   // The one seeded row at hs = 64 goes nearly one-hot without the factor.
   assert.ok(off.derived.max2 > 0.95 && off.derived.gMax2 < 0.02 && on.derived.max2 < 0.5);
   // The three rows read differently at 3 decimals (round 1 showed hs = 16 and
@@ -223,6 +226,9 @@ test('what-if: without 1/sqrt(hs) the rows saturate as hs grows, and the softmax
   assert.match(byId(on, 'eq-attention').label, /\\sqrt\{hs\}\+M/);
   assert.match(byId(off, 'eq-attention').label, /QK\^\{\\top\}\+M/);
   assert.equal(byId(off, 'step-scale').label, '× 1   (What-if)');
+  // One diagonal derivative, claimed for that probability only - not the whole row.
+  assert.match(byId(on, 'eq-gradient').label, /near 0 or 1: that probability becomes locally less sensitive to its own score/);
+  assert.doesNotMatch(byId(on, 'eq-gradient').label, /rows? barely learn/);
 });
 
 const cached = path => {

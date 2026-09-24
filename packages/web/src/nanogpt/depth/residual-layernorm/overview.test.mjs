@@ -117,6 +117,19 @@ test('the words match the numbers: kept, the output still carries the token; rep
   assert.equal(byId(replacedState, 'takeaway').role, 'warning');
 });
 
+test('plain-language hierarchy: read, propose, add back first; LayerNorm only later, quieter and shorter', () => {
+  for (const result of results) {
+    const texts = result.state.objects.filter(o => o.visible && o.type === 'text' && o.label);
+    const primary = byId(result, 'primary');
+    assert.equal(primary.label, 'In NanoGPT, each block reads the current stream, proposes a change, and adds that change back.');
+    const ln = texts.filter(o => /layernorm|normaliz/i.test(o.label));
+    assert.deepEqual(ln.map(o => o.id), ['ln'], 'normalization is named once');
+    const typography = id => scene.objects.find(o => o.id === id).initialState.typography || 'body';
+    assert.ok(ln[0].y > primary.y && ln[0].label.length < primary.label.length, 'later and shorter');
+    assert.deepEqual([typography('primary'), typography('ln')], ['body', 'annotation'], 'quieter');
+  }
+});
+
 // The sha256-pinned NanoGPT files generate_fixtures.py caches; quote checks
 // are skipped where that cache is absent.
 const pinned = path => {

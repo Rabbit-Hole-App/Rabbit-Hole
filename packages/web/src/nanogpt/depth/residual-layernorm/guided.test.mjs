@@ -106,10 +106,20 @@ test('the relationships the card states are true', () => {
     close(truth.xhat, ref.xhat.map(v => sign * v), 1e-5, 'oracle xhat = sign(a) · xhat₀ (eps is not scaled)');
     close(byId(result, 'xhat-sel').values, byId(result, 'xhat-ref').values.map(v => sign * v), 0, 'xhat on the card');
     close(byId(result, 'change-sel').values, byId(result, 'change-ref').values.map(v => sign * v), 0, 'change on the card');
-    if (a > 0) {
-      assert.equal(`${label('rel-xhat-1')} ${label('rel-xhat-2')}`, 'Same in both columns: shift and a positive multiplier cancel out.');
+    // ε is added to the variance and not rescaled with it, so only × 1 (a shift alone) is exact.
+    const epsShare = 1e-5 / truth.variance;
+    if (a === 1) {
+      close(truth.xhat, ref.xhat, 1e-12, 'a shift alone leaves x̂ exactly as it was');
+      assert.equal(`${label('rel-xhat-1')} ${label('rel-xhat-2')}`, 'Same in both columns: subtracting the mean cancels any shift.');
       assert.match(label('rel-change-1'), /^Same too/);
       assert.equal(label('rel-out'), '= (a − 1)·x₀ + b: shift and scale kept');
+    } else if (a > 0) {
+      // "Nearly", and why: x̂ really differs from the reference, by less than the printed digits, because ε ≪ σ² here.
+      assert.ok(truth.xhat.some((v, i) => v !== ref.xhat[i]), 'a rescale is not exact: ε is not rescaled');
+      assert.ok(epsShare < 1e-4, `ε is tiny relative to this variance: ε ÷ σ² = ${epsShare}`);
+      assert.equal(`${label('rel-xhat-1')} ${label('rel-xhat-2')}`, 'Nearly the same here; ε is tiny relative to this variance.');
+      assert.match(label('rel-change-1'), /^Nearly the same too/);
+      assert.equal(label('rel-out'), '≈ (a − 1)·x₀ + b: shift and scale kept');
     } else {
       assert.equal(`${label('rel-xhat-1')} ${label('rel-xhat-2')}`, 'Signs flipped: shift and size cancel, a negative sign does not.');
       assert.equal(`${label('rel-change-1')} ${label('rel-change-2')}`, 'Flipped too: the toy layer is linear and sees only x̂.');

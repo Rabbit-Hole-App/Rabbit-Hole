@@ -3,15 +3,15 @@
 // size in board order - one folder per batch, files numbered within it - so
 // a reviewer can take them a few at a time.
 //
-// Usage: node e2e/card-batches.mjs <deployed-base> <board> <outPrefix> [perBatch=6]
-//   writes <outPrefix>-batch1-v1/, <outPrefix>-batch2-v1/, ... (prefix may include a version)
+// Usage: node e2e/card-batches.mjs <deployed-base> <board> <outPrefix> [perBatch=6] [version=1]
+//   writes <outPrefix>-batch1-v<version>/, <outPrefix>-batch2-v<version>/, ...
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { BOARDS } from '../src/demo-scenes.js';
 import { reveal } from './canvas-reveal.mjs';
 
-const [, , base, board, prefix, per = '6'] = process.argv;
-if (!base || !board || !prefix) throw new Error('usage: node e2e/card-batches.mjs <deployed-base> <board> <outPrefix> [perBatch]');
+const [, , base, board, prefix, per = '6', version = '1'] = process.argv;
+if (!base || !board || !prefix) throw new Error('usage: node e2e/card-batches.mjs <deployed-base> <board> <outPrefix> [perBatch] [version]');
 const cards = BOARDS[board]().filter(block => block.scene);
 const size = Number(per);
 const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
@@ -30,7 +30,7 @@ const bundle = await page.evaluate(() => [...document.querySelectorAll('script[s
 const name = title => title.toLowerCase().replace(/ · /, ' ').replace(/:.*$/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 for (let b = 0; b * size < cards.length; b += 1) {
-  const dir = `${prefix}-batch${b + 1}-v1`;
+  const dir = `${prefix}-batch${b + 1}-v${version}`;
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   const index = [`# ${board} — batch ${b + 1}`, '', `Deployed: ${base} · bundle \`${bundle}\` · each card at its default state, sources collapsed.`, ''];

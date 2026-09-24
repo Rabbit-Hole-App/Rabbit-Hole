@@ -77,8 +77,7 @@ export const scene = {
 
     note('row-blocks', 'blocks, in order', 40, BOX_Y + BOX_H / 2 + 4),
     note('row-change', 'each block’s result', 40, CHANGE_Y + GRID_H / 2 + 4),
-    note('row-read-1', '↑ reads a size-normalized', 40, STREAM_Y - 34),
-    note('row-read-2', 'copy (LayerNorm)', 52, STREAM_Y - 16),
+    note('row-read', '↑ reads what flows on', 40, STREAM_Y - 24),
     note('row-stream', 'what flows on', 40, STREAM_MID + 4),
     // Never shown: holds scaleAll in the shared colour group so its range is
     // the same with the stream kept or replaced.
@@ -109,9 +108,10 @@ export const scene = {
     text('token-label', 'token in', STAGE_X(0) - 30, STREAM_Y + GRID_H + 22, { typography: 'caption', role: 'input' }),
     text('out-label', 'out', STAGE_X(O.nLayer) - 12, STREAM_Y + GRID_H + 22, { typography: 'caption', role: 'output' }),
 
-    text('takeaway', '{{takeaway}}', 40, 530, { role: { $derive: 'takeawayRole' } }),
-    note('ln', 'Each block reads a normalized copy; inside the blocks the stream itself is never normalized, only added to.', 40, 554),
-    note('always', 'NanoGPT always adds: every block writes its change into the stream.', 40, 576),
+    // The mechanism first, in plain words; LayerNorm is a later, quieter detail.
+    text('primary', 'In NanoGPT, each block reads the current stream, proposes a change, and adds that change back.', 40, 530),
+    text('takeaway', '{{takeaway}}', 40, 554, { role: { $derive: 'takeawayRole' } }),
+    note('ln', 'Detail: each block reads a normalized copy of the stream (LayerNorm).', 40, 576),
     note('legend', 'Colour: orange = positive, blue = negative, stronger = larger.', 40, 598),
   ],
   timeline: [

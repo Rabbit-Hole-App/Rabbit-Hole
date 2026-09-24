@@ -46,7 +46,7 @@ test('sizes are bound to the fixture, and the fixture matches the pinned config'
   assert.deepEqual({ L, V, C }, { L: fx.architecture.n_layer, V: fx.architecture.vocab_size, C: fx.architecture.n_embd });
   const objects = byId(evaluated(scene, { stage: 3 }));
   assert.equal(objects.get('stage-3').label, '6 blocks');
-  assert.equal(objects.get('stage-4').label, '65 scores');
+  assert.equal(objects.get('stage-4').label, '65 next-character scores');
   assert.match(objects.get('stage-line').label, /^6 blocks in a row/);
   assert.match(byId(evaluated(scene, { stage: 2 })).get('stage-line').label, / 384 learned numbers/);
 });
