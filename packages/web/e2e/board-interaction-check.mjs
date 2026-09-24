@@ -49,7 +49,8 @@ const fail = message => { failures.push(message); console.log(`  ✗ ${message}`
 const results = { base, board, bundle, seed: BOARD_SEED_VERSIONS[board], toc: [], cards: [] };
 
 // The table of contents lists every heading, in order, at its level.
-const toc = page.locator('aside[aria-label="Learn agent chat"] ol li button');
+// The board's own outline is the first list; the app's "Course lessons" list follows it.
+const toc = page.locator('aside[aria-label="Learn agent chat"] ol').first().locator(':scope > li > button');
 const tocLabels = await toc.evaluateAll(buttons => buttons.map(b => b.textContent.trim()));
 if (JSON.stringify(tocLabels) !== JSON.stringify(headings.map(h => h.text))) fail(`table of contents ${JSON.stringify(tocLabels)} != headings`);
 await page.screenshot({ path: `${OUT}/00-table-of-contents.png`, clip: await page.locator('aside[aria-label="Learn agent chat"]').boundingBox() });

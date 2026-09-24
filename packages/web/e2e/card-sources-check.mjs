@@ -120,8 +120,19 @@ for (const block of blocks) {
       }
     } else if (target.open !== 'detail') {
       row.links += 1;
-      const href = await card.locator(`[data-source-kind="${source.kind}"] a[href="${target.href}"]`).count();
-      if (!href) fail(`${name}: no link to ${target.href}`);
+      const link = card.locator(`[data-source-kind="${source.kind}"] a[href="${target.href}"]`).first();
+      if (!(await link.count())) { fail(`${name}: no link to ${target.href}`); continue; }
+      // arXiv links open the paper reader in the side panel, in this tab.
+      if (/^https:\/\/arxiv\.org\//.test(target.href)) {
+        const tabs = context.pages().length;
+        await reveal(page, canvas, link);
+        await link.click();
+        const reader = page.locator('[aria-label="Paper reader"]');
+        const opened = await reader.waitFor({ timeout: 20000 }).then(() => true, () => false);
+        if (!opened || context.pages().length !== tabs) fail(`${name}: ${target.href} did not open the paper reader in place`);
+        else row.papersOpened = (row.papersOpened || 0) + 1;
+        if (opened && !row.paperShot) { row.paperShot = true; await page.screenshot({ path: `${OUT}/${name}__4-paper-reader.png`, clip: await page.locator('aside[aria-label="Learn agent chat"]').boundingBox() }); }
+      }
     }
   }
 
@@ -136,6 +147,8 @@ for (const block of blocks) {
 // A revision the server cannot load: the inspector says so and shows no code.
 const firstCode = blocks.flatMap(block => validSources(block.sources).map(source => ({ block, source }))).find(entry => entry.source.kind === 'code');
 if (firstCode) {
+  // Close the open file first: the inspector refetches only when path or revision change.
+  if (await page.locator('[aria-label="Close source"]').count()) await page.locator('[aria-label="Close source"]').click();
   await page.route('**/api/repositories/*/file', route => route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'This repository version is not indexed yet' }) }));
   const card = canvas.locator('[data-block-id]:not([data-chat-block])').filter({ hasText: firstCode.block.title }).first();
   await reveal(page, canvas, card);

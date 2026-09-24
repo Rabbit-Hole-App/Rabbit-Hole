@@ -468,7 +468,8 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           const shape = editor?.getCurrentPageShapes().find(shape => shape.meta?.paper?.id === match[1]);
           const paper = shape?.meta.paper || { id: match[1], title: link.textContent, pdfUrl: `https://arxiv.org/pdf/${match[1]}`, page: 1 };
           event.preventDefault(); event.stopPropagation();
-          pauseLesson(); setPaperContext({ ...paper, page: Number(url.hash.match(/page=(\d+)/)?.[1]) || paper.page }); setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false);
+          // One reader at a time, as openPaper: an open source file or wiki article would otherwise keep the panel.
+          pauseLesson(); setPaperContext({ ...paper, page: Number(url.hash.match(/page=(\d+)/)?.[1]) || paper.page }); setPaperOpen(true); setSourceOpen(false); setLessonSource(null); setWikiOpen(false); setPanelOpen(true); setLearnerOpen(false); setSetupChat(false);
           registerSource({ id: `paper:${paper.id}`, kind: 'paper', label: paper.title || `arXiv ${paper.id}` });
   };
   const teachingSnapshot = snapshot => {
