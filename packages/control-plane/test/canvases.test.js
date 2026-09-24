@@ -113,3 +113,14 @@ test('canvas traffic routes to LEARN_DB, canvas attachments are refused, and Lea
   assert.equal((await board(colleague)).status, 403);
   assert.ok(f.seen.every(call => call === 'GET /api/apps'), f.seen.join());
 });
+
+// ---- dev worker wiring (Task 6.4) ----
+// dev-worker.js imports .html and .py, so node cannot import it; like learn-research.test.js:48-53, read its source.
+test('the dev worker routes canvas traffic early, merges owner canvases, refuses canvas attachments and passes the Learn seam', () => {
+  const source = readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8');
+  const at = text => { const i = source.indexOf(text); assert.ok(i >= 0, `dev-worker.js is missing: ${text}`); return i; };
+  assert.ok(at('if (canvasRoute(new URL(req.url))) return canvasesFetch(req, env);') < at('const repositoryRoute ='));
+  assert.match(source.slice(at("if (path === '/api/apps' && req.method === 'GET')"), at('const repositoryRoute =')), /\.\.\.\(await ownerCanvases\(env, catalog\)\)/);
+  assert.ok(at('const refused = await refuseCanvasAttachment(req);') < at("if (['/api/learn/selection', '/api/learn/ask'].includes(path)"));
+  at("'learn', access.kind === 'canvas' ? canvasAskSeam(env, access) : undefined);");
+});
