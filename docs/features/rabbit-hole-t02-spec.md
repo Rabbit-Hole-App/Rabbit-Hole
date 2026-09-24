@@ -1,11 +1,11 @@
 # Rabbit Hole — T02 UX spec: Home, Library, Project, Agent Bar
 
-Status: **Gate A approved on 2026-09-23**, including Q1 (§16) and the
-content-not-on-this-device state (§8.3). **T03 mockups (with the Gate-B revision
-of 2026-09-23: scope-chip rule, Continue model, flat Pinned, realistic cards,
-extracted vs inferred) are awaiting Gate B review:**
-[Rabbit Hole — Home & Projects](https://www.figma.com/design/ef9SfiemEsPQF2bd8B1os3).
-No production UI is built. Nothing in `packages/` has changed.
+Status: **Gate A approved on 2026-09-23. Gate B closed and Gate C approved on
+2026-09-24.** The T03 mockups are in
+[Rabbit Hole — Home & Projects](https://www.figma.com/design/ef9SfiemEsPQF2bd8B1os3)
+(rabbit-hole team). The implementation plan is
+[T04](../superpowers/plans/2026-09-23-rabbit-hole-home-agent-bar.md), and WP1 has
+started.
 
 > **Rabbit Hole is not a chat app with pages. The interface is a learning
 > environment, and the agent is its steering wheel.**
