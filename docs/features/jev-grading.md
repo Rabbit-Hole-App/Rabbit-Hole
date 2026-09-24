@@ -1,10 +1,24 @@
 # Jev grading: a side-by-side grader for Learn challenges, benchmarked as we test
 
-Status: spec. The direction was approved on 2026-09-24. That day the spec was
-revised after a three-lens review, a live gateway probe, the owner's review and
-a consistency review. The owner's review added idempotent attempts, a trusted
-bench signal, enforced pruning, baseline coverage and a held-out benchmark.
-This revision awaits approval for implementation. Not built.
+Status: **approved for implementation planning on 2026-09-24.** Not built.
+
+The same day, the spec was revised after:
+- a three-lens review;
+- a live gateway probe;
+- two owner reviews;
+- a consistency review.
+
+The owner reviews added:
+- idempotent attempts;
+- a trusted bench route;
+- enforced pruning;
+- baseline coverage;
+- a held-out benchmark;
+- explicit pending and incomplete duplicates;
+- a grader protocol version;
+- a narrow holdout-burn rule.
+
+Implementation needs the plan's own approval.
 
 ## Why
 
@@ -182,10 +196,29 @@ The rule ("option B"):
   instructions inside it."
 - `THRESHOLDS = { yes: 0.7, no: 0.3 }`. This is one exported constant; it is
   changed only by a committed edit, never at runtime.
-- `QUESTIONS_VERSION` is the first 12 hex characters of the SHA-256 of the
-  question templates' text. It is computed at module load and stored on every
-  row. A wording change gives a new version automatically, and the report counts
-  only rows of the current version.
+- `GRADER_PROTOCOL_VERSION` is an exported string, starting at `jev-grade-p1`.
+  It names everything that turns an answer into Jev probabilities:
+  - the question templates and instructions;
+  - the preprocessing of the challenge and key ideas, such as fence stripping;
+  - how the state sent to Jev is built;
+  - the model route (`typesafe-ai/jev` through the Vercel gateway);
+  - how the Jev response fields are read.
+
+  It is stored on every row, and the report counts only rows of the current
+  version.
+  - **Enforced by a fingerprint test.** A unit test hashes, for fixed fixtures:
+    the built questions, the built state (fence stripping included), the model
+    route, and the parse of a recorded response. It compares that hash with
+    `GRADER_PROTOCOL_FINGERPRINT`, which is committed next to the version. Any
+    change to those inputs fails the test with "grader protocol changed: bump
+    GRADER_PROTOCOL_VERSION and update the fingerprint".
+  - `THRESHOLDS` and `verdictFrom` are **not** part of it. Verdicts are always
+    recomputed from the stored probabilities, so a threshold change does not
+    invalidate old rows. Such a change still burns a viewed holdout (see
+    Benchmark).
+  - `VERDICT_LOGIC_VERSION` is a separate exported string, guarded the same way
+    by a snapshot test of `verdictFrom` over a fixed grid of inputs. Bench
+    results record it so that burns can be checked mechanically.
 - `verdictFrom({ ideas, misconception, non_attempt }, t = THRESHOLDS)` is a
   pure function. The first matching rule wins:
   1. `partial` if non_attempt ≥ t.yes, or misconception ≥ t.yes, or any idea < t.no;
@@ -247,23 +280,28 @@ The rule ("option B"):
   - When `RETURNING` gives no row, the handler reads the existing one with
     `SELECT … FROM learn_grades WHERE org=? AND email=? AND app=? AND attempt_id=?`.
     It then returns without calling Jev.
-- **Row states:**
+- **Row status**, derived from the row:
   - `done`: `jev` is set.
   - `failed`: `jev_error` is set.
   - `pending`: neither is set, and the row was reserved less than 2 minutes ago.
   - `incomplete`: neither is set after 2 minutes, for example because the
     Worker died mid-call.
-- A duplicate on an `incomplete` row does not call Jev again. A new try needs a
-  new `attempt_id`.
-- **One response shape** for a fresh result and a duplicate:
-  `{ grade_id, duplicate, state, jev, ms, model, generation_id, questions_version }`.
-  - `jev` is `{ ideas: [{ text, p }], misconception, non_attempt, verdict }` or null.
-  - For a duplicate, the ideas are rebuilt from the stored `expects` and
+- **Response contract.** Every response carries `grade_id` and `status`.
+  - **Fresh `done`, or a duplicate of a `done` row:** 200.
+    `{ grade_id, status: 'done', duplicate, jev: { ideas: [{ text, p }], misconception, non_attempt, verdict }, ms, model, generation_id, grader_protocol_version }`.
+    For a duplicate, the ideas are rebuilt from the stored `expects` and
     probabilities, and the verdict is recomputed with the current `THRESHOLDS`.
     `ms`, `model` and `generation_id` are the stored values.
-  - A fresh or duplicate `done` returns 200. A `failed` returns 502 with the same
-    shape plus `error`. A `pending` or `incomplete` duplicate returns 200 with
-    `jev: null`.
+  - **Fresh `failed`, or a duplicate of a `failed` row:** 502.
+    `{ grade_id, status: 'failed', duplicate, error }`. The stored failure is
+    returned, and Jev is not called again.
+  - **Duplicate of a `pending` row:** 202 `{ grade_id, status: 'pending' }`.
+    Jev is not called again.
+  - **Duplicate of an `incomplete` row:** 409.
+    `{ grade_id, status: 'incomplete', error: 'This attempt never finished. A new attempt needs a new attempt_id.' }`.
+    Jev is never retried under the same `attempt_id`.
+- The browser's side-by-side path does nothing with `pending` or `incomplete`.
+  `bench.mjs` handles them deterministically (see Benchmark).
 - `created_at` is never bound from JavaScript. It always takes the SQLite
   default (`YYYY-MM-DD HH:MM:SS`), so the 90-day prune and the 15-minute
   eligibility window compare like with like.
@@ -314,7 +352,7 @@ The rule ("option B"):
 - **Eligible rows** are canvas rows that meet both of these:
   - created at least 15 minutes ago, which is longer than the 10-minute cap on
     a baseline, so a slow baseline is never miscounted as missing;
-  - `questions_version` equal to the current `QUESTIONS_VERSION`.
+  - `grader_protocol_version` equal to the current `GRADER_PROTOCOL_VERSION`.
 
   Other rows are counted in the totals but excluded from every rate, percentile
   and mean below.
@@ -374,8 +412,7 @@ throws.
     - `board`: the `?board=` slug, null on the learner's own canvas;
     - `block_id: block.id`;
   - never sends `source`;
-  - resolves to `grade_id` for a 200 (including a duplicate) or a 502, and to
-    null for anything else.
+  - resolves as the safety rule below describes.
 - `recordBaseline({ app, gradeId, verdict, ms })`. Here `app` is the app name.
 
 `LearnPage.jsx` `gradeCanvasAnswer` (line 413) becomes an `async` wrapper:
@@ -391,6 +428,19 @@ throws.
   A failed Opus call is therefore recorded as `baseline_ms` set and verdict
   `null`, not as a missing baseline.
 - The error, if any, is rethrown, so ChallengeBody shows it as today.
+
+**Safety rule: the learner's experience stays authoritative.**
+- Nothing on the side-by-side path can replace, delay or mask the Opus result
+  or error the learner sees. That includes:
+  - Jev failures;
+  - baseline-recording failures;
+  - 202 `pending` and 409 `incomplete` duplicates;
+  - network errors and timeouts.
+- The learner path never awaits `pending`. `shadowGrade` and `recordBaseline`
+  catch everything and return null, and the Opus error is rethrown unchanged.
+- `shadowGrade` resolves the `grade_id` for any response that carries one
+  (200, 202, 409 or 502), so the one-shot baseline is still recorded against
+  the row. It resolves to null for anything else.
 
 Nothing the learner sees changes.
 
@@ -418,7 +468,7 @@ CREATE TABLE IF NOT EXISTS learn_grades (
   source TEXT NOT NULL DEFAULT 'canvas',  -- canvas | bench; set by the route, never the client
   bench_run TEXT,                  -- bench rows only
   bench_set TEXT,                  -- benchmark-v1 | benchmark-v1-holdout (text stored as sha256:<hex>)
-  questions_version TEXT NOT NULL, -- QUESTIONS_VERSION at write time
+  grader_protocol_version TEXT NOT NULL, -- GRADER_PROTOCOL_VERSION at write time
   prompt TEXT NOT NULL,
   expects TEXT NOT NULL,           -- JSON array, in idea order
   answer TEXT NOT NULL,
@@ -447,19 +497,41 @@ CREATE INDEX IF NOT EXISTS idx_learn_grades_created ON learn_grades(created_at);
   reading its results.
 - **`benchmark-v1-holdout.json`** is the frozen, unseen set used for the switch
   evaluation.
-  - A separate author writes it before any bench run, from the same pattern
-    list: a subagent whose text the tuning session never reads, or a person.
-  - At least half of its challenges do not appear in v1.
-  - Its SHA-256 is recorded in `tests/evals/learn-grade/HOLDOUT.sha256` when it
-    is committed.
-  - `bench.mjs` refuses to run it without `--holdout` and checks the hash
-    first.
-  - A holdout run prints and writes **aggregate numbers only**. Its results
-    file has no per-case verdicts, probabilities or text, and its rows keep
-    only hashes of the text (see the bench route).
-  - Once any holdout run has been looked at, a later change to the thresholds,
-    questions or verdict logic burns it. The next switch evaluation then needs
-    a new `benchmark-v2-holdout.json`.
+  - **Who writes it.** The user, or a separate Claude session working in a
+    different worktree. It is written from the pattern list and file shape
+    below. At least half of its challenges do not appear in v1.
+  - **Where it is kept.** A subagent cannot guarantee isolation, because any file
+    it writes is visible in this checkout. So the holdout is kept **outside this
+    checkout** until the evaluation step, at a path the user chooses (for
+    example under small-deploy/).
+  - **What gets committed now.** Only its SHA-256, in
+    `tests/evals/learn-grade/HOLDOUT.sha256`.
+  - **Operational rule.** The implementation and tuning session never opens the
+    holdout file until `benchmark-v1` and the grader configuration are frozen:
+    `GRADER_PROTOCOL_VERSION`, `THRESHOLDS` and `VERDICT_LOGIC_VERSION` are
+    committed, and the switch evaluation is requested.
+  - **How it is run.** `bench.mjs --holdout <path>` checks the file against
+    `HOLDOUT.sha256` before reading any case.
+  - **What a run shows.** A holdout run prints and writes **aggregate numbers
+    only**. Its results file has no per-case verdicts, probabilities or text,
+    and its rows keep only hashes of the text (see the bench route).
+  - **What burns it.** Once any run of the holdout has been looked at, it is
+    burned by a later **grader-affecting** change:
+    - the grader protocol (questions, preprocessing, state construction,
+      response reading), that is, a bump of `GRADER_PROTOCOL_VERSION`;
+    - `THRESHOLDS`;
+    - the verdict logic (`VERDICT_LOGIC_VERSION`);
+    - the Jev transport, provider or model route;
+    - a correction to benchmark cases or gold labels made because of that
+      holdout's results.
+
+    Unrelated UI, canvas, Home, graph or rendering changes do not burn it. A
+    burned holdout needs a new `benchmark-v2-holdout.json`.
+  - **Burns are checked mechanically.** Every holdout results file records
+    `GRADER_PROTOCOL_VERSION`, `THRESHOLDS`, `VERDICT_LOGIC_VERSION` and the
+    model route. `bench.mjs --holdout` compares these with the earliest viewed
+    run of the same holdout, and refuses to report a pass if any differ:
+    `holdout burned by <field>: write benchmark-v2-holdout`.
 
 **Each set**
 - It has at least 30 cases per mode (`challenge` and `explain_back`), roughly
@@ -497,7 +569,7 @@ CREATE INDEX IF NOT EXISTS idx_learn_grades_created ON learn_grades(created_at);
   looser than this rule, so every measure is also reported per mode.
 - The user spot-checks 15 v1 cases, weighted toward disagreements. A wrong
   label is fixed in v1 and the bench is re-run.
-- The holdout's labels are spot-checked only by its separate author.
+- The holdout's labels are spot-checked only by its author.
 
 ### `bench.mjs` (Node, stdlib `fetch`)
 
@@ -511,7 +583,11 @@ CREATE INDEX IF NOT EXISTS idx_learn_grades_created ON learn_grades(created_at);
   route's pattern and checks the 30-per-mode minimum.
 - It stops with a one-line fix on a 503 (no key), or on a 404 or 403 from the
   bench route (bench secret unset or wrong).
-- It scores a `pending` or `incomplete` reply as a Jev error.
+- **Pending and incomplete replies are never a grade.**
+  - On a 202 `pending`, it re-sends the same request up to 5 times, 1 s apart.
+  - If the answer is still `pending`, or it becomes a 409 `incomplete`, the case
+    is scored as a Jev error. Its reason, `pending` or `incomplete`, is counted
+    on its own line in the output.
 
 **For every case it runs:**
 - **Jev:** through `POST /api/learn/grade/bench`. It sends the
@@ -524,7 +600,8 @@ CREATE INDEX IF NOT EXISTS idx_learn_grades_created ON learn_grades(created_at);
 
 Both run under a test session. Results go to
 `results/<set>/<bench_run>.json`.
-- **Every run** records the run ID, date, model string and `QUESTIONS_VERSION`.
+- **Every run** records the run ID, date, model route, `GRADER_PROTOCOL_VERSION`,
+  `THRESHOLDS` and `VERDICT_LOGIC_VERSION`.
 - **v1 runs** also record each case's result and `generation_id`.
 - **Holdout runs** record aggregates only.
 
@@ -576,13 +653,15 @@ Every percentage is printed next to its raw count, as `k / N (pct)`.
 ### Switch conditions
 
 These are proposals; the switch still needs explicit approval. Every condition
-is evaluated on the committed `THRESHOLDS`, questions and verdict logic.
+is evaluated on the committed `GRADER_PROTOCOL_VERSION`, `THRESHOLDS` and
+`VERDICT_LOGIC_VERSION`.
 
 **Held-out benchmark:** `benchmark-v1-holdout`, or a later unburned holdout.
 - **Fresh run.** The run happened at most 7 days before the decision, because
-  the provider revision is unpinned. It used the committed `THRESHOLDS`,
-  questions and verdict logic, and none of them has changed since any run of
-  this holdout was first looked at.
+  the provider revision is unpinned.
+- **Not burned.** The holdout has not been burned: there has been no
+  grader-affecting change since its first viewed run, as checked by
+  `bench.mjs`.
 - **Sample size.** Each mode has N ≥ 30. With fewer, the per-mode conditions
   are not evaluated and the switch waits.
 - **Accuracy.** Jev's verdict accuracy is at least 90% in each mode, printed as
@@ -596,7 +675,7 @@ is evaluated on the committed `THRESHOLDS`, questions and verdict logic.
 
 **Real side-by-side rows**, from `/api/learn/grade/report`:
 - **Rows counted.** Only eligible rows count: at least 15 minutes old, and of
-  the current `QUESTIONS_VERSION`.
+  the current `GRADER_PROTOCOL_VERSION`.
 - **Baseline parsed.** At least 95% of eligible rows have a parsed baseline
   (`baseline_verdict IS NOT NULL`).
 - **Jev failures.** Jev failed plus incomplete is at most 5% of eligible rows.
@@ -633,10 +712,14 @@ stubbed `fetch` and no key.
 - **Idempotency.**
   - A second POST with the same `attempt_id` returns the same `grade_id` with
     `duplicate: true`, and makes exactly one Jev call.
-  - Two concurrent POSTs make one Jev call; the loser sees `pending` or `done`.
-  - A duplicate on an `incomplete` row returns `incomplete` and makes no Jev call.
-  - A duplicate returns the same response shape as a fresh result, with the
-    verdict recomputed.
+  - Two concurrent POSTs make one Jev call. The loser gets 202 `pending` or
+    200 `done`.
+  - A duplicate of a `failed` row returns 502 with the stored error and makes no
+    Jev call.
+  - A duplicate of an `incomplete` row returns 409 with the new-attempt message
+    and makes no Jev call.
+  - A duplicate of a `done` row returns the fresh 200 shape, with the verdict
+    recomputed.
   - The grade id comes from `RETURNING` or the follow-up `SELECT`, never from
     `last_row_id`.
   - The same `attempt_id` under another learner is a separate row.
@@ -659,10 +742,22 @@ stubbed `fetch` and no key.
   - The not-decision-grade line appears below 95% capture.
   - `app` is read from the query string.
   - Incomplete rows count as Jev failures.
-  - Rows of an old `QUESTIONS_VERSION` are excluded from the rates.
+  - Rows of an old `GRADER_PROTOCOL_VERSION` are excluded from the rates.
   - Each not-decision-grade reason appears when its condition holds: parsed
     below 95%, failures above 5%, or N below 50.
   - `generation_id` is stored from the verified response shape.
+- **Protocol and verdict versions.**
+  - The fingerprint test fails when a question template, fence stripping, state
+    construction, the model route or response parsing changes without a
+    version bump.
+  - The `verdictFrom` snapshot test fails when the verdict logic changes without
+    a `VERDICT_LOGIC_VERSION` bump.
+- **bench.mjs,** as a self-test against a stubbed server:
+  - a 202 is re-sent up to 5 times, then scored as a `pending` error;
+  - a 409 is scored as an `incomplete` error;
+  - `--holdout` refuses a file whose hash does not match;
+  - `--holdout` refuses to report a pass when a recorded version differs from
+    the first viewed run.
 
 **Browser check:** `packages/web/e2e/grade-shadow-check.mjs`, with stubs.
 - The learner sees the Opus verdict as today.
@@ -671,7 +766,9 @@ stubbed `fetch` and no key.
   `prompt`, `expects`, `answer` and `app` (the name), and no `source`.
 - The baseline carries the parsed verdict and a non-negative integer `ms`.
 - When the Opus stream fails, a baseline is still posted, with verdict `null`.
-- A 503 or timeout changes nothing on screen.
+- A 503, 202, 409, 500, network error or timeout on the side-by-side call, or a
+  failed baseline post, changes nothing on screen. The Opus verdict, or the
+  Opus error text, is exactly what it would be without the experiment.
 - No grade call is made for an AWS-hosted app, for a block without key ideas,
   or for a block without `attemptId`.
 - **Attempt ID.**
@@ -689,8 +786,10 @@ Each step waits for the user.
 
 1. Build everything against stubs, with every test passing.
    - Write `benchmark-v1` in the build session.
-   - Have `benchmark-v1-holdout` written by a separate author that the build
-     session never reads, and commit it with its hash.
+   - The user, or a separate session in another worktree, writes
+     `benchmark-v1-holdout` and keeps it outside this checkout. Only its
+     SHA-256 is committed, in `HOLDOUT.sha256`. The build session is given the
+     hash and never the file.
    - The clone does not hold `TEST_BYPASS_SECRET`, and does not need to: the
      bench uses its own `LEARN_BENCH_SECRET` (step 4).
 2. Create the table on `small-learn-dev` (dev-only). This is a new table on a
@@ -721,7 +820,10 @@ Each step waits for the user.
    - If the put left an unpromoted version, run
      `npx wrangler versions deploy <id>@100% -y --config wrangler.parallel.jsonc`.
 5. Run `bench.mjs` on `benchmark-v1` and report the numbers. Tuning, if any,
-   happens against v1 only. The holdout is run only for a switch evaluation.
+   happens against v1 only. Freeze the grader configuration by committing
+   `GRADER_PROTOCOL_VERSION`, `THRESHOLDS` and `VERDICT_LOGIC_VERSION`. Then run
+   the holdout with `--holdout <path>`, and only when a switch evaluation is
+   requested.
 6. Record the result.
    - docs/features/coaching.md gets a new section, "Learn: Jev side-by-side
      grading (dev)". It records:
