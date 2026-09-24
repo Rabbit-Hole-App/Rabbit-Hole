@@ -487,12 +487,14 @@ There is no migration on the live D1 `small`.
 
 | Method and path | Who | Does |
 |---|---|---|
-| `POST /api/canvases {title, project?}` | Any workspace member | Creates the record and returns the canvas object |
+| `POST /api/canvases {title?, project?, device_id?}` | Any workspace member | Creates the record and returns the canvas object. `title` defaults to "Untitled canvas" and is at most 120 characters; `device_id` is the §8.3 `small.device` id. |
 | `GET /api/apps` | — | Merges the caller's non-archived canvases as `kind:'canvas'`, the way `repository_apps` is merged (`dev-worker.js:23-28`) |
 | `GET /api/apps/canvas-*` | Owner | Returns the canvas object (shape mirrors `repositoryApp`) |
 | `PATCH /api/apps/canvas-* {title}` | Owner | Renames. The title changes; the slug never does. |
 | `POST /api/apps/canvas-*/archive` and `/restore` | Owner | Sets or clears `archived_at` |
-| `DELETE /api/apps/canvas-*` | — | Returns 405 in phase 1 (touched canvases: see §8.4) |
+| `DELETE /api/apps/canvas-*` | Owner | Undo only (§8.4): deletes the record while no `LEARN_DB` thread exists for it; a touched canvas returns 405 "This canvas has been used. Archive it instead." |
+| `GET /api/canvases?archived=1` | Owner | The caller's archived canvases, for the Library Archived chip (§4). Without the parameter it lists the non-archived ones. |
+| `GET /api/ask/threads?scope=learn&ref=canvas-*`, `GET /api/ask/threads/canvaschat-*`, `POST …/canvaschat-*/rename {title}` and `/delete` | Owner | Canvas chat history from `LEARN_DB`, on the paths Learn's chat already calls (`ask.jsx:388,401,601,622`). The Agent Bar's History for canvas scope uses the same paths: it lists `/api/ask/threads?scope=learn&ref=<canvas slug>` and opens `/api/ask/threads/<canvaschat id>`. |
 
 - **Visibility:** owner only in phase 1. Content is browser-local, so sharing
   a canvas is honestly unavailable.
