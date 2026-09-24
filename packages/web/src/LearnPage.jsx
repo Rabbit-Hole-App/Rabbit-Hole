@@ -30,7 +30,7 @@ import LearnPaper from './LearnPaper.jsx';
 import { cacheAsset } from './learn-asset-cache.js';
 import { classifyDrop } from './learn-drop.js';
 import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from './learn-notes.js';
-import { challengePrompt, gradeAnswer } from './learn-grade.js';
+import { challengePrompt, gradeAnswer, parseVerdict, recordBaseline, shadowGrade } from './learn-grade.js';
 import { architectureLesson, sampleCourse } from './learn-preview.js';
 import { BOARDS, BOARD_SEED_VERSIONS } from './demo-scenes.js';
 
@@ -409,13 +409,28 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   }));
   const [askTarget, setAskTarget] = useState(null); // selected lesson block armed as composer context
   const canvasApi = useRef(null);
-  // Challenge blocks ask the tutor to judge a committed answer.
-  const gradeCanvasAnswer = (block, answer, onDelta) => gradeAnswer({
-    app: app.name,
-    repositoryContext: nanoActive ? { commit: nanoSourceVersion } : repositoryContext,
-    prompt: challengePrompt(block, answer),
-    onDelta,
-  });
+  // Challenge blocks ask the tutor to judge a committed answer. Jev grades the
+  // same attempt side by side (docs/features/jev-grading.md). The learner only
+  // ever sees Opus: the shadow promise is never awaited here, and the Opus
+  // error is rethrown unchanged by the try/finally.
+  const gradeCanvasAnswer = async (block, answer, onDelta) => {
+    const pending = shadowGrade({ app, board, block, answer });
+    const started = performance.now();
+    let text = '';
+    let verdict = null;
+    try {
+      await gradeAnswer({
+        app: app.name,
+        repositoryContext: nanoActive ? { commit: nanoSourceVersion } : repositoryContext,
+        prompt: challengePrompt(block, answer),
+        onDelta: delta => { text += delta; onDelta(delta); },
+      });
+      verdict = parseVerdict(text);
+    } finally {
+      const ms = Math.round(performance.now() - started);
+      pending.then(gradeId => gradeId && recordBaseline({ app: app.name, gradeId, verdict, ms }));
+    }
+  };
   // A file reference clicked inside a canvas block opens in the right panel.
   const openCanvasFile = (path, line, lineEnd) => { setPaperOpen(false); setSourceOpen(false); setLessonSource({ path, line, lineEnd, commit: nanoActive ? nanoSourceVersion : repositoryContext?.commit }); };
   const clearAskTarget = () => { setAskTarget(null); canvasApi.current?.deselect(); };

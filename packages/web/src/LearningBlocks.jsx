@@ -820,25 +820,38 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
   const [draft, setDraft] = useState('');
   const latest = useRef(block);
   latest.current = block;
+  // One attempt id per committed answer (docs/features/jev-grading.md): it is
+  // stored on the block, so re-sends, remounts and reloads reuse it, and the
+  // side-by-side grader records each attempt once. The in-flight guard stops a
+  // same-tick double click; Answer again releases it and clears the id.
+  const inFlight = useRef(false);
   const commit = async () => {
     const answer = draft.trim();
-    if (!answer) return;
-    const committed = { ...block, answer, verdict: '', grading: !!onGrade };
-    onChange(committed);
-    if (!onGrade) return;
-    // The tutor reads the challenge, the expected ideas and this answer, then
-    // streams a short verdict back into the block.
+    if (!answer || inFlight.current) return;
+    inFlight.current = true;
+    // Keep `latest` in step with every write: a stream that lands in one tick
+    // must not let the closing write replace the verdict with a stale block.
+    const change = next => { latest.current = next; onChange(next); };
     try {
-      await onGrade(committed, answer, delta => {
-        const current = latest.current;
-        onChange({ ...current, verdict: (current.verdict || '') + delta, grading: true });
-      });
-      onChange({ ...latest.current, grading: false });
-    } catch (error) {
-      onChange({ ...latest.current, grading: false, verdict: `Could not reach the tutor: ${error.message}` });
+      const committed = { ...block, answer, attemptId: crypto.randomUUID(), verdict: '', grading: !!onGrade };
+      change(committed);
+      if (!onGrade) return;
+      // The tutor reads the challenge, the expected ideas and this answer, then
+      // streams a short verdict back into the block.
+      try {
+        await onGrade(committed, answer, delta => {
+          const current = latest.current;
+          change({ ...current, verdict: (current.verdict || '') + delta, grading: true });
+        });
+        change({ ...latest.current, grading: false });
+      } catch (error) {
+        change({ ...latest.current, grading: false, verdict: `Could not reach the tutor: ${error.message}` });
+      }
+    } finally {
+      inFlight.current = false;
     }
   };
-  const retry = () => { setDraft(block.answer || ''); onChange({ ...block, answer: null, verdict: '', grading: false }); };
+  const retry = () => { inFlight.current = false; setDraft(block.answer || ''); onChange({ ...block, answer: null, attemptId: null, verdict: '', grading: false }); };
   // The tutor opens with "VERDICT: good|partial"; it tints the answer and is
   // stripped from what the learner reads.
   const token = (block.verdict || '').match(/VERDICT:\s*(good|partial)/i);
