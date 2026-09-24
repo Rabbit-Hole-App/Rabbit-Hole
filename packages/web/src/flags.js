@@ -1,0 +1,16 @@
+// Rabbit Hole ships behind the dev build only (T02 D2); private BYOC never gets it.
+// `?.` keeps this importable by node tests, as private-auth.js:3 already does.
+export const learnPreview = import.meta.env?.VITE_COACHING_DEV === 'true' && import.meta.env?.VITE_PRIVATE_BYOC !== 'true';
+
+// First-party product name: document title and first-party copy. Workspace names never change (T02 §2).
+export const PRODUCT = learnPreview ? 'Rabbit Hole' : 'small';
+
+// T02 §9: false until the Learn handoff (feature/parallel-work cc0cbf8) reaches main. The PR
+// that merges it flips this; it is never detected at runtime, because a missing hook and a
+// slow hook look the same.
+export const learnHandoff = false;
+
+// Gate C G1 (2026-09-24), decided OFF: the dev clone binds the live D1 'small'
+// (wrangler.dev.jsonc:69-72), and /api/ask writes live chat history, so the preview's
+// workspace and app asks stay unavailable. Project and canvas asks use LEARN_DB and stay on.
+export const askLiveOnPreview = false;

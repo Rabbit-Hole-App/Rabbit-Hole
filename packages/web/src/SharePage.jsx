@@ -10,6 +10,7 @@ const Github = ({ size = 14 }) => (
 );
 import { ago, api, cronHuman, cronList, fmtTime, navigate, wsName } from './api.js';
 import { loadApp } from './app-data.js';
+import { learnPreview } from './flags.js';
 import { AskPanel } from './ask.jsx';
 import CoachingPanel from './coaching/CoachingPanel.jsx';
 import LearnPage from './LearnPage.jsx';
@@ -60,7 +61,6 @@ function LearnLoading() {
 }
 
 const Runbook = lazy(() => import('./RunbookEditor.jsx'));
-const learnPreview = import.meta.env.VITE_COACHING_DEV === 'true' && import.meta.env.VITE_PRIVATE_BYOC !== 'true';
 
 function initialAppTab() {
   const tab = new URLSearchParams(window.location.search).get('tab');

@@ -15,7 +15,7 @@ function browser(path) {
 }
 
 test('return paths preserve Small deep links and reject external or auth redirects', () => {
-  for (const path of ['/apps', '/apps/test-job?tab=logs', '/apps/test-job/runs/r_123', '/members', '/chat?app=test-job']) {
+  for (const path of ['/apps', '/apps/test-job?tab=logs', '/apps/test-job/runs/r_123', '/members', '/chat?app=test-job', '/library', '/explore', '/library?s=shared&type=projects']) {
     assert.equal(returnPath(path), path);
   }
   for (const path of ['https://evil.example', '//evil.example/apps', '/\\evil.example', '/logout', '/auth/callback?code=private', undefined]) {

@@ -5,7 +5,7 @@ export const isPrivateByoc = import.meta.env?.VITE_PRIVATE_BYOC === 'true';
 export function returnPath(value) {
   if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return '/apps';
   const url = new URL(value, 'https://small.invalid');
-  return /^\/(apps(?:\/[a-z0-9-]+(?:\/runs\/[\w-]+)?)?|members|chat)$/.test(url.pathname)
+  return /^\/(apps(?:\/[a-z0-9-]+(?:\/runs\/[\w-]+)?)?|members|chat|library|explore)$/.test(url.pathname)
     ? url.pathname + url.search : '/apps';
 }
 
