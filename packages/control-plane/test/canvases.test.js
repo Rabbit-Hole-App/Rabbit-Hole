@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
-import { canvasesFetch, canvasRoute, refuseCanvasAttachment } from '../src/canvases.js';
+import { canvasesFetch, canvasRoute, refuseCanvasAsk } from '../src/canvases.js';
 import { authorizedBoardApp } from '../src/learn-board.js';
 
 const schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
@@ -102,10 +102,10 @@ test('canvas traffic routes to LEARN_DB, canvas attachments are refused, and Lea
   for (const [url, expected] of [['/api/canvases', true], ['/api/canvases?archived=1', true], ['/api/apps/canvas-0a1b2c3d', true], ['/api/apps/canvas-0a1b2c3d/archive', true], ['/api/ask/threads/canvaschat-1', true], ['/api/ask/threads?scope=learn&ref=canvas-0a1b2c3d', true], ['/api/ask/threads?scope=learn&ref=counter', false], ['/api/ask/threads/42', false], ['/api/apps/counter', false], ['/api/apps', false], ['/api/apps/repo-x', false]])
     assert.equal(canvasRoute(new URL(url, 'https://dev.test')), expected, url);
   const form = app => { const body = new FormData(); body.set('body', JSON.stringify({ scope: { app }, message: 'Hi' })); body.set('file', new Blob(['x']), 'x.txt'); return new Request('https://dev.test/api/learn/ask', { method: 'POST', body }); };
-  const refused = await refuseCanvasAttachment(form('canvas-0a1b2c3d'));
+  const refused = await refuseCanvasAsk(form('canvas-0a1b2c3d'));
   assert.equal(refused.status, 400); assert.match((await refused.json()).error, /Attachments are not available on canvases yet/);
-  assert.equal(await refuseCanvasAttachment(form('counter')), null);
-  assert.equal(await refuseCanvasAttachment(new Request('https://dev.test/api/learn/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })), null);
+  assert.equal(await refuseCanvasAsk(form('counter')), null);
+  assert.equal(await refuseCanvasAsk(new Request('https://dev.test/api/learn/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })), null);
   const { name } = await (await f.send('POST', '/api/canvases', { title: 'Board' })).json();
   const board = (headers = {}) => authorizedBoardApp(new Request('https://dev.test/api/learn/board', { headers }), f.env, name);
   const app = await board();
@@ -121,6 +121,27 @@ test('the dev worker routes canvas traffic early, merges owner canvases, refuses
   const at = text => { const i = source.indexOf(text); assert.ok(i >= 0, `dev-worker.js is missing: ${text}`); return i; };
   assert.ok(at('if (canvasRoute(new URL(req.url))) return canvasesFetch(req, env);') < at('const repositoryRoute ='));
   assert.match(source.slice(at("if (path === '/api/apps' && req.method === 'GET')"), at('const repositoryRoute =')), /\.\.\.\(await ownerCanvases\(env, catalog\)\)/);
-  assert.ok(at('const refused = await refuseCanvasAttachment(req);') < at("if (['/api/learn/selection', '/api/learn/ask'].includes(path)"));
+  assert.ok(at('const refused = await refuseCanvasAsk(req);') < at("if (['/api/learn/selection', '/api/learn/ask'].includes(path)"));
   at("'learn', access.kind === 'canvas' ? canvasAskSeam(env, access) : undefined);");
+});
+
+// ---- WP2 review fixes (workflow wf_aa7de563-580) ----
+test('canvas routes match only real canvas slugs and Learn history; canvas chat never reaches /api/ask; history changes need POST', async t => {
+  const f = fixture(t);
+  for (const [url, expected] of [['/api/apps/canvas-painter', false], ['/api/apps/canvas-0a1b2c3d9', false], ['/api/ask/threads?scope=app&ref=canvas-0a1b2c3d', false], ['/api/ask/threads?ref=canvas-0a1b2c3d', false], ['/api/ask/threads?scope=learn&ref=canvas-painter', false]])
+    assert.equal(canvasRoute(new URL(url, 'https://dev.test')), expected, url);
+  const ask = (path, app) => new Request(`https://dev.test${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scope: { app }, message: 'Hi', thread_id: 'canvaschat-1' }) });
+  const refused = await refuseCanvasAsk(ask('/api/ask', 'canvas-0a1b2c3d'));
+  assert.equal(refused.status, 400); assert.match((await refused.json()).error, /Canvas chat runs in Learn/);
+  assert.equal(await refuseCanvasAsk(ask('/api/ask', 'counter')), null);
+  assert.equal(await refuseCanvasAsk(ask('/api/ask', 'canvas-painter')), null);
+  assert.equal(await refuseCanvasAsk(ask('/api/learn/ask', 'canvas-0a1b2c3d')), null); // Learn's router answers it with the LEARN_DB seam
+  const { name } = await (await f.send('POST', '/api/canvases', { title: 'Chat' })).json();
+  f.sqlite.exec(`INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES('canvaschat-a','team','owner@test','${name}','','First')`);
+  assert.equal((await f.send('GET', '/api/ask/threads/canvaschat-a/delete')).status, 405);
+  assert.equal((await f.send('GET', '/api/ask/threads/canvaschat-a/rename')).status, 405);
+  assert.equal(f.sqlite.prepare("SELECT count(*) AS n FROM threads WHERE id='canvaschat-a'").get().n, 1);
+  // A live app whose name merely starts with canvas- keeps its live Learn access.
+  await authorizedBoardApp(new Request('https://dev.test/api/learn/board'), f.env, 'canvas-painter').catch(() => {});
+  assert.ok(f.seen.includes('GET /api/apps/canvas-painter'), f.seen.join());
 });

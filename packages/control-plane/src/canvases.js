@@ -30,20 +30,27 @@ export async function ownerCanvases(env, user, archived = false) {
   return results.map(row => canvasApp(row, user));
 }
 
+// Exactly the slugs canvasesFetch creates, so a live app that merely starts with canvas- stays live.
+const isCanvas = name => typeof name === 'string' && /^canvas-[a-f0-9]{8}$/.test(name);
 // Which dev requests are canvas traffic. dev-worker.js cannot be imported under node, so the rule lives here, tested.
+// History lists only for Learn's scope (spec 8.2), so the legacy Agent panels never resume a canvas chat.
 export function canvasRoute(url) {
   const path = url.pathname;
-  return path === '/api/canvases' || /^\/api\/apps\/canvas-/.test(path) || /^\/api\/ask\/threads\/canvaschat-/.test(path)
-    || (path === '/api/ask/threads' && /^canvas-/.test(url.searchParams.get('ref') || ''));
+  return path === '/api/canvases' || /^\/api\/apps\/canvas-[a-f0-9]{8}(?:\/|$)/.test(path) || /^\/api\/ask\/threads\/canvaschat-/.test(path)
+    || (path === '/api/ask/threads' && url.searchParams.get('scope') === 'learn' && isCanvas(url.searchParams.get('ref')));
 }
-// Multipart asks skip the dev Learn router (dev-worker.js:72) and reach live small-cp, which stores the
-// attachment in live R2 (index.js:954) before it finds no such app. Canvases refuse them here.
-export async function refuseCanvasAttachment(req) {
+// Canvas asks that would fall through to live small-cp. A multipart one skips the dev Learn router
+// (dev-worker.js:72) and live small-cp stores the attachment in live R2 (index.js:954) first; a JSON
+// /api/ask comes from the legacy Agent panels and would carry canvas chat to live small-cp. Learn's
+// JSON asks never get here: the dev Learn router answers them with the LEARN_DB seam.
+export async function refuseCanvasAsk(req) {
   const path = new URL(req.url).pathname;
-  if (req.method !== 'POST' || !['/api/ask', '/api/learn/ask', '/api/learn/selection'].includes(path) || !req.headers.get('content-type')?.includes('multipart/form-data')) return null;
+  const multipart = req.headers.get('content-type')?.includes('multipart/form-data');
+  if (req.method !== 'POST' || !['/api/ask', '/api/learn/ask', '/api/learn/selection'].includes(path) || (!multipart && path !== '/api/ask')) return null;
   let app = null;
-  try { app = JSON.parse((await req.clone().formData()).get('body') || '{}').scope?.app; } catch { /* live small-cp answers malformed bodies as today */ }
-  return typeof app === 'string' && app.startsWith('canvas-') ? json({ error: 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' }, 400) : null;
+  try { app = (multipart ? JSON.parse((await req.clone().formData()).get('body') || '{}') : await req.clone().json()).scope?.app; } catch { /* live small-cp answers malformed bodies as today */ }
+  if (!isCanvas(app)) return null;
+  return json({ error: multipart ? 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' : 'Canvas chat runs in Learn. Open the canvas to ask there.' }, 400);
 }
 
 export async function canvasesFetch(req, env) {
@@ -66,6 +73,7 @@ export async function canvasesFetch(req, env) {
     const thread = path.match(/^\/api\/ask\/threads(?:\/(canvaschat-[a-f0-9-]+)(?:\/(delete|rename))?)?$/);
     if (thread) {
       const [, id, action] = thread;
+      if (action && req.method !== 'POST') return json({ error: 'POST required' }, 405);
       const ref = id ? (await db.prepare('SELECT scope_ref FROM threads WHERE id=? AND org=? AND user=?').bind(id, user.org, user.email).first())?.scope_ref : url.searchParams.get('ref');
       if (!ref) return json({ error: 'Chat not found' }, 404);
       const app = await ownedCanvas(env, user, ref); if (app instanceof Response) return app;

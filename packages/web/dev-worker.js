@@ -1,6 +1,6 @@
 import { sceneFetch } from '../control-plane/src/learn-scene.js';
 import { repositoriesFetch, repositoryIdentity, repositoryApp } from '../control-plane/src/repositories.js';
-import { canvasesFetch, canvasRoute, ownerCanvases, refuseCanvasAttachment, canvasAskSeam } from '../control-plane/src/canvases.js';
+import { canvasesFetch, canvasRoute, ownerCanvases, refuseCanvasAsk, canvasAskSeam } from '../control-plane/src/canvases.js';
 export { RepositoryImports } from '../control-plane/src/repositories.js';
 export { LearnScenes } from '../control-plane/src/learn-scene.js';
 import SHELL from './dist-dev/index.html';
@@ -66,8 +66,8 @@ export default {
     }
     if (path === '/api/learn/scene') return sceneFetch(req, env);
     if (path === '/api/learn/video') return videoFetch(req, env);
-    // A multipart canvas ask would fall through to live small-cp, which writes ask-uploads/ to R2 first (index.js:954).
-    const refused = await refuseCanvasAttachment(req);
+    // A canvas ask that would fall through to live small-cp: multipart (live R2 ask-uploads/, index.js:954) or the legacy Agent panels' /api/ask.
+    const refused = await refuseCanvasAsk(req);
     if (refused) return refused;
     if (env.SUBSCRIPTION_ONLY === 'true' && req.method === 'POST' && (path === '/api/ask' || /\/learn-course$/.test(path))) {
       let action; try { action = (await req.clone().json()).action; } catch {}
