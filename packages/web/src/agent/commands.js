@@ -36,13 +36,23 @@ const go = (to) => {
 // One repository, one project (user decision, 2026-09-24): the project to open instead of creating,
 // or null to create. A different explicit branch creates only when the user chose it (newBranch);
 // otherwise it stops and asks, so nothing is duplicated or overwritten silently.
+// owner/repository from the URL the POST will send (parseRepository reads the same path), so a label
+// passed beside it can never hide a duplicate.
+function repoOfUrl(url, fallback) {
+  try {
+    const [owner, name] = new URL(url).pathname.split('/').filter(Boolean);
+    return owner && name ? `${owner}/${name.replace(/\.git$/i, '')}` : fallback;
+  } catch {
+    return fallback;
+  }
+}
 function connectedProject(rows, { repo, branch, newBranch }) {
   const same = repositoriesOf(rows, repo);
   if (!same.length) return null;
   if (!branch) return same[0];
   const project = onBranch(same, branch);
   if (project || newBranch) return project;
-  throw Error(`${titleOf(same[0])} is already connected on ${same[0].branch}. Open it, or connect ${branch} as a separate project.`);
+  throw Error(`${titleOf(same[0])} is already connected on ${same.map((row) => row.branch).join(', ')}. Open it, or connect ${branch} as a separate project.`);
 }
 function targetOf(ctx, slug) {
   const row = rowOf(ctx, slug);
@@ -189,7 +199,8 @@ export const COMMANDS = {
     risk: 'confirm', touchesLive: false, available: ok,
     // prepareCommand runs this before the card, so the card shows the exact branch and a
     // repository that is not public fails before any card.
-    resolve: async ({ url, repo, branch, newBranch }, ctx) => {
+    resolve: async ({ url, repo: label, branch, newBranch }, ctx) => {
+      const repo = repoOfUrl(url, label);
       const project = connectedProject(ctx.catalog, { repo, branch, newBranch });
       if (project) return { url, repo, existing: project.name };
       let meta;
@@ -209,19 +220,26 @@ export const COMMANDS = {
       // Gate C G2: never assume a branch. Before the worker is redeployed the field is absent,
       // which keeps today's behaviour; once deployed, a repository GitHub names no default for stops here.
       if (meta.defaultBranchKnown === false) throw Error(noDefaultBranch(repo, meta.branches));
-      return { url, repo, branch: meta.defaultBranch };
+      // defaulted: GitHub's default, not the user's choice, so a stale page never treats it as one.
+      return { url, repo, branch: meta.defaultBranch, defaulted: true };
     },
     preview: (args, ctx) => card(ctx, {
       title: `Connect ${args.repo}`,
       target: `${args.repo} · public GitHub · ${args.url}`,
       operation: 'connect_repository',
       params: { branch: args.branch },
-      effect: `${args.newBranch ? `${args.repo} is already connected on ${repositoriesOf(ctx.catalog, args.repo)[0]?.branch}; this connects ${args.branch} as a separate project. ` : ''}Visible to everyone in ${workspace(ctx)}. Connected repositories can't be deleted yet.`,
+      effect: `${args.newBranch && repositoriesOf(ctx.catalog, args.repo).length ? `${args.repo} is already connected on ${repositoriesOf(ctx.catalog, args.repo).map((row) => row.branch).filter(Boolean).join(', ')}; this connects ${args.branch} as a separate project. ` : ''}Visible to everyone in ${workspace(ctx)}. Connected repositories can't be deleted yet.`,
     }),
-    run: async ({ url, repo, branch, newBranch, existing }) => {
+    run: async ({ url, repo, branch, newBranch, existing, defaulted }) => {
       // Checked again against a fresh catalog right before creating: the page's copy can be stale.
+      // Unreadable means no creation, never a guess.
       // ponytail: two tabs connecting the same repository at the same moment can still both create; a server-side unique check if that shows up.
-      const project = existing ? { name: existing } : connectedProject((await api('/api/apps')).apps, { repo, branch, newBranch });
+      let project = existing ? { name: existing } : null;
+      if (!project) {
+        const { apps } = await api('/api/apps');
+        if (!Array.isArray(apps)) throw Error("Couldn't check which repositories are already connected. Try again.");
+        project = connectedProject(apps, { repo: repoOfUrl(url, repo), branch: defaulted ? null : branch, newBranch });
+      }
       if (project) {
         navigate(`/apps/${project.name}`);
         return { message: `${repo} is already connected; opened its project.`, href: `/apps/${project.name}`, data: { name: project.name, existing: true } };
@@ -255,7 +273,8 @@ export async function prepareCommand(name, args, ctx) {
   if (command?.unsupported?.(args, ctx)) return { args, card: null, policy: { risk: 'immediate', blocked: false } };
   const resolved = (await command?.resolve?.(args, ctx)) ?? args;
   // Resolved to something that already exists (connect_repository's project): nothing to confirm.
-  if (resolved.existing) return { args: resolved, card: null, policy: { risk: 'immediate', blocked: false } };
+  // Only a resolve can say so; an 'existing' passed in by a caller never skips a card.
+  if (command?.resolve && resolved.existing) return { args: resolved, card: null, policy: { risk: 'immediate', blocked: false } };
   return { args: resolved, card: command?.preview?.(resolved, ctx) ?? null, policy: policy(name, ctx) };
 }
 

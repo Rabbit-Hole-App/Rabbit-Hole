@@ -6,9 +6,11 @@ import { kindLabel, lookup, onBranch, repositoriesOf, titleOf } from './catalog.
 const SETTINGS = { settings: {}, preferences: { tab: 'preferences' }, connections: { tab: 'connections' }, theme: { tab: 'preferences' } };
 // owner/repository from a GitHub URL anywhere in the text, plus an explicit /tree/<branch>, are kept;
 // credentials before '@' never are (parseRepository wants the bare URL, repositories.js:11-17).
-const GITHUB = /(?:^|[\s(<"'])(?:https?:\/\/)?(?:[^\s/@]+@)?(?:www\.)?github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)(?:\/tree\/([^\s?#<>"')]+))?/i;
-// The only words that turn a link into a new project; anything else around a link is a question.
-const CREATE = /^(?:start a rabbit hole(?: (?:with|from|on|in))?|connect(?: to)?|import)$/i;
+const GITHUB = /(?:^|[\s(<"'`])(?:https?:\/\/)?(?:[^\s/@]+@)?(?:www\.)?github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)(?:\/tree\/([^\s?#<>"'`)]+))?/i;
+// The only words that turn a link into a new project, with the filler people type around them;
+// anything else around a link is a question.
+const CREATE = /^(?:(?:please|pls|can you|could you|let ?s)\s+)?(?:start (?:a )?(?:new )?rabbit ?hole(?:\s+(?:with|from|on|in|for))?|connect|import)(?:\s+(?:to|this|the|a|my|that))?(?:\s+(?:github\s+)?(?:repo|repository|project))?(?:\s+(?:please|thanks|thank you))?$/i;
+const decode = (text) => { try { return decodeURIComponent(text); } catch { return text; } };
 
 const ask = (text, mode = 'ask') => ({ type: 'ask', mode, text });
 const command = (name, args) => ({ type: 'command', name, args });
@@ -40,13 +42,17 @@ export function route(text, { mode = null, catalog = [], scope = null } = {}) {
   const github = message.match(GITHUB);
   if (github) {
     const repo = `${github[1]}/${github[2].replace(/\.+$/, '').replace(/\.git$/i, '')}`;
-    const branch = github[3] ? decodeURIComponent(github[3]).replace(/\.+$/, '') : null;
+    const branch = github[3] ? decode(github[3]).replace(/[.,;:!?]+$/, '') : null;
     const connect = { url: `https://github.com/${repo}`, repo, ...(branch ? { branch } : {}) };
     const same = repositoriesOf(catalog, repo);
     const open = (row) => ({ slug: row.name, kind: row.kind, title: titleOf(row) });
-    // The words around the link, without the rest of the link, its brackets or punctuation.
-    const rest = `${message.slice(0, github.index)} ${message.slice(github.index + github[0].length).replace(/^\S*/, '')}`.replace(/[\s<>()"'`.,;:!?]+/g, ' ').trim();
-    if (!rest || CREATE.test(rest)) {
+    // The words around the link, without the rest of the link, its brackets or punctuation. A '?'
+    // around it, even glued to the end of the link, makes it a question.
+    const tail = message.slice(github.index + github[0].length).match(/^\S*/)[0];
+    const around = `${message.slice(0, github.index)} ${message.slice(github.index + github[0].length + tail.length)}`;
+    const asked = /\?/.test(around) || /\?[)>"'`]*$/.test(tail);
+    const rest = around.replace(/[\s<>()"'`.,;:!?]+/g, ' ').trim();
+    if (!asked && (!rest || CREATE.test(rest))) {
       if (!same.length) return command('connect_repository', connect);
       const exact = branch ? onBranch(same, branch) : same.length === 1 && same[0];
       if (exact) return command('open_resource', open(exact));
@@ -59,7 +65,15 @@ export function route(text, { mode = null, catalog = [], scope = null } = {}) {
         ],
       };
     }
-    if (same.length) return { ...ask(message), about: open((branch && onBranch(same, branch)) || same[0]) };
+    // A question. The project on the branch it names is context; another branch's project never is,
+    // and with several connected and no branch named, none is guessed.
+    const target = branch ? onBranch(same, branch) : same.length === 1 ? same[0] : null;
+    if (target) return { ...ask(message), about: open(target) };
+    if (same.length && branch) {
+      const on = same.map((row) => row.branch).filter(Boolean).join(', ');
+      return { ...ask(message), note: `${repo} is connected on ${on}, not ${branch}.`, offer: { label: `Connect ${repo} at ${branch}`, name: 'connect_repository', args: { ...connect, newBranch: true } } };
+    }
+    if (same.length) return ask(message);
     return { ...ask(message), note: `${repo} isn't connected, so answers can't read its code yet.`, offer: { label: `Connect ${repo}`, name: 'connect_repository', args: connect } };
   }
   if (/https?:\/\/\S/i.test(message)) return ask(message);

@@ -22,6 +22,8 @@ export function lookup(catalog, text) {
 const repoKey = (repo) => String(repo || '').toLowerCase().replace(/\.git$/, '');
 export const repositoriesOf = (catalog, repo) => (catalog || []).filter((row) => row.kind === 'repository' && repoKey(row.repo) === repoKey(repo));
 // The connected project on this branch. A /tree/ link may run on into a folder, so the longest
-// connected branch the link starts with counts.
+// connected branch the link starts with counts. A row without a branch can't be told apart, so it
+// counts too, rather than risk a duplicate.
 export const onBranch = (rows, branch) =>
-  rows.filter((row) => row.branch && (branch === row.branch || branch.startsWith(`${row.branch}/`))).sort((a, b) => b.branch.length - a.branch.length)[0] || null;
+  rows.filter((row) => row.branch && (branch === row.branch || branch.startsWith(`${row.branch}/`))).sort((a, b) => b.branch.length - a.branch.length)[0]
+  || rows.find((row) => !row.branch) || null;

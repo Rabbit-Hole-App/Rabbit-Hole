@@ -152,3 +152,40 @@ test('rule 2: a GitHub branch link carries its branch; credentials never do (Gat
   assert.deepEqual(at('connect https://github.com/o/r/tree/feature/x'), { type: 'command', name: 'connect_repository', args: { url: 'https://github.com/o/r', repo: 'o/r', branch: 'feature/x' } });
   assert.deepEqual(at('https://user:token@github.com/o/r'), connect('o/r'));
 });
+
+// Verification of 827501d (workflow wf_c0c71676-3f7): ordinary wording around creation, question marks,
+// branches in questions, backticks and malformed branch links.
+test('rule 2: creation wording with ordinary extra words still connects; a question mark keeps it a question', () => {
+  for (const words of ['please connect', 'Connect repository:', 'connect repo', 'connect this:', 'import repo', 'import this repo:', 'please import', 'start a new rabbit hole with', 'start a rabbit hole for', 'start a rabbithole with']) {
+    assert.deepEqual(at(`${words} https://github.com/karpathy/minGPT`), connect('karpathy/minGPT'), words);
+    assert.deepEqual(at(`${words} https://github.com/karpathy/nanoGPT`), OPEN_NANOGPT, words);
+  }
+  assert.deepEqual(at('connect https://github.com/karpathy/minGPT please'), connect('karpathy/minGPT'));
+  assert.deepEqual(at("let's start a rabbit hole with https://github.com/karpathy/minGPT"), connect('karpathy/minGPT'));
+  for (const text of ['should I connect https://github.com/karpathy/minGPT?', 'connect https://github.com/karpathy/minGPT?']) {
+    assert.equal(at(text).type, 'ask', text);
+    assert.equal(at(text).offer.name, 'connect_repository', text);
+  }
+});
+
+test('rule 2: a question about another branch of a connected repository never borrows the connected branch', () => {
+  const catalog = [{ name: 'repo-1a2b3c4d-nanogpt', kind: 'repository', repo: 'karpathy/nanoGPT', branch: 'master' }];
+  const text = 'How does https://github.com/karpathy/nanoGPT/tree/dev differ from master?';
+  assert.deepEqual(route(text, { catalog, scope: HOME }), {
+    type: 'ask', mode: 'ask', text,
+    note: 'karpathy/nanoGPT is connected on master, not dev.',
+    offer: { label: 'Connect karpathy/nanoGPT at dev', name: 'connect_repository', args: { url: 'https://github.com/karpathy/nanoGPT', repo: 'karpathy/nanoGPT', branch: 'dev', newBranch: true } },
+  });
+  const both = [...catalog, { name: 'repo-2b3c4d5e-nanogpt', kind: 'repository', repo: 'karpathy/nanoGPT', branch: 'dev' }];
+  assert.equal(route(text, { catalog: both, scope: HOME }).about.slug, 'repo-2b3c4d5e-nanogpt');
+  // Two connected branches and no branch in the link: no guess.
+  assert.deepEqual(route('what is https://github.com/karpathy/nanoGPT?', { catalog: both, scope: HOME }), { type: 'ask', mode: 'ask', text: 'what is https://github.com/karpathy/nanoGPT?' });
+});
+
+test('rule 2: a link in backticks counts; a malformed or punctuated branch link never breaks the router', () => {
+  assert.deepEqual(at('what does `https://github.com/karpathy/nanoGPT` do'), { type: 'ask', mode: 'ask', text: 'what does `https://github.com/karpathy/nanoGPT` do', about: ABOUT_NANOGPT });
+  assert.deepEqual(at('`https://github.com/karpathy/minGPT`'), connect('karpathy/minGPT'));
+  assert.equal(at('connect https://github.com/o/r/tree/%E0%A4%A').args.branch, '%E0%A4%A');
+  assert.equal(at('connect https://github.com/o/r/tree/dev!').args.branch, 'dev');
+  assert.equal(at('connect https://github.com/o/r/tree/dev,').args.branch, 'dev');
+});

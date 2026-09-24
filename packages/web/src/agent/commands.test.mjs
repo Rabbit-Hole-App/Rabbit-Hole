@@ -84,7 +84,7 @@ test('prepare resolves the default branch before the card, so the card shows the
   const prepared = await prepareCommand('connect_repository', { url: 'https://github.com/karpathy/minGPT', repo: 'karpathy/minGPT' }, CTX);
   assert.equal(calls.at(-1).path, '/api/repositories/branches?url=https%3A%2F%2Fgithub.com%2Fkarpathy%2FminGPT');
   assert.deepEqual(prepared, {
-    args: { url: 'https://github.com/karpathy/minGPT', repo: 'karpathy/minGPT', branch: 'master' },
+    args: { url: 'https://github.com/karpathy/minGPT', repo: 'karpathy/minGPT', branch: 'master', defaulted: true },
     card: {
       workspace: 'Gmail', title: 'Connect karpathy/minGPT', target: 'karpathy/minGPT · public GitHub · https://github.com/karpathy/minGPT',
       operation: 'connect_repository', params: { branch: 'master' }, effect: "Visible to everyone in Gmail. Connected repositories can't be deleted yet.",
@@ -100,7 +100,7 @@ test('a repository that is not public says so before any card', async () => {
 });
 
 test('Connect posts the repository and run opens its project; the caller never navigates', async () => {
-  reply = () => ({ status: 202, body: { name: 'repo-5e6f7a8b-mingpt' } });
+  reply = (path) => (path === '/api/apps' ? { body: { apps: CATALOG } } : { status: 202, body: { name: 'repo-5e6f7a8b-mingpt' } });
   const done = await executeCommand('connect_repository', { url: 'https://github.com/karpathy/minGPT', repo: 'karpathy/minGPT', branch: 'master' }, CTX);
   assert.deepEqual(done, { href: '/apps/repo-5e6f7a8b-mingpt', data: { name: 'repo-5e6f7a8b-mingpt' } });
   assert.deepEqual(calls.at(-1), { path: '/api/repositories', method: 'POST', body: { url: 'https://github.com/karpathy/minGPT', branch: 'master' } });
@@ -295,4 +295,43 @@ test('an explicit different branch of a connected repository is never a silent d
   assert.equal(prepared.card.effect, "karpathy/nanoGPT is already connected on master; this connects dev as a separate project. Visible to everyone in Gmail. Connected repositories can't be deleted yet.");
   await executeCommand('connect_repository', prepared.args, ctx);
   assert.deepEqual(calls.at(-1), { path: '/api/repositories', method: 'POST', body: { url: 'https://github.com/karpathy/nanoGPT', branch: 'dev' } });
+});
+
+test('the executor keys on the URL it will send, not on a label beside it', async () => {
+  const prepared = await prepareCommand('connect_repository', { url: 'https://github.com/karpathy/nanoGPT', repo: 'someone/else' }, CTX);
+  assert.deepEqual(prepared.args, { url: 'https://github.com/karpathy/nanoGPT', repo: 'karpathy/nanoGPT', existing: 'repo-1a2b3c4d-nanogpt' });
+  reply = (path) => (path === '/api/apps' ? { body: { apps: CATALOG } } : { status: 202, body: { name: 'repo-duplicate' } });
+  const before = calls.length;
+  assert.equal((await executeCommand('connect_repository', { url: 'https://github.com/karpathy/nanoGPT.git', repo: 'x/y', branch: 'master' }, { ...CTX, catalog: [] })).data.existing, true);
+  assert.equal(calls.slice(before).some((c) => c.method === 'POST'), false);
+});
+
+test('only connect_repository resolves to an existing project; no other command can skip its card that way', async () => {
+  const prepared = await prepareCommand('share', { existing: 'counter', proposal_id: 'p-1', app: 'counter', email: 'y@example.com', role: 'view' }, LIVE);
+  assert.notEqual(prepared.card, null);
+  assert.deepEqual(prepared.policy, { risk: 'confirm', blocked: false });
+});
+
+test('connect refuses to create when it cannot read which repositories are connected', async () => {
+  reply = (path) => (path === '/api/apps' ? { body: { org: 'gmail-com' } } : { status: 202, body: { name: 'repo-duplicate' } });
+  const before = calls.length;
+  await assert.rejects(executeCommand('connect_repository', { url: 'https://github.com/karpathy/minGPT', repo: 'karpathy/minGPT', branch: 'master' }, CTX),
+    { message: "Couldn't check which repositories are already connected. Try again." });
+  assert.equal(calls.slice(before).some((c) => c.method === 'POST'), false);
+});
+
+test('a bare link on a stale page opens the project connected on another branch instead of erroring', async () => {
+  reply = (path) => (path.startsWith('/api/repositories/branches') ? { body: { repo: 'karpathy/nanoGPT', defaultBranch: 'master', defaultBranchKnown: true, branches: ['dev', 'master'], hasMore: false, page: 1 } }
+    : path === '/api/apps' ? { body: { apps: [{ name: 'repo-2b3c4d5e-nanogpt', kind: 'repository', repo: 'karpathy/nanoGPT', branch: 'dev' }] } } : { status: 202, body: { name: 'repo-duplicate' } });
+  const stale = { ...CTX, catalog: [] };
+  const prepared = await prepareCommand('connect_repository', { url: 'https://github.com/karpathy/nanoGPT', repo: 'karpathy/nanoGPT' }, stale);
+  assert.equal((await executeCommand('connect_repository', prepared.args, stale)).data.name, 'repo-2b3c4d5e-nanogpt');
+});
+
+test('the separate-branch card names every connected branch, and never undefined', async () => {
+  reply = () => ({ body: { repo: 'karpathy/nanoGPT', defaultBranch: 'master', defaultBranchKnown: true, branches: ['dev', 'master', 'x'], hasMore: false, page: 1 } });
+  const two = { ...CTX, catalog: [{ name: 'repo-1a2b3c4d-nanogpt', kind: 'repository', repo: 'karpathy/nanoGPT', branch: 'master' }, { name: 'repo-2b3c4d5e-nanogpt', kind: 'repository', repo: 'karpathy/nanoGPT', branch: 'dev' }] };
+  const nano = { url: 'https://github.com/karpathy/nanoGPT', repo: 'karpathy/nanoGPT', branch: 'x', newBranch: true };
+  assert.match((await prepareCommand('connect_repository', nano, two)).card.effect, /^karpathy\/nanoGPT is already connected on master, dev; this connects x as a separate project\. /);
+  assert.match((await prepareCommand('connect_repository', nano, { ...CTX, catalog: [] })).card.effect, /^Visible to everyone in Gmail\./);
 });
