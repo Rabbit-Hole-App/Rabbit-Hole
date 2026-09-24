@@ -76,6 +76,27 @@ table, code sample, code exercise (Pyodide), paper (arXiv, page navigation and r
 graph, plot, knowledge graph, flow diagram, mermaid, image (Pexels or generated), video (existing or
 FAL), 3D scene (Blender), audio narration.
 
+## Canvas utilities never cover authored content
+
+Approved 2026-09-24 as regression invariants for the canvas shell (`AdaptiveCanvas.jsx`):
+
+- Canvas utilities — the drawing toolbar and the overview minimap — never permanently obscure
+  authored canvas content. They live in the tools' gutter beside the canvas surface
+  (`[data-tool-gutter]`, next to `[data-canvas-surface]`), never on it.
+- No card- or scene-specific padding or layout for the toolbar or overview; cards do not know the
+  utilities exist.
+- Expanding a utility changes the available layout space instead of overlaying content: opening
+  the overview widens the gutter (the canvas narrows); on a canvas narrower than 640px the tools
+  become one row under the canvas (toolbar scrolling in it) and the overview takes the next row.
+  The overview opens by default only on a canvas 1400px or wider.
+- On phones and tablets (below `lg`) the lesson canvas gets a viewport-relative height (`75dvh`)
+  and the page scrolls, so the table of contents stays reachable underneath.
+- Toolbar and overview stay functional at 100% zoom; wheel over empty gutter space pans the canvas,
+  while toolbar controls, menus and the overview keep their own wheel.
+
+Regression check: `node e2e/canvas-toolbar-check.mjs <deployed-base> nanogpt-depth-ladder <outDir>`
+(desktop 1720×1100 with the widest card pushed past the edge, a 2200px wide screen, and 390×844).
+
 ## Verification
 
 `node e2e/chat-block-check.mjs` against the dev deployment covers every block above end to end.
