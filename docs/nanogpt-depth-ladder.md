@@ -127,3 +127,36 @@ paragraphs only".
   groups, every code link opens the source panel at 3adf61e with exactly its
   lines highlighted (text compared with the pinned files), arXiv links open the
   paper reader in place, no chat request.
+
+## Review pass 1 (2026-09-24)
+
+An external review of the 18 default states approved the ladder ("three levels
+genuinely different") and asked for one targeted pass, applied in place:
+
+- **Generation · Deep dive** — T = 0 is no longer offered as a setting: the
+  option reads "0 - invalid (What-if)", the ÷ T step turns red with
+  "Invalid: generate() requires T > 0", and the downstream steps are dimmed and
+  never run (no silent argmax).
+- **Attention · Deep dive** — the 604 MB figure is labelled "Manual attention,
+  fp32 illustrative memory" with "fused SDPA need not materialize this full
+  matrix"; the path option reads "fused SDPA (NanoGPT default when available)";
+  the gradient line claims only local sensitivity (∂w_i/∂s_i → 0 near 0 or 1).
+- **Attention · Overview** — "Future characters are hidden from this position".
+- **Residual/LayerNorm** — Overview leads with "each block reads the current
+  stream, proposes a change, and adds that change back", LayerNorm is a quiet
+  detail line; Guided says "Nearly the same here; ε is tiny relative to this
+  variance" wherever the multiplier is not 1; Deep dive scales only
+  attn.c_proj and mlp.c_proj ("other Linear/Embedding: std 0.02").
+- **Training** — Overview reveals the loss curve only up to the chosen stop;
+  Guided stages its three ideas in the replay (−ln p for the selected
+  transition → average training loss → held-out loss and checkpoint choice);
+  Deep dive labels the AdamW equation "conceptual update".
+- **Tokenization** — "word pieces (text chunks)"; the Guided lookup path is
+  primary and the 65-entry table quieter; Deep dive names "NanoGPT's reported
+  non-position-embedding parameter count (wpe still trains)".
+- **Transformer** — "65 next-character scores"; Guided labels each parameter
+  group with what it does (the "most of the parameters" claim is computed and
+  flips to "under half" at V = 50,304); Deep dive spells out generate()'s crop
+  (257 → 256) so it never implies 257 positions reach the model.
+
+Re-verified in the deployed app: 18 cards, every review state, 0 failures.
