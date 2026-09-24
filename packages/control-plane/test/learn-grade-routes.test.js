@@ -270,3 +270,42 @@ test('unknown paths are not ours', async t => {
   const w = world(t);
   assert.equal(await w.post('/api/learn/grades', gradeBody()), null);
 });
+
+test('a baseline is recorded once, with validated ms, only for the owner', async t => {
+  const w = world(t);
+  const { grade_id: id } = await (await w.post('/api/learn/grade', gradeBody())).json();
+  const baseline = (body, headers) => w.post(`/api/learn/grade/${id}/baseline`, { app: 'demo-app', ...body }, headers);
+  for (const ms of [-1, 1.5, 600001, '100', null, Infinity]) assert.equal((await baseline({ verdict: 'good', ms })).status, 400, String(ms));
+  assert.equal((await baseline({ verdict: 'maybe', ms: 10 })).status, 400);
+  assert.equal((await baseline({ ms: 10 })).status, 400, 'verdict must be present');
+  assert.equal((await w.post('/api/learn/grade/abc/baseline', { app: 'demo-app', verdict: 'good', ms: 10 })).status, 400);
+  assert.equal((await baseline({ verdict: 'good', ms: 10 }, { cookie: 'who=someone@test' })).status, 404);
+  assert.equal((await baseline({ verdict: null, ms: 600000 })).status, 200);
+  assert.equal((await baseline({ verdict: 'good', ms: 10 })).status, 404, 'one-shot');
+  assert.deepEqual({ ...w.sqlite.prepare('SELECT baseline_verdict, baseline_ms FROM learn_grades').get() }, { baseline_verdict: null, baseline_ms: 600000 });
+});
+
+test('the report reads app from the query, covers only my canvas rows, and prunes', async t => {
+  const w = world(t);
+  await w.post('/api/learn/grade', gradeBody());
+  w.sqlite.exec("INSERT INTO learn_grades (org, email, app, mode, attempt_id, grader_protocol_version, prompt, expects, answer, created_at) VALUES ('team','learner@test','demo-app','challenge','attempt-stuck','jev-grade-p1','p','[\"x\"]','a', datetime('now','-20 minutes'))");
+  w.sqlite.exec("INSERT INTO learn_grades (org, email, app, mode, attempt_id, grader_protocol_version, prompt, expects, answer, created_at) VALUES ('team','learner@test','demo-app','challenge','attempt-ancient','jev-grade-p1','p','[\"x\"]','a', datetime('now','-91 days'))");
+  w.sqlite.exec("INSERT INTO learn_grades (org, email, app, mode, attempt_id, grader_protocol_version, prompt, expects, answer) VALUES ('team','someone@test','demo-app','challenge','attempt-theirs','jev-grade-p1','p','[\"x\"]','a')");
+  const response = await w.get('/api/learn/grade/report?app=demo-app');
+  assert.equal(response.status, 200);
+  const report = await response.json();
+  assert.equal(report.app, 'demo-app');
+  assert.equal(report.overall.total, 2, 'mine only: the fresh grade and the stuck one');
+  assert.equal(report.overall.eligible, 1);
+  assert.deepEqual(report.overall.jev.incomplete, { k: 1, n: 1, pct: 100 });
+  assert.equal(w.sqlite.prepare("SELECT COUNT(*) AS n FROM learn_grades WHERE attempt_id = 'attempt-ancient'").get().n, 0, 'report pruned');
+  assert.ok(!JSON.stringify(report).includes('exp makes'), 'no answer or idea text in the report');
+});
+
+test('the bench route prunes too', async t => {
+  const w = world(t);
+  w.sqlite.exec("INSERT INTO learn_grades (org, email, app, mode, attempt_id, grader_protocol_version, prompt, expects, answer, created_at) VALUES ('team','learner@test','demo-app','challenge','attempt-ancient','jev-grade-p1','p','[]','a', datetime('now','-91 days'))");
+  const run = 'benchmark-v1-2026-09-25-a';
+  await w.post('/api/learn/grade/bench', gradeBody({ attempt_id: `${run}:c01-all`, set: 'benchmark-v1', bench_run: run }), BENCH);
+  assert.equal(w.sqlite.prepare("SELECT COUNT(*) AS n FROM learn_grades WHERE attempt_id = 'attempt-ancient'").get().n, 0);
+});

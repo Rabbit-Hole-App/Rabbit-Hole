@@ -3,7 +3,8 @@
 // records what Jev would have said, one row per attempt.
 import { authorizedBoardApp } from './learn-board.js';
 import { GRADER_PROTOCOL_VERSION, JevError, askJev, jevRequest, parseJevAnswers, sha256Hex, stripFences, verdictFrom } from './learn-grade-jev.js';
-import { pruneLearnGrades, reserveGrade, completeGrade, failGrade } from './learn-grade-store.js';
+import { pruneLearnGrades, reserveGrade, completeGrade, failGrade, setBaseline, reportRows } from './learn-grade-store.js';
+import { reportFrom } from './learn-grade-report.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const ATTEMPT = /^[A-Za-z0-9:_-]{8,120}$/;
@@ -122,8 +123,39 @@ export async function benchGrade(req, env) {
   return grade(req, env, true);
 }
 
+// One-shot per row, for the learner who owns it. `ms` is the browser's wall
+// time for the Opus grade: an integer from 0 to 600000.
+export async function recordBaseline(req, env, rawId) {
+  if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
+  if (!/^[0-9]+$/.test(rawId)) return json({ error: 'Grade id must be a number' }, 400);
+  let body;
+  try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+  const access = await authorizedBoardApp(req, env, body?.app);
+  if (access instanceof Response) return access;
+  if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
+  if (!('verdict' in body) || !['good', 'partial', null].includes(body.verdict)) return json({ error: 'verdict must be good, partial or null' }, 400);
+  if (!Number.isInteger(body.ms) || body.ms < 0 || body.ms > 600000) return json({ error: 'ms must be an integer from 0 to 600000' }, 400);
+  const changed = await setBaseline(env, { id: Number(rawId), org: access.org, email: access.email, app: body.app, verdict: body.verdict, ms: body.ms });
+  return changed ? json({ ok: true }) : json({ error: 'No such grade for you, or its baseline is already recorded.' }, 404);
+}
+
+// A GET: the app comes from the query string. The caller's own canvas rows
+// only, counts and rates only.
+export async function gradeReport(req, env) {
+  if (req.method !== 'GET') return json({ error: 'GET required' }, 405);
+  const app = new URL(req.url).searchParams.get('app');
+  const access = await authorizedBoardApp(req, env, app);
+  if (access instanceof Response) return access;
+  await pruneLearnGrades(env);
+  const rows = await reportRows(env, { org: access.org, email: access.email, app });
+  return json({ app, ...reportFrom(rows) });
+}
+
 export async function learnGradeRoute(path, req, env) {
   if (path === '/api/learn/grade') return gradeWithJev(req, env);
   if (path === '/api/learn/grade/bench') return benchGrade(req, env);
+  if (path === '/api/learn/grade/report') return gradeReport(req, env);
+  const baseline = path.match(/^\/api\/learn\/grade\/([^/]+)\/baseline$/);
+  if (baseline) return recordBaseline(req, env, baseline[1]);
   return null;
 }
