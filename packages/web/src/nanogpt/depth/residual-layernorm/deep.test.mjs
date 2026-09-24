@@ -176,8 +176,9 @@ test('the scaled init: std 0.02 / √(2L) per depth, and the live bars show the 
   results.forEach((result, s) => {
     const scaled = reviewStates[s].scaledInit;
     // Unscaled bars show 2 decimals (short bar labels); the scaled product is exact to 3.
+    // The bar heights carry the canonical values, so they match to 3 decimals.
     const expected = D.init.map(d => (scaled ? r3 : v => Math.round(v * 100) / 100)(stdOfSum(d.nLayer, scaled ? 0.02 / Math.sqrt(2 * d.nLayer) : 0.02)));
-    assert.deepEqual(byId(result, 'bars').values, expected);
+    assert.deepEqual(byId(result, 'bars').values.map(r3), expected);
     if (scaled) assert.deepEqual(expected, [1, 1, 1, 1, 1]);
     else assert.deepEqual(expected, [3.46, 4.9, 6.93, 8.49, 9.8]);
     // n_layer: the std of the sum in units of one branch (×1 = one branch at std 0.02).

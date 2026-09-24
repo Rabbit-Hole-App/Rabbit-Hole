@@ -133,6 +133,10 @@ const objectSchema = z.object({
     // NAMES things and must not read as a second control row - the card
     // grammar puts the real control in the INTERACT zone below the visual.
     tokenStyle: z.enum(['chips', 'labels']).optional(),
+    // How a grid or strip prints its numbers (scene-format.js): two decimals
+    // by default at every magnitude; 'integer' for values that are whole by
+    // meaning - token IDs, counts - never inferred from a value's size.
+    numberFormat: z.enum(['decimal', 'integer']).optional(),
   }).prefault({}),
 });
 
@@ -500,6 +504,7 @@ export function getSceneState(scene, time) {
     // chips - the renderer's cue that this is a labeled sequence, not a
     // control row (the control lives in the INTERACT zone below).
     tokenStyle: object.initialState.tokenStyle ?? null,
+    numberFormat: object.initialState.numberFormat ?? null,
     heat: object.initialState.heat ?? null,
     peak: object.initialState.peak ?? null,
     // Both static for the object's whole life (validateScene resolves them

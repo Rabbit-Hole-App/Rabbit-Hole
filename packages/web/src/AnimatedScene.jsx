@@ -18,6 +18,7 @@ import { lockedInputNames, revealHiddenInputs } from './scene-activity.js';
 import SceneControls from './SceneControls.jsx';
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { distributeRounding } from './scene-derive.js';
+import { formatCell } from './scene-format.js';
 import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-sound.js';
 import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, labelAt, requiredLeftMargin, sceneContentBounds, sceneViewBox } from './scene-layout.js';
 import { GEOMETRY } from './scene-vocab.js';
@@ -37,7 +38,13 @@ const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 const POP = { type: 'spring', stiffness: 520, damping: 26 };
 const BAR_GAP = 4; // SPACE: gap between adjacent bars
 const fromCentre = { transformBox: 'fill-box', transformOrigin: 'center' };
-const num = value => (Math.abs(value) >= 10 ? value.toFixed(0) : value.toFixed(2).replace(/^(-?)0\./, '$1.'));
+// Motion places an SVG element's transform origin itself, from originX/originY
+// (fractions of the element's own box) - a CSS transformOrigin is overwritten.
+const fromBaseline = { transformBox: 'fill-box', originX: 0.5, originY: 1 };
+// A cell's number fits its cell: the numeral's own size, capped by the cell's
+// height and by its width for this many monospace characters (0.6em each), so
+// "-10.01" shrinks to fit rather than running over the cell's frame.
+const cellFontSize = (text, cell, base) => Math.min(base, cell * 0.42, (cell - 6) / (0.6 * text.length));
 // Is this cell the one the timeline is pointing at? A highlight can name a
 // row, a single cell, a list of cell indices, or a bare index, and a sweep
 // walks the index itself.
@@ -146,6 +153,11 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
     const displayValues = object.distribution
       ? Array.from({ length: rows }, (unused, row) => distributeRounding((object.values || []).slice(row * columns, (row + 1) * columns), 2)).flat()
       : object.values;
+    // Every number is formatted once (scene-format.js), and the object's cells
+    // share one font size - the one its longest number fits - so a row never
+    // mixes sizes because one cell holds a minus sign.
+    const cellTexts = (displayValues || []).map(value => (value == null ? '' : formatCell(value, object.numberFormat || undefined)));
+    const cellFont = cellFontSize(cellTexts.reduce((longest, text) => (text.length > longest.length ? text : longest), '0.00'), cell, numeral.fontSize);
     // Selection shape, not scene identity, decides how the mark renders: a
     // row-shaped cellHighlight (row set, no col - "this whole row is the
     // thing the learner picked") gets ONE ring around the row band below,
@@ -226,8 +238,8 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
               animate={ring} transition={pop} />
             {value != null && cell >= 22 && (
               <text x={cellX + cell / 2} y={cellY + cell / 2}
-                textAnchor="middle" dominantBaseline="central" fontSize={Math.min(numeral.fontSize, cell * 0.42)} fontWeight={numeral.fontWeight}
-                style={{ fontFamily: MONO, fill: ink }}>{num(displayValues[index])}</text>
+                textAnchor="middle" dominantBaseline="central" fontSize={cellFont} fontWeight={numeral.fontWeight}
+                style={{ fontFamily: MONO, fill: ink }}>{cellTexts[index]}</text>
             )}
             {/* Selection is a STATE overlay, drawn on top of - never instead
                 of - the cell's own fill and frame, so it stays perceptible
@@ -299,14 +311,17 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
           // shapeStyle's comment.
           const look = shapeStyle(role, { chosen: lit }, 'strong', object.identitySlot);
           return (
-            <motion.g key={index} animate={{ scale: lit ? 1.06 : 1 }} transition={pop} style={fromCentre}>
+            // The lit bar's pop grows the bar from its own foot, never the bar
+            // and its label together from their shared centre: every bar, lit
+            // or not, stands on the same baseline and its label stays put.
+            <g key={index}>
               <motion.rect x={object.x + index * pitch + BAR_GAP / 2} y={object.y + height - tall} width={pitch - BAR_GAP} height={tall}
-                rx={4} animate={{ fill: look.fill }} transition={pop} />
+                rx={4} animate={{ fill: look.fill, scale: lit ? 1.06 : 1 }} transition={pop} style={fromBaseline} />
               {object.labels?.[index] && (
                 <text x={object.x + index * pitch + pitch / 2} y={object.y + height + 12} textAnchor="middle"
                   fontSize={numeral.fontSize} fontWeight={numeral.fontWeight} style={{ fontFamily: MONO, fill: lit ? 'var(--color-ink)' : 'var(--color-ink-2)' }}>{object.labels[index]}</text>
               )}
-            </motion.g>
+            </g>
           );
         })}
         {chosen && <SelectionMark geometry={{ kind: 'rect', x: object.x, y: object.y, width: object.w || (values.length * pitch), height }} />}

@@ -80,9 +80,10 @@ test('live numbers match the oracle at every preset, and the relationships hold'
     assert.equal(whole, p.temperature === 0.25, `${where} whole-number cells`);
     assert.equal(byId(result, 'whole').visible, whole);
     if (whole) {
+      // The cells hold the canonical values; the caption shows them to three decimals.
       const [a, b] = byId(result, 'scaled').values;
-      assert.equal(label(result, 'whole'), `exact cells: ${a} − ${b} = ${result.derived.gap}`);
-      assert.equal(r3(a - b), result.derived.gap);
+      assert.equal(label(result, 'whole'), `exact cells: ${r3(a)} − ${r3(b)} = ${result.derived.gap}`);
+      assert.ok(Math.abs(r3(a - b) - result.derived.gap) <= 0.001);
     }
     // The count share at T = 1 is stated at every preset and is a live fraction.
     assert.equal(label(result, 'share-2'), `${F.counts[0]} ÷ ${F.total} = ${r3(F.counts[0] / F.total)}`);

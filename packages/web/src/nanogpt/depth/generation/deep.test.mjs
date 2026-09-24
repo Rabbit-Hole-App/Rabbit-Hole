@@ -34,6 +34,8 @@ function oracle(topK, T) {
   return e.map(v => v / s).slice(0, F.counts.length);
 }
 
+const r3 = v => Math.round(v * 1000) / 1000;
+
 test('deep dive passes every gate in every configuration; structure of the depth', () => {
   assert.equal(EVERY.length, 24);
   assertCardGates(scene, EVERY);
@@ -124,15 +126,17 @@ test('probabilities follow the oracle on every branch; T = 0 shows none', () => 
     assert.ok(Math.abs(expected[0] - uncut[0] / mass) < 1e-12, `${where} equation's denominator`);
     assert.ok(Math.abs(result.derived.pAllTop - uncut[0]) <= 0.0015 && Math.abs(result.derived.keptMass - mass) <= 0.003, `${where} uncut p and mass`);
     assert.ok(Math.abs(result.derived.pAllTop / result.derived.keptMass - result.derived.pTop) <= 0.002, `${where} the line's ≈ holds`);
-    assert.equal(result.derived.pTop, bars[0]);
+    // The caption's p(z) is the bar's canonical value shown to three decimals.
+    assert.ok(Math.abs(result.derived.pTop - bars[0]) <= 0.0005, `${where} caption p(z) vs bar`);
     // Something cut: the numeric check shows; nothing cut: K = all V and p(z) is the uncut value.
     const cut = kept.some(x => !x);
     assert.equal(byId(result, 'renorm').visible, cut, `${where} renorm`);
     assert.equal(byId(result, 'renorm-none').visible, !cut, `${where} renorm-none`);
-    if (cut) assert.equal(label(result, 'renorm'), `over K: p(z) = ${result.derived.pAllTop} (uncut) ÷ ${result.derived.keptMass} (uncut sum over K) ≈ ${bars[0]}`);
+    // Captions show the bar's canonical p(z) to three decimals (r3).
+    if (cut) assert.equal(label(result, 'renorm'), `over K: p(z) = ${result.derived.pAllTop} (uncut) ÷ ${result.derived.keptMass} (uncut sum over K) ≈ ${r3(bars[0])}`);
     else {
-      assert.equal(bars[0], result.derived.pAllTop, `${where} nothing cut, p(z) unchanged`);
-      assert.equal(label(result, 'renorm-none'), `nothing cut: K = all V, the sum over K is 1, so p(z) stays ${bars[0]}`);
+      assert.equal(r3(bars[0]), result.derived.pAllTop, `${where} nothing cut, p(z) unchanged`);
+      assert.equal(label(result, 'renorm-none'), `nothing cut: K = all V, the sum over K is 1, so p(z) stays ${r3(bars[0])}`);
     }
   }
 });

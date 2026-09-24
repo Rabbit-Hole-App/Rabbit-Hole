@@ -127,7 +127,7 @@ test('the relationships the card states are true', () => {
     }
     // "Entry by entry, x + change = out", on the card's own cells.
     const x = byId(result, 'x-sel').values, change = byId(result, 'change-sel').values;
-    assert.deepEqual(byId(result, 'out-sel').values, x.map((v, i) => r3(v + change[i])));
+    close(byId(result, 'out-sel').values, x.map((v, i) => v + change[i]), 1e-9, 'out = x + change, cell by cell');
     // out - out_ref = (a - 1) x0 + b + (sign(a) - 1) · change_ref: the stream keeps shift and scale; a negative
     // multiplier also flips the change. The card's live strip shows it.
     const expectedDiff = x0.map((v, i) => (a - 1) * v + b + (sign - 1) * ref.change[i]);

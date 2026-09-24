@@ -17,6 +17,18 @@ export const round = value => {
   return Object.is(r, -0) ? 0 : r;
 };
 
+// Every derivation takes the rounding it applies as `fit`. The scene's pool -
+// captions, positions, indices, checks - keeps `round` (three decimals at each
+// step), exactly as authored against. A data cell's values (grid, strip, bars)
+// resolve from a second pool computed with `canonical` - float noise removed
+// (9 decimals, so an exact tie stays a tie), nothing rounded - because the cell
+// formats its number itself (scene-format.js). Rounding there as well rounded
+// twice: 0.0451 became 0.045 and then printed as "0.04".
+export const canonical = value => {
+  const r = Math.round(value * 1e9) / 1e9;
+  return Object.is(r, -0) ? 0 : r;
+};
+
 // A row captioned "sums to 1" whose cells are each rounded independently for
 // display can total 1.01 even though every underlying float is correct -
 // case 01's softmax row [0.086, 0.139, 0.775] displays as .09 + .14 + .78.
@@ -68,10 +80,10 @@ const isMaskableVector = value => Array.isArray(value) && value.length > 0 && va
 export const DERIVATIONS = {
   dot: {
     outputs: ['value'],
-    derive([a, b]) {
+    derive([a, b], fit = round) {
       if (!isVector(a) || !isVector(b)) return { defined: false, reason: 'dot needs two vectors of numbers' };
       if (a.length !== b.length) return { defined: false, reason: `dot needs equal-length vectors, got lengths ${a.length} and ${b.length}` };
-      return { defined: true, value: round(a.reduce((sum, ai, i) => sum + ai * b[i], 0)) };
+      return { defined: true, value: fit(a.reduce((sum, ai, i) => sum + ai * b[i], 0)) };
     },
   },
   // A x Bᵀ: every row of a dotted against every row of b. This is the shape
@@ -79,7 +91,7 @@ export const DERIVATIONS = {
   // matrix, a cost matrix) - never a general matrix product.
   matmul: {
     outputs: ['value'],
-    derive([a, b]) {
+    derive([a, b], fit = round) {
       if (!Array.isArray(a) || !Array.isArray(b) || !a.every(isVector) || !b.every(isVector)) {
         return { defined: false, reason: 'matmul needs two lists of equal-length vectors' };
       }
@@ -87,12 +99,12 @@ export const DERIVATIONS = {
       if (!a.every(row => row.length === width) || !b.every(row => row.length === width)) {
         return { defined: false, reason: 'matmul needs every row across both lists to share the same length' };
       }
-      return { defined: true, value: a.map(rowA => b.map(rowB => round(rowA.reduce((sum, x, i) => sum + x * rowB[i], 0)))) };
+      return { defined: true, value: a.map(rowA => b.map(rowB => fit(rowA.reduce((sum, x, i) => sum + x * rowB[i], 0)))) };
     },
   },
   softmax: {
     outputs: ['value'],
-    derive([a]) {
+    derive([a], fit = round) {
       // A masked (null) entry is excluded from the distribution and stays
       // null in the result: the remaining entries normalise among themselves,
       // exactly what a causal mask means. null in, null out - never a zero,
@@ -104,7 +116,7 @@ export const DERIVATIONS = {
         const exps = kept.map(x => Math.exp(x - max));
         const total = exps.reduce((sum, x) => sum + x, 0);
         let cursor = 0;
-        return values.map(x => (x === null ? null : round(exps[cursor++] / total)));
+        return values.map(x => (x === null ? null : fit(exps[cursor++] / total)));
       };
       if (isMaskableVector(a)) return { defined: true, value: row(a) };
       if (Array.isArray(a) && a.every(isMaskableVector)) return { defined: true, value: a.map(row) };
@@ -117,7 +129,7 @@ export const DERIVATIONS = {
   // recomputes the real full-attention numbers rather than repainting cells.
   causal_mask: {
     outputs: ['value'],
-    derive([matrix, enabled]) {
+    derive([matrix, enabled], fit = round) {
       if (typeof enabled !== 'boolean') return { defined: false, reason: 'causal_mask needs a boolean saying whether the mask is on' };
       if (!Array.isArray(matrix) || !matrix.every(isVector) || matrix.some(row => row.length !== matrix.length)) {
         return { defined: false, reason: 'causal_mask needs a square matrix (a list of equal-length numeric rows)' };
@@ -128,9 +140,9 @@ export const DERIVATIONS = {
   },
   sum: {
     outputs: ['value'],
-    derive([a]) {
+    derive([a], fit = round) {
       if (!isVector(a)) return { defined: false, reason: 'sum needs a vector of numbers' };
-      return { defined: true, value: round(a.reduce((total, x) => total + x, 0)) };
+      return { defined: true, value: fit(a.reduce((total, x) => total + x, 0)) };
     },
   },
   // weights (length N) combined with N rows of equal width: output[j] =
@@ -140,7 +152,7 @@ export const DERIVATIONS = {
   // the same operation.
   weighted_sum: {
     outputs: ['value'],
-    derive([weights, rows]) {
+    derive([weights, rows], fit = round) {
       // A null weight is a masked row: it takes no part in the mix, which is
       // mathematically exactly a weight of zero but semantically "excluded",
       // so the same masked softmax row drives this without a translation step.
@@ -152,7 +164,7 @@ export const DERIVATIONS = {
       }
       const width = rows[0].length;
       if (!rows.every(row => row.length === width)) return { defined: false, reason: 'weighted_sum needs every row to share the same length' };
-      const value = Array.from({ length: width }, (_, j) => round(rows.reduce((sum, row, i) => sum + (weights[i] ?? 0) * row[j], 0)));
+      const value = Array.from({ length: width }, (_, j) => fit(rows.reduce((sum, row, i) => sum + (weights[i] ?? 0) * row[j], 0)));
       return { defined: true, value };
     },
   },
@@ -164,12 +176,12 @@ export const DERIVATIONS = {
   // root(dk) at once, not one row at a time.
   scale: {
     outputs: ['value'],
-    derive([vector, factor]) {
+    derive([vector, factor], fit = round) {
       if (typeof factor !== 'number' || !Number.isFinite(factor)) {
         return { defined: false, reason: 'scale needs a finite numeric factor' };
       }
-      if (isVector(vector)) return { defined: true, value: vector.map(x => round(x * factor)) };
-      if (Array.isArray(vector) && vector.every(isVector)) return { defined: true, value: vector.map(row => row.map(x => round(x * factor))) };
+      if (isVector(vector)) return { defined: true, value: vector.map(x => fit(x * factor)) };
+      if (Array.isArray(vector) && vector.every(isVector)) return { defined: true, value: vector.map(row => row.map(x => fit(x * factor))) };
       return { defined: false, reason: 'scale needs a vector, or a list of equal-length vectors, of numbers' };
     },
   },
@@ -178,10 +190,10 @@ export const DERIVATIONS = {
   // cost weighting are the same operation.
   elementwise: {
     outputs: ['value'],
-    derive([a, b]) {
+    derive([a, b], fit = round) {
       if (!isVector(a) || !isVector(b)) return { defined: false, reason: 'elementwise needs two vectors of numbers' };
       if (a.length !== b.length) return { defined: false, reason: `elementwise needs equal-length vectors, got lengths ${a.length} and ${b.length}` };
-      return { defined: true, value: a.map((x, i) => round(x * b[i])) };
+      return { defined: true, value: a.map((x, i) => fit(x * b[i])) };
     },
   },
   // A state-driven selection between two already-named values (usually
@@ -190,7 +202,7 @@ export const DERIVATIONS = {
   // positions available" - without any renderer branch on what the scene is.
   choose: {
     outputs: ['value'],
-    derive([flag, whenTrue, whenFalse]) {
+    derive([flag, whenTrue, whenFalse], fit = round) {
       if (typeof flag !== 'boolean') return { defined: false, reason: 'choose needs a boolean flag as its first argument' };
       return { defined: true, value: flag ? whenTrue : whenFalse };
     },
@@ -200,7 +212,7 @@ export const DERIVATIONS = {
   // nothing (null), so a gated input yields no highlight rather than a lie.
   argmin: {
     outputs: ['value'],
-    derive([a]) {
+    derive([a], fit = round) {
       if (!isMaskableVector(a)) return { defined: false, reason: 'argmin needs a vector of numbers (null marks a masked entry)' };
       let best = null;
       a.forEach((value, index) => { if (value !== null && (best === null || value < a[best])) best = index; });
@@ -211,10 +223,10 @@ export const DERIVATIONS = {
   // error. add's mirror, with the same shape rules.
   sub: {
     outputs: ['value'],
-    derive([a, b]) {
+    derive([a, b], fit = round) {
       if (!isVector(a) || !isVector(b)) return { defined: false, reason: 'sub needs two vectors of numbers' };
       if (a.length !== b.length) return { defined: false, reason: `sub needs equal-length vectors, got lengths ${a.length} and ${b.length}` };
-      return { defined: true, value: a.map((x, i) => round(x - b[i])) };
+      return { defined: true, value: a.map((x, i) => fit(x - b[i])) };
     },
   },
   // A commit-gated window onto an already-computed value: the real numbers
@@ -224,7 +236,7 @@ export const DERIVATIONS = {
   // committed - the value simply is not there yet.
   gate: {
     outputs: ['value'],
-    derive([value, enabled]) {
+    derive([value, enabled], fit = round) {
       if (typeof enabled !== 'boolean') return { defined: false, reason: 'gate needs a boolean saying whether the value is revealed' };
       if (enabled) return { defined: true, value };
       if (Array.isArray(value)) return { defined: true, value: value.map(entry => (Array.isArray(entry) ? entry.map(() => null) : null)) };
@@ -236,10 +248,10 @@ export const DERIVATIONS = {
   // combination (a residual add, a bias) is the same operation.
   add: {
     outputs: ['value'],
-    derive([a, b]) {
+    derive([a, b], fit = round) {
       if (!isVector(a) || !isVector(b)) return { defined: false, reason: 'add needs two vectors of numbers' };
       if (a.length !== b.length) return { defined: false, reason: `add needs equal-length vectors, got lengths ${a.length} and ${b.length}` };
-      return { defined: true, value: a.map((x, i) => round(x + b[i])) };
+      return { defined: true, value: a.map((x, i) => fit(x + b[i])) };
     },
   },
   // The generic indexed selector: one declared collection, one key, one
@@ -249,7 +261,7 @@ export const DERIVATIONS = {
   // selection happens here, in the seam, never re-derived per view.
   pick: {
     outputs: ['value'],
-    derive([table, key]) {
+    derive([table, key], fit = round) {
       if (Array.isArray(table)) {
         if (!Number.isInteger(key)) return { defined: false, reason: `pick into a list needs a whole-number position, got ${JSON.stringify(key)}` };
         if (key < 0 || key >= table.length) return { defined: false, reason: `pick position ${key} is outside 0..${table.length - 1}` };
@@ -268,10 +280,10 @@ export const DERIVATIONS = {
   // weighted_sum already produces as a single call.
   concat: {
     outputs: ['value'],
-    derive(args) {
+    derive(args, fit = round) {
       const flat = [];
       for (const arg of args) {
-        if (typeof arg === 'number' && Number.isFinite(arg)) flat.push(round(arg));
+        if (typeof arg === 'number' && Number.isFinite(arg)) flat.push(fit(arg));
         else if (isVector(arg)) flat.push(...arg.map(round));
         else return { defined: false, reason: 'concat needs numbers or vectors of numbers' };
       }
@@ -290,7 +302,7 @@ const lookupPath = (data, path) => path.split('.').reduce((node, key) => (node =
 // arg - "softmax.2" for row 2 of a softmax result - the same dotted-path
 // convention as an exampleData vector, because to a derivation the two look
 // identical: both are just named values it can read.
-function resolveOneDerivation(name, spec, pool) {
+function resolveOneDerivation(name, spec, pool, fit = round) {
   const entry = DERIVATIONS[spec?.op];
   if (!entry) throw new Error(`Scene "derived.${name}": unknown op "${spec?.op}" - known ops are ${Object.keys(DERIVATIONS).join(', ')}`);
   // An arg is a path into the pool (a name, or "name.2" for a row) UNLESS it
@@ -305,7 +317,7 @@ function resolveOneDerivation(name, spec, pool) {
     if (value === undefined) throw new Error(`Scene "derived.${name}" (${spec.op}): arg "${arg}" names no entry in the scene's "derived" block (or "exampleData")`);
     return value;
   });
-  const result = entry.derive(args);
+  const result = entry.derive(args, fit);
   if (!result.defined) throw new Error(`Scene "derived.${name}" (${spec.op}): ${result.reason}`);
   return result;
 }
@@ -325,8 +337,10 @@ const usesDeriveMarker = ({ cellHighlight: _selection, ...node } = {}) => /"\$de
 // same way "Q.0" reaches a row of exampleData, because by the time a marker
 // is resolved, a derived matrix and an authored one are the same shape of
 // thing: a named value in the pool.
-function walk(node, pool) {
-  if (Array.isArray(node)) return node.map(entry => walk(entry, pool));
+// cellPool: where a data cell's `values` resolve from - the canonical pool
+// (see canonical above); everything else reads `pool`.
+function walk(node, pool, cellPool = pool) {
+  if (Array.isArray(node)) return node.map(entry => walk(entry, pool, cellPool));
   if (node && typeof node === 'object') {
     if (typeof node.$derive === 'string' && Object.keys(node).length === 1) {
       const value = lookupPath(pool, node.$derive);
@@ -335,7 +349,7 @@ function walk(node, pool) {
     }
     const out = {};
     for (const [key, value] of Object.entries(node)) {
-      const resolved = walk(value, pool);
+      const resolved = key === 'values' ? walk(value, cellPool, cellPool) : walk(value, pool, cellPool);
       // A grid or strip's `values` is always the flat array the schema
       // expects; a matmul's own shape is two-dimensional, so it is flattened
       // row-major exactly here, the one place a derived value ever meets it.
@@ -411,16 +425,17 @@ export function computeValueChainGroups(raw) {
 // scores -> softmax -> weighted output). Exported for evaluateScene, which
 // hands the derived values to checks and the tutor context without re-doing
 // the arithmetic a second way.
-export function buildPool(raw) {
+export function buildPool(raw, fit = round) {
   const pool = { ...(raw?.exampleData || {}) };
   for (const [name, spec] of Object.entries(raw?.derived || {})) {
-    pool[name] = resolveOneDerivation(name, spec, pool).value;
+    pool[name] = resolveOneDerivation(name, spec, pool, fit).value;
   }
   return pool;
 }
 
 export function resolveDerived(raw) {
   const pool = buildPool(raw);
+  const cellPool = buildPool(raw, canonical);
   const objects = (raw?.objects || []).map(object => {
     // An object may author no initialState at all - the schema defaults it
     // to {} at the zod stage, which runs after this - so the same default
@@ -428,7 +443,7 @@ export function resolveDerived(raw) {
     // provenance check below instead of passing through untouched.
     const authoredState = object.initialState || {};
     const usesDerive = usesDeriveMarker(authoredState);
-    const initialState = walk(authoredState, pool);
+    const initialState = walk(authoredState, pool, cellPool);
     if (usesDerive) {
       // Earned, not claimed: a derived value stamps its own provenance so an
       // author cannot separately mark the same object illustrative or
@@ -447,7 +462,7 @@ export function resolveDerived(raw) {
     }
     return { ...object, initialState };
   });
-  const timeline = (raw?.timeline || []).map(event => walk(event, pool));
+  const timeline = (raw?.timeline || []).map(event => walk(event, pool, cellPool));
   const { exampleData: _exampleData, derived: _derived, ...rest } = raw || {};
   return { ...rest, objects, timeline };
 }

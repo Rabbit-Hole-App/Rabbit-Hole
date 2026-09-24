@@ -65,7 +65,7 @@ test('score row, weight row, head output and concat match the plain-JS oracle', 
     // The outlined slice IS the selected head's output, number for number.
     const slice = byId(result, 'concat').cellHighlight;
     assert.deepEqual(slice, [0, 1, 2, 3].map(d => head * scene.exampleData.hs + d));
-    close(slice.map(i => byId(result, 'concat').values[i]), byId(result, 'head-output').values, `${where} slice`);
+    close(slice.map(i => byId(result, 'concat').values[i]), byId(result, 'head-output').values, `${where} slice`, 1e-3);
     // The named largest weight = the true argmax of the visible weights.
     const top = weights.reduce((best, w, j) => (w !== null && (best === null || w > weights[best]) ? j : best), null);
     assert.equal(result.derived.topAt, top, `${where} largest weight`);
