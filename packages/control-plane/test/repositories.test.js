@@ -136,3 +136,25 @@ test('Learn tool loop retrieves actual source instead of sending the whole repos
     assert.match(JSON.stringify(body.messages),/return x \+ 1/);return Response.json({content:[{type:'text',text:'It adds one. Sources: model.py:3'}],stop_reason:'end_turn'});
   }});assert.match(result.answer,/model.py:3/);assert.equal(calls,2);
 });
+
+// Regression pin, not TDD: it passes on first run because it pins current behaviour. If it ever
+// fails, a T02 section 16 condition is false, D7 wins, and connect_repository must render Blocked.
+test('T02 section 16 pin: connect_repository writes only LEARN_DB rows and learn-repositories-dev keys, and calls no live mutation API',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+  const hosts=new Set(),seen=[],identity=f.env.CONTROL_PLANE.fetch;
+  globalThis.fetch=async url=>{url=new URL(url);hosts.add(url.host);return Response.json(url.pathname==='/repository-metadata'?{commit:newer}:url.pathname.endsWith('/asset')?{...snapshot,commit:newer}:{status:'ready'});};
+  f.env.CONTROL_PLANE.fetch=async req=>{seen.push(`${req.method} ${new URL(req.url).pathname}`);return identity(req);};
+  f.env.DB={prepare(){throw Error('live D1 touched');},batch(){throw Error('live D1 touched');}};
+  f.env.REPOSITORY_IMPORTS={idFromName:String,get:()=>({fetch:(url,init)=>f.actor.fetch(new Request(url,init))})};
+  const response=await repositoriesFetch(new Request('https://dev.test/api/repositories',{method:'POST',body:JSON.stringify({url:'https://github.com/example/project',branch:'main'})}),f.env,{});
+  assert.equal(response.status,202);
+  const row=f.sqlite.prepare('SELECT * FROM repository_apps WHERE name=?').get((await response.json()).name);
+  assert.equal(row.org,'team');assert.equal(row.owner_email,'owner@test');assert.ok(row.created_at); // 16.1, 16.5: a LEARN_DB row, found by org, owner_email, created_at
+  await f.actor.alarm();await f.actor.alarm();
+  const key=`learn-repositories-dev/${row.id}/${newer}/graphify-0.9.63.json`;
+  assert.deepEqual([...f.assets.keys()].filter(k=>k!=='snapshot'),[key]); // 16.2, 16.3: prefix plus LEARN_DB id plus commit
+  assert.equal(f.sqlite.prepare('SELECT storage_key FROM repository_versions WHERE app_id=?').get(row.id).storage_key,key); // 16.5: R2 found through repository_versions
+  assert.deepEqual([...new Set(seen)],['GET /api/apps']); // 16.4: identity read only
+  assert.deepEqual([...hosts],['worker.test']);
+  assert.equal(f.sqlite.prepare('SELECT status FROM repository_apps WHERE id=?').get(row.id).status,'ready');
+});
