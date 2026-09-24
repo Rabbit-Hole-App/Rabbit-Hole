@@ -1,9 +1,11 @@
 // Pan the lesson canvas until an element on it sits inside the viewport. The
 // canvas is a transformed surface, not a scrolling page, so Playwright cannot
-// scroll a card into view; a plain wheel over the canvas pans it (AdaptiveCanvas
-// wheel handler), which is what a reader does.
+// scroll a card into view; a plain wheel over the canvas surface pans it
+// (AdaptiveCanvas wheel handler), which is what a reader does. The wheel goes
+// over the surface itself ([data-canvas-surface]), not the tools' gutter beside it.
 export async function reveal(page, canvas, element, margin = 60) {
-  const area = await canvas.boundingBox();
+  const surface = canvas.locator('[data-canvas-surface]');
+  const area = await ((await surface.count()) ? surface.first() : canvas).boundingBox();
   const viewport = page.viewportSize();
   const top = Math.max(area.y, 0) + margin, bottom = Math.min(area.y + area.height, viewport.height) - margin;
   for (let i = 0; i < 80; i += 1) {

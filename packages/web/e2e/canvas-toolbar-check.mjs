@@ -29,7 +29,7 @@ const geometry = page => page.evaluate(() => {
   const gutter = document.querySelector('[data-tool-gutter]');
   const box = element => { const r = element.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom }; };
   const toolbar = document.querySelector('[role="toolbar"][aria-label="Canvas tools"]');
-  return { surface: box(gutter.previousElementSibling), toolbar: box(toolbar), gutter: box(gutter), zoom: document.querySelector('[title="Reset zoom"]')?.textContent?.trim() };
+  return { surface: box(document.querySelector('[data-canvas-surface]')), toolbar: box(toolbar), gutter: box(gutter), zoom: document.querySelector('[title="Reset zoom"]')?.textContent?.trim() };
 });
 const disjoint = (a, b) => a.right <= b.x || b.right <= a.x || a.bottom <= b.y || b.bottom <= a.y;
 
@@ -70,6 +70,8 @@ async function open(viewport) {
   const box = await card.boundingBox();
   if (!disjoint(g.toolbar, g.surface)) fail(`desktop: toolbar ${JSON.stringify(g.toolbar)} overlaps the canvas ${JSON.stringify(g.surface)}`);
   if (g.zoom !== '100%') fail(`desktop: zoom is ${g.zoom}, not 100%`);
+  // The scenario must really have happened: the card runs past the surface's right edge, level with the toolbar.
+  if (!(box.x + box.width > g.surface.right + 60 && box.y < g.toolbar.bottom && box.y + box.height > g.toolbar.y)) fail(`desktop: the card was not panned under the toolbar's side (${JSON.stringify(box)})`);
   // On-top test along the card's visible right edge, within the surface.
   const xs = [g.surface.right - 2, g.surface.right - 30, g.surface.right - 60];
   const ys = [0.2, 0.4, 0.5, 0.6, 0.8].map(f => Math.max(g.surface.y + 4, Math.min(g.surface.bottom - 4, box.y + box.height * f)));
@@ -83,6 +85,7 @@ async function open(viewport) {
     if (hit.toolbar) fail(`desktop: the toolbar is on top at (${Math.round(x)}, ${Math.round(y)})`);
     if (hit.card) onCard += 1;
   }
+  if (onCard < probes * 0.8) fail(`desktop: only ${onCard}/${probes} edge probes landed on the card`);
   // The tools still work: arm the pen, then go back to select.
   await page.getByRole('button', { name: 'Pen', exact: true }).click();
   const armed = await page.getByRole('button', { name: 'Pen', exact: true }).getAttribute('aria-pressed');
