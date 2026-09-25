@@ -1418,6 +1418,21 @@ async function apiAskThread(env, user, threadId) {
   return json({ id: t.id, messages: results });
 }
 
+// T02 7.4: proposed -> approved|rejected happens once, inside 15 minutes; web and
+// Slack share it. null = this caller made the transition, else the 404/409 to send.
+async function claimProposal(env, user, id, status) {
+  const r = await env.DB.prepare(
+    "UPDATE proposals SET status = ?, approved_by = ?, approved_at = datetime('now') WHERE id = ? AND org = ? AND status = 'proposed' AND created_at > datetime('now', '-15 minutes')"
+  ).bind(status, user.email, id, user.org).run();
+  if (r.meta.changes === 1) return null;
+  const p = await env.DB.prepare('SELECT status FROM proposals WHERE id = ? AND org = ?').bind(id, user.org).first();
+  if (!p) return json({ error: 'no such proposal' }, 404);
+  // status is the card state (approved | rejected | invalidated | expired); error is what Slack shows
+  const current = p.status === 'proposed' ? 'expired' : p.status;
+  const why = { approved: 'already approved', rejected: 'cancelled', invalidated: 'its chat was deleted', expired: 'expired after 15 minutes - ask again' };
+  return json({ error: why[current], status: current }, 409);
+}
+
 // Phase 2 approval: the proposal executes here, with edit re-checked NOW - the
 // row becomes the log (who, what, when, thread).
 async function apiAskApprove(req, env, ctx, user, baseUrl) {
@@ -1427,7 +1442,10 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
   const p = await env.DB.prepare('SELECT * FROM proposals WHERE id = ? AND org = ?')
     .bind(proposal_id, user.org).first();
   if (!p) return json({ error: 'no such proposal' }, 404);
-  if (p.status !== 'proposed') return json({ error: `already ${p.status}` }, 409);
+  // claim before executing: a second click, a Cancel or a deleted chat gets the 409
+  // ponytail: a Worker that dies mid-tool leaves the row approved with no log line; add a running status if that shows up
+  const taken = await claimProposal(env, user, p.id, 'approved');
+  if (taken) return taken;
   const args = JSON.parse(p.args);
 
   // the recheck runs in the proposal's frozen workspace, never a lookup that can
@@ -1512,11 +1530,12 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
       throw new Error(`unknown tool ${p.tool}`);
     }
   } catch (e) {
+    // the tool refused: reopen, so a viewer's Slack click can't burn the proposal
+    await env.DB.prepare("UPDATE proposals SET status = 'proposed', approved_by = NULL, approved_at = NULL WHERE id = ? AND status = 'approved'")
+      .bind(p.id).run();
     return json({ error: e.message }, e.status || 400);
   }
 
-  await env.DB.prepare("UPDATE proposals SET status = 'approved', approved_by = ?, approved_at = datetime('now') WHERE id = ?")
-    .bind(user.email, p.id).run();
   await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)')
     .bind(p.thread_id, 'assistant', `✓ approved and executed ${p.tool} ${p.args} → ${JSON.stringify(result)}`).run();
   return json({ ok: true, ...result });

@@ -6,7 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 // The real proposal handlers from index.js against SQLite, the way
 // learn-chat.test.js runs apiAsk, without importing the bundled HTML.
 const source = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
-const names = ['appRow', 'askThreadForUser', 'apiAskThreadDelete', 'apiAskApprove'];
+const names = ['appRow', 'askThreadForUser', 'apiAskThreadDelete', 'claimProposal', 'apiAskApprove'];
 const functions = names.map(name => source.match(new RegExp(`async function ${name}[(][^]*?^[}]`, 'm'))[0]).join(' ');
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
 const deps = {
@@ -72,4 +72,32 @@ test('the permission recheck fails with 403, the No longer allowed card state', 
   assert.equal(res.status, 403);
   assert.deepEqual(await res.json(), { error: 'no edit access' });
   assert.deepEqual(env.started, []);
+});
+
+test('two concurrent approves execute once; the loser gets 409 with the status', async t => {
+  const env = fixture(t);
+  const { id } = propose(env, A, 'run', { app: 'report' });
+  const results = await Promise.all([approve(env, A, id), approve(env, A, id)]);
+  assert.deepEqual(results.map(r => r.status).sort(), [200, 409]);
+  assert.deepEqual(await results.find(r => r.status === 409).json(), { error: 'already approved', status: 'approved' });
+  assert.equal(env.started.length, 1);
+  assert.equal(statusOf(env, id), 'approved');
+});
+
+test('a proposal older than 15 minutes has expired and cannot run', async t => {
+  const env = fixture(t);
+  const { id } = propose(env, A, 'run', { app: 'report' }, 16);
+  const res = await approve(env, A, id);
+  assert.equal(res.status, 409);
+  assert.deepEqual(await res.json(), { error: 'expired after 15 minutes - ask again', status: 'expired' });
+  assert.deepEqual(env.started, []);
+});
+
+test('a refused approve reopens the proposal, so a viewer click cannot burn it', async t => {
+  const env = fixture(t);
+  const { id } = propose(env, A, 'run', { app: 'report' });
+  assert.equal((await approve(env, VIEWER, id)).status, 403);
+  assert.deepEqual({ ...env.db.prepare('SELECT status, approved_by, approved_at FROM proposals WHERE id = ?').get(id) }, { status: 'proposed', approved_by: null, approved_at: null });
+  assert.equal((await approve(env, A, id)).status, 200);
+  assert.equal(env.started.length, 1);
 });
