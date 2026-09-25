@@ -15,6 +15,7 @@ import { checkLayoutLint } from '../scene-layout-lint.js';
 import { cellLegibilityIssues } from '../scene-layout.js';
 import { textStyle } from '../scene-style.js';
 import { sourceProblems } from '../card-sources.js';
+import { FLAG_RUBRIC, boundaryFlags, planProblems, unreviewedFlags } from '../card-plan.js';
 import fx from './fixtures/nanogpt-fixtures.generated.js';
 
 const CHAR_WIDTH_RATIO = 0.6; // scene-layout.js's estimate for the same fonts
@@ -88,6 +89,19 @@ export function pinnedFile(path) {
   const bytes = readFileSync(file);
   assert.equal(createHash('sha256').update(bytes).digest('hex'), sha, `${path}: cached copy is not the pinned file`);
   return bytes.toString('utf8').replace(/\r\n/g, '\n').split('\n');
+}
+
+// Phase 1 of card composition: a card authored after it declares a plan
+// (card-plan.js) and every rubric flag its scene raises is acknowledged with
+// the reviewer's reason - a flag asks for review, it never splits a card.
+// A reviewed flag the scene no longer raises is stale and must go.
+export function assertCardPlan({ scene, plan }) {
+  assert.deepEqual(planProblems(plan), [], `${scene.id}: plan`);
+  const { state } = evaluated(scene, Object.fromEntries((scene.inputs || []).map(d => [d.name, d.default])));
+  const visibleText = state.objects.filter(object => object.visible && object.label).map(object => object.label);
+  const flags = boundaryFlags({ scene, plan, visibleText });
+  assert.deepEqual(unreviewedFlags(flags, plan), [], `${scene.id}: boundary flags to review - acknowledge each in plan.boundary.reviewed with the reason (${flags.map(f => FLAG_RUBRIC[f]).join('; ')})`);
+  assert.deepEqual(Object.keys(plan.boundary.reviewed || {}).filter(flag => !flags.includes(flag)), [], `${scene.id}: reviewed flags the scene no longer raises`);
 }
 
 // Every card exports an evidence record with these fields filled.

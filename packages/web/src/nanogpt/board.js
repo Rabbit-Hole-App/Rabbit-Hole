@@ -20,6 +20,12 @@ export const NANOGPT_FIRST_BATCH = [
   crossEntropy, trainVal, lrSchedule, optimizer, temperature,
 ];
 
+// Cards authored after Phase 1 of card composition (docs/features/learn-card-
+// composition.md), in review batches: each exports a reviewed plan, checked by
+// board.test.mjs. The first batch above was approved before Phase 1 and is not
+// reopened. Cards of one sequence sit next to each other, in path order.
+export const NANOGPT_LATER_BATCHES = [];
+
 // One card module as a board block, shown at its end state.
 export const cardBlock = card => ({
   id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0,
@@ -29,4 +35,4 @@ export const cardBlock = card => ({
   ...(card.sources ? { sources: card.sources } : {}),
 });
 
-export const nanogptDeepDiveBlocks = () => NANOGPT_FIRST_BATCH.map(cardBlock);
+export const nanogptDeepDiveBlocks = () => [...NANOGPT_FIRST_BATCH, ...NANOGPT_LATER_BATCHES.flat()].map(cardBlock);

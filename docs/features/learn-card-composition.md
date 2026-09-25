@@ -131,6 +131,52 @@ the curriculum agent (curriculum-agent.md) owns collections as concept graphs.
 5. **Adaptive paths**: the tutor composes and re-plans the path through a
    collection from what the learner asks or demonstrates.
 
+## Phase 1 — in place (2026-09-24)
+
+Authoring and review only. No sequence UI, graph schema, planner change or
+adaptive routing; no next-links between cards.
+
+**Before a batch is built**, every proposed card is written down as a plan and
+reviewed (the batch's plan goes in the board's plan doc): concept,
+one-sentence objective, prerequisites, causal steps, primary interaction,
+check/practice, boundary decision (`single` · `staged` · `sequence`) and the
+reason. A card that belongs to a sequence records its sequence name, its
+position of 2–5 and typed relationships (`prerequisite`, `deepens`,
+`alternative_explanation`, `practice_for`) to the other cards; on the board the
+sequence's cards sit next to each other in path order. A collection candidate is
+noted in the plan doc, not built.
+
+**The card module exports the same plan** (`plan`), validated by
+`planProblems` in `packages/web/src/card-plan.js`. The reviewer runs the
+11-point rubric by hand; `boundaryFlags` raises the signals a scene shows
+reliably:
+
+| Flag | Rubric |
+|---|---|
+| `title-and` | 2 — the card's own title joins two things with "and" |
+| `objective-two-clauses` | one-sentence test — the objective reads as two clauses |
+| `many-controls` | 4 — three or more visible controls |
+| `tall-default` | 9 — the scene is taller than 900 units |
+| `separately-language` | 10 — "separately" / "another thing" on the card |
+
+A flag asks for review; it never splits a card. The plan acknowledges each
+raised flag with the reviewer's reason in `plan.boundary.reviewed` (for
+example "staged: one causal pipeline"), and `assertCardPlan` fails on an
+unacknowledged or stale flag. Readability (rubric 8) is not a flag: the text
+floors and the cell-number floor are hard gates. Density alone raises nothing.
+
+**Scope.** The gate runs on cards authored after Phase 1 (nanogpt-deep-dive's
+`NANOGPT_LATER_BATCHES`, checked by `src/nanogpt/board.test.mjs`). Cards
+approved before it are not reopened; `scripts/card-boundary-report.mjs` reports
+the flags on them for calibration only:
+
+- Training · Guided raises `title-and` — the borderline case the rubric exists
+  for, approved as a staged card.
+- Transformer · Deep dive raises nothing — a dense single causal pipeline.
+- Attention · Deep dive raises `title-and`, `many-controls`, `tall-default` —
+  one forward pass with what-if branches; a reviewer would acknowledge all
+  three.
+
 ## Existing cards against the rule
 
 - Training · Guided is at the upper limit: staging made it one card, but it
