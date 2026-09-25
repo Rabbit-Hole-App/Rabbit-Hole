@@ -94,7 +94,7 @@ function fixture(t) {
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   const schema = readFileSync(new URL('../schema.sql', import.meta.url), 'utf8');
-  for (const table of ['threads', 'messages']) db.exec(schema.match(new RegExp(`CREATE TABLE IF NOT EXISTS ${table} \\([^]*?\\n\\);`))[0]);
+  for (const table of ['threads', 'messages', 'proposals']) db.exec(schema.match(new RegExp(`CREATE TABLE IF NOT EXISTS ${table} \\([^]*?\\n\\);`))[0]);
   return {
     ANTHROPIC_API_KEY: 'test-only', answers: [],
     apps: { counter: { name: 'counter', canView: true, canEdit: false }, other: { name: 'other', canView: true, canEdit: false } },

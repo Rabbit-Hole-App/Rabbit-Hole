@@ -115,3 +115,15 @@ test('cancel is final: approve after reject is 409 and nothing runs', async t =>
   assert.equal((await reject(env, A, id)).status, 409);
   assert.deepEqual(env.started, []);
 });
+
+test('deleting a thread invalidates its open proposals; approved ones stay as the log', async t => {
+  const env = fixture(t);
+  const { id, thread } = propose(env, A, 'run', { app: 'report' });
+  env.db.prepare("INSERT INTO proposals (id, thread_id, org, user, tool, args, status) VALUES ('p-done', ?, ?, ?, 'share', '{}', 'approved')").run(thread, A.org, A.email);
+  assert.equal((await handlers.apiAskThreadDelete(env, A, thread)).status, 200);
+  assert.deepEqual({ ...env.db.prepare('SELECT status, approved_by FROM proposals WHERE id = ?').get(id) }, { status: 'invalidated', approved_by: A.email });
+  assert.equal(statusOf(env, 'p-done'), 'approved');
+  const res = await approve(env, A, id);
+  assert.deepEqual([res.status, await res.json()], [409, { error: 'its chat was deleted', status: 'invalidated' }]);
+  assert.deepEqual(env.started, []);
+});

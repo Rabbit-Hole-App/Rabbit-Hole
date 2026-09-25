@@ -1402,13 +1402,16 @@ async function apiAskThreadRename(req, env, user, threadId) {
 }
 
 // Deleting a chat removes the thread + messages; approved proposals stay - they
-// are the action log, not conversation.
+// are the action log, not conversation. Open ones are invalidated (T02 7.4 #4),
+// so a stale Slack Run button can't execute them.
 async function apiAskThreadDelete(env, user, threadId) {
   if (!(await askThreadForUser(env, user, threadId))) return json({ error: 'no such thread' }, 404);
   const r = await env.DB.prepare('DELETE FROM threads WHERE id = ? AND user = ? AND org = ?')
     .bind(threadId, user.email, user.org).run();
   if (!r.meta.changes) return json({ error: 'no such thread' }, 404);
   await env.DB.prepare('DELETE FROM messages WHERE thread_id = ?').bind(threadId).run();
+  await env.DB.prepare("UPDATE proposals SET status = 'invalidated', approved_by = ?, approved_at = datetime('now') WHERE thread_id = ? AND status = 'proposed'")
+    .bind(user.email, threadId).run();
   return json({ ok: true });
 }
 
