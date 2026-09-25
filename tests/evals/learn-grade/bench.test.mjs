@@ -175,3 +175,41 @@ test('a holdout run is aggregate-only, and a later grader change burns it', asyn
     assert.match(second.out, /holdout burned by thresholds: write benchmark-v2-holdout/);
   } finally { server.close(); }
 });
+
+test('a holdout is burned when grader_protocol_fingerprint changes', async () => {
+  const { server, base } = await stubServer(() => done());
+  const set = tinySet('benchmark-v1-holdout');
+  const hash = createHash('sha256').update(JSON.stringify(set)).digest('hex');
+  const dir = workspace(set, { 'HOLDOUT.sha256': hash });
+  const args = [...common(base, dir), '--holdout', join(dir, 'set.json'), '--holdout-hash-file', join(dir, 'HOLDOUT.sha256')];
+  try {
+    const first = await run(args);
+    assert.equal(first.code, 0, first.out);
+    const [file] = readdirSync(join(dir, 'results', 'benchmark-v1-holdout'));
+    const saved = JSON.parse(readFileSync(join(dir, 'results', 'benchmark-v1-holdout', file), 'utf8'));
+    saved.grader_protocol_fingerprint = 'changed-fingerprint';
+    writeFileSync(join(dir, 'results', 'benchmark-v1-holdout', file), JSON.stringify(saved));
+    const second = await run(args);
+    assert.equal(second.code, 2);
+    assert.match(second.out, /holdout burned by grader_protocol_fingerprint: write benchmark-v2-holdout/);
+  } finally { server.close(); }
+});
+
+test('a holdout is burned when verdict_logic_fingerprint changes', async () => {
+  const { server, base } = await stubServer(() => done());
+  const set = tinySet('benchmark-v1-holdout');
+  const hash = createHash('sha256').update(JSON.stringify(set)).digest('hex');
+  const dir = workspace(set, { 'HOLDOUT.sha256': hash });
+  const args = [...common(base, dir), '--holdout', join(dir, 'set.json'), '--holdout-hash-file', join(dir, 'HOLDOUT.sha256')];
+  try {
+    const first = await run(args);
+    assert.equal(first.code, 0, first.out);
+    const [file] = readdirSync(join(dir, 'results', 'benchmark-v1-holdout'));
+    const saved = JSON.parse(readFileSync(join(dir, 'results', 'benchmark-v1-holdout', file), 'utf8'));
+    saved.verdict_logic_fingerprint = 'changed-fingerprint';
+    writeFileSync(join(dir, 'results', 'benchmark-v1-holdout', file), JSON.stringify(saved));
+    const second = await run(args);
+    assert.equal(second.code, 2);
+    assert.match(second.out, /holdout burned by verdict_logic_fingerprint: write benchmark-v2-holdout/);
+  } finally { server.close(); }
+});
