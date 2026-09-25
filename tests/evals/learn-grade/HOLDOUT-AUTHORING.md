@@ -22,3 +22,6 @@ Rules:
 - Hash it with:
   node -e "console.log(require('crypto').createHash('sha256').update(require('fs').readFileSync(process.argv[1])).digest('hex'))" <path-to-holdout.json>
 - Send only that hash. It is committed as tests/evals/learn-grade/HOLDOUT.sha256.
+- The benchmark's Opus calls store prompts and answers in the test identity's
+  Learn chat threads (LEARN_DB `messages`). Tuning sessions never read those
+  threads, and after any holdout run the operator deletes that run's threads.

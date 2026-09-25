@@ -520,6 +520,10 @@ CREATE INDEX IF NOT EXISTS idx_learn_grades_created ON learn_grades(created_at);
     holdout file until `benchmark-v1` and the grader configuration are frozen:
     `GRADER_PROTOCOL_VERSION`, `THRESHOLDS` and `VERDICT_LOGIC_VERSION` are
     committed, and the switch evaluation is requested.
+  - **Chat history.** The benchmark's Opus calls store prompts and answers in
+    the test identity's Learn chat threads (LEARN_DB `messages`). Tuning
+    sessions never read those threads, and after any holdout run the operator
+    deletes that run's threads.
   - **How it is run.** `bench.mjs --holdout <path>` checks the file against
     `HOLDOUT.sha256` before reading any case.
   - **What a run shows.** A holdout run prints and writes **aggregate numbers
