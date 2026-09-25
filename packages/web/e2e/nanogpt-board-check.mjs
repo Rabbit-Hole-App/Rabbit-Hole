@@ -11,7 +11,7 @@
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { evaluateScene } from '../src/scene-evaluate.js';
-import { NANOGPT_FIRST_BATCH } from '../src/nanogpt/board.js';
+import { NANOGPT_FIRST_BATCH, NANOGPT_LATER_BATCHES } from '../src/nanogpt/board.js';
 import { BOARD_SEED_VERSIONS } from '../src/demo-scenes.js';
 
 const base = process.argv[2];
@@ -37,6 +37,9 @@ const AFTER = {
   'c20-optimizer': { optimizer: 3 },
   'c21-temperature': { temperature: 4 },
 };
+// Later batches declare review states; a card is driven to its first one that
+// differs from the defaults.
+const CARDS = [...NANOGPT_FIRST_BATCH, ...NANOGPT_LATER_BATCHES.flat()];
 
 const cardKey = scene => scene.id.replace(/^nanogpt-/, '');
 const expectedTexts = (scene, inputs) => evaluateScene(structuredClone(scene), scene.duration, inputs).state.objects
@@ -44,7 +47,7 @@ const expectedTexts = (scene, inputs) => evaluateScene(structuredClone(scene), s
 const defaultsOf = scene => Object.fromEntries((scene.inputs || []).map(d => [d.name, d.default]));
 
 const browser = await chromium.launch();
-const context = await browser.newContext({ viewport: { width: 1720, height: 10800 } }); // the ten cards stack to ~10,200px; a canvas cannot be scrolled into view
+const context = await browser.newContext({ viewport: { width: 1720, height: 1080 * CARDS.length } }); // the cards stack to ~1,020px each; a canvas cannot be scrolled into view
 
 await context.addCookies([{ name: 'small_session', value: session, domain: new URL(base).hostname, path: '/' }]);
 const page = await context.newPage();
@@ -65,9 +68,9 @@ const loadedBundle = await page.evaluate(() => [...document.querySelectorAll('sc
 if (!servedBundle || loadedBundle !== servedBundle) throw new Error(`loaded ${loadedBundle} is not the served ${servedBundle}`);
 if (localBundle && loadedBundle !== localBundle) throw new Error(`deployed ${loadedBundle} differs from local build ${localBundle}`);
 const cardsEl = canvas.locator('[data-block-id]:not([data-chat-block])');
-await page.getByText(NANOGPT_FIRST_BATCH[0].scene.title).first().waitFor({ timeout: 30000 });
+await page.getByText(CARDS[0].scene.title).first().waitFor({ timeout: 30000 });
 const count = await cardsEl.count();
-if (count !== NANOGPT_FIRST_BATCH.length) throw new Error(`expected ${NANOGPT_FIRST_BATCH.length} cards, found ${count}`);
+if (count !== CARDS.length) throw new Error(`expected ${CARDS.length} cards, found ${count}`);
 let seedKey = null;
 for (let i = 0; i < 15 && !seedKey; i += 1) {
   await page.waitForTimeout(400);
@@ -104,7 +107,7 @@ async function assertState(card, scene, inputs, label, shot) {
   return want;
 }
 
-for (const module of NANOGPT_FIRST_BATCH) {
+for (const module of CARDS) {
   const { scene } = module;
   const card = cardOf(scene);
   await card.scrollIntoViewIfNeeded();
@@ -125,6 +128,7 @@ for (const module of NANOGPT_FIRST_BATCH) {
 
   let after = AFTER[cardKey(scene)];
   if (cardKey(scene) === 'c18-train-val') after = { checkpoint: module.activity.expected };
+  if (module.reviewStates) after = module.reviewStates.find(state => Object.entries(state).some(([name, value]) => defaults[name] !== value));
   if (after === undefined) throw new Error(`${scene.id}: no AFTER state declared for this card`);
   const target = { ...defaults, ...after };
   let current = { ...defaults };
@@ -170,25 +174,25 @@ for (const module of NANOGPT_FIRST_BATCH) {
   console.log(`${scene.id}: ${JSON.stringify(after)} changed ${changed.length} line(s); chat context ok; persisted across reload; reset ok`);
 }
 
-// --- the one practice task, end to end ---
-const practice = NANOGPT_FIRST_BATCH.find(m => m.activity);
-if (practice) {
-  const { scene, activity } = practice;
+// --- every practice task, end to end: the naive default answer fails, the expected one passes ---
+results.practices = [];
+for (const { scene, activity } of CARDS.filter(m => m.activity)) {
   const card = cardOf(scene);
   await card.scrollIntoViewIfNeeded();
   await card.locator('[data-practice-start]').click();
   await card.screenshot({ path: `${OUT}/${scene.id}-practice-open.png` });
   const final = activity.answer.default;
+  if (final === activity.expected) throw new Error(`${scene.id} practice: the default answer is the expected one`);
   const answer = value => card.locator(`[data-scene-activity] [data-input-control="answer"][data-input-value="${value}"]`).click();
   // before any answer, nothing marks the winner and Check is disabled
-  if (await card.locator('[data-activity-check]').isEnabled()) throw new Error('practice: Check is enabled before an answer is picked');
+  if (await card.locator('[data-activity-check]').isEnabled()) throw new Error(`${scene.id} practice: Check is enabled before an answer is picked`);
   await answer(final);
   await card.locator('[data-activity-check]').click();
   const graded = card.locator('[data-activity-feedback][data-activity-result]');
   await graded.waitFor({ timeout: 5000 });
   const failResult = await graded.getAttribute('data-activity-result');
   const failText = await graded.textContent();
-  if (failResult === 'passed') throw new Error(`practice: the final checkpoint ${final} was graded correct`);
+  if (failResult === 'passed') throw new Error(`${scene.id} practice: the naive answer ${final} was graded correct`);
   await page.waitForTimeout(450);
   await card.screenshot({ path: `${OUT}/${scene.id}-practice-wrong.png` });
   await card.locator('[data-activity-new]').click();
@@ -199,8 +203,8 @@ if (practice) {
   const passText = await graded.textContent();
   await page.waitForTimeout(450);
   await card.screenshot({ path: `${OUT}/${scene.id}-practice-right.png` });
-  if (passResult !== 'passed') throw new Error(`practice: expected checkpoint ${activity.expected} to pass, got "${passResult}"`);
-  results.practice = { card: scene.id, wrongAnswer: final, wrongFeedback: failText, rightAnswer: activity.expected, rightFeedback: passText };
+  if (passResult !== 'passed') throw new Error(`${scene.id} practice: expected answer ${activity.expected} to pass, got "${passResult}"`);
+  results.practices.push({ card: scene.id, wrongAnswer: final, wrongFeedback: failText, rightAnswer: activity.expected, rightFeedback: passText });
   console.log(`practice ${scene.id}: wrong answer ${final} -> fail feedback; answer ${activity.expected} -> pass`);
 }
 
