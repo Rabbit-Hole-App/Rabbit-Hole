@@ -255,3 +255,56 @@ Browser run: https://small-cp-dev-small-deploy.zeroshothq.workers.dev/apps/repo-
 | c21-temperature | Temperature: sharper or flatter sampling | generate() divides the last position's logits by temperature (model.py:318), softmaxes (:324) and always samples with torch.multinomial (:326); sample.py:17 defaults to temperature = 0.8. T below 1 sharpens the distribution and T above 1 flattens it; the ranking never changes, and a low positive T is still sampling (the other candidates keep 1 - p(top) > 0), not greedy argmax. | karpathy/nanoGPT @ 3adf61e154c3fe3fca428ad6bc3818b27a3b8291 | source: model.py:318/:324/:326 and sample.py:17 quoted verbatim, top-k crop :320-322 cited; calculated toy example: fx.temperature.logits over 6 candidates (generate_fixtures.py), with the real shakespeare_char vocab size from fx.tokenizer (char); live calculation: softmax(scale(logits, pick(invTByPreset, temperature))), softmax(logits) for the T = 1.0 comparison, top = argmin(scale(probs,-1)), 1 - p(top) = sub, expected top count = scale(p(top), draws), non-top draw count = sub(draws, drawnTop); recorded toy run: fx.temperature.presets[].drawn/drawnTop, 20 seeded random.choices draws per preset by generate_fixtures.py (not NanoGPT, not torch.multinomial, not live sampling). The space candidate is displayed as "sp". | temperature (index, slider) over the five stored presets fx.temperature.presets[].label, T = 0.25 ... T = 2.0, all positive; default T = 1.0. Discrete presets, labelled as presets. | The logits / T row, the probability row (fixed [0,1] heat) and the bars (peak 1) recompute live; p(top), its T = 1.0 value and 1 - p(top) update; the caption says sharper / the same as / flatter than plain softmax; the recorded toy draws, "N of 20 draws were the top token" and the live expected count (20 x p(top)) switch to that preset. At T = 0.25 the other five still share 1 - p(top) > 0, and one recorded draw is not the top token (one seeded illustration; counts vary run to run). | Sweep the stored presets from low to high T and watch the same six toy candidates go from nearly one-hot to flat, while generate()'s code path (multinomial at model.py:326) keeps sampling at every preset, and the recorded draws illustrate it. | Move the preset to the lowest T and read what share the other five candidates still hold, and whether every recorded draw is the top token; then move to the highest T and say how p(top) and the expected count changed. | index slider input over preset labels; pick/scale/softmax/argmin/concat/sub derive ops; derived grid with distribution:true + fixed valueScale heat; bars with peak 1 aligned under the grid; derived token lists with tokenStyle labels and derived cellHighlight lists; pick-driven state captions. | drove {"temperature":4}; 8 line(s) changed; reset restored; chat context sent |
 
 Practice (nanogpt-c18-train-val): answered the final checkpoint (19) → graded wrong: “Not the lowest validation loss. The rule keeps the minimum of the VALIDATION curve - not the lowest training loss and not simply the last checkpoint. The kept checkpoint is iter 100 (val 3.055); neighbouring checkpoints look almost level on the plot, so compare the val numbers in the readout. The final checkpoint (iter 1000) has lower training loss (2.161 vs 2.327) but higher validation loss (3.196 vs 3.055): the model kept fitting the 1,200-character training slice after it stopped improving on unseen text. The green ring now marks it.”; answered 1 → passed: “Right: iter 100 has the lowest validation loss (3.055) of these evaluations, so train.py:274's rule leaves it in ckpt.pt. The final checkpoint (iter 1000) has lower training loss (2.161 vs 2.327) but higher validation loss (3.196 vs 3.055): the model kept fitting the 1,200-character training slice after it stopped improving on unseen text. The shakespeare_char config evaluates every 250 iterations, with the comment "keep frequent because we'll overfit" (config/train_shakespeare_char.py:5).”.
+
+## 10. Batch 2 — plans under Phase 1 of card composition
+
+Authored under docs/features/learn-card-composition.md (Phase 1): each card is
+planned and boundary-reviewed before it is built, and the card module exports
+the same plan. Two short sequences; their cards sit next to each other on the
+board in path order (no next-links).
+
+**Boundary decision that changes the inventory:** card 8 ("Two embedding
+tables: by token, by position", a static card with no interaction) is not a
+separate mental model — the two tables are the first stage of card 9's causal
+pipeline (look up two rows → add them). It becomes card 9's first stage. The
+inventory goes from 26 to 25 unless the owner wants card 8 kept.
+
+### Sequence "Embeddings" (2 cards) — card 7 is a prerequisite of card 9
+
+**c07 · Token ID → embedding row**
+- concept: token embeddings
+- one_sentence_objective: After this card, the learner should understand that a token ID does no arithmetic: it selects one learned row of the embedding table, and that row is the token's vector.
+- prerequisites: token IDs (tokenizer card)
+- causal_steps: token ID → row index in wte (V × C) → that row, C numbers
+- primary_interaction: pick a token of a short phrase; its row in the (toy) wte table lights and appears as its vector; picking the same character elsewhere lights the same row
+- check/practice: none — the relationship is read directly (same ID, same row)
+- boundary_decision: single — boundary_reason: one mental model (lookup); the addition of positions is a second model and goes to c09. sequence "Embeddings", 1 of 2; relationship: prerequisite → c09
+
+**c09 · Token + position = the block's input** (absorbs card 8)
+- concept: token and position embeddings
+- one_sentence_objective: After this card, the learner should understand that the first block reads the sum of a token row and a position row, so the same token at two positions enters as two different vectors.
+- prerequisites: c07 (an ID selects a row)
+- causal_steps: stage 1 two tables — wte by token ID, wpe by position; stage 2 pick one row from each; stage 3 add them → x (then dropout, noted, not modelled)
+- primary_interaction: a position slider for a repeated character, plus a what-if "wpe off": with positions the two occurrences differ; without, they are identical
+- check/practice: practice — predict whether two occurrences of the same character enter the block as the same vector, with wpe on and with wpe off
+- boundary_decision: staged — boundary_reason: one causal pipeline (lookup, lookup, add), revealed in stages; card 8's two tables are its first stage, not a separate idea. sequence "Embeddings", 2 of 2; relationship: prerequisite ← c07
+
+### Sequence "The block and the stack" (2 cards) — card 4 deepens card 2
+
+**c02 · Anatomy of one transformer block**
+- concept: the transformer block
+- one_sentence_objective: After this card, the learner should understand the recipe one Block applies to x: normalize, attend, add back, normalize, MLP, add back.
+- prerequisites: residual add (c03), LayerNorm (c15) — named, not required to follow the order
+- causal_steps: x → ln_1 → attn → x + … → ln_2 → mlp → x + …
+- primary_interaction: step through the six operations; the tensor each reads and writes lights, and the residual path x stays lit the whole way
+- check/practice: none — the order is the lesson; a practice question would test memory, not reasoning
+- boundary_decision: staged — boundary_reason: one causal pipeline in a fixed order; staging it keeps the recipe whole. sequence "The block and the stack", 1 of 2; relationship: deepens → c04
+
+**c04 · A stack of n_layer blocks: same architecture, separate parameters**
+- concept: the stack of blocks
+- one_sentence_objective: After this card, the learner should understand that NanoGPT applies n_layer Blocks in order, each with the same structure but its own learned weights.
+- prerequisites: c02 (one Block's recipe)
+- causal_steps: x → Block 1 → Block 2 → … → Block n_layer → ln_f
+- primary_interaction: pick a block; its parameter tensors (same shapes as every other block's, different values) light, and the running parameter count grows with n_layer (source value 6 for shakespeare_char, what-if other depths)
+- check/practice: practice — do two blocks share weights? (reasoning from the lit tensors: same shapes, different values)
+- boundary_decision: single — boundary_reason: one mental model (repeat the same recipe with separate weights). sequence "The block and the stack", 2 of 2; relationship: deepens ← c02
