@@ -1,6 +1,8 @@
 // Benchmark measures for Jev vs Opus (docs/features/jev-grading.md). Every
 // percentage travels with its raw k and N.
-export const rate = (k, n) => ({ k, n, pct: n ? Math.round((k / n) * 1000) / 10 : null });
+// rate and percentile are shared with the report (packages/control-plane/src/learn-grade-report.js).
+import { rate, percentile } from '../../../packages/control-plane/src/learn-grade-report.js';
+export { rate, percentile };
 
 // Wilson 95%: (p + z²/(2N) ± z·√(p(1−p)/N + z²/(4N²))) / (1 + z²/N)
 export function wilson(k, n, z = 1.96) {
@@ -11,12 +13,6 @@ export function wilson(k, n, z = 1.96) {
   const spread = z * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n));
   const denominator = 1 + z2 / n;
   return { low: (centre - spread) / denominator, high: (centre + spread) / denominator };
-}
-
-export function percentile(values, q) {
-  if (!values.length) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(q * sorted.length) - 1))];
 }
 
 // Micro-averaged over (case, idea) items; positive = the gold idea is present.
