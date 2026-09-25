@@ -99,6 +99,36 @@ test('proposal buttons: editor approve updates in place, viewer gets the ephemer
   }
 });
 
+test('Cancel rejects the proposal server-side; a stale Cancel says why', async () => {
+  const { api } = fakeSlack({ UE: 'yudhisteer.chin@gmail.com' });
+  const responded = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url) === 'https://respond.example') { responded.push(JSON.parse(init.body)); return new Response('ok'); }
+    throw new Error(`unexpected fetch ${url}`);
+  };
+  try {
+    const rejected = [];
+    const rejectHandler = async (req, _env, _ctx, user) => {
+      rejected.push({ ...(await req.json()), by: user.email });
+      return rejected.length === 1
+        ? new Response(JSON.stringify({ ok: true, status: 'rejected' }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+        : new Response(JSON.stringify({ error: 'already approved', status: 'approved' }), { status: 409, headers: { 'Content-Type': 'application/json' } });
+    };
+    const click = { user: { id: 'UE' }, channel: { id: 'C1' }, response_url: 'https://respond.example', message: { ts: '9.9', blocks: [] }, actions: [{ action_id: 'ask_cancel', value: 'p-1' }] };
+    await handleSlackInteract(env, ctx, install, click, { api, rejectHandler }, 'https://small.example');
+    assert.deepEqual(rejected[0], { proposal_id: 'p-1', by: 'yudhisteer.chin@gmail.com' });
+    assert.equal(responded[0].replace_original, true);
+    assert.match(responded[0].text, /cancelled/);
+    await handleSlackInteract(env, ctx, install, click, { api, rejectHandler }, 'https://small.example');
+    assert.equal(responded[1].response_type, 'ephemeral');
+    assert.equal(responded[1].replace_original, false);
+    assert.match(responded[1].text, /already approved/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
 test('block builders stay within Slack limits', () => {
   const many = Array.from({ length: 40 }, (_, i) => ({ app: `app-${i}`, hint: 'x' }));
   assert.equal(chooseBlocks('q', many)[1].elements[0].options.length, 25);

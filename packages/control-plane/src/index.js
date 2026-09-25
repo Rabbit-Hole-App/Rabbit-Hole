@@ -1215,6 +1215,7 @@ ${renderOutline(body.outline)}`;
 const SLACK_DEPS = {
   askHandler: (req, env, ctx, user) => apiAsk(req, env, ctx, user),
   approveHandler: (req, env, ctx, user, baseUrl) => apiAskApprove(req, env, ctx, user, baseUrl),
+  rejectHandler: (req, env, ctx, user) => apiAskReject(req, env, user),
   runsHandler: (req, env, user) => apiRunsList(req, env, user),
   watchHandler: (req, env, user) => apiWatchList(req, env, user),
   canEditApp: async (env, user, name) => {
@@ -1539,6 +1540,13 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
   await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)')
     .bind(p.thread_id, 'assistant', `✓ approved and executed ${p.tool} ${p.args} → ${JSON.stringify(result)}`).run();
   return json({ ok: true, ...result });
+}
+
+// Cancel is final (T02 7.4 #3): the same one-time transition as approve, so a
+// cancelled proposal can never run. Slack Cancel lands here too.
+async function apiAskReject(req, env, user) {
+  const { proposal_id } = await req.json();
+  return (await claimProposal(env, user, proposal_id, 'rejected')) || json({ ok: true, status: 'rejected' });
 }
 
 // s3:// autocomplete for the Run form: list one level under the typed uri using
@@ -2393,6 +2401,7 @@ export default {
           return await apiAsk(req, env, ctx, user, 'learn');
         }
         if (path === '/api/ask/approve' && req.method === 'POST') return await apiAskApprove(req, env, ctx, user, baseUrl);
+        if (path === '/api/ask/reject' && req.method === 'POST') return await apiAskReject(req, env, user);
         if (path === '/api/ask/file' && req.method === 'POST') return await apiAskFile(req, env, user);
         if (path === '/api/watch' && req.method === 'GET') return await apiWatchList(req, env, user);
         const watchDismiss = path.match(/^\/api\/watch\/(\d+)\/dismiss$/);

@@ -6,7 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 // The real proposal handlers from index.js against SQLite, the way
 // learn-chat.test.js runs apiAsk, without importing the bundled HTML.
 const source = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
-const names = ['appRow', 'askThreadForUser', 'apiAskThreadDelete', 'claimProposal', 'apiAskApprove'];
+const names = ['appRow', 'askThreadForUser', 'apiAskThreadDelete', 'claimProposal', 'apiAskApprove', 'apiAskReject'];
 const functions = names.map(name => source.match(new RegExp(`async function ${name}[(][^]*?^[}]`, 'm'))[0]).join(' ');
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
 const deps = {
@@ -48,6 +48,7 @@ function propose(env, user, tool, args, minutesOld = 0) {
 const post = (path, body) => new Request('https://small.example' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 const approve = (env, user, id) => handlers.apiAskApprove(post('/api/ask/approve', { proposal_id: id }), env, {}, user, 'https://small.example');
 const statusOf = (env, id) => env.db.prepare('SELECT status FROM proposals WHERE id = ?').get(id).status;
+const reject = (env, user, id) => handlers.apiAskReject(post('/api/ask/reject', { proposal_id: id }), env, user);
 
 test('a proposal acts only in its own workspace, never on a same-named app elsewhere', async t => {
   const env = fixture(t);
@@ -100,4 +101,17 @@ test('a refused approve reopens the proposal, so a viewer click cannot burn it',
   assert.deepEqual({ ...env.db.prepare('SELECT status, approved_by, approved_at FROM proposals WHERE id = ?').get(id) }, { status: 'proposed', approved_by: null, approved_at: null });
   assert.equal((await approve(env, A, id)).status, 200);
   assert.equal(env.started.length, 1);
+});
+
+test('cancel is final: approve after reject is 409 and nothing runs', async t => {
+  const env = fixture(t);
+  const { id } = propose(env, A, 'run', { app: 'report' });
+  assert.equal((await reject(env, B, id)).status, 404);
+  const res = await reject(env, A, id);
+  assert.deepEqual([res.status, await res.json()], [200, { ok: true, status: 'rejected' }]);
+  assert.deepEqual({ ...env.db.prepare('SELECT status, approved_by FROM proposals WHERE id = ?').get(id) }, { status: 'rejected', approved_by: A.email });
+  const again = await approve(env, A, id);
+  assert.deepEqual([again.status, await again.json()], [409, { error: 'cancelled', status: 'rejected' }]);
+  assert.equal((await reject(env, A, id)).status, 409);
+  assert.deepEqual(env.started, []);
 });
