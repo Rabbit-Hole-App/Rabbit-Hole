@@ -455,12 +455,17 @@ invite emails, admin roles, /settings — per flow.md, when asked.
 - One transition, once: approve and reject run the same conditional UPDATE
   (claimProposal: status 'proposed', same org, created under 15 minutes ago)
   and must change exactly one row before anything executes. Web and Slack
-  share it. The claim comes before the tool runs; if the tool refuses, the row
-  goes back to 'proposed', so a viewer's Slack click can't burn it.
+  share it. Refusals that change nothing (the edit recheck, run_again's run
+  lookup) come before the claim, so a viewer's click leaves the row open. A
+  claim is never undone: if the tool fails after it, the row closes as
+  'failed' (a reopen could revive a proposal whose Cancel or chat delete
+  arrived while the tool ran).
 - The permission recheck runs in the proposal's frozen org: apps resolve in
   proposals.org, and run_again's run lookup is scoped to that org (it used to
   match another org's run id and start a same-named app here).
-- POST /api/ask/reject {proposal_id}: Cancel is final. Slack Cancel calls it.
+- POST /api/ask/reject {proposal_id}: Cancel is final. Slack Cancel and the
+  Agent Bar card call it; the older web Ask panel's Cancel (ask.jsx) is still
+  local only. Slack clears a card that is already closed with the reason.
   Deleting a chat marks its open proposals 'invalidated'; approved ones stay
   as the action log. rejected and invalidated record the resolver in
   approved_by/approved_at (0012 columns, no migration).
@@ -474,19 +479,21 @@ invite emails, admin roles, /settings — per flow.md, when asked.
 | 409 | {error: 'cancelled', status: 'rejected'} | Cancelled |
 | 409 | {error: 'expired after 15 minutes - ask again', status: 'expired'} | Expired |
 | 409 | {error: 'its chat was deleted', status: 'invalidated'} | Cancelled, 'This thread was deleted.' |
-| 403 | {error: 'no edit access'} | No longer allowed |
-| 400 | {error: the tool's reason} | Failed (the proposal is open again) |
+| 409 | {error: 'failed - ask again', status: 'failed'} | Failed |
+| 403 | {error: 'no edit access'} | No longer allowed (the proposal stays open) |
+| 400 | {error: the tool's reason} | Failed. Before the claim (no such app or run) the proposal stays open; after it, it closes as failed |
 | 404 | {error: 'no such proposal'} | Failed |
 
-- A 409 status is always one of approved, rejected, expired, invalidated.
+- A 409 status is always one of approved, rejected, expired, invalidated, failed.
   Expiry is computed, not stored: an old row stays 'proposed' and answers
   'expired'. Slack shows the error text.
 - Takes effect when small-cp is deployed, a live promotion that needs explicit
   approval. Until then the dev review copy blocks every server proposal
   (T02 spec 7.5), and a Blocked card's Cancel is local only.
-- Tests: control-plane unit suite +8. ask-proposals.test.js runs the real
+- Tests: control-plane unit suite +13. ask-proposals.test.js runs the real
   handlers on node:sqlite (cross-org, 403 recheck, concurrent approve, expiry,
-  reopen, reject, thread delete); slack.test.js covers Cancel.
+  no claim on refusal, reject, thread delete, a Cancel or chat delete during a
+  failing tool, org-scoped invalidation); slack.test.js covers Cancel.
 
 ## Serving (hard-won)
 The SPA shell is bundled INTO the worker (esbuild Text rule imports
