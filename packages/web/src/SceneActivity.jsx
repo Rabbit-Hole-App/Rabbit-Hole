@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { InputWidget } from './SceneControls.jsx';
 import { applyCheck, applyNewAttempt, checkStatus, enterPractice, isPracticing, leavePractice, setActivityAnswer } from './scene-activity.js';
 import { describeInputValue } from './scene-inputs.js';
@@ -8,14 +9,24 @@ import { describeInputValue } from './scene-inputs.js';
 // reducers own that), and only then do the answer input, Check and feedback
 // exist on screen. Leaving practice returns to free exploration.
 
-export default function SceneActivity({ block, onChange }) {
+export default function SceneActivity({ block, onChange, onHeight = null }) {
   const activity = block.activity;
+  const practicing = !!activity && isPracticing(block);
+  // The card grows by this section's height (collapsed or open, plus its
+  // mt-2) instead of squeezing the frame, which would shrink the scene's
+  // text and cell numbers below the legibility floors while practising.
+  const root = useRef(null);
+  useEffect(() => {
+    if (!onHeight || !root.current) return undefined;
+    const observer = new ResizeObserver(() => onHeight(root.current ? root.current.offsetHeight + 8 : 0));
+    observer.observe(root.current);
+    return () => { observer.disconnect(); onHeight(0); };
+  }, [onHeight, practicing]);
   if (!activity) return null;
-  const practicing = isPracticing(block);
   if (!practicing) {
     const attempts = (block.attemptLog || []).length;
     return (
-      <div data-scene-activity data-practice-mode="explore" className="mt-2 flex shrink-0 items-center gap-3 rounded-lg border border-line bg-white px-3 py-2"
+      <div ref={root} data-scene-activity data-practice-mode="explore" className="mt-2 flex shrink-0 items-center gap-3 rounded-lg border border-line bg-white px-3 py-2"
         onPointerDown={event => event.stopPropagation()}>
         <p className="text-xs font-semibold tracking-wide text-ink-2 uppercase">Practice</p>
         <button type="button" data-practice-start onClick={() => onChange(enterPractice(block))}
@@ -30,7 +41,7 @@ export default function SceneActivity({ block, onChange }) {
   const submitted = status.state === 'submitted';
   const answerDeclaration = activity.answer ? { ...activity.answer, name: 'answer' } : null;
   return (
-    <div data-scene-activity data-practice-mode="practice" className="mt-2 shrink-0 rounded-lg border border-line bg-white px-3 py-2"
+    <div ref={root} data-scene-activity data-practice-mode="practice" className="mt-2 shrink-0 rounded-lg border border-line bg-white px-3 py-2"
       onPointerDown={event => event.stopPropagation()}>
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold tracking-wide text-ink-2 uppercase">Practice</p>

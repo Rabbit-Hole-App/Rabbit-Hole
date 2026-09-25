@@ -179,7 +179,13 @@ results.practices = [];
 for (const { scene, activity } of CARDS.filter(m => m.activity)) {
   const card = cardOf(scene);
   await card.scrollIntoViewIfNeeded();
+  // opening practice grows the card; it never shrinks the visual
+  const frameSize = async () => card.locator('[data-animation-frame] svg text').first().evaluate(text => text.getBoundingClientRect().width); // rendered content, not the svg box (it letterboxes)
+  const explored = await frameSize();
   await card.locator('[data-practice-start]').click();
+  await page.waitForTimeout(450);
+  const practised = await frameSize();
+  if (Math.abs(practised - explored) > 1) throw new Error(`${scene.id} practice: the visual shrank (question text ${explored.toFixed(0)}px -> ${practised.toFixed(0)}px wide) when practice opened`);
   await card.screenshot({ path: `${OUT}/${scene.id}-practice-open.png` });
   const final = activity.answer.default;
   if (final === activity.expected) throw new Error(`${scene.id} practice: the default answer is the expected one`);

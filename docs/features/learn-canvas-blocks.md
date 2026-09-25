@@ -97,6 +97,12 @@ Approved 2026-09-24 as regression invariants for the canvas shell (`AdaptiveCanv
 Regression check: `node e2e/canvas-toolbar-check.mjs <deployed-base> nanogpt-depth-ladder <outDir>`
 (desktop 1720×1100 with the widest card pushed past the edge, a 2200px wide screen, and 390×844).
 
+The same rule holds inside a card: sections under an animation's frame — Sources & evidence and
+the practice section, collapsed or open — grow the card by their measured height and never shrink
+the frame, so a scene keeps its size (and its text and cell numbers stay above the floors) while
+the learner practises. Check: `node e2e/nanogpt-board-check.mjs <deployed-base>` fails if a
+visual narrows when practice opens.
+
 ## Verification
 
 `node e2e/chat-block-check.mjs` against the dev deployment covers every block above end to end.
