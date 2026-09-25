@@ -14,6 +14,10 @@ import * as lrSchedule from './cards/c17-lr-schedule.js';
 import * as trainVal from './cards/c18-train-val.js';
 import * as optimizer from './cards/c20-optimizer.js';
 import * as temperature from './cards/c21-temperature.js';
+import * as embeddingLookup from './cards/c07-embedding-lookup.js';
+import * as tokenPlusPosition from './cards/c09-token-plus-position.js';
+import * as blockAnatomy from './cards/c02-block-anatomy.js';
+import * as blockStack from './cards/c04-block-stack.js';
 
 export const NANOGPT_FIRST_BATCH = [
   forwardPass, tokenizer, residual, multiHead, layerNorm,
@@ -24,7 +28,15 @@ export const NANOGPT_FIRST_BATCH = [
 // composition.md), in review batches: each exports a reviewed plan, checked by
 // board.test.mjs. The first batch above was approved before Phase 1 and is not
 // reopened. Cards of one sequence sit next to each other, in path order.
-export const NANOGPT_LATER_BATCHES = [];
+export const NANOGPT_LATER_BATCHES = [
+  // Batch 2 (docs/nanogpt-deep-dive-board-plan.md section 10): sequence
+  // "Embeddings" (c07 is a prerequisite of c09), then "The block and the stack"
+  // (c04 deepens c02).
+  [embeddingLookup, tokenPlusPosition, blockAnatomy, blockStack],
+];
+
+// The input states each later card is reviewed in (every card exports them).
+export const NANOGPT_REVIEW_STATES = Object.fromEntries(NANOGPT_LATER_BATCHES.flat().map(card => [card.scene.id, card.reviewStates]));
 
 // One card module as a board block, shown at its end state.
 export const cardBlock = card => ({

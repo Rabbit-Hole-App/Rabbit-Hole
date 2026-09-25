@@ -286,7 +286,7 @@ inventory goes from 26 to 25 unless the owner wants card 8 kept.
 - prerequisites: c07 (an ID selects a row)
 - causal_steps: stage 1 two tables — wte by token ID, wpe by position; stage 2 pick one row from each; stage 3 add them → x (then dropout, noted, not modelled)
 - primary_interaction: a position slider for a repeated character, plus a what-if "wpe off": with positions the two occurrences differ; without, they are identical
-- check/practice: practice — predict whether two occurrences of the same character enter the block as the same vector, with wpe on and with wpe off
+- check/practice: practice — predict whether two occurrences of the same character enter the block as the same vector, with wpe on and with wpe off (asked about a third e the card does not draw, so it needs the rule, not the picture)
 - boundary_decision: staged — boundary_reason: one causal pipeline (lookup, lookup, add), revealed in stages; card 8's two tables are its first stage, not a separate idea. sequence "Embeddings", 2 of 2; relationship: prerequisite ← c07
 
 ### Sequence "The block and the stack" (2 cards) — card 4 deepens card 2
@@ -305,6 +305,6 @@ inventory goes from 26 to 25 unless the owner wants card 8 kept.
 - one_sentence_objective: After this card, the learner should understand that NanoGPT applies n_layer Blocks in order, each with the same structure but its own learned weights.
 - prerequisites: c02 (one Block's recipe)
 - causal_steps: x → Block 1 → Block 2 → … → Block n_layer → ln_f
-- primary_interaction: pick a block; its parameter tensors (same shapes as every other block's, different values) light, and the running parameter count grows with n_layer (source value 6 for shakespeare_char, what-if other depths)
+- primary_interaction: pick a block; its parameter tensors (same shapes as every other block's, different values) light, and the running parameter count grows by one block's worth per block (source value n_layer = 6 for shakespeare_char; the what-if n_layer = 12 at the same C is a fixed line, not a control)
 - check/practice: practice — do two blocks share weights? (reasoning from the lit tensors: same shapes, different values)
 - boundary_decision: single — boundary_reason: one mental model (repeat the same recipe with separate weights). sequence "The block and the stack", 2 of 2; relationship: deepens ← c02

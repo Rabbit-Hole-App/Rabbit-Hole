@@ -8,7 +8,7 @@ import { causalAttentionScene } from './reference-scenes.js';
 import { staticAppReviewBlocks } from './gallery-scenes.js';
 import { interactiveAppReviewBlocks } from './interactive-scenes.js';
 import { holdoutBoardBlocks } from './interactive-holdouts.js';
-import { nanogptDeepDiveBlocks } from './nanogpt/board.js';
+import { nanogptDeepDiveBlocks, NANOGPT_REVIEW_STATES } from './nanogpt/board.js';
 import { nanogptDepthLadderBlocks, DEPTH_REVIEW_STATES } from './nanogpt/depth/board.js';
 
 // --- 1. why an axis must hold still -----------------------------------------
@@ -365,7 +365,7 @@ export const BOARDS = {
 
 // Per board, the input states a reviewer should see each card in, keyed by
 // scene id (e2e/review-shots.mjs, e2e/board-interaction-check.mjs).
-export const BOARD_REVIEW_STATES = { 'nanogpt-depth-ladder': DEPTH_REVIEW_STATES };
+export const BOARD_REVIEW_STATES = { 'nanogpt-deep-dive': NANOGPT_REVIEW_STATES, 'nanogpt-depth-ladder': DEPTH_REVIEW_STATES };
 
 // Bump a board's entry here whenever its seed content changes. The version is
 // part of the board's storage key, so a bump moves every browser to a fresh
@@ -378,6 +378,6 @@ export const BOARD_SEED_VERSIONS = {
   'static-app-review-3': 1,
   'interactive-app-review': 8,
   'interactive-holdouts': 2,
-  'nanogpt-deep-dive': 2,
+  'nanogpt-deep-dive': 3,
   'nanogpt-depth-ladder': 3,
 };

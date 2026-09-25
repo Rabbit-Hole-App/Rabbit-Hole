@@ -104,7 +104,7 @@ for (const block of all) {
     await card.screenshot({ path: `${OUT}/${name}__${n + 1}.png` });
     row.states.push({ inputs: { ...current }, verifiedLines: want.length - missing.length, of: want.length });
   }
-  if (visible.length && !changedAny) fail(`${name}: no review state changes what the card says`);
+  if (visible.length && BOARD_REVIEW_STATES[board]?.[scene.id] && !changedAny) fail(`${name}: no review state changes what the card says`);
   if (visible.length) {
     await reveal(page, canvas, card.locator('[data-scene-controls]'));
     await card.locator('[data-scene-controls] [data-scene-reset]').click();

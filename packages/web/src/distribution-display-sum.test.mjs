@@ -18,7 +18,7 @@ const num = value => value.toFixed(2);
 const DISPLAY_DECIMALS = 2;
 
 const ROOT = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url))))); // packages/web/src -> repo root
-const SKIP_DIRS = new Set(['node_modules', '.git', '.local-benchmark-cache', '.operator', '.critic-packet', 'dist', 'build']);
+const SKIP_DIRS = new Set(['node_modules', '.git', '.claude', '.small', '.local-benchmark-cache', '.operator', '.critic-packet', 'dist', 'build']);
 
 function findSceneSpecs(dir, found) {
   for (const entry of readdirSync(dir)) {
