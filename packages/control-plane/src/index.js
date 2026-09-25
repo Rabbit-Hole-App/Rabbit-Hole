@@ -1430,10 +1430,12 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
   if (p.status !== 'proposed') return json({ error: `already ${p.status}` }, 409);
   const args = JSON.parse(p.args);
 
+  // the recheck runs in the proposal's frozen workspace, never a lookup that can
+  // land in another org; failing it is 403, the card's No longer allowed
   const editableApp = async (name) => {
-    const app = await appRow(env, user.org, name);
+    const app = await appRow(env, p.org, name);
     if (!app) throw new Error(`no app named ${name}`);
-    if (!(await canEdit(env, app, user.email))) throw new Error('no edit access');
+    if (!(await canEdit(env, app, user.email))) throw Object.assign(new Error('no edit access'), { status: 403 });
     return app;
   };
 
@@ -1464,7 +1466,7 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
       if (missing.length) throw new Error(`this job needs a file for "${missing[0][0]}" - attach one in chat or use the Run tab`);
       result = { runId: await startRun(env, app, user.email, baseUrl, Object.keys(inputs).length ? inputs : null, files) };
     } else if (p.tool === 'run_again') {
-      const old = await env.DB.prepare('SELECT runs.*, apps.name AS app_name FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?').bind(args.run_id).first();
+      const old = await env.DB.prepare('SELECT runs.*, apps.name AS app_name FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ? AND apps.org = ?').bind(args.run_id, p.org).first();
       if (!old) throw new Error(`no run ${args.run_id}`);
       const app = await editableApp(old.app_name);
       const inputs = old.inputs ? JSON.parse(old.inputs) : null;
@@ -1510,7 +1512,7 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
       throw new Error(`unknown tool ${p.tool}`);
     }
   } catch (e) {
-    return json({ error: e.message }, 400);
+    return json({ error: e.message }, e.status || 400);
   }
 
   await env.DB.prepare("UPDATE proposals SET status = 'approved', approved_by = ?, approved_at = datetime('now') WHERE id = ?")
