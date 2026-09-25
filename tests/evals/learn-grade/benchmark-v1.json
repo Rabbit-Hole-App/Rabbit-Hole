@@ -381,7 +381,7 @@
       "id": "sm-idk",
       "challenge": "softmax-exp",
       "pattern": "idk",
-      "answer": "no idea, sorry",
+      "answer": "I really don't know",
       "gold": {
         "ideas": [
           false,
@@ -561,7 +561,7 @@
       "id": "bp-idk",
       "challenge": "backprop-chain",
       "pattern": "idk",
-      "answer": "no idea, sorry",
+      "answer": "not sure, sorry",
       "gold": {
         "ideas": [
           false,
@@ -701,7 +701,7 @@
       "id": "lm-right_plus_false",
       "challenge": "nanogpt-lm-head",
       "pattern": "right_plus_false",
-      "answer": "The id selects a row of the embedding table, a position embedding is added, the transformer blocks mix the vectors across positions, and the LM head turns the final vector into one score per vocabulary token - and the LM head only ever looks at the very first token in the sequence, ignoring the rest.",
+      "answer": "The id selects a row of the embedding table, a position embedding is added, the transformer blocks mix the vectors across positions, and the LM head turns the final vector into one score per vocabulary token - and because the vocabulary is sorted alphabetically, the model's very first guess is always the token 'a'.",
       "gold": {
         "ideas": [
           true,
@@ -749,7 +749,7 @@
       "id": "lm-idk",
       "challenge": "nanogpt-lm-head",
       "pattern": "idk",
-      "answer": "no idea, sorry",
+      "answer": "I have no clue",
       "gold": {
         "ideas": [
           false,
@@ -888,7 +888,7 @@
       "id": "at-right_plus_false",
       "challenge": "attention-weights",
       "pattern": "right_plus_false",
-      "answer": "Each token forms a query that is compared with the keys of the other tokens, the comparison scores go through a softmax to become weights that sum to one, and the output is a weighted sum of the value vectors - and this whole process only ever looks at the two tokens immediately next to each other in the sequence.",
+      "answer": "Each token forms a query that is compared with the keys of the other tokens, the comparison scores go through a softmax to become weights that sum to one, and the output is a weighted sum of the value vectors - and because the keys are stored in a hash table, this comparison happens in constant time no matter how many tokens there are.",
       "gold": {
         "ideas": [
           true,
@@ -933,7 +933,7 @@
       "id": "at-idk",
       "challenge": "attention-weights",
       "pattern": "idk",
-      "answer": "no idea, sorry",
+      "answer": "honestly no idea",
       "gold": {
         "ideas": [
           false,
@@ -1113,7 +1113,7 @@
       "id": "gd-idk",
       "challenge": "gradient-descent",
       "pattern": "idk",
-      "answer": "no idea, sorry",
+      "answer": "beats me",
       "gold": {
         "ideas": [
           false,
