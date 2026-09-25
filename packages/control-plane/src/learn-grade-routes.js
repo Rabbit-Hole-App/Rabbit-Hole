@@ -63,13 +63,21 @@ function duplicateResponse(existing, texts) {
 
 const hashed = async text => `sha256:${await sha256Hex(text)}`;
 
+// The bench secret authorizes this route; it must never reach CONTROL_PLANE,
+// which repositoryIdentity forwards all request headers to for repo-* apps.
+const withoutBenchSecret = req => {
+  const headers = new Headers(req.headers);
+  headers.delete('x-learn-bench-secret');
+  return { url: req.url, headers };
+};
+
 // Order: authorize, validate (400), key and subscription checks (503, nothing
 // written, no prune), prune, reserve, call Jev, update the row.
 async function grade(req, env, bench) {
   if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
   let body;
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
-  const access = await authorizedBoardApp(req, env, body?.app);
+  const access = await authorizedBoardApp(bench ? withoutBenchSecret(req) : req, env, body?.app);
   if (access instanceof Response) return access;
   if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
   const input = validateGradeBody(body);

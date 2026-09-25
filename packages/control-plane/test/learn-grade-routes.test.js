@@ -246,6 +246,33 @@ test('bench rows need the bench secret; the deployed app cannot make them', asyn
   assert.equal(w.jevBodies.length, 1);
 });
 
+test('a bench grade for a repo-* app authorizes through repositoryAccess, with org/email from that path, and never forwards the bench secret to CONTROL_PLANE', async t => {
+  const seenBenchSecret = [];
+  const w = world(t, {
+    envExtra: {
+      CONTROL_PLANE: {
+        fetch: async req => {
+          seenBenchSecret.push(req.headers.get('x-learn-bench-secret'));
+          return Response.json({ org: 'team', email: 'repo-owner@test' });
+        },
+      },
+    },
+  });
+  w.sqlite.exec("INSERT INTO repository_apps(id, org, name, owner_email, repo, branch, commit_sha, status) VALUES(1,'team','repo-example','repo-owner@test','example/project','main','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','ready')");
+  const run = 'benchmark-v1-2026-09-25-a';
+  const body = gradeBody({ app: 'repo-example', attempt_id: `${run}:c01-all`, set: 'benchmark-v1', bench_run: run });
+  const response = await w.post('/api/learn/grade/bench', body, BENCH);
+  assert.equal(response.status, 200);
+  const { grade_id: id } = await response.json();
+  assert.deepEqual({ ...w.sqlite.prepare('SELECT org, email, source FROM learn_grades').get() }, { org: 'team', email: 'repo-owner@test', source: 'bench' });
+  assert.ok(seenBenchSecret.length > 0, 'CONTROL_PLANE was called for identity');
+  assert.ok(seenBenchSecret.every(value => value === null), 'the bench secret never reached CONTROL_PLANE');
+
+  const baseline = await w.post(`/api/learn/grade/${id}/baseline`, { app: 'repo-example', verdict: 'good', ms: 10 });
+  assert.equal(baseline.status, 200);
+  assert.deepEqual({ ...w.sqlite.prepare('SELECT baseline_verdict, baseline_ms FROM learn_grades').get() }, { baseline_verdict: 'good', baseline_ms: 10 });
+});
+
 test('the bench route is absent when no bench secret is set', async t => {
   const w = world(t, { envExtra: { LEARN_BENCH_SECRET: '' } });
   assert.equal((await w.post('/api/learn/grade/bench', gradeBody(), { 'X-Learn-Bench-Secret': '' })).status, 404);
