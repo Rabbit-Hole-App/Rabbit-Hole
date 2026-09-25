@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
-import { THRESHOLDS, VERDICT_LOGIC_VERSION, GRADER_PROTOCOL_VERSION, JEV_MODEL, JEV_URL, verdictFrom } from '../../../packages/control-plane/src/learn-grade-jev.js';
+import { THRESHOLDS, VERDICT_LOGIC_VERSION, GRADER_PROTOCOL_VERSION, GRADER_PROTOCOL_FINGERPRINT, VERDICT_LOGIC_FINGERPRINT, JEV_MODEL, JEV_URL, verdictFrom } from '../../../packages/control-plane/src/learn-grade-jev.js';
 import { challengePrompt } from '../../../packages/web/src/learn-grade-prompts.js';
 import { rate, wilson, percentile, prf, bestThreshold, calibration, brier, goldVerdict, verdictAccuracy, confusion } from './metrics.mjs';
 import { validateSet } from './set-rules.mjs';
@@ -33,6 +33,7 @@ const pendingWait = allowLocal ? Number(args['pending-wait-ms'] || 1000) : 1000;
 const holdout = !!args.holdout;
 if (holdout && !allowLocal) {
   if (args['results-dir']) fail(1, 'refusing --results-dir with --holdout: the burn check must read the committed results');
+  if (args['holdout-hash-file']) fail(1, 'refusing --holdout-hash-file with --holdout: a real run always checks the committed HOLDOUT.sha256');
   const dirty = spawnSync('git', ['status', '--porcelain', '--', path('../../../packages/control-plane/src/learn-grade-jev.js')], { encoding: 'utf8' }).stdout.trim();
   if (dirty) fail(1, 'commit learn-grade-jev.js before a holdout run: switch conditions use the committed grader configuration');
 }
@@ -52,14 +53,14 @@ const challenges = new Map(set.challenges.map(challenge => [challenge.id, challe
 const perMode = mode => set.cases.filter(item => challenges.get(item.challenge).mode === mode).length;
 
 // --- burn check: compare with the earliest viewed run of this holdout ---
-const versions = { grader_protocol_version: GRADER_PROTOCOL_VERSION, thresholds: { ...THRESHOLDS }, verdict_logic_version: VERDICT_LOGIC_VERSION, model_route: `${JEV_URL} ${JEV_MODEL}`, holdout_sha256: holdout ? holdoutSha : null };
+const versions = { grader_protocol_version: GRADER_PROTOCOL_VERSION, grader_protocol_fingerprint: GRADER_PROTOCOL_FINGERPRINT, thresholds: { ...THRESHOLDS }, verdict_logic_version: VERDICT_LOGIC_VERSION, verdict_logic_fingerprint: VERDICT_LOGIC_FINGERPRINT, model_route: `${JEV_URL} ${JEV_MODEL}`, holdout_sha256: holdout ? holdoutSha : null };
 const setDir = join(resultsDir, setName);
 mkdirSync(setDir, { recursive: true });
 if (holdout) {
   const earlier = readdirSync(setDir).filter(name => name.endsWith('.json')).sort();
   if (earlier.length) {
     const first = JSON.parse(readFileSync(join(setDir, earlier[0]), 'utf8'));
-    for (const field of ['grader_protocol_version', 'thresholds', 'verdict_logic_version', 'model_route', 'holdout_sha256']) {
+    for (const field of ['grader_protocol_version', 'grader_protocol_fingerprint', 'thresholds', 'verdict_logic_version', 'verdict_logic_fingerprint', 'model_route', 'holdout_sha256']) {
       if (JSON.stringify(first[field]) !== JSON.stringify(versions[field])) fail(2, `holdout burned by ${field}: write benchmark-v2-holdout`);
     }
   }
@@ -87,7 +88,11 @@ async function gradeJev(item) {
     const response = await fetch(`${base}/api/learn/grade/bench`, { method: 'POST', headers: { ...headers, 'X-Learn-Bench-Secret': secrets.LEARN_BENCH_SECRET }, body: JSON.stringify(body) });
     const data = await response.json().catch(() => ({}));
     if (response.status === 503) fail(1, `503: ${data.error} (set VERCEL_TYPESAFE_API_KEY on the clone)`);
-    if (response.status === 404 || response.status === 403) fail(1, `${response.status} from the bench route: set LEARN_BENCH_SECRET on the clone and in ${envFile}`);
+    if (response.status === 404 && data.error === 'Not found') fail(1, '404 from the bench route: set LEARN_BENCH_SECRET on the clone');
+    if (response.status === 403 && data.error === 'Bench secret required') fail(1, `403 from the bench route: set LEARN_BENCH_SECRET in ${envFile} to match the clone`);
+    if (response.status === 403 || response.status === 404) fail(1, `${response.status} from the bench route: ${data.error || 'request refused'}`);
+    if (response.status === 401) fail(1, `401 from the bench route: ${data.error || 'sign-in problem'} - get a fresh test session`);
+    if (response.status === 400) fail(1, `400 from the bench route: ${data.error || 'bad request'}`);
     if (response.status === 202) { await new Promise(resolve => setTimeout(resolve, pendingWait)); continue; }
     if (response.status === 409) return { error: 'incomplete' };
     if (response.status !== 200) return { error: 'failed', message: data.error || `HTTP ${response.status}` };

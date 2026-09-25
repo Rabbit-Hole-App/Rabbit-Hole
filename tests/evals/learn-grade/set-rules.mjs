@@ -1,5 +1,7 @@
 // The benchmark set contract (docs/features/jev-grading.md, Benchmark). A plain
 // module: bench.mjs imports it, so it must not register any tests.
+import { stripFences } from '../../../packages/control-plane/src/learn-grade-jev.js';
+
 export const PATTERNS = ['all_ideas', 'most_ideas', 'one_idea', 'paraphrased', 'plain_words', 'right_plus_false', 'confidently_wrong', 'off_topic', 'idk', 'copies_question', 'injection', 'rambling_correct'];
 const ALL = new Set(['all_ideas', 'paraphrased', 'plain_words', 'rambling_correct']);
 const NON_ATTEMPT = new Set(['off_topic', 'idk', 'copies_question', 'injection']);
@@ -23,7 +25,15 @@ export function validateSet(set, { minPerMode = 30 } = {}) {
     if (!/^[A-Za-z0-9_-]{3,40}$/.test(challenge.id)) problems.push(`challenge id ${challenge.id}`);
     if (!['challenge', 'explain_back'].includes(challenge.mode)) problems.push(`${challenge.id}: mode ${challenge.mode}`);
     if (!Array.isArray(challenge.expects) || challenge.expects.length < 3 || challenge.expects.length > 5) problems.push(`${challenge.id}: 3-5 expects`);
+    if (typeof challenge.prompt !== 'string' || challenge.prompt.length > 4000) problems.push(`${challenge.id}: prompt must be at most 4000 characters`);
+    for (const idea of challenge.expects || []) {
+      if (typeof idea !== 'string' || idea.length < 1 || idea.length > 300 || !stripFences(idea)) problems.push(`${challenge.id}: each idea must be 1-300 characters, non-empty without code blocks`);
+    }
   }
+  if (challenges.size !== 6) problems.push(`challenges: expected 6, got ${challenges.size}`);
+  const perChallengeMode = { challenge: 0, explain_back: 0 };
+  for (const challenge of challenges.values()) if (Object.hasOwn(perChallengeMode, challenge.mode)) perChallengeMode[challenge.mode] += 1;
+  for (const mode of ['challenge', 'explain_back']) if (perChallengeMode[mode] !== 3) problems.push(`challenges: expected 3 ${mode}, got ${perChallengeMode[mode]}`);
   const ids = new Set();
   const perMode = { challenge: 0, explain_back: 0 };
   for (const item of set.cases || []) {

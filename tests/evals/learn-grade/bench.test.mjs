@@ -12,7 +12,11 @@ const tinySet = version => ({
   version,
   challenges: [
     { id: 'ch1', mode: 'challenge', prompt: 'Why exp?', expects: ['positive', 'sums to one', 'bigger wins'] },
+    { id: 'ch2', mode: 'challenge', prompt: 'Why chain rule?', expects: ['local derivative', 'multiply through', 'flows backward'] },
+    { id: 'ch3', mode: 'challenge', prompt: 'Why learning rate?', expects: ['step size', 'too big diverges', 'too small is slow'] },
     { id: 'eb1', mode: 'explain_back', prompt: 'Explain descent.', expects: ['gradient', 'opposite step', 'learning rate'] },
+    { id: 'eb2', mode: 'explain_back', prompt: 'Explain embeddings.', expects: ['lookup table', 'learned vector', 'one row per token'] },
+    { id: 'eb3', mode: 'explain_back', prompt: 'Explain attention.', expects: ['compares tokens', 'softmax weights', 'weighted sum'] },
   ],
   cases: [
     { id: 'ch1-all', challenge: 'ch1', pattern: 'all_ideas', answer: 'all three', gold: { ideas: [true, true, true], misconception: false, non_attempt: false } },
@@ -40,6 +44,9 @@ function stubServer(script) {
       return send(404, { error: 'no' });
     });
   });
+  // fail() calls process.exit() mid-run; a lingering keep-alive socket to this
+  // stub at that moment crashes Node on Windows (libuv UV_HANDLE_CLOSING).
+  server.keepAliveTimeout = 0;
   return new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve({ server, calls, base: `http://127.0.0.1:${server.address().port}` })));
 }
 const done = (ideas = [0.9, 0.9, 0.9]) => ({ status: 200, body: { status: 'done', grader_protocol_version: 'jev-grade-p1', ms: 120, model: 'typesafe-ai/jev', generation_id: 'gen_x', jev: { ideas: ideas.map((p, i) => ({ text: `i${i}`, p })), misconception: 0.05, non_attempt: 0.05 } } });
@@ -94,6 +101,46 @@ test('a pending that never resolves is scored as a pending error', async () => {
     assert.match(result.out, /jev errors: pending 2 · incomplete 0 · failed 0/);
     assert.equal(calls.grade.filter(id => id === 'ch1-all').length, 6, 'the first send plus 5 re-sends');
   } finally { server.close(); }
+});
+
+test('--holdout-hash-file is refused outside local mode', async () => {
+  const dir = workspace(tinySet('benchmark-v1-holdout'), { 'HOLDOUT.sha256': 'f'.repeat(64) });
+  const result = await new Promise(resolve => {
+    const child = spawn(process.execPath, [BENCH, '--base', 'https://small-cp-dev-x.zeroshothq.workers.dev', '--app', 'demo-app', '--env-file', join(dir, '.env'), '--holdout', join(dir, 'set.json'), '--holdout-hash-file', join(dir, 'HOLDOUT.sha256')], { env: { ...process.env, LEARN_BENCH_ALLOW_LOCAL: '' } });
+    let out = '';
+    child.stdout.on('data', chunk => { out += chunk; });
+    child.stderr.on('data', chunk => { out += chunk; });
+    child.on('close', code => resolve({ code, out }));
+  });
+  assert.equal(result.code, 1);
+  assert.match(result.out, /refusing --holdout-hash-file with --holdout/);
+});
+
+test('a 400 from the bench route stops the run with the server\'s message', async () => {
+  const { server, base } = await stubServer(() => ({ status: 400, body: { error: 'expects must be 1-8 ideas of 1-300 characters, each non-empty without code blocks' } }));
+  const dir = workspace(tinySet('benchmark-v1'));
+  try {
+    const result = await run([...common(base, dir), '--set-file', join(dir, 'set.json')]);
+    assert.equal(result.code, 1);
+    assert.match(result.out, /400 from the bench route: expects must be 1-8 ideas/);
+  } finally { server.close(); }
+});
+
+test('403 and 404 print the server\'s own reason unless it names the bench secret; 401 stops the run', async () => {
+  const dir = workspace(tinySet('benchmark-v1'));
+  const trial = async (status, error, expected) => {
+    const { server, base } = await stubServer(() => ({ status, body: { error } }));
+    try {
+      const result = await run([...common(base, dir), '--set-file', join(dir, 'set.json')]);
+      assert.equal(result.code, 1, result.out);
+      assert.match(result.out, expected);
+    } finally { server.close(); }
+  };
+  await trial(404, 'Not found', /404 from the bench route: set LEARN_BENCH_SECRET on the clone/);
+  await trial(403, 'Bench secret required', /403 from the bench route: set LEARN_BENCH_SECRET in .*\.env to match the clone/);
+  await trial(404, 'Repository not found in this workspace', /404 from the bench route: Repository not found in this workspace/);
+  await trial(403, 'Canvas explanations are available in regular Small dev only.', /403 from the bench route: Canvas explanations are available/);
+  await trial(401, 'Sign in to this workspace first', /401 from the bench route: Sign in to this workspace first - get a fresh test session/);
 });
 
 test('a holdout whose hash does not match is refused before any call', async () => {

@@ -24,3 +24,16 @@ test('the validator catches bad sets', () => {
   assert.ok(problems.some(problem => problem.includes('at most 40')));
   assert.ok(problems.some(problem => problem.includes('explain_back: 0 cases < 1')));
 });
+
+test('the validator enforces the route input caps and the 6-challenge, 3-per-mode shape', () => {
+  const set = {
+    challenges: [{ id: 'c1', mode: 'challenge', prompt: 'x'.repeat(4001), expects: ['x'.repeat(301), '```js\ncode\n```', 'a fine idea'] }],
+    cases: [],
+  };
+  const problems = validateSet(set, { minPerMode: 0 });
+  assert.ok(problems.some(problem => problem.includes('prompt must be at most 4000')));
+  assert.ok(problems.some(problem => problem.includes('each idea must be 1-300')));
+  assert.ok(problems.some(problem => problem.includes('challenges: expected 6, got 1')));
+  assert.ok(problems.some(problem => problem.includes('expected 3 challenge, got 1')));
+  assert.ok(problems.some(problem => problem.includes('expected 3 explain_back, got 0')));
+});
