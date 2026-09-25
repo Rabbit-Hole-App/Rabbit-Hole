@@ -256,6 +256,11 @@ export async function handleSlackInteract(env, ctx, install, payload, deps, base
     });
     const resp = await rejectHandler(req, env, ctx, actor);
     const d = await resp.json();
+    // a card that is already closed is cleared with the reason; approved, 403 and 404 stay ephemeral
+    if (resp.status === 409 && ['rejected', 'expired', 'invalidated', 'failed'].includes(d.status)) {
+      await respond({ replace_original: true, text: `✗ ${d.error}` });
+      return;
+    }
     if (!resp.ok || d.error) {
       await respond({ response_type: 'ephemeral', replace_original: false, text: `✗ ${d.error}` });
       return;

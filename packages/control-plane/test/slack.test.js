@@ -135,3 +135,22 @@ test('block builders stay within Slack limits', () => {
   const blocks = proposalBlocks({ id: 'p-1', tool: 'run', args: { app: 'a', inputs: { t: 1 } } });
   assert.equal(blocks[1].elements[0].text.text, 'Run');
 });
+
+test('Cancel on a card that is already closed clears it with the reason', async () => {
+  const { api } = fakeSlack({ UE: 'yudhisteer.chin@gmail.com' });
+  const responded = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url) === 'https://respond.example') { responded.push(JSON.parse(init.body)); return new Response('ok'); }
+    throw new Error(`unexpected fetch ${url}`);
+  };
+  try {
+    const rejectHandler = async () => new Response(JSON.stringify({ error: 'expired after 15 minutes - ask again', status: 'expired' }), { status: 409, headers: { 'Content-Type': 'application/json' } });
+    const click = { user: { id: 'UE' }, channel: { id: 'C1' }, response_url: 'https://respond.example', message: { ts: '9.9', blocks: [] }, actions: [{ action_id: 'ask_cancel', value: 'p-1' }] };
+    await handleSlackInteract(env, ctx, install, click, { api, rejectHandler }, 'https://small.example');
+    assert.equal(responded[0].replace_original, true);
+    assert.match(responded[0].text, /expired after 15 minutes/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

@@ -1410,8 +1410,8 @@ async function apiAskThreadDelete(env, user, threadId) {
     .bind(threadId, user.email, user.org).run();
   if (!r.meta.changes) return json({ error: 'no such thread' }, 404);
   await env.DB.prepare('DELETE FROM messages WHERE thread_id = ?').bind(threadId).run();
-  await env.DB.prepare("UPDATE proposals SET status = 'invalidated', approved_by = ?, approved_at = datetime('now') WHERE thread_id = ? AND status = 'proposed'")
-    .bind(user.email, threadId).run();
+  await env.DB.prepare("UPDATE proposals SET status = 'invalidated', approved_by = ?, approved_at = datetime('now') WHERE thread_id = ? AND org = ? AND status = 'proposed'")
+    .bind(user.email, threadId, user.org).run();
   return json({ ok: true });
 }
 
@@ -1431,9 +1431,9 @@ async function claimProposal(env, user, id, status) {
   if (r.meta.changes === 1) return null;
   const p = await env.DB.prepare('SELECT status FROM proposals WHERE id = ? AND org = ?').bind(id, user.org).first();
   if (!p) return json({ error: 'no such proposal' }, 404);
-  // status is the card state (approved | rejected | invalidated | expired); error is what Slack shows
+  // status is the card state (approved | rejected | invalidated | expired | failed); error is what Slack shows
   const current = p.status === 'proposed' ? 'expired' : p.status;
-  const why = { approved: 'already approved', rejected: 'cancelled', invalidated: 'its chat was deleted', expired: 'expired after 15 minutes - ask again' };
+  const why = { approved: 'already approved', rejected: 'cancelled', invalidated: 'its chat was deleted', expired: 'expired after 15 minutes - ask again', failed: 'failed - ask again' };
   return json({ error: why[current], status: current }, 409);
 }
 
@@ -1446,10 +1446,6 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
   const p = await env.DB.prepare('SELECT * FROM proposals WHERE id = ? AND org = ?')
     .bind(proposal_id, user.org).first();
   if (!p) return json({ error: 'no such proposal' }, 404);
-  // claim before executing: a second click, a Cancel or a deleted chat gets the 409
-  // ponytail: a Worker that dies mid-tool leaves the row approved with no log line; add a running status if that shows up
-  const taken = await claimProposal(env, user, p.id, 'approved');
-  if (taken) return taken;
   const args = JSON.parse(p.args);
 
   // the recheck runs in the proposal's frozen workspace, never a lookup that can
@@ -1460,6 +1456,21 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
     if (!(await canEdit(env, app, user.email))) throw Object.assign(new Error('no edit access'), { status: 403 });
     return app;
   };
+  // Refusals that change nothing come before the claim, so a viewer's click never holds the
+  // proposal and a refusal never has to hand it back.
+  try {
+    const target = p.tool === 'run_again'
+      ? (await env.DB.prepare('SELECT apps.name AS app_name FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ? AND apps.org = ?').bind(args.run_id, p.org).first())?.app_name
+      : args.app;
+    if (p.tool === 'run_again' && !target) throw new Error(`no run ${args.run_id}`);
+    await editableApp(target);
+  } catch (e) {
+    return json({ error: e.message }, e.status || 400);
+  }
+  // claim before executing: a second click, a Cancel or a deleted chat gets the 409
+  // ponytail: a Worker that dies mid-tool leaves the row approved with no log line; add a running status if that shows up
+  const taken = await claimProposal(env, user, p.id, 'approved');
+  if (taken) return taken;
 
   let result;
   try {
@@ -1534,9 +1545,10 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
       throw new Error(`unknown tool ${p.tool}`);
     }
   } catch (e) {
-    // the tool refused: reopen, so a viewer's Slack click can't burn the proposal
-    await env.DB.prepare("UPDATE proposals SET status = 'proposed', approved_by = NULL, approved_at = NULL WHERE id = ? AND status = 'approved'")
-      .bind(p.id).run();
+    // After the claim the row never goes back to 'proposed': a Cancel or a chat delete that
+    // arrived meanwhile was told 'already approved', and reopening would let the action run
+    // later. The tool failed, so the proposal closes as failed and the user asks again.
+    await env.DB.prepare("UPDATE proposals SET status = 'failed' WHERE id = ? AND status = 'approved'").bind(p.id).run();
     return json({ error: e.message }, e.status || 400);
   }
 

@@ -13,7 +13,7 @@ const deps = {
   json,
   canEdit: async (env, app, email) => app.owner_email === email,
   appForUser: async () => null,
-  startRun: async (env, app, startedBy) => { env.started.push({ org: app.org, app: app.name, by: startedBy }); return `r-new${env.started.length}`; },
+  startRun: async (env, app, startedBy) => { await env.hold; if (env.failRun) throw new Error(env.failRun); env.started.push({ org: app.org, app: app.name, by: startedBy }); return `r-new${env.started.length}`; },
 };
 const handlers = new Function(...Object.keys(deps), `${functions}; return { ${names.join(',')} };`)(...Object.values(deps));
 
@@ -94,7 +94,7 @@ test('a proposal older than 15 minutes has expired and cannot run', async t => {
   assert.deepEqual(env.started, []);
 });
 
-test('a refused approve reopens the proposal, so a viewer click cannot burn it', async t => {
+test('a refused approve never claims the proposal, so a viewer click cannot burn it', async t => {
   const env = fixture(t);
   const { id } = propose(env, A, 'run', { app: 'report' });
   assert.equal((await approve(env, VIEWER, id)).status, 403);
@@ -126,4 +126,56 @@ test('deleting a thread invalidates its open proposals; approved ones stay as th
   const res = await approve(env, A, id);
   assert.deepEqual([res.status, await res.json()], [409, { error: 'its chat was deleted', status: 'invalidated' }]);
   assert.deepEqual(env.started, []);
+});
+
+// ---- WP3 review (workflow wf_91c02478-fb6): a claim is never undone ----
+// Hold an approve inside its tool (after the claim), let a Cancel or a chat delete arrive, then let the tool fail.
+function held(env) { let release; env.hold = new Promise(resolve => { release = resolve; }); return () => { env.hold = null; release(); }; }
+
+test('a Cancel that arrives while an approve runs is never undone when the tool then fails', async t => {
+  const env = fixture(t);
+  const { id } = propose(env, A, 'run', { app: 'report' });
+  const release = held(env); env.failRun = 'machine did not start';
+  const running = approve(env, A, id);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal((await reject(env, A, id)).status, 409);
+  release();
+  assert.equal((await running).status, 400);
+  assert.equal(statusOf(env, id), 'failed');
+  env.failRun = null;
+  const later = await approve(env, A, id);
+  assert.deepEqual([later.status, await later.json()], [409, { error: 'failed - ask again', status: 'failed' }]);
+  assert.deepEqual(env.started, []);
+});
+
+test('a chat deleted while an approve runs stays deleted: the failed proposal can never run later', async t => {
+  const env = fixture(t);
+  const { id, thread } = propose(env, A, 'run', { app: 'report' });
+  const release = held(env); env.failRun = 'machine did not start';
+  const running = approve(env, A, id);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal((await handlers.apiAskThreadDelete(env, A, thread)).status, 200);
+  release();
+  assert.equal((await running).status, 400);
+  env.failRun = null;
+  assert.equal((await approve(env, A, id)).status, 409);
+  assert.deepEqual(env.started, []);
+});
+
+test('a tool that fails after the claim closes the proposal as failed; a refusal before it leaves the proposal open', async t => {
+  const env = fixture(t);
+  const bad = propose(env, A, 'share', { app: 'report', email: 'not-an-email' });
+  const res = await approve(env, A, bad.id);
+  assert.equal(res.status, 400); assert.match((await res.json()).error, /bad email/);
+  assert.equal(statusOf(env, bad.id), 'failed');
+  const missing = propose(env, A, 'run', { app: 'no-such-app' });
+  assert.deepEqual([(await approve(env, A, missing.id)).status, statusOf(env, missing.id)], [400, 'proposed']);
+});
+
+test('deleting a chat invalidates only its own workspace proposals', async t => {
+  const env = fixture(t);
+  const { thread } = propose(env, A, 'run', { app: 'report' });
+  env.db.prepare("INSERT INTO proposals (id, thread_id, org, user, tool, args) VALUES ('p-b', ?, ?, ?, 'run', '{}')").run(thread, B.org, B.email);
+  assert.equal((await handlers.apiAskThreadDelete(env, A, thread)).status, 200);
+  assert.deepEqual({ ...env.db.prepare("SELECT status, approved_by FROM proposals WHERE id = 'p-b'").get() }, { status: 'proposed', approved_by: null });
 });
