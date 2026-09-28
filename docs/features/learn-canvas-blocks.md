@@ -122,6 +122,12 @@ sub-cards inside the same card, never shrunk and never turned into separate top-
   annotation 13, grid numerals 12 — `LEGIBILITY_FLOORS`): `assertCardGates` fails a card whose
   frame scales it down. Before this rule the tallest Deep dives were scaled to 0.86, drawing 13px
   annotations at about 11px.
+- Every section around the frame grows the card by its measured height — INTERACT (wrapped rows
+  included), practice, Sources & evidence — so the frame keeps the size the scene was sized for.
+  INTERACT used to be an estimate (84–128px) and a wrapped row squeezed the frame: ten depth-ladder
+  cards drew at 0.82–0.995. The deployed check `e2e/board-interaction-check.mjs` measures the
+  scale each card is really drawn at (the frame's SVG against its viewBox, canvas zoom divided out)
+  in every review state and fails below 0.995.
 
 ## Numbers in text are readable
 

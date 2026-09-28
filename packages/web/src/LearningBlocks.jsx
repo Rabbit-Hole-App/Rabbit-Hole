@@ -38,10 +38,12 @@ import { sceneAssetUrl, sceneList, startScene, startVideo, videoAssetUrl, videoL
 const SIGMOID_FIGURE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMjAgMTgwIiB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCI+PHJlY3Qgd2lkdGg9IjMyMCIgaGVpZ2h0PSIxODAiIGZpbGw9IiNmZmZmZmYiLz48bGluZSB4MT0iMjQiIHkxPSIxNTAiIHgyPSIzMDAiIHkyPSIxNTAiIHN0cm9rZT0iI2M5YzljNSIgc3Ryb2tlLXdpZHRoPSIxIi8+PGxpbmUgeDE9IjE2MiIgeTE9IjI0IiB4Mj0iMTYyIiB5Mj0iMTYyIiBzdHJva2U9IiNjOWM5YzUiIHN0cm9rZS13aWR0aD0iMSIvPjxwYXRoIGQ9Ik0yNCAxNDggQzEwNCAxNDggMTI4IDE0MCAxNjIgODcgQzE5NiAzNCAyMjAgMjYgMzAwIDI2IiBmaWxsPSJub25lIiBzdHJva2U9IiMyMzgzZTIiIHN0cm9rZS13aWR0aD0iMyIvPjxjaXJjbGUgY3g9IjE2MiIgY3k9Ijg3IiByPSI0IiBmaWxsPSIjMjM4M2UyIi8+PHRleHQgeD0iMTcwIiB5PSIzNiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTEiIGZpbGw9IiMzNzM1MmYiPjEuMDwvdGV4dD48dGV4dCB4PSIxNzAiIHk9Ijg0IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMSIgZmlsbD0iIzM3MzUyZiI+MC41PC90ZXh0Pjx0ZXh0IHg9IjE3MCIgeT0iMTY0IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMSIgZmlsbD0iIzM3MzUyZiI+MC4wPC90ZXh0Pjwvc3ZnPg==';
 
 // Everything an animation block draws around its scene frame: the card's own
-// horizontal padding (px-4, both sides) and, vertically, the drag strip, the
-// ANIMATION kicker, the title, and the transport row under the frame. Measured
-// against the shipped 560x460 block, whose frame renders at 528x~320.
-const FRAME_CHROME = { w: 32, h: 140 };
+// horizontal padding (px-4, both sides) plus the 1px borders of the card and
+// of the frame, and, vertically, the drag strip, the ANIMATION kicker, the
+// title, and the transport row under the frame. Width re-measured 2026-09-28 on
+// the deployed board (a 998px scene got a 994px frame at 32, drawing a wide
+// scene at 0.995 - under the type floors).
+const FRAME_CHROME = { w: 36, h: 140 };
 
 export const BLOCK_TYPES = {
   challenge: {
@@ -441,22 +443,16 @@ export const BLOCK_TYPES = {
     sizeFor: block => {
       const report = block.scene ? sceneLegibility(block.scene) : null;
       if (!report) return null;
-      // An interactive scene renders its INTERACT zone below the frame and
-      // transport; the frame must not shrink to make room, so the block grows
-      // by the zone instead - the label, one wrapped row of h-8 controls, and
-      // a second row once more than two controls (or a chip-picker over a long
-      // domain) wrap at this width.
-      const all = Array.isArray(block.scene.inputs) ? block.scene.inputs.filter(input => !input.hidden) : [];
-      const inputs = all.filter(input => input.presentation !== 'pager');
+      // The INTERACT zone below the frame and transport is not reserved here:
+      // it reports its measured height, wrapped rows included, and the block
+      // grows by it (SceneControls onHeight -> the canvas node's extraHeight),
+      // so the frame never shrinks to make room.
       // A paged scene's sub-card navigation is one h-7 row above the frame.
-      const pager = all.length > inputs.length ? 36 : 0;
-      const declarations = inputs.length;
-      const widePicker = inputs.some(input => input.type === 'index' && input.presentation !== 'slider' && (block.scene.exampleData?.[input.of] || []).length > 4);
-      const controls = declarations ? 84 + (declarations > 2 || widePicker ? 44 : 0) : 0;
+      const pager = (block.scene.inputs || []).some(input => !input.hidden && input.presentation === 'pager') ? 36 : 0;
       // The practice section is not reserved here: it reports its measured
       // height (collapsed or open) and the card grows by it (SceneActivity
       // onHeight -> the canvas node's extraHeight).
-      return { width: Math.round(report.viewport.w + FRAME_CHROME.w), height: Math.round(report.viewport.h + FRAME_CHROME.h + controls + pager) };
+      return { width: Math.round(report.viewport.w + FRAME_CHROME.w), height: Math.round(report.viewport.h + FRAME_CHROME.h + pager) };
     },
     sample: () => ({
       id: crypto.randomUUID(),
@@ -1020,13 +1016,13 @@ function WhiteboardBody({ block, appName, onChange, onAskSelection }) {
 
 // A short animation from scene JSON: deterministic playback the learner can
 // pause, scrub and ask about without the scene ever changing.
-function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPracticeHeight }) {
+function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPracticeHeight, onControlsHeight }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
       <Kicker>Animation</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       <div className="mt-2 flex min-h-0 flex-1 flex-col">
-        <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} />
+        <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />
       </div>
       <SceneActivity block={block} onChange={onChange} onHeight={onPracticeHeight} />
     </div>
@@ -1573,7 +1569,7 @@ export function describeBlock(block) {
   return null;
 }
 
-export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appName, onAskRegion, onGrade, onAskScene, onPracticeHeight }) {
+export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appName, onAskRegion, onGrade, onAskScene, onPracticeHeight, onControlsHeight }) {
   if (block.type === 'challenge') return <ChallengeBody block={block} onChange={onChange} onFile={onFile} onGrade={onGrade} appName={appName} />;
   if (block.type === 'quiz') return <QuizBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'flashcards') return <FlashcardsBody block={block} onChange={onChange} />;
@@ -1585,7 +1581,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'audio') return <AudioBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return <SceneActivityBody block={block} onChange={onChange} onAskScene={onAskScene} />;
   if (block.type === 'whiteboard') return <WhiteboardBody block={block} appName={appName} onChange={onChange} onAskSelection={onAskRegion} />;
-  if (block.type === 'animation') return <AnimationBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskAnimation={onAskRegion} onPracticeHeight={onPracticeHeight} />;
+  if (block.type === 'animation') return <AnimationBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskAnimation={onAskRegion} onPracticeHeight={onPracticeHeight} onControlsHeight={onControlsHeight} />;
   if (block.type === 'flow') return <FlowBody block={block} />;
   if (block.type === 'mermaid') return <MermaidBody block={block} onChange={onChange} />;
   if (block.type === 'knowledge') return <KnowledgeBody block={block} onChange={onChange} onFile={onFile} />;

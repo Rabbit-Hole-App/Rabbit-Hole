@@ -63,6 +63,11 @@ for (const block of cards) {
   const pager = (scene.inputs || []).find(d => d.presentation === 'pager');
   const parts = pager ? scene.exampleData[pager.of] : [null];
   const heading = all.slice(0, all.indexOf(block)).reverse().find(b => b.type === 'heading');
+  // The board persists, so a card may still show a later sub-card: start at 1/N.
+  for (let i = 0; pager && i < parts.length && !(await card.locator('[data-card-pager] [data-pager-readout]').textContent()).includes(` 1/${parts.length}`); i += 1) {
+    await card.locator('[data-card-pager] [data-pager-step="previous"]').click();
+    await page.waitForTimeout(300);
+  }
   for (const [k, partName] of parts.entries()) {
     if (k > 0) {
       await card.locator('[data-card-pager] [data-pager-step="next"]').click();

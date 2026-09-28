@@ -605,7 +605,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
   );
 }
 
-export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskRegion }) {
+export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskRegion, onControlsHeight = null }) {
   const [error, setError] = useState('');
   const [scene, setScene] = useState(null);
   const [time, setTime] = useState(block.time || 0);
@@ -790,7 +790,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
           on-scene manipulation stays as a synchronized shortcut. */}
       {interactive && evaluated && (
         <SceneControls declarations={evaluated.declarations} inputs={evaluated.inputs}
-          data={block.scene.exampleData} onInput={setInput} onReset={resetExperiment} locked={lockedInputs} />
+          data={block.scene.exampleData} onInput={setInput} onReset={resetExperiment} locked={lockedInputs} onHeight={onControlsHeight} />
       )}
       {(block.selectedObject || block.marked) && (
         <p data-animation-selection className="flex shrink-0 items-center gap-2 text-[11px] text-ink-3">

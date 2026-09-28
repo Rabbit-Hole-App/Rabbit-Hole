@@ -8,6 +8,8 @@
 // scene frame's fit-to-view scaling, so the completed legibility floors apply
 // to them the way they apply to any card text.
 
+import { useEffect, useRef } from 'react';
+
 // The labels a positional input shows on its chips: the entries of its own
 // declared domain list when those are strings (token words, patch names),
 // one-based numbers otherwise - people count from 1, data from 0.
@@ -148,7 +150,7 @@ export function InputWidget({ declaration, value, data, onInput, disabled = fals
   );
 }
 
-export default function SceneControls({ declarations, inputs, data, onInput, onReset, locked = [] }) {
+export default function SceneControls({ declarations, inputs, data, onInput, onReset, locked = [], onHeight = null }) {
   // EVERY meaningful input gets an obvious control here, below the visual -
   // the primary way to operate the experiment. An input whose scene object
   // also offers direct manipulation ('visual' index, a dragged vec2) keeps
@@ -156,9 +158,19 @@ export default function SceneControls({ declarations, inputs, data, onInput, onR
   // that diagram text is secretly clickable: the control is always here too.
   // A pager is the card's sub-card navigation, drawn in its header (CardPager).
   const rows = declarations.filter(declaration => !declaration.hidden && declaration.presentation !== 'pager' && WIDGETS[declaration.type]);
+  // The card grows by this row's real height (its wrapped widget rows, plus
+  // the gap-2 above it) - an estimate short by one wrapped row squeezed the
+  // frame and drew the scene below the type floors.
+  const root = useRef(null);
+  useEffect(() => {
+    if (!onHeight || !root.current) return undefined;
+    const observer = new ResizeObserver(() => onHeight(root.current ? root.current.offsetHeight + 8 : 0));
+    observer.observe(root.current);
+    return () => { observer.disconnect(); onHeight(0); };
+  }, [onHeight, rows.length]);
   if (!rows.length) return null;
   return (
-    <div data-scene-controls className="shrink-0 rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">
+    <div ref={root} data-scene-controls className="shrink-0 rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">
       <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       {rows.map(declaration => {

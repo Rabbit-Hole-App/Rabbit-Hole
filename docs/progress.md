@@ -34,6 +34,13 @@ overload and the scaling; shrinking would only move the problem.
 - Generation and sampling: 1/3 crop + forward + last position · 2/3 temperature and top-k with
   the logit table · 3/3 multinomial draw + append, with the T = 0 invalid What-if as a state.
 
+**A second cause, found in the deployed captures.** The card reserved an estimated 84–128px for
+INTERACT; where its controls wrap to more rows, the frame lost that height and the scene was
+fitted smaller — Architecture · Deep dive drew at 0.82 even after the split, six Guided cards at
+about 0.95. INTERACT now reports its measured height and the card grows by it, and the deployed
+interaction check measures the real drawn scale of every card (it failed on 10 cards before the
+fix).
+
 **How it is built.** A generic scene capability, not per-card wiring: an index input with
 `presentation: 'pager'` and a `part` on each object (docs/features/learn-canvas-blocks.md,
 "Sub-cards"). `assertCardGates` fails any card that renders a text type below its floor.

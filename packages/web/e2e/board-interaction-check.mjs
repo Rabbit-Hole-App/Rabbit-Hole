@@ -113,6 +113,14 @@ for (const block of all) {
       if (leaked.length) fail(`${name} ${JSON.stringify(state)}: another sub-card's text is on screen ${JSON.stringify(leaked.slice(0, 3))}`);
     }
     if (want.some(text => !baseline.includes(text))) changedAny = true;
+    // The scale the scene is really drawn at in the card (canvas zoom divided
+    // out): below 1 every text type draws under its floor - the card is
+    // smaller than its content (the unit gate cannot see the INTERACT row).
+    const drawnScale = await card.evaluate(element => {
+      const svg = element.querySelector('[data-animation-frame] svg'), view = svg.viewBox.baseVal, box = svg.getBoundingClientRect();
+      return Math.min(box.width / view.width, box.height / view.height) / (element.getBoundingClientRect().width / element.offsetWidth);
+    });
+    if (drawnScale < 0.995) fail(`${name} ${JSON.stringify(state)}: drawn at scale ${drawnScale.toFixed(3)}, so its text is below the type floors`);
     await reveal(page, canvas, card);
     await card.screenshot({ path: `${OUT}/${name}__${n + 1}.png` });
     row.states.push({ inputs: { ...current }, verifiedLines: want.length - missing.length, of: want.length });

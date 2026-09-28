@@ -405,9 +405,11 @@ function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove,
 function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade, onWiki, onWatch }) {
   // A block that declares its evidence carries it collapsed at its foot; the
   // frame grows by that row (and by the open list) instead of squeezing the body.
-  // A practice section grows it the same way, collapsed or open.
+  // A practice section and the INTERACT row grow it the same way, by their
+  // measured heights (wrapped rows included).
   const [sourcesHeight, setSourcesHeight] = useState(0);
   const [practiceHeight, setPracticeHeight] = useState(0);
+  const [controlsHeight, setControlsHeight] = useState(0);
   if (block.type === 'video') return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
@@ -417,7 +419,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
       autoMax={BLOCK_TYPES[block.type]?.autoMax}
       width={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.width ?? BLOCK_TYPES[block.type]?.width}
       height={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.height ?? BLOCK_TYPES[block.type]?.height}
-      extraHeight={sourcesHeight + practiceHeight} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })}
+      extraHeight={sourcesHeight + practiceHeight + controlsHeight} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && (
         <div className="absolute -top-10 right-0 z-30 flex items-center gap-1.5">
@@ -446,7 +448,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
           </button>
         </div>
       )}
-      <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} onPracticeHeight={setPracticeHeight} />
+      <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
     </CanvasNode>
   );
