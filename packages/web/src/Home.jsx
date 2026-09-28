@@ -88,17 +88,20 @@ function Continue({ item }) {
 // Gate B Resource Card: icon, title and kind; the per-kind metadata (secondary, then tertiary);
 // the next action as a text link that shows on hover (always shown on phones, which have no hover).
 function RecentCard({ app, card }) {
-  const { action } = card;
+  const { action, meta } = card;
+  // Secondary line: what happened; tertiary line: the last fact (visibility, access, storage).
+  // Titles wrap to two lines; owner/repo breaks after the slash (zero-width space), not mid-name.
+  const [lead, last] = meta.length > 1 ? [meta.slice(0, -1), meta.at(-1)] : [meta, ''];
   const link = 'inline-flex items-center gap-1 self-start text-xs font-medium text-accent hover:underline opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 max-md:opacity-100';
   return (
     <li data-recent-card className={`${CARD} group flex min-w-0 flex-col gap-1 p-3`}>
-      <div className="flex min-w-0 items-center gap-2">
-        <KindIcon kind={app.kind} schedule={app.schedule} />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">{titleOf(app)}</span>
+      <div className="flex min-w-0 items-start gap-2">
+        <span className="pt-0.5"><KindIcon kind={app.kind} schedule={app.schedule} /></span>
+        <span className="line-clamp-2 min-w-0 flex-1 break-words text-sm font-medium leading-snug">{titleOf(app).replace('/', '/\u200b')}</span>
         <Pill kind={app.kind}>{KIND[app.kind] || app.kind}</Pill>
       </div>
-      <span className="truncate text-xs text-ink-2">{card.meta.slice(0, 2).join(' · ')}</span>
-      <span className="truncate text-xs text-ink-3">{action ? card.meta.slice(2).join(' · ') : 'Its content is stored only in the browser that created it.'}</span>
+      <span className="truncate text-xs text-ink-2">{lead.join(' · ')}</span>
+      <span className="truncate text-xs text-ink-3">{action ? last : 'Its content is stored only in the browser that created it.'}</span>
       {action?.to && <button type="button" className={link} onClick={() => navigate(action.to)}>{action.label}</button>}
       {action?.href && <a href={action.href} target="_blank" rel="noreferrer" className={link}>{action.label} <ArrowUpRight size={12} /></a>}
     </li>
