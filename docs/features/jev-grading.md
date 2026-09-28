@@ -1,6 +1,6 @@
 # Jev grading: a side-by-side grader for Learn challenges, benchmarked as we test
 
-Status: **approved for implementation planning on 2026-09-24.** Not built.
+Status: **Built and deployed to small-cp-dev-small-parallel on 2026-09-28; side-by-side is collecting; no switch.**
 
 The same day, the spec was revised after:
 - a three-lens review;

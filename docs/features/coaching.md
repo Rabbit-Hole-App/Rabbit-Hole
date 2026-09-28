@@ -1443,3 +1443,37 @@ Verified on dev version `58d8147d-c64f-496b-8d42-0a13ea8d8dbf`: playback,
 finish-before-next, scrubbing, auto-advance, replay preserving learner text,
 incorrect/correct retry, reload, source highlight and valid selection snapshots.
 The selection reply was mocked to avoid a paid model call. No generated assets.
+
+## Learn: Jev side-by-side grading (dev)
+
+Spec: [jev-grading.md](jev-grading.md). Shadow-only: Opus stays the learner-visible
+grader and Jev can never delay, replace or mask it.
+
+- Third parties: TypeSafe (Jev, `typesafe-ai/jev`) reached through the Vercel AI
+  Gateway, under the option-B data boundary in jev-grading.md.
+- Clone: `small-cp-dev-small-parallel`, version
+  `89b3dc3d-dc3a-48cc-8ac3-b11e8edc9338` (commit 1655e85).
+- `learn_grades` was created on `small-learn-dev`. `VERCEL_TYPESAFE_API_KEY` and
+  `LEARN_BENCH_SECRET` are set on the clone; no other secrets were added.
+- Neither live `small-cp` nor BYOC was deployed.
+
+**benchmark-v1, 2026-09-28** (`tests/evals/learn-grade/results/benchmark-v1/`):
+- Run `-a` is void: all 72 Jev calls returned `Jev 403: Free tier users do not
+  have access to this model` until the Vercel team had paid credits. Opus 72/72.
+- Run `-b`, 72 cases (36 challenge, 36 explain_back):
+  - Verdict accuracy: Jev 69/72 (95.8%, Wilson 88.5-98.6), Opus 72/72 (100%).
+    Challenge 35/36 vs 36/36 (-2.8 points, 3-point rule met); explain_back
+    34/36 vs 36/36 (-5.6 points, missed).
+  - All 3 Jev misses are `Jev timed out after 3000 ms`; every Jev grade that
+    returned matched the gold verdict.
+  - Per-idea F1 1.000 at 0.5 and 0.7 (230 items). Brier 0.0022. Injection graded
+    good 0/6.
+  - Latency: Jev p50 251 ms, p95 424 ms (above the 400 ms holdout condition);
+    Opus p50 4487 ms, p95 7362 ms.
+  - Jev cost per grade $0.0000260, computed as input tokens × the published
+    $0.000000042/token; the gateway reported the same mean. Opus cost is not
+    measured.
+- Spot-check: the 3 disagreements (all Jev timeouts) plus the 12 lowest-margin
+  Jev grades; no label change so far.
+- Opus scoring 100% means v1 does not separate the graders on verdicts; the
+  timeouts and p95 are the open items. No switch.
