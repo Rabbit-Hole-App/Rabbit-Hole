@@ -58,7 +58,7 @@ export default function LibraryViews({ apps, type, data, onType, onArchive, onRu
 // Card hierarchy (user, 2026-09-28): title; creator and the source-owner check; source and a
 // short context; provenance when forked; then light metadata, the fork count and one action.
 // Title and footer are the card's controls; a click anywhere else on it opens it too.
-function Card({ kind, a, m, badge, action, onMore, children }) {
+function Card({ kind, a, m, badge, action, onMore, meta, children }) {
   return (
     <li data-library-card={kind} onClick={() => open(a)} className={`${CARD} group flex min-h-[156px] min-w-0 cursor-pointer flex-col gap-1 p-4 transition-colors duration-100 hover:border-line-strong`}>
       <div className="flex min-w-0 items-start gap-2">
@@ -69,6 +69,7 @@ function Card({ kind, a, m, badge, action, onMore, children }) {
       <Creator m={m} />
       {children}
       <ForkedFrom m={m} />
+      {meta}
       <div className="mt-auto flex items-center gap-2 pt-3">
         <Button size="sm" variant="secondary" onClick={stop(() => open(a))}>{action} <ArrowRight size={13} /></Button>
         <span className="flex-1" />
@@ -87,7 +88,8 @@ function ProjectCard({ a, ctx, onMore }) {
   const canvases = ctx.catalog.filter((c) => c.kind === 'canvas' && c.project === a.name).length;
   const source = [a.commit_sha?.slice(0, 7), `Map ${a.status}`, canvases && `${canvases} canvas${canvases > 1 ? 'es' : ''}`].filter(Boolean).join(' · ');
   return (
-    <Card kind="project" a={a} m={m} onMore={onMore} action={p?.lastExplored || p?.next ? 'Continue' : 'Open'} badge={<Pill kind="repository">Project</Pill>}>
+    <Card kind="project" a={a} m={m} onMore={onMore} action={p?.lastExplored || p?.next ? 'Continue' : 'Open'} badge={<Pill kind="repository">Project</Pill>}
+      meta={<span className="truncate pt-1 text-xs text-ink-3">{source}</span>}>
       <span className="truncate text-xs text-ink-2">{m.source}{a.branch && a.branch !== 'main' && a.branch !== 'master' ? ` · ${a.branch}` : ''}</span>
       {m.summary && <p className="line-clamp-2 pt-1 text-xs text-ink">{m.summary}</p>}
       {!a.fixture && (
@@ -97,7 +99,6 @@ function ProjectCard({ a, ctx, onMore }) {
           {!p?.lastExplored && !p?.next && <p className="text-ink-3">Not explored in this browser yet</p>}
         </div>
       )}
-      <span className="truncate pt-1 text-xs text-ink-3">{source}</span>
     </Card>
   );
 }
@@ -109,14 +110,15 @@ function CanvasCard({ a, ctx, onMore }) {
   const last = !a.fixture && !away && learnProgress(a, ctx)?.lastExplored;
   // ponytail: canvases record created_at only (content lives in the browser), so no 'last edited' yet.
   return (
-    <Card kind="canvas" a={a} m={m} onMore={onMore} action={last ? 'Continue' : 'Open'} badge={<Pill kind="canvas">Canvas</Pill>}>
-      <span className="truncate text-xs text-ink-2">{m.source || (project ? `In ${titleOf(project)}` : m.forkedFrom ? null : 'Standalone')}</span>
-      {m.summary && <p className="line-clamp-2 pt-1 text-xs text-ink">{m.summary}</p>}
-      {last && <p className="truncate pt-1 text-xs text-ink-2">Last explored: <span className="text-ink">{last}</span></p>}
+    <Card kind="canvas" a={a} m={m} onMore={onMore} action={last ? 'Continue' : 'Open'} badge={<Pill kind="canvas">Canvas</Pill>} meta={(
       <span className="flex min-w-0 items-center gap-1.5 pt-1 text-xs text-ink-3">
         <span className="truncate">Created {ago(a.created_at)}</span>
         {!a.fixture && (away ? <Pill>On another device</Pill> : <span className="truncate">· Content in this browser</span>)}
       </span>
+    )}>
+      <span className="truncate text-xs text-ink-2">{m.source || (project ? `In ${titleOf(project)}` : m.forkedFrom ? null : 'Standalone')}</span>
+      {m.summary && <p className="line-clamp-2 pt-1 text-xs text-ink">{m.summary}</p>}
+      {last && <p className="truncate pt-1 text-xs text-ink-2">Last explored: <span className="text-ink">{last}</span></p>}
     </Card>
   );
 }

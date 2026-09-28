@@ -246,7 +246,7 @@ function AppContent({ data, load }) {
 
           {!data && <SkeletonRows rows={4} />}
           {data?.error && <div className="text-ink-2">✗ {data.error}</div>}
-          {data && !data.error && learnPreview && !archived && sectionApps.length === 0 && (
+          {data && !data.error && learnPreview && !archived && (type === 'apps' ? sectionApps : withFixtures).length === 0 && (
             <EmptyState icon={Mark}>Nothing here yet</EmptyState>
           )}
           {data && !data.error && !learnPreview && apps.length === 0 && (

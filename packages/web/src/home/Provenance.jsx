@@ -32,8 +32,9 @@ export function ForkedFrom({ m }) {
     <span data-forked-from className="flex min-w-0 items-start gap-1 text-xs text-ink-2">
       <GitFork size={12} strokeWidth={1.5} className="mt-0.5 shrink-0" />
       <span className="line-clamp-2 min-w-0">
-        Forked from <span className="text-ink">{f.title}</span>{f.creator && ` · ${f.creator}`}
-        {f.sourceOwner && <span className="ml-0.5 inline-flex align-[-3px]"><OwnerCheck /></span>}
+        Forked from <span className="text-ink">{f.title}</span>{f.creator && ' · '}
+        {/* the creator and their check wrap together */}
+        {f.creator && <span className="whitespace-nowrap">{f.creator}{f.sourceOwner && <span className="ml-0.5 inline-flex align-[-3px]"><OwnerCheck /></span>}</span>}
       </span>
     </span>
   );
