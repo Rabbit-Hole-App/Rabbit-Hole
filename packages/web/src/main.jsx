@@ -7,7 +7,7 @@ import { AskPanel } from './ask.jsx';
 import MembersPage from './Members.jsx';
 import SearchModal from './Search.jsx';
 import SharePage from './SharePage.jsx';
-import Home from './Home.jsx';
+import Home, { ExplorePreview } from './Home.jsx';
 import Shell from './Shell.jsx';
 import { applyTheme, getTheme, navigate, wsName } from './api.js';
 import { ExpandedPageFrame, Toasts } from './ui.jsx';
@@ -86,7 +86,7 @@ function Root() {
   }, [path]);
   return (
     <>
-      {at.page === 'app' ? <SharePage slug={at.slug} runId={at.runId} /> : at.page === 'members' ? <MembersPage /> : at.page === 'chat' ? <ChatPage /> : at.page === 'home' ? <Home /> : <App />}
+      {at.page === 'app' ? <SharePage slug={at.slug} runId={at.runId} /> : at.page === 'members' ? <MembersPage /> : at.page === 'chat' ? <ChatPage /> : at.page === 'home' ? <Home /> : at.page === 'explore' ? <ExplorePreview /> : <App />}
       <SearchModal />
       {StartHost && <Suspense fallback={null}><StartHost takeEarly={takeEarlyStart} /></Suspense>}
       <Toasts />

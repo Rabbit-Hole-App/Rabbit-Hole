@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { titleOf } from './agent/catalog.js';
 import { navigate } from './api.js';
 import { openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
+import { BANNER, DEMO, readSaved, toggleSaved } from './home/explore.js';
 import Shell from './Shell.jsx';
 import { Button, KindIcon, Pill, SkeletonRows } from './ui.jsx';
 
@@ -96,5 +98,35 @@ function RecentRow({ app, card }) {
         </a>
       )}
     </li>
+  );
+}
+
+// Explore preview (T02 §11): demo data behind a banner; Save stays in this browser.
+export function ExplorePreview() {
+  return <Shell>{() => <Explore />}</Shell>;
+}
+
+function Explore() {
+  const [saved, setSaved] = useState(() => readSaved(localStorage));
+  return (
+    <main className="flex-1 overflow-y-auto">
+      <div role="note" className="sticky top-0 z-10 border-b border-line bg-code px-4 py-2 text-sm text-ink-2">{BANNER}</div>
+      <div className="max-w-[900px] px-24 pb-12 pt-12 max-lg:px-8 max-md:px-4 max-md:pt-6">
+        <h1 className="pb-5 text-[40px] font-bold leading-[1.2] tracking-[-0.01em]">Explore</h1>
+        <ul>
+          {DEMO.map((d) => {
+            const on = saved.includes(d.id);
+            return (
+              <li key={d.id} className="flex h-9 items-center gap-2 rounded-sm px-2 hover:bg-hover">
+                <span className="max-w-[40%] shrink-0 truncate text-sm font-medium">{d.title}</span>
+                <Pill>{d.kind}</Pill>
+                <span className="min-w-0 flex-1 truncate text-xs text-ink-2">{d.blurb}</span>
+                <Button size="sm" aria-pressed={on} onClick={() => setSaved(toggleSaved(localStorage, d.id))}>{on ? 'Saved' : 'Save'}</Button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </main>
   );
 }

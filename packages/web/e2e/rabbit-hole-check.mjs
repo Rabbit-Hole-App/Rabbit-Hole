@@ -154,6 +154,23 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
+  await check('sh-explore: demo data behind a banner; Save stays in small.preview storage; no mutating API', async () => {
+    const page = await open();
+    const writes = [];
+    page.on('request', (r) => { const u = new URL(r.url()); if (u.pathname.startsWith('/api/') && r.method() !== 'GET') writes.push(`${r.method()} ${u.pathname}`); });
+    await page.goto(`${base}/explore`);
+    await page.getByRole('note').filter({ hasText: 'Demo data — changes stay in this preview' }).waitFor({ timeout: 20000 });
+    await shH1(page, 'Explore').waitFor();
+    await page.getByRole('button', { name: 'Save', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Saved', exact: true }).waitFor();
+    await page.reload();
+    await page.getByRole('button', { name: 'Saved', exact: true }).waitFor({ timeout: 20000 });
+    const stored = await page.evaluate(() => localStorage.getItem('small.preview:explore-saved'));
+    must(JSON.parse(stored || '[]').length === 1, `small.preview:explore-saved is ${stored}`);
+    must(!writes.length, `mutating calls: ${writes.join(', ')}`);
+    await page.context().close();
+  });
+
   // ── shell-home checks end: later shell-home tasks insert above this line ──
 }
 
