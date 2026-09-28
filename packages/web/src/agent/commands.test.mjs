@@ -50,7 +50,7 @@ test('risk comes from the registry and matches T02 §7.2', () => {
   for (const [name, command] of Object.entries(COMMANDS)) (byRisk[command.risk] ||= []).push(name);
   for (const names of Object.values(byRisk)) names.sort();
   assert.deepEqual(byRisk, {
-    immediate: ['filter_library', 'find_apps_ai', 'find_runs_ai', 'new_thread', 'open_resource', 'open_settings', 'open_tab', 'search_resources'],
+    immediate: ['filter_library', 'find_apps_ai', 'find_runs_ai', 'new_thread', 'open_recent', 'open_resource', 'open_settings', 'open_tab', 'search_resources'],
     undo: ['create_canvas', 'pin', 'set_theme', 'unpin'],
     confirm: ['connect_repository', 'pause_schedule', 'resume_schedule', 'run', 'run_again', 'set_schedule', 'share', 'unshare'],
   });
@@ -334,4 +334,25 @@ test('the separate-branch card names every connected branch, and never undefined
   const nano = { url: 'https://github.com/karpathy/nanoGPT', repo: 'karpathy/nanoGPT', branch: 'x', newBranch: true };
   assert.match((await prepareCommand('connect_repository', nano, two)).card.effect, /^karpathy\/nanoGPT is already connected on master, dev; this connects x as a separate project\. /);
   assert.match((await prepareCommand('connect_repository', nano, { ...CTX, catalog: [] })).card.effect, /^Visible to everyone in Gmail\./);
+});
+
+test('search_resources can narrow to kinds; open_recent opens the newest of a kind opened in this browser', async () => {
+  assert.deepEqual((await executeCommand('search_resources', { text: 'a', kinds: ['canvas'] }, CTX)).results.map((r) => r.kind), ['canvas']);
+  const storage = memory();
+  storage.setItem('small.recent', JSON.stringify(['s3-log', 'repo-1a2b3c4d-nanogpt']));
+  const before = opened.length;
+  await executeCommand('open_recent', { kind: 'repository' }, { ...CTX, storage });
+  assert.equal(opened.at(-1), '/apps/repo-1a2b3c4d-nanogpt');
+  assert.deepEqual(await executeCommand('open_recent', { kind: 'canvas' }, { ...CTX, storage }), { message: 'No canvas opened in this browser yet.' });
+  assert.equal(opened.length, before + 1);
+});
+
+test('with a stale list, a different branch found at Confirm comes back as the open-or-connect choice, never a dead end', async () => {
+  const stale = { ...CTX, catalog: [] };
+  reply = (path) => (path === '/api/apps' ? { body: { apps: [{ name: 'repo-1a2b3c4d-nanogpt', kind: 'repository', repo: 'karpathy/nanoGPT', branch: 'master' }] } } : { status: 202, body: { name: 'repo-duplicate' } });
+  const before = calls.length;
+  const done = await executeCommand('connect_repository', { url: 'https://github.com/karpathy/nanoGPT', repo: 'karpathy/nanoGPT', branch: 'dev' }, stale);
+  assert.deepEqual(done.choose.map((o) => [o.label, o.name]), [['karpathy/nanoGPT (master) · Project', 'open_resource'], ['Connect karpathy/nanoGPT at dev', 'connect_repository']]);
+  assert.deepEqual(done.choose[1].args, { url: 'https://github.com/karpathy/nanoGPT', repo: 'karpathy/nanoGPT', branch: 'dev', newBranch: true });
+  assert.deepEqual(calls.slice(before).map((c) => `${c.method} ${c.path}`), ['GET /api/apps']); // nothing created
 });

@@ -189,3 +189,34 @@ test('rule 2: a link in backticks counts; a malformed or punctuated branch link 
   assert.equal(at('connect https://github.com/o/r/tree/dev!').args.branch, 'dev');
   assert.equal(at('connect https://github.com/o/r/tree/dev,').args.branch, 'dev');
 });
+
+test('Library words set the Library filter state through filter_library, the same state as the Filters control', () => {
+  const filter = (args) => ({ type: 'command', name: 'filter_library', args });
+  assert.deepEqual(at('Show my canvases'), filter({ type: 'canvases', section: 'private' }));
+  assert.deepEqual(at('show projects shared with me'), filter({ type: 'projects', section: 'shared' }));
+  assert.deepEqual(at('Show runnable apps'), filter({ type: 'apps' }));
+  assert.deepEqual(at('list canvases in the workspace'), filter({ type: 'canvases', section: 'apps' }));
+});
+
+test('a kind word narrows a catalog search: find my nanoGPT project, show canvases about attention', () => {
+  const search = (text, kinds) => ({ type: 'command', name: 'search_resources', args: { text, kinds } });
+  assert.deepEqual(at('Find my nanoGPT project'), search('nanoGPT', ['repository']));
+  assert.deepEqual(at('Show canvases about attention'), search('attention', ['canvas']));
+  assert.deepEqual(at('find apps called counter'), search('counter', ['job', 'server']));
+  assert.deepEqual(at('Find nanoGPT'), { type: 'command', name: 'search_resources', args: { text: 'nanoGPT' } }); // unchanged
+  assert.equal(at('open counter').name, 'open_resource'); // rule 3 unchanged: an exact name opens
+});
+
+test('the resource I worked on recently opens from this browser (open_recent)', () => {
+  const recent = (kind) => ({ type: 'command', name: 'open_recent', args: { kind } });
+  assert.deepEqual(at('Open the project I worked on recently'), recent('repository'));
+  assert.deepEqual(at('open the canvas I was working on yesterday'), recent('canvas'));
+  assert.deepEqual(at('open my last project'), recent('repository'));
+});
+
+test('owner/repo on its own, or after creation words, is a repository reference; inside a question it stays a question', () => {
+  assert.deepEqual(at('Start a rabbit hole from karpathy/minGPT'), connect('karpathy/minGPT'));
+  assert.deepEqual(at('karpathy/minGPT'), connect('karpathy/minGPT'));
+  assert.deepEqual(at('connect karpathy/nanoGPT'), OPEN_NANOGPT); // the same WP1 decision: connected opens
+  assert.deepEqual(at('what does karpathy/minGPT do?'), { type: 'ask', mode: 'ask', text: 'what does karpathy/minGPT do?' });
+});

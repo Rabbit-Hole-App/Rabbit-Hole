@@ -156,18 +156,24 @@ unchanged.
 
 - Header action: **Start a rabbit hole** (the same Start dialog; importing a
   repository is its Repository path). No "Import repository" button.
-- Type: `All · Projects · Canvases · Apps`, filtering on `kind`: `repository`,
-  `canvas`, and `job|server`. Each type is a different view, not one table.
-- Scope: `Mine · Shared with me · Workspace`, below the type row and visually
-  secondary (smaller). These map to `sectionOf` (`api.js:9-14`); `?s=` keeps
-  working.
+- Header (revised 2026-09-28): `Library   [Filters] [Start a rabbit hole]`. No
+  permanent type or ownership tabs; the default Library is All.
+- **Filters** is one popover. Type: `Projects · Canvases · Apps`, plus
+  `Archived canvases`, filtering on `kind` (`repository`, `canvas`,
+  `job|server`). Ownership: `Mine · Shared with me · Workspace`, mapping to
+  `sectionOf` (`api.js:9-14`); `?s=` keeps working. Active filters show as
+  removable pills under the header. The heading stays "Library".
+- One state, the URL (`library-filter.js` `libraryHref`): the Filters popover,
+  **View all** and the Agent Bar's `filter_library` ("Show my canvases",
+  "Show projects shared with me", "Show runnable apps") all set it.
 - **All**: sections in this order: Projects (cards), Canvases (cards), then Apps
   (compact operational rows). Each section shows the 6 most recent (opened in
-  this browser first, then the newest; a redeploy counts) and **View all n**
+  this browser first, then the newest; a redeploy counts) and **View all n →**
   opens its type view.
-- **Projects**: a card grid. Card: the repository's short name, `Project`,
-  `owner/repo`, Last explored and Continue from this browser's Learn (or "Not
-  explored in this browser yet"), then revision, map status and canvas count.
+- **Projects**: a card grid. Card order: title; creator and the source-owner
+  check; `github.com/owner/repo`; Forked from; a short learning context (summary,
+  Last explored and Continue from this browser's Learn, or "Not explored in this
+  browser yet"); revision and map status; the fork count and Open.
   The card opens the project; `Open`; `⋯` offers Learn and Map.
 - **Canvases**: a card grid. Card: title, `Canvas`, its project or Standalone,
   Last explored when known, Created (canvases record no last-edited time), and

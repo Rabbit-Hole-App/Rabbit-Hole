@@ -3,7 +3,10 @@ import { openedNotice } from '../connections.js';
 import { aiReadsOnPreview, learnPreview } from '../flags.js';
 import { canvasKeys, deviceId, hasLocalContent } from '../home/canvas-local.js';
 import { readPinned, togglePin } from '../home/pinned.js';
+import { readRecent } from '../home/continue.js';
+import { libraryHref } from '../library-filter.js';
 import { kindLabel, lookup, onBranch, repositoriesOf, titleOf } from './catalog.js';
+import { branchChoice } from './router.js';
 import { scopeOf } from './scope.js';
 
 // One registry for the Agent Bar and the buttons that do the same things (T02 §7).
@@ -127,14 +130,22 @@ export const COMMANDS = {
   // The Library's type, scope and folder parameters (App.jsx:116-117; ?type= from the Library chips).
   filter_library: {
     risk: 'immediate', touchesLive: false, available: ok,
-    run: async ({ type, section, folder } = {}) => {
-      const query = String(new URLSearchParams({ ...(type ? { type } : {}), ...(section ? { s: section } : {}), ...(folder ? { f: folder } : {}) }));
-      return go(query ? `/library?${query}` : '/library');
-    },
+    run: async ({ type, section, folder } = {}) => go(libraryHref({ type, s: section, f: folder })),
   },
   search_resources: {
     risk: 'immediate', touchesLive: false, available: ok,
-    run: async ({ text }, ctx) => ({ results: lookup(ctx.catalog, text).map((hit) => ({ ...hit, detail: kindLabel(hit.kind) })) }),
+    run: async ({ text, kinds }, ctx) => ({
+      results: lookup(kinds ? ctx.catalog.filter((row) => kinds.includes(row.kind)) : ctx.catalog, text).map((hit) => ({ ...hit, detail: kindLabel(hit.kind) })),
+    }),
+  },
+  // "the project I worked on recently": the newest of that kind opened in this browser (small.recent).
+  open_recent: {
+    risk: 'immediate', touchesLive: false, available: ok,
+    run: async ({ kind }, ctx) => {
+      const kinds = kind === 'app' ? ['job', 'server'] : [kind];
+      const slug = readRecent(ctx.storage).find((name) => kinds.includes(rowOf(ctx, name)?.kind));
+      return slug ? go(`/apps/${slug}`) : { message: `No ${kind === 'repository' ? 'project' : kind} opened in this browser yet.` };
+    },
   },
   // Reads on the live control plane, each one model call (index.js:595-638). Immediate, so D7 never blocks a read.
   find_apps_ai: {
@@ -238,6 +249,9 @@ export const COMMANDS = {
       if (!project) {
         const { apps } = await api('/api/apps');
         if (!Array.isArray(apps)) throw Error("Couldn't check which repositories are already connected. Try again.");
+        // Connected meanwhile on another branch: the same open-or-connect choice as WP1's router, not a dead end.
+        const same = repositoriesOf(apps, repoOfUrl(url, repo));
+        if (branch && !defaulted && !newBranch && same.length && !onBranch(same, branch)) return { choose: branchChoice(same, { url, repo: repoOfUrl(url, repo), branch }) };
         project = connectedProject(apps, { repo: repoOfUrl(url, repo), branch: defaulted ? null : branch, newBranch });
       }
       if (project) {

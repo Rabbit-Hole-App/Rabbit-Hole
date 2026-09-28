@@ -189,7 +189,11 @@ export default function AgentBar() {
       confirm: async () => {
         if (Date.now() - current().createdAt > EXPIRY_MS) return set({}); // re-renders as Expired
         set({ phase: 'executing', error: undefined });
-        try { const result = await executeCommand(name, args, ctxOf(getSurface(), { scope })); set({ phase: 'done', href: result?.href, message: result?.message }); }
+        try {
+          const result = await executeCommand(name, args, ctxOf(getSurface(), { scope }));
+          set({ phase: 'done', href: result?.href, message: result?.choose ? 'Already connected on another branch. Choose below.' : result?.message });
+          if (result?.choose) add(scope, { kind: 'choose', options: result.choose.map((o) => ({ label: o.label, run: () => runCommand(o.name, o.args, change, scope) })) });
+        }
         catch (error) { set({ phase: 'failed', error }); }
       },
       change: () => { setDrafts((d) => new Map(d).set(scopeKey(scope), change)); setHeld(scope); inputRef.current?.focus(); },
@@ -307,7 +311,7 @@ export default function AgentBar() {
   };
   return (
     <div ref={root} data-agent-bar onKeyDown={onKeyDown}
-      className="fixed right-0 bottom-0 left-0 z-20 border-t border-line bg-white px-4 pt-2 pb-3 transition-[left] duration-200 md:left-[var(--sidebar-w,0px)]">
+      className="fixed right-0 bottom-0 left-0 z-20 bg-white px-4 pt-3 pb-5 transition-[left] duration-200 max-md:px-3 max-md:pt-2 max-md:pb-3 md:left-[var(--sidebar-w,0px)]">
       {sheet && <ResultSheet key={resultsKey(sheet)} scope={sheet} label={nameOf(sheet)} onClose={() => setSheet(null)} />}
       <div className="relative mx-auto max-w-[780px]">
         {pickerOpen && (
@@ -348,16 +352,16 @@ export default function AgentBar() {
         )}
         {/* ponytail: no [+] attachment in phase 1 (T02 §6.2; recorded in T02 by settings-deploy order 13.5). streamAsk takes a
             file (multipart, /api/ask only); add the button with the ask.jsx:822-834 rules when the bar owns attachments. */}
-        <ChatComposer multiline value={draft}
+        <ChatComposer multiline dock value={draft}
           onChange={(value) => { setDrafts((d) => new Map(d).set(targetKey, value)); setHeld(target); setPicker(mode === 'auto' && modeQuery(value) !== null); }}
           onSubmit={(raw) => (pickerOpen ? pick(entries[hiIndex][0]) : submit(raw))} inputRef={inputRef} busy={!!streaming} maxLength={4000} placeholder={placeholderFor(target, surface)}
           leading={mode === 'auto'
-            ? <button type="button" aria-haspopup="listbox" aria-expanded={pickerOpen} onMouseDown={(e) => { e.preventDefault(); setPicker(!picker); }} className="h-6 shrink-0 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">Auto</button>
-            : <span className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full bg-hover pr-1 pl-2 text-xs text-ink">/{mode}<button type="button" aria-label="Back to Auto" onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>} />
+            ? <button type="button" aria-haspopup="listbox" aria-expanded={pickerOpen} onMouseDown={(e) => { e.preventDefault(); setPicker(!picker); }} className="h-9 shrink-0 cursor-pointer rounded-lg border border-line px-2.5 text-sm text-ink-2 hover:bg-hover hover:text-ink max-md:px-2">Auto</button>
+            : <span className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-hover pr-1.5 pl-2.5 text-sm text-ink">/{mode}<button type="button" aria-label="Back to Auto" onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>} />
         {chips.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-1.5">
+          <div className="flex flex-wrap gap-2 pt-2">
             {chips.map((chip) => (
-              <span key={chip.key} data-scope-chip={chip.key} className="inline-flex h-6 max-w-full items-center gap-1 rounded-full bg-hover pr-1 pl-2 text-xs text-ink">
+              <span key={chip.key} data-scope-chip={chip.key} className="inline-flex h-7 max-w-full items-center gap-1 rounded-full bg-hover pr-1.5 pl-2.5 text-xs text-ink">
                 <span className="truncate">{chip.label}</span>
                 {own && <button type="button" aria-label={`Remove ${chip.label}`} onClick={() => widenTo(chip.key)} className="shrink-0 cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button>}
               </span>

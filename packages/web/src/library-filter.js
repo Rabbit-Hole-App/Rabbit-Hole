@@ -32,13 +32,25 @@ export function librarySections(apps, recent = []) {
   });
 }
 
-// A chip sets or clears one parameter and keeps the rest; changing type leaves Archived.
+// The one URL for a Library state (folder f, ownership s, type, archived canvases). The Filters
+// control, View all and the Agent Bar's filter_library all build it here.
+export function libraryHref({ f, s, type, archived } = {}) {
+  const q = new URLSearchParams();
+  if (f) q.set('f', f);
+  if (s) q.set('s', s);
+  if (type) q.set('type', type);
+  if (archived && type === 'canvases') q.set('archived', '1');
+  const query = q.toString();
+  return query ? `/library?${query}` : '/library';
+}
+
+// Sets or clears one parameter and keeps the rest; changing type leaves Archived.
 export function chipHref(search, key, value) {
   const q = new URLSearchParams(search);
-  if (key === 'type') q.delete('archived');
-  if (value) q.set(key, value); else q.delete(key);
-  const s = q.toString();
-  return s ? `/library?${s}` : '/library';
+  const state = { f: q.get('f'), s: q.get('s'), type: q.get('type'), archived: q.get('archived') };
+  if (key === 'type') state.archived = null;
+  state[key] = value || null;
+  return libraryHref(state);
 }
 
 // Projects and canvases live in LEARN_DB: the live app actions (share, rename, duplicate,

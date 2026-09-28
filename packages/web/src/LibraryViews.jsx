@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Archive, ArrowRight, ArrowUpRight, BookOpen, Loader2, MoreHorizontal, Network, Play } from 'lucide-react';
+import { Archive, ArrowRight, ArrowUpRight, BookOpen, Check, ListFilter, Loader2, MoreHorizontal, Network, Play, X } from 'lucide-react';
 import { titleOf } from './agent/catalog.js';
 import { ago, navigate } from './api.js';
 import { learnProgress, onAnotherDevice, readRecent } from './home/continue.js';
 import { Creator, ForkedFrom, Forks } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
-import { byRecent, librarySections, ofType } from './library-filter.js';
+import { byRecent, chipHref, libraryHref, librarySections, ofType, SCOPES, TYPES } from './library-filter.js';
 import { Button, IconBtn, KindIcon, Menu, MenuItem, Pill, toast } from './ui.jsx';
 
 // The preview Library (T02 §4, user correction 2026-09-28): what you can return to, learn from
@@ -34,7 +34,7 @@ export default function LibraryViews({ apps, type, data, onType, onArchive, onRu
             <section key={s.key} aria-label={s.label}>
               <div className="flex h-8 items-center justify-between pb-1">
                 <h2 className="text-sm font-medium">{s.label} <span className="font-normal text-ink-3">{s.items.length + s.more}</span></h2>
-                {s.more > 0 && <Button size="sm" variant="ghost" onClick={() => onType(s.key)}>View all {s.items.length + s.more}</Button>}
+                <Button size="sm" variant="ghost" onClick={() => onType(s.key)}>View all {s.items.length + s.more} <ArrowRight size={13} /></Button>
               </div>
               {s.key === 'apps'
                 ? <ul>{s.items.map((a) => <AppRow key={a.name} a={a} running={runningOf(a)} onRun={(x) => guard(x, () => onRun(x))()} />)}</ul>
@@ -55,10 +55,55 @@ export default function LibraryViews({ apps, type, data, onType, onArchive, onRu
   );
 }
 
+// One Filters control instead of permanent tabs (user, 2026-09-28): Type and Ownership in a popover.
+// It, View all and the Agent Bar's filter_library all set the same URL state (library-filter.js).
+const setFilter = (key, value) => navigate(chipHref(window.location.search, key, value));
+export function LibraryFilters({ type, section, archived }) {
+  const [open, setOpen] = useState(false);
+  const count = [type, section].filter(Boolean).length;
+  const item = (label, on, pick) => (
+    <MenuItem key={label} onClick={() => { pick(); setOpen(false); }}>
+      <span className="flex w-full items-center justify-between">{label}{on && <Check size={14} strokeWidth={2} />}</span>
+    </MenuItem>
+  );
+  const heading = (text) => <div className="px-2 pb-1 pt-2 text-xs text-ink-3">{text}</div>;
+  return (
+    <div className="relative">
+      <Button variant="secondary" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}><ListFilter size={14} /> Filters{count > 0 && ` · ${count}`}</Button>
+      <Menu open={open} onClose={() => setOpen(false)} className="top-10 right-0 w-56">
+        {heading('Type')}
+        {Object.entries(TYPES).map(([k, t]) => item(t.label, type === k && !archived, () => setFilter('type', type === k && !archived ? null : k)))}
+        {item('Archived canvases', archived, () => { const q = new URLSearchParams(window.location.search); navigate(libraryHref({ f: q.get('f'), s: q.get('s'), ...(archived ? {} : { type: 'canvases', archived: '1' }) })); })}
+        {heading('Ownership')}
+        {Object.entries(SCOPES).map(([k, label]) => item(label, section === k, () => setFilter('s', section === k ? null : k)))}
+        {count > 0 && <><div className="my-1 border-t border-line" /><MenuItem className="text-ink-2" onClick={() => { navigate('/library'); setOpen(false); }}>Clear filters</MenuItem></>}
+      </Menu>
+    </div>
+  );
+}
+
+export function ActiveFilters({ type, section, archived }) {
+  const pills = [
+    type && [archived ? 'Archived canvases' : TYPES[type].label, () => setFilter('type', null)],
+    section && [SCOPES[section], () => setFilter('s', null)],
+  ].filter(Boolean);
+  if (!pills.length) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 pb-4">
+      {pills.map(([label, clear]) => (
+        <span key={label} className="inline-flex h-6 items-center gap-1 rounded-md bg-active pl-2 pr-1 text-xs text-ink">
+          {label}
+          <button type="button" aria-label={`Remove filter ${label}`} onClick={clear} className="cursor-pointer rounded-sm p-0.5 text-ink-2 hover:bg-hover hover:text-ink"><X size={11} /></button>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // Card hierarchy (user, 2026-09-28): title; creator and the source-owner check; source and a
 // short context; provenance when forked; then light metadata, the fork count and one action.
 // Title and footer are the card's controls; a click anywhere else on it opens it too.
-function Card({ kind, a, m, badge, action, onMore, meta, children }) {
+function Card({ kind, a, m, badge, action, onMore, source, context, meta }) {
   return (
     <li data-library-card={kind} onClick={() => open(a)} className={`${CARD} group flex min-h-[156px] min-w-0 cursor-pointer flex-col gap-1 p-4 transition-colors duration-100 hover:border-line-strong`}>
       <div className="flex min-w-0 items-start gap-2">
@@ -67,8 +112,9 @@ function Card({ kind, a, m, badge, action, onMore, meta, children }) {
         {badge}
       </div>
       <Creator m={m} />
-      {children}
+      {source && <span className="truncate text-xs text-ink-2">{source}</span>}
       <ForkedFrom m={m} />
+      {context}
       {meta}
       <div className="mt-auto flex items-center gap-2 pt-3">
         <Button size="sm" variant="secondary" onClick={stop(() => open(a))}>{action} <ArrowRight size={13} /></Button>
@@ -89,17 +135,20 @@ function ProjectCard({ a, ctx, onMore }) {
   const source = [a.commit_sha?.slice(0, 7), `Map ${a.status}`, canvases && `${canvases} canvas${canvases > 1 ? 'es' : ''}`].filter(Boolean).join(' · ');
   return (
     <Card kind="project" a={a} m={m} onMore={onMore} action={p?.lastExplored || p?.next ? 'Continue' : 'Open'} badge={<Pill kind="repository">Project</Pill>}
-      meta={<span className="truncate pt-1 text-xs text-ink-3">{source}</span>}>
-      <span className="truncate text-xs text-ink-2">{m.source}{a.branch && a.branch !== 'main' && a.branch !== 'master' ? ` · ${a.branch}` : ''}</span>
-      {m.summary && <p className="line-clamp-2 pt-1 text-xs text-ink">{m.summary}</p>}
-      {!a.fixture && (
-        <div className="space-y-0.5 pt-1 text-xs">
-          {p?.lastExplored && <p className="truncate text-ink-2">Last explored: <span className="text-ink">{p.lastExplored}</span></p>}
-          {p?.next && <p className="truncate text-ink-2">Continue: <span className="text-ink">{p.next}</span></p>}
-          {!p?.lastExplored && !p?.next && <p className="text-ink-3">Not explored in this browser yet</p>}
-        </div>
+      source={`${m.source}${a.branch && a.branch !== 'main' && a.branch !== 'master' ? ` · ${a.branch}` : ''}`}
+      context={(
+        <>
+          {m.summary && <p className="line-clamp-2 pt-1 text-xs text-ink">{m.summary}</p>}
+          {!a.fixture && (
+            <div className="space-y-0.5 pt-1 text-xs">
+              {p?.lastExplored && <p className="truncate text-ink-2">Last explored: <span className="text-ink">{p.lastExplored}</span></p>}
+              {p?.next && <p className="truncate text-ink-2">Continue: <span className="text-ink">{p.next}</span></p>}
+              {!p?.lastExplored && !p?.next && <p className="text-ink-3">Not explored in this browser yet</p>}
+            </div>
+          )}
+        </>
       )}
-    </Card>
+      meta={<span className="truncate pt-1 text-xs text-ink-3">{source}</span>} />
   );
 }
 
@@ -115,11 +164,14 @@ function CanvasCard({ a, ctx, onMore }) {
         <span className="truncate">Created {ago(a.created_at)}</span>
         {!a.fixture && (away ? <Pill>On another device</Pill> : <span className="truncate">· Content in this browser</span>)}
       </span>
-    )}>
-      <span className="truncate text-xs text-ink-2">{m.source || (project ? `In ${titleOf(project)}` : m.forkedFrom ? null : 'Standalone')}</span>
-      {m.summary && <p className="line-clamp-2 pt-1 text-xs text-ink">{m.summary}</p>}
-      {last && <p className="truncate pt-1 text-xs text-ink-2">Last explored: <span className="text-ink">{last}</span></p>}
-    </Card>
+    )}
+      source={m.source || (project ? `In ${titleOf(project)}` : m.forkedFrom ? null : 'Standalone')}
+      context={(
+        <>
+          {m.summary && <p className="line-clamp-2 pt-1 text-xs text-ink">{m.summary}</p>}
+          {last && <p className="truncate pt-1 text-xs text-ink-2">Last explored: <span className="text-ink">{last}</span></p>}
+        </>
+      )} />
   );
 }
 

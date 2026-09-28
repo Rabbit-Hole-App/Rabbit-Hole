@@ -40,7 +40,7 @@ function HomeContent({ data, load }) {
   const startButton = <Button variant="primary" onClick={start}>Start a rabbit hole</Button>;
   return (
     <main className="flex-1 overflow-y-auto">
-      <div className="max-w-[900px] space-y-8 px-24 pb-12 pt-12 max-lg:px-8 max-md:px-4 max-md:pt-6">
+      <div className="mx-auto max-w-[1150px] space-y-8 px-24 pb-12 pt-12 max-lg:px-8 max-md:px-4 max-md:pt-6">
         {!data && [2, 3, 1].map((rows, i) => <SkeletonRows key={i} rows={rows} />)}
         {data?.error && (
           <div className="flex items-center gap-3 text-sm text-ink-2">✗ {data.error} <Button variant="secondary" size="sm" onClick={load}>Retry</Button></div>
@@ -113,8 +113,8 @@ function RecentCard({ app, card }) {
       </div>
       <Creator m={m} />
       {lineA && <span className="truncate text-xs text-ink-2">{lineA}</span>}
-      {lineB && <span className="line-clamp-2 text-xs text-ink-3">{lineB}</span>}
       <ForkedFrom m={m} />
+      {lineB && <span className="line-clamp-2 text-xs text-ink-3">{lineB}</span>}
       <div className="mt-auto flex items-center gap-2 pt-1">
         {action?.to && <button type="button" className={link} onClick={go(() => navigate(action.to))}>{action.label}</button>}
         {action?.href && <a href={action.href} target="_blank" rel="noreferrer" className={link}>{action.label} <ArrowUpRight size={12} /></a>}

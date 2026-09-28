@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chipHref, isLearnResource, libraryQuery, librarySections, ofType, SCOPES, SECTION_LIMIT } from './library-filter.js';
+import { chipHref, isLearnResource, libraryHref, libraryQuery, librarySections, ofType, SCOPES, SECTION_LIMIT } from './library-filter.js';
 
 const apps = [{ name: 'repo-1', kind: 'repository' }, { name: 'canvas-1', kind: 'canvas' }, { name: 's3-log', kind: 'job' }, { name: 'counter', kind: 'server' }];
 const names = (list) => list.map((a) => a.name);
@@ -51,4 +51,12 @@ test('a chip sets or clears one parameter and keeps the rest; changing type leav
 
 test('projects and canvases carry no live-app actions', () => {
   assert.deepEqual(apps.map(isLearnResource), [true, true, false, false]);
+});
+
+test('one URL for a Library state: the Filters control, View all and the Agent Bar all build it here', () => {
+  assert.equal(libraryHref({}), '/library');
+  assert.equal(libraryHref({ type: 'canvases', s: 'private' }), '/library?s=private&type=canvases');
+  assert.equal(libraryHref({ type: 'canvases', archived: '1' }), '/library?type=canvases&archived=1');
+  assert.equal(libraryHref({ type: 'projects', archived: '1' }), '/library?type=projects'); // Archived is canvases only
+  assert.equal(chipHref('?s=private', 'type', 'canvases'), libraryHref({ type: 'canvases', s: 'private' }));
 });

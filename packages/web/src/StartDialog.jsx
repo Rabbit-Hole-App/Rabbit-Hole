@@ -79,6 +79,7 @@ export default function StartDialog({ ctx, initial, onClose }) {
     try {
       // run() opens the new project, or the one it finds already connected
       const result = await executeCommand('connect_repository', card.prepared.args, ctx);
+      if (result?.choose) { setCard(null); setChoose(result.choose); return; } // connected meanwhile on another branch
       if (result?.message) toast(result.message);
       onClose();
     } catch (er) {

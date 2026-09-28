@@ -8,8 +8,8 @@ import { isPrivateByoc } from './private-auth.js';
 import { titleOf } from './agent/catalog.js';
 import { learnPreview } from './flags.js';
 import { onAnotherDevice } from './home/continue.js';
-import { chipHref, libraryQuery, ofType, SCOPES, TYPES } from './library-filter.js';
-import LibraryViews from './LibraryViews.jsx';
+import { chipHref, libraryQuery, ofType } from './library-filter.js';
+import LibraryViews, { ActiveFilters, LibraryFilters } from './LibraryViews.jsx';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
 import { Avatar, Button, Chk, cn, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, toast, useHeaderDrag, ValuePicker } from './ui.jsx';
 
@@ -49,9 +49,6 @@ const FILTERS = {
 
 // Library chips (T02 §4, preview only): a pressed chip is the current filter. Notion's
 // filter chip: 28px, 4px radius, no border; the pressed one sits on the active surface.
-const Chip = ({ on, small, ...props }) => (
-  <button aria-pressed={on} className={cn('rounded-md transition-colors duration-100', small ? 'h-6 px-1.5 text-xs' : 'h-7 px-2 text-[13px]', on ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')} {...props} />
-);
 // The Start dialog lives once in main.jsx Root; the Library only asks for it.
 const startRabbitHole = () => window.dispatchEvent(new CustomEvent('small:start', { detail: { path: 'repository' } }));
 
@@ -136,7 +133,7 @@ function AppContent({ data, load }) {
   const section = params.get('s');
   const folder = params.get('f') ? (data?.folders || []).find((x) => x.name === params.get('f')) : null;
   // The preview heading uses the scope chip's own name, so one filter never has two names (T02 §4).
-  const title = folder ? folder.name : learnPreview && SCOPES[section] ? SCOPES[section] : section === 'shared' ? 'Shared' : section === 'private' ? 'Private' : learnPreview ? 'Library' : 'Apps';
+  const title = folder ? folder.name : learnPreview ? 'Library' : section === 'shared' ? 'Shared' : section === 'private' ? 'Private' : learnPreview ? 'Library' : 'Apps';
   const sectionApps = ofType(folder
     ? apps.filter((a) => a.folder_id === folder.id)
     : section ? apps.filter((a) => sectionOf(a, org, data?.email) === section) : apps, type);
@@ -214,19 +211,8 @@ function AppContent({ data, load }) {
             <button onClick={() => navigate('/apps')} className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink">{data?.orgName || wsName(org)}</button>
             <span className="px-1">/</span> <span className="text-ink">{title}</span>
           </div>
-          <div className="flex items-center justify-between pb-5"><h1 className="text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{title}</h1>{learnPreview && <Button variant="primary" onClick={startRabbitHole}>Start a rabbit hole</Button>}</div>
-          {learnPreview && (
-            <div className="space-y-1 pb-4">
-              <div className="flex flex-wrap gap-1">
-                <Chip on={!type} onClick={() => navigate(chipHref(window.location.search, 'type', null))}>All</Chip>
-                {Object.entries(TYPES).map(([k, t]) => <Chip key={k} on={type === k} onClick={() => navigate(chipHref(window.location.search, 'type', type === k ? null : k))}>{t.label}</Chip>)}
-                {type === 'canvases' && <Chip on={archived} onClick={() => navigate(chipHref(window.location.search, 'archived', archived ? null : '1'))}>Archived</Chip>}
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {Object.entries(SCOPES).map(([k, label]) => <Chip key={k} small on={section === k} onClick={() => navigate(chipHref(window.location.search, 's', section === k ? null : k))}>{label}</Chip>)}
-              </div>
-            </div>
-          )}
+          <div className="flex items-center justify-between pb-5"><h1 className="text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{title}</h1>{learnPreview && <div className="flex shrink-0 items-center gap-2"><LibraryFilters type={type} section={section} archived={archived} /><Button variant="primary" onClick={startRabbitHole}>Start a rabbit hole</Button></div>}</div>
+          {learnPreview && <ActiveFilters type={type} section={section} archived={archived} />}
           {fixtures && <div role="note" className="mb-4 rounded-md bg-code px-3 py-2 text-xs text-ink-2">Review fixtures are on: made-up cards, mixed in for design review. They open nothing and are stored nowhere. <a className="text-accent hover:underline" href="?fixtures=0">Turn off</a></div>}
           {archived && (!archivedList ? <SkeletonRows rows={3} />
             : archivedList.error ? <div className="text-sm text-ink-2">✗ {archivedList.error}</div>

@@ -11,6 +11,26 @@ const GITHUB = /(?:^|[\s(<"'`])(?:https?:\/\/)?(?:[^\s/@]+@)?(?:www\.)?github\.c
 // anything else around a link is a question.
 const CREATE = /^(?:(?:please|pls|can you|could you|let ?s)\s+)?(?:start (?:a )?(?:new )?rabbit ?hole(?:\s+(?:with|from|on|in|for))?|connect|import)(?:\s+(?:to|this|the|a|my|that))?(?:\s+(?:github\s+)?(?:repo|repository|project))?(?:\s+(?:please|thanks|thank you))?$/i;
 const decode = (text) => { try { return decodeURIComponent(text); } catch { return text; } };
+// owner/repo alone, or after the creation words, names a GitHub repository (user, 2026-09-28). Narrow:
+// the whole message, never inside a question; rewritten to its link so rule 2 decides it as a link.
+const SHORTHAND = /^((?:(?:please|pls|can you|could you|let ?s)\s+)?(?:start (?:a )?(?:new )?rabbit ?hole(?:\s+(?:with|from|on|in|for))?|connect|import)\s+)?([A-Za-z0-9][A-Za-z0-9-]{0,38})\/([A-Za-z0-9_.-]{1,100})$/i;
+// Library words (user, 2026-09-28): the Library's own filters and a kind-narrowed catalog search.
+const KIND = { project: 'projects', canvas: 'canvases', app: 'apps', job: 'apps', server: 'apps' };
+const KINDS = { projects: ['repository'], canvases: ['canvas'], apps: ['job', 'server'] };
+const kindOf = (word) => KIND[word.toLowerCase().replace(/(es|s)$/, '').replace(/^canvas$/, 'canvas')] || KIND[word.toLowerCase().replace(/s$/, '')];
+const LIBRARY = /^(?:show|list|find|search)\s+(?:me\s+)?(?:(my|all|the)\s+)?(?:runnable\s+)?(projects?|canvas(?:es)?|apps?|jobs?|servers?)(?:\s+(shared with me|in (?:the |this )?workspace))?(?:\s+(?:about|on|named|called|matching|with|for)\s+(.+))?$/i;
+const NAMED_KIND = /^(?:find|search|show)\s+(?:for\s+)?(?:my\s+|the\s+)?(.+?)\s+(project|canvas|app|job|server)(?:e?s)?$/i;
+const RECENT = /^(?:open|go to|show)\s+(?:the\s+|my\s+)?(?:(?:last|latest|most recent|recent)\s+(project|canvas|app)|(project|canvas|app)\s+i\s+(?:worked on|was working on|opened|used|looked at|edited)(?:\s+(?:recently|last|lately|yesterday|most recently|last time))?)$/i;
+
+// The open-or-connect choice for a repository connected on other branches. Rule 2 offers it, and the
+// connect executor returns it when a fresh catalog shows the repository connected meanwhile.
+export function branchChoice(same, { url, repo, branch }) {
+  const connect = { url, repo, ...(branch ? { branch } : {}) };
+  return [
+    ...same.map((row) => ({ label: `${titleOf(row)}${row.branch ? ` (${row.branch})` : ''} · ${kindLabel(row.kind)}`, name: 'open_resource', args: { slug: row.name, kind: row.kind, title: titleOf(row) } })),
+    ...(branch ? [{ label: `Connect ${repo} at ${branch}`, name: 'connect_repository', args: { ...connect, newBranch: true } }] : []),
+  ];
+}
 
 const ask = (text, mode = 'ask') => ({ type: 'ask', mode, text });
 const command = (name, args) => ({ type: 'command', name, args });
@@ -30,7 +50,7 @@ function byName(catalog, text, make) {
 }
 
 export function route(text, { mode = null, catalog = [], scope = null } = {}) {
-  const message = String(text || '').trim();
+  let message = String(text || '').trim();
   const pill = mode === 'auto' ? null : mode;
   if (pill && pill !== 'do') return ask(message, pill);
   // 1. A slash mode at position 0.
@@ -39,6 +59,8 @@ export function route(text, { mode = null, catalog = [], scope = null } = {}) {
   // 2. A GitHub repository link. A URL appearing is not a request to create a project (user decision,
   // 2026-09-24): a bare link or explicit creation language connects, and a repository already
   // connected here opens instead. A link inside a question stays a question. Any other URL is a question.
+  const short = !GITHUB.test(message) && message.match(SHORTHAND);
+  if (short) message = `${short[1] || ''}https://github.com/${short[2]}/${short[3]}`;
   const github = message.match(GITHUB);
   if (github) {
     const repo = `${github[1]}/${github[2].replace(/\.+$/, '').replace(/\.git$/i, '')}`;
@@ -57,13 +79,7 @@ export function route(text, { mode = null, catalog = [], scope = null } = {}) {
       const exact = branch ? onBranch(same, branch) : same.length === 1 && same[0];
       if (exact) return command('open_resource', open(exact));
       // Never overwrite or duplicate silently: open what is connected, or connect the named branch too.
-      return {
-        type: 'choose',
-        options: [
-          ...same.map((row) => ({ label: `${titleOf(row)}${row.branch ? ` (${row.branch})` : ''} · ${kindLabel(row.kind)}`, name: 'open_resource', args: open(row) })),
-          ...(branch ? [{ label: `Connect ${repo} at ${branch}`, name: 'connect_repository', args: { ...connect, newBranch: true } }] : []),
-        ],
-      };
+      return { type: 'choose', options: branchChoice(same, connect) };
     }
     // A question. The project on the branch it names is context; another branch's project never is,
     // and with several connected and no branch named, none is guessed.
@@ -77,8 +93,23 @@ export function route(text, { mode = null, catalog = [], scope = null } = {}) {
     return { ...ask(message), note: `${repo} isn't connected, so answers can't read its code yet.`, offer: { label: `Connect ${repo}`, name: 'connect_repository', args: connect } };
   }
   if (/https?:\/\/\S/i.test(message)) return ask(message);
+  // 2b. Library words: "show my canvases" sets the Library's filters; with a topic or a name
+  // ("show canvases about attention", "find my nanoGPT project") it searches that kind.
+  let m = message.match(RECENT);
+  if (m) {
+    const word = (m[1] || m[2]).toLowerCase();
+    return command('open_recent', { kind: word === 'project' ? 'repository' : word });
+  }
+  if ((m = message.match(LIBRARY))) {
+    const [, owner, kindWord, where, topic] = m;
+    const type = kindOf(kindWord);
+    if (topic) return command('search_resources', { text: topic.trim(), kinds: KINDS[type] });
+    const section = where ? (/shared/i.test(where) ? 'shared' : 'apps') : owner?.toLowerCase() === 'my' ? 'private' : null;
+    return command('filter_library', { type, ...(section ? { section } : {}) });
+  }
+  if ((m = message.match(NAMED_KIND))) return command('search_resources', { text: m[1].trim(), kinds: KINDS[kindOf(m[2])] });
   // 3. open|go to|show <name>. A Settings word is never looked up: "open settings" opens Settings.
-  let m = message.match(/^(?:open|go to|show)\s+(.+)$/i);
+  m = message.match(/^(?:open|go to|show)\s+(.+)$/i);
   if (m) {
     const name = m[1].trim();
     if (SETTINGS[name.toLowerCase()]) return command('open_settings', SETTINGS[name.toLowerCase()]);

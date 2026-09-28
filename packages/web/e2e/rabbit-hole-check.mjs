@@ -111,6 +111,11 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   };
   const shStart = (page) => page.getByRole('button', { name: 'Start a rabbit hole', exact: true });
   const shH1 = (page, name) => page.getByRole('heading', { level: 1, name, exact: true });
+  // The Library's one Filters control (Type, Ownership); its options are menu buttons by label.
+  const filterBy = async (page, label) => {
+    await page.getByRole('button', { name: /^Filters/ }).click();
+    await page.getByRole('button', { name: label, exact: true }).click();
+  };
 
   await check('sh-routes: /apps and /dash are Home, /library and ?s= are the Library, the title is Rabbit Hole', async () => {
     const page = await open();
@@ -119,10 +124,11 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await shStart(page).waitFor({ timeout: 20000 });
     }
     must(await page.title() === 'Rabbit Hole', `title is ${await page.title()}`);
-    for (const [path, name] of [['/library', 'Library'], ['/apps?s=shared', 'Shared with me']]) {
+    for (const path of ['/library', '/apps?s=shared']) {
       await page.goto(`${base}${path}`);
-      await shH1(page, name).waitFor({ timeout: 20000 });
+      await shH1(page, 'Library').waitFor({ timeout: 20000 });
     }
+    await page.getByRole('button', { name: 'Remove filter Shared with me' }).waitFor({ timeout: 10000 });
     await page.context().close();
   });
 
@@ -180,25 +186,23 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('sh-library: type and scope chips filter; Canvases are cards without ops columns; a canvas on another device is flagged; an empty view offers Start', async () => {
+  await check('sh-library: the Filters control filters type and ownership; Canvases are cards without ops columns; a canvas on another device is flagged; an empty view offers Start', async () => {
     const page = await open();
     await page.goto(`${base}/library`);
     await shH1(page, 'Library').waitFor({ timeout: 20000 });
     const c = await shCanvas(page, 'rabbit-hole-check library', 'rabbit-hole-check-device');
     try {
       await page.reload();
-      const chip = (name) => page.locator('button[aria-pressed]').filter({ hasText: new RegExp(`^${name}$`) });
-      for (const name of ['All', 'Projects', 'Canvases', 'Apps', 'Mine', 'Shared with me', 'Workspace']) must(await chip(name).count() === 1, `chip ${name} missing`);
-      await chip('Canvases').click();
+      await filterBy(page, 'Canvases');
       await page.waitForURL(/[?&]type=canvases/);
       const row = page.locator('[data-library-card="canvas"]').filter({ hasText: 'rabbit-hole-check library' });
       await row.waitFor({ timeout: 20000 });
-      must(await chip('Canvases').getAttribute('aria-pressed') === 'true', 'Canvases chip is not pressed');
+      await page.getByRole('button', { name: 'Remove filter Canvases' }).waitFor();
       must(await page.locator('table').count() === 0, 'Canvases still render a table');
       for (const ops of ['Watch', 'Deployed', 'Last run']) must(!(await row.innerText()).includes(ops), `${ops} shown on a canvas card`);
       must((await row.innerText()).includes('On another device'), 'canvas card lacks On another device');
       must(await row.locator('svg.lucide-pen-line').count() === 1, 'canvas card lacks the canvas icon');
-      await chip('Mine').click();
+      await filterBy(page, 'Mine');
       await page.waitForURL(/[?&]s=private/);
       await row.waitFor();
       await page.goto(`${base}/library?type=canvases&s=shared`); // canvases are owner-only, so this view is always empty
@@ -260,12 +264,11 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await page.getByRole('button', { name: 'Archive…' }).click();
       await page.getByRole('dialog', { name: 'Archive rabbit-hole-check archive?' }).getByRole('button', { name: 'Archive', exact: true }).click();
       await row.waitFor({ state: 'detached', timeout: 20000 });
-      const archivedChip = page.locator('button[aria-pressed]').filter({ hasText: /^Archived$/ });
-      await archivedChip.click();
+      await filterBy(page, 'Archived canvases');
       const item = page.getByRole('list', { name: 'Archived canvases' }).getByRole('listitem').filter({ hasText: 'rabbit-hole-check archive' });
       await item.getByRole('button', { name: 'Restore' }).click();
       await item.waitFor({ state: 'detached', timeout: 20000 });
-      await archivedChip.click();
+      await filterBy(page, 'Archived canvases');
       await row.waitFor({ timeout: 20000 });
     } finally {
       await shDrop(page, c.name);
@@ -430,16 +433,82 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('library: scope chips sit below the type chips and are secondary', async () => {
+  await check('library: one Filters control, no permanent tabs; the popover, View all and the Agent Bar set the same state', async () => {
     const page = await open();
     await loaded(page, '/library');
-    const chip = (name) => page.locator('button[aria-pressed]').filter({ hasText: new RegExp(`^${name}$`) });
-    await chip('All').waitFor({ timeout: 20000 });
-    const [all, mine] = [await chip('All').boundingBox(), await chip('Mine').boundingBox()];
-    const size = (l) => l.evaluate((n) => parseFloat(getComputedStyle(n).fontSize));
-    must(mine.y > all.y + all.height - 1, 'scope chips are not below the type chips');
-    must(await size(chip('Mine')) < await size(chip('All')), 'scope chips are as large as the type chips');
+    await page.getByRole('region', { name: 'Projects', exact: true }).waitFor({ timeout: 20000 });
+    must(await page.locator('main button[aria-pressed]').count() === 0, 'permanent filter tabs are back');
+    await filterBy(page, 'Canvases');
+    await page.waitForURL(/[?&]type=canvases/);
+    await filterBy(page, 'Mine');
+    await page.waitForURL(/[?&]s=private/);
+    const viaFilters = new URL(page.url()).search;
+    await page.getByRole('button', { name: 'Remove filter Canvases' }).click();
+    await page.waitForURL((u) => !u.searchParams.has('type'));
+    await loaded(page, '/library');
+    await page.getByRole('region', { name: 'Projects', exact: true }).getByRole('button', { name: /^View all/ }).click();
+    await page.waitForURL(/[?&]type=projects/);
+    await loaded(page, '/library');
+    await barInput(page).fill('Show my canvases');
+    await barInput(page).press('Enter');
+    await page.waitForURL((u) => u.search === viaFilters, { timeout: 10000 });
     await page.context().close();
+  });
+
+  await check('bar: the dock is 64-76px on desktop and 56-68px on a phone, with no separator; on a phone it hides neither Start nor the cards', async () => {
+    const page = await open();
+    await loaded(page, '/apps');
+    const composer = barOf(page).locator('[data-chat-composer]');
+    const h = (await composer.boundingBox()).height;
+    must(h >= 64 && h <= 76, `desktop dock ${h}px`);
+    must(await barOf(page).evaluate((n) => getComputedStyle(n).borderTopWidth) === '0px', 'the separator line is back');
+    await page.context().close();
+    const phone = await open({ width: 390, height: 844 });
+    await loaded(phone, '/apps');
+    await phone.evaluate((names) => localStorage.setItem('small.recent', JSON.stringify(names)), apps.slice(0, 5).map((a) => a.name));
+    await phone.reload();
+    await shStart(phone).waitFor({ timeout: 20000 });
+    const ph = (await barOf(phone).locator('[data-chat-composer]').boundingBox()).height;
+    must(ph >= 56 && ph <= 68, `phone dock ${ph}px`);
+    await phone.locator('[data-shell-sidebar] ~ main').evaluate((m) => m.scrollTo(0, m.scrollHeight));
+    await phone.waitForTimeout(300);
+    const top = (await barOf(phone).boundingBox()).y;
+    const start = await shStart(phone).boundingBox();
+    must(start.y + start.height <= top, `Start (${start.y + start.height}) is under the bar (${top})`);
+    await phone.context().close();
+  });
+
+  if (repo) await check('bar-words: find my nanoGPT project, show canvases about attention, open the project I worked on recently, start a rabbit hole from owner/repo', async () => {
+    const page = await open();
+    await loaded(page, '/library');
+    const c = await shCanvas(page, 'rabbit-hole-check attention words');
+    try {
+      await page.evaluate((name) => localStorage.setItem('small.recent', JSON.stringify([name])), repo.name);
+      await page.reload();
+      await barOf(page).waitFor({ timeout: 20000 });
+      const sheet = page.locator('[data-result-sheet]');
+      const say = async (text) => { await barInput(page).fill(text); await barInput(page).press('Enter'); };
+      await say('Find my nanoGPT project');
+      await sheet.getByRole('button', { name: `${repo.repo} · Project` }).waitFor({ timeout: 10000 });
+      await say('Show canvases about attention');
+      await sheet.getByRole('button', { name: 'rabbit-hole-check attention words · Canvas' }).waitFor({ timeout: 10000 });
+      await page.keyboard.press('Escape');
+      await say('Open the project I worked on recently');
+      await page.waitForURL(`**/apps/${repo.name}`, { timeout: 10000 });
+      await loaded(page, '/library');
+      let posts = 0;
+      page.on('request', (r) => { if (r.method() === 'POST' && /[/]api[/]repositories$/.test(new URL(r.url()).pathname)) posts++; });
+      await page.route('**/api/repositories/branches**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ repo: 'rabbit-hole-e2e/demo', defaultBranch: 'main', branches: ['main'], hasMore: false, page: 1 }) }));
+      await page.route(/[/]api[/]repositories$/, (route) => (route.request().method() === 'POST' ? route.abort() : route.continue()));
+      await say('Start a rabbit hole from rabbit-hole-e2e/demo');
+      const card = page.locator('[data-confirm-card="pending"]');
+      await card.getByText('rabbit-hole-e2e/demo', { exact: false }).first().waitFor({ timeout: 15000 });
+      await card.getByRole('button', { name: 'Cancel' }).click();
+      must(posts === 0, `${posts} repository creates`);
+    } finally {
+      await shDrop(page, c.name);
+      await page.context().close();
+    }
   });
 
   // ── shell-home checks end: later shell-home tasks insert above this line ──
@@ -599,6 +668,31 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(await dialog.getByRole('alert').count() === 0, `an error replaced the choice: ${await dialog.innerText()}`);
     await openIt.click();
     await page.waitForURL((u) => u.pathname === `/apps/${repo.name}`, { timeout: 10000 });
+    must(creates.length === 0, `a repository create was sent: ${creates}`);
+    await page.context().close();
+  });
+
+  await check('start-link: with a stale list, another branch found at Confirm offers open or connect, never a dead end', async () => {
+    const page = await open();
+    const creates = await noCreate(page);
+    let stale = true;
+    await page.route('**/api/apps', async (route) => {
+      if (!stale || route.request().method() !== 'GET') return route.continue();
+      const response = await route.fetch();
+      const body = await response.json();
+      return route.fulfill({ response, json: { ...body, apps: (body.apps || []).filter((a) => a.name !== repo.name) } });
+    });
+    await openStart(page, 'repository');
+    const dialog = startDialog(page);
+    await dialog.getByPlaceholder(URL_FIELD).fill(`${nanoUrl}/tree/rabbit-hole-e2e-branch`);
+    await dialog.getByRole('button', { name: 'Check repository' }).click();
+    const card = dialog.locator('[data-confirm-card]');
+    await card.waitFor({ timeout: 15000 });
+    stale = false;
+    await card.getByRole('button', { name: 'Confirm' }).click();
+    await dialog.getByRole('button', { name: `Connect ${repo.repo} at rabbit-hole-e2e-branch` }).waitFor({ timeout: 15000 });
+    await dialog.getByRole('button', { name: new RegExp(`^${repo.repo.replace('/', '\\/')} \\(`) }).first().waitFor();
+    must(await dialog.locator('[data-confirm-card="failed"]').count() === 0, 'a Failed card is left');
     must(creates.length === 0, `a repository create was sent: ${creates}`);
     await page.context().close();
   });
