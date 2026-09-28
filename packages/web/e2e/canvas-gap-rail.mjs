@@ -20,7 +20,8 @@ const SEED = {
   strokes: [], links: [],
   blocks: [card('t1', 'First card'), card('t2', 'Second card')],
   shapes: [{ id: 'r', kind: 'rect', x1: 40, y1: 620, x2: 260, y2: 720, ...style, text: 'Below' }],
-  items: [{ id: 'n', kind: 'sticky', x: 320, y: 640, text: 'note', color: '#37352f', opacity: 1 }],
+  items: [{ id: 'n', kind: 'sticky', x: 320, y: 640, text: 'note', color: '#37352f', opacity: 1 },
+    { id: 'd1', kind: 'section', x: -240, y: 840, w: 1040, text: '' }, { id: 'd2', kind: 'section', x: -240, y: 900, w: 1040, text: '' }],
 };
 
 const results = [];
@@ -39,14 +40,20 @@ await page.goto(`${BASE}/apps/${APP}?tab=learn&board=${BOARD}`);
 await page.locator('[data-block-id="t2"]').waitFor({ timeout: 60000 });
 await page.waitForTimeout(1500);
 
-// hover blank canvas left of the content, level with the gap between the
-// second card and the shape below it
+// every dotted line has [-] [+] [...] at the far left of the canvas view
 const second = await page.locator('[data-block-id="t2"]').boundingBox();
 const shape = await page.locator('[data-shape-id="r"] rect').first().boundingBox();
-const leftOfContent = Math.min(second.x, shape.x) - 60;
-await page.mouse.move(leftOfContent, (second.y + second.height + shape.y) / 2, { steps: 5 });
-const push = page.getByRole('button', { name: /^Push everything below down/ });
-check('a gap between a card and a shape shows the rail', await push.waitFor({ timeout: 3000 }).then(() => true, () => false));
+const canvasBox = await page.locator('[aria-label="Lesson canvas"]').boundingBox();
+const rails = await page.locator('[data-gap-rail]').evaluateAll(nodes => nodes.map(node => {
+  const buttons = node.querySelector('button').getBoundingClientRect();
+  return { index: node.dataset.gapRail, y: node.getBoundingClientRect().top, left: buttons.left, count: node.querySelectorAll('button').length };
+}));
+check('every gap has its rail with three buttons at the far left', rails.length >= 3 && rails.every(rail => rail.count === 3 && rail.left - canvasBox.x < 30),
+  JSON.stringify(rails.map(rail => [Math.round(rail.y), Math.round(rail.left - canvasBox.x)])));
+const target = rails.find(rail => rail.y > second.y + second.height && rail.y < shape.y);
+const rail = page.locator(`[data-gap-rail="${target?.index}"]`);
+const push = rail.getByRole('button', { name: /^Push everything below down/ });
+check('the gap between a card and a shape has one', !!target && await push.isVisible());
 if (SHOTS) await page.screenshot({ path: `${SHOTS}/gap-rail.png` });
 
 const before = await board();
@@ -59,13 +66,12 @@ check('[+] pushes the shape and the note below down, and leaves the cards above'
   moved('r', 'shapes').y1 - was('r', 'shapes').y1 === 120 && moved('n', 'items').y - was('n', 'items').y === 120
   && moved('t1', 'blocks').dy === 0 && moved('t2', 'blocks').dy === 0,
   `shape ${moved('r', 'shapes').y1 - was('r', 'shapes').y1}, note ${moved('n', 'items').y - was('n', 'items').y}`);
-await page.getByRole('button', { name: /^Pull everything below up/ }).click();
+await rail.getByRole('button', { name: /^Pull everything below up/ }).click();
 await page.waitForTimeout(700);
 after = await board();
 check('[-] pulls them back up', moved('r', 'shapes').y1 === was('r', 'shapes').y1 && moved('n', 'items').y === was('n', 'items').y);
 
 // a card drags past its neighbour and may overlap it
-await page.mouse.move(leftOfContent - 200, 50); // away from the rail
 const first = await page.locator('[data-block-id="t1"] [data-drag-handle]').boundingBox();
 await page.mouse.move(first.x + first.width / 2, first.y + first.height / 2);
 await page.mouse.down();
@@ -74,6 +80,32 @@ await page.mouse.up();
 await page.waitForTimeout(700);
 const dragged = (await board()).blocks.find(block => block.id === 't1');
 check('a card drags past its neighbour, overlapping it', dragged.dy > 200, `dy ${dragged.dy}`);
+
+// a card drags across a divider (dividers are not walls)
+const across = await page.locator('[data-block-id="t2"] [data-drag-handle]').boundingBox();
+const line = await page.locator('[data-item-id="d1"], [data-section]').first().boundingBox();
+await page.mouse.move(across.x + across.width / 2, across.y + across.height / 2);
+await page.mouse.down();
+await page.mouse.move(across.x + across.width / 2, line.y + 60, { steps: 12 });
+await page.mouse.up();
+await page.waitForTimeout(600);
+const crossed = await page.locator('[data-block-id="t2"]').boundingBox();
+check('a card drags across a divider line', crossed.y > line.y, `card top ${Math.round(crossed.y)}, divider ${Math.round(line.y)}`);
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(400);
+
+// dividers remove with their x, or click then Delete
+const dividers = page.locator('[data-section]');
+const count = await dividers.count();
+await dividers.first().hover();
+await dividers.first().getByRole('button', { name: 'Remove divider' }).click();
+await page.waitForTimeout(500);
+const afterX = await dividers.count();
+const other = await dividers.first().boundingBox();
+await page.mouse.click(other.x + 140, other.y + other.height / 2); // clear of the cards over its middle
+await page.keyboard.press('Delete');
+await page.waitForTimeout(500);
+check('a divider is removed by its x, or by a click then Delete', count === 2 && afterX === 1 && await dividers.count() === 0, `${count} -> ${afterX} -> ${await dividers.count()}`);
 
 console.log('board', BOARD);
 await browser.close();

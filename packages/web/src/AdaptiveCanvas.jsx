@@ -708,7 +708,7 @@ function BlockMenu({ className, filter, onFilter, onPick }) {
 // the blank canvas beside it. Press either as often as you like - [+] pushes the
 // pair apart, [-] pulls it together and then straight past flush into an
 // overlap, because the space is only a margin and margins go negative.
-function GapRail({ gap, zoom, span, left = 0, adding, onNudge, onAdding, onAddHeading }) {
+function GapRail({ gap, zoom, edge, span, active, adding, onNudge, onAdding, onAddHeading }) {
   const chrome = 'flex h-6 items-center justify-center rounded-lg border border-line bg-white text-ink-2 shadow-md hover:bg-hover hover:text-ink';
   const button = (delta, Icon, label) => (
     <button type="button" aria-label={label} title={label} onClick={() => onNudge(delta)}
@@ -717,19 +717,17 @@ function GapRail({ gap, zoom, span, left = 0, adding, onNudge, onAdding, onAddHe
       <Icon size={13} strokeWidth={1.8} />
     </button>
   );
+  // Buttons at the far left of the visible canvas; the line runs from them to
+  // the right edge. Counter-scaled so they stay the same size at any zoom.
+  const buttons = 104 / zoom;
   return (
-    <div style={{ top: gap.y }} className="pointer-events-none absolute left-0 z-10">
-      {/* Runs the width of the visible canvas less an equal margin at each end,
-          rather than stopping at the column. The buttons carry their own white
-          background, so they read as a badge sitting on the line. */}
-      <div style={{ left: span.left, width: span.width }} className="absolute -translate-y-1/2 border-t border-dashed border-ink-3/50" />
-      {/* Counter-scaled so the buttons stay the same size to press at any zoom.
-          They sit off the left edge of the column, on blank canvas. */}
-      <div style={{ left: left - 12, transform: `translate(-100%, -50%) scale(${1 / zoom})`, transformOrigin: 'right center' }}
-        className="pointer-events-auto absolute flex items-center gap-1">
+    <div data-gap-rail={gap.index} style={{ top: gap.y }} className="pointer-events-none absolute left-0 z-10">
+      <div style={{ left: edge + buttons, width: Math.max(0, span.left + span.width - edge - buttons) }}
+        className={`absolute -translate-y-1/2 border-t border-dashed ${active ? 'border-ink-3' : 'border-ink-3/40'}`} />
+      <div style={{ left: edge + 12 / zoom, transform: `translate(0, -50%) scale(${1 / zoom})`, transformOrigin: 'left center' }}
+        className={`pointer-events-auto absolute flex items-center gap-1 transition-opacity ${active || adding ? 'opacity-100' : 'opacity-50 hover:opacity-100'}`}>
         {button(-SPACE_STEP, Minus, `Pull everything below up — ${Math.round(gap.bottom - gap.top)}px apart`)}
         {button(SPACE_STEP, Plus, `Push everything below down — ${Math.round(gap.bottom - gap.top)}px apart`)}
-        {/* Same dev gate as the corner button this came from. */}
         <span className="relative">
           <button type="button" aria-label="Insert a section here" title="Insert a section in this gap" aria-expanded={adding}
             onPointerDown={event => event.stopPropagation()} onClick={() => onAdding(!adding)}
@@ -2269,14 +2267,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   ];
   const onCanvas = presenting === null ? contentBoxes() : [];
   const gaps = gapsFrom(onCanvas);
-  // The rail's buttons sit left of the leftmost thing on the canvas.
-  const contentLeft = Math.min(0, ...onCanvas.map(box => box.x));
-  const activeGap = hoverGap == null ? null : gaps.find(gap => gap.index === hoverGap) || null;
   const trackGap = event => {
     if (gapAdding) return; // the rail must not slide away while its menu is open
     if (drawing || tool !== 'select') return setHoverGap(null);
-    const point = local(event);
-    const found = point.x < contentLeft ? nearestGap(gaps, point.y) : null;
+    // Near a dotted line - anywhere along it - brings its buttons to full strength.
+    const found = nearestGap(gaps, local(event).y, 40 / view.z);
     setHoverGap(found ? found.index : null);
   };
   // Ports with a live connection stay visible on both ends of the link.
@@ -2381,8 +2376,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />)}
           {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} />)}
         </div>
-        {presenting === null && activeGap && <GapRail gap={activeGap} zoom={view.z} span={railSpan} left={contentLeft} onNudge={delta => nudgeGap(activeGap, delta)}
-          adding={gapAdding} onAdding={setGapAdding} onAddHeading={insertHeadingAt} />}
+        {/* Every gap has its dotted line and its [-] [+] [...] at the far left. */}
+        {presenting === null && gaps.map(gap => (
+          <GapRail key={gap.index} gap={gap} zoom={view.z} edge={-view.x / view.z} span={railSpan}
+            active={hoverGap === gap.index} adding={gapAdding && hoverGap === gap.index}
+            onNudge={delta => nudgeGap(gap, delta)}
+            onAdding={open => { setHoverGap(gap.index); setGapAdding(open); }} onAddHeading={insertHeadingAt} />
+        ))}
         {marquee && (
           <svg width="1" height="1" aria-hidden="true" className="pointer-events-none absolute top-0 left-0 z-30 overflow-visible">
             <rect x={Math.min(marquee.x1, marquee.x2)} y={Math.min(marquee.y1, marquee.y2)}
