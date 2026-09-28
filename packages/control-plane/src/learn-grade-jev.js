@@ -6,6 +6,13 @@
 
 export const JEV_URL = 'https://ai-gateway.vercel.sh/typesafe/v1/systemone';
 export const JEV_MODEL = 'typesafe-ai/jev';
+// Bench-only transport experiment: the same request body sent straight to
+// TypeSafe. Only the URL, the key and the model name differ; the direct arm
+// pins a concrete Jev version, which the gateway cannot.
+export const JEV_TRANSPORTS = Object.freeze({
+  gateway: Object.freeze({ url: JEV_URL, key: 'VERCEL_TYPESAFE_API_KEY', model: JEV_MODEL }),
+  direct: Object.freeze({ url: 'https://api.typesafe.ai/v1/systemone', key: 'TYPESAFE_API_KEY', model: 'jev-1.13.0' }),
+});
 export const GRADER_PROTOCOL_VERSION = 'jev-grade-p1';
 export const GRADER_PROTOCOL_FINGERPRINT = '9d525f60874aed90';
 export const THRESHOLDS = Object.freeze({ yes: 0.7, no: 0.3 });
@@ -44,7 +51,7 @@ export function gradeQuestions(expects) {
   return questions;
 }
 
-export const jevRequest = (block, answer) => ({ model: JEV_MODEL, state: gradeState(block, answer), questions: gradeQuestions(block.expects) });
+export const jevRequest = (block, answer, model = JEV_MODEL) => ({ model, state: gradeState(block, answer), questions: gradeQuestions(block.expects) });
 
 // Every question must come back as a probability in [0, 1]; a missing or odd
 // answer fails the grade rather than counting as "no".
@@ -63,14 +70,14 @@ export function parseJevAnswers(body, ideaCount) {
   };
 }
 
-export function readJevMeta(body) {
+export function readJevMeta(body, requestedModel = JEV_MODEL) {
   const cost = body?.provider_metadata?.gateway?.cost;
   const generationId = body?.provider_metadata?.gateway?.generationId;
   return {
     inputTokens: Number.isInteger(body?.usage?.input_tokens) ? body.usage.input_tokens : null,
     cost: cost != null && Number.isFinite(Number(cost)) ? Number(cost) : null,
     generationId: typeof generationId === 'string' ? generationId : null,
-    model: typeof body?.model === 'string' ? body.model : JEV_MODEL,
+    model: typeof body?.model === 'string' ? body.model : requestedModel,
   };
 }
 
@@ -121,7 +128,7 @@ export async function verdictLogicFingerprint() {
 // One POST to the gateway. 3 s per attempt; a 429 or 529 is retried once after
 // min(Retry-After, 1 s); a timeout is never retried. `ms` is the whole wall
 // time, retry wait included; `retries` (0 or 1) counts that 429/529 retry.
-export async function askJev(env, request, { timeoutMs = 3000, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), fetchImpl = (...args) => fetch(...args) } = {}) {
+export async function askJev(env, request, { transport = 'gateway', timeoutMs = 3000, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), fetchImpl = (...args) => fetch(...args) } = {}) {
   const started = Date.now();
   for (let attempt = 0; ; attempt += 1) {
     const controller = new AbortController();
@@ -129,10 +136,11 @@ export async function askJev(env, request, { timeoutMs = 3000, sleep = ms => new
     let response;
     let body;
     try {
-      response = await fetchImpl(JEV_URL, {
+      const { url, key } = JEV_TRANSPORTS[transport];
+      response = await fetchImpl(url, {
         method: 'POST',
         signal: controller.signal,
-        headers: { Authorization: `Bearer ${env.VERCEL_TYPESAFE_API_KEY}`, 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${env[key]}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
       });
       body = await response.json().catch(() => null);
@@ -148,6 +156,6 @@ export async function askJev(env, request, { timeoutMs = 3000, sleep = ms => new
       continue;
     }
     if (!response.ok) throw new JevError('http', `Jev ${response.status}${body?.error_type ? ` ${body.error_type}` : ''}: ${body?.message || body?.error?.message || 'request failed'}`, response.status);
-    return { body, ms: Date.now() - started, retries: attempt, ...readJevMeta(body) };
+    return { body, ms: Date.now() - started, retries: attempt, ...readJevMeta(body, request.model) };
   }
 }

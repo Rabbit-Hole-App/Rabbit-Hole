@@ -11,6 +11,7 @@ globalThis.__realFetch ??= globalThis.fetch;
 export function world(t, { envExtra = {} } = {}) {
   const { sqlite, LEARN_DB } = learnDb(t);
   const jevBodies = [];
+  const jevCalls = [];
   const defaultReply = request => ({
     model: 'typesafe-ai/jev',
     answers: Object.fromEntries(Object.keys(request.questions).map(id => [id, { type: 'noul', noul: id.startsWith('idea_') ? 0.9 : 0.05 }])),
@@ -19,7 +20,8 @@ export function world(t, { envExtra = {} } = {}) {
   });
   let reply = defaultReply;
   globalThis.fetch = async (url, init) => {
-    assert.equal(String(url), 'https://ai-gateway.vercel.sh/typesafe/v1/systemone');
+    assert.ok(['https://ai-gateway.vercel.sh/typesafe/v1/systemone', 'https://api.typesafe.ai/v1/systemone'].includes(String(url)), String(url));
+    jevCalls.push({ url: String(url), auth: init.headers.Authorization });
     const request = JSON.parse(init.body);
     jevBodies.push(request);
     const out = await reply(request, init.signal);
@@ -41,7 +43,7 @@ export function world(t, { envExtra = {} } = {}) {
   };
   const post = (path, body, headers = {}) => learnGradeRoute(path, new Request(`https://dev.test${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) }), env);
   const get = (pathWithQuery, headers = {}) => learnGradeRoute(pathWithQuery.split('?')[0], new Request(`https://dev.test${pathWithQuery}`, { headers }), env);
-  return { sqlite, env, jevBodies, post, get, defaultReply, setReply: next => { reply = next; } };
+  return { sqlite, env, jevBodies, jevCalls, post, get, defaultReply, setReply: next => { reply = next; } };
 }
 
 export const gradeBody = (overrides = {}) => ({
@@ -341,4 +343,47 @@ test('the bench route prunes too', async t => {
   const run = 'benchmark-v1-2026-09-25-a';
   await w.post('/api/learn/grade/bench', gradeBody({ attempt_id: `${run}:c01-all`, set: 'benchmark-v1', bench_run: run }), BENCH);
   assert.equal(w.sqlite.prepare("SELECT COUNT(*) AS n FROM learn_grades WHERE attempt_id = 'attempt-ancient'").get().n, 0);
+});
+
+test('bench-only direct transport: same request body, TypeSafe URL and key, pinned model; canvas stays on the gateway', async t => {
+  const w = world(t, { envExtra: { TYPESAFE_API_KEY: 'ts_test' } });
+  const run = 'transport-ab-2026-09-28-a';
+  const body = transport => gradeBody({ attempt_id: `${run}:${transport}:c01`, set: 'benchmark-v1', bench_run: run, transport });
+  const gateway = await (await w.post('/api/learn/grade/bench', body('gateway'), BENCH)).json();
+  const direct = await (await w.post('/api/learn/grade/bench', body('direct'), BENCH)).json();
+  assert.deepEqual(w.jevCalls, [
+    { url: 'https://ai-gateway.vercel.sh/typesafe/v1/systemone', auth: 'Bearer vck_test' },
+    { url: 'https://api.typesafe.ai/v1/systemone', auth: 'Bearer ts_test' },
+  ]);
+  const [a, b] = w.jevBodies;
+  assert.equal(a.model, 'typesafe-ai/jev');
+  assert.equal(b.model, 'jev-1.13.0');
+  assert.deepEqual({ ...a, model: null }, { ...b, model: null }, 'state and questions are identical');
+  assert.equal(gateway.transport, 'gateway');
+  assert.equal(direct.transport, 'direct');
+  assert.equal(direct.status, 'done');
+  // A canvas grade cannot pick the transport.
+  await w.post('/api/learn/grade', { ...gradeBody({ attempt_id: 'attempt-canvas-1' }), transport: 'direct' });
+  assert.equal(w.jevCalls.at(-1).url, 'https://ai-gateway.vercel.sh/typesafe/v1/systemone');
+});
+
+test('direct transport: 503 and no row without TYPESAFE_API_KEY; only benchmark-v1; unknown transport is 400', async t => {
+  const w = world(t);
+  const run = 'transport-ab-2026-09-28-a';
+  const body = (transport, extra = {}) => gradeBody({ attempt_id: `${run}:${transport}:c01`, set: 'benchmark-v1', bench_run: run, transport, ...extra });
+  const missing = await w.post('/api/learn/grade/bench', body('direct'), BENCH);
+  assert.equal(missing.status, 503);
+  assert.equal((await missing.json()).error, 'Direct TypeSafe is not configured: set TYPESAFE_API_KEY on this worker.');
+  assert.equal(count(w), 0);
+  assert.equal((await w.post('/api/learn/grade/bench', body('direct', { set: 'benchmark-v1-holdout' }), BENCH)).status, 400);
+  assert.equal((await w.post('/api/learn/grade/bench', body('carrier-pigeon'), BENCH)).status, 400);
+  assert.equal(w.jevCalls.length, 0);
+});
+
+test('a failed Jev call reports its transport, error code and status', async t => {
+  const w = world(t, { envExtra: { TYPESAFE_API_KEY: 'ts_test' } });
+  w.setReply(() => Response.json({ message: 'nope', error_type: 'invalid_request' }, { status: 400 }));
+  const run = 'transport-ab-2026-09-28-a';
+  const failed = await (await w.post('/api/learn/grade/bench', gradeBody({ attempt_id: `${run}:direct:c01`, set: 'benchmark-v1', bench_run: run, transport: 'direct' }), BENCH)).json();
+  assert.deepEqual({ transport: failed.transport, error_code: failed.error_code, error_status: failed.error_status }, { transport: 'direct', error_code: 'http', error_status: 400 });
 });

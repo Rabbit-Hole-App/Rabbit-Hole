@@ -91,6 +91,25 @@ The alternatives, and why they were not chosen:
   here and was not chosen, because the gateway key already exists and was
   probed live.
 
+### Transport A/B (bench only)
+
+After two gateway runs showed variable first-request 3 s timeouts, a
+transport-only A/B compares the gateway with direct TypeSafe
+(`tests/evals/learn-grade/transport-ab.mjs`).
+- `askJev` takes `transport`: `gateway` (default; `JEV_URL`,
+  `VERCEL_TYPESAFE_API_KEY`, model `typesafe-ai/jev`) or `direct`
+  (`https://api.typesafe.ai/v1/systemone`, `TYPESAFE_API_KEY`, pinned model
+  `jev-1.13.0`). The state, questions, parsing, thresholds, verdict rules, 3 s
+  timeout and no-timeout-retry rule are shared; the protocol fingerprint is
+  unchanged.
+- Only `/api/learn/grade/bench` accepts `transport`, only on `benchmark-v1`.
+  Canvas grades always use the gateway. Direct without `TYPESAFE_API_KEY` is a
+  503 with no row.
+- Each case is graded by both arms in turn, alternating which goes first, with
+  its own attempt id per arm (`<run>:<transport>:<case>`). No Opus calls.
+- The direct API reports no cost; cost is input tokens × TypeSafe's published
+  $0.042 per million.
+
 ### Wire format
 
 Verified with a live call on 2026-09-24. Source:

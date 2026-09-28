@@ -2,7 +2,7 @@
 // (docs/features/jev-grading.md). The learner still sees Opus; this only
 // records what Jev would have said, one row per attempt.
 import { authorizedBoardApp } from './learn-board.js';
-import { GRADER_PROTOCOL_VERSION, JevError, askJev, jevRequest, parseJevAnswers, sha256Hex, stripFences, verdictFrom } from './learn-grade-jev.js';
+import { GRADER_PROTOCOL_VERSION, JEV_TRANSPORTS, JevError, askJev, jevRequest, parseJevAnswers, sha256Hex, stripFences, verdictFrom } from './learn-grade-jev.js';
 import { pruneLearnGrades, reserveGrade, completeGrade, failGrade, setBaseline, reportRows } from './learn-grade-store.js';
 import { reportFrom } from './learn-grade-report.js';
 
@@ -13,6 +13,7 @@ const BENCH_SETS = ['benchmark-v1', 'benchmark-v1-holdout'];
 const INCOMPLETE = 'This attempt never finished. A new attempt needs a new attempt_id.';
 const NO_KEY = 'Jev is not configured: set VERCEL_TYPESAFE_API_KEY on this worker.';
 const SUBSCRIPTION_ONLY = 'Jev is off in subscription-only mode.';
+const NO_DIRECT_KEY = 'Direct TypeSafe is not configured: set TYPESAFE_API_KEY on this worker.';
 
 export function validateGradeBody(body) {
   const { attempt_id: attemptId, mode, prompt, expects, answer } = body || {};
@@ -85,15 +86,21 @@ async function grade(req, env, bench) {
   const { value } = input;
   let set = null;
   let run = null;
+  // Canvas grades always use the gateway; only the bench may pick the direct arm.
+  let transport = 'gateway';
   if (bench) {
     set = body.set;
     run = body.bench_run;
     if (!BENCH_SETS.includes(set)) return json({ error: `set must be one of ${BENCH_SETS.join(', ')}` }, 400);
     if (typeof run !== 'string' || !BENCH_RUN.test(run)) return json({ error: 'bench_run must be 6-60 letters, digits, dash or underscore' }, 400);
     if (!value.attempt_id.startsWith(`${run}:`)) return json({ error: 'attempt_id must start with bench_run followed by a colon' }, 400);
+    transport = body.transport ?? 'gateway';
+    if (!Object.hasOwn(JEV_TRANSPORTS, transport)) return json({ error: `transport must be one of ${Object.keys(JEV_TRANSPORTS).join(', ')}` }, 400);
+    if (transport === 'direct' && set !== 'benchmark-v1') return json({ error: 'the direct transport runs on benchmark-v1 only' }, 400);
   }
   if (env.SUBSCRIPTION_ONLY === 'true') return json({ error: SUBSCRIPTION_ONLY }, 503);
   if (!env.VERCEL_TYPESAFE_API_KEY) return json({ error: NO_KEY }, 503);
+  if (transport === 'direct' && !env.TYPESAFE_API_KEY) return json({ error: NO_DIRECT_KEY }, 503);
   await pruneLearnGrades(env);
 
   const holdout = !!set?.endsWith('-holdout');
@@ -109,16 +116,16 @@ async function grade(req, env, bench) {
 
   const started = Date.now();
   try {
-    const result = await askJev(env, jevRequest(value, value.answer));
+    const result = await askJev(env, jevRequest(value, value.answer, JEV_TRANSPORTS[transport].model), { transport });
     const probabilities = parseJevAnswers(result.body, value.expects.length);
     await completeGrade(env, reserved.id, { jev: { ...probabilities, verdict: verdictFrom(probabilities) }, ms: result.ms, inputTokens: result.inputTokens, cost: result.cost, model: result.model, generationId: result.generationId });
-    return json(doneBody(reserved.id, false, value.expects, probabilities, { ms: result.ms, model: result.model, generation_id: result.generationId, grader_protocol_version: GRADER_PROTOCOL_VERSION, cost: result.cost, input_tokens: result.inputTokens, retries: result.retries }));
+    return json(doneBody(reserved.id, false, value.expects, probabilities, { ms: result.ms, model: result.model, generation_id: result.generationId, grader_protocol_version: GRADER_PROTOCOL_VERSION, cost: result.cost, input_tokens: result.inputTokens, retries: result.retries, transport }));
   } catch (error) {
     const message = error instanceof JevError ? error.message : `Jev grading failed: ${error.message}`;
     await failGrade(env, reserved.id, { error: message, ms: Date.now() - started });
     // Observational only: the learner already has Opus's verdict; this grade has no Jev side.
     console.log(`learn-grade: Jev unavailable; Opus stood alone, grade ${reserved.id}: ${message}`);
-    return json({ grade_id: reserved.id, status: 'failed', duplicate: false, error: message }, 502);
+    return json({ grade_id: reserved.id, status: 'failed', duplicate: false, error: message, transport, error_code: error.code ?? null, error_status: error.status ?? null }, 502);
   }
 }
 
