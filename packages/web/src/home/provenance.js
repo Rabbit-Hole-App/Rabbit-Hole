@@ -13,9 +13,11 @@ export function forkLabel(n) {
 export function cardModel(a) {
   const title = a.title || (a.kind === 'repository' ? (a.repo || a.name).split('/').pop() : a.name);
   const creator = a.creator?.name ? { name: a.creator.name, sourceOwner: a.source_owner_verified === true } : null;
-  const source = a.kind === 'repository' && a.repo ? `github.com/${a.repo}` : a.source_repo ? `From github.com/${a.source_repo}` : null;
+  const repo = a.kind === 'repository' ? a.repo : a.source_repo;
+  const source = repo ? `${a.kind === 'repository' ? '' : 'From '}github.com/${repo}` : null;
+  const sourceUrl = repo ? `https://github.com/${repo}` : null;
   const forkedFrom = a.forked_from_resource_id
     ? { id: a.forked_from_resource_id, title: a.forked_from_title, creator: a.forked_from_creator?.name, sourceOwner: a.forked_from_creator?.source_owner_verified === true }
     : null;
-  return { title, creator, source, summary: a.summary || null, forkedFrom, forks: forkLabel(a.fork_count) };
+  return { title, creator, source, sourceUrl, summary: a.summary || null, forkedFrom, forks: forkLabel(a.fork_count) };
 }

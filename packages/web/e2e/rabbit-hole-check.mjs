@@ -433,6 +433,32 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
+  await check('provenance-links: a solid Source owner badge; the GitHub line opens GitHub in a new tab without opening the card; Forked from opens the original', async () => {
+    const page = await open();
+    await page.context().route('https://github.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<title>github stub</title>' }));
+    await loaded(page, '/library?type=projects&fixtures=1');
+    const card = page.locator('[data-library-card]').filter({ hasText: 'minbpe, Explained' }).first();
+    await card.waitFor({ timeout: 20000 });
+    const badge = card.locator('[data-creator] [data-owner-badge]');
+    must(await badge.getAttribute('aria-label') === 'Created by repository owner', 'badge label');
+    must(await badge.locator('path').first().evaluate((n) => getComputedStyle(n).fill) === 'rgb(35, 131, 226)', 'the badge is not solid blue');
+    const link = card.getByRole('link', { name: 'github.com/karpathy/minbpe' });
+    must(await link.getAttribute('href') === 'https://github.com/karpathy/minbpe' && await link.getAttribute('target') === '_blank', 'GitHub link target');
+    await link.focus();
+    must(await link.evaluate((n) => getComputedStyle(n).outlineStyle) !== 'none', 'no focus ring on the GitHub link');
+    const popup = page.waitForEvent('popup');
+    await link.click();
+    must((await popup).url() === 'https://github.com/karpathy/minbpe', 'the link did not open GitHub');
+    await page.waitForTimeout(500);
+    must(await page.getByText('Review fixture: there is nothing behind this card.').count() === 0, 'the link click also opened the card');
+    await loaded(page, '/library?type=canvases');
+    const fork = page.locator('[data-library-card]').filter({ hasText: 'My Attention Deep Dive' }).first();
+    must(await fork.locator('[data-forked-from] [data-owner-badge]').count() === 1, 'the original owner has no badge in Forked from');
+    await fork.locator('[data-forked-from]').getByRole('button', { name: 'nanoGPT from First Principles' }).click();
+    await page.getByText('Review fixture: there is nothing behind this card.').waitFor({ timeout: 5000 }); // a fixture's original has no page
+    await page.context().close();
+  });
+
   await check('library: one Filters control, no permanent tabs; the popover, View all and the Agent Bar set the same state', async () => {
     const page = await open();
     await loaded(page, '/library');

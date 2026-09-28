@@ -3,7 +3,7 @@ import { Archive, ArrowRight, ArrowUpRight, BookOpen, Check, ListFilter, Loader2
 import { titleOf } from './agent/catalog.js';
 import { ago, navigate } from './api.js';
 import { learnProgress, onAnotherDevice, readRecent } from './home/continue.js';
-import { Creator, ForkedFrom, Forks } from './home/Provenance.jsx';
+import { Creator, ForkedFrom, Forks, SourceLink } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
 import { byRecent, chipHref, libraryHref, librarySections, ofType, SCOPES, TYPES } from './library-filter.js';
 import { Button, IconBtn, KindIcon, Menu, MenuItem, Pill, toast } from './ui.jsx';
@@ -112,8 +112,8 @@ function Card({ kind, a, m, badge, action, onMore, source, context, meta }) {
         {badge}
       </div>
       <Creator m={m} />
-      {source && <span className="truncate text-xs text-ink-2">{source}</span>}
-      <ForkedFrom m={m} />
+      {source}
+      <ForkedFrom m={m} onOpen={(id) => open({ name: id, fixture: a.fixture })} />
       {context}
       {meta}
       <div className="mt-auto flex items-center gap-2 pt-3">
@@ -135,7 +135,7 @@ function ProjectCard({ a, ctx, onMore }) {
   const source = [a.commit_sha?.slice(0, 7), `Map ${a.status}`, canvases && `${canvases} canvas${canvases > 1 ? 'es' : ''}`].filter(Boolean).join(' · ');
   return (
     <Card kind="project" a={a} m={m} onMore={onMore} action={p?.lastExplored || p?.next ? 'Continue' : 'Open'} badge={<Pill kind="repository">Project</Pill>}
-      source={`${m.source}${a.branch && a.branch !== 'main' && a.branch !== 'master' ? ` · ${a.branch}` : ''}`}
+      source={<SourceLink m={m} suffix={a.branch && a.branch !== 'main' && a.branch !== 'master' ? ` · ${a.branch}` : ''} />}
       context={(
         <>
           {m.summary && <p className="line-clamp-2 pt-1 text-xs text-ink">{m.summary}</p>}
@@ -165,7 +165,7 @@ function CanvasCard({ a, ctx, onMore }) {
         {!a.fixture && (away ? <Pill>On another device</Pill> : <span className="truncate">· Content in this browser</span>)}
       </span>
     )}
-      source={m.source || (project ? `In ${titleOf(project)}` : m.forkedFrom ? null : 'Standalone')}
+      source={m.source ? <SourceLink m={m} /> : !m.forkedFrom && <span className="truncate text-xs text-ink-2">{project ? `In ${titleOf(project)}` : 'Standalone'}</span>}
       context={(
         <>
           {m.summary && <p className="line-clamp-2 pt-1 text-xs text-ink">{m.summary}</p>}

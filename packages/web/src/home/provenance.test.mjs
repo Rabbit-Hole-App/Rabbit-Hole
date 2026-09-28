@@ -36,7 +36,8 @@ test('a standalone canvas has no provenance, no check and no fork count; real ro
   assert.equal(plain.creator.sourceOwner, false);
   assert.equal(plain.forks, null);
   const real = cardModel({ kind: 'repository', name: 'repo-1', repo: 'karpathy/nanoGPT' });
-  assert.deepEqual(real, { title: 'nanoGPT', creator: null, source: 'github.com/karpathy/nanoGPT', summary: null, forkedFrom: null, forks: null });
+  assert.deepEqual(real, { title: 'nanoGPT', creator: null, source: 'github.com/karpathy/nanoGPT', sourceUrl: 'https://github.com/karpathy/nanoGPT', summary: null, forkedFrom: null, forks: null });
+  assert.equal(plain.sourceUrl, null);
 });
 
 test('review fixtures are off unless the preview asks for them; ?fixtures=1 and ?fixtures=0 persist the choice', () => {
@@ -49,4 +50,11 @@ test('review fixtures are off unless the preview asks for them; ?fixtures=1 and 
   assert.equal(fixturesOn(s, '?fixtures=0', true), false);
   assert.equal(fixturesOn(s, '', true), false);
   assert.ok(FIXTURES.every((a) => a.fixture === true && a.name.startsWith('fixture-')));
+});
+
+test('the source line links to the repository on GitHub; a canvas made from a repository links to it too', () => {
+  assert.equal(cardModel(byName('fixture-proj-minbpe')).sourceUrl, 'https://github.com/karpathy/minbpe');
+  const canvas = cardModel(byName('fixture-canvas-nanogpt-internals'));
+  assert.equal(canvas.source, 'From github.com/yudhisteer/nanogpt-lab');
+  assert.equal(canvas.sourceUrl, 'https://github.com/yudhisteer/nanogpt-lab');
 });

@@ -4,7 +4,7 @@ import { navigate } from './api.js';
 import { learnPreview } from './flags.js';
 import { openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
 import { BANNER, DEMO, readSaved, toggleSaved } from './home/explore.js';
-import { Creator, ForkedFrom, Forks } from './home/Provenance.jsx';
+import { Creator, ForkedFrom, Forks, SourceLink } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
 import Shell from './Shell.jsx';
@@ -112,8 +112,8 @@ function RecentCard({ app, card }) {
         <Pill kind={app.kind}>{KIND[app.kind] || app.kind}</Pill>
       </div>
       <Creator m={m} />
-      {lineA && <span className="truncate text-xs text-ink-2">{lineA}</span>}
-      <ForkedFrom m={m} />
+      {m.source ? <SourceLink m={m} /> : lineA && <span className="truncate text-xs text-ink-2">{lineA}</span>}
+      <ForkedFrom m={m} onOpen={(id) => go(() => navigate(`/apps/${id}`))()} />
       {lineB && <span className="line-clamp-2 text-xs text-ink-3">{lineB}</span>}
       <div className="mt-auto flex items-center gap-2 pt-1">
         {action?.to && <button type="button" className={link} onClick={go(() => navigate(action.to))}>{action.label}</button>}
