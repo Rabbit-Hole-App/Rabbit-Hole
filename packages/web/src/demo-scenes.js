@@ -6,7 +6,7 @@
 
 import { causalAttentionScene } from './reference-scenes.js';
 import { staticAppReviewBlocks } from './gallery-scenes.js';
-import { reviewNotebook } from './review-notebook.js';
+import { reviewNotebook, reviewWorkspace } from './review-notebook.js';
 
 // --- 1. why an axis must hold still -----------------------------------------
 // The same reveal drawn twice. On the left the axis is recomputed from the
@@ -345,12 +345,14 @@ export const BOARDS = {
   'static-app-review-2': staticAppReviewBlocks,
   'static-app-review-3': staticAppReviewBlocks,
   // Canvas notebook review (docs/features/canvas-notebook.md): a teaching card
-  // above a real notebook, resized from its default 640x540, whose cells were run.
+  // above a real notebook workspace (experiment.ipynb, .py, config and data
+  // files), resized from its default 640x540; the notebook's cells were run.
   'canvas-notebook-review': () => [
     { id: 'review-teach', type: 'explanation', dx: 0, dy: 0, title: 'Softmax turns scores into probabilities',
       body: 'Exponentiate each score so every value is positive, then divide by the sum so the outputs add to one. Bigger scores win disproportionately, because $e^x$ grows faster than $x$.',
       more: [{ label: 'Why shifting is safe', text: 'Adding the same constant $c$ to every score multiplies every $e^{s}$ by $e^{c}$, which cancels in the division. Libraries subtract the largest score to avoid overflow.' }] },
-    { id: 'review-notebook', type: 'notebook', notebook_id: 'review-softmax-notebook', language: 'python', dx: 0, dy: 0, w: 600, h: 780, ipynb: reviewNotebook },
+    { id: 'review-notebook', type: 'notebook', notebook_id: 'review-softmax-notebook', language: 'python', dx: 0, dy: 0, w: 720, h: 760,
+      active_path: 'experiment.ipynb', ipynb_path: 'experiment.ipynb', ipynb: reviewNotebook, seed_files: reviewWorkspace },
   ],
 };
 
@@ -363,4 +365,5 @@ export const BOARD_SEED_VERSIONS = {
   'static-app-review': 5,
   'static-app-review-2': 2,
   'static-app-review-3': 1,
+  'canvas-notebook-review': 1,
 };

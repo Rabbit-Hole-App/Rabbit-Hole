@@ -105,3 +105,13 @@ export const reviewNotebook = {
     }
   ]
 };
+
+// The rest of the review workspace, seeded into the card's own files the first
+// time it opens. model.py is what the notebook's later cells could import.
+export const reviewWorkspace = {
+  'model.py': 'import math\n\n\ndef softmax(scores):\n    """Turn raw scores into probabilities that sum to one."""\n    top = max(scores)\n    exps = [math.exp(s - top) for s in scores]\n    total = sum(exps)\n    return [e / total for e in exps]\n',
+  'utils.py': 'def rounded(values, places=3):\n    return [round(v, places) for v in values]\n',
+  'config.yaml': 'temperature: 1.0\nscores: [2.0, 1.0, 0.1]\n',
+  'data/sample.json': '{"scores": [2.0, 1.0, 0.1], "labels": ["cat", "dog", "bird"]}\n',
+  'data/notes.md': '# Data notes\n\nThree labelled scores for the softmax walkthrough.\n',
+};

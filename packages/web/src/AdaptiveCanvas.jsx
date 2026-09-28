@@ -17,7 +17,7 @@ import LearnWiki from './LearnWiki.jsx';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 import NotebookBody from './NotebookCard.jsx';
-import { newNotebookBlock } from './learn-notebook.js';
+import { activePath, newNotebookBlock } from './learn-notebook.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -500,12 +500,20 @@ function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove,
 function NotebookCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap }) {
   const latest = useRef(block);
   latest.current = block;
+  // Two reports can land before a re-render, so each builds on the last one.
+  const save = patch => { latest.current = { ...latest.current, ...patch }; onChangeQuiet(latest.current); };
+  const manifest = ({ active_path, files }) => {
+    if (active_path === latest.current.active_path && JSON.stringify(files) === JSON.stringify(latest.current.files)) return;
+    save({ active_path, files });
+  };
+  // Only the open notebook's document is copied onto the card.
+  const copyNotebook = (path, ipynb) => { if (path === activePath(latest.current)) save({ ipynb_path: path, ipynb }); };
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={640} height={block.h || 540} autoMax={undefined} saved={{ w: block.w, h: block.h }}
       onSize={(id, w, h) => onChange({ ...block, w, h })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-      <NotebookBody block={block} onSelect={onSelect} onDocument={ipynb => onChangeQuiet({ ...latest.current, ipynb })} />
+      <NotebookBody block={block} onSelect={onSelect} onDocument={copyNotebook} onManifest={manifest} />
     </CanvasNode>
   );
 }
@@ -1265,7 +1273,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     snapshot(pickedChats.length > 0);
     const step = 28;
     const fresh = [];
-    const copyNode = node => { const id = crypto.randomUUID(); fresh.push(id); return { ...node, id, groupId: undefined, dx: node.dx + step, dy: node.dy + step }; };
+    // A copied notebook card gets its own workspace, seeded from the copy of its notebook.
+    const copyNode = node => { const id = crypto.randomUUID(); fresh.push(id); return { ...node, id, groupId: undefined, dx: node.dx + step, dy: node.dy + step, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}) }; };
     const blocksCopy = pickedBlocks.map(copyNode);
     // A card copied mid-answer would never receive its stream: deltas are
     // routed by id and the copy has a new one. Settle it instead.

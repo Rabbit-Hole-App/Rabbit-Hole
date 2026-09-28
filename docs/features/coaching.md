@@ -262,8 +262,9 @@ reset or leaving/reloading Learn; downloading retains a copy. No server executio
 new model calls, notebook ingestion, or cross-device persistence was added.
 See [notebook build/deployment](../../packages/web/notebook/README.md).
 
-The canvas also takes real notebooks: **Insert → Notebook** adds a JupyterLite
-Notebook card whose `.ipynb` is saved with the board. See
+The canvas also takes real notebooks: **Insert → Notebook** adds a card that is
+its own JupyterLite workspace (notebooks, text and code files, folders, a Files
+drawer), on a separate canvas notebook site. See
 [canvas notebook](canvas-notebook.md).
 
 Practice contains three authored quiz questions with explanations and links

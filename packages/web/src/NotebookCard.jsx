@@ -1,32 +1,39 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download, MoreHorizontal, Play, RotateCcw } from 'lucide-react';
-import { NOTEBOOK_ORIGIN, NOTEBOOK_PROTOCOL, NOTEBOOK_URL, trimOutputs } from './learn-notebook.js';
+import { Download, FolderTree, MoreHorizontal, Play, RotateCcw } from 'lucide-react';
+import { NOTEBOOK_ORIGIN, NOTEBOOK_PROTOCOL, activePath, ipynbPath, notebookUrl, trimOutputs } from './learn-notebook.js';
 
 // The body of a notebook card (docs/features/canvas-notebook.md): Rabbit Hole's
-// header, then the real JupyterLite notebook in an iframe on the isolated
-// notebook origin. The board owns the .ipynb; the iframe edits and runs it and
-// reports every change back over the bridge.
-export default function NotebookBody({ block, onSelect, onDocument }) {
+// header, then the card's Jupyter workspace in an iframe on the isolated
+// notebook origin. The workspace keeps its own files; the card keeps the
+// manifest and a copy of the active notebook, reported over the bridge.
+export default function NotebookBody({ block, onSelect, onDocument, onManifest }) {
   const frame = useRef(null);
   const [loaded, setLoaded] = useState(false);
+  const [files, setFiles] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [kind, setKind] = useState('notebook');
   const ready = useRef(false);
-  // Only the first load sends the document; later edits flow the other way.
-  const initial = useRef(block.ipynb);
-  const latest = useRef(onDocument);
-  latest.current = onDocument;
+  // Only the first load sends the card's copy; later edits flow the other way.
+  const initial = useRef({ ipynb: block.ipynb, ipynb_path: ipynbPath(block), active_path: activePath(block), seed_files: block.seed_files || null });
+  const latest = useRef({ onDocument, onManifest });
+  latest.current = { onDocument, onManifest };
 
   useEffect(() => {
     const receive = event => {
       if (event.source !== frame.current?.contentWindow || event.origin !== NOTEBOOK_ORIGIN || event.data?.protocol !== NOTEBOOK_PROTOCOL) return;
-      if (event.data.type === 'loaded') {
+      const { type } = event.data;
+      if (type === 'loaded') {
         ready.current = true;
         setLoaded(true);
-        // Jupyter focuses its notebook while starting; hand focus back so
-        // the canvas keeps its keys until the learner clicks into a cell.
+        // Jupyter focuses itself while starting; hand focus back so the canvas
+        // keeps its keys until the learner clicks into the notebook.
         if (document.activeElement === frame.current) frame.current.blur();
       }
-      if (event.data.type === 'change' && event.data.ipynb?.cells) latest.current(trimOutputs(event.data.ipynb));
+      if (type === 'state' && typeof event.data.active_path === 'string') {
+        setKind(event.data.active_kind);
+        latest.current.onManifest({ active_path: event.data.active_path, files: (event.data.files || []).filter(path => typeof path === 'string') });
+      }
+      if (type === 'change' && event.data.ipynb?.cells && typeof event.data.path === 'string') latest.current.onDocument(event.data.path, trimOutputs(event.data.ipynb));
     };
     // Focus moving into the notebook is the canvas's only sign of a click
     // there, so it selects the card.
@@ -36,16 +43,19 @@ export default function NotebookBody({ block, onSelect, onDocument }) {
     return () => { window.removeEventListener('message', receive); window.removeEventListener('blur', blurred); };
   }, [block.id, onSelect]);
 
-  const send = type => frame.current?.contentWindow?.postMessage({ protocol: NOTEBOOK_PROTOCOL, type }, NOTEBOOK_ORIGIN);
+  const send = (type, extra = {}) => frame.current?.contentWindow?.postMessage({ protocol: NOTEBOOK_PROTOCOL, type, ...extra }, NOTEBOOK_ORIGIN);
+  const toggleFiles = () => { send('files', { open: !files }); setFiles(!files); };
+  const notebookName = ipynbPath(block).split('/').pop();
   const download = () => {
     const link = document.createElement('a');
     link.href = URL.createObjectURL(new Blob([JSON.stringify(block.ipynb, null, 1)], { type: 'application/x-ipynb+json' }));
-    link.download = 'notebook.ipynb';
+    link.download = notebookName;
     link.click();
     URL.revokeObjectURL(link.href);
     setMenu(false);
   };
   const action = 'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40';
+  const stop = event => event.stopPropagation();
 
   return (
     <>
@@ -53,19 +63,20 @@ export default function NotebookBody({ block, onSelect, onDocument }) {
         <span className="text-[11px] font-semibold tracking-wider text-ink-2 uppercase">Notebook</span>
         <span className="text-[11px] text-ink-3">· Python</span>
         <span className="flex-1" />
-        <button type="button" className={action} disabled={!loaded} onPointerDown={event => event.stopPropagation()} onClick={() => send('run-all')}><Play size={12} />Run all</button>
-        <button type="button" className={action} disabled={!loaded} onPointerDown={event => event.stopPropagation()} onClick={() => send('restart')}><RotateCcw size={12} />Restart</button>
-        <button type="button" aria-label="More notebook actions" className={action} onPointerDown={event => event.stopPropagation()} onClick={() => setMenu(open => !open)}><MoreHorizontal size={14} /></button>
+        <button type="button" aria-pressed={files} className={`${action} ${files ? 'bg-hover text-ink' : ''}`} disabled={!loaded} onPointerDown={stop} onClick={toggleFiles}><FolderTree size={12} />Files</button>
+        <button type="button" className={action} disabled={!loaded || kind !== 'notebook'} onPointerDown={stop} onClick={() => send('run-all')}><Play size={12} />Run all</button>
+        <button type="button" className={action} disabled={!loaded || kind !== 'notebook'} onPointerDown={stop} onClick={() => send('restart')}><RotateCcw size={12} />Restart</button>
+        <button type="button" aria-label="More notebook actions" className={action} onPointerDown={stop} onClick={() => setMenu(open => !open)}><MoreHorizontal size={14} /></button>
         {menu && (
-          <div role="menu" className="absolute top-8 right-3 z-30 rounded-lg border border-line bg-white p-1 shadow-md" onPointerDown={event => event.stopPropagation()}>
-            <button type="button" role="menuitem" className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-ink hover:bg-hover" onClick={download}><Download size={13} />Download .ipynb</button>
+          <div role="menu" className="absolute top-8 right-3 z-30 rounded-lg border border-line bg-white p-1 shadow-md" onPointerDown={stop}>
+            <button type="button" role="menuitem" className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-ink hover:bg-hover" onClick={download}><Download size={13} />Download {notebookName}</button>
           </div>
         )}
       </div>
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-line">
-        <iframe ref={frame} data-notebook-frame title="Jupyter notebook" src={NOTEBOOK_URL} className="h-full w-full bg-white"
+        <iframe ref={frame} data-notebook-frame title="Jupyter notebook" src={notebookUrl(block.notebook_id)} className="h-full w-full bg-white"
           sandbox="allow-scripts allow-same-origin allow-downloads" allow="clipboard-write"
-          onLoad={() => frame.current?.contentWindow?.postMessage({ protocol: NOTEBOOK_PROTOCOL, type: 'init', ipynb: initial.current }, NOTEBOOK_ORIGIN)} />
+          onLoad={() => send('init', initial.current)} />
         {!loaded && <p className="pointer-events-none absolute inset-0 grid place-items-center bg-white text-sm text-ink-2">Starting Python…</p>}
       </div>
     </>

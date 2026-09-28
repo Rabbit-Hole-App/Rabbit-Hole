@@ -1,9 +1,0 @@
-{
-  // The small-parallel session's own notebook origin, so canvas notebook work
-  // never replaces the shared small-learn-notebook-dev assets other sessions use.
-  // Build the site with the canvas bridge first (docs/features/canvas-notebook.md).
-  "name": "small-learn-notebook-dev-small-parallel",
-  "compatibility_date": "2026-09-16",
-  "workers_dev": true,
-  "assets": { "directory": "../../.small/notebook-site" }
-}
