@@ -83,6 +83,34 @@ test('framing: one frame at scale 1 for every state; nothing drawn outside it', 
   }
 });
 
+// The replay: 1 score, 2 ÷ √hs + hide the future, 3 softmax, 4 mix values.
+// While a step is in play, it and the steps before it are drawn in full and
+// every later step is faint; step 2's row is ringed only while it is in play.
+// The final frame (the board's default view) shows everything, no ring.
+test('replay: each step switches on in turn, later steps faint until then, final frame shows everything', () => {
+  const STEPS = [['scores', 'top-note'], ['masked', 'mask-note'], ['weights', 'sum-note', 'hand-note', 'hand-value'], ['values', 'output', 'output-note']];
+  const at = (time, inputs) => evaluateScene(structuredClone(scene), time, inputs).state;
+  for (const inputs of [{ reader: 3, lookFor: 'before' }, { reader: LAST, lookFor: 'next' }]) {
+    [0.6, 1.5, 2.5, 3.5].forEach((time, active) => {
+      const state = at(time, inputs);
+      STEPS.forEach((ids, step) => ids.forEach(id => {
+        const { opacity } = byId({ state }, id);
+        if (step <= active) assert.equal(opacity, 1, `t=${time}: ${id} (step ${step + 1}) drawn in full`);
+        else assert.ok(opacity > 0 && opacity <= 0.34, `t=${time}: ${id} (step ${step + 1}) faint, not ${opacity}`);
+      }));
+      assert.deepEqual(byId({ state }, 'masked').cellHighlight, active === 1 ? { row: 0 } : null, `t=${time}: step 2 ringed only in play`);
+    });
+    // Every saved paused time (0.01, which covers the 0.05 scrubber): a faint step never blanks before it switches on.
+    for (let tick = 0; tick <= scene.duration * 100; tick += 1) {
+      const state = at(tick / 100, inputs);
+      for (const id of STEPS.flat()) assert.ok(byId({ state }, id).opacity >= 0.25, `t=${tick / 100}: ${id} stays drawn`);
+    }
+    const end = at(scene.duration, inputs);
+    for (const id of STEPS.flat()) assert.equal(byId({ state: end }, id).opacity, 1, `final frame: ${id}`);
+    assert.equal(byId({ state: end }, 'masked').cellHighlight, null);
+  }
+});
+
 test('the ladder contract: 1-2 controls, real numbers that change, no equations or shapes, depth never labels the learner', () => {
   const controls = scene.inputs.filter(d => !d.hidden);
   assert.ok(controls.length >= 1 && controls.length <= 2);

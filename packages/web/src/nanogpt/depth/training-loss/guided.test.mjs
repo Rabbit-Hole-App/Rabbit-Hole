@@ -23,9 +23,9 @@ const PAIRS = [...TRAIN.targets, ...HELD.targets];
 const valR = run.checkpoints.map(c => r3(c.val));
 const trainR = run.checkpoints.map(c => r3(c.train));
 const BEST = valR.indexOf(Math.min(...valR));
-// Frame x 90..450 over p 0..1, y 380..110 over loss 0..9.
-const toP = x => (x - 90) / 360;
-const toLoss = y => (380 - y) * 9 / 270;
+// Frame x 500..860 over p 0..1, y 406..136 over loss 0..9.
+const toP = x => (x - 500) / 360;
+const toLoss = y => (406 - y) * 9 / 270;
 
 test('guided passes every gate at every reviewed checkpoint', () => {
   assert.equal(scene.objects[0].semanticId, 'question');
@@ -100,8 +100,8 @@ test('inspecting a position links its dot, its drop lines, its two cells and the
     // Drop lines from the dot's centre to the x axis (at p) and the y axis (at -ln p).
     const dx = byId(result, 'focus-drop-x'), dy = byId(result, 'focus-drop-y');
     assert.ok(Math.abs(dx.from.x - dot.x) < 0.01 && Math.abs(dx.from.y - dot.y) < 0.01);
-    assert.ok(Math.abs(dx.to.x - dot.x) < 0.01 && dx.to.y === 380);
-    assert.ok(Math.abs(dy.to.y - dot.y) < 0.01 && dy.to.x === 90);
+    assert.ok(Math.abs(dx.to.x - dot.x) < 0.01 && dx.to.y === 406);
+    assert.ok(Math.abs(dy.to.y - dot.y) < 0.01 && dy.to.x === 500);
     assert.ok(Math.abs(toP(dx.to.x) - p) < 1e-4, 'the x drop line lands at p');
     assert.ok(Math.abs(toLoss(dy.to.y) - -Math.log(p)) < 5e-3, 'the y drop line lands at -ln p');
     // Its two cells (p and -ln p) are ringed in its own table only.
@@ -118,16 +118,28 @@ test('inspecting a position links its dot, its drop lines, its two cells and the
   });
 });
 
-// One idea at a time: the inspected position's p -> -ln p, then the training
-// word and its mean loss, then held-out text and the checkpoint to keep - each
-// stage fully on screen before the next starts, each set in quieter type.
-test('the replay stages the three ideas in order, each quieter than the one before', () => {
+// Two headed phases. Phase 1 (What is training minimizing?) in two steps - the
+// inspected position's p -> -ln p, then the training word and its mean loss;
+// phase 2 (When should training stop?) - its heading, held-out text and the
+// checkpoint to keep - only after phase 1 has held for a beat. Each stage is
+// fully on screen before the next starts; each step's content is set in quieter
+// type, and phase 2 is introduced by its own heading.
+test('the replay stages phase 1 in two steps, then phase 2 under its own heading, each step’s content quieter than the one before', () => {
   const dots = prefix => Array.from({ length: 6 }, (unused, i) => `${prefix}-dot-${i}`);
   const stages = [
     ['focus-dot', 'focus-drop-x', 'focus-drop-y', 'focus'],
     ['train-title', 'trainTable', 'train-mean', ...dots('tr')],
-    ['held-title', 'heldTable', 'held-mean', 'slices', 'best', 'regime', ...dots('ho')],
+    ['phase-2', 'held-title', 'heldTable', 'held-mean', 'slices', 'best', 'regime', ...dots('ho')],
   ];
+  const appear = id => scene.timeline.find(e => e.target === id && e.action === 'appear');
+  // Phase 1's heading is up from the first frame; phase 2's leads its own content, a beat after phase 1 ends.
+  assert.equal(appear('phase-1'), undefined);
+  assert.equal(byId({ state: evaluated(scene, {}, 0).state }, 'phase-1').visible, true);
+  assert.ok(stages[2].slice(1).every(id => appear(id).at >= appear('phase-2').at + appear('phase-2').duration), 'phase 2’s heading is whole before its content');
+  assert.ok(appear('phase-2').at - Math.max(...stages[1].map(id => appear(id).at + appear(id).duration)) >= 0.5, 'phase 1 holds for a beat, longer than a step');
+  // The board's default view is the final frame: both phases, whole.
+  const last = evaluated(scene, {}, scene.duration).state;
+  for (const id of ['phase-1', ...stages.flat()]) assert.ok(byId({ state: last }, id).visible && byId({ state: last }, id).opacity === 1, `final frame: ${id}`);
   const starts = ids => ids.map(id => scene.timeline.find(e => e.target === id && e.action === 'appear').at);
   const ends = ids => ids.map(id => { const e = scene.timeline.find(x => x.target === id && x.action === 'appear'); return e.at + e.duration; });
   stages.forEach((ids, n) => {
@@ -141,6 +153,23 @@ test('the replay stages the three ideas in order, each quieter than the one befo
   assert.ok(size('focus') >= size('train-mean') && size('train-mean') > size('slices') && size('slices') >= size('held-mean'));
   assert.equal(size('best'), size('slices'));
   assert.ok(size('regime') <= size('slices'));
+});
+
+// Each heading sits over its own content down the left column - phase 1's
+// training word, then phase 2's held-out word and stopping lines - and the
+// chart both phases use sits to the right of the tables.
+test('the phase headings group their content down the left column, beside the shared chart', () => {
+  const [{ state }] = assertCardGates(scene, [{}]);
+  const at = id => byId({ state }, id);
+  assert.equal(at('phase-1').label, '1\u00a0\u00a0What is training minimizing?');
+  assert.equal(at('phase-2').label, '2\u00a0\u00a0When should training stop?');
+  const phase1 = ['train-title', 'trainTable', 'train-mean'];
+  const phase2 = ['held-title', 'heldTable', 'held-mean', 'slices', 'best', 'regime'];
+  assert.ok(phase1.every(id => at(id).y > at('phase-1').y && at(id).y < at('phase-2').y));
+  assert.ok(phase2.every(id => at(id).y > at('phase-2').y && at(id).y < at('status-1').y));
+  assert.ok(['phase-1', 'phase-2', 'train-title', 'held-title', 'slices', 'best', 'regime'].every(id => at(id).x === 40), 'one left edge');
+  const tablesRight = Math.max(...['trainTable', 'heldTable'].map(id => at(id).x + at(id).cols * at(id).cell));
+  assert.ok(at('nll-y-axis').from.x > tablesRight + 80, 'the chart clears the tables');
 });
 
 // The camera fits the content's bounds: they must not move between checkpoints

@@ -47,8 +47,8 @@ export const scene = {
   id: 'depth-generation-guided',
   title: 'Generation and sampling · Guided: temperature reshapes the odds',
   width: 960,
-  height: 676,
-  duration: 2.6,
+  height: 720,
+  duration: 2.9,
   inputs: [
     { name: 'temperature', type: 'index', label: 'Temperature T', of: 'presetLabels', default: T1, presentation: 'slider' },
   ],
@@ -135,7 +135,7 @@ export const scene = {
     text('t-now', '{{tLabel}}', RX, ROW_Y[0] + 4, { typography: 'heading' }),
     text('relation', '{{relation}} {{t1Label}}', RX, ROW_Y[0] + 30),
     text('p-top', 'p(“{{top}}”) = {{pTop}},  p(“{{second}}”) = {{pSecond}}', RX, ROW_Y[0] + 56),
-    text('order', 'Top is still “{{topName}}”: ÷ T keeps the order.', RX, ROW_Y[0] + 82),
+    text('order', 'Top is still “{{topName}}”.', RX, ROW_Y[0] + 82),
     text('gap', 'Gap “{{top}}” − “{{second}}”: {{rawGap}} ÷ T = {{gap}}', RX, ROW_Y[1] + 34),
     text('share', 'At {{t1Label}}, p = count ÷ total:', RX, ROW_Y[2] + 20),
     text('share-2', '{{topCount}} ÷ {{total}} = {{shareTop}}', RX, ROW_Y[2] + 44),
@@ -151,6 +151,9 @@ export const scene = {
     text('draw-count', '{{drawnTop}} of {{draws}} draws were “{{top}}”', RX, DRAWS_Y + 12, { role: 'output' }),
     note('expected', 'expected about {{expected}}  (= {{draws}} × p(“{{top}}”))', RX, DRAWS_Y + 34),
     note('lower-t', 'Lower T: more draws land on “{{top}}”.', RX, DRAWS_Y + 52),
+
+    // The card's takeaway: true at every preset (all T > 0, distinct counts), so it never changes with the slider.
+    text('takeaway', 'Temperature changes how sharp the odds are; it doesn’t change their ordering.', 24, DRAWS_Y + 96, { typography: 'heading', opacity: 0 }),
   ],
   timeline: [
     { at: 0.0, action: 'appear', target: 'logits', duration: 0.4 },
@@ -159,6 +162,7 @@ export const scene = {
     { at: 1.4, action: 'appear', target: 'bars', duration: 0.4 },
     { at: 2.0, action: 'appear', target: 'draws-a', duration: 0.3 },
     { at: 2.2, action: 'appear', target: 'draws-b', duration: 0.3 },
+    { at: 2.6, action: 'appear', target: 'takeaway', duration: 0.3 },
   ],
 };
 

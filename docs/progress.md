@@ -4,6 +4,22 @@ The decision log for the NanoGPT Learn boards (nanogpt-deep-dive, nanogpt-depth-
 first. Plans live in docs/nanogpt-deep-dive-board-plan.md and docs/nanogpt-depth-ladder.md; rules
 in docs/features/learn-card-composition.md and docs/features/learn-canvas-blocks.md.
 
+## 2026-09-28 — v3 approved; five targeted fixes, then close the ladder
+
+**Decision (owner, after reviewing Figma page 11:2).** The sub-card architecture is approved and
+page 11:2 is the depth-ladder source of truth. Do not redesign the depth system again: no reopening
+the six Overview cards, no re-splitting the Deep dives, no sparse Deep cards, no removing Deep
+equations, no smaller type, no new renderer primitives. Attention and Generation keep four
+sub-cards; Training 2/3 and 3/3 keep two related equations each.
+
+**Targeted fixes (v3.1).** Tokenization Deep 3/3 labels the "Sonnet 18" KeyError as a What-if
+unless that input is selected (red means "this vocabulary cannot encode this input", not "the app
+failed"); Training Guided stages "1 What is training minimizing?" then "2 When should training
+stop?"; Attention Guided's timeline emphasizes each stage (score → scale + hide future → softmax →
+mix values) and keeps later rows quiet until their turn; the Deep pager shows "Deep dive · k / N",
+a step bar and "Next: <part name> →"; Transformer and Generation Guided each get one prominent
+takeaway line. After the v3.1 captures are clean the depth-ladder work closes and batch 3 starts.
+
 ## 2026-09-28 — Deep dives become numbered sub-cards (WP6)
 
 **Decision.** Every Deep dive on the depth ladder is paged into 2–4 sub-cards inside the same

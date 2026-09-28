@@ -18,7 +18,8 @@
 // 1/3 the data path as a column of steps; 2/3 what V costs - the equations
 // (lookup, vocab, wte, N, the uint16 bound) and the parameter bar;
 // 3/3 the block_size tradeoff and the digit edge case - the digit prompt
-// through both encoders, the current branch at full strength. The wte and lm_head
+// through both encoders, the current branch at full strength, each row labelled
+// What-if unless it is the current input on the current branch. The wte and lm_head
 // steps stay at the end of 1/3's column: on 2/3 they would be a second visual
 // beside the bar.
 //
@@ -70,6 +71,18 @@ const eq = (id, latex, x, y, w) => ({ id, type: 'equation', semanticId: id, conc
 const detail = (id, value, y, extra = {}) => text(id, value, DETAIL_X, y, extra);
 
 const ONLY_DIGIT = `the only digit among the ${tok.vocab.length} characters is ${tok.digits.join(', ')}`;
+// The digit prompt's result through each encoder - 1/3's encode step and 3/3's rows.
+const KEY_ERROR = `${digits.char.error}: the ${tok.vocab.length} characters have no ${quote(digits.char.missing)}`;
+const BPE_IDS = `${digits.bpe.ids.length} IDs: ${digits.bpe.ids.join(', ')}`;
+// 3/3's rows say whether they run now: a what-if unless Input is the digit prompt;
+// then the current branch's row is the current input, the dimmed row the other branch.
+// The dimmed row always names the other branch, so two rows never share a premise with
+// different results. "meta.pkl +" not "meta.pkl found, input =": the longer lead pushes
+// the KeyError row past the 940 px frame and the card would refit below scale 1.
+const rowsFor = (charLead, bpeLead) => ({ char: `${charLead} → ${KEY_ERROR}`, bpe: `${bpeLead} → ${BPE_IDS}` });
+const IF_DIGITS = `What-if: input = ${quote(digits.text)}`;
+const NOW_DIGITS = `Current input = ${quote(digits.text)}`;
+const IF_META = `What-if: meta.pkl + ${quote(digits.text)}`, IF_NO_META = `What-if: no meta.pkl + ${quote(digits.text)}`;
 const TRY_DIGITS = `Edge case to try: the digit prompt - ${ONLY_DIGIT}.`;
 const TRY_META = 'Edge case to try: turn meta.pkl on, then pick the digit prompt.';
 const EXAMPLE = {
@@ -101,10 +114,14 @@ const EXAMPLE = {
   encoded: {
     found: byPath(`${grouped(tok.chars.train)} train IDs (first 90%), ${grouped(tok.chars.val)} val (last 10%)`,
       `${quote(line.text)} → ${line.char.ids.length} IDs`,
-      `${quote(digits.text)} → ${digits.char.error}: the ${tok.vocab.length} characters have no ${quote(digits.char.missing)}`),
+      `${quote(digits.text)} → ${KEY_ERROR}`),
     absent: byPath(`${grouped(tok.bpe.train)} train IDs (first 90%), ${grouped(tok.bpe.val)} val (last 10%)`,
       `${quote(line.text)} → ${line.bpe.ids.length} IDs`,
-      `${quote(digits.text)} → ${digits.bpe.ids.length} IDs: ${digits.bpe.ids.join(', ')}`),
+      `${quote(digits.text)} → ${BPE_IDS}`),
+  },
+  edgeRows: {
+    true: byPath(rowsFor(IF_DIGITS, IF_NO_META), rowsFor(IF_DIGITS, IF_NO_META), rowsFor(NOW_DIGITS, 'What-if: no meta.pkl')),
+    false: byPath(rowsFor(IF_META, IF_DIGITS), rowsFor(IF_META, IF_DIGITS), rowsFor('What-if: meta.pkl found', NOW_DIGITS)),
   },
   encodeBox: { true: 'encode: stoi[c] per character', false: 'encode: GPT-2 byte pairs' },
   branchBox: { true: 'meta.pkl found: V read', false: 'no meta.pkl: V = fallback' },
@@ -186,6 +203,8 @@ const LIVE = {
   edgesNow: { op: 'pick', args: ['edgeText', 'metaKey'] },
   edge: { op: 'pick', args: ['edgesNow', 'input'] },
   lit: { op: 'pick', args: ['edgeLit', 'metaKey'] },
+  rowsNow: { op: 'pick', args: ['edgeRows', 'metaKey'] },
+  rows: { op: 'pick', args: ['rowsNow', 'input'] },
 };
 // The live results above, digit-grouped for print: the same ops run at every
 // state (meta x input), so each printed figure is the derive result itself.
@@ -266,11 +285,12 @@ export const scene = {
     ...on(2,
     text('q-context', 'How much text fits in block_size IDs - and what text cannot become IDs at all?', 40, 34, { typography: 'body' }),
     text('tradeoff', 'Tradeoff: block_size = {{blockSize}} IDs span {{fig.ctx}} characters ({{rate}} per ID)', 40, CONTEXT.tradeoff, { typography: 'body' }),
-    // The digit prompt through both encoders - the same labels and results 1/3's encode step shows.
+    // The digit prompt through both encoders - 1/3's labels and results, each row led by
+    // whether it runs now (Current input) or is a what-if (another input, the other branch).
     step('edge-char', '{{encodeBox.true}}', CONTEXT.char, { role: 'warning', opacity: { $derive: 'lit.char' } }),
-    detail('edge-char-detail', '{{encoded.found.digits}}', CONTEXT.char + 23, { role: 'warning', opacity: { $derive: 'lit.char' } }),
+    detail('edge-char-detail', '{{rows.char}}', CONTEXT.char + 23, { role: 'warning', opacity: { $derive: 'lit.char' } }),
     step('edge-bpe', '{{encodeBox.false}}', CONTEXT.bpe, { opacity: { $derive: 'lit.bpe' } }),
-    detail('edge-bpe-detail', '{{encoded.absent.digits}}', CONTEXT.bpe + 23, { opacity: { $derive: 'lit.bpe' } }),
+    detail('edge-bpe-detail', '{{rows.bpe}}', CONTEXT.bpe + 23, { opacity: { $derive: 'lit.bpe' } }),
     text('edge', '{{edge}}', 40, CONTEXT.edge),
     ),
   ],
@@ -330,7 +350,7 @@ export const evidence = {
   sourceRevision: `${fx.provenance.nanogpt.repo}@${fx.provenance.nanogpt.commit}`,
   provenance: 'Source value: fx.architecture (generate_fixtures.py), gen_tokenization.py (split sizes vs prepare.py comments, fallback vocab_size from train.py/model.py, uint16 bound, sample.py encoders on two prompts). Live calculation: every product. What-if: the no-meta.pkl branch with shakespeare_char sizes.',
   control: 'part - pager in the card header: Deep dive 1/3 the data path, 2/3 wte and lm_head sizes and N, 3/3 the block_size tradeoff and the digit edge case; meta - bool: meta.pkl found (train.py:140 os.path.exists branch); input - choice: Training batch | Prompt: the play\'s line | Prompt: Sonnet 18. meta and input are one state across the three sub-cards.',
-  consequence: 'meta off: on 1/3 V 65 -> 50304 (47 padding rows, the branch line gives model.py\'s reason), the encode step, the wte table and the logits count change; on 2/3 the vocab, wte and N equations, the largest ID in the uint16 bound and the wte bar (sliver -> 64% of N); on 3/3 the context tradeoff (256 -> about 845 characters) and which encoder of the digit prompt is at full strength (stoi\'s KeyError or GPT-2\'s 3 IDs). input (1/3): training shapes (64, 256) vs a prompt (1, T) with logits for the last position only; the digit prompt with meta on raises KeyError and dims every later step. The edge-case line on 3/3 follows the state: it invites the digit prompt, says to turn meta.pkl on first, or points at the failure drawn above it.',
+  consequence: 'meta off: on 1/3 V 65 -> 50304 (47 padding rows, the branch line gives model.py\'s reason), the encode step, the wte table and the logits count change; on 2/3 the vocab, wte and N equations, the largest ID in the uint16 bound and the wte bar (sliver -> 64% of N); on 3/3 the context tradeoff (256 -> about 845 characters) and which encoder of the digit prompt is at full strength (stoi\'s KeyError or GPT-2\'s 3 IDs). The digit-prompt rows on 3/3: the running branch\'s row reads "What-if: input = “Sonnet 18”" unless Input is that prompt, then "Current input = “Sonnet 18”"; the dimmed row always names the other branch as a what-if ("What-if: meta.pkl +" or "no meta.pkl + “Sonnet 18”", or "meta.pkl found" / "no meta.pkl" once the prompt is selected). input (1/3): training shapes (64, 256) vs a prompt (1, T) with logits for the last position only; the digit prompt with meta on raises KeyError and dims every later step. The edge-case line on 3/3 follows the state: it invites the digit prompt, says to turn meta.pkl on first, or points at the failure drawn above it.',
   interactionPurpose: 'Flip the real implementation branches and trace their cost through exact shapes, equations and parameter counts, and trigger the one input where the character tokenizer breaks.',
   task: 'none (explore only)',
   capability: 'a pager input pages three sub-cards (one idea each) sharing one INTERACT row; bool + choice inputs; choose/pick over record maps keyed by both; live products (concat, elementwise, sum, scale, add, sub) feeding KaTeX equations, shape readouts and a proportional bar; input-bound opacity and roles for the failing branch; on 3/3 both encoders on the digit prompt, the current branch at full opacity.',

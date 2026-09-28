@@ -13,10 +13,14 @@
 // axis and -ln p off the y axis, its two table cells are ringed, and a
 // readout gives the same two numbers.
 //
-// The replay stages the three ideas in order, each quieter than the one
-// before: (1) the inspected position's p -> -ln p on the curve; (2) the
-// training word's dots, table and mean loss; (3) the held-out word, the
-// whole-slice losses and the checkpoint to keep.
+// Two headed phases down the left column, the chart they share on the right:
+// "1 What is training minimizing?" (the training word's table and mean) over
+// "2 When should training stop?" (the held-out word's, then the whole-slice
+// losses and the checkpoint to keep). The replay stages them in order, each
+// step's content quieter than the one before: phase 1 as (a) the inspected
+// position's p -> -ln p on the curve, then (b) the training word's dots, table
+// and mean loss; after a beat, phase 2 - introduced by its own heading - the
+// held-out word, the whole-slice losses and the checkpoint.
 //
 // Numbers: per-position p and -ln p are RECORDED from the toy run
 // (gen_training_loss.py taps generate_fixtures.py's bigram run - not NanoGPT's
@@ -40,7 +44,7 @@ const LAST = N - 1;
 const C = tl.curve;
 
 const frame = {
-  id: 'nll', x: 90, y: 110, w: 360, h: 270, xDomain: [0, 1], yDomain: [0, 9], conceptId: 'cross-entropy',
+  id: 'nll', x: 500, y: 136, w: 360, h: 270, xDomain: [0, 1], yDomain: [0, 9], conceptId: 'cross-entropy',
   xTicks: [0, 0.5, 1].map(value => ({ value, label: String(value) })),
   yTicks: [0, 2, 4, 6, 8].map(value => ({ value, label: String(value) })),
   xTitle: 'p(target): probability on the true next character', yTitle: 'loss = −ln p(target)',
@@ -50,7 +54,7 @@ const trMap = seriesMapping(frame, 'tr', 'trP', 'trLoss', K);
 const hoMap = seriesMapping(frame, 'ho', 'hoP', 'hoLoss', K);
 const uniformY = frame.y + frame.h - (R.uniformLoss / frame.yDomain[1]) * frame.h;
 
-const TABLE = { x: 620, cell: 48 };
+const TABLE = { x: 120, cell: 48 };
 const PAIRS = [...TRAIN.targets, ...HELD.targets]; // the inspect control: 6 training positions, then 6 held-out
 const DOT = 12, FOCUS_DOT = 20;
 const f3 = x => x.toFixed(3);
@@ -91,9 +95,9 @@ const drop = (id, to) => ({ id, type: 'line', semanticId: id, conceptId: 'cross-
 export const scene = {
   id: 'depth-training-loss-guided',
   title: 'Training and loss · Guided: the number it minimizes, and when to stop',
-  width: 960,
-  height: 606,
-  duration: 3.9,
+  width: 980,
+  height: 680,
+  duration: 4.8,
   inputs: [
     { name: 'checkpoint', type: 'index', label: 'Recorded checkpoint', of: 'checkpointLabels', default: LAST, presentation: 'slider' },
     { name: 'focus', type: 'index', label: 'Inspect position', of: 'focusLabels', default: TRAIN.targets.indexOf('z→e'), presentation: 'picker' },
@@ -176,11 +180,15 @@ export const scene = {
   objects: [
     text('question', { text: 'Which number does training push down - and when should it stop?', x: 40, y: 34, typography: 'heading' }),
     text('prerequisites', { text: 'Builds on: Overview (practice moves the guess onto the right letter); natural log (ln), averages.', x: 40, y: 58, typography: 'annotation' }),
+    // The two phases, stacked down the left column over the chart they share (non-breaking
+    // spaces: SVG collapses a plain double space). The second arrives with its content.
+    text('phase-1', { text: '1\u00a0\u00a0What is training minimizing?', x: 40, y: 100, typography: 'heading' }),
+    text('phase-2', { text: '2\u00a0\u00a0When should training stop?', x: 40, y: 344, typography: 'heading', opacity: 0 }),
     ...axesObjects(frame, { tickMarks: false }),
     ...seriesObjects(frame, 'curve', C.p.length, { role: 'neutral' }),
     { id: 'uniform-line', type: 'line', semanticId: 'uniform-line', conceptId: 'cross-entropy',
       initialState: { from: { x: frame.x, y: uniformY }, to: { x: frame.x + frame.w, y: uniformY }, role: 'neutral', opacity: 0.4 } },
-    text('uniform-label', { text: `even guess over 65 characters: ${R.uniformLoss.toFixed(2)}`, x: 250, y: uniformY - 7, typography: 'annotation' }),
+    text('uniform-label', { text: `even guess over 65 characters: ${R.uniformLoss.toFixed(2)}`, x: frame.x + 194, y: uniformY - 7, typography: 'annotation' }),
     drop('focus-drop-x', { x: { $derive: 'focusX' }, y: frame.y + frame.h }),
     drop('focus-drop-y', { x: frame.x, y: { $derive: 'focusY' } }),
     ...dots('tr', 'input'),
@@ -188,39 +196,42 @@ export const scene = {
     // Stage 1 shows the inspected position alone; its own dot (same place and size) appears with the rest.
     { id: 'focus-dot', type: 'circle', semanticId: 'focus-dot', conceptId: 'cross-entropy',
       initialState: { x: { $derive: 'focusX' }, y: { $derive: 'focusY' }, w: FOCUS_DOT, h: FOCUS_DOT, role: { $derive: 'focusRole' }, opacity: 0 } },
-    text('focus', { text: '{{focusText}}', x: frame.x, y: 452, role: { $derive: 'focusRole' }, opacity: 0 }),
-    text('train-title', { text: `● Training text “${TRAIN.word}” (practised on)`, x: 540, y: 104, role: 'input', opacity: 0 }),
-    table('trainTable', TRAIN, 150, 'input', 'trCells'),
-    text('train-mean', { text: 'mean of these 6 losses: {{trMean}}', x: TABLE.x, y: 268, opacity: 0 }),
-    text('held-title', { text: `● Held-out text “${HELD.word}” (never practised)`, x: 540, y: 300, role: 'prediction', opacity: 0 }),
-    table('heldTable', HELD, 346, 'prediction', 'hoCells'),
-    text('held-mean', { text: 'mean of these 6 losses: {{hoMean}}', x: TABLE.x, y: 464, typography: 'annotation', opacity: 0 }),
-    text('slices', { text: '{{slicesText}}', x: 40, y: 498, typography: 'caption', opacity: 0 }, 'overfitting'),
-    text('best', { text: 'Lowest held-out loss in the whole run: iter {{bestIt}} ({{bestVal}}). Now versus it: {{changeText}}', x: 40, y: 522, typography: 'caption', opacity: 0 }, 'overfitting'),
-    text('regime', { text: '{{regimeText}}', x: 40, y: 544, typography: 'annotation', opacity: 0 }, 'overfitting'),
-    text('status-1', { text: 'Recorded toy run (a bigram model, not NanoGPT): dots, tables, readout, losses, means, gap, change.', x: 40, y: 574, typography: 'annotation' }, 'provenance'),
-    text('status-2', { text: 'Calculated toy example: the curve.   Live calculation: the lowest held-out checkpoint and the caption under it.', x: 40, y: 592, typography: 'annotation' }, 'provenance'),
+    // The readout starts on the y tick labels' left edge; the even-guess label ends right of its longest (r→r), so the frame never shifts.
+    text('focus', { text: '{{focusText}}', x: frame.x - 20.8, y: 478, role: { $derive: 'focusRole' }, opacity: 0 }),
+    text('train-title', { text: `● Training text “${TRAIN.word}” (practised on)`, x: 40, y: 128, role: 'input', opacity: 0 }),
+    table('trainTable', TRAIN, 174, 'input', 'trCells'),
+    text('train-mean', { text: 'mean of these 6 losses: {{trMean}}', x: TABLE.x, y: 292, opacity: 0 }),
+    text('held-title', { text: `● Held-out text “${HELD.word}” (never practised)`, x: 40, y: 372, role: 'prediction', opacity: 0 }),
+    table('heldTable', HELD, 418, 'prediction', 'hoCells'),
+    text('held-mean', { text: 'mean of these 6 losses: {{hoMean}}', x: TABLE.x, y: 536, typography: 'annotation', opacity: 0 }),
+    text('slices', { text: '{{slicesText}}', x: 40, y: 570, typography: 'caption', opacity: 0 }, 'overfitting'),
+    text('best', { text: 'Lowest held-out loss in the whole run: iter {{bestIt}} ({{bestVal}}). Now versus it: {{changeText}}', x: 40, y: 594, typography: 'caption', opacity: 0 }, 'overfitting'),
+    text('regime', { text: '{{regimeText}}', x: 40, y: 616, typography: 'annotation', opacity: 0 }, 'overfitting'),
+    text('status-1', { text: 'Recorded toy run (a bigram model, not NanoGPT): dots, tables, readout, losses, means, gap, change.', x: 40, y: 646, typography: 'annotation' }, 'provenance'),
+    text('status-2', { text: 'Calculated toy example: the curve.   Live calculation: the lowest held-out checkpoint and the caption under it.', x: 40, y: 664, typography: 'annotation' }, 'provenance'),
   ],
   timeline: [
-    // 1. One position: p -> -ln p on the curve.
+    // Phase 1 (What is training minimizing?). a. One position: p -> -ln p on the curve.
     ...Array.from({ length: C.p.length - 1 }, (unused, i) => ({ at: 0.1 + i * 0.05, action: 'appear', target: `curve-seg-${i}`, duration: 0.1 })),
     { at: 0.75, action: 'appear', target: 'focus-dot', duration: 0.25 },
     { at: 0.85, action: 'appear', target: 'focus-drop-x', duration: 0.3 },
     { at: 0.85, action: 'appear', target: 'focus-drop-y', duration: 0.3 },
     { at: 1.0, action: 'appear', target: 'focus', duration: 0.3 },
-    // 2. The training word: six positions and the mean of their losses.
+    // b. The training word: six positions and the mean of their losses.
     { at: 1.5, action: 'appear', target: 'train-title', duration: 0.3 },
     { at: 1.55, action: 'appear', target: 'trainTable', duration: 0.4 },
     ...Array.from({ length: K }, (unused, i) => ({ at: 1.6 + i * 0.07, action: 'appear', target: `tr-dot-${i}`, duration: 0.2 })),
     { at: 2.1, action: 'appear', target: 'train-mean', duration: 0.3 },
-    // 3. Held-out text, the whole-slice losses and the checkpoint to keep.
-    { at: 2.6, action: 'appear', target: 'held-title', duration: 0.3 },
-    { at: 2.65, action: 'appear', target: 'heldTable', duration: 0.4 },
-    ...Array.from({ length: K }, (unused, i) => ({ at: 2.7 + i * 0.07, action: 'appear', target: `ho-dot-${i}`, duration: 0.2 })),
-    { at: 3.15, action: 'appear', target: 'held-mean', duration: 0.3 },
-    { at: 3.3, action: 'appear', target: 'slices', duration: 0.3 },
-    { at: 3.45, action: 'appear', target: 'best', duration: 0.3 },
-    { at: 3.6, action: 'appear', target: 'regime', duration: 0.3 },
+    // Phase 2 (When should training stop?), once phase 1 has held for a beat: held-out
+    // text, the whole-slice losses and the checkpoint to keep.
+    { at: 3.0, action: 'appear', target: 'phase-2', duration: 0.3 },
+    { at: 3.5, action: 'appear', target: 'held-title', duration: 0.3 },
+    { at: 3.55, action: 'appear', target: 'heldTable', duration: 0.4 },
+    ...Array.from({ length: K }, (unused, i) => ({ at: 3.6 + i * 0.07, action: 'appear', target: `ho-dot-${i}`, duration: 0.2 })),
+    { at: 4.05, action: 'appear', target: 'held-mean', duration: 0.3 },
+    { at: 4.2, action: 'appear', target: 'slices', duration: 0.3 },
+    { at: 4.35, action: 'appear', target: 'best', duration: 0.3 },
+    { at: 4.5, action: 'appear', target: 'regime', duration: 0.3 },
   ],
 };
 for (const object of scene.objects) {
@@ -259,7 +270,7 @@ export const evidence = {
   consequence: 'Twelve dots slide along the fixed −ln p curve (most training-text dots toward p = 1, two held-out dots up the steep wall near p = 0); both tables’ p (%) and −ln p cells and their means change; the whole-slice line gives train, held-out and their gap; the lowest held-out checkpoint (iter 100) and the change since it update, with a caption for before / at / after it. The inspected position’s dot grows, two drop lines read its p off the x axis and its −ln p off the y axis, its two cells are ringed in its table, and a readout gives both numbers (p also as the percentage its cell rounds, with its leading zero).',
   interactionPurpose: 'Drag from iter 0 (every dot near the even guess, 4.17) to iter 1000, and pick positions to inspect, and verify on the card: the inspected dot’s drop lines land on its p and its −ln p, each dot sits on loss = −ln p, each mean is the average of its six losses, the gap is held-out minus train, and after iter 100 train keeps falling while held-out never gets back down to its lowest (it dips at iters 300, 450 and 700, but stays above iter 100).',
   task: 'Find the checkpoint after which the held-out loss never gets back down to its lowest; then inspect r→r and w→, and say why their losses climb the steep wall while z→e slides to 0 (their pairs never occur in the practice text).',
-  capability: 'plot.js curve (14 points) with 12 derived dots on one frame, their sizes picked by the inspect input; two drop lines from the picked dot to both axes; two 2x6 grids with row/column labels and an input-bound cellHighlight; picked 3-decimal readouts; live argmin; a three-way regime caption via argmin([d, -0.5, -d]); a replay staged in three steps (inspected position, training word and its mean, held-out word and the checkpoint) with typography stepping down (body, body, caption/annotation).',
+  capability: 'plot.js curve (14 points) with 12 derived dots on one frame, their sizes picked by the inspect input; two drop lines from the picked dot to both axes; two 2x6 grids with row/column labels and an input-bound cellHighlight; picked 3-decimal readouts; live argmin; a three-way regime caption via argmin([d, -0.5, -d]); two numbered phase headings grouping the left column (1 What is training minimizing?: training word; 2 When should training stop?: held-out word and the checkpoint) beside the shared chart; a replay staged phase 1 (inspected position, then training word and its mean) and, after a beat, phase 2 introduced by its own heading (held-out word, the checkpoint), each step’s content in quieter type (body, body, caption/annotation).',
   depth: 'Guided',
   prerequisites: 'Overview (practice moves the guess onto the right letter); natural log, averages.',
   ladderRole: 'Names the minimized number and makes it checkable: −ln p per position, its average, the train/held-out gap and the lowest-held-out stopping rule, all as numbers that move with a checkpoint slider, and one position at a time read off the curve’s two axes - the Overview has no formula or numbers to verify, the Deep dive leaves this toy and follows train.py’s code path.',

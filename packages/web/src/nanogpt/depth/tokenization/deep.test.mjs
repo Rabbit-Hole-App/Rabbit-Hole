@@ -204,15 +204,36 @@ test('deep: the sampling path - B = 1, prompt length T, last position only; the 
     }
   }
   // 3/3 draws the digit prompt through both encoders - 1/3's labels and results - the current branch at full opacity.
+  // Each row says whether it runs now: a what-if while Input is another input (the owner's review:
+  // a red KeyError beside "Input: Training batch" read as the program failing); with the digit
+  // prompt selected, the current branch's row is the current input and the dimmed row the other branch.
+  const keyError = `KeyError: '1': the ${CHARS.length} characters have no “1”`;
+  const bpeIds = `${digits.bpe.ids.length} IDs: ${digits.bpe.ids.join(', ')}`;
+  const ifInput = `What-if: input = “${digits.text}”`, nowInput = `Current input = “${digits.text}”`;
+  const rows = ({ meta, input }) => {
+    if (input !== 'digits') return meta ? [ifInput, `What-if: no meta.pkl + “${digits.text}”`] : [`What-if: meta.pkl + “${digits.text}”`, ifInput];
+    return meta ? [nowInput, 'What-if: no meta.pkl'] : ['What-if: meta.pkl found', nowInput];
+  };
   for (const inputs of EVERY.filter(s => s.part === 2)) {
     const result = evaluated(scene, inputs);
+    const [charLead, bpeLead] = rows(inputs);
     assert.equal(byId(result, 'edge-char').label, 'encode: stoi[c] per character');
-    assert.equal(byId(result, 'edge-char-detail').label, `“${digits.text}” → KeyError: '1': the ${CHARS.length} characters have no “1”`);
+    assert.equal(byId(result, 'edge-char-detail').label, `${charLead} → ${keyError}`, JSON.stringify(inputs));
     assert.equal(byId(result, 'edge-bpe').label, 'encode: GPT-2 byte pairs');
-    assert.equal(byId(result, 'edge-bpe-detail').label, `“${digits.text}” → ${digits.bpe.ids.length} IDs: ${digits.bpe.ids.join(', ')}`);
+    assert.equal(byId(result, 'edge-bpe-detail').label, `${bpeLead} → ${bpeIds}`, JSON.stringify(inputs));
+    // Never "Current input" on a row that does not run now, never a what-if about the input already selected.
+    const labels = ['edge-char-detail', 'edge-bpe-detail'].map(id => byId(result, id).label);
+    assert.equal(labels.filter(l => l.startsWith('Current input')).length, inputs.input === 'digits' ? 1 : 0);
+    if (inputs.input === 'digits') assert.ok(!labels.some(l => l.startsWith(ifInput)));
     const [on, off] = inputs.meta ? ['char', 'bpe'] : ['bpe', 'char'];
     for (const id of [`edge-${on}`, `edge-${on}-detail`]) assert.equal(byId(result, id).opacity, 1, `${id} ${JSON.stringify(inputs)}`);
     for (const id of [`edge-${off}`, `edge-${off}-detail`]) assert.equal(byId(result, id).opacity, 0.35, `${id} ${JSON.stringify(inputs)}`);
+    // Two rows never share a premise with different results: the dimmed row's what-if names the
+    // other branch (the review: two "What-if: input = “Sonnet 18”" rows, KeyError and 3 IDs).
+    const [litLead, dimLead] = [on, off].map(k => byId(result, `edge-${k}-detail`).label.split(' → ')[0]);
+    assert.ok(!litLead.includes('meta.pkl'), `${litLead} ${JSON.stringify(inputs)}`);
+    assert.ok(dimLead.startsWith('What-if: ') && dimLead.includes('meta.pkl'), `${dimLead} ${JSON.stringify(inputs)}`);
+    assert.equal(dimLead.includes('no meta.pkl'), inputs.meta, `${dimLead} ${JSON.stringify(inputs)}`);
   }
   // The edge-case line (3/3) follows the state: invite, send to meta.pkl first, or point at the failure drawn above it.
   const tryDigits = `Edge case to try: the digit prompt - the only digit among the ${CHARS.length} characters is 3.`;

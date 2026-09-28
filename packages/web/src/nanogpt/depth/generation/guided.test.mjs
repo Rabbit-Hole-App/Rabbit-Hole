@@ -58,8 +58,15 @@ test('live numbers match the oracle at every preset, and the relationships hold'
     // Order kept: the top is the same character at every T, and so is the ranking.
     const order = [...probs.keys()].sort((a, b) => expected[b] - expected[a]);
     assert.deepEqual(order, [...F.counts.keys()], `${where} ranking`);
+    assert.deepEqual([...probs.keys()].sort((a, b) => probs[b] - probs[a]), [...F.counts.keys()], `${where} card ranking`);
     assert.equal(result.derived.topAt, 0);
-    assert.equal(label(result, 'order'), `Top is still “${F.display[0]}”: ÷ T keeps the order.`);
+    assert.equal(label(result, 'order'), `Top is still “${F.display[0]}”.`);
+    // The takeaway is on the final frame at every preset, and true there: the ranking
+    // above is T = 1's, and the odds are sharper or flatter than T = 1's unless T = 1.
+    assert.ok(byId(result, 'takeaway').visible && byId(result, 'takeaway').opacity === 1, `${where} takeaway shown`);
+    assert.equal(byId(result, 'takeaway').typography, 'heading', `${where} takeaway is the prominent line`);
+    assert.equal(label(result, 'takeaway'), 'Temperature changes how sharp the odds are; it doesn’t change their ordering.');
+    assert.equal(p.temperature !== 1, result.derived.pTop !== results[T1].derived.pTop, `${where} sharpness moves with T`);
     // Gap ÷ T, exactly as the line says.
     const rawGap = r3(F.logits[0] - F.logits[1]);
     assert.equal(result.derived.rawGap, rawGap);
@@ -94,6 +101,8 @@ test('live numbers match the oracle at every preset, and the relationships hold'
     assert.ok(bold.length === 20 - top && bold.every(d => d !== F.display[0]), `${where} bold marks the non-top draws`);
     assert.ok(Math.abs(result.derived.expected - 20 * expected[0]) < 0.02, `${where} expected count`);
   });
+  // The takeaway waits for the draws: hidden before its 2.6 step.
+  assert.equal(byId(evaluated(scene, { temperature: T1 }, 2.5), 'takeaway').opacity, 0, 'takeaway fades in last');
   // Lower T concentrates the same seeded draws on the top character.
   for (let k = 1; k < P.length; k += 1) assert.ok(P[k].drawnTop <= P[k - 1].drawnTop, 'draws on z never rise with T');
   assert.ok(results[0].derived.pTop > results.at(-1).derived.pTop);

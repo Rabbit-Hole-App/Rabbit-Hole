@@ -145,6 +145,32 @@ test('each row sits beside the Overview stage it implements, and lm_head adds no
   }
 });
 
+test('the takeaway follows state: it names the part holding most parameters, in that bar\'s colour, above the arithmetic', () => {
+  const growth = 'a wider C grows the C² terms fastest.';
+  for (const inputs of reviewStates) {
+    const want = inventory(configOf(inputs));
+    const where = JSON.stringify(inputs);
+    const objects = byId(evaluated(scene, inputs));
+    const takeaway = objects.get('takeaway');
+    // "Most" is a majority of the total, checked against the oracle.
+    const blocksMost = want.blocks > want.total / 2;
+    assert.ok(blocksMost || want.wte > want.total / 2, `${where}: neither part holds most`);
+    assert.equal(takeaway.label, `Most parameters live in ${blocksMost ? 'the blocks' : 'wte here'}; ${growth}`, where);
+    assert.equal(takeaway.role, objects.get(blocksMost ? 'blocks-bar' : 'wte-bar').role, where);
+    assert.equal(blocksMost, !(inputs.width === 0 && inputs.vocab === 1), where);
+    assert.equal(takeaway.typography, 'heading');
+    assert.equal(takeaway.opacity, 1, `${where}: shown on the final frame`);
+    assert.ok(takeaway.y > objects.get('axis-title').y && takeaway.y < objects.get('block-split').y, `${where}: between the bars and the arithmetic`);
+    // The growth clause at every setting: doubling C grows each C² term x4,
+    // every other part (C, V x C, block_size x C) only x2.
+    const wide = inventory({ ...configOf(inputs), C: 2 * configOf(inputs).C });
+    assert.deepEqual([wide.attn / want.attn, wide.mlp / want.mlp], [4, 4], where);
+    assert.deepEqual([wide.wte / want.wte, wide.wpe / want.wpe, wide.lnf / want.lnf], [2, 2, 2], where);
+  }
+  // Staged: hidden until every bar has drawn.
+  assert.equal(byId(evaluated(scene, {}, 2.5)).get('takeaway').opacity, 0);
+});
+
 test('bars: one fixed axis, lengths proportional to the counts, the blocks bar cut into six equal parts', () => {
   const PX = 500 / 45e6;
   for (const inputs of reviewStates) {

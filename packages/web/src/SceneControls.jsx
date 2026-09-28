@@ -31,18 +31,30 @@ const chipClass = (active, committed = false) => `${CHIP} ${committed && active
 // steps; steppers and keyboard arrows are discrete and commit normally.
 // Sub-card navigation in the card header: "Deep dive · 2/4", the part's name,
 // Previous / Next - the slider's steppers, without a slider for 2-4 parts.
+// One h-8 row that never wraps (the card reserves exactly 40px for it: h-8 +
+// the gap-2 above the frame): where the learner is - "Deep dive · 2 / 4", a
+// step bar, this sub-card's name - and where Next goes, by name.
 export function CardPager({ declaration, value, data, onInput }) {
   const parts = data?.[declaration.of] || [];
+  const last = parts.length - 1;
   // aria-disabled, not disabled: a disabled button drops keyboard focus to the
   // page (and the canvas) the moment the last sub-card is reached.
-  const stepButton = 'flex h-7 items-center rounded-lg border border-line px-2.5 text-xs text-ink hover:bg-hover aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:bg-transparent';
-  const step = to => { if (to >= 0 && to < parts.length) onInput(declaration.name, to); };
+  const button = 'flex h-8 min-w-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium aria-disabled:cursor-default aria-disabled:opacity-40';
+  const step = to => { if (to >= 0 && to <= last) onInput(declaration.name, to); };
   return (
-    <div data-card-pager={declaration.name} role="group" aria-label={declaration.label} className="flex shrink-0 items-center gap-2">
-      <span data-pager-readout aria-live="polite" className="text-sm font-semibold tabular-nums text-ink">{declaration.label} · {value + 1}/{parts.length}</span>
+    <div data-card-pager={declaration.name} role="group" aria-label={declaration.label} className="flex h-8 shrink-0 items-center gap-3">
+      <span data-pager-readout aria-live="polite" className="shrink-0 text-sm font-semibold tabular-nums text-ink">{declaration.label} · {value + 1} / {parts.length}</span>
+      <span className="flex shrink-0 gap-1" aria-hidden="true">
+        {parts.map((unused, k) => <i key={k} className={`h-1.5 w-5 rounded-full ${k <= value ? 'bg-ink' : 'bg-line-strong'}`} />)}
+      </span>
       <span className="min-w-0 flex-1 truncate text-sm text-ink-2">{parts[value]}</span>
-      <button type="button" data-pager-step="previous" aria-disabled={value <= 0} onClick={() => step(value - 1)} className={stepButton}>Previous</button>
-      <button type="button" data-pager-step="next" aria-disabled={value >= parts.length - 1} onClick={() => step(value + 1)} className={stepButton}>Next</button>
+      <button type="button" data-pager-step="previous" aria-disabled={value <= 0} onClick={() => step(value - 1)}
+        className={`${button} shrink-0 border-line text-ink hover:bg-hover`}>← Previous</button>
+      <button type="button" data-pager-step="next" aria-disabled={value >= last} onClick={() => step(value + 1)}
+        title={value < last ? `Next: ${parts[value + 1]}` : undefined}
+        className={`${button} max-w-[45%] ${value < last ? 'border-ink bg-ink text-white hover:opacity-90' : 'border-line text-ink'}`}>
+        <span className="truncate">{value < last ? `Next: ${parts[value + 1]}` : 'Last step'}</span>{value < last && <span aria-hidden="true">→</span>}
+      </button>
     </div>
   );
 }

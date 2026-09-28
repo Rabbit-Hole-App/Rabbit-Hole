@@ -447,8 +447,9 @@ export const BLOCK_TYPES = {
       // it reports its measured height, wrapped rows included, and the block
       // grows by it (SceneControls onHeight -> the canvas node's extraHeight),
       // so the frame never shrinks to make room.
-      // A paged scene's sub-card navigation is one h-7 row above the frame.
-      const pager = (block.scene.inputs || []).some(input => !input.hidden && input.presentation === 'pager') ? 36 : 0;
+      // A paged scene's sub-card navigation is one h-8 row above the frame
+      // (CardPager never wraps), plus the gap-2 between them.
+      const pager = (block.scene.inputs || []).some(input => !input.hidden && input.presentation === 'pager') ? 40 : 0;
       // The practice section is not reserved here: it reports its measured
       // height (collapsed or open) and the card grows by it (SceneActivity
       // onHeight -> the canvas node's extraHeight).

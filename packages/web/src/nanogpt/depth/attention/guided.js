@@ -43,6 +43,19 @@ const RX = 614; // right-hand column
 const OX = 870;
 // Rows stack from the keys down: a row, then the gap its caption needs.
 const K_Y = 150, SCORE_Y = K_Y + 4 * CELL + 40, MASK_Y = SCORE_Y + CELL + 36, W_Y = MASK_Y + CELL + 36, V_Y = W_Y + CELL + 37, FOOT = V_Y + 4 * CELL + 18;
+// The replay runs the four numbered steps in order: 1 score, 2 ÷ √hs and hide
+// the future, 3 softmax, 4 mix the values. A step's row and notes wait faint
+// (QUIET) until its turn and then switch on at once (an appear from a faint
+// start would first drop to 0), so the step in play is always the last one
+// drawn in full. Step 2's row is also ringed while it is in play, blanks
+// included: the step's work is those blanks. The final frame shows everything.
+// ponytail: no ring on steps 3 and 4 - a highlighted heat cell only thickens
+// its frame by half a pixel; ring them when the renderer draws that visibly.
+// Times sit off the scrubber's 0.05 grid and the 0.01 grid a paused time is
+// saved on: at exactly an event's time the event has not started, so a time
+// there would blank a faint row.
+const QUIET = 0.25;
+const STEP = [0.005, 1.005, 2.005, 3.005];
 // Text draws from its left end: x for a note that ends 12px left of the
 // column. ~6px a character is what 13px annotation text measures in the render.
 const endsAtColumn = text => OX - 12 - Math.round(text.length * 6);
@@ -104,7 +117,7 @@ export const scene = {
   title: 'Attention · Guided: from scores to weights for one reader',
   width: 960,
   height: FOOT + 40,
-  duration: 3,
+  duration: 4,
   inputs: [
     { name: 'reader', type: 'index', label: 'Reader', of: 'readerLabels', default: 3, presentation: 'slider' },
     { name: 'lookFor', type: 'choice', label: 'q points at', default: 'before',
@@ -192,39 +205,39 @@ export const scene = {
 
     // One reader's row, step by step, under the same character columns.
     { id: 'scores', type: 'grid', semanticId: 'score-row', conceptId: 'dot-product',
-      initialState: { label: '1. score = q · k', x: GX, y: SCORE_Y, rows: 1, cols: T, cell: CELL, opacity: 0, role: 'neutral',
+      initialState: { label: '1. score = q · k', x: GX, y: SCORE_Y, rows: 1, cols: T, cell: CELL, opacity: QUIET, role: 'neutral',
         matrixKind: 'derived', values: { $derive: 'rawRow' }, cellHighlight: { $derive: 'highlightAt' }, cellHighlightKind: 'highlight' } },
     { id: 'masked', type: 'grid', semanticId: 'masked-row', conceptId: 'causal-mask',
-      initialState: { label: `2. ÷ √${HS} = ${Math.sqrt(HS)}, then later characters → −∞ (blank)`, x: GX, y: MASK_Y, rows: 1, cols: T, cell: CELL, opacity: 0,
-        role: 'neutral', matrixKind: 'derived', values: { $derive: 'maskedRow' } } },
+      initialState: { label: `2. ÷ √${HS} = ${Math.sqrt(HS)}, then later characters → −∞ (blank)`, x: GX, y: MASK_Y, rows: 1, cols: T, cell: CELL, opacity: QUIET,
+        role: 'neutral', matrixKind: 'derived', values: { $derive: 'maskedRow' }, cellHighlightKind: 'highlight' } },
     // Not `distribution: true`: that makes the renderer nudge cells so a row
     // reads exactly 1.00, which turned equal-looking scores into .05 and .04.
     // Each cell is rounded on its own and the label says so.
     { id: 'weights', type: 'grid', semanticId: 'weight-row', conceptId: 'softmax',
-      initialState: { label: '3. softmax → weights (each rounded, so a row can read .99 or 1.01)', x: GX, y: W_Y, rows: 1, cols: T, cell: CELL, opacity: 0, role: 'output',
+      initialState: { label: '3. softmax → weights (each rounded, so a row can read .99 or 1.01)', x: GX, y: W_Y, rows: 1, cols: T, cell: CELL, opacity: QUIET, role: 'output',
         matrixKind: 'derived', heat: true, valueScale: 'fixed', values: { $derive: 'w' } } },
     { id: 'top-note', type: 'text', semanticId: 'top-note', conceptId: 'softmax',
-      initialState: { text: '{{topNote}}', x: RX, y: SCORE_Y + 26, typography: 'annotation' } },
+      initialState: { text: '{{topNote}}', x: RX, y: SCORE_Y + 26, typography: 'annotation', opacity: QUIET } },
     { id: 'mask-note', type: 'text', semanticId: 'mask-note', conceptId: 'causal-mask',
-      initialState: { text: '{{maskNote}}', x: RX, y: MASK_Y + 26, typography: 'annotation' } },
+      initialState: { text: '{{maskNote}}', x: RX, y: MASK_Y + 26, typography: 'annotation', opacity: QUIET } },
     // Three lines centred on the weight row, so the values row can follow it
     // at the same pitch as the rows above.
     { id: 'sum-note', type: 'text', semanticId: 'sum-note', conceptId: 'softmax',
-      initialState: { text: '{{sumNote}}', x: RX, y: W_Y + 6, typography: 'annotation' } },
+      initialState: { text: '{{sumNote}}', x: RX, y: W_Y + 6, typography: 'annotation', opacity: QUIET } },
     { id: 'hand-note', type: 'text', semanticId: 'softmax-by-hand', conceptId: 'softmax',
-      initialState: { text: '{{handNote}}', x: RX, y: W_Y + 24, typography: 'annotation' } },
+      initialState: { text: '{{handNote}}', x: RX, y: W_Y + 24, typography: 'annotation', opacity: QUIET } },
     { id: 'hand-value', type: 'text', semanticId: 'softmax-by-hand-value', conceptId: 'softmax',
-      initialState: { text: '{{handValueNote}}', x: RX, y: W_Y + 42, typography: 'annotation' } },
+      initialState: { text: '{{handValueNote}}', x: RX, y: W_Y + 42, typography: 'annotation', opacity: QUIET } },
 
     // The weights mix the values.
     { id: 'values', type: 'grid', semanticId: 'values', conceptId: 'values',
-      initialState: { label: '4. values v (a code for each letter), mixed by the weights', x: GX, y: V_Y, rows: HS, cols: T, cell: CELL, role: 'input',
+      initialState: { label: '4. values v (a code for each letter), mixed by the weights', x: GX, y: V_Y, rows: HS, cols: T, cell: CELL, role: 'input', opacity: QUIET,
         matrixKind: 'input', heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'guided-v', values: { $derive: 'VT' } } },
     { id: 'output', type: 'grid', semanticId: 'output', conceptId: 'values',
-      initialState: { x: OX, y: V_Y, rows: HS, cols: 1, cell: CELL, role: 'output', matrixKind: 'derived', columnLabels: ['Σ w·v'],
+      initialState: { x: OX, y: V_Y, rows: HS, cols: 1, cell: CELL, role: 'output', matrixKind: 'derived', columnLabels: ['Σ w·v'], opacity: QUIET,
         heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'guided-v', values: { $derive: 'out' } } },
     { id: 'output-note', type: 'text', semanticId: 'output-note', conceptId: 'values',
-      initialState: { text: '{{outNote}}', x: { $derive: 'outXNote' }, y: V_Y + 88, typography: 'annotation' } },
+      initialState: { text: '{{outNote}}', x: { $derive: 'outXNote' }, y: V_Y + 88, typography: 'annotation', opacity: QUIET } },
 
     { id: 'caption', type: 'text', semanticId: 'caption', conceptId: 'query',
       initialState: { text: '{{captionNote}}', x: COL, y: FOOT, typography: 'annotation' } },
@@ -232,9 +245,11 @@ export const scene = {
       initialState: { text: '{{secondNote}}', x: COL, y: FOOT + 20, typography: 'annotation' } },
   ],
   timeline: [
-    { at: 0.0, action: 'appear', target: 'scores', duration: 0.4 },
-    { at: 0.8, action: 'appear', target: 'masked', duration: 0.4 },
-    { at: 1.6, action: 'appear', target: 'weights', duration: 0.4 },
+    // 1. score; 2. ÷ √hs, hide the future; 3. softmax; 4. mix the values.
+    ...[['scores', 'top-note'], ['masked', 'mask-note'], ['weights', 'sum-note', 'hand-note', 'hand-value'], ['values', 'output', 'output-note']]
+      .flatMap((targets, k) => targets.map(target => ({ at: STEP[k], action: 'appear', target }))),
+    { at: STEP[1], action: 'highlight_cell', target: 'masked', value: { row: 0 } },
+    { at: STEP[2], action: 'highlight_cell', target: 'masked', value: null },
   ],
 };
 
@@ -268,7 +283,7 @@ export const evidence = {
   consequence: 'The reader moves the whole row: which keys are visible, which scores are blank, where the weight goes and what the output mixes. Switching q to the next character makes the future key’s raw score the largest in the row, yet its masked cell is blank and its weight 0; the visible weight spreads over weak matches. At the last reader the what-if query points past the text: no key is highlighted and the products are hidden, because there is no single key to break down (q still meets every key; the score row is full). At the first reader the only visible weight is 1 in both settings.',
   interactionPurpose: 'Verify the mechanism in numbers: products add to the score, weights add to 1, masked weight is 0, the largest visible score takes the largest weight, and a query cannot read the future however well it matches.',
   task: 'At the fourth reader, add the four products and find the matching score cell, and check that the two scores reading 1.00 get the same weight; then switch q to the next character and explain why the highest score gets no weight.',
-  capability: 'index slider + choice; live one-row pipeline (matmul, scale, causal_mask, softmax, weighted_sum); argmax by argmin of negated masked scores; products strip and sum for the top key, hidden by derived opacity when q has no single key; a by-hand softmax line for the largest weight; key-column selection and score highlight picked per option and reader (-1 = none); signed heat on q, k, v and the output, fixed heat on weights (cells rounded independently); per-reader and per-option captions picked from tables.',
+  capability: 'index slider + choice; live one-row pipeline (matmul, scale, causal_mask, softmax, weighted_sum); argmax by argmin of negated masked scores; products strip and sum for the top key, hidden by derived opacity when q has no single key; a by-hand softmax line for the largest weight; key-column selection and score highlight picked per option and reader (-1 = none); signed heat on q, k, v and the output, fixed heat on weights (cells rounded independently); per-reader and per-option captions picked from tables; a staged replay (steps 1-4 switch on in turn, later steps faint until then, step 2’s row ringed while in play).',
   depth: 'Guided',
   prerequisites: 'Looking back at earlier characters (the Overview idea); dot product; softmax.',
   ladderRole: 'Opens the mechanism with real numbers the learner can check - scores, the ÷√hs, the −∞ mask, softmax and the value mix - and a manipulation (where q points) that changes them.',

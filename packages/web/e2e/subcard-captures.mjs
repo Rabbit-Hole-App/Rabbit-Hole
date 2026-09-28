@@ -5,14 +5,19 @@
 // card must hit the card itself (document.elementFromPoint); anything else on
 // top fails the run instead of being baked into a review image.
 //
-// Usage: node e2e/subcard-captures.mjs <deployed-base> <board> <outDir>
-//   writes <outDir>/NN-<card>[-part-k].png and <outDir>/captures.json
+// Usage: node e2e/subcard-captures.mjs <deployed-base> <board> <outDir> [selection.json]
+//   writes <outDir>/NN-<card>[-part-k][-t<time>].png and <outDir>/captures.json
+//   selection.json (optional): { "<scene id>": [{ "part": k, "time": seconds }, ...] } -
+//   only those cards and shots; a time scrubs the card's own animation slider
+//   (the card is put back on its final frame afterwards). Without it: every
+//   card at its default, every sub-card once.
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { BOARDS } from '../src/demo-scenes.js';
 import { reveal } from './canvas-reveal.mjs';
 
-const [, , base, board, OUT] = process.argv;
+const [, , base, board, OUT, selectionPath] = process.argv;
+const selection = selectionPath ? JSON.parse(readFileSync(selectionPath, 'utf8')) : null;
 if (!base || !board || !OUT) throw new Error('usage: node e2e/subcard-captures.mjs <deployed-base> <board> <outDir>');
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
@@ -55,35 +60,46 @@ async function settle(card) {
 
 const shots = [];
 let order = 0;
+// Scrub the card's own animation slider (a controlled range input: set the
+// native value, then let React see the input event).
+const scrub = (card, time) => card.locator('input[aria-label="Animation time"]').evaluate((element, t) => {
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(element, String(t));
+  element.dispatchEvent(new Event('input', { bubbles: true }));
+}, time);
+
 for (const block of cards) {
   order += 1;
   const scene = block.scene;
+  if (selection && !selection[scene.id]) continue;
   const card = canvas.locator('[data-block-id]:not([data-chat-block])').filter({ has: page.locator('[data-animation-frame]') }).filter({ hasText: block.title }).first();
   await reveal(page, canvas, card);
   const pager = (scene.inputs || []).find(d => d.presentation === 'pager');
   const parts = pager ? scene.exampleData[pager.of] : [null];
   const heading = all.slice(0, all.indexOf(block)).reverse().find(b => b.type === 'heading');
   // The board persists, so a card may still show a later sub-card: start at 1/N.
-  for (let i = 0; pager && i < parts.length && !(await card.locator('[data-card-pager] [data-pager-readout]').textContent()).includes(` 1/${parts.length}`); i += 1) {
+  for (let i = 0; pager && i < parts.length && !(await card.locator('[data-card-pager] [data-pager-readout]').textContent()).endsWith(` 1 / ${parts.length}`); i += 1) {
     await card.locator('[data-card-pager] [data-pager-step="previous"]').click();
     await page.waitForTimeout(300);
   }
-  for (const [k, partName] of parts.entries()) {
-    if (k > 0) {
-      await card.locator('[data-card-pager] [data-pager-step="next"]').click();
-      await page.waitForTimeout(400);
-    }
+  const plan = selection ? selection[scene.id] : parts.map((unused, k) => ({ part: pager ? k : undefined }));
+  let at = 0;
+  for (const { part = 0, time } of plan) {
+    const k = pager ? part : 0, partName = parts[k];
+    for (; at < k; at += 1) { await card.locator('[data-card-pager] [data-pager-step="next"]').click(); await page.waitForTimeout(400); }
+    for (; at > k; at -= 1) { await card.locator('[data-card-pager] [data-pager-step="previous"]').click(); await page.waitForTimeout(400); }
     if (pager) {
       const readout = await card.locator('[data-card-pager] [data-pager-readout]').textContent();
-      if (!readout.endsWith(`${k + 1}/${parts.length}`)) throw new Error(`${scene.id}: header reads "${readout}" on sub-card ${k + 1}`);
+      if (!readout.endsWith(`${k + 1} / ${parts.length}`)) throw new Error(`${scene.id}: header reads "${readout}" on sub-card ${k + 1}`);
     }
     await reveal(page, canvas, card);
+    if (time !== undefined) { await scrub(card, time); await page.waitForTimeout(300); }
     await settle(card);
-    const file = `${String(order).padStart(2, '0')}-${slug(block.title)}${pager ? `-part-${k + 1}` : ''}.png`;
+    const file = `${String(order).padStart(2, '0')}-${slug(block.title)}${pager ? `-part-${k + 1}` : ''}${time !== undefined ? `-t${time}` : ''}.png`;
     await card.screenshot({ path: `${OUT}/${file}` });
     const box = await card.boundingBox();
-    shots.push({ file, card: scene.id, title: block.title, heading: heading?.text ?? null, part: pager ? { index: k, of: parts.length, name: partName } : null, w: Math.round(box.width), h: Math.round(box.height) });
+    shots.push({ file, card: scene.id, title: block.title, heading: heading?.text ?? null, part: pager ? { index: k, of: parts.length, name: partName } : null, time: time ?? null, w: Math.round(box.width), h: Math.round(box.height) });
     console.log(file);
+    if (time !== undefined) { await scrub(card, scene.duration); await page.waitForTimeout(200); }
   }
 }
 writeFileSync(`${OUT}/captures.json`, JSON.stringify({ base, board, bundle, shots }, null, 2));
