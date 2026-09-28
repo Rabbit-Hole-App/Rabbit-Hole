@@ -10,10 +10,26 @@ Projects", `ef9SfiemEsPQF2bd8B1os3`), with the exact node URL.
 | WP1 | Foundation / routing, repository resolution | Done, frozen |
 | WP2 | Canvas backend (LEARN_DB canvases) | Done, frozen |
 | WP3 | Proposal lifecycle / action safety | Done, frozen |
-| WP4 | Home / Library / Explore / Start / Settings | Built; final Figma gate |
+| WP4 | Home / Library / Explore / Start / Settings | Done (closeout 2026-09-28) |
 | WP5 | Mothership Agent Bar / command surface | Next |
 | WP6 | Project / Canvas / App destinations | After WP5 |
 | WP7 | Final integration / MVP verification | Last |
+
+## Product model (user, 2026-09-28)
+
+- **Project** = the learning and source hub (e.g. nanoGPT): its source repository,
+  Map, Learn canvases, sources, experiments, and the apps built from it.
+  Destination: Overview | Learn | Map.
+- **Canvas** = one learning workspace (cards, notes, drawings, sources, notebooks,
+  interactions). Opens directly in Learn.
+- **App / Job / Server** = an operational or build artifact (status, deployment,
+  last run, inputs and outputs, Run, logs). A Project may produce many.
+- So the Library keeps Projects and Canvases as cards and Apps as operational
+  rows. Never merge them into one generic resource UI.
+- Source owner badge: solid blue with a white check, meaning only "Created by the
+  owner of the source repository" (never identity, quality, endorsement or
+  popularity). A card's GitHub line opens GitHub in a new tab; "Forked from"
+  opens the original Rabbit Hole resource.
 
 ## WP4 closeout
 
@@ -48,6 +64,21 @@ Projects", `ef9SfiemEsPQF2bd8B1os3`), with the exact node URL.
   freezes at Send; navigation and scope warnings work.
 - Figma: integrated and slightly floating dock variants; Home, Library, Project,
   Map, dark, mobile, project + node scope, slash picker open.
+- The Library's bottom card scrolls fully above the larger dock (mobile too).
+
+## Sidebar shell (reviewed with WP5/WP6)
+
+- Expanded: workspace/account; Home, Library, Explore; then Members (if
+  needed) and Trash; New chat only if it keeps a clear job. Projects, Canvases
+  and Apps are not repeated in the sidebar: the Library owns browsing.
+- Map each legacy item to its replacement, with regression checks, before
+  removing it: Apps (replaced by the Library Apps filter), Private (remove
+  unless it maps to a real workflow), New chat (the Mothership is the
+  persistent conversation).
+- Desktop collapsed: a 48-56px icon rail (workspace, Home, Library, Explore,
+  Members, Trash) with tooltips and the active destination visible. Never fully
+  hidden on desktop.
+- Mobile: fully hidden, reopened as a drawer. No icon rail on a phone.
 
 ## WP6 destinations
 
