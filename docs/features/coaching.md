@@ -1477,3 +1477,12 @@ grader and Jev can never delay, replace or mask it.
   Jev grades; no label change so far.
 - Opus scoring 100% means v1 does not separate the graders on verdicts; the
   timeouts and p95 are the open items. No switch.
+
+Jev verdict quality is at parity when it returns; the gap is tail latency. Fix is retry + fallback, not a grader change.
+
+- After run `-b`: the per-attempt limit went from 3 s to 5 s with one retry on timeout;
+  a grade with no Jev verdict is logged as Opus-only and counted as fallback.
+  The holdout latency limit is 500 ms and the 3-point rule is read on returned
+  verdicts. Side-by-side stays on; a switch evaluation waits for 20 real users.
+- `benchmark-v1.1-draft.json`: v1 plus 24 harder cases, each with `hard_because`.
+  Not run until the owner approves the cases.

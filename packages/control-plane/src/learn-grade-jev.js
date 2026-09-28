@@ -118,11 +118,14 @@ export async function verdictLogicFingerprint() {
   return (await sha256Hex(out)).slice(0, 16);
 }
 
-// One POST to the gateway. 3 s per attempt; a 429 or 529 is retried once after
-// min(Retry-After, 1 s); a timeout is never retried. `ms` is the whole wall
-// time, retry wait included.
-export async function askJev(env, request, { timeoutMs = 3000, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), fetchImpl = (...args) => fetch(...args) } = {}) {
+export const JEV_TIMEOUT_MS = 5000;
+
+// One POST to the gateway. 5 s per attempt. One retry in total: after a
+// timeout, or after a 429 or 529 once min(Retry-After, 1 s) has passed.
+// `ms` is the whole wall time, retry included; `retries` is 0 or 1.
+export async function askJev(env, request, { timeoutMs = JEV_TIMEOUT_MS, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), fetchImpl = (...args) => fetch(...args) } = {}) {
   const started = Date.now();
+  let timedOut = false;
   for (let attempt = 0; ; attempt += 1) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -137,7 +140,8 @@ export async function askJev(env, request, { timeoutMs = 3000, sleep = ms => new
       });
       body = await response.json().catch(() => null);
     } catch (error) {
-      if (controller.signal.aborted) throw new JevError('timeout', `Jev timed out after ${timeoutMs} ms`);
+      if (controller.signal.aborted && attempt === 0) { timedOut = true; continue; }
+      if (controller.signal.aborted) throw new JevError('timeout', `Jev timed out${timedOut ? ' twice' : ''} after ${timeoutMs} ms`);
       throw new JevError('network', `Jev unreachable: ${error.message}`);
     } finally {
       clearTimeout(timer);
@@ -148,6 +152,6 @@ export async function askJev(env, request, { timeoutMs = 3000, sleep = ms => new
       continue;
     }
     if (!response.ok) throw new JevError('http', `Jev ${response.status}${body?.error_type ? ` ${body.error_type}` : ''}: ${body?.message || body?.error?.message || 'request failed'}`, response.status);
-    return { body, ms: Date.now() - started, ...readJevMeta(body) };
+    return { body, ms: Date.now() - started, retries: attempt, ...readJevMeta(body) };
   }
 }

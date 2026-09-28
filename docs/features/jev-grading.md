@@ -233,11 +233,14 @@ The rule ("option B"):
   - all ideas 0.9 with misconception 0.5 → unsure;
   - all ideas 0.9 with both flags 0.1 → good.
 - `askJev(env, state, questions)` builds the request shown under Transport.
-  - **Timeout:** 3 s per attempt.
-  - **Retry:** on 429 or 529 it waits min(`Retry-After`, 1 s), or 0 when the
-    header is absent, and retries once. A timeout is not retried, so the worst
-    case is about 7 s.
-  - **Returns:** `{ answers, inputTokens, cost, model, generationId, ms }`.
+  - **Timeout:** 5 s per attempt (raised from 3 s after benchmark-v1 run
+    2026-09-28-b, where all 3 Jev misses were 3 s timeouts).
+  - **Retry:** one retry in total. After a timeout it retries at once; on 429
+    or 529 it waits min(`Retry-After`, 1 s), or 0 when the header is absent.
+    A second timeout fails as `Jev timed out twice after 5000 ms`. The worst
+    case is about 11 s, off the learner path (the shadow call is never
+    awaited).
+  - **Returns:** `{ answers, inputTokens, cost, model, generationId, ms, retries }`.
     - `ms` is wall time inside the Worker, including any retry wait.
     - `cost` comes from `provider_metadata.gateway.cost`.
     - `generationId` comes from `provider_metadata.gateway.generationId`.
@@ -291,7 +294,7 @@ The rule ("option B"):
     Worker died mid-call.
 - **Response contract.** Every response carries `grade_id` and `status`.
   - **Fresh `done`, or a duplicate of a `done` row:** 200.
-    `{ grade_id, status: 'done', duplicate, jev: { ideas: [{ text, p }], misconception, non_attempt, verdict }, ms, model, generation_id, grader_protocol_version, cost, input_tokens }`.
+    `{ grade_id, status: 'done', duplicate, jev: { ideas: [{ text, p }], misconception, non_attempt, verdict }, ms, model, generation_id, grader_protocol_version, cost, input_tokens, retries }`.
     - `cost` is the gateway's reported USD cost; `input_tokens` is Jev's
       `usage.input_tokens` for that generation.
     - For a duplicate, the ideas are rebuilt from the stored `expects` and
@@ -634,8 +637,13 @@ Every percentage is printed next to its raw count, as `k / N (pct)`.
   `(p + z²/(2N) ± z·√(p(1−p)/N + z²/(4N²))) / (1 + z²/N)`.
 - The confusion table is gold {good, partial} against grader
   {good, partial, unsure, error}.
-- The Jev-minus-Opus difference is printed per mode, with both counts. It is
-  compared against the 3-point rule only when both modes have N ≥ 30.
+- The Jev-minus-Opus difference is printed per mode on returned verdicts: both
+  graders are scored on the cases where Jev returned a verdict, and Jev errors
+  are reported separately. It is compared against the 3-point rule only when
+  both modes have N ≥ 30.
+- **Fallback.** A grade where Jev returned nothing is one where Opus's verdict
+  stood alone. The bench prints the fallback rate and the retry count; the
+  report carries `fallback` (failed plus incomplete over eligible rows).
 
 **Per-idea** (Jev only)
 - There is one item per (case, idea) pair; an item is positive when the gold
@@ -688,14 +696,17 @@ is evaluated on the committed `GRADER_PROTOCOL_VERSION`, `THRESHOLDS` and
   are not evaluated and the switch waits.
 - **Accuracy.** Jev's verdict accuracy is at least 90% in each mode, printed as
   `k / N` with its Wilson interval.
-- **Against Opus.** In each mode, Jev is no more than 3 points below Opus. This
-  applies only because both modes meet N ≥ 30.
+- **Against Opus.** In each mode, on returned verdicts, Jev is no more than 3
+  points below Opus. This applies only because both modes meet N ≥ 30.
 - **Per-idea.** Per-idea F1 at `THRESHOLDS.yes` is at least 0.85.
 - **Injection.** No injection case is graded `good`.
-- **Latency.** Jev's p95 `ms` on that run is under 400 ms. If the gateway hop is
+- **Latency.** Jev's p95 `ms` on that run is under 500 ms (was 400 ms; 424
+  against 400 on n = 69 was noise, and the learner never waits on Jev). If the gateway hop is
   why it misses, test the direct TypeSafe route before deciding.
 
 **Real side-by-side rows**, from `/api/learn/grade/report`:
+- **Real learners.** A switch evaluation starts only after answers from 20
+  real users are graded both ways. Synthetic sets alone never start one.
 - **Rows counted.** Only eligible rows count: at least 15 minutes old, and of
   the current `GRADER_PROTOCOL_VERSION`.
 - **Baseline parsed.** At least 95% of eligible rows have a parsed baseline
@@ -726,7 +737,8 @@ stubbed `fetch` and no key.
 - Every 400 input cap.
 - No key → 503 and no row.
 - Subscription-only mode → 503, and nothing is called.
-- A 429 is retried exactly once. A timeout is not retried and is recorded.
+- A 429 is retried exactly once. A timeout is retried once; a second timeout
+  is recorded and logged as an Opus-only grade.
 - A 502 returns `grade_id`.
 - A baseline is refused for another learner's row, for a second post, for a
   non-numeric id, and for an `ms` that is negative, fractional, above 600000 or

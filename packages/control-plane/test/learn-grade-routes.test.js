@@ -66,6 +66,7 @@ test('a grade calls Jev once, stores the row, and answers with per-idea probabil
   assert.equal(data.grader_protocol_version, 'jev-grade-p1');
   assert.equal(data.cost, 0.0000135);
   assert.equal(data.input_tokens, 321);
+  assert.equal(data.retries, 0);
   const row = w.sqlite.prepare('SELECT * FROM learn_grades').get();
   assert.equal(row.source, 'canvas');
   assert.equal(row.email, 'learner@test');
@@ -216,14 +217,16 @@ test('an out-of-credit gateway fails once and keeps the reason', async t => {
   assert.equal(w.sqlite.prepare('SELECT jev_error FROM learn_grades').get().jev_error, 'Jev 402: insufficient credits');
 });
 
-test('a Jev timeout is recorded as a failure and not retried', async t => {
+test('a Jev timeout is retried once, then recorded as a failure and logged as an Opus-only grade', async t => {
   const w = world(t);
+  const logged = t.mock.method(console, 'log', () => {});
   w.setReply((request, signal) => new Promise((_, reject) => signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))));
   const response = await w.post('/api/learn/grade', gradeBody());
   assert.equal(response.status, 502);
-  assert.equal((await response.json()).error, 'Jev timed out after 3000 ms');
-  assert.equal(w.sqlite.prepare('SELECT jev_error FROM learn_grades').get().jev_error, 'Jev timed out after 3000 ms');
-  assert.equal(w.jevBodies.length, 1);
+  assert.equal((await response.json()).error, 'Jev timed out twice after 5000 ms');
+  assert.equal(w.sqlite.prepare('SELECT jev_error FROM learn_grades').get().jev_error, 'Jev timed out twice after 5000 ms');
+  assert.equal(w.jevBodies.length, 2);
+  assert.match(logged.mock.calls.map(call => call.arguments.join(' ')).join('\n'), /learn-grade fallback: Opus verdict stands alone, grade \d+: Jev timed out twice/);
 });
 
 test('an AWS-hosted app is refused before anything is stored', async t => {
