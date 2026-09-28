@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { askJev, JEV_MODEL, JEV_TIMEOUT_MS } from '../src/learn-grade-jev.js';
+import { askJev, JEV_MODEL } from '../src/learn-grade-jev.js';
 
 const ok = body => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
 const failing = (code, headers = {}) => new Response(JSON.stringify({ message: `status ${code}`, error_type: 'x' }), { status: code, headers });
@@ -50,33 +50,12 @@ test('other statuses are never retried', async () => {
   }
 });
 
-const hang = (url, init) => new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))));
-
-test('a timeout is retried once; a second timeout says so', async () => {
+test('a timeout is not retried and says so', async () => {
   let calls = 0;
   await assert.rejects(
-    askJev({}, {}, { timeoutMs: 20, fetchImpl: (...args) => { calls += 1; return hang(...args); } }),
-    error => error.code === 'timeout' && error.message === 'Jev timed out twice after 20 ms');
-  assert.equal(calls, 2);
-});
-
-test('a timeout then an answer returns the answer with retries 1', async () => {
-  let calls = 0;
-  const result = await askJev({}, {}, { timeoutMs: 20, fetchImpl: (...args) => (++calls === 1 ? hang(...args) : ok({ answers: {} })) });
-  assert.equal(calls, 2);
-  assert.equal(result.retries, 1);
-});
-
-test('the one retry is shared: a 429 then a timeout is not retried again', async () => {
-  let calls = 0;
-  await assert.rejects(
-    askJev({}, {}, { timeoutMs: 20, sleep: async () => {}, fetchImpl: (...args) => (++calls === 1 ? Promise.resolve(failing(429)) : hang(...args)) }),
+    askJev({}, {}, { timeoutMs: 20, fetchImpl: (url, init) => { calls += 1; return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))); } }),
     error => error.code === 'timeout' && error.message === 'Jev timed out after 20 ms');
-  assert.equal(calls, 2);
-});
-
-test('the per-attempt limit is 5000 ms', () => {
-  assert.equal(JEV_TIMEOUT_MS, 5000);
+  assert.equal(calls, 1);
 });
 
 test('a network failure is reported as such', async () => {

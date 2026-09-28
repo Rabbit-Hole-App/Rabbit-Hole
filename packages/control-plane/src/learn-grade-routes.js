@@ -112,12 +112,10 @@ async function grade(req, env, bench) {
     const result = await askJev(env, jevRequest(value, value.answer));
     const probabilities = parseJevAnswers(result.body, value.expects.length);
     await completeGrade(env, reserved.id, { jev: { ...probabilities, verdict: verdictFrom(probabilities) }, ms: result.ms, inputTokens: result.inputTokens, cost: result.cost, model: result.model, generationId: result.generationId });
-    return json(doneBody(reserved.id, false, value.expects, probabilities, { ms: result.ms, model: result.model, generation_id: result.generationId, grader_protocol_version: GRADER_PROTOCOL_VERSION, cost: result.cost, input_tokens: result.inputTokens, retries: result.retries }));
+    return json(doneBody(reserved.id, false, value.expects, probabilities, { ms: result.ms, model: result.model, generation_id: result.generationId, grader_protocol_version: GRADER_PROTOCOL_VERSION, cost: result.cost, input_tokens: result.inputTokens }));
   } catch (error) {
     const message = error instanceof JevError ? error.message : `Jev grading failed: ${error.message}`;
     await failGrade(env, reserved.id, { error: message, ms: Date.now() - started });
-    // Shadow-only: the learner already has Opus's verdict; this grade has no Jev side.
-    console.log(`learn-grade fallback: Opus verdict stands alone, grade ${reserved.id}: ${message}`);
     return json({ grade_id: reserved.id, status: 'failed', duplicate: false, error: message }, 502);
   }
 }

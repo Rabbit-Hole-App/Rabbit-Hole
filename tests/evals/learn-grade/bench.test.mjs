@@ -110,20 +110,6 @@ test('jev cost is computed from input tokens × the published price, not the gat
   } finally { server.close(); }
 });
 
-test('retries and Opus-only fallbacks are counted; the 3-point rule uses returned verdicts only', async () => {
-  const { server, base } = await stubServer(caseId => (caseId === 'ch1-all'
-    ? { ...done(), body: { ...done().body, retries: 1 } }
-    : { status: 502, body: { status: 'failed', error: 'Jev timed out twice after 5000 ms' } }));
-  const dir = workspace(tinySet('benchmark-v1'));
-  try {
-    const result = await run([...common(base, dir), '--set-file', join(dir, 'set.json')]);
-    assert.equal(result.code, 0, result.out);
-    assert.match(result.out, /failed 1 · retries 1 · fallback to Opus alone 1 \/ 2 \(50%\)/);
-    assert.match(result.out, /jev - opus challenge on returned verdicts: 0\.0 points \(jev 1 \/ 1, opus 1 \/ 1 on the same cases; 0 Jev errors reported separately\)/);
-    assert.match(result.out, /jev - opus explain_back on returned verdicts: - points \(jev 0 \/ 0, opus 0 \/ 0 on the same cases; 1 Jev errors reported separately\)/);
-  } finally { server.close(); }
-});
-
 test('with no published input-only price the cost says not computed instead of $0', async () => {
   const script = () => ({ ...done(), body: { ...done().body, cost: 0, input_tokens: 300 } });
   script.pricing = { input: '0.000000042', output: '0.000001' };
