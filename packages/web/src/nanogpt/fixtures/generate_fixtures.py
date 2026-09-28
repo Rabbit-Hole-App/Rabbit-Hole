@@ -395,6 +395,45 @@ def temperature():
     return out
 
 
+# --- the MLP's inside for one position: c_fc -> GELU -> c_proj ------------------
+
+def mlp():
+    """Hand-picked toy weights (not trained), C = 4 -> 4C = 16 -> 4, no bias as
+    shakespeare_char trains it. Inputs are raw integer vectors normalized as
+    F.layer_norm does it (weight ones, no beta, eps 1e-5), then rounded to 2
+    decimals. GELU is nn.GELU's exact form, h * Phi(h), precomputed because the
+    card's evaluator has no erf; h and m are the card's live matmuls."""
+    eps = 1e-5  # model.py LayerNorm.forward
+    raws = [('B', [0, -3, -2, 3]), ('e', [4, -1, 3, -3]), ('f', [2, 4, -3, 0])]
+    w_fc = [[-0.5, 0.5, -1, -0.5], [-0.5, 1, -1, -0.5], [1, 1, -1, 1], [-1, -0.5, 0.5, 1], [0.5, -0.5, -1, 1],
+            [0.5, 1, -0.5, -1], [-1, 0.5, -0.5, -1], [-0.5, 0.5, -1, 0.5], [0.5, -0.5, 1, 0.5], [-1, -1, -0.5, 1],
+            [1, 0.5, -1, -1], [0.5, 0.5, -1, 1], [0.5, 0.5, -1, 0.5], [-0.5, 0.5, 1, 0.5], [-0.5, 0.5, -0.5, 1],
+            [0.5, -1, 0.5, 0.5]]  # (out, in), as nn.Linear stores it
+    w_proj = [[0.25, 0.25, -0.5, 0.5, -0.5, 0.25, -0.5, 0.5, 0.5, -0.25, -0.25, -0.5, -0.25, 0.25, -0.25, 0.5],
+              [0.5, 0.25, 0.5, -0.25, 0.5, 0.25, 0.25, -0.5, -0.5, 0.5, -0.5, 0.5, -0.5, -0.25, -0.25, -0.5],
+              [0.25, 0.25, -0.25, -0.25, -0.5, -0.25, -0.5, 0.25, -0.25, 0.5, -0.5, 0.5, 0.25, -0.25, 0.25, 0.5],
+              [0.25, 0.25, 0.5, -0.25, -0.5, 0.25, 0.25, -0.25, -0.5, -0.25, -0.25, -0.25, -0.25, 0.25, 0.25, 0.5]]
+
+    def layer_norm(vec):
+        mean = sum(vec) / len(vec)
+        var = sum((v - mean) ** 2 for v in vec) / len(vec)
+        return [r((v - mean) / math.sqrt(var + eps), 2) for v in vec]
+
+    def gelu(x):
+        h = [sum(w * v for w, v in zip(row, x)) for row in w_fc]
+        return [r(0.5 * v * (1 + math.erf(v / math.sqrt(2))), 4) for v in h], sum(v > 0 for v in h)
+
+    out = {'eps': eps, 'Wfc': w_fc, 'Wproj': w_proj, 'presets': []}
+    for char, raw in raws:
+        x = layer_norm(raw)
+        g, positive = gelu(x)
+        out['presets'].append({'char': char, 'raw': raw, 'input': x, 'gelu': g, 'positive': positive})
+    flipped = [-v for v in out['presets'][0]['input']]
+    g, positive = gelu(flipped)
+    out['flipped'] = {'of': 0, 'input': flipped, 'gelu': g, 'positive': positive}
+    return out
+
+
 def build():
     train_src = nanogpt('train.py')
     config_src = nanogpt('config/train_shakespeare_char.py')
@@ -427,6 +466,7 @@ def build():
         'toyRun': toy_run(text, train_src, cfg),
         'optimizer': optimizer(defaults),
         'temperature': temperature(),
+        'mlp': mlp(),
     }
 
 

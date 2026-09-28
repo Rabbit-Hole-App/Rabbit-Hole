@@ -1,6 +1,6 @@
-// Card 5 - where positions mix inside a Block. Single card, no sequence yet
-// (the prerequisite of c14; "The MLP", c05 → c14, is recorded when c14 is
-// built). One relation drawn in two states: which inputs each output can
+// Card 5 - where positions mix inside a Block. Sequence "The MLP", 1 of 2
+// (c05 → c14: this card is the wiring between positions, c14 the computation
+// inside one position). One relation drawn in two states: which inputs each output can
 // depend on in ② attn (the causal lower triangle, drawn as wiring) and in
 // ⑤ mlp (the diagonal: one position at a time). "Before" is c07's real
 // shakespeare_char text; block_size comes from fx.architecture. The wiring is
@@ -138,16 +138,14 @@ export const plan = {
   check: 'practice (choice): after a whole Block, which outputs can change when only input 100 of a 256-position window changes? Undrawn: position 100 of 256 (the card draws 0 to 5) and the two sub-layers composed through a whole Block (the card draws them as separate states); answer 100 to 255',
   boundary: {
     decision: 'single',
-    reason: 'one relation, "which inputs can an output depend on", drawn for the two sub-layers of one Block; the contrast is the idea. Without the MLP state only c11\'s triangle remains; without the attn state "the MLP works per position" has nothing to stand against. One visual region, one control, one practice; not staged (no pipeline). Not in the Self-attention sequence: prerequisite of c14, sequence "The MLP" recorded when c14 is built',
+    reason: 'one relation, "which inputs can an output depend on", drawn for the two sub-layers of one Block; the contrast is the idea. Without the MLP state only c11\'s triangle remains; without the attn state "the MLP works per position" has nothing to stand against. One visual region, one control, one practice; not staged (no pipeline). Not in the Self-attention sequence: first of "The MLP" (c05 → c14), the prerequisite of c14, which opens the MLP for one position',
     reviewed: {},
-    // No sequence yet, so recorded as the plan's lines (card-plan types
-    // relationships only inside a sequence).
-    relationships: [
-      'deepens <- c02-block-anatomy',
-      'prerequisite <- c11-causal-mask',
-      'prerequisite <- c10-weighted-values',
-      'prerequisite -> c14 Inside the MLP (later batch)',
-    ],
+    sequence: { name: 'The MLP', position: 1, of: 2, relationships: [
+      { type: 'deepens', card: 'c02-block-anatomy', direction: 'in' },
+      { type: 'prerequisite', card: 'c11-causal-mask', direction: 'in' },
+      { type: 'prerequisite', card: 'c10-weighted-values', direction: 'in' },
+      { type: 'prerequisite', card: 'c14-mlp', direction: 'out' },
+    ] },
   },
 };
 

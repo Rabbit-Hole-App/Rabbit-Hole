@@ -11,7 +11,10 @@ get_lr, executed from the pinned file.
              overview: the model's whole 65-character guess after "First Citiz"
                        at four checkpoints;
              guided:   p(target) and -ln p(target) at every checkpoint for each
-                       position of one training word and one held-out word.
+                       position of one training word and one held-out word;
+             objective: p and -ln p for each position of one training window
+                       at the last checkpoint, and e^mean by window length
+                       (src/nanogpt/cards/c26-training-objective.js).
   calculated - points on the curve -ln p (the card has no log op).
   source   - deep: both shipped configs resolved as train.py resolves them
              (config/train_shakespeare_char.py on one GPU; config/train_gpt2.py
@@ -43,6 +46,7 @@ EXTRA = {
 GPT2_WORLD_SIZE = 8  # config/train_gpt2.py:3 launches torchrun --nproc_per_node=8
 OVERVIEW = {'context': 'First Citiz', 'target': 'e', 'stops': [0, 50, 200, 1000]}
 WORDS = [('train', 'Citizen'), ('held-out', 'morrow,')]
+OBJECTIVE = 'Before we'  # c26's window, at the last checkpoint
 CURVE_P = [0.00013, 0.0004, 0.0015, 0.005, 0.012, 0.025, 0.05, 0.09, 0.15, 0.24, 0.36, 0.5, 0.7, 1.0]
 
 
@@ -121,8 +125,27 @@ def recorded(text, train_src, cfg):
             'p': [[base.r(p(it, a, b), 6) for a, b in pairs] for it in iterations],
             'loss': [[base.r(-math.log(p(it, a, b)), 4) for a, b in pairs] for it in iterations],
         })
+    # c26-training-objective: one window of the training slice at the last
+    # checkpoint - p(target) and -ln p(target) per position, and e^mean for a
+    # window of the first T positions, mean exactly as the card's pool prints
+    # it (JS Math.round to 3 decimals of the 3-decimal sum times 1/T).
+    obj, last = OBJECTIVE, iterations[-1]
+    train_slice = train_text[:run['config']['train_chars']]
+    assert obj in train_slice, 'objective window lies outside the training slice'
+    at = train_slice.index(obj)
+    pairs = list(zip(obj, obj[1:]))
+    losses = [base.r(-math.log(p(last, a, b)), 4) for a, b in pairs]
+    js_r3 = lambda v: math.floor(v * 1000 + 0.5) / 1000
+    means = [js_r3(js_r3(sum(losses[:t])) * (1 / t)) for t in range(1, len(pairs) + 1)]
+    objective = {
+        'text': obj, 'at': at, 'iteration': last,
+        'pairs': [f'{shown(a)}→{shown(b)}' for a, b in pairs],
+        'p': [base.r(p(last, a, b), 6) for a, b in pairs],
+        'loss': losses,
+        'pplByT': [f'{math.exp(m):.2f}' for m in means],
+    }
     return {'iterations': iterations, 'overview': overview, 'words': words,
-            'uniformLoss': base.r(math.log(len(chars)), 4)}
+            'uniformLoss': base.r(math.log(len(chars)), 4), 'objective': objective}
 
 
 def configs(train_src, text):

@@ -70,10 +70,15 @@ test('c05 captions follow the state; the fixed lines are true in both', () => {
   }
 });
 
-test('c05 plan: single, verbatim objective, no sequence yet, no boundary flag', () => {
+test('c05 plan: single, verbatim objective, The MLP 1 of 2, no boundary flag', () => {
   assertCardPlan({ scene, plan });
   assert.equal(plan.boundary.decision, 'single');
-  assert.equal(plan.boundary.sequence, undefined);
+  const { name, position, of, relationships } = plan.boundary.sequence;
+  assert.deepEqual([name, position, of], ['The MLP', 1, 2]);
+  assert.deepEqual(relationships.map(r => [r.type, r.card, r.direction]), [
+    ['deepens', 'c02-block-anatomy', 'in'], ['prerequisite', 'c11-causal-mask', 'in'],
+    ['prerequisite', 'c10-weighted-values', 'in'], ['prerequisite', 'c14-mlp', 'out']]);
+  assert.doesNotMatch(plan.boundary.reason, /recorded when c14 is built/);
   assert.deepEqual(plan.boundary.reviewed, {});
   assert.equal(plan.objective, 'After this card, the learner should understand that inside a Block only attention moves information between positions: output i can depend on inputs 0 to i in attn but on input i alone in the MLP.');
 });

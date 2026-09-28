@@ -22,6 +22,9 @@ import * as causalMask from './cards/c11-causal-mask.js';
 import * as scoreScaling from './cards/c12-score-scaling.js';
 import * as weightedValues from './cards/c10-weighted-values.js';
 import * as positionMixing from './cards/c05-position-mixing.js';
+import * as mlp from './cards/c14-mlp.js';
+import * as trainingObjective from './cards/c26-training-objective.js';
+import * as gradientStep from './cards/c19-gradient-step.js';
 
 export const NANOGPT_FIRST_BATCH = [
   forwardPass, tokenizer, residual, multiHead, layerNorm,
@@ -41,6 +44,10 @@ export const NANOGPT_LATER_BATCHES = [
   // a prerequisite of the next (c13 in batch 1 deepens it) - then c05, the
   // prerequisite of c14 (batch 4).
   [causalMask, scoreScaling, weightedValues, positionMixing],
+  // Batch 4 (section 12): c14 closes "The MLP" (c05 -> c14, c05 is the last
+  // card of batch 3, so the pair sits together); then "One training step"
+  // (c26 -> c19), linked to the frozen c16, c18, c17 and c20 by relationships.
+  [mlp, trainingObjective, gradientStep],
 ];
 
 // The input states each later card is reviewed in (every card exports them).

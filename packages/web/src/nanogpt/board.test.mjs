@@ -20,7 +20,8 @@ test('sequence cards name their sequence and position; the positions of one sequ
   const bySequence = {};
   for (const block of blocks.filter(b => b.sequence)) (bySequence[block.sequence.name] ||= []).push(block.sequence);
   assert.deepEqual(blocks.find(b => b.scene.id === 'nanogpt-c12-score-scaling').sequence, { name: 'Self-attention', position: 2, of: 3 });
-  assert.equal(blocks.find(b => b.scene.id === 'nanogpt-c05-position-mixing').sequence, undefined);
+  assert.deepEqual(blocks.find(b => b.scene.id === 'nanogpt-c05-position-mixing').sequence, { name: 'The MLP', position: 1, of: 2 });
+  assert.equal(blocks.find(b => b.scene.id === 'nanogpt-c01-forward-pass').sequence, undefined, 'a card outside any sequence carries none');
   for (const [name, entries] of Object.entries(bySequence)) {
     assert.deepEqual(entries.map(e => e.position), entries.map((unused, i) => i + 1), `${name} in board order`);
     assert.ok(entries.every(e => e.of === entries.length), `${name}: every card says of ${entries.length}`);
