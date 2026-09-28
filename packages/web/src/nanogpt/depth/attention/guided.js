@@ -32,7 +32,7 @@ const named = c => (c === '␣' ? 'space' : c);
 const spoken = c => (c === '␣' ? 'the space' : `“${c}”`);
 
 const COL = 32;
-const CELL = 42; // every cell prints at most 5 characters ("-2.35"): 42 draws them at the 12px floor
+const CELL = 44; // every cell prints at most 5 characters ("-2.35"); 44 leaves them room inside the border
 const GX = 200; // the nine character columns, shared by every row below
 const RX = 614; // right-hand column
 // The output column closes the values row at the right edge of the notes
@@ -41,7 +41,8 @@ const RX = 614; // right-hand column
 // are all live text, which the static size cannot measure). Its note ends just
 // left of it, so the note reads with the column it describes.
 const OX = 870;
-const K_Y = 150, SCORE_Y = 364, MASK_Y = 448, W_Y = 532, V_Y = 615, FOOT = 804;
+// Rows stack from the keys down: a row, then the gap its caption needs.
+const K_Y = 150, SCORE_Y = K_Y + 4 * CELL + 40, MASK_Y = SCORE_Y + CELL + 36, W_Y = MASK_Y + CELL + 36, V_Y = W_Y + CELL + 37, FOOT = V_Y + 4 * CELL + 18;
 // Text draws from its left end: x for a note that ends 12px left of the
 // column. ~6px a character is what 13px annotation text measures in the render.
 const endsAtColumn = text => OX - 12 - Math.round(text.length * 6);
