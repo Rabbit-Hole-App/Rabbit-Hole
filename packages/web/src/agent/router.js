@@ -14,6 +14,11 @@ const decode = (text) => { try { return decodeURIComponent(text); } catch { retu
 // owner/repo alone, or after the creation words, names a GitHub repository (user, 2026-09-28). Narrow:
 // the whole message, never inside a question; rewritten to its link so rule 2 decides it as a link.
 const SHORTHAND = /^((?:(?:please|pls|can you|could you|let ?s)\s+)?(?:start (?:a )?(?:new )?rabbit ?hole(?:\s+(?:with|from|on|in|for))?|connect|import)\s+)?([A-Za-z0-9][A-Za-z0-9-]{0,38})\/([A-Za-z0-9_.-]{1,100})$/i;
+// Slash shortcuts (user, 2026-09-28): each is its own sentence, so the rules decide '/find x'
+// exactly as they decide 'find x'. /new opens Start on a path and creates nothing.
+const SHORTCUT = /^\/(find|open|new|connect|run|share)(?:\s+(.*))?$/i;
+const NEW_PATH = { repository: 'repository', repo: 'repository', project: 'repository', canvas: 'blank', 'blank canvas': 'blank', blank: 'blank', question: 'question', sources: 'sources', source: 'sources' };
+const SHARE_THIS = /^this(?:\s+(?:project|canvas|app))?$/i;
 // Library words (user, 2026-09-28): the Library's own filters and a kind-narrowed catalog search.
 const KIND = { project: 'projects', canvas: 'canvases', app: 'apps', job: 'apps', server: 'apps' };
 const KINDS = { projects: ['repository'], canvases: ['canvas'], apps: ['job', 'server'] };
@@ -56,6 +61,21 @@ export function route(text, { mode = null, catalog = [], scope = null } = {}) {
   // 1. A slash mode at position 0.
   const slash = !pill && message.match(/^\/(ask|teach|research|do)(?:\s+|$)/i);
   if (slash) return { type: 'mode', mode: slash[1].toLowerCase(), text: message.slice(slash[0].length) };
+  // 1b. /find /open /new /connect /run /share.
+  const shortcut = !pill && message.match(SHORTCUT);
+  if (shortcut) {
+    const verb = shortcut[1].toLowerCase(), rest = (shortcut[2] || '').trim();
+    if (verb === 'new') return command('open_start', { path: NEW_PATH[rest.toLowerCase()] || 'repository' });
+    if (verb === 'share' && (!rest || SHARE_THIS.test(rest))) {
+      return scope?.slug ? command('share', { app: scope.slug }) : { type: 'note', text: 'Open a project, canvas or app to share it, or type /share <name> with <email>.' };
+    }
+    if (!rest) {
+      if (verb === 'run') return command('filter_library', { type: 'apps' });
+      if (verb === 'connect') return command('open_start', { path: 'repository' });
+      return command('filter_library', {}); // /find, /open
+    }
+    message = `${verb} ${rest}`;
+  }
   // 2. A GitHub repository link. A URL appearing is not a request to create a project (user decision,
   // 2026-09-24): a bare link or explicit creation language connects, and a repository already
   // connected here opens instead. A link inside a question stays a question. Any other URL is a question.

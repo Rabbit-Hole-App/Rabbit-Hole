@@ -220,3 +220,30 @@ test('owner/repo on its own, or after creation words, is a repository reference;
   assert.deepEqual(at('connect karpathy/nanoGPT'), OPEN_NANOGPT); // the same WP1 decision: connected opens
   assert.deepEqual(at('what does karpathy/minGPT do?'), { type: 'ask', mode: 'ask', text: 'what does karpathy/minGPT do?' });
 });
+
+test('slash shortcuts are the same requests as their sentences: /find /open /connect /run', () => {
+  for (const [slash, words] of [['/find nanoGPT', 'find nanoGPT'], ['/find canvases about attention', 'find canvases about attention'], ['/open counter', 'open counter'],
+    ['/open last project', 'open last project'], ['/connect karpathy/minGPT', 'connect karpathy/minGPT'], ['/connect google slides', 'connect google slides'], ['/run s3-log', 'run s3-log']]) {
+    assert.deepEqual(at(slash), at(words), slash);
+  }
+});
+
+test('a bare shortcut goes somewhere useful; /new opens Start on its path without creating anything', () => {
+  const start = (path) => ({ type: 'command', name: 'open_start', args: { path } });
+  assert.deepEqual(at('/find'), { type: 'command', name: 'filter_library', args: {} });
+  assert.deepEqual(at('/open'), { type: 'command', name: 'filter_library', args: {} });
+  assert.deepEqual(at('/run'), { type: 'command', name: 'filter_library', args: { type: 'apps' } });
+  assert.deepEqual(at('/new'), start('repository'));
+  assert.deepEqual(at('/new canvas'), start('blank'));
+  assert.deepEqual(at('/new question'), start('question'));
+  assert.deepEqual(at('/new sources'), start('sources'));
+  assert.deepEqual(at('/new repository'), start('repository'));
+  assert.deepEqual(at('/connect'), start('repository'));
+});
+
+test('/share acts on what is in scope; with nothing in scope it says how', () => {
+  assert.deepEqual(at('/share this project', { scope: NANOGPT }), { type: 'command', name: 'share', args: { app: 'repo-1a2b3c4d-nanogpt' } });
+  assert.deepEqual(at('/share', { scope: NANOGPT }), { type: 'command', name: 'share', args: { app: 'repo-1a2b3c4d-nanogpt' } });
+  assert.deepEqual(at('/share'), { type: 'note', text: 'Open a project, canvas or app to share it, or type /share <name> with <email>.' });
+  assert.deepEqual(at('/share counter with a@b.co'), at('share counter with a@b.co'));
+});

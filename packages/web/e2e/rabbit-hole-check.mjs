@@ -1226,13 +1226,16 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('bar-cmd: "/" opens exactly four modes, unavailable ones dimmed with their reason, Esc closes only the picker; /teach pill; Backspace returns to Auto', async () => {
+  await check('bar-cmd: "/" opens the four modes then the shortcuts, unavailable ones dimmed with their reason, Esc closes only the picker; /teach pill; Backspace returns to Auto', async () => {
     const page = await barOpen();
     const bar = barOf(page);
     await barInput(page).fill('/');
     const options = bar.getByRole('option');
     await options.first().waitFor({ timeout: 5000 });
-    must(JSON.stringify(await options.locator('span:first-child').allTextContents()) === JSON.stringify(['/ask', '/teach', '/research', '/do']), 'not the four modes');
+    // The four modes, then the shortcuts this place can use (WP5): /run only with a job in the catalog.
+    const expected = ['/ask', '/teach', '/research', '/do', '/find', '/open', '/new', '/connect', ...(apps.some((a) => a.kind === 'job') ? ['/run'] : []), '/share'];
+    must(JSON.stringify(await options.locator('span:first-child').allTextContents()) === JSON.stringify(expected), `picker: ${await options.locator('span:first-child').allTextContents()}`);
+    must(await bar.getByRole('listbox').getByRole('separator').count() === 1, 'no divider between modes and shortcuts');
     const research = bar.getByRole('option', { name: /research/ });
     must(await research.getAttribute('aria-disabled') === 'true', 'research is not dimmed');
     await research.getByText('Research works inside a canvas.').waitFor();
@@ -1249,6 +1252,59 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await bar.getByRole('button', { name: 'Auto' }).waitFor({ timeout: 3000 });
     await page.context().close();
   });
+  // ── WP5 batch 1: the composer chrome and the Home/Library shortcuts ──
+  await check('bar-wp5: + Add lists the four Start paths and a disabled Attach; Question opens Start on Question', async () => {
+    const page = await barOpen();
+    await barOf(page).getByRole('button', { name: 'Add' }).click();
+    for (const name of ['Repository', 'Sources', 'Question', 'Blank canvas']) await barOf(page).getByRole('button', { name, exact: true }).waitFor({ timeout: 5000 });
+    must(await barOf(page).getByRole('button', { name: 'Attach a file' }).isDisabled(), 'Attach is enabled on the preview');
+    await barOf(page).getByText("Attachments aren't available on this preview.").waitFor();
+    await barOf(page).getByRole('button', { name: 'Question', exact: true }).click();
+    const dialog = startDialog(page);
+    await dialog.waitFor({ timeout: 10000 });
+    must(await dialog.getByRole('tab', { name: 'Question', exact: true }).getAttribute('data-state') === 'active', 'Start did not open on Question');
+    await page.context().close();
+  });
+
+  await check('bar-slash: /new question opens Start; /find nanoGPT finds it; /run alone opens the Apps filter; /share on Home says how', async () => {
+    const page = await barOpen();
+    const say = async (text) => { await barInput(page).fill(text); await barInput(page).press('Enter'); };
+    // A bare shortcut opens the picker: the first Enter picks it into the draft ('/share '), the second sends.
+    const sayBare = async (text) => { await say(text); await barInput(page).press('Enter'); };
+    await say('/new question');
+    await startDialog(page).waitFor({ timeout: 10000 });
+    must(await startDialog(page).getByRole('tab', { name: 'Question', exact: true }).getAttribute('data-state') === 'active', '/new question is not on Question');
+    await page.keyboard.press('Escape');
+    await startDialog(page).waitFor({ state: 'detached', timeout: 5000 });
+    if (repo) {
+      await say('/find nanoGPT');
+      await page.locator('[data-result-sheet]').getByRole('button', { name: `${repo.repo} · Project` }).waitFor({ timeout: 10000 });
+      await page.keyboard.press('Escape');
+    }
+    await sayBare('/share');
+    await page.locator('[data-result-sheet]').getByText('Open a project, canvas or app to share it, or type /share <name> with <email>.').waitFor({ timeout: 10000 });
+    await page.keyboard.press('Escape');
+    if (apps.some((a) => a.kind === 'job')) {
+      await sayBare('/run');
+      await page.waitForURL(/[?&]type=apps/, { timeout: 10000 });
+    }
+    await page.context().close();
+  });
+
+  await check('bar-dock: ?dock=float frosts the strip and lifts the composer, and stays; ?dock=integrated restores it', async () => {
+    const page = await open();
+    await loaded(page, '/apps?dock=float');
+    const strip = () => barOf(page).evaluate((n) => getComputedStyle(n).backdropFilter);
+    const lift = () => barOf(page).locator('[data-chat-composer]').evaluate((n) => getComputedStyle(n).boxShadow);
+    must(/blur/.test(await strip()), 'the float strip is not frosted');
+    const floatShadow = await lift();
+    await loaded(page, '/library');
+    must(/blur/.test(await strip()), 'the variant did not persist');
+    await loaded(page, '/apps?dock=integrated');
+    must(!/blur/.test(await strip()) && await lift() !== floatShadow, 'integrated did not restore');
+    await page.context().close();
+  });
+
 }
 
 {
@@ -1327,6 +1383,21 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await sheet.getByRole('button', { name: 'Connect rabbit-hole-e2e/demo' }).waitFor({ timeout: 10000 });
     await page.waitForTimeout(1000);
     must(asks === 1, `${asks} asks sent for the question`);
+    await page.context().close();
+  });
+
+  if (ready) await check('bar-page: Send becomes Stop while an answer streams; Stop ends it and Send returns', async () => {
+    const page = await barOpen(`/apps/${ready.name}`);
+    await chip(page).waitFor({ timeout: 15000 });
+    await page.route('**/api/learn/ask', () => {}); // held: never answered, never sent on
+    await barInput(page).fill('Which file defines the model?');
+    await barInput(page).press('Enter');
+    const stop = barOf(page).getByRole('button', { name: 'Stop', exact: true });
+    await stop.waitFor({ timeout: 10000 });
+    must(await barOf(page).getByRole('button', { name: 'Send', exact: true }).count() === 0, 'Send and Stop both show');
+    await stop.click();
+    await page.locator('[data-result-sheet]').getByText('Stopped.').waitFor({ timeout: 5000 });
+    await barOf(page).getByRole('button', { name: 'Send', exact: true }).waitFor({ timeout: 5000 });
     await page.context().close();
   });
 

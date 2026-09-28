@@ -50,7 +50,7 @@ test('risk comes from the registry and matches T02 §7.2', () => {
   for (const [name, command] of Object.entries(COMMANDS)) (byRisk[command.risk] ||= []).push(name);
   for (const names of Object.values(byRisk)) names.sort();
   assert.deepEqual(byRisk, {
-    immediate: ['filter_library', 'find_apps_ai', 'find_runs_ai', 'new_thread', 'open_recent', 'open_resource', 'open_settings', 'open_tab', 'search_resources'],
+    immediate: ['filter_library', 'find_apps_ai', 'find_runs_ai', 'new_thread', 'open_recent', 'open_resource', 'open_settings', 'open_start', 'open_tab', 'search_resources'],
     undo: ['create_canvas', 'pin', 'set_theme', 'unpin'],
     confirm: ['connect_repository', 'pause_schedule', 'resume_schedule', 'run', 'run_again', 'set_schedule', 'share', 'unshare'],
   });
@@ -355,4 +355,13 @@ test('with a stale list, a different branch found at Confirm comes back as the o
   assert.deepEqual(done.choose.map((o) => [o.label, o.name]), [['karpathy/nanoGPT (master) · Project', 'open_resource'], ['Connect karpathy/nanoGPT at dev', 'connect_repository']]);
   assert.deepEqual(done.choose[1].args, { url: 'https://github.com/karpathy/nanoGPT', repo: 'karpathy/nanoGPT', branch: 'dev', newBranch: true });
   assert.deepEqual(calls.slice(before).map((c) => `${c.method} ${c.path}`), ['GET /api/apps']); // nothing created
+});
+
+test('open_start opens the Start dialog on its path and creates nothing', async () => {
+  let detail;
+  window.addEventListener('small:start', (event) => { detail = event.detail; }, { once: true });
+  const before = calls.length;
+  assert.deepEqual(await executeCommand('open_start', { path: 'question' }, CTX), {});
+  assert.deepEqual(detail, { path: 'question' });
+  assert.equal(calls.length, before);
 });

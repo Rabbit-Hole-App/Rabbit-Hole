@@ -120,6 +120,20 @@ export const MODES = [
 // '/' at position 0 opens the picker and '/te' filters it; null means no picker.
 export const modeQuery = (text) => text.match(/^\/([a-z]*)$/)?.[1] ?? null;
 
+// Home and Library shortcuts under the modes (user, 2026-09-28). Each is its sentence (router.js
+// rule 1b); the picker only lists them. Unavailable ones are not shown.
+const SHORTCUTS = [
+  ['find', 'Search your library'],
+  ['open', 'Go to a project, canvas or app'],
+  ['new', 'Start a rabbit hole: repository, sources, question or blank canvas'],
+  ['connect', 'Connect a repository (owner/repo or a GitHub link)'],
+  ['run', 'Run a job'],
+  ['share', 'Share this, or /share <name> with <email>'],
+];
+export function shortcutsFor(scope, catalog = []) {
+  return SHORTCUTS.filter(([name]) => !(name === 'new' && scope.kind === 'project') && !(name === 'run' && !catalog.some((a) => a.kind === 'job')));
+}
+
 // §6.4: which modes a scope can serve; the reason shows dimmed in the picker, and
 // ask() refuses with it. Workspace and app asks go to /api/ask, which writes live
 // chat history (control-plane index.js:1194-1201), so the preview keeps them off

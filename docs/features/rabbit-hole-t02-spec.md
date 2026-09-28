@@ -246,14 +246,26 @@ merely look alike is not the end state.
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-- `[+]` attaches one file to `/ask`, only where `/api/ask` accepts
-  multipart. It is hidden in repository and private scopes, as today
-  (`ask.jsx:822-834`).
-- **Mode.** `Auto` by default. Typing `/` at position 0 opens the picker,
-  which has exactly four entries: `/ask`, `/teach`, `/research`, `/do`.
-  The chosen mode appears as a pill, `[/teach ×]`. Backspace on an empty
-  input, or `×`, returns to Auto. A mode the current scope can't serve is
-  shown dimmed with its reason (§6.4).
+- `[+]` (revised 2026-09-28, WP5) opens **Add**: "Start from" Repository,
+  Sources, Question or Blank canvas (the Start dialog on that path, through
+  `open_start`; nothing is created). "Attach a file" is listed but disabled on
+  the preview with "Attachments aren't available on this preview.": workspace
+  asks are off (G1), project asks are JSON only, and a multipart ask would
+  reach live storage (D7). It attaches one file where `/api/ask` accepts
+  multipart once that is allowed.
+- **Send and Stop.** While an answer streams, the send button is Stop. One
+  answer streams at a time.
+- **Mode.** `Auto` by default. Typing `/` at position 0 opens the picker: the
+  four modes `/ask`, `/teach`, `/research`, `/do`, a divider, then the
+  shortcuts the place can use (Home, Library, Project): `/find`, `/open`,
+  `/new` (not on a project), `/connect`, `/run` (only when a job exists),
+  `/share`. A chosen mode appears as a pill, `[/teach ×]`; Backspace on an
+  empty input, or `×`, returns to Auto. A mode the current scope can't serve
+  is shown dimmed with its reason (§6.4). A shortcut is typed into the draft
+  (`/find `) and routes exactly as its sentence (`find …`, §6.6 rule 1b):
+  `/find` and `/open` alone open the Library, `/run` alone its Apps filter,
+  `/new [repository|sources|question|canvas]` and `/connect` alone open Start,
+  `/share` acts on the resource in scope (or says how).
 - **Scope chips appear only when context changes what the agent will do.**
   The bar never tells you where you already know you are:
 
@@ -353,7 +365,7 @@ merely look alike is not the end state.
   - Unknown events are ignored and logged to the console.
   - The graph answer view keeps Back history, as today.
 - **While a stream runs, navigation stays usable.** The stream belongs to its
-  frozen scope. A `[Stop]` control aborts it. If the user navigates away, the
+  frozen scope. Stop (the send button while streaming) aborts it. If the user navigates away, the
   sheet shows `Answering in nanoGPT…` and delivers the result to that scope's
   thread.
 

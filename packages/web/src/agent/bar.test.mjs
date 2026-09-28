@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  aboutScope, applyEvent, cardView, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, MODES, modeAvailability, modeQuery,
+  aboutScope, applyEvent, cardView, shortcutsFor, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, MODES, modeAvailability, modeQuery,
   offerFor, placeholderFor, pushTurn, rejectBody, resetThread, resultsKey, resultsView, subscribeTurns, threadIds, threadsPath, updateTurn, widen,
 } from './bar.js';
 import { scopeKey } from './scope.js';
@@ -216,4 +216,12 @@ test('a question about a connected repository asks in that project scope, keepin
   assert.equal(resultsKey(other), 'gmail-com|project:repo-9z'); // the project page's own results key
   assert.equal(aboutScope(attn, { slug: nano.slug, kind: 'repository', title: nano.title }), attn);
   assert.equal(aboutScope(home, about).kind, 'project');
+});
+
+test('the picker lists the shortcuts a place can use: /new stays off a project, /run needs a job', () => {
+  const names = (list) => list.map(([name]) => name);
+  const job = [{ name: 's3-log', kind: 'job' }];
+  assert.deepEqual(names(shortcutsFor(home, job)), ['find', 'open', 'new', 'connect', 'run', 'share']);
+  assert.deepEqual(names(shortcutsFor(home, [])), ['find', 'open', 'new', 'connect', 'share']);
+  assert.deepEqual(names(shortcutsFor(nano, job)), ['find', 'open', 'connect', 'run', 'share']);
 });

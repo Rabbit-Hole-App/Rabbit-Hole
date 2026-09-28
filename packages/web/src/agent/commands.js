@@ -127,6 +127,14 @@ export const COMMANDS = {
       return { notice: openedNotice(tab, focus) };
     },
   },
+  // The Start dialog on one of its paths (repository, sources, question, blank); nothing is created.
+  open_start: {
+    risk: 'immediate', touchesLive: false, available: ok,
+    run: async ({ path = 'repository' } = {}) => {
+      window.dispatchEvent(new CustomEvent('small:start', { detail: { path } }));
+      return {};
+    },
+  },
   // The Library's type, scope and folder parameters (App.jsx:116-117; ?type= from the Library chips).
   filter_library: {
     risk: 'immediate', touchesLive: false, available: ok,
@@ -268,7 +276,9 @@ export const COMMANDS = {
   // is never a card and never Blocked (prepareCommand, executeCommand).
   share: {
     ...proposal('share'),
-    unsupported: (args, ctx) => (['repository', 'canvas'].includes(rowOf(ctx, args.app)?.kind) ? "Sharing projects and canvases isn't available yet." : null),
+    // The frozen scope counts too, so '/share this project' never becomes a card when Shell's catalog lacks the row.
+    unsupported: (args, ctx) => (['repository', 'canvas'].includes(rowOf(ctx, args.app)?.kind) || (ctx.scope?.slug === args.app && ['project', 'canvas'].includes(ctx.scope.kind))
+      ? "Sharing projects and canvases isn't available yet." : null),
   },
 };
 

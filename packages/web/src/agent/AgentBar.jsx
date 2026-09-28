@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Loader2, X } from 'lucide-react';
+import { Loader2, Paperclip, Plus, X } from 'lucide-react';
 import ChatComposer from '../ChatComposer.jsx';
 import { api, navigate, wsName } from '../api.js';
-import { slugOf, titleFromQuestion } from '../start.js';
-import { Button, cn, toast } from '../ui.jsx';
+import { PATHS, slugOf, titleFromQuestion } from '../start.js';
+import { Button, cn, Menu, MenuItem, toast } from '../ui.jsx';
 import { askBody, streamAsk } from './ask-stream.js';
 import {
-  aboutScope, applyEvent, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, MODES, modeAvailability, modeQuery,
+  aboutScope, applyEvent, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, MODES, modeAvailability, modeQuery, shortcutsFor,
   offerFor, placeholderFor, pushTurn, rejectBody, resetThread, resultsKey, subscribeTurns, threadIds, updateTurn, widen,
 } from './bar.js';
 import { kindLabel, titleOf } from './catalog.js';
@@ -28,6 +28,16 @@ const chooseLabel = (slug) => {
   const row = (getSurface().catalog || []).find((a) => a.name === slug);
   return `${row ? titleOf(row) : slug} · ${kindLabel(row?.kind)}`;
 };
+
+// WP5 review (preview only): ?dock=float|integrated picks the dock variant, kept in this browser.
+// ponytail: remove once the user picks one.
+const DOCK = (() => {
+  try {
+    const q = new URLSearchParams(window.location.search).get('dock');
+    if (q === 'float' || q === 'integrated') localStorage.setItem('small.preview:dock', q);
+    return localStorage.getItem('small.preview:dock') === 'float' ? 'float' : true;
+  } catch { return true; }
+})();
 
 // T02 §6: one Agent Bar over every page, mounted once in Root (dev only), so a
 // draft and an in-flight answer survive Shell remounts and navigation. Where it
@@ -66,15 +76,23 @@ export default function AgentBar() {
   const [mode, setMode] = useState('auto');
   const [picker, setPicker] = useState(false);
   const [hi, setHi] = useState(0);
-  const entries = MODES.filter(([m]) => m.startsWith(modeQuery(draft) || ''));
+  const entries = [...MODES.map(([name, desc]) => ({ name, desc, shortcut: false })), ...shortcutsFor(target, surface.catalog).map(([name, desc]) => ({ name, desc, shortcut: true }))]
+    .filter((e) => e.name.startsWith(modeQuery(draft) || ''));
   const pickerOpen = picker && entries.length > 0;
   const hiIndex = Math.min(hi, entries.length - 1);
-  const pick = (m) => {
-    if (!modeAvailability(m, target.kind).ok) return;
-    setMode(m); setPicker(false); setHi(0);
+  // A mode becomes the pill; a shortcut is typed into the draft ('/find ') for the rest of the request.
+  const pick = ({ name, shortcut }) => {
+    if (shortcut) {
+      setDrafts((d) => new Map(d).set(targetKey, `/${name} `)); setPicker(false); setHi(0);
+      inputRef.current?.focus();
+      return;
+    }
+    if (!modeAvailability(name, target.kind).ok) return;
+    setMode(name); setPicker(false); setHi(0);
     if (modeQuery(draft) !== null) setDrafts((d) => new Map(d).set(targetKey, ''));
     inputRef.current?.focus();
   };
+  const [adding, setAdding] = useState(false); // the [+] Add menu
 
   // Pages pad their <main> by the bar's height (index.css); 0 while hidden.
   useEffect(() => {
@@ -112,6 +130,7 @@ export default function AgentBar() {
     if (!can.ok) { add(scope, { kind: 'note', text: can.reason, error: true }); return showResults(scope); }
     const r = route(text, { mode: pill, catalog: getSurface().catalog || [], scope });
     if (r.type === 'mode') return submit(raw, r.mode, r.text);
+    if (r.type === 'note') { add(scope, { kind: 'note', text: r.text }); return showResults(scope); }
     if (r.type === 'command') return runCommand(r.name, r.args, raw, scope);
     if (r.type === 'choose') {
       clearDraft(scope, raw);
@@ -246,6 +265,7 @@ export default function AgentBar() {
   // wherever the user goes meanwhile (§6.3, §6.5). The draft belongs to the
   // scope it was typed in (from), which differs when a question names a project.
   async function ask(text, raw, scope, only = null, from = scope) {
+    if (abort.current) return; // one answer at a time; Stop (the send slot) belongs to it
     // Workspace and app asks would write live chat history (bar.js modeAvailability): refuse, keep the draft.
     const can = modeAvailability('ask', scope.kind);
     if (!can.ok) { add(scope, { kind: 'note', text: can.reason, error: true }); return showResults(scope); }
@@ -297,7 +317,7 @@ export default function AgentBar() {
   // the picker is handled in onSubmit: the textarea sends before this handler runs.
   const onKeyDown = (e) => {
     if (pickerOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); setHi((hiIndex + (e.key === 'ArrowDown' ? 1 : entries.length - 1)) % entries.length); return; }
-    if (e.key === 'Escape' && (pickerOpen || sheet)) { e.stopPropagation(); if (pickerOpen) setPicker(false); else setSheet(null); return; }
+    if (e.key === 'Escape' && (adding || pickerOpen || sheet)) { e.stopPropagation(); if (adding) setAdding(false); else if (pickerOpen) setPicker(false); else setSheet(null); return; }
     if (e.key === 'Backspace' && e.target === inputRef.current && !draft && mode !== 'auto') setMode('auto');
   };
 
@@ -311,21 +331,25 @@ export default function AgentBar() {
   };
   return (
     <div ref={root} data-agent-bar onKeyDown={onKeyDown}
-      className="fixed right-0 bottom-0 left-0 z-20 bg-white px-4 pt-3 pb-5 transition-[left] duration-200 max-md:px-3 max-md:pt-2 max-md:pb-3 md:left-[var(--sidebar-w,0px)]">
+      className={cn('fixed right-0 bottom-0 left-0 z-20 px-4 pt-3 pb-5 transition-[left] duration-200 max-md:px-3 max-md:pt-2 max-md:pb-3 md:left-[var(--sidebar-w,0px)]', DOCK === 'float' ? 'bg-white/75 backdrop-blur-md' : 'bg-white')}>
       {sheet && <ResultSheet key={resultsKey(sheet)} scope={sheet} label={nameOf(sheet)} onClose={() => setSheet(null)} />}
       <div className="relative mx-auto max-w-[780px]">
         {pickerOpen && (
           <div role="listbox" aria-label="Modes" className="absolute bottom-full left-0 z-10 mb-1 w-[26rem] max-w-full rounded-md bg-white p-1 shadow-pop">
-            {entries.map(([m, desc], i) => {
-              const can = modeAvailability(m, target.kind);
+            {entries.map((entry, i) => {
+              const { name: m, desc } = entry;
+              const can = entry.shortcut ? { ok: true } : modeAvailability(m, target.kind);
               return (
-                <div key={m} role="option" aria-selected={i === hiIndex} aria-disabled={!can.ok} onMouseDown={(e) => { e.preventDefault(); pick(m); }}
+                <div key={m} className="contents">
+                {entry.shortcut && !entries[i - 1]?.shortcut && i > 0 && <div role="separator" className="my-1 border-t border-line" />}
+                <div role="option" aria-selected={i === hiIndex} aria-disabled={!can.ok} onMouseDown={(e) => { e.preventDefault(); pick(entry); }}
                   className={cn('flex items-center gap-3 rounded-sm px-2 py-1.5 text-sm', can.ok ? 'cursor-pointer' : 'cursor-default', i === hiIndex && 'bg-hover')}>
                   <span className={cn('w-20 shrink-0 font-medium', !can.ok && 'text-ink-3')}>/{m}</span>
                   <span className={cn('min-w-0 flex-1', can.ok ? 'text-ink-2' : 'text-ink-3')}>{can.ok ? desc : can.reason}{can.ok && can.reason ? ` · ${can.reason}` : ''}</span>
                   {m === 'research' && target.kind === 'project' && (
                     <Button size="sm" variant="soft" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setPicker(false); runCommand('create_canvas', { title: 'Untitled canvas', project: target.slug }, '', target, true); }}>New canvas for this project</Button>
                   )}
+                </div>
                 </div>
               );
             })}
@@ -335,7 +359,6 @@ export default function AgentBar() {
           <div role="status" className="flex items-center gap-2 pb-1.5 text-xs text-ink-2">
             <Loader2 size={13} className="shrink-0 animate-spin" />
             <span className="min-w-0 flex-1 truncate">Answering in {streaming}…</span>
-            <Button size="sm" onClick={() => abort.current?.abort()}>Stop</Button>
           </div>
         )}
         {!sheet && !streaming && line && (
@@ -350,14 +373,28 @@ export default function AgentBar() {
             <Button size="sm" onClick={() => setKept(scopeKey(live))}>Keep {nameOf(target)}</Button>
           </div>
         )}
-        {/* ponytail: no [+] attachment in phase 1 (T02 §6.2; recorded in T02 by settings-deploy order 13.5). streamAsk takes a
-            file (multipart, /api/ask only); add the button with the ask.jsx:822-834 rules when the bar owns attachments. */}
-        <ChatComposer multiline dock value={draft}
+        <ChatComposer multiline dock={DOCK} value={draft} onStop={() => abort.current?.abort()}
           onChange={(value) => { setDrafts((d) => new Map(d).set(targetKey, value)); setHeld(target); setPicker(mode === 'auto' && modeQuery(value) !== null); }}
-          onSubmit={(raw) => (pickerOpen ? pick(entries[hiIndex][0]) : submit(raw))} inputRef={inputRef} busy={!!streaming} maxLength={4000} placeholder={placeholderFor(target, surface)}
-          leading={mode === 'auto'
+          onSubmit={(raw) => (pickerOpen ? pick(entries[hiIndex]) : submit(raw))} inputRef={inputRef} busy={!!streaming} maxLength={4000} placeholder={placeholderFor(target, surface)}
+          leading={<>
+            {/* [+] Add (T02 §6.2, revised 2026-09-28): the Start paths through open_start. ponytail: Attach stays off on
+                the preview - workspace asks are off (G1), project asks are JSON only (repositories.js:169), and a multipart
+                ask would fall through the dev worker to live R2 (index.js:954). streamAsk already takes a file. */}
+            <div className="relative shrink-0">
+              <button type="button" aria-label="Add" aria-haspopup="menu" aria-expanded={adding} onMouseDown={(e) => e.stopPropagation()} onClick={() => setAdding(!adding)}
+                className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-line text-ink-2 hover:bg-hover hover:text-ink"><Plus size={16} /></button>
+              <Menu open={adding} onClose={() => setAdding(false)} className="bottom-full left-0 mb-2 w-64">
+                <div className="px-2 pb-1 pt-1 text-xs text-ink-3">Start from</div>
+                {PATHS.map(([path, label]) => <MenuItem key={path} onClick={() => { setAdding(false); runCommand('open_start', { path }, '', target, true); }}>{label}</MenuItem>)}
+                <div className="my-1 border-t border-line" />
+                <MenuItem icon={Paperclip} disabled className="cursor-default opacity-50 hover:bg-transparent">Attach a file</MenuItem>
+                <p className="px-2 pb-1 text-xs text-ink-3">Attachments aren't available on this preview.</p>
+              </Menu>
+            </div>
+            {mode === 'auto'
             ? <button type="button" aria-haspopup="listbox" aria-expanded={pickerOpen} onMouseDown={(e) => { e.preventDefault(); setPicker(!picker); }} className="h-9 shrink-0 cursor-pointer rounded-lg border border-line px-2.5 text-sm text-ink-2 hover:bg-hover hover:text-ink max-md:px-2">Auto</button>
-            : <span className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-hover pr-1.5 pl-2.5 text-sm text-ink">/{mode}<button type="button" aria-label="Back to Auto" onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>} />
+            : <span className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-hover pr-1.5 pl-2.5 text-sm text-ink">/{mode}<button type="button" aria-label="Back to Auto" onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>}
+          </>} />
         {chips.length > 0 && (
           <div className="flex flex-wrap gap-2 pt-2">
             {chips.map((chip) => (
