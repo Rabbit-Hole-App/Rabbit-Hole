@@ -2,16 +2,17 @@
 
 Double-clicking a closed toolbar shape (rectangle, ellipse, triangle, diamond,
 hexagon, star) with the select tool opens a text editor centred in it. Enter
-adds a line; Esc or clicking away commits. Lines, arrows and curves take no
-text.
+adds a line; Esc or clicking away commits. Lines and arrows take a label in
+their middle instead ([canvas connectors](canvas-connectors.md)).
 
 The same H1 / H2 / H3 / H4 / Text ladder as text boxes (`TEXT_LEVELS` in
 `learn-style-panel.js`) sits above the shape while it is being edited or is
 the only selection. The shape keeps its corner handles: resizing reflows the
 text, which wraps inside an inset box per shape kind (`TEXT_BOX` in
 `AdaptiveCanvas.jsx`) so it stays inside the outline. Text is drawn in the
-shape's stroke colour and opacity. To change the text colour, pick the shape (one click
-shows its style panel) and choose a colour: outline and text change together.
+shape's stroke colour and opacity. To change the text colour, pick the shape
+(one click shows its style panel) and choose a colour: outline and text change
+together.
 
 Stored on the shape: `text` (with line breaks) and `level`. Undo covers both.
 Text longer than the shape has room for overflows it rather than shrinking.
