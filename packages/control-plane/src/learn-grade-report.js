@@ -51,8 +51,8 @@ function section(rows, thresholds) {
       unparsed: rate(where(row => row.baseline_ms != null && row.baseline_verdict == null), n),
       parsed: rate(parsed, n),
     },
-    // Observational: grades where Jev returned nothing, so Opus's verdict stood alone.
-    fallback: rate(failedOrIncomplete, n),
+    // Observational: grades where Jev was unavailable, so Opus stood alone.
+    jev_unavailable: rate(failedOrIncomplete, n),
     agreement: rate(agree, compared.length),
     table,
     unsure: rate(done.filter(row => verdictOf(row) === 'unsure').length, done.length),

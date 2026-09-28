@@ -110,7 +110,7 @@ test('jev cost is computed from input tokens × the published price, not the gat
   } finally { server.close(); }
 });
 
-test('timeouts, 429 retries and Opus-only fallbacks are named; errors still count as wrong', async () => {
+test('timeouts, 429 retries and Jev-unavailable grades are named; errors still count as wrong', async () => {
   const { server, base } = await stubServer(caseId => (caseId === 'ch1-all'
     ? { ...done(), body: { ...done().body, retries: 1 } }
     : { status: 502, body: { status: 'failed', error: 'Jev timed out after 3000 ms' } }));
@@ -118,7 +118,7 @@ test('timeouts, 429 retries and Opus-only fallbacks are named; errors still coun
   try {
     const result = await run([...common(base, dir), '--set-file', join(dir, 'set.json')]);
     assert.equal(result.code, 0, result.out);
-    assert.match(result.out, /failed 1 \(timeouts 1\) · 429\/529 retries 1 · fallback to Opus alone 1 \/ 2 \(50%\)/);
+    assert.match(result.out, /failed 1 \(timeouts 1\) · 429\/529 retries 1 · Jev unavailable, Opus stood alone 1 \/ 2 \(50%\)/);
     assert.match(result.out, /accuracy explain_back: jev 0 \/ 1 \(0%\)/);
   } finally { server.close(); }
 });

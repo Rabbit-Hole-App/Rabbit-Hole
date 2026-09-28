@@ -161,8 +161,8 @@ const summary = {
   },
   opus_ms: { p50: percentile(results.map(item => item.opus.ms), 0.5), p95: percentile(results.map(item => item.opus.ms), 0.95), n: results.length },
   jev_errors: { pending: errors('pending'), incomplete: errors('incomplete'), failed: errors('failed'), timeouts: results.filter(item => /^Jev timed out/.test(item.jev.message || '')).length },
-  // Observational: Opus's verdict stood alone wherever Jev returned nothing. Errors still count as wrong above.
-  fallback: rate(results.filter(item => item.jev.error).length, results.length),
+  // Observational: wherever Jev was unavailable, Opus stood alone. Errors still count as wrong above.
+  jev_unavailable: rate(results.filter(item => item.jev.error).length, results.length),
   jev_429_retries: results.filter(item => item.jev.retries > 0).length,
 };
 
@@ -186,7 +186,7 @@ console.log(`brier ${summary.brier?.toFixed(4)} · injection graded good ${summa
 console.log(`jev ms p50 ${summary.jev_ms.p50} p95 ${summary.jev_ms.p95} (n ${summary.jev_ms.n}; ${summary.jev_ms.excluded} Jev errors excluded) · opus ms p50 ${summary.opus_ms.p50} p95 ${summary.opus_ms.p95} (n ${summary.opus_ms.n})`);
 const cost = summary.jev_cost_per_grade;
 console.log(`jev cost per grade $${cost.computed.mean ?? '-'} computed (n ${cost.computed.n}; ${cost.method}) · gateway reported $${cost.gateway_reported.mean ?? '-'} (n ${cost.gateway_reported.n}) · opus cost not measured (no usage in the /api/learn/ask stream)`);
-console.log(`jev errors: pending ${summary.jev_errors.pending} · incomplete ${summary.jev_errors.incomplete} · failed ${summary.jev_errors.failed} (timeouts ${summary.jev_errors.timeouts}) · 429/529 retries ${summary.jev_429_retries} · fallback to Opus alone ${show(summary.fallback)}`);
+console.log(`jev errors: pending ${summary.jev_errors.pending} · incomplete ${summary.jev_errors.incomplete} · failed ${summary.jev_errors.failed} (timeouts ${summary.jev_errors.timeouts}) · 429/529 retries ${summary.jev_429_retries} · Jev unavailable, Opus stood alone ${show(summary.jev_unavailable)}`);
 
 if (holdout) {
   const modes = ['challenge', 'explain_back'];

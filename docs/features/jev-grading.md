@@ -637,13 +637,13 @@ Every percentage is printed next to its raw count, as `k / N (pct)`.
   {good, partial, unsure, error}.
 - The Jev-minus-Opus difference is printed per mode, with both counts. It is
   compared against the 3-point rule only when both modes have N ≥ 30.
-- **Fallback (observational only).** A grade where Jev returned nothing is one
-  where Opus's verdict stood alone; the learner path was always
-  Opus-authoritative, so this is a count, not a mechanism. The bench prints
-  timeouts, 429/529 retries and the fallback rate beside the errors, and the
-  report carries `fallback` (failed plus incomplete over eligible rows). Errors
-  still count as wrong in every accuracy and in the 3-point rule. A failed grade
-  logs `learn-grade fallback: Opus verdict stands alone, grade <id>: <error>`.
+- **Jev unavailable (observational only).** A grade where Jev returned nothing
+  is one where Opus stood alone. The learner path was always Opus-authoritative,
+  so this is a count, not a mechanism. The bench prints timeouts, 429/529
+  retries and the Jev-unavailable rate beside the errors, and the report carries
+  `jev_unavailable` (failed plus incomplete over eligible rows). Errors still
+  count as wrong in every accuracy and in the 3-point rule. A failed grade logs
+  `learn-grade: Jev unavailable; Opus stood alone, grade <id>: <error>`.
 
 **Per-idea** (Jev only)
 - There is one item per (case, idea) pair; an item is positive when the gold

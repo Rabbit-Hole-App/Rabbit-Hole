@@ -1474,15 +1474,22 @@ grader and Jev can never delay, replace or mask it.
     $0.000000042/token; the gateway reported the same mean. Opus cost is not
     measured.
 - Spot-check: the 3 disagreements (all Jev timeouts) plus the 12 lowest-margin
-  Jev grades; no label change so far.
+  Jev grades, reviewed by the owner. 12 approved as labeled; the answers of
+  gd-plain_words, lm-rambling_correct and lm-paraphrased were reworded so their
+  gold is true by construction (causal attention; gradient magnitude as well as
+  direction; vocabulary tokens, not words). Run `-b`'s results file is kept
+  unchanged as the record of what ran.
 - Opus scoring 100% means v1 does not separate the graders on verdicts; the
   timeouts and p95 are the open items. No switch.
 
-Jev verdict quality is at parity when it returns; the gap is tail latency.
+On benchmark-v1-2026-09-28-b, every Jev verdict that returned matched the gold
+verdict; the observed accuracy gap came from three timeouts. D1 shows
+`jev_ms = 3000` for all three: each first request timed out, with no 429/529
+retry before it.
 The approved contract is unchanged: 3 s per attempt, no timeout retry, p95 under
 400 ms, and a Jev error counts as wrong in the 3-point rule. A 5 s /
 retry-on-timeout transport may be tried later as a separate experiment; it was
 briefly committed (51630a6) and reverted before any deploy or run. The bench and
-report now count timeouts, 429/529 retries and Opus-only fallbacks as
-observations. `benchmark-v1.1-draft.json` (v1 plus 24 harder cases, each with
+report now count timeouts, 429/529 retries and grades where Jev was
+unavailable and Opus stood alone, as observations. `benchmark-v1.1-draft.json` (v1 plus 24 harder cases, each with
 `hard_because`) waits for owner review and is not run.

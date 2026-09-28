@@ -117,7 +117,7 @@ async function grade(req, env, bench) {
     const message = error instanceof JevError ? error.message : `Jev grading failed: ${error.message}`;
     await failGrade(env, reserved.id, { error: message, ms: Date.now() - started });
     // Observational only: the learner already has Opus's verdict; this grade has no Jev side.
-    console.log(`learn-grade fallback: Opus verdict stands alone, grade ${reserved.id}: ${message}`);
+    console.log(`learn-grade: Jev unavailable; Opus stood alone, grade ${reserved.id}: ${message}`);
     return json({ grade_id: reserved.id, status: 'failed', duplicate: false, error: message }, 502);
   }
 }

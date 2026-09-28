@@ -47,7 +47,7 @@ test('each gate names its reason', () => {
   const incompletes = reportFrom([...agreeing(60), ...Array.from({ length: 4 }, () => ({ ...doneRow([0.9], 'good'), status: 'incomplete', jev: null }))]);
   assert.match(incompletes.overall.notice, /Jev failed\+incomplete 4\/64 > 5%/);
   assert.deepEqual(incompletes.overall.jev.incomplete, { k: 4, n: 64, pct: 6.3 });
-  assert.deepEqual(incompletes.overall.fallback, { k: 4, n: 64, pct: 6.3 });
+  assert.deepEqual(incompletes.overall.jev_unavailable, { k: 4, n: 64, pct: 6.3 });
   const small = reportFrom(agreeing(49));
   assert.match(small.overall.notice, /agreement N 49 < 50/);
 });

@@ -226,7 +226,7 @@ test('a Jev timeout is recorded as a failure, not retried, and logged as an Opus
   assert.equal((await response.json()).error, 'Jev timed out after 3000 ms');
   assert.equal(w.sqlite.prepare('SELECT jev_error FROM learn_grades').get().jev_error, 'Jev timed out after 3000 ms');
   assert.equal(w.jevBodies.length, 1);
-  assert.match(logged.mock.calls.map(call => call.arguments.join(' ')).join('\n'), /learn-grade fallback: Opus verdict stands alone, grade \d+: Jev timed out after 3000 ms/);
+  assert.match(logged.mock.calls.map(call => call.arguments.join(' ')).join('\n'), /learn-grade: Jev unavailable; Opus stood alone, grade \d+: Jev timed out after 3000 ms/);
 });
 
 test('an AWS-hosted app is refused before anything is stored', async t => {
