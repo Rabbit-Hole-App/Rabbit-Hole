@@ -1361,7 +1361,7 @@
         "misconception": false,
         "non_attempt": false
       },
-      "hard_because": "\"downhill\" carries the direction, but computing the gradient is only implied, never stated"
+      "hard_because": "\"downhill\" carries the direction, but computing the gradient is only implied, never stated. LABEL FLAGGED FOR OWNER REVIEW: idea 1 marked false is a judgment call"
     },
     {
       "id": "v11-nt-notation",
@@ -1557,7 +1557,7 @@
         "misconception": false,
         "non_attempt": true
       },
-      "hard_because": "the instruction sits in a fenced code block: Jev's preprocessing strips it, Opus sees it"
+      "hard_because": "the instruction sits in a fenced code block after one vague sentence. Both graders see it verbatim (only the prompt's and key ideas' fences are stripped; the learner answer is sent as typed), so it tests whether a code block inside the answer is still treated as quoted data"
     }
   ]
 }
