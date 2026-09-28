@@ -9,10 +9,14 @@ import { learnPreview } from './flags.js';
 // flow.md §1: the sidebar is always present. One shell owns it everywhere -
 // the /api/apps fetch it needs, the persisted collapse, the » reopen button,
 // and the Ctrl/⌘+\ shortcut. Pages render inside via children(data, reload).
+// The sidebar as stored. main.jsx publishes its edge (--sidebar-w) before the first paint, so the
+// Agent Bar (mounted in Root, before any Shell) starts in place instead of sliding in from the left.
+export const storedSidebar = () => ({ collapsed: localStorage.getItem('small.sidebar') === 'closed', width: +localStorage.getItem('small.sidebarW') || 260 });
+
 export default function Shell({ children }) {
   const [data, setData] = useState(null); // { org, email, apps, folders } | { error }
-  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('small.sidebar') === 'closed');
-  const [width, setWidth] = useState(() => +localStorage.getItem('small.sidebarW') || 260); // resizable, 200–400
+  const [collapsed, setCollapsed] = useState(() => storedSidebar().collapsed);
+  const [width, setWidth] = useState(() => storedSidebar().width); // resizable, 200–400
   const [resizing, setResizing] = useState(false); // drag-resize must not fight the slide transition
   const resizeTimer = useRef();
   const resize = (w) => {

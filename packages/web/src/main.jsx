@@ -11,7 +11,7 @@ import SharePage from './SharePage.jsx';
 // Preview-only pages: the live build never routes to them (routes.js), so it builds no chunk for them.
 const Home = learnPreview ? lazy(() => import('./Home.jsx')) : null;
 const ExplorePreview = learnPreview ? lazy(() => import('./Home.jsx').then((m) => ({ default: m.ExplorePreview }))) : null;
-import Shell from './Shell.jsx';
+import Shell, { storedSidebar } from './Shell.jsx';
 import { applyTheme, getTheme, navigate, setWs, wsName } from './api.js';
 import { ExpandedPageFrame, Toasts } from './ui.jsx';
 import { isPrivateByoc } from './private-auth.js';
@@ -69,6 +69,9 @@ if (learnPreview) window.addEventListener('small:start', (e) => { earlyStart = e
 const takeEarlyStart = () => { const path = earlyStart; earlyStart = null; return path; };
 // T02 §6.1: one Agent Bar over every page, mounted in Root for the same reason.
 const AgentBar = learnPreview ? lazy(() => import('./agent/AgentBar.jsx')) : null;
+
+// The Agent Bar sits beside the sidebar from its first paint (Shell republishes on every change).
+if (learnPreview) { const s = storedSidebar(); document.documentElement.style.setProperty('--sidebar-w', `${s.collapsed ? 0 : s.width}px`); }
 
 // A workspace switch lands here as ?ws= (routes.js takeWs); apply it before the first request.
 const switched = learnPreview && takeWs(window.location.search);
