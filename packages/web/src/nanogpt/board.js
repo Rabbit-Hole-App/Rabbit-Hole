@@ -53,6 +53,9 @@ export const cardBlock = card => ({
   selectedObject: null, marked: null,
   ...(card.activity ? { activity: card.activity } : {}),
   ...(card.sources ? { sources: card.sources } : {}),
+  // The sequence a card's plan places it in (card-composition Phase 1): the
+  // card header names it, e.g. "Self-attention · 2 of 3".
+  ...(card.plan?.boundary?.sequence ? { sequence: (({ name, position, of }) => ({ name, position, of }))(card.plan.boundary.sequence) } : {}),
 });
 
 export const nanogptDeepDiveBlocks = () => [...NANOGPT_FIRST_BATCH, ...NANOGPT_LATER_BATCHES.flat()].map(cardBlock);

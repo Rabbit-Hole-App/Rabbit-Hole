@@ -42,7 +42,7 @@ const COL = 40;
 const CELL = 44; // "-2.00" needs 44
 const ROW_W = KEYS.length * CELL;
 const RIGHT = 520; // ② ③ and the bars
-const Y1 = 150, Y3 = 262, BARS_Y = 352, BARS_H = 110, ZERO_Y = 510;
+const Y1 = 172, Y3 = 284, BARS_Y = 374, BARS_H = 110, ZERO_Y = 532;
 const CONCEPT = 'score-scaling';
 
 const text = (id, value, x, y, extra = {}) => ({ id, type: 'text', semanticId: id, conceptId: CONCEPT,
@@ -56,7 +56,7 @@ export const scene = {
   id: 'nanogpt-c12-score-scaling',
   title: 'Scaling scores by 1/√hs',
   width: 960,
-  height: 680,
+  height: 702,
   duration: 2,
   inputs: [
     { name: 'multiplier', type: 'index', label: 'Multiplier on the scores (preset)', of: 'multiplierLabels', default: RULE, presentation: 'picker' },
@@ -117,6 +117,9 @@ export const scene = {
     text('question', 'What does multiplying every score by one number do to the weights?', COL, 30, { typography: 'heading' }),
     note('status', `Characters: Source value · q, k: Calculated toy example (hs = ${HS}) · Live calculation · What-if: × 1/4, × 1, × 0`, COL, 56),
     note('reader', `One reader (query): position ${READER}, the second “e” of “Before we” (sp = space). It sees ${READER + 1} characters; ${LATER} come later.`, COL, 80),
+    // The bridge from where the scores come from (q·k, as in multi-head
+    // attention on this board) to the three steps this card is about.
+    text('bridge', 'Starting from the q·k similarity scores (this query against every key): × 1/√hs → mask → softmax.', COL, 104),
 
     // ① → × m → ②, then ③ and the bars under ②. Scores carry no heat: their
     // only honest scale would be per row, and they feed the weights.
@@ -132,16 +135,16 @@ export const scene = {
       initialState: { from: { x: RIGHT, y: BARS_Y + 4 }, to: { x: RIGHT + ROW_W, y: BARS_Y + 4 }, role: 'neutral', opacity: 0 } },
 
     // Left column: what the chosen multiplier did.
-    note('raw-note', `one score per key; the ${KEYS.length - SEEN} later keys are scored too`, COL, 216, { opacity: 0 }),
-    text('tag', '{{tag}}', COL, 248, { role: { $derive: 'tagRole' }, opacity: 0 }),
-    note('cap-1', '{{cap1}}', COL, 270, { opacity: 0 }),
-    note('cap-2', '{{cap2}}', COL, 288, { opacity: 0 }),
-    text('readout', 'weight on ‘r’: {{wR}} here, {{wRule}} at × 1/2 = 1/√hs', COL, 318, { role: 'output', opacity: 0 }),
-    note('order-1', 'any positive multiplier keeps the raw scores’ order:', COL, 346, { opacity: 0 }),
-    note('order-2', '‘r’, then the three visible 2s, then the two visible −2s;', COL, 364, { opacity: 0 }),
-    note('order-3', 'equal scores keep equal weights', COL, 382, { opacity: 0 }),
-    note('legend-1', 'blank = masked, exactly 0 · 0.00 = rounded, still above 0', COL, 406, { opacity: 0 }),
-    note('legend-2', 'each cell is rounded on its own, so a row can read 0.99', COL, 424, { opacity: 0 }),
+    note('raw-note', `one score per key; the ${KEYS.length - SEEN} later keys are scored too`, COL, 238, { opacity: 0 }),
+    text('tag', '{{tag}}', COL, 270, { role: { $derive: 'tagRole' }, opacity: 0 }),
+    note('cap-1', '{{cap1}}', COL, 292, { opacity: 0 }),
+    note('cap-2', '{{cap2}}', COL, 310, { opacity: 0 }),
+    text('readout', 'weight on ‘r’: {{wR}} here, {{wRule}} at × 1/2 = 1/√hs', COL, 340, { role: 'output', opacity: 0 }),
+    note('order-1', 'any positive multiplier keeps the raw scores’ order:', COL, 368, { opacity: 0 }),
+    note('order-2', '‘r’, then the three visible 2s, then the two visible −2s;', COL, 386, { opacity: 0 }),
+    note('order-3', 'equal scores keep equal weights', COL, 404, { opacity: 0 }),
+    note('legend-1', 'blank = masked, exactly 0 · 0.00 = rounded, still above 0', COL, 428, { opacity: 0 }),
+    note('legend-2', 'each cell is rounded on its own, so a row can read 0.99', COL, 446, { opacity: 0 }),
 
     // The practice's case. No timeline appear: opacity follows the latch.
     note('zero-wait', 'Not drawn: × 0. Answer the practice below, then its row appears here.', COL, ZERO_Y + 8, { opacity: { $derive: 'waitOpacity' } }),
@@ -151,9 +154,9 @@ export const scene = {
     note('zero-3', `${LATER} stay blank: the mask comes after the multiplier.`, 460, ZERO_Y + 44, { opacity: { $derive: 'zeroOpacity' } }),
 
     // NanoGPT's own factor, true at every preset.
-    note('rule', 'NanoGPT: × 1/√hs with hs = n_embd / n_head - fixed by the shape, not learned, the same in every head and layer', COL, 592),
-    note('real-hs', `Source value: shakespeare_char has hs = ${A.n_embd} / ${A.n_head} = ${REAL_HS}, so its heads’ scores are × 1/${Math.sqrt(REAL_HS)}`, COL, 612),
-    note('fused', 'NanoGPT’s default fused attention call applies the same × 1/√hs inside it', COL, 632),
+    note('rule', 'NanoGPT: × 1/√hs with hs = n_embd / n_head - fixed by the shape, not learned, the same in every head and layer', COL, 614),
+    note('real-hs', `Source value: shakespeare_char has hs = ${A.n_embd} / ${A.n_head} = ${REAL_HS}, so its heads’ scores are × 1/${Math.sqrt(REAL_HS)}`, COL, 634),
+    note('fused', 'NanoGPT’s default fused attention call applies the same × 1/√hs inside it', COL, 654),
   ],
   // Replay in source order: q·k, × m (with the mask), softmax; each caption
   // appears with the stage it describes.

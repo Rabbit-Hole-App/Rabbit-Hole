@@ -12,3 +12,17 @@ test('the board shows the first batch, then the later batches in order', () => {
   assert.deepEqual(ids, [...NANOGPT_FIRST_BATCH, ...NANOGPT_LATER_BATCHES.flat()].map(card => card.scene.id));
   assert.equal(new Set(ids).size, ids.length);
 });
+
+// A card in a sequence carries its place in it to the card header
+// ("Self-attention · 2 of 3"); one outside a sequence carries nothing.
+test('sequence cards name their sequence and position; the positions of one sequence run 1..of', () => {
+  const blocks = nanogptDeepDiveBlocks();
+  const bySequence = {};
+  for (const block of blocks.filter(b => b.sequence)) (bySequence[block.sequence.name] ||= []).push(block.sequence);
+  assert.deepEqual(blocks.find(b => b.scene.id === 'nanogpt-c12-score-scaling').sequence, { name: 'Self-attention', position: 2, of: 3 });
+  assert.equal(blocks.find(b => b.scene.id === 'nanogpt-c05-position-mixing').sequence, undefined);
+  for (const [name, entries] of Object.entries(bySequence)) {
+    assert.deepEqual(entries.map(e => e.position), entries.map((unused, i) => i + 1), `${name} in board order`);
+    assert.ok(entries.every(e => e.of === entries.length), `${name}: every card says of ${entries.length}`);
+  }
+});

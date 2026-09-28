@@ -35,10 +35,13 @@ const OUT_Y = VT.y + 4 * CELL + 66;      // the output row, column-aligned under
 const LEGEND_X = 520, LEGEND_Y = 532;    // right of the plane
 const RULE_Y = 250;                      // left column, under the weight row
 const FOOT_Y = 648;                      // under the plane
+// Softmax weights are never negative and add to 1; what generation adds is
+// that attention dropout is off, so they stay that way (the footer says what
+// training's dropout does).
 const RULE = [
-  'At generation the weights are never negative and add up',
-  'to 1, so the output is a weighted average of the values it',
-  'can see - not their sum - and lands between them.',
+  'With attention dropout off - as during generation - the',
+  'weights are non-negative and add up to 1, so the output is',
+  'a weighted average of the visible values, landing between them.',
 ];
 // Name labels sit 26px outward from their dot: below for the dim-2 = 0 row,
 // above for dim-2 = 1 (no dot carries a label of its own).
@@ -219,7 +222,7 @@ export const plan = {
   objective: 'After this card, the learner should understand that one attention head\'s output for a query is the weighted average of the value vectors that query can see, so it always lands between those values, pulled toward each in proportion to its weight.',
   prerequisites: [
     'c11-causal-mask: a query sees itself and earlier characters; a masked weight is exactly 0',
-    'c12-score-scaling: a query\'s weights are never negative and add up to 1 (at generation)',
+    'c12-score-scaling: a query\'s weights are never negative and add up to 1 (with attention dropout off, as at generation)',
     'a vector is a list of numbers; a 2-number vector can be drawn as a point',
   ],
   causalSteps: [

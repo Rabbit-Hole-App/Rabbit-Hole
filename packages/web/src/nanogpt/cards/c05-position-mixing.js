@@ -85,7 +85,8 @@ export const scene = {
     note('count-label', 'can depend on', 40, COUNT_Y),
     ...POS.map(i => note(`n-${i}`, `{{n${i}}}`, X0 + i * PITCH + 6, COUNT_Y)),
 
-    text('rule-1', '{{rule1}}', 40, RULE_Y),
+    // The card's takeaway for the chosen sub-layer: the line a learner reads first.
+    text('rule-1', '{{rule1}}', 40, RULE_Y, { typography: 'heading' }),
     text('rule-2', '{{rule2}}', 40, RULE_Y + 26),
     note('precise', 'Inside attn, positions meet only in the scores and the weighted mix of values; c_attn and c_proj act per position.', 40, RULE_Y + 60),
     note('scale', 'Six positions drawn; NanoGPT wires up to block_size = {{T}} the same way.', 40, RULE_Y + 82),
