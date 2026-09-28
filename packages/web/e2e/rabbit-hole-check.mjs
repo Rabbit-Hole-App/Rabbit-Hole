@@ -537,6 +537,32 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
+  await check('bar-states: every send ends visibly - a built-in answer, a clarification, an unknown command, an unsupported request', async () => {
+    const page = await open();
+    await loaded(page, '/library');
+    const made = [await shCanvas(page, 'Attention masks check'), await shCanvas(page, 'Attention heads check')];
+    try {
+      await page.reload();
+      await barOf(page).waitFor({ timeout: 20000 });
+      const sheet = page.locator('[data-result-sheet]');
+      const say = async (text) => { await barInput(page).fill(text); await barInput(page).press('Enter'); };
+      await say('What is a Project?');
+      await sheet.getByText('is the learning hub around a codebase or topic', { exact: false }).waitFor({ timeout: 10000 });
+      await say('Open attention');
+      await sheet.getByText('Which one do you mean?').waitFor({ timeout: 10000 });
+      for (const title of ['Attention masks check · Canvas', 'Attention heads check · Canvas']) await sheet.getByRole('button', { name: title }).waitFor();
+      await say('/foobar');
+      await sheet.getByText('Unknown command /foobar. Try /ask, /teach, /research, /do, /find', { exact: false }).waitFor({ timeout: 10000 });
+      if (!(await import('../src/flags.js')).askLiveOnPreview) {
+        await say('Book me a flight to Lisbon');
+        await sheet.getByText('Try /find, /open or /new, or open a project to ask about its code.', { exact: false }).waitFor({ timeout: 10000 });
+      }
+    } finally {
+      for (const c of made) await shDrop(page, c.name);
+      await page.context().close();
+    }
+  });
+
   // ── shell-home checks end: later shell-home tasks insert above this line ──
 }
 
@@ -1238,8 +1264,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(await bar.getByRole('listbox').getByRole('separator').count() === 1, 'no divider between modes and shortcuts');
     const research = bar.getByRole('option', { name: /research/ });
     must(await research.getAttribute('aria-disabled') === 'true', 'research is not dimmed');
-    await research.getByText('Research works inside a canvas.').waitFor();
-    if (!askLiveOnPreview) await bar.getByRole('option', { name: /^\/ask/ }).getByText('Asking about the workspace or apps is off on this preview: it would write to live chat history.').waitFor();
+    await research.getByText('Only in a canvas', { exact: true }).waitFor();
+    must(await research.getByTitle('Research works inside a canvas.').count() === 1, 'the full reason is not the tooltip');
+    if (!askLiveOnPreview) await bar.getByRole('option', { name: /^\/ask/ }).getByText('Off on this preview', { exact: true }).waitFor();
     await barInput(page).press('Escape');
     must(await options.count() === 0, 'the picker is still open');
     must(await barInput(page).inputValue() === '/', 'Esc changed the draft');
@@ -1291,17 +1318,13 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('bar-dock: ?dock=float frosts the strip and lifts the composer, and stays; ?dock=integrated restores it', async () => {
+  await check('bar-dock: the floating dock is the default - a lifted composer over a soft fade, no frosted glass, no review switch', async () => {
     const page = await open();
-    await loaded(page, '/apps?dock=float');
-    const strip = () => barOf(page).evaluate((n) => getComputedStyle(n).backdropFilter);
-    const lift = () => barOf(page).locator('[data-chat-composer]').evaluate((n) => getComputedStyle(n).boxShadow);
-    must(/blur/.test(await strip()), 'the float strip is not frosted');
-    const floatShadow = await lift();
-    await loaded(page, '/library');
-    must(/blur/.test(await strip()), 'the variant did not persist');
     await loaded(page, '/apps?dock=integrated');
-    must(!/blur/.test(await strip()) && await lift() !== floatShadow, 'integrated did not restore');
+    const composer = barOf(page).locator('[data-chat-composer]');
+    must((await composer.evaluate((n) => getComputedStyle(n).boxShadow)).split('rgba').length > 3, 'the composer is not lifted (popover shadow)');
+    must(await barOf(page).evaluate((n) => getComputedStyle(n).backdropFilter) === 'none', 'frosted glass on the strip');
+    must(/gradient/.test(await barOf(page).evaluate((n) => getComputedStyle(n).backgroundImage)), 'no fade behind the dock');
     await page.context().close();
   });
 
@@ -1383,6 +1406,16 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await sheet.getByRole('button', { name: 'Connect rabbit-hole-e2e/demo' }).waitFor({ timeout: 10000 });
     await page.waitForTimeout(1000);
     must(asks === 1, `${asks} asks sent for the question`);
+    await page.context().close();
+  });
+
+  if (ready) await check('bar-page: the scope chips sit on the dock, directly above the composer', async () => {
+    const page = await barOpen(`/apps/${ready.name}`);
+    await chip(page).waitFor({ timeout: 15000 });
+    const chips = await barOf(page).locator('[data-scope-chips]').boundingBox();
+    const composer = await barOf(page).locator('[data-chat-composer]').boundingBox();
+    const gap = composer.y - (chips.y + chips.height);
+    must(gap >= 0 && gap <= 8, `chips sit ${gap}px from the composer`);
     await page.context().close();
   });
 

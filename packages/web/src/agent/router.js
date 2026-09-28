@@ -14,6 +14,17 @@ const decode = (text) => { try { return decodeURIComponent(text); } catch { retu
 // owner/repo alone, or after the creation words, names a GitHub repository (user, 2026-09-28). Narrow:
 // the whole message, never inside a question; rewritten to its link so rule 2 decides it as a link.
 const SHORTHAND = /^((?:(?:please|pls|can you|could you|let ?s)\s+)?(?:start (?:a )?(?:new )?rabbit ?hole(?:\s+(?:with|from|on|in|for))?|connect|import)\s+)?([A-Za-z0-9][A-Za-z0-9-]{0,38})\/([A-Za-z0-9_.-]{1,100})$/i;
+// Questions about Rabbit Hole itself, and help (user, 2026-09-28): a built-in answer (agent/help.js).
+const HELP = /^(?:\/?help|what can (?:you|i) do(?: here)?)\s*\??$/i;
+const CONCEPT = /^(?:what(?:'s|\s+is|\s+are)|explain|define|tell me about)\s+(?:(?:a|an|the)\s+)?(projects?|canvas(?:es)?|apps?|jobs?|servers?|library|explore|mothership|agent bar|source owner(?:\s+(?:badge|check))?)\s*\??$/i;
+const conceptOf = (word) => {
+  const w = word.toLowerCase();
+  if (w.startsWith('project')) return 'project';
+  if (w.startsWith('canvas')) return 'canvas';
+  if (/^(app|job|server)/.test(w)) return 'app';
+  if (w.startsWith('source owner')) return 'source owner';
+  return w === 'agent bar' ? 'mothership' : w;
+};
 // Slash shortcuts (user, 2026-09-28): each is its own sentence, so the rules decide '/find x'
 // exactly as they decide 'find x'. /new opens Start on a path and creates nothing.
 const SHORTCUT = /^\/(find|open|new|connect|run|share)(?:\s+(.*))?$/i;
@@ -61,6 +72,10 @@ export function route(text, { mode = null, catalog = [], scope = null } = {}) {
   // 1. A slash mode at position 0.
   const slash = !pill && message.match(/^\/(ask|teach|research|do)(?:\s+|$)/i);
   if (slash) return { type: 'mode', mode: slash[1].toLowerCase(), text: message.slice(slash[0].length) };
+  // 1a. Help and questions about Rabbit Hole's own concepts.
+  if (HELP.test(message)) return command('explain', { concept: 'help' });
+  const concept = message.match(CONCEPT);
+  if (concept) return command('explain', { concept: conceptOf(concept[1]) });
   // 1b. /find /open /new /connect /run /share.
   const shortcut = !pill && message.match(SHORTCUT);
   if (shortcut) {
@@ -76,6 +91,9 @@ export function route(text, { mode = null, catalog = [], scope = null } = {}) {
     }
     message = `${verb} ${rest}`;
   }
+  // 1c. Any other /word is an unknown command: say so, never a silent Ask.
+  const unknown = !pill && !shortcut && message.match(/^\/([a-z][\w-]*)/i);
+  if (unknown) return { type: 'unknown_command', name: unknown[1].toLowerCase() };
   // 2. A GitHub repository link. A URL appearing is not a request to create a project (user decision,
   // 2026-09-24): a bare link or explicit creation language connects, and a repository already
   // connected here opens instead. A link inside a question stays a question. Any other URL is a question.

@@ -6,7 +6,7 @@ import { PATHS, slugOf, titleFromQuestion } from '../start.js';
 import { Button, cn, Menu, MenuItem, toast } from '../ui.jsx';
 import { askBody, streamAsk } from './ask-stream.js';
 import {
-  aboutScope, applyEvent, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, MODES, modeAvailability, modeQuery, shortcutsFor,
+  aboutScope, applyEvent, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, modeAvailability, modeQuery, modesFor, shortcutsFor,
   offerFor, placeholderFor, pushTurn, rejectBody, resetThread, resultsKey, subscribeTurns, threadIds, updateTurn, widen,
 } from './bar.js';
 import { kindLabel, titleOf } from './catalog.js';
@@ -28,16 +28,6 @@ const chooseLabel = (slug) => {
   const row = (getSurface().catalog || []).find((a) => a.name === slug);
   return `${row ? titleOf(row) : slug} · ${kindLabel(row?.kind)}`;
 };
-
-// WP5 review (preview only): ?dock=float|integrated picks the dock variant, kept in this browser.
-// ponytail: remove once the user picks one.
-const DOCK = (() => {
-  try {
-    const q = new URLSearchParams(window.location.search).get('dock');
-    if (q === 'float' || q === 'integrated') localStorage.setItem('small.preview:dock', q);
-    return localStorage.getItem('small.preview:dock') === 'float' ? 'float' : true;
-  } catch { return true; }
-})();
 
 // T02 §6: one Agent Bar over every page, mounted once in Root (dev only), so a
 // draft and an in-flight answer survive Shell remounts and navigation. Where it
@@ -76,7 +66,7 @@ export default function AgentBar() {
   const [mode, setMode] = useState('auto');
   const [picker, setPicker] = useState(false);
   const [hi, setHi] = useState(0);
-  const entries = [...MODES.map(([name, desc]) => ({ name, desc, shortcut: false })), ...shortcutsFor(target, surface.catalog).map(([name, desc]) => ({ name, desc, shortcut: true }))]
+  const entries = [...modesFor(target).map(([name, desc]) => ({ name, desc, shortcut: false })), ...shortcutsFor(target, surface.catalog).map(([name, desc]) => ({ name, desc, shortcut: true }))]
     .filter((e) => e.name.startsWith(modeQuery(draft) || ''));
   const pickerOpen = picker && entries.length > 0;
   const hiIndex = Math.min(hi, entries.length - 1);
@@ -127,10 +117,15 @@ export default function AgentBar() {
   async function submit(raw, pill = mode, text = raw) {
     const scope = target;
     const can = modeAvailability(pill, scope.kind);
-    if (!can.ok) { add(scope, { kind: 'note', text: can.reason, error: true }); return showResults(scope); }
+    if (!can.ok) return refuse(scope, can);
     const r = route(text, { mode: pill, catalog: getSurface().catalog || [], scope });
     if (r.type === 'mode') return submit(raw, r.mode, r.text);
     if (r.type === 'note') { add(scope, { kind: 'note', text: r.text }); return showResults(scope); }
+    if (r.type === 'unknown_command') {
+      const known = [...modesFor(scope), ...shortcutsFor(scope, getSurface().catalog)].map(([n]) => `/${n}`).join(', ');
+      add(scope, { kind: 'note', text: `Unknown command /${r.name}. Try ${known}.`, error: true });
+      return showResults(scope);
+    }
     if (r.type === 'command') return runCommand(r.name, r.args, raw, scope);
     if (r.type === 'choose') {
       clearDraft(scope, raw);
@@ -173,10 +168,18 @@ export default function AgentBar() {
     }
   }
 
-  // Result (commands.js): message or notice, a results list, Undo, a new thread.
+  // Every send ends visibly (user, 2026-09-28): an answer, an action result, a clarification,
+  // a confirmation or an explanation. A refused ask explains itself and says what does work.
+  function refuse(scope, can) {
+    add(scope, { kind: 'note', text: scope.kind === 'workspace' ? `${can.reason} Try /find, /open or /new, or open a project to ask about its code.` : can.reason, error: true });
+    return showResults(scope);
+  }
+
+  // Result (commands.js): an answer, message or notice, a results list, Undo, a new thread.
   function report(scope, name, result, ctx, raw) {
     const key = resultsKey(scope);
     if (result.resetThread) resetThread(key);
+    if (result.answer) { add(scope, { kind: 'user', text: raw }); add(scope, { kind: 'answer', text: result.answer, done: true }); }
     const text = result.message || result.notice;
     if (text) {
       const undo = COMMANDS[name]?.undo && result.undoable ? async () => {
@@ -194,7 +197,7 @@ export default function AgentBar() {
         askInstead: () => ask(raw, raw, scope),
       });
     }
-    if (text || result.results) showResults(scope);
+    if (text || result.results || result.answer) showResults(scope);
   }
 
   // §7.3 card. Nothing runs until Confirm; D7 (policy.blocked) disables it.
@@ -268,7 +271,7 @@ export default function AgentBar() {
     if (abort.current) return; // one answer at a time; Stop (the send slot) belongs to it
     // Workspace and app asks would write live chat history (bar.js modeAvailability): refuse, keep the draft.
     const can = modeAvailability('ask', scope.kind);
-    if (!can.ok) { add(scope, { kind: 'note', text: can.reason, error: true }); return showResults(scope); }
+    if (!can.ok) return refuse(scope, can);
     const key = resultsKey(scope);
     add(scope, { kind: 'user', text });
     const id = add(scope, { kind: 'answer', text: '' });
@@ -331,7 +334,7 @@ export default function AgentBar() {
   };
   return (
     <div ref={root} data-agent-bar onKeyDown={onKeyDown}
-      className={cn('fixed right-0 bottom-0 left-0 z-20 px-4 pt-3 pb-5 transition-[left] duration-200 max-md:px-3 max-md:pt-2 max-md:pb-3 md:left-[var(--sidebar-w,0px)]', DOCK === 'float' ? 'bg-white/75 backdrop-blur-md' : 'bg-white')}>
+      className={cn('fixed right-0 bottom-0 left-0 z-20 px-4 pt-3 pb-5 transition-[left] duration-200 max-md:px-3 max-md:pt-2 max-md:pb-3 md:left-[var(--sidebar-w,0px)]', 'bg-linear-to-t from-white from-70% to-white/0')}>
       {sheet && <ResultSheet key={resultsKey(sheet)} scope={sheet} label={nameOf(sheet)} onClose={() => setSheet(null)} />}
       <div className="relative mx-auto max-w-[780px]">
         {pickerOpen && (
@@ -345,7 +348,7 @@ export default function AgentBar() {
                 <div role="option" aria-selected={i === hiIndex} aria-disabled={!can.ok} onMouseDown={(e) => { e.preventDefault(); pick(entry); }}
                   className={cn('flex items-center gap-3 rounded-sm px-2 py-1.5 text-sm', can.ok ? 'cursor-pointer' : 'cursor-default', i === hiIndex && 'bg-hover')}>
                   <span className={cn('w-20 shrink-0 font-medium', !can.ok && 'text-ink-3')}>/{m}</span>
-                  <span className={cn('min-w-0 flex-1', can.ok ? 'text-ink-2' : 'text-ink-3')}>{can.ok ? desc : can.reason}{can.ok && can.reason ? ` · ${can.reason}` : ''}</span>
+                  <span title={can.ok ? undefined : can.reason} className={cn('min-w-0 flex-1 truncate', can.ok ? 'text-ink-2' : 'text-ink-3')}>{can.ok ? desc : can.short || can.reason}</span>
                   {m === 'research' && target.kind === 'project' && (
                     <Button size="sm" variant="soft" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setPicker(false); runCommand('create_canvas', { title: 'Untitled canvas', project: target.slug }, '', target, true); }}>New canvas for this project</Button>
                   )}
@@ -373,7 +376,17 @@ export default function AgentBar() {
             <Button size="sm" onClick={() => setKept(scopeKey(live))}>Keep {nameOf(target)}</Button>
           </div>
         )}
-        <ChatComposer multiline dock={DOCK} value={draft} onStop={() => abort.current?.abort()}
+        {chips.length > 0 && (
+          <div data-scope-chips className="flex flex-wrap gap-1.5 pb-1.5">
+            {chips.map((chip) => (
+              <span key={chip.key} data-scope-chip={chip.key} className="inline-flex h-6 max-w-full items-center gap-1 rounded-full bg-hover pr-1.5 pl-2.5 text-xs text-ink">
+                <span className="truncate">{chip.label}</span>
+                {own && <button type="button" aria-label={`Remove ${chip.label}`} onClick={() => widenTo(chip.key)} className="shrink-0 cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button>}
+              </span>
+            ))}
+          </div>
+        )}
+        <ChatComposer multiline dock value={draft} onStop={() => abort.current?.abort()}
           onChange={(value) => { setDrafts((d) => new Map(d).set(targetKey, value)); setHeld(target); setPicker(mode === 'auto' && modeQuery(value) !== null); }}
           onSubmit={(raw) => (pickerOpen ? pick(entries[hiIndex]) : submit(raw))} inputRef={inputRef} busy={!!streaming} maxLength={4000} placeholder={placeholderFor(target, surface)}
           leading={<>
@@ -395,16 +408,6 @@ export default function AgentBar() {
             ? <button type="button" aria-haspopup="listbox" aria-expanded={pickerOpen} onMouseDown={(e) => { e.preventDefault(); setPicker(!picker); }} className="h-9 shrink-0 cursor-pointer rounded-lg border border-line px-2.5 text-sm text-ink-2 hover:bg-hover hover:text-ink max-md:px-1.5">Auto</button>
             : <span className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-hover pr-1.5 pl-2.5 text-sm text-ink">/{mode}<button type="button" aria-label="Back to Auto" onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>}
           </>} />
-        {chips.length > 0 && (
-          <div className="flex flex-wrap gap-2 pt-2">
-            {chips.map((chip) => (
-              <span key={chip.key} data-scope-chip={chip.key} className="inline-flex h-7 max-w-full items-center gap-1 rounded-full bg-hover pr-1.5 pl-2.5 text-xs text-ink">
-                <span className="truncate">{chip.label}</span>
-                {own && <button type="button" aria-label={`Remove ${chip.label}`} onClick={() => widenTo(chip.key)} className="shrink-0 cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button>}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

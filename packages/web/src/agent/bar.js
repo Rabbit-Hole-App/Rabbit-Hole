@@ -3,6 +3,7 @@
 // card states and copy. Pure apart from the in-memory store; node:test loads it.
 import { askLiveOnPreview } from '../flags.js';
 import { chipsFor, scopeKey } from './scope.js';
+import { commandsFor, descFor, placeOf, SLASH } from './slash.js';
 
 // Results and threads are per resource: org|kind:slug. A selection is context for
 // one question (repository_context), not a thread of its own (§6.3 thread table).
@@ -109,29 +110,18 @@ export function placeholderFor(scope, { resource = null, catalog = [] } = {}) {
 // §6.6 catalog lookup: none -> [Ask instead], up to 5 -> pills, more -> a list.
 export const resultsView = (results) => (!results.length ? 'empty' : results.length <= 5 ? 'pills' : 'list');
 
-// §6.2: exactly four modes. Copy from Direction C flow 5.
-export const MODES = [
-  ['ask', 'Answer from this context. Changes nothing.'],
-  ['teach', 'Explain or extend a Learn canvas'],
-  ['research', 'Find sources and evidence'],
-  ['do', 'Do something. Asks before anything lasting.'],
-];
+// §6.2: the four modes, then the place's shortcuts - one list for every input (agent/slash.js).
+export const MODES = SLASH.filter((c) => c.group === 'mode').map((c) => [c.name, descFor(c, 'home')]);
+export const modesFor = (scope) => SLASH.filter((c) => c.group === 'mode').map((c) => [c.name, descFor(c, placeOf(scope) === 'project' ? 'project' : 'home')]);
 
 // '/' at position 0 opens the picker and '/te' filters it; null means no picker.
 export const modeQuery = (text) => text.match(/^\/([a-z]*)$/)?.[1] ?? null;
 
 // Home and Library shortcuts under the modes (user, 2026-09-28). Each is its sentence (router.js
 // rule 1b); the picker only lists them. Unavailable ones are not shown.
-const SHORTCUTS = [
-  ['find', 'Search your library'],
-  ['open', 'Go to a project, canvas or app'],
-  ['new', 'Start a rabbit hole: repository, sources, question or blank canvas'],
-  ['connect', 'Connect a repository (owner/repo or a GitHub link)'],
-  ['run', 'Run a job'],
-  ['share', 'Share this, or /share <name> with <email>'],
-];
 export function shortcutsFor(scope, catalog = []) {
-  return SHORTCUTS.filter(([name]) => !(name === 'new' && scope.kind === 'project') && !(name === 'run' && !catalog.some((a) => a.kind === 'job')));
+  const place = placeOf(scope) === 'project' ? 'project' : 'home';
+  return commandsFor(place, { catalog }).filter((c) => c.group === 'shortcut').map((c) => [c.name, descFor(c, place)]);
 }
 
 // §6.4: which modes a scope can serve; the reason shows dimmed in the picker, and
@@ -140,8 +130,8 @@ export function shortcutsFor(scope, catalog = []) {
 // until the user turns askLiveOnPreview on (flags.js). Project and canvas asks use LEARN_DB.
 const ASK_OFF = 'Asking about the workspace or apps is off on this preview: it would write to live chat history.';
 export function modeAvailability(mode, kind, askLive = askLiveOnPreview) {
-  if (mode === 'ask' && !askLive && (kind === 'workspace' || kind === 'app')) return { ok: false, reason: ASK_OFF };
-  if (mode === 'research' && kind !== 'canvas') return { ok: false, reason: kind === 'project' ? 'Research runs in a canvas' : 'Research works inside a canvas.' };
+  if (mode === 'ask' && !askLive && (kind === 'workspace' || kind === 'app')) return { ok: false, reason: ASK_OFF, short: 'Off on this preview' };
+  if (mode === 'research' && kind !== 'canvas') return { ok: false, reason: kind === 'project' ? 'Research runs in a canvas' : 'Research works inside a canvas.', short: 'Only in a canvas' };
   if (mode === 'teach' && kind === 'workspace') return { ok: true, reason: 'creates a canvas first' };
   return { ok: true };
 }

@@ -11,7 +11,7 @@ Projects", `ef9SfiemEsPQF2bd8B1os3`), with the exact node URL.
 | WP2 | Canvas backend (LEARN_DB canvases) | Done, frozen |
 | WP3 | Proposal lifecycle / action safety | Done, frozen |
 | WP4 | Home / Library / Explore / Start / Settings | Done (closeout 2026-09-28) |
-| WP5 | Mothership Agent Bar / command surface | Next |
+| WP5 | Mothership Agent Bar / command surface | Active |
 | WP6 | Project / Canvas / App destinations | After WP5 |
 | WP7 | Final integration / MVP verification | Last |
 
@@ -43,6 +43,17 @@ Projects", `ef9SfiemEsPQF2bd8B1os3`), with the exact node URL.
   Library mobile, Home desktop, Home mobile. Wait for visual approval.
 
 ## WP5 Mothership
+
+Status (2026-09-28): floating Mothership chosen ✅ (review switch removed) · + Add menu ✅ ·
+Send → Stop ✅ · Home slash picker ✅ (short copy) · project scope ✅ · Map node scope ✅ ·
+scope chips on the dock ✅ · shared Learn command contract ✅ (`agent/slash.js`,
+`docs/features/rabbit-hole-commands.md`; the Learn owners wire it) · response states ✅
+(built-in answers, clarification, unknown command, unsupported) · sidebar / icon rail (in
+progress) · final visual gate ⬜.
+
+Result surface rule for WP6: Home, Library and Project Overview answer in the sheet above the
+Mothership; Map answers longer results in the right Context panel; Learn keeps its own
+conversation. The bottom sheet is not the permanent answer UI for Map.
 
 - Composer: no separator; about 64-76px desktop, 56-68px mobile; stronger surface
   and padding; input dominant; + Add/Attach; mode control; Send becomes Stop

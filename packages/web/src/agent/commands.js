@@ -6,6 +6,7 @@ import { readPinned, togglePin } from '../home/pinned.js';
 import { readRecent } from '../home/continue.js';
 import { libraryHref } from '../library-filter.js';
 import { kindLabel, lookup, onBranch, repositoriesOf, titleOf } from './catalog.js';
+import { explain } from './help.js';
 import { branchChoice } from './router.js';
 import { scopeOf } from './scope.js';
 
@@ -127,6 +128,8 @@ export const COMMANDS = {
       return { notice: openedNotice(tab, focus) };
     },
   },
+  // Built-in answers about Rabbit Hole's own concepts (agent/help.js): no model, nothing written.
+  explain: { risk: 'immediate', touchesLive: false, available: ok, run: async ({ concept } = {}) => ({ answer: explain(concept) }) },
   // The Start dialog on one of its paths (repository, sources, question, blank); nothing is created.
   open_start: {
     risk: 'immediate', touchesLive: false, available: ok,

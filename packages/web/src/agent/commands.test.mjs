@@ -50,7 +50,7 @@ test('risk comes from the registry and matches T02 §7.2', () => {
   for (const [name, command] of Object.entries(COMMANDS)) (byRisk[command.risk] ||= []).push(name);
   for (const names of Object.values(byRisk)) names.sort();
   assert.deepEqual(byRisk, {
-    immediate: ['filter_library', 'find_apps_ai', 'find_runs_ai', 'new_thread', 'open_recent', 'open_resource', 'open_settings', 'open_start', 'open_tab', 'search_resources'],
+    immediate: ['explain', 'filter_library', 'find_apps_ai', 'find_runs_ai', 'new_thread', 'open_recent', 'open_resource', 'open_settings', 'open_start', 'open_tab', 'search_resources'],
     undo: ['create_canvas', 'pin', 'set_theme', 'unpin'],
     confirm: ['connect_repository', 'pause_schedule', 'resume_schedule', 'run', 'run_again', 'set_schedule', 'share', 'unshare'],
   });
@@ -363,5 +363,14 @@ test('open_start opens the Start dialog on its path and creates nothing', async 
   const before = calls.length;
   assert.deepEqual(await executeCommand('open_start', { path: 'question' }, CTX), {});
   assert.deepEqual(detail, { path: 'question' });
+  assert.equal(calls.length, before);
+});
+
+test('explain answers from the built-in product model and calls nothing', async () => {
+  const before = calls.length;
+  const { answer } = await executeCommand('explain', { concept: 'project' }, CTX);
+  assert.match(answer, /learning hub/);
+  assert.match(answer, /Overview, Learn and Map/);
+  assert.match((await executeCommand('explain', { concept: 'help' }, CTX)).answer, /type \/ to see every shortcut/);
   assert.equal(calls.length, before);
 });

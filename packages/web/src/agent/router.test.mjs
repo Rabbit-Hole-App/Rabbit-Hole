@@ -20,7 +20,7 @@ const ABOUT_NANOGPT = { slug: 'repo-1a2b3c4d-nanogpt', kind: 'repository', title
 test('rule 1: a slash mode at position 0 comes before every other rule', () => {
   assert.deepEqual(at('/teach https://github.com/karpathy/nanoGPT'), { type: 'mode', mode: 'teach', text: 'https://github.com/karpathy/nanoGPT' });
   assert.deepEqual(at('/do'), { type: 'mode', mode: 'do', text: '' });
-  assert.deepEqual(at('/asking about masks'), { type: 'ask', mode: 'ask', text: '/asking about masks' });
+  assert.deepEqual(at('/asking about masks'), { type: 'unknown_command', name: 'asking' }); // WP5: an unknown /word says so
 });
 
 test('a mode pill wins over the rules; Auto is no pill; /do still runs the rules', () => {
@@ -246,4 +246,23 @@ test('/share acts on what is in scope; with nothing in scope it says how', () =>
   assert.deepEqual(at('/share', { scope: NANOGPT }), { type: 'command', name: 'share', args: { app: 'repo-1a2b3c4d-nanogpt' } });
   assert.deepEqual(at('/share'), { type: 'note', text: 'Open a project, canvas or app to share it, or type /share <name> with <email>.' });
   assert.deepEqual(at('/share counter with a@b.co'), at('share counter with a@b.co'));
+});
+
+test('questions about Rabbit Hole itself get a built-in answer; help lists what the bar can do', () => {
+  const explain = (concept) => ({ type: 'command', name: 'explain', args: { concept } });
+  assert.deepEqual(at('What is a Project?'), explain('project'));
+  assert.deepEqual(at("what's a canvas"), explain('canvas'));
+  assert.deepEqual(at('What are apps?'), explain('app'));
+  assert.deepEqual(at('explain the Library'), explain('library'));
+  assert.deepEqual(at('what is the source owner badge?'), explain('source owner'));
+  assert.deepEqual(at('help'), explain('help'));
+  assert.deepEqual(at('/help'), explain('help'));
+  assert.deepEqual(at('What can you do?'), explain('help'));
+  assert.equal(at('what is a project in nanoGPT?').type, 'ask'); // a real question stays a question
+});
+
+test('an unknown slash command says so instead of going to Ask', () => {
+  assert.deepEqual(at('/foobar'), { type: 'unknown_command', name: 'foobar' });
+  assert.deepEqual(at('/foobar with words'), { type: 'unknown_command', name: 'foobar' });
+  assert.equal(at('/find nanoGPT').name, 'search_resources');
 });

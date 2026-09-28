@@ -149,12 +149,12 @@ test('"/" at position 0 opens the picker with exactly four modes', () => {
 test('modes a scope cannot serve carry their reason: T02 §6.4, and live chat history stays off on the preview', () => {
   assert.deepEqual(modeAvailability('auto', 'workspace'), { ok: true });
   // The third argument is flags.js askLiveOnPreview; passed here so this test holds whichever way the user decides.
-  for (const kind of ['workspace', 'app']) assert.deepEqual(modeAvailability('ask', kind, false), { ok: false, reason: OFF }, kind);
+  for (const kind of ['workspace', 'app']) assert.deepEqual(modeAvailability('ask', kind, false), { ok: false, reason: OFF, short: 'Off on this preview' }, kind);
   for (const kind of ['project', 'canvas']) assert.deepEqual(modeAvailability('ask', kind, false), { ok: true }, kind); // LEARN_DB
   for (const kind of ['workspace', 'app']) assert.deepEqual(modeAvailability('ask', kind, true), { ok: true }, kind);
-  assert.deepEqual(modeAvailability('research', 'workspace'), { ok: false, reason: 'Research works inside a canvas.' });
-  assert.deepEqual(modeAvailability('research', 'app'), { ok: false, reason: 'Research works inside a canvas.' });
-  assert.deepEqual(modeAvailability('research', 'project'), { ok: false, reason: 'Research runs in a canvas' });
+  assert.deepEqual(modeAvailability('research', 'workspace'), { ok: false, reason: 'Research works inside a canvas.', short: 'Only in a canvas' });
+  assert.deepEqual(modeAvailability('research', 'app'), { ok: false, reason: 'Research works inside a canvas.', short: 'Only in a canvas' });
+  assert.deepEqual(modeAvailability('research', 'project'), { ok: false, reason: 'Research runs in a canvas', short: 'Only in a canvas' });
   assert.deepEqual(modeAvailability('research', 'canvas'), { ok: true });
   assert.deepEqual(modeAvailability('teach', 'workspace'), { ok: true, reason: 'creates a canvas first' });
   assert.deepEqual(modeAvailability('teach', 'project'), { ok: true });
