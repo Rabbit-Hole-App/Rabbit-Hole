@@ -1002,6 +1002,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // Selecting on the canvas takes the keyboard away from the composer so
   // Delete acts on the selection; editable notes keep their own focus.
   const select = (id, event = null) => {
+    // Picking something lets the style panel follow it again, even if the
+    // learner closed the panel earlier: a shape's colours are one click away.
+    setStyleOpen(null);
     const active = document.activeElement;
     if (id && active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) active.blur();
     const additive = event && (event.ctrlKey || event.metaKey || event.shiftKey);
@@ -2051,6 +2054,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   };
   const resizeShape = (id, patch) => setShapes(previous => previous.map(shape => shape.id === id ? { ...shape, ...patch } : shape));
   const moveShapeStart = (event, shape) => {
+    // Pressing a shape that is already selected reopens its style panel too.
+    setStyleOpen(null);
     snapshot();
     // A shape inside a selection drags the whole selection, the way cards do.
     const targets = groupTargets(shape.id);

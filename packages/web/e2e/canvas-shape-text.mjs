@@ -41,8 +41,26 @@ const rect = page.locator('[data-shape-id="rect-1"]');
 await rect.waitFor({ timeout: 60000 });
 const empty = async () => { const box = await page.locator('[aria-label="Lesson canvas"]').boundingBox(); await page.mouse.click(box.x + box.width - 420, box.y + box.height - 200); };
 
-// double-click → type in the middle
+// one click on a shape shows its style panel, even after the panel was closed
 const outline = await rect.locator('rect').first().boundingBox();
+const stylePanel = page.getByRole('group', { name: 'Style' });
+await page.mouse.click(outline.x + outline.width / 2, outline.y + outline.height / 2);
+const openedFirst = await stylePanel.isVisible();
+await empty();
+const closedOnCanvas = !(await stylePanel.isVisible());
+await page.getByRole('button', { name: 'Style', exact: true }).click(); // open it by hand...
+await page.getByRole('button', { name: 'Style', exact: true }).click(); // ...and close it again
+await page.mouse.click(outline.x + outline.width / 2, outline.y + outline.height / 2);
+check('one click on a shape opens its style panel', openedFirst && closedOnCanvas && await stylePanel.isVisible());
+await page.getByRole('button', { name: 'Color #b42318' }).click();
+await page.waitForTimeout(600);
+check('the style panel recolours the clicked shape', (await shapeOf('rect-1')).color === '#b42318');
+await page.getByRole('button', { name: 'Style', exact: true }).click(); // closed while the shape stays selected
+await page.mouse.click(outline.x + outline.width / 2, outline.y + outline.height / 2);
+check('clicking the selected shape again brings the panel back', await stylePanel.isVisible());
+await empty();
+
+// double-click → type in the middle
 await page.mouse.dblclick(outline.x + outline.width / 2, outline.y + outline.height / 2);
 const editor = rect.locator('[data-shape-text]');
 await editor.waitFor({ timeout: 5000 });
