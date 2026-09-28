@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
+import { ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
 import { wsHeaders } from './api.js';
 import { BLOCK_TYPES, LearningBlockBody, describeBlock } from './LearningBlocks.jsx';
 import { gapsFrom, nearestGap } from './learn-gap-rail.js';
-import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, TEXT_LEVELS, DASH_STYLES, OPACITIES } from './learn-style-panel.js';
+import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, TEXT_LEVELS, DASH_STYLES, OPACITIES, ARROW_KINDS } from './learn-style-panel.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
 import { presentSteps } from './learn-present.js';
 import { pageRects, PAGE_W } from './learn-pages.js';
@@ -18,6 +18,7 @@ import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 import NotebookBody from './NotebookCard.jsx';
 import { activePath, newNotebookBlock } from './learn-notebook.js';
+import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow } from './learn-connectors.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -48,6 +49,7 @@ const SHAPE_TOOLS = [
   ['line', Slash, 'Line'],
   ['arrow', ArrowUpRight, 'Arrow'],
   ['curve', Spline, 'Curved arrow'],
+  ['elbow', CornerDownRight, 'Elbow arrow'],
 ];
 const COLORS = ['#37352f', '#2383e2', '#b42318', '#1a7f37', '#f59e0b', '#7c3aed'];
 // The default ink is Notion's near-black, stored as a hex in every saved
@@ -128,6 +130,7 @@ function outlineOf(shape) {
   const { kind, x1, y1, x2, y2 } = shape;
   if (kind === 'line' || kind === 'arrow') return { points: [{ x: x1, y: y1 }, { x: x2, y: y2 }], closed: false };
   if (kind === 'curve') return { points: [{ x: x1, y: y1 }, curveControl(shape), { x: x2, y: y2 }], closed: false };
+  if (kind === 'elbow') return { points: freeElbow(shape), closed: false };
   const x = Math.min(x1, x2), y = Math.min(y1, y2), w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
   const relative = POLYGONS[kind] || [[0, 0], [1, 0], [1, 1], [0, 1]];
   return { points: relative.map(([u, v]) => ({ x: x + u * w, y: y + v * h })), closed: true };
@@ -745,11 +748,50 @@ const arrowHead = (tip, from, stroke) => {
   return <path d={`M${tip.x - size * Math.cos(angle - 0.45)} ${tip.y - size * Math.sin(angle - 0.45)} L${tip.x} ${tip.y} L${tip.x - size * Math.cos(angle + 0.45)} ${tip.y - size * Math.sin(angle + 0.45)}`} {...stroke} strokeDasharray={undefined} />;
 };
 
+// A label in the middle of a connector or a drawn arrow. It sits on a small
+// paper patch so the line does not run through the words; only the editor
+// takes the pointer. Enter commits, Shift+Enter breaks the line.
+function LineLabel({ at, text, color, editing, pickable = false, onPick = null, onDone }) {
+  const body = useRef(null);
+  const shown = useRef(text || '');
+  if (!editing) shown.current = text || '';
+  useEffect(() => {
+    if (!editing || !body.current) return;
+    body.current.focus();
+    document.getSelection()?.selectAllChildren(body.current);
+    document.getSelection()?.collapseToEnd();
+  }, [editing]);
+  if (!editing && !text) return null;
+  return (
+    <foreignObject x={at.x - 120} y={at.y - 40} width={240} height={80} style={{ overflow: 'visible', pointerEvents: 'none' }}>
+      <div className="flex h-full w-full items-center justify-center">
+        <div ref={body} data-line-label contentEditable={editing} suppressContentEditableWarning
+          style={{ color: inkAware(color), pointerEvents: editing || pickable ? 'auto' : 'none' }}
+          onPointerDown={event => {
+            event.stopPropagation();
+            // On a selected line, a click on its label edits it.
+            if (!editing && pickable) { event.preventDefault(); onPick?.(); }
+          }}
+          onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); event.currentTarget.blur(); } }}
+          onBlur={event => { const value = event.currentTarget.innerText.replace(/\n$/, ''); shown.current = value; onDone(value); }}
+          className="max-w-[240px] min-w-4 cursor-text rounded bg-white px-1.5 py-0.5 text-center text-[13px] leading-snug break-words whitespace-pre-wrap outline-none">{shown.current}</div>
+      </div>
+    </foreignObject>
+  );
+}
+
+// The dot on a selected line's middle: click it to write a label there.
+const LabelHandle = ({ at, zoom, onPick }) => (
+  <circle data-label-handle cx={at.x} cy={at.y} r={5 / zoom} fill="white" stroke="#2383e2" strokeWidth={1.5 / zoom}
+    style={{ pointerEvents: 'all', cursor: 'text' }}
+    onPointerDown={event => { if (event.button !== 0) return; event.preventDefault(); event.stopPropagation(); onPick(); }}><title>Add a label</title></circle>
+);
+
 // Where a closed shape's text sits, as fractions of its box [left, top, right,
 // bottom]: inside the outline, so the words never cross the stroke.
 const TEXT_BOX = { rect: [0.06, 0.06, 0.94, 0.94], ellipse: [0.15, 0.15, 0.85, 0.85], triangle: [0.25, 0.45, 0.75, 0.95], diamond: [0.22, 0.22, 0.78, 0.78], hexagon: [0.15, 0.1, 0.85, 0.9], star: [0.3, 0.35, 0.7, 0.75] };
 
-function ShapeView({ shape, tool, zoom, selected, editing = false, onSelect, onMoveStart, onResize, onGesture, onDelete, onEdit, onText }) {
+function ShapeView({ shape, tool, zoom, selected, editing = false, labelEditing = false, showPorts = false, onSelect, onMoveStart, onResize, onGesture, onDelete, onEdit, onText, onConnect, onLabel, onLabelDone }) {
   const { kind, x1, y1, x2, y2, color, width, dash, fill, opacity, round } = shape;
   // Unfilled shapes paint a transparent fill so the pointer can grab the
   // interior, not just the hairline outline. Transparent paint still hit-tests
@@ -757,11 +799,14 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, onSelect, onM
   const stroke = { stroke: inkAware(color), strokeWidth: width, fill: fill ? inkAware(fill) : 'transparent', fillOpacity: fill ? 0.25 : 0, opacity, strokeDasharray: dashArray(dash, width), strokeLinecap: 'round', strokeLinejoin: 'round' };
   const x = Math.min(x1, x2), y = Math.min(y1, y2), w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
   const control = kind === 'curve' ? curveControl(shape) : null;
-  const linear = kind === 'line' || kind === 'arrow' || kind === 'curve';
+  const linear = kind === 'line' || kind === 'arrow' || kind === 'curve' || kind === 'elbow';
+  const elbow = kind === 'elbow' ? freeElbow(shape) : null;
+  const middle = kind === 'curve' ? { x: 0.25 * x1 + 0.5 * control.x + 0.25 * x2, y: 0.25 * y1 + 0.5 * control.y + 0.25 * y2 } : elbow ? polylineMid(elbow) : { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
   const textBox = TEXT_BOX[kind];
   const body = useRef(null);
   // Pinned while editing so a re-render never wipes what is being typed.
   const shown = useRef(shape.text || '');
+  if (!editing) shown.current = shape.text || '';
   useEffect(() => {
     if (!editing || !body.current) return;
     body.current.focus();
@@ -770,7 +815,7 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, onSelect, onM
   }, [editing]);
   const down = event => {
     if (event.button !== 0) return;
-    if (editing) { event.stopPropagation(); return; }
+    if (editing || labelEditing) { event.stopPropagation(); return; }
     if (tool === 'eraser') { event.stopPropagation(); onDelete(shape.id); return; }
     if (tool !== 'select') return;
     if (!selected) onSelect(shape.id, event);
@@ -781,19 +826,28 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, onSelect, onM
     ? [[x1, y1, p => ({ x1: p.x, y1: p.y })], [x2, y2, p => ({ x2: p.x, y2: p.y })]]
     : [[x1, y1, p => ({ x1: p.x, y1: p.y })], [x2, y1, p => ({ x2: p.x, y1: p.y })], [x2, y2, p => ({ x2: p.x, y2: p.y })], [x1, y2, p => ({ x1: p.x, y2: p.y })]];
   return (
-    <g data-shape-id={shape.id} style={{ pointerEvents: 'visiblePainted', cursor: tool === 'select' ? 'grab' : undefined }} onPointerDown={down}
-      onDoubleClick={() => { if (textBox && tool === 'select' && onEdit) { shown.current = shape.text || ''; onEdit(shape.id); } }}>
+    <g data-shape-id={shape.id} className="group" style={{ pointerEvents: 'visiblePainted', cursor: tool === 'select' ? 'grab' : undefined }} onPointerDown={down}
+      onDoubleClick={() => {
+        if (tool !== 'select') return;
+        if (textBox && onEdit) onEdit(shape.id);
+        else if (linear && onLabel) onLabel(shape.id);
+      }}>
       {kind === 'rect' && <rect x={x} y={y} width={w} height={h} rx={round ? 14 : 2} {...stroke} />}
       {kind === 'ellipse' && <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...stroke} />}
       {POLYGONS[kind] && <polygon points={POLYGONS[kind].map(([u, v]) => `${x + u * w},${y + v * h}`).join(' ')} {...stroke} />}
       {(kind === 'line' || kind === 'arrow') && <line x1={x1} y1={y1} x2={x2} y2={y2} {...stroke} />}
       {kind === 'curve' && <path d={`M${x1} ${y1} Q${control.x} ${control.y} ${x2} ${y2}`} {...stroke} />}
+      {elbow && <path d={pathOf(elbow)} {...stroke} fill="none" />}
       {/* A 2px line is a 2px target. This invisible band gives lines, arrows
           and curves the same easy grab a filled shape's interior has. */}
       {(kind === 'line' || kind === 'arrow') && <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinecap="round" />}
       {kind === 'curve' && <path d={`M${x1} ${y1} Q${control.x} ${control.y} ${x2} ${y2}`} fill="none" stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinecap="round" />}
       {kind === 'arrow' && arrowHead({ x: x2, y: y2 }, { x: x1, y: y1 }, stroke)}
       {kind === 'curve' && arrowHead({ x: x2, y: y2 }, control, stroke)}
+      {elbow && <path d={pathOf(elbow)} fill="none" stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinejoin="round" />}
+      {elbow && elbow.length > 1 && arrowHead(elbow[elbow.length - 1], elbow[elbow.length - 2], stroke)}
+      {linear && <LineLabel at={middle} text={shape.label} color={color} editing={labelEditing} pickable={selected && tool === 'select'} onPick={() => onLabel?.(shape.id)} onDone={value => onLabelDone(shape.id, value)} />}
+      {linear && selected && tool === 'select' && !labelEditing && !shape.label && onLabel && <LabelHandle at={middle} zoom={zoom} onPick={() => onLabel(shape.id)} />}
       {/* Text in the middle of a closed shape: it wraps inside the outline and
           reflows as the shape is resized. Only the editor takes the pointer. */}
       {textBox && (shape.text || editing) && (
@@ -812,6 +866,16 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, onSelect, onM
           style={{ pointerEvents: 'all', cursor: linear ? 'move' : 'nwse-resize' }}
           onPointerDown={event => { if (event.button !== 0) return; onGesture(); startDrag(event, { x: hx, y: hy }, (px, py) => onResize(shape.id, patch({ x: px, y: py })), zoom); }} />
       ))}
+      {/* Connection ports on the four sides: drag to another shape or card, or
+          click here and then click the target. */}
+      {textBox && tool === 'select' && onConnect && SIDES.map(side => {
+        const at = sidePoint({ x, y, w, h }, side);
+        return (
+          <circle key={side} data-port={side} data-owner={shape.id} cx={at.x} cy={at.y} r={6 / zoom} fill="white" stroke="#2383e2" strokeWidth={1.5 / zoom}
+            className={selected || showPorts ? '' : 'opacity-0 group-hover:opacity-100'} style={{ pointerEvents: 'all', cursor: 'crosshair' }}
+            onPointerDown={event => onConnect(event, shape.id, side)}><title>Drag or click to connect</title></circle>
+        );
+      })}
     </g>
   );
 }
@@ -820,7 +884,7 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, onSelect, onM
 // 26 buttons and scrolled. They sit in their own island now, beside the tools,
 // shown only while a drawing tool is armed or something styleable is selected.
 // Text swaps the thickness row for Notion's heading ladder.
-function StylePanel({ side = 'right', text, showFill, corners, order, color, fill, width, dash, opacity, round, level, onColor, onFill, onWidth, onDash, onOpacity, onRound, onLevel, onOrder }) {
+function StylePanel({ side = 'right', text, showFill, corners, order, route = false, routeValue = null, color, fill, width, dash, opacity, round, level, onColor, onFill, onWidth, onDash, onOpacity, onRound, onLevel, onOrder, onRoute }) {
   const rule = <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />;
   return (
     <div role="group" aria-label="Style" onPointerDown={event => event.stopPropagation()}
@@ -874,6 +938,15 @@ function StylePanel({ side = 'right', text, showFill, corners, order, color, fil
             </button>
           ))}
         </>}
+      {route && (
+        <>
+          {rule}
+          {[['straight', Slash, 'Straight line'], ['curved', Spline, 'Curved line'], ['elbow', CornerDownRight, 'Elbow line']].map(([value, Icon, label]) => (
+            <button key={value} type="button" title={label} aria-label={label} aria-pressed={routeValue === value} onClick={() => onRoute(value)}
+              className={`flex h-6 w-8 items-center justify-center rounded-lg ${routeValue === value ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover'}`}><Icon size={14} strokeWidth={1.7} /></button>
+          ))}
+        </>
+      )}
       {rule}
       {OPACITIES.map(value => (
         <button key={value} type="button" title={`Opacity ${Math.round(value * 100)}%`} aria-label={`Opacity ${Math.round(value * 100)}%`}
@@ -1041,6 +1114,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const [presenting, setPresenting] = useState(null);
   const itemsLayer = useRef(null);
   const [level, setLevel] = useState('body');
+  // The route the next shape connector takes; the style panel's Line row sets it.
+  const [connectorRoute, setConnectorRoute] = useState('elbow');
   const [styleOpen, setStyleOpen] = useState(null); // null = follow the tool; true/false = the learner's explicit choice
   useEffect(() => { setStyleOpen(null); }, [tool]);
   const exchangesRef = useRef(exchanges);
@@ -1450,7 +1525,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     snapshot(chats.length > 0);
     // Selected nodes delete with their attached connections.
     for (const id of chats) onDeleteRef.current?.(id);
-    const nodes = new Set([...chats, ...ids.filter(id => blocksRef.current.some(block => block.id === id))]);
+    const nodes = new Set([...chats, ...ids.filter(id => blocksRef.current.some(block => block.id === id) || shapesRef.current.some(shape => shape.id === id))]);
     setBlocks(previous => previous.filter(block => !ids.includes(block.id)));
     setItems(previous => previous.filter(item => !ids.includes(item.id)));
     setShapes(previous => previous.filter(shape => !ids.includes(shape.id)));
@@ -1526,7 +1601,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         connectionCleanup.current?.(); setConnecting(null); setSelected(null);
         setTool('select'); setMenuAt(null); setStyleOpen(null);
         const focused = document.activeElement;
-        if (focused?.isContentEditable && focused.closest('[data-item-id],[data-block-id],[data-shape-id]')) focused.blur();
+        if (focused?.isContentEditable && focused.closest('[data-item-id],[data-block-id],[data-shape-id],[data-connection]')) focused.blur();
         return;
       }
       const active = document.activeElement;
@@ -1693,6 +1768,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     return { x: (event.clientX - box.left - view.x) / view.z, y: (event.clientY - box.top - view.y) / view.z };
   };
   const portPosition = (id, side) => {
+    const shape = shapesRef.current.find(entry => entry.id === id);
+    if (shape) return sidePoint(shapeBox(shape), side);
     const box = bounds[id];
     return box ? { x: box.x + box.w / 2, y: box.y + (side === 'bottom' ? box.h : 0) } : null;
   };
@@ -1708,6 +1785,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         if (distance < 48 && (!best || distance < best.distance)) best = { id, side, at, distance };
       }
     }
+    for (const shape of shapesRef.current) {
+      if (shape.id === exclude || !TEXT_BOX[shape.kind]) continue;
+      for (const side of SIDES) {
+        const at = sidePoint(shapeBox(shape), side);
+        const distance = Math.hypot(at.x - point.x, at.y - point.y);
+        if (distance < 48 && (!best || distance < best.distance)) best = { id: shape.id, side, at, distance };
+      }
+    }
     return best;
   };
   const connect = (event, from, fromSide) => {
@@ -1717,12 +1802,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     // The ink color drives the connector; the plain ink default reads as
     // uncolored on a line, so it maps to the accent blue.
     const source = blocksRef.current.find(block => block.id === from);
-    const linkColor = color === COLORS[0] ? (LINK_COLORS[source?.type || 'chat'] || '#2383e2') : color;
+    const fromShape = shapesRef.current.some(shape => shape.id === from);
+    // A diagram connector takes the ink colour, like the shapes it joins.
+    const linkColor = fromShape ? color : color === COLORS[0] ? (LINK_COLORS[source?.type || 'chat'] || '#2383e2') : color;
+    const route = fromShape ? connectorRoute : undefined;
+    const start = { x: event.clientX, y: event.clientY };
     const trace = e => {
       const point = local(e);
       const snap = snapPort(point, from);
-      setConnecting({ from, fromSide, toPoint: snap ? snap.at : point, snap, color: linkColor });
+      setConnecting({ from, fromSide, toPoint: snap ? snap.at : point, toSide: snap?.side, snap, color: linkColor, route, head: fromShape });
       return snap;
+    };
+    // Connectors touching a shape are diagram arrows: routed, with a head.
+    const addLink = (to, toSide) => {
+      if (!to || to === from || present.current.links.some(link => link.from === from && link.fromSide === fromSide && link.to === to && link.toSide === toSide)) return;
+      const diagram = fromShape || shapesRef.current.some(shape => shape.id === to);
+      snapshot();
+      setLinks(previous => [...previous, { id: crypto.randomUUID(), from, fromSide, to, toSide, color: linkColor, ...(diagram ? { route: connectorRoute, head: true } : {}) }]);
     };
     trace(event);
     const move = e => trace(e);
@@ -1730,17 +1826,40 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', cancel);
+      window.removeEventListener('pointerdown', finish, true);
       connectionCleanup.current = null;
     };
     const cancel = () => { cleanup(); setConnecting(null); };
     const up = e => {
+      // A click on a port (no drag) waits for a click on the target instead.
+      if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 4) {
+        window.removeEventListener('pointerup', up);
+        window.addEventListener('pointerdown', finish, true);
+        return;
+      }
       const snap = snapPort(local(e), from);
       const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-port]');
-      const to = snap?.id || target?.dataset.owner, toSide = snap?.side || target?.dataset.port;
-      if (to && to !== from && !present.current.links.some(link => link.from === from && link.fromSide === fromSide && link.to === to && link.toSide === toSide)) {
-        snapshot();
-        setLinks(previous => [...previous, { id: crypto.randomUUID(), from, fromSide, to, toSide, color: linkColor }]);
-      }
+      addLink(snap?.id || target?.dataset.owner, snap?.side || target?.dataset.port);
+      cancel();
+    };
+    // The second click of click-click: a port, a shape (its facing side) or a
+    // card (top or bottom half). Anywhere else cancels.
+    const finish = e => {
+      e.preventDefault(); e.stopPropagation();
+      if (e.button !== 0) { cancel(); return; }
+      const point = local(e);
+      const snap = snapPort(point, from);
+      const under = document.elementFromPoint(e.clientX, e.clientY);
+      const shapeId = under?.closest('[data-shape-id]')?.dataset.shapeId;
+      const shape = shapesRef.current.find(entry => entry.id === shapeId && TEXT_BOX[entry.kind]);
+      const blockId = under?.closest('[data-block-id]')?.dataset.blockId;
+      const box = blockId ? boundsRef.current[blockId] : null;
+      const portHit = under?.closest('[data-port]');
+      if (portHit) addLink(portHit.dataset.owner, portHit.dataset.port);
+      // The target's side that faces the start, not the side nearest the click.
+      else if (shape) addLink(shape.id, nearestSide(shapeBox(shape), portPosition(from, fromSide) || point));
+      else if (snap) addLink(snap.id, snap.side);
+      else if (box) addLink(blockId, point.y < box.y + box.h / 2 ? 'top' : 'bottom');
       cancel();
     };
     connectionCleanup.current = cleanup;
@@ -1748,12 +1867,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', cancel);
   };
-  const connectionPath = link => {
+  // A connection's path, middle (for its label) and arrowhead direction.
+  // Card connections made before routes keep their original vertical curve.
+  const linkRoute = link => {
     const a = portPosition(link.from, link.fromSide), b = link.toPoint || portPosition(link.to, link.toSide);
-    if (!a || !b) return '';
+    if (!a || !b) return null;
+    if (link.route) return { ...routePath(a, link.fromSide, b, link.toSide || null, link.route), tip: b };
     const bend = Math.max(60, Math.abs(b.y - a.y) / 2);
-    return `M${a.x} ${a.y} C${a.x} ${a.y + (link.fromSide === 'bottom' ? bend : -bend)},${b.x} ${b.y + (link.toSide === 'bottom' ? bend : -bend)},${b.x} ${b.y}`;
+    const c1 = { x: a.x, y: a.y + (link.fromSide === 'bottom' ? bend : -bend) }, c2 = { x: b.x, y: b.y + (link.toSide === 'bottom' ? bend : -bend) };
+    return { d: `M${a.x} ${a.y} C${c1.x} ${c1.y},${c2.x} ${c2.y},${b.x} ${b.y}`, mid: { x: 0.125 * a.x + 0.375 * c1.x + 0.375 * c2.x + 0.125 * b.x, y: 0.125 * a.y + 0.375 * c1.y + 0.375 * c2.y + 0.125 * b.y }, from: c2, tip: b };
   };
+  const connectionPath = link => linkRoute(link)?.d || '';
   const shapeTool = SHAPE_TOOLS.some(([kind]) => kind === tool);
   const pan = event => startDrag(event, { x: view.x, y: view.y }, (x, y) => setView(v => ({ ...v, x, y })));
   // Ctrl-drag (either button) rubber-bands a selection: every card, shape and
@@ -2045,8 +2169,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     if (present.current.items.some(item => item.id === id && item.text !== text)) snapshot();
     setItems(previous => previous.map(item => item.id === id ? { ...item, text, fresh: false } : item));
   };
-  const deleteItem = id => { snapshot(); setItems(previous => previous.filter(item => item.id !== id)); setShapes(previous => previous.filter(shape => shape.id !== id)); setSelection(previous => previous.filter(other => other !== id)); };
+  const deleteItem = id => { snapshot(); setItems(previous => previous.filter(item => item.id !== id)); setShapes(previous => previous.filter(shape => shape.id !== id)); setLinks(previous => previous.filter(link => link.from !== id && link.to !== id)); setSelection(previous => previous.filter(other => other !== id)); };
   const [editingShape, setEditingShape] = useState(null);
+  // The line (connector or drawn arrow) whose label is being written.
+  const [editingLabel, setEditingLabel] = useState(null);
+  const changeLabel = (id, label) => {
+    setEditingLabel(null);
+    const before = [...present.current.links, ...present.current.shapes].find(entry => entry.id === id);
+    if (!before || (before.label || '') === label) return;
+    snapshot();
+    setLinks(previous => previous.map(link => link.id === id ? { ...link, label } : link));
+    setShapes(previous => previous.map(shape => shape.id === id ? { ...shape, label } : shape));
+  };
   const changeShapeText = (id, text) => {
     setEditingShape(null);
     if (present.current.shapes.some(shape => shape.id === id && (shape.text || '') !== text)) snapshot();
@@ -2175,17 +2309,29 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           </svg>
         )}
         <svg width="1" height="1" className="pointer-events-none absolute top-0 left-0 overflow-visible">
-          {links.map(link => <g key={link.id} data-connection={link.id} className="dark:[filter:brightness(1.5)_saturate(1.2)]">
-            <path d={connectionPath(link)} fill="none" stroke={link.color} strokeWidth={isSelected(link.id) ? 4 : 2.5} />
-            <path d={connectionPath(link)} fill="none" stroke="transparent" strokeWidth={14 / view.z} style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
-              onPointerDown={event => { event.stopPropagation(); select(link.id, event); }}><title>Select connection · choose a color or press Delete</title></path>
-          </g>)}
+          {links.map(link => {
+            const path = linkRoute(link);
+            if (!path) return null;
+            const ink = inkAware(link.color);
+            return (
+              <g key={link.id} data-connection={link.id} className="dark:[filter:brightness(1.5)_saturate(1.2)]">
+                <path d={path.d} fill="none" stroke={ink} strokeWidth={isSelected(link.id) ? 4 : 2.5} strokeLinejoin="round" />
+                {link.head && arrowHead(path.tip, path.from, { stroke: ink, strokeWidth: 2.5, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' })}
+                <path d={path.d} fill="none" stroke="transparent" strokeWidth={14 / view.z} style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                  onPointerDown={event => { event.stopPropagation(); select(link.id, event); }}
+                  onDoubleClick={() => setEditingLabel(link.id)}><title>Select connection · choose a color, a route or press Delete · double-click to label</title></path>
+                <LineLabel at={path.mid} text={link.label} color={link.color} editing={editingLabel === link.id} pickable={isSelected(link.id) && tool === 'select'} onPick={() => setEditingLabel(link.id)} onDone={value => changeLabel(link.id, value)} />
+                {isSelected(link.id) && tool === 'select' && editingLabel !== link.id && !link.label && <LabelHandle at={path.mid} zoom={view.z} onPick={() => setEditingLabel(link.id)} />}
+              </g>
+            );
+          })}
           {connecting?.snap && <circle cx={connecting.snap.at.x} cy={connecting.snap.at.y} r={9} fill="white" stroke={connecting.color} strokeWidth="3" />}
-          {connecting && <path data-connection-preview d={connectionPath(connecting)} fill="none" stroke={connecting.color} strokeWidth="2.5" className="dark:[filter:brightness(1.5)_saturate(1.2)]" />}
+          {connecting && <path data-connection-preview d={connectionPath(connecting)} fill="none" stroke={inkAware(connecting.color)} strokeWidth="2.5" strokeLinejoin="round" className="dark:[filter:brightness(1.5)_saturate(1.2)]" />}
         </svg>
         <svg aria-hidden="true" data-ink width="1" height="1" className="pointer-events-none absolute top-0 left-0 z-10 overflow-visible">
           {[...shapes, ...(liveShape ? [liveShape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={tool} zoom={view.z} selected={isSelected(shape.id)} editing={editingShape === shape.id} onSelect={select} onMoveStart={moveShapeStart} onResize={resizeShape} onGesture={snapshot} onDelete={deleteItem}
-            onEdit={setEditingShape} onText={changeShapeText} />)}
+            onEdit={setEditingShape} onText={changeShapeText} onConnect={connect} showPorts={!!connecting}
+            labelEditing={editingLabel === shape.id} onLabel={setEditingLabel} onLabelDone={changeLabel} />)}
           {[...strokes, ...(live ? [live] : [])].map((stroke, index) => stroke.tool === 'pen'
             ? <path key={index} d={pathOf(stroke.points)} fill="none" stroke={inkAware(stroke.color)} strokeWidth={stroke.width} opacity={stroke.opacity} strokeDasharray={dashArray(stroke.dash, stroke.width)} strokeLinecap="round" strokeLinejoin="round" />
             : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />)}
@@ -2422,6 +2568,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       </div>}
       {presenting === null && showStyle && (
         <StylePanel side={toolSide} text={panel.text} showFill={panel.fill} fill={fill} corners={panel.corners} order={panel.order}
+          route={panel.route} routeValue={panel.routeValue}
+          onRoute={value => {
+            setConnectorRoute(value);
+            if (!panel.targets.length) return;
+            snapshot();
+            setLinks(previous => previous.map(link => panel.targets.includes(link.id) ? { ...link, route: value } : link));
+            setShapes(previous => previous.map(shape => panel.targets.includes(shape.id) && shape.kind !== 'line' ? { ...shape, kind: ARROW_KINDS[value] } : shape));
+          }}
           color={color} width={width} dash={dash} opacity={opacity} round={round} level={level}
           onColor={value => { setColor(value); applyStyle({ color: value }, panel.targets); }}
           onFill={value => { setFill(value); applyStyle({ fill: value }, panel.targets); }}

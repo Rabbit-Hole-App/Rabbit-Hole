@@ -5,9 +5,14 @@
 // gone without a trace.
 
 // Tools that draw something carrying colour, width or a text level.
-const STYLED_TOOLS = new Set(['pen', 'highlighter', 'text', 'sticky', 'rect', 'ellipse', 'triangle', 'diamond', 'hexagon', 'star', 'line', 'arrow', 'curve']);
+const STYLED_TOOLS = new Set(['pen', 'highlighter', 'text', 'sticky', 'rect', 'ellipse', 'triangle', 'diamond', 'hexagon', 'star', 'line', 'arrow', 'curve', 'elbow']);
 // A line or an arrow has no inside, so only these can hold a fill.
 const CLOSED_SHAPES = new Set(['rect', 'ellipse', 'triangle', 'diamond', 'hexagon', 'star']);
+
+// Drawn arrows switch route by switching kind; connectors keep a route.
+export const ARROW_KINDS = { straight: 'arrow', curved: 'curve', elbow: 'elbow' };
+const ROUTE_OF_KIND = { arrow: 'straight', curve: 'curved', elbow: 'elbow' };
+export const routeOf = entry => (entry.kind ? ROUTE_OF_KIND[entry.kind] : entry.route || 'curved');
 
 export const DASH_STYLES = ['solid', 'dashed', 'dotted'];
 export const OPACITIES = [0.3, 0.6, 1];
@@ -62,6 +67,11 @@ export function panelFor({ tool, selection, shapes = [], links = [], items = [] 
     fill: CLOSED_SHAPES.has(tool) || allShapes(CLOSED_SHAPES),
     corners: tool === 'rect' || allShapes(new Set(['rect'])),
     order: targets.length > 0,
+    // Straight / curved / elbow: for connectors and drawn arrows, and only
+    // when nothing else is picked.
+    route: (pickedLinks.length > 0 || pickedShapes.length > 0) && !pickedTexts.length && !pickedStickies.length
+      && pickedShapes.every(shape => ROUTE_OF_KIND[shape.kind]),
+    routeValue: [...pickedLinks, ...pickedShapes].map(routeOf)[0] || null,
     targets,
   };
 }
