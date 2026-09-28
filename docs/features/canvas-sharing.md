@@ -16,8 +16,8 @@ A learner shares a canvas board by link. Dev only, like the rest of Learn.
   a Canvas in the smart-home catalog (in design with smart-home). There are no
   edit links; tokens from before are no longer accepted.
 - While a board is shared, the owner's browser saves it to the server 1.5 s
-  after each change. When the owner opens a board someone changed through its
-  edit link, the newer copy replaces the local one, with a notice.
+  after each change. Opening the board on another browser takes the newer
+  server copy, with a notice.
 - The owner's saves are version-checked: a save based on an older version is
   refused with a notice rather than overwriting.
 - Board files travel too. While shared, every file the board's cards use
@@ -48,7 +48,7 @@ are served as downloads with `nosniff` and a sandbox CSP, never as pages.
 | Route | Who | Does |
 |---|---|---|
 | `GET/PUT /api/learn/boards/:app/:board` | someone with access to the app | read / save the owner's board |
-| `POST /api/learn/boards/:app/:board/share` | same | set `shared`, `view`, `edit`, `public_view` |
+| `POST /api/learn/boards/:app/:board/share` | same | set `shared`, `view`, `public_view` |
 | `GET /api/learn/boards/shared/:token` | signed in, or anyone for a public view link | open a shared board |
 | `GET/PUT /api/learn/boards/:app/:board/assets/:key`, `GET .../assets` | owner | board files, list |
 | `GET /api/learn/boards/shared/:token/assets/:key` | as the link | board files through a link |
