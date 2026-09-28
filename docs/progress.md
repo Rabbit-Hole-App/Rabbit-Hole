@@ -4,6 +4,37 @@ The decision log for the NanoGPT Learn boards (nanogpt-deep-dive, nanogpt-depth-
 first. Plans live in docs/nanogpt-deep-dive-board-plan.md and docs/nanogpt-depth-ladder.md; rules
 in docs/features/learn-card-composition.md and docs/features/learn-canvas-blocks.md.
 
+## Status (owner's NanoGPT card checklist)
+
+```
+NC1  Renderer foundation                 ✅
+NC2  Interactive engine                  ✅
+NC3  Card shell / Sources / Practice     ✅
+NC4  NanoGPT cards 1–10                  ✅ frozen
+NC5  18-card depth ladder                ✅ CLOSED (v3 page 11:2, v3.1 fixes 16:3)
+NC6  Card-composition rules              ✅
+NC7  NanoGPT cards 11–26                 🟡
+  NC7A Batch 2                           ✅
+  NC7B Batch 3                           ✅ CLOSED (page 18:3, v1.1 fixes 22:3)
+  NC7C Remaining through 26              🟡 ACTIVE — batch 4: c14, c26, c19
+NC8  Cross-depth content transitions     ⬜
+NC9  Curriculum coherence review         ⬜ (open item: is "how scores are produced", q·k, thin?)
+NC10 Final card QA                       ⬜
+```
+
+Batch flow: plans → card-boundary review → build → adversarial correctness/pedagogy review →
+deployed checks → Figma captures → stop at the visual review gate with the exact node URL. Quality
+bar: one question per card; practice on an unseen case; no decorative interaction; no text
+shrinking; sequence relationships explicit when cards form a path; existing renderer primitives
+(a new capability only if a batch proves it genuinely reusable).
+
+## 2026-09-28 — batch 3 closed
+
+Owner approved batch 3 and its v1.1 corrections: c10 scopes "weights add to 1" to attention
+dropout being off; c12 bridges from q·k into × 1/√hs → mask → softmax; sequence cards carry a quiet
+"Self-attention · k of 3" label in the card header (from the plan's sequence, not navigation);
+c05's per-sub-layer takeaway is the heading line.
+
 ## 2026-09-28 — v3 approved; five targeted fixes, then close the ladder
 
 **Decision (owner, after reviewing Figma page 11:2).** The sub-card architecture is approved and
