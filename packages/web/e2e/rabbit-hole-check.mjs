@@ -202,6 +202,43 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
+  await check('sh-sidebar: Home, Library and Explore nav; flat Pinned with Pin and Unpin; no Recent; canvas rows offer no live-app actions', async () => {
+    const page = await open();
+    await page.goto(`${base}/apps`);
+    const nav = page.getByRole('navigation', { name: 'Main' });
+    await nav.waitFor({ timeout: 20000 });
+    must(await nav.getByRole('button', { name: 'Home', exact: true }).getAttribute('aria-current') === 'page', 'Home is not current on /apps');
+    const aside = page.locator('aside');
+    const c = await shCanvas(page, 'rabbit-hole-check pin');
+    try {
+      await page.reload();
+      await nav.waitFor({ timeout: 20000 });
+      must(await aside.getByText('Recent', { exact: true }).count() === 0, 'the sidebar still shows Recent');
+      await nav.getByRole('button', { name: 'Library', exact: true }).click();
+      await page.waitForURL(/\/library$/);
+      must(await nav.getByRole('button', { name: 'Library', exact: true }).getAttribute('aria-current') === 'page', 'Library is not current on /library');
+      await aside.getByRole('button', { name: 'Expand Private' }).click(); // new users start collapsed
+      const row = aside.locator('.group\\/r').filter({ hasText: 'rabbit-hole-check pin' }).last();
+      await row.hover();
+      await row.getByTitle('More').click();
+      must(await row.getByRole('button', { name: 'Share' }).isDisabled(), 'Share is enabled on a canvas');
+      for (const name of ['Rename', 'Duplicate', 'Move to Trash']) must(await row.getByRole('button', { name }).count() === 0, `${name} is offered on a canvas`);
+      await row.getByRole('button', { name: 'Pin', exact: true }).click();
+      const pinned = aside.getByRole('region', { name: 'Pinned' });
+      await pinned.getByText('rabbit-hole-check pin').waitFor({ timeout: 10000 });
+      must(await pinned.locator('svg.lucide-pen-line').count() === 1, 'the pinned canvas lacks its icon');
+      await page.reload();
+      await pinned.getByText('rabbit-hole-check pin').waitFor({ timeout: 20000 });
+      await row.hover();
+      await row.getByTitle('More').click();
+      await row.getByRole('button', { name: 'Unpin', exact: true }).click();
+      await pinned.waitFor({ state: 'detached', timeout: 10000 });
+    } finally {
+      await shDrop(page, c.name);
+      await page.context().close();
+    }
+  });
+
   // ── shell-home checks end: later shell-home tasks insert above this line ──
 }
 

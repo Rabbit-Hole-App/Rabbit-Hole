@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, LayoutGrid, LayoutPanelLeft, Link, LogOut, Mail, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, Compass, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
 import { isPrivateByoc } from './private-auth.js';
+import { titleOf } from './agent/catalog.js';
+import { learnPreview } from './flags.js';
+import { pinnedApps, readPinned, secClosedInit, togglePin } from './home/pinned.js';
+import { isLearnResource } from './library-filter.js';
+import { pageFor, sectionActive, sectionHref } from './routes.js';
 import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
@@ -520,6 +525,20 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
   const [trash, setTrash] = useState(null); // { trash: [...], email }
   const path = window.location.pathname;
   const section = new URLSearchParams(window.location.search).get('s');
+  const query = window.location.search;
+  const here = learnPreview ? pageFor(path, query, true).page : null; // which nav item you are on
+  // Pinned (T02 §2): device-local and flat. togglePin announces every change, whoever made
+  // it (this menu or the Agent Bar's pin command), so re-read on that event.
+  const [, setPinTick] = useState(0);
+  useEffect(() => {
+    if (!learnPreview) return;
+    const on = () => setPinTick((n) => n + 1);
+    window.addEventListener('small:pinned', on);
+    return () => window.removeEventListener('small:pinned', on);
+  }, []);
+  const pins = learnPreview && email ? readPinned(localStorage, org, email) : [];
+  // ponytail: Pinned rows carry no ⋯ menu; unpin from the row in its section or with the bar's unpin command.
+  const pinned = pinnedApps(pins, apps);
 
   const openTrash = () => {
     setTrashOpen(true);
@@ -603,8 +622,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         </form>
       ) : (
       <div
-        draggable={menu && a.hosting !== 'aws' && a.kind !== 'repository'}
-        onDragStart={menu && a.hosting !== 'aws' && a.kind !== 'repository' ? (e) => { setDragging(a.name); e.dataTransfer.setData('text/plain', a.name); e.dataTransfer.effectAllowed = 'move'; } : undefined}
+        draggable={menu && a.hosting !== 'aws' && !isLearnResource(a)}
+        onDragStart={menu && a.hosting !== 'aws' && !isLearnResource(a) ? (e) => { setDragging(a.name); e.dataTransfer.setData('text/plain', a.name); e.dataTransfer.effectAllowed = 'move'; } : undefined}
         onDragEnd={menu ? () => { setDragging(null); setDropTarget(null); } : undefined}
         onClick={() => navigate(`/apps/${a.name}`)}
         className={cn(
@@ -613,7 +632,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         )}
       >
         <KindIcon kind={a.kind} schedule={a.schedule} />
-        <span className="min-w-0 flex-1 truncate">{a.kind === 'repository' ? a.repo : a.name}</span>
+        <span className="min-w-0 flex-1 truncate">{titleOf(a)}</span>
         {a.hosting === 'aws' && <span className="text-[10px] text-ink-3">AWS</span>}
         {((a.members?.length || 0) > 0 || (a.team_count || 0) > 0) && (
           <Users size={11} className="shrink-0 text-ink-3" title="shared" />
@@ -635,19 +654,24 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
       {menu && (
         <Menu open={menuFor === a.name} onClose={() => setMenuFor(null)} className="top-8 right-0 w-52">
           <MenuItem icon={ExternalLink} onClick={() => { setMenuFor(null); navigate(`/apps/${a.name}`); }}>Open</MenuItem>
-          <MenuItem disabled={a.kind === 'repository'} title={a.kind === 'repository' ? 'Available to everyone in this workspace' : undefined} icon={Share2} onClick={() => { setMenuFor(null); navigate(`/apps/${a.name}?share=1`); }}>Share</MenuItem>
+          {learnPreview && email && (
+            <MenuItem icon={pins.includes(a.name) ? PinOff : Pin} onClick={() => { setMenuFor(null); togglePin(localStorage, org, email, a.name); }}>
+              {pins.includes(a.name) ? 'Unpin' : 'Pin'}
+            </MenuItem>
+          )}
+          <MenuItem disabled={isLearnResource(a)} title={a.kind === 'repository' ? 'Available to everyone in this workspace' : a.kind === 'canvas' ? "Sharing projects and canvases isn't available yet." : undefined} icon={Share2} onClick={() => { setMenuFor(null); navigate(`/apps/${a.name}?share=1`); }}>Share</MenuItem>
           <MenuItem
             icon={Link}
             onClick={() => { setMenuFor(null); navigator.clipboard.writeText(`${window.location.origin}/apps/${a.name}`); toast('Link copied'); }}
           >
             Copy link
           </MenuItem>
-          {a.canEdit && a.kind !== 'repository' && (
+          {a.canEdit && !isLearnResource(a) && (
             <MenuItem icon={Pencil} onClick={() => { setMenuFor(null); setRenamingApp({ from: a.name, value: a.name }); }}>
               Rename
             </MenuItem>
           )}
-          {a.hosting !== 'aws' && a.kind !== 'repository' && <MenuItem
+          {a.hosting !== 'aws' && !isLearnResource(a) && <MenuItem
             icon={Copy}
             onClick={async () => {
               setMenuFor(null);
@@ -660,7 +684,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           >
             Duplicate
           </MenuItem>}
-          {a.hosting !== 'aws' && a.kind !== 'repository' && a.owner_email === email && (
+          {a.hosting !== 'aws' && !isLearnResource(a) && a.owner_email === email && (
             <MenuItem icon={Trash2} className="text-danger" onClick={() => { setMenuFor(null); setConfirmDel(a.name); }}>
               Move to Trash
             </MenuItem>
@@ -692,7 +716,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
   };
 
   // sections collapse like folders: v open, > closed, remembered per device
-  const [secClosed, setSecClosed] = useState(() => JSON.parse(localStorage.getItem('small.secClosed') || '{}'));
+  const [secClosed, setSecClosed] = useState(() => secClosedInit(localStorage.getItem('small.secClosed'), learnPreview));
   const toggleSec = (k) => setSecClosed((s) => {
     const next = { ...s, [k]: !s[k] };
     localStorage.setItem('small.secClosed', JSON.stringify(next));
@@ -711,10 +735,10 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             {secClosed[k] ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
           </button>
           <button
-            onClick={() => navigate(s ? `/apps?s=${s}` : '/apps')}
+            onClick={() => navigate(sectionHref(s, learnPreview))}
             className={cn(
               'rounded-sm px-1 py-0.5 text-xs text-ink-2 hover:bg-hover hover:text-ink',
-              path === '/apps' && (section || null) === (s || null) && 'bg-active font-medium text-ink',
+              sectionActive(path, query, s, learnPreview) && 'bg-active font-medium text-ink',
             )}
           >
             {label}
@@ -973,6 +997,28 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         </>
       )}
 
+      {learnPreview && (
+        <nav aria-label="Main" className="pt-2">
+          {[['Home', '/apps', 'home', House], ['Library', '/library', 'library', Library], ['Explore', '/explore', 'explore', Compass]].map(([label, to, page, Icon]) => (
+            <button
+              key={page}
+              aria-current={here === page ? 'page' : undefined}
+              onClick={() => navigate(to)}
+              className={cn('flex h-7 w-full cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover', here === page && 'bg-active font-medium')}
+            >
+              <Icon size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
+              {label}
+              {page === 'explore' && <span className="ml-auto text-[10px] text-ink-3">preview</span>}
+            </button>
+          ))}
+        </nav>
+      )}
+      {pinned.length > 0 && (
+        <section aria-label="Pinned">
+          <div className="px-2 pt-3 pb-1 text-xs text-ink-2">Pinned</div>
+          {pinned.map((a) => appRow(a, false))}
+        </section>
+      )}
       {sectionLabel('Apps', null, (
         <span className="flex items-center gap-0.5">
           <button
@@ -1090,7 +1136,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         {!secClosed.private && privateApps.map((a) => appRow(a))}
       </div>
 
-      {recent.length > 0 && (
+      {!learnPreview && recent.length > 0 && (
         <>
           <div className="flex items-center pt-3 pb-1 pl-0.5">
             <button
