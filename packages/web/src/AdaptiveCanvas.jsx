@@ -884,11 +884,11 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, labelEditing 
 // 26 buttons and scrolled. They sit in their own island now, beside the tools,
 // shown only while a drawing tool is armed or something styleable is selected.
 // Text swaps the thickness row for Notion's heading ladder.
-function StylePanel({ side = 'right', text, showFill, corners, order, route = false, routeValue = null, color, fill, width, dash, opacity, round, level, onColor, onFill, onWidth, onDash, onOpacity, onRound, onLevel, onOrder, onRoute }) {
+function StylePanel({ side = 'right', inset = 0, text, showFill, corners, order, route = false, routeValue = null, color, fill, width, dash, opacity, round, level, onColor, onFill, onWidth, onDash, onOpacity, onRound, onLevel, onOrder, onRoute }) {
   const rule = <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />;
   return (
-    <div role="group" aria-label="Style" onPointerDown={event => event.stopPropagation()}
-      className={`absolute top-1/2 ${side === 'left' ? 'left-16' : 'right-16'} z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md`}>
+    <div role="group" aria-label="Style" onPointerDown={event => event.stopPropagation()} style={side === 'left' ? undefined : { right: 64 + inset }}
+      className={`absolute top-1/2 ${side === 'left' ? 'left-16' : ''} z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md`}>
       {COLORS.map(value => (
         <button key={value} type="button" title="Color" aria-label={`Color ${value}`} aria-pressed={color === value} onClick={() => onColor(value)}
           className="flex h-6 w-8 items-center justify-center rounded-lg hover:bg-hover">
@@ -1020,7 +1020,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onPaper = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onPaper = null, edgeInset = 0 }) {
   const [tool, setTool] = useState('select');
   // OS drag-and-drop of files onto the surface; the page owns what each kind
   // becomes, the canvas only announces the hover and hands the files over.
@@ -1167,7 +1167,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // its chrome (closing the side panel) around a presentation that exists.
   const startPresenting = () => {
     stepsRef.current = presentSteps(blocksRef.current, boundsRef.current);
-    if (!stepsRef.current.length) { toast('Add a section or a card to present.'); return false; }
+    // A board of drawings, shapes and notes (no sections or cards) presents as
+    // one step: the whole canvas.
+    if (!stepsRef.current.length) {
+      const ink = present.current.strokes.flatMap(stroke => stroke.points || []);
+      const inkBox = ink.length ? [{ x: Math.min(...ink.map(p => p.x)), y: Math.min(...ink.map(p => p.y)), w: Math.max(...ink.map(p => p.x)) - Math.min(...ink.map(p => p.x)), h: Math.max(...ink.map(p => p.y)) - Math.min(...ink.map(p => p.y)) }] : [];
+      const boxes = [...Object.values(boundsRef.current), ...boxesOf([...shapesRef.current, ...itemsRef.current].map(entry => entry.id)), ...inkBox];
+      if (!boxes.length) { toast('The canvas is empty. Draw or add something, then present it.'); return false; }
+      stepsRef.current = [{ boxes, label: 'Whole canvas' }];
+    }
     setSelected(null);
     showStep(0);
     return true;
@@ -2563,8 +2571,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         </div>
       )}
       {presenting === null && <div role="toolbar" aria-label="Canvas tools"
-        style={toolDrag ? { left: toolDrag.x, top: toolDrag.y, transform: 'none' } : undefined}
-        className={`absolute z-20 grid max-h-full grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md ${toolDrag ? '' : `top-1/2 -translate-y-1/2 ${toolSide === 'left' ? 'left-2' : 'right-2'}`}`}>
+        // Docked right, it keeps clear of the page's contents rail (edgeInset).
+        style={toolDrag ? { left: toolDrag.x, top: toolDrag.y, transform: 'none' } : toolSide === 'left' ? undefined : { right: 8 + edgeInset }}
+        className={`absolute z-20 grid max-h-full grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md ${toolDrag ? '' : `top-1/2 -translate-y-1/2 ${toolSide === 'left' ? 'left-2' : ''}`}`}>
         {/* The handle: drag the palette and it parks on whichever edge you let
             go nearer to - left or right - never floating mid-canvas. */}
         <div role="button" aria-label="Move the toolbar" title="Drag to the left or right edge"
@@ -2609,7 +2618,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         </button>
       </div>}
       {presenting === null && showStyle && (
-        <StylePanel side={toolSide} text={panel.text} showFill={panel.fill} fill={fill} corners={panel.corners} order={panel.order}
+        <StylePanel side={toolSide} inset={edgeInset} text={panel.text} showFill={panel.fill} fill={fill} corners={panel.corners} order={panel.order}
           route={panel.route} routeValue={panel.routeValue}
           onRoute={value => {
             setConnectorRoute(value);

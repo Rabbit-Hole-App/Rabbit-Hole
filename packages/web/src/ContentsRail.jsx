@@ -11,13 +11,14 @@ export default function ContentsRail({ entries, onOpen }) {
   return (
     <>
       {!!entries.length && (
-        <div onPointerEnter={() => setOpen(true)} onPointerLeave={() => setOpen(false)}
+        <div data-contents-rail onPointerEnter={() => setOpen(true)} onPointerLeave={() => setOpen(false)}
           className="absolute top-1/2 right-0 z-30 -translate-y-1/2 pr-2 pl-6 max-lg:hidden">
           {/* The ticks are decoration for a pointer; the list behind them is the
               accessible control, so screen readers get the list and not 40 marks. */}
-          <div aria-hidden="true" className="flex flex-col items-end gap-1.5 py-2">
+          {/* The ticks sit in a pill so the rail reads as a control on any canvas. */}
+          <div aria-hidden="true" className="flex flex-col items-end gap-1.5 rounded-full border border-line bg-white px-2 py-3 shadow-sm">
             {entries.map(entry => (
-              <span key={entry.n} className={`h-0.5 rounded-full transition-all duration-150 ${entry.active ? 'w-6 bg-ink' : entry.available ? 'w-4 bg-ink-3' : 'w-4 bg-line'}`} />
+              <span key={entry.n} className={`h-0.5 rounded-full transition-all duration-150 ${entry.active ? 'w-6 bg-ink' : entry.available ? 'w-4 bg-ink-2' : 'w-4 bg-ink-3/50'}`} />
             ))}
           </div>
           <nav aria-label="Table of contents" hidden={!open}
