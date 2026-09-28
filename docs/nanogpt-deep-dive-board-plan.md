@@ -377,3 +377,43 @@ card-composition rules, record, continue).**
    BPE tokens and names them.
 5. c14 is built in batch 4 (with c26 and c19), so c05 is not left without its MLP partner for long;
    the sequence "The MLP" (c05 → c14) is recorded then.
+
+## 12. Batch 4 — plans under Phase 1 of card composition
+
+Planned 2026-09-28 by one planner per card, an adversarial critic per plan and a cross-card judge; every field in full, with the pinned source lines, in [nanogpt-deep-dive-batch4-plans.md](nanogpt-deep-dive-batch4-plans.md). Every practice asks about a case the card does not draw. No open questions: the composition rules decided every boundary. Board order after c05: c14, c26, c19.
+
+### Sequence "The MLP" — c05-position-mixing → c14-mlp
+
+### Sequence "One training step" — c26-training-objective → c19-gradient-step
+
+Frozen batch-1 training cards (c16, c20, c17, c18) are linked from c26 and c19 by typed relationships only, as c11 links to c13; none is reopened. c05 gains its sequence ("The MLP · 1 of 2" in its header), as batch 3 decided.
+
+**c14 · Inside the MLP: c_fc → GELU → c_proj**
+- one_sentence_objective: After this card, the learner should understand that inside the MLP c_fc widens one position’s C numbers to 4C, GELU bends each of them on its own (a positive one keeps more than half of itself, a negative one ends between −0.17 and 0), then c_proj sums them back into C numbers, so the MLP is not a linear map.
+- boundary_decision: staged
+- undrawn case (practice): Position 0 · B's input with every sign flipped: (−0.22, 1.09, 0.65, −1.53).
+
+**c26 · The training objective: per-position targets, their mean, perplexity**
+- one_sentence_objective: After this card, the learner should understand that NanoGPT's training objective is the plain mean of −ln p(next character) over every position it scores, each counting 1/N of it (N = B·T per step), a number perplexity only re-reads as e^mean.
+- boundary_decision: staged
+- undrawn case (practice): A T = 256 window (shakespeare_char's block_size, a Source value) in which 255 positions score 1.00 and one scores 9.00.
+
+**Not on the card.** It draws only T = 1..8, with recorded losses, and 1.00, 9.00, 256 and 1.03 appear nowhere on it:
+- no cell reads 1.00;
+- its means run from 0.922 to 2.454;
+- its shares run from 0.498 to 1.993;
+- its perplexities run from 2.51 to 11.63.
+
+**Why it needs the rule.** The card shows the rule (mean = sum ÷ T, each position counting 1/T, a surprise's share = loss ÷ T) only for T ≤ 8.
+
+**c19 · One gradient step on a quadratic (prerequisite)**
+- one_sentence_objective: After this card, the learner should understand that one gradient step moves the weight by −lr × g, so on a bowl whose slope grows by c per unit of distance the product lr × c decides whether the step stops short, lands on the minimum, overshoots, bounces back to the same loss or climbs out.
+- boundary_decision: staged
+- undrawn case (practice): A bowl twice as steep, L(w) = 2(w − 3)² with c = 4, reached from the same start, w = 0.
+
+**Nothing on the card draws it before a committed attempt:**
+- no preset changes c;
+- the steeper curve, its dot, its arrow and its captions are at opacity 0;
+- on the drawn bowl, the right answer (lr 0.25, the default preset) visibly stops only halfway.
+
+**Why the picture misleads.** Reading the picture gives 0.5, the drawn bowl's landing lr, and on the steeper bowl that answer bounces.
