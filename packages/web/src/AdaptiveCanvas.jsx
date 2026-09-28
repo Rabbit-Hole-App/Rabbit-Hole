@@ -556,6 +556,23 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
   );
 }
 
+// The H1-to-text ladder offered right on a selected text box or shape.
+// pointerdown is swallowed so choosing a level never blurs or deselects.
+function LevelPill({ level, onLevel, className = '', style = null }) {
+  return (
+    <div role="group" aria-label="Text level" data-keep-focus style={{ fontSize: 12, fontWeight: 400, ...style }}
+      className={`flex w-max items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 shadow-md ${className}`}
+      onPointerDown={event => { event.preventDefault(); event.stopPropagation(); }}>
+      {TEXT_LEVELS.map(entry => (
+        <button key={entry.id} type="button" aria-pressed={(level || 'body') === entry.id}
+          onClick={() => onLevel(entry.id)}
+          className={`rounded px-1.5 py-0.5 text-[11px] ${(level || 'body') === entry.id ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}
+          style={{ fontWeight: entry.weight }}>{entry.label}</button>
+      ))}
+    </div>
+  );
+}
+
 function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, onResize, onGesture, onDelete, onSnap = null, onLevel = null }) {
   const [editing, setEditing] = useState(item.fresh);
   const body = useRef(null);
@@ -615,16 +632,7 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
           click reaches it; no double-click needed. pointerdown is swallowed
           so choosing a level never blurs or deselects the text. */}
       {!sticky && item.kind === 'text' && onLevel && (editing || (selected && tool === 'select')) && (
-        <div role="group" aria-label="Text level" data-keep-focus style={{ fontSize: 12, fontWeight: 400 }}
-          className="absolute bottom-full left-0 z-20 mb-1 flex items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 shadow-md"
-          onPointerDown={event => { event.preventDefault(); event.stopPropagation(); }}>
-          {TEXT_LEVELS.map(entry => (
-            <button key={entry.id} type="button" aria-pressed={(item.level || 'body') === entry.id}
-              onClick={() => onLevel(item.id, entry.id)}
-              className={`rounded px-1.5 py-0.5 text-[11px] ${(item.level || 'body') === entry.id ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}
-              style={{ fontWeight: entry.weight }}>{entry.label}</button>
-          ))}
-        </div>
+        <LevelPill level={item.level} onLevel={value => onLevel(item.id, value)} className="absolute bottom-full left-0 z-20 mb-1" />
       )}
       <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder={sticky ? 'Note…' : 'Text…'}
         onBlur={e => { setEditing(false); const text = e.currentTarget.textContent; shown.current = text; onChange(item.id, text); }}
@@ -729,7 +737,11 @@ const arrowHead = (tip, from, stroke) => {
   return <path d={`M${tip.x - size * Math.cos(angle - 0.45)} ${tip.y - size * Math.sin(angle - 0.45)} L${tip.x} ${tip.y} L${tip.x - size * Math.cos(angle + 0.45)} ${tip.y - size * Math.sin(angle + 0.45)}`} {...stroke} strokeDasharray={undefined} />;
 };
 
-function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResize, onGesture, onDelete }) {
+// Where a closed shape's text sits, as fractions of its box [left, top, right,
+// bottom]: inside the outline, so the words never cross the stroke.
+const TEXT_BOX = { rect: [0.06, 0.06, 0.94, 0.94], ellipse: [0.15, 0.15, 0.85, 0.85], triangle: [0.25, 0.45, 0.75, 0.95], diamond: [0.22, 0.22, 0.78, 0.78], hexagon: [0.15, 0.1, 0.85, 0.9], star: [0.3, 0.35, 0.7, 0.75] };
+
+function ShapeView({ shape, tool, zoom, selected, editing = false, onSelect, onMoveStart, onResize, onGesture, onDelete, onEdit, onText }) {
   const { kind, x1, y1, x2, y2, color, width, dash, fill, opacity, round } = shape;
   // Unfilled shapes paint a transparent fill so the pointer can grab the
   // interior, not just the hairline outline. Transparent paint still hit-tests
@@ -738,8 +750,19 @@ function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResiz
   const x = Math.min(x1, x2), y = Math.min(y1, y2), w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
   const control = kind === 'curve' ? curveControl(shape) : null;
   const linear = kind === 'line' || kind === 'arrow' || kind === 'curve';
+  const textBox = TEXT_BOX[kind];
+  const body = useRef(null);
+  // Pinned while editing so a re-render never wipes what is being typed.
+  const shown = useRef(shape.text || '');
+  useEffect(() => {
+    if (!editing || !body.current) return;
+    body.current.focus();
+    document.getSelection()?.selectAllChildren(body.current);
+    document.getSelection()?.collapseToEnd();
+  }, [editing]);
   const down = event => {
     if (event.button !== 0) return;
+    if (editing) { event.stopPropagation(); return; }
     if (tool === 'eraser') { event.stopPropagation(); onDelete(shape.id); return; }
     if (tool !== 'select') return;
     if (!selected) onSelect(shape.id, event);
@@ -750,7 +773,8 @@ function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResiz
     ? [[x1, y1, p => ({ x1: p.x, y1: p.y })], [x2, y2, p => ({ x2: p.x, y2: p.y })]]
     : [[x1, y1, p => ({ x1: p.x, y1: p.y })], [x2, y1, p => ({ x2: p.x, y1: p.y })], [x2, y2, p => ({ x2: p.x, y2: p.y })], [x1, y2, p => ({ x1: p.x, y2: p.y })]];
   return (
-    <g data-shape-id={shape.id} style={{ pointerEvents: 'visiblePainted', cursor: tool === 'select' ? 'grab' : undefined }} onPointerDown={down}>
+    <g data-shape-id={shape.id} style={{ pointerEvents: 'visiblePainted', cursor: tool === 'select' ? 'grab' : undefined }} onPointerDown={down}
+      onDoubleClick={() => { if (textBox && tool === 'select' && onEdit) { shown.current = shape.text || ''; onEdit(shape.id); } }}>
       {kind === 'rect' && <rect x={x} y={y} width={w} height={h} rx={round ? 14 : 2} {...stroke} />}
       {kind === 'ellipse' && <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...stroke} />}
       {POLYGONS[kind] && <polygon points={POLYGONS[kind].map(([u, v]) => `${x + u * w},${y + v * h}`).join(' ')} {...stroke} />}
@@ -762,6 +786,18 @@ function ShapeView({ shape, tool, zoom, selected, onSelect, onMoveStart, onResiz
       {kind === 'curve' && <path d={`M${x1} ${y1} Q${control.x} ${control.y} ${x2} ${y2}`} fill="none" stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinecap="round" />}
       {kind === 'arrow' && arrowHead({ x: x2, y: y2 }, { x: x1, y: y1 }, stroke)}
       {kind === 'curve' && arrowHead({ x: x2, y: y2 }, control, stroke)}
+      {/* Text in the middle of a closed shape: it wraps inside the outline and
+          reflows as the shape is resized. Only the editor takes the pointer. */}
+      {textBox && (shape.text || editing) && (
+        <foreignObject x={x + textBox[0] * w} y={y + textBox[1] * h} width={Math.max(1, (textBox[2] - textBox[0]) * w)} height={Math.max(1, (textBox[3] - textBox[1]) * h)}
+          style={{ pointerEvents: editing ? 'all' : 'none', overflow: 'visible' }}>
+          <div className="flex h-full w-full items-center justify-center text-center" style={{ color: inkAware(color), opacity, lineHeight: 1.25, ...textStyle(shape) }}>
+            <div ref={body} data-shape-text contentEditable={editing} suppressContentEditableWarning
+              onBlur={event => { const text = event.currentTarget.innerText.replace(/\n$/, ''); shown.current = text; onText(shape.id, text); }}
+              className="max-w-full min-w-4 cursor-text break-words whitespace-pre-wrap outline-none">{shown.current}</div>
+          </div>
+        </foreignObject>
+      )}
       {selected && !linear && <rect x={x - 5} y={y - 5} width={w + 10} height={h + 10} fill="none" stroke="#2383e2" strokeWidth="1" strokeDasharray="4 3" />}
       {selected && tool === 'select' && handles.map(([hx, hy, patch], index) => (
         <circle key={index} cx={hx} cy={hy} r={5 / zoom} fill="white" stroke="#2383e2" strokeWidth={1.5 / zoom}
@@ -1478,7 +1514,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         connectionCleanup.current?.(); setConnecting(null); setSelected(null);
         setTool('select'); setMenuAt(null); setStyleOpen(null);
         const focused = document.activeElement;
-        if (focused?.isContentEditable && focused.closest('[data-item-id],[data-block-id]')) focused.blur();
+        if (focused?.isContentEditable && focused.closest('[data-item-id],[data-block-id],[data-shape-id]')) focused.blur();
         return;
       }
       const active = document.activeElement;
@@ -1998,6 +2034,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     setItems(previous => previous.map(item => item.id === id ? { ...item, text, fresh: false } : item));
   };
   const deleteItem = id => { snapshot(); setItems(previous => previous.filter(item => item.id !== id)); setShapes(previous => previous.filter(shape => shape.id !== id)); setSelection(previous => previous.filter(other => other !== id)); };
+  const [editingShape, setEditingShape] = useState(null);
+  const changeShapeText = (id, text) => {
+    setEditingShape(null);
+    if (present.current.shapes.some(shape => shape.id === id && (shape.text || '') !== text)) snapshot();
+    setShapes(previous => previous.map(shape => shape.id === id ? { ...shape, text } : shape));
+  };
   const resizeShape = (id, patch) => setShapes(previous => previous.map(shape => shape.id === id ? { ...shape, ...patch } : shape));
   const moveShapeStart = (event, shape) => {
     snapshot();
@@ -2128,7 +2170,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           {connecting && <path data-connection-preview d={connectionPath(connecting)} fill="none" stroke={connecting.color} strokeWidth="2.5" className="dark:[filter:brightness(1.5)_saturate(1.2)]" />}
         </svg>
         <svg aria-hidden="true" data-ink width="1" height="1" className="pointer-events-none absolute top-0 left-0 z-10 overflow-visible">
-          {[...shapes, ...(liveShape ? [liveShape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={tool} zoom={view.z} selected={isSelected(shape.id)} onSelect={select} onMoveStart={moveShapeStart} onResize={resizeShape} onGesture={snapshot} onDelete={deleteItem} />)}
+          {[...shapes, ...(liveShape ? [liveShape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={tool} zoom={view.z} selected={isSelected(shape.id)} editing={editingShape === shape.id} onSelect={select} onMoveStart={moveShapeStart} onResize={resizeShape} onGesture={snapshot} onDelete={deleteItem}
+            onEdit={setEditingShape} onText={changeShapeText} />)}
           {[...strokes, ...(live ? [live] : [])].map((stroke, index) => stroke.tool === 'pen'
             ? <path key={index} d={pathOf(stroke.points)} fill="none" stroke={inkAware(stroke.color)} strokeWidth={stroke.width} opacity={stroke.opacity} strokeDasharray={dashArray(stroke.dash, stroke.width)} strokeLinecap="round" strokeLinejoin="round" />
             : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />)}
@@ -2233,6 +2276,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         <div ref={itemsLayer} className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
             onLevel={(id, value) => { snapshot(); setItems(previous => previous.map(entry => entry.id === id ? { ...entry, level: value } : entry)); }} />)}
+          {/* A shape's ladder sits in this HTML layer, above the shape: the ink
+              SVG is aria-hidden, and the ladder must stay reachable. */}
+          {shapes.filter(shape => TEXT_BOX[shape.kind] && (editingShape === shape.id || (tool === 'select' && selection.length === 1 && selection[0] === shape.id))).map(shape => (
+            <LevelPill key={`level-${shape.id}`} level={shape.level} className="absolute z-20"
+              style={{ left: Math.min(shape.x1, shape.x2), top: Math.min(shape.y1, shape.y2) - 42 }}
+              onLevel={value => { snapshot(); setShapes(previous => previous.map(entry => entry.id === shape.id ? { ...entry, level: value } : entry)); }} />
+          ))}
         </div>
         </div>
         {menuAt && presenting === null && (() => {
