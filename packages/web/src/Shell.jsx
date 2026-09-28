@@ -41,6 +41,10 @@ export default function Shell({ children }) {
     window.addEventListener('small:sidebar', onSidebar);
     return () => window.removeEventListener('small:sidebar', onSidebar);
   }, []);
+  // Rabbit Hole dev: the Agent Bar (Root) sits over the content column; publish its left edge.
+  useEffect(() => {
+    if (learnPreview) document.documentElement.style.setProperty('--sidebar-w', `${collapsed ? 0 : width}px`);
+  }, [collapsed, width]);
   useEffect(() => {
     const on = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'j') {

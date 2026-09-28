@@ -24,7 +24,7 @@ export default function ConfirmCard({ card, onConfirm, onChange, onCancel }) {
       {state === 'blocked' && <p role="note" className="pt-2 text-xs text-warn">{card.reason}</p>}
       {state === 'failed' && <p role="alert" className="pt-2 text-xs text-danger">✗ {card.error?.message}</p>}
       {state === 'executing' && <p className="flex items-center gap-2 pt-2 text-xs text-ink-2"><Loader2 size={13} className="animate-spin" />Working…</p>}
-      {state === 'done' && <p className="pt-2 text-xs text-ink-2">Done.{card.href && <Button size="sm" variant="accent" className="ml-1" onClick={() => navigate(card.href)}>Open</Button>}</p>}
+      {state === 'done' && <p className="pt-2 text-xs text-ink-2">{card.message || 'Done.'}{card.href && <Button size="sm" variant="accent" className="ml-1" onClick={() => navigate(card.href)}>Open</Button>}</p>}
       {note && <p className="pt-2 text-xs text-ink-2">{note}</p>}
       {['pending', 'failed', 'blocked'].includes(state) && (
         <div className="flex gap-2 pt-2">

@@ -66,7 +66,7 @@ const openStart = async (page, path, at = '/apps') => {
   await startDialog(page).waitFor({ timeout: 10000 });
 };
 const barOf = (page) => page.locator('[data-agent-bar]');
-const barInput = (page) => barOf(page).locator('[data-chat-composer] input');
+const barInput = (page) => barOf(page).locator('[data-chat-composer] :is(input, textarea)');
 
 // T12: the browser must run the bundle just built. A new version serves 15-20 s after
 // wrangler returns, so poll for a minute before calling it stale.
@@ -662,6 +662,392 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       must(contrast(bg, fg) >= 4.5, `dark ${kind} pill text contrast ${contrast(bg, fg).toFixed(2)} < 4.5`);
     }
     must(colours['dark-server'].bg.join() !== colours['dark-job'].bg.join(), 'dark job and server pills look the same');
+  });
+}
+
+{
+  // ── agent-ui (T02 §6): the Agent Bar frame. Nothing here reaches /api/ask: a workspace
+  // or app ask would write live chat history. Project asks are the 'bar-page:' checks. ──
+  const { askLiveOnPreview } = await import('../src/flags.js');
+  const barOpen = async (path = '/apps', viewport) => {
+    const page = await open(viewport);
+    await page.goto(`${base}${path}`);
+    await barOf(page).waitFor({ timeout: 20000 });
+    return page;
+  };
+  const barH = (page) => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--agent-bar-h').trim());
+
+  await check('bar: one bar on Home, no chip, workspace placeholder, its height padding the page, following the sidebar', async () => {
+    const page = await barOpen();
+    const bar = barOf(page);
+    await page.locator('[data-shell-sidebar] ~ main').waitFor({ timeout: 20000 }); // Home is a lazy chunk
+    must(await page.locator('[data-agent-bar]').count() === 1, 'more than one bar');
+    must(await page.locator('[data-scope-chip]').count() === 0, 'a chip on Home');
+    must(await barInput(page).getAttribute('placeholder') === 'Start, open, ask, or paste a link…', 'not the workspace placeholder');
+    const { x, height } = await bar.boundingBox();
+    const pad = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('[data-shell-sidebar] ~ main')).paddingBottom));
+    must(Math.abs(parseFloat(await barH(page)) - height) < 1 && Math.abs(pad - height) < 1, `bar ${height}, --agent-bar-h ${await barH(page)}, main padding ${pad}`);
+    must(Math.abs(x - (await page.locator('[data-shell-sidebar]').boundingBox()).width) < 2, 'not aligned with the sidebar');
+    await page.keyboard.press('Control+Backslash');
+    await page.waitForTimeout(400);
+    must((await bar.boundingBox()).x < 2, 'did not follow the sidebar collapse');
+    await page.keyboard.press('Control+Backslash');
+    await page.context().close();
+  });
+
+  await check('bar: one bar survives Home → Library → Explore → /apps?s=shared with its draft, no chip on any', async () => {
+    const page = await barOpen();
+    const node = await barOf(page).elementHandle();
+    await barInput(page).fill('kept across pages');
+    for (const to of ['/library', '/explore', '/apps?s=shared', '/apps']) {
+      await spa(page, to);
+      await page.locator('[data-shell-sidebar] ~ main').waitFor({ timeout: 20000 });
+      must(await page.locator('[data-agent-bar]').count() === 1, `${to}: not exactly one bar`);
+      must(await node.evaluate((n) => n.isConnected), `${to}: the bar was remounted`);
+      must(await page.locator('[data-scope-chip]').count() === 0, `${to}: a chip`);
+      must(await barInput(page).inputValue() === 'kept across pages', `${to}: the draft was lost`);
+    }
+    await page.context().close();
+  });
+
+  await check('bar: works on Home, Library and Explore: a find with no match answers in the sheet', async () => {
+    const page = await barOpen();
+    for (const to of ['/apps', '/library', '/explore']) {
+      await spa(page, to);
+      await barInput(page).fill(`find zz-no-such-thing ${to}`);
+      await barInput(page).press('Enter');
+      await page.locator('[data-result-sheet]').getByRole('button', { name: 'Ask instead' }).last().waitFor({ timeout: 10000 });
+      await page.keyboard.press('Escape');
+      await page.locator('[data-result-sheet]').waitFor({ state: 'detached', timeout: 3000 });
+    }
+    await page.context().close();
+  });
+
+  await check('bar: Ctrl+J focuses the bar', async () => {
+    const page = await barOpen('/library');
+    await page.keyboard.press('Control+j');
+    must(await barInput(page).evaluate((el) => el === document.activeElement), 'the input is not focused');
+    await page.context().close();
+  });
+
+  // WP4 ruling R1: toasts keep their sides (notes left, errors right) and only lift above the bar.
+  await check('bar: toasts sit above the bar and keep their sides', async () => {
+    const page = await barOpen();
+    const top = (await barOf(page).boundingBox()).y;
+    const width = page.viewportSize().width;
+    await page.evaluate(() => {
+      dispatchEvent(new CustomEvent('small:toast', { detail: { message: 'agent-ui info toast' } }));
+      dispatchEvent(new CustomEvent('small:toast', { detail: { message: 'agent-ui error toast', tone: 'error' } }));
+    });
+    const info = await page.getByText('agent-ui info toast').boundingBox();
+    const error = await page.locator('[data-toast-error]').boundingBox();
+    for (const [label, box] of [['info', info], ['error', error]]) must(box.y + box.height <= top, `${label} toast overlaps the bar`);
+    must(info.x < 40, `info toast moved off the left (x ${info.x})`);
+    must(width - (error.x + error.width) < 40, 'error toast is not on the right');
+    await page.context().close();
+  });
+
+  await check('bar: hidden on /chat, Learn, a canvas, an app page and a run subpage (T02 §6.1, WP4 R2); back on /members', async () => {
+    const page = await barOpen();
+    const hides = [['/chat', '/chat'], ['a canvas', '/apps/canvas-00000000'], ...(repo ? [['project Learn', `/apps/${repo.name}?tab=learn`]] : []), ...(plain ? [['an app page', `/apps/${plain.name}`], ['a run subpage', `/apps/${plain.name}/runs/r-check`]] : [])];
+    for (const [label, to] of hides) {
+      await spa(page, to);
+      await barOf(page).waitFor({ state: 'detached', timeout: 10000 });
+      must(await barH(page) === '0px', `--agent-bar-h is ${await barH(page)} on ${label}`);
+    }
+    await spa(page, '/members');
+    await barOf(page).waitFor({ timeout: 10000 });
+    await page.context().close();
+  });
+
+  if (repo) await check('bar: project Learn has exactly one composer, its own', async () => {
+    const page = await open();
+    await page.goto(`${base}/apps/${repo.name}?tab=learn`);
+    await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
+    await page.waitForTimeout(1500);
+    must(await page.locator('[data-agent-bar]').count() === 0, 'the Agent Bar shows on Learn');
+    must(await page.locator('[data-chat-composer]').count() === 1, `${await page.locator('[data-chat-composer]').count()} composers on Learn`);
+    await page.context().close();
+  });
+
+  if (!askLiveOnPreview) await check('bar: a workspace ask is off on this preview: the reason shows, the draft stays, nothing reaches /api/ask', async () => {
+    const page = await barOpen('/library');
+    let asks = 0;
+    page.on('request', (r) => { if (new URL(r.url()).pathname === '/api/ask') asks++; });
+    await barInput(page).fill('what does this workspace run?');
+    await barInput(page).press('Enter');
+    await page.locator('[data-result-sheet]').getByText('Asking about the workspace or apps is off on this preview: it would write to live chat history.').waitFor({ timeout: 10000 });
+    must(await barInput(page).inputValue() === 'what does this workspace run?', 'the draft was cleared');
+    must(asks === 0, `${asks} requests to /api/ask`);
+    await page.context().close();
+  });
+
+  await check('bar: a workspace switch warns while a draft waits', async () => {
+    const page = await barOpen();
+    await barInput(page).click();
+    await barInput(page).fill('unsent question');
+    const dialog = page.waitForEvent('dialog', { timeout: 5000 });
+    page.evaluate(() => location.assign('/apps')).catch(() => {});
+    const d = await dialog;
+    must(d.type() === 'beforeunload', `dialog ${d.type()}`);
+    await d.dismiss();
+    await page.context().close();
+  });
+
+  await check('bar: screenshots for pixel review (light, dark, narrow)', async () => {
+    for (const [name, viewport, scheme] of [['light', undefined, 'light'], ['dark', undefined, 'dark'], ['narrow', { width: 390, height: 844 }, 'light']]) {
+      const page = await open(viewport);
+      await page.emulateMedia({ colorScheme: scheme });
+      await loaded(page, '/apps');
+      await barOf(page).waitFor({ timeout: 20000 });
+      await page.waitForLoadState('networkidle');
+      await page.screenshot({ path: `e2e/shots/agent-bar-${name}.png` });
+      await page.context().close();
+    }
+  });
+}
+
+{
+  await check('bar-multiline: Shift+Enter adds a line and Enter sends the whole message (T02 §6.2)', async () => {
+    const page = await open();
+    await loaded(page);
+    const input = barInput(page);
+    await input.click();
+    await page.keyboard.type('first line');
+    await page.keyboard.press('Shift+Enter');
+    await page.keyboard.type('second line');
+    const value = await input.inputValue();
+    must(value === 'first line\nsecond line', `value was ${JSON.stringify(value)}`);
+    await page.keyboard.press('Enter');
+    // On Home the preview refuses workspace asks (G1), which proves the send happened.
+    await page.getByText('Asking about the workspace or apps is off on this preview', { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.context().close();
+  });
+}
+
+{
+  // ── agent-ui (T02 §6.4-§7.3): commands, cards and modes from the bar, all on /library.
+  // Every send is a command or a refused workspace ask; none reaches /api/ask. ──
+  const { askLiveOnPreview } = await import('../src/flags.js');
+  const { openedNotice } = await import('../src/connections.js');
+  const editable = apps.find((a) => ['server', 'job'].includes(a.kind) && a.canEdit);
+  const FIXTURE = 'rabbit-hole-e2e/demo'; // never connected here: the Connect card, not open_resource
+  console.log(`agent-ui bar-cmd: share ${editable?.name || 'none, share check skipped'} · connect fixture ${FIXTURE}`);
+  // After the workspace load: commands resolve names against the catalog Shell publishes.
+  const barOpen = async (path = '/library') => {
+    const page = await open();
+    await loaded(page, path);
+    await barOf(page).waitFor({ timeout: 20000 });
+    return page;
+  };
+
+  await check('bar-cmd: find with no match shows the empty state with Ask instead, and clears the draft', async () => {
+    const page = await barOpen();
+    await barInput(page).fill('find zz-no-such-thing-agent-ui');
+    await barInput(page).press('Enter');
+    await page.locator('[data-result-sheet]').getByRole('button', { name: 'Ask instead' }).waitFor({ timeout: 10000 });
+    must(await barInput(page).inputValue() === '', 'the draft stayed after a finished command');
+    await page.context().close();
+  });
+
+  if (repo) await check('bar-cmd: open <project> navigates through open_resource', async () => {
+    const page = await barOpen();
+    await barInput(page).fill(`open ${repo.name}`);
+    await barInput(page).press('Enter');
+    await page.waitForURL(`**/apps/${repo.name}`, { timeout: 10000 });
+    await page.context().close();
+  });
+
+  await check('bar-cmd: connect Google Slides opens Settings, says it is planned and connects nothing (T02 §11)', async () => {
+    const page = await barOpen();
+    await barInput(page).fill('connect google slides');
+    await barInput(page).press('Enter');
+    await settings(page).waitFor({ timeout: 10000 });
+    await barOf(page).getByText(openedNotice('connections', 'google-slides')).waitFor({ timeout: 10000 });
+    await page.context().close();
+  });
+
+  if (editable) await check('bar-cmd: share is a Blocked card on this preview (D7) that names the workspace, and Cancel stays local', async () => {
+    const page = await barOpen();
+    let calls = 0;
+    page.on('request', (r) => { if (/\/api\/ask\/(approve|reject)/.test(r.url())) calls++; });
+    await barInput(page).fill(`share ${editable.name} with bar-check@example.com as view`);
+    await barInput(page).press('Enter');
+    const card = page.locator('[data-confirm-card="blocked"]');
+    await card.waitFor({ timeout: 10000 });
+    await card.getByText('Blocked on this preview: it would change live apps.').waitFor();
+    await card.getByText(wsLabel, { exact: true }).waitFor();
+    for (const row of ['Target', 'Operation', 'Effect']) await card.getByText(row, { exact: true }).waitFor();
+    must(await card.getByRole('button', { name: 'Confirm' }).isDisabled(), 'Confirm is enabled');
+    await page.screenshot({ path: 'e2e/shots/agent-bar-blocked-card.png' });
+    await card.getByRole('button', { name: 'Cancel' }).click();
+    await page.locator('[data-confirm-card="cancelled"]').waitFor({ timeout: 3000 });
+    must(calls === 0, `${calls} approve or reject calls from a Blocked card`);
+    await page.context().close();
+  });
+
+  await check('bar-cmd: a GitHub URL resolves its branch into a Confirm card that is not Blocked (T02 §16); Cancel sends nothing', async () => {
+    must(!apps.some((a) => (a.repo || '').toLowerCase() === FIXTURE), `${FIXTURE} is connected here; the check needs an unconnected repository`);
+    const page = await barOpen();
+    let posts = 0;
+    page.on('request', (r) => { if (r.method() === 'POST' && /\/api\/(repositories|ask\/reject)(\?|$)/.test(new URL(r.url()).pathname)) posts++; });
+    // A canned lookup, and a create is aborted in the browser even if something clicks Confirm.
+    await page.route('**/api/repositories/branches**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ repo: FIXTURE, defaultBranch: 'main', branches: ['main'], hasMore: false, page: 1 }) }));
+    await page.route(/[/]api[/]repositories$/, (route) => (route.request().method() === 'POST' ? route.abort() : route.continue()));
+    await barInput(page).fill(`https://github.com/${FIXTURE}`);
+    await barInput(page).press('Enter');
+    const card = page.locator('[data-confirm-card="pending"]');
+    await card.waitFor({ timeout: 20000 });
+    must(!(await card.getByRole('button', { name: 'Confirm' }).isDisabled()), 'connect_repository is blocked');
+    await card.getByText('branch', { exact: false }).first().waitFor();
+    await card.getByRole('button', { name: 'Cancel' }).click();
+    await page.locator('[data-confirm-card="cancelled"]').waitFor({ timeout: 3000 });
+    must(posts === 0, `${posts} POSTs from a cancelled connect card`);
+    await page.context().close();
+  });
+
+  await check('bar-cmd: a question about an unconnected repository offers Connect and runs nothing by itself', async () => {
+    const page = await barOpen();
+    let posts = 0;
+    page.on('request', (r) => { if (r.method() === 'POST' && /\/api\/(repositories|ask)(\?|$)/.test(new URL(r.url()).pathname)) posts++; });
+    await barInput(page).fill(`what is https://github.com/${FIXTURE} about?`);
+    await barInput(page).press('Enter');
+    const sheet = page.locator('[data-result-sheet]');
+    await sheet.getByText(`${FIXTURE} isn't connected, so answers can't read its code yet.`).waitFor({ timeout: 10000 });
+    await sheet.getByRole('button', { name: `Connect ${FIXTURE}` }).waitFor();
+    must(posts === 0, `${posts} POSTs before the user chose Connect`);
+    await page.context().close();
+  });
+
+  await check('bar-cmd: new canvas stays on the page with Canvas created · Undo, and Undo removes it (T02 §8.4)', async () => {
+    const page = await barOpen();
+    const title = `agent-ui check ${Date.now()}`;
+    const sheet = page.locator('[data-result-sheet]');
+    await barInput(page).fill(`new canvas called ${title}`);
+    await barInput(page).press('Enter');
+    await sheet.getByText(`Canvas created · ${title}`).waitFor({ timeout: 15000 });
+    must(new URL(page.url()).pathname === '/library', 'the bar navigated away');
+    await sheet.getByRole('button', { name: 'Undo' }).click();
+    await sheet.getByText(`Canvas created · ${title} · Undone`).waitFor({ timeout: 15000 });
+    const { apps: after } = await (await fetch(`${base}/api/apps`, { headers: { ...UA, Cookie: `small_session=${session}` } })).json();
+    must(!after.some((a) => a.kind === 'canvas' && a.title === title), 'the canvas is still in the catalog');
+    await page.context().close();
+  });
+
+  await check('bar-cmd: "/" opens exactly four modes, unavailable ones dimmed with their reason, Esc closes only the picker; /teach pill; Backspace returns to Auto', async () => {
+    const page = await barOpen();
+    const bar = barOf(page);
+    await barInput(page).fill('/');
+    const options = bar.getByRole('option');
+    await options.first().waitFor({ timeout: 5000 });
+    must(JSON.stringify(await options.locator('span:first-child').allTextContents()) === JSON.stringify(['/ask', '/teach', '/research', '/do']), 'not the four modes');
+    const research = bar.getByRole('option', { name: /research/ });
+    must(await research.getAttribute('aria-disabled') === 'true', 'research is not dimmed');
+    await research.getByText('Research works inside a canvas.').waitFor();
+    if (!askLiveOnPreview) await bar.getByRole('option', { name: /^\/ask/ }).getByText('Asking about the workspace or apps is off on this preview: it would write to live chat history.').waitFor();
+    await barInput(page).press('Escape');
+    must(await options.count() === 0, 'the picker is still open');
+    must(await barInput(page).inputValue() === '/', 'Esc changed the draft');
+    await barInput(page).fill('/te');
+    await barInput(page).press('Enter');
+    await bar.getByRole('button', { name: 'Back to Auto' }).waitFor({ timeout: 3000 });
+    must(await barInput(page).inputValue() === '', 'the slash text stayed');
+    must(await page.locator('[data-result-sheet]').count() === 0, 'Enter on the picker also sent the text');
+    await barInput(page).press('Backspace');
+    await bar.getByRole('button', { name: 'Auto' }).waitFor({ timeout: 3000 });
+    await page.context().close();
+  });
+}
+
+{
+  // ── agent-ui on the project page (WP4 slice of Task 47): project scope, and the Map
+  // with one composer. Sends only in project scope (LEARN_DB): 2 LLM calls. ──
+  const ready = apps.find((a) => a.kind === 'repository' && a.status === 'ready' && a.commit_sha);
+  const barOpen = async (path) => {
+    const page = await open();
+    await page.goto(`${base}${path}`);
+    await barOf(page).waitFor({ timeout: 20000 });
+    return page;
+  };
+  const chip = (page) => barOf(page).locator('[data-scope-chip="resource"]');
+  console.log(`agent-ui bar-page: project ${ready?.repo || 'none, project checks skipped'}`);
+
+  if (ready) await check('bar-page: a project names itself in the chip and the placeholder, and the chip does not stick on /members', async () => {
+    const page = await barOpen(`/apps/${ready.name}`);
+    await chip(page).getByText(ready.repo, { exact: true }).waitFor({ timeout: 15000 });
+    must(await barInput(page).getAttribute('placeholder') === `Ask about ${ready.repo}…`, 'the placeholder does not name the ready project');
+    await spa(page, '/members');
+    await barOf(page).waitFor({ timeout: 10000 });
+    must(await barOf(page).locator('[data-scope-chip]').count() === 0, 'a stale chip on /members');
+    await page.context().close();
+  });
+
+  if (ready) await check('bar-page: the Map has one composer, the bar; a Map ask lands in the sheet, names its scope while streaming across navigation, and Stop ends it', async () => {
+    const page = await barOpen(`/apps/${ready.name}?tab=map`);
+    await chip(page).waitFor({ timeout: 15000 }); // project scope (LEARN_DB) is proven before anything is sent
+    must(await page.locator('[data-chat-composer]').count() === 1, 'a second composer on the Map');
+    must(await page.getByRole('heading', { name: 'Graph Agent' }).count() === 0, 'the Graph Agent is still shown');
+    const question = 'Where should I start reading?';
+    await barInput(page).fill(question);
+    await barInput(page).press('Enter');
+    await page.locator('[data-result-sheet]').getByText(question).waitFor({ timeout: 10000 });
+    const status = barOf(page).getByText(/^Answering in /);
+    await status.waitFor({ timeout: 10000 });
+    await spa(page, '/library');
+    if (await status.count()) {
+      await barOf(page).getByRole('button', { name: 'Stop' }).click();
+      await status.waitFor({ state: 'detached', timeout: 5000 });
+    }
+    if (await page.locator('[data-result-sheet]').count()) await barOf(page).getByRole('button', { name: 'Collapse results' }).click();
+    const line = await page.locator('[data-result-line]').textContent();
+    must(line.startsWith(`${ready.repo} · `), `the collapsed line ${line} does not name the project`);
+    await page.context().close();
+  });
+
+  if (ready) await check('bar-page: History lists this project threads and reopens one; New chat clears the results', async () => {
+    const page = await barOpen(`/apps/${ready.name}`);
+    await chip(page).waitFor({ timeout: 15000 });
+    await barInput(page).fill('Which file defines the model?');
+    await barInput(page).press('Enter');
+    const sheet = page.locator('[data-result-sheet]');
+    await sheet.waitFor({ timeout: 10000 }).catch(() => { throw new Error('no sheet after the ask'); });
+    await barOf(page).getByText(/^Answering in /).waitFor({ state: 'detached', timeout: 120000 });
+    await page.screenshot({ path: 'e2e/shots/agent-bar-sheet.png' });
+    await sheet.getByRole('button', { name: 'New chat' }).click();
+    must(await sheet.getByText('Which file defines the model?').count() === 0, 'New chat kept the results');
+    await sheet.getByRole('button', { name: 'History' }).click();
+    const row = sheet.getByRole('button', { name: /Which file defines the model\?/ }).first();
+    await row.waitFor({ timeout: 10000 }).catch(async () => { throw new Error(`no History row: ${await sheet.innerText()}`); });
+    await row.click();
+    await sheet.getByText('Which file defines the model?').first().waitFor({ timeout: 10000 }).catch(async () => { throw new Error(`thread did not reopen: ${await sheet.innerText()}`); });
+    await page.context().close();
+  });
+
+  if (ready) await check('bar-page: × on the project chip widens to the workspace and takes the draft along', async () => {
+    const page = await barOpen(`/apps/${ready.name}`);
+    await chip(page).waitFor({ timeout: 15000 });
+    await barInput(page).fill('carry me');
+    await chip(page).getByRole('button').click();
+    must(await barOf(page).locator('[data-scope-chip]').count() === 0, 'the chip is still shown');
+    must(await barInput(page).inputValue() === 'carry me', 'the draft did not move with ×');
+    must(await barInput(page).getAttribute('placeholder') === 'Start, open, ask, or paste a link…', 'not the workspace scope');
+    await page.context().close();
+  });
+
+  if (ready) await check('bar-page: /teach on a project opens Learn once, sends nothing while learnHandoff is false, and keeps the prompt', async () => {
+    const page = await barOpen(`/apps/${ready.name}`);
+    await chip(page).waitFor({ timeout: 15000 });
+    const before = await page.evaluate(() => history.length);
+    await barInput(page).fill('/teach why does attention scale by sqrt(dk)?');
+    await barInput(page).press('Enter');
+    await page.getByText("Opened Learn. Your prompt wasn't transferred; it's kept here.").waitFor({ timeout: 10000 });
+    must(new URL(page.url()).searchParams.get('tab') === 'learn', 'not on Learn');
+    must(await page.evaluate(() => history.length) === before + 1, 'Learn was opened more than once'); // learnAction navigates; the bar never does
+    must(await page.evaluate(() => sessionStorage.getItem('small.learn.request')) === null, 'a Learn request was written');
+    await spa(page, `/apps/${ready.name}`);
+    await barOf(page).waitFor({ timeout: 10000 });
+    must(await barInput(page).inputValue() === '/teach why does attention scale by sqrt(dk)?', 'the prompt was not kept');
+    await page.context().close();
   });
 }
 

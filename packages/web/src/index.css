@@ -500,3 +500,10 @@ tr.cursor-pointer:active > td {
 @media (prefers-reduced-motion: reduce) {
   .wiki-article [data-arrived] { animation-duration: 4s; }
 }
+
+/* Agent Bar (dev, agent/AgentBar.jsx): every page's <main> ends above the fixed
+   bar. The bar publishes --agent-bar-h (0 while hidden); the live build never
+   sets it, and no page <main> has a bottom padding class, so this is 0 there. */
+[data-shell-sidebar] ~ main {
+  padding-bottom: var(--agent-bar-h, 0px);
+}

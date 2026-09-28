@@ -66,6 +66,8 @@ const StartHost = learnPreview ? lazy(() => import('./agent/StartHost.jsx')) : n
 let earlyStart = null;
 if (learnPreview) window.addEventListener('small:start', (e) => { earlyStart = e.detail?.path || 'repository'; });
 const takeEarlyStart = () => { const path = earlyStart; earlyStart = null; return path; };
+// T02 §6.1: one Agent Bar over every page, mounted in Root for the same reason.
+const AgentBar = learnPreview ? lazy(() => import('./agent/AgentBar.jsx')) : null;
 
 function Root() {
   // PrivateAuthGate consumes Cognito callbacks before normalizing app routes.
@@ -91,6 +93,7 @@ function Root() {
       {at.page === 'app' ? <SharePage slug={at.slug} runId={at.runId} /> : at.page === 'members' ? <MembersPage /> : at.page === 'chat' ? <ChatPage /> : at.page === 'home' ? <Suspense fallback={null}><Home /></Suspense> : at.page === 'explore' ? <Suspense fallback={null}><ExplorePreview /></Suspense> : <App />}
       <SearchModal />
       {StartHost && <Suspense fallback={null}><StartHost takeEarly={takeEarlyStart} /></Suspense>}
+      {AgentBar && <Suspense fallback={null}><AgentBar /></Suspense>}
       <Toasts />
     </>
   );

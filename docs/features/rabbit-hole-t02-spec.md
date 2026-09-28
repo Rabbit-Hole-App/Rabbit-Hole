@@ -198,6 +198,7 @@ deleted yet.
 | Route | Bar | Reason |
 |---|---|---|
 | Home, Library, Explore preview, Project (Overview, Map, Sources), app pages | Shown | — |
+| App pages, interim (2026-09-28, WP4 ruling R2) | Hidden until the app Graph tab moves its Graph Agent into the Context panel (plan Tasks 43/46) | Their Graph tab and run peek still have their own composers; one input |
 | Learn (any `?tab=learn`, all canvases) | Hidden. The Learn dock owns the same spot. | The Learn branches own it (amendment 8) |
 | Learn presenting (`[data-presenting]`) | Hidden | The canvas captures keys |
 | `/chat` | Hidden. The chat page composer owns the spot. | One input |

@@ -78,6 +78,10 @@ export function carry(drafts, from, to, keep) {
 // The bar names a scope by its chips, and the workspace (no chip) by its name.
 export const labelOf = (scope, workspace) => chipsFor(scope).map((chip) => chip.label).join(' · ') || workspace;
 
+// The router's 'about' (a connected repository named in a question, router.js rule 2) as the
+// project scope its answer belongs to: kind 'project', as the project page publishes it.
+export const aboutScope = (scope, about) => (about.slug === scope.slug ? scope : { org: scope.org, kind: 'project', slug: about.slug, title: about.title, selected: null });
+
 // What to offer once the page moved away from a waiting draft.
 export function offerFor(target, live) {
   if (scopeKey(target) === scopeKey(live)) return null;

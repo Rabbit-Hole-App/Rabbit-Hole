@@ -232,16 +232,17 @@ export function Toasts() {
   const drop = (id) => setItems((t) => t.filter((x) => x.id !== id));
   const notes = items.filter((t) => t.tone !== 'error');
   const errors = items.filter((t) => t.tone === 'error');
+  // Both sit above the dev Agent Bar (--agent-bar-h); it is unset live, so there this is bottom-4.
   return (
     <>
-      {!!notes.length && <div className="fixed bottom-4 left-4 z-50 flex flex-col gap-2">
+      {!!notes.length && <div className="fixed bottom-[calc(var(--agent-bar-h,0px)+1rem)] left-4 z-50 flex flex-col gap-2">
         {notes.map((t) => (
           <div key={t.id} className="rounded-md bg-ink px-3 py-2.5 text-sm text-white shadow-pop animate-[toast-in_150ms_ease-out]">
             {t.msg}
           </div>
         ))}
       </div>}
-      {!!errors.length && <div className="fixed right-4 bottom-4 z-50 flex max-w-96 flex-col gap-2">
+      {!!errors.length && <div className="fixed right-4 bottom-[calc(var(--agent-bar-h,0px)+1rem)] z-50 flex max-w-96 flex-col gap-2">
         {errors.map((t) => (
           <div key={t.id} data-toast-error className="flex items-start gap-2 rounded-lg border border-red-600/30 bg-ink px-3 py-2.5 text-sm text-white shadow-pop animate-[toast-in_150ms_ease-out]">
             <TriangleAlert size={15} className="mt-0.5 shrink-0 text-red-400" />

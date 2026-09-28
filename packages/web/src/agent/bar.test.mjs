@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  applyEvent, cardView, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, MODES, modeAvailability, modeQuery,
+  aboutScope, applyEvent, cardView, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, MODES, modeAvailability, modeQuery,
   offerFor, placeholderFor, pushTurn, rejectBody, resetThread, resultsKey, resultsView, subscribeTurns, threadIds, threadsPath, updateTurn, widen,
 } from './bar.js';
 import { scopeKey } from './scope.js';
@@ -207,4 +207,13 @@ test('History reads the existing thread endpoints for the scope', () => {
   const canvas = { ...nano, kind: 'canvas', slug: 'canvas-0f3c9a1e', title: 'Attention deep dive' };
   assert.equal(threadsPath(canvas), '/api/ask/threads?scope=learn&ref=canvas-0f3c9a1e');
   assert.equal(threadsPath(canvas, 'canvaschat-9b1d'), '/api/ask/threads/canvaschat-9b1d');
+});
+
+test('a question about a connected repository asks in that project scope, keeping a selection on the same project', () => {
+  const about = { slug: 'repo-9z', kind: 'repository', title: 'octocat/Hello-World' };
+  const other = aboutScope(attn, about);
+  assert.deepEqual(other, { org: 'gmail-com', kind: 'project', slug: 'repo-9z', title: 'octocat/Hello-World', selected: null });
+  assert.equal(resultsKey(other), 'gmail-com|project:repo-9z'); // the project page's own results key
+  assert.equal(aboutScope(attn, { slug: nano.slug, kind: 'repository', title: nano.title }), attn);
+  assert.equal(aboutScope(home, about).kind, 'project');
 });

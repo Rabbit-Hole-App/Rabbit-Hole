@@ -31,6 +31,9 @@ export function sectionActive(pathname, search, s, preview) {
 // until a page has loaded one, so error and denied states never keep a stale scope.
 // Learn, every canvas route (its content-not-on-this-device gate included), chat and run
 // pages own the bottom input (T02 §6.1).
+// ponytail: plain app pages hide it too (WP4 ruling R2) - their Graph tab and run peek still
+// have their own composers (SharePage CoachingPanel AskPanel, RunPeek). Show it once Tasks 43/46
+// give app pages a Context panel and app scope.
 // `from` (contract v3) carries the workspace identity Shell published, so the baseline is a
 // complete surface by itself; agent-core's setSurface keeps identity as well.
 const IDENTITY = ['org', 'email', 'orgName', 'catalog'];
@@ -42,5 +45,5 @@ export function baseSurfaceFor(pathname, search, from = {}) {
     : new URLSearchParams(search).get('tab') === 'learn' ? 'learn'
     : at.slug.startsWith('repo-') ? 'project' : 'app';
   const identity = Object.fromEntries(IDENTITY.filter((k) => from[k] !== undefined).map((k) => [k, from[k]]));
-  return { ...identity, place, resource: null, selected: null, barHidden: ['learn', 'canvas', 'chat', 'run'].includes(place), resultsHost: 'sheet', handlers: {} };
+  return { ...identity, place, resource: null, selected: null, barHidden: ['learn', 'canvas', 'chat', 'run', 'app'].includes(place), resultsHost: 'sheet', handlers: {} };
 }
