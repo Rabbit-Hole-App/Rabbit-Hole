@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { getSurface, patchSurface, setSurface } from './agent/surface.js';
-import { baseSurfaceFor, canonicalPath, pageFor, sectionActive, sectionHref } from './routes.js';
+import { baseSurfaceFor, canonicalPath, pageFor, sectionActive, sectionHref, takeWs } from './routes.js';
 
 test('the live build routes exactly as today (main.jsx:57-70)', () => {
   for (const p of ['/apps', '/dash', '/members', '/chat', '/apps/counter', '/apps/counter/runs/r-1']) assert.equal(canonicalPath(p, false), null);
@@ -78,4 +78,11 @@ test('Root inputs: a split path and getSurface(); a chip click keeps who is look
     setSurface(baseSurfaceFor(...rootInputs(path)));
     assert.deepEqual([getSurface().place, getSurface().barHidden, getSurface().org], [place, hidden, 'gmail-com'], path);
   }
+});
+
+test('a workspace switch travels in the URL and applies only on the page it loads (Stay keeps this workspace)', () => {
+  assert.deepEqual(takeWs('?ws=acme-team&s=shared'), { ws: 'acme-team', search: '?s=shared' });
+  assert.deepEqual(takeWs('?ws='), { ws: '', search: '' }); // the domain workspace
+  assert.equal(takeWs('?s=shared'), null);
+  assert.equal(takeWs(''), null);
 });

@@ -366,6 +366,28 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
+  await check('library: on a touch tablet (no hover) the card menu and the Recent action are visible', async () => {
+    const context = await browser.newContext({ viewport: { width: 1024, height: 768 }, isMobile: true, hasTouch: true });
+    await context.addCookies([{ name: 'small_session', value: session, domain: new URL(base).hostname, path: '/' }]);
+    const page = await context.newPage();
+    await loaded(page, '/library?type=canvases');
+    const c = await shCanvas(page, 'rabbit-hole-check touch');
+    try {
+      await page.evaluate((name) => localStorage.setItem('small.recent', JSON.stringify([name])), c.name);
+      await page.reload();
+      const more = page.locator('[data-library-card="canvas"]').filter({ hasText: 'rabbit-hole-check touch' }).getByTitle('More');
+      await more.waitFor({ timeout: 20000 });
+      must((await opacityOf(more))[0] === 1, 'the canvas card menu is invisible without hover');
+      await loaded(page, '/apps');
+      const action = page.locator('[data-recent-card]').first().getByRole('button');
+      await action.waitFor({ timeout: 20000 });
+      must((await opacityOf(action))[0] === 1, 'the Recent card action is invisible without hover');
+    } finally {
+      await shDrop(page, c.name);
+      await context.close();
+    }
+  });
+
   await check('library: scope chips sit below the type chips and are secondary', async () => {
     const page = await open();
     await loaded(page, '/library');
@@ -876,6 +898,32 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
+  await check('bar: Stay at the workspace-switch warning keeps this workspace; Leave switches', async () => {
+    const page = await barOpen();
+    const before = await page.evaluate(() => localStorage.getItem('small.ws'));
+    // A second workspace, so the menu offers a switch; the answer is canned, nothing is created.
+    await page.route('**/api/workspaces', (route) => (route.request().method() === 'GET'
+      ? route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ active: data.org, workspaces: [{ slug: data.org, kind: 'domain', name: wsLabel }, { slug: 'rabbit-hole-e2e-other', kind: 'team', name: 'Other check workspace' }] }) })
+      : route.abort()));
+    await barInput(page).fill('unsent question');
+    const pick = async () => {
+      await page.locator('aside').getByText(wsLabel, { exact: true }).first().click();
+      await page.getByRole('button', { name: /Other check workspace/ }).click();
+    };
+    // The handler is set before the click: the click itself waits while the dialog is up.
+    const answered = [];
+    page.once('dialog', (d) => { answered.push(d.type()); d.dismiss(); });
+    await pick();
+    await page.waitForTimeout(500);
+    must(answered.join() === 'beforeunload', `dialog ${answered}`);
+    must(await page.evaluate(() => localStorage.getItem('small.ws')) === before, 'Stay still switched the workspace for every later request');
+    page.once('dialog', (d) => d.accept());
+    await pick();
+    await page.waitForURL((u) => u.pathname === '/apps' && !u.searchParams.has('ws'), { timeout: 20000 });
+    must(await page.evaluate(() => localStorage.getItem('small.ws')) === 'rabbit-hole-e2e-other', 'Leave did not switch the workspace');
+    await page.context().close();
+  });
+
   await check('bar: screenshots for pixel review (light, dark, narrow)', async () => {
     for (const [name, viewport, scheme] of [['light', undefined, 'light'], ['dark', undefined, 'dark'], ['narrow', { width: 390, height: 844 }, 'light']]) {
       const page = await open(viewport);
@@ -1102,6 +1150,21 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await row.waitFor({ timeout: 10000 }).catch(async () => { throw new Error(`no History row: ${await sheet.innerText()}`); });
     await row.click();
     await sheet.getByText('Which file defines the model?').first().waitFor({ timeout: 10000 }).catch(async () => { throw new Error(`thread did not reopen: ${await sheet.innerText()}`); });
+    await page.context().close();
+  });
+
+  if (ready) await check('bar-page: a Map question naming an unconnected repository is asked, and Connect is offered beside it', async () => {
+    const page = await barOpen(`/apps/${ready.name}?tab=map`);
+    await chip(page).waitFor({ timeout: 15000 });
+    let asks = 0;
+    // Counted and aborted in the browser: no model call, the check only needs to see the ask go out.
+    await page.route('**/api/learn/ask', (route) => { asks++; return route.abort(); });
+    await barInput(page).fill('How does this compare to https://github.com/rabbit-hole-e2e/demo?');
+    await barInput(page).press('Enter');
+    const sheet = page.locator('[data-result-sheet]');
+    await sheet.getByRole('button', { name: 'Connect rabbit-hole-e2e/demo' }).waitFor({ timeout: 10000 });
+    await page.waitForTimeout(1000);
+    must(asks === 1, `${asks} asks sent for the question`);
     await page.context().close();
   });
 

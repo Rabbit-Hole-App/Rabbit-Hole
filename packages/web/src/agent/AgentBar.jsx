@@ -119,10 +119,11 @@ export default function AgentBar() {
       return showResults(scope);
     }
     // A question naming a repository that is not connected here (or not on that branch):
-    // say why its code can't be read and offer Connect, which runs only when clicked.
+    // say why its code can't be read and offer Connect, which runs only when clicked. The
+    // question is still asked wherever asking is on (router.test.mjs: asks, offers Connect).
     if (r.offer) {
       add(scope, { kind: 'note', text: r.note, action: { label: r.offer.label, run: () => runCommand(r.offer.name, r.offer.args, raw, scope, true) } });
-      return showResults(scope);
+      if (!modeAvailability('ask', scope.kind).ok) return showResults(scope);
     }
     if (r.mode === 'teach') return teach(r.text, raw, scope);
     // A question about a connected repository is asked in that project's scope.

@@ -36,6 +36,18 @@ export function sectionActive(pathname, search, s, preview) {
 // give app pages a Context panel and app scope.
 // `from` (contract v3) carries the workspace identity Shell published, so the baseline is a
 // complete surface by itself; agent-core's setSurface keeps identity as well.
+// Rabbit Hole dev: a workspace switch goes to /apps?ws=<slug> and the page that loads applies it.
+// Setting small.ws before navigating would leave a user who answers Stay at the Agent Bar's
+// unsent-draft warning on this page with every request going to the other workspace.
+export function takeWs(search) {
+  const q = new URLSearchParams(search);
+  if (!q.has('ws')) return null;
+  const ws = q.get('ws');
+  q.delete('ws');
+  const rest = q.toString();
+  return { ws, search: rest ? `?${rest}` : '' };
+}
+
 const IDENTITY = ['org', 'email', 'orgName', 'catalog'];
 export function baseSurfaceFor(pathname, search, from = {}) {
   const at = pageFor(pathname, search, true);

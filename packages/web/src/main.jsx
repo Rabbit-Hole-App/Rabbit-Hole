@@ -11,13 +11,13 @@ import SharePage from './SharePage.jsx';
 const Home = lazy(() => import('./Home.jsx'));
 const ExplorePreview = lazy(() => import('./Home.jsx').then((m) => ({ default: m.ExplorePreview })));
 import Shell from './Shell.jsx';
-import { applyTheme, getTheme, navigate, wsName } from './api.js';
+import { applyTheme, getTheme, navigate, setWs, wsName } from './api.js';
 import { ExpandedPageFrame, Toasts } from './ui.jsx';
 import { isPrivateByoc } from './private-auth.js';
 import PrivateAuthGate from './PrivateAuthGate.jsx';
 import { getSurface, setSurface } from './agent/surface.js';
 import { learnPreview, PRODUCT } from './flags.js';
-import { baseSurfaceFor, canonicalPath, pageFor } from './routes.js';
+import { baseSurfaceFor, canonicalPath, pageFor, takeWs } from './routes.js';
 
 applyTheme(getTheme()); // before first paint - no light flash for dark users
 if (learnPreview) document.title = PRODUCT; // the live build keeps index.html's title
@@ -68,6 +68,13 @@ if (learnPreview) window.addEventListener('small:start', (e) => { earlyStart = e
 const takeEarlyStart = () => { const path = earlyStart; earlyStart = null; return path; };
 // T02 §6.1: one Agent Bar over every page, mounted in Root for the same reason.
 const AgentBar = learnPreview ? lazy(() => import('./agent/AgentBar.jsx')) : null;
+
+// A workspace switch lands here as ?ws= (routes.js takeWs); apply it before the first request.
+const switched = learnPreview && takeWs(window.location.search);
+if (switched) {
+  setWs(switched.ws);
+  window.history.replaceState(null, '', window.location.pathname + switched.search);
+}
 
 function Root() {
   // PrivateAuthGate consumes Cognito callbacks before normalizing app routes.

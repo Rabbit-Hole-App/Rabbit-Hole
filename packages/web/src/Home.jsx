@@ -92,7 +92,7 @@ function RecentCard({ app, card }) {
   // Secondary line: what happened; tertiary line: the last fact (visibility, access, storage).
   // Titles wrap to two lines; owner/repo breaks after the slash (zero-width space), not mid-name.
   const [lead, last] = meta.length > 1 ? [meta.slice(0, -1), meta.at(-1)] : [meta, ''];
-  const link = 'inline-flex items-center gap-1 self-start text-xs font-medium text-accent hover:underline opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 max-md:opacity-100';
+  const link = 'inline-flex items-center gap-1 self-start text-xs font-medium text-accent hover:underline opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100';
   return (
     <li data-recent-card className={`${CARD} group flex min-w-0 flex-col gap-1 p-3`}>
       <div className="flex min-w-0 items-start gap-2">

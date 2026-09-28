@@ -232,7 +232,7 @@ function AppContent({ data, load }) {
                     <KindIcon kind="canvas" />
                     <span className="min-w-0 flex-1 truncate">{titleOf(c)}</span>
                     <span className="text-xs text-ink-2">archived {ago(c.archived_at)}</span>
-                    <Button size="sm" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100" onClick={() => restore(c)}><ArchiveRestore size={14} strokeWidth={1.5} /> Restore</Button>
+                    <Button size="sm" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100" onClick={() => restore(c)}><ArchiveRestore size={14} strokeWidth={1.5} /> Restore</Button>
                   </li>
                 ))}
               </ul>
@@ -538,12 +538,12 @@ function AppContent({ data, load }) {
                                   <Square size={10} fill="currentColor" /> Stop
                                 </PillButton>
                               ) : (
-                                <PillButton title="Run now" className={learnPreview ? 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100' : undefined} onClick={(e) => { e.stopPropagation(); startRun(a); }}>
+                                <PillButton title="Run now" className={learnPreview ? 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100' : undefined} onClick={(e) => { e.stopPropagation(); startRun(a); }}>
                                   <Play size={11} /> Run
                                 </PillButton>
                               )
                             ) : a.kind === 'canvas' ? (
-                              <IconBtn title="More" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100" onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setRowMenu({ name: a.name, top: r.bottom + 4, left: r.right - 176 }); }}>
+                              <IconBtn title="More" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100" onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setRowMenu({ name: a.name, top: r.bottom + 4, left: r.right - 176 }); }}>
                                 <MoreHorizontal size={16} strokeWidth={1.5} />
                               </IconBtn>
                             ) : (

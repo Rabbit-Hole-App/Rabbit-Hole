@@ -509,8 +509,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
     if (!name) return;
     try {
       const d = await api('/api/workspaces', { method: 'POST', body: JSON.stringify({ name }) });
-      setWs(d.slug);
-      window.location.assign('/apps'); // land in the fresh workspace
+      if (learnPreview) window.location.assign(`/apps?ws=${encodeURIComponent(d.slug)}`); // applied by the page that loads (routes.js takeWs)
+      else { setWs(d.slug); window.location.assign('/apps'); } // land in the fresh workspace
     } catch (e) { toast(`✗ ${e.message}`); }
   };
   const [newMenu, setNewMenu] = useState(false); // bottom + button popup
@@ -879,8 +879,10 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
                 key={w.slug}
                 onClick={() => {
                   setWsMenu(false);
-                  setWs(w.kind === 'domain' ? '' : w.slug);
-                  window.location.assign('/apps'); // clean reload, every fetch re-scopes
+                  const slug = w.kind === 'domain' ? '' : w.slug;
+                  // Preview: applied by the page that loads, so Stay at the Agent Bar's draft warning keeps this workspace.
+                  if (learnPreview) window.location.assign(`/apps?ws=${encodeURIComponent(slug)}`);
+                  else { setWs(slug); window.location.assign('/apps'); } // clean reload, every fetch re-scopes
                 }}
               >
                 <span className="flex w-full items-center gap-2">

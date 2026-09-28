@@ -61,7 +61,7 @@ function Card({ kind, a, onMore, title, badge, children }) {
       {children}
       <div className="mt-auto flex items-center justify-between pt-3">
         <Button size="sm" variant="secondary" onClick={stop(() => open(a))}>Open</Button>
-        <IconBtn title="More" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100" onClick={onMore}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>
+        <IconBtn title="More" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100" onClick={onMore}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>
       </div>
     </li>
   );
@@ -116,7 +116,7 @@ function AppRow({ a, running, onRun }) {
       <Pill kind={a.kind}>{a.kind}</Pill>
       <span className="min-w-0 flex-1 truncate text-xs text-ink-2">{status ?? <span className="inline-flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> running</span>}</span>
       {a.kind === 'job' && !running && (
-        <Button size="sm" variant="ghost" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100" onClick={stop(() => onRun(a))}><Play size={12} /> Run</Button>
+        <Button size="sm" variant="ghost" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100" onClick={stop(() => onRun(a))}><Play size={12} /> Run</Button>
       )}
       {a.kind !== 'job' && a.url && (
         <a href={a.url} target="_blank" rel="noreferrer" title="Open the app" onClick={(e) => e.stopPropagation()} className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-ink-2 hover:bg-white hover:text-ink"><ArrowUpRight size={14} /></a>
