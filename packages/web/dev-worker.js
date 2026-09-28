@@ -11,6 +11,7 @@ import grantsCode from '../byoc/grants.py';
 import { apiAsk } from '../control-plane/src/index.js';
 import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback, videoGone, canvasSearch, wikiArticle } from '../control-plane/src/learn-board.js';
 import { learnGradeRoute } from '../control-plane/src/learn-grade-routes.js';
+import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 export { LearnVideos } from '../control-plane/src/learn-video.js';
@@ -132,6 +133,9 @@ export default {
     if (path === '/api/learn/wiki') return wikiArticle(req, env);
     // Jev side-by-side grading (docs/features/jev-grading.md).
     if (path.startsWith('/api/learn/grade')) { const graded = await learnGradeRoute(path, req, env); if (graded) return graded; }
+    // Saved and shared canvas boards (docs/features/canvas-sharing.md). Before
+    // the exact /api/learn/board route, which generates explanations.
+    if (path.startsWith('/api/learn/boards/')) { const boards = await learnBoardsRoute(path, req, env); if (boards) return boards; }
     if (path === '/api/learn/search') return canvasSearch(req, env);
     if (path === '/api/learn/board') {
       if (env.SUBSCRIPTION_ONLY === 'true') {
@@ -144,7 +148,8 @@ export default {
     }
     if (path === '/aws') return Response.redirect(new URL('/apps', req.url), 302);
     if (path.startsWith('/api/byoc/')) return byocFetch(req, env, { apiCode, signerCode, permissionsCode, grantsCode });
-    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path.startsWith('/apps/')) {
+    // /b/<token> is a shared board: served to anyone, the page decides what they may see.
+    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path.startsWith('/apps/') || /^\/b\/[A-Za-z0-9_-]{20,64}$/.test(path)) {
       return new Response(SHELL, {
         headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
       });

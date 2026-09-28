@@ -6,6 +6,7 @@ import { api, wsHeaders } from './api.js';
 import { requestBoardExplanation } from './learn-board-request.js';
 import { AskPanel } from './ask.jsx';
 import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
+import SharePanel from './SharePanel.jsx';
 import { captureSelection, selectionSnapshot } from './sigmoid-context.js';
 import RegionPicker from './RegionPicker.jsx';
 import { CourseInterview, CoursePanel, useLearnCourse } from './LearnCourse.jsx';
@@ -76,7 +77,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const [sampleOutline, setSampleOutline] = useState(app.kind !== 'repository');
   const [practiceMode, setPracticeMode] = useState('quiz');
   const [learningView, setLearningView] = useState('lesson');
-  const [panelOpen, setPanelOpen] = useState(true);
+  // The right panel starts closed: the canvas gets the room; View or the
+  // panel button opens it.
+  const [panelOpen, setPanelOpen] = useState(false);
   // Mirrored from the canvas so the View menu can tick what is on. Held by value
   // rather than by ref, and returned unchanged when nothing moved, or the effect
   // that publishes it would re-render forever.
@@ -409,6 +412,76 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   }));
   const [askTarget, setAskTarget] = useState(null); // selected lesson block armed as composer context
   const canvasApi = useRef(null);
+  // Sharing (docs/features/canvas-sharing.md): the board is saved on the
+  // server while it is shared, so its links show the latest version. A newer
+  // copy saved through an edit link replaces this browser's copy on open.
+  const boardName = board || 'main';
+  const boardStorageKey = board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`;
+  const boardPath = `/api/learn/boards/${encodeURIComponent(app.name)}/${encodeURIComponent(boardName)}`;
+  const [sharing, setSharing] = useState(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareError, setShareError] = useState(null);
+  const [canvasEpoch, setCanvasEpoch] = useState(0);
+  const sharingRef = useRef(null);
+  sharingRef.current = sharing;
+  const boardVersion = useRef(null);
+  const exchangesRef = useRef(exchanges);
+  exchangesRef.current = exchanges;
+  const versionKey = `${boardStorageKey}:v`;
+  const boardSnapshot = () => {
+    let state = {};
+    try { state = JSON.parse(localStorage.getItem(boardStorageKey) || '{}'); } catch { /* an unreadable copy shares as empty */ }
+    return { ...state, exchanges: exchangesRef.current };
+  };
+  useEffect(() => {
+    let live = true;
+    api(boardPath).then(data => {
+      if (!live) return;
+      setSharing(data.sharing);
+      boardVersion.current = data.version;
+      const mine = Number(localStorage.getItem(versionKey) || 0);
+      if (data.sharing.shared && data.version > mine && data.updated_by !== (app.email || app.owner_email)) {
+        const { exchanges: chats, ...state } = data.state || {};
+        try { localStorage.setItem(boardStorageKey, JSON.stringify(state)); localStorage.setItem(versionKey, String(data.version)); } catch { /* keep the local copy */ }
+        if (Array.isArray(chats)) setExchanges(chats);
+        setCanvasEpoch(epoch => epoch + 1);
+        toast('This board was changed through its edit link. You are seeing the latest version.');
+      }
+    }).catch(error => { if (live) setSharing(error.status === 404 ? (error.data?.sharing || { shared: false }) : { unavailable: error.message }); });
+    return () => { live = false; };
+  }, [boardPath]);
+  const pushTimer = useRef(null);
+  const pushBoard = useCallback(() => {
+    if (!sharingRef.current?.shared) return;
+    clearTimeout(pushTimer.current);
+    pushTimer.current = setTimeout(async () => {
+      try {
+        const data = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state: boardSnapshot(), version: boardVersion.current }) });
+        boardVersion.current = data.version;
+        try { localStorage.setItem(versionKey, String(data.version)); } catch { /* the next open re-checks */ }
+      } catch (error) {
+        if (error.status === 409) toast('Someone with the edit link changed this board. Reload to see their changes; your newer edits here are not shared yet.', { tone: 'error' });
+      }
+    }, 1500);
+  }, [boardPath]);
+  useEffect(() => { pushBoard(); }, [exchanges, pushBoard]);
+  const changeSharing = async next => {
+    setShareBusy(true);
+    setShareError(null);
+    try {
+      const data = await api(`${boardPath}/share`, { method: 'POST', body: JSON.stringify({ ...next, state: boardSnapshot() }) });
+      boardVersion.current = data.version;
+      setSharing(data.sharing);
+      // Sharing on: the server gets this browser's board as it is now.
+      if (data.sharing.shared) {
+        const saved = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state: boardSnapshot(), version: boardVersion.current }) });
+        boardVersion.current = saved.version;
+        try { localStorage.setItem(versionKey, String(saved.version)); } catch { /* the next open re-checks */ }
+      }
+    } catch (error) { setShareError(error.message); }
+    finally { setShareBusy(false); }
+  };
   // Challenge blocks ask the tutor to judge a committed answer. Jev grades the
   // same attempt side by side (docs/features/jev-grading.md). The learner only
   // ever sees Opus: the shadow promise is never awaited here, and the Opus
@@ -876,7 +949,6 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const [canvasTitle, setCanvasTitle] = useState(() => { try { return localStorage.getItem(titleKey) || ''; } catch { return ''; } });
   // The copy confirmation lives on the button itself - a toast in the far
   // corner reads as unrelated to the press that caused it.
-  const [shareCopied, setShareCopied] = useState(false);
   const fallbackTitle = courseTitle || app.repo || app.name;
   const [titleDraft, setTitleDraft] = useState(null); // non-null only while the title is focused
   const saveTitle = value => {
@@ -1060,10 +1132,13 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             <button type="button" title="Present" aria-label="Present"
               onClick={() => { if (canvasApi.current?.present()) setPanelOpen(false); }}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Play size={15} strokeWidth={1.8} /></button>
-            <button type="button" title={shareCopied ? 'Link copied' : 'Copy a link to this canvas'} aria-label="Share"
-              onClick={() => { navigator.clipboard?.writeText(window.location.href).then(() => { setShareCopied(true); setTimeout(() => setShareCopied(false), 1600); }).catch(() => toast(window.location.href)); }}
-              className={`flex h-8 w-8 items-center justify-center rounded-lg ${shareCopied ? 'text-green-600' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
-              {shareCopied ? <Check size={15} strokeWidth={2} /> : <Share2 size={15} strokeWidth={1.8} />}</button>
+            <span className="relative">
+              <button type="button" data-share-button title={sharing?.unavailable || (sharing?.shared ? 'Shared - manage links' : 'Share this board')} aria-label="Share" aria-expanded={shareOpen}
+                disabled={!!sharing?.unavailable} onClick={() => setShareOpen(open => !open)}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg disabled:opacity-40 ${sharing?.shared ? 'text-[#2383e2]' : 'text-ink-2'} ${shareOpen ? 'bg-hover' : 'hover:bg-hover hover:text-ink'}`}>
+                <Share2 size={15} strokeWidth={1.8} /></button>
+              {shareOpen && <SharePanel sharing={sharing} busy={shareBusy} error={shareError} onChange={changeSharing} onClose={() => setShareOpen(false)} />}
+            </span>
             <button type="button" title={panelOpen ? 'Hide the right panel' : 'Show the right panel'}
               aria-label={panelOpen ? 'Hide the right panel' : 'Show the right panel'} aria-pressed={panelOpen}
               onClick={() => setPanelOpen(previous => !previous)}
@@ -1084,7 +1159,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
-        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onState={onCanvasState} edgeInset={!panelOpen && (canvasOutline.length || railEntries.length) ? 52 : 0} storageKey={board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <div data-learn-dock className="contents"><AskPanel compact composerOnly boardContext={boardContext} onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /></div> : null} /></Suspense></div>
+        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas key={canvasEpoch} onSave={pushBoard} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onState={onCanvasState} edgeInset={!panelOpen && (canvasOutline.length || railEntries.length) ? 52 : 0} storageKey={boardStorageKey} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <div data-learn-dock className="contents"><AskPanel compact composerOnly boardContext={boardContext} onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /></div> : null} /></Suspense></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">

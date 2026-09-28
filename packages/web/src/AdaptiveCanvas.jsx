@@ -682,7 +682,7 @@ function SectionMenu({ className, onLevel }) {
           <button key={entry.level} type="button" role="menuitem" onClick={() => onLevel(entry.level)}
             style={{ fontSize: Math.round(entry.size * 0.62), fontWeight: entry.weight }}
             className="flex w-full items-center gap-2 rounded-lg px-3 py-1 text-left leading-tight text-ink hover:bg-hover">
-            <Icon size={15} strokeWidth={1.8} className="shrink-0 text-ink-2" />{entry.label}
+            <Icon size={15} strokeWidth={1.8} className="shrink-0 text-ink-2" />{entry.placeholder}
           </button>
         );
       })}
@@ -1024,8 +1024,10 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
   );
 }
 
-export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onPaper = null, edgeInset = 0 }) {
-  const [tool, setTool] = useState('select');
+export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false }) {
+  // A view-only board pans and zooms with the hand and edits nothing.
+  const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
+  const readOnlyRef = useRef(readOnly);
   // OS drag-and-drop of files onto the surface; the page owns what each kind
   // becomes, the canvas only announces the hover and hands the files over.
   const [dropHover, setDropHover] = useState(false);
@@ -1056,7 +1058,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // Learner artifacts persist in this browser so a refresh keeps the canvas.
   const stored = useRef(null);
   if (stored.current === null) {
-    try { stored.current = storageKey ? JSON.parse(localStorage.getItem(storageKey) || '{}') : {}; } catch { stored.current = {}; }
+    // A shared board arrives as state from the server instead (SharedBoardPage).
+    try { stored.current = boardState || (storageKey ? JSON.parse(localStorage.getItem(storageKey) || '{}') : {}); } catch { stored.current = {}; }
   }
   const [strokes, setStrokes] = useState(stored.current.strokes || []); // pen and highlighter ink, world coords
   const [live, setLive] = useState(null);
@@ -1103,12 +1106,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // Named groups. Membership lives on the members themselves (groupId), so
   // undo restores it with them; this list only carries each group's label.
   const [groups, setGroups] = useState(stored.current.groups || []);
+  // Every change also goes to onSave (a shared board's server copy), if given.
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
+  const firstSave = useRef(true);
   useEffect(() => {
-    if (!storageKey) return;
+    if (!storageKey && !onSaveRef.current) return;
     // ponytail: generated images are large data URLs; keep the prompt, drop the
     // bytes so one illustration cannot fill the browser's storage quota.
     const light = blocks.map(block => block.src?.startsWith('data:') && block.src.length > 120000 ? { ...block, src: '' } : block);
-    const timer = setTimeout(() => { try { localStorage.setItem(storageKey, JSON.stringify({ strokes, shapes, items, links, blocks: light, groups })); } catch { /* full or blocked storage loses drawings only */ } }, 400);
+    // The first run is the board as loaded, not a change.
+    const loaded = firstSave.current;
+    firstSave.current = false;
+    const timer = setTimeout(() => {
+      const state = { strokes, shapes, items, links, blocks: light, groups };
+      if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch { /* full or blocked storage loses drawings only */ } }
+      if (!loaded) onSaveRef.current?.(state);
+    }, 400);
     return () => clearTimeout(timer);
   }, [strokes, shapes, items, links, blocks, groups, storageKey]);
   const [connecting, setConnecting] = useState(null);
@@ -1612,6 +1626,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // undoes the last canvas gesture — both stand down while typing.
   useEffect(() => {
     const key = event => {
+      if (readOnlyRef.current) return;
       // Presenting owns the keyboard: a walk, not an editing surface.
       if (presentingRef.current !== null) {
         if (event.key === 'Escape') { event.preventDefault(); stopPresentingRef.current(); return; }
@@ -2398,7 +2413,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} />)}
         </div>
         {/* The gap near the pointer shows its dotted line and [-] [+] [...] at the far left. */}
-        {presenting === null && gaps.filter(gap => gap.index === hoverGap).map(gap => (
+        {presenting === null && !readOnly && gaps.filter(gap => gap.index === hoverGap).map(gap => (
           <GapRail key={gap.index} gap={gap} zoom={view.z} span={railSpan}
             // Its buttons start at the far left - past the toolbar when that is docked there.
             edge={(-view.x + (toolSide === 'left' && !toolDrag ? 8 + toolWidth : 0)) / view.z}
@@ -2574,7 +2589,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
       </div>
       {/* Dev-only workbench: drop any lesson block on the canvas to review its
           look before lessons are assembled. */}
-      {presenting === null && import.meta.env.VITE_COACHING_DEV === 'true' && (
+      {presenting === null && !readOnly && import.meta.env.VITE_COACHING_DEV === 'true' && (
         <div className="absolute top-3 right-2 z-20">
           <button type="button" aria-label="Insert lesson block" title="Insert a sample lesson block" aria-expanded={insertOpen}
             onClick={() => setInsertOpen(previous => !previous)}
@@ -2584,7 +2599,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           {insertOpen && <BlockMenu className="top-0 right-10" filter={insertFilter} onFilter={setInsertFilter} onPick={insertBlock} />}
         </div>
       )}
-      {presenting === null && <div ref={toolbarRef} role="toolbar" aria-label="Canvas tools"
+      {presenting === null && !readOnly && <div ref={toolbarRef} role="toolbar" aria-label="Canvas tools"
         // Docked right, it keeps clear of the page's contents rail (edgeInset).
         style={toolDrag ? { left: toolDrag.x, top: toolDrag.y, transform: 'none' } : toolSide === 'left' ? undefined : { right: 8 + edgeInset }}
         className={`absolute z-20 grid max-h-full grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md ${toolDrag ? '' : `top-1/2 -translate-y-1/2 ${toolSide === 'left' ? 'left-2' : ''}`}`}>
@@ -2631,7 +2646,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           <span style={{ background: color }} className="h-4 w-4 rounded-full ring-1 ring-line" />
         </button>
       </div>}
-      {presenting === null && showStyle && (
+      {presenting === null && !readOnly && showStyle && (
         <StylePanel side={toolSide} inset={edgeInset} clear={toolWidth} text={panel.text} showFill={panel.fill} fill={fill} corners={panel.corners} order={panel.order}
           route={panel.route} routeValue={panel.routeValue}
           onRoute={value => {

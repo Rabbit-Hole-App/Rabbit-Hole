@@ -96,13 +96,14 @@ await page.mouse.move(canvasBox.x + canvasBox.width * 0.7, gapNow, { steps: 5 })
 await rail.getByRole('button', { name: 'Insert a section here' }).click();
 const menu = page.getByRole('menu', { name: 'Insert a section' });
 const icons = await menu.getByRole('menuitem').evaluateAll(items => items.map(item => !!item.querySelector('svg')));
+const labels = (await menu.getByRole('menuitem').allInnerTexts()).map(text => text.trim());
 await page.mouse.click(canvasBox.x + canvasBox.width * 0.55, canvasBox.y + canvasBox.height - 160);
 await page.waitForTimeout(400);
 const closed = await menu.count() === 0;
-check('the section menu has an icon per level and closes on a canvas click', icons.length === 3 && icons.every(Boolean) && closed);
+check('the section menu lists Section, Sub-section, Sub-sub-section with icons, and closes on a canvas click', icons.length === 3 && icons.every(Boolean) && labels.join(',') === 'Section,Sub-section,Sub-sub-section' && closed, labels.join(','));
 await page.mouse.move(canvasBox.x + canvasBox.width * 0.7, gapNow, { steps: 5 });
 await rail.getByRole('button', { name: 'Insert a section here' }).click();
-await menu.getByRole('menuitem', { name: /^Add section/ }).click();
+await menu.getByRole('menuitem', { name: 'Section', exact: true }).click();
 await page.waitForTimeout(600);
 check('after adding a section no dotted line lingers', await page.locator('[data-gap-rail]').count() === 0 && (await board()).blocks.some(block => block.type === 'heading'));
 await page.keyboard.press('Control+z');

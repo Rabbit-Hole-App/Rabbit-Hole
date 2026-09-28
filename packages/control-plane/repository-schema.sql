@@ -58,3 +58,22 @@ CREATE TABLE IF NOT EXISTS learn_grades (
 );
 CREATE INDEX IF NOT EXISTS idx_learn_grades_learner ON learn_grades(org, email, app, created_at);
 CREATE INDEX IF NOT EXISTS idx_learn_grades_created ON learn_grades(created_at);
+-- Learn canvas boards saved on the server so they can be shared
+-- (docs/features/canvas-sharing.md). One row per owner board; share links are
+-- random tokens stored here, so turning sharing off revokes them.
+CREATE TABLE IF NOT EXISTS learn_boards (
+  id TEXT PRIMARY KEY,
+  org TEXT NOT NULL,
+  owner_email TEXT NOT NULL,
+  app TEXT NOT NULL,
+  board TEXT NOT NULL,
+  state_json TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  updated_by TEXT,
+  updated_at TEXT NOT NULL,
+  shared INTEGER NOT NULL DEFAULT 0,
+  view_token TEXT UNIQUE,
+  edit_token TEXT UNIQUE,
+  public_view INTEGER NOT NULL DEFAULT 0,
+  UNIQUE (org, owner_email, app, board)
+);

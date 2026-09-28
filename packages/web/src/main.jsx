@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Minimize2 } from 'lucide-react';
 import './index.css';
@@ -51,7 +51,17 @@ function ChatPage() {
   );
 }
 
+// /b/<token>: a shared Learn board, open to anyone the link allows.
+const SharedBoardPage = lazy(() => import('./SharedBoardPage.jsx'));
+const SHARED_BOARD = /^\/b\/([A-Za-z0-9_-]{20,64})$/;
+
 function Root() {
+  const sharedBoard = window.location.pathname.match(SHARED_BOARD);
+  if (sharedBoard) return <Suspense fallback={null}><SharedBoardPage token={sharedBoard[1]} /><Toasts /></Suspense>;
+  return <AppRoot />;
+}
+
+function AppRoot() {
   // PrivateAuthGate consumes Cognito callbacks before normalizing app routes.
   // /dash aliases /apps (see the control-plane cache note). No router dep.
   if (!/^\/(apps(\/[a-z0-9-]+(\/runs\/[\w-]+)?)?|dash|members|chat)$/.test(window.location.pathname)) {
