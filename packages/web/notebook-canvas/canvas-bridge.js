@@ -70,6 +70,40 @@
   };
   const isNotebook = widget => !!widget?.content?.model?.cells && !!widget.sessionContext;
 
+  // The whole workspace as { path: entry }, for a shared board's copy: text
+  // files as text, binary files as base64, notebooks as JSON, folders empty.
+  const WORKSPACE_LIMIT = 10 * 1024 * 1024;
+  const snapshot = async () => {
+    const files = {};
+    let size = 0;
+    const walk = async path => {
+      for (const item of (await app.serviceManager.contents.get(path, { content: true })).content) {
+        if (item.type === 'directory') { files[item.path] = { type: 'directory' }; await walk(item.path); continue; }
+        const full = await app.serviceManager.contents.get(item.path, { content: true });
+        const entry = { type: full.type, format: full.format, content: full.content };
+        size += JSON.stringify(entry).length;
+        if (size > WORKSPACE_LIMIT) throw new Error('too-large');
+        files[item.path] = entry;
+      }
+    };
+    await walk('');
+    return files;
+  };
+  // Write a snapshot into this workspace. `fresh`: replace what is here (a
+  // shared board opens as its latest copy); otherwise fill an empty one only.
+  const restore = async (files, fresh) => {
+    const { contents } = app.serviceManager;
+    const here = (await contents.get('', { content: true })).content;
+    if (!fresh && here.length) return;
+    for (const item of here) await contents.delete(item.path);
+    const entries = Object.entries(files || {}).filter(([path]) => safePath(path)).sort(([a], [b]) => a.split('/').length - b.split('/').length);
+    for (const [path, entry] of entries) {
+      await makeDirs(path);
+      if (entry.type === 'directory') { if (!(await exists(path))) await contents.save(path, { type: 'directory' }); continue; }
+      await contents.save(path, { type: entry.type, format: entry.format, content: entry.content });
+    }
+  };
+
   const report = debounce(async () => {
     const widget = app.shell.currentWidget;
     post({ type: 'state', active_path: widget?.context?.path ?? null, active_kind: isNotebook(widget) ? 'notebook' : widget?.context ? 'file' : null, files: await tree() });
@@ -133,6 +167,7 @@
       const { contents } = app.serviceManager;
       // A new, copied or cleared workspace is seeded from the card: its files,
       // then the saved copy of its active notebook.
+      if (event.data.workspace) await restore(event.data.workspace, !!event.data.fresh);
       if (!(await contents.get('', { content: true })).content.length) {
         for (const [path, content] of Object.entries(event.data.seed_files || {})) {
           if (!safePath(path)) continue;
@@ -161,6 +196,10 @@
     if (!app) return;
     const widget = app.shell.currentWidget;
     if (type === 'files') drawer(!!event.data.open);
+    if (type === 'export') {
+      try { post({ type: 'workspace', files: await snapshot() }); }
+      catch (error) { post({ type: 'workspace', error: error.message === 'too-large' ? 'too-large' : 'failed' }); }
+    }
     if (type === 'run-all' && isNotebook(widget)) app.commands.execute('notebook:run-all-cells');
     if (type === 'restart' && isNotebook(widget)) widget.sessionContext.restartKernel();
   });

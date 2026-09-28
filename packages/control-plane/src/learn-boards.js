@@ -49,7 +49,8 @@ async function getAsset(env, row, key) {
       'X-Content-Type-Options': 'nosniff',
       'Content-Security-Policy': "sandbox; default-src 'none'",
       'Content-Disposition': 'attachment',
-      'Cache-Control': 'private, max-age=3600',
+      // A notebook's workspace copy changes under the same key: always revalidate.
+      'Cache-Control': 'private, no-cache',
     },
   });
 }

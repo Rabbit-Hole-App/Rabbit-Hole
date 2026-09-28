@@ -29,3 +29,16 @@ export function assetKeysOf(state) {
   }
   return [...keys];
 }
+
+// Notebook workspaces (a notebook card's files) follow a shared board the same
+// way, as one snapshot per card. The page sets where snapshots come from and
+// go: load(id) and save(id, files); `fresh` replaces what a browser has (a
+// shared link always opens the latest); workspaceId keeps a shared copy apart
+// from any workspace of the same card this browser already holds.
+let workspaces = null;
+export const setWorkspaceStore = store => { workspaces = store; };
+export const workspaceStore = () => workspaces;
+export const workspaceIdFor = notebookId => workspaces?.workspaceId?.(notebookId) || notebookId;
+// Sharing switched on: every loaded notebook card sends its workspace now.
+export const EXPORT_WORKSPACES = 'rh-export-workspaces';
+export const requestWorkspaceExports = () => window.dispatchEvent(new Event(EXPORT_WORKSPACES));

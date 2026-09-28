@@ -7,7 +7,7 @@ import { requestBoardExplanation } from './learn-board-request.js';
 import { AskPanel } from './ask.jsx';
 import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
-import { assetKeysOf, setRemoteAssets } from './learn-board-assets.js';
+import { assetKeysOf, requestWorkspaceExports, setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { captureSelection, selectionSnapshot } from './sigmoid-context.js';
 import RegionPicker from './RegionPicker.jsx';
 import { CourseInterview, CoursePanel, useLearnCourse } from './LearnCourse.jsx';
@@ -439,7 +439,17 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // this browser has none, and while shared, any file not yet uploaded goes up.
   useEffect(() => {
     setRemoteAssets(key => fetch(`${boardPath}/assets/${encodeURIComponent(key)}`, { headers: wsHeaders() }));
-    return () => setRemoteAssets(null);
+    // Notebook workspaces: saved while shared; loaded only into an empty
+    // workspace (this owner on another browser), never over local files.
+    const workspaceUrl = id => `${boardPath}/assets/${encodeURIComponent(`notebook:${id}`)}`;
+    setWorkspaceStore({
+      load: id => fetch(workspaceUrl(id), { headers: wsHeaders() }).then(response => (response.ok ? response.json() : null)).catch(() => null),
+      save: (id, files) => (sharingRef.current?.shared
+        ? fetch(workspaceUrl(id), { method: 'PUT', body: JSON.stringify(files), headers: { 'Content-Type': 'text/x-cached-string', 'X-Asset-Kind': 'string', ...wsHeaders() } }).catch(() => null)
+        : null),
+      fresh: false,
+    });
+    return () => { setRemoteAssets(null); setWorkspaceStore(null); };
   }, [boardPath]);
   const uploadedAssets = useRef(null);
   useEffect(() => { uploadedAssets.current = null; }, [boardPath]);
@@ -509,6 +519,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         boardVersion.current = saved.version;
         try { localStorage.setItem(versionKey, String(saved.version)); } catch { /* the next open re-checks */ }
         await syncAssets(true);
+        requestWorkspaceExports();
       }
     } catch (error) { setShareError(error.message); }
     finally { setShareBusy(false); }

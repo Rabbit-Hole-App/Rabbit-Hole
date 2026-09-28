@@ -21,9 +21,16 @@ A learner shares a canvas board by link. Dev only, like the rest of Learn.
 - Saves are last-writer-safe, not live: a save based on an older version is
   refused (the editor sees "Someone else saved this board since you opened it"
   with Reload; the owner gets a notice). There is no live co-editing yet.
-- Not shared yet: uploaded images and PDFs (cached in the owner's browser) and
-  notebook workspace files other than the open notebook's saved copy. They
-  show as "not in this browser" to others until assets move to R2.
+- Board files travel too. While shared, every file the board's cards use
+  (dropped images, GIFs and clips, PDFs, generated illustrations) is uploaded
+  to R2; a card reads this browser's cache first, then the board's copy. Over
+  25 MB, a file stays in the owner's browser, with a notice.
+- Each notebook card's whole workspace travels as one snapshot (text, base64
+  for binary, notebooks as JSON; up to 10 MB), uploaded a few seconds after
+  its files change. A shared link opens it fresh, in a workspace of its own
+  (`<notebook_id>-shared`), so imports and `open()` work for recipients; an
+  edit link saves file changes back. The owner's own board only fills an
+  empty workspace from it (another browser), never overwrites local files.
 - Later: sharing with members, emails or groups from the Members tab.
 
 ## Storage
@@ -34,6 +41,9 @@ the board JSON (cards, chat cards, shapes, notes, links, ink), a version, who
 saved last, and the share settings (`shared`, `view_token`, `edit_token`,
 `public_view`). Tokens are 24 random bytes. A board over 1.9 MB is refused
 with a message rather than truncated.
+Files are R2 objects in `small-runs` at `learn-boards/<row id>/<sha256 of the
+asset key>`, readable only through the owner's routes or a live link; they
+are served as downloads with `nosniff` and a sandbox CSP, never as pages.
 
 ## API (dev worker)
 
@@ -43,6 +53,8 @@ with a message rather than truncated.
 | `POST /api/learn/boards/:app/:board/share` | same | set `shared`, `view`, `edit`, `public_view` |
 | `GET /api/learn/boards/shared/:token` | signed in, or anyone for a public view link | open a shared board |
 | `PUT /api/learn/boards/shared/:token` | signed in, edit link only | save through the edit link |
+| `GET/PUT /api/learn/boards/:app/:board/assets/:key`, `GET .../assets` | owner | board files, list |
+| `GET/PUT /api/learn/boards/shared/:token/assets/:key` | as the link (PUT: edit link) | board files through a link |
 
 `/b/<token>` is served to anyone; the page asks the API what the visitor may
 see and sends signed-out visitors of a non-public link to sign in.
@@ -51,4 +63,5 @@ see and sends signed-out visitors of a non-public link to sign in.
 
 `packages/control-plane/test/learn-boards.test.js` (routes on node:sqlite) and
 `packages/web/e2e/canvas-sharing.mjs` on the deployed clone (owner, a second
-signed-in person, and a signed-out visitor).
+signed-in person, and a signed-out visitor). Files: `canvas-sharing-files.mjs`; notebook
+workspaces: `canvas-sharing-notebook.mjs`.

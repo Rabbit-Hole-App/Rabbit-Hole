@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Download, FolderTree, MoreHorizontal, Play, RotateCcw } from 'lucide-react';
 import { NOTEBOOK_ORIGIN, NOTEBOOK_PROTOCOL, activePath, ipynbPath, notebookUrl, trimOutputs } from './learn-notebook.js';
+import { EXPORT_WORKSPACES, workspaceIdFor, workspaceStore } from './learn-board-assets.js';
+import { toast } from './ui.jsx';
 
 // The body of a notebook card (docs/features/canvas-notebook.md): Rabbit Hole's
 // header, then the card's Jupyter workspace in an iframe on the isolated
@@ -17,6 +19,26 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest }
   const initial = useRef({ ipynb: block.ipynb, ipynb_path: ipynbPath(block), active_path: activePath(block), seed_files: block.seed_files || null });
   const latest = useRef({ onDocument, onManifest });
   latest.current = { onDocument, onManifest };
+  // A shared board keeps a copy of this card's workspace: a few seconds after
+  // files change, the card asks the notebook for them and hands them on.
+  const exportTimer = useRef(null);
+  const scheduleExport = () => {
+    if (!ready.current || !workspaceStore()?.save) return;
+    clearTimeout(exportTimer.current);
+    exportTimer.current = setTimeout(() => send('export'), 3000);
+  };
+  const exportNow = useRef(() => {});
+  exportNow.current = () => { if (ready.current && workspaceStore()?.save) send('export'); };
+  useEffect(() => {
+    const onRequest = () => exportNow.current();
+    window.addEventListener(EXPORT_WORKSPACES, onRequest);
+    return () => { window.removeEventListener(EXPORT_WORKSPACES, onRequest); clearTimeout(exportTimer.current); };
+  }, []);
+  const open = async () => {
+    const store = workspaceStore();
+    const workspace = store?.load ? await store.load(block.notebook_id).catch(() => null) : null;
+    send('init', { ...initial.current, workspace, fresh: !!store?.fresh && !!workspace });
+  };
 
   useEffect(() => {
     const receive = event => {
@@ -29,6 +51,11 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest }
         // keeps its keys until the learner clicks into the notebook.
         if (document.activeElement === frame.current) frame.current.blur();
       }
+      if (type === 'workspace') {
+        if (event.data.files) workspaceStore()?.save?.(block.notebook_id, event.data.files);
+        else if (event.data.error === 'too-large') toast("This notebook's files are over 10 MB, so they stay in your browser and others see only the open notebook.");
+      }
+      if (type === 'state' || type === 'change') scheduleExport();
       if (type === 'state' && typeof event.data.active_path === 'string') {
         setKind(event.data.active_kind);
         latest.current.onManifest({ active_path: event.data.active_path, files: (event.data.files || []).filter(path => typeof path === 'string') });
@@ -74,9 +101,9 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest }
         )}
       </div>
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-line">
-        <iframe ref={frame} data-notebook-frame title="Jupyter notebook" src={notebookUrl(block.notebook_id)} className="h-full w-full bg-white"
+        <iframe ref={frame} data-notebook-frame title="Jupyter notebook" src={notebookUrl(workspaceIdFor(block.notebook_id))} className="h-full w-full bg-white"
           sandbox="allow-scripts allow-same-origin allow-downloads" allow="clipboard-write"
-          onLoad={() => send('init', initial.current)} />
+          onLoad={open} />
         {!loaded && <p className="pointer-events-none absolute inset-0 grid place-items-center bg-white text-sm text-ink-2">Starting Python…</p>}
       </div>
     </>

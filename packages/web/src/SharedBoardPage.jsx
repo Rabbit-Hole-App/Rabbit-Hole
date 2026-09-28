@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { Eye, Pencil, RotateCcw } from 'lucide-react';
-import { setRemoteAssets } from './learn-board-assets.js';
+import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 
@@ -18,9 +18,21 @@ export default function SharedBoardPage({ token }) {
 
   // The board's files come through the same link.
   useEffect(() => {
-    setRemoteAssets(key => fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}/assets/${encodeURIComponent(key)}`));
-    return () => setRemoteAssets(null);
+    const fileUrl = key => `/api/learn/boards/shared/${encodeURIComponent(token)}/assets/${encodeURIComponent(key)}`;
+    setRemoteAssets(key => fetch(fileUrl(key)));
+    // Notebook workspaces open as the board's latest copy, in a workspace of
+    // their own; an edit link saves file changes back.
+    setWorkspaceStore({
+      load: id => fetch(fileUrl(`notebook:${id}`)).then(response => (response.ok ? response.json() : null)).catch(() => null),
+      save: (id, files) => (roleRef.current === 'edit'
+        ? fetch(fileUrl(`notebook:${id}`), { method: 'PUT', body: JSON.stringify(files), headers: { 'Content-Type': 'text/x-cached-string', 'X-Asset-Kind': 'string' } }).catch(() => null)
+        : null),
+      fresh: true,
+      workspaceId: id => `${id}-shared`,
+    });
+    return () => { setRemoteAssets(null); setWorkspaceStore(null); };
   }, [token]);
+  const roleRef = useRef(null);
 
   useEffect(() => {
     fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}`, { headers: { 'Content-Type': 'application/json' } })
@@ -32,6 +44,7 @@ export default function SharedBoardPage({ token }) {
         const { exchanges: chats = [], ...board } = data.state || {};
         canvasState.current = board;
         setExchanges(chats);
+        roleRef.current = data.role;
         setShared(data);
       })
       .catch(() => setProblem('This board could not be opened. Check your connection and try again.'));
