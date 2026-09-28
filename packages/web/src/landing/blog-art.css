@@ -1,0 +1,48 @@
+.blog-page{background:#f3dce8;color:#482953;isolation:isolate}
+.blog-atmosphere{position:fixed;inset:0;z-index:-1;background:#f3dce8;pointer-events:none}
+.content-page.blog-page #below{padding:146px 36px 0}
+.blog-page #below #blog{max-width:1440px;margin:0 auto 96px}
+.blog-intro{padding:0 28px 34px}
+.content-page.blog-page #below h1{font:500 12px/1.4 var(--ui);letter-spacing:.02em;margin-bottom:27px}
+.blog-title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:48px}
+.blog-page #below .blog-title-row h2{font:500 clamp(76px,9.8vw,140px)/.91 var(--display);letter-spacing:-.065em;margin:0}
+.blog-page #below .blog-title-row .lede{max-width:320px;padding-bottom:8px;font-size:18px;line-height:1.5;color:#482953}
+.blog-journey{position:relative;height:168svh}
+.blog-art{position:sticky;top:88px;height:clamp(440px,73svh,760px);width:100%;margin:0}
+#blog-paper{display:block;width:100%;height:100%;image-rendering:pixelated}
+.blog-art figcaption{position:absolute;left:28px;right:28px;bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:16px;font:400 11px/1.5 var(--ui);pointer-events:none}
+.blog-scroll-cue{display:flex;align-items:center;gap:16px}
+.blog-scroll-cue>span{font-size:18px;line-height:1}
+.blog-articles{max-width:1080px;margin:0 auto;padding-top:16px}
+.blog-page .rows{border-color:#48295340}
+.blog-page .row{border-color:#48295340}
+.blog-page .row .meta,.blog-page .row .arrow{color:#60426c}
+.blog-page footer{color:#60426c;border-color:#48295340}
+.blog-page footer .brand{color:#482953}
+@media(max-width:900px){
+  .content-page.blog-page #below{padding:135px 28px 0}
+  .blog-intro{padding:0 8px 28px}
+  .blog-page #below .blog-title-row h2{font-size:96px}
+  .blog-title-row{gap:28px}
+  .blog-page #below .blog-title-row .lede{font-size:16px;max-width:280px}
+  .blog-art figcaption{left:8px;right:8px}
+}
+@media(max-width:600px){
+  .content-page.blog-page #below{padding:125px 18px 0}
+  .blog-page #below #blog{margin-bottom:64px}
+  .blog-intro{padding:0 2px 20px}
+  .content-page.blog-page #below h1{margin-bottom:22px;font-size:11px}
+  .blog-title-row{display:block}
+  .blog-page #below .blog-title-row h2{font-size:clamp(48px,16vw,76px)}
+  .blog-page #below .blog-title-row .lede{margin-top:24px;padding:0;max-width:310px}
+  .blog-journey{height:148svh}
+  .blog-art{height:clamp(420px,68svh,640px)}
+  .blog-art figcaption{left:2px;right:2px;font-size:10px;gap:12px}
+  .blog-scroll-cue{gap:8px}
+  .blog-articles{padding-top:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  .blog-journey{height:auto}
+  .blog-art{position:relative;top:auto}
+  .blog-scroll-cue{display:none}
+}

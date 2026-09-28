@@ -9,12 +9,145 @@ The hero, navigation and footer are preserved. Blog, Features and
 Pricing retain their content and shared styles on `/blog`, `/features`, `/pricing`.
 These are independent public HTML entries with direct navigation and reload.
 
-The user also requested the exact pink cloud from [TypeSafe](https://typesafe.ai/).
-The original GIF is served locally as `public/landing/typesafe-pink-cloud.gif`,
-unmodified, in a full-width band after the hero. Its source
-URL, dimensions, frame count and SHA-256 are in `typesafe-cloud-source.json`.
-A pause button and reduced-motion preference show an unchanged decoded PNG
-(frame 60). The blank first GIF frame is not used as a still.
+The pink cloud uses the original [TypeSafe](https://typesafe.ai/) artwork and
+motion, with its white opening/closing holds and transition frames trimmed from
+the timeline. `public/landing/typesafe-pink-cloud-loop.gif` loops the original
+visible forward/back section (source frames 13–96) at its original timing. Its
+first and last frames match, every exported frame matches the original artwork
+pixel for pixel on the page's white background, and the loop lasts 6.72 seconds.
+The original GIF remains unmodified. Reproduction and verification are in
+`trim-cloud-loop.py` and `cloud-loop-verification.json`.
+
+The generated center fill, permanent still base, CSS drift and blending were
+rejected and removed. During normal playback only the trimmed original GIF is
+visible. Reduced motion shows the original decoded frame 60. Playback controls
+were removed at the user's request; the animation runs automatically.
+
+An original blue mountain illustration is placed below the cloud for review:
+`public/landing/blue-mountains-v1.png`. Its Japanese-animation palette and painted
+mountain treatment were guided by [Multica](https://multica.ai/). The reference
+image itself is not served. The mountain was produced with built-in image
+generation; prompts are in `landing-art-prompts.md`. This pass adds artwork to
+the existing page; copy and a broader layout redesign remain deferred.
+
+The mountaintop observatory at `#observatory` is appended beneath the mountain
+image. Its opaque painted scene stays fixed while a separate transparent mist
+layer drifts across the foreground and five small star highlights shimmer.
+The mist never fades away. Reduced-motion preference, offscreen visibility and
+tab visibility control this scene's automatic motion; there is no playback button.
+The existing hero, cloud, mountain and shared page styles are unchanged.
+Artwork was produced with built-in image generation; prompts and file hashes
+are in `observatory-prompts.md` and `observatory-assets.json`.
+
+## FAQ and inward-flowing footer
+
+The closing section is appended after the observatory. The FAQ uses a warm paper
+background, left-aligned introduction and a separate column of rounded question
+cards. The approved small tunnel symbol keeps its original geometry below the
+introduction and remains visible beside the heading on mobile. This composition
+replaces the earlier dark centered FAQ inspired by TypeSafe. Existing hero,
+cloud, mountain, observatory, navigation, and separate content pages stay intact.
+
+`#faq` is titled **Before you dive in.** Six native disclosures contain draft
+adaptive-learning copy for later editorial review. The first answer starts open.
+The landing module enhances mouse/touch toggles with interruptible 200 ms height
+transitions; keyboard/reduced-motion toggles are immediate. Only one answer is
+expanded at a time. Without JavaScript the native disclosure group still works.
+
+The large stationary wordmark and original tagline overlay a generated 3D
+wireframe funnel: sixteen travelling rings, twelve fixed connecting ribs, and
+perspective projection. Each ring moves from the wide mouth toward the narrow
+end over eight seconds; rings recycle gradually at the ends while a fixed mouth
+outline stays visible. The tunnel also revolves slowly over 76 seconds, following
+the user's last instruction to keep revolution and add depth. There is no whole
+scene reset or blank interval. Canvas renders the vector geometry without
+external animation embeds, images, model calls, or additional dependencies.
+Depth shading keeps the lettering readable. Reduced motion freezes the
+current shape; offscreen or hidden tabs suspend rendering. The footer retains
+the copyright and adds links to the existing public pages, app entry and top.
+Its motion is automatic with no play/pause control.
+
+Implementation is scoped to `src/landing/footer.{js,css}` and the existing
+landing HTML. FAQ disclosure/animation behavior uses the documented native
+[details element](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/details)
+and [Web Animations API](https://developer.mozilla.org/en-US/docs/Web/API/Element/animate).
+
+## Features artwork
+
+`/features` uses abstract stairs rendered as geometry, with wireframe edges and
+dithered pixel surfaces. Scrolling moves the camera down through turning flights
+around an open shaft and deepens pale green toward jade. Scrolling back retraces
+the descent. Steps build ahead of the camera, extending from the preceding edge
+as scroll advances and retracting on reversal. The stair viewport stays in view
+on both desktop and mobile. Reduced motion shows complete stairs, fixes the
+composition at 32% progress and removes the extended
+scroll stage. There are no playback controls. Existing feature cards and
+navigation remain.
+
+Implementation: `src/landing/features-art.{js,css}` and the existing Features
+HTML. The native Canvas 2D renderer uses no bitmap illustration or route overlay;
+the prior generated labyrinth was rejected and archived outside public assets.
+Rendering and archival details are in `features-art-direction.md`. Blog, Pricing
+and the landing page remain unchanged by this correction.
+
+## Blog artwork
+
+`/blog` uses the selected “Falling through an endless archive” direction.
+Loose papers drift downward along a winding path on a constant pink background.
+More sheets appear as you scroll; large sheets cross the foreground while
+smaller sheets remain distant. Reverse scroll retraces the same flight on
+desktop and mobile. Fine plum outlines, soft curling and pixelated stipple
+retain the paper style.
+
+The existing article list, introduction and navigation remain; the headline is
+“Ideas, unfolded.” Reduced motion holds the 55% archive composition and removes
+the extended stage. No playback controls. This direction supersedes the rejected
+paper tunnel. The landing page, Features and Pricing are unchanged.
+Implementation: `src/landing/blog-art.{js,css}`. Details and palette are in
+`blog-art-direction.md`. No generated image or dependency.
+
+## Pricing artwork
+
+The user rejected the key and butter-yellow palette on 2026-09-28. `/pricing`
+is restored to the neutral white page with black text and the original plan
+layout. The key canvas, animation import and dedicated artwork module/styles
+are removed. The researched Free / Plus $19 / Pro $39 packages now replace the
+old placeholder copy, with resources, services and benefits for each. Planned
+credit allowances and a future Teams offer are explained below the cards. Paid
+subscriptions are not implemented; card links open the existing `/apps` flow.
+The introductory early-access notice was removed at the user's request;
+the allowance explanation below the cards remains.
+Shared navigation remains.
+The desk drawings were rejected. Pricing now uses a new Japanese manga-style
+blue valley and lake, taking the landing mountain image as a style/palette
+reference. The scene fills the image behind the live cards, with no text or
+diagrams baked in. Actual plan information and controls remain HTML. Blog stays
+as-is, per the user's clarification.
+The requested follow-up removes white brush/fog borders, CSS masks, mobile
+dimming and the white backdrop behind Pricing. The full-color scene starts at
+the page top behind navigation. A subsequent request restores only a gradual
+bottom fade, adds drifting sky clouds and three distant birds, and matches the
+Features title sizes. Mountains remain still. Motion pauses for reduced motion,
+hidden tabs and when offscreen. Blog artwork remains unchanged.
+The user rejected the pixel-art trial. The original painterly landscape, cloud
+layer and mountain foreground are restored with smooth image rendering.
+Typography, cloud/bird motion and the bottom fade remain unchanged.
+Cards gain a soft iridescent highlight on hover or keyboard focus without moving
+their content. Touch hover is disabled; reduced-motion feedback is immediate.
+The current edit prompt is in `pricing-manga-clean-prompt.md`, based on
+`pricing-manga-prompt.md`; earlier prompts remain in
+`pricing-canvas-prompt.md`, `pricing-whiteboard-prompt.md` and `pricing-desk-prompt.md`.
+Asset metadata is in `pricing-canvas-assets.json`.
+Animation-layer prompts are in `pricing-motion-prompts.md` and the renderer is
+`src/landing/pricing-art.{js,css}`. The full landscape is retained as a fallback.
+Rejected pixel-art trial prompts are retained in `pricing-pixel-prompts.md`.
+Credit rules use three unboxed rows with clear charging labels. The upcoming
+Teams offer has its own restrained panel with price, minimum and benefits.
+Blog, Features and Pricing share a simple static footer through
+`src/landing/content-footer.js` and `.css`. The landing footer and its wireframe
+animation remain exclusive to the landing page and are unchanged.
+The rejected source is retained in `tmp/pricing-neutral/rejected-key.*`.
+Landing, Features and Blog artwork are unchanged by this removal.
 
 ## Earlier design notes
 

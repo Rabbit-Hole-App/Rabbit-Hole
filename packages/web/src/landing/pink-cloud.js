@@ -1,15 +1,12 @@
 import './pink-cloud.css';
 
-// Reuse the exact GIF and an unchanged decoded frame for pause/reduced motion.
-// drawImage(animatedGif) returns the first (blank) frame in Chrome.
+// The loop contains only the original GIF's visible forward/back animation.
+// The unchanged source still is shown only in reduced motion.
 const image=document.getElementById('cloud-motion'),still=document.getElementById('cloud-still');
-const button=document.getElementById('cloud-pause'),media=matchMedia('(prefers-reduced-motion: reduce)');
-let paused=media.matches;
+const media=matchMedia('(prefers-reduced-motion: reduce)');
 function sync(){
-  image.hidden=paused;still.hidden=!paused;
-  button.textContent=paused?'Play clouds':'Pause clouds';button.setAttribute('aria-label',button.textContent);
+  image.hidden=media.matches;still.hidden=!media.matches;
 }
 image.addEventListener('load',sync);
-button.addEventListener('click',()=>{paused=!paused;sync();});
-media.addEventListener('change',()=>{paused=media.matches;sync();});
+media.addEventListener('change',sync);
 sync();

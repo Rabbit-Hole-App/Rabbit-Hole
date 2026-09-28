@@ -35,18 +35,93 @@
 
 <div id="below">
   <div id="pink-cloud" aria-label="Pink dithered clouds">
-    <img id="cloud-motion" src="/landing/typesafe-pink-cloud.gif" width="1440" height="540" alt="Pink halftone clouds opening onto a pale blue sky" loading="lazy" decoding="async">
+    <img id="cloud-motion" src="/landing/typesafe-pink-cloud-loop.gif" width="1440" height="540" alt="Pink halftone clouds opening onto a pale blue sky" loading="lazy" decoding="async">
     <img id="cloud-still" src="/landing/typesafe-pink-cloud-still.png" width="1440" height="540" alt="Pink halftone clouds opening onto a pale blue sky" loading="lazy" decoding="async" hidden>
-    <button id="cloud-pause" type="button" aria-label="Pause clouds">Pause clouds</button>
   </div>
+
+  <figure id="blue-mountains">
+    <img src="/landing/blue-mountains-v1.png" width="1672" height="941" alt="Blue mountain peaks with pink-lit snow and clouds, illustrated in a Japanese manga background style" loading="lazy" decoding="async">
+  </figure>
+
+  <figure id="observatory" data-playing="false">
+    <img class="observatory-scene" src="/landing/observatory-v1.png" width="1672" height="941" alt="A moonlit observatory on a blue mountain summit, with a pink moon above distant peaks and a winding path to its warm doorway" loading="lazy" decoding="async">
+    <div class="observatory-stars" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i>
+    </div>
+    <img class="observatory-mist" src="/landing/observatory-mist-v1.png" width="1672" height="941" alt="" aria-hidden="true" loading="lazy" decoding="async">
+  </figure>
 
 </div>
 
-<footer>
-  <span class="brand">Rabbit Hole</span>
-  <span>Knowledge is infinite.</span>
-  <span>© 2026</span>
-</footer>
+<div id="landing-outro">
+  <section id="faq" aria-labelledby="faq-title">
+    <div class="faq-layout">
+      <div class="faq-intro">
+        <div class="faq-heading">
+          <p class="outro-eyebrow">A little orientation</p>
+          <h2 id="faq-title">Before you dive in.</h2>
+        </div>
+        <div class="faq-aside" aria-hidden="true">
+          <svg class="faq-aperture" viewBox="0 0 240 240" fill="none">
+            <g stroke="currentColor" transform="rotate(-28 120 120)">
+              <ellipse cx="134" cy="112" rx="88" ry="68"/>
+              <ellipse cx="127" cy="117" rx="73" ry="56"/>
+              <ellipse cx="120" cy="122" rx="58" ry="44"/>
+              <ellipse cx="113" cy="127" rx="44" ry="33"/>
+              <ellipse cx="106" cy="132" rx="30" ry="22"/>
+              <ellipse cx="99" cy="137" rx="17" ry="12"/>
+            </g>
+          </svg>
+          <p>Stay curious.</p>
+        </div>
+      </div>
+      <!-- Draft copy for design review; final product wording comes later. -->
+      <div class="faq-list">
+        <details name="rabbit-hole-faq" open>
+          <summary aria-controls="faq-answer-1"><span class="faq-number" aria-hidden="true">01</span><span>What is Rabbit Hole?</span><i class="faq-arrow" aria-hidden="true"></i></summary>
+          <div class="faq-answer" id="faq-answer-1"><p>Rabbit Hole is an adaptive learning platform for following questions, understanding ideas, and going deeper at your own pace.</p></div>
+        </details>
+        <details name="rabbit-hole-faq">
+          <summary aria-controls="faq-answer-2"><span class="faq-number" aria-hidden="true">02</span><span>What does adaptive learning mean?</span><i class="faq-arrow" aria-hidden="true"></i></summary>
+          <div class="faq-answer" id="faq-answer-2"><p>It means the path responds to the learner. Start with what you already understand, spend time on what is unclear, and choose the next step around your goals.</p></div>
+        </details>
+        <details name="rabbit-hole-faq">
+          <summary aria-controls="faq-answer-3"><span class="faq-number" aria-hidden="true">03</span><span>Do I need to know where to start?</span><i class="faq-arrow" aria-hidden="true"></i></summary>
+          <div class="faq-answer" id="faq-answer-3"><p>A question is enough. Pick something you want to understand and begin there. You do not need to map the entire subject before taking the first step.</p></div>
+        </details>
+        <details name="rabbit-hole-faq">
+          <summary aria-controls="faq-answer-4"><span class="faq-number" aria-hidden="true">04</span><span>How deep can I go?</span><i class="faq-arrow" aria-hidden="true"></i></summary>
+          <div class="faq-answer" id="faq-answer-4"><p>Follow the idea as far as it is useful to you. Get an overview, explore an example, or unpack the details behind a concept. The depth follows your curiosity.</p></div>
+        </details>
+        <details name="rabbit-hole-faq">
+          <summary aria-controls="faq-answer-5"><span class="faq-number" aria-hidden="true">05</span><span>How is it different from a chatbot?</span><i class="faq-arrow" aria-hidden="true"></i></summary>
+          <div class="faq-answer" id="faq-answer-5"><p>The focus is the learning journey: connecting questions, explanations, and practice into understanding you can build on. An answer is a starting point for the next question.</p></div>
+        </details>
+        <details name="rabbit-hole-faq">
+          <summary aria-controls="faq-answer-6"><span class="faq-number" aria-hidden="true">06</span><span>Where do I begin?</span><i class="faq-arrow" aria-hidden="true"></i></summary>
+          <div class="faq-answer" id="faq-answer-6"><p>Bring something you are curious about. <a href="/apps">Get started</a>, or take a look at <a href="/features">the features</a> first.</p></div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <footer id="site-footer">
+    <div class="footer-scene" id="footer-scene" data-playing="false">
+      <div class="footer-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <canvas id="footer-tunnel" aria-hidden="true"></canvas>
+      <div class="footer-signature">
+        <p class="footer-wordmark">Rabbit Hole</p>
+        <p class="footer-tagline">Knowledge is infinite.</p>
+      </div>
+      <span class="footer-scene-label" aria-hidden="true">Keep going deeper</span>
+    </div>
+    <div class="footer-bottom">
+      <span class="footer-copyright">Rabbit Hole © 2026</span>
+      <nav aria-label="Footer"><a href="/blog">Blog</a><a href="/features">Features</a><a href="/pricing">Pricing</a><a href="/apps">Get started <span aria-hidden="true">↗</span></a></nav>
+      <a class="footer-top" href="#">Back to top <span aria-hidden="true">↑</span></a>
+    </div>
+  </footer>
+</div>
 
 
 
@@ -335,5 +410,7 @@
 </script>
 
 <script type="module" src="../src/landing/pink-cloud.js"></script>
+<script type="module" src="../src/landing/observatory.js"></script>
+<script type="module" src="../src/landing/footer.js"></script>
 </body>
 </html>

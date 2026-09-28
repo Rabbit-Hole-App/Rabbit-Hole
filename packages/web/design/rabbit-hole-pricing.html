@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./rabbit-hole.css">
 </head>
-<body class="content-page">
+<body class="content-page pricing-page">
 <header id="bar" class="on">
   <a class="brand" href="/" aria-label="Rabbit Hole home">Rabbit Hole</a>
   <a href="/blog">Blog</a>
@@ -26,39 +26,132 @@
   <a href="/pricing" aria-current="page">Pricing</a>
 </nav>
 <main id="below">
+  <div class="pricing-art" id="pricing-art" aria-hidden="true">
+    <img src="/landing/pricing-manga-v2.png" alt="" width="1774" height="887" fetchpriority="high" decoding="async">
+  </div>
   <section id="pricing">
-    <h1>Pricing</h1>
-    <p class="lede">Placeholder tiers. Numbers are invented.</p>
+    <div class="pricing-intro">
+      <h1>Pricing</h1>
+      <div class="pricing-title-row">
+        <h2>Start with<br>a question.</h2>
+        <p class="lede">Go deeper at your own pace.</p>
+      </div>
+    </div>
     <div class="tiers">
-      <div class="tier">
-        <div class="name">Free</div>
+      <article class="tier" aria-labelledby="plan-free">
+        <h2 class="name" id="plan-free">Free</h2>
+        <p class="tier-summary">Find your first rabbit hole.</p>
         <div class="price">$0</div>
-        <div class="per">forever</div>
-        <ul><li>Enough to get lost</li><li>Three threads a day</li><li>Community support</li></ul>
-        <a class="pick" href="#">Start free</a>
+        <div class="per">free to explore</div>
+        <h3 class="tier-label">Resources</h3>
+        <ul>
+          <li>1 active learning project</li>
+          <li>20 AI credits per month</li>
+          <li>100 MB of source storage</li>
+        </ul>
+        <h3 class="tier-label">Learning &amp; support</h3>
+        <ul>
+          <li>Questions about your own sources</li>
+          <li>Adaptive explanations</li>
+          <li>Saved notes and source citations</li>
+          <li>Revisit completed learning</li>
+          <li>Self-serve help guides</li>
+        </ul>
+        <a class="pick" href="/apps">Get started</a>
+      </article>
+      <article class="tier hero-tier" aria-labelledby="plan-plus">
+        <h2 class="name" id="plan-plus">Plus</h2>
+        <p class="tier-summary">Make curiosity a regular practice.</p>
+        <div class="price">$19</div>
+        <div class="per">USD per month · billed monthly</div>
+        <h3 class="tier-label">Resources</h3>
+        <ul>
+          <li>10 active learning projects</li>
+          <li>200 AI credits per month</li>
+          <li>2 GB of source storage</li>
+        </ul>
+        <h3 class="tier-label">Learning &amp; support</h3>
+        <ul>
+          <li>Everything in Free</li>
+          <li>Learn from papers and repositories</li>
+          <li>Adaptive quizzes and review</li>
+          <li>Saved learning paths and history</li>
+          <li>Export your learning materials</li>
+          <li>Email support</li>
+        </ul>
+        <a class="pick" href="/apps">Get started</a>
+      </article>
+      <article class="tier" aria-labelledby="plan-pro">
+        <h2 class="name" id="plan-pro">Pro</h2>
+        <p class="tier-summary">More room for your deepest questions.</p>
+        <div class="price">$39</div>
+        <div class="per">USD per month · billed monthly</div>
+        <h3 class="tier-label">Resources</h3>
+        <ul>
+          <li>50 active learning projects</li>
+          <li>500 AI credits per month</li>
+          <li>10 GB of source storage</li>
+        </ul>
+        <h3 class="tier-label">Learning &amp; support</h3>
+        <ul>
+          <li>Everything in Plus</li>
+          <li>Larger multi-source projects</li>
+          <li>More capacity for deep analysis</li>
+          <li>More generations running at once</li>
+          <li>Priority email support</li>
+        </ul>
+        <a class="pick" href="/apps">Get started</a>
+      </article>
+    </div>
+    <p class="pricing-note">Project, credit and storage allowances are planned for launch. Get started to explore the current early-access app.</p>
+
+    <div class="pricing-details">
+      <div class="pricing-credits" aria-labelledby="credits-heading">
+        <h2 id="credits-heading">How AI credits work</h2>
+        <p class="credits-intro">Create something new. Keep learning from what you save.</p>
+        <ul class="credit-rules">
+          <li>
+            <svg class="credit-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M7 4h13l5 5v19H7zM20 4v6h5M11 15h10M11 20h7"/><path d="m22 18 2 4 4 2-4 2-2 4-2-4-4-2 4-2z" fill="white"/></svg>
+            <div><h3>Create new material</h3><p>AI explanations, quizzes and learning paths use credits. Larger requests use more.</p></div>
+            <span class="credit-label">Uses credits</span>
+          </li>
+          <li>
+            <svg class="credit-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M16 8C12 5 7 5 3 6v20c5-1 9-1 13 2 4-3 8-3 13-2V6c-4-1-9-1-13 2v20M7 11h5M7 16h5M20 11h5M20 16h5"/></svg>
+            <div><h3>Return to what you’ve learned</h3><p>Read saved material, edit your notes and replay existing content as often as you like.</p></div>
+            <span class="credit-label credit-included">No credits</span>
+          </li>
+          <li>
+            <svg class="credit-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><rect x="3" y="7" width="26" height="20" rx="2"/><path d="m13 12 8 5-8 5zM7 3h18"/></svg>
+            <div><h3>Video &amp; other media</h3><p>Generated media will have its own allowance. You’ll see the cost before starting a larger request.</p></div>
+            <span class="credit-label">Separate allowance</span>
+          </li>
+        </ul>
+        <p class="credit-reset"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M16 8a6 6 0 1 0 .1 4M16 3v5h-5"/></svg>Your credit allowance refreshes each month.</p>
       </div>
-      <div class="tier hero-tier">
-        <div class="name">Pro</div>
-        <div class="price">$12</div>
-        <div class="per">per month</div>
-        <ul><li>Unlimited threads</li><li>Saved paths and history</li><li>Priority support</li></ul>
-        <a class="pick" href="#">Get Pro</a>
-      </div>
-      <div class="tier">
-        <div class="name">Team</div>
-        <div class="price">$40</div>
-        <div class="per">per month</div>
-        <ul><li>Everyone down the same hole</li><li>Shared threads</li><li>Admin and billing</li></ul>
-        <a class="pick" href="#">Talk to us</a>
-      </div>
+      <aside class="pricing-team" aria-labelledby="team-heading">
+        <p class="team-status"><span aria-hidden="true"></span>Coming later</p>
+        <h2 id="team-heading">For teams</h2>
+        <p class="team-intro">A shared place to follow the same questions.</p>
+        <div class="team-rate"><p class="team-price">$29</p><p>USD per learner<br>per month</p></div>
+        <p class="team-minimum">Five-learner minimum</p>
+        <p class="team-workspace">Learn together in a shared private workspace.</p>
+        <ul>
+          <li>Shared projects and a pooled AI allowance</li>
+          <li>Reusable learning and onboarding material</li>
+          <li>Member roles and permissions</li>
+          <li>Consolidated billing and team support</li>
+        </ul>
+      </aside>
     </div>
   </section>
 </main>
-<footer>
+<footer data-content-footer>
   <span class="brand">Rabbit Hole</span>
   <span>Knowledge is infinite.</span>
   <span>© 2026</span>
 </footer>
 <script type="module" src="../src/landing/navigation.js"></script>
+<script type="module" src="../src/landing/pricing-art.js"></script>
+<script type="module" src="../src/landing/content-footer.js"></script>
 </body>
 </html>
