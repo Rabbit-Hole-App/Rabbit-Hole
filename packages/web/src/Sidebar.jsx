@@ -1062,7 +1062,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             >
               <Icon size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
               {label}
-              {page === 'explore' && <span className="ml-auto text-[10px] text-ink-3">preview</span>}
+              {page === 'explore' && <span className="ml-auto text-xs text-ink-3">preview</span>}
             </button>
           ))}
         </nav>

@@ -49,7 +49,7 @@ const FILTERS = {
 // Library chips (T02 §4, preview only): a pressed chip is the current filter. Notion's
 // filter chip: 28px, 4px radius, no border; the pressed one sits on the active surface.
 const Chip = ({ on, ...props }) => (
-  <button aria-pressed={on} className={cn('h-7 rounded-sm px-2 text-[13px] transition-colors duration-100', on ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')} {...props} />
+  <button aria-pressed={on} className={cn('h-7 rounded-md px-2 text-[13px] transition-colors duration-100', on ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')} {...props} />
 );
 // The Start dialog lives once in main.jsx Root; the Library only asks for it.
 const startRabbitHole = () => window.dispatchEvent(new CustomEvent('small:start', { detail: { path: 'repository' } }));
@@ -138,7 +138,8 @@ function AppContent({ data, load }) {
   const params = new URLSearchParams(window.location.search);
   const section = params.get('s');
   const folder = params.get('f') ? (data?.folders || []).find((x) => x.name === params.get('f')) : null;
-  const title = folder ? folder.name : section === 'shared' ? 'Shared' : section === 'private' ? 'Private' : learnPreview ? 'Library' : 'Apps';
+  // The preview heading uses the scope chip's own name, so one filter never has two names (T02 §4).
+  const title = folder ? folder.name : learnPreview && SCOPES[section] ? SCOPES[section] : section === 'shared' ? 'Shared' : section === 'private' ? 'Private' : learnPreview ? 'Library' : 'Apps';
   const sectionApps = ofType(folder
     ? apps.filter((a) => a.folder_id === folder.id)
     : section ? apps.filter((a) => sectionOf(a, org, data?.email) === section) : apps, type);
@@ -232,11 +233,11 @@ function AppContent({ data, load }) {
             : (
               <ul aria-label="Archived canvases">
                 {archivedList.map((c) => (
-                  <li key={c.name} className="flex h-9 items-center gap-2 rounded-sm px-2 text-sm hover:bg-hover">
+                  <li key={c.name} className="group flex h-9 items-center gap-2 rounded-md px-2 text-sm hover:bg-hover">
                     <KindIcon kind="canvas" />
                     <span className="min-w-0 flex-1 truncate">{titleOf(c)}</span>
                     <span className="text-xs text-ink-2">archived {ago(c.archived_at)}</span>
-                    <Button size="sm" onClick={() => restore(c)}><ArchiveRestore size={14} strokeWidth={1.5} /> Restore</Button>
+                    <Button size="sm" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100" onClick={() => restore(c)}><ArchiveRestore size={14} strokeWidth={1.5} /> Restore</Button>
                   </li>
                 ))}
               </ul>
@@ -459,7 +460,7 @@ function AppContent({ data, load }) {
                       kind: (
                         <td key="kind" className={td}>
                           <span className="flex items-center gap-1.5">
-                            <Pill color={a.kind === 'job' ? 'blue' : 'grey'}>{learnPreview && a.kind === 'repository' ? 'project' : a.kind}</Pill>
+                            <Pill kind={a.kind}>{learnPreview && a.kind === 'repository' ? 'project' : a.kind}</Pill>
                             {a.schedule && (
                               <Pill
                                 className={a.schedule_paused ? 'opacity-60 line-through' : ''}
@@ -542,7 +543,7 @@ function AppContent({ data, load }) {
                                 </PillButton>
                               )
                             ) : a.kind === 'canvas' ? (
-                              <IconBtn title="More" onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setRowMenu({ name: a.name, top: r.bottom + 4, left: r.right - 176 }); }}>
+                              <IconBtn title="More" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100" onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setRowMenu({ name: a.name, top: r.bottom + 4, left: r.right - 176 }); }}>
                                 <MoreHorizontal size={16} strokeWidth={1.5} />
                               </IconBtn>
                             ) : (

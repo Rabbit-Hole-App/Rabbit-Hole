@@ -62,7 +62,8 @@ export default function StartDialog({ ctx, initial, onClose }) {
     if (name === 'open_resource') { await executeCommand('open_resource', args, ctx); onClose(); return; }
     // resolve() reads the default branch, so a private or missing repository fails here, before any card.
     const prepared = await prepareCommand('connect_repository', args, ctx);
-    // Connected meanwhile (the page's list was stale): run the executor's result, which opens the project.
+    // Defensive: resolve reads the same catalog the router used, so this is normally unreachable; a
+    // stale list is caught at Confirm, where run() re-reads /api/apps and opens the existing project.
     if (!prepared.card) { await executeCommand('connect_repository', prepared.args, ctx); onClose(); return; }
     setChoose(null);
     setCard({ prepared, createdAt: Date.now() });

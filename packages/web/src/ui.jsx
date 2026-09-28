@@ -11,7 +11,7 @@ export { cn };
 // RADIUS.control, popovers/menus RADIUS.popover, modal windows RADIUS.modal.
 export const RADIUS = { control: 'rounded-lg', popover: 'rounded-md', modal: 'rounded-2xl' };
 // Sizes: buttons/inputs/table rows 32px, small 28px, sidebar rows 28px, pills 20px.
-// Radius 4px (rounded-sm), popovers 6px (rounded-md). Shadow only on popovers.
+// Radius (index.css --radius 6px): rounded-md is 4px (rows, pills, chips), rounded-lg 6px (cards, popovers); rounded-sm is 2px. Shadow only on popovers.
 
 // Kind icon per app: Globe server, Play job, Clock scheduled job, Network project, PenLine canvas. 16px, stroke 1.5.
 export const KindIcon = ({ kind, schedule, size = 16 }) => {
@@ -112,8 +112,12 @@ export const TAG = {
   red: ['#FFE2DD', '#5D1715'],
 };
 
-export function Pill({ className, color = 'grey', children, ...props }) {
-  const [bg, text] = TAG[color] || TAG.grey;
+// A kind (server, job, repository/project, canvas) reads its --pill-<kind>-* pair from index.css,
+// so kind pills follow light and dark; other pills keep a TAG colour.
+const PILL_KIND = { server: 'server', job: 'job', repository: 'project', project: 'project', canvas: 'canvas' };
+export function Pill({ className, color = 'grey', kind, children, ...props }) {
+  const k = PILL_KIND[kind];
+  const [bg, text] = k ? [`var(--pill-${k}-bg)`, `var(--pill-${k}-fg)`] : TAG[color] || TAG.grey;
   return (
     <span
       style={{ background: bg, color: text }}

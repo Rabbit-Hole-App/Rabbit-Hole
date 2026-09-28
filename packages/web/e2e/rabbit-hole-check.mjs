@@ -119,7 +119,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await shStart(page).waitFor({ timeout: 20000 });
     }
     must(await page.title() === 'Rabbit Hole', `title is ${await page.title()}`);
-    for (const [path, name] of [['/library', 'Library'], ['/apps?s=shared', 'Shared']]) {
+    for (const [path, name] of [['/library', 'Library'], ['/apps?s=shared', 'Shared with me']]) {
       await page.goto(`${base}${path}`);
       await shH1(page, name).waitFor({ timeout: 20000 });
     }
@@ -618,6 +618,36 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await confirm.waitFor({ state: 'detached', timeout: 3000 });
     } else console.log('note: J22 confirm not exercised; this user has no AWS connection it can disconnect');
     await page.context().close();
+  });
+}
+
+{
+  // ── WP4 review (user 2026-09-28): kind pills keep today's light colours and get dark surfaces in dark mode ──
+  const rgb = (css) => (css.match(/\d+(\.\d+)?/g) || []).slice(0, 3).map(Number);
+  const lum = ([r, g, b]) => { const c = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * c(r) + 0.7152 * c(g) + 0.0722 * c(b); };
+  const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  await check('pill-dark: kind pills are unchanged in light, dark surfaces with readable text in dark, job still distinct', async () => {
+    const colours = {};
+    for (const scheme of ['light', 'dark']) {
+      const page = await open();
+      await page.emulateMedia({ colorScheme: scheme });
+      await loaded(page, '/library');
+      await page.locator('tbody tr').first().waitFor({ timeout: 30000 });
+      for (const kind of ['server', 'job']) {
+        const pill = page.locator('tbody span[style*="background"]', { hasText: new RegExp(`^${kind}$`) }).first();
+        const [bg, fg] = await pill.evaluate((el) => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color]);
+        colours[`${scheme}-${kind}`] = { bg: rgb(bg), fg: rgb(fg) };
+      }
+      await page.context().close();
+    }
+    must(colours['light-server'].bg.join() === '227,226,224', `light server pill changed: ${colours['light-server'].bg}`);
+    must(colours['light-job'].bg.join() === '211,229,239', `light job pill changed: ${colours['light-job'].bg}`);
+    for (const kind of ['server', 'job']) {
+      const { bg, fg } = colours[`dark-${kind}`];
+      must(lum(bg) < 0.12, `dark ${kind} pill is a light slab: rgb(${bg})`);
+      must(contrast(bg, fg) >= 4.5, `dark ${kind} pill text contrast ${contrast(bg, fg).toFixed(2)} < 4.5`);
+    }
+    must(colours['dark-server'].bg.join() !== colours['dark-job'].bg.join(), 'dark job and server pills look the same');
   });
 }
 

@@ -70,7 +70,7 @@ function Continue({ item }) {
         <div className="flex items-center gap-2">
           <KindIcon kind={item.kind} />
           <span className="min-w-0 truncate text-sm font-medium">{item.title}</span>
-          <Pill>{KIND[item.kind] || item.kind}</Pill>
+          <Pill kind={item.kind}>{KIND[item.kind] || item.kind}</Pill>
         </div>
         {item.lastExplored && <p className="truncate pt-2 text-sm text-ink-2">Last explored: <span className="text-ink">{item.lastExplored}</span></p>}
         {item.next && <p className="truncate pt-1 text-sm text-ink-2">Next: <span className="text-ink">{item.next}</span></p>}
@@ -90,7 +90,7 @@ function RecentRow({ app, card }) {
     <li className="group flex min-h-9 items-center gap-2 rounded-sm px-2 hover:bg-hover max-md:flex-wrap max-md:gap-y-0.5 max-md:py-1.5">
       <KindIcon kind={app.kind} schedule={app.schedule} />
       <span className="max-w-[40%] shrink-0 truncate text-sm font-medium">{titleOf(app)}</span>
-      <Pill>{KIND[app.kind] || app.kind}</Pill>
+      <Pill kind={app.kind}>{KIND[app.kind] || app.kind}</Pill>
       <span className="min-w-0 flex-1 truncate text-xs text-ink-2 max-md:order-last max-md:basis-full max-md:whitespace-normal max-md:pl-6">
         {card.meta.join(' · ')}{!action && ' · Its content is stored only in the browser that created it.'}
       </span>
@@ -122,7 +122,7 @@ function Explore() {
             return (
               <li key={d.id} className="flex h-9 items-center gap-2 rounded-sm px-2 hover:bg-hover">
                 <span className="max-w-[40%] shrink-0 truncate text-sm font-medium">{d.title}</span>
-                <Pill>{d.kind}</Pill>
+                <Pill kind={d.kind.toLowerCase()}>{d.kind}</Pill>
                 <span className="min-w-0 flex-1 truncate text-xs text-ink-2">{d.blurb}</span>
                 <Button size="sm" aria-pressed={on} onClick={() => setSaved(toggleSaved(localStorage, d.id))}>{on ? 'Saved' : 'Save'}</Button>
               </li>

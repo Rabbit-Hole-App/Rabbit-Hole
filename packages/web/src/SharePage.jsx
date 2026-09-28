@@ -735,7 +735,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
 
               {/* one compact meta line, repo-page style, in place of the old property grid */}
               <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-2">
-                <Pill color={app.kind === 'job' ? 'blue' : 'grey'}>{app.kind}</Pill>
+                <Pill kind={app.kind}>{app.kind}</Pill>
                 {isAws && <Pill>AWS</Pill>}
                 {isAws && app.aws_connection && <span>{app.aws_connection.account_id} · {app.aws_connection.region}</span>}
                 <span title={fmtTime(app.deployed_at || app.created_at)}>deployed {ago(app.deployed_at || app.created_at)}</span>
