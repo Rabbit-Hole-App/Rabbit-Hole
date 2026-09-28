@@ -1,6 +1,6 @@
 # Jev grading: a side-by-side grader for Learn challenges, benchmarked as we test
 
-Status: **Built and deployed to small-cp-dev-small-parallel on 2026-09-28; side-by-side is collecting; no switch.**
+Status: **Built and deployed to small-cp-dev-small-parallel on 2026-09-28. Parked on 2026-09-28 pending a future switch evaluation; no switch. Learner grading stays on the gateway; direct TypeSafe is the preferred transport candidate (bench only).**
 
 The same day, the spec was revised after:
 - a three-lens review;
@@ -184,6 +184,23 @@ The rule ("option B"):
   calls nothing. This matches dev-worker.js:73-77.
 - A wider boundary (option C, which includes code) will be reconsidered only
   with TypeSafe's enterprise zero-retention terms.
+- **Direct TypeSafe (checked 2026-09-28, documents only, no calls).** Compatible
+  with option B; no material change.
+  - Same fields sent: the direct arm reuses `gradeState` and `gradeQuestions`,
+    and the A/B showed identical input token counts on all 72 cases.
+  - One third party fewer: Vercel drops out. Through the gateway, TypeSafe's
+    Master Customer Agreement §7 puts platform use under the platform's own
+    agreement; direct, our TypeSafe account is the customer under the MCA itself.
+  - The TypeSafe terms are the ones this section already assumed: no training on
+    customer data without consent (MCA §4.1, Privacy Policy); Telemetry
+    (logs, hashes, statistics, classifications, learnings) processed without
+    restriction (MCA §4.3); no retention obligation and deletion at TypeSafe's
+    discretion (MCA §10.3); retention "as long as reasonably necessary" (Privacy
+    Policy, DPA); hosted in the United States; zero retention enterprise-only.
+  - Pinning `jev-1.13.0` changes no data-handling term: none of the MCA, DPA,
+    Privacy Policy or models page ties data handling to a model version.
+  - Not verified: the subprocessor list (trust.typesafe.ai/subprocessors did not
+    render without a browser). Read it before learner rows go direct.
 - **Retention.** Rows are experiment data. The dev worker has no scheduled
   handler, and scheduled triggers are unreliable on this account, so the
   enforced rule is: **rows older than 90 days are pruned on the next grade or

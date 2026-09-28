@@ -1514,3 +1514,27 @@ different cases, indicating a transport/provider tail-latency problem rather
 than case-specific grading errors. No more gateway reruns; the next experiment
 is a transport-only A/B against direct TypeSafe, pending approval. Gate F stays
 closed.
+
+**transport-ab-2026-09-28-a** (clone `f8e231c3-56b0-499a-9bf9-5796c869b25e`,
+144 Jev calls, no Opus; `tests/evals/learn-grade/results/transport-ab/`).
+On transport-ab-2026-09-28-a, direct TypeSafe (jev-1.13.0) and Vercel Gateway
+produced identical verdict accuracy (72/72) and per-idea F1 (1.0). Direct
+TypeSafe was substantially faster: p50 88 ms vs 251 ms and p95 193 ms vs 420 ms.
+Neither transport timed out in this run, so the earlier intermittent gateway
+timeout behavior remains unproven for direct TypeSafe.
+
+- No grading or switch criteria changed: 3 s per attempt, no timeout retry,
+  p95 under 400 ms, 0.7/0.3 thresholds, verdict-v1, errors count as wrong.
+- Direct TypeSafe is the preferred transport candidate, not the production
+  transport: same grading behavior, a pinned model, and much better latency. It
+  stays bench-only (`TYPESAFE_API_KEY` is set on this clone only); learner
+  shadow grades still go through the gateway.
+- Direct privacy boundary checked from TypeSafe's documents: compatible with
+  option B, one third party fewer (see jev-grading.md, Data boundary). The
+  subprocessor list is still unread.
+
+**Parked on 2026-09-28.** Jev work resumes only on an explicit decision to
+collect more real rows or evaluate the switch. Not run: the 432-call A/B,
+benchmark-v1.1-draft, further gateway benchmarks, the holdout (sealed), a
+switch evaluation, learner-facing direct grading. Nothing reached live
+`small-cp`, the live database or BYOC.
