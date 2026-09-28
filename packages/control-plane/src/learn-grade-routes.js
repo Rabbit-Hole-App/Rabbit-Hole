@@ -53,7 +53,7 @@ const doneBody = (id, duplicate, texts, probabilities, extra) => ({
 function duplicateResponse(existing, texts) {
   if (existing.status === 'done') {
     return json(doneBody(existing.id, true, texts, JSON.parse(existing.jev), {
-      ms: existing.jev_ms, model: existing.jev_model, generation_id: existing.jev_generation_id, grader_protocol_version: existing.grader_protocol_version, cost: existing.jev_cost,
+      ms: existing.jev_ms, model: existing.jev_model, generation_id: existing.jev_generation_id, grader_protocol_version: existing.grader_protocol_version, cost: existing.jev_cost, input_tokens: existing.jev_tokens,
     }));
   }
   if (existing.status === 'failed') return json({ grade_id: existing.id, status: 'failed', duplicate: true, error: existing.jev_error }, 502);
@@ -112,7 +112,7 @@ async function grade(req, env, bench) {
     const result = await askJev(env, jevRequest(value, value.answer));
     const probabilities = parseJevAnswers(result.body, value.expects.length);
     await completeGrade(env, reserved.id, { jev: { ...probabilities, verdict: verdictFrom(probabilities) }, ms: result.ms, inputTokens: result.inputTokens, cost: result.cost, model: result.model, generationId: result.generationId });
-    return json(doneBody(reserved.id, false, value.expects, probabilities, { ms: result.ms, model: result.model, generation_id: result.generationId, grader_protocol_version: GRADER_PROTOCOL_VERSION, cost: result.cost }));
+    return json(doneBody(reserved.id, false, value.expects, probabilities, { ms: result.ms, model: result.model, generation_id: result.generationId, grader_protocol_version: GRADER_PROTOCOL_VERSION, cost: result.cost, input_tokens: result.inputTokens }));
   } catch (error) {
     const message = error instanceof JevError ? error.message : `Jev grading failed: ${error.message}`;
     await failGrade(env, reserved.id, { error: message, ms: Date.now() - started });

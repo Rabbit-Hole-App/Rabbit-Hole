@@ -291,13 +291,14 @@ The rule ("option B"):
     Worker died mid-call.
 - **Response contract.** Every response carries `grade_id` and `status`.
   - **Fresh `done`, or a duplicate of a `done` row:** 200.
-    `{ grade_id, status: 'done', duplicate, jev: { ideas: [{ text, p }], misconception, non_attempt, verdict }, ms, model, generation_id, grader_protocol_version, cost }`.
-    - `cost` is the gateway's reported USD cost.
+    `{ grade_id, status: 'done', duplicate, jev: { ideas: [{ text, p }], misconception, non_attempt, verdict }, ms, model, generation_id, grader_protocol_version, cost, input_tokens }`.
+    - `cost` is the gateway's reported USD cost; `input_tokens` is Jev's
+      `usage.input_tokens` for that generation.
     - For a duplicate, the ideas are rebuilt from the stored `expects` and
       probabilities, and the verdict is recomputed with the current
       `THRESHOLDS`. A holdout row stores only hashes, so a holdout duplicate
       takes its idea text from the request instead.
-    - `ms`, `model`, `generation_id` and `cost` are the stored values.
+    - `ms`, `model`, `generation_id`, `cost` and `input_tokens` are the stored values.
   - **Fresh `failed`, or a duplicate of a `failed` row:** 502.
     `{ grade_id, status: 'failed', duplicate, error }`. The stored failure is
     returned, and Jev is not called again.
@@ -660,7 +661,12 @@ Every percentage is printed next to its raw count, as `k / N (pct)`.
 - Both report p50 and p95, with N.
 
 **Cost**
-- Jev's cost per grade is the mean of `jev_cost`, as reported by the gateway.
+- The benchmark computes Jev's cost per grade as `input_tokens` × the input
+  price the gateway publishes at `/v1/models` (output is priced $0), and states
+  that method beside the figure. The gateway-reported mean is printed next to
+  it: at the Gate D probe the gateway reported $0. With no published
+  input-only price the figure reads "not computed", never $0.
+- The report's cost per grade is still the mean of the stored `jev_cost`.
 - Opus cost is not measured: the `/api/learn/ask` stream carries no usage or
   model (ask.js:455). Opus can also be served by a fallback model without
   saying so, and one grade can take up to 9 model calls

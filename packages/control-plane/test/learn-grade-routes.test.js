@@ -65,6 +65,7 @@ test('a grade calls Jev once, stores the row, and answers with per-idea probabil
   assert.equal(data.generation_id, 'gen_1');
   assert.equal(data.grader_protocol_version, 'jev-grade-p1');
   assert.equal(data.cost, 0.0000135);
+  assert.equal(data.input_tokens, 321);
   const row = w.sqlite.prepare('SELECT * FROM learn_grades').get();
   assert.equal(row.source, 'canvas');
   assert.equal(row.email, 'learner@test');
@@ -146,6 +147,7 @@ test('duplicates never call Jev again: done, failed, pending, incomplete', async
   assert.deepEqual(duplicate.jev, first.jev);
   assert.equal(duplicate.generation_id, first.generation_id);
   assert.equal(duplicate.cost, first.cost);
+  assert.equal(duplicate.input_tokens, 321);
   assert.equal(w.jevBodies.length, 1);
 
   w.setReply(() => new Response(JSON.stringify({ message: 'bad key' }), { status: 401 }));

@@ -98,7 +98,7 @@ async function gradeJev(item) {
     if (response.status !== 200) return { error: 'failed', message: data.error || `HTTP ${response.status}` };
     if (data.grader_protocol_version !== GRADER_PROTOCOL_VERSION) fail(1, `clone runs grader protocol ${data.grader_protocol_version}, local is ${GRADER_PROTOCOL_VERSION}: redeploy the clone`);
     const probabilities = { ideas: data.jev.ideas.map(idea => idea.p), misconception: data.jev.misconception, non_attempt: data.jev.non_attempt };
-    return { ...probabilities, verdict: verdictFrom(probabilities), ms: data.ms, generation_id: data.generation_id, cost: data.cost ?? null };
+    return { ...probabilities, verdict: verdictFrom(probabilities), ms: data.ms, generation_id: data.generation_id, cost: data.cost ?? null, input_tokens: data.input_tokens ?? null };
   }
   return { error: 'pending' };
 }
@@ -123,6 +123,15 @@ for (const item of set.cases) {
   results.push({ ...item, mode: challenges.get(item.challenge).mode, jev, opus });
 }
 
+// --- Jev price: the gateway reported $0 cost at the Gate D probe, so cost is
+// computed from each generation's input tokens × the published price. Fetched
+// after the run: an early exit mid-run must not leave this socket open ---
+const gatewayBase = allowLocal ? base : 'https://ai-gateway.vercel.sh';
+const jevPricing = await fetch(`${gatewayBase}/v1/models`).then(response => response.json()).then(models => models.data.find(model => model.id === JEV_MODEL)?.pricing).catch(() => null);
+const jevPrice = Number(jevPricing?.output) === 0 ? Number(jevPricing?.input) : NaN;
+const costMethod = Number.isFinite(jevPrice) ? `input tokens × $${jevPricing.input}/token published at ${gatewayBase}/v1/models (output $0)` : `not computed: no input-only price for ${JEV_MODEL} at ${gatewayBase}/v1/models`;
+console.log(`${Number.isFinite(jevPrice) ? '✓' : '✗'} jev cost method: ${costMethod}`);
+
 // --- measures ---
 const jevPick = item => item.jev.error ? 'error' : item.jev.verdict;
 const opusPick = item => item.opus.verdict || 'error';
@@ -130,7 +139,8 @@ const byMode = mode => results.filter(item => item.mode === mode);
 const accuracy = (cases, pick) => ({ ...verdictAccuracy(cases, pick), confusion: confusion(cases, pick) });
 const ideaItems = results.filter(item => !item.jev.error).flatMap(item => item.gold.ideas.map((gold, index) => ({ p: item.jev.ideas[index], gold })));
 const jevMs = results.filter(item => !item.jev.error).map(item => item.jev.ms);
-const errors = kind => results.filter(item => item.jev.error === kind).length;
+const meanOf = values => ({ mean: values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null, n: values.length });
+const errors = kind =>results.filter(item => item.jev.error === kind).length;
 const summary = {
   run: runName, date: today, set: setName, app: args.app, ...versions,
   n: { total: results.length, challenge: byMode('challenge').length, explain_back: byMode('explain_back').length },
@@ -144,7 +154,11 @@ const summary = {
   injection_good: rate(results.filter(item => item.pattern === 'injection' && jevPick(item) === 'good').length, results.filter(item => item.pattern === 'injection').length),
   jev_ms: { p50: percentile(jevMs, 0.5), p95: percentile(jevMs, 0.95), n: jevMs.length, excluded: results.filter(item => item.jev.error).length },
   per_idea_items: { n: ideaItems.length, excluded_cases: results.filter(item => item.jev.error).length },
-  jev_cost_per_grade: (costs => ({ mean: costs.length ? costs.reduce((sum, cost) => sum + cost, 0) / costs.length : null, n: costs.length }))(results.map(item => item.jev.cost).filter(Number.isFinite)),
+  jev_cost_per_grade: {
+    computed: meanOf(results.filter(item => Number.isInteger(item.jev.input_tokens)).map(item => item.jev.input_tokens * jevPrice).filter(Number.isFinite)),
+    method: costMethod,
+    gateway_reported: meanOf(results.map(item => item.jev.cost).filter(Number.isFinite)),
+  },
   opus_ms: { p50: percentile(results.map(item => item.opus.ms), 0.5), p95: percentile(results.map(item => item.opus.ms), 0.95), n: results.length },
   jev_errors: { pending: errors('pending'), incomplete: errors('incomplete'), failed: errors('failed') },
 };
@@ -167,7 +181,8 @@ if (!holdout && summary.per_idea.best) console.log(`best threshold ${summary.per
 for (const bucket of summary.calibration) console.log(`calibration ${bucket.low.toFixed(1)}-${bucket.high.toFixed(1)}: n ${bucket.n} · mean p ${bucket.meanP?.toFixed(3) ?? '-'} · observed ${bucket.observed?.toFixed(3) ?? '-'}`);
 console.log(`brier ${summary.brier?.toFixed(4)} · injection graded good ${summary.injection_good.k} / ${summary.injection_good.n}`);
 console.log(`jev ms p50 ${summary.jev_ms.p50} p95 ${summary.jev_ms.p95} (n ${summary.jev_ms.n}; ${summary.jev_ms.excluded} Jev errors excluded) · opus ms p50 ${summary.opus_ms.p50} p95 ${summary.opus_ms.p95} (n ${summary.opus_ms.n})`);
-console.log(`jev cost per grade $${summary.jev_cost_per_grade.mean ?? '-'} (n ${summary.jev_cost_per_grade.n}) · opus cost not measured (no usage in the /api/learn/ask stream)`);
+const cost = summary.jev_cost_per_grade;
+console.log(`jev cost per grade $${cost.computed.mean ?? '-'} computed (n ${cost.computed.n}; ${cost.method}) · gateway reported $${cost.gateway_reported.mean ?? '-'} (n ${cost.gateway_reported.n}) · opus cost not measured (no usage in the /api/learn/ask stream)`);
 console.log(`jev errors: pending ${summary.jev_errors.pending} · incomplete ${summary.jev_errors.incomplete} · failed ${summary.jev_errors.failed}`);
 
 if (holdout) {

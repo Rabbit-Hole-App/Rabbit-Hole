@@ -40,6 +40,7 @@ function stubServer(script) {
         const reply = script(caseId, calls.grade.filter(id => id === caseId).length);
         return send(reply.status, reply.body);
       }
+      if (req.url === '/v1/models' && script.pricing) return send(200, { data: [{ id: 'typesafe-ai/jev', pricing: script.pricing }] });
       if (req.url === '/api/learn/ask') return send(200, `event: chunk\ndata: ${JSON.stringify({ text: 'VERDICT: good\nfine' })}\n\nevent: done\ndata: {"ok":true}\n\n`, 'text/event-stream');
       return send(404, { error: 'no' });
     });
@@ -89,6 +90,36 @@ test('pending is re-sent, then scored as an error; 409 is an incomplete error; n
     const saved = JSON.parse(readFileSync(join(dir, 'results', 'benchmark-v1', file), 'utf8'));
     assert.equal(saved.cases.find(item => item.id === 'ch1-all').jev.verdict, 'good');
     assert.equal(saved.cases.find(item => item.id === 'eb1-idk').jev.error, 'incomplete');
+  } finally { server.close(); }
+});
+
+test('jev cost is computed from input tokens × the published price, not the gateway\'s reported $0', async () => {
+  const script = () => ({ ...done(), body: { ...done().body, cost: 0, input_tokens: 300 } });
+  script.pricing = { input: '0.000000042', output: '0' };
+  const { server, base } = await stubServer(script);
+  const dir = workspace(tinySet('benchmark-v1'));
+  try {
+    const result = await run([...common(base, dir), '--set-file', join(dir, 'set.json')]);
+    assert.equal(result.code, 0, result.out);
+    assert.match(result.out, /✓ jev cost method: input tokens × \$0\.000000042\/token published at http:\/\/127\.0\.0\.1:\d+\/v1\/models \(output \$0\)/);
+    assert.match(result.out, /jev cost per grade \$0\.0000126\d* computed \(n 2; input tokens/);
+    assert.match(result.out, /gateway reported \$0 \(n 2\)/);
+    const [file] = readdirSync(join(dir, 'results', 'benchmark-v1'));
+    const saved = JSON.parse(readFileSync(join(dir, 'results', 'benchmark-v1', file), 'utf8'));
+    assert.match(saved.jev_cost_per_grade.method, /^input tokens × /);
+  } finally { server.close(); }
+});
+
+test('with no published input-only price the cost says not computed instead of $0', async () => {
+  const script = () => ({ ...done(), body: { ...done().body, cost: 0, input_tokens: 300 } });
+  script.pricing = { input: '0.000000042', output: '0.000001' };
+  const { server, base } = await stubServer(script);
+  const dir = workspace(tinySet('benchmark-v1'));
+  try {
+    const result = await run([...common(base, dir), '--set-file', join(dir, 'set.json')]);
+    assert.equal(result.code, 0, result.out);
+    assert.match(result.out, /✗ jev cost method: not computed: no input-only price for typesafe-ai\/jev/);
+    assert.match(result.out, /jev cost per grade \$- computed \(n 0; not computed/);
   } finally { server.close(); }
 });
 
