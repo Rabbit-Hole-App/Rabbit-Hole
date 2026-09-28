@@ -16,7 +16,7 @@ export default function ChatComposer({ value, onChange, onSubmit, inputRef, auto
     ? <textarea ref={inputRef} autoFocus={autoFocus} rows={1} value={value} onChange={event => onChange(event.target.value)} onKeyDown={event => { if (composerKey(event.nativeEvent) === 'send') { event.preventDefault(); submit(); } }} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className={`max-h-36 min-w-0 flex-1 resize-none bg-transparent outline-none [field-sizing:content] placeholder:text-ink-3 ${dock ? 'min-h-9 py-1.5 text-[15px] leading-6 max-md:text-sm max-md:placeholder:truncate' : 'min-h-7 py-1 text-sm leading-5'}`} />
     : <input ref={inputRef} autoFocus={autoFocus} value={value} onChange={event => onChange(event.target.value)} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className="h-7 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-ink-3" />;
   const frame = dock
-    ? `gap-2.5 rounded-xl border border-line-strong bg-white px-3 py-3.5 max-md:gap-2 max-md:px-2.5 max-md:py-2.5 ${dock === 'float' ? 'shadow-pop' : 'shadow-[0_2px_8px_rgba(15,15,15,0.07)]'}`
+    ? `gap-2.5 rounded-xl border border-line-strong bg-white px-3 py-3.5 max-md:gap-1.5 max-md:px-2.5 max-md:py-2.5 ${dock === 'float' ? 'shadow-pop' : 'shadow-[0_2px_8px_rgba(15,15,15,0.07)]'}`
     : 'gap-2 rounded-lg border border-line px-2.5 py-1.5';
   return <form data-chat-composer className={`flex ${multiline ? 'items-end' : 'items-center'} ${frame} focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]`} onSubmit={event => { event.preventDefault(); submit(); }}>
     {leading}

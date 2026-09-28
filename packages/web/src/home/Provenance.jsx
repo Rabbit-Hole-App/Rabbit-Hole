@@ -51,7 +51,7 @@ export function ForkedFrom({ m, onOpen }) {
   return (
     <span data-forked-from className="flex min-w-0 items-start gap-1 text-xs text-ink-2">
       <GitFork size={12} strokeWidth={1.5} className="mt-0.5 shrink-0" />
-      <span className="line-clamp-2 min-w-0">
+      <span className="line-clamp-3 min-w-0">
         Forked from{' '}
         <button type="button" title="Open the original" onClick={(e) => { e.stopPropagation(); onOpen?.(f.id); }} className={`cursor-pointer text-ink ${LINK}`}>{f.title}</button>
         {f.creator && ' · '}
