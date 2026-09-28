@@ -27,8 +27,9 @@ export function Creator({ m }) {
   );
 }
 
-// Keyboard-visible, and a link only on hover or focus: the cards stay quiet at rest.
-const LINK = 'rounded-sm underline-offset-2 hover:text-ink hover:underline focus-visible:text-ink focus-visible:underline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent';
+// Keyboard-visible, and a link only on hover or focus: the cards stay quiet at rest. Focus is a tint
+// plus underline, not an outline: these lines truncate (overflow hidden), which would clip a ring.
+const LINK = 'rounded-sm underline-offset-2 outline-none hover:text-ink hover:underline focus-visible:bg-accent/15 focus-visible:text-ink focus-visible:underline';
 
 // The repository on GitHub, in a new tab. The click never reaches the card's Open.
 export function SourceLink({ m, suffix = '' }) {

@@ -445,7 +445,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const link = card.getByRole('link', { name: 'github.com/karpathy/minbpe' });
     must(await link.getAttribute('href') === 'https://github.com/karpathy/minbpe' && await link.getAttribute('target') === '_blank', 'GitHub link target');
     await link.focus();
-    must(await link.evaluate((n) => getComputedStyle(n).outlineStyle) !== 'none', 'no focus ring on the GitHub link');
+    must(await link.evaluate((n) => { const c = getComputedStyle(n); return c.textDecorationLine.includes('underline') && c.backgroundColor !== 'rgba(0, 0, 0, 0)'; }), 'no visible focus on the GitHub link');
     const popup = page.waitForEvent('popup');
     await link.click();
     must((await popup).url() === 'https://github.com/karpathy/minbpe', 'the link did not open GitHub');
