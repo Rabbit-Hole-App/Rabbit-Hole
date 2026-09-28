@@ -120,7 +120,7 @@ export async function verdictLogicFingerprint() {
 
 // One POST to the gateway. 3 s per attempt; a 429 or 529 is retried once after
 // min(Retry-After, 1 s); a timeout is never retried. `ms` is the whole wall
-// time, retry wait included.
+// time, retry wait included; `retries` (0 or 1) counts that 429/529 retry.
 export async function askJev(env, request, { timeoutMs = 3000, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), fetchImpl = (...args) => fetch(...args) } = {}) {
   const started = Date.now();
   for (let attempt = 0; ; attempt += 1) {
@@ -148,6 +148,6 @@ export async function askJev(env, request, { timeoutMs = 3000, sleep = ms => new
       continue;
     }
     if (!response.ok) throw new JevError('http', `Jev ${response.status}${body?.error_type ? ` ${body.error_type}` : ''}: ${body?.message || body?.error?.message || 'request failed'}`, response.status);
-    return { body, ms: Date.now() - started, ...readJevMeta(body) };
+    return { body, ms: Date.now() - started, retries: attempt, ...readJevMeta(body) };
   }
 }

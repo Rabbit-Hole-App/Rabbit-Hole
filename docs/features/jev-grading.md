@@ -237,7 +237,8 @@ The rule ("option B"):
   - **Retry:** on 429 or 529 it waits min(`Retry-After`, 1 s), or 0 when the
     header is absent, and retries once. A timeout is not retried, so the worst
     case is about 7 s.
-  - **Returns:** `{ answers, inputTokens, cost, model, generationId, ms }`.
+  - **Returns:** `{ answers, inputTokens, cost, model, generationId, ms, retries }`;
+    `retries` is 1 when the 429/529 retry happened, else 0.
     - `ms` is wall time inside the Worker, including any retry wait.
     - `cost` comes from `provider_metadata.gateway.cost`.
     - `generationId` comes from `provider_metadata.gateway.generationId`.
@@ -291,7 +292,7 @@ The rule ("option B"):
     Worker died mid-call.
 - **Response contract.** Every response carries `grade_id` and `status`.
   - **Fresh `done`, or a duplicate of a `done` row:** 200.
-    `{ grade_id, status: 'done', duplicate, jev: { ideas: [{ text, p }], misconception, non_attempt, verdict }, ms, model, generation_id, grader_protocol_version, cost, input_tokens }`.
+    `{ grade_id, status: 'done', duplicate, jev: { ideas: [{ text, p }], misconception, non_attempt, verdict }, ms, model, generation_id, grader_protocol_version, cost, input_tokens, retries }`.
     - `cost` is the gateway's reported USD cost; `input_tokens` is Jev's
       `usage.input_tokens` for that generation.
     - For a duplicate, the ideas are rebuilt from the stored `expects` and
@@ -636,6 +637,13 @@ Every percentage is printed next to its raw count, as `k / N (pct)`.
   {good, partial, unsure, error}.
 - The Jev-minus-Opus difference is printed per mode, with both counts. It is
   compared against the 3-point rule only when both modes have N ≥ 30.
+- **Fallback (observational only).** A grade where Jev returned nothing is one
+  where Opus's verdict stood alone; the learner path was always
+  Opus-authoritative, so this is a count, not a mechanism. The bench prints
+  timeouts, 429/529 retries and the fallback rate beside the errors, and the
+  report carries `fallback` (failed plus incomplete over eligible rows). Errors
+  still count as wrong in every accuracy and in the 3-point rule. A failed grade
+  logs `learn-grade fallback: Opus verdict stands alone, grade <id>: <error>`.
 
 **Per-idea** (Jev only)
 - There is one item per (case, idea) pair; an item is positive when the gold

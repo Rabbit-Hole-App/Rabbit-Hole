@@ -62,3 +62,10 @@ test('a network failure is reported as such', async () => {
   await assert.rejects(askJev({}, {}, { fetchImpl: async () => { throw new TypeError('fetch failed'); } }),
     error => error.code === 'network' && /fetch failed/.test(error.message));
 });
+
+test('retries reports the one 429/529 retry, 0 otherwise', async () => {
+  let calls = 0;
+  const retried = await askJev({}, {}, { sleep: async () => {}, fetchImpl: async () => (++calls === 1 ? failing(429) : ok({ answers: {} })) });
+  assert.equal(retried.retries, 1);
+  assert.equal((await askJev({}, {}, { fetchImpl: async () => ok({ answers: {} }) })).retries, 0);
+});

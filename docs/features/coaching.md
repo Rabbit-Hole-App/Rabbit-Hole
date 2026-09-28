@@ -1477,3 +1477,12 @@ grader and Jev can never delay, replace or mask it.
   Jev grades; no label change so far.
 - Opus scoring 100% means v1 does not separate the graders on verdicts; the
   timeouts and p95 are the open items. No switch.
+
+Jev verdict quality is at parity when it returns; the gap is tail latency.
+The approved contract is unchanged: 3 s per attempt, no timeout retry, p95 under
+400 ms, and a Jev error counts as wrong in the 3-point rule. A 5 s /
+retry-on-timeout transport may be tried later as a separate experiment; it was
+briefly committed (51630a6) and reverted before any deploy or run. The bench and
+report now count timeouts, 429/529 retries and Opus-only fallbacks as
+observations. `benchmark-v1.1-draft.json` (v1 plus 24 harder cases, each with
+`hard_because`) waits for owner review and is not run.

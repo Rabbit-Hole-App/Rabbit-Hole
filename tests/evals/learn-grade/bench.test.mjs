@@ -110,6 +110,19 @@ test('jev cost is computed from input tokens × the published price, not the gat
   } finally { server.close(); }
 });
 
+test('timeouts, 429 retries and Opus-only fallbacks are named; errors still count as wrong', async () => {
+  const { server, base } = await stubServer(caseId => (caseId === 'ch1-all'
+    ? { ...done(), body: { ...done().body, retries: 1 } }
+    : { status: 502, body: { status: 'failed', error: 'Jev timed out after 3000 ms' } }));
+  const dir = workspace(tinySet('benchmark-v1'));
+  try {
+    const result = await run([...common(base, dir), '--set-file', join(dir, 'set.json')]);
+    assert.equal(result.code, 0, result.out);
+    assert.match(result.out, /failed 1 \(timeouts 1\) · 429\/529 retries 1 · fallback to Opus alone 1 \/ 2 \(50%\)/);
+    assert.match(result.out, /accuracy explain_back: jev 0 \/ 1 \(0%\)/);
+  } finally { server.close(); }
+});
+
 test('with no published input-only price the cost says not computed instead of $0', async () => {
   const script = () => ({ ...done(), body: { ...done().body, cost: 0, input_tokens: 300 } });
   script.pricing = { input: '0.000000042', output: '0.000001' };
