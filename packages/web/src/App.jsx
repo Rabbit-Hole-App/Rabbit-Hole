@@ -10,6 +10,7 @@ import { learnPreview } from './flags.js';
 import { onAnotherDevice } from './home/continue.js';
 import { chipHref, libraryQuery, ofType, SCOPES, TYPES } from './library-filter.js';
 import LibraryViews from './LibraryViews.jsx';
+import { fixturesOn, useFixtures } from './home/review-fixtures.js';
 import { Avatar, Button, Chk, cn, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, toast, useHeaderDrag, ValuePicker } from './ui.jsx';
 
 const people = (a) => [a.owner_email, ...(a.members || []).map((m) => m.email).filter((e) => e !== a.owner_email)];
@@ -139,6 +140,10 @@ function AppContent({ data, load }) {
   const sectionApps = ofType(folder
     ? apps.filter((a) => a.folder_id === folder.id)
     : section ? apps.filter((a) => sectionOf(a, org, data?.email) === section) : apps, type);
+  // Review fixtures (preview only, ?fixtures=1): made-up cards mixed into the unfiltered card views.
+  const fixtures = learnPreview && fixturesOn(localStorage, window.location.search, learnPreview);
+  const fx = useFixtures(fixtures);
+  const withFixtures = fx && !section && !folder ? [...sectionApps, ...ofType(fx.FIXTURES.map((a) => ({ ...a, org })), type)] : sectionApps;
   // T02 §4, §8.4: archived canvases come from LEARN_DB (GET /api/canvases?archived=1), never /api/apps.
   useEffect(() => {
     if (!archived) return;
@@ -222,6 +227,7 @@ function AppContent({ data, load }) {
               </div>
             </div>
           )}
+          {fixtures && <div role="note" className="mb-4 rounded-md bg-code px-3 py-2 text-xs text-ink-2">Review fixtures are on: made-up cards, mixed in for design review. They open nothing and are stored nowhere. <a className="text-accent hover:underline" href="?fixtures=0">Turn off</a></div>}
           {archived && (!archivedList ? <SkeletonRows rows={3} />
             : archivedList.error ? <div className="text-sm text-ink-2">✗ {archivedList.error}</div>
             : !archivedList.length ? <EmptyState icon={Archive}>No archived canvases.</EmptyState>
@@ -254,8 +260,8 @@ function AppContent({ data, load }) {
           )}
 
           {/* Projects and Canvases are cards, All is sections; only the Apps view is the table. */}
-          {learnPreview && !archived && type !== 'apps' && sectionApps.length > 0 && (
-            <LibraryViews apps={sectionApps} type={type} data={data} runningOf={runningId} onRun={startRun} onArchive={setConfirmArchive}
+          {learnPreview && !archived && type !== 'apps' && withFixtures.length > 0 && (
+            <LibraryViews apps={withFixtures} type={type} data={data} runningOf={runningId} onRun={startRun} onArchive={setConfirmArchive}
               onType={(k) => navigate(chipHref(window.location.search, 'type', k))} />
           )}
           {!archived && (learnPreview ? type === 'apps' && sectionApps.length > 0 : apps.length > 0) && (

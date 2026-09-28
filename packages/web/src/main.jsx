@@ -8,8 +8,9 @@ import MembersPage from './Members.jsx';
 import SearchModal from './Search.jsx';
 import SharePage from './SharePage.jsx';
 // Home and Explore exist only in the preview (routes.js pageFor), so the live bundle never carries them.
-const Home = lazy(() => import('./Home.jsx'));
-const ExplorePreview = lazy(() => import('./Home.jsx').then((m) => ({ default: m.ExplorePreview })));
+// Preview-only pages: the live build never routes to them (routes.js), so it builds no chunk for them.
+const Home = learnPreview ? lazy(() => import('./Home.jsx')) : null;
+const ExplorePreview = learnPreview ? lazy(() => import('./Home.jsx').then((m) => ({ default: m.ExplorePreview }))) : null;
 import Shell from './Shell.jsx';
 import { applyTheme, getTheme, navigate, setWs, wsName } from './api.js';
 import { ExpandedPageFrame, Toasts } from './ui.jsx';

@@ -388,6 +388,48 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
+  // Provenance review fixtures (user 2026-09-28): preview only, off by default, never sent anywhere.
+  await check('provenance: ?fixtures=1 shows the source-owner check, Forked from and fork counts on Home and the Library; nothing is written; ?fixtures=0 and a fresh browser show none', async () => {
+    const page = await open();
+    const writes = [];
+    page.on('request', (r) => { const u = new URL(r.url()); if (u.pathname.startsWith('/api/') && r.method() !== 'GET') writes.push(`${r.method()} ${u.pathname}`); });
+    await loaded(page, '/library');
+    must(await page.locator('[data-library-card]').filter({ hasText: 'nanoGPT from First Principles' }).count() === 0, 'fixtures show without ?fixtures=1');
+    await loaded(page, '/library?fixtures=1');
+    await page.getByRole('note').filter({ hasText: 'Review fixtures are on' }).waitFor({ timeout: 20000 });
+    const card = (title) => page.locator('[data-library-card]').filter({ hasText: title }).first();
+    const check = 'Created by repository owner';
+    const original = card('nanoGPT from First Principles');
+    await original.waitFor({ timeout: 20000 });
+    must(await original.locator('[data-creator]').getByRole('img', { name: check }).count() === 1, 'the original project lacks the source-owner check');
+    must((await original.locator('[data-fork-count]').innerText()).trim() === '84 forks', 'original fork count');
+    const fork = card('My Attention Deep Dive');
+    must(await fork.locator('[data-creator]').getByRole('img', { name: check }).count() === 0, 'the forking user got the check');
+    const from = await fork.locator('[data-forked-from]').innerText();
+    must(/Forked from nanoGPT from First Principles · Yudhisteer/.test(from), `provenance reads ${from}`);
+    must(await fork.locator('[data-forked-from]').getByRole('img', { name: check }).count() === 1, 'the original creator lost the check in the provenance');
+    must((await fork.locator('[data-fork-count]').innerText()).trim() === '12 forks', 'fork count');
+    const plain = card('Why B-trees stay shallow');
+    must(await plain.getByRole('img', { name: check }).count() === 0 && await plain.locator('[data-fork-count]').count() === 0, 'a standalone canvas shows a check or 0 forks');
+    must(await card('nanoGPT speedrun notes').locator('[data-creator]').getByRole('img', { name: check }).count() === 0, 'a matching display name got the check');
+    must((await card('Attention Is All You Need, Line by Line').locator('[data-fork-count]').innerText()).trim() === '1.2k forks', 'compact fork count');
+    const app = page.getByRole('region', { name: 'Apps', exact: true }).locator('[data-library-app-row]').filter({ hasText: 'fixture-nightly-eval' });
+    await app.hover();
+    await app.getByRole('button', { name: 'Run', exact: true }).click();
+    await page.getByText('Review fixture: there is nothing behind this card.').waitFor({ timeout: 5000 });
+    must(await page.locator('[data-library-card]').getByRole('button', { name: 'Run', exact: true }).count() === 0, 'a learning card offers Run');
+    await loaded(page, '/apps');
+    const recent = page.getByRole('region', { name: 'Recent' });
+    const recentCard = (title) => recent.locator('[data-recent-card]').filter({ has: page.getByText(title, { exact: true }) }).first();
+    await recentCard('nanoGPT from First Principles').getByRole('img', { name: check }).first().waitFor({ timeout: 20000 });
+    must((await recentCard('My Attention Deep Dive').locator('[data-forked-from]').innerText()).includes('Forked from nanoGPT from First Principles'), 'Home fork card lacks its provenance');
+    await loaded(page, '/library?fixtures=0');
+    await page.locator('[data-library-card]').first().waitFor({ timeout: 20000 });
+    must(await page.locator('[data-library-card]').filter({ hasText: 'nanoGPT from First Principles' }).count() === 0, '?fixtures=0 left fixtures on');
+    must(!writes.length, `fixtures wrote: ${writes.join(', ')}`);
+    await page.context().close();
+  });
+
   await check('library: scope chips sit below the type chips and are secondary', async () => {
     const page = await open();
     await loaded(page, '/library');

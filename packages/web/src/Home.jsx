@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
-import { titleOf } from './agent/catalog.js';
 import { navigate } from './api.js';
+import { learnPreview } from './flags.js';
 import { openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
 import { BANNER, DEMO, readSaved, toggleSaved } from './home/explore.js';
+import { Creator, ForkedFrom, Forks } from './home/Provenance.jsx';
+import { cardModel } from './home/provenance.js';
+import { fixturesOn, useFixtures } from './home/review-fixtures.js';
 import Shell from './Shell.jsx';
-import { Button, KindIcon, Pill, SkeletonRows } from './ui.jsx';
+import { Button, KindIcon, Pill, SkeletonRows, toast } from './ui.jsx';
 
 // Home (T02 §3, preview build only): Continue, Recent, Start - three blocks, no others.
 // Composition follows Gate B (Figma F1): Continue as a callout, Recent as a gallery of compact
@@ -28,7 +31,11 @@ function HomeContent({ data, load }) {
   const apps = ready ? data.apps : [];
   const recent = readRecent(localStorage);
   const cont = ready ? readContinue({ org: data.org, email: data.email, recent, catalog: apps, storage: localStorage }) : null;
-  const items = recentItems(recent, apps);
+  // Review fixtures (preview only, ?fixtures=1) lead Recent: an original, a fork, an original canvas.
+  const fixtures = fixturesOn(localStorage, window.location.search, learnPreview);
+  const fx = useFixtures(fixtures);
+  const shown = fx ? fx.RECENT_FIXTURES.map((n) => ({ ...fx.FIXTURES.find((a) => a.name === n), org: data?.org })) : [];
+  const items = [...shown, ...recentItems(recent, apps)].slice(0, 5);
   const cardCtx = { catalog: apps, email: data?.email, storage: localStorage };
   const startButton = <Button variant="primary" onClick={start}>Start a rabbit hole</Button>;
   return (
@@ -44,6 +51,7 @@ function HomeContent({ data, load }) {
             <p className="pt-3 text-sm text-ink-2">Start from a repository, sources, a question, or a blank canvas.</p>
           </section>
         )}
+        {fixtures && <div role="note" className="rounded-md bg-code px-3 py-2 text-xs text-ink-2">Review fixtures are on: made-up cards, mixed in for design review. They open nothing and are stored nowhere. <a className="text-accent hover:underline" href="?fixtures=0">Turn off</a></div>}
         {ready && apps.length > 0 && (
           <>
             {cont && <Continue item={cont} />}
@@ -85,25 +93,34 @@ function Continue({ item }) {
   );
 }
 
-// Gate B Resource Card: icon, title and kind; the per-kind metadata (secondary, then tertiary);
-// the next action as a text link that shows on hover (always shown on phones, which have no hover).
+// Gate B Resource Card with provenance (user, 2026-09-28): title and kind; creator and the
+// source-owner check; where it comes from and a short context; Forked from; then the next action
+// as a text link that shows on hover (always on phones and touch screens) and the fork count.
 function RecentCard({ app, card }) {
   const { action, meta } = card;
-  // Secondary line: what happened; tertiary line: the last fact (visibility, access, storage).
-  // Titles wrap to two lines; owner/repo breaks after the slash (zero-width space), not mid-name.
-  const [lead, last] = meta.length > 1 ? [meta.slice(0, -1), meta.at(-1)] : [meta, ''];
+  const m = cardModel(app);
+  const [lead, last] = meta.length > 1 ? [meta.slice(0, -1).join(' · '), meta.at(-1)] : [meta.join(' · '), ''];
+  const lineA = m.source || (app.fixture ? (m.forkedFrom ? null : 'Standalone') : lead);
+  const lineB = app.fixture ? m.summary : !action ? 'Its content is stored only in the browser that created it.' : m.source ? lead : last;
+  const go = (fn) => () => (app.fixture ? toast('Review fixture: there is nothing behind this card.') : fn());
   const link = 'inline-flex items-center gap-1 self-start text-xs font-medium text-accent hover:underline opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100';
   return (
     <li data-recent-card className={`${CARD} group flex min-w-0 flex-col gap-1 p-3`}>
       <div className="flex min-w-0 items-start gap-2">
         <span className="pt-0.5"><KindIcon kind={app.kind} schedule={app.schedule} /></span>
-        <span className="line-clamp-2 min-w-0 flex-1 break-words text-sm font-medium leading-snug">{titleOf(app).replace('/', '/\u200b')}</span>
+        <span className="line-clamp-2 min-w-0 flex-1 break-words text-sm font-medium leading-snug">{m.title}</span>
         <Pill kind={app.kind}>{KIND[app.kind] || app.kind}</Pill>
       </div>
-      <span className="truncate text-xs text-ink-2">{lead.join(' · ')}</span>
-      <span className="truncate text-xs text-ink-3">{action ? last : 'Its content is stored only in the browser that created it.'}</span>
-      {action?.to && <button type="button" className={link} onClick={() => navigate(action.to)}>{action.label}</button>}
-      {action?.href && <a href={action.href} target="_blank" rel="noreferrer" className={link}>{action.label} <ArrowUpRight size={12} /></a>}
+      <Creator m={m} />
+      {lineA && <span className="truncate text-xs text-ink-2">{lineA}</span>}
+      {lineB && <span className="line-clamp-2 text-xs text-ink-3">{lineB}</span>}
+      <ForkedFrom m={m} />
+      <div className="mt-auto flex items-center gap-2 pt-1">
+        {action?.to && <button type="button" className={link} onClick={go(() => navigate(action.to))}>{action.label}</button>}
+        {action?.href && <a href={action.href} target="_blank" rel="noreferrer" className={link}>{action.label} <ArrowUpRight size={12} /></a>}
+        <span className="flex-1" />
+        <Forks m={m} />
+      </div>
     </li>
   );
 }
