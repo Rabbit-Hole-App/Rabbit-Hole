@@ -59,53 +59,48 @@ test('only someone with access to the app can save or share it', async t => {
   assert.equal((await call('POST', `${OWN}/share`, { as: 'friend', body: { shared: true, view: true } })).status, 404);
 });
 
-test('sharing makes view and edit links; turning a link off revokes it and on again makes a new one', async t => {
+test('sharing makes a view link; turning it off revokes it and on again makes a new one', async t => {
   const { call } = setup(t);
   const on = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, edit: true, state: STATE } })).body.sharing;
-  assert.ok(on.shared && on.view && on.edit && on.view !== on.edit);
+  assert.ok(on.shared && on.view);
+  assert.equal(on.edit, null, 'links are view-only: no edit link, even when asked');
   assert.equal((await call('GET', `/api/learn/boards/shared/${on.view}`, { as: 'friend' })).body.role, 'view');
-  assert.equal((await call('GET', `/api/learn/boards/shared/${on.edit}`, { as: 'friend' })).body.role, 'edit');
-  const viewOff = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: false, edit: true } })).body.sharing;
+  const viewOff = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: false } })).body.sharing;
   assert.equal(viewOff.view, null);
-  assert.equal(viewOff.edit, on.edit, 'the edit link is untouched');
   assert.equal((await call('GET', `/api/learn/boards/shared/${on.view}`, { as: 'friend' })).status, 404);
-  const viewAgain = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, edit: true } })).body.sharing;
+  const viewAgain = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true } })).body.sharing;
   assert.notEqual(viewAgain.view, on.view);
-  const off = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: false, view: true, edit: true } })).body.sharing;
+  const off = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: false, view: true } })).body.sharing;
   assert.deepEqual(off, { shared: false, view: null, edit: null, public_view: false });
-  assert.equal((await call('GET', `/api/learn/boards/shared/${viewAgain.edit}`, { as: 'friend' })).status, 404);
+  assert.equal((await call('GET', `/api/learn/boards/shared/${viewAgain.view}`, { as: 'friend' })).status, 404);
 });
 
-test('a view link needs sign-in unless it is public; public never means edit', async t => {
+test('a view link needs sign-in unless it is public', async t => {
   const { call } = setup(t);
-  const links = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, edit: true, state: STATE } })).body.sharing;
+  const links = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, state: STATE } })).body.sharing;
   const anonymous = await call('GET', `/api/learn/boards/shared/${links.view}`);
   assert.equal(anonymous.status, 401);
   assert.equal(anonymous.body.signIn, true);
-  const open = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, edit: true, public_view: true } })).body.sharing;
+  const open = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, public_view: true } })).body.sharing;
   assert.equal(open.public_view, true);
   const read = await call('GET', `/api/learn/boards/shared/${open.view}`);
   assert.equal(read.status, 200);
   assert.deepEqual(read.body.state, STATE);
-  assert.equal((await call('GET', `/api/learn/boards/shared/${open.edit}`)).status, 401, 'the edit link still needs sign-in');
-  assert.equal((await call('PUT', `/api/learn/boards/shared/${open.edit}`, { body: { state: STATE, version: 1 } })).status, 401);
-  assert.equal((await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: false, edit: true, public_view: true } })).body.sharing.public_view, false, 'no view link, nothing public');
+  assert.equal((await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: false, public_view: true } })).body.sharing.public_view, false, 'no view link, nothing public');
 });
 
-test('an editor saves through the edit link; a stale save is refused, not overwritten', async t => {
-  const { call } = setup(t);
-  const links = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, edit: true, state: STATE } })).body.sharing;
-  const opened = (await call('GET', `/api/learn/boards/shared/${links.edit}`, { as: 'friend' })).body;
-  const saved = await call('PUT', `/api/learn/boards/shared/${links.edit}`, { as: 'friend', body: { state: { ...STATE, items: [{ id: 'n' }] }, version: opened.version } });
-  assert.equal(saved.body.version, opened.version + 1);
-  const stale = await call('PUT', `/api/learn/boards/shared/${links.edit}`, { as: 'friend', body: { state: STATE, version: opened.version } });
-  assert.equal(stale.status, 409);
-  const ownerStale = await call('PUT', OWN, { as: 'owner', body: { state: STATE, version: opened.version } });
-  assert.equal(ownerStale.status, 409, 'the owner does not silently overwrite an editor either');
-  assert.equal((await call('PUT', `/api/learn/boards/shared/${links.view}`, { as: 'friend', body: { state: STATE, version: saved.body.version } })).status, 403);
-  const read = await call('GET', OWN, { as: 'owner' });
-  assert.deepEqual(read.body.state.items, [{ id: 'n' }]);
-  assert.equal(read.body.updated_by, 'friend@elsewhere');
+test('shared links never save: editing means forking', async t => {
+  const { call, LEARN_DB } = setup(t);
+  const links = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, state: STATE } })).body.sharing;
+  const refused = await call('PUT', `/api/learn/boards/shared/${links.view}`, { as: 'friend', body: { state: { ...STATE, items: [{ id: 'n' }] }, version: 1 } });
+  assert.equal(refused.status, 403);
+  assert.match(refused.body.error, /Fork/);
+  assert.equal((await call('PUT', `/api/learn/boards/shared/${links.view}/assets/${encodeURIComponent('drop:x')}`, { as: 'friend', raw: new Uint8Array([9]) })).status, 403);
+  // an edit token from before links went view-only opens nothing
+  await LEARN_DB.prepare("UPDATE learn_boards SET edit_token = 'old-edit-token-000000000000' WHERE app = 'demo-app'").bind().run();
+  assert.equal((await call('GET', '/api/learn/boards/shared/old-edit-token-000000000000', { as: 'friend' })).status, 404);
+  const ownerStale = await call('PUT', OWN, { as: 'owner', body: { state: STATE, version: 0 } });
+  assert.equal(ownerStale.status, 409, 'a stale owner save is still refused');
 });
 
 test('bad input is refused plainly', async t => {
@@ -131,7 +126,6 @@ test('board files: the owner uploads them; whoever can open a link can load them
   assert.equal((await call('GET', `/api/learn/boards/shared/${links.view}/assets/${encodeURIComponent('image:a cat')}`, { as: 'friend' })).headers.get('x-asset-kind'), 'string');
   assert.equal((await call('GET', `/api/learn/boards/shared/${links.view}/assets/${key}`)).status, 401, 'not public: sign in');
   assert.equal((await call('PUT', `/api/learn/boards/shared/${links.view}/assets/${key}`, { as: 'friend', raw: new Uint8Array([9]) })).status, 403, 'a view link adds no files');
-  assert.equal((await call('PUT', `/api/learn/boards/shared/${links.edit}/assets/${encodeURIComponent('drop:x')}`, { as: 'friend', raw: new Uint8Array([9]), headers: { 'Content-Type': 'image/png' } })).status, 200);
   await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: false } });
   assert.equal((await call('GET', `/api/learn/boards/shared/${links.view}/assets/${key}`, { as: 'friend' })).status, 404, 'sharing off: files go with the link');
 });

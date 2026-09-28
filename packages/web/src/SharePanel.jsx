@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Copy, Eye, Globe, Pencil } from 'lucide-react';
+import { Check, Copy, Eye, Globe } from 'lucide-react';
 
 // The Share popover for a Learn board (docs/features/canvas-sharing.md): one
-// switch shares or stops sharing; the view and edit links switch on and off
-// on their own, and the view link can be public (no sign-in).
+// switch shares or stops sharing; the view link can be public (no sign-in).
+// Shared boards are view-only - editing someone else's board means forking.
 function Switch({ on, label, disabled = false, onChange }) {
   return (
     <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={disabled} onClick={() => onChange(!on)}
@@ -52,7 +52,7 @@ export default function SharePanel({ sharing, busy, error, onChange, onClose }) 
     return () => { window.removeEventListener('pointerdown', away, true); window.removeEventListener('keydown', escape); };
   }, [onClose]);
   const current = sharing || { shared: false, view: null, edit: null, public_view: false };
-  const set = patch => onChange({ shared: current.shared, view: !!current.view, edit: !!current.edit, public_view: current.public_view, ...patch });
+  const set = patch => onChange({ shared: current.shared, view: !!current.view, public_view: current.public_view, ...patch });
   return (
     <div ref={panel} role="dialog" aria-label="Share this board"
       className="absolute top-full right-0 z-50 mt-2 w-96 rounded-xl border border-line bg-white p-3 shadow-lg">
@@ -76,10 +76,8 @@ export default function SharePanel({ sharing, busy, error, onChange, onClose }) 
               </label>
             )}
           </LinkRow>
-          <LinkRow Icon={Pencil} title="Edit link" detail="People who sign in can edit"
-            token={current.edit} on={!!current.edit} disabled={busy} onToggle={on => set({ edit: on })} />
           <p className="px-0.5 text-[11px] leading-snug text-ink-3">
-            Turning a link off stops it working; turning it on again makes a new one. Uploaded images and PDFs, and notebook files other than the open notebook, stay in your browser for now.
+            Shared boards are view-only; people fork them to make their own editable copy. Turning the link off stops it working; turning it on again makes a new one.
           </p>
         </div>
       )}

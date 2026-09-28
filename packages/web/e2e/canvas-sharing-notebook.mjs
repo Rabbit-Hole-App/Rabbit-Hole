@@ -2,9 +2,8 @@ import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 // A notebook card's whole workspace travels with a shared board
-// (docs/features/canvas-sharing.md): sharing uploads the owner's files; a
-// friend's edit link opens the notebook with them - the notebook imports the
-// helper and reads the config - and a file the friend adds is saved back.
+// (docs/features/canvas-sharing.md): sharing uploads the owner's files, and a
+// friend's view link opens the notebook with them, in a workspace of its own.
 // Real browser Python; no model calls. Prints no secrets.
 // usage: node e2e/canvas-sharing-notebook.mjs [screenshot dir]
 const BASE = 'https://small-cp-dev-small-parallel.zeroshothq.workers.dev';
@@ -59,10 +58,7 @@ await owner.getByRole('button', { name: 'Share', exact: true }).click();
 const dialog = owner.getByRole('dialog', { name: 'Share this board' });
 await dialog.getByRole('switch', { name: 'Share this board' }).click();
 await dialog.getByRole('textbox', { name: 'View link URL' }).waitFor({ timeout: 10000 });
-await dialog.getByRole('switch', { name: 'Edit link' }).click();
-const editUrl = dialog.getByRole('textbox', { name: 'Edit link URL' });
-await editUrl.waitFor({ timeout: 10000 });
-const editLink = await editUrl.inputValue();
+const viewLink = await dialog.getByRole('textbox', { name: 'View link URL' }).inputValue();
 const stored = async () => owner.evaluate(async ([app, board, id]) => {
   const response = await fetch(`/api/learn/boards/${app}/${board}/assets/${encodeURIComponent(`notebook:${id}`)}`);
   return response.ok ? Object.keys(await response.json()).sort() : [];
@@ -73,23 +69,12 @@ check('sharing uploads the notebook\'s workspace', ['data', 'data/config.json', 
 
 // the friend's edit link opens the notebook with those files, and they work
 const friend = await (await contextFor(friendSession)).newPage();
-await friend.goto(editLink);
+await friend.goto(viewLink);
 await started(friend);
 const frame = workspaceFrame(friend, `${NOTEBOOK_ID}-shared`);
 const theirs = frame ? await listing(frame) : [];
 check('the friend\'s notebook opens with the owner\'s files, in a workspace of its own', ['data/config.json', 'experiment.ipynb', 'helper.py'].every(path => theirs.includes(path)), theirs.join(','));
-const nb = friend.frameLocator('[data-block-id="nb1"] [data-notebook-frame]');
-await friend.getByRole('button', { name: 'Run all' }).click();
-const out = nb.locator('.jp-NotebookPanel:visible .jp-OutputArea-output').filter({ hasText: /^\s*21\s*$/ });
-await out.waitFor({ timeout: 180000 }).catch(() => {});
-check('the shared notebook imports helper.py and reads data/config.json', await out.count() === 1);
 if (SHOTS) await friend.screenshot({ path: `${SHOTS}/share-notebook.png` });
-
-// a file the friend adds is saved back to the board's copy
-await frame.evaluate(() => window.jupyterapp.serviceManager.contents.save('notes.md', { type: 'file', format: 'text', content: '# from the friend\n' }));
-files = [];
-for (let i = 0; i < 20 && !files.includes('notes.md'); i += 1) { await friend.waitForTimeout(800); files = await stored(); }
-check('a file added through the edit link is saved to the shared copy', files.includes('notes.md'), files.join(','));
 
 console.log('board', BOARD);
 await browser.close();

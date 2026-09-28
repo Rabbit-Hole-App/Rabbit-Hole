@@ -1,10 +1,10 @@
 // /api/learn/boards* on the dev worker: Learn canvas boards saved on the
 // server and shared by link (docs/features/canvas-sharing.md).
 //
-// The owner saves a board while it is shared; a share has a view link and an
-// edit link, each a random token stored on the board's row, so switching a
-// link (or sharing) off revokes it. A view link can be public - readable
-// without signing in; editing always needs a signed-in account.
+// The owner saves a board while it is shared; a share is a view link - a
+// random token stored on the board's row, so switching it (or sharing) off
+// revokes it. It can be public - readable without signing in. Shared links are
+// always view-only: editing someone else's board means forking it.
 import { authorizedBoardApp } from './learn-board.js';
 import { repositoryIdentity } from './repositories.js';
 import { sha256Hex } from './learn-grade-jev.js';
@@ -111,7 +111,7 @@ async function share(env, owner, app, board, body) {
   }
   const shared = !!body?.shared;
   const view = shared && !!body.view ? (row.view_token || newToken()) : null;
-  const edit = shared && !!body.edit ? (row.edit_token || newToken()) : null;
+  const edit = null; // links are view-only (edit_token stays for older rows only)
   const publicView = shared && !!body.view && !!body.public_view ? 1 : 0;
   await env.LEARN_DB.prepare('UPDATE learn_boards SET shared = ?, view_token = ?, edit_token = ?, public_view = ? WHERE id = ?')
     .bind(shared ? 1 : 0, view, edit, publicView, row.id).run();
@@ -120,8 +120,8 @@ async function share(env, owner, app, board, body) {
 
 async function sharedRow(env, token) {
   if (!TOKEN.test(token)) return null;
-  const row = await env.LEARN_DB.prepare('SELECT * FROM learn_boards WHERE shared = 1 AND (view_token = ? OR edit_token = ?)').bind(token, token).first();
-  return row ? { row, role: row.edit_token === token ? 'edit' : 'view' } : null;
+  const row = await env.LEARN_DB.prepare('SELECT * FROM learn_boards WHERE shared = 1 AND view_token = ?').bind(token).first();
+  return row ? { row, role: 'view' } : null;
 }
 
 // Who may open a shared link: anyone for a public view link, otherwise any
@@ -140,22 +140,7 @@ async function openShared(req, env, token) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found;
   const { row, role } = found;
-  return json({ role, app: row.app, board: row.board, owner: row.owner_email, version: row.version, updated_at: row.updated_at, state: JSON.parse(row.state_json) });
-}
-
-async function saveShared(req, env, token) {
-  const found = await sharedRow(env, token);
-  if (!found || found.role !== 'edit') return json({ error: 'This link cannot edit the board.' }, 403);
-  const editor = await repositoryIdentity(req, env);
-  if (editor instanceof Response) return json({ error: 'Sign in to edit this board.', signIn: true }, 401);
-  const body = await readBody(req);
-  const state = stateText(body?.state);
-  if (state.error) return json({ error: state.error }, state.status || 400);
-  if (body.version !== found.row.version) return json({ error: 'This board changed since you opened it.', version: found.row.version }, 409);
-  const done = await env.LEARN_DB.prepare('UPDATE learn_boards SET state_json = ?, version = version + 1, updated_by = ?, updated_at = ? WHERE id = ? AND version = ?')
-    .bind(state.text, editor.email, new Date().toISOString(), found.row.id, found.row.version).run();
-  if (!done.meta?.changes) return json({ error: 'This board changed since you opened it.' }, 409);
-  return json({ version: found.row.version + 1 });
+  return json({ role, app: row.app, board: row.board, title: row.title || null, owner: row.owner_email, version: row.version, updated_at: row.updated_at, state: JSON.parse(row.state_json) });
 }
 
 export async function learnBoardsRoute(path, req, env) {
@@ -166,14 +151,14 @@ export async function learnBoardsRoute(path, req, env) {
     if (found instanceof Response) return found;
     const key = decodeURIComponent(sharedFile[2]);
     if (req.method === 'GET') return getAsset(env, found.row, key);
-    if (req.method === 'PUT') return found.role === 'edit' ? putAsset(req, env, found.row, key) : json({ error: 'This link cannot add files.' }, 403);
+    if (req.method === 'PUT') return json({ error: 'Shared links are view-only. Fork the board to edit your own copy.' }, 403);
     return json({ error: 'Method not allowed' }, 405);
   }
   const shared = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)$/);
   if (shared) {
     const token = decodeURIComponent(shared[1]);
     if (req.method === 'GET') return openShared(req, env, token);
-    if (req.method === 'PUT') return saveShared(req, env, token);
+    if (req.method === 'PUT') return json({ error: 'Shared links are view-only. Fork the board to edit your own copy.' }, 403);
     return json({ error: 'Method not allowed' }, 405);
   }
   const own = path.match(/^\/api\/learn\/boards\/([a-z0-9-]{1,100})\/([^/]+)(\/share|\/assets(?:\/([^/]+))?)?$/);
