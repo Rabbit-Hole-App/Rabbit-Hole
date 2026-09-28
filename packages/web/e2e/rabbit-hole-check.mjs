@@ -468,6 +468,141 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   });
 }
 
+{
+  // ── Settings and Connections (T02 §11; brief §21 J15-J17, J19-J22) ──
+  const row = (page, id) => settings(page).locator(`[data-settings-focus="${id}"]`);
+  const settingsAt = async (detail, path = '/apps', viewport) => {
+    const page = await open(viewport);
+    await loaded(page, path);
+    await page.evaluate((d) => window.dispatchEvent(new CustomEvent('small:settings', { detail: d })), detail);
+    await settings(page).waitFor({ timeout: 5000 });
+    return page;
+  };
+
+  await check('J15: Settings opens from the workspace menu; Esc returns to the same route', async () => {
+    const page = await open();
+    await loaded(page, '/apps?s=shared');
+    await page.locator('aside').getByText(wsLabel, { exact: true }).first().click();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await settings(page).waitFor({ timeout: 10000 });
+    await page.keyboard.press('Escape');
+    await settings(page).waitFor({ state: 'detached', timeout: 5000 });
+    must(page.url() === `${base}/apps?s=shared`, `route changed to ${page.url()}`);
+    await page.context().close();
+  });
+
+  await check('J15: Settings opens with the sidebar collapsed and below md, inside the viewport', async () => {
+    for (const width of [1500, 390]) {
+      const page = await open({ width, height: 900 });
+      await loaded(page);
+      if (width >= 768) await page.keyboard.press('Control+Backslash'); // collapse (Shell.jsx:44-50)
+      await page.evaluate(() => window.dispatchEvent(new CustomEvent('small:settings', { detail: { tab: 'preferences' } })));
+      await settings(page).waitFor({ timeout: 5000 });
+      const box = await settings(page).boundingBox();
+      must(box && box.x >= 0 && box.x + box.width <= width, `Settings off-screen at ${width}px`);
+      await page.keyboard.press('Escape');
+      await settings(page).waitFor({ state: 'detached', timeout: 5000 });
+      await page.context().close();
+    }
+  });
+
+  await check('J16: theme survives reload and revisit; no-op preferences are Planned and disabled; copy names the product', async () => {
+    const page = await settingsAt({ tab: 'preferences' });
+    const dialog = settings(page);
+    must((await dialog.innerText()).includes('Choose how you want Rabbit Hole to look and behave'), 'Preferences copy does not use PRODUCT');
+    for (const name of ['High contrast', 'Use Enter to add a new line', 'Language', 'Number format', 'Always show text direction controls', 'Mail & Calendar', 'Import', 'Small MCP', 'Public pages', 'Emoji']) {
+      must(await dialog.getByText(new RegExp(`^${name} ?Planned$`)).count() === 1, `${name} has no Planned badge`);
+    }
+    for (const name of ['Use system setting', 'English (US)', 'Default']) must(await dialog.getByRole('button', { name, exact: true }).isDisabled(), `${name} select is enabled`);
+    must(await dialog.getByRole('switch').evaluateAll((all) => all.length === 2 && all.every((s) => s.disabled)), 'the Enter-newline or text-direction toggle is enabled');
+    await dialog.getByRole('button', { name: 'System', exact: true }).click();
+    await page.getByRole('button', { name: 'Dark', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await loaded(page);
+    must(await page.evaluate(() => document.documentElement.classList.contains('dark')), 'dark theme did not survive reload');
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('small:settings', { detail: { tab: 'preferences' } })));
+    await dialog.getByRole('button', { name: 'Dark', exact: true }).waitFor({ timeout: 5000 }); // the revisit shows the saved choice
+    await dialog.getByText('Mail & Calendar').click();
+    await dialog.getByText('Planned — not available yet.').waitFor({ timeout: 3000 });
+    await page.context().close(); // the theme lives in this throwaway context only
+  });
+
+  await check('J17: a planned provider opens highlighted in Settings, says Planned, and offers no action', async () => {
+    const page = await settingsAt({ tab: 'connections', focus: 'google-slides' });
+    must(await row(page, 'google-slides').getAttribute('aria-current') === 'true', 'the Google Slides row is not highlighted');
+    for (const id of ['google-slides', 'google-drive', 'notion']) {
+      must((await row(page, id).innerText()).includes('Planned'), `${id} is not Planned`);
+      must(await row(page, id).getByRole('button').count() === 0, `${id} offers an action`);
+    }
+    await page.context().close();
+  });
+
+  await check('J19: Manage connections from Start on a project returns to the same draft and route, with nothing created', async () => {
+    must(repo, 'no repository project in the catalog');
+    const page = await open();
+    await openStart(page, 'sources', `/apps/${repo.name}`);
+    const writes = [];
+    page.on('request', (r) => { const p = new URL(r.url()).pathname; if (r.method() !== 'GET' && /^[/]api[/](canvases|repositories|apps)/.test(p)) writes.push(`${r.method()} ${p}`); });
+    const dialog = startDialog(page);
+    await dialog.getByPlaceholder('Untitled canvas').fill('e2e J19 draft');
+    await dialog.getByRole('radio', { name: 'From a connection' }).click();
+    await dialog.getByRole('button', { name: 'Manage connections' }).click();
+    await settings(page).waitFor({ timeout: 5000 });
+    await page.keyboard.press('Escape');
+    await settings(page).waitFor({ state: 'detached', timeout: 5000 });
+    must(await dialog.isVisible(), 'Start closed together with Settings');
+    must(await dialog.getByPlaceholder('Untitled canvas').inputValue() === 'e2e J19 draft', 'the draft title was lost');
+    must(new URL(page.url()).pathname === `/apps/${repo.name}`, `route changed to ${page.url()}`);
+    must(!writes.length, `a cancelled source choice wrote: ${writes}`);
+    await page.context().close();
+  });
+
+  await check('J20: AWS management stays with its installer; a workspace switch re-scopes the catalog', async () => {
+    const page = await settingsAt({ tab: 'connections' });
+    if (await row(page, 'aws').count()) {
+      const { connection } = await page.evaluate(() => fetch('/api/byoc/connection').then((r) => r.json()));
+      if (connection && !connection.can_deploy && connection.state !== 'connected') must((await row(page, 'aws').innerText()).includes('manages this connection'), 'a non-installer sees no manager line (AwsConnection.jsx:91)');
+      if (connection?.state === 'connected' && !connection.can_deploy) must(await row(page, 'aws').getByRole('button', { name: 'Connected' }).isDisabled(), 'a non-installer can disconnect');
+    }
+    const { workspaces = [], active } = await page.evaluate(() => fetch('/api/workspaces').then((r) => r.json()));
+    const other = workspaces.find((w) => w.slug !== active);
+    if (!other) { console.log('note: J20 switch not exercised; the test user has one workspace'); return page.context().close(); }
+    await page.keyboard.press('Escape');
+    await page.locator('aside').getByText(wsLabel, { exact: true }).first().click();
+    await Promise.all([page.waitForEvent('load'), page.getByText(other.name || wsName(other.slug), { exact: true }).click()]); // Sidebar.jsx:797-805 reloads /apps
+    const now = await page.evaluate(() => fetch('/api/apps', { headers: { 'X-Small-Workspace': localStorage.getItem('small.ws') || '' } }).then((r) => r.json()));
+    must(now.org === other.slug, `catalog still scoped to ${now.org}`);
+    await page.context().close();
+  });
+
+  await check('J21: availability is shown apart from account status', async () => {
+    const page = await settingsAt({ tab: 'connections' });
+    const github = await row(page, 'github').innerText();
+    must(github.includes('Available') && github.includes('No account needed for public repositories'), 'GitHub mixes or drops availability and account status');
+    for (const id of ['slack', 'google-slides', 'google-drive', 'notion']) must(!/account|connected|synced|imported/i.test(await row(page, id).innerText()), `${id} implies an account or sync state`);
+    await page.context().close();
+  });
+
+  await check('J22: only AWS offers disconnect, behind a confirmation that states consequences', async () => {
+    const page = await settingsAt({ tab: 'connections' });
+    for (const id of ['github', 'slack', 'google-slides', 'google-drive', 'notion']) must(!(await row(page, id).getByText(/disconnect|remove/i).count()), `${id} offers a removal it can't perform`);
+    const connected = row(page, 'aws').getByRole('button', { name: 'Connected' });
+    if (await connected.count() && await connected.isEnabled()) {
+      const confirm = page.getByRole('dialog', { name: 'Disconnect AWS?', exact: true });
+      await connected.click();
+      await confirm.waitFor({ timeout: 5000 });
+      must((await confirm.innerText()).includes('Your AWS resources and data stay intact'), 'disconnect consequences missing');
+      await page.keyboard.press('Escape'); // the confirm is the top layer: Esc closes it, not Settings
+      await confirm.waitFor({ state: 'detached', timeout: 3000 });
+      must(await settings(page).isVisible(), 'Esc on the confirm also closed Settings');
+      await connected.click();
+      await confirm.getByRole('button', { name: 'Cancel' }).click(); // D7: never Disconnect
+      await confirm.waitFor({ state: 'detached', timeout: 3000 });
+    } else console.log('note: J22 confirm not exercised; this user has no AWS connection it can disconnect');
+    await page.context().close();
+  });
+}
+
 // ── journey checks: each area inserts its block above this line, wrapped in { } ──
 
 await browser.close();

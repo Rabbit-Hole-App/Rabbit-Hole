@@ -1,30 +1,55 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, Compass, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
+import { AVAILABILITY, connectionsFor } from './connections.js';
 import { isPrivateByoc } from './private-auth.js';
 import { titleOf } from './agent/catalog.js';
-import { learnPreview } from './flags.js';
+import { learnPreview, PRODUCT } from './flags.js';
 import { pinnedApps, readPinned, secClosedInit, togglePin } from './home/pinned.js';
 import { isLearnResource } from './library-filter.js';
 import { pageFor, sectionActive, sectionHref } from './routes.js';
-import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
+import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
 // left nav (Account / Workspace sections), right content per tab.
 const THEMES = { System: 'system', Light: 'light', Dark: 'dark' };
+// T02 §11, dev build only (D2): no-op controls and placeholder panes say Planned. Each helper
+// returns its input unchanged when learnPreview is off, so the live markup stays exactly as today.
+const planned = (className = 'ml-2') => learnPreview && <Pill className={className}>Planned</Pill>;
+const soonTitle = (text) => (learnPreview ? <span>{text}{planned()}</span> : text);
+const dim = (control) => (learnPreview ? <span className="opacity-50">{control}</span> : control);
+const AVAILABILITY_COLOR = { available: 'green', preview: 'yellow', planned: 'grey' };
 // ponytail: nav copied verbatim from the Notion reference (user: "copy the same we
 // will remove later") - most items render an empty pane until we prune/wire them.
-function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initialTab, pendingGrant, onAccessChanged }) {
+function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initialTab, focus: initialFocus, pendingGrant, onAccessChanged }) {
   const [tab, setTab] = useState(initialTab || 'preferences');
+  const [focus, setFocus] = useState(initialFocus || null); // the row open_settings asked for, e.g. google-slides
+  const box = useRef(null);
+  useEffect(() => {
+    if (!learnPreview) return;
+    // Capture phase: while Settings is the top layer, Esc closes it and nothing under it (Start
+    // dialog, bar sheet). A dialog opened inside Settings (Disconnect AWS?) takes Esc first.
+    const esc = (e) => {
+      if (e.key !== 'Escape' || box.current?.querySelector('[role="dialog"]')) return;
+      e.stopPropagation();
+      onClose();
+    };
+    window.addEventListener('keydown', esc, true);
+    return () => window.removeEventListener('keydown', esc, true);
+  }, []);
+  useEffect(() => {
+    if (focus) box.current?.querySelector(`[data-settings-focus="${CSS.escape(focus)}"]`)?.scrollIntoView({ block: 'center' });
+  }, [focus, tab]);
   const [theme, setThemeState] = useState(() => getTheme());
   const [enterNewline, setEnterNewline] = useState(false); // visual only
   const [textDir, setTextDir] = useState(false); // visual only
   const label = Object.keys(THEMES).find((k) => THEMES[k] === theme);
   const NavBtn = ({ id, icon: Icon, children }) => (
     <div
-      onClick={() => setTab(id)}
+      onClick={() => { setTab(id); setFocus(null); }}
       className={cn('flex h-7 cursor-pointer items-center gap-2 rounded-sm px-2 text-sm', tab === id ? 'bg-hover font-medium' : 'hover:bg-hover text-ink-2')}
     >
       <Icon size={15} strokeWidth={1.5} className="shrink-0" />
@@ -55,10 +80,10 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
       <IconBtn aria-label="Copy" onClick={() => copy(text)}><Copy size={13} strokeWidth={1.5} /></IconBtn>
     </span>
   );
-  return (
+  const node = (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={onClose}>
-      <div className="flex h-[calc(100vh-100px)] max-h-[720px] w-[calc(100vw-100px)] max-w-[1150px] overflow-hidden rounded-2xl bg-white text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="w-[260px] shrink-0 overflow-y-auto border-r border-line bg-side py-4 px-3">
+      <div ref={box} {...(learnPreview && { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Settings' })} className={cn('flex h-[calc(100vh-100px)] max-h-[720px] w-[calc(100vw-100px)] max-w-[1150px] overflow-hidden rounded-2xl bg-white text-ink shadow-pop', learnPreview && 'max-md:h-[calc(100dvh-32px)] max-md:w-[calc(100vw-32px)] max-md:flex-col')} onMouseDown={(e) => e.stopPropagation()}>
+        <div className={cn('w-[260px] shrink-0 overflow-y-auto border-r border-line bg-side py-4 px-3', learnPreview && 'max-md:max-h-40 max-md:w-full max-md:border-r-0 max-md:border-b')}>
           <div className="px-2 pb-1 text-xs font-medium text-ink-3">Account</div>
           <div className="flex items-center gap-2 rounded-sm px-2 py-1.5">
             {email && <Avatar email={email} />}
@@ -66,17 +91,17 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
           </div>
           <NavBtn id="preferences" icon={SlidersHorizontal}>Preferences</NavBtn>
           <NavBtn id="notifications" icon={Bell}>Notifications</NavBtn>
-          <NavBtn id="mail" icon={Mail}>Mail & Calendar</NavBtn>
+          <NavBtn id="mail" icon={Mail}>Mail & Calendar{planned('ml-auto')}</NavBtn>
           <NavLabel>Workspace</NavLabel>
           <NavBtn id="general" icon={Settings}>General</NavBtn>
           <NavBtn id="people" icon={Users}>People</NavBtn>
-          <NavBtn id="import" icon={Download}>Import</NavBtn>
+          <NavBtn id="import" icon={Download}>Import{planned('ml-auto')}</NavBtn>
           <NavLabel>Features</NavLabel>
           <NavBtn id="ai" icon={Mark}>Small AI</NavBtn>
           <NavBtn id="connections" icon={LayoutGrid}>Connections{pendingGrant && <span role="status" aria-label="AWS access needs attention" className="ml-auto h-2 w-2 shrink-0 rounded-full bg-warn" />}</NavBtn>
-          <NavBtn id="mcp" icon={Share2}>Small MCP</NavBtn>
-          <NavBtn id="pages" icon={Globe}>Public pages</NavBtn>
-          <NavBtn id="emoji" icon={Smile}>Emoji</NavBtn>
+          <NavBtn id="mcp" icon={Share2}>Small MCP{planned('ml-auto')}</NavBtn>
+          <NavBtn id="pages" icon={Globe}>Public pages{planned('ml-auto')}</NavBtn>
+          <NavBtn id="emoji" icon={Smile}>Emoji{planned('ml-auto')}</NavBtn>
           <NavBtn id="developer" icon={Braces}>Developer</NavBtn>
           <NavLabel>Admin</NavLabel>
           <NavBtn id="teamspaces" icon={LayoutPanelLeft}>Teamspaces</NavBtn>
@@ -85,13 +110,13 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
         </div>
         <div className="relative flex-1 overflow-y-auto">
           <IconBtn aria-label="Close" onClick={onClose} className="absolute top-3 right-3"><X size={14} /></IconBtn>
-          <div className="mx-auto max-w-[920px] px-12 py-10">
+          <div className={cn('mx-auto max-w-[920px] px-12 py-10', learnPreview && 'max-md:px-4 max-md:py-6')}>
           {tab === 'preferences' && (
             <>
               <div className="text-2xl font-semibold">Preferences</div>
-              <div className="pt-2 text-base text-ink-2">Choose how you want small to look and behave</div>
+              <div className="pt-2 text-base text-ink-2">{`Choose how you want ${PRODUCT} to look and behave`}</div>
               <Heading>Appearance</Heading>
-              <SettingsRow title="Theme" desc="Choose a theme for small on this device">
+              <SettingsRow title="Theme" desc={`Choose a theme for ${PRODUCT} on this device`}>
                 <Select
                   value={label}
                   options={Object.keys(THEMES)}
@@ -99,24 +124,24 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
                 />
               </SettingsRow>
               <SettingsRow
-                title={<span>High contrast <span className="ml-1 rounded-sm bg-hover px-1.5 py-0.5 text-[11px] text-ink-2">Beta</span></span>}
+                title={learnPreview ? soonTitle('High contrast') : <span>High contrast <span className="ml-1 rounded-sm bg-hover px-1.5 py-0.5 text-[11px] text-ink-2">Beta</span></span>}
                 desc="Increase contrast for improved visibility"
               >
-                <Select value="Use system setting" options={['Use system setting', 'On', 'Off']} onChange={() => {}} />
+                {dim(<Select disabled={learnPreview} value="Use system setting" options={['Use system setting', 'On', 'Off']} onChange={() => {}} />)}
               </SettingsRow>
               <Heading>Input options</Heading>
-              <SettingsRow title="Use Enter to add a new line" desc="Applies to chat, comments, and other input fields. Press Cmd/Ctrl + Enter to send.">
-                <Toggle on={enterNewline} onChange={setEnterNewline} />
+              <SettingsRow title={soonTitle('Use Enter to add a new line')} desc="Applies to chat, comments, and other input fields. Press Cmd/Ctrl + Enter to send.">
+                {dim(<Toggle disabled={learnPreview} on={enterNewline} onChange={setEnterNewline} />)}
               </SettingsRow>
               <Heading>Language & time</Heading>
-              <SettingsRow title="Language" desc="Choose the language you want to use small in">
-                <Select value="English (US)" options={['English (US)']} onChange={() => {}} />
+              <SettingsRow title={soonTitle('Language')} desc={`Choose the language you want to use ${PRODUCT} in`}>
+                {dim(<Select disabled={learnPreview} value="English (US)" options={['English (US)']} onChange={() => {}} />)}
               </SettingsRow>
-              <SettingsRow title="Number format" desc="Choose how numbers and currencies are formatted. Default uses your language setting.">
-                <Select value="Default" options={['Default']} onChange={() => {}} />
+              <SettingsRow title={soonTitle('Number format')} desc="Choose how numbers and currencies are formatted. Default uses your language setting.">
+                {dim(<Select disabled={learnPreview} value="Default" options={['Default']} onChange={() => {}} />)}
               </SettingsRow>
-              <SettingsRow title="Always show text direction controls" desc="Show the option to change text direction (left to right or right to left) in the editor, regardless of what language you're using">
-                <Toggle on={textDir} onChange={setTextDir} />
+              <SettingsRow title={soonTitle('Always show text direction controls')} desc="Show the option to change text direction (left to right or right to left) in the editor, regardless of what language you're using">
+                {dim(<Toggle disabled={learnPreview} on={textDir} onChange={setTextDir} />)}
               </SettingsRow>
             </>
           )}
@@ -131,7 +156,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <SettingsRow title="Weekly email" desc="A summary lands every Monday 08:00 UTC." />
             </>
           )}
-          {tab === 'connections' && (
+          {tab === 'connections' && !learnPreview && (
             <>
               <div className="text-2xl font-semibold">Connections</div>
               <div className="pt-2 text-base text-ink-2">Bring small into the tools your team already uses</div>
@@ -145,6 +170,25 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
                   Connect Slack
                 </Button>
               </SettingsRow>
+            </>
+          )}
+          {tab === 'connections' && learnPreview && (
+            <>
+              <div className="text-2xl font-semibold">Connections</div>
+              <div className="pt-2 text-base text-ink-2">{`What each connection adds to learning in ${PRODUCT}, and whether it is available yet`}</div>
+              <Heading>Providers</Heading>
+              {connectionsFor({ aws: isPrivateByoc || import.meta.env.VITE_BYOC_DEV === 'true' }).map((c) => (
+                <div key={c.id} data-settings-focus={c.id} aria-current={focus === c.id || undefined} className={cn('-mx-2 rounded-md px-2', focus === c.id && 'bg-hover ring-2 ring-accent/35')}>
+                  <SettingsRow
+                    title={<span className="flex items-center gap-2">{c.name}<Pill color={AVAILABILITY_COLOR[c.availability]}>{AVAILABILITY[c.availability]}</Pill></span>}
+                    desc={[c.adds, c.account].filter(Boolean).join(' ')}
+                  >
+                    {c.id === 'github' && <Button variant="soft" size="sm" onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('small:start', { detail: { path: 'repository' } })); }}>Start from a repository</Button>}
+                    {c.id === 'slack' && <Button variant="soft" size="sm" onClick={() => window.open('/slack/install', '_blank', 'noopener')}>Connect Slack</Button>}
+                  </SettingsRow>
+                  {c.id === 'aws' && <AwsConnection workspace={org} apps={apps} onChanged={onReload} onAccessChanged={onAccessChanged} />}
+                </div>
+              ))}
             </>
           )}
           {tab === 'general' && (
@@ -320,7 +364,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
           {TITLES[tab] && (
             <>
               <div className="text-2xl font-semibold">{TITLES[tab]}</div>
-              <div className="pt-2 text-base text-ink-2">Nothing here yet</div>
+              <div className="pt-2 text-base text-ink-2">{learnPreview ? 'Planned — not available yet.' : 'Nothing here yet'}</div>
             </>
           )}
           </div>
@@ -328,6 +372,9 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
       </div>
     </div>
   );
+  // Portaled in dev: inside the aside it can't show while the sidebar is collapsed
+  // (Shell.jsx:75 transform) or below md (Shell.jsx:72 max-md:hidden).
+  return learnPreview ? createPortal(node, document.body) : node;
 }
 
 // Settings > Account > AI model: every agent (chat, review, runbook, watch)
@@ -474,6 +521,13 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
     return () => window.removeEventListener('small:search-state', on);
   }, []);
   const [showSettings, setShowSettings] = useState(false);
+  useEffect(() => {
+    if (!learnPreview) return;
+    // T02 §11: the Agent Bar and the Start dialog open Settings on a tab, optionally on one row.
+    const on = (e) => setShowSettings({ tab: e.detail?.tab, focus: e.detail?.focus });
+    window.addEventListener('small:settings', on);
+    return () => window.removeEventListener('small:settings', on);
+  }, []);
   const [grantNotice, setGrantNotice] = useState(null);
   const pendingGrant = grantNotice?.org === org ? grantNotice.pending : null;
   const onAccessChanged = (pending) => setGrantNotice({ org, pending });
@@ -846,7 +900,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           <MenuItem icon={LogOut} onClick={() => { window.location.href = '/logout'; }}>Log out</MenuItem>
         </Menu>
       </div>
-      {showSettings && <SettingsDialog email={email} org={org} apps={apps} onReload={onReload} onMarkRead={markRead} onClose={() => setShowSettings(false)} initialTab={typeof showSettings === 'string' ? showSettings : undefined} pendingGrant={pendingGrant} onAccessChanged={onAccessChanged} />}
+      {showSettings && <SettingsDialog email={email} org={org} apps={apps} onReload={onReload} onMarkRead={markRead} onClose={() => setShowSettings(false)} initialTab={typeof showSettings === 'string' ? showSettings : showSettings?.tab} focus={showSettings?.focus} pendingGrant={pendingGrant} onAccessChanged={onAccessChanged} />}
       {newApp && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={() => setNewApp(false)}>
           <div className="mt-[22vh] w-[420px] max-w-[90vw] rounded-2xl bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
