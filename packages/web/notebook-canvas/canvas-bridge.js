@@ -18,7 +18,8 @@
 
   // One browser database per card: the files of one notebook card are never in
   // another's. The name is set after config-utils.js writes the page config and
-  // before the app bundle (appended by it, loaded async) reads it.
+  // before the app bundle (appended by it, loaded async) reads it. This script
+  // must run before the loader starts (patch-site.mjs places it so).
   const config = document.getElementById('jupyter-config-data');
   new MutationObserver((records, observer) => {
     for (const record of records) for (const node of record.addedNodes) {
@@ -30,18 +31,18 @@
     }
   }).observe(document.head, { childList: true });
 
-  // The canvas card is the frame: no title bar, menus, side tab strips or
-  // status bar. Lumino positions panels inline, hence !important.
+  // Page styling; the chrome itself is hidden through Jupyter below (chrome()),
+  // so its layout reflows when the card is resized.
   const style = document.createElement('style');
   style.textContent = [
-    '#jp-top-panel, #jp-menu-panel, #jp-bottom-panel, .jp-SideBar { display: none !important; }',
-    '#jp-main-content-panel { top: 0 !important; height: 100% !important; }',
-    '#jp-main-vsplit-panel { left: 0 !important; width: 100% !important; }',
     'body, .jp-NotebookPanel, .jp-WindowedPanel-outer { background: #fff !important; }',
     '.jp-Notebook, .jp-NotebookPanel-notebook, .jp-WindowedPanel-inner { box-shadow: none !important; }',
     // The Files drawer is narrow: icon-only toolbar (captions stay as tooltips).
     '#jp-left-stack, #jp-left-stack .jp-SidePanel, .jp-FileBrowser { min-width: 0 !important; }',
     '.jp-FileBrowser-toolbar .jp-ToolbarButtonComponent-label { display: none !important; }',
+    // The card header already says Python; the kernel name would wrap the
+    // notebook toolbar onto a second line in a narrow card. The status dot stays.
+    '.jp-NotebookPanel-toolbar .jp-Toolbar-kernelName { display: none !important; }',
   ].join(' ');
   document.head.appendChild(style);
 
@@ -102,6 +103,18 @@
     setTimeout(() => app.commands.execute('filebrowser:open'));
   });
 
+  // The canvas card is the frame: no title bar, menus, side tab strips or
+  // status bar. Hidden through Lumino and Jupyter's own commands rather than
+  // CSS, so the layout gives their space to the document and follows resizes.
+  const chrome = async () => {
+    for (const side of ['left', 'right']) {
+      if (app.commands.isToggled('application:toggle-side-tabbar', { side })) await app.commands.execute('application:toggle-side-tabbar', { side });
+    }
+    for (const widget of app.shell.layout.widgets) {
+      if (['jp-header-panel', 'jp-top-panel', 'jp-menu-panel', 'jp-bottom-panel'].includes(widget.id)) widget.hide();
+    }
+  };
+
   const drawer = open => {
     if (!open) { app.shell.collapseLeft(); return; }
     app.shell.activateById('filebrowser');
@@ -133,6 +146,7 @@
         await makeDirs(copyPath);
         await contents.save(copyPath, { type: 'notebook', format: 'json', content: event.data.ipynb });
       }
+      await chrome();
       drawer(false);
       const opening = (await exists(active)) ? active : copyPath;
       if (await exists(opening)) await app.commands.execute('docmanager:open', { path: opening });
