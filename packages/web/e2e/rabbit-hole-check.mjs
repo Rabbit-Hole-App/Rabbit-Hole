@@ -282,6 +282,23 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   });
 }
 
+{
+  // ── agent-ui (T02 §3.3, §5): the one Start host, with the workspace identity in its ctx ──
+  await check('start-host: small:start opens one Start dialog on the asked tab, naming the workspace after a navigation', async () => {
+    const page = await open();
+    await loaded(page, '/apps');
+    await spa(page, '/members'); // a new page and a new Root baseline: the identity must survive both
+    await page.evaluate(() => dispatchEvent(new CustomEvent('small:start', { detail: { path: 'question' } })));
+    const dialog = startDialog(page);
+    await dialog.waitFor({ timeout: 10000 });
+    must(await page.getByRole('dialog', { name: 'Start a rabbit hole' }).count() === 1, 'more than one Start dialog');
+    must(await dialog.getByRole('tab', { name: 'Question', exact: true }).getAttribute('aria-selected') === 'true', 'the Question tab is not selected');
+    await dialog.getByRole('tab', { name: 'Repository', exact: true }).click();
+    await dialog.getByText(`Visible to everyone in ${wsLabel}.`).waitFor({ timeout: 10000 });
+    await page.context().close();
+  });
+}
+
 // ── journey checks: each area inserts its block above this line, wrapped in { } ──
 
 await browser.close();

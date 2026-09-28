@@ -55,6 +55,10 @@ function ChatPage() {
   );
 }
 
+// Rabbit Hole dev only (T02 §3.3, §5): the one Start dialog host, mounted in Root so
+// Shell remounts never drop it. The live build never loads the chunk.
+const StartHost = learnPreview ? lazy(() => import('./agent/StartHost.jsx')) : null;
+
 function Root() {
   // PrivateAuthGate consumes Cognito callbacks before normalizing app routes.
   // /dash aliases /apps (see the control-plane cache note). No router dep: routes.js.
@@ -78,6 +82,7 @@ function Root() {
     <>
       {at.page === 'app' ? <SharePage slug={at.slug} runId={at.runId} /> : at.page === 'members' ? <MembersPage /> : at.page === 'chat' ? <ChatPage /> : <App />}
       <SearchModal />
+      {StartHost && <Suspense fallback={null}><StartHost /></Suspense>}
       <Toasts />
     </>
   );

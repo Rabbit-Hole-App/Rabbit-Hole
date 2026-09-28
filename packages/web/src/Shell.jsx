@@ -3,6 +3,8 @@ import { Home } from 'lucide-react';
 import { navigate } from './api.js';
 import { loadApps } from './app-data.js';
 import Sidebar from './Sidebar.jsx';
+import { patchSurface } from './agent/surface.js';
+import { learnPreview } from './flags.js';
 
 // flow.md §1: the sidebar is always present. One shell owns it everywhere -
 // the /api/apps fetch it needs, the persisted collapse, the » reopen button,
@@ -23,6 +25,11 @@ export default function Shell({ children }) {
 
   const load = () => loadApps().then(setData).catch((e) => setData({ error: e.message }));
   useEffect(() => { load(); }, []);
+  // Rabbit Hole dev: the workspace identity every command ctx reads (agent/commands.js
+  // ctxOf). setSurface keeps identity across pages (agent/surface.js), so one patch per load.
+  useEffect(() => {
+    if (learnPreview && data?.apps) patchSurface({ org: data.org, email: data.email, orgName: data.orgName || null, catalog: data.apps });
+  }, [data]);
 
   const toggle = (c) => {
     setCollapsed(c);
