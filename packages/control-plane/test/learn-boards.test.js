@@ -20,11 +20,19 @@ function setup(t) {
       return new Response('no', { status: 404 });
     },
   };
-  const env = { LEARN_DB, CONTROL_PLANE };
-  const call = async (method, path, { as, body } = {}) => {
-    const headers = { 'Content-Type': 'application/json', ...(as ? { cookie: `small_session=${as}` } : {}) };
-    const response = await learnBoardsRoute(path, new Request(`https://dev.test${path}`, { method, headers, ...(body ? { body: JSON.stringify(body) } : {}) }), env);
-    return { status: response.status, body: await response.json() };
+  // R2, in memory: enough of put/get/list for board files.
+  const objects = new Map();
+  const RUNS = {
+    put: async (key, bytes, { httpMetadata, customMetadata }) => { objects.set(key, { bytes: new Uint8Array(bytes), httpMetadata, customMetadata }); },
+    get: async key => { const object = objects.get(key); return object ? { body: object.bytes, httpMetadata: object.httpMetadata, customMetadata: object.customMetadata } : null; },
+    list: async ({ prefix }) => ({ objects: [...objects].filter(([key]) => key.startsWith(prefix)).map(([key, object]) => ({ key, customMetadata: object.customMetadata })), truncated: false }),
+  };
+  const env = { LEARN_DB, CONTROL_PLANE, RUNS };
+  const call = async (method, path, { as, body, raw, headers: extra = {} } = {}) => {
+    const headers = { 'Content-Type': 'application/json', ...extra, ...(as ? { cookie: `small_session=${as}` } : {}) };
+    const response = await learnBoardsRoute(path, new Request(`https://dev.test${path}`, { method, headers, ...(raw !== undefined ? { body: raw } : body ? { body: JSON.stringify(body) } : {}) }), env);
+    const type = response.headers.get('content-type') || '';
+    return { status: response.status, headers: response.headers, body: type.includes('json') ? await response.json() : new Uint8Array(await response.arrayBuffer()) };
   };
   return { call, LEARN_DB };
 }
@@ -106,4 +114,35 @@ test('bad input is refused plainly', async t => {
   assert.equal((await call('PUT', OWN, { as: 'owner', body: { state: 'nope' } })).status, 400);
   assert.equal((await call('PUT', OWN, { as: 'owner', body: { state: { blob: 'x'.repeat(2_000_000) } } })).status, 413);
   assert.equal((await call('GET', '/api/learn/boards/shared/short')).status, 404);
+});
+
+test('board files: the owner uploads them; whoever can open a link can load them, nobody else', async t => {
+  const { call } = setup(t);
+  const key = encodeURIComponent('pdf:paper-1');
+  assert.equal((await call('PUT', `${OWN}/assets/${key}`, { as: 'owner', raw: new Uint8Array([1, 2, 3]), headers: { 'Content-Type': 'application/pdf' } })).status, 404, 'no board row yet');
+  const links = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, edit: true, state: STATE } })).body.sharing;
+  assert.equal((await call('PUT', `${OWN}/assets/${key}`, { as: 'owner', raw: new Uint8Array([1, 2, 3]), headers: { 'Content-Type': 'application/pdf' } })).status, 200);
+  await call('PUT', `${OWN}/assets/${encodeURIComponent('image:a cat')}`, { as: 'owner', raw: 'data:image/png;base64,AAAA', headers: { 'Content-Type': 'text/x-cached-string', 'X-Asset-Kind': 'string' } });
+  assert.deepEqual((await call('GET', `${OWN}/assets`, { as: 'owner' })).body.keys.sort(), ['image:a cat', 'pdf:paper-1']);
+  const viewed = await call('GET', `/api/learn/boards/shared/${links.view}/assets/${key}`, { as: 'friend' });
+  assert.equal(viewed.status, 200);
+  assert.deepEqual([...viewed.body], [1, 2, 3]);
+  assert.equal(viewed.headers.get('content-type'), 'application/pdf');
+  assert.equal((await call('GET', `/api/learn/boards/shared/${links.view}/assets/${encodeURIComponent('image:a cat')}`, { as: 'friend' })).headers.get('x-asset-kind'), 'string');
+  assert.equal((await call('GET', `/api/learn/boards/shared/${links.view}/assets/${key}`)).status, 401, 'not public: sign in');
+  assert.equal((await call('PUT', `/api/learn/boards/shared/${links.view}/assets/${key}`, { as: 'friend', raw: new Uint8Array([9]) })).status, 403, 'a view link adds no files');
+  assert.equal((await call('PUT', `/api/learn/boards/shared/${links.edit}/assets/${encodeURIComponent('drop:x')}`, { as: 'friend', raw: new Uint8Array([9]), headers: { 'Content-Type': 'image/png' } })).status, 200);
+  await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: false } });
+  assert.equal((await call('GET', `/api/learn/boards/shared/${links.view}/assets/${key}`, { as: 'friend' })).status, 404, 'sharing off: files go with the link');
+});
+
+test('an uploaded file is never served as a page on this origin', async t => {
+  const { call } = setup(t);
+  const links = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, public_view: true, state: STATE } })).body.sharing;
+  await call('PUT', `${OWN}/assets/${encodeURIComponent('drop:evil')}`, { as: 'owner', raw: '<script>alert(1)</script>', headers: { 'Content-Type': 'text/html' } });
+  const served = await call('GET', `/api/learn/boards/shared/${links.view}/assets/${encodeURIComponent('drop:evil')}`);
+  assert.equal(served.headers.get('content-type'), 'application/octet-stream');
+  assert.equal(served.headers.get('x-content-type-options'), 'nosniff');
+  assert.match(served.headers.get('content-security-policy'), /sandbox/);
+  assert.equal(served.headers.get('content-disposition'), 'attachment');
 });

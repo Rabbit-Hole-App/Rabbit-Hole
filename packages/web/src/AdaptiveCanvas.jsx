@@ -11,7 +11,7 @@ import CanvasMinimap from './CanvasMinimap.jsx';
 import { presentSteps } from './learn-present.js';
 import { pageRects, PAGE_W } from './learn-pages.js';
 import { outlineFrom, applyOutlineOps } from './learn-outline-model.js';
-import { cachedAsset } from './learn-asset-cache.js';
+import { loadAsset } from './learn-board-assets.js';
 import { groupShot } from './learn-group-shot.js';
 import LearnWiki from './LearnWiki.jsx';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
@@ -291,7 +291,7 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
   const [missing, setMissing] = useState(false);
   useEffect(() => {
     let revoke = null;
-    cachedAsset(block.assetKey).then(file => {
+    loadAsset(block.assetKey).then(file => {
       if (!file) { setMissing(true); return; }
       revoke = URL.createObjectURL(file);
       setUrl(revoke);
@@ -329,7 +329,7 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
   const [missing, setMissing] = useState(false);
   useEffect(() => {
     let revoke = null;
-    cachedAsset(block.assetKey).then(file => {
+    loadAsset(block.assetKey).then(file => {
       if (!file) { setMissing(true); return; }
       revoke = URL.createObjectURL(file);
       setUrl(revoke);
@@ -2500,7 +2500,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
                       groupShot({
                         box: { left, top, right, bottom }, members: memberIds,
                         strokes: strokes.filter(stroke => stroke.points?.some(point => point.x >= left && point.x <= right && point.y >= top && point.y <= bottom)),
-                        shapes, items, blocks, bounds, cachedAsset,
+                        shapes, items, blocks, bounds, cachedAsset: loadAsset,
                         dark: document.documentElement.classList.contains('dark'),
                       }).then(blob => { if (blob) onGroupShotRef.current?.(blob, group.label || 'group'); }).catch(() => { /* text still asks */ });
                     }}

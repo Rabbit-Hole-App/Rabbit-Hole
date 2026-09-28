@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { Eye, Pencil, RotateCcw } from 'lucide-react';
+import { setRemoteAssets } from './learn-board-assets.js';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 
@@ -14,6 +15,12 @@ export default function SharedBoardPage({ token }) {
   const [exchanges, setExchanges] = useState([]);
   const version = useRef(null);
   const canvasState = useRef(null);
+
+  // The board's files come through the same link.
+  useEffect(() => {
+    setRemoteAssets(key => fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}/assets/${encodeURIComponent(key)}`));
+    return () => setRemoteAssets(null);
+  }, [token]);
 
   useEffect(() => {
     fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}`, { headers: { 'Content-Type': 'application/json' } })

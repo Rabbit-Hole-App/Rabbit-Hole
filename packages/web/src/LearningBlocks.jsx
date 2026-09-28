@@ -3,6 +3,7 @@ import { Check, ChevronLeft, ChevronRight, Code, Loader2, Play, RotateCcw, Searc
 import { Md } from './ask.jsx';
 import { api, wsHeaders } from './api.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
+import { loadAsset } from './learn-board-assets.js';
 import { colorLine } from './code.jsx';
 import { CodeBlock } from './ui.jsx';
 import { runPython } from './pyodide-runner.js';
@@ -1200,7 +1201,7 @@ function ImageBody({ block, appName, onChange, onFile }) {
     let live = true;
     if (current?.src) { setResolved(current.src); return; }
     if (!current?.cacheKey) { setResolved(''); return; }
-    cachedAsset(current.cacheKey).then(value => { if (live) setResolved(value || ''); });
+    loadAsset(current.cacheKey).then(value => { if (live) setResolved(value || ''); });
     return () => { live = false; };
   }, [current?.src, current?.cacheKey]);
   const step = direction => onChange({ ...block, variant: (index + direction + variants.length) % variants.length });

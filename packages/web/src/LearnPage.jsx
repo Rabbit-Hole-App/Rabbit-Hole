@@ -7,6 +7,7 @@ import { requestBoardExplanation } from './learn-board-request.js';
 import { AskPanel } from './ask.jsx';
 import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
+import { assetKeysOf, setRemoteAssets } from './learn-board-assets.js';
 import { captureSelection, selectionSnapshot } from './sigmoid-context.js';
 import RegionPicker from './RegionPicker.jsx';
 import { CourseInterview, CoursePanel, useLearnCourse } from './LearnCourse.jsx';
@@ -28,7 +29,7 @@ import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
 import RepositorySource from './RepositorySource.jsx';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
 import LearnPaper from './LearnPaper.jsx';
-import { cacheAsset } from './learn-asset-cache.js';
+import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { classifyDrop } from './learn-drop.js';
 import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from './learn-notes.js';
 import { challengePrompt, gradeAnswer, parseVerdict, recordBaseline, shadowGrade } from './learn-grade.js';
@@ -434,6 +435,34 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     try { state = JSON.parse(localStorage.getItem(boardStorageKey) || '{}'); } catch { /* an unreadable copy shares as empty */ }
     return { ...state, exchanges: exchangesRef.current };
   };
+  // Board files follow the board: this page's cards read the server copy when
+  // this browser has none, and while shared, any file not yet uploaded goes up.
+  useEffect(() => {
+    setRemoteAssets(key => fetch(`${boardPath}/assets/${encodeURIComponent(key)}`, { headers: wsHeaders() }));
+    return () => setRemoteAssets(null);
+  }, [boardPath]);
+  const uploadedAssets = useRef(null);
+  useEffect(() => { uploadedAssets.current = null; }, [boardPath]);
+  // `sharingNow`: the caller already knows it is shared (the state has not caught up).
+  const syncAssets = async (sharingNow = false) => {
+    if (!sharingNow && !sharingRef.current?.shared) return;
+    try {
+      if (!uploadedAssets.current) uploadedAssets.current = new Set((await api(`${boardPath}/assets`)).keys);
+      for (const key of assetKeysOf(boardSnapshot())) {
+        if (uploadedAssets.current.has(key)) continue;
+        const value = await cachedAsset(key);
+        if (value == null) continue;
+        const blob = typeof value === 'string' ? new Blob([value], { type: 'text/x-cached-string' }) : value;
+        uploadedAssets.current.add(key);
+        if (blob.size > 25 * 1024 * 1024) { toast(`${blob.name || 'A file'} is over 25 MB, so it stays in your browser and others will not see it.`); continue; }
+        const response = await fetch(`${boardPath}/assets/${encodeURIComponent(key)}`, {
+          method: 'PUT', body: blob,
+          headers: { 'Content-Type': blob.type || 'application/octet-stream', ...(typeof value === 'string' ? { 'X-Asset-Kind': 'string' } : {}), ...wsHeaders() },
+        });
+        if (!response.ok) uploadedAssets.current.delete(key);
+      }
+    } catch { /* tried again after the next save */ }
+  };
   useEffect(() => {
     let live = true;
     api(boardPath).then(data => {
@@ -460,6 +489,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         const data = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state: boardSnapshot(), version: boardVersion.current }) });
         boardVersion.current = data.version;
         try { localStorage.setItem(versionKey, String(data.version)); } catch { /* the next open re-checks */ }
+        syncAssets();
       } catch (error) {
         if (error.status === 409) toast('Someone with the edit link changed this board. Reload to see their changes; your newer edits here are not shared yet.', { tone: 'error' });
       }
@@ -478,6 +508,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         const saved = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state: boardSnapshot(), version: boardVersion.current }) });
         boardVersion.current = saved.version;
         try { localStorage.setItem(versionKey, String(saved.version)); } catch { /* the next open re-checks */ }
+        await syncAssets(true);
       }
     } catch (error) { setShareError(error.message); }
     finally { setShareBusy(false); }
