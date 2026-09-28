@@ -20,6 +20,7 @@ $notebookContent = (Resolve-Path packages/web/notebook/content).Path
 $notebookOutput = Join-Path (Get-Location) '.small/notebook-site'
 .small/notebook-venv/Scripts/jupyter-lite.exe build --lite-dir $notebookRoot --contents $notebookContent --output-dir $notebookOutput
 if ($LASTEXITCODE -ne 0) { throw 'Notebook build failed' }
+node packages/web/notebook/patch-site.mjs $notebookOutput
 Push-Location packages/web
 try { npx wrangler deploy --config wrangler.notebook-dev.jsonc }
 finally { Pop-Location }
@@ -39,3 +40,12 @@ Verification uses `playwright.learn-preview.config.js`: actual Python output,
 view-switch retention, reset/cancel, quiz feedback, source position/highlighting,
 and flashcard flip/self-assessment. Run after building `dist-dev` using the
 [regular dev steps](../../../docs/features/coaching.md#deploy-dev).
+
+## Canvas notebooks
+
+`content/canvas.ipynb`, `notebooks/jupyter-lite.json` (exposes the app to
+the page) and `canvas-bridge.js` (added by `patch-site.mjs`) serve the Learn
+canvas's notebook cards; see [canvas notebook](../../../docs/features/canvas-notebook.md).
+A parallel session deploys this site to its own worker with
+`npx wrangler deploy --config wrangler.notebook-parallel.jsonc` and builds the
+web app with `VITE_NOTEBOOK_ORIGIN` set to that worker's URL.

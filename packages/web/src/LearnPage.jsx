@@ -936,6 +936,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         { label: 'Sticky note', icon: StickyNote, onSelect: () => canvas()?.insertSticky() },
         { label: 'Divider line', icon: SeparatorHorizontal, onSelect: () => canvas()?.insertDivider() },
         { divider: true },
+        { label: 'Notebook', icon: NotebookPen, onSelect: () => canvas()?.insertNotebook() },
         // The one way to add a file besides dropping it on the canvas.
         { label: 'Upload a file', icon: Upload, onSelect: () => filePicker.current?.click() },
       ],

@@ -262,6 +262,10 @@ reset or leaving/reloading Learn; downloading retains a copy. No server executio
 new model calls, notebook ingestion, or cross-device persistence was added.
 See [notebook build/deployment](../../packages/web/notebook/README.md).
 
+The canvas also takes real notebooks: **Insert → Notebook** adds a JupyterLite
+Notebook card whose `.ipynb` is saved with the board. See
+[canvas notebook](canvas-notebook.md).
+
 Practice contains three authored quiz questions with explanations and links
 back to lesson pages. Five flashcards flip on click (keyboard accessible;
 reduced-motion respected). **Got it right / Not yet** records a separate choice

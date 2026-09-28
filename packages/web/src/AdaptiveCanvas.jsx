@@ -16,6 +16,8 @@ import { groupShot } from './learn-group-shot.js';
 import LearnWiki from './LearnWiki.jsx';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
+import NotebookBody from './NotebookCard.jsx';
+import { newNotebookBlock } from './learn-notebook.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -97,6 +99,9 @@ function startDrag(event, origin, apply, scale = 1, snap = null) {
   // this, a click meant to select something shifts it by whatever the hand did
   // on the way down - worst on text, which has no handle to aim at.
   let dragging = false;
+  // An iframe under the pointer (a notebook, a PDF) would swallow the rest of
+  // the drag; while one is in progress every iframe ignores the pointer.
+  document.body.classList.add('canvas-dragging');
   const move = e => {
     if (!dragging && Math.hypot(e.clientX - from.x, e.clientY - from.y) < DRAG_THRESHOLD) return;
     dragging = true;
@@ -105,7 +110,7 @@ function startDrag(event, origin, apply, scale = 1, snap = null) {
     const pulled = snap ? snap(x, y) : null;
     apply(pulled ? pulled.x : x, pulled ? pulled.y : y);
   };
-  const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); apply.done?.(); snap?.done?.(); };
+  const up = () => { document.body.classList.remove('canvas-dragging'); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); apply.done?.(); snap?.done?.(); };
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', up);
 }
@@ -490,11 +495,27 @@ function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove,
   );
 }
 
+// A real Jupyter notebook on the canvas (docs/features/canvas-notebook.md).
+// Notebook edits are saved quietly: they are not canvas undo steps.
+function NotebookCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap }) {
+  const latest = useRef(block);
+  latest.current = block;
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
+      connected={connected} width={720} height={block.h || 560} autoMax={undefined} saved={{ w: block.w, h: block.h }}
+      onSize={(id, w, h) => onChange({ ...block, w, h })}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      <NotebookBody block={block} onSelect={onSelect} onDocument={ipynb => onChangeQuiet({ ...latest.current, ipynb })} />
+    </CanvasNode>
+  );
+}
+
 function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade, onWiki, onWatch }) {
   if (block.type === 'video') return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
   if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onChangeQuiet={onChangeQuiet} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
@@ -1081,6 +1102,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         }
         snapshot();
         return insertAtView({ id: crypto.randomUUID(), type: 'paper', dx: 0, dy: 0, title: title || `arXiv ${id}`, paper: { id, page } });
+      },
+      insertNotebook: () => {
+        snapshot();
+        return insertAtView(newNotebookBlock());
       },
       insertDivider: () => {
         snapshot();

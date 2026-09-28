@@ -330,6 +330,10 @@ a {
   box-shadow: var(--shadow-pop);
 }
 
+/* A canvas drag keeps the pointer even when it crosses an embedded page
+   (notebook, PDF, video); see startDrag in AdaptiveCanvas.jsx. */
+.canvas-dragging iframe { pointer-events: none; }
+
 /* Excalidraw's own rule for its overlay layer doesn't survive our Tailwind cascade -
    without it the layer swallows pointer events and nothing can be drawn. */
 .excalidraw .SVGLayer,
