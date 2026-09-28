@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
+import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
@@ -676,11 +676,16 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
 function SectionMenu({ className, onLevel }) {
   return (
     <div role="menu" aria-label="Insert a section" className={`absolute z-40 flex w-52 flex-col overflow-hidden rounded-xl border border-line bg-white p-1 shadow-md ${className}`}>
-      {SECTION_LEVELS.map(entry => (
-        <button key={entry.level} type="button" role="menuitem" onClick={() => onLevel(entry.level)}
-          style={{ fontSize: Math.round(entry.size * 0.62), fontWeight: entry.weight }}
-          className="block w-full rounded-lg px-3 py-1 text-left leading-tight text-ink hover:bg-hover">{entry.label}</button>
-      ))}
+      {SECTION_LEVELS.map(entry => {
+        const Icon = [Heading1, Heading2, Heading3][entry.level - 1];
+        return (
+          <button key={entry.level} type="button" role="menuitem" onClick={() => onLevel(entry.level)}
+            style={{ fontSize: Math.round(entry.size * 0.62), fontWeight: entry.weight }}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-1 text-left leading-tight text-ink hover:bg-hover">
+            <Icon size={15} strokeWidth={1.8} className="shrink-0 text-ink-2" />{entry.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -708,7 +713,7 @@ function BlockMenu({ className, filter, onFilter, onPick }) {
 // the blank canvas beside it. Press either as often as you like - [+] pushes the
 // pair apart, [-] pulls it together and then straight past flush into an
 // overlap, because the space is only a margin and margins go negative.
-function GapRail({ gap, zoom, edge, span, active, adding, onNudge, onAdding, onAddHeading }) {
+function GapRail({ gap, zoom, edge, span, adding, onNudge, onAdding, onAddHeading }) {
   const chrome = 'flex h-6 items-center justify-center rounded-lg border border-line bg-white text-ink-2 shadow-md hover:bg-hover hover:text-ink';
   const button = (delta, Icon, label) => (
     <button type="button" aria-label={label} title={label} onClick={() => onNudge(delta)}
@@ -717,15 +722,16 @@ function GapRail({ gap, zoom, edge, span, active, adding, onNudge, onAdding, onA
       <Icon size={13} strokeWidth={1.8} />
     </button>
   );
-  // Buttons at the far left of the visible canvas; the line runs from them to
-  // the right edge. Counter-scaled so they stay the same size at any zoom.
+  // Shown for the gap near the pointer: buttons at the far left of the visible
+  // canvas, the line running from them to the right edge. Counter-scaled so
+  // they stay the same size at any zoom.
   const buttons = 104 / zoom;
   return (
     <div data-gap-rail={gap.index} style={{ top: gap.y }} className="pointer-events-none absolute left-0 z-10">
       <div style={{ left: edge + buttons, width: Math.max(0, span.left + span.width - edge - buttons) }}
-        className={`absolute -translate-y-1/2 border-t border-dashed ${active ? 'border-ink-3' : 'border-ink-3/40'}`} />
+        className="absolute -translate-y-1/2 border-t border-dashed border-ink-3" />
       <div style={{ left: edge + 12 / zoom, transform: `translate(0, -50%) scale(${1 / zoom})`, transformOrigin: 'left center' }}
-        className={`pointer-events-auto absolute flex items-center gap-1 transition-opacity ${active || adding ? 'opacity-100' : 'opacity-50 hover:opacity-100'}`}>
+        className="pointer-events-auto absolute flex items-center gap-1">
         {button(-SPACE_STEP, Minus, `Pull everything below up — ${Math.round(gap.bottom - gap.top)}px apart`)}
         {button(SPACE_STEP, Plus, `Push everything below down — ${Math.round(gap.bottom - gap.top)}px apart`)}
         <span className="relative">
@@ -882,11 +888,11 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, labelEditing 
 // 26 buttons and scrolled. They sit in their own island now, beside the tools,
 // shown only while a drawing tool is armed or something styleable is selected.
 // Text swaps the thickness row for Notion's heading ladder.
-function StylePanel({ side = 'right', inset = 0, text, showFill, corners, order, route = false, routeValue = null, color, fill, width, dash, opacity, round, level, onColor, onFill, onWidth, onDash, onOpacity, onRound, onLevel, onOrder, onRoute }) {
+function StylePanel({ side = 'right', inset = 0, clear = 76, text, showFill, corners, order, route = false, routeValue = null, color, fill, width, dash, opacity, round, level, onColor, onFill, onWidth, onDash, onOpacity, onRound, onLevel, onOrder, onRoute }) {
   const rule = <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />;
   return (
-    <div role="group" aria-label="Style" onPointerDown={event => event.stopPropagation()} style={side === 'left' ? undefined : { right: 64 + inset }}
-      className={`absolute top-1/2 ${side === 'left' ? 'left-16' : ''} z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md`}>
+    <div role="group" aria-label="Style" onPointerDown={event => event.stopPropagation()} style={side === 'left' ? { left: 16 + clear } : { right: 16 + clear + inset }}
+      className={`absolute top-1/2 z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md`}>
       {COLORS.map(value => (
         <button key={value} type="button" title="Color" aria-label={`Color ${value}`} aria-pressed={color === value} onClick={() => onColor(value)}
           className="flex h-6 w-8 items-center justify-center rounded-lg hover:bg-hover">
@@ -1028,7 +1034,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const [chipEdit, setChipEdit] = useState(null); // group id whose chip should open for renaming
   // The tool palette hangs on the right by default; a drag on its handle can
   // park it on either edge. While dragging it follows the pointer.
-  const [toolSide, setToolSide] = useState('right');
+  // The tools dock on the left by default; dragging the grip moves them.
+  const [toolSide, setToolSide] = useState('left');
+  // Measured each render so the style panel and the gap rail sit beside the
+  // toolbar, never under it.
+  const toolbarRef = useRef(null);
+  const toolWidth = toolbarRef.current?.offsetWidth || 76;
   const [toolDrag, setToolDrag] = useState(null);
   const [insertOpen, setInsertOpen] = useState(false); // dev-only lesson-block workbench menu
   const [insertFilter, setInsertFilter] = useState('');
@@ -1104,6 +1115,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const [bounds, setBounds] = useState({});
   const [hoverGap, setHoverGap] = useState(null);
   const [gapAdding, setGapAdding] = useState(false);
+  // A press anywhere outside the rail - canvas, card or shape - closes its menu.
+  useEffect(() => {
+    if (!gapAdding) return undefined;
+    const close = event => { if (!event.target.closest?.('[data-gap-rail]')) { setGapAdding(false); setHoverGap(null); } };
+    window.addEventListener('pointerdown', close, true);
+    return () => window.removeEventListener('pointerdown', close, true);
+  }, [gapAdding]);
   const [guides, setGuides] = useState([]);
   const [grid, setGrid] = useState(false);
   const [minimap, setMinimap] = useState(true);
@@ -2119,6 +2137,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     const heading = { id: crypto.randomUUID(), type: 'heading', dx: 0, dy: 0, level, text: '' };
     setBlocks(previous => [...previous.slice(0, index), heading, ...previous.slice(index)]);
     setGapAdding(false);
+    setHoverGap(null); // the rail's job is done; it comes back when the pointer does
     return heading.id;
   };
   // Where the learner is looking, in world coordinates.
@@ -2270,6 +2289,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   const trackGap = event => {
     if (gapAdding) return; // the rail must not slide away while its menu is open
     if (drawing || tool !== 'select') return setHoverGap(null);
+    // On a rail's own buttons it stays put, even as [+]/[-] move its line.
+    if (event.target.closest?.('[data-gap-rail]')) return;
     // Near a dotted line - anywhere along it - brings its buttons to full strength.
     const found = nearestGap(gaps, local(event).y, 40 / view.z);
     setHoverGap(found ? found.index : null);
@@ -2376,10 +2397,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />)}
           {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} />)}
         </div>
-        {/* Every gap has its dotted line and its [-] [+] [...] at the far left. */}
-        {presenting === null && gaps.map(gap => (
-          <GapRail key={gap.index} gap={gap} zoom={view.z} edge={-view.x / view.z} span={railSpan}
-            active={hoverGap === gap.index} adding={gapAdding && hoverGap === gap.index}
+        {/* The gap near the pointer shows its dotted line and [-] [+] [...] at the far left. */}
+        {presenting === null && gaps.filter(gap => gap.index === hoverGap).map(gap => (
+          <GapRail key={gap.index} gap={gap} zoom={view.z} span={railSpan}
+            // Its buttons start at the far left - past the toolbar when that is docked there.
+            edge={(-view.x + (toolSide === 'left' && !toolDrag ? 8 + toolWidth : 0)) / view.z}
+            adding={gapAdding}
             onNudge={delta => nudgeGap(gap, delta)}
             onAdding={open => { setHoverGap(gap.index); setGapAdding(open); }} onAddHeading={insertHeadingAt} />
         ))}
@@ -2561,7 +2584,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           {insertOpen && <BlockMenu className="top-0 right-10" filter={insertFilter} onFilter={setInsertFilter} onPick={insertBlock} />}
         </div>
       )}
-      {presenting === null && <div role="toolbar" aria-label="Canvas tools"
+      {presenting === null && <div ref={toolbarRef} role="toolbar" aria-label="Canvas tools"
         // Docked right, it keeps clear of the page's contents rail (edgeInset).
         style={toolDrag ? { left: toolDrag.x, top: toolDrag.y, transform: 'none' } : toolSide === 'left' ? undefined : { right: 8 + edgeInset }}
         className={`absolute z-20 grid max-h-full grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md ${toolDrag ? '' : `top-1/2 -translate-y-1/2 ${toolSide === 'left' ? 'left-2' : ''}`}`}>
@@ -2609,7 +2632,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         </button>
       </div>}
       {presenting === null && showStyle && (
-        <StylePanel side={toolSide} inset={edgeInset} text={panel.text} showFill={panel.fill} fill={fill} corners={panel.corners} order={panel.order}
+        <StylePanel side={toolSide} inset={edgeInset} clear={toolWidth} text={panel.text} showFill={panel.fill} fill={fill} corners={panel.corners} order={panel.order}
           route={panel.route} routeValue={panel.routeValue}
           onRoute={value => {
             setConnectorRoute(value);

@@ -40,20 +40,24 @@ await page.goto(`${BASE}/apps/${APP}?tab=learn&board=${BOARD}`);
 await page.locator('[data-block-id="t2"]').waitFor({ timeout: 60000 });
 await page.waitForTimeout(1500);
 
-// every dotted line has [-] [+] [...] at the far left of the canvas view
+// hovering near a dotted line - anywhere along it - shows that line with
+// [-] [+] [...] at the far left of the canvas view, and no other line
 const second = await page.locator('[data-block-id="t2"]').boundingBox();
 const shape = await page.locator('[data-shape-id="r"] rect').first().boundingBox();
 const canvasBox = await page.locator('[aria-label="Lesson canvas"]').boundingBox();
-const rails = await page.locator('[data-gap-rail]').evaluateAll(nodes => nodes.map(node => {
-  const buttons = node.querySelector('button').getBoundingClientRect();
-  return { index: node.dataset.gapRail, y: node.getBoundingClientRect().top, left: buttons.left, count: node.querySelectorAll('button').length };
-}));
-check('every gap has its rail with three buttons at the far left', rails.length >= 3 && rails.every(rail => rail.count === 3 && rail.left - canvasBox.x < 30),
-  JSON.stringify(rails.map(rail => [Math.round(rail.y), Math.round(rail.left - canvasBox.x)])));
-const target = rails.find(rail => rail.y > second.y + second.height && rail.y < shape.y);
-const rail = page.locator(`[data-gap-rail="${target?.index}"]`);
+const gapY = (second.y + second.height + shape.y) / 2;
+check('nothing shows until the pointer is near a gap', await page.locator('[data-gap-rail]').count() === 0);
+await page.mouse.move(canvasBox.x + canvasBox.width * 0.7, gapY, { steps: 5 });
+const rail = page.locator('[data-gap-rail]');
+await rail.first().waitFor({ timeout: 3000 }).catch(() => {});
+const buttonsLeft = await rail.locator('button').first().evaluate(node => node.getBoundingClientRect().left).catch(() => 9999);
+// the toolbar docks left by default; the rail's buttons start just past it
+const toolbar = await page.getByRole('toolbar', { name: 'Canvas tools' }).boundingBox();
+const toolbarLeft = toolbar.x - canvasBox.x < 30;
+const clearOfToolbar = buttonsLeft >= toolbar.x + toolbar.width && buttonsLeft - (toolbar.x + toolbar.width) < 30;
+check('near a gap, its rail shows with three buttons at the far left, clear of the toolbar docked left', await rail.count() === 1 && await rail.locator('button').count() === 3 && toolbarLeft && clearOfToolbar,
+  `rails ${await rail.count()}, toolbar ${Math.round(toolbar.x - canvasBox.x)}-${Math.round(toolbar.x + toolbar.width - canvasBox.x)}, buttons at ${Math.round(buttonsLeft - canvasBox.x)}px`);
 const push = rail.getByRole('button', { name: /^Push everything below down/ });
-check('the gap between a card and a shape has one', !!target && await push.isVisible());
 if (SHOTS) await page.screenshot({ path: `${SHOTS}/gap-rail.png` });
 
 const before = await board();
@@ -80,6 +84,29 @@ await page.mouse.up();
 await page.waitForTimeout(700);
 const dragged = (await board()).blocks.find(block => block.id === 't1');
 check('a card drags past its neighbour, overlapping it', dragged.dy > 200, `dy ${dragged.dy}`);
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(400);
+
+// [...] opens the section menu with icons; a press on the canvas closes it;
+// adding a section leaves no rail behind
+const secondNow = await page.locator('[data-block-id="t2"]').boundingBox();
+const shapeNow = await page.locator('[data-shape-id="r"] rect').first().boundingBox();
+const gapNow = (secondNow.y + secondNow.height + shapeNow.y) / 2;
+await page.mouse.move(canvasBox.x + canvasBox.width * 0.7, gapNow, { steps: 5 });
+await rail.getByRole('button', { name: 'Insert a section here' }).click();
+const menu = page.getByRole('menu', { name: 'Insert a section' });
+const icons = await menu.getByRole('menuitem').evaluateAll(items => items.map(item => !!item.querySelector('svg')));
+await page.mouse.click(canvasBox.x + canvasBox.width * 0.55, canvasBox.y + canvasBox.height - 160);
+await page.waitForTimeout(400);
+const closed = await menu.count() === 0;
+check('the section menu has an icon per level and closes on a canvas click', icons.length === 3 && icons.every(Boolean) && closed);
+await page.mouse.move(canvasBox.x + canvasBox.width * 0.7, gapNow, { steps: 5 });
+await rail.getByRole('button', { name: 'Insert a section here' }).click();
+await menu.getByRole('menuitem', { name: /^Add section/ }).click();
+await page.waitForTimeout(600);
+check('after adding a section no dotted line lingers', await page.locator('[data-gap-rail]').count() === 0 && (await board()).blocks.some(block => block.type === 'heading'));
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(400);
 
 // a card drags across a divider (dividers are not walls)
 const across = await page.locator('[data-block-id="t2"] [data-drag-handle]').boundingBox();
