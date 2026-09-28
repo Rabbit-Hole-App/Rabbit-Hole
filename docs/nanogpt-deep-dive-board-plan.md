@@ -317,6 +317,46 @@ inventory goes from 26 to 25 unless the owner wants card 8 kept.
 - one_sentence_objective: After this card, the learner should understand that NanoGPT applies n_layer Blocks in order, each with the same structure but its own learned weights.
 - prerequisites: c02 (one Block's recipe)
 - causal_steps: x → Block 1 → Block 2 → … → Block n_layer → ln_f
-- primary_interaction: pick a block; its parameter tensors (same shapes as every other block's, different values) light, and the running parameter count grows by one block's worth per block (source value n_layer = 6 for shakespeare_char; the what-if n_layer = 12 at the same C is a fixed line, not a control)
-- check/practice: practice — do two blocks share weights? (reasoning from the lit tensors: same shapes, different values)
+- primary_interaction (revised 2026-09-28, owner: "a slider lets the learner discover the count is linear"): slide n_layer from 1 to 12 (source value 6 for shakespeare_char; 12 is NanoGPT's default, a what-if at the same C, as is every other depth): the chain builds that many Blocks and haloes the newest, whose parameter tensors are listed as transformer.h.<n_layer - 1>.* with unchanged shapes; the toy table compares it with the previous block (same shape, different values); the count n_layer × one block rises by the same live step at every depth, and running-total bars fill to n_layer. One slider replaces the block picker: two controls could pick h[7] in a 6-block stack
+- check/practice: practice (commit before you see) — how many parameters do the Blocks of a 24-layer stack hold at the same C? 24 is past the slider and the options are bare numbers (1,770,240 · 42,485,760 · 531,072,000), so the answer needs the rule (separate weights per block: one block's worth per layer)
 - boundary_decision: single — boundary_reason: one mental model (repeat the same recipe with separate weights). sequence "The block and the stack", 2 of 2; relationship: deepens ← c02
+
+## 11. Batch 3 — plans under Phase 1 of card composition
+
+Planned 2026-09-28 by one planner per card, an adversarial critic per plan and a cross-card judge; every field in full, with the pinned source lines, is in [nanogpt-deep-dive-batch3-plans.md](nanogpt-deep-dive-batch3-plans.md). Every practice follows the commit-before-you-see rule (section 5). Board order: c11-causal-mask, c12-score-scaling, c10-weighted-values, c05-position-mixing.
+
+**Inventory changes (owner to confirm):** card 10 stops being the reused attention explorer and becomes "One head's output: the weights mix the values" - the explorer's mask and softmax steps belong to c11 and c12, so under one idea per card only the weighted sum is left. Card 5 is retitled "Where positions mix inside a Block"; card 12 becomes "Scaling scores by 1/√hs" (NanoGPT's own name). The inventory stays at 25.
+
+### Sequence "Self-attention" (3 cards) — c11-causal-mask → c12-score-scaling → c10-weighted-values; c13 (batch 1) deepens it
+
+**c11 · Causal mask as a triangle**
+- concept: causal mask
+- one_sentence_objective: After this card, the learner should understand that the causal mask is one fixed lower triangle over the T × T scores, so every position reads only itself and earlier positions, never the next character it is trained to predict.
+- boundary_decision: staged — sequence: Self-attention, 1 of 3 (c11-causal-mask → c12-score-scaling → c10-weighted-values)
+- undrawn case (practice): Row 99 of a T = 256 window (256 = shakespeare_char block_size, a Source value).
+
+**c12 · Scaling scores by 1/√hs**
+- concept: attention score scaling. NanoGPT multiplies every q·k score by one positive number, 1/√hs, which is set by the head size and not learned. It does this before the causal mask and softmax: the manual path is model.py:67-69, and the default fused SDPA call applies the same default scale inside it.
+- one_sentence_objective: After this card, the learner should understand that NanoGPT multiplies every attention score by one positive number fixed by the head size, 1/√hs, before the mask and softmax, so the size of that number sets how peaked the visible weights are while their order and the masked zeros stay unchanged.
+- boundary_decision: staged — sequence: Self-attention, 2 of 3 (c11-causal-mask → c12-score-scaling → c10-weighted-values)
+- undrawn case (practice): × 0 on the drawn reader's row.
+
+**c10 · One head's output: the weights mix the values**
+- concept: Weighted values: for one query, a single head's output y = att @ v (one row) is the weighted average of the value vectors that query can see. This is the output before the heads are joined and c_proj mixes them.
+- one_sentence_objective: After this card, the learner should understand that one attention head's output for a query is the weighted average of the value vectors that query can see, so it always lands between those values, pulled toward each in proportion to its weight.
+- boundary_decision: single — sequence: Self-attention, 3 of 3 (c11-causal-mask → c12-score-scaling → c10-weighted-values)
+- undrawn case (practice): The four-way uniform weighting (1/4 each) of ␣any's values.
+
+**c05 · Where positions mix inside a Block**
+- concept: Position mixing inside one Block: which input positions each output position can depend on, in the attention sub-layer compared with the MLP sub-layer. Only attention moves information between positions, and only forward.
+- one_sentence_objective: After this card, the learner should understand that inside a Block only attention moves information between positions: output i can depend on inputs 0 to i in attn but on input i alone in the MLP.
+- boundary_decision: single — sequence: none
+- undrawn case (practice): Two things are undrawn: position 100 of a 256-position context (the card draws 0 to 5), and the composition of the two sub-layers through a whole Block (the card draws attn and mlp only as separate states).
+
+**Open questions for the owner:**
+
+- Card 10: do you accept replacing the reused explorer with the new weighted-values card? I01 and causalAttentionScene stay as benchmark scenes and are not placed on this board.
+- No card on the deep-dive board teaches how similarity scores are produced (q·k), the spec's second self-attention step. c12 only names it at its raw-scores stage and relies on the depth ladder's Attention · Guided (another board) and on c13's step 1. Do you want a q·k card in a later batch, or is naming it enough?
+- c13 (multi-head, batch 1) is the natural fifth step of the self-attention path, but it sits in batch 1, earlier on the board than c11 → c12 → c10. Should c13 move to follow c10 in board order only, with no content change? And should it become '4 of 4' in the sequence? That would need a plan export on a card approved before Phase 1.
+- c10 uses GPT-2 BPE tokens, to match c13 which it deepens into. c11, c12 and c05 use shakespeare_char characters from the same text line. Keep BPE and name the tokenizer on the card (the plan's choice), or relabel c10 with characters for a consistent sequence?
+- c05's sequence with c14 ('The MLP', c05 → c14) is recorded only when c14 is built. Confirm c14 is planned for the next batch, so c05 does not stand as an orphan next to the attention sequence for long.
