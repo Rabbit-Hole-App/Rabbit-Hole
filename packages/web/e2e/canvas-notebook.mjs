@@ -80,7 +80,7 @@ await page.mouse.up();
 const after = await card.boundingBox();
 await page.waitForTimeout(800);
 const sized = await notebookBlock();
-check('notebook card resizes and keeps its size', after.height > before.height + 60 && sized.h > 560, `${Math.round(before.width)}×${Math.round(before.height)} → ${Math.round(after.width)}×${Math.round(after.height)}`);
+check('notebook card resizes and keeps its size', after.height > before.height + 60 && sized.h > 540, `${Math.round(before.width)}×${Math.round(before.height)} → ${Math.round(after.width)}×${Math.round(after.height)}`);
 await shot(page, 'notebook-resized');
 
 // 7. pan the canvas with the hand tool; the notebook moves with the world, its content stays

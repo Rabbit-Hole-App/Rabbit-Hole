@@ -59,6 +59,11 @@
       panel = await openPanel();
       if (event.data.ipynb) panel.context.model.fromJSON(event.data.ipynb);
       await panel.context.save();
+      // A reopened notebook reads like one: Markdown rendered, nothing in edit
+      // mode, and no focus taken from the canvas until the learner clicks in.
+      panel.content.mode = 'command';
+      for (const cell of panel.content.widgets) if (cell.model.type === 'markdown') cell.rendered = true;
+      document.activeElement?.blur?.();
       watch();
       post({ type: 'loaded' });
       return;

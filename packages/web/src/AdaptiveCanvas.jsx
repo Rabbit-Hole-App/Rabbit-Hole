@@ -502,7 +502,7 @@ function NotebookCard({ block, zoom, selected, connected, onSelect, onMove, onCh
   latest.current = block;
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
-      connected={connected} width={720} height={block.h || 560} autoMax={undefined} saved={{ w: block.w, h: block.h }}
+      connected={connected} width={640} height={block.h || 540} autoMax={undefined} saved={{ w: block.w, h: block.h }}
       onSize={(id, w, h) => onChange({ ...block, w, h })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       <NotebookBody block={block} onSelect={onSelect} onDocument={ipynb => onChangeQuiet({ ...latest.current, ipynb })} />

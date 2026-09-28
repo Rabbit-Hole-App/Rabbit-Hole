@@ -10,6 +10,7 @@ export default function NotebookBody({ block, onSelect, onDocument }) {
   const frame = useRef(null);
   const [loaded, setLoaded] = useState(false);
   const [menu, setMenu] = useState(false);
+  const ready = useRef(false);
   // Only the first load sends the document; later edits flow the other way.
   const initial = useRef(block.ipynb);
   const latest = useRef(onDocument);
@@ -18,12 +19,18 @@ export default function NotebookBody({ block, onSelect, onDocument }) {
   useEffect(() => {
     const receive = event => {
       if (event.source !== frame.current?.contentWindow || event.origin !== NOTEBOOK_ORIGIN || event.data?.protocol !== NOTEBOOK_PROTOCOL) return;
-      if (event.data.type === 'loaded') setLoaded(true);
+      if (event.data.type === 'loaded') {
+        ready.current = true;
+        setLoaded(true);
+        // Jupyter focuses its notebook while starting; hand focus back so
+        // the canvas keeps its keys until the learner clicks into a cell.
+        if (document.activeElement === frame.current) frame.current.blur();
+      }
       if (event.data.type === 'change' && event.data.ipynb?.cells) latest.current(trimOutputs(event.data.ipynb));
     };
     // Focus moving into the notebook is the canvas's only sign of a click
     // there, so it selects the card.
-    const blurred = () => setTimeout(() => { if (document.activeElement === frame.current) onSelect(block.id); });
+    const blurred = () => setTimeout(() => { if (ready.current && document.activeElement === frame.current) onSelect(block.id); });
     window.addEventListener('message', receive);
     window.addEventListener('blur', blurred);
     return () => { window.removeEventListener('message', receive); window.removeEventListener('blur', blurred); };
