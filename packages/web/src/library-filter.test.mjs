@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chipHref, hiddenFor, isLearnResource, libraryQuery, ofType, opsView, SCOPES } from './library-filter.js';
+import { chipHref, isLearnResource, libraryQuery, librarySections, ofType, SCOPES, SECTION_LIMIT } from './library-filter.js';
 
 const apps = [{ name: 'repo-1', kind: 'repository' }, { name: 'canvas-1', kind: 'canvas' }, { name: 's3-log', kind: 'job' }, { name: 'counter', kind: 'server' }];
 const names = (list) => list.map((a) => a.name);
@@ -21,13 +21,23 @@ test('type chips filter on kind (T02 §4); no type returns the same array', () =
   assert.deepEqual(SCOPES, { private: 'Mine', shared: 'Shared with me', apps: 'Workspace' });
 });
 
-test('Projects and Canvases hide the ops columns by default; the Apps view keeps small.tblCols', () => {
-  const stored = { kind: true };
-  assert.equal(hiddenFor(null, stored), stored);
-  assert.equal(hiddenFor('apps', stored), stored);
-  assert.deepEqual(hiddenFor('projects', stored), { watch: true, deployed: true, lastrun: true });
-  assert.deepEqual(hiddenFor('canvases', stored, { deployed: false, people: true }), { watch: true, deployed: false, lastrun: true, people: true });
-  assert.deepEqual([null, 'apps', 'projects', 'canvases'].map(opsView), [false, false, true, true]);
+test('All groups the Library as Projects, Canvases, then Apps, most recent first, six each with the rest behind View all', () => {
+  const at = (name, kind, when) => ({ name, kind, created_at: when });
+  const list = [
+    at('counter', 'server', '2026-09-01'), at('repo-old', 'repository', '2026-09-02'), at('canvas-a', 'canvas', '2026-09-03'),
+    at('repo-new', 'repository', '2026-09-20'), at('s3-log', 'job', '2026-09-10'), { ...at('yolo', 'server', '2026-09-01'), deployed_at: '2026-09-25' },
+    ...Array.from({ length: 7 }, (_, i) => at(`job-${i}`, 'job', `2026-08-0${i + 1}`)),
+  ];
+  const sections = librarySections(list, ['repo-old', 'counter']);
+  assert.deepEqual(sections.map((s) => s.key), ['projects', 'canvases', 'apps']);
+  const [projects, canvases, appsSection] = sections;
+  assert.deepEqual(names(projects.items), ['repo-old', 'repo-new']); // opened in this browser first, then newest
+  assert.equal(projects.more, 0);
+  assert.deepEqual(names(canvases.items), ['canvas-a']);
+  assert.equal(SECTION_LIMIT, 6);
+  assert.deepEqual(names(appsSection.items), ['counter', 'yolo', 's3-log', 'job-6', 'job-5', 'job-4']); // a redeploy counts as recent
+  assert.equal(appsSection.more, 4); // ten apps, six shown
+  assert.deepEqual(librarySections([], []).map((s) => s.items.length), [0, 0, 0]);
 });
 
 test('a chip sets or clears one parameter and keeps the rest; changing type leaves Archived', () => {

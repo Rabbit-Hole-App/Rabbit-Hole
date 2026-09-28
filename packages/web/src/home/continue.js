@@ -33,12 +33,19 @@ const lastQuestion = (chat) => {
 // The learner's own outline and ticks (AdaptiveCanvas.jsx:901), never an inference.
 const nextHeading = (blob) => { try { return outlineFrom(blob?.blocks).find((h) => !h.done)?.label || null; } catch { return null; } };
 
+// What this browser holds for a project's or canvas's Learn: the last question and the next
+// unticked heading, or null when it was never explored here.
+export function learnProgress(a, { org, email, storage }) {
+  const keys = keysOf(a, email, org);
+  return hasLocalContent(storage, keys) ? { lastExplored: lastQuestion(json(storage, keys.chat)), next: nextHeading(json(storage, keys.ink)) } : null;
+}
+
 export function readContinue({ org, email, recent, catalog, storage }) {
   const items = recentItems(recent || [], catalog);
   const card = (a, canvas, lastExplored = null, next = null) => ({ slug: a.name, title: titleOf(a), kind: a.kind, canvas, lastExplored, next });
   for (const a of items) {
-    const keys = keysOf(a, email, org);
-    if (hasLocalContent(storage, keys)) return card(a, true, lastQuestion(json(storage, keys.chat)), nextHeading(json(storage, keys.ink)));
+    const p = learnProgress(a, { org, email, storage });
+    if (p) return card(a, true, p.lastExplored, p.next);
   }
   return items.length ? card(items[0], false) : null;
 }

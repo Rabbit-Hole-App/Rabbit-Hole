@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Archive, ArchiveRestore, ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Calendar, ChevronDown, ChevronRight, Circle, Clock, Eye, EyeOff, Folder as FolderIcon, Inbox, Link as LinkIcon, ListFilter, Loader2, Lock, MoreHorizontal, PanelRight, Play, Search, Settings2, Square, Type, Users, X } from 'lucide-react';
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
-import RepositoryImport from './RepositoryImport.jsx';
 import Shell from './Shell.jsx';
 import { aiFindAllowed } from './flags.js';
 import { isPrivateByoc } from './private-auth.js';
 import { titleOf } from './agent/catalog.js';
 import { learnPreview } from './flags.js';
 import { onAnotherDevice } from './home/continue.js';
-import { chipHref, hiddenFor, libraryQuery, ofType, opsView, SCOPES, TYPES } from './library-filter.js';
+import { chipHref, libraryQuery, ofType, SCOPES, TYPES } from './library-filter.js';
+import LibraryViews from './LibraryViews.jsx';
 import { Avatar, Button, Chk, cn, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, toast, useHeaderDrag, ValuePicker } from './ui.jsx';
 
 const people = (a) => [a.owner_email, ...(a.members || []).map((m) => m.email).filter((e) => e !== a.owner_email)];
@@ -48,8 +48,8 @@ const FILTERS = {
 
 // Library chips (T02 §4, preview only): a pressed chip is the current filter. Notion's
 // filter chip: 28px, 4px radius, no border; the pressed one sits on the active surface.
-const Chip = ({ on, ...props }) => (
-  <button aria-pressed={on} className={cn('h-7 rounded-md px-2 text-[13px] transition-colors duration-100', on ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')} {...props} />
+const Chip = ({ on, small, ...props }) => (
+  <button aria-pressed={on} className={cn('rounded-md transition-colors duration-100', small ? 'h-6 px-1.5 text-xs' : 'h-7 px-2 text-[13px]', on ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')} {...props} />
 );
 // The Start dialog lives once in main.jsx Root; the Library only asks for it.
 const startRabbitHole = () => window.dispatchEvent(new CustomEvent('small:start', { detail: { path: 'repository' } }));
@@ -59,7 +59,6 @@ export default function App() {
 }
 
 function AppContent({ data, load }) {
-  const [importOpen, setImportOpen] = useState(false);
   const [panel, setPanel] = useState(null); // { name, tab }
   const [run, setRun] = useState(null); // { appName, id?, error? }
   const [search, setSearch] = useState(null); // null = collapsed, string = open
@@ -116,11 +115,8 @@ function AppContent({ data, load }) {
   const colMatch = (k) => COLS[k].toLowerCase().includes(menuQ.toLowerCase());
   const order = [...cols.order.filter((k) => DEFAULT_ORDER.includes(k)), ...DEFAULT_ORDER.filter((k) => !cols.order.includes(k))];
   const { type, archived } = libraryQuery(window.location.search, learnPreview);
-  // ponytail: toggles made in Projects/Canvases stay in memory, so small.tblCols (the Apps
-  // view's) is written exactly as today; persist them per type if people ask.
-  const [typeHidden, setTypeHidden] = useState({});
-  const hidden = hiddenFor(type, cols.hidden, typeHidden);
-  const setHidden = (k, v) => (opsView(type) ? setTypeHidden({ ...typeHidden, [k]: v }) : saveCols({ ...cols, hidden: { ...cols.hidden, [k]: v } }));
+  const hidden = cols.hidden;
+  const setHidden = (k, v) => saveCols({ ...cols, hidden: { ...cols.hidden, [k]: v } });
   const visibleCols = order.filter((k) => !hidden[k]);
   const moveCol = (from, to, after = false) => {
     if (from === to) return;
@@ -213,8 +209,7 @@ function AppContent({ data, load }) {
             <button onClick={() => navigate('/apps')} className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink">{data?.orgName || wsName(org)}</button>
             <span className="px-1">/</span> <span className="text-ink">{title}</span>
           </div>
-          <div className="flex items-center justify-between pb-5"><h1 className="text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{title}</h1>{import.meta.env.VITE_COACHING_DEV === 'true' && !isPrivateByoc && <button onClick={() => setImportOpen(true)} className="rounded-lg bg-accent px-3 py-2 text-sm text-white hover:bg-accent-hover">Import repository</button>}</div>
-          {importOpen && <RepositoryImport onClose={() => setImportOpen(false)} onImported={load} />}
+          <div className="flex items-center justify-between pb-5"><h1 className="text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{title}</h1>{learnPreview && <Button variant="primary" onClick={startRabbitHole}>Start a rabbit hole</Button>}</div>
           {learnPreview && (
             <div className="space-y-1 pb-4">
               <div className="flex flex-wrap gap-1">
@@ -223,7 +218,7 @@ function AppContent({ data, load }) {
                 {type === 'canvases' && <Chip on={archived} onClick={() => navigate(chipHref(window.location.search, 'archived', archived ? null : '1'))}>Archived</Chip>}
               </div>
               <div className="flex flex-wrap gap-1">
-                {Object.entries(SCOPES).map(([k, label]) => <Chip key={k} on={section === k} onClick={() => navigate(chipHref(window.location.search, 's', section === k ? null : k))}>{label}</Chip>)}
+                {Object.entries(SCOPES).map(([k, label]) => <Chip key={k} small on={section === k} onClick={() => navigate(chipHref(window.location.search, 's', section === k ? null : k))}>{label}</Chip>)}
               </div>
             </div>
           )}
@@ -246,7 +241,7 @@ function AppContent({ data, load }) {
           {!data && <SkeletonRows rows={4} />}
           {data?.error && <div className="text-ink-2">✗ {data.error}</div>}
           {data && !data.error && learnPreview && !archived && sectionApps.length === 0 && (
-            <EmptyState icon={Mark} action={<Button variant="primary" onClick={startRabbitHole}>Start a rabbit hole</Button>}>Nothing here yet</EmptyState>
+            <EmptyState icon={Mark}>Nothing here yet</EmptyState>
           )}
           {data && !data.error && !learnPreview && apps.length === 0 && (
             <EmptyState icon={Mark}>
@@ -258,7 +253,12 @@ function AppContent({ data, load }) {
             </EmptyState>
           )}
 
-          {!archived && (learnPreview ? sectionApps.length > 0 : apps.length > 0) && (
+          {/* Projects and Canvases are cards, All is sections; only the Apps view is the table. */}
+          {learnPreview && !archived && type !== 'apps' && sectionApps.length > 0 && (
+            <LibraryViews apps={sectionApps} type={type} data={data} runningOf={runningId} onRun={startRun} onArchive={setConfirmArchive}
+              onType={(k) => navigate(chipHref(window.location.search, 'type', k))} />
+          )}
+          {!archived && (learnPreview ? type === 'apps' && sectionApps.length > 0 : apps.length > 0) && (
             <>
               <div className="flex h-8 items-center justify-end gap-1">
                 {/* active filter/sort read back as chips; the buttons open Notion-style menus */}
@@ -538,7 +538,7 @@ function AppContent({ data, load }) {
                                   <Square size={10} fill="currentColor" /> Stop
                                 </PillButton>
                               ) : (
-                                <PillButton title="Run now" onClick={(e) => { e.stopPropagation(); startRun(a); }}>
+                                <PillButton title="Run now" className={learnPreview ? 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100' : undefined} onClick={(e) => { e.stopPropagation(); startRun(a); }}>
                                   <Play size={11} /> Run
                                 </PillButton>
                               )

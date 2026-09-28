@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { onAnotherDevice, openHref, readContinue, readRecent, recentCard, recentItems } from './continue.js';
+import { learnProgress, onAnotherDevice, openHref, readContinue, readRecent, recentCard, recentItems } from './continue.js';
 
 const store = (entries = {}) => { const m = new Map(Object.entries(entries)); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
 const EMAIL = 'a@gmail.com';
@@ -90,4 +90,13 @@ test('recent cards carry per-kind metadata and a next action (T02 §3.2)', () =>
   assert.match(serverCard.meta[0], /^Deployed /);
   assert.equal(serverCard.meta[1], 'only shared');
   assert.deepEqual(serverCard.action, { label: 'Open app', href: server.url });
+});
+
+test('a project card reads its own Learn progress in this browser, and nothing when it was never explored here', () => {
+  const storage = store({
+    [`${key(repo)}:ink`]: ink([h('a', 'Self-attention', true), h('b', 'Multi-head attention')]),
+    [`${key(repo)}:chat`]: JSON.stringify([{ id: '1', question: 'Self-attention' }]),
+  });
+  assert.deepEqual(learnProgress(repo, { org: 'gmail-com', email: EMAIL, storage }), { lastExplored: 'Self-attention', next: 'Multi-head attention' });
+  assert.equal(learnProgress(repo, { org: 'gmail-com', email: EMAIL, storage: store() }), null);
 });

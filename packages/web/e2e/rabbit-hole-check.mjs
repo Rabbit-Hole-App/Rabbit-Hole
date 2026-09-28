@@ -180,7 +180,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('sh-library: type and scope chips filter; Canvases hide ops columns; a canvas on another device is flagged; an empty view offers Start', async () => {
+  await check('sh-library: type and scope chips filter; Canvases are cards without ops columns; a canvas on another device is flagged; an empty view offers Start', async () => {
     const page = await open();
     await page.goto(`${base}/library`);
     await shH1(page, 'Library').waitFor({ timeout: 20000 });
@@ -191,13 +191,13 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       for (const name of ['All', 'Projects', 'Canvases', 'Apps', 'Mine', 'Shared with me', 'Workspace']) must(await chip(name).count() === 1, `chip ${name} missing`);
       await chip('Canvases').click();
       await page.waitForURL(/[?&]type=canvases/);
-      const row = page.locator('tbody tr').filter({ hasText: 'rabbit-hole-check library' });
+      const row = page.locator('[data-library-card="canvas"]').filter({ hasText: 'rabbit-hole-check library' });
       await row.waitFor({ timeout: 20000 });
       must(await chip('Canvases').getAttribute('aria-pressed') === 'true', 'Canvases chip is not pressed');
-      const heads = await page.locator('thead th').allInnerTexts();
-      for (const ops of ['Watch', 'Deployed', 'Last run']) must(!heads.some((t) => t.includes(ops)), `${ops} column shown for Canvases`);
-      must((await row.innerText()).includes('On another device'), 'canvas row lacks On another device');
-      must(await row.locator('svg.lucide-pen-line').count() === 1, 'canvas row lacks the canvas icon');
+      must(await page.locator('table').count() === 0, 'Canvases still render a table');
+      for (const ops of ['Watch', 'Deployed', 'Last run']) must(!(await row.innerText()).includes(ops), `${ops} shown on a canvas card`);
+      must((await row.innerText()).includes('On another device'), 'canvas card lacks On another device');
+      must(await row.locator('svg.lucide-pen-line').count() === 1, 'canvas card lacks the canvas icon');
       await chip('Mine').click();
       await page.waitForURL(/[?&]s=private/);
       await row.waitFor();
@@ -248,14 +248,14 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
-  await check('sh-library: Archive from a canvas row menu with confirmation; Archived lists it; Restore brings it back (T02 §8.4)', async () => {
+  await check('sh-library: Archive from a canvas card menu with confirmation; Archived lists it; Restore brings it back (T02 §8.4)', async () => {
     const page = await open();
     await page.goto(`${base}/library?type=canvases`);
     await shH1(page, 'Library').waitFor({ timeout: 20000 });
     const c = await shCanvas(page, 'rabbit-hole-check archive', 'rabbit-hole-check-device');
     try {
       await page.reload();
-      const row = page.locator('tbody tr').filter({ hasText: 'rabbit-hole-check archive' });
+      const row = page.locator('[data-library-card="canvas"]').filter({ hasText: 'rabbit-hole-check archive' });
       await row.getByTitle('More').click();
       await page.getByRole('button', { name: 'Archive…' }).click();
       await page.getByRole('dialog', { name: 'Archive rabbit-hole-check archive?' }).getByRole('button', { name: 'Archive', exact: true }).click();
@@ -294,6 +294,88 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       }
       await page.context().close();
     }
+  });
+
+  // WP4 Library correction (user 2026-09-28): learning first, operations contextual.
+  const opacityOf = (locator) => locator.evaluateAll((ns) => ns.map((n) => Number(getComputedStyle(n).opacity)));
+  await check('library: All shows Projects and Canvases as cards above Apps as compact rows; no Run at rest; Start a rabbit hole is the only header action', async () => {
+    const page = await open();
+    await loaded(page, '/library');
+    const c = await shCanvas(page, 'rabbit-hole-check library all');
+    try {
+      await page.reload();
+      const region = (name) => page.getByRole('region', { name, exact: true });
+      await region('Projects').locator('[data-library-card="project"]').first().waitFor({ timeout: 20000 });
+      await region('Canvases').locator('[data-library-card="canvas"]').filter({ hasText: 'rabbit-hole-check library all' }).waitFor();
+      const ys = [];
+      for (const name of ['Projects', 'Canvases', 'Apps']) ys.push((await region(name).boundingBox()).y);
+      must(ys[0] < ys[1] && ys[1] < ys[2], `sections out of order: ${ys}`);
+      must(await page.locator('table').count() === 0, 'All renders a table');
+      must(await region('Apps').locator('[data-library-app-row]').count() > 0, 'Apps are not compact rows');
+      must((await opacityOf(page.locator('main').getByRole('button', { name: 'Run', exact: true }))).every((o) => o === 0), 'Run buttons show at rest');
+      must(await page.getByRole('button', { name: 'Import repository' }).count() === 0, 'Import repository is still the CTA');
+      await shStart(page).click(); // strict: exactly one Start a rabbit hole on the page
+      await page.getByRole('dialog', { name: 'Start a rabbit hole' }).waitFor({ timeout: 10000 });
+    } finally {
+      await shDrop(page, c.name);
+      await page.context().close();
+    }
+  });
+
+  if (apps.filter((a) => a.kind === 'job' || a.kind === 'server').length > 6) await check('library: a long section shows six and View all opens its view', async () => {
+    const page = await open();
+    await loaded(page, '/library');
+    const section = page.getByRole('region', { name: 'Apps', exact: true });
+    await section.locator('[data-library-app-row]').first().waitFor({ timeout: 20000 });
+    must(await section.locator('[data-library-app-row]').count() === 6, 'not six app rows');
+    await section.getByRole('button', { name: /^View all/ }).click();
+    await page.waitForURL(/[?&]type=apps/);
+    await page.locator('tbody tr').first().waitFor({ timeout: 10000 });
+    await page.context().close();
+  });
+
+  if (repo) await check('library: Projects is a card grid; the card opens the project; its menu offers Learn and Map', async () => {
+    const page = await open();
+    await loaded(page, '/library?type=projects');
+    const card = page.locator('[data-library-card="project"]').filter({ hasText: repo.repo });
+    await card.waitFor({ timeout: 20000 });
+    must(await page.locator('table').count() === 0, 'Projects renders a table');
+    for (const ops of ['Deployed', 'Last run', 'Watch']) must(!(await card.innerText()).includes(ops), `${ops} on a project card`);
+    await card.getByTitle('More').click();
+    for (const name of ['Learn', 'Map']) await page.getByRole('button', { name, exact: true }).waitFor({ timeout: 5000 });
+    await page.keyboard.press('Escape');
+    await card.locator('[data-card-title]').click();
+    await page.waitForURL(`**/apps/${repo.name}`, { timeout: 10000 });
+    await page.context().close();
+  });
+
+  const job = apps.find((a) => a.kind === 'job'), server = apps.find((a) => a.kind === 'server');
+  if (job) await check('library: Apps is the operational table with Deployed and Last run; Run only on jobs, shown on row hover', async () => {
+    const page = await open();
+    await loaded(page, '/library?type=apps');
+    await page.locator('tbody tr').first().waitFor({ timeout: 20000 });
+    const heads = (await page.locator('thead th').allInnerTexts()).join('|');
+    for (const col of ['Deployed', 'Last run']) must(heads.includes(col), `no ${col} column: ${heads}`);
+    const row = page.locator('tbody tr').filter({ hasText: job.name }).first();
+    const run = row.getByRole('button', { name: 'Run', exact: true });
+    must((await opacityOf(run))[0] === 0, 'Run shows at rest');
+    await row.hover();
+    await page.waitForTimeout(250);
+    must((await opacityOf(run))[0] === 1, 'Run does not show on hover');
+    if (server) must(await page.locator('tbody tr').filter({ hasText: server.name }).first().getByRole('button', { name: 'Run', exact: true }).count() === 0, 'a server offers Run');
+    await page.context().close();
+  });
+
+  await check('library: scope chips sit below the type chips and are secondary', async () => {
+    const page = await open();
+    await loaded(page, '/library');
+    const chip = (name) => page.locator('button[aria-pressed]').filter({ hasText: new RegExp(`^${name}$`) });
+    await chip('All').waitFor({ timeout: 20000 });
+    const [all, mine] = [await chip('All').boundingBox(), await chip('Mine').boundingBox()];
+    const size = (l) => l.evaluate((n) => parseFloat(getComputedStyle(n).fontSize));
+    must(mine.y > all.y + all.height - 1, 'scope chips are not below the type chips');
+    must(await size(chip('Mine')) < await size(chip('All')), 'scope chips are as large as the type chips');
+    await page.context().close();
   });
 
   // ── shell-home checks end: later shell-home tasks insert above this line ──
@@ -645,7 +727,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     for (const scheme of ['light', 'dark']) {
       const page = await open();
       await page.emulateMedia({ colorScheme: scheme });
-      await loaded(page, '/library');
+      await loaded(page, '/library?type=apps');
       await page.locator('tbody tr').first().waitFor({ timeout: 30000 });
       for (const kind of ['server', 'job']) {
         const pill = page.locator('tbody span[style*="background"]', { hasText: new RegExp(`^${kind}$`) }).first();

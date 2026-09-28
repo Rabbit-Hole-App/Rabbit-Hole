@@ -1,5 +1,5 @@
-// The Library's chip rows (T02 §4, preview only). Pure, so the rules are tested without a
-// browser; App.jsx reads the URL and renders. The Apps view stays today's table.
+// The Library's chip rows and sections (T02 §4, preview only). Pure, so the rules are tested
+// without a browser; App.jsx reads the URL and renders. Only the Apps view is a table.
 export const TYPES = {
   projects: { label: 'Projects', kinds: ['repository'] },
   canvases: { label: 'Canvases', kinds: ['canvas'] },
@@ -7,7 +7,6 @@ export const TYPES = {
 };
 // Scope chips are the sidebar sections under their T02 §4 names (sectionOf, api.js:9-14).
 export const SCOPES = { private: 'Mine', shared: 'Shared with me', apps: 'Workspace' };
-const OPS = ['watch', 'deployed', 'lastrun'];
 
 // The live build never reads ?type, so its Library is exactly today's.
 export function libraryQuery(search, preview) {
@@ -18,10 +17,20 @@ export function libraryQuery(search, preview) {
 
 export const ofType = (apps, type) => (type ? apps.filter((a) => TYPES[type].kinds.includes(a.kind)) : apps);
 
-// Projects and Canvases hide the ops columns by default (§4); users can still toggle any
-// column, and those toggles (`mine`) stay in memory so small.tblCols is never written here.
-export const opsView = (type) => type === 'projects' || type === 'canvases';
-export const hiddenFor = (type, stored, mine = {}) => (opsView(type) ? { ...Object.fromEntries(OPS.map((k) => [k, true])), ...mine } : stored);
+// All (§4): learning first - Projects, then Canvases, then Apps - each opened-in-this-browser
+// first (small.recent), then newest (a redeploy counts), SECTION_LIMIT shown and the rest counted.
+export const SECTION_LIMIT = 6;
+const when = (a) => a.deployed_at || a.created_at || '';
+export function byRecent(apps, recent = []) {
+  const rank = (a) => (recent.includes(a.name) ? recent.indexOf(a.name) : Infinity);
+  return [...apps].sort((x, y) => rank(x) - rank(y) || when(y).localeCompare(when(x)));
+}
+export function librarySections(apps, recent = []) {
+  return Object.entries(TYPES).map(([key, t]) => {
+    const all = byRecent(ofType(apps, key), recent);
+    return { key, label: t.label, items: all.slice(0, SECTION_LIMIT), more: Math.max(0, all.length - SECTION_LIMIT) };
+  });
+}
 
 // A chip sets or clears one parameter and keeps the rest; changing type leaves Archived.
 export function chipHref(search, key, value) {

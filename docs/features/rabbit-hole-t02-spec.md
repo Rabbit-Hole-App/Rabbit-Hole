@@ -148,18 +148,40 @@ and the bar call the same registry entries; no backend logic is duplicated.
 
 ## 4. Library (`/library`, `/apps?s=…`, `/apps?f=…`)
 
-The Library is **today's Apps table** (`App.jsx`), with two chip rows above
-it. There is no new table.
+Revised 2026-09-28 (user): the Library is **everything I can return to, learn
+from, or build from**. Running and deploying are capabilities of some
+resources, not the organizing principle, so learning resources come first and
+operational detail is contextual. Preview build only; the live `/apps` table is
+unchanged.
 
-- Type: `All · Projects · Canvases · Apps`. These filter on `kind`:
-  `repository`, `canvas`, and `job|server`.
-- Scope: `Mine · Shared with me · Workspace`. These map to `sectionOf`
-  (`api.js:9-14`); `?s=` keeps working.
-- With Projects or Canvases selected, the operational columns (Watch,
-  Deployed, Last run) are hidden by default. Users can still toggle any column.
-- The Apps view is byte-for-byte today's behaviour: row click, the Open pill
-  peek, Run/Stop, folders, and all `small.tbl*` keys.
+- Header action: **Start a rabbit hole** (the same Start dialog; importing a
+  repository is its Repository path). No "Import repository" button.
+- Type: `All · Projects · Canvases · Apps`, filtering on `kind`: `repository`,
+  `canvas`, and `job|server`. Each type is a different view, not one table.
+- Scope: `Mine · Shared with me · Workspace`, below the type row and visually
+  secondary (smaller). These map to `sectionOf` (`api.js:9-14`); `?s=` keeps
+  working.
+- **All**: sections in this order: Projects (cards), Canvases (cards), then Apps
+  (compact operational rows). Each section shows the 6 most recent (opened in
+  this browser first, then the newest; a redeploy counts) and **View all n**
+  opens its type view.
+- **Projects**: a card grid. Card: the repository's short name, `Project`,
+  `owner/repo`, Last explored and Continue from this browser's Learn (or "Not
+  explored in this browser yet"), then revision, map status and canvas count.
+  The card opens the project; `Open`; `⋯` offers Learn and Map.
+- **Canvases**: a card grid. Card: title, `Canvas`, its project or Standalone,
+  Last explored when known, Created (canvases record no last-edited time), and
+  "Content in this browser" or "On another device". `⋯` offers Archive…
+  (with confirmation, §8.4).
+- **Apps**: today's operational table (row click, the Open pill peek,
+  folders, all `small.tbl*` keys), with Deployed and Last run. **Run** exists
+  only on jobs and is secondary: it shows on row hover (always on phones); Stop
+  stays visible while a run is going.
+- Actions follow capability: Project → Open, Learn, Map; Canvas → Open; Server
+  → Open; Job → Open and Run.
 - The Archived chip (canvases only) lists archived canvases with Restore (§8).
+- The Agent Bar stays at the bottom, so the Library can be navigated from the UI
+  or from the bar.
 
 ## 5. Start a rabbit hole
 
