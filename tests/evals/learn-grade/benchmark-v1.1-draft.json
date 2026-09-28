@@ -669,7 +669,7 @@
       "id": "lm-paraphrased",
       "challenge": "nanogpt-lm-head",
       "pattern": "paraphrased",
-      "answer": "The number is used as a lookup into a table of learned vectors, then a second vector marking its place in the sequence is summed in, the stack of transformer layers lets it exchange information with every other position, and finally a dedicated output layer converts the resulting vector into a score for each possible next word.",
+      "answer": "The number is used as a lookup into a table of learned vectors, then a second vector marking its place in the sequence is summed in, the stack of transformer layers lets it pull in information from the earlier positions it can attend to, and finally a dedicated output layer converts the resulting vector into a score for every token in the vocabulary that could come next.",
       "gold": {
         "ideas": [
           true,
@@ -797,7 +797,7 @@
       "id": "lm-rambling_correct",
       "challenge": "nanogpt-lm-head",
       "pattern": "rambling_correct",
-      "answer": "Okay so walking through this slowly: the very first thing that happens is that the id, which is just the number 2 in this case, gets used to select its own row out of the embedding table, so now we have a vector instead of a bare number. Right after that, because the model has no other sense of order, a position embedding is added onto that same vector so it knows where in the sequence this particular token sits. Then that combined vector goes into the stack of transformer blocks, and their whole job is to mix information across all the positions so each token's vector ends up informed by the others around it. Finally, once all of that mixing is done, the LM head takes that last vector and turns it into one score for every single token in the vocabulary, and that's what next-token prediction actually comes from. It's a lot of steps but each one is doing something pretty specific.",
+      "answer": "Okay so walking through this slowly: the very first thing that happens is that the id, which is just the number 2 in this case, gets used to select its own row out of the embedding table, so now we have a vector instead of a bare number. Right after that, because the model has no other sense of order, a position embedding is added onto that same vector so it knows where in the sequence this particular token sits. Then that combined vector goes into the stack of transformer blocks, and their whole job is to mix information across the positions this token is allowed to attend to, which is itself and the tokens before it, so its vector ends up informed by the earlier context. Finally, once all of that mixing is done, the LM head takes that last vector and turns it into one score for every single token in the vocabulary, and that's what next-token prediction actually comes from. It's a lot of steps but each one is doing something pretty specific.",
       "gold": {
         "ideas": [
           true,
@@ -1053,7 +1053,7 @@
       "id": "gd-plain_words",
       "challenge": "gradient-descent",
       "pattern": "plain_words",
-      "answer": "First you figure out which way each number needs to change to make the mistake bigger, then you push every number a tiny bit the opposite way instead, and a separate setting decides how big a push that is.",
+      "answer": "First you work out, for each number, which way nudging it would make the mistake bigger and how strongly, then you push every number the opposite way by an amount that follows that, and a separate setting scales how big those pushes are overall.",
       "gold": {
         "ideas": [
           true,
