@@ -213,6 +213,8 @@ function AppContent({ data, load }) {
           </div>
           <div className="flex items-center justify-between pb-5"><h1 className="text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{title}</h1>{learnPreview && <div className="flex shrink-0 items-center gap-2"><LibraryFilters type={type} section={section} archived={archived} /><Button variant="primary" onClick={startRabbitHole}>Start a rabbit hole</Button></div>}</div>
           {learnPreview && <ActiveFilters type={type} section={section} archived={archived} />}
+          {/* The preview sidebar has no Apps section, so an AWS catalog error shows here instead. */}
+          {learnPreview && data?.awsError && <p role="alert" className="pb-4 text-xs text-danger">{data.awsError}</p>}
           {fixtures && <div role="note" className="mb-4 rounded-md bg-code px-3 py-2 text-xs text-ink-2">Review fixtures are on: made-up cards, mixed in for design review. They open nothing and are stored nowhere. <a className="text-accent hover:underline" href="?fixtures=0">Turn off</a></div>}
           {archived && (!archivedList ? <SkeletonRows rows={3} />
             : archivedList.error ? <div className="text-sm text-ink-2">✗ {archivedList.error}</div>

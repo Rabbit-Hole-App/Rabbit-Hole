@@ -49,8 +49,8 @@ const open = async (viewport = { width: 1500, height: 950 }) => {
   page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
   return page;
 };
-// Loaded = the sidebar names this workspace (Sidebar.jsx:779), so Shell has the catalog.
-// 'attached' because the sidebar is display:none below md (Sidebar.jsx:733).
+// Loaded = the sidebar names this workspace (sr-only in the collapsed rail), so Shell has the catalog.
+// 'attached' because the sidebar is display:none below md unless its drawer is open.
 const loaded = async (page, path = '/apps') => {
   await page.goto(`${base}${path}`);
   await page.locator('aside').getByText(wsLabel, { exact: true }).first().waitFor({ state: 'attached', timeout: 20000 });
@@ -215,41 +215,118 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
-  await check('sh-sidebar: Home, Library and Explore nav; flat Pinned with Pin and Unpin; no Recent; canvas rows offer no live-app actions', async () => {
+  // WP5 sidebar shell (user 2026-09-28): the Library owns browsing, so the Apps tree, Shared, Private,
+  // Recent, New chat and + New are gone; pinning moved to the Library card menu.
+  await check('sh-sidebar: workspace, Home, Library, Explore, Pinned, Members and Trash only; a canvas pinned from its Library card keeps a learn-safe menu', async () => {
     const page = await open();
     await page.goto(`${base}/apps`);
     const nav = page.getByRole('navigation', { name: 'Main' });
     await nav.waitFor({ timeout: 20000 });
     must(await nav.getByRole('button', { name: 'Home', exact: true }).getAttribute('aria-current') === 'page', 'Home is not current on /apps');
     const aside = page.locator('aside');
+    for (const name of ['Search', 'Notifications', 'Members', 'Trash']) must(await aside.getByRole('button', { name, exact: true }).count() === 1, `the sidebar lacks ${name}`);
+    for (const name of ['Apps', 'Shared', 'Private', 'New', 'New folder', 'Expand Apps', 'Expand Shared', 'Expand Private']) must(await aside.getByRole('button', { name, exact: true }).count() === 0, `the sidebar still offers ${name}`);
+    must(await aside.getByRole('button', { name: /^New chat/ }).count() === 0, 'the sidebar still offers New chat');
+    must(await aside.getByText('Recent', { exact: true }).count() === 0, 'the sidebar still shows Recent');
     const c = await shCanvas(page, 'rabbit-hole-check pin');
     try {
       await page.reload();
-      await nav.waitFor({ timeout: 20000 });
-      must(await aside.getByText('Recent', { exact: true }).count() === 0, 'the sidebar still shows Recent');
       await nav.getByRole('button', { name: 'Library', exact: true }).click();
       await page.waitForURL(/\/library$/);
       must(await nav.getByRole('button', { name: 'Library', exact: true }).getAttribute('aria-current') === 'page', 'Library is not current on /library');
-      await aside.getByRole('button', { name: 'Expand Private' }).click(); // new users start collapsed
-      const row = aside.locator('.group\\/r').filter({ hasText: 'rabbit-hole-check pin' }).last();
-      await row.hover();
-      await row.getByTitle('More').click();
-      must(await row.getByRole('button', { name: 'Share' }).isDisabled(), 'Share is enabled on a canvas');
-      for (const name of ['Rename', 'Duplicate', 'Move to Trash']) must(await row.getByRole('button', { name }).count() === 0, `${name} is offered on a canvas`);
-      await row.getByRole('button', { name: 'Pin', exact: true }).click();
+      await filterBy(page, 'Canvases');
+      await page.waitForURL(/[?&]type=canvases/);
+      await page.locator('[data-library-card="canvas"]').filter({ hasText: 'rabbit-hole-check pin' }).getByTitle('More').click();
+      await page.getByRole('button', { name: 'Pin', exact: true }).click();
       const pinned = aside.getByRole('region', { name: 'Pinned' });
       await pinned.getByText('rabbit-hole-check pin').waitFor({ timeout: 10000 });
       must(await pinned.locator('svg.lucide-pen-line').count() === 1, 'the pinned canvas lacks its icon');
       await page.reload();
       await pinned.getByText('rabbit-hole-check pin').waitFor({ timeout: 20000 });
+      const row = pinned.locator('.group\\/r').filter({ hasText: 'rabbit-hole-check pin' });
       await row.hover();
       await row.getByTitle('More').click();
+      must(await row.getByRole('button', { name: 'Share' }).isDisabled(), 'Share is enabled on a pinned canvas');
+      for (const name of ['Rename', 'Duplicate', 'Move to Trash']) must(await row.getByRole('button', { name }).count() === 0, `${name} is offered on a pinned canvas`);
       await row.getByRole('button', { name: 'Unpin', exact: true }).click();
       await pinned.waitFor({ state: 'detached', timeout: 10000 });
     } finally {
       await shDrop(page, c.name);
       await page.context().close();
     }
+  });
+
+  await check('sh-rail: Ctrl+\\ collapses to a 48-56px icon rail with labelled workspace, Home, Library, Explore, Members and Trash; the current page is marked; the tile opens the workspace menu; Ctrl+\\ restores', async () => {
+    const page = await open();
+    await loaded(page, '/apps');
+    const sidebar = page.locator('[data-shell-sidebar]');
+    const aside = page.locator('aside');
+    await page.keyboard.press('Control+Backslash');
+    await page.waitForTimeout(400);
+    const w = (await sidebar.boundingBox()).width;
+    must(w >= 48 && w <= 56, `the rail is ${w}px wide`);
+    for (const name of [wsLabel, 'Home', 'Library', 'Explore', 'Members', 'Trash', 'Open sidebar']) {
+      const b = aside.getByRole('button', { name, exact: true });
+      must(await b.count() === 1 && await b.getAttribute('title') === name, `the rail's ${name} button lacks its label or tooltip`);
+    }
+    must(await aside.getByRole('button', { name: 'Home', exact: true }).getAttribute('aria-current') === 'page', 'Home is not current on /apps');
+    await aside.getByRole('button', { name: wsLabel, exact: true }).click();
+    await page.getByRole('button', { name: 'Settings', exact: true }).waitFor({ timeout: 5000 });
+    await page.mouse.click(26, 500); // the rail's empty middle closes the menu
+    await page.getByRole('button', { name: 'Settings', exact: true }).waitFor({ state: 'detached', timeout: 5000 });
+    const app = plain || repo;
+    if (app) {
+      await loaded(page, `/apps/${app.name}`);
+      must(await aside.getByRole('button', { name: 'Library', exact: true }).getAttribute('aria-current') === 'page', 'Library is not current on an app page');
+    }
+    await page.keyboard.press('Control+Backslash');
+    await page.waitForTimeout(400);
+    must((await sidebar.boundingBox()).width > 150, 'Ctrl+\\ did not restore the sidebar');
+    await page.context().close();
+  });
+
+  await check('sh-drawer: at 390px no rail; Open sidebar opens a drawer inside the viewport; Library navigates and closes it; Esc and the backdrop close it', async () => {
+    const page = await open({ width: 390, height: 844 });
+    await loaded(page, '/apps');
+    await page.evaluate(() => localStorage.setItem('small.sidebar', 'closed')); // collapsed on a desktop is still no rail here
+    await loaded(page, '/apps');
+    const aside = page.locator('aside');
+    must(!(await aside.isVisible()), 'a sidebar or rail shows at 390px');
+    const openDrawer = async () => {
+      await page.getByRole('button', { name: 'Open sidebar', exact: true }).click();
+      await aside.waitFor({ state: 'visible', timeout: 5000 });
+    };
+    await openDrawer();
+    const box = await aside.boundingBox();
+    must(box.x >= 0 && box.x + box.width <= 390, `the drawer spans ${box.x} to ${box.x + box.width}px`);
+    must(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth) <= 0, 'the drawer scrolls the page sideways');
+    const library = aside.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Library', exact: true });
+    await library.click();
+    await page.waitForURL(/\/library$/);
+    await aside.waitFor({ state: 'hidden', timeout: 5000 });
+    await openDrawer();
+    await page.keyboard.press('Escape');
+    await aside.waitFor({ state: 'hidden', timeout: 5000 });
+    await openDrawer();
+    await page.locator('[data-shell-backdrop]').click({ position: { x: 370, y: 400 } });
+    await aside.waitFor({ state: 'hidden', timeout: 5000 });
+    await page.context().close();
+  });
+
+  await check('sh-legacy: Ctrl+O focuses the bar and keeps the URL; Filters -> Apps and Mine replace the Apps and Private sections', async () => {
+    const page = await open();
+    await loaded(page, '/library');
+    await barOf(page).waitFor({ timeout: 20000 });
+    await page.keyboard.press('Control+o');
+    must(await barInput(page).evaluate((el) => el === document.activeElement), 'Ctrl+O did not focus the bar');
+    must(new URL(page.url()).pathname === '/library', `Ctrl+O went to ${page.url()}`);
+    await filterBy(page, 'Apps');
+    await page.waitForURL(/[?&]type=apps/);
+    await filterBy(page, 'Mine');
+    await page.waitForURL(/[?&]s=private/);
+    await page.getByRole('button', { name: 'Remove filter Apps' }).waitFor({ timeout: 10000 });
+    await page.getByRole('button', { name: 'Remove filter Mine' }).waitFor();
+    await page.context().close();
   });
 
   await check('sh-library: Archive from a canvas card menu with confirmation; Archived lists it; Restore brings it back (T02 §8.4)', async () => {
@@ -982,7 +1059,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(Math.abs(x - (await page.locator('[data-shell-sidebar]').boundingBox()).width) < 2, 'not aligned with the sidebar');
     await page.keyboard.press('Control+Backslash');
     await page.waitForTimeout(400);
-    must((await bar.boundingBox()).x < 2, 'did not follow the sidebar collapse');
+    const rail = (await page.locator('[data-shell-sidebar]').boundingBox()).width;
+    must(rail >= 48 && rail <= 56 && Math.abs((await bar.boundingBox()).x - rail) < 2, `did not follow the sidebar collapse to the ${rail}px rail`);
     await page.keyboard.press('Control+Backslash');
     await page.context().close();
   });

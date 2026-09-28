@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pinnedApps, readPinned, secClosedInit, togglePin } from './pinned.js';
+import { pinnedApps, RAIL_W, readPinned, secClosedInit, sidebarEdge, togglePin } from './pinned.js';
 
 const store = (entries = {}) => { const m = new Map(Object.entries(entries)); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)) }; };
 
@@ -50,4 +50,12 @@ test('new preview users start with the APPS sections collapsed; a stored choice 
   assert.deepEqual(secClosedInit(null, true), { apps: true, shared: true, private: true });
   assert.deepEqual(secClosedInit('{"apps":false}', true), { apps: false });
   assert.deepEqual(secClosedInit('{"shared":true}', false), { shared: true });
+});
+
+test('the Agent Bar edge: live collapsed is 0, preview collapsed is the icon rail, expanded is the width', () => {
+  assert.equal(RAIL_W, 52);
+  assert.equal(sidebarEdge(true, 260, false), 0);
+  assert.equal(sidebarEdge(true, 260, true), 52);
+  assert.equal(sidebarEdge(false, 300, true), 300);
+  assert.equal(sidebarEdge(false, 300, false), 300);
 });

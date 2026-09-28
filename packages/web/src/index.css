@@ -507,3 +507,12 @@ tr.cursor-pointer:active > td {
 [data-shell-sidebar] ~ main {
   padding-bottom: var(--agent-bar-h, 0px);
 }
+
+/* Rabbit Hole dev, below md: the sidebar is a drawer opened from a fixed top strip (Shell.jsx),
+   which publishes --shell-top-h; pages start below it. The live build never sets it, and no
+   page <main> has a top padding class, so this is 0 there. */
+@media (width < 48rem) {
+  [data-shell-sidebar] ~ main {
+    padding-top: var(--shell-top-h, 0px);
+  }
+}

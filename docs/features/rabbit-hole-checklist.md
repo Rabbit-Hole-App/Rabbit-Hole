@@ -79,17 +79,33 @@ conversation. The bottom sheet is not the permanent answer UI for Map.
 
 ## Sidebar shell (reviewed with WP5/WP6)
 
-- Expanded: workspace/account; Home, Library, Explore; then Members (if
-  needed) and Trash; New chat only if it keeps a clear job. Projects, Canvases
-  and Apps are not repeated in the sidebar: the Library owns browsing.
-- Map each legacy item to its replacement, with regression checks, before
-  removing it: Apps (replaced by the Library Apps filter), Private (remove
-  unless it maps to a real workflow), New chat (the Mothership is the
-  persistent conversation).
-- Desktop collapsed: a 48-56px icon rail (workspace, Home, Library, Explore,
-  Members, Trash) with tooltips and the active destination visible. Never fully
-  hidden on desktop.
-- Mobile: fully hidden, reopened as a drawer. No icon rail on a phone.
+Built 2026-09-28, preview only (T02 §2 has the layout; the live sidebar is unchanged).
+Harness checks sh-sidebar, sh-rail, sh-drawer and sh-legacy are written; they run
+after the next clone deploy.
+
+- Expanded: workspace/account; the Search and Notifications icons; Home, Library,
+  Explore; Pinned (flat); a divider; Members; Trash. Projects, Canvases and Apps
+  are not repeated in the sidebar: the Library owns browsing.
+- Desktop collapsed (Ctrl/⌘+\ or Learn): a 52px icon rail (workspace tile with the
+  workspace menu, Open sidebar, Home, Library, Explore, Members, Trash) with
+  tooltips; the current destination has aria-current and the active surface, and
+  app pages mark Library. No Pinned, no resize handle. The Agent Bar sits beside
+  it. Never fully hidden on desktop.
+- Mobile: fully hidden, reopened as a drawer from a top strip (Open sidebar);
+  navigation, Esc and the backdrop close it. No icon rail on a phone.
+
+| Legacy item | Replacement | Regression check |
+|---|---|---|
+| Apps tree and folders | Library Filters → Apps | sh-legacy |
+| Shared | Filters → Shared with me | sh-routes |
+| Private | Filters → Mine; the app Share popover | sh-legacy, sh-library |
+| Recent | Home Recent | sh-home |
+| New chat, Ctrl/⌘+O | the Mothership (Agent Bar); Ctrl/⌘+O focuses it | sh-legacy |
+| + New → Chat / App | the Mothership / Settings → Developer | sh-sidebar |
+| Pin from an Apps row | Pin and Unpin in the Library card ⋯ menu | sh-sidebar |
+| AWS catalog error under Apps | the Library body, same text | none (no AWS error on the test user) |
+| Back (reopens the sidebar) | the rail's Open sidebar | sh-rail |
+| Folder create, rename, delete | none yet: the Library's ⋯ actions later (ponytail); API and data kept | none |
 
 ## WP6 destinations
 

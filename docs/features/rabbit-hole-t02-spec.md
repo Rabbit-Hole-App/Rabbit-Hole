@@ -50,37 +50,82 @@ with the twelve amendments approved on 2026-09-23. File:line references are to
 
 ## 2. Shell
 
+Expanded (desktop):
+
 ```
-┌ Gmail ▾ ────────────┐┌─────────────────────────────── content ──────────┐
-│ ⌕ Search       ⌘K   ││                                                  │
-│ ⌂ Home              ││                                                  │
-│ ▤ Library           ││                                                  │
-│ ◎ Explore  preview  ││                                                  │
-│ PINNED              ││                                                  │
-│ APPS ▸              ││ ┌ Agent Bar ───────────────────────────────────┐ │
-│ Members · Trash     ││ │[+][Auto] …                                 ↑ │ │
-└─────────────────────┘│ └──────────────────────────────────────────────┘ │
-                       └──────────────────────────────────────────────────┘
+┌ Gmail ▾ ─────────── « ┐┌──────────────────────────── content ──────────┐
+│ ⌕  ◔                  ││                                                │
+│ ⌂ Home                ││                                                │
+│ ▤ Library             ││                                                │
+│ ◎ Explore  preview    ││                                                │
+│ PINNED                ││                                                │
+│ ───────────────────── ││ ┌ Agent Bar ─────────────────────────────────┐ │
+│ Members               ││ │[+][Auto] …                               ↑ │ │
+│ Trash                 ││ └────────────────────────────────────────────┘ │
+└───────────────────────┘└────────────────────────────────────────────────┘
+```
+
+Collapsed (desktop, Ctrl/⌘+\ or Learn's entry): a 52px icon rail.
+
+```
+┌────┐
+│ G  │  workspace menu
+│ »  │  Open sidebar
+│ ⌂  │  Home
+│ ▤  │  Library
+│ ◎  │  Explore
+│    │
+│ ── │
+│ ◍  │  Members
+│ ▣  │  Trash
+└────┘
 ```
 
 - **Workspace menu** is unchanged: identity, workspace list with the active
-  check, Settings, New workspace, Log out (`Sidebar.jsx:772-824`).
-- **Pinned** is new and device-local, stored in
-  `small.pinned:<org>:<email>` as an ordered list of resource slugs. Unknown
-  slugs are dropped silently when the catalog loads.
+  check, Settings, New workspace, Log out. The rail's tile opens the same
+  menu; the workspace name stays in the sidebar's DOM in every mode
+  (screen-reader only in the rail).
+- **Search** (⌘K) and **Notifications** stay as the two icons under the
+  workspace row.
+- **Home, Library, Explore** are the main nav. The current destination has
+  `aria-current="page"` and the active surface; app, project and canvas pages
+  (`/apps/<slug>`) mark Library.
+- **Pinned** is device-local, stored in `small.pinned:<org>:<email>` as an
+  ordered list of resource slugs. Unknown slugs are dropped silently when the
+  catalog loads.
   - Keep it **small and flat**. Projects and canvases are pinned as
     independent resources: a canvas is never nested under its project, and
     the sidebar is not a filesystem.
-- **APPS** is today's folder tree and Private/Shared sections, unchanged. They
-  keep their stored collapse state (`small.secClosed`). New users see them
-  collapsed.
-- **Recent** moves from the sidebar to Home; `small.recent` is kept.
+  - Pin and Unpin live in the Library card's ⋯ menu (projects and canvases)
+    and the Agent Bar's pin command. A pinned row has the usual row ⋯ menu:
+    Open, Unpin, Share (disabled for projects and canvases), Copy link; Rename,
+    Duplicate and Move to Trash only for live apps.
+- A divider, then **Members** and **Trash**.
+- **Removed from the sidebar** (the Library owns browsing):
+  - the Apps tree and its folders → Library Filters → Apps;
+  - Shared and Private → Filters → Ownership (Shared with me, Mine), and the
+    app page's Share popover;
+  - Recent → Home (`small.recent` is kept);
+  - New chat and the + New menu → the Agent Bar, the one persistent
+    conversation. Ctrl/⌘+O focuses it instead of opening `/chat`.
+  - Folder create, rename and delete have no preview UI yet; they move to the
+    Library's ⋯ actions later. The folder API and data are unchanged.
+  - The AWS catalog error that sat under Apps shows in the Library body.
+- **Collapsed (desktop)** is never fully hidden: the icon rail holds the
+  workspace tile, Open sidebar, Home, Library, Explore, then Members and Trash,
+  each with a tooltip (`title` and `aria-label`). No Pinned, no resize handle.
+  The Agent Bar sits beside it: `--sidebar-w` is the rail width
+  (`home/pinned.js` `sidebarEdge`, `RAIL_W`). The fixed Back button is live
+  only.
+- **Below `md`** there is no rail. The sidebar is hidden; a 40px top strip with
+  one Open sidebar button (`--shell-top-h`, which pads the page) opens it as a
+  drawer over a backdrop, at most 85% of the width. Navigation, Esc and the
+  backdrop close it. The Agent Bar is full-width (§6).
 - **Product name.** One constant, `PRODUCT = learnPreview ? 'Rabbit Hole' : 'small'`,
   drives the document title and first-party copy. Workspace names are never
   changed.
-- **Below `md`** the sidebar stays hidden, as today. The Agent Bar is
-  full-width, so opening, search, Settings, and Library are all reachable
-  through it (§6).
+- The live build keeps today's sidebar: Apps, Shared, Private, Recent, New
+  chat, + New, the Back button, and Ctrl/⌘+O opening `/chat`.
 
 ## 3. Home (`/apps`, dev)
 

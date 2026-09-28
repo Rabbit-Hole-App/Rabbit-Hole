@@ -17,6 +17,7 @@ import { ExpandedPageFrame, Toasts } from './ui.jsx';
 import { isPrivateByoc } from './private-auth.js';
 import PrivateAuthGate from './PrivateAuthGate.jsx';
 import { getSurface, setSurface } from './agent/surface.js';
+import { sidebarEdge } from './home/pinned.js';
 import { learnPreview, PRODUCT } from './flags.js';
 import { baseSurfaceFor, canonicalPath, pageFor, takeWs } from './routes.js';
 
@@ -71,7 +72,7 @@ const takeEarlyStart = () => { const path = earlyStart; earlyStart = null; retur
 const AgentBar = learnPreview ? lazy(() => import('./agent/AgentBar.jsx')) : null;
 
 // The Agent Bar sits beside the sidebar from its first paint (Shell republishes on every change).
-if (learnPreview) { const s = storedSidebar(); document.documentElement.style.setProperty('--sidebar-w', `${s.collapsed ? 0 : s.width}px`); }
+if (learnPreview) { const s = storedSidebar(); document.documentElement.style.setProperty('--sidebar-w', `${sidebarEdge(s.collapsed, s.width, learnPreview)}px`); }
 
 // A workspace switch lands here as ?ws= (routes.js takeWs); apply it before the first request.
 const switched = learnPreview && takeWs(window.location.search);

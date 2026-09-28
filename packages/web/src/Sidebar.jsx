@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, Compass, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, Compass, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
@@ -8,7 +8,7 @@ import { AVAILABILITY, connectionsFor } from './connections.js';
 import { isPrivateByoc } from './private-auth.js';
 import { titleOf } from './agent/catalog.js';
 import { learnPreview, PRODUCT } from './flags.js';
-import { pinnedApps, readPinned, secClosedInit, togglePin } from './home/pinned.js';
+import { pinnedApps, RAIL_W, readPinned, secClosedInit, togglePin } from './home/pinned.js';
 import { isLearnResource } from './library-filter.js';
 import { pageFor, sectionActive, sectionHref } from './routes.js';
 import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
@@ -470,9 +470,14 @@ function AiModelSettings() {
   );
 }
 
+// Rabbit Hole dev: the main destinations, in the expanded nav and in the collapsed icon rail.
+const NAV = [['Home', '/apps', 'home', House], ['Library', '/library', 'library', Library], ['Explore', '/explore', 'explore', Compass]];
+const RAIL_BTN = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink';
+
 // Notion-style sidebar: workspace row, search, folders (drag apps in), recent, members.
-// Resizable by dragging the right edge (200–400px).
-export default function Sidebar({ org, orgName, email, apps, folders, awsError, width = 260, onResize, onReload, onCollapse }) {
+// Resizable by dragging the right edge (200–400px). Rabbit Hole dev: `rail` is the collapsed
+// icon rail (Shell.jsx), and the Apps tree, Shared, Private and New chat are gone.
+export default function Sidebar({ org, orgName, email, apps, folders, awsError, width = 260, rail = false, onResize, onReload, onCollapse, onExpand }) {
   const [dragging, setDragging] = useState(null);
   const [closed, setClosed] = useState({}); // folder id -> collapsed
   const [newFolder, setNewFolder] = useState(null);
@@ -581,6 +586,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
   const section = new URLSearchParams(window.location.search).get('s');
   const query = window.location.search;
   const here = learnPreview ? pageFor(path, query, true).page : null; // which nav item you are on
+  const current = here === 'app' ? 'library' : here; // app, project and canvas pages belong to the Library
+  const wsLabel = orgName || wsName(org);
   // Pinned (T02 §2): device-local and flat. togglePin announces every change, whoever made
   // it (this menu or the Agent Bar's pin command), so re-read on that event.
   const [, setPinTick] = useState(0);
@@ -591,7 +598,6 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
     return () => window.removeEventListener('small:pinned', on);
   }, []);
   const pins = learnPreview && email ? readPinned(localStorage, org, email) : [];
-  // ponytail: Pinned rows carry no ⋯ menu; unpin from the row in its section or with the bar's unpin command.
   const pinned = pinnedApps(pins, apps);
 
   const openTrash = () => {
@@ -807,14 +813,16 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
     <aside
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => { e.preventDefault(); setDragging(null); setDropTarget(null); }} // outside a real target = cancel
-      style={{ width }}
-      className="group/sb relative flex shrink-0 flex-col overflow-x-hidden overflow-y-auto border-r border-line bg-side px-2 py-2 max-md:hidden"
+      style={{ width: rail ? RAIL_W : width }}
+      className={cn('group/sb relative flex shrink-0 flex-col overflow-x-hidden overflow-y-auto border-r border-line bg-side px-2 py-2', !learnPreview && 'max-md:hidden')}
     >
+      {!rail && (
       <div
         onMouseDown={startResize}
         title="Drag to resize"
         className="absolute inset-y-0 -right-0.5 z-10 w-1.5 cursor-col-resize hover:bg-line-strong/70"
       />
+      )}
       {confirmDel && (
         <ConfirmDialog
           title={`Move ${confirmDel} to Trash?`}
@@ -848,6 +856,17 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         />
       )}
       <div className="relative shrink-0">
+        {rail ? (
+          <div className="flex flex-col items-center gap-1">
+            <button title={wsLabel} aria-label={wsLabel} onClick={() => setWsMenu(!wsMenu)} className={cn(RAIL_BTN, wsMenu && 'bg-active')}>
+              <span className="grid h-5 w-5 place-items-center rounded-sm bg-ink text-[11px] font-semibold text-white">{wsLabel[0].toUpperCase()}</span>
+              <span className="sr-only">{wsLabel}</span>
+            </button>
+            <button title="Open sidebar" aria-label="Open sidebar" onClick={onExpand} className={RAIL_BTN}>
+              <ChevronsRight size={16} strokeWidth={1.5} />
+            </button>
+          </div>
+        ) : (
         <div className="flex h-9 items-center gap-2 px-2">
           <button
             onClick={() => setWsMenu(!wsMenu)}
@@ -858,13 +877,14 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             <ByocDevBadge />
             <ChevronDown size={12} className="shrink-0 text-ink-3 opacity-0 group-hover/sb:opacity-100" />
           </button>
-          <IconBtn title="Close sidebar" onClick={onCollapse} className="opacity-0 group-hover/sb:opacity-100">
+          <IconBtn title="Close sidebar" onClick={onCollapse} className={cn('opacity-0 group-hover/sb:opacity-100', learnPreview && 'max-md:opacity-100')}>
             <ChevronsLeft size={15} />
           </IconBtn>
         </div>
+        )}
         {/* fixed!: the sidebar is a scroll container and clips anything wider than
             itself - pinning to the viewport lets the menu fit the full email */}
-        <Menu open={wsMenu} onClose={() => setWsMenu(false)} className="fixed! top-11 left-3 w-auto! min-w-60 max-w-[340px]">
+        <Menu open={wsMenu} onClose={() => setWsMenu(false)} className={rail ? 'fixed! top-2 left-14 w-auto! min-w-60 max-w-[340px]' : 'fixed! top-11 left-3 w-auto! min-w-60 max-w-[340px]'}>
           <div className="flex items-center gap-2 px-2 py-1.5">
             {email && <Avatar email={email} />}
             <span className="text-xs whitespace-nowrap text-ink-2">{email}</span>
@@ -943,6 +963,26 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         </div>
       )}
 
+      {rail ? (
+        <>
+          <nav aria-label="Main" className="flex flex-col items-center gap-1 pt-2">
+            {NAV.map(([label, to, page, Icon]) => (
+              <button key={page} title={label} aria-label={label} aria-current={current === page ? 'page' : undefined} onClick={() => navigate(to)} className={cn(RAIL_BTN, current === page && 'bg-active text-ink')}>
+                <Icon size={16} strokeWidth={1.5} />
+              </button>
+            ))}
+          </nav>
+          <div className="mt-auto flex shrink-0 flex-col items-center gap-1 border-t border-line pt-2">
+            <button title="Members" aria-label="Members" aria-current={path === '/members' ? 'page' : undefined} onClick={() => navigate('/members')} className={cn(RAIL_BTN, path === '/members' && 'bg-active text-ink')}>
+              <Users size={16} strokeWidth={1.5} />
+            </button>
+            <button title="Trash" aria-label="Trash" onClick={openTrash} className={cn(RAIL_BTN, trashOpen && 'bg-active text-ink')}>
+              <Trash2 size={16} strokeWidth={1.5} />
+            </button>
+          </div>
+        </>
+      ) : (
+      <>
       {/* icons only - search + notifications share one line, tooltips carry the labels */}
       <div className="flex items-center gap-1 px-0.5">
         <button
@@ -975,7 +1015,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         <>
           {/* Notion-style inbox: a floating rounded box beside the sidebar, not a full-height panel */}
           <div className="fixed inset-0 z-40" onMouseDown={() => setWatchOpen(false)} />
-          <div style={{ left: width + 12 }} className="fixed top-10 z-50 flex max-h-[75vh] w-[440px] flex-col overflow-hidden rounded-lg bg-white text-ink shadow-pop">
+          <div style={{ left: width + 12 }} className={cn('fixed top-10 z-50 flex max-h-[75vh] w-[440px] flex-col overflow-hidden rounded-lg bg-white text-ink shadow-pop', learnPreview && 'max-md:right-3 max-md:left-3! max-md:w-auto')}>
             <div className="flex shrink-0 items-center justify-between px-4 pt-3 pb-1">
               <span className="text-sm font-semibold">Notifications</span>
               <IconBtn aria-label="Close" onClick={() => setWatchOpen(false)}><X size={14} /></IconBtn>
@@ -1055,12 +1095,12 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
 
       {learnPreview && (
         <nav aria-label="Main" className="pt-2">
-          {[['Home', '/apps', 'home', House], ['Library', '/library', 'library', Library], ['Explore', '/explore', 'explore', Compass]].map(([label, to, page, Icon]) => (
+          {NAV.map(([label, to, page, Icon]) => (
             <button
               key={page}
-              aria-current={here === page ? 'page' : undefined}
+              aria-current={current === page ? 'page' : undefined}
               onClick={() => navigate(to)}
-              className={cn('flex h-7 w-full cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover', here === page && 'bg-active font-medium')}
+              className={cn('flex h-7 w-full cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover', current === page && 'bg-active font-medium')}
             >
               <Icon size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
               {label}
@@ -1072,9 +1112,14 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
       {pinned.length > 0 && (
         <section aria-label="Pinned">
           <div className="px-2 pt-3 pb-1 text-xs text-ink-2">Pinned</div>
-          {pinned.map((a) => appRow(a, false))}
+          {pinned.map((a) => appRow(a))}
         </section>
       )}
+      {/* ponytail: the preview has no Apps tree, Shared or Private (Library Filters -> Apps and Mine,
+          and the app Share popover, replace them), so folder create, rename and delete have no preview
+          UI. Folder management moves to the Library's ... actions later; the folder API and data stay. */}
+      {!learnPreview && (
+      <>
       {sectionLabel('Apps', null, (
         <span className="flex items-center gap-0.5">
           <button
@@ -1191,6 +1236,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         {!secClosed.private && privateApps.length === 0 && <div className="px-2 pb-1 text-xs text-ink-3">Drag apps here to make them private.</div>}
         {!secClosed.private && privateApps.map((a) => appRow(a))}
       </div>
+      </>
+      )}
 
       {!learnPreview && recent.length > 0 && (
         <>
@@ -1208,7 +1255,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         </>
       )}
 
-      <div className="mt-auto shrink-0 pt-3">
+      <div className={cn('mt-auto shrink-0 pt-3', learnPreview && 'border-t border-line')}>
         <button
           onClick={() => navigate('/members')}
           className={cn(
@@ -1226,6 +1273,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           <Trash2 size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
           Trash
         </button>
+        {!learnPreview && (
         <div className="mt-3 mb-3 flex items-center gap-2">
           <button
             onClick={() => navigate('/chat')}
@@ -1250,7 +1298,10 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             </Menu>
           </div>
         </div>
+        )}
       </div>
+      </>
+      )}
 
       {sharedFolderObj && (
         <SlidePanel title={`Share folder ${sharedFolderObj.name}`} width={400} onClose={() => setShareFolder(null)}>

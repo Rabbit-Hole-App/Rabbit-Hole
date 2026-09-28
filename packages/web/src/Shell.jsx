@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Home } from 'lucide-react';
+import { Home, PanelLeft } from 'lucide-react';
 import { navigate } from './api.js';
 import { loadApps } from './app-data.js';
 import Sidebar from './Sidebar.jsx';
 import { patchSurface } from './agent/surface.js';
 import { learnPreview } from './flags.js';
+import { sidebarEdge } from './home/pinned.js';
 
 // flow.md §1: the sidebar is always present. One shell owns it everywhere -
 // the /api/apps fetch it needs, the persisted collapse, the » reopen button,
@@ -18,6 +19,7 @@ export default function Shell({ children }) {
   const [collapsed, setCollapsed] = useState(() => storedSidebar().collapsed);
   const [width, setWidth] = useState(() => storedSidebar().width); // resizable, 200–400
   const [resizing, setResizing] = useState(false); // drag-resize must not fight the slide transition
+  const [drawer, setDrawer] = useState(false); // Rabbit Hole dev, below md: the sidebar opened as a drawer
   const resizeTimer = useRef();
   const resize = (w) => {
     setResizing(true);
@@ -45,10 +47,22 @@ export default function Shell({ children }) {
     window.addEventListener('small:sidebar', onSidebar);
     return () => window.removeEventListener('small:sidebar', onSidebar);
   }, []);
+  // The drawer always shows the full sidebar; a collapsed preview sidebar is the icon rail (Sidebar rail).
+  const shut = collapsed && !drawer;
+  const edge = sidebarEdge(shut, width, learnPreview);
   // Rabbit Hole dev: the Agent Bar (Root) sits over the content column; publish its left edge.
   useEffect(() => {
-    if (learnPreview) document.documentElement.style.setProperty('--sidebar-w', `${collapsed ? 0 : width}px`);
-  }, [collapsed, width]);
+    if (learnPreview) document.documentElement.style.setProperty('--sidebar-w', `${edge}px`);
+  }, [edge]);
+  // The drawer closes on navigation (navigate() fires popstate) and on Esc.
+  useEffect(() => {
+    if (!drawer) return;
+    const close = () => setDrawer(false);
+    const esc = (e) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('popstate', close);
+    window.addEventListener('keydown', esc);
+    return () => { window.removeEventListener('popstate', close); window.removeEventListener('keydown', esc); };
+  }, [drawer]);
   useEffect(() => {
     const on = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
@@ -69,8 +83,8 @@ export default function Shell({ children }) {
   }, []);
 
   return (
-    <div className="flex h-screen">
-      {collapsed && (
+    <div className="flex h-screen" style={learnPreview ? { '--shell-top-h': '40px' } : undefined}>
+      {collapsed && !learnPreview && (
         <button
           title="Back (reopens the sidebar)"
           onClick={() => { toggle(false); if (history.length > 1) history.back(); else navigate('/apps'); }}
@@ -79,16 +93,27 @@ export default function Shell({ children }) {
           <Home size={16} />
         </button>
       )}
+      {/* Rabbit Hole dev, below md: no rail; a top strip opens the sidebar as a drawer (index.css pads main by it). */}
+      {learnPreview && (
+        <div className="fixed inset-x-0 top-0 z-20 flex h-(--shell-top-h) items-center border-b border-line bg-white px-2 md:hidden">
+          <button aria-label="Open sidebar" title="Open sidebar" onClick={() => setDrawer(true)} className="flex h-8 w-8 items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink">
+            <PanelLeft size={16} strokeWidth={1.5} />
+          </button>
+        </div>
+      )}
+      {drawer && <div data-shell-backdrop onClick={() => setDrawer(false)} className="fixed inset-0 z-30 bg-black/20 md:hidden" />}
       {/* Notion slide: the wrapper animates width to 0 while the fixed-width inner
-          translates left, so the sidebar glides out instead of blinking away. */}
+          translates left, so the sidebar glides out instead of blinking away.
+          The preview collapses to the icon rail instead. The open drawer keeps a zero-width
+          wrapper and a fixed inner, so the Sidebar stays this one mounted instance. */}
       <div
         data-shell-sidebar
-        style={{ width: collapsed ? 0 : width, transition: resizing ? 'none' : 'width 200ms cubic-bezier(0.25,1,0.35,1)' }}
-        className="shrink-0 overflow-hidden max-md:hidden"
+        style={{ width: edge, transition: resizing ? 'none' : 'width 200ms cubic-bezier(0.25,1,0.35,1)' }}
+        className={`shrink-0 overflow-hidden ${drawer ? 'max-md:w-0!' : 'max-md:hidden'}`}
       >
         <div
-          style={{ width, transform: collapsed ? `translateX(-${width}px)` : 'none', transition: resizing ? 'none' : 'transform 200ms cubic-bezier(0.25,1,0.35,1)' }}
-          className="flex h-full"
+          style={{ width: learnPreview ? edge : width, transform: collapsed && !learnPreview ? `translateX(-${width}px)` : 'none', transition: resizing ? 'none' : 'transform 200ms cubic-bezier(0.25,1,0.35,1)' }}
+          className={drawer ? 'flex h-full max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-30 max-md:max-w-[85vw] max-md:overflow-hidden max-md:shadow-pop' : 'flex h-full'}
         >
           <Sidebar
             org={data?.org || 'small'}
@@ -98,9 +123,11 @@ export default function Shell({ children }) {
             awsError={data?.awsError}
             folders={data?.folders || []}
             width={width}
+            rail={learnPreview && shut}
             onResize={resize}
             onReload={load}
-            onCollapse={() => toggle(true)}
+            onCollapse={() => (drawer ? setDrawer(false) : toggle(true))}
+            onExpand={() => toggle(false)}
           />
         </div>
       </div>

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Archive, ArrowRight, ArrowUpRight, BookOpen, Check, ListFilter, Loader2, MoreHorizontal, Network, Play, X } from 'lucide-react';
+import { Archive, ArrowRight, ArrowUpRight, BookOpen, Check, ListFilter, Loader2, MoreHorizontal, Network, Pin, PinOff, Play, X } from 'lucide-react';
 import { titleOf } from './agent/catalog.js';
 import { ago, navigate } from './api.js';
 import { learnProgress, onAnotherDevice, readRecent } from './home/continue.js';
+import { readPinned, togglePin } from './home/pinned.js';
 import { Creator, ForkedFrom, Forks, SourceLink } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
 import { byRecent, chipHref, libraryHref, librarySections, ofType, SCOPES, TYPES } from './library-filter.js';
@@ -26,6 +27,8 @@ export default function LibraryViews({ apps, type, data, onType, onArchive, onRu
   const card = (a) => (a.kind === 'repository' ? <ProjectCard key={a.name} a={a} ctx={ctx} onMore={more(a)} /> : <CanvasCard key={a.name} a={a} ctx={ctx} onMore={more(a)} />);
   const recent = readRecent(localStorage);
   const pick = (fn) => { const a = menu.a; setMenu(null); guard(a, () => fn(a))(); };
+  // The sidebar has no Apps tree in the preview, so projects and canvases are pinned from here.
+  const pinnedNow = menu && ctx.email && readPinned(localStorage, ctx.org, ctx.email).includes(menu.a.name);
   return (
     <>
       {type ? <ul className={GRID}>{byRecent(ofType(apps, type), recent).map(card)}</ul> : (
@@ -44,6 +47,7 @@ export default function LibraryViews({ apps, type, data, onType, onArchive, onRu
         </div>
       )}
       <Menu portal open={!!menu} onClose={() => setMenu(null)} style={{ top: menu?.top, left: menu?.left }} className="w-44">
+        {ctx.email && <MenuItem icon={pinnedNow ? PinOff : Pin} onClick={() => pick((a) => togglePin(localStorage, ctx.org, ctx.email, a.name))}>{pinnedNow ? 'Unpin' : 'Pin'}</MenuItem>}
         {menu?.a.kind === 'repository' ? (
           <>
             <MenuItem icon={BookOpen} onClick={() => pick((a) => navigate(`/apps/${a.name}?tab=learn`))}>Learn</MenuItem>

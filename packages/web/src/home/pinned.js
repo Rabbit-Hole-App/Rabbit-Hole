@@ -25,3 +25,8 @@ export const pinnedApps = (slugs, catalog) => slugs.map((slug) => catalog.find((
 // small.secClosed: new preview users start with Apps, Shared and Private collapsed (T02 §2);
 // a stored choice always wins; the live build keeps today's open default.
 export const secClosedInit = (stored, preview) => JSON.parse(stored || (preview ? '{"apps":true,"shared":true,"private":true}' : '{}'));
+
+// The Agent Bar's left edge (--sidebar-w). A collapsed preview sidebar keeps its icon rail;
+// the live build collapses to nothing, as today.
+export const RAIL_W = 52;
+export const sidebarEdge = (collapsed, width, preview) => (collapsed ? (preview ? RAIL_W : 0) : width);
