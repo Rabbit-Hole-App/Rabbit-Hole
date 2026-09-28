@@ -51,7 +51,10 @@ function HomeContent({ data, load }) {
                 <ul>{items.map((a) => <RecentRow key={`${a.org}/${a.name}`} app={a} card={recentCard(a, cardCtx)} />)}</ul>
               </section>
             )}
-            <section>{startButton}</section>
+            <section>
+              {startButton}
+              {!cont && !items.length && <p className="pt-3 text-sm text-ink-2">Start from a repository, sources, a question, or a blank canvas.</p>}
+            </section>
           </>
         )}
       </div>
@@ -84,16 +87,16 @@ function Continue({ item }) {
 function RecentRow({ app, card }) {
   const { action } = card;
   return (
-    <li className="group flex h-9 items-center gap-2 rounded-sm px-2 hover:bg-hover">
+    <li className="group flex min-h-9 items-center gap-2 rounded-sm px-2 hover:bg-hover max-md:flex-wrap max-md:gap-y-0.5 max-md:py-1.5">
       <KindIcon kind={app.kind} schedule={app.schedule} />
       <span className="max-w-[40%] shrink-0 truncate text-sm font-medium">{titleOf(app)}</span>
       <Pill>{KIND[app.kind] || app.kind}</Pill>
-      <span className="min-w-0 flex-1 truncate text-xs text-ink-2">
+      <span className="min-w-0 flex-1 truncate text-xs text-ink-2 max-md:order-last max-md:basis-full max-md:whitespace-normal max-md:pl-6">
         {card.meta.join(' · ')}{!action && ' · Its content is stored only in the browser that created it.'}
       </span>
-      {action?.to && <Button size="sm" className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100" onClick={() => navigate(action.to)}>{action.label}</Button>}
+      {action?.to && <Button size="sm" className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 max-md:opacity-100" onClick={() => navigate(action.to)}>{action.label}</Button>}
       {action?.href && (
-        <a href={action.href} target="_blank" rel="noreferrer" className="inline-flex h-7 items-center gap-1 rounded-sm px-2 text-[13px] font-medium text-ink-2 opacity-0 hover:bg-hover hover:text-ink group-focus-within:opacity-100 group-hover:opacity-100">
+        <a href={action.href} target="_blank" rel="noreferrer" className="inline-flex h-7 items-center gap-1 rounded-sm px-2 text-[13px] font-medium text-ink-2 opacity-0 hover:bg-hover hover:text-ink group-focus-within:opacity-100 group-hover:opacity-100 max-md:opacity-100">
           {action.label} <ArrowUpRight size={12} />
         </a>
       )}

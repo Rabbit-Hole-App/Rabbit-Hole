@@ -264,6 +264,24 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
+  await check('sh-shots: Home, Library and Explore in light, dark and at 390px, with no sideways scroll', async () => {
+    const ready = { '/apps': (p) => shStart(p), '/library': (p) => shH1(p, 'Library'), '/explore': (p) => shH1(p, 'Explore') };
+    for (const [look, viewport, colorScheme] of [['light', undefined, 'light'], ['dark', undefined, 'dark'], ['narrow', { width: 390, height: 844 }, 'light']]) {
+      const page = await open(viewport);
+      await page.emulateMedia({ colorScheme });
+      for (const [path, wait] of Object.entries(ready)) {
+        await loaded(page, path); // the workspace has loaded, so no skeleton rows or placeholder names
+        await wait(page).waitFor({ timeout: 20000 });
+        await page.locator('.skel, [data-skeleton]').first().waitFor({ state: 'detached', timeout: 20000 }).catch(() => {});
+        await page.waitForLoadState('networkidle');
+        await page.screenshot({ path: `e2e/shots/sh-${path.slice(1)}-${look}.png`, fullPage: true });
+        const wide = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        must(wide <= 0, `${path} (${look}) scrolls sideways by ${wide}px`);
+      }
+      await page.context().close();
+    }
+  });
+
   // ── shell-home checks end: later shell-home tasks insert above this line ──
 }
 
