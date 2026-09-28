@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { FileCode, GitBranch, Network, RefreshCw } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { Button, ExpandedPageFrame, Input, Tabs, TabsList, TabsTrigger, Tip } from './ui.jsx';
-import { AskPanel } from './ask.jsx';
 import LearnPage from './LearnPage.jsx';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import RepositorySource from './RepositorySource.jsx';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
+import { titleOf } from './agent/catalog.js';
+import { patchSurface } from './agent/surface.js';
 
 export default function RepositoryPage({ app: initial }) {
   const [app,setApp]=useState(initial),[snapshot,setSnapshot]=useState(null),[error,setError]=useState(''),[mode,setMode]=useState('graph'),[query,setQuery]=useState(''),[selected,setSelected]=useState(null),[source,setSource]=useState(null),[asking,setAsking]=useState(null);
@@ -20,6 +21,11 @@ export default function RepositoryPage({ app: initial }) {
     load();return()=>{active=false;clearTimeout(timer);};
   },[root,app.status]);
   useEffect(()=>{if(!app.commit_sha)return;let active=true;api(`${root}/snapshot`).then(d=>{if(active){setSnapshot(d);setSelected(null);setSource(null);}}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[root,app.commit_sha]);
+  // The Agent Bar asks about this project and the selected node (T02 §6.2). Root resets the surface on every
+  // URL change, so this re-runs on the path. Learn keeps Root's hidden baseline and gets no onGraph: a late
+  // Map answer must not navigate the reader out of Learn.
+  const path=window.location.pathname+window.location.search;
+  useEffect(()=>{if(!learn)patchSurface({resource:{kind:'project',slug:app.name,title:titleOf(app),status:app.status},selected:asking?{id:asking.id,label:asking.label,commit:asking.commit||snapshot?.commit}:null,handlers:{onGraph:showGraph}});},[path,app.name,app.repo,app.status,asking,snapshot?.commit]);
   if(learn)return <LearnPage app={app} onGraph={showGraph} repositoryContext={asking ? {nodeId:asking.id,label:asking.label,commit:snapshot?.commit} : {commit:app.commit_sha}} onBack={()=>{setMode('graph');navigate(`/apps/${app.name}?tab=code`);}}/>;
   const choose=node=>{setSelected(node);setAsking(node);if(!node)return;if(node.path)setSource({path:node.path,line:node.line,commit:node.commit});else setSource(null);};
   const relationships=selected&&snapshot?snapshot.graph.edges.filter(e=>e.source===selected.id||e.target===selected.id):[];
@@ -28,7 +34,7 @@ export default function RepositoryPage({ app: initial }) {
       <h1 className="pb-2 text-2xl font-semibold">{app.repo}</h1>
       <Tabs value="graph" onValueChange={value=>{if(value==='learn')navigate(`/apps/${app.name}?tab=learn`);}}>
         <TabsList pill className="mb-4">
-          <TabsTrigger pill value="graph"><Tip label="Graph" info="Code graph of this repository, with the Graph Agent"><span>Graph</span></Tip></TabsTrigger>
+          <TabsTrigger pill value="graph"><Tip label="Graph" info="Code graph of this repository"><span>Graph</span></Tip></TabsTrigger>
           <TabsTrigger pill value="learn" disabled={!app.commit_sha}><Tip label="Learn" info="Guided lessons built from this repository"><span>Learn</span></Tip></TabsTrigger>
         </TabsList>
       </Tabs>
@@ -43,9 +49,9 @@ export default function RepositoryPage({ app: initial }) {
         {!!snapshot.skipped.length&&<details className="mt-2 text-xs text-ink-2"><summary className="cursor-pointer">{snapshot.skipped.length} excluded files</summary><div className="max-h-40 overflow-auto">{snapshot.skipped.map(f=><p key={f.path}>{f.path}: {f.reason}</p>)}</div></details>}
       </>}
     </ExpandedPageFrame></section>
-    <ResizableSidePanel aria-label="Repository Graph Agent" resizeLabel="Resize repository panel" defaultWidth={420} className="p-5">
-
-      <AskPanel onGraph={showGraph} scope={{app:app.name}} appName={app.name} conversation="learn" repositoryContext={{commit:asking?.commit||snapshot?.commit,nodeId:asking?.id,label:asking?.label}} onClearRepository={()=>setAsking(null)} headerTitle="Graph Agent" placeholder={`Ask about ${app.repo}…`} contentPanel={source?<RepositorySource appName={app.name} {...source} commit={source.commit||snapshot?.commit} onClose={()=>setSource(null)}/>:null} onCloseContentPanel={()=>setSource(null)}/>
-    </ResizableSidePanel>
+    {/* Questions go through the Agent Bar (T02 §6.5: one composer); the panel shows the selected source. */}
+    {source&&<ResizableSidePanel aria-label="Source" resizeLabel="Resize repository panel" defaultWidth={420} className="p-5">
+      <RepositorySource appName={app.name} {...source} commit={source.commit||snapshot?.commit} onClose={()=>setSource(null)}/>
+    </ResizableSidePanel>}
   </main>;
 }
