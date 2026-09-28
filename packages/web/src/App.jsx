@@ -6,7 +6,11 @@ import RepositoryImport from './RepositoryImport.jsx';
 import Shell from './Shell.jsx';
 import { aiFindAllowed } from './flags.js';
 import { isPrivateByoc } from './private-auth.js';
-import { Avatar, Chk, cn, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, toast, useHeaderDrag, ValuePicker } from './ui.jsx';
+import { titleOf } from './agent/catalog.js';
+import { learnPreview } from './flags.js';
+import { onAnotherDevice } from './home/continue.js';
+import { chipHref, hiddenFor, libraryQuery, ofType, opsView, SCOPES, TYPES } from './library-filter.js';
+import { Avatar, Button, Chk, cn, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, toast, useHeaderDrag, ValuePicker } from './ui.jsx';
 
 const people = (a) => [a.owner_email, ...(a.members || []).map((m) => m.email).filter((e) => e !== a.owner_email)];
 
@@ -41,6 +45,14 @@ const FILTERS = {
   access: (a) => (a.visibility === 'private' ? 'only shared' : 'anyone in org'),
   watch: (a) => (a.watch_count > 0 ? 'has findings' : 'none'),
 };
+
+// Library chips (T02 §4, preview only): a pressed chip is the current filter. Notion's
+// filter chip: 28px, 4px radius, no border; the pressed one sits on the active surface.
+const Chip = ({ on, ...props }) => (
+  <button aria-pressed={on} className={cn('h-7 rounded-sm px-2 text-[13px] transition-colors duration-100', on ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')} {...props} />
+);
+// The Start dialog lives once in main.jsx Root; the Library only asks for it.
+const startRabbitHole = () => window.dispatchEvent(new CustomEvent('small:start', { detail: { path: 'repository' } }));
 
 export default function App() {
   return <Shell>{(data, load) => <AppContent data={data} load={load} />}</Shell>;
@@ -100,7 +112,13 @@ function AppContent({ data, load }) {
   );
   const colMatch = (k) => COLS[k].toLowerCase().includes(menuQ.toLowerCase());
   const order = [...cols.order.filter((k) => DEFAULT_ORDER.includes(k)), ...DEFAULT_ORDER.filter((k) => !cols.order.includes(k))];
-  const visibleCols = order.filter((k) => !cols.hidden[k]);
+  const { type } = libraryQuery(window.location.search, learnPreview);
+  // ponytail: toggles made in Projects/Canvases stay in memory, so small.tblCols (the Apps
+  // view's) is written exactly as today; persist them per type if people ask.
+  const [typeHidden, setTypeHidden] = useState({});
+  const hidden = hiddenFor(type, cols.hidden, typeHidden);
+  const setHidden = (k, v) => (opsView(type) ? setTypeHidden({ ...typeHidden, [k]: v }) : saveCols({ ...cols, hidden: { ...cols.hidden, [k]: v } }));
+  const visibleCols = order.filter((k) => !hidden[k]);
   const moveCol = (from, to, after = false) => {
     if (from === to) return;
     const next = order.filter((k) => k !== from);
@@ -117,10 +135,10 @@ function AppContent({ data, load }) {
   const params = new URLSearchParams(window.location.search);
   const section = params.get('s');
   const folder = params.get('f') ? (data?.folders || []).find((x) => x.name === params.get('f')) : null;
-  const title = folder ? folder.name : section === 'shared' ? 'Shared' : section === 'private' ? 'Private' : 'Apps';
-  const sectionApps = folder
+  const title = folder ? folder.name : section === 'shared' ? 'Shared' : section === 'private' ? 'Private' : learnPreview ? 'Library' : 'Apps';
+  const sectionApps = ofType(folder
     ? apps.filter((a) => a.folder_id === folder.id)
-    : section ? apps.filter((a) => sectionOf(a, org, data?.email) === section) : apps;
+    : section ? apps.filter((a) => sectionOf(a, org, data?.email) === section) : apps, type);
   // the inline search is agent-backed too: sentence queries ask the model, which
   // picks apps by description; short strings stay instant name matching
   const [aiFind, setAiFind] = useState(null); // null | 'loading' | { names, note }
@@ -178,10 +196,24 @@ function AppContent({ data, load }) {
           </div>
           <div className="flex items-center justify-between pb-5"><h1 className="text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{title}</h1>{import.meta.env.VITE_COACHING_DEV === 'true' && !isPrivateByoc && <button onClick={() => setImportOpen(true)} className="rounded-lg bg-accent px-3 py-2 text-sm text-white hover:bg-accent-hover">Import repository</button>}</div>
           {importOpen && <RepositoryImport onClose={() => setImportOpen(false)} onImported={load} />}
+          {learnPreview && (
+            <div className="space-y-1 pb-4">
+              <div className="flex flex-wrap gap-1">
+                <Chip on={!type} onClick={() => navigate(chipHref(window.location.search, 'type', null))}>All</Chip>
+                {Object.entries(TYPES).map(([k, t]) => <Chip key={k} on={type === k} onClick={() => navigate(chipHref(window.location.search, 'type', type === k ? null : k))}>{t.label}</Chip>)}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {Object.entries(SCOPES).map(([k, label]) => <Chip key={k} on={section === k} onClick={() => navigate(chipHref(window.location.search, 's', section === k ? null : k))}>{label}</Chip>)}
+              </div>
+            </div>
+          )}
 
           {!data && <SkeletonRows rows={4} />}
           {data?.error && <div className="text-ink-2">✗ {data.error}</div>}
-          {data && !data.error && apps.length === 0 && (
+          {data && !data.error && learnPreview && sectionApps.length === 0 && (
+            <EmptyState icon={Mark} action={<Button variant="primary" onClick={startRabbitHole}>Start a rabbit hole</Button>}>Nothing here yet</EmptyState>
+          )}
+          {data && !data.error && !learnPreview && apps.length === 0 && (
             <EmptyState icon={Mark}>
               {isPrivateByoc ? 'No apps yet. Use the private CLI to sign into this installation and deploy a CPU job. '
                 : <>No apps yet - <code className="rounded-sm bg-hover px-1.5 py-0.5 text-xs">small deploy</code> ships the first one.{' '}</>}
@@ -191,7 +223,7 @@ function AppContent({ data, load }) {
             </EmptyState>
           )}
 
-          {apps.length > 0 && (
+          {(learnPreview ? sectionApps.length > 0 : apps.length > 0) && (
             <>
               <div className="flex h-8 items-center justify-end gap-1">
                 {/* active filter/sort read back as chips; the buttons open Notion-style menus */}
@@ -251,8 +283,8 @@ function AppContent({ data, load }) {
                     </div>
                     <SubMenu icon={Eye} label="Property visibility" hint={String(visibleCols.length)} open={colSub === 'v:props'} onOpen={() => setColSub('v:props')} width="w-56">
                       {order.map((k) => (
-                        <MenuItem key={k} icon={COL_ICON[k]} onClick={() => k !== 'name' && saveCols({ ...cols, hidden: { ...cols.hidden, [k]: !cols.hidden[k] } })} className={k === 'name' ? 'opacity-50' : ''}>
-                          <span className="flex w-full items-center gap-2"><Chk on={!cols.hidden[k]} /> {COLS[k]}</span>
+                        <MenuItem key={k} icon={COL_ICON[k]} onClick={() => k !== 'name' && setHidden(k, !hidden[k])} className={k === 'name' ? 'opacity-50' : ''}>
+                          <span className="flex w-full items-center gap-2"><Chk on={!hidden[k]} /> {COLS[k]}</span>
                         </MenuItem>
                       ))}
                     </SubMenu>
@@ -340,7 +372,7 @@ function AppContent({ data, load }) {
                             </SubMenu>
                           )}
                           {k !== 'name' && (
-                            <MenuItem icon={EyeOff} onClick={(e) => { e.stopPropagation(); saveCols({ ...cols, hidden: { ...cols.hidden, [k]: true } }); setColMenu(null); }}>Hide column</MenuItem>
+                            <MenuItem icon={EyeOff} onClick={(e) => { e.stopPropagation(); setHidden(k, true); setColMenu(null); }}>Hide column</MenuItem>
                           )}
                         </Menu>
                       </th>
@@ -384,15 +416,16 @@ function AppContent({ data, load }) {
                               className="cursor-pointer"
                               onClick={(e) => { e.stopPropagation(); navigate(`/apps/${a.name}`); }}
                             >
-                              {a.kind === 'repository' ? a.repo : a.name}
+                              {titleOf(a)}
                             </button>
+                            {a.kind === 'canvas' && onAnotherDevice(a, data?.email, localStorage) && <Pill>On another device</Pill>}
                           </span>
                         </td>
                       ),
                       kind: (
                         <td key="kind" className={td}>
                           <span className="flex items-center gap-1.5">
-                            <Pill color={a.kind === 'job' ? 'blue' : 'grey'}>{a.kind}</Pill>
+                            <Pill color={a.kind === 'job' ? 'blue' : 'grey'}>{learnPreview && a.kind === 'repository' ? 'project' : a.kind}</Pill>
                             {a.schedule && (
                               <Pill
                                 className={a.schedule_paused ? 'opacity-60 line-through' : ''}
@@ -456,7 +489,7 @@ function AppContent({ data, load }) {
                             <PillButton
                               title="Open in side peek"
                               className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-                              onClick={(e) => { e.stopPropagation(); a.kind === 'repository' ? navigate(`/apps/${a.name}?tab=code`) : setPanel({ name: a.name, tab: 'runbook' }); }}
+                              onClick={(e) => { e.stopPropagation(); a.kind === 'repository' ? navigate(`/apps/${a.name}?tab=code`) : a.kind === 'canvas' ? navigate(`/apps/${a.name}`) : setPanel({ name: a.name, tab: 'runbook' }); }}
                             >
                               <PanelRight size={11} /> Open
                             </PillButton>

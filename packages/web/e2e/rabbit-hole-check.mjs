@@ -171,6 +171,37 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
+  await check('sh-library: type and scope chips filter; Canvases hide ops columns; a canvas on another device is flagged; an empty view offers Start', async () => {
+    const page = await open();
+    await page.goto(`${base}/library`);
+    await shH1(page, 'Library').waitFor({ timeout: 20000 });
+    const c = await shCanvas(page, 'rabbit-hole-check library', 'rabbit-hole-check-device');
+    try {
+      await page.reload();
+      const chip = (name) => page.locator('button[aria-pressed]').filter({ hasText: new RegExp(`^${name}$`) });
+      for (const name of ['All', 'Projects', 'Canvases', 'Apps', 'Mine', 'Shared with me', 'Workspace']) must(await chip(name).count() === 1, `chip ${name} missing`);
+      await chip('Canvases').click();
+      await page.waitForURL(/[?&]type=canvases/);
+      const row = page.locator('tbody tr').filter({ hasText: 'rabbit-hole-check library' });
+      await row.waitFor({ timeout: 20000 });
+      must(await chip('Canvases').getAttribute('aria-pressed') === 'true', 'Canvases chip is not pressed');
+      const heads = await page.locator('thead th').allInnerTexts();
+      for (const ops of ['Watch', 'Deployed', 'Last run']) must(!heads.some((t) => t.includes(ops)), `${ops} column shown for Canvases`);
+      must((await row.innerText()).includes('On another device'), 'canvas row lacks On another device');
+      must(await row.locator('svg.lucide-pen-line').count() === 1, 'canvas row lacks the canvas icon');
+      await chip('Mine').click();
+      await page.waitForURL(/[?&]s=private/);
+      await row.waitFor();
+      await page.goto(`${base}/library?type=canvases&s=shared`); // canvases are owner-only, so this view is always empty
+      await page.getByText('Nothing here yet', { exact: true }).waitFor({ timeout: 20000 });
+      await shStart(page).click();
+      await page.getByRole('dialog', { name: 'Start a rabbit hole' }).waitFor({ timeout: 10000 });
+    } finally {
+      await shDrop(page, c.name);
+      await page.context().close();
+    }
+  });
+
   // ── shell-home checks end: later shell-home tasks insert above this line ──
 }
 
