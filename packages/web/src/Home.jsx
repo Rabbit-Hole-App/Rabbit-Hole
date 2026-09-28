@@ -8,12 +8,14 @@ import Shell from './Shell.jsx';
 import { Button, KindIcon, Pill, SkeletonRows } from './ui.jsx';
 
 // Home (T02 §3, preview build only): Continue, Recent, Start - three blocks, no others.
-// Styled to design/notion.md: a left-aligned 900px column, section labels at 12px, Continue as a
-// borderless callout block, Recent as 36px list rows with hover-revealed actions. Nothing is a card.
+// Composition follows Gate B (Figma F1): Continue as a callout, Recent as a gallery of compact
+// resource cards. Styling (6px radius, 1px line border, no shadow, 12px labels) is design/notion.md.
 // ponytail: the Authored path card (§3.1.3) is left out - learn_courses keeps no learner
 // step pointer, so 'Step 3 of 7' has no source yet; add it once that source is decided.
 const KIND = { repository: 'Project', canvas: 'Canvas', job: 'Job', server: 'Server' };
 const HEADING = 'pb-1 text-xs text-ink-2';
+const CARD = 'rounded-lg border border-line bg-white';
+const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3';
 // The Start dialog lives once in main.jsx Root (StartHost); pages only ask for it.
 const start = () => window.dispatchEvent(new CustomEvent('small:start', { detail: { path: 'repository' } }));
 
@@ -48,7 +50,7 @@ function HomeContent({ data, load }) {
             {items.length > 0 && (
               <section aria-label="Recent">
                 <h2 className={HEADING}>Recent</h2>
-                <ul>{items.map((a) => <RecentRow key={`${a.org}/${a.name}`} app={a} card={recentCard(a, cardCtx)} />)}</ul>
+                <ul className={GRID}>{items.map((a) => <RecentCard key={`${a.org}/${a.name}`} app={a} card={recentCard(a, cardCtx)} />)}</ul>
               </section>
             )}
             <section>
@@ -83,23 +85,22 @@ function Continue({ item }) {
   );
 }
 
-// One 36px list row: icon, title, kind, the per-kind metadata on one line, the next action on hover.
-function RecentRow({ app, card }) {
+// Gate B Resource Card: icon, title and kind; the per-kind metadata (secondary, then tertiary);
+// the next action as a text link that shows on hover (always shown on phones, which have no hover).
+function RecentCard({ app, card }) {
   const { action } = card;
+  const link = 'inline-flex items-center gap-1 self-start text-xs font-medium text-accent hover:underline opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 max-md:opacity-100';
   return (
-    <li className="group flex min-h-9 items-center gap-2 rounded-sm px-2 hover:bg-hover max-md:flex-wrap max-md:gap-y-0.5 max-md:py-1.5">
-      <KindIcon kind={app.kind} schedule={app.schedule} />
-      <span className="max-w-[40%] shrink-0 truncate text-sm font-medium">{titleOf(app)}</span>
-      <Pill kind={app.kind}>{KIND[app.kind] || app.kind}</Pill>
-      <span className="min-w-0 flex-1 truncate text-xs text-ink-2 max-md:order-last max-md:basis-full max-md:whitespace-normal max-md:pl-6">
-        {card.meta.join(' · ')}{!action && ' · Its content is stored only in the browser that created it.'}
-      </span>
-      {action?.to && <Button size="sm" className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 max-md:opacity-100" onClick={() => navigate(action.to)}>{action.label}</Button>}
-      {action?.href && (
-        <a href={action.href} target="_blank" rel="noreferrer" className="inline-flex h-7 items-center gap-1 rounded-sm px-2 text-[13px] font-medium text-ink-2 opacity-0 hover:bg-hover hover:text-ink group-focus-within:opacity-100 group-hover:opacity-100 max-md:opacity-100">
-          {action.label} <ArrowUpRight size={12} />
-        </a>
-      )}
+    <li data-recent-card className={`${CARD} group flex min-w-0 flex-col gap-1 p-3`}>
+      <div className="flex min-w-0 items-center gap-2">
+        <KindIcon kind={app.kind} schedule={app.schedule} />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">{titleOf(app)}</span>
+        <Pill kind={app.kind}>{KIND[app.kind] || app.kind}</Pill>
+      </div>
+      <span className="truncate text-xs text-ink-2">{card.meta.slice(0, 2).join(' · ')}</span>
+      <span className="truncate text-xs text-ink-3">{action ? card.meta.slice(2).join(' · ') : 'Its content is stored only in the browser that created it.'}</span>
+      {action?.to && <button type="button" className={link} onClick={() => navigate(action.to)}>{action.label}</button>}
+      {action?.href && <a href={action.href} target="_blank" rel="noreferrer" className={link}>{action.label} <ArrowUpRight size={12} /></a>}
     </li>
   );
 }
@@ -115,20 +116,28 @@ function Explore() {
     <main className="flex-1 overflow-y-auto">
       <div role="note" className="sticky top-0 z-10 border-b border-line bg-code px-4 py-2 text-sm text-ink-2">{BANNER}</div>
       <div className="max-w-[900px] px-24 pb-12 pt-12 max-lg:px-8 max-md:px-4 max-md:pt-6">
-        <h1 className="pb-5 text-[40px] font-bold leading-[1.2] tracking-[-0.01em]">Explore</h1>
-        <ul>
-          {DEMO.map((d) => {
-            const on = saved.includes(d.id);
-            return (
-              <li key={d.id} className="flex h-9 items-center gap-2 rounded-sm px-2 hover:bg-hover">
-                <span className="max-w-[40%] shrink-0 truncate text-sm font-medium">{d.title}</span>
-                <Pill kind={d.kind.toLowerCase()}>{d.kind}</Pill>
-                <span className="min-w-0 flex-1 truncate text-xs text-ink-2">{d.blurb}</span>
-                <Button size="sm" aria-pressed={on} onClick={() => setSaved(toggleSaved(localStorage, d.id))}>{on ? 'Saved' : 'Save'}</Button>
-              </li>
-            );
-          })}
-        </ul>
+        <h1 className="text-[40px] font-bold leading-[1.2] tracking-[-0.01em]">Explore</h1>
+        <p className="pb-8 pt-1 text-sm text-ink-2">Discover rabbit holes, projects, and learning resources shared beyond your library.</p>
+        <section aria-label="Examples">
+          <h2 className={HEADING}>Examples</h2>
+          <ul className={GRID}>
+            {DEMO.map((d) => {
+              const on = saved.includes(d.id);
+              return (
+                <li key={d.id} data-explore-card className={`${CARD} flex min-h-[120px] min-w-0 flex-col gap-1 p-3`}>
+                  <div className="flex min-w-0 items-start gap-2">
+                    <span className="pt-0.5"><KindIcon kind={d.kind === 'Project' ? 'repository' : 'canvas'} /></span>
+                    <span className="min-w-0 flex-1 text-sm font-medium leading-snug">{d.title}</span>
+                    <Pill kind={d.kind.toLowerCase()}>{d.kind}</Pill>
+                  </div>
+                  <p className="text-xs text-ink-2">{d.blurb}</p>
+                  <Button size="sm" variant="secondary" className="mt-auto self-start" aria-pressed={on} onClick={() => setSaved(toggleSaved(localStorage, d.id))}>{on ? 'Saved' : 'Save'}</Button>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="pt-3 text-xs text-ink-3">These are examples. Nothing is shared beyond a workspace yet.</p>
+        </section>
       </div>
     </main>
   );

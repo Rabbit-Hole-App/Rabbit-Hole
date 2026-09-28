@@ -146,6 +146,11 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       for (const want of ['rabbit-hole-check home', 'Last explored: why sqrt(dk)?', 'Next: Masked self-attention']) must(text.includes(want), `Continue lacks ${want}: ${text}`);
       await cont.getByRole('button', { name: 'Continue learning' }).waitFor();
       must((await page.getByRole('region', { name: 'Recent' }).innerText()).includes('Content in this browser'), 'Recent canvas card lacks Content in this browser');
+      // Gate B F1: Recent is a gallery of compact bordered cards, not full-width list rows.
+      const card = page.getByRole('region', { name: 'Recent' }).locator('[data-recent-card]').first();
+      const box = await card.boundingBox(), border = await card.evaluate((n) => getComputedStyle(n).borderTopWidth);
+      must(box && box.width < 400 && box.height < 160, `Recent card is ${box?.width}x${box?.height}, not a compact card`);
+      must(border === '1px', `Recent card border ${border}`);
       await shStart(page).click(); // strict locator: exactly one primary Start on Home (T02 §3.3)
       await page.getByRole('dialog', { name: 'Start a rabbit hole' }).waitFor({ timeout: 10000 });
     } finally {
@@ -161,6 +166,10 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.goto(`${base}/explore`);
     await page.getByRole('note').filter({ hasText: 'Demo data — changes stay in this preview' }).waitFor({ timeout: 20000 });
     await shH1(page, 'Explore').waitFor();
+    must(await page.getByText('Discover rabbit holes, projects, and learning resources shared beyond your library.', { exact: true }).count() === 1, 'Explore has no purpose sentence');
+    // Discovery cards in a grid, never the Library's list rows.
+    const xs = await page.locator('[data-explore-card]').evaluateAll((ns) => ns.map((n) => [n.getBoundingClientRect().x, getComputedStyle(n).borderTopWidth]));
+    must(xs.length >= 3 && new Set(xs.map(([x]) => Math.round(x))).size >= 2 && xs.every(([, b]) => b === '1px'), `Explore cards: ${JSON.stringify(xs)}`);
     await page.getByRole('button', { name: 'Save', exact: true }).first().click();
     await page.getByRole('button', { name: 'Saved', exact: true }).waitFor();
     await page.reload();
@@ -277,6 +286,11 @@ await check('build: the browser runs the dist-dev entry script', async () => {
         await page.screenshot({ path: `e2e/shots/sh-${path.slice(1)}-${look}.png`, fullPage: true });
         const wide = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         must(wide <= 0, `${path} (${look}) scrolls sideways by ${wide}px`);
+        // At phone width the cards stack: one column, each as wide as the column.
+        if (look === 'narrow') {
+          const xs = await page.locator('[data-recent-card], [data-explore-card]').evaluateAll((ns) => ns.map((n) => Math.round(n.getBoundingClientRect().x)));
+          must(new Set(xs).size <= 1, `${path} cards do not stack at 390px: x=${xs}`);
+        }
       }
       await page.context().close();
     }
