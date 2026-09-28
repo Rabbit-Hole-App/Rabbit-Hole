@@ -1785,15 +1785,26 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         if (distance < 48 && (!best || distance < best.distance)) best = { id, side, at, distance };
       }
     }
-    for (const shape of shapesRef.current) {
-      if (shape.id === exclude || !TEXT_BOX[shape.kind]) continue;
-      for (const side of SIDES) {
-        const at = sidePoint(shapeBox(shape), side);
-        const distance = Math.hypot(at.x - point.x, at.y - point.y);
-        if (distance < 48 && (!best || distance < best.distance)) best = { id: shape.id, side, at, distance };
-      }
-    }
     return best;
+  };
+  // What a connector end would attach to under the pointer: a port it is on,
+  // else a shape it is over (the side facing the other end), else a card's
+  // port nearby or the card it is over. Nothing: the end follows the pointer.
+  // Only card ports snap from a distance - a shape's would swallow small shapes
+  // whole and pull the arrow away from the mouse.
+  const connectorTarget = (e, exclude, anchor) => {
+    const point = local(e);
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const portHit = under?.closest('[data-port]');
+    if (portHit && portHit.dataset.owner !== exclude) return { id: portHit.dataset.owner, side: portHit.dataset.port };
+    const shapeId = under?.closest('[data-shape-id]')?.dataset.shapeId;
+    const shape = shapesRef.current.find(entry => entry.id === shapeId && entry.id !== exclude && TEXT_BOX[entry.kind]);
+    if (shape) return { id: shape.id, side: nearestSide(shapeBox(shape), anchor || point) };
+    const snap = snapPort(point, exclude);
+    if (snap) return { id: snap.id, side: snap.side };
+    const blockId = under?.closest('[data-block-id]')?.dataset.blockId;
+    const box = blockId && blockId !== exclude ? boundsRef.current[blockId] : null;
+    return box ? { id: blockId, side: point.y < box.y + box.h / 2 ? 'top' : 'bottom' } : null;
   };
   const connect = (event, from, fromSide) => {
     if (event.button !== 0) return;
@@ -1807,11 +1818,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     const linkColor = fromShape ? color : color === COLORS[0] ? (LINK_COLORS[source?.type || 'chat'] || '#2383e2') : color;
     const route = fromShape ? connectorRoute : undefined;
     const start = { x: event.clientX, y: event.clientY };
+    const anchor = portPosition(from, fromSide);
     const trace = e => {
-      const point = local(e);
-      const snap = snapPort(point, from);
-      setConnecting({ from, fromSide, toPoint: snap ? snap.at : point, toSide: snap?.side, snap, color: linkColor, route, head: fromShape });
-      return snap;
+      const hit = connectorTarget(e, from, anchor);
+      const at = hit ? portPosition(hit.id, hit.side) : local(e);
+      setConnecting({ from, fromSide, toPoint: at, toSide: hit?.side, snap: hit ? { at } : null, color: linkColor, route, head: fromShape });
     };
     // Connectors touching a shape are diagram arrows: routed, with a head.
     const addLink = (to, toSide) => {
@@ -1837,9 +1848,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         window.addEventListener('pointerdown', finish, true);
         return;
       }
-      const snap = snapPort(local(e), from);
-      const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-port]');
-      addLink(snap?.id || target?.dataset.owner, snap?.side || target?.dataset.port);
+      const hit = connectorTarget(e, from, anchor);
+      if (hit) addLink(hit.id, hit.side);
       cancel();
     };
     // The second click of click-click: a port, a shape (its facing side) or a
@@ -1847,23 +1857,41 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     const finish = e => {
       e.preventDefault(); e.stopPropagation();
       if (e.button !== 0) { cancel(); return; }
-      const point = local(e);
-      const snap = snapPort(point, from);
-      const under = document.elementFromPoint(e.clientX, e.clientY);
-      const shapeId = under?.closest('[data-shape-id]')?.dataset.shapeId;
-      const shape = shapesRef.current.find(entry => entry.id === shapeId && TEXT_BOX[entry.kind]);
-      const blockId = under?.closest('[data-block-id]')?.dataset.blockId;
-      const box = blockId ? boundsRef.current[blockId] : null;
-      const portHit = under?.closest('[data-port]');
-      if (portHit) addLink(portHit.dataset.owner, portHit.dataset.port);
-      // The target's side that faces the start, not the side nearest the click.
-      else if (shape) addLink(shape.id, nearestSide(shapeBox(shape), portPosition(from, fromSide) || point));
-      else if (snap) addLink(snap.id, snap.side);
-      else if (box) addLink(blockId, point.y < box.y + box.h / 2 ? 'top' : 'bottom');
+      const hit = connectorTarget(e, from, anchor);
+      if (hit) addLink(hit.id, hit.side);
       cancel();
     };
     connectionCleanup.current = cleanup;
     window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel);
+  };
+  // Drag either end of a selected connector onto another port, shape or card.
+  // The other end stays; dropping on nothing leaves the connector as it was.
+  const repoint = (event, link, end) => {
+    if (event.button !== 0) return;
+    event.preventDefault(); event.stopPropagation();
+    connectionCleanup.current?.();
+    const [fixed, fixedSide] = end === 'to' ? [link.from, link.fromSide] : [link.to, link.toSide];
+    const anchor = portPosition(fixed, fixedSide);
+    const trace = e => {
+      const hit = connectorTarget(e, fixed, anchor);
+      const at = hit ? portPosition(hit.id, hit.side) : local(e);
+      setConnecting({ from: fixed, fromSide: fixedSide, toPoint: at, toSide: hit?.side, snap: hit ? { at } : null, color: link.color, route: link.route, hide: link.id });
+    };
+    const cleanup = () => { window.removeEventListener('pointermove', trace); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', cancel); connectionCleanup.current = null; };
+    const cancel = () => { cleanup(); setConnecting(null); };
+    const up = e => {
+      const hit = connectorTarget(e, fixed, anchor);
+      if (hit) {
+        snapshot();
+        setLinks(previous => previous.map(entry => entry.id !== link.id ? entry : end === 'to' ? { ...entry, to: hit.id, toSide: hit.side } : { ...entry, from: hit.id, fromSide: hit.side }));
+      }
+      cancel();
+    };
+    trace(event);
+    connectionCleanup.current = cleanup;
+    window.addEventListener('pointermove', trace);
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', cancel);
   };
@@ -2311,7 +2339,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         <svg width="1" height="1" className="pointer-events-none absolute top-0 left-0 overflow-visible">
           {links.map(link => {
             const path = linkRoute(link);
-            if (!path) return null;
+            if (!path || connecting?.hide === link.id) return null;
             const ink = inkAware(link.color);
             return (
               <g key={link.id} data-connection={link.id} className="dark:[filter:brightness(1.5)_saturate(1.2)]">
@@ -2336,6 +2364,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
             ? <path key={index} d={pathOf(stroke.points)} fill="none" stroke={inkAware(stroke.color)} strokeWidth={stroke.width} opacity={stroke.opacity} strokeDasharray={dashArray(stroke.dash, stroke.width)} strokeLinecap="round" strokeLinejoin="round" />
             : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />)}
         </svg>
+        {/* The ends of a selected connector, above the shapes: its head sits on
+            a shape's port, and a press there must move the head, not start a
+            new connection from that port. */}
+        {tool === 'select' && (
+          <svg width="1" height="1" className="pointer-events-none absolute top-0 left-0 z-20 overflow-visible">
+            {links.filter(link => isSelected(link.id) && connecting?.hide !== link.id).flatMap(link => {
+              const path = linkRoute(link);
+              return path ? [['from', portPosition(link.from, link.fromSide)], ['to', path.tip]].map(([end, at]) => at && (
+                <circle key={`${link.id}-${end}`} data-link-for={link.id} data-link-end={end} cx={at.x} cy={at.y} r={6 / view.z} fill="white" stroke="#2383e2" strokeWidth={1.5 / view.z}
+                  style={{ pointerEvents: 'all', cursor: 'move' }} onPointerDown={event => repoint(event, link, end)}><title>Drag to attach this end somewhere else</title></circle>
+              )) : [];
+            })}
+          </svg>
+        )}
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
           {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />)}
           {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} />)}

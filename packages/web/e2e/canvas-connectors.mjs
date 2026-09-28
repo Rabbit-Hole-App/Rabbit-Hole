@@ -80,6 +80,30 @@ links = (await board()).links;
 const clicked = links.find(link => link.from === 'a' && link.fromSide === 'bottom');
 check('click a port, then click a shape, also connects to the side facing it', !!clicked && clicked.to === 'c' && clicked.toSide === 'left', JSON.stringify(clicked));
 
+// while dragging, the end follows the mouse; over a (small) shape it attaches
+// to the side facing the start instead of jumping to the nearest port
+const previewEnd = () => page.evaluate(() => {
+  const path = document.querySelector('[data-connection-preview]');
+  const p = path.getPointAtLength(path.getTotalLength()).matrixTransform(path.getScreenCTM());
+  return { x: p.x, y: p.y };
+});
+const near = (p, q, tolerance) => Math.hypot(p.x - q.x, p.y - q.y) < tolerance;
+const pf = await centre(port('a', 'right'));
+await page.mouse.move(pf.x, pf.y);
+await page.mouse.down();
+const free = { x: pf.x + 90, y: pf.y + 170 };
+await page.mouse.move(free.x, free.y, { steps: 6 });
+const endFree = await previewEnd();
+const overC = await centre(page.locator('[data-shape-id="c"] polygon').first());
+await page.mouse.move(overC.x, overC.y, { steps: 6 });
+const endOverC = await previewEnd();
+const cLeft = await centre(port('c', 'left'));
+await page.keyboard.press('Escape');
+await page.mouse.up();
+await settle();
+check('the arrow follows the mouse, and over a shape lands on the side facing it', near(endFree, free, 2) && near(endOverC, cLeft, 3) && (await board()).links.length === 2,
+  JSON.stringify({ endFree, free, endOverC, cLeft }));
+
 // the connector follows a moved shape
 const before = await onLink(dragged.id, 1);
 const b = await centre(page.locator('[data-shape-id="b"] ellipse').first());
@@ -138,6 +162,19 @@ await settle();
 await panel.getByRole('button', { name: 'Curved line' }).click();
 await settle();
 check('a drawn arrow switches between elbow and curved', (await board()).shapes.find(shape => shape.id === drawn.id).kind === 'curve');
+
+// drag the head of a selected connector onto another shape
+await page.mouse.click(...Object.values(await onLink(dragged.id, 0.2)));
+await settle();
+const head = await centre(page.locator(`[data-link-for="${dragged.id}"][data-link-end="to"]`));
+await page.mouse.move(head.x, head.y);
+await page.mouse.down();
+const cNow = await centre(page.locator('[data-shape-id="c"] polygon').first());
+await page.mouse.move(cNow.x, cNow.y, { steps: 10 });
+await page.mouse.up();
+await settle();
+const moved = (await board()).links.find(link => link.id === dragged.id);
+check('dragging the head of a selected connector re-points it', moved.to === 'c' && moved.from === 'a' && moved.label === 'normalise', `${moved.from} -> ${moved.to}:${moved.toSide}`);
 
 // deleting a shape deletes its connectors; everything survives a reload
 await page.mouse.click(...Object.values(await centre(page.locator('[data-shape-id="a"] rect').first())));
