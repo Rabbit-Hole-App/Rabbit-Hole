@@ -463,7 +463,9 @@ invite emails, admin roles, /settings — per flow.md, when asked.
 - The permission recheck runs in the proposal's frozen org: apps resolve in
   proposals.org, and run_again's run lookup is scoped to that org (it used to
   match another org's run id and start a same-named app here).
-- POST /api/ask/reject {proposal_id}: Cancel is final. Slack Cancel and the
+- POST /api/ask/reject {proposal_id}: Cancel is final, and only the requester
+  or an editor of the target app may cancel (others get 403, the proposal stays
+  open; T02 7.3). Slack Cancel and the
   Agent Bar card call it; the older web Ask panel's Cancel (ask.jsx) is still
   local only. Slack clears a card that is already closed with the reason.
   Deleting a chat marks its open proposals 'invalidated'; approved ones stay

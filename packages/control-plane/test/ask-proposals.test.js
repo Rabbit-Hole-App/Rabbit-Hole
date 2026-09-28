@@ -6,7 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 // The real proposal handlers from index.js against SQLite, the way
 // learn-chat.test.js runs apiAsk, without importing the bundled HTML.
 const source = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
-const names = ['appRow', 'askThreadForUser', 'apiAskThreadDelete', 'claimProposal', 'apiAskApprove', 'apiAskReject'];
+const names = ['appRow', 'askThreadForUser', 'apiAskThreadDelete', 'proposalTarget', 'claimProposal', 'apiAskApprove', 'apiAskReject'];
 const functions = names.map(name => source.match(new RegExp(`async function ${name}[(][^]*?^[}]`, 'm'))[0]).join(' ');
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
 const deps = {
@@ -178,4 +178,21 @@ test('deleting a chat invalidates only its own workspace proposals', async t => 
   env.db.prepare("INSERT INTO proposals (id, thread_id, org, user, tool, args) VALUES ('p-b', ?, ?, ?, 'run', '{}')").run(thread, B.org, B.email);
   assert.equal((await handlers.apiAskThreadDelete(env, A, thread)).status, 200);
   assert.deepEqual({ ...env.db.prepare("SELECT status, approved_by FROM proposals WHERE id = 'p-b'").get() }, { status: 'proposed', approved_by: null });
+});
+
+// Cancel is an action (user decision 2026-09-28, T02 7.3): the requester or an editor of the target app.
+test('only the requester or an editor of the target app can cancel; anyone else gets 403 and the proposal stays open', async t => {
+  const env = fixture(t);
+  const { id } = propose(env, A, 'run', { app: 'report' });
+  const res = await reject(env, VIEWER, id);
+  assert.deepEqual([res.status, await res.json()], [403, { error: 'no edit access' }]);
+  assert.equal(statusOf(env, id), 'proposed');
+  assert.equal((await reject(env, A, id)).status, 200); // A owns report: editor
+  const own = propose(env, VIEWER, 'run', { app: 'report' });
+  assert.equal((await reject(env, VIEWER, own.id)).status, 200); // the requester, even without edit access
+  const bRun = env.db.prepare("SELECT apps.id FROM apps WHERE org = 'workspace-a'").get().id;
+  env.db.prepare("INSERT INTO runs (run_id, app_id, started_by, status) VALUES ('r-a1', ?, ?, 'finished')").run(bRun, A.email);
+  const again = propose(env, A, 'run_again', { run_id: 'r-a1' });
+  assert.equal((await reject(env, VIEWER, again.id)).status, 403); // run_again resolves its target app through the run
+  assert.deepEqual(env.started, []);
 });

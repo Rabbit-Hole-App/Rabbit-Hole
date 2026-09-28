@@ -1422,6 +1422,14 @@ async function apiAskThread(env, user, threadId) {
   return json({ id: t.id, messages: results });
 }
 
+// The app a proposal acts on, resolved in its own workspace (run_again through its run).
+async function proposalTarget(env, p, args) {
+  if (p.tool !== 'run_again') return args.app;
+  const run = await env.DB.prepare('SELECT apps.name AS app_name FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ? AND apps.org = ?').bind(args.run_id, p.org).first();
+  if (!run) throw new Error(`no run ${args.run_id}`);
+  return run.app_name;
+}
+
 // T02 7.4: proposed -> approved|rejected happens once, inside 15 minutes; web and
 // Slack share it. null = this caller made the transition, else the 404/409 to send.
 async function claimProposal(env, user, id, status) {
@@ -1459,11 +1467,7 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
   // Refusals that change nothing come before the claim, so a viewer's click never holds the
   // proposal and a refusal never has to hand it back.
   try {
-    const target = p.tool === 'run_again'
-      ? (await env.DB.prepare('SELECT apps.name AS app_name FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ? AND apps.org = ?').bind(args.run_id, p.org).first())?.app_name
-      : args.app;
-    if (p.tool === 'run_again' && !target) throw new Error(`no run ${args.run_id}`);
-    await editableApp(target);
+    await editableApp(await proposalTarget(env, p, args));
   } catch (e) {
     return json({ error: e.message }, e.status || 400);
   }
@@ -1559,8 +1563,17 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
 
 // Cancel is final (T02 7.4 #3): the same one-time transition as approve, so a
 // cancelled proposal can never run. Slack Cancel lands here too.
+// Cancel is an action (T02 7.3): the requester or an editor of the target app, in the
+// proposal's own workspace. Anyone else gets 403 and the proposal stays open.
 async function apiAskReject(req, env, user) {
   const { proposal_id } = await req.json();
+  const p = await env.DB.prepare('SELECT * FROM proposals WHERE id = ? AND org = ?').bind(proposal_id, user.org).first();
+  if (!p) return json({ error: 'no such proposal' }, 404);
+  if (p.user !== user.email) {
+    let app = null;
+    try { app = await appRow(env, p.org, await proposalTarget(env, p, JSON.parse(p.args))); } catch { /* no target: not an editor */ }
+    if (!app || !(await canEdit(env, app, user.email))) return json({ error: 'no edit access' }, 403);
+  }
   return (await claimProposal(env, user, proposal_id, 'rejected')) || json({ ok: true, status: 'rejected' });
 }
 

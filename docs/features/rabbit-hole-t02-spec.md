@@ -427,6 +427,12 @@ operation, the parameters, and the effect. Its states:
 
 `[Change]` puts the command text back in the bar.
 
+**Who may act on a proposal.** Confirm needs edit rights on the target app,
+rechecked at approve time. Cancel is an action too: only the person who asked,
+or an editor of the target app in the proposal's workspace, may cancel. Anyone
+else gets 403 ("No longer allowed") and the proposal stays open, so a viewer
+can't close an editor's proposal (user decision, 2026-09-28).
+
 ### 7.4 Proposal lifecycle — blockers before any server `/do`
 
 The four bugs below are **release blockers** (amendment 5). Each gets a
