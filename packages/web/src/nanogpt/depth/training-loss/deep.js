@@ -21,6 +21,7 @@
 import fx from '../../fixtures/nanogpt-fixtures.generated.js';
 import tl from '../fixtures/training-loss.generated.js';
 import { code, calculation } from '../../sources.js';
+import { groupDigits } from '../../../scene-format.js';
 
 const IT = tl.iteration;
 const byConfig = f => Object.fromEntries(IT.configs.map(c => [c.id, f(c)]));
@@ -37,11 +38,11 @@ function equation(c, s) {
 
 // estimate_loss(): whether this iteration evaluates, and whether it may save.
 function evalLine(c, s) {
-  const head = `${s.iteration} % ${c.evalInterval} = ${s.iteration % c.evalInterval}`;
+  const head = `${groupDigits(s.iteration)} % ${c.evalInterval} = ${s.iteration % c.evalInterval}`;
   if (!s.reached) return `${head}: skipped (and never reached)`;
   if (!s.evaluates) return `${head}: skipped this iteration`;
   if (s.iteration === 0) return `${head}: runs, but saves nothing: the save needs iter_num > 0`;
-  return c.alwaysSaveCheckpoint ? `${head}: runs; always_save_checkpoint = True, so it saves ckpt.pt`
+  return c.alwaysSaveCheckpoint ? `${head}: runs; always_save_checkpoint = True: it saves ckpt.pt`
     : `${head}: runs; saves ckpt.pt only if val < best_val_loss`;
 }
 
@@ -49,7 +50,7 @@ function evalLine(c, s) {
 function note(c, s, k) {
   const lr = s.lrText;
   return [
-    [`Edge case, it = 0: lr = η/(W + 1) = ${lr}, not 0. A fresh model should score about ln V = ln ${c.vocabSize} = ${c.lnVocab.toFixed(2)}:`,
+    [`Edge case, it = 0: lr = η/(W + 1) = ${lr}, not 0. A fresh model should score about ln V = ln ${groupDigits(c.vocabSize)} = ${c.lnVocab.toFixed(2)}:`,
       'its weights start at N(0, 0.02), so its softmax is close to an even guess. Far above that means a broken init.'],
     [`Last warmup step: lr = η·W/(W + 1) = ${lr}; the next iteration starts the cosine at exactly η = ${eta(c.learningRate)}.`, ''],
     [`First cosine step: r = 0 and cos 0 = 1, so lr = η = ${lr}, the peak.`, ''],

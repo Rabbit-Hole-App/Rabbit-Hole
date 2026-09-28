@@ -23,6 +23,7 @@
 // selected setting; nothing is typed.
 import fx from '../../fixtures/nanogpt-fixtures.generated.js';
 import { calculation, code, tinyShakespeare } from '../../sources.js';
+import { groupDigits } from '../../../scene-format.js';
 
 const A = fx.architecture;
 const CONCEPT = 'transformer-parameters';
@@ -86,7 +87,7 @@ export const scene = {
   ],
   exampleData: {
     widths: [`${CS[0]} (shakespeare_char)`, `${CS[1]} (NanoGPT's default)`],
-    vocabs: [`${VS[0]} characters`, `${VS[1]} GPT-2 tokens, padded`],
+    vocabs: [`${VS[0]} characters`, `${groupDigits(VS[1])} GPT-2 tokens, padded`],
     Cs: CS, Vs: VS,
     L: A.n_layer, Tb: A.block_size,
     divIndex: Array.from({ length: A.n_layer - 1 }, (unused, i) => i + 1),

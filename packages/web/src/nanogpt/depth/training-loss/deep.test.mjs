@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import fx from '../../fixtures/nanogpt-fixtures.generated.js';
 import tl from '../fixtures/training-loss.generated.js';
+import { groupDigits } from '../../../scene-format.js';
 import * as deep from './deep.js';
 import * as guided from './guided.js';
 import * as overview from './overview.js';
@@ -82,7 +83,7 @@ test('every (config, iteration) shows the right branch, learning rate, eval rule
     const runs = reached && it % c.evalInterval === 0;
     assert.equal(byId(result, 'estimate').label, `estimate_loss(): ${runs ? 'runs' : 'skipped'}`);
     assert.equal(byId(result, 'estimate').role, runs ? 'success' : 'neutral');
-    assert.ok(byId(result, 'eval-line').label.startsWith(`${it} % ${c.evalInterval} = ${it % c.evalInterval}: ${runs ? 'runs' : 'skipped'}`));
+    assert.ok(byId(result, 'eval-line').label.startsWith(`${groupDigits(it)} % ${c.evalInterval} = ${it % c.evalInterval}: ${runs ? 'runs' : 'skipped'}`));
     if (runs && it === 0) assert.match(byId(result, 'eval-line').label, /saves nothing: the save needs iter_num > 0$/);
     if (runs && it > 0) assert.match(byId(result, 'eval-line').label, c.alwaysSaveCheckpoint ? /always_save_checkpoint = True/ : /only if val < best_val_loss/);
     assert.equal(byId(result, 'lr-status').label, reached ? 'Source value' : 'What-if');
@@ -90,7 +91,7 @@ test('every (config, iteration) shows the right branch, learning rate, eval rule
     const note = `${byId(result, 'note-a').label} ${byId(result, 'note-b').label}`;
     const text = x => x.toExponential(3);
     const expected = [
-      [c.learningRate / (c.warmupIters + 1), `ln V = ln ${c.vocabSize} = ${Math.log(c.vocabSize).toFixed(2)}`],
+      [c.learningRate / (c.warmupIters + 1), `ln V = ln ${groupDigits(c.vocabSize)} = ${Math.log(c.vocabSize).toFixed(2)}`],
       [c.learningRate * c.warmupIters / (c.warmupIters + 1), `η = ${c.learningRate.toExponential(0)}`],
       [c.learningRate, 'the peak'],
       [(c.learningRate + c.minLr) / 2, 'cos(π/2) = 0'],

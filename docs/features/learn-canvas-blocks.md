@@ -103,6 +103,24 @@ the frame, so a scene keeps its size (and its text and cell numbers stay above t
 the learner practises. Check: `node e2e/nanogpt-board-check.mjs <deployed-base>` fails if a
 visual narrows when practice opens.
 
+## Numbers in text are readable
+
+Owner rule (2026-09-28): a number of five or more digits in card text carries thousands separators
+— "1,770,240", not "1770240"; four digits stay as written ("1536", "iter 1000"). One formatter,
+`groupDigits` in `src/scene-format.js`, display only:
+
+- `{{marker}}` interpolation groups numbers on its own (`scene-derive.js`); in an `equation` object
+  the separator is TeX `{,}`, since a bare comma typesets as punctuation.
+- A number that is one element of a list or tuple stays raw: a shape `(50304, 384)`, a call
+  `get_lr(301000)`, a list of IDs `31056, 3262, 1248` — a thousands comma there would read as
+  another element (`writtenRaw`).
+- Text a card composes in JS calls `groupDigits` itself. Decimals keep their fractions
+  (`0.00001`); exponent forms are left alone. Data cells (`formatCell`) are unchanged.
+
+Gate: `src/number-grouping.test.mjs` evaluates every card on every board (default, review states,
+each input varied) and fails on any ungrouped long number in labels, practice text or control
+labels.
+
 ## Verification
 
 `node e2e/chat-block-check.mjs` against the dev deployment covers every block above end to end.

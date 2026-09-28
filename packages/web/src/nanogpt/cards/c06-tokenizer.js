@@ -6,6 +6,7 @@
 // The card computes nothing; the preset only selects which stored result is shown.
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
 import { calculation, code, tiktoken, tinyShakespeare } from '../sources.js';
+import { groupDigits } from '../../scene-format.js';
 
 const { tokenizer: tk, provenance: pv } = fx;
 const [charTk, bpeTk] = tk.tokenizers;
@@ -57,13 +58,13 @@ export const scene = {
     modelNotes: [
       [`Model: vocab_size = ${charTk.vocabSize} is read from the meta.pkl the character data prep writes;`,
         'a from-scratch model is built with it - the padded default is not used.'],
-      [`From scratch: no meta.pkl, so the model uses vocab_size = ${modelVocab} (${bpeTk.vocabSize} padded to a multiple of 64).`,
-        `Finetuning from a GPT-2 checkpoint keeps vocab_size = ${bpeTk.vocabSize}.`],
+      [`From scratch: no meta.pkl, so the model uses vocab_size = ${groupDigits(modelVocab)} (${groupDigits(bpeTk.vocabSize)} padded to a multiple of 64).`,
+        `Finetuning from a GPT-2 checkpoint keeps vocab_size = ${groupDigits(bpeTk.vocabSize)}.`],
     ],
     // How each vocabulary is made, in words (the code is in `sources`).
     vocabRules: [
       `Vocabulary: Tiny Shakespeare's ${charTk.vocabSize} distinct characters, sorted; an ID is a position in that list.`,
-      `Vocabulary: GPT-2's fixed table of ${bpeTk.vocabSize} BPE tokens, the same for any text.`,
+      `Vocabulary: GPT-2's fixed table of ${groupDigits(bpeTk.vocabSize)} BPE tokens, the same for any text.`,
     ],
   },
   derived: {

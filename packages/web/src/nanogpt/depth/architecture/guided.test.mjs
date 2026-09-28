@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import fx from '../../fixtures/nanogpt-fixtures.generated.js';
 import { scene, sources, evidence, reviewStates } from './guided.js';
 import { assertCardGates, assertEvidence, assertSources, evaluated } from '../../card-gates.mjs';
+import { groupDigits } from '../../../scene-format.js';
 
 const byId = result => new Map(result.state.objects.map(object => [object.id, object]));
 const labels = result => result.state.objects.filter(o => o.visible && o.opacity > 0 && o.label).map(o => o.label);
@@ -63,23 +64,23 @@ test('every count matches the tensor inventory at every setting', () => {
       [want.wte, want.wpe, want.attn, want.mlp, want.ln2, want.block, want.blocks, want.total, want.nonEmb], where);
     const objects = byId(result);
     const { V, C } = configOf(inputs);
-    assert.equal(objects.get('wte-count').label, `V × C = ${V} × ${C} = ${want.wte}`, where);
-    assert.equal(objects.get('wpe-count').label, `block_size × C = 256 × ${C} = ${want.wpe}`, where);
+    assert.equal(objects.get('wte-count').label, `V × C = ${groupDigits(V)} × ${C} = ${groupDigits(want.wte)}`, where);
+    assert.equal(objects.get('wpe-count').label, `block_size × C = 256 × ${C} = ${groupDigits(want.wpe)}`, where);
     assert.equal(objects.get('lnf-count').label, `C = ${want.lnf}`, where);
-    assert.equal(objects.get('blocks-count').label, `6 × ${want.block} = ${want.blocks}`, where);
+    assert.equal(objects.get('blocks-count').label, `6 × ${groupDigits(want.block)} = ${groupDigits(want.blocks)}`, where);
     assert.equal(objects.get('block-split').label,
-      `One block: attention 4C² = ${want.attn} · MLP 8C² = ${want.mlp} · two LayerNorms 2C = ${want.ln2}`, where);
+      `One block: attention 4C² = ${groupDigits(want.attn)} · MLP 8C² = ${groupDigits(want.mlp)} · two LayerNorms 2C = ${groupDigits(want.ln2)}`, where);
     // Only 384 / 65 is a shipped config (config/train_shakespeare_char.py); the rest are what-ifs.
     const shipped = inputs.width === 0 && inputs.vocab === 0;
     assert.equal(objects.get('total').label,
-      `Total: wte + wpe + blocks + ln_f = ${want.total} (${shipped ? 'Source value sizes' : 'What-if sizes'})`, where);
+      `Total: wte + wpe + blocks + ln_f = ${groupDigits(want.total)} (${shipped ? 'Source value sizes' : 'What-if sizes'})`, where);
     // The block split's coefficients, from the Linear shapes: 3 + 1 = 4 and 4 + 4 = 8.
     assert.equal(objects.get('block-origin').label,
       'attention: c_attn C × 3C = 3C², c_proj C × C = C² · MLP: c_fc C × 4C = 4C², c_proj 4C × C = 4C²');
     assert.equal(3 * C * C + C * C, want.attn, where);
     assert.equal(4 * C * C + 4 * C * C, want.mlp, where);
     assert.equal(objects.get('printed').label,
-      `The start-up count leaves wpe out: ${want.total} − ${want.wpe} = ${want.nonEmb}. NanoGPT prints it as`, where);
+      `The start-up count leaves wpe out: ${groupDigits(want.total)} − ${groupDigits(want.wpe)} = ${groupDigits(want.nonEmb)}. NanoGPT prints it as`, where);
     // model.py: print("number of parameters: %.2fM" % (self.get_num_params()/1e6,))
     assert.equal(objects.get('printed-line').label, `number of parameters: ${(want.nonEmb / 1e6).toFixed(2)}M`, where);
   }
@@ -117,7 +118,7 @@ test('each row sits beside the Overview stage it implements, and lm_head adds no
     const objects = byId(evaluated(scene, inputs));
     const { V } = configOf(inputs);
     assert.deepEqual(['gutter-lists', 'gutter-blocks', 'gutter-scores'].map(id => objects.get(`${id}-stage`).label),
-      ['number lists', '6 blocks', `${V} scores`]);
+      ['number lists', '6 blocks', `${groupDigits(V)} scores`]);
     // Each stage names what its parameters are; the blocks' share is compared
     // live against the oracle (at C = 384 with GPT-2 tokens wte outgrows them).
     const want = inventory(configOf(inputs));

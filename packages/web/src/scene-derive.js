@@ -12,6 +12,7 @@
 // the operations the current static benchmark cases actually need, not a
 // general expression engine. Add the next one the day a scene references it.
 
+import { groupDigits, writtenRaw } from './scene-format.js';
 export const round = value => {
   const r = Math.round(value * 1000) / 1000;
   return Object.is(r, -0) ? 0 : r;
@@ -339,8 +340,9 @@ const usesDeriveMarker = ({ cellHighlight: _selection, ...node } = {}) => /"\$de
 // thing: a named value in the pool.
 // cellPool: where a data cell's `values` resolve from - the canonical pool
 // (see canonical above); everything else reads `pool`.
-function walk(node, pool, cellPool = pool) {
-  if (Array.isArray(node)) return node.map(entry => walk(entry, pool, cellPool));
+// math: inside an equation object, whose text is TeX (groupDigits' {,}).
+function walk(node, pool, cellPool = pool, math = false) {
+  if (Array.isArray(node)) return node.map(entry => walk(entry, pool, cellPool, math));
   if (node && typeof node === 'object') {
     if (typeof node.$derive === 'string' && Object.keys(node).length === 1) {
       const value = lookupPath(pool, node.$derive);
@@ -349,7 +351,7 @@ function walk(node, pool, cellPool = pool) {
     }
     const out = {};
     for (const [key, value] of Object.entries(node)) {
-      const resolved = key === 'values' ? walk(value, cellPool, cellPool) : walk(value, pool, cellPool);
+      const resolved = key === 'values' ? walk(value, cellPool, cellPool) : walk(value, pool, cellPool, math);
       // A grid or strip's `values` is always the flat array the schema
       // expects; a matmul's own shape is two-dimensional, so it is flattened
       // row-major exactly here, the one place a derived value ever meets it.
@@ -358,11 +360,11 @@ function walk(node, pool, cellPool = pool) {
     return out;
   }
   if (typeof node === 'string' && /\{\{[\w.]+\}\}/.test(node)) {
-    return node.replace(/\{\{([\w.]+)\}\}/g, (_, name) => {
+    return node.replace(/\{\{([\w.]+)\}\}/g, (marker, name, at) => {
       const value = lookupPath(pool, name);
       if (value === undefined) throw new Error(`"{{${name}}}" names no entry in the scene's "derived" block (or "exampleData")`);
       if (Array.isArray(value)) throw new Error(`"{{${name}}}" resolves to a list, not a number - reference it as a value instead of inside text`);
-      return String(value);
+      return typeof value === 'number' && !writtenRaw(node, at, at + marker.length) ? groupDigits(value, math ? '{,}' : ',') : String(value);
     });
   }
   return node;
@@ -443,7 +445,7 @@ export function resolveDerived(raw) {
     // provenance check below instead of passing through untouched.
     const authoredState = object.initialState || {};
     const usesDerive = usesDeriveMarker(authoredState);
-    const initialState = walk(authoredState, pool, cellPool);
+    const initialState = walk(authoredState, pool, cellPool, object.type === 'equation');
     if (usesDerive) {
       // Earned, not claimed: a derived value stamps its own provenance so an
       // author cannot separately mark the same object illustrative or

@@ -6,6 +6,7 @@ import { assertCardGates, assertEvidence, assertSources, pinnedFile } from '../c
 import { CHIP_CHAR, CHIP_GAP, CHIP_PAD } from '../../animation-scene.js';
 import { sceneContentBounds } from '../../scene-layout.js';
 import { scene, evidence, sources } from './c06-tokenizer.js';
+import { groupDigits } from '../../scene-format.js';
 
 const STATES = [{ tokenizer: 0 }, { tokenizer: 1 }];
 const tk = fx.tokenizer;
@@ -58,11 +59,11 @@ test('c06: displayed values follow the selected preset', () => {
     // Token and ID share a column: same padded width, centred the same way.
     tokRows.forEach((row, line) => row.forEach((s, k) => assert.equal(s.length, idRows[line][k].length)));
     for (const row of [...tokRows, ...idRows]) assert.ok(32 + rowWidth(row) <= scene.width - 8, 'row fits the card');
-    assert.equal(byId(result, 'readout').label, `${t.count} tokens  ·  vocabulary of ${t.vocabSize} possible token IDs`);
+    assert.equal(byId(result, 'readout').label, `${t.count} tokens  ·  vocabulary of ${groupDigits(t.vocabSize)} possible token IDs`);
     assert.equal(byId(result, 'selected').label.startsWith(`Selected preset: ${t.label}`), true);
     assert.equal(byId(result, 'compare').label, `Same text: ${char.count} tokens (character-level) vs ${bpe.count} tokens (GPT-2 BPE)`);
     assert.equal(byId(result, 'vocab-rule').label, scene.exampleData.vocabRules[i]);
-    assert.ok(byId(result, 'vocab-rule').label.includes(String(t.vocabSize)));
+    assert.ok(byId(result, 'vocab-rule').label.includes(groupDigits(t.vocabSize)));
     assert.ok(byId(result, 'input-text').label.includes(tk.text));
     // The lower block starts below the last drawn line pair.
     const lastIds = byId(result, tokRows[1].length ? 'ids-2' : 'ids-1');
@@ -75,9 +76,9 @@ test('c06: displayed values follow the selected preset', () => {
   assert.ok(byId(results[0], 'model-1').label.includes(`vocab_size = ${char.vocabSize} `));
   assert.equal(fx.architecture.vocab_size, char.vocabSize);
   const padded = Math.ceil(bpe.vocabSize / 64) * 64;
-  assert.ok(byId(results[1], 'model-1').label.includes(`vocab_size = ${padded} (${bpe.vocabSize} padded`));
+  assert.ok(byId(results[1], 'model-1').label.includes(`vocab_size = ${groupDigits(padded)} (${groupDigits(bpe.vocabSize)} padded`));
   assert.ok(tk.modelVocabNote.includes(`= ${padded}`));
-  assert.ok(byId(results[1], 'model-2').label.endsWith(`vocab_size = ${bpe.vocabSize}.`));
+  assert.ok(byId(results[1], 'model-2').label.endsWith(`vocab_size = ${groupDigits(bpe.vocabSize)}.`));
   assert.ok(scene.objects[0].semanticId === 'question' && scene.objects[0].initialState.text.length <= 95);
 });
 

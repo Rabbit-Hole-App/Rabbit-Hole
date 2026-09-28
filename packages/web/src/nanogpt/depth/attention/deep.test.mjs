@@ -11,6 +11,7 @@ import * as guided from './guided.js';
 import { assertCardGates, assertEvidence, assertSources, evaluated } from '../../card-gates.mjs';
 import { evaluateScene } from '../../../scene-evaluate.js';
 import { sceneContentBounds } from '../../../scene-layout.js';
+import { groupDigits } from '../../../scene-format.js';
 
 const T = att.T;
 const ALL = [0, 1, 2].flatMap(head => Array.from({ length: T }, (u, Tidx) => Tidx).flatMap(Tidx =>
@@ -168,7 +169,7 @@ test('memory tradeoff: B * nh * T^2 from the source config, in bytes per layer a
   const [result] = assertCardGates(scene, [{}]);
   const { batch_size: B, n_head: nh, block_size: Tmax, n_layer: layers } = fx.architecture;
   assert.equal(result.derived.attEntries, B * nh * Tmax * Tmax);
-  assert.ok(byId(result, 'eq-memory').label.includes(`=${B * nh * Tmax * Tmax}`));
+  assert.ok(byId(result, 'eq-memory').label.includes(`=${groupDigits(B * nh * Tmax * Tmax, '{,}')}`));
   // 4 bytes an fp32 entry; MB = 10^6 bytes.
   const bytes = B * nh * Tmax * Tmax * 4;
   assert.equal(bytes, 100663296);

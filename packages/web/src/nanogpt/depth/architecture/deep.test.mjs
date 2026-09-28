@@ -7,6 +7,7 @@ import { scene, sources, evidence, reviewStates } from './deep.js';
 import * as guided from './guided.js';
 import { assertCardGates, assertEvidence, assertSources, evaluated } from '../../card-gates.mjs';
 import { sceneContentBounds, sceneLegibility } from '../../../scene-layout.js';
+import { groupDigits } from '../../../scene-format.js';
 
 const byId = result => new Map(result.state.objects.map(object => [object.id, object]));
 const on = (objects, id) => objects.get(id).visible && objects.get(id).opacity > 0;
@@ -69,7 +70,7 @@ test('every shape matches the forward-pass oracle at every call site', () => {
     }
     assert.equal(objects.get('head-shape').label, want.head[1] === 1 ? 'logits: (B, 1, V)' : 'logits: (B, T, V)');
     assert.equal(on(objects, 'loss-numbers'), want.lossRows !== null, `${call}: loss numbers shown only with targets`);
-    if (want.lossRows) assert.equal(objects.get('loss-numbers').label, `${want.lossRows} rows of ${A.vocab_size}`);
+    if (want.lossRows) assert.equal(objects.get('loss-numbers').label, `${groupDigits(want.lossRows)} rows of ${A.vocab_size}`);
     assert.equal(objects.get('assert-step').role, 'neutral');
     if (call !== 'crop') assert.equal(objects.get('call-numbers').label, tuple(want.call), `${call}: call`);
   }
@@ -130,18 +131,18 @@ test('tradeoffs are live calculations that match the oracle', () => {
   const train = evaluated(scene, { call: 'train' }), gen = evaluated(scene, { call: 'generate' });
   assert.equal(train.derived.nAll[0], A.batch_size * A.block_size * V);
   assert.equal(byId(train).get('cost-train').label,
-    `Training scores every position: 64 × 256 × 65 = ${64 * 256 * 65} logits, each compared with its target.`);
+    `Training scores every position: 64 × 256 × 65 = ${groupDigits(64 * 256 * 65)} logits, each compared with its target.`);
   // NanoGPT has no KV cache: generate() reruns the whole sequence each step
   // (model.py:315), so projecting only the last position saves lm_head work only.
   assert.equal(byId(gen).get('cost-gen').label,
     `Only the last position is scored: 1 × 1 × 65 = 65 logits, not ${12 * 65}; all 12 positions still run every Block.`);
   assert.equal(byId(evaluated(scene, { call: 'crop' })).get('cost-gen').label,
-    `Only the last position is scored: 1 × 1 × 65 = 65 logits, not ${256 * 65}; all 256 positions still run every Block.`);
+    `Only the last position is scored: 1 × 1 × 65 = 65 logits, not ${groupDigits(256 * 65)}; all 256 positions still run every Block.`);
   assert.ok(!on(byId(train), 'cost-gen') && !on(byId(gen), 'cost-train'));
   // Tying: one V x C matrix; at train.py's defaults (V = 50304, C = 768) it is 38633472.
   const tied = byId(train), untied = byId(evaluated(scene, { call: 'train', tied: false }));
-  assert.equal(tied.get('tie').label, `Tying stores one matrix for wte and lm_head, saving V × C = ${V * C} parameters; ${50304 * 768} at V = 50304, C = 768.`);
-  assert.equal(untied.get('tie').label, `What-if untied: lm_head adds its own V × C = ${V * C} parameters; ${50304 * 768} at V = 50304, C = 768.`);
+  assert.equal(tied.get('tie').label, `Tying stores one matrix for wte and lm_head, saving V × C = ${groupDigits(V * C)} parameters; ${groupDigits(50304 * 768)} at V = 50,304, C = 768.`);
+  assert.equal(untied.get('tie').label, `What-if untied: lm_head adds its own V × C = ${groupDigits(V * C)} parameters; ${groupDigits(50304 * 768)} at V = 50,304, C = 768.`);
   assert.match(tied.get('eq-logits').label, /W_\{te\}/);
   assert.match(untied.get('eq-logits').label, /W_\{lm\}/);
   // The logits equation follows the call too: every position with targets,

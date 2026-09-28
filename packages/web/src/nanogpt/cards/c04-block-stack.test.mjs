@@ -4,7 +4,7 @@ import fx from '../fixtures/nanogpt-fixtures.generated.js';
 import { scene, sources, evidence, reviewStates, plan, activity } from './c04-block-stack.js';
 import { assertCardGates, assertCardPlan, assertEvidence, assertSources, evaluated, pinnedFile } from '../card-gates.mjs';
 import { PREDICATES, validateActivity } from '../../scene-activity.js';
-import { formatCell } from '../../scene-format.js';
+import { formatCell, groupDigits } from '../../scene-format.js';
 
 const byId = result => new Map(result.state.objects.map(object => [object.id, object]));
 const ALL = Array.from({ length: fx.architecture.n_layer }, (unused, block) => ({ block }));
@@ -22,7 +22,7 @@ const blockTensors = i => [
   [`transformer.h.${i}.mlp.c_proj.weight`, [C, 4 * C]],
 ];
 const numel = shape => shape.reduce((n, d) => n * d, 1);
-const shapeText = shape => `(${shape.join(', ')}${shape.length === 1 ? ',' : ''}): ${numel(shape)} values`;
+const shapeText = shape => `(${shape.join(', ')}${shape.length === 1 ? ',' : ''}): ${groupDigits(numel(shape))} values`;
 const PER_BLOCK = blockTensors(0).reduce((n, [, shape]) => n + numel(shape), 0);
 const millions = n => String(Math.round(n / 1e4) / 100);
 
@@ -59,7 +59,7 @@ test('picking a block: names change by the index, shapes never do, the count gro
     const running = (i + 1) * PER_BLOCK;
     const lit = i === 0 ? 'h[0]' : `h[0] … h[${i}]`;
     const word = i === 0 ? '1 block' : `${i + 1} blocks`;
-    assert.equal(objects.get('running').label, `Lit ${lit}: ${word} × ${PER_BLOCK} = ${running} parameters (${millions(running)}M)`);
+    assert.equal(objects.get('running').label, `Lit ${lit}: ${word} × ${groupDigits(PER_BLOCK)} = ${groupDigits(running)} parameters (${millions(running)}M)`);
     // The chain: lit through the pick, halo on the pick only; the table ring on its row.
     for (let k = 0; k < L; k += 1) {
       assert.equal(objects.get(`block-${k}`).role, k <= i ? 'output' : 'neutral', `${where}: block-${k} role`);
@@ -67,10 +67,10 @@ test('picking a block: names change by the index, shapes never do, the count gro
     }
     assert.deepEqual(objects.get('toy-grid').cellHighlight, { row: i });
     // Constant lines.
-    assert.equal(objects.get('per-block').label, `One block: ${PER_BLOCK} parameters = 12C² + 2C at C = ${C}`);
-    assert.equal(objects.get('stack').label, `The whole stack, n_layer = ${L} blocks: ${L * PER_BLOCK} parameters (${millions(L * PER_BLOCK)}M).`);
+    assert.equal(objects.get('per-block').label, `One block: ${groupDigits(PER_BLOCK)} parameters = 12C² + 2C at C = ${C}`);
+    assert.equal(objects.get('stack').label, `The whole stack, n_layer = ${L} blocks: ${groupDigits(L * PER_BLOCK)} parameters (${millions(L * PER_BLOCK)}M).`);
     assert.equal(objects.get('what-if').label,
-      `What-if: NanoGPT’s default depth, n_layer = ${L_DEFAULT}, at the same C: ${L_DEFAULT * PER_BLOCK} (${millions(L_DEFAULT * PER_BLOCK)}M) - more blocks, not bigger ones.`);
+      `What-if: NanoGPT’s default depth, n_layer = ${L_DEFAULT}, at the same C: ${groupDigits(L_DEFAULT * PER_BLOCK)} (${millions(L_DEFAULT * PER_BLOCK)}M) - more blocks, not bigger ones.`);
   });
   // The printed numbers, spelled out once.
   assert.equal(PER_BLOCK, 1770240);
