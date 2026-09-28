@@ -27,7 +27,8 @@ const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').m
 const { session } = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-subcard-captures' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
 if (!session) throw new Error('no session from deployed worker');
 const browser = await chromium.launch();
-const context = await browser.newContext({ viewport: { width: 1720, height: 2400 } });
+// Wide enough that the widest card sits clear of the tool gutter beside the canvas.
+const context = await browser.newContext({ viewport: { width: 2800, height: 2400 } });
 await context.addCookies([{ name: 'small_session', value: session, domain: new URL(base).hostname, path: '/' }]);
 const page = await context.newPage();
 await page.goto(`${base}/apps/repo-06745f10-nanogpt?tab=learn&board=${board}`);
