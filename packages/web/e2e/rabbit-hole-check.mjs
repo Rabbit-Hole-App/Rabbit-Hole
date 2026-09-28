@@ -95,6 +95,65 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
+  // Test canvases go to LEARN_DB (small-learn-dev) only, and each check deletes its own (D7).
+  const shApi = (page, path, method = 'GET', body) => page.evaluate(async ([path, method, body]) => {
+    const r = await fetch(path, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    return { status: r.status, data: await r.json().catch(() => null) };
+  }, [path, method, body]);
+  const shCanvas = async (page, title, device_id) => {
+    const r = await shApi(page, '/api/canvases', 'POST', { title, ...(device_id ? { device_id } : {}) });
+    must(r.status === 201, `create canvas: HTTP ${r.status} ${JSON.stringify(r.data)}`);
+    return r.data;
+  };
+  const shDrop = async (page, name) => {
+    const r = await shApi(page, `/api/apps/${name}`, 'DELETE');
+    must(r.status < 300, `delete ${name}: HTTP ${r.status}; remove it from small-learn-dev by hand`);
+  };
+  const shStart = (page) => page.getByRole('button', { name: 'Start a rabbit hole', exact: true });
+  const shH1 = (page, name) => page.getByRole('heading', { level: 1, name, exact: true });
+
+  await check('sh-routes: /apps and /dash are Home, /library and ?s= are the Library, the title is Rabbit Hole', async () => {
+    const page = await open();
+    for (const path of ['/apps', '/dash']) {
+      await page.goto(`${base}${path}`);
+      await shStart(page).waitFor({ timeout: 20000 });
+    }
+    must(await page.title() === 'Rabbit Hole', `title is ${await page.title()}`);
+    for (const [path, name] of [['/library', 'Library'], ['/apps?s=shared', 'Shared']]) {
+      await page.goto(`${base}${path}`);
+      await shH1(page, name).waitFor({ timeout: 20000 });
+    }
+    await page.context().close();
+  });
+
+  await check('sh-home: one primary Start opens the Start dialog; Continue and Recent read this browser', async () => {
+    const page = await open();
+    await page.goto(`${base}/apps`);
+    await shStart(page).waitFor({ timeout: 20000 });
+    const c = await shCanvas(page, 'rabbit-hole-check home');
+    try {
+      const key = `small.adaptive-canvas:${c.org}:${c.email}:${c.name}`;
+      await page.evaluate(([key, name]) => {
+        localStorage.setItem('small.recent', JSON.stringify([name]));
+        localStorage.setItem(`${key}:chat`, JSON.stringify([{ id: '1', question: 'why sqrt(dk)?' }]));
+        localStorage.setItem(`${key}:ink`, JSON.stringify({ strokes: [], shapes: [], items: [], links: [], blocks: [
+          { id: 'a', type: 'heading', level: 1, text: 'Tokens', done: true }, { id: 'b', type: 'heading', level: 1, text: 'Masked self-attention' }] }));
+      }, [key, c.name]);
+      await page.reload();
+      const cont = page.getByRole('region', { name: 'Continue' });
+      await cont.waitFor({ timeout: 20000 });
+      const text = await cont.innerText();
+      for (const want of ['rabbit-hole-check home', 'Last explored: why sqrt(dk)?', 'Next: Masked self-attention']) must(text.includes(want), `Continue lacks ${want}: ${text}`);
+      await cont.getByRole('button', { name: 'Continue learning' }).waitFor();
+      must((await page.getByRole('region', { name: 'Recent' }).innerText()).includes('Content in this browser'), 'Recent canvas card lacks Content in this browser');
+      await shStart(page).click(); // strict locator: exactly one primary Start on Home (T02 §3.3)
+      await page.getByRole('dialog', { name: 'Start a rabbit hole' }).waitFor({ timeout: 10000 });
+    } finally {
+      await shDrop(page, c.name);
+      await page.context().close();
+    }
+  });
+
   // ── shell-home checks end: later shell-home tasks insert above this line ──
 }
 
