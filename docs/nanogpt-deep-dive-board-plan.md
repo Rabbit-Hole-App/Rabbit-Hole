@@ -360,3 +360,20 @@ Planned 2026-09-28 by one planner per card, an adversarial critic per plan and a
 - c13 (multi-head, batch 1) is the natural fifth step of the self-attention path, but it sits in batch 1, earlier on the board than c11 → c12 → c10. Should c13 move to follow c10 in board order only, with no content change? And should it become '4 of 4' in the sequence? That would need a plan export on a card approved before Phase 1.
 - c10 uses GPT-2 BPE tokens, to match c13 which it deepens into. c11, c12 and c05 use shakespeare_char characters from the same text line. Keep BPE and name the tokenizer on the card (the plan's choice), or relabel c10 with characters for a consistent sequence?
 - c05's sequence with c14 ('The MLP', c05 → c14) is recorded only when c14 is built. Confirm c14 is planned for the next batch, so c05 does not stand as an orphan next to the attention sequence for long.
+
+**Open questions — resolved (2026-09-28, under the owner's NC checklist: decide on the
+card-composition rules, record, continue).**
+
+1. Card 10 becomes "One head's output: the weights mix the values". The reused explorer walks the
+   whole pipeline; under one idea per card its mask and softmax steps belong to c11 and c12, so only
+   the weighted sum is left. The explorer stays a benchmark scene, off this board.
+2. No q·k card. The curriculum stays at 25 cards; c12 shows the raw q·k scores as its first stage
+   and names them, and the depth ladder's Attention · Guided computes them by hand. Recorded for the
+   NC9 coherence review (is the "how are scores produced" step thin?).
+3. c13 stays where batch 1 put it (cards 1–10 are frozen). The Self-attention sequence records
+   `deepens → c13`, so the path is represented without moving an approved card.
+4. c10 uses characters, like c11, c12 and c05 (the same "Before we…" line), not GPT-2 BPE: a
+   tokenizer switch in the middle of one sequence is a second, unrelated mental model. c13 keeps its
+   BPE tokens and names them.
+5. c14 is built in batch 4 (with c26 and c19), so c05 is not left without its MLP partner for long;
+   the sequence "The MLP" (c05 → c14) is recorded then.
