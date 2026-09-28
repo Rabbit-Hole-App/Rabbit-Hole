@@ -1,6 +1,6 @@
 # Jev grading: a side-by-side grader for Learn challenges, benchmarked as we test
 
-Status: **Built and deployed to small-cp-dev-small-parallel on 2026-09-28. Parked on 2026-09-28 pending a future switch evaluation; no switch. Learner grading stays on the gateway; direct TypeSafe is the preferred transport candidate (bench only).**
+Status: **Built and deployed to small-cp-dev-small-parallel. Direct TypeSafe (jev-1.13.0) is the default dev shadow-grading transport as of 2026-09-28; Vercel Gateway remains diagnostic-only. Jev is still shadow-only; no learner-facing switch has occurred.**
 
 The same day, the spec was revised after:
 - a three-lens review;
@@ -74,15 +74,23 @@ Out, each needing its own decision:
 
 ## Transport
 
-Jev is called through **Vercel AI Gateway**, using the gateway key the user
-provisioned with `npx vercel ai-gateway setup`. The key is kept as
-`VERCEL_TYPESAFE_API_KEY` in small-deploy/.env and as a Worker secret of the
-same name on the clone.
+**Since 2026-09-28, canvas shadow grades call direct TypeSafe**
+(`https://api.typesafe.ai/v1/systemone`) with the pinned model `jev-1.13.0`,
+using `TYPESAFE_API_KEY` (small-deploy/.env, and a Worker secret on the clone
+only). The chosen reasons: the same grading behavior, a pinned model, and much
+lower latency (see Transport A/B). Whether direct also avoids the intermittent
+gateway 3 s timeouts is not shown.
+
+Until then Jev was called through **Vercel AI Gateway**, using the gateway key
+the user provisioned with `npx vercel ai-gateway setup`
+(`VERCEL_TYPESAFE_API_KEY` in small-deploy/.env and on the clone). The gateway
+remains for diagnostics and benchmark comparison only: `/api/learn/grade/bench`
+defaults to it, so bench runs stay comparable with earlier ones.
 
 The alternatives, and why they were not chosen:
-- **Direct `api.typesafe.ai`.** It needs a separate TypeSafe key, and it is the
-  only route that can pin a model version. It is the fallback if the gateway
-  hop cannot meet the latency condition.
+- **Direct `api.typesafe.ai`** (not chosen at first; the default since
+  2026-09-28). It needs a separate TypeSafe key, and it is the only route that
+  can pin a model version.
 - **Fly Sprites connector.** It only accepts calls made from inside a Sprite,
   so a Cloudflare Worker cannot use it.
 - **Workers AI `typesafe/jev`.** The smart-home branch records this route
@@ -91,20 +99,23 @@ The alternatives, and why they were not chosen:
   here and was not chosen, because the gateway key already exists and was
   probed live.
 
-### Transport A/B (bench only)
+### Transport A/B
 
 After two gateway runs showed variable first-request 3 s timeouts, a
 transport-only A/B compares the gateway with direct TypeSafe
 (`tests/evals/learn-grade/transport-ab.mjs`).
-- `askJev` takes `transport`: `gateway` (default; `JEV_URL`,
+- `askJev` takes `transport`: `gateway` (`askJev`'s own default; `JEV_URL`,
   `VERCEL_TYPESAFE_API_KEY`, model `typesafe-ai/jev`) or `direct`
   (`https://api.typesafe.ai/v1/systemone`, `TYPESAFE_API_KEY`, pinned model
   `jev-1.13.0`). The state, questions, parsing, thresholds, verdict rules, 3 s
   timeout and no-timeout-retry rule are shared; the protocol fingerprint is
-  unchanged.
-- Only `/api/learn/grade/bench` accepts `transport`, only on `benchmark-v1`.
-  Canvas grades always use the gateway. Direct without `TYPESAFE_API_KEY` is a
-  503 with no row.
+  unchanged. The fingerprint hashes the gateway fixture, so it does not
+  distinguish transports; rows do, through `jev_model` (`jev-1.13.0` direct,
+  `typesafe-ai/jev` gateway).
+- Canvas grades always go direct; the body cannot choose. Only
+  `/api/learn/grade/bench` accepts `transport` (default `gateway`), and direct
+  only on `benchmark-v1`. A missing key for the chosen transport is a 503 with
+  no row.
 - Each case is graded by both arms in turn, alternating which goes first, with
   its own attempt id per arm (`<run>:<transport>:<case>`). No Opus calls.
 - The direct API reports no cost; cost is input tokens × TypeSafe's published
@@ -199,8 +210,11 @@ The rule ("option B"):
     Policy, DPA); hosted in the United States; zero retention enterprise-only.
   - Pinning `jev-1.13.0` changes no data-handling term: none of the MCA, DPA,
     Privacy Policy or models page ties data handling to a model version.
-  - Not verified: the subprocessor list (trust.typesafe.ai/subprocessors did not
-    render without a browser). Read it before learner rows go direct.
+  - Subprocessors (trust.typesafe.ai/subprocessors, read 2026-09-28), all USA:
+    AWS stores and processes live request data; Modal, Nebius and CoreWeave
+    process prompts without storing them; Slack and Google Workspace only for
+    support communication. Consistent with the terms above; no contradiction
+    with option B.
 - **Retention.** Rows are experiment data. The dev worker has no scheduled
   handler, and scheduled triggers are unreliable on this account, so the
   enforced rule is: **rows older than 90 days are pruned on the next grade or

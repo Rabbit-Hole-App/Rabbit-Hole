@@ -12,11 +12,12 @@ export function world(t, { envExtra = {} } = {}) {
   const { sqlite, LEARN_DB } = learnDb(t);
   const jevBodies = [];
   const jevCalls = [];
-  const defaultReply = request => ({
-    model: 'typesafe-ai/jev',
+  // Direct TypeSafe answers without gateway metadata; the gateway adds cost and a generation id.
+  const defaultReply = (request, signal, url = '') => ({
+    model: url.startsWith('https://api.typesafe.ai') ? 'jev-1.13.0' : 'typesafe-ai/jev',
     answers: Object.fromEntries(Object.keys(request.questions).map(id => [id, { type: 'noul', noul: id.startsWith('idea_') ? 0.9 : 0.05 }])),
     usage: { input_tokens: 321 },
-    provider_metadata: { gateway: { cost: '0.0000135', generationId: `gen_${jevBodies.length}` } },
+    ...(url.startsWith('https://api.typesafe.ai') ? {} : { provider_metadata: { gateway: { cost: '0.0000135', generationId: `gen_${jevBodies.length}` } } }),
   });
   let reply = defaultReply;
   globalThis.fetch = async (url, init) => {
@@ -24,13 +25,14 @@ export function world(t, { envExtra = {} } = {}) {
     jevCalls.push({ url: String(url), auth: init.headers.Authorization });
     const request = JSON.parse(init.body);
     jevBodies.push(request);
-    const out = await reply(request, init.signal);
+    const out = await reply(request, init.signal, String(url));
     return out instanceof Response ? out : Response.json(out);
   };
   t.after(() => { globalThis.fetch = globalThis.__realFetch; });
   const env = {
     LEARN_DB,
     VERCEL_TYPESAFE_API_KEY: 'vck_test',
+    TYPESAFE_API_KEY: 'ts_test',
     LEARN_BENCH_SECRET: 'bench-secret-0123',
     CONTROL_PLANE: {
       fetch: async req => {
@@ -55,25 +57,29 @@ export const gradeBody = (overrides = {}) => ({
 const count = w => w.sqlite.prepare('SELECT COUNT(*) AS n FROM learn_grades').get().n;
 const BENCH = { 'X-Learn-Bench-Secret': 'bench-secret-0123' };
 
-test('a grade calls Jev once, stores the row, and answers with per-idea probabilities', async t => {
+test('a canvas shadow grade calls direct TypeSafe once with pinned jev-1.13.0, never the gateway, and stores the row', async t => {
   const w = world(t);
   const response = await w.post('/api/learn/grade', gradeBody());
+  assert.deepEqual(w.jevCalls, [{ url: 'https://api.typesafe.ai/v1/systemone', auth: 'Bearer ts_test' }]);
+  assert.equal(w.jevBodies[0].model, 'jev-1.13.0');
   assert.equal(response.status, 200);
   const data = await response.json();
   assert.equal(data.status, 'done');
   assert.equal(data.duplicate, false);
   assert.deepEqual(data.jev.ideas, [{ text: 'exp makes every score positive', p: 0.9 }, { text: 'dividing by the sum makes them add to one', p: 0.9 }]);
   assert.equal(data.jev.verdict, 'good');
-  assert.equal(data.generation_id, 'gen_1');
+  assert.equal(data.transport, 'direct');
+  assert.equal(data.model, 'jev-1.13.0');
+  assert.equal(data.generation_id, null);
   assert.equal(data.grader_protocol_version, 'jev-grade-p1');
-  assert.equal(data.cost, 0.0000135);
+  assert.equal(data.cost, null, 'direct TypeSafe reports no cost');
   assert.equal(data.input_tokens, 321);
   assert.equal(data.retries, 0);
   const row = w.sqlite.prepare('SELECT * FROM learn_grades').get();
   assert.equal(row.source, 'canvas');
   assert.equal(row.email, 'learner@test');
   assert.equal(row.jev_tokens, 321);
-  assert.equal(row.jev_generation_id, 'gen_1');
+  assert.equal(row.jev_model, 'jev-1.13.0');
   assert.equal(row.grader_protocol_version, 'jev-grade-p1');
   assert.equal(w.jevBodies.length, 1);
 });
@@ -113,14 +119,24 @@ test('input limits answer 400 and store and call nothing', async t => {
   assert.equal(count(w), 0);
 });
 
-test('no key: 503 with the fix, no row, no prune, no call', async t => {
-  const w = world(t, { envExtra: { VERCEL_TYPESAFE_API_KEY: '' } });
+test('no TypeSafe key: a canvas grade is 503 with the fix, no row, no prune, no call', async t => {
+  const w = world(t, { envExtra: { TYPESAFE_API_KEY: '' } });
   w.sqlite.exec("INSERT INTO learn_grades (org, email, app, mode, attempt_id, grader_protocol_version, prompt, expects, answer, created_at) VALUES ('team','learner@test','demo-app','challenge','attempt-ancient','jev-grade-p1','p','[]','a', datetime('now','-100 days'))");
   const response = await w.post('/api/learn/grade', gradeBody());
   assert.equal(response.status, 503);
-  assert.equal((await response.json()).error, 'Jev is not configured: set VERCEL_TYPESAFE_API_KEY on this worker.');
+  assert.equal((await response.json()).error, 'Direct TypeSafe is not configured: set TYPESAFE_API_KEY on this worker.');
   assert.equal(count(w), 1, 'no row written and no prune run');
   assert.equal(w.jevBodies.length, 0);
+});
+
+test('a canvas grade does not need the gateway key; a gateway bench grade still does', async t => {
+  const w = world(t, { envExtra: { VERCEL_TYPESAFE_API_KEY: '' } });
+  assert.equal((await w.post('/api/learn/grade', gradeBody())).status, 200);
+  const run = 'benchmark-v1-2026-09-28-z';
+  const bench = await w.post('/api/learn/grade/bench', gradeBody({ attempt_id: `${run}:c01`, set: 'benchmark-v1', bench_run: run }), BENCH);
+  assert.equal(bench.status, 503);
+  assert.equal((await bench.json()).error, 'Jev is not configured: set VERCEL_TYPESAFE_API_KEY on this worker.');
+  assert.deepEqual(w.jevCalls.map(call => call.url), ['https://api.typesafe.ai/v1/systemone']);
 });
 
 test('subscription-only mode: 503, nothing called', async t => {
@@ -129,7 +145,7 @@ test('subscription-only mode: 503, nothing called', async t => {
   assert.equal(response.status, 503);
   assert.equal((await response.json()).error, 'Jev is off in subscription-only mode.');
   assert.equal(count(w), 0);
-  assert.equal(w.jevBodies.length, 0);
+  assert.equal(w.jevCalls.length, 0);
 });
 
 test('a grade prunes rows older than 90 days first', async t => {
@@ -235,6 +251,7 @@ test('an AWS-hosted app is refused before anything is stored', async t => {
   const w = world(t);
   assert.equal((await w.post('/api/learn/grade', gradeBody({ app: 'aws-app' }))).status, 403);
   assert.equal(count(w), 0);
+  assert.equal(w.jevCalls.length, 0, 'no Jev call on any transport');
 });
 
 test('bench rows need the bench secret; the deployed app cannot make them', async t => {
@@ -345,8 +362,8 @@ test('the bench route prunes too', async t => {
   assert.equal(w.sqlite.prepare("SELECT COUNT(*) AS n FROM learn_grades WHERE attempt_id = 'attempt-ancient'").get().n, 0);
 });
 
-test('bench-only direct transport: same request body, TypeSafe URL and key, pinned model; canvas stays on the gateway', async t => {
-  const w = world(t, { envExtra: { TYPESAFE_API_KEY: 'ts_test' } });
+test('the bench can grade through either transport with the same request body; the gateway stays for diagnostics', async t => {
+  const w = world(t);
   const run = 'transport-ab-2026-09-28-a';
   const body = transport => gradeBody({ attempt_id: `${run}:${transport}:c01`, set: 'benchmark-v1', bench_run: run, transport });
   const gateway = await (await w.post('/api/learn/grade/bench', body('gateway'), BENCH)).json();
@@ -362,13 +379,13 @@ test('bench-only direct transport: same request body, TypeSafe URL and key, pinn
   assert.equal(gateway.transport, 'gateway');
   assert.equal(direct.transport, 'direct');
   assert.equal(direct.status, 'done');
-  // A canvas grade cannot pick the transport.
-  await w.post('/api/learn/grade', { ...gradeBody({ attempt_id: 'attempt-canvas-1' }), transport: 'direct' });
-  assert.equal(w.jevCalls.at(-1).url, 'https://ai-gateway.vercel.sh/typesafe/v1/systemone');
+  // A canvas grade cannot pick the transport: asking for the gateway still goes direct.
+  await w.post('/api/learn/grade', { ...gradeBody({ attempt_id: 'attempt-canvas-1' }), transport: 'gateway' });
+  assert.equal(w.jevCalls.at(-1).url, 'https://api.typesafe.ai/v1/systemone');
 });
 
 test('direct transport: 503 and no row without TYPESAFE_API_KEY; only benchmark-v1; unknown transport is 400', async t => {
-  const w = world(t);
+  const w = world(t, { envExtra: { TYPESAFE_API_KEY: '' } });
   const run = 'transport-ab-2026-09-28-a';
   const body = (transport, extra = {}) => gradeBody({ attempt_id: `${run}:${transport}:c01`, set: 'benchmark-v1', bench_run: run, transport, ...extra });
   const missing = await w.post('/api/learn/grade/bench', body('direct'), BENCH);

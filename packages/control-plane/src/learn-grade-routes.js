@@ -86,8 +86,9 @@ async function grade(req, env, bench) {
   const { value } = input;
   let set = null;
   let run = null;
-  // Canvas grades always use the gateway; only the bench may pick the direct arm.
-  let transport = 'gateway';
+  // Canvas shadow grades always go direct to TypeSafe with the pinned model; the
+  // gateway stays for bench diagnostics, and only the bench may pick a transport.
+  let transport = 'direct';
   if (bench) {
     set = body.set;
     run = body.bench_run;
@@ -99,8 +100,7 @@ async function grade(req, env, bench) {
     if (transport === 'direct' && set !== 'benchmark-v1') return json({ error: 'the direct transport runs on benchmark-v1 only' }, 400);
   }
   if (env.SUBSCRIPTION_ONLY === 'true') return json({ error: SUBSCRIPTION_ONLY }, 503);
-  if (!env.VERCEL_TYPESAFE_API_KEY) return json({ error: NO_KEY }, 503);
-  if (transport === 'direct' && !env.TYPESAFE_API_KEY) return json({ error: NO_DIRECT_KEY }, 503);
+  if (!env[JEV_TRANSPORTS[transport].key]) return json({ error: transport === 'direct' ? NO_DIRECT_KEY : NO_KEY }, 503);
   await pruneLearnGrades(env);
 
   const holdout = !!set?.endsWith('-holdout');

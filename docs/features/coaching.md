@@ -1525,16 +1525,15 @@ timeout behavior remains unproven for direct TypeSafe.
 
 - No grading or switch criteria changed: 3 s per attempt, no timeout retry,
   p95 under 400 ms, 0.7/0.3 thresholds, verdict-v1, errors count as wrong.
-- Direct TypeSafe is the preferred transport candidate, not the production
-  transport: same grading behavior, a pinned model, and much better latency. It
-  stays bench-only (`TYPESAFE_API_KEY` is set on this clone only); learner
-  shadow grades still go through the gateway.
-- Direct privacy boundary checked from TypeSafe's documents: compatible with
-  option B, one third party fewer (see jev-grading.md, Data boundary). The
-  subprocessor list is still unread.
+- Direct privacy boundary checked from TypeSafe's documents and its subprocessor
+  list: compatible with option B, one third party fewer (see jev-grading.md,
+  Data boundary).
 
-**Parked on 2026-09-28.** Jev work resumes only on an explicit decision to
-collect more real rows or evaluate the switch. Not run: the 432-call A/B,
-benchmark-v1.1-draft, further gateway benchmarks, the holdout (sealed), a
-switch evaluation, learner-facing direct grading. Nothing reached live
+**Direct TypeSafe (jev-1.13.0) is the default dev shadow-grading transport as of
+this change (2026-09-28). Vercel Gateway remains diagnostic-only. Jev is still
+shadow-only; no learner-facing switch has occurred.** Chosen for the same
+grading behavior, a pinned model and much better latency; the intermittent
+timeout question is not resolved for direct. `TYPESAFE_API_KEY` is set on this
+clone only. Not run: the 432-call A/B, benchmark-v1.1-draft, further gateway
+benchmarks, the holdout (sealed), a switch evaluation. Nothing reached live
 `small-cp`, the live database or BYOC.
