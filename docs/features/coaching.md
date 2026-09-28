@@ -1493,3 +1493,24 @@ briefly committed (51630a6) and reverted before any deploy or run. The bench and
 report now count timeouts, 429/529 retries and grades where Jev was
 unavailable and Opus stood alone, as observations. `benchmark-v1.1-draft.json` (v1 plus 24 harder cases, each with
 `hard_because`) waits for owner review and is not run.
+
+**benchmark-v1-2026-09-28-c** (post-spot-check run, with the three reworded
+answers; not a byte-for-byte replay of `-b`). Clone version
+`53b0bb7e-3974-46a4-aad9-d178d4aa9572`, 3 s per attempt, no retry after a timeout:
+- Jev 68/72: challenge 32/36, explain_back 36/36. Opus 71/72: it graded
+  `nt-right_plus_false` good and missed the planted false claim.
+- Jev unavailable (Opus stood alone) 4/72: `nt-one_idea`, `nt-injection`,
+  `sm-one_idea`, `sm-right_plus_false`, each a first-request 3 s timeout.
+  0 429/529 retries. The three cases that timed out in `-b` all returned.
+- 3-point rule: challenge missed (-8.3 points, all from the timeouts),
+  explain_back met (0.0).
+- Jev latency over 68 returned: p50 323 ms, p90 852 ms, p95 1,120 ms, max 1,854 ms.
+- Per-idea F1 1.000 at 0.7 (226 items); injection graded good 0/6; cost
+  $0.0000261 per grade.
+
+Across the two successful development runs, every Jev verdict that returned
+matched the gold verdict. Failures were variable first-request timeouts on
+different cases, indicating a transport/provider tail-latency problem rather
+than case-specific grading errors. No more gateway reruns; the next experiment
+is a transport-only A/B against direct TypeSafe, pending approval. Gate F stays
+closed.
