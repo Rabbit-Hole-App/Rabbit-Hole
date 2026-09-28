@@ -6,8 +6,8 @@ import { DatabaseSync } from 'node:sqlite';
 // The real proposal handlers from index.js against SQLite, the way
 // learn-chat.test.js runs apiAsk, without importing the bundled HTML.
 const source = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
-const names = ['appRow', 'askThreadForUser', 'apiAskThreadDelete', 'proposalTarget', 'claimProposal', 'apiAskApprove', 'apiAskReject'];
-const functions = names.map(name => source.match(new RegExp(`async function ${name}[(][^]*?^[}]`, 'm'))[0]).join(' ');
+const names = ['appRow', 'askThreadForUser', 'apiAskThreadDelete', 'proposalTarget', 'claimProposal', 'closedProposal', 'apiAskApprove', 'apiAskReject'];
+const functions = names.map(name => source.match(new RegExp(`^(?:async )?function ${name}[(][^]*?^[}]`, 'm'))[0]).join(' ');
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
 const deps = {
   json,
@@ -195,4 +195,25 @@ test('only the requester or an editor of the target app can cancel; anyone else 
   const again = propose(env, A, 'run_again', { run_id: 'r-a1' });
   assert.equal((await reject(env, VIEWER, again.id)).status, 403); // run_again resolves its target app through the run
   assert.deepEqual(env.started, []);
+});
+
+// WP4 review: the editor half of the Cancel policy, and closed proposals answer with their state.
+test('an editor who did not ask can cancel someone else\'s proposal', async t => {
+  const env = fixture(t);
+  const theirs = propose(env, VIEWER, 'run', { app: 'report' });
+  const res = await reject(env, A, theirs.id); // A edits report but did not ask
+  assert.deepEqual([res.status, await res.json()], [200, { ok: true, status: 'rejected' }]);
+  assert.equal(statusOf(env, theirs.id), 'rejected');
+});
+
+test('cancelling a proposal that is already closed answers with its state, whoever asks', async t => {
+  const env = fixture(t);
+  const old = propose(env, A, 'run', { app: 'report' }, 16);
+  const expired = await reject(env, VIEWER, old.id);
+  assert.deepEqual([expired.status, await expired.json()], [409, { error: 'expired after 15 minutes - ask again', status: 'expired' }]);
+  const done = propose(env, A, 'run', { app: 'report' });
+  assert.equal((await reject(env, A, done.id)).status, 200);
+  const again = await reject(env, VIEWER, done.id);
+  assert.deepEqual([again.status, await again.json()], [409, { error: 'cancelled', status: 'rejected' }]);
+  assert.equal(statusOf(env, old.id), 'proposed'); // nothing written for the expired one
 });

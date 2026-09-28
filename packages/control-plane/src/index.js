@@ -1439,10 +1439,13 @@ async function claimProposal(env, user, id, status) {
   if (r.meta.changes === 1) return null;
   const p = await env.DB.prepare('SELECT status FROM proposals WHERE id = ? AND org = ?').bind(id, user.org).first();
   if (!p) return json({ error: 'no such proposal' }, 404);
-  // status is the card state (approved | rejected | invalidated | expired | failed); error is what Slack shows
-  const current = p.status === 'proposed' ? 'expired' : p.status;
+  return closedProposal(p.status === 'proposed' ? 'expired' : p.status);
+}
+// The 409 for a proposal that can no longer change: status is the card state (approved |
+// rejected | invalidated | expired | failed); error is what Slack shows.
+function closedProposal(status) {
   const why = { approved: 'already approved', rejected: 'cancelled', invalidated: 'its chat was deleted', expired: 'expired after 15 minutes - ask again', failed: 'failed - ask again' };
-  return json({ error: why[current], status: current }, 409);
+  return json({ error: why[status], status }, 409);
 }
 
 // Phase 2 approval: the proposal executes here, with edit re-checked NOW - the
@@ -1569,6 +1572,9 @@ async function apiAskReject(req, env, user) {
   const { proposal_id } = await req.json();
   const p = await env.DB.prepare('SELECT * FROM proposals WHERE id = ? AND org = ?').bind(proposal_id, user.org).first();
   if (!p) return json({ error: 'no such proposal' }, 404);
+  // Already closed: say so to anyone who may see it, rather than 'no edit access'. Read-only.
+  if (p.status !== 'proposed') return closedProposal(p.status);
+  if ((await env.DB.prepare("SELECT created_at <= datetime('now', '-15 minutes') AS old FROM proposals WHERE id = ?").bind(p.id).first())?.old) return closedProposal('expired');
   if (p.user !== user.email) {
     let app = null;
     try { app = await appRow(env, p.org, await proposalTarget(env, p, JSON.parse(p.args))); } catch { /* no target: not an editor */ }
