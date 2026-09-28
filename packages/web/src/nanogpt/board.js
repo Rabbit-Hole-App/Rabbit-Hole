@@ -18,6 +18,10 @@ import * as embeddingLookup from './cards/c07-embedding-lookup.js';
 import * as tokenPlusPosition from './cards/c09-token-plus-position.js';
 import * as blockAnatomy from './cards/c02-block-anatomy.js';
 import * as blockStack from './cards/c04-block-stack.js';
+import * as causalMask from './cards/c11-causal-mask.js';
+import * as scoreScaling from './cards/c12-score-scaling.js';
+import * as weightedValues from './cards/c10-weighted-values.js';
+import * as positionMixing from './cards/c05-position-mixing.js';
 
 export const NANOGPT_FIRST_BATCH = [
   forwardPass, tokenizer, residual, multiHead, layerNorm,
@@ -33,6 +37,10 @@ export const NANOGPT_LATER_BATCHES = [
   // "Embeddings" (c07 is a prerequisite of c09), then "The block and the stack"
   // (c04 deepens c02).
   [embeddingLookup, tokenPlusPosition, blockAnatomy, blockStack],
+  // Batch 3 (section 11): sequence "Self-attention" - c11 -> c12 -> c10, each
+  // a prerequisite of the next (c13 in batch 1 deepens it) - then c05, the
+  // prerequisite of c14 (batch 4).
+  [causalMask, scoreScaling, weightedValues, positionMixing],
 ];
 
 // The input states each later card is reviewed in (every card exports them).
