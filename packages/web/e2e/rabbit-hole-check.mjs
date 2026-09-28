@@ -239,6 +239,31 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
+  await check('sh-library: Archive from a canvas row menu with confirmation; Archived lists it; Restore brings it back (T02 §8.4)', async () => {
+    const page = await open();
+    await page.goto(`${base}/library?type=canvases`);
+    await shH1(page, 'Library').waitFor({ timeout: 20000 });
+    const c = await shCanvas(page, 'rabbit-hole-check archive', 'rabbit-hole-check-device');
+    try {
+      await page.reload();
+      const row = page.locator('tbody tr').filter({ hasText: 'rabbit-hole-check archive' });
+      await row.getByTitle('More').click();
+      await page.getByRole('button', { name: 'Archive…' }).click();
+      await page.getByRole('dialog', { name: 'Archive rabbit-hole-check archive?' }).getByRole('button', { name: 'Archive', exact: true }).click();
+      await row.waitFor({ state: 'detached', timeout: 20000 });
+      const archivedChip = page.locator('button[aria-pressed]').filter({ hasText: /^Archived$/ });
+      await archivedChip.click();
+      const item = page.getByRole('list', { name: 'Archived canvases' }).getByRole('listitem').filter({ hasText: 'rabbit-hole-check archive' });
+      await item.getByRole('button', { name: 'Restore' }).click();
+      await item.waitFor({ state: 'detached', timeout: 20000 });
+      await archivedChip.click();
+      await row.waitFor({ timeout: 20000 });
+    } finally {
+      await shDrop(page, c.name);
+      await page.context().close();
+    }
+  });
+
   // ── shell-home checks end: later shell-home tasks insert above this line ──
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Calendar, ChevronDown, ChevronRight, Circle, Clock, Eye, EyeOff, Folder as FolderIcon, Inbox, Link as LinkIcon, ListFilter, Loader2, Lock, PanelRight, Play, Search, Settings2, Square, Type, Users, X } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Calendar, ChevronDown, ChevronRight, Circle, Clock, Eye, EyeOff, Folder as FolderIcon, Inbox, Link as LinkIcon, ListFilter, Loader2, Lock, MoreHorizontal, PanelRight, Play, Search, Settings2, Square, Type, Users, X } from 'lucide-react';
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
 import RepositoryImport from './RepositoryImport.jsx';
@@ -10,7 +10,7 @@ import { titleOf } from './agent/catalog.js';
 import { learnPreview } from './flags.js';
 import { onAnotherDevice } from './home/continue.js';
 import { chipHref, hiddenFor, libraryQuery, ofType, opsView, SCOPES, TYPES } from './library-filter.js';
-import { Avatar, Button, Chk, cn, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, toast, useHeaderDrag, ValuePicker } from './ui.jsx';
+import { Avatar, Button, Chk, cn, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, toast, useHeaderDrag, ValuePicker } from './ui.jsx';
 
 const people = (a) => [a.owner_email, ...(a.members || []).map((m) => m.email).filter((e) => e !== a.owner_email)];
 
@@ -63,6 +63,9 @@ function AppContent({ data, load }) {
   const [panel, setPanel] = useState(null); // { name, tab }
   const [run, setRun] = useState(null); // { appName, id?, error? }
   const [search, setSearch] = useState(null); // null = collapsed, string = open
+  const [rowMenu, setRowMenu] = useState(null); // { name, top, left }: a canvas row's ⋯ menu, portaled out of the scrolling table
+  const [confirmArchive, setConfirmArchive] = useState(null); // the canvas row awaiting confirmation
+  const [archivedList, setArchivedList] = useState(null); // null loading | rows | { error }
 
   // RUN opens the peek on its Run tab (the [inputs] form); the form's own Run
   // button starts the run and flips the peek to Logs.
@@ -112,7 +115,7 @@ function AppContent({ data, load }) {
   );
   const colMatch = (k) => COLS[k].toLowerCase().includes(menuQ.toLowerCase());
   const order = [...cols.order.filter((k) => DEFAULT_ORDER.includes(k)), ...DEFAULT_ORDER.filter((k) => !cols.order.includes(k))];
-  const { type } = libraryQuery(window.location.search, learnPreview);
+  const { type, archived } = libraryQuery(window.location.search, learnPreview);
   // ponytail: toggles made in Projects/Canvases stay in memory, so small.tblCols (the Apps
   // view's) is written exactly as today; persist them per type if people ask.
   const [typeHidden, setTypeHidden] = useState({});
@@ -139,6 +142,21 @@ function AppContent({ data, load }) {
   const sectionApps = ofType(folder
     ? apps.filter((a) => a.folder_id === folder.id)
     : section ? apps.filter((a) => sectionOf(a, org, data?.email) === section) : apps, type);
+  // T02 §4, §8.4: archived canvases come from LEARN_DB (GET /api/canvases?archived=1), never /api/apps.
+  useEffect(() => {
+    if (!archived) return;
+    setArchivedList(null);
+    api('/api/canvases?archived=1').then((d) => setArchivedList(d.canvases)).catch((e) => setArchivedList({ error: e.message }));
+  }, [archived]);
+  // Archive never deletes local content; Restore brings the canvas back.
+  const archive = async () => {
+    const c = confirmArchive;
+    setConfirmArchive(null);
+    try { await api(`/api/apps/${c.name}/archive`, { method: 'POST' }); toast(`Archived ${titleOf(c)}`); load(); } catch (e) { toast(`✗ ${e.message}`); }
+  };
+  const restore = async (c) => {
+    try { await api(`/api/apps/${c.name}/restore`, { method: 'POST' }); toast(`Restored ${titleOf(c)}`); setArchivedList((l) => l.filter((x) => x.name !== c.name)); load(); } catch (e) { toast(`✗ ${e.message}`); }
+  };
   // the inline search is agent-backed too: sentence queries ask the model, which
   // picks apps by description; short strings stay instant name matching
   const [aiFind, setAiFind] = useState(null); // null | 'loading' | { names, note }
@@ -201,16 +219,32 @@ function AppContent({ data, load }) {
               <div className="flex flex-wrap gap-1">
                 <Chip on={!type} onClick={() => navigate(chipHref(window.location.search, 'type', null))}>All</Chip>
                 {Object.entries(TYPES).map(([k, t]) => <Chip key={k} on={type === k} onClick={() => navigate(chipHref(window.location.search, 'type', type === k ? null : k))}>{t.label}</Chip>)}
+                {type === 'canvases' && <Chip on={archived} onClick={() => navigate(chipHref(window.location.search, 'archived', archived ? null : '1'))}>Archived</Chip>}
               </div>
               <div className="flex flex-wrap gap-1">
                 {Object.entries(SCOPES).map(([k, label]) => <Chip key={k} on={section === k} onClick={() => navigate(chipHref(window.location.search, 's', section === k ? null : k))}>{label}</Chip>)}
               </div>
             </div>
           )}
+          {archived && (!archivedList ? <SkeletonRows rows={3} />
+            : archivedList.error ? <div className="text-sm text-ink-2">✗ {archivedList.error}</div>
+            : !archivedList.length ? <EmptyState icon={Archive}>No archived canvases.</EmptyState>
+            : (
+              <ul aria-label="Archived canvases">
+                {archivedList.map((c) => (
+                  <li key={c.name} className="flex h-9 items-center gap-2 rounded-sm px-2 text-sm hover:bg-hover">
+                    <KindIcon kind="canvas" />
+                    <span className="min-w-0 flex-1 truncate">{titleOf(c)}</span>
+                    <span className="text-xs text-ink-2">archived {ago(c.archived_at)}</span>
+                    <Button size="sm" onClick={() => restore(c)}><ArchiveRestore size={14} strokeWidth={1.5} /> Restore</Button>
+                  </li>
+                ))}
+              </ul>
+            ))}
 
           {!data && <SkeletonRows rows={4} />}
           {data?.error && <div className="text-ink-2">✗ {data.error}</div>}
-          {data && !data.error && learnPreview && sectionApps.length === 0 && (
+          {data && !data.error && learnPreview && !archived && sectionApps.length === 0 && (
             <EmptyState icon={Mark} action={<Button variant="primary" onClick={startRabbitHole}>Start a rabbit hole</Button>}>Nothing here yet</EmptyState>
           )}
           {data && !data.error && !learnPreview && apps.length === 0 && (
@@ -223,7 +257,7 @@ function AppContent({ data, load }) {
             </EmptyState>
           )}
 
-          {(learnPreview ? sectionApps.length > 0 : apps.length > 0) && (
+          {!archived && (learnPreview ? sectionApps.length > 0 : apps.length > 0) && (
             <>
               <div className="flex h-8 items-center justify-end gap-1">
                 {/* active filter/sort read back as chips; the buttons open Notion-style menus */}
@@ -507,6 +541,10 @@ function AppContent({ data, load }) {
                                   <Play size={11} /> Run
                                 </PillButton>
                               )
+                            ) : a.kind === 'canvas' ? (
+                              <IconBtn title="More" onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setRowMenu({ name: a.name, top: r.bottom + 4, left: r.right - 176 }); }}>
+                                <MoreHorizontal size={16} strokeWidth={1.5} />
+                              </IconBtn>
                             ) : (
                               <a
                                 href={a.url}
@@ -548,6 +586,12 @@ function AppContent({ data, load }) {
           onRunStarted={(id) => { setRun({ appName: panelApp.name, id }); setPanel({ name: panelApp.name, tab: 'run' }); }}
           onClose={() => setPanel(null)}
         />
+      )}
+      <Menu portal open={!!rowMenu} onClose={() => setRowMenu(null)} style={{ top: rowMenu?.top, left: rowMenu?.left }} className="w-44">
+        <MenuItem icon={Archive} onClick={() => { setConfirmArchive(apps.find((x) => x.name === rowMenu.name)); setRowMenu(null); }}>Archive…</MenuItem>
+      </Menu>
+      {confirmArchive && (
+        <ConfirmDialog title={`Archive ${titleOf(confirmArchive)}?`} body="It leaves the Library. Its content stays in this browser, and Restore brings it back." confirmLabel="Archive" confirmVariant="primary" onConfirm={archive} onCancel={() => setConfirmArchive(null)} />
       )}
     </>
   );
