@@ -5,7 +5,7 @@ import { IconBtn, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
 import { wsHeaders } from './api.js';
 import { BLOCK_TYPES, LearningBlockBody, describeBlock } from './LearningBlocks.jsx';
-import { gapsFrom, nearestGap } from './learn-gap-rail.js';
+import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
 import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, TEXT_LEVELS, DASH_STYLES, OPACITIES, ARROW_KINDS } from './learn-style-panel.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
 import { presentSteps } from './learn-present.js';
@@ -708,10 +708,10 @@ function BlockMenu({ className, filter, onFilter, onPick }) {
 // the blank canvas beside it. Press either as often as you like - [+] pushes the
 // pair apart, [-] pulls it together and then straight past flush into an
 // overlap, because the space is only a margin and margins go negative.
-function GapRail({ gap, zoom, span, space, adding, onNudge, onAdding, onAddHeading }) {
+function GapRail({ gap, zoom, span, left = 0, adding, onNudge, onAdding, onAddHeading }) {
   const chrome = 'flex h-6 items-center justify-center rounded-lg border border-line bg-white text-ink-2 shadow-md hover:bg-hover hover:text-ink';
   const button = (delta, Icon, label) => (
-    <button type="button" aria-label={label} title={label} onClick={() => onNudge(gap.beforeId, delta)}
+    <button type="button" aria-label={label} title={label} onClick={() => onNudge(delta)}
       onPointerDown={event => event.stopPropagation()} // a press here must not start a pan
       className={`${chrome} w-6`}>
       <Icon size={13} strokeWidth={1.8} />
@@ -725,16 +725,16 @@ function GapRail({ gap, zoom, span, space, adding, onNudge, onAdding, onAddHeadi
       <div style={{ left: span.left, width: span.width }} className="absolute -translate-y-1/2 border-t border-dashed border-ink-3/50" />
       {/* Counter-scaled so the buttons stay the same size to press at any zoom.
           They sit off the left edge of the column, on blank canvas. */}
-      <div style={{ left: -12, transform: `translate(-100%, -50%) scale(${1 / zoom})`, transformOrigin: 'right center' }}
+      <div style={{ left: left - 12, transform: `translate(-100%, -50%) scale(${1 / zoom})`, transformOrigin: 'right center' }}
         className="pointer-events-auto absolute flex items-center gap-1">
-        {button(-SPACE_STEP, Minus, `Pull these cards together — ${space}px apart`)}
-        {button(SPACE_STEP, Plus, `Push these cards apart — ${space}px apart`)}
+        {button(-SPACE_STEP, Minus, `Pull everything below up — ${Math.round(gap.bottom - gap.top)}px apart`)}
+        {button(SPACE_STEP, Plus, `Push everything below down — ${Math.round(gap.bottom - gap.top)}px apart`)}
         {/* Same dev gate as the corner button this came from. */}
         <span className="relative">
           <button type="button" aria-label="Insert a section here" title="Insert a section in this gap" aria-expanded={adding}
             onPointerDown={event => event.stopPropagation()} onClick={() => onAdding(!adding)}
             className={`${chrome} w-6`}><Ellipsis size={14} strokeWidth={1.8} /></button>
-          {adding && <SectionMenu className="top-7 left-0" onLevel={level => onAddHeading(level, gap.index + 1)} />}
+          {adding && <SectionMenu className="top-7 left-0" onLevel={level => onAddHeading(level, gap)} />}
         </span>
       </div>
     </div>
@@ -2014,46 +2014,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   };
   const moveItem = (id, x, y) => setItems(previous => previous.map(item => item.id === id ? { ...item, x, y } : item));
   const resizeItem = (id, w, h) => setItems(previous => previous.map(item => item.id === id ? { ...item, w, h } : item));
-  // A separator is a wall: a card may be nudged inside its own band but never
-  // dragged across the line into its neighbour's. Out of room is a deliberate
-  // dead end - [+] on the rail is how you make more. The band is measured from
-  // where the card sits with no offset at all, so it does not move as you drag.
-  const bandFor = id => {
-    const list = blocksRef.current;
-    const index = list.findIndex(block => block.id === id);
-    const box = boundsRef.current[id];
-    if (index < 0 || !box) return null;
-    const flowY = box.y - list[index].dy;
-    const above = index > 0 ? boundsRef.current[list[index - 1].id] : null;
-    const below = boundsRef.current[list[index + 1]?.id];
-    return {
-      flowY,
-      height: box.h,
-      // Same midpoint the rail draws its line at, in learn-gap-rail.js.
-      top: above ? (above.y + above.h + flowY) / 2 : -Infinity,
-      bottom: below ? (flowY + box.h + below.y) / 2 : Infinity,
-    };
-  };
-  const clampToBand = (id, dy) => {
-    const band = bandFor(id);
-    if (!band) return dy;
-    const lowest = band.top - band.flowY;
-    const highest = band.bottom - band.flowY - band.height;
-    // A card taller than its band pins to the top of it rather than jittering.
-    return highest < lowest ? lowest : Math.min(Math.max(dy, lowest), highest);
-  };
-  const moveBlock = (id, dx, dy, clamp = true) => setBlocks(previous => previous.map(block => block.id === id ? { ...block, dx, dy: clamp ? clampToBand(id, dy) : dy } : block));
+  // Cards move freely: anywhere on the canvas, overlapping if the learner wants.
+  const moveBlock = (id, dx, dy) => setBlocks(previous => previous.map(block => block.id === id ? { ...block, dx, dy } : block));
   // Dragging one member of a multi-selection carries the whole group.
-  const shift = (ddx, ddy, ids, free = ids.length > 1) => {
+  const shift = (ddx, ddy, ids) => {
     for (const id of ids) {
       const exchange = exchangesRef.current.find(item => item.id === id);
       if (exchange) { onMove(id, exchange.dx + ddx, exchange.dy + ddy); continue; }
       const block = blocksRef.current.find(item => item.id === id);
-      // A band is a wall between a card and its NEIGHBOURS - but a group's
-      // neighbours are moving with it, so clamping each member against the
-      // others' old seats tears the group apart. Multi-member shifts move
-      // free; the single card keeps its walls.
-      if (block) { moveBlock(id, block.dx + ddx, block.dy + ddy, !free); continue; }
+      if (block) { moveBlock(id, block.dx + ddx, block.dy + ddy); continue; }
       const item = itemsRef.current.find(entry => entry.id === id);
       if (item) { setItems(previous => previous.map(entry => entry.id === id ? { ...entry, x: item.x + ddx, y: item.y + ddy } : entry)); continue; }
       const shape = shapesRef.current.find(entry => entry.id === id);
@@ -2146,7 +2115,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     setItems(previous => reorder(previous, targets, toFront));
   };
   // Inserted into the column flow between two cards, so it needs no offset.
-  const insertHeadingAt = (level, index) => {
+  const insertHeadingAt = (level, at) => {
+    const index = typeof at === 'number' ? at : blocksRef.current.filter(block => { const box = boundsRef.current[block.id]; return box && box.y + box.h <= at.y; }).length;
     snapshot();
     const heading = { id: crypto.randomUUID(), type: 'heading', dx: 0, dy: 0, level, text: '' };
     setBlocks(previous => [...previous.slice(0, index), heading, ...previous.slice(index)]);
@@ -2176,9 +2146,27 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
   // screen - a card inserted in view leaves the view alone.
   const revealRef = useRef(null);
   const revealAfter = id => { revealRef.current = id; return id; };
-  const nudgeGap = (beforeId, delta) => {
-    snapshot();
-    setBlocks(previous => previous.map(block => block.id === beforeId ? { ...block, space: (block.space || 0) + delta } : block));
+  // Everything on the canvas as boxes, for the rail: cards and chat cards,
+  // shapes, notes and text, and ink.
+  const inkBox = stroke => {
+    const xs = (stroke.points || []).map(p => p.x), ys = (stroke.points || []).map(p => p.y);
+    return xs.length ? { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) } : null;
+  };
+  const contentBoxes = () => [
+    ...Object.entries(boundsRef.current).map(([id, box]) => ({ id, ...box })),
+    ...shapesRef.current.map(shape => ({ id: shape.id, ...shapeBox(shape) })),
+    ...itemsRef.current.map(item => ({ id: item.id, ...(boxesOf([item.id])[0] || { x: item.x, y: item.y, w: item.w || 0, h: item.h || 0 }) })),
+    ...present.current.strokes.map(inkBox).filter(Boolean),
+  ];
+  // [+] pushes everything below the line down; [-] pulls it up, stopping short
+  // of closing the gap. Cards, chat cards, shapes, notes and ink all move.
+  const nudgeGap = (gap, delta) => {
+    const by = nudgeBy(gap, delta);
+    if (!by) return;
+    snapshot(true);
+    const below = box => box.y >= gap.bottom - 0.5;
+    shift(0, by, contentBoxes().filter(box => box.id && below(box)).map(box => box.id));
+    setStrokes(previous => previous.map(stroke => { const box = inkBox(stroke); return box && below(box) ? { ...stroke, points: stroke.points.map(p => ({ ...p, y: p.y + by })) } : stroke; }));
   };
   // Inserted blocks land in free space below everything that visually
   // occupies the column strip (dragged nodes, stickies, shapes, ink), then
@@ -2279,13 +2267,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
     ...shapes.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) })),
     ...items.map(item => ({ x: item.x, y: item.y, w: item.w || 160, h: item.h || 40 })),
   ];
-  const gaps = gapsFrom(blocks, bounds);
+  const onCanvas = presenting === null ? contentBoxes() : [];
+  const gaps = gapsFrom(onCanvas);
+  // The rail's buttons sit left of the leftmost thing on the canvas.
+  const contentLeft = Math.min(0, ...onCanvas.map(box => box.x));
   const activeGap = hoverGap == null ? null : gaps.find(gap => gap.index === hoverGap) || null;
   const trackGap = event => {
     if (gapAdding) return; // the rail must not slide away while its menu is open
     if (drawing || tool !== 'select') return setHoverGap(null);
     const point = local(event);
-    const found = point.x < 0 ? nearestGap(gaps, point.y) : null;
+    const found = point.x < contentLeft ? nearestGap(gaps, point.y) : null;
     setHoverGap(found ? found.index : null);
   };
   // Ports with a live connection stay visible on both ends of the link.
@@ -2390,7 +2381,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />)}
           {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} />)}
         </div>
-        {presenting === null && activeGap && <GapRail gap={activeGap} zoom={view.z} span={railSpan} space={blocks.find(block => block.id === activeGap.beforeId)?.space || 0} onNudge={nudgeGap}
+        {presenting === null && activeGap && <GapRail gap={activeGap} zoom={view.z} span={railSpan} left={contentLeft} onNudge={delta => nudgeGap(activeGap, delta)}
           adding={gapAdding} onAdding={setGapAdding} onAddHeading={insertHeadingAt} />}
         {marquee && (
           <svg width="1" height="1" aria-hidden="true" className="pointer-events-none absolute top-0 left-0 z-30 overflow-visible">
