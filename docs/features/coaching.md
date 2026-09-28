@@ -1155,6 +1155,28 @@ live build merely to prepare a dev deployment.
 
 ## Release and verification
 
+### Plus free-trial entry — 2026-09-28
+
+Saved the existing public-page design in commit `a731d75` after `make test-unit`
+passed (31 Python tests, 425 web tests, 326 control-plane tests and two benchmark
+checks). The subsequent pricing update changes Plus to **Start free trial** and
+preserves its `/apps` destination. Paid prices are labeled planned; the existing
+note explains that early access is free and no credit card is required. No
+checkout, trial expiry or plan gates were introduced. The requested Pro
+**Contact** action is awaiting a confirmed email address or contact page.
+
+Deployed only the session clone, version
+`1f71a046-1cb3-4928-a002-6cda4f29f3ad`. An isolated browser verified the actual
+Plus link: a signed-out visitor reaches the existing email sign-in; a signed-in
+visitor reaches `/apps` with a successful app-catalog response. No billing or
+Stripe requests occurred. The label, free-access note and responsive layouts
+were checked at 1440, 390 and 320 pixels, with desktop/mobile screenshot review.
+No page errors or failed artwork requests. Evidence:
+`tmp/pricing-cta/verification.json`. Model inference was not exercised by this
+pricing-button check.
+
+Review: `https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/pricing`.
+
 ### Restore the original manga artwork without pixelation — 2026-09-28
 
 The user clarified that all pixelization should be removed. Session clone

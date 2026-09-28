@@ -115,6 +115,10 @@ are removed. The researched Free / Plus $19 / Pro $39 packages now replace the
 old placeholder copy, with resources, services and benefits for each. Planned
 credit allowances and a future Teams offer are explained below the cards. Paid
 subscriptions are not implemented; card links open the existing `/apps` flow.
+Plus uses **Start free trial** and opens the app without checkout. The existing
+note below the cards clarifies that early access is free, no credit card is
+required, and the displayed prices and allowances are planned for launch.
+The requested Pro **Contact** action is pending a confirmed email or contact URL.
 The introductory early-access notice was removed at the user's request;
 the allowance explanation below the cards remains.
 Shared navigation remains.
