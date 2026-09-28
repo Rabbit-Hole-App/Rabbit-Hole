@@ -133,6 +133,18 @@ task. Now four, each with a real reasoning step. The others are explore-only.
 | 19 One LR step (prerequisite) | "Which learning rate lands on the minimum of this quadratic in one step?" | the bowl, the current point, its gradient; losses hidden | a learning-rate preset | the preset equal to 1 / curvature | step = lr × gradient; overshoot vs undershoot | the post-step loss for every preset |
 | 22 Top-k | "With k = 2, which candidates can still be sampled?" | the full distribution (k locked to all) | a set of candidates (`indices`) | the two largest logits | top-k keeps the k largest *logits* then renormalizes | the k = 2 renormalized bars |
 
+**Rule for every practice from batch 3 on: commit before you see** (owner,
+2026-09-28). A practice question asks about a case the card does not draw — a
+position, setting or value outside what is on screen — so the answer needs the
+rule the card teaches, not a reading of the picture. A question answerable by
+reading the visual is not practice; make the card explore-only instead. The
+reveal after the answer may then draw the case. Precedent: c09 asks whether a
+third *e*, at position 8 (past the rows drawn), enters the block as the same
+vector as the *e* at position 5. Every plan's check/practice field names its
+undrawn case, and the reviewer rejects a practice whose answer is on screen.
+The rows above were written before this rule and are re-planned against it
+when their cards are built.
+
 ## 6. Card layout (applies to every card)
 
 Title + concise learning question → visualization/explanation → optional
