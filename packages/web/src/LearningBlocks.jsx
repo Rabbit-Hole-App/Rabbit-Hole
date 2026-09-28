@@ -446,14 +446,17 @@ export const BLOCK_TYPES = {
       // by the zone instead - the label, one wrapped row of h-8 controls, and
       // a second row once more than two controls (or a chip-picker over a long
       // domain) wrap at this width.
-      const inputs = Array.isArray(block.scene.inputs) ? block.scene.inputs.filter(input => !input.hidden) : [];
+      const all = Array.isArray(block.scene.inputs) ? block.scene.inputs.filter(input => !input.hidden) : [];
+      const inputs = all.filter(input => input.presentation !== 'pager');
+      // A paged scene's sub-card navigation is one h-7 row above the frame.
+      const pager = all.length > inputs.length ? 36 : 0;
       const declarations = inputs.length;
       const widePicker = inputs.some(input => input.type === 'index' && input.presentation !== 'slider' && (block.scene.exampleData?.[input.of] || []).length > 4);
       const controls = declarations ? 84 + (declarations > 2 || widePicker ? 44 : 0) : 0;
       // The practice section is not reserved here: it reports its measured
       // height (collapsed or open) and the card grows by it (SceneActivity
       // onHeight -> the canvas node's extraHeight).
-      return { width: Math.round(report.viewport.w + FRAME_CHROME.w), height: Math.round(report.viewport.h + FRAME_CHROME.h + controls) };
+      return { width: Math.round(report.viewport.w + FRAME_CHROME.w), height: Math.round(report.viewport.h + FRAME_CHROME.h + controls + pager) };
     },
     sample: () => ({
       id: crypto.randomUUID(),

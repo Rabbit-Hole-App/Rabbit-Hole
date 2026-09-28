@@ -1,23 +1,28 @@
 // Residual stream and LayerNorm, Deep dive - why NanoGPT's Block is wired the
-// way it is. Three regions, each driven by one control:
-//   A. the Block's wiring, pre-LN as in Block.forward (x + attn(ln_1(x)),
+// way it is, paged into three sub-cards (one idea each; the pager `part`
+// draws "Deep dive · k/3" in the card header). All three share one INTERACT
+// row - one control per idea - and one input state:
+//   0. the Block's wiring, pre-LN as in Block.forward (x + attn(ln_1(x)),
 //      x + mlp(ln_2(x)), ln_f once after the last Block) or, as a what-if,
 //      post-LN as in the original Transformer (LN(x + sublayer(x)), no ln_f):
 //      what the identity path carries, as an equation, and what each layout
-//      costs;
-//   B. LayerNorm.forward at one position, with the eps edge cases: a constant
+//      costs (layout);
+//   1. LayerNorm.forward at one position, with the eps edge cases: a constant
 //      vector (variance 0: without eps the division is 0/0) and a nearly
-//      constant one (variance below eps: eps shrinks x-hat);
-//   C. the scaled init of the residual projections: _init_weights gives every
+//      constant one (variance below eps: eps shrinks x-hat) (vector);
+//   2. the scaled init of the residual projections: _init_weights gives every
 //      Linear and Embedding std 0.02, then only the parameters named
 //      *c_proj.weight (attn.c_proj, mlp.c_proj) are re-drawn at 0.02 / sqrt(2 *
 //      n_layer), so the std of what the 2 * n_layer residual adds write into
-//      the stream stays at one branch's worth however deep the model is. The
-//      bars show std, not variance: on one linear axis the scaled bars (1)
-//      stay visible next to the unscaled sqrt(2L) ones (variance would be 1
-//      against 2L = 96, a 1px sliver). This region is about pre-LN: in the
-//      post-LN what-if the stream is re-normalized after every add, there is
-//      no growing sum, and the bars give way to a note saying so.
+//      the stream stays at one branch's worth however deep the model is
+//      (scaledInit). The bars show std, not variance: on one linear axis the
+//      scaled bars (1) stay visible next to the unscaled sqrt(2L) ones
+//      (variance would be 1 against 2L = 96, a 1px sliver). This part is about
+//      pre-LN: in the post-LN what-if the stream is re-normalized after every
+//      add, there is no growing sum, and the bars give way to a note saying so.
+// The status line follows the layout, on the two sub-cards the layout changes
+// (1/3 and 3/3); 2/3's LayerNorm is the same in both layouts and carries its
+// status in the strip label.
 //
 // Every step in the diagram is one of model.py's modules or lines and has a
 // code source entry; post-LN is a labelled what-if (paper source). Numbers: B,
@@ -38,14 +43,19 @@ const L = A.n_layer;
 const CASES = Object.fromEntries(D.cases.map(c => [c.id, c]));
 const SHAKESPEARE = D.init.find(d => d.nLayer === L);
 const XL = D.init[D.init.length - 1];
+export const PARTS = { wiring: 0, layernorm: 1, init: 2 };
 
-// Region A geometry: the stream runs along HY, each sublayer branch hangs
+// Part 0 geometry: the stream runs along HY, each sublayer branch hangs
 // below it on BY; the (+) nodes are circles on the stream.
 const HY = 160, BY = 222, BOX_H = 36, R = 18;
 const PLUS1 = 310, PLUS2 = 670;
-// Region B / C geometry.
-const TOP = 424, BX = 40, CX = 500, BAR_CELL = 80;
-const BARS = { x: CX + 24, y: 562, h: 100, cell: BAR_CELL, w: BAR_CELL * D.init.length, peak: Math.max(...D.init.map(d => d.sqrtAddsShown)) };
+// Part 1 has no status line and starts on that line's height; part 2 starts
+// where part 0's stream label does, so every part fits the frame part 0 needs.
+// Part 1: the x and x̂ strips, their numbers beside them, the formula to the
+// right. Part 2: the formula, then the bars with their legend to the right.
+const TOP = 128, LN_TOP = 84, NX = 320, XS = LN_TOP + 56, XHS = LN_TOP + 162, BAR_CELL = 80;
+const BARS = { x: 40, y: 236, h: 100, cell: BAR_CELL, w: BAR_CELL * D.init.length, peak: Math.max(...D.init.map(d => d.sqrtAddsShown)) };
+const LEGEND_X = BARS.x + BARS.w + 40;
 
 const obj = (id, type, initialState) => ({ id, type, semanticId: id, conceptId: CONCEPT, initialState });
 const text = (id, value, x, y, extra = {}) => obj(id, 'text', { text: value, x, y, ...extra });
@@ -54,18 +64,26 @@ const box = (id, label, x, w, y = BY - BOX_H / 2, extra = {}) => obj(id, 'box', 
 const arrow = (id, from, to, extra = {}) => obj(id, 'arrow', { from, to, ...extra });
 const line = (id, from, to) => obj(id, 'line', { from, to });
 const p = (x, y) => ({ x, y });
+const onPart = (part, objects) => objects.map(o => ({ ...o, part }));
+const status = id => text(id, '{{status}}', 40, 84, { typography: 'caption', role: { $derive: 'statusRole' } });
 // Shown only in one layout: opacity follows the control, never the timeline.
 const PRE = { opacity: { $derive: 'preOnly' } };
 const POST = { opacity: { $derive: 'postOnly' } };
 const WARMUP = { defaults: base.config.defaults.warmup_iters, shakespeare: base.config.shakespeareChar.warmup_iters };
+// Part 2's one formula block: (pre-LN only) the growing sum, then the init it implies.
+// Full-size slash, not a fraction: a text-style fraction shrinks 0.02 to
+// about 7px, and a display-style one has its digits clipped at the box top.
+const INIT_EQ = `\\sigma_{c\\_proj} = ${D.initStd}\\,/\\sqrt{2L}`;
+const SUM_EQ = '\\mathrm{std}(\\sum_{k<2L}F_k)\\propto\\sigma\\sqrt{2L}';
 
 export const scene = {
   id: 'depth-residual-layernorm-deep',
   title: 'Residual stream and LayerNorm · Deep dive: pre-LN, eps and the scaled init',
   width: 960,
-  height: 740,
+  height: 420,
   duration: 2.4,
   inputs: [
+    { name: 'part', type: 'index', label: 'Deep dive', of: 'parts', default: 0, presentation: 'pager' },
     { name: 'layout', type: 'choice', label: 'Block layout', default: 'pre',
       options: [{ id: 'pre', label: 'Pre-LN (NanoGPT)' }, { id: 'post', label: 'Post-LN (what-if)' }] },
     { name: 'vector', type: 'choice', label: 'Vector entering LayerNorm', default: 'x0',
@@ -73,6 +91,7 @@ export const scene = {
     { name: 'scaledInit', type: 'bool', label: 'Scale the c_proj weights only (as NanoGPT)', default: true },
   ],
   exampleData: {
+    parts: ['Pre-LN or post-LN', 'LayerNorm and ε', 'The scaled init'],
     preOnlyBy: { pre: 1, post: 0 },
     postOnlyBy: { pre: 0, post: 1 },
     statusBy: {
@@ -96,9 +115,9 @@ export const scene = {
       pre: 'Cost: the stream grows with depth (so ln_f, scaled init); warmup matters less.',
       post: 'Cost: large gradients near the output at init; post-LN needs a learning-rate warmup.',
     },
+    initEqBy: { pre: `${SUM_EQ}\\;\\Rightarrow\\;${INIT_EQ}`, post: INIT_EQ },
     cases: CASES,
     epsText: D.epsText,
-    initStd: D.initStd,
     xLabelBy: {
       x0: 'Calculated toy example: x₀, a toy C = 6',
       near: 'Calculated toy example: x = 0.5 + 0.001·x₀',
@@ -129,6 +148,7 @@ export const scene = {
     equation: { op: 'pick', args: ['equationBy', 'layout'] },
     identity: { op: 'pick', args: ['identityBy', 'layout'] },
     cost: { op: 'pick', args: ['costBy', 'layout'] },
+    initEq: { op: 'pick', args: ['initEqBy', 'layout'] },
     case: { op: 'pick', args: ['cases', 'vector'] },
     edge: { op: 'pick', args: ['edgeBy', 'vector'] },
     xLabel: { op: 'pick', args: ['xLabelBy', 'vector'] },
@@ -142,84 +162,89 @@ export const scene = {
     stdText: { op: 'choose', args: ['scaledInit', 'stdBy.scaled', 'stdBy.plain'] },
   },
   objects: [
-    text('question', 'Why does NanoGPT normalize before each sublayer, and what keeps its stream stable?', 40, 34),
-    note('prerequisites', 'Builds on: Guided; tensor shapes (B, T, C) and the variance of a sum', 40, 58),
-    text('status', '{{status}}', 40, 84, { typography: 'caption', role: { $derive: 'statusRole' } }),
+    // --- 0. the Block's wiring --------------------------------------------------------
+    ...onPart(PARTS.wiring, [
+      text('question', 'Why does NanoGPT normalize before each sublayer, and what keeps its stream stable?', 40, 34),
+      note('prerequisites', 'Builds on: Guided; tensor shapes (B, T, C) and the variance of a sum', 40, 58),
+      note('stream-label', `residual stream x: (B, T, C) = (${A.batch_size}, ${A.block_size}, ${A.n_embd})`, 40, 128),
+      arrow('hw-in', p(40, HY), p(PLUS1 - R - 1, HY), { role: 'input' }),
+      line('split-1', p(62, HY), p(62, BY)),
+      arrow('to-ln1', p(62, BY), p(86, BY), PRE),
+      box('ln1', 'ln_1', 90, 72, undefined, PRE),
+      arrow('ln1-attn', p(164, BY), p(186, BY), PRE),
+      arrow('to-attn', p(62, BY), p(186, BY), POST),
+      box('attn', 'attn', 190, 90),
+      line('attn-out', p(280, BY), p(PLUS1, BY)),
+      arrow('attn-up', p(PLUS1, BY), p(PLUS1, HY + R + 2)),
+      obj('plus-1', 'circle', { label: '+', x: PLUS1, y: HY, w: 2 * R, role: 'input' }),
+      arrow('hw-mid', p(PLUS1 + R + 1, HY), p(PLUS2 - R - 1, HY), { role: 'input', ...PRE }),
+      arrow('to-ln-a', p(PLUS1 + R + 1, HY), p(346, HY), { role: 'input', ...POST }),
+      box('ln-a', 'LN', 350, 60, HY - BOX_H / 2, { role: 'warning', ...POST }),
+      arrow('hw-mid-post', p(412, HY), p(PLUS2 - R - 1, HY), { role: 'input', ...POST }),
+      line('split-2', p(434, HY), p(434, BY)),
+      arrow('to-ln2', p(434, BY), p(456, BY), PRE),
+      box('ln2', 'ln_2', 460, 72, undefined, PRE),
+      arrow('ln2-mlp', p(534, BY), p(556, BY), PRE),
+      arrow('to-mlp', p(434, BY), p(556, BY), POST),
+      box('mlp', 'mlp', 560, 90),
+      line('mlp-out', p(650, BY), p(PLUS2, BY)),
+      arrow('mlp-up', p(PLUS2, BY), p(PLUS2, HY + R + 2)),
+      obj('plus-2', 'circle', { label: '+', x: PLUS2, y: HY, w: 2 * R, role: 'input' }),
+      arrow('hw-out', p(PLUS2 + R + 1, HY), p(778, HY), { role: 'input', ...PRE }),
+      box('ln-f', 'ln_f', 782, 64, HY - BOX_H / 2, PRE),
+      arrow('lnf-head', p(848, HY), p(862, HY), PRE),
+      arrow('to-ln-b', p(PLUS2 + R + 1, HY), p(706, HY), { role: 'input', ...POST }),
+      box('ln-b', 'LN', 710, 60, HY - BOX_H / 2, { role: 'warning', ...POST }),
+      arrow('hw-out-post', p(772, HY), p(862, HY), { role: 'input', ...POST }),
+      box('lm-head', 'lm_head', 866, 76, HY - BOX_H / 2, { role: 'output' }),
+      note('repeat', '{{repeat}}', 40, 266),
+      obj('equation', 'equation', { text: '{{equation}}', x: 40, y: 280, w: 880, h: 40 }),
+      text('identity', '{{identity}}', 40, 344),
+      note('cost', '{{cost}}', 40, 366),
+      note('warmup', `NanoGPT (pre-LN) still warms up: ${WARMUP.defaults} steps by default, ${WARMUP.shakespeare} for Shakespeare-char.`, 40, 388),
+      status('status'),
+    ]),
 
-    // --- A. the Block's wiring -------------------------------------------------------
-    note('stream-label', `residual stream x: (B, T, C) = (${A.batch_size}, ${A.block_size}, ${A.n_embd})`, 40, 128),
-    arrow('hw-in', p(40, HY), p(PLUS1 - R - 1, HY), { role: 'input' }),
-    line('split-1', p(62, HY), p(62, BY)),
-    arrow('to-ln1', p(62, BY), p(86, BY), PRE),
-    box('ln1', 'ln_1', 90, 72, undefined, PRE),
-    arrow('ln1-attn', p(164, BY), p(186, BY), PRE),
-    arrow('to-attn', p(62, BY), p(186, BY), POST),
-    box('attn', 'attn', 190, 90),
-    line('attn-out', p(280, BY), p(PLUS1, BY)),
-    arrow('attn-up', p(PLUS1, BY), p(PLUS1, HY + R + 2)),
-    obj('plus-1', 'circle', { label: '+', x: PLUS1, y: HY, w: 2 * R, role: 'input' }),
-    arrow('hw-mid', p(PLUS1 + R + 1, HY), p(PLUS2 - R - 1, HY), { role: 'input', ...PRE }),
-    arrow('to-ln-a', p(PLUS1 + R + 1, HY), p(346, HY), { role: 'input', ...POST }),
-    box('ln-a', 'LN', 350, 60, HY - BOX_H / 2, { role: 'warning', ...POST }),
-    arrow('hw-mid-post', p(412, HY), p(PLUS2 - R - 1, HY), { role: 'input', ...POST }),
-    line('split-2', p(434, HY), p(434, BY)),
-    arrow('to-ln2', p(434, BY), p(456, BY), PRE),
-    box('ln2', 'ln_2', 460, 72, undefined, PRE),
-    arrow('ln2-mlp', p(534, BY), p(556, BY), PRE),
-    arrow('to-mlp', p(434, BY), p(556, BY), POST),
-    box('mlp', 'mlp', 560, 90),
-    line('mlp-out', p(650, BY), p(PLUS2, BY)),
-    arrow('mlp-up', p(PLUS2, BY), p(PLUS2, HY + R + 2)),
-    obj('plus-2', 'circle', { label: '+', x: PLUS2, y: HY, w: 2 * R, role: 'input' }),
-    arrow('hw-out', p(PLUS2 + R + 1, HY), p(778, HY), { role: 'input', ...PRE }),
-    box('ln-f', 'ln_f', 782, 64, HY - BOX_H / 2, PRE),
-    arrow('lnf-head', p(848, HY), p(862, HY), PRE),
-    arrow('to-ln-b', p(PLUS2 + R + 1, HY), p(706, HY), { role: 'input', ...POST }),
-    box('ln-b', 'LN', 710, 60, HY - BOX_H / 2, { role: 'warning', ...POST }),
-    arrow('hw-out-post', p(772, HY), p(862, HY), { role: 'input', ...POST }),
-    box('lm-head', 'lm_head', 866, 76, HY - BOX_H / 2, { role: 'output' }),
-    note('repeat', '{{repeat}}', 40, 266),
-    obj('equation', 'equation', { text: '{{equation}}', x: 40, y: 280, w: 880, h: 40 }),
-    text('identity', '{{identity}}', 40, 344),
-    note('cost', '{{cost}}', 40, 366),
-    note('warmup', `NanoGPT (pre-LN) still warms up: ${WARMUP.defaults} steps by default, ${WARMUP.shakespeare} for Shakespeare-char.`, 40, 388),
+    // --- 1. LayerNorm.forward at one position, and eps --------------------------------
+    ...onPart(PARTS.layernorm, [
+      text('question-ln', 'What does LayerNorm do to one position’s vector, and when does ε matter?', 40, 34),
+      note('ln-head', 'LayerNorm over C at one (b, t); ε = {{epsText}}', 40, LN_TOP),
+      obj('x-strip', 'strip', { label: '{{xLabel}}', x: 40, y: XS, cell: 44, values: { $derive: 'case.x' }, role: 'input', opacity: 0 }),
+      note('stats', 'μ = {{case.meanText}} · σ² = {{case.varText}}', NX, XS + 14, { opacity: 0 }),
+      note('std', '√(σ² + ε) = {{case.stdText}}', NX, XS + 34, { opacity: 0 }),
+      // The strip prints 2 decimals, so the nearly constant vector would read as
+      // six .50s - the same as the constant one. Its 4-decimal values, shown only for it.
+      note('near-exact', `4 decimals: ${CASES.near.x.map(v => v.toFixed(4)).join('  ')}`, 40, XS + 60, { opacity: { $derive: 'nearOnly' }, role: 'input' }),
+      obj('xhat-strip', 'strip', { label: 'x̂ (before × γ)', x: 40, y: XHS, cell: 44, values: { $derive: 'case.xhat' }, role: 'output', opacity: 0 }),
+      note('ratio', 'mean of x̂² = σ²/(σ²+ε) = {{case.ratio}}', NX, XHS + 10, { opacity: 0 }),
+      note('no-eps', 'without ε: √σ² = {{case.noEpsText}}', NX, XHS + 28, { opacity: 0 }),
+      // The step from x to x̂, between the two strips.
+      obj('ln-eq', 'equation', { text: '\\hat x = \\dfrac{x - \\mu}{\\sqrt{\\sigma^2 + \\epsilon}}', x: 520, y: XS + 44, w: 420, h: 60 }),
+      text('edge', '{{edge}}', 40, XHS + 74, { typography: 'caption', role: { $derive: 'edgeRole' } }),
+      note('bias', 'then × γ; + β only if bias=True (GPT-2 checkpoints)', 40, XHS + 98),
+    ]),
 
-    // --- B. LayerNorm.forward at one position, and eps -------------------------------
-    note('ln-head', 'LayerNorm over C at one (b, t); ε = {{epsText}}', BX, TOP),
-    obj('ln-eq', 'equation', { text: '\\hat x = \\dfrac{x - \\mu}{\\sqrt{\\sigma^2 + \\epsilon}}', x: BX, y: TOP + 8, w: 420, h: 60 }),
-    obj('x-strip', 'strip', { label: '{{xLabel}}', x: BX, y: 520, cell: 44, values: { $derive: 'case.x' }, role: 'input', opacity: 0 }),
-    note('stats', 'μ = {{case.meanText}} · σ² = {{case.varText}}', 320, 534, { opacity: 0 }),
-    note('std', '√(σ² + ε) = {{case.stdText}}', 320, 554, { opacity: 0 }),
-    // The strip prints 2 decimals, so the nearly constant vector would read as
-    // six .50s - the same as the constant one. Its 4-decimal values, shown only for it.
-    note('near-exact', `4 decimals: ${CASES.near.x.map(v => v.toFixed(4)).join('  ')}`, BX, 580, { opacity: { $derive: 'nearOnly' }, role: 'input' }),
-    obj('xhat-strip', 'strip', { label: 'x̂ (before × γ)', x: BX, y: 626, cell: 44, values: { $derive: 'case.xhat' }, role: 'output', opacity: 0 }),
-    note('ratio', 'mean of x̂² = σ²/(σ²+ε) = {{case.ratio}}', 320, 636, { opacity: 0 }),
-    note('no-eps', 'without ε: √σ² = {{case.noEpsText}}', 320, 654, { opacity: 0 }),
-    text('edge', '{{edge}}', BX, 700, { typography: 'caption', role: { $derive: 'edgeRole' } }),
-    note('bias', 'then × γ; + β only if bias=True (GPT-2 checkpoints)', BX, 724),
-
-    // --- C. the scaled init -----------------------------------------------------------
-    // Scaled: only the two residual projections' weights (named *c_proj.weight).
-    note('init-head', 'only attn.c_proj (C, C), mlp.c_proj (C, 4·C):', CX, TOP),
-    // Full-size slash, not a fraction: a text-style fraction shrinks 0.02 to
-    // about 7px, and a display-style one has its digits clipped at the box top.
-    obj('init-eq', 'equation', { text: '\\sigma_{c\\_proj} = {{initStd}}\\,/\\sqrt{2L}', x: CX, y: TOP + 20, w: 340, h: 40 }),
-    // Secondary, beside the equation (whose drawn formula ends near x = 650).
-    note('init-rest', `other Linear/Embedding: std ${D.initStd}`, 690, TOP + 38),
-    // The growing sum exists only in pre-LN: in the post-LN what-if the rest of
-    // this region gives way to a note.
-    obj('sum-eq', 'equation', { text: '\\mathrm{std}(\\sum_{k<2L}F_k)\\propto\\sigma\\sqrt{2L}', x: CX, y: TOP + 74, w: 450, h: 34, ...PRE }),
-    // The unscaled stds stay drawn in grey behind the live bars, so the scaled
-    // init's flat 1-unit bars read against what they replace.
-    obj('bars-ref', 'bars', { ...BARS, role: 'neutral', values: { $derive: 'sqrtAddsShown' }, ...PRE }),
-    obj('bars', 'bars', { ...BARS, label: 'Live calculation: std of the sum by n_layer (grey: unscaled)', role: { $derive: 'barsRole' }, ...PRE,
-      labels: D.init.map((d, i) => `${d.nLayer}: ×{{bars.${i}}}`), values: { $derive: 'bars' } }),
-    note('std-text', '{{stdText}}', CX, 700, PRE),
-    note('unit', `Source value: ×1 = one branch at std ${D.initStd}`, CX, 722, PRE),
-    // At the bars' top edge: lower, it would run into region B's ratio line (x = 320, y = 636).
-    note('post-1', 'Post-LN re-normalizes after every add, so no branch sum', CX, BARS.y, { role: 'warning', ...POST }),
-    note('post-2', 'builds up: the bars and c_proj switch are pre-LN only.', CX, BARS.y + 20, { role: 'warning', ...POST }),
+    // --- 2. the scaled init -----------------------------------------------------------
+    ...onPart(PARTS.init, [
+      text('question-init', 'Why does NanoGPT draw only the c_proj weights at 0.02 / √(2L)?', 40, 34),
+      status('status-init'),
+      // Scaled: only the two residual projections' weights (named *c_proj.weight).
+      note('init-head', 'only attn.c_proj (C, C), mlp.c_proj (C, 4·C):', 40, TOP),
+      // The growing sum exists only in pre-LN: in the post-LN what-if the
+      // formula keeps the init alone and the bars give way to a note.
+      obj('init-eq', 'equation', { text: '{{initEq}}', x: 40, y: TOP + 12, w: 800, h: 40 }),
+      note('init-rest', `other Linear/Embedding: std ${D.initStd}`, LEGEND_X, TOP),
+      // The unscaled stds stay drawn in grey behind the live bars, so the scaled
+      // init's flat 1-unit bars read against what they replace.
+      obj('bars-ref', 'bars', { ...BARS, role: 'neutral', values: { $derive: 'sqrtAddsShown' }, ...PRE }),
+      obj('bars', 'bars', { ...BARS, label: 'Live calculation: std of the sum by n_layer (grey: unscaled)', role: { $derive: 'barsRole' }, ...PRE,
+        labels: D.init.map((d, i) => `${d.nLayer}: ×{{bars.${i}}}`), values: { $derive: 'bars' } }),
+      note('std-text', '{{stdText}}', LEGEND_X, BARS.y + 44, PRE),
+      note('unit', `Source value: ×1 = one branch at std ${D.initStd}`, LEGEND_X, BARS.y + 66, PRE),
+      // In the bars' place: the middle of their band.
+      note('post-1', 'Post-LN re-normalizes after every add, so no branch sum', BARS.x, BARS.y + 40, { role: 'warning', ...POST }),
+      note('post-2', 'builds up: the bars and c_proj switch are pre-LN only.', BARS.x, BARS.y + 60, { role: 'warning', ...POST }),
+    ]),
   ],
   timeline: [
     { at: 0.0, action: 'appear', target: 'x-strip', duration: 0.3 },
@@ -277,21 +302,25 @@ export const evidence = {
   concept: 'NanoGPT is pre-LN: x_{k+1} = x_k + F_k(LN_k(x_k)), so the identity path carries x₀ untouched to ln_f and the un-normalized stream needs ln_f at the end and a depth-scaled init of the residual projections only (the attn.c_proj and mlp.c_proj weights, std 0.02/√(2·n_layer); every other Linear and Embedding keeps std 0.02) so the summed variance of the 2L residual branches does not grow with depth. Post-LN (the original Transformer) re-normalizes x₀ at every add and needs warmup. LayerNorm’s eps = 1e-5 keeps a constant vector finite (x̂ = 0 instead of 0/0) and shrinks x̂ when σ² < ε.',
   sourceRevision: `${fx.provenance.nanogpt.repo} @ ${fx.provenance.nanogpt.commit}`,
   provenance: 'source value: model.py:103-106, :98-101, :18-27, :53, :130-131, :180-182, :133, :162-168, :142-145, :37, :84, :225, :216-221; train.py:52, :56, :66, :232-234; config/train_shakespeare_char.py:18-24, :33 (eps, 0.02 and the scaled init parsed by gen_residual-layernorm.py); papers: arXiv 1706.03762 (post-LN), 2002.04745 (warmup), GPT-2 section 2.3; calculated toy example: LayerNorm cases from gen_residual-layernorm.py; live calculation: bars = choose(scaled, elementwise(√(2L), std / 0.02), √(2L)).',
-  control: 'layout (choice: pre-LN NanoGPT / post-LN what-if), vector (choice: x₀ / nearly constant / constant), scaledInit (bool, default true).',
-  consequence: 'layout: the LN boxes move from the branches onto the stream, ln_f disappears, the equation, identity-path and cost lines switch and the status turns What-if; the depth bars give way to a note, since post-LN has no growing sum, which also says the scaledInit switch acts on pre-LN only. vector: x₀ gives σ² ≫ ε and mean x̂² = 1; nearly constant (its 4-decimal values shown) gives σ² = 3.78e-6 < ε and mean x̂² = 0.27; constant gives σ² = 0, x̂ = 0 (0/0 without ε). scaledInit (pre-LN): the std of the summed branches goes from √(2L) (×3.46 … ×9.8, a What-if in the warning colour) to ×1 at every depth, and the c_proj std text shows 0.00577 … 0.00204. The warmup line states NanoGPT’s own warmup (2000 steps by default, 100 for Shakespeare-char).',
-  interactionPurpose: 'Switch an implementation branch (layout), trigger the eps edge case (vector) and toggle the engineering choice (scaled init) that the equations explain, each on its own region of the card.',
-  task: 'Explore only: compare what the identity path carries in each layout, find the input where ε matters, and read how the scaled init keeps the summed branch variance flat across depths.',
-  capability: 'two choice inputs + one bool; pick over record maps for layout- and vector-dependent strings, roles and opacity (input-bound visibility, no timeline on those objects); derived LaTeX equation text; elementwise and choose for the live bars; {{}} inside bar labels; code sources for every diagram step.',
+  control: 'part (pager in the card header: Deep dive 1/3 Pre-LN or post-LN, 2/3 LayerNorm and ε, 3/3 The scaled init; Reset keeps it), layout (choice: pre-LN NanoGPT / post-LN what-if), vector (choice: x₀ / nearly constant / constant), scaledInit (bool, default true) - one INTERACT row and one input state shared by the three sub-cards.',
+  consequence: 'part: pages between the sub-cards, one idea each; a control set on one sub-card is already applied on the others. layout: on 1/3 the LN boxes move from the branches onto the stream, ln_f disappears and the equation, identity-path and cost lines switch; on 3/3 the depth bars give way to a note, since post-LN has no growing sum, which also says the scaledInit switch acts on pre-LN only, and the formula keeps the init alone; the status line on 1/3 and 3/3 turns What-if (2/3’s LayerNorm is the same in both layouts). vector (2/3): x₀ gives σ² ≫ ε and mean x̂² = 1; nearly constant (its 4-decimal values shown) gives σ² = 3.78e-6 < ε and mean x̂² = 0.27; constant gives σ² = 0, x̂ = 0 (0/0 without ε). scaledInit (3/3, pre-LN): the std of the summed branches goes from √(2L) (×3.46 … ×9.8, a What-if in the warning colour) to ×1 at every depth, and the c_proj std text shows 0.00577 … 0.00204. The warmup line on 1/3 states NanoGPT’s own warmup (2000 steps by default, 100 for Shakespeare-char).',
+  interactionPurpose: 'Switch an implementation branch (layout), trigger the eps edge case (vector) and toggle the engineering choice (scaled init) that the equations explain, each on its own sub-card.',
+  task: 'Explore only: on 1/3 compare what the identity path carries in each layout, on 2/3 find the input where ε matters, and on 3/3 read how the scaled init keeps the summed branch variance flat across depths.',
+  capability: 'a pager index input and per-object part: three sub-cards (at most one formula block and one visual each) in one frame sized for the tallest, sharing one INTERACT row and one input state, with a layout status line on 1/3 and 3/3; two choice inputs + one bool; pick over record maps for layout- and vector-dependent strings, roles and opacity (input-bound visibility, no timeline on those objects); derived LaTeX equation text; elementwise and choose for the live bars; {{}} inside bar labels; code sources for every diagram step.',
   depth: 'Deep dive',
   prerequisites: 'Builds on: Guided; tensor shapes (B, T, C) and the variance of a sum.',
   ladderRole: 'Connects the mechanism to the exact implementation: equations, named tensor shapes, the pre-LN vs post-LN branch, the eps edge case and the depth-scaled init tradeoff, every diagram step tied to a source line.',
 };
 
+// The six approved states, each on the sub-card its content now lives on, then
+// 2/3 at x₀ and 3/3 scaled (NanoGPT's init) - the part defaults.
 export const reviewStates = [
-  { layout: 'pre', vector: 'x0', scaledInit: true },
-  { layout: 'post', vector: 'x0', scaledInit: true },
-  { layout: 'pre', vector: 'constant', scaledInit: true },
-  { layout: 'pre', vector: 'near', scaledInit: true },
-  { layout: 'pre', vector: 'x0', scaledInit: false },
-  { layout: 'post', vector: 'near', scaledInit: false },
+  { part: PARTS.wiring, layout: 'pre', vector: 'x0', scaledInit: true },
+  { part: PARTS.wiring, layout: 'post', vector: 'x0', scaledInit: true },
+  { part: PARTS.layernorm, layout: 'pre', vector: 'constant', scaledInit: true },
+  { part: PARTS.layernorm, layout: 'pre', vector: 'near', scaledInit: true },
+  { part: PARTS.init, layout: 'pre', vector: 'x0', scaledInit: false },
+  { part: PARTS.init, layout: 'post', vector: 'near', scaledInit: false },
+  { part: PARTS.layernorm, layout: 'pre', vector: 'x0', scaledInit: true },
+  { part: PARTS.init, layout: 'pre', vector: 'x0', scaledInit: true },
 ];

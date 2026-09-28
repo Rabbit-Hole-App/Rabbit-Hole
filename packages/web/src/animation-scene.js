@@ -20,6 +20,10 @@ const objectSchema = z.object({
   type: z.enum(RENDERED_TYPES),
   semanticId: z.string().max(64).optional(),
   conceptId: z.string().max(64).optional(),
+  // Sub-cards: the part (0-based) of a paged scene this object belongs to -
+  // on screen only while the scene's pager input picks that part. No part:
+  // on every part. See scene-evaluate.js.
+  part: z.number().int().min(0).max(3).optional(),
   initialState: z.object({
     label: z.string().max(200).optional(),
     text: z.string().max(600).optional(),
@@ -176,7 +180,9 @@ export const animationSchema = z.object({
   width: z.number().positive().max(4096).default(960),
   height: z.number().positive().max(4096).default(540),
   duration: z.number().positive().max(120),
-  objects: z.array(objectSchema).max(60),
+  // At most 60 on screen at once: per part for a paged scene (checked in
+  // validateScene), so four sub-cards may carry 60 each.
+  objects: z.array(objectSchema).max(240),
   timeline: z.array(eventSchema).max(200),
   camera: z.object({ x: z.number().nullable().default(null), y: z.number().nullable().default(null), zoom: z.number().positive().max(8).default(1) }).prefault({}),
 });
@@ -217,6 +223,10 @@ export function validateScene(raw) {
   // ever sees it, and the object it touched is stamped provenance: derived.
   // See scene-derive.js - this is the one place duplicated numbers stop
   // being possible, so it must run before anything else.
+  // A part only means something under a pager (scene-evaluate.js onePart);
+  // anywhere else every part would draw at once, on top of each other.
+  const unpaged = !raw?.paged && (raw?.objects || []).find(object => object?.part !== undefined);
+  if (unpaged) throw new Error(`Object "${unpaged.id}" declares a part, but no input is presented as a pager`);
   raw = resolveDerived(raw);
   // A legacy scene may still name a hex colour. Translate the closed set we
   // recognise into a role before zod ever sees `color` - unknown keys are
@@ -229,6 +239,11 @@ export function validateScene(raw) {
     throw new Error(`Invalid animation at ${issue.path.join('.') || 'root'}: ${issue.message}`);
   }
   const scene = parsed.data;
+  const parts = [...new Set(scene.objects.map(object => object.part).filter(part => part !== undefined))];
+  for (const part of parts.length ? parts : [undefined]) {
+    const onScreen = scene.objects.filter(object => object.part === undefined || object.part === part).length;
+    if (onScreen > 60) throw new Error(`Invalid animation at objects: ${onScreen} objects on screen at once${part === undefined ? '' : ` on part ${part + 1}`} (at most 60)`);
+  }
   const byId = new Map(scene.objects.map(object => [object.id, object]));
   const ids = new Set(byId.keys());
   if (ids.size !== scene.objects.length) throw new Error('Every animation object needs a unique id');

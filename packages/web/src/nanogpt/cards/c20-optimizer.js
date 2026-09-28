@@ -58,13 +58,14 @@ const LABELS = opt.optimizers.map(entry => (entry.id === 'adamw' ? 'AdamW (as in
 const LEFT_X = 170; // grids and bars share this x and pitch, so columns line up
 const CELL = 48;
 const RIGHT_X = 460;
-const NOTE_Y = 734;
+const NOTE_Y = 706;
+const DECAY_NOTE_Y = 622; // right column, under the decay grid
 
 export const scene = {
   id: 'nanogpt-c20-optimizer',
   title: 'One update step: from SGD to AdamW',
   width: 960,
-  height: 922,
+  height: 846,
   duration: 3,
   inputs: [
     { name: 'optimizer', type: 'index', label: 'Optimizer preset (stored toy results)', of: 'optimizerLabels', default: 0, presentation: 'picker' },
@@ -107,20 +108,20 @@ export const scene = {
     { id: 'toy-note', type: 'text', semanticId: 'provenance-note', conceptId: 'optimizer',
       initialState: { text: 'Calculated toy example: every optimizer gets the same {{steps}} seeded gradients, not from a loss', x: 40, y: 54, typography: 'annotation' } },
     { id: 'baseline-note', type: 'text', semanticId: 'optimizer-progression', conceptId: 'optimizer',
-      initialState: { text: 'SGD is the baseline; AdamW is what NanoGPT uses. Each preset is a stored toy result.', x: 40, y: 84 } },
+      initialState: { text: 'SGD is the baseline; AdamW is what NanoGPT uses. Each preset is a stored toy result.', x: 40, y: 78 } },
 
     // Left: given gradients -> SGD's step and the selected step on one scale -> signed values.
     { id: 'grad-grid', type: 'grid', semanticId: 'gradients', conceptId: 'optimizer',
-      initialState: { label: 'gradient g: given, same for all', x: LEFT_X, y: 178, rows: 3, cols: 4, cell: CELL, opacity: 0, role: 'input',
+      initialState: { label: 'gradient g: given, same for all', x: LEFT_X, y: 154, rows: 3, cols: 4, cell: CELL, opacity: 0, role: 'input',
         matrixKind: 'input', columnLabels: names, rowLabels: ['g at step {{steps}}', '{{steps}}-step mean', '{{steps}}-step RMS'], values: { $derive: 'gradients' } } },
     { id: 'sgd-bars', type: 'bars', semanticId: 'sgd-step-size', conceptId: 'optimizer',
-      initialState: { label: 'SGD baseline: |Δθ| ÷ lr', x: LEFT_X, y: 384, h: 52, cell: CELL, opacity: 0, role: 'neutral',
+      initialState: { label: 'SGD baseline: |Δθ| ÷ lr', x: LEFT_X, y: 354, h: 52, cell: CELL, opacity: 0, role: 'neutral',
         labels: names, values: { $derive: 'sgdAbs' }, peak: { $derive: 'selPeak' } } },
     { id: 'step-bars', type: 'bars', semanticId: 'step-size', conceptId: 'optimizer',
-      initialState: { label: 'Selected {{selLabel}}: |Δθ| ÷ lr', x: LEFT_X, y: 498, h: 52, cell: CELL, opacity: 0, role: 'output',
+      initialState: { label: 'Selected {{selLabel}}: |Δθ| ÷ lr', x: LEFT_X, y: 468, h: 52, cell: CELL, opacity: 0, role: 'output',
         labels: names, values: { $derive: 'selAbs' }, peak: { $derive: 'selPeak' } } },
     { id: 'update-grid', type: 'grid', semanticId: 'update', conceptId: 'optimizer',
-      initialState: { label: 'Δθ ÷ lr at step {{steps}}, signed', x: LEFT_X, y: 610, rows: 2, cols: 4, cell: CELL, opacity: 0, role: 'output',
+      initialState: { label: 'Δθ ÷ lr at step {{steps}}, signed', x: LEFT_X, y: 580, rows: 2, cols: 4, cell: CELL, opacity: 0, role: 'output',
         matrixKind: 'derived', rowLabels: ['SGD baseline', 'selected'], values: { $derive: 'updateRows' },
         cellHighlight: { row: 1 }, cellHighlightKind: 'highlight' } },
     { id: 'units-note', type: 'text', semanticId: 'units-note', conceptId: 'optimizer',
@@ -132,34 +133,40 @@ export const scene = {
 
     // Right: what the selected rule does, the toy parameters, and AdamW's addition.
     { id: 'selected', type: 'text', semanticId: 'selected-optimizer', conceptId: 'optimizer',
-      initialState: { text: 'Selected: {{selLabel}}', x: RIGHT_X, y: 150, typography: 'heading', role: 'output' } },
+      initialState: { text: 'Selected: {{selLabel}}', x: RIGHT_X, y: 126, typography: 'heading', role: 'output' } },
     ...[0, 1, 2, 3, 4, 5].map(line => ({ id: `explain-${line}`, type: 'text', semanticId: `explain-${line}`, conceptId: 'optimizer',
-      initialState: { text: `{{explain.${line}}}`, x: RIGHT_X, y: 180 + line * 22 } })),
+      initialState: { text: `{{explain.${line}}}`, x: RIGHT_X, y: 156 + line * 22 } })),
     { id: 'params-title', type: 'text', semanticId: 'params-title', conceptId: 'optimizer',
-      initialState: { text: 'The toy parameters and their starting values:', x: RIGHT_X, y: 322, typography: 'annotation' } },
+      initialState: { text: 'The toy parameters and their starting values:', x: RIGHT_X, y: 298, typography: 'annotation' } },
     ...[0, 1, 2, 3].map(index => ({ id: `param-${index}`, type: 'text', semanticId: `param-${index}`, conceptId: 'optimizer',
-      initialState: { text: `{{params.${index}.name}}  {{params.${index}.role}}; θ starts at {{params.${index}.theta}}`, x: RIGHT_X + 12, y: 342 + index * 18, typography: 'annotation' } })),
+      initialState: { text: `{{params.${index}.name}}  {{params.${index}.role}}; θ starts at {{params.${index}.theta}}`, x: RIGHT_X + 12, y: 318 + index * 18, typography: 'annotation' } })),
     { id: 'decay-grid', type: 'grid', semanticId: 'adamw-decay-part', conceptId: 'weight-decay',
-      initialState: { label: 'What AdamW adds (Δθ ÷ lr)', x: 580, y: 474, rows: 3, cols: 4, cell: CELL, opacity: 0, role: 'neutral',
+      initialState: { label: 'What AdamW adds (Δθ ÷ lr)', x: 580, y: 450, rows: 3, cols: 4, cell: CELL, opacity: 0, role: 'neutral',
         matrixKind: 'derived', columnLabels: names, rowLabels: ['Adam', '+ decay (live)', '= AdamW'], values: { $derive: 'decayRows' } } },
     { id: 'decay-note-1', type: 'text', semanticId: 'decay-note-1', conceptId: 'weight-decay',
-      initialState: { text: 'live calculation: + decay = AdamW’s Δθ ÷ lr minus Adam’s', x: RIGHT_X, y: NOTE_Y, typography: 'annotation' } },
+      initialState: { text: 'live calculation: + decay = AdamW’s Δθ ÷ lr minus Adam’s', x: RIGHT_X, y: DECAY_NOTE_Y, typography: 'annotation' } },
     { id: 'decay-note-2', type: 'text', semanticId: 'decay-note-2', conceptId: 'weight-decay',
-      initialState: { text: 'the decay part −wd × θ (wd {{wd}}) pulls each weight toward zero', x: RIGHT_X, y: NOTE_Y + 20, typography: 'annotation' } },
+      initialState: { text: 'the decay part −wd × θ (wd {{wd}}) pulls each weight toward zero', x: RIGHT_X, y: DECAY_NOTE_Y + 20, typography: 'annotation' } },
     { id: 'decay-note-3', type: 'text', semanticId: 'decay-note-3', conceptId: 'weight-decay',
-      initialState: { text: 'cells are rounded; the decay row uses unrounded values', x: RIGHT_X, y: NOTE_Y + 40, typography: 'annotation' } },
+      initialState: { text: 'cells are rounded; the decay row uses unrounded values', x: RIGHT_X, y: DECAY_NOTE_Y + 40, typography: 'annotation' } },
 
-    // Decay exemptions, toy settings, and what is deliberately not modelled.
+    // Decay exemptions (right column, under the decay notes; each sentence
+    // wrapped onto two lines to fit the column), then toy settings and what is
+    // deliberately not modelled (full width, at the bottom).
     { id: 'exempt-note-1', type: 'text', semanticId: 'exempt-note-1', conceptId: 'weight-decay',
-      initialState: { text: 'No decay for 1-D params (biases, LayerNorm weights); the toy b stands for them.', x: 40, y: 808, typography: 'annotation' } },
+      initialState: { text: 'No decay for 1-D params (biases, LayerNorm weights);', x: RIGHT_X, y: NOTE_Y - 20, typography: 'annotation' } },
+    { id: 'exempt-note-1b', type: 'text', semanticId: 'exempt-note-1b', conceptId: 'weight-decay',
+      initialState: { text: 'the toy b stands for them.', x: RIGHT_X, y: NOTE_Y, typography: 'annotation' } },
     { id: 'exempt-note-2', type: 'text', semanticId: 'exempt-note-2', conceptId: 'weight-decay',
-      initialState: { text: 'NanoGPT sets bias = {{biasFlag}}, so there only LayerNorm weights are exempt.', x: 40, y: 828, typography: 'annotation' } },
+      initialState: { text: 'NanoGPT sets bias = {{biasFlag}},', x: RIGHT_X, y: NOTE_Y + 20, typography: 'annotation' } },
+    { id: 'exempt-note-2b', type: 'text', semanticId: 'exempt-note-2b', conceptId: 'weight-decay',
+      initialState: { text: 'so there only LayerNorm weights are exempt.', x: RIGHT_X, y: NOTE_Y + 40, typography: 'annotation' } },
     { id: 'settings-note', type: 'text', semanticId: 'settings-note', conceptId: 'optimizer',
-      initialState: { text: 'betas ({{b1}}, {{b2}}) and wd {{wd}} are source values, NanoGPT’s defaults; lr {{lr}} is a toy choice.', x: 40, y: 852, typography: 'annotation' } },
+      initialState: { text: 'betas ({{b1}}, {{b2}}) and wd {{wd}} are source values, NanoGPT’s defaults; lr {{lr}} is a toy choice.', x: 40, y: 780, typography: 'annotation' } },
     { id: 'beta2-note', type: 'text', semanticId: 'beta2-note', conceptId: 'optimizer',
-      initialState: { text: 'NanoGPT’s Shakespeare-char config raises beta2 to {{charB2}}; the toy keeps {{b2}}.', x: 40, y: 874, typography: 'annotation' } },
+      initialState: { text: 'NanoGPT’s Shakespeare-char config raises beta2 to {{charB2}}; the toy keeps {{b2}}.', x: 40, y: 800, typography: 'annotation' } },
     { id: 'clip-note', type: 'text', semanticId: 'clip-note', conceptId: 'optimizer',
-      initialState: { text: 'Not modelled: NanoGPT clips the gradient norm to {{clip}} before each step.', x: 40, y: 896, typography: 'annotation' } },
+      initialState: { text: 'Not modelled: NanoGPT clips the gradient norm to {{clip}} before each step.', x: 40, y: 820, typography: 'annotation' } },
   ],
   timeline: [
     { at: 0.2, action: 'appear', target: 'grad-grid', duration: 0.4 },

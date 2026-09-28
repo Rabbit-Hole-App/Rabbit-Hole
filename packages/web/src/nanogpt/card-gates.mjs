@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { evaluateScene } from '../scene-evaluate.js';
 import { checkSceneConsistency } from '../scene-consistency.js';
 import { checkLayoutLint } from '../scene-layout-lint.js';
-import { cellLegibilityIssues } from '../scene-layout.js';
+import { cellLegibilityIssues, sceneContentBounds, sceneLegibility, sceneViewBox } from '../scene-layout.js';
 import { textStyle } from '../scene-style.js';
 import { sourceProblems } from '../card-sources.js';
 import { FLAG_RUBRIC, boundaryFlags, planProblems, unreviewedFlags } from '../card-plan.js';
@@ -46,19 +46,51 @@ export function citationsOnSurface(state) {
 }
 
 // Run every gate at every input snapshot; returns the evaluations so a test
-// can make its own numeric assertions on the same states.
+// can make its own numeric assertions on the same states. A paged card is
+// gated on EVERY sub-card: a snapshot that does not name the pager runs on
+// each part (the returned evaluation is the snapshot as given).
 export function assertCardGates(scene, snapshots = [{}]) {
+  const pager = (scene.inputs || []).find(input => input.presentation === 'pager');
+  const parts = pager ? scene.exampleData[pager.of].map((unused, k) => k) : [];
+  // The frame box the canvas gives this card (sized from the static scene,
+  // LearningBlocks sizeFor); the scene is then fitted into it from its
+  // evaluated bounds, which is the scale it is actually drawn at.
+  const legibility = sceneLegibility(scene);
+  const aspect = legibility.viewport.w / legibility.viewport.h;
   return snapshots.map(inputs => {
-    const result = evaluated(scene, inputs);
-    const where = JSON.stringify(inputs);
-    assert.ok(result.scene.objects.length <= 60, `${where}: ${result.scene.objects.length} objects (scene limit 60)`);
-    assert.deepEqual(checkSceneConsistency(result.scene).issues, [], `consistency at ${where}`);
-    assert.deepEqual(checkLayoutLint(result.scene).issues, [], `layout lint at ${where}`);
-    assert.deepEqual(textOverflow(result.state, scene.width), [], `text overflow at ${where}`);
-    assert.deepEqual(citationsOnSurface(result.state), [], `citations on the teaching surface at ${where}`);
-    assert.deepEqual(cellLegibilityIssues(result.state), [], `cell numbers below the 12px floor at ${where}`);
-    return result;
+    const runs = pager && inputs[pager.name] === undefined ? parts.map(part => ({ ...inputs, [pager.name]: part })) : [inputs];
+    const results = runs.map(run => gateOne(scene, run, pager, legibility, aspect));
+    return pager && inputs[pager.name] === undefined ? evaluated(scene, inputs) : results[0];
   });
+}
+
+function gateOne(scene, inputs, pager, legibility, aspect) {
+  const result = evaluated(scene, inputs);
+  const where = JSON.stringify(inputs);
+  // What is on screen: shared objects and the current part's (a hidden part
+  // shares the coordinates, so checks that compare objects must not see it).
+  const part = pager ? result.inputs[pager.name] : undefined;
+  const onScreen = { ...result.scene, objects: result.scene.objects.filter(object => object.part === undefined || object.part === part) };
+  assert.ok(onScreen.objects.length <= 60, `${where}: ${onScreen.objects.length} objects on screen (limit 60 per sub-card)`);
+  // Nothing renders below its type's floor at the size it is drawn
+  // (LEGIBILITY_FLOORS: body 15, annotation 13, caption 14, grid numerals 12).
+  // A scene past the viewport cap is scaled down whole - how the Deep dives
+  // drew 13px annotations at about 11px; too much for one frame is paged into
+  // sub-cards, never shrunk. 0.05px absorbs float rounding of an exact fit.
+  const drawn = legibility.viewport.w / sceneViewBox(sceneContentBounds(result.scene), aspect).span.w;
+  for (const [name, { authored, floor }] of Object.entries(legibility.effective)) {
+    assert.ok(authored * drawn + 0.05 >= floor, `${where}: ${name} text draws at ${(authored * drawn).toFixed(1)}px, below its ${floor}px floor (drawn at scale ${drawn.toFixed(3)}) - page it into sub-cards or tighten it`);
+  }
+  if (pager && part > 0) {
+    const buildsOn = result.state.objects.filter(object => object.visible && /^Builds on/.test(object.label || ''));
+    assert.deepEqual(buildsOn.map(object => object.id), [], `${where}: "Builds on:" belongs on sub-card 1 only`);
+  }
+  assert.deepEqual(checkSceneConsistency(onScreen).issues, [], `consistency at ${where}`);
+  assert.deepEqual(checkLayoutLint(onScreen).issues, [], `layout lint at ${where}`);
+  assert.deepEqual(textOverflow(result.state, scene.width), [], `text overflow at ${where}`);
+  assert.deepEqual(citationsOnSurface(result.state), [], `citations on the teaching surface at ${where}`);
+  assert.deepEqual(cellLegibilityIssues(result.state), [], `cell numbers below the 12px floor at ${where}`);
+  return result;
 }
 
 // Every card declares its sources: well-formed, code pinned to the connected

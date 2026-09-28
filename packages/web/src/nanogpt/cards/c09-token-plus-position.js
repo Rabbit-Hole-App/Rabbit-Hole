@@ -9,6 +9,13 @@
 // per row). x, the two e's and their difference are live derive ops. "wpe
 // off" is a what-if: NanoGPT always adds pos_emb. The table maximum (0.90)
 // bounds every sum, so the one shared colour scale never moves.
+//
+// Two sub-cards (owner rule WP6, one idea per frame): Part 1/2 is the
+// pipeline (idx, both tables, the trace to x); Part 2/2 is the consequence
+// (the two e's side by side, in the largest cells a grid allows). The
+// dropout and all-positions notes stay under the trace (stage 3). Status and
+// colour key are on both. Every part is laid out from the top; the frame fits
+// the taller 1/2.
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
 import { code, calculation, tinyShakespeare } from '../sources.js';
 import { TOY_WTE, WORD_TOKENS } from './c07-embedding-lookup.js';
@@ -32,11 +39,15 @@ const DIFF = `x at ${P2} − x at ${P1}`;
 
 // 48, not 44: at 44 the minus of "-0.87" sat on the cell border.
 const CELL = 48;
-const WTE = { x: 120, y: 292 };
-const WPE = { x: 390, y: 292 };
+const WTE = { x: 120, y: 316 };
+const WPE = { x: 390, y: 316 };
 const TRACE_X = 620;
-const TRACE = { tok: 312, pos: 408, x: 504 };
-const PAIR = { x: 160, y: 640 };
+const TRACE = { tok: 336, pos: 432, x: 528 };
+// 2/2 has the pair alone, so its cells are the largest a grid allows (80).
+const PAIR = { x: 160, y: 160, cell: 80 };
+const PAIR_BOTTOM = PAIR.y + 3 * PAIR.cell;
+const PARTS = ['Look up two rows and add them', 'The two e’s compared'];
+const onPart = (part, objects) => objects.map(object => ({ ...object, part }));
 const rowOf = position => ROW_IDS.indexOf(IDS[position]);
 const box = (x, y) => {
   const x0 = x - 3, x1 = x + 4 * CELL + 3, y0 = y - 3, y1 = y + CELL + 3;
@@ -58,15 +69,19 @@ export const scene = {
   id: 'nanogpt-c09-token-plus-position',
   title: 'Token + position = the block’s input',
   width: 960,
-  height: 874,
+  height: 700,
   duration: 3,
   inputs: [
+    { name: 'part', type: 'index', label: 'Part', of: 'parts', default: 0, presentation: 'pager' },
     { name: 'position', type: 'index', label: `Position in “${WORD}”`, of: 'positionLabels', default: P2, presentation: 'slider' },
     { name: 'wpe', type: 'bool', label: 'Add wpe, the position row (off = what-if)', default: true },
   ],
   exampleData: {
+    parts: PARTS,
     positionLabels: CHARS.map((ch, i) => `${i} · ${ch}`),
-    chars: CHARS,
+    // Composed per position so the unresolved {{marker}} text never widens the
+    // static frame past what any state draws.
+    selectedLabels: CHARS.map((ch, i) => `Position ${i}: “${ch}”, token ID ${IDS[i]}`),
     ids: IDS,
     rowOfPosition: CHARS.map((unused, i) => rowOf(i)),
     wteRows: ROW_CHARS.map(ch => TOY_WTE[ch]),
@@ -89,11 +104,10 @@ export const scene = {
     roleOff: 'warning',
     vocab: A.vocab_size,
     T: A.block_size,
-    nEmbd: A.n_embd,
     p: A.dropout,
   },
   derived: {
-    ch: { op: 'pick', args: ['chars', 'position'] },
+    selectedLabel: { op: 'pick', args: ['selectedLabels', 'position'] },
     id: { op: 'pick', args: ['ids', 'position'] },
     row: { op: 'pick', args: ['rowOfPosition', 'position'] },
     // ② one row from each table.
@@ -125,49 +139,59 @@ export const scene = {
     stateRole: { op: 'choose', args: ['wpe', 'roleOn', 'roleOff'] },
   },
   objects: [
-    text('question', `Two e’s in “${WORD}”: do they enter the first block as the same vector?`, 40, 34, { typography: 'heading' }),
+    ...onPart(0, [
+      text('question', `Two e’s in “${WORD}”: do they enter the first block as the same vector?`, 40, 34, { typography: 'heading' }),
+
+      { id: 'idx', type: 'grid', semanticId: 'token-ids', conceptId: 'token-ids',
+        initialState: { label: `idx: “${WORD}” as character IDs`, x: 150, y: 160, rows: 2, cols: CHARS.length, cell: CELL,
+          matrixKind: 'input', numberFormat: 'integer', role: 'input', rowLabels: ['position', 'token ID'], columnLabels: [...CHARS],
+          values: [...CHARS.map((unused, i) => i), ...IDS], cellHighlight: { col: { $derive: 'position' } }, cellHighlightKind: 'select' } },
+      text('selected', '{{selectedLabel}}', 470, 196, { role: 'input' }),
+      note('reads', '{{reads}}', 470, 220),
+
+      // ① two tables.
+      { id: 'wte', type: 'grid', semanticId: 'wte-table', conceptId: 'token-embedding',
+        initialState: { label: `① wte, by token ID (${ROW_IDS.length} of {{vocab}} rows)`, x: WTE.x, y: WTE.y, rows: ROW_IDS.length, cols: 4, cell: CELL,
+          matrixKind: 'input', role: 'neutral', ...heat, rowLabels: ROW_IDS.map((id, r) => `row ${id} · ${ROW_CHARS[r]}`),
+          values: { $derive: 'wteRows' }, cellHighlight: { row: { $derive: 'row' } }, cellHighlightKind: 'highlight' } },
+      { id: 'wpe-table', type: 'grid', semanticId: 'wpe-table', conceptId: 'position-embedding',
+        initialState: { label: `① wpe, by position (${TOY_WPE.length} of {{T}} rows)`, x: WPE.x, y: WPE.y, rows: TOY_WPE.length, cols: 4, cell: CELL,
+          matrixKind: 'input', role: 'neutral', ...heat, rowLabels: TOY_WPE.map((unused, p) => `row ${p}`),
+          values: { $derive: 'wpeRows' }, cellHighlight: { row: { $derive: 'position' } }, cellHighlightKind: 'highlight' } },
+      ...frame('wte-lit', 'wteFrame'),
+      // No appear on these: their opacity follows wpe (an appear would win).
+      ...frame('wpe-lit', 'wpeFrame', { opacity: { $derive: 'wpeFrameOpacity' } }),
+
+      // ② one row from each, ③ add them.
+      strip('token-row', '② token row = wte row {{id}}', TRACE.tok, 'tokRow'),
+      text('plus', '+', TRACE_X - 26, TRACE.pos + CELL / 2 + 8, { typography: 'heading', opacity: 0 }),
+      strip('position-row', '{{posLabel}}', TRACE.pos, 'posRowShown'),
+      text('equals', '=', TRACE_X - 26, TRACE.x + CELL / 2 + 8, { typography: 'heading', opacity: 0 }),
+      strip('x-row', '{{xLabel}}', TRACE.x, 'x', { role: { $derive: 'stateRole' } }),
+      note('x-note', '{{xNote}}', TRACE_X, TRACE.x + CELL + 20, { opacity: 0 }),
+
+      // Stage 3's notes, under the whole trace (below the wpe row 5 frame, 607).
+      note('dropout', 'Then x = drop(tok_emb + pos_emb): dropout (p = {{p}} in training) comes next and is not modelled here.', 40, 640),
+      note('shape', `NanoGPT adds them at all positions at once: tok_emb (B, T, ${A.n_embd}) + pos_emb (T, ${A.n_embd}), T ≤ block_size = ${A.block_size}.`, 40, 662),
+    ]),
+
+    // On both parts: what kind of number each thing is, and the one colour scale.
     note('status', 'IDs: Source value · tables: Calculated toy example, 4 numbers per row · x: Live calculation · wpe off: What-if', 40, 62),
-
-    { id: 'idx', type: 'grid', semanticId: 'token-ids', conceptId: 'token-ids',
-      initialState: { label: `idx: “${WORD}” as character IDs`, x: 150, y: 136, rows: 2, cols: CHARS.length, cell: CELL,
-        matrixKind: 'input', numberFormat: 'integer', role: 'input', rowLabels: ['position', 'token ID'], columnLabels: [...CHARS],
-        values: [...CHARS.map((unused, i) => i), ...IDS], cellHighlight: { col: { $derive: 'position' } }, cellHighlightKind: 'select' } },
-    text('selected', 'Position {{position}}: “{{ch}}”, token ID {{id}}', 470, 172, { role: 'input' }),
-    note('reads', '{{reads}}', 470, 196),
-
-    // ① two tables.
-    { id: 'wte', type: 'grid', semanticId: 'wte-table', conceptId: 'token-embedding',
-      initialState: { label: `① wte, by token ID (${ROW_IDS.length} of {{vocab}} rows)`, x: WTE.x, y: WTE.y, rows: ROW_IDS.length, cols: 4, cell: CELL,
-        matrixKind: 'input', role: 'neutral', ...heat, rowLabels: ROW_IDS.map((id, r) => `row ${id} · ${ROW_CHARS[r]}`),
-        values: { $derive: 'wteRows' }, cellHighlight: { row: { $derive: 'row' } }, cellHighlightKind: 'highlight' } },
-    { id: 'wpe-table', type: 'grid', semanticId: 'wpe-table', conceptId: 'position-embedding',
-      initialState: { label: `① wpe, by position (${TOY_WPE.length} of {{T}} rows)`, x: WPE.x, y: WPE.y, rows: TOY_WPE.length, cols: 4, cell: CELL,
-        matrixKind: 'input', role: 'neutral', ...heat, rowLabels: TOY_WPE.map((unused, p) => `row ${p}`),
-        values: { $derive: 'wpeRows' }, cellHighlight: { row: { $derive: 'position' } }, cellHighlightKind: 'highlight' } },
-    ...frame('wte-lit', 'wteFrame'),
-    // No appear on these: their opacity follows wpe (an appear would win).
-    ...frame('wpe-lit', 'wpeFrame', { opacity: { $derive: 'wpeFrameOpacity' } }),
-
-    // ② one row from each, ③ add them.
-    strip('token-row', '② token row = wte row {{id}}', TRACE.tok, 'tokRow'),
-    text('plus', '+', TRACE_X - 26, TRACE.pos + CELL / 2 + 8, { typography: 'heading', opacity: 0 }),
-    strip('position-row', '{{posLabel}}', TRACE.pos, 'posRowShown'),
-    text('equals', '=', TRACE_X - 26, TRACE.x + CELL / 2 + 8, { typography: 'heading', opacity: 0 }),
-    strip('x-row', '{{xLabel}}', TRACE.x, 'x', { role: { $derive: 'stateRole' } }),
-    note('x-note', '{{xNote}}', TRACE_X, TRACE.x + CELL + 20, { opacity: 0 }),
+    note('scale', 'Colour: orange = +, blue = −, one scale for both tables and every row on the card.', 40, 84),
 
     // The consequence: the two e's side by side.
-    { id: 'pair', type: 'grid', semanticId: 'two-occurrences', conceptId: 'embeddings',
-      initialState: { label: `The two ${REPEAT}’s as the first block reads them`, x: PAIR.x, y: PAIR.y, rows: 3, cols: 4, cell: CELL,
-        matrixKind: 'derived', provenance: 'derived', role: { $derive: 'stateRole' }, ...heat,
-        rowLabels: [`x at position ${P1}`, `x at position ${P2}`, DIFF], values: { $derive: 'pair' }, opacity: 0 } },
-    text('verdict', '{{verdict}}', 390, PAIR.y + 38, { role: { $derive: 'stateRole' }, opacity: 0 }),
-    note('why', '{{why}}', 390, PAIR.y + 62, { opacity: 0 }),
-
-    note('dropout', 'Then x = drop(tok_emb + pos_emb): dropout (p = {{p}} in training) comes next and is not modelled here.', 40, 814),
-    note('shape', 'NanoGPT adds them at all positions at once: tok_emb (B, T, {{nEmbd}}) + pos_emb (T, {{nEmbd}}), T ≤ block_size = {{T}}.', 40, 836),
-    note('scale', 'Colour: orange = +, blue = −, one scale for both tables and every row on the card.', 40, 858),
+    ...onPart(1, [
+      text('question-pair', `Side by side: can the two ${REPEAT}’s be told apart, with wpe and without?`, 40, 34, { typography: 'heading' }),
+      { id: 'pair', type: 'grid', semanticId: 'two-occurrences', conceptId: 'embeddings',
+        initialState: { label: `The two ${REPEAT}’s as the first block reads them`, x: PAIR.x, y: PAIR.y, rows: 3, cols: 4, cell: PAIR.cell,
+          matrixKind: 'derived', provenance: 'derived', role: { $derive: 'stateRole' }, ...heat,
+          rowLabels: [`x at position ${P1}`, `x at position ${P2}`, DIFF], values: { $derive: 'pair' }, opacity: 0 } },
+      text('verdict', '{{verdict}}', 40, PAIR_BOTTOM + 44, { role: { $derive: 'stateRole' }, opacity: 0 }),
+      note('why', '{{why}}', 40, PAIR_BOTTOM + 68, { opacity: 0 }),
+    ]),
   ],
+  // A hidden part's events are dropped (scene-evaluate.js onePart), so 2/2
+  // starts its own reveal at 0.4 rather than after 1/2's.
   timeline: [
     { at: 0.4, action: 'appear', target: 'token-row', duration: 0.4 },
     { at: 0.8, action: 'appear', target: 'plus', duration: 0.3 },
@@ -175,14 +199,18 @@ export const scene = {
     { at: 1.4, action: 'appear', target: 'equals', duration: 0.3 },
     { at: 1.4, action: 'appear', target: 'x-row', duration: 0.4 },
     { at: 1.6, action: 'appear', target: 'x-note', duration: 0.3 },
-    { at: 2.1, action: 'appear', target: 'pair', duration: 0.4 },
-    { at: 2.4, action: 'appear', target: 'verdict', duration: 0.3 },
-    { at: 2.4, action: 'appear', target: 'why', duration: 0.3 },
+    { at: 0.4, action: 'appear', target: 'pair', duration: 0.4 },
+    { at: 0.7, action: 'appear', target: 'verdict', duration: 0.3 },
+    { at: 0.7, action: 'appear', target: 'why', duration: 0.3 },
   ],
 };
 
+// Every approved state on the part its content now lives on: the pipeline
+// varies with position and wpe (1/2); the pair only with wpe (2/2).
 export const reviewStates = [
-  { position: P2, wpe: true }, { position: P1, wpe: true }, { position: P2, wpe: false }, { position: P1, wpe: false }, { position: 0, wpe: true },
+  { part: 0, position: P2, wpe: true }, { part: 0, position: P1, wpe: true }, { part: 0, position: P2, wpe: false },
+  { part: 0, position: P1, wpe: false }, { part: 0, position: 0, wpe: true },
+  { part: 1, position: P2, wpe: true }, { part: 1, position: P2, wpe: false },
 ];
 
 // Practice: a transfer question - the pair it asks about is not drawn, so the
@@ -219,11 +247,12 @@ export const plan = {
     'stage 2: pick one row from each',
     'stage 3: add them → x (then dropout, noted, not modelled)',
   ],
-  primaryInteraction: 'a position slider for a repeated character, plus a what-if "wpe off": with positions the two occurrences differ; without, they are identical',
+  primaryInteraction: 'a position slider for a repeated character, plus a what-if "wpe off", shared by two sub-cards: Part 1/2 traces the lit rows and x at the chosen position, Part 2/2 sets the two occurrences side by side - with positions they differ; without, they are identical',
   check: 'practice: predict whether two occurrences of the same character enter the block as the same vector, with wpe on and with wpe off (asked about a third e the card does not draw, so it needs the rule, not the picture)',
   boundary: {
     decision: 'staged',
-    reason: 'one causal pipeline (lookup, lookup, add), revealed in stages; card 8\'s two tables are its first stage, not a separate idea',
+    reason: 'one causal pipeline (lookup, lookup, add), revealed in stages; card 8\'s two tables are its first stage, not a separate idea. Paged into two sub-cards, one visual each: Part 1/2 the pipeline to x, Part 2/2 its consequence for the two e\'s',
+    reviewed: {},
     sequence: { name: 'Embeddings', position: 2, of: 2, relationships: [{ type: 'prerequisite', card: 'c07-embedding-lookup' }] },
   },
 };
@@ -257,9 +286,9 @@ export const evidence = {
   concept: 'GPT.forward builds the first Block\'s input as x = drop(wte(idx) + wpe(pos)): a token row chosen by the token ID plus a position row chosen by the position 0..t-1. The same token at two positions reads the same wte row but different wpe rows, so it enters as two different vectors; without wpe (a what-if) the two would be identical. Absorbs inventory card 8 (the two tables) as stage 1.',
   sourceRevision: `${fx.provenance.nanogpt.repo}@${fx.provenance.nanogpt.commit}`,
   provenance: `source: model.py:127-128 (wte, wpe), :173-174 (pos = arange, t <= block_size), :177-179 (tok_emb, pos_emb, x = drop(sum)), :180-181 (first Block reads x), config/train_shakespeare_char.py:19, :24-25, data/shakespeare_char/prepare.py:24-33 - checked against the pinned files. Source value: IDs ${fmt(IDS)} from fx.tokenizer, block_size/n_embd/dropout from fx.architecture. Calculated toy example: wte (c07's rows) and 6 wpe rows, 4 numbers each, typed into the cards. Live calculation: pick, add, choose, gate, sub, concat. What-if: wpe off.`,
-  control: `position - index slider over the ${CHARS.length} positions of "${WORD}" (default ${P2}, the second ${REPEAT}); wpe - bool "Add wpe, the position row (off = what-if)", default on.`,
-  consequence: `Position moves the ringed idx column, the lit wte row (by ID) and the lit wpe row (by position); the trace strips show that token row + position row = x. At positions ${P1} and ${P2} the wte row is the same (${IDS[P1]}) and the wpe row differs, so x differs. The pair grid always shows x at ${P1}, x at ${P2} and their difference: non-zero (= wpe row ${P2} − wpe row ${P1}) with wpe on; with wpe off the position strip blanks, the wpe frame goes, x is the token row alone, both rows of the pair are identical and the difference row is all zeros, captions and roles switch to the what-if warning.`,
+  control: `part - pager in the card header, "Part · 1/2" (${PARTS[0]}) and "Part · 2/2" (${PARTS[1]}), Previous / Next, default 1/2; position - index slider over the ${CHARS.length} positions of "${WORD}" (default ${P2}, the second ${REPEAT}); wpe - bool "Add wpe, the position row (off = what-if)", default on. Position and wpe sit in the one INTERACT row both parts share.`,
+  consequence: `Both parts read one input state. Part 1/2: position moves the ringed idx column, the lit wte row (by ID) and the lit wpe row (by position); the trace strips show that token row + position row = x. At positions ${P1} and ${P2} the wte row is the same (${IDS[P1]}) and the wpe row differs, so x differs. Part 2/2: the pair grid always shows x at ${P1}, x at ${P2} and their difference: non-zero (= wpe row ${P2} − wpe row ${P1}) with wpe on; with wpe off the position strip blanks, the wpe frame goes, x is the token row alone (1/2), both rows of the pair are identical and the difference row is all zeros (2/2), captions and roles switch to the what-if warning on both. The dropout and all-positions notes sit under the trace on 1/2; the pair on 2/2 is drawn larger, with the verdict under it.`,
   interactionPurpose: 'See where position information enters: the token part of x is fixed by the ID, the position part by the slot, and removing wpe (what-if) makes repeated tokens indistinguishable.',
-  task: `Slide between positions ${P1} and ${P2} and compare the lit rows and x; turn wpe off and watch the pair's difference row go to zero. Practice: predict for a third ${REPEAT} at position ${P3}, not drawn, with wpe on and off.`,
-  capability: 'index slider + bool; pick of table rows and of derived frame corners; add/sub/concat live arithmetic; gate to blank the what-if row; choose for captions, roles and a derived frame opacity (no appear on those lines); cellHighlight rows bound to derived values; signed heat on one shared valueScaleGroup with a state-independent domain; a choice practice with a transfer question.',
+  task: `On Part 1/2, slide between positions ${P1} and ${P2} and compare the lit rows and x; on Part 2/2, turn wpe off and watch the pair's difference row go to zero. Practice: predict for a third ${REPEAT} at position ${P3}, not drawn, with wpe on and off.`,
+  capability: 'a Part pager over two sub-cards (objects carry part; status line and colour key on both; one frame sized for the taller part, so paging never rescales); index slider + bool; pick of table rows and of derived frame corners; add/sub/concat live arithmetic; gate to blank the what-if row; choose for captions, roles and a derived frame opacity (no appear on those lines); cellHighlight rows bound to derived values; signed heat on one shared valueScaleGroup with a state-independent domain; a choice practice with a transfer question.',
 };

@@ -122,10 +122,14 @@ export function gridAxisLabelBoxes(object) {
   if (object.type !== 'grid') return [];
   const cell = object.cell || 24;
   const boxes = [];
-  for (const [row, text] of (object.rowLabels || []).entries()) {
+  // Before evaluation a derived label list is still a {$derive} marker (the
+  // canvas sizes a card from its raw scene): nothing to measure yet, never a
+  // crash. The evaluated frame fit measures the resolved labels.
+  const list = labels => (Array.isArray(labels) ? labels : []);
+  for (const [row, text] of list(object.rowLabels).entries()) {
     boxes.push({ text, x: object.x - ROW_LABEL_GAP, y: object.y + row * cell + cell / 2, anchor: 'end', baseline: 'central' });
   }
-  for (const [column, text] of (object.columnLabels || []).entries()) {
+  for (const [column, text] of list(object.columnLabels).entries()) {
     boxes.push({ text, x: object.x + column * cell + cell / 2, y: object.y - COLUMN_LABEL_GAP, anchor: 'middle', baseline: 'auto' });
   }
   return boxes;
@@ -229,6 +233,9 @@ function widestText(scene, object) {
 }
 
 function everDrawn(scene, object) {
+  // A sub-card object is drawn on its own part (scene-evaluate.js onePart), so
+  // every part counts toward the frame and paging never rescales the card.
+  if (object.part !== undefined) return true;
   if ((object.initialState?.opacity ?? 1) > 0) return true;
   return (scene.timeline || []).some(event => event.target === object.id && REVEALING_ACTIONS.has(event.action));
 }

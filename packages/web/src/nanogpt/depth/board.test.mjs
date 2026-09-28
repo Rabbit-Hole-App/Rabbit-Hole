@@ -25,12 +25,16 @@ test('every card names its concept and depth, and no title hides inside another'
   for (const a of titles) for (const b of titles) if (a !== b) assert.ok(!b.includes(a), `"${a}" is inside "${b}"`);
 });
 
-test('every card carries sources and 2-6 review states; ids are unique', () => {
+// A paged card may take 3 review states per sub-card (so every part is seen).
+test('every card carries sources and 2-6 review states (3 per sub-card when paged); ids are unique', () => {
   assert.equal(new Set(cards.map(block => block.scene.id)).size, 18);
   for (const block of cards) {
     assert.ok(validSources(block.sources).length > 0 && validSources(block.sources).length === block.sources.length, `${block.scene.id} sources`);
     const states = DEPTH_REVIEW_STATES[block.scene.id];
-    assert.ok(Array.isArray(states) && states.length >= 2 && states.length <= 6, `${block.scene.id} reviewStates`);
+    const pager = (block.scene.inputs || []).find(input => input.presentation === 'pager');
+    const cap = pager ? Math.max(6, 3 * block.scene.exampleData[pager.of].length) : 6;
+    assert.ok(Array.isArray(states) && states.length >= 2 && states.length <= cap, `${block.scene.id} reviewStates`);
+    if (pager) for (const [k] of block.scene.exampleData[pager.of].entries()) assert.ok(states.some(state => state[pager.name] === k), `${block.scene.id}: no review state on sub-card ${k + 1}`);
   }
 });
 

@@ -40,8 +40,11 @@ const TYPE_FIELDS = {
 // the default), 'slider' (an integer slider with Previous/Next steppers, for
 // domains too long to read as chips), or 'visual' (the scene object bound
 // via pickInput IS the control - accessible items on the visual itself, no
-// duplicate strip widget). Presentation only - all edit the same input.
-const INDEX_PRESENTATIONS = ['picker', 'slider', 'visual'];
+// duplicate strip widget), or 'pager' (the scene's sub-cards: Previous / Next
+// in the card header, not a row in INTERACT - its list names the parts, and
+// objects declare which part they belong to; see scene-evaluate.js). At most
+// one pager per scene. Presentation only - all edit the same input.
+const INDEX_PRESENTATIONS = ['picker', 'slider', 'visual', 'pager'];
 // `hidden: true` declares an input the ACTIVITY machinery owns - a commit/
 // reveal latch. It renders no widget, and the generic learner command path
 // refuses to write it (see applyInputToBlock); only the activity reducer
@@ -91,6 +94,11 @@ export function validateInputDeclarations(declarations, exampleData = {}, reserv
       }
       if (declaration.type === 'index' && declaration.presentation !== undefined && !INDEX_PRESENTATIONS.includes(declaration.presentation)) {
         throw new Error(`${where}: presentation must be one of ${INDEX_PRESENTATIONS.join(', ')}`);
+      }
+      if (declaration.presentation === 'pager') {
+        if (declaration.hidden) throw new Error(`${where}: a pager is the learner's navigation and cannot be hidden`);
+        if (length < 2 || length > 4) throw new Error(`${where}: a pager pages through 2 to 4 sub-cards, "${declaration.of}" lists ${length}`);
+        if (declarations.filter(other => other?.presentation === 'pager').length > 1) throw new Error(`${where}: a scene has at most one pager`);
       }
       if (declaration.type === 'indices' && !(Array.isArray(declaration.default) && declaration.default.every(i => Number.isInteger(i) && i >= 0 && i < length))) {
         throw new Error(`${where}: default must be a list of positions inside 0..${length - 1}`);

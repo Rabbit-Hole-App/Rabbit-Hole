@@ -57,6 +57,12 @@ await page.screenshot({ path: `${OUT}/00-table-of-contents.png`, clip: await pag
 
 async function drive(card, d, value, current) {
   if (value === current) return;
+  // Sub-cards page from the card header, not INTERACT.
+  if (d.presentation === 'pager') {
+    await reveal(page, canvas, card.locator('[data-card-pager]'));
+    for (let i = 0; i < Math.abs(value - current); i += 1) await card.locator(`[data-card-pager] [data-pager-step="${value > current ? 'next' : 'previous'}"]`).click();
+    return;
+  }
   await reveal(page, canvas, card.locator('[data-scene-controls]'));
   if (d.type === 'bool') await card.locator(`[data-scene-controls] [data-input-control="${d.name}"]`).click();
   else if (d.type === 'index' && d.presentation === 'slider') {
@@ -93,22 +99,31 @@ for (const block of all) {
   let current = defaultsOf(scene);
   const baseline = expectedTexts(scene, current);
   let changedAny = false;
-  for (const [n, state] of statesFor(scene).slice(0, 6).entries()) {
+  for (const [n, state] of statesFor(scene).slice(0, 12).entries()) {
     const target = { ...defaultsOf(scene), ...state };
     for (const d of visible) { await drive(card, d, target[d.name], current[d.name]); current[d.name] = target[d.name]; }
     const got = await rendered(card), want = expectedTexts(scene, current);
     const missing = want.filter(text => !got.includes(text));
     if (missing.length) fail(`${name} ${JSON.stringify(state)}: rendered text is missing ${JSON.stringify(missing.slice(0, 3))}`);
+    // A paged card draws only its current sub-card: text that exists only on another part must not be on screen.
+    const pagerDecl = visible.find(d => d.presentation === 'pager');
+    if (pagerDecl) {
+      const elsewhere = scene.exampleData[pagerDecl.of].flatMap((unused, k) => (k === current[pagerDecl.name] ? [] : expectedTexts(scene, { ...current, [pagerDecl.name]: k })));
+      const leaked = elsewhere.filter(text => !want.includes(text) && got.includes(text));
+      if (leaked.length) fail(`${name} ${JSON.stringify(state)}: another sub-card's text is on screen ${JSON.stringify(leaked.slice(0, 3))}`);
+    }
     if (want.some(text => !baseline.includes(text))) changedAny = true;
     await reveal(page, canvas, card);
     await card.screenshot({ path: `${OUT}/${name}__${n + 1}.png` });
     row.states.push({ inputs: { ...current }, verifiedLines: want.length - missing.length, of: want.length });
   }
   if (visible.length && BOARD_REVIEW_STATES[board]?.[scene.id] && !changedAny) fail(`${name}: no review state changes what the card says`);
-  if (visible.length) {
+  if (visible.some(d => d.presentation !== 'pager')) {
     await reveal(page, canvas, card.locator('[data-scene-controls]'));
     await card.locator('[data-scene-controls] [data-scene-reset]').click();
-    const got = await rendered(card), missing = expectedTexts(scene, defaultsOf(scene)).filter(text => !got.includes(text));
+    // Reset restores the experiment; the sub-card being read stays.
+    const kept = Object.fromEntries(visible.filter(d => d.presentation === 'pager').map(d => [d.name, current[d.name]]));
+    const got = await rendered(card), missing = expectedTexts(scene, { ...defaultsOf(scene), ...kept }).filter(text => !got.includes(text));
     if (missing.length) fail(`${name}: Reset did not restore the defaults (${JSON.stringify(missing.slice(0, 2))})`);
   }
   console.log(`${name}: ${row.states.length} state(s) verified${row.reachedFromToc ? ', reached from the table of contents' : ''}`);

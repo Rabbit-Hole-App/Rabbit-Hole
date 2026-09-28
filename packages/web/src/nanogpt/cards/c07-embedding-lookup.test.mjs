@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
 import { planProblems } from '../../card-plan.js';
+import { sceneContentBounds, sceneLegibility } from '../../scene-layout.js';
 import { assertCardGates, assertCardPlan, assertEvidence, assertSources, pinnedFile } from '../card-gates.mjs';
 import { scene, plan, reviewStates, sources, evidence, TOY_WTE } from './c07-embedding-lookup.js';
 
@@ -77,6 +78,18 @@ test('c07 one colour scale for table and vector, unmoved by the pick', () => {
     assert.deepEqual(byId(result, 'wte').valueDomain, { min: -0.9, max: 0.9 });
     assert.deepEqual(byId(result, 'vector').valueDomain, { min: -0.9, max: 0.9 });
   }
+});
+
+// The renderer fits each state's RESOLVED text; the block is sized from the
+// static (template) bounds. Same frame at every pick, inside the sized block,
+// so a pick never refits and never renders below scale 1.
+test('c07 the frame never refits across picks', () => {
+  const box = scene => { const { contributors: _c, ...b } = sceneContentBounds(scene); return b; };
+  const frames = assertCardGates(scene, WORD.map((unused, token) => ({ token }))).map(result => box(result.scene));
+  frames.forEach(frame => assert.deepEqual(frame, frames[0]));
+  const { bounds: sized, scale } = sceneLegibility(scene);
+  assert.equal(scale, 1);
+  assert.ok(frames[0].xMin >= sized.xMin && frames[0].xMax <= sized.xMax && frames[0].yMin >= sized.yMin && frames[0].yMax <= sized.yMax);
 });
 
 test('c07 sources: status labels on the card, provenance under it', () => {

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
 import { scene, sources, evidence, reviewStates, plan } from './c02-block-anatomy.js';
 import { assertCardGates, assertCardPlan, assertEvidence, assertSources, evaluated, pinnedFile } from '../card-gates.mjs';
+import { sceneContentBounds, sceneLegibility } from '../../scene-layout.js';
 
 const byId = result => new Map(result.state.objects.map(object => [object.id, object]));
 const shown = (objects, id) => objects.get(id).visible && objects.get(id).opacity > 0;
@@ -79,6 +80,18 @@ test('the residual stream stays lit at every step and only the two adds write it
   // Exactly two of the six operations write the stream: the adds.
   assert.deepEqual(OPS.filter(({ writes }) => STREAM_TENSORS.includes(writes)).map(({ op }) => op), ['plus1', 'plus2']);
   assert.equal(results[0].get('takeaway').label, 'Only the two adds (③ and ⑥) write to the residual stream; the other four steps make new tensors off to the side.');
+});
+
+// The renderer fits each state's RESOLVED text; the block is sized from the
+// static (template) bounds. Same frame at every step, inside the sized block,
+// so stepping never refits and never renders below scale 1.
+test('the frame never refits across the six steps', () => {
+  const box = scene => { const { contributors: _c, ...b } = sceneContentBounds(scene); return b; };
+  const frames = assertCardGates(scene, reviewStates).map(result => box(result.scene));
+  frames.forEach(frame => assert.deepEqual(frame, frames[0]));
+  const { bounds: sized, scale } = sceneLegibility(scene);
+  assert.equal(scale, 1);
+  assert.ok(frames[0].xMin >= sized.xMin && frames[0].xMax <= sized.xMax && frames[0].yMin >= sized.yMin && frames[0].yMax <= sized.yMax);
 });
 
 test('the replay draws the recipe in the source order', () => {

@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
 import { scene, evidence, sources } from './c21-temperature.js';
 import { assertCardGates, assertEvidence, assertSources } from '../card-gates.mjs';
+import { sceneContentBounds, sceneLegibility } from '../../scene-layout.js';
 
 const T = fx.temperature;
 const presets = T.presets;
@@ -33,7 +34,22 @@ const oracle = temp => {
 test('c21-temperature passes every gate at every preset', () => {
   assert.equal(scene.objects[0].semanticId, 'question');
   assert.ok(scene.objects[0].initialState.text.length <= 95);
-  assertCardGates(scene, ALL);
+  // The count block beside the token rows clears the widest row at every preset.
+  for (const result of assertCardGates(scene, ALL)) {
+    const rowsEnd = Math.max(...['draws-a', 'draws-b'].map(id => byId(result, id).x + byId(result, id).w));
+    for (const id of ['draw-count', 'draw-count-2', 'expected', 'wobble', 'bold-key']) assert.ok(byId(result, id).x >= rowsEnd + 16, `${id} clears the token rows (${rowsEnd})`);
+  }
+});
+
+// The block is sized from the static (template) bounds; each preset's resolved
+// text fits inside it, so switching presets never refits or drops below scale 1.
+test('the frame never refits across presets and renders at scale 1', () => {
+  const box = scene => { const { contributors: _c, ...b } = sceneContentBounds(scene); return b; };
+  const frames = assertCardGates(scene, ALL).map(result => box(result.scene));
+  frames.forEach(frame => assert.deepEqual(frame, frames[0]));
+  const { bounds: sized, scale } = sceneLegibility(scene);
+  assert.equal(scale, 1);
+  assert.ok(frames[0].xMin >= sized.xMin && frames[0].xMax <= sized.xMax && frames[0].yMin >= sized.yMin && frames[0].yMax <= sized.yMax);
 });
 
 test('live probabilities match the oracle and the fixture at every taught preset', () => {
@@ -76,7 +92,8 @@ test('live probabilities match the oracle and the fixture at every taught preset
     assert.deepEqual(shown, p.drawn.map(shownOf));
     const topCount = p.drawn.filter(d => d === T.display[TOP]).length;
     assert.equal(topCount, p.drawnTop);
-    assert.equal(label(result, 'draw-count'), `${topCount} of 20 draws were the top token ‘${TOP_NAME}’`);
+    // One sentence, wrapped onto two lines.
+    assert.equal(`${label(result, 'draw-count')} ${label(result, 'draw-count-2')}`, `${topCount} of 20 draws were the top token ‘${TOP_NAME}’`);
     assert.equal(label(result, 'not-greedy'), `${20 - topCount} of 20 recorded draws were not ‘${TOP_NAME}’, drawn from these toy probabilities.`);
     assert.equal(label(result, 'draws-a'), `Recorded toy run: 20 seeded draws at ${p.label}, not NanoGPT`);
     const bold = [...byId(result, 'draws-a').cellHighlight.map(i => shown[i]), ...byId(result, 'draws-b').cellHighlight.map(i => shown[10 + i])];

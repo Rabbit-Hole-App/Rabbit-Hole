@@ -25,6 +25,34 @@ const itemCount = state => {
   return null;
 };
 
+// Sub-cards: an index input presented as a 'pager' picks which part of the
+// scene is on screen. An object that declares `part` shows only on that part -
+// on the others it starts hidden and its timeline events are dropped; an
+// object without one is on every part. Hidden parts still count toward the
+// frame (scene-layout.js everDrawn), so paging never rescales the card.
+function onePart(raw, declarations, inputs) {
+  const pager = declarations.find(declaration => declaration.presentation === 'pager');
+  const parted = (raw?.objects || []).filter(object => object.part !== undefined);
+  if (!pager) {
+    if (parted.length) throw new Error(`Object "${parted[0].id}" declares a part, but no input is presented as a pager`);
+    return {};
+  }
+  // One frame for every part: a camera move would reframe only its own part.
+  const camera = (raw.timeline || []).find(event => /_camera$/.test(event.action));
+  if (camera) throw new Error(`A paged scene cannot move the camera (${camera.action}): the frame is shared by every sub-card`);
+  const count = (raw?.exampleData?.[pager.of] || []).length;
+  const off = new Set();
+  for (const object of parted) {
+    if (!Number.isInteger(object.part) || object.part < 0 || object.part >= count) throw new Error(`Object "${object.id}": part ${object.part} is not one of the ${count} parts "${pager.name}" pages through`);
+    if (object.part !== inputs[pager.name]) off.add(object.id);
+  }
+  return {
+    paged: true,
+    objects: raw.objects.map(object => (off.has(object.id) ? { ...object, initialState: { ...object.initialState, opacity: 0 } } : object)),
+    timeline: (raw.timeline || []).filter(event => !off.has(event.target) && !off.has(event.from) && !off.has(event.to)),
+  };
+}
+
 export function evaluateScene(raw, time, rawInputs) {
   const declarations = validateInputDeclarations(raw?.inputs || [], raw?.exampleData, Object.keys(raw?.derived || {}));
   const inputs = coerceInputs(declarations, rawInputs, raw?.exampleData);
@@ -47,7 +75,7 @@ export function evaluateScene(raw, time, rawInputs) {
   // root `inputs` key is dropped before validation - the validated scene is a
   // plain animation scene whose numbers happen to come from this evaluation.
   const { inputs: _declarationsKey, ...rest } = raw || {};
-  const augmented = { ...rest, exampleData: { ...(raw?.exampleData || {}), ...inputs } };
+  const augmented = { ...rest, ...onePart(raw, declarations, inputs), exampleData: { ...(raw?.exampleData || {}), ...inputs } };
   const derived = buildPool(augmented);
   const scene = validateScene(augmented);
   return { inputs, derived, state: getSceneState(scene, time), scene, declarations };
@@ -71,10 +99,15 @@ export function applyInputToBlock(block, name, value) {
   // While the card is practising, the inputs the task declares are LOCKED to
   // its values - refused here, in the one write path, not merely disabled in
   // a widget. One truth at a time.
-  if (block.practiceActive && block.activity?.fixedInputs && name in block.activity.fixedInputs) return block;
+  // The pager is navigation, never locked: a task names its sub-card in
+  // fixedInputs so grading shows it, and the learner can still page between.
+  const pager = declared.presentation === 'pager';
+  if (!pager && block.practiceActive && block.activity?.fixedInputs && name in block.activity.fixedInputs) return block;
   const data = block.scene?.exampleData;
   const before = coerceInputs(declarations, block.inputs, data);
   const after = coerceInputs(declarations, { ...before, [name]: value }, data);
   if (JSON.stringify(after[name]) === JSON.stringify(before[name])) return block;
-  return { ...block, inputs: { ...(block.inputs || {}), [name]: after[name] }, inputRevision: (block.inputRevision || 0) + 1 };
+  const next = { ...block, inputs: { ...(block.inputs || {}), [name]: after[name] }, inputRevision: (block.inputRevision || 0) + 1 };
+  // A selection or marked region belongs to the sub-card it was made on.
+  return pager ? { ...next, marked: null, selectedObject: null } : next;
 }

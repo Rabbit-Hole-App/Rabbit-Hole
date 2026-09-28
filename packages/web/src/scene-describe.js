@@ -67,7 +67,7 @@ export function describeAnimation(block) {
   }
 
   const shown = state.objects.filter(object => object.visible);
-  const concepts = [...new Set(state.objects.map(object => object.conceptId).filter(Boolean))];
+  const concepts = [...new Set(shown.map(object => object.conceptId).filter(Boolean))];
   const data = block.scene.exampleData;
   // Only derived values a VISIBLE object actually references are described.
   // The payload is the learner's own information surface: an expected answer
@@ -104,6 +104,9 @@ export function describeAnimation(block) {
       // and are stripped before a block ever reaches this serializer).
       ...(interactive ? [
         `Experiment inputs (revision ${block.inputRevision || 0}): ${declared.map(declaration => describeInputValue(declaration, evaluated.inputs[declaration.name], data)).join('; ')}`,
+        // A paged card: which sub-card the learner is reading (only its objects are in the state below).
+        ...declared.filter(declaration => declaration.presentation === 'pager').map(declaration =>
+          `Showing sub-card ${evaluated.inputs[declaration.name] + 1} of ${data[declaration.of].length}: ${data[declaration.of][evaluated.inputs[declaration.name]]}`),
         referencedDerived.size
           ? `Computed locally from the declared example data: ${JSON.stringify(Object.fromEntries([...referencedDerived].map(name => [name, sampleDeep(evaluated.derived[name])])))}`
           : '',

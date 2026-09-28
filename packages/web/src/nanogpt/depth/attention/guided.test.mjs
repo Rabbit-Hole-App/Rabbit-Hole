@@ -8,6 +8,8 @@ import fx from '../../fixtures/nanogpt-fixtures.generated.js';
 import att from '../fixtures/attention.generated.js';
 import { scene, sources, evidence, reviewStates } from './guided.js';
 import { assertCardGates, assertEvidence, assertSources } from '../../card-gates.mjs';
+import { evaluateScene } from '../../../scene-evaluate.js';
+import { SCENE_PAD, sceneContentBounds, sceneLegibility } from '../../../scene-layout.js';
 
 const T = att.T;
 const LAST = T - 1;
@@ -46,6 +48,39 @@ test('guided: question first, "Builds on" under it, gates pass at every review s
   assert.ok(reviewStates.length >= 2 && reviewStates.length <= 6);
   assertCardGates(scene, reviewStates);
   assertCardGates(scene, ALL);
+});
+
+// The block is sized from the static scene, the renderer fits the evaluated
+// one: both must be the same box at scale 1, in every state, or the card draws
+// its 13px notes at about 11px (it rendered at 0.90 before) and refits as the
+// reader moves.
+test('framing: one frame at scale 1 for every state; nothing drawn outside it', () => {
+  const legibility = sceneLegibility(scene);
+  assert.equal(legibility.scale, 1, 'renders at authored size');
+  const { contributors: _c, ...still } = legibility.bounds;
+  for (const inputs of ALL) {
+    for (const time of [0, scene.duration]) {
+      const { contributors: _e, ...bounds } = sceneContentBounds(evaluateScene(structuredClone(scene), time, inputs).scene);
+      assert.deepEqual(bounds, still, JSON.stringify(inputs));
+    }
+  }
+  // Data shapes are not measured by the frame fit: their bodies must sit inside
+  // the drawn frame (the fitted bounds plus the pad around them).
+  for (const inputs of [{ reader: 3, lookFor: 'before' }, { reader: LAST, lookFor: 'next' }]) {
+    const [result] = assertCardGates(scene, [inputs]);
+    for (const object of result.state.objects.filter(o => o.visible && ['grid', 'strip'].includes(o.type))) {
+      assert.ok(object.x + object.w <= still.xMax + SCENE_PAD && object.y + object.h <= still.yMax + SCENE_PAD, `${object.id} inside the frame`);
+    }
+  }
+  // The output note reads with the column it describes: it ends just left of
+  // the Σ w·v column (~6px a character as drawn), well clear of the values grid.
+  for (const inputs of ALL) {
+    const [result] = assertCardGates(scene, [inputs]);
+    const [note, output, values] = ['output-note', 'output', 'values'].map(id => byId(result, id));
+    const gap = output.x - (note.x + note.label.length * 6);
+    assert.ok(gap >= 8 && gap <= 16, `${JSON.stringify(inputs)} note ends ${gap}px left of the column`);
+    assert.ok(note.x - (values.x + values.w) >= 100, `${JSON.stringify(inputs)} note sits by the column, not the values grid`);
+  }
 });
 
 test('the ladder contract: 1-2 controls, real numbers that change, no equations or shapes, depth never labels the learner', () => {

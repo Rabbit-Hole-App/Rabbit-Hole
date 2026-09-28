@@ -14,6 +14,14 @@
 // Every step box is named after the source function or branch and has a code
 // entry in `sources`; the card itself carries no code or line references.
 //
+// Three sub-cards (the `part` pager, one idea each, one INTERACT row for all):
+// 1/3 the data path as a column of steps; 2/3 what V costs - the equations
+// (lookup, vocab, wte, N, the uint16 bound) and the parameter bar;
+// 3/3 the block_size tradeoff and the digit edge case - the digit prompt
+// through both encoders, the current branch at full strength. The wte and lm_head
+// steps stay at the end of 1/3's column: on 2/3 they would be a second visual
+// beside the bar.
+//
 // Numbers: sizes are source values (fx.architecture, i.e. config/train_shakespeare_
 // char.py over train.py's defaults; gen_tokenization.py for the split sizes, the
 // fallback vocab_size, the uint16 bound, the prompts' IDs). Every product - V, the
@@ -38,13 +46,19 @@ const quote = s => `“${s}”`;
 const grouped = n => Math.round(n).toLocaleString('en-US');
 const texGrouped = n => grouped(n).replaceAll(',', '{,}'); // KaTeX: a comma inside braces sets no space
 
-// Layout: a branch row, then the data path as a column of steps with one
-// detail line each; equations; the parameter bar; the tradeoff lines.
+// Layout, every part from the top of one coordinate space: question, the shared
+// status line. 1/3: a branch row, then the data path as a column of steps with
+// one detail line each. 2/3: the equations, then the parameter bar. 3/3: the
+// tradeoff line, the two encoders on the digit prompt (1/3's step and detail
+// geometry), the edge line under them.
 const STEP = { x: 40, w: 260, h: 36 };
 const DETAIL_X = 320;
 const ROWS = { branch: 96, encode: 150, batch: 204, wte: 258, head: 312 };
-const EQ = { r1: 366, r2: 406, r3: 446 };
-const PARAM = { title: 510, y: 520, h: 26, x: 40, pxPerParam: 0.00002 }; // 20 px per million parameters
+const EQ = { r1: 96, r2: 136, r3: 176 };
+const PARAM = { title: 240, y: 250, h: 26, x: 40, pxPerParam: 0.00002 }; // 20 px per million parameters
+const CONTEXT = { tradeoff: 104, char: 150, bpe: 204, edge: 270 };
+const PARTS = ['meta.pkl → stoi → get_batch → logits', 'wte and lm_head sizes, parameter count N', 'block_size tradeoff and the digit edge case'];
+const on = (part, ...objects) => objects.map(object => ({ ...object, part }));
 
 const text = (id, value, x, y, extra = {}) => ({ id, type: 'text', semanticId: id, conceptId: CONCEPT,
   initialState: { text: value, x, y, typography: 'annotation', ...extra } });
@@ -104,7 +118,9 @@ const EXAMPLE = {
   encodeRole: { true: byPath('neutral', 'neutral', 'warning'), false: byPath('neutral', 'neutral', 'neutral') },
   // model.py's reason for the fallback's padding, shown only when there is padding.
   padWhy: { true: '', false: ' (multiple of 64, for efficiency)' },
-  // The edge-case line follows the state: an invitation, or a pointer to the failure above.
+  // 3/3: the encoder of the current branch at full strength, the other dimmed.
+  edgeLit: { true: { char: 1, bpe: 0.35 }, false: { char: 0.35, bpe: 1 } },
+  // The edge-case line (3/3) follows the state: an invitation, or a pointer to the failure drawn above it.
   edgeText: {
     true: byPath(TRY_DIGITS, TRY_DIGITS, `Edge case shown above: ${ONLY_DIGIT}, so ${quote(digits.char.missing)} has no ID.`),
     false: byPath(TRY_META, TRY_META,
@@ -169,6 +185,7 @@ const LIVE = {
   why: { op: 'pick', args: ['padWhy', 'metaKey'] },
   edgesNow: { op: 'pick', args: ['edgeText', 'metaKey'] },
   edge: { op: 'pick', args: ['edgesNow', 'input'] },
+  lit: { op: 'pick', args: ['edgeLit', 'metaKey'] },
 };
 // The live results above, digit-grouped for print: the same ops run at every
 // state (meta x input), so each printed figure is the derive result itself.
@@ -184,23 +201,28 @@ export const scene = {
   id: 'depth-tokenization-deep',
   title: 'Tokenization · Deep dive: what the tokenizer costs the model',
   width: 960,
-  height: 612,
+  height: 370,
   duration: 1,
   inputs: [
+    { name: 'part', type: 'index', label: 'Deep dive', of: 'parts', default: 0, presentation: 'pager' },
     { name: 'meta', type: 'bool', label: 'meta.pkl found (character vocabulary)', default: true },
     { name: 'input', type: 'choice', label: 'Input', default: 'train',
       options: [{ id: 'train', label: 'Training batch' }, { id: 'line', label: 'Prompt: the play\'s line' }, { id: 'digits', label: `Prompt: ${digits.text}` }] },
   ],
-  exampleData: { ...EXAMPLE, figures: FIGURES },
+  exampleData: { ...EXAMPLE, figures: FIGURES, parts: PARTS },
   derived: {
     ...LIVE,
     figuresNow: { op: 'pick', args: ['figures', 'metaKey'] },
     fig: { op: 'pick', args: ['figuresNow', 'input'] },
   },
   objects: [
-    text('question', 'What does the tokenizer choice cost inside the model - and where does it break?', 40, 34, { typography: 'body' }),
-    text('prerequisites', 'Builds on: Guided; matrix shapes (B, T, C)', 40, 58),
-    text('status', 'Source value: sizes  ·  Live calculation: every product  ·  What-if: no meta.pkl with these sizes', 40, 80, { typography: 'caption' }),
+    ...on(0, text('question', 'What does the tokenizer choice cost inside the model - and where does it break?', 40, 34, { typography: 'body' })),
+    // Every part: the evidence kinds the card uses.
+    text('status', 'Source value: sizes  ·  Live calculation: every product  ·  What-if: no meta.pkl with these sizes', 40, 58, { typography: 'caption' }),
+
+    // 1/3 - the data path.
+    ...on(0,
+    text('prerequisites', 'Builds on: Guided; matrix shapes (B, T, C)', 40, 80),
 
     // The branch that sets V.
     step('branch', '{{branchLabel}}', ROWS.branch, { role: 'input' }),
@@ -219,8 +241,12 @@ export const scene = {
     down('a-wte', ROWS.wte + STEP.h + 2, ROWS.head - 2),
     step('head', '{{headLabel}}', ROWS.head, { opacity: { $derive: 'dim' } }),
     detail('head-detail', 'logits: (B, {{Tn}}, V) = ({{Bv.0}}, {{Tl.0}}, {{V}}) → {{fig.logits}} scores', ROWS.head + 23, { opacity: { $derive: 'shown' } }),
+    ),
 
-    // The exact relations behind the numbers above.
+    // 2/3 - what V costs: the table and the parameter count.
+    ...on(1,
+    text('q-sizes', 'How much of the model is the token table - wte, shared with lm_head?', 40, 34, { typography: 'body' }),
+    // The exact relations behind the numbers on 1/3 and the bar below.
     eq('eq-lookup', '\\text{tok\\_emb}[b,t,:] = W_{te}[\\,x[b,t],\\,:\\,],\\quad x \\in \\{0,\\dots,V{-}1\\}^{B \\times T}', 40, EQ.r1, 880),
     eq('eq-vocab', 'V = {{fig.tex.tokV}} + {{pad.0}} = {{fig.tex.V}}', 40, EQ.r2, 420),
     eq('eq-wte', '|W_{te}| = V\\,C = {{fig.tex.V}} \\cdot {{C}} = {{fig.tex.wte}}', 500, EQ.r2, 440),
@@ -234,9 +260,19 @@ export const scene = {
     { id: 'param-wte', type: 'box', semanticId: 'param-wte', conceptId: CONCEPT,
       initialState: { x: { $derive: 'wteX.0' }, y: PARAM.y, w: { $derive: 'wteW.0' }, h: PARAM.h, role: 'warning' } },
     text('param-wte-label', 'wte: {{fig.wte}} of {{fig.total}}', { $derive: 'wteLabelX.0' }, PARAM.y + 18, { typography: 'caption', role: 'warning' }),
+    ),
 
-    text('tradeoff', 'Tradeoff: block_size = {{blockSize}} IDs span {{fig.ctx}} characters ({{rate}} per ID)', 40, 580, { typography: 'body' }),
-    text('edge', '{{edge}}', 40, 602),
+    // 3/3 - how much text fits, and the text that cannot become IDs.
+    ...on(2,
+    text('q-context', 'How much text fits in block_size IDs - and what text cannot become IDs at all?', 40, 34, { typography: 'body' }),
+    text('tradeoff', 'Tradeoff: block_size = {{blockSize}} IDs span {{fig.ctx}} characters ({{rate}} per ID)', 40, CONTEXT.tradeoff, { typography: 'body' }),
+    // The digit prompt through both encoders - the same labels and results 1/3's encode step shows.
+    step('edge-char', '{{encodeBox.true}}', CONTEXT.char, { role: 'warning', opacity: { $derive: 'lit.char' } }),
+    detail('edge-char-detail', '{{encoded.found.digits}}', CONTEXT.char + 23, { role: 'warning', opacity: { $derive: 'lit.char' } }),
+    step('edge-bpe', '{{encodeBox.false}}', CONTEXT.bpe, { opacity: { $derive: 'lit.bpe' } }),
+    detail('edge-bpe-detail', '{{encoded.absent.digits}}', CONTEXT.bpe + 23, { opacity: { $derive: 'lit.bpe' } }),
+    text('edge', '{{edge}}', 40, CONTEXT.edge),
+    ),
   ],
   timeline: [],
 };
@@ -293,13 +329,25 @@ export const evidence = {
   concept: 'The tokenizer fixes V: meta.pkl gives 65 (read as-is); without it train.py falls back to 50304 (50257 padded to a multiple of 64). V sets the wte/lm_head table (V x C, tied), the logits (B, T, V), and with C = 384 moves wte from 0.2% to about 64% of get_num_params. GPT-2 IDs cover 3.3 characters each on average, so block_size = 256 spans about 845 characters. IDs are stored as uint16 (max 65535). The character encoder raises KeyError on an unseen character; byte-level BPE cannot.',
   sourceRevision: `${fx.provenance.nanogpt.repo}@${fx.provenance.nanogpt.commit}`,
   provenance: 'Source value: fx.architecture (generate_fixtures.py), gen_tokenization.py (split sizes vs prepare.py comments, fallback vocab_size from train.py/model.py, uint16 bound, sample.py encoders on two prompts). Live calculation: every product. What-if: the no-meta.pkl branch with shakespeare_char sizes.',
-  control: 'meta - bool: meta.pkl found (train.py:140 os.path.exists branch); input - choice: Training batch | Prompt: the play\'s line | Prompt: Sonnet 18',
-  consequence: 'meta off: V 65 -> 50304 (47 padding rows), the wte table, wte and N equations, logits count, the wte bar (sliver -> 64% of N), the encode step and the context tradeoff (256 -> about 845 characters) all change, and the branch line gives the reason for the padding (model.py). input: training shapes (64, 256) vs a prompt (1, T) with logits for the last position only; the digit prompt with meta on raises KeyError and dims every later step. The edge-case line follows the state: it invites the digit prompt, says to turn meta.pkl on first, or points at the failure already shown.',
+  control: 'part - pager in the card header: Deep dive 1/3 the data path, 2/3 wte and lm_head sizes and N, 3/3 the block_size tradeoff and the digit edge case; meta - bool: meta.pkl found (train.py:140 os.path.exists branch); input - choice: Training batch | Prompt: the play\'s line | Prompt: Sonnet 18. meta and input are one state across the three sub-cards.',
+  consequence: 'meta off: on 1/3 V 65 -> 50304 (47 padding rows, the branch line gives model.py\'s reason), the encode step, the wte table and the logits count change; on 2/3 the vocab, wte and N equations, the largest ID in the uint16 bound and the wte bar (sliver -> 64% of N); on 3/3 the context tradeoff (256 -> about 845 characters) and which encoder of the digit prompt is at full strength (stoi\'s KeyError or GPT-2\'s 3 IDs). input (1/3): training shapes (64, 256) vs a prompt (1, T) with logits for the last position only; the digit prompt with meta on raises KeyError and dims every later step. The edge-case line on 3/3 follows the state: it invites the digit prompt, says to turn meta.pkl on first, or points at the failure drawn above it.',
   interactionPurpose: 'Flip the real implementation branches and trace their cost through exact shapes, equations and parameter counts, and trigger the one input where the character tokenizer breaks.',
   task: 'none (explore only)',
-  capability: 'bool + choice inputs; choose/pick over record maps keyed by both; live products (concat, elementwise, sum, scale, add, sub) feeding KaTeX equations, shape readouts and a proportional bar; input-bound opacity and roles for the failing branch.',
+  capability: 'a pager input pages three sub-cards (one idea each) sharing one INTERACT row; bool + choice inputs; choose/pick over record maps keyed by both; live products (concat, elementwise, sum, scale, add, sub) feeding KaTeX equations, shape readouts and a proportional bar; input-bound opacity and roles for the failing branch; on 3/3 both encoders on the digit prompt, the current branch at full opacity.',
   depth: 'Deep dive',
   prerequisites: 'Builds on: Guided; matrix shapes (B, T, C)',
   ladderRole: 'Only this depth follows the IDs into the model: exact shapes and equations, the vocab_size and training/sampling branches, the KeyError edge case and the quantified parameter/context tradeoff.',
 };
-export const reviewStates = [true, false].flatMap(meta => PATHS.map(input => ({ meta, input })));
+// Six states (the board's limit), each earlier meta x input state once, on the
+// sub-card where its content now lives: the data path at the default and in
+// the fallback branch; both branches' sizes; the digit edge case in both
+// branches (KeyError, GPT-2's 3 IDs) with both contexts.
+export const reviewStates = [
+  { part: 0, meta: true, input: 'train' },
+  { part: 0, meta: false, input: 'line' },
+  { part: 1, meta: true, input: 'line' },
+  { part: 1, meta: false, input: 'train' },
+  { part: 2, meta: true, input: 'digits' },
+  { part: 2, meta: false, input: 'digits' },
+  { part: 0, meta: true, input: 'digits' },
+];

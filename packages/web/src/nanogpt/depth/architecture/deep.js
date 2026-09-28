@@ -1,17 +1,23 @@
 // Depth ladder - The Transformer, end to end - Deep dive.
 // The exact tensor shapes of one GPT.forward call, step by step, and the
-// implementation branches that change them. Each row is a step of the source
-// (a function call or branch), its shape with named dimensions (B, T, C, nh,
-// hs, V) and the same shape with the numbers of the selected call; the right
-// column holds the equations those steps compute. The control picks the call
-// site - a training step (train.py: model(X, Y), targets given), generate() on
-// the Overview's "hear me spea", generate() on a prompt one character longer
-// than block_size (the crop branch), or model(idx) called directly with that
-// prompt (the assert branch: the edge case, nothing below it runs). A second
-// control is a what-if: untie lm_head from wte. The bottom lines quantify the
-// two engineering tradeoffs the branches encode - projecting only the last
-// position when generating, and storing the tied matrix once. The att row is
-// marked as the manual path: on PyTorch 2.0 or later self.flash is True and
+// implementation branches that change them, paged into three sub-cards that
+// follow the forward pass (WP6, one idea per sub-card): 1/3 into forward (the
+// call site, the assert, the embedding), 2/3 one Block, run n_layer times,
+// 3/3 out of forward (ln_f, lm_head, the loss and the two savings the head
+// encodes). Each row is a step of the source (a function call or branch), its
+// shape with named dimensions (B, T, C, nh, hs, V) and the same shape with the
+// numbers of the selected call; the right column holds the equations those
+// steps compute. Sub-cards 2/3 and 3/3 open with the shape handed over from
+// the one before, so the trace reads end to end across the pages. The control
+// picks the call site - a training step (train.py: model(X, Y), targets
+// given), generate() on the Overview's "hear me spea", generate() on a prompt
+// one character longer than block_size (the crop branch), or model(idx)
+// called directly with that prompt (the assert branch: the edge case, nothing
+// below it runs, on any sub-card). A second control is a what-if: untie
+// lm_head from wte. The bottom lines of 3/3 quantify the two engineering
+// tradeoffs the branches encode - projecting only the last position when
+// generating, and storing the tied matrix once. The att row is marked as the
+// manual path: on PyTorch 2.0 or later self.flash is True and
 // scaled_dot_product_attention returns y, so the model never holds the
 // (B, nh, T, T) tensor (the Attention Deep dive card makes that branch its
 // control). The att equation stops at the softmax; y = att v sits on the next
@@ -40,9 +46,21 @@ const byCall = values => Object.fromEntries(CALLS.map((call, i) => [call, values
 
 const BOX_X = 40, BOX_W = 240, BOX_H = 30;
 const NAME_X = 288, NUM_X = 476, EQ_X = 616, EQ_W = 336, EQ_H = 36;
-const ROW = { call: 112, assert: 150, embed: 188, qkv: 250, att: 288, attnOut: 348, fc: 386, mlpOut: 424, lnf: 474, head: 512, loss: 550 };
-const BOTTOM = 612;
+// The steps of each sub-card, in source order. Every sub-card is laid out from
+// the top of the same space, under the shared status line and rule.
+const PARTS = [['call', 'assert', 'embed'], ['qkv', 'att', 'attnOut', 'fc', 'mlpOut'], ['lnf', 'head', 'loss']];
+const ROW = { call: 112, assert: 150, embed: 188, qkv: 136, att: 174, attnOut: 252, fc: 290, mlpOut: 328, lnf: 112, head: 150, loss: 188 };
+const BELOW = 250; // the first line under the last step of 1/3 and 3/3
 const DOWNSTREAM = ['embed', 'qkv', 'att', 'attnOut', 'fc', 'mlpOut', 'lnf', 'head', 'loss'];
+// What forward receives at each call site: B sequences of T tokens (T after
+// generate()'s crop; the direct call is not cropped).
+const Bs = byCall([A.batch_size, 1, 1, 1]);
+const Ts = byCall([TB, PROMPT.length, TB, TOO_LONG]);
+// The shape each sub-card receives from the one before; after a failed assert, nothing.
+const handOver = (from, verb, none) => byCall(CALLS.map(call => (call === 'direct'
+  ? `From 1/3: model(idx) at T = ${TOO_LONG} failed the assert, so ${none}.`
+  : `From ${from}: x: (B, T, C) = (${Bs[call]}, ${Ts[call]}, ${A.n_embd}) ${verb}.`)));
+const inPart = (part, objects) => objects.map(object => ({ ...object, part }));
 
 const text = (id, value, x, y, extra = {}) => ({ id, type: 'text', semanticId: id, conceptId: CONCEPT,
   initialState: { text: value, x, y, ...extra } });
@@ -55,17 +73,18 @@ const step = (key, label, named, numbers, { boxOpacity, numOpacity, role = 'neut
   note(`${key}-shape`, named, NAME_X, ROW[key] + 20, boxOpacity ? { opacity: { $derive: boxOpacity } } : {}),
   note(`${key}-numbers`, numbers, NUM_X, ROW[key] + 20, { role: numRole, ...(numOpacity ? { opacity: { $derive: numOpacity } } : {}) }),
 ];
-const equation = (id, tex, rowKey, opacity) => ({ id, type: 'equation', semanticId: id, conceptId: CONCEPT,
-  initialState: { text: tex, x: EQ_X, y: ROW[rowKey] - 3, w: EQ_W, h: EQ_H, opacity: { $derive: opacity } } });
+const equation = (id, tex, rowY, opacity) => ({ id, type: 'equation', semanticId: id, conceptId: CONCEPT,
+  initialState: { text: tex, x: EQ_X, y: rowY - 3, w: EQ_W, h: EQ_H, opacity: { $derive: opacity } } });
 const down = { boxOpacity: 'downOpacity', numOpacity: 'numOpacity' };
 
 export const scene = {
   id: 'depth-architecture-deep',
   title: 'The Transformer, end to end · Deep dive: tensor shapes through GPT.forward',
   width: 960,
-  height: 684,
-  duration: 4,
+  height: 364,
+  duration: 2,
   inputs: [
+    { name: 'part', type: 'index', label: 'Deep dive', of: 'parts', default: 0, presentation: 'pager' },
     { name: 'call', type: 'choice', label: 'Call site (branch)', default: 'train', options: [
       { id: 'train', label: 'training: model(X, Y)' },
       { id: 'generate', label: `generate() on “${PROMPT}”` },
@@ -75,11 +94,12 @@ export const scene = {
     { name: 'tied', type: 'bool', label: 'lm_head shares its weight with wte', default: true },
   ],
   exampleData: {
+    parts: ['Call site, assert, embedding', 'One Block, run n_layer times', 'ln_f, lm_head, the loss and two savings'],
     C: A.n_embd, nh: A.n_head, V: A.vocab_size, L: A.n_layer, Tb: TB,
     V2: PADDED_VOCAB, C2: fx.config.defaults.n_embd,
-    // What forward receives at each call site: B sequences of T tokens.
-    Bs: byCall([A.batch_size, 1, 1, 1]),
-    Ts: byCall([TB, PROMPT.length, TB, TOO_LONG]),
+    Bs, Ts,
+    fromEmbeds: handOver('1/3', 'enters the first Block', 'no Block runs'),
+    fromBlocks: handOver('2/3', 'leaves the last Block', 'nothing here runs'),
     // lm_head's time dimension: every position with targets, the last without.
     Touts: byCall([TB, 1, 1, 1]),
     callBoxes: byCall(['get_batch → model(X, Y)', 'generate(): self(idx_cond)', `generate(): idx[:, -${TB}:]`, 'model(idx): no crop']),
@@ -156,53 +176,86 @@ export const scene = {
     genOpacity: { op: 'pick', args: ['genOpacities', 'call'] },
     walkStep: { op: 'pick', args: ['walkSteps', 'call'] },
     unwalkStep: { op: 'pick', args: ['unwalkSteps', 'call'] },
+    fromEmbed: { op: 'pick', args: ['fromEmbeds', 'call'] },
+    fromBlock: { op: 'pick', args: ['fromBlocks', 'call'] },
   },
   objects: [
-    text('question', 'What shape is the tensor after each step of GPT.forward, and which branches change it?', 40, 34),
-    note('prerequisites', 'Builds on: Guided; tensor shapes and matrix products', 40, 58),
+    // Each sub-card opens with its question; 2/3 and 3/3 then name the shape
+    // they receive, so the trace reads end to end across the pages.
+    ...inPart(0, [
+      text('question', 'What shape is the tensor after each step of GPT.forward, and which branches change it?', 40, 34),
+      note('prerequisites', 'Builds on: Guided; tensor shapes and matrix products', 40, 58),
+    ]),
+    ...inPart(1, [
+      text('question-block', 'Inside one Block, which shapes does x pass through, and what shape comes back out?', 40, 34),
+      note('from-embed', '{{fromEmbed}}', 40, 58, { role: { $derive: 'assertRole' } }),
+    ]),
+    ...inPart(2, [
+      text('question-head', 'What does forward return with targets and without, and what do the head\'s two savings buy?', 40, 34),
+      note('from-block', '{{fromBlock}}', 40, 58, { role: { $derive: 'assertRole' } }),
+    ]),
+    // On every sub-card: the status words and the rule under the header.
     note('status', `Source value sizes; shapes and counts: Live calculation. model(idx) at T = ${TOO_LONG} and untied weights: What-if.`, 40, 80),
-    // Static rule from the bracket to the equations' right edge: the block is
-    // sized from the scene's static content, and the bracket and equations are
-    // input-bound (dimmed on a failed assert), so without it the card renders
-    // shrunk below the text legibility floors.
     { id: 'header-rule', type: 'line', semanticId: 'header-rule', conceptId: CONCEPT,
       initialState: { from: { x: BOX_X - 10, y: 97 }, to: { x: EQ_X + EQ_W, y: 97 }, role: 'neutral', opacity: 0.3 } },
 
-    ...step('call', '{{callBox}}', '{{callShape}}', '{{cropPrefix}}({{B}}, {{T}})'),
-    ...step('assert', 'assert t <= block_size', 't = T, block_size = {{Tb}}', '{{assertText}}', { role: { $derive: 'assertRole' }, numRole: { $derive: 'assertNumRole' } }),
-    ...step('embed', 'wte(idx) + wpe(pos)', 'x: (B, T, C) + (T, C)', '({{B}}, {{T}}, {{C}})', down),
-    note('block-header', 'Block.forward, run n_layer = {{L}} times, each Block with its own weights:', BOX_X, ROW.qkv - 12, { opacity: { $derive: 'downOpacity' } }),
-    { id: 'block-bracket', type: 'line', semanticId: 'block-bracket', conceptId: CONCEPT,
-      initialState: { from: { x: BOX_X - 10, y: ROW.qkv }, to: { x: BOX_X - 10, y: ROW.mlpOut + BOX_H }, role: 'neutral', opacity: { $derive: 'downOpacity' } } },
-    ...step('qkv', 'ln_1 → c_attn → split', 'q, k, v: (B, nh, T, hs)', '({{B}}, {{nh}}, {{T}}, {{hs.0}})', down),
-    ...step('att', 'q @ kᵀ → mask → softmax', 'att: (B, nh, T, T)', '({{B}}, {{nh}}, {{T}}, {{T}})', down),
-    note('att-path', '↑ manual path only: on the default path (scaled_dot_product_attention, PyTorch ≥ 2.0) the model never holds att.', BOX_X, ROW.att + BOX_H + 18, { opacity: { $derive: 'downOpacity' } }),
-    ...step('attnOut', 'att @ v → c_proj, x + y', 'x: (B, T, C)', '({{B}}, {{T}}, {{C}})', down),
-    ...step('fc', 'ln_2 → c_fc → gelu', 'h: (B, T, 4C)', '({{B}}, {{T}}, {{C4.0}})', down),
-    ...step('mlpOut', 'c_proj, x + mlp', 'x: (B, T, C)', '({{B}}, {{T}}, {{C}})', down),
-    ...step('lnf', 'ln_f', 'x: (B, T, C)', '({{B}}, {{T}}, {{C}})', down),
-    ...step('head', '{{head}}', '{{headShape}}', '({{B}}, {{Tout}}, {{V}})', down),
-    ...step('loss', '{{loss}}', '{{lossShape}}', '{{BT.0}} rows of {{V}}', { boxOpacity: 'downOpacity', numOpacity: 'trainOpacity' }),
+    // 1/3 - into forward: the call site, the assert, the embedding.
+    ...inPart(0, [
+      ...step('call', '{{callBox}}', '{{callShape}}', '{{cropPrefix}}({{B}}, {{T}})'),
+      ...step('assert', 'assert t <= block_size', 't = T, block_size = {{Tb}}', '{{assertText}}', { role: { $derive: 'assertRole' }, numRole: { $derive: 'assertNumRole' } }),
+      ...step('embed', 'wte(idx) + wpe(pos)', 'x: (B, T, C) + (T, C)', '({{B}}, {{T}}, {{C}})', down),
+      equation('eq-embed', 'x = W_{te}[\\mathrm{idx}] + W_{pe}[0{:}T]', ROW.embed, 'downOpacity'),
+      note('edge', '{{edge}}', 40, BELOW, { role: { $derive: 'edgeRole' } }),
+    ]),
 
-    equation('eq-embed', 'x = W_{te}[\\mathrm{idx}] + W_{pe}[0{:}T]', 'embed', 'downOpacity'),
-    equation('eq-att', '\\mathrm{softmax}(qk^\\top/\\sqrt{hs}+M)', 'att', 'downOpacity'),
-    equation('eq-attn', 'y=\\text{att}\\,v,\\ x\\gets x+yW_{proj}^\\top', 'attnOut', 'downOpacity'),
-    equation('eq-mlp', 'x \\gets x+\\text{mlp}(\\text{LN}_2(x))', 'mlpOut', 'downOpacity'),
-    equation('eq-logits', '{{logitsEq}}', 'head', 'downOpacity'),
-    equation('eq-loss', '\\ell=-\\frac{1}{BT}\\sum_{b,t}\\log p(Y_{bt})', 'loss', 'trainOpacity'),
+    // 2/3 - one Block, run n_layer times.
+    ...inPart(1, [
+      note('block-header', 'Block.forward, run n_layer = {{L}} times, each Block with its own weights:', BOX_X, ROW.qkv - 12, { opacity: { $derive: 'downOpacity' } }),
+      { id: 'block-bracket', type: 'line', semanticId: 'block-bracket', conceptId: CONCEPT,
+        initialState: { from: { x: BOX_X - 10, y: ROW.qkv }, to: { x: BOX_X - 10, y: ROW.mlpOut + BOX_H }, role: 'neutral', opacity: { $derive: 'downOpacity' } } },
+      ...step('qkv', 'ln_1 → c_attn → split', 'q, k, v: (B, nh, T, hs)', '({{B}}, {{nh}}, {{T}}, {{hs.0}})', down),
+      ...step('att', 'q @ kᵀ → mask → softmax', 'att: (B, nh, T, T)', '({{B}}, {{nh}}, {{T}}, {{T}})', down),
+      // Two lines, so the note stays left of the formula block beside it.
+      note('att-path', '↑ manual path only: on the default path', BOX_X, ROW.att + BOX_H + 18, { opacity: { $derive: 'downOpacity' } }),
+      note('att-path-default', '(scaled_dot_product_attention, PyTorch ≥ 2.0) the model never holds att.', BOX_X, ROW.att + BOX_H + 36, { opacity: { $derive: 'downOpacity' } }),
+      ...step('attnOut', 'att @ v → c_proj, x + y', 'x: (B, T, C)', '({{B}}, {{T}}, {{C}})', down),
+      ...step('fc', 'ln_2 → c_fc → gelu', 'h: (B, T, 4C)', '({{B}}, {{T}}, {{C4.0}})', down),
+      ...step('mlpOut', 'c_proj, x + mlp', 'x: (B, T, C)', '({{B}}, {{T}}, {{C}})', down),
+      // One formula block, its lines one row pitch apart: y = att v beside the
+      // c_proj row, the MLP update beside the row it starts on, and the att line
+      // right above them, beside the att row's note.
+      equation('eq-att', '\\mathrm{softmax}(qk^\\top/\\sqrt{hs}+M)', ROW.attnOut - 38, 'downOpacity'),
+      equation('eq-attn', 'y=\\text{att}\\,v,\\ x\\gets x+yW_{proj}^\\top', ROW.attnOut, 'downOpacity'),
+      equation('eq-mlp', 'x \\gets x+\\text{mlp}(\\text{LN}_2(x))', ROW.fc, 'downOpacity'),
+    ]),
 
-    note('edge', '{{edge}}', 40, BOTTOM, { role: { $derive: 'edgeRole' } }),
-    note('cost-train', 'Training scores every position: {{B}} × {{T}} × {{V}} = {{nAll.0}} logits, each compared with its target.', 40, BOTTOM + 22, { opacity: { $derive: 'trainOpacity' } }),
-    note('cost-gen', 'Only the last position is scored: {{B}} × 1 × {{V}} = {{nLast.0}} logits, not {{nAll.0}}; all {{T}} positions still run every Block.', 40, BOTTOM + 22, { opacity: { $derive: 'genOpacity' } }),
-    note('tie', '{{tieLead}} V × C = {{VC.0}} parameters; {{VC2.0}} at V = {{V2}}, C = {{C2}}.', 40, BOTTOM + 44),
+    // 3/3 - out of forward: ln_f, lm_head, the loss, and what the head saves.
+    ...inPart(2, [
+      ...step('lnf', 'ln_f', 'x: (B, T, C)', '({{B}}, {{T}}, {{C}})', down),
+      ...step('head', '{{head}}', '{{headShape}}', '({{B}}, {{Tout}}, {{V}})', down),
+      ...step('loss', '{{loss}}', '{{lossShape}}', '{{BT.0}} rows of {{V}}', { boxOpacity: 'downOpacity', numOpacity: 'trainOpacity' }),
+      equation('eq-logits', '{{logitsEq}}', ROW.head, 'downOpacity'),
+      // A slash, not \frac: an inline fraction draws its 1 and BT at about 10px.
+      equation('eq-loss', '\\ell=-(1/BT)\\sum_{b,t}\\log p(Y_{bt})', ROW.loss, 'trainOpacity'),
+      // The tie line first: its length is the same at every call, so the
+      // call-dependent cost lines (one with targets, two without) end the card.
+      note('tie', '{{tieLead}} V × C = {{VC.0}} parameters; {{VC2.0}} at V = {{V2}}, C = {{C2}}.', 40, BELOW),
+      note('cost-train', 'Training scores every position: {{B}} × {{T}} × {{V}} = {{nAll.0}} logits, each compared with its target.', 40, BELOW + 22, { opacity: { $derive: 'trainOpacity' } }),
+      // Two lines: as one, its unresolved {{markers}} would out-measure the
+      // frame the block is sized from (scene-layout.js widestText).
+      note('cost-gen', 'Only the last position is scored: {{B}} × 1 × {{V}} = {{nLast.0}} logits, not {{nAll.0}};', 40, BELOW + 22, { opacity: { $derive: 'genOpacity' } }),
+      note('cost-gen-blocks', 'all {{T}} positions still run every Block.', 40, BELOW + 44, { opacity: { $derive: 'genOpacity' } }),
+    ]),
   ],
-  timeline: Object.keys(ROW).flatMap((key, i) => {
+  // Each sub-card replays its own steps from the start (a hidden sub-card's
+  // events are dropped); the walk stops at a failed assert.
+  timeline: PARTS.flatMap(keys => keys.flatMap((key, i) => {
     const runs = DOWNSTREAM.includes(key);
     return [
       { at: 0.2 + i * 0.3, action: runs ? { $derive: 'walkStep' } : 'highlight', target: `${key}-step`, duration: 0.1 },
       { at: 0.45 + i * 0.3, action: runs ? { $derive: 'unwalkStep' } : 'unhighlight', target: `${key}-step`, duration: 0.1 },
     ];
-  }),
+  })),
 };
 
 export const sources = [
@@ -241,14 +294,19 @@ export const evidence = {
   concept: 'idx (B, T) -> assert T <= block_size -> wte + wpe (B, T, C) -> n_layer x [ln_1 -> q, k, v (B, nh, T, hs) -> att (B, nh, T, T) -> c_proj, residual -> ln_2 -> c_fc (B, T, 4C) -> c_proj, residual] -> ln_f -> lm_head: (B, T, V) with targets and cross-entropy over B·T rows, or (B, 1, V) from x[:, [-1], :] and loss None. generate() crops prompts longer than block_size; calling forward directly with them fails the assert. wte is lm_head\'s weight (tied).',
   sourceRevision: `${fx.provenance.nanogpt.repo}@${fx.provenance.nanogpt.commit}`,
   provenance: 'Source value: B, T, C, n_head, n_layer, V (fx.architecture), the 12-character prompt (fx.crossEntropy.context), train.py default n_embd 768 (fx.config.defaults) and fallback vocab 50304 (fx.tokenizer.modelVocabNote, checked against the pinned train.py and model.py). Live calculation: hs, 4C, B·T, logits counts, V × C. What-if: model(idx) called directly at T = block_size + 1 = 257, and untied lm_head (the crop at 257 is ordinary generate() behaviour).',
-  control: 'call (choice): training model(X, Y) | generate() on "hear me spea" | generate() cropping a 257-character prompt to its last 256 before forward | model(idx) with T = 257. tied (bool): lm_head shares wte\'s weight (NanoGPT) or not (what-if).',
-  consequence: 'training: (64, 256) ... logits (64, 256, 65), loss over (16384, 65) vs (16384), 1064960 logits. generate: (1, 12) ... logits (1, 1, 65), loss None, 65 logits instead of 780. crop: the call row reads generate(): idx[:, -256:], idx → idx_cond: (B, T), (1, 257) → (1, 256), so forward only ever sees T = 256; logits (1, 1, 65). generate: the edge line says T grows up to 256. direct: 257 > 256, AssertionError in warning colour, every later step dimmed with its numbers removed, the replay stops at the assert. The logits equation reads LN_f(x) W^T for training and LN_f(x)_{:,T-1} W^T for every targets-None call, matching the (B, 1, V) shape beside it; the att equation is softmax(qk^T/sqrt(hs) + M), matching att: (B, nh, T, T), and y = att v sits on the c_proj row; the att row always carries its note that only the manual path stores (B, nh, T, T) - on the default scaled_dot_product_attention path the model never holds att. generate/crop: the cost line adds that all T positions (12, 256) still run every Block - no KV cache, so the saving is lm_head only. untied: the logits equation switches W_te to W_lm and the tie line reads +24960 parameters (+38633472 at V = 50304, C = 768).',
+  control: 'part (pager in the card header): Deep dive 1/3 Call site, assert, embedding | 2/3 One Block, run n_layer times | 3/3 ln_f, lm_head, the loss and two savings - one input state, so call and tied carry across the sub-cards. call (choice): training model(X, Y) | generate() on "hear me spea" | generate() cropping a 257-character prompt to its last 256 before forward | model(idx) with T = 257. tied (bool): lm_head shares wte\'s weight (NanoGPT) or not (what-if).',
+  consequence: 'Paging: each sub-card shows its own steps, equations and lines under one shared status line; the frame is the same on all three, so paging never rescales. 1/3: training (64, 256), assert 256 ≤ 256, x (64, 256, 384); generate (1, 12), and the edge line says T grows up to 256; crop: the call row reads generate(): idx[:, -256:], idx → idx_cond: (B, T), (1, 257) → (1, 256), so forward only ever sees T = 256; direct: 257 > 256, AssertionError in warning colour, the embedding dimmed with its numbers removed, the replay stops at the assert. 2/3 opens with the shape 1/3 hands over (x (64, 256, 384) enters the first Block): q, k, v (64, 6, 256, 64), att (64, 6, 256, 256), h (64, 256, 1536), back to (64, 256, 384); the three Block equations stack as one formula block beside the rows: softmax(qk^T/sqrt(hs) + M), matching att: (B, nh, T, T), beside the note under the att row, then y = att v on the c_proj row and the MLP update on the ln_2 row; the att row always carries its note that only the manual path stores (B, nh, T, T) - on the default scaled_dot_product_attention path the model never holds att. 3/3 opens with x leaving the last Block: training logits (64, 256, 65), loss over 16384 rows of 65, 1064960 logits; generate: logits (1, 1, 65), loss None, 65 logits instead of 780, and all T positions (12, 256 for crop) still run every Block - no KV cache, so the saving is lm_head only. The logits equation reads LN_f(x) W^T for training and LN_f(x)_{:,T-1} W^T for every targets-None call, matching the (B, 1, V) shape beside it. untied: the logits equation switches W_te to W_lm and the tie line reads +24960 parameters (+38633472 at V = 50304, C = 768). direct on 2/3 and 3/3: every step dimmed with its numbers removed, and the opening line reads in warning colour that model(idx) failed the assert at T = 257.',
   interactionPurpose: 'Trace the same forward pass through each real call site and see exactly which shapes change (B, T and the head), where the crop and the assert sit, and what the last-position projection and the weight tie buy.',
   task: 'none (explore only - no Practice on this board)',
-  capability: 'choice input over four call sites (record-map picks) plus a bool what-if; derived labels, roles, opacities and equation text; equation objects; a highlight walk whose later steps are derive-resolved (highlight vs pause) so it stops at a failed assert.',
+  capability: 'a pager index input over three sub-cards (objects scoped by part, one frame sized for the tallest); choice input over four call sites (record-map picks) plus a bool what-if; derived labels, roles, opacities and equation text; equation objects; a highlight walk per sub-card whose later steps are derive-resolved (highlight vs pause) so it stops at a failed assert.',
 };
 
+// Each approved (call, tied) state on the sub-card where its content now lives:
+// the crop and the assert on 1/3, the Block's numbers on 2/3, the tied and
+// untied head on 3/3 (the tie line and W_te show only there).
 export const reviewStates = [
-  { call: 'train', tied: true }, { call: 'generate', tied: true }, { call: 'crop', tied: true },
-  { call: 'direct', tied: true }, { call: 'train', tied: false }, { call: 'generate', tied: false },
+  { part: 0, call: 'crop', tied: true }, { part: 0, call: 'direct', tied: true },
+  { part: 1, call: 'generate', tied: true },
+  { part: 2, call: 'train', tied: true }, { part: 2, call: 'train', tied: false }, { part: 2, call: 'generate', tied: false },
+  { part: 0, call: 'generate', tied: true }, { part: 1, call: 'direct', tied: true }, { part: 2, call: 'direct', tied: true },
 ];

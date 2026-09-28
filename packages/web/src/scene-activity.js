@@ -118,7 +118,9 @@ export function leavePractice(block) {
 // values - the set every input write path refuses while practising.
 export function lockedInputNames(block) {
   if (!isPracticing(block)) return [];
-  return Object.keys(block.activity.fixedInputs || {});
+  // The pager is navigation, never locked (scene-evaluate.js applyInputToBlock).
+  const pagers = new Set((block.scene?.inputs || []).filter(input => input.presentation === 'pager').map(input => input.name));
+  return Object.keys(block.activity.fixedInputs || {}).filter(name => !pagers.has(name));
 }
 
 // The learner edits a draft answer only while the attempt is open AND the

@@ -10,6 +10,11 @@
 // running total, one bar per block. The practice asks for a depth the slider
 // cannot show (24).
 //
+// Sub-cards (owner rule 2026-09-28: one idea, at most one visual per frame):
+// Part 1/3 the chain, 2/3 the tensors and the toy table (one block's count),
+// 3/3 the count and its bars (that count × n_layer). The one n_layer slider
+// drives all three; the status line is shared.
+//
 // Numbers: n_layer = 6 and C = 384 are source values (fx.architecture, the
 // shakespeare_char config); n_layer = 12 is NanoGPT's default depth
 // (fx.config.defaults); every other depth is a what-if at the same C. Shapes
@@ -30,18 +35,24 @@ const PER_BLOCK = 12 * A.n_embd ** 2 + 2 * A.n_embd; // the practice's numbers a
 
 // Chain: two rows of six, read like wrapped text. x, h[0] .. h[5] on the
 // first; h[6] .. h[11] on the second; ln_f follows the newest block.
-const ROW_Y = [80, 156], CHAIN_H = 44, PER_ROW = 6;
+const ROW_Y = [92, 180], CHAIN_H = 52, PER_ROW = 6;
 const BLOCK_X0 = 110, BLOCK_W = 80, PITCH = 102;
 const blockX = k => BLOCK_X0 + (k % PER_ROW) * PITCH;
 const blockY = k => ROW_Y[Math.floor(k / PER_ROW)];
 const mid = k => blockY(k) + CHAIN_H / 2;
 const SLOT = 0.08; // replay: one slot per chain item
 
-// Bars: one per depth, height = that stack's block parameters (millions).
-const BARS_X = 40, BARS_Y = 280, BAR_CELL = 34, BARS_H = 96;
-// Parameter section: tensor list on the left, toy table on the right.
-const LIST_Y = 454, LIST_PITCH = 24, SHAPE_X = 330;
-const GRID_X = 640, GRID_Y = 454, CELL = 48, TOY_COLS = 5;
+// Every part is laid out from the top of the same frame (question 34, the
+// shared status 58).
+export const PARTS = ['Blocks run in order', 'What each Block owns', 'The parameter count'];
+const onPart = (part, objects) => objects.map(object => ({ ...object, part }));
+// Part 1/3 - the two notes sit under the last built row: row 1 up to n_layer = 6.
+const NOTES_Y = [180, 272];
+// Part 2/3 - tensor list on the left, toy table on the right.
+const LIST_Y = 120, LIST_PITCH = 24, SHAPE_X = 330;
+const GRID_X = 640, GRID_Y = 120, CELL = 48, TOY_COLS = 5;
+// Part 3/3 - bars: one per depth, height = that stack's block parameters (millions).
+const COUNT_Y = 96, BARS_X = 40, BARS_Y = 146, BAR_CELL = 34, BARS_H = 140, BAR_NOTE_Y = 184;
 
 // Calculated toy example: 5 stand-in entries of attn.c_attn.weight per block.
 // Every row differs from every other in every column (the test checks it).
@@ -88,6 +99,7 @@ const chainEnd = n => {
     inFrom: { x: blockX(k) + BLOCK_W + 2, y }, inTo: { x: x - 4, y },
     headFrom: { x: x + BLOCK_W + 2, y }, headTo: { x: x + BLOCK_W + 26, y },
     head: { x: x + BLOCK_W + 40, y: y + 5 },
+    notes: [0, 24].map(dy => NOTES_Y[Math.floor(k / PER_ROW)] + dy),
     ats: [0, 1, 2, 3].map(i => SLOT * (2 * n + 1 + i)),
   };
 };
@@ -119,12 +131,14 @@ export const scene = {
   id: 'nanogpt-c04-block-stack',
   title: 'A stack of n_layer blocks: same architecture, separate parameters',
   width: 960,
-  height: 726,
+  height: 380,
   duration: 3,
   inputs: [
+    { name: 'part', type: 'index', label: 'Part', of: 'parts', default: 0, presentation: 'pager' },
     { name: 'layers', type: 'index', label: 'n_layer (number of Blocks)', of: 'counts', default: L - 1, presentation: 'slider' },
   ],
   exampleData: {
+    parts: PARTS,
     counts: COUNTS,
     prevCounts: COUNTS.map(n => n - 1),
     C: A.n_embd, maxDepth: MAX, on: true,
@@ -183,52 +197,62 @@ export const scene = {
     ...Object.fromEntries(BLOCKS.map(k => [`halo${k}`, { op: 'pick', args: [`halo${k}s`, 'layers'] }])),
   },
   objects: [
-    text('question', 'n_layer Blocks run in order - what do they share, and what does each Block own?', 40, 34),
-    note('status', '{{status}}', 40, 58),
+    // Each part's question first, then the shared status, so every part reads
+    // question, status, content in document order.
+    ...onPart(0, [text('question', 'n_layer Blocks run in order - what does each Block read?', 40, 34)]),
+    ...onPart(1, [text('question-owns', 'What do the Blocks share, and what does each Block own?', 40, 34)]),
+    ...onPart(2, [text('question-count', 'Add one Block - how much does the parameter count grow?', 40, 34)]),
+    note('status', '{{status}}', 40, 58), // every part
 
-    // The stack, in the order forward() runs it: only built blocks show.
-    { id: 'x-in', type: 'box', semanticId: 'stack-input', conceptId: CONCEPT,
-      initialState: { label: 'x', x: 40, y: ROW_Y[0], w: 48, h: CHAIN_H, role: 'input', opacity: 0 } },
-    arrow('a-x', { x: 90, y: mid(0) }, { x: BLOCK_X0 - 4, y: mid(0) }),
-    ...BLOCKS.flatMap(k => [
-      box(`block-${k}`, `h[${k}]`, blockX(k), blockY(k)),
-      ...(k < MAX - 1 ? [arrow(`a-${k}`, link(k).from, link(k).to)] : []),
+    // Part 1/3 - the stack, in the order forward() runs it: only built blocks show.
+    ...onPart(0, [
+      { id: 'x-in', type: 'box', semanticId: 'stack-input', conceptId: CONCEPT,
+        initialState: { label: 'x', x: 40, y: ROW_Y[0], w: 48, h: CHAIN_H, role: 'input', opacity: 0 } },
+      arrow('a-x', { x: 90, y: mid(0) }, { x: BLOCK_X0 - 4, y: mid(0) }),
+      ...BLOCKS.flatMap(k => [
+        box(`block-${k}`, `h[${k}]`, blockX(k), blockY(k)),
+        ...(k < MAX - 1 ? [arrow(`a-${k}`, link(k).from, link(k).to)] : []),
+      ]),
+      arrow('a-lnf', { $derive: 'end.inFrom' }, { $derive: 'end.inTo' }),
+      box('ln-f', 'ln_f', { $derive: 'end.lnf.x' }, { $derive: 'end.lnf.y' }),
+      arrow('a-head', { $derive: 'end.headFrom' }, { $derive: 'end.headTo' }),
+      note('to-head', 'lm_head', { $derive: 'end.head.x' }, { $derive: 'end.head.y' }, { opacity: 0 }),
+      note('newest', 'The halo marks the newest block, h[{{layers}}].', 40, { $derive: 'end.notes.0' }),
+      note('takeaway', 'n_layer Blocks from one recipe, held in an nn.ModuleList; h[0] reads x, each later Block the previous one’s output.', 40, { $derive: 'end.notes.1' }),
     ]),
-    arrow('a-lnf', { $derive: 'end.inFrom' }, { $derive: 'end.inTo' }),
-    box('ln-f', 'ln_f', { $derive: 'end.lnf.x' }, { $derive: 'end.lnf.y' }),
-    arrow('a-head', { $derive: 'end.headFrom' }, { $derive: 'end.headTo' }),
-    note('to-head', 'lm_head', { $derive: 'end.head.x' }, { $derive: 'end.head.y' }, { opacity: 0 }),
 
-    // The count, its step, and the running total as bars.
-    text('count', 'n_layer = {{n}}: {{blockWord}} × {{perBlock}} = {{stack.0}} block parameters ({{stackMillions}}M)', 40, 230, { role: 'output' }),
-    { id: 'bars', type: 'bars', semanticId: 'stack-counts', conceptId: CONCEPT,
-      initialState: { label: 'Running total: bar k = h[0] … h[k−1] together', x: BARS_X, y: BARS_Y, w: MAX * BAR_CELL, h: BARS_H, cell: BAR_CELL,
-        values: { $derive: 'barVals' }, peak: { $derive: 'barPeak.0' }, labels: COUNTS.map(String), role: 'output',
-        cellHighlight: { $derive: 'layers' }, cellHighlightKind: 'select' } },
-    note('bars-1', 'Bar k is k blocks together, not the size of block k.', 480, 300),
-    note('bars-2', 'Blank past n_layer: those blocks are not built.', 480, 322),
-    note('bars-3', 'n_layer {{prev}} → {{n}} adds {{step.0}} parameters.', 480, 344, { role: 'output' }),
-    note('bars-4', 'Halo, dark bar and ring mark the newest block, h[{{layers}}].', 480, 366),
-
-    // The newest block's parameter tensors: the index changes, the shapes never do.
-    text('tensors-head', 'Parameter tensors of h[{{layers}}], the newest block', 40, 428, { role: 'output' }),
-    ...TENSORS.flatMap(([name, shape], j) => [
-      note(`tensor-${j}`, `transformer.h.{{layers}}.${name}`, 40, LIST_Y + j * LIST_PITCH, { role: 'output' }),
-      note(`shape-${j}`, shape, SHAPE_X, LIST_Y + j * LIST_PITCH),
+    // Part 2/3 - the newest block's parameter tensors (the index changes, the
+    // shapes never do) and the same tensor's numbers in the previous block.
+    ...onPart(1, [
+      text('tensors-head', 'Parameter tensors of h[{{layers}}], the newest block', 40, 94, { role: 'output' }),
+      ...TENSORS.flatMap(([name, shape], j) => [
+        note(`tensor-${j}`, `transformer.h.{{layers}}.${name}`, 40, LIST_Y + j * LIST_PITCH, { role: 'output' }),
+        note(`shape-${j}`, shape, SHAPE_X, LIST_Y + j * LIST_PITCH),
+      ]),
+      text('per-block', 'One block: {{perBlock}} parameters = 12C² + 2C at C = {{C}}', 40, 268),
+      note('per-block-2', 'bias = False, so weights only; every block has these six shapes', 40, 290),
+      { id: 'toy-grid', type: 'grid', semanticId: 'toy-weights', conceptId: CONCEPT,
+        initialState: { label: 'attn.c_attn.weight, 5 entries (toy)', x: GRID_X, y: GRID_Y, rows: { $derive: 'toy.rows' }, cols: TOY_COLS, cell: CELL,
+          values: { $derive: 'toy.values' }, rowLabels: { $derive: 'toy.labels' }, matrixKind: 'input',
+          heat: { mode: 'signed' }, valueScale: 'local', cellHighlight: { row: { $derive: 'toy.ring' } }, cellHighlightKind: 'select' } },
+      note('scale', 'orange +, blue −; ring: the newest block', GRID_X, { $derive: 'toy.legendY' }),
+      note('toy-note', '{{toyNote}}', 40, 326),
+      note('takeaway-2', 'No weight is shared between Blocks. NanoGPT’s one tied weight, wte = lm_head, sits outside the stack.', 40, 350),
     ]),
-    text('per-block', 'One block: {{perBlock}} parameters = 12C² + 2C at C = {{C}}', 40, 602),
-    note('per-block-2', 'bias = False, so weights only; every block has these six shapes', 40, 624),
 
-    // Different numbers: the same tensor in the previous and the newest block.
-    { id: 'toy-grid', type: 'grid', semanticId: 'toy-weights', conceptId: CONCEPT,
-      initialState: { label: 'attn.c_attn.weight, 5 entries (toy)', x: GRID_X, y: GRID_Y, rows: { $derive: 'toy.rows' }, cols: TOY_COLS, cell: CELL,
-        values: { $derive: 'toy.values' }, rowLabels: { $derive: 'toy.labels' }, matrixKind: 'input',
-        heat: { mode: 'signed' }, valueScale: 'local', cellHighlight: { row: { $derive: 'toy.ring' } }, cellHighlightKind: 'select' } },
-    note('scale', 'orange +, blue −; ring: the newest block', GRID_X, { $derive: 'toy.legendY' }),
-
-    note('toy-note', '{{toyNote}}', 40, 660),
-    note('takeaway', 'n_layer Blocks from one recipe, held in an nn.ModuleList; h[0] reads x, each later Block the previous one’s output.', 40, 684),
-    note('takeaway-2', 'No weight is shared between Blocks. NanoGPT’s one tied weight, wte = lm_head, sits outside the stack.', 40, 706),
+    // Part 3/3 - the count (one block's worth × n_layer), its step, and the
+    // running total as bars.
+    ...onPart(2, [
+      text('count', 'n_layer = {{n}}: {{blockWord}} × {{perBlock}} = {{stack.0}} block parameters ({{stackMillions}}M)', 40, COUNT_Y, { role: 'output' }),
+      { id: 'bars', type: 'bars', semanticId: 'stack-counts', conceptId: CONCEPT,
+        initialState: { label: 'Running total: bar k = h[0] … h[k−1] together', x: BARS_X, y: BARS_Y, w: MAX * BAR_CELL, h: BARS_H, cell: BAR_CELL,
+          values: { $derive: 'barVals' }, peak: { $derive: 'barPeak.0' }, labels: COUNTS.map(String), role: 'output',
+          cellHighlight: { $derive: 'layers' }, cellHighlightKind: 'select' } },
+      note('bars-1', 'Bar k is k blocks together, not the size of block k.', 480, BAR_NOTE_Y),
+      note('bars-2', 'Blank past n_layer: those blocks are not built.', 480, BAR_NOTE_Y + 22),
+      note('bars-3', 'n_layer {{prev}} → {{n}} adds {{step.0}} parameters.', 480, BAR_NOTE_Y + 44, { role: 'output' }),
+      note('bars-4', 'Dark bar: the total through the newest block, h[{{layers}}].', 480, BAR_NOTE_Y + 66),
+    ]),
   ],
   timeline: [
     // Replay: x runs through the built blocks in order, then ln_f; then the halo.
@@ -243,8 +267,14 @@ export const scene = {
   ],
 };
 
-// n_layer = 1, 2, 6 (source), 7 (first of the second row), 12 (default).
-export const reviewStates = [{ layers: 0 }, { layers: 1 }, { layers: L - 1 }, { layers: L }, { layers: MAX - 1 }];
+// n_layer = 1, 6 (source) and 12 (default) on every part; 2 (the first
+// block-to-block arrow; the first previous-vs-newest pair) on the chain and the
+// toy table; 7 (first of the second row) on the chain.
+export const reviewStates = [
+  ...[0, 1, L - 1, L, MAX - 1].map(layers => ({ part: 0, layers })),
+  ...[0, 1, L - 1, MAX - 1].map(layers => ({ part: 1, layers })),
+  ...[0, L - 1, MAX - 1].map(layers => ({ part: 2, layers })),
+];
 
 // Practice (commit before you see): a depth past the slider's 12.
 const DEEP = 24;
@@ -276,11 +306,13 @@ export const plan = {
   causalSteps: ['x', 'Block 1', 'Block 2', '…', 'Block n_layer', 'ln_f'],
   // Owner decision 2026-09-28: the fixed what-if line became this slider; it
   // also replaces the block picker (the newest block is the inspected one).
-  primaryInteraction: 'slide n_layer from 1 to 12 (source value 6 for shakespeare_char; 12 is NanoGPT\'s default, a what-if at the same C, as is every other depth): the chain builds that many Blocks and haloes the newest, whose parameter tensors are listed as transformer.h.<n_layer - 1>.* with unchanged shapes; the toy table compares it with the previous block (same shape, different values); the count n_layer × one block rises by the same live step (n_layer - 1 → n_layer adds one block\'s worth) at every depth, and the running-total bars fill to n_layer',
+  // Owner rule 2026-09-28: paged into three sub-cards, one visual each; the
+  // one slider drives all three.
+  primaryInteraction: 'slide n_layer from 1 to 12 (source value 6 for shakespeare_char; 12 is NanoGPT\'s default, a what-if at the same C, as is every other depth), one slider shared by three sub-cards: on Part 1/3 the chain builds that many Blocks and haloes the newest; on 2/3 the newest block\'s parameter tensors are listed as transformer.h.<n_layer - 1>.* with unchanged shapes, and the toy table compares it with the previous block (same shape, different values); on 3/3 the count n_layer × one block rises by the same live step (n_layer - 1 → n_layer adds one block\'s worth) at every depth, and the running-total bars fill to n_layer',
   check: 'practice (commit before you see): how many parameters do the Blocks of a 24-layer stack hold at the same C? 24 is past the slider and the options are bare numbers, so the answer needs the rule (separate weights per block: one block\'s worth per layer), not a reading of the card',
   boundary: {
     decision: 'single',
-    reason: 'one mental model (repeat the same recipe with separate weights)',
+    reason: 'one mental model (repeat the same recipe with separate weights). Paged into three sub-cards, one visual each: Part 1/3 the chain, Part 2/3 the tensors and toy table (one block\'s count), Part 3/3 the count and bars (that count × n_layer)',
     sequence: { name: 'The block and the stack', position: 2, of: 2, relationships: [{ type: 'deepens', card: 'c02-block-anatomy' }] },
   },
 };
@@ -312,13 +344,14 @@ export const sources = [
 export const evidence = {
   card: 'c04-block-stack',
   title: scene.title,
-  learningQuestion: scene.objects[0].initialState.text,
+  // The whole card's question; each sub-card asks its own part of it on the surface.
+  learningQuestion: 'n_layer Blocks run in order - what do they share, and what does each Block own?',
   concept: 'GPT.__init__ builds transformer.h as nn.ModuleList([Block(config) for _ in range(n_layer)]) (model.py:130): n_layer Blocks from one recipe, each an independent module with its own six tensors (ln_1.weight, attn.c_attn.weight, attn.c_proj.weight, ln_2.weight, mlp.c_fc.weight, mlp.c_proj.weight; bias = False). forward() runs them in order (model.py:180-182), then ln_f. Parameters grow linearly with depth: 12C² + 2C per block.',
   sourceRevision: `${fx.provenance.nanogpt.repo}@${fx.provenance.nanogpt.commit}`,
   provenance: 'source: model.py:130, :180-182, :96-101, :35-37, :82-84, :21-24, :162-166, :141-145, :138, :112-114; train.py:52-54, :56; config/train_shakespeare_char.py:22-24. Source value: n_layer = 6, C = 384 (fx.architecture). Live calculation: shapes 3C, 4C and counts via concat/elementwise/scale/sum; count = per block × n_layer; step = count - per block × (n_layer - 1) via sub; running-total bars = per block × 1..12 through causal_mask. Calculated toy example: the 12 × 5 weight table typed into the card. What-if: every depth but 6 at C = 384, 12 being NanoGPT\'s default (fx.config.defaults).',
-  control: 'layers (index slider, "n_layer (number of Blocks)") over n_layer = 1 .. 12; default 6.',
-  consequence: 'The chain shows x, h[0] .. h[n_layer - 1] (two rows of six), ln_f and lm_head, with the newest block haloed; the status reads Source value at 6 and What-if elsewhere (12: NanoGPT\'s default); the tensor list renames to transformer.h.<n_layer - 1>.* with unchanged shapes ((384,), (1152, 384), (384, 384), (384,), (1536, 384), (384, 1536)); the toy table shows the previous and the newest block (h[0] alone at 1); the count reads n_layer × 1,770,240: 1,770,240 (1.77M) at 1, 10,621,440 (10.62M) at 6, 17,702,400 (17.70M) at 10, 21,242,880 (21.24M) at 12; the step line reads "n_layer n - 1 → n adds 1,770,240 parameters." at every depth; the running-total bars (bar k = h[0] .. h[k - 1]) fill to n_layer, the current one marked.',
+  control: 'layers (index slider, "n_layer (number of Blocks)") over n_layer = 1 .. 12; default 6. The header pager (part, "Part · k/3") pages the sub-cards and is not in INTERACT.',
+  consequence: 'Three sub-cards ("Part · 1/3" .. "3/3": Blocks run in order, What each Block owns, The parameter count) share the slider and the status line, which reads Source value at 6 and What-if elsewhere (12: NanoGPT\'s default). Part 1/3: the chain shows x, h[0] .. h[n_layer - 1] (two rows of six), ln_f and lm_head, with the newest block haloed. Part 2/3: the tensor list renames to transformer.h.<n_layer - 1>.* with unchanged shapes ((384,), (1152, 384), (384, 384), (384,), (1536, 384), (384, 1536)); the toy table shows the previous and the newest block (h[0] alone at 1). Part 3/3: the count reads n_layer × 1,770,240: 1,770,240 (1.77M) at 1, 10,621,440 (10.62M) at 6, 17,702,400 (17.70M) at 10, 21,242,880 (21.24M) at 12; the step line reads "n_layer n - 1 → n adds 1,770,240 parameters." at every depth; the running-total bars (bar k = h[0] .. h[k - 1]) fill to n_layer, the current one marked. A depth set on one part is already applied on the others.',
   interactionPurpose: 'Change the depth and watch what does not change (the recipe: tensor names after the index and every shape) and what does (another block with its own numbers, and the same step in the count every time) - depth adds blocks, not bigger ones.',
   task: `Practice: how many parameters do the Blocks of a ${DEEP}-layer stack hold at the same C? (choice; expected "linear", ${DEEP} × 1,770,240 = 42,485,760 - a depth past the slider, so it needs the rule, not the picture)`,
-  capability: 'index slider; pick-derived timeline actions (appear vs pause) so only built blocks show, and a pick-derived halo; pick-derived positions and replay time for ln_f and its arrows; {{layers}} interpolation in parameter names; live concat/elementwise/scale/sum counts, a sub-derived step and a picked two-decimal millions label; bars from causal_mask over every depth\'s count (blank past n_layer) on a pinned peak, with a derived mark; an input grid whose rows, values and row labels are picked per depth, signed local heat and a derived row ring; choice practice graded by choice_equals.',
+  capability: 'a "Part" pager over three sub-cards (one frame sized for the tallest, so paging never rescales); index slider shared by every part; pick-derived timeline actions (appear vs pause) so only built blocks show, and a pick-derived halo; pick-derived positions and replay time for ln_f and its arrows, and pick-derived rows for the chain\'s two notes (under row 1 up to n_layer = 6); {{layers}} interpolation in parameter names; live concat/elementwise/scale/sum counts, a sub-derived step and a picked two-decimal millions label; bars from causal_mask over every depth\'s count (blank past n_layer) on a pinned peak, with a derived mark; an input grid whose rows, values and row labels are picked per depth, signed local heat and a derived row ring; choice practice graded by choice_equals.',
 };

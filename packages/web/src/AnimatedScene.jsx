@@ -15,7 +15,7 @@ import 'katex/dist/katex.min.css';
 import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './animation-scene.js';
 import { applyInputToBlock, evaluateScene } from './scene-evaluate.js';
 import { lockedInputNames, revealHiddenInputs } from './scene-activity.js';
-import SceneControls from './SceneControls.jsx';
+import SceneControls, { CardPager } from './SceneControls.jsx';
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { distributeRounding } from './scene-derive.js';
 import { cellNumeralSize, formatCell } from './scene-format.js';
@@ -662,6 +662,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
   // Which inputs the active practice has locked - the widgets show it and
   // the command path enforces it (applyInputToBlock refuses locked names).
   const lockedInputs = lockedInputNames(block);
+  const pager = evaluated?.declarations.find(declaration => declaration.presentation === 'pager');
   // Only this card's experiment resets: declared inputs return, the inspected
   // object and marked region clear, notes and every other card stay put.
   // While practising, the task's locked inputs stay exactly where the task
@@ -670,6 +671,8 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
     setPlaying(false);
     setSelecting(false);
     const kept = latest.current.practiceActive && latest.current.activity?.fixedInputs ? { ...latest.current.activity.fixedInputs } : {};
+    // The sub-card being read is navigation, not part of the experiment.
+    if (pager && latest.current.inputs?.[pager.name] !== undefined) kept[pager.name] = latest.current.inputs[pager.name];
     onChange({ ...latest.current, inputs: kept, inputRevision: (latest.current.inputRevision || 0) + 1, marked: null, selectedObject: null });
   };
   useEffect(() => {
@@ -739,6 +742,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
   const replay = () => { setTime(0); setRun(count => count + 1); if (!still) setPlaying(true); };
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
+      {pager && <CardPager declaration={pager} value={evaluated.inputs[pager.name]} data={block.scene.exampleData} onInput={setInput} />}
       <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-white">
         <Frame scene={scene} state={state} selecting={selecting} marked={block.marked} picked={block.selectedObject} pop={pop}
           onInputPick={interactive ? setInput : null} lockedInputs={lockedInputs}

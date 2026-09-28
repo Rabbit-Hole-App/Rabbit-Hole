@@ -9,6 +9,10 @@
 // lr_decay_iters) and the shipped config (shakespeare_char on one GPU vs
 // train_gpt2 on eight). The equations, shapes and per-step notes follow both;
 // the source inspector is the code connection (every step has a code source).
+// Three sub-cards (the pager), one idea each, sharing both controls: 1/3 get_lr
+// and the eval/save guard (all that the Iteration control moves), 2/3 the
+// micro-steps and their memory tradeoff, 3/3 clip -> AdamW -> zero_grad and
+// tokens per iteration.
 //
 // Numbers: SOURCE values from gen_training_loss.py, which resolves both config
 // files over train.py's defaults the way configurator.py does, executes
@@ -65,31 +69,37 @@ const STOP_LABELS = ['it = 0', 'last warmup step', 'first cosine step', 'halfway
 const EDGE = [true, false, false, false, false, true];
 const ROLE_ROWS = [['output', 'neutral', 'neutral'], ['neutral', 'output', 'neutral'], ['neutral', 'neutral', 'output']];
 
-// Step boxes down the left, each with its own line(s) on the right.
+// Step boxes down the left, each with its own line(s) on the right. Every
+// sub-card lays out from the top of the same frame, so each part's steps start
+// on the same row; arrows join the steps of one part only. 1/3 has two steps,
+// so estimate_loss sits right under get_lr's equation and the note follows it.
+const PARTS = ['get_lr schedule and eval', 'Micro-steps: forward, loss, backward', 'The step: clip, AdamW, zero_grad'];
 const BOX = { x: 70, w: 270, h: 34 };
 const RIGHT = 364;
 const STEPS = [
-  { id: 'get-lr', y: 84, label: 'get_lr({{it}}) = {{lrText}}' },
-  { id: 'estimate', y: 172, label: 'estimate_loss(): {{evalWord}}', role: { $derive: 'evalRole' } },
-  { id: 'forward', y: 224, label: 'model(X, Y)' },
-  { id: 'loss', y: 276, label: 'F.cross_entropy(…)' },
-  { id: 'backward', y: 350, label: '(loss / M).backward()' },
-  { id: 'clip', y: 402, label: 'clip_grad_norm_(…)' },
-  { id: 'step', y: 454, label: 'optimizer.step()' },
-  { id: 'zero', y: 528, label: 'zero_grad(set_to_none=True)' },
+  { id: 'get-lr', part: 0, y: 84, label: 'get_lr({{it}}) = {{lrText}}' },
+  { id: 'estimate', part: 0, y: 172, label: 'estimate_loss(): {{evalWord}}', role: { $derive: 'evalRole' } },
+  { id: 'forward', part: 1, y: 84, label: 'model(X, Y)' },
+  { id: 'loss', part: 1, y: 136, label: 'F.cross_entropy(…)' },
+  { id: 'backward', part: 1, y: 210, label: '(loss / M).backward()' },
+  { id: 'clip', part: 2, y: 84, label: 'clip_grad_norm_(…)' },
+  { id: 'step', part: 2, y: 136, label: 'optimizer.step()' },
+  { id: 'zero', part: 2, y: 210, label: 'zero_grad(set_to_none=True)' },
 ];
 const at = id => STEPS.find(s => s.id === id).y;
-const PANEL = 594; // the stop's note, then the tradeoff
+const PANEL = 272; // under the last step of 2/3 and 3/3: the tradeoff (2/3), tokens per iteration (3/3)
+const NOTE = at('estimate') + BOX.h + 28; // 1/3: the stop's note, the same gap under its last step
 const LOOP = { x: 34, top: at('forward'), bottom: at('backward') + BOX.h };
+const LINKS = STEPS.slice(1).map((step, i) => [STEPS[i], step]).filter(([from, to]) => from.part === to.part);
 
-const text = (id, initialState, conceptId = 'training-loop') => ({ id, type: 'text', semanticId: id, conceptId, initialState });
-const eq = (id, latex, y, w = 560) => ({ id, type: 'equation', semanticId: id, conceptId: 'training-loop',
+const text = (id, part, initialState, conceptId = 'training-loop') => ({ id, type: 'text', part, semanticId: id, conceptId, initialState });
+const eq = (id, part, latex, y, w = 560) => ({ id, type: 'equation', part, semanticId: id, conceptId: 'training-loop',
   initialState: { text: latex, x: RIGHT, y, w, h: 40 } });
-const box = ({ id, y, label, role }) => ({ id, type: 'box', semanticId: id, conceptId: 'training-loop',
+const box = ({ id, part, y, label, role }) => ({ id, type: 'box', part, semanticId: id, conceptId: 'training-loop',
   initialState: { label, x: BOX.x, y, w: BOX.w, h: BOX.h, role: role || 'code', opacity: 0 } });
-const arrow = (from, to) => ({ id: `arrow-${from.id}`, type: 'arrow', semanticId: `arrow-${from.id}`, conceptId: 'training-loop',
+const arrow = (from, to) => ({ id: `arrow-${from.id}`, type: 'arrow', part: from.part, semanticId: `arrow-${from.id}`, conceptId: 'training-loop',
   initialState: { from: { x: BOX.x + BOX.w / 2, y: from.y + BOX.h + 2 }, to: { x: BOX.x + BOX.w / 2, y: to.y - 3 }, role: 'neutral', opacity: 0 } });
-const branchBox = (k, label) => ({ id: `branch-${k}`, type: 'box', semanticId: `branch-${k}`, conceptId: 'training-loop',
+const branchBox = (k, label) => ({ id: `branch-${k}`, type: 'box', part: 0, semanticId: `branch-${k}`, conceptId: 'training-loop',
   initialState: { label, x: RIGHT + k * 156, y: at('get-lr'), w: 150, h: 30, role: { $derive: `stripRoles.${k}` } } });
 
 // Every per-config table is read the same way: pick the config's row, then the stop.
@@ -100,14 +110,16 @@ export const scene = {
   id: 'depth-training-loss-deep',
   title: 'Training and loss · Deep dive: one iteration of train.py',
   width: 960,
-  height: 720,
-  duration: 2.4,
+  height: 340,
+  duration: 1,
   inputs: [
+    { name: 'part', type: 'index', label: 'Deep dive', of: 'parts', default: 0, presentation: 'pager' },
     { name: 'stop', type: 'index', label: 'Iteration', of: 'stopLabels', default: 3, presentation: 'picker' },
     { name: 'config', type: 'choice', label: 'Shipped config', default: 'char',
       options: [{ id: 'char', label: 'shakespeare_char, 1 GPU' }, { id: 'gpt2', label: 'train_gpt2, 8 GPUs' }] },
   ],
   exampleData: {
+    parts: PARTS,
     stopLabels: STOP_LABELS,
     B: byConfig(c => c.batchSize),
     T: byConfig(c => c.blockSize),
@@ -163,44 +175,53 @@ export const scene = {
     mpb: { op: 'dot', args: ['vmp', 'vb'] },
   },
   objects: [
-    text('question', { text: 'What exactly does one iteration of NanoGPT’s training loop do?', x: 40, y: 34, typography: 'heading' }),
-    text('prerequisites', { text: 'Builds on: Guided (the loss is the mean of −ln p); tensor shapes, gradients, AdamW.', x: 40, y: 58, typography: 'annotation' }),
+    // 1/3: what iteration t decides before any forward pass - the learning rate and the eval/save guard.
+    text('question', 0, { text: 'What exactly does one iteration of NanoGPT’s training loop do?', x: 40, y: 34, typography: 'heading' }),
+    text('prerequisites', 0, { text: 'Builds on: Guided (the loss is the mean of −ln p); tensor shapes, gradients, AdamW.', x: 40, y: 58, typography: 'annotation' }),
     ...STEPS.map(box),
-    ...STEPS.slice(1).map((step, i) => arrow(STEPS[i], step)),
-    { id: 'loop', type: 'line', semanticId: 'loop', conceptId: 'training-loop',
-      initialState: { from: { x: LOOP.x, y: LOOP.top }, to: { x: LOOP.x, y: LOOP.bottom }, role: 'code' } },
-    text('loop-label', { text: 'micro-steps: M = {{m}}', x: 52, y: LOOP.bottom - 20, typography: 'annotation', rotation: -90 }),
+    ...LINKS.map(([from, to]) => arrow(from, to)),
     // get_lr: which of its three branches runs, the branch as an equation, and the status of the value.
     branchBox(0, 'warmup: t < W'),
     branchBox(1, 'cosine: W ≤ t ≤ D'),
     branchBox(2, 'floor: t > D'),
-    text('lr-status', { text: '{{status}}', x: RIGHT + 3 * 156 + 2, y: at('get-lr') + 20, typography: 'annotation' }),
-    eq('lr-eq', '{{eq}}', at('get-lr') + 38, 580),
-    text('eval-line', { text: '{{eval}}', x: RIGHT, y: at('estimate') + 22, typography: 'annotation' }),
-    text('shapes', { text: 'X, Y: (B, T) = ({{b}}, {{t}})   →   logits: (B, T, V) = ({{b}}, {{t}}, {{v}})', x: RIGHT, y: at('forward') + 22, typography: 'annotation' }),
+    text('lr-status', 0, { text: '{{status}}', x: RIGHT + 3 * 156 + 2, y: at('get-lr') + 20, typography: 'annotation' }),
+    eq('lr-eq', 0, '{{eq}}', at('get-lr') + 38, 580),
+    text('eval-line', 0, { text: '{{eval}}', x: RIGHT, y: at('estimate') + 22, typography: 'annotation' }),
+    // The stop's own lesson.
+    text('note-a', 0, { text: '{{noteA}}', x: 40, y: NOTE, typography: 'annotation', role: { $derive: 'noteRole' } }, 'edge-case'),
+    text('note-b', 0, { text: '{{noteB}}', x: 40, y: NOTE + 18, typography: 'annotation', role: { $derive: 'noteRole' } }, 'edge-case'),
+    // 2/3: the micro-steps, and the batch/memory tradeoff they buy.
+    text('question-micro', 1, { text: 'How do M micro-steps of forward, loss and backward make one gradient?', x: 40, y: 34, typography: 'heading' }),
+    { id: 'loop', type: 'line', part: 1, semanticId: 'loop', conceptId: 'training-loop',
+      initialState: { from: { x: LOOP.x, y: LOOP.top }, to: { x: LOOP.x, y: LOOP.bottom }, role: 'code' } },
+    text('loop-label', 1, { text: 'micro-steps: M = {{m}}', x: 52, y: LOOP.bottom - 20, typography: 'annotation', rotation: -90 }),
+    text('shapes', 1, { text: 'X, Y: (B, T) = ({{b}}, {{t}})   →   logits: (B, T, V) = ({{b}}, {{t}}, {{v}})', x: RIGHT, y: at('forward') + 22, typography: 'annotation' }),
     // ignore_index=-1: the mean runs over the targets that are not -1; get_batch never emits -1, so N = B*T.
-    eq('loss-eq', '\\mathcal{L}_m=-\\tfrac1N\\sum_{i:\\,y_i\\neq-1}\\ln\\mathrm{softmax}(z_i)[y_i]', at('loss') - 6, 590),
-    text('flatten', { text: 'view(−1, V): (B·T, V) = ({{bt}}, {{v}}); get_batch emits no −1, so N = B·T', x: RIGHT, y: at('loss') + 52, typography: 'annotation' }),
+    eq('loss-eq', 1, '\\mathcal{L}_m=-\\tfrac1N\\sum_{i:\\,y_i\\neq-1}\\ln\\mathrm{softmax}(z_i)[y_i]', at('loss') - 6, 590),
+    text('flatten', 1, { text: 'view(−1, V): (B·T, V) = ({{bt}}, {{v}}); get_batch emits no −1, so N = B·T', x: RIGHT, y: at('loss') + 52, typography: 'annotation' }),
     // DDP all-reduces (averages) the P processes' gradients at the last micro-step.
-    eq('accum-eq', 'g=\\frac1P\\sum_{p,m}\\nabla_\\theta\\frac{\\mathcal{L}_{p,m}}{M},\\ P={{p}},\\ M={{m}}', at('backward') - 6, 580),
-    eq('clip-eq', 'g\\gets g\\,\\min(1,\\,c/\\lVert g\\rVert_2),\\quad c={{clip}}', at('clip') - 6),
+    eq('accum-eq', 1, 'g=\\frac1P\\sum_{p,m}\\nabla_\\theta\\frac{\\mathcal{L}_{p,m}}{M},\\ P={{p}},\\ M={{m}}', at('backward') - 6, 580),
+    text('memory', 1, { text: 'Tradeoff: memory holds one micro-step’s activations (the logits alone are B·T·V = {{logitsShown}} values),', x: 40, y: PANEL, typography: 'annotation' }, 'tradeoff'),
+    text('memory-2', 1, { text: 'and time pays for M = {{m}} of them in a row; each step’s gradient averages M·P·B = {{mpb}} sequences (Live calculation).', x: 40, y: PANEL + 18, typography: 'annotation' }, 'tradeoff'),
+    text('memory-3', 1, { text: 'Without accumulation one process would hold all M·B = {{mb}} sequences at once (logits: M·B·T·V = {{logitsAllShown}} values).', x: 40, y: PANEL + 36, typography: 'annotation' }, 'tradeoff'),
+    // 3/3: the gradient becomes a weight update, and what one iteration consumed.
+    text('question-update', 2, { text: 'How does that gradient update the weights, and how many tokens fed it?', x: 40, y: 34, typography: 'heading' }),
+    eq('clip-eq', 2, 'g\\gets g\\,\\min(1,\\,c/\\lVert g\\rVert_2),\\quad c={{clip}}', at('clip') - 6),
     // Labelled conceptual: AdamW's decoupled update, not every detail of PyTorch's implementation.
-    eq('adamw-eq', '\\theta\\gets\\theta-\\eta_t(\\hat m/(\\sqrt{\\hat v}+\\epsilon)+\\lambda\\theta)', at('step') - 6, 580),
-    text('adamw-label', { text: 'AdamW, conceptual update', x: RIGHT + 356, y: at('step') + 16, typography: 'annotation' }),
-    text('decay', { text: '{{decay}}', x: RIGHT, y: at('step') + 52, typography: 'annotation' }),
-    text('zero-note', { text: 'grads become None, not zeros: memory is freed until the next backward', x: RIGHT, y: at('zero') + 22, typography: 'annotation' }),
-    // The stop's own lesson, then the batch/memory tradeoff.
-    text('note-a', { text: '{{noteA}}', x: 40, y: PANEL, typography: 'annotation', role: { $derive: 'noteRole' } }, 'edge-case'),
-    text('note-b', { text: '{{noteB}}', x: 40, y: PANEL + 18, typography: 'annotation', role: { $derive: 'noteRole' } }, 'edge-case'),
-    text('tokens', { text: 'Tokens per iteration = M·P·B·T = {{m}}·{{p}}·{{b}}·{{t}} = {{tokensShown}}, as printed at start-up (Source value)', x: 40, y: PANEL + 46 }, 'tradeoff'),
-    text('memory', { text: 'Tradeoff: memory holds one micro-step’s activations (the logits alone are B·T·V = {{logitsShown}} values),', x: 40, y: PANEL + 68, typography: 'annotation' }, 'tradeoff'),
-    text('memory-2', { text: 'and time pays for M = {{m}} of them in a row; each step’s gradient averages M·P·B = {{mpb}} sequences (Live calculation).', x: 40, y: PANEL + 86, typography: 'annotation' }, 'tradeoff'),
-    text('memory-3', { text: 'Without accumulation one process would hold all M·B = {{mb}} sequences at once (logits: M·B·T·V = {{logitsAllShown}} values).', x: 40, y: PANEL + 104, typography: 'annotation' }, 'tradeoff'),
+    eq('adamw-eq', 2, '\\theta\\gets\\theta-\\eta_t(\\hat m/(\\sqrt{\\hat v}+\\epsilon)+\\lambda\\theta)', at('step') - 6, 580),
+    text('adamw-label', 2, { text: 'AdamW, conceptual update', x: RIGHT + 280, y: at('step') + 16, typography: 'annotation' }),
+    text('decay', 2, { text: '{{decay}}', x: RIGHT, y: at('step') + 52, typography: 'annotation' }),
+    text('zero-note', 2, { text: 'grads become None, not zeros: memory is freed until the next backward', x: RIGHT, y: at('zero') + 22, typography: 'annotation' }),
+    text('tokens', 2, { text: 'Tokens per iteration = M·P·B·T = {{m}}·{{p}}·{{b}}·{{t}} = {{tokensShown}}, as printed at start-up (Source value)', x: 40, y: PANEL + 4 }, 'tradeoff'),
   ],
-  timeline: STEPS.flatMap((step, k) => [
-    { at: 0.1 + k * 0.25, action: 'appear', target: step.id, duration: 0.25 },
-    ...(k ? [{ at: k * 0.25, action: 'appear', target: `arrow-${STEPS[k - 1].id}`, duration: 0.15 }] : []),
-  ]),
+  // Each part's steps appear in order from the start of the clip.
+  timeline: STEPS.flatMap(step => {
+    const k = STEPS.filter(other => other.part === step.part).indexOf(step);
+    return [
+      { at: 0.1 + k * 0.25, action: 'appear', target: step.id, duration: 0.25 },
+      ...(k ? [{ at: k * 0.25, action: 'appear', target: `arrow-${STEPS[STEPS.indexOf(step) - 1].id}`, duration: 0.15 }] : []),
+    ];
+  }),
 };
 
 const REPRODUCE = 'python packages/web/src/nanogpt/depth/fixtures/gen_training_loss.py --check';
@@ -244,17 +265,24 @@ export const evidence = {
   concept: 'One train.py iteration: get_lr picks the learning rate by branch (warmup, cosine, or the min_lr floor that the shipped configs never reach); every eval_interval iterations estimate_loss runs (no save at it = 0); M micro-steps each run the forward pass to (B, T, V) logits, flatten to (B·T, V) for cross-entropy (targets of −1 would be ignored; get_batch emits none, so the mean is over all B·T) and backpropagate loss / M, so the gradients sum to the mean over M·B sequences, and DDP averages that over the P processes (M·P·B sequences per step); the global gradient norm is clipped to grad_clip; AdamW steps with weight decay only on tensors of dim ≥ 2; gradients are set to None.',
   sourceRevision: `${fx.provenance.nanogpt.repo} @ ${fx.provenance.nanogpt.commit}`,
   provenance: 'Source value (gen_training_loss.py): both configs resolved over train.py defaults, get_lr executed from the pinned train.py at six stops each, eval flags, V (meta.pkl 65 / default 50304) and ln V, micro-steps per process. M·P·B·T, B·T·V and M·B·T·V are products of those values, grouped as train.py prints tokens_per_iter. Live calculation: B·T, M·B and M·P·B via concat/dot. Code: 23 cited ranges across train.py, model.py, both configs, configurator.py and both prepare.py files - one or more per step.',
-  control: 'stop (index, picker) "Iteration": it = 0 / last warmup step / first cosine step / halfway through decay / it = max_iters / past decay (what-if); config (choice) "Shipped config": shakespeare_char on 1 GPU / train_gpt2 on 8 GPUs.',
-  consequence: `The get_lr box shows get_lr(t) and its value; the branch strip lights warmup, cosine or floor and the equation switches to that branch with this stop’s numbers; the estimate_loss box turns green (runs) or grey (skipped) with its modulo and save rule; the AdamW equation is labelled as the conceptual update, and the line under it keeps weight decay to the dim ≥ 2 group; shapes, N = B·T, M, the betas and the tokens-per-iteration (as train.py prints it) and memory lines follow the config, the last giving what M = ${GPT2.gradAccumPerProcess} saves train_gpt2: without accumulation one process would hold all M·B = ${GPT2.gradAccumPerProcess * GPT2.batchSize} sequences (${(GPT2.gradAccumPerProcess * GPT2.batchSize * GPT2.blockSize * GPT2.vocabSize).toLocaleString('en-US')} logits, not ${(GPT2.batchSize * GPT2.blockSize * GPT2.vocabSize).toLocaleString('en-US')}); the note under the loop gives the stop’s lesson, in warning colour for the it = 0 edge case and the what-if.`,
-  interactionPurpose: 'Pick an iteration to see which get_lr branch runs and whether this iteration evaluates or may save; switch config to see the shapes, the vocabulary and the micro-step count change, and the batch/memory tradeoff quantified.',
+  control: 'part (index, pager in the card header) "Deep dive": 1/3 get_lr schedule and eval / 2/3 micro-steps: forward, loss, backward / 3/3 the step: clip, AdamW, zero_grad - both controls below are shared by all three; stop (index, picker) "Iteration": it = 0 / last warmup step / first cosine step / halfway through decay / it = max_iters / past decay (what-if); config (choice) "Shipped config": shakespeare_char on 1 GPU / train_gpt2 on 8 GPUs.',
+  consequence: `1/3: the get_lr box shows get_lr(t) and its value; the branch strip lights warmup, cosine or floor and the equation switches to that branch with this stop’s numbers; the estimate_loss box turns green (runs) or grey (skipped) with its modulo and save rule, and the note under them gives the stop’s lesson, in warning colour for the it = 0 edge case and the what-if. 2/3: shapes, N = B·T, M and P follow the config, and so do the memory lines, the last giving what M = ${GPT2.gradAccumPerProcess} saves train_gpt2: without accumulation one process would hold all M·B = ${GPT2.gradAccumPerProcess * GPT2.batchSize} sequences (${(GPT2.gradAccumPerProcess * GPT2.batchSize * GPT2.blockSize * GPT2.vocabSize).toLocaleString('en-US')} logits, not ${(GPT2.batchSize * GPT2.blockSize * GPT2.vocabSize).toLocaleString('en-US')}). 3/3: the AdamW equation is labelled as the conceptual update, and the line under it keeps weight decay to the dim ≥ 2 group; the betas and the tokens per iteration (as train.py prints it) follow the config. The Iteration control moves only 1/3; a control changed on one sub-card is already applied on the others.`,
+  interactionPurpose: 'Page through the three sub-cards in loop order. Pick an iteration to see which get_lr branch runs and whether this iteration evaluates or may save; switch config to see the shapes, the vocabulary and the micro-step count change, and the batch/memory tradeoff quantified.',
   task: 'At it = 0, say what lr is, what loss a healthy fresh model reports for each config, and why no checkpoint is saved; then explain why the floor branch of get_lr never runs with either shipped config, and what M = 5 buys train_gpt2.',
-  capability: 'box pipeline with arrows and a rotated loop label; a three-box branch strip with input-derived roles; equations whose LaTeX is picked per (config, stop) and interpolated with live values; record-map pick by a choice input; concat/dot products for live integer arithmetic.',
+  capability: 'box pipeline with arrows and a rotated loop label; a three-box branch strip with input-derived roles; equations whose LaTeX is picked per (config, stop) and interpolated with live values; record-map pick by a choice input; concat/dot products for live integer arithmetic; a pager input splitting the card into three sub-cards (objects declare their part) in one fixed frame.',
   depth: 'Deep dive',
   prerequisites: 'Guided (the loss is the mean of −ln p); tensor shapes, gradients, AdamW.',
   ladderRole: 'Leaves the toy run for the code path itself: exact equations, (B, T, V) shapes, get_lr’s branches and the eval/save guards as controls, an edge case at it = 0 and a what-if past lr_decay_iters, and the accumulation tradeoff in numbers - none of which the Overview or Guided show.',
 };
 
+// The board keeps 2-6 review states per card (and the review shots take the first 6), so every part is in
+// these six. Every stop-dependent line is on 1/3: its four states cover all three get_lr branches, the four
+// eval rules shown (skipped, runs but no save at it = 0, never reached, runs and saves) and both note colours.
+// 2/3 and 3/3 follow the config only; train_gpt2 is the one with M = 5 and P = 8. deep.test.mjs runs every
+// gate at all 12 (stop, config) states of 1/3 and both configs of 2/3 and 3/3.
 export const reviewStates = [
-  { stop: 3, config: 'char' }, { stop: 0, config: 'char' }, { stop: 5, config: 'char' },
-  { stop: 0, config: 'gpt2' }, { stop: 2, config: 'gpt2' }, { stop: 4, config: 'gpt2' },
+  { part: 0, stop: 3, config: 'char' }, { part: 0, stop: 0, config: 'gpt2' },
+  { part: 0, stop: 5, config: 'char' }, { part: 0, stop: 4, config: 'gpt2' },
+  { part: 1, config: 'gpt2' }, { part: 2, config: 'gpt2' },
+  { part: 0, stop: 0, config: 'char' }, { part: 0, stop: 2, config: 'gpt2' },
 ];

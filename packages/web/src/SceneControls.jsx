@@ -27,6 +27,24 @@ const chipClass = (active, committed = false) => `${CHIP} ${committed && active
 // steppers disable at the bounds, and nothing wraps. Slider drags flow
 // through the live (non-snapshotting) path so one sweep is not fifteen undo
 // steps; steppers and keyboard arrows are discrete and commit normally.
+// Sub-card navigation in the card header: "Deep dive · 2/4", the part's name,
+// Previous / Next - the slider's steppers, without a slider for 2-4 parts.
+export function CardPager({ declaration, value, data, onInput }) {
+  const parts = data?.[declaration.of] || [];
+  // aria-disabled, not disabled: a disabled button drops keyboard focus to the
+  // page (and the canvas) the moment the last sub-card is reached.
+  const stepButton = 'flex h-7 items-center rounded-lg border border-line px-2.5 text-xs text-ink hover:bg-hover aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:bg-transparent';
+  const step = to => { if (to >= 0 && to < parts.length) onInput(declaration.name, to); };
+  return (
+    <div data-card-pager={declaration.name} role="group" aria-label={declaration.label} className="flex shrink-0 items-center gap-2">
+      <span data-pager-readout aria-live="polite" className="text-sm font-semibold tabular-nums text-ink">{declaration.label} · {value + 1}/{parts.length}</span>
+      <span className="min-w-0 flex-1 truncate text-sm text-ink-2">{parts[value]}</span>
+      <button type="button" data-pager-step="previous" aria-disabled={value <= 0} onClick={() => step(value - 1)} className={stepButton}>Previous</button>
+      <button type="button" data-pager-step="next" aria-disabled={value >= parts.length - 1} onClick={() => step(value + 1)} className={stepButton}>Next</button>
+    </div>
+  );
+}
+
 function IndexSlider({ declaration, value, data, onInput }) {
   const length = (data?.[declaration.of] || []).length;
   const stepButton = 'flex h-8 items-center rounded-lg border border-line px-2.5 text-xs text-ink hover:bg-hover disabled:cursor-default disabled:opacity-40';
@@ -136,7 +154,8 @@ export default function SceneControls({ declarations, inputs, data, onInput, onR
   // also offers direct manipulation ('visual' index, a dragged vec2) keeps
   // that as a synchronized SHORTCUT, but the learner never has to discover
   // that diagram text is secretly clickable: the control is always here too.
-  const rows = declarations.filter(declaration => !declaration.hidden && WIDGETS[declaration.type]);
+  // A pager is the card's sub-card navigation, drawn in its header (CardPager).
+  const rows = declarations.filter(declaration => !declaration.hidden && declaration.presentation !== 'pager' && WIDGETS[declaration.type]);
   if (!rows.length) return null;
   return (
     <div data-scene-controls className="shrink-0 rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">

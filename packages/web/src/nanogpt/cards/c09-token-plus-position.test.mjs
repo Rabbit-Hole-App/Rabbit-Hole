@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
 import { planProblems } from '../../card-plan.js';
 import { validateActivity, PREDICATES } from '../../scene-activity.js';
-import { sceneContentBounds } from '../../scene-layout.js';
+import { sceneContentBounds, sceneLegibility } from '../../scene-layout.js';
 import { assertCardGates, assertCardPlan, assertEvidence, assertSources, pinnedFile } from '../card-gates.mjs';
 import { TOY_WTE } from './c07-embedding-lookup.js';
 import { scene, plan, reviewStates, activity, sources, evidence, TOY_WPE } from './c09-token-plus-position.js';
@@ -21,30 +21,63 @@ const add = (a, b) => a.map((v, i) => r3(v + b[i]));
 const sub = (a, b) => a.map((v, i) => r3(v - b[i]));
 const xAt = (p, wpe) => (wpe ? add(TOY_WTE[WORD[p]], TOY_WPE[p]) : TOY_WTE[WORD[p]]);
 const byId = (result, id) => result.state.objects.find(object => object.id === id);
-const TABLE_Y = 292, CELL = 48;
-const ALL = WORD.flatMap((unused, position) => [true, false].map(wpe => ({ position, wpe })));
+const TABLE_Y = 316, CELL = 48;
+const ALL = [0, 1].flatMap(part => WORD.flatMap((unused, position) => [true, false].map(wpe => ({ part, position, wpe }))));
+const PIPELINE = ALL.filter(state => state.part === 0);
+const shown = result => result.state.objects.filter(object => object.visible && (object.opacity ?? 1) > 0).map(object => object.id).sort();
+const withoutContributors = box => { const { contributors: _c, ...rest } = box; return rest; };
 
 test('c09 passes every gate at every review state and every input combination', () => {
-  assert.ok(reviewStates.length >= 2 && reviewStates.length <= 6);
   assertCardGates(scene, reviewStates);
   assertCardGates(scene, ALL);
   assert.equal(scene.objects[0].semanticId, 'question');
-  assert.deepEqual(scene.inputs.map(i => [i.name, i.default]), [['position', 5], ['wpe', true]]);
+  assert.deepEqual(scene.inputs.map(i => [i.name, i.default]), [['part', 0], ['position', 5], ['wpe', true]]);
+  // The approved states, each on the part its content now lives on: the
+  // pipeline (1/2) at every one, the pair (2/2) with wpe on and off.
+  const key = state => JSON.stringify([state.part, state.position, state.wpe]);
+  for (const [position, wpe] of [[5, true], [1, true], [5, false], [1, false], [0, true]]) {
+    assert.ok(reviewStates.some(state => key(state) === key({ part: 0, position, wpe })), `1/2 at ${position}, wpe ${wpe}`);
+  }
+  for (const wpe of [true, false]) assert.ok(reviewStates.some(state => state.part === 1 && state.wpe === wpe), `2/2 with wpe ${wpe}`);
+  assert.ok(reviewStates.every(state => state.part !== undefined));
 });
 
-test('c09 plan: staged, verbatim objective, sequence "Embeddings" 2 of 2, no flags raised', () => {
+test('c09 sub-cards: Part 1/2 the pipeline, Part 2/2 the two e\'s; status and colour key on both', () => {
+  const pager = scene.inputs.find(input => input.presentation === 'pager');
+  assert.deepEqual([pager.name, pager.label, pager.of], ['part', 'Part', 'parts']);
+  assert.deepEqual(scene.exampleData.parts, ['Look up two rows and add them', 'The two e’s compared']);
+  const [one, two] = assertCardGates(scene, [{ part: 0 }, { part: 1 }]);
+  assert.deepEqual(shown(one), ['dropout', 'equals', 'idx', 'plus', 'position-row', 'question', 'reads', 'scale', 'selected', 'shape', 'status', 'token-row',
+    'wpe-lit-bottom', 'wpe-lit-left', 'wpe-lit-right', 'wpe-lit-top', 'wpe-table',
+    'wte', 'wte-lit-bottom', 'wte-lit-left', 'wte-lit-right', 'wte-lit-top', 'x-note', 'x-row']);
+  assert.deepEqual(shown(two), ['pair', 'question-pair', 'scale', 'status', 'verdict', 'why']);
+  // Each part opens with its own question; only the status line and colour key are shared.
+  assert.deepEqual(scene.objects.filter(object => object.part === undefined).map(object => object.id), ['status', 'scale']);
+  assert.equal(byId(one, 'question').y, byId(two, 'question-pair').y);
+  // The grids and strips on each part: 1/2's are the stages of its one pipeline
+  // (idx, ① the tables, ② the rows, ③ x); 2/2 has the pair grid alone.
+  const visuals = part => scene.objects.filter(object => object.part === part && ['grid', 'strip'].includes(object.type)).map(object => object.id);
+  assert.deepEqual(visuals(0), ['idx', 'wte', 'wpe-table', 'token-row', 'position-row', 'x-row']);
+  assert.deepEqual(visuals(1), ['pair']);
+  // 2/2 reveals on its own clock, not after 1/2's.
+  assert.ok(two.scene.timeline.length > 0 && two.scene.timeline.every(event => ['pair', 'verdict', 'why'].includes(event.target) && event.at < 1));
+});
+
+test('c09 plan: staged, verbatim objective, sequence "Embeddings" 2 of 2, no boundary flag (the pager is navigation, not a control)', () => {
   assertCardPlan({ scene, plan });
   assert.equal(plan.boundary.decision, 'staged');
-  assert.equal(plan.boundary.reviewed, undefined, 'the scene raises no rubric flag');
+  assert.deepEqual(Object.keys(plan.boundary.reviewed), [], 'the Part pager is not counted as a control')
+  assert.match(plan.primaryInteraction, /Part 1\/2.*Part 2\/2/);
+  assert.match(plan.boundary.reason, /two sub-cards/);
   assert.deepEqual(planProblems({ ...plan, boundary: { ...plan.boundary, decision: 'sequence' } }), []);
   assert.deepEqual(plan.boundary.sequence, { name: 'Embeddings', position: 2, of: 2, relationships: [{ type: 'prerequisite', card: 'c07-embedding-lookup' }] });
   assert.equal(plan.objective, 'After this card, the learner should understand that the first block reads the sum of a token row and a position row, so the same token at two positions enters as two different vectors.');
   assert.ok(scene.height <= 900);
 });
 
-test('c09 stage by stage: the lit rows, the trace and x match the oracle', () => {
-  const results = assertCardGates(scene, ALL);
-  ALL.forEach(({ position, wpe }, k) => {
+test('c09 stage by stage (Part 1/2): the lit rows, the trace and x match the oracle', () => {
+  const results = assertCardGates(scene, PIPELINE);
+  PIPELINE.forEach(({ position, wpe }, k) => {
     const result = results[k];
     const ch = WORD[position], id = IDS[position], row = ROWS.indexOf(id);
     const where = JSON.stringify({ position, wpe });
@@ -67,11 +100,11 @@ test('c09 stage by stage: the lit rows, the trace and x match the oracle', () =>
   });
 });
 
-test('c09 the two e\'s: different with wpe, identical without', () => {
+test('c09 the two e\'s (Part 2/2): different with wpe, identical without', () => {
   assert.deepEqual([WORD[1], WORD[5]], ['e', 'e']);
   assert.equal(IDS[1], IDS[5]);
   for (const wpe of [true, false]) {
-    const [result] = assertCardGates(scene, [{ position: 5, wpe }]);
+    const [result] = assertCardGates(scene, [{ part: 1, position: 5, wpe }]);
     const x1 = xAt(1, wpe), x5 = xAt(5, wpe), diff = sub(x5, x1);
     const pair = byId(result, 'pair');
     assert.deepEqual(pair.values, [...x1, ...x5, ...diff]);
@@ -90,19 +123,27 @@ test('c09 the two e\'s: different with wpe, identical without', () => {
       assert.equal(pair.role, 'warning');
     }
     // The pair does not depend on the slider.
-    assert.deepEqual(byId(assertCardGates(scene, [{ position: 0, wpe }])[0], 'pair').values, pair.values);
+    assert.deepEqual(byId(assertCardGates(scene, [{ part: 1, position: 0, wpe }])[0], 'pair').values, pair.values);
   }
 });
 
-test('c09 one colour scale that never moves, and a card that never re-zooms', () => {
+test('c09 one colour scale that never moves, and a frame that never refits across parts and states', () => {
   const results = assertCardGates(scene, ALL);
   const HEAT = ['wte', 'wpe-table', 'token-row', 'position-row', 'x-row', 'pair'];
   for (const result of results) for (const id of HEAT) assert.deepEqual(byId(result, id).valueDomain, { min: -0.9, max: 0.9 }, id);
   // The note's claim: 0.9 bounds every toy value and every sum.
   const every = [...Object.values(TOY_WTE).flat(), ...TOY_WPE.flat(), ...ALL.flatMap(s => xAt(s.position, s.wpe)), ...sub(xAt(5, true), xAt(1, true))];
   assert.equal(Math.max(...every.map(Math.abs)), 0.9);
-  const bounds = results.map(result => { const { contributors: _c, ...box } = sceneContentBounds(result.scene); return box; });
-  bounds.forEach(box => assert.deepEqual(box, bounds[0]));
+  // The block is sized from the static scene and fitted to each evaluated
+  // one: they must agree on every part and state, at scale 1.
+  const legibility = sceneLegibility(scene);
+  assert.equal(legibility.scale, 1, 'the taller part fits the viewport unscaled');
+  // The capture harness draws a scene.width x scene.height box: it must hold
+  // that viewport, or every capture is scaled below true size.
+  assert.ok(scene.width >= legibility.viewport.w && scene.height >= legibility.viewport.h, JSON.stringify(legibility.viewport));
+  for (const [k, result] of results.entries()) {
+    assert.deepEqual(withoutContributors(sceneContentBounds(result.scene)), withoutContributors(legibility.bounds), JSON.stringify(ALL[k]));
+  }
   // Input-bound opacity never shares an object with a timeline appear.
   assert.ok(!scene.timeline.some(event => /^wpe-lit-/.test(event.target)));
 });
@@ -133,7 +174,7 @@ test('c09 sources: every status is labelled on the card; provenance lives under 
   const cites = sources.filter(s => s.kind === 'code').map(s => `${s.path}:${s.lines.join('-')}`);
   assert.deepEqual(cites, ['model.py:127-128', 'model.py:173-174', 'model.py:177-179', 'model.py:180-181',
     'config/train_shakespeare_char.py:19-19', 'config/train_shakespeare_char.py:24-25', 'data/shakespeare_char/prepare.py:24-33']);
-  const [result] = assertCardGates(scene, [{ position: 5, wpe: true }]);
+  const [result] = assertCardGates(scene, [{ part: 0, position: 5, wpe: true }]);
   assert.equal(byId(result, 'dropout').label, `Then x = drop(tok_emb + pos_emb): dropout (p = ${fx.architecture.dropout} in training) comes next and is not modelled here.`);
   assert.ok(byId(result, 'wpe-table').label.endsWith(`(6 of ${fx.architecture.block_size} rows)`));
   assert.ok(byId(result, 'wte').label.endsWith(`(5 of ${fx.architecture.vocab_size} rows)`));

@@ -145,7 +145,7 @@ export const scene = {
     // --- the consequence: a live check row and its verdict --------------------------
     strip('check-strip', 'invariance-check', { ...rawStrip, label: `x̂ − x̂ of ${refName} (live calculation on stored x̂)`, y: ROW.check, values: { $derive: 'xhatDiff' } }),
     { id: 'verdict-box', type: 'box', semanticId: 'verdict-box', conceptId: 'layernorm',
-      initialState: { x: TEXT_X, y: ROW.check - 6, w: 548, h: 60, role: 'output', opacity: 0 } },
+      initialState: { x: TEXT_X, y: ROW.check - 6, w: 556, h: 60, role: 'output', opacity: 0 } },
     text('verdict', '{{verdictA}}', TEXT_X + 14, ROW.check + 19, { role: 'output', opacity: 0 }),
     note('verdict-2', '{{verdictB}}', TEXT_X + 14, ROW.check + 41, { opacity: 0 }),
 

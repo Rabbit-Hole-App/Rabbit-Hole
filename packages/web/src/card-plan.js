@@ -67,7 +67,7 @@ export function boundaryFlags({ scene, plan, visibleText = [] }) {
   if (/\band\b|&/i.test(ownTitle)) flags.push('title-and');
   const body = String(plan?.objective || '').slice(OBJECTIVE_STEM.length);
   if (/;|,\s*and\b|\band also\b|\bas well as\b/i.test(body)) flags.push('objective-two-clauses');
-  if ((scene?.inputs || []).filter(input => !input.hidden).length >= 3) flags.push('many-controls');
+  if ((scene?.inputs || []).filter(input => !input.hidden && input.presentation !== 'pager').length >= 3) flags.push('many-controls');
   if ((scene?.height || 0) > TALL_SCENE) flags.push('tall-default');
   if (visibleText.some(line => /\b(separately|another thing|unrelated)\b/i.test(line))) flags.push('separately-language');
   return flags;

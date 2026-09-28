@@ -25,15 +25,70 @@ const params = V => L * (C * 3 * C + C * C + C * 4 * C + 4 * C * C + 2 * C) + C 
 // Printed digit-grouped: "1,003,854" in text, "1{,}003{,}854" in KaTeX.
 const g = n => n.toLocaleString('en-US');
 const tg = n => g(n).replaceAll(',', '{,}');
-const cardChars = scene_ => {
-  const inputs = Object.fromEntries(scene_.inputs.map(d => [d.name, d.default]));
-  return evaluated(scene_, inputs).state.objects.filter(o => o.visible && o.label && ['text', 'code'].includes(o.type)).reduce((n, o) => n + o.label.length, 0);
+const onScreen = result => result.state.objects.filter(o => o.visible && (o.opacity ?? 1) > 0);
+const cardChars = (scene_, overrides = {}) => {
+  const inputs = { ...Object.fromEntries(scene_.inputs.map(d => [d.name, d.default])), ...overrides };
+  return onScreen(evaluated(scene_, inputs)).filter(o => o.label && ['text', 'code'].includes(o.type)).reduce((n, o) => n + o.label.length, 0);
 };
 
-test('deep: every gate at every review state (all 6 configurations)', () => {
-  assert.equal(reviewStates.length, 6);
-  assert.deepEqual(new Set(reviewStates.map(s => `${s.meta}/${s.input}`)).size, 6);
+// The three sub-cards and what each one draws; `status` is on every part.
+const PART_IDS = [
+  ['question', 'prerequisites', 'branch', 'branch-detail', 'encode', 'encode-detail', 'a-encode', 'batch', 'batch-detail', 'not-reached',
+    'a-batch', 'wte', 'wte-detail', 'a-wte', 'head', 'head-detail'],
+  ['q-sizes', 'eq-lookup', 'eq-vocab', 'eq-wte', 'eq-params', 'eq-uint16', 'param-title', 'param-body', 'param-wte', 'param-wte-label'],
+  ['q-context', 'tradeoff', 'edge-char', 'edge-char-detail', 'edge-bpe', 'edge-bpe-detail', 'edge'],
+];
+// The one visual each part draws: every box or arrow on screen belongs to it.
+const VISUAL = [
+  ['branch', 'encode', 'a-encode', 'batch', 'a-batch', 'wte', 'a-wte', 'head'],
+  ['param-body', 'param-wte'],
+  ['edge-char', 'edge-bpe'],
+];
+const SHARED = ['status'];
+const PATHS = ['train', 'line', 'digits'];
+const EVERY = [0, 1, 2].flatMap(part => [true, false].flatMap(meta => PATHS.map(input => ({ part, meta, input }))));
+
+test('deep: every gate at every review state, and at every part x meta x input', () => {
+  assert.equal(reviewStates.length, 7);
+  assert.deepEqual([...new Set(reviewStates.map(s => s.part))].sort(), [0, 1, 2], 'review states cover every sub-card');
+  // Each earlier meta x input review state appears, on the part where its content now lives
+  // (the digit prompt with meta.pkl found twice: the KeyError on 3/3, the stopped pipeline on 1/3).
+  assert.equal(new Set(reviewStates.map(s => `${s.meta}/${s.input}`)).size, 6);
   assertCardGates(scene, reviewStates);
+  assertCardGates(scene, EVERY);
+});
+
+test('deep: three sub-cards in the header pager, one idea each, Builds on only on 1/3', () => {
+  const pager = scene.inputs.find(d => d.presentation === 'pager');
+  assert.deepEqual(pager, { name: 'part', type: 'index', label: 'Deep dive', of: 'parts', default: 0, presentation: 'pager' });
+  assert.deepEqual(scene.exampleData.parts, ['meta.pkl → stoi → get_batch → logits', 'wte and lm_head sizes, parameter count N', 'block_size tradeoff and the digit edge case']);
+  // Every object belongs to one part, except the shared status line.
+  for (const object of scene.objects) assert.ok(object.part !== undefined || SHARED.includes(object.id), `${object.id} has no part`);
+  PART_IDS.forEach((ids, part) => assert.deepEqual(scene.objects.filter(o => o.part === part).map(o => o.id), ids, `part ${part}`));
+  for (const inputs of EVERY) {
+    const result = evaluated(scene, inputs);
+    const shown = onScreen(result);
+    const ids = shown.map(o => o.id);
+    const others = PART_IDS.filter((unused, part) => part !== inputs.part).flat();
+    assert.deepEqual(ids.filter(id => others.includes(id)), [], `${JSON.stringify(inputs)}: another part's objects on screen`);
+    for (const id of SHARED) assert.ok(ids.includes(id), `${id} on every part`);
+    // Question first: the topmost object on screen is this part's question.
+    const top = shown.filter(o => o.label && Number.isFinite(o.y)).reduce((a, o) => (o.y < a.y ? o : a));
+    assert.equal(top.id, PART_IDS[inputs.part][0]);
+    assert.match(top.label, /\?$/);
+    assert.equal(ids.includes('prerequisites'), inputs.part === 0, 'Builds on only on 1/3');
+    // One formula block, on 2/3; the step column on 1/3, the bar on 2/3.
+    assert.equal(shown.some(o => o.type === 'equation'), inputs.part === 1);
+    assert.equal(ids.includes('encode'), inputs.part === 0);
+    assert.equal(ids.includes('param-body'), inputs.part === 1);
+    assert.deepEqual(shown.filter(o => ['box', 'arrow'].includes(o.type) && !VISUAL[inputs.part].includes(o.id)).map(o => o.id), [], `${JSON.stringify(inputs)}: one visual`);
+  }
+  // One state across the sub-cards: the V the data path uses is the V the equations count.
+  for (const meta of [true, false]) {
+    const [path, sizes] = [0, 1].map(part => evaluated(scene, { part, meta, input: 'train' }));
+    const V = Number(byId(path, 'wte').label.match(/\((\d+),/)[1]);
+    assert.ok(byId(sizes, 'eq-vocab').label.endsWith(`= ${tg(V)}`));
+  }
 });
 
 test('deep: sources and evidence', () => {
@@ -44,16 +99,20 @@ test('deep: sources and evidence', () => {
 });
 
 test('deep: the ladder contract - equations, shapes, a branch control, an edge case, most code, text budget', () => {
-  const [result] = assertCardGates(scene, [{ meta: true, input: 'train' }]);
-  const shownLabels = result.state.objects.filter(o => o.visible && o.label);
-  assert.ok(shownLabels.filter(o => o.type === 'equation').length >= 3);
-  assert.ok((shownLabels.map(o => o.label).join(' ').match(/\([A-Z], [A-Z](, [A-Z])?\)/g) || []).length >= 3, 'named-dimension shapes');
+  const [path, sizes] = assertCardGates(scene, [{ part: 0, meta: true, input: 'train' }, { part: 1, meta: true, input: 'train' }]);
+  const labelled = result => onScreen(result).filter(o => o.label);
+  assert.ok(labelled(sizes).filter(o => o.type === 'equation').length >= 3);
+  assert.ok((labelled(path).map(o => o.label).join(' ').match(/\([A-Z], [A-Z](, [A-Z])?\)/g) || []).length >= 3, 'named-dimension shapes');
   assert.ok(scene.inputs.some(d => d.type === 'bool'), 'implementation branch as a control');
-  assert.match(byId(result, 'prerequisites').label, /^Builds on: Guided; matrix shapes \(B, T, C\)$/);
-  assert.doesNotMatch(shownLabels.map(o => o.label).join('\n') + scene.title + JSON.stringify(scene.inputs), LABELS);
+  assert.match(byId(path, 'prerequisites').label, /^Builds on: Guided; matrix shapes \(B, T, C\)$/);
+  for (const part of [0, 1, 2]) {
+    const labels = labelled(evaluated(scene, { part, meta: true, input: 'train' })).map(o => o.label).join('\n');
+    assert.doesNotMatch(labels + scene.title + JSON.stringify(scene.inputs), LABELS);
+    const chars = cardChars(scene, { part });
+    assert.ok(chars <= 1.3 * cardChars(guided.scene), `deep part ${part}: ${chars} chars vs guided ${cardChars(guided.scene)}`);
+  }
   const codeCount = list => list.filter(s => s.kind === 'code').length;
   assert.ok(codeCount(sources) > codeCount(guided.sources));
-  assert.ok(cardChars(scene) <= 1.3 * cardChars(guided.scene), `deep ${cardChars(scene)} chars vs guided ${cardChars(guided.scene)}`);
   // Every step box is backed by the code that implements it.
   const cited = new Set(sources.filter(s => s.kind === 'code').map(s => `${s.path}:${s.lines[0]}`));
   const steps = {
@@ -64,50 +123,53 @@ test('deep: the ladder contract - equations, shapes, a branch control, an edge c
     head: ['model.py:133', 'model.py:184'],
   };
   for (const [id, needs] of Object.entries(steps)) {
-    assert.equal(byId(result, id).type, 'box');
+    assert.equal(byId(path, id).type, 'box');
     for (const need of needs) assert.ok(cited.has(need), `${id} step cites ${need}`);
   }
 });
 
 test('deep: V, padding and every product follow the branch, checked against plain-JS oracles', () => {
   for (const meta of [true, false]) {
-    const [result] = assertCardGates(scene, [{ meta, input: 'train' }]);
+    const [path, sizes, context] = assertCardGates(scene, [0, 1, 2].map(part => ({ part, meta, input: 'train' })));
     const V = meta ? CHARS.length : PADDED, tokV = meta ? CHARS.length : GPT2;
-    const d = result.derived;
+    const d = path.derived;
     assert.equal(d.V, V);
     assert.deepEqual(d.pad, [V - tokV]);
     assert.deepEqual(d.maxId, [tokV - 1]);
     assert.deepEqual(d.wte, [V * C]);
     assert.deepEqual(d.total, [params(V)]);
     assert.deepEqual(d.logits, [B * T * V]);
-    // The padding's reason (model.py's comment) shows only when there is padding; V really is a multiple of 64.
-    assert.equal(byId(result, 'branch-detail').label, `V = ${g(V)}: ${g(tokV)} token IDs + ${V - tokV} padding rows${meta ? '' : ' (multiple of 64, for efficiency)'}`);
+    // 1/3: the padding's reason (model.py's comment) shows only when there is padding; V really is a multiple of 64.
+    assert.equal(byId(path, 'branch-detail').label, `V = ${g(V)}: ${g(tokV)} token IDs + ${V - tokV} padding rows${meta ? '' : ' (multiple of 64, for efficiency)'}`);
     if (!meta) assert.equal(V % 64, 0);
-    assert.equal(byId(result, 'eq-vocab').label, `V = ${tg(tokV)} + ${V - tokV} = ${tg(V)}`);
-    assert.equal(byId(result, 'eq-wte').label, `|W_{te}| = V\\,C = ${tg(V)} \\cdot ${C} = ${tg(V * C)}`);
-    assert.equal(byId(result, 'eq-params').label, `N = L\\,(12C^2 + 2C) + C + VC = ${tg(params(V))}`);
-    assert.equal(byId(result, 'eq-uint16').label, `\\max x = ${tg(tokV - 1)} \\le 2^{16} - 1 = ${tg(2 ** 16 - 1)}`);
+    assert.equal(byId(path, 'wte').label, `wte: table (${V}, ${C})`);
+    assert.equal(byId(path, 'batch-detail').label, `x: (B, T) = (${B}, ${T}), int64 read from uint16`);
+    assert.equal(byId(path, 'wte-detail').label, `tok_emb = wte(x): (B, T, C) = (${B}, ${T}, ${C})`);
+    assert.equal(byId(path, 'head-detail').label, `logits: (B, T, V) = (${B}, ${T}, ${V}) → ${g(B * T * V)} scores`);
+    // 2/3: the equations and the bar.
+    assert.equal(byId(sizes, 'eq-vocab').label, `V = ${tg(tokV)} + ${V - tokV} = ${tg(V)}`);
+    assert.equal(byId(sizes, 'eq-wte').label, `|W_{te}| = V\\,C = ${tg(V)} \\cdot ${C} = ${tg(V * C)}`);
+    assert.equal(byId(sizes, 'eq-params').label, `N = L\\,(12C^2 + 2C) + C + VC = ${tg(params(V))}`);
+    assert.equal(byId(sizes, 'eq-uint16').label, `\\max x = ${tg(tokV - 1)} \\le 2^{16} - 1 = ${tg(2 ** 16 - 1)}`);
     assert.ok(tokV - 1 <= 2 ** 16 - 1);
-    assert.equal(byId(result, 'wte').label, `wte: table (${V}, ${C})`);
-    assert.equal(byId(result, 'batch-detail').label, `x: (B, T) = (${B}, ${T}), int64 read from uint16`);
-    assert.equal(byId(result, 'wte-detail').label, `tok_emb = wte(x): (B, T, C) = (${B}, ${T}, ${C})`);
-    assert.equal(byId(result, 'head-detail').label, `logits: (B, T, V) = (${B}, ${T}, ${V}) → ${g(B * T * V)} scores`);
-    // Context: block_size IDs in characters; a GPT-2 ID averages total chars / total IDs.
+    // The bar: same scale in both branches, wte after blocks + ln_f, lengths proportional.
+    const body = byId(sizes, 'param-body'), wte = byId(sizes, 'param-wte');
+    assert.ok(Math.abs(wte.x - (body.x + body.w)) < 0.01);
+    assert.ok(Math.abs(wte.w / body.w - (V * C) / (params(V) - V * C)) < 1e-3);
+    assert.equal(byId(sizes, 'param-wte-label').label, `wte: ${g(V * C)} of ${g(params(V))}`);
+    // The bar's N is the count NanoGPT reports (wpe left out of it, not out of training).
+    assert.equal(byId(sizes, 'param-title').label, "N = NanoGPT's reported non-position-embedding parameter count (wpe still trains), 20 px per million");
+    // 3/3 - context: block_size IDs in characters; a GPT-2 ID averages total chars / total IDs.
     const perId = meta ? 1 : 1115394 / (301966 + 36059);
     assert.deepEqual(d.ctx, [Math.round(T * perId * 1000) / 1000]);
     const span = meta ? `${T}` : `≈${Math.round(T * perId)}`;
     assert.equal(span, meta ? '256' : '≈845');
-    assert.equal(byId(result, 'tradeoff').label, `Tradeoff: block_size = ${T} IDs span ${span} characters (${meta ? '1' : '≈3.3'} per ID)`);
-    // The bar: same scale in both branches, wte after blocks + ln_f, lengths proportional.
-    const body = byId(result, 'param-body'), wte = byId(result, 'param-wte');
-    assert.ok(Math.abs(wte.x - (body.x + body.w)) < 0.01);
-    assert.ok(Math.abs(wte.w / body.w - (V * C) / (params(V) - V * C)) < 1e-3);
-    assert.equal(byId(result, 'param-wte-label').label, `wte: ${g(V * C)} of ${g(params(V))}`);
-    // The bar's N is the count NanoGPT reports (wpe left out of it, not out of training).
-    assert.equal(byId(result, 'param-title').label, "N = NanoGPT's reported non-position-embedding parameter count (wpe still trains), 20 px per million");
-    // No large number is printed without grouping (shape tuples excepted).
-    const printed = result.state.objects.filter(o => o.visible && o.label && ['text', 'box'].includes(o.type)).map(o => o.label.replace(/\([^)]*\)/g, ''));
-    assert.deepEqual(printed.filter(l => /\d{5,}/.test(l)), []);
+    assert.equal(byId(context, 'tradeoff').label, `Tradeoff: block_size = ${T} IDs span ${span} characters (${meta ? '1' : '≈3.3'} per ID)`);
+    // No large number is printed without grouping (shape tuples and ID lists excepted), on any part.
+    for (const result of [path, sizes, context]) {
+      const printed = onScreen(result).filter(o => o.label && ['text', 'box'].includes(o.type)).map(o => o.label.replace(/\([^)]*\)/g, '').replace(/IDs: [\d, ]+/g, ''));
+      assert.deepEqual(printed.filter(l => /\d{5,}/.test(l)), []);
+    }
   }
   // The shakespeare_char model's own count, as model.py would print it.
   assert.equal((params(CHARS.length) / 1e6).toFixed(2), '10.65');
@@ -122,7 +184,7 @@ test('deep: the sampling path - B = 1, prompt length T, last position only; the 
   assert.deepEqual(CHARS.filter(c => /\d/.test(c)), ['3']);
   for (const meta of [true, false]) {
     const V = meta ? CHARS.length : PADDED;
-    const [lineR, digitsR] = assertCardGates(scene, [{ meta, input: 'line' }, { meta, input: 'digits' }]);
+    const [lineR, digitsR] = assertCardGates(scene, [{ part: 0, meta, input: 'line' }, { part: 0, meta, input: 'digits' }]);
     const lineT = meta ? line.text.length : fx.tokenizer.tokenizers[1].ids.length;
     assert.equal(byId(lineR, 'batch-detail').label, `x: (B, T) = (1, ${lineT}) - the encoded prompt`);
     assert.equal(byId(lineR, 'head-detail').label, `logits: (B, 1, V) = (1, 1, ${V}) → ${g(V)} scores`);
@@ -141,7 +203,18 @@ test('deep: the sampling path - B = 1, prompt length T, last position only; the 
       for (const id of hidden) assert.ok(byId(digitsR, id).visible);
     }
   }
-  // The edge-case line follows the state: invite, send to meta.pkl first, or point at the failure shown.
+  // 3/3 draws the digit prompt through both encoders - 1/3's labels and results - the current branch at full opacity.
+  for (const inputs of EVERY.filter(s => s.part === 2)) {
+    const result = evaluated(scene, inputs);
+    assert.equal(byId(result, 'edge-char').label, 'encode: stoi[c] per character');
+    assert.equal(byId(result, 'edge-char-detail').label, `“${digits.text}” → KeyError: '1': the ${CHARS.length} characters have no “1”`);
+    assert.equal(byId(result, 'edge-bpe').label, 'encode: GPT-2 byte pairs');
+    assert.equal(byId(result, 'edge-bpe-detail').label, `“${digits.text}” → ${digits.bpe.ids.length} IDs: ${digits.bpe.ids.join(', ')}`);
+    const [on, off] = inputs.meta ? ['char', 'bpe'] : ['bpe', 'char'];
+    for (const id of [`edge-${on}`, `edge-${on}-detail`]) assert.equal(byId(result, id).opacity, 1, `${id} ${JSON.stringify(inputs)}`);
+    for (const id of [`edge-${off}`, `edge-${off}-detail`]) assert.equal(byId(result, id).opacity, 0.35, `${id} ${JSON.stringify(inputs)}`);
+  }
+  // The edge-case line (3/3) follows the state: invite, send to meta.pkl first, or point at the failure drawn above it.
   const tryDigits = `Edge case to try: the digit prompt - the only digit among the ${CHARS.length} characters is 3.`;
   const tryMeta = 'Edge case to try: turn meta.pkl on, then pick the digit prompt.';
   const edges = {
@@ -150,19 +223,24 @@ test('deep: the sampling path - B = 1, prompt length T, last position only; the 
     'false/train': tryMeta, 'false/line': tryMeta,
     'false/digits': `Edge case to try: turn meta.pkl on - the ${CHARS.length} characters have no “1”; byte pairs encode any text.`,
   };
-  for (const [state, result] of reviewStates.map(s => [`${s.meta}/${s.input}`, evaluated(scene, s)])) assert.equal(byId(result, 'edge').label, edges[state], state);
-  const [train] = assertCardGates(scene, [{ meta: true, input: 'train' }]);
+  for (const inputs of EVERY.filter(s => s.part === 2)) {
+    const edge = byId(evaluated(scene, inputs), 'edge');
+    assert.ok(edge.visible && (edge.opacity ?? 1) > 0);
+    assert.equal(edge.label, edges[`${inputs.meta}/${inputs.input}`], JSON.stringify(inputs));
+  }
+  const [train] = assertCardGates(scene, [{ part: 0, meta: true, input: 'train' }]);
   assert.equal(byId(train, 'encode-detail').label, `${g(Math.floor(1115394 * 0.9))} train IDs (first 90%), ${g(1115394 - Math.floor(1115394 * 0.9))} val (last 10%)`);
-  const [trainBpe] = assertCardGates(scene, [{ meta: false, input: 'train' }]);
+  const [trainBpe] = assertCardGates(scene, [{ part: 0, meta: false, input: 'train' }]);
   assert.equal(byId(trainBpe, 'encode-detail').label, '301,966 train IDs (first 90%), 36,059 val (last 10%)');
 });
 
-// The block is sized from the static content (sizeFor -> sceneLegibility); the
-// step boxes, details and bar are input-bound, so every state must fit the same frame.
-test('deep: the frame never refits and renders at scale 1', () => {
+// The block is sized once from the static content of every part (sizeFor ->
+// sceneLegibility); step boxes, details and bar are input-bound, so every part
+// at every state must fit the same frame - paging never refits the card.
+test('deep: the frame never refits across parts and states, and renders at scale 1', () => {
   const block = sceneLegibility(structuredClone(scene));
   assert.equal(block.scale, 1);
-  for (const inputs of reviewStates) {
+  for (const inputs of EVERY) {
     const fitted = sceneContentBounds(evaluated(scene, inputs).scene);
     for (const edge of ['xMin', 'xMax', 'yMin', 'yMax']) assert.ok(Math.abs(fitted[edge] - block.bounds[edge]) < 0.5, `${JSON.stringify(inputs)} ${edge}`);
   }

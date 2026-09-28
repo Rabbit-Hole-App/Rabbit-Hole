@@ -103,6 +103,26 @@ the frame, so a scene keeps its size (and its text and cell numbers stay above t
 the learner practises. Check: `node e2e/nanogpt-board-check.mjs <deployed-base>` fails if a
 visual narrows when practice opens.
 
+## Sub-cards: one idea per frame
+
+Owner rule (2026-09-28, WP6): a card whose content is several ideas is paged into 2–4 numbered
+sub-cards inside the same card, never shrunk and never turned into separate top-level cards.
+
+- One index input with `presentation: 'pager'` lists the parts (`of`: their names). It draws in
+  the card header — "Deep dive · 2/4", the part's name, Previous / Next (`CardPager`,
+  SceneControls.jsx) — not in INTERACT, and Reset leaves it where it is.
+- Every object may declare `part` (0-based): it is on screen only on that part; objects without
+  one are on every part (`scene-evaluate.js` `onePart`). All parts share one INTERACT row, one
+  practice and one Sources & evidence panel; the inputs are one state, so changing a control on
+  2/4 is already applied when the learner pages to 4/4.
+- The frame is sized once for the tallest part (hidden parts still count, `everDrawn`), so paging
+  never rescales the card. At most 60 objects are on screen at once (per part).
+- A sub-card holds at most one formula block and one visual; "Builds on:" appears on 1/N only.
+- Nothing renders below its type's floor at the size the card is actually drawn (body 15,
+  annotation 13, grid numerals 12 — `LEGIBILITY_FLOORS`): `assertCardGates` fails a card whose
+  frame scales it down. Before this rule the tallest Deep dives were scaled to 0.86, drawing 13px
+  annotations at about 11px.
+
 ## Numbers in text are readable
 
 Owner rule (2026-09-28): a number of five or more digits in card text carries thousands separators

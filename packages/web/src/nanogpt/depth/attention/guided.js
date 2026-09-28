@@ -32,10 +32,19 @@ const named = c => (c === '␣' ? 'space' : c);
 const spoken = c => (c === '␣' ? 'the space' : `“${c}”`);
 
 const COL = 32;
-const CELL = 44;
+const CELL = 42; // every cell prints at most 5 characters ("-2.35"): 42 draws them at the 12px floor
 const GX = 200; // the nine character columns, shared by every row below
-const RX = 632; // right-hand column
-const K_Y = 150, SCORE_Y = 384, MASK_Y = 476, W_Y = 568, V_Y = 688, FOOT = 896;
+const RX = 614; // right-hand column
+// The output column closes the values row at the right edge of the notes
+// column: its static "Σ w·v" header holds the frame's right edge, so the frame
+// fitted to the evaluated notes is the one the card is sized for (the notes
+// are all live text, which the static size cannot measure). Its note ends just
+// left of it, so the note reads with the column it describes.
+const OX = 870;
+const K_Y = 150, SCORE_Y = 364, MASK_Y = 448, W_Y = 532, V_Y = 615, FOOT = 804;
+// Text draws from its left end: x for a note that ends 12px left of the
+// column. ~6px a character is what 13px annotation text measures in the render.
+const endsAtColumn = text => OX - 12 - Math.round(text.length * 6);
 
 // The notes beside the rows, per option and reader, written from the rule the
 // generator used (q points at one key); the test checks each against the
@@ -76,6 +85,7 @@ const NOTES = {
   sum: byOption(i => (i === 0 ? '“B” takes all of it: 1' : `most weight: ${prev(i)}; total 1`),
     i => (i === 0 ? 'highest score gets 0; “B” gets 1' : i === LAST ? 'spread over weak matches; total 1' : 'highest score gets 0; total still 1')),
   out: byOption(i => (i === 0 ? '= the v of “B”' : `≈ the v of ${prev(i)}`), i => (i === 0 ? '= the v of “B”' : 'a mix of the visible v')),
+  outX: byOption(i => endsAtColumn(i === 0 ? '= the v of “B”' : `≈ the v of ${prev(i)}`), i => endsAtColumn(i === 0 ? '= the v of “B”' : 'a mix of the visible v')),
   caption: byOption(i => (i === 0
     ? 'q points before the text; only “B” is visible, so it takes weight 1 whatever its score.'
     : `q is ${att.gain} × the key of ${prev(i)}, the character before, so that key scores highest.`),
@@ -143,7 +153,7 @@ export const scene = {
     negMasked: { op: 'causal_mask', args: ['negScaled', 'causal'] },
     negRow: { op: 'pick', args: ['negMasked', 'reader'] },
     topAt: { op: 'argmin', args: ['negRow'] },
-    ...Object.fromEntries(['top', 'products', 'sum', 'hand', 'handValue', 'out', 'caption', 'second'].flatMap(name => [
+    ...Object.fromEntries(['top', 'products', 'sum', 'hand', 'handValue', 'out', 'outX', 'caption', 'second'].flatMap(name => [
       [`${name}Row`, { op: 'pick', args: [`notes.${name}`, 'lookFor'] }],
       [`${name}Note`, { op: 'pick', args: [`${name}Row`, 'reader'] }],
     ])),
@@ -169,15 +179,15 @@ export const scene = {
     { id: 'products-title', type: 'text', semanticId: 'products-title', conceptId: 'dot-product',
       initialState: { text: '{{productsNote}}', x: RX, y: K_Y + 10, typography: 'annotation' } },
     { id: 'products', type: 'strip', semanticId: 'products', conceptId: 'dot-product',
-      initialState: { x: RX, y: K_Y + 24, cell: CELL, role: 'neutral', values: { $derive: 'products' }, opacity: { $derive: 'productsOpacity' } } },
+      initialState: { x: RX, y: K_Y + 22, cell: CELL, role: 'neutral', values: { $derive: 'products' }, opacity: { $derive: 'productsOpacity' } } },
     // The cells above round to 2 decimals, so their sum can miss the score
     // cell by 0.01; the same products to 3 decimals add up exactly.
     { id: 'products-exact', type: 'text', semanticId: 'products-exact', conceptId: 'dot-product',
-      initialState: { text: '3 decimals: {{products.0}}, {{products.1}}, {{products.2}}, {{products.3}}', x: RX, y: K_Y + 92, typography: 'annotation', opacity: { $derive: 'productsOpacity' } } },
+      initialState: { text: '3 decimals: {{products.0}}, {{products.1}}, {{products.2}}, {{products.3}}', x: RX, y: K_Y + 86, typography: 'annotation', opacity: { $derive: 'productsOpacity' } } },
     { id: 'product-sum', type: 'text', semanticId: 'product-sum', conceptId: 'dot-product',
-      initialState: { text: 'add them: {{productSum}} = its score', x: RX, y: K_Y + 112, typography: 'annotation', opacity: { $derive: 'productsOpacity' } } },
+      initialState: { text: 'add them: {{productSum}} = its score', x: RX, y: K_Y + 106, typography: 'annotation', opacity: { $derive: 'productsOpacity' } } },
     { id: 'reader-note', type: 'text', semanticId: 'reader-note', conceptId: 'query',
-      initialState: { text: 'Reader: {{readerChar}}', x: RX, y: K_Y + 150 } },
+      initialState: { text: 'Reader: {{readerChar}}', x: RX, y: K_Y + 144 } },
 
     // One reader's row, step by step, under the same character columns.
     { id: 'scores', type: 'grid', semanticId: 'score-row', conceptId: 'dot-product',
@@ -193,25 +203,27 @@ export const scene = {
       initialState: { label: '3. softmax → weights (each rounded, so a row can read .99 or 1.01)', x: GX, y: W_Y, rows: 1, cols: T, cell: CELL, opacity: 0, role: 'output',
         matrixKind: 'derived', heat: true, valueScale: 'fixed', values: { $derive: 'w' } } },
     { id: 'top-note', type: 'text', semanticId: 'top-note', conceptId: 'softmax',
-      initialState: { text: '{{topNote}}', x: RX, y: SCORE_Y + 28, typography: 'annotation' } },
+      initialState: { text: '{{topNote}}', x: RX, y: SCORE_Y + 26, typography: 'annotation' } },
     { id: 'mask-note', type: 'text', semanticId: 'mask-note', conceptId: 'causal-mask',
-      initialState: { text: '{{maskNote}}', x: RX, y: MASK_Y + 28, typography: 'annotation' } },
+      initialState: { text: '{{maskNote}}', x: RX, y: MASK_Y + 26, typography: 'annotation' } },
+    // Three lines centred on the weight row, so the values row can follow it
+    // at the same pitch as the rows above.
     { id: 'sum-note', type: 'text', semanticId: 'sum-note', conceptId: 'softmax',
-      initialState: { text: '{{sumNote}}', x: RX, y: W_Y + 28, typography: 'annotation' } },
+      initialState: { text: '{{sumNote}}', x: RX, y: W_Y + 6, typography: 'annotation' } },
     { id: 'hand-note', type: 'text', semanticId: 'softmax-by-hand', conceptId: 'softmax',
-      initialState: { text: '{{handNote}}', x: RX, y: W_Y + 46, typography: 'annotation' } },
+      initialState: { text: '{{handNote}}', x: RX, y: W_Y + 24, typography: 'annotation' } },
     { id: 'hand-value', type: 'text', semanticId: 'softmax-by-hand-value', conceptId: 'softmax',
-      initialState: { text: '{{handValueNote}}', x: RX, y: W_Y + 64, typography: 'annotation' } },
+      initialState: { text: '{{handValueNote}}', x: RX, y: W_Y + 42, typography: 'annotation' } },
 
     // The weights mix the values.
     { id: 'values', type: 'grid', semanticId: 'values', conceptId: 'values',
       initialState: { label: '4. values v (a code for each letter), mixed by the weights', x: GX, y: V_Y, rows: HS, cols: T, cell: CELL, role: 'input',
         matrixKind: 'input', heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'guided-v', values: { $derive: 'VT' } } },
     { id: 'output', type: 'grid', semanticId: 'output', conceptId: 'values',
-      initialState: { x: RX, y: V_Y, rows: HS, cols: 1, cell: CELL, role: 'output', matrixKind: 'derived', columnLabels: ['Σ w·v'],
+      initialState: { x: OX, y: V_Y, rows: HS, cols: 1, cell: CELL, role: 'output', matrixKind: 'derived', columnLabels: ['Σ w·v'],
         heat: { mode: 'signed' }, valueScale: 'shared', valueScaleGroup: 'guided-v', values: { $derive: 'out' } } },
     { id: 'output-note', type: 'text', semanticId: 'output-note', conceptId: 'values',
-      initialState: { text: '{{outNote}}', x: RX + CELL + 16, y: V_Y + 92, typography: 'annotation' } },
+      initialState: { text: '{{outNote}}', x: { $derive: 'outXNote' }, y: V_Y + 88, typography: 'annotation' } },
 
     { id: 'caption', type: 'text', semanticId: 'caption', conceptId: 'query',
       initialState: { text: '{{captionNote}}', x: COL, y: FOOT, typography: 'annotation' } },

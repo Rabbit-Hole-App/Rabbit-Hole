@@ -89,6 +89,9 @@ async function drive(card, declaration, value, current) {
   const name = declaration.name;
   if (declaration.type === 'bool') {
     if (Boolean(value) !== Boolean(current)) await card.locator(`[data-scene-controls] [data-input-control="${name}"]`).click();
+  } else if (declaration.presentation === 'pager') {
+    const step = value > current ? 'next' : 'previous';
+    for (let i = 0; i < Math.abs(value - current); i += 1) await card.locator(`[data-card-pager] [data-pager-step="${step}"]`).click();
   } else if (declaration.type === 'index' && declaration.presentation === 'slider') {
     const step = value > current ? 'next' : 'previous';
     for (let i = 0; i < Math.abs(value - current); i += 1) await card.locator(`[data-scene-controls] [data-input-step="${name}:${step}"]`).click();
@@ -163,8 +166,13 @@ for (const module of CARDS) {
   await assertState(cardOf(scene), scene, current, 'after reload', 'after-reload');
 
   // Reset restores the declared defaults
-  await cardOf(scene).locator('[data-scene-controls] [data-scene-reset]').click();
-  await assertState(cardOf(scene), scene, defaults, 'reset', 'reset');
+  // Reset restores the experiment; the sub-card being read stays. A card whose
+  // only input is its pager has no INTERACT row and nothing to reset.
+  const kept = Object.fromEntries(visible.filter(d => d.presentation === 'pager').map(d => [d.name, current[d.name]]));
+  if (visible.some(d => d.presentation !== 'pager')) {
+    await cardOf(scene).locator('[data-scene-controls] [data-scene-reset]').click();
+    await assertState(cardOf(scene), scene, { ...defaults, ...kept }, 'reset', 'reset');
+  }
 
   Object.assign(record, {
     before: before.filter(t => !afterTexts.includes(t)), after: changed, afterInputs: current,

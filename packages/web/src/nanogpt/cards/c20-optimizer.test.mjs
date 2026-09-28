@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
 import { scene, evidence, sources } from './c20-optimizer.js';
 import { assertCardGates, assertEvidence, assertSources } from '../card-gates.mjs';
+import { sceneContentBounds, sceneLegibility } from '../../scene-layout.js';
 
 const opt = fx.optimizer;
 const STATES = [0, 1, 2, 3].map(optimizer => ({ optimizer }));
@@ -20,6 +21,18 @@ test('c20-optimizer passes every gate at every optimizer preset', () => {
   assert.ok(scene.objects[0].initialState.text.length <= 95);
   assert.ok(!scene.objects.some(object => object.type === 'tokens'), 'no second option row inside the visual');
   assertCardGates(scene, STATES);
+});
+
+
+// The block is sized from the static (template) bounds; each preset's resolved
+// text fits inside it, so switching presets never refits or drops below scale 1.
+test('the frame never refits across presets and renders at scale 1', () => {
+  const box = scene => { const { contributors: _c, ...b } = sceneContentBounds(scene); return b; };
+  const frames = assertCardGates(scene, STATES).map(result => box(result.scene));
+  frames.forEach(frame => assert.deepEqual(frame, frames[0]));
+  const { bounds: sized, scale } = sceneLegibility(scene);
+  assert.equal(scale, 1);
+  assert.ok(frames[0].xMin >= sized.xMin && frames[0].xMax <= sized.xMax && frames[0].yMin >= sized.yMin && frames[0].yMax <= sized.yMax);
 });
 
 test('displayed rows are the fixture rows for the selected preset, beside the SGD baseline', () => {
@@ -121,6 +134,10 @@ test('the bias note is bound to the resolved source value', () => {
   assert.equal(fx.architecture.bias, false);
   const [result] = assertCardGates(scene, [{ optimizer: 0 }]);
   assert.match(byId(result, 'exempt-note-2').label, /bias = False/);
+  // Each exemption sentence is wrapped onto two lines in the right column.
+  const joined = (first, second) => `${byId(result, first).label} ${byId(result, second).label}`;
+  assert.equal(joined('exempt-note-1', 'exempt-note-1b'), 'No decay for 1-D params (biases, LayerNorm weights); the toy b stands for them.');
+  assert.equal(joined('exempt-note-2', 'exempt-note-2b'), 'NanoGPT sets bias = False, so there only LayerNorm weights are exempt.');
 });
 
 test('betas, wd and grad_clip are the fx.config source values, and the toy run used them', () => {

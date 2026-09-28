@@ -160,3 +160,27 @@ genuinely different") and asked for one targeted pass, applied in place:
   (257 → 256) so it never implies 257 positions reach the model.
 
 Re-verified in the deployed app: 18 cards, every review state, 0 failures.
+
+## Deep dives as sub-cards (2026-09-28, WP6)
+
+Owner review of v2: Overview and Guided are the right size; every Deep dive held 4–5 ideas in
+one frame, and the tallest were scaled down to 0.86, drawing 13px annotations at about 11px.
+Each Deep dive is now paged into numbered sub-cards inside the same card ("Deep dive · k/N" in
+the header, Previous / Next), sharing one INTERACT row, practice and Sources & evidence; the
+ladder stays 6 × 3. Mechanism and rules: docs/features/learn-canvas-blocks.md, "Sub-cards";
+decision and reasoning: docs/progress.md.
+
+| Concept | Sub-cards |
+|---|---|
+| Tokenization | 1/3 meta.pkl → stoi → get_batch → logits · 2/3 wte and lm_head sizes, parameter count N · 3/3 block_size tradeoff and the digit edge case |
+| The Transformer, end to end | 1/3 Call site, assert, embedding · 2/3 One Block, run n_layer times · 3/3 ln_f, lm_head, the loss and two savings |
+| Attention | 1/4 Shapes: split, view, transpose · 2/4 The causal mask and att · 3/4 fp32 memory and the fused path · 4/4 The 1/√hs experiment |
+| Residual stream and LayerNorm | 1/3 Pre-LN or post-LN · 2/3 LayerNorm and ε · 3/3 The scaled init |
+| Training and loss | 1/3 get_lr schedule and eval · 2/3 Micro-steps: forward, loss, backward · 3/3 The step: clip, AdamW, zero_grad |
+| Generation and sampling | 1/4 Crop, forward, last position · 2/4 Temperature and top-k · 3/4 Softmax over the kept logits · 4/4 Draw and append (T = 0 invalid is a state here) |
+
+Two departures from the owner's split, both inside the 2–4 rule: Generation takes 4 sub-cards
+(softmax got its own, so the draw part holds one visual); Training's 2/3 and 3/3 each hold two
+stacked equations (loss + accumulation; clip + AdamW) — five equations cannot be one per part
+within four parts. Attention · Guided was brought to scale 1 by layout only. Every card now
+passes the render-size floor gate (`assertCardGates`) on every sub-card at every review state.
