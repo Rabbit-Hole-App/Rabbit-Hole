@@ -7,10 +7,13 @@
 //
 // Usage: node e2e/subcard-captures.mjs <deployed-base> <board> <outDir> [selection.json]
 //   writes <outDir>/NN-<card>[-part-k][-t<time>].png and <outDir>/captures.json
-//   selection.json (optional): { "<scene id>": [{ "part": k, "time": seconds }, ...] } -
-//   only those cards and shots; a time scrubs the card's own animation slider
-//   (the card is put back on its final frame afterwards). Without it: every
-//   card at its default, every sub-card once.
+//   selection.json (optional): { "<scene id>": [{ "part": k, "time": seconds,
+//   "inputs": { name: value }, "practice": "wrong" | "right", "label": "..." }] } -
+//   only those cards and shots. A time scrubs the card's own animation slider;
+//   inputs are set through the card's own INTERACT controls; a practice shot
+//   opens Practice and checks the naive default (wrong) or expected (right)
+//   answer. Each shot is undone afterwards (final frame, Reset, back to
+//   explore). Without a selection: every card at its default, every sub-card once.
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { BOARDS } from '../src/demo-scenes.js';
@@ -61,6 +64,16 @@ async function settle(card) {
 
 const shots = [];
 let order = 0;
+// Set one input through its INTERACT control, from its current value.
+async function drive(card, d, value, current) {
+  if (JSON.stringify(value) === JSON.stringify(current)) return;
+  const controls = card.locator('[data-scene-controls]');
+  if (d.type === 'bool') await controls.locator(`[data-input-control="${d.name}"]`).click();
+  else if (d.type === 'index' && d.presentation === 'slider') {
+    for (let i = 0; i < Math.abs(value - current); i += 1) await controls.locator(`[data-input-step="${d.name}:${value > current ? 'next' : 'previous'}"]`).click();
+  } else await controls.locator(`[data-input-control="${d.name}"][data-input-value="${value}"]`).click();
+  await page.waitForTimeout(250);
+}
 // Scrub the card's own animation slider (a controlled range input: set the
 // native value, then let React see the input event).
 const scrub = (card, time) => card.locator('input[aria-label="Animation time"]').evaluate((element, t) => {
@@ -84,7 +97,7 @@ for (const block of cards) {
   }
   const plan = selection ? selection[scene.id] : parts.map((unused, k) => ({ part: pager ? k : undefined }));
   let at = 0;
-  for (const { part = 0, time } of plan) {
+  for (const { part = 0, time, inputs = null, practice = null, label = null } of plan) {
     const k = pager ? part : 0, partName = parts[k];
     for (; at < k; at += 1) { await card.locator('[data-card-pager] [data-pager-step="next"]').click(); await page.waitForTimeout(400); }
     for (; at > k; at -= 1) { await card.locator('[data-card-pager] [data-pager-step="previous"]').click(); await page.waitForTimeout(400); }
@@ -93,14 +106,35 @@ for (const block of cards) {
       if (!readout.endsWith(`${k + 1} / ${parts.length}`)) throw new Error(`${scene.id}: header reads "${readout}" on sub-card ${k + 1}`);
     }
     await reveal(page, canvas, card);
+    const declared = (scene.inputs || []).filter(d => !d.hidden && d.presentation !== 'pager');
+    if (inputs) {
+      await card.locator('[data-scene-controls] [data-scene-reset]').click();
+      await page.waitForTimeout(300);
+      for (const d of declared) if (d.name in inputs) await drive(card, d, inputs[d.name], d.default);
+    }
+    if (practice) {
+      await card.locator('[data-practice-start]').click();
+      await page.waitForTimeout(300);
+      // A committed attempt stays submitted until a new one is opened.
+      if (await card.locator('[data-activity-new]').isVisible()) { await card.locator('[data-activity-new]').click(); await page.waitForTimeout(300); }
+      await card.locator(`[data-scene-activity] [data-input-control="answer"][data-input-value="${practice === 'right' ? block.activity.expected : block.activity.answer.default}"]`).click();
+      await card.locator('[data-activity-check]').click();
+      await card.locator('[data-activity-feedback][data-activity-result]').waitFor({ timeout: 5000 });
+      await page.waitForTimeout(450);
+    }
     if (time !== undefined) { await scrub(card, time); await page.waitForTimeout(300); }
+    // Inputs and practice can grow the card: bring it fully into view again.
+    await reveal(page, canvas, card);
     await settle(card);
-    const file = `${String(order).padStart(2, '0')}-${slug(block.title)}${pager ? `-part-${k + 1}` : ''}${time !== undefined ? `-t${time}` : ''}.png`;
+    const tag = [inputs && Object.entries(inputs).map(([n, v]) => `${n}-${v}`).join('-'), practice && `practice-${practice}`].filter(Boolean).join('-').replace(/[^a-z0-9-]+/gi, '');
+    const file = `${String(order).padStart(2, '0')}-${slug(block.title)}${pager ? `-part-${k + 1}` : ''}${time !== undefined ? `-t${time}` : ''}${tag ? `-${tag}` : ''}.png`;
     await card.screenshot({ path: `${OUT}/${file}` });
     const box = await card.boundingBox();
-    shots.push({ file, card: scene.id, title: block.title, heading: heading?.text ?? null, part: pager ? { index: k, of: parts.length, name: partName } : null, time: time ?? null, w: Math.round(box.width), h: Math.round(box.height) });
+    shots.push({ file, card: scene.id, title: block.title, heading: heading?.text ?? null, part: pager ? { index: k, of: parts.length, name: partName } : null, time: time ?? null, inputs, practice, label, w: Math.round(box.width), h: Math.round(box.height) });
     console.log(file);
     if (time !== undefined) { await scrub(card, scene.duration); await page.waitForTimeout(200); }
+    if (practice) { await card.locator('[data-practice-leave]').click(); await page.waitForTimeout(300); }
+    if (inputs && declared.length) { await card.locator('[data-scene-controls] [data-scene-reset]').click(); await page.waitForTimeout(300); }
   }
 }
 writeFileSync(`${OUT}/captures.json`, JSON.stringify({ base, board, bundle, shots }, null, 2));
