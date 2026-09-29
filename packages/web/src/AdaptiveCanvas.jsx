@@ -2691,11 +2691,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           </div>
         </div>
       )}
-      {/* The zoom pill, the composer, and the minimap all share one lower
-          edge; small insets keep them off the window border now that the
-          canvas runs full-bleed. */}
-      {presenting === null && <div className="relative min-h-11 shrink-0 px-3 pt-3 pb-4">
-        <div data-zoom aria-label="Zoom controls" className="absolute bottom-4 left-3 z-20 flex items-center rounded-lg border border-line bg-white shadow-sm">
+      {/* The zoom pill, the composer, and the minimap share one lower edge.
+          The composer is the primary surface, so no control may cover it:
+          the pill sits in its own flex column beside it (the two side columns
+          grow equally, keeping the composer centred while there is room), and
+          on a phone the pill takes its own compact row above a full-width
+          composer and the minimap steps aside. */}
+      {presenting === null && <div data-canvas-bottom className="relative flex min-h-11 shrink-0 flex-col gap-2 px-3 pt-3 pb-4 md:flex-row md:items-end md:gap-3">
+        <div className="flex md:min-w-fit md:flex-1 md:basis-0">
+        <div data-zoom aria-label="Zoom controls" className="z-20 flex items-center rounded-lg border border-line bg-white shadow-sm">
           <IconBtn title="Scroll up" onClick={() => scrollBy(-1)}><ChevronUp size={14} /></IconBtn>
           <IconBtn title="Scroll down" onClick={() => scrollBy(1)}><ChevronDown size={14} /></IconBtn>
           <span className="mx-0.5 h-5 w-px bg-line" />
@@ -2703,11 +2707,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           <button type="button" title="Reset zoom" onClick={() => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 })} className="min-w-11 px-1 text-center text-xs tabular-nums text-ink-2 hover:text-ink">{Math.round(view.z * 100)}%</button>
           <IconBtn title="Zoom in" onClick={() => zoomCenter(1.25)}><Plus size={14} /></IconBtn>
         </div>
-        {composer && <div className="mx-auto w-full max-w-[504px]">{composer}</div>}
+        </div>
+        {composer && <div data-canvas-composer className="mx-auto w-full min-w-0 max-w-[504px] md:mx-0 md:shrink">{composer}</div>}
+        {/* Reserves the minimap's width (CanvasMinimap SIZE.w) so it never sits over the composer. */}
+        <div aria-hidden className="hidden md:block md:flex-1 md:basis-0" style={minimap ? { minWidth: 184 } : undefined} />
         {/* Level with the composer's bottom edge, like the zoom pill. */}
-        {minimap && <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
+        {minimap && <div className="hidden md:contents"><CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
           surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
-          onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />}
+          onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} /></div>}
       </div>}
     </div>
   );
