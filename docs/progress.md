@@ -16,8 +16,8 @@ NC6  Card-composition rules              ✅
 NC7  NanoGPT cards 11–26                 🟡
   NC7A Batch 2                           ✅
   NC7B Batch 3                           ✅ CLOSED (page 18:3, v1.1 fixes 22:3)
-  NC7C Remaining through 26              🟡 ACTIVE — batch 4 (c14, c26, c19) at the review gate, page 26:3;
-                                            then batch 5: c22, c23, c24, c25
+  NC7C Remaining through 26              🟡 ACTIVE — batch 4 ✅ CLOSED (page 26:3, v1.1 fixes 28:3);
+                                            batch 5 (c22, c23, c24, c25) in progress
 NC8  Cross-depth content transitions     ⬜
 NC9  Curriculum coherence review         ⬜ (open item: is "how scores are produced", q·k, thin?)
 NC10 Final card QA                       ⬜
@@ -28,6 +28,14 @@ deployed checks → Figma captures → stop at the visual review gate with the e
 bar: one question per card; practice on an unseen case; no decorative interaction; no text
 shrinking; sequence relationships explicit when cards form a path; existing renderer primitives
 (a new capability only if a batch proves it genuinely reusable).
+
+## 2026-09-28 — batch 4 closed
+
+Owner approved batch 4 with three corrections (v1.1): the c26 → c19 sequence is "Training
+fundamentals", not "One training step" (the frozen cards still cover the rest of a real step);
+c26 reads perplexity as the same uncertainty as a uniform choice among about that many equally
+likely possibilities; one line scopes the average (this card: one window; NanoGPT: all B × T
+scored positions in the batch). c14, c19, "The MLP" and all three practices approved as built.
 
 ## 2026-09-28 — batch 3 closed
 
