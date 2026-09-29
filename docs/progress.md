@@ -35,6 +35,20 @@ bar: one question per card; practice on an unseen case; no decorative interactio
 shrinking; sequence relationships explicit when cards form a path; existing renderer primitives
 (a new capability only if a batch proves it genuinely reusable).
 
+## 2026-09-29 — batch 5 visual review: keep the designs, fix the five shared items
+
+**Decision (owner, after page 34:3).** c24, c25, c23 and c22 are approved as content and visual
+models; no card redesign and no large review cycle. c22's large −∞ marks stay (they make the
+truncation step unmistakable). Fix all five shared renderer items once, before scaling to the
+remaining cards: secondary/unlit text passes 4.5:1 on every surface (fix the semantic token, not
+card overrides); practice feedback and the attempt counter at 14px; no internal index in any
+learner-facing text ("Locked by this task — block_size = 3"); a locked input shows as
+"block_size = 3 · locked by practice" with the alternatives hidden, restored on Back to explore;
+New attempt leaves the answer row for a secondary-action row. c24 loses its pre-practice
+placeholder line. The two cross-card items (c26 iteration 1000 vs c25 100; c21 0.61 vs c22 0.60)
+stay in NC9. Closeout: a small "batch 5 · v1.1 closeout" page with five shots; if clean, batch 5
+closes and the commits push fast-forward.
+
 ## 2026-09-29 — batch 5 at the visual gate
 
 First batch built under the locked pipeline (docs/features/learn-card-pipeline.md). Build: fixtures
