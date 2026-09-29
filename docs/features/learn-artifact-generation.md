@@ -198,3 +198,82 @@ worker never falls back to live storage.
   - /paper research;
   - the request body (command only, never a primitive list);
   - paid, question and error results that insert nothing.
+
+## Primitive gap table (2026-09-29)
+
+The registry grows per reusable primitive (card type), never per authored card.
+NanoGPT cards such as c22 Top-k or c24 Generation loop are content. They can
+serve as examples of a schema, but none of them becomes a tool of its own.
+
+| Primitive | Registry | Family (command) | Renderer | Next step |
+|---|---|---|---|---|
+| explanation | ✅ generated | /explain | ExplanationBody | done |
+| table | ✅ generated | /explain, /compare | TableBody | done |
+| flashcards | ✅ generated | /flashcards | FlashcardsBody | done |
+| quiz | ✅ generated | /quiz, /practice | QuizBody | done |
+| challenge | ✅ generated | /practice | ChallengeBody | done |
+| explain_back | ✅ generated | /practice | ChallengeBody (explain_back) | done |
+| code_sample | ✅ generated | /code | SnippetBody | done |
+| flow_diagram | ✅ generated | /diagram, /compare | FlowDiagram (ELK) | done |
+| mermaid_diagram | ✅ generated | /diagram, /compare | MermaidDiagram | done |
+| walkthrough | ✅ generated | /walkthrough | scene engine, walkthrough_v1 | done |
+| interactive_graph | ✅ generated | /graph, /compare | Desmos | done |
+| data_plot | ✅ generated | /graph, /compare | Plotly | done |
+| maths_animation | ✅ paid proposal | /animate | Manim worker | verified by a real render |
+| video_generate | ✅ paid proposal | /video | FAL | works; the sample clip misteaches refraction, owner's call |
+| blender_scene | ✅ paid proposal | /3d | Blender worker | verified by a real render |
+| notebook, whiteboard, paper | ✅ direct (no model) | /notebook, /whiteboard, /paper | their cards | done |
+| image (search), video (existing clip) | ✅ direct | /image, and a found clip | their cards | done |
+| code_exercise | ⬜ missing | /code, /practice | CodeBody (setup, starter, checks, hint) | candidate after the card freeze |
+| knowledge_graph | ⬜ missing | /graph | KnowledgeBody | candidate after the card freeze, if its format is stable |
+| animation (generic) | ⬜ missing | /animate, /compare | AnimatedScene (scene JSON) | wait: the card agent is still evolving this format (NC cards) |
+| narration | ⬜ missing | /explain | AudioBody (text, then paid TTS on Generate) | candidate: the text is cheap to generate and the audio already confirms |
+| vector_explorer | ⬜ not in any family | none | vector card | needs a family from smart-home (for example /graph) before generation |
+| image_generate | ⬜ missing | /image | ImageBody generate mode | stays dev-only: /image means search |
+| 3d_model | ⬜ not generatable | /3d | ThreeDBody (an existing glTF URL) | direct only: the model cannot invent a real model URL |
+| reference_attention | ⬜ not a tool | /animate | a fixed benchmark scene | ask smart-home to drop it from /animate's family |
+
+Only the missing primitives whose renderer and data format are stable get
+implemented, after the card system is frozen at the end of NC9/NC10. Anything
+unstable stays dev-only.
+
+## Adding a primitive (handoff contract, owner-approved 2026-09-29)
+
+**The card owner supplies,** once a card type's format is stable:
+
+- the primitive id;
+- its canonical declarative data shape;
+- which fields are required and which are optional;
+- one normal valid example and one edge-case valid example;
+- the semantic invariants;
+- the renderer entry point.
+
+There is no React or code-generation contract.
+
+**Learn (this branch) adds:**
+
+- the schema;
+- the semantic validator;
+- the renderer adapter (the spec becomes the card);
+- the model tool definition;
+- at most one repair;
+- family allowlist enforcement;
+- tests.
+
+The primitive stays `ready: false` until a real generated example passes
+review.
+
+**smart-home** adds the primitive to an existing semantic family. A new slash
+command only when it is a genuinely new learner intent; the command list never
+grows one command per renderer.
+
+**Review:** one generated example, or a small representative set, per
+primitive type. For example: interactive_graph with a sigmoid, challenge with
+an attention prediction, flow_diagram with a transformer pipeline. Once a
+primitive's contract is proven, new content in the same schema needs no
+further architectural approval.
+
+**Out of scope here:** when a primitive should be used, tutor persona
+selection, learner-state routing and likely-next-tool prediction. This layer
+only answers: given a request for tool family X, can Rabbit Hole safely
+generate a valid artifact of primitive Y?
