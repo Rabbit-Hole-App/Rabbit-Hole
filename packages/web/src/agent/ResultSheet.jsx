@@ -35,6 +35,9 @@ function Results({ t }) {
   );
 }
 
+// The evidence hierarchy (WP6): recorded decision; recorded question/session; code/source; inferred; model explanation.
+const EVIDENCE = { decision: 'Recorded decision', question: 'Recorded question', session: 'Recorded session', code: 'Code evidence', inferred: 'Inferred relationship', model: 'Model explanation' };
+
 function Turn({ t }) {
   if (t.kind === 'card') return <ConfirmCard card={t.card} onConfirm={t.confirm} onChange={t.change} onCancel={t.cancel} />;
   if (t.kind === 'results') return <Results t={t} />;
@@ -58,6 +61,7 @@ function Turn({ t }) {
   );
   return (
     <div className="min-w-0">
+      {t.fixture && <Pill className="mb-1.5">Fixture · UI preview</Pill>}
       {t.text ? <Md text={t.text} /> : !t.done && <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" />{t.stage || 'Thinking…'}</span>}
       {/* ponytail: no [Add to canvas] on sources - research runs only in canvas scope, where the bar is
           hidden (routes.js), and learnHandoff is off (flags.js). Add it when the bar shows on a canvas. */}
@@ -65,6 +69,11 @@ function Turn({ t }) {
         <div className="flex flex-wrap gap-1.5 pt-2">
           {t.sources.map((s, i) => <a key={i} href={s.href} target="_blank" rel="noreferrer" className="no-underline"><Pill>{s.label}</Pill></a>)}
         </div>
+      )}
+      {t.evidence?.length > 0 && (
+        <ol data-evidence className="flex flex-col gap-1 pt-2 text-sm">
+          {t.evidence.map((e, i) => <li key={i} data-evidence-kind={e.kind} className="rounded-md bg-code px-2.5 py-1.5"><span className="block text-xs text-ink-3">{EVIDENCE[e.kind]}</span>{e.label}{e.detail && <span className="text-ink-2"> · {e.detail}</span>}</li>)}
+        </ol>
       )}
       {t.showGraph && <Button size="sm" className="mt-2" onClick={t.showGraph}><Network size={13} />Show on graph</Button>}
       {t.stopped && <p className="pt-1 text-xs text-ink-3">Stopped.</p>}

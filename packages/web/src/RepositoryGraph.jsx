@@ -4,6 +4,9 @@ import { forceSimulation, forceLink, forceManyBody, forceCollide, forceX, forceY
 import { Button, IconBtn, Menu } from './ui.jsx';
 
 // Overview is bounded; focusing a symbol expands its actual one-hop relationships.
+// The Map's work-memory layers (RepositoryPage, map-memory.js) arrive as extra nodes of these kinds: they and the code they
+// link come first in the overview, drawn as shapes instead of dots. Kept local: Learn imports this file into the live build.
+const MEMORY=new Set(['decision','question','session']),MEMORY_COLOR={decision:'#c28a42',question:'#8b6bb1',session:'#439b88'};
 // SVG text is React-escaped: graph labels never become HTML or executable markup.
 export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect, query, answerView, external = true }) {
   const [answer,setAnswer]=useState(null);
@@ -12,7 +15,7 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
   const [history,setHistory]=useState([]),[positions,setPositions]=useState(new Map()),[hovered,setHovered]=useState(null),[infoOpen,setInfoOpen]=useState(false);
   const palette=['#2383e2','#8b6bb1','#439b88','#c28a42','#bc718d','#638baf'];
   const colors=useMemo(()=>new Map([...new Set(graph.nodes.map(n=>n.path).filter(Boolean))].sort().map((path,i)=>[path,palette[i%palette.length]])),[graph]);
-  const color=n=>colors.get(n.path)||'#a1a7ae';
+  const color=n=>MEMORY_COLOR[n.kind]||colors.get(n.path)||'#a1a7ae';
   const degrees=useMemo(()=>{const counts=new Map();graph.edges.forEach(e=>{for(const id of [e.source,e.target])counts.set(id,(counts.get(id)||0)+1);});return counts;},[graph]);
   useEffect(()=>{setFocus(null);setHistory([]);setAnswer(null);},[query]);
   const scene=useMemo(()=>{
@@ -21,9 +24,11 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
     else if(!answer&&query.trim())nodes=graph.nodes.filter(n=>`${n.label} ${n.path||''}`.toLowerCase().includes(query.toLowerCase()));
     else{
       const degrees=new Map();graph.edges.forEach(e=>{for(const id of [e.source,e.target])degrees.set(id,(degrees.get(id)||0)+1);});
-      nodes=[...graph.nodes].sort((a,b)=>(degrees.get(b.id)||0)-(degrees.get(a.id)||0));
+      const memory=new Set(graph.nodes.filter(n=>MEMORY.has(n.kind)).map(n=>n.id)),linked=new Set(graph.edges.filter(e=>memory.has(e.source)).map(e=>e.target));
+      const rank=n=>memory.has(n.id)?2:linked.has(n.id)?1:0;
+      nodes=[...graph.nodes].sort((a,b)=>rank(b)-rank(a)||(degrees.get(b.id)||0)-(degrees.get(a.id)||0));
     }
-    const total=nodes.length;nodes=nodes.slice(0,answer ? 100 : focus || query ? 45 : 24);const count=nodes.length;
+    const total=nodes.length;nodes=nodes.slice(0,answer ? 100 : focus || query ? 45 : 24+nodes.filter(n=>MEMORY.has(n.kind)).length);const count=nodes.length;
     const positions=new Map(nodes.map((n,i)=>[n.id,{...n,x:500+Math.cos(i/Math.max(1,count)*Math.PI*2)*Math.min(330,Math.max(210,count*10)),y:350+Math.sin(i/Math.max(1,count)*Math.PI*2)*Math.min(250,Math.max(160,count*8))}]));
     if(focus&&positions.has(focus))positions.set(focus,{...positions.get(focus),x:500,y:350});
     if(nodes.length===1)positions.set(nodes[0].id,{...positions.get(nodes[0].id),x:500,y:350});
@@ -91,7 +96,8 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
         <Menu open={infoOpen} onClose={()=>setInfoOpen(false)} className="top-9 right-0 w-60"><div className="p-3 text-xs leading-5 whitespace-normal">
           {answer&&<p className="mb-2 font-medium break-words">{answer.title}</p>}
           <p>{scene.nodes.length} of {scene.total} nodes</p>
-          <p className="text-ink-2">Solid: extracted<br/>Dashed: inferred</p>
+          <p className="text-ink-2">Solid: extracted or recorded<br/>Dashed: inferred</p>
+          {scene.nodes.some(n=>MEMORY.has(n.kind))&&<p className="text-ink-2">◆ decision · ■ question · ○ session</p>}
           <p className="mt-2 border-t border-line pt-2">Click to inspect. Double-click to explore.<br/>Drag nodes to move; drag empty space to pan.<br/>Scroll to zoom. Back returns.</p>
         </div></Menu>
       </span>
@@ -128,14 +134,17 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
         {scene.edges.map((e,i)=>{
           const a=positions.get(e.source)||scene.positions.get(e.source),b=positions.get(e.target)||scene.positions.get(e.target),lit=e.source===active||e.target===active;
           const dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy)||1;
-          return <line key={i} x1={a.x+dx/length*13} y1={a.y+dy/length*13} x2={b.x-dx/length*15} y2={b.y-dy/length*15} stroke={lit?'#2383e2':'#aebcc9'} strokeOpacity={lit ? .8 : active ? .18 : .45} strokeWidth={lit?1.8:1} strokeDasharray={e.confidence==='EXTRACTED'?undefined:'5 4'} markerEnd={lit?'url(#repo-arrow)':undefined}><title>{e.relation} · {e.confidence||'unknown'} · {e.context||''}</title></line>;
+          return <line key={i} x1={a.x+dx/length*13} y1={a.y+dy/length*13} x2={b.x-dx/length*15} y2={b.y-dy/length*15} stroke={lit?'#2383e2':'#aebcc9'} strokeOpacity={lit ? .8 : active ? .18 : .45} strokeWidth={lit?1.8:1} strokeDasharray={e.confidence==='EXTRACTED'||e.confidence==='RECORDED'?undefined:'5 4'} data-memory-edge={MEMORY.has(scene.positions.get(e.source)?.kind)?e.confidence:undefined} markerEnd={lit?'url(#repo-arrow)':undefined}><title>{e.relation} · {e.confidence||'unknown'} · {e.context||''}</title></line>;
         })}
         {scene.nodes.map(n=>{
           const emphasized=n.id===active,radius=Math.min(14,7+Math.sqrt(degrees.get(n.id)||0));
           return <g key={n.id} data-graph-node={n.id} role="button" tabIndex={0} aria-label={n.label} transform={`translate(${positions.get(n.id)?.x??n.x},${positions.get(n.id)?.y??n.y})`} opacity={!active||connected.has(n.id)?1:.4} className="cursor-grab active:cursor-grabbing"
             onPointerEnter={()=>setHovered(n.id)} onPointerLeave={()=>setHovered(null)}
             onDoubleClick={()=>{if(!suppressClick.current)explore(n.id);}} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();onSelect(n);if(e.shiftKey)explore(n.id);}}}>
-            <circle data-node-dot r={radius} fill={color(n)} stroke="white" strokeWidth="2.5"/>
+            {n.kind==='decision'?<rect data-memory-node="decision" x={-8} y={-8} width={16} height={16} rx={2} transform="rotate(45)" fill={color(n)} stroke="white" strokeWidth="2.5"/>
+              :n.kind==='question'?<rect data-memory-node="question" x={-8} y={-8} width={16} height={16} rx={4} fill={color(n)} stroke="white" strokeWidth="2.5"/>
+              :n.kind==='session'?<circle data-memory-node="session" r={8} fill="white" stroke={color(n)} strokeWidth="3"/>
+              :<circle data-node-dot r={radius} fill={color(n)} stroke="white" strokeWidth="2.5"/>}
             {emphasized&&<circle r={radius+5} fill="none" stroke={color(n)} strokeOpacity=".3" strokeWidth="2" pointerEvents="none"/>}
             <text y={radius+17} textAnchor="middle" fontSize="12" fontWeight={emphasized?600:400} fill="#334155" stroke="#fafbfc" strokeWidth="4" paintOrder="stroke" strokeLinejoin="round">{n.label.length>28?n.label.slice(0,27)+'…':n.label}</text>
             <title>{n.label}{n.path?` · ${n.path}${n.line?`:${n.line}`:''}`:external?' · External dependency':''}</title>

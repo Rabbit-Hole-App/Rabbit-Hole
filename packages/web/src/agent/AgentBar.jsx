@@ -98,6 +98,14 @@ export default function AgentBar() {
     window.addEventListener('small:ask-focus', focus);
     return () => window.removeEventListener('small:ask-focus', focus);
   }, []);
+  // A page's own prompt buttons (the Map's starters, prior questions, Why does this exist?) ask through the bar,
+  // so the bar stays the only input: small:bar-ask { text } sends it as a question in the bar's current scope.
+  const submitRef = useRef(null);
+  useEffect(() => {
+    const send = (e) => { if (e.detail?.text) submitRef.current?.(e.detail.text, 'ask'); };
+    window.addEventListener('small:bar-ask', send);
+    return () => window.removeEventListener('small:bar-ask', send);
+  }, []);
   // Switching workspace reloads the page (Sidebar.jsx:883), which drops every draft.
   useEffect(() => {
     if (!waiting) return;
@@ -106,6 +114,7 @@ export default function AgentBar() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [waiting]);
 
+  submitRef.current = (raw, pill) => submit(raw, pill);
   // Map and the app Graph tab may show results in their Context panel (§6.5).
   const showResults = (scope) => {
     const page = getSurface();
@@ -273,6 +282,15 @@ export default function AgentBar() {
     const can = modeAvailability('ask', scope.kind);
     if (!can.ok) return refuse(scope, can);
     const key = resultsKey(scope);
+    // WP6 two truths: the page may answer an exact fixture prompt itself (the Map's labelled fixtures), with no
+    // request; that answer is wholly fixture and labelled, and every other question goes to the model.
+    const local = getSurface().handlers?.answerLocally?.(text, scope);
+    if (local) {
+      add(scope, { kind: 'user', text });
+      add(scope, { kind: 'answer', done: true, fixture: true, text: local.text, evidence: local.evidence });
+      clearDraft(from, raw);
+      return showResults(scope);
+    }
     add(scope, { kind: 'user', text });
     const id = add(scope, { kind: 'answer', text: '' });
     clearDraft(from, raw);

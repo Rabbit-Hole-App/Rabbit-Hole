@@ -2133,6 +2133,124 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     } finally { for (const c of made) await drop6(page, c.name); await page.context().close(); }
   });
 
+  // WP6 checkpoint 2: the Map's work-memory layers. Real behaviour without fixtures; labelled nanoGPT fixtures with ?fixtures=1.
+  const nano = ready && /^karpathy\/nanogpt$/i.test(ready.repo || '');
+  const FX = 'Fixture · UI preview';
+  const held = (page) => { const asks = []; page.route('**/api/learn/ask', (r) => { asks.push(r.request().postDataJSON()); }); return asks; }; // never answered: no model call
+  const mapAt = async (page, fixtures = false) => {
+    await loaded(page, `/apps/${ready.name}?tab=map${fixtures ? '&fixtures=1' : ''}`);
+    await page.locator('[data-map-layers]').waitFor({ timeout: 30000 });
+  };
+  const layer = (page, name) => page.locator('[data-map-layers]').getByRole('button', { name: new RegExp(`^${name}`) });
+
+  if (ready) await check('wp6-kg-layers: the Map shows Code only; without fixtures Decisions, Questions and Sessions are off as none recorded and nothing says Fixture; with ?fixtures=1 on nanoGPT, Decisions adds its 6 decision nodes, recorded links solid and inferred dashed, and the layer row says Fixture · UI preview', async () => {
+    const page = await open();
+    await noAsks(page);
+    await mapAt(page);
+    must(await page.locator('[data-memory-node]').count() === 0, 'the default Map shows work-memory nodes');
+    for (const name of ['Decisions', 'Questions', 'Sessions']) must(await layer(page, name).isDisabled(), `${name} is on offer with nothing recorded`);
+    must(!(await page.locator('main').innerText()).includes('Fixture'), 'the real Map says Fixture');
+    await page.context().close();
+    if (!nano) return;
+    const fx = await open();
+    await noAsks(fx);
+    await mapAt(fx, true);
+    await layer(fx, 'Decisions').click();
+    await fx.locator('[data-memory-node="decision"]').first().waitFor({ timeout: 10000 });
+    must(await fx.locator('[data-memory-node="decision"]').count() === 6, `${await fx.locator('[data-memory-node="decision"]').count()} decision nodes, not 6`);
+    must(await fx.locator('[data-memory-node="question"], [data-memory-node="session"]').count() === 0, 'questions or sessions show with only Decisions on');
+    must(await fx.locator('[data-map-layers]').getByText(FX).isVisible(), 'the layer row does not say Fixture · UI preview');
+    const lines = await fx.evaluate(() => [...document.querySelectorAll('[data-memory-edge]')].map((l) => [l.dataset.memoryEdge, l.getAttribute('stroke-dasharray')]));
+    must(lines.some(([c, d]) => c === 'RECORDED' && !d) && lines.some(([c, d]) => c === 'INFERRED' && d), `recorded solid, inferred dashed: ${JSON.stringify(lines)}`);
+    await fx.context().close();
+  });
+
+  if (ready) await check('wp6-kg-selected: a selected code node shows Why, Questions and Sessions; without fixtures, the honest line that no project decision is recorded and nothing says Fixture; on nanoGPT fixtures CausalSelfAttention has 2 decisions, 2 questions and 1 session, labelled Fixture', async () => {
+    const page = await open();
+    await noAsks(page);
+    await mapAt(page);
+    await pickNode(page);
+    const panel = page.locator('[data-map-selected]');
+    await panel.getByText('No recorded project decision explains this code yet.').waitFor({ timeout: 10000 });
+    must(!(await panel.innerText()).includes('Fixture'), 'the real Selected panel says Fixture');
+    await page.context().close();
+    if (!nano) return;
+    const fx = await open();
+    await noAsks(fx);
+    await mapAt(fx, true);
+    await pickNode(fx);
+    const p = fx.locator('[data-map-selected]');
+    await p.locator('[data-memory-section="why"][data-count="2"]').waitFor({ timeout: 10000 });
+    must(await p.locator('[data-memory-section="questions"]').getAttribute('data-count') === '2' && await p.locator('[data-memory-section="sessions"]').getAttribute('data-count') === '1', 'CausalSelfAttention should list 2 questions and 1 session');
+    must(await p.getByText(FX).first().isVisible(), 'the fixture sections are not labelled');
+    await fx.context().close();
+  });
+
+  if (nano) await check('wp6-kg-entity: with fixtures, a decision node opens its record (rationale, alternatives, session, provenance, Fixture label); the bar keeps naming code, never the fixture; its code chip selects the code node', async () => {
+    const fx = await open();
+    await noAsks(fx);
+    await mapAt(fx, true);
+    await pickNode(fx, 'LayerNorm');
+    await fx.getByRole('textbox', { name: 'Search repository' }).fill(''); // pickNode's search would filter the decision out
+    await layer(fx, 'Decisions').click();
+    await fx.locator('[data-graph-node="fx-d-fused-qkv"]').click();
+    const card = fx.locator('[data-memory-entity="decision"]');
+    await card.waitFor({ timeout: 10000 });
+    const text = await card.innerText();
+    for (const want of ['Project Q, K and V with one Linear layer', 'One matmul instead of three', 'Three separate Linear layers', 'Attention internals walkthrough', FX]) must(text.includes(want), `the decision record lacks ${want}`);
+    must((await barOf(fx).locator('[data-scope-chip="selected"]').innerText()).includes('LayerNorm'), 'selecting a fixture moved the bar off the code');
+    await card.getByRole('button', { name: 'CausalSelfAttention', exact: true }).click();
+    await barOf(fx).locator('[data-scope-chip="selected"]', { hasText: 'CausalSelfAttention' }).waitFor({ timeout: 10000 });
+    await fx.locator('[data-map-selected]').getByText('model.py:29').waitFor({ timeout: 10000 });
+    await fx.context().close();
+  });
+
+  if (ready) await check('wp6-kg-starters: an empty Map conversation offers 5 starter prompts; one click asks it through the Mothership (one held request, the question in the conversation), and no text input appears in the panel', async () => {
+    const page = await open();
+    const asks = held(page);
+    await mapAt(page);
+    const starters = page.locator('[data-map-starters] button');
+    must(await starters.count() === 5, `${await starters.count()} starter prompts, not 5`);
+    await starters.filter({ hasText: 'Give me an architecture tour' }).click();
+    await page.locator('[data-map-panel]').getByText('Give me an architecture tour').first().waitFor({ timeout: 10000 });
+    await page.waitForTimeout(800);
+    must(asks.length === 1 && asks[0].message === 'Give me an architecture tour', `asks: ${JSON.stringify(asks)}`);
+    must(await page.locator('[data-map-panel] textarea, [data-map-panel] input[type="text"]').count() === 0, 'the panel grew a text input');
+    await page.context().close();
+  });
+
+  if (ready) await check('wp6-kg-why: Why does this exist? goes to the model without fixtures (one held request); with nanoGPT fixtures it answers in the panel with no request, labelled Fixture, evidence in hierarchy order; a prior question answers from its record; a private session of another user never shows', async () => {
+    const page = await open();
+    const asks = held(page);
+    await mapAt(page);
+    await pickNode(page);
+    await page.locator('[data-map-selected]').getByRole('button', { name: 'Why does this exist?' }).click();
+    await page.waitForTimeout(1200);
+    must(asks.length === 1 && asks[0].message === 'Why does this exist?', `asks without fixtures: ${JSON.stringify(asks)}`);
+    await page.context().close();
+    if (!nano) return;
+    const fx = await open();
+    const none = held(fx);
+    await mapAt(fx, true);
+    await pickNode(fx);
+    await fx.locator('[data-map-selected]').getByRole('button', { name: 'Why does this exist?' }).click();
+    const convo = fx.locator('[data-map-panel]');
+    await convo.getByText('2 recorded decisions explain why CausalSelfAttention looks like this.').waitFor({ timeout: 10000 });
+    must(await convo.getByText(FX).first().isVisible(), 'the fixture answer is not labelled');
+    const kinds = await convo.locator('[data-evidence] [data-evidence-kind]').evaluateAll((l) => l.map((n) => n.dataset.evidenceKind));
+    const RANK = ['decision', 'question', 'session', 'code', 'inferred', 'model'];
+    must(kinds.length && kinds[0] === 'decision' && kinds.every((k, i) => !i || RANK.indexOf(kinds[i - 1]) <= RANK.indexOf(k)), `evidence out of order: ${kinds}`);
+    await pickNode(fx);
+    await fx.locator('[data-memory-section="questions"]').getByRole('button', { name: /square root of the head size/ }).click();
+    await convo.getByText('It keeps the scores near unit variance').first().waitFor({ timeout: 10000 });
+    for (const name of ['Decisions', 'Questions', 'Sessions']) if ((await layer(fx, name).getAttribute('aria-pressed')) !== 'true') await layer(fx, name).click();
+    await fx.waitForTimeout(800);
+    const all = await fx.locator('body').innerText();
+    must(!/Private debugging session|generate slow down/.test(all), 'a private record of another user shows');
+    must(none.length === 0, `fixture answers made ${none.length} model requests`);
+    await fx.context().close();
+  });
+
   // Checks from Tasks 1-11 go here, in task order.
 }
 
