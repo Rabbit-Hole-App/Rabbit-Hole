@@ -224,18 +224,40 @@ serve as examples of a schema, but none of them becomes a tool of its own.
 | blender_scene | ✅ paid proposal | /3d | Blender worker | verified by a real render |
 | notebook, whiteboard, paper | ✅ direct (no model) | /notebook, /whiteboard, /paper | their cards | done |
 | image (search), video (existing clip) | ✅ direct | /image, and a found clip | their cards | done |
-| code_exercise | ⬜ missing | /code, /practice | CodeBody (setup, starter, checks, hint) | candidate after the card freeze |
-| knowledge_graph | ⬜ missing | /graph | KnowledgeBody | candidate after the card freeze, if its format is stable |
+| code_exercise | ⬜ missing | /code, /practice | CodeBody (setup, starter, checks, hint) | highest priority after the freeze; needs its grading contract (below) |
+| knowledge_graph | ⬜ missing | /graph | KnowledgeBody | candidate after the freeze: the learning concept graph only, never the Project Map |
 | animation (generic) | ⬜ missing | /animate, /compare | AnimatedScene (scene JSON) | wait: the card agent is still evolving this format (NC cards) |
-| narration | ⬜ missing | /explain | AudioBody (text, then paid TTS on Generate) | candidate: the text is cheap to generate and the audio already confirms |
-| vector_explorer | ⬜ not in any family | none | vector card | needs a family from smart-home (for example /graph) before generation |
-| image_generate | ⬜ missing | /image | ImageBody generate mode | stays dev-only: /image means search |
-| 3d_model | ⬜ not generatable | /3d | ThreeDBody (an existing glTF URL) | direct only: the model cannot invent a real model URL |
-| reference_attention | ⬜ not a tool | /animate | a fixed benchmark scene | ask smart-home to drop it from /animate's family |
+| narration | ⬜ missing | /explain | AudioBody (text, then paid TTS on Generate) | candidate after the freeze: generating the text is free; the audio is a separate paid action |
+| vector_explorer | ⬜ not in any family | none | vector card | goes under an existing family (/graph, or /diagram) chosen from its contract at handoff; never a new /vector |
+| image_generate | ⬜ missing | /image | ImageBody generate mode | later, an explicit subtype: /image searches by default; "/image generate …" makes one behind the paid confirmation. Not permanently dev-only; no change now |
+| 3d_model | ⬜ not generatable | /3d | ThreeDBody (an existing glTF URL) | direct only: an existing model is inserted, a generated scene is blender_scene; no generic 3d_model generation |
+| reference_attention | ⬜ not a tool | /animate | a fixed benchmark scene | reference content: out of /animate's generatable options; the card itself stays |
 
-Only the missing primitives whose renderer and data format are stable get
-implemented, after the card system is frozen at the end of NC9/NC10. Anything
-unstable stays dev-only.
+Frozen until NC9 and NC10 finish (owner, 2026-09-29). Then one short schema
+handoff with the card owner, and only the missing primitives whose renderer and
+data format are stable get implemented. Generic animation waits for its scene
+format to freeze. Anything unstable stays dev-only.
+
+**code_exercise** needs more than a visual schema:
+
+- starter code;
+- language and runtime;
+- tests or checks, and the expected behaviour;
+- the hints the learner sees;
+- a grading contract.
+
+Generated output never contains server-side execution instructions. The
+existing browser sandbox runs the code.
+
+**Readiness:** `ready` stays false until all five hold:
+
+1. the schema is stable;
+2. semantic validation passes;
+3. model generation succeeds;
+4. a malformed generation gets at most one repair;
+5. one representative generated result passes deployed and Figma review.
+
+After that, future instances need no per-card review.
 
 ## Adding a primitive (handoff contract, owner-approved 2026-09-29)
 
