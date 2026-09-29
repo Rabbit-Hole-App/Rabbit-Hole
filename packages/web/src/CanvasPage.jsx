@@ -24,7 +24,7 @@ export function CanvasLearn({ app, project }) { // callers key it by canvas: the
 // (feature/parallel-work 07e1f15), so the row only links a parent project: one title (user, WP6 closeout).
 export default function CanvasPage({ app, project }) {
   return <div className="flex min-h-0 min-w-0 flex-1 flex-col max-md:pt-(--shell-top-h)">
-    {project && <div data-canvas-parent className="flex shrink-0 items-center gap-2 pt-3 pr-8 pl-14 text-xs text-ink-2 max-md:px-4">
+    {project && <div data-canvas-parent className="flex shrink-0 items-center gap-2 pt-5 pr-8 pl-14 text-xs text-ink-2 max-md:px-4 max-md:pt-3">
       <button type="button" className="cursor-pointer hover:text-ink hover:underline" onClick={() => navigate(`/apps/${project.name}`)}>In {titleOf(project)} →</button>
     </div>}
     <CanvasLearn app={app} project={project} />
