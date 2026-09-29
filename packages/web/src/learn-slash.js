@@ -37,14 +37,15 @@ export function pickerSections(text, { catalog = false } = {}) {
   ];
 }
 
-// One typical use per command, for the View > Slash commands sheet.
+// One use per command for the View > Slash commands sheet. Each one asks for
+// exactly the card or answer the sheet previews beside it, and works as typed.
 export const EXAMPLES = {
   deeper: '/deeper into the maths', simplify: '/simplify', example: '/example with real numbers',
-  practice: '/practice coding', quiz: '/quiz softmax', compare: '/compare sigmoid vs tanh', research: '/research attention mechanisms',
-  explain: '/explain softmax', code: '/code a character tokenizer', graph: '/graph sigmoid', diagram: '/diagram a transformer block',
-  animate: '/animate why the sigmoid saturates', flashcards: '/flashcards token embeddings', notebook: '/notebook',
-  walkthrough: '/walkthrough one training step', whiteboard: '/whiteboard forces on a ramp', paper: '/paper 1706.03762',
-  image: '/image a glass prism', video: '/video light through a prism', '3d': '/3d a camera frustum', source: '/source',
+  practice: '/practice explain it back', quiz: '/quiz the derivative of the sigmoid', compare: '/compare sigmoid vs tanh', research: '/research attention mechanisms',
+  explain: '/explain why a token id is only an index', code: '/code build a character vocabulary', graph: '/graph sigmoid',
+  diagram: '/diagram where a token goes in nanoGPT', animate: '/animate why the sigmoid saturates', flashcards: "/flashcards nanoGPT's embeddings and parameters",
+  notebook: '/notebook', walkthrough: '/walkthrough a token through the model', whiteboard: '/whiteboard the sigmoid', paper: '/paper 1706.03762',
+  image: '/image a sigmoid curve', video: '/video light through a prism', '3d': '/3d a camera frustum', source: '/source',
   ask: '/ask what does wte do?', teach: '/teach causal masking', do: '/do add a section on attention',
 };
 // The canvas card each primitive becomes: its + palette sample in
@@ -55,10 +56,15 @@ export const CARD_OF = {
   video_generate: 'videoGenerate', maths_animation: 'mathAnimation', blender_scene: 'scene', notebook: 'notebook', whiteboard: 'whiteboard',
   paper: 'paper', image: 'image', video: 'video',
 };
-// The cards a command can put on the canvas today: its family's primitives
-// that are generated or inserted directly. Chat-only commands have none.
-export const cardsFor = name => (commandsFor('learn').find(command => command.name === name)?.family || [])
-  .filter(id => CARD_OF[id] && (isReady(id) || PRIMITIVES[id]?.direct)).map(id => ({ primitive: id, card: CARD_OF[id] }));
+// The cards a command can put on the canvas today. Chat-only commands have none.
+// A direct primitive counts only for a command that inserts it without the
+// model (the deterministic ones, and /image's photo search): /video, say,
+// can only propose a generated clip, never an existing one.
+export const cardsFor = name => {
+  const command = commandsFor('learn').find(entry => entry.name === name);
+  const inserts = !!command?.deterministic || name === 'image';
+  return (command?.family || []).filter(id => CARD_OF[id] && (isReady(id) || (inserts && PRIMITIVES[id]?.direct))).map(id => ({ primitive: id, card: CARD_OF[id] }));
+};
 
 // Whether running this command can end in a paid generation (it always asks first).
 export const mayConfirmPaid = name => learnRequest(name).paid.some(isReady);

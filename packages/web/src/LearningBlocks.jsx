@@ -628,10 +628,10 @@ export const BLOCK_TYPES = {
       dx: 0,
       dy: 0,
       mode: 'search',
-      title: 'Softmax over the vocabulary',
+      title: 'The sigmoid curve',
       src: SIGMOID_FIGURE,
       alt: 'The logistic curve rising from 0 to 1 through 0.5 at the origin',
-      caption: 'The same S-curve the LM head squashes its scores through. Search Pexels to swap in a photograph.',
+      caption: 'The logistic S-curve: 0.5 at the origin, flattening towards 0 and 1. Search Pexels to swap in a photograph.',
     }),
   },
   imageGenerate: {

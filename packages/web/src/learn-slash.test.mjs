@@ -95,4 +95,18 @@ test('the sheet previews the cards each command can make; chat commands make non
   assert.deepEqual(cardsFor('practice').map(entry => entry.card), ['challenge', 'explainBack', 'quiz']);
   assert.deepEqual(cardsFor('notebook').map(entry => entry.card), ['notebook']);
   assert.deepEqual(cardsFor('deeper'), []);
+  // /video only proposes a generated clip; /image inserts a searched photo.
+  assert.deepEqual(cardsFor('video').map(entry => entry.card), ['videoGenerate']);
+  assert.deepEqual(cardsFor('image').map(entry => entry.card), ['image']);
+});
+
+test('every example runs as typed: it names its own command and never hits an unavailable primitive', async () => {
+  const { EXAMPLES } = await import('./learn-slash.js');
+  const { artifactPlan } = await import('../../control-plane/src/learn-artifact.js');
+  for (const [name, text] of Object.entries(EXAMPLES)) {
+    const parsed = parseSlash(text);
+    assert.equal(parsed.name, name, text);
+    // /image never reaches the planner: runLearnCommand runs it as a photo search.
+    if (name !== 'image') assert.notEqual(artifactPlan(name, { args: parsed.args }).result, 'unsupported', `${text} would say not available`);
+  }
 });
