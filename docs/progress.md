@@ -29,6 +29,27 @@ bar: one question per card; practice on an unseen case; no decorative interactio
 shrinking; sequence relationships explicit when cards form a path; existing renderer primitives
 (a new capability only if a batch proves it genuinely reusable).
 
+## 2026-09-28 — card pipeline: independent reviewers from batch 5 on
+
+**Decision (owner).** Claude Opus 5.5 generates cards; review is independent of generation.
+
+**Audit of batches 2–4 (reported to the owner).** Planner, generator, reviewers and fixers were all
+Opus 5.5 subagents with separate contexts — no generator reviewed itself in its own conversation —
+but independence was partial: reviewers were handed the generator's self-report; one reviewer per
+card covered correctness, pedagogy and visuals together; the independent visual check saw only
+the scene frame, while the deployed-UI check was done by the orchestrator who also directed the
+fixes; fixes were not re-verified by a fresh agent; one model throughout.
+
+**Pipeline from batch 5.** plan (planner → critic → judge) → Opus 5.5 generator (gets the plan, the
+objective, prerequisites, causal steps, interaction, practice requirement, pinned revision and the
+renderer's capabilities; may not change the shared renderer) → two fresh reviewers per card,
+correctness and pedagogy/composition, who see only the card files, plan entry, sources and their own
+renders, never the generator's report → a fresh fixer → a fresh verifier (findings + current
+files, not the fixer's explanations) → a fresh sequence reviewer (files only) → deployed browser
+checks → a fresh visual reviewer on the deployed captures (the real UI) → Figma gate. JEV is not a
+reviewer; it is not in this repo (its grading work is another agent's), and when available it may
+only raise warnings a reviewer investigates.
+
 ## 2026-09-28 — batch 4 closed
 
 Owner approved batch 4 with three corrections (v1.1): the c26 → c19 sequence is "Training
