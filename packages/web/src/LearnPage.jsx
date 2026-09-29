@@ -21,7 +21,8 @@ import PaidConfirm from './PaidConfirm.jsx';
 import { runLearnCommand } from './learn-slash.js';
 import { warmLearnTools } from './learn-warmup.js';
 import ShortcutsSheet from './ShortcutsSheet.jsx';
-import SlashCommandsSheet from './SlashCommandsSheet.jsx';
+// Lazy: it draws real cards, so it brings the card components with it.
+const SlashCommandsSheet = lazy(() => import('./SlashCommandsSheet.jsx'));
 import FilesPanel from './FilesPanel.jsx';
 import LearnWiki from './LearnWiki.jsx';
 import { contentsEntries } from './learn-contents.js';
@@ -1212,7 +1213,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             className="h-8 min-w-16 max-w-96 shrink cursor-text truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none [field-sizing:content] placeholder:text-ink-2 hover:border-line focus:border-line" />
           <CanvasMenubar menus={canvasMenus} />
           {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
-          {slashHelpOpen && <SlashCommandsSheet onClose={() => setSlashHelpOpen(false)} />}
+          {slashHelpOpen && <Suspense fallback={null}><SlashCommandsSheet appName={app.name} onClose={() => setSlashHelpOpen(false)} /></Suspense>}
           {searchOpen && <SearchBar app={app.name} initialSource={searchSeed?.source} initialQuery={searchSeed?.query} onClose={() => { setSearchOpen(false); setSearchSeed(null); }}
             onPick={pickResult} />}
           <div className="flex items-center gap-0.5">

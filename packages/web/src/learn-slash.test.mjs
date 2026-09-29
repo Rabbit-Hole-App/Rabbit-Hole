@@ -87,3 +87,12 @@ test('View > Slash commands shows every picker command with an example', async (
   assert.equal(mayConfirmPaid('video'), true);
   assert.equal(mayConfirmPaid('graph'), false);
 });
+
+test('the sheet previews the cards each command can make; chat commands make none', async () => {
+  const { cardsFor } = await import('./learn-slash.js');
+  assert.deepEqual(cardsFor('graph').map(entry => entry.card), ['graph', 'plot']);
+  assert.deepEqual(cardsFor('diagram').map(entry => entry.card), ['flow', 'mermaid']);
+  assert.deepEqual(cardsFor('practice').map(entry => entry.card), ['challenge', 'explainBack', 'quiz']);
+  assert.deepEqual(cardsFor('notebook').map(entry => entry.card), ['notebook']);
+  assert.deepEqual(cardsFor('deeper'), []);
+});

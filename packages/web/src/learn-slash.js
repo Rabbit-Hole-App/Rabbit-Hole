@@ -47,6 +47,19 @@ export const EXAMPLES = {
   image: '/image a glass prism', video: '/video light through a prism', '3d': '/3d a camera frustum', source: '/source',
   ask: '/ask what does wte do?', teach: '/teach causal masking', do: '/do add a section on attention',
 };
+// The canvas card each primitive becomes: its + palette sample in
+// LearningBlocks' BLOCK_TYPES (the notebook is its own card).
+export const CARD_OF = {
+  explanation: 'explanation', table: 'table', flashcards: 'flashcards', quiz: 'quiz', challenge: 'challenge', explain_back: 'explainBack',
+  code_sample: 'snippet', flow_diagram: 'flow', mermaid_diagram: 'mermaid', walkthrough: 'walkthrough', interactive_graph: 'graph', data_plot: 'plot',
+  video_generate: 'videoGenerate', maths_animation: 'mathAnimation', blender_scene: 'scene', notebook: 'notebook', whiteboard: 'whiteboard',
+  paper: 'paper', image: 'image', video: 'video',
+};
+// The cards a command can put on the canvas today: its family's primitives
+// that are generated or inserted directly. Chat-only commands have none.
+export const cardsFor = name => (commandsFor('learn').find(command => command.name === name)?.family || [])
+  .filter(id => CARD_OF[id] && (isReady(id) || PRIMITIVES[id]?.direct)).map(id => ({ primitive: id, card: CARD_OF[id] }));
+
 // Whether running this command can end in a paid generation (it always asks first).
 export const mayConfirmPaid = name => learnRequest(name).paid.some(isReady);
 
