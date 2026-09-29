@@ -76,6 +76,7 @@ test('a prior question answers with its recorded answer, or says it was not reso
   const a = fixtureAnswer('Why divide by sqrt(head size)?', { node: null, memory: seen, graph });
   assert.equal(a.text, 'It keeps the logits near unit variance.');
   assert.deepEqual(a.evidence.map((e) => e.kind), ['question', 'session', 'code']);
+  assert.equal(a.evidence[0].detail, 'Resolved'); // the answer is the text above; the row does not repeat it
   assert.match(fixtureAnswer('Does the mask cost memory?', { node: null, memory: seen, graph }).text, /asked in Attention walkthrough but not resolved/);
   assert.equal(fixtureAnswer('Why is my run slow?', { node: null, memory: seen, graph }), null); // private to someone else
 });

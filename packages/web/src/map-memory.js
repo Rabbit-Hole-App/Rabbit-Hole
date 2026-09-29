@@ -70,7 +70,7 @@ export function fixtureAnswer(text, { node, memory, graph }) {
     const s = session(q.session);
     return {
       text: q.resolved ? q.answer : `This was asked${s ? ` in ${s.title}` : ''} but not resolved yet.`,
-      evidence: ordered(unique([questionRow(q), ...(q.session ? [sessionRow(q.session)] : []), ...recorded(q)].filter(Boolean))),
+      evidence: ordered(unique([{ ...questionRow(q), detail: q.resolved ? 'Resolved' : 'Not resolved yet' }, ...(q.session ? [sessionRow(q.session)] : []), ...recorded(q)].filter(Boolean))),
     };
   }
   if (t !== WHY || !node) return null;
