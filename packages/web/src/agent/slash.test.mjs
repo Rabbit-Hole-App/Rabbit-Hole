@@ -114,3 +114,8 @@ test('the Learn picker stays short: LEARN then CREATE; the rest only through /mo
   assert.deepEqual(LEARN_MENU.create.map(desc), ['Add an explanation', 'Add code', 'Add a graph or plot', 'Add a diagram', 'Add an animation', 'Add flashcards', 'Add a notebook', 'More learning tools']);
   for (const hidden of ['walkthrough', 'whiteboard', 'paper', 'image', 'video', '3d', 'source']) assert.ok(![...LEARN_MENU.learn, ...LEARN_MENU.create].includes(hidden), hidden);
 });
+
+test('/teach on an app is off on this preview: Learn is off for apps there (D7); projects and canvases teach', () => {
+  assert.deepEqual(reviewOff('teach', 'app'), { reason: 'Learn on an app would ask through live chat history, so it is off on this preview.', short: 'Off on this preview' });
+  for (const kind of ['workspace', 'project', 'canvas']) assert.equal(reviewOff('teach', kind), null, kind);
+});
