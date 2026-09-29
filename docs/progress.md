@@ -19,7 +19,9 @@ NC7  NanoGPT cards 11–26                 ✅ COMPLETE (25-card inventory, card
   NC7C Remaining through 26              ✅ — batch 4 ✅ CLOSED (page 26:3, v1.1 fixes 28:3);
                                             batch 5 ✅ CLOSED (page 34:3, v1.1 closeout 38:3)
 NC8  Cross-depth content transitions     🟡 ACTIVE
-NC9  Curriculum coherence review         ⬜ (open items: is "how scores are produced", q·k, thin?;
+NC9  Curriculum coherence review         ⬜ (open items: softmax prerequisite card (build only if
+                                            confirmed needed); notation and example drift; c18 practice vs
+                                            Training Guided reveal; is "how scores are produced", q·k, thin?;
                                             should c26 name its iteration-1000 checkpoint next to c25's 100?;
                                             c22 rounds each cell (z 0.60) where c21 rounds to sum 1 (z 0.61))
 NC10 Final card QA                       ⬜ (incl. accessibility audit: classify the seven dimmed focus/mask

@@ -184,3 +184,51 @@ Two departures from the owner's split, both inside the 2–4 rule: Generation ta
 stacked equations (loss + accumulation; clip + AdamW) — five equations cannot be one per part
 within four parts. Attention · Guided was brought to scale 1 by layout only. Every card now
 passes the render-size floor gate (`assertCardGates`) on every sub-card at every review state.
+
+## Cross-depth transitions (NC8, 2026-09-29)
+
+A read-only audit (one auditor per concept, one for sub-card state, a synthesis) checked the
+owner's NC8 boxes. Card side only: the content supports going deeper and simplifying; no
+routing is built here.
+
+| NC8 check | Audit | Fix |
+|---|---|---|
+| Overview has a meaningful deeper target | PASS in all six concepts (same example and numbers into Guided) | — |
+| Guided has a meaningful deeper target | Partial: Architecture, Attention and Training Deep opened without a bridge to Guided | one bridge line each (Architecture Deep 2/3 header, Attention Deep 1/4 note and Builds-on, Training Deep Builds-on; Training Guided says "held-out (val)") |
+| Deep has a sensible simpler target | Partial: Attention Deep 3/4 (memory) and Residual Deep 3/3 (scaled init) had no simpler form anywhere | one line each tying the part back to Guided / the Overview |
+| Prerequisites can be represented | Partial: batch-2 records had no direction (c07 ↔ c09 read as a cycle); depth cards carried prose only | directions on the four batch-2 records, a board-wide relationship test; transition data below |
+| Sub-card state stays coherent | PASS (each card keeps its own part and inputs across reload, Reset, replay; no leaks) | — |
+
+Residual Overview also stated one add per block where Deep, c02 and c03 say NanoGPT's Block adds
+twice (contradictory depth behaviour): the Overview now says so on the card, briefly.
+
+**Owner decisions (2026-09-29).**
+- **Sub-card targeting is approved.** A transition may name a target sub-card, by a stable
+  semantic part id, never by position ("4/4") or array index. Without a part it lands on the
+  whole card (its default part); a part id that no longer exists falls back to the parent card
+  instead of breaking navigation. Shape, conceptually: `{ relation: simplifies_to | deepens_to |
+  prerequisite | related, target_card, target_part?, from_part? }`.
+- **Architecture Deep is a hub, not forward-linked.** It previews and connects the whole system;
+  Attention Guided and Training Guided later explain those mechanisms more deeply. Its edges to
+  them are `deepens_to` (from the relevant sub-card), never `prerequisite`: a prerequisite that
+  comes later in the ladder would make the graph run backwards. If Architecture Deep ever needs
+  a later mechanism in detail to make sense, Architecture Deep is overreaching and is simplified.
+- **Transferable state is declared, never inferred.** A future router carries only inputs a card
+  lists as `transferable_inputs`; entering another depth otherwise uses that card's own
+  defaults. Inputs are never copied between depths by matching names (Training's `stop` means a
+  different thing on Overview and Deep). Recorded as a contract requirement; not implemented.
+- **Defaults kept.** Training Deep keeps opening at it = 2550 (mid-training shows change; an
+  endpoint would not) with the Builds-on bridge back to Guided. Residual Overview keeps the
+  two-add disclosure on the card: two residual additions per block are part of the mental model.
+- **Optional bridge lines** (Tokenization, Architecture Guided, Residual Guided, Generation
+  Guided) only where a transition is causally abrupt, one sentence each, never for uniformity.
+
+**To NC9.** A small Softmax prerequisite card (logits → positive probabilities summing to 1;
+exponentiation makes larger logits relatively larger; normalise by the total; relative gaps
+matter), reusable for Attention Guided and Generation Guided to branch to and return from, not a
+new depth ladder or sequence — built only if NC9 confirms those cards cannot stand without it.
+Also notation drift (y for two tensors on Architecture Deep, log vs ln, n_h vs nh, ␣/•/sp,
+u/change/F_k, η/λ vs lr/wd), example drift (c21/c22's six candidates after "First Citi" vs the
+depth cards' eight after "iti"; c10's B e f o toy vs Attention Guided's), and c18's practice,
+whose answer Training Guided's default shows (the smallest fix: change the practice case or what
+Guided claims as its reveal, no reordering).

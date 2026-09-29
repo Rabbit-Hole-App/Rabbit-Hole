@@ -158,7 +158,10 @@ never derail the path permanently.
 **T9 — Adaptive depth.** Use Overview / Guided / Deep dive. The learner controls /deeper and
 /simplify; Auto may suggest a change from evidence but never labels the person ("You seem
 comfortable with the mechanism. Want to see how NanoGPT implements it?", not "You are an advanced
-learner").
+learner"). Card-side contract (NC8, docs/nanogpt-depth-ladder.md "Cross-depth transitions"):
+transitions may target a sub-card by a stable part id and fall back to the parent card when it
+is gone; routing carries only a card's declared `transferable_inputs`, never inputs matched by
+name across depths.
 
 **T10 — Practice policy.** Practice tests transfer: unseen values, larger dimensions,
 counterfactuals, a different representation, application to code — never "what number did the card
