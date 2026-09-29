@@ -136,7 +136,9 @@ chip while switching apps.
   the bar is the only input; a node selection sets `[project ×] [node ×]`; a
   Context/Selected/Source panel; "Learn this" or /teach this hands off to Learn.
 - CANVAS = learning workspace = opens directly in Learn. A project-owned canvas
-  shows its parent lightly. "This canvas's content isn't available in this browser."
+  shows its parent lightly. Learn is immersive (user, 2026-09-29): a canvas and a project's
+  Learn tab show no sidebar or icon rail; a top-left button (phones: the top strip) opens
+  the sidebar as a drawer. Every other page keeps its sidebar. "This canvas's content isn't available in this browser."
   (supporting line: "The canvas exists, but its local content was created in another
   browser or has been cleared.") never becomes an empty editable canvas. Content is
   browser-local, so the copy never says "device" (user, 2026-09-28).
