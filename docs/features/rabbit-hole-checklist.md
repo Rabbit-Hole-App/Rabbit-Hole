@@ -13,7 +13,7 @@ Projects", `ef9SfiemEsPQF2bd8B1os3`), with the exact node URL.
 | WP4 | Home / Library / Explore / Start / Settings | Done (closeout 2026-09-28) |
 | WP5 | Mothership Agent Bar / command surface | Done (naming closeout 2026-09-28) |
 | WP6 | Project / Canvas / App destinations; Map as conversational knowledge graph | Done, frozen (2026-09-29) |
-| WP7 | Final integration / MVP verification | Active (2026-09-29) |
+| WP7 | Final integration / MVP verification | Done, frozen (2026-09-29) |
 
 ## Product model (user, 2026-09-28)
 
@@ -253,6 +253,20 @@ Map explains structure, history and why; Learn teaches the concept deeply.
   this → Learn; the Mothership scopes throughout.
 
 ## WP7 final integration
+
+WP7 APPROVED and CLOSED (user, 2026-09-29). All seven work packages are closed; Home / Graph / Product integration is
+FROZEN. Reopen only for a correctness regression, a privacy/security/live-write failure, broken end-to-end navigation,
+unusable mobile behaviour or a production bundle regression - never for polish. Evidence, preserved:
+- Acceptance build: review-only feature/wp7-integration 8fbc6fb (local tag wp7-acceptance-build) = feature/smart-home
+  0b2d3f2 + feature/parallel-work (through d489872), deployed as small-cp-dev-smart-home version a3376c07 with the shared
+  dev notebook site small-learn-canvas-notebook-dev (b005f875).
+- Final results on it: full browser suite 104/104, live-bundle check clean, unit 656 web / 481 control-plane, Learn's
+  notebook checks 9/9, 10/10, 2/2.
+- Figma: section 81:222 (17 frames) plus the corrected frames J05b, J06b, J07b (89:225, 89:227, 89:229).
+- Not in the acceptance build, by decision: Learn's later image paste (7c3d4c8) and chat-card placement (b52900f); they
+  are considered at the final branch merge.
+No merge of feature/wp7-integration, feature/smart-home or anything into main until the user explicitly approves the
+final merge. Waiting for: NC10 completion, the final Learn/card freeze, the final merge decision.
 
 Active (user, 2026-09-29): integration and final product QA, not feature work. No Knowledge Capture v1, no new
 graph features, no Tutor Agent, no new work packages. Use the combined integration build where needed; the
