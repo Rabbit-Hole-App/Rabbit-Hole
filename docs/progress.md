@@ -17,7 +17,8 @@ NC7  NanoGPT cards 11–26                 🟡
   NC7A Batch 2                           ✅
   NC7B Batch 3                           ✅ CLOSED (page 18:3, v1.1 fixes 22:3)
   NC7C Remaining through 26              🟡 ACTIVE — batch 4 ✅ CLOSED (page 26:3, v1.1 fixes 28:3);
-                                            batch 5 (c22, c23, c24, c25) in progress
+                                            batch 5 (c22, c23, c24, c25) at the visual gate (page 34:3);
+                                            5 shared renderer changes await owner decision
 NC8  Cross-depth content transitions     ⬜
 NC9  Curriculum coherence review         ⬜ (open items: is "how scores are produced", q·k, thin?;
                                             should c26 name its iteration-1000 checkpoint next to c25's 100?;
@@ -33,6 +34,22 @@ deployed checks → Figma captures → stop at the visual review gate with the e
 bar: one question per card; practice on an unseen case; no decorative interaction; no text
 shrinking; sequence relationships explicit when cards form a path; existing renderer primitives
 (a new capability only if a batch proves it genuinely reusable).
+
+## 2026-09-29 — batch 5 at the visual gate
+
+First batch built under the locked pipeline (docs/features/learn-card-pipeline.md). Build: fixtures
+by one owner, four fresh authors, a correctness and a pedagogy reviewer per card (36 findings), a
+fresh fixer and verifier (all fixed, none unresolved), a sequence reviewer (5 findings, fixed and
+verified). Deployed checks green (25 cards drawn at scale 1, 278/278 sources, every practice grades
+right). Fresh visual reviewers on the deployed full-UI captures: 25 findings, 22 fixed and
+verified in round 1; round 2 fixed the 7 minor regressions the verifiers found, verified on new
+captures. Figma page 34:2 (root 34:3).
+
+**Proposed shared renderer changes (stop for the owner; not made):** unlit token/cell ink
+--color-ink-2 is 4.32:1 on the scene background (3.72:1 on lilac cells), and label tokens draw at
+13 px; practice feedback is text-xs (12 px) against 14 px chips; the practice lock line prints
+"(index N)" (scene-inputs.js describeInputValue); locked preset chips have no disabled style
+(SceneControls chipClass); "New attempt" can share the chips' row and read as a fifth option.
 
 ## 2026-09-28 — card pipeline: independent reviewers from batch 5 on
 
