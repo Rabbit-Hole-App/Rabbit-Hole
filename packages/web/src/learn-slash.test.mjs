@@ -15,8 +15,7 @@ test('/ opens the grouped picker: LEARN, then CREATE, in the contract order', ()
   const sections = pickerSections('/');
   assert.deepEqual(sections.map(section => section.title), ['Learn', 'Create']);
   assert.deepEqual(sections[0].items.map(item => item.name), ['deeper', 'simplify', 'example', 'practice', 'quiz', 'compare', 'research']);
-  // /animate stays out until one of its primitives can run (the manim worker is not deployed).
-  assert.deepEqual(sections[1].items.map(item => item.name), ['explain', 'code', 'graph', 'diagram', 'flashcards', 'notebook', 'more']);
+  assert.deepEqual(sections[1].items.map(item => item.name), ['explain', 'code', 'graph', 'diagram', 'animate', 'flashcards', 'notebook', 'more']);
   assert.equal(sections[0].items[0].desc, 'Go deeper');
   assert.deepEqual(pickerSections('/gr')[0].items.map(item => item.name), ['graph']);
   assert.ok(pickerSections('/', { catalog: true })[0].items.some(item => item.name === 'walkthrough'));

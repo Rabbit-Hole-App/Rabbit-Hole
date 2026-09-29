@@ -158,10 +158,9 @@ export const PRIMITIVES = {
     block: spec => ({ type: 'video', mode: 'generate', title: spec.title, src: '', caption: spec.caption, operation: spec.operation, status: 'idle' }),
   },
   maths_animation: {
-    // ponytail: not ready until the manim worker (small-math-renderer-dev) is
-    // deployed and one real render passes (docs/features/learn-math-animation.md).
-    ready: false,
-    unavailable: "Maths animation isn't available yet: its renderer isn't deployed.",
+    // Verified 2026-09-29: small-math-renderer-dev rendered the sample end to
+    // end (docs/features/learn-math-animation.md).
+    ready: true,
     about: 'A rendered maths animation from validated steps (equation, plot, shapes, matrix). Steps only, never code.',
     schema: shape({ title: text(120), caption: text(300), operation: MATH_SCHEMA }),
     check: spec => { validateMathAnimation(spec.operation); },

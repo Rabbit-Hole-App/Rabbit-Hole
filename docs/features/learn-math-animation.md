@@ -81,5 +81,6 @@ Once one real render passes, set `maths_animation` back to `ready: true` in
 - [x] Provider submit/poll, busy, failure, lost job and cache-key behaviour — `test/math-provider.test.js`.
 - [x] Both validators accept the same shipped sample, and its compiled functions agree with what the
       animation claims (σ(0) = 0.5, σ'(0) = 0.25).
-- [ ] A real manim render end to end — needs the Fly app above; not yet deployed.
+- [x] A real manim render end to end: 2026-09-29, `small-math-renderer-dev` rendered the shipped sample
+      (18.9 s, 854x480) on the small-parallel clone — `packages/web/e2e/manim-render-check.mjs` (paid).
 - [ ] Playback, retry and placement of a rendered animation in the canvas block.

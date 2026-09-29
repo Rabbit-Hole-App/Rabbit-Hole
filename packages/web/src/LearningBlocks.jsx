@@ -1123,15 +1123,17 @@ function SceneBody({ block, appName, onChange }) {
   const elapsed = useElapsed(block.status === 'queued' || block.status === 'rendering');
   const polling = useRef(null);
   useEffect(() => () => clearTimeout(polling.current), []);
-  const follow = async () => {
+  // Follows the exact job this Generate started (its placement), never the
+  // first job sharing the operation id - an older failed one may share it.
+  const follow = async placementId => {
     try {
       const list = await sceneList(appName);
-      const mine = list.scenes?.find(scene => scene.operation?.id === block.operation.id);
+      const mine = list.scenes?.find(scene => scene.id === placementId);
       if (!mine) return;
       if (mine.status === 'ready') { onChange({ ...block, status: 'ready', modelUrl: sceneAssetUrl(appName, mine.key) }); return; }
       if (mine.status === 'failed') { setError(mine.error || 'Blender could not build this scene.'); onChange({ ...block, status: 'failed' }); return; }
       onChange({ ...block, status: mine.status });
-      polling.current = setTimeout(follow, 5000);
+      polling.current = setTimeout(() => follow(placementId), 5000);
     } catch (problem) { setError(problem.message); }
   };
   const [confirming, setConfirming] = useState(false);
@@ -1139,8 +1141,8 @@ function SceneBody({ block, appName, onChange }) {
     setError(''); setConfirming(false);
     onChange({ ...current, status: 'queued' });
     try {
-      await startScene(appName, current.operation, { confirmed: true });
-      follow();
+      const { placementId } = await startScene(appName, current.operation, { confirmed: true });
+      follow(placementId);
     } catch (problem) { setError(problem.message); onChange({ ...current, status: 'failed' }); }
   };
   useConfirmedStart(block, onChange, generate);
@@ -1328,10 +1330,11 @@ function VideoBody({ block, appName, onChange, onFile }) {
   const elapsed = useElapsed(block.status === 'generating' || block.status === 'queued');
   const polling = useRef(null);
   useEffect(() => () => clearTimeout(polling.current), []);
-  const follow = async () => {
+  // Follows the exact job this Generate started (see SceneBody).
+  const follow = async placementId => {
     try {
       const list = await videoList(appName);
-      const mine = list.videos?.find(video => video.operation?.id === block.operation?.id);
+      const mine = list.videos?.find(video => video.id === placementId);
       if (!mine) return;
       if (mine.status === 'ready') {
         const src = videoAssetUrl(appName, mine.key);
@@ -1342,14 +1345,14 @@ function VideoBody({ block, appName, onChange, onFile }) {
       }
       if (mine.status === 'failed') { setError(mine.error || 'The provider could not generate this clip.'); onChange({ ...block, status: 'failed' }); return; }
       onChange({ ...block, status: mine.status });
-      polling.current = setTimeout(follow, 5000);
+      polling.current = setTimeout(() => follow(placementId), 5000);
     } catch (problem) { setError(problem.message); }
   };
   const [confirming, setConfirming] = useState(false);
   const generate = async (current = block) => {
     setError(''); setConfirming(false);
     onChange({ ...current, status: 'generating' });
-    try { await startVideo(appName, current.operation, { confirmed: true, retry: current.status === 'failed' }); follow(); }
+    try { const { placementId } = await startVideo(appName, current.operation, { confirmed: true, retry: current.status === 'failed' }); follow(placementId); }
     catch (problem) { setError(problem.message); onChange({ ...current, status: 'failed' }); }
   };
   useConfirmedStart(block, onChange, generate);

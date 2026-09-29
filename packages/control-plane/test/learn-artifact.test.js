@@ -39,7 +39,8 @@ test('a command resolves to its family on the server: direct, chat, unavailable 
   assert.deepEqual(artifactPlan('practice', { args: 'multiple choice' }).ready, ['quiz']);
   // /practice coding narrows to Code exercise, which is not generated yet: say so, never substitute.
   assert.deepEqual(artifactPlan('practice', { args: 'coding' }), { result: 'unsupported', message: "Code exercise generation isn't available yet. I can open a notebook or show a code sample instead." });
-  assert.deepEqual(artifactPlan('animate'), { result: 'unsupported', message: "Animation generation isn't available yet." });
+  // /animate can only produce a paid maths animation for now.
+  assert.deepEqual(artifactPlan('animate').ready, ['maths_animation']);
   assert.throws(() => artifactPlan('rm-rf'), /not a Learn command/);
   assert.throws(() => artifactPlan('graph', { selection: { kind: 'shell' } }), /unknown selection/);
 });
