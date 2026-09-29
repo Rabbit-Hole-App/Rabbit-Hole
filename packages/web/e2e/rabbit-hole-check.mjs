@@ -1993,7 +1993,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   await check('wp6-composer-parity: the Learn composer is the Mothership shell - same height, radius, border, shadow, Send and + size; canvas controls never overlap it; no canvas slug or sample course title; on a phone it sits fully on screen', async () => {
     // Measured in the same focus state on both sides: blurred, then focused (Learn autofocuses its composer).
     const shell = async (form, focused = false) => form.evaluate((n, focused) => {
-      if (focused) n.querySelector('textarea, input')?.focus(); else document.activeElement?.blur();
+      if (focused) n.querySelector('textarea, input:not([type="file"]):not([type="hidden"])')?.focus(); else document.activeElement?.blur(); // the text field, not Learn's hidden file input
       const s = getComputedStyle(n), send = n.querySelector('button[aria-label="Send"], button[aria-label="Stop"]'), add = n.querySelector('button[aria-label="Add"]');
       const r = n.getBoundingClientRect();
       return { h: Math.round(r.height), gap: Math.round(innerHeight - r.bottom), radius: s.borderTopLeftRadius, border: s.borderTopColor, shadow: s.boxShadow, send: send && Math.round(send.getBoundingClientRect().width), add: add && Math.round(add.getBoundingClientRect().height), box: { top: r.top, bottom: r.bottom, left: r.left, right: r.right } };
@@ -2021,7 +2021,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
         const zoom = await page.getByRole('button', { name: 'Add section' }).first().boundingBox().catch(() => null);
         must(!overlaps(learn.box, zoom && { top: zoom.y, bottom: zoom.y + zoom.height, left: zoom.x, right: zoom.x + zoom.width }), `${where}: the zoom bar overlaps the Learn composer`);
         must(learn.box.top >= 0 && learn.box.bottom <= viewport.height, `${where}: the Learn composer is off screen (${learn.box.top}-${learn.box.bottom})`);
-        const placeholder = await form.locator('textarea, input').first().getAttribute('placeholder');
+        const placeholder = await form.locator('textarea, input:not([type="file"]):not([type="hidden"])').first().getAttribute('placeholder');
+        must(placeholder, `${where}: the composer text field has no placeholder`);
         must(!/canvas-[a-f0-9]{8}/.test(placeholder || ''), `${where}: the composer shows the canvas slug: ${placeholder}`);
         must(await page.getByText('From classification to object detection').count() === 0, `${where}: the sample course title shows on a canvas`);
       } finally { await drop6(page, c.name); await page.context().close(); }
