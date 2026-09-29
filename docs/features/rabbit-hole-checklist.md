@@ -258,6 +258,18 @@ Active (user, 2026-09-29): integration and final product QA, not feature work. N
 graph features, no Tutor Agent, no new work packages. Use the combined integration build where needed; the
 smallest final Figma set that proves the paths; final suites; stop for review.
 
+WP7 status (2026-09-29): waiting for the user's review of Figma node 81:222 (17 frames). Review-only integration branch
+feature/wp7-integration (feature/smart-home + feature/parallel-work; never merged back, like the WP6 scratch branch).
+Final full browser suite, live-bundle check and unit suites on it; final whole-branch review done. Fixed from QA and the
+review: the live bundle carried Learn (canvas page now lazy); toasts one bottom-right column on smart-home too; D7 -
+api() on the preview refuses every write the dev worker does not serve itself, and the preview has no /chat; the Map
+graph on a phone and in dark mode; page prompts ask in the page scope; an app's ?tab=learn keeps the bar. Added at the
+user's request: feedback (bug / idea) at the bottom of the sidebar and its rail (Learn's FeedbackButton, app-less).
+Open for the user: (1) the toast column and dark kind-pill colours are unconditional, so live small users see them too -
+keep or gate on learnPreview; (2) deferred minors - the bar's mode pill persists across scopes, no error boundary around
+Root (a stale lazy chunk after a redeploy blanks the page); (3) Learn-owned: the notebook kernel stayed 'Starting
+Python…' for 45s in headless capture (J06), reported to the Learn owner.
+
 
 Full journey Home → Project → Map → select → Teach this → Learn → cards/notebook
 → back to Project; Library → Canvas → Learn; Library → App/Job → detail;
