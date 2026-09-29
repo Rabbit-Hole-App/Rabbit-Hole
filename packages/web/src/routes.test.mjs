@@ -108,9 +108,10 @@ test('a project opens on Overview; learn is Learn; map and the legacy code, grap
 
 test('D7 (WP7): the preview sends only the writes the dev worker serves itself; anything else would reach live small-cp', () => {
   for (const url of ['/api/repositories', '/api/repositories/repo-1a2b3c4d-nanogpt/refresh', '/api/canvases', '/api/apps/canvas-1a2b3c4d', '/api/apps/canvas-1a2b3c4d/archive',
-    '/api/ask/threads/canvaschat-abc', '/api/ask/threads?scope=learn&ref=canvas-1a2b3c4d', '/api/learn/ask', '/api/learn/feedback', '/api/learn/boards/x/share', '/api/byoc/grant']) assert.equal(previewWriteAllowed(url), true, url);
+    '/api/ask/threads/canvaschat-abc', '/api/ask/threads?scope=learn&ref=canvas-1a2b3c4d', '/api/learn/ask', '/api/learn/feedback', '/api/learn/boards/x/share', '/api/byoc/grant',
+    '/api/apps/repo-1a2b3c4d-nanogpt', '/api/apps/repo-1a2b3c4d-nanogpt/learn-course']) assert.equal(previewWriteAllowed(url), true, url); // dev-worker.js repositoryRoute
   for (const url of ['/api/members', '/api/teams/x/members', '/api/workspaces', '/api/workspaces/rename', '/api/org/ai', '/api/folders', '/api/watch/w1/dismiss',
-    '/api/apps/counter', '/api/apps/counter/restore', '/api/apps/repo-1a2b3c4d-nanogpt/learn-course', '/api/share', '/api/unshare', '/api/schedule', '/api/runbook',
+    '/api/apps/counter', '/api/apps/counter/restore', '/api/apps/repo-1a2b3c4d-nanogpt/rename', '/api/share', '/api/unshare', '/api/schedule', '/api/runbook',
     '/api/runs/r1/stop', '/api/ask/approve', '/api/ask/threads/t1', '/api/ask/threads?scope=app&ref=counter', '/api/apps/canvas-XYZ']) assert.equal(previewWriteAllowed(url), false, url);
   // the canvas half mirrors the dev worker's own rule
   for (const url of ['/api/canvases', '/api/apps/canvas-1a2b3c4d/x', '/api/ask/threads/canvaschat-1', '/api/ask/threads?scope=learn&ref=canvas-1a2b3c4d', '/api/ask/threads?scope=learn&ref=counter', '/api/apps/counter'])
