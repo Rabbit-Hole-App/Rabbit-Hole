@@ -1,53 +1,40 @@
-.features-page{background:#d9e8c9;color:#0b261b;isolation:isolate}
-.features-atmosphere{position:fixed;inset:0;z-index:-1;background:#d9e8c9;pointer-events:none}
-#features-depth-color{position:absolute;inset:0;background:#6a9479;opacity:0}
-.features-page #below{padding:146px 36px 0}
+.features-page{background:#fff;color:#0b261b;isolation:isolate}
+.content-page.features-page #below{padding:146px 36px 0;overflow-x:clip}
 .features-page #below #features{max-width:1440px;margin:0 auto 96px}
-.features-intro{padding:0 28px 58px}
-.features-page #below h1{font:500 12px/1.4 var(--ui);letter-spacing:.02em;margin-bottom:27px}
+.features-intro{position:relative;isolation:isolate;padding:0 28px 58px}
+.content-page.features-page #below h1{font:500 12px/1.4 var(--ui);letter-spacing:.02em;margin-bottom:27px}
 .features-title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:40px}
 .features-page #below .features-title-row h2{font:500 clamp(76px,9.8vw,146px)/.91 var(--display);letter-spacing:-.07em;margin:0}
 .features-title-row p{font:400 clamp(17px,1.5vw,22px)/1.45 var(--ui);letter-spacing:-.025em;padding:0 4px 8px 0}
-.features-journey{position:relative;height:260svh}
-.features-art{position:sticky;top:88px;width:calc(100% + 72px);margin:0 -36px;height:calc(100svh - 110px);min-height:400px}
-#features-stairs{display:block;width:100%;height:100%;image-rendering:pixelated}
-.features-art figcaption{position:absolute;left:36px;right:36px;bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:16px;font:400 11px/1.5 var(--ui);letter-spacing:.005em;pointer-events:none}
-.features-scroll-cue{display:flex;align-items:center;gap:16px;color:inherit;white-space:nowrap}
-.features-scroll-cue>span{font-size:18px;line-height:1}
+.features-art{position:absolute;top:-146px;bottom:0;left:calc(50% - 50vw);width:100vw;z-index:-1;overflow:hidden;pointer-events:none;background:#d9e8c9}
+.features-art img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
 .features-copy{max-width:1080px;margin:0 auto;padding:32px 0 0}
 .features-page #below .features-copy .lede{color:inherit;font-size:16px}
-.features-page .card{background:#edf1dfb3;border-color:#123c2d33;color:#123c2d}
+.features-page .card{background:#f2f5ed;border-color:#123c2d33;color:#123c2d}
 .features-page .card .n,.features-page .card p{color:#365a48}
 .features-page footer{border-color:#123c2d33;color:#123c2d}
 .features-page footer .brand{color:#123c2d}
 @media(max-width:900px){
-  .features-page #below{padding:135px 28px 0}
+  .content-page.features-page #below{padding:135px 28px 0}
   .features-intro{padding:0 8px 42px}
   .features-page #below .features-title-row h2{font-size:96px}
   .features-title-row{gap:24px}
   .features-title-row p{font-size:16px}
-  .features-art{width:calc(100% + 56px);margin:0 -28px}
-  .features-art figcaption{left:28px;right:28px}
+  .features-art{top:-135px}
+  .features-art img{object-position:25% center}
   .features-copy{max-width:700px}
 }
 @media(max-width:600px){
-  .features-page #below{padding:125px 18px 0}
+  .content-page.features-page #below{padding:125px 18px 0}
   .features-page #below #features{margin-bottom:64px}
   .features-intro{padding:0 2px 32px}
-  .features-page #below h1{margin-bottom:22px;font-size:11px}
+  .content-page.features-page #below h1{margin-bottom:22px;font-size:11px}
   .features-title-row{display:block}
   .features-page #below .features-title-row h2{font-size:clamp(68px,16vw,96px)}
-  .features-title-row p{margin-top:24px;padding:0;font-size:16px}
+  .features-title-row p{max-width:250px;margin-top:24px;padding:0;font-size:16px}
   .features-title-row p br{display:none}
-  .features-journey{height:230svh}
-  .features-art{width:calc(100% + 36px);margin:0 -18px;height:calc(100svh - 110px)}
-  .features-art figcaption{left:20px;right:20px;align-items:flex-start;gap:12px;font-size:10px}
-  .features-scroll-cue{white-space:normal;max-width:110px;gap:8px}
+  .features-art{top:-125px}
+  .features-art img{object-position:40% center}
   .features-copy{padding-top:50px}
   .features-page .cards{margin-top:28px}
-}
-@media(prefers-reduced-motion:reduce){
-  .features-journey{height:auto}
-  .features-art{position:relative;top:auto}
-  .features-scroll-cue{display:none}
 }

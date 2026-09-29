@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="../src/landing/manifesto.css">
 </head>
 <body class="content-page manifesto-page">
+<div class="manifesto-atmosphere" aria-hidden="true"><div id="manifesto-depth-color"></div></div>
 <header id="bar" class="on">
   <a class="brand" href="/" aria-label="Rabbit Hole home">Rabbit Hole</a>
   <a href="/blog">Blog</a>
@@ -23,6 +24,10 @@
   <a href="/blog">Blog</a><a href="/features">Features</a><a href="/pricing">Pricing</a>
 </nav>
 <main id="below">
+  <div class="manifesto-journey" id="manifesto-journey">
+    <div class="manifesto-stair-art" id="manifesto-stair-art" aria-hidden="true">
+      <canvas id="manifesto-stairs"></canvas>
+    </div>
   <!-- Draft manifesto: original Rabbit Hole copy, pending editorial review. -->
   <article class="manifesto-article">
     <header class="manifesto-heading">
@@ -30,46 +35,62 @@
       <h1>Follow your<br>curiosity.</h1>
       <p class="manifesto-deck">A question should open a path. We’re building Rabbit Hole so learning can adapt to what you know, and where you want to go.</p>
     </header>
-    <figure class="manifesto-conversation">
-      <img src="/landing/manifesto-conversation-v3.png" width="1774" height="887" alt="An imagined black-and-white scene of Socrates and Richard Feynman centered at a table, looking at one another as they discuss teaching, with an open book and chalkboard sketches." decoding="async" fetchpriority="high">
-      <figcaption><span>Socrates · Richard Feynman</span><span>An imagined conversation about how we learn.</span></figcaption>
-    </figure>
     <div class="manifesto-body">
-      <p class="manifesto-opening">There is a moment when a subject stops feeling distant. A question becomes personal. An explanation clicks. You want to know what comes next.</p>
-      <p>That is the moment we want to build around.</p>
-      <section aria-labelledby="manifesto-question">
-        <p class="manifesto-number" aria-hidden="true">01 / The beginning</p>
-        <h2 id="manifesto-question">Start with a real question.</h2>
-        <p>A line of code you cannot explain. A paper that changes how you see a problem. An idea you keep returning to. Curiosity rarely arrives in the order of a syllabus.</p>
-        <p>You should be able to begin there. Bring the thing you want to understand, follow the first thread, and let the next question emerge from what you discover.</p>
-      </section>
-      <section aria-labelledby="manifesto-person">
-        <p class="manifesto-number" aria-hidden="true">02 / The learner</p>
-        <h2 id="manifesto-person">The path should adapt to you.</h2>
-        <p>Two people can ask the same question and need very different explanations. One needs the missing foundation. Another needs a diagram, a worked example, or a harder problem.</p>
-        <p>Our ambition for adaptive learning is simple: begin with what you understand, notice where the explanation stops helping, and find another way in. Depth and pace should serve the person learning.</p>
-      </section>
-      <section aria-labelledby="manifesto-understanding">
-        <p class="manifesto-number" aria-hidden="true">03 / The work</p>
-        <h2 id="manifesto-understanding">Make understanding active.</h2>
-        <p>An explanation can sound convincing before you know how to use it. Try an example. Change an assumption. Draw the relationship. Explain the idea in your own words.</p>
-        <p>We want questions, sources, interactive canvases and practice to belong to the same learning experience. Each should help you test your understanding and see what still needs attention.</p>
-      </section>
-      <section aria-labelledby="manifesto-trail">
-        <p class="manifesto-number" aria-hidden="true">04 / The return</p>
-        <h2 id="manifesto-trail">Leave a trail worth returning to.</h2>
-        <p>A useful note, a source citation, an unfinished question: these are the beginnings of a map. Learning should accumulate into something you can revisit, connect and build on.</p>
-        <p>Rabbit Hole is our attempt to give that journey a home. A place to follow a question as far as it takes you, then return with a little more understanding.</p>
-      </section>
-      <div class="manifesto-ending">
-        <p>There is always another question.</p>
-        <a href="/#manifesto-preview"><span aria-hidden="true">←</span> Back to Rabbit Hole</a>
+      <div class="manifesto-opening">
+        <p>There is a moment when a subject stops feeling distant. <mark class="manifesto-highlight">A question becomes personal.</mark> An explanation clicks. You want to know what comes next.</p>
+        <p>That is the moment we want to build around.</p>
       </div>
+      <section class="manifesto-chapter manifesto-portrait-chapter" aria-labelledby="manifesto-question">
+        <figure class="manifesto-portrait manifesto-socrates">
+          <img src="/landing/manifesto-socrates-v2.png" width="1086" height="1448" alt="An imagined monochrome portrait of Socrates absorbed in thought, one finger resting at his chin and his other arm supporting the elbow." decoding="async" loading="lazy">
+          <figcaption>Socrates <span>Imagined portrait</span></figcaption>
+        </figure>
+        <div class="manifesto-prose">
+          <p class="manifesto-number" aria-hidden="true"><span>01</span> The beginning</p>
+          <h2 id="manifesto-question">Start with a real question.</h2>
+          <p>A line of code you cannot explain. A paper that changes how you see a problem. An idea you keep returning to. Curiosity rarely arrives in the order of a syllabus.</p>
+          <p>You should be able to begin there. Bring the thing you want to understand, <mark class="manifesto-highlight">follow the first thread,</mark> and let the next question emerge from what you discover.</p>
+        </div>
+      </section>
+      <section class="manifesto-chapter" aria-labelledby="manifesto-person">
+        <p class="manifesto-number" aria-hidden="true"><span>02</span> The learner</p>
+        <div class="manifesto-prose">
+          <h2 id="manifesto-person">The path should adapt to you.</h2>
+          <p>Two people can ask the same question and need very different explanations. One needs the missing foundation. Another needs a diagram, a worked example, or a harder problem.</p>
+          <p>Our ambition for adaptive learning is simple: begin with what you understand, notice where the explanation stops helping, and find another way in. <mark class="manifesto-highlight">Depth and pace should serve the person learning.</mark></p>
+        </div>
+      </section>
+      <section class="manifesto-chapter manifesto-portrait-chapter manifesto-teaching" aria-labelledby="manifesto-understanding">
+        <div class="manifesto-prose">
+          <p class="manifesto-number" aria-hidden="true"><span>03</span> The work</p>
+          <h2 id="manifesto-understanding">Make understanding active.</h2>
+          <p>An explanation can sound convincing before you know how to use it. Try an example. Change an assumption. Draw the relationship. <mark class="manifesto-highlight">Explain the idea in your own words.</mark></p>
+          <p>We want questions, sources, interactive canvases and practice to belong to the same learning experience. Each should help you test your understanding and see what still needs attention.</p>
+        </div>
+        <figure class="manifesto-portrait manifesto-feynman">
+          <img src="/landing/manifesto-feynman-v2.png" width="1086" height="1448" alt="An imagined monochrome portrait of Richard Feynman in a dark sweater, looking down as he sketches an idea in an open notebook." decoding="async" loading="lazy">
+          <figcaption>Richard Feynman <span>Imagined portrait</span></figcaption>
+        </figure>
+      </section>
+      <section class="manifesto-chapter" aria-labelledby="manifesto-trail">
+        <p class="manifesto-number" aria-hidden="true"><span>04</span> The return</p>
+        <div class="manifesto-prose">
+          <h2 id="manifesto-trail">Leave a trail worth returning to.</h2>
+          <p>A useful note, a source citation, an unfinished question: these are the beginnings of a map. <mark class="manifesto-highlight">Learning should accumulate</mark> into something you can revisit, connect and build on.</p>
+          <p>Rabbit Hole is our attempt to give that journey a home. A place to follow a question as far as it takes you, then return with a little more understanding.</p>
+        </div>
+      </section>
+    </div>
+    <div class="manifesto-ending">
+      <p>There is always<br>another question.</p>
+      <a href="/#manifesto-preview"><span aria-hidden="true">←</span> Back to Rabbit Hole</a>
     </div>
   </article>
+  </div>
 </main>
 <footer data-content-footer><span class="brand">Rabbit Hole</span><span>Knowledge is infinite.</span><span>© 2026</span></footer>
 <script type="module" src="../src/landing/navigation.js"></script>
 <script type="module" src="../src/landing/content-footer.js"></script>
+<script type="module" src="../src/landing/manifesto-stairs.js"></script>
 </body>
 </html>

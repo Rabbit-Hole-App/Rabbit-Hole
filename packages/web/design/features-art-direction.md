@@ -1,37 +1,33 @@
-# Features: abstract stair descent
+# Features: abstract connections header
 
-The Features page uses procedural stair geometry with forest-green wireframe
-edges and pixelated, dithered surfaces. Scrolling moves the viewpoint down
-through flights that turn around an open shaft. The camera also turns gently,
-while pale green `#d9e8c9` deepens toward forest green `#6a9479`. Reversing
-scroll retraces the same view and color. Caption/body ink `#0b261b` maintains
-at least 4.5:1 contrast throughout this tint range.
-This is an art and motion study; existing feature copy remains below it.
+The Features page now uses a pale sage technical-print collage only behind the
+existing heading and subtitle. Fine forest-green lines, connected nodes and
+nested open frames suggest learning through linked ideas. The left half remains
+quiet for the live heading; the more detailed construction sits on the right.
+This is a distinct composition in the visual family of Blog and Pricing.
+Both reference assets remain unchanged.
 
-The stairway constructs itself ahead of the camera: each tread extends from its
-joining edge when scroll progress reaches it. Steps and landings complete in
-order so each new tread connects to the preceding one. Geometry
-beyond this frontier is absent rather than merely fading into view. Reverse
-scroll retracts the same steps, and stopping scroll freezes construction.
+The feature copy and three cards follow on a white page. Public navigation,
+mobile menu, shared static footer and native scrolling remain intact. The image
+is decorative, with empty alt text; all product text remains HTML. Responsive
+object positioning prioritizes heading legibility on phones.
 
-Scope: `/features` only. Shared navigation, Blog, Pricing and the landing page
-remain unchanged. There is no character, bitmap illustration, SVG route overlay
-or playback control. Reduced motion uses a fixed representative view at 32%
-progress with complete stairs and removes the extended scroll stage.
+Asset: `public/landing/features-collage-v1.png`, 2172 × 724.
+Exact prompt, style references and hash:
+`design/manifesto-features-art-prompts.md`.
 
-`src/landing/features-art.js` builds tread, riser, side and landing polygons,
-projects them through a camera and draws them on a native 2D canvas. Faces
-outside the view and back-facing surfaces are culled, then the remaining faces
-are ordered by depth. A stationary screen-space dither pattern avoids moving
-texture noise. The canvas uses a deliberately coarse buffer, capped at 960
-pixels wide, with pixelated CSS scaling. No animation library or image is loaded.
+## Stairway moved to Manifesto
 
-One scheduled animation frame handles each scroll or resize update; there is no
-perpetual animation loop. Scroll position directly sets camera depth, camera
-angle, construction frontier and background opacity. A sticky viewport works on
-desktop and mobile.
-Canvas accessibility text describes the visual; navigation and feature content
-remain native HTML. Only the Features entry imports this renderer and its CSS.
+At the user's request on 2026-09-29, the existing scroll-built wireframe stairs
+moved from /features to /manifesto. See `src/landing/manifesto-stairs.js` and
+`manifesto-stairs.css`. Geometry, camera motion, ordered step construction,
+reverse-scroll behavior, green depth progression, coarse canvas and stationary
+dither are preserved. Reduced motion retains the complete fixed view at 32%.
+Features no longer loads this canvas or renderer.
+
+Following the user's next review, Manifesto restyled that same geometry in
+charcoal over ivory/stone and placed it behind its full essay. Features keeps
+the green collage; the palette change applies only to Manifesto.
 
 ## Rejected raster exploration
 

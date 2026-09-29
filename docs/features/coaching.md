@@ -1155,6 +1155,118 @@ live build merely to prepare a dev deployment.
 
 ## Release and verification
 
+### Distinct portraits, editorial rules and contained stairs — 2026-09-29
+
+Manifesto now uses fresh, independently composed portraits: Socrates thinking
+with a finger at his chin, and Feynman in a dark sweater sketching in a notebook.
+The built-in image tool received no landing-page image or other visual reference.
+The v2 PNGs retain true alpha transparency and the approved blended treatment.
+The landing image is unchanged. Exact prompts, paths and hashes are recorded in
+`packages/web/design/manifesto-distinct-portraits-prompts.md`; v1 is retained.
+
+At the user's request, https://typesafe.ai/manifesto was inspected for its long
+vertical rules and inline red highlights. Rabbit Hole's opening and four prose
+blocks now have full-height left rules, and five phrases in the existing draft
+have brick-red highlighting. The text itself is unchanged. The marks wrap with
+cloned decoration; foreground/background contrast measures 5.27:1. The approved
+ivory/stone palette and background staircase remain.
+
+The footer leak was reproduced at 320 × 568: hiding the stair canvas changed
+footer pixels. The negative-margin sticky layer extended beyond the article.
+The article and canvas now occupy the same grid area, without negative margins,
+and the journey uses `overflow: clip` to bound the drawing while preserving
+sticky positioning. The footer remains outside that layer.
+
+Build and session-clone deployment passed, version
+`52a6a23f-6777-4c58-a10c-ac86fe2e593d`. Actual Chrome checks passed at 1440, 390
+and 320px: both v2 portraits/alpha/aspect ratios, no old-image requests, five
+highlights and full-height rules, no overflow, forward/reverse/held staircase,
+reduced motion, direct reload, mobile menu and landing return/Read more links.
+Unchanged landing, Features, Blog and Pricing image hashes were checked.
+Screenshots were visually reviewed for new poses, blending and wrapped marks.
+
+Footer checks passed at 1440 × 1000, 390 × 844, 768 × 1024 and 320 × 568:
+the stair bottom matches the article/footer boundary and footer screenshots
+are pixel-identical with the staircase shown or hidden. No browser errors or
+failed assets remained. Evidence: `tmp/manifesto-distinct/verification.json`,
+`footer-before.json`, `footer-after.json` and PNGs. The initial main check had
+an incorrect Features v2 expectation in the harness; it was corrected to the
+unchanged v1 asset and the check rerun successfully. No API-key model call,
+shared/live deployment or schema change; no commit requested for this pass.
+
+### Manifesto text over stairs and separate blended portraits — 2026-09-29
+
+Following visual feedback, the Manifesto essay now scrolls over the stairway.
+The existing canvas is a sticky decorative background within the article's
+flow; its progress comes from actual essay height. The separate empty animation
+stage is gone. Native text, navigation and links stay above the canvas and remain
+selectable/clickable. Scroll reversal and the complete static reduced-motion
+view remain. The user authorized choosing a replacement palette: warm ivory
+`#f9f7f2`, deepening to stone `#e5dfd6`, with charcoal text and muted gray stairs.
+The background drawing is subdued on desktop and further reduced on phones.
+
+Two new independent portraits replace the rejected blackboard scene. Socrates
+stands beside the question passage; Feynman accompanies active understanding.
+Both PNGs have actual alpha transparency, stippled lower edges and no room or
+rectangular backdrop. Multiply blending and a lower CSS mask integrate them
+with the page. Captions identify each as an imagined portrait. Source assets and
+exact prompts: `packages/web/design/manifesto-solo-portraits-prompts.md`.
+The landing page's approved pair and Features/Blog/Pricing art are unchanged.
+
+Build/deployment passed on the session clone. Version
+`51070899-e573-4d61-8632-57a2b26e1cc7` passed deployed Chrome checks at 1440,
+390 and 320px: text/canvas overlap with correct layer order, article height
+without an added art stage, two transparent PNGs with no border/background,
+increasing step construction, identical pixels when reversing, stable held
+progress, wheel down/up, reduced motion, direct reload, mobile navigation and
+landing return/Read more links. Asset hashes match the local PNGs; earlier page
+assets are unchanged. No overflow, browser errors, failed assets or requests for
+the rejected combined images were observed. Screenshots were visually inspected.
+
+Final version `b50d1154-9a71-440a-b497-f71aa8ce6616` only darkens the small
+portrait captions; their contrast against the darkest page tint exceeds 4.5:1.
+Deployed desktop/phone placement and caption colors were checked again.
+Evidence: `tmp/manifesto-layered/verification.json`, `final-verification.json`
+and screenshots. Built-in image generation only; no API-key model call,
+shared/live deployment or schema migration. No commit requested for this pass.
+
+### Manifesto staircase, blackboard scene and Features header — 2026-09-29
+
+The existing scroll-built green stairway moved from Features to Manifesto. Its
+geometry and animation code are unchanged apart from CSS/element names: forward
+construction, reverse scroll, stopped-scroll stability and reduced motion remain.
+Manifesto now has an oversized centered title, editorial sections with small
+side labels, an image beside prose, and a large closing statement. Existing
+Rabbit Hole draft copy is preserved; the reference informed layout, not prose.
+
+The seated scene is replaced by `manifesto-blackboard-v1.png`: Socrates and
+Richard Feynman stand at a chalkboard, with Feynman writing and Socrates engaged
+in the discussion. The imagined-scene caption remains. Features now uses a new
+green technical collage, `features-collage-v1.png`, behind its heading/subtitle
+only. Existing cards follow on white. Phone cropping retains some right-side
+diagram detail while keeping text readable. Blog/Pricing art, landing artwork,
+white spacer, clouds, observatory and public navigation are unchanged.
+
+Both images were generated through the built-in tool with existing images as
+style/identity references. Source PNGs and previous versions are retained.
+Exact prompts, dimensions and hashes: `packages/web/design/manifesto-features-art-prompts.md`.
+
+Dev build and deployment passed on the session clone only. Initial deployment
+`787b4eb2-3193-464f-a469-a7fa6650a459` passed actual Chrome checks at 1440, 390
+and 320px: step counts increase with scroll, the reversed canvas matches the
+earlier pixels, no motion while held, wheel down/up, sticky positioning, fixed
+complete reduced-motion view, four essay sections, full blackboard aspect ratio,
+mobile menu, return/Read more links, direct /manifesto/ reload, asset hashes,
+three feature cards and no horizontal overflow. No browser errors, failed
+assets or requests for the old seated scene/Features renderer were observed.
+
+Final deployment `33cc6750-3f87-409f-bb3f-c664acde931f` adds only the inspected
+phone crop/subtitle-width adjustment. Features was checked again at all three
+widths, and the unchanged Manifesto stairway/blackboard were verified on this
+version. Desktop and phone screenshots were visually inspected. Evidence:
+`tmp/manifesto-features/verification.json`, `final-verification.json` and PNGs.
+No shared/live worker deployment, schema migration or API-key model call.
+
 ### Centered Socrates and Feynman images — 2026-09-29
 
 Both discussion images now contain Socrates and Richard Feynman only. After the
