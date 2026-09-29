@@ -20,12 +20,9 @@ NC7  NanoGPT cards 11–26                 ✅ COMPLETE (25-card inventory, card
                                             batch 5 ✅ CLOSED (page 34:3, v1.1 closeout 38:3)
 NC8  Cross-depth content transitions     ✅ CLOSED (page 43:3; docs/nanogpt-depth-ladder.md
                                             "Cross-depth transitions")
-NC9  Curriculum coherence review         ✅ CLOSED (page 47:3) (open items: softmax card: not needed, both Guided cards
-                                            work it in place (decided); notation and example drift; c18 practice vs
-                                            Training Guided reveal; q·k score production ✅ PASS (audit only,
-                                            docs/nanogpt-depth-ladder.md);
-                                            should c26 name its iteration-1000 checkpoint next to c25's 100?;
-                                            c22 rounds each cell (z 0.60) where c21 rounds to sum 1 (z 0.61))
+NC9  Curriculum coherence review         ✅ CLOSED (page 47:3): notation and example drift fixed, c18
+                                            leak fixed, c25/c26 checkpoints named, c21/c22 rounding aligned;
+                                            q·k PASS and no softmax card (audits, no change)
 NC10 Final card QA                       🟡 ACTIVE (incl. accessibility audit: classify the seven dimmed focus/mask
                                             states - A semantic text to 4.5:1, B unavailable/decorative
                                             with a documented exemption; docs/features/learn-canvas-blocks.md;
