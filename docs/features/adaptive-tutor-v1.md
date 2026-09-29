@@ -3,7 +3,11 @@
 Decided by the owner 2026-09-28. **Do not implement during NanoGPT completion.** The card agent
 finishes the NanoGPT card checklist (NC7–NC10, docs/progress.md) first, then hands the completed
 tool registry and card system to a dedicated Tutor Agent workstream, branched from the merged
-Learn/cards branch.
+Learn/cards branch — once the T0 readiness gate passes.
+
+**Spec status: approved in direction and frozen (owner, 2026-09-28).** No further tutor design until
+the NanoGPT/card work finishes. No new major scope for v1: the exclusions at the end stay exactly as
+written, and the v1 target remains evidence-driven pedagogical adaptation.
 
 The goal is not another chatbot: observe the learner → decide the next pedagogical move → choose
 the best learning tool → evaluate what happened → adapt.
@@ -24,6 +28,18 @@ evaluation, other backend execution services). The tutor calls them; it does not
 
 ## Checklist for the Tutor Agent
 
+**T0 — Readiness gate.** Tutor work does not start merely because the NanoGPT cards are finished.
+Every dependency below must exist as a merged, explicit interface first:
+- Learn/cards tool registry merged;
+- smart-home slash/learnRequest contract merged;
+- smart-parallel JEV evaluator interface available (J5, J18);
+- notebook runtime available;
+- Project/Map context contract available;
+- selection-context schema available for whatever selections exist.
+
+Selection types that don't exist yet may be optional, but their interfaces must be explicit. The
+tutor depends on capabilities, never on code imported opportunistically from three worktrees.
+
 **T1 — Learner evidence model.** Never reduce learning to completed=true or fake mastery
 percentages. Per concept: understood · uncertain · misconception · prerequisite_gap ·
 not_yet_observed. Evidence from challenge responses, explain-back, quizzes, practice transfer, code
@@ -41,6 +57,44 @@ weighted_values:
   evidence:
     - said output selects one value rather than mixes values
 ```
+
+Evidence is a record, never a permanent label:
+
+```
+evidence:
+  concept             weighted_values
+  claim/skill         "the output mixes all values by weight"
+  result              pass | fail | partial | misconception | non_attempt
+  confidence          from the evaluator (deterministic = certain; JEV status, J5)
+  source              challenge | explain_back | quiz | practice | code | notebook | question | ...
+  artifactId
+  timestamp
+  kind                demonstrated_here | demonstrated_in_transfer
+  difficulty / transfer distance
+```
+
+`demonstrated_here` is recognition or repetition on the case the learner was shown;
+`demonstrated_in_transfer` is success on an unseen case, a larger dimension, a counterfactual, a
+different representation or code. Transfer evidence counts more than recognition/repetition.
+
+Aggregation rules — the concept state is derived from the whole evidence set and recomputed on each
+new record, never overwritten by the last event:
+- Per claim first, then per concept: a concept is understood only when each of its key claims is.
+- understood (claim): at least one settled `demonstrated_in_transfer` pass, and no later settled
+  fail or misconception on that claim. One correct answer on the drawn case never makes a claim
+  understood.
+- misconception (claim): a settled misconception not superseded by a later settled transfer pass on
+  the same claim.
+- uncertain: conflicting evidence (e.g. challenge correct, explain-back incomplete, transfer
+  problem wrong), only `demonstrated_here` evidence, or only uncertain evaluator results.
+- prerequisite_gap: failures traced to a claim of a prerequisite concept.
+- not_yet_observed: no evidence.
+- Newer settled evidence on the same claim outweighs older, so a state can move back (understood →
+  uncertain after a later failure). Evaluator `uncertain` or `error` results are stored but never
+  settle a state on their own.
+
+The Tutor Agent may refine these against the golden trace suite (T19); it must not replace them
+with a single score.
 
 **T2 — Pedagogical move taxonomy.** Choose a move before a tool: diagnose, ask_for_prediction,
 hint, explain, simplify, demonstrate, give_example, compare, let_learner_experiment, practice,
@@ -61,7 +115,14 @@ learner state + current concept + conversation + selection
 - Create / inspect: Whiteboard, Paper, Image, Video, 3D model, Blender scene.
 
 Every entry carries pedagogicalUses, prerequisites, interactionType, costClass,
-requiresConfirmation, supportedContexts, productionReady. The tutor uses only productionReady=true.
+requiresConfirmation, supportedContexts, productionReady, and the tool-choice economics:
+latencyClass, evidenceYield (what evidence using it can produce), persistenceType,
+interruptible, deterministicEvaluatorAvailable, reuseExistingArtifact. The tutor uses only
+productionReady=true.
+
+Policy: **reuse before generate.** Use the lowest-cost, lowest-latency tool that achieves the
+pedagogical move well — reuse the existing graph rather than generate another; a cheap interactive
+activity over paid video when both teach the same thing. Paid media still needs confirmation (T15).
 
 **T4 — Prediction before reveal.** Often ask the learner to predict before showing ("If temperature
 drops from 1.0 to 0.5, what happens to the distribution?" → prediction → graph changes → tutor
@@ -73,6 +134,12 @@ you think row 3 can attend to?", "You said the MLP mixes tokens. What in this di
 connect for that to happen?", "What changes if the scale becomes zero?"). Rule: ask when learner
 effort is likely to reveal useful evidence; explain when questioning no longer has pedagogical
 value. Never answer every question with another question.
+
+**T5a — Minimum intervention (overarching rule).** Do not create a new artifact when a question, a
+hint, a manipulation of an existing artifact or a brief response would produce the needed evidence.
+Learner misses one detail: not another 800px card, but highlight the existing element and ask one
+question. Optimize for learning, not content generation — Rabbit Hole must not become an infinite
+stream of AI cards.
 
 **T6 — Explain-back loop.** At important conceptual boundaries ("Explain causal masking in your own
 words"), evaluate: key ideas present, misconception, non-attempt. JEV is the default fast grader
@@ -129,6 +196,12 @@ chose it." Never invent institutional history.
 concepts discussed, misconceptions, questions, depth choices, completed evidence, artifacts
 created, prerequisites visited. Never store hidden reasoning.
 
+Every memory record has an explicit scope: learner · workspace · project · canvas · concept ·
+session. Evidence never leaks Project A → Project B, workspace A → workspace B or learner A →
+learner B. When a canvas, project or session is deleted, or the learner loses access to it,
+dependent tutor memory follows that lifecycle (deleted or made unreachable with it); the same holds
+for Project/Map decision and session evidence.
+
 **T18 — Planner output.** Structured and inspectable:
 `{ currentConcept, evidence, learningGoal, move, reason, toolFamily, allowedPrimitives,
 expectedEvidenceAfter }` — reason is an operational explanation for debugging/evaluation, not
@@ -143,6 +216,22 @@ private chain-of-thought.
 - Already understands → skip redundant cards → transfer/deeper.
 - Missing prerequisite → branch → teach prerequisite → return.
 
+These are executable, not illustrative. Each scripted scenario declares: initial learner evidence;
+the learner message/action; the expected evaluator outcome; acceptable pedagogical moves; forbidden
+moves; acceptable tool families; expected evidence afterwards. Example:
+
+```
+scenario: learner confidently says "Attention picks the single most similar token."
+expected evidence:   misconception = weighted_values/select-one
+acceptable moves:    ask_for_prediction, demonstrate, give_example
+acceptable tools:    interactive visualization, the existing weighted-values card
+forbidden:           mark understood, go deeper, repeat the same prose explanation
+```
+
+A golden tutor trace suite is built before free adaptation is enabled. It grades whether the tutor
+chose a pedagogically valid action, avoided known-bad actions, and moved the evidence in the
+intended direction — not whether it picked exactly one favourite action.
+
 **T20 — Metrics.** Never optimize time on platform, cards generated, message count or completion
 percentage. Primary: can the learner predict, explain, transfer, use it in code; did the
 misconception disappear. Secondary: fewer hints requested, successful deeper questions, retention
@@ -154,6 +243,37 @@ different learner evidence, all from the same architecture, not hardcoded per-co
 - B: prediction reveals misconception → simple example → animation → explain-back → Guided
   visualization.
 - C: already knows the mechanism → source/code → notebook experiment.
+
+Paths must differ because of observable learner evidence, not random model variation. If an
+identical learner state and request produce completely different pedagogical behaviour on each run,
+that is randomness, not adaptation. Byte-for-byte determinism is not required, but the reason for
+every branch must be inspectable — the structured planner output (T18) is that mechanism.
+
+## Runtime loop (implementation invariant)
+
+```
+OBSERVE
+  ↓
+EVALUATE                (deterministic → JEV → general evaluator, J16)
+  ↓
+ROUTINE TRANSITION?
+  ├─ yes → deterministic rule
+  └─ no  → PLAN
+             ↓
+           EXECUTE TOOL
+             ↓
+           WAIT FOR LEARNER
+             ↓
+           EVALUATE
+```
+
+**The planner does not run on every turn.** It runs only when there is a real pedagogical choice
+(J11: misconception, uncertainty, repeated failure, a learner question, a representation change, a
+prerequisite branch, a depth transition). These bypass it:
+- quiz correct → continue;
+- challenge prediction correct → reveal;
+- explicit /notebook → insert a notebook;
+- explicit /deeper with a known target → move deeper.
 
 ## Fast evaluation with JEV (core architectural rule)
 
@@ -201,6 +321,23 @@ JEV. Nuanced explanation needing interpretation → JEV first, escalate if uncer
 at once), uncertain (middling or contradictory → escalate to the tutor model), error (transport
 failure → tutor model or deterministic path). JEV uncertainty triggers escalation; it never silently
 becomes a confident label.
+
+One contract, so no caller invents its own interpretation:
+
+```
+evaluateLearnerResponse(...) → {
+  status:   settled | uncertain | error,
+  checks:   { ... },
+  evidence: [ ... ]      // T1 records
+}
+```
+
+The shared evaluator service owns the threshold semantics (what counts as strong, middling or
+contradictory). The tutor consumes `status` and never duplicates TypeSafe/JEV threshold logic.
+
+Fast-path SLO: deterministic evaluation effectively immediate; JEV fast evaluation p95 ≤ 400 ms.
+Latency is measured; if the evaluator becomes slow or unreliable, escalate or fall back rather than
+letting tutoring feel stuck. Still one batched JEV request per meaningful free-form response (J12).
 
 **J6 — Misconception detector.** For every important free-form response ask whether it contains a
 factual misconception about concept X; if yes, ask narrower follow-ups (attention selects exactly
