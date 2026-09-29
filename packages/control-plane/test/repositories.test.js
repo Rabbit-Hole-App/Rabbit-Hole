@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { parseRepository, repositoriesFetch, repositoryAccess, RepositoryImports } from '../src/repositories.js';
-import { repositoryTool, REPOSITORY_TOOLS } from '../src/repository-context.js';
+import { repositoryTool, REPOSITORY_SYSTEM, REPOSITORY_TOOLS } from '../src/repository-context.js';
 import { researchAnswer } from '../src/learn-research.js';
 
 const sha='a'.repeat(40), newer='b'.repeat(40);
@@ -171,4 +171,10 @@ test('dev repository snapshots cannot reach the production bucket',()=>{
   assert.ok(!(live.r2_buckets||[]).some(b=>b.binding==='REPOSITORY_SNAPSHOTS'),'production binds REPOSITORY_SNAPSHOTS');
   const source=readFileSync(new URL('../src/repositories.js',import.meta.url),'utf8');
   assert.doesNotMatch(source,/env\.RUNS\b/,'repositories.js still reads or writes the live RUNS bucket');
+});
+
+test('a why-question gets the code explained, inference labelled, and no invented history (WP6 two truths)', () => {
+  assert.ok(REPOSITORY_SYSTEM.includes("I don't have a recorded project decision explaining why the team chose this."));
+  assert.match(REPOSITORY_SYSTEM, /No decision, question or session records are captured for this project/);
+  assert.match(REPOSITORY_SYSTEM, /label them as inferred from the source/);
 });
