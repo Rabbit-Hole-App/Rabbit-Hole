@@ -1,7 +1,7 @@
 import { workerRequest } from './learn-scene.js';
 import { canvasSeed } from './canvas-conversation.js';
 import { handleLearnCourse, generateCourseContent } from './learn-course.js';
-import { askStream, ASK_MODELS } from './ask.js';
+import { askStream, ASK_MODELS, attachmentBlocks, readAskRequest } from './ask.js';
 import { LEARN_SYSTEM, validateLessonSnapshot } from './learn-context.js';
 import { REPOSITORY_TOOLS, REPOSITORY_SYSTEM, repositoryTool } from './repository-context.js';
 import { readArxivPaper, paperDocument } from './arxiv.js';
@@ -169,7 +169,7 @@ async function repositoryThreads(req,db,user,app,id){
   const {results}=await db.prepare('SELECT m.role,m.content,g.graph_json FROM messages m LEFT JOIN repository_message_graphs g ON g.message_id=m.id WHERE m.thread_id=? ORDER BY m.id').bind(id).all();return json({id,messages:results.map(({graph_json,...m})=>({...m,...(graph_json?{graph:JSON.parse(graph_json)}:{})})),commit:thread.commit_sha});
 }
 async function repositoryAsk(req,env,user,app){
-  const body=await req.json();
+  const {body,file}=await readAskRequest(req);
   const seed=canvasSeed(body);
   if(typeof body.message!=='string'||!body.message.trim()||body.message.length>4000)throw Error('Question must be 1–4000 characters');
   if(body.lesson_snapshot)validateLessonSnapshot(body.lesson_snapshot);
@@ -206,6 +206,16 @@ async function repositoryAsk(req,env,user,app){
   };
   const question=selectedCode?`${body.message}\n\nSelected code: ${selectedCode.path}:${selectedCode.start}-${selectedCode.end} (commit ${commit})`:body.message;
   const extraBlocks=[],papers=[];
+  // A file from the composer's +: an image or PDF as a block, anything else as text.
+  if(file)extraBlocks.push(...(await attachmentBlocks(file)).blocks);
+  // @-mentioned repositories in this workspace ride as their overview (files and
+  // most connected symbols); at most three.
+  const mentioned=[];
+  for(const name of (Array.isArray(body.mentions)?body.mentions:[]).filter(n=>typeof n==='string'&&n!==app.name).slice(0,3)){
+    const row=await db.prepare('SELECT * FROM repository_apps WHERE org=? AND name=?').bind(user.org,name).first();
+    if(!row?.commit_sha)continue;
+    mentioned.push({name,...repositoryTool(await repositorySnapshot(env,repositoryApp(row,user)),'get_repo_overview')});
+  }
   if(body.paper_context){
     const page=body.paper_context.page;
     if(!Number.isInteger(page)||page<1||page>100)throw Error('Invalid paper page');
@@ -224,7 +234,7 @@ async function repositoryAsk(req,env,user,app){
   if(seed.length)await db.batch(seed.map(turn=>db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(id,turn.role,turn.content)));
   const {results}=await db.prepare('SELECT role,content FROM messages WHERE thread_id=? ORDER BY id DESC LIMIT 10').bind(id).all();
   await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(id,'user',question).run();
-  return askStream(env,JSON.stringify({repo:app.repo,commit,selected,selectedCode,lesson:body.lesson_snapshot||null,paper:body.paper_context?{id:body.paper_context.id,page:body.paper_context.page}:null}),results.reverse(),question,
+  return askStream(env,JSON.stringify({repo:app.repo,commit,selected,selectedCode,lesson:body.lesson_snapshot||null,paper:body.paper_context?{id:body.paper_context.id,page:body.paper_context.page}:null,...(mentioned.length?{mentionedRepositories:mentioned}:{})}),results.reverse(),question,
     async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(message.id,JSON.stringify(graphView)).run();},{threadId:id,commit},extraBlocks,null,ASK_MODELS[body.model]||null,null,
     `${LEARN_SYSTEM}\n${REPOSITORY_SYSTEM}\n${VIDEO_SYSTEM}`,{papers,tools:[...REPOSITORY_TOOLS,FIND_VIDEO_MOMENTS_TOOL,SHOW_VIDEO_TOOL],runTool,getGraphView:()=>graphView,shownVideo:()=>shownVideo,org:user.org});
 }

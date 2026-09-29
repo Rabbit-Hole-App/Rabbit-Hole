@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { CircleHelp, Loader2, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronRight, CircleHelp, Loader2, X } from 'lucide-react';
 import { parseSlash, pickerSections } from './learn-slash.js';
 import PaidConfirm from './PaidConfirm.jsx';
 
@@ -14,11 +14,19 @@ export default function LearnSlash({ apiRef, input, setInput, target, run, onPro
   const [notice, setNotice] = useState(null);
   const [proposal, setProposal] = useState(null);
   const [busy, setBusy] = useState(false);
+  // "More learning tools" opens in place: a click, Enter on it, or scrolling
+  // to the bottom of the list. It is a way in, not a command.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreHeader = useRef(null);
   const sections = busy ? null : pickerSections(input, { catalog });
-  const items = sections?.flatMap(section => section.items) || [];
-  useEffect(() => { setActive(0); if (!input.startsWith('/')) setCatalog(false); }, [input]);
+  // Keyboard order: every visible command, with the collapsible section's
+  // header in its place so Enter can open it.
+  const items = sections?.flatMap(section => (section.collapsible ? [{ name: '__more', toggle: true }, ...(moreOpen ? section.items : [])] : section.items)) || [];
+  useEffect(() => { setActive(0); if (!input.startsWith('/')) { setCatalog(false); setMoreOpen(false); } }, [input]);
 
   const choose = name => {
+    // Opening by click or Enter brings the new tools into view.
+    if (name === '__more') { if (!moreOpen) requestAnimationFrame(() => moreHeader.current?.scrollIntoView({ block: 'start' })); setMoreOpen(open => !open); return; }
     if (name === 'more') { setCatalog(true); setInput('/'); return; }
     setCatalog(false);
     setInput(`/${name} `);
@@ -73,12 +81,23 @@ export default function LearnSlash({ apiRef, input, setInput, target, run, onPro
         </div>
       )}
       {sections && (
-        <div role="listbox" aria-label="Commands" data-slash-picker className="absolute bottom-full left-0 z-30 mb-1 max-h-80 w-80 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-pop">
+        <div role="listbox" aria-label="Commands" data-slash-picker className="absolute bottom-full left-0 z-30 mb-1 max-h-80 w-80 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-pop"
+          onScroll={event => { const box = event.currentTarget; if (!moreOpen && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) setMoreOpen(true); }}>
           {items.length ? sections.map((section, sectionIndex) => (
             <div key={section.title || sectionIndex}>
               {sectionIndex > 0 && <div className="mx-2 my-1 border-t border-line" />}
-              {section.title && <p className="px-2 pt-1.5 pb-1 text-[11px] font-semibold tracking-wide text-ink-3 uppercase">{section.title}</p>}
-              {section.items.map(item => {
+              {section.collapsible ? (() => {
+                index += 1;
+                const mine = index;
+                return (
+                  <button ref={moreHeader} type="button" role="option" aria-selected={mine === active} aria-expanded={moreOpen} data-slash-more
+                    onMouseEnter={() => setActive(mine)} onMouseDown={event => event.preventDefault()} onClick={() => choose('__more')}
+                    className={`flex w-full items-center gap-1.5 rounded-lg px-2 pt-1.5 pb-1 text-left text-[11px] font-semibold tracking-wide text-ink-3 uppercase hover:text-ink ${mine === active ? 'bg-hover' : ''}`}>
+                    <ChevronRight size={12} className={`transition-transform ${moreOpen ? 'rotate-90' : ''}`} />{section.title}
+                  </button>
+                );
+              })() : section.title && <p className="px-2 pt-1.5 pb-1 text-[11px] font-semibold tracking-wide text-ink-3 uppercase">{section.title}</p>}
+              {(!section.collapsible || moreOpen) && section.items.map(item => {
                 index += 1;
                 const mine = index;
                 return (

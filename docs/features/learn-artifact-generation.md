@@ -122,8 +122,14 @@ server. `drawExplanation` now also refuses a plan with an unknown kind
 composer.
 
 - `/` opens LEARN, then CREATE, in `LEARN_MENU` order.
-- `/more` or a typed prefix lists every Learn command that can do something
-  now. A family shows only if it has a ready or direct primitive; a command
+- Below them sits a collapsible **More learning tools** section listing every
+  other available command. `/more` is a way to reach tools, not a tool, so it
+  is never a row. The section opens on a click, on Enter, or when the list is
+  scrolled to its end.
+- A typed prefix (or a typed `/more`) lists every Learn command that can do
+  something now.
+- View → Slash commands (`SlashCommandsSheet.jsx`) shows the same sections,
+  each command with an example. A family shows only if it has a ready or direct primitive; a command
   typed by name still says what is unavailable.
 
 Execution:

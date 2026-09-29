@@ -85,9 +85,12 @@ export default {
       if (path === '/api/ask' || ['draft', 'generate'].includes(action)) return Response.json({ error: 'Subscription-only dev mode: use Learn chat. This action is not connected to the subscription yet.' }, { status: 503 });
     }
     if (env.SUBSCRIPTION_ONLY === 'true' && req.method === 'POST' && ['/api/learn/ask', '/api/learn/selection'].includes(path) && !req.headers.get('content-type')?.includes('application/json')) return Response.json({ error: 'Attachments are not connected to the subscription yet. No API fallback.' }, { status: 503 });
-    if (['/api/learn/selection', '/api/learn/ask'].includes(path) && req.method === 'POST' && req.headers.get('content-type')?.includes('application/json')) {
+    // JSON, or multipart when the composer's + attached a file: both stay on
+    // this dev worker (a multipart ask used to fall through to the live one).
+    const learnAskType = req.headers.get('content-type') || '';
+    if (['/api/learn/selection', '/api/learn/ask'].includes(path) && req.method === 'POST' && (learnAskType.includes('application/json') || learnAskType.includes('multipart/form-data'))) {
       let body;
-      try { body = await req.clone().json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
+      try { body = learnAskType.includes('multipart/form-data') ? JSON.parse((await req.clone().formData()).get('body') || '{}') : await req.clone().json(); } catch { return Response.json({ error: 'Invalid request body' }, { status: 400 }); }
       if (body.scope?.app?.startsWith('repo-')) {
         const target = new URL(req.url); target.pathname = `/api/repositories/${body.scope.app}/ask`;
         return repositoriesFetch(new Request(target, req), env, ctx);

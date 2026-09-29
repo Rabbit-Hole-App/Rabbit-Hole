@@ -373,7 +373,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   useEffect(() => {
     if (atMatch && appNames === null) api('/api/apps').then((d) => setAppNames(d.apps.map((a) => ({ name: a.name, kind: a.kind, schedule: a.schedule })))).catch(() => setAppNames([]));
   }, [!!atMatch]);
-  const atHits = atMatch && appNames ? appNames.filter((a) => a.name.includes(atMatch[1])) : [];
+  // Only apps this chat can resolve: a repository chat reads other repositories,
+  // any other chat reads deployed apps; never the chat's own app.
+  const atHits = atMatch && appNames ? appNames.filter((a) => a.name.includes(atMatch[1]) && a.name !== appName && (repository ? a.name.startsWith('repo-') : !a.name.startsWith('repo-'))) : [];
 
   useEffect(() => {
     const focus = () => inputRef.current?.focus();
@@ -488,6 +490,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(!target?.paper && !questionPaper && !questionImage?.id && !questionWiki?.title && questionVideo?.videoId ? { video_context: { videoId: questionVideo.videoId, start: questionVideo.start || 0, ...(questionVideo.end != null ? { end: questionVideo.end } : {}), ...(questionVideo.title ? { title: questionVideo.title } : {}) } } : {}),
         scope: scopeOverride || scope,
         ...(repository && repositoryContext ? { repository_context: { ...repositoryContext, commit: sourceRange?.commit || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
+        // @-mentioned apps: the server adds each one's context to this chat.
+        ...(mentions.length ? { mentions: [...mentions] } : {}),
         message: target ? `Question about this ${target.kind} block on the lesson canvas:\n${target.text}\n\nLearner question: ${message}` : passage ? `Question about this previous answer passage:\n${passage.text}\n\nLearner question: ${message}` : message,
         thread_id: threadId.current,
         ...(canvasSeed && !threadId.current ? { canvas_seed: canvasSeed } : {}),
@@ -858,10 +862,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               <Plus size={14} strokeWidth={1.5} />
             </button>
             <Menu open={plusOpen} onClose={() => setPlusOpen(false)} className={dock ? 'bottom-11 left-0 w-64' : 'bottom-8 left-0 w-64'}>
-              <MenuItem icon={Paperclip} disabled={privateChat || repository} title={privateChat || repository ? 'Attachments are not connected for private chat yet.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
+              <MenuItem icon={Paperclip} disabled={privateChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
                 Add images, PDFs, or CSVs
               </MenuItem>
-              <MenuItem icon={AtSign} disabled={privateChat || repository} title={privateChat || repository ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
+              <MenuItem icon={AtSign} disabled={privateChat} title={privateChat ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
                 Mention an app
               </MenuItem>
             </Menu>

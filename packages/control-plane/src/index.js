@@ -21,6 +21,7 @@ import { buildRunbook, renderMarkdown, scrubPlatformVars } from './runbook-schem
 import { parseCron, matches, nextRun } from './cron.js';
 import SHELL from '../../web/dist/index.html';
 import { learnMedia } from './learn-storage.js';
+import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest } from './ask.js';
 
 const SESSION_COOKIE = 'small_session';
 const SESSION_TTL = 7 * 24 * 3600;
@@ -932,23 +933,14 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent') {
   // JSON, or multipart when a file rides along (images/PDFs as model blocks, CSVs as text)
   let body, extraBlocks = [], attachedName = null, uploadNote = null;
   if ((req.headers.get('Content-Type') || '').includes('multipart/form-data')) {
-    const form = await req.formData();
-    body = JSON.parse(form.get('body') || '{}');
-    const file = form.get('file');
-    if (file && typeof file !== 'string') {
-      if (file.size > 4 * 1024 * 1024) return json({ error: 'attachment too large - 4 MB max' }, 400);
+    const request = await readAskRequest(req);
+    body = request.body;
+    const file = request.file;
+    if (file) {
+      if (file.size > ATTACHMENT_LIMIT) return json({ error: 'attachment too large - 4 MB max' }, 400);
       attachedName = file.name;
-      const type = file.type || '';
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      if (type.startsWith('image/')) {
-        extraBlocks = [{ type: 'image', source: { type: 'base64', media_type: type, data: b64(bytes) } }];
-      } else if (type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
-        extraBlocks = [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64(bytes) } }];
-      } else {
-        // csv/txt/anything text-ish rides inline, truncated
-        const text = new TextDecoder().decode(bytes).slice(0, 50000);
-        extraBlocks = [{ type: 'text', text: `Attached file ${file.name}:\n${text}` }];
-      }
+      const { bytes, blocks } = await attachmentBlocks(file);
+      extraBlocks = blocks;
       // stash the raw bytes so "run it with this image" can feed a file input;
       // ponytail: unapproved uploads linger in R2 - no lifecycle sweep yet
       if (learnMedia(env)) {
@@ -1100,6 +1092,12 @@ ${renderOutline(body.outline)}`;
     canAct = !lessonSnapshot && !!app.canEdit;
     scopeKind = conversation === 'learn' ? 'learn' : 'app';
     scopeRef = scope.app;
+    // @-mentioned apps (the composer's chips) join this chat's context, each
+    // one the learner can see; at most three, so one answer stays focused.
+    for (const name of (Array.isArray(body.mentions) ? body.mentions : []).filter(name => typeof name === 'string' && name !== scope.app).slice(0, 3)) {
+      const mentioned = await appForUser(env, user, name);
+      if (mentioned?.canView) context = `${context}\n\nMentioned app ${name}:\n${await appContext(env, mentioned, useSet)}`;
+    }
   } else {
     const visible = await orgVisibleApps(env, user);
     const hits = resolveMention(message, visible);

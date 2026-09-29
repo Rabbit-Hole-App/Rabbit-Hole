@@ -15,8 +15,10 @@ export const available = command => !command.family || command.deterministic || 
 const row = command => ({ name: command.name, desc: descFor(command, 'learn') });
 
 // The picker's sections for what is typed, or null when it should be closed.
-// A bare / shows the primary menu (LEARN, then CREATE); /more or a typed
-// prefix searches every available Learn command.
+// A bare / shows the primary menu (LEARN, then CREATE) and a collapsible
+// "More learning tools" section with every other available command - /more is
+// a way to reach tools, not a tool, so it is never a row. A typed prefix (or
+// a typed /more) searches every available Learn command.
 export function pickerSections(text, { catalog = false } = {}) {
   const typed = text.match(/^\/([\w-]*)$/)?.[1];
   if (typed === undefined) return null;
@@ -26,8 +28,27 @@ export function pickerSections(text, { catalog = false } = {}) {
     return items.length ? [{ title: catalog && !typed ? 'All learning tools' : null, items }] : [];
   }
   const pick = names => names.map(name => learn.find(command => command.name === name)).filter(Boolean).map(row);
-  return [{ title: 'Learn', items: pick(LEARN_MENU.learn) }, { title: 'Create', items: pick(LEARN_MENU.create) }];
+  const primary = [...LEARN_MENU.learn, ...LEARN_MENU.create];
+  const rest = learn.filter(command => !primary.includes(command.name) && command.name !== 'more').map(row);
+  return [
+    { title: 'Learn', items: pick(LEARN_MENU.learn) },
+    { title: 'Create', items: pick(LEARN_MENU.create.filter(name => name !== 'more')) },
+    { title: 'More learning tools', collapsible: true, items: rest },
+  ];
 }
+
+// One typical use per command, for the View > Slash commands sheet.
+export const EXAMPLES = {
+  deeper: '/deeper into the maths', simplify: '/simplify', example: '/example with real numbers',
+  practice: '/practice coding', quiz: '/quiz softmax', compare: '/compare sigmoid vs tanh', research: '/research attention mechanisms',
+  explain: '/explain softmax', code: '/code a character tokenizer', graph: '/graph sigmoid', diagram: '/diagram a transformer block',
+  animate: '/animate why the sigmoid saturates', flashcards: '/flashcards token embeddings', notebook: '/notebook',
+  walkthrough: '/walkthrough one training step', whiteboard: '/whiteboard forces on a ramp', paper: '/paper 1706.03762',
+  image: '/image a glass prism', video: '/video light through a prism', '3d': '/3d a camera frustum', source: '/source',
+  ask: '/ask what does wte do?', teach: '/teach causal masking', do: '/do add a section on attention',
+};
+// Whether running this command can end in a paid generation (it always asks first).
+export const mayConfirmPaid = name => learnRequest(name).paid.some(isReady);
 
 export const parseSlash = text => {
   const match = text.trim().match(/^\/([\w-]+)(?:\s+([\s\S]*))?$/);

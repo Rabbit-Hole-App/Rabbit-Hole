@@ -13,9 +13,13 @@ const harness = reply => {
 
 test('/ opens the grouped picker: LEARN, then CREATE, in the contract order', () => {
   const sections = pickerSections('/');
-  assert.deepEqual(sections.map(section => section.title), ['Learn', 'Create']);
+  assert.deepEqual(sections.map(section => section.title), ['Learn', 'Create', 'More learning tools']);
   assert.deepEqual(sections[0].items.map(item => item.name), ['deeper', 'simplify', 'example', 'practice', 'quiz', 'compare', 'research']);
-  assert.deepEqual(sections[1].items.map(item => item.name), ['explain', 'code', 'graph', 'diagram', 'animate', 'flashcards', 'notebook', 'more']);
+  // /more is how to reach the rest, not a tool: it is the collapsible section, never a row.
+  assert.deepEqual(sections[1].items.map(item => item.name), ['explain', 'code', 'graph', 'diagram', 'animate', 'flashcards', 'notebook']);
+  assert.equal(sections[2].collapsible, true);
+  assert.ok(sections[2].items.some(item => item.name === 'walkthrough'));
+  assert.ok(sections.flatMap(section => section.items).every(item => item.name !== 'more'));
   assert.equal(sections[0].items[0].desc, 'Go deeper');
   assert.deepEqual(pickerSections('/gr')[0].items.map(item => item.name), ['graph']);
   assert.ok(pickerSections('/', { catalog: true })[0].items.some(item => item.name === 'walkthrough'));
@@ -75,4 +79,11 @@ test('Auto commands go through the existing Learn ask as a prompt; unknown ones 
   assert.deepEqual(await run('/deeper'), { prompt: 'Go one level deeper on the current concept.' });
   assert.match((await run('/frobnicate')).notice.text, /not a Learn command/);
   assert.equal(did.length, 0);
+});
+
+test('View > Slash commands shows every picker command with an example', async () => {
+  const { EXAMPLES, mayConfirmPaid } = await import('./learn-slash.js');
+  for (const item of pickerSections('/').flatMap(section => section.items)) assert.ok(EXAMPLES[item.name]?.startsWith(`/${item.name}`), `example for /${item.name}`);
+  assert.equal(mayConfirmPaid('video'), true);
+  assert.equal(mayConfirmPaid('graph'), false);
 });

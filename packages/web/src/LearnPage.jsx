@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, Copy, CopyPlus, FileText, Group, Keyboard, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Pencil, Play, Redo2, RotateCcw, Scan, Search, Share2, Trash2, Trophy, NotebookPen, Undo2, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Pencil, Play, Redo2, RotateCcw, Scan, Search, Share2, Trash2, Trophy, NotebookPen, Undo2, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
 import { createShapeId, getIndices } from 'tldraw';
 import { SPEEDS, getSpeed, isMuted, onMuted, setMuted, setSpeed } from './learn-audio.js';
 import { api, wsHeaders } from './api.js';
@@ -21,6 +21,7 @@ import PaidConfirm from './PaidConfirm.jsx';
 import { runLearnCommand } from './learn-slash.js';
 import { warmLearnTools } from './learn-warmup.js';
 import ShortcutsSheet from './ShortcutsSheet.jsx';
+import SlashCommandsSheet from './SlashCommandsSheet.jsx';
 import FilesPanel from './FilesPanel.jsx';
 import LearnWiki from './LearnWiki.jsx';
 import { contentsEntries } from './learn-contents.js';
@@ -103,6 +104,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // Tool Performance v1: common tools fetched on idle, one per quiet moment (learn-warmup.js).
   useEffect(() => { warmLearnTools(app.name); }, [app.name]);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [slashHelpOpen, setSlashHelpOpen] = useState(false);
   // / opens Search and ? the shortcuts sheet - the keys the page owns; the
   // canvas owns the rest. Neither fires while typing or presenting.
   useEffect(() => {
@@ -1145,6 +1147,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         { label: 'Keep tool active', icon: Lock, checked: canvasState.lock, onSelect: () => canvas()?.toggleLock() },
         { divider: true },
         { label: 'Keyboard shortcuts', icon: Keyboard, hint: '?', onSelect: () => setShortcutsOpen(true) },
+        { label: 'Slash commands', icon: SquareSlash, onSelect: () => setSlashHelpOpen(true) },
       ],
     },
   ];
@@ -1209,6 +1212,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             className="h-8 min-w-16 max-w-96 shrink cursor-text truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none [field-sizing:content] placeholder:text-ink-2 hover:border-line focus:border-line" />
           <CanvasMenubar menus={canvasMenus} />
           {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
+          {slashHelpOpen && <SlashCommandsSheet onClose={() => setSlashHelpOpen(false)} />}
           {searchOpen && <SearchBar app={app.name} initialSource={searchSeed?.source} initialQuery={searchSeed?.query} onClose={() => { setSearchOpen(false); setSearchSeed(null); }}
             onPick={pickResult} />}
           <div className="flex items-center gap-0.5">
