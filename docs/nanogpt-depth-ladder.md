@@ -236,3 +236,26 @@ u/change/F_k, η/λ vs lr/wd), example drift (c21/c22's six candidates after "Fi
 depth cards' eight after "iti"; c10's B e f o toy vs Attention Guided's), and c18's practice,
 whose answer Training Guided's default shows (the smallest fix: change the practice case or what
 Guided claims as its reveal, no reordering).
+
+## NC9 coherence: q·k score production (2026-09-29)
+
+**PASS** (two independent auditors, audit only, nothing changed). Owner question: is how attention
+scores are produced taught before later cards rely on q·k? On the path Attention Overview →
+Guided → Deep:
+- **q and k:** Attention Guided draws the reader's query column "q" and "keys k, one column per
+  character", with the "q points at" What-if; Deep 1/4 gives their origin (c_attn(x).split →
+  q, k, v), previewed by Architecture Deep 2/3 as a hub.
+- **Dot product:** Guided's step "1. score = q · k" multiplies dim by dim (0.38 | 3.62 | 2.62 |
+  1.38) and adds ("add them: 8 = its score").
+- **Score matrix:** Guided gives one score per key for each reader (the Reader slider changes the
+  row); Deep 1/4 stacks the rows ("q @ k.transpose(-2, -1) … att @ v: Guided's steps 1–4, for all
+  readers of all heads at once"), Deep 2/4 draws the (T, T) grid.
+- **Why larger means a better match:** q's sign pattern equals key "f"'s, so every product is
+  positive and "f" scores highest (8.00); key "w", the opposite pattern, scores −8.00; the What-if
+  moves the match and the score follows. Shown by construction rather than stated in words — the
+  thinnest piece, but learnable, so not a gap.
+
+Overview never relies on q·k (it lives in its Sources); Guided teaches it where it first uses it;
+Deep relies on it after "Builds on: Guided". For information only: on the deep-dive board c13 and
+c12 name q·k without teaching it — the owner's 2026-09-28 decision (board plan §11, no q·k card;
+Attention · Guided computes the scores by hand) stands, and this check was scoped to the ladder.
