@@ -1827,6 +1827,97 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
+  if (ready) await check('wp6-learn-this: Learn this and /teach this open the project Learn tab carrying the node and send nothing; Overview drops the node chip and Map brings it back', async () => {
+    const page = await open();
+    let asks = 0;
+    page.on('request', (r) => { if (new URL(r.url()).pathname === '/api/learn/ask') asks++; });
+    await loaded(page, `/apps/${ready.name}?tab=map`);
+    await pickNode(page);
+    await page.locator('[data-map-panel]').getByRole('button', { name: 'Learn this' }).click();
+    await page.waitForURL(/[?]tab=learn$/);
+    await page.locator('[data-learn-context]').getByText('From Map: CausalSelfAttention').waitFor({ timeout: 30000 });
+    await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 }); // Learn's composer mounts just after the frame
+    must(await isSelected(ptab(page, 'Learn')) && await composers(page) === 1 && await barOf(page).count() === 0, 'not the project Learn frame');
+    await ptab(page, 'Overview').click();
+    await barOf(page).locator('[data-scope-chip="resource"]').waitFor({ timeout: 10000 });
+    must(await barOf(page).locator('[data-scope-chip="selected"]').count() === 0, 'Overview keeps the node chip');
+    await ptab(page, 'Map').click();
+    await barOf(page).locator('[data-scope-chip="selected"]').waitFor({ timeout: 10000 });
+    await barInput(page).fill('/teach this');
+    await barInput(page).press('Enter');
+    await page.waitForURL(/[?]tab=learn$/);
+    await page.locator('[data-learn-context]').getByText('From Map: CausalSelfAttention').waitFor({ timeout: 30000 });
+    must(await page.evaluate(() => sessionStorage.getItem('small.learn.request')) === null && asks === 0, 'a Learn request or ask was sent');
+    await page.context().close();
+  });
+
+  if (ready) await check('wp6-overview: identity and GitHub source; Continue learning from this browser; learning canvases with one not in this browser; recent activity; no Map or operational clutter; a canvas opens in the project frame; nothing written', async () => {
+    const page = await open();
+    await noAsks(page);
+    await loaded(page, `/apps/${ready.name}`);
+    const here = await canvas6(page, { title: 'wp6 overview here', project: ready.name });
+    const away = await canvas6(page, { title: 'wp6 overview away', project: ready.name, device_id: 'rabbit-hole-check-device' });
+    try {
+      const key = canvasKeys({ org: ready.org, email, slug: ready.name });
+      await page.evaluate(([chat, ink]) => { // as sh-home seeds it
+        localStorage.setItem(chat, JSON.stringify([{ id: '1', question: 'why sqrt(dk)?' }]));
+        localStorage.setItem(ink, JSON.stringify({ strokes: [], shapes: [], items: [], links: [], blocks: [
+          { id: 'a', type: 'heading', level: 1, text: 'Tokens', done: true }, { id: 'b', type: 'heading', level: 1, text: 'Masked self-attention' }] }));
+      }, [key.chat, key.ink]);
+      await page.route('**/api/repositories/*/threads', (r) => r.fulfill({ json: { threads: [{ id: 't1', title: 'Where should I start reading?', created_at: '2026-09-28 10:00:00' }] } }));
+      await page.reload();
+      const writes = writes6(page);
+      const cont = page.getByRole('region', { name: 'Continue learning' });
+      await cont.getByText('Last explored: why sqrt(dk)?').waitFor({ timeout: 20000 });
+      await cont.getByText('Next: Masked self-attention').waitFor();
+      const list = page.getByRole('region', { name: 'Learning canvases' });
+      for (const t of ['Project canvas', 'wp6 overview here', 'wp6 overview away']) await list.getByText(t, { exact: true }).waitFor();
+      const text = await list.innerText();
+      must(text.includes('Not in this browser') && !/device/i.test(text), `canvas copy: ${text}`);
+      await page.getByRole('region', { name: 'Recent activity' }).getByText('You asked: Where should I start reading?').waitFor();
+      must(await page.locator('a[data-source-link]').getAttribute('href') === `https://github.com/${ready.repo}`, 'no GitHub source link');
+      must(await page.getByRole('textbox', { name: 'Search repository' }).count() === 0, 'the Map search on Overview');
+      for (const clutter of ['Refresh branch', 'Last run', 'excluded files']) must(await page.locator('main').getByText(clutter).count() === 0, `${clutter} on Overview`);
+      must(!writes.length, `Overview wrote: ${writes.join(', ')}`);
+      await list.getByRole('button', { name: 'wp6 overview here' }).click();
+      await page.waitForURL(new RegExp(`[?]tab=learn&canvas=${here.name}$`));
+    } finally { await drop6(page, here.name); await drop6(page, away.name); await page.context().close(); }
+  });
+
+  if (job) await check('wp6-app-ops: a job shows its last run with status, runtime and an Outputs link to that run (or Never run); a server shows neither', async () => {
+    const page = await open();
+    await loaded(page, `/apps/${job.name}`);
+    const line = page.locator('[data-last-run]');
+    await line.waitFor({ timeout: 20000 });
+    const text = await line.innerText();
+    if (!job.lastRun) must(text === 'Never run', text);
+    else {
+      must(text.startsWith('Last run') && text.includes(job.lastRun.status), text);
+      await line.getByRole('button', { name: 'Outputs →' }).click();
+      await page.waitForURL(`**/apps/${job.name}/runs/${job.lastRun.runId}`);
+    }
+    if (server) {
+      await loaded(page, `/apps/${server.name}`);
+      await page.locator('[data-app-ops]').waitFor({ timeout: 20000 });
+      must(await page.locator('[data-last-run]').count() === 0, 'a server shows a last run');
+    }
+    await page.context().close();
+  });
+
+  if (plain && repo && /^karpathy\/nanogpt$/i.test(repo.repo || '')) await check('wp6-built-from: Built from shows only with ?fixtures=1, labelled Fixture · UI preview, and opens the project Overview; never inferred from the app repository', async () => {
+    const page = await open();
+    await loaded(page, `/apps/${plain.name}`);
+    await page.locator('[data-app-ops]').waitFor({ timeout: 20000 });
+    must(await page.locator('[data-built-from]').count() === 0, 'Built from without ?fixtures=1');
+    await loaded(page, `/apps/${plain.name}?fixtures=1`);
+    const from = page.locator('[data-built-from]');
+    await from.getByText('Fixture · UI preview').waitFor({ timeout: 20000 });
+    await from.getByRole('button', { name: `Built from ${repo.repo} →` }).click();
+    await page.waitForURL(`**/apps/${repo.name}`);
+    await ptab(page, 'Overview').waitFor({ timeout: 20000 });
+    await page.context().close();
+  });
+
   // Checks from Tasks 1-11 go here, in task order.
 }
 
