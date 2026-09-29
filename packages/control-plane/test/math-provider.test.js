@@ -73,3 +73,12 @@ test('a worker that answers with something other than a video is not stored as o
   const wrong = new ManimProvider(env, transport([json({ status: 'ready' }), json({ sneaky: true })]));
   await assert.rejects(wrong.poll({ id: 'a'.repeat(64) }), /unavailable/);
 });
+
+test('a failed or lost render is final, so the job fails now instead of polling for 30 minutes', async () => {
+  const failed = new ManimProvider(env, transport([json({ status: 'failed', error: 'The animation could not be rendered' })]));
+  await assert.rejects(failed.poll({ id: 'k' }), error => error.final === true && /could not be rendered/.test(error.message));
+  const lost = new ManimProvider(env, transport([json({ error: 'Job not found' }, 404)]));
+  await assert.rejects(lost.poll({ id: 'k' }), error => error.final === true);
+  const busy = new ManimProvider(env, transport([json({ error: 'x' }, 502)]));
+  await assert.rejects(busy.poll({ id: 'k' }), error => !error.final);
+});

@@ -138,7 +138,7 @@ export class LearnVideos {
           if (Date.now() - job.startedAt > MAX_WAIT_MS && job.status !== 'ready') { job.uncertain = true; throw new Error('Generation has not completed within 30 minutes. Check provider history before generating again.'); }
         } catch (error) {
           // Transient polling/storage errors keep the existing ticket: no paid resubmission.
-          if (Date.now() - job.startedAt > MAX_WAIT_MS || /could not generate|returned no video|Invalid generated/.test(error.message)) { job.status = 'failed'; job.error = error.message; }
+          if (error.final || Date.now() - job.startedAt > MAX_WAIT_MS || /could not generate|returned no video|Invalid generated/.test(error.message)) { job.status = 'failed'; job.error = error.message; }
         }
       }
       await this.state.storage.put(key, job);

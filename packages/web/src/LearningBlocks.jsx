@@ -532,6 +532,9 @@ export const BLOCK_TYPES = {
   // viz-benchmarks/transformer-explainer/. JSON lives in reference-scenes.js
   // for the same reason the three demo scenes above live in demo-scenes.js.
   referenceAttention: {
+    // Off the + menu (user, 2026-09-29): a fixed benchmark scene, not a tool.
+    // Kept so boards that already have one still render.
+    menu: false,
     label: 'Reference: attention',
     width: 640,
     height: 480,
@@ -705,9 +708,10 @@ export const BLOCK_TYPES = {
         scene: {
           title: 'Where the slope goes',
           steps: [
-            { kind: 'equation', expressions: ['\sigma(x) = \frac{1}{1 + e^{-x}}', "\sigma'(x) = \sigma(x)(1 - \sigma(x))"], highlight: ['\sigma(x)'], note: 'the slope is written with the function itself', hold: 2 },
-            { kind: 'plot', functions: [{ expression: '1 / (1 + exp(-x))', label: '\sigma(x)', color: '#2383e2' }], xRange: [-6, 6, 2], yRange: [0, 1, 0.25], marker: { from: -6, to: 6, tangent: true }, note: 'the tangent flattens at both ends', hold: 2 },
-            { kind: 'plot', functions: [{ expression: 'exp(-x) / (1 + exp(-x))**2', label: "\sigma'(x)", color: '#E8590C' }], xRange: [-6, 6, 2], yRange: [0, 0.3, 0.1], note: 'the derivative never exceeds a quarter', hold: 2 },
+            // Doubled backslashes: in a plain JS string '\s' is 's' and '\f' is a form feed.
+            { kind: 'equation', expressions: ['\\sigma(x) = \\frac{1}{1 + e^{-x}}', "\\sigma'(x) = \\sigma(x)(1 - \\sigma(x))"], highlight: ['\\sigma(x)'], note: 'the slope is written with the function itself', hold: 2 },
+            { kind: 'plot', functions: [{ expression: '1 / (1 + exp(-x))', label: '\\sigma(x)', color: '#2383e2' }], xRange: [-6, 6, 2], yRange: [0, 1, 0.25], marker: { from: -6, to: 6, tangent: true }, note: 'the tangent flattens at both ends', hold: 2 },
+            { kind: 'plot', functions: [{ expression: 'exp(-x) / (1 + exp(-x))**2', label: "\\sigma'(x)", color: '#E8590C' }], xRange: [-6, 6, 2], yRange: [0, 0.3, 0.1], note: 'the derivative never exceeds a quarter', hold: 2 },
           ],
         },
       },
