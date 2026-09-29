@@ -11,6 +11,7 @@ import { learnPreview, PRODUCT } from './flags.js';
 import { pinnedApps, RAIL_W, readPinned, secClosedInit, togglePin } from './home/pinned.js';
 import { isLearnResource } from './library-filter.js';
 import { pageFor, sectionActive, sectionHref } from './routes.js';
+import FeedbackButton from './FeedbackButton.jsx';
 import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
@@ -473,6 +474,12 @@ function AiModelSettings() {
 // Rabbit Hole dev: the main destinations, in the expanded nav and in the collapsed icon rail.
 const NAV = [['Home', '/apps', 'home', House], ['Library', '/library', 'library', Library], ['Explore', '/explore', 'explore', Compass]];
 const RAIL_BTN = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink';
+// Report a bug or suggest a feature, below Trash (user, 2026-09-29): Learn's FeedbackButton, app-less. The sidebar
+// clips its overflow, so the button is fixed over a footer slot and its panel opens beside the strip, unclipped.
+// The footer is sticky, so the slot stays at the bottom however long the sidebar gets.
+function FeedbackSlot({ left }) {
+  return <><div className="h-9 shrink-0" aria-hidden="true" /><div className="fixed bottom-2 z-40" style={{ left }}><FeedbackButton placement="right" /></div></>;
+}
 // Rabbit Hole dev: the product mark. The chrome names the product, never a letter from the email domain.
 const ProductMark = () => <span className="grid h-5 w-5 shrink-0 place-items-center rounded-sm bg-ink text-white"><Rabbit size={13} strokeWidth={1.75} /></span>;
 
@@ -1092,13 +1099,14 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
               </button>
             ))}
           </nav>
-          <div className="mt-auto flex shrink-0 flex-col items-center gap-1 border-t border-line pt-2">
+          <div className="sticky bottom-0 mt-auto flex shrink-0 flex-col items-center gap-1 border-t border-line bg-side pt-2">
             <button title="Members" aria-label="Members" aria-current={path === '/members' ? 'page' : undefined} onClick={() => navigate('/members')} className={cn(RAIL_BTN, path === '/members' && 'bg-active text-ink')}>
               <Users size={16} strokeWidth={1.5} />
             </button>
             <button title="Trash" aria-label="Trash" onClick={openTrash} className={cn(RAIL_BTN, trashOpen && 'bg-active text-ink')}>
               <Trash2 size={16} strokeWidth={1.5} />
             </button>
+            <FeedbackSlot left={10} />
           </div>
         </>
       ) : (
@@ -1289,7 +1297,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         </>
       )}
 
-      <div className={cn('mt-auto shrink-0 pt-3', learnPreview && 'border-t border-line')}>
+      <div className={cn('mt-auto shrink-0 pt-3', learnPreview && 'sticky bottom-0 border-t border-line bg-side')}>
         <button
           onClick={() => navigate('/members')}
           className={cn(
@@ -1307,6 +1315,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           <Trash2 size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
           Trash
         </button>
+        {learnPreview && <FeedbackSlot left={12} />}
         {!learnPreview && (
         <div className="mt-3 mb-3 flex items-center gap-2">
           <button

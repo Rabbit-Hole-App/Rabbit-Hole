@@ -2257,6 +2257,41 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await fx.context().close();
   });
 
+  // WP7 (user, 2026-09-29): report a bug or suggest a feature from the bottom of the left strip - Learn's FeedbackButton,
+  // app-less. The report is intercepted here (201), so the check stores nothing.
+  await check('wp7-feedback-rail: the sidebar and its icon rail end with a feedback button below Trash; its panel opens fully on screen beside the strip; Bug/Idea and Submit send one app-less report and the button confirms; on a phone the drawer has it too', async () => {
+    for (const [label, viewport, setup] of [
+      ['expanded', undefined, null],
+      ['rail', undefined, 'rail'],
+      ['phone drawer', { width: 390, height: 844 }, 'drawer'],
+    ]) {
+      const page = await open(viewport);
+      const sent = [];
+      await page.route('**/api/learn/feedback', (r) => { sent.push(r.request().postDataJSON()); r.fulfill({ status: 201, contentType: 'application/json', body: '{"id":"check"}' }); });
+      if (setup === 'rail') await page.addInitScript(() => localStorage.setItem('small.sidebar', 'closed'));
+      await loaded(page, '/library');
+      if (setup === 'drawer') await page.getByRole('button', { name: 'Open sidebar' }).click();
+      const button = page.locator('aside [data-feedback]');
+      await button.waitFor({ timeout: 15000 });
+      const trash = await page.locator('aside').getByRole('button', { name: 'Trash' }).boundingBox();
+      const b = await button.boundingBox();
+      must(b.y >= trash.y + trash.height, `${label}: the feedback button is not below Trash`);
+      await button.click();
+      const panel = page.locator('[data-feedback-panel]');
+      await panel.waitFor({ timeout: 5000 });
+      const p = await panel.boundingBox(), size = page.viewportSize();
+      must(p.x >= 0 && p.y >= 0 && p.x + p.width <= size.width && p.y + p.height <= size.height, `${label}: the panel runs off screen`);
+      const hit = await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('[data-feedback-panel]'), { x: p.x + p.width / 2, y: p.y + p.height / 2 });
+      must(hit, `${label}: the panel is clipped or covered`);
+      await panel.getByRole('radio', { name: 'Suggest a feature' }).click();
+      await panel.locator('textarea').fill('wp7 check: feedback from the sidebar');
+      await panel.getByRole('button', { name: 'Submit' }).click();
+      await page.locator('aside [data-feedback][title="Sent, thank you"]').waitFor({ timeout: 5000 });
+      must(sent.length === 1 && sent[0].app === null && sent[0].kind === 'idea' && sent[0].text === 'wp7 check: feedback from the sidebar', `${label}: reports sent: ${JSON.stringify(sent)}`);
+      await page.context().close();
+    }
+  });
+
   // Checks from Tasks 1-11 go here, in task order.
 }
 
