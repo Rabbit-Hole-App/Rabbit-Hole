@@ -17,6 +17,7 @@ import ContentsRail from './ContentsRail.jsx';
 import CanvasMenubar from './CanvasMenubar.jsx';
 import SearchBar from './SearchBar.jsx';
 import LearnSlash from './LearnSlash.jsx';
+import PaidConfirm from './PaidConfirm.jsx';
 import { runLearnCommand } from './learn-slash.js';
 import ShortcutsSheet from './ShortcutsSheet.jsx';
 import FilesPanel from './FilesPanel.jsx';
@@ -634,6 +635,8 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const boardRequest = useRef(0);
   const [boardVisible, setBoardVisible] = useState(false);
   const [boardStage, setBoardStage] = useState('Preparing explanation...');
+  // Narration of a canvas explanation is paid (fish.audio): offered, never autoplayed.
+  const [narrationOffer, setNarrationOffer] = useState(null);
   const dismissBoard = () => {
     boardRequest.current++;
     const old = explanation.current; explanation.current = null;
@@ -771,10 +774,12 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
       editor.updateViewportScreenBounds(editor.getContainer());
       const previous = explanation.current;
       const layer = drawExplanation(editor, current, renderedPlan, { app: app.name });
-      // Speak the explanation with the lesson narrator; a failed request stays silent.
+      // The lesson narrator is a paid provider, so narration is offered and
+      // only requested after Generate (docs/features/learn-artifact-generation.md).
+      // A failed request stays silent.
       let boardAudio = null;
       const spoken = renderedPlan.blocks.map(block => block.text).filter(Boolean).join(' ').slice(0, 3800);
-      if (spoken) fetch('/api/learn/tts', { method: 'POST', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify({ app: app.name, text: spoken }) })
+      const speak = () => fetch('/api/learn/tts', { method: 'POST', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify({ app: app.name, text: spoken, confirmed: true }) })
         .then(async response => {
           if (!response.ok || request !== boardRequest.current) return;
           const url = URL.createObjectURL(await response.blob());
@@ -784,8 +789,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           boardAudio.playbackRate = getSpeed();
           boardAudio.play().catch(() => {});
         }).catch(() => {});
+      setNarrationOffer(spoken ? { speak } : null);
       const unlistenBoardMuted = onMuted(value => { if (boardAudio) boardAudio.muted = value; });
-      explanation.current = { dispose: () => { unlistenBoardMuted(); boardAudio?.pause(); layer.dispose(); previous?.dispose(); }, runId: snapshot.runId };
+      explanation.current = { dispose: () => { unlistenBoardMuted(); boardAudio?.pause(); setNarrationOffer(null); layer.dispose(); previous?.dispose(); }, runId: snapshot.runId };
     },
     label: pinned.current?.label,
     preview: paperContext?.selection?.preview || preview,
@@ -1222,6 +1228,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {!canvasState.presenting && (!isRepository || progress) && <div aria-label="Current lesson and section" className="mb-4"><h2 className="text-lg font-semibold">Lesson {sampleIndex >= 0 ? sampleIndex + 1 : 1}: {currentLesson?.title}</h2><p className="mt-1 text-sm text-ink-2">Section {(progress?.page || 0) + 1} of {pages.length}: {progress?.label || pages[0].label}</p></div>}
         {graphError && <p role="alert" className="text-sm text-red-700">{graphError}</p>}
         {boardVisible && <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-2"><span>Agent explanation · lesson paused — keep asking, or resume when ready</span><div className="flex gap-2"><button type="button" disabled={!notesLoaded || answering} onClick={addNote} className="rounded border border-line-strong bg-white px-2.5 py-1 font-medium text-ink hover:bg-hover disabled:opacity-40">Save to notes</button><button type="button" onClick={() => { dismissBoard(); playback.current?.play(); }} className="rounded bg-ink px-2.5 py-1 font-medium text-white hover:opacity-90">Resume lesson</button></div></div>}
+        {boardVisible && narrationOffer && <div data-narration-offer className="mb-2 flex flex-wrap items-center gap-2 text-xs"><span className="font-medium text-ink">Narration available</span><PaidConfirm onCancel={() => setNarrationOffer(null)} onGenerate={() => { narrationOffer.speak(); setNarrationOffer(null); }} /></div>}
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}

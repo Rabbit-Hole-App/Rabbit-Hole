@@ -14,9 +14,9 @@ export class LearnVideoShapeUtil extends BaseBoxShapeUtil {
     const button = { pointerEvents: 'all', border: '1px solid #737373', borderRadius: 6, padding: '6px 14px', background: 'white' };
     const stop = event => event.stopPropagation();
     return <HTMLContainer style={{ width: shape.props.w, height: shape.props.h, border: '1px solid #a3a3a3', borderRadius: 12, background: '#f5f5f5', color: '#171717', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', padding: 24, gap: 12 }}>
-      <strong>{status === 'proposed' ? (scene ? 'Proposed 3D scene' : 'Proposed video') : status === 'failed' ? 'Video unavailable' : 'Generating video…'}</strong>
+      <strong>{status === 'proposed' ? (scene ? 'Proposed 3D scene' : 'Proposed video') : status === 'unavailable' ? (scene ? '3D scene not generated' : 'Video not generated') : status === 'failed' ? 'Video unavailable' : 'Generating video…'}</strong>
       <span style={{ fontSize: 14, textAlign: 'center' }}>{shape.props.caption}</span>
-      {status === 'proposed' ? <>
+      {status === 'unavailable' ? <span data-paid-unavailable style={{ fontSize: 12 }}>Generation isn't available from this canvas yet.</span> : status === 'proposed' ? <>
         <span style={{ fontSize: 12 }}>This uses paid generation.</span>
         <span style={{ display: 'flex', gap: 8 }}>
           <button data-paid-cancel style={button} onPointerDown={stop} onClick={event => { stop(event); this.editor.deleteShapes([shape.id]); }}>Cancel</button>

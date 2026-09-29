@@ -112,3 +112,25 @@ test('the endpoint checks input and app access before any model call', async () 
   assert.deepEqual(await response.json(), { command: 'graph', args: 'sigmoid', selection: null, context: null });
   assert.equal(calls, 1);
 });
+
+test('one paid gate for every provider: no confirmed flag, no request', async () => {
+  const { paidRefusal } = await import('../src/learn-paid.js');
+  for (const body of [{}, { confirmed: 'yes' }, { confirmed: 1 }, null]) {
+    const refused = paidRefusal(body);
+    assert.equal(refused.status, 428);
+    assert.equal((await refused.json()).needsConfirm, true);
+  }
+  assert.equal(paidRefusal({ confirmed: true }), null);
+  // Every paid route in the dev worker runs the gate before its provider call.
+  const worker = (await import('node:fs')).readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8');
+  for (const route of ['/api/learn/image', '/api/learn/tts']) {
+    const handler = worker.slice(worker.indexOf(`path === '${route}'`));
+    assert.ok(handler.indexOf('paidRefusal(body)') < handler.indexOf('await fetch('), `${route} checks confirmation before the provider`);
+  }
+});
+
+// fish.audio narration is paid in execution; the shared contract (smart-home's
+// agent/slash.js) still lists it as free until they add it to PAID.
+test('the contract marks narration paid', { todo: 'smart-home adds narration to PAID in agent/slash.js' }, () => {
+  assert.equal(primitive('narration').paid, true);
+});

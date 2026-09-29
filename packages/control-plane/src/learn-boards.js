@@ -8,6 +8,7 @@
 import { authorizedBoardApp } from './learn-board.js';
 import { repositoryIdentity } from './repositories.js';
 import { sha256Hex } from './learn-grade-jev.js';
+import { learnMedia } from './learn-storage.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
@@ -25,13 +26,13 @@ const SAFE_TYPE = /^(image\/(png|jpeg|gif|webp|avif)|application\/pdf|video\/(mp
 const assetObject = async (row, key) => `learn-boards/${row.id}/${await sha256Hex(key)}`;
 
 async function putAsset(req, env, row, key) {
-  if (!env.RUNS) return json({ error: 'Board files need the R2 bucket on this worker.' }, 503);
+  if (!learnMedia(env)) return json({ error: 'Board files need the R2 bucket on this worker.' }, 503);
   if (!ASSET_KEY.test(key)) return json({ error: 'Bad asset key' }, 400);
   if (Number(req.headers.get('content-length') || 0) > MAX_ASSET) return json({ error: 'This file is over 25 MB and stays in your browser.' }, 413);
   const bytes = await req.arrayBuffer();
   if (bytes.byteLength > MAX_ASSET) return json({ error: 'This file is over 25 MB and stays in your browser.' }, 413);
   const type = (req.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
-  await env.RUNS.put(await assetObject(row, key), bytes, {
+  await learnMedia(env).put(await assetObject(row, key), bytes, {
     httpMetadata: { contentType: SAFE_TYPE.test(type) ? type : 'application/octet-stream' },
     customMetadata: { key, kind: req.headers.get('x-asset-kind') === 'string' ? 'string' : 'blob' },
   });
@@ -39,8 +40,8 @@ async function putAsset(req, env, row, key) {
 }
 
 async function getAsset(env, row, key) {
-  if (!env.RUNS || !ASSET_KEY.test(key)) return json({ error: 'No such file on this board' }, 404);
-  const object = await env.RUNS.get(await assetObject(row, key));
+  if (!learnMedia(env) || !ASSET_KEY.test(key)) return json({ error: 'No such file on this board' }, 404);
+  const object = await learnMedia(env).get(await assetObject(row, key));
   if (!object) return json({ error: 'No such file on this board' }, 404);
   return new Response(object.body, {
     headers: {
@@ -56,11 +57,11 @@ async function getAsset(env, row, key) {
 }
 
 async function listAssets(env, row) {
-  if (!env.RUNS) return json({ keys: [] });
+  if (!learnMedia(env)) return json({ keys: [] });
   const keys = [];
   let cursor;
   do {
-    const page = await env.RUNS.list({ prefix: `learn-boards/${row.id}/`, cursor, include: ['customMetadata'] });
+    const page = await learnMedia(env).list({ prefix: `learn-boards/${row.id}/`, cursor, include: ['customMetadata'] });
     for (const object of page.objects) if (object.customMetadata?.key) keys.push(object.customMetadata.key);
     cursor = page.truncated ? page.cursor : undefined;
   } while (cursor);
@@ -167,17 +168,17 @@ async function fork(req, env, token) {
   await env.LEARN_DB.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at, title, forked_from) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)')
     .bind(id, user.org, user.email, name, 'main', JSON.stringify(state), user.email, new Date().toISOString(), title, JSON.stringify(forkedFrom)).run();
   let files = 0;
-  if (env.RUNS) {
+  if (learnMedia(env)) {
     let cursor;
     do {
-      const page = await env.RUNS.list({ prefix: `learn-boards/${source.id}/`, cursor, include: ['customMetadata'] });
+      const page = await learnMedia(env).list({ prefix: `learn-boards/${source.id}/`, cursor, include: ['customMetadata'] });
       for (const object of page.objects) {
         const key = object.customMetadata?.key;
         if (!key) continue;
-        const body = await env.RUNS.get(object.key);
+        const body = await learnMedia(env).get(object.key);
         if (!body) continue;
         const target = renamed.get(key) || key;
-        await env.RUNS.put(await assetObject({ id }, target), await new Response(body.body).arrayBuffer(), { httpMetadata: body.httpMetadata, customMetadata: { ...body.customMetadata, key: target } });
+        await learnMedia(env).put(await assetObject({ id }, target), await new Response(body.body).arrayBuffer(), { httpMetadata: body.httpMetadata, customMetadata: { ...body.customMetadata, key: target } });
         files += 1;
       }
       cursor = page.truncated ? page.cursor : undefined;

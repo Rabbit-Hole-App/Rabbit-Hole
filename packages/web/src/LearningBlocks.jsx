@@ -976,10 +976,12 @@ function AudioBody({ block, appName, onChange }) {
   const [src, setSrc] = useState('');
   const [spoken, setSpoken] = useState(''); // text the current clip was made from
   useEffect(() => () => { if (src) URL.revokeObjectURL(src); }, [src]);
+  const [confirming, setConfirming] = useState(false);
   const speak = async () => {
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setConfirming(false);
     try {
-      const response = await fetch('/api/learn/tts', { method: 'POST', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify({ app: appName, text: block.text }) });
+      // Paid narrator: only reached from the confirmation's Generate.
+      const response = await fetch('/api/learn/tts', { method: 'POST', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify({ app: appName, text: block.text, confirmed: true }) });
       if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || `HTTP ${response.status}`);
       setSrc(URL.createObjectURL(await response.blob()));
       setSpoken(block.text);
@@ -998,8 +1000,9 @@ function AudioBody({ block, appName, onChange }) {
         onChange={event => onChange({ ...block, text: event.target.value })}
         className="mt-2 w-full resize-y rounded-lg border border-line p-2 text-sm outline-none focus:border-ink-3" />
       <div className="mt-2 flex items-center gap-2" onPointerDown={event => event.stopPropagation()}>
-        {(!src || stale) && (
-          <button type="button" data-speak disabled={busy || !block.text.trim()} onClick={speak}
+        {(!src || stale) && confirming && !busy && <PaidConfirm onGenerate={speak} onCancel={() => setConfirming(false)} />}
+        {(!src || stale) && !confirming && (
+          <button type="button" data-speak disabled={busy || !block.text.trim()} onClick={() => setConfirming(true)}
             className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white disabled:opacity-50">
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Volume2 size={14} />}{stale ? 'Read the new text' : 'Read it aloud'}
           </button>

@@ -73,9 +73,12 @@ is a 400.
 
 ## Paid generation boundary
 
-Anything that starts a paid job needs the learner's confirmation. The job
-endpoint refuses a start without `confirmed: true` (HTTP 428,
-`needsConfirm`). That flag is set only by a Generate press.
+The rule is the same for every provider: an action that costs money starts
+only after the learner confirms it, whichever UI path produced it.
+
+Every paid endpoint runs `paidRefusal(body)` (`control-plane/src/learn-paid.js`)
+before its provider call. Without `confirmed: true` it answers HTTP 428 with
+`needsConfirm`. That flag is set only by a Generate press.
 
 | Path | Paid? | Gate |
 |---|---|---|
@@ -83,6 +86,7 @@ endpoint refuses a start without `confirmed: true` (HTTP 428,
 | `/api/learn/video`, `generate_math_animation` (Manim worker) | yes | same |
 | `/api/learn/scene`, `generate_3d_animation` (Blender worker) | yes | `confirmed` in the LearnScenes DO |
 | `/api/learn/image` (OpenAI images) | yes | `confirmed` in the dev worker |
+| `/api/learn/tts` (fish.audio narration) | yes | `confirmed` in the dev worker |
 | Existing glTF (`three_d`), hosted MP4/WebM, graphs, Pexels, arXiv | no | none |
 
 In the UI:
@@ -94,6 +98,16 @@ In the UI:
   the button opens the same confirmation.
 - **A paid `/` proposal** is confirmed in the composer. The card is then
   inserted with `confirmedStart` and starts once.
+- **Narration** never autoplays. Explain on canvas, a whiteboard explanation,
+  the whiteboard's "Read it aloud" and the Narration card all offer
+  "Narration available. This uses paid generation. [Cancel] [Generate]" first.
+- **A whiteboard card** has no paid job runner. Its video and scene blocks say
+  "Generation isn't available from this canvas yet" and show no Generate
+  button, so there is no button that does nothing.
+
+The shared contract still lists narration as free. smart-home owns
+`agent/slash.js` and has been asked to add it to `PAID`. Until then, a `todo`
+test in `learn-artifact.test.js` tracks the gap.
 
 ## Fail-closed plans
 
@@ -124,6 +138,39 @@ Execution:
 
 `/source` reports that the Source inspector is not reachable from a command
 yet.
+
+## Storage
+
+Learn media is kept apart from production outputs
+(`control-plane/src/learn-storage.js`). That covers:
+
+- paper uploads;
+- dropped images;
+- chat attachments;
+- generated clips and scenes;
+- shared-board files;
+- moment-index records.
+
+`learnMedia(env)` picks the `LEARN_MEDIA` binding where it exists:
+
+| Worker | `LEARN_MEDIA` | Learn media goes to |
+|---|---|---|
+| Dev and review (`wrangler.dev.jsonc`, `wrangler.parallel.jsonc`) | `small-learn-media-dev` | the dev bucket |
+| Production (`control-plane/wrangler.jsonc`) | none; this file is unchanged | `RUNS` (`small-runs`), as before |
+
+`RUNS` stays bound on dev as the live outputs binding. It is used for reads
+only: App/Job bundles and run outputs.
+
+`dev-worker.js` refuses to serve when `LEARN_MEDIA` is missing, so a dev
+worker never falls back to live storage.
+
+`test/learn-storage.test.js` pins this:
+
+- the dev bucket is not a production bucket;
+- production has no `LEARN_MEDIA`;
+- no `learn-*.js` module names `RUNS`;
+- chat attachments use the helper;
+- a live bucket that throws is never touched.
 
 ## Checks
 

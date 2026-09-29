@@ -20,6 +20,7 @@ import { runReview, generateRunbook } from './review.js';
 import { buildRunbook, renderMarkdown, scrubPlatformVars } from './runbook-schema.js';
 import { parseCron, matches, nextRun } from './cron.js';
 import SHELL from '../../web/dist/index.html';
+import { learnMedia } from './learn-storage.js';
 
 const SESSION_COOKIE = 'small_session';
 const SESSION_TTL = 7 * 24 * 3600;
@@ -950,9 +951,9 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent') {
       }
       // stash the raw bytes so "run it with this image" can feed a file input;
       // ponytail: unapproved uploads linger in R2 - no lifecycle sweep yet
-      if (env.RUNS) {
+      if (learnMedia(env)) {
         const uploadId = 'u-' + randomHex(6);
-        await env.RUNS.put(`ask-uploads/${uploadId}/${file.name}`, bytes);
+        await learnMedia(env).put(`ask-uploads/${uploadId}/${file.name}`, bytes);
         uploadNote = `pending chat attachment: ${file.name} (upload id ${uploadId}) - the run tool can use it for a file-type input via attachment_id + attachment_input`;
       }
     }
@@ -1463,14 +1464,14 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
         // a chat attachment fills the file input, exactly like the Run tab dropzone
         const target = args.attachment_input || fileInputs[0]?.[0];
         if (!target || schema[target]?.type !== 'file') throw new Error(`${target || 'no'} is not a file input`);
-        const listed = await env.RUNS.list({ prefix: `ask-uploads/${args.attachment_id}/` });
+        const listed = await learnMedia(env).list({ prefix: `ask-uploads/${args.attachment_id}/` });
         const key = listed.objects[0]?.key;
         if (!key) throw new Error('that chat attachment expired - attach it again');
-        const obj = await env.RUNS.get(key);
+        const obj = await learnMedia(env).get(key);
         const filename = key.split('/').pop();
         files.push({ name: target, file: new File([await obj.arrayBuffer()], filename) });
         inputs[target] = filename;
-        ctx?.waitUntil?.(env.RUNS.delete(key)); // used - no need to keep it around
+        ctx?.waitUntil?.(learnMedia(env).delete(key)); // used - no need to keep it around
       }
       const missing = fileInputs.filter(([k, s]) => s.required && !files.some((f) => f.name === k));
       if (missing.length) throw new Error(`this job needs a file for "${missing[0][0]}" - attach one in chat or use the Run tab`);

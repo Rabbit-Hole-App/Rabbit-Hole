@@ -88,9 +88,16 @@
     }
   ],
   "r2_buckets": [
+    // Live outputs: read-only here, for App/Job bundles and run outputs.
     {
       "binding": "RUNS",
       "bucket_name": "small-runs"
+    },
+    // Learn media on dev/review: never the production bucket
+    // (control-plane/src/learn-storage.js).
+    {
+      "binding": "LEARN_MEDIA",
+      "bucket_name": "small-learn-media-dev"
     }
   ],
   "d1_databases": [

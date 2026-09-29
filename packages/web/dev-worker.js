@@ -13,6 +13,7 @@ import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback,
 import { learnGradeRoute } from '../control-plane/src/learn-grade-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
+import { paidRefusal } from '../control-plane/src/learn-paid.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 export { LearnVideos } from '../control-plane/src/learn-video.js';
@@ -23,11 +24,15 @@ export default {
   // The moment-index Queue consumer (flywheel phase 3), same as the live
   // worker's: bound only on clones whose config declares the consumer.
   async queue(batch, env) {
+    if (!env.LEARN_MEDIA) throw new Error('LEARN_MEDIA is not bound on this dev worker');
     const { consumeIndexQueue } = await import('../control-plane/src/learn-moment-index.js');
     await consumeIndexQueue(batch, env);
   },
   async fetch(req, env, ctx) {
     const path = new URL(req.url).pathname;
+    // Learn media must land in the dev bucket, never small-runs: without the
+    // binding this worker serves nothing rather than fall back to live storage.
+    if (!env.LEARN_MEDIA) return Response.json({ error: 'LEARN_MEDIA is not bound on this dev worker; add it to the wrangler config.' }, { status: 503 });
     if (path.startsWith('/api/repositories')) return repositoriesFetch(req, env, ctx);
     if (path === '/api/apps' && req.method === 'GET') {
       const catalog = await repositoryIdentity(req, env);
@@ -59,7 +64,7 @@ export default {
       const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
       if (!prompt || prompt.length > 1000) return Response.json({ error: 'Provide an image prompt under 1000 characters.' }, { status: 400 });
       // Paid: only the learner's explicit confirmation starts it.
-      if (body.confirmed !== true) return Response.json({ error: 'This uses paid generation. Confirm it first.', needsConfirm: true }, { status: 428 });
+      const refused = paidRefusal(body); if (refused) return refused;
       if (!env.OPENAI_API_KEY) return Response.json({ error: 'Image generation is not configured on this environment.' }, { status: 503 });
       const upstream = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
@@ -99,6 +104,8 @@ export default {
       if (!body?.text || typeof body.text !== 'string' || body.text.length > 4000) return Response.json({ error: 'Provide narration text under 4000 characters.' }, { status: 400 });
       const access = await authorizedBoardApp(req, env, body.app);
       if (access instanceof Response) return access;
+      // fish.audio is paid: only the learner's explicit confirmation starts it.
+      const refused = paidRefusal(body); if (refused) return refused;
       if (!env.FISH_AUDIO_API_KEY) return Response.json({ error: 'Narration audio is not configured on this environment.' }, { status: 503 });
       const upstream = await fetch('https://api.fish.audio/v1/tts', {
         method: 'POST',

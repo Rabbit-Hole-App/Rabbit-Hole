@@ -7,7 +7,10 @@ import { connector } from './learn-board-layout.js';
 // it first; this guards a plan that arrives some other way).
 export const PLAN_KINDS = ['text', 'equation', 'diagram', 'code', 'image', 'paper_figure', 'video', 'graph', 'three_d', 'scene'];
 
-export function drawExplanation(editor, snapshot, plan, { app = '' } = {}) {
+// paidRunner: false for a canvas with no paid job runner (a whiteboard card);
+// its video and scene blocks then say so instead of offering Generate.
+export function drawExplanation(editor, snapshot, plan, { app = '', paidRunner = true } = {}) {
+  const offered = paidRunner ? 'proposed' : 'unavailable';
   const unknown = plan.blocks.find(block => !PLAN_KINDS.includes(block.kind));
   if (unknown) throw new Error(`The explanation contains an unsupported block (${String(unknown.kind).slice(0, 40)}), so nothing was drawn.`);
   const pageId = editor.getCurrentPageId(), camera = { ...editor.getCamera() };
@@ -62,7 +65,7 @@ export function drawExplanation(editor, snapshot, plan, { app = '' } = {}) {
       local.push(id); credits.push(id);
     };
     if (block.kind === 'scene') {
-      local.push(create({ id: createShapeId(), type: 'learn-video-pending', x: 0, y: 0, props: { w: 600, h: 420, status: 'proposed', caption: block.operation.caption || block.text } }, meta));
+      local.push(create({ id: createShapeId(), type: 'learn-video-pending', x: 0, y: 0, props: { w: 600, h: 420, status: offered, caption: block.operation.caption || block.text } }, meta));
     } else if (block.kind === 'three_d') {
       const op = block.operation;
       local.push(create({ id: createShapeId(), type: 'three-d-viewer', x: 0, y: 0, props: { w: 600, h: 420, modelUrl: op.modelUrl, camera: op.camera || {}, autoRotate: op.autoRotate || false, animation: op.animation || { autoplay: false }, animationTime: 0 } }, meta));
@@ -70,7 +73,7 @@ export function drawExplanation(editor, snapshot, plan, { app = '' } = {}) {
       local.push(create({ id: createShapeId(), type: 'interactive-graph', x: 0, y: 0, props: { w: 640, h: 420, spec: block.operation, state: {}, app } }, meta));
     } else if (block.kind === 'video') {
       const ratio = block.operation.aspectRatio === '9:16' ? 9 / 16 : block.operation.aspectRatio === '1:1' ? 1 : 16 / 9;
-      local.push(create({ id: createShapeId(), type: 'learn-video-pending', x: 0, y: 0, props: { w: 480, h: 480 / ratio, status: 'proposed', caption: block.operation.caption || block.text } }, meta));
+      local.push(create({ id: createShapeId(), type: 'learn-video-pending', x: 0, y: 0, props: { w: 480, h: 480 / ratio, status: offered, caption: block.operation.caption || block.text } }, meta));
     } else if (['image', 'paper_figure'].includes(block.kind)) {
       const photo = block.photo || block.figure;
       const scale = Math.min(1, 480 / photo.width, 320 / photo.height);

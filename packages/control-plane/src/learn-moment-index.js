@@ -10,6 +10,7 @@
 
 import { fetchCaptions } from './learn-captions.js';
 import { cutWindows, clock } from './learn-moment-retrieve.js';
+import { learnMedia } from './learn-storage.js';
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 const HOUR = 60 * 60 * 1000, DAY = 24 * HOUR;
@@ -32,9 +33,9 @@ const recordKey = videoId => {
 };
 
 export async function readMomentRecord(env, videoId) {
-  if (!env?.RUNS) return null;
+  if (!learnMedia(env)) return null;
   try {
-    const object = await env.RUNS.get(recordKey(videoId));
+    const object = await learnMedia(env).get(recordKey(videoId));
     return object ? await object.json() : null;
   } catch { return null; }
 }
@@ -49,11 +50,11 @@ export function negativeFresh(record, now = Date.now()) {
 }
 
 async function writeRecord(env, videoId, patch, now) {
-  if (!env?.RUNS) return;
+  if (!learnMedia(env)) return;
   try {
     const existing = (await readMomentRecord(env, videoId)) || { videoId, cut: null, starts: [], indexedAt: null };
     const record = { ...existing, videoId, ...patch, checkedAt: new Date(now).toISOString() };
-    await env.RUNS.put(recordKey(videoId), JSON.stringify(record), { httpMetadata: { contentType: 'application/json' } });
+    await learnMedia(env).put(recordKey(videoId), JSON.stringify(record), { httpMetadata: { contentType: 'application/json' } });
   } catch { /* a lost record costs one re-probe, never an answer */ }
 }
 
@@ -274,7 +275,7 @@ export async function withdrawAcceptedQuestion(env, momentId) {
 // fetch entirely, a failed fetch writes its reason for next time. Without R2
 // (unit tests, other deployments) it is a plain pass-through.
 export function guardedCaptions(env, captions) {
-  if (!env?.RUNS) return captions;
+  if (!learnMedia(env)) return captions;
   return async videoId => {
     const record = await readMomentRecord(env, videoId);
     if (negativeFresh(record)) return { lines: null, reason: record.reason, cached: true };

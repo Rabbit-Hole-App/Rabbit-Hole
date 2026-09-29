@@ -7,6 +7,7 @@
 // ponytail: no lifecycle sweep, same as learn-papers. Add one when storage is
 // measured.
 import { sha256, randomHex } from './token.js';
+import { learnMedia } from './learn-storage.js';
 
 // Same ceiling as PDFs, for the same reason: the bytes are base64'd into every
 // turn that asks about them.
@@ -49,7 +50,7 @@ export async function putUploadedMedia(env, identity, file) {
   if (!contentType) throw new Error('That file is not a PNG, JPEG, or WebP image');
   const id = newUploadedMediaId();
   const title = uploadedMediaTitle(file.name);
-  await env.RUNS.put(await mediaObjectKey(identity, id), bytes, {
+  await learnMedia(env).put(await mediaObjectKey(identity, id), bytes, {
     httpMetadata: { contentType },
     customMetadata: { title },
   });
@@ -57,7 +58,7 @@ export async function putUploadedMedia(env, identity, file) {
 }
 
 export async function readUploadedMedia(env, identity, id) {
-  const object = await env.RUNS.get(await mediaObjectKey(identity, id));
+  const object = await learnMedia(env).get(await mediaObjectKey(identity, id));
   if (!object) throw new Error('That image is no longer stored');
   return {
     bytes: new Uint8Array(await object.arrayBuffer()),
