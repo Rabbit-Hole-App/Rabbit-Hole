@@ -417,3 +417,33 @@ Frozen batch-1 training cards (c16, c20, c17, c18) are linked from c26 and c19 b
 - on the drawn bowl, the right answer (lr 0.25, the default preset) visibly stops only halfway.
 
 **Why the picture misleads.** Reading the picture gives 0.5, the drawn bowl's landing lr, and on the steeper bowl that answer bounces.
+
+## 13. Batch 5 — plans under the locked card pipeline
+
+Planned 2026-09-28 by one planner per card, an adversarial critic per plan and a cross-card judge; every field in full, with the pinned source lines, in [nanogpt-deep-dive-batch5-plans.md](nanogpt-deep-dive-batch5-plans.md). The first batch built and reviewed under [learn-card-pipeline.md](features/learn-card-pipeline.md). Board order after c19: c24, c25, c23, c22. The inventory stays at 25 cards, titles unchanged.
+
+### Sequence "Generation context" — c24-generation-loop → c25-autoregressive-conditioning → c23-context-window
+
+Not "Generation": c21 (frozen) and c22 cover the draw step, so that name would over-claim, as "One training step" did. The three cards share what each pass is handed (c24), what the prediction depends on (c25) and where that is cut (c23). c24 and c25 use the recorded toy bigram at iteration 100, the checkpoint the save rule keeps (c18) and sample.py loads, and name it on the card. c23 switches to a counting table over the training split that reads the last k characters, because a bigram cannot show a crop; its status line names the switch. c22 stays standalone ("Sampling" collection noted, not built).
+
+**c24 · The generation loop**
+- one_sentence_objective: After this card, the learner should understand that generate() is a loop of exactly max_new_tokens passes that each hand the model all of idx so far (at most its last block_size characters), take the prediction at its last position, draw one character from it and append it, so idx grows by one per pass and the returned text is the start plus max_new_tokens characters.
+- boundary_decision: staged
+- undrawn case (practice): the 6-character start 'ROMEO:' at pass 5 of max_new_tokens = 500 (handed 10, returns 506).
+
+**c25 · Autoregressive conditioning**
+- one_sentence_objective: After this card, the learner should understand that each next-character prediction is a whole distribution conditioned on what the model reads of the text so far, its own earlier draws included, which for the recorded bigram is only the previous character and for NanoGPT is the whole cropped window idx_cond.
+- boundary_decision: staged
+- practice: none, explore-only (inventory row 25); an undrawn conditioning case is c23's practice.
+
+**c23 · Context window: what idx_cond crops away**
+- one_sentence_objective: After this card, the learner should understand that before every forward generate() keeps only the last block_size characters of idx, so a character cropped from the front, the prompt included, no longer counts for the next prediction even when it would change the most likely next character, although it stays in the text generate() returns.
+- boundary_decision: staged
+- undrawn case (practice): sample.py's newline start plus 299 generated characters at block_size 256; predicting new character 300 reads new characters 44–299.
+
+**c22 · Top-k: truncating the distribution**
+- one_sentence_objective: After this card, the learner should understand that top-k sets every logit below the k-th largest to −∞, so softmax gives those candidates probability exactly 0 and shares the whole 1 among the candidates that remain, each in proportion to its old probability.
+- boundary_decision: staged
+- undrawn case (practice): the distribution 0.45, 0.15, 0.13, 0.11, 0.10, 0.06 at top_k = 2 (survivors 0.75 and 0.25).
+
+**Open question, routed to NC9.** c26 (closed) prints the same toy table at iteration 1000 without naming the checkpoint; c25 shows iteration 100 and names it. c26 is not reopened here; whether it should also name its checkpoint is an NC9 coherence item.

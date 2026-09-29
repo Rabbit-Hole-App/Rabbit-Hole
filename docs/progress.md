@@ -19,7 +19,8 @@ NC7  NanoGPT cards 11–26                 🟡
   NC7C Remaining through 26              🟡 ACTIVE — batch 4 ✅ CLOSED (page 26:3, v1.1 fixes 28:3);
                                             batch 5 (c22, c23, c24, c25) in progress
 NC8  Cross-depth content transitions     ⬜
-NC9  Curriculum coherence review         ⬜ (open item: is "how scores are produced", q·k, thin?)
+NC9  Curriculum coherence review         ⬜ (open items: is "how scores are produced", q·k, thin?;
+                                            should c26 name its iteration-1000 checkpoint next to c25's 100?)
 NC10 Final card QA                       ⬜
 ```
 
