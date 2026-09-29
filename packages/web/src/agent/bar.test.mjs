@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   aboutScope, applyEvent, cardView, shortcutsFor, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, MODES, modeAvailability, modeQuery,
-  offerFor, placeholderFor, pushTurn, rejectBody, resetThread, resultsKey, resultsView, subscribeTurns, threadIds, threadsPath, updateTurn, widen,
+  offerFor, panelHosts, placeholderFor, pushTurn, rejectBody, resetThread, resultsKey, resultsView, subscribeTurns, threadIds, threadsPath, updateTurn, widen,
 } from './bar.js';
 import { scopeKey } from './scope.js';
 
@@ -223,4 +223,13 @@ test('the picker lists the shortcuts a place can use: /new stays off a project, 
   assert.deepEqual(names(shortcutsFor(home, job)), ['find', 'open', 'new', 'connect', 'run', 'share']);
   assert.deepEqual(names(shortcutsFor(home, [])), ['find', 'open', 'new', 'connect', 'share']);
   assert.deepEqual(names(shortcutsFor(nano, job)), ['find', 'open', 'connect', 'run', 'share']);
+});
+
+test('a page that hosts its results (Map, §6.5) keeps them out of the sheet and the collapsed line', () => {
+  const map = { org: 'gmail-com', resource: { kind: 'project', slug: 'repo-1a2b', title: 'karpathy/nanoGPT' }, selected: { id: 'n7' }, resultsHost: 'panel' };
+  assert.equal(panelHosts(map, nano), true);
+  assert.equal(panelHosts(map, attn), true); // a selection is context, not another list
+  assert.equal(panelHosts({ ...map, resultsHost: 'sheet' }, nano), false);
+  assert.equal(panelHosts(map, counter), false);
+  assert.equal(panelHosts(map, home), false);
 });

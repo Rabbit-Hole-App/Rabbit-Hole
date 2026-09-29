@@ -1516,7 +1516,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  if (ready) await check('bar-page: the Map has one composer, the bar; a Map ask lands in the sheet, names its scope while streaming across navigation, and Stop ends it', async () => {
+  if (ready) await check('bar-page: the Map has one composer, the bar; a Map ask lands in the Context panel, names its scope while streaming across navigation, and Stop ends it', async () => {
     const page = await barOpen(`/apps/${ready.name}?tab=map`);
     await chip(page).waitFor({ timeout: 15000 }); // project scope (LEARN_DB) is proven before anything is sent
     must(await page.locator('[data-chat-composer]').count() === 1, 'a second composer on the Map');
@@ -1524,7 +1524,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const question = 'Where should I start reading?';
     await barInput(page).fill(question);
     await barInput(page).press('Enter');
-    await page.locator('[data-result-sheet]').getByText(question).waitFor({ timeout: 10000 });
+    await page.locator('[data-map-panel]').getByText(question).waitFor({ timeout: 10000 });
+    must(await page.locator('[data-result-sheet]').count() === 0, 'the Map opened the sheet');
     const status = barOf(page).getByText(/^Answering in /);
     await status.waitFor({ timeout: 10000 });
     await spa(page, '/library');
@@ -1557,7 +1558,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  if (ready) await check('bar-page: a Map question naming an unconnected repository is asked, and Connect is offered beside it', async () => {
+  if (ready) await check('bar-page: a Map question naming an unconnected repository is asked, and Connect is offered in the Context panel', async () => {
     const page = await barOpen(`/apps/${ready.name}?tab=map`);
     await chip(page).waitFor({ timeout: 15000 });
     let asks = 0;
@@ -1565,7 +1566,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.route('**/api/learn/ask', (route) => { asks++; return route.abort(); });
     await barInput(page).fill('How does this compare to https://github.com/rabbit-hole-e2e/demo?');
     await barInput(page).press('Enter');
-    const sheet = page.locator('[data-result-sheet]');
+    const sheet = page.locator('[data-map-panel]');
     await sheet.getByRole('button', { name: 'Connect rabbit-hole-e2e/demo' }).waitFor({ timeout: 10000 });
     await page.waitForTimeout(1000);
     must(asks === 1, `${asks} asks sent for the question`);
@@ -1801,6 +1802,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     let asks = 0;
     await page.route('**/api/learn/ask', (r) => { asks++; return r.abort(); }); // no model call, no LEARN_DB thread
     await loaded(page, `/apps/${ready.name}`);
+    await barOf(page).locator('[data-scope-chip="resource"]').waitFor({ timeout: 20000 }); // the project scope is registered before anything is sent
     await barInput(page).fill('Which file defines the model?');
     await barInput(page).press('Enter');
     await page.locator('[data-result-sheet]').getByText('Which file defines the model?').waitFor({ timeout: 10000 });
@@ -1811,6 +1813,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     for (const name of ['Selected', 'Conversation', 'Source']) must(await panel.getByRole('tab', { name, exact: true }).count() === 1, `no ${name} tab`);
     must(await page.locator('[data-result-sheet], [data-result-line]').count() === 0, 'the sheet or the result line shows on the Map');
     must(await panel.locator('input, textarea, [contenteditable="true"]').count() === 0 && await composers(page) === 1, 'a second input');
+    await barInput(page).fill(''); // the aborted ask kept its draft, and a waiting draft would offer Use selection instead of retargeting
     await pickNode(page);
     await panel.getByText(/\S+\.py:\d+/).first().waitFor({ timeout: 10000 });
     must(await isSelected(panel.getByRole('tab', { name: 'Selected', exact: true })), 'a node does not open Selected');

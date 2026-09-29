@@ -7,7 +7,7 @@ import { Button, cn, Menu, MenuItem, toast } from '../ui.jsx';
 import { askBody, streamAsk } from './ask-stream.js';
 import {
   aboutScope, applyEvent, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, modeAvailability, modeQuery, modesFor, shortcutsFor,
-  offerFor, placeholderFor, pushTurn, rejectBody, resetThread, resultsKey, subscribeTurns, threadIds, updateTurn, widen,
+  offerFor, panelHosts, placeholderFor, pushTurn, rejectBody, resetThread, resultsKey, subscribeTurns, threadIds, updateTurn, widen,
 } from './bar.js';
 import { kindLabel, titleOf } from './catalog.js';
 import { COMMANDS, ctxOf, executeCommand, prepareCommand } from './commands.js';
@@ -109,7 +109,7 @@ export default function AgentBar() {
   // Map and the app Graph tab may show results in their Context panel (§6.5).
   const showResults = (scope) => {
     const page = getSurface();
-    if (page.resultsHost !== 'panel' || resultsKey(scopeOf(page)) !== resultsKey(scope)) setSheet(scope);
+    if (!panelHosts(page, scope)) setSheet(scope);
   };
 
   // §6.6: mode pill, then rules, then /ask. Scope is frozen here, before any await,
@@ -335,7 +335,7 @@ export default function AgentBar() {
   return (
     <div ref={root} data-agent-bar onKeyDown={onKeyDown}
       className={cn('fixed right-0 bottom-0 left-0 z-20 px-4 pt-3 pb-5 transition-[left] duration-200 max-md:px-3 max-md:pt-2 max-md:pb-3 md:left-[var(--sidebar-w,0px)]', 'bg-linear-to-t from-white from-70% to-white/0')}>
-      {sheet && <ResultSheet key={resultsKey(sheet)} scope={sheet} label={nameOf(sheet)} onClose={() => setSheet(null)} />}
+      {sheet && !panelHosts(surface, sheet) && <ResultSheet key={resultsKey(sheet)} scope={sheet} label={nameOf(sheet)} onClose={() => setSheet(null)} />}
       <div className="relative mx-auto max-w-[780px]">
         {pickerOpen && (
           <div role="listbox" aria-label="Modes" className="absolute bottom-full left-0 z-10 mb-1 w-[26rem] max-w-full rounded-md bg-white p-1 shadow-pop">
@@ -361,7 +361,7 @@ export default function AgentBar() {
             <span className="min-w-0 flex-1 truncate">Answering in {streaming}…</span>
           </div>
         )}
-        {!sheet && !streaming && line && (
+        {!sheet && !streaming && line && !panelHosts(surface, line.scope) && (
           <button type="button" data-result-line onClick={() => setSheet(line.scope)} className="block w-full cursor-pointer truncate pb-1.5 text-left text-xs text-ink-2 hover:text-ink">{lineOf(line)}</button>
         )}
         {offer && (

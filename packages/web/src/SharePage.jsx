@@ -15,7 +15,6 @@ import { AskPanel } from './ask.jsx';
 import AppOps from './AppOps.jsx';
 import CoachingPanel from './coaching/CoachingPanel.jsx';
 import CanvasPage from './CanvasPage.jsx';
-import RepositoryPage from './RepositoryPage.jsx';
 import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
 import Shell from './Shell.jsx';
 import { Avatar, Button, Chk, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, ShareInput, SkeletonRows, Tabs, TabsContent, TabsList, TabsTrigger, Tip, cn, toast } from './ui.jsx';
@@ -62,6 +61,9 @@ function LearnLoading() {
 }
 
 const Runbook = lazy(() => import('./RunbookEditor.jsx'));
+// Preview-only project page. A static import would keep the top-level code of its Agent Bar imports (agent/bar.js,
+// agent/slash.js) in the live index even though the page folds away; the literal env check drops the chunk (live-bundle-check.mjs).
+const RepositoryPage = import.meta.env.VITE_COACHING_DEV === 'true' && learnPreview ? lazy(() => import('./RepositoryPage.jsx')) : null;
 
 function initialAppTab() {
   const tab = new URLSearchParams(window.location.search).get('tab');
@@ -612,7 +614,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
   // Refreshing straight into Learn showed the app-page row skeleton for a
   // beat; wait on a canvas-shaped placeholder instead.
   if (learnPreview && (tab === 'learn' || /^canvas-[a-f0-9]{8}$/.test(slug)) && !app && !error) return <LearnLoading />;
-  if (learnPreview && app?.kind === 'repository' && !error) return <RepositoryPage key={app.name} app={app} catalog={catalog?.apps} />;
+  if (learnPreview && app?.kind === 'repository' && !error) return <Suspense fallback={null}><RepositoryPage key={app.name} app={app} catalog={catalog?.apps} /></Suspense>;
   // D7: only a canvas asks through LEARN_DB (dev-worker.js canvasAskSeam). A job or server's Learn asks
   // would reach apiAsk on the live D1, so the preview never mounts Learn for them.
   // A canvas opens Learn directly, behind its not-in-this-browser gate (WP6).

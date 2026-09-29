@@ -2,13 +2,16 @@
 // sheet and the Context panel share, SSE folding, the draft and scope rules,
 // card states and copy. Pure apart from the in-memory store; node:test loads it.
 import { askLiveOnPreview } from '../flags.js';
-import { chipsFor, scopeKey } from './scope.js';
+import { chipsFor, scopeKey, scopeOf } from './scope.js';
 import { commandsFor, descFor, placeOf, reviewOff, SLASH } from './slash.js';
 
 // Results and threads are per resource: org|kind:slug. A selection is context for
 // one question (repository_context), not a thread of its own (§6.3 thread table).
 // Drafts stay per scopeKey, selection included.
 export const resultsKey = (scope) => `${scope.org}|${scope.kind}:${scope.slug || ''}`;
+
+// §6.5: a page that hosts its own results (Map's Context panel) keeps them out of the sheet and the collapsed line.
+export const panelHosts = (surface, scope) => surface.resultsHost === 'panel' && resultsKey(scopeOf(surface)) === resultsKey(scope);
 
 // One result list per results key. Entries carry their own actions (retry, undo,
 // confirm), so the sheet and the Context panel render the same thing.
