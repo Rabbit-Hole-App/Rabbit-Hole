@@ -39,7 +39,12 @@ export function deviceId(storage) {
   return id;
 }
 
-// Learn, or "This canvas's content isn't in this browser" (T02 §8.3). A record with no
+// Learn, or the NOT_HERE state below (T02 §8.3). A record with no
 // device id predates device ids and opens as before.
 export const opensHere = ({ storage, keys, record }) =>
   hasLocalContent(storage, keys) || record.device_id == null || record.device_id === deviceId(storage);
+
+// The canvas gate's copy (checklist WP6, user 2026-09-28): content is browser-local, so it never says "device".
+// One place for the gate and the harness.
+export const NOT_HERE = "This canvas's content isn't available in this browser.";
+export const NOT_HERE_WHY = 'The canvas exists, but its local content was created in another browser or has been cleared.';

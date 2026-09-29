@@ -1716,6 +1716,36 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
+  await check('wp6-canvas: a canvas opens straight into Learn under a light row with its title; a project canvas names its project, which opens; content from another browser shows the not-in-this-browser state at /apps/<c> and ?tab=learn and never mounts Learn', async () => {
+    const page = await open();
+    await noAsks(page);
+    await loaded(page, '/library');
+    const solo = await canvas6(page, { title: 'wp6 standalone' });
+    const owned = ready && await canvas6(page, { title: 'wp6 owned', project: ready.name });
+    const away = await canvas6(page, { title: 'wp6 away', ...(ready ? { project: ready.name } : {}), device_id: 'rabbit-hole-check-device' });
+    try {
+      await loaded(page, `/apps/${solo.name}`);
+      await page.getByLabel('Lesson canvas').waitFor({ timeout: 30000 });
+      const row = page.locator('[data-canvas-parent]');
+      must(await row.getByText('wp6 standalone').count() === 1 && await row.getByRole('button').count() === 0, `standalone row: ${await row.innerText()}`);
+      must(await composers(page) === 1 && await barOf(page).count() === 0 && await page.getByRole('tab', { name: 'Runbook' }).count() === 0, 'not Learn, or the generic app page');
+      if (owned) {
+        await loaded(page, `/apps/${owned.name}`);
+        await row.getByRole('button', { name: `In ${ready.repo} →` }).click();
+        await page.waitForURL(`**/apps/${ready.name}`);
+      }
+      for (const q of ['', '?tab=learn']) {
+        await loaded(page, `/apps/${away.name}${q}`);
+        const gate = page.locator('[data-canvas-gate]');
+        await gate.getByRole('heading', { name: NOT_HERE }).waitFor({ timeout: 20000 });
+        await gate.getByText(NOT_HERE_WHY).waitFor();
+        must(await composers(page) === 0 && await page.getByLabel('Lesson canvas').count() === 0, `Learn mounted behind the gate${q}`);
+        must(await page.evaluate((k) => localStorage.getItem(k), canvasKeys({ org: away.org, email, slug: away.name }).ink) === null, 'Learn wrote the foreign canvas');
+      }
+      if (ready) { await page.locator('[data-canvas-gate]').getByRole('button', { name: 'Open project' }).click(); await page.waitForURL(`**/apps/${ready.name}`); }
+    } finally { for (const c of [solo, owned, away].filter(Boolean)) await drop6(page, c.name); await page.context().close(); }
+  });
+
   // Checks from Tasks 1-11 go here, in task order.
 }
 

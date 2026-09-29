@@ -14,7 +14,7 @@ import { learnPreview } from './flags.js';
 import { AskPanel } from './ask.jsx';
 import AppOps from './AppOps.jsx';
 import CoachingPanel from './coaching/CoachingPanel.jsx';
-import LearnPage from './LearnPage.jsx';
+import CanvasPage from './CanvasPage.jsx';
 import RepositoryPage from './RepositoryPage.jsx';
 import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
 import Shell from './Shell.jsx';
@@ -611,13 +611,12 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
   );
   // Refreshing straight into Learn showed the app-page row skeleton for a
   // beat; wait on a canvas-shaped placeholder instead.
-  if (learnPreview && tab === 'learn' && !app && !error) return <LearnLoading />;
+  if (learnPreview && (tab === 'learn' || /^canvas-[a-f0-9]{8}$/.test(slug)) && !app && !error) return <LearnLoading />;
   if (learnPreview && app?.kind === 'repository' && !error) return <RepositoryPage key={app.name} app={app} />;
   // D7: only a canvas asks through LEARN_DB (dev-worker.js canvasAskSeam). A job or server's Learn asks
   // would reach apiAsk on the live D1, so the preview never mounts Learn for them.
-  if (learnPreview && tab === 'learn' && app?.kind === 'canvas' && !error && !runId) {
-    return <LearnPage key={JSON.stringify([app.email, app.org, app.name])} app={app} onBack={() => { setTab(null); navigate(`/apps/${encodeURIComponent(app.name)}`); }} />;
-  }
+  // A canvas opens Learn directly, behind its not-in-this-browser gate (WP6).
+  if (learnPreview && app?.kind === 'canvas' && !error && !runId) return <CanvasPage key={JSON.stringify([app.email, app.org, app.name])} app={app} project={catalog?.apps?.find((p) => p.name === app.project)} />;
   return (
     <main className={cn('flex-1', graphFull ? 'overflow-hidden' : 'overflow-y-auto')}>
       {/* run pages carve out the fixed 400px chat panel and center in what's left;
@@ -733,13 +732,12 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
               </span>
             </div>
 
-            <Tabs value={shown} onValueChange={value => { setTab(value); if (value === 'learn') navigate(`/apps/${encodeURIComponent(app.name)}?tab=learn`); }} className={cn(graphFull && 'flex min-h-0 flex-1 flex-col')}>
+            <Tabs value={shown} onValueChange={setTab} className={cn(graphFull && 'flex min-h-0 flex-1 flex-col')}>
               <TabsList pill className="shrink-0">
                 <TabsTrigger pill value="graph"><Tip label="Graph" info="Map of this app, with the Graph Agent"><span>Graph</span></Tip></TabsTrigger>
                 <TabsTrigger pill value="runbook"><Tip label="Runbook" info="Notes and docs for this app"><span>Runbook</span></Tip></TabsTrigger>
                 {app.kind === 'job' && <TabsTrigger pill value="run"><Tip label="Run" info="Start a run from the input form"><span>Run</span></Tip></TabsTrigger>}
                 <TabsTrigger pill value="logs"><Tip label="Logs" info="Table view of this app's runs and requests"><span>Logs</span></Tip></TabsTrigger>
-                {learnPreview && app.kind === 'canvas' && <TabsTrigger pill value="learn"><Tip label="Learn" info="Guided explanations of how this app works"><span>Learn</span></Tip></TabsTrigger>}
               </TabsList>
 
               {/* one compact meta line, repo-page style, in place of the old property grid */}
