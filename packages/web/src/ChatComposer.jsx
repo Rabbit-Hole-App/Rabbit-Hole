@@ -19,12 +19,13 @@ export const DOCK_WIDTH = 'mx-auto w-full max-w-[780px]';
 // The strip under the dock; env() adds the phone's safe area and is 0 elsewhere.
 export const DOCK_PAD = 'px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] max-md:px-3 max-md:pt-2 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]';
 
-export default function ChatComposer({ value, onChange, onSubmit, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, onStop }) {
+// onKeyDown (the Learn / picker, feature/parallel-work a9d770d): runs first; a handler that calls preventDefault keeps Enter from sending.
+export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, onStop }) {
   const submit = () => { if (!busy && !disabled && value.trim()) onSubmit(value); };
   // ponytail: [field-sizing:content] grows the textarea in Chromium; other engines keep one row and scroll. Add a JS auto-grow if reviewers on Safari or Firefox need it.
   const field = multiline
-    ? <textarea ref={inputRef} autoFocus={autoFocus} rows={1} value={value} onChange={event => onChange(event.target.value)} onKeyDown={event => { if (composerKey(event.nativeEvent) === 'send') { event.preventDefault(); submit(); } }} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className={`max-h-36 min-w-0 flex-1 resize-none bg-transparent outline-none [field-sizing:content] placeholder:text-ink-3 ${dock ? 'min-h-9 py-1.5 text-[15px] leading-6 max-md:text-sm max-md:placeholder:truncate' : 'min-h-7 py-1 text-sm leading-5'}`} />
-    : <input ref={inputRef} autoFocus={autoFocus} value={value} onChange={event => onChange(event.target.value)} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className="h-7 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-ink-3" />;
+    ? <textarea ref={inputRef} autoFocus={autoFocus} rows={1} value={value} onChange={event => onChange(event.target.value)} onKeyDown={event => { onKeyDown?.(event); if (!event.defaultPrevented && composerKey(event.nativeEvent) === 'send') { event.preventDefault(); submit(); } }} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className={`max-h-36 min-w-0 flex-1 resize-none bg-transparent outline-none [field-sizing:content] placeholder:text-ink-3 ${dock ? 'min-h-9 py-1.5 text-[15px] leading-6 max-md:text-sm max-md:placeholder:truncate' : 'min-h-7 py-1 text-sm leading-5'}`} />
+    : <input ref={inputRef} autoFocus={autoFocus} value={value} onChange={event => onChange(event.target.value)} onKeyDown={onKeyDown} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className={`min-w-0 flex-1 bg-transparent outline-none placeholder:text-ink-3 ${dock ? 'h-9 text-[15px] leading-6 max-md:text-sm max-md:placeholder:truncate' : 'h-7 text-sm'}`} />;
   const frame = dock
     ? `gap-2.5 rounded-xl border border-line-strong bg-white px-3 py-3.5 max-md:gap-1.5 max-md:px-2.5 max-md:py-2.5 shadow-pop`
     : 'gap-2 rounded-lg border border-line px-2.5 py-1.5';
