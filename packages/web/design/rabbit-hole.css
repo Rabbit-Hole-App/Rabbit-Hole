@@ -4,30 +4,36 @@
     --muted:rgba(10,10,10,.56);
     --hair:rgba(10,10,10,.08);
     --paper:#FFFFFF;
+    --ease-out:cubic-bezier(0.23,1,0.32,1);
     --ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
     /* working choice — the six candidates are in headline-font-candidates.html */
     --display:"Space Grotesk","Inter",sans-serif;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  html{overflow-y:scroll}
+  html{overflow-y:scroll;scrollbar-width:none}
+  html::-webkit-scrollbar{display:none}
   /* no overflow-x here: it would make <body> a scroll container and kill the
      sticky shaft below */
   /* No fixed body height: the hero reserves its scroll with a spacer in normal flow and
      the page below it flows, so adding a section cannot desync the two. */
   body{background:var(--paper);font-family:var(--ui);color:var(--fg);
        -webkit-font-smoothing:antialiased;width:100%;position:relative}
-  #spacer{height:1740px}
+  /* The headline finishes fading after 350px of descent. Release the hero then,
+     so the clouds enter immediately instead of holding an empty black screen. */
+  #spacer,#shaft-track{height:calc(100vh + 350px);height:calc(100svh + 350px)}
 
   /* ---- hero shaft: you are falling down it. The title is drawn into the canvas, so
      there is no overlay element and nothing that can lag behind the scroll. ---- */
-  /* as tall as the page, so the canvas stays stuck for the whole descent */
-  #shaft-track{position:absolute;left:0;top:0;width:100%;height:1740px}
+  #shaft-track{position:absolute;left:0;top:0;width:100%}
   /* full viewport height so the mouth sits dead centre of the page. svh, not vh: on
      phones vh is the *largest* viewport, so with the URL bar showing the canvas would
      hang below the fold and the hole would sit off-centre. */
   #shaft{position:sticky;top:0;width:100%;height:100vh;height:100svh;display:block;
          image-rendering:pixelated}
-  @media (prefers-reduced-motion:reduce){ #shaft{position:absolute} }
+  @media (prefers-reduced-motion:reduce){
+    #shaft{position:absolute}
+    #spacer,#shaft-track{height:100vh;height:100svh}
+  }
 
   /* ---- floating glass bar: arrives once the shaft lets go, leaves on the way up ---- */
   #bar{position:fixed;left:50%;top:18px;z-index:20;
@@ -64,6 +70,7 @@
 
   /* ---- what you scroll into once you are through the hole ---- */
   #below{position:relative;width:100%;padding:150px 40px 0}
+  #spacer + #below{padding-top:0}
   #below section{max-width:1080px;margin:0 auto 150px}
   #below h2{font:600 68px/.95 var(--display);letter-spacing:-.035em;margin-bottom:18px}
   #below .lede{font:400 18px/1.55 var(--ui);color:var(--muted);max-width:620px}
@@ -176,6 +183,27 @@
 #sheet[inert]{visibility:hidden}
 @media(max-width:700px){.content-page #below{padding-top:140px}.content-page #below h1{font-size:38px}}
 
+/* Shared card actions keep Blog and Pricing hover feedback consistent. */
+.card-action{display:inline-flex;align-items:center;gap:9px;flex-shrink:0}
+.card-action-label{font:500 11px/1.4 var(--ui);white-space:nowrap;opacity:1;transition:opacity 200ms var(--ease-out)}
+.card-action-icon{position:relative;isolation:isolate;display:inline-grid;place-items:center;flex:none;width:30px;height:30px;border:1px solid var(--card-action-line,var(--hair));border-radius:50%;overflow:hidden;color:var(--card-action-ink,var(--fg))}
+.card-action-icon::before{content:"";position:absolute;inset:-1px;z-index:-1;border-radius:inherit;background:var(--card-action-ink,var(--fg));opacity:0;transition:opacity 200ms var(--ease-out)}
+.card-action-arrow{position:relative;display:block;font:400 18px/1 var(--ui);transform:translate(0,0);transition:transform 200ms var(--ease-out)}
+.card-action-arrow::after{content:"↗";position:absolute;inset:0;color:#fff;opacity:0;transition:opacity 200ms var(--ease-out)}
+@media(hover:hover) and (pointer:fine){
+  .card-hover:hover .card-action-icon::before,.card-hover:hover .card-action-arrow::after{opacity:1}
+  .card-hover:hover .card-action-arrow{transform:translate(2px,-2px)}
+}
+@media(hover:hover) and (pointer:fine) and (min-width:601px){
+  .card-hover .card-action-label{opacity:0}
+  .card-hover:hover .card-action-label{opacity:1}
+}
+.card-hover:focus-within .card-action-icon::before,.card-hover:focus-within .card-action-arrow::after,.card-hover:focus-within .card-action-label{opacity:1;transition:none}
+.card-hover:focus-within .card-action-arrow{transform:none;transition:none}
+@media(prefers-reduced-motion:reduce){
+  .card-action-icon::before,.card-action-arrow,.card-action-arrow::after,.card-action-label{transition:none}
+  .card-hover:hover .card-action-arrow{transform:none}
+}
 /* Pricing packages extend the shared cards; other content pages are unchanged. */
 .content-page #pricing .name{font:500 14px/1 var(--ui);letter-spacing:.04em;margin:0}
 .content-page #pricing .tier-summary{font:400 14px/1.5 var(--ui);margin-top:12px;min-height:42px}
@@ -184,6 +212,8 @@
 .content-page #pricing .tier li+li{margin-top:4px}
 .content-page #pricing .pick:focus-visible{outline:2px solid currentColor;outline-offset:4px}
 .content-page #pricing .hero-tier .pick:focus-visible{outline-color:#fff}
+.content-page #pricing .pick.card-action{position:relative;display:flex;justify-content:center;min-height:44px;padding:13px 48px}
+.content-page #pricing .pick .card-action-icon{position:absolute;right:7px;top:calc(50% - 15px)}
 .content-page #pricing .pricing-note{font:400 13px/1.6 var(--ui);color:var(--muted);margin-top:20px;max-width:760px}
 .content-page #pricing .pricing-details{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:56px;align-items:start;border-top:1px solid var(--hair);margin-top:88px;padding-top:56px}
 .content-page #pricing .pricing-details h2{font:500 38px/1.12 var(--display);letter-spacing:-.035em;margin-bottom:14px}
@@ -221,37 +251,43 @@
   .content-page #pricing .pricing-team{padding:26px 24px 28px}
 }
 
-/* The landscape reaches the page top; only its lower edge fades behind the cards. */
-.pricing-page #below{isolation:isolate}
-.pricing-page .pricing-art{position:absolute;top:0;left:0;right:0;height:720px;overflow:hidden;pointer-events:none;
-  mask-image:linear-gradient(#000 65%,rgba(0,0,0,.9) 75%,transparent 100%);
-  -webkit-mask-image:linear-gradient(#000 65%,rgba(0,0,0,.9) 75%,transparent 100%)}
-.pricing-page .pricing-art img{display:block;width:100%;height:100%;object-fit:cover;object-position:center top}
+/* The print collage belongs to the introduction; plans start below the artwork. */
+.pricing-page #below{isolation:isolate;overflow-x:clip}
+.pricing-page .pricing-intro{position:relative;isolation:isolate;padding-bottom:48px}
+.pricing-page .pricing-art{position:absolute;top:-170px;bottom:0;left:calc(50% - 50vw);width:100vw;z-index:-1;overflow:hidden;pointer-events:none;background:#acbaba}
+.pricing-page .pricing-art img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
 .content-page.pricing-page #pricing{position:relative;z-index:1}
 .pricing-title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:40px}
 .content-page.pricing-page #pricing .pricing-title-row h2{font:500 clamp(76px,9.8vw,146px)/.91 var(--display);letter-spacing:-.07em;margin:0}
 .content-page.pricing-page #pricing .pricing-intro .lede{font:400 clamp(17px,1.5vw,22px)/1.45 var(--ui);letter-spacing:-.025em;color:var(--fg);max-width:220px;padding-bottom:8px}
 .content-page.pricing-page #pricing .tier{background:#fff;box-shadow:0 16px 40px -24px rgba(10,10,10,.16)}
 .content-page.pricing-page #pricing .hero-tier{background:var(--fg)}
-.content-page.pricing-page #pricing .tier{position:relative;isolation:isolate}
+.content-page.pricing-page #pricing .tier{position:relative;isolation:isolate;transition:transform 200ms var(--ease-out)}
 .content-page.pricing-page #pricing .tier::after{content:"";position:absolute;inset:-1px;border-radius:inherit;z-index:-1;pointer-events:none;
   background:linear-gradient(130deg,rgba(235,215,255,.18),rgba(220,244,235,.1) 65%,transparent);
   box-shadow:0 0 0 1px rgba(166,134,191,.7),0 16px 40px -16px rgba(177,129,191,.35);opacity:0;transition:opacity 160ms ease}
 .content-page.pricing-page #pricing .tier:focus-within::after{opacity:1;transition:none}
 @media(hover:hover) and (pointer:fine){
   .content-page.pricing-page #pricing .tier:hover::after{opacity:1}
+  .content-page.pricing-page #pricing .tier:hover{transform:translateY(-3px)}
 }
+.content-page.pricing-page #pricing .tier:focus-within{transform:none;transition:none}
 @media(prefers-reduced-motion:reduce){
   .content-page.pricing-page #pricing .tier::after{transition:none}
+  .content-page.pricing-page #pricing .tier{transition:none;transform:none}
+  .content-page.pricing-page #pricing .tier:hover{transform:none}
 }
 @media(max-width:900px){
-  .pricing-page .pricing-art{height:540px}
-  .pricing-page .pricing-art img{object-position:72% top}
+  .pricing-page .pricing-art img{object-position:48% center}
   .content-page.pricing-page #pricing .pricing-title-row h2{font-size:96px}
   .pricing-title-row{gap:24px}
   .content-page.pricing-page #pricing .pricing-intro .lede{font-size:16px}
 }
+@media(max-width:700px){
+  .pricing-page .pricing-art{top:-140px}
+}
 @media(max-width:600px){
+  .pricing-page .pricing-intro{padding-bottom:32px}
   .pricing-title-row{display:block}
   .content-page.pricing-page #pricing .pricing-title-row h2{font-size:clamp(68px,16vw,96px)}
   .content-page.pricing-page #pricing .pricing-intro .lede{max-width:none;margin-top:24px;padding:0}

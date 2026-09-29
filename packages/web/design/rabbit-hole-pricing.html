@@ -26,11 +26,11 @@
   <a href="/pricing" aria-current="page">Pricing</a>
 </nav>
 <main id="below">
-  <div class="pricing-art" id="pricing-art" aria-hidden="true">
-    <img src="/landing/pricing-manga-v2.png" alt="" width="1774" height="887" fetchpriority="high" decoding="async">
-  </div>
   <section id="pricing">
     <div class="pricing-intro">
+      <div class="pricing-art" id="pricing-art" aria-hidden="true">
+        <img src="/landing/pricing-collage-v3.png" alt="" width="2160" height="728" fetchpriority="high" decoding="async">
+      </div>
       <h1>Pricing</h1>
       <div class="pricing-title-row">
         <h2>Start with<br>a question.</h2>
@@ -38,59 +38,59 @@
       </div>
     </div>
     <div class="tiers">
-      <article class="tier" aria-labelledby="plan-free">
+      <article class="tier card-hover" aria-labelledby="plan-free">
         <h2 class="name" id="plan-free">Free</h2>
         <p class="tier-summary">Find your first rabbit hole.</p>
         <div class="price">$0</div>
         <div class="per">free to explore</div>
         <h3 class="tier-label">Resources</h3>
         <ul>
-          <li>1 active learning project</li>
-          <li>20 AI credits per month</li>
-          <li>100 MB of source storage</li>
+          <li>3 active learning projects</li>
+          <li>20 AI generation credits per month</li>
+          <li>250 MB of source storage</li>
         </ul>
         <h3 class="tier-label">Learning &amp; support</h3>
         <ul>
-          <li>Questions about your own sources</li>
+          <li>Learn from repositories, papers and documents</li>
           <li>Adaptive explanations</li>
+          <li>Interactive learning canvases</li>
           <li>Saved notes and source citations</li>
           <li>Revisit completed learning</li>
           <li>Self-serve help guides</li>
         </ul>
-        <a class="pick" href="/apps">Get started</a>
+        <a class="pick card-action" href="/apps"><span>Get started</span><span class="card-action-icon" aria-hidden="true"><span class="card-action-arrow">↗</span></span></a>
       </article>
-      <article class="tier hero-tier" aria-labelledby="plan-plus">
+      <article class="tier hero-tier card-hover" aria-labelledby="plan-plus">
         <h2 class="name" id="plan-plus">Plus</h2>
         <p class="tier-summary">Make curiosity a regular practice.</p>
         <div class="price">$19</div>
         <div class="per">Planned price · USD per month</div>
         <h3 class="tier-label">Resources</h3>
         <ul>
-          <li>10 active learning projects</li>
-          <li>200 AI credits per month</li>
-          <li>2 GB of source storage</li>
+          <li>20 active learning projects</li>
+          <li>200 AI generation credits per month</li>
+          <li>5 GB of source storage</li>
         </ul>
         <h3 class="tier-label">Learning &amp; support</h3>
         <ul>
           <li>Everything in Free</li>
-          <li>Learn from papers and repositories</li>
           <li>Adaptive quizzes and review</li>
           <li>Saved learning paths and history</li>
           <li>Export your learning materials</li>
           <li>Email support</li>
         </ul>
-        <a class="pick" href="/apps">Start free trial</a>
+        <a class="pick card-action" href="/apps"><span>Start free trial</span><span class="card-action-icon" aria-hidden="true"><span class="card-action-arrow">↗</span></span></a>
       </article>
-      <article class="tier" aria-labelledby="plan-pro">
+      <article class="tier card-hover" aria-labelledby="plan-pro">
         <h2 class="name" id="plan-pro">Pro</h2>
         <p class="tier-summary">More room for your deepest questions.</p>
         <div class="price">$39</div>
         <div class="per">Planned price · USD per month</div>
         <h3 class="tier-label">Resources</h3>
         <ul>
-          <li>50 active learning projects</li>
-          <li>500 AI credits per month</li>
-          <li>10 GB of source storage</li>
+          <li>100 active learning projects</li>
+          <li>500 AI generation credits per month</li>
+          <li>25 GB of source storage</li>
         </ul>
         <h3 class="tier-label">Learning &amp; support</h3>
         <ul>
@@ -100,19 +100,19 @@
           <li>More generations running at once</li>
           <li>Priority email support</li>
         </ul>
-        <a class="pick" href="/apps">Get started</a>
+        <a class="pick card-action" href="/apps"><span>Get started</span><span class="card-action-icon" aria-hidden="true"><span class="card-action-arrow">↗</span></span></a>
       </article>
     </div>
-    <p class="pricing-note">Early access is free. No credit card required. Prices, project limits, AI credits and storage allowances shown are planned for launch.</p>
+    <p class="pricing-note">Early access is free. No credit card required.</p>
 
     <div class="pricing-details">
       <div class="pricing-credits" aria-labelledby="credits-heading">
-        <h2 id="credits-heading">How AI credits work</h2>
+        <h2 id="credits-heading">How AI generation credits work</h2>
         <p class="credits-intro">Create something new. Keep learning from what you save.</p>
         <ul class="credit-rules">
           <li>
             <svg class="credit-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M7 4h13l5 5v19H7zM20 4v6h5M11 15h10M11 20h7"/><path d="m22 18 2 4 4 2-4 2-2 4-2-4-4-2 4-2z" fill="white"/></svg>
-            <div><h3>Create new material</h3><p>AI explanations, quizzes and learning paths use credits. Larger requests use more.</p></div>
+            <div><h3>Create new material</h3><p>AI explanations, quizzes and learning paths use AI generation credits. Larger requests use more.</p></div>
             <span class="credit-label">Uses credits</span>
           </li>
           <li>
@@ -151,7 +151,6 @@
   <span>© 2026</span>
 </footer>
 <script type="module" src="../src/landing/navigation.js"></script>
-<script type="module" src="../src/landing/pricing-art.js"></script>
 <script type="module" src="../src/landing/content-footer.js"></script>
 </body>
 </html>

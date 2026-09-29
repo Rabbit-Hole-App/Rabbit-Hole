@@ -7,6 +7,7 @@ import LANDING from './dist-dev/design/rabbit-hole-hero.html';
 import BLOG from './dist-dev/design/rabbit-hole-blog.html';
 import FEATURES from './dist-dev/design/rabbit-hole-features.html';
 import PRICING from './dist-dev/design/rabbit-hole-pricing.html';
+import MANIFESTO from './dist-dev/design/rabbit-hole-manifesto.html';
 import { byocFetch } from '../control-plane/src/byoc.js';
 import apiCode from '../byoc/api.py';
 import signerCode from '../byoc/signer.py';
@@ -23,7 +24,7 @@ export { LearnVideos } from '../control-plane/src/learn-video.js';
 export default {
   async fetch(req, env, ctx) {
     const path = new URL(req.url).pathname;
-    const publicPage = {'/': LANDING, '/blog': BLOG, '/features': FEATURES, '/pricing': PRICING}[path.replace(/\/$/, '') || '/'];
+    const publicPage = {'/': LANDING, '/blog': BLOG, '/features': FEATURES, '/pricing': PRICING, '/manifesto': MANIFESTO}[path.replace(/\/$/, '') || '/'];
     if (typeof publicPage === 'string') return new Response(publicPage, {
       headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
     });

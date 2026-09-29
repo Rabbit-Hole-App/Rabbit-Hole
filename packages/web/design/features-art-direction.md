@@ -3,7 +3,9 @@
 The Features page uses procedural stair geometry with forest-green wireframe
 edges and pixelated, dithered surfaces. Scrolling moves the viewpoint down
 through flights that turn around an open shaft. The camera also turns gently,
-while pale green deepens toward jade. Reversing scroll retraces the same view.
+while pale green `#d9e8c9` deepens toward forest green `#6a9479`. Reversing
+scroll retraces the same view and color. Caption/body ink `#0b261b` maintains
+at least 4.5:1 contrast throughout this tint range.
 This is an art and motion study; existing feature copy remains below it.
 
 The stairway constructs itself ahead of the camera: each tread extends from its

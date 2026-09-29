@@ -1,0 +1,30 @@
+{
+  "created": "2026-09-28",
+  "mode": "built-in image generation",
+  "prompt": "pricing-collage-prompt.md",
+  "references": [
+    "C:/Users/cyudhist/Pictures/Screenshots/Screenshot 2026-09-28 153502.png",
+    "C:/Users/cyudhist/Pictures/Screenshots/Screenshot 2026-09-28 153515.png"
+  ],
+  "referenceRole": "Visual style and palette; original subjects and composition",
+  "file": "public/landing/pricing-collage-v3.png",
+  "source": "C:/Users/cyudhist/.codex/generated_images/01a0cb44-ebb0-7592-8034-8261df19c52f/exec-1062f99b-9c5c-4543-8e4d-b4f388b672f7.png",
+  "width": 2160,
+  "height": 728,
+  "bytes": 3102655,
+  "sha256": "2f456616ecdab8f64366e6f63ea7e5098a134615be8d339138bddfe2cdb43953",
+  "previousVersions": [{
+    "file": "public/landing/pricing-collage-v2.png",
+    "source": "C:/Users/cyudhist/.codex/generated_images/01a0cb44-ebb0-7592-8034-8261df19c52f/exec-254c7745-6823-489c-aa8a-ee089ea3b4b4.png",
+    "bytes": 2303566,
+    "sha256": "3697bdc81b3bf7754eb30c2a422ed06c45ed9ec064d6d4b08f3f57f39795cea8",
+    "reasonForEdit": "User requested more abstract diagrams on the right"
+  },{
+    "file": "public/landing/pricing-collage-v1.png",
+    "source": "C:/Users/cyudhist/.codex/generated_images/01a0cb44-ebb0-7592-8034-8261df19c52f/exec-cc79191e-5207-4d5a-9884-8c347fd6c817.png",
+    "bytes": 2817988,
+    "sha256": "c0c6e39bae07c3de56e9d3b5c5db718b4b27e985db7bbaa03055609f65d9a572",
+    "reasonForEdit": "Clear dense lower-right ink behind the live subtitle"
+  }],
+  "placement": "Pricing introduction only; no illustration behind the pricing cards"
+}

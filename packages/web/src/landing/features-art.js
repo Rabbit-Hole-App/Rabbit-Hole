@@ -8,7 +8,7 @@ const ctx=canvas.getContext('2d');
 const media=matchMedia('(prefers-reduced-motion: reduce)');
 const clamp=value=>Math.max(0,Math.min(1,value));
 const mix=(a,b,t)=>a.map((v,i)=>Math.round(v+(b[i]-v)*t));
-const pale=[217,232,201],deep=[164,199,190],ink=[22,63,51];
+const pale=[217,232,201],deep=[106,148,121],ink=[22,63,51];
 const radius=3.7,stepCount=10,rise=.25,stairWidth=1.48;
 const flightDrop=stepCount*rise,run=(radius*2-stairWidth)/stepCount;
 const corners=[[-radius,-radius],[radius,-radius],[radius,radius],[-radius,radius]];

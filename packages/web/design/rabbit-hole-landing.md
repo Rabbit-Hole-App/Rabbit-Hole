@@ -8,6 +8,30 @@ renderer; it is also absent from the regular and repository app interfaces.
 The hero, navigation and footer are preserved. Blog, Features and
 Pricing retain their content and shared styles on `/blog`, `/features`, `/pricing`.
 These are independent public HTML entries with direct navigation and reload.
+The shared public-page stylesheet hides the browser scrollbar on the landing
+page, Blog (including article readers), Features and Pricing. Native scrolling
+remains enabled for wheel, touch and keyboard input. App scrollbars are unchanged.
+
+The hero's track and spacer use one small viewport height plus 350px, matching
+the point where the title finishes fading. It releases into a black manifesto
+introduction: “Follow your curiosity.”, a short draft excerpt and a “Read more”
+link to `/manifesto`. The cloud follows with its own title, “One question.
+Endless paths.” This replaces the old empty black hold with readable content.
+Reduced motion reserves only the static hero's viewport height.
+
+A monochrome image of Plato, Socrates and Richard Feynman standing in discussion
+now sits below that introduction, still on black. It is an imagined meeting;
+the full image is shown without cropping on desktop and phones. Artwork and
+prompt: `public/landing/thinkers-standing-v1.png` and `thinkers-standing-prompt.md`.
+
+The cloud meets black through a static top mask and a brief pink, stippled haze.
+Only opacity follows scroll progress, linearly over twice a responsive
+56–144px blend band; scrolling back reverses it without a timer. No extra scroll
+distance is added for this dissolve. The original animated GIF is preserved,
+using a responsive crop behind the cloud title. Reduced motion shows the existing
+still without haze or mask. The manifesto page reuses public navigation and the
+simple content footer; its original draft copy and generated Socrates/Feynman/Plato
+image are documented in [the manifesto spec](../../../docs/features/rabbit-hole-manifesto.md).
 
 The pink cloud uses the original [TypeSafe](https://typesafe.ai/) artwork and
 motion, with its white opening/closing holds and transition frames trimmed from
@@ -92,21 +116,37 @@ and the landing page remain unchanged by this correction.
 
 ## Blog artwork
 
-`/blog` uses the selected “Falling through an endless archive” direction.
-Loose papers drift downward along a winding path on a constant pink background.
-More sheets appear as you scroll; large sheets cross the foreground while
-smaller sheets remain distant. Reverse scroll retraces the same flight on
-desktop and mobile. Fine plum outlines, soft curling and pixelated stipple
-retain the paper style.
+`/blog` uses a static abstract technical-print collage behind the Blog label
+and “Ideas, unfolded.” headline. The page, reading views and card surfaces
+are white, with neutral grey card covers. The header itself uses a new colored
+aqua, cobalt and teal atlas composition with grainy ink, numbered annotations
+and dense diagrams at the right. The earlier white artwork was rejected.
 
-The existing article list, introduction and navigation remain; the headline is
-“Ideas, unfolded.” Reduced motion holds the 55% archive composition and removes
-the extended stage. No playback controls. This direction supersedes the rejected
-paper tunnel. The landing page, Features and Pricing are unchanged.
-Implementation: `src/landing/blog-art.{js,css}`. Details and palette are in
-`blog-art-direction.md`. No generated image or dependency.
+The user requested removal of the paper animation and then the pink background.
+There is no paper canvas, sticky stage or scroll-darkening controller.
+Six existing article cards sit below the header and open their sample reading
+views at `/blog?post=<slug>`. Story content, keyboard navigation, reader links,
+responsive grids and the shared static footer remain.
+
+Selected artwork: `public/landing/blog-atlas-v4.png`.
+Placement: `src/landing/blog-art.css`; cards/readers: `blog-stories.{js,css}`.
+See `blog-art-direction.md` and `blog-collage-{prompt.md,assets.json}`.
+Features retains its green scroll descent and the landing art is unchanged.
 
 ## Pricing artwork
+
+Current header (2026-09-28): an original pink, teal and grey technical print
+collage is confined to the Pricing introduction, behind the live heading and
+subtitle. The plan cards start below its edge. This replaces the active manga
+header and removes its sky/bird module import; the earlier artwork and motion
+source are retained for history. The main heading sizes and plan-card hover
+feedback remain. The note below the cards reads “Early access is free. No
+credit card required.” Generation prompt and provenance are in
+`pricing-collage-prompt.md` and `pricing-collage-assets.json`. The selected v3
+regeneration adds denser abstract wireframe/cutaway diagrams on the right,
+following the user's refinement request. Package content is unchanged.
+
+### Previous pricing artwork
 
 The user rejected the key and butter-yellow palette on 2026-09-28. `/pricing`
 is restored to the neutral white page with black text and the original plan

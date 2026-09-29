@@ -1,48 +1,54 @@
 # Blog: ideas, unfolded
 
-The user selected “Falling through an endless archive” after rejecting the
-paper tunnel. Loose sheets drift downward along a winding path at different
-depths. More arrive as scrolling advances, creating the feeling of descending
-through knowledge. Reverse scroll retraces their flight. Keep the pink
-background, fine paper outlines and pixelated stipple. Preserve the existing
-article list, introduction, navigation and the other marketing pages.
+The Blog uses a static technical-print collage behind only its introduction.
+The paper animation was removed at the user's request on 2026-09-28.
+The page below the header remains white. The artwork itself is colored: the
+white v3 image was rejected, and v4 is a completely new composition with
+denser abstract diagrams on the right. Cards follow beneath the header.
 
-Palette: constant pink `#f3dce8`, plum ink `#482953`, paper
-`#faf2f9`, shaded paper `#b08eb7`. Distant sheets blend slightly toward pink.
-Keep the existing Space Grotesk display and Inter body type.
-The headline is left aligned; the existing introduction
-sits beside it on desktop and underneath on mobile.
-The Blog label and top spacing use combined content-page/blog-page selectors
-so the shared stylesheet cannot override them when the build reorders CSS.
+The image combines a circular indexing diagram, fine ink curves between
+offset apertures, contour fields, cobalt and teal printing plates and an ochre
+accent over aqua paper. It replaces the previous book/cube composition.
+The left side stays clear for the live Blog label and
+“Ideas, unfolded.” headline. No subtitle or scroll cue is added.
 
-    Blog
-    Ideas, unfolded.          Existing introduction
-    [     loose falling pages / scroll-controlled depth     ]
-    Existing dated article list
-    Shared static footer (Blog / Features / Pricing)
+Selected asset: `public/landing/blog-atlas-v4.png` (2172 × 724).
+Prompts and provenance: `blog-collage-prompt.md`, `blog-collage-assets.json`.
+Earlier pink and white versions remain as source history.
 
-Five sheets are present at the start. Scroll introduces additional sheets up
-to forty-two; thirty-seven remain within the desktop viewport at the end,
-while earlier sheets have passed below. Each sheet follows a persistent path
-with its own depth, tilt, roll and curl. The shared path winds gently down
-the page. Large nearby sheets cross the foreground, while small distant sheets
-remain behind them. Their rectangular proportions stay recognizable through
-the flutter. Pages overlap as whole sheets, preserving clean silhouettes.
-Plum boundaries, sparse material contours and stationary screen-space stipple
-maintain the ink character. All geometry follows scroll progress directly;
-there is no clock, timed loop or continuing motion after scrolling stops.
-The caption remains “Scroll deeper.”
+## Presentation
 
-Native Canvas 2D in `src/landing/blog-art.js`; scoped styling in `blog-art.css`.
-No new dependencies. Depth controls apparent scale and draw order. Each page
-uses a shallow curved mesh; offscreen sheets are culled. Rendering is scheduled
-only by scroll, resize or a motion-preference change; the canvas is stationary
-when the visitor stops scrolling. The scroll stage remains 168svh on desktop
-and 148svh on phones. Reduced motion shows a fixed 55% archive composition,
-removes sticky scrolling and hides the scroll cue. Navigation and articles
-remain ordinary HTML. No playback controls, bitmap generation or backend work.
+White page and card surfaces, neutral grey cover backgrounds, original plum
+ink, Space Grotesk headings and Inter body text. Only the header artwork has a
+colored ground; article reading views remain white. There is no fixed color
+overlay, paper canvas, sticky art stage or scroll-animation module.
 
-This supersedes the rejected paper tunnel. Its preceding source is retained
-in `tmp/blog-archive/before.*`; browser checks and screenshots are in the same
-directory. The landing clouds, observatory, footer, Features stairs and Pricing
-are unchanged.
+`src/landing/blog-art.css` places the decorative image absolutely inside the
+introduction; the image scrolls normally with the heading. Existing article
+layout and interactions remain in `blog-stories.{js,css}`.
+Tablet and phone crops favor the quiet aqua title area while retaining a
+fragment of the new diagrams at the right edge; desktop shows the whole atlas.
+The six sample cards use three, two and one columns at desktop, tablet and
+phone widths. On pointer hover, the card lifts 3px, its two cover layers part
+slightly, and a circular arrow fills plum while moving diagonally 2px. A
+reserved “Read story” label fades in without shifting the date or reading time.
+Transitions last 200ms and reverse from their current position on pointer exit.
+Touch screens show the label continuously. Keyboard focus uses a visible outline
+and immediate action emphasis. Reduced motion keeps the feedback without moving
+the card, cover layers or arrow. Pricing shares the arrow presentation.
+
+## Sample stories
+
+The six original local sample stories and their content are unchanged.
+Each full card is a keyboard-accessible link to `/blog?post=<slug>`.
+The reader keeps its sample label and top/bottom links to `/blog#stories`.
+Direct links, refresh, browser back and unknown-slug recovery remain.
+No CMS, API/model calls or persistence were introduced.
+
+## Earlier artwork
+
+This replaces the loose-sheet paper archive and its pink-to-rose scroll tint.
+Earlier archive and overlay evidence remains under `tmp/blog-archive/` and
+`tmp/blog-overlay/`. The former renderer is retained in Git history and the
+local `tmp/blog-collage/previous-paper-renderer.js` snapshot.
+Current browser evidence is under `tmp/blog-atlas-v4/`.

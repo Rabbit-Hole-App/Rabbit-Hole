@@ -1,0 +1,33 @@
+.manifesto-page{background:#fbf8f4;color:#201c20}
+.manifesto-article{max-width:1080px;margin:0 auto}
+.manifesto-heading{max-width:900px;margin-bottom:64px}
+.manifesto-eyebrow,.manifesto-number{font:500 12px/1.5 var(--ui);letter-spacing:.08em;text-transform:uppercase}
+.manifesto-heading .manifesto-eyebrow{margin-bottom:30px}
+.manifesto-page #below .manifesto-heading h1{font:500 clamp(64px,9vw,132px)/.93 var(--display);letter-spacing:-.055em;margin-bottom:36px}
+.manifesto-deck{max-width:650px;font:400 22px/1.55 var(--ui);letter-spacing:-.02em}
+.manifesto-conversation{margin:0 0 88px}
+.manifesto-conversation img{display:block;width:100%;height:auto;background:#d9d5ce}
+.manifesto-conversation figcaption{display:flex;justify-content:space-between;gap:12px 32px;flex-wrap:wrap;padding-top:16px;font:400 12px/1.5 var(--ui);color:#655d65}
+.manifesto-body{max-width:680px;margin:0 auto;font:400 18px/1.8 var(--ui)}
+.manifesto-body p+p{margin-top:22px}
+.manifesto-body .manifesto-opening{font:400 28px/1.5 var(--display);letter-spacing:-.03em}
+.manifesto-page #below .manifesto-body section{margin:68px 0 0;padding-top:32px;border-top:1px solid #201c2024}
+.manifesto-number{color:#786572;margin-bottom:24px}
+.manifesto-page #below .manifesto-body h2{font:500 38px/1.12 var(--display);letter-spacing:-.035em;margin-bottom:24px}
+.manifesto-ending{margin:76px 0 100px;padding-top:32px;border-top:1px solid #201c2024}
+.manifesto-ending p{font:500 32px/1.2 var(--display);letter-spacing:-.035em}
+.manifesto-ending a{display:inline-flex;align-items:center;gap:14px;min-height:44px;margin-top:28px;color:inherit;font:500 14px/1.4 var(--ui);text-decoration:none}
+.manifesto-ending a:focus-visible{outline:2px solid currentColor;outline-offset:5px}
+@media(hover:hover) and (pointer:fine){.manifesto-ending a:hover{text-decoration:underline;text-underline-offset:5px}}
+@media(max-width:700px){
+  .manifesto-heading{margin-bottom:40px}
+  .manifesto-page #below .manifesto-heading h1{font-size:clamp(54px,14vw,76px);margin-bottom:28px}
+  .manifesto-deck{font-size:18px;line-height:1.6}
+  .manifesto-conversation{margin-bottom:48px}
+  .manifesto-conversation figcaption{font-size:11px;gap:6px}
+  .manifesto-body{font-size:16px;line-height:1.8}
+  .manifesto-body .manifesto-opening{font-size:24px}
+  .manifesto-page #below .manifesto-body section{margin-top:46px;padding-top:24px}
+  .manifesto-page #below .manifesto-body h2{font-size:30px}
+  .manifesto-ending{margin:52px 0 68px}
+}

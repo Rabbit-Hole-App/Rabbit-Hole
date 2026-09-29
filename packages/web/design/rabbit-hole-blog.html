@@ -9,7 +9,6 @@
 <link rel="stylesheet" href="./rabbit-hole.css">
 </head>
 <body class="content-page blog-page">
-<div class="blog-atmosphere" aria-hidden="true"></div>
 <header id="bar" class="on">
   <a class="brand" href="/" aria-label="Rabbit Hole home">Rabbit Hole</a>
   <a href="/blog" aria-current="page">Blog</a>
@@ -29,32 +28,23 @@
 <main id="below">
   <section id="blog">
     <div class="blog-intro">
+    <div class="blog-art" id="blog-art" aria-hidden="true">
+      <img src="/landing/blog-atlas-v4.png" alt="" width="2172" height="724" fetchpriority="high" decoding="async">
+    </div>
     <h1>Blog</h1>
     <div class="blog-title-row">
     <h2>Ideas,<br>unfolded.</h2>
-    <p class="lede">Notes from down the hole — what we are building, and what we got wrong.</p>
     </div>
     </div>
-    <div class="blog-journey" id="blog-journey">
-      <figure class="blog-art" id="blog-art">
-        <canvas id="blog-paper" role="img" aria-label="An endless archive of loose wireframe papers drifting downward through a pink space. More sheets appear at different depths as you scroll; scroll up to retrace their flight."></canvas>
-        <figcaption>
-          <span>One page opens another.</span>
-          <span class="blog-scroll-cue" aria-hidden="true">Scroll deeper <span>↓</span></span>
-        </figcaption>
-      </figure>
-    </div>
-    <div class="blog-articles">
-    <div class="rows">
-      <a class="row" href="#"><span class="meta">Sept 2026</span>
-        <span>Why a landing page should teach you something</span><span class="arrow">→</span></a>
-      <a class="row" href="#"><span class="meta">Sept 2026</span>
-        <span>Dithering, and why low resolution is a choice</span><span class="arrow">→</span></a>
-      <a class="row" href="#"><span class="meta">Aug 2026</span>
-        <span>What we mean by infinite</span><span class="arrow">→</span></a>
-    </div>
+    <div class="blog-articles" id="stories" aria-labelledby="stories-heading">
+      <div class="blog-stories-heading">
+        <h2 id="stories-heading">From the notebook.</h2>
+        <span>06 sample stories</span>
+      </div>
+      <ul class="cards blog-grid" id="blog-grid"></ul>
     </div>
   </section>
+  <article class="blog-post" id="article" hidden></article>
 </main>
 <footer data-content-footer>
   <span class="brand">Rabbit Hole</span>
@@ -63,6 +53,6 @@
 </footer>
 <script type="module" src="../src/landing/navigation.js"></script>
 <script type="module" src="../src/landing/content-footer.js"></script>
-<script type="module" src="../src/landing/blog-art.js"></script>
+<script type="module" src="../src/landing/blog-stories.js"></script>
 </body>
 </html>

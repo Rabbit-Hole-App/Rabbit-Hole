@@ -34,6 +34,7 @@ export default defineConfig({
         blog: fileURLToPath(new URL('./design/rabbit-hole-blog.html', import.meta.url)),
         features: fileURLToPath(new URL('./design/rabbit-hole-features.html', import.meta.url)),
         pricing: fileURLToPath(new URL('./design/rabbit-hole-pricing.html', import.meta.url)),
+        manifesto: fileURLToPath(new URL('./design/rabbit-hole-manifesto.html', import.meta.url)),
       } },
     } : {}),
   },

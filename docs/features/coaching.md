@@ -1155,6 +1155,279 @@ live build merely to prepare a dev deployment.
 
 ## Release and verification
 
+### Standing thinkers on the landing page — 2026-09-29
+
+The black manifesto introduction now includes a generated monochrome image of
+Plato, Socrates and Richard Feynman standing in discussion. The 1536 × 1024 image
+is displayed without cropping, with a caption identifying the imagined meeting.
+The seated image on `/manifesto` is preserved. Asset and exact prompt:
+`packages/web/public/landing/thinkers-standing-v1.png` and
+`packages/web/design/thinkers-standing-prompt.md`.
+
+Dev build and session-clone deployment passed, version
+`0660ef7d-8e96-4ad5-9af7-359a653c2b77`. Actual deployed Chrome checks passed at
+1440, 390 and 320px: image dimensions/hash, uncropped aspect ratio, no horizontal
+overflow, Read more navigation and the cloud transition below the added image.
+Desktop and phone screenshots were visually inspected. No browser errors or
+failed assets were observed. Evidence: `tmp/standing-thinkers/verification.json`
+and `deployed-*.png`. No shared/live deployment, schema change or API-key model
+call was performed.
+
+### Black manifesto introduction and cloud dissolve — 2026-09-28
+
+The landing hero now continues into a black manifesto introduction: “Follow your
+curiosity.”, a short draft paragraph and a white “Read more” button. The cloud
+follows with its own heading, “One question. Endless paths.” A static top mask
+and a brief pink stippled haze soften that boundary; opacity follows scroll
+position directly across 112–288px and reverses immediately. There is no extra
+animation track, timed reveal, new motion dependency or scroll interception.
+Reduced motion shows the original cloud still with the haze/mask removed.
+
+“Read more” opens `/manifesto`, a new public HTML entry using the existing mobile
+navigation and simple footer. Original draft copy describes Rabbit Hole's
+adaptive-learning mission. A new built-in image-generation asset shows Socrates,
+Richard Feynman and Plato around a table; its caption says it is an imagined
+conversation. Image SHA-256:
+`7b23e2654df67a462d3842df05277d667f51ad64eb934340f6f800644703055a`.
+The full image remains visible on mobile. Spec: [Rabbit Hole manifesto](rabbit-hole-manifesto.md).
+
+Dev build and session-clone deployment passed, version
+`6568cc55-9bd6-46cd-afac-992690e251dc`. Actual deployed Chrome verification covered
+1440px desktop, 390/320px touch-emulated layouts, and 390px reduced motion. Checks
+passed for partial scroll progress, reversal, held scroll state, native wheel
+reversal, moving cloud playback, keyboard/touch “Read more” navigation, direct
+reload, `/manifesto/`, mobile menu/Escape, return-to-introduction link, image
+dimensions/hash, and hidden scrollbars. Blog, Features and Pricing routes still
+return their own pages. Landing heading sizes are explicitly scoped so shared
+production CSS cannot shrink them; computed sizes match the intended desktop
+and phone values. Screenshots were visually inspected; no horizontal
+overflow, page exceptions or failed page-asset responses occurred. Evidence:
+`tmp/manifesto/verification.json` and `deployed-*.png`. No shared/live deployment,
+schema changes or API-key model calls.
+
+### Bring clouds directly after the hero — 2026-09-28
+
+The fixed 1740px hero track kept an empty black canvas visible long after the
+headline faded, followed by 150px desktop / 96px mobile padding. Track and
+spacer now share `100svh + 350px`: the hero releases when its existing title
+fade completes, and clouds enter directly beneath it without the extra padding.
+Reduced motion uses one viewport for the static hero. Tunnel rendering, cloud
+artwork/playback and subsequent sections are preserved.
+
+Session clone deployment `18d27535-73b9-4d76-9b6a-8f8801310a75` passed the dev
+build and actual deployed Chrome checks at 1440×1000, 1536×814 and 390×844,
+plus mobile reduced motion. The cloud meets the outgoing hero with zero gap;
+normal playback still animates, reverse scrolling restores the hero, and the
+navigation follows its earlier release. No horizontal overflow, page exceptions
+or failed page-asset responses occurred. Screenshots were visually inspected.
+Evidence: `tmp/hero-cloud-transition/{before-proposed,verification}.json` and
+screenshots. Only the session clone was deployed; no model calls or schema changes.
+
+### Hide scrollbars across public pages — 2026-09-28
+
+The shared public-page stylesheet now hides the browser scrollbar on the
+landing page, Blog and article readers, Features, and Pricing. Native
+`overflow-y: scroll` remains enabled. The landing-only root class is no longer
+needed; app scrollbars are unaffected because the app does not load this CSS.
+
+Dev build and session-clone deployment passed, version
+`a8ae0460-0d50-43a3-ab27-cffcc07815aa`. Deployed Chrome checks covered all five
+routes at 1440px and touch-emulated 390px with Chrome's default scrollbar-hiding
+flag disabled. Wheel, PageDown/Home and emulated touch scrolling work; no
+horizontal overflow, JavaScript exceptions or failed page-asset responses
+were observed. The Features staircase still builds and reverses with scrolling
+(96 to 184 steps). Screenshots were visually inspected. Evidence:
+`tmp/public-scrollbars/verification.json` and screenshots. No app UI, shared/live
+deployment, schema or model changes.
+
+### Blog/Pricing card feedback and landing scrollbar — 2026-09-28
+
+Blog and Pricing share a circular arrow treatment: pointer hover fills the
+circle and moves its arrow diagonally 2px using a 200ms CSS transition. Blog
+also reveals “Read story” and parts its two existing wireframe cover layers
+slightly; the label stays visible on touch screens. Pricing retains its
+existing hover glow and gains a 3px lift. Plus stays black, CTA labels and
+destinations are preserved, and the three desktop buttons remain aligned.
+Keyboard focus emphasizes the action immediately without movement. Reduced
+motion removes card, arrow and cover movement. No new animation library or
+runtime event handler was added.
+
+Only the landing HTML entry has `class="landing-page"` on its root element.
+Scoped scrollbar styling hides the vertical browser bar without changing
+native `overflow-y: scroll`; Blog, Features, Pricing and app pages are untouched
+by this rule. Both current Blog and Pricing header images are preserved.
+
+Dev build and session-clone deployment passed, version
+`642263df-d746-4713-b54e-58ab5ffe8597`. Actual deployed Chrome verification covered
+all six Blog hover/reset states, all three pricing cards, rapid hover reversal,
+keyboard focus and article navigation, reduced motion, 390/320px touch-emulated
+cards and article taps, and landing wheel/PageDown/Home plus emulated touch
+scrolling (390px, 425px of travel with the scrollbar hidden). Screenshots
+were visually inspected. The Blog/Pricing image bytes match their previous
+hashes. No horizontal overflow, JavaScript exceptions or failed page-asset
+responses were observed. Evidence: `tmp/public-card-hover/verification.json`
+and screenshots. No shared/live promotion, schema changes or model calls.
+
+### Regenerated Blog artwork; Pricing image preserved — 2026-09-28
+
+The Blog's white v3 illustration was rejected. Built-in image generation
+produced a new aqua, cobalt and teal technical atlas, saved as
+`public/landing/blog-atlas-v4.png` (2172 × 724). Its composition uses an indexing
+wheel, connected apertures and contour fields rather than the previous book
+and cube diagrams. It appears only behind the Blog heading; the page below
+and article readers remain white. Phone/tablet image crops favor the quiet
+title area. The six sample cards, story content and navigation are preserved.
+Prompt and provenance: `design/blog-collage-{prompt.md,assets.json}`.
+
+The user's follow-up asks to keep the previous Pricing image. Pricing still
+uses `pricing-collage-v3.png`: the actual deployed asset's SHA-256 matches the
+previous recorded file (`2f456616ecdab8f64366e6f63ea7e5098a134615be8d339138bddfe2cdb43953`).
+No Pricing artwork was generated or replaced in this pass.
+
+Session clone `small-cp-dev-smart-landing-page` version
+`cdfab1f4-2325-4480-b001-28bdc6b8764d` serves the change. The dev build passed
+with both flags and the existing tldraw license. Actual deployed Chrome checks
+at 1440, 768, 390 and 320px verified the new image, header-only placement,
+white page, six cards, no horizontal overflow and working article/back links.
+Desktop/tablet/phone screenshots were inspected. No JavaScript exceptions or
+failed page-asset responses were observed. Evidence and the preserved Pricing
+screenshot are under `tmp/blog-atlas-v4/`. No paid API fallback, app inference,
+schema change or shared/live-worker deployment.
+
+### Pricing amounts, allowances and shared learning benefits — 2026-09-28
+
+The Pricing cards show **Free $0, Plus $19/month and Pro $39/month**. The active
+learning-project allowances use the user's earlier specification: **3 / 20 /
+100** respectively, with **250 MB / 5 GB / 25 GB** of source storage and **20 /
+200 / 500 AI generation credits per month**. These credit quantities remain
+placeholders until usage and cost telemetry informs final allowances. The cards,
+credit-explanation heading and generation description use “AI generation credits.”
+Free lists **Interactive learning canvases** alongside adaptive explanations and
+**Learn from repositories, papers and documents**. Plus and Pro inherit these
+through their existing “Everything in…” features; the redundant source-type
+bullet in Plus is removed so source access does not read as a paid-only benefit.
+Paid prices remain labeled planned; early access remains free. These are displayed package
+proposals, not backend entitlement enforcement.
+Other resources, CTAs and styling remain as previously deployed. Session clone
+`small-cp-dev-smart-landing-page` version
+`07193d66-4562-4968-a5a5-427259a4deb7` includes the change. The dev build passed
+with both preview flags and the existing tldraw license; no shared/live
+promotion, schema change, billing change or model call.
+
+Actual deployed Chrome checks at 1440px and 390px show the three prices,
+3 / 20 / 100 active-project limits, 250 MB / 5 GB / 25 GB source storage and the
+AI generation credit labels, interactive-canvas benefit and shared source types,
+with no horizontal overflow, JavaScript exceptions or failed page-asset responses.
+Chrome separately reports the undeclared `/favicon.ico` as missing (404); this
+unrelated issue remains recorded in verification. Card grids were visually
+inspected and desktop CTAs remain aligned. This verifies the Pricing
+presentation; no source ingestion, canvas runtime or billing behavior was introduced.
+Evidence: `tmp/pricing-sources/verification.json` and the desktop/mobile PNGs
+beside it. The existing [Pricing · deployed review Figma section](https://www.figma.com/design/MYZz4RLKIfJh3uDvLXlF0p/Pricing-deployed-review?node-id=2-2)
+preserves the earlier captured state, before these pricing edits.
+
+### White Blog and denser abstract header collages — 2026-09-28
+
+Session clone `small-cp-dev-smart-landing-page`, version
+`81b87259-a365-4461-9154-e618a3a22080`, replaces the Blog paper animation with
+a static collage confined to the introduction. The user's follow-up removes
+the pink page background, pink card-cover fills and scroll tint. Blog and
+article readers now stay white. The paper canvas, sticky stage and color
+controller are removed. Six existing sample stories, reading routes and
+navigation remain. The selected `blog-collage-v3.png` adds more abstract
+diagrams in the upper-right on white paper.
+
+Pricing uses `pricing-collage-v3.png`, regenerated with denser right-side
+wireframe, cutaway and contour diagrams while retaining a clear subtitle area.
+Its plan cards, credit explanation and Teams content are unchanged. Plus stays
+black, the desktop grid has three columns and the CTAs remain bottom aligned.
+The separate request to revise pricing entitlements awaits the referenced
+model, which was not included in the user's message. Figma export awaits the
+user's choice between the two available teams; no Figma file was created yet.
+
+Built-in image generation produced the collages. Prompts and asset provenance
+are recorded in `design/blog-collage-{prompt.md,assets.json}` and
+`design/pricing-collage-{prompt.md,assets.json}`. Earlier image versions remain.
+Only this session clone was deployed, retaining both dev flags and the tldraw
+license. No shared-worker/live promotion, backend change or app inference.
+
+Deployed Chrome checks passed at 320, 390, 768, 1024 and 1440 pixels:
+header-only art bounds, static images, white Blog throughout scrolling, no
+paper canvas, responsive grids, all six article links, direct reload, browser
+back, keyboard activation, unknown-story recovery and mobile navigation.
+Pricing hover/focus, reduced motion, no-JavaScript header, three columns and
+aligned CTAs passed. No horizontal overflow, browser errors or failed
+same-origin requests. Desktop/mobile screenshots were visually reviewed.
+Source checks confirm story content and Pricing copy are unchanged, and that
+Features, landing artwork and shared footer files match their prior hashes.
+JavaScript syntax, asset metadata and repository whitespace checks passed.
+
+Evidence: `tmp/blog-collage/verification.json` and
+`tmp/pricing-collage/verification.json`. Full Pricing desktop/mobile captures
+are `tmp/pricing-collage/pricing-desktop-full.png` and
+`tmp/pricing-collage/pricing-mobile-full.png` for the pending Figma review.
+Review `/blog` and `/pricing` on the session clone.
+
+### Public-page artwork and scroll colors — 2026-09-28
+
+Session clone `small-cp-dev-smart-landing-page`, version
+`058339a4-e3ff-49fb-8031-8cb2f19d61f8`, places an original technical print collage
+behind only the Pricing introduction. The live heading/subtitle remain HTML;
+cards start below the art. The previous manga sky/bird module is no longer
+loaded. The selected image is `public/landing/pricing-collage-v2.png`; built-in
+generation prompts and provenance are in `design/pricing-collage-{prompt.md,assets.json}`.
+A targeted image edit cleared dense ink behind the small subtitle. Plan content,
+hover/focus feedback, free-trial destination and static footer are preserved.
+The requested pricing disclaimer sentence was removed, retaining the free-access note.
+
+Blog cards now sit over the paper animation in the same scroll region. The
+subtitle and both paper-animation captions were removed. Blog starts at the
+reference pink `#f386a1` and deepens to `#c65c82`; Features keeps its green palette
+and darkens from `#d9e8c9` to `#6a9479`. Both reverse with scroll and hold a static
+composition/tint under reduced motion. Cards stay light and readable. Blog
+article reading views retain their prior pale pink. No animation trajectories
+were changed and the landing page artwork remains unchanged.
+
+Both dev flags and the tldraw license were retained. Build and actual deployed
+Chrome checks passed: header-only bounds, image loading, no old manga requests,
+hover/keyboard focus, reduced motion, no-JavaScript Pricing, and no horizontal
+overflow at 320, 390, 768, 1024 and 1440 pixels. Desktop/mobile screenshots were
+visually reviewed. Scroll checks confirmed cards remain clickable over the
+papers, six working article links, keyboard/browser-back behavior, both color
+endpoints and exact reversal. Measured caption contrast at the darkest tint is
+4.55:1 on Blog and 4.69:1 on Features. No browser errors or failed same-origin
+requests. JavaScript syntax and repository whitespace checks passed.
+
+Evidence: `tmp/pricing-collage/verification.json`, `tmp/blog-overlay/verification.json`
+and screenshots in those directories. Only the session clone was deployed;
+no API/model inference, database changes, shared-worker or live promotion.
+Review at `/pricing`, `/blog` and `/features` on the session clone.
+
+### Blog sample cards and article reading views — 2026-09-28
+
+The Blog's placeholder rows are now six clickable sample cards below the
+existing pink paper archive. Cards include paper-style covers, categories,
+titles, excerpts, dates and reading times. The original three titles remain.
+Each link opens a sample article at `/blog?post=<slug>` in the existing public
+Blog shell, with top/bottom **Back to blog** links. Unknown slugs have a recovery
+view. Content is explicitly labeled sample; no backend, CMS, model calls or
+persistence were introduced. The original paper animation, other public pages
+and shared static footer are unchanged.
+
+Built and deployed to the session clone only, version
+`88c5d560-7731-4cb1-982c-d84a47a33457`. Browser verification opened all six cards,
+checked direct article reload, browser back with restored card position,
+keyboard activation/focus, the back links and unknown-slug recovery. The grid
+uses three, two and one columns at desktop, tablet and phone widths; checked
+1440, 1024, 768, 390 and 320 pixels with no horizontal overflow. Desktop and
+mobile card/article screenshots were visually reviewed. Scroll down/up still
+advances/reverses the archive; reduced motion keeps its existing fixed pose and
+disables card lift. No browser errors, failed same-origin requests or API calls.
+JavaScript syntax and whitespace checks passed. Evidence:
+`tmp/blog-cards/verification.json` and screenshots in the same directory.
+
+Review: `https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/blog#stories`.
+
 ### Plus free-trial entry — 2026-09-28
 
 Saved the existing public-page design in commit `a731d75` after `make test-unit`
