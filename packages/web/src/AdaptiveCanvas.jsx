@@ -1597,7 +1597,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const element = surface.current;
     if (!box || !element) return false;
     const top = box.y * view.z + view.y, bottom = (box.y + box.h) * view.z + view.y;
-    if (top < 0 || bottom > element.clientHeight) setView(v => ({ ...v, y: element.clientHeight / 2 - (box.y + Math.min(box.h, element.clientHeight / v.z) / 2) * v.z }));
+    const left = box.x * view.z + view.x, right = (box.x + box.w) * view.z + view.x;
+    // Both axes: after a sideways pan the column is off to one side, and a
+    // card inserted into it landed off screen.
+    const offY = top < 0 || bottom > element.clientHeight, offX = left < 0 || right > element.clientWidth;
+    if (offY || offX) setView(v => ({ ...v,
+      ...(offX ? { x: element.clientWidth / 2 - (box.x + Math.min(box.w, element.clientWidth / v.z) / 2) * v.z } : {}),
+      ...(offY ? { y: element.clientHeight / 2 - (box.y + Math.min(box.h, element.clientHeight / v.z) / 2) * v.z } : {}) }));
     return true;
   };
   useEffect(() => {
@@ -1844,30 +1850,37 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       }
       const flowX = own.x - exchange.dx, flowY = own.y - exchange.dy;
       onMove(exchange.id, x - flowX, y - flowY);
+      if (centerRef.current === exchange.id) { centerRef.current = null; centerOn({ x, y, w: own.w, h: own.h }); }
       if (!present.current.links.some(link => link.from === exchange.linkFrom && link.to === exchange.id)) {
         setLinks(previous => [...previous, { id: crypto.randomUUID(), from: exchange.linkFrom, fromSide: 'bottom', to: exchange.id, toSide: 'top', color: LINK_COLORS[blocksRef.current.find(block => block.id === exchange.linkFrom)?.type] || '#2383e2' }]);
       }
     }
   }, [exchanges, bounds]);
-  // Keep the newest exchange in sight while it streams. Moving a node must
-  // not re-trigger this, so the pan is keyed on arrivals and status changes.
-  const autoPanKey = useRef('');
+  // A new question's card lands in the middle of the view, once: chat cards
+  // sit at the top of the column, so following the column's bottom left the
+  // new card off screen above. Nothing pans while the answer streams, and a
+  // board opening with chats, undo or pasted copies never pans (only a fresh
+  // ask arrives 'thinking'). An asked-about card's answer is centred after
+  // the auto-link above parks it under its source.
+  const centerRef = useRef(null);
+  const seenChats = useRef(null);
+  if (!seenChats.current) seenChats.current = new Set(exchanges.map(exchange => exchange.id));
+  const centerOn = box => {
+    const element = surface.current;
+    if (!element) return;
+    setView(v => ({ ...v, x: element.clientWidth / 2 - (box.x + box.w / 2) * v.z, y: element.clientHeight / 2 - (box.y + Math.min(box.h, element.clientHeight / v.z) / 2) * v.z }));
+  };
   useEffect(() => {
-    const element = surface.current, col = column.current;
-    // No exchanges means nothing is streaming, so there is no newest thing to
-    // follow - and panning anyway drags a seeded board past its own first
-    // block. Inserting still pans, through insertBlock's own camera move.
-    if (!element || !col || !exchanges.length) return;
-    const last = exchanges[exchanges.length - 1];
-    const key = `${exchanges.length}:${blocks.length}:${last?.id || ''}:${last?.status || ''}`;
-    if (key === autoPanKey.current) return;
-    autoPanKey.current = key;
-    setView(v => {
-      const bottom = v.y + (24 + col.offsetHeight) * v.z;
-      const want = element.clientHeight - 150;
-      return bottom > want ? { ...v, y: v.y - (bottom - want) } : v;
-    });
-  }, [exchanges, blocks.length]);
+    for (const exchange of exchanges) {
+      if (seenChats.current.has(exchange.id)) continue;
+      seenChats.current.add(exchange.id);
+      if (exchange.status === 'thinking') centerRef.current = exchange.id;
+    }
+    const id = centerRef.current, exchange = exchanges.find(entry => entry.id === id);
+    if (!exchange || exchange.linkFrom || !bounds[id]) return;
+    centerRef.current = null;
+    centerOn(bounds[id]);
+  }, [exchanges, bounds]); // eslint-disable-line react-hooks/exhaustive-deps
   const zoomAt = (cx, cy, factor) => setView(v => {
     const z = Math.min(3, Math.max(0.25, v.z * factor));
     const f = z / v.z;
