@@ -1746,6 +1746,32 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     } finally { for (const c of [solo, owned, away].filter(Boolean)) await drop6(page, c.name); await page.context().close(); }
   });
 
+  if (ready) await check('wp6-project: bare /apps/<project> is Overview without the Map; map, code, graph and agent open Map; Learn keeps the project tabs above one composer, below the phone top strip', async () => {
+    const page = await open();
+    await loaded(page, `/apps/${ready.name}`);
+    await ptab(page, 'Overview').waitFor({ timeout: 20000 });
+    must(await isSelected(ptab(page, 'Overview')), 'Overview is not the default');
+    must(await page.getByRole('textbox', { name: 'Search repository' }).count() === 0 && await page.getByText(/excluded files/).count() === 0, 'Overview shows the Map');
+    for (const t of ['map', 'code', 'graph', 'agent']) {
+      await spa(page, `/apps/${ready.name}?tab=${t}`);
+      await page.getByRole('textbox', { name: 'Search repository' }).waitFor({ timeout: 20000 });
+      must(await isSelected(ptab(page, 'Map')), `?tab=${t} is not Map`);
+    }
+    await ptab(page, 'Overview').click();
+    await page.waitForURL(`**/apps/${ready.name}`);
+    await ptab(page, 'Learn').click();
+    await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
+    must(await isSelected(ptab(page, 'Learn')) && await composers(page) === 1 && await barOf(page).count() === 0, 'Learn lost the project tabs, or has two composers');
+    await ptab(page, 'Map').click();
+    await page.waitForURL(/[?]tab=map$/);
+    await page.context().close();
+    const phone = await open({ width: 390, height: 844 });
+    await loaded(phone, `/apps/${ready.name}?tab=learn`);
+    await phone.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
+    must((await phone.locator('[data-project-tabs]').boundingBox()).y >= 40, 'the project tabs sit under the phone top strip');
+    await phone.context().close();
+  });
+
   // Checks from Tasks 1-11 go here, in task order.
 }
 

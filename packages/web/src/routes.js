@@ -58,3 +58,7 @@ export function baseSurfaceFor(pathname, search, from = {}) {
   const identity = Object.fromEntries(IDENTITY.filter((k) => from[k] !== undefined).map((k) => [k, from[k]]));
   return { ...identity, place, resource: null, selected: null, barHidden: ['learn', 'canvas', 'chat', 'run'].includes(place), resultsHost: 'sheet', handlers: {} };
 }
+
+// Project tabs (T02 §1 aliases): Overview is the default; map and the legacy code, graph and agent open Map.
+// ponytail: ?tab=sources lands on Overview - WP6 has no Sources tab.
+export const projectTab = (search) => { const tab = new URLSearchParams(search).get('tab'); return tab === 'learn' ? 'learn' : ['map', 'code', 'graph', 'agent'].includes(tab) ? 'map' : 'overview'; };

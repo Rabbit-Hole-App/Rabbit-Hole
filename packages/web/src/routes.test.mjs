@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { getSurface, patchSurface, setSurface } from './agent/surface.js';
-import { baseSurfaceFor, canonicalPath, pageFor, sectionActive, sectionHref, takeWs } from './routes.js';
+import { baseSurfaceFor, canonicalPath, pageFor, projectTab, sectionActive, sectionHref, takeWs } from './routes.js';
 
 test('the live build routes exactly as today (main.jsx:57-70)', () => {
   for (const p of ['/apps', '/dash', '/members', '/chat', '/apps/counter', '/apps/counter/runs/r-1']) assert.equal(canonicalPath(p, false), null);
@@ -85,4 +85,10 @@ test('a workspace switch travels in the URL and applies only on the page it load
   assert.deepEqual(takeWs('?ws='), { ws: '', search: '' }); // the domain workspace
   assert.equal(takeWs('?s=shared'), null);
   assert.equal(takeWs(''), null);
+});
+
+test('a project opens on Overview; learn is Learn; map and the legacy code, graph and agent open Map (T02 §1; WP6 has no Sources tab)', () => {
+  for (const s of ['', '?tab=overview', '?tab=sources', '?canvas=canvas-1a2b3c4d']) assert.equal(projectTab(s), 'overview', s);
+  assert.equal(projectTab('?tab=learn&canvas=canvas-1a2b3c4d'), 'learn');
+  for (const t of ['map', 'code', 'graph', 'agent']) assert.equal(projectTab(`tab=${t}`), 'map', t);
 });
