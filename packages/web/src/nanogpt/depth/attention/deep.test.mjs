@@ -402,8 +402,10 @@ test('bridges to Guided: the five steps are its steps 1-4; one att entry is one 
   const [shapes] = assertCardGates(scene, [{ part: 0 }]);
   const [memory] = assertCardGates(scene, [{ part: 2 }]);
   assert.equal(byId(shapes, 'prerequisites').label, 'Builds on: Guided; several heads, matrix shapes, batched matrix multiply');
-  assert.equal(byId(shapes, 'guided-note').label, 'these five: Guided’s steps 1–4,');
-  assert.equal(byId(shapes, 'guided-note-2').label, 'for every reader of every head at once');
+  assert.equal(byId(shapes, 'guided-note').label, 'q @ k.transpose(-2, -1) … att @ v: Guided’s');
+  // The note names the first and last of the five exactly as their boxes do.
+  assert.ok(byId(shapes, 'guided-note').label.startsWith(`${byId(shapes, 'step-scores').label} … ${byId(shapes, 'step-mix').label}:`));
+  assert.equal(byId(shapes, 'guided-note-2').label, 'steps 1–4, for all readers of all heads at once');
   // Guided numbers exactly four steps, in this order, and they are the five fused steps.
   const numbered = guided.scene.objects.map(o => o.initialState?.label).filter(l => typeof l === 'string' && /^\d\. /.test(l));
   assert.deepEqual(numbered.map(l => l.slice(0, 2)), ['1.', '2.', '3.', '4.']);
@@ -413,8 +415,8 @@ test('bridges to Guided: the five steps are its steps 1-4; one att entry is one 
   assert.match(numbered[3], /values v .*mixed by the weights/);
   assert.deepEqual(scene.objects.filter(o => o.type === 'box' && o.initialState.opacity?.$derive === 'manualLit').map(o => o.id),
     ['step-scores', 'step-scale', 'step-mask', 'step-softmax', 'step-mix']);
-  assert.equal(byId(memory, 'mem-note').label, 'one weight per (reader, key): Guided’s row, for T readers × n_h heads × B sequences');
-  assert.match(byId(memory, 'eq-memory').label, /^B\\cdot n_h\\cdot T\^2=/, 'the note uses the equation’s head symbol');
+  assert.equal(byId(memory, 'mem-note').label, 'one weight per (reader, key): Guided’s row, for T readers × nh heads × B sequences');
+  assert.match(byId(shapes, 'shape-scores').label, /\(B, nh, T, T\)/, 'the note uses the family’s plain-text head name, not a literal n_h');
 });
 
 test('evidence record is complete', () => {

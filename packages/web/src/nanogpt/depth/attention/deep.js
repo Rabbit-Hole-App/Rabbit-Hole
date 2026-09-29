@@ -221,11 +221,11 @@ export const scene = {
       ]),
       // The five middle steps are Guided's numbered steps (1 score, 2 scale and
       // mask, 3 softmax, 4 mix), run on whole tensors; beside them, above the
-      // fused note.
+      // fused note. The note names the first and last box so the five are exact.
       { id: 'guided-note', type: 'text', semanticId: 'guided-steps', conceptId: 'forward',
-        initialState: { text: 'these five: Guided’s steps 1–4,', x: 580, y: stepY(4) - 20, typography: 'annotation' } },
+        initialState: { text: 'q @ k.transpose(-2, -1) … att @ v: Guided’s', x: 580, y: stepY(4) - 20, typography: 'annotation' } },
       { id: 'guided-note-2', type: 'text', semanticId: 'guided-steps-2', conceptId: 'forward',
-        initialState: { text: 'for every reader of every head at once', x: 580, y: stepY(4) + 2, typography: 'annotation' } },
+        initialState: { text: 'steps 1–4, for all readers of all heads at once', x: 580, y: stepY(4) + 2, typography: 'annotation' } },
       // Why five steps are dimmed on the fused path, beside them (the call is 3/4).
       { id: 'fused-note', type: 'text', semanticId: 'fused-note', conceptId: 'forward',
         initialState: { text: 'fused SDPA: one call replaces these five steps', x: 580, y: stepY(4) + 24,
@@ -281,7 +281,7 @@ export const scene = {
         initialState: { text: `\\times ${NL}\\text{ layers}={{allMB.0}}\\text{ MB}`, x: COL, y: MEM_Y + 56, w: 470, h: 26 } },
       // What one entry of B·n_h·T² is: a weight in Guided's row.
       { id: 'mem-note', type: 'text', semanticId: 'mem-note', conceptId: 'memory',
-        initialState: { text: 'one weight per (reader, key): Guided’s row, for T readers × n_h heads × B sequences', x: COL, y: MEM_Y + 106, typography: 'annotation' } },
+        initialState: { text: 'one weight per (reader, key): Guided’s row, for T readers × nh heads × B sequences', x: COL, y: MEM_Y + 106, typography: 'annotation' } },
       { id: 'path-note', type: 'text', semanticId: 'path-note', conceptId: 'memory',
         initialState: { text: '{{pathNote}}', x: COL, y: MEM_Y + 136, typography: 'annotation' } },
       { id: 'path-note-2', type: 'text', semanticId: 'path-note-2', conceptId: 'memory',
