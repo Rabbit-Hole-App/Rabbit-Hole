@@ -1625,6 +1625,40 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   });
 }
 
+{
+  // ── WP6 destinations, checkpoint 1 (rabbit-hole-checklist.md "WP6 destinations"). D7: test canvases go to
+  // LEARN_DB only and are deleted; Learn asks are aborted or held in the browser (no model call, no thread, so
+  // DELETE never 405s); nothing clicks Run, Open, Refresh branch, Duplicate, Trash, Share or Request access. ──
+  const { NOT_HERE, NOT_HERE_WHY, canvasKeys } = await import('../src/home/canvas-local.js'); // pure, like flags.js
+  const D7 = 'Blocked on this preview: it would change live apps.'; // agent/commands.js D7_REASON (commands.js pulls api.js, so not imported)
+  const ASK_OFF = 'Asking about the workspace or apps is off on this preview: it would write to live chat history.'; // agent/slash.js ASK_OFF
+  const ready = apps.find((a) => a.kind === 'repository' && a.status === 'ready' && a.commit_sha && /^karpathy\/nanogpt$/i.test(a.repo || ''))
+    || apps.find((a) => a.kind === 'repository' && a.status === 'ready' && a.commit_sha);
+  const job = apps.find((a) => a.kind === 'job' && a.hosting !== 'aws' && a.lastRun) || apps.find((a) => a.kind === 'job' && a.hosting !== 'aws');
+  const server = apps.find((a) => a.kind === 'server');
+  const api6 = (page, path, method = 'GET', body) => page.evaluate(async ([p, m, b]) => {
+    const r = await fetch(p, { method: m, headers: { 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined });
+    return { status: r.status, data: await r.json().catch(() => null) };
+  }, [path, method, body]);
+  const canvas6 = async (page, body) => { const r = await api6(page, '/api/canvases', 'POST', body); must(r.status === 201, `create canvas: HTTP ${r.status} ${JSON.stringify(r.data)}`); return r.data; };
+  const drop6 = async (page, name) => { const r = await api6(page, `/api/apps/${name}`, 'DELETE'); must(r.status < 300, `delete ${name}: HTTP ${r.status}; remove it from small-learn-dev by hand`); };
+  // Non-GET /api/ calls, except RepositorySource's read (POST .../file) and Learn asks aborted in the browser.
+  const writes6 = (page) => { const w = []; page.on('request', (r) => { const p = new URL(r.url()).pathname; if (r.method() !== 'GET' && p.startsWith('/api/') && !/\/file$|^\/api\/learn\/ask$/.test(p)) w.push(`${r.method()} ${p}`); }); return w; };
+  const noAsks = (page) => page.route('**/api/learn/ask', (r) => r.abort());
+  const ptab = (page, name) => page.locator('[data-project-tabs]').getByRole('tab', { name, exact: true });
+  const isSelected = async (loc) => (await loc.getAttribute('aria-selected')) === 'true';
+  const composers = (page) => page.locator('[data-chat-composer]').count();
+  const ownComposers = (page) => page.locator('[data-chat-composer]:not([data-agent-bar] [data-chat-composer])').count();
+  const pickNode = async (page, label = 'CausalSelfAttention') => { // the WP5 naming shots' mapNode
+    await page.getByRole('textbox', { name: 'Search repository' }).fill(label);
+    await page.waitForTimeout(800);
+    await page.getByText(label, { exact: true }).first().click({ timeout: 10000 });
+    await barOf(page).locator('[data-scope-chip="selected"]').waitFor({ timeout: 10000 });
+  };
+  console.log(`wp6: project ${ready?.repo || 'none'} · job ${job?.name || 'none'}${job?.lastRun ? ' (ran)' : ''} · server ${server?.name || 'none'}`);
+  // Checks from Tasks 1-11 go here, in task order.
+}
+
 // ── journey checks: each area inserts its block above this line, wrapped in { } ──
 
 await browser.close();

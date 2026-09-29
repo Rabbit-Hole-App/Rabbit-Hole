@@ -3,7 +3,8 @@
 // (the live build, no VITE_COACHING_DEV): node e2e/live-bundle-check.mjs
 import { readdirSync, readFileSync } from 'node:fs';
 
-const dir = new URL('../dist/static/', import.meta.url);
+// DIST=dist-dev node e2e/live-bundle-check.mjs must FAIL: it proves every marker below is real, not vacuous.
+const dir = new URL(`../${process.env.DIST || 'dist'}/static/`, import.meta.url);
 const PREVIEW_CHUNKS = /^(AgentBar|ConfirmCard|StartHost|Home|RepositoryPage|review-fixtures-data)-/;
 const MARKERS = ['data-agent-bar', 'data-result-sheet', 'nanoGPT from First Principles'];
 const failures = [];
