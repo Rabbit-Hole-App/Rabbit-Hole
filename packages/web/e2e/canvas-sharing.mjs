@@ -42,6 +42,12 @@ const viewUrl = dialog.getByRole('textbox', { name: 'View link URL' });
 await viewUrl.waitFor({ timeout: 10000 });
 const viewLink = await viewUrl.inputValue();
 check('sharing makes a view link, and there is no edit link', /\/b\/[A-Za-z0-9_-]{20,}$/.test(viewLink) && await dialog.getByRole('switch', { name: 'Edit link' }).count() === 0);
+const rules = dialog.getByRole('tooltip');
+const hiddenFirst = await rules.evaluate(node => getComputedStyle(node).opacity === '0');
+await dialog.getByRole('button', { name: 'How sharing works' }).hover();
+await owner.waitForTimeout(300);
+check('the sharing rules sit behind a ! icon and show on hover', hiddenFirst && await rules.evaluate(node => getComputedStyle(node).opacity === '1')
+  && (await rules.innerText()).startsWith('Shared boards are view-only'));
 if (SHOTS) await owner.screenshot({ path: `${SHOTS}/share-panel.png` });
 
 // a signed-in friend opens the view link: read-only

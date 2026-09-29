@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Copy, Eye, Globe } from 'lucide-react';
+import { Check, CircleAlert, Copy, Eye, Globe } from 'lucide-react';
 
 // The Share popover for a Learn board (docs/features/canvas-sharing.md): one
 // switch shares or stops sharing; the view link can be public (no sign-in).
@@ -58,7 +58,19 @@ export default function SharePanel({ sharing, busy, error, onChange, onClose }) 
       className="absolute top-full right-0 z-50 mt-2 w-96 rounded-xl border border-line bg-white p-3 shadow-lg">
       <div className="flex items-center gap-2">
         <div className="flex-1">
-          <div className="text-sm font-semibold text-ink">Share this board</div>
+          <div className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+            Share this board
+            {/* The rules sit behind a ! so the panel stays short; hover or focus shows them. */}
+            <span className="group relative flex">
+              <button type="button" aria-label="How sharing works" aria-describedby="share-rules" className="flex text-ink-3 hover:text-ink">
+                <CircleAlert size={14} strokeWidth={2} />
+              </button>
+              <span id="share-rules" role="tooltip"
+                className="pointer-events-none absolute top-full left-1/2 z-10 mt-1.5 w-64 -translate-x-1/2 rounded-lg bg-ink px-2.5 py-2 text-[11px] leading-snug font-normal text-white opacity-0 shadow-md transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+                Shared boards are view-only; people fork them to make their own editable copy. Turning the link off stops it working; turning it on again makes a new one.
+              </span>
+            </span>
+          </div>
           <div className="text-xs text-ink-3">{current.shared ? 'People with a link below can open it.' : 'Only you can see this board.'}</div>
         </div>
         <Switch on={current.shared} label="Share this board" disabled={busy}
@@ -76,9 +88,6 @@ export default function SharePanel({ sharing, busy, error, onChange, onClose }) 
               </label>
             )}
           </LinkRow>
-          <p className="px-0.5 text-[11px] leading-snug text-ink-3">
-            Shared boards are view-only; people fork them to make their own editable copy. Turning the link off stops it working; turning it on again makes a new one.
-          </p>
         </div>
       )}
       {error && <p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}
