@@ -675,6 +675,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     try {
       await page.evaluate((name) => localStorage.setItem('small.recent', JSON.stringify([name])), repo.name);
       await page.reload();
+      await page.locator('aside').getByText(wsLabel, { exact: true }).first().waitFor({ state: 'attached', timeout: 20000 }); // the catalog is in before Find runs
       await barOf(page).waitFor({ timeout: 20000 });
       const sheet = page.locator('[data-result-sheet]');
       const say = async (text) => { await barInput(page).fill(text); await barInput(page).press('Enter'); };
