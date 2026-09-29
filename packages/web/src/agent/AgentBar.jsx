@@ -32,7 +32,7 @@ const chooseLabel = (slug) => {
 // T02 §6: one Agent Bar over every page, mounted once in Root (dev only), so a
 // draft and an in-flight answer survive Shell remounts and navigation. Where it
 // shows comes from surface.barHidden (routes.js baseSurfaceFor, then the page).
-export default function AgentBar() {
+export default function AgentBar({ page }) {
   const surface = useSurface();
   const hidden = surface.barHidden;
   const root = useRef(null), inputRef = useRef(null), abort = useRef(null);
@@ -64,6 +64,9 @@ export default function AgentBar() {
 
   // §6.2 mode: Auto unless picked; '/' at position 0 opens the picker.
   const [mode, setMode] = useState('auto');
+  // A mode is transient (user, WP7): a new page or resource starts in Auto. Project tabs and a node pick keep the page
+  // key (routes.js pageFor), so they keep the mode; drafts and held drafts are untouched.
+  useEffect(() => setMode('auto'), [page]);
   const [picker, setPicker] = useState(false);
   const [hi, setHi] = useState(0);
   const entries = [...modesFor(target).map(([name, desc]) => ({ name, desc, shortcut: false })), ...shortcutsFor(target, surface.catalog).map(([name, desc]) => ({ name, desc, shortcut: true }))]

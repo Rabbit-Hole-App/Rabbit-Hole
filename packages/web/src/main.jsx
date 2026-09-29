@@ -23,6 +23,7 @@ import { getSurface, setSurface } from './agent/surface.js';
 import { sidebarEdge } from './home/pinned.js';
 import { learnPreview, PRODUCT } from './flags.js';
 import { baseSurfaceFor, canonicalPath, pageFor, takeWs } from './routes.js';
+import { reloadOnce } from './chunk-reload.js';
 
 applyTheme(getTheme()); // before first paint - no light flash for dark users
 if (learnPreview) document.title = PRODUCT; // the live build keeps index.html's title
@@ -108,10 +109,30 @@ function Root() {
       {at.page === 'app' ? <SharePage slug={at.slug} runId={at.runId} /> : at.page === 'members' ? <MembersPage /> : at.page === 'chat' ? <ChatPage /> : at.page === 'home' ? <Suspense fallback={null}><Home /></Suspense> : at.page === 'explore' ? <Suspense fallback={null}><ExplorePreview /></Suspense> : <App />}
       <SearchModal />
       {StartHost && <Suspense fallback={null}><StartHost takeEarly={takeEarlyStart} /></Suspense>}
-      {AgentBar && <Suspense fallback={null}><AgentBar /></Suspense>}
+      {AgentBar && <Suspense fallback={null}><AgentBar page={`${at.page}:${at.slug || ''}`} /></Suspense>}
       <Toasts />
     </>
   );
 }
 
-createRoot(document.getElementById('root')).render(isPrivateByoc ? <PrivateAuthGate><Root /></PrivateAuthGate> : <Root />);
+// A lazy chunk gone after a deploy: reload once for the new shell (chunk-reload.js). If it still fails, React's uncaught
+// error would leave a blank page, so the root shows a plain message with Reload instead.
+let reloading = false;
+window.addEventListener('vite:preloadError', (e) => {
+  let store = null;
+  try { store = window.sessionStorage; } catch { /* blocked: never reload */ }
+  if (!reloadOnce(store, Date.now())) return;
+  reloading = true;
+  e.preventDefault();
+  window.location.reload();
+});
+const rootEl = document.getElementById('root');
+const crashed = () => {
+  if (reloading) return;
+  setTimeout(() => {
+    rootEl.innerHTML = '<div role="alert" class="mx-auto max-w-md px-6 pt-[18vh] text-center"><h1 class="text-lg font-semibold">This page couldn&#39;t load</h1><p class="pt-2 text-sm text-ink-2">The app may have just been updated. Reload to get the latest version.</p><button type="button" class="mt-4 cursor-pointer rounded-md border border-line px-3 py-1.5 text-sm hover:bg-hover">Reload</button></div>';
+    rootEl.querySelector('button').addEventListener('click', () => window.location.reload());
+  });
+};
+
+createRoot(rootEl, { onUncaughtError: crashed }).render(isPrivateByoc ? <PrivateAuthGate><Root /></PrivateAuthGate> : <Root />);

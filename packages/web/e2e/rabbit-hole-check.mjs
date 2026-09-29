@@ -1637,6 +1637,32 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(await barInput(page).inputValue() === '/teach why does attention scale by sqrt(dk)?', 'the prompt was not kept');
     await page.context().close();
   });
+
+  // WP7 (user, 2026-09-29): a mode is transient. A new page or resource starts in Auto; project tabs, a node pick and drafts keep theirs.
+  if (ready) await check('bar-mode: Teach picked on Project A is Auto on Library, Home and Project B; a typed draft stays', async () => {
+    const page = await barOpen(`/apps/${ready.name}`);
+    const bar = barOf(page);
+    const other = apps.find((a) => a.kind === 'repository' && a.name !== ready.name) || plain; // Project B, else another resource
+    const teach = async (text = '') => {
+      await spa(page, `/apps/${ready.name}`);
+      await chip(page).getByText(ready.repo, { exact: true }).waitFor({ timeout: 15000 });
+      await barInput(page).fill('/te');
+      await barInput(page).press('Enter');
+      await bar.getByRole('button', { name: 'Back to Auto' }).waitFor({ timeout: 3000 });
+      if (text) await barInput(page).fill(text);
+    };
+    for (const to of ['/library', '/apps', ...(other ? [`/apps/${other.name}`] : [])]) {
+      await teach();
+      await spa(page, to);
+      await bar.getByRole('button', { name: 'Auto', exact: true }).waitFor({ timeout: 5000 });
+      must(await bar.getByRole('button', { name: 'Back to Auto' }).count() === 0, `Teach carried to ${to}`);
+    }
+    await teach('keep me');
+    await spa(page, '/library');
+    await bar.getByRole('button', { name: 'Auto', exact: true }).waitFor({ timeout: 5000 });
+    must(await barInput(page).inputValue() === 'keep me', 'the reset dropped the held draft');
+    await page.context().close();
+  });
 }
 
 {
@@ -2336,6 +2362,28 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await loaded(page, '/chat');
     must(new URL(page.url()).pathname === '/apps', `/chat stayed at ${new URL(page.url()).pathname}`);
     await page.context().close();
+  });
+
+  // WP7 (user, 2026-09-29): a deploy replaces the hashed chunks, so a tab opened before it gets a 404 on its next lazy chunk.
+  // It reloads once and carries on; if the chunk still fails, it says so instead of going blank, and never loops.
+  if (ready) await check('wp7-stale-chunk: a lazy chunk gone after a deploy reloads the page once and the project opens; a chunk that keeps failing shows an error, not a blank page, and reloads no more', async () => {
+    for (const persistent of [false, true]) {
+      const page = await open();
+      let failed = 0, reloads = 0;
+      await page.route('**/static/RepositoryPage-*.js', (r) => (persistent || !failed++ ? r.fulfill({ status: 404, body: 'gone' }) : r.continue()));
+      await loaded(page, '/library');
+      page.on('framenavigated', (f) => { if (f === page.mainFrame()) reloads++; });
+      await spa(page, `/apps/${ready.name}`);
+      if (!persistent) {
+        await page.locator('[data-project-tabs]').waitFor({ timeout: 30000 });
+        must(reloads === 1, `expected one reload, saw ${reloads}`);
+      } else {
+        await page.getByText("This page couldn't load", { exact: false }).waitFor({ timeout: 30000 });
+        await page.waitForTimeout(4000);
+        must(reloads === 1, `expected exactly one reload before the error, saw ${reloads}`);
+      }
+      await page.context().close();
+    }
   });
 
   // Checks from Tasks 1-11 go here, in task order.
