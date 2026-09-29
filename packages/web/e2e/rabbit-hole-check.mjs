@@ -2066,7 +2066,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const overlap = (a, b) => a && b && a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
     const tools = await box(phone.getByRole('toolbar', { name: 'Canvas tools' }));
     const zoom = await box(phone.locator('[data-zoom]'));
-    must(!overlap(tools, zoom), 'the drawing tools sit under the zoom controls');
+    must(!overlap(tools, zoom) && (!tools || !zoom || zoom.y - (tools.y + tools.height) >= 8), `the drawing tools sit on the zoom controls (gap ${tools && zoom ? Math.round(zoom.y - tools.y - tools.height) : '-'}px)`);
     const cb = await composer.boundingBox();
     must(cb.y >= 0 && cb.y + cb.height <= 844 && !overlap(cb, zoom) && !overlap(cb, tools), 'the composer is covered or off screen');
     await phone.context().close();
