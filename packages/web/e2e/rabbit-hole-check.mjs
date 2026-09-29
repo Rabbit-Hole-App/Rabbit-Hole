@@ -2372,7 +2372,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       let failed = 0, reloads = 0;
       await page.route('**/static/RepositoryPage-*.js', (r) => (persistent || !failed++ ? r.fulfill({ status: 404, body: 'gone' }) : r.continue()));
       await loaded(page, '/library');
-      page.on('framenavigated', (f) => { if (f === page.mainFrame()) reloads++; });
+      page.on('load', () => reloads++); // full page loads only; framenavigated also fires for the pushState step
       await spa(page, `/apps/${ready.name}`);
       if (!persistent) {
         await page.locator('[data-project-tabs]').waitFor({ timeout: 30000 });
