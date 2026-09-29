@@ -2,6 +2,9 @@ import { chromium } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 // How long each canvas + item takes to render on the parallel clone.
+// Tool Performance v1: time to visible / content / interactive come from the
+// app's own rh:<id>:<phase> User Timing marks (learn-perf.js); "settled" (card
+// stopped resizing) is kept only to compare with the first baseline.
 // Cold: a fresh browser (no HTTP cache), click to ready - includes the item's
 // lazy code and data. Warm: a second insert of the same item on that page.
 // Also counts bytes fetched and main-thread long tasks while it renders.
@@ -32,6 +35,7 @@ const READY = {
 };
 
 const browser = await chromium.launch();
+const paid = [];
 const open = async () => {
   const context = await browser.newContext({ viewport: { width: 1600, height: 1100 } });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
@@ -42,10 +46,14 @@ const open = async () => {
   const page = await context.newPage();
   const bytes = { n: 0, count: 0 };
   page.on('requestfinished', async request => { try { const sizes = await request.sizes(); bytes.n += sizes.responseBodySize; bytes.count += 1; } catch {} });
+  // No paid generation may be requested by merely inserting a card.
+  page.on('request', request => { if (request.method() === 'POST' && /\/api\/learn\/(image|video|scene|tts|artifact)/.test(request.url())) paid.push(request.url()); });
+  const started = Date.now();
   await page.goto(`${BASE}/apps/${APP}?tab=learn&board=timing-${Date.now().toString(36)}`);
   await page.getByRole('menubar', { name: 'Canvas menu' }).waitFor({ timeout: 60000 });
+  const load = { ms: Date.now() - started, kb: bytes.n / 1024, requests: bytes.count };
   await page.waitForTimeout(2500);
-  return { context, page, bytes };
+  return { context, page, bytes, load };
 };
 
 // Click the item and time: mount (the card exists), ready (library output,
@@ -60,7 +68,7 @@ const insert = async (page, bytes, label) => {
     await page.getByRole('dialog', { name: 'Search' }).waitFor({ timeout: 20000 });
     const t1 = await page.evaluate(() => performance.now());
     await page.keyboard.press('Escape');
-    return { mount: t1 - t0, ready: t1 - t0, kb: (bytes.n - b0) / 1024, requests: bytes.count - c0, blocked: 0 };
+    return { mount: t1 - t0, ready: t1 - t0, visible: t1 - t0, content: t1 - t0, interactive: t1 - t0, kb: (bytes.n - b0) / 1024, requests: bytes.count - c0, blocked: 0 };
   }
   const id = await page.waitForFunction(ids => [...document.querySelectorAll('[data-block-id]')].map(node => node.dataset.blockId).find(value => !ids.includes(value)), before, { timeout: 30000, polling: 16 }).then(handle => handle.jsonValue());
   const mount = (await page.evaluate(() => performance.now())) - t0;
@@ -74,8 +82,15 @@ const insert = async (page, bytes, label) => {
     if (!ok || w[id]?.h !== h) { w[id] = { h, since: now }; return false; }
     return now - w[id].since >= 400 ? now - 400 - t0 : false;
   }, { id, check, t0 }, { timeout: 90000, polling: 50 }).then(handle => handle.jsonValue()).catch(() => null);
-  const blocked = await page.evaluate(({ t0, end }) => window.__long.filter(task => task.start >= t0 && task.start <= end).reduce((sum, task) => sum + Math.max(0, task.duration - 50), 0), { t0, end: t0 + (ready ?? 90000) });
-  return { mount, ready, kb: (bytes.n - b0) / 1024, requests: bytes.count - c0, blocked };
+  // The app's own marks: insert -> visible / content / interactive.
+  const marks = await page.waitForFunction(id => {
+    const at = phase => performance.getEntriesByName(`rh:${id}:${phase}`)[0]?.startTime;
+    const insert = at('insert'), visible = at('visible'), content = at('content'), interactive = at('interactive');
+    return insert !== undefined && interactive !== undefined && content !== undefined && visible !== undefined ? { visible: visible - insert, content: content - insert, interactive: interactive - insert } : false;
+  }, id, { timeout: 90000, polling: 50 }).then(handle => handle.jsonValue()).catch(() => ({}));
+  const end = t0 + Math.max(ready ?? 0, marks.interactive ?? 0);
+  const blocked = await page.evaluate(({ t0, end }) => window.__long.filter(task => task.start >= t0 && task.start <= end).reduce((sum, task) => sum + Math.max(0, task.duration - 50), 0), { t0, end });
+  return { mount, ready, ...marks, kb: (bytes.n - b0) / 1024, requests: bytes.count - c0, blocked };
 };
 
 const first = await open();
@@ -85,16 +100,21 @@ await first.page.keyboard.press('Escape');
 await first.context.close();
 console.log(`${labels.length} items`);
 
-const rows = [];
+const rows = [], loads = [];
 for (const label of labels) {
-  const { context, page, bytes } = await open();
+  const { context, page, bytes, load } = await open();
+  loads.push(load);
   const cold = await insert(page, bytes, label);
   await page.waitForTimeout(800);
   const warm = await insert(page, bytes, label);
   await context.close();
-  const row = { label, mountCold: Math.round(cold.mount), readyCold: cold.ready == null ? null : Math.round(cold.ready), readyWarm: warm.ready == null ? null : Math.round(warm.ready), kbCold: Math.round(cold.kb), requestsCold: cold.requests, blockedCold: Math.round(cold.blocked), blockedWarm: Math.round(warm.blocked) };
+  const r = value => (value == null ? null : Math.round(value));
+  const row = { label, visibleCold: r(cold.visible), contentCold: r(cold.content), interactiveCold: r(cold.interactive), visibleWarm: r(warm.visible), interactiveWarm: r(warm.interactive), settledCold: r(cold.ready), settledWarm: r(warm.ready), kbCold: r(cold.kb), requestsCold: cold.requests, blockedCold: r(cold.blocked), blockedWarm: r(warm.blocked) };
   rows.push(row);
   console.log(JSON.stringify(row));
 }
-writeFileSync(OUT, JSON.stringify(rows, null, 2));
+const median = list => [...list].sort((a, b) => a - b)[Math.floor(list.length / 2)];
+const learnLoad = { medianMs: median(loads.map(l => l.ms)), medianKb: Math.round(median(loads.map(l => l.kb))), medianRequests: median(loads.map(l => l.requests)) };
+console.log('learn load', JSON.stringify(learnLoad), 'paid requests', paid.length);
+writeFileSync(OUT, JSON.stringify({ learnLoad, paidRequests: paid, rows }, null, 2));
 await browser.close();

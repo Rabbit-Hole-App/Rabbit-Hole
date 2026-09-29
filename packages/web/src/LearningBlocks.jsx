@@ -25,6 +25,7 @@ import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
 import { sceneAssetUrl, sceneList, startScene, startVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
 import PaidConfirm from './PaidConfirm.jsx';
 import { describeNotebook } from './learn-notebook.js';
+import { afterPaint, usePerf } from './learn-perf.js';
 
 // Lesson component library for the adaptive canvas (spec: docs/
 // adaptive-learning-canvas-spec.md §12). Each entry renders inside the shared
@@ -1169,6 +1170,7 @@ function SceneBody({ block, appName, onChange }) {
 
 // Interactive glTF on the canvas, sharing the lesson three.js renderer.
 function ThreeDBody({ block, onChange }) {
+  const report = usePerf();
   const host = useRef(null);
   const engine = useRef(null);
   const [clips, setClips] = useState([]);
@@ -1183,7 +1185,7 @@ function ThreeDBody({ block, onChange }) {
       if (disposed) return;
       const current = latest.current;
       const props = { w: 0, h: 0, modelUrl: current.modelUrl, camera: current.camera || {}, animation: current.animation || { autoplay: false }, animationTime: current.animationTime || 0, autoRotate: !!current.autoRotate };
-      instance = createThreeDRenderer(host.current, props, patch => onChange({ ...latest.current, ...patch }), setClips, setError);
+      instance = createThreeDRenderer(host.current, props, patch => onChange({ ...latest.current, ...patch }), found => { setClips(found); report('content'); report('interactive'); }, setError);
       engine.current = instance;
       instance.interact(true); // the canvas node owns focus, so orbit is always live
     }).catch(problem => { if (!disposed) setError(problem.message); });
@@ -1357,16 +1359,18 @@ function VideoBody({ block, appName, onChange, onFile }) {
   };
   useConfirmedStart(block, onChange, generate);
   const pending = block.status === 'generating' || block.status === 'queued';
+  const report = usePerf();
   const clips = block.variants?.length ? block.variants : (block.src ? [{ src: block.src }] : []);
   const position = Math.max(0, Math.min(block.variant ?? clips.length - 1, clips.length - 1));
   const shown = clips[position]?.src || '';
+  useEffect(() => { if (!shown) afterPaint(() => { report('content'); report('interactive'); }); }, [shown]);
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <Kicker>Video</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       {shown
         ? <>
-            <video data-lesson-video src={shown} controls preload="metadata" onPointerDown={event => event.stopPropagation()}
+            <video data-lesson-video src={shown} controls preload="metadata" onLoadedData={() => { report('content'); report('interactive'); }} onPointerDown={event => event.stopPropagation()}
               className="mt-2 w-full rounded-lg border border-line bg-black" />
             {clips.length > 1 && (
               <div className="mt-1.5 flex items-center justify-between" onPointerDown={event => event.stopPropagation()}>
@@ -1436,6 +1440,7 @@ function ExplanationBody({ block, onFile }) {
 }
 
 function GraphBody({ block, appName, onChange }) {
+  const report = usePerf();
   const host = useRef(null);
   const engine = useRef(null);
   const own = useRef('');
@@ -1459,6 +1464,7 @@ function GraphBody({ block, appName, onChange }) {
       engine.current = instance;
       own.current = JSON.stringify(block.state || {});
       instance.resize();
+      afterPaint(() => { report('content'); report('interactive'); });
     })().catch(problem => { if (!disposed) setError(problem.message); });
     return () => { disposed = true; instance?.destroy(); engine.current = null; };
   }, [block.id, attempt, appName]);

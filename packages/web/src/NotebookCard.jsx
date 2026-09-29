@@ -3,6 +3,7 @@ import { Download, FolderTree, MoreHorizontal, Play, RotateCcw } from 'lucide-re
 import { NOTEBOOK_ORIGIN, NOTEBOOK_PROTOCOL, activePath, ipynbPath, notebookUrl, trimOutputs } from './learn-notebook.js';
 import { EXPORT_WORKSPACES, workspaceIdFor, workspaceStore } from './learn-board-assets.js';
 import { toast } from './ui.jsx';
+import { perfMark } from './learn-perf.js';
 
 // The body of a notebook card (docs/features/canvas-notebook.md): Rabbit Hole's
 // header, then the card's Jupyter workspace in an iframe on the isolated
@@ -47,6 +48,8 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest }
       if (type === 'loaded') {
         ready.current = true;
         setLoaded(true);
+        // Tool Performance v1: the notebook UI is up and its kernel accepts work.
+        perfMark(block.id, 'content'); perfMark(block.id, 'interactive');
         // Jupyter focuses itself while starting; hand focus back so the canvas
         // keeps its keys until the learner clicks into the notebook.
         if (document.activeElement === frame.current) frame.current.blur();

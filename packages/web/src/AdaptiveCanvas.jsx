@@ -21,6 +21,7 @@ import { activePath, newNotebookBlock } from './learn-notebook.js';
 import { paletteSections, insertName } from './learn-insert-palette.js';
 import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow } from './learn-connectors.js';
 import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
+import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -524,6 +525,8 @@ function NotebookCard({ block, zoom, selected, connected, onSelect, onMove, onCh
 }
 
 function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade, onWiki, onWatch }) {
+  // Tool Performance v1: visible on first paint; simple cards are complete then (learn-perf.js).
+  usePaintedMarks(block.id, block.type);
   // A YouTube moment (videoId) gets its own card; a hosted or generated clip
   // (the + menu's Video blocks, src) renders as a lesson block.
   if (block.type === 'video' && block.videoId) return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
@@ -566,7 +569,9 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
           </button>
         </div>
       )}
-      <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} selected={selected} />
+      <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
+        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} selected={selected} />
+      </PerfContext.Provider>
     </CanvasNode>
   );
 }
@@ -2193,6 +2198,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, onD
     return at < 0 ? list.length : at;
   };
   const insertAtView = block => {
+    perfMark(block.id, 'insert');
     const index = flowIndexAtView();
     setBlocks(previous => [...previous.slice(0, index), block, ...previous.slice(index)]);
     return revealAfter(block.id);
@@ -2239,7 +2245,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, onD
       ...strokes.flatMap(stroke => stroke.points.filter(point => point.x > 0 && point.x < COLUMN).map(point => point.y)),
     );
     const dy = Math.max(0, lowest - flowY + 24);
-    setBlocks(previous => [...previous, { ...BLOCK_TYPES[type].sample(), dy }]);
+    const added = { ...BLOCK_TYPES[type].sample(), dy };
+    perfMark(added.id, 'insert');
+    setBlocks(previous => [...previous, added]);
     setInsertOpen(false);
     setInsertFilter('');
     if (element) setView(v => ({ ...v, y: Math.min(v.y, element.clientHeight - 280 - (24 + flowY + dy) * v.z) }));

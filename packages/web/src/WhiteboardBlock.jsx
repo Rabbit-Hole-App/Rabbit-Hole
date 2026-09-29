@@ -8,6 +8,7 @@ import { registerBoardAsk } from './board-ask.js';
 import { requestBoardExplanation } from './learn-board-request.js';
 import { wsHeaders } from './api.js';
 import PaidConfirm from './PaidConfirm.jsx';
+import { afterPaint, usePerf } from './learn-perf.js';
 import 'tldraw/tldraw.css';
 
 // A real tldraw board inside a canvas node: the learner gets tldraw's own
@@ -29,6 +30,7 @@ const shapeText = shape => shape.props?.text
   || shape.meta?.label || '';
 
 export default function WhiteboardBlock({ block, appName, onChange, onAskSelection }) {
+  const report = usePerf();
   const editor = useRef(null);
   const saving = useRef(null);
   const host = useRef(null);
@@ -136,6 +138,7 @@ export default function WhiteboardBlock({ block, appName, onChange, onAskSelecti
 
   const mount = instance => {
     editor.current = instance;
+    afterPaint(() => { report('content'); report('interactive'); });
     if (block.snapshot) { try { loadSnapshot(instance.store, block.snapshot); } catch { /* an unreadable board starts empty */ } }
     else if (block.demo === 'sigmoid') instance.createShapes(sigmoidBoard());
     // Lesson and tutor shapes arrive already tagged; anything else is the

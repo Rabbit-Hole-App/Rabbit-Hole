@@ -1,3 +1,4 @@
+import { usePerf } from './learn-perf.js';
 import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, ExternalLink, Highlighter, Minus, Plus, Scan, X } from 'lucide-react';
 import { wsHeaders } from './api.js';
@@ -10,6 +11,7 @@ import { quoteFromRange, locateQuote, rangeFromOffsets, containsOffset, paintHig
 // `highlighting` is highlighter mode - the same model as the Wikipedia card.
 export default function LearnPaper({ app, paper, onClose, onPage, onSelect, selectRequest = 0, selectButton = true,
   highlights = null, onHighlights = null, highlighting = false, onHighlighting = null, paintKey = null }) {
+  const report = usePerf();
   const [document, setDocument] = useState(null);
   const [error, setError] = useState('');
   const [zoom, setZoom] = useState(1);
@@ -66,6 +68,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
       canvas.current.width = viewport.width; canvas.current.height = viewport.height;
       render = page.render({ canvasContext: canvas.current.getContext('2d'), viewport });
       await render.promise;
+      report('content');
       // Selectable words over the image. Positions are percentages of the
       // page; the font scale follows the page's displayed width as the card
       // is resized. A scanned page simply has no words here.
@@ -81,7 +84,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
       resize.observe(layer);
       await words.render();
       const end = window.document.createElement('div'); end.className = 'endOfContent'; layer.append(end);
-      if (active) setTextDrawn(count => count + 1);
+      if (active) { setTextDrawn(count => count + 1); report('interactive'); }
     })().catch(error => { if (active) setError(error.message); });
     return () => { active = false; render?.cancel(); words?.cancel(); resize?.disconnect(); };
   }, [document, paper.page, zoom]);
