@@ -75,8 +75,8 @@ effort is likely to reveal useful evidence; explain when questioning no longer h
 value. Never answer every question with another question.
 
 **T6 — Explain-back loop.** At important conceptual boundaries ("Explain causal masking in your own
-words"), evaluate: key ideas present, misconception, non-attempt. JEV may give a cheap grading
-signal — evidence, not the tutor. If incomplete: identify the specific missing mental model, choose
+words"), evaluate: key ideas present, misconception, non-attempt. JEV is the default fast grader
+here (J3) — evidence, not the tutor. If incomplete: identify the specific missing mental model, choose
 another representation, never repeat the previous explanation.
 
 **T7 — Representation switching.** Text didn't work → animation; animation understood →
@@ -154,6 +154,113 @@ different learner evidence, all from the same architecture, not hardcoded per-co
 - B: prediction reveals misconception → simple example → animation → explain-back → Guided
   visualization.
 - C: already knows the mechanism → source/code → notebook experiment.
+
+## Fast evaluation with JEV (core architectural rule)
+
+JEV is the tutor's fast evaluator, not the tutor. Use it for learner-state evaluation whenever the
+judgment reduces to a small set of concrete questions; call the larger tutor model only when
+interpretation, teaching strategy or generation is actually needed. The performance win comes less
+from JEV being faster than the tutor model than from designing the loop so many learner turns never
+need the heavyweight model at all.
+
+```
+                         ┌─ deterministic evaluator
+learner action ──────────┼─ JEV fast evaluator
+                         └─ general evaluator (fallback)
+                                    ↓
+                             learner evidence
+                                    ↓
+                              Tutor planner
+                                    ↓
+                           pedagogical move
+                                    ↓
+                              learning tool
+```
+
+Not: learner action → expensive general model grades everything → next step.
+
+**J1 — JEV-first rule.** If the evaluation reduces to explicit questions with known criteria, use
+JEV first: did the learner state idea A / idea B; is there a factual misconception; is this a
+non-attempt; did the prediction match the expected qualitative outcome; did they identify the
+correct dependency; does the explanation include the causal mechanism.
+
+**J2 — Challenge grading.** Prompt + key ideas + learner answer → ask JEV idea_0?, idea_1?, …,
+misconception?, non_attempt? and turn the probabilities into learner evidence. The tutor model
+never rereads and grades every one-sentence prediction.
+
+**J3 — Explain-back.** JEV is the default fast grader ("Explain causal masking in your own
+words" → ✓ future positions are hidden · ✓ each position attends to itself and the past · ✗ mask
+applied before softmax · misconception: false). The tutor is called afterwards only to decide:
+continue, clarify the missing idea, switch representation, ask another question.
+
+**J4 — Quiz / prediction checks.** No model when a deterministic check suffices. Multiple choice,
+numeric with tolerance, code tests (runtime/tests) → deterministic. Free-form conceptual answer →
+JEV. Nuanced explanation needing interpretation → JEV first, escalate if uncertain.
+
+**J5 — Confidence and escalation.** Three outcomes: settled (strong probabilities → update evidence
+at once), uncertain (middling or contradictory → escalate to the tutor model), error (transport
+failure → tutor model or deterministic path). JEV uncertainty triggers escalation; it never silently
+becomes a confident label.
+
+**J6 — Misconception detector.** For every important free-form response ask whether it contains a
+factual misconception about concept X; if yes, ask narrower follow-ups (attention selects exactly
+one token? the MLP mixes positions? temperature changes token ordering?) and record the specific
+misconception, not "answer = wrong".
+
+**J7 — Evidence, not paths.** JEV outputs evidence the planner consumes:
+`{ concept: "weighted_values", evidence: { ideaPresent: 0.94, misconception: 0.88, nonAttempt:
+0.02 }, source: "explain_back", artifactId, timestamp }`. Never store "mastery = 73%" unless a
+principled mastery model is built later.
+
+**J8 — After interactions too.** Turn structured learner actions into evaluation questions where
+useful: the selected mask indices are graded deterministically; JEV grades the learner's
+explanation of why ("The largest probability will increase" after a temperature change).
+
+**J9 — Evaluation ladder.** Deterministic checks → JEV → tutor model, never the tutor model for
+everything. Applies to Challenge, Explain back, Quiz, Code exercise, graph prediction, diagram
+selection, notebook result explanation and transfer practice.
+
+**J10 — Response generation stays with the tutor.** JEV supplies evidence (missing idea =
+weighted values; misconception = false); the tutor supplies pedagogy ("show the weighted-values
+interactive card instead of explaining again", or one Socratic question).
+
+**J11 — No tutor call after every successful grade.** Rules handle routine transitions: prediction
+correct + prerequisites satisfied → reveal experiment; explain-back has all required ideas → record
+evidence and continue; quiz correct → continue. Call the planner only for an actual adaptive
+decision: misconception, uncertainty, repeated failure, a learner question, a representation
+change, a prerequisite branch, a depth transition.
+
+**J12 — Batch the checks.** One JEV request per meaningful free-form learner action, carrying every
+check (idea_0, idea_1, idea_2, misconception, non_attempt) where supported — not five calls.
+
+**J13 — Latency.** Deterministic check ~instant; JEV the fast path; the general tutor model the
+slow path, only when needed; generative media an explicit long-running path. Never block simple UI
+feedback on long-running content generation.
+
+**J14 — Background pre-evaluation.** Where the visible flow doesn't depend on the grade, JEV may run
+concurrently. When the next move depends on correctness, wait for JEV before choosing it — never
+show a contradictory next card and revise it afterwards.
+
+**J15 — JEV does not approve complex pedagogy.** Which representation suits this learner, whether an
+explanation is pedagogically elegant, whether to branch to a prerequisite, whether a card is
+visually comprehensible — these stay tutor/planner or strong-reviewer decisions. JEV's job is fast,
+narrow evidence extraction.
+
+**J16 — Fallback hierarchy (everywhere).** Can code decide exactly? → deterministic. Otherwise, can
+the question be expressed as explicit semantic checks? → JEV. Otherwise, or uncertain → general
+tutor model.
+
+**J17 — Metrics.** Track % of learner evaluations handled deterministically, % by JEV, % escalated,
+JEV latency, escalation rate, grader disagreement rate. Most routine grading/evidence extraction
+should not invoke the general tutor model — but never lower correctness to raise the JEV share.
+
+**J18 — Source.** Consume JEV from the smart-parallel/shared backend once available; never
+duplicate it in the Tutor branch. The Tutor sees one evaluator interface, conceptually
+`evaluateLearnerResponse({ prompt, expectedIdeas, answer, checks })`, independent of the transport
+(TypeSafe Direct, Vercel or anything else).
+
+This is learner evaluation inside the tutor. It does not change card acceptance: JEV stays out of
+the NanoGPT card review pipeline (docs/features/learn-card-pipeline.md).
 
 ## Not part of Tutor v1
 
