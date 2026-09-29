@@ -91,3 +91,21 @@ test('the decisions and common-questions starters list the visible records; any 
   assert.equal(STARTERS.length, 5);
   assert.ok(STARTERS.includes(DECISIONS_STARTER) && STARTERS.includes(COMMON_STARTER));
 });
+
+// Node ids in the karpathy/nanoGPT snapshot the dev Map serves (repo-06745f10-nanogpt @ 3adf61e, read 2026-09-29).
+const NANOGPT = ['model_causalselfattention', 'model_causalselfattention_init', 'model_causalselfattention_forward', 'model_layernorm', 'model_gptconfig', 'model_gpt_init', 'model_gpt_from_pretrained', 'model_gpt_configure_optimizers', 'model_gpt_crop_block_size', 'model_gpt_generate', 'configurator', 'train', 'train_get_lr'];
+
+test('the nanoGPT fixture memory is labelled, links only real code ids, and holds one private session and question of another user', async () => {
+  const { MEMORY } = await import('./home/map-memory-data.js');
+  const m = MEMORY['karpathy/nanogpt'], all = [...m.decisions, ...m.questions, ...m.sessions];
+  assert.deepEqual([m.decisions.length, m.questions.length, m.sessions.length], [6, 6, 4]);
+  assert.equal(new Set(all.map((r) => r.id)).size, all.length);
+  assert.ok(all.every((r) => r.fixture === true && r.code.length));
+  assert.ok(all.every((r) => r.code.every((c) => NANOGPT.includes(c.id) && (c.confidence === 'RECORDED' || (c.confidence === 'INFERRED' && c.score > 0 && c.score < 1)))));
+  assert.ok(all.every((r) => !r.session || m.sessions.some((s) => s.id === r.session)));
+  const hidden = all.filter((r) => r.visibility === 'private');
+  assert.deepEqual(hidden.map((r) => r.owner), ['teammate@example.com', 'teammate@example.com']);
+  const seenHere = visibleMemory(m, 'viewer@example.com'), attn = { id: 'model_causalselfattention', label: 'CausalSelfAttention', path: 'model.py', line: 29 };
+  assert.equal(ids(seenHere).length, all.length - 2);
+  assert.match(fixtureAnswer(WHY, { node: attn, memory: seenHere, graph: { nodes: [attn], edges: [] } }).text, /2 recorded decisions explain why CausalSelfAttention/);
+});

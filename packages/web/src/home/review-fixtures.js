@@ -28,3 +28,13 @@ export function useFixtures(on) {
   }, [on]);
   return on ? data : null;
 }
+
+// WP6 checkpoint 2: the Map's decision, question and session fixtures (map-memory-data.js), behind the
+// same switch and literal guard. Memory for this repository, or null (fixtures off, or none for it).
+export function useMapMemory(on, repo) {
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    if (on && import.meta.env.VITE_COACHING_DEV === 'true') import('./map-memory-data.js').then((m) => setData(m.MEMORY));
+  }, [on]);
+  return on && data ? data[(repo || '').toLowerCase()] || null : null;
+}
