@@ -22,7 +22,8 @@ NC8  Cross-depth content transitions     ✅ CLOSED (page 43:3; docs/nanogpt-dep
                                             "Cross-depth transitions")
 NC9  Curriculum coherence review         🟡 ACTIVE (open items: softmax prerequisite card (build only if
                                             confirmed needed); notation and example drift; c18 practice vs
-                                            Training Guided reveal; is "how scores are produced", q·k, thin?;
+                                            Training Guided reveal; q·k score production (audit-only:
+                                            PASS closes it, FAIL gets the smallest fix, no card by default);
                                             should c26 name its iteration-1000 checkpoint next to c25's 100?;
                                             c22 rounds each cell (z 0.60) where c21 rounds to sum 1 (z 0.61))
 NC10 Final card QA                       ⬜ (incl. accessibility audit: classify the seven dimmed focus/mask
