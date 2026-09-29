@@ -75,7 +75,7 @@ const NO_KEY = i => i === LAST; // the what-if at the last reader
 // exactly 4, 1, -1 or -4 (the test checks), so the sum groups into at most
 // four terms; the test checks the line against the live weight row.
 const SUP = { 4: '⁴', 1: '¹', '-1': '⁻¹', '-4': '⁻⁴' };
-const two = v => v.toFixed(2).replace(/^0\./, '.');
+const two = v => v.toFixed(2);
 // 3 decimals on e^score and the sum: at 2, reader 4's 54.60 / 63.12 divides
 // to .87 beside a .86 cell (the true weight is .86498).
 const three = v => v.toFixed(3);
@@ -214,7 +214,7 @@ export const scene = {
     // reads exactly 1.00, which turned equal-looking scores into .05 and .04.
     // Each cell is rounded on its own and the label says so.
     { id: 'weights', type: 'grid', semanticId: 'weight-row', conceptId: 'softmax',
-      initialState: { label: '3. softmax → weights (each rounded, so a row can read .99 or 1.01)', x: GX, y: W_Y, rows: 1, cols: T, cell: CELL, opacity: QUIET, role: 'output',
+      initialState: { label: '3. softmax → weights (each rounded, so a row can read 0.99 or 1.01)', x: GX, y: W_Y, rows: 1, cols: T, cell: CELL, opacity: QUIET, role: 'output',
         matrixKind: 'derived', heat: true, valueScale: 'fixed', values: { $derive: 'w' } } },
     { id: 'top-note', type: 'text', semanticId: 'top-note', conceptId: 'softmax',
       initialState: { text: '{{topNote}}', x: RX, y: SCORE_Y + 26, typography: 'annotation', opacity: QUIET } },
@@ -268,7 +268,7 @@ export const sources = [
     `gen_attention.py qNext: the query of reader i is ${att.gain} × k(i + 1). No NanoGPT head is built this way; it shows what the mask does to a query that wants the future.`),
   reproduce: REPRODUCE },
   calculation('Live calculation', 'Scores, masked row, weights and output',
-    'Computed on the card for the chosen reader: matmul (q · k for every key), the elementwise products (shown to 2 and to 3 decimals) and their sum for the key q points at, scale by 0.5 = 1/√4, causal_mask (later keys → −∞, blank), softmax, weighted_sum (Σ w·v). The largest weight is found as the argmin of the negated masked scores; the by-hand line beside the weights works the softmax for it from the same scores (e raised to each visible score, their sum, the ratio). Rounded to 3 decimals; cells show 2, each rounded on its own, so a weight row can read .99 or 1.01 and two scores that look equal always show equal weights.'),
+    'Computed on the card for the chosen reader: matmul (q · k for every key), the elementwise products (shown to 2 and to 3 decimals) and their sum for the key q points at, scale by 0.5 = 1/√4, causal_mask (later keys → −∞, blank), softmax, weighted_sum (Σ w·v). The largest weight is found as the argmin of the negated masked scores; the by-hand line beside the weights works the softmax for it from the same scores (e raised to each visible score, their sum, the ratio). Rounded to 3 decimals; cells show 2, each rounded on its own, so a weight row can read 0.99 or 1.01 and two scores that look equal always show equal weights.'),
   tinyShakespeare(`The nine characters “${TOKENS.join('').replace('␣', ' ')}” begin line 2 of the dataset, the same line every nanogpt card uses.`),
 ];
 
@@ -301,8 +301,8 @@ export const reviewStates = [
 // Cross-depth transitions (docs/nanogpt-depth-ladder.md): the Self-attention
 // cards each open one step deeper - step 2's mask as the whole triangle (c11),
 // the ÷ 2 as a multiplier on every score (c12), step 4's mix as a weighted
-// average of the visible values (c10). No softmax edge until softmax has a
-// card (NC9).
+// average of the visible values (c10).
+// ponytail: no softmax card or edge - NC9 found none needed: step 3’s by-hand line works e^score ÷ the visible sum and c12 owns the gaps; add a card only if the tutor’s T8 branch needs one.
 export const transitions = [
   { relation: 'deepens_to', target_card: 'c11-causal-mask' },
   { relation: 'deepens_to', target_card: 'c12-score-scaling' },

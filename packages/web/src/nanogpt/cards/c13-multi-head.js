@@ -9,7 +9,7 @@
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
 import { code, calculation, tiktoken, tinyShakespeare } from '../sources.js';
 
-const TOKENS = fx.tokenizer.tokenizers[1].tokens.slice(0, 4);
+const TOKENS = fx.tokenizer.tokenizers[1].tokens.slice(0, 4).map(t => t.replaceAll('␣', '•'));
 const N_HEAD = 3, HS = 4, C = N_HEAD * HS;
 const HEADS = Array.from({ length: N_HEAD }, (unused, h) => `head ${h}`);
 
@@ -143,7 +143,7 @@ export const scene = {
     note('keys-note', 'multi-head-attention', 'Keys are hand-built one-hot positions, so the token text does not enter these numbers.', 100),
     note('split-note', 'multi-head-attention', 'In NanoGPT q, k, v = c_attn(x), each cut into n_head slices of width hs: each head has its own learned weights.', 122),
     { id: 'tokens', type: 'tokens', semanticId: 'tokens', conceptId: 'multi-head-attention',
-      initialState: { label: 'GPT-2 BPE tokens (␣ = space); bold = query', x: COL, y: TOKENS_Y, opacity: 0,
+      initialState: { label: 'GPT-2 BPE tokens (• = space); bold = query', x: COL, y: TOKENS_Y, opacity: 0,
         tokens: [...TOKENS], role: 'observed', tokenStyle: 'labels', cellHighlight: { $derive: 'query' } } },
     { id: 'inspecting', type: 'text', semanticId: 'inspecting', conceptId: 'multi-head-attention',
       initialState: { text: 'Inspecting {{headName}} at query "{{qword}}" - one row of that head only', x: COL, y: ROW_Y - 78 } },
@@ -225,7 +225,7 @@ export const sources = [
   code('model.py', 35, 37, 'The two learned projections: “self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias)” makes q, k, v for all heads at once; “self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)” is the C × C output mix.'),
   code('model.py', 62, 64, 'What NanoGPT runs by default with PyTorch >= 2.0 (self.flash, line 45): the fused “torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout if self.training else 0, is_causal=True)”, which computes the same attention as the manual path the card draws.'),
   code('config/train_shakespeare_char.py', 23, 24, `“n_head = ${realNHead}” and “n_embd = ${realC}” - the real sizes the card sets its toy ones against, read by the fixture generator from this config resolved over train.py defaults.`),
-  tiktoken(`The four tokens ${TOKENS.map(t => `“${t}”`).join(', ')} (␣ = space) are the first ${TOKENS.length} of the ${fx.tokenizer.tokenizers[1].count} that tiktoken “gpt2” encode_ordinary makes of “${fx.tokenizer.text}” - the call data/shakespeare/prepare.py makes - recorded by generate_fixtures.py. They only label the columns: the keys are one-hot positions, so the token text does not enter the numbers.`),
+  tiktoken(`The four tokens ${TOKENS.map(t => `“${t}”`).join(', ')} (• = space) are the first ${TOKENS.length} of the ${fx.tokenizer.tokenizers[1].count} that tiktoken “gpt2” encode_ordinary makes of “${fx.tokenizer.text}” - the call data/shakespeare/prepare.py makes - recorded by generate_fixtures.py. They only label the columns: the keys are one-hot positions, so the token text does not enter the numbers.`),
   tinyShakespeare(`“${fx.tokenizer.text}”, the text the four tokens come from, is from line 2 of the dataset.`),
   // Authored on this card, not by the fixture generator - so no reproduce command.
   { kind: 'calculation', status: 'Calculated toy example', title: 'Q, K, V for each head',

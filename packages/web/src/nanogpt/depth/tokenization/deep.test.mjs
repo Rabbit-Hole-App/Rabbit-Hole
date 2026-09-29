@@ -143,14 +143,14 @@ test('deep: V, padding and every product follow the branch, checked against plai
     assert.equal(byId(path, 'branch-detail').label, `V = ${g(V)}: ${g(tokV)} token IDs + ${V - tokV} padding rows${meta ? '' : ' (multiple of 64, for efficiency)'}`);
     if (!meta) assert.equal(V % 64, 0);
     assert.equal(byId(path, 'wte').label, `wte: table (${V}, ${C})`);
-    assert.equal(byId(path, 'batch-detail').label, `x: (B, T) = (${B}, ${T}), int64 read from uint16`);
-    assert.equal(byId(path, 'wte-detail').label, `tok_emb = wte(x): (B, T, C) = (${B}, ${T}, ${C})`);
+    assert.equal(byId(path, 'batch-detail').label, `idx: (B, T) = (${B}, ${T}), int64 read from uint16`);
+    assert.equal(byId(path, 'wte-detail').label, `tok_emb = wte(idx): (B, T, C) = (${B}, ${T}, ${C})`);
     assert.equal(byId(path, 'head-detail').label, `logits: (B, T, V) = (${B}, ${T}, ${V}) → ${g(B * T * V)} scores`);
     // 2/3: the equations and the bar.
     assert.equal(byId(sizes, 'eq-vocab').label, `V = ${tg(tokV)} + ${V - tokV} = ${tg(V)}`);
     assert.equal(byId(sizes, 'eq-wte').label, `|W_{te}| = V\\,C = ${tg(V)} \\cdot ${C} = ${tg(V * C)}`);
     assert.equal(byId(sizes, 'eq-params').label, `N = L\\,(12C^2 + 2C) + C + VC = ${tg(params(V))}`);
-    assert.equal(byId(sizes, 'eq-uint16').label, `\\max x = ${tg(tokV - 1)} \\le 2^{16} - 1 = ${tg(2 ** 16 - 1)}`);
+    assert.equal(byId(sizes, 'eq-uint16').label, `\\max \\mathrm{idx} = ${tg(tokV - 1)} \\le 2^{16} - 1 = ${tg(2 ** 16 - 1)}`);
     assert.ok(tokV - 1 <= 2 ** 16 - 1);
     // The bar: same scale in both branches, wte after blocks + ln_f, lengths proportional.
     const body = byId(sizes, 'param-body'), wte = byId(sizes, 'param-wte');
@@ -186,7 +186,7 @@ test('deep: the sampling path - B = 1, prompt length T, last position only; the 
     const V = meta ? CHARS.length : PADDED;
     const [lineR, digitsR] = assertCardGates(scene, [{ part: 0, meta, input: 'line' }, { part: 0, meta, input: 'digits' }]);
     const lineT = meta ? line.text.length : fx.tokenizer.tokenizers[1].ids.length;
-    assert.equal(byId(lineR, 'batch-detail').label, `x: (B, T) = (1, ${lineT}) - the encoded prompt`);
+    assert.equal(byId(lineR, 'batch-detail').label, `idx: (B, T) = (1, ${lineT}) - the encoded prompt`);
     assert.equal(byId(lineR, 'head-detail').label, `logits: (B, 1, V) = (1, 1, ${V}) → ${g(V)} scores`);
     assert.equal(byId(lineR, 'head').label, 'lm_head: last position only');
     const hidden = ['batch-detail', 'wte-detail', 'head-detail'];
@@ -308,6 +308,9 @@ test('deep: every cited range says what its note claims, at the pinned revision'
   assert.equal(fx.config.shakespeareChar.bias, false);
   // The one-prompt batch and last-position generation the card states.
   assert.match(lines('model.py')[315], /logits, _ = self\(idx_cond\)/);
+  // The model.py:177 note: get_batch's x arrives in forward() as idx.
+  assert.match(lines('train.py')[299], /logits, loss = model\(X, Y\)/);
+  assert.match(lines('model.py')[169], /def forward\(self, idx, targets=None\):/);
 });
 
 // The generator reproduces its output byte for byte (needs uv + tiktoken offline).

@@ -25,7 +25,7 @@ const rowsOf = t => {
   const cols = t.tokens.map((token, i) => {
     const id = String(t.ids[i]);
     const n = Math.max(token.length, id.length);
-    return [centre(token, n), centre(id, n)];
+    return [centre(token.replaceAll('␣', '•'), n), centre(id, n)];
   });
   const lines = [cols.slice(0, PER_LINE), cols.slice(PER_LINE)];
   return { tok: lines.map(line => line.map(c => c[0])), id: lines.map(line => line.map(c => c[1])) };
@@ -81,7 +81,7 @@ export const scene = {
     { id: 'input-text', type: 'text', semanticId: 'input-text', conceptId: 'tokenization',
       initialState: { text: 'Same input text for both presets (from tinyshakespeare): “{{text}}”', x: 32, y: 66, role: 'input' } },
     { id: 'selected', type: 'text', semanticId: 'selected-preset', conceptId: 'tokenization',
-      initialState: { text: 'Selected preset: {{sel.label}} · Calculated toy example (stored result)', x: 32, y: 96, typography: 'caption' } },
+      initialState: { text: 'Selected preset: {{sel.label}} · Source value (stored result)', x: 32, y: 96, typography: 'caption' } },
     { id: 'readout', type: 'text', semanticId: 'token-count-readout', conceptId: 'tokenization',
       initialState: { text: '{{sel.count}} tokens  ·  vocabulary of {{sel.vocabSize}} possible token IDs', x: 32, y: 132, typography: 'heading', role: 'output', opacity: 0 } },
     { id: 'compare', type: 'text', semanticId: 'compare-presets', conceptId: 'tokenization',
@@ -89,7 +89,7 @@ export const scene = {
     { id: 'takeaway', type: 'text', semanticId: 'takeaway', conceptId: 'tokenization',
       initialState: { text: '{{takeaway}}', x: 32, y: 186, typography: 'caption' } },
     { id: 'key', type: 'text', semanticId: 'row-key', conceptId: 'tokenization',
-      initialState: { text: 'Each column: a token, with its integer ID beneath it  ·  “␣” = one space character', x: 32, y: 220, typography: 'annotation' } },
+      initialState: { text: 'Each column: a token, with its integer ID beneath it  ·  “•” = one space character', x: 32, y: 220, typography: 'annotation' } },
     // Token strings (display-only labels) over their IDs; a second line pair
     // carries the character preset's overflow and is empty for BPE.
     { id: 'tokens-1', type: 'tokens', semanticId: 'tokens-line-1', conceptId: 'tokenization',
@@ -131,7 +131,7 @@ export const sources = [
   code('model.py', 223, 223, "Loading a GPT-2 checkpoint forces its vocabulary: \"config_args['vocab_size'] = 50257 # always 50257 for GPT model checkpoints\"."),
   code('README.md', 160, 166, 'Finetuning on Shakespeare: data/shakespeare/prepare.py tokenizes with GPT-2 BPE, then training starts from a GPT-2 checkpoint via init_from.'),
   code('README.md', 22, 22, 'Dependencies: "pip install torch numpy transformers datasets tiktoken wandb tqdm" - tiktoken with no version pin.'),
-  calculation('Calculated toy example', 'Token strings, IDs, counts and vocabulary sizes',
+  calculation('Source value', 'Token strings, IDs, counts and vocabulary sizes',
     `generate_fixtures.py used the sentence "${tk.text}" (from line 2 of the sha-pinned Tiny Shakespeare file; it asserts the sentence occurs there); rebuilt the character vocabulary with data/shakespeare_char/prepare.py's logic (lines 24-33: sorted(list(set(data))), then stoi) over the whole file and mapped the sentence through stoi (${charTk.count} IDs, vocabulary ${charTk.vocabSize}); and encoded it with tiktoken ${pv.tiktoken} get_encoding("gpt2").encode_ordinary (${bpeTk.count} IDs, n_vocab ${bpeTk.vocabSize}). The card only picks the stored result for the selected preset; no tokenizer runs here.`),
   tiktoken(`Version ${pv.tiktoken} is the fixture generator's own pin; NanoGPT pins no tiktoken version (README.md:22).`),
   tinyShakespeare('The character vocabulary is built from this whole file; the example sentence is taken from it.'),

@@ -45,7 +45,7 @@ test('c13-multi-head: question first, and every gate passes at every taught stat
 
 test('toy config and data provenance hold', () => {
   const { tokens, nHead, hs, C, Qs, Ks, Vs } = scene.exampleData;
-  assert.deepEqual(tokens, fx.tokenizer.tokenizers[1].tokens.slice(0, 4));
+  assert.deepEqual(tokens, fx.tokenizer.tokenizers[1].tokens.slice(0, 4).map(t => t.replaceAll('␣', '•')));
   assert.equal(C, nHead * hs);
   assert.equal(scene.derived.scaledSel.args[1], 1 / Math.sqrt(hs), 'the literal multiplier is 1/sqrt(hs)');
   for (const m of [...Qs, ...Ks, ...Vs]) assert.ok(m.length === 4 && m.every(row => row.length === hs));

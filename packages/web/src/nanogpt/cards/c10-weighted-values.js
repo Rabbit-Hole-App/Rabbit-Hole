@@ -115,7 +115,7 @@ export const scene = {
   },
   objects: [
     text('question', 'Where does a head’s output land among the values its query can see?', 40, 30, { typography: 'heading' }),
-    note('status', 'Characters: Source value · q, k, v: Calculated toy example · weights, output: Live calculation', 40, 56),
+    note('status', 'Characters: Source value (labels only) · q, k, v: Calculated toy example · weights, output: Live calculation', 40, 56),
     note('builds-on', 'Builds on: which characters a query can see (masked weight = 0); softmax weights that add up to 1', 40, 78),
 
     // The input: the chosen query's weights, one per character it can see.

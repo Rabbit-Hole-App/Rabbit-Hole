@@ -206,7 +206,7 @@ export const reviewStates = [0, 1, 2, 3, 4, 5].map(temperature => ({ temperature
 
 // Cross-depth transitions (docs/nanogpt-depth-ladder.md): c21 is the same ÷ T,
 // softmax and 20 seeded draws on another toy, plus the not-greedy argument.
-// ponytail: no softmax edge - no card teaches it yet (NC9).
+// ponytail: no softmax card or edge - NC9 found none needed: the T = 1 lines work e^ln(count) = count ÷ total and the lead line e^(gap ÷ T); add a card only if the tutor’s T8 branch needs one.
 export const transitions = [
   { relation: 'related', target_card: 'c21-temperature' },
 ];

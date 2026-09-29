@@ -1,6 +1,6 @@
 // Tokenization · Deep dive - what the tokenizer choice costs inside the model,
 // and where it breaks. The same line as the other two depths, now followed as
-// tensors through NanoGPT's code: encode -> x (B, T) -> wte lookup (B, T, C) ->
+// tensors through NanoGPT's code: encode -> idx (B, T) -> wte lookup (B, T, C) ->
 // lm_head logits. Two implementation branches are the controls:
 //   * meta - train.py's vocab_size branch: meta.pkl found (data/shakespeare_char,
 //     V = 65 read as-is) or absent (from scratch it falls back to 50304, GPT-2's
@@ -40,7 +40,8 @@ const A = fx.architecture;
 const [line, digits] = tok.prompts;
 const PATHS = ['train', 'line', 'digits'];
 // sample.py:81 builds x from one prompt: tensor(start_ids)[None, ...], so B = 1;
-// generate() calls forward without targets, which projects x[:, [-1], :] (model.py:190).
+// generate() takes it as idx and calls forward without targets, where lm_head
+// projects only the last position of the hidden x, x[:, [-1], :] (model.py:190).
 const PROMPT_B = 1, LAST_ONLY = 1;
 const byPath = (train, lineV, digitsV) => ({ train, line: lineV, digits: digitsV });
 const quote = s => `“${s}”`;
@@ -95,8 +96,8 @@ const EXAMPLE = {
   charVocab: tok.vocab.length, bpeVocab: tok.bpe.vocab,
   one: [1],
   uint16Tex: texGrouped(tok.uint16Max),
-  // Per block, bias=False: c_attn C x 3C, attn c_proj C x C, c_fc C x 4C,
-  // mlp c_proj 4C x C (model.py:35,37,82,84) - weights in units of C squared -
+  // Per block, bias=False: c_attn 3C x C, attn c_proj C x C, c_fc 4C x C,
+  // mlp c_proj C x 4C (model.py:35,37,82,84) - weights in units of C squared -
   // plus ln_1 and ln_2, C weights each (model.py:98,100; LayerNorm has no bias).
   linearWidths: [3, 1, 4, 4],
   layerNormsPerBlock: 2,
@@ -254,11 +255,11 @@ export const scene = {
     detail('encode-detail', '{{enc}}', ROWS.encode + 23, { role: { $derive: 'encRole' } }),
     down('a-encode', ROWS.encode + STEP.h + 2, ROWS.batch - 2),
     step('batch', '{{batchLabel}}', ROWS.batch, { opacity: { $derive: 'dim' } }),
-    detail('batch-detail', 'x: (B, T) = ({{Bv.0}}, {{T}}){{tail}}', ROWS.batch + 23, { opacity: { $derive: 'shown' } }),
+    detail('batch-detail', 'idx: (B, T) = ({{Bv.0}}, {{T}}){{tail}}', ROWS.batch + 23, { opacity: { $derive: 'shown' } }),
     detail('not-reached', 'Nothing below runs: the prompt never became IDs.', ROWS.batch + 23, { role: 'warning', opacity: { $derive: 'fail' } }),
     down('a-batch', ROWS.batch + STEP.h + 2, ROWS.wte - 2),
     step('wte', 'wte: table ({{V}}, {{C}})', ROWS.wte, { opacity: { $derive: 'dim' } }),
-    detail('wte-detail', 'tok_emb = wte(x): (B, T, C) = ({{Bv.0}}, {{T}}, {{C}})', ROWS.wte + 23, { opacity: { $derive: 'shown' } }),
+    detail('wte-detail', 'tok_emb = wte(idx): (B, T, C) = ({{Bv.0}}, {{T}}, {{C}})', ROWS.wte + 23, { opacity: { $derive: 'shown' } }),
     down('a-wte', ROWS.wte + STEP.h + 2, ROWS.head - 2),
     step('head', '{{headLabel}}', ROWS.head, { opacity: { $derive: 'dim' } }),
     detail('head-detail', 'logits: (B, {{Tn}}, V) = ({{Bv.0}}, {{Tl.0}}, {{V}}) → {{fig.logits}} scores', ROWS.head + 23, { opacity: { $derive: 'shown' } }),
@@ -268,11 +269,11 @@ export const scene = {
     ...on(1,
     text('q-sizes', 'How much of the model is the token table - wte, shared with lm_head?', 40, 34, { typography: 'body' }),
     // The exact relations behind the numbers on 1/3 and the bar below.
-    eq('eq-lookup', '\\text{tok\\_emb}[b,t,:] = W_{te}[\\,x[b,t],\\,:\\,],\\quad x \\in \\{0,\\dots,V{-}1\\}^{B \\times T}', 40, EQ.r1, 880),
+    eq('eq-lookup', '\\text{tok\\_emb}[b,t,:] = W_{te}[\\,\\mathrm{idx}[b,t],\\,:\\,],\\quad \\mathrm{idx} \\in \\{0,\\dots,V{-}1\\}^{B \\times T}', 40, EQ.r1, 896),
     eq('eq-vocab', 'V = {{fig.tex.tokV}} + {{pad.0}} = {{fig.tex.V}}', 40, EQ.r2, 420),
     eq('eq-wte', '|W_{te}| = V\\,C = {{fig.tex.V}} \\cdot {{C}} = {{fig.tex.wte}}', 500, EQ.r2, 440),
     eq('eq-params', 'N = L\\,(12C^2 + 2C) + C + VC = {{fig.tex.total}}', 40, EQ.r3, 420),
-    eq('eq-uint16', '\\max x = {{fig.tex.maxId}} \\le 2^{16} - 1 = {{uint16Tex}}', 500, EQ.r3, 420),
+    eq('eq-uint16', '\\max \\mathrm{idx} = {{fig.tex.maxId}} \\le 2^{16} - 1 = {{uint16Tex}}', 500, EQ.r3, 432),
 
     // Where the parameters go: blocks + ln_f against the token table, same scale in both branches.
     text('param-title', "N = NanoGPT's reported non-position-embedding parameter count (wpe still trains), 20 px per million", 40, PARAM.title, { typography: 'caption' }),
@@ -319,14 +320,14 @@ export const sources = [
   code('sample.py', 80, 81, 'One prompt: "start_ids = encode(start)", "x = (torch.tensor(start_ids, dtype=torch.long, device=device)[None, ...])" - B = 1, T = the prompt\'s length.'),
   // wte and lm_head.
   code('model.py', 127, 127, 'The table: "wte = nn.Embedding(config.vocab_size, config.n_embd)" - V rows of C numbers.'),
-  code('model.py', 177, 177, 'The lookup: "tok_emb = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd)".'),
+  code('model.py', 177, 177, 'The lookup: "tok_emb = self.transformer.wte(idx) # token embeddings of shape (b, t, n_embd)" - get_batch\'s x arrives in forward() as idx (train.py:300 "model(X, Y)").'),
   code('model.py', 133, 133, '"self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)": one score per vocabulary row.'),
   code('model.py', 138, 138, 'Weight tying: "self.transformer.wte.weight = self.lm_head.weight" - the V x C table is counted once.'),
   code('model.py', 184, 191, 'With targets (training) lm_head scores every position; without (generation) "logits = self.lm_head(x[:, [-1], :])", the last position only.'),
   // The parameter count.
   code('model.py', 147, 160, 'The count NanoGPT reports: "print("number of parameters: %.2fM" % (self.get_num_params()/1e6,))", and get_num_params(non_embedding=True) by default is every parameter minus the position table wpe. wpe is still a trained parameter, only left out of this count; wte stays in because lm_head shares it.'),
-  code('model.py', 35, 37, 'Attention weights per block: c_attn C x 3C and c_proj C x C (bias=False in this config).'),
-  code('model.py', 82, 84, 'MLP weights per block: c_fc C x 4C and c_proj 4C x C.'),
+  code('model.py', 35, 37, 'Attention weights per block: c_attn 3C x C and c_proj C x C (bias=False in this config).'),
+  code('model.py', 82, 84, 'MLP weights per block: c_fc 4C x C and c_proj C x 4C.'),
   code('model.py', 96, 101, 'A Block: ln_1, attn, ln_2, mlp - two LayerNorms of C weights each.'),
   code('model.py', 21, 24, 'LayerNorm: a weight of ndim ones, and no bias when bias=False.'),
   code('model.py', 131, 131, 'The final "ln_f = LayerNorm(config.n_embd, bias=config.bias)": C more weights.'),

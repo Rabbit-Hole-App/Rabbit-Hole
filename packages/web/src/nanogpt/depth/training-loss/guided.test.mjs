@@ -73,7 +73,7 @@ test('tables, dots, means and whole-slice readouts match the oracle at every one
       `Whole slices at iter ${c.iteration}: train ${trainR[k].toFixed(3)}, held-out (val) ${valR[k].toFixed(3)}, gap (held-out − train) ${(valR[k] - trainR[k]).toFixed(3)}`);
     // A whole-run lookup, said so, even at checkpoints before it.
     assert.equal(byId(result, 'best').label,
-      `Lowest held-out loss in the whole run: iter ${run.checkpoints[BEST].iteration} (${valR[BEST].toFixed(3)}). Now versus it: train ${signed(trainR[k] - trainR[BEST])}, held-out ${signed(valR[k] - valR[BEST])}`);
+      `Now versus the lowest held-out checkpoint in the whole run: train ${signed(trainR[k] - trainR[BEST])}, held-out ${signed(valR[k] - valR[BEST])}`);
     for (const id of ['slices', 'best', 'train-mean', 'held-mean']) {
       for (const number of byId(result, id).label.match(/\d+\.\d+/g)) assert.match(number, /^\d+\.\d{3}$/, `${id} prints 3 decimals`);
     }
@@ -163,6 +163,8 @@ test('the phase headings group their content down the left column, beside the sh
   const at = id => byId({ state }, id);
   assert.equal(at('phase-1').label, '1\u00a0\u00a0What is training minimizing?');
   assert.equal(at('phase-2').label, '2\u00a0\u00a0When should training stop?');
+  // The card prints no checkpoint of its own; only the regime caption comes from the live argmin.
+  assert.equal(at('status-2').label, 'Calculated toy example: the curve.   Live calculation: the caption under the change.');
   const phase1 = ['train-title', 'trainTable', 'train-mean'];
   const phase2 = ['held-title', 'heldTable', 'held-mean', 'slices', 'best', 'regime'];
   assert.ok(phase1.every(id => at(id).y > at('phase-1').y && at(id).y < at('phase-2').y));

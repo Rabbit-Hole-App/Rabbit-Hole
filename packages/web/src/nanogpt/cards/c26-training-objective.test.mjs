@@ -125,7 +125,7 @@ test('c26 every stage follows T and matches the oracle at every window', () => {
 test('c26 captions are true at every state; status words only; the practice numbers are nowhere on the card', () => {
   const STATIC = {
     question: 'How do a window’s per-position losses become the one number training lowers?',
-    'status-1': 'Recorded toy run (a bigram model, not NanoGPT; it reads only the previous character): p',
+    'status-1': 'Recorded toy run (a bigram reading only the previous character, not NanoGPT; iteration 1000, the last checkpoint): p',
     'status-2': 'Calculated toy example: −ln p, e^mean · Live calculation: sum, mean, share, B · T',
     'status-3': 'What-if: window length T (NanoGPT’s is 256) · Source value: text, 65, B, T',
     'shift-1': 'y is x shifted by one: position i’s target is character i + 1.',

@@ -156,7 +156,7 @@ export const scene = {
   objects: [
     text('question', 'When top-k cuts the smaller logits, where does their probability go?', 40, 30, { typography: 'heading' }),
     note('status', 'Logits: Calculated toy example · p, kept and cut mass: Live calculation · top_k defaults, 65: Source value', 40, 56),
-    note('builds-on', `Builds on: temperature (÷ T, softmax, one random draw) · the same six candidates after “${T.context}”`, 40, 78),
+    note('builds-on', `Builds on: temperature (÷ T, softmax, one random draw) · the same six hand-set candidates after “${T.context}”`, 40, 78),
     // Where the cut sits in the loop the Generation context path just walked (c24).
     note('loop-step', 'Each generate() pass (the generation loop): last position’s logits ÷ T → top-k (if set) → softmax → one random draw', 40, 100),
 
@@ -213,7 +213,7 @@ export const scene = {
     text('whatif-before', '{{wLine1}}', RX, Y.whatIf + 22),
     text('whatif-after', '{{wLine2}}', RX, Y.whatIf + 46),
 
-    note('blank-note', 'A blank cell is exactly 0, never drawn; a .00 cell (the temperature card) is only rounded, so a row can total 0.99.', 40, FOOT),
+    note('blank-note', 'A blank cell is exactly 0, never drawn; a 0.00 cell (the temperature card) is rounded, so a row can total 0.99.', 40, FOOT),
     note('default-note', `Source value: generate() cuts nothing by default (top_k = None); the sampler sets ${SAMPLE_K}, above all ${charVocab.vocabSize} characters.`, 40, FOOT + 20),
     note('order-note', 'Shown largest first; NanoGPT keeps vocabulary order and compares each logit with v_k (a tie with v_k survives).', 40, FOOT + 40),
   ],

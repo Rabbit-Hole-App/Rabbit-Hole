@@ -8,6 +8,8 @@ import fx from '../fixtures/nanogpt-fixtures.generated.js';
 import { scene, evidence, sources } from './c21-temperature.js';
 import { assertCardGates, assertEvidence, assertSources } from '../card-gates.mjs';
 import { sceneContentBounds, sceneLegibility } from '../../scene-layout.js';
+import { distributeRounding } from '../../scene-derive.js';
+import { formatCell } from '../../scene-format.js';
 
 const T = fx.temperature;
 const presets = T.presets;
@@ -20,6 +22,8 @@ const shownOf = d => (d === '␣' ? 'sp' : d);
 const TOP = T.logits.indexOf(Math.max(...T.logits));
 const TOP_NAME = shownOf(T.display[TOP]);
 const VOCAB = fx.tokenizer.tokenizers.find(t => t.id === 'char').vocabSize;
+// What a grid's cells print, by the renderer's rule (as c22's test reads it).
+const shownCells = object => (object.distribution ? distributeRounding(object.values, 2) : object.values).map(v => (v === null ? '' : formatCell(v)));
 
 // Independent oracle: softmax(logits / T) in plain JS from the fixture's own
 // temperature (not its invT), no scene-derive code involved.
@@ -117,13 +121,20 @@ test('sharper vs flatter, and a low T is still not greedy', () => {
   assert.ok(presets.every(p => p.temperature > 0), 'positive temperatures only');
 });
 
+test('each probability cell is rounded on its own, like the top-k card', () => {
+  const [half, one] = assertCardGates(scene, [{ temperature: 1 }, { temperature: 2 }]);
+  assert.deepEqual(shownCells(byId(one, 'probs')), ['0.60', '0.22', '0.08', '0.05', '0.03', '0.01'], 'T = 1.0');
+  assert.deepEqual(shownCells(byId(half, 'probs')), ['0.86', '0.12', '0.02', '0.01', '0.00', '0.00'], 'T = 0.5');
+  assert.match(label(one, 'live-note'), /a row can total 0\.99 or 1\.01/);
+});
+
 test('status labels and caveats stay on the card; code lives in its sources', () => {
   const [result] = assertCardGates(scene, [{ temperature: 2 }]);
   assert.match(label(result, 'provenance-note'), /calculated toy example, not NanoGPT output/);
   assert.match(label(result, 'live-note'), /live calculation in this card/);
   assert.match(label(result, 'draws-a'), /^Recorded toy run: .*not NanoGPT$/);
   assert.equal(label(result, 'vocab-note'), `The real shakespeare_char softmax covers all ${VOCAB} characters. sp = the space character.`);
-  assert.match(label(result, 'zero-note'), /^A \.00 cell is rounded, not zero/);
+  assert.match(label(result, 'zero-note'), /^A 0\.00 cell is rounded, not zero/);
   assert.equal(label(result, 'multinomial'), 'generate(): p = softmax(logits ÷ T), then one random draw from p (torch.multinomial), never argmax.');
   assert.match(label(result, 'wobble'), /counts vary run to run/);
   assert.ok(!scene.objects.some(object => object.type === 'code'), 'no code listings on the card: they are sources');
@@ -144,7 +155,7 @@ test('sources: generate() lines, the sampling default and how the toy numbers we
   // The card shows that default as a value, the same one the source quotes.
   const [result] = assertCardGates(scene, [{ temperature: 2 }]);
   const quoted = /"temperature = ([\d.]+) /.exec(sample.note)[1];
-  assert.equal(label(result, 'default-note'), `NanoGPT’s own default, T = ${quoted}, is below 1: sharpened, still sampled.`);
+  assert.equal(label(result, 'default-note'), `The sampler’s default, T = ${quoted}, is below 1: sharpened, still sampled.`);
 });
 
 // Quotes in the code notes, checked against the sha256-pinned NanoGPT files

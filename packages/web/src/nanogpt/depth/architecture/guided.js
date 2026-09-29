@@ -2,8 +2,9 @@
 // Where the Shakespeare model's parameters live, counted live from the sizes
 // NanoGPT builds it with: the token embedding wte (V x C, shared with lm_head),
 // the position embedding wpe (block_size x C), n_layer Blocks of 4C^2
-// (attention: c_attn C x 3C + c_proj C x C) + 8C^2 (MLP: c_fc C x 4C + c_proj
-// 4C x C) + 2C (two LayerNorm weights; bias = False, so no bias vectors), and
+// (attention: c_attn 3C x C + c_proj C x C) + 8C^2 (MLP: c_fc 4C x C + c_proj
+// C x 4C; each weight written (out, in), as the card does) + 2C (two LayerNorm
+// weights; bias = False, so no bias vectors), and
 // ln_f (C). Two pickers change C and V; one fixed axis makes the growth
 // visible - C doubles, every block grows x4 (C^2) while wte and wpe grow x2 (C);
 // V goes from 65 characters to GPT-2's padded 50304, and only wte moves.
@@ -192,7 +193,7 @@ export const scene = {
     text('takeaway', '{{takeaway}}', 40, 512, { typography: 'heading', role: { $derive: 'takeawayRole' }, opacity: 0 }),
 
     text('block-split', 'One block: attention 4C² = {{attn.0}} · MLP 8C² = {{mlp.0}} · two LayerNorms 2C = {{ln2.0}}', 40, 548),
-    note('block-origin', 'attention: c_attn C × 3C = 3C², c_proj C × C = C² · MLP: c_fc C × 4C = 4C², c_proj 4C × C = 4C²', 40, 570),
+    note('block-origin', 'attention: c_attn 3C × C = 3C², c_proj C × C = C² · MLP: c_fc 4C × C = 4C², c_proj C × 4C = 4C²', 40, 570),
     text('total', 'Total: wte + wpe + blocks + ln_f = {{total}} ({{sizeTag}})', 40, 600),
     text('printed', 'The start-up count leaves wpe out: {{total}} − {{wpe.0}} = {{nonEmb}}. NanoGPT prints it as', 40, 630),
     text('printed-line', 'number of parameters: {{printedM.0}}M', 40, 654, { typography: 'code' }),
@@ -239,7 +240,7 @@ export const evidence = {
   sourceRevision: `${fx.provenance.nanogpt.repo}@${fx.provenance.nanogpt.commit}`,
   provenance: 'Source value: C = 384, n_layer = 6, block_size = 256, V = 65 (fx.architecture), C = 768 (fx.config.defaults), V = 50304 (fx.tokenizer.modelVocabNote, checked against model.py and train.py). Live calculation: every count via elementwise/scale/sum/concat derive ops. What-if: any setting other than C = 384 with V = 65.',
   control: 'width (index picker): n_embd 384 or 768. vocab (index picker): V = 65 characters or 50304 GPT-2 tokens.',
-  consequence: 'At 384/65: attention 589824, MLP 1179648, LN 768 per block, blocks 10621440, wte 24960, wpe 98304, total 10745088, start-up count 10646784, printed as number of parameters: 10.65M (42.53M, 29.94M, 81.11M at the other settings). C = 768: each block and the blocks bar grow ×4 (to 42476544), wte and wpe ×2. V = 50304: only wte grows (19316736 at C = 384, 38633472 at C = 768), and its bar becomes comparable to all six blocks. The stage gutter reads number lists (token + position embeddings) / 6 blocks (most of the parameters; under half the parameters at C = 384 with V = 50304, where wte outgrows them) / 65 scores (50304 scores with GPT-2 tokens; token matrix, reused (tied)); lm_head adds +0. Under the block split, each weight matrix as rows × columns: c_attn C × 3C = 3C², c_proj C × C = C², c_fc C × 4C = 4C², c_proj 4C × C = 4C². The total is tagged (Source value sizes) at 384/65 and (What-if sizes) at the other three settings. Under the bars, the heading-size takeaway reads "Most parameters live in the blocks; a wider C grows the C² terms fastest." in the blocks colour, and "Most parameters live in wte here; ..." in the wte colour at 384/50304 (wte 19316736 of 30036864).',
+  consequence: 'At 384/65: attention 589824, MLP 1179648, LN 768 per block, blocks 10621440, wte 24960, wpe 98304, total 10745088, start-up count 10646784, printed as number of parameters: 10.65M (42.53M, 29.94M, 81.11M at the other settings). C = 768: each block and the blocks bar grow ×4 (to 42476544), wte and wpe ×2. V = 50304: only wte grows (19316736 at C = 384, 38633472 at C = 768), and its bar becomes comparable to all six blocks. The stage gutter reads number lists (token + position embeddings) / 6 blocks (most of the parameters; under half the parameters at C = 384 with V = 50304, where wte outgrows them) / 65 scores (50304 scores with GPT-2 tokens; token matrix, reused (tied)); lm_head adds +0. Under the block split, each weight matrix as rows × columns: c_attn 3C × C = 3C², c_proj C × C = C², c_fc 4C × C = 4C², c_proj C × 4C = 4C². The total is tagged (Source value sizes) at 384/65 and (What-if sizes) at the other three settings. Under the bars, the heading-size takeaway reads "Most parameters live in the blocks; a wider C grows the C² terms fastest." in the blocks colour, and "Most parameters live in wte here; ..." in the wte colour at 384/50304 (wte 19316736 of 30036864).',
   interactionPurpose: 'Let the learner check the scaling laws on real counts - C² for the blocks, C and V × C for the embeddings - and reconcile the total with the number NanoGPT prints.',
   task: 'none (explore only - no Practice on this board)',
   capability: 'two index pickers; live elementwise/scale/sum/concat/add derive chain; derived box widths and divider positions on one fixed pixel scale; two-step 3-decimal rounding for the %.2f print; a live sub/argmin comparison picks the blocks role; {{}} labels bound to derived counts.',

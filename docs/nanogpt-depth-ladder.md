@@ -259,3 +259,84 @@ Overview never relies on q·k (it lives in its Sources); Guided teaches it where
 Deep relies on it after "Builds on: Guided". For information only: on the deep-dive board c13 and
 c12 name q·k without teaching it — the owner's 2026-09-28 decision (board plan §11, no q·k card;
 Attention · Guided computes the scores by hand) stands, and this check was scoped to the ladder.
+
+## NC9 coherence: notation, examples, practice and rounding (2026-09-29)
+
+Scoped fixes on approved cards for NC8's "To NC9" list; closed only after the owner's visual gate.
+
+**Conventions** (both NanoGPT boards):
+- `idx` is the (B, T) IDs and `x` the (B, T, C) stream: Tokenization Deep writes "idx: (B, T)" and
+  "tok_emb = wte(idx)", as Architecture Deep does.
+- A Linear weight is written (out, in), as nn.Linear stores it: c_attn 3C × C, c_proj C × C,
+  c_fc 4C × C, c_proj C × 4C.
+- Loss uses ln: Architecture Deep 3/3 renders ℓ = −(1/BT) Σ ln p(Y_bt).
+- h is c_fc's output, then GELU(h): Architecture Deep 2/3 reads "GELU(h): (B, T, 4C)" and
+  "x + attn", so y names only att v.
+- A number below 1 keeps its leading zero (0.90, not .90). Gate: "NanoGPT cards write a number
+  below 1 with its leading zero" in `packages/web/src/number-grouping.test.mjs` scans every
+  visible label, practice text and control on both boards (default, each review state, each
+  input value). On c34a309 it failed on exactly Attention Guided (the weights label and every
+  "= … = .NN" by-hand line), c21's zero-note and c22's blank-note.
+- Spaces: • inside a token, with a key on the card; "space" as a label where it fits, else "sp"
+  with "sp = space" on the card. Applied to the Tokenization and Attention cards (c06 and c13
+  draw a space as •, as in •we; Attention Deep 2/4 adds "sp = space"). ␣ remains on Architecture
+  Overview, Generation Overview, Generation Deep 1/4 and Generation Deep 4/4 (its idx-next
+  tokens), and c22/c23 key "sp" only in Sources, pending the owner's scope call.
+- Deep keeps η/λ/c and names the NanoGPT variable once: Training Deep 1/3 reads "η =
+  learning_rate, η_min = min_lr, W = warmup_iters, D = lr_decay_iters; lr = η_t"; 3/3 reads
+  "weight_decay λ" and c = grad_clip.
+- A toy that shares a prompt with another card's toy says hand-set vs counted: c21/c22's six
+  candidates after "First Citi" are "hand-set"; the depth cards' eight after "iti" are counted
+  ("How often each followed “iti” in Shakespeare").
+
+**Accepted variations** (checked, unchanged):
+- M: Architecture Deep's eq-att adds M undefined (defined inline it overflowed the equation box);
+  Attention Deep defines M_ij = −∞ (j > i).
+- qk / QK: each equation matches its own card's labels.
+- n_h / nh: n_h in TeX, nh in shape labels as model.py's comments write "(B, nh, T, hs)".
+- u / change / F_k: each card defines its own symbol (c03's small update u, Residual
+  Overview/Guided's change, Residual Deep's F_k).
+- 9.901e-6 vs 9.90e-6: two roundings of the same get_lr value; Training Deep keeps 4 figures so
+  its arithmetic reads exact.
+- steps / iter: both are NanoGPT's words (train.py:265 prints "step {iter_num}: train loss …",
+  :327 prints "iter {iter_num}: loss …").
+- η_t / lr: an equation/code pair; Training Deep's key line states lr = η_t.
+- T: the sequence length on Architecture Deep, the temperature on the Generation cards, each
+  labelled on its card.
+- Head order vs c13: heads have no inherent order, and the two cards' head sets differ.
+- x/y, X/Y for the (B, T) IDs: c26 ("x (read)", "y (targets)") and Training Deep ("X, Y: (B, T)")
+  keep train.py's get_batch names for the IDs they read; forward() takes x as idx, y as targets.
+
+**Softmax card: not built.** NC8's criterion was "built only if NC9 confirms those cards cannot
+stand without it"; neither card needs it.
+- Attention Guided works softmax by hand for the chosen reader's largest weight: "largest: e⁴ /
+  (e⁴ + 2e¹ + e⁻¹)", "= 54.598 / 60.403 = 0.90" at its default, checked by guided.test.mjs
+  against the live weights at every reader. The weight row is all positive and reads "total 1";
+  masked cells read "weight exactly 0". Relative gaps belong to c12, already its `deepens_to`.
+- Generation Guided shows it live: "softmax → probabilities, summing to 1", "Softmax undoes the
+  ln: e^ln(count) = count.", "At T = 1.0, p = count ÷ total:" / "141 ÷ 296 = 0.476", and "Lead
+  p(“z”) ÷ p(“o”) = 1.72" / "= (141 ÷ 82)^(1/T) = e^(gap ÷ T)".
+- On the depth ladder, the only cards that teach softmax (Generation Guided, Generation Deep 3/4)
+  come after Attention Guided, so a prerequisite edge would run forward, which NC8 forbids. On the
+  deep-dive board, c16 and c21 also compute softmax. Both Guided cards'
+  transitions comments record this; a card is added only if the tutor's T8 branch needs one.
+
+**c18 practice vs Training Guided.** Training Guided no longer prints which checkpoint is lowest:
+its default reads "Now versus the lowest held-out checkpoint in the whole run: train −0.166,
+held-out +0.141" (±0.000 at that checkpoint). The slider finds it. c18 is unchanged.
+
+**c21 vs c22 rounding.** c21's probability grid rounds each cell on its own, like c22
+(distribution: true stays only on the bars), so its T = 1.0 row prints ②'s 0.60 0.22 0.08 0.05
+0.03 0.01, and its live-note reads "÷ T and softmax: live calculation in this card, rounded to 3
+decimals; cells show 2, so a row can total 0.99 or 1.01." The readout 0.605 beside the 0.60 cell
+is two independent roundings of 0.6048 (3 decimals in readouts, 2 in cells), explained in c21's
+Sources.
+
+**c10 vs Attention Guided.** NC8's example drift is resolved on the card: c10's status line reads
+"Characters: Source value (labels only) · q, k, v: Calculated toy example · …", so its B e f o are
+labels on hand-typed vectors, as Attention Guided's characters are ("hand-set q, k, v").
+
+**c26 checkpoint.** c26's first status line names its checkpoint in c25's words: "Recorded toy
+run (a bigram reading only the previous character, not NanoGPT; iteration 1000, the last
+checkpoint): p" (116 characters, the batch-5 status budget), beside c25's "… iteration 100, the
+kept checkpoint)".

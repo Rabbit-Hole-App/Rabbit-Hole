@@ -53,7 +53,7 @@ test('c06: displayed values follow the selected preset', () => {
     const tokRows = ['tokens-1', 'tokens-2'].map(id => byId(result, id).tokens);
     const idRows = ['ids-1', 'ids-2'].map(id => byId(result, id).tokens);
     // Rows read back to the fixture's tokens and exact integer IDs, in order.
-    assert.deepEqual(tokRows.flat().map(s => s.trim()), t.tokens);
+    assert.deepEqual(tokRows.flat().map(s => s.trim()), t.tokens.map(x => x.replaceAll('␣', '•')));
     assert.deepEqual(idRows.flat().map(s => Number(s.trim())), t.ids);
     assert.ok(idRows.flat().every(s => /^ *\d+ *$/.test(s)), 'IDs print as integers');
     // Token and ID share a column: same padded width, centred the same way.
@@ -89,7 +89,7 @@ test('c06: sources are well-formed and the card names their status', () => {
     'data/shakespeare_char/prepare.py:55-61', 'model.py:111-111', 'model.py:223-223', 'README.md:160-166', 'README.md:22-22']) {
     assert.ok(cited.includes(ref), `cites ${ref}`);
   }
-  assert.deepEqual(sources.filter(source => source.kind === 'calculation').map(source => source.status), ['Calculated toy example']);
+  assert.deepEqual(sources.filter(source => source.kind === 'calculation').map(source => source.status), ['Source value']);
   assert.ok(sources.some(source => source.kind === 'doc' && source.title.includes(fx.provenance.tiktoken)), 'tiktoken pin');
   assert.ok(sources.some(source => source.kind === 'dataset' && source.sha256 === fx.provenance.dataset.sha256), 'dataset pin');
 });

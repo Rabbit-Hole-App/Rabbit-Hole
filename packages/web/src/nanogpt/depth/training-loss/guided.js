@@ -7,8 +7,9 @@
 // tables give their p(target) and -ln p. The training word's mean loss keeps
 // falling; some held-out dots climb the curve's steep wall (r -> r in "morrow"
 // never occurs in the practice text), which is why validation loss turns up
-// while training loss keeps falling. The whole-slice losses, their gap and the lowest held-out
-// checkpoint are shown with the slider. A second control picks one of the
+// while training loss keeps falling. The whole-slice losses, their gap and the change since the lowest
+// held-out checkpoint (±0.000 there) are shown with the slider; the card does not name that
+// checkpoint - the learner finds it by dragging. A second control picks one of the
 // twelve positions to inspect: its dot grows, drop lines read p off the x
 // axis and -ln p off the y axis, its two table cells are ringed, and a
 // readout gives the same two numbers.
@@ -104,7 +105,6 @@ export const scene = {
   ],
   exampleData: {
     checkpointLabels: R.iterations.map(it => `iter ${it}`),
-    iterations: R.iterations,
     curveP: C.p,
     curveLoss: C.loss,
     trPAll: TRAIN.p,
@@ -166,8 +166,6 @@ export const scene = {
     // The lowest held-out checkpoint over the whole run (3-decimal seam rounding, as printed).
     valL: { op: 'scale', args: ['valAll', 1] },
     bestAt: { op: 'argmin', args: ['valL'] },
-    bestIt: { op: 'pick', args: ['iterations', 'bestAt'] },
-    bestVal: { op: 'pick', args: ['valL', 'bestAt'] },
     // Before / at / after the lowest held-out checkpoint: argmin([d, -0.5, -d]) with d = checkpoint - bestAt.
     cp: { op: 'concat', args: ['checkpoint'] },
     best1: { op: 'concat', args: ['bestAt'] },
@@ -205,10 +203,10 @@ export const scene = {
     table('heldTable', HELD, 418, 'prediction', 'hoCells'),
     text('held-mean', { text: 'mean of these 6 losses: {{hoMean}}', x: TABLE.x, y: 536, typography: 'annotation', opacity: 0 }),
     text('slices', { text: '{{slicesText}}', x: 40, y: 570, typography: 'caption', opacity: 0 }, 'overfitting'),
-    text('best', { text: 'Lowest held-out loss in the whole run: iter {{bestIt}} ({{bestVal}}). Now versus it: {{changeText}}', x: 40, y: 594, typography: 'caption', opacity: 0 }, 'overfitting'),
+    text('best', { text: 'Now versus the lowest held-out checkpoint in the whole run: {{changeText}}', x: 40, y: 594, typography: 'caption', opacity: 0 }, 'overfitting'),
     text('regime', { text: '{{regimeText}}', x: 40, y: 616, typography: 'annotation', opacity: 0 }, 'overfitting'),
     text('status-1', { text: 'Recorded toy run (a bigram model, not NanoGPT): dots, tables, readout, losses, means, gap, change.', x: 40, y: 646, typography: 'annotation' }, 'provenance'),
-    text('status-2', { text: 'Calculated toy example: the curve.   Live calculation: the lowest held-out checkpoint and the caption under it.', x: 40, y: 664, typography: 'annotation' }, 'provenance'),
+    text('status-2', { text: 'Calculated toy example: the curve.   Live calculation: the caption under the change.', x: 40, y: 664, typography: 'annotation' }, 'provenance'),
   ],
   timeline: [
     // Phase 1 (What is training minimizing?). a. One position: p -> -ln p on the curve.
@@ -267,7 +265,7 @@ export const evidence = {
   sourceRevision: `${fx.provenance.nanogpt.repo} @ ${fx.provenance.nanogpt.commit}`,
   provenance: 'Recorded toy run: per-position p and −ln p at 21 checkpoints (gen_training_loss.py tapping generate_fixtures.py’s bigram run) and whole-slice train/val losses (fx.toyRun). The means, gap and change since the lowest checkpoint are arithmetic on those recorded numbers, printed to 3 decimals. Calculated toy example: 14 points of −ln p. Live calculation: argmin of val, the regime caption, all pixel positions and the inspected dot’s drop lines. Source: model.py:187 loss line, train.py:216-228 estimate_loss, train.py:274-275 save rule, config/train_shakespeare_char.py:9-10, prepare.py:37-40 split.',
   control: 'checkpoint (index, slider) "Recorded checkpoint" over the 21 recorded checkpoints, iter 0..1000 - picks stored results; nothing trains. focus (index, picker) "Inspect position": one of the 12 positions (C→i … e→n of the training word, m→o … w→, of the held-out word).',
-  consequence: 'Twelve dots slide along the fixed −ln p curve (most training-text dots toward p = 1, two held-out dots up the steep wall near p = 0); both tables’ p (%) and −ln p cells and their means change; the whole-slice line gives train, held-out and their gap; the lowest held-out checkpoint (iter 100) and the change since it update, with a caption for before / at / after it. The inspected position’s dot grows, two drop lines read its p off the x axis and its −ln p off the y axis, its two cells are ringed in its table, and a readout gives both numbers (p also as the percentage its cell rounds, with its leading zero).',
+  consequence: 'Twelve dots slide along the fixed −ln p curve (most training-text dots toward p = 1, two held-out dots up the steep wall near p = 0); both tables’ p (%) and −ln p cells and their means change; the whole-slice line gives train, held-out and their gap; the change since the lowest held-out checkpoint updates (±0.000 there), with a caption for before / at / after it; the card does not print which checkpoint that is. The inspected position’s dot grows, two drop lines read its p off the x axis and its −ln p off the y axis, its two cells are ringed in its table, and a readout gives both numbers (p also as the percentage its cell rounds, with its leading zero).',
   interactionPurpose: 'Drag from iter 0 (every dot near the even guess, 4.17) to iter 1000, and pick positions to inspect, and verify on the card: the inspected dot’s drop lines land on its p and its −ln p, each dot sits on loss = −ln p, each mean is the average of its six losses, the gap is held-out minus train, and after iter 100 train keeps falling while held-out never gets back down to its lowest (it dips at iters 300, 450 and 700, but stays above iter 100).',
   task: 'Find the checkpoint after which the held-out loss never gets back down to its lowest; then inspect r→r and w→, and say why their losses climb the steep wall while z→e slides to 0 (their pairs never occur in the practice text).',
   capability: 'plot.js curve (14 points) with 12 derived dots on one frame, their sizes picked by the inspect input; two drop lines from the picked dot to both axes; two 2x6 grids with row/column labels and an input-bound cellHighlight; picked 3-decimal readouts; live argmin; a three-way regime caption via argmin([d, -0.5, -d]); two numbered phase headings grouping the left column (1 What is training minimizing?: training word; 2 When should training stop?: held-out word and the checkpoint) beside the shared chart; a replay staged phase 1 (inspected position, then training word and its mean) and, after a beat, phase 2 introduced by its own heading (held-out word, the checkpoint), each step’s content in quieter type (body, body, caption/annotation).',

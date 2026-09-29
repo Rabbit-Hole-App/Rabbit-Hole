@@ -76,7 +76,7 @@ test('every count matches the tensor inventory at every setting', () => {
       `Total: wte + wpe + blocks + ln_f = ${groupDigits(want.total)} (${shipped ? 'Source value sizes' : 'What-if sizes'})`, where);
     // The block split's coefficients, from the Linear shapes: 3 + 1 = 4 and 4 + 4 = 8.
     assert.equal(objects.get('block-origin').label,
-      'attention: c_attn C × 3C = 3C², c_proj C × C = C² · MLP: c_fc C × 4C = 4C², c_proj 4C × C = 4C²');
+      'attention: c_attn 3C × C = 3C², c_proj C × C = C² · MLP: c_fc 4C × C = 4C², c_proj C × 4C = 4C²');
     assert.equal(3 * C * C + C * C, want.attn, where);
     assert.equal(4 * C * C + 4 * C * C, want.mlp, where);
     assert.equal(objects.get('printed').label,

@@ -93,3 +93,15 @@ test('gate: no card on any board shows a long number without separators', () => 
   }
   assert.deepEqual(failures, [], 'group the whole part with groupDigits (text composed in JS) - {{markers}} group on their own');
 });
+
+test('gate: NanoGPT cards write a number below 1 with its leading zero', () => {
+  const failures = [];
+  for (const board of ['nanogpt-deep-dive', 'nanogpt-depth-ladder']) {
+    for (const block of BOARDS[board]().filter(b => b.scene)) {
+      for (const text of new Set(cardTexts(board, block))) {
+        if (/(^|[\s(=:,])\.\d/.test(text)) failures.push(`${board} :: ${block.scene.id}: ${text}`);
+      }
+    }
+  }
+  assert.deepEqual(failures, [], 'write 0.90, not .90');
+});

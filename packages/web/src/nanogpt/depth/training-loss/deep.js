@@ -140,7 +140,7 @@ export const scene = {
     noteBAll: byConfig(c => c.stops.map((s, k) => note(c, s, k)[1])),
     noteRoles: EDGE.map(edge => (edge ? 'warning' : 'neutral')),
     roleRows: ROLE_ROWS,
-    decayText: byConfig(c => `λ = ${c.weightDecay} only where dim ≥ 2 (weights, embeddings); betas (${c.betas.join(', ')})`),
+    decayText: byConfig(c => `weight_decay λ = ${c.weightDecay} where dim ≥ 2 (weights, embeddings); betas (${c.betas.join(', ')})`),
     clipText: byConfig(c => c.gradClip.toFixed(1)),
     // Counts, grouped as train.py prints tokens_per_iter ("{tokens_per_iter:,}").
     tokensText: byConfig(c => (c.gradAccumPerProcess * c.worldSize * c.batchSize * c.blockSize).toLocaleString('en-US')),
@@ -192,6 +192,7 @@ export const scene = {
     // The stop's own lesson.
     text('note-a', 0, { text: '{{noteA}}', x: 40, y: NOTE, typography: 'annotation', role: { $derive: 'noteRole' } }, 'edge-case'),
     text('note-b', 0, { text: '{{noteB}}', x: 40, y: NOTE + 18, typography: 'annotation', role: { $derive: 'noteRole' } }, 'edge-case'),
+    text('lr-key', 0, { text: 'η = learning_rate, η_min = min_lr, W = warmup_iters, D = lr_decay_iters; lr = η_t', x: 40, y: NOTE + 40, typography: 'annotation' }),
     // 2/3: the micro-steps, and the batch/memory tradeoff they buy.
     text('question-micro', 1, { text: 'How do M micro-steps of forward, loss and backward make one gradient?', x: 40, y: 34, typography: 'heading' }),
     { id: 'loop', type: 'line', part: 1, semanticId: 'loop', conceptId: 'training-loop',
@@ -208,7 +209,7 @@ export const scene = {
     text('memory-3', 1, { text: 'Without accumulation one process would hold all M·B = {{mb}} sequences at once (logits: M·B·T·V = {{logitsAllShown}} values).', x: 40, y: PANEL + 36, typography: 'annotation' }, 'tradeoff'),
     // 3/3: the gradient becomes a weight update, and what one iteration consumed.
     text('question-update', 2, { text: 'How does that gradient update the weights, and how many tokens fed it?', x: 40, y: 34, typography: 'heading' }),
-    eq('clip-eq', 2, 'g\\gets g\\,\\min(1,\\,c/\\lVert g\\rVert_2),\\quad c={{clip}}', at('clip') - 6),
+    eq('clip-eq', 2, 'g\\gets g\\,\\min(1,\\,c/\\lVert g\\rVert_2),\\quad c=\\text{grad\\_clip}={{clip}}', at('clip') - 6),
     // Labelled conceptual: AdamW's decoupled update, not every detail of PyTorch's implementation.
     eq('adamw-eq', 2, '\\theta\\gets\\theta-\\eta_t(\\hat m/(\\sqrt{\\hat v}+\\epsilon)+\\lambda\\theta)', at('step') - 6, 580),
     text('adamw-label', 2, { text: 'AdamW, conceptual update', x: RIGHT + 280, y: at('step') + 16, typography: 'annotation' }),

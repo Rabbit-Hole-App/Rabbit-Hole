@@ -723,8 +723,8 @@ The header reads 'One training step · 1 of 2'.
 
 **What-if:** window lengths T = 1..8 (NanoGPT's is 256).
 
-**Status lines** (annotation, each under 100 characters):
-- 'Recorded toy run (a bigram model, not NanoGPT; it reads only the previous character): p'
+**Status lines** (annotation, each under 100 characters; the first 116 since NC9, the batch-5 status budget):
+- 'Recorded toy run (a bigram reading only the previous character, not NanoGPT; iteration 1000, the last checkpoint): p'
 - 'Calculated toy example: −ln p, e^mean · Live calculation: sum, mean, share, B · T'
 - 'What-if: window length T (NanoGPT's is 256) · Source value: text, 65, B, T'
 

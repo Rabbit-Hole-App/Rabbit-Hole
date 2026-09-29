@@ -5,6 +5,7 @@
 // the 20 draws per preset are a recorded toy run (seeded random.choices), not
 // NanoGPT and not live sampling. The code lines and how each number was made
 // are the card's `sources`, shown collapsed under it.
+// The probability grid has fixed valueScale heat, each cell rounded on its own (distribution: true only on the bars).
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
 import { code, calculation, tinyShakespeare } from '../sources.js';
 
@@ -99,16 +100,16 @@ export const scene = {
       initialState: { from: { x: GX[1] + 6 * CELL + 4, y: GY + CELL / 2 }, to: { x: GX[2] - 4, y: GY + CELL / 2 }, opacity: 0 } },
     { id: 'probs', type: 'grid', semanticId: 'probabilities', conceptId: 'softmax',
       initialState: { label: 'softmax → probabilities', x: GX[2], y: GY, rows: 1, cols: 6, cell: CELL, opacity: 0,
-        role: 'output', matrixKind: 'derived', distribution: true, heat: true, valueScale: 'fixed',
+        role: 'output', matrixKind: 'derived', heat: true, valueScale: 'fixed',
         columnLabels: [...shown], values: { $derive: 'probs' } } },
     { id: 'provenance-note', type: 'text', semanticId: 'provenance-note', conceptId: 'temperature',
-      initialState: { text: 'Toy logits for {{candidateCount}} candidates: calculated toy example, not NanoGPT output.', x: 24, y: 202, typography: 'annotation' } },
+      initialState: { text: 'Hand-set toy logits for {{candidateCount}} candidates: calculated toy example, not NanoGPT output.', x: 24, y: 202, typography: 'annotation' } },
     { id: 'vocab-note', type: 'text', semanticId: 'toy-vocabulary', conceptId: 'temperature',
       initialState: { text: 'The real shakespeare_char softmax covers all {{vocabSize}} characters. sp = the space character.', x: 24, y: 220, typography: 'annotation' } },
     { id: 'live-note', type: 'text', semanticId: 'live-note', conceptId: 'temperature',
-      initialState: { text: '÷ T and softmax: live calculation in this card, rounded to 3 decimals; cells and bars show 2.', x: 24, y: 238, typography: 'annotation' } },
+      initialState: { text: '÷ T and softmax: live calculation in this card, rounded to 3 decimals; cells show 2, so a row can total 0.99 or 1.01.', x: 24, y: 238, typography: 'annotation' } },
     { id: 'zero-note', type: 'text', semanticId: 'rounded-not-zero', conceptId: 'softmax',
-      initialState: { text: 'A .00 cell is rounded, not zero: softmax gives every candidate some probability, so it can still be drawn.', x: 24, y: 256, typography: 'annotation' } },
+      initialState: { text: 'A 0.00 cell is rounded, not zero: softmax gives every candidate some probability, so it can still be drawn.', x: 24, y: 256, typography: 'annotation' } },
 
     // Same probabilities as bars, one bar under each probability cell, on a
     // fixed axis (peak 1) so sharper vs flatter is a visible height change.
@@ -163,7 +164,7 @@ export const scene = {
     { id: 'not-greedy-4', type: 'text', semanticId: 'no-argmax-mode', conceptId: 'sampling',
       initialState: { text: 'generate() has no argmax mode, and T = 0 would divide the logits by zero.', x: 24, y: 756, typography: 'annotation' } },
     { id: 'default-note', type: 'text', semanticId: 'default-temperature', conceptId: 'temperature',
-      initialState: { text: 'NanoGPT’s own default, T = 0.8, is below 1: sharpened, still sampled.', x: 24, y: 774, typography: 'annotation' } },
+      initialState: { text: 'The sampler’s default, T = 0.8, is below 1: sharpened, still sampled.', x: 24, y: 774, typography: 'annotation' } },
   ],
   timeline: [
     { at: 0.0, action: 'appear', target: 'logits', duration: 0.4 },
@@ -185,13 +186,13 @@ export const sources = [
   code('model.py', 324, 324, 'Softmax turns the scaled logits into probabilities: "probs = F.softmax(logits, dim=-1)".'),
   code('model.py', 326, 326, 'Always one random draw from those probabilities, never argmax: "idx_next = torch.multinomial(probs, num_samples=1)".'),
   code('model.py', 320, 322, 'Optional top-k crop between the division and the softmax: "v, _ = torch.topk(logits, min(top_k, logits.size(-1)))" then logits below the k-th are set to -Inf. This card applies none.'),
-  code('sample.py', 17, 17, 'NanoGPT\'s own sampling default, below 1 - sharpened, still sampled; the card has no preset at this value: "temperature = 0.8 # 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions".'),
+  code('sample.py', 17, 17, 'sample.py\'s sampling default, below 1 - sharpened, still sampled; the card has no preset at this value: "temperature = 0.8 # 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions".'),
   calculation('Calculated toy example', `${T.display.length} toy logits`,
     `generate_fixtures.py temperature(): hand-set logits [${T.logits.join(', ')}] for the characters ${T.vocab.map(c => (c === ' ' ? 'space' : c)).join(', ')} after "${T.context}" - not NanoGPT output. The space is shown as sp.`),
   calculation('Recorded toy run', `${T.draws} draws per preset`,
     `For preset k the generator seeds random.Random(${T.seed} + k) and takes ${T.draws} draws in one random.choices call over the ${T.display.length} candidates, weighted by that preset's softmax(logits / T) - Python's sampler on the toy probabilities, not NanoGPT, not torch.multinomial and not live sampling. One small seeded sample: counts vary with the seed.`),
   calculation('Live calculation', 'Scaled logits, probabilities and counts',
-    'Computed on the card for the selected preset: scale(logits, 1/T), then softmax; softmax(logits) for the T = 1.0 comparison; the top token as argmin of -p; 1 - p(top) with sub; the expected top count as draws × p(top) with scale; the non-top count as draws minus the recorded top count with sub. Rounded to 3 decimals; cells and bars show 2.'),
+    'Computed on the card for the selected preset: scale(logits, 1/T), then softmax; softmax(logits) for the T = 1.0 comparison; the top token as argmin of -p; 1 - p(top) with sub; the expected top count as draws × p(top) with scale; the non-top count as draws minus the recorded top count with sub. Readouts are rounded to 3 decimals; each probability cell rounds its own p to 2, with no sum-to-1.00 adjustment (as on the top-k card), so the row totals 1.01 at T = 0.5 and 0.99 at T = 1.0, and z’s 0.6048 reads 0.605 in the readouts and 0.60 in its cell.'),
   code('data/shakespeare_char/prepare.py', 24, 25, `The real vocabulary the card compares against: "chars = sorted(list(set(data)))" and "vocab_size = len(chars)" - ${charVocab.vocabSize} characters for Tiny Shakespeare.`),
   tinyShakespeare(`The text whose ${charVocab.vocabSize} distinct characters make the shakespeare_char vocabulary.`),
 ];
@@ -207,5 +208,5 @@ export const evidence = {
   consequence: 'The logits / T row, the probability row (fixed [0,1] heat) and the bars (peak 1) recompute live; p(top), its T = 1.0 value and 1 - p(top) update; the caption says sharper / the same as / flatter than plain softmax; the recorded toy draws, "N of 20 draws were the top token" and the live expected count (20 x p(top)) switch to that preset. At T = 0.25 the other five still share 1 - p(top) > 0, and one recorded draw is not the top token (one seeded illustration; counts vary run to run).',
   interactionPurpose: 'Sweep the stored presets from low to high T and watch the same six toy candidates go from nearly one-hot to flat, while generate()\'s code path (multinomial at model.py:326) keeps sampling at every preset, and the recorded draws illustrate it.',
   task: 'Move the preset to the lowest T and read what share the other five candidates still hold, and whether every recorded draw is the top token; then move to the highest T and say how p(top) and the expected count changed.',
-  capability: 'index slider input over preset labels; pick/scale/softmax/argmin/concat/sub derive ops; derived grid with distribution:true + fixed valueScale heat; bars with peak 1 aligned under the grid; derived token lists with tokenStyle labels and derived cellHighlight lists; pick-driven state captions.',
+  capability: 'index slider input over preset labels; pick/scale/softmax/argmin/concat/sub derive ops; derived grid with fixed valueScale heat, each cell rounded on its own (distribution: true only on the bars); bars with peak 1 aligned under the grid; derived token lists with tokenStyle labels and derived cellHighlight lists; pick-driven state captions.',
 };

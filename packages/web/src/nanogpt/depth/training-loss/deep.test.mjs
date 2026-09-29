@@ -39,7 +39,7 @@ test('deep passes every gate at every reviewed state; a pager and two controls, 
   const [label, adamw] = ['adamw-label', 'adamw-eq'].map(id => byId(update, id));
   assert.equal(label.label, 'AdamW, conceptual update');
   assert.ok(label.visible && label.y > adamw.y && label.y < adamw.y + adamw.h);
-  assert.match(byId(update, 'decay').label, /only where dim ≥ 2/);
+  assert.match(byId(update, 'decay').label, /where dim ≥ 2/);
   for (const result of results) {
     const shown = result.state.objects.filter(o => o.visible && o.label).map(o => o.label).join('\n');
     assert.doesNotMatch(shown, /beginner|intermediate|advanced|expert|newcomer/i);
@@ -50,7 +50,7 @@ test('deep passes every gate at every reviewed state; a pager and two controls, 
 
 // One idea per sub-card: which objects each part shows (the pager itself is in the card header).
 const PARTS = {
-  0: ['question', 'prerequisites', 'get-lr', 'arrow-get-lr', 'estimate', 'branch-0', 'branch-1', 'branch-2', 'lr-status', 'lr-eq', 'eval-line', 'note-a', 'note-b'],
+  0: ['question', 'prerequisites', 'get-lr', 'arrow-get-lr', 'estimate', 'branch-0', 'branch-1', 'branch-2', 'lr-status', 'lr-eq', 'eval-line', 'note-a', 'note-b', 'lr-key'],
   1: ['question-micro', 'forward', 'arrow-forward', 'loss', 'arrow-loss', 'backward', 'loop', 'loop-label', 'shapes', 'loss-eq', 'flatten', 'accum-eq', 'memory', 'memory-2', 'memory-3'],
   2: ['question-update', 'clip', 'arrow-clip', 'step', 'arrow-step', 'zero', 'clip-eq', 'adamw-eq', 'adamw-label', 'decay', 'zero-note', 'tokens'],
 };
@@ -187,7 +187,7 @@ test('shapes and live products match the oracle for both configs, on the sub-car
     // Summed over the M micro-steps of each process, averaged over the P processes (DDP).
     assert.ok(byId(result, 'accum-eq').label.startsWith('g=\\frac1P\\sum_{p,m}') && byId(result, 'accum-eq').label.endsWith(`P=${P},\\ M=${M}`));
     assert.equal(byId(result, 'loop-label').label, `micro-steps: M = ${M}`);
-    assert.equal(byId(other, 'clip-eq').label, `g\\gets g\\,\\min(1,\\,c/\\lVert g\\rVert_2),\\quad c=${c.gradClip.toFixed(1)}`);
+    assert.equal(byId(other, 'clip-eq').label, `g\\gets g\\,\\min(1,\\,c/\\lVert g\\rVert_2),\\quad c=\\text{grad\\_clip}=${c.gradClip.toFixed(1)}`);
     // Counts grouped in thousands, as train.py prints tokens_per_iter with "{tokens_per_iter:,}".
     const grouped = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     assert.equal(byId(other, 'tokens').label, `Tokens per iteration = M·P·B·T = ${M}·${P}·${B}·${T} = ${grouped(M * P * B * T)}, as printed at start-up (Source value)`);
@@ -200,7 +200,7 @@ test('shapes and live products match the oracle for both configs, on the sub-car
     if (c.id === 'gpt2') assert.deepEqual([M * B, grouped(M * B * T * V), grouped(B * T * V)], [60, '3,090,677,760', '618,135,552']);
     assert.equal(M * P * B * T, M * P * B * c.blockSize);
     if (c.id === 'gpt2') assert.equal(grouped(M * P * B * T), '491,520', 'the figure in config/train_gpt2.py’s own comment');
-    assert.equal(byId(other, 'decay').label, `λ = ${c.weightDecay} only where dim ≥ 2 (weights, embeddings); betas (${c.betas.join(', ')})`);
+    assert.equal(byId(other, 'decay').label, `weight_decay λ = ${c.weightDecay} where dim ≥ 2 (weights, embeddings); betas (${c.betas.join(', ')})`);
   });
 });
 

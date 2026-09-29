@@ -172,7 +172,7 @@ test('every number on the card matches the plain-JS oracle', () => {
     assert.equal(weights.distribution, false, 'no largest-remainder nudge');
     assert.ok(Math.abs(weights.values.filter(w => w !== null).reduce((s, x) => s + x, 0) - 1) <= T * 5e-4, `${where} weights (3 decimals each) sum to 1`);
     const printed = weights.values.map(shown).filter(w => w !== null).reduce((s, x) => s + Number(x), 0);
-    assert.ok(Math.abs(printed - 1) <= 0.0101, `${where} printed row ${printed} within .99-1.01`);
+    assert.ok(Math.abs(printed - 1) <= 0.0101, `${where} printed row ${printed} within 0.99-1.01`);
     // Scores that print the same get weights that print the same (the round-1
     // complaint: 1.00 and 1.00 used to show .05 and .04).
     const scoreText = byId(result, 'masked').values.map(shown);
@@ -186,10 +186,10 @@ test('every number on the card matches the plain-JS oracle', () => {
     const kept = o.masked.filter(x => x !== null);
     const topScore = Math.max(...kept);
     const sup = { 4: '⁴', 1: '¹', '-1': '⁻¹', '-4': '⁻⁴' };
-    const topWeight = shown(weights.values[result.derived.topAt]);
+    const topWeight = weights.values[result.derived.topAt].toFixed(2); // as formatCell prints the cell: 0.90
     if (kept.length === 1) assert.equal(hand, `largest: e${sup[Math.round(topScore)]} / e${sup[Math.round(topScore)]} = 1`);
     else {
-      const m = hand.match(/^largest: e(\S+) \/ \((.+)\) = ([\d.]+) \/ ([\d.]+) = (\.\d\d)$/);
+      const m = hand.match(/^largest: e(\S+) \/ \((.+)\) = ([\d.]+) \/ ([\d.]+) = (\d\.\d\d)$/);
       assert.ok(m, `${where} by-hand line: ${hand}`);
       assert.equal(m[1], sup[Math.round(topScore)]);
       const terms = Object.fromEntries(m[2].split(' + ').map(t => { const [, n, e] = t.match(/^(\d*)e(.+)$/); return [e, Number(n || 1)]; }));
@@ -199,7 +199,7 @@ test('every number on the card matches the plain-JS oracle', () => {
       const den = kept.reduce((s, x) => s + Math.exp(x), 0);
       assert.ok(Math.abs(Number(m[3]) - Math.exp(topScore)) <= 0.05 && Math.abs(Number(m[4]) - den) <= 0.05, `${where} e^top and the sum`);
       assert.equal(m[5], topWeight, `${where} the ratio is the weight cell`);
-      assert.equal((Number(m[3]) / Number(m[4])).toFixed(2).replace(/^0\./, '.'), topWeight, `${where} the printed ratio divides to the cell`);
+      assert.equal((Number(m[3]) / Number(m[4])).toFixed(2), topWeight, `${where} the printed ratio divides to the cell`);
     }
     // The scaled scores are the position code's exact values: 4, 1, -1, -4.
     o.masked.filter(x => x !== null).forEach(x => assert.ok([4, 1, -1, -4].some(n => Math.abs(x - n) < 1e-4), `${where} exact score ${x}`));

@@ -254,11 +254,11 @@ test('the att equation is att itself (B, nh, T, T); y = att v sits on the c_proj
   assert.equal(att, String.raw`\mathrm{softmax}(qk^\top/\sqrt{hs}+M)`);
   assert.equal(objects.get('att-shape').label, 'att: (B, nh, T, T)');
   assert.ok(out.startsWith(String.raw`y=\text{att}\,v,`), out);
-  assert.equal(objects.get('attnOut-step').label, 'att @ v → c_proj, x + y');
+  assert.equal(objects.get('attnOut-step').label, 'att @ v → c_proj, x + attn');
   assert.equal(objects.get('eq-embed').label, String.raw`x = W_{te}[\mathrm{idx}] + W_{pe}[0{:}T]`);
   assert.equal(objects.get('eq-mlp').label, String.raw`x \gets x+\text{mlp}(\text{LN}_2(x))`);
   // A slash, not an inline \frac, whose 1 and BT draw at about 10px.
-  assert.equal(objects.get('eq-loss').label, String.raw`\ell=-(1/BT)\sum_{b,t}\log p(Y_{bt})`);
+  assert.equal(objects.get('eq-loss').label, String.raw`\ell=-(1/BT)\sum_{b,t}\ln p(Y_{bt})`);
   // The Block's lines follow their rows: y = att v on the c_proj row, the MLP
   // update on the ln_2 row it starts on, the att line right above them.
   const top = id => scene.objects.find(o => o.id === id).initialState.y;

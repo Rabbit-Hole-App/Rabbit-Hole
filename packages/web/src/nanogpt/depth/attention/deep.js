@@ -248,7 +248,7 @@ export const scene = {
       { id: 'first-note', type: 'text', semanticId: 'first-row', conceptId: 'causal-mask',
         initialState: { text: '{{firstNote}}', x: RX, y: GRID_Y + 18, typography: 'annotation' } },
       { id: 'rows-note', type: 'text', semanticId: 'rows-stable', conceptId: 'causal-mask',
-        initialState: { text: 'Growing T adds a row and a column; old rows stay.', x: RX, y: GRID_Y + 40, typography: 'annotation' } },
+        initialState: { text: 'Growing T adds a row and a column; old rows stay. sp = space.', x: RX, y: GRID_Y + 40, typography: 'annotation' } },
       { id: 'dropout-note', type: 'text', semanticId: 'dropout-note', conceptId: 'dropout',
         initialState: { text: `Training only: dropout ${DROPOUT} zeroes weights; rows may not sum to 1.`, x: RX, y: GRID_Y + 62, typography: 'annotation' } },
       // ponytail: only the newest row's y - the derive seam has no row slice for a
