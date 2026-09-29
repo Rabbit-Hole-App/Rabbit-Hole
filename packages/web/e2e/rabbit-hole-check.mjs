@@ -2034,7 +2034,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
-  await check('wp6-learn-chrome: a fresh canvas shows no sample lesson; on a phone, project Learn keeps every menu item on screen or in a row that scrolls on purpose, the drawing tools clear of the zoom controls, and the composer fully visible', async () => {
+  await check('wp6-learn-chrome: a fresh canvas shows no sample lesson; on a phone, project Learn keeps every menu item on screen or in a row that scrolls on purpose, no drawing tool cut by the toolbar edge and the last one reachable, the drawing tools clear of the zoom controls, and the composer fully visible', async () => {
     const page = await open();
     await noAsks(page);
     await loaded(page, '/library');
@@ -2045,8 +2045,13 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await page.waitForTimeout(1500);
       const sample = await page.evaluate(() => [...document.querySelectorAll('body *')].filter((n) => n.offsetParent !== null && n.childElementCount === 0 && /Lesson 1: Logistic regression/i.test(n.textContent)).length);
       must(sample === 0, 'a fresh canvas shows the sample Logistic regression lesson');
+      if (ready) await phoneChrome(); // with the canvas kept, project Learn shows its canvas picker, as a real project does
     } finally { await drop6(page, c.name); await page.context().close(); }
-    if (!ready) return;
+  });
+
+  // The phone half of wp6-learn-chrome. Its caller keeps a project canvas alive, so the picker row takes its
+  // real height; without one the toolbar has 48px more room and a cut control never shows.
+  async function phoneChrome() {
     const phone = await open({ width: 390, height: 844 });
     await noAsks(phone);
     await loaded(phone, `/apps/${ready.name}?tab=learn`);
@@ -2067,9 +2072,65 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const tools = await box(phone.getByRole('toolbar', { name: 'Canvas tools' }));
     const zoom = await box(phone.locator('[data-zoom]'));
     must(!overlap(tools, zoom) && (!tools || !zoom || zoom.y - (tools.y + tools.height) >= 8), `the drawing tools sit on the zoom controls (gap ${tools && zoom ? Math.round(zoom.y - tools.y - tools.height) : '-'}px)`);
+    // A control is cut when a clipping ancestor inside the toolbar shows part of it. Scrolled fully out
+    // of view is fine as long as scrolling to the end shows the last control whole.
+    const cut = (end) => phone.evaluate((end) => {
+      const bar = document.querySelector('[role="toolbar"][aria-label="Canvas tools"]');
+      if (!bar) return { cut: [], last: true };
+      const clips = [bar, ...bar.querySelectorAll('*')].filter((n) => getComputedStyle(n).overflowY !== 'visible');
+      if (end) for (const n of clips) n.scrollTop = n.scrollHeight;
+      const shown = (b) => {
+        const q = b.getBoundingClientRect(); let top = q.top, bottom = q.bottom;
+        for (let p = b.parentElement; p; p = p.parentElement) {
+          if (clips.includes(p)) { const r = p.getBoundingClientRect(); top = Math.max(top, r.top + p.clientTop); bottom = Math.min(bottom, r.top + p.clientTop + p.clientHeight); }
+          if (p === bar) break;
+        }
+        return [Math.max(0, bottom - top), q.height];
+      };
+      const controls = [...bar.querySelectorAll('button, [role="button"]')].filter((b) => b.offsetParent !== null);
+      const last = controls.at(-1), [lastShown, lastH] = last ? shown(last) : [0, 0];
+      return { cut: controls.filter((b) => { const [v, h] = shown(b); return v > 0.5 && v < h - 0.5; }).map((b) => b.getAttribute('aria-label') || b.title), last: !last || lastShown >= lastH - 0.5 };
+    }, end);
+    const rest = await cut(false);
+    must(!rest.cut.length, `drawing tools cut by the toolbar edge: ${rest.cut.join(', ')}`);
+    must((await cut(true)).last, 'scrolling the drawing tools to the end still does not show the last control whole');
     const cb = await composer.boundingBox();
     must(cb.y >= 0 && cb.y + cb.height <= 844 && !overlap(cb, zoom) && !overlap(cb, tools), 'the composer is covered or off screen');
     await phone.context().close();
+  }
+
+  await check('wp6-learn-immersive: a standalone canvas, a project canvas and project Learn show no sidebar or icon rail, Learn starts at the window edge, a top-left Open sidebar button clear of the page opens the sidebar as a drawer and Esc closes it, and Library keeps its sidebar', async () => {
+    const page = await open();
+    await noAsks(page);
+    await loaded(page, '/library');
+    const edge = () => page.evaluate(() => { const s = document.querySelector('[data-shell-sidebar]'); return { rail: Math.round(s?.getBoundingClientRect().width ?? 0), drawer: Math.round(s?.firstElementChild?.getBoundingClientRect().width ?? 0), left: Math.round(s?.nextElementSibling?.getBoundingClientRect().left ?? -1) }; });
+    must((await edge()).rail > 0, 'Library lost its sidebar');
+    const made = [await canvas6(page, { title: 'wp6 immersive canvas' })];
+    try {
+      if (ready) made.push(await canvas6(page, { title: 'wp6 immersive project canvas', project: ready.name }));
+      const urls = [...made.map((c) => `/apps/${c.name}`), ...(ready ? [`/apps/${ready.name}?tab=learn`] : [])];
+      for (const url of urls) {
+        await loaded(page, url);
+        await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
+        await page.waitForTimeout(500);
+        const at = await edge();
+        must(at.rail === 0, `${url}: a sidebar or icon rail still takes ${at.rail}px`);
+        must(at.left === 0, `${url}: Learn starts at x=${at.left}, not the window edge`);
+        const opener = page.getByRole('button', { name: 'Open sidebar' });
+        const ob = await opener.boundingBox();
+        must(ob && ob.x < 24 && ob.y < 24, `${url}: no Open sidebar button at the top left`);
+        const under = await page.evaluate((b) => [...document.querySelector('[data-shell-sidebar]').nextElementSibling.querySelectorAll('button, a, input, select, span, h1, h2, p')]
+          .filter((n) => { if (n.offsetParent === null) return false; const r = n.getBoundingClientRect(); return r.width && r.height && r.left < b.x + b.width && b.x < r.right && r.top < b.y + b.height && b.y < r.bottom; })
+          .map((n) => n.getAttribute('aria-label') || n.textContent.trim().slice(0, 30) || n.tagName), ob);
+        must(!under.length, `${url}: the Open sidebar button covers ${under.join(', ')}`);
+        await opener.click();
+        await page.waitForTimeout(400);
+        must((await edge()).drawer >= 200, `${url}: Open sidebar did not show the sidebar`);
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(400);
+        must((await edge()).drawer === 0, `${url}: Esc left the sidebar open`);
+      }
+    } finally { for (const c of made) await drop6(page, c.name); await page.context().close(); }
   });
 
   // Checks from Tasks 1-11 go here, in task order.

@@ -64,7 +64,7 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
     <TabsTrigger pill value="map"><Tip label="Map" info="Code graph of this repository"><span>Map</span></Tip></TabsTrigger>
   </TabsList></Tabs>;
   if(tab==='learn')return <div className="flex min-h-0 min-w-0 flex-1 flex-col max-md:pt-(--shell-top-h)">{/* LearnPage brings its own <main>, which loses index.css's [data-shell-sidebar] ~ main phone padding */}
-    <div className="flex shrink-0 flex-wrap items-center gap-x-3 px-8 pt-3 max-md:px-4"><span className="mb-4 text-sm font-semibold">{app.repo}</span>{tabs}
+    <div className="flex shrink-0 flex-wrap items-center gap-x-3 pt-3 pr-8 pl-14 max-md:px-4"><span className="mb-4 text-sm font-semibold">{app.repo}</span>{tabs}
       {/* a native select: ui.jsx's Select is string-only and would collide on duplicate canvas titles */}
       {canvases.length>0&&<select aria-label="Canvas" value={picked?.name||''} onChange={e=>navigate(`/apps/${app.name}?tab=learn${e.target.value?`&canvas=${e.target.value}`:''}`)} className="mb-4 h-8 rounded-sm border border-line bg-transparent px-2 text-xs"><option value="">Project canvas</option>{canvases.map(c=><option key={c.name} value={c.name}>{c.title}</option>)}</select>}
     </div>

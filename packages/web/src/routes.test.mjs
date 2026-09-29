@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { getSurface, patchSurface, setSurface } from './agent/surface.js';
-import { baseSurfaceFor, canonicalPath, pageFor, projectTab, sectionActive, sectionHref, takeWs } from './routes.js';
+import { baseSurfaceFor, canonicalPath, immersiveAt, pageFor, projectTab, sectionActive, sectionHref, takeWs } from './routes.js';
 
 test('the live build routes exactly as today (main.jsx:57-70)', () => {
   for (const p of ['/apps', '/dash', '/members', '/chat', '/apps/counter', '/apps/counter/runs/r-1']) assert.equal(canonicalPath(p, false), null);
@@ -54,6 +54,18 @@ test('the baseline surface names the place and hides the bar where another input
   assert.deepEqual(at('/apps/counter/runs/r-1'), ['run', true]);
   assert.deepEqual(at('/chat?app=counter'), ['chat', true]);
   assert.deepEqual(at('/members'), ['members', false]);
+});
+
+test('Learn and canvas routes are immersive, with no persistent sidebar or icon rail; every other page keeps it (WP6 closeout)', () => {
+  const on = (url) => { const [p, s = ''] = url.split('?'); return immersiveAt(p, s); };
+  assert.equal(on('/apps/canvas-1a2b3c4d'), true);
+  assert.equal(on('/apps/repo-1a2b3c4d-nanogpt?tab=learn'), true);
+  assert.equal(on('/apps/repo-1a2b3c4d-nanogpt?tab=learn&canvas=canvas-1a2b3c4d'), true);
+  assert.equal(on('/apps/repo-1a2b3c4d-nanogpt'), false);
+  assert.equal(on('/apps/repo-1a2b3c4d-nanogpt?tab=map'), false);
+  assert.equal(on('/apps/counter?tab=learn'), false); // D7: an app lands on Runbook, never Learn
+  assert.equal(on('/apps/canvas-1a2b3c4d/runs/r-1'), false);
+  for (const url of ['/apps', '/dash', '/library', '/explore', '/apps/counter', '/members', '/chat']) assert.equal(on(url), false, url);
 });
 
 test('the baseline clears page state, keeps the workspace identity it is given, and invents none', () => {

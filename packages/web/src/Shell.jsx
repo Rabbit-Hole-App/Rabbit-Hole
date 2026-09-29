@@ -6,6 +6,7 @@ import Sidebar from './Sidebar.jsx';
 import { patchSurface } from './agent/surface.js';
 import { learnPreview } from './flags.js';
 import { sidebarEdge } from './home/pinned.js';
+import { immersiveAt } from './routes.js';
 
 // flow.md §1: the sidebar is always present. One shell owns it everywhere -
 // the /api/apps fetch it needs, the persisted collapse, the » reopen button,
@@ -41,15 +42,12 @@ export default function Shell({ children }) {
     setCollapsed(c);
     localStorage.setItem('small.sidebar', c ? 'closed' : 'open');
   };
-  // Immersive pages (Learn) collapse the sidebar on entry via this event.
-  useEffect(() => {
-    const onSidebar = (e) => toggle(!!e.detail?.collapsed);
-    window.addEventListener('small:sidebar', onSidebar);
-    return () => window.removeEventListener('small:sidebar', onSidebar);
-  }, []);
+  // Rabbit Hole dev: Learn is immersive (routes.js immersiveAt), with no sidebar or icon rail; the top-left button
+  // opens the sidebar as a drawer. It replaces Learn's collapse-on-entry, so visiting Learn no longer collapses it elsewhere.
+  const immersive = learnPreview && immersiveAt(window.location.pathname, window.location.search);
   // The drawer always shows the full sidebar; a collapsed preview sidebar is the icon rail (Sidebar rail).
   const shut = collapsed && !drawer;
-  const edge = sidebarEdge(shut, width, learnPreview);
+  const edge = immersive ? 0 : sidebarEdge(shut, width, learnPreview);
   // Rabbit Hole dev: the Agent Bar (Root) sits over the content column; publish its left edge.
   useEffect(() => {
     if (learnPreview) document.documentElement.style.setProperty('--sidebar-w', `${edge}px`);
@@ -101,7 +99,12 @@ export default function Shell({ children }) {
           </button>
         </div>
       )}
-      {drawer && <div data-shell-backdrop onClick={() => setDrawer(false)} className="fixed inset-0 z-30 bg-black/20 md:hidden" />}
+      {immersive && !drawer && (
+        <button aria-label="Open sidebar" title="Open sidebar" onClick={() => setDrawer(true)} className="fixed top-3 left-3 z-20 flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink max-md:hidden">
+          <PanelLeft size={15} strokeWidth={1.7} />
+        </button>
+      )}
+      {drawer && <div data-shell-backdrop onClick={() => setDrawer(false)} className={`fixed inset-0 z-30 bg-black/20 ${immersive ? '' : 'md:hidden'}`} />}
       {/* Notion slide: the wrapper animates width to 0 while the fixed-width inner
           translates left, so the sidebar glides out instead of blinking away.
           The preview collapses to the icon rail instead. The open drawer keeps a zero-width
@@ -109,11 +112,11 @@ export default function Shell({ children }) {
       <div
         data-shell-sidebar
         style={{ width: edge, transition: resizing ? 'none' : 'width 200ms cubic-bezier(0.25,1,0.35,1)' }}
-        className={`shrink-0 overflow-hidden ${drawer ? 'max-md:w-0!' : 'max-md:hidden'}`}
+        className={`shrink-0 overflow-hidden ${drawer ? 'max-md:w-0!' : immersive ? 'hidden' : 'max-md:hidden'}`}
       >
         <div
-          style={{ width: learnPreview ? edge : width, transform: collapsed && !learnPreview ? `translateX(-${width}px)` : 'none', transition: resizing ? 'none' : 'transform 200ms cubic-bezier(0.25,1,0.35,1)' }}
-          className={drawer ? 'flex h-full max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-30 max-md:max-w-[85vw] max-md:overflow-hidden max-md:shadow-pop' : 'flex h-full'}
+          style={{ width: learnPreview ? (drawer ? width : edge) : width, transform: collapsed && !learnPreview ? `translateX(-${width}px)` : 'none', transition: resizing ? 'none' : 'transform 200ms cubic-bezier(0.25,1,0.35,1)' }}
+          className={drawer && immersive ? 'fixed inset-y-0 left-0 z-30 flex h-full max-w-[85vw] overflow-hidden shadow-pop' : drawer ? 'flex h-full max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-30 max-md:max-w-[85vw] max-md:overflow-hidden max-md:shadow-pop' : 'flex h-full'}
         >
           <Sidebar
             org={data?.org || 'small'}

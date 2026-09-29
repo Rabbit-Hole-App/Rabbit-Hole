@@ -62,3 +62,9 @@ export function baseSurfaceFor(pathname, search, from = {}) {
 // Project tabs (T02 §1 aliases): Overview is the default; map and the legacy code, graph and agent open Map.
 // ponytail: ?tab=sources lands on Overview - WP6 has no Sources tab.
 export const projectTab = (search) => { const tab = new URLSearchParams(search).get('tab'); return tab === 'learn' ? 'learn' : ['map', 'code', 'graph', 'agent'].includes(tab) ? 'map' : 'overview'; };
+// Learn is immersive (WP6 closeout): Shell shows no sidebar or icon rail on a canvas or a project's Learn tab.
+// An app's ?tab=learn lands on Runbook (D7), so it keeps the sidebar.
+export const immersiveAt = (pathname, search) => {
+  const at = pageFor(pathname, search, true);
+  return at.page === 'app' && !at.runId && (at.slug.startsWith('canvas-') || (at.slug.startsWith('repo-') && projectTab(search) === 'learn'));
+};
