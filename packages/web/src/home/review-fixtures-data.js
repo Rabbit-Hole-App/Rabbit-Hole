@@ -39,3 +39,7 @@ export const FIXTURES = [
 
 // Home Recent with fixtures on: an original, a fork, and an original canvas lead the list.
 export const RECENT_FIXTURES = ['fixture-proj-nanogpt-lab', 'fixture-canvas-attention-deep-dive', 'fixture-canvas-nanogpt-internals'];
+
+// 6. WP6 App -> source Project: the backend records no app->project relationship yet, so with ?fixtures=1 every
+// job and server claims this one, labelled "Fixture · UI preview". Never inferred from repo_url (provenance.js).
+export const BUILT_FROM = 'karpathy/nanoGPT';

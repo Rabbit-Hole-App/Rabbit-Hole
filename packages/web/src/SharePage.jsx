@@ -773,7 +773,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                       : app.nextRun && <span title={new Date(app.nextRun).toLocaleString()}>next {until(app.nextRun)}</span>}
                   </span>
                 )}
-                {learnPreview && <AppOps app={app} />}
+                {learnPreview && <AppOps app={app} catalog={catalog?.apps} />}
               </div>
 
               {/* model-written blurb (first deploy), click to edit - edits stick across deploys */}

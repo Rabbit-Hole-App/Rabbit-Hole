@@ -16,7 +16,7 @@ import {
 } from './ui.jsx';
 
 const shortId = (id) => String(id || '').replace(/^r-/, '').slice(0, 7);
-const secs = (a, b) => (a && b ? Math.max(0, (new Date(b.replace(' ', 'T') + 'Z') - new Date(a.replace(' ', 'T') + 'Z')) / 1000) : null);
+export const secs = (a, b) => (a && b ? Math.max(0, (new Date(b.replace(' ', 'T') + 'Z') - new Date(a.replace(' ', 'T') + 'Z')) / 1000) : null);
 export const fmtDur = (s) => (s == null ? '-' : s < 60 ? `${Math.round(s)}s` : s < 3600 ? `${Math.floor(s / 60)}m ${Math.round(s % 60)}s` : `${Math.floor(s / 3600)}h ${Math.round((s % 3600) / 60)}m`);
 
 // Type icons match the plist reference: 📎 file, # number, Aa text/select, date, bool.
