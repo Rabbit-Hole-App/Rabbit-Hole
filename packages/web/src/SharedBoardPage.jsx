@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { Eye, GitFork } from 'lucide-react';
 import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 
@@ -11,6 +11,20 @@ const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 export default function SharedBoardPage({ token }) {
   const [shared, setShared] = useState(null);
   const [problem, setProblem] = useState(null);
+  const [forking, setForking] = useState(false);
+  // Fork: the viewer's own Canvas, a copy of this board. Signed out, it goes
+  // through sign-in and comes back here to finish (?fork=1).
+  const forkBoard = async () => {
+    setForking(true);
+    try {
+      const response = await fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}/fork`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const data = await response.json().catch(() => ({}));
+      if (response.status === 401) { window.location.href = `/login?next=${encodeURIComponent(`${window.location.pathname}?fork=1`)}`; return; }
+      if (!response.ok) throw new Error(data.error || 'The fork could not be made.');
+      window.location.href = data.url;
+    } catch (error) { setProblem(error.message); setForking(false); }
+  };
+  const forkRequested = useRef(new URLSearchParams(window.location.search).get('fork') === '1');
 
   // The board's files and notebook workspaces come through the same link;
   // notebooks open as the board's latest copy, in a workspace of their own.
@@ -32,6 +46,7 @@ export default function SharedBoardPage({ token }) {
         if (response.status === 401 && data.signIn) { window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`; return; }
         if (!response.ok) { setProblem(data.error || 'This board could not be opened.'); return; }
         setShared(data);
+        if (forkRequested.current) { forkRequested.current = false; forkBoard(); }
       })
       .catch(() => setProblem('This board could not be opened. Check your connection and try again.'));
   }, [token]);
@@ -55,10 +70,9 @@ export default function SharedBoardPage({ token }) {
         <span className="flex items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />View only</span>
         <span className="truncate text-xs text-ink-3">Shared by {shared.owner}</span>
         <span className="flex-1" />
-        {/* ponytail: Fork waits on where forks live (a Canvas in the smart-home catalog) */}
-        <button type="button" disabled title="Fork: make your own editable copy (coming next)"
-          className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm text-ink disabled:opacity-50">
-          <GitFork size={14} />Fork
+        <button type="button" onClick={forkBoard} disabled={forking} title="Make your own editable copy, a canvas in your Library"
+          className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm text-ink hover:bg-hover disabled:opacity-50">
+          <GitFork size={14} />{forking ? 'Forking…' : 'Fork'}
         </button>
       </header>
       <div className="relative min-h-0 flex-1" aria-label="Lesson canvas">

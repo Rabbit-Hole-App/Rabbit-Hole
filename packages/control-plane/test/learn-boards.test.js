@@ -9,7 +9,10 @@ import { learnBoardsRoute } from '../src/learn-boards.js';
 const PEOPLE = { owner: { email: 'owner@test', org: 'team' }, friend: { email: 'friend@elsewhere', org: 'elsewhere' } };
 
 function setup(t) {
-  const { LEARN_DB } = learnDb(t);
+  const { LEARN_DB, sqlite } = learnDb(t);
+  // smart-home's canvases catalog (their repository-schema.sql), which a fork joins.
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS canvases (id INTEGER PRIMARY KEY, org TEXT NOT NULL, name TEXT NOT NULL, owner_email TEXT NOT NULL, title TEXT NOT NULL, project TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')), archived_at TEXT, device_id TEXT, UNIQUE(org,name))`);
   const CONTROL_PLANE = {
     fetch: async request => {
       const who = PEOPLE[(request.headers.get('cookie') || '').replace('small_session=', '')];
@@ -34,7 +37,7 @@ function setup(t) {
     const type = response.headers.get('content-type') || '';
     return { status: response.status, headers: response.headers, body: type.includes('json') ? await response.json() : new Uint8Array(await response.arrayBuffer()) };
   };
-  return { call, LEARN_DB };
+  return { call, LEARN_DB, sqlite };
 }
 
 const STATE = { blocks: [{ id: 'b1', type: 'explanation', title: 'Softmax' }], shapes: [], items: [], links: [], strokes: [], exchanges: [] };
@@ -139,4 +142,41 @@ test('an uploaded file is never served as a page on this origin', async t => {
   assert.equal(served.headers.get('x-content-type-options'), 'nosniff');
   assert.match(served.headers.get('content-security-policy'), /sandbox/);
   assert.equal(served.headers.get('content-disposition'), 'attachment');
+});
+
+test('forking makes the viewer their own Canvas with a copy of the board, its files and notebooks', async t => {
+  const { call, sqlite } = setup(t);
+  const board = { ...STATE, blocks: [...STATE.blocks, { id: 'nb', type: 'notebook', notebook_id: 'nb-original-id' }] };
+  const links = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, public_view: true, state: board } })).body.sharing;
+  await call('PUT', `${OWN}/assets/${encodeURIComponent('pdf:p')}`, { as: 'owner', raw: new Uint8Array([4, 5]), headers: { 'Content-Type': 'application/pdf' } });
+  await call('PUT', `${OWN}/assets/${encodeURIComponent('notebook:nb-original-id')}`, { as: 'owner', raw: '{"helper.py":{"type":"file","format":"text","content":"x = 1"}}', headers: { 'Content-Type': 'text/x-cached-string', 'X-Asset-Kind': 'string' } });
+
+  assert.equal((await call('POST', `/api/learn/boards/shared/${links.view}/fork`)).status, 401, 'a public viewer signs in to fork');
+  const forked = await call('POST', `/api/learn/boards/shared/${links.view}/fork`, { as: 'friend' });
+  assert.equal(forked.status, 201);
+  assert.match(forked.body.name, /^canvas-[a-f0-9]{8}$/);
+  assert.equal(forked.body.url, `/apps/${forked.body.name}?tab=learn`);
+  assert.equal(forked.body.files, 2);
+  const canvas = sqlite.prepare('SELECT * FROM canvases WHERE name = ?').get(forked.body.name);
+  assert.equal(canvas.owner_email, 'friend@elsewhere');
+  assert.equal(canvas.org, 'elsewhere');
+  assert.equal(canvas.project, null, 'standalone: the forker may not have the source project');
+
+  const mine = await call('GET', `/api/learn/boards/${forked.body.name}/main`, { as: 'friend' });
+  assert.equal(mine.status, 200);
+  assert.equal(mine.body.forked_from.resource_id, 'demo-app');
+  assert.equal(mine.body.forked_from.creator.name, 'owner@test');
+  assert.equal(mine.body.forked_from.creator.source_owner_verified, false);
+  assert.equal(mine.body.forked_from.share_url, `/b/${links.view}`);
+  const notebook = mine.body.state.blocks.find(block => block.type === 'notebook');
+  assert.notEqual(notebook.notebook_id, 'nb-original-id', 'a forked notebook gets its own id');
+  const keys = (await call('GET', `/api/learn/boards/${forked.body.name}/main/assets`, { as: 'friend' })).body.keys.sort();
+  assert.deepEqual(keys, [`notebook:${notebook.notebook_id}`, 'pdf:p'].sort());
+  assert.deepEqual([...(await call('GET', `/api/learn/boards/${forked.body.name}/main/assets/${encodeURIComponent('pdf:p')}`, { as: 'friend' })).body], [4, 5]);
+
+  // the fork is the forker's: editable by them, private from the source's owner
+  assert.equal((await call('PUT', `/api/learn/boards/${forked.body.name}/main`, { as: 'friend', body: { state: STATE, version: 1 } })).body.version, 2);
+  assert.equal((await call('GET', `/api/learn/boards/${forked.body.name}/main`, { as: 'owner' })).status, 404, 'the source owner cannot open it (not in their workspace)');
+  // and the source is untouched
+  assert.equal((await call('GET', OWN, { as: 'owner' })).body.state.blocks.find(block => block.type === 'notebook').notebook_id, 'nb-original-id');
 });

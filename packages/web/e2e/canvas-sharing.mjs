@@ -63,6 +63,27 @@ await owner.waitForTimeout(1500);
 await stranger.goto(viewLink);
 await stranger.locator('[data-shape-id="shared-rect"]').waitFor({ timeout: 60000 }).catch(() => {});
 check('a public view link opens without signing in', await stranger.locator('[data-shape-id="shared-rect"]').count() === 1 && new URL(stranger.url()).pathname.startsWith('/b/'));
+// a signed-out public viewer's Fork goes through sign-in and comes back to finish
+await stranger.goto(viewLink);
+await stranger.getByRole('button', { name: 'Fork' }).waitFor({ timeout: 30000 });
+await stranger.getByRole('button', { name: 'Fork' }).click();
+await stranger.waitForURL(url => url.pathname === '/login', { timeout: 15000 }).catch(() => {});
+const next = new URL(stranger.url()).searchParams.get('next') || '';
+check('a signed-out Fork asks you to sign in, then comes back to fork', new URL(stranger.url()).pathname === '/login' && next.endsWith('?fork=1'), next);
+
+// the signed-in friend forks: their own canvas, a copy of the board
+await friend.goto(viewLink);
+await friend.getByRole('button', { name: 'Fork' }).click();
+await friend.waitForURL(url => /^\/apps\/canvas-[a-f0-9]{8}$/.test(url.pathname), { timeout: 30000 }).catch(() => {});
+const canvasName = new URL(friend.url()).pathname.split('/').pop();
+const copy = await friend.evaluate(async name => { const r = await fetch(`/api/learn/boards/${name}/main`); return { status: r.status, body: await r.json() }; }, canvasName);
+check('Fork makes the friend their own canvas holding a copy of the board', /^canvas-[a-f0-9]{8}$/.test(canvasName) && copy.status === 200
+  && copy.body.state.shapes.some(shape => shape.id === 'shared-rect') && copy.body.forked_from?.creator?.name === 'yudhisteer.chin@gmail.com',
+  `${canvasName} ${copy.status}`);
+const saved = await friend.evaluate(async ([name, state]) => (await fetch(`/api/learn/boards/${name}/main`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ state, version: 1 }) })).status, [canvasName, { ...copy.body.state, shapes: [] }]);
+check('the fork is editable by the forker; the shared original is not changed', saved === 200
+  && (await owner.evaluate(async key => JSON.parse(localStorage.getItem(key) || '{}').shapes?.length, KEY)) === 1);
+
 // sharing off: the links stop working
 if (!(await owner.getByRole('dialog', { name: 'Share this board' }).isVisible())) await owner.getByRole('button', { name: 'Share', exact: true }).click();
 await owner.getByRole('dialog', { name: 'Share this board' }).getByRole('switch', { name: 'Share this board' }).click();

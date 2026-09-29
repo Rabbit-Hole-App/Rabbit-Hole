@@ -75,5 +75,9 @@ CREATE TABLE IF NOT EXISTS learn_boards (
   view_token TEXT UNIQUE,
   edit_token TEXT UNIQUE,
   public_view INTEGER NOT NULL DEFAULT 0,
+  -- A fork's title and where it came from (JSON: resource_id, board, board_id,
+  -- title, creator, share_url); added to the dev D1 with ALTER TABLE.
+  title TEXT,
+  forked_from TEXT,
   UNIQUE (org, owner_email, app, board)
 );

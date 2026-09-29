@@ -136,6 +136,71 @@ async function sharedAccess(req, env, token) {
   return found;
 }
 
+// Forking a shared board (docs/features/canvas-sharing.md): the signed-in
+// viewer gets their own Canvas - a row in the smart-home canvases catalog,
+// standalone (no project) - holding a server copy of the board, its files and
+// its notebook workspaces. Notebooks get new ids, so a fork never shares a
+// browser workspace with its source. Provenance rides on the copy's
+// forked_from (smart-home's cards read it; see their home/provenance.js).
+const CANVAS = /^canvas-[a-f0-9]{8}$/;
+
+async function fork(req, env, token) {
+  const found = await sharedAccess(req, env, token);
+  if (found instanceof Response) return found;
+  const user = await repositoryIdentity(req, env);
+  if (user instanceof Response) return json({ error: 'Sign in to fork this board.', signIn: true }, 401);
+  const source = found.row;
+  const title = (source.title || (source.board === 'main' ? source.app : source.board)).slice(0, 120);
+  const name = `canvas-${crypto.randomUUID().slice(0, 8)}`;
+  await env.LEARN_DB.prepare('INSERT INTO canvases(org,name,owner_email,title,project,device_id) VALUES(?,?,?,?,?,?)')
+    .bind(user.org, name, user.email, title, null, null).run();
+  const renamed = new Map();
+  const state = JSON.parse(source.state_json);
+  state.blocks = (state.blocks || []).map(block => {
+    if (block.type !== 'notebook' || !block.notebook_id) return block;
+    const fresh = crypto.randomUUID();
+    renamed.set(`notebook:${block.notebook_id}`, `notebook:${fresh}`);
+    return { ...block, notebook_id: fresh };
+  });
+  const id = crypto.randomUUID();
+  const forkedFrom = { resource_id: source.app, board: source.board, board_id: source.id, title, creator: { name: source.owner_email, source_owner_verified: false }, share_url: `/b/${token}` };
+  await env.LEARN_DB.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at, title, forked_from) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)')
+    .bind(id, user.org, user.email, name, 'main', JSON.stringify(state), user.email, new Date().toISOString(), title, JSON.stringify(forkedFrom)).run();
+  let files = 0;
+  if (env.RUNS) {
+    let cursor;
+    do {
+      const page = await env.RUNS.list({ prefix: `learn-boards/${source.id}/`, cursor, include: ['customMetadata'] });
+      for (const object of page.objects) {
+        const key = object.customMetadata?.key;
+        if (!key) continue;
+        const body = await env.RUNS.get(object.key);
+        if (!body) continue;
+        const target = renamed.get(key) || key;
+        await env.RUNS.put(await assetObject({ id }, target), await new Response(body.body).arrayBuffer(), { httpMetadata: body.httpMetadata, customMetadata: { ...body.customMetadata, key: target } });
+        files += 1;
+      }
+      cursor = page.truncated ? page.cursor : undefined;
+    } while (cursor);
+  }
+  return json({ name, title, url: `/apps/${name}?tab=learn`, files, forked_from: forkedFrom }, 201);
+}
+
+// The owner of a board: someone with access to its app - or, for a canvas
+// (smart-home catalog), the canvas's owner, checked against LEARN_DB.
+async function boardOwner(req, env, app) {
+  if (!CANVAS.test(app)) {
+    const access = await authorizedBoardApp(req, env, app);
+    return access instanceof Response ? access : { org: access.org, email: access.email };
+  }
+  const user = await repositoryIdentity(req, env);
+  if (user instanceof Response) return user;
+  const row = await env.LEARN_DB.prepare('SELECT owner_email FROM canvases WHERE org = ? AND name = ?').bind(user.org, app).first();
+  if (!row) return json({ error: 'Canvas not found in this workspace' }, 404);
+  if (row.owner_email !== user.email) return json({ error: 'This canvas is private to its owner' }, 403);
+  return { org: user.org, email: user.email };
+}
+
 async function openShared(req, env, token) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found;
@@ -154,6 +219,8 @@ export async function learnBoardsRoute(path, req, env) {
     if (req.method === 'PUT') return json({ error: 'Shared links are view-only. Fork the board to edit your own copy.' }, 403);
     return json({ error: 'Method not allowed' }, 405);
   }
+  const forking = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/fork$/);
+  if (forking) return req.method === 'POST' ? fork(req, env, decodeURIComponent(forking[1])) : json({ error: 'Method not allowed' }, 405);
   const shared = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)$/);
   if (shared) {
     const token = decodeURIComponent(shared[1]);
@@ -167,9 +234,8 @@ export async function learnBoardsRoute(path, req, env) {
   const shareRoute = suffix === '/share';
   const board = decodeURIComponent(rawBoard);
   if (!BOARD.test(board)) return json({ error: 'Board name must be 1-100 letters, digits, spaces, dots, dashes or underscores' }, 400);
-  const access = await authorizedBoardApp(req, env, app);
-  if (access instanceof Response) return access;
-  const owner = { org: access.org, email: access.email };
+  const owner = await boardOwner(req, env, app);
+  if (owner instanceof Response) return owner;
   if (shareRoute) return req.method === 'POST' ? share(env, owner, app, board, await readBody(req)) : json({ error: 'Method not allowed' }, 405);
   if (suffix?.startsWith('/assets')) {
     const row = await ownerRow(env, owner, app, board);
@@ -182,7 +248,7 @@ export async function learnBoardsRoute(path, req, env) {
   }
   if (req.method === 'GET') {
     const row = await ownerRow(env, owner, app, board);
-    return row ? json({ version: row.version, updated_by: row.updated_by, updated_at: row.updated_at, sharing: sharingOf(row), state: JSON.parse(row.state_json) }) : json({ sharing: sharingOf(null) }, 404);
+    return row ? json({ version: row.version, updated_by: row.updated_by, updated_at: row.updated_at, title: row.title || null, forked_from: row.forked_from ? JSON.parse(row.forked_from) : null, sharing: sharingOf(row), state: JSON.parse(row.state_json) }) : json({ sharing: sharingOf(null) }, 404);
   }
   if (req.method === 'PUT') return saveOwn(env, owner, app, board, await readBody(req));
   return json({ error: 'Method not allowed' }, 405);

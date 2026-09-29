@@ -480,12 +480,15 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
       setSharing(data.sharing);
       boardVersion.current = data.version;
       const mine = Number(localStorage.getItem(versionKey) || 0);
-      if (data.sharing.shared && data.version > mine && data.updated_by !== (app.email || app.owner_email)) {
+      // A newer server copy wins when this browser has none (a fork, or this
+      // board on another device) or someone else saved it.
+      const hasLocal = localStorage.getItem(boardStorageKey) !== null;
+      if (data.version > mine && (!hasLocal || (data.sharing.shared && data.updated_by !== (app.email || app.owner_email)))) {
         const { exchanges: chats, ...state } = data.state || {};
         try { localStorage.setItem(boardStorageKey, JSON.stringify(state)); localStorage.setItem(versionKey, String(data.version)); } catch { /* keep the local copy */ }
         if (Array.isArray(chats)) setExchanges(chats);
         setCanvasEpoch(epoch => epoch + 1);
-        toast('This board was changed through its edit link. You are seeing the latest version.');
+        toast(data.forked_from ? `Your fork of ${data.forked_from.title} is ready. It is yours to edit.` : 'You are seeing the latest saved version of this board.');
       }
     }).catch(error => { if (live) setSharing(error.status === 404 ? (error.data?.sharing || { shared: false }) : { unavailable: error.message }); });
     return () => { live = false; };
