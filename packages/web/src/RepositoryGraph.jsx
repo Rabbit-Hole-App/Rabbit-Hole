@@ -86,7 +86,7 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
   const active=hovered||(scene.positions.has(selected?.id)?selected.id:null);
   const connected=new Set(active?[active]:[]);
   if(active)scene.edges.forEach(e=>{if(e.source===active||e.target===active){connected.add(e.source);connected.add(e.target);}});
-  return <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-[#fafbfc]">
+  return <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-[#fafbfc] [--graph-bg:#fafbfc] [--graph-dot:#d8dee5] dark:bg-side dark:[--graph-bg:var(--color-side)] dark:[--graph-dot:#3a3a3a]">
     {!!history.length&&<div className="absolute top-3 left-3 z-10"><Button size="sm" onClick={back}><ArrowLeft size={13}/>Back</Button></div>}
     <div className="absolute top-3 right-3 z-10 flex rounded border border-line bg-white">
       <IconBtn title="Zoom in" onClick={()=>setView(v=>({...v,z:Math.min(3,v.z*1.3)}))}><Plus size={15}/></IconBtn>
@@ -102,7 +102,7 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
         </div></Menu>
       </span>
     </div>
-    <svg role="img" aria-label="Repository dependency graph" viewBox="0 0 1000 700" style={{backgroundImage:"radial-gradient(#d8dee5 0.65px, transparent 0.65px)",backgroundSize:"22px 22px"}} className="h-full min-h-80 w-full flex-1 touch-none select-none" onWheel={e=>setView(v=>({...v,z:Math.max(.2,Math.min(3,v.z*(e.deltaY<0?1.1:.9)))}))}
+    <svg role="img" aria-label="Repository dependency graph" viewBox="0 0 1000 700" style={{backgroundImage:"radial-gradient(var(--graph-dot) 0.65px, transparent 0.65px)",backgroundSize:"22px 22px"}} className="h-full min-h-80 w-full flex-1 touch-none select-none" onWheel={e=>setView(v=>({...v,z:Math.max(.2,Math.min(3,v.z*(e.deltaY<0?1.1:.9)))}))}
       onPointerDown={e=>{
         if(e.button!==0)return;e.preventDefault();suppressClick.current=false;
         const target=e.target.closest('[data-graph-node]');
@@ -141,12 +141,12 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, onSelect
           return <g key={n.id} data-graph-node={n.id} role="button" tabIndex={0} aria-label={n.label} transform={`translate(${positions.get(n.id)?.x??n.x},${positions.get(n.id)?.y??n.y})`} opacity={!active||connected.has(n.id)?1:.4} className="cursor-grab active:cursor-grabbing"
             onPointerEnter={()=>setHovered(n.id)} onPointerLeave={()=>setHovered(null)}
             onDoubleClick={()=>{if(!suppressClick.current)explore(n.id);}} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();onSelect(n);if(e.shiftKey)explore(n.id);}}}>
-            {n.kind==='decision'?<rect data-memory-node="decision" x={-8} y={-8} width={16} height={16} rx={2} transform="rotate(45)" fill={color(n)} stroke="white" strokeWidth="2.5"/>
-              :n.kind==='question'?<rect data-memory-node="question" x={-8} y={-8} width={16} height={16} rx={4} fill={color(n)} stroke="white" strokeWidth="2.5"/>
+            {n.kind==='decision'?<rect data-memory-node="decision" x={-8} y={-8} width={16} height={16} rx={2} transform="rotate(45)" fill={color(n)} className="stroke-(--graph-bg)" strokeWidth="2.5"/>
+              :n.kind==='question'?<rect data-memory-node="question" x={-8} y={-8} width={16} height={16} rx={4} fill={color(n)} className="stroke-(--graph-bg)" strokeWidth="2.5"/>
               :n.kind==='session'?<circle data-memory-node="session" r={8} fill="white" stroke={color(n)} strokeWidth="3"/>
-              :<circle data-node-dot r={radius} fill={color(n)} stroke="white" strokeWidth="2.5"/>}
+              :<circle data-node-dot r={radius} fill={color(n)} className="stroke-(--graph-bg)" strokeWidth="2.5"/>}
             {emphasized&&<circle r={radius+5} fill="none" stroke={color(n)} strokeOpacity=".3" strokeWidth="2" pointerEvents="none"/>}
-            <text y={radius+17} textAnchor="middle" fontSize="12" fontWeight={emphasized?600:400} fill="#334155" stroke="#fafbfc" strokeWidth="4" paintOrder="stroke" strokeLinejoin="round">{n.label.length>28?n.label.slice(0,27)+'…':n.label}</text>
+            <text y={radius+17} textAnchor="middle" fontSize="12" fontWeight={emphasized?600:400} className="fill-[#334155] stroke-(--graph-bg) dark:fill-ink" strokeWidth="4" paintOrder="stroke" strokeLinejoin="round">{n.label.length>28?n.label.slice(0,27)+'…':n.label}</text>
             <title>{n.label}{n.path?` · ${n.path}${n.line?`:${n.line}`:''}`:external?' · External dependency':''}</title>
           </g>;
         })}

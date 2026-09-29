@@ -44,7 +44,8 @@ export function readContinue({ org, email, recent, catalog, storage }) {
   const items = recentItems(recent || [], catalog);
   const card = (a, canvas, lastExplored = null, next = null) => ({ slug: a.name, title: titleOf(a), kind: a.kind, canvas, lastExplored, next });
   for (const a of items) {
-    const p = learnProgress(a, { org, email, storage });
+    // Only a project or a canvas has Learn on the preview; an app's old local Learn content opens its page (D7).
+    const p = ['repository', 'canvas'].includes(a.kind) && learnProgress(a, { org, email, storage });
     if (p) return card(a, true, p.lastExplored, p.next);
   }
   return items.length ? card(items[0], false) : null;

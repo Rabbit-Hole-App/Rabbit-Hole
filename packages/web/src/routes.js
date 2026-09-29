@@ -5,8 +5,19 @@ const KNOWN = /^\/(apps(\/[a-z0-9-]+(\/runs\/[\w-]+)?)?|dash|members|chat)$/;
 const PREVIEW_ONLY = /^\/(library|explore)$/;
 
 // The path an unknown URL is replaced with, or null when the URL is served.
+// The preview has no /chat page: that page writes live chat history (D7).
 export const canonicalPath = (pathname, preview) =>
-  (KNOWN.test(pathname) || (preview && PREVIEW_ONLY.test(pathname)) ? null : '/apps');
+  (preview && pathname === '/chat' ? '/apps' : KNOWN.test(pathname) || (preview && PREVIEW_ONLY.test(pathname)) ? null : '/apps');
+
+// D7 (WP7): on the preview api() sends only the writes the dev worker serves itself - repositories, canvases and
+// their chats, Learn and BYOC (dev-worker.js; the canvas half is control-plane/src/canvases.js canvasRoute). Any
+// other write would reach live small-cp, so api() refuses it with this reason (agent/slash.js D7_REASON).
+export const PREVIEW_WRITE_REFUSED = 'Blocked on this preview: it would change live apps.';
+export function previewWriteAllowed(url) {
+  const u = new URL(url, 'https://preview.invalid'), p = u.pathname;
+  return /^\/api\/(repositories|learn|byoc)(\/|$)/.test(p) || p === '/api/canvases' || /^\/api\/apps\/canvas-[a-f0-9]{8}(\/|$)/.test(p)
+    || /^\/api\/ask\/threads\/canvaschat-/.test(p) || (p === '/api/ask/threads' && u.searchParams.get('scope') === 'learn' && /^canvas-[a-f0-9]{8}$/.test(u.searchParams.get('ref') || ''));
+}
 
 export function pageFor(pathname, search, preview) {
   const app = pathname.match(/^\/apps\/([a-z0-9-]+)(?:\/runs\/([\w-]+))?$/);
@@ -53,7 +64,7 @@ export function baseSurfaceFor(pathname, search, from = {}) {
   const place = at.page !== 'app' ? at.page
     : at.runId ? 'run'
     : at.slug.startsWith('canvas-') ? 'canvas'
-    : new URLSearchParams(search).get('tab') === 'learn' ? 'learn'
+    : at.slug.startsWith('repo-') && new URLSearchParams(search).get('tab') === 'learn' ? 'learn' // an app's ?tab=learn is its Runbook (D7)
     : at.slug.startsWith('repo-') ? 'project' : 'app';
   const identity = Object.fromEntries(IDENTITY.filter((k) => from[k] !== undefined).map((k) => [k, from[k]]));
   return { ...identity, place, resource: null, selected: null, barHidden: ['learn', 'canvas', 'chat', 'run'].includes(place), resultsHost: 'sheet', handlers: {} };

@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { getSurface, patchSurface, setSurface } from './agent/surface.js';
-import { baseSurfaceFor, canonicalPath, immersiveAt, pageFor, projectTab, sectionActive, sectionHref, takeWs } from './routes.js';
+import { canvasRoute } from '../../control-plane/src/canvases.js';
+import { baseSurfaceFor, canonicalPath, immersiveAt, pageFor, previewWriteAllowed, projectTab, sectionActive, sectionHref, takeWs } from './routes.js';
 
 test('the live build routes exactly as today (main.jsx:57-70)', () => {
   for (const p of ['/apps', '/dash', '/members', '/chat', '/apps/counter', '/apps/counter/runs/r-1']) assert.equal(canonicalPath(p, false), null);
@@ -49,7 +50,7 @@ test('the baseline surface names the place and hides the bar where another input
   assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt?tab=map'), ['project', false]);
   assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt?tab=learn'), ['learn', true]);
   assert.deepEqual(at('/apps/counter'), ['app', false]); // WP6: app pages show the bar
-  assert.deepEqual(at('/apps/counter?tab=learn'), ['learn', true]);
+  assert.deepEqual(at('/apps/counter?tab=learn'), ['app', false]); // D7: an app's ?tab=learn lands on Runbook, with the bar
   assert.deepEqual(at('/apps/canvas-1a2b3c4d'), ['canvas', true]);
   assert.deepEqual(at('/apps/counter/runs/r-1'), ['run', true]);
   assert.deepEqual(at('/chat?app=counter'), ['chat', true]);
@@ -86,7 +87,7 @@ test('Root inputs: a split path and getSurface(); a chip click keeps who is look
   setSurface({ place: 'project', resource: { kind: 'project', slug: 'repo-x', title: 'x' }, selected: { id: 'n1' }, resultsHost: 'panel', handlers: { onGraph() {} } });
   setSurface(baseSurfaceFor(...rootInputs('/library?type=canvases&s=private')));
   assert.deepEqual(getSurface(), { ...identity, place: 'library', resource: null, selected: null, barHidden: false, resultsHost: 'sheet', handlers: {} });
-  for (const [path, place, hidden] of [['/apps?s=shared', 'library', false], ['/apps/counter?tab=learn', 'learn', true], ['/apps/canvas-1a2b3c4d', 'canvas', true], ['/apps/repo-1a2b3c4d-nanogpt?tab=map', 'project', false]]) {
+  for (const [path, place, hidden] of [['/apps?s=shared', 'library', false], ['/apps/counter?tab=learn', 'app', false], ['/apps/canvas-1a2b3c4d', 'canvas', true], ['/apps/repo-1a2b3c4d-nanogpt?tab=map', 'project', false]]) {
     setSurface(baseSurfaceFor(...rootInputs(path)));
     assert.deepEqual([getSurface().place, getSurface().barHidden, getSurface().org], [place, hidden, 'gmail-com'], path);
   }
@@ -103,4 +104,20 @@ test('a project opens on Overview; learn is Learn; map and the legacy code, grap
   for (const s of ['', '?tab=overview', '?tab=sources', '?canvas=canvas-1a2b3c4d']) assert.equal(projectTab(s), 'overview', s);
   assert.equal(projectTab('?tab=learn&canvas=canvas-1a2b3c4d'), 'learn');
   for (const t of ['map', 'code', 'graph', 'agent']) assert.equal(projectTab(`tab=${t}`), 'map', t);
+});
+
+test('D7 (WP7): the preview sends only the writes the dev worker serves itself; anything else would reach live small-cp', () => {
+  for (const url of ['/api/repositories', '/api/repositories/repo-1a2b3c4d-nanogpt/refresh', '/api/canvases', '/api/apps/canvas-1a2b3c4d', '/api/apps/canvas-1a2b3c4d/archive',
+    '/api/ask/threads/canvaschat-abc', '/api/ask/threads?scope=learn&ref=canvas-1a2b3c4d', '/api/learn/ask', '/api/learn/feedback', '/api/learn/boards/x/share', '/api/byoc/grant']) assert.equal(previewWriteAllowed(url), true, url);
+  for (const url of ['/api/members', '/api/teams/x/members', '/api/workspaces', '/api/workspaces/rename', '/api/org/ai', '/api/folders', '/api/watch/w1/dismiss',
+    '/api/apps/counter', '/api/apps/counter/restore', '/api/apps/repo-1a2b3c4d-nanogpt/learn-course', '/api/share', '/api/unshare', '/api/schedule', '/api/runbook',
+    '/api/runs/r1/stop', '/api/ask/approve', '/api/ask/threads/t1', '/api/ask/threads?scope=app&ref=counter', '/api/apps/canvas-XYZ']) assert.equal(previewWriteAllowed(url), false, url);
+  // the canvas half mirrors the dev worker's own rule
+  for (const url of ['/api/canvases', '/api/apps/canvas-1a2b3c4d/x', '/api/ask/threads/canvaschat-1', '/api/ask/threads?scope=learn&ref=canvas-1a2b3c4d', '/api/ask/threads?scope=learn&ref=counter', '/api/apps/counter'])
+    assert.equal(previewWriteAllowed(url), canvasRoute(new URL(url, 'https://x')), url);
+});
+
+test('the preview has no /chat page: it writes live chat history (D7), so the URL goes to /apps', () => {
+  assert.equal(canonicalPath('/chat', true), '/apps');
+  assert.equal(canonicalPath('/chat', false), null);
 });
