@@ -168,6 +168,12 @@ location. WP1's UX is not reopened.
 
 ### Map = conversational knowledge graph (user, 2026-09-28)
 
+Checkpoint 2 built (2026-09-29), waiting for the user's Figma review (node 79:222): plan
+docs/superpowers/plans/2026-09-29-wp6-checkpoint2-knowledge-graph.md, commits 129f57c..7c3f473, checks
+wp6-kg-layers, wp6-kg-selected, wp6-kg-entity, wp6-kg-starters, wp6-kg-why. Deferred (ponytail): natural-language
+graph commands (show every decision related to X, what did engineers struggle with here, /research why); the
+panel gives the same actions as buttons.
+
 Path A (user, 2026-09-28): WP6 builds this UX now on clearly labelled dev fixtures. No
 transcript capture, decision extraction, new DB tables or ingestion infrastructure in
 WP6 (see Deferred: Knowledge Capture v1).
