@@ -125,24 +125,26 @@ export function ResultList({ scopeKey: key }) {
   );
 }
 
-// §6.5: grows upward from the bar and resizes; collapsing leaves the latest
+// §6.5: grows upward from the bar with its content (a short answer is a compact card; a long one
+// scrolls inside 45vh, user 2026-09-28). Dragging sets a height; collapsing leaves the latest
 // result as one line in the bar.
 export default function ResultSheet({ scope, label, onClose }) {
   const key = resultsKey(scope);
   const turns = useTurns(key);
-  const [height, setHeight] = useState(320);
-  const drag = useRef(null), box = useRef(null);
-  const resize = (h) => setHeight(Math.max(160, Math.min(h, window.innerHeight * 0.7)));
+  const [height, setHeight] = useState(null); // null: sized by the content
+  const drag = useRef(null), box = useRef(null), card = useRef(null);
+  const resize = (h) => setHeight(Math.max(96, Math.min(h, window.innerHeight * 0.7)));
+  const now = () => height ?? card.current.getBoundingClientRect().height;
   useEffect(() => { box.current.scrollTop = box.current.scrollHeight; }, [turns]);
   return (
-    <div data-result-sheet style={{ height }} className="absolute right-0 bottom-full left-0 px-4">
-      <div className="mx-auto flex h-full max-w-[780px] flex-col rounded-t-xl border border-b-0 border-line bg-white shadow-pop">
+    <div data-result-sheet style={height ? { height } : undefined} className="absolute right-0 bottom-full left-0 px-4">
+      <div ref={card} className={cn('mx-auto flex max-w-[780px] flex-col rounded-t-xl border border-b-0 border-line bg-white shadow-pop', height ? 'h-full' : 'min-h-24 max-h-[45vh]')}>
         <div role="separator" aria-label="Resize results" aria-orientation="horizontal" tabIndex={0} title="Drag to resize"
           className="h-1.5 shrink-0 cursor-row-resize touch-none rounded-t-xl hover:bg-line-strong/70 focus-visible:bg-line"
-          onPointerDown={(e) => { if (e.button !== 0) return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); drag.current = { y: e.clientY, height }; }}
+          onPointerDown={(e) => { if (e.button !== 0) return; e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); drag.current = { y: e.clientY, height: now() }; }}
           onPointerMove={(e) => { if (drag.current) resize(drag.current.height + drag.current.y - e.clientY); }}
           onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}
-          onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); resize(height + (e.key === 'ArrowUp' ? 24 : -24)); } }} />
+          onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); resize(now() + (e.key === 'ArrowUp' ? 24 : -24)); } }} />
         <div className="flex shrink-0 items-center gap-1 px-3 pb-1">
           <span className="mr-auto min-w-0 truncate text-xs text-ink-2">{label}</span>
           <IconBtn aria-label="Collapse results" title="Collapse (Esc)" onClick={onClose}><Minus size={14} /></IconBtn>

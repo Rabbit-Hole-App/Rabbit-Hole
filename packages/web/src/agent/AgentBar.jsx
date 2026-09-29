@@ -349,9 +349,6 @@ export default function AgentBar() {
                   className={cn('flex items-center gap-3 rounded-sm px-2 py-1.5 text-sm', can.ok ? 'cursor-pointer' : 'cursor-default', i === hiIndex && 'bg-hover')}>
                   <span className={cn('w-20 shrink-0 font-medium', !can.ok && 'text-ink-3')}>/{m}</span>
                   <span title={can.ok ? undefined : can.reason} className={cn('min-w-0 flex-1 truncate', can.ok ? 'text-ink-2' : 'text-ink-3')}>{can.ok ? desc : can.short || can.reason}</span>
-                  {m === 'research' && target.kind === 'project' && (
-                    <Button size="sm" variant="soft" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setPicker(false); runCommand('create_canvas', { title: 'Untitled canvas', project: target.slug }, '', target, true); }}>New canvas for this project</Button>
-                  )}
                 </div>
                 </div>
               );

@@ -38,6 +38,18 @@ export const SLASH = [
   { name: 'notebook', group: 'learn', places: ['learn'], desc: 'Add a notebook', action: 'insert_notebook' },
 ];
 
+// Product availability (places, needs) is what Rabbit Hole offers. The review copy adds its own
+// safety limits on top: a command the product offers may be off here because running it would
+// touch live infrastructure. Those limits live only in reviewOff, never in the product list.
+export const ASK_OFF = 'Asking about the workspace or apps is off on this preview: it would write to live chat history.';
+const RESEARCH_OFF = 'Research here would call the live model, so it is off on this preview.';
+export function reviewOff(name, kind, { askLive = false } = {}) {
+  if (name === 'ask' && !askLive && (kind === 'workspace' || kind === 'app')) return { reason: ASK_OFF, short: 'Off on this preview' };
+  // Only canvas research runs on the preview's own LEARN_DB; elsewhere it reaches the live model.
+  if (name === 'research' && kind !== 'canvas') return { reason: RESEARCH_OFF, short: 'Off on this preview' };
+  return null;
+}
+
 export const descFor = (command, place) => (typeof command.desc === 'string' ? command.desc : command.desc[place]);
 
 // The commands a place can use right now. Unavailable ones are not shown.

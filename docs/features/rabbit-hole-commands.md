@@ -32,12 +32,25 @@ one-line description; modes read differently per place.
 |---|---|---|---|
 | /ask | mode | home, project, learn | Home/Project: the bar's ask. Learn: `{ mode: 'ask', prompt }` through the existing Learn ask |
 | /teach | mode | home, project, learn | Home: the Learn handoff (resolve or create a canvas, open Learn, prefill, never send). Learn: continue teaching |
-| /research | mode | home, project, learn | Find sources; in Learn, bring evidence onto the canvas (never clutter it with every result) |
+| /research | mode | home, project, learn | Home, Library, Project: find papers, docs, repositories and resources and return them in the Mothership with Open, Add to project, Add to canvas. Learn: the same, with the current concept and canvas as context; bring evidence onto the canvas without cluttering it with every result |
 | /do | mode | home, project, learn | Imperative actions under the confirmation policy |
 | /find /open /new /connect /run /share | shortcut | home, project (/new: home) | The same request as the sentence (`router.js` rule 1b) |
 | /deeper /simplify /example /practice /quiz /compare | learn | learn | A prompt through the existing Learn ask, about the selection or the current concept |
 | /source | learn | learn | `action: 'open_sources'` (open the Source inspector or attach evidence; never dump citations into a card) |
 | /notebook | learn | learn | `action: 'insert_notebook'` (insert the embedded Jupyter workspace) |
+
+## Product availability vs review-copy limits
+
+The command list (`places`, `needs`) is what Rabbit Hole offers: `/ask` and
+`/research` are valid in every place. The review copy adds safety limits of its
+own through `reviewOff(name, kind)`, never through the product list:
+
+- `/ask` on the workspace or an app would write live chat history, so it is off
+  while `askLiveOnPreview` is false.
+- `/research` outside a canvas would call the live model, so it is off here.
+
+The picker shows such a command dimmed with "Off on this preview" and the full
+reason as its tooltip.
 
 ## The semantic request
 

@@ -44,12 +44,12 @@ Projects", `ef9SfiemEsPQF2bd8B1os3`), with the exact node URL.
 
 ## WP5 Mothership
 
-Status (2026-09-28): floating Mothership chosen ✅ (review switch removed) · + Add menu ✅ ·
-Send → Stop ✅ · Home slash picker ✅ (short copy) · project scope ✅ · Map node scope ✅ ·
-scope chips on the dock ✅ · shared Learn command contract ✅ (`agent/slash.js`,
-`docs/features/rabbit-hole-commands.md`; the Learn owners wire it) · response states ✅
-(built-in answers, clarification, unknown command, unsupported) · sidebar / icon rail (in
-progress) · final visual gate ⬜.
+Status (2026-09-28): floating composer ✅ · + Add ✅ · Send → Stop ✅ · slash picker ✅ ·
+Project scope ✅ · Map node scope ✅ · visible response states ✅ · shared Learn command
+contract ✅ (`agent/slash.js`, `docs/features/rabbit-hole-commands.md`; the Learn owners wire
+it) · /research global semantics ✅ (product vs review-copy limits) · compact result sizing ✅
+(content-sized, at most 45vh) · sidebar / icon rail ✅ integrated · mobile drawer ✅ integrated ·
+final Figma gate ⬜. No further WP5 features beyond these.
 
 Result surface rule for WP6: Home, Library and Project Overview answer in the sheet above the
 Mothership; Map answers longer results in the right Context panel; Learn keeps its own

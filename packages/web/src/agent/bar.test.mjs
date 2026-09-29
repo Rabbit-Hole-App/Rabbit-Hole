@@ -152,9 +152,8 @@ test('modes a scope cannot serve carry their reason: T02 §6.4, and live chat hi
   for (const kind of ['workspace', 'app']) assert.deepEqual(modeAvailability('ask', kind, false), { ok: false, reason: OFF, short: 'Off on this preview' }, kind);
   for (const kind of ['project', 'canvas']) assert.deepEqual(modeAvailability('ask', kind, false), { ok: true }, kind); // LEARN_DB
   for (const kind of ['workspace', 'app']) assert.deepEqual(modeAvailability('ask', kind, true), { ok: true }, kind);
-  assert.deepEqual(modeAvailability('research', 'workspace'), { ok: false, reason: 'Research works inside a canvas.', short: 'Only in a canvas' });
-  assert.deepEqual(modeAvailability('research', 'app'), { ok: false, reason: 'Research works inside a canvas.', short: 'Only in a canvas' });
-  assert.deepEqual(modeAvailability('research', 'project'), { ok: false, reason: 'Research runs in a canvas', short: 'Only in a canvas' });
+  const RESEARCH_OFF = { ok: false, reason: 'Research here would call the live model, so it is off on this preview.', short: 'Off on this preview' };
+  for (const kind of ['workspace', 'app', 'project']) assert.deepEqual(modeAvailability('research', kind), RESEARCH_OFF, kind); // a review-copy limit, not the product
   assert.deepEqual(modeAvailability('research', 'canvas'), { ok: true });
   assert.deepEqual(modeAvailability('teach', 'workspace'), { ok: true, reason: 'creates a canvas first' });
   assert.deepEqual(modeAvailability('teach', 'project'), { ok: true });

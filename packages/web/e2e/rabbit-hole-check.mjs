@@ -623,13 +623,17 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await barOf(page).waitFor({ timeout: 20000 });
       const sheet = page.locator('[data-result-sheet]');
       const say = async (text) => { await barInput(page).fill(text); await barInput(page).press('Enter'); };
+      // First send in a fresh page: a one-line result is a compact card, not an empty chat window.
+      await say('/foobar');
+      await sheet.getByText('Unknown command /foobar. Try /ask, /teach, /research, /do, /find', { exact: false }).waitFor({ timeout: 10000 });
+      const short = (await sheet.boundingBox()).height;
+      must(short < 200, `a one-line result fills a ${short}px sheet`);
       await say('What is a Project?');
       await sheet.getByText('is the learning hub around a codebase or topic', { exact: false }).waitFor({ timeout: 10000 });
       await say('Open attention');
       await sheet.getByText('Which one do you mean?').waitFor({ timeout: 10000 });
       for (const title of ['Attention masks check · Canvas', 'Attention heads check · Canvas']) await sheet.getByRole('button', { name: title }).waitFor();
-      await say('/foobar');
-      await sheet.getByText('Unknown command /foobar. Try /ask, /teach, /research, /do, /find', { exact: false }).waitFor({ timeout: 10000 });
+      must((await sheet.boundingBox()).height <= page.viewportSize().height * 0.5, 'the sheet grew past half the screen');
       if (!(await import('../src/flags.js')).askLiveOnPreview) {
         await say('Book me a flight to Lisbon');
         await sheet.getByText('Try /find, /open or /new, or open a project to ask about its code.', { exact: false }).waitFor({ timeout: 10000 });
@@ -1342,8 +1346,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(await bar.getByRole('listbox').getByRole('separator').count() === 1, 'no divider between modes and shortcuts');
     const research = bar.getByRole('option', { name: /research/ });
     must(await research.getAttribute('aria-disabled') === 'true', 'research is not dimmed');
-    await research.getByText('Only in a canvas', { exact: true }).waitFor();
-    must(await research.getByTitle('Research works inside a canvas.').count() === 1, 'the full reason is not the tooltip');
+    await research.getByText('Off on this preview', { exact: true }).waitFor(); // a review-copy limit; the product offers research everywhere
+    must(await research.getByTitle('Research here would call the live model, so it is off on this preview.').count() === 1, 'the full reason is not the tooltip');
     if (!askLiveOnPreview) await bar.getByRole('option', { name: /^\/ask/ }).getByText('Off on this preview', { exact: true }).waitFor();
     await barInput(page).press('Escape');
     must(await options.count() === 0, 'the picker is still open');

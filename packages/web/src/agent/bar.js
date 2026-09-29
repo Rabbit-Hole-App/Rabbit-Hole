@@ -3,7 +3,7 @@
 // card states and copy. Pure apart from the in-memory store; node:test loads it.
 import { askLiveOnPreview } from '../flags.js';
 import { chipsFor, scopeKey } from './scope.js';
-import { commandsFor, descFor, placeOf, SLASH } from './slash.js';
+import { commandsFor, descFor, placeOf, reviewOff, SLASH } from './slash.js';
 
 // Results and threads are per resource: org|kind:slug. A selection is context for
 // one question (repository_context), not a thread of its own (§6.3 thread table).
@@ -128,10 +128,10 @@ export function shortcutsFor(scope, catalog = []) {
 // ask() refuses with it. Workspace and app asks go to /api/ask, which writes live
 // chat history (control-plane index.js:1194-1201), so the preview keeps them off
 // until the user turns askLiveOnPreview on (flags.js). Project and canvas asks use LEARN_DB.
-const ASK_OFF = 'Asking about the workspace or apps is off on this preview: it would write to live chat history.';
+// The product offers every mode everywhere (agent/slash.js); this preview's own safety limits come from reviewOff.
 export function modeAvailability(mode, kind, askLive = askLiveOnPreview) {
-  if (mode === 'ask' && !askLive && (kind === 'workspace' || kind === 'app')) return { ok: false, reason: ASK_OFF, short: 'Off on this preview' };
-  if (mode === 'research' && kind !== 'canvas') return { ok: false, reason: kind === 'project' ? 'Research runs in a canvas' : 'Research works inside a canvas.', short: 'Only in a canvas' };
+  const off = reviewOff(mode, kind, { askLive });
+  if (off) return { ok: false, ...off };
   if (mode === 'teach' && kind === 'workspace') return { ok: true, reason: 'creates a canvas first' };
   return { ok: true };
 }

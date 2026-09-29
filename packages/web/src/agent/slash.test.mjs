@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { commandsFor, descFor, learnRequest, placeOf, SELECTIONS, SLASH } from './slash.js';
+import { commandsFor, descFor, learnRequest, placeOf, reviewOff, SELECTIONS, SLASH } from './slash.js';
 
 const names = (list) => list.map((c) => c.name);
 const JOB = [{ name: 's3-log', kind: 'job' }];
@@ -41,4 +41,14 @@ test('a Learn shortcut becomes one semantic request with the selection as contex
 test('the selection contract names what exists today and what owning branches add later', () => {
   assert.deepEqual(SELECTIONS, ['project', 'map_node', 'card', 'equation', 'notebook_cell', 'notebook_file', 'canvas_object']);
   assert.throws(() => learnRequest('quiz', { selection: { kind: 'widget' } }), /unknown selection/);
+});
+
+test('product availability is not the review copy: /ask and /research are valid everywhere, and only this preview turns some off', () => {
+  for (const name of ['ask', 'research']) assert.deepEqual(SLASH.find((c) => c.name === name).places, ['home', 'project', 'learn']);
+  assert.match(reviewOff('ask', 'workspace', { askLive: false }).reason, /live chat history/);
+  assert.equal(reviewOff('ask', 'workspace', { askLive: true }), null);
+  assert.equal(reviewOff('ask', 'project', { askLive: false }), null); // project asks use LEARN_DB
+  for (const kind of ['workspace', 'project', 'app']) assert.deepEqual(reviewOff('research', kind), { reason: 'Research here would call the live model, so it is off on this preview.', short: 'Off on this preview' });
+  assert.equal(reviewOff('research', 'canvas'), null);
+  assert.equal(reviewOff('find', 'workspace'), null);
 });
