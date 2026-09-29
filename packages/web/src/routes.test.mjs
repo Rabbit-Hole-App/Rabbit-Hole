@@ -48,7 +48,7 @@ test('the baseline surface names the place and hides the bar where another input
   assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt'), ['project', false]);
   assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt?tab=map'), ['project', false]);
   assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt?tab=learn'), ['learn', true]);
-  assert.deepEqual(at('/apps/counter'), ['app', true]); // WP4 R2: app pages keep their own composers until WP6
+  assert.deepEqual(at('/apps/counter'), ['app', false]); // WP6: app pages show the bar
   assert.deepEqual(at('/apps/counter?tab=learn'), ['learn', true]);
   assert.deepEqual(at('/apps/canvas-1a2b3c4d'), ['canvas', true]);
   assert.deepEqual(at('/apps/counter/runs/r-1'), ['run', true]);
@@ -60,7 +60,7 @@ test('the baseline clears page state, keeps the workspace identity it is given, 
   const identity = { org: 'gmail-com', email: 'a@gmail.com', orgName: 'Gmail', catalog: [{ name: 'counter' }] };
   const previous = { ...identity, place: 'project', resource: { kind: 'project', slug: 'repo-x', title: 'x' }, selected: { id: 'n1' }, barHidden: true, resultsHost: 'panel', handlers: { onGraph() {} } };
   assert.deepEqual(baseSurfaceFor('/apps/counter', '', previous),
-    { ...identity, place: 'app', resource: null, selected: null, barHidden: true, resultsHost: 'sheet', handlers: {} });
+    { ...identity, place: 'app', resource: null, selected: null, barHidden: false, resultsHost: 'sheet', handlers: {} });
   assert.deepEqual(Object.keys(baseSurfaceFor('/apps', '')).sort(), ['barHidden', 'handlers', 'place', 'resource', 'resultsHost', 'selected']);
 });
 

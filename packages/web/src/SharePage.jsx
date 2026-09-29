@@ -66,7 +66,8 @@ const Runbook = lazy(() => import('./RunbookEditor.jsx'));
 function initialAppTab() {
   const tab = new URLSearchParams(window.location.search).get('tab');
   if (tab === 'agent') return 'graph'; // legacy links from before the Agent tab became Graph
-  return tab === 'graph' || (learnPreview && tab === 'learn') ? tab : null;
+  // T02 §1: working ?tab=runbook|run|logs on the preview. ponytail: a server's ?tab=run shows an empty tab
+  return tab === 'graph' || (learnPreview && ['learn', 'runbook', 'run', 'logs'].includes(tab)) ? tab : null;
 }
 
 const TH = 'h-8 border-b border-line px-2 text-left text-xs font-normal text-ink-2';
@@ -561,7 +562,8 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
 
   // Graph tab: the page must NOT scroll - the pane fills to the viewport bottom so
   // the textbox sits static (level with the sidebar's New chat), only messages scroll.
-  const graphFull = !runId && (tab ?? 'graph') === 'graph';
+  const shown = tab && tab !== 'learn' ? tab : learnPreview ? 'runbook' : 'graph'; // T02 §12 D3: the preview lands on Runbook
+  const graphFull = !runId && shown === 'graph';
   const isAws = app?.hosting === 'aws';
   const runChat = !learnPreview && (!isAws || app?.run_chat); // D7: run chat writes live /api/ask history
   // Share + ⋯ menu, shown in the run breadcrumb and in the app title row
@@ -731,7 +733,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
               </span>
             </div>
 
-            <Tabs value={tab === 'learn' ? 'graph' : tab ?? 'graph'} onValueChange={value => { setTab(value); if (value === 'learn') navigate(`/apps/${encodeURIComponent(app.name)}?tab=learn`); }} className={cn(graphFull && 'flex min-h-0 flex-1 flex-col')}>
+            <Tabs value={shown} onValueChange={value => { setTab(value); if (value === 'learn') navigate(`/apps/${encodeURIComponent(app.name)}?tab=learn`); }} className={cn(graphFull && 'flex min-h-0 flex-1 flex-col')}>
               <TabsList pill className="shrink-0">
                 <TabsTrigger pill value="graph"><Tip label="Graph" info="Map of this app, with the Graph Agent"><span>Graph</span></Tip></TabsTrigger>
                 <TabsTrigger pill value="runbook"><Tip label="Runbook" info="Notes and docs for this app"><span>Runbook</span></Tip></TabsTrigger>
@@ -836,7 +838,8 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                 <CoachingPanel appName={app.name}>
                 {/* the page itself is scroll-locked on this tab; the pane flexes to the
                     viewport bottom so the input is static and only messages scroll */}
-                {isAws && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> :
+                {/* T02 §12: on the preview the bar replaces the Graph Agent input (one input; its asks would write live chat) */}
+                {learnPreview ? <p className="text-sm text-ink-2">Questions about this app go through the bar below.</p> : isAws && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> :
                 <div className="flex min-h-0 flex-1 flex-col">
                   <AskPanel
                     key={app.app_chat ? app.name : undefined}
@@ -866,7 +869,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
 
             </Tabs>
 
-            {app.lastOpened && (tab ?? 'graph') !== 'graph' && (
+            {app.lastOpened && shown !== 'graph' && (
               <div className="pt-6 text-sm text-ink-2">
                 Last opened by {app.lastOpened.email} · {ago(app.lastOpened.ts)}
               </div>

@@ -8,7 +8,7 @@ const dir = new URL(`../${process.env.DIST || 'dist'}/static/`, import.meta.url)
 const PREVIEW_CHUNKS = /^(AgentBar|ConfirmCard|StartHost|Home|RepositoryPage|review-fixtures-data)-/;
 // 'stops running on a schedule.' is agent/commands.js top-level code (its COMMANDS table): a side-effectful module that
 // preview UI imports stays in the live index even when that UI folds away.
-const MARKERS = ['data-agent-bar', 'data-result-sheet', 'nanoGPT from First Principles', 'data-app-ops', 'stops running on a schedule.'];
+const MARKERS = ['data-agent-bar', 'data-result-sheet', 'nanoGPT from First Principles', 'data-app-ops', 'stops running on a schedule.', 'Questions about this app go through the bar below'];
 const failures = [];
 for (const name of readdirSync(dir)) {
   if (PREVIEW_CHUNKS.test(name)) failures.push(`${name}: a preview-only chunk`);

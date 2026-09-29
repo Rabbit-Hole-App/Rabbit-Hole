@@ -1202,9 +1202,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('bar: hidden on /chat, Learn, a canvas, an app page and a run subpage (T02 §6.1, WP4 R2); back on /members', async () => {
+  await check('bar: hidden on /chat, Learn, a canvas and a run subpage (T02 §6.1); back on /members', async () => {
     const page = await barOpen();
-    const hides = [['/chat', '/chat'], ['a canvas', '/apps/canvas-00000000'], ...(repo ? [['project Learn', `/apps/${repo.name}?tab=learn`]] : []), ...(plain ? [['an app page', `/apps/${plain.name}`], ['a run subpage', `/apps/${plain.name}/runs/r-check`]] : [])];
+    const hides = [['/chat', '/chat'], ['a canvas', '/apps/canvas-00000000'], ...(repo ? [['project Learn', `/apps/${repo.name}?tab=learn`]] : []), ...(plain ? [['a run subpage', `/apps/${plain.name}/runs/r-check`]] : [])];
     for (const [label, to] of hides) {
       await spa(page, to);
       await barOf(page).waitFor({ state: 'detached', timeout: 10000 });
@@ -1689,6 +1689,30 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.getByText(/have access\. Ask owner@example\.com/).waitFor({ timeout: 20000 });
     must(await page.getByRole('button', { name: 'Request access' }).count() === 0, 'Request access is offered');
     must(!writes.length, `writes: ${writes.join(', ')}`);
+    await page.context().close();
+  });
+
+  if (plain) await check('wp6-app-bar: an app page lands on Runbook with the bar naming the app; an app ask is off and reaches no /api/ask; the Graph tab has no composer of its own; ?tab=logs deep-links; a server has no Run', async () => {
+    const page = await open();
+    let asks = 0;
+    page.on('request', (r) => { if (new URL(r.url()).pathname === '/api/ask') asks++; });
+    await loaded(page, `/apps/${plain.name}`);
+    await barOf(page).locator('[data-scope-chip="resource"]').getByText(plain.name, { exact: true }).waitFor({ timeout: 20000 });
+    must(await isSelected(page.getByRole('tab', { name: 'Runbook', exact: true })), 'the app does not land on Runbook');
+    await barInput(page).fill('what does this app do?');
+    await barInput(page).press('Enter');
+    await page.locator('[data-result-sheet]').getByText(ASK_OFF).waitFor({ timeout: 10000 });
+    await page.getByRole('tab', { name: 'Graph', exact: true }).click();
+    await page.getByText('Questions about this app go through the bar below.').waitFor({ timeout: 10000 });
+    must(await composers(page) === 1 && await page.getByRole('heading', { name: 'Graph Agent' }).count() === 0, 'the Graph tab keeps its own composer');
+    await loaded(page, `/apps/${plain.name}?tab=logs`);
+    await page.getByRole('tab', { name: 'Logs', exact: true, selected: true }).waitFor({ timeout: 20000 });
+    if (server) {
+      await loaded(page, `/apps/${server.name}`);
+      await page.getByRole('tab', { name: 'Runbook', exact: true }).waitFor({ timeout: 20000 });
+      must(await page.getByRole('tab', { name: 'Run', exact: true }).count() === 0, 'a server offers Run');
+    }
+    must(asks === 0, `${asks} requests reached /api/ask`);
     await page.context().close();
   });
 

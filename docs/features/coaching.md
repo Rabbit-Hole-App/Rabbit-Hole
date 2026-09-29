@@ -1112,8 +1112,9 @@ leave them disabled. Keep them in dev until the user approves promotion to live.
 On Rabbit Hole preview builds (`learnPreview`: `VITE_COACHING_DEV` without private
 BYOC), app pages change nothing live (D7): Run, Schedule, Share edits, Duplicate,
 Trash, rename, description, Watch dismiss and Runbook edits are off with the reason
-shown, and run chat is hidden. So far this is built only on the smart-home review
-clone; promoting it to the shared small-cp-dev needs the user's approval.
+shown, and run chat is hidden. They land on Runbook, and the Graph tab's chat shows a
+pointer to the bar instead of the Graph Agent input. So far this is built only on the
+smart-home review clone; promoting it to the shared small-cp-dev needs the user's approval.
 
 ## Deploy dev
 
