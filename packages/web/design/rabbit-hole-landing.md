@@ -19,10 +19,13 @@ link to `/manifesto`. The cloud follows with its own title, “One question.
 Endless paths.” This replaces the old empty black hold with readable content.
 Reduced motion reserves only the static hero's viewport height.
 
-A monochrome image of Plato, Socrates and Richard Feynman standing in discussion
+A monochrome image of Socrates and Richard Feynman standing in discussion
 now sits below that introduction, still on black. It is an imagined meeting;
 the full image is shown without cropping on desktop and phones. Artwork and
-prompt: `public/landing/thinkers-standing-v1.png` and `thinkers-standing-prompt.md`.
+prompt: `public/landing/thinkers-standing-v3.png` and `thinkers-centered-prompt.md`.
+Plato was removed from both discussion images at the user's request. Both scenes
+were then regenerated to center the pair and make their eye contact clear;
+the original v1 and intermediate v2 images remain in the repository.
 
 Black now ends in a sharp cut to an empty white section reserved for future
 content. The white space is 55svh tall, bounded to 320–640px, and the cloud
@@ -30,7 +33,7 @@ follows it. The previous gradient mask, pink haze and scroll-opacity reveal have
 been removed. The original animated GIF stays fully visible, using a responsive
 crop behind the cloud title; reduced motion shows the existing still.
 The manifesto page reuses public navigation and the
-simple content footer; its original draft copy and generated Socrates/Feynman/Plato
+simple content footer; its original draft copy and generated Socrates/Feynman
 image are documented in [the manifesto spec](../../../docs/features/rabbit-hole-manifesto.md).
 
 The pink cloud uses the original [TypeSafe](https://typesafe.ai/) artwork and

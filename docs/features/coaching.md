@@ -1155,6 +1155,29 @@ live build merely to prepare a dev deployment.
 
 ## Release and verification
 
+### Centered Socrates and Feynman images — 2026-09-29
+
+Both discussion images now contain Socrates and Richard Feynman only. After the
+initial removal-only edit left the composition unbalanced, both were regenerated
+with the pair centered and looking at each other. The standing scene retains
+its black outer edges and full-body view; the seated scene retains its table,
+chalkboard and monochrome photographic treatment. Captions and alternative text
+identify the two remaining participants and the imagined encounter. Current
+assets are `thinkers-standing-v3.png` and `manifesto-conversation-v3.png` in
+`packages/web/public/landing/`; exact prompts, source paths and hashes are in
+`packages/web/design/thinkers-centered-prompt.md`. Prior versions are retained.
+
+Dev build and session-clone deployment passed, version
+`6c83b88e-ceef-4d86-a583-2e5e2a8de240`. Actual deployed Chrome verification passed
+for both `/` and `/manifesto` at 1440 and 390px: new asset dimensions/hash, full
+aspect ratio without cropping, updated captions/alt text, no old asset requests,
+no horizontal overflow and working Read more navigation. The blank white space
+and observatory selection remain intact. All four screenshots were visually
+inspected for centering, gaze and visible anatomy. No browser errors or failed
+assets were observed. Evidence: `tmp/thinkers-two-person/verification.json`,
+`standing-*.png` and `seated-*.png`. Built-in image generation only; no API-key
+model call, shared/live deployment or schema change.
+
 ### Observatory selected as the single landscape — 2026-09-29
 
 Following visual approval, the landing page keeps the animated observatory as

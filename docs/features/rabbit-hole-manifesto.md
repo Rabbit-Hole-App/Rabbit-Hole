@@ -29,19 +29,24 @@ format. Rabbit Hole's copy and composition are its own.
 ## Image
 
 The landing page additionally displays a new standing group below the manifesto
-copy, on black: `packages/web/public/landing/thinkers-standing-v1.png` (1536 × 1024).
-Plato, Socrates and Richard Feynman stand in discussion, left to right. The full
+copy, on black: `packages/web/public/landing/thinkers-standing-v3.png` (1536 × 1024).
+Socrates and Richard Feynman stand in discussion, left to right. The full
 image is retained on phones, with a small caption identifying the imagined
-conversation. Prompt/provenance: `packages/web/design/thinkers-standing-prompt.md`.
-The seated image on the dedicated manifesto page remains unchanged.
+conversation. At the user's request, Plato was removed from both the standing
+and seated images using built-in image generation. Following feedback on the
+removal-only v2, both compositions were regenerated with a centered pair and
+mutual eye contact while retaining their identities, clothing and monochrome
+photographic treatment. Original v1 assets and intermediate v2 edits remain
+available. Current prompts and provenance:
+`packages/web/design/thinkers-centered-prompt.md`.
 
-- `packages/web/public/landing/manifesto-conversation-v1.png`, 1774 × 887.
+- `packages/web/public/landing/manifesto-conversation-v3.png`, 1774 × 887.
 - Generated using the built-in `image_gen` tool; no API-key model call.
-- Left to right: Socrates, Richard Feynman, Plato discussing an open book and
+- Left to right: Socrates and Richard Feynman discussing an open book and
   teaching ideas in a fictional, aged black-and-white photographic composition.
 - The caption identifies it as an imagined conversation, not a historical photo.
 - The full rectangular image is retained on mobile so no participant is cropped.
-- Exact prompt and provenance: `packages/web/design/manifesto-image-prompt.md`.
+- Original generation prompt: `packages/web/design/manifesto-image-prompt.md`.
 
 ## Verification
 
