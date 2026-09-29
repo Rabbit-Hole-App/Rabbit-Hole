@@ -8,6 +8,24 @@ export const NOTEBOOK_ORIGIN = import.meta.env?.VITE_NOTEBOOK_ORIGIN || 'https:/
 export const notebookUrl = notebookId => `${NOTEBOOK_ORIGIN}/lab/index.html?mode=single-document&workspace=${encodeURIComponent(notebookId)}`;
 export const FIRST_NOTEBOOK = 'notebook.ipynb';
 
+// Tool Performance v1 (learn-warmup.js): open the notebook site once, hidden,
+// so its code lands in the same browser cache partition the cards' frames use.
+// No workspace is initialised, no notebook opens and no Python starts; the
+// frame goes once loaded. 'warmup' can never be a card's workspace (a UUID).
+export function warmNotebookSite() {
+  return new Promise(resolve => {
+    const frame = document.createElement('iframe');
+    frame.src = notebookUrl('warmup');
+    frame.tabIndex = -1;
+    frame.setAttribute('aria-hidden', 'true');
+    Object.assign(frame.style, { position: 'fixed', left: '-20px', top: '-20px', width: '1px', height: '1px', opacity: '0', pointerEvents: 'none', border: '0' });
+    const finish = () => { frame.remove(); resolve(); };
+    frame.addEventListener('load', () => setTimeout(finish, 4000), { once: true });
+    setTimeout(finish, 30000);
+    document.body.appendChild(frame);
+  });
+}
+
 // One output bigger than this is replaced by a note when saved.
 const OUTPUT_LIMIT = 100000;
 

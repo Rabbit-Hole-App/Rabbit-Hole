@@ -19,6 +19,7 @@ import SearchBar from './SearchBar.jsx';
 import LearnSlash from './LearnSlash.jsx';
 import PaidConfirm from './PaidConfirm.jsx';
 import { runLearnCommand } from './learn-slash.js';
+import { warmLearnTools } from './learn-warmup.js';
 import ShortcutsSheet from './ShortcutsSheet.jsx';
 import FilesPanel from './FilesPanel.jsx';
 import LearnWiki from './LearnWiki.jsx';
@@ -99,6 +100,8 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const [searchOpen, setSearchOpen] = useState(false);
   // What a /paper <topic> command searches for; null for the plain search bar.
   const [searchSeed, setSearchSeed] = useState(null);
+  // Tool Performance v1: common tools fetched on idle, one per quiet moment (learn-warmup.js).
+  useEffect(() => { warmLearnTools(app.name); }, [app.name]);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   // / opens Search and ? the shortcuts sheet - the keys the page owns; the
   // canvas owns the rest. Neither fires while typing or presenting.

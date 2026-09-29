@@ -1459,6 +1459,10 @@ function GraphBody({ block, appName, onChange }) {
     };
     (async () => {
       validateGraph(block.spec);
+      // Paint the card first: with the SDK already warm, building the
+      // calculator in the same frame held the shell back ~300 ms.
+      await new Promise(resolve => afterPaint(resolve));
+      if (disposed) return;
       instance = await graphRenderers[block.spec.renderer](host.current, block.spec, block.state || {}, appName, change);
       if (disposed) { instance.destroy(); return; }
       engine.current = instance;

@@ -19,3 +19,10 @@ if (!config.test(html)) throw new Error(`no jupyter-config-data script in ${page
 // The build can leave a patched page in place; move any earlier tag here.
 writeFileSync(page, html.split(tag).join('').replace(config, `$1${tag}`));
 console.log(`✓ canvas bridge: ${page}`);
+
+// Tool Performance v1: build/ chunks are content-hashed and its fonts are
+// versioned with the package, so frames reuse them for a week without a
+// revalidation round trip each (a cold notebook made ~94 requests). Pages,
+// config and the bridge keep the default revalidation.
+writeFileSync(join(site, '_headers'), ['/build/*', '  Cache-Control: public, max-age=604800', '/extensions/*', '  Cache-Control: public, max-age=604800', ''].join('\n'));
+console.log(`✓ cache headers: ${join(site, '_headers')}`);

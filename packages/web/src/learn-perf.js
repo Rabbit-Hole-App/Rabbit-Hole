@@ -10,15 +10,18 @@
 import { createContext, useContext, useEffect } from 'react';
 
 const seen = new Set();
-export function perfMark(id, phase) {
+export function perfMark(id, phase, startTime) {
   const name = `rh:${id}:${phase}`;
   if (!id || seen.has(name)) return;
   seen.add(name);
-  try { performance.mark(name); } catch { /* timing is best effort */ }
+  try { performance.mark(name, startTime === undefined ? undefined : { startTime }); } catch { /* timing is best effort */ }
 }
 
-// After the next paint, not at render time: "visible" means on screen.
-export const afterPaint = callback => requestAnimationFrame(() => requestAnimationFrame(callback));
+// After the next paint, not at render time: "visible" means on screen. The
+// callback gets the start of the frame after that paint: other work queued
+// for the same frame (a calculator being built) runs first, and stamping the
+// mark with the frame time keeps it from counting that work as paint delay.
+export const afterPaint = callback => requestAnimationFrame(() => requestAnimationFrame(frame => callback(frame)));
 
 // Cards whose body reports content/interactive itself; every other card is
 // complete on its first paint.
@@ -31,9 +34,9 @@ export const usePerf = () => useContext(PerfContext) || (() => {});
 // Marks visible (and, for simple cards, content and interactive) once painted.
 export function usePaintedMarks(id, type) {
   useEffect(() => {
-    afterPaint(() => {
-      perfMark(id, 'visible');
-      if (!SELF_REPORTING.has(type)) { perfMark(id, 'content'); perfMark(id, 'interactive'); }
+    afterPaint(frame => {
+      perfMark(id, 'visible', frame);
+      if (!SELF_REPORTING.has(type)) { perfMark(id, 'content', frame); perfMark(id, 'interactive', frame); }
     });
   }, [id]);
 }

@@ -189,6 +189,37 @@ export const PRIMITIVES = {
   paper: { ready: false, direct: true },
 };
 
+// Observed rendering characteristics (Tool Performance v1, 2026-09-29,
+// docs/features/learn-tool-performance.md): infrastructure facts a caller can
+// weigh, not tutor policy. Times are click to interactive on the parallel
+// clone: typicalColdMs is a first use with nothing warmed, typicalWarmMs a
+// repeat use; latencyClass is the realistic first use once the idle warm-up
+// (learn-warmup.js) has run. instant <100 ms, fast <250, medium <800, slow
+// beyond that, async = a generation job that finishes later. null = not
+// measured (the primitive has no card of its own yet).
+const perf = (latencyClass, typicalColdMs, typicalWarmMs, { canPrewarm = false, progressiveReady = false, asyncGeneration = false } = {}) =>
+  ({ latencyClass, typicalColdMs, typicalWarmMs, canPrewarm, progressiveReady, asyncGeneration });
+const PERF = {
+  explanation: perf('instant', 59, 25), table: perf('instant', 89, 35), flashcards: perf('instant', 64, 24),
+  quiz: perf('instant', 38, 36), challenge: perf('instant', 39, 28), explain_back: perf('instant', 34, 29),
+  code_sample: perf('instant', 37, 25), code_exercise: perf('instant', 45, 23), walkthrough: perf('instant', 27, 28),
+  animation: perf('instant', 43, 26), knowledge_graph: perf('instant', 27, 26), image: perf('instant', 31, 14),
+  data_plot: perf('fast', 1719, 74, { canPrewarm: true, progressiveReady: true }),
+  flow_diagram: perf('fast', 1497, 115, { canPrewarm: true, progressiveReady: true }),
+  interactive_graph: perf('fast', 2652, 166, { canPrewarm: true, progressiveReady: true }),
+  mermaid_diagram: perf('medium', 1078, 41, { canPrewarm: true, progressiveReady: true }),
+  whiteboard: perf('medium', 831, 149, { canPrewarm: true, progressiveReady: true }),
+  '3d_model': perf('medium', 675, 120, { progressiveReady: true }),
+  video: perf('medium', 346, 18, { progressiveReady: true }),
+  notebook: perf('slow', 5691, 3216, { canPrewarm: true, progressiveReady: true }),
+  paper: perf('slow', 1678, 362, { progressiveReady: true }),
+  video_generate: perf('async', null, null, { asyncGeneration: true }), maths_animation: perf('async', null, null, { asyncGeneration: true }),
+  blender_scene: perf('async', null, null, { asyncGeneration: true }), image_generate: perf('async', null, null, { asyncGeneration: true }),
+  narration: perf('async', null, null, { asyncGeneration: true }),
+  reference_attention: perf('instant', null, null),
+};
+for (const [id, entry] of Object.entries(PRIMITIVES)) entry.perf = PERF[id] || perf(null, null, null);
+
 export const isReady = id => PRIMITIVES[id]?.ready === true;
 
 // Validate one generated spec against its primitive and return the canvas

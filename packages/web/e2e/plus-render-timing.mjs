@@ -53,6 +53,8 @@ const open = async () => {
   await page.getByRole('menubar', { name: 'Canvas menu' }).waitFor({ timeout: 60000 });
   const load = { ms: Date.now() - started, kb: bytes.n / 1024, requests: bytes.count };
   await page.waitForTimeout(2500);
+  // With the idle warm-up (learn-warmup.js), wait for it as a reading learner would, and record how long it took.
+  load.warmupMs = await page.waitForFunction(() => performance.getEntriesByName('rh:warmup:done')[0]?.startTime ?? false, null, { timeout: 45000, polling: 250 }).then(handle => handle.jsonValue()).catch(() => null);
   return { context, page, bytes, load };
 };
 
@@ -98,6 +100,8 @@ await first.page.getByRole('button', { name: 'Insert lesson block' }).click();
 const labels = await first.page.getByRole('menu', { name: 'Lesson blocks' }).getByRole('menuitem').allInnerTexts();
 await first.page.keyboard.press('Escape');
 await first.context.close();
+// ONLY="Interactive graph,Notebook" re-measures just those items.
+if (process.env.ONLY) labels.splice(0, labels.length, ...labels.filter(label => process.env.ONLY.split(',').includes(label)));
 console.log(`${labels.length} items`);
 
 const rows = [], loads = [];
@@ -114,7 +118,7 @@ for (const label of labels) {
   console.log(JSON.stringify(row));
 }
 const median = list => [...list].sort((a, b) => a - b)[Math.floor(list.length / 2)];
-const learnLoad = { medianMs: median(loads.map(l => l.ms)), medianKb: Math.round(median(loads.map(l => l.kb))), medianRequests: median(loads.map(l => l.requests)) };
+const learnLoad = { medianMs: median(loads.map(l => l.ms)), medianKb: Math.round(median(loads.map(l => l.kb))), medianRequests: median(loads.map(l => l.requests)), medianWarmupDoneMs: median(loads.map(l => l.warmupMs ?? Infinity)) };
 console.log('learn load', JSON.stringify(learnLoad), 'paid requests', paid.length);
 writeFileSync(OUT, JSON.stringify({ learnLoad, paidRequests: paid, rows }, null, 2));
 await browser.close();

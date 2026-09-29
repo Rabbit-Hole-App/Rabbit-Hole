@@ -135,3 +135,13 @@ test('one paid gate for every provider: no confirmed flag, no request', async ()
 test('the contract marks narration paid', () => {
   assert.equal(primitive('narration').paid, true);
 });
+
+test('every primitive carries its observed rendering characteristics, and generation is async', () => {
+  for (const [id, entry] of Object.entries(PRIMITIVES)) {
+    assert.ok(entry.perf && 'latencyClass' in entry.perf && 'typicalColdMs' in entry.perf, id);
+    assert.ok(!('tutorPreference' in entry.perf) && !('likelyNextTool' in entry.perf), `${id}: infrastructure facts only`);
+  }
+  for (const id of ['video_generate', 'maths_animation', 'blender_scene', 'image_generate', 'narration']) assert.equal(PRIMITIVES[id].perf.asyncGeneration, true, id);
+  assert.equal(PRIMITIVES.notebook.perf.latencyClass, 'slow');
+  assert.equal(PRIMITIVES.explanation.perf.latencyClass, 'instant');
+});

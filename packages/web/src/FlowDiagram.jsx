@@ -37,8 +37,8 @@ export default function FlowDiagram({ spec }) {
   useEffect(() => {
     let live = true;
     (async () => {
-      const { default: ELK } = await import('elkjs/lib/elk.bundled.js');
-      const elk = new ELK();
+      const { layoutEngine } = await import('./flow-layout.js');
+      const elk = layoutEngine();
       const measured = source.nodes.map(node => ({ id: node.id, width: Math.max(120, (node.label?.length || 8) * 8), height: node.detail ? 54 : 40 }));
       const graph = await elk.layout({
         id: 'root',
