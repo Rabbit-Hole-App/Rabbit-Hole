@@ -256,7 +256,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
-  await check('sh-rail: Ctrl+\\ collapses to a 48-56px icon rail with labelled workspace, Home, Library, Explore, Members and Trash; the current page is marked; the tile opens the workspace menu; Ctrl+\\ restores', async () => {
+  await check('sh-rail: Ctrl+\\ collapses to a 48-56px icon rail with labelled workspace, Search, Notifications, Home, Library, Explore, Members and Trash; the current page is marked; the tile opens the workspace menu; Notifications opens beside the rail; Ctrl+\\ restores', async () => {
     const page = await open();
     await loaded(page, '/apps');
     const sidebar = page.locator('[data-shell-sidebar]');
@@ -269,9 +269,18 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       const b = aside.getByRole('button', { name, exact: true });
       must(await b.count() === 1 && await b.getAttribute('title') === name, `the rail's ${name} button lacks its label or tooltip`);
     }
+    must(await aside.getByRole('button', { name: 'Search', exact: true }).count() === 1, 'the rail has no Search');
+    await aside.getByRole('button', { name: 'Notifications', exact: true }).click();
+    const inbox = page.getByText('Notifications', { exact: true });
+    await inbox.waitFor({ timeout: 5000 });
+    const x = (await inbox.boundingBox()).x;
+    must(x > w && x < w + 60, `the notifications panel opens at x=${x}, not beside the ${w}px rail`);
+    await page.mouse.click(900, 500); // the backdrop closes it
+    await inbox.waitFor({ state: 'detached', timeout: 5000 });
     must(await aside.getByRole('button', { name: 'Home', exact: true }).getAttribute('aria-current') === 'page', 'Home is not current on /apps');
     await aside.getByRole('button', { name: wsLabel, exact: true }).click();
     await page.getByRole('button', { name: 'Settings', exact: true }).waitFor({ timeout: 5000 });
+    await page.waitForTimeout(100); // Menu attaches its outside-click listener on the next tick (ui.jsx)
     await page.mouse.click(26, 500); // the rail's empty middle closes the menu
     await page.getByRole('button', { name: 'Settings', exact: true }).waitFor({ state: 'detached', timeout: 5000 });
     const app = plain || repo;

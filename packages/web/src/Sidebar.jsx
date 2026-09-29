@@ -809,6 +809,12 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
     );
   };
 
+  const badge = (unread.length > 0 || pendingGrant) && (
+    <span role="status" aria-label="Pending notifications" className="pointer-events-none absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warn px-1 text-[10px] font-semibold text-white">
+      {unread.length + (pendingGrant ? 1 : 0)}
+    </span>
+  );
+
   return (
     <aside
       onDragOver={(e) => e.preventDefault()}
@@ -865,6 +871,15 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             <button title="Open sidebar" aria-label="Open sidebar" onClick={onExpand} className={RAIL_BTN}>
               <ChevronsRight size={16} strokeWidth={1.5} />
             </button>
+            <button title="Search (Ctrl + K)" aria-label="Search" onClick={() => { setWatchOpen(false); window.dispatchEvent(new CustomEvent('small:search')); }} className={cn(RAIL_BTN, searchOpen && 'bg-active text-ink')}>
+              <Search size={16} strokeWidth={1.5} />
+            </button>
+            <div className="relative">
+              <button title="Notifications" aria-label="Notifications" onClick={() => { window.dispatchEvent(new CustomEvent('small:search-close')); setWatchOpen(true); loadWatch(); markRead(); }} className={cn(RAIL_BTN, watchOpen && 'bg-active text-ink')}>
+                <Bell size={16} strokeWidth={1.5} />
+              </button>
+              {badge}
+            </div>
           </div>
         ) : (
         <div className="flex h-9 items-center gap-2 px-2">
@@ -963,59 +978,11 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         </div>
       )}
 
-      {rail ? (
-        <>
-          <nav aria-label="Main" className="flex flex-col items-center gap-1 pt-2">
-            {NAV.map(([label, to, page, Icon]) => (
-              <button key={page} title={label} aria-label={label} aria-current={current === page ? 'page' : undefined} onClick={() => navigate(to)} className={cn(RAIL_BTN, current === page && 'bg-active text-ink')}>
-                <Icon size={16} strokeWidth={1.5} />
-              </button>
-            ))}
-          </nav>
-          <div className="mt-auto flex shrink-0 flex-col items-center gap-1 border-t border-line pt-2">
-            <button title="Members" aria-label="Members" aria-current={path === '/members' ? 'page' : undefined} onClick={() => navigate('/members')} className={cn(RAIL_BTN, path === '/members' && 'bg-active text-ink')}>
-              <Users size={16} strokeWidth={1.5} />
-            </button>
-            <button title="Trash" aria-label="Trash" onClick={openTrash} className={cn(RAIL_BTN, trashOpen && 'bg-active text-ink')}>
-              <Trash2 size={16} strokeWidth={1.5} />
-            </button>
-          </div>
-        </>
-      ) : (
-      <>
-      {/* icons only - search + notifications share one line, tooltips carry the labels */}
-      <div className="flex items-center gap-1 px-0.5">
-        <button
-          title="Search (Ctrl + K)"
-          aria-label="Search"
-          onClick={() => { setWatchOpen(false); window.dispatchEvent(new CustomEvent('small:search')); }}
-          className={cn('flex h-7 cursor-pointer items-center rounded-full px-1.5 text-sm', searchOpen ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')}
-        >
-          <Search size={16} strokeWidth={1.5} className="shrink-0" />
-          <span className={cn('overflow-hidden whitespace-nowrap transition-[max-width] duration-200 ease-out', searchOpen ? 'max-w-[64px] pl-1.5' : 'max-w-0')}>Search</span>
-        </button>
-        <div className="relative">
-          <button
-            title="Notifications"
-            aria-label="Notifications"
-            onClick={() => { window.dispatchEvent(new CustomEvent('small:search-close')); setWatchOpen(true); loadWatch(); markRead(); }}
-            className={cn('flex h-7 cursor-pointer items-center rounded-full px-1.5 text-sm', watchOpen ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')}
-          >
-            <Bell size={16} strokeWidth={1.5} className="shrink-0" />
-            <span className={cn('overflow-hidden whitespace-nowrap transition-[max-width] duration-200 ease-out', watchOpen ? 'max-w-[110px] pl-1.5' : 'max-w-0')}>Notifications</span>
-          </button>
-          {(unread.length > 0 || pendingGrant) && (
-            <span role="status" aria-label="Pending notifications" className="pointer-events-none absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warn px-1 text-[10px] font-semibold text-white">
-              {unread.length + (pendingGrant ? 1 : 0)}
-            </span>
-          )}
-        </div>
-      </div>
       {watchOpen && (
         <>
           {/* Notion-style inbox: a floating rounded box beside the sidebar, not a full-height panel */}
           <div className="fixed inset-0 z-40" onMouseDown={() => setWatchOpen(false)} />
-          <div style={{ left: width + 12 }} className={cn('fixed top-10 z-50 flex max-h-[75vh] w-[440px] flex-col overflow-hidden rounded-lg bg-white text-ink shadow-pop', learnPreview && 'max-md:right-3 max-md:left-3! max-md:w-auto')}>
+          <div style={{ left: (rail ? RAIL_W : width) + 12 }} className={cn('fixed top-10 z-50 flex max-h-[75vh] w-[440px] flex-col overflow-hidden rounded-lg bg-white text-ink shadow-pop', learnPreview && 'max-md:right-3 max-md:left-3! max-md:w-auto')}>
             <div className="flex shrink-0 items-center justify-between px-4 pt-3 pb-1">
               <span className="text-sm font-semibold">Notifications</span>
               <IconBtn aria-label="Close" onClick={() => setWatchOpen(false)}><X size={14} /></IconBtn>
@@ -1093,6 +1060,50 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         </>
       )}
 
+      {rail ? (
+        <>
+          <nav aria-label="Main" className="flex flex-col items-center gap-1 pt-2">
+            {NAV.map(([label, to, page, Icon]) => (
+              <button key={page} title={label} aria-label={label} aria-current={current === page ? 'page' : undefined} onClick={() => navigate(to)} className={cn(RAIL_BTN, current === page && 'bg-active text-ink')}>
+                <Icon size={16} strokeWidth={1.5} />
+              </button>
+            ))}
+          </nav>
+          <div className="mt-auto flex shrink-0 flex-col items-center gap-1 border-t border-line pt-2">
+            <button title="Members" aria-label="Members" aria-current={path === '/members' ? 'page' : undefined} onClick={() => navigate('/members')} className={cn(RAIL_BTN, path === '/members' && 'bg-active text-ink')}>
+              <Users size={16} strokeWidth={1.5} />
+            </button>
+            <button title="Trash" aria-label="Trash" onClick={openTrash} className={cn(RAIL_BTN, trashOpen && 'bg-active text-ink')}>
+              <Trash2 size={16} strokeWidth={1.5} />
+            </button>
+          </div>
+        </>
+      ) : (
+      <>
+      {/* icons only - search + notifications share one line, tooltips carry the labels */}
+      <div className="flex items-center gap-1 px-0.5">
+        <button
+          title="Search (Ctrl + K)"
+          aria-label="Search"
+          onClick={() => { setWatchOpen(false); window.dispatchEvent(new CustomEvent('small:search')); }}
+          className={cn('flex h-7 cursor-pointer items-center rounded-full px-1.5 text-sm', searchOpen ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')}
+        >
+          <Search size={16} strokeWidth={1.5} className="shrink-0" />
+          <span className={cn('overflow-hidden whitespace-nowrap transition-[max-width] duration-200 ease-out', searchOpen ? 'max-w-[64px] pl-1.5' : 'max-w-0')}>Search</span>
+        </button>
+        <div className="relative">
+          <button
+            title="Notifications"
+            aria-label="Notifications"
+            onClick={() => { window.dispatchEvent(new CustomEvent('small:search-close')); setWatchOpen(true); loadWatch(); markRead(); }}
+            className={cn('flex h-7 cursor-pointer items-center rounded-full px-1.5 text-sm', watchOpen ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')}
+          >
+            <Bell size={16} strokeWidth={1.5} className="shrink-0" />
+            <span className={cn('overflow-hidden whitespace-nowrap transition-[max-width] duration-200 ease-out', watchOpen ? 'max-w-[110px] pl-1.5' : 'max-w-0')}>Notifications</span>
+          </button>
+          {badge}
+        </div>
+      </div>
       {learnPreview && (
         <nav aria-label="Main" className="pt-2">
           {NAV.map(([label, to, page, Icon]) => (
