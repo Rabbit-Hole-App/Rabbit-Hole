@@ -265,11 +265,14 @@ review: the live bundle carried Learn (canvas page now lazy); toasts one bottom-
 api() on the preview refuses every write the dev worker does not serve itself, and the preview has no /chat; the Map
 graph on a phone and in dark mode; page prompts ask in the page scope; an app's ?tab=learn keeps the bar. Added at the
 user's request: feedback (bug / idea) at the bottom of the sidebar and its rail (Learn's FeedbackButton, app-less).
-Open for the user: (1) the toast column and dark kind-pill colours are unconditional, so live small users see them too -
-keep or gate on learnPreview; (2) deferred minors - the bar's mode pill persists across scopes, no error boundary around
-Root (a stale lazy chunk after a redeploy blanks the page); (3) the notebook card needs a notebook site: the shared default
-small-learn-canvas-notebook-dev was never deployed (deploying it is a new shared dev resource - the user's call); the
-review build uses the Learn owner's worker via VITE_NOTEBOOK_ORIGIN. Final suite 101/102 (G2-branch GitHub flake, 2/2 on rerun).
+User decisions (2026-09-29): (1) keep the bottom-right toast column and the dark job/server pill colours in live -
+light mode unchanged, dark rules under .dark only, every pill 8:1 or better (WCAG AA); (2) the shared dev notebook site is
+deployed: small-learn-canvas-notebook-dev (the reviewed build, 7-day cache on /build and /extensions, no bindings), and the
+review build uses it by default; (3) the Agent Bar mode resets to Auto on a new page or resource (bar-mode); (4) stale
+chunks are generic, not review-only - both workers serve only the current deployment's hashed files - so a tab reloads
+once on vite:preloadError and otherwise shows This page could not load with Reload (wp7-stale-chunk; chunk-reload.js);
+(5) the preview write allowlist stays strict and tested. Final: full browser suite 104/104, live bundle clean, the D7
+checks clean, Learn's notebook checks 9/9, 10/10, 2/2 on the combined build. WP7 now waits only on the visual gate.
 
 
 Full journey Home → Project → Map → select → Teach this → Learn → cards/notebook
