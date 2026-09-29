@@ -1,8 +1,13 @@
 # Learn feedback button
 
-A button at the lower left of the Learn canvas lets a learner report a bug or
-suggest a feature. It sits beside the zoom controls and never covers the
-composer; on a phone it shares their row.
+A button lets a learner report a bug or suggest a feature. `FeedbackButton.jsx`
+is used in two places:
+
+- **Learn canvas:** at the lower left, beside the zoom controls, never over
+  the composer; on a phone it shares their row. It passes `app` and `board`,
+  and the panel opens upward.
+- **Sidebar rail** (smart-home, on Home, Library and Explore): no app, and
+  `placement="right"` opens the panel beside the button, bottom-aligned.
 
 ## Using it
 
@@ -16,7 +21,10 @@ no corner toast.
 ## What is stored
 
 `POST /api/learn/feedback` (`packages/control-plane/src/learn-feedback.js`,
-routed by the dev worker) checks app access first. It then writes one JSON
+routed by the dev worker) checks access first. With an app, it is the same app
+access check as every Learn route. Without one, the sender only has to be a
+signed-in workspace member (`repositoryIdentity`), and the report stores
+`app: null`. It then writes one JSON
 object per report to Learn media (`learnMedia(env)`) at
 `learn-feedback/<YYYY-MM-DD>/<timestamp>-<id>.json`. Each object holds:
 

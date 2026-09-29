@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Bug, Check, Lightbulb, Loader2, MessageSquareWarning, X } from 'lucide-react';
 import { api } from './api.js';
 
-// Report a bug or suggest a feature, from the Learn canvas's lower left
-// (docs/features/learn-feedback.md). The report carries where it was sent
-// from; the confirmation stays on the button, never a corner toast.
-export default function FeedbackButton({ app, board }) {
+// Report a bug or suggest a feature (docs/features/learn-feedback.md): from
+// the Learn canvas's lower left (app set, panel opens up) or a left sidebar
+// rail on Home, Library and Explore (no app, placement 'right': the panel
+// opens beside the button, bottom-aligned). The report carries where it was
+// sent from; the confirmation stays on the button, never a corner toast.
+export default function FeedbackButton({ app = null, board = null, placement = 'up' }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState('bug');
   const [text, setText] = useState('');
@@ -28,7 +30,7 @@ export default function FeedbackButton({ app, board }) {
     if (!text.trim() || state === 'sending') return;
     setState('sending'); setError('');
     try {
-      await api('/api/learn/feedback', { method: 'POST', body: JSON.stringify({ app, kind, text: text.trim(), context: { board: board || 'main', path: window.location.pathname + window.location.search, viewport: `${window.innerWidth}x${window.innerHeight}`, userAgent: navigator.userAgent } }) });
+      await api('/api/learn/feedback', { method: 'POST', body: JSON.stringify({ app, kind, text: text.trim(), context: { board: app ? board || 'main' : null, path: window.location.pathname + window.location.search, viewport: `${window.innerWidth}x${window.innerHeight}`, userAgent: navigator.userAgent } }) });
       setText(''); setOpen(false); setState('sent');
     } catch (problem) { setState('error'); setError(problem.message || 'Could not send. Try again.'); }
   };
@@ -42,7 +44,7 @@ export default function FeedbackButton({ app, board }) {
       </button>
       {open && (
         <form data-feedback-panel onSubmit={submit} aria-label="Feedback"
-          className="absolute bottom-full left-0 z-40 mb-2 w-80 max-w-[calc(100vw-1.5rem)] rounded-xl border border-line bg-white p-3 shadow-pop">
+          className={`absolute z-40 w-80 max-w-[calc(100vw-1.5rem)] rounded-xl border border-line bg-white p-3 shadow-pop ${placement === 'right' ? 'bottom-0 left-full ml-2' : 'bottom-full left-0 mb-2'}`}>
           <div className="mb-2 flex items-center justify-between">
             <p className="text-sm font-semibold text-ink">Send feedback</p>
             <button type="button" aria-label="Close feedback" onClick={() => setOpen(false)} className="rounded p-1 text-ink-3 hover:bg-hover hover:text-ink"><X size={14} /></button>
