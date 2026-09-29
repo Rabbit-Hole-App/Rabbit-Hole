@@ -45,7 +45,7 @@ export async function repositoryAccess(req,env,name) {
 export async function repositorySnapshot(env,app,commit=app.commit_sha) {
   const row=await d1(()=>env.LEARN_DB.prepare('SELECT storage_key FROM repository_versions WHERE app_id=? AND commit_sha=?').bind(app.id,commit).first());
   if(!row) throw Error('This repository version is not indexed yet');
-  const object=await env.RUNS.get(row.storage_key); if(!object) throw Error('Repository snapshot unavailable');
+  const object=await env.REPOSITORY_SNAPSHOTS.get(row.storage_key); if(!object) throw Error('Repository snapshot unavailable');
   return object.json();
 }
 async function enqueue(env,app,repo,branch,resolved=null) {
@@ -88,7 +88,7 @@ export class RepositoryImports {
             const snapshot=await asset.json();
             if(snapshot.commit!==job.commit||snapshot.repo!==job.repo||!snapshot.graph?.nodes||!snapshot.files)throw Error('Invalid index result');
             const key=`learn-repositories-dev/${job.appId}/${job.commit}/graphify-0.9.63.json`;
-            await this.env.RUNS.put(key,JSON.stringify(snapshot),{httpMetadata:{contentType:'application/json'}});
+            await this.env.REPOSITORY_SNAPSHOTS.put(key,JSON.stringify(snapshot),{httpMetadata:{contentType:'application/json'}});
             await this.env.LEARN_DB.prepare('INSERT OR IGNORE INTO repository_versions(app_id,commit_sha,storage_key) VALUES(?,?,?)').bind(job.appId,job.commit,key).run();
             await this.env.LEARN_DB.prepare("UPDATE repository_apps SET commit_sha=?,branch=?,status='ready',error=NULL WHERE id=?").bind(job.commit,job.branch,job.appId).run();job.status='ready';
           }

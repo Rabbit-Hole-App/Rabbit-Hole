@@ -216,7 +216,7 @@ export const COMMANDS = {
     },
   },
   // Confirm class, but allowed on the preview (T02 §16): the row goes only to LEARN_DB
-  // (small-learn-dev) and the snapshot only under learn-repositories-dev/ (repositories.js:90,124).
+  // (small-learn-dev) and the snapshot only to the dev bucket small-repositories-dev (repositories.js:90-91).
   connect_repository: {
     risk: 'confirm', touchesLive: false, available: ok,
     // prepareCommand runs this before the card, so the card shows the exact branch and a

@@ -64,6 +64,12 @@
     {
       "binding": "RUNS",
       "bucket_name": "small-runs"
+    },
+    // Dev repository snapshots (Map import/refresh) get their own bucket, never a prefix inside the live
+    // small-runs bucket. Production has no such binding (control-plane/test/repositories.test.js).
+    {
+      "binding": "REPOSITORY_SNAPSHOTS",
+      "bucket_name": "small-repositories-dev"
     }
   ],
   "d1_databases": [

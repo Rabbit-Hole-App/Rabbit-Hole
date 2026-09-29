@@ -13,7 +13,7 @@ function fixture(t){
   sqlite.exec(`INSERT INTO repository_apps(id,org,name,owner_email,repo,branch,commit_sha,status) VALUES(1,'team','repo-example','owner@test','example/project','main','${sha}','ready'); INSERT INTO repository_versions VALUES(1,'${sha}','snapshot',datetime('now'));`);
   const db={prepare:sql=>{let args=[];const stmt=sqlite.prepare(sql);return{bind(...v){args=v;return this;},first:async()=>stmt.get(...args)||null,all:async()=>({results:stmt.all(...args)}),run:async()=>({meta:stmt.run(...args)})};},batch:async statements=>Promise.all(statements.map(s=>s.run()))};
   const assets=new Map([['snapshot',snapshot]]),data=new Map();
-  const env={LEARN_DB:db,SCENE_WORKER_URL:'https://worker.test',SCENE_WORKER_TOKEN:'secret',CONTROL_PLANE:{fetch:async req=>req.headers.get('cookie')==='denied'?new Response('',{status:401}):Response.json({org:req.headers.get('x-small-workspace')||'team',email:req.headers.get('x-email')||'owner@test',apps:[]})},RUNS:{get:async k=>assets.has(k)?{json:async()=>typeof assets.get(k)==='string'?JSON.parse(assets.get(k)):assets.get(k)}:null,put:async(k,v)=>assets.set(k,v)}};
+  const env={LEARN_DB:db,SCENE_WORKER_URL:'https://worker.test',SCENE_WORKER_TOKEN:'secret',CONTROL_PLANE:{fetch:async req=>req.headers.get('cookie')==='denied'?new Response('',{status:401}):Response.json({org:req.headers.get('x-small-workspace')||'team',email:req.headers.get('x-email')||'owner@test',apps:[]})},REPOSITORY_SNAPSHOTS:{get:async k=>assets.has(k)?{json:async()=>typeof assets.get(k)==='string'?JSON.parse(assets.get(k)):assets.get(k)}:null,put:async(k,v)=>assets.set(k,v)},RUNS:{get(){throw Error('live bucket touched');},put(){throw Error('live bucket touched');}}};
   const state={storage:{get:async k=>structuredClone(data.get(k)),put:async(k,v)=>data.set(k,structuredClone(v)),setAlarm:async()=>{}},blockConcurrencyWhile:async fn=>fn()};
   return{env,sqlite,data,assets,state,actor:new RepositoryImports(state,env),send:(path,body,headers={})=>repositoriesFetch(new Request(`https://dev.test/api/repositories/repo-example/${path}`,{method:body?'POST':'GET',headers, ...(body?{body:JSON.stringify(body)}:{})}),env,{})};
 }
@@ -157,4 +157,18 @@ test('T02 section 16 pin: connect_repository writes only LEARN_DB rows and learn
   assert.deepEqual([...new Set(seen)],['GET /api/apps']); // 16.4: identity read only
   assert.deepEqual([...hosts],['worker.test']);
   assert.equal(f.sqlite.prepare('SELECT status FROM repository_apps WHERE id=?').get(row.id).status,'ready');
+});
+
+// Dev storage hygiene (user, 2026-09-28): dev repository snapshots live in their own bucket, never in the
+// live small-runs bucket under a prefix. The dev config binds that bucket; production has no such binding.
+const jsonc=(path)=>JSON.parse(readFileSync(new URL(path,import.meta.url),'utf8').replace(/("(?:\\.|[^"\\])*")|\/\/[^\n]*|\/\*[\s\S]*?\*\//g,(m,str)=>str||'').replace(/,(\s*[}\]])/g,'$1'));
+test('dev repository snapshots cannot reach the production bucket',()=>{
+  const dev=jsonc('../../web/wrangler.dev.jsonc'),live=jsonc('../wrangler.jsonc');
+  const liveBuckets=(live.r2_buckets||[]).map(b=>b.bucket_name);
+  const snapshots=(dev.r2_buckets||[]).find(b=>b.binding==='REPOSITORY_SNAPSHOTS');
+  assert.ok(snapshots,'the dev config binds REPOSITORY_SNAPSHOTS');
+  assert.ok(!liveBuckets.includes(snapshots.bucket_name),`${snapshots.bucket_name} is a production bucket`);
+  assert.ok(!(live.r2_buckets||[]).some(b=>b.binding==='REPOSITORY_SNAPSHOTS'),'production binds REPOSITORY_SNAPSHOTS');
+  const source=readFileSync(new URL('../src/repositories.js',import.meta.url),'utf8');
+  assert.doesNotMatch(source,/env\.RUNS\b/,'repositories.js still reads or writes the live RUNS bucket');
 });
