@@ -14,6 +14,7 @@ import { learnGradeRoute } from '../control-plane/src/learn-grade-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { paidRefusal } from '../control-plane/src/learn-paid.js';
+import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 export { LearnVideos } from '../control-plane/src/learn-video.js';
@@ -150,6 +151,8 @@ export default {
     // the exact /api/learn/board route, which generates explanations.
     if (path.startsWith('/api/learn/boards/')) { const boards = await learnBoardsRoute(path, req, env); if (boards) return boards; }
     if (path === '/api/learn/search') return canvasSearch(req, env);
+    // The Learn canvas's bug / idea button (docs/features/learn-feedback.md).
+    if (path === '/api/learn/feedback') return feedbackFetch(req, env);
     // Learn Artifact Generation v1: a / command's validated canvas block
     // (docs/features/learn-artifact-generation.md).
     if (path === '/api/learn/artifact') {
