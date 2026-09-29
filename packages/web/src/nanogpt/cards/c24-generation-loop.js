@@ -121,7 +121,7 @@ export const scene = {
     // Directly under the captions: the one place bold and colour are keyed; it
     // keys the band's row too (• is only there). The toy note under it
     // qualifies what the bold means.
-    note('legend', '⏎ = new line · • = space · bold: the position whose prediction is drawn from · colour: the draw', 40, LEGEND_Y),
+    note('legend', '⏎ = new line; • = space; bold: the position whose prediction is drawn from; colour: the draw', 40, LEGEND_Y),
     note('toy', 'Toy: the bigram reads only the last character it is handed; NanoGPT’s Blocks read the whole row.', 40, LEGEND_Y + 22, hidden),
 
     // The practice case, last and set apart: derived opacity, no appear; text

@@ -60,7 +60,8 @@ export const scene = {
     // The captions quote the same • the text row shows, so a space is visible there too.
     windows: STEPS.map(s => chips(s.window).join('')),
     nextWindows: STEPS.map(s => chips(s.nextWindow).join('')),
-    shownByStep: STEPS.map(s => s.shown),
+    // The bar axis names a space candidate with the same • as the chips.
+    shownByStep: STEPS.map(s => s.shown.map(c => (c === 'space' ? '•' : c))),
     probsByStep: STEPS.map(s => s.probs),
     pickedRank: STEPS.map(s => s.pickedRank),
     picks: STEPS.map(s => quoted(s.picked)),

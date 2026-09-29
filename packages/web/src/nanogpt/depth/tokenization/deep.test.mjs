@@ -228,8 +228,10 @@ test('deep: the sampling path - B = 1, prompt length T, last position only; the 
     const [on, off] = inputs.meta ? ['char', 'bpe'] : ['bpe', 'char'];
     for (const id of [`edge-${on}`, `edge-${on}-detail`, `edge-${off}-detail`]) assert.equal(byId(result, id).opacity ?? 1, 1, `${id} ${JSON.stringify(inputs)}`);
     assert.equal(byId(result, `edge-${off}`).opacity, 0.72, `edge-${off} ${JSON.stringify(inputs)}`);
-    // A warning box cannot fade and stay 4.5:1, so the what-if KeyError row is grey.
-    for (const id of ['edge-char', 'edge-char-detail']) assert.equal(byId(result, id).role, inputs.meta ? 'warning' : 'neutral', `${id} ${JSON.stringify(inputs)}`);
+    // Red only when the KeyError happens now (meta.pkl found, the digit prompt); a what-if
+    // KeyError is grey like the other what-if row (NC10 review: a red pill and row beside
+    // "Input: Training batch" read as a live error). A warning box also cannot fade and stay 4.5:1.
+    for (const id of ['edge-char', 'edge-char-detail']) assert.equal(byId(result, id).role, inputs.meta && inputs.input === 'digits' ? 'warning' : 'neutral', `${id} ${JSON.stringify(inputs)}`);
     // Two rows never share a premise with different results: the dimmed row's what-if names the
     // other branch (the review: two "What-if: input = “Sonnet 18”" rows, KeyError and 3 IDs).
     const [litLead, dimLead] = [on, off].map(k => byId(result, `edge-${k}-detail`).label.split(' → ')[0]);

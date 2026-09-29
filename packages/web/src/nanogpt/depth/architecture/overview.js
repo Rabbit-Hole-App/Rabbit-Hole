@@ -161,7 +161,7 @@ export const scene = {
 
     // Stages 1-3: the pieces.
     { id: 'pieces', type: 'tokens', semanticId: 'pieces', conceptId: CONCEPT,
-      initialState: { label: '• marks a space', tokens: PIECES, x: PANEL_X, y: CHIP_Y, role: 'input', cellHighlight: { $derive: 'followedPiece' }, opacity: { $derive: 'showChips' } } },
+      initialState: { label: 'the pieces (• marks a space)', tokens: PIECES, x: PANEL_X, y: CHIP_Y, role: 'input', cellHighlight: { $derive: 'followedPiece' }, opacity: { $derive: 'showChips' } } },
 
     // Stage 2: the last piece's list plus its place's list (values not drawn).
     ...listRow('piece-list', LIST_Y[0], `the piece “${PIECES[LAST]}”`, '… {{C}} numbers in all, learned in training', 'input'),
@@ -183,7 +183,7 @@ export const scene = {
 
     // Stage 5: the chosen character joins the text.
     { id: 'next-pieces', type: 'tokens', semanticId: 'next-pieces', conceptId: CONCEPT,
-      initialState: { label: '• marks a space', tokens: [...PIECES, '{{next}}'], x: PANEL_X, y: CHIP_Y, role: 'input', cellHighlight: PIECES.length, opacity: { $derive: 'showNext' } } },
+      initialState: { label: 'the pieces (• marks a space)', tokens: [...PIECES, '{{next}}'], x: PANEL_X, y: CHIP_Y, role: 'input', cellHighlight: PIECES.length, opacity: { $derive: 'showNext' } } },
     note('next-note', '{{next}} is added. Now {{countNext}} characters go in, and the model guesses the one after.', PANEL_X, CHIP_Y + 72, { opacity: { $derive: 'showNext' } }),
 
     stroke('line', 'panel-floor', { x: PANEL_X - 4, y: PANEL_FLOOR }, { x: boxX(N - 1) + BOX_WS[N - 1], y: PANEL_FLOOR }, { opacity: DIM }),

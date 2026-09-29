@@ -62,7 +62,9 @@ test('each step shows the recorded pick joining the text and the next read', () 
     // Bars: the recorded top five, highest first, the pick lit and marked.
     const bars = byId(result, 'bars');
     assert.deepEqual(bars.values, s.probs);
-    assert.deepEqual(bars.labels, s.shown);
+    // The axis names a space candidate •, the same glyph as the chips, never the word.
+    assert.deepEqual(bars.labels, s.shown.map(c => (c === 'space' ? '•' : c)));
+    assert.ok(!bars.labels.includes('space'), `step ${i + 1}: no "space" word on the axis`);
     for (let k = 1; k < s.probs.length; k += 1) assert.ok(s.probs[k - 1] >= s.probs[k], 'bars are in order');
     assert.equal(bars.cellHighlight, s.pickedRank);
     assert.equal(s.shown[s.pickedRank], s.picked);

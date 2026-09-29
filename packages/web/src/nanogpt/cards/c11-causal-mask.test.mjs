@@ -46,13 +46,13 @@ test('c11 labels: real shakespeare_char characters, row i predicts character i +
   assert.equal(TEXT.slice(0, 7).join(''), 'Before ');
   const [result] = assertCardGates(scene, [{ mask: true }]);
   const table = byId(result, 'mask-table');
-  assert.deepEqual(table.rowLabels, ['0 · B → e', '1 · e → f', '2 · f → o', '3 · o → r', '4 · r → e', '5 · e → •']);
+  assert.deepEqual(table.rowLabels, ['0: B → e', '1: e → f', '2: f → o', '3: o → r', '4: r → e', '5: e → •']);
   assert.deepEqual(table.columnLabels, ['0 B', '1 e', '2 f', '3 o', '4 r', '5 e']);
   assert.deepEqual(byId(result, 'weights').rowLabels, table.columnLabels);
   assert.deepEqual(byId(result, 'weights').columnLabels, table.columnLabels);
   // The legend names the space, the character after the window, and never uses
   // "read" for the labels ("read" is what attention may access).
-  assert.match(byId(result, 'legend').label, /^Row label .*\(• = space, beyond this window\)/);
+  assert.match(byId(result, 'legend').label, /^Row labels “i: char → next char”: .*\(• = space, beyond this window\)/);
 });
 
 test('c11 mask on: the triangle, the even split, and every highlighted target is its row\'s first 0', () => {

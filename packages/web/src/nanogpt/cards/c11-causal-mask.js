@@ -89,11 +89,11 @@ export const scene = {
     text('question', 'Which positions may each position read, and why never its next character?', 40, 34, { typography: 'heading' }),
     note('status', 'Characters: Source value · every score 0: Calculated toy example · weights: Live calculation · mask off: What-if', 40, 60),
     note('equal-scores', 'Every score is 0 here, so the mask alone shapes the weights: each row splits 1 evenly over what it may read.', 40, 82),
-    note('legend', 'Row label “i · char → next char”: position i is trained to predict character i + 1 (• = space, beyond this window).', 40, 104),
+    note('legend', 'Row labels “i: char → next char”: position i is trained to predict character i + 1 (• = space, beyond this window).', 40, 104),
 
     { id: 'mask-table', type: 'grid', semanticId: 'causal-mask-table', conceptId: CONCEPT,
       initialState: { label: '{{maskLabel}}', x: G.x1, y: G.y, rows: T, cols: T, cell: CELL, matrixKind: 'input', numberFormat: 'integer', role: 'input',
-        heat: true, valueScale: 'fixed', rowLabels: CHARS.map((ch, i) => `${i} · ${ch} → ${show(TOKENS[i + 1])}`), columnLabels,
+        heat: true, valueScale: 'fixed', rowLabels: CHARS.map((ch, i) => `${i}: ${ch} → ${show(TOKENS[i + 1])}`), columnLabels,
         values: { $derive: 'maskTable' }, cellHighlight: TARGETS, cellHighlightKind: 'highlight', opacity: 0 } },
     ...targetFrames,
     { id: 'mask-to-weights', type: 'arrow', semanticId: 'mask-to-weights', conceptId: CONCEPT,

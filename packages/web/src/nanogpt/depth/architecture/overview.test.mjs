@@ -57,6 +57,14 @@ test('the example is the fixture context, one piece per character', () => {
   assert.deepEqual(pieces, [...'hear me spea'].map(ch => (ch === ' ' ? '•' : ch)));
   assert.match(byId(evaluated(scene, { stage: 1 })).get('stage-line').label, /so 12 pieces\.$/);
   assert.match(byId(evaluated(scene, { stage: 0 })).get('context-note').label, /these 12 characters/);
+  // The space key sits in a parenthetical after the row's label, never as a
+  // line of its own that starts with the glyph (reads as a bullet).
+  for (const [stage, id] of [[1, 'pieces'], [5, 'next-pieces']]) {
+    assert.equal(byId(evaluated(scene, { stage })).get(id).label, 'the pieces (• marks a space)');
+  }
+  for (const inputs of reviewStates) {
+    for (const label of labels(evaluated(scene, inputs))) assert.doesNotMatch(label, /^\s*•\s*\p{L}/u, `${JSON.stringify(inputs)}: ${label}`);
+  }
 });
 
 test('stage 2 pictures the last piece: its list plus its place list, each standing for C numbers', () => {

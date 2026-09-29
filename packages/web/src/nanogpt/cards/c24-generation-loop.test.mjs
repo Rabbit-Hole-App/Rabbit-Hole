@@ -189,7 +189,7 @@ test('c24 captions are true at both states; status words only; no citations, no 
     training: 'Training scores all positions in one pass: its text is given. Here the newest character is a draw.',
     loop: 'The loop runs max_new_tokens passes, with no other stop, and returns all of idx, the start included.',
     toy: 'Toy: the bigram reads only the last character it is handed; NanoGPT’s Blocks read the whole row.',
-    legend: '⏎ = new line · • = space · bold: the position whose prediction is drawn from · colour: the draw',
+    legend: '⏎ = new line; • = space; bold: the position whose prediction is drawn from; colour: the draw',
   };
   for (const result of assertCardGates(scene, reviewStates)) {
     for (const [id, label] of Object.entries(STATIC)) assert.equal(byId(result, id).label, label, id);
