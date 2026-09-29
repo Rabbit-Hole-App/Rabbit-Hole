@@ -2034,6 +2034,44 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
+  await check('wp6-learn-chrome: a fresh canvas shows no sample lesson; on a phone, project Learn keeps every menu item on screen or in a row that scrolls on purpose, the drawing tools clear of the zoom controls, and the composer fully visible', async () => {
+    const page = await open();
+    await noAsks(page);
+    await loaded(page, '/library');
+    const c = await canvas6(page, { title: 'wp6 fresh canvas', ...(ready ? { project: ready.name } : {}) });
+    try {
+      await loaded(page, `/apps/${c.name}`);
+      await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
+      await page.waitForTimeout(1500);
+      const sample = await page.evaluate(() => [...document.querySelectorAll('body *')].filter((n) => n.offsetParent !== null && n.childElementCount === 0 && /Lesson 1: Logistic regression/i.test(n.textContent)).length);
+      must(sample === 0, 'a fresh canvas shows the sample Logistic regression lesson');
+    } finally { await drop6(page, c.name); await page.context().close(); }
+    if (!ready) return;
+    const phone = await open({ width: 390, height: 844 });
+    await noAsks(phone);
+    await loaded(phone, `/apps/${ready.name}?tab=learn`);
+    const composer = phone.locator('[data-chat-composer]').first();
+    await composer.waitFor({ timeout: 30000 });
+    await phone.waitForTimeout(1500);
+    const clipped = await phone.evaluate(() => {
+      const names = /^(Files|Insert|Edit|Arrange|View)\b/;
+      const scrolls = (n) => { for (let p = n.parentElement; p; p = p.parentElement) { const o = getComputedStyle(p).overflowX; if (o === 'auto' || o === 'scroll') return true; } return false; };
+      return [...document.querySelectorAll('main button')].filter((b) => b.offsetParent !== null && names.test(b.textContent.trim())).filter((b) => {
+        const r = b.getBoundingClientRect();
+        return (r.left < 0 || r.right > innerWidth) && !scrolls(b);
+      }).map((b) => b.textContent.trim());
+    });
+    must(!clipped.length, `Learn menu items render partly off screen: ${clipped.join(', ')}`);
+    const box = async (loc) => ((await loc.count()) ? loc.first().boundingBox() : null);
+    const overlap = (a, b) => a && b && a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+    const tools = await box(phone.getByRole('toolbar', { name: 'Canvas tools' }));
+    const zoom = await box(phone.locator('[data-zoom]'));
+    must(!overlap(tools, zoom), 'the drawing tools sit under the zoom controls');
+    const cb = await composer.boundingBox();
+    must(cb.y >= 0 && cb.y + cb.height <= 844 && !overlap(cb, zoom) && !overlap(cb, tools), 'the composer is covered or off screen');
+    await phone.context().close();
+  });
+
   // Checks from Tasks 1-11 go here, in task order.
 }
 
