@@ -12,7 +12,7 @@ Projects", `ef9SfiemEsPQF2bd8B1os3`), with the exact node URL.
 | WP3 | Proposal lifecycle / action safety | Done, frozen |
 | WP4 | Home / Library / Explore / Start / Settings | Done (closeout 2026-09-28) |
 | WP5 | Mothership Agent Bar / command surface | Done (naming closeout 2026-09-28) |
-| WP6 | Project / Canvas / App destinations; Map as conversational knowledge graph | Active |
+| WP6 | Project / Canvas / App destinations; Map as conversational knowledge graph | Checkpoint 1 closed (2026-09-29); Checkpoint 2 active |
 | WP7 | Final integration / MVP verification | Last |
 
 ## Product model (user, 2026-09-28)
@@ -119,7 +119,12 @@ Harness checks sh-sidebar, sh-rail, sh-drawer and sh-legacy pass on the clone.
 
 ## WP6 destinations
 
-Checkpoint 1 built (2026-09-29), waiting for the user's Figma review: the Project, Canvas
+Checkpoint 1 CLOSED (user, 2026-09-29) after closeouts b and c (Figma 72:222, 74:222; review-only
+integration build feature/wp6-closeout-integration, kept as evidence only). Checkpoint 2 (the
+knowledge-graph layers below) is ACTIVE. Deferred minor: a subtle overflow/scroll cue on the
+mobile drawing toolbar (Learn-owned; its colour control scrolls into view at rest).
+
+Checkpoint 1 built (2026-09-29), reviewed in Figma: the Project, Canvas
 and App destination shell on clone small-cp-dev-smart-home (841c3a8a), commits 32bf6f6..0a5d6b1,
 browser suite 90/91 (the miss, G2-branch, is GitHub metadata through the repository worker and
 passed 2/2 on rerun). Checks: wp6-app-d7, wp6-app-denied, wp6-app-bar, wp6-canvas, wp6-project,
