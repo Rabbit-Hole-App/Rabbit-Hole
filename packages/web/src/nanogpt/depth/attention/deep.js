@@ -30,7 +30,7 @@ const TOKENS = att.context.tokens;
 const T = att.T;
 const LAST = T - 1;
 const range = Array.from({ length: T }, (unused, i) => i);
-const named = c => (c === '␣' ? 'sp' : c); // 'space' overflows a 30px column; c21 uses sp too
+const named = c => (c === '␣' ? '•' : c); // 'space' overflows a 30px column; keyed in rows-note
 const prefixes = m => range.map(t => m.slice(0, t + 1));
 const { batch_size: B, block_size: BLOCK, n_layer: NL, n_head: NH, n_embd: C, dropout: DROPOUT } = fx.architecture;
 const FP32_BYTES = 4;
@@ -114,7 +114,7 @@ export const scene = {
     fusedOnly: { manual: 0, fused: 1 },
     // What the chosen path does not run stays on screen, dimmed.
     manualOpacity: { manual: 1, fused: 0.25 },
-    fusedOpacity: { manual: 0.25, fused: 1 },
+    fusedOpacity: { manual: 0.72, fused: 1 }, // the fused call's box only: its text reads on both paths (NC10)
     pathNotes: { manual: 'manual: att is built whole in every layer and kept for backward', fused: 'fused: flash / memory-efficient kernels never hold the whole att;' },
     pathNotes2: { manual: 'fused SDPA need not materialize this full matrix.', fused: 'the math version (non-CUDA, or inputs they reject) still builds it.' },
     fusedLabels: { on: 'scaled_dot_product_attention(is_causal=True)', off: 'scaled_dot_product_attention(is_causal=True, scale=1.0)' },
@@ -248,7 +248,7 @@ export const scene = {
       { id: 'first-note', type: 'text', semanticId: 'first-row', conceptId: 'causal-mask',
         initialState: { text: '{{firstNote}}', x: RX, y: GRID_Y + 18, typography: 'annotation' } },
       { id: 'rows-note', type: 'text', semanticId: 'rows-stable', conceptId: 'causal-mask',
-        initialState: { text: 'Growing T adds a row and a column; old rows stay. sp = space.', x: RX, y: GRID_Y + 40, typography: 'annotation' } },
+        initialState: { text: 'Growing T adds a row and a column; old rows stay. • = space.', x: RX, y: GRID_Y + 40, typography: 'annotation' } },
       { id: 'dropout-note', type: 'text', semanticId: 'dropout-note', conceptId: 'dropout',
         initialState: { text: `Training only: dropout ${DROPOUT} zeroes weights; rows may not sum to 1.`, x: RX, y: GRID_Y + 62, typography: 'annotation' } },
       // ponytail: only the newest row's y - the derive seam has no row slice for a
@@ -290,10 +290,10 @@ export const scene = {
         initialState: { label: { $derive: 'fusedLabel' }, x: COL, y: FUSED_Y, w: FUSED_W, h: FUSED_H, role: 'code',
           opacity: { $derive: 'fusedLit' } } },
       { id: 'fused-shape', type: 'text', semanticId: 'fused-shape', conceptId: 'shapes',
-        initialState: { text: FUSED_SHAPE, x: COL, y: FUSED_Y + FUSED_H + 24, typography: 'annotation', opacity: { $derive: 'fusedLit' } } },
+        initialState: { text: FUSED_SHAPE, x: COL, y: FUSED_Y + FUSED_H + 24, typography: 'annotation' } },
       // SDPA's own 1/sqrt(E) default (E = hs): the what-if would pass scale=1.0.
       { id: 'fused-scale', type: 'text', semanticId: 'fused-scale', conceptId: 'scaling',
-        initialState: { text: '{{fusedScale}}', x: COL, y: FUSED_Y + FUSED_H + 44, typography: 'annotation', opacity: { $derive: 'fusedLit' } } },
+        initialState: { text: '{{fusedScale}}', x: COL, y: FUSED_Y + FUSED_H + 44, typography: 'annotation' } },
     ),
 
     // 4/4 The what-if: why 1/sqrt(hs).

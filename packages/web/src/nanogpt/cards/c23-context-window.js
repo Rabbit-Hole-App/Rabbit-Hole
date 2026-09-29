@@ -54,6 +54,7 @@ const CROP_Y = 162, IDX_Y = 170, ROW_H = 40, CHAR_Y = IDX_Y + 27, READ_Y = IDX_Y
 const READOUT_X = 600;
 const COUNT_Y = 293, P_Y = COUNT_Y + CELL;
 const BARS = { y: P_Y + CELL + 28, h: 150 }; // 461..611, labels under; the winner's frame starts 16 below the p grid
+const SLOTS = W.slots.map(s => (s === 'sp' ? '•' : s)); // the fixture's slot name sp, shown as •
 const SIDE_X = COL_X + W.slots.length * CELL + 14; // 604, right of the grids and bars
 const CAP_Y = 669; // the two state-caption lines beside a quiet left rule; their tops clear the frame (631) by 20+
 const CONCEPT = 'context-window';
@@ -93,7 +94,7 @@ export const scene = {
     // ② that toy table's row for exactly idx_cond; ③ p = count × 100 / matches.
     countsByBlock: W.counts,
     pctPerMatchByBlock: W.matches.map(m => 100 / m), // the evaluator has no division
-    slotLabels: W.slots,
+    slotLabels: SLOTS,
     topPctTexts: TOP.map((top, b) => `${pct[b][top]}%`),
     captionsA: KS.map((k, b) => (k === T
       ? `No crop: all ${T} characters are read; after ${q(W.windows[b])}, e followed in ${W.counts[b][E]} of ${W.matches[b]} matches.`
@@ -156,7 +157,7 @@ export const scene = {
     // ② the toy table's row for exactly idx_cond.
     { id: 'counts', type: 'grid', semanticId: 'next-character-counts', conceptId: CONCEPT,
       initialState: { x: COL_X, y: COUNT_Y, rows: 1, cols: W.slots.length, cell: CELL, matrixKind: 'input', role: 'input', numberFormat: 'integer',
-        rowLabels: ['count'], columnLabels: [...W.slots], values: { $derive: 'countsRow' }, ...hidden } },
+        rowLabels: ['count'], columnLabels: [...SLOTS], values: { $derive: 'countsRow' }, ...hidden } },
     text('matches', 'matches = {{matches}}', SIDE_X, COUNT_Y + 30, hidden),
     note('matches-note', 'times “{{kept}}” occurs in the training text', SIDE_X, COUNT_Y + 50, hidden),
 
@@ -169,7 +170,7 @@ export const scene = {
     { id: 'top-frame', type: 'box', semanticId: 'most-likely-column', conceptId: CONCEPT,
       initialState: { x: { $derive: 'frameX' }, y: BARS.y - 12, w: CELL + 2, h: BARS.h + 32, role: 'prediction', ...hidden } }, // 449..631
     { id: 'bars', type: 'bars', semanticId: 'next-character-bars', conceptId: CONCEPT,
-      initialState: { x: COL_X, y: BARS.y, h: BARS.h, cell: CELL, peak: 100, role: 'prediction', labels: [...W.slots],
+      initialState: { x: COL_X, y: BARS.y, h: BARS.h, cell: CELL, peak: 100, role: 'prediction', labels: [...SLOTS],
         values: { $derive: 'pPct' }, cellHighlight: { $derive: 'top' }, cellHighlightKind: 'highlight', ...hidden } },
     text('top-readout', 'Most likely next: {{topCh}} ({{pTop}})', { $derive: 'topReadoutX' }, BARS.y + 6, { role: 'prediction', ...hidden }),
     // The two lines that change with block_size, indented beside a quiet left rule (a bordered panel read as a text field), apart from the constant lines under it.
@@ -179,7 +180,7 @@ export const scene = {
     text('only-idx-cond', 'The prediction can use only idx_cond: whatever the crop removes no longer counts.', 40, CAP_Y + 46, hidden),
     text('idx-keeps', 'idx keeps every character: the crop limits what the model reads, not the text generate() returns.', 40, CAP_Y + 68, hidden),
 
-    note('legend', 'other = every remaining character together · each p cell is rounded on its own', 40, CAP_Y + 92),
+    note('legend', '• = space · other = every remaining character together · each p cell is rounded on its own', 40, CAP_Y + 92),
     note('footer-1', `Source value: NanoGPT’s block_size is fixed by the trained model, ${B_NANO} for shakespeare_char;`, 40, CAP_Y + 114),
     note('footer-2', `the crop starts once idx passes ${B_NANO}.`, 40, CAP_Y + 132),
     note('footer-3', 'The forward accepts at most block_size positions: wpe has one learned row for each.', 40, CAP_Y + 150),
@@ -283,7 +284,7 @@ export const sources = [
   code('train.py', 190, 192, 'Collection candidate: "if block_size < model.config.block_size:", "model.crop_block_size(block_size)", "model_args[\'block_size\'] = block_size # so that the checkpoint will have the right value".'),
   code('data/shakespeare_char/prepare.py', 38, 40, 'The training split the toy counts: "n = len(data)", "train_data = data[:int(n*0.9)]", "val_data = data[int(n*0.9):]".'),
   { ...calculation('Calculated toy example', `Next-character counts after the last k characters of "${W.text}"`,
-    `gen_generation.py window(): over the training split (prepare.py's first 90%, ${g.trainChars} characters), for each toy block_size k = ${KS.join(', ')}, count train[i + k] wherever train[i:i + k] is the last k characters of "${W.text}" - a separate table per k, not NanoGPT and not the recorded bigram. Columns ${W.slots.join(', ')} (sp = space; other = every remaining character together). ${rows}. The generator asserts each row sums to its matches, each window's top 3 is shown, and the block_size-3 row equals the depth ladder's toy table.`),
+    `gen_generation.py window(): over the training split (prepare.py's first 90%, ${g.trainChars} characters), for each toy block_size k = ${KS.join(', ')}, count train[i + k] wherever train[i:i + k] is the last k characters of "${W.text}" - a separate table per k, not NanoGPT and not the recorded bigram. Columns ${W.slots.join(', ')} (sp = space, shown as •; other = every remaining character together). ${rows}. The generator asserts each row sums to its matches, each window's top 3 is shown, and the block_size-3 row equals the depth ladder's toy table.`),
   reproduce: REPRODUCE_GEN },
   calculation('Live calculation', 'matches, p and the most likely next character',
     'Computed on the card as block_size moves: pick (the kept characters, bracket ends, the count row, 100 ÷ matches, strings), sum (matches), scale (p = count × 100 ÷ matches; −p) and argmin (the most likely next character). Each p cell is rounded to 2 decimals on its own, so the block_size-3 row prints a total of 100.01; caption percentages are the same cells.'),

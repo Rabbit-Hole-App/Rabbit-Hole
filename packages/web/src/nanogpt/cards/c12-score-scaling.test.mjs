@@ -136,7 +136,7 @@ test('c12 the × 0 row: gated before commit, six 0.17 cells and three blanks aft
     assert.ok(['zero-1', 'zero-2', 'zero-3'].every(id => shown(revealed).includes(id)));
     assert.equal(byId(revealed, 'zero-1').label, '× 0 is not positive: no gap is left, so no order either.');
     assert.equal(byId(revealed, 'zero-2').label, '6 scores of 0, so 6 equal weights of 1/6, ‘r’ included.');
-    assert.equal(byId(revealed, 'zero-3').label, 'sp w e stay blank: the mask comes after the multiplier.');
+    assert.equal(byId(revealed, 'zero-3').label, '“• w e” stay blank: the mask comes after the multiplier.');
     assert.match(byId(revealed, 'zero-row').label, /What-if/);
   }
   // No preset draws a tie or the value 1/6 before the reveal.

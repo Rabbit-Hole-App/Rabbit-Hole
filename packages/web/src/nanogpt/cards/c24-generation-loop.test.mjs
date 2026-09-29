@@ -16,7 +16,7 @@ import { scene, plan, reviewStates, activity, sources, evidence } from './c24-ge
 // c24: the judge's re-computation at iteration 100) - never the module's own strings.
 const DRAWN = ['N', 'a', 'k', 'i', 'f', 'o', 'n', 'o'];
 const ROMEO = [' ', 'm', 'e', 'l', ':'];
-const show = ch => (ch === '\n' ? '⏎' : ch === ' ' ? 'sp' : ch);
+const show = ch => (ch === '\n' ? '⏎' : ch === ' ' ? '•' : ch);
 const ROWS = [['\n']];
 for (let k = 1; k < DRAWN.length; k += 1) ROWS.push([...ROWS[k - 1], DRAWN[k - 1]]); // rows[k] = rows[k − 1] + drawn[k − 1]
 const SHOWN = ROWS.map(row => row.map(show));
@@ -189,7 +189,7 @@ test('c24 captions are true at both states; status words only; no citations, no 
     training: 'Training scores all positions in one pass: its text is given. Here the newest character is a draw.',
     loop: 'The loop runs max_new_tokens passes, with no other stop, and returns all of idx, the start included.',
     toy: 'Toy: the bigram reads only the last character it is handed; NanoGPT’s Blocks read the whole row.',
-    legend: '⏎ = new line · sp = space · bold: the position whose prediction is drawn from · colour: the draw',
+    legend: '⏎ = new line · • = space · bold: the position whose prediction is drawn from · colour: the draw',
   };
   for (const result of assertCardGates(scene, reviewStates)) {
     for (const [id, label] of Object.entries(STATIC)) assert.equal(byId(result, id).label, label, id);
@@ -284,7 +284,7 @@ test('c24 sources: every status labelled on the card; provenance lives under it'
   assert.deepEqual(sources.filter(s => s.kind === 'calculation').map(s => s.status), ['Recorded toy run', 'Source value']);
   const recorded = sources.find(s => s.status === 'Recorded toy run');
   assert.match(recorded.reproduce, /gen_training_loss\.py --check$/);
-  assert.ok(recorded.note.includes('N a k i f o n o') && recorded.note.includes('sp m e l :'), 'the practice draws sit under Recorded toy run');
+  assert.ok(recorded.note.includes('N a k i f o n o') && recorded.note.includes('• m e l :'), 'the practice draws sit under Recorded toy run');
   assert.match(sources.find(s => s.status === 'Source value').reproduce, /gen_generation\.py --check$/);
   assert.deepEqual(sources.filter(s => s.kind === 'code').map(s => `${s.path}:${s.lines.join('-')}`), [
     'model.py:305-309', 'model.py:312-312', 'model.py:314-314', 'model.py:316-318', 'model.py:320-322', 'model.py:324-326',

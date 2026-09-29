@@ -239,21 +239,26 @@ const domainOf = (declaration, data) => {
   if (declaration.type === 'choice') return (declaration.options || []).map(option => option.id);
   return [];
 };
-// Cards whose resting dims fall under 4.5:1 and wait on the owner: each is
-// a focus or mask dim on an approved design, not secondary text. The check
-// fails on any other card, and on an entry here that no longer fails.
-const PENDING_OWNER = {
-  'nanogpt-c10-weighted-values': 'later characters\' names fade with their masked value dots to 0.3',
-  'depth-tokenization-guided': 'the vocabulary table rests at 0.4 until its step',
-  'depth-tokenization-deep': 'the unpicked edge detail dims to 0.35',
-  'depth-architecture-overview': 'the loop note rests at 0.3',
-  'depth-architecture-deep': 'parts outside the picked one dim to 0.3',
-  'depth-attention-deep': 'parts outside the picked one dim to 0.25',
-  'depth-generation-deep': 'parts outside the picked one dim to 0.3',
+// Owner classification (NC10, 2026-09-29; docs/features/learn-canvas-blocks.md
+// "Dimmed text stays readable"): a dim under 4.5:1 is allowed only on content
+// that is intentionally unavailable (B), named here by object and by the input
+// state it is dimmed in, with the reason. The check fails on any other glyph,
+// and on a listed object that no longer fails in its state.
+const EXEMPT = {
+  'depth-architecture-overview': { when: s => s.stage < 5, objects: ['loop-note'],
+    why: 'stages 1-5: the loop is a stage not yet reached; its note reads at full strength on stage 6' },
+  'depth-architecture-deep': { when: s => s.call === 'direct',
+    objects: ['embed-shape', 'eq-embed', 'block-header', 'qkv-shape', 'att-shape', 'att-path', 'att-path-default', 'attnOut-shape', 'fc-shape',
+      'mlpOut-shape', 'eq-att', 'eq-attn', 'eq-mlp', 'lnf-shape', 'head-shape', 'loss-shape', 'eq-logits'],
+    why: 'model(idx) at T = 257 fails the assert: nothing below it runs, and the warning line says so' },
+  'depth-attention-deep': { when: s => s.path === 'fused', objects: ['shape-scores', 'shape-scale', 'shape-mask', 'shape-softmax', 'shape-mix', 'att'],
+    why: 'fused path: the five manual steps one SDPA call replaces (1/4) and the att it never holds (2/4); the fused note says so' },
+  'depth-generation-deep': { when: s => s.temperature === 't0', objects: ['shape-topk', 'shape-softmax', 'shape-draw', 'shape-cat', 'probs'],
+    why: 'T = 0 (What-if): every step after ÷ T is invalid; the warning lines say what happens instead' },
 };
 
 test('every glyph on the scene surface clears 4.5:1 at rest, its object opacity composited, on every card in both themes', t => {
-  const failures = new Map();
+  const failures = new Map(), exempted = new Set();
   for (const [board, make] of Object.entries(BOARDS)) {
     for (const block of make().filter(b => b.scene)) {
       const scene = block.scene;
@@ -261,13 +266,16 @@ test('every glyph on the scene surface clears 4.5:1 at rest, its object opacity 
       const states = [{}, ...(BOARD_REVIEW_STATES[board]?.[scene.id] || [])];
       for (const d of scene.inputs || []) for (const value of domainOf(d, scene.exampleData).slice(0, 40)) states.push({ [d.name]: value });
       for (const state of states) {
-        const { state: frame } = evaluateScene(structuredClone(scene), scene.duration, { ...defaults, ...state });
+        const inputs = { ...defaults, ...state };
+        const { state: frame } = evaluateScene(structuredClone(scene), scene.duration, inputs);
         for (const object of frame.objects.filter(o => o.visible && o.opacity > 0)) {
           for (const ink of surfaceInks(object)) {
             for (const theme of THEMES) {
               const surface = token(theme, '--viz-surface');
               const ratio = contrast(over(hexOf(theme, ink), object.opacity * 100, surface), rgb(surface));
               if (ratio >= 4.5) continue;
+              const rule = EXEMPT[scene.id];
+              if (rule?.objects.includes(object.id) && rule.when(inputs)) { exempted.add(`${scene.id} ${object.id}`); continue; }
               if (!failures.has(scene.id)) failures.set(scene.id, new Set());
               failures.get(scene.id).add(`${object.id} ${theme} ${ratio.toFixed(2)}:1 at opacity ${object.opacity}`);
             }
@@ -276,12 +284,11 @@ test('every glyph on the scene surface clears 4.5:1 at rest, its object opacity 
       }
     }
   }
-  for (const [id, why] of Object.entries(PENDING_OWNER)) {
-    if (failures.has(id)) t.diagnostic(`owner pending, ${id} (${why}): ${[...failures.get(id)].slice(0, 3).join('; ')}`);
-  }
-  const unexpected = [...failures].filter(([id]) => !PENDING_OWNER[id]).map(([id, hits]) => `${id}: ${[...hits].join('; ')}`);
+  for (const [id, { why }] of Object.entries(EXEMPT)) t.diagnostic(`exempt (B), ${id}: ${why}`);
+  const unexpected = [...failures].map(([id, hits]) => `${id}: ${[...hits].join('; ')}`);
   assert.deepEqual(unexpected, [], 'a glyph on the scene surface under 4.5:1 - raise its opacity, or its ink');
-  assert.deepEqual(Object.keys(PENDING_OWNER).filter(id => !failures.has(id)), [], 'these cards now pass - drop them from PENDING_OWNER and the doc rule');
+  const stale = Object.entries(EXEMPT).flatMap(([id, { objects }]) => objects.map(object => `${id} ${object}`)).filter(key => !exempted.has(key));
+  assert.deepEqual(stale, [], 'these no longer fail in their state - drop them from EXEMPT and the doc rule');
 });
 
 // Pass/fail feedback is learner-facing text on the practice panel's card

@@ -78,6 +78,8 @@ export const scene = {
     // Per query: later characters fade and lose their spoke; at the first
     // character the one spoke has zero length, so it is hidden too.
     dotOps: TOKENS.map((unused, q) => visibleUpTo(q, 1, 0.3)),
+    // A later character's name stays readable (0.72, 4.5:1); only its dot fades.
+    nameOps: TOKENS.map((unused, q) => visibleUpTo(q, 1, 0.72)),
     spokeOps: TOKENS.map((unused, q) => (q === 0 ? TOKENS.map(() => 0) : visibleUpTo(q, 1, 0))),
     // The practice reveal draws only at the practice's own query.
     ghostOps: TOKENS.map((unused, q) => (q === TOKENS.length - 1 ? 1 : 0)),
@@ -105,6 +107,7 @@ export const scene = {
     topAt: { op: 'argmin', args: ['negRow'] },
     topWord: { op: 'pick', args: ['tokens', 'topAt'] },
     dotOp: { op: 'pick', args: ['dotOps', 'query'] },
+    nameOp: { op: 'pick', args: ['nameOps', 'query'] },
     spokeOp: { op: 'pick', args: ['spokeOps', 'query'] },
     // Practice reveal (What-if): equal weights -> the plain average.
     uniform: { op: 'softmax', args: ['zeros4'] },
@@ -152,7 +155,7 @@ export const scene = {
     ...VPX.map(([x, y], j) => dot(`value-${j}`, x, y, DOT, 'input', { $derive: `dotOp.${j}` })),
     ...VPX.map((p, j) => {
       const [x, y] = nameAt(p, V[j][1]);
-      return text(`name-${j}`, TOKENS[j], x, y, { opacity: { $derive: `dotOp.${j}` } });
+      return text(`name-${j}`, TOKENS[j], x, y, { opacity: { $derive: `nameOp.${j}` } });
     }),
     // The What-if reveal after Check, under the output dot.
     dot('mean-dot', { $derive: 'meanPx.0' }, { $derive: 'meanPx.1' }, MEAN_DOT, 'neutral', { $derive: 'ghostOp' }),

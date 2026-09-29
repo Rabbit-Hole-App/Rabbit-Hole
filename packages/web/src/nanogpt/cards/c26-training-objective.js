@@ -20,7 +20,7 @@ import { code, calculation, tinyShakespeare } from '../sources.js';
 const A = fx.architecture;
 const OBJ = tl.recorded.objective;
 const STREAM = fx.tokenizer.tokenizers.find(t => t.id === 'char').tokens.slice(0, OBJ.text.length);
-const show = ch => (ch === '␣' ? 'sp' : ch);
+const show = ch => (ch === '␣' ? '•' : ch);
 const PAIRS = OBJ.pairs.map(pair => pair.split('→').map(show).join('→'));
 const N = PAIRS.length; // 8 scored positions at most
 const Ts = PAIRS.map((unused, i) => i + 1);
@@ -135,7 +135,7 @@ export const scene = {
     note('y-label', 'y (targets)', 40, Y_LINE_Y + 4, { role: 'observed', ...hidden }),
     line('y-slice', { x: COL_X + CELL + 6, y: Y_LINE_Y }, { x: { $derive: 'yEnd' }, y: Y_LINE_Y }, 'observed', hidden),
     text('shift-1', 'y is x shifted by one: position i’s target is character i + 1.', 40, 192, hidden),
-    text('shift-2', 'A window of T characters gives T scored predictions (sp = space).', 40, 212, hidden),
+    text('shift-2', 'A window of T characters gives T scored predictions (• = space).', 40, 212, hidden),
 
     // ② score each position.
     { id: 'scores', type: 'grid', semanticId: 'per-position-scores', conceptId: CONCEPT,
@@ -262,7 +262,7 @@ export const sources = [
   code('data/shakespeare_char/prepare.py', 24, 25, `The ${V} characters: "chars = sorted(list(set(data)))", "vocab_size = len(chars)" - a uniform guess scores ln ${V} = ${UNIFORM} at every position.`),
   code('data/shakespeare_char/prepare.py', 38, 40, `“${OBJ.text}” is training text: "n = len(data)", "train_data = data[:int(n*0.9)]", "val_data = data[int(n*0.9):]".`),
   { ...calculation('Recorded toy run', `p(target) for “${OBJ.text}” at iteration ${OBJ.iteration}`,
-    `The seeded toy run c18 plots (generate_fixtures.py toy_run, seed ${run.seed}): ${run.model}, trained on the first ${run.config.train_chars} characters of the training split. gen_training_loss.py calls it unchanged, copies its weight table at iteration ${OBJ.iteration} (its last checkpoint, train loss ${run.checkpoints.at(-1).train} over the whole slice) and, for each position of “${OBJ.text}” (character ${OBJ.at} of that slice, asserted inside it), records p(target) = softmax of the previous character's row, 6 decimals: ${fmt(OBJ.p)}. A bigram reads only the previous character, so e→f and e→sp come from one row. The card prints p × 100 to 2 decimals.`),
+    `The seeded toy run c18 plots (generate_fixtures.py toy_run, seed ${run.seed}): ${run.model}, trained on the first ${run.config.train_chars} characters of the training split. gen_training_loss.py calls it unchanged, copies its weight table at iteration ${OBJ.iteration} (its last checkpoint, train loss ${run.checkpoints.at(-1).train} over the whole slice) and, for each position of “${OBJ.text}” (character ${OBJ.at} of that slice, asserted inside it), records p(target) = softmax of the previous character's row, 6 decimals: ${fmt(OBJ.p)}. A bigram reads only the previous character, so e→f and e→• come from one row. The card prints p × 100 to 2 decimals.`),
   reproduce: REPRODUCE_TL },
   { ...calculation('Calculated toy example', '−ln p and e^mean',
     `gen_training_loss.py, float64: −ln p to 4 decimals (${fmt(OBJ.loss)}), and e^mean for T = 1..${N} to 2 decimals (${fmt(OBJ.pplByT)}), where the mean is the card's own printed value (the 3-decimal sum times 1/T, rounded to 3). The card has no log or exp, so both are computed there. Each cell is rounded on its own: −ln of a printed p can differ from the printed −ln p by 0.01 (e→f: 3.98 against 3.99).`),

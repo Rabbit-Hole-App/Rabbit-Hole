@@ -16,19 +16,19 @@ const { scene, plan, reviewStates, sources, evidence } = card;
 
 // Independent oracle, typed as the plan lists it (docs/nanogpt-deep-dive-batch5-plans.md,
 // c25, "Values at iteration 100", judge re-computed) - never the scene's derive graph.
-const COLUMNS = ['sp', 'a', 'e', 'i', 'n', 'r', 't', 'w'];
+const COLUMNS = ['•', 'a', 'e', 'i', 'n', 'r', 't', 'w'];
 const TABLE = [ // prev, pairs, cells (%) in column order, printed other 57, texts
   ['e', 122, [19.8998, 8.1513, 3.5862, 1.2795, 8.5909, 11.2289, 1.4218, 0.1931], '45.65', [['Before we', 15], ['hear me', 46]]],
   [' ', 171, [0.1798, 9.0717, 2.0178, 5.7338, 0.6328, 4.3081, 12.1533, 7.0709], '58.83', [['Before we ', 15], ['hear me ', 46]]],
   ['h', 39, [0.2600, 11.3547, 39.0422, 18.0488, 0.2600, 0.2577, 3.1119, 0.2587], '27.41', [['to famish', 137], ['this with', 878]]],
   [',', 14, [72.2448, 0.4248, 0.4362, 0.4330, 0.4415, 0.4328, 0.4310, 0.4339], '24.72', [['further,', 37], ['Speak,', 67]]],
 ];
-const NAMES = ['‘e’', 'sp', '‘h’', '‘,’'];
-// The sp line names the sp as Shakespeare's own next character, not a draw; the
+const NAMES = ['‘e’', '‘•’', '‘h’', '‘,’'];
+// The ‘•’ line names the space as Shakespeare's own next character, not a draw; the
 // ‘h’ and ‘,’ line holds when the appended character is the same one again.
 const APPEND = [
-  'Append sp, as Shakespeare does next, and the toy switches to row sp: pick the sp preset.',
-  'The ‘e’ texts plus Shakespeare’s next character, sp (not a draw): the toy switched to row sp.',
+  'Append ‘•’, as Shakespeare does next, and the toy switches to row ‘•’: pick the ‘•’ preset.',
+  'The ‘e’ texts plus Shakespeare’s next character, ‘•’ (not a draw): the toy switched to row ‘•’.',
   'Append any character and the next row is that character’s row; the toy reads nothing before it.',
   'Append any character and the next row is that character’s row; the toy reads nothing before it.',
 ];
@@ -40,7 +40,7 @@ const byId = (result, id) => result.state.objects.find(object => object.id === i
 const shown = result => result.state.objects.filter(object => object.visible).map(object => object.id);
 const labels = result => result.state.objects.filter(o => o.visible && o.label).map(o => o.label);
 const withoutContributors = box => { const { contributors: _c, ...rest } = box; return rest; };
-const tokensOf = t => ['…', ...[...t].map(ch => (ch === ' ' ? 'sp' : ch))];
+const tokensOf = t => ['…', ...[...t].map(ch => (ch === ' ' ? '•' : ch))];
 
 test('c25 passes every gate at every review state', () => {
   assertCardGates(scene, reviewStates);
@@ -48,7 +48,7 @@ test('c25 passes every gate at every review state', () => {
   // One INTERACT control: the previous-character preset picker, default ‘e’.
   assert.deepEqual(scene.inputs.map(i => [i.name, i.type, i.presentation, i.label, i.default, i.hidden]),
     [['prev', 'index', 'picker', 'Previous character (preset)', 0, undefined]]);
-  assert.deepEqual(scene.exampleData.prevLabels, ['‘e’', 'sp (space)', '‘h’', '‘,’ (comma)']);
+  assert.deepEqual(scene.exampleData.prevLabels, ['‘e’', '‘•’ (space)', '‘h’', '‘,’ (comma)']);
   // Explore-only (inventory row 25): no practice.
   assert.equal(card.activity, undefined);
 });
@@ -63,7 +63,7 @@ test('c25 fixture: the recorded bigram at the checkpoint the save rule keeps, fo
   const afterZero = run.checkpoints.filter(c => c.iteration > 0);
   assert.equal(Math.min(...afterZero.map(c => c.val)), run.checkpoints[run.bestValIndex].val);
   assert.equal(tl.recorded.generation.checkpoint, C.iteration, 'c24 and c25 share the checkpoint');
-  assert.deepEqual(C.columns.map(c => (c === ' ' ? 'sp' : c)), COLUMNS);
+  assert.deepEqual(C.columns.map(c => (c === ' ' ? '•' : c)), COLUMNS);
   TABLE.forEach(([prev, pairs, cells, rest, texts], k) => {
     const p = C.presets[k];
     assert.equal(p.prev, prev);
@@ -110,10 +110,10 @@ test('c25 every stage follows the previous character and matches the oracle', ()
       assert.equal(row.cellHighlight, row.tokens.length - 1);
       assert.equal(row.cellHighlightKind, 'highlight');
       assert.equal(row.tokenStyle, 'labels');
-      assert.equal(row.tokens.at(-1), prev === ' ' ? 'sp' : prev);
+      assert.equal(row.tokens.at(-1), prev === ' ' ? '•' : prev);
       // The row is named by its text as words, so it reads without spelling the tokens;
-      // a trailing space is the card's sp after the quotes, never a bare space before “”” (R-c25-1).
-      assert.equal(byId(result, `${id}-label`).label, t.endsWith(' ') ? `“…${t.trimEnd()}” + sp` : `“…${t}”`);
+      // a trailing space is the card's ‘•’ after the quotes, never a bare space before “”” (R-c25-1).
+      assert.equal(byId(result, `${id}-label`).label, t.endsWith(' ') ? `“…${t.trimEnd()}” + ‘•’` : `“…${t}”`);
       assert.doesNotMatch(byId(result, `${id}-label`).label, /\s”/);
     }
     // Both read characters stack in one column (x-centres within 4 units), and one
@@ -156,7 +156,7 @@ test('c25 every stage follows the previous character and matches the oracle', ()
   // Peaked after the comma, spread after sp: the condition alone moves the distribution.
   assert.ok(Math.max(...TABLE[3][2]) > 70 && Math.max(...TABLE[1][2]) < 13);
   // ‘e’ → sp: the same two texts, one space longer, get a different row.
-  assert.deepEqual(byId(results[1], 'text-a').tokens, [...byId(results[0], 'text-a').tokens, 'sp']);
+  assert.deepEqual(byId(results[1], 'text-a').tokens, [...byId(results[0], 'text-a').tokens, '•']);
   assert.notDeepEqual(byId(results[1], 'row').values, byId(results[0], 'row').values);
 });
 
@@ -172,7 +172,7 @@ test('c25 captions are true at every state; status words only; no most-likely ma
     'bars-top-tag': 'bar height 100%',
     'bars-zero-tag': 'bar height 0%',
     'rest-label': 'the other 57',
-    legend: 'the same 8 of the 65 next characters for every row, each cell rounded on its own; sp = space; … = earlier text',
+    legend: 'the same 8 of the 65 next characters for every row, each cell rounded on its own; • = space; … = earlier text',
     loop: 'When it writes, each draw is appended and becomes the next previous character.',
     'nano-1': 'NanoGPT: generate() takes the logits at the last position of the text it is handed.',
     'nano-2': 'Through attention that position can read every earlier character and its position; the toy reads one.',

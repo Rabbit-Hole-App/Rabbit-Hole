@@ -48,10 +48,10 @@ const r3 = v => Math.round(v * 1000) / 1000;
 // Each sub-card's own objects.
 const OWN = [
   ['question', 'prerequisites', 'step-crop', 'shape-crop', 'next-crop', 'step-forward', 'shape-forward', 'next-forward', 'step-scale', 'shape-scale',
-    'idx', 'crop-line', 'forward-line', 'tradeoff-crop'],
+    'idx', 'crop-line', 'space-key-crop', 'forward-line', 'tradeoff-crop'],
   ['question-temperature', 'step-topk', 'shape-topk', 'scaled', 'cut-marks', 'cut-key', 'no-logits', 't-line', 'k-line', 'eq-topk', 'eq-key', 'tradeoff-k'],
   ['question-softmax', 'step-softmax', 'shape-softmax', 'probs', 'kept-count', 'no-probs', 'eq-softmax', 'eq-key-softmax', 'renorm', 'renorm-none'],
-  ['question-draw', 'step-draw', 'shape-draw', 'next-draw', 'step-cat', 'shape-cat', 'draw-line', 'idx-next', 'appended', 'invalid-draw', 'no-greedy'],
+  ['question-draw', 'step-draw', 'shape-draw', 'next-draw', 'step-cat', 'shape-cat', 'draw-line', 'idx-next', 'space-key-cat', 'appended', 'invalid-draw', 'no-greedy'],
 ];
 
 test('deep dive passes every gate in every configuration on every sub-card; structure of the depth', () => {
@@ -230,9 +230,10 @@ test('branches: the crop changes nothing downstream; top_k 200 is a no-op on 65 
   const base = { topK: 'k3', temperature: 't08' };
   const [long, short] = [whole({ ...base, prompt: 'long' }), whole({ ...base, prompt: 'short' })];
   assert.deepEqual(byId(long, 'probs').values, byId(short, 'probs').values, 'only the last block_size characters are read');
-  // The prompt's space shows as a visible ␣ chip.
-  assert.deepEqual(byId(long, 'idx').tokens, [...g.prompt].map(c => (c === ' ' ? '␣' : c)));
-  assert.ok(byId(long, 'idx').tokens.every(t => t.trim() !== '') && byId(long, 'idx-next').tokens.includes('␣'));
+  // The prompt's space shows as a visible • chip, keyed under the row.
+  assert.deepEqual(byId(long, 'idx').tokens, [...g.prompt].map(c => (c === ' ' ? '•' : c)));
+  assert.ok(byId(long, 'idx').tokens.every(t => t.trim() !== '') && byId(long, 'idx-next').tokens.includes('•'));
+  assert.equal(label(long, 'space-key-crop'), '• = space');
   // The judge's worked example: k = 3, T = 0.8 lifts p(z) from 0.548 to 0.605.
   assert.equal(label(long, 'renorm'), 'over K: p(z) = 0.548 (uncut) ÷ 0.905 (uncut sum over K) ≈ 0.605');
   assert.deepEqual(byId(long, 'idx').cellHighlight, [7, 8, 9]);

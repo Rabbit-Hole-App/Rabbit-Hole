@@ -24,7 +24,7 @@
 // (random.choices with seed 1337 - the first random number, the one the
 // Overview's first step used). ÷ T, the top-k cut, softmax and the kept count
 // are live derive ops, and so are the uncut softmax and its sum over K. A
-// space in the prompt shows as ␣. sample.py's settings, block_size 256 and
+// space in the prompt shows as •, keyed under the chips. sample.py's settings, block_size 256 and
 // GPT-2's vocabulary are source values.
 import fx from '../../fixtures/nanogpt-fixtures.generated.js';
 import g from '../fixtures/generation.generated.js';
@@ -56,7 +56,7 @@ const TOP_KS = D.topKs.map((k, i) => ({ id: k === null ? 'none' : `k${k}`, k, ke
 const TEMPS = [{ id: 't0', T: 0 }, ...D.temperatures.map((T, i) => ({ id: `t${String(T).replace('.', '')}`, T, draw: i }))];
 const byId = (list, value) => Object.fromEntries(list.map(item => [item.id, value(item)]));
 const names = kept => F.display.filter((c, i) => kept[i]).join(', ');
-const glyphs = text => [...text].map(c => (c === ' ' ? '␣' : c));
+const glyphs = text => [...text].map(c => (c === ' ' ? '•' : c));
 // What ÷ 0 does to each logit of the toy's row: positive → +∞, 0 ÷ 0 → NaN.
 const TO_INF = F.display.filter((c, i) => F.logits[i] > 0).join(' ');
 const TO_NAN = F.display.filter((c, i) => F.logits[i] === 0).join(' ');
@@ -228,6 +228,7 @@ export const scene = {
         initialState: { x: DATA_X, y: ROW.crop, opacity: 0, role: 'neutral', tokens: { $derive: 'promptChips' },
           cellHighlight: { $derive: 'windowIdx' }, cellHighlightKind: 'highlight' } },
       note('crop-line', '{{cropLine}}', DATA_X, ROW.crop + 52),
+      note('space-key-crop', '• = space', DATA_X, ROW.crop + 72),
       note('forward-line', `toy forward: counts after “${F.window}” give ${N} finite logits; ${V - N} unseen are −∞`, DATA_X, ROW.forward + 21),
       note('tradeoff-crop', `Tradeoff: no cache, so each token re-runs its whole window (≤ ${fx.architecture.block_size}): ${NEW_TOKENS} tokens from a ${START_LEN}-char start = ${groupDigits(RERUN)} positions.`, 24, 312),
     ]),
@@ -273,6 +274,7 @@ export const scene = {
       note('draw-line', '{{drawLine}}', DATA_X, ROW.draw + 21),
       { id: 'idx-next', type: 'tokens', semanticId: 'idx-grown', conceptId: CONCEPT,
         initialState: { x: DATA_X, y: ROW.cat, opacity: 0, role: 'neutral', tokens: { $derive: 'promptChips' } } },
+      note('space-key-cat', '• = space', DATA_X, ROW.cat + 52, { opacity: { $derive: 'shown' } }),
       { id: 'appended', type: 'tokens', semanticId: 'appended', conceptId: CONCEPT,
         initialState: { x: { $derive: 'drawX' }, y: ROW.cat, opacity: { $derive: 'shown' }, role: 'output',
           tokens: { $derive: 'drawnChipList' }, cellHighlight: 0, cellHighlightKind: 'highlight' } },

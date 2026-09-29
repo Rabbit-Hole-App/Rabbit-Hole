@@ -150,7 +150,7 @@ test('att, y and the grid shape match the oracle at every head, T and scale; old
     const grid = byId(result, 'att');
     assert.equal(grid.rows, Tn);
     assert.equal(grid.cols, Tn);
-    assert.deepEqual(grid.rowLabels, att.context.tokens.slice(0, Tn).map(c => (c === '␣' ? 'sp' : c)));
+    assert.deepEqual(grid.rowLabels, att.context.tokens.slice(0, Tn).map(c => (c === '␣' ? '•' : c)));
     // The label names the head it shows; cells are rounded one by one (no
     // largest-remainder nudge), so equal weights always print equal.
     assert.equal(grid.label, `att[0, ${head}]: ${att.heads[head].label}, each rounded`);
@@ -249,11 +249,10 @@ test('branch: the fused path dims the five steps one call replaces and the unsto
   assert.equal(byId(manual, 'fused-note').visible, false);
   assert.equal(byId(fused, 'fused-note').visible, true);
   assert.equal(byId(fused, 'fused-note').label, 'fused SDPA: one call replaces these five steps');
-  // The fused call is 3/4's visual: lit on the fused path, dimmed on the manual one.
-  for (const id of ['fused-box', 'fused-shape', 'fused-scale']) {
-    assert.equal(byId(manualMem, id).opacity, 0.25, id);
-    assert.equal(byId(fusedMem, id).opacity, 1, id);
-  }
+  // The fused call is 3/4's visual: its text reads on both paths; only its box quiets on the manual one.
+  assert.equal(byId(manualMem, 'fused-box').opacity, 0.72);
+  assert.equal(byId(fusedMem, 'fused-box').opacity, 1);
+  for (const id of ['fused-shape', 'fused-scale']) for (const result of [manualMem, fusedMem]) assert.equal(byId(result, id).opacity ?? 1, 1, id);
   assert.equal(byId(fusedMem, 'fused-shape').label, 'q, k, v (B, nh, T, hs) → y (B, nh, T, hs) in one call');
   assert.equal(byId(manualAtt, 'att').opacity, 1);
   assert.equal(byId(fusedAtt, 'att').opacity, 0.25);
@@ -287,7 +286,7 @@ test('branch x what-if: the fused call shows its scale - default 1/sqrt(hs), or 
   assert.match(byId(off, 'fused-scale').label, /^What-if: scale=1\.0/);
   for (const result of [on, off]) assert.equal(byId(result, 'fused-scale').opacity, 1);
   const [manual, shapes] = assertCardGates(scene, [{ part: 2, path: 'manual', scaleOn: false }, { part: 0, path: 'fused' }]);
-  assert.equal(byId(manual, 'fused-scale').opacity, 0.25, 'not the path taken: dimmed');
+  assert.equal(byId(manual, 'fused-scale').opacity ?? 1, 1, 'not the path taken, still read at full strength');
   assert.equal(byId(shapes, 'fused-scale').visible, false, 'the call lives on 3/4');
   assert.match(sources.find(s => s.kind === 'doc').note, /If None, the default value is set to 1\/√E/);
 });

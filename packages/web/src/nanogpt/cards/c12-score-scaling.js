@@ -24,9 +24,9 @@ const A = fx.architecture;
 const HEAD = att.heads[0];
 const HS = att.hs;
 const READER = 5;
-// The fixture's '␣' is a near-invisible speck in the mono cells: shown as sp.
-const KEYS = att.context.tokens.map(t => (t === '␣' ? 'sp' : t));
-const LATER = KEYS.slice(READER + 1).join(' ');
+// The fixture's '␣' is a near-invisible speck in the mono cells: shown as •.
+const KEYS = att.context.tokens.map(t => (t === '␣' ? '•' : t));
+const LATER = `“${KEYS.slice(READER + 1).join(' ')}”`; // quoted: a leading • must not read as a list bullet
 const SEEN = READER + 1;
 const RULE = 1;
 // The reader's raw scores from the fixture, for the note and the rule caption's gap.
@@ -116,7 +116,7 @@ export const scene = {
   objects: [
     text('question', 'What does multiplying every score by one number do to the weights?', COL, 30, { typography: 'heading' }),
     note('status', `Characters: Source value · q, k: Calculated toy example (hs = ${HS}) · Live calculation · What-if: × 1/4, × 1, × 0`, COL, 56),
-    note('reader', `One reader (query): position ${READER}, the second “e” of “Before we” (sp = space). It sees ${READER + 1} characters; ${LATER} come later.`, COL, 80),
+    note('reader', `One reader (query): position ${READER}, the second “e” of “Before we” (• = space). It sees ${READER + 1} characters; ${LATER} come later.`, COL, 80),
     // The bridge from where the scores come from (q·k, as in multi-head
     // attention on this board) to the three steps this card is about.
     text('bridge', 'Starting from the q·k similarity scores (this query against every key): × 1/√hs → mask → softmax.', COL, 104),

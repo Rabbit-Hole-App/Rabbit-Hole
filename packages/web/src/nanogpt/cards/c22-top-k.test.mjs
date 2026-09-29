@@ -12,7 +12,7 @@ import { scene, plan, reviewStates, activity, sources, evidence } from './c22-to
 // Independent oracle in plain JS floats - never the scene's derive graph. The
 // logits and the practice's distribution are typed here as the plan lists them.
 const LOGITS = [3, 2, 1, 0.5, 0, -1];
-const NAMES = ['z', 'e', 't', 's', 'a', 'sp'];
+const NAMES = ['z', 'e', 't', 's', 'a', '•'];
 const P_WHATIF = [0.45, 0.15, 0.13, 0.11, 0.10, 0.06];
 const V = LOGITS.length;
 const softmax = xs => {
@@ -34,7 +34,7 @@ const withoutContributors = box => { const { contributors: _c, ...rest } = box; 
 const shownCells = object => (object.distribution ? distributeRounding(object.values, 2) : object.values).map(v => (v === null ? '' : formatCell(v)));
 const close = (a, b, tol, where) => a.forEach((x, i) => assert.ok(x === null ? b[i] === null : Math.abs(x - b[i]) <= tol, `${where}: ${JSON.stringify(a)} vs ${JSON.stringify(b)}`));
 
-test('c22 passes every gate at every review state and every input combination; 37 objects at scale 1, one frame for every state', () => {
+test('c22 passes every gate at every review state and every input combination; 38 objects at scale 1, one frame for every state', () => {
   assertCardGates(scene, reviewStates);
   const results = assertCardGates(scene, ALL);
   assert.deepEqual(reviewStates, [{ topK: 1 }, { topK: 0 }, { topK: 2 }, { topK: 5 }, { topK: 1, revealed: true }, { topK: 5, revealed: true }]);
@@ -43,7 +43,8 @@ test('c22 passes every gate at every review state and every input combination; 3
   assert.deepEqual(scene.exampleData.kLabels, ['1', '2', '3', '4', '5', '6 (nothing cut)'], 'bare values: the lock line reads "top_k (preset) = 2", never "= k = 2"');
   assert.equal(scene.id, 'nanogpt-c22-top-k');
   assert.equal(scene.objects[0].semanticId, 'question');
-  assert.equal(scene.objects.length, 37);
+  assert.equal(scene.objects.length, 38);
+  assert.equal(scene.objects.find(o => o.id === 'space-key').initialState.text, '• = space', 'the • column is keyed on the card');
   assert.equal(scene.height, 771);
   const legibility = sceneLegibility(scene);
   assert.ok(scene.height >= legibility.viewport.h && scene.height < legibility.viewport.h + 1, 'the scene box holds the padded content');
@@ -138,8 +139,8 @@ test('c22 every preset: v_k, the rings, the −∞ marks, ③, the bars, the mas
     assert.doesNotMatch(byId(result, 'factor').label, /same ratios/);
     const f4 = v => v.toFixed(4);
     assert.equal(byId(result, 'old-new').label, `z ${f4(P_ALL[0])} → ${f4(cut[0])} · e ${f4(P_ALL[1])} → ${cut[1] === null ? '0, cut' : f4(cut[1])}`);
-    // k = 6: sp's 0.0111 bar is about 1 px on a p = 1 axis, so the caption points at its ③ cell, not at a sliver.
-    assert.equal(byId(result, 'consequence').label, k === 1 ? 'only z is left: every draw is z (greedy)' : k < V ? 'softmax: −∞ → p exactly 0, never drawn' : '③ = ②; sp: 0.01 in ③, bar too thin to see');
+    // k = 6: •'s 0.0111 bar is about 1 px on a p = 1 axis, so the caption points at its ③ cell, not at a sliver.
+    assert.equal(byId(result, 'consequence').label, k === 1 ? 'only z is left: every draw is z (greedy)' : k < V ? 'softmax: −∞ → p exactly 0, never drawn' : '③ = ②; •: 0.01 in ③, bar too thin to see');
   });
 });
 

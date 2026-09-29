@@ -17,8 +17,8 @@ const TAUGHT = [{ temperature: 0 }, { temperature: 2 }, { temperature: 4 }];
 const ALL = presets.map((_, i) => ({ temperature: i }));
 const byId = (result, id) => result.state.objects.find(object => object.id === id);
 const label = (result, id) => byId(result, id).label;
-// Same display mapping the card applies: the space shows as 'sp'.
-const shownOf = d => (d === '␣' ? 'sp' : d);
+// Same display mapping the card applies: the space shows as '•'.
+const shownOf = d => (d === '␣' ? '•' : d);
 const TOP = T.logits.indexOf(Math.max(...T.logits));
 const TOP_NAME = shownOf(T.display[TOP]);
 const VOCAB = fx.tokenizer.tokenizers.find(t => t.id === 'char').vocabSize;
@@ -94,7 +94,7 @@ test('live probabilities match the oracle and the fixture at every taught preset
     assert.ok(Math.abs(result.derived.expected - T.draws * p.pTop) < 1e-9, `${where} expected ${result.derived.expected} vs ${T.draws * p.pTop}`);
     assert.equal(label(result, 'expected'), `expected about ${result.derived.expected} (= 20 × p(top))`);
     // Recorded toy draws: the token rows are exactly the fixture's 20 draws
-    // (space shown as 'sp'), and the counts are what those draws contain.
+    // (space shown as '•'), and the counts are what those draws contain.
     const shown = [...byId(result, 'draws-a').tokens, ...byId(result, 'draws-b').tokens];
     assert.deepEqual(shown, p.drawn.map(shownOf));
     const topCount = p.drawn.filter(d => d === T.display[TOP]).length;
@@ -161,7 +161,7 @@ test('status labels and caveats stay on the card; code lives in its sources', ()
   assert.match(label(result, 'provenance-note'), /calculated toy example, not NanoGPT output/);
   assert.match(label(result, 'live-note'), /live calculation in this card/);
   assert.match(label(result, 'draws-a'), /^Recorded toy run: .*not NanoGPT$/);
-  assert.equal(label(result, 'vocab-note'), `The real shakespeare_char softmax covers all ${VOCAB} characters. sp = the space character.`);
+  assert.equal(label(result, 'vocab-note'), `The real shakespeare_char softmax covers all ${VOCAB} characters. • = space.`);
   assert.match(label(result, 'zero-note'), /^A 0\.00 cell is rounded, not zero/);
   assert.equal(label(result, 'multinomial'), 'generate(): p = softmax(logits ÷ T), then one random draw from p (torch.multinomial), never argmax.');
   assert.match(label(result, 'wobble'), /counts vary run to run/);

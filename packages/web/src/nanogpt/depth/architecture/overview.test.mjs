@@ -54,7 +54,7 @@ test('sizes are bound to the fixture, and the fixture matches the pinned config'
 test('the example is the fixture context, one piece per character', () => {
   assert.equal(CE.context, 'hear me spea');
   const pieces = byId(evaluated(scene, { stage: 1 })).get('pieces').tokens;
-  assert.deepEqual(pieces, [...'hear me spea'].map(ch => (ch === ' ' ? '␣' : ch)));
+  assert.deepEqual(pieces, [...'hear me spea'].map(ch => (ch === ' ' ? '•' : ch)));
   assert.match(byId(evaluated(scene, { stage: 1 })).get('stage-line').label, /so 12 pieces\.$/);
   assert.match(byId(evaluated(scene, { stage: 0 })).get('context-note').label, /these 12 characters/);
 });

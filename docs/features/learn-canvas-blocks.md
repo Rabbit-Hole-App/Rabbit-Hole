@@ -181,13 +181,26 @@ Owner rules (2026-09-29), fixed in the shared renderer and tokens, never per car
   where the learner is not expected to read its exact value (a masked-out cell whose token is
   irrelevant, a non-actionable disabled label, ghosted decorative context); if the exact dimmed
   text matters to understanding, it is not exempt. Each exemption is documented, never assumed.
-  Listed in the check's `PENDING_OWNER` and deferred to the NC10 accessibility audit (frozen cards
-  are not reopened for it): the focus and mask dims of c10 (later characters' names at 0.3) and
-  the depth ladder (tokenization guided and deep, architecture overview and deep, attention deep,
-  generation deep: 0.25 to 0.4), each to be classified A (semantic text: bring to 4.5:1) or B
-  (intentionally unavailable/decorative: documented exemption).
+  Floors on the scene surface: `--color-ink` 0.72 (0.57 dark), `--color-ink-2` (annotations,
+  captions, label tokens) 0.88 (0.79 dark), role-hued text in light effectively none; a box
+  label on a 12% soft fill holds 4.5:1 down to 0.72 (4.56:1), not on a strong fill (warning at
+  0.72: 3.32:1). Classified in the NC10 audit (owner, 2026-09-29). A, brought to 4.5:1: c10's
+  later characters' names (0.72; their value dots keep 0.3, non-text); Tokenization Guided's
+  sorted list (full strength; the found entry keeps its box, page ink and bold); Tokenization
+  Deep 3/3's two digit-prompt rows (both texts at full strength; the other branch's step box at
+  0.72, grey when it is the what-if KeyError); Attention Deep 3/4's fused call on the manual
+  path (its two notes at full strength, its box at 0.72). B, exempt in the check's `EXEMPT` by
+  object and input state, each with its reason: Architecture Overview's loop note before stage
+  6 (a stage not yet reached); Architecture Deep's steps below the failed assert (model(idx) at
+  T = 257); Attention Deep's five manual steps and att on the fused path (1/4, 2/4: the path not
+  taken); Generation Deep's steps after ÷ T at T = 0 (invalid). Each B line reads at full
+  strength in the state that teaches it, and a full-strength line in the same state says why
+  it is dimmed. Box labels under these dims (Architecture Overview's later stages, Tokenization
+  Deep 1/3's steps after the KeyError) follow the same B; the check composites text objects
+  only (its ponytail).
   Check: `src/text-contrast.test.mjs` - the tokens, every role and identity hue, every loud-fill
-  step, and every glyph on the scene surface of every card at rest.
+  step, and every glyph on the scene surface of every card at rest; it fails on a listed B
+  object that no longer fails in its state.
 - **Feedback is 14px and reads in both themes.** Pass, fail and not-ready feedback and the
   committed-attempt count are `text-sm`, like the answer text; the count may stay in secondary
   ink. Pass and fail use `--color-pass` and `--color-fail`, which flip in dark (Tailwind's

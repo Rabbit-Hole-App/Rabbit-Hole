@@ -68,8 +68,8 @@ test('guided: the live lookup finds every character\'s entry number, and decode 
     assert.equal(byId(result, `vocab-ch-${row}`).cellHighlight, col);
     for (let r = 0; r < 5; r += 1) if (r !== row) assert.equal(byId(result, `vocab-ch-${r}`).cellHighlight, null);
     assert.equal(byId(result, 'found-box').x, startX(entries, col) - 4);
-    // The list is quieted; the found entry is drawn again at full strength in place.
-    for (let r = 0; r < 5; r += 1) for (const kind of ['ch', 'rank']) assert.ok(byId(result, `vocab-${kind}-${r}`).opacity < 1);
+    // The list is read at full strength (NC10); the found entry is drawn again, bold, in place.
+    for (let r = 0; r < 5; r += 1) for (const kind of ['ch', 'rank']) assert.equal(byId(result, `vocab-${kind}-${r}`).opacity, 1);
     const foundCh = byId(result, 'found-ch'), foundRank = byId(result, 'found-rank');
     assert.ok(foundCh.opacity === 1 && foundRank.opacity === 1);
     assert.deepEqual([foundCh.tokens[0].trim(), foundRank.tokens[0].trim()], [show(CHARS[id]), String(id)]);

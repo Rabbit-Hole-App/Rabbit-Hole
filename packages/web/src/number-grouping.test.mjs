@@ -65,7 +65,7 @@ function cardTexts(board, block) {
     const { state: frame } = evaluateScene(structuredClone(scene), scene.duration, { ...defaults, ...state });
     for (const object of frame.objects.filter(o => o.visible)) {
       for (const key of ['label', 'text', 'caption']) if (typeof object[key] === 'string') texts.push(object[key]);
-      for (const key of ['rowLabels', 'columnLabels']) for (const label of object[key] || []) if (typeof label === 'string') texts.push(label);
+      for (const key of ['rowLabels', 'columnLabels', 'tokens', 'labels']) for (const label of object[key] || []) if (typeof label === 'string') texts.push(label);
     }
   }
   for (const d of scene.inputs || []) {
@@ -104,4 +104,19 @@ test('gate: NanoGPT cards write a number below 1 with its leading zero', () => {
     }
   }
   assert.deepEqual(failures, [], 'write 0.90, not .90');
+});
+
+// NC10 (docs/nanogpt-depth-ladder.md, conventions: Spaces): a space is drawn as •
+// with its key on the card; sp stays in code, Sources and fixture names; ␣ is
+// never drawn.
+test('gate: NanoGPT cards show a space as • with its key on the card', () => {
+  const failures = [];
+  for (const board of ['nanogpt-deep-dive', 'nanogpt-depth-ladder']) {
+    for (const block of BOARDS[board]().filter(b => b.scene)) {
+      const texts = [...new Set(cardTexts(board, block))];
+      for (const text of texts) if (/␣|(^|[^A-Za-z])sp([^A-Za-z]|$)/.test(text)) failures.push(`${board} :: ${block.scene.id}: ${text}`);
+      if (texts.some(text => text.includes('•')) && !texts.some(text => /•”? = (one )?space|• marks a space/.test(text))) failures.push(`${board} :: ${block.scene.id}: shows • with no key`);
+    }
+  }
+  assert.deepEqual(failures, [], 'draw a space as • and key it on the card: "• = space"');
 });

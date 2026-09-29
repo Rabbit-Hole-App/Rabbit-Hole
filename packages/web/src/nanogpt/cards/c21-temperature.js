@@ -18,9 +18,9 @@ const presets = T.presets;
 const HALF = T.draws / 2; // two token rows: one row of 20 labels is wider than the card
 const rawPreset = presets.find(p => p.temperature === 1);
 const TOP = T.logits.indexOf(Math.max(...T.logits));
-// The fixture's '␣' renders as a near-invisible speck in the mono fallback
-// (bolding it does not show), so the card displays the space as 'sp'.
-const shown = T.display.map(d => (d === '␣' ? 'sp' : d));
+// The fixture's '␣' renders as a near-invisible speck in the mono fallback,
+// so the card displays the space as '•' (keyed in vocab-note).
+const shown = T.display.map(d => (d === '␣' ? '•' : d));
 const show = d => shown[T.display.indexOf(d)];
 // Positions (per row) of recorded draws that were NOT the top token - bolded.
 const notTop = (drawn, from) => drawn.slice(from, from + HALF).flatMap((d, i) => (d === T.display[TOP] ? [] : [i]));
@@ -119,7 +119,7 @@ export const scene = {
     { id: 'provenance-note', type: 'text', semanticId: 'provenance-note', conceptId: 'temperature',
       initialState: { text: 'Hand-set toy logits for {{candidateCount}} candidates: calculated toy example, not NanoGPT output.', x: 24, y: 202, typography: 'annotation' } },
     { id: 'vocab-note', type: 'text', semanticId: 'toy-vocabulary', conceptId: 'temperature',
-      initialState: { text: 'The real shakespeare_char softmax covers all {{vocabSize}} characters. sp = the space character.', x: 24, y: 220, typography: 'annotation' } },
+      initialState: { text: 'The real shakespeare_char softmax covers all {{vocabSize}} characters. • = space.', x: 24, y: 220, typography: 'annotation' } },
     { id: 'live-note', type: 'text', semanticId: 'live-note', conceptId: 'temperature',
       initialState: { text: '÷ T and softmax: live calculation in this card; p readouts show 4 decimals, cells 2, so a row can total 0.99 or 1.01.', x: 24, y: 238, typography: 'annotation' } },
     { id: 'zero-note', type: 'text', semanticId: 'rounded-not-zero', conceptId: 'softmax',
@@ -202,7 +202,7 @@ export const sources = [
   code('model.py', 320, 322, 'Optional top-k crop between the division and the softmax: "v, _ = torch.topk(logits, min(top_k, logits.size(-1)))" then logits below the k-th are set to -Inf. This card applies none.'),
   code('sample.py', 17, 17, 'sample.py\'s sampling default, below 1 - sharpened, still sampled; the card has no preset at this value: "temperature = 0.8 # 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions".'),
   calculation('Calculated toy example', `${T.display.length} toy logits`,
-    `generate_fixtures.py temperature(): hand-set logits [${T.logits.join(', ')}] for the characters ${T.vocab.map(c => (c === ' ' ? 'space' : c)).join(', ')} after "${T.context}" - not NanoGPT output. The space is shown as sp.`),
+    `generate_fixtures.py temperature(): hand-set logits [${T.logits.join(', ')}] for the characters ${T.vocab.map(c => (c === ' ' ? 'space' : c)).join(', ')} after "${T.context}" - not NanoGPT output. The space is shown as •.`),
   calculation('Recorded toy run', `${T.draws} draws per preset`,
     `For preset k the generator seeds random.Random(${T.seed} + k) and takes ${T.draws} draws in one random.choices call over the ${T.display.length} candidates, weighted by that preset's softmax(logits / T) - Python's sampler on the toy probabilities, not NanoGPT, not torch.multinomial and not live sampling. One small seeded sample: counts vary with the seed.`),
   calculation('Live calculation', 'Scaled logits, probabilities and counts',

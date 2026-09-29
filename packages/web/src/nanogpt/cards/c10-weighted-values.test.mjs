@@ -86,7 +86,7 @@ test('c10 every query: weight row, output row, output dot, spokes and fades matc
       assert.deepEqual(spoke.to, { x: outDot.x, y: outDot.y }, `${where}: every spoke ends at the output dot`);
       assert.equal(spoke.opacity, j <= query && query > 0 ? 1 : 0, `${where} spoke ${j}`);
       assert.equal(byId(result, `value-${j}`).opacity, j <= query ? 1 : 0.3, `${where} value ${j}`);
-      assert.equal(byId(result, `name-${j}`).opacity, j <= query ? 1 : 0.3, `${where} name ${j}`);
+      assert.equal(byId(result, `name-${j}`).opacity, j <= query ? 1 : 0.72, `${where} name ${j}: a later name stays readable`);
     }
     const top = w.indexOf(Math.max(...w));
     assert.equal(byId(result, 'caption').label, `Pulled hardest by “${CHARS[top]}”, its largest weight.`, where);

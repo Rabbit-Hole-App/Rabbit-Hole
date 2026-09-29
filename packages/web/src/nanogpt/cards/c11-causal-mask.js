@@ -19,7 +19,7 @@ const A = fx.architecture;
 const TOKENS = fx.tokenizer.tokenizers.find(t => t.id === 'char').tokens.slice(0, 7);
 const T = TOKENS.length - 1; // six positions; the seventh character is row 5's target
 const CHARS = TOKENS.slice(0, T);
-const show = ch => (ch === '␣' ? 'sp' : ch);
+const show = ch => (ch === '␣' ? '•' : ch);
 const square = cell => Array.from({ length: T }, (unused, i) => Array.from({ length: T }, (unused2, j) => cell(i, j)));
 // torch.tril(torch.ones(block_size, block_size)) cut to T × T, and the what-if.
 export const TRIL = square((i, j) => (j <= i ? 1 : 0));
@@ -89,7 +89,7 @@ export const scene = {
     text('question', 'Which positions may each position read, and why never its next character?', 40, 34, { typography: 'heading' }),
     note('status', 'Characters: Source value · every score 0: Calculated toy example · weights: Live calculation · mask off: What-if', 40, 60),
     note('equal-scores', 'Every score is 0 here, so the mask alone shapes the weights: each row splits 1 evenly over what it may read.', 40, 82),
-    note('legend', 'Row label “i · char → next char”: position i is trained to predict character i + 1 (sp = space, after this window).', 40, 104),
+    note('legend', 'Row label “i · char → next char”: position i is trained to predict character i + 1 (• = space, beyond this window).', 40, 104),
 
     { id: 'mask-table', type: 'grid', semanticId: 'causal-mask-table', conceptId: CONCEPT,
       initialState: { label: '{{maskLabel}}', x: G.x1, y: G.y, rows: T, cols: T, cell: CELL, matrixKind: 'input', numberFormat: 'integer', role: 'input',

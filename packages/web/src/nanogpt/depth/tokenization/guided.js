@@ -79,9 +79,9 @@ const VOCAB_ROWS = 5, VOCAB_COLS = 13;
 const VOCAB = { title: 254, top: 262, pitch: 44 };
 const vocabRow = r => tok.vocab.slice(r * VOCAB_COLS, (r + 1) * VOCAB_COLS).map((ch, c) => ({ ch: centre(show(ch), 2), rank: centre(String(r * VOCAB_COLS + c), 2) }));
 // Where the lookup lands, for each possible ID: a box round that entry, the
-// entry itself (drawn again at full strength over the quieted list), and for
-// each row which column to light (null = not this row).
-const TABLE_QUIET = 0.4; // the list is evidence; the lookup path is what reads first
+// entry itself (drawn again in page ink and bold over the list), and for
+// each row which column to light (null = not this row). The list is evidence
+// the learner reads, so it stays at full strength (NC10: dimmed text reads 4.5:1).
 const vocabBox = tok.vocab.map((ch, id) => {
   const x = X0 + (id % VOCAB_COLS) * (COL(2) + GAP), y = VOCAB.top + Math.floor(id / VOCAB_COLS) * VOCAB.pitch;
   return { x: x - 4, y: y + 3, tx: x, ty: y, rankY: y + 18, ch: [centre(show(ch), 2)], rank: [centre(String(id), 2)] };
@@ -155,7 +155,7 @@ export const scene = {
     seqHl,
     vocabHl,
     vocabBox,
-    on: { char: { char: 1, bpe: 0, table: TABLE_QUIET }, bpe: { char: 0, bpe: 1, table: 0 } },
+    on: { char: { char: 1, bpe: 0, table: 1 }, bpe: { char: 0, bpe: 1, table: 0 } },
   },
   derived: {
     // Character mode: find the character in the sorted list, live.
@@ -290,7 +290,7 @@ export const evidence = {
   sourceRevision: `${fx.provenance.nanogpt.repo}@${fx.provenance.nanogpt.commit}`,
   provenance: 'Source value: sorted list and whole-play counts from gen_tokenization.py (prepare.py logic over the pinned text); line IDs and pieces from generate_fixtures.py; merge-rank order from tiktoken 0.14.0 load.py. Live calculation: argmin lookup, decode pick, piece lengths summed, characters per ID for the line and the play.',
   control: `pos - index slider over the ${charTk.count} characters of the line; split - choice: Characters (${charTk.vocabSize}) | GPT-2 pieces (${bpeTk.vocabSize})`,
-  consequence: `Moving pos moves the boxed column in the encoded line and, in character mode, the searched code, the found entry (full strength over the quieted sorted list) and the lookup/decode readouts (entry number = ID, rising with the code); in GPT-2 mode it moves the boxed piece, the box under its bar and the boxed character in the piece spelled out below it. Switching split re-encodes the line as ${bpeTk.count} pieces, swaps the sorted list for the piece-length bars, characters per ID (${charTk.count} / ${bpeTk.count} = ${charTk.count / bpeTk.count} for the line against about 3.3 for the play) and the merge-order note, and the lookup now lands on the whole piece.`,
+  consequence: `Moving pos moves the boxed column in the encoded line and, in character mode, the searched code, the found entry (boxed and lit in the sorted list) and the lookup/decode readouts (entry number = ID, rising with the code); in GPT-2 mode it moves the boxed piece, the box under its bar and the boxed character in the piece spelled out below it. Switching split re-encodes the line as ${bpeTk.count} pieces, swaps the sorted list for the piece-length bars, characters per ID (${charTk.count} / ${bpeTk.count} = ${charTk.count / bpeTk.count} for the line against about 3.3 for the play) and the merge-order note, and the lookup now lands on the whole piece.`,
   interactionPurpose: 'Manipulate the mechanism: scrub a character through the lookup and back, and verify that entry number and ID agree and follow character code, that IDs stay under the list size, and how many characters one GPT-2 ID stands for.',
   task: 'none (explore only)',
   capability: 'Index slider + choice; a live table lookup by argmin over squared code-point differences (sub, elementwise, argmin, pick); input-bound visibility swapping two panels; derived highlight boxes, a derived tokens row spelling the selected piece, labels highlights; sum, concat and scale for the ratios.',

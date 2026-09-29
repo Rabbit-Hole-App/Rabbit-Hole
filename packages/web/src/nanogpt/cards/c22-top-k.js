@@ -27,7 +27,7 @@ const T = fx.temperature;
 const LOGITS = T.logits;
 const V = LOGITS.length; // 6 toy candidates
 if (!LOGITS.every((x, i) => i === 0 || x < LOGITS[i - 1])) throw new Error('fx.temperature logits must be strictly descending: the card shows them largest first');
-const NAMES = T.display.map(d => (d === '␣' ? 'sp' : d)); // c21's display of the space
+const NAMES = T.display.map(d => (d === '␣' ? '•' : d)); // c21's display of the space
 const KS = LOGITS.map((unused, i) => i + 1);             // top_k = 1..6
 // generate()'s rule (model.py:321-322): v_k = the min(k, V)-th largest; strictly below it is cut.
 const vkOf = k => [...LOGITS].sort((a, b) => b - a)[Math.min(k, V) - 1];
@@ -168,6 +168,7 @@ export const scene = {
     { id: 'logits', type: 'grid', semanticId: 'toy-logits', conceptId: CONCEPT,
       initialState: { x: X, y: Y.logits, rows: 1, cols: V, cell: CELL, matrixKind: 'input', role: 'input', columnLabels: [...NAMES],
         values: { $derive: 'logits' }, cellHighlight: { $derive: 'keptIdx' }, cellHighlightKind: 'highlight', opacity: 0 } },
+    note('space-key', '• = space', RX, Y.logits - 16, hidden),
     // Plain glyphs, no chip (a chip read as a Practice button); at the display size ∞ stands ~11 px, taller than
     // the annotation text (at the cells' mono size it was 4 px).
     ...MARK_COLS.map(j => text(`cut-mark-${j}`, `{{cutRow.${j}}}`, X + j * CELL + (CELL - MARK_W) / 2, Y.marks, { typography: 'display', opacity: 0 })),
@@ -219,7 +220,7 @@ export const scene = {
   ],
   // Replay in pipeline order: ① and ②, the cut, ③, its bars, the bars' top line.
   timeline: [
-    ...[[0, ['name-logits', 'logits', 'name-p-all', 'p-all']], [0.4, ['kept-ring', ...MARK_COLS.map(j => `cut-mark-${j}`)]], [0.8, ['name-p-cut', 'p-cut']], [1.2, ['name-bars', 'bars']]]
+    ...[[0, ['name-logits', 'logits', 'space-key', 'name-p-all', 'p-all']], [0.4, ['kept-ring', ...MARK_COLS.map(j => `cut-mark-${j}`)]], [0.8, ['name-p-cut', 'p-cut']], [1.2, ['name-bars', 'bars']]]
       .flatMap(([at, targets]) => targets.map(target => ({ at, action: 'appear', target, duration: 0.4 }))),
     ...['bars-top', 'bars-top-key'].map(target => ({ at: 1.4, action: 'appear', target, duration: 0.2 })),
   ],
@@ -300,7 +301,7 @@ export const sources = [
   code('train.py', 137, 155, `Training reads it back, "meta_vocab_size = meta['vocab_size']", and builds the model with it: "model_args['vocab_size'] = meta_vocab_size if meta_vocab_size is not None else 50304" - ${charVocab.vocabSize} for shakespeare_char, not GPTConfig's default 50304.`),
   code('model.py', 133, 133, `The last layer gives one logit per vocabulary entry: "self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)" - so logits.size(-1) is ${charVocab.vocabSize}, min(${SAMPLE_K}, ${charVocab.vocabSize}) keeps all ${charVocab.vocabSize}, and the sampler's top_k cuts nothing.`),
   calculation('Calculated toy example', `${V} toy logits`,
-    `generate_fixtures.py temperature(): hand-set logits [${LOGITS.join(', ')}] for the characters ${T.vocab.map(c => (c === ' ' ? 'space' : c)).join(', ')} after "${T.context}" - the temperature card's T = 1.0 row, not NanoGPT output. They are strictly descending, so shown largest first they are also in the card's column order. The space is shown as sp.`),
+    `generate_fixtures.py temperature(): hand-set logits [${LOGITS.join(', ')}] for the characters ${T.vocab.map(c => (c === ' ' ? 'space' : c)).join(', ')} after "${T.context}" - the temperature card's T = 1.0 row, not NanoGPT output. They are strictly descending, so shown largest first they are also in the card's column order. The space is shown as •.`),
   // Authored on this card, not by a fixture generator - so no reproduce command.
   { kind: 'calculation', status: 'Calculated toy example', title: 'The practice’s six probabilities',
     note: `Typed into this card for the practice, a different toy model's p before any cut: ${WHATIF_P.map(two).join(', ')}, largest first. The What-if row takes their natural logs as logits (softmax of ln p gives p back), leaves out all but the first ${WHATIF_K} and applies the same softmax as ③; it stays blank until a committed attempt.` },

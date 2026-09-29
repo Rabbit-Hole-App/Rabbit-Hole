@@ -137,7 +137,7 @@ export const sources = [
   { ...calculation('Calculated toy example', 'The look-back pattern',
     `gen_attention.py head 0 (“previous character”): each character’s key is a position code [cos 36j°, sin 36j°, cos 108j°, sin 108j°] (6 decimals) and the query of the character at position i is ${att.gain} × the key of position i − 1, so it matches the character just before best. A hand-set rule, not a trained model. The bars are computed on the card: q·k for every pair, × 0.5 (= 1/√4), later characters masked, softmax; the tallest bar is found as the argmax of that row.`),
   reproduce: REPRODUCE },
-  tinyShakespeare(`The nine characters “${TOKENS.join('').replace('␣', ' ')}” begin line 2 of the dataset (“Before we proceed any further”), the same line every nanogpt card uses; ␣ marks the space.`),
+  tinyShakespeare(`The nine characters “${TOKENS.join('').replace('␣', ' ')}” begin line 2 of the dataset (“Before we proceed any further”), the same line every nanogpt card uses.`),
 ];
 
 export const evidence = {

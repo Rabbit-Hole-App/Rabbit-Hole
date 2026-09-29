@@ -106,6 +106,8 @@ test('each sub-card: question first, one step column, one formula block, Builds 
 test('Deep dive ladder rung: equations, named shapes, a branch control, an edge case, a what-if', () => {
   assert.deepEqual(scene.inputs.map(input => input.type), ['index', 'choice', 'bool']);
   assert.deepEqual(scene.inputs[1].options.map(option => option.id), CALLS);
+  // NC10: the prompt ends mid-word on purpose; generate() completes it (model.py's docstring).
+  assert.equal(scene.inputs[1].options.find(option => option.id === 'generate').label, 'generate() completes “hear me spea”');
   const objects = view();
   const equations = scene.objects.filter(o => o.type === 'equation').filter(o => on(objects, o.id));
   assert.ok(equations.length >= 5, `${equations.length} equations shown`);

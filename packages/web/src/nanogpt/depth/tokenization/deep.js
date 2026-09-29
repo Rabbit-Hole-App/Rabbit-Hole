@@ -138,8 +138,10 @@ const EXAMPLE = {
   encodeRole: { true: byPath('neutral', 'neutral', 'warning'), false: byPath('neutral', 'neutral', 'neutral') },
   // model.py's reason for the fallback's padding, shown only when there is padding.
   padWhy: { true: '', false: ' (multiple of 64, for efficiency)' },
-  // 3/3: the encoder of the current branch at full strength, the other dimmed.
-  edgeLit: { true: { char: 1, bpe: 0.35 }, false: { char: 0.35, bpe: 1 } },
+  // 3/3: both rows' text at full strength (each is half the answer); the other
+  // branch's step box at 0.72, and grey, since a warning box at 0.72 reads 3.32:1.
+  edgeLit: { true: { char: 1, bpe: 0.72 }, false: { char: 0.72, bpe: 1 } },
+  edgeCharRoles: { true: 'warning', false: 'neutral' },
   // The edge-case line (3/3) follows the state: an invitation, or a pointer to the failure drawn above it.
   edgeText: {
     true: byPath(TRY_DIGITS, TRY_DIGITS, `Edge case shown above: ${ONLY_DIGIT}, so ${quote(digits.char.missing)} has no ID.`),
@@ -206,6 +208,7 @@ const LIVE = {
   edgesNow: { op: 'pick', args: ['edgeText', 'metaKey'] },
   edge: { op: 'pick', args: ['edgesNow', 'input'] },
   lit: { op: 'pick', args: ['edgeLit', 'metaKey'] },
+  edgeCharRole: { op: 'pick', args: ['edgeCharRoles', 'metaKey'] },
   rowsNow: { op: 'pick', args: ['edgeRows', 'metaKey'] },
   rows: { op: 'pick', args: ['rowsNow', 'input'] },
 };
@@ -290,10 +293,10 @@ export const scene = {
     text('tradeoff', 'Tradeoff: block_size = {{blockSize}} IDs span {{fig.ctx}} characters ({{rate}} per ID)', 40, CONTEXT.tradeoff, { typography: 'body' }),
     // The digit prompt through both encoders - 1/3's labels and results, each row led by
     // whether it runs now (Current input) or is a what-if (another input, the other branch).
-    step('edge-char', '{{encodeBox.true}}', CONTEXT.char, { role: 'warning', opacity: { $derive: 'lit.char' } }),
-    detail('edge-char-detail', '{{rows.char}}', CONTEXT.char + 23, { role: 'warning', opacity: { $derive: 'lit.char' } }),
+    step('edge-char', '{{encodeBox.true}}', CONTEXT.char, { role: { $derive: 'edgeCharRole' }, opacity: { $derive: 'lit.char' } }),
+    detail('edge-char-detail', '{{rows.char}}', CONTEXT.char + 23, { role: { $derive: 'edgeCharRole' } }),
     step('edge-bpe', '{{encodeBox.false}}', CONTEXT.bpe, { opacity: { $derive: 'lit.bpe' } }),
-    detail('edge-bpe-detail', '{{rows.bpe}}', CONTEXT.bpe + 23, { opacity: { $derive: 'lit.bpe' } }),
+    detail('edge-bpe-detail', '{{rows.bpe}}', CONTEXT.bpe + 23),
     text('edge', '{{edge}}', 40, CONTEXT.edge),
     ),
   ],

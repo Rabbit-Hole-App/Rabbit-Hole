@@ -129,7 +129,7 @@ test('c26 captions are true at every state; status words only; the practice numb
     'status-2': 'Calculated toy example: −ln p, e^mean · Live calculation: sum, mean, share, B · T',
     'status-3': 'What-if: window length T (NanoGPT’s is 256) · Source value: text, 65, B, T',
     'shift-1': 'y is x shifted by one: position i’s target is character i + 1.',
-    'shift-2': 'A window of T characters gives T scored predictions (sp = space).',
+    'shift-2': 'A window of T characters gives T scored predictions (• = space).',
     'anchor-tag': 'uniform guess 4.17',
     uniform: 'Uniform guess over all 65 characters: perplexity 65, loss ln 65 = 4.17 at every position.',
     'state-2': 'The drawn losses stay the same: T only sets how many are averaged.',

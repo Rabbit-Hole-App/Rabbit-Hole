@@ -30,8 +30,8 @@ const P_LEN = P.start.length;                     // 6
 const HANDED = P_LEN + P.pass - 1;                // 10
 const RETURNS = P_LEN + MAX_NEW;                  // 506
 
-// The space shows as 'sp' (c21 precedent), the new line as '⏎'.
-const show = ch => (ch === '\n' ? '⏎' : ch === ' ' ? 'sp' : ch);
+// The space shows as '•' (c21 precedent), the new line as '⏎'.
+const show = ch => (ch === '\n' ? '⏎' : ch === ' ' ? '•' : ch);
 // Pass k is handed idx = start + the first k − 1 draws.
 const ROWS = GEN.drawn.map((unused, i) => [START, ...GEN.drawn.slice(0, i)].map(show));
 const DRAWS = GEN.drawn.map(show);
@@ -119,9 +119,9 @@ export const scene = {
     text('loop', 'The loop runs max_new_tokens passes, with no other stop, and returns all of idx, the start included.', 40, captionY(4), hidden),
 
     // Directly under the captions: the one place bold and colour are keyed; it
-    // keys the band's row too (sp is only there). The toy note under it
+    // keys the band's row too (• is only there). The toy note under it
     // qualifies what the bold means.
-    note('legend', '⏎ = new line · sp = space · bold: the position whose prediction is drawn from · colour: the draw', 40, LEGEND_Y),
+    note('legend', '⏎ = new line · • = space · bold: the position whose prediction is drawn from · colour: the draw', 40, LEGEND_Y),
     note('toy', 'Toy: the bigram reads only the last character it is handed; NanoGPT’s Blocks read the whole row.', 40, LEGEND_Y + 22, hidden),
 
     // The practice case, last and set apart: derived opacity, no appear; text
@@ -241,7 +241,7 @@ export const sources = [
   code('config/train_shakespeare_char.py', 19, 19, `The card's “at most its last block_size characters”: "block_size = ${fx.architecture.block_size} # context of up to ${fx.architecture.block_size} previous characters".`),
   code('data/shakespeare_char/prepare.py', 30, 35, 'One ID is one character: "stoi = { ch:i for i,ch in enumerate(chars) }" … "return \'\'.join([itos[i] for i in l])".'),
   { ...calculation('Recorded toy run', `The draws, at iteration ${GEN.checkpoint}`,
-    `The seeded toy bigram run c18 plots (generate_fixtures.py toy_run, seed ${run.seed}; ${run.model}). gen_training_loss.py copies its weight table at iteration ${GEN.checkpoint}, the checkpoint train.py's save rule keeps (lowest validation loss after iteration 0: ${kept.val}, the same as c18's), and replays generate() on it with the sampling script's settings: logits = the row of the last character of idx ÷ ${S.temperature.value}, top-k ${S.top_k.value} keeps all ${fx.architecture.vocab_size}, softmax, one draw, append. random.Random(${S.seed.value}).choices stands in for torch.multinomial, so these are Python's draws on the toy's probabilities, not NanoGPT's. From one new line: ${shown(GEN.drawn)}. The practice case starts a fresh Random(${S.seed.value}) from ${P.start}, as a --start run seeds again: ${shown(P.drawn)} (sp = space).`),
+    `The seeded toy bigram run c18 plots (generate_fixtures.py toy_run, seed ${run.seed}; ${run.model}). gen_training_loss.py copies its weight table at iteration ${GEN.checkpoint}, the checkpoint train.py's save rule keeps (lowest validation loss after iteration 0: ${kept.val}, the same as c18's), and replays generate() on it with the sampling script's settings: logits = the row of the last character of idx ÷ ${S.temperature.value}, top-k ${S.top_k.value} keeps all ${fx.architecture.vocab_size}, softmax, one draw, append. random.Random(${S.seed.value}).choices stands in for torch.multinomial, so these are Python's draws on the toy's probabilities, not NanoGPT's. From one new line: ${shown(GEN.drawn)}. The practice case starts a fresh Random(${S.seed.value}) from ${P.start}, as a --start run seeds again: ${shown(P.drawn)} (• = space).`),
   reproduce: REPRODUCE_TL },
   { ...calculation('Source value', 'The start and max_new_tokens',
     `The start (one new line) and max_new_tokens = ${MAX_NEW} are parsed from the sampling script by gen_generation.py (g.sample). The rows are the start plus the first k − 1 draws; the count on the card (${START.length} + ${PASSES} = ${START.length + PASSES}) and the practice's counts are the lengths of those strings, computed by the card module.`),

@@ -226,8 +226,10 @@ test('deep: the sampling path - B = 1, prompt length T, last position only; the 
     assert.equal(labels.filter(l => l.startsWith('Current input')).length, inputs.input === 'digits' ? 1 : 0);
     if (inputs.input === 'digits') assert.ok(!labels.some(l => l.startsWith(ifInput)));
     const [on, off] = inputs.meta ? ['char', 'bpe'] : ['bpe', 'char'];
-    for (const id of [`edge-${on}`, `edge-${on}-detail`]) assert.equal(byId(result, id).opacity, 1, `${id} ${JSON.stringify(inputs)}`);
-    for (const id of [`edge-${off}`, `edge-${off}-detail`]) assert.equal(byId(result, id).opacity, 0.35, `${id} ${JSON.stringify(inputs)}`);
+    for (const id of [`edge-${on}`, `edge-${on}-detail`, `edge-${off}-detail`]) assert.equal(byId(result, id).opacity ?? 1, 1, `${id} ${JSON.stringify(inputs)}`);
+    assert.equal(byId(result, `edge-${off}`).opacity, 0.72, `edge-${off} ${JSON.stringify(inputs)}`);
+    // A warning box cannot fade and stay 4.5:1, so the what-if KeyError row is grey.
+    for (const id of ['edge-char', 'edge-char-detail']) assert.equal(byId(result, id).role, inputs.meta ? 'warning' : 'neutral', `${id} ${JSON.stringify(inputs)}`);
     // Two rows never share a premise with different results: the dimmed row's what-if names the
     // other branch (the review: two "What-if: input = “Sonnet 18”" rows, KeyError and 3 IDs).
     const [litLead, dimLead] = [on, off].map(k => byId(result, `edge-${k}-detail`).label.split(' → ')[0]);

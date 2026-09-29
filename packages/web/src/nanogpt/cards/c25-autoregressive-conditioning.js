@@ -27,16 +27,16 @@ const V = A.vocab_size;          // 65
 const BLOCK = A.block_size;      // 256
 const COND = tl.recorded.conditioning;
 const IT = COND.iteration;       // 100
-const show = ch => (ch === ' ' ? 'sp' : ch);
+const show = ch => (ch === ' ' ? '•' : ch);
 const COLS = COND.columns.map(show);
 const REST_COUNT = V - COLS.length; // 57
 const [E, SP] = COND.presets;
-const quoted = ch => (ch === ' ' ? 'sp' : `‘${ch}’`);
-// '…' first (earlier text), one token per character, a space shown as sp.
+const quoted = ch => `‘${show(ch)}’`; // the space too: ‘•’, never a bare • that reads as a bullet
+// '…' first (earlier text), one token per character, a space shown as •.
 const tokensOf = t => ['…', ...[...t].map(show)];
-// A text as words; a trailing space is written as the card's sp, outside the
+// A text as words; a trailing space is written as the card's ‘•’, outside the
 // quotes, so it never reads as a stray space before the closing quote.
-const phraseOf = t => (t.endsWith(' ') ? `“…${t.slice(0, -1)}” + sp` : `“…${t}”`);
+const phraseOf = t => (t.endsWith(' ') ? `“…${t.slice(0, -1)}” + ${quoted(' ')}` : `“…${t}”`);
 const pct = p => Number((p * 100).toFixed(4)); // 6-decimal p → exact 4-decimal percent
 
 // Layout (scene units = CSS px at scale 1).
@@ -50,7 +50,7 @@ const BARS = { y: 404, h: 128, peak: 100 };
 const CONCEPT = 'autoregressive-conditioning';
 // Both texts end on one column: each row starts where its last token's centre
 // lands on READ_X (chip metrics as the renderer draws them), right of the rest
-// cell, far enough right that the longest row ('…Before we sp', 11 tokens)
+// cell, far enough right that the longest row ('…Before we •', 11 tokens)
 // starts a token pitch or more past its label. The box around that column is
 // what the toy reads.
 const READ_X = 790;
@@ -67,8 +67,8 @@ const tokens = (id, of, at, x, y) => ({ id, type: 'tokens', semanticId: id, conc
     cellHighlight: { $derive: at }, cellHighlightKind: 'highlight', opacity: 0 } });
 
 const APPEND = {
-  e: 'Append sp, as Shakespeare does next, and the toy switches to row sp: pick the sp preset.',
-  ' ': `The ${quoted(E.prev)} texts plus Shakespeare’s next character, sp (not a draw): the toy switched to row sp.`,
+  e: `Append ${quoted(' ')}, as Shakespeare does next, and the toy switches to row ${quoted(' ')}: pick the ${quoted(' ')} preset.`,
+  ' ': `The ${quoted(E.prev)} texts plus Shakespeare’s next character, ${quoted(' ')} (not a draw): the toy switched to row ${quoted(' ')}.`,
   other: 'Append any character and the next row is that character’s row; the toy reads nothing before it.',
 };
 
@@ -82,7 +82,7 @@ export const scene = {
     { name: 'prev', type: 'index', label: 'Previous character (preset)', of: 'prevLabels', default: 0, presentation: 'picker' },
   ],
   exampleData: {
-    prevLabels: ['‘e’', 'sp (space)', '‘h’', '‘,’ (comma)'],
+    prevLabels: ['‘e’', '‘•’ (space)', '‘h’', '‘,’ (comma)'],
     prevNames: COND.presets.map(p => quoted(p.prev)),
     // Each text as words, left of its tokens: the tokens spell it, this reads it.
     phraseAByPrev: COND.presets.map(p => phraseOf(p.texts[0].text)),
@@ -153,7 +153,7 @@ export const scene = {
     // Named as the bars' scale, left of the line, so it never reads as a total of the cells.
     note('bars-top-tag', 'bar height 100%', 56, BARS.y + 8, hidden),
     note('bars-zero-tag', 'bar height 0%', 56, BARS.y + BARS.h + 4, hidden),
-    note('legend', `the same ${COLS.length} of the ${V} next characters for every row, each cell rounded on its own; sp = space; … = earlier text`, 40, 560),
+    note('legend', `the same ${COLS.length} of the ${V} next characters for every row, each cell rounded on its own; • = space; … = earlier text`, 40, 560),
 
     // ④ the loop closes: the appended draw is the next condition (c24 owns the loop).
     text('loop', 'When it writes, each draw is appended and becomes the next previous character.', 40, 592, hidden),
@@ -239,7 +239,7 @@ export const sources = [
   calculation('Live calculation', `The other ${REST_COUNT} together`,
     `Computed on the card for the selected preset: pick (the texts, their start x, the bold last index, the row and the append line), sum and concat (the 8 shown cells), sub (100 − that sum = the ${REST_COUNT} characters outside the columns, together). Each cell is rounded on its own, so the printed cells and the rest can miss 100 by a few hundredths.`),
   calculation('Source value', `The texts, ${V} and ${BLOCK}`,
-    `The texts are Tiny Shakespeare training text, positions in the toy run's ${run.config.train_chars}-character slice: ${COND.presets.map(p => `${quoted(p.prev)}: ${textsNote(p)}`).join('; ')} - the sp texts are the ${quoted(E.prev)} texts plus the space that follows them there. vocab_size ${V} is the dataset's sorted character set (prepare.py:24-25, which reaches train.py through meta.pkl, train.py:138-143); block_size ${BLOCK} comes from config/train_shakespeare_char.py:19; ${REST_COUNT} = ${V} − ${COLS.length} columns.`),
+    `The texts are Tiny Shakespeare training text, positions in the toy run's ${run.config.train_chars}-character slice: ${COND.presets.map(p => `${quoted(p.prev)}: ${textsNote(p)}`).join('; ')} - the ${quoted(' ')} texts are the ${quoted(E.prev)} texts plus the space that follows them there. vocab_size ${V} is the dataset's sorted character set (prepare.py:24-25, which reaches train.py through meta.pkl, train.py:138-143); block_size ${BLOCK} comes from config/train_shakespeare_char.py:19; ${REST_COUNT} = ${V} − ${COLS.length} columns.`),
   tinyShakespeare(`Every text on the card is taken from the toy run's training slice of this file, “First Citizen:⏎Before we proceed…”; the generator asserts each lies there and ends in its previous character (${SP.texts.map(t => `“${t.text}”`).join(', ')} included).`),
 ];
 

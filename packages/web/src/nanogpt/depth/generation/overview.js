@@ -10,7 +10,7 @@
 // Shakespeare's training split that reads the last 3 characters, sampled at
 // generate()'s own defaults (temperature 1.0, no top-k) with seed 1337.
 // Python's random.choices stands in for torch.multinomial. No numbers are
-// printed; bar heights are the recorded probabilities. A space shows as ␣ in
+// printed; bar heights are the recorded probabilities. A space shows as • in
 // the text row and in the captions that quote it, so a picked space is visible.
 import g from '../fixtures/generation.generated.js';
 import { code, calculation, tinyShakespeare } from '../../sources.js';
@@ -21,7 +21,7 @@ const STEPS = g.overview.steps;
 const UPSET = STEPS.findIndex(s => s.pickedRank > 0);
 const CONCEPT = 'autoregressive-generation';
 const quoted = c => (c === 'space' ? 'a space' : c === 'newline' ? 'a new line' : `“${c}”`);
-const chips = s => [...s].map(c => (c === ' ' ? '␣' : c));
+const chips = s => [...s].map(c => (c === ' ' ? '•' : c));
 
 const text = (id, value, x, y, extra = {}) => ({ id, type: 'text', semanticId: id, conceptId: CONCEPT,
   initialState: { text: value, x, y, ...extra } });
@@ -57,7 +57,7 @@ export const scene = {
     block: g.block,
     promptChips: chips(g.prompt),
     written: STEPS.map((s, i) => chips(STEPS.slice(0, i + 1).map(t => (t.picked === 'space' ? ' ' : t.picked)).join(''))),
-    // The captions quote the same ␣ the text row shows, so a space is visible there too.
+    // The captions quote the same • the text row shows, so a space is visible there too.
     windows: STEPS.map(s => chips(s.window).join('')),
     nextWindows: STEPS.map(s => chips(s.nextWindow).join('')),
     shownByStep: STEPS.map(s => s.shown),
@@ -97,7 +97,7 @@ export const scene = {
 
     // The text so far: the prompt, then what the model has added.
     { id: 'prompt', type: 'tokens', semanticId: 'prompt', conceptId: CONCEPT,
-      initialState: { label: 'the start we give it', x: 24, y: TEXT_Y, opacity: 0, role: 'neutral', tokens: { $derive: 'promptChips' } } },
+      initialState: { label: 'the start we give it (• marks a space)', x: 24, y: TEXT_Y, opacity: 0, role: 'neutral', tokens: { $derive: 'promptChips' } } },
     { id: 'written', type: 'tokens', semanticId: 'written', conceptId: CONCEPT,
       initialState: { label: 'added by the model (newest lit)', x: 24 + PROMPT_W, y: TEXT_Y, opacity: 0, role: 'output',
         tokens: { $derive: 'writtenNow' }, cellHighlight: { $derive: 'step' }, cellHighlightKind: 'highlight' } },

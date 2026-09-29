@@ -45,8 +45,8 @@ test('each step shows the recorded pick joining the text and the next read', () 
     const [result] = assertCardGates(scene, [{ step: i }]);
     // Independent: the written text is the prompt plus every pick so far.
     const picks = STEPS.slice(0, i + 1).map(t => (t.picked === 'space' ? ' ' : t.picked)).join('');
-    // A space is drawn as a visible ␣ chip, never an empty one.
-    const glyphs = s => [...s].map(c => (c === ' ' ? '␣' : c));
+    // A space is drawn as a visible • chip, never an empty one.
+    const glyphs = s => [...s].map(c => (c === ' ' ? '•' : c));
     assert.deepEqual(byId(result, 'prompt').tokens, glyphs(g.prompt));
     assert.deepEqual(byId(result, 'written').tokens, glyphs(picks));
     for (const row of ['prompt', 'written']) assert.ok(byId(result, row).tokens.every(t => t.trim() !== ''), `${row}: no blank chip`);
@@ -85,9 +85,9 @@ test('each step shows the recorded pick joining the text and the next read', () 
   assert.equal(STEPS[0].picked, 'o');
   assert.equal(STEPS[0].nextFavourite, 'n');
   assert.equal(label(evaluated(scene, { step: 3 }), 'say-random-2'), 'can win, as “o” beat the favourite “z” at step 1.');
-  // Spaces the model picked (steps 3 and 6) show as ␣ in the text row.
+  // Spaces the model picked (steps 3 and 6) show as • in the text row.
   assert.deepEqual(STEPS.flatMap((s, i) => (s.picked === 'space' ? [i] : [])), [2, 5]);
-  assert.equal(byId(evaluated(scene, { step: 5 }), 'written').tokens.filter(t => t === '␣').length, 2);
+  assert.equal(byId(evaluated(scene, { step: 5 }), 'written').tokens.filter(t => t === '•').length, 2);
 });
 
 // Independent oracle for the toy model: recount the cached, sha-pinned

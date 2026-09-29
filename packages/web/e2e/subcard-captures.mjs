@@ -31,7 +31,8 @@ const { session } = await (await fetch(`${base}/test/session`, { method: 'POST',
 if (!session) throw new Error('no session from deployed worker');
 const browser = await chromium.launch();
 // Wide enough that the widest card sits clear of the tool gutter beside the canvas.
-const context = await browser.newContext({ viewport: { width: 2800, height: 2400 } });
+// COLOR_SCHEME=dark shoots the same states in the dark theme (the app follows the system setting by default).
+const context = await browser.newContext({ viewport: { width: 2800, height: 2400 }, colorScheme: process.env.COLOR_SCHEME === 'dark' ? 'dark' : 'light' });
 await context.addCookies([{ name: 'small_session', value: session, domain: new URL(base).hostname, path: '/' }]);
 const page = await context.newPage();
 await page.goto(`${base}/apps/repo-06745f10-nanogpt?tab=learn&board=${board}`);

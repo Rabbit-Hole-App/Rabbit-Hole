@@ -10,10 +10,10 @@ import { scene, plan, reviewStates, activity, sources, evidence } from './c23-co
 
 // Independent oracle, typed as the plan lists it (docs/nanogpt-deep-dive-batch5-plans.md, c23,
 // "The four states", re-computed by the judge from the pinned input.txt) - never the scene's derive graph.
-const SLOTS = ['e', 'sp', 'd', 't', 'm', 'other'];
+const SLOTS = ['e', '•', 'd', 't', 'm', 'other'];
 const TABLE = [ // block_size, idx_cond, cropped, counts, matches, p (%), most likely
-  [2, 'or', 'Bef', [1035, 2461, 1300, 697, 134, 2049], 7676, ['13.48', '32.06', '16.94', '9.08', '1.75', '26.69'], 'sp'],
-  [3, 'for', 'Be', [392, 1238, 133, 279, 90, 299], 2431, ['16.13', '50.93', '5.47', '11.48', '3.70', '12.30'], 'sp'],
+  [2, 'or', 'Bef', [1035, 2461, 1300, 697, 134, 2049], 7676, ['13.48', '32.06', '16.94', '9.08', '1.75', '26.69'], '•'],
+  [3, 'for', 'Be', [392, 1238, 133, 279, 90, 299], 2431, ['16.13', '50.93', '5.47', '11.48', '3.70', '12.30'], '•'],
   [4, 'efor', 'B', [339, 0, 33, 6, 7, 3], 388, ['87.37', '0.00', '8.51', '1.55', '1.80', '0.77'], 'e'],
   [5, 'Befor', '', [31, 0, 0, 0, 0, 0], 31, ['100.00', '0.00', '0.00', '0.00', '0.00', '0.00'], 'e'],
 ];
@@ -50,7 +50,7 @@ test('c23 fixture: the four counting tables over the training split, for the tok
   assert.deepEqual(W.blocks, TABLE.map(row => row[0]));
   assert.deepEqual(W.windows, TABLE.map(row => row[1]));
   assert.deepEqual(W.cropped, TABLE.map(row => row[2]));
-  assert.deepEqual(W.slots, SLOTS);
+  assert.deepEqual(W.slots, ['e', 'sp', 'd', 't', 'm', 'other'], 'the fixture keeps its slot name sp; the card shows •');
   assert.deepEqual(W.counts, TABLE.map(row => row[3]));
   assert.deepEqual(W.matches, TABLE.map(row => row[4]));
   TABLE.forEach(([k, window, cropped, counts, matches]) => {
@@ -120,7 +120,7 @@ test('c23 every stage follows block_size and matches the oracle', () => {
   // Cropping the one e of "efor" moves the most likely next character from e to a space.
   assert.deepEqual(results.map(r => r.derived.top), [1, 1, 0, 0]);
   const cell = (block, slot) => formatCell(byId(results[block], 'p').values[SLOTS.indexOf(slot)]);
-  assert.deepEqual([cell(2, 'e'), cell(1, 'sp'), cell(1, 'e'), cell(0, 'sp'), cell(0, 'e')], ['87.37', '50.93', '16.13', '32.06', '13.48']);
+  assert.deepEqual([cell(2, 'e'), cell(1, '•'), cell(1, 'e'), cell(0, '•'), cell(0, 'e')], ['87.37', '50.93', '16.13', '32.06', '13.48']);
   // The rounded block_size-3 row totals 100.01 (the legend covers it).
   assert.equal(TABLE[1][5].reduce((a, b) => a + Number(b), 0).toFixed(2), '100.01');
 });
@@ -141,7 +141,7 @@ test('c23 captions are true at every state; status words only; the practice numb
     'p-rule': 'p = count ÷ matches',
     'only-idx-cond': 'The prediction can use only idx_cond: whatever the crop removes no longer counts.',
     'idx-keeps': 'idx keeps every character: the crop limits what the model reads, not the text generate() returns.',
-    legend: 'other = every remaining character together · each p cell is rounded on its own',
+    legend: '• = space · other = every remaining character together · each p cell is rounded on its own',
     'footer-1': 'Source value: NanoGPT’s block_size is fixed by the trained model, 256 for shakespeare_char;',
     'footer-2': 'the crop starts once idx passes 256.',
     'footer-3': 'The forward accepts at most block_size positions: wpe has one learned row for each.',

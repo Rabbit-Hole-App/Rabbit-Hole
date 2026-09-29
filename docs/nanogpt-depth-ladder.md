@@ -277,11 +277,17 @@ Scoped fixes on approved cards for NC8's "To NC9" list; closed only after the ow
   visible label, practice text and control on both boards (default, each review state, each
   input value). On c34a309 it failed on exactly Attention Guided (the weights label and every
   "= … = .NN" by-hand line), c21's zero-note and c22's blank-note.
-- Spaces: • inside a token, with a key on the card; "space" as a label where it fits, else "sp"
-  with "sp = space" on the card. Applied to the Tokenization and Attention cards (c06 and c13
-  draw a space as •, as in •we; Attention Deep 2/4 adds "sp = space"). ␣ remains on Architecture
-  Overview, Generation Overview, Generation Deep 1/4 and Generation Deep 4/4 (its idx-next
-  tokens), and c22/c23 key "sp" only in Sources, pending the owner's scope call.
+- Spaces (NC10, both boards): a space is drawn as • wherever a card shows one (chips, grid and
+  bar labels, captions, controls), with the key "• = space" on the card. c06 keeps its approved
+  “•” = one space character; the Overview cards say "• marks a space" (Tokenization Overview's
+  approved wording; Generation Overview prints no "="). In a sentence a lone space is quoted
+  like any other character (c25 ‘•’, c12 “• w e”), so it never reads as a list bullet. The word
+  "space" stays where it fits (Attention Overview and Guided, Generation Overview's bar label).
+  sp stays only in code, Sources and fixture names (c23's slot sp); ␣ is never drawn. c11 and
+  c12 keep their frames: c11's legend reads "(• = space, beyond this window)". Gate: "NanoGPT
+  cards show a space as • with its key on the card" in `packages/web/src/number-grouping.test.mjs`
+  (its text walk now also reads token chips and bar labels); on the NC9 build it failed on c11,
+  c12, c21-c26, Architecture Overview, Attention Deep and Generation Overview and Deep.
 - Deep keeps η/λ/c and names the NanoGPT variable once: Training Deep 1/3 reads "η =
   learning_rate, η_min = min_lr, W = warmup_iters, D = lr_decay_iters; lr = η_t"; 3/3 reads
   "weight_decay λ" and c = grad_clip.
