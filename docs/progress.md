@@ -33,6 +33,7 @@ NC10 Final card QA                       🟡 ACTIVE (incl. accessibility audit:
                                             audit Architecture Overview, Generation Overview, Generation
                                             Deep 1/4 and 4/4, c22, c23)
 ──── after NC10 ────
+Phone-width card layout                  ⬜ post-NC10 (narrow-canvas card layout; owner 2026-09-29)
 Adaptive Tutor v1                        ⬜ handoff milestone, not implemented here
                                             (docs/features/adaptive-tutor-v1.md)
 ```
@@ -42,6 +43,26 @@ deployed checks → Figma captures → stop at the visual review gate with the e
 bar: one question per card; practice on an unseen case; no decorative interaction; no text
 shrinking; sequence relationships explicit when cards form a path; existing renderer primitives
 (a new capability only if a batch proves it genuinely reusable).
+
+## 2026-09-29 — NC10 final QA: two shared fixes approved, phone layout logged
+
+Final QA on the deployed NC10 build (both boards green: interaction, sources, practices,
+persistence, toolbar, unit and render-freshness) found, besides four card-level readings now
+fixed (a What-if KeyError drawn red before its input fails; · beside •; a key line reading as a
+bullet; "space" on one axis), three things only shared code can fix. **Owner decisions:**
+- **Box labels take their fill's ink (approved).** A label on a strong or solid role fill used
+  page ink and missed 4.5:1 (Tokenization Guided's found entry and Attention Overview's reading
+  tile at 4.15:1 in dark; Training Deep's success box at 4.19:1 in light). It now follows the rule
+  cells already follow since the approved contrast fix, and the contrast check measures every
+  glyph over any filled shape, including a shape's own label. c15's green verdict line (3.87:1
+  in light) takes page ink. Active highlights are never faded to pass.
+- **The zoom controls never cover the composer (approved).** At 390px the canvas zoom pill sat on
+  the "Ask about…" input so it could not be tapped; the phone pass of canvas-toolbar-check now
+  asserts they do not overlap.
+- **Phone-width card layout: logged as a post-NC10 item.** Cards are 900–1000px wide on a 322px
+  phone canvas; lines are cut and a Deep dive's pager is off-screen until the learner pans. Glyphs
+  stay at 11px or more. Fixing it needs a narrow-canvas card layout (new renderer architecture),
+  outside the card closeout.
 
 ## 2026-09-29 — NC9 closed
 
