@@ -118,9 +118,12 @@ The canvas notebook site is `packages/web/notebook-canvas` (see its README): a
 JupyterLite build with no bundled files, plus `canvas-bridge.js`. The Lesson
 view's notebook site (`packages/web/notebook`) is separate and unchanged. The
 web build reads the canvas notebook origin from `VITE_NOTEBOOK_ORIGIN`
-(default: the shared `small-learn-canvas-notebook-dev`, not deployed yet). A
-parallel session deploys its own with `wrangler.canvas-notebook-parallel.jsonc`
-and builds the web app with that origin.
+(default: the shared dev site `small-learn-canvas-notebook-dev`, deployed
+2026-09-29). A parallel session's review site is
+`small-learn-canvas-notebook-dev-small-parallel`: deploy it with
+`wrangler.canvas-notebook-parallel.jsonc` and build the web app with that
+origin. The shared site deploys from the same config with
+`--name small-learn-canvas-notebook-dev`.
 
 ## Verification
 
