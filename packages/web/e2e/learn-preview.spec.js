@@ -320,7 +320,7 @@ test('return to lesson restores the saved note timeline, paused', async ({ page 
   await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 });
 
-test('Learn answer blocks typeset math and send the selected passage in follow-ups', async ({ page }) => {
+test('Learn answers typeset math and copy as one block', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.getByRole('button', { name: /Explain the sigmoid function/ }).click();
   const answer = String.raw`**Page 1 . What is logistic regression?**
@@ -340,9 +340,7 @@ Step 2: evaluate the denominator.
 $$= \frac{1}{2} = 0.5$$
 
 Code stays literal:` + '\n\n```python\nformula = "$x$"\n```';
-  let followup;
   await page.route('**/api/learn/ask', route => {
-    followup = route.request().postDataJSON();
     return route.fulfill({ contentType: 'text/event-stream', body: `event: chunk\ndata: ${JSON.stringify({ text: answer })}\n\nevent: done\ndata: {}\n\n` });
   });
   const chat = page.getByRole('complementary', { name: 'Learn agent chat' });
@@ -353,22 +351,12 @@ Code stays literal:` + '\n\n```python\nformula = "$x$"\n```';
   await expect(chat.locator('.katex mfrac')).toHaveCount(3);
   await expect(chat.getByText('formula = "$x$"', { exact: true })).toBeVisible();
   await page.evaluate(() => { window.blockClipboard = ''; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.blockClipboard = text; } } }); });
-  await chat.getByRole('button', { name: 'Copy answer block 3', exact: true }).last().click();
+  // One block per answer: one copy icon, nothing to ask about a single paragraph.
+  await expect(chat.getByRole('button', { name: 'Copy answer', exact: true })).toHaveCount(1);
+  await expect(chat.getByRole('button', { name: /^Ask about answer block/ })).toHaveCount(0);
+  await chat.getByRole('button', { name: 'Copy answer', exact: true }).click();
   await expect(chat.getByText('Copied', { exact: true })).toBeVisible();
-  expect(await page.evaluate(() => window.blockClipboard)).toContain('Step 1: substitute');
-  await chat.getByRole('button', { name: 'Ask about answer block 3', exact: true }).last().click();
-  await expect(chat.getByText('Asking about this answer', { exact: true })).toBeVisible();
-  const chosen = chat.getByRole('button', { name: 'Ask about answer block 3', exact: true }).last();
-  await expect(chosen).toHaveAttribute('aria-pressed', 'true');
-  await expect(chosen.locator('..')).toHaveClass(/ring-blue-500/);
-  await expect(chosen.locator('..')).toHaveCSS('color', 'rgb(0, 0, 0)');
-  await page.evaluate(() => document.documentElement.classList.add('dark'));
-  await expect(chosen.locator('..')).not.toHaveClass(/bg-transparent/);
-  const selectedBackground = await chosen.locator('..').evaluate(el => getComputedStyle(el).backgroundColor);
-  expect(selectedBackground).not.toBe('rgba(0, 0, 0, 0)');
-  await expect(chosen.locator('..')).toHaveCSS('color', 'rgb(0, 0, 0)');
-  await input.fill('Why does this equal one?'); await input.press('Enter');
-  await expect.poll(() => followup.message).toContain('Step 1: substitute');
-  expect(followup.message).toContain('Why does this equal one?');
-  expect(followup.message).not.toContain('Step 2:');
+  const copied = await page.evaluate(() => window.blockClipboard);
+  expect(copied).toContain('Step 1: substitute');
+  expect(copied).toContain('Step 2: evaluate');
 });

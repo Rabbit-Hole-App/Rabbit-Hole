@@ -59,7 +59,7 @@ const sheetBox = await sheet.boundingBox(), dockBox = await page.locator('[data-
 check('the sheet sits directly above the composer, same width', sheetBox.y + sheetBox.height <= dockBox.y + 2 && Math.abs(sheetBox.width - dockBox.width) < 4, `sheet ${Math.round(sheetBox.width)}w bottom ${Math.round(sheetBox.y + sheetBox.height)}, composer ${Math.round(dockBox.width)}w top ${Math.round(dockBox.y)}`);
 check('"hi" makes no card on the canvas', await chatCards() === 0);
 check('the sheet shows the question and the answer', await sheet.getByText('hi', { exact: true }).isVisible() && await sheet.getByText('Answer 1.').isVisible());
-const copies = await sheet.getByRole('button', { name: /^Copy answer block/ }).count(), askAbout = await sheet.getByRole('button', { name: /^Ask about answer block/ }).count();
+const copies = await sheet.getByRole('button', { name: /^Copy answer/ }).count(), askAbout = await sheet.getByRole('button', { name: /^Ask about answer block/ }).count();
 check('a two-paragraph answer is one block with one copy icon and no ask-about icon', copies === 1 && askAbout === 0, `${copies} copy, ${askAbout} ask-about`);
 await shot(page, 'sheet-hi');
 

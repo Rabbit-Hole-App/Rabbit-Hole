@@ -13,8 +13,9 @@ The sheet is the same idea as smart-home's result sheet on Home.
   **History**, **New chat** and **Collapse**. A new question reopens a
   collapsed sheet.
 - Each answer is one block with a copy icon, however many paragraphs it
-  has. The Learn chat elsewhere still splits answers into paragraph blocks
-  with **Ask about this block**.
+  has. The same holds in every Learn chat (the repository page too): the
+  per-paragraph blocks and **Ask about this block** were removed on
+  2026-09-29.
 - Questions in the sheet share one thread, so follow-ups keep context.
   **New chat** starts a new thread.
 - Each finished answer has **Add to canvas**. It places that question and
@@ -53,5 +54,7 @@ still while the answer streams. Cards inserted any other way (Insert menu,
 
 - `packages/web/e2e/learn-chat-sheet.mjs`: the sheet end to end, answers
   stubbed.
+- `packages/web/e2e/learn-chat-one-block.mjs`: one block per answer on the
+  repository page's Learn chat.
 - `packages/web/e2e/chat-card-placement.mjs` and
   `packages/web/e2e/canvas-landing-sweep.mjs`: where new cards land.
