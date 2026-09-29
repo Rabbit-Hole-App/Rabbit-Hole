@@ -20,13 +20,13 @@ NC7  NanoGPT cards 11–26                 ✅ COMPLETE (25-card inventory, card
                                             batch 5 ✅ CLOSED (page 34:3, v1.1 closeout 38:3)
 NC8  Cross-depth content transitions     ✅ CLOSED (page 43:3; docs/nanogpt-depth-ladder.md
                                             "Cross-depth transitions")
-NC9  Curriculum coherence review         🟡 at the visual gate (page 47:3) (open items: softmax card: not needed, both Guided cards
+NC9  Curriculum coherence review         ✅ CLOSED (page 47:3) (open items: softmax card: not needed, both Guided cards
                                             work it in place (decided); notation and example drift; c18 practice vs
                                             Training Guided reveal; q·k score production ✅ PASS (audit only,
                                             docs/nanogpt-depth-ladder.md);
                                             should c26 name its iteration-1000 checkpoint next to c25's 100?;
                                             c22 rounds each cell (z 0.60) where c21 rounds to sum 1 (z 0.61))
-NC10 Final card QA                       ⬜ (incl. accessibility audit: classify the seven dimmed focus/mask
+NC10 Final card QA                       🟡 ACTIVE (incl. accessibility audit: classify the seven dimmed focus/mask
                                             states - A semantic text to 4.5:1, B unavailable/decorative
                                             with a documented exemption; docs/features/learn-canvas-blocks.md;
                                             Architecture Deep's INTERACT label generate() on "hear me spea" ends
@@ -45,6 +45,18 @@ deployed checks → Figma captures → stop at the visual review gate with the e
 bar: one question per card; practice on an unseen case; no decorative interaction; no text
 shrinking; sequence relationships explicit when cards form a path; existing renderer primitives
 (a new capability only if a batch proves it genuinely reusable).
+
+## 2026-09-29 — NC9 closed
+
+Owner reviewed the Figma captures (page 47:3) and closed NC9: one notation across both boards
+((out, in), x/attn/GELU(h), ln, idx for (B, T) IDs, named schedule symbols, weight_decay and
+grad_clip, • with a key on c06/c13); q·k score production PASS with no change; no separate softmax
+card; c21's T = 1.0 row equals c22's and its 4-decimal readout (0.6048) explains the 0.60 cell;
+c25/c26 name their checkpoints (iteration 100, the kept; iteration 1000, the last); Training
+Guided no longer names the checkpoint c18's practice asks for, and c18 is untouched; the status
+labels "Source value (stored result)" and "(labels only)" are right. Pushed fast-forward
+8993d4d..365ef91. NC10 is the final card closeout: course-wide space notation, the dimmed-content
+classification, Architecture Deep's mid-word label, final QA and one last Figma gate.
 
 ## 2026-09-29 — NC8 closed
 
