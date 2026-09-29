@@ -267,8 +267,9 @@ graph on a phone and in dark mode; page prompts ask in the page scope; an app's 
 user's request: feedback (bug / idea) at the bottom of the sidebar and its rail (Learn's FeedbackButton, app-less).
 Open for the user: (1) the toast column and dark kind-pill colours are unconditional, so live small users see them too -
 keep or gate on learnPreview; (2) deferred minors - the bar's mode pill persists across scopes, no error boundary around
-Root (a stale lazy chunk after a redeploy blanks the page); (3) Learn-owned: the notebook kernel stayed 'Starting
-Python…' for 45s in headless capture (J06), reported to the Learn owner.
+Root (a stale lazy chunk after a redeploy blanks the page); (3) the notebook card needs a notebook site: the shared default
+small-learn-canvas-notebook-dev was never deployed (deploying it is a new shared dev resource - the user's call); the
+review build uses the Learn owner's worker via VITE_NOTEBOOK_ORIGIN. Final suite 101/102 (G2-branch GitHub flake, 2/2 on rerun).
 
 
 Full journey Home → Project → Map → select → Teach this → Learn → cards/notebook
