@@ -12,8 +12,8 @@ Projects", `ef9SfiemEsPQF2bd8B1os3`), with the exact node URL.
 | WP3 | Proposal lifecycle / action safety | Done, frozen |
 | WP4 | Home / Library / Explore / Start / Settings | Done (closeout 2026-09-28) |
 | WP5 | Mothership Agent Bar / command surface | Done (naming closeout 2026-09-28) |
-| WP6 | Project / Canvas / App destinations; Map as conversational knowledge graph | Checkpoint 1 closed (2026-09-29); Checkpoint 2 active |
-| WP7 | Final integration / MVP verification | Last |
+| WP6 | Project / Canvas / App destinations; Map as conversational knowledge graph | Done, frozen (2026-09-29) |
+| WP7 | Final integration / MVP verification | Active (2026-09-29) |
 
 ## Product model (user, 2026-09-28)
 
@@ -168,7 +168,11 @@ location. WP1's UX is not reopened.
 
 ### Map = conversational knowledge graph (user, 2026-09-28)
 
-Checkpoint 2 built (2026-09-29), waiting for the user's Figma review (node 79:222): plan
+Checkpoint 2 APPROVED and CLOSED (user, 2026-09-29; Figma node 79:222). WP6 is closed and frozen: reopen it
+only for factual/provenance errors, fixture leakage, permission/privacy failures, a broken Map → Learn flow, a
+live-write regression or unusable navigation - never for visual polish. Keep the convention: Recorded = solid,
+Inferred = dashed with confidence. Deferred minor: the Map answerLocally effect names snapshot?.commit, not
+snapshot (unreachable today: the snapshot only changes with the commit). Built with: plan
 docs/superpowers/plans/2026-09-29-wp6-checkpoint2-knowledge-graph.md, commits 129f57c..7c3f473, checks
 wp6-kg-layers, wp6-kg-selected, wp6-kg-entity, wp6-kg-starters, wp6-kg-why. Deferred (ponytail): natural-language
 graph commands (show every decision related to X, what did engineers struggle with here, /research why); the
@@ -249,6 +253,11 @@ Map explains structure, history and why; Learn teaches the concept deeply.
   this → Learn; the Mothership scopes throughout.
 
 ## WP7 final integration
+
+Active (user, 2026-09-29): integration and final product QA, not feature work. No Knowledge Capture v1, no new
+graph features, no Tutor Agent, no new work packages. Use the combined integration build where needed; the
+smallest final Figma set that proves the paths; final suites; stop for review.
+
 
 Full journey Home → Project → Map → select → Teach this → Learn → cards/notebook
 → back to Project; Library → Canvas → Learn; Library → App/Job → detail;
