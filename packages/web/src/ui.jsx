@@ -228,32 +228,28 @@ export function Toasts() {
   const drop = (id) => setItems((t) => t.filter((x) => x.id !== id));
   const notes = items.filter((t) => t.tone !== 'error');
   const errors = items.filter((t) => t.tone === 'error');
+  // One bottom-right column (WP6 closeout, user 2026-09-29): errors above info, the two never overlapping, never
+  // bottom-left. It clears the dev Agent Bar (--agent-bar-h, unset live) or, with no bar, the phone's safe area.
   return (
-    <>
-      {/* Always bottom-right, like the error stack - a corner the eye already
-          checks. Never bottom-left. */}
-      {!!notes.length && <div className="fixed right-4 bottom-4 z-50 flex flex-col gap-2">
-        {notes.map((t) => (
-          <div key={t.id} className="rounded-md bg-ink px-3 py-2.5 text-sm text-white shadow-pop animate-[toast-in_150ms_ease-out]">
-            {t.msg}
-          </div>
-        ))}
-      </div>}
-      {!!errors.length && <div className="fixed right-4 bottom-4 z-50 flex max-w-96 flex-col gap-2">
-        {errors.map((t) => (
-          <div key={t.id} data-toast-error className="flex items-start gap-2 rounded-lg border border-red-600/30 bg-ink px-3 py-2.5 text-sm text-white shadow-pop animate-[toast-in_150ms_ease-out]">
-            <TriangleAlert size={15} className="mt-0.5 shrink-0 text-red-400" />
-            <span className="min-w-0 flex-1 break-words">{t.msg}</span>
-            <button type="button" data-toast-copy title="Copy this message" aria-label="Copy this message"
-              onClick={() => { navigator.clipboard.writeText(t.msg); toast('Copied'); }}
-              className="shrink-0 rounded p-1 text-white/70 hover:bg-white/10 hover:text-white"><CopyIcon size={14} /></button>
-            <button type="button" data-toast-close title="Dismiss" aria-label="Dismiss"
-              onClick={() => drop(t.id)}
-              className="shrink-0 rounded p-1 text-white/70 hover:bg-white/10 hover:text-white"><X size={14} /></button>
-          </div>
-        ))}
-      </div>}
-    </>
+    <div className="fixed right-4 bottom-[max(calc(var(--agent-bar-h,0px)+1rem),calc(1rem+env(safe-area-inset-bottom)))] z-50 flex max-w-[min(24rem,calc(100vw-2rem))] flex-col items-end gap-2">
+      {errors.map((t) => (
+        <div key={t.id} data-toast-error className="flex items-start gap-2 rounded-lg border border-red-600/30 bg-ink px-3 py-2.5 text-sm text-white shadow-pop animate-[toast-in_150ms_ease-out]">
+          <TriangleAlert size={15} className="mt-0.5 shrink-0 text-red-400" />
+          <span className="min-w-0 flex-1 break-words">{t.msg}</span>
+          <button type="button" data-toast-copy title="Copy this message" aria-label="Copy this message"
+            onClick={() => { navigator.clipboard.writeText(t.msg); toast('Copied'); }}
+            className="shrink-0 rounded p-1 text-white/70 hover:bg-white/10 hover:text-white"><CopyIcon size={14} /></button>
+          <button type="button" data-toast-close title="Dismiss" aria-label="Dismiss"
+            onClick={() => drop(t.id)}
+            className="shrink-0 rounded p-1 text-white/70 hover:bg-white/10 hover:text-white"><X size={14} /></button>
+        </div>
+      ))}
+      {notes.map((t) => (
+        <div key={t.id} className="rounded-md bg-ink px-3 py-2.5 text-sm text-white shadow-pop animate-[toast-in_150ms_ease-out]">
+          {t.msg}
+        </div>
+      ))}
+    </div>
   );
 }
 
