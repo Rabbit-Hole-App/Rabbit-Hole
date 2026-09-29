@@ -40,7 +40,8 @@ function Overview({ app, canvases }) {
 export default function RepositoryPage({ app: initial, catalog = [] }) {
   const [app,setApp]=useState(initial),[snapshot,setSnapshot]=useState(null),[error,setError]=useState(''),[mode,setMode]=useState('graph'),[query,setQuery]=useState(''),[selected,setSelected]=useState(null),[source,setSource]=useState(null),[asking,setAsking]=useState(null);
   const [graphView,setGraphView]=useState(null),[view,setView]=useState('conversation');
-  const showGraph=value=>{setGraphView({...value,requestId:crypto.randomUUID()});setMode('graph');if(new URLSearchParams(window.location.search).get('tab')==='learn')navigate(`/apps/${app.name}?tab=code`);};
+  const showGraph=value=>{setGraphView({...value,requestId:crypto.randomUUID()});setMode('graph');if(projectTab(window.location.search)!=='map')navigate(`/apps/${app.name}?tab=map`);};
+  const onGraph=(value,{auto=false}={})=>{if(auto&&projectTab(window.location.search)!=='map')return;showGraph(value);}; // Overview has no graph: only an explicit Show on graph opens the Map
   const tab=projectTab(window.location.search),go=t=>navigate(`/apps/${app.name}${t==='overview'?'':`?tab=${t}`}`);
   const canvases=catalog.filter(c=>c.kind==='canvas'&&c.project===app.name),picked=tab==='learn'&&canvases.find(c=>c.name===new URLSearchParams(window.location.search).get('canvas')); // LibraryViews.jsx's filter. ponytail: an unknown ?canvas= falls back to the Project canvas
   const root=`/api/repositories/${app.name}`;
@@ -54,7 +55,7 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
   // URL change, so this re-runs on the path. Learn keeps Root's hidden baseline and gets no onGraph: a late
   // Map answer must not navigate the reader out of Learn.
   const path=window.location.pathname+window.location.search;
-  useEffect(()=>{if(tab!=='learn')patchSurface({...(tab==='map'?{resultsHost:'panel'}:{}),resource:{kind:'project',slug:app.name,title:titleOf(app),status:app.status},selected:tab==='map'&&asking?{id:asking.id,label:asking.label,commit:asking.commit||snapshot?.commit}:null,handlers:{onGraph:showGraph}});},[path,app.name,app.repo,app.status,asking,snapshot?.commit]);
+  useEffect(()=>{if(tab!=='learn')patchSurface({...(tab==='map'?{resultsHost:'panel'}:{}),resource:{kind:'project',slug:app.name,title:titleOf(app),status:app.status},selected:tab==='map'&&asking?{id:asking.id,label:asking.label,commit:asking.commit||snapshot?.commit}:null,handlers:{onGraph}});},[path,app.name,app.repo,app.status,asking,snapshot?.commit]);
   const key=resultsKey({org:getSurface().org,kind:'project',slug:app.name}); // the bar's results key for this project, selection excluded
   useEffect(()=>subscribeTurns(({key:k,pushed})=>{if(pushed&&k===key)setView('conversation');}),[key]); // ResultSheet.jsx:11-13
   const tabs=<Tabs value={tab} onValueChange={go}><TabsList pill data-project-tabs className="mb-4">
@@ -65,7 +66,6 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
   if(tab==='learn')return <div className="flex min-h-0 min-w-0 flex-1 flex-col max-md:pt-(--shell-top-h)">{/* LearnPage brings its own <main>, which loses index.css's [data-shell-sidebar] ~ main phone padding */}
     <div className="flex shrink-0 flex-wrap items-center gap-x-3 px-8 pt-3 max-md:px-4"><span className="mb-4 text-sm font-semibold">{app.repo}</span>{tabs}
       {/* a native select: ui.jsx's Select is string-only and would collide on duplicate canvas titles */}
-      {!picked&&asking&&<span data-learn-context className="mb-4 rounded-full border border-line px-2 py-0.5 text-xs text-ink-2">From Map: {asking.label}</span>}
       {canvases.length>0&&<select aria-label="Canvas" value={picked?.name||''} onChange={e=>navigate(`/apps/${app.name}?tab=learn${e.target.value?`&canvas=${e.target.value}`:''}`)} className="mb-4 h-8 rounded-sm border border-line bg-transparent px-2 text-xs"><option value="">Project canvas</option>{canvases.map(c=><option key={c.name} value={c.name}>{c.title}</option>)}</select>}
     </div>
     {picked?<CanvasLearn key={picked.name} app={picked} project={app}/>:<LearnPage app={app} onGraph={showGraph} repositoryContext={asking ? {nodeId:asking.id,label:asking.label,commit:snapshot?.commit} : {commit:app.commit_sha}} onBack={()=>{setMode('graph');navigate(`/apps/${app.name}?tab=code`);}}/>}

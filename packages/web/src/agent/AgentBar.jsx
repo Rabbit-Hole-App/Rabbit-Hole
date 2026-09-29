@@ -309,9 +309,10 @@ export default function AgentBar() {
       keepDraft(from, raw); // Your message is kept (§13)
     }
     if (graph) {
-      const show = () => { const page = getSurface(); if (resultsKey(scopeOf(page)) === key) page.handlers?.onGraph?.(graph); };
-      updateTurn(key, id, (t) => ({ ...t, showGraph: show }));
-      show();
+      // auto: the answer's own highlight, which a page may skip (Overview has no graph); a click is explicit.
+      const show = (auto = false) => { const page = getSurface(); if (resultsKey(scopeOf(page)) === key) page.handlers?.onGraph?.(graph, { auto }); };
+      updateTurn(key, id, (t) => ({ ...t, showGraph: () => show() }));
+      show(true);
     }
   }
 
