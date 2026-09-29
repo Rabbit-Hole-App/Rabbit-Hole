@@ -17,8 +17,8 @@ NC7  NanoGPT cards 11–26                 🟡
   NC7A Batch 2                           ✅
   NC7B Batch 3                           ✅ CLOSED (page 18:3, v1.1 fixes 22:3)
   NC7C Remaining through 26              🟡 ACTIVE — batch 4 ✅ CLOSED (page 26:3, v1.1 fixes 28:3);
-                                            batch 5 (c22, c23, c24, c25) closing: shared renderer fixes approved
-                                            and deployed; v1.1 closeout pending (c24 gap fix)
+                                            batch 5 (c22, c23, c24, c25) at the v1.1 closeout gate (page 34:3,
+                                            closeout 38:3; shared renderer fixes deployed and verified)
 NC8  Cross-depth content transitions     ⬜
 NC9  Curriculum coherence review         ⬜ (open items: is "how scores are produced", q·k, thin?;
                                             should c26 name its iteration-1000 checkpoint next to c25's 100?;
