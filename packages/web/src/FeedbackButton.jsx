@@ -56,7 +56,7 @@ export default function FeedbackButton({ app, board }) {
             ))}
           </div>
           <textarea value={text} onChange={event => setText(event.target.value)} rows={4} maxLength={2000} autoFocus aria-label={kind === 'bug' ? 'What went wrong' : 'Your idea'}
-            placeholder={kind === 'bug' ? 'What went wrong, and what did you expect?' : 'What would you like Learn to do?'}
+            placeholder={kind === 'bug' ? 'What went wrong, and what did you expect?' : 'What would you like Rabbit Hole to do?'}
             className="w-full resize-y rounded-lg border border-line p-2 text-sm outline-none focus:border-ink-3" />
           {state === 'error' && <p className="mt-1 text-xs text-red-700">{error}</p>}
           <div className="mt-2 flex items-center justify-end">
