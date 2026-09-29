@@ -28,3 +28,20 @@ test('a report is stored in Learn media with who sent it, after the app access c
   assert.equal(saved.context.board, 'main');
   assert.equal((await feedbackFetch(post({ app: 'demo', kind: 'bug', text: '' }), env)).status, 400);
 });
+
+test('a report from outside an app (Home, Library) needs only a signed-in member, and stays off the live bucket', async () => {
+  const stored = new Map();
+  const media = { put: async (key, value) => stored.set(key, JSON.parse(value)) };
+  const live = { put: async () => { throw new Error('live bucket touched'); } };
+  const post = body => new Request('https://dev.example/api/learn/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const signedOut = { CONTROL_PLANE: { fetch: async () => new Response('login', { status: 302 }) }, LEARN_MEDIA: media, RUNS: live };
+  assert.equal((await feedbackFetch(post({ kind: 'idea', text: 'A dark theme' }), signedOut)).status, 401);
+  assert.equal(stored.size, 0);
+  const member = { CONTROL_PLANE: { fetch: async request => (new URL(request.url).pathname === '/api/apps' ? Response.json({ org: 'o', email: 'a@b.c', apps: [] }) : Response.json({ error: 'no' }, { status: 404 })) }, LEARN_MEDIA: media, RUNS: live };
+  const response = await feedbackFetch(post({ app: null, kind: 'idea', text: 'A dark theme', context: { path: '/apps' } }), member);
+  assert.equal(response.status, 201);
+  const [[key, saved]] = [...stored];
+  assert.match(key, /^learn-feedback\//);
+  assert.equal(saved.app, null);
+  assert.equal(saved.email, 'a@b.c');
+});

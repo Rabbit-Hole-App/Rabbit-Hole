@@ -22,6 +22,7 @@ import { paletteSections, insertName } from './learn-insert-palette.js';
 import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow } from './learn-connectors.js';
 import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
+import LaserPointer from './LaserPointer.jsx';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -1617,6 +1618,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setSelection([]);
   };
   const presentingRef = useRef(null);
+  // Present mode's laser pointer: on by default, L or the bar's Laser toggles it.
+  const [laser, setLaser] = useState(true);
+  const laserRef = useRef(setLaser);
   presentingRef.current = presenting;
   const deleteSelectionRef = useRef(deleteSelection);
   deleteSelectionRef.current = deleteSelection;
@@ -1678,6 +1682,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         if (event.key === 'Escape') { event.preventDefault(); stopPresentingRef.current(); return; }
         if ([' ', 'ArrowRight', 'ArrowDown', 'PageDown', 'Enter'].includes(event.key)) { event.preventDefault(); showStepRef.current(presentingRef.current + 1); return; }
         if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) { event.preventDefault(); showStepRef.current(presentingRef.current - 1); return; }
+        if (event.key === 'l' || event.key === 'L') { event.preventDefault(); laserRef.current(on => !on); return; }
         return;
       }
       // Esc is the way home from anywhere: back to the pointer, nothing armed,
@@ -2402,6 +2407,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         onDrop={event => { if (!onDropFiles) return; event.preventDefault(); setDropHover(false); onDropFiles([...event.dataTransfer.files]); }}
         style={grid ? { background: 'var(--color-white)', backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: `${GRID * view.z}px ${GRID * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` } : undefined}
         className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor} ${dropHover ? 'ring-2 ring-accent ring-inset' : ''}`}>
+        <LaserPointer on={presenting !== null && laser} />
         <div style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className="absolute top-0 left-0">
         {/* Page guides sit inside the camera, so they pin to the content: the
             boundary keeps its width in cards, not in screen pixels. */}
@@ -2724,6 +2730,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             <span aria-live="polite" className="max-w-56 truncate px-2 text-xs text-ink-2">{presenting + 1} / {stepsRef.current.length} · {stepsRef.current[presenting]?.label}</span>
             <IconBtn title="Next section" aria-label="Next section" disabled={presenting >= stepsRef.current.length - 1} onClick={() => showStep(presenting + 1)}><Forward size={14} /></IconBtn>
             <span className="mx-0.5 h-5 w-px bg-line" />
+            <button type="button" data-laser-toggle aria-pressed={laser} title="Laser pointer (L)" onClick={() => setLaser(on => !on)}
+              className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${laser ? 'bg-red-50 text-red-600' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
+              <span className={`h-2 w-2 rounded-full ${laser ? 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.9)]' : 'bg-ink-3'}`} />Laser
+            </button>
             <button type="button" onClick={stopPresenting} className="rounded px-2 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">Exit</button>
           </div>
         </div>
