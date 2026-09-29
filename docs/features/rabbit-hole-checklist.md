@@ -119,6 +119,16 @@ Harness checks sh-sidebar, sh-rail, sh-drawer and sh-legacy pass on the clone.
 
 ## WP6 destinations
 
+Checkpoint 1 built (2026-09-29), waiting for the user's Figma review: the Project, Canvas
+and App destination shell on clone small-cp-dev-smart-home (841c3a8a), commits 32bf6f6..0a5d6b1,
+browser suite 90/91 (the miss, G2-branch, is GitHub metadata through the repository worker and
+passed 2/2 on rerun). Checks: wp6-app-d7, wp6-app-denied, wp6-app-bar, wp6-canvas, wp6-project,
+wp6-learn, wp6-map, wp6-learn-this, wp6-overview, wp6-app-ops, wp6-built-from, wp6-mobile,
+wp6-library-d7, wp6-show-on-graph. Decisions: docs/superpowers/plans/2026-09-28-wp6-checkpoint1-destinations.md
+(Open decisions). Figma: node 65:222 "WP6 · checkpoint 1 (destinations)". Deferred minors: Start
+learning before a snapshot exists; a canvas made from the bar shows after a reload; a stale app
+chip while switching apps.
+
 - PROJECT = learning hub = Overview + Learn + Map. Overview (default): identity
   and source, Continue learning, learning canvases, light source/commit info,
   recent activity; no operational clutter. Learn is the real Learn canvas (its
