@@ -1155,6 +1155,44 @@ live build merely to prepare a dev deployment.
 
 ## Release and verification
 
+### Observatory selected as the single landscape — 2026-09-29
+
+Following visual approval, the landing page keeps the animated observatory as
+its only Japanese-style landscape. The standalone mountain figure and its unused
+styles are removed; the original mountain asset remains in the repository.
+The observatory follows the pink clouds, retaining its mist, stars, responsive
+layout, offscreen pause and reduced-motion behavior. The approved standing
+thinkers image and blank white content section remain unchanged.
+
+Dev build and session-clone deployment passed, version
+`3a947fe7-2fc2-4908-8239-69b3777ec6fd`. Actual deployed Chrome checks passed at
+1440 and 390px: a single observatory directly after the clouds, no mountain image
+request, moving mist, reduced-motion/offscreen pause, retained white space and
+thinkers asset, and no horizontal overflow. Both screenshots were visually
+inspected; no browser errors or failed assets were observed. Evidence:
+`tmp/observatory-only/verification.json` and `deployed-*.png`. No shared/live
+deployment or schema changes.
+
+### White content space before the clouds — 2026-09-29
+
+The black manifesto/image section now ends with a sharp cut into a blank white
+content area, followed by the existing pink cloud loop. The reserved section is
+55svh tall, bounded to 320–640px. The previous top mask, pink haze and scroll-driven
+opacity reveal are removed; the GIF stays at full opacity and reduced motion
+continues to use its existing still. No new copy or images were added.
+
+The preceding approved public-page state was saved in commit `6b4a8b9` after
+`make test-unit` passed. This subsequent layout change passed the dev build and
+was deployed only to the session clone, version
+`634216e2-52dc-448d-96f3-d759cebbf6a1`. Actual deployed Chrome verification passed
+at 1440, 390 and 320px: full-width empty white section, flush black/white/cloud
+boundaries, hidden scrollbars, no horizontal overflow, full-opacity animated
+clouds during forward/reverse scroll and reduced-motion toggling. Artwork/GIF
+hashes are unchanged and Read more still opens `/manifesto`. Desktop and phone
+screenshots were visually inspected; no browser errors or failed assets were
+observed. Evidence: `tmp/landing-white-section/verification.json`, `cut-*.png`
+and `cloud-*.png`. No shared/live deployment or schema changes.
+
 ### Standing thinkers on the landing page — 2026-09-29
 
 The black manifesto introduction now includes a generated monochrome image of

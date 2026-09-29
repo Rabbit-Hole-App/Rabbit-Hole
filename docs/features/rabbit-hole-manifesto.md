@@ -4,15 +4,15 @@
 
 The landing page continues the opening tunnel's black background into a readable
 manifesto introduction. It contains a large “Follow your curiosity.” heading,
-one short paragraph, and a “Read more” link. The following pink cloud animation
-has its own heading: “One question. Endless paths.” No rabbit mascot is added.
+one short paragraph, and a “Read more” link. The black section ends with a clean
+cut into an empty white section, reserved for future content. This section is
+55svh tall, bounded to 320–640px. The pink cloud animation follows it, with its
+own heading: “One question. Endless paths.” No rabbit mascot is added.
 
-The transition softens black into the existing cloud GIF with a static gradient
-mask, pink haze and a 3px dotted pattern. Image/haze opacity comes directly from
-scroll position over a 112–288px interval; no autoplay timeline, additional scroll
-track or new animation library is involved. Reversing or jumping scroll position
-retargets immediately. Reduced motion uses the existing static cloud, without
-the haze/mask. Wheel and touch scrolling remain native and scrollbars stay hidden.
+There is no gradient mask, haze or scroll-opacity reveal at this boundary.
+The original cloud GIF stays visible at full opacity; reduced motion uses the
+existing static cloud. Wheel and touch scrolling remain native and scrollbars
+stay hidden.
 
 ## Dedicated page
 
@@ -45,8 +45,8 @@ The seated image on the dedicated manifesto page remains unchanged.
 
 ## Verification
 
-Check the deployed landing intro, both directions through the cloud dissolve,
-mid-transition reversal, desktop/phone layouts and reduced motion. Follow
+Check the deployed landing intro, sharp black-to-white cut, empty white space,
+cloud playback, desktop/phone layouts and reduced motion. Follow
 “Read more” using pointer, keyboard and touch; verify `/manifesto`, trailing
 slash, direct reload, generated image, mobile navigation and return link.
 Build and deploy only to the `smart-landing-page` session clone. Record version

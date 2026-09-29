@@ -24,12 +24,12 @@ now sits below that introduction, still on black. It is an imagined meeting;
 the full image is shown without cropping on desktop and phones. Artwork and
 prompt: `public/landing/thinkers-standing-v1.png` and `thinkers-standing-prompt.md`.
 
-The cloud meets black through a static top mask and a brief pink, stippled haze.
-Only opacity follows scroll progress, linearly over twice a responsive
-56–144px blend band; scrolling back reverses it without a timer. No extra scroll
-distance is added for this dissolve. The original animated GIF is preserved,
-using a responsive crop behind the cloud title. Reduced motion shows the existing
-still without haze or mask. The manifesto page reuses public navigation and the
+Black now ends in a sharp cut to an empty white section reserved for future
+content. The white space is 55svh tall, bounded to 320–640px, and the cloud
+follows it. The previous gradient mask, pink haze and scroll-opacity reveal have
+been removed. The original animated GIF stays fully visible, using a responsive
+crop behind the cloud title; reduced motion shows the existing still.
+The manifesto page reuses public navigation and the
 simple content footer; its original draft copy and generated Socrates/Feynman/Plato
 image are documented in [the manifesto spec](../../../docs/features/rabbit-hole-manifesto.md).
 
@@ -47,19 +47,16 @@ rejected and removed. During normal playback only the trimmed original GIF is
 visible. Reduced motion shows the original decoded frame 60. Playback controls
 were removed at the user's request; the animation runs automatically.
 
-An original blue mountain illustration is placed below the cloud for review:
-`public/landing/blue-mountains-v1.png`. Its Japanese-animation palette and painted
-mountain treatment were guided by [Multica](https://multica.ai/). The reference
-image itself is not served. The mountain was produced with built-in image
-generation; prompts are in `landing-art-prompts.md`. This pass adds artwork to
-the existing page; copy and a broader layout redesign remain deferred.
+The user selected the mountaintop observatory as the landing page's sole
+Japanese-style landscape on 2026-09-29. It follows the cloud section. The earlier
+standalone mountain scene is removed from the page; its source artwork and prompt
+remain in `public/landing/blue-mountains-v1.png` and `landing-art-prompts.md`.
 
-The mountaintop observatory at `#observatory` is appended beneath the mountain
-image. Its opaque painted scene stays fixed while a separate transparent mist
+The observatory's opaque painted scene stays fixed while a separate transparent mist
 layer drifts across the foreground and five small star highlights shimmer.
 The mist never fades away. Reduced-motion preference, offscreen visibility and
 tab visibility control this scene's automatic motion; there is no playback button.
-The existing hero, cloud, mountain and shared page styles are unchanged.
+The existing hero, white content space, cloud and shared page styles are unchanged.
 Artwork was produced with built-in image generation; prompts and file hashes
 are in `observatory-prompts.md` and `observatory-assets.json`.
 
@@ -70,7 +67,7 @@ background, left-aligned introduction and a separate column of rounded question
 cards. The approved small tunnel symbol keeps its original geometry below the
 introduction and remains visible beside the heading on mobile. This composition
 replaces the earlier dark centered FAQ inspired by TypeSafe. Existing hero,
-cloud, mountain, observatory, navigation, and separate content pages stay intact.
+cloud, observatory, navigation, and separate content pages stay intact.
 
 `#faq` is titled **Before you dive in.** Six native disclosures contain draft
 adaptive-learning copy for later editorial review. The first answer starts open.
