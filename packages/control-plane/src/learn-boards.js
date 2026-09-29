@@ -248,7 +248,7 @@ export async function learnBoardsRoute(path, req, env) {
   }
   if (req.method === 'GET') {
     const row = await ownerRow(env, owner, app, board);
-    return row ? json({ version: row.version, updated_by: row.updated_by, updated_at: row.updated_at, title: row.title || null, forked_from: row.forked_from ? JSON.parse(row.forked_from) : null, sharing: sharingOf(row), state: JSON.parse(row.state_json) }) : json({ sharing: sharingOf(null) }, 404);
+    return row ? json({ version: row.version, updated_by: row.updated_by, updated_at: row.updated_at, title: row.title || null, forked_from: row.forked_from ? JSON.parse(row.forked_from) : null, sharing: sharingOf(row), state: JSON.parse(row.state_json) }) : json({ exists: false, sharing: sharingOf(null) });
   }
   if (req.method === 'PUT') return saveOwn(env, owner, app, board, await readBody(req));
   return json({ error: 'Method not allowed' }, 405);

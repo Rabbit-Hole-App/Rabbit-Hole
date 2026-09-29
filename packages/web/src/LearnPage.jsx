@@ -478,6 +478,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     api(boardPath).then(data => {
       if (!live) return;
       setSharing(data.sharing);
+      if (data.exists === false) return; // never saved on the server
       boardVersion.current = data.version;
       const mine = Number(localStorage.getItem(versionKey) || 0);
       // A newer server copy wins when this browser has none (a fork, or this

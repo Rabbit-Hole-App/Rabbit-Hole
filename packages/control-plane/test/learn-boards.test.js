@@ -45,7 +45,9 @@ const OWN = '/api/learn/boards/demo-app/main';
 
 test('the owner saves a board and reads it back; versions count saves', async t => {
   const { call } = setup(t);
-  assert.equal((await call('GET', OWN, { as: 'owner' })).status, 404);
+  const none = await call('GET', OWN, { as: 'owner' });
+  assert.equal(none.status, 200, 'a board never saved is not an error');
+  assert.equal(none.body.exists, false);
   assert.deepEqual((await call('PUT', OWN, { as: 'owner', body: { state: STATE } })).body.version, 1);
   const again = await call('PUT', OWN, { as: 'owner', body: { state: { ...STATE, shapes: [{ id: 's' }] }, version: 1 } });
   assert.equal(again.body.version, 2);

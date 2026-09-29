@@ -522,7 +522,9 @@ function NotebookCard({ block, zoom, selected, connected, onSelect, onMove, onCh
 }
 
 function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onAsk, onFile, appName, onAskRegion, onGrade, onWiki, onWatch }) {
-  if (block.type === 'video') return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
+  // A YouTube moment (videoId) gets its own card; a hosted or generated clip
+  // (the + menu's Video blocks, src) renders as a lesson block.
+  if (block.type === 'video' && block.videoId) return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
   if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
@@ -699,7 +701,7 @@ function BlockMenu({ className, filter, onFilter, onPick }) {
       {/* the list keeps growing, so it scrolls instead of running off the canvas */}
       <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto p-1 pt-0">
         {Object.entries(BLOCK_TYPES)
-          .filter(([, meta]) => meta.label.toLowerCase().includes(filter.trim().toLowerCase()))
+          .filter(([, meta]) => meta.menu !== false && meta.label.toLowerCase().includes(filter.trim().toLowerCase()))
           .map(([type, meta]) => (
             <button key={type} type="button" role="menuitem" onClick={() => onPick(type)}
               className="block w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink hover:bg-hover">{meta.label}</button>

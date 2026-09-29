@@ -381,6 +381,8 @@ export const BLOCK_TYPES = {
     }),
   },
   pipeline: {
+    // Off the + menu (kept so boards that already have one still render).
+    menu: false,
     label: 'Pipeline builder',
     width: 460,
     height: 520,
@@ -499,6 +501,8 @@ export const BLOCK_TYPES = {
   // fill, typeset maths and monospace code. Their JSON lives in demo-scenes.js
   // so this registry stays a registry.
   animationAxis: {
+    // Off the + menu (kept so boards that already have one still render).
+    menu: false,
     label: 'Animation: pinned axis',
     width: 560,
     height: 460,
@@ -506,6 +510,8 @@ export const BLOCK_TYPES = {
     sample: () => ({ id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: axisScene.title, scene: axisScene, time: 0, selectedObject: null, marked: null }),
   },
   animationResidual: {
+    // Off the + menu (kept so boards that already have one still render).
+    menu: false,
     label: 'Animation: residual',
     width: 620,
     height: 440,
@@ -513,6 +519,8 @@ export const BLOCK_TYPES = {
     sample: () => ({ id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: residualScene.title, scene: residualScene, time: 0, selectedObject: null, marked: null }),
   },
   animationSigmoid: {
+    // Off the + menu (kept so boards that already have one still render).
+    menu: false,
     label: 'Animation: sigmoid',
     width: 560,
     height: 460,
