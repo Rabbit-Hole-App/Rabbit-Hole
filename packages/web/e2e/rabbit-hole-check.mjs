@@ -1215,9 +1215,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
-  await check('bar: hidden on /chat, Learn, a canvas and a run subpage (T02 §6.1); back on /members', async () => {
+  await check('bar: hidden on Learn, a canvas and a run subpage (T02 §6.1; the preview has no /chat, wp7-d7-chrome); back on /members', async () => {
     const page = await barOpen();
-    const hides = [['/chat', '/chat'], ['a canvas', '/apps/canvas-00000000'], ...(repo ? [['project Learn', `/apps/${repo.name}?tab=learn`]] : []), ...(plain ? [['a run subpage', `/apps/${plain.name}/runs/r-check`]] : [])];
+    const hides = [['a canvas', '/apps/canvas-00000000'], ...(repo ? [['project Learn', `/apps/${repo.name}?tab=learn`]] : []), ...(plain ? [['a run subpage', `/apps/${plain.name}/runs/r-check`]] : [])];
     for (const [label, to] of hides) {
       await spa(page, to);
       await barOf(page).waitFor({ state: 'detached', timeout: 10000 });
@@ -2290,6 +2290,52 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       must(sent.length === 1 && sent[0].app === null && sent[0].kind === 'idea' && sent[0].text === 'wp7 check: feedback from the sidebar', `${label}: reports sent: ${JSON.stringify(sent)}`);
       await page.context().close();
     }
+  });
+
+  // WP7 QA: the Map graph stays usable on a phone and follows the dark theme.
+  if (ready) await check('wp7-map-phone-dark: on a phone the Map graph keeps at least 300px of height; in the dark theme its surface is dark and its labels light, at desktop width', async () => {
+    const phone = await open({ width: 390, height: 844 });
+    await noAsks(phone);
+    await loaded(phone, `/apps/${ready.name}?tab=map`);
+    const graph = phone.getByRole('img', { name: 'Repository dependency graph' });
+    await graph.waitFor({ timeout: 30000 });
+    const h = await graph.evaluate((svg) => svg.parentElement.getBoundingClientRect().height); // the visible graph, not the clipped svg
+    must(h >= 300, `the phone Map graph shows ${Math.round(h)}px`);
+    await phone.context().close();
+    const dark = await open();
+    await dark.addInitScript(() => localStorage.setItem('small.theme', 'dark'));
+    await noAsks(dark);
+    await loaded(dark, `/apps/${ready.name}?tab=map`);
+    await dark.getByRole('img', { name: 'Repository dependency graph' }).waitFor({ timeout: 30000 });
+    await dark.waitForTimeout(800);
+    const tones = await dark.evaluate(() => {
+      const lum = (c) => { const [r, g, b] = c.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number); return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; };
+      const svg = document.querySelector('svg[aria-label="Repository dependency graph"]');
+      const label = svg.querySelector('[data-graph-node] text');
+      return { dark: document.documentElement.classList.contains('dark'), surface: lum(getComputedStyle(svg.parentElement).backgroundColor), label: lum(getComputedStyle(label).fill) };
+    });
+    must(tones.dark && tones.surface < 0.25 && tones.label > 0.5, `dark Map graph: ${JSON.stringify(tones)}`);
+    await dark.context().close();
+  });
+
+  // WP7 D7 (final review): the preview's own chrome never writes live small-cp. api() refuses every write the dev worker
+  // does not serve itself (routes.js previewWriteAllowed), and the preview has no /chat page.
+  await check('wp7-d7-chrome: on the preview, adding a member sends nothing and says it is blocked; /chat goes to /apps', async () => {
+    const page = await open();
+    const writes = [];
+    // Every write is aborted here, so even a run against an unguarded build never reaches live small-cp.
+    await page.route('**/api/**', (r) => { if (r.request().method() === 'GET') return r.continue(); writes.push(`${r.request().method()} ${new URL(r.request().url()).pathname}`); return r.abort(); });
+    await loaded(page, '/members');
+    await page.getByRole('button', { name: 'Add person' }).click();
+    const input = page.getByPlaceholder('colleague@company.com');
+    await input.fill('wp7-d7-check@example.com');
+    await input.press('Enter');
+    await page.getByText('Blocked on this preview: it would change live apps.', { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.waitForTimeout(800);
+    must(!writes.length, `writes reached the network: ${writes.join(', ')}`);
+    await loaded(page, '/chat');
+    must(new URL(page.url()).pathname === '/apps', `/chat stayed at ${new URL(page.url()).pathname}`);
+    await page.context().close();
   });
 
   // Checks from Tasks 1-11 go here, in task order.

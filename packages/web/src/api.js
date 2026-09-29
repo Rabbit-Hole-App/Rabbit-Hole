@@ -1,5 +1,6 @@
 import { learnPreview } from './flags.js';
 import { isPrivateByoc, privateAuth } from './private-auth.js';
+import { PREVIEW_WRITE_REFUSED, previewWriteAllowed } from './routes.js';
 
 // "gmail-com" reads like a slug; the workspace shows as "Gmail".
 export const wsName = (org) => ((org || '').split('-')[0] || org || '').replace(/^./, (c) => c.toUpperCase());
@@ -53,6 +54,8 @@ export const wsHeaders = () => (getWs() ? { 'X-Small-Workspace': getWs() } : {})
 
 // Same-origin control-plane API. Session cookie rides along; 401 → magic-link login and back.
 export async function api(path, opts = {}) {
+  // D7: the preview never writes live small-cp; the refusal reads like any other failed call (routes.js).
+  if (learnPreview && (opts.method || 'GET') !== 'GET' && !previewWriteAllowed(path)) throw new Error(PREVIEW_WRITE_REFUSED);
   let authorization = {};
   if (isPrivateByoc) {
     try { authorization = await (await privateAuth()).headers(path); }

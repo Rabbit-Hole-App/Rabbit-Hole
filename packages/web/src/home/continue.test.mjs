@@ -37,9 +37,17 @@ test('Continue picks the first recent item with local content: last question, fi
     { slug: 'repo-1', title: 'karpathy/nanoGPT', kind: 'repository', canvas: true, lastExplored: 'why sqrt(dk)?', next: 'Masked self-attention' });
 });
 
-test('a shared app is read under its own org, not the workspace org', () => {
-  const storage = store({ [`${key(server)}:chat`]: JSON.stringify([{ id: '1', question: 'how does it count?' }]) });
-  assert.equal(readContinue({ ...base, recent: ['counter'], storage }).lastExplored, 'how does it count?');
+test('a shared project is read under its own org, not the workspace org', () => {
+  const shared = { ...repo, name: 'repo-acme', org: 'acme-com' };
+  const storage = store({ [`${key(shared)}:chat`]: JSON.stringify([{ id: '1', question: 'how does it count?' }]) });
+  assert.equal(readContinue({ ...base, catalog: [...catalog, shared], recent: ['repo-acme'], storage }).lastExplored, 'how does it count?');
+});
+
+test('a job or server is never Continue learning: the preview mounts no Learn for apps (D7), so old local content opens its page', () => {
+  const storage = store({ [`${key(server)}:chat`]: JSON.stringify([{ id: '1', question: 'how does it count?' }]), [`${key(job)}:chat`]: JSON.stringify([{ id: '1', question: 'why nine?' }]) });
+  const c = readContinue({ ...base, recent: ['counter', 's3-log'], storage });
+  assert.deepEqual([c.slug, c.canvas, c.lastExplored], ['counter', false, null]);
+  assert.equal(openHref(c), '/apps/counter');
 });
 
 test('an opened but empty canvas has nothing to continue; Next and Last explored drop out on their own', () => {
