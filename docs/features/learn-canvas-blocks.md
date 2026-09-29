@@ -171,11 +171,21 @@ Owner rules (2026-09-29), fixed in the shared renderer and tokens, never per car
   that hue's text-safe variant, `--viz-<hue>-text` (`textObjectInk`, `scene-style.js`): the hue
   darkened just enough in light (input, output, prediction, learner, code, identity-2) and in dark
   (identity-3). Strokes and fills keep the hue itself.
-- **Dimmed text stays readable.** A text line at a resting opacity below 1 is measured with that
-  opacity composited over the scene surface: `--color-ink` can dim to 0.72 and no further (c23's
-  cropped characters). Waiting on the owner, and listed in the check's `PENDING_OWNER`: the focus
-  and mask dims of c10 (later characters' names at 0.3) and the depth ladder (tokenization guided
-  and deep, architecture overview and deep, attention deep, generation deep: 0.25 to 0.4).
+- **Dimmed text stays readable.** De-emphasis is not an exemption: learner-facing text the learner
+  is expected to read meets 4.5:1 even when de-emphasized (owner, 2026-09-29). Make a visual look
+  inactive with a lighter fill, a thinner border, reduced saturation, a pattern, opacity on
+  non-text decoration, or stronger emphasis on the active state — not by fading readable text. A
+  text line at a resting opacity below 1 is measured with that opacity composited over the scene
+  surface: `--color-ink` can dim to 0.72 and no further (c23's cropped characters). The only
+  exception is content that is intentionally unavailable, disabled, masked away or decorative,
+  where the learner is not expected to read its exact value (a masked-out cell whose token is
+  irrelevant, a non-actionable disabled label, ghosted decorative context); if the exact dimmed
+  text matters to understanding, it is not exempt. Each exemption is documented, never assumed.
+  Listed in the check's `PENDING_OWNER` and deferred to the NC10 accessibility audit (frozen cards
+  are not reopened for it): the focus and mask dims of c10 (later characters' names at 0.3) and
+  the depth ladder (tokenization guided and deep, architecture overview and deep, attention deep,
+  generation deep: 0.25 to 0.4), each to be classified A (semantic text: bring to 4.5:1) or B
+  (intentionally unavailable/decorative: documented exemption).
   Check: `src/text-contrast.test.mjs` - the tokens, every role and identity hue, every loud-fill
   step, and every glyph on the scene surface of every card at rest.
 - **Feedback is 14px and reads in both themes.** Pass, fail and not-ready feedback and the

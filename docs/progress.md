@@ -17,13 +17,15 @@ NC7  NanoGPT cards 11–26                 🟡
   NC7A Batch 2                           ✅
   NC7B Batch 3                           ✅ CLOSED (page 18:3, v1.1 fixes 22:3)
   NC7C Remaining through 26              🟡 ACTIVE — batch 4 ✅ CLOSED (page 26:3, v1.1 fixes 28:3);
-                                            batch 5 (c22, c23, c24, c25) at the visual gate (page 34:3);
-                                            5 shared renderer changes await owner decision
+                                            batch 5 (c22, c23, c24, c25) closing: shared renderer fixes approved
+                                            and deployed; v1.1 closeout pending (c24 gap fix)
 NC8  Cross-depth content transitions     ⬜
 NC9  Curriculum coherence review         ⬜ (open items: is "how scores are produced", q·k, thin?;
                                             should c26 name its iteration-1000 checkpoint next to c25's 100?;
                                             c22 rounds each cell (z 0.60) where c21 rounds to sum 1 (z 0.61))
-NC10 Final card QA                       ⬜
+NC10 Final card QA                       ⬜ (incl. accessibility audit: classify the seven dimmed focus/mask
+                                            states - A semantic text to 4.5:1, B unavailable/decorative
+                                            with a documented exemption; docs/features/learn-canvas-blocks.md)
 ──── after NC10 ────
 Adaptive Tutor v1                        ⬜ handoff milestone, not implemented here
                                             (docs/features/adaptive-tutor-v1.md)
