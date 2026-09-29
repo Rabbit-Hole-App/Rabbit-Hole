@@ -67,7 +67,7 @@ export const LEARN_MENU = {
 // Canvas primitives are ids the Learn branch maps to block types. A paid primitive always confirms, even
 // when named with a slash: an explicit command only skips the tutor's "would this help?" proposal.
 // estimatedCost stays unset - never show a guessed amount.
-const PAID = ['maths_animation', 'image_generate', 'video_generate', 'blender_scene'];
+const PAID = ['maths_animation', 'image_generate', 'video_generate', 'blender_scene', 'narration'];
 export const primitive = (id) => (PAID.includes(id) ? { id, paid: true, needsConfirm: true, estimatedCost: undefined } : { id, paid: false, needsConfirm: false });
 
 // Product availability (places, needs) is what Rabbit Hole offers. The review copy adds its own

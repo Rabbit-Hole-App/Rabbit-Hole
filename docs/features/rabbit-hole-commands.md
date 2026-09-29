@@ -51,7 +51,7 @@ canonical here; the Learn branch maps them to block types.
 
 | Command | Allowed primitives |
 |---|---|
-| /explain | explanation, table, narration |
+| /explain | explanation, table, narration (paid) |
 | /flashcards | flashcards |
 | /code | code_sample, code_exercise |
 | /graph | interactive_graph, data_plot, knowledge_graph |
@@ -72,7 +72,8 @@ canonical here; the Learn branch maps them to block types.
 no family: `allowedPrimitives` is `null` (Auto).
 
 - Paid: `primitive(id)` gives `{ id, paid: true, needsConfirm: true, estimatedCost: undefined }`
-  for image_generate, video_generate, maths_animation and blender_scene. They
+  for image_generate, video_generate, maths_animation, blender_scene and narration
+  (fish.audio). They
   always need confirmation, even when named with a slash; an explicit command only
   skips the tutor's "would this help?" proposal. `estimatedCost` stays unset: never
   show a guessed amount.
