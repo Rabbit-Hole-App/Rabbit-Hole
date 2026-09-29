@@ -12,6 +12,9 @@ The sheet is the same idea as smart-home's result sheet on Home.
 - The sheet sits directly above the composer, the same width. Its header has
   **History**, **New chat** and **Collapse**. A new question reopens a
   collapsed sheet.
+- Each answer is one block with a copy icon, however many paragraphs it
+  has. The Learn chat elsewhere still splits answers into paragraph blocks
+  with **Ask about this block**.
 - Questions in the sheet share one thread, so follow-ups keep context.
   **New chat** starts a new thread.
 - Each finished answer has **Add to canvas**. It places that question and

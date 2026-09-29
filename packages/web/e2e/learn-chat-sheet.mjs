@@ -36,9 +36,10 @@ await page.route('**/api/learn/ask', async route => {
   let body = {};
   try { body = route.request().postDataJSON() || {}; } catch { /* multipart */ }
   asks.push(body);
-  const reply = [`Hello! Answer ${++turn}.`, 'What would you like to learn?'];
+  // Two paragraphs, so the sheet must still show one block per answer.
+  const reply = [`Hello! Answer ${++turn}.\n\n`, 'What would you like to learn?'];
   await new Promise(resolve => setTimeout(resolve, 400));
-  await route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: reply.map(text => `event: chunk\ndata: ${JSON.stringify({ text: `${text} ` })}\n\n`).join('') + `event: done\ndata: ${JSON.stringify({ threadId: body.thread_id || `stub-thread-${turn}` })}\n\n` });
+  await route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: reply.map(text => `event: chunk\ndata: ${JSON.stringify({ text })}\n\n`).join('') + `event: done\ndata: ${JSON.stringify({ threadId: body.thread_id || `stub-thread-${turn}` })}\n\n` });
 });
 
 await page.goto(`${BASE}/apps/${APP}?tab=learn&board=${BOARD}`);
@@ -58,6 +59,8 @@ const sheetBox = await sheet.boundingBox(), dockBox = await page.locator('[data-
 check('the sheet sits directly above the composer, same width', sheetBox.y + sheetBox.height <= dockBox.y + 2 && Math.abs(sheetBox.width - dockBox.width) < 4, `sheet ${Math.round(sheetBox.width)}w bottom ${Math.round(sheetBox.y + sheetBox.height)}, composer ${Math.round(dockBox.width)}w top ${Math.round(dockBox.y)}`);
 check('"hi" makes no card on the canvas', await chatCards() === 0);
 check('the sheet shows the question and the answer', await sheet.getByText('hi', { exact: true }).isVisible() && await sheet.getByText('Answer 1.').isVisible());
+const copies = await sheet.getByRole('button', { name: /^Copy answer block/ }).count(), askAbout = await sheet.getByRole('button', { name: /^Ask about answer block/ }).count();
+check('a two-paragraph answer is one block with one copy icon and no ask-about icon', copies === 1 && askAbout === 0, `${copies} copy, ${askAbout} ask-about`);
 await shot(page, 'sheet-hi');
 
 // 2. a follow-up continues the same thread
