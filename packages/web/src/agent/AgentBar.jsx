@@ -114,7 +114,7 @@ export default function AgentBar() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [waiting]);
 
-  submitRef.current = (raw, pill) => submit(raw, pill);
+  submitRef.current = (raw, pill) => submit(raw, pill, raw, live); // the page's own scope, never a held draft's
   // Map and the app Graph tab may show results in their Context panel (§6.5).
   const showResults = (scope) => {
     const page = getSurface();
@@ -123,12 +123,11 @@ export default function AgentBar() {
 
   // §6.6: mode pill, then rules, then /ask. Scope is frozen here, before any await,
   // and every command gets the one ctx with that scope: ctxOf(surface, { scope }).
-  async function submit(raw, pill = mode, text = raw) {
-    const scope = target;
+  async function submit(raw, pill = mode, text = raw, scope = target) {
     const can = modeAvailability(pill, scope.kind);
     if (!can.ok) return refuse(scope, can);
     const r = route(text, { mode: pill, catalog: getSurface().catalog || [], scope });
-    if (r.type === 'mode') return submit(raw, r.mode, r.text);
+    if (r.type === 'mode') return submit(raw, r.mode, r.text, scope);
     if (r.type === 'note') { add(scope, { kind: 'note', text: r.text }); return showResults(scope); }
     if (r.type === 'unknown_command') {
       const known = [...modesFor(scope), ...shortcutsFor(scope, getSurface().catalog)].map(([n]) => `/${n}`).join(', ');
