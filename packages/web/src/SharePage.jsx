@@ -606,7 +606,9 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
   // beat; wait on a canvas-shaped placeholder instead.
   if (learnPreview && tab === 'learn' && !app && !error) return <LearnLoading />;
   if (learnPreview && app?.kind === 'repository' && !error) return <RepositoryPage key={app.name} app={app} />;
-  if (learnPreview && tab === 'learn' && app && !error && !runId) {
+  // D7: only a canvas asks through LEARN_DB (dev-worker.js canvasAskSeam). A job or server's Learn asks
+  // would reach apiAsk on the live D1, so the preview never mounts Learn for them.
+  if (learnPreview && tab === 'learn' && app?.kind === 'canvas' && !error && !runId) {
     return <LearnPage key={JSON.stringify([app.email, app.org, app.name])} app={app} onBack={() => { setTab(null); navigate(`/apps/${encodeURIComponent(app.name)}`); }} />;
   }
   return (
@@ -724,13 +726,13 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
               </span>
             </div>
 
-            <Tabs value={tab ?? 'graph'} onValueChange={value => { setTab(value); if (value === 'learn') navigate(`/apps/${encodeURIComponent(app.name)}?tab=learn`); }} className={cn(graphFull && 'flex min-h-0 flex-1 flex-col')}>
+            <Tabs value={tab === 'learn' ? 'graph' : tab ?? 'graph'} onValueChange={value => { setTab(value); if (value === 'learn') navigate(`/apps/${encodeURIComponent(app.name)}?tab=learn`); }} className={cn(graphFull && 'flex min-h-0 flex-1 flex-col')}>
               <TabsList pill className="shrink-0">
                 <TabsTrigger pill value="graph"><Tip label="Graph" info="Map of this app, with the Graph Agent"><span>Graph</span></Tip></TabsTrigger>
                 <TabsTrigger pill value="runbook"><Tip label="Runbook" info="Notes and docs for this app"><span>Runbook</span></Tip></TabsTrigger>
                 {app.kind === 'job' && <TabsTrigger pill value="run"><Tip label="Run" info="Start a run from the input form"><span>Run</span></Tip></TabsTrigger>}
                 <TabsTrigger pill value="logs"><Tip label="Logs" info="Table view of this app's runs and requests"><span>Logs</span></Tip></TabsTrigger>
-                {learnPreview && <TabsTrigger pill value="learn"><Tip label="Learn" info="Guided explanations of how this app works"><span>Learn</span></Tip></TabsTrigger>}
+                {learnPreview && app.kind === 'canvas' && <TabsTrigger pill value="learn"><Tip label="Learn" info="Guided explanations of how this app works"><span>Learn</span></Tip></TabsTrigger>}
               </TabsList>
 
               {/* one compact meta line, repo-page style, in place of the old property grid */}

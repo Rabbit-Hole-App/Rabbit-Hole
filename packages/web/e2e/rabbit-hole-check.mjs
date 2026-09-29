@@ -351,6 +351,21 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await phone.context().close();
   });
 
+  await check('d7-app-learn: a job or server has no Learn tab on the preview, and ?tab=learn never mounts Learn for it (its asks would write the live D1 through apiAsk)', async () => {
+    if (!plain) return;
+    const page = await open();
+    let asks = 0;
+    page.on('request', (r) => { if (r.method() === 'POST' && /\/api\/learn\/(ask|selection)/.test(r.url())) asks++; });
+    await loaded(page, `/apps/${plain.name}`);
+    await page.getByRole('tab', { name: 'Graph', exact: true }).waitFor({ timeout: 20000 });
+    must(await page.getByRole('tab', { name: 'Learn', exact: true }).count() === 0, `${plain.name} offers a Learn tab`);
+    await loaded(page, `/apps/${plain.name}?tab=learn`);
+    await page.getByRole('tab', { name: 'Graph', exact: true }).waitFor({ timeout: 20000 });
+    must(await page.locator('[data-chat-composer]').count() <= 1, 'Learn mounted a second composer for a live app');
+    must(asks === 0, `${asks} Learn asks were sent for a live app`);
+    await page.context().close();
+  });
+
   await check('sh-drawer: at 390px no rail; Open sidebar opens a drawer inside the viewport; Library navigates and closes it; Esc and the backdrop close it', async () => {
     const page = await open({ width: 390, height: 844 });
     await loaded(page, '/apps');
