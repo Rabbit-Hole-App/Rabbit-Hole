@@ -1,7 +1,16 @@
+import { learnPreview } from './flags.js';
 import { isPrivateByoc, privateAuth } from './private-auth.js';
 
 // "gmail-com" reads like a slug; the workspace shows as "Gmail".
 export const wsName = (org) => ((org || '').split('-')[0] || org || '').replace(/^./, (c) => c.toUpperCase());
+
+// Rabbit Hole names a workspace only by its real name. The email-domain workspace has none, so it
+// reads Personal - never "Gmail" from gmail.com (user, 2026-09-28). The live build keeps wsName.
+export const workspaceLabel = (name, org, preview = learnPreview) => name || (preview ? 'Personal' : wsName(org));
+
+// Who a workspace-visible resource reaches. The email-domain workspace reaches everyone who signs in
+// with that domain, whatever it is called, so the copy says that instead of the label.
+export const audienceOf = (name, email) => (name ? `everyone in ${name}` : `anyone who signs in with an @${(email || '').split('@')[1]} email`);
 
 // Which sidebar section an app belongs to: workspace Apps, Shared, or Private.
 // Private is strictly personal - a private app that has ANY shares lives in Shared

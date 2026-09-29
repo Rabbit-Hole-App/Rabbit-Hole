@@ -11,7 +11,7 @@ Projects", `ef9SfiemEsPQF2bd8B1os3`), with the exact node URL.
 | WP2 | Canvas backend (LEARN_DB canvases) | Done, frozen |
 | WP3 | Proposal lifecycle / action safety | Done, frozen |
 | WP4 | Home / Library / Explore / Start / Settings | Done (closeout 2026-09-28) |
-| WP5 | Mothership Agent Bar / command surface | Done (closeout 2026-09-28) |
+| WP5 | Mothership Agent Bar / command surface | Done (naming closeout 2026-09-28) |
 | WP6 | Project / Canvas / App destinations | Active |
 | WP7 | Final integration / MVP verification | Last |
 
@@ -83,14 +83,23 @@ conversation. The bottom sheet is not the permanent answer UI for Map.
 Built 2026-09-28, preview only (T02 §2 has the layout; the live sidebar is unchanged).
 Harness checks sh-sidebar, sh-rail, sh-drawer and sh-legacy pass on the clone.
 
-- Expanded: workspace/account; the Search and Notifications icons; Home, Library,
+- Identity (user, 2026-09-28): the chrome names the product, `Rabbit Hole` with its mark
+  (lucide Rabbit on an ink tile until a real mark exists), never a workspace or a letter from
+  the email domain. The workspace is context: a separate switcher under the brand, named by
+  its real name, else `Personal` (api.js `workspaceLabel`); gmail.com never becomes `Gmail`.
+  Home, Library and Explore have no workspace breadcrumb. The result sheet header is the
+  scope (`nanoGPT · CausalSelfAttention`), or `Rabbit Hole` on Home/Library/Explore. Copy
+  about visibility says who sees it (`anyone who signs in with an @gmail.com email`), not
+  the label. One location state: a resource page marks its Pinned row, not Library.
+  Check: sh-naming.
+- Expanded: the brand; the workspace switcher; the Search and Notifications icons; Home, Library,
   Explore; Pinned (flat); a divider; Members; Trash. Projects, Canvases and Apps
   are not repeated in the sidebar: the Library owns browsing.
-- Desktop collapsed (Ctrl/⌘+\ or Learn): a 52px icon rail (workspace tile with the
+- Desktop collapsed (Ctrl/⌘+\ or Learn): a 52px icon rail (the product-mark tile with the
   workspace menu, Open sidebar, Search, Notifications with the unread count, Home,
-  Library, Explore, Members, Trash) with
-  tooltips; the current destination has aria-current and the active surface, and
-  app pages mark Library. No Pinned, no resize handle. The Agent Bar sits beside
+  Library, Explore, Members, Trash) with tooltips; the current destination has
+  aria-current and the active surface; a resource page marks no global destination (its
+  Pinned row carries the state). No Pinned, no resize handle. The Agent Bar sits beside
   it. Never fully hidden on desktop.
 - Mobile: fully hidden, reopened as a drawer from a top strip (Open sidebar);
   navigation, Esc and the backdrop close it. No icon rail on a phone.

@@ -29,7 +29,10 @@ const repo = apps.find((a) => a.kind === 'repository' && /^karpathy\/nanogpt$/i.
 const plain = apps.find((a) => a.kind === 'job' || a.kind === 'server');
 // api.js:4, copied: api.js is not imported because it pulls the OIDC client in through private-auth.js.
 const wsName = (org) => ((org || '').split('-')[0] || org || '').replace(/^./, (c) => c.toUpperCase());
-const wsLabel = data.orgName || wsName(data.org);
+// The preview never names the email-domain workspace after its domain (api.js workspaceLabel).
+const wsLabel = data.orgName || 'Personal';
+const audience = data.orgName ? `everyone in ${data.orgName}` : `anyone who signs in with an @${email.split('@')[1]} email`;
+const railTile = `Rabbit Hole · ${wsLabel}`;
 console.log(`${base} · ${wsLabel} · ${apps.length} resources · project ${repo?.name || 'none'} · app ${plain?.name || 'none'}`);
 
 const only = (process.env.ONLY || '').split(',').filter(Boolean);
@@ -265,7 +268,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.waitForTimeout(400);
     const w = (await sidebar.boundingBox()).width;
     must(w >= 48 && w <= 56, `the rail is ${w}px wide`);
-    for (const name of [wsLabel, 'Home', 'Library', 'Explore', 'Members', 'Trash', 'Open sidebar']) {
+    for (const name of [railTile, 'Home', 'Library', 'Explore', 'Members', 'Trash', 'Open sidebar']) {
       const b = aside.getByRole('button', { name, exact: true });
       must(await b.count() === 1 && await b.getAttribute('title') === name, `the rail's ${name} button lacks its label or tooltip`);
     }
@@ -278,7 +281,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.mouse.click(900, 500); // the backdrop closes it
     await inbox.waitFor({ state: 'detached', timeout: 5000 });
     must(await aside.getByRole('button', { name: 'Home', exact: true }).getAttribute('aria-current') === 'page', 'Home is not current on /apps');
-    await aside.getByRole('button', { name: wsLabel, exact: true }).click();
+    await aside.getByRole('button', { name: railTile, exact: true }).click();
     await page.getByRole('button', { name: 'Settings', exact: true }).waitFor({ timeout: 5000 });
     await page.waitForTimeout(100); // Menu attaches its outside-click listener on the next tick (ui.jsx)
     await page.mouse.click(26, 500); // the rail's empty middle closes the menu
@@ -286,12 +289,66 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const app = plain || repo;
     if (app) {
       await loaded(page, `/apps/${app.name}`);
-      must(await aside.getByRole('button', { name: 'Library', exact: true }).getAttribute('aria-current') === 'page', 'Library is not current on an app page');
+      must(await aside.locator('nav[aria-label="Main"] [aria-current]').count() === 0, 'a global destination is current on an app page');
     }
     await page.keyboard.press('Control+Backslash');
     await page.waitForTimeout(400);
     must((await sidebar.boundingBox()).width > 150, 'Ctrl+\\ did not restore the sidebar');
     await page.context().close();
+  });
+
+  await check('sh-naming: nothing reads the email-domain name; the sidebar, rail and drawer say Rabbit Hole with the workspace as its own switcher; the Library has no workspace crumb; the sheet header is Rabbit Hole; a Project page marks only its pinned row', async () => {
+    if (data.orgName) return; // a named workspace keeps its name; the rule is about the domain one
+    const domain = wsName(data.org); // what gmail.com used to become
+    const leak = async (page, where) => {
+      const hits = await page.evaluate((word) => {
+        const re = new RegExp(`\\b${word}\\b`);
+        const out = re.test(document.body.innerText) ? ['text'] : [];
+        for (const el of document.querySelectorAll('[title], [aria-label]')) {
+          if (re.test(el.getAttribute('title') || '') || re.test(el.getAttribute('aria-label') || '')) out.push(el.outerHTML.slice(0, 80));
+        }
+        return out;
+      }, domain);
+      must(!hits.length, `${where} shows ${domain}: ${hits.join(' | ')}`);
+    };
+    const page = await open();
+    const aside = page.locator('aside');
+    await loaded(page, '/apps');
+    await aside.getByText('Rabbit Hole', { exact: true }).waitFor({ timeout: 10000 });
+    await aside.getByRole('button', { name: wsLabel, exact: true }).waitFor();
+    await leak(page, 'Home');
+    await loaded(page, '/library');
+    await page.getByRole('heading', { name: 'Library', level: 1 }).waitFor({ timeout: 10000 });
+    must(await page.locator('main').getByRole('button', { name: wsLabel, exact: true }).count() === 0, 'the Library shows a workspace crumb');
+    await leak(page, 'Library');
+    await loaded(page, '/explore');
+    await leak(page, 'Explore');
+    await loaded(page, '/apps');
+    await barInput(page).fill('What is a Project?');
+    await barInput(page).press('Enter');
+    const sheet = page.locator('[data-result-sheet]');
+    await sheet.getByText('is the learning hub around a codebase or topic', { exact: false }).waitFor({ timeout: 10000 });
+    await sheet.getByText('Rabbit Hole', { exact: true }).waitFor();
+    await leak(page, 'the result sheet');
+    await page.keyboard.press('Control+Backslash');
+    await aside.getByRole('button', { name: railTile, exact: true }).waitFor({ timeout: 5000 });
+    await leak(page, 'the rail');
+    await page.keyboard.press('Control+Backslash');
+    if (repo) {
+      await page.evaluate(([k, v]) => localStorage.setItem(k, v), [`small.pinned:${data.org}:${email}`, JSON.stringify([repo.name])]);
+      await loaded(page, `/apps/${repo.name}?tab=map`);
+      const pinnedRow = aside.getByRole('region', { name: 'Pinned' }).locator('[aria-current="page"]');
+      await pinnedRow.waitFor({ timeout: 10000 });
+      must(await aside.locator('[aria-current="page"]').count() === 1, 'a Project page marks more than its pinned row');
+      await leak(page, 'the Project Map');
+    }
+    await page.context().close();
+    const phone = await open({ width: 390, height: 844 });
+    await loaded(phone, '/apps');
+    await phone.getByRole('button', { name: 'Open sidebar' }).first().click();
+    await phone.locator('aside').getByText('Rabbit Hole', { exact: true }).waitFor({ timeout: 5000 });
+    await leak(phone, 'the phone drawer');
+    await phone.context().close();
   });
 
   await check('sh-drawer: at 390px no rail; Open sidebar opens a drawer inside the viewport; Library navigates and closes it; Esc and the backdrop close it', async () => {
@@ -705,7 +762,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(lookups === 1, `${lookups} lookups for one submit`);
     must(await url.inputValue() === typed, 'the error cleared the URL');
     const text = await dialog.innerText();
-    for (const fact of [`Visible to everyone in ${wsLabel}`, "can't be deleted yet", "private repositories aren't supported yet"]) must(text.includes(fact), `missing: ${fact}`);
+    for (const fact of [`Visible to ${audience}`, "can't be deleted yet", "private repositories aren't supported yet"]) must(text.includes(fact), `missing: ${fact}`);
     await dialog.getByRole('tab', { name: 'Blank canvas', exact: true }).click();
     await dialog.getByPlaceholder('Untitled canvas').fill('kept');
     await dialog.getByRole('tab', { name: 'Repository', exact: true }).click();
@@ -877,7 +934,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(await page.getByRole('dialog', { name: 'Start a rabbit hole' }).count() === 1, 'more than one Start dialog');
     must(await dialog.getByRole('tab', { name: 'Question', exact: true }).getAttribute('aria-selected') === 'true', 'the Question tab is not selected');
     await dialog.getByRole('tab', { name: 'Repository', exact: true }).click();
-    await dialog.getByText(`Visible to everyone in ${wsLabel}.`).waitFor({ timeout: 10000 });
+    await dialog.getByText(`Visible to ${audience}.`).waitFor({ timeout: 10000 });
     await page.context().close();
   });
 }

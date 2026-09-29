@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight, MoreHorizontal, Pencil, Plus, Shield, Square, Trash2, User, Users, X } from 'lucide-react';
-import { api, navigate, wsName } from './api.js';
+import { api, navigate, workspaceLabel, wsName } from './api.js';
+import { learnPreview } from './flags.js';
 import Shell from './Shell.jsx';
 import { Avatar, Button, cn, ConfirmDialog, IconBtn, Input, Menu, MenuItem, Pill, ShareInput, SkeletonRows, toast } from './ui.jsx';
 
@@ -56,7 +57,7 @@ function MembersContent({ data }) {
     <main className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-[1150px] px-24 py-12 max-lg:px-8 max-md:px-4 max-md:py-6">
         <div className="pb-8 text-sm text-ink-2">
-          <button onClick={() => navigate('/apps')} className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink">{wsName(org)}</button>
+          <button onClick={() => navigate('/apps')} className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink">{learnPreview ? workspaceLabel(data?.orgName, org) : wsName(org)}</button>
           <span className="px-1">/</span> <span className="text-ink">Members</span>
         </div>
         <div className="flex items-center justify-between pb-5">

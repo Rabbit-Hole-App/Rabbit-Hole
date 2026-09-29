@@ -1,4 +1,4 @@
-import { api, getTheme, navigate, setTheme, wsName } from '../api.js';
+import { api, audienceOf, getTheme, navigate, setTheme, workspaceLabel } from '../api.js';
 import { openedNotice } from '../connections.js';
 import { aiReadsOnPreview, learnPreview } from '../flags.js';
 import { canvasKeys, deviceId, hasLocalContent } from '../home/canvas-local.js';
@@ -29,7 +29,7 @@ export const ctxOf = (surface, { scope = scopeOf(surface) } = {}) => ({
 });
 
 const ok = () => ({ ok: true });
-const workspace = (ctx) => ctx.orgName || wsName(ctx.org);
+const workspace = (ctx) => workspaceLabel(ctx.orgName, ctx.org, true); // the bar runs only in the preview
 const card = (ctx, model) => ({ workspace: workspace(ctx), ...model });
 const rowOf = (ctx, slug) => (ctx.catalog || []).find((row) => row.name === slug);
 const titleFor = (ctx, slug) => (rowOf(ctx, slug) ? titleOf(rowOf(ctx, slug)) : slug);
@@ -250,7 +250,7 @@ export const COMMANDS = {
       target: `${args.repo} · public GitHub · ${args.url}`,
       operation: 'connect_repository',
       params: { branch: args.branch },
-      effect: `${args.newBranch && repositoriesOf(ctx.catalog, args.repo).length ? `${args.repo} is already connected on ${repositoriesOf(ctx.catalog, args.repo).map((row) => row.branch).filter(Boolean).join(', ')}; this connects ${args.branch} as a separate project. ` : ''}Visible to everyone in ${workspace(ctx)}. Connected repositories can't be deleted yet.`,
+      effect: `${args.newBranch && repositoriesOf(ctx.catalog, args.repo).length ? `${args.repo} is already connected on ${repositoriesOf(ctx.catalog, args.repo).map((row) => row.branch).filter(Boolean).join(', ')}; this connects ${args.branch} as a separate project. ` : ''}Visible to ${audienceOf(ctx.orgName, ctx.email)}. Connected repositories can't be deleted yet.`,
     }),
     run: async ({ url, repo, branch, newBranch, existing, defaulted }) => {
       // Checked again against a fresh catalog right before creating: the page's copy can be stale.

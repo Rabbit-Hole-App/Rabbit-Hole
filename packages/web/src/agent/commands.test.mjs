@@ -26,7 +26,7 @@ const CATALOG = [
   { name: 'counter', kind: 'server' },
   { name: 's3-log', kind: 'job' },
 ];
-const SURFACE = { place: 'app', org: 'gmail-com', email: 'a@gmail.com', orgName: 'Gmail', catalog: CATALOG, resource: { kind: 'app', slug: 's3-log', title: 's3-log' }, selected: null, barHidden: false, resultsHost: 'sheet', handlers: {} };
+const SURFACE = { place: 'app', org: 'gmail-com', email: 'a@gmail.com', orgName: null, catalog: CATALOG, resource: { kind: 'app', slug: 's3-log', title: 's3-log' }, selected: null, barHidden: false, resultsHost: 'sheet', handlers: {} };
 const CTX = { ...ctxOf(SURFACE), devBuild: true, storage: memory() };
 const LIVE = { ...CTX, devBuild: false };
 const ASK = ['run', 'run_again', 'set_schedule', 'pause_schedule', 'resume_schedule', 'share', 'unshare'];
@@ -36,7 +36,7 @@ test('every caller builds the one ctx from the surface; only the frozen scope ov
   assert.equal(learnPreview, false);
   const s3log = { org: 'gmail-com', kind: 'app', slug: 's3-log', title: 's3-log', selected: null };
   assert.deepEqual(ctxOf(SURFACE), {
-    org: 'gmail-com', email: 'a@gmail.com', orgName: 'Gmail', devBuild: learnPreview, storage: window.localStorage, catalog: CATALOG,
+    org: 'gmail-com', email: 'a@gmail.com', orgName: null, devBuild: learnPreview, storage: window.localStorage, catalog: CATALOG,
     scope: s3log, surface: SURFACE,
   });
   // The bar freezes the scope at Send (T02 §6.3); the page may move on before the command runs.
@@ -86,8 +86,8 @@ test('prepare resolves the default branch before the card, so the card shows the
   assert.deepEqual(prepared, {
     args: { url: 'https://github.com/karpathy/minGPT', repo: 'karpathy/minGPT', branch: 'master', defaulted: true },
     card: {
-      workspace: 'Gmail', title: 'Connect karpathy/minGPT', target: 'karpathy/minGPT · public GitHub · https://github.com/karpathy/minGPT',
-      operation: 'connect_repository', params: { branch: 'master' }, effect: "Visible to everyone in Gmail. Connected repositories can't be deleted yet.",
+      workspace: 'Personal', title: 'Connect karpathy/minGPT', target: 'karpathy/minGPT · public GitHub · https://github.com/karpathy/minGPT',
+      operation: 'connect_repository', params: { branch: 'master' }, effect: "Visible to anyone who signs in with an @gmail.com email. Connected repositories can't be deleted yet.",
     },
     policy: { risk: 'confirm', blocked: false },
   });
@@ -110,7 +110,7 @@ test('Connect posts the repository and run opens its project; the caller never n
 test('an Ask proposal becomes a card naming workspace, target, operation, parameters and effect; D7 blocks it', async () => {
   assert.deepEqual(await prepareCommand('share', { proposal_id: 'p-1a2b3c', app: 'counter', email: 'y@example.com', role: 'view' }, CTX), {
     args: { proposal_id: 'p-1a2b3c', app: 'counter', email: 'y@example.com', role: 'view' },
-    card: { workspace: 'Gmail', title: 'Share counter', target: 'counter (server) · /apps/counter', operation: 'share', params: { app: 'counter', email: 'y@example.com', role: 'view' }, effect: 'y@example.com gets view access to counter now.' },
+    card: { workspace: 'Personal', title: 'Share counter', target: 'counter (server) · /apps/counter', operation: 'share', params: { app: 'counter', email: 'y@example.com', role: 'view' }, effect: 'y@example.com gets view access to counter now.' },
     policy: { risk: 'confirm', blocked: true, reason: D7_REASON },
   });
   const before = calls.length;
@@ -292,7 +292,7 @@ test('an explicit different branch of a connected repository is never a silent d
     : path === '/api/apps' ? { body: { apps: ctx.catalog } } : { status: 202, body: { name: 'repo-2b3c4d5e-nanogpt' } });
   const prepared = await prepareCommand('connect_repository', { ...nano, branch: 'dev', newBranch: true }, ctx);
   assert.deepEqual(prepared.args, { ...nano, branch: 'dev', newBranch: true });
-  assert.equal(prepared.card.effect, "karpathy/nanoGPT is already connected on master; this connects dev as a separate project. Visible to everyone in Gmail. Connected repositories can't be deleted yet.");
+  assert.equal(prepared.card.effect, "karpathy/nanoGPT is already connected on master; this connects dev as a separate project. Visible to anyone who signs in with an @gmail.com email. Connected repositories can't be deleted yet.");
   await executeCommand('connect_repository', prepared.args, ctx);
   assert.deepEqual(calls.at(-1), { path: '/api/repositories', method: 'POST', body: { url: 'https://github.com/karpathy/nanoGPT', branch: 'dev' } });
 });
@@ -333,7 +333,7 @@ test('the separate-branch card names every connected branch, and never undefined
   const two = { ...CTX, catalog: [{ name: 'repo-1a2b3c4d-nanogpt', kind: 'repository', repo: 'karpathy/nanoGPT', branch: 'master' }, { name: 'repo-2b3c4d5e-nanogpt', kind: 'repository', repo: 'karpathy/nanoGPT', branch: 'dev' }] };
   const nano = { url: 'https://github.com/karpathy/nanoGPT', repo: 'karpathy/nanoGPT', branch: 'x', newBranch: true };
   assert.match((await prepareCommand('connect_repository', nano, two)).card.effect, /^karpathy\/nanoGPT is already connected on master, dev; this connects x as a separate project\. /);
-  assert.match((await prepareCommand('connect_repository', nano, { ...CTX, catalog: [] })).card.effect, /^Visible to everyone in Gmail\./);
+  assert.match((await prepareCommand('connect_repository', nano, { ...CTX, catalog: [] })).card.effect, /^Visible to anyone who signs in with an @gmail\.com email\./);
 });
 
 test('search_resources can narrow to kinds; open_recent opens the newest of a kind opened in this browser', async () => {

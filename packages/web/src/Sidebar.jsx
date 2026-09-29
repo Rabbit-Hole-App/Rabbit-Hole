@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, Compass, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
-import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName } from './api.js';
+import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, Compass, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, Rabbit, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName, workspaceLabel } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
 import { AVAILABILITY, connectionsFor } from './connections.js';
@@ -226,7 +226,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
                     <Button variant="secondary" size="sm" type="submit" disabled={!(wsRename ?? '').trim() || wsRename === activeWs.name}>Save</Button>
                   </form>
                 ) : (
-                  <span className="text-sm text-ink-2">{activeWs ? (activeWs.name || wsName(activeWs.slug)) : '…'}</span>
+                  <span className="text-sm text-ink-2">{activeWs ? workspaceLabel(activeWs.name, activeWs.slug) : '…'}</span>
                 )}
               </SettingsRow>
               <SettingsRow title="Slug" desc="Its id in app URLs">
@@ -473,6 +473,8 @@ function AiModelSettings() {
 // Rabbit Hole dev: the main destinations, in the expanded nav and in the collapsed icon rail.
 const NAV = [['Home', '/apps', 'home', House], ['Library', '/library', 'library', Library], ['Explore', '/explore', 'explore', Compass]];
 const RAIL_BTN = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink';
+// Rabbit Hole dev: the product mark. The chrome names the product, never a letter from the email domain.
+const ProductMark = () => <span className="grid h-5 w-5 shrink-0 place-items-center rounded-sm bg-ink text-white"><Rabbit size={13} strokeWidth={1.75} /></span>;
 
 // Notion-style sidebar: workspace row, search, folders (drag apps in), recent, members.
 // Resizable by dragging the right edge (200–400px). Rabbit Hole dev: `rail` is the collapsed
@@ -586,8 +588,10 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
   const section = new URLSearchParams(window.location.search).get('s');
   const query = window.location.search;
   const here = learnPreview ? pageFor(path, query, true).page : null; // which nav item you are on
-  const current = here === 'app' ? 'library' : here; // app, project and canvas pages belong to the Library
-  const wsLabel = orgName || wsName(org);
+  // One location state: a resource page is marked by its own row (Pinned), not by Library as well.
+  const current = here;
+  // Before the catalog arrives the workspace is unknown: a named one must not flash Personal first.
+  const wsLabel = learnPreview && !email ? '…' : workspaceLabel(orgName, org);
   // Pinned (T02 §2): device-local and flat. togglePin announces every change, whoever made
   // it (this menu or the Agent Bar's pin command), so re-read on that event.
   const [, setPinTick] = useState(0);
@@ -686,6 +690,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         onDragStart={menu && a.hosting !== 'aws' && !isLearnResource(a) ? (e) => { setDragging(a.name); e.dataTransfer.setData('text/plain', a.name); e.dataTransfer.effectAllowed = 'move'; } : undefined}
         onDragEnd={menu ? () => { setDragging(null); setDropTarget(null); } : undefined}
         onClick={() => navigate(`/apps/${a.name}`)}
+        aria-current={path === `/apps/${a.name}` ? 'page' : undefined}
         className={cn(
           'flex h-7 cursor-pointer items-center gap-2 rounded-sm px-2 text-sm hover:bg-hover',
           path === `/apps/${a.name}` && 'bg-active font-medium', // you are here
@@ -864,8 +869,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
       <div className="relative shrink-0">
         {rail ? (
           <div className="flex flex-col items-center gap-1">
-            <button title={wsLabel} aria-label={wsLabel} onClick={() => setWsMenu(!wsMenu)} className={cn(RAIL_BTN, wsMenu && 'bg-active')}>
-              <span className="grid h-5 w-5 place-items-center rounded-sm bg-ink text-[11px] font-semibold text-white">{wsLabel[0].toUpperCase()}</span>
+            <button title={`${PRODUCT} · ${wsLabel}`} aria-label={`${PRODUCT} · ${wsLabel}`} onClick={() => setWsMenu(!wsMenu)} className={cn(RAIL_BTN, wsMenu && 'bg-active')}>
+              <ProductMark />
               <span className="sr-only">{wsLabel}</span>
             </button>
             <button title="Open sidebar" aria-label="Open sidebar" onClick={onExpand} className={RAIL_BTN}>
@@ -881,6 +886,22 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
               {badge}
             </div>
           </div>
+        ) : learnPreview ? (
+          <>
+            <div className="flex h-9 items-center gap-2 px-2">
+              <ProductMark />
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">{PRODUCT}</span>
+              <ByocDevBadge />
+              <IconBtn title="Close sidebar" onClick={onCollapse} className="opacity-0 group-hover/sb:opacity-100 max-md:opacity-100">
+                <ChevronsLeft size={15} />
+              </IconBtn>
+            </div>
+            {/* the workspace is context, not identity: its own switcher under the brand */}
+            <button onClick={() => setWsMenu(!wsMenu)} title="Switch workspace" className={cn('ml-1 flex h-6 max-w-[calc(100%-8px)] cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', wsMenu && 'bg-active text-ink')}>
+              <span className="truncate">{wsLabel}</span>
+              <ChevronDown size={12} className="shrink-0" />
+            </button>
+          </>
         ) : (
         <div className="flex h-9 items-center gap-2 px-2">
           <button
@@ -899,7 +920,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         )}
         {/* fixed!: the sidebar is a scroll container and clips anything wider than
             itself - pinning to the viewport lets the menu fit the full email */}
-        <Menu open={wsMenu} onClose={() => setWsMenu(false)} className={rail ? 'fixed! top-2 left-14 w-auto! min-w-60 max-w-[340px]' : 'fixed! top-11 left-3 w-auto! min-w-60 max-w-[340px]'}>
+        <Menu open={wsMenu} onClose={() => setWsMenu(false)} className={rail ? 'fixed! top-2 left-14 w-auto! min-w-60 max-w-[340px]' : learnPreview ? 'fixed! top-[70px] left-3 w-auto! min-w-60 max-w-[340px]' : 'fixed! top-11 left-3 w-auto! min-w-60 max-w-[340px]'}>
           <div className="flex items-center gap-2 px-2 py-1.5">
             {email && <Avatar email={email} />}
             <span className="text-xs whitespace-nowrap text-ink-2">{email}</span>
@@ -907,7 +928,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           <div className="my-1 border-t border-line" />
           {/* every workspace the user belongs to; the active one gets the check */}
           {(wsList || []).map((w) => {
-            const label = w.name || wsName(w.slug);
+            const label = workspaceLabel(w.name, w.slug);
             const active = w.slug === (wsList?.activeSlug ?? org);
             return (
               <MenuItem

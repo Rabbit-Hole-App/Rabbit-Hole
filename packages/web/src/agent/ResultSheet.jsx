@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { History, Loader2, Minus, Network, Plus } from 'lucide-react';
-import { ago, api, wsName } from '../api.js';
+import { ago, api } from '../api.js';
 import { Md } from '../ask.jsx';
 import { Button, cn, IconBtn, Pill } from '../ui.jsx';
 import { getTurns, labelOf, resetThread, resultsKey, resultsView, setTurns, subscribeTurns, threadIds, threadsPath } from './bar.js';
@@ -101,7 +101,7 @@ export function ResultList({ scopeKey: key }) {
     try {
       const d = await api(threadsPath(scope, id));
       threadIds.set(key, d.id);
-      const label = labelOf(scope, surface.orgName || wsName(scope.org));
+      const label = labelOf(scope);
       setTurns(key, d.messages.map((m, i) => ({ id: `${d.id}:${i}`, scope, label, done: true, kind: m.role === 'user' ? 'user' : 'answer', text: m.content })));
       setThreads(null);
     } catch (e) { setError(e.message); }

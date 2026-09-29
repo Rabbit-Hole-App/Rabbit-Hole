@@ -95,10 +95,10 @@ test('switching a waiting draft moves or copies it, and never overwrites or drop
   assert.equal(carry(d, nano, nano, false), d);
 });
 
-test('a scope is named by its chips, the workspace by its name', () => {
-  assert.equal(labelOf(home, 'Gmail'), 'Gmail');
-  assert.equal(labelOf(nano, 'Gmail'), 'karpathy/nanoGPT');
-  assert.equal(labelOf(attn, 'Gmail'), 'karpathy/nanoGPT · CausalSelfAttention');
+test('a scope is named by its chips, the workspace scope by Rabbit Hole', () => {
+  assert.equal(labelOf(home), 'Rabbit Hole');
+  assert.equal(labelOf(nano), 'karpathy/nanoGPT');
+  assert.equal(labelOf(attn), 'karpathy/nanoGPT · CausalSelfAttention');
 });
 
 test('the offer names what changed: another page, or a node on the same project', () => {

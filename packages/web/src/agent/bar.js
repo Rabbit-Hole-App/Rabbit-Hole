@@ -77,7 +77,9 @@ export function carry(drafts, from, to, keep) {
 }
 
 // The bar names a scope by its chips, and the workspace (no chip) by its name.
-export const labelOf = (scope, workspace) => chipsFor(scope).map((chip) => chip.label).join(' · ') || workspace;
+// Rabbit Hole is answering and the workspace is only context (user, 2026-09-28): a scope is named by
+// its chips, the workspace scope by the product. The bar exists only in the preview.
+export const labelOf = (scope) => chipsFor(scope).map((chip) => chip.label).join(' · ') || 'Rabbit Hole';
 
 // The router's 'about' (a connected repository named in a question, router.js rule 2) as the
 // project scope its answer belongs to: kind 'project', as the project page publishes it.

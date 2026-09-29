@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Loader2, X } from 'lucide-react';
-import { wsName } from './api.js';
+import { audienceOf } from './api.js';
 import { executeCommand, prepareCommand } from './agent/commands.js';
 import ConfirmCard from './agent/ConfirmCard.jsx';
 import { learnAction } from './agent/learn-hook.js';
@@ -29,7 +29,7 @@ export default function StartDialog({ ctx, initial, onClose }) {
   const [choose, setChoose] = useState(null); // the router's open-or-connect options for another branch
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const workspace = ctx.orgName || wsName(ctx.org);
+  const audience = audienceOf(ctx.orgName, ctx.email);
   const set = (key, value) => { setF((s) => ({ ...s, [key]: value })); setError(''); if (key === 'url') { setCard(null); setChoose(null); } };
   const field = (key) => ({ value: f[key], onChange: (e) => set(key, e.target.value) });
   const close = () => { if (!inFlight.current) onClose(); };
@@ -128,7 +128,7 @@ export default function StartDialog({ ctx, initial, onClose }) {
               <label className="block text-sm">GitHub URL
                 <Input autoFocus inputMode="url" placeholder="https://github.com/owner/repository" className="mt-1" {...field('url')} />
               </label>
-              <p className="mt-3 text-xs text-ink-2">Visible to everyone in {workspace}. Connected repositories can't be deleted yet. Public GitHub only; private repositories aren't supported yet.</p>
+              <p className="mt-3 text-xs text-ink-2">Visible to {audience}. Connected repositories can't be deleted yet. Public GitHub only; private repositories aren't supported yet.</p>
               {/* No branch select: a /tree/<branch> link picks one, and a repository GitHub names no default for stops with its branches (commands.js noDefaultBranch). */}
               {!card && !choose && foot('Check repository', !canSubmit('repository', f))}
             </form>

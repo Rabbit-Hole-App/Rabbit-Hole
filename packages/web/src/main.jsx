@@ -12,7 +12,7 @@ import SharePage from './SharePage.jsx';
 const Home = learnPreview ? lazy(() => import('./Home.jsx')) : null;
 const ExplorePreview = learnPreview ? lazy(() => import('./Home.jsx').then((m) => ({ default: m.ExplorePreview }))) : null;
 import Shell, { storedSidebar } from './Shell.jsx';
-import { applyTheme, getTheme, navigate, setWs, wsName } from './api.js';
+import { applyTheme, getTheme, navigate, setWs, workspaceLabel } from './api.js';
 import { ExpandedPageFrame, Toasts } from './ui.jsx';
 import { isPrivateByoc } from './private-auth.js';
 import PrivateAuthGate from './PrivateAuthGate.jsx';
@@ -35,7 +35,7 @@ function ChatPage() {
         <main className="flex h-screen min-w-0 flex-1 flex-col">
           <ExpandedPageFrame>
             <div className="flex shrink-0 items-center gap-1 pb-6 text-sm text-ink-2">
-              <button className={crumb} onClick={() => navigate('/apps')}>{data?.orgName || wsName(data?.org)}</button>
+              <button className={crumb} onClick={() => navigate('/apps')}>{workspaceLabel(data?.orgName, data?.org)}</button>
               <span>/</span>
               <button className={crumb} onClick={() => navigate('/apps')}>Apps</button>
               {app && (

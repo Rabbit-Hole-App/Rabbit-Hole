@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Loader2, Paperclip, Plus, X } from 'lucide-react';
 import ChatComposer from '../ChatComposer.jsx';
-import { api, navigate, wsName } from '../api.js';
+import { api, navigate } from '../api.js';
 import { PATHS, slugOf, titleFromQuestion } from '../start.js';
 import { Button, cn, Menu, MenuItem, toast } from '../ui.jsx';
 import { askBody, streamAsk } from './ask-stream.js';
@@ -17,7 +17,7 @@ import { route } from './router.js';
 import { chipsFor, endpointFor, scopeKey, scopeOf } from './scope.js';
 import { getSurface, useSurface } from './surface.js';
 
-const nameOf = (scope) => labelOf(scope, getSurface().orgName || wsName(scope.org));
+const nameOf = (scope) => labelOf(scope);
 const add = (scope, entry) => {
   const id = crypto.randomUUID();
   pushTurn(resultsKey(scope), { id, scope, label: nameOf(scope), ...entry });
