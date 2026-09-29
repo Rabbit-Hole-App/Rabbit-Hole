@@ -13,13 +13,12 @@ NC3  Card shell / Sources / Practice     ✅
 NC4  NanoGPT cards 1–10                  ✅ frozen
 NC5  18-card depth ladder                ✅ CLOSED (v3 page 11:2, v3.1 fixes 16:3)
 NC6  Card-composition rules              ✅
-NC7  NanoGPT cards 11–26                 🟡
+NC7  NanoGPT cards 11–26                 ✅ COMPLETE (25-card inventory, card 8 folded into 9)
   NC7A Batch 2                           ✅
   NC7B Batch 3                           ✅ CLOSED (page 18:3, v1.1 fixes 22:3)
-  NC7C Remaining through 26              🟡 ACTIVE — batch 4 ✅ CLOSED (page 26:3, v1.1 fixes 28:3);
-                                            batch 5 (c22, c23, c24, c25) at the v1.1 closeout gate (page 34:3,
-                                            closeout 38:3; shared renderer fixes deployed and verified)
-NC8  Cross-depth content transitions     ⬜
+  NC7C Remaining through 26              ✅ — batch 4 ✅ CLOSED (page 26:3, v1.1 fixes 28:3);
+                                            batch 5 ✅ CLOSED (page 34:3, v1.1 closeout 38:3)
+NC8  Cross-depth content transitions     🟡 ACTIVE
 NC9  Curriculum coherence review         ⬜ (open items: is "how scores are produced", q·k, thin?;
                                             should c26 name its iteration-1000 checkpoint next to c25's 100?;
                                             c22 rounds each cell (z 0.60) where c21 rounds to sum 1 (z 0.61))
@@ -36,6 +35,17 @@ deployed checks → Figma captures → stop at the visual review gate with the e
 bar: one question per card; practice on an unseen case; no decorative interaction; no text
 shrinking; sequence relationships explicit when cards form a path; existing renderer primitives
 (a new capability only if a batch proves it genuinely reusable).
+
+## 2026-09-29 — batch 5 closed; NC7 complete
+
+Owner approved the v1.1 closeout (page 38:3) and closed batch 5: c25 contrast, c23 lock state
+with no internal index, c24 and c22 feedback sizing with a separate New attempt row, c24's
+placeholder removed. c24's ~116px of breathing room before practice is accepted: the fixed
+card height keeps the card from jumping when practice reveals the ROMEO case; the approved
+revealed lines are not merged to save space. Pushed fast-forward 42a8d97..7f752d4. Batch 5
+reopens only for a correctness regression. With it every card of the 25-card inventory exists
+(card 8 folded into 9), so NC7 is complete; NC8 is next. Deferred and not blocking: NC9 (c26's
+iteration-1000 label, c21 0.61 vs c22 0.60 rounding), NC10 (the seven dimmed focus/mask states).
 
 ## 2026-09-29 — batch 5 visual review: keep the designs, fix the five shared items
 
