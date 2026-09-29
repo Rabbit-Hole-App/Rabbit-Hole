@@ -11,8 +11,8 @@ Projects", `ef9SfiemEsPQF2bd8B1os3`), with the exact node URL.
 | WP2 | Canvas backend (LEARN_DB canvases) | Done, frozen |
 | WP3 | Proposal lifecycle / action safety | Done, frozen |
 | WP4 | Home / Library / Explore / Start / Settings | Done (closeout 2026-09-28) |
-| WP5 | Mothership Agent Bar / command surface | Active |
-| WP6 | Project / Canvas / App destinations | After WP5 |
+| WP5 | Mothership Agent Bar / command surface | Done (closeout 2026-09-28) |
+| WP6 | Project / Canvas / App destinations | Active |
 | WP7 | Final integration / MVP verification | Last |
 
 ## Product model (user, 2026-09-28)
@@ -49,7 +49,8 @@ Project scope ✅ · Map node scope ✅ · visible response states ✅ · shared
 contract ✅ (`agent/slash.js`, `docs/features/rabbit-hole-commands.md`; the Learn owners wire
 it) · /research global semantics ✅ (product vs review-copy limits) · compact result sizing ✅
 (content-sized, at most 45vh) · sidebar / icon rail ✅ integrated · mobile drawer ✅ integrated ·
-final Figma gate ⬜. No further WP5 features beyond these.
+final Figma gate ✅ ("WP5 · batch 2", node 56:222, closeout row; clone 790858aa, commit
+6c6b070, browser suite 75/75). Closed; no further WP5 features.
 
 Result surface rule for WP6: Home, Library and Project Overview answer in the sheet above the
 Mothership; Map answers longer results in the right Context panel; Learn keeps its own
@@ -80,14 +81,14 @@ conversation. The bottom sheet is not the permanent answer UI for Map.
 ## Sidebar shell (reviewed with WP5/WP6)
 
 Built 2026-09-28, preview only (T02 §2 has the layout; the live sidebar is unchanged).
-Harness checks sh-sidebar, sh-rail, sh-drawer and sh-legacy are written; they run
-after the next clone deploy.
+Harness checks sh-sidebar, sh-rail, sh-drawer and sh-legacy pass on the clone.
 
 - Expanded: workspace/account; the Search and Notifications icons; Home, Library,
   Explore; Pinned (flat); a divider; Members; Trash. Projects, Canvases and Apps
   are not repeated in the sidebar: the Library owns browsing.
 - Desktop collapsed (Ctrl/⌘+\ or Learn): a 52px icon rail (workspace tile with the
-  workspace menu, Open sidebar, Home, Library, Explore, Members, Trash) with
+  workspace menu, Open sidebar, Search, Notifications with the unread count, Home,
+  Library, Explore, Members, Trash) with
   tooltips; the current destination has aria-current and the active surface, and
   app pages mark Library. No Pinned, no resize handle. The Agent Bar sits beside
   it. Never fully hidden on desktop.
