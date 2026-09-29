@@ -52,8 +52,12 @@ const clip = sheet.locator('[data-slash-card] video[data-lesson-video]');
 const plays = await clip.waitFor({ timeout: 20000 }).then(() => clip.evaluate(node => new Promise(done => { if (node.readyState >= 1) return done(node.duration); node.addEventListener('loadedmetadata', () => done(node.duration), { once: true }); setTimeout(() => done(0), 15000); }))).catch(() => 0);
 ok('/animate shows the finished Manim clip, not a Generate card', plays > 0 && await sheet.locator('[data-slash-card] [data-generate-video]').count() === 0, `${plays}s`);
 await sheet.screenshot({ path: `${SHOTS}/sheet-animate.png` });
+// Blender and FAL have each produced their sample on the clone (2026-09-29): the finished results show.
 await sheet.locator('[data-slash-help="3d"]').click();
-ok('/3d says it has no finished example yet (its renderer is offline), never a fake', await sheet.locator('[data-slash-unfinished="scene"]').waitFor({ timeout: 20000 }).then(() => true).catch(() => false));
+ok('/3d shows the finished Blender scene in the 3D viewer', await sheet.locator('[data-slash-card="scene"] canvas').waitFor({ timeout: 20000 }).then(() => true).catch(() => false) && await sheet.locator('[data-slash-card] [data-generate-scene]').count() === 0);
+await sheet.screenshot({ path: `${SHOTS}/sheet-3d.png` });
+await sheet.locator('[data-slash-help="video"]').click();
+ok('/video shows the finished FAL clip', await sheet.locator('[data-slash-card="videoGenerate"] video[data-lesson-video]').waitFor({ timeout: 20000 }).then(() => true).catch(() => false));
 await sheet.locator('[data-slash-help="compare"]').click();
 ok('/compare explains the tutor picks one, and shows a real comparison', await sheet.getByText('The tutor picks one:').count() === 1 && await sheet.locator('[data-slash-card="table"]').getByText('Sigmoid vs tanh').count() === 1);
 await sheet.screenshot({ path: `${SHOTS}/sheet-compare.png` });

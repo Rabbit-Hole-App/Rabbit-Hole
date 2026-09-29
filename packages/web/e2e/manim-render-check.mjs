@@ -8,6 +8,9 @@ import { readFileSync, mkdirSync } from 'node:fs';
 // ITEM='Video generate (paid)' OP=generate_video runs the FAL clip instead (also paid).
 const ITEM = process.env.ITEM || 'Maths animation (paid)';
 const OP = process.env.OP || 'generate_math_animation';
+// ITEM='Blender scene (paid)' OP=generate_3d_animation: the Blender scene card, whose result is a 3D viewer.
+const SCENE = OP === 'generate_3d_animation';
+const BUTTON = SCENE ? '[data-generate-scene]' : '[data-generate-video]';
 const BASE = 'https://small-cp-dev-small-parallel.zeroshothq.workers.dev';
 const APP = 'repo-06745f10-nanogpt';
 const BOARD = `manim-${Date.now().toString(36)}`;
@@ -23,7 +26,7 @@ const context = await browser.newContext({ viewport: { width: 1600, height: 1100
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
 const page = await context.newPage();
 const posts = [];
-page.on('request', request => { if (request.method() === 'POST' && request.url().includes('/api/learn/video')) posts.push(JSON.parse(request.postData() || '{}')); });
+page.on('request', request => { if (request.method() === 'POST' && (request.url().includes('/api/learn/video') || request.url().includes('/api/learn/scene'))) posts.push(JSON.parse(request.postData() || '{}')); });
 page.on('pageerror', error => console.log('PAGEERROR', error.message.slice(0, 200)));
 await page.goto(`${BASE}/apps/${APP}?tab=learn&board=${BOARD}`);
 await page.getByRole('menubar', { name: 'Canvas menu' }).waitFor({ timeout: 60000 });
@@ -31,18 +34,23 @@ await page.waitForTimeout(1500);
 
 await page.getByRole('button', { name: 'Insert lesson block' }).click();
 await page.getByRole('menu', { name: 'Lesson blocks' }).getByRole('menuitem', { name: ITEM, exact: true }).click();
-const found = page.locator('[data-block-id]').filter({ has: page.locator('[data-generate-video]') }).last();
+const found = page.locator('[data-block-id]').filter({ has: page.locator(BUTTON) }).last();
 await found.waitFor({ timeout: 15000 });
 // Pin the card by id: Render swaps its button for the confirmation.
 const card = page.locator(`[data-block-id="${await found.getAttribute('data-block-id')}"]`);
-await card.locator('[data-generate-video]').click();
+await card.locator(BUTTON).click();
 ok('Render asks first and posts nothing', await card.locator('[data-paid-confirm]').count() === 1 && posts.length === 0);
 await page.screenshot({ path: `${SHOTS}/${OP}-confirm.png` });
 await card.locator('[data-paid-generate]').click();
 const started = Date.now();
 await page.waitForTimeout(3000);
 ok('Generate sends the confirmed job', posts.some(body => body.confirmed === true && body.operation?.op === OP));
-try {
+if (SCENE) {
+  // Ready when the Blender status is gone and the three.js viewer has drawn the GLB.
+  const ready = await page.waitForFunction(id => { const node = document.querySelector(`[data-block-id="${id}"]`); return !!node?.querySelector('canvas') && !/rendering|Queued|Retry/i.test(node.innerText); }, await card.getAttribute('data-block-id'), { timeout: 480000, polling: 1000 }).then(() => true).catch(() => false);
+  await page.waitForTimeout(3000);
+  ok('the Blender scene renders and shows in the 3D viewer', ready, ready ? `${Math.round((Date.now() - started) / 1000)}s to render` : (await card.innerText()).replace(/\s+/g, ' ').slice(0, 200));
+} else try {
   await card.locator('video[data-lesson-video]').waitFor({ timeout: 480000 });
   const playable = await card.locator('video[data-lesson-video]').evaluate(node => new Promise(resolve => {
     if (node.readyState >= 1) return resolve(node.duration);
