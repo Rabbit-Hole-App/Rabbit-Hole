@@ -20,6 +20,7 @@ import NotebookBody from './NotebookCard.jsx';
 import { activePath, newNotebookBlock } from './learn-notebook.js';
 import { paletteSections, insertName } from './learn-insert-palette.js';
 import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow } from './learn-connectors.js';
+import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -2697,7 +2698,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, onD
           grow equally, keeping the composer centred while there is room), and
           on a phone the pill takes its own compact row above a full-width
           composer and the minimap steps aside. */}
-      {presenting === null && <div data-canvas-bottom className="relative flex min-h-11 shrink-0 flex-col gap-2 px-3 pt-3 pb-4 md:flex-row md:items-end md:gap-3">
+      {presenting === null && <div data-canvas-bottom className={`relative flex min-h-11 shrink-0 flex-col gap-2 md:flex-row md:items-end md:gap-3 ${DOCK_PAD}`}>
         <div className="flex md:min-w-fit md:flex-1 md:basis-0">
         <div data-zoom aria-label="Zoom controls" className="z-20 flex items-center rounded-lg border border-line bg-white shadow-sm">
           <IconBtn title="Scroll up" onClick={() => scrollBy(-1)}><ChevronUp size={14} /></IconBtn>
@@ -2708,7 +2709,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, onD
           <IconBtn title="Zoom in" onClick={() => zoomCenter(1.25)}><Plus size={14} /></IconBtn>
         </div>
         </div>
-        {composer && <div data-canvas-composer className="mx-auto w-full min-w-0 max-w-[504px] md:mx-0 md:shrink">{composer}</div>}
+        {/* The shared composer shell's footprint: DOCK_WIDTH in a DOCK_PAD strip (ChatComposer.jsx). */}
+        {composer && <div data-canvas-composer className={`${DOCK_WIDTH} min-w-0 md:mx-0 md:shrink`}>{composer}</div>}
         {/* Reserves the minimap's width (CanvasMinimap SIZE.w) so it never sits over the composer. */}
         <div aria-hidden className="hidden md:block md:flex-1 md:basis-0" style={minimap ? { minWidth: 184 } : undefined} />
         {/* Level with the composer's bottom edge, like the zoom pill. */}
