@@ -111,8 +111,10 @@ test('c25 every stage follows the previous character and matches the oracle', ()
       assert.equal(row.cellHighlightKind, 'highlight');
       assert.equal(row.tokenStyle, 'labels');
       assert.equal(row.tokens.at(-1), prev === ' ' ? 'sp' : prev);
-      // The row is named by its text as words, so it reads without spelling the tokens.
-      assert.equal(byId(result, `${id}-label`).label, `“…${t}”`);
+      // The row is named by its text as words, so it reads without spelling the tokens;
+      // a trailing space is the card's sp after the quotes, never a bare space before “”” (R-c25-1).
+      assert.equal(byId(result, `${id}-label`).label, t.endsWith(' ') ? `“…${t.trimEnd()}” + sp` : `“…${t}”`);
+      assert.doesNotMatch(byId(result, `${id}-label`).label, /\s”/);
     }
     // Both read characters stack in one column (x-centres within 4 units), and one
     // box - a mark beyond font weight - encloses that column in both rows.
@@ -221,11 +223,14 @@ test('c25 one frame at scale 1 that never refits across presets', () => {
   assert.ok(scene.height <= 900);
   for (const [k, result] of assertCardGates(scene, ALL).entries()) {
     assert.deepEqual(withoutContributors(sceneContentBounds(result.scene)), withoutContributors(legibility.bounds), JSON.stringify(ALL[k]));
-    // Rows end on one column; the longest ('…Before we sp', 11 tokens) still starts
-    // right of the 'text A' label, and no row passes the box's right edge.
+    // Rows end on one column; every row, the longest ('…Before we sp', 11 tokens)
+    // included, starts a token pitch or more right of its label's estimated
+    // right edge (R-c25-2), and no row passes the box's right edge.
+    const pitch = chipW('e') + CHIP_GAP;
     for (const id of ['text-a', 'text-b']) {
-      const row = byId(result, id);
-      assert.ok(row.x >= 120, `${id} starts at ${row.x}`);
+      const row = byId(result, id), label = byId(result, `${id}-label`);
+      const labelRight = estimateTextBox({ text: label.label, x: label.x, y: label.y, fontSize: 15, anchor: 'start', baseline: 'auto' }).xMax;
+      assert.ok(row.x - labelRight >= pitch, `${id}: gap ${row.x - labelRight} < ${pitch}`);
       assert.ok(row.x + row.w - CHIP_GAP <= byId(result, 'read-box').x + byId(result, 'read-box').w, `${id} ends at ${row.x + row.w}`);
     }
   }

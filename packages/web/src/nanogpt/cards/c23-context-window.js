@@ -52,10 +52,10 @@ const left = i => COL_X + i * PITCH;
 const right = i => left(i) + PITCH;
 const CROP_Y = 162, IDX_Y = 170, ROW_H = 40, CHAR_Y = IDX_Y + 27, READ_Y = IDX_Y + ROW_H + 16;
 const READOUT_X = 600;
-const COUNT_Y = 296, P_Y = COUNT_Y + CELL;
-const BARS = { y: P_Y + CELL + 28, h: 150 }; // 464..614, labels under; the winner's frame starts 16 below the p grid
+const COUNT_Y = 293, P_Y = COUNT_Y + CELL;
+const BARS = { y: P_Y + CELL + 28, h: 150 }; // 461..611, labels under; the winner's frame starts 16 below the p grid
 const SIDE_X = COL_X + W.slots.length * CELL + 14; // 604, right of the grids and bars
-const CAP_Y = 661; // the two state-caption lines, on a panel
+const CAP_Y = 669; // the two state-caption lines beside a quiet left rule; their tops clear the frame (631) by 20+
 const CONCEPT = 'context-window';
 
 const text = (id, value, x, y, extra = {}) => ({ id, type: 'text', semanticId: id, conceptId: CONCEPT,
@@ -69,7 +69,7 @@ export const scene = {
   id: 'nanogpt-c23-context-window',
   title: 'Context window: what idx_cond crops away',
   width: 960,
-  height: 859,                         // the padded content, 858.32: a 960-wide frame draws it at scale 1
+  height: 860,                         // the padded content, 859.32: a 960-wide frame draws it at scale 1
   duration: 1.8,
   inputs: [
     // A picker, not a slider: its chips say "block_size k"; a slider reads "2 of 4" at block_size 3.
@@ -166,29 +166,28 @@ export const scene = {
     text('p-rule', 'p = count ÷ matches', SIDE_X, P_Y + 40, hidden),
     // The most likely next character's column (0..100 and its label) is framed; its readout sits beside the frame's top.
     { id: 'top-frame', type: 'box', semanticId: 'most-likely-column', conceptId: CONCEPT,
-      initialState: { x: { $derive: 'frameX' }, y: BARS.y - 12, w: CELL + 2, h: BARS.h + 32, role: 'prediction', ...hidden } }, // 452..634
+      initialState: { x: { $derive: 'frameX' }, y: BARS.y - 12, w: CELL + 2, h: BARS.h + 32, role: 'prediction', ...hidden } }, // 449..631
     { id: 'bars', type: 'bars', semanticId: 'next-character-bars', conceptId: CONCEPT,
       initialState: { x: COL_X, y: BARS.y, h: BARS.h, cell: CELL, peak: 100, role: 'prediction', labels: [...W.slots],
         values: { $derive: 'pPct' }, cellHighlight: { $derive: 'top' }, cellHighlightKind: 'highlight', ...hidden } },
     text('top-readout', 'Most likely next: {{topCh}} ({{pTop}})', { $derive: 'topReadoutX' }, BARS.y + 6, { role: 'prediction', ...hidden }),
-    // The two lines that change with block_size, on a panel apart from the constant lines under it.
-    { id: 'caption-panel', type: 'box', semanticId: 'state-caption', conceptId: CONCEPT,
-      initialState: { x: 37, y: CAP_Y - 19, w: 843, h: 52, role: 'neutral', ...hidden } }, // x 37: the frame stays 960 wide
+    // The two lines that change with block_size, indented beside a quiet left rule (a bordered panel read as a text field), apart from the constant lines under it.
+    line('caption-rule', { x: 37, y: CAP_Y - 10 }, { x: 37, y: CAP_Y + 25 }, 'prediction', hidden), // x 37: the frame stays 960 wide
     text('caption-1', '{{captionA}}', 48, CAP_Y, hidden),
     text('caption-2', '{{captionB}}', 48, CAP_Y + 22, hidden),
-    text('only-idx-cond', 'The prediction can use only idx_cond: whatever the crop removes no longer counts.', 40, CAP_Y + 53, hidden),
-    text('idx-keeps', 'idx keeps every character: the crop limits what the model reads, not the text generate() returns.', 40, CAP_Y + 75, hidden),
+    text('only-idx-cond', 'The prediction can use only idx_cond: whatever the crop removes no longer counts.', 40, CAP_Y + 46, hidden),
+    text('idx-keeps', 'idx keeps every character: the crop limits what the model reads, not the text generate() returns.', 40, CAP_Y + 68, hidden),
 
-    note('legend', 'other = every remaining character together · each p cell is rounded on its own', 40, CAP_Y + 99),
-    note('footer-1', `Source value: NanoGPT’s block_size is fixed by the trained model, ${B_NANO} for shakespeare_char;`, 40, CAP_Y + 121),
-    note('footer-2', `the crop starts once idx passes ${B_NANO}.`, 40, CAP_Y + 139),
-    note('footer-3', 'The forward accepts at most block_size positions: wpe has one learned row for each.', 40, CAP_Y + 157),
+    note('legend', 'other = every remaining character together · each p cell is rounded on its own', 40, CAP_Y + 92),
+    note('footer-1', `Source value: NanoGPT’s block_size is fixed by the trained model, ${B_NANO} for shakespeare_char;`, 40, CAP_Y + 114),
+    note('footer-2', `the crop starts once idx passes ${B_NANO}.`, 40, CAP_Y + 132),
+    note('footer-3', 'The forward accepts at most block_size positions: wpe has one learned row for each.', 40, CAP_Y + 150),
   ],
   // Replay in data order: idx and its crop, the counted row, the prediction.
   timeline: [
     [0, ['idx-label', 'read-box', 'next-slot', 'read-label', 'readout-t', 'readout-read', 'readout-crop', 'rule']],
     [0.6, ['counts', 'matches', 'matches-note']],
-    [1.2, ['p', 'p-rule', 'top-frame', 'bars', 'top-readout', 'caption-panel', 'caption-1', 'caption-2', 'only-idx-cond', 'idx-keeps']],
+    [1.2, ['p', 'p-rule', 'top-frame', 'bars', 'top-readout', 'caption-rule', 'caption-1', 'caption-2', 'only-idx-cond', 'idx-keeps']],
   ].flatMap(([at, targets]) => targets.map(target => ({ at, action: 'appear', target, duration: 0.3 }))),
 };
 
@@ -241,7 +240,7 @@ export const plan = {
   causalSteps: [
     'idx and the crop: idx = B e f o r (t = 5) as five heading-size characters; the last k sit in an input-role box as idx_cond, labelled "read" under it, and the first t − k are dimmed under a neutral "cropped" bracket; readouts name idx_cond and what is cropped but still in idx',
     'the toy table\'s row for exactly idx_cond: a 1 × 6 integer count grid (e, sp, d, t, m, other) over the training split, and matches = the sum of the row',
-    'the prediction: p = count ÷ matches as a p (%) row and bars on a fixed 0..100 axis, the most likely next character\'s column framed with its readout beside it, a two-line state caption on a panel, and the rule that the prediction can use only idx_cond while idx keeps every character',
+    'the prediction: p = count ÷ matches as a p (%) row and bars on a fixed 0..100 axis, the most likely next character\'s column framed with its readout beside it, a two-line state caption beside a quiet left rule, and the rule that the prediction can use only idx_cond while idx keeps every character',
   ],
   primaryInteraction: 'one index picker in INTERACT, "What-if: toy block_size (preset)", chips block_size 2, 3, 4, 5, default 3; it moves the idx_cond box, the dimmed characters, the cropped bracket\'s end and opacity (hidden at 5), the readouts, the count row (that table\'s row for exactly the kept characters), matches, p (%), the bars, the most-likely frame and readout, and the caption. It reveals that cropping one character (the e of "efor") moves the most likely next character from e (87.37%) to a space (50.93%)',
   check: 'practice (commit before you see, choice_equals, fixedInputs block = 1): NanoGPT\'s sampling script starts idx from one new line and runs 500 passes at block_size 256 - when the model predicts new character 300, which characters of idx does its forward read? Options the new line and new characters 1–299 / 1–255 / 45–299, new characters 45–300 / 44–299; expected new characters 44–299. The card draws only a 5-character idx at toy block_size 2 to 5, so the answer needs idx counted at the moment of prediction (c24: pass 300 holds the start + 299), a crop from the front and no exception for the prompt',
@@ -309,5 +308,5 @@ export const evidence = {
   consequence: `Moving block_size moves the idx_cond box and the dimmed characters, the cropped bracket (hidden at ${T}), the readouts, the count row (${W.windows.map((w, b) => `"${w}": ${W.matches[b]} matches`).join(', ')}), p (%), the bars and the most-likely frame; the most likely next character is sp at 2 and 3 (${pct[0][1]}%, ${pct[1][1]}%) and e at 4 and 5 (${pct[2][E]}%, ${pct[3][E]}%). Cropping the one e of "efor" moves it from e to a space.`,
   interactionPurpose: 'See that the prediction can use only idx_cond: a character cropped from the front no longer counts, even when it carried the most likely next character, while idx keeps it.',
   task: 'Slide block_size from 4 to 3 and watch the most likely next character switch from e to a space when the e of "efor" is cropped; then, in practice, work out which characters NanoGPT\'s forward reads when it predicts new character 300 at block_size 256.',
-  capability: 'index picker; five heading-size text characters with derived opacity (dotted-path pick, no appear); a box with derived x and w behind idx_cond and the "read" label at its derived x; a line with a derived end x and derived opacity on it and its label (no appear); a 1 × 6 integer grid and a 1 × 6 decimal grid, row and column labels, no distribution claim; bars on a fixed peak of 100 with a derived cellHighlight, and a box and text at x picked by the argmin; a neutral box panel behind the two caption lines; derive ops pick, sum, scale, argmin; {{}} interpolation of picked fixture strings; choice practice graded by choice_equals with fixedInputs and no reveal.',
+  capability: 'index picker; five heading-size text characters with derived opacity (dotted-path pick, no appear); a box with derived x and w behind idx_cond and the "read" label at its derived x; a line with a derived end x and derived opacity on it and its label (no appear); a 1 × 6 integer grid and a 1 × 6 decimal grid, row and column labels, no distribution claim; bars on a fixed peak of 100 with a derived cellHighlight, and a box and text at x picked by the argmin; a prediction-role vertical line as a left rule beside the two caption lines; derive ops pick, sum, scale, argmin; {{}} interpolation of picked fixture strings; choice practice graded by choice_equals with fixedInputs and no reveal.',
 };

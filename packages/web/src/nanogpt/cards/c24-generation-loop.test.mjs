@@ -233,7 +233,9 @@ test('c24 practice: a 6-character start at pass 5 - graded, naive default wrong,
   assert.equal(activity.prompt, 'Suppose NanoGPT’s sampling script starts from ROMEO: (6 characters; in shakespeare_char one token ID is one character) instead of one new line, with max_new_tokens = 500. In one generate() call, how many characters is the model handed on pass 5, and how many characters does generate() return?');
   // A one-word answer label keeps all four options on one row (none alone).
   assert.equal(activity.answer.label, 'Characters');
-  assert.equal(activity.feedbackPass, 'Right. Pass 5 is handed all of idx, the start plus 4 draws: 6 + 4 = 10 characters, which NanoGPT’s Blocks all read. After max_new_tokens = 500 passes generate() returns idx itself, start included: 6 + 500 = 506. The card’s start is 1 character, so there pass k holds k.');
+  assert.equal(activity.feedbackPass, 'Right. idx is the start plus one draw per earlier pass: pass 5 is handed 6 + 4 = 10 characters, all read by NanoGPT’s Blocks. generate() returns the start plus max_new_tokens: 6 + 500 = 506. Only a 1-character start makes pass k hold k.');
+  // Slack under two lines: the 269-character version filled line 1 to 912 of 924 px.
+  assert.ok(activity.feedbackPass.length <= 240, `${activity.feedbackPass.length} characters`);
   // One clause per distractor: handed 1, handed 5, returns 500.
   for (const phrase of ['all of idx', 'only the last position’s prediction is kept', 'the toy bigram reads only the last', 'start + (k − 1)', 'pass k holds k only for a 1-character start', 'which still holds the start', '6 + 4 = 10', '6 + 500 = 506']) {
     assert.ok(activity.feedbackFail.includes(phrase), phrase);

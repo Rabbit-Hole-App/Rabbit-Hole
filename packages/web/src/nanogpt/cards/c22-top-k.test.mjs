@@ -34,7 +34,7 @@ const withoutContributors = box => { const { contributors: _c, ...rest } = box; 
 const shownCells = object => (object.distribution ? distributeRounding(object.values, 2) : object.values).map(v => (v === null ? '' : formatCell(v)));
 const close = (a, b, tol, where) => a.forEach((x, i) => assert.ok(x === null ? b[i] === null : Math.abs(x - b[i]) <= tol, `${where}: ${JSON.stringify(a)} vs ${JSON.stringify(b)}`));
 
-test('c22 passes every gate at every review state and every input combination; 33 objects at scale 1, one frame for every state', () => {
+test('c22 passes every gate at every review state and every input combination; 37 objects at scale 1, one frame for every state', () => {
   assertCardGates(scene, reviewStates);
   const results = assertCardGates(scene, ALL);
   assert.deepEqual(reviewStates, [{ topK: 1 }, { topK: 0 }, { topK: 2 }, { topK: 5 }, { topK: 1, revealed: true }, { topK: 5, revealed: true }]);
@@ -43,7 +43,7 @@ test('c22 passes every gate at every review state and every input combination; 3
   assert.deepEqual(scene.exampleData.kLabels, ['1', '2', '3', '4', '5', '6 (nothing cut)'], 'bare values: the lock line reads "top_k (preset) = 2", never "= k = 2"');
   assert.equal(scene.id, 'nanogpt-c22-top-k');
   assert.equal(scene.objects[0].semanticId, 'question');
-  assert.equal(scene.objects.length, 33);
+  assert.equal(scene.objects.length, 37);
   assert.equal(scene.height, 771);
   const legibility = sceneLegibility(scene);
   assert.ok(scene.height >= legibility.viewport.h && scene.height < legibility.viewport.h + 1, 'the scene box holds the padded content');
@@ -108,15 +108,23 @@ test('c22 every preset: v_k, the rings, the −∞ marks, ③, the bars, the mas
     assert.deepEqual(shownCells(byId(result, 'p-cut')), SHOWN[pos], `${where} ③ as drawn`);
     assert.deepEqual(shownCells(byId(result, 'p-all')), SHOWN[5], `${where} ② as drawn: each cell rounded on its own`);
     assert.deepEqual(byId(result, 'logits').cellHighlight, keptIdx, `${where} rings`);
-    // −∞ chips under exactly the cut cells: one per cut logit, starting at column k (the survivors are the first k).
-    assert.deepEqual(byId(result, 'cut-marks').tokens, cutIdx.map(() => '−∞'), `${where} −∞ chips`);
-    assert.equal(byId(result, 'cut-marks').tokenStyle, null, 'chips, not faint labels');
+    // A −∞ under exactly the cut cells, each centred under its own column: plain display-size text, never a chip.
     const logits = byId(result, 'logits');
-    assert.equal(byId(result, 'cut-marks').x, logits.x + (logits.cell - (32 + 2 * 9.5)) / 2 + keptIdx.length * logits.cell, `${where} first chip under column k`);
-    // The survivors' ring wraps exactly the kept columns, in ③'s colour.
+    for (let j = 1; j < V; j += 1) {
+      const mark = byId(result, `cut-mark-${j}`);
+      assert.equal(mark.type, 'text');
+      assert.equal(mark.typography, 'display', 'taller than the annotation text; ∞ at the mono cell size is 4 px');
+      assert.equal(mark.label.trim(), cutIdx.includes(j) ? '−∞' : '', `${where} column ${j}`);
+      assert.equal(mark.x + 44 / 2, logits.x + (j + 0.5) * logits.cell, `${where} mark ${j} centred`);
+    }
+    assert.ok(!cutIdx.includes(0), 'the top logit is never cut, so column 0 has no mark');
+    // The survivors' ring wraps exactly the kept columns, in ③'s colour: outside ① on the left, top and bottom,
+    // its right edge on the kept/cut divider so no cut cell is inside it (clear of the grid at k = V).
     const ring = byId(result, 'kept-ring');
     assert.equal(ring.role, byId(result, 'p-cut').role);
-    assert.ok(ring.x < logits.x && ring.x + ring.w > logits.x + keptIdx.length * logits.cell && ring.x + ring.w < logits.x + (keptIdx.length + 1) * logits.cell, `${where} ring`);
+    const divider = logits.x + keptIdx.length * logits.cell;
+    assert.ok(ring.x < logits.x && ring.y < logits.y && ring.y + ring.h > logits.y + logits.cell, `${where} ring outside ①`);
+    assert.equal(ring.x + ring.w, k < V ? divider : divider + (logits.x - ring.x), `${where} ring right edge`);
     const vk = LOGITS[Math.min(k, V) - 1];
     assert.equal(byId(result, 'k-readout').label, `top_k = ${k} · v_k = ${vk.toFixed(2)}`, `${where} v_k printed as its ① cell, never as bare k`);
     assert.equal(byId(result, 'k-readout').label.split(' · ')[1].slice(6), shownCells(byId(result, 'logits'))[Math.min(k, V) - 1]);
@@ -247,9 +255,9 @@ test('c22 practice: an undrawn six-value distribution at top_k = 2; the naive de
   for (const k of KS) assert.notDeepEqual(softmax(topK(LOGITS, k)).map(p => (p === null ? null : Math.round(p * 100) / 100)).slice(0, 2), [0.45, 0.15]);
 });
 
-test('c22 replay in pipeline order: ① and ② at 0, the ring and −∞ chips at 0.4, ③ at 0.8, the bars at 1.2, their top line at 1.4', () => {
+test('c22 replay in pipeline order: ① and ② at 0, the ring and −∞ marks at 0.4, ③ at 0.8, the bars at 1.2, their top line at 1.4', () => {
   const at = id => scene.timeline.find(e => e.action === 'appear' && e.target === id)?.at;
-  assert.deepEqual(['logits', 'p-all', 'kept-ring', 'cut-marks', 'p-cut', 'bars', 'bars-top', 'bars-top-key'].map(at), [0, 0, 0.4, 0.4, 0.8, 1.2, 1.4, 1.4]);
+  assert.deepEqual(['logits', 'p-all', 'kept-ring', 'cut-mark-1', 'cut-mark-5', 'p-cut', 'bars', 'bars-top', 'bars-top-key'].map(at), [0, 0, 0.4, 0.4, 0.4, 0.8, 1.2, 1.4, 1.4]);
   assert.equal(scene.duration, 1.6);
   for (const id of ['loop-step', 'k-readout', 'cut-mass', 'kept-mass', 'consequence', 'blank-note', 'default-note', 'order-note']) {
     assert.equal(scene.objects.find(o => o.id === id).initialState.opacity, undefined, `${id} is drawn at rest and at every moment`);

@@ -63,16 +63,17 @@ const two = v => v.toFixed(2);
 const KEPT_P = WHATIF_P.slice(0, WHATIF_K).reduce((a, b) => a + b, 0); // 0.60
 const CUT_P = 1 - KEPT_P;                                              // 0.40
 
-const CELL = 59; // as wide as a two-character chip plus its gap, so each −∞ chip sits under its cell (deep.js)
-const MARK_SHIFT = (CELL - (32 + 2 * 9.5)) / 2;
+const CELL = 59;
 const X = 200;
-const RING = 5; // the survivors' ring stands this far outside ①'s cells
+const RING = 5; // the survivors' ring stands this far outside ①'s cells, except on the kept/cut divider
+const MARK_W = 44; // "−∞" at the display size, measured; each mark is centred under its cell
 // ① sits 24 px lower than the header allows, so its column labels read as the grid's, not the header's.
-const Y = { logits: 160, marks: 160 + CELL + RING + 4, pAll: 276, pCut: 352, bars: 440, whatIf: 600 };
+const Y = { logits: 160, marks: 257, pAll: 276, pCut: 352, bars: 440, whatIf: 600 }; // marks: the −∞ baseline
 const FOOT = 690;
 const BARS_H = 120;
 const RX = 572; // readouts: every filled line ends inside the widest static footer, so the frame never moves
 const CONCEPT = 'top-k';
+const MARK_COLS = KS.slice(0, V - 1); // columns 1..5: the top logit is never cut
 
 const text = (id, value, x, y, extra = {}) => ({ id, type: 'text', semanticId: id, conceptId: CONCEPT,
   initialState: { text: value, x, y, ...extra } });
@@ -103,10 +104,10 @@ export const scene = {
     maskedByK: MASKED,
     keepByK: KEEP,
     keptIdxByK: MASKED.map(row => kept(row, true)),
-    // The logits are descending, so the survivors are always the first k: the −∞ chips start at column k.
-    cutMarksByK: MASKED.map(row => kept(row, false).map(() => '−∞')),
-    cutMarksXByK: KS.map(k => X + MARK_SHIFT + Math.min(k, V) * CELL),
-    ringWByK: KS.map(k => Math.min(k, V) * CELL + 2 * RING),
+    // One mark per column, blank where the logit survives (column 0 always does).
+    cutRowByK: MASKED.map(row => row.map(x => (x === null ? '−∞' : ' '))),
+    // The ring's right edge is the kept/cut divider, so no cut cell is inside it; at k = V nothing is cut and it clears the grid.
+    ringWByK: KS.map(k => Math.min(k, V) * CELL + (k < V ? 1 : 2) * RING),
     keptNamesByK: MASKED.map(row => kept(row, true).map(i => NAMES[i]).join(', ')),
     cutNamesByK: MASKED.map(row => kept(row, false).map(i => NAMES[i]).join(', ') || 'none'),
     kLineByK: KS.map(k => (k < V ? 'every logit below v_k → −∞' : 'nothing is below v_k: no cut')),
@@ -136,8 +137,7 @@ export const scene = {
     cutMass: { op: 'pick', args: ['cutMassV', 0] },
     keptCount: { op: 'sum', args: ['keep'] },
     keptIdx: { op: 'pick', args: ['keptIdxByK', 'topK'] },
-    cutMarks: { op: 'pick', args: ['cutMarksByK', 'topK'] },
-    cutMarksX: { op: 'pick', args: ['cutMarksXByK', 'topK'] },
+    cutRow: { op: 'pick', args: ['cutRowByK', 'topK'] },
     ringW: { op: 'pick', args: ['ringWByK', 'topK'] },
     keptNames: { op: 'pick', args: ['keptNamesByK', 'topK'] },
     cut: { op: 'pick', args: ['cutNamesByK', 'topK'] },
@@ -168,8 +168,9 @@ export const scene = {
     { id: 'logits', type: 'grid', semanticId: 'toy-logits', conceptId: CONCEPT,
       initialState: { x: X, y: Y.logits, rows: 1, cols: V, cell: CELL, matrixKind: 'input', role: 'input', columnLabels: [...NAMES],
         values: { $derive: 'logits' }, cellHighlight: { $derive: 'keptIdx' }, cellHighlightKind: 'highlight', opacity: 0 } },
-    { id: 'cut-marks', type: 'tokens', semanticId: 'cut-marks', conceptId: CONCEPT,
-      initialState: { x: { $derive: 'cutMarksX' }, y: Y.marks, role: 'neutral', tokens: { $derive: 'cutMarks' }, opacity: 0 } },
+    // Plain glyphs, no chip (a chip read as a Practice button); at the display size ∞ stands ~11 px, taller than
+    // the annotation text (at the cells' mono size it was 4 px).
+    ...MARK_COLS.map(j => text(`cut-mark-${j}`, `{{cutRow.${j}}}`, X + j * CELL + (CELL - MARK_W) / 2, Y.marks, { typography: 'display', opacity: 0 })),
 
     // ② the uncut p (fixed reference) and ③ the softmax of the cut row, on one
     // fixed [0, 1] heat; each cell rounded on its own (see the header).
@@ -218,7 +219,7 @@ export const scene = {
   ],
   // Replay in pipeline order: ① and ②, the cut, ③, its bars, the bars' top line.
   timeline: [
-    ...[[0, ['name-logits', 'logits', 'name-p-all', 'p-all']], [0.4, ['kept-ring', 'cut-marks']], [0.8, ['name-p-cut', 'p-cut']], [1.2, ['name-bars', 'bars']]]
+    ...[[0, ['name-logits', 'logits', 'name-p-all', 'p-all']], [0.4, ['kept-ring', ...MARK_COLS.map(j => `cut-mark-${j}`)]], [0.8, ['name-p-cut', 'p-cut']], [1.2, ['name-bars', 'bars']]]
       .flatMap(([at, targets]) => targets.map(target => ({ at, action: 'appear', target, duration: 0.4 }))),
     ...['bars-top', 'bars-top-key'].map(target => ({ at: 1.4, action: 'appear', target, duration: 0.2 })),
   ],
@@ -269,11 +270,11 @@ export const plan = {
   causalSteps: [
     '① the logits at T = 1.0: z 3 · e 2 · t 1 · s 0.5 · a 0 · sp −1, largest first',
     'v_k: the k-th largest logit, capped at V; the survivors are ringed and a readout gives v_k and its ordinal',
-    'the cut: every logit strictly below v_k becomes −∞ (chips under the cut cells); a tie with v_k would survive (the toy has none)',
+    'the cut: every logit strictly below v_k becomes −∞ (a −∞ mark under each cut cell); a tie with v_k would survive (the toy has none)',
     'softmax: ② the uncut p (fixed reference); ③ p after top-k, cut cells blank (exactly 0) and each survivor = its uncut p ÷ the kept mass; bars of ③, a cut candidate has no bar',
     'consequence: multinomial draws in proportion to p, so a blank candidate is never drawn (a per-k caption; no draws recorded)',
   ],
-  primaryInteraction: 'one index slider in INTERACT, "top_k (preset)", k = 1..6 (k = 6: nothing cut), default k = 2; v_k, the rings, the −∞ chips, ③, the bars, the kept and cut mass, the count and the consequence follow k, while ① and ② never change. It reveals that the cut mass goes to the survivors in proportion (p(z)/p(e) = e at every k ≥ 2) and the cut ones drop to exactly 0; k = 1 is the greedy case. A hidden bool "revealed" is owned by the practice',
+  primaryInteraction: 'one index slider in INTERACT, "top_k (preset)", k = 1..6 (k = 6: nothing cut), default k = 2; v_k, the rings, the −∞ marks, ③, the bars, the kept and cut mass, the count and the consequence follow k, while ① and ② never change. It reveals that the cut mass goes to the survivors in proportion (p(z)/p(e) = e at every k ≥ 2) and the cut ones drop to exactly 0; k = 1 is the greedy case. A hidden bool "revealed" is owned by the practice',
   check: 'practice (commit before you see, choice_equals, fixedInputs top_k = 2): a different model\'s six probabilities 0.45, 0.15, 0.13, 0.11, 0.10, 0.06 (not drawn) cut to top_k = 2 - what are the survivors\' probabilities? Options 0.45 and 0.15 / 0.65 and 0.35 / 0.85 and 0.15 / 0.75 and 0.25; expected 0.75 and 0.25 (each ÷ the kept mass 0.60). The distribution is only in the prompt; after a committed attempt the What-if row draws it',
   boundary: {
     decision: 'staged',
@@ -319,8 +320,8 @@ export const evidence = {
   sourceRevision: `${fx.provenance.nanogpt.repo}@${fx.provenance.nanogpt.commit}`,
   provenance: `source: model.py:133, :306, :312-330, :317-318, :319-322, :323-324, :325-326; sample.py:18, :87; README.md:54; data/shakespeare_char/prepare.py:24-25, :55-61; train.py:137-155 - checked against the pinned files. Calculated toy example: fx.temperature logits [${LOGITS.join(', ')}] (generate_fixtures.py temperature()), and the practice's p' ${WHATIF_P.map(two).join(', ')} typed on the card. Live calculation: pick, softmax (null-aware), dot, concat, sub, sum, gate, choose. Source value: top_k None and ${SAMPLE_K} (generation fixture, gen_generation.py), ${charVocab.vocabSize} (fx.tokenizer).`,
   control: 'topK - index slider "top_k (preset)" over k = 1..6 (labels "1" … "6 (nothing cut)"), default k = 2; revealed - hidden bool owned by the practice (set by a committed attempt).',
-  consequence: 'Moving k changes v_k (3.00, 2.00, 1.00, 0.50, 0.00, -1.00, printed as its ① cell) and its ordinal, the rings on ①, the −∞ chips, ③ (1.00 | .73 .27 | .67 .24 .09 | .63 .23 .09 .05 | .61 .22 .08 .05 .03 | equal to ② .60 .22 .08 .05 .03 .01, cut cells blank; each cell rounded on its own), the bars (no bar for a cut candidate), the count, the cut and kept mass (0.395/0.605, 0.173/0.827, 0.091/0.909, 0.041/0.959, 0.011/0.989, 0/1), the common factor (every kept p × 1.653, 1.209, 1.100, 1.043, 1.011, 1.000), z’s and e’s p before and after to 4 decimals, and the consequence line (greedy at k = 1; softmax: −∞ → p exactly 0 at k = 2-5; at k = 6 sp’s 0.01 is in ③, its bar too thin to see); ① and ② never change. Before a committed practice attempt the What-if slot says it fills in after a Practice answer; after one the What-if (k = 2) row shows .75 .25 and four blanks in ③’s blocked look, with its two captions.',
+  consequence: 'Moving k changes v_k (3.00, 2.00, 1.00, 0.50, 0.00, -1.00, printed as its ① cell) and its ordinal, the rings on ①, the −∞ marks, ③ (1.00 | .73 .27 | .67 .24 .09 | .63 .23 .09 .05 | .61 .22 .08 .05 .03 | equal to ② .60 .22 .08 .05 .03 .01, cut cells blank; each cell rounded on its own), the bars (no bar for a cut candidate), the count, the cut and kept mass (0.395/0.605, 0.173/0.827, 0.091/0.909, 0.041/0.959, 0.011/0.989, 0/1), the common factor (every kept p × 1.653, 1.209, 1.100, 1.043, 1.011, 1.000), z’s and e’s p before and after to 4 decimals, and the consequence line (greedy at k = 1; softmax: −∞ → p exactly 0 at k = 2-5; at k = 6 sp’s 0.01 is in ③, its bar too thin to see); ① and ② never change. Before a committed practice attempt the What-if slot says it fills in after a Practice answer; after one the What-if (k = 2) row shows .75 .25 and four blanks in ③’s blocked look, with its two captions.',
   interactionPurpose: 'See where the cut probability goes: the cut candidates drop to exactly 0 and the survivors share it in proportion, so their odds (p(z)/p(e) = e) stay the same at every k ≥ 2.',
   task: 'Slide k from 6 down to 1 and compare ③ with ②: which cells go blank, and how much does each survivor grow? Practice (locked at k = 2): a different model\'s six probabilities 0.45 … 0.06 cut to top_k = 2 - what are the survivors\' probabilities? (choice; expected 0.75 and 0.25).',
-  capability: 'index slider plus a hidden-bool revealInput; pick of precomputed null-masked rows; null-aware softmax (a cut cell draws as the blocked band, a null bar draws nothing); dot/concat/sub/sum for the masses; a derived cellHighlight list of kind highlight and a box with a derived width ringing the survivors; a derived −∞ chip row at the grid pitch whose x starts at column k; grids with fixed [0, 1] heat, each cell rounded on its own (distribution: true only on the What-if row and the bars); bars with peak 1 and a top line labelled p = 1 at its left end; gate()d What-if values and choose()d text and opacity (a placeholder note until the reveal); choice practice graded by choice_equals with fixedInputs.',
+  capability: 'index slider plus a hidden-bool revealInput; pick of precomputed null-masked rows; null-aware softmax (a cut cell draws as the blocked band, a null bar draws nothing); dot/concat/sub/sum for the masses; a derived cellHighlight list of kind highlight and a box with a derived width ringing the survivors up to the kept/cut divider; one display-size −∞ text per cut-able column, its text picked per k (blank when kept); grids with fixed [0, 1] heat, each cell rounded on its own (distribution: true only on the What-if row and the bars); bars with peak 1 and a top line labelled p = 1 at its left end; gate()d What-if values and choose()d text and opacity (a placeholder note until the reveal); choice practice graded by choice_equals with fixedInputs.',
 };

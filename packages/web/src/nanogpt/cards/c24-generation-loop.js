@@ -172,7 +172,7 @@ export const activity = {
   expected: 'full',
   checkLabel: 'Check',
   // At most two lines each under the chips: one clause per distractor in feedbackFail.
-  feedbackPass: `Right. Pass ${P.pass} is handed all of idx, the start plus ${P.pass - 1} draws: ${P_LEN} + ${P.pass - 1} = ${HANDED} characters, which NanoGPT’s Blocks all read. After max_new_tokens = ${MAX_NEW} passes generate() returns idx itself, start included: ${P_LEN} + ${MAX_NEW} = ${RETURNS}. The card’s start is ${START.length} character, so there pass k holds k.`,
+  feedbackPass: `Right. idx is the start plus one draw per earlier pass: pass ${P.pass} is handed ${P_LEN} + ${P.pass - 1} = ${HANDED} characters, all read by NanoGPT’s Blocks. generate() returns the start plus max_new_tokens: ${P_LEN} + ${MAX_NEW} = ${RETURNS}. Only a ${START.length}-character start makes pass k hold k.`,
   feedbackFail: `Not quite. Pass ${P.pass} is handed all of idx, start + (k − 1) = ${P_LEN} + ${P.pass - 1} = ${HANDED} characters: only the last position’s prediction is kept (the toy bigram reads only the last), and pass k holds k only for a ${START.length}-character start. generate() returns idx, which still holds the start: ${P_LEN} + ${MAX_NEW} = ${RETURNS}.`,
 };
 

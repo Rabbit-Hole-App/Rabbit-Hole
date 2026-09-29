@@ -196,7 +196,7 @@ Footer, static, below the band so the static bounds already contain it:
 
 Each feedback is at most two lines under the chips.
 
-**feedbackPass:** 'Right. Pass 5 is handed all of idx, the start plus 4 draws: 6 + 4 = 10 characters, which NanoGPT's Blocks all read. After max_new_tokens = 500 passes generate() returns idx itself, start included: 6 + 500 = 506. The card's start is 1 character, so there pass k holds k.'
+**feedbackPass:** 'Right. idx is the start plus one draw per earlier pass: pass 5 is handed 6 + 4 = 10 characters, all read by NanoGPT's Blocks. generate() returns the start plus max_new_tokens: 6 + 500 = 506. Only a 1-character start makes pass k hold k.' (Review fix: the 269-character version filled its first line to 912 of 924 px; this one leaves slack.)
 
 **feedbackFail** has one clause per distractor: 'Not quite. Pass 5 is handed all of idx, start + (k − 1) = 6 + 4 = 10 characters: only the last position's prediction is kept (the toy bigram reads only the last), and pass k holds k only for a 1-character start. generate() returns idx, which still holds the start: 6 + 500 = 506.'
 - lastOnly: all of idx is handed; only the last position's prediction is kept, and only the toy bigram reads just the last.
@@ -760,13 +760,13 @@ Staged: one pipeline, read top to bottom. The replay takes 1.8 s, with stages at
 - Rule line, body: 'The forward is handed only idx_cond, the last block_size characters of idx; the prompt is not exempt.'
 
 **2. The toy table's row for exactly idx_cond.**
-- A 1 × 6 grid, numberFormat 'integer', rowLabel 'count', columns e, sp, d, t, m, other; cell 70, y 296.
+- A 1 × 6 grid, numberFormat 'integer', rowLabel 'count', columns e, sp, d, t, m, other; cell 70, y 293.
 - matches = the sum of the row (live), printed ungrouped (7676, 2431, 388, 31).
 
 **3. The prediction.**
-- p = count ÷ matches as a 1 × 6 'p (%)' grid at y 366, and bars (fixed peak 100) at y 464, h 150, both live.
+- p = count ÷ matches as a 1 × 6 'p (%)' grid at y 363, and bars (fixed peak 100) at y 461, h 150, both live.
 - A live argmax highlights the most likely bar, and a prediction-role box frames that bar's whole column (0..100 and its label; x picked by the argmax), 16 below the p grid. The readout 'Most likely next: sp (50.93%)' sits beside the frame's top (x picked by the argmax), where no other bar can reach (every other bar is at most 50%).
-- A two-line state caption, on a neutral box panel (x 37, text at x 48), so the two lines that change with block_size stand apart from the constant lines under it.
+- A two-line state caption, indented (text at x 48) beside a quiet prediction-role left rule (a vertical line at x 37), so the two lines that change with block_size stand apart from the constant lines under it. (Deployed review: a bordered grey panel read as a disabled text field.) The caption's top clears the framed column's bottom (y 631) by at least 20.
 - Constant lines:
   - 'The prediction can use only idx_cond: whatever the crop removes no longer counts.'
   - 'idx keeps every character: the crop limits what the model reads, not the text generate() returns.'
@@ -775,7 +775,7 @@ Staged: one pipeline, read top to bottom. The replay takes 1.8 s, with stages at
   - 'Source value: NanoGPT's block_size is fixed by the trained model, 256 for shakespeare_char; the crop starts once idx passes 256.'
   - 'The forward accepts at most block_size positions: wpe has one learned row for each.'
 
-The scene is 960 × 859 (the padded content, drawn at scale 1), with 38 objects.
+The scene is 960 × 860 (the padded content, 859.32, drawn at scale 1), with 38 objects.
 
 **primary_interaction**
 
@@ -864,7 +864,7 @@ staged
 **Rubric:**
 - 1-7, 10 and 11 do not hold;
 - 8 holds for no cell or text: 70-unit cells, and '100.00' at 12 px or more;
-- 9 does not hold (859 tall, scale 1).
+- 9 does not hold (860 tall, scale 1).
 
 **Expected boundaryFlags: none.** plan.boundary.reviewed = {}.
 
@@ -966,7 +966,7 @@ No new capability and no renderer primitive.
 - derived opacity on the 'cropped' bracket and its label, which carry no appear;
 - a 1 × 6 integer grid and a 1 × 6 decimal grid with no distribution claim;
 - bars on a fixed peak of 100 with a derived cellHighlight (c16), plus a box and a text at x picked by the argmin;
-- a neutral box panel behind the two caption lines;
+- a prediction-role vertical line as a left rule beside the two caption lines;
 - derive ops pick, sum, scale and argmin;
 - {{}} interpolation of picked fixture strings;
 - a choice practice with fixedInputs and no reveal (c26).
@@ -1082,7 +1082,7 @@ One staged pipeline. The replay reveals it over about 1.6 s; at rest everything 
 
 1. **① The logits** (T = 1.0): c21's toy z 3 · e 2 · t 1 · s 0.5 · a 0 · sp −1, largest first.
 2. **v_k** (model.py:321): the k-th largest logit, capped at V. The survivors are ringed, and a readout gives v_k and its ordinal.
-3. **The cut** (:322): every logit strictly below v_k becomes −∞. '−∞' chips appear under the cut cells; a tie would survive (the toy has none).
+3. **The cut** (:322): every logit strictly below v_k becomes −∞. A '−∞' mark appears under each cut cell; a tie would survive (the toy has none).
 4. **Softmax** (:324):
    - ② the uncut p, the fixed reference;
    - ③ softmax after cut (p after top-k), with cut cells blank (exactly 0) and each survivor = its uncut p ÷ the kept mass;
@@ -1091,7 +1091,7 @@ One staged pipeline. The replay reveals it over about 1.6 s; at rest everything 
 
 **Replay:**
 - 0 s: ① and ②
-- 0.4 s: the survivors' ring and the −∞ chips
+- 0.4 s: the survivors' ring and the −∞ marks
 - 0.8 s: ③
 - 1.2 s: the bars
 - 1.4 s: the bars' top line
@@ -1106,7 +1106,7 @@ What-if objects have no appear.
 
 There is also a hidden bool 'revealed' (default false), owned by the practice (c14 pattern).
 
-**Layout** (960 × 771, the padded content at scale 1; cell 59 so the '−∞' chips sit under their cells, as with deep.js CELL / MARK_SHIFT).
+**Layout** (960 × 771, the padded content at scale 1; cell 59).
 
 Header at x 40:
 - y 30, heading (68 characters): 'When top-k cuts the smaller logits, where does their probability go?'
@@ -1115,7 +1115,7 @@ Header at x 40:
 - y 100: 'Each generate() pass (the generation loop): last position’s logits ÷ T → top-k (if set) → softmax → one random draw'
 
 Rows (names at x 40 in caption type, data at x 200):
-- ① logits (T = 1.0): grid at y 160 (review fix: its column labels sat 7 px under the header and read as part of it; now the header-to-labels gap exceeds the labels-to-grid gap), cellHighlight = keptIdx (kind 'highlight'). Review fix, the kept/cut split read only from ③: the survivors (always the first k columns, the logits being descending) sit in a box in ③'s green (role output), 5 px outside their cells, drawn first so the cells sit on it, width derived per k; the '−∞' marks are chips (not faint labels), one per cut cell, in a row at y 228 whose x is derived to start under column k (none at k = 6);
+- ① logits (T = 1.0): grid at y 160 (review fix: its column labels sat 7 px under the header and read as part of it; now the header-to-labels gap exceeds the labels-to-grid gap), cellHighlight = keptIdx (kind 'highlight'). Review fix, the kept/cut split read only from ③: the survivors (always the first k columns, the logits being descending) sit in a box in ③'s green (role output), 5 px outside their cells on the left, top and bottom, drawn first so the cells sit on it, width derived per k. Second review fix: the box's right edge is the kept/cut divider (x 200 + 59k), so no cut cell is inside it (it stood 5 px into the first cut cell); at k = 6 nothing is cut and it clears the grid by 5 px. The '−∞' marks are five display-type texts (baseline y 257), one centred under each of columns 1-5, each printing '−∞' when its column is cut and a blank otherwise (none at k = 6). Second review fix: as chips they looked like the Practice answer buttons, and ∞ at the chips' 13 px mono size was 4 px tall; at the display size it is about 11 px, taller than the annotation text;
 - ② p, no cut: y 276;
 - ③ softmax after cut: y 352, null cells drawn as the blocked band (c11).
 
@@ -1321,7 +1321,7 @@ No new renderer primitive, no new derive op and no shared change. The compare ag
 **In use:**
 - an index slider plus a hidden-bool revealInput (c14);
 - a derived cellHighlight list;
-- a '−∞' chip row at pitch 59 with a derived x, and a box with a derived width ringing the survivors;
+- five '−∞' texts at pitch 59, their text picked per k (blank when kept), and a box with a derived width ringing the survivors up to the kept/cut divider;
 - fixed [0, 1] heat; ② and ③ round each cell on its own, and distribution: true is only on the What-if row and the bars;
 - bars with peak 1;
 - a choice practice with fixedInputs;
@@ -1331,7 +1331,7 @@ No new renderer primitive, no new derive op and no shared change. The compare ag
 
 **Sources:** no 'What-if' calculation source, because assertSources checks the default state; p' is described under 'Calculated toy example'.
 
-**Budget:** 33 of 60 objects.
+**Budget:** 37 of 60 objects.
 
 **overlap_check**
 
@@ -1378,7 +1378,7 @@ The shared facts (200 ≥ 65, greedy at k = 1) appear once each.
 
 **risks**
 
-1. **Ring on the logits row.** The cellHighlight ring alone was too faint (visual review: kept and cut borders differed by a few RGB steps, and the −∞ labels were the faintest text on the card), so the survivors also sit in a green box and the −∞ marks are chips; ① now names the survivors on its own.
+1. **Ring on the logits row.** The cellHighlight ring alone was too faint (visual review: kept and cut borders differed by a few RGB steps, and the −∞ labels were the faintest text on the card), so the survivors also sit in a green box and the −∞ marks are display-size text (chips read as buttons); ① now names the survivors on its own.
 2. **Mechanism overlap** with the depth Deep dive (another board). The unique content is the before/after rows, the proportional reading and the practice.
 3. **Different numbers, same context.** The 'First Citi' context carries different toy numbers from the Deep dive's ln-count toy; the status line says Calculated toy example.
 4. **Empty band at default.** The What-if band (about 60 px) would be empty before the reveal, so it holds a neutral annotation placeholder; the revealed state keeps scale 1 (as on c14).

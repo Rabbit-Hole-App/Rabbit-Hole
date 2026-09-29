@@ -34,6 +34,9 @@ const [E, SP] = COND.presets;
 const quoted = ch => (ch === ' ' ? 'sp' : `‘${ch}’`);
 // '…' first (earlier text), one token per character, a space shown as sp.
 const tokensOf = t => ['…', ...[...t].map(show)];
+// A text as words; a trailing space is written as the card's sp, outside the
+// quotes, so it never reads as a stray space before the closing quote.
+const phraseOf = t => (t.endsWith(' ') ? `“…${t.slice(0, -1)}” + sp` : `“…${t}”`);
 const pct = p => Number((p * 100).toFixed(4)); // 6-decimal p → exact 4-decimal percent
 
 // Layout (scene units = CSS px at scale 1).
@@ -46,9 +49,11 @@ const REST_X = 700;
 const BARS = { y: 404, h: 128, peak: 100 };
 const CONCEPT = 'autoregressive-conditioning';
 // Both texts end on one column: each row starts where its last token's centre
-// lands on READ_X (chip metrics as the renderer draws them), between the grid
-// and the rest cell. The box around that column is what the toy reads.
-const READ_X = 680;
+// lands on READ_X (chip metrics as the renderer draws them), right of the rest
+// cell, far enough right that the longest row ('…Before we sp', 11 tokens)
+// starts a token pitch or more past its label. The box around that column is
+// what the toy reads.
+const READ_X = 790;
 const chipW = token => CHIP_PAD * 2 + token.length * CHIP_CHAR;
 const startX = toks => READ_X - toks.slice(0, -1).reduce((sum, t) => sum + chipW(t) + CHIP_GAP, 0) - chipW(toks.at(-1)) / 2;
 const READ_BOX = { x: READ_X - 30, y: ROW_A_Y - 6, w: 60, h: ROW_B_Y - ROW_A_Y + 44 };
@@ -80,8 +85,8 @@ export const scene = {
     prevLabels: ['‘e’', 'sp (space)', '‘h’', '‘,’ (comma)'],
     prevNames: COND.presets.map(p => quoted(p.prev)),
     // Each text as words, left of its tokens: the tokens spell it, this reads it.
-    phraseAByPrev: COND.presets.map(p => `“…${p.texts[0].text}”`),
-    phraseBByPrev: COND.presets.map(p => `“…${p.texts[1].text}”`),
+    phraseAByPrev: COND.presets.map(p => phraseOf(p.texts[0].text)),
+    phraseBByPrev: COND.presets.map(p => phraseOf(p.texts[1].text)),
     textAByPrev: COND.presets.map(p => tokensOf(p.texts[0].text)),
     textBByPrev: COND.presets.map(p => tokensOf(p.texts[1].text)),
     lastAByPrev: COND.presets.map(p => p.texts[0].text.length), // '…' shifts every index by one
@@ -178,7 +183,7 @@ export const plan = {
     'named, not taught: a distribution over the 65 characters sums to 1 (c16, c21)',
   ],
   causalSteps: [
-    'the text so far (0 s): two real Tiny Shakespeare texts that end in the selected previous character, each a tokens row of labels, … first, a space shown as sp, both ending on one column, the last token bold (highlight) and boxed as what the toy reads, each row named by its text as words',
+    'the text so far (0 s): two real Tiny Shakespeare texts that end in the selected previous character, each a tokens row of labels, … first, a space shown as sp, both ending on one column, the last token bold (highlight) and boxed as what the toy reads, each row named by its text as words (a trailing space as + sp after the quotes) a token pitch or more left of its first token',
     'what each model reads (0.6 s): the toy reads only the last character (bold, boxed), so both texts get one row; NanoGPT reads all of each text, up to 256 characters back, so its two predictions can differ',
     'the row (1.0-1.4 s): the softmax of row {{prevName}} of the toy\'s 65 × 65 logit table as a 1 × 8 p (%) grid over 8 fixed next-character columns, bars on the same pitch with a fixed peak of 100, a line at the 100% top labelled bar height 100% and the baseline labelled bar height 0%, and a live cell for the other 57 together; nothing lit',
     'the loop closes (1.8 s): each draw is appended and becomes the next previous character (preset append line), and generate() takes the logits at the last position of the text it is handed, which through attention can read every earlier character and its position',

@@ -107,14 +107,15 @@ test('c23 every stage follows block_size and matches the oracle', () => {
     assert.equal(readout.x, frame.x + frame.w + 9);
     assert.ok(readout.y > frame.y && readout.y < frame.y + 30, 'readout level with the frame’s top');
     // Captions: exact, and every percentage in them is a live cell as printed; the two lines that
-    // change sit on a panel, the constant lines under it.
+    // change sit indented beside a quiet left rule (no bordered, input-like box), the constant lines
+    // under it, and the caption's top (baseline − 15) is at least 20 clear of the frame's bottom.
     assert.deepEqual([byId(result, 'caption-1').label, byId(result, 'caption-2').label], CAPTIONS[block]);
-    const panel = byId(result, 'caption-panel');
-    for (const id of ['caption-1', 'caption-2']) {
-      const line = byId(result, id);
-      assert.ok(line.x > panel.x && line.y - 15 > panel.y && line.y + 4 < panel.y + panel.h, `${id} on the panel`);
-    }
-    assert.ok(byId(result, 'only-idx-cond').y - 15 > panel.y + panel.h, 'the constant lines are off the panel');
+    const [rule, cap1, cap2] = [byId(result, 'caption-rule'), byId(result, 'caption-1'), byId(result, 'caption-2')];
+    assert.ok(rule.type === 'line' && rule.from.x === rule.to.x, 'a vertical rule, not a panel');
+    assert.ok(cap1.x > rule.from.x + 8 && cap2.x === cap1.x, 'captions indented off the rule');
+    assert.ok(rule.from.y <= cap1.y - 10 && rule.to.y >= cap2.y, 'the rule spans both caption lines');
+    assert.ok(byId(result, 'only-idx-cond').y - 15 > rule.to.y, 'the constant lines are below the rule');
+    assert.ok(cap1.y - 15 - (frame.y + frame.h) >= 20, 'the caption clears the framed chart by 20');
   });
   // Cropping the one e of "efor" moves the most likely next character from e to a space.
   assert.deepEqual(results.map(r => r.derived.top), [1, 1, 0, 0]);
@@ -190,7 +191,7 @@ test('c23 replay: idx and its crop, then the counted row, then the prediction', 
   const at = time => shown(evaluated(scene, {}, time));
   const CROP = ['idx-label', 'read-box', 'next-slot', 'read-label', 'readout-t', 'readout-read', 'readout-crop', 'rule'];
   const COUNT = ['counts', 'matches', 'matches-note'];
-  const PREDICT = ['p', 'p-rule', 'top-frame', 'bars', 'top-readout', 'caption-panel', 'caption-1', 'caption-2', 'only-idx-cond', 'idx-keeps'];
+  const PREDICT = ['p', 'p-rule', 'top-frame', 'bars', 'top-readout', 'caption-rule', 'caption-1', 'caption-2', 'only-idx-cond', 'idx-keeps'];
   const DERIVED_OPACITY = ['crop-bracket', 'crop-label', 'idx-0', 'idx-1', 'idx-2', 'idx-3', 'idx-4'];
   assert.ok(CROP.every(id => at(0.4).includes(id)) && ![...COUNT, ...PREDICT].some(id => at(0.4).includes(id)), at(0.4).join());
   assert.ok(COUNT.every(id => at(1.0).includes(id)) && !PREDICT.some(id => at(1.0).includes(id)), at(1.0).join());
