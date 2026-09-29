@@ -1991,17 +1991,20 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   });
 
   await check('wp6-composer-parity: the Learn composer is the Mothership shell - same height, radius, border, shadow, Send and + size; canvas controls never overlap it; no canvas slug or sample course title; on a phone it sits fully on screen', async () => {
-    const shell = async (form) => form.evaluate((n) => {
+    // Measured in the same focus state on both sides: blurred, then focused (Learn autofocuses its composer).
+    const shell = async (form, focused = false) => form.evaluate((n, focused) => {
+      if (focused) n.querySelector('textarea, input')?.focus(); else document.activeElement?.blur();
       const s = getComputedStyle(n), send = n.querySelector('button[aria-label="Send"], button[aria-label="Stop"]'), add = n.querySelector('button[aria-label="Add"]');
       const r = n.getBoundingClientRect();
       return { h: Math.round(r.height), gap: Math.round(innerHeight - r.bottom), radius: s.borderTopLeftRadius, border: s.borderTopColor, shadow: s.boxShadow, send: send && Math.round(send.getBoundingClientRect().width), add: add && Math.round(add.getBoundingClientRect().height), box: { top: r.top, bottom: r.bottom, left: r.left, right: r.right } };
-    });
+    }, focused);
     const overlaps = (a, b) => a && b && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
     for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
       const page = await open(viewport);
       await noAsks(page);
       await loaded(page, '/apps');
       const bar = await shell(barOf(page).locator('[data-chat-composer]'));
+      const barFocused = await shell(barOf(page).locator('[data-chat-composer]'), true);
       const c = await canvas6(page, { title: 'wp6 parity canvas' });
       try {
         await loaded(page, `/apps/${c.name}`);
@@ -2011,6 +2014,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
         const learn = await shell(form);
         const where = `${viewport.width}px`;
         for (const k of ['radius', 'border', 'shadow', 'send', 'add']) must(learn[k] === bar[k], `${where}: Learn ${k} ${learn[k]} vs Mothership ${bar[k]}`);
+        const learnFocused = await shell(form, true);
+        for (const k of ['border', 'shadow']) must(learnFocused[k] === barFocused[k], `${where}, focused: Learn ${k} ${learnFocused[k]} vs Mothership ${barFocused[k]}`);
         must(Math.abs(learn.h - bar.h) <= 2, `${where}: Learn height ${learn.h} vs Mothership ${bar.h}`);
         must(Math.abs(learn.gap - bar.gap) <= 2, `${where}: Learn sits ${learn.gap}px above the bottom edge, the Mothership ${bar.gap}px (the shared DOCK_PAD footprint and safe area)`);
         const zoom = await page.getByRole('button', { name: 'Add section' }).first().boundingBox().catch(() => null);
