@@ -26,7 +26,9 @@ NC9  Curriculum coherence review         ⬜ (open items: softmax prerequisite c
                                             c22 rounds each cell (z 0.60) where c21 rounds to sum 1 (z 0.61))
 NC10 Final card QA                       ⬜ (incl. accessibility audit: classify the seven dimmed focus/mask
                                             states - A semantic text to 4.5:1, B unavailable/decorative
-                                            with a documented exemption; docs/features/learn-canvas-blocks.md)
+                                            with a documented exemption; docs/features/learn-canvas-blocks.md;
+                                            Architecture Deep's INTERACT label generate() on "hear me spea" ends
+                                            mid-word with no truncation mark - owner to decide)
 ──── after NC10 ────
 Adaptive Tutor v1                        ⬜ handoff milestone, not implemented here
                                             (docs/features/adaptive-tutor-v1.md)
