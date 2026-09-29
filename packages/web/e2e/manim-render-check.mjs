@@ -5,6 +5,9 @@ import { readFileSync, mkdirSync } from 'node:fs';
 // animation card, Render asks first, Generate starts the paid job, and the
 // rendered clip plays. PAID - run only with the user's explicit yes.
 // usage: node e2e/manim-render-check.mjs [screenshot dir]
+// ITEM='Video generate (paid)' OP=generate_video runs the FAL clip instead (also paid).
+const ITEM = process.env.ITEM || 'Maths animation (paid)';
+const OP = process.env.OP || 'generate_math_animation';
 const BASE = 'https://small-cp-dev-small-parallel.zeroshothq.workers.dev';
 const APP = 'repo-06745f10-nanogpt';
 const BOARD = `manim-${Date.now().toString(36)}`;
@@ -27,18 +30,18 @@ await page.getByRole('menubar', { name: 'Canvas menu' }).waitFor({ timeout: 6000
 await page.waitForTimeout(1500);
 
 await page.getByRole('button', { name: 'Insert lesson block' }).click();
-await page.getByRole('menu', { name: 'Lesson blocks' }).getByRole('menuitem', { name: 'Maths animation (paid)', exact: true }).click();
+await page.getByRole('menu', { name: 'Lesson blocks' }).getByRole('menuitem', { name: ITEM, exact: true }).click();
 const found = page.locator('[data-block-id]').filter({ has: page.locator('[data-generate-video]') }).last();
 await found.waitFor({ timeout: 15000 });
 // Pin the card by id: Render swaps its button for the confirmation.
 const card = page.locator(`[data-block-id="${await found.getAttribute('data-block-id')}"]`);
 await card.locator('[data-generate-video]').click();
 ok('Render asks first and posts nothing', await card.locator('[data-paid-confirm]').count() === 1 && posts.length === 0);
-await page.screenshot({ path: `${SHOTS}/manim-confirm.png` });
+await page.screenshot({ path: `${SHOTS}/${OP}-confirm.png` });
 await card.locator('[data-paid-generate]').click();
 const started = Date.now();
 await page.waitForTimeout(3000);
-ok('Generate sends the confirmed job', posts.some(body => body.confirmed === true && body.operation?.op === 'generate_math_animation'));
+ok('Generate sends the confirmed job', posts.some(body => body.confirmed === true && body.operation?.op === OP));
 try {
   await card.locator('video[data-lesson-video]').waitFor({ timeout: 480000 });
   const playable = await card.locator('video[data-lesson-video]').evaluate(node => new Promise(resolve => {
@@ -51,7 +54,7 @@ try {
 } catch {
   ok('the rendered clip plays', false, `card says: ${(await card.innerText()).replace(/\s+/g, ' ').slice(0, 300)}`);
 }
-await card.screenshot({ path: `${SHOTS}/manim-rendered.png` }).catch(() => {});
+await card.screenshot({ path: `${SHOTS}/${OP}-rendered.png` }).catch(() => {});
 console.log('board', BOARD);
 await browser.close();
 process.exit(failed ? 1 : 0);
