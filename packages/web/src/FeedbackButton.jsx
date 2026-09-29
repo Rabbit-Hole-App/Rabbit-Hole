@@ -59,8 +59,7 @@ export default function FeedbackButton({ app, board }) {
             placeholder={kind === 'bug' ? 'What went wrong, and what did you expect?' : 'What would you like Learn to do?'}
             className="w-full resize-y rounded-lg border border-line p-2 text-sm outline-none focus:border-ink-3" />
           {state === 'error' && <p className="mt-1 text-xs text-red-700">{error}</p>}
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <span className="text-[11px] text-ink-3">Sends this page's address and your screen size with it.</span>
+          <div className="mt-2 flex items-center justify-end">
             <button type="submit" data-feedback-submit disabled={!text.trim() || state === 'sending'}
               className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-ink px-3 text-sm font-medium text-white disabled:opacity-40">
               {state === 'sending' && <Loader2 size={13} className="animate-spin" />}Submit
