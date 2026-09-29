@@ -1726,6 +1726,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     try {
       await loaded(page, `/apps/${solo.name}`);
       await page.getByLabel('Lesson canvas').waitFor({ timeout: 30000 });
+      await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 }); // Learn's composer mounts just after the canvas
       const row = page.locator('[data-canvas-parent]');
       must(await row.getByText('wp6 standalone').count() === 1 && await row.getByRole('button').count() === 0, `standalone row: ${await row.innerText()}`);
       must(await composers(page) === 1 && await barOf(page).count() === 0 && await page.getByRole('tab', { name: 'Runbook' }).count() === 0, 'not Learn, or the generic app page');
@@ -1770,6 +1771,57 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await phone.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
     must((await phone.locator('[data-project-tabs]').boundingBox()).y >= 40, 'the project tabs sit under the phone top strip');
     await phone.context().close();
+  });
+
+  if (ready) await check('wp6-learn: the canvas picker lists the Project canvas and this project canvases; a pick stays in the project frame at ?tab=learn&canvas=; one from another browser shows the not-in-this-browser state there', async () => {
+    const page = await open();
+    await noAsks(page);
+    await loaded(page, `/apps/${ready.name}`);
+    const owned = await canvas6(page, { title: 'wp6 learn owned', project: ready.name });
+    const away = await canvas6(page, { title: 'wp6 learn away', project: ready.name, device_id: 'rabbit-hole-check-device' });
+    try {
+      await loaded(page, `/apps/${ready.name}?tab=learn`);
+      const picker = page.getByLabel('Canvas', { exact: true });
+      await picker.waitFor({ timeout: 30000 });
+      const options = await picker.locator('option').allInnerTexts();
+      for (const t of ['Project canvas', 'wp6 learn owned', 'wp6 learn away']) must(options.includes(t), `picker: ${options.join(' | ')}`);
+      await picker.selectOption(owned.name);
+      await page.waitForURL(new RegExp(`[?]tab=learn&canvas=${owned.name}$`));
+      await page.getByLabel('Lesson canvas').waitFor({ timeout: 30000 });
+      await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 }); // Learn's composer mounts just after the canvas
+      must(await isSelected(ptab(page, 'Learn')) && await composers(page) === 1, 'the pick left the project frame');
+      await picker.selectOption(away.name);
+      await page.locator('[data-canvas-gate]').getByRole('heading', { name: NOT_HERE }).waitFor({ timeout: 20000 });
+      must(await ptab(page, 'Learn').count() === 1 && await composers(page) === 0, 'the gate left the frame or mounted Learn');
+    } finally { await drop6(page, owned.name); await drop6(page, away.name); await page.context().close(); }
+  });
+
+  if (ready) await check('wp6-map: the Map keeps a Context panel (Selected, Conversation, Source) with no input; an Overview sheet gives way to it; Map answers land in it, never a sheet or a result line; a node opens Selected with path:line; one composer', async () => {
+    const page = await open(), writes = writes6(page);
+    let asks = 0;
+    await page.route('**/api/learn/ask', (r) => { asks++; return r.abort(); }); // no model call, no LEARN_DB thread
+    await loaded(page, `/apps/${ready.name}`);
+    await barInput(page).fill('Which file defines the model?');
+    await barInput(page).press('Enter');
+    await page.locator('[data-result-sheet]').getByText('Which file defines the model?').waitFor({ timeout: 10000 });
+    await ptab(page, 'Map').click();
+    const panel = page.locator('[data-map-panel]');
+    await panel.getByText('Which file defines the model?').waitFor({ timeout: 10000 });
+    must(await panel.getAttribute('aria-label') === 'Context', 'the panel is not named Context');
+    for (const name of ['Selected', 'Conversation', 'Source']) must(await panel.getByRole('tab', { name, exact: true }).count() === 1, `no ${name} tab`);
+    must(await page.locator('[data-result-sheet], [data-result-line]').count() === 0, 'the sheet or the result line shows on the Map');
+    must(await panel.locator('input, textarea, [contenteditable="true"]').count() === 0 && await composers(page) === 1, 'a second input');
+    await pickNode(page);
+    await panel.getByText(/\S+\.py:\d+/).first().waitFor({ timeout: 10000 });
+    must(await isSelected(panel.getByRole('tab', { name: 'Selected', exact: true })), 'a node does not open Selected');
+    must(await barInput(page).getAttribute('placeholder') === 'Ask about CausalSelfAttention…', 'the bar is not scoped to the node');
+    await barInput(page).fill('Why does this exist?');
+    await barInput(page).press('Enter');
+    await panel.getByText('Why does this exist?').waitFor({ timeout: 10000 });
+    must(await page.locator('[data-result-sheet]').count() === 0, 'a Map answer opened the sheet');
+    await page.waitForTimeout(1000);
+    must(asks === 2 && !writes.length, `${asks} asks; writes: ${writes.join(', ')}`);
+    await page.context().close();
   });
 
   // Checks from Tasks 1-11 go here, in task order.

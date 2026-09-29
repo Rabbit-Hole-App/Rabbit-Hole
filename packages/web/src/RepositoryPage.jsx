@@ -3,6 +3,7 @@ import { FileCode, GitBranch, Network, RefreshCw } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { Button, ExpandedPageFrame, Input, Tabs, TabsList, TabsTrigger, Tip } from './ui.jsx';
 import LearnPage from './LearnPage.jsx';
+import { CanvasLearn } from './CanvasPage.jsx';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import RepositorySource from './RepositorySource.jsx';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
@@ -10,11 +11,12 @@ import { titleOf } from './agent/catalog.js';
 import { projectTab } from './routes.js';
 import { patchSurface } from './agent/surface.js';
 
-export default function RepositoryPage({ app: initial }) {
+export default function RepositoryPage({ app: initial, catalog = [] }) {
   const [app,setApp]=useState(initial),[snapshot,setSnapshot]=useState(null),[error,setError]=useState(''),[mode,setMode]=useState('graph'),[query,setQuery]=useState(''),[selected,setSelected]=useState(null),[source,setSource]=useState(null),[asking,setAsking]=useState(null);
   const [graphView,setGraphView]=useState(null);
   const showGraph=value=>{setGraphView({...value,requestId:crypto.randomUUID()});setMode('graph');if(new URLSearchParams(window.location.search).get('tab')==='learn')navigate(`/apps/${app.name}?tab=code`);};
   const tab=projectTab(window.location.search),go=t=>navigate(`/apps/${app.name}${t==='overview'?'':`?tab=${t}`}`);
+  const canvases=catalog.filter(c=>c.kind==='canvas'&&c.project===app.name),picked=tab==='learn'&&canvases.find(c=>c.name===new URLSearchParams(window.location.search).get('canvas')); // LibraryViews.jsx's filter. ponytail: an unknown ?canvas= falls back to the Project canvas
   const root=`/api/repositories/${app.name}`;
   useEffect(()=>{
     let active=true,timer;
@@ -33,8 +35,11 @@ export default function RepositoryPage({ app: initial }) {
     <TabsTrigger pill value="map"><Tip label="Map" info="Code graph of this repository"><span>Map</span></Tip></TabsTrigger>
   </TabsList></Tabs>;
   if(tab==='learn')return <div className="flex min-h-0 min-w-0 flex-1 flex-col max-md:pt-(--shell-top-h)">{/* LearnPage brings its own <main>, which loses index.css's [data-shell-sidebar] ~ main phone padding */}
-    <div className="flex shrink-0 flex-wrap items-center gap-x-3 px-8 pt-3 max-md:px-4"><span className="mb-4 text-sm font-semibold">{app.repo}</span>{tabs}</div>
-    <LearnPage app={app} onGraph={showGraph} repositoryContext={asking ? {nodeId:asking.id,label:asking.label,commit:snapshot?.commit} : {commit:app.commit_sha}} onBack={()=>{setMode('graph');navigate(`/apps/${app.name}?tab=code`);}}/>
+    <div className="flex shrink-0 flex-wrap items-center gap-x-3 px-8 pt-3 max-md:px-4"><span className="mb-4 text-sm font-semibold">{app.repo}</span>{tabs}
+      {/* a native select: ui.jsx's Select is string-only and would collide on duplicate canvas titles */}
+      {canvases.length>0&&<select aria-label="Canvas" value={picked?.name||''} onChange={e=>navigate(`/apps/${app.name}?tab=learn${e.target.value?`&canvas=${e.target.value}`:''}`)} className="mb-4 h-8 rounded-sm border border-line bg-transparent px-2 text-xs"><option value="">Project canvas</option>{canvases.map(c=><option key={c.name} value={c.name}>{c.title}</option>)}</select>}
+    </div>
+    {picked?<CanvasLearn key={picked.name} app={picked} project={app}/>:<LearnPage app={app} onGraph={showGraph} repositoryContext={asking ? {nodeId:asking.id,label:asking.label,commit:snapshot?.commit} : {commit:app.commit_sha}} onBack={()=>{setMode('graph');navigate(`/apps/${app.name}?tab=code`);}}/>}
   </div>;
   const choose=node=>{setSelected(node);setAsking(node);if(!node)return;if(node.path)setSource({path:node.path,line:node.line,commit:node.commit});else setSource(null);};
   const relationships=selected&&snapshot?snapshot.graph.edges.filter(e=>e.source===selected.id||e.target===selected.id):[];
