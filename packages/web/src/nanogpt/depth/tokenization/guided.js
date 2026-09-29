@@ -307,3 +307,11 @@ export const reviewStates = [
   { pos: 10, split: 'bpe' },
   { pos: 6, split: 'bpe' },
 ];
+
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md); the ladder neighbours are implicit.
+// c06: the same line's IDs in both tokenizers, "an ID is a position in that list".
+// c07: what the model does with the ID this card produces - it picks a wte row.
+export const transitions = [
+  { relation: 'related', target_card: 'c06-tokenizer' },
+  { relation: 'deepens_to', target_card: 'c07-embedding-lookup' },
+];

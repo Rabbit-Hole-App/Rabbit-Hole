@@ -160,3 +160,9 @@ export const evidence = {
 // One state per kind of change: the last character, a middle one, the second
 // (its only earlier character is the first), and the first (nothing before).
 export const reviewStates = [{ reader: LAST }, { reader: 4 }, { reader: 1 }, { reader: 0 }];
+
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md): c11 opens "hidden"
+// deeper - the whole mask table, and why the next character is always blocked.
+export const transitions = [
+  { relation: 'deepens_to', target_card: 'c11-causal-mask' },
+];

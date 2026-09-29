@@ -189,6 +189,13 @@ export const evidence = {
   ladderRole: 'Opens the block up: real numbers for each stage, two controls on the input, and relationships the learner can check (x̂ invariant, sums to 0, squares average 1; out = x + change) - no shapes, source branches or edge cases.',
 };
 
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md); Overview -> Guided -> Deep is implicit.
+// Same level, another angle: c15 is ①-② on the same x0 and γ; c03 is ④, one add in numbers.
+export const transitions = [
+  { relation: 'related', target_card: 'c15-layernorm' },
+  { relation: 'related', target_card: 'c03-residual' },
+];
+
 export const reviewStates = [
   { multiplier: G.scales.indexOf(2), shift: G.shifts.indexOf(2) },
   { multiplier: G.scales.indexOf(-1), shift: G.shifts.indexOf(2) },

@@ -44,6 +44,8 @@ const CASES = Object.fromEntries(D.cases.map(c => [c.id, c]));
 const SHAKESPEARE = D.init.find(d => d.nLayer === L);
 const XL = D.init[D.init.length - 1];
 export const PARTS = { wiring: 0, layernorm: 1, init: 2 };
+// Stable sub-card ids for cross-depth transitions, one per pager part, in pager order.
+export const partIds = ['pre-ln-or-post-ln', 'layernorm-and-eps', 'scaled-init'];
 
 // Part 0 geometry: the stream runs along HY, each sublayer branch hangs
 // below it on BY; the (+) nodes are circles on the stream.
@@ -314,6 +316,18 @@ export const evidence = {
   prerequisites: 'Builds on: Guided; tensor shapes (B, T, C) and the variance of a sum.',
   ladderRole: 'Connects the mechanism to the exact implementation: equations, named tensor shapes, the pre-LN vs post-LN branch, the eps edge case and the depth-scaled init tradeoff, every diagram step tied to a source line.',
 };
+
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md); Guided <- Deep is implicit.
+// 1/3 draws ln_1 -> attn -> add, ln_2 -> mlp -> add bare (c02 teaches the recipe);
+// c15 is 2/3's x0 example without the eps edge cases; 3/3 takes what c_proj is as
+// known (c04 lists both c_proj weights).
+export const transitions = [
+  { relation: 'prerequisite', target_card: 'c02-block-anatomy', from_part: 'pre-ln-or-post-ln' },
+  { relation: 'simplifies_to', target_card: 'c15-layernorm', from_part: 'layernorm-and-eps' },
+  { relation: 'prerequisite', target_card: 'c04-block-stack', from_part: 'scaled-init' },
+  // 3/3's caption names the Overview's running total (x₀ plus 2L changes).
+  { relation: 'simplifies_to', target_card: 'depth-residual-layernorm-overview', from_part: 'scaled-init' },
+];
 
 // The six approved states, each on the sub-card its content now lives on, then
 // 2/3 at x₀ and 3/3 scaled (NanoGPT's init) - the part defaults.

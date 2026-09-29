@@ -185,3 +185,11 @@ export const evidence = {
 // Five of the eight steps: the favourite losing (1), winning (2), a 5th-ranked
 // pick (4), a 2nd-ranked pick after a strong favourite (6) and the last step (8).
 export const reviewStates = STEPS.map((s, i) => ({ step: i })).filter((s, i) => [0, 1, 3, 5, 7].includes(i));
+
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md): c24 runs the four
+// steps as generate()'s loop over idx, c25 says what each pick changes about
+// the next prediction. No prerequisite: the card treats scoring as a black box.
+export const transitions = [
+  { relation: 'deepens_to', target_card: 'c24-generation-loop' },
+  { relation: 'deepens_to', target_card: 'c25-autoregressive-conditioning' },
+];

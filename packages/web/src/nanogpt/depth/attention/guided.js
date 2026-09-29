@@ -297,3 +297,14 @@ export const reviewStates = [
   { reader: LAST, lookFor: 'next' },
   { reader: 0, lookFor: 'before' },
 ];
+
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md): the Self-attention
+// cards each open one step deeper - step 2's mask as the whole triangle (c11),
+// the ÷ 2 as a multiplier on every score (c12), step 4's mix as a weighted
+// average of the visible values (c10). No softmax edge until softmax has a
+// card (NC9).
+export const transitions = [
+  { relation: 'deepens_to', target_card: 'c11-causal-mask' },
+  { relation: 'deepens_to', target_card: 'c12-score-scaling' },
+  { relation: 'deepens_to', target_card: 'c10-weighted-values' },
+];

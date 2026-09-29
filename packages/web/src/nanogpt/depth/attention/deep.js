@@ -408,3 +408,19 @@ export const reviewStates = [
   { part: SHAPES, head: 0, Tidx: LAST, path: 'manual', scaleOn: false },
   { part: MEMORY, head: 0, Tidx: LAST, path: 'fused', scaleOn: false },
 ];
+
+// Stable sub-card ids, in pager order (exampleData.parts).
+export const partIds = ['shapes', 'causal-mask', 'memory', 'scaling'];
+
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md). The card relies on
+// several heads (c13); 1/4 (x (B, T, C) in and out) and 3/4 ('per layer',
+// '× 6 layers') also rely on the Block this runs inside, n_layer times
+// (Architecture Deep 2/3); c11 draws 2/4's mask as the tril table; c12 is
+// 4/4's simpler form (its boundary leaves the why of 1/√hs to this card).
+export const transitions = [
+  { relation: 'prerequisite', target_card: 'c13-multi-head' },
+  { relation: 'prerequisite', target_card: 'depth-architecture-deep', target_part: 'one-block', from_part: 'shapes' },
+  { relation: 'prerequisite', target_card: 'depth-architecture-deep', target_part: 'one-block', from_part: 'memory' },
+  { relation: 'related', target_card: 'c11-causal-mask', from_part: 'causal-mask' },
+  { relation: 'simplifies_to', target_card: 'c12-score-scaling', from_part: 'scaling' },
+];

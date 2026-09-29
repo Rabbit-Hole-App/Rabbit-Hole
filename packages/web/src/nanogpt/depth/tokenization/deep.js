@@ -59,6 +59,8 @@ const EQ = { r1: 96, r2: 136, r3: 176 };
 const PARAM = { title: 240, y: 250, h: 26, x: 40, pxPerParam: 0.00002 }; // 20 px per million parameters
 const CONTEXT = { tradeoff: 104, char: 150, bpe: 204, edge: 270 };
 const PARTS = ['meta.pkl → stoi → get_batch → logits', 'wte and lm_head sizes, parameter count N', 'block_size tradeoff and the digit edge case'];
+// Stable sub-card ids, one per PARTS entry: transitions name a sub-card by these, never by index.
+export const partIds = ['data-path', 'wte-size', 'block-size-and-edge-case'];
 const on = (part, ...objects) => objects.map(object => ({ ...object, part }));
 
 const text = (id, value, x, y, extra = {}) => ({ id, type: 'text', semanticId: id, conceptId: CONCEPT,
@@ -370,4 +372,16 @@ export const reviewStates = [
   { part: 2, meta: true, input: 'digits' },
   { part: 2, meta: false, input: 'digits' },
   { part: 0, meta: true, input: 'digits' },
+];
+
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md); Deep -> Guided is implicit.
+// c07: an ID selects a wte row - 1/3's wte step and 2/3's lookup equation rely on it.
+// 1/3's data path: c01 is the same path with the Blocks in between; c06 says the
+// meta.pkl branch and the encode in plain words. 2/3's N = L(12C² + 2C) + C + VC and
+// tying are derived on Architecture Guided - later in the ladder, so not a prerequisite.
+export const transitions = [
+  { relation: 'prerequisite', target_card: 'c07-embedding-lookup' },
+  { relation: 'related', target_card: 'c01-forward-pass', from_part: 'data-path' },
+  { relation: 'simplifies_to', target_card: 'c06-tokenizer', from_part: 'data-path' },
+  { relation: 'simplifies_to', target_card: 'depth-architecture-guided', from_part: 'wte-size' },
 ];

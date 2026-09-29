@@ -203,3 +203,10 @@ export const evidence = {
 };
 
 export const reviewStates = [0, 1, 2, 3, 4, 5].map(temperature => ({ temperature }));
+
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md): c21 is the same ÷ T,
+// softmax and 20 seeded draws on another toy, plus the not-greedy argument.
+// ponytail: no softmax edge - no card teaches it yet (NC9).
+export const transitions = [
+  { relation: 'related', target_card: 'c21-temperature' },
+];

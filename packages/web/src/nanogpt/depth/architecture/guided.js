@@ -247,3 +247,9 @@ export const evidence = {
 
 // All four settings.
 export const reviewStates = [{ width: 0, vocab: 0 }, { width: 1, vocab: 0 }, { width: 0, vocab: 1 }, { width: 1, vocab: 1 }];
+
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md): c04 counts the same
+// 12C² + 2C per block, varying n_layer where this card varies C and V.
+export const transitions = [
+  { relation: 'related', target_card: 'c04-block-stack' },
+];

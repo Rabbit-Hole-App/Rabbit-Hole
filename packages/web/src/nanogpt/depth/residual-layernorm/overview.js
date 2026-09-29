@@ -160,4 +160,10 @@ export const evidence = {
   ladderRole: 'Gives the cause/effect intuition - add keeps the token, replace loses it, and each block reads a normalized copy - with colour patterns and one switch, no numbers, symbols or equations.',
 };
 
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md); Overview -> Guided is implicit.
+// c03 answers this card's add-or-replace question for one add, with numbers and the code line.
+export const transitions = [
+  { relation: 'deepens_to', target_card: 'c03-residual' },
+];
+
 export const reviewStates = [{ stream: true }, { stream: false }];

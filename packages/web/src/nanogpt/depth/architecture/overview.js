@@ -229,3 +229,13 @@ export const evidence = {
 
 // Every stage, so a reviewer sees every picture.
 export const reviewStates = STAGES.map((unused, stage) => ({ stage }));
+
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md): the deep-dive cards
+// that open one stage deeper - the whole trip in shapes, stage 2's piece plus
+// place, stage 3's mixing, stage 5's loop.
+export const transitions = [
+  { relation: 'deepens_to', target_card: 'c01-forward-pass' },
+  { relation: 'deepens_to', target_card: 'c09-token-plus-position' },
+  { relation: 'deepens_to', target_card: 'c05-position-mixing' },
+  { relation: 'deepens_to', target_card: 'c24-generation-loop' },
+];

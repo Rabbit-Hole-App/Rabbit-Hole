@@ -276,6 +276,14 @@ export const evidence = {
   ladderRole: 'Names the minimized number and makes it checkable: −ln p per position, its average, the train/held-out gap and the lowest-held-out stopping rule, all as numbers that move with a checkpoint slider, and one position at a time read off the curve’s two axes - the Overview has no formula or numbers to verify, the Deep dive leaves this toy and follows train.py’s code path.',
 };
 
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md): c26 takes phase 1's mean on to B·T positions; c16 is one
+// dot's −ln p from another example, c18 phase 2's keep-the-lowest-held-out rule on the same recorded run.
+export const transitions = [
+  { relation: 'deepens_to', target_card: 'c26-training-objective' },
+  { relation: 'related', target_card: 'c16-cross-entropy' },
+  { relation: 'related', target_card: 'c18-train-val' },
+];
+
 const at = pair => PAIRS.indexOf(pair);
 export const reviewStates = [
   { checkpoint: 0, focus: at('z→e') }, { checkpoint: 1, focus: at('z→e') }, { checkpoint: 2, focus: at('r→r') },

@@ -310,3 +310,19 @@ export const reviewStates = [
   { part: 2, call: 'train', tied: true }, { part: 2, call: 'train', tied: false }, { part: 2, call: 'generate', tied: false },
   { part: 0, call: 'generate', tied: true }, { part: 1, call: 'direct', tied: true }, { part: 2, call: 'direct', tied: true },
 ];
+
+// Stable sub-card ids, in pager order (exampleData.parts).
+export const partIds = ['call-site-embedding', 'one-block', 'head-and-loss'];
+
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md). A hub: the later
+// Attention and Training Guided cards explain 2/3's att row and 3/3's loss row
+// more deeply (deepens_to, never a forward prerequisite).
+export const transitions = [
+  { relation: 'simplifies_to', target_card: 'c01-forward-pass' },
+  { relation: 'prerequisite', target_card: 'depth-tokenization-guided', from_part: 'call-site-embedding' },
+  { relation: 'related', target_card: 'c23-context-window', from_part: 'call-site-embedding' },
+  { relation: 'simplifies_to', target_card: 'c02-block-anatomy', from_part: 'one-block' },
+  { relation: 'related', target_card: 'c05-position-mixing', from_part: 'one-block' },
+  { relation: 'deepens_to', target_card: 'depth-attention-guided', from_part: 'one-block' },
+  { relation: 'deepens_to', target_card: 'depth-training-loss-guided', from_part: 'head-and-loss' },
+];

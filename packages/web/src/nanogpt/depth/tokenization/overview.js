@@ -168,3 +168,10 @@ export const evidence = {
 };
 
 export const reviewStates = [{ pieces: 'letters' }, { pieces: 'words' }];
+
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md); Overview -> Guided is implicit.
+// c06 shows the same line through both tokenizers with each piece's ID and the
+// meta.pkl vocab_size - the next layer down.
+export const transitions = [
+  { relation: 'deepens_to', target_card: 'c06-tokenizer' },
+];

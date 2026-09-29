@@ -169,4 +169,11 @@ export const evidence = {
   ladderRole: 'Gives the cause-and-effect intuition with one discrete control and no symbols: practice moves the guess onto the right letter and the loss falls; Guided names the number (−ln p) and the stopping rule, Deep dive opens train.py’s loop.',
 };
 
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md): c18 draws the same average-loss curve with held-out loss
+// beside it; c16 makes "loss on this guess" −ln p(target).
+export const transitions = [
+  { relation: 'deepens_to', target_card: 'c18-train-val' },
+  { relation: 'deepens_to', target_card: 'c16-cross-entropy' },
+];
+
 export const reviewStates = [{ stop: 0 }, { stop: 1 }, { stop: 2 }, { stop: 3 }];

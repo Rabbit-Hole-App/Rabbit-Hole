@@ -45,3 +45,11 @@ export const nanogptDepthLadderBlocks = () => DEPTH_LADDER.flatMap(concept => [
   heading(1, concept.label),
   ...concept.cards.flatMap((card, i) => [heading(2, DEPTHS[i]), cardBlock(card)]),
 ]);
+
+// A transition's target_part (a stable sub-card id from the card's partIds) as
+// the pager index to open at; null (absent, unknown or unpaged) opens the whole
+// card at its default part - a fallback, never an error.
+export const partIndex = (card, partId) => {
+  const index = card.partIds?.indexOf(partId) ?? -1;
+  return index < 0 ? null : index;
+};

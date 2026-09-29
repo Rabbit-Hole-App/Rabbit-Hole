@@ -74,6 +74,8 @@ const ROLE_ROWS = [['output', 'neutral', 'neutral'], ['neutral', 'output', 'neut
 // on the same row; arrows join the steps of one part only. 1/3 has two steps,
 // so estimate_loss sits right under get_lr's equation and the note follows it.
 const PARTS = ['get_lr schedule and eval', 'Micro-steps: forward, loss, backward', 'The step: clip, AdamW, zero_grad'];
+// Stable sub-card ids, one per PARTS entry in pager order: transitions name a part by these, never by index.
+export const partIds = ['lr-schedule-and-eval', 'micro-steps', 'optimizer-step'];
 const BOX = { x: 70, w: 270, h: 34 };
 const RIGHT = 364;
 const STEPS = [
@@ -274,6 +276,19 @@ export const evidence = {
   prerequisites: 'Guided (mean of −ln p; keep the lowest held-out checkpoint); shapes, gradients, learning rate, AdamW.',
   ladderRole: 'Leaves the toy run for the code path itself: exact equations, (B, T, V) shapes, get_lr’s branches and the eval/save guards as controls, an edge case at it = 0 and a what-if past lr_decay_iters, and the accumulation tradeoff in numbers - none of which the Overview or Guided show.',
 };
+
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md). 1/3: c18 is the save rule in its simpler form, c17 the
+// same get_lr drawn as a whole curve. 2/3: c26 is the mean over positions on one window; Architecture Deep's last
+// part makes the (B, T, V) logits and the loss this part starts from. Gradients (c19) run through the whole card;
+// AdamW (c20) is what 3/3 steps with.
+export const transitions = [
+  { relation: 'simplifies_to', target_card: 'c18-train-val', from_part: 'lr-schedule-and-eval' },
+  { relation: 'related', target_card: 'c17-lr-schedule', from_part: 'lr-schedule-and-eval' },
+  { relation: 'simplifies_to', target_card: 'c26-training-objective', from_part: 'micro-steps' },
+  { relation: 'prerequisite', target_card: 'depth-architecture-deep', target_part: 'head-and-loss', from_part: 'micro-steps' },
+  { relation: 'prerequisite', target_card: 'c19-gradient-step' },
+  { relation: 'prerequisite', target_card: 'c20-optimizer', from_part: 'optimizer-step' },
+];
 
 // The board keeps 2-6 review states per card (and the review shots take the first 6), so every part is in
 // these six. Every stop-dependent line is on 1/3: its four states cover all three get_lr branches, the four

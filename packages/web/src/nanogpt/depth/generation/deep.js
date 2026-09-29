@@ -63,6 +63,8 @@ const TO_NAN = F.display.filter((c, i) => F.logits[i] === 0).join(' ');
 
 // Every part is laid out from the top of one coordinate space; the frame fits the tallest (2/4).
 const PARTS = ['Crop, forward, last position', 'Temperature and top-k', 'Softmax over the kept logits', 'Draw and append'];
+// Stable sub-card ids, in pager order (the transition contract names parts by these).
+export const partIds = ['crop-and-forward', 'temperature-and-top-k', 'softmax-over-kept', 'draw-and-append'];
 const onPart = (part, objects) => objects.map(object => ({ ...object, part }));
 
 // Layout: step boxes down the left, their shapes beside them, the data right.
@@ -362,4 +364,21 @@ export const reviewStates = [
   { part: 3, prompt: 'long', topK: 'k1', temperature: 't1' },
   { part: 0, prompt: 'long', topK: `k${SAMPLE_K}`, temperature: 't0' },
   { part: 2, prompt: 'long', topK: `k${SAMPLE_K}`, temperature: 't0' },
+];
+
+// Cross-depth transitions (docs/nanogpt-depth-ladder.md). 1/4 relies on
+// Architecture Deep's generate() crop and assert and on c01's generation call
+// (only the last position is projected); c23 shows what the crop loses. c22 is
+// the simpler form of top-k and the renormalisation over K (2/4, 3/4), c21 of
+// 4/4's one weighted draw, never argmax, with T = 0 invalid; c24 runs the same
+// iteration as a loop of passes.
+export const transitions = [
+  { relation: 'prerequisite', target_card: 'depth-architecture-deep', target_part: 'call-site-embedding', from_part: 'crop-and-forward' },
+  { relation: 'prerequisite', target_card: 'c01-forward-pass', from_part: 'crop-and-forward' },
+  { relation: 'related', target_card: 'c23-context-window', from_part: 'crop-and-forward' },
+  { relation: 'simplifies_to', target_card: 'c22-top-k', from_part: 'temperature-and-top-k' },
+  { relation: 'simplifies_to', target_card: 'c22-top-k', from_part: 'softmax-over-kept' },
+  { relation: 'simplifies_to', target_card: 'c21-temperature', from_part: 'draw-and-append' }, // the draw
+  { relation: 'simplifies_to', target_card: 'c24-generation-loop', from_part: 'draw-and-append' }, // the append
+  { relation: 'related', target_card: 'c24-generation-loop' },
 ];
