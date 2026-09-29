@@ -20,14 +20,13 @@ export function CanvasLearn({ app, project }) { // callers key it by canvas: the
 }
 
 // A column, not a Fragment: LearnPage brings its own <main>, which no longer matches index.css's
-// [data-shell-sidebar] ~ main phone padding, so the column restores it. The row names the canvas because
-// Learn's header shows the sample course title for canvases (LearnPage.jsx:591, Learn-owned).
+// [data-shell-sidebar] ~ main phone padding, so the column restores it. Learn's header names the canvas
+// (feature/parallel-work 07e1f15), so the row only links a parent project: one title (user, WP6 closeout).
 export default function CanvasPage({ app, project }) {
   return <div className="flex min-h-0 min-w-0 flex-1 flex-col max-md:pt-(--shell-top-h)">
-    <div data-canvas-parent className="flex shrink-0 items-center gap-2 px-8 pt-3 text-xs text-ink-2 max-md:px-4">
-      <span className="truncate text-ink">{app.title}</span>
-      {project && <button type="button" className="cursor-pointer hover:text-ink hover:underline" onClick={() => navigate(`/apps/${project.name}`)}>In {titleOf(project)} →</button>}
-    </div>
+    {project && <div data-canvas-parent className="flex shrink-0 items-center gap-2 px-8 pt-3 text-xs text-ink-2 max-md:px-4">
+      <button type="button" className="cursor-pointer hover:text-ink hover:underline" onClick={() => navigate(`/apps/${project.name}`)}>In {titleOf(project)} →</button>
+    </div>}
     <CanvasLearn app={app} project={project} />
   </div>;
 }

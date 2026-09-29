@@ -1736,10 +1736,14 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await page.getByLabel('Lesson canvas').waitFor({ timeout: 30000 });
       await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 }); // Learn's composer mounts just after the canvas
       const row = page.locator('[data-canvas-parent]');
-      must(await row.getByText('wp6 standalone').count() === 1 && await row.getByRole('button').count() === 0, `standalone row: ${await row.innerText()}`);
+      // One title: Learn's header names the canvas; smart-home's row only links a parent project (user, WP6 closeout).
+      must(await row.count() === 0, 'a standalone canvas has a parent row');
+      must(await page.getByText('wp6 standalone', { exact: true }).count() === 1, `the canvas title shows ${await page.getByText('wp6 standalone', { exact: true }).count()} times`);
       must(await composers(page) === 1 && await barOf(page).count() === 0 && await page.getByRole('tab', { name: 'Runbook' }).count() === 0, 'not Learn, or the generic app page');
       if (owned) {
         await loaded(page, `/apps/${owned.name}`);
+        await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
+        must(await page.getByText('wp6 owned', { exact: true }).count() === 1 && !(await row.innerText()).includes('wp6 owned'), 'the project canvas title shows twice');
         await row.getByRole('button', { name: `In ${ready.repo} →` }).click();
         await page.waitForURL(`**/apps/${ready.name}`);
       }
