@@ -5,10 +5,20 @@ import { composerKey } from './composer-keys.js';
 // Optional controls belong in slots; they must not replace the composer itself.
 // multiline (the Agent Bar only) swaps the input for a textarea: Enter sends, Shift+Enter adds a
 // line. Every other caller omits it and renders exactly the single-line input it had before.
-// dock (the Agent Bar only, user 2026-09-28): the platform's main input - taller (about 66px, 58px on
-// phones), a stronger surface, a larger send button. The Learn dock and chats keep the compact size.
+// dock (the Mothership, and the Learn composer through the shared shell above): the platform's main input - taller
+// (about 66px, 58px on phones), a stronger surface, a larger send button. Other chats keep the compact size.
 // The dock floats: the popover shadow lifts it off the page (user, 2026-09-28).
-// onStop (the Agent Bar only): while busy, the send button becomes Stop. Callers without it keep the spinner.
+// onStop: while busy, the send button becomes Stop. Callers without it keep the spinner.
+// The shared composer shell (user, 2026-09-29): the Mothership and the Learn composer are one system - same dock frame,
+// same controls around it, same footprint - with each caller keeping its own behaviour. Pass `dock` (and `onStop`),
+// style the leading and trailing controls with these tokens, put context pills (scope chips, "Asking about: ...") above
+// the composer, and wrap it in DOCK_WIDTH inside a DOCK_PAD strip. Contract: docs/features/rabbit-hole-commands.md.
+export const COMPOSER_ADD = 'inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-line text-ink-2 hover:bg-hover hover:text-ink max-md:w-8';
+export const COMPOSER_PILL = 'h-9 shrink-0 cursor-pointer rounded-lg border border-line px-2.5 text-sm text-ink-2 hover:bg-hover hover:text-ink max-md:px-1.5';
+export const DOCK_WIDTH = 'mx-auto w-full max-w-[780px]';
+// The strip under the dock; env() adds the phone's safe area and is 0 elsewhere.
+export const DOCK_PAD = 'px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] max-md:px-3 max-md:pt-2 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]';
+
 export default function ChatComposer({ value, onChange, onSubmit, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, onStop }) {
   const submit = () => { if (!busy && !disabled && value.trim()) onSubmit(value); };
   // ponytail: [field-sizing:content] grows the textarea in Chromium; other engines keep one row and scroll. Add a JS auto-grow if reviewers on Safari or Firefox need it.
