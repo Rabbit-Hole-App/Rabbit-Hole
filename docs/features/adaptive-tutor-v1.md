@@ -275,81 +275,102 @@ prerequisite branch, a depth transition). These bypass it:
 - explicit /notebook → insert a notebook;
 - explicit /deeper with a known target → move deeper.
 
-## Teaching strategies: Socrates, Feynman, Plato + a Confucian policy (staged)
+## Tutor architecture: Plato-like orchestrator, Socrates and Feynman specialists, Confucian policy
 
-Added by the owner 2026-09-28; narrowed the same day from four strategies to three plus a shared
-policy. To the learner there is always one Rabbit Hole tutor; the strategies are internal.
+Owner decisions 2026-09-28/29, the latest superseding the earlier ones: first four strategies, then
+three plus a Confucian policy, now two specialists under a planning orchestrator. To the learner
+there is always one Rabbit Hole tutor; everything below is internal.
 
 ```
                     Learner
                        ↓
-               evidence / JEV
+          deterministic / JEV evidence
                        ↓
-                Tutor Router
+              Tutor Orchestrator
+             "Plato-like planning"
                        ↓
-        ┌──────────────┼──────────────┐
-        ↓              ↓              ↓
-    Socrates        Feynman         Plato
-    diagnose        understand      navigate
-    question        explain         sequence
-    challenge       experiment      prerequisites
-    contradiction   transfer        depth
-        └──────────────┼──────────────┘
-                       ↓
-                learning tools
-   (all three inside the CONFUCIAN POLICY)
+           choose pedagogical move
+                ↙             ↘
+          Socrates           Feynman
+          diagnose           build understanding
+          question           explain-back
+          challenge          examples
+          expose gap         transfer
+                ↘             ↙
+                 learning tools
+   (everything inside the CONFUCIAN POLICY)
 ```
 
-| Strategy | Asks | Best for |
-|---|---|---|
-| Socrates | What does the learner actually understand? | diagnosis, prediction, contradictions, misconceptions, Socratic questions, hints instead of answers, deliberate withholding |
-| Feynman | Can they explain and use it? | explain-back, plain language, concrete examples, transfer, implementation, experiments, code, notebook, analogy → mechanism |
-| Plato | What should they learn next? | prerequisites, sequencing, depth, knowledge-graph navigation, curriculum structure, branching and returning |
+The target: **Tutor Orchestrator (Plato-like planner) + Socrates specialist + Feynman specialist +
+Confucian policy + JEV fast evaluator.**
 
-**Confucian policy — global, not a strategy.** It asks continuously: how much help should I give
-them right now? It shapes every proposal from all three strategies: don't reveal too soon; reward
-effort with the next hint; use the smallest useful intervention (T5a); alternate learning and
-reflection; adapt the amount of support; don't over-help. Only the pedagogical aspects — never a
-moral or philosophical tutor. If evaluation later shows support and pacing are complex enough to
-deserve their own model, Confucius can be promoted to a specialist.
+**Two levels, not competing agents.** When a learner gets an attention question wrong, "revisit
+softmax", "ask a diagnostic question" and "give a concrete example" are not rival answers — they sit
+at different levels:
+- **Plato / Orchestrator:** what should happen in the learning path?
+- **Socrates / Feynman:** how should we teach this particular thing?
+
+The orchestrator decides first, then calls the teaching specialist that fits. This removes the
+overlap a three-way router would have.
+
+| Role | Asks | Uses |
+|---|---|---|
+| Tutor Orchestrator (Plato) — planning logic, not a specialist agent | What should the learner learn next? | prerequisites, knowledge graph, depth, sequencing, branch and return, skipping material already understood |
+| Socrates — specialist agent | Find the gap: what does the learner actually understand, what misconception do they hold, what question would expose it, should I reveal the answer yet? | prediction, questioning, contradiction, challenge, hinting, misconception diagnosis |
+| Feynman — specialist agent | Make the learner understand and use it. | simple explanation, explain-back, concrete example, analogy, code, notebook, transfer problem |
+
+**Plato is planning, mostly deterministic.** It works above the current interaction: where we are in
+the knowledge graph, which prerequisites exist, whether to go deeper, whether to branch and where to
+return, what comes next (Attention → learner fails because softmax is unclear → temporary Softmax
+branch → understanding check → return to Attention). Most of that follows from the knowledge graph +
+prerequisites + learner evidence + current depth, so it does not spend a separate model call every
+turn; the orchestrator's model is used only where the structure leaves a genuine choice.
+
+**Socrates stays a real agent.** It works inside the current concept, and diagnostic dialogue needs
+reasoning: "Attention chooses the highest-scoring token." → "If two tokens had weights 0.45 and
+0.40, what would the output contain?" Socratic questioning depends on interpreting exactly what the
+learner just said and producing the question that exposes their mental model — hard to reduce to
+rules. If only one of Plato or Socrates could be an agent, it is Socrates.
+
+**Confucian policy — global, not an agent.** It asks continuously how much help to give right now,
+and shapes every move from the orchestrator and both specialists: minimum intervention (T5a); don't
+reveal too soon; adapt the amount of help; require useful effort; reward effort with the next hint;
+alternate learning and reflection; don't over-help. Only the pedagogical aspects — never a moral or
+philosophical tutor. If evaluation shows support and pacing need their own model, it can be promoted.
 
 **Route turn by turn on evidence and task, never by a permanent learner type** ("X is a Feynman
-learner" is a learning-style label, excluded below). One learner may need all three within five
-minutes: Plato finds a missing prerequisite → Socrates asks a diagnostic question, and the
-Confucian policy keeps it to one hint because the learner is close → Feynman asks for an
-explain-back → Plato returns to the original path. Stated preferences ("question me", "give me
-concrete examples", "give me a structured curriculum") raise the matching strategy's weight, and
-"don't give me answers quickly" raises the Confucian policy's effort-first setting — soft
-preferences the tutor can override when pedagogically necessary.
+learner" is a learning-style label, excluded below). Within five minutes one learner may need: the
+orchestrator finds a missing prerequisite and branches → Socrates asks a diagnostic question, and
+the Confucian policy keeps it to one hint because the learner is close → Feynman asks for an
+explain-back → the orchestrator returns to the original path. Stated preferences ("question me",
+"give me concrete examples", "don't give me answers quickly", "give me a structured curriculum")
+adjust Socrates, Feynman, the Confucian effort-first setting and the orchestrator's sequencing
+respectively — soft preferences the tutor can override when pedagogically necessary.
 
-**One primary strategy per turn**, occasionally a secondary (Plato: "prerequisite problem" +
-Socrates: "the question that verifies it"; Socrates: "misconception" + Feynman: "this concrete
-counterexample"). Several strategies proposing and the orchestrator choosing is reserved for
-genuinely complicated decisions. Never all three every turn (slow, expensive, contradictory).
+**One specialist per turn**, occasionally both (Socrates: "misconception" + Feynman: "this concrete
+counterexample"). Many turns need no specialist at all: routine transitions stay deterministic
+(runtime loop, J11).
 
-**Strategies propose; the orchestrator executes.** A strategy returns a pedagogical proposal — T18's
-output plus `strategy`, e.g. `{ strategy: "socratic", goal: "diagnose misconception", move:
+**Specialists propose; the orchestrator executes.** A specialist returns a pedagogical proposal —
+T18's output plus `strategy`, e.g. `{ strategy: "socratic", goal: "diagnose misconception", move:
 "ask_for_prediction", concept: "weighted_values", desiredEvidence: "whether the learner believes
 attention is argmax", toolFamily: "challenge" }`. The orchestrator validates and executes it;
-strategies never mutate the canvas directly.
+specialists never mutate the canvas directly.
 
-**JEV evidence drives the router.** E.g. causal_mask: key_idea_1 true, key_idea_2 false,
+**JEV evidence drives the orchestrator.** E.g. causal_mask: key_idea_1 true, key_idea_2 false,
 misconception false → "knows what masking does, not where it is applied" → under the Confucian
 policy, one hint ("look at what happens before softmax") — not Feynman regenerating a full
 explanation.
 
-**Stages — build the specialist architecture only if it proves better.**
-- **Tutor v1:** one orchestrator + explicit Socratic/Feynman/Platonic strategy *policies* + the
-  Confucian policy + JEV evidence + router. Benchmark A (one general tutor planner) vs B (router +
-  strategy) on the golden learner scenarios (T19).
-- **Tutor v1.5:** turn a strategy into an independent specialist agent only where that evaluation
-  shows better pedagogical choices without unacceptable latency. Otherwise the three stay policies
-  inside one agent. Agents are not built because the metaphor sounds good.
+**Evaluation gate still applies.** Specialists are built because they choose better, not because the
+metaphor sounds good: on the golden learner scenarios (T19), Socrates and Feynman as specialist calls
+must beat the orchestrator handling those moves inline, without unacceptable latency. A specialist
+that doesn't stays a policy inside the orchestrator. Plato is never a separate agent.
 
-**UI.** Default is Auto, which blends the strategies quietly — no "choose your philosopher". Later,
-an optional *Teaching approach*: Auto · Question me more (Socrates) · Make me explain it (Feynman) ·
-Give me hints, not answers (Confucian policy) · Keep me on a structured path (Plato). Aliases such as
-/socrates or /feynman may come later but are never fundamental product commands.
+**UI.** Default is Auto — no "choose your philosopher". Later, an optional *Teaching approach*: Auto ·
+Question me more (Socrates) · Make me explain it (Feynman) · Give me hints, not answers (Confucian
+policy) · Keep me on a structured path (orchestrator sequencing). Aliases such as /socrates or
+/feynman may come later but are never fundamental product commands.
 
 ## Fast evaluation with JEV (core architectural rule)
 
