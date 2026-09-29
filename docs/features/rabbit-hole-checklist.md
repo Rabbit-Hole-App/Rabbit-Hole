@@ -12,7 +12,7 @@ Projects", `ef9SfiemEsPQF2bd8B1os3`), with the exact node URL.
 | WP3 | Proposal lifecycle / action safety | Done, frozen |
 | WP4 | Home / Library / Explore / Start / Settings | Done (closeout 2026-09-28) |
 | WP5 | Mothership Agent Bar / command surface | Done (naming closeout 2026-09-28) |
-| WP6 | Project / Canvas / App destinations | Active |
+| WP6 | Project / Canvas / App destinations; Map as conversational knowledge graph | Active |
 | WP7 | Final integration / MVP verification | Last |
 
 ## Product model (user, 2026-09-28)
@@ -134,6 +134,61 @@ Harness checks sh-sidebar, sh-rail, sh-drawer and sh-legacy pass on the clone.
 - Figma: Project Overview, Learn, Map, node selected, scoped bar, Map → Teach →
   Learn, standalone canvas, project-owned canvas, not on this device, App detail,
   Job detail, App → source Project, mobile Project Overview, mobile Learn.
+
+### Map = conversational knowledge graph (user, 2026-09-28)
+
+PROJECT = Overview + Learn + Map; Map = code graph + decisions + questions +
+sessions + the right Context/Conversation panel, with the Mothership as the only input.
+Map explains structure, history and why; Learn teaches the concept deeply.
+
+- One input. No second Graph composer; the old right-side Graph Agent composer does
+  not come back. The right panel holds Selected/Context, the conversation and its
+  history, Decisions, Questions, Sessions and Source, with no text input.
+- Graph-aware Mothership. No node: `[nanoGPT ×]` "Ask about this codebase...". Node:
+  `[nanoGPT ×] [CausalSelfAttention ×]` "Ask about CausalSelfAttention...". Answers land
+  in the right panel, not a bottom sheet. Clicking another node retargets; the draft
+  keeps its retarget protection ("You're now viewing LayerNorm." [Ask about LayerNorm
+  instead] [Keep CausalSelfAttention]).
+- Entities. Code: file, class, function, module. Work memory (durable entities, never
+  raw chat): Decision {decision, rationale, alternatives, who/agent/session, time,
+  evidence/source, affected code nodes}; Question {question, answer if resolved,
+  resolved, source session, code nodes}; Session {summary, participant/agent, time,
+  questions, decisions, artifacts/code touched}; change/commit/PR references.
+  Provenance is kept; an inferred rationale never looks like a recorded decision.
+- Layers. The default Map shows Code only; a light Layers control adds Decisions,
+  Questions, Sessions. Recorded or extracted relations are solid; inferred ones are
+  dashed with confidence. No hairball.
+- Selected code node panel: name, path:line, summary; Why (n decisions); Questions (n
+  prior); Sessions (n relevant); Relationships; Source; [Learn this]. Sections or
+  tabs (Context | Why | Questions | Sessions | Source), not deep navigation.
+- Why is the differentiator: answers combine code evidence with recorded
+  decision/session evidence and cite both.
+- Prior questions are onboarding knowledge: a node lists its common questions; a click
+  sends one through the Mothership with the node/session context. Counts are not a
+  popularity metric.
+- Onboarding: a large unfamiliar Map shows quiet starter prompts in the panel (architecture
+  tour; what to understand first; most important modules; decisions that shaped it;
+  common questions). They are Mothership prompts, not another agent.
+- Map → Learn stays: select → ask → answer with code and decision context → [Learn this]
+  → Learn canvas.
+- The Mothership acts on graph results: /teach this (hand off the node), /research why
+  (external sources + internal evidence), "show every decision related to attention"
+  (filter/highlight), "what did engineers struggle with here" (questions/sessions),
+  "take me to the code that implements this decision" (select/open the node).
+- Evidence hierarchy in every answer: recorded decision; recorded question/session;
+  code/source evidence; inferred relationship; model explanation. No invented
+  organisational history: with no captured evidence, say "I can explain what the code
+  does, but I don't have a recorded decision explaining why the team chose this."
+- Permissions: session and decision memory obey the user's existing access; a private
+  session is never surfaced through the graph or the Mothership. Backend enforcement
+  may follow the dev fixtures, but it is part of the WP6 contract.
+- Fixtures: dev-only session/decision/question entities where live data is thin. Never
+  write fake institutional memory into live data.
+- Figma (in addition to the 14 above): Map default code layer; selected code node;
+  node → "Why does this exist?"; the answer in the right panel; a recorded Decision
+  linked to code; Questions layer; a prior question selected; Sessions layer / a
+  relevant session; inferred vs recorded relation; onboarding starter prompts; Learn
+  this → Learn; the Mothership scopes throughout.
 
 ## WP7 final integration
 
