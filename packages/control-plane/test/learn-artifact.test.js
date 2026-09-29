@@ -129,8 +129,7 @@ test('one paid gate for every provider: no confirmed flag, no request', async ()
   }
 });
 
-// fish.audio narration is paid in execution; the shared contract (smart-home's
-// agent/slash.js) still lists it as free until they add it to PAID.
-test('the contract marks narration paid', { todo: 'smart-home adds narration to PAID in agent/slash.js' }, () => {
+// fish.audio narration is paid in execution, and the shared contract says so.
+test('the contract marks narration paid', () => {
   assert.equal(primitive('narration').paid, true);
 });

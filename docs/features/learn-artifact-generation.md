@@ -105,9 +105,7 @@ In the UI:
   "Generation isn't available from this canvas yet" and show no Generate
   button, so there is no button that does nothing.
 
-The shared contract still lists narration as free. smart-home owns
-`agent/slash.js` and has been asked to add it to `PAID`. Until then, a `todo`
-test in `learn-artifact.test.js` tracks the gap.
+The shared contract marks narration paid (smart-home 594c0ec, taken as-is).
 
 ## Fail-closed plans
 
