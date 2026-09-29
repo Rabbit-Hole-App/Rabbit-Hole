@@ -18,6 +18,7 @@ import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 import NotebookBody from './NotebookCard.jsx';
 import { activePath, newNotebookBlock } from './learn-notebook.js';
+import { paletteSections, insertName } from './learn-insert-palette.js';
 import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow } from './learn-connectors.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
@@ -694,18 +695,22 @@ function SectionMenu({ className, onLevel }) {
 
 function BlockMenu({ className, filter, onFilter, onPick }) {
   return (
-    <div role="menu" aria-label="Lesson blocks" className={`absolute z-40 flex max-h-[70vh] w-44 flex-col overflow-hidden rounded-xl border border-line bg-white shadow-md ${className}`}>
+    <div role="menu" aria-label="Lesson blocks" className={`absolute z-40 flex max-h-[70vh] w-52 flex-col overflow-hidden rounded-xl border border-line bg-white shadow-md ${className}`}>
       <input type="search" autoFocus value={filter} onChange={event => onFilter(event.target.value)}
         aria-label="Filter blocks" placeholder="Filter…"
         className="m-1 h-7 shrink-0 rounded-lg border border-line px-2 text-xs outline-none focus:border-ink-3" />
-      {/* the list keeps growing, so it scrolls instead of running off the canvas */}
+      {/* Grouped the way learners think (learn-insert-palette.js); it scrolls
+          rather than running off the canvas. */}
       <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto p-1 pt-0">
-        {Object.entries(BLOCK_TYPES)
-          .filter(([, meta]) => meta.menu !== false && meta.label.toLowerCase().includes(filter.trim().toLowerCase()))
-          .map(([type, meta]) => (
-            <button key={type} type="button" role="menuitem" onClick={() => onPick(type)}
-              className="block w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink hover:bg-hover">{meta.label}</button>
-          ))}
+        {paletteSections(BLOCK_TYPES, { dev: import.meta.env.VITE_COACHING_DEV === 'true', filter }).map(section => (
+          <div key={section.title} role="group" aria-label={section.title}>
+            <div className="px-3 pt-2 pb-0.5 text-[10px] font-semibold tracking-wider text-ink-3 uppercase">{section.title}</div>
+            {section.items.map(type => (
+              <button key={type} type="button" role="menuitem" onClick={() => onPick(type)}
+                className="block w-full rounded-lg px-3 py-1.5 text-left text-sm text-ink hover:bg-hover">{insertName(type, BLOCK_TYPES)}</button>
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -2598,7 +2603,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
             className="flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink">
             <Plus size={15} strokeWidth={1.7} />
           </button>
-          {insertOpen && <BlockMenu className="top-0 right-10" filter={insertFilter} onFilter={setInsertFilter} onPick={insertBlock} />}
+          {insertOpen && <BlockMenu className="top-0 right-10" filter={insertFilter} onFilter={setInsertFilter} onPick={type => (type === 'notebook' ? (snapshot(), insertAtView(newNotebookBlock()), setInsertOpen(false)) : insertBlock(type))} />}
         </div>
       )}
       {presenting === null && !readOnly && <div ref={toolbarRef} role="toolbar" aria-label="Canvas tools"
