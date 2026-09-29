@@ -1312,6 +1312,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return insertAtView(newNotebookBlock());
       },
       // A validated block from a / command (learn-slash.js).
+      // A chat answer the learner puts on the canvas from the dock's sheet: a
+      // finished chat card, centred like a fresh question's.
+      insertChat: ({ question, answer }) => {
+        snapshot(true);
+        const id = crypto.randomUUID();
+        seenChats.current.add(id);
+        centerRef.current = id;
+        onAddRef.current?.([{ id, question, answer, linkFrom: null, status: 'done', dx: 0, dy: 0 }]);
+        return id;
+      },
       insertBlock: block => {
         snapshot();
         return insertAtView({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0 });
@@ -1868,7 +1878,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const centerOn = box => {
     const element = surface.current;
     if (!element) return;
-    setView(v => ({ ...v, x: element.clientWidth / 2 - (box.x + box.w / 2) * v.z, y: element.clientHeight / 2 - (box.y + Math.min(box.h, element.clientHeight / v.z) / 2) * v.z }));
+    // An open chat sheet covers the lower part of the view: centre above it.
+    const sheet = element.parentElement?.querySelector('[data-chat-sheet]')?.getBoundingClientRect();
+    const h = sheet?.height ? Math.max(120, sheet.top - element.getBoundingClientRect().top) : element.clientHeight;
+    setView(v => ({ ...v, x: element.clientWidth / 2 - (box.x + box.w / 2) * v.z, y: h / 2 - (box.y + Math.min(box.h, h / v.z) / 2) * v.z }));
   };
   useEffect(() => {
     for (const exchange of exchanges) {

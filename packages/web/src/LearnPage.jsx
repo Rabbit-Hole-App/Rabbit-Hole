@@ -1,9 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Pencil, Play, Redo2, RotateCcw, Scan, Search, Share2, Trash2, Trophy, NotebookPen, Undo2, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
 import { createShapeId, getIndices } from 'tldraw';
-import { SPEEDS, getSpeed, isMuted, onMuted, setMuted, setSpeed } from './learn-audio.js';
+import { SPEEDS, getSpeed, isMuted, setMuted, setSpeed } from './learn-audio.js';
 import { api, wsHeaders } from './api.js';
-import { requestBoardExplanation } from './learn-board-request.js';
 import { AskPanel } from './ask.jsx';
 import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
@@ -18,7 +17,6 @@ import CanvasMenubar from './CanvasMenubar.jsx';
 import SearchBar from './SearchBar.jsx';
 import LearnSlash from './LearnSlash.jsx';
 import FeedbackButton from './FeedbackButton.jsx';
-import PaidConfirm from './PaidConfirm.jsx';
 import { runLearnCommand } from './learn-slash.js';
 import { warmLearnTools } from './learn-warmup.js';
 import ShortcutsSheet from './ShortcutsSheet.jsx';
@@ -643,9 +641,6 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const explanation = useRef(null);
   const boardRequest = useRef(0);
   const [boardVisible, setBoardVisible] = useState(false);
-  const [boardStage, setBoardStage] = useState('Preparing explanation...');
-  // Narration of a canvas explanation is paid (fish.audio): offered, never autoplayed.
-  const [narrationOffer, setNarrationOffer] = useState(null);
   const dismissBoard = () => {
     boardRequest.current++;
     const old = explanation.current; explanation.current = null;
@@ -742,7 +737,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     return { ...snapshot, lessonContext: { ...snapshot.lessonContext, courseBrief } };
   };
   const boardContext = {
-    ready: !!editor, status: boardStage, paper: paperContext, clearPaper: () => { setPaperContext(null); setPaperOpen(false); setWikiContext(null); setWikiOpen(false); },
+    paper: paperContext, clearPaper: () => { setPaperContext(null); setPaperOpen(false); setWikiContext(null); setWikiOpen(false); },
     // Detaching the source is a context switch, not a deletion: the card stays
     // on the canvas and the reader stays open, the tutor just stops being told.
     wiki: wikiAttached ? wikiContext : null,
@@ -754,54 +749,6 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     outline: () => canvasStateRef.current.outline || [],
     onOutlineProposal: ops => setProposal(ops),
     onShowPaper: paper => addPaper(paper),
-    explain: async ({ snapshot, question, answer, model, paperIds = [], history = [], repository_context = null }) => {
-      if (noteEditing) throw new Error('Return to the lesson before explaining on canvas.');
-      if (!editor) throw new Error('The canvas is still loading. Try again in a moment.');
-      if (!snapshot) {
-        if (!lesson.current) lesson.current = { lessonId: 'learn-freeform', runId: crypto.randomUUID(), pageId: editor.getCurrentPageId(), currentStage: 'explanation', topic: 'Learner question', recentExplanations: [] };
-        snapshot = selectionSnapshot(editor, lesson.current, null);
-      }
-      if (!boardContext.isCurrent(snapshot)) throw new Error('This answer belongs to an earlier lesson position. Ask again on the current page.');
-      pauseLesson(); setRegion(false);
-      const request = ++boardRequest.current;
-      const current = selectionSnapshot(editor, lesson.current, snapshot.target ? { ...snapshot.target, shapeIds: snapshot.target.selectedShapeIds, runId: snapshot.runId } : null);
-      setBoardStage('Planning explanation...');
-      const { plan } = await requestBoardExplanation({ app: app.name, snapshot: teachingSnapshot(current), question, answer, model, paperIds, history, repository_context }, stage => { if (request === boardRequest.current) setBoardStage(stage); });
-      if (request !== boardRequest.current || !boardContext.isCurrent(snapshot)) throw new Error('The lesson changed while preparing the explanation. Ask again on the current page.');
-      if (plan.needsClarification) throw new Error(plan.summary);
-      let renderedPlan = plan;
-      if (plan.blocks.some(block => block.kind === 'paper_figure' && !block.figure)) {
-        setBoardStage('Preparing cited figures...');
-        const { preparePaperFigures } = await import('./learn-paper-figures.js');
-        renderedPlan = await preparePaperFigures(plan, app.name);
-      }
-      const { drawExplanation } = await import('./learn-board-renderer.js');
-      if (request !== boardRequest.current || !boardContext.isCurrent(snapshot)) throw new Error('The lesson changed. Ask again on the current page.');
-      setCourseView(false); setLearnerOpen(false); setSetupChat(false); setPlannedLesson(null); setLearningView('lesson'); setBoardVisible(true);
-      await new Promise(resolve => requestAnimationFrame(resolve));
-      if (request !== boardRequest.current || !boardContext.isCurrent(snapshot)) { setBoardVisible(false); throw new Error('The lesson changed. Ask again on the current page.'); }
-      editor.updateViewportScreenBounds(editor.getContainer());
-      const previous = explanation.current;
-      const layer = drawExplanation(editor, current, renderedPlan, { app: app.name });
-      // The lesson narrator is a paid provider, so narration is offered and
-      // only requested after Generate (docs/features/learn-artifact-generation.md).
-      // A failed request stays silent.
-      let boardAudio = null;
-      const spoken = renderedPlan.blocks.map(block => block.text).filter(Boolean).join(' ').slice(0, 3800);
-      const speak = () => fetch('/api/learn/tts', { method: 'POST', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify({ app: app.name, text: spoken, confirmed: true }) })
-        .then(async response => {
-          if (!response.ok || request !== boardRequest.current) return;
-          const url = URL.createObjectURL(await response.blob());
-          if (request !== boardRequest.current) { URL.revokeObjectURL(url); return; }
-          boardAudio = new Audio(url);
-          boardAudio.muted = isMuted();
-          boardAudio.playbackRate = getSpeed();
-          boardAudio.play().catch(() => {});
-        }).catch(() => {});
-      setNarrationOffer(spoken ? { speak } : null);
-      const unlistenBoardMuted = onMuted(value => { if (boardAudio) boardAudio.muted = value; });
-      explanation.current = { dispose: () => { unlistenBoardMuted(); boardAudio?.pause(); setNarrationOffer(null); layer.dispose(); previous?.dispose(); }, runId: snapshot.runId };
-    },
     label: pinned.current?.label,
     preview: paperContext?.selection?.preview || preview,
     previewKind: paperContext?.selection ? 'paper' : 'canvas',
@@ -1244,11 +1191,10 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {!canvasState.presenting && ((!isRepository && !isCanvas) || progress) && <div aria-label="Current lesson and section" className="mb-4"><h2 className="text-lg font-semibold">Lesson {sampleIndex >= 0 ? sampleIndex + 1 : 1}: {currentLesson?.title}</h2><p className="mt-1 text-sm text-ink-2">Section {(progress?.page || 0) + 1} of {pages.length}: {progress?.label || pages[0].label}</p></div>}
         {graphError && <p role="alert" className="text-sm text-red-700">{graphError}</p>}
         {boardVisible && <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-2"><span>Agent explanation · lesson paused — keep asking, or resume when ready</span><div className="flex gap-2"><button type="button" disabled={!notesLoaded || answering} onClick={addNote} className="rounded border border-line-strong bg-white px-2.5 py-1 font-medium text-ink hover:bg-hover disabled:opacity-40">Save to notes</button><button type="button" onClick={() => { dismissBoard(); playback.current?.play(); }} className="rounded bg-ink px-2.5 py-1 font-medium text-white hover:opacity-90">Resume lesson</button></div></div>}
-        {boardVisible && narrationOffer && <div data-narration-offer className="mb-2 flex flex-wrap items-center gap-2 text-xs"><span className="font-medium text-ink">Narration available</span><PaidConfirm onCancel={() => setNarrationOffer(null)} onGenerate={() => { narrationOffer.speak(); setNarrationOffer(null); }} /></div>}
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
-        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas key={canvasEpoch} onSave={pushBoard} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => { setSearchSeed({ source }); setSearchOpen(true); }} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onState={onCanvasState} edgeInset={!panelOpen && canvasOutline.length ? 52 : 0} storageKey={boardStorageKey} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <div data-learn-dock className="contents"><AskPanel compact composerOnly dock boardContext={boardContext} onExchange={placeExchange} slash={learnSlash} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={askPlaceholder} autoFocus /></div> : null} /></Suspense></div>
+        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas key={canvasEpoch} onSave={pushBoard} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => { setSearchSeed({ source }); setSearchOpen(true); }} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onState={onCanvasState} edgeInset={!panelOpen && canvasOutline.length ? 52 : 0} storageKey={boardStorageKey} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <div data-learn-dock className="contents"><AskPanel compact composerOnly dock sheet onAddToCanvas={chat => canvas()?.insertChat(chat)} boardContext={boardContext} onExchange={placeExchange} slash={learnSlash} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={askPlaceholder} autoFocus /></div> : null} /></Suspense></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">

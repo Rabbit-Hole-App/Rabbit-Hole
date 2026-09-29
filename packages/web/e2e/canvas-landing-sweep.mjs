@@ -2,9 +2,10 @@ import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 // Whatever the learner adds must land where they are looking. Every add path
-// (Insert menu, / commands, paste, a chat question) is run from three
-// cameras - as opened, scrolled down past the cards, panned sideways - and
-// the new card must be on screen above the dock. Model calls are stubbed.
+// (Insert menu, / commands, paste, a chat answer added from the sheet) is run
+// from three cameras - as opened, scrolled down past the cards, panned
+// sideways - and the new card must be on screen above the dock and the open
+// chat sheet. Model calls are stubbed.
 // Parallel clone only; a pasted image uploads to the dev Learn media bucket.
 // usage: node e2e/canvas-landing-sweep.mjs [only-action]
 const BASE = process.env.BASE || 'https://small-cp-dev-small-parallel.zeroshothq.workers.dev';
@@ -61,7 +62,10 @@ const ACTIONS = {
   '/whiteboard': type('/whiteboard Attention'),
   '/explain (stubbed)': type('/explain softmax'),
   'paste an image': pasteImage,
-  'chat question (stubbed)': type('hi'),
+  'chat answer → Add to canvas (stubbed)': async page => {
+    await type('hi')(page);
+    await page.locator('[data-chat-sheet] [data-add-to-canvas]').last().click();
+  },
 };
 const CAMERAS = {
   'as opened': async () => {},
@@ -97,6 +101,8 @@ for (const [action, run] of Object.entries(ACTIONS)) {
     await page.waitForTimeout(1500);
     const name = `${action}, ${camera}`;
     if (!added.length) { check(name, false, 'nothing was added'); await page.close(); continue; }
+    const sheetTop = await page.evaluate(() => { const box = document.querySelector('[data-chat-sheet]')?.getBoundingClientRect(); return box?.height ? box.top : null; });
+    if (sheetTop !== null) seen.bottom = Math.min(seen.bottom, sheetTop - 8);
     const box = await boxOf(page, added[0]);
     const overlap = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
     const vertical = overlap(box.y, box.y + box.height, seen.top, seen.bottom) / Math.min(box.height, seen.bottom - seen.top);

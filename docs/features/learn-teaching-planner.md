@@ -2,6 +2,8 @@
 
 Regular Small dev only. The existing Learn chat and Explain on canvas flow
 choose how deeply to answer separately from how to represent the answer.
+The Explain on canvas button was removed from Learn chat answers on
+2026-09-29; the depth and tool choice below describe the flow as it was.
 
 ## Behavior
 

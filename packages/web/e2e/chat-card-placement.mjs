@@ -1,8 +1,10 @@
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
-// Where a chat card lands: ask from the dock and the new card must appear in
-// the middle of what the learner is looking at, and stay there - no jump
+// Where a chat card lands: a plain question answers in the chat sheet and
+// Add to canvas turns it into a card; Ask in chat on a card answers as a
+// linked card. Either way the new card must appear in the middle of what the
+// learner is looking at (above the open sheet), and stay there - no jump
 // when the answer streams in. Asks are answered by a stub (no model calls).
 // Parallel clone only. Prints no secrets.
 // usage: node e2e/chat-card-placement.mjs [screenshot dir]
@@ -43,15 +45,19 @@ await page.waitForTimeout(800);
 const surface = await page.locator('[aria-label="Lesson canvas"]').boundingBox();
 const dock = await page.locator('[data-learn-dock] [data-chat-composer]').first().boundingBox();
 // What the learner sees: the canvas above the dock.
-const seen = { top: surface.y, bottom: dock.y, left: surface.x, right: surface.x + surface.width };
-const middle = { x: (seen.left + seen.right) / 2, y: (seen.top + seen.bottom) / 2 };
 const composer = page.locator('[data-learn-dock] [data-chat-composer] input:not([type="file"])').first();
 
-const ask = async (label, text) => {
-  const before = await page.locator('[data-chat-card], [data-block-id]').count();
+const sheetTop = () => page.evaluate(() => { const box = document.querySelector('[data-chat-sheet]')?.getBoundingClientRect(); return box?.height ? box.top : null; });
+const ask = async (label, text, { addToCanvas = true } = {}) => {
+  const answers = await page.locator('[data-chat-sheet] [data-add-to-canvas]').count();
   await composer.click();
   await composer.fill(text);
   await composer.press('Enter');
+  if (addToCanvas) {
+    const add = page.locator('[data-chat-sheet] [data-add-to-canvas]').nth(answers);
+    await add.waitFor({ timeout: 10000 });
+    await add.click();
+  }
   const card = page.locator('[data-block-id]').filter({ hasText: text }).last();
   await card.waitFor({ timeout: 10000 });
   // One camera move centres the card as it arrives; after that it must hold still.
@@ -59,6 +65,9 @@ const ask = async (label, text) => {
   const track = [];
   for (let i = 0; i < 16; i++) { const box = await card.boundingBox(); track.push(box && { x: Math.round(box.x + box.width / 2), y: Math.round(box.y), h: Math.round(box.height) }); await page.waitForTimeout(150); }
   await page.waitForTimeout(600);
+  // What the learner sees: the canvas above the open sheet, or above the dock.
+  const seen = { top: surface.y, bottom: (await sheetTop()) ?? dock.y, left: surface.x, right: surface.x + surface.width };
+  const middle = { x: (seen.left + seen.right) / 2, y: (seen.top + seen.bottom) / 2 };
   const box = await card.boundingBox();
   const centre = { x: box.x + box.width / 2, y: box.y + Math.min(box.height, seen.bottom - seen.top) / 2 };
   const visible = box.y >= seen.top - 1 && box.y + Math.min(box.height, 200) <= seen.bottom;
@@ -69,13 +78,13 @@ const ask = async (label, text) => {
   check(`${label}: the new card sits in the middle of the view`, near, `card centre ${Math.round(centre.x)},${Math.round(centre.y)} vs middle ${Math.round(middle.x)},${Math.round(middle.y)}`);
   check(`${label}: the card does not jump while the answer streams`, jump < 40, `largest step ${Math.round(jump)}px, tops ${ys.join(',')}`);
   await shot(page, label.replace(/\W+/g, '-'));
-  return before;
 };
+const empty = { x: surface.x + 300, y: surface.y + 300 };
 
 // 1. straight after opening the board
 await ask('opened board', 'hi');
 // 2. after the learner scrolls down into empty space
-await page.mouse.move(middle.x - 500, middle.y);
+await page.mouse.move(empty.x, empty.y);
 await page.mouse.wheel(0, 900);
 await page.waitForTimeout(500);
 await ask('scrolled down', 'hello again');
@@ -84,9 +93,10 @@ await page.mouse.wheel(700, -300);
 await page.waitForTimeout(500);
 await ask('panned right', 'one more');
 // 4. asking about a selected card: the answer parks under it, in view
+await page.getByRole('button', { name: 'Collapse chat' }).click();
 await page.locator('[data-block-id="seed-1"]').click({ position: { x: 30, y: 12 } });
 await page.locator('[data-block-id="seed-1"]').getByRole('button', { name: 'Ask in chat' }).click();
-await ask('asked about a card', 'explain this card');
+await ask('asked about a card', 'explain this card', { addToCanvas: false });
 const linked = await page.evaluate(key => JSON.parse(localStorage.getItem(key) || '{}').links || [], KEY);
 check('asked about a card: the answer is linked to it', linked.some(link => link.from === 'seed-1'), `${linked.length} link(s)`);
 
