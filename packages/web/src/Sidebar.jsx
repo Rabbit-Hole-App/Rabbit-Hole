@@ -476,7 +476,8 @@ const NAV = [['Home', '/apps', 'home', House], ['Library', '/library', 'library'
 const RAIL_BTN = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink';
 // Report a bug or suggest a feature, below Trash (user, 2026-09-29): Learn's FeedbackButton, app-less. The sidebar
 // clips its overflow, so the button is fixed over a footer slot and its panel opens beside the strip, unclipped.
-// The footer is sticky, so the slot stays at the bottom however long the sidebar gets.
+// The footer is sticky, so the slot stays at the bottom however long the sidebar gets; sticky makes it a stacking
+// context, so it sits at z-30 to keep the panel above the Agent Bar (z-20).
 function FeedbackSlot({ left }) {
   return <><div className="h-9 shrink-0" aria-hidden="true" /><div className="fixed bottom-2 z-40" style={{ left }}><FeedbackButton placement="right" /></div></>;
 }
@@ -1099,7 +1100,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
               </button>
             ))}
           </nav>
-          <div className="sticky bottom-0 mt-auto flex shrink-0 flex-col items-center gap-1 border-t border-line bg-side pt-2">
+          <div className="sticky bottom-0 z-30 mt-auto flex shrink-0 flex-col items-center gap-1 border-t border-line bg-side pt-2">
             <button title="Members" aria-label="Members" aria-current={path === '/members' ? 'page' : undefined} onClick={() => navigate('/members')} className={cn(RAIL_BTN, path === '/members' && 'bg-active text-ink')}>
               <Users size={16} strokeWidth={1.5} />
             </button>
@@ -1297,7 +1298,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         </>
       )}
 
-      <div className={cn('mt-auto shrink-0 pt-3', learnPreview && 'sticky bottom-0 border-t border-line bg-side')}>
+      <div className={cn('mt-auto shrink-0 pt-3', learnPreview && 'sticky bottom-0 z-30 border-t border-line bg-side')}>
         <button
           onClick={() => navigate('/members')}
           className={cn(
