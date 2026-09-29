@@ -126,16 +126,51 @@ Harness checks sh-sidebar, sh-rail, sh-drawer and sh-legacy pass on the clone.
   the bar is the only input; a node selection sets `[project ×] [node ×]`; a
   Context/Selected/Source panel; "Learn this" or /teach this hands off to Learn.
 - CANVAS = learning workspace = opens directly in Learn. A project-owned canvas
-  shows its parent lightly. "This canvas's content isn't on this device." never
-  becomes an empty editable canvas.
+  shows its parent lightly. "This canvas's content isn't available in this browser."
+  (supporting line: "The canvas exists, but its local content was created in another
+  browser or has been cleared.") never becomes an empty editable canvas. Content is
+  browser-local, so the copy never says "device" (user, 2026-09-28).
 - APP / JOB / SERVER = operational artifact = operational detail: status, last
   run, runtime, outputs; Run only where runnable; "Built from <project> →" when
   it has one; the bar available; confirmation for persistent/external actions.
 - Figma: Project Overview, Learn, Map, node selected, scoped bar, Map → Teach →
-  Learn, standalone canvas, project-owned canvas, not on this device, App detail,
+  Learn, standalone canvas, project-owned canvas, not in this browser, App detail,
   Job detail, App → source Project, mobile Project Overview, mobile Learn.
 
+Checkpoints (user, 2026-09-28). Checkpoint 1: the destination model - Project
+Overview | Learn | Map (graph + right Context/Conversation panel + the Mothership as the
+only input), Canvas opening directly in Learn, the App/Job/Server operational page; the
+14 captures above. Checkpoint 2: the knowledge-graph layers below. Checkpoint 2 never
+blocks checkpoint 1.
+
+Dev storage hygiene (user, 2026-09-28): dev repository snapshots move out of the live
+`small-runs` bucket into a dedicated dev storage resource. The review clone writes only
+to dev storage, production is unchanged, the environment config makes a cross-environment
+write impossible by construction, and one test proves dev cannot write to the production
+location. WP1's UX is not reopened.
+
 ### Map = conversational knowledge graph (user, 2026-09-28)
+
+Path A (user, 2026-09-28): WP6 builds this UX now on clearly labelled dev fixtures. No
+transcript capture, decision extraction, new DB tables or ingestion infrastructure in
+WP6 (see Deferred: Knowledge Capture v1).
+
+- Two truths, never mixed. Real behaviour: for a real code node, "Why does this exist?"
+  may explain what the code does and infer technical reasons from source, but says "I
+  don't have a recorded project decision explaining why the team chose this." Source
+  evidence, model explanation/inference and recorded decision stay visibly distinct;
+  organisational history is never manufactured. Future behaviour: Decisions, prior
+  questions, Sessions and linked rationale are shown with fixtures, labelled "Fixture ·
+  UI preview" (or "Demo data") at the panel and layer level; no made-up people appear
+  without that label. Figma captions say which captures are real behaviour and which
+  are fixture previews.
+- The current private Learn questions are not the Questions graph (one learner's, not
+  node-linked, mixed with Learn conversations, not shared memory). They are not
+  repurposed to make the layer look real.
+- Permissions invariant: a graph answer may only use session, question or decision
+  evidence the requesting user is authorised to access. Fixture filtering tests exercise
+  the UI only; real knowledge-memory permissions are not marked implemented until real
+  persisted records exist.
 
 PROJECT = Overview + Learn + Map; Map = code graph + decisions + questions +
 sessions + the right Context/Conversation panel, with the Mothership as the only input.
@@ -205,3 +240,7 @@ Public Explore backend; real source-owner and fork fields; ranking by forks;
 rare Markdown / multi-link GitHub parsing; complex /blob/ branch paths; AWS
 preview-warning polish; the old Library 141px offset; toast redesign;
 schedule/watch dark-mode pills; rare picker keyboard cases.
+
+Future: Knowledge Capture v1 (not a work package; never delays WP6/WP7): CLI/session
+capture; decision and question extraction; code-node linking; provenance; permissions;
+retention and deletion. The WP6 knowledge-graph layers run on fixtures until it exists.
