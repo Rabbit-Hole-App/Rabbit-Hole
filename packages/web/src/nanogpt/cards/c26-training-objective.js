@@ -217,7 +217,7 @@ export const plan = {
   objective: 'After this card, the learner should understand that NanoGPT\'s training objective is the plain mean of −ln p(next character) over every position it scores, each counting 1/N of it (N = B·T per step), a number perplexity only re-reads as e^mean.',
   prerequisites: [
     'c16-cross-entropy: the loss at ONE position is −ln p(target), which reads the probability on the true next character, not the top choice. Taken as given; c26 draws no logits, no softmax and no top-choice mark',
-    'c11-causal-mask: position i is trained to predict character i + 1 (row labels \'0 · B → e\'); c26 draws where those targets come from: the same text shifted by one',
+    'c11-causal-mask: position i is trained to predict character i + 1 (row labels \'0: B → e\'); c26 draws where those targets come from: the same text shifted by one',
     'named, not taught: an average; e^x undoes ln x (e^(ln 65) = 65)',
   ],
   causalSteps: [
