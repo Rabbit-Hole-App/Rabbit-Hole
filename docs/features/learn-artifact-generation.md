@@ -36,8 +36,8 @@ the registry.
 | Status | Primitives |
 |---|---|
 | Ready | explanation, table, flashcards, quiz, challenge, explain_back, code_sample, flow_diagram, mermaid_diagram, walkthrough, interactive_graph, data_plot |
-| Ready, paid (proposal only) | video_generate, maths_animation, blender_scene |
-| Not generated (explicit message, no substitution) | code_exercise, narration, knowledge_graph, animation, reference_attention, 3d_model, image_generate |
+| Ready, paid (proposal only) | video_generate, blender_scene |
+| Not generated (explicit message, no substitution) | code_exercise, narration, knowledge_graph, animation, reference_attention, maths_animation (its manim worker is not deployed), 3d_model, image_generate |
 | Direct tools, no model | notebook, whiteboard, paper, image (search), video (existing clip) |
 
 A generated code sample carries no output line: nobody ran it, so any output

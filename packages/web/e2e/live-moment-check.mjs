@@ -7,7 +7,9 @@ import { readFileSync } from 'node:fs';
 
 const base = 'https://small-cp-dev-small-parallel.zeroshothq.workers.dev';
 const app = 'repo-06745f10-nanogpt';
-const board = 'live-moment-1';
+// Fresh boards each run, so a card left from an earlier run cannot pass the check.
+const run = Date.now().toString(36);
+const board = `live-moment-${run}-a`;
 const secret = readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
 const { session } = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'live-moment-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
 if (!session) { console.log('FAIL: no test session'); process.exit(1); }
@@ -71,7 +73,7 @@ await page.screenshot({ path: 'e2e/shots/live-moment-cold.png' });
 // --- warm: give the queue consumer time to index, then re-ask ---
 console.log('waiting 75s for the queue consumer to index the candidates...');
 await page.waitForTimeout(75000);
-await page.goto(`${base}/apps/${app}?tab=learn&board=live-moment-2`);
+await page.goto(`${base}/apps/${app}?tab=learn&board=live-moment-${run}-b`);
 await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 40000 });
 await page.waitForTimeout(2000);
 const warmSeconds = await ask('Show me the video moment where backpropagation is explained visually.');
