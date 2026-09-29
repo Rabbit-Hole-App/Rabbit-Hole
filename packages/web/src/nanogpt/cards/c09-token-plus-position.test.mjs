@@ -70,7 +70,7 @@ test('c09 plan: staged, verbatim objective, sequence "Embeddings" 2 of 2, no bou
   assert.match(plan.primaryInteraction, /Part 1\/2.*Part 2\/2/);
   assert.match(plan.boundary.reason, /two sub-cards/);
   assert.deepEqual(planProblems({ ...plan, boundary: { ...plan.boundary, decision: 'sequence' } }), []);
-  assert.deepEqual(plan.boundary.sequence, { name: 'Embeddings', position: 2, of: 2, relationships: [{ type: 'prerequisite', card: 'c07-embedding-lookup' }] });
+  assert.deepEqual(plan.boundary.sequence, { name: 'Embeddings', position: 2, of: 2, relationships: [{ type: 'prerequisite', card: 'c07-embedding-lookup', direction: 'in' }] });
   assert.equal(plan.objective, 'After this card, the learner should understand that the first block reads the sum of a token row and a position row, so the same token at two positions enters as two different vectors.');
   assert.ok(scene.height <= 900);
 });

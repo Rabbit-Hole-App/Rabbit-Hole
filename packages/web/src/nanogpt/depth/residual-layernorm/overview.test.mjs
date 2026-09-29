@@ -117,6 +117,13 @@ test('the words match the numbers: kept, the output still carries the token; rep
   assert.equal(byId(replacedState, 'takeaway').role, 'warning');
 });
 
+test('the toy blocks are disclosed on the card: one add each, where NanoGPT’s Block adds twice', () => {
+  for (const result of results) {
+    assert.equal(byId(result, 'status').label, 'Calculated toy example: one token, 6 toy blocks (one add each; NanoGPT’s block adds twice)');
+    assert.equal(byId(result, 'status-live').label, 'Live calculation: the running totals');
+  }
+});
+
 test('plain-language hierarchy: read, propose, add back first; LayerNorm only later, quieter and shorter', () => {
   for (const result of results) {
     const texts = result.state.objects.filter(o => o.visible && o.type === 'text' && o.label);

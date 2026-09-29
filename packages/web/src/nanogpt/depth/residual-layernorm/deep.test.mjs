@@ -34,7 +34,7 @@ const ALL = Object.values(PARTS).flatMap(part => LAYOUTS.flatMap(layout => VECTO
 const partOf = id => scene.objects.find(o => o.id === id).part;
 const QUESTION = { [PARTS.wiring]: 'question', [PARTS.layernorm]: 'question-ln', [PARTS.init]: 'question-init' };
 const LN_IDS = ['question-ln', 'ln-head', 'x-strip', 'stats', 'std', 'near-exact', 'xhat-strip', 'ratio', 'no-eps', 'ln-eq', 'edge', 'bias'];
-const INIT_IDS = ['question-init', 'status-init', 'init-head', 'init-eq', 'init-rest', 'bars-ref', 'bars', 'std-text', 'unit', 'post-1', 'post-2'];
+const INIT_IDS = ['question-init', 'status-init', 'init-head', 'init-eq', 'init-rest', 'bars-ref', 'bars', 'std-text', 'unit', 'sum-1', 'sum-2', 'post-1', 'post-2'];
 const INIT_EQ = `\\sigma_{c\\_proj} = ${D.initStd}\\,/\\sqrt{2L}`;
 const SUM_EQ = '\\mathrm{std}(\\sum_{k<2L}F_k)\\propto\\sigma\\sqrt{2L}';
 
@@ -124,9 +124,11 @@ test('the ladder: equations, named shapes, a "Builds on: Guided" line, more code
   const codeCount = card => card.sources.filter(s => s.kind === 'code').length;
   assert.ok(codeCount(deep) > codeCount(guided) && codeCount(deep) > codeCount(overview));
   // Each sub-card reads lighter than Guided; the split added only the parts' own
-  // questions, so the card's content is still at most ~1.3x Guided's text.
+  // questions, so the card's content is still at most ~1.3x Guided's text. NC8's
+  // caption under 3/3's bars (sum-1, sum-2) is a bridge back to the Overview, not
+  // depth content: counted in the per-sub-card check, left out of the union.
   for (const part of Object.values(PARTS)) assert.ok(textChars(deep, { part }) <= textChars(guided), `part ${part}`);
-  const content = new Map(union.filter(o => o.label && o.type === 'text' && !['question-ln', 'question-init', 'status-init'].includes(o.id)).map(o => [o.id, o.label.length]));
+  const content = new Map(union.filter(o => o.label && o.type === 'text' && !['question-ln', 'question-init', 'status-init', 'sum-1', 'sum-2'].includes(o.id)).map(o => [o.id, o.label.length]));
   const ratio = [...content.values()].reduce((n, v) => n + v, 0) / textChars(guided);
   assert.ok(ratio <= 1.3, `Deep dive content is ${ratio.toFixed(2)}x Guided’s text`);
 });
@@ -164,7 +166,7 @@ test('the layout control rewires the Block on 1/3 (LN on the branches or on the 
   for (const layout of LAYOUTS) for (const scaledInit of INITS) {
     const pre = layout === 'pre';
     const result = at({ part: PARTS.init, layout, scaledInit });
-    for (const id of ['bars-ref', 'bars', 'std-text', 'unit']) assert.equal(byId(result, id).visible, pre, `${id} @${layout}`);
+    for (const id of ['bars-ref', 'bars', 'std-text', 'unit', 'sum-1', 'sum-2']) assert.equal(byId(result, id).visible, pre, `${id} @${layout}`);
     for (const id of ['post-1', 'post-2']) assert.equal(byId(result, id).visible, !pre, id);
     for (const id of ['init-head', 'init-eq', 'init-rest']) assert.ok(byId(result, id).visible, id);
   }
@@ -292,6 +294,9 @@ test('the scaled init (3/3): std 0.02 / √(2L) per depth, and the live bars sho
   const bars = scene.objects.find(o => o.id === 'bars').initialState;
   assert.ok((1 / bars.peak) * (bars.h - 4) >= 8, 'scaled bar height');
   assert.equal(byId(at({ part: PARTS.init }), 'unit').label, `Source value: ×1 = one branch at std ${D.initStd}`);
+  // NC8: 3/3's simpler form is the Overview's running total, over the 2L adds 1/3 draws.
+  assert.equal(byId(at({ part: PARTS.init }), 'sum-1').label, 'The stream after the last Block is x₀ plus 2L branch changes (the Overview’s running total);');
+  assert.equal(byId(at({ part: PARTS.init }), 'sum-2').label, 'independent changes’ variances add.');
   assert.match(scene.inputs.find(d => d.name === 'scaledInit').label, /c_proj weights only/);
 });
 

@@ -136,7 +136,7 @@ export const plan = {
   boundary: {
     decision: 'single',
     reason: 'one mental model (lookup); the addition of positions is a second model and goes to c09',
-    sequence: { name: 'Embeddings', position: 1, of: 2, relationships: [{ type: 'prerequisite', card: 'c09-token-plus-position' }] },
+    sequence: { name: 'Embeddings', position: 1, of: 2, relationships: [{ type: 'prerequisite', card: 'c09-token-plus-position', direction: 'out' }] },
     reviewed: {
       'objective-two-clauses': 'one idea: ", and that row is the token\'s vector" names what the lookup returns, not a second mechanism - verbatim from the approved plan',
     },

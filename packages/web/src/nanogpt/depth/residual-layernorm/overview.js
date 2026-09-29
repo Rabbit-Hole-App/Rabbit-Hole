@@ -28,7 +28,7 @@ const REPRODUCE = 'python packages/web/src/nanogpt/depth/fixtures/gen_residual-l
 const CELL = 21; // under 22px the renderer draws colour only, no digits
 const STAGE_X = i => 170 + 118 * i; // stage 0 = the token, stage k = after Block k
 const READ_DX = 40; // each block's read branch leaves the stream this far left of its column
-const BOX_Y = 112, BOX_H = 40;
+const BOX_Y = 124, BOX_H = 40;
 const CHANGE_Y = 184, STREAM_Y = 352;
 const GRID_H = CELL * O.x0.length;
 const STREAM_MID = STREAM_Y + GRID_H / 2;
@@ -73,7 +73,8 @@ export const scene = {
   objects: [
     text('question', 'Why does each block add its result to its input instead of replacing it?', 40, 34),
     text('prerequisites', 'No prerequisites.', 40, 58, { typography: 'annotation' }),
-    text('status', 'Calculated toy example: one token, 6 toy blocks · Live calculation: the running totals', 40, 84, { typography: 'caption' }),
+    text('status', 'Calculated toy example: one token, 6 toy blocks (one add each; NanoGPT’s block adds twice)', 40, 84, { typography: 'caption' }),
+    text('status-live', 'Live calculation: the running totals', 40, 104, { typography: 'caption' }),
 
     note('row-blocks', 'blocks, in order', 40, BOX_Y + BOX_H / 2 + 4),
     note('row-change', 'each block’s result', 40, CHANGE_Y + GRID_H / 2 + 4),

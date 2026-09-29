@@ -210,7 +210,7 @@ export const scene = {
 
     // 2/3 - one Block, run n_layer times.
     ...inPart(1, [
-      note('block-header', 'Block.forward, run n_layer = {{L}} times, each Block with its own weights:', BOX_X, ROW.qkv - 12, { opacity: { $derive: 'downOpacity' } }),
+      note('block-header', 'Block.forward, run n_layer = {{L}} times, each Block with its own weights (the 12C² + 2C counted in Guided):', BOX_X, ROW.qkv - 12, { opacity: { $derive: 'downOpacity' } }),
       { id: 'block-bracket', type: 'line', semanticId: 'block-bracket', conceptId: CONCEPT,
         initialState: { from: { x: BOX_X - 10, y: ROW.qkv }, to: { x: BOX_X - 10, y: ROW.mlpOut + BOX_H }, role: 'neutral', opacity: { $derive: 'downOpacity' } } },
       ...step('qkv', 'ln_1 → c_attn → split', 'q, k, v: (B, nh, T, hs)', '({{B}}, {{nh}}, {{T}}, {{hs.0}})', down),

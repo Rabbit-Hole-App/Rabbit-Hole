@@ -199,7 +199,7 @@ export const plan = {
   boundary: {
     decision: 'staged',
     reason: 'one causal pipeline in a fixed order; staging it keeps the recipe whole',
-    sequence: { name: 'The block and the stack', position: 1, of: 2, relationships: [{ type: 'deepens', card: 'c04-block-stack' }] },
+    sequence: { name: 'The block and the stack', position: 1, of: 2, relationships: [{ type: 'deepens', card: 'c04-block-stack', direction: 'out' }] },
   },
 };
 

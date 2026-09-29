@@ -70,7 +70,7 @@ test('tables, dots, means and whole-slice readouts match the oracle at every one
     }
     const c = run.checkpoints[k];
     assert.equal(byId(result, 'slices').label,
-      `Whole slices at iter ${c.iteration}: train ${trainR[k].toFixed(3)}, held-out ${valR[k].toFixed(3)}, gap (held-out − train) ${(valR[k] - trainR[k]).toFixed(3)}`);
+      `Whole slices at iter ${c.iteration}: train ${trainR[k].toFixed(3)}, held-out (val) ${valR[k].toFixed(3)}, gap (held-out − train) ${(valR[k] - trainR[k]).toFixed(3)}`);
     // A whole-run lookup, said so, even at checkpoints before it.
     assert.equal(byId(result, 'best').label,
       `Lowest held-out loss in the whole run: iter ${run.checkpoints[BEST].iteration} (${valR[BEST].toFixed(3)}). Now versus it: train ${signed(trainR[k] - trainR[BEST])}, held-out ${signed(valR[k] - valR[BEST])}`);

@@ -56,7 +56,7 @@ const GRID_X = 72, GRID_Y = 182, CELL = 36; // 36: "1.00" clears the 12px numera
 const RX = 420, STRIP_Y = GRID_Y + 118, STRIP_CELL = 42; // 42: "-0.82" clears the 12px numeral floor
 // 3/4: the memory lines, the two path notes, then the fused call.
 const MEM_Y = 110;
-const FUSED_Y = MEM_Y + 156, FUSED_W = 580, FUSED_H = 52;
+const FUSED_Y = MEM_Y + 182, FUSED_W = 580, FUSED_H = 52;
 // 4/4: three bar panels on a 0-1 axis.
 const SAT_Y = 148, SAT_PITCH = 312, SAT_CELL = 26, SAT_H = 200;
 
@@ -202,7 +202,7 @@ export const scene = {
       { id: 'question', type: 'text', semanticId: 'question', conceptId: 'attention',
         initialState: { text: 'How does CausalSelfAttention run every head at once?', x: COL, y: 30 } },
       { id: 'prerequisites', type: 'text', semanticId: 'prerequisites', conceptId: 'attention',
-        initialState: { text: 'Builds on: Guided; matrix shapes, batched matrix multiply', x: COL, y: BUILDS_Y, typography: 'annotation' } },
+        initialState: { text: 'Builds on: Guided; several heads, matrix shapes, batched matrix multiply', x: COL, y: BUILDS_Y, typography: 'annotation' } },
     ),
     // The one line every sub-card shares: which kinds of evidence the card uses.
     { id: 'status', type: 'text', semanticId: 'status', conceptId: 'attention',
@@ -219,6 +219,13 @@ export const scene = {
           initialState: { text: step.shape, x: SHAPE_X, y: stepY(k) + 24, typography: 'annotation',
             ...(step.fused ? { opacity: { $derive: 'manualLit' } } : {}) } },
       ]),
+      // The five middle steps are Guided's numbered steps (1 score, 2 scale and
+      // mask, 3 softmax, 4 mix), run on whole tensors; beside them, above the
+      // fused note.
+      { id: 'guided-note', type: 'text', semanticId: 'guided-steps', conceptId: 'forward',
+        initialState: { text: 'these five: Guided’s steps 1–4,', x: 580, y: stepY(4) - 20, typography: 'annotation' } },
+      { id: 'guided-note-2', type: 'text', semanticId: 'guided-steps-2', conceptId: 'forward',
+        initialState: { text: 'for every reader of every head at once', x: 580, y: stepY(4) + 2, typography: 'annotation' } },
       // Why five steps are dimmed on the fused path, beside them (the call is 3/4).
       { id: 'fused-note', type: 'text', semanticId: 'fused-note', conceptId: 'forward',
         initialState: { text: 'fused SDPA: one call replaces these five steps', x: 580, y: stepY(4) + 24,
@@ -272,10 +279,13 @@ export const scene = {
         initialState: { text: `\\times ${FP32_BYTES}\\text{ B (fp32)}={{attMB.0}}\\text{ MB per layer}`, x: COL, y: MEM_Y + 30, w: 470, h: 26 } },
       { id: 'eq-layers', type: 'equation', semanticId: 'eq-layers', conceptId: 'memory',
         initialState: { text: `\\times ${NL}\\text{ layers}={{allMB.0}}\\text{ MB}`, x: COL, y: MEM_Y + 56, w: 470, h: 26 } },
+      // What one entry of B·n_h·T² is: a weight in Guided's row.
+      { id: 'mem-note', type: 'text', semanticId: 'mem-note', conceptId: 'memory',
+        initialState: { text: 'one weight per (reader, key): Guided’s row, for T readers × n_h heads × B sequences', x: COL, y: MEM_Y + 106, typography: 'annotation' } },
       { id: 'path-note', type: 'text', semanticId: 'path-note', conceptId: 'memory',
-        initialState: { text: '{{pathNote}}', x: COL, y: MEM_Y + 110, typography: 'annotation' } },
+        initialState: { text: '{{pathNote}}', x: COL, y: MEM_Y + 136, typography: 'annotation' } },
       { id: 'path-note-2', type: 'text', semanticId: 'path-note-2', conceptId: 'memory',
-        initialState: { text: '{{pathNote2}}', x: COL, y: MEM_Y + 130, typography: 'annotation' } },
+        initialState: { text: '{{pathNote2}}', x: COL, y: MEM_Y + 156, typography: 'annotation' } },
       { id: 'fused-box', type: 'box', semanticId: 'fused-kernel', conceptId: 'forward',
         initialState: { label: { $derive: 'fusedLabel' }, x: COL, y: FUSED_Y, w: FUSED_W, h: FUSED_H, role: 'code',
           opacity: { $derive: 'fusedLit' } } },
@@ -375,7 +385,7 @@ export const evidence = {
   task: 'Set T = 1 and explain the single weight; switch to the fused path and say which of the 100.663 MB per layer is no longer stored, and when it still is; turn the scaling off and read how the hs = 64 row and its gradient change.',
   capability: 'sub-card pager (index input presented as a pager; each object bound to one part, the status line shared; one frame sized for the tallest part); head picker, T slider, path choice, bool what-if; derived grid shape (rows/cols/labels follow T); live per-head masked softmax on prefixes; step boxes and the fused-call box with input-bound opacity for the branch (the path not taken stays dimmed); equations with live values (memory in bytes); fused-call label and scale note picked by the toggle; three bar rows for hs = 4, 16, 64 from seeded draws on a labelled 0-1 axis; generator statistics picked by the toggle.',
   depth: 'Deep dive',
-  prerequisites: 'Guided (one row of scores → weights); matrix shapes; batched matrix multiply.',
+  prerequisites: 'Guided (one row of scores → weights); several heads; matrix shapes; batched matrix multiply.',
   ladderRole: 'Ties the mechanism to exact equations, tensor shapes, source branches (manual vs fused), an edge case (T = 1) and a quantified tradeoff (1/√hs vs saturation, memory of storing att in MB) that the other depths do not touch.',
 };
 

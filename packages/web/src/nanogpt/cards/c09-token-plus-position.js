@@ -253,7 +253,7 @@ export const plan = {
     decision: 'staged',
     reason: 'one causal pipeline (lookup, lookup, add), revealed in stages; card 8\'s two tables are its first stage, not a separate idea. Paged into two sub-cards, one visual each: Part 1/2 the pipeline to x, Part 2/2 its consequence for the two e\'s',
     reviewed: {},
-    sequence: { name: 'Embeddings', position: 2, of: 2, relationships: [{ type: 'prerequisite', card: 'c07-embedding-lookup' }] },
+    sequence: { name: 'Embeddings', position: 2, of: 2, relationships: [{ type: 'prerequisite', card: 'c07-embedding-lookup', direction: 'in' }] },
   },
 };
 

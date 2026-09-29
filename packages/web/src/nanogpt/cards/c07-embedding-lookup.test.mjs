@@ -29,7 +29,7 @@ test('c07 plan: reviewed, verbatim objective, sequence "Embeddings" 1 of 2', () 
   assert.equal(plan.boundary.decision, 'single');
   // The sequence record is checked with the same rules a sequence card gets.
   assert.deepEqual(planProblems({ ...plan, boundary: { ...plan.boundary, decision: 'sequence' } }), []);
-  assert.deepEqual(plan.boundary.sequence, { name: 'Embeddings', position: 1, of: 2, relationships: [{ type: 'prerequisite', card: 'c09-token-plus-position' }] });
+  assert.deepEqual(plan.boundary.sequence, { name: 'Embeddings', position: 1, of: 2, relationships: [{ type: 'prerequisite', card: 'c09-token-plus-position', direction: 'out' }] });
   assert.equal(plan.objective, 'After this card, the learner should understand that a token ID does no arithmetic: it selects one learned row of the embedding table, and that row is the token\'s vector.');
 });
 

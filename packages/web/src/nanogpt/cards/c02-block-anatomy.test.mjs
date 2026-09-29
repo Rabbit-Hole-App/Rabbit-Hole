@@ -36,7 +36,7 @@ test('passes every card gate at each of the six steps', () => {
 test('plan: the approved batch-2 plan, no unreviewed boundary flags', () => {
   assertCardPlan({ scene, plan });
   assert.equal(plan.boundary.decision, 'staged');
-  assert.deepEqual(plan.boundary.sequence, { name: 'The block and the stack', position: 1, of: 2, relationships: [{ type: 'deepens', card: 'c04-block-stack' }] });
+  assert.deepEqual(plan.boundary.sequence, { name: 'The block and the stack', position: 1, of: 2, relationships: [{ type: 'deepens', card: 'c04-block-stack', direction: 'out' }] });
   assert.equal(plan.objective, 'After this card, the learner should understand the recipe one Block applies to x: normalize, attend, add back, normalize, MLP, add back.');
   assert.equal(plan.causalSteps.length, 1 + OPS.length);
 });

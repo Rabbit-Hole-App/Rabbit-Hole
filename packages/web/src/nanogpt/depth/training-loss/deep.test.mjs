@@ -33,7 +33,7 @@ test('deep passes every gate at every reviewed state; a pager and two controls, 
   assert.deepEqual(scene.inputs[0], { name: 'part', type: 'index', label: 'Deep dive', of: 'parts', default: 0, presentation: 'pager' });
   assert.ok(scene.objects.filter(o => o.type === 'equation').length >= 5);
   assert.ok(!scene.objects.some(o => o.type === 'code'), 'no code listing on the card');
-  assert.match(byId(results[0], 'prerequisites').label, /^Builds on: Guided/);
+  assert.equal(byId(results[0], 'prerequisites').label, 'Builds on: Guided (mean of −ln p; keep the lowest held-out checkpoint); shapes, gradients, learning rate, AdamW.');
   // The AdamW equation is labelled as the conceptual update, on the equation's row; decay stays on the dim >= 2 group.
   const update = results[reviewStates.findIndex(state => state.part === 2)];
   const [label, adamw] = ['adamw-label', 'adamw-eq'].map(id => byId(update, id));

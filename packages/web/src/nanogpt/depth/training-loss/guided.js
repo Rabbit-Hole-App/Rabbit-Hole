@@ -117,7 +117,7 @@ export const scene = {
     heldTableAll: HELD.p.map((ps, k) => [...ps.map(p => p * 100), ...HELD.loss[k]]),
     trMeanTexts: TRAIN.loss.map(ls => f3(meanOf(ls))),
     hoMeanTexts: HELD.loss.map(ls => f3(meanOf(ls))),
-    slicesTexts: R.iterations.map((it, k) => `Whole slices at iter ${it}: train ${f3(trainR[k])}, held-out ${f3(valR[k])}, gap (held-out − train) ${f3(valR[k] - trainR[k])}`),
+    slicesTexts: R.iterations.map((it, k) => `Whole slices at iter ${it}: train ${f3(trainR[k])}, held-out (val) ${f3(valR[k])}, gap (held-out − train) ${f3(valR[k] - trainR[k])}`),
     changeTexts: R.iterations.map((it, k) => `train ${signed(trainR[k] - trainR[BEST])}, held-out ${signed(valR[k] - valR[BEST])}`),
     valAll: run.checkpoints.map(c => c.val),
     regimes: REGIMES,

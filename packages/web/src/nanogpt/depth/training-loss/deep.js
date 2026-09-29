@@ -177,7 +177,7 @@ export const scene = {
   objects: [
     // 1/3: what iteration t decides before any forward pass - the learning rate and the eval/save guard.
     text('question', 0, { text: 'What exactly does one iteration of NanoGPT’s training loop do?', x: 40, y: 34, typography: 'heading' }),
-    text('prerequisites', 0, { text: 'Builds on: Guided (the loss is the mean of −ln p); tensor shapes, gradients, AdamW.', x: 40, y: 58, typography: 'annotation' }),
+    text('prerequisites', 0, { text: 'Builds on: Guided (mean of −ln p; keep the lowest held-out checkpoint); shapes, gradients, learning rate, AdamW.', x: 40, y: 58, typography: 'annotation' }),
     ...STEPS.map(box),
     ...LINKS.map(([from, to]) => arrow(from, to)),
     // get_lr: which of its three branches runs, the branch as an equation, and the status of the value.
@@ -271,7 +271,7 @@ export const evidence = {
   task: 'At it = 0, say what lr is, what loss a healthy fresh model reports for each config, and why no checkpoint is saved; then explain why the floor branch of get_lr never runs with either shipped config, and what M = 5 buys train_gpt2.',
   capability: 'box pipeline with arrows and a rotated loop label; a three-box branch strip with input-derived roles; equations whose LaTeX is picked per (config, stop) and interpolated with live values; record-map pick by a choice input; concat/dot products for live integer arithmetic; a pager input splitting the card into three sub-cards (objects declare their part) in one fixed frame.',
   depth: 'Deep dive',
-  prerequisites: 'Guided (the loss is the mean of −ln p); tensor shapes, gradients, AdamW.',
+  prerequisites: 'Guided (mean of −ln p; keep the lowest held-out checkpoint); shapes, gradients, learning rate, AdamW.',
   ladderRole: 'Leaves the toy run for the code path itself: exact equations, (B, T, V) shapes, get_lr’s branches and the eval/save guards as controls, an edge case at it = 0 and a what-if past lr_decay_iters, and the accumulation tradeoff in numbers - none of which the Overview or Guided show.',
 };
 

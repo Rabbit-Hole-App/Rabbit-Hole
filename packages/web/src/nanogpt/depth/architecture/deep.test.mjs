@@ -119,6 +119,11 @@ test('Deep dive ladder rung: equations, named shapes, a branch control, an edge 
   }
 });
 
+test('2/3 bridges back to Guided: the Block header names the per-Block count Guided makes', () => {
+  assert.equal(view().get('block-header').label, 'Block.forward, run n_layer = 6 times, each Block with its own weights (the 12C² + 2C counted in Guided):');
+  assert.equal(guided.scene.objects.find(o => o.id === 'blocks-name').initialState.text, 'Blocks: n_layer × (12C² + 2C)');
+});
+
 test('the trace reads end to end: 2/3 and 3/3 open with the shape the page before hands over', () => {
   for (const call of ['train', 'generate', 'crop']) {
     const objects = view({ call });

@@ -101,7 +101,7 @@ test('plan: the rebuilt c04 plan, no unreviewed boundary flags', () => {
   assertCardPlan({ scene, plan });
   assert.equal(plan.boundary.decision, 'single');
   assert.equal(plan.boundary.reviewed, undefined, 'the scene raises no rubric flag');
-  assert.deepEqual(plan.boundary.sequence, { name: 'The block and the stack', position: 2, of: 2, relationships: [{ type: 'deepens', card: 'c02-block-anatomy' }] });
+  assert.deepEqual(plan.boundary.sequence, { name: 'The block and the stack', position: 2, of: 2, relationships: [{ type: 'deepens', card: 'c02-block-anatomy', direction: 'in' }] });
   assert.equal(plan.objective, 'After this card, the learner should understand that NanoGPT applies n_layer Blocks in order, each with the same structure but its own learned weights.');
   assert.match(plan.primaryInteraction, /^slide n_layer from 1 to 12/);
   assert.match(plan.check, /24-layer/, 'the practice names its undrawn case');

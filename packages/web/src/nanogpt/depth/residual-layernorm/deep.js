@@ -241,6 +241,9 @@ export const scene = {
         labels: D.init.map((d, i) => `${d.nLayer}: ×{{bars.${i}}}`), values: { $derive: 'bars' } }),
       note('std-text', '{{stdText}}', LEGEND_X, BARS.y + 44, PRE),
       note('unit', `Source value: ×1 = one branch at std ${D.initStd}`, LEGEND_X, BARS.y + 66, PRE),
+      // Under the bars, pre-LN only: the summed branches are the Overview's running total, over 2L adds.
+      note('sum-1', 'The stream after the last Block is x₀ plus 2L branch changes (the Overview’s running total);', BARS.x, BARS.y + BARS.h + 36, PRE),
+      note('sum-2', 'independent changes’ variances add.', BARS.x, BARS.y + BARS.h + 54, PRE),
       // In the bars' place: the middle of their band.
       note('post-1', 'Post-LN re-normalizes after every add, so no branch sum', BARS.x, BARS.y + 40, { role: 'warning', ...POST }),
       note('post-2', 'builds up: the bars and c_proj switch are pre-LN only.', BARS.x, BARS.y + 60, { role: 'warning', ...POST }),

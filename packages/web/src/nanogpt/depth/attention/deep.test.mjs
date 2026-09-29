@@ -71,9 +71,9 @@ test('deep: every sub-card asks its question first, "Builds on: Guided" only on 
 // Which ideas live on which sub-card (manual path, scaled, all characters).
 const STEP_IDS = ['split', 'heads', 'scores', 'scale', 'mask', 'softmax', 'mix', 'merge'];
 const ON_PART = {
-  0: ['question', 'prerequisites', 'status', 'eq-sizes', ...STEP_IDS.flatMap(id => [`step-${id}`, `shape-${id}`])],
+  0: ['question', 'prerequisites', 'status', 'eq-sizes', ...STEP_IDS.flatMap(id => [`step-${id}`, `shape-${id}`]), 'guided-note', 'guided-note-2'],
   1: ['question-mask', 'status', 'eq-attention', 'att', 'first-note', 'rows-note', 'dropout-note', 'y-last', 'v-first'],
-  2: ['question-memory', 'status', 'mem-title', 'eq-memory', 'eq-bytes', 'eq-layers', 'path-note', 'path-note-2', 'fused-box', 'fused-shape', 'fused-scale'],
+  2: ['question-memory', 'status', 'mem-title', 'eq-memory', 'eq-bytes', 'eq-layers', 'mem-note', 'path-note', 'path-note-2', 'fused-box', 'fused-shape', 'fused-scale'],
   3: ['question-scale', 'status', 'sat-title',
     ...[0, 1, 2].flatMap(k => ['bars', 'top', 'base', 'one', 'zero', 'read'].map(kind => `sat-${kind}-${k}`)), 'eq-variance', 'eq-gradient'],
 };
@@ -393,6 +393,28 @@ test('sources: a code entry for every step, quotes match the pinned files, statu
   assert.deepEqual([...new Set(sources.filter(s => s.kind === 'calculation').map(s => s.status))].sort(),
     ['Calculated toy example', 'Live calculation', 'Source value', 'What-if']);
   assert.ok(sources.some(s => s.kind === 'paper' && s.arxiv === '1706.03762') && sources.some(s => s.kind === 'paper' && s.arxiv === '2205.14135'));
+});
+
+// NC8 bridges back to Guided: 1/4's five middle steps are Guided's numbered
+// steps 1-4 (score; scale and mask; softmax; mix), and 3/4's memory count is
+// Guided's weight row repeated over readers, heads and sequences.
+test('bridges to Guided: the five steps are its steps 1-4; one att entry is one weight of its row', () => {
+  const [shapes] = assertCardGates(scene, [{ part: 0 }]);
+  const [memory] = assertCardGates(scene, [{ part: 2 }]);
+  assert.equal(byId(shapes, 'prerequisites').label, 'Builds on: Guided; several heads, matrix shapes, batched matrix multiply');
+  assert.equal(byId(shapes, 'guided-note').label, 'these five: Guided’s steps 1–4,');
+  assert.equal(byId(shapes, 'guided-note-2').label, 'for every reader of every head at once');
+  // Guided numbers exactly four steps, in this order, and they are the five fused steps.
+  const numbered = guided.scene.objects.map(o => o.initialState?.label).filter(l => typeof l === 'string' && /^\d\. /.test(l));
+  assert.deepEqual(numbered.map(l => l.slice(0, 2)), ['1.', '2.', '3.', '4.']);
+  assert.match(numbered[0], /score = q · k/);
+  assert.match(numbered[1], /÷ √4 = 2, then later characters → −∞/);
+  assert.match(numbered[2], /softmax → weights/);
+  assert.match(numbered[3], /values v .*mixed by the weights/);
+  assert.deepEqual(scene.objects.filter(o => o.type === 'box' && o.initialState.opacity?.$derive === 'manualLit').map(o => o.id),
+    ['step-scores', 'step-scale', 'step-mask', 'step-softmax', 'step-mix']);
+  assert.equal(byId(memory, 'mem-note').label, 'one weight per (reader, key): Guided’s row, for T readers × n_h heads × B sequences');
+  assert.match(byId(memory, 'eq-memory').label, /^B\\cdot n_h\\cdot T\^2=/, 'the note uses the equation’s head symbol');
 });
 
 test('evidence record is complete', () => {

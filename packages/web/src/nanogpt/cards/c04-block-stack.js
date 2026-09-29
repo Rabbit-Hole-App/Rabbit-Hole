@@ -313,7 +313,7 @@ export const plan = {
   boundary: {
     decision: 'single',
     reason: 'one mental model (repeat the same recipe with separate weights). Paged into three sub-cards, one visual each: Part 1/3 the chain, Part 2/3 the tensors and toy table (one block\'s count), Part 3/3 the count and bars (that count × n_layer)',
-    sequence: { name: 'The block and the stack', position: 2, of: 2, relationships: [{ type: 'deepens', card: 'c02-block-anatomy' }] },
+    sequence: { name: 'The block and the stack', position: 2, of: 2, relationships: [{ type: 'deepens', card: 'c02-block-anatomy', direction: 'in' }] },
   },
 };
 
