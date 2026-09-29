@@ -12,6 +12,17 @@ import { perfMark } from './learn-perf.js';
 export default function NotebookBody({ block, onSelect, onDocument, onManifest }) {
   const frame = useRef(null);
   const [loaded, setLoaded] = useState(false);
+  // If the notebook site never answers (unreachable, or not deployed where
+  // this build points), say so after a while instead of "Starting Python..."
+  // forever; Retry reloads the frame.
+  const [stalled, setStalled] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (loaded) return;
+    setStalled(false);
+    const timer = setTimeout(() => setStalled(true), 30000);
+    return () => clearTimeout(timer);
+  }, [loaded, attempt]);
   const [files, setFiles] = useState(false);
   const [menu, setMenu] = useState(false);
   const [kind, setKind] = useState('notebook');
@@ -104,10 +115,19 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest }
         )}
       </div>
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-line">
-        <iframe ref={frame} data-notebook-frame title="Jupyter notebook" src={notebookUrl(workspaceIdFor(block.notebook_id))} className="h-full w-full bg-white"
+        <iframe key={attempt} ref={frame} data-notebook-frame title="Jupyter notebook" src={notebookUrl(workspaceIdFor(block.notebook_id))} className="h-full w-full bg-white"
           sandbox="allow-scripts allow-same-origin allow-downloads" allow="clipboard-write"
           onLoad={open} />
-        {!loaded && <p className="pointer-events-none absolute inset-0 grid place-items-center bg-white text-sm text-ink-2">Starting Python…</p>}
+        {!loaded && !stalled && <p className="pointer-events-none absolute inset-0 grid place-items-center bg-white text-sm text-ink-2">Starting Python…</p>}
+        {!loaded && stalled && (
+          <div data-notebook-stalled className="absolute inset-0 grid place-items-center bg-white p-6 text-center">
+            <div className="max-w-xs space-y-2 text-sm text-ink-2">
+              <p>The notebook couldn't start: its notebook site isn't answering from here.</p>
+              <button type="button" onPointerDown={event => event.stopPropagation()} onClick={() => setAttempt(value => value + 1)}
+                className="rounded-lg border border-line px-3 py-1.5 text-ink hover:bg-hover">Retry</button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
