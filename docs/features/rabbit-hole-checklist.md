@@ -244,3 +244,15 @@ schedule/watch dark-mode pills; rare picker keyboard cases.
 Future: Knowledge Capture v1 (not a work package; never delays WP6/WP7): CLI/session
 capture; decision and question extraction; code-node linking; provenance; permissions;
 retention and deletion. The WP6 knowledge-graph layers run on fixtures until it exists.
+
+Repository snapshot cleanup (never blocks WP6): 1. every active dev/review copy picks up
+1f21d70 or its equivalent; 2. verify no dev environment reads or writes
+`learn-repositories-dev/` in `small-runs`; 3. delete the two legacy objects there (byte-
+identical copies are in `small-repositories-dev`); 4. verify the Map still loads from
+`small-repositories-dev`. Until then the legacy objects stay.
+
+Learn media storage (owned by the Learn branch, not WP6): dev paper uploads, ask
+attachments and generated video/3D artifacts still write the live `small-runs` bucket.
+Split the bindings rather than repointing RUNS (App/Job pages read live outputs through it):
+LIVE_OUTPUTS stays on `small-runs`, LEARN_MEDIA points at a dev media bucket on review/dev.
+Invariant: a review clone creates no new Learn artifacts in production storage.
