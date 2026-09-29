@@ -733,7 +733,7 @@ After this card, the learner should understand that before every forward generat
 Staged: one pipeline, read top to bottom. The replay takes 1.8 s, with stages at 0, 0.6 and 1.2 s; at rest everything is drawn.
 
 **Header:**
-- y 30 (heading, 71 characters): 'What can the next prediction still use once generate() crops the text?'
+- y 30 (heading, 70 characters): 'What does the next prediction read once idx is longer than block_size?' (review fix: the crop acts on what the forward is handed, never on idx; batch decision 5's handed/reads)
 - Status lines (annotation, each 116 characters or fewer):
   1. 'Calculated toy example (counts over Tiny Shakespeare's training text; not NanoGPT, not the bigram): counts' (107). It names the model switch within the sequence.
   2. 'Live calculation: matches, p = count ÷ matches, most likely next · What-if: toy block_size 2 to 5, one table each'
@@ -748,9 +748,9 @@ Staged: one pipeline, read top to bottom. The replay takes 1.8 s, with stages at
 - Readouts in annotation at x 600, y 150-194:
   - '5 characters in idx · toy block_size {{k}}'
   - 'idx_cond (read): "for"'
-  - 'cropped, still in idx: "Be"'
+  - 'cropped from the prompt, still in idx: "Be"' (names the cropped characters as the prompt's, so 'prompt included' is drawn at every cropped state)
   - At k = 5: 'no crop: t <= block_size, idx_cond = idx'.
-- Rule line, body: 'generate() keeps only the last block_size characters of idx; older ones are cropped, prompt included.'
+- Rule line, body: 'The forward is handed only idx_cond, the last block_size characters of idx; the prompt is not exempt.'
 
 **2. The toy table's row for exactly idx_cond.**
 - A 1 × 6 grid, numberFormat 'integer', rowLabel 'count', columns e, sp, d, t, m, other; cell 70, y 270.
@@ -793,7 +793,7 @@ The scene is 960 × about 770, with about 29 objects.
 | 5 | Befor | [31, 0, 0, 0, 0, 0] | 31 | 100.00 0 0 0 0 0 | e |
 
 **Captions**, built from the fixture with toFixed(2):
-- **block_size 2:** 'Cropped: "Bef". After "or" a space leads (32.06%); e gets 13.48%.' / 'The e before "for" is cropped too, so nothing here points to e.'
+- **block_size 2:** 'Cropped: "Bef". After "or" a space leads (32.06%); e gets 13.48%.' / 'The e before "for" is cropped too, so e does not lead: it ranks fourth of the 6 columns.' (e is 13.48%, behind sp, other and d; the rank is computed from the fixture)
 - **block_size 3:** 'Cropped: "Be". After "for" a space leads (50.93%); e gets 16.13%.' / 'While the e before "for" is read (block_size 4), e leads with 87.37%: the crop removed what pointed to e.'
 - **block_size 4:** 'Cropped: "B". After "efor", e leads (87.37%): the e before "for" is still read.' / 'Crop that one e (block_size 3) and a space leads instead.'
 - **block_size 5:** 'No crop: all 5 characters are read; after "Befor", e followed in 31 of 31 matches.' / 'Once idx is longer than block_size, the oldest characters are cropped first.'
@@ -828,9 +828,9 @@ The scene is 960 × about 770, with about 29 objects.
 2. idx_cond = idx[:, −256:], which is idx positions 44–299: new characters 44–299.
 3. The prompt gets no exception.
 
-**feedbackPass:** 'Right. Before new character 300 is drawn, idx holds the newline and new characters 1–299: 300 characters, more than block_size = 256. So generate() keeps the last 256, new characters 44–299. The newline and new characters 1–43 stay in the printed text, but they cannot change this prediction. On the card the same rule crops "Be" from "Befor" at block_size 3.'
+**feedbackPass:** 'Right. Before new character 300 is drawn, idx holds the newline and new characters 1–299: 300 characters, more than block_size = 256. So the forward is handed only the last 256, new characters 44–299. The newline and new characters 1–43 stay in the printed text, but they cannot change this prediction. On the card, at block_size 3, the forward reads "for", not "Be".'
 
-**feedbackFail:** 'Not quite. Before new character 300 is drawn, idx holds 300 characters: the newline and new characters 1–299 (character 300 joins idx only when it is appended). That is more than block_size = 256, so generate() keeps only the last 256: new characters 44–299. Keeping all 300 ignores the crop. Keeping 1–255 keeps the wrong end, because the oldest characters go first. Keeping the newline treats the prompt as special, but it is cropped like any other character. 45–300 counts a character that has not been drawn yet.'
+**feedbackFail:** 'Not quite. Before new character 300 is drawn, idx holds 300 characters: the newline and new characters 1–299 (character 300 joins idx only when it is appended). That is more than block_size = 256, so the forward is handed only the last 256: new characters 44–299. Reading all 300 ignores the crop. Reading 1–255 takes the wrong end, because the oldest characters go first. Reading the newline treats the prompt as special, but it is cropped like any other character. 45–300 counts a character that has not been drawn yet.'
 
 **undrawn_case**
 
@@ -838,7 +838,7 @@ NanoGPT's own sampling run at shakespeare_char scale: sample.py's start '\n' (1 
 
 **Not on the card:**
 - It draws only a 5-character idx and toy block_size 2 to 5.
-- 44, 45, 255, 299, 300 and 500 appear on no state; a test asserts it.
+- 44, 45, 255, 300 and 500 are drawn on no state, grid and bar values included. 299 is drawn only as the block_size-3 count for other; it is in three of the five options, so it singles none out (44 separates them). A test asserts both, and that none of the six is in any visible text.
 - There is no prompt/generated split and no numbered new characters.
 - 256 appears only in the Source-value footer and status line 3.
 
@@ -940,7 +940,7 @@ The judge re-computed these values.
 - the idx text = the tokenizer slice;
 - matches prints as '7676' / '2431' / '388' / '31';
 - practice: t = 300, first kept = 44, five distinct options, exactly one equal to the last 256, and 'ahead' ends at n;
-- 44, 45, 255, 299, 300 and 500 appear in no visible text at any state.
+- 44, 45, 255, 299, 300 and 500 appear in no visible text at any state; among every drawn value (labels, tokens, grid and bar values) at every review state and the practice state, 44, 45, 255, 300 and 500 never appear and 299 only as the block_size-3 other count.
 
 There is no recorded run.
 
@@ -1037,7 +1037,7 @@ No new capability and no renderer primitive.
 5. **Word clash with c26.** Say block_size and 'front', never 'window length T'.
 6. **Practice off-by-one.** Options are built from g.sample and fx.architecture; tests check that they are distinct, that exactly one is the last 256, and that 'ahead' ends at n.
 7. **Rounding.** The block_size-3 row totals 100.01, and the legend covers it. Strings equal formatCell(live), and 4-digit matches print ungrouped.
-8. **State clarity.** Only one prediction state exists (the most-likely highlight). 'cropped' reads as still in idx: bracket above the row, readout 'cropped, still in idx'. 'other' is a pooled bucket with a legend and neutral style.
+8. **State clarity.** Only one prediction state exists (the most-likely highlight). 'cropped' reads as still in idx: bracket above the row, readout 'cropped from the prompt, still in idx'. 'other' is a pooled bucket with a legend and neutral style.
 9. **Pixels.** Brackets on opposite sides; readouts clear of the '→ ?' slot. Screenshot all 4 reviewStates from a clean browser.
 
 ## c22 · Top-k: truncating the distribution
@@ -1076,7 +1076,7 @@ One staged pipeline. The replay reveals it over about 1.6 s; at rest everything 
 3. **The cut** (:322): every logit strictly below v_k becomes −∞. '−∞' chips appear under the cut cells; a tie would survive (the toy has none).
 4. **Softmax** (:324):
    - ② the uncut p, the fixed reference;
-   - ③ p after top-k, with cut cells blank (exactly 0) and each survivor = its uncut p ÷ the kept mass;
+   - ③ softmax after cut (p after top-k), with cut cells blank (exactly 0) and each survivor = its uncut p ÷ the kept mass;
    - bars of ③, where a cut candidate has no bar.
 5. **Consequence** (:326): multinomial draws in proportion to p, so a blank candidate is never drawn. This is a per-k caption; no draws are recorded.
 
@@ -1097,7 +1097,7 @@ What-if objects have no appear.
 
 There is also a hidden bool 'revealed' (default false), owned by the practice (c14 pattern).
 
-**Layout** (960 × about 700; cell 59 so the '−∞' chips sit under their cells, as with deep.js CELL / MARK_SHIFT).
+**Layout** (960 × 721, the padded content at scale 1; cell 59 so the '−∞' chips sit under their cells, as with deep.js CELL / MARK_SHIFT).
 
 Header at x 40:
 - y 30, heading (68 characters): 'When top-k cuts the smaller logits, where does their probability go?'
@@ -1107,37 +1107,40 @@ Header at x 40:
 Rows (names at x 40 in caption type, data at x 200):
 - ① logits (T = 1.0): grid at y 120, cellHighlight = keptIdx (kind 'highlight'), with a tokenStyle 'labels' row of '−∞' chips at y 181;
 - ② p, no cut: y 236;
-- ③ p after top-k: y 312, null cells drawn as the blocked band (c11).
+- ③ softmax after cut: y 312, null cells drawn as the blocked band (c11).
 
-② and ③ have fixed [0, 1] heat and distribution: true.
+② and ③ have fixed [0, 1] heat, and each cell rounds its own p to 2 decimals (no distribution: true). So ② prints .60 .22 .08 .05 .03 .01 and totals 0.99, as ③ does at k = 5 and 6 (the first footer line says a row can total 0.99). Review fix: sum-to-1.00 rounding printed z's 0.6048 as 0.61, so at k = 2 ② 0.61 ÷ 0.827 = 0.74 sat beside ③'s 0.73, and at k = 5 z stayed 0.61 while e rose 0.22 → 0.23, as if the cut went to a lower survivor. distribution: true stays on the What-if row and the bars (bars print no numbers).
 
 Bars of ③: y 390, h 120, peak 1.
 
 What-if band: about y 550-610.
 
 Static footer at x 40 (annotation, 116 characters or fewer):
-1. 'A blank cell is exactly 0 and can never be drawn; a .00 cell (the temperature card) is only rounded.'
-2. 'Source value: generate() cuts nothing by default (top_k = None); sample.py sets 200, above all 65 characters.' 200 and 65 are JS literals from the fixtures.
+1. 'A blank cell is exactly 0, never drawn; a .00 cell (the temperature card) is only rounded, so a row can total 0.99.'
+2. 'Source value: generate() cuts nothing by default (top_k = None); the sampler sets 200, above all 65 characters.' 200 and 65 are JS literals from the fixtures; no file name on the card.
 3. Last, below the What-if band: 'Shown largest first; NanoGPT keeps vocabulary order and compares each logit with v_k (a tie with v_k survives).'
 
-Readouts at x 580 (body, 41 characters or fewer, as templates and filled):
-- 'top_k = {{kValue}} · v_k = {{vk}}'
+Readouts at x 572 (body, 41 characters or fewer, as templates and filled; every filled line ends inside the widest static footer, so the frame never moves):
+- 'top_k = {{kValue}} · v_k = {{vk}}' (v_k printed as its ① cell, e.g. 2.00, so it never reads as k)
 - 'v_k = the {{kth}} largest logit'
 - '{{kLine}}'
 - '{{keptCount}} of 6 can be drawn'
-- 'cut: {{cutNames}}, which held {{cutMass}}'
+- 'cut: {{cut}}, which held {{cutMass}}'
 - 'kept: {{keptNames}} held {{keptMass}}'
 
-Annotations at x 580:
-- 'new p = old p ÷ {{keptMass}}: same ratios'
+Annotations at x 572 (review fix: 'new p = old p ÷ {{keptMass}}: same ratios' could not be checked against 2-decimal cells, so the rule is printed where it can be):
+- '{{factorLine}}': 'every kept p × 1.209 (= 1 ÷ 0.827)' at k = 2, the common factor to 3 decimals;
+- '{{oldNew}}': 'z 0.6048 → 0.7311 · e 0.2225 → 0.2689' at k = 2, z's and e's p before and after to 4 decimals ('e … → 0, cut' at k = 1);
 - '{{consequence}}'
+
+No derive op divides, so the factor and the 4-decimal pairs are built in the module per k from the same softmax op; old p × the factor matches new p within 0.001.
 
 The per-k strings:
 
 | | k 1 | k 2-5 | k 6 |
 |---|---|---|---|
 | kLine | every logit below v_k → −∞ | every logit below v_k → −∞ | nothing is below v_k: no cut |
-| consequence | only z is left: every draw is z (greedy) | cut ones: p exactly 0, never drawn | ③ equals ②: nothing is cut |
+| consequence | only z is left: every draw is z (greedy) | softmax: −∞ → p exactly 0, never drawn | ③ = ②; sp’s bar: a 0.01 sliver, not cut |
 
 **States:**
 
@@ -1147,8 +1150,10 @@ The per-k strings:
 | 2 | 2 | 0.827 | 0.173 | .73 .27 |
 | 3 | 1 | 0.909 | 0.091 | .67 .24 .09 |
 | 4 | 0.5 | 0.959 | 0.041 | .63 .23 .09 .05 |
-| 5 | 0 | 0.989 | 0.011 | .61 .23 .08 .05 .03 |
-| 6 | −1 | 1 | 0 | = ② |
+| 5 | 0 | 0.989 | 0.011 | .61 .22 .08 .05 .03 |
+| 6 | −1 | 1 | 0 | = ② (.60 .22 .08 .05 .03 .01) |
+
+Each ③ cell is rounded on its own; the factor is 1.653, 1.209, 1.100, 1.043, 1.011, 1.000.
 
 **What it reveals:** the cut mass goes to the survivors in proportion (p(z)/p(e) = e ≈ 2.72 at every k ≥ 2), and the cut ones drop to exactly 0. k = 1 is the greedy case, which c21 says temperature does not reach.
 
@@ -1181,7 +1186,7 @@ The per-k strings:
 **Reveal** (additive, no appear):
 - row name 'What-if (k = 2)', with opacity choose(revealed, 1, 0);
 - a 1×6 grid, values gate(softmax(whatIfMasked), revealed) = [.75, .25, blank × 4];
-- two captions at x 580 via choose(revealed, line, ' '): 'before: 0.45, 0.15 · 0.40 cut' and 'each ÷ 0.60 → 0.75, 0.25 (3 : 1 kept)'.
+- two captions at x 572 via choose(revealed, line, ' '): 'other model’s p: 0.45, 0.15 · 0.40 cut' (review fix: it names itself another model, not z … sp) and 'each ÷ 0.60 → 0.75, 0.25 (3 : 1 kept)'.
 
 **undrawn_case**
 
@@ -1189,12 +1194,12 @@ The distribution 0.45, 0.15, 0.13, 0.11, 0.10, 0.06 cut to top_k = 2: survivors 
 
 **Not on the card before a committed attempt:**
 - The distribution appears only in the prompt.
-- No cell, readout or caption at any k shows 0.45, 0.15, 0.60, 0.40, 0.75, 0.25, 0.65, 0.35 or 0.85. A test asserts this at every preset with revealed false.
+- No cell, readout or caption at any k shows 0.45, 0.15, 0.60, 0.40, 0.75, 0.25, 0.65, 0.35 or 0.85, with one exemption: z's own uncut p, 0.6048, prints 0.60 in ② at every k and in ③ at k = 6, because each cell rounds on its own (see Layout). It is z's p on this card, not the What-if's kept mass, and it matches no option. Every other 0.60, and every other listed number in any cell or text, fails. A test asserts this at every preset with revealed false.
 - The What-if values are gated to null and its captions are blank.
 
-**Why it needs the rule:** 'new p = old p ÷ kept mass' is shown only on the card's own six numbers.
+**Why it needs the rule:** 'every kept p × 1 ÷ the kept mass' is shown only on the card's own six numbers (the factor line and z's and e's p before and after).
 
-**Why the picture misleads:** 'the cut mass goes to the survivors' fits three wrong answers. z's absolute gain at k = 2 (+0.126) dwarfs e's (+0.047), which invites 'the top takes it'.
+**Why the picture misleads:** 'the cut mass goes to the survivors' fits three wrong answers. z's absolute gain at k = 2 (+0.126) dwarfs e's (+0.046), which invites 'the top takes it'.
 
 **boundary_decision**
 
@@ -1257,8 +1262,11 @@ masked(k) = logits.map(x => x < vk ? null : x)
 - keptIdxByK, cutMarksByK
 - keptNamesByK, cutNamesByK
 - kLineByK, consequenceByK
+- logitTexts (v_k as its ① cell prints it)
+- factorLineByK, oldNewByK (built per k from the same softmax op; see Annotations)
 - one = [1]
 - whatIfLogits, whatIfMasked
+- wBefore, wAfter, blank (the What-if captions and their blank)
 
 **Source values as JS literals at load:**
 - 200 = g.sample.top_k.value (sample.py:18);
@@ -1269,7 +1277,7 @@ masked(k) = logits.map(x => x < vk ? null : x)
 - masked and keep by pick;
 - pAll = softmax(logits); pCut = softmax(masked), null-aware (scene-derive.js:106-125);
 - keptMass = dot(pAll, keep); cutMass = pick(sub(one, concat(keptMass)), 0); keptCount = sum(keep);
-- vk, kth, names, keptIdx, cutMarks, kLine and consequence by pick;
+- vk, kth, names, keptIdx, cutMarks, kLine, consequence, factorLine and oldNew by pick;
 - pWShown = gate(softmax(whatIfMasked), revealed);
 - whatIfOp and the What-if lines by choose.
 
@@ -1286,7 +1294,8 @@ masked(k) = logits.map(x => x < vk ? null : x)
 - p(z)/p(e) is invariant for k ≥ 2;
 - softmax(ln p') = p';
 - the options are distinct and 'proportional' is expected;
-- no answer number appears in visible text or cells with revealed false, and the What-if values are null and its captions blank;
+- no answer number appears in visible text or cells with revealed false (z's own 0.60 cell exempt, see undrawn_case), and the What-if values are null and its captions blank;
+- the printed numbers obey the printed rule: the factor line divides by the printed kept mass, z's and e's 4-decimal old p ÷ kept mass and × factor land within 0.001 of new p, and no drawn cell leaves a survivor unchanged while a lower one rises;
 - the static bounds equal the revealed bounds;
 - pinnedFile checks of model.py 306, 318, 320-322, 324 and 326, and sample.py 18;
 - assertCardGates over 6 presets × revealed, plus assertCardPlan, assertSources and assertEvidence.
@@ -1301,7 +1310,7 @@ No new renderer primitive, no new derive op and no shared change. The compare ag
 - an index slider plus a hidden-bool revealInput (c14);
 - a derived cellHighlight list;
 - a '−∞' labels row at pitch 59;
-- fixed [0, 1] heat with distribution: true on rows with nulls;
+- fixed [0, 1] heat; ② and ③ round each cell on its own, and distribution: true is only on the What-if row and the bars;
 - bars with peak 1;
 - a choice practice with fixedInputs;
 - What-if values gated and text choose()d (c14-mlp.js:81-86).
@@ -1310,7 +1319,7 @@ No new renderer primitive, no new derive op and no shared change. The compare ag
 
 **Sources:** no 'What-if' calculation source, because assertSources checks the default state; p' is described under 'Calculated toy example'.
 
-**Budget:** about 27 of 60 objects.
+**Budget:** 30 of 60 objects.
 
 **overlap_check**
 
@@ -1365,3 +1374,4 @@ The shared facts (200 ≥ 65, greedy at k = 1) appear once each.
 6. **Multinomial wording.** Keep it to 'p = 0 cannot be drawn'.
 7. **Default k = 2 shows two survivors;** k = 3 to 5 show the ratio across more.
 8. **Placement.** c22 sits far from c21 (batch-1 order is frozen) and after the Generation context path. The link rests on the Builds-on line, plan.prerequisites and the plan doc.
+9. **Rounding differs from c21 (owner tradeoff, routed to NC9).** ② is c21's T = 1.0 row, but c21 (frozen) keeps distribution: true and prints z's 0.6048 as 0.61, while ② rounds each cell on its own and prints 0.60 (the Layout review fix). The first footer line says a row can total 0.99. c21 is not reopened; whether the two cards should print the same cell is an NC9 coherence item, like c26's checkpoint.

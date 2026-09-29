@@ -19,6 +19,12 @@ sample.py's settings (start, temperature
 generate_fixtures pins it). Toy choices: BLOCK,
 PROMPT, STEPS, the Guided temperature presets and the extra top-k values.
 
+window (c23-context-window): separate counting tables, one per toy block_size
+2 to 5, each read at the last k characters of WINDOW_TEXT (the opening of the
+dataset's line 2): how often each character followed exactly those k
+characters in the training split. Toy choices: WINDOW_TEXT, WINDOW_BLOCKS and
+the shown WINDOW_SLOTS (every remaining character is 'other').
+
 Regenerate:   python gen_generation.py
 Verify only:  python gen_generation.py --check
 """
@@ -42,6 +48,9 @@ DRAWS = 20
 GUIDED_TEMPERATURES = [0.25, 0.5, 0.8, 1.0, 1.5, 2.0]
 EXTRA_TOP_KS = [1, 3]  # beside generate()'s None and sample.py's 200
 SHOW = 5              # Overview bars: the five most likely next characters
+WINDOW_TEXT = 'Befor'             # c23: the text idx holds
+WINDOW_BLOCKS = [2, 3, 4, 5]      # c23: one toy block_size per What-if preset
+WINDOW_SLOTS = ['e', ' ', 'd', 't', 'm']
 
 
 def show(c):
@@ -99,6 +108,29 @@ def distribution(counts, vocab_size, temperature, top_k):
     e = [math.exp(z - m) if k else 0.0 for z, k in zip(logits, keep)]
     s = sum(e)
     return chars, [x / s for x in e], keep
+
+
+def context_window(text, train, counts):
+    """c23: for each k in WINDOW_BLOCKS, count train[i+k] wherever
+    train[i:i+k] is the last k characters of WINDOW_TEXT."""
+    assert text.split('\n')[1].startswith(WINDOW_TEXT) and WINDOW_TEXT in train
+    windows, rows, matches = [], [], []
+    for k in WINDOW_BLOCKS:
+        w = WINDOW_TEXT[-k:]
+        hits = [train[i + k] for i in range(len(train) - k) if train[i:i + k] == w]
+        c = collections.Counter(hits)
+        if k == BLOCK:
+            assert c == counts[w], 'block-3 row differs from the BLOCK table'
+        assert set(sorted(c, key=lambda ch: (-c[ch], ch))[:3]) <= set(WINDOW_SLOTS), f'top 3 after {w!r} not shown'
+        row = [c[s] for s in WINDOW_SLOTS] + [sum(v for ch, v in c.items() if ch not in WINDOW_SLOTS)]
+        assert sum(row) == len(hits)
+        windows.append(w)
+        rows.append(row)
+        matches.append(len(hits))
+    return {'text': WINDOW_TEXT, 'blocks': WINDOW_BLOCKS, 'windows': windows,
+            'cropped': [WINDOW_TEXT[:-k] for k in WINDOW_BLOCKS],
+            'slots': [{' ': 'sp'}.get(s, s) for s in WINDOW_SLOTS] + ['other'],
+            'counts': rows, 'matches': matches}
 
 
 def build():
@@ -178,6 +210,7 @@ def build():
         'overview': {'temperature': gen['temperature'], 'topK': gen['top_k'], 'steps': steps},
         'guided': {'draws': DRAWS, 'presets': presets},
         'deep': {'temperatures': temps, 'topKs': top_ks, 'kept': kept, 'draws': draws},
+        'window': context_window(text, train, counts),
     }
 
 

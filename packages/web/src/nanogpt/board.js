@@ -25,6 +25,10 @@ import * as positionMixing from './cards/c05-position-mixing.js';
 import * as mlp from './cards/c14-mlp.js';
 import * as trainingObjective from './cards/c26-training-objective.js';
 import * as gradientStep from './cards/c19-gradient-step.js';
+import * as generationLoop from './cards/c24-generation-loop.js';
+import * as conditioning from './cards/c25-autoregressive-conditioning.js';
+import * as contextWindow from './cards/c23-context-window.js';
+import * as topK from './cards/c22-top-k.js';
 
 export const NANOGPT_FIRST_BATCH = [
   forwardPass, tokenizer, residual, multiHead, layerNorm,
@@ -48,6 +52,9 @@ export const NANOGPT_LATER_BATCHES = [
   // card of batch 3, so the pair sits together); then "Training fundamentals"
   // (c26 -> c19), linked to the frozen c16, c18, c17 and c20 by relationships.
   [mlp, trainingObjective, gradientStep],
+  // Batch 5 (section 13): sequence "Generation context" - c24 -> c25 -> c23
+  // (linked to the frozen c01 and c21 by relationships) - then c22, standalone.
+  [generationLoop, conditioning, contextWindow, topK],
 ];
 
 // The input states each later card is reviewed in (every card exports them).

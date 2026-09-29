@@ -14,7 +14,14 @@ get_lr, executed from the pinned file.
                        position of one training word and one held-out word;
              objective: p and -ln p for each position of one training window
                        at the last checkpoint, and e^mean by window length
-                       (src/nanogpt/cards/c26-training-objective.js).
+                       (src/nanogpt/cards/c26-training-objective.js);
+             generation: generate() replayed on the bigram at the checkpoint
+                       train.py's save rule keeps, with sample.py's settings,
+                       from its start and from 'ROMEO:'
+                       (src/nanogpt/cards/c24-generation-loop.js);
+             conditioning: p(next | prev) at that checkpoint for four
+                       previous characters, on one shared set of columns
+                       (src/nanogpt/cards/c25-autoregressive-conditioning.js).
   calculated - points on the curve -ln p (the card has no log op).
   source   - deep: both shipped configs resolved as train.py resolves them
              (config/train_shakespeare_char.py on one GPU; config/train_gpt2.py
@@ -29,11 +36,13 @@ Verify only:  python gen_training_loss.py --check
 import json
 import math
 import os
+import random
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '..', '..', 'fixtures'))
 import generate_fixtures as base  # noqa: E402
+import gen_generation  # noqa: E402  (same directory: sample.py's settings, parsed as the generation cards parse them)
 
 OUT = os.path.join(HERE, 'training-loss.generated.js')
 BASE_OUT = os.path.join(HERE, '..', '..', 'fixtures', 'nanogpt-fixtures.generated.js')
@@ -47,6 +56,11 @@ GPT2_WORLD_SIZE = 8  # config/train_gpt2.py:3 launches torchrun --nproc_per_node
 OVERVIEW = {'context': 'First Citiz', 'target': 'e', 'stops': [0, 50, 200, 1000]}
 WORDS = [('train', 'Citizen'), ('held-out', 'morrow,')]
 OBJECTIVE = 'Before we'  # c26's window, at the last checkpoint
+PASSES = 8  # c24: the drawn staircase stops at pass 8
+PRACTICE = ('ROMEO:', 5)  # c24: sample.py --start, and the pass the practice asks about
+# c25: previous character -> two training-slice texts that end in it
+CONDITIONING = [('e', ['Before we', 'hear me']), (' ', ['Before we ', 'hear me ']),
+                ('h', ['to famish', 'this with']), (',', ['further,', 'Speak,'])]
 CURVE_P = [0.00013, 0.0004, 0.0015, 0.005, 0.012, 0.025, 0.05, 0.09, 0.15, 0.24, 0.36, 0.5, 0.7, 1.0]
 
 
@@ -82,6 +96,34 @@ def recorded_run(text, train_src, cfg):
     finally:
         base.r = plain_r
     return run, snapshots
+
+
+def kept_checkpoint(checkpoints, train_src, cfg):
+    """The iteration whose weights ckpt.pt holds at the end (train.py:274-276)."""
+    assert 'best_val_loss = 1e9' in train_src
+    assert "if losses['val'] < best_val_loss or always_save_checkpoint:" in train_src
+    best, kept = 1e9, None
+    for c in checkpoints:
+        if c['val'] < best or cfg['always_save_checkpoint']:
+            best = c['val']
+            if c['iteration'] > 0:
+                kept = c['iteration']
+    return kept
+
+
+def replay(W, chars, start, passes, sample):
+    """generate() (model.py:312-328) on the bigram: the forward reads only the
+    last character of idx; / temperature; top-k; softmax; one draw
+    (random.Random(seed).choices standing in for torch.multinomial); append."""
+    stoi = {ch: i for i, ch in enumerate(chars)}
+    assert sample['top_k']['value'] >= len(chars)  # min(200, 65): top-k keeps every logit
+    rng, idx, drawn = random.Random(sample['seed']['value']), [stoi[ch] for ch in start], []
+    for _ in range(passes):
+        probs = base.softmax([x / sample['temperature']['value'] for x in W[idx[-1]]])
+        nxt = rng.choices(range(len(chars)), weights=probs)[0]
+        idx.append(nxt)
+        drawn.append(chars[nxt])
+    return drawn
 
 
 def recorded(text, train_src, cfg):
@@ -144,8 +186,44 @@ def recorded(text, train_src, cfg):
         'loss': losses,
         'pplByT': [f'{math.exp(m):.2f}' for m in means],
     }
+    # c24 and c25: the checkpoint train.py's save rule leaves in ckpt.pt, which sample.py loads.
+    kept = kept_checkpoint(run['checkpoints'], train_src, cfg)
+    assert kept == fixture['toyRun']['checkpoints'][fixture['toyRun']['bestValIndex']]['iteration']
+    sample = {k: v for k, v in gen_generation.top_level_constants(base.nanogpt('sample.py')).items()
+              if k in ('start', 'max_new_tokens', 'temperature', 'top_k', 'seed')}
+    start = sample['start']['value']
+    generation = {  # sample.py --start re-seeds, so each start gets a fresh Random(seed)
+        'checkpoint': kept, 'start': start, 'drawn': replay(snaps[kept], chars, start, PASSES, sample),
+        'practice': {'start': PRACTICE[0], 'pass': PRACTICE[1],
+                     'drawn': replay(snaps[kept], chars, PRACTICE[0], PRACTICE[1], sample)},
+        'settings': sample,
+    }
+    rows = {prev: base.softmax(snaps[kept][stoi[prev]]) for prev, _ in CONDITIONING}
+    # Columns: the union of each preset's top 3 among the characters that followed it in the
+    # training slice - after ',' only ' ' did, and the rest of that row is init noise.
+    tops = {chars[j] for prev, row in rows.items()
+            for j in sorted({b for a, b in zip(tr, tr[1:]) if a == stoi[prev]}, key=lambda j: -row[j])[:3]}
+    columns = sorted(tops, key=stoi.get)
+    texts = dict(CONDITIONING)
+    assert texts[' '] == [t + ' ' for t in texts['e']]
+    presets = []
+    for prev, pair_texts in CONDITIONING:
+        row = rows[prev]
+        assert abs(sum(row) - 1) < 1e-9
+        argmax = chars[max(range(len(chars)), key=row.__getitem__)]
+        assert argmax in columns
+        pairs = sum(1 for a, _ in zip(tr, tr[1:]) if a == stoi[prev])
+        assert pairs >= 14, (prev, pairs)
+        assert min(row[stoi[ch]] for ch in columns) >= 5e-5
+        for t in pair_texts:
+            assert t in train_slice and t.endswith(prev), t
+        shown_p = [base.r(row[stoi[ch]], 6) for ch in columns]
+        presets.append({'prev': prev, 'pairs': pairs, 'p': shown_p, 'rest': base.r(1 - sum(shown_p), 6),
+                        'argmax': argmax, 'texts': [{'text': t, 'at': train_slice.index(t)} for t in pair_texts]})
+    conditioning = {'iteration': kept, 'columns': columns, 'presets': presets}
     return {'iterations': iterations, 'overview': overview, 'words': words,
-            'uniformLoss': base.r(math.log(len(chars)), 4), 'objective': objective}
+            'uniformLoss': base.r(math.log(len(chars)), 4), 'objective': objective,
+            'generation': generation, 'conditioning': conditioning}
 
 
 def configs(train_src, text):

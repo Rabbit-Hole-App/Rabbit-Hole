@@ -20,7 +20,8 @@ NC7  NanoGPT cards 11–26                 🟡
                                             batch 5 (c22, c23, c24, c25) in progress
 NC8  Cross-depth content transitions     ⬜
 NC9  Curriculum coherence review         ⬜ (open items: is "how scores are produced", q·k, thin?;
-                                            should c26 name its iteration-1000 checkpoint next to c25's 100?)
+                                            should c26 name its iteration-1000 checkpoint next to c25's 100?;
+                                            c22 rounds each cell (z 0.60) where c21 rounds to sum 1 (z 0.61))
 NC10 Final card QA                       ⬜
 ──── after NC10 ────
 Adaptive Tutor v1                        ⬜ handoff milestone, not implemented here
