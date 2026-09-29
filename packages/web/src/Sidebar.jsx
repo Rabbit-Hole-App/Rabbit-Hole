@@ -731,13 +731,15 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           >
             Copy link
           </MenuItem>
-          {a.canEdit && !isLearnResource(a) && (
+          {a.canEdit && !isLearnResource(a) && !learnPreview && ( // D7: rename writes the live D1
             <MenuItem icon={Pencil} onClick={() => { setMenuFor(null); setRenamingApp({ from: a.name, value: a.name }); }}>
               Rename
             </MenuItem>
           )}
           {a.hosting !== 'aws' && !isLearnResource(a) && <MenuItem
             icon={Copy}
+            disabled={learnPreview} // D7: duplicate and trash write the live D1
+            className={learnPreview ? 'opacity-50' : undefined}
             onClick={async () => {
               setMenuFor(null);
               try {
@@ -750,7 +752,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             Duplicate
           </MenuItem>}
           {a.hosting !== 'aws' && !isLearnResource(a) && a.owner_email === email && (
-            <MenuItem icon={Trash2} className="text-danger" onClick={() => { setMenuFor(null); setConfirmDel(a.name); }}>
+            <MenuItem icon={Trash2} disabled={learnPreview} className={cn('text-danger', learnPreview && 'opacity-50')} onClick={() => { setMenuFor(null); setConfirmDel(a.name); }}>
               Move to Trash
             </MenuItem>
           )}

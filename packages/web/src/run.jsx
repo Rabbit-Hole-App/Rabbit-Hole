@@ -247,6 +247,7 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
   }, [prefill, app.name]);
 
   const submit = async () => {
+    if (learnPreview) return; // D7: the preview never starts a live run, from any caller (app page, Library panel)
     const errs = {};
     for (const [k, spec] of entries) {
       const e = validateOne(spec, values[k], files[k]);
@@ -287,6 +288,7 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
   };
 
   const submitBatch = async () => {
+    if (learnPreview) return; // D7, as submit
     // shared fields validate as usual; the batch field validates per row
     const spec = schema[batchField];
     const errs = {};
@@ -419,7 +421,7 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
         </dl>
       </section>}
       <div className={cn('flex items-center gap-3', entries.length && 'pt-4')}>
-        <Button variant="primary" disabled={busy || (batchField && !batchValues.length)} onClick={batchField ? submitBatch : submit}>
+        <Button variant="primary" disabled={learnPreview || busy || (batchField && !batchValues.length)} onClick={batchField ? submitBatch : submit}>
           {busy ? <Loader2 size={16} strokeWidth={1.5} className="animate-spin" /> : <Play size={16} strokeWidth={1.5} />}
           {batchField ? `Run batch (${Math.min(batchValues.length, BATCH_MAX)})` : 'Run'}
         </Button>

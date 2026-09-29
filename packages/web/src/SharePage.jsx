@@ -817,10 +817,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
 
               {app.kind === 'job' && (
                 <TabsContent value="run" className="pt-5">
-                  {/* D7: the preview never starts a live run */}
-                  {learnPreview
-                    ? <fieldset disabled className="min-w-0"><RunForm app={app} prefill={prefill} onStarted={(id) => { setPeek(id); load(); }} onBatchStarted={() => { setTab('logs'); load(); }} /></fieldset>
-                    : <RunForm app={app} prefill={prefill} onStarted={(id) => { setPeek(id); load(); }} onBatchStarted={() => { setTab('logs'); load(); }} />}
+                  <RunForm app={app} prefill={prefill} onStarted={(id) => { setPeek(id); load(); }} onBatchStarted={() => { setTab('logs'); load(); }} />
                 </TabsContent>
               )}
 

@@ -1842,8 +1842,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await pickNode(page);
     await page.locator('[data-map-panel]').getByRole('button', { name: 'Learn this' }).click();
     await page.waitForURL(/[?]tab=learn$/);
-    await page.locator('[data-learn-context]').getByText('From Map: CausalSelfAttention').waitFor({ timeout: 30000 });
+    await page.getByText(/^Asking about: CausalSelfAttention/).first().waitFor({ timeout: 30000 }); // Learn's own pill: it shows only what Learn sends (LearnPage.jsx:310,897)
     await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 }); // Learn's composer mounts just after the frame
+    must(await page.locator('[data-learn-context]').count() === 0, 'a second context label beside Learn');
     must(await isSelected(ptab(page, 'Learn')) && await composers(page) === 1 && await barOf(page).count() === 0, 'not the project Learn frame');
     await ptab(page, 'Overview').click();
     await barOf(page).locator('[data-scope-chip="resource"]').waitFor({ timeout: 10000 });
@@ -1853,7 +1854,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await barInput(page).fill('/teach this');
     await barInput(page).press('Enter');
     await page.waitForURL(/[?]tab=learn$/);
-    await page.locator('[data-learn-context]').getByText('From Map: CausalSelfAttention').waitFor({ timeout: 30000 });
+    await page.getByText(/^Asking about: CausalSelfAttention/).first().waitFor({ timeout: 30000 });
     must(await page.evaluate(() => sessionStorage.getItem('small.learn.request')) === null && asks === 0, 'a Learn request or ask was sent');
     await page.context().close();
   });
@@ -1941,6 +1942,52 @@ await check('build: the browser runs the dist-dev entry script', async () => {
         must((await page.locator(top).first().boundingBox()).y >= 40, `${path}: ${top} sits under the top strip`);
       }
     } finally { await drop6(page, c.name); await page.context().close(); }
+  });
+
+  if (job) await check('wp6-library-d7: on the preview the Library Run panel cannot start a live run and its runbook is read-only; a pinned job offers no live Rename, Duplicate or Trash; only GETs reach /api', async () => {
+    const page = await open(), writes = writes6(page);
+    await loaded(page, '/library?type=apps');
+    await page.evaluate(([k, v]) => localStorage.setItem(k, v), [`small.pinned:${data.org}:${email}`, JSON.stringify([job.name])]);
+    await loaded(page, '/library?type=apps');
+    const row = page.locator('tbody tr').filter({ hasText: job.name }).first();
+    await row.waitFor({ timeout: 20000 });
+    await row.hover();
+    await row.getByRole('button', { name: 'Run', exact: true }).click();
+    const run = page.getByRole('tabpanel').getByRole('button', { name: /^Run( batch)?/ }).first();
+    await run.waitFor({ timeout: 20000 });
+    must(await run.isDisabled(), 'the Library panel Run is enabled');
+    await page.getByRole('tab', { name: 'Runbook', exact: true }).click();
+    await page.waitForTimeout(2000);
+    must(await page.getByRole('tabpanel').locator('[contenteditable="true"]').count() === 0, 'the panel runbook is editable');
+    await page.keyboard.press('Escape');
+    const pinned = page.locator('aside').getByRole('region', { name: 'Pinned' }).locator('.group\\/r').filter({ hasText: job.name }).first();
+    await pinned.hover();
+    await pinned.getByTitle('More').click();
+    must(await page.getByRole('button', { name: 'Rename', exact: true }).count() === 0, 'Rename is offered');
+    for (const name of ['Duplicate', 'Move to Trash']) { const b = page.getByRole('button', { name, exact: true }); if (await b.count()) must(await b.isDisabled(), `${name} is enabled`); }
+    must(!writes.length, `writes: ${writes.join(', ')}`);
+    await page.context().close();
+  });
+
+  if (ready) await check('wp6-show-on-graph: a graph answer on Overview stays on Overview; Show on graph opens the Map with that answer', async () => {
+    const page = await open();
+    await loaded(page, `/apps/${ready.name}`);
+    await barOf(page).locator('[data-scope-chip="resource"]').waitFor({ timeout: 20000 });
+    const snap = (await api6(page, `/api/repositories/${ready.name}/snapshot`)).data;
+    const node = snap.graph.nodes.find((n) => n.label === 'CausalSelfAttention') || snap.graph.nodes[0];
+    const view = { id: 'g-wp6', commit: snap.commit, kind: 'explain_symbol', title: node.label, nodes: [{ ...node, commit: snap.commit }], edges: [] };
+    const sse = [['chunk', { text: 'It is defined in model.py.' }], ['graph', view], ['done', {}]].map(([t, d]) => `event: ${t}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+    await page.route('**/api/learn/ask', (r) => r.fulfill({ status: 200, contentType: 'text/event-stream', body: sse })); // no model call
+    await barInput(page).fill('Where is attention defined?');
+    await barInput(page).press('Enter');
+    const sheet = page.locator('[data-result-sheet]');
+    await sheet.getByText('It is defined in model.py.').waitFor({ timeout: 10000 });
+    await page.waitForTimeout(800);
+    must(await isSelected(ptab(page, 'Overview')), 'a graph answer left Overview on its own');
+    await sheet.getByRole('button', { name: 'Show on graph' }).click();
+    await page.waitForURL(/[?]tab=map$/, { timeout: 10000 });
+    await page.locator('[data-map-panel]').getByText('It is defined in model.py.').waitFor({ timeout: 10000 });
+    await page.context().close();
   });
 
   // Checks from Tasks 1-11 go here, in task order.

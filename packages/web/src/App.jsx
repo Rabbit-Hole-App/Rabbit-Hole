@@ -525,7 +525,7 @@ function AppContent({ data, load }) {
                             {a.kind === 'job' ? (
                               live ? (
                                 <PillButton
-                                  disabled={live === 'starting'}
+                                  disabled={learnPreview || live === 'starting'} // D7: the preview never stops a live run
                                   title="Stop this run"
                                   onClick={(e) => { e.stopPropagation(); stopRun(live); }}
                                 >
