@@ -77,14 +77,15 @@ test('each tool or narrowed intent names exactly its allowed primitives; open in
 });
 
 test('paid primitives always confirm and carry no guessed cost', () => {
-  for (const id of ['image_generate', 'video_generate', 'maths_animation', 'blender_scene']) {
+  for (const id of ['image_generate', 'video_generate', 'maths_animation', 'blender_scene', 'narration']) {
     assert.deepEqual(primitive(id), { id, paid: true, needsConfirm: true, estimatedCost: undefined });
   }
   assert.deepEqual(primitive('image'), { id: 'image', paid: false, needsConfirm: false });
   assert.deepEqual(learnRequest('image').paid, ['image_generate']);
   assert.deepEqual(learnRequest('animate').paid, ['maths_animation']);
   assert.deepEqual(learnRequest('3d', { args: 'a transformer block' }).paid, ['blender_scene']);
-  assert.deepEqual(learnRequest('explain').paid, []);
+  assert.deepEqual(learnRequest('explain').paid, ['narration']); // fish.audio narration is paid (user, via the Learn branch)
+  assert.deepEqual(learnRequest('code').paid, []);
 });
 
 test('notebook, whiteboard, paper, source and more are deterministic: no model', () => {
