@@ -24,6 +24,9 @@ const TOP_NAME = shownOf(T.display[TOP]);
 const VOCAB = fx.tokenizer.tokenizers.find(t => t.id === 'char').vocabSize;
 // What a grid's cells print, by the renderer's rule (as c22's test reads it).
 const shownCells = object => (object.distribution ? distributeRounding(object.values, 2) : object.values).map(v => (v === null ? '' : formatCell(v)));
+// The readouts print p to 4 decimals; the fixture's p(top) and 1 - p(top) are stored to 4.
+const four = v => v.toFixed(4);
+const RAW = presets.findIndex(p => p.temperature === 1);
 
 // Independent oracle: softmax(logits / T) in plain JS from the fixture's own
 // temperature (not its invT), no scene-derive code involved.
@@ -83,12 +86,12 @@ test('live probabilities match the oracle and the fixture at every taught preset
     const pTopRaw = result.derived.pTopRaw;
     assert.ok(Math.abs(pTopRaw - oracle(1)[TOP]) <= 0.0006, `${where} pTopRaw vs oracle`);
     const word = pTop > pTopRaw ? 'Sharper than' : pTop < pTopRaw ? 'Flatter than' : 'The same as';
-    assert.equal(label(result, 'relation'), `${word} plain softmax: p(‘${TOP_NAME}’) is ${pTop} here, ${pTopRaw} at T = 1.0`);
-    assert.equal(label(result, 'p-top'), `p(top token ‘${TOP_NAME}’) = ${pTop}   (the ‘${TOP_NAME}’ probability cell)`);
-    assert.equal(label(result, 'p-rest'), `the other ${T.display.length - 1} together = 1 − p(top) = ${pRest}, still above 0`);
+    assert.equal(label(result, 'relation'), `${word} plain softmax: p(‘${TOP_NAME}’) is ${four(p.pTop)} here, ${four(presets[RAW].pTop)} at T = 1.0`);
+    assert.equal(label(result, 'p-top'), `p(top token ‘${TOP_NAME}’) = ${four(p.pTop)}   (the ‘${TOP_NAME}’ probability cell)`);
+    assert.equal(label(result, 'p-rest'), `the other ${T.display.length - 1} together = 1 − p(top) = ${four(p.pRest)}, still above 0`);
     assert.equal(label(result, 't-readout'), `Selected preset: ${p.label}`);
-    // Expected top count = draws x p(top), against the fixture's own p(top).
-    assert.ok(Math.abs(result.derived.expected - T.draws * p.pTop) <= 1e-2, `${where} expected ${result.derived.expected} vs ${T.draws * p.pTop}`);
+    // Expected top count = draws x the printed p(top) (the fixture's own, to 4 decimals).
+    assert.ok(Math.abs(result.derived.expected - T.draws * p.pTop) < 1e-9, `${where} expected ${result.derived.expected} vs ${T.draws * p.pTop}`);
     assert.equal(label(result, 'expected'), `expected about ${result.derived.expected} (= 20 × p(top))`);
     // Recorded toy draws: the token rows are exactly the fixture's 20 draws
     // (space shown as 'sp'), and the counts are what those draws contain.
@@ -116,7 +119,7 @@ test('sharper vs flatter, and a low T is still not greedy', () => {
   assert.ok(low.derived.pRest > 0);
   assert.equal(low.derived.nonTop, 1);
   assert.equal(label(low, 'not-greedy'), `1 of 20 recorded draws were not ‘${TOP_NAME}’, drawn from these toy probabilities.`);
-  assert.equal(label(low, 'not-greedy-2'), `At T = 0.25 the other 5 still share ${low.derived.pRest} of the probability, so a draw can land on them.`);
+  assert.equal(label(low, 'not-greedy-2'), `At T = 0.25 the other 5 still share ${four(presets[0].pRest)} of the probability, so a draw can land on them.`);
   assert.equal(label(low, 'not-greedy-3'), `So a low positive T is sharper, not greedy: greedy (argmax) would pick ‘${TOP_NAME}’ every time.`);
   assert.ok(presets.every(p => p.temperature > 0), 'positive temperatures only');
 });
@@ -126,6 +129,31 @@ test('each probability cell is rounded on its own, like the top-k card', () => {
   assert.deepEqual(shownCells(byId(one, 'probs')), ['0.60', '0.22', '0.08', '0.05', '0.03', '0.01'], 'T = 1.0');
   assert.deepEqual(shownCells(byId(half, 'probs')), ['0.86', '0.12', '0.02', '0.01', '0.00', '0.00'], 'T = 0.5');
   assert.match(label(one, 'live-note'), /a row can total 0\.99 or 1\.01/);
+});
+
+// Every 4-decimal readout rounds half-up to the cell it names: p(top) to the top
+// token's cell at that preset, the T = 1.0 value to z's cell at T = 1.0 (c22's
+// row ② too); 1 − p(top) is p(top)'s exact complement, in both lines that print it.
+test('each 4-decimal readout rounds to its cell’s printed value at every preset', () => {
+  const halfUp2 = text => (Math.floor((Math.round(Number(text) * 1e4) + 50) / 100) / 100).toFixed(2);
+  const results = assertCardGates(scene, ALL);
+  const rawCell = shownCells(byId(results[RAW], 'probs'))[TOP];
+  assert.equal(rawCell, '0.60');
+  for (const result of results) {
+    const where = label(result, 't-readout');
+    const probs = byId(result, 'probs');
+    const [, pTop] = /= (\d\.\d{4}) {3}\(/.exec(label(result, 'p-top'));
+    const [, here, raw] = /is (\d\.\d{4}) here, (\d\.\d{4}) at T = 1\.0$/.exec(label(result, 'relation'));
+    const [, pRest] = /= (\d\.\d{4}), still above 0$/.exec(label(result, 'p-rest'));
+    const [, shared] = /share (\d\.\d{4}) of the probability/.exec(label(result, 'not-greedy-2'));
+    assert.equal(here, pTop, `${where} one p(top) in both lines`);
+    assert.equal(halfUp2(pTop), shownCells(probs)[TOP], `${where} p(top) ${pTop} vs its cell`);
+    assert.ok(Math.abs(Number(pTop) - probs.values[TOP]) <= 5e-5, `${where} p(top) is its cell's p to 4 decimals`);
+    assert.equal(halfUp2(raw), rawCell, `${where} T = 1.0 p ${raw} vs z's T = 1.0 cell`);
+    assert.equal(shared, pRest, `${where} one 1 − p(top) in both lines`);
+    assert.equal(Math.round(Number(pTop) * 1e4) + Math.round(Number(pRest) * 1e4), 1e4, `${where} ${pTop} + ${pRest} = 1`);
+    assert.ok(label(result, 'expected').startsWith(`expected about ${Math.round(T.draws * Number(pTop) * 1e3) / 1e3} (`), `${where} expected = 20 × the printed p(top)`);
+  }
 });
 
 test('status labels and caveats stay on the card; code lives in its sources', () => {

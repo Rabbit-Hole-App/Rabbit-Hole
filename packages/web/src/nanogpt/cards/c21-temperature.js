@@ -6,7 +6,11 @@
 // NanoGPT and not live sampling. The code lines and how each number was made
 // are the card's `sources`, shown collapsed under it.
 // The probability grid has fixed valueScale heat, each cell rounded on its own (distribution: true only on the bars).
+// p(top), 1 − p(top) and the T = 1.0 p print to 4 decimals, built here per preset
+// from the cells' own scale and softmax ops: a derived readout rounds to 3, which
+// printed z's 0.6048 as 0.605 beside its 0.60 cell (c22 prints 4 for the same reason).
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
+import { DERIVATIONS, canonical } from '../../scene-derive.js';
 import { code, calculation, tinyShakespeare } from '../sources.js';
 
 const T = fx.temperature;
@@ -21,6 +25,9 @@ const show = d => shown[T.display.indexOf(d)];
 // Positions (per row) of recorded draws that were NOT the top token - bolded.
 const notTop = (drawn, from) => drawn.slice(from, from + HALF).flatMap((d, i) => (d === T.display[TOP] ? [] : [i]));
 const charVocab = fx.tokenizer.tokenizers.find(t => t.id === 'char');
+const op = (name, ...args) => DERIVATIONS[name].derive(args, canonical).value;
+const P_TOP = presets.map(p => op('softmax', op('scale', T.logits, p.invT))[TOP]);
+const four = v => v.toFixed(4);
 
 const GX = [24, 340, 656]; // three 6-cell grids, cell 46 (fits "-4.00"), arrows in the 40px gaps
 const GY = 130;
@@ -56,6 +63,10 @@ export const scene = {
     notTopSecond: presets.map(p => notTop(p.drawn, HALF)),
     relationByPreset: presets.map(p => (p.temperature < 1 ? 'Sharper than' : p.temperature > 1 ? 'Flatter than' : 'The same as')),
     rawLabel: rawPreset.label,
+    pTopTexts: P_TOP.map(four),
+    pRestTexts: P_TOP.map(p => four(1 - p)),
+    pTopRawText: four(P_TOP[presets.indexOf(rawPreset)]),
+    pTop4ByPreset: P_TOP.map(p => [Number(four(p))]),     // the printed p(top), for the expected count
     one: [1],
   },
   derived: {
@@ -70,11 +81,14 @@ export const scene = {
     pTopVec: { op: 'concat', args: ['pTop'] },
     pRestVec: { op: 'sub', args: ['one', 'pTopVec'] },
     pRest: { op: 'pick', args: ['pRestVec', 0] },
+    pTopText: { op: 'pick', args: ['pTopTexts', 'temperature'] },
+    pRestText: { op: 'pick', args: ['pRestTexts', 'temperature'] },
+    pTop4Vec: { op: 'pick', args: ['pTop4ByPreset', 'temperature'] },
     probsRaw: { op: 'softmax', args: ['logits'] },              // the T = 1.0 counterfactual, same token
     pTopRaw: { op: 'pick', args: ['probsRaw', 'topAt'] },
     relation: { op: 'pick', args: ['relationByPreset', 'temperature'] },
     drawnTop: { op: 'pick', args: ['drawnTopByPreset', 'temperature'] },
-    expectedVec: { op: 'scale', args: ['pTopVec', 'draws'] },   // draws x p(top)
+    expectedVec: { op: 'scale', args: ['pTop4Vec', 'draws'] },  // draws x the printed p(top)
     expected: { op: 'pick', args: ['expectedVec', 0] },
     nonTopVec: { op: 'sub', args: ['drawsByPreset', 'drawnTopByPreset'] },
     nonTop: { op: 'pick', args: ['nonTopVec', 'temperature'] },
@@ -107,7 +121,7 @@ export const scene = {
     { id: 'vocab-note', type: 'text', semanticId: 'toy-vocabulary', conceptId: 'temperature',
       initialState: { text: 'The real shakespeare_char softmax covers all {{vocabSize}} characters. sp = the space character.', x: 24, y: 220, typography: 'annotation' } },
     { id: 'live-note', type: 'text', semanticId: 'live-note', conceptId: 'temperature',
-      initialState: { text: '÷ T and softmax: live calculation in this card, rounded to 3 decimals; cells show 2, so a row can total 0.99 or 1.01.', x: 24, y: 238, typography: 'annotation' } },
+      initialState: { text: '÷ T and softmax: live calculation in this card; p readouts show 4 decimals, cells 2, so a row can total 0.99 or 1.01.', x: 24, y: 238, typography: 'annotation' } },
     { id: 'zero-note', type: 'text', semanticId: 'rounded-not-zero', conceptId: 'softmax',
       initialState: { text: 'A 0.00 cell is rounded, not zero: softmax gives every candidate some probability, so it can still be drawn.', x: 24, y: 256, typography: 'annotation' } },
 
@@ -123,11 +137,11 @@ export const scene = {
     { id: 't-readout', type: 'text', semanticId: 'selected-preset', conceptId: 'temperature',
       initialState: { text: 'Selected preset: {{tLabel}}', x: 24, y: 318, typography: 'heading' } },
     { id: 'relation', type: 'text', semanticId: 'sharper-or-flatter', conceptId: 'temperature',
-      initialState: { text: '{{relation}} plain softmax: p(‘{{topName}}’) is {{pTop}} here, {{pTopRaw}} at {{rawLabel}}', x: 24, y: 350 } },
+      initialState: { text: '{{relation}} plain softmax: p(‘{{topName}}’) is {{pTopText}} here, {{pTopRawText}} at {{rawLabel}}', x: 24, y: 350 } },
     { id: 'p-top', type: 'text', semanticId: 'p-top', conceptId: 'softmax',
-      initialState: { text: 'p(top token ‘{{topName}}’) = {{pTop}}   (the ‘{{topName}}’ probability cell)', x: 24, y: 380, role: 'output' } },
+      initialState: { text: 'p(top token ‘{{topName}}’) = {{pTopText}}   (the ‘{{topName}}’ probability cell)', x: 24, y: 380, role: 'output' } },
     { id: 'p-rest', type: 'text', semanticId: 'p-rest', conceptId: 'softmax',
-      initialState: { text: 'the other {{otherCount}} together = 1 − p(top) = {{pRest}}, still above 0', x: 24, y: 406, role: 'output' } },
+      initialState: { text: 'the other {{otherCount}} together = 1 − p(top) = {{pRestText}}, still above 0', x: 24, y: 406, role: 'output' } },
     { id: 'explain', type: 'text', semanticId: 'gap-explanation', conceptId: 'temperature',
       initialState: { text: 'T below 1 widens the gaps between logits, T above 1 shrinks them.', x: 24, y: 434, typography: 'annotation' } },
     { id: 'explain-2', type: 'text', semanticId: 'order-kept', conceptId: 'temperature',
@@ -158,7 +172,7 @@ export const scene = {
     { id: 'multinomial', type: 'text', semanticId: 'always-samples', conceptId: 'sampling',
       initialState: { text: 'generate(): p = softmax(logits ÷ T), then one random draw from p (torch.multinomial), never argmax.', x: 24, y: 694 } },
     { id: 'not-greedy-2', type: 'text', semanticId: 'not-greedy-2', conceptId: 'sampling',
-      initialState: { text: 'At {{tLabel}} the other {{otherCount}} still share {{pRest}} of the probability, so a draw can land on them.', x: 24, y: 720, typography: 'annotation' } },
+      initialState: { text: 'At {{tLabel}} the other {{otherCount}} still share {{pRestText}} of the probability, so a draw can land on them.', x: 24, y: 720, typography: 'annotation' } },
     { id: 'not-greedy-3', type: 'text', semanticId: 'sharper-not-greedy', conceptId: 'sampling',
       initialState: { text: 'So a low positive T is sharper, not greedy: greedy (argmax) would pick ‘{{topName}}’ every time.', x: 24, y: 738, typography: 'annotation' } },
     { id: 'not-greedy-4', type: 'text', semanticId: 'no-argmax-mode', conceptId: 'sampling',
@@ -192,7 +206,7 @@ export const sources = [
   calculation('Recorded toy run', `${T.draws} draws per preset`,
     `For preset k the generator seeds random.Random(${T.seed} + k) and takes ${T.draws} draws in one random.choices call over the ${T.display.length} candidates, weighted by that preset's softmax(logits / T) - Python's sampler on the toy probabilities, not NanoGPT, not torch.multinomial and not live sampling. One small seeded sample: counts vary with the seed.`),
   calculation('Live calculation', 'Scaled logits, probabilities and counts',
-    'Computed on the card for the selected preset: scale(logits, 1/T), then softmax; softmax(logits) for the T = 1.0 comparison; the top token as argmin of -p; 1 - p(top) with sub; the expected top count as draws × p(top) with scale; the non-top count as draws minus the recorded top count with sub. Readouts are rounded to 3 decimals; each probability cell rounds its own p to 2, with no sum-to-1.00 adjustment (as on the top-k card), so the row totals 1.01 at T = 0.5 and 0.99 at T = 1.0, and z’s 0.6048 reads 0.605 in the readouts and 0.60 in its cell.'),
+    'Computed on the card for the selected preset: scale(logits, 1/T), then softmax; softmax(logits) for the T = 1.0 comparison; the top token as argmin of -p; 1 - p(top) with sub; the expected top count as draws × the printed p(top) with scale; the non-top count as draws minus the recorded top count with sub. No derive op prints 4 decimals and a derived readout rounds to 3, so the printed p(top), 1 − p(top) and T = 1.0 p are built in the card for each preset from the same scale and softmax ops, to 4 decimals. Each probability cell rounds its own p to 2, with no sum-to-1.00 adjustment (as on the top-k card), so the row totals 1.01 at T = 0.5 and 0.99 at T = 1.0, and z’s 0.6048 reads 0.60 in its cell.'),
   code('data/shakespeare_char/prepare.py', 24, 25, `The real vocabulary the card compares against: "chars = sorted(list(set(data)))" and "vocab_size = len(chars)" - ${charVocab.vocabSize} characters for Tiny Shakespeare.`),
   tinyShakespeare(`The text whose ${charVocab.vocabSize} distinct characters make the shakespeare_char vocabulary.`),
 ];

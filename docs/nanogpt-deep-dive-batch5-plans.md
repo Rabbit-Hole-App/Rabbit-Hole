@@ -694,7 +694,7 @@ No new capability and no renderer primitive.
 1. **Toy is not NanoGPT.** Never say NanoGPT reads only the previous character, and never show a measured NanoGPT distribution. NanoGPT's 'can differ' is structural (:314-318, :64, :179). 'not NanoGPT' stays in the status line.
 2. **Greedy misreading.** Nothing is lit as most likely. The ‘e’ append line says 'as Shakespeare does next', never 'the model picks'.
 3. **Small-slice artifacts.** Presets have at least 14 pairs (asserted), and unseen characters are never offered. In row ‘h’, a character outside the columns (o 4.92) outranks the shown t; the legend and the rest cell cover it.
-4. **Cross-card numbers.** e→sp reads 19.90% here and 24.65% on c26. c25's status names iteration 100; c26's surface names no checkpoint (open question).
+4. **Cross-card numbers.** e→sp reads 19.90% here and 24.65% on c26. c25's status names iteration 100; c26's surface names no checkpoint (open question; resolved in NC9: c26 now reads 'iteration 1000, the last checkpoint').
 5. **The sp preset.** Its texts are the ‘e’ texts plus the space that really follows in Shakespeare, not a model draw, and the captions say so.
 6. **Rounding.** Printed cells plus the rest can miss 100 by ±0.03; the legend says each cell is rounded on its own.
 7. **Pixels.** Check:

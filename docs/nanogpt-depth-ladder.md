@@ -337,6 +337,6 @@ Sources.
 labels on hand-typed vectors, as Attention Guided's characters are ("hand-set q, k, v").
 
 **c26 checkpoint.** c26's first status line names its checkpoint in c25's words: "Recorded toy
-run (a bigram reading only the previous character, not NanoGPT; iteration 1000, the last
-checkpoint): p" (116 characters, the batch-5 status budget), beside c25's "… iteration 100, the
+run: p (a bigram reading only the previous character, not NanoGPT; iteration 1000, the last
+checkpoint)" (116 characters, the batch-5 status budget), beside c25's "… iteration 100, the
 kept checkpoint)".

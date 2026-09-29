@@ -123,7 +123,7 @@ export const scene = {
   },
   objects: [
     text('question', 'How do a window’s per-position losses become the one number training lowers?', 40, 30, { typography: 'heading' }),
-    note('status-1', `Recorded toy run (a bigram reading only the previous character, not NanoGPT; iteration ${OBJ.iteration}, the last checkpoint): p`, 40, 56),
+    note('status-1', `Recorded toy run: p (a bigram reading only the previous character, not NanoGPT; iteration ${OBJ.iteration}, the last checkpoint)`, 40, 56),
     note('status-2', 'Calculated toy example: −ln p, e^mean · Live calculation: sum, mean, share, B · T', 40, 74),
     note('status-3', `What-if: window length T (NanoGPT’s is ${T_NANO}) · Source value: text, ${V}, B, T`, 40, 92),
 
