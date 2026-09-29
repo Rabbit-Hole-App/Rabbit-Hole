@@ -1,5 +1,9 @@
 # Learn Tool Performance v1
 
+Status (2026-09-29): Artifact Generation v1 done, Tool Performance v1 done
+and approved, Tutor Agent intentionally deferred. No further optimisation
+unless a regression appears.
+
 Rendering speed of the canvas's learning tools (the + palette), measured and
 improved as infrastructure the future Tutor will consume. This is not tutor
 behaviour: no router, no learner state, no intent-based prefetch, no artifact
@@ -143,7 +147,25 @@ Checks:
 - Notebook isolation and persistence (`e2e/canvas-notebook-workspace.mjs`):
   10 of 10 with the warm-up frame present.
 
-## Not done yet, and why
+## Frozen decisions (owner, 2026-09-29)
+
+- Warm-up stays as built: it starts after about 3 s idle, warms one
+  dependency at a time, pauses while the learner types or scrolls, skips
+  Save-Data and slow connections, creates no card and starts no Python.
+- Python is never started speculatively. A later tutor may prewarm it only
+  on a strong signal, such as an experiment or code move, or a notebook that
+  is very likely.
+- About 1.2 s of Python startup after the notebook shell is visible is
+  accepted for this milestone.
+- Paper page-1 loading and tldraw self-hosting are logged follow-ups (below).
+  They are not being built now.
+- The registry `perf` fields stay as observed infrastructure facts. There is
+  no tutor-selection logic.
+- Every future performance change reports time to visible, content and
+  interactive, main-thread blocking, bytes and requests, cold and warm, with
+  this benchmark. It never goes back to "card stopped resizing".
+
+## Future performance (logged, not scheduled)
 
 - **Paper** (cold interactive 1.7 s before, 3.1 s after, with identical 2.3 MB
   downloads; the difference is arXiv fetch variance, since nothing on this

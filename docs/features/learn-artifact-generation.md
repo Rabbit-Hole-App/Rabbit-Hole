@@ -1,5 +1,8 @@
 # Learn Artifact Generation v1
 
+Status (2026-09-29): done. The Tutor Agent that will call this layer is
+intentionally deferred until the tutor architecture session.
+
 A Learn `/` command becomes one validated learning artifact on the canvas:
 
 ```
