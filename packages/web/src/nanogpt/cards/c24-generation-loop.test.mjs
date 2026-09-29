@@ -27,17 +27,17 @@ const byId = (result, id) => result.state.objects.find(object => object.id === i
 const shown = result => result.state.objects.filter(object => object.visible).map(object => object.id);
 const labels = result => result.state.objects.filter(o => o.visible && o.label).map(o => o.label);
 const withoutContributors = box => { const { contributors: _c, ...rest } = box; return rest; };
-const BAND = ['band-label', 'band-row', 'band-draw', 'band-line'];
+const BAND = ['band-label', 'band-row', 'band-arrow', 'band-draw', 'band-line'];
 
-test('c24 passes every gate in both states; 40 objects, drawn at scale 1, one frame', () => {
+test('c24 passes every gate in both states; 41 objects, drawn at scale 1, one frame', () => {
   const results = assertCardGates(scene, reviewStates);
   assert.deepEqual(reviewStates, [{ revealed: false }, { revealed: true }]);
   assert.deepEqual(scene.inputs.map(i => [i.name, i.type, i.default, !!i.hidden]), [['revealed', 'bool', false, true]]);
   assert.equal(scene.inputs.filter(i => !i.hidden).length, 0, 'replay only: no visible control, so no INTERACT row');
   assert.equal(scene.objects[0].semanticId, 'question');
   assert.equal(scene.title, 'The generation loop');
-  assert.equal(scene.objects.length, 40);
-  assert.equal(scene.height, 753);
+  assert.equal(scene.objects.length, 41);
+  assert.equal(scene.height, 749);
   const legibility = sceneLegibility(scene);
   assert.equal(legibility.scale, 1);
   assert.ok(scene.height >= legibility.viewport.h && scene.height < legibility.viewport.h + 1, JSON.stringify(legibility.viewport));
@@ -46,7 +46,7 @@ test('c24 passes every gate in both states; 40 objects, drawn at scale 1, one fr
   for (const [k, result] of results.entries()) {
     assert.deepEqual(withoutContributors(sceneContentBounds(result.scene)), withoutContributors(legibility.bounds), JSON.stringify(reviewStates[k]));
   }
-  assert.deepEqual(BAND.map(id => byId(results[1], id).visible), [true, true, true, true]);
+  assert.deepEqual(BAND.map(id => byId(results[1], id).visible), [true, true, true, true, true]);
 });
 
 test('c24 fixture: the kept checkpoint, the sampling script\'s settings, the judge\'s draws', () => {
@@ -97,18 +97,21 @@ test('c24 layout: the captions sit right under the staircase; the practice band 
   const y = id => scene.objects.find(o => o.id === id).initialState.y;
   // Baselines: the first caption is one row pitch under row 8's text, so no blank band splits them.
   assert.equal(y('growth') - (y('row-8') + 21), 39);
-  const order = ['growth', 'rule-1', 'rule-2', 'training', 'loop', 'toy', 'band-label', 'band-line', 'legend'].map(y);
+  const order = ['growth', 'rule-1', 'rule-2', 'training', 'loop', 'band-label', 'band-line', 'legend', 'toy'].map(y);
   assert.deepEqual(order, [...order].sort((a, b) => a - b));
-  // One even step between caption lines: no pair reads as closer than the rest.
-  const captions = order.slice(0, 6);
-  assert.deepEqual(captions.slice(1).map((v, k) => v - captions[k]), [26, 26, 26, 26, 26]);
+  // One even step between caption lines: no pair reads as closer than the rest;
+  // at most 5 lines under the staircase (the toy note sits under the legend).
+  const captions = order.slice(0, 5);
+  assert.deepEqual(captions.slice(1).map((v, k) => v - captions[k]), [26, 26, 26, 26]);
   // Before Check the band's slot is not blank: the wait note sits on its row's line.
   assert.equal(y('band-wait'), y('band-row') + 21);
-  assert.ok(y('band-wait') > y('toy') && y('band-wait') < y('legend'));
+  assert.ok(y('band-wait') > y('loop') && y('band-wait') < y('legend'));
   // The band's blank runs above and below are wider than the caption spacing (26),
   // and its count line sits nearer its own row than the legend under it.
-  assert.ok(y('band-label') - y('toy') >= 44 && y('legend') - y('band-line') >= 40);
+  assert.ok(y('band-label') - y('loop') >= 44 && y('legend') - y('band-line') >= 40);
   assert.ok(y('band-line') - (y('band-row') + 16) < y('legend') - y('band-line'));
+  // The practice draw sits on the row's line after the arrow, never as an 11th cell.
+  assert.equal(y('band-arrow'), y('band-draw'));
 });
 
 test('c24 replay: each draw appears before the row that is handed it; captions from 3.3 s', () => {
@@ -156,7 +159,13 @@ test('c24 before Check nothing of the practice case is on the card; after, the b
   assert.equal(row.cellHighlight, 9);
   assert.equal(byId(after, 'band-label').label, 'Practice case: start ROMEO: (6 characters), pass 5');
   assert.equal(byId(after, 'band-draw').label, ':');
-  assert.ok(Math.abs(byId(after, 'band-draw').x + 4.5 - centreOfColumn([...row.tokens, ':'], 10)) < 1e-9);
+  // An arrow takes the next column and the draw the one after, so the draw sits
+  // two pitches from the last handed cell: counting cells up to the arrow gives 10.
+  assert.equal(byId(after, 'band-arrow').label, '→');
+  assert.ok(Math.abs(byId(after, 'band-arrow').x + 4.5 - centreOfColumn([...row.tokens, '→'], 10)) < 1e-9);
+  assert.ok(Math.abs(byId(after, 'band-draw').x + 4.5 - centreOfColumn([...row.tokens, '→', ':'], 11)) < 1e-9);
+  const pitch = chip(':') + 8;
+  assert.ok(centreOfColumn([...row.tokens, '→', ':'], 11) - centreOfColumn(row.tokens, 9) >= 2 * pitch - 1e-9, 'a gap clearly wider than the pitch');
   assert.equal(byId(after, 'band-line').label, `handed ${6 + 4} characters · returns 6 + 500 = ${6 + 500}`);
   for (const id of BAND) assert.equal(byId(after, id).opacity, 1, id);
   // The reveal adds a case; the staircase and its captions are unchanged.
@@ -171,7 +180,7 @@ test('c24 captions are true at both states; status words only; no citations, no 
     'builds-on': 'Builds on: generation keeps only the last position’s prediction; a draw is a weighted random pick',
     setup: 'NanoGPT’s sampling script starts from one new line (⏎). The first 8 passes of generate():',
     'rule-1': 'Each pass hands the model all of idx so far, at most its last block_size characters.',
-    'rule-2': 'Its last position’s prediction (bold) gives a draw (coloured), appended and handed to the next pass.',
+    'rule-2': 'Its last position’s prediction gives a draw, appended and handed to the next pass.',
     training: 'Training scores all positions in one pass: its text is given. Here the newest character is a draw.',
     loop: 'The loop runs max_new_tokens passes, with no other stop, and returns all of idx, the start included.',
     toy: 'Toy: the bigram reads only the last character it is handed; NanoGPT’s Blocks read the whole row.',
@@ -179,6 +188,8 @@ test('c24 captions are true at both states; status words only; no citations, no 
   };
   for (const result of assertCardGates(scene, reviewStates)) {
     for (const [id, label] of Object.entries(STATIC)) assert.equal(byId(result, id).label, label, id);
+    // Bold and colour are keyed once, in the legend, never again in a caption.
+    assert.deepEqual(labels(result).filter(l => /\bbold\b|colou?r/i.test(l)), [STATIC.legend]);
     const all = labels(result).join('\n');
     for (const status of ['Recorded toy run', 'Source value']) assert.ok(all.includes(status), status);
     assert.doesNotMatch(all, /\.py\b|\.js\b|\bline \d|[a-z]:\d|\b[0-9a-f]{7}\b/);
@@ -220,10 +231,16 @@ test('c24 practice: a 6-character start at pass 5 - graded, naive default wrong,
   assert.equal(activity.answer.default, 'lastOnly');
   for (const { id } of activity.answer.options) assert.equal(PREDICATES.choice_equals({ answer: id }, activity), id === 'full');
   assert.equal(activity.prompt, 'Suppose NanoGPT’s sampling script starts from ROMEO: (6 characters; in shakespeare_char one token ID is one character) instead of one new line, with max_new_tokens = 500. In one generate() call, how many characters is the model handed on pass 5, and how many characters does generate() return?');
-  assert.equal(activity.feedbackPass, 'Right. idx starts as R O M E O : and each pass appends one draw, so pass 5 hands the model 6 + 4 = 10 characters: all of idx, not just the last one. NanoGPT’s Blocks read every one to make the prediction at the last position. The loop runs exactly max_new_tokens = 500 passes and generate() returns idx itself, start included: 6 + 500 = 506 characters, which the sampling script decodes. On the card the start is 1 character, which is why pass k there holds k.');
-  for (const phrase of ['“Handed 1”', 'the toy bigram reads only the last, NanoGPT reads them all', '“Handed 5”', 'start + (k − 1)', '“Returns 500”', 'which still holds the start', '6 + 4 = 10', '6 + 500 = 506']) {
+  // A one-word answer label keeps all four options on one row (none alone).
+  assert.equal(activity.answer.label, 'Characters');
+  assert.equal(activity.feedbackPass, 'Right. Pass 5 is handed all of idx, the start plus 4 draws: 6 + 4 = 10 characters, which NanoGPT’s Blocks all read. After max_new_tokens = 500 passes generate() returns idx itself, start included: 6 + 500 = 506. The card’s start is 1 character, so there pass k holds k.');
+  // One clause per distractor: handed 1, handed 5, returns 500.
+  for (const phrase of ['all of idx', 'only the last position’s prediction is kept', 'the toy bigram reads only the last', 'start + (k − 1)', 'pass k holds k only for a 1-character start', 'which still holds the start', '6 + 4 = 10', '6 + 500 = 506']) {
     assert.ok(activity.feedbackFail.includes(phrase), phrase);
   }
+  // At most two text-xs lines in the 948 px practice box of a 984 px capture
+  // (measured: 279 characters wrap to 2 lines there; the 448-character version took 3).
+  for (const t of [activity.feedbackPass, activity.feedbackFail]) assert.ok(t.length <= 290, `${t.length} characters`);
   assert.doesNotMatch(describeActivity({ activity, activityAnswer: 'lastOnly' }), /"full"|handed 10, returns 506/);
   for (const t of [activity.prompt, activity.feedbackPass, activity.feedbackFail]) {
     assert.doesNotMatch(t, /\.py\b|:\d+|generate_fixtures/);

@@ -63,10 +63,13 @@ const two = v => v.toFixed(2);
 const KEPT_P = WHATIF_P.slice(0, WHATIF_K).reduce((a, b) => a + b, 0); // 0.60
 const CUT_P = 1 - KEPT_P;                                              // 0.40
 
-const CELL = 59; // as wide as a two-character label chip, so each −∞ sits under its cell (deep.js)
+const CELL = 59; // as wide as a two-character chip plus its gap, so each −∞ chip sits under its cell (deep.js)
 const MARK_SHIFT = (CELL - (32 + 2 * 9.5)) / 2;
 const X = 200;
-const Y = { logits: 142, marks: 203, pAll: 258, pCut: 334, bars: 412, whatIf: 572 };
+const RING = 5; // the survivors' ring stands this far outside ①'s cells
+// ① sits 24 px lower than the header allows, so its column labels read as the grid's, not the header's.
+const Y = { logits: 160, marks: 160 + CELL + RING + 4, pAll: 276, pCut: 352, bars: 440, whatIf: 600 };
+const FOOT = 690;
 const BARS_H = 120;
 const RX = 572; // readouts: every filled line ends inside the widest static footer, so the frame never moves
 const CONCEPT = 'top-k';
@@ -82,14 +85,15 @@ export const scene = {
   id: 'nanogpt-c22-top-k',
   title: 'Top-k: truncating the distribution',
   width: 960,
-  height: 743,                          // the padded content, 742.32: a 960-wide frame draws it at scale 1
+  height: 771,                          // the padded content, 770.32: a 960-wide frame draws it at scale 1
   duration: 1.6,
   inputs: [
     { name: 'topK', type: 'index', label: 'top_k (preset)', of: 'kLabels', default: 1, presentation: 'slider' },
     { name: 'revealed', type: 'bool', label: 'What-if revealed', hidden: true, default: false },
   ],
   exampleData: {
-    kLabels: KS.map(k => (k === V ? `k = ${k} (nothing cut)` : `k = ${k}`)),
+    // Bare values: the practice's lock line prints "top_k (preset) = 2", not "= k = 2".
+    kLabels: KS.map(k => (k === V ? `${k} (nothing cut)` : `${k}`)),
     kValues: KS,
     ordinals: ['1st', '2nd', '3rd', '4th', '5th', '6th'],
     kPosByK: KS.map(k => Math.min(k, V) - 1), // v_k's place in the logits, shown largest first
@@ -99,12 +103,15 @@ export const scene = {
     maskedByK: MASKED,
     keepByK: KEEP,
     keptIdxByK: MASKED.map(row => kept(row, true)),
-    cutMarksByK: MASKED.map(row => row.map(x => (x === null ? '−∞' : '  '))),
+    // The logits are descending, so the survivors are always the first k: the −∞ chips start at column k.
+    cutMarksByK: MASKED.map(row => kept(row, false).map(() => '−∞')),
+    cutMarksXByK: KS.map(k => X + MARK_SHIFT + Math.min(k, V) * CELL),
+    ringWByK: KS.map(k => Math.min(k, V) * CELL + 2 * RING),
     keptNamesByK: MASKED.map(row => kept(row, true).map(i => NAMES[i]).join(', ')),
     cutNamesByK: MASKED.map(row => kept(row, false).map(i => NAMES[i]).join(', ') || 'none'),
     kLineByK: KS.map(k => (k < V ? 'every logit below v_k → −∞' : 'nothing is below v_k: no cut')),
     consequenceByK: KS.map(k => (k === 1 ? `only ${NAMES[0]} is left: every draw is ${NAMES[0]} (greedy)`
-      : k < V ? 'softmax: −∞ → p exactly 0, never drawn' : `③ = ②; ${NAMES[V - 1]}’s bar: a ${two(P_ALL[V - 1])} sliver, not cut`)),
+      : k < V ? 'softmax: −∞ → p exactly 0, never drawn' : `③ = ②; ${NAMES[V - 1]}: ${two(P_ALL[V - 1])} in ③, bar too thin to see`)),
     factorLineByK,
     oldNewByK,
     one: [1],
@@ -130,6 +137,8 @@ export const scene = {
     keptCount: { op: 'sum', args: ['keep'] },
     keptIdx: { op: 'pick', args: ['keptIdxByK', 'topK'] },
     cutMarks: { op: 'pick', args: ['cutMarksByK', 'topK'] },
+    cutMarksX: { op: 'pick', args: ['cutMarksXByK', 'topK'] },
+    ringW: { op: 'pick', args: ['ringWByK', 'topK'] },
     keptNames: { op: 'pick', args: ['keptNamesByK', 'topK'] },
     cut: { op: 'pick', args: ['cutNamesByK', 'topK'] },
     kLine: { op: 'pick', args: ['kLineByK', 'topK'] },
@@ -140,6 +149,7 @@ export const scene = {
     pW: { op: 'softmax', args: ['whatIfMasked'] },
     pWShown: { op: 'gate', args: ['pW', 'revealed'] },
     whatIfOp: { op: 'choose', args: ['revealed', 1, 0] },
+    whatIfHintOp: { op: 'choose', args: ['revealed', 0, 1] },
     wLine1: { op: 'choose', args: ['revealed', 'wBefore', 'blank'] },
     wLine2: { op: 'choose', args: ['revealed', 'wAfter', 'blank'] },
   },
@@ -150,13 +160,16 @@ export const scene = {
     // Where the cut sits in the loop the Generation context path just walked (c24).
     note('loop-step', 'Each generate() pass (the generation loop): last position’s logits ÷ T → top-k (if set) → softmax → one random draw', 40, 100),
 
-    // ① the logits, largest first; survivors ringed, −∞ under the cut ones.
+    // ① the logits, largest first; survivors ringed, −∞ under the cut ones. The
+    // ring is ③'s green, drawn first so ①'s cells sit on it.
     rowName('name-logits', '① logits (T = 1.0)', Y.logits + 35, hidden),
+    { id: 'kept-ring', type: 'box', semanticId: 'survivors', conceptId: CONCEPT,
+      initialState: { x: X - RING, y: Y.logits - RING, w: { $derive: 'ringW' }, h: CELL + 2 * RING, role: 'output', opacity: 0 } },
     { id: 'logits', type: 'grid', semanticId: 'toy-logits', conceptId: CONCEPT,
       initialState: { x: X, y: Y.logits, rows: 1, cols: V, cell: CELL, matrixKind: 'input', role: 'input', columnLabels: [...NAMES],
         values: { $derive: 'logits' }, cellHighlight: { $derive: 'keptIdx' }, cellHighlightKind: 'highlight', opacity: 0 } },
     { id: 'cut-marks', type: 'tokens', semanticId: 'cut-marks', conceptId: CONCEPT,
-      initialState: { x: X + MARK_SHIFT, y: Y.marks, role: 'neutral', tokenStyle: 'labels', tokens: { $derive: 'cutMarks' }, opacity: 0 } },
+      initialState: { x: { $derive: 'cutMarksX' }, y: Y.marks, role: 'neutral', tokens: { $derive: 'cutMarks' }, opacity: 0 } },
 
     // ② the uncut p (fixed reference) and ③ the softmax of the cut row, on one
     // fixed [0, 1] heat; each cell rounded on its own (see the header).
@@ -176,34 +189,36 @@ export const scene = {
         values: { $derive: 'pCut' }, opacity: 0 } },
     { id: 'bars-top', type: 'line', semanticId: 'probability-one', conceptId: CONCEPT,
       initialState: { from: { x: X, y: Y.bars + 4 }, to: { x: X + V * CELL, y: Y.bars + 4 }, role: 'neutral', opacity: 0 } },
-    note('bars-top-key', 'top line: p = 1', 40, Y.bars + 78, hidden),
+    note('bars-top-key', 'p = 1', X - 40, Y.bars + 8, hidden), // at the line's left end
 
     // Readouts: the selected k and where the probability went.
-    text('k-readout', 'top_k = {{kValue}} · v_k = {{vk}}', RX, 162),
-    text('vk-readout', 'v_k = the {{kth}} largest logit', RX, 186),
-    text('k-line', '{{kLine}}', RX, 210),
-    text('kept-count', '{{keptCount}} of 6 can be drawn', RX, 284),
-    text('cut-mass', 'cut: {{cut}}, which held {{cutMass}}', RX, 308),
-    text('kept-mass', 'kept: {{keptNames}} held {{keptMass}}', RX, 332),
-    note('factor', '{{factorLine}}', RX, 362),
-    note('old-new', '{{oldNew}}', RX, 382),
-    note('consequence', '{{consequence}}', RX, 402),
+    text('k-readout', 'top_k = {{kValue}} · v_k = {{vk}}', RX, Y.logits + 20),
+    text('vk-readout', 'v_k = the {{kth}} largest logit', RX, Y.logits + 44),
+    text('k-line', '{{kLine}}', RX, Y.logits + 68),
+    text('kept-count', '{{keptCount}} of 6 can be drawn', RX, Y.pAll + 26),
+    text('cut-mass', 'cut: {{cut}}, which held {{cutMass}}', RX, Y.pAll + 50),
+    text('kept-mass', 'kept: {{keptNames}} held {{keptMass}}', RX, Y.pAll + 74),
+    note('factor', '{{factorLine}}', RX, Y.pCut + 28),
+    note('old-new', '{{oldNew}}', RX, Y.pCut + 48),
+    note('consequence', '{{consequence}}', RX, Y.pCut + 68),
 
-    // The practice's case, additive; no timeline appear.
+    // The practice's case, additive; no timeline appear. Until then its slot
+    // says what will fill it, so the band never reads as missing content.
+    note('whatif-hint', `What-if (k = ${WHATIF_K}): fills in after you check a Practice answer`, 40, Y.whatIf + 35, { opacity: { $derive: 'whatIfHintOp' } }),
     rowName('name-whatif', `What-if (k = ${WHATIF_K})`, Y.whatIf + 35, WHATIF),
     { id: 'whatif', type: 'grid', semanticId: 'what-if-p', conceptId: CONCEPT,
-      initialState: { x: X, y: Y.whatIf, rows: 1, cols: V, cell: CELL, matrixKind: 'derived', role: 'neutral',
+      initialState: { x: X, y: Y.whatIf, rows: 1, cols: V, cell: CELL, matrixKind: 'derived', role: 'output', // ③'s look: a cut cell is the same blocked band
         distribution: true, heat: true, valueScale: 'fixed', values: { $derive: 'pWShown' }, ...WHATIF } },
     text('whatif-before', '{{wLine1}}', RX, Y.whatIf + 22),
     text('whatif-after', '{{wLine2}}', RX, Y.whatIf + 46),
 
-    note('blank-note', 'A blank cell is exactly 0, never drawn; a .00 cell (the temperature card) is only rounded, so a row can total 0.99.', 40, 662),
-    note('default-note', `Source value: generate() cuts nothing by default (top_k = None); the sampler sets ${SAMPLE_K}, above all ${charVocab.vocabSize} characters.`, 40, 682),
-    note('order-note', 'Shown largest first; NanoGPT keeps vocabulary order and compares each logit with v_k (a tie with v_k survives).', 40, 702),
+    note('blank-note', 'A blank cell is exactly 0, never drawn; a .00 cell (the temperature card) is only rounded, so a row can total 0.99.', 40, FOOT),
+    note('default-note', `Source value: generate() cuts nothing by default (top_k = None); the sampler sets ${SAMPLE_K}, above all ${charVocab.vocabSize} characters.`, 40, FOOT + 20),
+    note('order-note', 'Shown largest first; NanoGPT keeps vocabulary order and compares each logit with v_k (a tie with v_k survives).', 40, FOOT + 40),
   ],
   // Replay in pipeline order: ① and ②, the cut, ③, its bars, the bars' top line.
   timeline: [
-    ...[[0, ['name-logits', 'logits', 'name-p-all', 'p-all']], [0.4, ['cut-marks']], [0.8, ['name-p-cut', 'p-cut']], [1.2, ['name-bars', 'bars']]]
+    ...[[0, ['name-logits', 'logits', 'name-p-all', 'p-all']], [0.4, ['kept-ring', 'cut-marks']], [0.8, ['name-p-cut', 'p-cut']], [1.2, ['name-bars', 'bars']]]
       .flatMap(([at, targets]) => targets.map(target => ({ at, action: 'appear', target, duration: 0.4 }))),
     ...['bars-top', 'bars-top-key'].map(target => ({ at: 1.4, action: 'appear', target, duration: 0.2 })),
   ],
@@ -237,7 +252,8 @@ export const activity = {
   expected: 'proportional',
   checkLabel: 'Check',
   feedbackPass: `Right. top_k = ${WHATIF_K} keeps the two largest logits; the other four become −∞, so their ${two(CUT_P)} is gone and softmax shares the whole 1 over what is left: each survivor ÷ ${two(KEPT_P)}, the kept mass. ${two(WHATIF_P[0])} → ${two(pW0)} and ${two(WHATIF_P[1])} → ${two(pW1)}, still 3 to 1. The What-if row now shows it.`,
-  feedbackFail: `Not quite. The cut four get exactly 0, and softmax re-divides the whole 1 over the survivors in proportion to their old p: each ÷ ${two(KEPT_P)}, the kept mass. ${quote('same')} leaves the row summing to ${two(KEPT_P)}, not 1; ${quote('even')} splits the cut ${two(CUT_P)} evenly and breaks the 3 : 1 ratio; ${quote('top')} hands it all to the top one. The answer is ${OPTIONS.proportional}. The What-if row now shows it.`,
+  // Two lines at most, like feedbackPass: the whole line is drawn in the error colour.
+  feedbackFail: `Not quite. The cut four get exactly 0; softmax shares the whole 1 over the survivors in proportion to their old p, each ÷ ${two(KEPT_P)} (the kept mass): ${OPTIONS.proportional}. ${quote('same')} sums to ${two(KEPT_P)}, not 1; an even split or all to the top one breaks the 3 : 1 ratio. The What-if row now shows it.`,
 };
 
 // Phase 1 plan (docs/nanogpt-deep-dive-batch5-plans.md, c22).
@@ -302,9 +318,9 @@ export const evidence = {
   concept: plan.concept,
   sourceRevision: `${fx.provenance.nanogpt.repo}@${fx.provenance.nanogpt.commit}`,
   provenance: `source: model.py:133, :306, :312-330, :317-318, :319-322, :323-324, :325-326; sample.py:18, :87; README.md:54; data/shakespeare_char/prepare.py:24-25, :55-61; train.py:137-155 - checked against the pinned files. Calculated toy example: fx.temperature logits [${LOGITS.join(', ')}] (generate_fixtures.py temperature()), and the practice's p' ${WHATIF_P.map(two).join(', ')} typed on the card. Live calculation: pick, softmax (null-aware), dot, concat, sub, sum, gate, choose. Source value: top_k None and ${SAMPLE_K} (generation fixture, gen_generation.py), ${charVocab.vocabSize} (fx.tokenizer).`,
-  control: 'topK - index slider "top_k (preset)" over k = 1..6 ("k = 6 (nothing cut)"), default k = 2; revealed - hidden bool owned by the practice (set by a committed attempt).',
-  consequence: 'Moving k changes v_k (3.00, 2.00, 1.00, 0.50, 0.00, -1.00, printed as its ① cell) and its ordinal, the rings on ①, the −∞ chips, ③ (1.00 | .73 .27 | .67 .24 .09 | .63 .23 .09 .05 | .61 .22 .08 .05 .03 | equal to ② .60 .22 .08 .05 .03 .01, cut cells blank; each cell rounded on its own), the bars (no bar for a cut candidate), the count, the cut and kept mass (0.395/0.605, 0.173/0.827, 0.091/0.909, 0.041/0.959, 0.011/0.989, 0/1), the common factor (every kept p × 1.653, 1.209, 1.100, 1.043, 1.011, 1.000), z’s and e’s p before and after to 4 decimals, and the consequence line (greedy at k = 1; softmax: −∞ → p exactly 0 at k = 2-5; sp’s 0.01 bar a sliver, not cut, at k = 6); ① and ② never change. After a committed practice attempt the What-if (k = 2) row shows .75 .25 and four blanks, with its two captions.',
+  control: 'topK - index slider "top_k (preset)" over k = 1..6 (labels "1" … "6 (nothing cut)"), default k = 2; revealed - hidden bool owned by the practice (set by a committed attempt).',
+  consequence: 'Moving k changes v_k (3.00, 2.00, 1.00, 0.50, 0.00, -1.00, printed as its ① cell) and its ordinal, the rings on ①, the −∞ chips, ③ (1.00 | .73 .27 | .67 .24 .09 | .63 .23 .09 .05 | .61 .22 .08 .05 .03 | equal to ② .60 .22 .08 .05 .03 .01, cut cells blank; each cell rounded on its own), the bars (no bar for a cut candidate), the count, the cut and kept mass (0.395/0.605, 0.173/0.827, 0.091/0.909, 0.041/0.959, 0.011/0.989, 0/1), the common factor (every kept p × 1.653, 1.209, 1.100, 1.043, 1.011, 1.000), z’s and e’s p before and after to 4 decimals, and the consequence line (greedy at k = 1; softmax: −∞ → p exactly 0 at k = 2-5; at k = 6 sp’s 0.01 is in ③, its bar too thin to see); ① and ② never change. Before a committed practice attempt the What-if slot says it fills in after a Practice answer; after one the What-if (k = 2) row shows .75 .25 and four blanks in ③’s blocked look, with its two captions.',
   interactionPurpose: 'See where the cut probability goes: the cut candidates drop to exactly 0 and the survivors share it in proportion, so their odds (p(z)/p(e) = e) stay the same at every k ≥ 2.',
   task: 'Slide k from 6 down to 1 and compare ③ with ②: which cells go blank, and how much does each survivor grow? Practice (locked at k = 2): a different model\'s six probabilities 0.45 … 0.06 cut to top_k = 2 - what are the survivors\' probabilities? (choice; expected 0.75 and 0.25).',
-  capability: 'index slider plus a hidden-bool revealInput; pick of precomputed null-masked rows; null-aware softmax (a cut cell draws as the blocked band, a null bar draws nothing); dot/concat/sub/sum for the masses; a derived cellHighlight list of kind highlight; a derived −∞ token row (labels) at the grid pitch; grids with fixed [0, 1] heat, each cell rounded on its own (distribution: true only on the What-if row and the bars); bars with peak 1 and a top line; gate()d What-if values and choose()d text and opacity; choice practice graded by choice_equals with fixedInputs.',
+  capability: 'index slider plus a hidden-bool revealInput; pick of precomputed null-masked rows; null-aware softmax (a cut cell draws as the blocked band, a null bar draws nothing); dot/concat/sub/sum for the masses; a derived cellHighlight list of kind highlight and a box with a derived width ringing the survivors; a derived −∞ chip row at the grid pitch whose x starts at column k; grids with fixed [0, 1] heat, each cell rounded on its own (distribution: true only on the What-if row and the bars); bars with peak 1 and a top line labelled p = 1 at its left end; gate()d What-if values and choose()d text and opacity (a placeholder note until the reveal); choice practice graded by choice_equals with fixedInputs.',
 };

@@ -45,7 +45,7 @@ const PITCH = 36;
 const TEXT_DY = 21;   // a body/caption baseline level with a label token row's centre line
 const CAPTION_Y = 440; // growth; each caption one LINE under the one before
 const LINE = 26;
-const BAND_Y = 624;   // below the captions: the reveal never pushes them away from the staircase
+const BAND_Y = 598;   // below the captions: the reveal never pushes them away from the staircase
 const BODY = 15;
 const rowY = i => ROW_Y + PITCH * i;
 const chipW = token => CHIP_PAD * 2 + token.length * CHIP_CHAR;
@@ -67,12 +67,15 @@ const GROWTH = `Passes 1 to ${PASSES} added ${PASSES} characters: idx grew from 
 const BAND_LABEL = `Practice case: start ${P.start} (${P_LEN} characters), pass ${P.pass}`;
 const BAND_LINE = `handed ${HANDED} characters · returns ${P_LEN} + ${MAX_NEW} = ${RETURNS}`;
 const CAPTIONS = ['growth', 'rule-1', 'rule-2', 'training', 'loop', 'toy'];
+// The practice row has no next row to line its draw up with, so an arrow takes
+// the next column and the draw the one after: the handed cells count to 10 before it.
+const ARROW = '→';
 
 export const scene = {
   id: 'nanogpt-c24-generation-loop',
   title: 'The generation loop',
   width: 960,
-  height: 753,                         // the padded content, 752.32: a 960-wide frame draws it at scale 1
+  height: 749,                         // the padded content, 748.32: a 960-wide frame draws it at scale 1
   duration: 4,
   inputs: [
     { name: 'revealed', type: 'bool', label: 'Practice case revealed', hidden: true, default: false },
@@ -111,10 +114,9 @@ export const scene = {
     // Directly under the staircase they explain.
     text('growth', GROWTH, 40, captionY(0), { role: 'output', ...hidden }),
     text('rule-1', 'Each pass hands the model all of idx so far, at most its last block_size characters.', 40, captionY(1), hidden),
-    text('rule-2', 'Its last position’s prediction (bold) gives a draw (coloured), appended and handed to the next pass.', 40, captionY(2), hidden),
+    text('rule-2', 'Its last position’s prediction gives a draw, appended and handed to the next pass.', 40, captionY(2), hidden),
     text('training', 'Training scores all positions in one pass: its text is given. Here the newest character is a draw.', 40, captionY(3), hidden),
     text('loop', 'The loop runs max_new_tokens passes, with no other stop, and returns all of idx, the start included.', 40, captionY(4), hidden),
-    note('toy', 'Toy: the bigram reads only the last character it is handed; NanoGPT’s Blocks read the whole row.', 40, captionY(5), hidden),
 
     // The practice case, set apart below the captions: derived opacity, no
     // appear; text and tokens gated too. Until then a wait note holds its
@@ -122,12 +124,15 @@ export const scene = {
     note('band-wait', 'Not drawn: the practice case. Answer the practice below, then its pass appears here.', 40, BAND_Y + TEXT_DY, { opacity: { $derive: 'waitOp' } }),
     text('band-label', '{{bandLabel}}', 40, BAND_Y - 10, BAND),
     tokens('band-row', { $derive: 'bandTokens' }, BAND_Y, { cellHighlight: P_ROW.length - 1, ...BAND }),
-    text('band-draw', '{{bandDraw}}', centredX(P_ROW, P_DRAW), BAND_Y + TEXT_DY, { role: 'output', ...BAND }),
+    text('band-arrow', ARROW, centredX(P_ROW, ARROW), BAND_Y + TEXT_DY, BAND),
+    text('band-draw', '{{bandDraw}}', centredX([...P_ROW, ARROW], P_DRAW), BAND_Y + TEXT_DY, { role: 'output', ...BAND }),
     text('band-line', '{{bandLine}}', 40, BAND_Y + 48, BAND),
 
     // Static and below the band, so the static frame already holds it; it keys
-    // the band's row too (sp is only there).
+    // the band's row too (sp is only there), and is the one place bold and
+    // colour are keyed. The toy note under it qualifies what the bold means.
     note('legend', '⏎ = new line · sp = space · bold: the position whose prediction is drawn from · colour: the draw', 40, BAND_Y + 88),
+    note('toy', 'Toy: the bigram reads only the last character it is handed; NanoGPT’s Blocks read the whole row.', 40, BAND_Y + 110, hidden),
   ],
   // Row k and its name at 0.4·(k − 1) s, its draw 0.2 s later - before the row
   // that is handed it; the captions once the eighth draw is in.
@@ -161,12 +166,14 @@ export const activity = {
   prompt: `Suppose NanoGPT’s sampling script starts from ${P.start} (${P_LEN} characters; in shakespeare_char one token ID is one character) instead of one new line, with max_new_tokens = ${MAX_NEW}. In one generate() call, how many characters is the model handed on pass ${P.pass}, and how many characters does generate() return?`,
   // ponytail: SceneActivity shows no pick for an untouched answer, so this
   // naive default never renders; it only satisfies the choice declaration.
-  answer: { type: 'choice', label: `Characters handed on pass ${P.pass}, and returned`, default: 'lastOnly',
+  // A one-word label, so all four options fit one row: no option sits alone.
+  answer: { type: 'choice', label: 'Characters', default: 'lastOnly',
     options: Object.entries(OPTIONS).map(([id, [handed, returns]]) => ({ id, label: `handed ${handed}, returns ${returns}` })) },
   expected: 'full',
   checkLabel: 'Check',
-  feedbackPass: `Right. idx starts as ${[...P.start].join(' ')} and each pass appends one draw, so pass ${P.pass} hands the model ${P_LEN} + ${P.pass - 1} = ${HANDED} characters: all of idx, not just the last one. NanoGPT’s Blocks read every one to make the prediction at the last position. The loop runs exactly max_new_tokens = ${MAX_NEW} passes and generate() returns idx itself, start included: ${P_LEN} + ${MAX_NEW} = ${RETURNS} characters, which the sampling script decodes. On the card the start is ${START.length} character, which is why pass k there holds k.`,
-  feedbackFail: `Not quite. idx is the start plus one draw per pass, so pass ${P.pass} hands the model ${P_LEN} + ${P.pass - 1} = ${HANDED} characters, and generate() returns ${P_LEN} + ${MAX_NEW} = ${RETURNS}. “Handed 1”: only the last position’s prediction is used, but the model is handed all of idx; the toy bigram reads only the last, NanoGPT reads them all. “Handed ${P.pass}”: pass k holds k only when the start is ${START.length} character; it holds start + (k − 1). “Returns ${MAX_NEW}”: generate() returns idx, which still holds the start.`,
+  // At most two lines each under the chips: one clause per distractor in feedbackFail.
+  feedbackPass: `Right. Pass ${P.pass} is handed all of idx, the start plus ${P.pass - 1} draws: ${P_LEN} + ${P.pass - 1} = ${HANDED} characters, which NanoGPT’s Blocks all read. After max_new_tokens = ${MAX_NEW} passes generate() returns idx itself, start included: ${P_LEN} + ${MAX_NEW} = ${RETURNS}. The card’s start is ${START.length} character, so there pass k holds k.`,
+  feedbackFail: `Not quite. Pass ${P.pass} is handed all of idx, start + (k − 1) = ${P_LEN} + ${P.pass - 1} = ${HANDED} characters: only the last position’s prediction is kept (the toy bigram reads only the last), and pass k holds k only for a ${START.length}-character start. generate() returns idx, which still holds the start: ${P_LEN} + ${MAX_NEW} = ${RETURNS}.`,
 };
 
 // Phase 1 plan (docs/nanogpt-deep-dive-batch5-plans.md, c24; verbatim where it fits).
@@ -250,8 +257,8 @@ export const evidence = {
   sourceRevision: `${fx.provenance.nanogpt.repo}@${fx.provenance.nanogpt.commit}`,
   provenance: `source: model.py:170, :180-181, :184-187, :189-190, :305-309, :312, :314, :316-318, :320-322, :324-326, :328, :330; sample.py:14-19, :23-26, :37-38, :80-81, :86-88; train.py:124-125, :274-286, :300; config/train_shakespeare_char.py:9-10, :19; data/shakespeare_char/prepare.py:30-35 - checked against the pinned files. Recorded toy run: tl.recorded.generation (gen_training_loss.py replay() at iteration ${GEN.checkpoint}, the save rule's checkpoint; random.Random(${S.seed.value}).choices for torch.multinomial). Source value: start and max_new_tokens (g.sample, gen_generation.py). Built in the module: the rows, the draw positions, 1 + 8 = 9, 6 + 4 = 10, 6 + 500 = 506 and the option strings.`,
   control: 'none visible (replay only). revealed - a hidden bool owned by the practice, set by a committed attempt.',
-  consequence: `The replay builds the staircase pass by pass: row k (${ROWS.map(r => r.join('')).join(', ')}) with its last character bold, then its draw (${DRAWS.join(', ')}) in the next column, before row k + 1 is handed it; the captions follow once the eighth draw is in (idx grew from 1 character to 9). Until a committed practice attempt a "Not drawn" note holds the band's place; after it the practice band shows ${P.start} plus ${P.pass - 1} draws (${HANDED} characters, last bold), the draw ${P_DRAW} and "${BAND_LINE}".`,
+  consequence: `The replay builds the staircase pass by pass: row k (${ROWS.map(r => r.join('')).join(', ')}) with its last character bold, then its draw (${DRAWS.join(', ')}) in the next column, before row k + 1 is handed it; the captions follow once the eighth draw is in (idx grew from 1 character to 9). Until a committed practice attempt a "Not drawn" note holds the band's place; after it the practice band shows ${P.start} plus ${P.pass - 1} draws (${HANDED} characters, last bold), an arrow, the draw ${P_DRAW} one column past it, and "${BAND_LINE}".`,
   interactionPurpose: 'See that each pass is handed the whole of idx, including the previous pass\'s draw, so generation must run one pass per character, and that generate() returns the start with the new characters.',
   task: `Watch the replay: each draw lands in the next column and the next row is handed it. Practice: from a ${P_LEN}-character start, how many characters is pass ${P.pass} handed, and how many does generate() return? (choice; expected handed ${HANDED}, returns ${RETURNS}).`,
-  capability: 'label-style token rows with a constant cellHighlight (the bold last position); role-output text objects for the draws, centred on the next chip column; timeline appears in causal order; a hidden-bool revealInput with choose()d opacity, text and token list (a placeholder empty list) and no appear on the practice band, whose place a wait note holds by the inverse choose (c12, c19); choice practice graded by choice_equals without fixedInputs; no visible input, so no INTERACT row.',
+  capability: 'label-style token rows with a constant cellHighlight (the bold last position); role-output text objects for the draws, centred on the next chip column (the practice draw one column further, after an arrow); timeline appears in causal order; a hidden-bool revealInput with choose()d opacity, text and token list (a placeholder empty list) and no appear on the practice band, whose place a wait note holds by the inverse choose (c12, c19); choice practice graded by choice_equals without fixedInputs; no visible input, so no INTERACT row.',
 };

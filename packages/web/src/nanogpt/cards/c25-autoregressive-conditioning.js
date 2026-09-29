@@ -42,7 +42,8 @@ const CELL = 60;
 const ROW_A_Y = 120, ROW_B_Y = 166;
 const GRID_Y = 322;
 const REST_X = 700;
-const BARS = { y: 392, h: 140, peak: 100 };
+// The 100% line sits 26 below the grid (≥ 24), grouped with the bars, not the cells.
+const BARS = { y: 404, h: 128, peak: 100 };
 const CONCEPT = 'autoregressive-conditioning';
 // Both texts end on one column: each row starts where its last token's centre
 // lands on READ_X (chip metrics as the renderer draws them), between the grid
@@ -78,6 +79,9 @@ export const scene = {
   exampleData: {
     prevLabels: ['‘e’', 'sp (space)', '‘h’', '‘,’ (comma)'],
     prevNames: COND.presets.map(p => quoted(p.prev)),
+    // Each text as words, left of its tokens: the tokens spell it, this reads it.
+    phraseAByPrev: COND.presets.map(p => `“…${p.texts[0].text}”`),
+    phraseBByPrev: COND.presets.map(p => `“…${p.texts[1].text}”`),
     textAByPrev: COND.presets.map(p => tokensOf(p.texts[0].text)),
     textBByPrev: COND.presets.map(p => tokensOf(p.texts[1].text)),
     lastAByPrev: COND.presets.map(p => p.texts[0].text.length), // '…' shifts every index by one
@@ -90,6 +94,8 @@ export const scene = {
   },
   derived: {
     prevName: { op: 'pick', args: ['prevNames', 'prev'] },
+    phraseA: { op: 'pick', args: ['phraseAByPrev', 'prev'] },
+    phraseB: { op: 'pick', args: ['phraseBByPrev', 'prev'] },
     textA: { op: 'pick', args: ['textAByPrev', 'prev'] },
     textB: { op: 'pick', args: ['textBByPrev', 'prev'] },
     lastA: { op: 'pick', args: ['lastAByPrev', 'prev'] },
@@ -106,8 +112,8 @@ export const scene = {
   objects: [
     text('question', 'What does the next-character prediction read of the text so far?', 40, 30, { typography: 'heading' }),
     // Names the checkpoint as c24 does: c26 prints the same table at its last one, iteration 1000.
-    note('status-1', `Recorded toy run (a bigram reading only the previous character, not NanoGPT; iteration ${IT}, the kept checkpoint): p`, 40, 56),
-    note('status-2', `Live calculation: the other ${REST_COUNT} · Source value: the texts, ${V} characters, ${BLOCK}`, 40, 74),
+    note('status-1', `Recorded toy run (a bigram reading only the previous character, not NanoGPT; iteration ${IT}, the kept checkpoint)`, 40, 56),
+    note('status-2', `Live calculation: the other ${REST_COUNT} together · Source value: the texts, ${V} characters, NanoGPT’s ${BLOCK}-character window`, 40, 74),
     note('builds-on', 'Builds on: generation appends each draw to the text; attention lets the last position read earlier ones', 40, 92),
 
     // ① the text so far: two real texts ending in the same character, stacked
@@ -115,9 +121,9 @@ export const scene = {
     // not a selection). The box is drawn first so the characters sit on it.
     { id: 'read-box', type: 'box', semanticId: 'read-character', conceptId: CONCEPT,
       initialState: { ...READ_BOX, role: 'input', opacity: 0 } },
-    text('text-a-label', 'text A', 40, ROW_A_Y + 21, { typography: 'caption', ...hidden }),
+    text('text-a-label', '{{phraseA}}', 40, ROW_A_Y + 21, hidden),
     tokens('text-a', 'textA', 'lastA', 'xA', ROW_A_Y),
-    text('text-b-label', 'text B', 40, ROW_B_Y + 21, { typography: 'caption', ...hidden }),
+    text('text-b-label', '{{phraseB}}', 40, ROW_B_Y + 21, hidden),
     tokens('text-b', 'textB', 'lastB', 'xB', ROW_B_Y),
 
     // ② what each model reads.
@@ -131,13 +137,17 @@ export const scene = {
         rowLabels: ['p (%)'], columnLabels: COLS, values: { $derive: 'row' }, opacity: 0 } },
     { id: 'rest', type: 'grid', semanticId: 'rest-of-row', conceptId: CONCEPT,
       initialState: { x: REST_X, y: GRID_Y, rows: 1, cols: 1, cell: CELL, matrixKind: 'derived', role: 'prediction',
-        columnLabels: [`the other ${REST_COUNT} together`], values: { $derive: 'restV' }, opacity: 0 } },
+        columnLabels: ['together'], values: { $derive: 'restV' }, opacity: 0 } },
+    // Its label's first line, over 'together': the column labels' mono face and size, centred on
+    // the cell (43 = half of 'the other 57' at about 7.15 px a character).
+    text('rest-label', `the other ${REST_COUNT}`, REST_X + CELL / 2 - 43, GRID_Y - 40, { typography: 'code', ...hidden }),
     { id: 'bars', type: 'bars', semanticId: 'conditional-bars', conceptId: CONCEPT,
       initialState: { x: X, y: BARS.y, h: BARS.h, cell: CELL, peak: BARS.peak, role: 'prediction', values: { $derive: 'row' }, opacity: 0 } },
     { id: 'bars-top', type: 'line', semanticId: 'bars-top', conceptId: CONCEPT,
       initialState: { from: { x: X, y: BARS.y + 4 }, to: { x: X + COLS.length * CELL, y: BARS.y + 4 }, role: 'neutral', opacity: 0 } },
     // Named as the bars' scale, left of the line, so it never reads as a total of the cells.
     note('bars-top-tag', 'bar height 100%', 56, BARS.y + 8, hidden),
+    note('bars-zero-tag', 'bar height 0%', 56, BARS.y + BARS.h + 4, hidden),
     note('legend', `the same ${COLS.length} of the ${V} next characters for every row, each cell rounded on its own; sp = space; … = earlier text`, 40, 560),
 
     // ④ the loop closes: the appended draw is the next condition (c24 owns the loop).
@@ -149,7 +159,7 @@ export const scene = {
   // Replay in causal order: the texts, what is read, the row, the loop.
   timeline: [
     ...[[0, ['read-box', 'text-a-label', 'text-a', 'text-b-label', 'text-b']], [0.6, ['reads-toy', 'reads-nano']],
-      [1.0, ['row-caption', 'row', 'rest']], [1.4, ['bars', 'bars-top', 'bars-top-tag']], [1.8, ['loop', 'append', 'nano-1', 'nano-2']]]
+      [1.0, ['row-caption', 'row', 'rest', 'rest-label']], [1.4, ['bars', 'bars-top', 'bars-top-tag', 'bars-zero-tag']], [1.8, ['loop', 'append', 'nano-1', 'nano-2']]]
       .flatMap(([at, targets]) => targets.map(target => ({ at, action: 'appear', target, duration: 0.3 }))),
   ],
 };
@@ -168,9 +178,9 @@ export const plan = {
     'named, not taught: a distribution over the 65 characters sums to 1 (c16, c21)',
   ],
   causalSteps: [
-    'the text so far (0 s): two real Tiny Shakespeare texts that end in the selected previous character, each a tokens row of labels, … first, a space shown as sp, both ending on one column, the last token bold (highlight) and boxed as what the toy reads',
+    'the text so far (0 s): two real Tiny Shakespeare texts that end in the selected previous character, each a tokens row of labels, … first, a space shown as sp, both ending on one column, the last token bold (highlight) and boxed as what the toy reads, each row named by its text as words',
     'what each model reads (0.6 s): the toy reads only the last character (bold, boxed), so both texts get one row; NanoGPT reads all of each text, up to 256 characters back, so its two predictions can differ',
-    'the row (1.0-1.4 s): the softmax of row {{prevName}} of the toy\'s 65 × 65 logit table as a 1 × 8 p (%) grid over 8 fixed next-character columns, bars on the same pitch with a fixed peak of 100 and a line at the 100% top labelled bar height 100%, and a live cell for the other 57 together; nothing lit',
+    'the row (1.0-1.4 s): the softmax of row {{prevName}} of the toy\'s 65 × 65 logit table as a 1 × 8 p (%) grid over 8 fixed next-character columns, bars on the same pitch with a fixed peak of 100, a line at the 100% top labelled bar height 100% and the baseline labelled bar height 0%, and a live cell for the other 57 together; nothing lit',
     'the loop closes (1.8 s): each draw is appended and becomes the next previous character (preset append line), and generate() takes the logits at the last position of the text it is handed, which through attention can read every earlier character and its position',
   ],
   primaryInteraction: 'one index picker in INTERACT, "Previous character (preset)": ‘e’, sp (space), ‘h’, ‘,’ (comma), default ‘e’; stored presets, nothing runs. It changes both texts and their bold last character, the row name, the 8 p (%) cells and bars, the other-57 cell and the append line; never the columns, axis, top line or NanoGPT lines. It reveals that the condition alone moves the whole distribution (peaked after the comma, spread after sp), that two texts with one last character share one toy row, and that one appended character switches the row (‘e’ → sp)',
@@ -239,5 +249,5 @@ export const evidence = {
   consequence: `Picking a preset swaps both texts and their bold, boxed last character, the row name in the captions, the 8 p (%) cells and bars (‘e’: sp 19.90 … w 0.19; sp: t 12.15 highest, spread; ‘h’: e 39.04; ‘,’: sp 72.24, peaked), the other-${REST_COUNT} cell (45.65, 58.83, 27.41, 24.72) and the append line; the columns, the 100% axis, the loop line and the NanoGPT lines hold in every state.`,
   interactionPurpose: 'See that the whole next-character distribution follows the condition: two texts with the same last character share one toy row, and one appended character (‘e’ → sp) switches the row, while NanoGPT reads all of each text.',
   task: 'Pick each previous character and compare how peaked or spread its row is; then go from ‘e’ to sp and see the same two texts, one space longer, get a different row.',
-  capability: 'index picker; two tokens rows with tokenStyle labels, derived variable-length tokens, a derived x that ends both on one column and a derived cellHighlight of kind highlight; a fixed box around that column; a 1 × 8 input grid with fixed columnLabels and picked values; a 1 × 1 derived grid for the live rest; bars with a fixed peak of 100 and a line at the top; derive ops pick, sum, concat, sub; {{}} interpolation of strings only.',
+  capability: 'index picker; two tokens rows with tokenStyle labels, each named by a picked plain-text label, derived variable-length tokens, a derived x that ends both on one column and a derived cellHighlight of kind highlight; a fixed box around that column; a 1 × 8 input grid with fixed columnLabels and picked values; a 1 × 1 derived grid for the live rest; bars with a fixed peak of 100 and a line at the top; derive ops pick, sum, concat, sub; {{}} interpolation of strings only.',
 };

@@ -34,17 +34,17 @@ const withoutContributors = box => { const { contributors: _c, ...rest } = box; 
 const shownCells = object => (object.distribution ? distributeRounding(object.values, 2) : object.values).map(v => (v === null ? '' : formatCell(v)));
 const close = (a, b, tol, where) => a.forEach((x, i) => assert.ok(x === null ? b[i] === null : Math.abs(x - b[i]) <= tol, `${where}: ${JSON.stringify(a)} vs ${JSON.stringify(b)}`));
 
-test('c22 passes every gate at every review state and every input combination; 31 objects at scale 1, one frame for every state', () => {
+test('c22 passes every gate at every review state and every input combination; 33 objects at scale 1, one frame for every state', () => {
   assertCardGates(scene, reviewStates);
   const results = assertCardGates(scene, ALL);
   assert.deepEqual(reviewStates, [{ topK: 1 }, { topK: 0 }, { topK: 2 }, { topK: 5 }, { topK: 1, revealed: true }, { topK: 5, revealed: true }]);
   assert.deepEqual(scene.inputs.map(i => [i.name, i.type, i.default, i.presentation, !!i.hidden]), [['topK', 'index', 1, 'slider', false], ['revealed', 'bool', false, undefined, true]]);
   assert.equal(scene.inputs[0].label, 'top_k (preset)');
-  assert.deepEqual(scene.exampleData.kLabels, ['k = 1', 'k = 2', 'k = 3', 'k = 4', 'k = 5', 'k = 6 (nothing cut)']);
+  assert.deepEqual(scene.exampleData.kLabels, ['1', '2', '3', '4', '5', '6 (nothing cut)'], 'bare values: the lock line reads "top_k (preset) = 2", never "= k = 2"');
   assert.equal(scene.id, 'nanogpt-c22-top-k');
   assert.equal(scene.objects[0].semanticId, 'question');
-  assert.equal(scene.objects.length, 31);
-  assert.equal(scene.height, 743);
+  assert.equal(scene.objects.length, 33);
+  assert.equal(scene.height, 771);
   const legibility = sceneLegibility(scene);
   assert.ok(scene.height >= legibility.viewport.h && scene.height < legibility.viewport.h + 1, 'the scene box holds the padded content');
   assert.equal(legibility.scale, 1);
@@ -108,7 +108,15 @@ test('c22 every preset: v_k, the rings, the −∞ marks, ③, the bars, the mas
     assert.deepEqual(shownCells(byId(result, 'p-cut')), SHOWN[pos], `${where} ③ as drawn`);
     assert.deepEqual(shownCells(byId(result, 'p-all')), SHOWN[5], `${where} ② as drawn: each cell rounded on its own`);
     assert.deepEqual(byId(result, 'logits').cellHighlight, keptIdx, `${where} rings`);
-    assert.deepEqual(byId(result, 'cut-marks').tokens, masked.map(x => (x === null ? '−∞' : '  ')), `${where} −∞ marks`);
+    // −∞ chips under exactly the cut cells: one per cut logit, starting at column k (the survivors are the first k).
+    assert.deepEqual(byId(result, 'cut-marks').tokens, cutIdx.map(() => '−∞'), `${where} −∞ chips`);
+    assert.equal(byId(result, 'cut-marks').tokenStyle, null, 'chips, not faint labels');
+    const logits = byId(result, 'logits');
+    assert.equal(byId(result, 'cut-marks').x, logits.x + (logits.cell - (32 + 2 * 9.5)) / 2 + keptIdx.length * logits.cell, `${where} first chip under column k`);
+    // The survivors' ring wraps exactly the kept columns, in ③'s colour.
+    const ring = byId(result, 'kept-ring');
+    assert.equal(ring.role, byId(result, 'p-cut').role);
+    assert.ok(ring.x < logits.x && ring.x + ring.w > logits.x + keptIdx.length * logits.cell && ring.x + ring.w < logits.x + (keptIdx.length + 1) * logits.cell, `${where} ring`);
     const vk = LOGITS[Math.min(k, V) - 1];
     assert.equal(byId(result, 'k-readout').label, `top_k = ${k} · v_k = ${vk.toFixed(2)}`, `${where} v_k printed as its ① cell, never as bare k`);
     assert.equal(byId(result, 'k-readout').label.split(' · ')[1].slice(6), shownCells(byId(result, 'logits'))[Math.min(k, V) - 1]);
@@ -122,7 +130,8 @@ test('c22 every preset: v_k, the rings, the −∞ marks, ③, the bars, the mas
     assert.doesNotMatch(byId(result, 'factor').label, /same ratios/);
     const f4 = v => v.toFixed(4);
     assert.equal(byId(result, 'old-new').label, `z ${f4(P_ALL[0])} → ${f4(cut[0])} · e ${f4(P_ALL[1])} → ${cut[1] === null ? '0, cut' : f4(cut[1])}`);
-    assert.equal(byId(result, 'consequence').label, k === 1 ? 'only z is left: every draw is z (greedy)' : k < V ? 'softmax: −∞ → p exactly 0, never drawn' : '③ = ②; sp’s bar: a 0.01 sliver, not cut');
+    // k = 6: sp's 0.0111 bar is about 1 px on a p = 1 axis, so the caption points at its ③ cell, not at a sliver.
+    assert.equal(byId(result, 'consequence').label, k === 1 ? 'only z is left: every draw is z (greedy)' : k < V ? 'softmax: −∞ → p exactly 0, never drawn' : '③ = ②; sp: 0.01 in ③, bar too thin to see');
   });
 });
 
@@ -171,6 +180,8 @@ test('c22 the What-if: softmax of ln p′ gives p′ back; cut to top_k = 2 it i
   ALL.forEach(({ revealed }, n) => {
     const result = results[n], where = JSON.stringify(ALL[n]);
     for (const id of ['whatif', 'name-whatif']) assert.equal(byId(result, id).opacity, revealed ? 1 : 0, `${where} ${id}`);
+    assert.equal(byId(result, 'whatif-hint').opacity, revealed ? 0 : 1, `${where} the empty slot says what fills it`);
+    assert.equal(byId(result, 'whatif').role, byId(result, 'p-cut').role, 'a cut What-if cell looks like a cut ③ cell');
     const values = byId(result, 'whatif').values;
     if (revealed) {
       close(values, [0.75, 0.25, null, null, null, null], 1e-9, where);
@@ -187,7 +198,8 @@ test('c22 the What-if: softmax of ln p′ gives p′ back; cut to top_k = 2 it i
   });
   assert.equal(byId(results[1], 'name-whatif').label, 'What-if (k = 2)');
   // No appear on the What-if objects: their opacity is derived.
-  assert.ok(!scene.timeline.some(e => ['whatif', 'name-whatif', 'whatif-before', 'whatif-after'].includes(e.target)));
+  assert.equal(byId(results[1], 'whatif-hint').label, 'What-if (k = 2): fills in after you check a Practice answer');
+  assert.ok(!scene.timeline.some(e => ['whatif', 'name-whatif', 'whatif-before', 'whatif-after', 'whatif-hint'].includes(e.target)));
 });
 
 test('c22 before a committed attempt no cell, readout or caption at any k shows an answer number', () => {
@@ -212,7 +224,7 @@ test('c22 practice: an undrawn six-value distribution at top_k = 2; the naive de
   assert.equal(activity.check, 'choice_equals');
   assert.equal(activity.version, 1);
   assert.deepEqual(activity.fixedInputs, { topK: 1 });
-  assert.equal(scene.exampleData.kLabels[activity.fixedInputs.topK], 'k = 2');
+  assert.equal(scene.exampleData.kLabels[activity.fixedInputs.topK], '2');
   assert.equal(activity.revealInput, 'revealed');
   assert.equal(activity.prompt, 'The card is at top_k = 2. Suppose a different model gave these six probabilities before any cut (not drawn): 0.45, 0.15, 0.13, 0.11, 0.10, 0.06. With top_k = 2, what would the two survivors’ probabilities be?');
   const labels = Object.fromEntries(activity.answer.options.map(o => [o.id, o.label]));
@@ -228,15 +240,16 @@ test('c22 practice: an undrawn six-value distribution at top_k = 2; the naive de
   assert.equal(labels.top, `${(a + cutMass).toFixed(2)} and ${b.toFixed(2)}`);
   assert.equal(labels.proportional, `${(a / keptMass).toFixed(2)} and ${(b / keptMass).toFixed(2)}`);
   assert.equal(activity.feedbackPass, 'Right. top_k = 2 keeps the two largest logits; the other four become −∞, so their 0.40 is gone and softmax shares the whole 1 over what is left: each survivor ÷ 0.60, the kept mass. 0.45 → 0.75 and 0.15 → 0.25, still 3 to 1. The What-if row now shows it.');
-  assert.equal(activity.feedbackFail, 'Not quite. The cut four get exactly 0, and softmax re-divides the whole 1 over the survivors in proportion to their old p: each ÷ 0.60, the kept mass. “0.45 and 0.15” leaves the row summing to 0.60, not 1; “0.65 and 0.35” splits the cut 0.40 evenly and breaks the 3 : 1 ratio; “0.85 and 0.15” hands it all to the top one. The answer is 0.75 and 0.25. The What-if row now shows it.');
+  assert.equal(activity.feedbackFail, 'Not quite. The cut four get exactly 0; softmax shares the whole 1 over the survivors in proportion to their old p, each ÷ 0.60 (the kept mass): 0.75 and 0.25. “0.45 and 0.15” sums to 0.60, not 1; an even split or all to the top one breaks the 3 : 1 ratio. The What-if row now shows it.');
+  assert.ok(activity.feedbackFail.length <= activity.feedbackPass.length + 40, 'the fail feedback is no heavier than the pass (two lines)');
   for (const t of [activity.prompt, activity.feedbackPass, activity.feedbackFail]) assert.doesNotMatch(t, /\.py\b|:\d{2,}|generate_fixtures/);
   // Not drawn: the card's own six p are not p′ at any k.
   for (const k of KS) assert.notDeepEqual(softmax(topK(LOGITS, k)).map(p => (p === null ? null : Math.round(p * 100) / 100)).slice(0, 2), [0.45, 0.15]);
 });
 
-test('c22 replay in pipeline order: ① and ② at 0, the −∞ marks at 0.4, ③ at 0.8, the bars at 1.2, their top line at 1.4', () => {
+test('c22 replay in pipeline order: ① and ② at 0, the ring and −∞ chips at 0.4, ③ at 0.8, the bars at 1.2, their top line at 1.4', () => {
   const at = id => scene.timeline.find(e => e.action === 'appear' && e.target === id)?.at;
-  assert.deepEqual(['logits', 'p-all', 'cut-marks', 'p-cut', 'bars', 'bars-top'].map(at), [0, 0, 0.4, 0.8, 1.2, 1.4]);
+  assert.deepEqual(['logits', 'p-all', 'kept-ring', 'cut-marks', 'p-cut', 'bars', 'bars-top', 'bars-top-key'].map(at), [0, 0, 0.4, 0.4, 0.8, 1.2, 1.4, 1.4]);
   assert.equal(scene.duration, 1.6);
   for (const id of ['loop-step', 'k-readout', 'cut-mass', 'kept-mass', 'consequence', 'blank-note', 'default-note', 'order-note']) {
     assert.equal(scene.objects.find(o => o.id === id).initialState.opacity, undefined, `${id} is drawn at rest and at every moment`);

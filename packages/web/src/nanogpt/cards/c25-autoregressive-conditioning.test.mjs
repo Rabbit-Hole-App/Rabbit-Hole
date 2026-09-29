@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import fx from '../fixtures/nanogpt-fixtures.generated.js';
 import tl from '../depth/fixtures/training-loss.generated.js';
-import { sceneContentBounds, sceneLegibility } from '../../scene-layout.js';
+import { estimateTextBox, gridAxisLabelBoxes, sceneContentBounds, sceneLegibility } from '../../scene-layout.js';
 import { ungroupedNumbers } from '../../scene-format.js';
 import { assertCardGates, assertCardPlan, assertEvidence, assertSources, evaluated, pinnedFile } from '../card-gates.mjs';
 import { CHIP_CHAR, CHIP_GAP, CHIP_PAD } from '../../animation-scene.js';
@@ -111,6 +111,8 @@ test('c25 every stage follows the previous character and matches the oracle', ()
       assert.equal(row.cellHighlightKind, 'highlight');
       assert.equal(row.tokenStyle, 'labels');
       assert.equal(row.tokens.at(-1), prev === ' ' ? 'sp' : prev);
+      // The row is named by its text as words, so it reads without spelling the tokens.
+      assert.equal(byId(result, `${id}-label`).label, `“…${t}”`);
     }
     // Both read characters stack in one column (x-centres within 4 units), and one
     // box - a mark beyond font weight - encloses that column in both rows.
@@ -137,7 +139,9 @@ test('c25 every stage follows the previous character and matches the oracle', ()
     assert.equal(restCell.values.length, 1);
     assert.ok(Math.abs(restCell.values[0] + cells.reduce((a, b) => a + b, 0) - 100) < 1e-6, `${prev} cells + rest = 100`);
     assert.equal(restCell.values[0].toFixed(2), rest);
-    assert.deepEqual(restCell.columnLabels, ['the other 57 together']);
+    // 'the other 57 / together' in two lines over its own 60-wide cell.
+    assert.deepEqual(restCell.columnLabels, ['together']);
+    assert.equal(byId(result, 'rest-label').label, 'the other 57');
     // Captions naming a text or a row follow the preset.
     // The mark is named as drawn: bold (c24's word) and boxed.
     assert.equal(byId(result, 'reads-toy').label, `The toy reads only the bold, boxed last character, ${NAMES[k]} in both: both get one row.`);
@@ -158,13 +162,14 @@ test('c25 captions are true at every state; status words only; no most-likely ma
   const STATIC = {
     question: 'What does the next-character prediction read of the text so far?',
     // 'iteration 100, the kept checkpoint' in c24's words: c26 prints this table at iteration 1000.
-    'status-1': 'Recorded toy run (a bigram reading only the previous character, not NanoGPT; iteration 100, the kept checkpoint): p',
-    'status-2': 'Live calculation: the other 57 · Source value: the texts, 65 characters, 256',
+    // No header line ends in a bare symbol or number (visual review V-c25-V1).
+    'status-1': 'Recorded toy run (a bigram reading only the previous character, not NanoGPT; iteration 100, the kept checkpoint)',
+    'status-2': 'Live calculation: the other 57 together · Source value: the texts, 65 characters, NanoGPT’s 256-character window',
     'builds-on': 'Builds on: generation appends each draw to the text; attention lets the last position read earlier ones',
-    'text-a-label': 'text A',
-    'text-b-label': 'text B',
     'reads-nano': 'NanoGPT reads all of each text, up to 256 characters back, so its two predictions can differ.',
     'bars-top-tag': 'bar height 100%',
+    'bars-zero-tag': 'bar height 0%',
+    'rest-label': 'the other 57',
     legend: 'the same 8 of the 65 next characters for every row, each cell rounded on its own; sp = space; … = earlier text',
     loop: 'When it writes, each draw is appended and becomes the next previous character.',
     'nano-1': 'NanoGPT: generate() takes the logits at the last position of the text it is handed.',
@@ -176,6 +181,8 @@ test('c25 captions are true at every state; status words only; no most-likely ma
     // and its tag sits left of the line, away from the 8 cells and the rest cell.
     assert.ok(labels(result).filter(l => l.includes('100%')).every(l => l.includes('bar height')));
     assert.ok(byId(result, 'bars-top-tag').x < byId(result, 'bars-top').from.x);
+    assert.ok(byId(result, 'bars-zero-tag').x < byId(result, 'bars-top').from.x);
+    for (const id of ['status-1', 'status-2']) assert.doesNotMatch(byId(result, id).label, /\s(\p{L}|\d+)$/u, id);
     const all = labels(result).join('\n');
     for (const status of ['Recorded toy run', 'Live calculation', 'Source value']) assert.ok(all.includes(status), status);
     assert.doesNotMatch(all, /\.py\b|\.js\b|\bline \d|[a-z]:\d|\b[0-9a-f]{7}\b/);
@@ -194,8 +201,8 @@ test('c25 replay: the texts, what is read, the row, then the loop', () => {
   const at = time => shown(evaluated(scene, {}, time));
   const TEXTS = ['read-box', 'text-a-label', 'text-a', 'text-b-label', 'text-b'];
   const READS = ['reads-toy', 'reads-nano'];
-  const ROW = ['row-caption', 'row', 'rest'];
-  const BARS = ['bars', 'bars-top', 'bars-top-tag'];
+  const ROW = ['row-caption', 'row', 'rest', 'rest-label'];
+  const BARS = ['bars', 'bars-top', 'bars-top-tag', 'bars-zero-tag'];
   const LOOP = ['loop', 'append', 'nano-1', 'nano-2'];
   const none = (ids, time) => !ids.some(id => at(time).includes(id));
   assert.ok(TEXTS.every(id => at(0.4).includes(id)) && none([...READS, ...ROW, ...BARS, ...LOOP], 0.4), at(0.4).join());
@@ -222,7 +229,23 @@ test('c25 one frame at scale 1 that never refits across presets', () => {
       assert.ok(row.x + row.w - CHIP_GAP <= byId(result, 'read-box').x + byId(result, 'read-box').w, `${id} ends at ${row.x + row.w}`);
     }
   }
-  assert.equal(scene.objects.length, 22);
+  // The bar scale: its 100% line groups with the bars, at least 24 below the grid,
+  // and a 0% tag names the baseline (visual review V-c25-V4).
+  const result = evaluated(scene, {}, scene.duration);
+  const grid = byId(result, 'row'), bars = byId(result, 'bars');
+  assert.ok(byId(result, 'bars-top').from.y - (grid.y + grid.h) >= 24);
+  assert.ok(Math.abs(byId(result, 'bars-zero-tag').y - 4 - (bars.y + bars.h)) < 1e-9, 'the 0% tag sits on the baseline');
+  // The rest label's lines sit over their own cell, clear of the 'w' label by a
+  // neighbour gap or more (visual review V-c25-V3).
+  const rest = byId(result, 'rest'), code = { fontSize: 13, anchor: 'start', baseline: 'auto' };
+  const w = gridAxisLabelBoxes(grid).at(-1);
+  const wRight = estimateTextBox({ ...w, fontSize: 13 }).xMax;
+  const first = byId(result, 'rest-label');
+  assert.ok(first.x - wRight >= 40, `gap ${first.x - wRight}`);
+  const centre = first.x + 43;
+  assert.ok(Math.abs(centre - (rest.x + rest.w / 2)) <= 1, `centre ${centre}`);
+  assert.ok(estimateTextBox({ text: first.label, x: first.x, y: first.y, ...code }).yMax <= estimateTextBox({ ...gridAxisLabelBoxes(rest)[0], fontSize: 13 }).yMin, 'line 1 above line 2');
+  assert.equal(scene.objects.length, 24);
 });
 
 test('c25 plan: staged, verbatim objective, sequence "Generation context" 2 of 3, no boundary flag', () => {

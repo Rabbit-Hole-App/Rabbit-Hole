@@ -5,7 +5,6 @@ import g from '../depth/fixtures/generation.generated.js';
 import { validateActivity, PREDICATES, describeActivity } from '../../scene-activity.js';
 import { sceneContentBounds, sceneLegibility } from '../../scene-layout.js';
 import { formatCell, ungroupedNumbers } from '../../scene-format.js';
-import { CHIP_CHAR, CHIP_GAP, CHIP_PAD } from '../../animation-scene.js';
 import { assertCardGates, assertCardPlan, assertEvidence, assertSources, evaluated, pinnedFile } from '../card-gates.mjs';
 import { scene, plan, reviewStates, activity, sources, evidence } from './c23-context-window.js';
 
@@ -29,18 +28,17 @@ const byId = (result, id) => result.state.objects.find(object => object.id === i
 const shown = result => result.state.objects.filter(object => object.visible).map(object => object.id);
 const labels = result => result.state.objects.filter(o => o.visible && o.label).map(o => o.label);
 const withoutContributors = box => { const { contributors: _c, ...rest } = box; return rest; };
-// The token row as the renderer lays out one-character labels, from x 170.
-const CHIP = CHIP_PAD * 2 + CHIP_CHAR;
-const tokenLeft = i => 170 + i * (CHIP + CHIP_GAP);
-const tokenRight = i => tokenLeft(i) + CHIP;
+// The idx characters, one 50-wide slot each from x 170.
+const slotLeft = i => 170 + i * 50;
 
 test('c23 passes every gate at every review state and the practice state', () => {
   assertCardGates(scene, [...reviewStates, activity.fixedInputs]);
   assert.equal(scene.objects[0].semanticId, 'question');
   assert.deepEqual(reviewStates, [{ block: 1 }, { block: 0 }, { block: 2 }, { block: 3 }]);
-  // One INTERACT control: the What-if toy block_size, default 3; no hidden inputs.
+  // One INTERACT control: the What-if toy block_size, default 3; no hidden inputs. A picker, so
+  // INTERACT shows "block_size k" chips (a slider's readout says "2 of 4" at block_size 3).
   assert.deepEqual(scene.inputs.map(i => [i.name, i.type, i.presentation, i.label, i.default, i.hidden]),
-    [['block', 'index', 'slider', 'What-if: toy block_size (preset)', 1, undefined]]);
+    [['block', 'index', 'picker', 'What-if: toy block_size (preset)', 1, undefined]]);
   assert.deepEqual(scene.exampleData.blockLabels, ['block_size 2', 'block_size 3', 'block_size 4', 'block_size 5']);
 });
 
@@ -69,23 +67,28 @@ test('c23 every stage follows block_size and matches the oracle', () => {
   TABLE.forEach(([k, window, cropped, counts, matches, pct, top], block) => {
     const result = results[block], d = result.derived;
     assert.deepEqual([d.k, d.kept, d.matches, d.top, d.topCh], [k, window, matches, SLOTS.indexOf(top), top]);
-    // ① the highlight is the last k characters; the brackets meet at the crop.
-    const idx = byId(result, 'idx');
-    assert.deepEqual(idx.tokens, ['B', 'e', 'f', 'o', 'r']);
-    assert.deepEqual(idx.cellHighlight, [0, 1, 2, 3, 4].slice(5 - k));
-    assert.equal(idx.tokens.slice(5 - k).join(''), window);
-    const [crop, read] = [byId(result, 'crop-bracket'), byId(result, 'read-bracket')];
-    assert.deepEqual([read.from.x, read.to.x], [tokenLeft(5 - k), tokenRight(4)]);
-    assert.ok(read.from.y > idx.y + 32 && crop.from.y < idx.y, 'read below the row, cropped above it');
+    // ① idx at heading size, the cropped characters dimmed; the idx_cond box holds exactly the last k.
+    const chars = [0, 1, 2, 3, 4].map(i => byId(result, `idx-${i}`));
+    assert.deepEqual(chars.map(c => c.label), ['B', 'e', 'f', 'o', 'r']);
+    assert.ok(chars.every(c => c.visible && c.typography === 'heading'), 'idx at heading size (20px), not the 13px token glyphs');
+    assert.deepEqual(chars.map(c => c.opacity), [0, 1, 2, 3, 4].map(i => (i >= 5 - k ? 1 : 0.45)));
+    assert.equal(chars.slice(5 - k).map(c => c.label).join(''), window);
+    const [crop, box, readLabel] = [byId(result, 'crop-bracket'), byId(result, 'read-box'), byId(result, 'read-label')];
+    assert.deepEqual([box.x, box.x + box.w], [slotLeft(5 - k) + 4, slotLeft(5) - 4]);
+    chars.forEach((c, i) => assert.equal(c.x > box.x && c.x < box.x + box.w, i >= 5 - k, `idx-${i} is in the box iff it is read`));
+    assert.equal(readLabel.x, box.x, '"read" hangs under the box’s left edge');
+    assert.ok(readLabel.y > box.y + box.h && crop.from.y < box.y, 'read under the box, cropped bracket above the row');
     const cropShown = shown(result).includes('crop-bracket');
     assert.equal(cropShown, k < 5);
     assert.equal(shown(result).includes('crop-label'), k < 5);
-    if (k < 5) assert.deepEqual([crop.from.x, crop.to.x], [tokenLeft(0), tokenRight(4 - k)]);
-    assert.ok(tokenRight(4) + 14 + 4 * 9 < 590, 'the → ? slot ends before x 590');
+    if (k < 5) assert.deepEqual([crop.from.x, crop.to.x], [slotLeft(0) + 4, slotLeft(5 - k) - 4]);
+    assert.equal(byId(result, 'crop-label').x, crop.from.x, '"cropped" sits over its bracket, not in the gutter');
+    assert.ok(byId(result, 'next-slot').x + 4 * 9 < 590, 'the → ? slot ends before x 590');
     assert.equal(byId(result, 'readout-t').label, `5 characters in idx · toy block_size ${k}`);
     assert.equal(byId(result, 'readout-read').label, `idx_cond (read): “${window}”`);
-    // The cropped characters are named as the prompt's (the objective's "prompt included", drawn).
-    assert.equal(byId(result, 'readout-crop').label, cropped ? `cropped from the prompt, still in idx: “${cropped}”` : 'no crop: idx ≤ block_size, idx_cond = idx');
+    // The cropped characters are named as the prompt's (the objective's "prompt included", drawn);
+    // with no crop the note compares idx's length, never idx itself, with block_size.
+    assert.equal(byId(result, 'readout-crop').label, cropped ? `cropped from the prompt, still in idx: “${cropped}”` : 'no crop: 5 characters ≤ block_size 5');
     // ② that table's row for exactly idx_cond; matches printed ungrouped.
     assert.deepEqual(byId(result, 'counts').values, counts);
     assert.equal(byId(result, 'matches').label, `matches = ${matches}`);
@@ -97,8 +100,21 @@ test('c23 every stage follows block_size and matches the oracle', () => {
     assert.deepEqual(byId(result, 'bars').values, p);
     assert.equal(byId(result, 'bars').cellHighlight, SLOTS.indexOf(top));
     assert.equal(byId(result, 'top-readout').label, `Most likely next: ${top} (${pct[SLOTS.indexOf(top)]}%)`);
-    // Captions: exact, and every percentage in them is a live cell as printed.
+    // The winning column is framed, 16 clear of the p grid, and its readout sits beside the frame's top.
+    const [frame, pGrid, readout] = [byId(result, 'top-frame'), byId(result, 'p'), byId(result, 'top-readout')];
+    assert.deepEqual([frame.x, frame.w], [170 + SLOTS.indexOf(top) * 70 - 1, 72]);
+    assert.ok(frame.y - (pGrid.y + pGrid.h) >= 16 && frame.y < byId(result, 'bars').y - 4.76, 'frame clear of the grid, above a popped 100% bar');
+    assert.equal(readout.x, frame.x + frame.w + 9);
+    assert.ok(readout.y > frame.y && readout.y < frame.y + 30, 'readout level with the frame’s top');
+    // Captions: exact, and every percentage in them is a live cell as printed; the two lines that
+    // change sit on a panel, the constant lines under it.
     assert.deepEqual([byId(result, 'caption-1').label, byId(result, 'caption-2').label], CAPTIONS[block]);
+    const panel = byId(result, 'caption-panel');
+    for (const id of ['caption-1', 'caption-2']) {
+      const line = byId(result, id);
+      assert.ok(line.x > panel.x && line.y - 15 > panel.y && line.y + 4 < panel.y + panel.h, `${id} on the panel`);
+    }
+    assert.ok(byId(result, 'only-idx-cond').y - 15 > panel.y + panel.h, 'the constant lines are off the panel');
   });
   // Cropping the one e of "efor" moves the most likely next character from e to a space.
   assert.deepEqual(results.map(r => r.derived.top), [1, 1, 0, 0]);
@@ -172,14 +188,15 @@ test('c23 44, 45, 255, 300 and 500 are drawn nowhere, grid and bar values includ
 
 test('c23 replay: idx and its crop, then the counted row, then the prediction', () => {
   const at = time => shown(evaluated(scene, {}, time));
-  const CROP = ['idx-label', 'idx', 'next-slot', 'read-label', 'read-bracket', 'readout-t', 'readout-read', 'readout-crop', 'rule'];
+  const CROP = ['idx-label', 'read-box', 'next-slot', 'read-label', 'readout-t', 'readout-read', 'readout-crop', 'rule'];
   const COUNT = ['counts', 'matches', 'matches-note'];
-  const PREDICT = ['p', 'p-rule', 'bars', 'top-readout', 'caption-1', 'caption-2', 'only-idx-cond', 'idx-keeps'];
+  const PREDICT = ['p', 'p-rule', 'top-frame', 'bars', 'top-readout', 'caption-panel', 'caption-1', 'caption-2', 'only-idx-cond', 'idx-keeps'];
+  const DERIVED_OPACITY = ['crop-bracket', 'crop-label', 'idx-0', 'idx-1', 'idx-2', 'idx-3', 'idx-4'];
   assert.ok(CROP.every(id => at(0.4).includes(id)) && ![...COUNT, ...PREDICT].some(id => at(0.4).includes(id)), at(0.4).join());
   assert.ok(COUNT.every(id => at(1.0).includes(id)) && !PREDICT.some(id => at(1.0).includes(id)), at(1.0).join());
-  for (const id of [...CROP, ...COUNT, ...PREDICT, 'crop-bracket', 'crop-label']) assert.ok(at(scene.duration).includes(id), id);
-  // The cropped pair carries no appear: its opacity follows block_size only.
-  assert.ok(!scene.timeline.some(event => ['crop-bracket', 'crop-label'].includes(event.target)));
+  for (const id of [...CROP, ...COUNT, ...PREDICT, ...DERIVED_OPACITY]) assert.ok(at(scene.duration).includes(id), id);
+  // The cropped pair and the idx characters carry no appear: their opacity follows block_size only.
+  assert.ok(!scene.timeline.some(event => DERIVED_OPACITY.includes(event.target)));
   assert.deepEqual([...new Set(scene.timeline.map(e => e.at))], [0, 0.6, 1.2]);
   assert.equal(scene.duration, 1.8);
 });
@@ -203,7 +220,7 @@ test('c23 one frame at scale 1 that never refits across states', () => {
     assert.deepEqual(withoutContributors(sceneContentBounds(result.scene)), withoutContributors(legibility.bounds), JSON.stringify(ALL[k]));
     assert.ok(result.state.objects.length <= 60);
   }
-  assert.equal(scene.objects.length, 32);
+  assert.equal(scene.objects.length, 38);
 });
 
 test('c23 plan: staged, verbatim objective, sequence "Generation context" 3 of 3, no boundary flag', () => {
