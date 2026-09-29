@@ -20,7 +20,7 @@ NC7  NanoGPT cards 11–26                 ✅ COMPLETE (25-card inventory, card
                                             batch 5 ✅ CLOSED (page 34:3, v1.1 closeout 38:3)
 NC8  Cross-depth content transitions     ✅ CLOSED (page 43:3; docs/nanogpt-depth-ladder.md
                                             "Cross-depth transitions")
-NC9  Curriculum coherence review         🟡 ACTIVE (open items: softmax card: not needed, both Guided cards
+NC9  Curriculum coherence review         🟡 at the visual gate (page 47:3) (open items: softmax card: not needed, both Guided cards
                                             work it in place (decided); notation and example drift; c18 practice vs
                                             Training Guided reveal; q·k score production ✅ PASS (audit only,
                                             docs/nanogpt-depth-ladder.md);
