@@ -1038,6 +1038,8 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
   );
 }
 
+const CARDS_COPIED = 'rabbit-hole:copied-cards';
+
 export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
@@ -1409,6 +1411,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);
+  const markingCopy = useRef(false);
   const [canPaste, setCanPaste] = useState(false);
   // Copy works on every selected node, note and shape. The clipboard holds
   // ids, never the objects: copy then edit then paste has to produce what is
@@ -1421,6 +1424,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!has(blocksRef.current) && !has(itemsRef.current) && !has(shapesRef.current) && !has(exchangesRef.current)) return false;
     clipboard.current = picked.slice();
     setCanPaste(true);
+    // The system clipboard says which copy is newest: our marker there means
+    // Ctrl+V pastes these cards; an image copied after it wins instead. Until
+    // the write lands, a paste takes the cards.
+    if (navigator.clipboard) {
+      markingCopy.current = true;
+      navigator.clipboard.writeText(CARDS_COPIED).catch(() => {}).finally(() => { markingCopy.current = false; });
+    }
     toast(`Copied ${picked.length} item${picked.length === 1 ? '' : 's'}`);
     return true;
   };
@@ -1464,6 +1474,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return true;
   };
   const pasteIdsRef = useRef(pasteIds);
+  const dropFilesRef = useRef(onDropFiles);
+  dropFilesRef.current = onDropFiles;
   pasteIdsRef.current = pasteIds;
   const shapesRef = useRef([]);
   const onAddRef = useRef(null);
@@ -1728,11 +1740,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         if (commands.copy()) event.preventDefault();
         return;
       }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
-        if (typing || !clipboard.current?.length) return;
-        if (pasteIdsRef.current(clipboard.current)) event.preventDefault();
-        return;
-      }
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
       if (typing) return;
       deleteSelectionRef.current();
@@ -1740,8 +1747,24 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // Capture phase: several lesson blocks stop keydown on their own container
     // (an embedded graph, a chart, a 3D view), which otherwise kills copy,
     // paste, undo and delete for the whole canvas while one is focused.
+    // Ctrl+V: a copied image becomes an image card, like a dropped one;
+    // otherwise the canvas's own copied cards paste.
+    const paste = event => {
+      const active = document.activeElement;
+      if (active && (active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+      const data = event.clipboardData;
+      const images = [...(data?.files || [])].filter(file => file.type.startsWith('image/'));
+      // ponytail: if writing the marker failed, an image copied before the cards still wins.
+      if (images.length && dropFilesRef.current && !markingCopy.current && data.getData('text/plain') !== CARDS_COPIED) {
+        event.preventDefault();
+        dropFilesRef.current(images);
+        return;
+      }
+      if (clipboard.current?.length && pasteIdsRef.current(clipboard.current)) event.preventDefault();
+    };
     window.addEventListener('keydown', key, true);
-    return () => window.removeEventListener('keydown', key, true);
+    window.addEventListener('paste', paste, true);
+    return () => { window.removeEventListener('keydown', key, true); window.removeEventListener('paste', paste, true); };
   }, []);
   // The Ask-in-chat button on a selected block arms the dock composer with
   // that block as context; plain selection stays just a selection.
