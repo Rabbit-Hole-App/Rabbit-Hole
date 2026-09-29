@@ -27,7 +27,11 @@ card into view. The card title repeats concept and depth
 | Source | collapsed Sources & evidence | same | a code source for every step; the inspector is the code connection — no code on the card |
 
 "Deeper" must not mean "more paragraphs": a Deep dive's visible text is capped
-at ~1.3× its Guided card's; the depth is carried by structure. All three cards
+at ~1.3× its Guided card's; the depth is carried by structure. Short cross-depth
+bridge lines may be left out of that ratio when they only connect ideas already
+taught at another depth and introduce no new mental model (owner, NC8: Residual
+Deep 3/3's caption tying 2L changes to the Overview's running total); the
+exemption never covers extra explanation. All three cards
 of a concept share the source truth — `karpathy/nanoGPT@3adf61e`, the pinned
 dataset, the fixtures — and, where it fits, the same example, so switching
 depth keeps the example recognisable. The universal card rule of the deep-dive

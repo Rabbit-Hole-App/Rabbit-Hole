@@ -18,9 +18,9 @@ NC7  NanoGPT cards 11–26                 ✅ COMPLETE (25-card inventory, card
   NC7B Batch 3                           ✅ CLOSED (page 18:3, v1.1 fixes 22:3)
   NC7C Remaining through 26              ✅ — batch 4 ✅ CLOSED (page 26:3, v1.1 fixes 28:3);
                                             batch 5 ✅ CLOSED (page 34:3, v1.1 closeout 38:3)
-NC8  Cross-depth content transitions     🟡 at the visual gate (page 43:3); audit, fixes and
-                                            transition data in docs/nanogpt-depth-ladder.md
-NC9  Curriculum coherence review         ⬜ (open items: softmax prerequisite card (build only if
+NC8  Cross-depth content transitions     ✅ CLOSED (page 43:3; docs/nanogpt-depth-ladder.md
+                                            "Cross-depth transitions")
+NC9  Curriculum coherence review         🟡 ACTIVE (open items: softmax prerequisite card (build only if
                                             confirmed needed); notation and example drift; c18 practice vs
                                             Training Guided reveal; is "how scores are produced", q·k, thin?;
                                             should c26 name its iteration-1000 checkpoint next to c25's 100?;
@@ -40,6 +40,17 @@ deployed checks → Figma captures → stop at the visual review gate with the e
 bar: one question per card; practice on an unseen case; no decorative interaction; no text
 shrinking; sequence relationships explicit when cards form a path; existing renderer primitives
 (a new capability only if a batch proves it genuinely reusable).
+
+## 2026-09-29 — NC8 closed
+
+Owner approved the seven changed states (page 43:3) and the data-only transition work: stable
+semantic sub-card ids, optional part-level targets with parent-card fallback, the four relation
+types, no forward prerequisites, no implicit input copying, directed batch-2 relationships. The
+Residual Deep caption stays; short cross-depth bridge lines are excluded from the ~1.3× depth
+text budget when they only connect already-taught ideas (docs/nanogpt-depth-ladder.md). Training
+Deep keeps opening at it = 2550; the Residual Overview keeps the two-add clarification. Attention
+Deep 3/4's dimmed fused path stays for the NC10 classification. Pushed fast-forward
+7f752d4..8993d4d. NC8 reopens only for a correctness or broken-transition regression; NC9 next.
 
 ## 2026-09-29 — batch 5 closed; NC7 complete
 
