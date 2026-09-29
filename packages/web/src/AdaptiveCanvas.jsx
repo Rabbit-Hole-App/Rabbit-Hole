@@ -1165,6 +1165,24 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, onD
   const [pages, setPages] = useState(false);
   // Present mode: null when editing, otherwise the step being shown.
   const [presenting, setPresenting] = useState(null);
+  // When the docked toolbar must scroll (a short phone screen), cap it at the
+  // bottom of the last control that fits whole, so none rests half-clipped;
+  // the rest scroll into view whole. null: it fits, no cap.
+  const [toolCap, setToolCap] = useState(null);
+  useLayoutEffect(() => {
+    const bar = toolbarRef.current;
+    if (!bar) return;
+    const measure = () => {
+      const room = bar.parentElement.clientHeight - bottomH - 16, pad = 4; // p-1
+      if (bar.scrollHeight <= room) { setToolCap(null); return; }
+      const ends = [...bar.children].map(child => child.offsetTop + child.offsetHeight).filter(end => end + pad <= room);
+      setToolCap(Math.max(0, ...ends) + pad);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar.parentElement);
+    return () => observer.disconnect();
+  }, [bottomH, presenting]);
   const itemsLayer = useRef(null);
   const [level, setLevel] = useState('body');
   // The route the next shape connector takes; the style panel's Line row sets it.
@@ -2632,7 +2650,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, onD
       )}
       {presenting === null && !readOnly && <div ref={toolbarRef} role="toolbar" aria-label="Canvas tools"
         // Docked right, it keeps clear of the page's contents rail (edgeInset).
-        style={toolDrag ? { left: toolDrag.x, top: toolDrag.y, transform: 'none' } : { top: `calc((100% - ${bottomH}px) / 2)`, maxHeight: `calc(100% - ${bottomH}px - 16px)`, ...(toolSide === 'left' ? {} : { right: 8 + edgeInset }) }}
+        style={toolDrag ? { left: toolDrag.x, top: toolDrag.y, transform: 'none' } : { top: `calc((100% - ${bottomH}px) / 2)`, maxHeight: toolCap ?? `calc(100% - ${bottomH}px - 16px)`, ...(toolSide === 'left' ? {} : { right: 8 + edgeInset }) }}
         className={`absolute z-20 grid grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md ${toolDrag ? '' : `-translate-y-1/2 ${toolSide === 'left' ? 'left-2' : ''}`}`}>
         {/* The handle: drag the palette and it parks on whichever edge you let
             go nearer to - left or right - never floating mid-canvas. */}

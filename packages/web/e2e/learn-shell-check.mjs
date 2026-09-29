@@ -19,7 +19,9 @@ const session = (await (await fetch(`${BASE}/test/session`, { method: 'POST', he
 let failed = 0;
 const ok = (name, condition, extra = '') => { if (!condition) failed += 1; console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${extra ? `  (${extra})` : ''}`); };
 const browser = await chromium.launch();
-for (const [label, viewport] of [['desktop', { width: 1440, height: 900 }], ['phone', { width: 390, height: 844 }]]) {
+// 'short phone' is a phone with smart-home's 48px canvas picker row above Learn;
+// 'tight phone' leaves Learn about what it gets under smart-home's whole phone frame, so the toolbar must scroll.
+for (const [label, viewport] of [['desktop', { width: 1440, height: 900 }], ['phone', { width: 390, height: 844 }], ['short phone', { width: 390, height: 796 }], ['tight phone', { width: 390, height: 640 }]]) {
   const context = await browser.newContext({ viewport });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   for (const [route, path] of Object.entries(ROUTES)) {
@@ -52,6 +54,19 @@ for (const [label, viewport] of [['desktop', { width: 1440, height: 900 }], ['ph
     ok(`${at}: no sample course title`, !m.text.includes('From classification to object detection'), `title "${m.title}"`);
     ok(`${at}: every menubar-row control fully on screen`, m.header.length > 0 && m.header.every(b => b.x >= 0 && b.r <= m.vw), `${m.header.length} controls, leftmost x ${Math.min(...m.header.map(b => Math.round(b.x)))}, rightmost ${Math.max(...m.header.map(b => Math.round(b.r)))}`);
     ok(`${at}: drawing toolbar ends above the zoom/composer strip`, !m.tools || m.tools.b <= m.strip.y, JSON.stringify({ toolsBottom: m.tools?.b, stripTop: m.strip?.y }));
+    // Every drawing control whole inside the toolbar's clip box at rest, and the last one whole once scrolled to the end.
+    const clipped = await page.evaluate(() => {
+      const bar = document.querySelector('[role="toolbar"][aria-label="Canvas tools"]');
+      if (!bar) return { rest: [], end: [] };
+      const cut = () => { const box = bar.getBoundingClientRect(); return [...bar.children].filter(child => { const r = child.getBoundingClientRect(); return r.height > 0 && (r.top < box.top - 0.5 || r.bottom > box.bottom + 0.5) && r.top < box.bottom && r.bottom > box.top; }).map(child => child.getAttribute('aria-label') || child.textContent.trim().slice(0, 12) || child.tagName); };
+      const rest = cut();
+      bar.scrollTop = bar.scrollHeight;
+      const last = bar.lastElementChild.getBoundingClientRect(), box = bar.getBoundingClientRect();
+      const end = last.bottom <= box.bottom + 0.5 ? [] : ['last control'];
+      bar.scrollTop = 0;
+      return { rest, end };
+    });
+    ok(`${at}: no drawing control half-clipped at rest, and the last one shows whole when scrolled`, !clipped.rest.length && !clipped.end.length, JSON.stringify(clipped));
     if (route === 'canvas') ok(`${at}: a canvas shows no sample lesson header`, !m.lessonHeader && !m.text.includes('Logistic regression'));
     await page.screenshot({ path: `${SHOTS}/shell-${label}-${route}.png` });
     await page.close();
