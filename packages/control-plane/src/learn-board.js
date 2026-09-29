@@ -2,8 +2,11 @@ import { SCENE_SCHEMA, validateScene } from './learn-scene-schema.js';
 import { TEACHING_POLICY, validateTeachingHistory } from './learn-teaching.js';
 import { SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, arxivId, searchArxiv, readArxivPaper, paperDocument, fetchArxivPdf } from './arxiv.js';
 import { isUploadedPaperId, putUploadedPaper, readUploadedPaper, paperIdentity } from './learn-paper.js';
-import { fetchWikipediaArticle, searchWikipediaTitles } from './learn-wiki.js';
-import { searchYouTube } from './learn-youtube.js';
+import { isUploadedMediaId, putUploadedMedia, readUploadedMedia } from './learn-media.js';
+import { fetchWikipediaArticle } from './learn-wiki.js';
+import { searchCanvasSource } from './learn-search.js';
+import { setMomentFeedback, videoIdFrom } from './learn-youtube.js';
+import { pruneVideo } from './learn-moment-index.js';
 import { validateToolInput } from './learn-validation.js';
 import { VIDEO_SCHEMA, validateVideo } from './learn-video-schema.js';
 import { THREE_D_SCHEMA, validateThreeD } from './learn-three-d-schema.js';
@@ -377,41 +380,14 @@ export async function authorizedBoardApp(req, env, name) {
   return app;
 }
 
-// Finding a paper to put on the canvas. The same search the tutor's research
-// loop uses, exposed so the learner can reach it directly instead of waiting for
-// a link to appear in an answer.
-export async function paperSearch(req, env) {
+// The canvas search bar: one query, one source (YouTube, arXiv, Wikipedia),
+// the five best results. See learn-search.js. The Exa key stays a worker secret.
+export async function canvasSearch(req, env) {
   if (req.method !== 'GET') return Response.json({ error: 'GET required' }, { status: 405 });
   const url = new URL(req.url);
   const access = await authorizedBoardApp(req, env, url.searchParams.get('app'));
   if (access instanceof Response) return access;
-  const query = (url.searchParams.get('q') || '').trim();
-  // A pasted id or link is not a search: answer with that one paper.
-  try { return Response.json({ papers: [await readArxivPaper(query)] }); } catch { /* not an id, search for it */ }
-  try { return Response.json({ papers: await searchArxiv(query) }); }
-  catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
-}
-
-// Video discovery: one Exa call restricted to youtube.com, semantic, so a
-// question finds the video that answers it. The key stays a worker secret.
-export async function youtubeSearch(req, env) {
-  if (req.method !== 'GET') return Response.json({ error: 'GET required' }, { status: 405 });
-  const url = new URL(req.url);
-  const access = await authorizedBoardApp(req, env, url.searchParams.get('app'));
-  if (access instanceof Response) return access;
-  try { return Response.json({ videos: await searchYouTube((url.searchParams.get('q') || '').trim(), env) }); }
-  catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
-}
-
-// The picker's type-ahead. Debounced and aborted on the client, because this is
-// the first place in the product that could issue one upstream request per
-// keystroke, and Wikimedia's allowance is 200 a minute.
-export async function wikiSearch(req, env) {
-  if (req.method !== 'GET') return Response.json({ error: 'GET required' }, { status: 405 });
-  const url = new URL(req.url);
-  const access = await authorizedBoardApp(req, env, url.searchParams.get('app'));
-  if (access instanceof Response) return access;
-  try { return Response.json({ pages: await searchWikipediaTitles((url.searchParams.get('q') || '').trim()) }); }
+  try { return Response.json(await searchCanvasSource(url.searchParams.get('source') || '', url.searchParams.get('q') || '', env)); }
   catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
 }
 
@@ -457,4 +433,56 @@ export async function paperFetch(req, env) {
   try {
     return new Response(await fetchArxivPdf(id), { headers: { 'Content-Type': 'application/pdf', 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
   } catch (error) { return Response.json({ error: error.message }, { status: 502 }); }
+}
+
+// A learner's verdict on a tutor-shown moment: one org-scoped UPDATE. The
+// same CSRF stance as the other POST routes here.
+export async function momentFeedback(req, env) {
+  if (req.method !== 'POST') return Response.json({ error: 'POST required' }, { status: 405 });
+  let body;
+  try { body = await req.json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  const access = await authorizedBoardApp(req, env, body.app);
+  if (access instanceof Response) return access;
+  if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return Response.json({ error: 'Invalid origin' }, { status: 403 });
+  try { return Response.json(await setMomentFeedback(env, access.org, body.momentId, body.accepted)); }
+  catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
+}
+
+// A card reporting its video gone (the thumbnail 404ed). A signal, not a
+// verdict: derived data is pruned, the moment log is untouched, and a false
+// report costs one re-index.
+export async function videoGone(req, env) {
+  if (req.method !== 'POST') return Response.json({ error: 'POST required' }, { status: 405 });
+  let body;
+  try { body = await req.json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  const access = await authorizedBoardApp(req, env, body.app);
+  if (access instanceof Response) return access;
+  const videoId = videoIdFrom(body.videoId);
+  if (!videoId) return Response.json({ error: 'Invalid video' }, { status: 400 });
+  return Response.json(await pruneVideo(env, videoId));
+}
+
+// Images dropped on the canvas. Same shape as paperFetch: POST stores this
+// learner's image, GET serves it back to the same identity. The card renders
+// from the browser's IndexedDB copy; this copy is for the tutor's ask path.
+export async function mediaFetch(req, env) {
+  if (!['GET', 'POST'].includes(req.method)) return Response.json({ error: 'GET or POST required' }, { status: 405 });
+  const url = new URL(req.url);
+  const access = await authorizedBoardApp(req, env, url.searchParams.get('app'));
+  if (access instanceof Response) return access;
+  const identity = paperIdentity(access);
+  if (req.method === 'POST') {
+    if (req.headers.has('origin') && req.headers.get('origin') !== url.origin) return Response.json({ error: 'Invalid origin' }, { status: 403 });
+    let file;
+    try { file = (await req.formData()).get('file'); } catch { return Response.json({ error: 'Send the image as multipart form data' }, { status: 400 }); }
+    if (!file || typeof file === 'string') return Response.json({ error: 'No file received' }, { status: 400 });
+    try { return Response.json(await putUploadedMedia(env, identity, file)); }
+    catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
+  }
+  const id = url.searchParams.get('id');
+  if (!isUploadedMediaId(id)) return Response.json({ error: 'Not an uploaded image id' }, { status: 400 });
+  try {
+    const { bytes, contentType } = await readUploadedMedia(env, identity, id);
+    return new Response(bytes, { headers: { 'Content-Type': contentType, 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
+  } catch (error) { return Response.json({ error: error.message }, { status: 404 }); }
 }

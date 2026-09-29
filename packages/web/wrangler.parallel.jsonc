@@ -1,0 +1,136 @@
+{
+  // The small-parallel session's worker clone, with the flywheel's phase-3
+  // bindings. A separate file from wrangler.dev.jsonc on purpose: a queue
+  // allows exactly one consumer, so putting the consumer in the shared dev
+  // config would make every other session's bare deploy fail claiming it.
+  // The shared dev worker keeps no bindings and stays on the cold path.
+  "name": "small-cp-dev-small-parallel",
+  "preview_urls": true,
+  "main": "dev-worker.js",
+  "compatibility_date": "2026-08-01",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "vectorize": [
+    {
+      "binding": "MOMENTS",
+      "index_name": "small-learn-moments"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "INDEX_QUEUE",
+        "queue": "small-learn-index"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "small-learn-index",
+        "max_batch_size": 5,
+        "max_retries": 3
+      }
+    ]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "LEARN_VIDEOS",
+        "class_name": "LearnVideos"
+      },
+      {
+        "name": "LEARN_SCENES",
+        "class_name": "LearnScenes"
+      },
+      {
+        "name": "REPOSITORY_IMPORTS",
+        "class_name": "RepositoryImports"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "learn-videos-1",
+      "new_sqlite_classes": [
+        "LearnVideos"
+      ]
+    },
+    {
+      "tag": "learn-scenes-1",
+      "new_sqlite_classes": [
+        "LearnScenes"
+      ]
+    },
+    {
+      "tag": "repository-imports-1",
+      "new_sqlite_classes": [
+        "RepositoryImports"
+      ]
+    }
+  ],
+  "assets": {
+    "directory": "./dist-dev",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "rules": [
+    {
+      "type": "Text",
+      "globs": [
+        "**/*.html",
+        "**/*.py"
+      ],
+      "fallthrough": true
+    }
+  ],
+  "r2_buckets": [
+    // Live outputs: read-only here, for App/Job bundles and run outputs.
+    {
+      "binding": "RUNS",
+      "bucket_name": "small-runs"
+    },
+    // Learn media on dev/review: never the production bucket
+    // (control-plane/src/learn-storage.js).
+    {
+      "binding": "LEARN_MEDIA",
+      "bucket_name": "small-learn-media-dev"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "small",
+      "database_id": "3a9cc077-4dc8-4fbd-8bf7-8ed3b971af8b"
+    },
+    {
+      "binding": "BYOC_DB",
+      "database_name": "small-byoc-dev",
+      "database_id": "67723b56-de7a-4b5e-af91-ae1af32cc4d8"
+    },
+    {
+      "binding": "LEARN_DB",
+      "database_name": "small-learn-dev",
+      "database_id": "433385b6-dba7-49c1-98ce-d4599feef5c0"
+    }
+  ],
+  "vars": {
+    "LEARN_VIDEO_PROVIDER": "fal-seedance-lite",
+    "LEARN_VIDEO_RESOLUTION": "480p",
+    "SUBSCRIPTION_ONLY": "false",
+    "SUBSCRIPTION_OWNER_EMAIL": "yudhisteer.chin@gmail.com",
+    "BYOC_REGION": "us-east-1",
+    "BYOC_PRINCIPAL_ARN": "arn:aws:iam::637423432890:user/small-byoc-dev",
+    "BYOC_TEMPLATE_BUCKET": "small-byoc-installer-637423432890-us-east-1",
+    "SCENE_WORKER_URL": "https://small-lesson-renderer-dev.fly.dev"
+  },
+  "services": [
+    {
+      "binding": "CONTROL_PLANE",
+      "service": "small-cp"
+    }
+  ]
+}

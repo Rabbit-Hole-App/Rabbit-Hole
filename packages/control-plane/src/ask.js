@@ -393,16 +393,19 @@ ${research.system}` : system;
         // paper or an article for the panel - it can always land.
         const moment = research.shownVideo?.();
         if (moment) {
-          await send('video', moment);
           // The moment log is written from day one; the hot path only starts
-          // reading it in phase 4. A missing table must never cost an answer.
+          // reading it in phase 4. A missing table must never cost an answer -
+          // the card simply shows no keep/dismiss when there is no row id.
+          let momentId = null;
           try {
             // `org` the parameter is null for learn conversations by design, so
             // the workspace rides on the research object instead - the log is
             // keyed per workspace or it is useless to the hot path.
-            await env.DB.prepare('INSERT INTO learn_moments (org, question, video_id, start, end, confidence, reason) VALUES (?, ?, ?, ?, ?, ?, ?)')
+            const written = await env.DB.prepare('INSERT INTO learn_moments (org, question, video_id, start, end, confidence, reason) VALUES (?, ?, ?, ?, ?, ?, ?)')
               .bind(research.org || org || 'unknown', message.slice(0, 500), moment.videoId, moment.start, moment.end, moment.confidence, moment.reason).run();
+            momentId = written.meta?.last_row_id ?? null;
           } catch { /* logging is never worth an error mid-answer */ }
+          await send('video', momentId ? { ...moment, momentId } : moment);
         }
       } else if (toolOpts) {
         // tools attached (user has edit): one non-streaming call so tool_use blocks
@@ -460,4 +463,29 @@ ${research.system}` : system;
   return new Response(readable, {
     headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' },
   });
+}
+
+// A chat attachment as model input, the same for every chat: an image or PDF
+// rides as a vision/document block, anything else (CSV, text) inline and
+// truncated. Base64 is chunked: String.fromCharCode(...big) overflows.
+export const ATTACHMENT_LIMIT = 4 * 1024 * 1024;
+function base64(bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+export async function attachmentBlocks(file) {
+  if (file.size > ATTACHMENT_LIMIT) throw Error('attachment too large - 4 MB max');
+  const type = file.type || '';
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (type.startsWith('image/')) return { bytes, blocks: [{ type: 'image', source: { type: 'base64', media_type: type, data: base64(bytes) } }] };
+  if (type === 'application/pdf' || /\.pdf$/i.test(file.name)) return { bytes, blocks: [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64(bytes) } }] };
+  return { bytes, blocks: [{ type: 'text', text: `Attached file ${file.name}:\n${new TextDecoder().decode(bytes).slice(0, 50000)}` }] };
+}
+// A chat request: JSON, or multipart with the JSON in `body` and one `file`.
+export async function readAskRequest(req) {
+  if (!(req.headers.get('Content-Type') || '').includes('multipart/form-data')) return { body: await req.json(), file: null };
+  const form = await req.formData();
+  const file = form.get('file');
+  return { body: JSON.parse(form.get('body') || '{}'), file: file && typeof file !== 'string' ? file : null };
 }

@@ -48,7 +48,8 @@ EXPRESSION_NODES = (ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant, ast.Na
 
 def safe_tex(value, path):
     """A LaTeX fragment that cannot reach the filesystem or redefine TeX."""
-    if not TEX_CHARACTERS.fullmatch(value):
+    # Control characters are what a lost backslash leaves behind ('\f' is a form feed).
+    if not TEX_CHARACTERS.fullmatch(value) or re.search(r'[\x00-\x08\x0b-\x1f\x7f]', value):
         raise ValueError(f'{path}: unsupported characters in a maths expression')
     if '$' in value or '%' in value or '#' in value or '``' in value:
         raise ValueError(f'{path}: unsupported characters in a maths expression')

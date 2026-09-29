@@ -31,7 +31,7 @@ function fixture() {
   const env = { SCENE_WORKER_URL: 'https://renderer.test', SCENE_WORKER_TOKEN: 'secret', RUNS: { put: async (k, bytes) => assets.set(k, bytes), get: async k => assets.has(k) ? { body: assets.get(k), size: assets.get(k).byteLength } : null } };
   return { data, assets, state, env, actor: new LearnScenes(state, env) };
 }
-const request = (body = {}) => new Request('https://dev.test/api/learn/scene?app=demo', { method: 'POST', body: JSON.stringify({ operation: example, lessonId: 'lesson', page: 'freeform', ...body }) });
+const request = (body = {}) => new Request('https://dev.test/api/learn/scene?app=demo', { method: 'POST', body: JSON.stringify({ operation: example, lessonId: 'lesson', page: 'freeform', confirmed: true, ...body }) });
 test('durable scene job queues asynchronously, deduplicates, stores GLB and retains camera state', async () => {
   const original = globalThis.fetch; let posts = 0;
   const bytes = new Uint8Array(24); new DataView(bytes.buffer).setUint32(0, 0x46546c67, true);
@@ -66,5 +66,16 @@ test('worker failure requires explicit retry with a new attempt key; access chec
     await f.actor.fetch(request()); await f.actor.alarm(); assert.equal(posts.length, 1);
     await f.actor.fetch(request({ retry: true })); await f.actor.alarm(); assert.equal(posts.length, 2); assert.notEqual(posts[0], posts[1]);
     const denied = await sceneFetch(new Request('https://dev.test/api/learn/scene?app=demo'), { CONTROL_PLANE: { fetch: async () => new Response('', { status: 403 }) } }); assert.equal(denied.status, 403);
+  } finally { globalThis.fetch = original; }
+});
+test('a Blender scene never queues without the learner confirming it', async () => {
+  const original = globalThis.fetch; let calls = 0;
+  globalThis.fetch = async () => { calls++; return Response.json({ version: 'test' }); };
+  try {
+    const f = fixture();
+    const response = await f.actor.fetch(request({ confirmed: false }));
+    assert.equal(response.status, 428);
+    assert.equal(calls, 0);
+    assert.equal(f.data.size, 0);
   } finally { globalThis.fetch = original; }
 });

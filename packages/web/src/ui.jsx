@@ -232,31 +232,28 @@ export function Toasts() {
   const drop = (id) => setItems((t) => t.filter((x) => x.id !== id));
   const notes = items.filter((t) => t.tone !== 'error');
   const errors = items.filter((t) => t.tone === 'error');
-  // Both sit above the dev Agent Bar (--agent-bar-h); it is unset live, so there this is bottom-4.
+  // One bottom-right column (WP6 closeout, user 2026-09-29): errors above info, the two never overlapping, never
+  // bottom-left. It clears the dev Agent Bar (--agent-bar-h, unset live) or, with no bar, the phone's safe area.
   return (
-    <>
-      {!!notes.length && <div className="fixed bottom-[calc(var(--agent-bar-h,0px)+1rem)] left-4 z-50 flex flex-col gap-2">
-        {notes.map((t) => (
-          <div key={t.id} className="rounded-md bg-ink px-3 py-2.5 text-sm text-white shadow-pop animate-[toast-in_150ms_ease-out]">
-            {t.msg}
-          </div>
-        ))}
-      </div>}
-      {!!errors.length && <div className="fixed right-4 bottom-[calc(var(--agent-bar-h,0px)+1rem)] z-50 flex max-w-96 flex-col gap-2">
-        {errors.map((t) => (
-          <div key={t.id} data-toast-error className="flex items-start gap-2 rounded-lg border border-red-600/30 bg-ink px-3 py-2.5 text-sm text-white shadow-pop animate-[toast-in_150ms_ease-out]">
-            <TriangleAlert size={15} className="mt-0.5 shrink-0 text-red-400" />
-            <span className="min-w-0 flex-1 break-words">{t.msg}</span>
-            <button type="button" data-toast-copy title="Copy this message" aria-label="Copy this message"
-              onClick={() => { navigator.clipboard.writeText(t.msg); toast('Copied'); }}
-              className="shrink-0 rounded p-1 text-white/70 hover:bg-white/10 hover:text-white"><CopyIcon size={14} /></button>
-            <button type="button" data-toast-close title="Dismiss" aria-label="Dismiss"
-              onClick={() => drop(t.id)}
-              className="shrink-0 rounded p-1 text-white/70 hover:bg-white/10 hover:text-white"><X size={14} /></button>
-          </div>
-        ))}
-      </div>}
-    </>
+    <div className="fixed right-4 bottom-[max(calc(var(--agent-bar-h,0px)+1rem),calc(1rem+env(safe-area-inset-bottom)))] z-50 flex max-w-[min(24rem,calc(100vw-2rem))] flex-col items-end gap-2">
+      {errors.map((t) => (
+        <div key={t.id} data-toast-error className="flex items-start gap-2 rounded-lg border border-red-600/30 bg-ink px-3 py-2.5 text-sm text-white shadow-pop animate-[toast-in_150ms_ease-out]">
+          <TriangleAlert size={15} className="mt-0.5 shrink-0 text-red-400" />
+          <span className="min-w-0 flex-1 break-words">{t.msg}</span>
+          <button type="button" data-toast-copy title="Copy this message" aria-label="Copy this message"
+            onClick={() => { navigator.clipboard.writeText(t.msg); toast('Copied'); }}
+            className="shrink-0 rounded p-1 text-white/70 hover:bg-white/10 hover:text-white"><CopyIcon size={14} /></button>
+          <button type="button" data-toast-close title="Dismiss" aria-label="Dismiss"
+            onClick={() => drop(t.id)}
+            className="shrink-0 rounded p-1 text-white/70 hover:bg-white/10 hover:text-white"><X size={14} /></button>
+        </div>
+      ))}
+      {notes.map((t) => (
+        <div key={t.id} className="rounded-md bg-ink px-3 py-2.5 text-sm text-white shadow-pop animate-[toast-in_150ms_ease-out]">
+          {t.msg}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -465,18 +462,27 @@ export function ConfirmDialog({ title, body, confirmLabel = 'Delete', confirmVar
 
 // ─── Menu - white popover, shadow-pop, 28px items. Closes on outside click. ───
 export function Menu({ open, onClose, className, style, portal = false, children }) {
+  const box = useRef(null);
   useEffect(() => {
     if (!open) return;
-    const close = () => onClose();
+    // pointerdown in the capture phase, not mousedown: the canvas surface
+    // preventDefaults its pointer presses (drawing, panning), which suppresses
+    // the compatibility mousedown - a click on the canvas would never close
+    // the menu. Capture also beats any stopPropagation between here and the
+    // press; presses inside the menu are told apart by containment instead.
+    const close = event => { if (event?.target && box.current?.contains(event.target)) return; onClose(); };
     // defer so the opening click doesn't immediately close it
-    const t = setTimeout(() => document.addEventListener('mousedown', close), 0);
+    const t = setTimeout(() => document.addEventListener('pointerdown', close, true), 0);
     // a portaled menu is pinned to viewport coords - scrolling under it must close it
     if (portal) window.addEventListener('scroll', close, true);
-    return () => { clearTimeout(t); document.removeEventListener('mousedown', close); if (portal) window.removeEventListener('scroll', close, true); };
+    const escape = event => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', escape);
+    return () => { clearTimeout(t); document.removeEventListener('pointerdown', close, true); window.removeEventListener('keydown', escape); if (portal) window.removeEventListener('scroll', close, true); };
   }, [open]);
   if (!open) return null;
   const node = (
     <div
+      ref={box}
       onMouseDown={(e) => e.stopPropagation()}
       style={style}
       className={cn(portal ? 'fixed z-50' : 'absolute z-20', 'w-60 rounded-md bg-white p-1 shadow-pop animate-[fade-in_100ms_ease-out]', className)}

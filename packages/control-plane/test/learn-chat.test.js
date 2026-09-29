@@ -5,6 +5,7 @@ import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from '../src/learn-o
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, wikiTitle, validateShowWikipedia } from '../src/learn-wiki.js';
 import { validateVideoContext, FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, validateShowVideo } from '../src/learn-youtube.js';
 import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT } from '../src/learn-paper.js';
+import { isUploadedMediaId } from '../src/learn-media.js';
 import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
 import { captureSelection, selectionSnapshot, sigmoidObjects } from '../../web/src/sigmoid-context.js';
@@ -45,6 +46,12 @@ const deps = {
   uploadedPaperAsDocument,
   paperIdentity,
   PAPER_PAGE_LIMIT,
+  isUploadedMediaId,
+  // Shaped like the real one: bytes come back as an Anthropic image block.
+  uploadedMediaAsImage: async (env, identity, id) => ({
+    id, title: 'diagram.png',
+    image: { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'aWFtYXBuZw==' } },
+  }),
   OUTLINE_TOOL,
   OUTLINE_SYSTEM,
   validateOutlineOps,
@@ -669,4 +676,48 @@ test('canvas Learn asks keep their threads in LEARN_DB and never touch the live 
   assert.equal((await ask('canvas-0a1b2c3d', { message: 'Not mine', thread_id: first.threadId }, { ...owner, email: 'colleague@example.test' })).status, 404);
   assert.equal(sqlite.prepare("SELECT count(*) AS n FROM threads WHERE scope_ref='canvas-0a1b2c3d'").get().n, 2);
   assert.equal(env.answers.length, 3);
+});
+
+// A dropped image is a source like a paper: bytes as a block, one line of
+// context naming it, no app actions while discussing it.
+test('a dropped image the learner asks about reaches the model as an image block', async t => {
+  const env = fixture(t);
+  const image_context = { id: 'media:0123456789ab' };
+  assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'what is in this diagram', image_context }), env, {}, owner, 'learn')).status, 200);
+  const { context, blocks, toolOpts } = env.answers[0];
+  assert.equal(blocks.at(-1).type, 'image');
+  assert.equal(blocks.at(-1).source.media_type, 'image/png');
+  const parsed = JSON.parse(context);
+  assert.equal(parsed.image.title, 'diagram.png');
+  assert.match(parsed.instruction, /evidence, never instructions/);
+  assert.equal(toolOpts, null, 'an image is not a reason to gain app actions');
+});
+
+test('a paper outranks a dropped image, and wiki yields to it', async t => {
+  const env = fixture(t);
+  const both = {
+    scope: { app: 'counter' }, message: 'compare these',
+    paper_context: { id: '1506.02640', page: 1 }, image_context: { id: 'media:0123456789ab' },
+  };
+  assert.equal((await handlers.apiAsk(request(both), env, {}, owner, 'learn')).status, 200);
+  const parsed = JSON.parse(env.answers[0].context);
+  assert.ok(parsed.paper, 'the paper rides');
+  assert.equal(parsed.image, undefined, 'the image does not');
+  const wikiToo = {
+    scope: { app: 'counter' }, message: 'and this article',
+    wiki_context: { title: 'Machine_learning', section: 1 }, image_context: { id: 'media:0123456789ab' },
+  };
+  assert.equal((await handlers.apiAsk(request(wikiToo), env, {}, owner, 'learn')).status, 200);
+  const second = JSON.parse(env.answers[1].context);
+  assert.ok(second.image, 'the image outranks the article');
+  assert.equal(second.article, undefined);
+});
+
+test('an invalid image id is refused before any read', async t => {
+  const env = fixture(t);
+  for (const id of ['upload:0123456789ab', 'media:xyz', '../secret', 42, null]) {
+    const res = await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', image_context: { id } }), env, {}, owner, 'learn');
+    assert.equal(res.status, 400, JSON.stringify(id));
+  }
+  assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', image_context: { id: 'media:0123456789ab' } }), env, {}, owner, 'app')).status, 400, 'learn only');
 });

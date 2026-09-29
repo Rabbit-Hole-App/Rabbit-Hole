@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ReactFlow, Background, Controls, Handle, Position } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { afterPaint, usePerf } from './learn-perf.js';
 
 // Structured lesson diagrams: the agent supplies nodes and edges, ELK decides
 // the layout, React Flow draws it. Nothing positions anything by hand.
@@ -28,14 +29,16 @@ function LessonNode({ data }) {
 const nodeTypes = { lesson: LessonNode };
 
 export default function FlowDiagram({ spec }) {
+  const report = usePerf();
   const [layout, setLayout] = useState(null);
+  useEffect(() => { if (layout) afterPaint(() => { report('content'); report('interactive'); }); }, [layout]);
   const [error, setError] = useState('');
   const source = useMemo(() => spec, [JSON.stringify(spec)]);
   useEffect(() => {
     let live = true;
     (async () => {
-      const { default: ELK } = await import('elkjs/lib/elk.bundled.js');
-      const elk = new ELK();
+      const { layoutEngine } = await import('./flow-layout.js');
+      const elk = layoutEngine();
       const measured = source.nodes.map(node => ({ id: node.id, width: Math.max(120, (node.label?.length || 8) * 8), height: node.detail ? 54 : 40 }));
       const graph = await elk.layout({
         id: 'root',

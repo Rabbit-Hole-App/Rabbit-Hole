@@ -5,6 +5,7 @@
 // ponytail: no lifecycle sweep. An object outlives the block that points at it,
 // exactly like the chat uploads at index.js. Add one when storage is measured.
 import { sha256, randomHex } from './token.js';
+import { learnMedia } from './learn-storage.js';
 
 // Small on purpose. The whole file is base64'd into every turn that asks about
 // it, inside a 128 MB isolate, so this ceiling is about the ask path, not R2.
@@ -46,7 +47,7 @@ export async function putUploadedPaper(env, identity, file) {
   if (new TextDecoder().decode(bytes.slice(0, 5)) !== '%PDF-') throw new Error('That file is not a PDF');
   const id = newUploadedPaperId();
   const title = uploadedPaperTitle(file.name);
-  await env.RUNS.put(await paperObjectKey(identity, id), bytes, {
+  await learnMedia(env).put(await paperObjectKey(identity, id), bytes, {
     httpMetadata: { contentType: 'application/pdf' },
     customMetadata: { title },
   });
@@ -54,7 +55,7 @@ export async function putUploadedPaper(env, identity, file) {
 }
 
 export async function readUploadedPaper(env, identity, id) {
-  const object = await env.RUNS.get(await paperObjectKey(identity, id));
+  const object = await learnMedia(env).get(await paperObjectKey(identity, id));
   if (!object) throw new Error('That PDF is no longer stored');
   return { bytes: new Uint8Array(await object.arrayBuffer()), title: uploadedPaperTitle(object.customMetadata?.title) };
 }

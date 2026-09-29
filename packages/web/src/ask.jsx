@@ -1,4 +1,4 @@
-import ChatComposer from './ChatComposer.jsx';
+import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL } from './ChatComposer.jsx';
 import RepositorySource, { SourceSelectionContext } from './RepositorySource.jsx';
 import { FILE_TOKEN, INLINE_PARTS, sourceReference, singleSourcePath } from './source-references.js';
 // ─── Ask (phase 1 - read only): the chat panel behind the Agent tab, the run
@@ -309,7 +309,7 @@ function OutputRow({ runId, name, size }) {
 
 // One chat, scoped: {app} | {run} | {} (org). Style per the Notion AI reference -
 // user turns as a right-aligned bubble, answers as plain text, pill input at the bottom.
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, dock = false }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -373,7 +373,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   useEffect(() => {
     if (atMatch && appNames === null) api('/api/apps').then((d) => setAppNames(d.apps.map((a) => ({ name: a.name, kind: a.kind, schedule: a.schedule })))).catch(() => setAppNames([]));
   }, [!!atMatch]);
-  const atHits = atMatch && appNames ? appNames.filter((a) => a.name.includes(atMatch[1])) : [];
+  // Only apps this chat can resolve: a repository chat reads other repositories,
+  // any other chat reads deployed apps; never the chat's own app.
+  const atHits = atMatch && appNames ? appNames.filter((a) => a.name.includes(atMatch[1]) && a.name !== appName && (repository ? a.name.startsWith('repo-') : !a.name.startsWith('repo-'))) : [];
 
   useEffect(() => {
     const focus = () => inputRef.current?.focus();
@@ -412,7 +414,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight;
   }, [msgs]);
 
+  // Learn / commands (LearnSlash.jsx): a line starting with / runs as a
+  // command, never as a chat message.
+  const slashRef = useRef(null);
+  // Stop (the docked shell): aborts the answer being streamed.
+  const answerFlight = useRef(null);
   const send = async (raw, scopeOverride) => {
+    if (slash && raw.trim().startsWith('/') && slashRef.current?.intercept(raw)) return;
     // @-chips ride at the front of the message text
     const message = [...mentions.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     if (!message || busy) return;
@@ -426,6 +434,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     if (contentPanel) { setFilePeek(null); onCloseContentPanel?.(); setView('chat'); }
     setChoices(null);
     setBusy(true);
+    const flight = new AbortController();
+    answerFlight.current = flight;
     setInput('');
     setMentions([]);
     const sourceRange = codeSelection;
@@ -438,6 +448,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     const questionPaper = boardContext?.paper;
     const questionWiki = boardContext?.wiki;
     const questionVideo = boardContext?.video;
+    const questionImage = boardContext?.image;
     const questionOutline = boardContext?.outline?.();
     if (!isDemo) boardContext?.removeImage();
     const target = canvasTarget; // selected lesson block riding as context
@@ -471,11 +482,16 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(target?.paper ? { paper_context: target.paper } : questionPaper ? { paper_context: { id: questionPaper.id, page: questionPaper.page, ...(questionPaper.selection ? { selection: questionPaper.selection } : {}) } } : {}),
         // One reader holds one thing, so an open paper is what rides; a detached
         // wiki source arrives here as null and the key is simply absent.
-        ...(!target?.paper && !questionPaper && questionWiki?.title ? { wiki_context: { title: questionWiki.title, section: questionWiki.section || 0, ...(questionWiki.selection ? { selection: questionWiki.selection } : {}) } } : {}),
+        // A dropped image outranks the article and video cards - it is the
+        // thing most recently put in front of the tutor - but a paper wins.
+        ...(!target?.paper && !questionPaper && questionImage?.id ? { image_context: { id: questionImage.id } } : {}),
+        ...(!target?.paper && !questionPaper && !questionImage?.id && questionWiki?.title ? { wiki_context: { title: questionWiki.title, section: questionWiki.section || 0, ...(questionWiki.selection ? { selection: questionWiki.selection } : {}) } } : {}),
         // A video card is the quietest context: any open reader outranks it.
-        ...(!target?.paper && !questionPaper && !questionWiki?.title && questionVideo?.videoId ? { video_context: { videoId: questionVideo.videoId, start: questionVideo.start || 0, ...(questionVideo.end != null ? { end: questionVideo.end } : {}), ...(questionVideo.title ? { title: questionVideo.title } : {}) } } : {}),
+        ...(!target?.paper && !questionPaper && !questionImage?.id && !questionWiki?.title && questionVideo?.videoId ? { video_context: { videoId: questionVideo.videoId, start: questionVideo.start || 0, ...(questionVideo.end != null ? { end: questionVideo.end } : {}), ...(questionVideo.title ? { title: questionVideo.title } : {}) } } : {}),
         scope: scopeOverride || scope,
         ...(repository && repositoryContext ? { repository_context: { ...repositoryContext, commit: sourceRange?.commit || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
+        // @-mentioned apps: the server adds each one's context to this chat.
+        ...(mentions.length ? { mentions: [...mentions] } : {}),
         message: target ? `Question about this ${target.kind} block on the lesson canvas:\n${target.text}\n\nLearner question: ${message}` : passage ? `Question about this previous answer passage:\n${passage.text}\n\nLearner question: ${message}` : message,
         thread_id: threadId.current,
         ...(canvasSeed && !threadId.current ? { canvas_seed: canvasSeed } : {}),
@@ -495,12 +511,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         const fd = new FormData();
         fd.append('body', JSON.stringify(payload));
         fd.append('file', attached);
-        r = await fetch(requestPath, { method: 'POST', headers: wsHeaders(), body: fd });
+        r = await fetch(requestPath, { method: 'POST', headers: wsHeaders(), body: fd, signal: flight.signal });
       } else {
         r = await fetch(requestPath, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...wsHeaders() },
           body: JSON.stringify(payload),
+          signal: flight.signal,
         });
       }
       if ((r.headers.get('Content-Type') || '').includes('json')) {
@@ -548,14 +565,38 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       if (snapshot) mirror(boardContext.isCurrent(snapshot) ? selectionAnswer : 'The lesson or selected object changed while answering. Select it again and ask again.');
       if (snapshot && selectionAnswer.trim() && boardContext.isCurrent(snapshot)) setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, board: { snapshot, question: passage ? `${message}\nAbout: ${passage.text}` : message, answer: selectionAnswer, model } } : item));
     } catch (e) {
-      mirror(`✗ ${e.message}`);
+      // A stopped answer keeps what arrived; it is not an error.
+      if (e.name !== 'AbortError') mirror(`✗ ${e.message}`);
     } finally {
+      if (answerFlight.current === flight) answerFlight.current = null;
       if (!isDemo) onExchange?.({ id: replyId, done: true });
       if (!isDemo) boardContext?.setAnswering(false);
       setBusy(false);
     }
   };
 
+  const modelControl = (
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              title={privateChat ? chatConfig.model : undefined}
+              onMouseDown={(e) => { e.stopPropagation(); setModelOpen(!modelOpen); }}
+              className={cn(dock ? COMPOSER_PILL : 'h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', modelOpen && 'bg-active text-ink')}
+            >
+              {modelOptions.find(([k]) => k === model)?.[1]}
+            </button>
+            <Menu open={modelOpen} onClose={() => setModelOpen(false)} className={dock ? 'bottom-11 left-0 w-52' : 'right-0 bottom-8 w-52'}>
+              {modelOptions.map(([k, label]) => (
+                <MenuItem key={k} type="button" icon={MODEL_META[k]?.[0]} onClick={() => { setModel(k); setModelOpen(false); }}>
+                  <span className="flex w-full items-center justify-between">
+                    <span className={cn(k === model && 'font-medium')}>{label}</span>
+                    <span className="text-xs text-ink-3">{privateChat ? 'AWS model' : MODEL_META[k]?.[1]}</span>
+                  </span>
+                </MenuItem>
+              ))}
+            </Menu>
+          </div>
+  );
   if (repository && filePeek) contentPanel = <RepositorySource appName={fileApp} {...filePeek} commit={repositoryCommit || repositoryContext?.commit} onClose={() => setFilePeek(null)} />;
   return (
     <div className={cn('flex min-h-0 flex-col', compact ? 'max-h-[320px]' : 'flex-1')}>
@@ -807,22 +848,24 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <img src={boardContext.preview} alt={boardContext.previewKind === 'paper' ? 'Selected paper region' : 'Selected canvas preview'} className="h-20 w-28 rounded-lg border border-line bg-white object-contain" />
           <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
         </div>}
-        <ChatComposer value={input} onChange={value => { boardContext?.pause(); setInput(value); }} onSubmit={send} inputRef={inputRef} autoFocus={autoFocus} placeholder={placeholder} busy={busy}
+        {slash && <div className="relative"><slash.Picker apiRef={slashRef} input={input} setInput={setInput} target={canvasTarget} run={slash.run} onPrompt={prompt => send(prompt)} /></div>}
+        <ChatComposer value={input} onChange={value => { boardContext?.pause(); setInput(value); }} onSubmit={send} onKeyDown={slash ? event => slashRef.current?.onKeyDown(event) : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={placeholder} busy={busy}
+          dock={dock} onStop={dock ? () => answerFlight.current?.abort() : undefined}
           leading={<>
           <div className="relative shrink-0">
             <button
               type="button"
               aria-label="Add"
               onMouseDown={(e) => { e.stopPropagation(); setPlusOpen(!plusOpen); }}
-              className={cn('inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', plusOpen && 'bg-active text-ink')}
+              className={cn(dock ? COMPOSER_ADD : 'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', plusOpen && 'bg-active text-ink')}
             >
               <Plus size={14} strokeWidth={1.5} />
             </button>
-            <Menu open={plusOpen} onClose={() => setPlusOpen(false)} className="bottom-8 left-0 w-64">
-              <MenuItem icon={Paperclip} disabled={privateChat || repository} title={privateChat || repository ? 'Attachments are not connected for private chat yet.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
+            <Menu open={plusOpen} onClose={() => setPlusOpen(false)} className={dock ? 'bottom-11 left-0 w-64' : 'bottom-8 left-0 w-64'}>
+              <MenuItem icon={Paperclip} disabled={privateChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
                 Add images, PDFs, or CSVs
               </MenuItem>
-              <MenuItem icon={AtSign} disabled={privateChat || repository} title={privateChat || repository ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
+              <MenuItem icon={AtSign} disabled={privateChat} title={privateChat ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
                 Mention an app
               </MenuItem>
             </Menu>
@@ -866,29 +909,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               </Menu>
             </div>
           )}
+          {dock && modelControl}
           </>}
-          trailing={
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              title={privateChat ? chatConfig.model : undefined}
-              onMouseDown={(e) => { e.stopPropagation(); setModelOpen(!modelOpen); }}
-              className={cn('h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', modelOpen && 'bg-active text-ink')}
-            >
-              {modelOptions.find(([k]) => k === model)?.[1]}
-            </button>
-            <Menu open={modelOpen} onClose={() => setModelOpen(false)} className="right-0 bottom-8 w-52">
-              {modelOptions.map(([k, label]) => (
-                <MenuItem key={k} type="button" icon={MODEL_META[k]?.[0]} onClick={() => { setModel(k); setModelOpen(false); }}>
-                  <span className="flex w-full items-center justify-between">
-                    <span className={cn(k === model && 'font-medium')}>{label}</span>
-                    <span className="text-xs text-ink-3">{privateChat ? 'AWS model' : MODEL_META[k]?.[1]}</span>
-                  </span>
-                </MenuItem>
-              ))}
-            </Menu>
-          </div>
-          }
+          trailing={dock ? null : modelControl}
         />
       </div>
       </>)}

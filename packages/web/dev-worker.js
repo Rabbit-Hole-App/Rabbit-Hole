@@ -10,7 +10,11 @@ import signerCode from '../byoc/signer.py';
 import permissionsCode from '../byoc/permissions.py';
 import grantsCode from '../byoc/grants.py';
 import { apiAsk } from '../control-plane/src/index.js';
-import { boardFetch, authorizedBoardApp, paperFetch, paperSearch, wikiArticle, wikiSearch, youtubeSearch } from '../control-plane/src/learn-board.js';
+import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback, videoGone, canvasSearch, wikiArticle } from '../control-plane/src/learn-board.js';
+import { learnGradeRoute } from '../control-plane/src/learn-grade-routes.js';
+import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
+import { artifactFetch } from '../control-plane/src/learn-artifact.js';
+import { paidRefusal } from '../control-plane/src/learn-paid.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 export { LearnVideos } from '../control-plane/src/learn-video.js';
@@ -18,8 +22,18 @@ export { LearnVideos } from '../control-plane/src/learn-video.js';
 // Authentication/app actions use the live backend. Dev Learn reuses the Ask handler
 // and shared chat history, with support for selectable AI canvas objects.
 export default {
+  // The moment-index Queue consumer (flywheel phase 3), same as the live
+  // worker's: bound only on clones whose config declares the consumer.
+  async queue(batch, env) {
+    if (!env.LEARN_MEDIA) throw new Error('LEARN_MEDIA is not bound on this dev worker');
+    const { consumeIndexQueue } = await import('../control-plane/src/learn-moment-index.js');
+    await consumeIndexQueue(batch, env);
+  },
   async fetch(req, env, ctx) {
     const path = new URL(req.url).pathname;
+    // Learn media must land in the dev bucket, never small-runs: without the
+    // binding this worker serves nothing rather than fall back to live storage.
+    if (!env.LEARN_MEDIA) return Response.json({ error: 'LEARN_MEDIA is not bound on this dev worker; add it to the wrangler config.' }, { status: 503 });
     if (path.startsWith('/api/repositories')) return repositoriesFetch(req, env, ctx);
     if (canvasRoute(new URL(req.url))) return canvasesFetch(req, env);
     if (path === '/api/apps' && req.method === 'GET') {
@@ -51,6 +65,8 @@ export default {
       if (access instanceof Response) return access;
       const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
       if (!prompt || prompt.length > 1000) return Response.json({ error: 'Provide an image prompt under 1000 characters.' }, { status: 400 });
+      // Paid: only the learner's explicit confirmation starts it.
+      const refused = paidRefusal(body); if (refused) return refused;
       if (!env.OPENAI_API_KEY) return Response.json({ error: 'Image generation is not configured on this environment.' }, { status: 503 });
       const upstream = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
@@ -74,9 +90,12 @@ export default {
       if (path === '/api/ask' || ['draft', 'generate'].includes(action)) return Response.json({ error: 'Subscription-only dev mode: use Learn chat. This action is not connected to the subscription yet.' }, { status: 503 });
     }
     if (env.SUBSCRIPTION_ONLY === 'true' && req.method === 'POST' && ['/api/learn/ask', '/api/learn/selection'].includes(path) && !req.headers.get('content-type')?.includes('application/json')) return Response.json({ error: 'Attachments are not connected to the subscription yet. No API fallback.' }, { status: 503 });
-    if (['/api/learn/selection', '/api/learn/ask'].includes(path) && req.method === 'POST' && req.headers.get('content-type')?.includes('application/json')) {
+    // JSON, or multipart when the composer's + attached a file: both stay on
+    // this dev worker (a multipart ask used to fall through to the live one).
+    const learnAskType = req.headers.get('content-type') || '';
+    if (['/api/learn/selection', '/api/learn/ask'].includes(path) && req.method === 'POST' && (learnAskType.includes('application/json') || learnAskType.includes('multipart/form-data'))) {
       let body;
-      try { body = await req.clone().json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
+      try { body = learnAskType.includes('multipart/form-data') ? JSON.parse((await req.clone().formData()).get('body') || '{}') : await req.clone().json(); } catch { return Response.json({ error: 'Invalid request body' }, { status: 400 }); }
       if (body.scope?.app?.startsWith('repo-')) {
         const target = new URL(req.url); target.pathname = `/api/repositories/${body.scope.app}/ask`;
         return repositoriesFetch(new Request(target, req), env, ctx);
@@ -93,6 +112,8 @@ export default {
       if (!body?.text || typeof body.text !== 'string' || body.text.length > 4000) return Response.json({ error: 'Provide narration text under 4000 characters.' }, { status: 400 });
       const access = await authorizedBoardApp(req, env, body.app);
       if (access instanceof Response) return access;
+      // fish.audio is paid: only the learner's explicit confirmation starts it.
+      const refused = paidRefusal(body); if (refused) return refused;
       if (!env.FISH_AUDIO_API_KEY) return Response.json({ error: 'Narration audio is not configured on this environment.' }, { status: 503 });
       const upstream = await fetch('https://api.fish.audio/v1/tts', {
         method: 'POST',
@@ -124,10 +145,27 @@ export default {
       return Response.json({ text: (heard.text || '').trim() });
     }
     if (path === '/api/learn/paper') return paperFetch(req, env);
-    if (path === '/api/learn/arxiv') return paperSearch(req, env);
+    if (path === '/api/learn/media') return mediaFetch(req, env);
+    if (path === '/api/learn/moment-feedback') return momentFeedback(req, env);
+    if (path === '/api/learn/video-gone') return videoGone(req, env);
     if (path === '/api/learn/wiki') return wikiArticle(req, env);
-    if (path === '/api/learn/wiki/search') return wikiSearch(req, env);
-    if (path === '/api/learn/youtube') return youtubeSearch(req, env);
+    // Jev side-by-side grading (docs/features/jev-grading.md).
+    if (path.startsWith('/api/learn/grade')) { const graded = await learnGradeRoute(path, req, env); if (graded) return graded; }
+    // Saved and shared canvas boards (docs/features/canvas-sharing.md). Before
+    // the exact /api/learn/board route, which generates explanations.
+    if (path.startsWith('/api/learn/boards/')) { const boards = await learnBoardsRoute(path, req, env); if (boards) return boards; }
+    if (path === '/api/learn/search') return canvasSearch(req, env);
+    // Learn Artifact Generation v1: a / command's validated canvas block
+    // (docs/features/learn-artifact-generation.md).
+    if (path === '/api/learn/artifact') {
+      if (env.SUBSCRIPTION_ONLY === 'true') {
+        let body; try { body = await req.clone().json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
+        const access = await authorizedBoardApp(req, env, body.app);
+        if (access instanceof Response) return access;
+        if (access.email !== env.SUBSCRIPTION_OWNER_EMAIL) return Response.json({ error: 'This personal dev subscription is available only to its owner.' }, { status: 403 });
+      }
+      return artifactFetch(req, env);
+    }
     if (path === '/api/learn/board') {
       if (env.SUBSCRIPTION_ONLY === 'true') {
         let body; try { body = await req.clone().json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
@@ -139,7 +177,8 @@ export default {
     }
     if (path === '/aws') return Response.redirect(new URL('/apps', req.url), 302);
     if (path.startsWith('/api/byoc/')) return byocFetch(req, env, { apiCode, signerCode, permissionsCode, grantsCode });
-    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path.startsWith('/apps/')) {
+    // /b/<token> is a shared board: served to anyone, the page decides what they may see.
+    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path.startsWith('/apps/') || /^\/b\/[A-Za-z0-9_-]{20,64}$/.test(path)) {
       return new Response(SHELL, {
         headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
       });

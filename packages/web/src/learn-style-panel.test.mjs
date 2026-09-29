@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { panelFor, textStyle, reorder, dashStyle, dashArray, TEXT_LEVELS } from './learn-style-panel.js';
+import { panelFor, textStyle, reorder, dashStyle, dashArray, TEXT_LEVELS, routeOf, ARROW_KINDS } from './learn-style-panel.js';
 
 const shape = (id, kind = 'rect') => ({ id, kind });
 const text = id => ({ id, kind: 'text' });
@@ -39,9 +39,12 @@ test('connectors are styleable too', () => {
   assert.deepEqual(panel.targets, ['l1']);
 });
 
-test('selecting a block or sticky styles nothing, so the panel stays shut', () => {
+test('selecting a block styles nothing; a sticky opens the palette for its paper color', () => {
   assert.equal(panelFor({ tool: 'select', selection: ['block-1'] }).open, false);
-  assert.equal(panelFor({ tool: 'select', selection: ['n1'], items: [sticky('n1')] }).open, false);
+  const note = panelFor({ tool: 'select', selection: ['n1'], items: [sticky('n1')] });
+  assert.equal(note.open, true);
+  assert.deepEqual(note.targets, ['n1']);
+  assert.equal(note.text, false, 'a sticky shows ink controls, not the heading ladder');
 });
 
 test('text shows levels; ink shows widths', () => {
@@ -132,7 +135,19 @@ test('reorder returns the same list when nothing selected is in it', () => {
 });
 
 test('the levels run big to small so the panel reads like Notion', () => {
-  assert.deepEqual(TEXT_LEVELS.map(entry => entry.id), ['h1', 'h2', 'h3', 'body']);
+  assert.deepEqual(TEXT_LEVELS.map(entry => entry.id), ['h1', 'h2', 'h3', 'h4', 'body']);
   const sizes = TEXT_LEVELS.map(entry => entry.size);
   assert.deepEqual(sizes, [...sizes].sort((a, b) => b - a));
+});
+
+test('connectors and drawn arrows get the straight / curved / elbow row, and nothing else does', () => {
+  const links = [{ id: 'l1', route: 'elbow' }, { id: 'l0' }];
+  const shapes = [{ id: 'a', kind: 'curve' }, { id: 'r', kind: 'rect' }, { id: 'e', kind: 'elbow' }];
+  assert.equal(panelFor({ tool: 'select', selection: ['l1'], links }).route, true);
+  assert.equal(panelFor({ tool: 'select', selection: ['l1'], links }).routeValue, 'elbow');
+  assert.equal(panelFor({ tool: 'select', selection: ['a', 'e'], shapes }).route, true);
+  assert.equal(panelFor({ tool: 'select', selection: ['a'], shapes }).routeValue, 'curved');
+  assert.equal(panelFor({ tool: 'select', selection: ['a', 'r'], shapes }).route, false);
+  assert.equal(routeOf({ id: 'l0' }), 'curved', 'card connections made before routes are curves');
+  assert.equal(ARROW_KINDS.elbow, 'elbow');
 });

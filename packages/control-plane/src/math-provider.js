@@ -49,10 +49,12 @@ export class ManimProvider {
   async poll(ticket) {
     const response = await this.request(`/jobs/${ticket.id}`);
     // A restarted worker forgets its jobs; the caller resubmits the same key.
-    if (response.status === 404) throw new Error('The render was lost; generate it again');
+    if (response.status === 404) throw Object.assign(new Error('The render was lost; generate it again'), { final: true });
     if (!response.ok) throw new Error(`Math worker HTTP ${response.status}`);
     const job = await response.json();
-    if (job.status === 'failed') throw new Error(job.error || 'The animation could not be rendered');
+    // The worker has given up on this job: final, so the card shows it now
+    // instead of polling until the 30-minute limit.
+    if (job.status === 'failed') throw Object.assign(new Error(job.error || 'The animation could not be rendered'), { final: true });
     if (job.status !== 'ready') return null;
     const asset = await this.request(`/jobs/${ticket.id}/asset`);
     if (!asset.ok || !asset.headers.get('content-type')?.startsWith('video/')) throw new Error('The rendered animation was unavailable');

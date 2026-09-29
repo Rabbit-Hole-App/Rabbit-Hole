@@ -7,6 +7,8 @@ import { sigmoidBoard } from './sigmoid-board.js';
 import { registerBoardAsk } from './board-ask.js';
 import { requestBoardExplanation } from './learn-board-request.js';
 import { wsHeaders } from './api.js';
+import PaidConfirm from './PaidConfirm.jsx';
+import { afterPaint, usePerf } from './learn-perf.js';
 import 'tldraw/tldraw.css';
 
 // A real tldraw board inside a canvas node: the learner gets tldraw's own
@@ -28,6 +30,7 @@ const shapeText = shape => shape.props?.text
   || shape.meta?.label || '';
 
 export default function WhiteboardBlock({ block, appName, onChange, onAskSelection }) {
+  const report = usePerf();
   const editor = useRef(null);
   const saving = useRef(null);
   const host = useRef(null);
@@ -38,6 +41,9 @@ export default function WhiteboardBlock({ block, appName, onChange, onAskSelecti
   const [speaking, setSpeaking] = useState(false);
   const [voice, setVoice] = useState(null);
   const [voiceError, setVoiceError] = useState('');
+  // Text waiting on the paid-narration confirmation: a tutor explanation, or
+  // the board's own narration after Read it aloud.
+  const [offer, setOffer] = useState(null);
   const [tutorShapes, setTutorShapes] = useState(0);
   // The board saves itself long after mount, so every write starts from the
   // block as it is now - otherwise a save would revert narration typed since.
@@ -62,7 +68,8 @@ export default function WhiteboardBlock({ block, appName, onChange, onAskSelecti
     if (!words) return;
     setSpeaking(true); setVoiceError('');
     try {
-      const response = await fetch('/api/learn/tts', { method: 'POST', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify({ app: appName, text: words }) });
+      // Paid narrator: only reached from the confirmation's Generate.
+      const response = await fetch('/api/learn/tts', { method: 'POST', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify({ app: appName, text: words, confirmed: true }) });
       if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || `HTTP ${response.status}`);
       setVoice({ url: URL.createObjectURL(await response.blob()), text: existing ?? words });
     } catch (problem) { setVoiceError(problem.message); }
@@ -120,14 +127,18 @@ export default function WhiteboardBlock({ block, appName, onChange, onAskSelecti
     if (plan.needsClarification) throw new Error(plan.summary);
     onStage?.('Drawing...');
     const { drawExplanation } = await import('./learn-board-renderer.js');
-    drawExplanation(instance, snapshot, plan, { app: appName });
+    // This board has no paid job runner, so a video or scene says it is
+    // unavailable here rather than offering a Generate that cannot run.
+    drawExplanation(instance, snapshot, plan, { app: appName, paidRunner: false });
+    // Narration is paid: offered, never autoplayed.
     const spoken = plan.blocks.map(item => item.text).filter(Boolean).join(' ').slice(0, 3800);
-    if (spoken) narrate(spoken, spoken);
+    setOffer(spoken || null);
   };
   useEffect(() => registerBoardAsk(block.id, { arm, clear: clearRegion, explain }), [block.id, block.marked, block.title]);
 
   const mount = instance => {
     editor.current = instance;
+    afterPaint(() => { report('content'); report('interactive'); });
     if (block.snapshot) { try { loadSnapshot(instance.store, block.snapshot); } catch { /* an unreadable board starts empty */ } }
     else if (block.demo === 'sigmoid') instance.createShapes(sigmoidBoard());
     // Lesson and tutor shapes arrive already tagged; anything else is the
@@ -216,9 +227,15 @@ export default function WhiteboardBlock({ block, appName, onChange, onAskSelecti
           onChange={event => onChange({ ...latest.current, narration: event.target.value })}
           className="w-full resize-y rounded-lg border border-line p-2 text-xs outline-none focus:border-ink-3" />
         {/* Once a player exists for this text, the player is the control. */}
-        {voice?.text !== narration && (
+        {offer && !speaking && (
+          <div data-narration-offer className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="font-medium text-ink">Narration available</span>
+            <PaidConfirm onCancel={() => setOffer(null)} onGenerate={() => { narrate(offer, offer); setOffer(null); }} />
+          </div>
+        )}
+        {voice?.text !== narration && !offer && (
           <div className="flex items-center gap-2">
-            <button type="button" data-board-speak disabled={speaking || !narration} onClick={() => narrate(narration)}
+            <button type="button" data-board-speak disabled={speaking || !narration} onClick={() => setOffer(narration)}
               className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3 text-sm font-medium text-white disabled:opacity-50">
               {speaking ? <Loader2 size={14} className="animate-spin" /> : <Volume2 size={14} />}Read it aloud
             </button>

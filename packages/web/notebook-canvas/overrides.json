@@ -1,0 +1,19 @@
+{
+  "@jupyterlab/filebrowser-extension:widget": {
+    "toolbar": [
+      { "name": "new-launcher", "disabled": true },
+      { "name": "toggle-file-filter", "disabled": true },
+      { "name": "new-notebook", "command": "notebook:create-new", "args": { "kernelName": "python" }, "label": "New notebook", "caption": "New notebook", "rank": 2 },
+      { "name": "new-file", "command": "filebrowser:create-new-file", "args": { "ext": "py" }, "icon": "ui-components:text-editor", "label": "New file", "caption": "New file", "rank": 3 }
+    ]
+  },
+  "@jupyterlab/filebrowser-extension:browser": {
+    "showLastModifiedColumn": false
+  },
+  "@jupyterlab/docmanager-extension:plugin": {
+    "defaultViewers": { "json": "Editor", "csv": "Editor", "tsv": "Editor" }
+  },
+  "@jupyterlab/statusbar-extension:plugin": {
+    "visible": false
+  }
+}
