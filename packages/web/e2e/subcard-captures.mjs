@@ -8,7 +8,7 @@
 // Usage: node e2e/subcard-captures.mjs <deployed-base> <board> <outDir> [selection.json]
 //   writes <outDir>/NN-<card>[-part-k][-t<time>].png and <outDir>/captures.json
 //   selection.json (optional): { "<scene id>": [{ "part": k, "time": seconds,
-//   "inputs": { name: value }, "practice": "wrong" | "right", "label": "..." }] } -
+//   "inputs": { name: value }, "practice": "open" | "wrong" | "right", "label": "..." }] } -
 //   only those cards and shots. A time scrubs the card's own animation slider;
 //   inputs are set through the card's own INTERACT controls; a practice shot
 //   opens Practice and checks the naive default (wrong) or expected (right)
@@ -117,9 +117,12 @@ for (const block of cards) {
       await page.waitForTimeout(300);
       // A committed attempt stays submitted until a new one is opened.
       if (await card.locator('[data-activity-new]').isVisible()) { await card.locator('[data-activity-new]').click(); await page.waitForTimeout(300); }
-      await card.locator(`[data-scene-activity] [data-input-control="answer"][data-input-value="${practice === 'right' ? block.activity.expected : block.activity.answer.default}"]`).click();
-      await card.locator('[data-activity-check]').click();
-      await card.locator('[data-activity-feedback][data-activity-result]').waitFor({ timeout: 5000 });
+      // 'open': the task as the learner first meets it - locked inputs, no answer yet.
+      if (practice !== 'open') {
+        await card.locator(`[data-scene-activity] [data-input-control="answer"][data-input-value="${practice === 'right' ? block.activity.expected : block.activity.answer.default}"]`).click();
+        await card.locator('[data-activity-check]').click();
+        await card.locator('[data-activity-feedback][data-activity-result]').waitFor({ timeout: 5000 });
+      }
       await page.waitForTimeout(450);
     }
     if (time !== undefined) { await scrub(card, time); await page.waitForTimeout(300); }

@@ -81,7 +81,8 @@ export const scene = {
     windows: W.windows,
     cropNotes: W.cropped.map((c, b) => (c ? `cropped from the prompt, still in idx: ${q(c)}` : `no crop: ${T} characters ≤ block_size ${KS[b]}`)),
     // ① the crop: characters 0..t − k − 1 dimmed under the "cropped" bracket, t − k..t − 1 in the idx_cond box.
-    charOpacityByBlock: KS.map(k => IDX.map((unused, i) => (i >= T - k ? 1 : 0.45))),
+    // 0.72, not fainter: dimmed text still clears 4.5:1 on the scene surface (text-contrast.test.mjs).
+    charOpacityByBlock: KS.map(k => IDX.map((unused, i) => (i >= T - k ? 1 : 0.72))),
     cropEndByBlock: KS.map(k => right(Math.max(T - k - 1, 0)) - 4), // no crop at k = t: hidden, kept non-degenerate
     readXByBlock: KS.map(k => left(T - k) + 4),
     readWByBlock: KS.map(k => k * PITCH - 8),

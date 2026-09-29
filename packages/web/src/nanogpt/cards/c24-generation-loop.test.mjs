@@ -29,14 +29,14 @@ const labels = result => result.state.objects.filter(o => o.visible && o.label).
 const withoutContributors = box => { const { contributors: _c, ...rest } = box; return rest; };
 const BAND = ['band-label', 'band-row', 'band-arrow', 'band-draw', 'band-line'];
 
-test('c24 passes every gate in both states; 41 objects, drawn at scale 1, one frame', () => {
+test('c24 passes every gate in both states; 40 objects, drawn at scale 1, one frame', () => {
   const results = assertCardGates(scene, reviewStates);
   assert.deepEqual(reviewStates, [{ revealed: false }, { revealed: true }]);
   assert.deepEqual(scene.inputs.map(i => [i.name, i.type, i.default, !!i.hidden]), [['revealed', 'bool', false, true]]);
   assert.equal(scene.inputs.filter(i => !i.hidden).length, 0, 'replay only: no visible control, so no INTERACT row');
   assert.equal(scene.objects[0].semanticId, 'question');
   assert.equal(scene.title, 'The generation loop');
-  assert.equal(scene.objects.length, 41);
+  assert.equal(scene.objects.length, 40);
   assert.equal(scene.height, 749);
   const legibility = sceneLegibility(scene);
   assert.equal(legibility.scale, 1);
@@ -103,9 +103,6 @@ test('c24 layout: the captions sit right under the staircase; the practice band 
   // at most 5 lines under the staircase (the toy note sits under the legend).
   const captions = order.slice(0, 5);
   assert.deepEqual(captions.slice(1).map((v, k) => v - captions[k]), [26, 26, 26, 26]);
-  // Before Check the band's slot is not blank: the wait note sits on its row's line.
-  assert.equal(y('band-wait'), y('band-row') + 21);
-  assert.ok(y('band-wait') > y('loop') && y('band-wait') < y('legend'));
   // The band's blank runs above and below are wider than the caption spacing (26),
   // and its count line sits nearer its own row than the legend under it.
   assert.ok(y('band-label') - y('loop') >= 44 && y('legend') - y('band-line') >= 40);
@@ -147,11 +144,11 @@ test('c24 before Check nothing of the practice case is on the card; after, the b
     assert.doesNotMatch(JSON.stringify([o.label, o.tokens]), /ROMEO|R.*O.*M|506|10|:/, id);
   }
   assert.deepEqual(byId(before, 'band-row').tokens, []);
-  // The wait note holds the slot before Check and gives way to the band after.
-  assert.equal(byId(before, 'band-wait').opacity, 1);
-  assert.equal(byId(after, 'band-wait').opacity, 0);
-  assert.equal(byId(before, 'band-wait').label, 'Not drawn: the practice case. Answer the practice below, then its pass appears here.');
-  assert.ok(!scene.timeline.some(e => e.target === 'band-wait'), 'no appear: its opacity follows the latch');
+  // Before Check the band's slot is empty - the main scene only, no placeholder
+  // line between the last caption and the legend (owner, 2026-09-29).
+  const slot = result => result.state.objects.filter(o => o.visible && o.opacity > 0 && o.y > byId(result, 'loop').y && o.y < byId(result, 'legend').y).map(o => o.id);
+  assert.deepEqual(slot(before), []);
+  assert.deepEqual(slot(after), BAND);
   // After a committed attempt: 6 + 4 = 10 characters, the last bold, the draw and the line.
   const row = byId(after, 'band-row');
   assert.deepEqual(row.tokens, [...'ROMEO:', ...ROMEO.slice(0, 4)].map(show));

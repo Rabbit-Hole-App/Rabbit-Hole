@@ -27,8 +27,10 @@ const sampleDeep = value => {
   return sample(value.map(row => (Array.isArray(row) ? sample(row) : row)));
 };
 
-// Input phrasing is shared with the practice-setup line - see
-// describeInputValue in scene-inputs.js.
+// The tutor's input phrasing (describeInputValue, scene-inputs.js) keeps the
+// index, because this payload names cells by index. The learner's phrasing -
+// the practice lock line and a locked control - is deliberately separate
+// (describeInputForLearner): no index, no control qualifier.
 
 // The short value phrase alone, for the composer's context chip.
 const inputPhrase = (declaration, value, data) => {

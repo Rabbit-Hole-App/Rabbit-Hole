@@ -71,7 +71,7 @@ test('c23 every stage follows block_size and matches the oracle', () => {
     const chars = [0, 1, 2, 3, 4].map(i => byId(result, `idx-${i}`));
     assert.deepEqual(chars.map(c => c.label), ['B', 'e', 'f', 'o', 'r']);
     assert.ok(chars.every(c => c.visible && c.typography === 'heading'), 'idx at heading size (20px), not the 13px token glyphs');
-    assert.deepEqual(chars.map(c => c.opacity), [0, 1, 2, 3, 4].map(i => (i >= 5 - k ? 1 : 0.45)));
+    assert.deepEqual(chars.map(c => c.opacity), [0, 1, 2, 3, 4].map(i => (i >= 5 - k ? 1 : 0.72)));
     assert.equal(chars.slice(5 - k).map(c => c.label).join(''), window);
     const [crop, box, readLabel] = [byId(result, 'crop-bracket'), byId(result, 'read-box'), byId(result, 'read-label')];
     assert.deepEqual([box.x, box.x + box.w], [slotLeft(5 - k) + 4, slotLeft(5) - 4]);

@@ -91,7 +91,6 @@ export const scene = {
   // Gating only: out of every display until a committed attempt.
   derived: {
     bandOp: { op: 'choose', args: ['revealed', 1, 0] },
-    waitOp: { op: 'choose', args: ['revealed', 0, 1] },
     bandLabel: { op: 'choose', args: ['revealed', 'bandLabelText', 'blank'] },
     bandLine: { op: 'choose', args: ['revealed', 'bandLineText', 'blank'] },
     bandDraw: { op: 'choose', args: ['revealed', 'bandDrawText', 'blank'] },
@@ -119,9 +118,8 @@ export const scene = {
     text('loop', 'The loop runs max_new_tokens passes, with no other stop, and returns all of idx, the start included.', 40, captionY(4), hidden),
 
     // The practice case, set apart below the captions: derived opacity, no
-    // appear; text and tokens gated too. Until then a wait note holds its
-    // place on the row's line (c12, c19), so the slot never reads as missing.
-    note('band-wait', 'Not drawn: the practice case. Answer the practice below, then its pass appears here.', 40, BAND_Y + TEXT_DY, { opacity: { $derive: 'waitOp' } }),
+    // appear; text and tokens gated too. Before a committed attempt its slot
+    // stays empty - the main scene only.
     text('band-label', '{{bandLabel}}', 40, BAND_Y - 10, BAND),
     tokens('band-row', { $derive: 'bandTokens' }, BAND_Y, { cellHighlight: P_ROW.length - 1, ...BAND }),
     text('band-arrow', ARROW, centredX(P_ROW, ARROW), BAND_Y + TEXT_DY, BAND),
@@ -257,8 +255,8 @@ export const evidence = {
   sourceRevision: `${fx.provenance.nanogpt.repo}@${fx.provenance.nanogpt.commit}`,
   provenance: `source: model.py:170, :180-181, :184-187, :189-190, :305-309, :312, :314, :316-318, :320-322, :324-326, :328, :330; sample.py:14-19, :23-26, :37-38, :80-81, :86-88; train.py:124-125, :274-286, :300; config/train_shakespeare_char.py:9-10, :19; data/shakespeare_char/prepare.py:30-35 - checked against the pinned files. Recorded toy run: tl.recorded.generation (gen_training_loss.py replay() at iteration ${GEN.checkpoint}, the save rule's checkpoint; random.Random(${S.seed.value}).choices for torch.multinomial). Source value: start and max_new_tokens (g.sample, gen_generation.py). Built in the module: the rows, the draw positions, 1 + 8 = 9, 6 + 4 = 10, 6 + 500 = 506 and the option strings.`,
   control: 'none visible (replay only). revealed - a hidden bool owned by the practice, set by a committed attempt.',
-  consequence: `The replay builds the staircase pass by pass: row k (${ROWS.map(r => r.join('')).join(', ')}) with its last character bold, then its draw (${DRAWS.join(', ')}) in the next column, before row k + 1 is handed it; the captions follow once the eighth draw is in (idx grew from 1 character to 9). Until a committed practice attempt a "Not drawn" note holds the band's place; after it the practice band shows ${P.start} plus ${P.pass - 1} draws (${HANDED} characters, last bold), an arrow, the draw ${P_DRAW} one column past it, and "${BAND_LINE}".`,
+  consequence: `The replay builds the staircase pass by pass: row k (${ROWS.map(r => r.join('')).join(', ')}) with its last character bold, then its draw (${DRAWS.join(', ')}) in the next column, before row k + 1 is handed it; the captions follow once the eighth draw is in (idx grew from 1 character to 9). Until a committed practice attempt the band's slot is empty; after it the practice band shows ${P.start} plus ${P.pass - 1} draws (${HANDED} characters, last bold), an arrow, the draw ${P_DRAW} one column past it, and "${BAND_LINE}".`,
   interactionPurpose: 'See that each pass is handed the whole of idx, including the previous pass\'s draw, so generation must run one pass per character, and that generate() returns the start with the new characters.',
   task: `Watch the replay: each draw lands in the next column and the next row is handed it. Practice: from a ${P_LEN}-character start, how many characters is pass ${P.pass} handed, and how many does generate() return? (choice; expected handed ${HANDED}, returns ${RETURNS}).`,
-  capability: 'label-style token rows with a constant cellHighlight (the bold last position); role-output text objects for the draws, centred on the next chip column (the practice draw one column further, after an arrow); timeline appears in causal order; a hidden-bool revealInput with choose()d opacity, text and token list (a placeholder empty list) and no appear on the practice band, whose place a wait note holds by the inverse choose (c12, c19); choice practice graded by choice_equals without fixedInputs; no visible input, so no INTERACT row.',
+  capability: 'label-style token rows with a constant cellHighlight (the bold last position); role-output text objects for the draws, centred on the next chip column (the practice draw one column further, after an arrow); timeline appears in causal order; a hidden-bool revealInput with choose()d opacity, text and token list (a placeholder empty list) and no appear on the practice band; choice practice graded by choice_equals without fixedInputs; no visible input, so no INTERACT row.',
 };

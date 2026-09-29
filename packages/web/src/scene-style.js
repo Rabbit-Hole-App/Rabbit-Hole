@@ -58,6 +58,18 @@ export function textStyle(typographyRole) {
   return TEXT_STYLE[typographyRole] ?? TEXT_STYLE.body;
 }
 
+// The ink of a scene text object's glyphs (AnimatedScene's text path). A
+// neutral line takes its typography's ink; any other role takes its hue -
+// identity's when it has one - through that hue's text-safe variant
+// (index.css --viz-<hue>-text), because a hue tuned for strokes at 3:1 can
+// fall under 4.5:1 as a line of text. Checked for every role x identity slot
+// in both themes, and on every card at rest: text-contrast.test.mjs.
+export function textObjectInk(role, typography, identitySlot = null) {
+  if (!ROLES.includes(role) || role === 'neutral') return textStyle(typography).fill;
+  const hue = IDENTITY_SLOTS.includes(identitySlot) ? identitySlot : role;
+  return `var(--viz-${hue}-text, var(--viz-${hue}))`;
+}
+
 // A state picks a step along its role's own fill band, and a stroke weight.
 // Colour never appears here - that is the orthogonality the whole model rests
 // on. `step` indexes FILL's [muted, rest, lit, peak].
@@ -81,6 +93,24 @@ const STATE_PRIORITY = ['disabled', 'blocked', 'chosen', 'selected', 'highlighte
 // still wins. The token flips with the theme, which a fixed white could not.
 export function inkOn(role) {
   return ROLE_FILL[role] === 'solid' ? `var(--viz-on-${role})` : 'var(--color-ink)';
+}
+
+// A grid/strip numeral's ink (non-heat). Unlit on a soft fill it is the quiet
+// secondary ink, proved against every soft resting tint in both themes by
+// text-contrast.test.mjs. A strong or solid fill leaves no grey that passes
+// 4.5:1 (in dark it would have to be --color-ink itself), so there the
+// numeral takes the fill's own ink, lit or not - the fill step and the
+// selection mark still tell lit from unlit.
+// ponytail: unproven on a loud fill (text-contrast.test.mjs UNPROVEN; no
+// lesson draws numerals there today): any identity hue (identity has no
+// on-ink of its own), success at rest in light (4.09:1) and learner lit or
+// peak in dark (3.98, 3.62:1). And with cellHighlightKind 'highlight' on a
+// strong role, lit and unlit now share this ink and differ only by the
+// 38 -> 44% fill step and a 0.5px stroke. Give loud fills per-step on-ink
+// tokens (heat's HEAT_INK_ZONES pattern) when a lesson draws numbers there.
+export function cellInk(role, lit) {
+  if (ROLE_FILL[role]) return inkOn(role);
+  return lit ? 'var(--color-ink)' : 'var(--color-ink-2)';
 }
 
 // defaultTier only ever weakens the fallback FILL uses for a role ROLE_FILL

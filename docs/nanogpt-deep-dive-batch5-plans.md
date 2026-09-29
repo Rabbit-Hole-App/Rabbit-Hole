@@ -155,7 +155,7 @@ Captions, directly under the staircase (5 lines, one every 26 from y 440; they a
 - y 518: 'Training scores all positions in one pass: its text is given. Here the newest character is a draw.'
 - y 544 (body): 'The loop runs max_new_tokens passes, with no other stop, and returns all of idx, the start included.'
 
-Practice band, below the captions (row at y 598, label at 588, line at 646). It has derived opacity choose(revealed, 1, 0) and no appear; until then a wait note holds the row's line. Its content is also gated:
+Practice band, below the captions (row at y 598, label at 588, line at 646). It has derived opacity choose(revealed, 1, 0) and no appear; before a committed attempt its slot stays empty, the main scene only (owner, 2026-09-29: the 'Not drawn' wait note is removed). Its content is also gated:
 - label, via choose(revealed, …, ' '): 'Practice case: start ROMEO: (6 characters), pass 5';
 - tokens, via choose(revealed, practiceRow, placeholder): R O M E O : sp m e l, last character bold;
 - an arrow '→' in the next column, then the draw ':', via choose, one column past it: the draw sits two pitches from the last handed cell, so the handed cells count to 10 before the arrow (the ':' draw otherwise reads as an 11th cell);
@@ -211,7 +211,7 @@ A start longer than one character: 'ROMEO:' (6 characters; it begins 163 lines o
 
 **Before Check:**
 - The card draws only the 1-character '⏎' start, which makes 'pass k holds k' look like the rule.
-- The practice band's text and tokens are choose()d to blanks at opacity 0.
+- The practice band's text and tokens are choose()d to blanks at opacity 0, and no placeholder line holds its slot.
 - 'ROMEO', '506', a 10-chip row and any count above 9 appear nowhere. A test asserts this for every visible default-state label, and for the evaluated values of the band objects.
 
 **Why it needs the rule.** Copying the picture gives (5, 501). The answer needs three facts: idx = start + one draw per pass, all of idx is handed over, and return = start + max_new_tokens.
@@ -321,7 +321,7 @@ No new capability and no renderer primitive.
 - a hidden bool as revealInput (scene-activity.js:177-181);
 - derived opacity on the 4 practice-band objects, which carry no appear;
 - about 25 timeline appears;
-- 41 of 60 objects.
+- 40 of 60 objects.
 
 **Constraints:**
 - Label-style tokens ignore role fill, so each draw is a separate text object.
@@ -749,7 +749,7 @@ Staged: one pipeline, read top to bottom. The replay takes 1.8 s, with stages at
 
 **1. idx and the crop.**
 - idx = B e f o r, t = 5: the first 5 characters of the board's line 'Before we proceed any further', as five heading-size (20 px) text characters, one 50-wide slot each from x 170, baseline y 197. (Visual review: the 13 px tokens-row glyphs read as a footnote to the table.)
-- The last k characters sit in an input-role box as idx_cond (derived x and w, y 170, h 40), with the short label 'read' under the box's left edge (derived x). The first t − k characters are dimmed to opacity 0.45 (derived, no appear).
+- The last k characters sit in an input-role box as idx_cond (derived x and w, y 170, h 40), with the short label 'read' under the box's left edge (derived x). The first t − k characters are dimmed to opacity 0.72 (derived, no appear): the faintest a resting text line may be, still 4.5:1 on the scene surface in both themes (owner, 2026-09-29; was 0.45, 2.5:1).
 - A neutral 'cropped' bracket sits above the first t − k characters (derived end x), its label directly over the bracket's start, not in the gutter. Both carry derived opacity [1, 1, 1, 0] and no appear.
 - A '→ ?' slot ends before x 590. There is no truth mark.
 - Readouts in annotation at x 600, y 160-204:
@@ -1101,7 +1101,7 @@ What-if objects have no appear.
 **primary_interaction**
 
 **Controls.** One visible control in INTERACT: 'topK', an index slider labelled 'top_k (preset)'.
-- kLabels: ['1', '2', '3', '4', '5', '6 (nothing cut)'] (bare values, so the practice's lock line reads 'top_k (preset) = 2', not '= k = 2'; the shared line still appends '(index 1)', a scene-inputs.js describeInputValue change)
+- kLabels: ['1', '2', '3', '4', '5', '6 (nothing cut)'] (bare values, so the practice's lock line reads 'top_k = 2', not '= k = 2'; the learner phrasing, scene-inputs.js describeInputForLearner, drops the index and the '(preset)' qualifier - owner, 2026-09-29)
 - default 1 (k = 2)
 
 There is also a hidden bool 'revealed' (default false), owned by the practice (c14 pattern).

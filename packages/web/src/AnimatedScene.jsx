@@ -22,7 +22,7 @@ import { cellNumeralSize, formatCell } from './scene-format.js';
 import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-sound.js';
 import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, labelAt, requiredLeftMargin, sceneContentBounds, sceneViewBox } from './scene-layout.js';
 import { GEOMETRY } from './scene-vocab.js';
-import { heatStyle, identityVar, roleVar, selectionStyle, shapeStyle, textStyle } from './scene-style.js';
+import { cellInk, heatStyle, identityVar, roleVar, selectionStyle, shapeStyle, textObjectInk, textStyle } from './scene-style.js';
 
 // Live playback of an animation spec. The evaluator owns what the frame looks
 // like at time t; this only draws it and owns the transport. Learner ink is a
@@ -185,7 +185,7 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
         const look = shapeStyle(role, blocked ? { blocked: true } : cellState, undefined, object.identitySlot);
         const heat = heatMode && value != null ? heatStyle(value, domain, heatMode) : null;
         const fill = heat ? `color-mix(in srgb, var(--viz-${heat.fillToken}) ${heat.mixPercent}%, transparent)` : look.fill;
-        const ink = heat ? heat.inkToken : (lit ? 'var(--color-ink)' : 'var(--color-ink-2)');
+        const ink = heat ? heat.inkToken : cellInk(role, lit);
         // INVARIANT: A CONTINUOUSLY VARYING VISUAL PROPERTY MUST HAVE ONE
         // OWNERSHIP PATH FOR THE LIFETIME OF THE ELEMENT. This cell used to
         // read `style={heat ? {fill} : undefined}` / `animate={heat ? ring :
@@ -516,13 +516,13 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
             : object.type === 'text' ? textStyle(object.typography)
             : textStyle('body');
           // Colour comes from role alone (scene-style.js): a text object with a
-          // real role keeps that role's colour, and only a neutral one falls
-          // back to its typography's ink. A label sitting INSIDE a shape reads
-          // against that shape's own fill, so a solid role hands it the ink
-          // that survives there; a data or stroke label sits on the surface
-          // and keeps the page's ink.
+          // real role keeps that role's colour (its text-safe variant), and
+          // only a neutral one falls back to its typography's ink. A label
+          // sitting INSIDE a shape reads against that shape's own fill, so a
+          // solid role hands it the ink that survives there; a data or stroke
+          // label sits on the surface and keeps the page's ink.
           const textFill = object.type === 'text'
-            ? (role !== 'neutral' ? (identityVar(object.identitySlot) ?? roleVar(role)) : type.fill)
+            ? textObjectInk(role, object.typography, object.identitySlot)
             : (isText || isData ? 'var(--color-ink-2)' : look.onFill);
           return (
             <g key={object.id} data-animation-object={object.semanticId} opacity={object.opacity}
@@ -793,7 +793,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
           data={block.scene.exampleData} onInput={setInput} onReset={resetExperiment} locked={lockedInputs} onHeight={onControlsHeight} />
       )}
       {(block.selectedObject || block.marked) && (
-        <p data-animation-selection className="flex shrink-0 items-center gap-2 text-[11px] text-ink-3">
+        <p data-animation-selection className="flex shrink-0 items-center gap-2 text-[11px] text-ink-2">
           {block.selectedObject ? `Selected: ${block.selectedObject}` : 'Region marked'} at {(block.time ?? time).toFixed(1)}s
           <button type="button" data-animation-clear onClick={clearMark} className="rounded px-1.5 py-0.5 text-ink-2 hover:bg-hover hover:text-ink">clear</button>
           <span>or press Esc</span>

@@ -1251,8 +1251,8 @@ function ImageBody({ block, appName, onChange, onFile }) {
       )}
       {block.caption && <div className="mt-1.5 text-xs text-ink-2"><Md text={block.caption} onFile={onFile} /></div>}
       {current?.credit && (current.credit.url
-        ? <p className="mt-1 text-[11px] text-ink-3">Photo by <a href={current.credit.url} target="_blank" rel="noreferrer" className="underline">{current.credit.photographer}</a> on Pexels</p>
-        : <p className="mt-1 text-[11px] text-ink-3">Generated illustration — not a photograph or measurement.</p>)}
+        ? <p className="mt-1 text-[11px] text-ink-2">Photo by <a href={current.credit.url} target="_blank" rel="noreferrer" className="underline">{current.credit.photographer}</a> on Pexels</p>
+        : <p className="mt-1 text-[11px] text-ink-2">Generated illustration — not a photograph or measurement.</p>)}
       <div className="mt-2 flex gap-2" onPointerDown={event => event.stopPropagation()}>
         <input value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') search(); }}
           placeholder="Search or describe an image…" className="h-8 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm outline-none focus:border-ink-3" />
@@ -1448,7 +1448,7 @@ function SnippetBody({ block, onFile }) {
       {block.brief && <div data-drag-zone className="mt-1 cursor-grab text-sm text-ink-2 active:cursor-grabbing"><Md text={block.brief} onFile={onFile} /></div>}
       <CodeBlock className="mt-2 text-xs">{block.code.split('\n').map((line, index) => <div key={index}>{colorLine(line)}</div>)}</CodeBlock>
       {block.output && <>
-        <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-3 uppercase">Output</p>
+        <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-2 uppercase">Output</p>
         <pre className="no-scrollbar mt-1 max-h-40 overflow-y-auto rounded-lg border border-line bg-white p-2 font-mono text-[11px] leading-4 whitespace-pre-wrap">{block.output}</pre>
       </>}
     </div>
@@ -1476,9 +1476,9 @@ function CodeBody({ block, onChange, onFile }) {
       )}>Code</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       <div data-drag-zone className="mt-1 cursor-grab text-sm text-ink-2 active:cursor-grabbing"><Md text={block.brief} onFile={onFile} /></div>
-      <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-3 uppercase">Given</p>
+      <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-2 uppercase">Given</p>
       <CodeBlock className="mt-1 text-xs">{block.setup.split('\n').map((line, index) => <div key={index}>{colorLine(line)}</div>)}</CodeBlock>
-      <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-3 uppercase">Your code</p>
+      <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-2 uppercase">Your code</p>
       <textarea data-code-editor value={draft} spellCheck={false} rows={Math.max(4, draft.split('\n').length + 1)}
         onPointerDown={e => e.stopPropagation()}
         onChange={e => setDraft(e.target.value)}

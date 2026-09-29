@@ -462,7 +462,7 @@ There is no purge API for workers.dev. Never serve mutable content through the
 asset binding; never probe asset URLs before they're uploaded.
 
 ## Look
-Notion, not "inspired by": Inter 14px/1.5, text `#37352F`, secondary `#787774`,
+Notion, not "inspired by": Inter 14px/1.5, text `#37352F`, secondary `#63615D` (dark `#A1A1A1`; darker than Notion's `#787774` so it clears 4.5:1 - see [learn-canvas-blocks.md](learn-canvas-blocks.md#practice-and-secondary-text-read-cleanly)),
 borders `#E9E9E7`, hover `#F1F1EF`, sidebar 240px `#F7F7F5`, one accent `#2383E2`.
 Content pane max 900px, left-aligned, 96px margins. 36px quiet rows, pills for
 properties, no zebra/borders. No top nav; breadcrumb in the content pane. Lucide

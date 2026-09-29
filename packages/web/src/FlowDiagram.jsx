@@ -59,7 +59,10 @@ export default function FlowDiagram({ spec }) {
         })),
         edges: source.edges.map((edge, index) => ({
           id: `e${index}`, source: edge.source, target: edge.target, label: edge.label,
-          animated: !!edge.animated, style: { stroke: '#94a3b8' }, labelStyle: { fontSize: 10, fill: '#787774' },
+          animated: !!edge.animated, style: { stroke: '#94a3b8' }, labelStyle: { fontSize: 10, fill: 'var(--color-ink-2)' },
+          // React Flow's label plate is white in both themes unless told: the
+          // card surface under secondary ink, so the pair flips together.
+          labelBgStyle: { fill: 'var(--color-white)' },
         })),
       });
     })().catch(problem => { if (live) setError(problem.message); });

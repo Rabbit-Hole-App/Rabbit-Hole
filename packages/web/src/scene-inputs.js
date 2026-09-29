@@ -165,21 +165,40 @@ function coerceOne(declaration, raw, exampleData) {
   return declaration.default;
 }
 
-// One human-readable statement for an input's current value, in the words
-// its own control shows: the domain entry for an index, the option label for
-// a choice, On/Off for a bool. Shared by the tutor serializer and the
-// practice-setup line, so the two can never phrase the same state apart.
+// An input's value in the words its own control shows: the domain entry for
+// an index (one-based "k of n" when the entries are not words), the option
+// label for a choice, On/Off for a bool, the chip labels for a set.
+function valueWords(declaration, value, data) {
+  const list = data?.[declaration.of];
+  const entry = index => (Array.isArray(list) && typeof list[index] === 'string' ? list[index] : null);
+  if (declaration.type === 'index') return entry(value) ?? `${value + 1} of ${list?.length ?? '?'}`;
+  if (declaration.type === 'bool') return value ? 'On' : 'Off';
+  if (declaration.type === 'choice') return declaration.options.find(option => option.id === value)?.label ?? value;
+  if (declaration.type === 'indices') return (value || []).map(index => entry(index) ?? String(index + 1)).join(', ') || 'none';
+  if (declaration.type === 'vec2') return `(${value[0]}, ${value[1]})`;
+  return JSON.stringify(value);
+}
+
+// The tutor's statement of an input: the full control label, the value's
+// words, and for an index its position too - the payload's state names
+// cells by index (cellHighlight), so the tutor needs both.
 export function describeInputValue(declaration, value, data) {
-  if (declaration.type === 'index') {
-    const list = data?.[declaration.of];
-    const word = Array.isArray(list) && typeof list[value] === 'string' ? `${list[value]} (index ${value})` : `${value + 1} of ${list?.length ?? '?'} (index ${value})`;
-    return `${declaration.label} = ${word}`;
-  }
-  if (declaration.type === 'bool') return `${declaration.label} = ${value ? 'On' : 'Off'}`;
-  if (declaration.type === 'choice') return `${declaration.label} = ${declaration.options.find(option => option.id === value)?.label ?? value}`;
+  if (declaration.type === 'index') return `${declaration.label} = ${valueWords(declaration, value, data)} (index ${value})`;
   if (declaration.type === 'indices') return `${declaration.label} = [${(value || []).join(', ')}]`;
-  if (declaration.type === 'vec2') return `${declaration.label} = (${value[0]}, ${value[1]})`;
-  return `${declaration.label} = ${JSON.stringify(value)}`;
+  return `${declaration.label} = ${valueWords(declaration, value, data)}`;
+}
+
+// The learner's statement of an input, shared by the practice lock line and a
+// locked control in INTERACT so the two never disagree: no index, no
+// qualifier about the control itself ("(preset)"), and a value that already
+// names its quantity ("block_size 3" under a label ending in block_size) says
+// the name once - "block_size = 3", never "... block_size = block_size 3".
+export function describeInputForLearner(declaration, value, data) {
+  const name = declaration.label.replace(/\s*\([^)]*\)/g, '').trim();
+  const words = String(valueWords(declaration, value, data));
+  const quantity = name.split(' ').pop();
+  const own = words.startsWith(quantity) && words.slice(quantity.length).match(/^(?:\s*=\s*|\s+)(\S.*)$/);
+  return own ? `${quantity} = ${own[1]}` : `${name} = ${words}`;
 }
 
 export function coerceInputs(declarations, raw, exampleData = {}) {

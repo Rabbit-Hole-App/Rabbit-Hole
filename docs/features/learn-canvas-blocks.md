@@ -147,6 +147,55 @@ Gate: `src/number-grouping.test.mjs` evaluates every card on every board (defaul
 each input varied) and fails on any ungrouped long number in labels, practice text or control
 labels.
 
+## Practice and secondary text read cleanly
+
+Owner rules (2026-09-29), fixed in the shared renderer and tokens, never per card:
+
+- **Secondary text clears 4.5:1.** `--color-ink-2` (captions, provenance lines, unlit token
+  characters, unlit cell numbers, control labels, the attempt count) passes normal-text contrast on
+  every surface it is drawn on, in both themes: every background a `text-ink-2` element carries,
+  the scene surface, and every soft resting cell tint in any role or identity hue (c25's
+  probability cells are prediction's). The fix is the token itself (`#63615d` light, `#a1a1a1`
+  dark), still visibly lighter than `--color-ink`. No grey passes on a strong or solid fill, so an
+  unlit numeral there takes the fill's own ink (`cellInk`, `scene-style.js`). Unproven there, and
+  named in `cellInk`'s ponytail because no lesson draws numerals on a loud fill yet: any identity
+  hue, success at rest in light, learner lit or peak in dark, and a strong-role grid whose
+  `cellHighlightKind` is `highlight` (lit and unlit share that ink; only the fill step differs).
+- **Informational card text is secondary, never tertiary.** Provenance rows under a card (repo @
+  revision, sha256, Reproduce), image credits, block labels (Output, Given, Your code) and the
+  scene selection line are `text-ink-2`. `--color-ink-3` (2.8:1) stays for placeholders, disabled
+  controls and icon buttons. No component writes the retired `#787774` as a literal: a light-only
+  island (InteractiveScene's step list) uses `#63615d`, FlowDiagram's edge labels sit on a
+  card-coloured plate so the pair flips with the theme.
+- **Role-hued scene text clears 4.5:1 too.** A text object in a role or identity hue is drawn in
+  that hue's text-safe variant, `--viz-<hue>-text` (`textObjectInk`, `scene-style.js`): the hue
+  darkened just enough in light (input, output, prediction, learner, code, identity-2) and in dark
+  (identity-3). Strokes and fills keep the hue itself.
+- **Dimmed text stays readable.** A text line at a resting opacity below 1 is measured with that
+  opacity composited over the scene surface: `--color-ink` can dim to 0.72 and no further (c23's
+  cropped characters). Waiting on the owner, and listed in the check's `PENDING_OWNER`: the focus
+  and mask dims of c10 (later characters' names at 0.3) and the depth ladder (tokenization guided
+  and deep, architecture overview and deep, attention deep, generation deep: 0.25 to 0.4).
+  Check: `src/text-contrast.test.mjs` - the tokens, every role and identity hue, every loud-fill
+  step, and every glyph on the scene surface of every card at rest.
+- **Feedback is 14px and reads in both themes.** Pass, fail and not-ready feedback and the
+  committed-attempt count are `text-sm`, like the answer text; the count may stay in secondary
+  ink. Pass and fail use `--color-pass` and `--color-fail`, which flip in dark (Tailwind's
+  green-700 and red-700 fell to 3.56:1 and 2.74:1 on the dark card; `src/text-contrast.test.mjs`).
+- **No internal representation in learner text.** The practice lock line and a locked control say
+  what is locked in the learner's words: "Locked by this task — block_size = 3", "top_k = 2". No
+  `(index N)`, no control qualifier such as `(preset)`, no name said twice
+  (`describeInputForLearner`, `scene-inputs.js`). The tutor payload keeps the index
+  (`describeInputValue`), because its state names cells by index.
+- **A locked input is a statement, not a dimmed control.** While a practice locks an input, INTERACT
+  shows "block_size = 3 · locked by practice" in its place (`[data-input-locked]`), its
+  alternatives hidden, for every input type. Back to explore restores the controls.
+- **New attempt is never an answer option.** It sits in its own row under the feedback: the
+  committed-attempt count on the left, New attempt on the right as a borderless text action.
+
+Check: `src/practice-panel.test.mjs` renders the real SceneActivity and SceneControls (esbuild +
+react-dom/server) for every practice on every review board and fails on any of the last four rules.
+
 ## Verification
 
 `node e2e/chat-block-check.mjs` against the dev deployment covers every block above end to end.

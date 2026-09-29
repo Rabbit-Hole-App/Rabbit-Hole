@@ -9,6 +9,7 @@
 // to them the way they apply to any card text.
 
 import { useEffect, useRef } from 'react';
+import { describeInputForLearner } from './scene-inputs.js';
 
 // The labels a positional input shows on its chips: the entries of its own
 // declared domain list when those are strings (token words, patch names),
@@ -187,15 +188,18 @@ export default function SceneControls({ declarations, inputs, data, onInput, onR
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       {rows.map(declaration => {
         const Widget = declaration.type === 'index' && declaration.presentation === 'slider' ? IndexSlider : WIDGETS[declaration.type];
-        // An input the active practice task fixed: shown at the task's value,
-        // read-only, and saying who locked it. The command path refuses
-        // writes regardless - this is the honest face of that refusal.
+        // An input the active practice task fixed: one read-only statement in
+        // the lock line's words, the alternatives gone - a dimmed row of
+        // chips still looked selectable. The command path refuses writes
+        // regardless; leaving practice empties `locked` and the widget returns.
         if (locked.includes(declaration.name)) {
           return (
-            <fieldset key={declaration.name} disabled data-input-locked={declaration.name} className="contents">
-              <Widget declaration={declaration} value={inputs[declaration.name]} data={data} onInput={onInput} />
-              <span className="-ml-2 text-xs text-ink-2">· set by the task</span>
-            </fieldset>
+            <p key={declaration.name} className="flex h-8 items-center text-sm text-ink">
+              <span data-input-locked={declaration.name}>
+                {describeInputForLearner(declaration, inputs[declaration.name], data)}
+                <span className="text-ink-2">{' · locked by practice'}</span>
+              </span>
+            </p>
           );
         }
         return <Widget key={declaration.name} declaration={declaration} value={inputs[declaration.name]} data={data} onInput={onInput} />;

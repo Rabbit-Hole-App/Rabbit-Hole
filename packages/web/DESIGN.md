@@ -22,7 +22,7 @@ it's wrong.
 |---|---|---|
 | `white` / `--color-background` | `#FFFFFF` | page + popover surfaces |
 | `ink` | `#37352F` | all primary text and icons-on-hover |
-| `ink-2` | `#787774` | secondary text, resting icons, labels |
+| `ink-2` | `#63615D` (dark `#A1A1A1`) | secondary text, resting icons, labels - clears 4.5:1 on every surface it is drawn on ([rule](../../docs/features/learn-canvas-blocks.md#practice-and-secondary-text-read-cleanly)) |
 | `line` | `#E9E9E7` | every border and divider |
 | `hover` | `#F1F1EF` | every hover surface, input backgrounds, pills |
 | `side` | `#F7F7F5` | sidebar + code/log blocks |

@@ -93,7 +93,7 @@ export const scene = {
     { name: 'revealed', type: 'bool', label: 'What-if revealed', hidden: true, default: false },
   ],
   exampleData: {
-    // Bare values: the practice's lock line prints "top_k (preset) = 2", not "= k = 2".
+    // Bare values: the practice's lock line prints "top_k = 2", not "= k = 2".
     kLabels: KS.map(k => (k === V ? `${k} (nothing cut)` : `${k}`)),
     kValues: KS,
     ordinals: ['1st', '2nd', '3rd', '4th', '5th', '6th'],

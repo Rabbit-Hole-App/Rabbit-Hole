@@ -34,7 +34,9 @@ function StepsSvg({ spec, state, behavior, onSelect, selected }) {
               stroke={selected === (step.id || `step-${index}`) ? '#2383e2' : active ? '#2383e2' : '#e9e9e7'}
               strokeWidth={selected === (step.id || `step-${index}`) ? 2 : 1} />
             <text x={14} y={17} fontSize="12" fontWeight={active ? 600 : 400} fill={active ? '#ffffff' : '#37352f'}>{step.label}</text>
-            {step.detail && <text x={14} y={30} fontSize="10" fill={active ? '#dbeafe' : '#787774'} fontFamily="ui-monospace, monospace">{step.detail}</text>}
+            {/* A light-only island (its fills are fixed hex), so its secondary ink is
+                --color-ink-2's light value, not the flipping token. */}
+            {step.detail && <text x={14} y={30} fontSize="10" fill={active ? '#dbeafe' : '#63615d'} fontFamily="ui-monospace, monospace">{step.detail}</text>}
           </g>
         );
       })}

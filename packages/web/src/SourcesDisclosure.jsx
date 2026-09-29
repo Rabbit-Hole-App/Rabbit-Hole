@@ -65,10 +65,10 @@ function SourceItem({ source, onFile }) {
   return (
     <li data-source-kind={source.kind} className="leading-snug">
       {head}
-      {source.kind === 'code' && <span className="ml-2 text-xs text-ink-3">{source.repo} @ {source.revision.slice(0, 7)}</span>}
+      {source.kind === 'code' && <span className="ml-2 text-xs text-ink-2">{source.repo} @ {source.revision.slice(0, 7)}</span>}
       {source.note && <p className="mt-0.5 text-xs text-ink-2">{source.note}</p>}
-      {source.sha256 && <p className="mt-0.5 font-mono text-[11px] text-ink-3">sha256 {source.sha256}</p>}
-      {source.reproduce && <p className="mt-0.5 text-xs text-ink-3">Reproduce: <code className="font-mono">{source.reproduce}</code></p>}
+      {source.sha256 && <p className="mt-0.5 font-mono text-[11px] text-ink-2">sha256 {source.sha256}</p>}
+      {source.reproduce && <p className="mt-0.5 text-xs text-ink-2">Reproduce: <code className="font-mono">{source.reproduce}</code></p>}
     </li>
   );
 }
