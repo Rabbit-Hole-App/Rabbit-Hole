@@ -139,7 +139,7 @@ const rootEl = document.getElementById('root');
 const crashed = () => {
   if (reloading) return;
   setTimeout(() => {
-    rootEl.innerHTML = '<div role="alert" class="mx-auto max-w-md px-6 pt-[18vh] text-center"><h1 class="text-lg font-semibold">This page couldn&#39;t load</h1><p class="pt-2 text-sm text-ink-2">The app may have just been updated. Reload to get the latest version.</p><button type="button" class="mt-4 cursor-pointer rounded-md border border-line px-3 py-1.5 text-sm hover:bg-hover">Reload</button></div>';
+    rootEl.innerHTML = '<div role="alert" class="mx-auto max-w-md px-6 pt-[18vh] text-center"><h1 class="text-lg font-semibold">This page couldn&#39;t load</h1><p class="pt-2 text-sm text-ink-2">Something went wrong, or the app was just updated. Reload to try again.</p><button type="button" class="mt-4 cursor-pointer rounded-md border border-line px-3 py-1.5 text-sm hover:bg-hover">Reload</button></div>';
     rootEl.querySelector('button').addEventListener('click', () => window.location.reload());
   });
 };
