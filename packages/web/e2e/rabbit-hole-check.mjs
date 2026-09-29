@@ -1192,21 +1192,27 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  // WP4 ruling R1: toasts keep their sides (notes left, errors right) and only lift above the bar.
-  await check('bar: toasts sit above the bar and keep their sides', async () => {
-    const page = await barOpen();
-    const top = (await barOf(page).boundingBox()).y;
-    const width = page.viewportSize().width;
-    await page.evaluate(() => {
-      dispatchEvent(new CustomEvent('small:toast', { detail: { message: 'agent-ui info toast' } }));
-      dispatchEvent(new CustomEvent('small:toast', { detail: { message: 'agent-ui error toast', tone: 'error' } }));
-    });
-    const info = await page.getByText('agent-ui info toast').boundingBox();
-    const error = await page.locator('[data-toast-error]').boundingBox();
-    for (const [label, box] of [['info', info], ['error', error]]) must(box.y + box.height <= top, `${label} toast overlaps the bar`);
-    must(info.x < 40, `info toast moved off the left (x ${info.x})`);
-    must(width - (error.x + error.width) < 40, 'error toast is not on the right');
-    await page.context().close();
+  // WP6 closeout (user option A, 2026-09-29): one bottom-right column, errors above info, above the bar.
+  await check('bar: toasts stack bottom-right above the bar, errors over info, never overlapping, at desktop and phone width', async () => {
+    for (const viewport of [undefined, { width: 390, height: 844 }]) {
+      const page = await barOpen('/apps', viewport);
+      const top = (await barOf(page).boundingBox()).y;
+      const width = page.viewportSize().width;
+      await page.evaluate(() => {
+        dispatchEvent(new CustomEvent('small:toast', { detail: { message: 'agent-ui info toast' } }));
+        dispatchEvent(new CustomEvent('small:toast', { detail: { message: 'agent-ui error toast', tone: 'error' } }));
+      });
+      const info = await page.getByText('agent-ui info toast').boundingBox();
+      const error = await page.locator('[data-toast-error]').boundingBox();
+      const where = `${width}px`;
+      for (const [label, box] of [['info', info], ['error', error]]) {
+        must(box.y + box.height <= top, `${where}: ${label} toast overlaps the bar`);
+        must(width - (box.x + box.width) >= 8 && width - (box.x + box.width) < 40 && box.x >= 8, `${where}: ${label} toast is not on the right, inside the edge`);
+      }
+      must(error.y + error.height <= info.y, `${where}: the error toast is not above the info toast, or they overlap`);
+      // ponytail: the phone safe area is env(safe-area-inset-bottom), 0 in this browser; the CSS max() covers devices that have one.
+      await page.context().close();
+    }
   });
 
   await check('bar: hidden on /chat, Learn, a canvas and a run subpage (T02 §6.1); back on /members', async () => {
