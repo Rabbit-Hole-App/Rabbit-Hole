@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 // DIST=dist-dev node e2e/live-bundle-check.mjs must FAIL: it proves every marker below is real, not vacuous.
 const dir = new URL(`../${process.env.DIST || 'dist'}/static/`, import.meta.url);
-const PREVIEW_CHUNKS = /^(AgentBar|ConfirmCard|StartHost|Home|RepositoryPage|review-fixtures-data)-/;
+const PREVIEW_CHUNKS = /^(AgentBar|ConfirmCard|StartHost|Home|RepositoryPage|CanvasPage|review-fixtures-data|map-memory-data)-/;
 // 'stops running on a schedule.' is agent/commands.js top-level code (its COMMANDS table): a side-effectful module that
 // preview UI imports stays in the live index even when that UI folds away.
 const MARKERS = ['data-agent-bar', 'data-result-sheet', 'nanoGPT from First Principles', 'data-app-ops', 'stops running on a schedule.', 'Questions about this app go through the bar below', 'data-canvas-gate', 'data-project-tabs', 'data-map-panel', 'Learn this in a canvas', 'data-map-layers', 'Which decisions shaped this codebase?', 'Attention internals walkthrough'];
