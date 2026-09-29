@@ -309,7 +309,7 @@ function OutputRow({ runId, name, size }) {
 
 // One chat, scoped: {app} | {run} | {} (org). Style per the Notion AI reference -
 // user turns as a right-aligned bubble, answers as plain text, pill input at the bottom.
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -412,7 +412,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight;
   }, [msgs]);
 
+  // Learn / commands (LearnSlash.jsx): a line starting with / runs as a
+  // command, never as a chat message.
+  const slashRef = useRef(null);
   const send = async (raw, scopeOverride) => {
+    if (slash && raw.trim().startsWith('/') && slashRef.current?.intercept(raw)) return;
     // @-chips ride at the front of the message text
     const message = [...mentions.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     if (!message || busy) return;
@@ -811,7 +815,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <img src={boardContext.preview} alt={boardContext.previewKind === 'paper' ? 'Selected paper region' : 'Selected canvas preview'} className="h-20 w-28 rounded-lg border border-line bg-white object-contain" />
           <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
         </div>}
-        <ChatComposer value={input} onChange={value => { boardContext?.pause(); setInput(value); }} onSubmit={send} inputRef={inputRef} autoFocus={autoFocus} placeholder={placeholder} busy={busy}
+        {slash && <div className="relative"><slash.Picker apiRef={slashRef} input={input} setInput={setInput} target={canvasTarget} run={slash.run} onPrompt={prompt => send(prompt)} /></div>}
+        <ChatComposer value={input} onChange={value => { boardContext?.pause(); setInput(value); }} onSubmit={send} onKeyDown={slash ? event => slashRef.current?.onKeyDown(event) : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={placeholder} busy={busy}
           leading={<>
           <div className="relative shrink-0">
             <button

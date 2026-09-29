@@ -18,12 +18,12 @@ export const SOURCES = [
 ];
 const REMEMBER = 'small.learn.search-source';
 
-export default function SearchBar({ app, initialSource = null, onPick, onClose }) {
+export default function SearchBar({ app, initialSource = null, initialQuery = '', onPick, onClose }) {
   const [source, setSource] = useState(() => {
     if (initialSource) return initialSource;
     try { return SOURCES.some(entry => entry.id === localStorage.getItem(REMEMBER)) ? localStorage.getItem(REMEMBER) : 'youtube'; } catch { return 'youtube'; }
   });
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery || '');
   // What the results on screen answer - so Enter on an unchanged query picks,
   // and on a changed one searches again.
   const [answered, setAnswered] = useState(null);
@@ -60,6 +60,8 @@ export default function SearchBar({ app, initialSource = null, onPick, onClose }
     } catch (problem) { if (problem.name !== 'AbortError') setError(problem.message); }
     finally { if (!controller.signal.aborted) setBusy(false); }
   };
+  // Opened with a query (/paper <topic>): search it straight away.
+  useEffect(() => { if (initialQuery) run(initialQuery, source); }, []);
   const choose = result => { onPick(source, result.item); onClose(); };
   const switchTo = next => {
     setSource(next);

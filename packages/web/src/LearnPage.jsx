@@ -16,6 +16,8 @@ import LearnOutline from './LearnOutline.jsx';
 import ContentsRail from './ContentsRail.jsx';
 import CanvasMenubar from './CanvasMenubar.jsx';
 import SearchBar from './SearchBar.jsx';
+import LearnSlash from './LearnSlash.jsx';
+import { runLearnCommand } from './learn-slash.js';
 import ShortcutsSheet from './ShortcutsSheet.jsx';
 import FilesPanel from './FilesPanel.jsx';
 import LearnWiki from './LearnWiki.jsx';
@@ -91,6 +93,8 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // discards it; nothing reaches the canvas on its own.
   const [proposal, setProposal] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  // What a /paper <topic> command searches for; null for the plain search bar.
+  const [searchSeed, setSearchSeed] = useState(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   // / opens Search and ? the shortcuts sheet - the keys the page owns; the
   // canvas owns the rest. Neither fires while typing or presenting.
@@ -392,6 +396,22 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // genuinely stops repository_context reaching the agent (ask.jsx:467).
   useEffect(() => { if (repoSourceId) registerSource({ id: repoSourceId, kind: 'repository', label: app.repo }); }, [repoSourceId, app.repo, registerSource]);
   const repoAttached = !repoSourceId || isAttached(sources, repoSourceId);
+  // The dock's / commands (docs/features/learn-artifact-generation.md), run
+  // against this canvas.
+  const learnSlash = {
+    Picker: LearnSlash,
+    run: text => runLearnCommand(text, {
+      app: app.name,
+      target: askTarget,
+      canvas: {
+        insertNotebook: () => canvasApi.current?.insertNotebook(),
+        insertBlock: block => canvasApi.current?.insertBlock(block),
+        insertPaper: ({ id }) => addPaper({ id }),
+      },
+      openSearch: seed => { setSearchSeed(seed); setSearchOpen(true); },
+      post: (path, body) => api(path, { method: 'POST', body: JSON.stringify(body) }),
+    }),
+  };
   const placeExchange = event => setExchanges(previous => {
     if (event.question !== undefined) return [...previous, { id: event.id, question: event.question, linkFrom: event.linkFrom || null, answer: '', status: 'thinking', dx: 0, dy: 0 }];
     return previous.map(exchange => exchange.id !== event.id ? exchange
@@ -750,7 +770,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
       if (request !== boardRequest.current || !boardContext.isCurrent(snapshot)) { setBoardVisible(false); throw new Error('The lesson changed. Ask again on the current page.'); }
       editor.updateViewportScreenBounds(editor.getContainer());
       const previous = explanation.current;
-      const layer = drawExplanation(editor, current, renderedPlan, { app: app.name, onVideo: (...args) => videos.current?.start(...args), onScene: (...args) => scenes.current?.start(...args) });
+      const layer = drawExplanation(editor, current, renderedPlan, { app: app.name });
       // Speak the explanation with the lesson narrator; a failed request stays silent.
       let boardAudio = null;
       const spoken = renderedPlan.blocks.map(block => block.text).filter(Boolean).join(' ').slice(0, 3800);
@@ -1168,7 +1188,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             className="h-8 min-w-16 max-w-96 shrink cursor-text truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none [field-sizing:content] placeholder:text-ink-2 hover:border-line focus:border-line" />
           <CanvasMenubar menus={canvasMenus} />
           {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
-          {searchOpen && <SearchBar app={app.name} onClose={() => setSearchOpen(false)}
+          {searchOpen && <SearchBar app={app.name} initialSource={searchSeed?.source} initialQuery={searchSeed?.query} onClose={() => { setSearchOpen(false); setSearchSeed(null); }}
             onPick={pickResult} />}
           <div className="flex items-center gap-0.5">
             {/* One search bar for YouTube, arXiv and Wikipedia, beside Present. */}
@@ -1205,7 +1225,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
-        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas key={canvasEpoch} onSave={pushBoard} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onState={onCanvasState} edgeInset={!panelOpen && (canvasOutline.length || railEntries.length) ? 52 : 0} storageKey={boardStorageKey} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <div data-learn-dock className="contents"><AskPanel compact composerOnly boardContext={boardContext} onExchange={placeExchange} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /></div> : null} /></Suspense></div>
+        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas key={canvasEpoch} onSave={pushBoard} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onState={onCanvasState} edgeInset={!panelOpen && (canvasOutline.length || railEntries.length) ? 52 : 0} storageKey={boardStorageKey} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <div data-learn-dock className="contents"><AskPanel compact composerOnly boardContext={boardContext} onExchange={placeExchange} slash={learnSlash} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={`Ask about ${app.repo || app.name}…`} autoFocus /></div> : null} /></Suspense></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">

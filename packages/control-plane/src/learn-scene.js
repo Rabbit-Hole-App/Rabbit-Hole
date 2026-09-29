@@ -54,6 +54,9 @@ export class LearnScenes {
           await this.state.storage.put(`placement:${body.id}`, { ...p, position: { x: pos.x, y: pos.y, w: pos.w, h: pos.h }, viewState: view, hidden: body.hidden === true });
           return json({ saved: true });
         }
+        // A paid job starts only from the learner's explicit confirmation
+        // (docs/features/learn-artifact-generation.md): no confirmed flag, no job.
+        if (body.confirmed !== true) return json({ error: 'This uses paid generation. Confirm it first.', needsConfirm: true }, 428);
         const input = validateScene(body.operation);
         if (typeof body.lessonId !== 'string' || body.lessonId.length > 150 || typeof body.page !== 'string' || body.page.length > 150) throw new Error('Lesson and page required');
         const health = await workerRequest(this.env, '/health'); if (!health.ok) throw new Error('Scene worker is unavailable');

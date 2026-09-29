@@ -12,6 +12,7 @@ import { apiAsk } from '../control-plane/src/index.js';
 import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback, videoGone, canvasSearch, wikiArticle } from '../control-plane/src/learn-board.js';
 import { learnGradeRoute } from '../control-plane/src/learn-grade-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
+import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 export { LearnVideos } from '../control-plane/src/learn-video.js';
@@ -57,6 +58,8 @@ export default {
       if (access instanceof Response) return access;
       const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
       if (!prompt || prompt.length > 1000) return Response.json({ error: 'Provide an image prompt under 1000 characters.' }, { status: 400 });
+      // Paid: only the learner's explicit confirmation starts it.
+      if (body.confirmed !== true) return Response.json({ error: 'This uses paid generation. Confirm it first.', needsConfirm: true }, { status: 428 });
       if (!env.OPENAI_API_KEY) return Response.json({ error: 'Image generation is not configured on this environment.' }, { status: 503 });
       const upstream = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
@@ -137,6 +140,17 @@ export default {
     // the exact /api/learn/board route, which generates explanations.
     if (path.startsWith('/api/learn/boards/')) { const boards = await learnBoardsRoute(path, req, env); if (boards) return boards; }
     if (path === '/api/learn/search') return canvasSearch(req, env);
+    // Learn Artifact Generation v1: a / command's validated canvas block
+    // (docs/features/learn-artifact-generation.md).
+    if (path === '/api/learn/artifact') {
+      if (env.SUBSCRIPTION_ONLY === 'true') {
+        let body; try { body = await req.clone().json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
+        const access = await authorizedBoardApp(req, env, body.app);
+        if (access instanceof Response) return access;
+        if (access.email !== env.SUBSCRIPTION_OWNER_EMAIL) return Response.json({ error: 'This personal dev subscription is available only to its owner.' }, { status: 403 });
+      }
+      return artifactFetch(req, env);
+    }
     if (path === '/api/learn/board') {
       if (env.SUBSCRIPTION_ONLY === 'true') {
         let body; try { body = await req.clone().json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }

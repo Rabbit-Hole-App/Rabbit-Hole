@@ -1274,6 +1274,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         snapshot();
         return insertAtView(newNotebookBlock());
       },
+      // A validated block from a / command (learn-slash.js).
+      insertBlock: block => {
+        snapshot();
+        return insertAtView({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0 });
+      },
       insertDivider: () => {
         snapshot();
         const center = viewCenter();

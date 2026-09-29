@@ -57,6 +57,9 @@ export class LearnVideos {
           await this.state.storage.put(`placement:${body.id}`, { ...p, position: body.position, hidden: body.hidden === true });
           return json({ saved: true });
         }
+        // A paid job starts only from the learner's explicit confirmation
+        // (docs/features/learn-artifact-generation.md): no confirmed flag, no job.
+        if (body.confirmed !== true) return json({ error: 'This uses paid generation. Confirm it first.', needsConfirm: true }, 428);
         const maths = body.operation?.op === 'generate_math_animation';
         const provider = maths ? new ManimProvider(this.env) : videoProvider(this.env);
         const input = maths ? { spec: validateMathAnimation(body.operation), id: body.operation.id, caption: body.operation.caption } : validateVideo(body.operation);

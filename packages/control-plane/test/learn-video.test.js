@@ -45,7 +45,7 @@ function fixture() {
   const env = { LEARN_VIDEO_PROVIDER: 'fal-seedance-lite', FAL_API_KEY: 'test', RUNS: { put: async (k, v) => assets.set(k, v), get: async k => ({ body: assets.get(k), size: assets.get(k).byteLength }) } };
   return { state, env, assets, data, actor: new LearnVideos(state, env) };
 }
-const request = (extra = {}) => new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ operation: op, lessonId: 'lesson', page: 'freeform', ...extra }) });
+const request = (extra = {}) => new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ operation: op, lessonId: 'lesson', page: 'freeform', confirmed: true, ...extra }) });
 test('concurrent duplicate requests submit once; durable completion copies the asset and reload reuses it', async () => {
   const original = globalThis.fetch; let submissions = 0;
   globalThis.fetch = async (url, init = {}) => {
@@ -95,4 +95,16 @@ test('provider-declared failure offers explicit retry; polling does not automati
 test('authentication precedes video storage and generation', async () => {
   const result = await videoFetch(new Request('https://dev.test/api/learn/video?app=demo'), { CONTROL_PLANE: { fetch: async () => new Response('', { status: 403 }) } });
   assert.equal(result.status, 403);
+});
+test('a paid clip never starts without the learner confirming it', async () => {
+  const original = globalThis.fetch; let calls = 0;
+  globalThis.fetch = async () => { calls++; return Response.json({}); };
+  try {
+    const f = fixture();
+    const response = await f.actor.fetch(request({ confirmed: undefined }));
+    assert.equal(response.status, 428);
+    assert.equal((await response.json()).needsConfirm, true);
+    assert.equal(calls, 0);
+    assert.equal(f.data.size, 0);
+  } finally { globalThis.fetch = original; }
 });

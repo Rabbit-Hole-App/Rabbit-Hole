@@ -23,6 +23,7 @@ import { causalAttentionScene } from './reference-scenes.js';
 import InteractiveScene, { sceneSummary } from './InteractiveScene.jsx';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
 import { sceneAssetUrl, sceneList, startScene, startVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
+import PaidConfirm from './PaidConfirm.jsx';
 import { describeNotebook } from './learn-notebook.js';
 
 // Lesson component library for the adaptive canvas (spec: docs/
@@ -802,6 +803,17 @@ function useElapsed(active) {
   return seconds;
 }
 
+// A / command's paid proposal arrives with confirmedStart: the learner already
+// pressed Generate in the composer, so the card starts once and drops the flag.
+function useConfirmedStart(block, onChange, generate) {
+  useEffect(() => {
+    if (!block.confirmedStart) return;
+    const { confirmedStart: _started, ...rest } = block;
+    onChange(rest);
+    generate(rest);
+  }, [block.confirmedStart]);
+}
+
 function Progress({ seconds, expected, label }) {
   const percent = Math.min(96, Math.round((seconds / expected) * 100));
   return (
@@ -1115,14 +1127,16 @@ function SceneBody({ block, appName, onChange }) {
       polling.current = setTimeout(follow, 5000);
     } catch (problem) { setError(problem.message); }
   };
-  const generate = async () => {
-    setError('');
-    onChange({ ...block, status: 'queued' });
+  const [confirming, setConfirming] = useState(false);
+  const generate = async (current = block) => {
+    setError(''); setConfirming(false);
+    onChange({ ...current, status: 'queued' });
     try {
-      await startScene(appName, block.operation);
+      await startScene(appName, current.operation, { confirmed: true });
       follow();
-    } catch (problem) { setError(problem.message); onChange({ ...block, status: 'failed' }); }
+    } catch (problem) { setError(problem.message); onChange({ ...current, status: 'failed' }); }
   };
+  useConfirmedStart(block, onChange, generate);
   if (block.status === 'ready' && block.modelUrl) return <ThreeDBody block={block} onChange={onChange} />;
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
@@ -1132,7 +1146,7 @@ function SceneBody({ block, appName, onChange }) {
       <div className="mt-2 flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-line bg-hover p-4 text-center" onPointerDown={event => event.stopPropagation()}>
         <p className="text-xs text-ink-2">{block.operation.scene.objects.length} objects · {block.operation.scene.animations?.length || 0} animations · {block.operation.duration || 3}s</p>
         {block.status === 'idle' || block.status === 'failed' ? (
-          <button type="button" data-generate-scene onClick={generate} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white">
+          confirming ? <PaidConfirm onGenerate={() => generate()} onCancel={() => setConfirming(false)} /> : <button type="button" data-generate-scene onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white">
             <Play size={14} />{block.status === 'failed' ? 'Retry scene' : 'Build the scene'}
           </button>
         ) : (
@@ -1216,6 +1230,7 @@ function ImageBody({ block, appName, onChange, onFile }) {
   const [results, setResults] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [confirming, setConfirming] = useState(false);
   const elapsed = useElapsed(busy);
   const search = async () => {
     if (!query.trim()) return;
@@ -1226,6 +1241,13 @@ function ImageBody({ block, appName, onChange, onFile }) {
     } catch (problem) { setError(problem.message); }
     finally { setBusy(false); }
   };
+  // /image <terms> arrives with autoSearch: run that search once.
+  useEffect(() => {
+    if (!block.autoSearch) return;
+    const { autoSearch: _once, ...rest } = block;
+    onChange(rest);
+    search();
+  }, [block.autoSearch]);
   const choose = photo => {
     setResults(null);
     const entry = { src: photo.src, alt: photo.alt, credit: { photographer: photo.photographer, url: photo.url } };
@@ -1238,7 +1260,7 @@ function ImageBody({ block, appName, onChange, onFile }) {
     try {
       const key = `image:${prompt}`;
       const cached = await cachedAsset(key);
-      const image = cached || (await api('/api/learn/image', { method: 'POST', body: JSON.stringify({ app: appName, prompt }) })).image;
+      const image = cached || (await api('/api/learn/image', { method: 'POST', body: JSON.stringify({ app: appName, prompt, confirmed: true }) })).image;
       if (!cached) cacheAsset(key, image);
       const entry = { cacheKey: key, prompt, alt: prompt, credit: { photographer: 'generated illustration', url: '' } };
       const kept = variants.some(variant => variant.cacheKey === key) ? variants : [...variants, entry];
@@ -1271,11 +1293,12 @@ function ImageBody({ block, appName, onChange, onFile }) {
           className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover disabled:opacity-40">
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}Find
         </button>
-        <button type="button" data-image-generate disabled={busy || !query.trim()} onClick={generate} title="Generate an illustration instead of searching"
+        <button type="button" data-image-generate disabled={busy || !query.trim()} onClick={() => setConfirming(true)} title="Generate an illustration instead of searching"
           className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-ink px-3 text-sm font-medium text-white disabled:opacity-40">
           <Sparkles size={14} />Generate
         </button>
       </div>
+      {confirming && !busy && <div className="mt-2"><PaidConfirm onGenerate={() => { setConfirming(false); generate(); }} onCancel={() => setConfirming(false)} /></div>}
       {busy && <div className="mt-2"><Progress seconds={elapsed} expected={25} label="Working" /></div>}
       {error && <p className="mt-1 text-xs text-red-700">{error}</p>}
       {results && (results.length ? (
@@ -1315,12 +1338,14 @@ function VideoBody({ block, appName, onChange, onFile }) {
       polling.current = setTimeout(follow, 5000);
     } catch (problem) { setError(problem.message); }
   };
-  const generate = async () => {
-    setError('');
-    onChange({ ...block, status: 'generating' });
-    try { await startVideo(appName, block.operation); follow(); }
-    catch (problem) { setError(problem.message); onChange({ ...block, status: 'failed' }); }
+  const [confirming, setConfirming] = useState(false);
+  const generate = async (current = block) => {
+    setError(''); setConfirming(false);
+    onChange({ ...current, status: 'generating' });
+    try { await startVideo(appName, current.operation, { confirmed: true, retry: current.status === 'failed' }); follow(); }
+    catch (problem) { setError(problem.message); onChange({ ...current, status: 'failed' }); }
   };
+  useConfirmedStart(block, onChange, generate);
   const pending = block.status === 'generating' || block.status === 'queued';
   const clips = block.variants?.length ? block.variants : (block.src ? [{ src: block.src }] : []);
   const position = Math.max(0, Math.min(block.variant ?? clips.length - 1, clips.length - 1));
@@ -1347,7 +1372,8 @@ function VideoBody({ block, appName, onChange, onFile }) {
               : <p className="text-xs text-ink-2">{block.operation?.duration || 4}s · {block.operation?.aspectRatio || '16:9'} · {block.operation?.purpose?.replace('_', ' ')}</p>}
             {pending
               ? <Progress seconds={elapsed} expected={block.operation?.op === 'generate_math_animation' ? 240 : 180} label={block.operation?.op === 'generate_math_animation' ? 'Rendering the animation' : 'Generating the clip'} />
-              : <button type="button" data-generate-video onClick={generate} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? 'Retry render' : block.operation?.op === 'generate_math_animation' ? 'Render the animation' : 'Generate the video'}</button>}
+              : confirming ? <PaidConfirm onGenerate={() => generate()} onCancel={() => setConfirming(false)} />
+              : <button type="button" data-generate-video onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? 'Retry render' : block.operation?.op === 'generate_math_animation' ? 'Render the animation' : 'Generate the video'}</button>}
             {error && <p className="text-xs text-red-700">{error}</p>}
           </div>}
       {block.caption && <div className="mt-1.5 text-xs text-ink-2"><Md text={block.caption} onFile={onFile} /></div>}
