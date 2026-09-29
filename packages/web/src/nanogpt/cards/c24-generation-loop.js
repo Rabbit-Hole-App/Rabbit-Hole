@@ -45,7 +45,8 @@ const PITCH = 36;
 const TEXT_DY = 21;   // a body/caption baseline level with a label token row's centre line
 const CAPTION_Y = 440; // growth; each caption one LINE under the one before
 const LINE = 26;
-const BAND_Y = 598;   // below the captions: the reveal never pushes them away from the staircase
+const LEGEND_Y = 576; // the key directly under the captions, a little apart from them
+const BAND_Y = 640;   // last, under the toy note: before Check only the pad's trailing space holds it
 const BODY = 15;
 const rowY = i => ROW_Y + PITCH * i;
 const chipW = token => CHIP_PAD * 2 + token.length * CHIP_CHAR;
@@ -75,7 +76,7 @@ export const scene = {
   id: 'nanogpt-c24-generation-loop',
   title: 'The generation loop',
   width: 960,
-  height: 749,                         // the padded content, 748.32: a 960-wide frame draws it at scale 1
+  height: 729,                         // the padded content, 728.8: a 960-wide frame draws it at scale 1
   duration: 4,
   inputs: [
     { name: 'revealed', type: 'bool', label: 'Practice case revealed', hidden: true, default: false },
@@ -117,20 +118,21 @@ export const scene = {
     text('training', 'Training scores all positions in one pass: its text is given. Here the newest character is a draw.', 40, captionY(3), hidden),
     text('loop', 'The loop runs max_new_tokens passes, with no other stop, and returns all of idx, the start included.', 40, captionY(4), hidden),
 
-    // The practice case, set apart below the captions: derived opacity, no
-    // appear; text and tokens gated too. Before a committed attempt its slot
-    // stays empty - the main scene only.
+    // Directly under the captions: the one place bold and colour are keyed; it
+    // keys the band's row too (sp is only there). The toy note under it
+    // qualifies what the bold means.
+    note('legend', '⏎ = new line · sp = space · bold: the position whose prediction is drawn from · colour: the draw', 40, LEGEND_Y),
+    note('toy', 'Toy: the bigram reads only the last character it is handed; NanoGPT’s Blocks read the whole row.', 40, LEGEND_Y + 22, hidden),
+
+    // The practice case, last and set apart: derived opacity, no appear; text
+    // and tokens gated too. Its bottom line stays at opacity 1 with its text
+    // blank until Check, so the static frame holds the band (everDrawn skips
+    // derived opacity) and nothing reads before a committed attempt.
     text('band-label', '{{bandLabel}}', 40, BAND_Y - 10, BAND),
     tokens('band-row', { $derive: 'bandTokens' }, BAND_Y, { cellHighlight: P_ROW.length - 1, ...BAND }),
     text('band-arrow', ARROW, centredX(P_ROW, ARROW), BAND_Y + TEXT_DY, BAND),
     text('band-draw', '{{bandDraw}}', centredX([...P_ROW, ARROW], P_DRAW), BAND_Y + TEXT_DY, { role: 'output', ...BAND }),
-    text('band-line', '{{bandLine}}', 40, BAND_Y + 48, BAND),
-
-    // Static and below the band, so the static frame already holds it; it keys
-    // the band's row too (sp is only there), and is the one place bold and
-    // colour are keyed. The toy note under it qualifies what the bold means.
-    note('legend', '⏎ = new line · sp = space · bold: the position whose prediction is drawn from · colour: the draw', 40, BAND_Y + 88),
-    note('toy', 'Toy: the bigram reads only the last character it is handed; NanoGPT’s Blocks read the whole row.', 40, BAND_Y + 110, hidden),
+    text('band-line', '{{bandLine}}', 40, BAND_Y + 48),
   ],
   // Row k and its name at 0.4·(k − 1) s, its draw 0.2 s later - before the row
   // that is handed it; the captions once the eighth draw is in.
@@ -258,5 +260,5 @@ export const evidence = {
   consequence: `The replay builds the staircase pass by pass: row k (${ROWS.map(r => r.join('')).join(', ')}) with its last character bold, then its draw (${DRAWS.join(', ')}) in the next column, before row k + 1 is handed it; the captions follow once the eighth draw is in (idx grew from 1 character to 9). Until a committed practice attempt the band's slot is empty; after it the practice band shows ${P.start} plus ${P.pass - 1} draws (${HANDED} characters, last bold), an arrow, the draw ${P_DRAW} one column past it, and "${BAND_LINE}".`,
   interactionPurpose: 'See that each pass is handed the whole of idx, including the previous pass\'s draw, so generation must run one pass per character, and that generate() returns the start with the new characters.',
   task: `Watch the replay: each draw lands in the next column and the next row is handed it. Practice: from a ${P_LEN}-character start, how many characters is pass ${P.pass} handed, and how many does generate() return? (choice; expected handed ${HANDED}, returns ${RETURNS}).`,
-  capability: 'label-style token rows with a constant cellHighlight (the bold last position); role-output text objects for the draws, centred on the next chip column (the practice draw one column further, after an arrow); timeline appears in causal order; a hidden-bool revealInput with choose()d opacity, text and token list (a placeholder empty list) and no appear on the practice band; choice practice graded by choice_equals without fixedInputs; no visible input, so no INTERACT row.',
+  capability: 'label-style token rows with a constant cellHighlight (the bold last position); role-output text objects for the draws, centred on the next chip column (the practice draw one column further, after an arrow); timeline appears in causal order; a hidden-bool revealInput with choose()d opacity, text and token list (a placeholder empty list) and no appear on the practice band, whose bottom line is text-gated at static opacity so the static frame holds the band; choice practice graded by choice_equals without fixedInputs; no visible input, so no INTERACT row.',
 };

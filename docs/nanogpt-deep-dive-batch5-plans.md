@@ -135,7 +135,7 @@ Rows at iteration 100 (re-computed by the judge):
 
 **Replay only,** as the inventory specifies. There is no visible control; SceneControls renders no INTERACT row or Reset when no input is visible (SceneControls.jsx:172, :183). The one input is 'revealed' (bool, hidden, default false), the practice's revealInput, as on c14 and c19. The replay carries causal order: each draw appears before the row that reads it.
 
-**Layout** (960 wide, 749 tall).
+**Layout** (960 wide, 729 tall).
 
 Header:
 - y 30, question (heading): 'What does generate() repeat for each new character?'
@@ -155,15 +155,15 @@ Captions, directly under the staircase (5 lines, one every 26 from y 440; they a
 - y 518: 'Training scores all positions in one pass: its text is given. Here the newest character is a draw.'
 - y 544 (body): 'The loop runs max_new_tokens passes, with no other stop, and returns all of idx, the start included.'
 
-Practice band, below the captions (row at y 598, label at 588, line at 646). It has derived opacity choose(revealed, 1, 0) and no appear; before a committed attempt its slot stays empty, the main scene only (owner, 2026-09-29: the 'Not drawn' wait note is removed). Its content is also gated:
+Footer, static, directly under the captions:
+- y 576 (legend): '⏎ = new line · sp = space · bold: the position whose prediction is drawn from · colour: the draw'
+- y 598 (annotation; appears at 3.3 s with the captions): 'Toy: the bigram reads only the last character it is handed; NanoGPT's Blocks read the whole row.'
+
+Practice band, last, under the toy note (label at 630, row at y 640, line at 688). The label, row, arrow and draw have derived opacity choose(revealed, 1, 0) and no appear. The line keeps a static opacity of 1 with its text choose()d blank, so the static bounds hold the band (everDrawn skips derived opacity) and the reveal never refits the frame. Before a committed attempt nothing of the band reads, the main scene only (owner, 2026-09-29: the 'Not drawn' wait note is removed); its reserved height is trailing space under the toy note, not an empty slot between the captions and the legend (closeout fix: the legend used to sit below the band, which left a 129 px blank inside the card). Its content is also gated:
 - label, via choose(revealed, …, ' '): 'Practice case: start ROMEO: (6 characters), pass 5';
 - tokens, via choose(revealed, practiceRow, placeholder): R O M E O : sp m e l, last character bold;
 - an arrow '→' in the next column, then the draw ':', via choose, one column past it: the draw sits two pitches from the last handed cell, so the handed cells count to 10 before the arrow (the ':' draw otherwise reads as an 11th cell);
 - line, via choose: 'handed 10 characters · returns 6 + 500 = 506'. It is built in the module from the fixture.
-
-Footer, static, below the band so the static bounds already contain it:
-- y 686 (legend): '⏎ = new line · sp = space · bold: the position whose prediction is drawn from · colour: the draw'
-- y 708 (annotation; appears at 3.3 s with the captions): 'Toy: the bigram reads only the last character it is handed; NanoGPT's Blocks read the whole row.'
 
 **reviewStates:** {revealed: false}, {revealed: true}, plus a mid-replay capture at about 1.5 s.
 
@@ -211,7 +211,7 @@ A start longer than one character: 'ROMEO:' (6 characters; it begins 163 lines o
 
 **Before Check:**
 - The card draws only the 1-character '⏎' start, which makes 'pass k holds k' look like the rule.
-- The practice band's text and tokens are choose()d to blanks at opacity 0, and no placeholder line holds its slot.
+- The practice band's text and tokens are choose()d to blanks (at opacity 0; the line at opacity 1, blank), and no placeholder line holds its slot.
 - 'ROMEO', '506', a 10-chip row and any count above 9 appear nowhere. A test asserts this for every visible default-state label, and for the evaluated values of the band objects.
 
 **Why it needs the rule.** Copying the picture gives (5, 501). The answer needs three facts: idx = start + one draw per pass, all of idx is handed over, and return = start + max_new_tokens.
@@ -228,7 +228,7 @@ The critic's no-cache compute line was a second idea (compute cost) and is cut. 
 
 **Rubric:**
 - 1, 2, 3, 4, 6 and 10 do not hold;
-- 9 does not hold (749 tall);
+- 9 does not hold (729 tall);
 - 11 does not hold.
 
 **Expected boundaryFlags: none.** The objective has no ';' or ', and'; there are 0 visible inputs; the height is under 900. So plan.boundary.reviewed = {}.
@@ -319,7 +319,7 @@ No new capability and no renderer primitive.
 - role-output text objects for the draws (AnimatedScene.jsx:524-526);
 - derive op choose, with a derived tokens list (variable-length-tokens probe);
 - a hidden bool as revealInput (scene-activity.js:177-181);
-- derived opacity on the 4 practice-band objects, which carry no appear;
+- derived opacity on 4 of the 5 practice-band objects, which carry no appear; the fifth, the line, is text-gated at static opacity so the static bounds hold the band;
 - about 25 timeline appears;
 - 40 of 60 objects.
 
@@ -330,7 +330,7 @@ No new capability and no renderer primitive.
 - The space shows as 'sp'. Pixel-check the '⏎' glyph in label tokens.
 - Width limits, from textOverflow at 0.6 × the font size: body text at x 40 fits about 100 characters, annotation about 116. The strings above fit.
 - Everything assertSources names must be on the default surface, so the ROMEO: draws go under the 'Recorded toy run' source.
-- everDrawn ignores derived-opacity objects, so static captions sit below the band.
+- everDrawn ignores derived-opacity objects, so the band's bottom line keeps a static opacity (text blank until Check) and the band sits last, under the legend and toy note.
 
 **Deliberately skipped (ponytail):**
 - per-row 't = k' readouts and staircase arrows from the last position to the draw; add them if review finds the link unclear (only the practice band has an arrow: its draw has no next row to line up with);

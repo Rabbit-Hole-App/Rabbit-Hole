@@ -37,12 +37,14 @@ test('c24 passes every gate in both states; 40 objects, drawn at scale 1, one fr
   assert.equal(scene.objects[0].semanticId, 'question');
   assert.equal(scene.title, 'The generation loop');
   assert.equal(scene.objects.length, 40);
-  assert.equal(scene.height, 749);
+  assert.equal(scene.height, 729);
   const legibility = sceneLegibility(scene);
   assert.equal(legibility.scale, 1);
   assert.ok(scene.height >= legibility.viewport.h && scene.height < legibility.viewport.h + 1, JSON.stringify(legibility.viewport));
   assert.ok(scene.width >= legibility.viewport.w);
-  // The static frame already holds the revealed band: the reveal never refits the card.
+  // The static frame already holds the revealed band: the reveal never refits the
+  // card. Its bottom line (static opacity, blank text until Check) sets the frame's floor.
+  assert.equal(legibility.bounds.contributors.yMax, 'band-line');
   for (const [k, result] of results.entries()) {
     assert.deepEqual(withoutContributors(sceneContentBounds(result.scene)), withoutContributors(legibility.bounds), JSON.stringify(reviewStates[k]));
   }
@@ -93,20 +95,23 @@ test('c24 the staircase: row k is handed all of idx, last bold; its draw sits ov
   assert.equal(byId(result, 'growth').label, 'Passes 1 to 8 added 8 characters: idx grew from 1 character to 9.');
 });
 
-test('c24 layout: the captions sit right under the staircase; the practice band is set apart below them', () => {
+test('c24 layout: captions, then the legend, right under the staircase; the practice band last', () => {
   const y = id => scene.objects.find(o => o.id === id).initialState.y;
   // Baselines: the first caption is one row pitch under row 8's text, so no blank band splits them.
   assert.equal(y('growth') - (y('row-8') + 21), 39);
-  const order = ['growth', 'rule-1', 'rule-2', 'training', 'loop', 'band-label', 'band-line', 'legend', 'toy'].map(y);
+  const order = ['growth', 'rule-1', 'rule-2', 'training', 'loop', 'legend', 'toy', 'band-label', 'band-row', 'band-line'].map(y);
   assert.deepEqual(order, [...order].sort((a, b) => a - b));
   // One even step between caption lines: no pair reads as closer than the rest;
   // at most 5 lines under the staircase (the toy note sits under the legend).
   const captions = order.slice(0, 5);
   assert.deepEqual(captions.slice(1).map((v, k) => v - captions[k]), [26, 26, 26, 26]);
-  // The band's blank runs above and below are wider than the caption spacing (26),
-  // and its count line sits nearer its own row than the legend under it.
-  assert.ok(y('band-label') - y('loop') >= 44 && y('legend') - y('band-line') >= 40);
-  assert.ok(y('band-line') - (y('band-row') + 16) < y('legend') - y('band-line'));
+  // The legend follows the last caption with no empty slot between them (the
+  // owner's 2026-09-29 finding: a reserved band there detached it from the diagram).
+  assert.ok(y('legend') - y('loop') <= 32 && y('toy') - y('legend') === 22);
+  // The band sits last, set apart from the toy note by more than the caption spacing,
+  // and nothing sits under it, so before Check its slot is only trailing space.
+  assert.ok(y('band-label') - y('toy') > 26);
+  assert.equal(Math.max(...scene.objects.map(o => o.initialState.y ?? 0)), y('band-line'));
   // The practice draw sits on the row's line after the arrow, never as an 11th cell.
   assert.equal(y('band-arrow'), y('band-draw'));
 });
@@ -137,16 +142,19 @@ test('c24 before Check nothing of the practice case is on the card; after, the b
   // No count above 9 anywhere on the default surface, and no row of 10 tokens.
   for (const n of all.match(/\d+/g).map(Number).filter(n => n !== 100)) assert.ok(n <= 9, `${n} on the default surface`);
   assert.ok(before.state.objects.filter(o => o.type === 'tokens').every(o => o.tokens.length <= 9));
-  // The band's evaluated values are blank, not only transparent.
+  // The band's evaluated values are blank, not only transparent. Its bottom line
+  // stays at opacity 1 (so the static frame holds the band) with blank text.
   for (const id of BAND) {
     const o = byId(before, id);
-    assert.equal(o.opacity, 0, id);
+    assert.equal(o.opacity, id === 'band-line' ? 1 : 0, id);
     assert.doesNotMatch(JSON.stringify([o.label, o.tokens]), /ROMEO|R.*O.*M|506|10|:/, id);
   }
   assert.deepEqual(byId(before, 'band-row').tokens, []);
-  // Before Check the band's slot is empty - the main scene only, no placeholder
-  // line between the last caption and the legend (owner, 2026-09-29).
-  const slot = result => result.state.objects.filter(o => o.visible && o.opacity > 0 && o.y > byId(result, 'loop').y && o.y < byId(result, 'legend').y).map(o => o.id);
+  assert.equal(byId(before, 'band-line').label.trim(), '');
+  // Before Check nothing reads under the toy note - the main scene only, no
+  // placeholder line (owner, 2026-09-29); after it, the whole band does.
+  const reads = o => o.visible && o.opacity > 0 && ((o.label || '').trim() || o.tokens?.length);
+  const slot = result => result.state.objects.filter(o => o.y > byId(result, 'toy').y && reads(o)).map(o => o.id);
   assert.deepEqual(slot(before), []);
   assert.deepEqual(slot(after), BAND);
   // After a committed attempt: 6 + 4 = 10 characters, the last bold, the draw and the line.
