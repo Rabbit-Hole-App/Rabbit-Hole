@@ -9,7 +9,7 @@ import {
 import { ago, api, fmtTime, navigate, wsHeaders } from './api.js';
 import { appApi } from './app-data.js';
 import { AskPanel } from './ask.jsx';
-import { aiFindAllowed } from './flags.js';
+import { aiFindAllowed, learnPreview } from './flags.js';
 import {
   Avatar, Button, Chk, cn, CodeBlock, Dropzone, Field, fmtBytes, IconBtn, Input,
   Menu, MenuItem, Pill, Select, SkeletonRows, SlidePanel, Slider, StatusPill, SubMenu, Tip, toast, Toggle, useHeaderDrag, ValuePicker,
@@ -756,7 +756,7 @@ export function RunPeek({ runId, app, onClose, onRunAgain }) {
       </div>
       {/* once a conversation exists the chat lives ONLY in its tab: on the Run tab
           the box is hidden (not unmounted, a mid-stream reply keeps streaming) */}
-      {(app.hosting !== 'aws' || app.run_chat) && <div className={cn(
+      {!learnPreview && (app.hosting !== 'aws' || app.run_chat) && <div className={cn( // D7: run chat writes live /api/ask history
         'px-5',
         tab === 'chat' ? 'flex min-h-0 flex-1 flex-col pt-2 pb-4'
         : chatted ? 'hidden'

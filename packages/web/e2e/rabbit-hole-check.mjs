@@ -1656,6 +1656,42 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await barOf(page).locator('[data-scope-chip="selected"]').waitFor({ timeout: 10000 });
   };
   console.log(`wp6: project ${ready?.repo || 'none'} · job ${job?.name || 'none'}${job?.lastRun ? ' (ran)' : ''} · server ${server?.name || 'none'}`);
+  if (job) await check('wp6-app-d7: on the preview a job changes nothing live - the D7 line shows; rename, description, Schedule, Duplicate, Trash and Run are off; the run peek and run page have no chat; only GETs reach /api', async () => {
+    const page = await open(), writes = writes6(page);
+    await loaded(page, `/apps/${job.name}`);
+    await page.locator('[data-app-ops]').getByText(D7).waitFor({ timeout: 20000 });
+    must(await page.locator('h1[title="Click to rename"], [title="Click to edit"]').count() === 0, 'rename or description editing is offered');
+    await page.getByTitle('More').click();
+    for (const name of ['Duplicate', 'Move to Trash']) { const b = page.getByRole('button', { name, exact: true }); if (await b.count()) must(await b.isDisabled(), `${name} is enabled`); }
+    must(await page.getByRole('button', { name: 'Schedule', exact: true }).count() === 0, 'Schedule is offered');
+    await page.keyboard.press('Escape');
+    await page.getByRole('tab', { name: 'Run', exact: true }).click();
+    must(await page.getByRole('button', { name: 'Run', exact: true }).isDisabled(), 'Run is enabled');
+    if (job.lastRun) {
+      await page.getByRole('tab', { name: 'Logs', exact: true }).click();
+      await page.locator('tbody tr').first().click();
+      await page.getByRole('button', { name: 'Copy run ID' }).waitFor({ timeout: 20000 });
+      await page.waitForTimeout(1000);
+      must(await ownComposers(page) === 0, 'the run peek offers live chat');
+      await loaded(page, `/apps/${job.name}/runs/${job.lastRun.runId}`);
+      await page.getByRole('heading', { name: /^Run / }).first().waitFor({ timeout: 20000 });
+      await page.waitForTimeout(1000);
+      must(await ownComposers(page) === 0, 'the run page offers live chat');
+    }
+    must(!writes.length, `writes: ${writes.join(', ')}`);
+    await page.context().close();
+  });
+
+  await check('wp6-app-denied: a 403 app names its owner but offers no live Request access on the preview', async () => {
+    const page = await open(), writes = writes6(page);
+    await page.route('**/api/apps/rabbit-hole-check-denied', (r) => r.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ error: 'no access', owner: 'owner@example.com' }) }));
+    await loaded(page, '/apps/rabbit-hole-check-denied');
+    await page.getByText(/have access\. Ask owner@example\.com/).waitFor({ timeout: 20000 });
+    must(await page.getByRole('button', { name: 'Request access' }).count() === 0, 'Request access is offered');
+    must(!writes.length, `writes: ${writes.join(', ')}`);
+    await page.context().close();
+  });
+
   // Checks from Tasks 1-11 go here, in task order.
 }
 

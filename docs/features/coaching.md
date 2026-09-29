@@ -1109,6 +1109,12 @@ This does not change the shared app database or add scheduled jobs.
 The `VITE_COACHING_DEV=true` build flag enables the sample tabs. Default builds
 leave them disabled. Keep them in dev until the user approves promotion to live.
 
+On Rabbit Hole preview builds (`learnPreview`: `VITE_COACHING_DEV` without private
+BYOC), app pages change nothing live (D7): Run, Schedule, Share edits, Duplicate,
+Trash, rename, description, Watch dismiss and Runbook edits are off with the reason
+shown, and run chat is hidden. So far this is built only on the smart-home review
+clone; promoting it to the shared small-cp-dev needs the user's approval.
+
 ## Deploy dev
 
 For **customer-hosted AWS**, use the [private AWS dev deployment](byoc-dev.md#build-and-deploy).

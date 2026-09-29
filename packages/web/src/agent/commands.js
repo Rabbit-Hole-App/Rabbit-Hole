@@ -9,13 +9,14 @@ import { kindLabel, lookup, onBranch, repositoriesOf, titleOf } from './catalog.
 import { explain } from './help.js';
 import { branchChoice } from './router.js';
 import { scopeOf } from './scope.js';
+import { D7_REASON } from './slash.js';
 
 // One registry for the Agent Bar and the buttons that do the same things (T02 §7).
 // Risk comes from here, never from a model's confidence. run() resolves a Result:
 // { message?, href?, notice?, results?: [{slug, title, kind, detail}], undoable?, resetThread?, data? }.
 // A command that navigates does so inside run(); callers never navigate after it.
 // ponytail: §7.1 requires(ctx) is left out; the server rechecks edit rights at approve (index.js:1425-1430).
-export const D7_REASON = 'Blocked on this preview: it would change live apps.';
+export { D7_REASON };
 export const noDefaultBranch = (repo, branches) => `${repo} has no default branch, so none was assumed. Paste the link to the branch you want, for example https://github.com/${repo}/tree/${branches[0]}. Branches: ${branches.slice(0, 8).join(', ')}${branches.length > 8 ? ', …' : ''}.`;
 export const AI_READS_REASON = 'Model-backed search is off on this preview: it would call the live control plane.';
 const AI_READS = new Set(['find_apps_ai', 'find_runs_ai']);

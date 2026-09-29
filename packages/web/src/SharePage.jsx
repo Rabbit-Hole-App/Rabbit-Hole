@@ -12,6 +12,7 @@ import { ago, api, cronHuman, cronList, fmtTime, navigate, workspaceLabel } from
 import { loadApp } from './app-data.js';
 import { learnPreview } from './flags.js';
 import { AskPanel } from './ask.jsx';
+import AppOps from './AppOps.jsx';
 import CoachingPanel from './coaching/CoachingPanel.jsx';
 import LearnPage from './LearnPage.jsx';
 import RepositoryPage from './RepositoryPage.jsx';
@@ -389,7 +390,7 @@ function Denied({ slug, error }) {
   return (
     <div className="mx-auto max-w-md pt-[20vh] text-center">
       <div className="pb-3">You don’t have access.{owner ? ` Ask ${owner}` : ''}</div>
-      {owner && !asked && <Button variant="accent" className="mx-auto" onClick={ask}>Request access</Button>}
+      {owner && !asked && !learnPreview && <Button variant="accent" className="mx-auto" onClick={ask}>Request access</Button>}
       {asked && (
         <div className="text-sm text-ink-2">
           {asked.err ? `✗ ${asked.err}` : asked.sent ? `✓ asked ${owner}` : `✓ noted - email isn’t configured on this control plane, ping ${owner} directly`}
@@ -535,7 +536,8 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
     const id = ++loadId.current;
     return loadApp(slug, catalogApp).then((d) => {
     if (id !== loadId.current) return;
-    setApp(d);
+    // D7: the clone binds the live D1; rename, description, Schedule, Watch, Runbook and Share all read canEdit
+    setApp(learnPreview && (d.kind === 'job' || d.kind === 'server') ? { ...d, canEdit: false } : d);
     setError(null);
     try {
       const r = JSON.parse(localStorage.getItem('small.recent') || '[]');
@@ -561,6 +563,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
   // the textbox sits static (level with the sidebar's New chat), only messages scroll.
   const graphFull = !runId && (tab ?? 'graph') === 'graph';
   const isAws = app?.hosting === 'aws';
+  const runChat = !learnPreview && (!isAws || app?.run_chat); // D7: run chat writes live /api/ask history
   // Share + ⋯ menu, shown in the run breadcrumb and in the app title row
   const appActions = app && (
     <>
@@ -576,6 +579,8 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
           </MenuItem>
           {!isAws && <MenuItem
             icon={Copy}
+            disabled={learnPreview}
+            className={learnPreview ? 'opacity-50' : undefined}
             onClick={async () => {
               setMenuOpen(false);
               try {
@@ -594,7 +599,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
             </MenuItem>
           )}
           {!isAws && app.owner_email === app.email && (
-            <MenuItem icon={Trash2} className="text-danger" onClick={() => { setMenuOpen(false); setConfirmDel(true); }}>
+            <MenuItem icon={Trash2} disabled={learnPreview} className={cn('text-danger', learnPreview && 'opacity-50')} onClick={() => { setMenuOpen(false); setConfirmDel(true); }}>
               Move to Trash
             </MenuItem>
           )}
@@ -617,7 +622,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
           the app view itself is repo-style: title, pill tabs, full-bleed content */}
       <div className={cn(
         'max-lg:px-8 max-md:px-4',
-        runId ? cn('mx-auto max-w-[860px] px-12 py-12 max-md:py-6', (!isAws || app?.run_chat) && 'lg:mr-[416px]')
+        runId ? cn('mx-auto max-w-[860px] px-12 py-12 max-md:py-6', runChat && 'lg:mr-[416px]')
           : graphFull ? 'flex h-full min-h-0 flex-col px-12 pt-8 pb-4'
           : 'mx-auto max-w-[900px] px-24 py-12 max-md:py-6',
       )}>
@@ -686,7 +691,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                 }}
               />
             </div>
-            {(!isAws || app.run_chat) && <div className="fixed inset-y-0 right-0 z-10 flex w-[400px] flex-col border-l border-line bg-white px-5 pt-4 pb-4 max-lg:hidden">
+            {runChat && <div className="fixed inset-y-0 right-0 z-10 flex w-[400px] flex-col border-l border-line bg-white px-5 pt-4 pb-4 max-lg:hidden">
               <AskPanel key={app.run_chat ? `${app.name}:${runId}` : undefined} scope={{ run: runId }} appName={app.name} chatConfig={app.run_chat} placeholder="Ask about this run…" />
             </div>}
           </>
@@ -766,6 +771,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                       : app.nextRun && <span title={new Date(app.nextRun).toLocaleString()}>next {until(app.nextRun)}</span>}
                   </span>
                 )}
+                {learnPreview && <AppOps app={app} />}
               </div>
 
               {/* model-written blurb (first deploy), click to edit - edits stick across deploys */}
@@ -809,7 +815,10 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
 
               {app.kind === 'job' && (
                 <TabsContent value="run" className="pt-5">
-                  <RunForm app={app} prefill={prefill} onStarted={(id) => { setPeek(id); load(); }} onBatchStarted={() => { setTab('logs'); load(); }} />
+                  {/* D7: the preview never starts a live run */}
+                  {learnPreview
+                    ? <fieldset disabled className="min-w-0"><RunForm app={app} prefill={prefill} onStarted={(id) => { setPeek(id); load(); }} onBatchStarted={() => { setTab('logs'); load(); }} /></fieldset>
+                    : <RunForm app={app} prefill={prefill} onStarted={(id) => { setPeek(id); load(); }} onBatchStarted={() => { setTab('logs'); load(); }} />}
                 </TabsContent>
               )}
 

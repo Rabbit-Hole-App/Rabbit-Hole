@@ -73,6 +73,9 @@ export const primitive = (id) => (PAID.includes(id) ? { id, paid: true, needsCon
 // Product availability (places, needs) is what Rabbit Hole offers. The review copy adds its own
 // safety limits on top: a command the product offers may be off here because running it would
 // touch live infrastructure. Those limits live only in reviewOff, never in the product list.
+// Live mutations are blocked on the review copy (T02 §16). Here, not in commands.js, so preview-only UI can
+// import it without pulling commands.js's top-level code into the live bundle.
+export const D7_REASON = 'Blocked on this preview: it would change live apps.';
 export const ASK_OFF = 'Asking about the workspace or apps is off on this preview: it would write to live chat history.';
 const RESEARCH_OFF = 'Research here would call the live model, so it is off on this preview.';
 export function reviewOff(name, kind, { askLive = false } = {}) {
