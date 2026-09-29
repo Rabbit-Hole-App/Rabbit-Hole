@@ -9,8 +9,11 @@ import SearchModal from './Search.jsx';
 import SharePage from './SharePage.jsx';
 // Home and Explore exist only in the preview (routes.js pageFor), so the live bundle never carries them.
 // Preview-only pages: the live build never routes to them (routes.js), so it builds no chunk for them.
-const Home = learnPreview ? lazy(() => import('./Home.jsx')) : null;
-const ExplorePreview = learnPreview ? lazy(() => import('./Home.jsx').then((m) => ({ default: m.ExplorePreview }))) : null;
+// learnPreview is not constant-folded (flags.js reads import.meta.env?.), so the live build would still
+// emit these chunks as downloadable orphans (e2e/live-bundle-check.mjs). The literal check lets Rollup drop them.
+const previewBuild = import.meta.env.VITE_COACHING_DEV === 'true' && learnPreview;
+const Home = previewBuild ? lazy(() => import('./Home.jsx')) : null;
+const ExplorePreview = previewBuild ? lazy(() => import('./Home.jsx').then((m) => ({ default: m.ExplorePreview }))) : null;
 import Shell, { storedSidebar } from './Shell.jsx';
 import { applyTheme, getTheme, navigate, setWs, workspaceLabel } from './api.js';
 import { ExpandedPageFrame, Toasts } from './ui.jsx';
@@ -62,14 +65,14 @@ function ChatPage() {
 
 // Rabbit Hole dev only (T02 §3.3, §5): the one Start dialog host, mounted in Root so
 // Shell remounts never drop it. The live build never loads the chunk.
-const StartHost = learnPreview ? lazy(() => import('./agent/StartHost.jsx')) : null;
+const StartHost = previewBuild ? lazy(() => import('./agent/StartHost.jsx')) : null;
 // A 'small:start' sent before that chunk has loaded would reach no listener; keep the latest
 // one so the host opens it on mount.
 let earlyStart = null;
 if (learnPreview) window.addEventListener('small:start', (e) => { earlyStart = e.detail?.path || 'repository'; });
 const takeEarlyStart = () => { const path = earlyStart; earlyStart = null; return path; };
 // T02 §6.1: one Agent Bar over every page, mounted in Root for the same reason.
-const AgentBar = learnPreview ? lazy(() => import('./agent/AgentBar.jsx')) : null;
+const AgentBar = previewBuild ? lazy(() => import('./agent/AgentBar.jsx')) : null;
 
 // The Agent Bar sits beside the sidebar from its first paint (Shell republishes on every change).
 if (learnPreview) { const s = storedSidebar(); document.documentElement.style.setProperty('--sidebar-w', `${sidebarEdge(s.collapsed, s.width, learnPreview)}px`); }
