@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Loader2, Paperclip, Plus, X } from 'lucide-react';
-import ChatComposer from '../ChatComposer.jsx';
+import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, DOCK_PAD, DOCK_WIDTH } from '../ChatComposer.jsx';
 import { api, navigate } from '../api.js';
 import { PATHS, slugOf, titleFromQuestion } from '../start.js';
 import { Button, cn, Menu, MenuItem, toast } from '../ui.jsx';
@@ -335,9 +335,9 @@ export default function AgentBar() {
   };
   return (
     <div ref={root} data-agent-bar onKeyDown={onKeyDown}
-      className={cn('fixed right-0 bottom-0 left-0 z-20 px-4 pt-3 pb-5 transition-[left] duration-200 max-md:px-3 max-md:pt-2 max-md:pb-3 md:left-[var(--sidebar-w,0px)]', 'bg-linear-to-t from-white from-70% to-white/0')}>
+      className={cn('fixed right-0 bottom-0 left-0 z-20 transition-[left] duration-200 md:left-[var(--sidebar-w,0px)]', DOCK_PAD, 'bg-linear-to-t from-white from-70% to-white/0')}>
       {sheet && !panelHosts(surface, sheet) && <ResultSheet key={resultsKey(sheet)} scope={sheet} label={nameOf(sheet)} onClose={() => setSheet(null)} />}
-      <div className="relative mx-auto max-w-[780px]">
+      <div className={cn('relative', DOCK_WIDTH)}>
         {pickerOpen && (
           <div role="listbox" aria-label="Modes" className="absolute bottom-full left-0 z-10 mb-1 w-[26rem] max-w-full rounded-md bg-white p-1 shadow-pop">
             {entries.map((entry, i) => {
@@ -393,7 +393,7 @@ export default function AgentBar() {
                 ask would fall through the dev worker to live R2 (index.js:954). streamAsk already takes a file. */}
             <div className="relative shrink-0">
               <button type="button" aria-label="Add" aria-haspopup="menu" aria-expanded={adding} onMouseDown={(e) => e.stopPropagation()} onClick={() => setAdding(!adding)}
-                className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-line text-ink-2 hover:bg-hover hover:text-ink max-md:w-8"><Plus size={16} /></button>
+                className={COMPOSER_ADD}><Plus size={16} /></button>
               <Menu open={adding} onClose={() => setAdding(false)} className="bottom-full left-0 mb-2 w-64">
                 <div className="px-2 pb-1 pt-1 text-xs text-ink-3">Start from</div>
                 {PATHS.map(([path, label]) => <MenuItem key={path} onClick={() => { setAdding(false); runCommand('open_start', { path }, '', target, true); }}>{label}</MenuItem>)}
@@ -403,7 +403,7 @@ export default function AgentBar() {
               </Menu>
             </div>
             {mode === 'auto'
-            ? <button type="button" aria-haspopup="listbox" aria-expanded={pickerOpen} onMouseDown={(e) => { e.preventDefault(); setPicker(!picker); }} className="h-9 shrink-0 cursor-pointer rounded-lg border border-line px-2.5 text-sm text-ink-2 hover:bg-hover hover:text-ink max-md:px-1.5">Auto</button>
+            ? <button type="button" aria-haspopup="listbox" aria-expanded={pickerOpen} onMouseDown={(e) => { e.preventDefault(); setPicker(!picker); }} className={COMPOSER_PILL}>Auto</button>
             : <span className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-hover pr-1.5 pl-2.5 text-sm text-ink">/{mode}<button type="button" aria-label="Back to Auto" onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>}
           </>} />
       </div>
