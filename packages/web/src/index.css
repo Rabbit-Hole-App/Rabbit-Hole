@@ -457,7 +457,7 @@ tr.cursor-pointer:active > td {
 .wiki-article li { margin: 0.2em 0; }
 .wiki-article dt { font-weight: 600; }
 .wiki-article dd { margin-left: 1.5em; }
-.wiki-article blockquote { border-left: 3px solid var(--color-line); padding-left: 0.8em; }
+.wiki-article blockquote { border-left: 3px solid var(--color-line); padding-left: 0.8em; } /* impeccable-disable-line side-tab -- smart-home 2026-09-29: a neutral grey rule on quoted text in Wikipedia articles (Learn), not a card accent */
 .wiki-article b, .wiki-article strong { font-weight: 600; }
 .wiki-article i, .wiki-article em { font-style: italic; }
 .wiki-article sub { vertical-align: sub; font-size: 0.8em; }
