@@ -555,7 +555,7 @@ even outside a clone.
 - Immediate and Undo commands that touch only device storage or `LEARN_DB`
   are allowed.
 - `connect_repository` writes only to `LEARN_DB` rows and to R2 objects under
-  `learn-repositories-dev/` (`repositories.js:90`). It is allowed on the
+  `learn-repositories-dev/` in the dev bucket `small-repositories-dev` (`repositories.js:90`). It is allowed on the
   review copy under the §16 conditions.
 
 ## 8. Canvas identity (D1b, dev only)
@@ -895,7 +895,8 @@ Blocked treatment only while all of these hold, and T04 verifies each against
 the code:
 
 1. The repository row goes only into `small-learn-dev` (`LEARN_DB`).
-2. Artifacts stay under `learn-repositories-dev/` (`repositories.js:90`).
+2. Artifacts stay under `learn-repositories-dev/` in the dev bucket `small-repositories-dev`
+   (`repositories.js:90`; moved out of the live `small-runs` bucket 2026-09-28).
 3. No existing production artifact can be overwritten. Keys contain the
    `LEARN_DB` id and the commit, and production writes nothing under that
    prefix.
