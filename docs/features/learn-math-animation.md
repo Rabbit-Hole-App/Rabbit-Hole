@@ -58,13 +58,19 @@ fly secrets set MATH_WORKER_TOKEN=<token> --app small-math-renderer-dev
 fly deploy --config fly.dev.toml --app small-math-renderer-dev
 ```
 
-Then point the control plane at it, with the same token:
+Then point the dev worker that serves Learn at it, with the same token. The
+worker config lives in `packages/web` (there is no `wrangler.dev.jsonc` in
+`packages/control-plane`): `wrangler.dev.jsonc` for the shared dev worker,
+`wrangler.parallel.jsonc` for the small-parallel review clone.
 
 ```
-cd packages/control-plane
-npx wrangler secret put MATH_WORKER_URL --config wrangler.dev.jsonc
-npx wrangler secret put MATH_WORKER_TOKEN --config wrangler.dev.jsonc
+cd packages/web
+npx wrangler secret put MATH_WORKER_URL --config wrangler.parallel.jsonc    # https://small-math-renderer-dev.fly.dev
+npx wrangler secret put MATH_WORKER_TOKEN --config wrangler.parallel.jsonc
 ```
+
+Once one real render passes, set `maths_animation` back to `ready: true` in
+`packages/control-plane/src/learn-primitives.js` so /animate returns.
 
 ## Verification
 
