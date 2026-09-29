@@ -207,12 +207,12 @@ test('c19 one frame at scale 1 that never refits across presets or the reveal', 
   assert.equal(scene.objects.filter(o => !REVEAL.test(o.id) && o.id !== 'steep-wait').length, 42);
 });
 
-test('c19 plan: staged, verbatim objective, sequence "One training step" 2 of 2, no boundary flag', () => {
+test('c19 plan: staged, verbatim objective, sequence "Training fundamentals" 2 of 2, no boundary flag', () => {
   assertCardPlan({ scene, plan });
   assert.equal(plan.boundary.decision, 'staged');
   assert.deepEqual(Object.keys(plan.boundary.reviewed), []);
   assert.equal(plan.objective, 'After this card, the learner should understand that one gradient step moves the weight by −lr × g, so on a bowl whose slope grows by c per unit of distance the product lr × c decides whether the step stops short, lands on the minimum, overshoots, bounces back to the same loss or climbs out.');
-  assert.deepEqual([plan.boundary.sequence.name, plan.boundary.sequence.position, plan.boundary.sequence.of], ['One training step', 2, 2]);
+  assert.deepEqual([plan.boundary.sequence.name, plan.boundary.sequence.position, plan.boundary.sequence.of], ['Training fundamentals', 2, 2]);
   assert.deepEqual(plan.boundary.sequence.relationships.map(r => [r.type, r.card, r.direction]), [
     ['prerequisite', 'c26-training-objective', 'in'],
     ['prerequisite', 'c20-optimizer', 'out'],

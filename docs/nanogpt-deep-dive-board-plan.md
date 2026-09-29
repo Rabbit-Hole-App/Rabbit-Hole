@@ -384,7 +384,7 @@ Planned 2026-09-28 by one planner per card, an adversarial critic per plan and a
 
 ### Sequence "The MLP" — c05-position-mixing → c14-mlp
 
-### Sequence "One training step" — c26-training-objective → c19-gradient-step
+### Sequence "Training fundamentals" (renamed by the owner from "One training step": the frozen cards still cover the rest of a real step) — c26-training-objective → c19-gradient-step
 
 Frozen batch-1 training cards (c16, c20, c17, c18) are linked from c26 and c19 by typed relationships only, as c11 links to c13; none is reopened. c05 gains its sequence ("The MLP · 1 of 2" in its header), as batch 3 decided.
 

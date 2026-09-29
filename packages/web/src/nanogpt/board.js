@@ -45,7 +45,7 @@ export const NANOGPT_LATER_BATCHES = [
   // prerequisite of c14 (batch 4).
   [causalMask, scoreScaling, weightedValues, positionMixing],
   // Batch 4 (section 12): c14 closes "The MLP" (c05 -> c14, c05 is the last
-  // card of batch 3, so the pair sits together); then "One training step"
+  // card of batch 3, so the pair sits together); then "Training fundamentals"
   // (c26 -> c19), linked to the frozen c16, c18, c17 and c20 by relationships.
   [mlp, trainingObjective, gradientStep],
 ];

@@ -98,7 +98,9 @@ test('c26 every stage follows T and matches the oracle at every window', () => {
     assert.deepEqual([m.from.x, m.to.x], [COL_X, COL_X + T * CELL]);
     assert.equal(byId(result, 'mean-tag').label, `mean ${mean}`);
     assert.equal(byId(result, 'objective').label, `Objective = (sum of the T losses) ÷ T = ${sum} ÷ ${T} = ${mean} · each position counts 1/${T}`);
-    assert.equal(byId(result, 'perplexity').label, `Perplexity = e^${mean} = ${ppl}: as unsure as a uniform pick among ${ppl} characters.`);
+    assert.equal(byId(result, 'perplexity').label, `Perplexity = e^${mean} = ${ppl}: the same uncertainty as choosing uniformly`);
+    assert.equal(byId(result, 'perplexity-2').label, `among about ${ppl} equally likely possibilities.`);
+    assert.equal(byId(result, 'scope').label, 'This card: the mean over one T-position window. NanoGPT: the same mean over all B × T scored positions in the batch.');
     // e→f's share, or where it lies at T = 1.
     const onScreen = shown(result);
     if (T === 1) {
@@ -156,8 +158,8 @@ test('c26 captions are true at every state; status words only; the practice numb
 test('c26 replay: the shift, then the scores, then the mean, then perplexity', () => {
   const at = time => shown(evaluated(scene, {}, time));
   const SHIFT = ['stream-label', ...Array.from({ length: 9 }, (unused, k) => `char-${k}`), 'x-label', 'x-slice', 'y-label', 'y-slice', 'shift-1', 'shift-2'];
-  const MEAN = ['loss-bars', 'mean-line', 'mean-tag', 'objective', 'state-1', 'state-2'];
-  const PPL = ['anchor', 'anchor-tag', 'perplexity', 'uniform'];
+  const MEAN = ['loss-bars', 'mean-line', 'mean-tag', 'objective', 'scope', 'state-1', 'state-2'];
+  const PPL = ['anchor', 'anchor-tag', 'perplexity', 'perplexity-2', 'uniform'];
   assert.ok(SHIFT.every(id => at(0.4).includes(id)) && ![...MEAN, ...PPL, 'scores'].some(id => at(0.4).includes(id)), at(0.4).join());
   assert.ok(at(1.05).includes('scores') && ![...MEAN, ...PPL].some(id => at(1.05).includes(id)), at(1.05).join());
   assert.ok(MEAN.every(id => at(1.55).includes(id)) && !PPL.some(id => at(1.55).includes(id)), at(1.55).join());
@@ -174,16 +176,16 @@ test('c26 one frame at scale 1 that never refits across windows', () => {
   for (const [k, result] of assertCardGates(scene, ALL).entries()) {
     assert.deepEqual(withoutContributors(sceneContentBounds(result.scene)), withoutContributors(legibility.bounds), JSON.stringify(ALL[k]));
   }
-  assert.equal(scene.objects.length, 35);
+  assert.equal(scene.objects.length, 37);
 });
 
-test('c26 plan: staged, verbatim objective, sequence "One training step" 1 of 2 matching c19, no boundary flag', () => {
+test('c26 plan: staged, verbatim objective, sequence "Training fundamentals" 1 of 2 matching c19, no boundary flag', () => {
   assertCardPlan({ scene, plan });
   assert.equal(plan.boundary.decision, 'staged');
   assert.deepEqual(Object.keys(plan.boundary.reviewed), []);
   assert.equal(plan.objective, 'After this card, the learner should understand that NanoGPT\'s training objective is the plain mean of −ln p(next character) over every position it scores, each counting 1/N of it (N = B·T per step), a number perplexity only re-reads as e^mean.');
   const seq = plan.boundary.sequence;
-  assert.deepEqual([seq.name, seq.position, seq.of], ['One training step', 1, 2]);
+  assert.deepEqual([seq.name, seq.position, seq.of], ['Training fundamentals', 1, 2]);
   assert.deepEqual([c19Plan.boundary.sequence.name, c19Plan.boundary.sequence.position, c19Plan.boundary.sequence.of], [seq.name, 2, seq.of]);
   assert.deepEqual(seq.relationships.map(r => [r.type, r.card, r.direction]), [
     ['prerequisite', 'c16-cross-entropy', 'in'],

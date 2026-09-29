@@ -1,4 +1,4 @@
-// c19 - one plain gradient step on one weight. Sequence "One training step",
+// c19 - one plain gradient step on one weight. Sequence "Training fundamentals",
 // 2 of 2 (c26 names the number a step lowers; this card shows how one step
 // lowers a loss). A calculated toy bowl, L = ½·c·(w − w*)² with c = 2 and
 // w* = 3, and one weight starting at w = 0. Staged in causal order: ① the bowl,
@@ -238,7 +238,7 @@ export const plan = {
   concept: 'one plain gradient step on one weight',
   objective: 'After this card, the learner should understand that one gradient step moves the weight by −lr × g, so on a bowl whose slope grows by c per unit of distance the product lr × c decides whether the step stops short, lands on the minimum, overshoots, bounces back to the same loss or climbs out.',
   prerequisites: [
-    'c26-training-objective (the sequence \'One training step\', 1 of 2): NanoGPT\'s loss is one number, the mean −ln p over the B·T positions of a step, that training pushes down. c19 replaces it with a one-weight bowl',
+    'c26-training-objective (the sequence \'Training fundamentals\', 1 of 2): NanoGPT\'s loss is one number, the mean −ln p over the B·T positions of a step, that training pushes down. c19 replaces it with a one-weight bowl',
     'the slope of a curve at a point, taught in place: the slope line drawn through the start point is g',
     'no calculus: the card gives g = c × (w − w*) for its own bowl, and the practice prompt gives the steeper bowl\'s gradient',
   ],
@@ -254,7 +254,7 @@ export const plan = {
     decision: 'staged',
     reason: 'one causal pipeline - slope at the start → × lr → step in w → new loss - replayed in order, with one control acting on one quantity. The five presets are values of that one quantity, and short, lands, overshoots, bounces and climbs out are the five classes of one factor, 1 − lr × c; the steeper bowl applies the same rule with another c. The update rules (momentum, Adam, AdamW, weight decay) stay on c20, lr across iterations on c17, what NanoGPT\'s loss is on c26, clipping and accumulation on Training · Deep dive',
     reviewed: {},
-    sequence: { name: 'One training step', position: 2, of: 2, relationships: [
+    sequence: { name: 'Training fundamentals', position: 2, of: 2, relationships: [
       { type: 'prerequisite', card: 'c26-training-objective', direction: 'in' },
       { type: 'prerequisite', card: 'c20-optimizer', direction: 'out' },
       { type: 'prerequisite', card: 'c17-lr-schedule', direction: 'out' },

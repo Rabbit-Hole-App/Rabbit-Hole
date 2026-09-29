@@ -1,4 +1,4 @@
-// c26 - the training objective. Sequence "One training step", 1 of 2 (this
+// c26 - the training objective. Sequence "Training fundamentals", 1 of 2 (this
 // card names the number one step lowers; c19-gradient-step shows how one step
 // lowers a loss). Staged, one pipeline top to bottom: ① the targets are the
 // text shifted by one, ② each position's p(target) and −ln p, ③ their plain
@@ -62,7 +62,7 @@ export const scene = {
   id: 'nanogpt-c26-training-objective',
   title: 'The training objective: per-position targets, their mean, perplexity',
   width: 960,
-  height: 796,
+  height: 840,
   duration: 2.2,
   inputs: [
     { name: 'window', type: 'index', label: 'What-if: window length T (preset)', of: 'windowLabels', default: N - 1, presentation: 'slider' },
@@ -153,15 +153,18 @@ export const scene = {
     // No timeline appear: opacity follows the window.
     text('share', `e→f, the least expected (p = ${pct(OBJ.p[F]).toFixed(2)}%), adds its ${lnP(OBJ.loss[F])} ÷ {{T}} = {{share}}`, 40, 600, { opacity: { $derive: 'shareOp' } }),
     text('outside', 'e→f lies past a 1-position window', 40, 600, { opacity: { $derive: 'outsideOp' } }),
+    // The toy's average versus NanoGPT's: the same mean, over every scored position of the batch.
+    note('scope', 'This card: the mean over one T-position window. NanoGPT: the same mean over all B × T scored positions in the batch.', 40, 622, hidden),
 
     // ④ read it as perplexity.
-    text('perplexity', 'Perplexity = e^{{mean}} = {{ppl}}: as unsure as a uniform pick among {{ppl}} characters.', 40, 632, hidden),
-    note('uniform', `Uniform guess over all ${V} characters: perplexity ${V}, loss ln ${V} = ${UNIFORM} at every position.`, 40, 654, hidden),
+    text('perplexity', 'Perplexity = e^{{mean}} = {{ppl}}: the same uncertainty as choosing uniformly', 40, 654, hidden),
+    text('perplexity-2', 'among about {{ppl}} equally likely possibilities.', 40, 676, hidden),
+    note('uniform', `Uniform guess over all ${V} characters: perplexity ${V}, loss ln ${V} = ${UNIFORM} at every position.`, 40, 698, hidden),
 
-    text('state-1', '{{stateLine}}', 40, 686, hidden),
-    text('state-2', 'The drawn losses stay the same: T only sets how many are averaged.', 40, 708, hidden),
-    note('legend', 'Grid: p(target) in % and its loss −ln p, each cell rounded on its own · bars: −ln p · line: their mean', 40, 736),
-    note('footer', `NanoGPT averages B · T = ${B} · ${T_NANO} = {{BT}} positions per step and logs that mean as its loss, not e^loss.`, 40, 754),
+    text('state-1', '{{stateLine}}', 40, 730, hidden),
+    text('state-2', 'The drawn losses stay the same: T only sets how many are averaged.', 40, 752, hidden),
+    note('legend', 'Grid: p(target) in % and its loss −ln p, each cell rounded on its own · bars: −ln p · line: their mean', 40, 780),
+    note('footer', `NanoGPT averages B · T = ${B} · ${T_NANO} = {{BT}} positions per step and logs that mean as its loss, not e^loss.`, 40, 798),
   ],
   // Replay in causal order: the shift, the scores, the mean, perplexity; each
   // caption appears with its stage (the state lines with the mean).
@@ -169,8 +172,8 @@ export const scene = {
     ...['stream-label', ...STREAM.map((unused, k) => `char-${k}`), 'x-label', 'x-slice', 'y-label', 'y-slice', 'shift-1', 'shift-2']
       .map(target => ({ at: 0, action: 'appear', target, duration: 0.3 })),
     { at: 0.6, action: 'appear', target: 'scores', duration: 0.4 },
-    ...['loss-bars', 'mean-line', 'mean-tag', 'objective', 'state-1', 'state-2'].map(target => ({ at: 1.2, action: 'appear', target, duration: 0.3 })),
-    ...['anchor', 'anchor-tag', 'perplexity', 'uniform'].map(target => ({ at: 1.8, action: 'appear', target, duration: 0.3 })),
+    ...['loss-bars', 'mean-line', 'mean-tag', 'objective', 'scope', 'state-1', 'state-2'].map(target => ({ at: 1.2, action: 'appear', target, duration: 0.3 })),
+    ...['anchor', 'anchor-tag', 'perplexity', 'perplexity-2', 'uniform'].map(target => ({ at: 1.8, action: 'appear', target, duration: 0.3 })),
   ],
 };
 
@@ -229,7 +232,7 @@ export const plan = {
     decision: 'staged',
     reason: 'one causal pipeline, in data order: stream → the (x, y) shift → p(target) per position → −ln p → mean over the T scored positions → e^mean, revealed in four stages, and the one control reaches every stage. Perplexity is not a second model here: it has no input, mechanism, control or practice of its own and moves only when the mean moves. Log base and bits, char-level against BPE perplexity and eval perplexity are collection candidates, not built',
     reviewed: {},
-    sequence: { name: 'One training step', position: 1, of: 2, relationships: [
+    sequence: { name: 'Training fundamentals', position: 1, of: 2, relationships: [
       { type: 'prerequisite', card: 'c16-cross-entropy', direction: 'in' },
       { type: 'prerequisite', card: 'c11-causal-mask', direction: 'in' },
       { type: 'deepens', card: 'c01-forward-pass', direction: 'in' },
