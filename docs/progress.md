@@ -22,6 +22,9 @@ NC8  Cross-depth content transitions     ⬜
 NC9  Curriculum coherence review         ⬜ (open items: is "how scores are produced", q·k, thin?;
                                             should c26 name its iteration-1000 checkpoint next to c25's 100?)
 NC10 Final card QA                       ⬜
+──── after NC10 ────
+Adaptive Tutor v1                        ⬜ handoff milestone, not implemented here
+                                            (docs/features/adaptive-tutor-v1.md)
 ```
 
 Batch flow: plans → card-boundary review → build → adversarial correctness/pedagogy review →
