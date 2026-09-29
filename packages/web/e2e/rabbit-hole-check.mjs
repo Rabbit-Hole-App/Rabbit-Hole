@@ -341,6 +341,12 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await pinnedRow.waitFor({ timeout: 10000 });
       must(await aside.locator('[aria-current="page"]').count() === 1, 'a Project page marks more than its pinned row');
       await leak(page, 'the Project Map');
+      for (const [where, path] of [['the Project Overview', `/apps/${repo.name}`], ['project Learn', `/apps/${repo.name}?tab=learn`], ...(plain ? [['an app page', `/apps/${plain.name}`]] : [])]) {
+        await loaded(page, path);
+        await page.waitForTimeout(1500);
+        must(await aside.locator('[aria-current="page"]').count() <= 1, `${where} marks more than one location`);
+        await leak(page, where);
+      }
     }
     await page.context().close();
     const phone = await open({ width: 390, height: 844 });
@@ -1916,6 +1922,24 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.waitForURL(`**/apps/${repo.name}`);
     await ptab(page, 'Overview').waitFor({ timeout: 20000 });
     await page.context().close();
+  });
+
+  await check('wp6-mobile: at 390px Overview, Map, project Learn, a canvas and an app page scroll only vertically and start below the top strip', async () => {
+    const page = await open({ width: 390, height: 844 });
+    await noAsks(page);
+    await loaded(page, '/library');
+    const c = await canvas6(page, { title: 'wp6 phone', ...(ready ? { project: ready.name } : {}) });
+    try {
+      const stops = [...(ready ? ['', '?tab=map', '?tab=learn'].map((q) => [`/apps/${ready.name}${q}`, '[data-project-tabs]']) : []), [`/apps/${c.name}`, '[data-canvas-parent]'], ...(plain ? [[`/apps/${plain.name}`, 'main h1']] : [])];
+      for (const [path, top] of stops) {
+        await loaded(page, path);
+        await page.locator(top).first().waitFor({ timeout: 30000 });
+        await page.waitForTimeout(800);
+        const wide = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth); // as sh-shots measures it
+        must(wide <= 0, `${path} scrolls sideways by ${wide}px`);
+        must((await page.locator(top).first().boundingBox()).y >= 40, `${path}: ${top} sits under the top strip`);
+      }
+    } finally { await drop6(page, c.name); await page.context().close(); }
   });
 
   // Checks from Tasks 1-11 go here, in task order.
