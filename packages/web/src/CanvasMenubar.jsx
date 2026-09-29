@@ -19,8 +19,8 @@ export default function CanvasMenubar({ menus, className = '' }) {
             onClick={() => setOpen(previous => (previous === menu.title ? null : menu.title))}
             // Once one is open the others answer to hover, the way a menubar does.
             onPointerEnter={() => setOpen(previous => (previous ? menu.title : previous))}
-            className={`flex h-8 items-center gap-1 rounded-lg px-2.5 text-sm whitespace-nowrap ${open === menu.title ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
-            {menu.title}<ChevronDown size={13} strokeWidth={2} className="opacity-50" />
+            className={`flex h-8 items-center gap-1 rounded-lg px-2.5 text-sm whitespace-nowrap max-md:px-1.5 ${open === menu.title ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
+            {menu.title}<ChevronDown size={13} strokeWidth={2} className="opacity-50 max-md:hidden" />
           </button>
           <Menu open={open === menu.title} onClose={() => setOpen(null)} className={`top-9 left-0 border border-line ${menu.panel ? 'w-auto!' : ''}`}>
             {menu.panel ? menu.panel(() => setOpen(null)) : menu.items.map((item, index) => (item.divider ? (

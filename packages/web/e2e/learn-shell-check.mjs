@@ -38,6 +38,10 @@ for (const [label, viewport] of [['desktop', { width: 1440, height: 900 }], ['ph
         radius: style.borderTopLeftRadius, send: box(form.querySelector('[aria-label="Send"]'))?.w, add: box(form.querySelector('[aria-label="Add"]'))?.h,
         placeholder: form.querySelector('input,textarea')?.placeholder || '', title: document.querySelector('[aria-label="Canvas title"]')?.value || '',
         text: document.body.innerText, vw: innerWidth, vh: innerHeight,
+        // Every control in the menubar row, and the drawing toolbar against the bottom strip.
+        header: [...(document.querySelector('[role="menubar"]')?.parentElement?.querySelectorAll('button, input') || [])].map(box).filter(b => b.w > 0),
+        tools: box(document.querySelector('[role="toolbar"][aria-label="Canvas tools"]')), strip: box(document.querySelector('[data-canvas-bottom]')),
+        lessonHeader: !!document.querySelector('[aria-label="Current lesson and section"]'),
       };
     });
     const overlaps = (a, b) => a && b && a.x < b.r && b.x < a.r && a.y < b.b && b.y < a.b;
@@ -46,6 +50,9 @@ for (const [label, viewport] of [['desktop', { width: 1440, height: 900 }], ['ph
     ok(`${at}: dock shell (radius 12px, Send 36px, + 36px tall)`, m.radius === '12px' && m.send === 36 && m.add === 36, `radius ${m.radius}, send ${m.send}, add ${m.add}, height ${m.form.h}`);
     ok(`${at}: no canvas id in the placeholder`, !/canvas-[a-f0-9]{8}/.test(m.placeholder), m.placeholder);
     ok(`${at}: no sample course title`, !m.text.includes('From classification to object detection'), `title "${m.title}"`);
+    ok(`${at}: every menubar-row control fully on screen`, m.header.length > 0 && m.header.every(b => b.x >= 0 && b.r <= m.vw), `${m.header.length} controls, leftmost x ${Math.min(...m.header.map(b => Math.round(b.x)))}, rightmost ${Math.max(...m.header.map(b => Math.round(b.r)))}`);
+    ok(`${at}: drawing toolbar ends above the zoom/composer strip`, !m.tools || m.tools.b <= m.strip.y, JSON.stringify({ toolsBottom: m.tools?.b, stripTop: m.strip?.y }));
+    if (route === 'canvas') ok(`${at}: a canvas shows no sample lesson header`, !m.lessonHeader && !m.text.includes('Logistic regression'));
     await page.screenshot({ path: `${SHOTS}/shell-${label}-${route}.png` });
     await page.close();
   }

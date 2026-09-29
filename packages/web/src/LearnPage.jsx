@@ -45,6 +45,9 @@ const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 
 export default function LearnPage({ app, onBack, repositoryContext = null, onGraph = null }) {
   const isRepository = app.kind === 'repository';
+  // A canvas (smart-home's catalog) holds only what was put on it: never the
+  // sample course, its lesson header, outline or progress.
+  const isCanvas = /^canvas-[a-f0-9]{8}$/.test(app.name);
   const course = useLearnCourse(app);
   const [courseView, setCourseView] = useState(false);
   const suppliedCourse = import.meta.env.VITE_COACHING_DEV === 'true' && app.repo === 'karpathy/nanoGPT';
@@ -78,7 +81,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     },
   };
   const [learnerOpen, setLearnerOpen] = useState(false);
-  const [sampleOutline, setSampleOutline] = useState(app.kind !== 'repository');
+  const [sampleOutline, setSampleOutline] = useState(app.kind !== 'repository' && !/^canvas-[a-f0-9]{8}$/.test(app.name));
   const [practiceMode, setPracticeMode] = useState('quiz');
   const [learningView, setLearningView] = useState('lesson');
   // The right panel starts closed: the canvas gets the room; View or the
@@ -926,7 +929,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   useEffect(() => {
     if (learningView === 'lesson' && suppliedCourse && editor && nanoProgress.loaded && !lesson.current && !answering) previewLesson(nanoLesson, true);
   }, [learningView, editor, nanoProgress.loaded, answering]);
-  const trackingSample = !isRepository && (sampleOutline || !course.course?.curriculum);
+  const trackingSample = !isRepository && !isCanvas && (sampleOutline || !course.course?.curriculum);
   const trackedLessons = trackingSample ? sampleCourse.lessons : (course.course?.curriculum?.lessons || []).map((item, index) => index === 0 && course.course.lesson ? course.course.lesson : { ...item, pages: (item.topics || item.pages || []) });
   const sectionKeys = suppliedCourse ? [...Array.from({ length: 6 }, (_, i) => `${nanoLesson.id}:${i}`), 'predict-next', 'represent-text', 'training-vs-generation'] : trackedLessons.flatMap(item => [...item.pages.map((_, index) => `${item.id || 'unavailable'}:${index}`), ...(item.id === architectureLesson.id ? ['notebook', 'quiz', 'flashcards'].map(view => `${item.id}:${view}`) : [])]);
   const finishedCount = suppliedCourse ? Object.keys(nanoProgress.saved.pages || {}).filter(key => ['0', '1', '2', '3', '4', '5'].includes(key) && nanoProgress.saved.pages[key]).length + ['encoding', 'prefixTarget', 'generationWeights'].filter(check => nanoProgress.saved[check]?.count).length : sectionKeys.filter(key => completed[key]).length;
@@ -1024,7 +1027,6 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // The header names what is actually open: a canvas by its own title, a
   // project by its repository unless one of its course lessons is running,
   // and never the sample course on a canvas or project route.
-  const isCanvas = /^canvas-[a-f0-9]{8}$/.test(app.name);
   const fallbackTitle = isCanvas ? app.title || 'Untitled canvas'
     : isRepository ? (nanoActive || lesson.current?.lessonId?.startsWith('course-') ? courseTitle : app.repo || app.name)
     : courseTitle || app.repo || app.name;
@@ -1157,7 +1159,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     : milestones.map(milestone => ({ ...milestone, id: milestone.id || milestone.label, reached: finishedCount >= milestone.done }));
   // The retracted panel leaves these ticks behind, so they must agree with the
   // outline about which lessons exist and which can actually be opened.
-  const railLessons = course.course?.curriculum?.lessons || sampleCourse.lessons;
+  const railLessons = course.course?.curriculum?.lessons || (isCanvas ? [] : sampleCourse.lessons);
   const railEntries = contentsEntries(railLessons, railLessons.map((_, index) => (course.course?.curriculum ? (index === 0 ? course.course?.lesson : null) : railLessons[index])), lesson.current?.lessonId);
   const outlineDisabled = !editor || answering || !!noteEditing;
   const coursePanel = <CoursePanel planningOnly={suppliedCourse} state={course} app={app} onPreview={previewLesson} onDeleted={() => {
@@ -1180,7 +1182,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {/* One centered strip is all the chrome the canvas gets: an editable
             title, the menubar, and the three one-press actions. No page
             heading, no rule underneath - the canvas has no boundary. */}
-        {!canvasState.presenting && <div className="relative flex shrink-0 items-center justify-center gap-1 px-3 pt-3 pb-1">
+        {/* On a phone the row wraps (menubar compact) instead of clipping its
+            start; not a scroller, which would clip the menus' dropdowns. */}
+        {!canvasState.presenting && <div className="relative flex shrink-0 items-center justify-center gap-1 px-3 pt-3 pb-1 max-md:flex-wrap max-md:gap-y-0.5 max-md:px-2 max-md:pt-2">
           <input aria-label="Canvas title" title="Rename this canvas"
             // The name on screen is always the value - editing edits IT, via a
             // focus-scoped draft so the fallback never fights the keystrokes.
@@ -1231,9 +1235,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {planStorageError && <p role="alert" className="mb-3 text-xs text-red-700">{planStorageError}</p>}
         {suppliedCourse && learningView === 'curriculum' && <LessonPlanPreview onPreview={editor && nanoProgress.loaded && !answering ? () => previewLesson(nanoLesson, true) : null} edits={course.canAuthor ? planEdits : {}} selectedSection={sectionTarget?.id} onEdit={target => { setSectionTarget(target); setSetupChat(true); }} course={course.course} learnerView={!course.canAuthor || learnerOpen} editorPanel={courseView ? coursePanel : null} view={planOpen ? 'plan' : 'curriculum'} selected={plannedLesson} onBack={() => { setPlanOpen(false); setSectionTarget(null); }} onSelect={index => { setPlannedLesson(index); setPlanOpen(true); }} />}
         {courseView && !suppliedCourse && coursePanel}
-        {learnerOpen && !suppliedCourse && <LearnOutline allowSample={!isRepository} onToggleComplete={toggleSection} completed={completed} state={course} sample={sampleOutline} onSampleChange={setSampleOutline} activeId={lesson.current?.lessonId} activePage={progress?.page} disabled={outlineDisabled} onOpen={openFromOutline} />}
+        {learnerOpen && !suppliedCourse && <LearnOutline allowSample={!isRepository && !isCanvas} onToggleComplete={toggleSection} completed={completed} state={course} sample={sampleOutline} onSampleChange={setSampleOutline} activeId={lesson.current?.lessonId} activePage={progress?.page} disabled={outlineDisabled} onOpen={openFromOutline} />}
         <div className={`${courseView || learningView !== 'lesson' ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col pr-1`}>
-        {!canvasState.presenting && (!isRepository || progress) && <div aria-label="Current lesson and section" className="mb-4"><h2 className="text-lg font-semibold">Lesson {sampleIndex >= 0 ? sampleIndex + 1 : 1}: {currentLesson?.title}</h2><p className="mt-1 text-sm text-ink-2">Section {(progress?.page || 0) + 1} of {pages.length}: {progress?.label || pages[0].label}</p></div>}
+        {!canvasState.presenting && ((!isRepository && !isCanvas) || progress) && <div aria-label="Current lesson and section" className="mb-4"><h2 className="text-lg font-semibold">Lesson {sampleIndex >= 0 ? sampleIndex + 1 : 1}: {currentLesson?.title}</h2><p className="mt-1 text-sm text-ink-2">Section {(progress?.page || 0) + 1} of {pages.length}: {progress?.label || pages[0].label}</p></div>}
         {graphError && <p role="alert" className="text-sm text-red-700">{graphError}</p>}
         {boardVisible && <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-2"><span>Agent explanation · lesson paused — keep asking, or resume when ready</span><div className="flex gap-2"><button type="button" disabled={!notesLoaded || answering} onClick={addNote} className="rounded border border-line-strong bg-white px-2.5 py-1 font-medium text-ink hover:bg-hover disabled:opacity-40">Save to notes</button><button type="button" onClick={() => { dismissBoard(); playback.current?.play(); }} className="rounded bg-ink px-2.5 py-1 font-medium text-white hover:opacity-90">Resume lesson</button></div></div>}
         {boardVisible && narrationOffer && <div data-narration-offer className="mb-2 flex flex-wrap items-center gap-2 text-xs"><span className="font-medium text-ink">Narration available</span><PaidConfirm onCancel={() => setNarrationOffer(null)} onGenerate={() => { narrationOffer.speak(); setNarrationOffer(null); }} /></div>}

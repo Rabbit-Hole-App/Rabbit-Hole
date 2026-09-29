@@ -1049,6 +1049,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, onD
   // Measured each render so the style panel and the gap rail sit beside the
   // toolbar, never under it.
   const toolbarRef = useRef(null);
+  // The bottom strip (zoom pill + composer): the docked toolbar centres in the
+  // space above it and scrolls rather than run into it on a short screen.
+  const [bottomH, setBottomH] = useState(0);
+  const bottomObserver = useRef(null);
+  const bottomRef = useCallback(node => {
+    bottomObserver.current?.disconnect();
+    if (!node) return;
+    bottomObserver.current = new ResizeObserver(() => setBottomH(node.offsetHeight));
+    bottomObserver.current.observe(node);
+  }, []);
   const toolWidth = toolbarRef.current?.offsetWidth || 76;
   const [toolDrag, setToolDrag] = useState(null);
   const [insertOpen, setInsertOpen] = useState(false); // dev-only lesson-block workbench menu
@@ -2614,8 +2624,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, onD
       )}
       {presenting === null && !readOnly && <div ref={toolbarRef} role="toolbar" aria-label="Canvas tools"
         // Docked right, it keeps clear of the page's contents rail (edgeInset).
-        style={toolDrag ? { left: toolDrag.x, top: toolDrag.y, transform: 'none' } : toolSide === 'left' ? undefined : { right: 8 + edgeInset }}
-        className={`absolute z-20 grid max-h-full grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md ${toolDrag ? '' : `top-1/2 -translate-y-1/2 ${toolSide === 'left' ? 'left-2' : ''}`}`}>
+        style={toolDrag ? { left: toolDrag.x, top: toolDrag.y, transform: 'none' } : { top: `calc((100% - ${bottomH}px) / 2)`, maxHeight: `calc(100% - ${bottomH}px - 16px)`, ...(toolSide === 'left' ? {} : { right: 8 + edgeInset }) }}
+        className={`absolute z-20 grid grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md ${toolDrag ? '' : `-translate-y-1/2 ${toolSide === 'left' ? 'left-2' : ''}`}`}>
         {/* The handle: drag the palette and it parks on whichever edge you let
             go nearer to - left or right - never floating mid-canvas. */}
         <div role="button" aria-label="Move the toolbar" title="Drag to the left or right edge"
@@ -2698,7 +2708,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, onD
           grow equally, keeping the composer centred while there is room), and
           on a phone the pill takes its own compact row above a full-width
           composer and the minimap steps aside. */}
-      {presenting === null && <div data-canvas-bottom className={`relative flex min-h-11 shrink-0 flex-col gap-2 md:flex-row md:items-end md:gap-3 ${DOCK_PAD}`}>
+      {presenting === null && <div ref={bottomRef} data-canvas-bottom className={`relative flex min-h-11 shrink-0 flex-col gap-2 md:flex-row md:items-end md:gap-3 ${DOCK_PAD}`}>
         <div className="flex md:min-w-fit md:flex-1 md:basis-0">
         <div data-zoom aria-label="Zoom controls" className="z-20 flex items-center rounded-lg border border-line bg-white shadow-sm">
           <IconBtn title="Scroll up" onClick={() => scrollBy(-1)}><ChevronUp size={14} /></IconBtn>
