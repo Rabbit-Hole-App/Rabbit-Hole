@@ -16,7 +16,8 @@ NC6  Card-composition rules              ✅
 NC7  NanoGPT cards 11–26                 🟡
   NC7A Batch 2                           ✅
   NC7B Batch 3                           ✅ CLOSED (page 18:3, v1.1 fixes 22:3)
-  NC7C Remaining through 26              🟡 ACTIVE — batch 4: c14, c26, c19
+  NC7C Remaining through 26              🟡 ACTIVE — batch 4 (c14, c26, c19) at the review gate, page 26:3;
+                                            then batch 5: c22, c23, c24, c25
 NC8  Cross-depth content transitions     ⬜
 NC9  Curriculum coherence review         ⬜ (open item: is "how scores are produced", q·k, thin?)
 NC10 Final card QA                       ⬜
