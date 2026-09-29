@@ -16,7 +16,7 @@ cards, the whiteboard explainer, grading). Each is described below.
 1. [Summary: what happens when you type "hi"](#1-summary-what-happens-when-you-type-hi)
 2. [Architecture](#2-architecture)
 3. [Project structure](#3-project-structure)
-4. ["hi", step by step](#4-hi-step-by-step)
+4. ["hi", step by step](#4-hi-step-by-step), and [routing for every kind of input](#44-routing-every-kind-of-input)
 5. [Where an answer goes: sheet, card, or reply](#5-where-an-answer-goes-sheet-card-or-reply)
 6. [The request and the stream](#6-the-request-and-the-stream)
 7. [What the model sees (context)](#7-what-the-model-sees-context)
@@ -29,6 +29,7 @@ cards, the whiteboard explainer, grading). Each is described below.
 14. [Persistence, bindings and serving](#14-persistence-bindings-and-serving)
 15. [Known gaps and stale bits](#15-known-gaps-and-stale-bits)
 16. [Checks](#16-checks)
+17. [Agent system: files, prompts, tools and config](#17-agent-system-files-prompts-tools-and-config)
 - [Appendix A: prompts, verbatim](#appendix-a-prompts-verbatim)
 
 ---
@@ -226,6 +227,89 @@ The dev worker rewrites the request to `/api/repositories/<app>/ask`.
 - **Tools:** the 7 `REPOSITORY_TOOLS`, `find_video_moments`, `show_video` and the arXiv tools.
 - **Graph results:** a graph tool result can produce a `graph` SSE event. The graph is saved in `repository_message_graphs`.
 - **Model:** `ASK_MODELS[body.model]`, or Auto.
+
+### 4.4 Routing: every kind of input
+
+"hi" is one case. This is the whole routing, from the composer to the model.
+Only the steps marked **code** are decided by code. Everything after the
+request reaches the model is **the model's choice**: no code looks at what the
+text means.
+
+```
+Learner presses Enter
+│
+├─ Which composer? (code)
+│   ├─ Dock at the bottom of the canvas ........ continue below
+│   ├─ "Continue convo" inside a chat card ..... K8: reply inside that card
+│   └─ Commit on a challenge / explain-back .... K10: grading
+│
+├─ Empty, or an answer still in flight? (code) ... nothing happens
+│
+├─ Starts with "/"? (code) ........................ K2: slash command, never sent as chat text
+│   ├─ /deeper /simplify /example /research /ask /teach /do
+│   │     → turned into a chat prompt, then back into send() below
+│   ├─ /notebook /whiteboard /paper /image /source → local action, no model
+│   ├─ /practice /quiz /compare /explain /code /graph /diagram /flashcards /walkthrough
+│   │     → POST /api/learn/artifact (the card maker, section 10.2)
+│   └─ /animate /video /3d → /api/learn/artifact → paid proposal → Generate → paid job
+│
+├─ Is a card, group or region the chat target ("Ask in chat")? (code)
+│   ├─ yes → K4-K7: card mode. New thread, linked chat card, message wrapped with the card's text
+│   └─ no  → K1: sheet mode. The sheet's thread, answer in the sheet
+│
+├─ What rides along (code, any mode)
+│   ├─ a file from + → K3: multipart
+│   ├─ @mentions → K9: other apps' context
+│   └─ an open paper / dropped image / Wikipedia card / YouTube card
+│         → K11: one source context (paper > image > wiki > video)
+│
+└─ POST /api/learn/ask → dev worker (code)
+    ├─ scope.app starts with "repo-" → repositoryAsk: repository graph tools, video, arXiv
+    └─ otherwise → apiAsk: Wikipedia, video, outline, arXiv; full app context
+        │
+        └─ researchAnswer: the model decides, step by step, whether to answer
+           or call a tool (K12-K16 are typical outcomes, not code paths)
+```
+
+| Kind | Example | Decided by | Request | Server | Answer shows |
+|---|---|---|---|---|---|
+| K1 Plain question, nothing selected | "hi", "what is attention?" | code | `{scope, message, thread_id: <sheet thread>}` + outline and source if any | `apiAsk` or `repositoryAsk` | chat sheet |
+| K2 Slash command | "/quiz softmax" | code | see [11.3](#113-slash-commands) | `/api/learn/artifact` or local or chat | a new card at view centre, or chat |
+| K3 With a file from + | a PNG + "what is this?" | code | multipart: `body` JSON + `file` (4 MB; png/jpg/gif/webp/pdf/csv/txt) | same; file becomes an image, PDF or text block, copy in R2 | sheet (or card if a target is set) |
+| K4 Ask in chat on one card | select "Softmax" card → "why exp?" | code | `message` = "Question about this <kind> block on the lesson canvas:\n<card text>\n\nLearner question: why exp?"; new thread; paper cards add `paper_context` | same | chat card linked under the source card |
+| K5 Ask in chat on a group | select a group → question | code | message wrapped with the members' text (4000 chars max); a screenshot uploads to `/api/learn/media` and goes as `image_context` | same | linked chat card |
+| K6 Whiteboard region | drag a region on a whiteboard → question | code | message wrapped with the selected shapes' text; the region PNG is **not** sent | same | linked chat card; that card then offers **Explain in canvas** |
+| K7 Paper region | select a region in the paper reader → question | code | `paper_context {id, page, selection: {region, preview}}` | same; the PDF plus the region image go to the model | linked chat card |
+| K8 Continue convo | inside a chat card | code | per-card composer: `canvas_seed {question, answer}` on its first reply, then its own `thread_id`; no slash, no outline, no attached sources | same | reply inside that card |
+| K9 @mention | "@other-app how do they differ?" | code | `mentions: [...]` (3 max) | non-repo: each app's `appContext`; repo: each repository's overview | sheet or card |
+| K10 Grade an answer | Commit on a challenge | code | `learn-grade.js`: `{scope, message: <grading prompt>}`; no `thread_id` (new thread each time); repository apps add `repository_context` | same Learn chat | verdict inside the card |
+| K11 With an attached source | a paper / wiki / YouTube card is open or attached | code | one of `paper_context` / `image_context` / `wiki_context` / `video_context` | non-repo uses all four; **repo ignores wiki and video** | sheet or card |
+| K12 Asks for a video | "show me a video explaining attention" | model | as K1 | usually `find_video_moments` → `show_video` | answer + a YouTube moment card on the canvas |
+| K13 Asks about a paper | "what does the Attention paper say about scaling?" | model | as K1 | usually `search_arxiv` → `read_arxiv_paper` → maybe `show_paper`; answer gets a "Papers read:" footer | answer + a paper card at the cited page |
+| K14 Background / definition | "what is a Markov chain?" | model | as K1 | non-repo may call `search_wikipedia` → `read_wikipedia` → `show_wikipedia`; often answers directly | answer (+ a Wikipedia card) |
+| K15 Restructure the lesson | "add a section on layer norm" | model | as K1; needs `outline` (canvas has headings), non-repo only | `propose_lesson_outline` | answer + Apply / Discard proposal |
+| K16 Code-structure question (repo) | "where is attention implemented?" | model | as K1 on a `repo-*` app | `search_code` / `explain_symbol` / `query_graph` / `read_source` | answer with `path:line` Sources; a `graph` event the dock does not show |
+
+**Refused or failing inputs.**
+
+| Input | What happens |
+|---|---|
+| Empty or whitespace | nothing |
+| Enter while an answer is in flight | nothing (the composer is busy) |
+| A second `/` command while one runs | silently dropped |
+| Over 4000 characters **after** wrapping | server 400 "Question must be 1–4000 characters", shown as "✗ ..." |
+| AWS-hosted app | dev worker 403 |
+| No `ANTHROPIC_API_KEY` | 503 |
+| Model error or cut-off | `error` event, shown as "✗ ..."; no assistant message is stored |
+
+The wrapped card text is not capped (only a group's is, at 4000), so a long card plus a question can hit the limit.
+
+**Private chat.** An app whose `chatConfig.provider` is `bedrock`, served by the private AWS installation (`packages/byoc/private_api.py`):
+- The composer posts plain JSON and waits for a JSON answer. No SSE.
+- The model list shows only "Bedrock".
+- Attachments and mentions are off.
+
+This installation is outside the canvas path described here.
 
 ## 5. Where an answer goes: sheet, card, or reply
 
@@ -700,6 +784,8 @@ The dev `DB` is the same database id as production.
   - `e2e/learn-preview.spec.js` clicks a suggestion button the Learn page no longer has.
   - `docs/features/canvas-sharing.md` says board files go to `small-runs`; they go to `LEARN_MEDIA`.
 - **`planModel` ignores the chosen Anthropic model whenever `OPENAI_API_KEY` is set.** Cards and the whiteboard then run on `gpt-4.1-mini`.
+- **A long card can make Ask in chat fail.** `describeBlock` text is not capped (a group's is, at 4000), and the wrapped message must fit the server's 4000-character limit. A long explanation card or a large graph spec plus a question returns "Question must be 1–4000 characters". This is from reading the code; it has not been reproduced.
+- **Learn prompts do not follow the agents convention.** `packages/control-plane/src/agents/README.md` says every prompt lives in `src/agents/`, one file per agent. All Learn prompts live in `learn-*.js`, `repository-context.js` and `arxiv.js` instead (see [section 17](#17-agent-system-files-prompts-tools-and-config)).
 
 ## 16. Checks
 
@@ -713,6 +799,195 @@ All run against the session clone with the model stubbed unless noted:
 | `packages/web/e2e/canvas-landing-sweep.mjs` | where new cards land |
 | `packages/control-plane/test/learn-board.test.js` | server unit tests (`make test-unit`) |
 | `packages/control-plane/test/learn-boards.test.js` | server unit tests (`make test-unit`) |
+
+## 17. Agent system: files, prompts, tools and config
+
+Everything agent-related that the canvas uses, by role. Paths are from the
+repository root. **P** = holds a prompt (verbatim in
+[Appendix A](#appendix-a-prompts-verbatim)); **T** = defines model tools.
+
+### 17.1 Map
+
+```
+packages/
+├─ control-plane/                    Cloudflare Worker code shared by small-cp and the dev worker
+│  ├─ src/
+│  │  ├─ ask.js                      model gateway: ASK_MODELS, MODEL, PLAN_MODEL, anthropic(), planModel(), askStream()
+│  │  ├─ subscription-transport.js   SUBSCRIPTION_ONLY bridge for every model call
+│  │  ├─ index.js                    apiAsk: the non-repository Learn chat handler; threads API; appContext
+│  │  ├─ repositories.js             repositoryAsk: the repository Learn chat handler; repository threads
+│  │  ├─ canvas-conversation.js      canvasSeed(): a card's Q and A as the first two turns
+│  │  │
+│  │  │  Learn chat agent
+│  │  ├─ learn-research.js      P T  researchAnswer() loop; LEARN_RESEARCH_SYSTEM
+│  │  ├─ learn-context.js       P    LEARN_SYSTEM; lesson snapshot and outline validators
+│  │  ├─ learn-teaching.js      P    TEACHING_POLICY (also used by the whiteboard explainer)
+│  │  ├─ learn-wiki.js          P T  WIKI_SYSTEM; search_/read_/show_wikipedia; readWikipedia()
+│  │  ├─ learn-youtube.js       P T  VIDEO_SYSTEM; find_video_moments, show_video; Exa search
+│  │  ├─ learn-moment-index.js       warm/hot moments: R2 ledger, Workers AI embeddings, Vectorize, queue consumer
+│  │  ├─ learn-moment-retrieve.js    transcript windows and passage ranking
+│  │  ├─ learn-captions.js           YouTube captions
+│  │  ├─ learn-outline-tool.js  P T  OUTLINE_SYSTEM; propose_lesson_outline; validateOutlineOps()
+│  │  ├─ arxiv.js                 T  search_arxiv, read_arxiv_paper, show_paper; PDF fetch
+│  │  ├─ repository-context.js  P T  REPOSITORY_SYSTEM; the 7 repository graph tools
+│  │  ├─ learn-paper.js, learn-media.js, learn-preview-review.js   paper, image and region context blocks
+│  │  │
+│  │  │  Slash-command card maker
+│  │  ├─ learn-artifact.js      P T  ARTIFACT_SYSTEM; make_<primitive> tools; ask_clarifying_question
+│  │  ├─ learn-primitives.js      T  primitive registry: schema, check, block builder per card type
+│  │  ├─ learn-validation.js         tool-input validator (JSON-schema subset)
+│  │  ├─ learn-graph-schema.js, learn-math-schema.js, learn-scene-schema.js,
+│  │  │  learn-video-schema.js, learn-three-d-schema.js      per-card validators
+│  │  │
+│  │  │  Whiteboard explainer
+│  │  ├─ learn-board.js         P T  BOARD_SYSTEM; explain_on_canvas; generateBoardPlan(); authorizedBoardApp()
+│  │  ├─ learn-board-review.js  P T  BOARD_REVIEW_SYSTEM; plan_explanation, review_explanation; strictTool()
+│  │  ├─ pexels.js                T  search_pexels, inspect_image
+│  │  │
+│  │  │  Grading
+│  │  ├─ learn-grade-routes.js       /api/learn/grade routes
+│  │  ├─ learn-grade-jev.js       P  Jev request: gradeQuestions(), JEV_MODEL, transports
+│  │  ├─ learn-grade-store.js, learn-grade-report.js   learn_grades storage and report
+│  │  │
+│  │  │  Paid generation (started by cards, never by the chat)
+│  │  ├─ learn-paid.js               428 needsConfirm gate
+│  │  ├─ learn-video.js, video-provider.js, math-provider.js   LearnVideos DO: FAL video, Manim animation
+│  │  ├─ learn-scene.js              LearnScenes DO: Blender scene
+│  │  ├─ learn-storage.js            learnMedia() R2 resolver
+│  │  │
+│  │  └─ agents/                     generic agents (NOT used by the canvas)
+│  │     ├─ README.md                convention: one file per agent with SYSTEM, TOOLS, run()
+│  │     ├─ loop.js                  generic tool loop with submit_* tools
+│  │     ├─ tools.js                 read_source, list_runs, read_log, list_outputs
+│  │     └─ runbook.js               runbook agent
+│  ├─ migrations/0011-ask.sql, 0013-thread-title.sql   threads, messages (DB)
+│  ├─ schema.sql                     full DB schema, incl. learn_moments
+│  ├─ repository-schema.sql          LEARN_DB schema (repository chats, boards, grades)
+│  ├─ wrangler.jsonc                 production worker small-cp
+│  └─ test/                          node:test unit tests (make test-unit), listed in 17.5
+│
+├─ web/
+│  ├─ dev-worker.js                  dev/review worker: Learn routes, repo-* rewrite, image/tts/transcribe
+│  ├─ wrangler.dev.jsonc             shared dev worker small-cp-dev
+│  ├─ wrangler.parallel.jsonc        session clone (+ AI, Vectorize MOMENTS, queue INDEX_QUEUE)
+│  ├─ wrangler.canvas-notebook-parallel.jsonc, wrangler.notebook-dev.jsonc   notebook sites
+│  ├─ vite.config.js                 build; dev proxy to SMALL_API
+│  ├─ notebook-canvas/               JupyterLite site for notebook cards
+│  └─ src/
+│     ├─ ask.jsx                     AskPanel: send(), request body, SSE handling, sheet, model list (MODELS)
+│     ├─ ChatComposer.jsx            the input row
+│     ├─ LearnPage.jsx               dock wiring, boardContext, askTarget, exchanges, gradeCanvasAnswer
+│     ├─ AdaptiveCanvas.jsx          ChatCard, insertChat, auto-linking, insert palette, Ask in chat buttons
+│     ├─ LearningBlocks.jsx          describeBlock(): what a card tells the model; BLOCK_TYPES
+│     ├─ learn-sources.js            which sources are attached to the chat
+│     ├─ agent/slash.js              the slash-command contract: SLASH, LEARN_MENU, PAID, learnRequest()
+│     ├─ learn-slash.js, LearnSlash.jsx, SlashCommandsSheet.jsx   slash runner, picker, reference sheet
+│     ├─ learn-grade.js              gradeAnswer(): grading through /api/learn/ask
+│     ├─ learn-grade-prompts.js  P   challengePrompt(), explainBackPrompt()
+│     ├─ learn-grade-shadow.js       Jev shadow grading, verdict parsing
+│     ├─ WhiteboardBlock.jsx, board-ask.js, learn-board-request.js, learn-board-renderer.js,
+│     │  learn-board-layout.js, learn-paper-figures.js     whiteboard explainer client
+│     ├─ PaidConfirm.jsx, learn-scene-client.js            paid confirmation and job client
+│     └─ learn-insert-palette.js     canvas + palette (no model)
+│
+├─ lesson-renderer/                  private Blender worker on Fly (small-lesson-renderer-dev):
+│                                    server.py, compile_scene.py, scene-schema.json (shared with
+│                                    learn-scene-schema.js); also the repository indexing jobs
+│                                    (index_repository.py, repository_jobs.py) behind repository apps
+├─ math-renderer/                    private Manim worker on Fly (small-math-renderer-dev):
+│                                    server.py, compile_math.py, math-schema.json (shared with learn-math-schema.js)
+└─ byoc/private_api.py               the private AWS installation's chat (Bedrock); not the canvas path
+```
+
+`packages/learn-render/` (Remotion lecture videos) is not used by the canvas.
+
+### 17.2 Prompts: where each lives
+
+| Prompt | File | Used by |
+|---|---|---|
+| `TEACHING_POLICY` | `packages/control-plane/src/learn-teaching.js` | Learn chat (inside `LEARN_SYSTEM`), whiteboard (inside `BOARD_SYSTEM`, `BOARD_REVIEW_SYSTEM`) |
+| `LEARN_SYSTEM` | `packages/control-plane/src/learn-context.js` | Learn chat, both paths |
+| `WIKI_SYSTEM` | `packages/control-plane/src/learn-wiki.js` | Learn chat, non-repo |
+| `VIDEO_SYSTEM` | `packages/control-plane/src/learn-youtube.js` | Learn chat, both paths |
+| `OUTLINE_SYSTEM` | `packages/control-plane/src/learn-outline-tool.js` | Learn chat, non-repo, with headings |
+| `LEARN_RESEARCH_SYSTEM` | `packages/control-plane/src/learn-research.js` | every Learn chat step |
+| `REPOSITORY_SYSTEM` | `packages/control-plane/src/repository-context.js` | Learn chat, repo |
+| `ARTIFACT_SYSTEM` | `packages/control-plane/src/learn-artifact.js` | slash-command cards |
+| `BOARD_SYSTEM` | `packages/control-plane/src/learn-board.js` | whiteboard explainer |
+| `BOARD_REVIEW_SYSTEM` | `packages/control-plane/src/learn-board-review.js` | whiteboard reviewer |
+| `challengePrompt`, `explainBackPrompt` | `packages/web/src/learn-grade-prompts.js` | grading (sent as the message) |
+| `gradeQuestions` | `packages/control-plane/src/learn-grade-jev.js` | Jev shadow grader |
+| Slash chat prompts ("Go one level deeper on ...") | `packages/web/src/agent/slash.js` (`learnRequest`) | `/deeper`, `/simplify`, `/example` and the artifact request text |
+| Inline context instructions (outline header, paper region, image, wiki, video) | `packages/control-plane/src/index.js` `apiAsk` | Learn chat, non-repo |
+| Tool-result notes ("The learner now sees this page...") | `learn-research.js`, `index.js`, `repositories.js` | Learn chat |
+
+### 17.3 Tools: where each is defined
+
+| Tool | File | Agent |
+|---|---|---|
+| `search_wikipedia`, `read_wikipedia`, `show_wikipedia` | `learn-wiki.js` | Learn chat (non-repo) |
+| `find_video_moments`, `show_video` | `learn-youtube.js` | Learn chat (both) |
+| `propose_lesson_outline` | `learn-outline-tool.js` | Learn chat (non-repo) |
+| `search_arxiv`, `read_arxiv_paper`, `show_paper` | `arxiv.js` | Learn chat; whiteboard (`search_arxiv`, `read_arxiv_paper`) |
+| `get_repo_overview`, `search_code`, `get_relationships`, `explain_symbol`, `find_connection_path`, `query_graph`, `read_source` | `repository-context.js` | Learn chat (repo) |
+| `make_<primitive>` (one per ready primitive), `ask_clarifying_question` | `learn-artifact.js` + schemas in `learn-primitives.js` | card maker |
+| `plan_explanation`, `review_explanation` | `learn-board-review.js` | whiteboard |
+| `explain_on_canvas` | `learn-board.js` | whiteboard |
+| `search_pexels`, `inspect_image` | `pexels.js` | whiteboard (only with `PEXELS_API_KEY`) |
+
+All in `packages/control-plane/src/`.
+
+### 17.4 Config
+
+| What | Where | Values |
+|---|---|---|
+| Chat model allowlist | `packages/control-plane/src/ask.js` `ASK_MODELS`, `MODEL` | auto / opus-5 → `claude-opus-5`; sonnet-5 → `claude-sonnet-5`; haiku-4.5 → `claude-haiku-4-5-20251001` |
+| Picker labels | `packages/web/src/ask.jsx` `MODELS`, `MODEL_META` | Auto, Opus 5, Sonnet 5, Haiku 4.5 |
+| Default pick | browser `localStorage small.askModel` (Settings > Small AI) | `auto` if unset |
+| Card and whiteboard model | `ask.js` `PLAN_MODEL`; env `LEARN_PLAN_MODEL` | `gpt-4.1-mini` when `OPENAI_API_KEY` is set |
+| Jev model | `learn-grade-jev.js` `JEV_MODEL` and the direct transport | `typesafe-ai/jev` (gateway), `jev-1.13.0` (direct) |
+| Loop limits | `learn-research.js` | 8 steps, 2 papers, 2400 max tokens, one tool per step |
+| Request limits | `index.js` `apiAsk`, `repositories.js` | message 4000; file 4 MB; 3 mentions; 3 Wikipedia articles; 1 show_* each |
+| Card maker limits | `learn-artifact.js` | args 1000, context 8000, body 20000, 4000 max tokens, one repair |
+| Worker vars | `packages/web/wrangler.dev.jsonc`, `wrangler.parallel.jsonc` | `SUBSCRIPTION_ONLY`, `SUBSCRIPTION_OWNER_EMAIL`, `LEARN_VIDEO_PROVIDER=fal-seedance-lite`, `LEARN_VIDEO_RESOLUTION=480p`, `SCENE_WORKER_URL` |
+| Worker bindings | same files; `packages/control-plane/wrangler.jsonc` for production | see [section 14](#14-persistence-bindings-and-serving) |
+| Secrets (names) | `wrangler secret` per worker | `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID`, `OPENAI_API_KEY`, `EXA_API_KEY`, `PEXELS_API_KEY`, `DESMOS_API_KEY`, `FAL_API_KEY`, `FISH_AUDIO_API_KEY`, `MATH_WORKER_URL`, `MATH_WORKER_TOKEN`, `SCENE_WORKER_TOKEN`, `TYPESAFE_API_KEY`, `VERCEL_TYPESAFE_API_KEY`, `SUBSCRIPTION_BRIDGE_URL`, `SUBSCRIPTION_BRIDGE_TOKEN`, `LEARN_BENCH_SECRET`, `LEARN_PREVIEW_SECRET`, `MASTER_KEY` |
+| Build flags | `packages/web` build env (`import.meta.env`) | `VITE_COACHING_DEV` (Learn on; dev-only palette items), `VITE_BYOC_DEV`, `VITE_NOTEBOOK_ORIGIN`, `VITE_TLDRAW_LICENSE_KEY` (whiteboard), `VITE_PRIVATE_BYOC`, `VITE_SMALL_ENV` |
+| Insert palette | `packages/web/src/learn-insert-palette.js` | groups, More, dev-only items |
+| Slash commands | `packages/web/src/agent/slash.js` | commands, families, paid list |
+| Card types | `packages/web/src/LearningBlocks.jsx` `BLOCK_TYPES`; `packages/control-plane/src/learn-primitives.js` | client cards; server primitives |
+| Data schema | `packages/control-plane/migrations/`, `schema.sql`, `repository-schema.sql` | see [section 14](#14-persistence-bindings-and-serving) |
+
+### 17.5 Tests for the agent code
+
+`make test-unit` runs these.
+
+**Server** (`packages/control-plane/test/`):
+- **Chat:** `learn-chat`, `learn-research`, `learn-teaching`, `canvas-conversation`, `ask-attachment`
+- **Chat tools:** `learn-wiki`, `learn-youtube`, `learn-moment`, `learn-moment-index`, `learn-moment-feedback`, `arxiv`, `learn-show-paper`, `learn-outline-tool`, `repositories`
+- **Cards:** `learn-artifact`, `learn-graph`, `learn-math-schema`, `learn-three-d`, `learn-scene`, `learn-video`, `math-provider`
+- **Whiteboard:** `learn-board`, `learn-preview-review`
+- **Grading:** `learn-grade-jev`, `learn-grade-jev-transport`, `learn-grade-routes`, `learn-grade-store`, `learn-grade-report`
+- **Storage and media:** `learn-boards`, `learn-storage`, `learn-media`, `learn-paper`, `learn-search`
+
+**Client** (`packages/web/src/`): `agent/slash.test.mjs`, `learn-slash.test.mjs`, `learn-insert-palette.test.mjs`, `learn-sources.test.mjs`, `learn-grade-shadow.test.mjs`.
+
+Browser checks are in [section 16](#16-checks).
+
+### 17.6 Docs
+
+| Doc | Covers |
+|---|---|
+| `docs/features/learn-chat-sheet.md` | the chat sheet |
+| `docs/features/learn-artifact-generation.md` | slash commands and paid generation |
+| `docs/features/learn-teaching-planner.md` | the teaching policy |
+| `docs/features/learn-canvas-blocks.md` | card types |
+| `docs/features/learn-repositories.md` | repository apps |
+| `docs/features/learn-video.md`, `learn-scene-generation.md`, `learn-math-animation.md` | paid media |
+| `docs/features/learn-tool-performance.md` | tool timings |
+| `docs/features/canvas-*.md` | canvas features |
+| `docs/features/parallel-dev-deploys.md` | deploying a session clone |
+| `packages/control-plane/src/agents/README.md` | the agent convention Learn does not follow |
 
 ---
 
