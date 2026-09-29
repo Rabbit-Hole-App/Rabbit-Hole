@@ -30,7 +30,11 @@ NC10 Final card QA                       ⬜ (incl. accessibility audit: classif
                                             states - A semantic text to 4.5:1, B unavailable/decorative
                                             with a documented exemption; docs/features/learn-canvas-blocks.md;
                                             Architecture Deep's INTERACT label generate() on "hear me spea" ends
-                                            mid-word with no truncation mark - owner to decide)
+                                            mid-word with no truncation mark - owner to decide;
+                                            course-wide space notation: • as the visible glyph with a
+                                            "• = space" key, sp only in implementation/source contexts;
+                                            audit Architecture Overview, Generation Overview, Generation
+                                            Deep 1/4 and 4/4, c22, c23)
 ──── after NC10 ────
 Adaptive Tutor v1                        ⬜ handoff milestone, not implemented here
                                             (docs/features/adaptive-tutor-v1.md)
