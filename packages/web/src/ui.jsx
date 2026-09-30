@@ -139,7 +139,9 @@ export const StatusPill = ({ status, className }) => (
 
 // Avatar chips keep the tag palette hashed by email - a person keeps their color everywhere.
 const AVATAR_BG = ['#D3E5EF', '#DBEDDB', '#FADEC9', '#E8DEEE', '#F5E0E9', '#FDECC8', '#EEE0DA'];
-export function Avatar({ email, className }) {
+export function Avatar({ email, src = null, className }) {
+  // A picture the person uploaded in Profile (a PNG data URL) replaces the initial.
+  if (src) return <img src={src} alt="" title={email} className={cn('inline-block h-5 w-5 shrink-0 rounded-full object-cover ring-1 ring-white', className)} />;
   const i = [...email].reduce((h, c) => h + c.charCodeAt(0), 0) % AVATAR_BG.length;
   return (
     <span
