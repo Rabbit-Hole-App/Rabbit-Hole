@@ -67,7 +67,8 @@ export default function AgentBar({ page }) {
   const [mode, setMode] = useState('auto');
   // A mode is transient (user, WP7): a new page or resource starts in Auto. Project tabs and a node pick keep the page
   // key (routes.js pageFor), so they keep the mode; drafts and held drafts are untouched.
-  useEffect(() => setMode('auto'), [page]);
+  const [shortcut, setShortcut] = useState(null); // a picked /find, /open... shown as a pill, like a mode
+  useEffect(() => { setMode('auto'); setShortcut(null); }, [page]);
   const [picker, setPicker] = useState(false);
   const [hi, setHi] = useState(0);
   const entries = [...modesFor(target).map(([name, desc]) => ({ name, desc, shortcut: false })), ...shortcutsFor(target, surface.catalog).map(([name, desc]) => ({ name, desc, shortcut: true }))]
@@ -82,15 +83,16 @@ export default function AgentBar({ page }) {
     return () => document.removeEventListener('pointerdown', away, true);
   }, [pickerOpen]);
   const hiIndex = Math.min(hi, entries.length - 1);
-  // A mode becomes the pill; a shortcut is typed into the draft ('/find ') for the rest of the request.
-  const pick = ({ name, shortcut }) => {
-    if (shortcut) {
-      setDrafts((d) => new Map(d).set(targetKey, `/${name} `)); setPicker(false); setHi(0);
+  // A mode or a shortcut becomes the pill (name and ×, as in the canvas composer); the draft holds the rest.
+  const pick = ({ name, shortcut: isShortcut }) => {
+    if (isShortcut) {
+      setShortcut(name); setPicker(false); setHi(0);
+      if (modeQuery(draft) !== null) setDrafts((d) => new Map(d).set(targetKey, ''));
       inputRef.current?.focus();
       return;
     }
     if (!modeAvailability(name, target.kind).ok) return;
-    setMode(name); setPicker(false); setHi(0);
+    setMode(name); setShortcut(null); setPicker(false); setHi(0);
     if (modeQuery(draft) !== null) setDrafts((d) => new Map(d).set(targetKey, ''));
     inputRef.current?.focus();
   };
@@ -351,7 +353,8 @@ export default function AgentBar({ page }) {
   const onKeyDown = (e) => {
     if (pickerOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); setHi((hiIndex + (e.key === 'ArrowDown' ? 1 : entries.length - 1)) % entries.length); return; }
     if (e.key === 'Escape' && (adding || pickerOpen || sheet)) { e.stopPropagation(); if (adding) setAdding(false); else if (pickerOpen) setPicker(false); else setSheet(null); return; }
-    if (e.key === 'Backspace' && e.target === inputRef.current && !draft && mode !== 'auto') setMode('auto');
+    if (e.key === 'Backspace' && e.target === inputRef.current && !draft && shortcut) setShortcut(null);
+    else if (e.key === 'Backspace' && e.target === inputRef.current && !draft && mode !== 'auto') setMode('auto');
   };
 
   if (hidden) return null;
@@ -415,7 +418,7 @@ export default function AgentBar({ page }) {
         )}
         <ChatComposer multiline dock value={draft} onStop={() => abort.current?.abort()}
           onChange={(value) => { setDrafts((d) => new Map(d).set(targetKey, value)); setHeld(target); setPicker(mode === 'auto' && modeQuery(value) !== null); }}
-          onSubmit={(raw) => (pickerOpen ? pick(entries[hiIndex]) : submit(raw))} inputRef={inputRef} busy={!!streaming} maxLength={4000} placeholder={placeholderFor(target, surface)}
+          onSubmit={(raw) => { if (pickerOpen) return pick(entries[hiIndex]); if (!shortcut) return submit(raw); setShortcut(null); return submit(`/${shortcut} ${raw}`.trim()); }} inputRef={inputRef} busy={!!streaming} maxLength={4000} placeholder={placeholderFor(target, surface)}
           leading={<>
             {/* [+] Add (T02 §6.2, revised 2026-09-28): the Start paths through open_start. ponytail: Attach stays off on
                 the preview - workspace asks are off (G1) and canvas asks refuse files (canvases.js refuseCanvasAsk); a
@@ -431,9 +434,11 @@ export default function AgentBar({ page }) {
                 <p className="px-2 pb-1 text-xs text-ink-3">Attachments aren't available on this preview.</p>
               </Menu>
             </div>
-            {mode === 'auto'
+            {shortcut
+            ? <span data-command-pill className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-hover pr-1.5 pl-2.5 text-sm text-ink">{shortcut}<button type="button" aria-label="Remove the command" onClick={() => { setShortcut(null); inputRef.current?.focus(); }} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>
+            : mode === 'auto'
             ? <button type="button" aria-haspopup="listbox" aria-expanded={pickerOpen} onMouseDown={(e) => { e.preventDefault(); setPicker(!picker); }} className={COMPOSER_PILL}>Auto</button>
-            : <span className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-hover pr-1.5 pl-2.5 text-sm text-ink">/{mode}<button type="button" aria-label="Back to Auto" onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>}
+            : <span data-command-pill className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-hover pr-1.5 pl-2.5 text-sm text-ink">{mode}<button type="button" aria-label="Back to Auto" onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>}
           </>} />
       </div>
     </div>
