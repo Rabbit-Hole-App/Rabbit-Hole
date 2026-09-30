@@ -202,7 +202,8 @@ async function probeEdge(page, card, title, label) {
   // The right panel starts closed (Learn, 2026-09-28); opened, it stacks under the canvas on a phone.
   const showPanel = page.getByRole('button', { name: 'Show the right panel' }).first();
   if (await showPanel.count()) { await showPanel.click(); await page.waitForTimeout(500); }
-  const toc = page.getByText('Table of contents', { exact: false }).first();
+  // The panel's outline list is the table of contents (Learn dropped its 'Table of contents' heading on 2026-09-22).
+  const toc = page.locator('aside[aria-label="Learn agent chat"] ol').first();
   await toc.scrollIntoViewIfNeeded();
   const tocVisible = await toc.isVisible();
   if (!tocVisible) fail('phone: the table of contents cannot be scrolled into view');
