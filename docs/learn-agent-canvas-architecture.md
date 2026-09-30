@@ -276,14 +276,14 @@ Learner presses Enter
 | K1 Plain question, nothing selected | "hi", "what is attention?" | code | `{scope, message, thread_id: <sheet thread>}` + outline and source if any | `apiAsk` or `repositoryAsk` | chat sheet |
 | K2 Slash command | "/quiz softmax" | code | see [11.3](#113-slash-commands) | `/api/learn/artifact` or local or chat | a new card at view centre, or chat |
 | K3 With a file from + | a PNG + "what is this?" | code | multipart: `body` JSON + `file` (4 MB; png/jpg/gif/webp/pdf/csv/txt) | same; file becomes an image, PDF or text block, copy in R2 | sheet (or card if a target is set) |
-| K4 Ask in chat on one card | select "Softmax" card → "why exp?" | code | `message` = "Question about this <kind> block on the lesson canvas:\n<card text>\n\nLearner question: why exp?"; new thread; paper cards add `paper_context` | same | chat card linked under the source card |
-| K5 Ask in chat on a group | select a group → question | code | message wrapped with the members' text (4000 chars max); a screenshot uploads to `/api/learn/media` and goes as `image_context` | same | linked chat card |
-| K6 Whiteboard region | drag a region on a whiteboard → question | code | message wrapped with the selected shapes' text; the region PNG is **not** sent | same | linked chat card; that card then offers **Explain in canvas** |
+| K4 Ask in chat on one card | select "Softmax" card → "why exp?" | code | `message` = "why exp?" and `canvas_target {id, kind, title, text}` = the card (C5); new thread; paper cards add `paper_context` | same | chat card linked under the source card |
+| K5 Ask in chat on a group | select a group → question | code | `canvas_target` with the members' text, a cut chat answer and undescribed members marked; a screenshot uploads to `/api/learn/media` and goes as `image_context` with that question only, if it finished uploading first | same | linked chat card |
+| K6 Whiteboard region | drag a region on a whiteboard → question | code | `canvas_target` with the selected shapes' text; the region PNG is **not** sent (the chip says "text only") | same | linked chat card; that card then offers **Explain in canvas** |
 | K7 Paper region | select a region in the paper reader → question | code | `paper_context {id, page, selection: {region, preview}}` | same; the PDF plus the region image go to the model | linked chat card |
-| K8 Continue convo | inside a chat card | code | per-card composer: `canvas_seed {question, answer}` on its first reply, then its own `thread_id`; no slash, no outline, no attached sources | same | reply inside that card |
-| K9 @mention | "@other-app how do they differ?" | code | `mentions: [...]` (3 max) | non-repo: each app's `appContext`; repo: each repository's overview | sheet or card |
+| K8 Continue convo | inside a chat card | code | per-card composer: `canvas_seed {question, answer}` and, when the answer was linked from a card, that card as `canvas_target` on its first reply, then its own `thread_id`; no slash, no outline, no attached sources | same | reply inside that card |
+| K9 @mention | "@other-app how do they differ?" | code | `mentions: [...]` (3 chips max; canvases not offered) | non-repo: each app's `appContext`, all mentions sharing one 600k budget with a truncation marker; repo: each repository's overview; a mention not read gets a "not available to this chat" line | sheet or card |
 | K10 Grade an answer | Commit on a challenge | code | `learn-grade.js`: `{scope, message: <grading prompt>}`; no `thread_id` (new thread each time); repository apps add `repository_context` | same Learn chat | verdict inside the card |
-| K11 With an attached source | a paper / wiki / YouTube card is open or attached | code | one of `paper_context` / `image_context` / `wiki_context` / `video_context` | non-repo uses all four; **repo ignores wiki and video** | sheet or card |
+| K11 With an attached source | a paper / wiki / YouTube card is open or attached | code | one of `paper_context` / `image_context` / `wiki_context` / `video_context` | both use all four through `learn-ask-context.js`; repo reads the article and video as context only (no Wikipedia or outline tools) and takes uploaded PDFs (C5) | sheet or card |
 | K12 Asks for a video | "show me a video explaining attention" | model | as K1 | usually `find_video_moments` → `show_video` | answer + a YouTube moment card on the canvas |
 | K13 Asks about a paper | "what does the Attention paper say about scaling?" | model | as K1 | usually `search_arxiv` → `read_arxiv_paper` → maybe `show_paper`; answer gets a "Papers read:" footer | answer + a paper card at the cited page |
 | K14 Background / definition | "what is a Markov chain?" | model | as K1 | non-repo may call `search_wikipedia` → `read_wikipedia` → `show_wikipedia`; often answers directly | answer (+ a Wikipedia card) |
@@ -297,7 +297,7 @@ Learner presses Enter
 | Empty or whitespace | nothing |
 | Enter while an answer is in flight | nothing (the composer is busy) |
 | A second `/` command while one runs | silently dropped |
-| Over 4000 characters **after** wrapping | server 400 "Question must be 1–4000 characters", shown as "✗ ..." |
+| A question over 4000 characters | server 400, `apiAsk` "message required (max 4000 chars)", `repositoryAsk` "Question must be 1–4000 characters", shown as "✗ ..."; card text travels in `canvas_target` and no longer counts (C5) |
 | AWS-hosted app | dev worker 403 |
 | No `ANTHROPIC_API_KEY` | 503 |
 | Model error or cut-off | `error` event, shown as "✗ ..."; no assistant message is stored |
@@ -323,14 +323,12 @@ This installation is outside the canvas path described here.
 | Challenge / explain-back **Commit** | A new thread per grade | The verdict in the card | `learn-grade.js` |
 | Type in the right-panel **Learn Agent** chat (**My notes** view) | Resumes the app's latest Learn thread of any origin (`/api/ask/threads?scope=learn&ref=<app>`), which can be a card or grading thread; its History is unfiltered | That panel; not the sheet, no card. It gets the same `boardContext` as the dock | `LearnPage.jsx` right-panel `AskPanel headerTitle="Learn Agent"`; `ask.jsx` thread load |
 
-**What an Ask in chat question sends.** The message becomes:
-
-```
-Question about this <kind> block on the lesson canvas:
-<describeBlock text>
-
-Learner question: <typed text>
-```
+**What an Ask in chat question sends.** Since C5 the message is the typed text and the card rides
+as `canvas_target {id, kind, title, text}` (`learn-ask-target.js`). The server adds it to the context
+as a labelled untrusted section, cut at 8000 characters with `[card text truncated: showing N of M
+characters]` (`learn-ask-context.js`). Before C5 the message was
+`Question about this <kind> block on the lesson canvas:\n<describeBlock text>\n\nLearner question: <typed text>`,
+which a long card pushed over 4000; old wrapped messages under 4000 are still accepted.
 
 - **Paper cards** also send `paper_context`.
 - **Whiteboard selections** send text only. The selection PNG is only a thumbnail in the composer.
@@ -388,7 +386,8 @@ A JSON (non-SSE) reply means a validation error.
 
 The user turn is `<context>\n\n---\n\n<message>`, preceded by any content
 blocks (image, PDF, paper page, selection image). The last 10 messages of the
-thread come before it. The context is never stored, only the raw message.
+thread come before it. The context is never stored. The stored user turn is the message, plus
+`[attached: name]` for a + file on `apiAsk` and the `Selected code` line on `repositoryAsk`.
 
 **Non-repository app (`apiAsk`):**
 - **`appContext`** (`index.js` ~855-887) holds the app's owner and editors, sharing, schedule, inputs and outputs, AGENT.md, review, runbook, request-log summary, the last 20 runs and **the full deployed source bundle**, capped at 600k characters. It is used whenever there is no lesson snapshot, which is always on the canvas. A bare "hi" carries all of it.
@@ -789,7 +788,7 @@ The dev `DB` is the same database id as production.
   - `e2e/learn-preview.spec.js` clicks a suggestion button the Learn page no longer has.
   - `docs/features/canvas-sharing.md` says board files go to `small-runs`; they go to `LEARN_MEDIA`.
 - **Fixed in C4:** an `OPENAI_API_KEY` alone used to move cards and the whiteboard to `gpt-4.1-mini` and bypassed `SUBSCRIPTION_ONLY`. OpenAI now needs an explicit `LEARN_PLAN_MODEL`.
-- **A long card can make Ask in chat fail.** `describeBlock` text is not capped (a group's is, at 4000), and the wrapped message must fit the server's 4000-character limit. A long explanation card or a large graph spec plus a question returns "Question must be 1–4000 characters". This is from reading the code; it has not been reproduced.
+- **Fixed in C5: a long card made Ask in chat fail.** The wrapped message had to fit the 4000-character limit; a schema-max explanation card wrapped to 4768 characters and got a 400 on both routes (pinned in `learn-chat.test.js` and `repositories.test.js`). The card now travels as `canvas_target`.
 - **Learn prompts do not follow the agents convention.** `packages/control-plane/src/agents/README.md` says every prompt lives in `src/agents/`, one file per agent. All Learn prompts live in `learn-*.js`, `repository-context.js` and `arxiv.js` instead (see [section 17](#17-agent-system-files-prompts-tools-and-config)).
 
 ## 16. Checks
