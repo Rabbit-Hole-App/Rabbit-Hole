@@ -45,7 +45,7 @@ const select = async id => {
 };
 const selected = id => cardEl(id).evaluate(node => node.className.includes('ring-2'));
 const composer = () => page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
-const ask = async text => { await composer().click(); await composer().fill(text); await composer().press('Enter'); };
+const ask = async text => { await composer().click(); await composer().fill(text); if (text.startsWith('/')) await page.waitForTimeout(150); await composer().press('Enter'); };
 const chips = () => page.locator('[data-tutor-chips]');
 
 // ---- the Tutor routes: scripted in the browser (default) or real (--live) ----
@@ -122,10 +122,10 @@ if (LIVE) {
   assert.ok(deep.actions.some(action => ['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'].includes(action.type)), 'the planner produced an authored-card, practice or depth action');
   // /deeper and /simplify go through the Tutor as the turn's slash.
   await select('depth-attention-guided');
-  await liveTurn('L4 /deeper', '/deeper');
+  await liveTurn('L4 /deeper', '/deeper into the scaling');
   await shot('live-04-deeper');
   await select('depth-attention-guided');
-  await liveTurn('L5 /simplify', '/simplify');
+  await liveTurn('L5 /simplify', '/simplify the masking step');
   await shot('live-05-simplify');
   // A prerequisite gap: the dive suggestion, the hole, its opening turn, and back to the parent.
   await select('depth-attention-guided');
@@ -272,6 +272,27 @@ await ask('Show me the implementation again.');
 await waitPlan(9);
 await page.getByText('See the canvas.').first().waitFor({ timeout: 5000 });
 assert.equal(await page.getByText('Thinking...').count(), 0, 'no Tutor reply is left spinning');
+
+// ---- a failing planner is an error reply; Stop ends a pending turn as "Stopped."; a planner that never
+// answers ends after the 60 s bound (LearnTutor.jsx) - none of them leaves the reply spinning ----
+const failing = route => route.fulfill({ status: 502, json: { error: 'The tutor is unavailable' } });
+const hanging = () => {}; // never answers
+await page.route('**/api/learn/tutor/plan', failing);
+await select('depth-attention-overview');
+await ask('What does the mask do?');
+await page.getByText('✗ The tutor is unavailable').first().waitFor({ timeout: 10000 });
+await page.unroute('**/api/learn/tutor/plan', failing);
+await page.route('**/api/learn/tutor/plan', hanging);
+await select('depth-attention-overview');
+await ask('And what does the scaling do?');
+await page.getByRole('button', { name: 'Stop' }).click({ timeout: 10000 });
+await page.getByText('Stopped.').first().waitFor({ timeout: 5000 });
+await select('depth-attention-overview');
+await ask('Why the square root?');
+await page.getByText('✗ The Tutor took too long to answer. Try again.').first().waitFor({ timeout: 75000 });
+await page.unroute('**/api/learn/tutor/plan', hanging);
+assert.equal(await page.getByText('Thinking...').count(), 0, 'no Tutor reply is left spinning after an error, a Stop or a timeout');
+await shot('10-error-stop-timeout');
 
 await browser.close();
 assert.deepEqual(errors, [], `page errors: ${errors.join(' | ')}`);
