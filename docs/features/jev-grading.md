@@ -31,8 +31,8 @@ Jev, TypeSafe AI's "System One" decision model, answers typed questions about
 text. This spec is its first and lowest-risk use: grading free-text challenge
 and explain-back answers. It also starts the server-side learner record.
 
-Today every grade is a full tutor turn. `gradeAnswer`
-(packages/web/src/learn-grade.js:8) posts `challengePrompt(block, answer)` to
+Until the cutover below, every grade was a full tutor turn. `gradeAnswer`
+(packages/web/src/learn-grade.js) posted `challengePrompt(block, answer)` to
 `/api/learn/ask`. Because the request carries no thread id, every grade opens a
 new thread. The turn then takes one of two paths:
 
@@ -47,8 +47,20 @@ new thread. The turn then takes one of two paths:
 
 Either way, the reply starts with `VERDICT: good|partial` and is followed by
 three sentences. The verdict is regex-parsed from the text
-(packages/web/src/LearningBlocks.jsx:844). A grade takes seconds, and the
+(`parseVerdict`). A grade takes seconds, and the
 per-idea judgment behind the verdict is thrown away.
+
+**Opus grading path cutover: 2026-09-29, commit `b1ba15c8`** (owner decision 3
+in docs/features/learn-cleanup.md). `gradeAnswer` now posts
+`{app, mode, prompt, expects, answer}` (`assessBody`) to the dev worker's
+`POST /api/learn/assess`. The server builds the same instruction text with
+`challengePrompt` (packages/control-plane/src/agents/learn-grade.js) and makes
+one call on the default model (claude-opus-5 with server-side fallbacks, org
+null, max_tokens 2400): no tools, no Learn system prompt, no thread, no app or
+repository context, nothing stored. The verdict parse is unchanged. No Jev
+fingerprint, threshold or verdict logic changed, but the Opus comparator did:
+Opus results from before this commit come from the chat-turn grader, so read
+Opus numbers per side of the cutover. `/api/learn/grade` stays Jev-only.
 
 The broader design this serves is in docs/adaptive-learning-canvas-spec.md: the
 `LearningEvent` log (line 946) and per-learner concept state, both unbuilt.
@@ -572,10 +584,11 @@ CREATE INDEX IF NOT EXISTS idx_learn_grades_created ON learn_grades(created_at);
     holdout file until `benchmark-v1` and the grader configuration are frozen:
     `GRADER_PROTOCOL_VERSION`, `THRESHOLDS` and `VERDICT_LOGIC_VERSION` are
     committed, and the switch evaluation is requested.
-  - **Chat history.** The benchmark's Opus calls store prompts and answers in
-    the test identity's Learn chat threads (LEARN_DB `messages`). Tuning
-    sessions never read those threads, and after any holdout run the operator
-    deletes that run's threads.
+  - **Chat history.** Since the cutover the benchmark's Opus calls
+    (`/api/learn/assess`) store nothing. Runs before it stored prompts and
+    answers in the test identity's Learn chat threads (LEARN_DB `messages`);
+    tuning sessions never read those threads, and the operator deletes a
+    pre-cutover holdout run's threads.
   - **How it is run.** `bench.mjs --holdout <path>` checks the file against
     `HOLDOUT.sha256` before reading any case.
   - **What a run shows.** A holdout run prints and writes **aggregate numbers
@@ -662,9 +675,9 @@ CREATE INDEX IF NOT EXISTS idx_learn_grades_created ON learn_grades(created_at);
   `X-Learn-Bench-Secret` header, reading `LEARN_BENCH_SECRET` from
   small-deploy/.env and never printing it. It also sends `set`, `bench_run` and
   the deterministic `attempt_id`.
-- **Opus:** through `/api/learn/ask` with
-  `challengePrompt({ mode, prompt, expects }, answer)`, the production path for
-  the named app.
+- **Opus:** through `/api/learn/assess` with `assessBody(challenge, answer)`,
+  the request the canvas sends. `--app` must be a `repo-*` project or a
+  `canvas-<8 hex>` canvas: the clone's DB is the live D1.
 
 Both run under a test session. Results go to
 `results/<set>/<bench_run>.json`.
@@ -725,10 +738,11 @@ Every percentage is printed next to its raw count, as `k / N (pct)`.
   it: at the Gate D probe the gateway reported $0. With no published
   input-only price the figure reads "not computed", never $0.
 - The report's cost per grade is still the mean of the stored `jev_cost`.
-- Opus cost is not measured: the `/api/learn/ask` stream carries no usage or
-  model (ask.js:455). Opus can also be served by a fallback model without
-  saying so, and one grade can take up to 9 model calls
-  (learn-research.js:16-22).
+- Opus cost is not measured: the `/api/learn/assess` stream carries no usage
+  or model. Opus can also be served by a fallback model without saying so (the
+  worker's `learn_model` log line records the served model). Since the cutover
+  one grade is one model call, two when a thinking-only turn is replayed;
+  before it, up to 9 (learn-research.js).
 
 ### Switch conditions
 

@@ -282,7 +282,7 @@ Learner presses Enter
 | K7 Paper region | select a region in the paper reader → question | code | `paper_context {id, page, selection: {region, preview}}` | same; the PDF plus the region image go to the model | linked chat card |
 | K8 Continue convo | inside a chat card | code | per-card composer: `canvas_seed {question, answer}` and, when the answer was linked from a card, that card as `canvas_target` on its first reply, then its own `thread_id`; no slash, no outline, no attached sources | same | reply inside that card |
 | K9 @mention | "@other-app how do they differ?" | code | `mentions: [...]` (3 chips max; canvases not offered) | non-repo: each app's `appContext`, all mentions sharing one 600k budget with a truncation marker; repo: each repository's overview; a mention not read gets a "not available to this chat" line | sheet or card |
-| K10 Grade an answer | Commit on a challenge | code | `learn-grade.js`: `{scope, message: <grading prompt>}`; no `thread_id` (new thread each time); repository apps add `repository_context` | same Learn chat | verdict inside the card |
+| K10 Grade an answer | Commit on a challenge | code | `learn-grade.js`: `POST /api/learn/assess {app, mode, prompt, expects, answer}` (`assessBody`); the server builds the instruction; no thread, no app or repository context | one Auto model call, no tools, no system prompt; nothing stored | verdict inside the card |
 | K11 With an attached source | a paper / wiki / YouTube card is open or attached | code | one of `paper_context` / `image_context` / `wiki_context` / `video_context` | both use all four through `learn-ask-context.js`; repo reads the article and video as context only (no Wikipedia or outline tools) and takes uploaded PDFs (C5) | sheet or card |
 | K12 Asks for a video | "show me a video explaining attention" | model | as K1 | usually `find_video_moments` → `show_video` | answer + a YouTube moment card on the canvas |
 | K13 Asks about a paper | "what does the Attention paper say about scaling?" | model | as K1 | usually `search_arxiv` → `read_arxiv_paper` → maybe `show_paper`; answer gets a "Papers read:" footer | answer + a paper card at the cited page |
@@ -320,7 +320,7 @@ This installation is outside the canvas path described here.
 | Select a card, **Ask in chat**, then type | A new thread every time | A chat card linked under the source card, with a connector; hidden from the sheet | `ask.jsx` `card: true`; `LearnPage.jsx` `placeExchange`; `AdaptiveCanvas.jsx` auto-link effect |
 | **Continue convo** inside a chat card | That card's own thread, seeded with its Q and A via `canvas_seed` | A reply inside the card | `renderBlockComposer` in `LearnPage.jsx`; `canvas-conversation.js` |
 | A `/` command | none | A new card at the view centre, not linked to the selection | `learn-slash.js` `runLearnCommand` |
-| Challenge / explain-back **Commit** | A new thread per grade | The verdict in the card | `learn-grade.js` |
+| Challenge / explain-back **Commit** | No thread: `/api/learn/assess` stores nothing | The verdict in the card | `learn-grade.js` |
 | Type in the right-panel **Learn Agent** chat (**My notes** view) | Resumes the app's latest Learn thread of any origin (`/api/ask/threads?scope=learn&ref=<app>`), which can be a card or grading thread; its History is unfiltered | That panel; not the sheet, no card. It gets the same `boardContext` as the dock | `LearnPage.jsx` right-panel `AskPanel headerTitle="Learn Agent"`; `ask.jsx` thread load |
 
 **What an Ask in chat question sends.** Since C5 the message is the typed text and the card rides
@@ -415,7 +415,7 @@ Composition per path (full text in [Appendix A](#appendix-a-prompts-verbatim)):
 | Learn chat, repository app | `LEARN_SYSTEM` + `REPOSITORY_SYSTEM` + `VIDEO_SYSTEM` + `LEARN_RESEARCH_SYSTEM` |
 | Slash-command cards | `ARTIFACT_SYSTEM` |
 | Whiteboard "Explain in canvas" | `BOARD_SYSTEM` (starts with `TEACHING_POLICY`), then `BOARD_REVIEW_SYSTEM` for the reviewer |
-| Grading (the verdict the learner sees) | the Learn chat prompt above; the grading instructions go in the *message* (`challengePrompt` / `explainBackPrompt`) |
+| Grading (the verdict the learner sees) | no system prompt; the grading instruction (`challengePrompt` / `explainBackPrompt`, built on the server by `/api/learn/assess`) is the whole user message |
 | Jev shadow grader | no system prompt; per-idea yes/no questions (`gradeQuestions`) |
 
 **Instruction lines the server adds to the context** (`index.js`):
@@ -435,7 +435,7 @@ Tool results also carry short notes, such as "The learner now sees this page. Sa
 
 | Use | Provider / model | Where | Needs |
 |---|---|---|---|
-| Learn chat (both paths) and grading | Anthropic `claude-opus-5` by default; the grader sends no model, so it always runs Auto | `learn-models.js` `LEARN_TASKS.chat` / `.grading`, `ask.js` `anthropic()` | `ANTHROPIC_API_KEY` |
+| Learn chat (both paths) and grading | Anthropic `claude-opus-5` by default; `/api/learn/assess` takes no model, so grading always runs Auto | `learn-models.js` `LEARN_TASKS.chat` / `.grading`, `ask.js` `anthropic()` | `ANTHROPIC_API_KEY` |
 | Picker choices | Auto = `claude-opus-5` with `fallbacks: 'default'` and the `anthropic-beta: server-side-fallback-2026-07-01` header. Opus 5 = `claude-opus-5`, Sonnet 5 = `claude-sonnet-5`, Haiku 4.5 = `claude-haiku-4-5-20251001`. An explicit choice sends no fallbacks. The Auto fallback is a refusal fallback routed by category, not an availability fallback; the serving model is now logged (the `learn_model` line below). The picker reaches chat answers only. | `learn-models.js` `ASK_MODELS`, `askModel`; `ask.js` `anthropic()` | |
 | Subscription mode | `SUBSCRIPTION_ONLY=true` routes every call to `SUBSCRIPTION_BRIDGE_URL/messages`, not streaming, with a 180 s timeout | `subscription-transport.js` | bridge URL and token |
 | Per-org Bedrock / OpenAI-compatible | `org_ai` settings. **Never applied to Learn chat, grading, cards or the whiteboard** (every Learn task passes `org = null`); course authoring does apply them | `ask.js` `aiSettings` | |
@@ -547,10 +547,11 @@ when the learner clicks **Explain in canvas** on that chat card.
 
 ### 10.4 Grading
 
-**Challenge and explain-back grading.** Commit on one of those cards calls `gradeAnswer` (`learn-grade.js`), which posts the full grading instruction as a normal `/api/learn/ask` message.
-- It uses the Learn chat model, system prompt and tools.
-- There is no `thread_id`, so each grade makes a new thread.
-- The reply must start with `VERDICT: good` or `VERDICT: partial`.
+**Challenge and explain-back grading.** Commit on one of those cards calls `gradeAnswer` (`learn-grade.js`), which posts the block's fields and the answer to the dev worker's `POST /api/learn/assess` (`learn-grade-routes.js` `assessAnswer`, since `b1ba15c8`).
+- The server builds the instruction with `challengePrompt` (`control-plane/src/agents/learn-grade.js`) and makes one Auto call (`LEARN_TASKS.grading`): no system prompt, no tools, no thread, no app or repository context, nothing stored. A thinking-only turn is replayed once.
+- The answer has its own 1-4000 limit; a block without key ideas keeps the instruction's fallback text.
+- The instruction asks the reply to start with `VERDICT: good` or `VERDICT: partial`; `parseVerdict` takes the first token anywhere in the reply (unanchored) and `stripVerdict` removes it for display.
+- A reply from an attempt replaced by Answer again is dropped, a late error keeps a verdict already shown, and a card saved mid-grade reads Grading was interrupted. Answer again to retry.
 - **Quiz** cards are checked locally. **Flashcards** are self-rated.
 
 **Jev shadow grader.** It runs fire-and-forget beside the grading call (`learn-grade-shadow.js`, then `/api/learn/grade`).
@@ -775,7 +776,7 @@ The dev `DB` is the same database id as production.
 - **`LEARN_SYSTEM` still advertises the removed Explain on canvas button.** It describes 3D, video and graph generation "after the learner chooses Explain on canvas". The button under chat answers was removed on 2026-09-29, so the model may point the learner at a control that no longer exists.
 - **No token streaming on Learn.** The answer arrives as one `chunk` after the whole tool loop, and only progress stages stream.
 - **The repository path ignores `outline`, `wiki_context` and `video_context`,** so an attached Wikipedia or YouTube card is not sent to the model on nanoGPT-style apps.
-- **Grading creates a new chat thread per grade** through `/api/learn/ask`. Grading threads and card threads share the `threads` table with sheet threads, which is why sheet History filters by localStorage and is per browser.
+- **Card threads share the `threads` table with sheet threads,** which is why sheet History filters by localStorage and is per browser. Grades made through `/api/learn/ask` before `b1ba15c8` left threads too; `/api/learn/assess` makes none.
 - **tldraw-era plumbing is inert on the canvas.** `LearnPage`'s `editor` is never set, so the lesson player is parked. The learn-cleanup U2 commits removed the client's `boardContext.snapshot`, `isCurrent`, `label` and `clear`, the snapshot and `/api/learn/selection` branch in `ask.jsx`, and the Explain on canvas leftovers. `boardContext.preview` is half live: a paper region picked in the right-panel reader is shown and sent; only the canvas half is dead.
 - **My notes is a second Learn chat.** Outside the lesson view the right panel is a full Learn AskPanel titled Learn Agent that resumes the app's latest Learn thread (see [section 5](#5-where-an-answer-goes-sheet-card-or-reply)). On canvases no note can be created, so the view is empty; its button now toggles back to the canvas.
 - **A whiteboard selection's image is display-only.** The model gets text.
@@ -887,8 +888,8 @@ packages/
 │     ├─ learn-sources.js            which sources are attached to the chat
 │     ├─ agent/slash.js              the slash-command contract: SLASH, LEARN_MENU, PAID, learnRequest()
 │     ├─ learn-slash.js, LearnSlash.jsx, SlashCommandsSheet.jsx   slash runner, picker, reference sheet
-│     ├─ learn-grade.js              gradeAnswer(): grading through /api/learn/ask
-│     ├─ learn-grade-prompts.js  P   challengePrompt(), explainBackPrompt()
+│     ├─ learn-grade.js              gradeAnswer(): grading through /api/learn/assess
+│     ├─ learn-grade-prompts.js      re-exports control-plane/src/agents/learn-grade.js
 │     ├─ learn-grade-shadow.js       Jev shadow grading, verdict parsing
 │     ├─ WhiteboardBlock.jsx, board-ask.js, learn-board-request.js, learn-board-renderer.js,
 │     │  learn-board-layout.js, learn-paper-figures.js     whiteboard explainer client
@@ -920,7 +921,7 @@ packages/
 | `ARTIFACT_SYSTEM` | `packages/control-plane/src/learn-artifact.js` | slash-command cards |
 | `BOARD_SYSTEM` | `packages/control-plane/src/learn-board.js` | whiteboard explainer |
 | `BOARD_REVIEW_SYSTEM` | `packages/control-plane/src/learn-board-review.js` | whiteboard reviewer |
-| `challengePrompt`, `explainBackPrompt` | `packages/web/src/learn-grade-prompts.js` | grading (sent as the message) |
+| `challengePrompt`, `explainBackPrompt` | `packages/control-plane/src/agents/learn-grade.js` | grading (the whole message of `/api/learn/assess`) |
 | `gradeQuestions` | `packages/control-plane/src/learn-grade-jev.js` | Jev shadow grader |
 | Slash chat prompts ("Go one level deeper on ...") | `packages/web/src/agent/slash.js` (`learnRequest`) | `/deeper`, `/simplify`, `/example` and the artifact request text |
 | Inline context instructions (outline header, paper region, image, wiki, video) | `packages/control-plane/src/index.js` `apiAsk` | Learn chat, non-repo |
@@ -1137,7 +1138,7 @@ Return review_explanation with all four checks as booleans. ready is allowed onl
 
 ### challengePrompt / explainBackPrompt
 
-`packages/web/src/learn-grade-prompts.js:5-28`. Grading: sent as the chat message, not a system prompt.
+`packages/control-plane/src/agents/learn-grade.js` (re-exported by `packages/web/src/learn-grade-prompts.js`). Grading: the whole user message of `/api/learn/assess`, with no system prompt.
 
 ```js
 export function challengePrompt(block, answer) {
