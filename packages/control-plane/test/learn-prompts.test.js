@@ -13,15 +13,16 @@ import { repositoriesFetch } from '../src/repositories.js';
 import { generateArtifact, ARTIFACT_SYSTEM } from '../src/learn-artifact.js';
 import { generateBoardPlan } from '../src/learn-board.js';
 import { TEACHING_POLICY } from '../src/learn-teaching.js';
+import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE, PAPER_SHOWN_NOTE } from '../src/agents/learn-chat.js';
 import { challengePrompt } from '../../web/src/learn-grade-prompts.js';
 
 const fingerprint = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
 const PINS = {
   teachingPolicy: '874f9413c8f3bfb0',
-  chat: '3fbfcc7d406520ca', // canvas seam and app asks, and grading through them
-  chatSnapshot: 'f6aa3857034da019', // an app ask carrying a lesson_snapshot (legacy selection contract)
-  chatOutline: '3a67a1904eebf6ff',
-  repository: 'e40e33c184046ff4',
+  chat: '93d77c2abf2310c3', // canvas seam and app asks, and grading through them
+  chatSnapshot: 'dba2f2764f6774c1', // an app ask carrying a lesson_snapshot (legacy selection contract)
+  chatOutline: '1cf5ff9fbf45d47e',
+  repository: 'afbef7d795092fdb',
   artifact: '870e84a3aa127657',
   board: 'a219807ee7666961',
   boardReview: '5a2e1cab79b26025',
@@ -269,6 +270,20 @@ test('the video instructions present a hot moment as previously accepted, not ve
     assert.equal(body.system.includes('it is trusted without passages'), false);
     includesAll(body.system, ['if it answers this phrasing too', 'present it as a previously accepted moment, not as verified', 'If it does not fit, ignore it.']);
   }
+});
+
+// prompts-11, prompts-21: a shown video, article or paper arrives after the answer
+// (a card or reader on the Learn dock, a link or nothing on the Agent Bar), and a
+// video opens cued, not playing. The wording claims neither.
+test('show_* instructions, the show_video tool and the tool notes say the source is offered with the answer, cued', async t => {
+  for (const body of [await chat(t, { message: 'Show me' }), await repositoryChat(t, { message: 'Show me' })]) {
+    const video = body.tools.find(tool => tool.name === 'show_video');
+    for (const text of [body.system, video.description]) assert.doesNotMatch(text, /now sees|playing|while you (talk|explain)|is reading it|is looking at it|on the learner's canvas/);
+    assert.match(video.description, /cued to exactly the start-to-end window/);
+  }
+  includesAll((await chat(t, { message: 'Show me' })).system, ['call show_wikipedia so it is offered alongside your answer', 'call show_paper with its page so it is offered alongside your answer', 'it is offered with your answer, cued to that window']);
+  for (const note of [VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE, PAPER_SHOWN_NOTE]) assert.match(note, /^Offered to the learner with your answer/);
+  assert.match(VIDEO_SHOWN_NOTE, /cued/);
 });
 
 test('the shared teaching policy is pinned', () => {

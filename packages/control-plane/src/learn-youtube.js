@@ -106,7 +106,7 @@ export const FIND_VIDEO_MOMENTS_TOOL = { name: 'find_video_moments', description
   type: 'object', additionalProperties: false, required: ['query'], properties: { query: { type: 'string', minLength: 1, maxLength: 200 } },
 } };
 
-export const SHOW_VIDEO_TOOL = { name: 'show_video', description: 'Put a YouTube video on the learner\'s canvas, playing exactly the start-to-end window that answers. Only for a video from this answer\'s find_video_moments result, with a window taken from passages you actually read. For a video whose captions were unreadable, omit start and end entirely. Say in your reply what to watch for.', input_schema: {
+export const SHOW_VIDEO_TOOL = { name: 'show_video', description: 'Offer the learner a YouTube video with your answer, cued to exactly the start-to-end window that answers. Only for a video from this answer\'s find_video_moments result, with a window taken from passages you actually read. For a video whose captions were unreadable, omit start and end entirely. Say in your reply what to watch for.', input_schema: {
   type: 'object', additionalProperties: false, required: ['videoId'], properties: {
     videoId: { type: 'string', minLength: 11, maxLength: 200 },
     start: { type: 'integer', minimum: 0, description: 'Window start in whole seconds, from the passage timestamps.' },
