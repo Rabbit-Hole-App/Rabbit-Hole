@@ -112,6 +112,8 @@ npx wrangler dev -c packages/web/wrangler.dev.jsonc -c packages/control-plane/wr
 ```
 
 - `wrangler dev` bundles `dist-dev/index.html` into the worker, so restart it after every rebuild.
+- `node packages/web/e2e/dive-local.mjs` opens a signed-in browser window on a stable review canvas
+  ("Attention (local review)", NanoGPT deep-dive board) for hands-on testing.
 - `node packages/web/e2e/dive-check.mjs <outDir>` walks flows A to I against the local stack, with
   screenshots. It refuses any other host.
 
