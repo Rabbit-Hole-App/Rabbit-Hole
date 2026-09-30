@@ -20,7 +20,7 @@ import { PLAN_TOOL, validateTeachingPlan, BOARD_REVIEW_SYSTEM, REVIEW_TOOL, vali
 import { validateLessonSnapshot } from './learn-context.js';
 import { PEXELS_TOOL, INSPECT_IMAGE_TOOL, inspectImage, searchPexels } from './pexels.js';
 
-import { BOARD_SYSTEM } from './agents/learn-board.js';
+import { BOARD_SYSTEM, BOARD_NO_DESMOS } from './agents/learn-board.js';
 export { BOARD_SYSTEM };
 
 export const BOARD_TOOL = { name: 'explain_on_canvas', description: 'Propose a bounded visual explanation, rendered by the application after validation.', input_schema: {
@@ -125,6 +125,15 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
   const history = validateTeachingHistory(input.history);
   const messages = [{ role: 'user', content: JSON.stringify({ snapshot, question, answer, history, repositoryEvidence }) }], photos = new Map(), inspected = new Set(), papers = new Map();
   const selectedModel = askModel(model, LEARN_TASKS.board.model);
+  // Like the Pexels tools, Desmos needs its key: without DESMOS_API_KEY the
+  // renderer cannot load it, so the prompt says so and a desmos graph goes to
+  // the one format repair (registries-14).
+  const drawingSystem = env.DESMOS_API_KEY ? BOARD_SYSTEM : `${BOARD_SYSTEM}\n${BOARD_NO_DESMOS}`;
+  const validateDraft = value => {
+    const plan = validateBoardPlan(value, snapshot);
+    if (!env.DESMOS_API_KEY && plan.blocks.some(b => b.operation?.renderer === 'desmos')) throw new Error(BOARD_NO_DESMOS);
+    return plan;
+  };
   const invoke = async (system, tools, toolChoice, history, max_tokens = LEARN_TASKS.board.maxTokens.draft) => {
     const strictNames = [PLAN_TOOL.name, REVIEW_TOOL.name];
     const send = strict => callModel(env, { max_tokens, system, tools: tools.map(tool => strict && strictNames.includes(tool.name) ? strictTool(tool) : tool), tool_choice: toolChoice, messages: history }, selectedModel, null);
@@ -173,7 +182,7 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
       const repairHistory = [...history, { role: 'assistant', content: response.result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: response.call.id, is_error: true, content: `Validation failed: ${error.message}. Return the complete corrected ${tool.name} input. Follow all schema limits, preserving supported meaning. This is the only format correction attempt; factual review still follows.` }] }];
       // A truncated response cannot be repaired with the same too-small budget.
       const repairTokens = response.result.stop_reason === 'max_tokens' ? Math.min(6000, Math.max(2400, maxTokens * 2)) : maxTokens;
-      const repaired = await invoke(BOARD_SYSTEM, [tool], forced(tool), repairHistory, repairTokens);
+      const repaired = await invoke(drawingSystem, [tool], forced(tool), repairHistory, repairTokens);
       if (repaired.call.name !== tool.name) throw new Error('Unexpected correction tool');
       if (repaired.result.stop_reason === 'max_tokens') throw new Error(`${tool.name}: correction reached its ${repairTokens}-token limit`);
       try { return { ...repaired, plan: validate(repaired.call.input) }; }
@@ -211,7 +220,7 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
     messages[0].content.push({ type: 'text', text: `Paper already retrieved for this chat: ${JSON.stringify(paper)}` }, paperDocument(paper));
   }
   onProgress('Planning explanation...');
-  let planning = await invoke(BOARD_SYSTEM, [PLAN_TOOL], forced(PLAN_TOOL), messages, LEARN_TASKS.board.maxTokens.plan);
+  let planning = await invoke(drawingSystem, [PLAN_TOOL], forced(PLAN_TOOL), messages, LEARN_TASKS.board.maxTokens.plan);
   if (planning.call.name !== PLAN_TOOL.name) throw new Error('No teaching plan returned');
   planning = await validateOrRepair(planning, PLAN_TOOL, validateTeachingPlan, messages, LEARN_TASKS.board.maxTokens.plan);
   teachingPlan = planning.plan;
@@ -221,8 +230,8 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
   for (let attempt = 0; attempt < BOARD_DRAFT_TURNS; attempt++) {
     const search = attempt < BOARD_DRAFT_TURNS - 1;
     onProgress('Preparing explanation and assets...');
-    const { result, call } = await invoke(BOARD_SYSTEM, [BOARD_TOOL, ...(search ? [SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, ...(env.PEXELS_API_KEY ? [PEXELS_TOOL, INSPECT_IMAGE_TOOL] : [])] : [])], search ? { type: 'any', disable_parallel_tool_use: true } : forced(BOARD_TOOL), messages);
-    if (call.name === BOARD_TOOL.name) { draft = await validateOrRepair({ result, call }, BOARD_TOOL, value => validateBoardPlan(value, snapshot), messages); break; }
+    const { result, call } = await invoke(drawingSystem, [BOARD_TOOL, ...(search ? [SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, ...(env.PEXELS_API_KEY ? [PEXELS_TOOL, INSPECT_IMAGE_TOOL] : [])] : [])], search ? { type: 'any', disable_parallel_tool_use: true } : forced(BOARD_TOOL), messages);
+    if (call.name === BOARD_TOOL.name) { draft = await validateOrRepair({ result, call }, BOARD_TOOL, validateDraft, messages); break; }
     if (!search || ![PEXELS_TOOL.name, INSPECT_IMAGE_TOOL.name, SEARCH_ARXIV_TOOL.name, READ_ARXIV_TOOL.name].includes(call.name)) throw new Error('No canvas explanation returned');
     let content, is_error = false;
     try {
@@ -274,9 +283,9 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
     for (const photoId of inspected) revisionContent.push(...inspectImage(photos, photoId));
     for (const paper of papers.values()) revisionContent.push(paperDocument(paper));
     revisionContent.push(...renderedCrops);
-    const revised = await invoke(BOARD_SYSTEM, [BOARD_TOOL], forced(BOARD_TOOL), [{ role: 'user', content: revisionContent }]);
+    const revised = await invoke(drawingSystem, [BOARD_TOOL], forced(BOARD_TOOL), [{ role: 'user', content: revisionContent }]);
     if (revised.call.name !== BOARD_TOOL.name) throw new Error('No revised explanation returned');
-    draft = await validateOrRepair(revised, BOARD_TOOL, value => validateBoardPlan(value, snapshot), [{ role: 'user', content: revisionContent }]);
+    draft = await validateOrRepair(revised, BOARD_TOOL, validateDraft, [{ role: 'user', content: revisionContent }]);
     previews = null;
   }
 }

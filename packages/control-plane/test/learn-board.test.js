@@ -317,3 +317,32 @@ test('subscription mode: the owner reaches the model, anyone else gets 403, and 
   const ask = worker.slice(worker.indexOf("const liveRefused = refuseLiveLearnAsk(access);"));
   assert.ok(ask.indexOf('subscriptionOwnerRefusal(env, access)') < ask.indexOf('return apiAsk('));
 });
+
+// registries-14: like the Pexels tools, Desmos depends on a key. Without
+// DESMOS_API_KEY the drawing prompt says so and a desmos graph gets the one
+// format repair; a plotly graph (or a key) passes unchanged.
+test('without DESMOS_API_KEY a desmos graph gets the one repair and the prompt says Desmos is unavailable', async () => {
+  const desmos = { kind: 'graph', text: 'Sigmoid', fromObjectId: null, operation: { op: 'interactive_plot', id: 'g', renderer: 'desmos', concept: 'Sigmoid', expressions: [{ id: 'f', expression: 'y=1/(1+e^{-x})' }] } };
+  const plotly = { kind: 'graph', text: 'Sigmoid', fromObjectId: null, operation: { op: 'interactive_plot', id: 'g', renderer: 'plotly', concept: 'Sigmoid', traces: [{ id: 't', type: 'line', x: [-1, 0, 1], y: [0.27, 0.5, 0.73] }] } };
+  const run = async env => {
+    const drafts = [], systems = new Set();
+    const result = await generateBoardPlan(env, boardInput, { callModel: async (_, body) => {
+      const name = body.tool_choice.name || 'explain_on_canvas';
+      if (name !== 'review_explanation') systems.add(body.system);
+      if (name === 'plan_explanation') return toolReply(name, teachingPlan);
+      if (name === 'review_explanation') return toolReply(name, readyReview);
+      drafts.push(body);
+      return toolReply(name, { ...plan, blocks: [drafts.length === 1 ? desmos : plotly] });
+    } });
+    return { result, drafts, systems: [...systems] };
+  };
+  const without = await run({});
+  assert.equal(without.drafts.length, 2);
+  assert.match(JSON.stringify(without.drafts[1].messages.at(-1)), /Desmos is not configured on this deployment/);
+  assert.equal(without.result.blocks[0].operation.renderer, 'plotly');
+  for (const system of without.systems) assert.match(system, /Desmos is not configured on this deployment: use renderer plotly/);
+  const withKey = await run({ DESMOS_API_KEY: 'k' });
+  assert.equal(withKey.drafts.length, 1);
+  assert.equal(withKey.result.blocks[0].operation.renderer, 'desmos');
+  for (const system of withKey.systems) assert.doesNotMatch(system, /Desmos is not configured/);
+});

@@ -24,7 +24,7 @@ const PINS = {
   chatOutline: '437571eed5ec641c',
   repository: '4bef6f138a2eb2fa',
   artifact: '870e84a3aa127657',
-  board: 'f55da1a62a26840f',
+  board: '87175a9f6227ad83', // env without DESMOS_API_KEY, so BOARD_NO_DESMOS is appended
   boardReview: '164240707ce3dc05',
   gradingMessage: '1b9c8ceb43a290f2', // the challengePrompt fixture below
 };
