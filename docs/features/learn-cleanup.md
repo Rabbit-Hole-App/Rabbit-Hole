@@ -672,7 +672,11 @@ and workspace `/api/ask`, which the browser guard keeps off on the preview.
   Recorded: context-4, 8, 12, 13, 16, 20, 21 (rest). UI changes (composer
   chip text only caption, group chip title, disabled attach and mention items,
   hidden Sources on canvases) still need a deployed visual review on the
-  session clone.
+  session clone. Review fix: `validateCanvasTarget` cuts an over-long title
+  (300) or kind (200) with an ellipsis instead of refusing the ask, since a
+  quiz question or challenge prompt titles its card at up to 600 characters
+  and a group kind carries its label (shown failing first: 400 for a
+  600-character quiz title).
 - **U6 grading (C6), 2026-09-29.** Test: `7465f0bb` golden text of both
   grading instructions and a `parseVerdict` table (grading-5). Refactor:
   `3e748561` one grading module, `control-plane/src/agents/learn-grade.js`

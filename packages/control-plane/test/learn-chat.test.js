@@ -17,6 +17,7 @@ import { liveDb, memoryBucket } from './live-storage-spy.js';
 import { learnMedia } from '../src/learn-storage.js';
 import { randomHex } from '../src/token.js';
 import { captureSelection, selectionSnapshot, sigmoidObjects } from '../../web/src/sigmoid-context.js';
+import { canvasTargetField } from '../../web/src/learn-ask-target.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -865,6 +866,18 @@ test('a canvas_target card rides as its own bounded context section; the message
     assert.equal((await ask({ message: 'q', canvas_target })).status, 400, JSON.stringify(canvas_target)?.slice(0, 60));
   }
   assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'q', canvas_target: { id: 'b', kind: 'Explanation', text: 'x' } }), env, {}, owner, 'agent')).status, 400, 'learn only');
+});
+
+// Review of C5: a quiz question or challenge prompt may be 600 characters (learn-primitives.js) and
+// describeBlock uses it as the title; a group kind carries its unbounded label. Neither may refuse the ask.
+test('a schema-max quiz title and a long group label are bounded, not refused, on a canvas_target', async t => {
+  const env = fixture(t);
+  const ask = canvas_target => handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'why?', canvas_target }), env, {}, owner, 'learn');
+  const quiz = canvasTargetField({ id: 'b1', kind: 'Quiz', title: 'Q'.repeat(600), text: `Quiz question: ${'Q'.repeat(600)}` });
+  assert.equal((await ask(quiz)).status, 200);
+  assert.ok(env.answers[0].context.includes(`"title":"${'Q'.repeat(299)}…"`));
+  assert.equal((await ask(canvasTargetField({ id: 'g1', kind: `group "${'L'.repeat(400)}"`, title: 'L'.repeat(400), text: 'Explanation: A' }))).status, 200);
+  assert.ok(env.answers[1].context.includes(`"kind":"group \\"${'L'.repeat(192)}…"`));
 });
 
 test('a canvas seam thread is titled by the learner question, not the card', async t => {

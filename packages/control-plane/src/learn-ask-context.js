@@ -61,9 +61,12 @@ const CANVAS_TARGET_MAX = 32000; // the client sends at most this; more is refus
 export function validateCanvasTarget(value, conversation) {
   if (value === undefined) return null;
   const text = (s, max) => typeof s === 'string' && s.trim().length > 0 && s.length <= max;
-  if (conversation !== 'learn' || !value || typeof value !== 'object' || !text(value.id, 200) || !text(value.kind, 200)
-    || (value.title != null && (typeof value.title !== 'string' || value.title.length > 300)) || !text(value.text, CANVAS_TARGET_MAX)) throw new Error('Invalid canvas target');
-  return { id: value.id, kind: value.kind, ...(value.title ? { title: value.title } : {}), text: value.text };
+  if (conversation !== 'learn' || !value || typeof value !== 'object' || !text(value.id, 200) || !text(value.kind, Infinity)
+    || (value.title != null && typeof value.title !== 'string') || !text(value.text, CANVAS_TARGET_MAX)) throw new Error('Invalid canvas target');
+  // A quiz question or challenge prompt titles its card at up to 600 characters, and a group kind
+  // carries its label, so these display fields are cut with an ellipsis rather than refused.
+  const cut = (s, max) => s.length > max ? `${s.slice(0, max - 1)}…` : s;
+  return { id: value.id, kind: cut(value.kind, 200), ...(value.title ? { title: cut(value.title, 300) } : {}), text: value.text };
 }
 export function appendCanvasTarget(context, target) {
   if (!target) return context;
