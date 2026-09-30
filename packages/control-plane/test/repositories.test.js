@@ -219,7 +219,7 @@ test('dev repository snapshots cannot reach the production bucket',()=>{
   for(const name of devs){
     const snapshots=(jsonc(`../../web/${name}`).r2_buckets||[]).find(b=>b.binding==='REPOSITORY_SNAPSHOTS');
     assert.ok(snapshots,`${name} binds REPOSITORY_SNAPSHOTS`);
-    assert.equal(snapshots.bucket_name,'small-repositories-dev',name);
+    assert.equal(snapshots.bucket_name,'rabbit-hole-dev-repositories',name);
     assert.ok(!liveBuckets.includes(snapshots.bucket_name),`${snapshots.bucket_name} is a production bucket`);
   }
   assert.ok(!(live.r2_buckets||[]).some(b=>b.binding==='REPOSITORY_SNAPSHOTS'),'production binds REPOSITORY_SNAPSHOTS');

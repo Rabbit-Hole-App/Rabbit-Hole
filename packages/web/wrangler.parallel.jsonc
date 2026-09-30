@@ -1,40 +1,17 @@
 {
-  // The small-parallel session's worker clone, with the flywheel's phase-3
-  // bindings. A separate file from wrangler.dev.jsonc on purpose: a queue
-  // allows exactly one consumer, so putting the consumer in the shared dev
-  // config would make every other session's bare deploy fail claiming it.
-  // The shared dev worker keeps no bindings and stays on the cold path.
+  // The small-parallel session's worker clone. It used to carry the flywheel's phase-3
+  // bindings (Workers AI, Vectorize small-learn-moments, Queue small-learn-index); P0-B Phase 2B
+  // leaves them unbound on rabbit-hole because every use is guarded and degrades to the cold path
+  // (learn-moment-index.js). Re-add them with rabbit-hole resources when the flywheel needs them.
   "name": "small-cp-dev-small-parallel",
+  // rabbit-hole Cloudflare account (P0-B Phase 2B, docs/features/rabbit-hole-dev.md).
+  "account_id": "c08d3dbdc53a3afd3cb09a536ac42318",
   "preview_urls": true,
   "main": "dev-worker.js",
   "compatibility_date": "2026-08-01",
   "workers_dev": true,
   "observability": {
     "enabled": true
-  },
-  "ai": {
-    "binding": "AI"
-  },
-  "vectorize": [
-    {
-      "binding": "MOMENTS",
-      "index_name": "small-learn-moments"
-    }
-  ],
-  "queues": {
-    "producers": [
-      {
-        "binding": "INDEX_QUEUE",
-        "queue": "small-learn-index"
-      }
-    ],
-    "consumers": [
-      {
-        "queue": "small-learn-index",
-        "max_batch_size": 5,
-        "max_retries": 3
-      }
-    ]
   },
   "durable_objects": {
     "bindings": [
@@ -89,35 +66,36 @@
   ],
   "r2_buckets": [
     // No RUNS: production small-runs is never bound on a dev or review worker
-    // (docs/features/dev-prod-write-barrier.md). Run outputs are read through production small-cp.
+    // (docs/features/dev-prod-write-barrier.md). Run outputs come from CONTROL_PLANE, the dev control
+    // plane, which binds no RUNS either (Phase 2B), so run outputs list empty on dev.
     // Dev repository snapshots (Map import/refresh) get their own bucket, never a prefix inside the live
     // small-runs bucket. Production has no such binding (control-plane/test/repositories.test.js).
     {
       "binding": "REPOSITORY_SNAPSHOTS",
-      "bucket_name": "small-repositories-dev"
+      "bucket_name": "rabbit-hole-dev-repositories"
     },
     // Learn media on dev/review: never the production bucket
     // (control-plane/src/learn-storage.js).
     {
       "binding": "LEARN_MEDIA",
-      "bucket_name": "small-learn-media-dev"
+      "bucket_name": "rabbit-hole-dev-learn-media"
     }
   ],
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "small",
-      "database_id": "3a9cc077-4dc8-4fbd-8bf7-8ed3b971af8b"
+      "database_name": "rabbit-hole-dev",
+      "database_id": "1ad18fef-ccf9-4a2c-86c7-dc7e87b268a2"
     },
     {
       "binding": "BYOC_DB",
-      "database_name": "small-byoc-dev",
-      "database_id": "67723b56-de7a-4b5e-af91-ae1af32cc4d8"
+      "database_name": "rabbit-hole-byoc-dev",
+      "database_id": "cae839e6-6d58-4037-9e92-d47346356c2f"
     },
     {
       "binding": "LEARN_DB",
-      "database_name": "small-learn-dev",
-      "database_id": "433385b6-dba7-49c1-98ce-d4599feef5c0"
+      "database_name": "rabbit-hole-learn-dev",
+      "database_id": "028f800f-ce8e-4461-adb2-827f417492eb"
     }
   ],
   "vars": {
@@ -133,7 +111,7 @@
   "services": [
     {
       "binding": "CONTROL_PLANE",
-      "service": "small-cp"
+      "service": "rabbit-hole-cp-dev"
     }
   ]
 }

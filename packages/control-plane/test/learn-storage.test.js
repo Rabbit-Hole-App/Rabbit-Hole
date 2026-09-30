@@ -20,7 +20,7 @@ test('dev and review workers put Learn media in their own bucket and bind no pro
   assert.deepEqual(production, { RUNS: 'small-runs' }, 'production binds only the live bucket');
   for (const path of DEV) {
     const dev = buckets(path);
-    assert.equal(dev.LEARN_MEDIA, 'small-learn-media-dev', path);
+    assert.equal(dev.LEARN_MEDIA, 'rabbit-hole-dev-learn-media', path);
     // docs/features/dev-prod-write-barrier.md: no RUNS, so learnMedia has nothing live to fall back to.
     assert.equal(dev.RUNS, undefined, `${path} binds RUNS`);
   }
@@ -74,7 +74,7 @@ test('the moment log uses LEARN_DB where bound; production binds no LEARN_DB and
   assert.equal(learnMomentsDb({ DB, LEARN_DB }), LEARN_DB);
   assert.equal(learnMomentsDb({ DB }), DB);
   assert.ok(!(config(PRODUCTION).d1_databases || []).some(entry => entry.binding === 'LEARN_DB'), 'production must not bind LEARN_DB');
-  for (const path of DEV) assert.equal(config(path).d1_databases.find(entry => entry.binding === 'LEARN_DB')?.database_name, 'small-learn-dev', path);
+  for (const path of DEV) assert.equal(config(path).d1_databases.find(entry => entry.binding === 'LEARN_DB')?.database_name, 'rabbit-hole-learn-dev', path);
   const src = new URL('../src/', here);
   for (const name of readdirSync(src).filter(file => file.endsWith('.js'))) {
     for (const line of readFileSync(new URL(name, src), 'utf8').split('\n').filter(line => /prepare\([^)]*learn_moments/.test(line)))
