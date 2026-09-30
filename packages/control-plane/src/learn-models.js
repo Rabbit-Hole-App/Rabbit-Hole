@@ -3,6 +3,7 @@
 // pinned by test/learn-models.test.js: changing one is a behavior change.
 // A leaf module, so ask.js, learn-research.js and the browser-side test can
 // all import it without a cycle.
+import { sha256 } from './token.js';
 
 export const MODEL = 'claude-opus-5';
 // Model picker allowlist - "Auto" resolves to the default.
@@ -33,6 +34,35 @@ export const LEARN_TASKS = Object.freeze({
   // It still honours a request `model` key that no client sends (models-7).
   board: Object.freeze({ provider: 'plan', model: ASK_MODELS.auto, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'forced tool; any while gathering assets', maxTokens: Object.freeze({ plan: 1200, draft: 3000, review: 1800 }) }),
 });
+
+// Cards and the whiteboard go to OpenAI only on an explicit opt-in, and
+// subscription mode never leaves the bridge (planModel in ask.js).
+export const planUsesOpenAI = env => env.SUBSCRIPTION_ONLY !== 'true' && !!env.OPENAI_API_KEY && !!env.LEARN_PLAN_MODEL;
+
+// One sanitized log line per Learn model call (models-11): what was asked for,
+// where it came from and what actually served it. Never the message, the
+// context, tool input or a key; the prompt is named by a 12-character hash.
+// Wraps a callModel(env, body, model, org) and returns the response untouched.
+export function loggedModel(task, callModel) {
+  return async (env, body, model, org) => {
+    const response = await callModel(env, body, model, org);
+    try {
+      const result = response.ok ? await response.clone().json() : null;
+      const provider = env.SUBSCRIPTION_ONLY === 'true' ? 'subscription' : LEARN_TASKS[task].provider === 'plan' && planUsesOpenAI(env) ? 'openai' : 'anthropic';
+      console.log(JSON.stringify({
+        event: 'learn_model', task, provider,
+        requested: provider === 'openai' ? env.LEARN_PLAN_MODEL : model ?? 'auto',
+        source: provider === 'openai' ? 'LEARN_PLAN_MODEL' : model == null ? 'auto' : model === LEARN_TASKS[task].model ? 'task' : 'request',
+        fallback: provider === 'anthropic' && model == null ? 'default' : 'none',
+        served: result?.model ?? null,
+        fellBack: !!result?.usage?.iterations?.some(step => step.type === 'fallback_message'),
+        prompt: (await sha256(String(body.system ?? ''))).slice(0, 12),
+        status: response.status, stopReason: result?.stop_reason ?? null,
+      }));
+    } catch { /* a log line is never worth a failed answer */ }
+    return response;
+  };
+}
 
 // Request limits shared by more than one site.
 export const MESSAGE_LIMIT = 4000; // characters in the learner's question

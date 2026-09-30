@@ -15,7 +15,7 @@ import { sealPreview, openPreview, previewImages } from './learn-preview-review.
 import { anthropic, planModel } from './ask.js';
 import { modelFailure } from './learn-research.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
-import { askModel, LEARN_TASKS, MESSAGE_LIMIT, PAPERS_PER_ANSWER, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES } from './learn-models.js';
+import { askModel, loggedModel, LEARN_TASKS, MESSAGE_LIMIT, PAPERS_PER_ANSWER, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES } from './learn-models.js';
 import { PLAN_TOOL, validateTeachingPlan, BOARD_REVIEW_SYSTEM, REVIEW_TOOL, validateBoardReview, strictTool } from './learn-board-review.js';
 import { validateLessonSnapshot } from './learn-context.js';
 import { PEXELS_TOOL, INSPECT_IMAGE_TOOL, inspectImage, searchPexels } from './pexels.js';
@@ -137,7 +137,7 @@ export function validateBoardPlan(plan, snapshot) {
   return plan;
 }
 
-export async function generateBoardPlan(env, input, { onProgress = () => {}, callModel = planModel, searchPhotos = searchPexels, findPapers = searchArxiv, readPaper = readArxivPaper, renderPreviews = false, continuation = null, previews = null } = {}) {
+export async function generateBoardPlan(env, input, { onProgress = () => {}, callModel = loggedModel('board', planModel), searchPhotos = searchPexels, findPapers = searchArxiv, readPaper = readArxivPaper, renderPreviews = false, continuation = null, previews = null } = {}) {
   const { snapshot, question, answer, model, repositoryEvidence } = input;
   const history = validateTeachingHistory(input.history);
   const messages = [{ role: 'user', content: JSON.stringify({ snapshot, question, answer, history, repositoryEvidence }) }], photos = new Map(), inspected = new Set(), papers = new Map();

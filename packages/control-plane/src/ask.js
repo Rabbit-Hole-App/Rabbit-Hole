@@ -1,7 +1,7 @@
 import { subscriptionTransport } from './subscription-transport.js';
 import { researchAnswer } from './learn-research.js';
 import { learnMomentsDb } from './learn-storage.js';
-import { MODEL } from './learn-models.js';
+import { MODEL, planUsesOpenAI, loggedModel } from './learn-models.js';
 // Ask (phase 1 - read only): one agent function, scoped per question. This module
 // holds the model call + prompt; index.js owns auth, scope resolution, and context
 // assembly so permissions are enforced by queries, never by the prompt.
@@ -261,7 +261,7 @@ export function fromOpenAI(j) {
 // explicit LEARN_PLAN_MODEL (the key alone also gates image generation and
 // transcription), and subscription mode never leaves the bridge.
 export async function planModel(env, body, model, org) {
-  if (env.SUBSCRIPTION_ONLY === 'true' || !env.OPENAI_API_KEY || !env.LEARN_PLAN_MODEL) return anthropic(env, body, model, org);
+  if (!planUsesOpenAI(env)) return anthropic(env, body, model, org);
   const { stream, ...rest } = body;
   const chosen = env.LEARN_PLAN_MODEL;
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -372,7 +372,7 @@ export function askStream(env, context, history, message, onDone, meta = {}, ext
         // stated when it is actually offered.
         const researchSystem = research.system ? `${system}
 ${research.system}` : system;
-        const result = await researchAnswer(env, turns, researchSystem, model, { callModel: anthropic, initialPapers: research.papers || [], tools: research.tools || [], runTool: research.runTool, onProgress: stage => send('progress', { stage }) });
+        const result = await researchAnswer(env, turns, researchSystem, model, { callModel: loggedModel('chat', anthropic), initialPapers: research.papers || [], tools: research.tools || [], runTool: research.runTool, onProgress: stage => send('progress', { stage }) });
         full = result.answer;
         if (result.papers.length) {
           const references = result.papers.map(p => `[${p.title} (arXiv:${p.id})](${p.pdfUrl})`).join(' | ');

@@ -12,7 +12,7 @@
 import { learnRequest, primitive as contract } from '../../web/src/agent/slash.js';
 import { PRIMITIVES, isReady, artifactBlock } from './learn-primitives.js';
 import { planModel } from './ask.js';
-import { LEARN_TASKS, ARTIFACT_REPAIRS } from './learn-models.js';
+import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel } from './learn-models.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 
@@ -39,7 +39,7 @@ export function artifactPlan(command, { args = '', selection = null } = {}) {
   return { request, ready };
 }
 
-export async function generateArtifact(env, input, { callModel = planModel } = {}) {
+export async function generateArtifact(env, input, { callModel = loggedModel('artifact', planModel) } = {}) {
   const plan = artifactPlan(input.command, input);
   if (plan.result) return plan;
   const { request, ready } = plan;

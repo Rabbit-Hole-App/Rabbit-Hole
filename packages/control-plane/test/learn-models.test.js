@@ -159,3 +159,43 @@ test('askModel maps a picker key to its id and anything else to the fallback', (
     assert.equal(askModel(key, 'claude-opus-5'), 'claude-opus-5', key);
   }
 });
+
+// models-11: one sanitized line per Learn model call. It names the task, the
+// provider, what was asked for and what actually served it, and never carries
+// the learner's words, the context, tool input or a key.
+const captureLog = t => {
+  const lines = [], original = console.log;
+  t.after(() => { console.log = original; });
+  console.log = (...args) => { lines.push(args.join(' ')); };
+  return () => lines.filter(line => line.includes('"learn_model"')).map(line => JSON.parse(line));
+};
+test('each Learn model call logs one sanitized learn_model line with the served model and fallback use', async t => {
+  const logged = captureLog(t), original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async () => Response.json({ model: 'claude-opus-4-8', usage: { iterations: [{ type: 'message' }, { type: 'fallback_message' }] }, content: [{ type: 'text', text: 'ok' }], stop_reason: 'end_turn' });
+  await chat({ ANTHROPIC_API_KEY: 'secret-anthropic-key' }, null);
+  const [line] = logged();
+  assert.equal(logged().length, 1);
+  assert.deepEqual({ ...line, prompt: typeof line.prompt }, { event: 'learn_model', task: 'chat', provider: 'anthropic', requested: 'auto', source: 'auto', fallback: 'default', served: 'claude-opus-4-8', fellBack: true, prompt: 'string', status: 200, stopReason: 'end_turn' });
+  assert.equal(line.prompt.length, 12);
+  const text = JSON.stringify(logged());
+  for (const secret of ['What is a sigmoid?', 'context', 'secret-anthropic-key']) assert.equal(text.includes(secret), false, secret);
+});
+test('cards, the whiteboard and a picked chat model log their task, source and provider', async t => {
+  const logged = captureLog(t);
+  recordFetch(t);
+  await chat({ ANTHROPIC_API_KEY: 'a' }, 'claude-sonnet-5');
+  await artifact({ ANTHROPIC_API_KEY: 'a' });
+  await board({ ANTHROPIC_API_KEY: 'a' });
+  await artifact({ ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'secret-openai-key', LEARN_PLAN_MODEL: 'gpt-4.1-mini' });
+  const pick = ({ task, provider, requested, source, fallback, fellBack }) => ({ task, provider, requested, source, fallback, fellBack });
+  const task = { provider: 'anthropic', requested: 'claude-opus-5', source: 'task', fallback: 'none', fellBack: false };
+  assert.deepEqual(logged().map(pick), [
+    { task: 'chat', provider: 'anthropic', requested: 'claude-sonnet-5', source: 'request', fallback: 'none', fellBack: false },
+    { task: 'artifact', ...task },
+    { task: 'board', ...task }, { task: 'board', ...task }, { task: 'board', ...task },
+    { task: 'artifact', provider: 'openai', requested: 'gpt-4.1-mini', source: 'LEARN_PLAN_MODEL', fallback: 'none', fellBack: false },
+  ]);
+  const text = JSON.stringify(logged());
+  for (const secret of ['secret-openai-key', 'Why is this 0.5?', 'multiple choice', 'softmax']) assert.equal(text.includes(secret), false, secret);
+});
