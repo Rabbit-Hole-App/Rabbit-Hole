@@ -806,3 +806,15 @@ test('an invalid image id is refused before any read', async t => {
   }
   assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', image_context: { id: 'media:0123456789ab' } }), env, {}, owner, 'app')).status, 400, 'learn only');
 });
+
+// C5 context-1: an explanation card at the schema maximum (learn-primitives.js), described as
+// LearningBlocks.jsx describeBlock does and wrapped as ask.jsx did before canvas_target.
+const LONG_CARD = [`Explanation: ${'T'.repeat(120)}`, 'b'.repeat(2000), ...[1, 2, 3].map(n => `[${'L'.repeat(40)}] ${String(n).repeat(800)}`)].join('\n');
+const wrappedCardQuestion = question => `Question about this Explanation block on the lesson canvas:\n${LONG_CARD}\n\nLearner question: ${question}`;
+test('a long card wrapped into the message is refused by the 4000-character limit (context-1)', async t => {
+  const env = fixture(t);
+  assert.ok(wrappedCardQuestion('why?').length > 4000);
+  const res = await send(env, 'learn', wrappedCardQuestion('why?'));
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: 'message required (max 4000 chars)' });
+});

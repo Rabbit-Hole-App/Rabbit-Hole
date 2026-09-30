@@ -229,3 +229,12 @@ test('a why-question gets the code explained, inference labelled, and no invente
   assert.match(REPOSITORY_SYSTEM, /No decision, question or session records are captured for this project/);
   assert.match(REPOSITORY_SYSTEM, /label them as inferred from the source/);
 });
+
+// C5 context-1: the same schema-max explanation card as learn-chat.test.js, wrapped as ask.jsx did.
+const LONG_CARD=[`Explanation: ${'T'.repeat(120)}`,'b'.repeat(2000),...[1,2,3].map(n=>`[${'L'.repeat(40)}] ${String(n).repeat(800)}`)].join('\n');
+const wrappedCardQuestion=question=>`Question about this Explanation block on the lesson canvas:\n${LONG_CARD}\n\nLearner question: ${question}`;
+test('a long card wrapped into the message is refused by the 4000-character limit (context-1)',async t=>{
+  const f=fixture(t),res=await f.send('ask',{message:wrappedCardQuestion('why?')});
+  assert.equal(res.status,400);assert.deepEqual(await res.json(),{error:'Question must be 1–4000 characters'});
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM threads').get().n,0);
+});
