@@ -1,6 +1,8 @@
 {
   "name": "small-cp",
   "main": "src/index.js",
+  // old versions keep their old code and secrets; version preview URLs would keep serving them
+  "preview_urls": false,
   "compatibility_date": "2026-08-01",
   "observability": { "enabled": true },
   // every-minute due-job tick + daily 3am request_logs purge (7-day retention)
