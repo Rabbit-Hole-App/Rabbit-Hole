@@ -3,11 +3,12 @@
 // Run: node e2e/scene-graph-check.mjs
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { DEV_CP } from './dev-cp.mjs';
 
-const base = process.env.SMALL_BASE || 'https://small-cp-dev.zeroshothq.workers.dev';
+const base = process.env.SMALL_BASE || 'https://small-cp-dev.tryrabbithole.workers.dev';
 const domain = new URL(base).hostname;
-const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
-const login = await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-scene-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) });
+const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
+const login = await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-scene-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) });
 const { session } = await login.json();
 
 const browser = await chromium.launch();

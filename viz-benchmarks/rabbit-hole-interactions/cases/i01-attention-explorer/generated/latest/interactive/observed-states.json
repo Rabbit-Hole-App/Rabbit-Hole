@@ -1,0 +1,82 @@
+{
+  "q0-mask-on": {
+    "effectiveInputs": {
+      "queryIndex": 0,
+      "maskEnabled": true
+    },
+    "wrow": [
+      1,
+      null,
+      null,
+      null
+    ],
+    "output": [
+      1,
+      0
+    ]
+  },
+  "q2-mask-on": {
+    "effectiveInputs": {
+      "queryIndex": 2,
+      "maskEnabled": true
+    },
+    "wrow": [
+      0.248,
+      0.248,
+      0.503,
+      null
+    ],
+    "output": [
+      0.751,
+      0.751
+    ]
+  },
+  "q2-mask-off": {
+    "effectiveInputs": {
+      "queryIndex": 2,
+      "maskEnabled": false
+    },
+    "wrow": [
+      0.221,
+      0.221,
+      0.449,
+      0.109
+    ],
+    "output": [
+      0.561,
+      0.67
+    ]
+  },
+  "q3-mask-on": {
+    "effectiveInputs": {
+      "queryIndex": 3,
+      "maskEnabled": true
+    },
+    "wrow": [
+      0.539,
+      0.131,
+      0.266,
+      0.065
+    ],
+    "output": [
+      0.74,
+      0.397
+    ]
+  },
+  "q3-mask-off": {
+    "effectiveInputs": {
+      "queryIndex": 3,
+      "maskEnabled": false
+    },
+    "wrow": [
+      0.539,
+      0.131,
+      0.266,
+      0.065
+    ],
+    "output": [
+      0.74,
+      0.397
+    ]
+  }
+}

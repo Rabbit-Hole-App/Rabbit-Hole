@@ -3,11 +3,13 @@ import { Check, ChevronLeft, ChevronRight, Code, Loader2, Play, RotateCcw, Searc
 import { Md } from './ask.jsx';
 import { api, wsHeaders } from './api.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
+import { loadAsset } from './learn-board-assets.js';
 import { colorLine } from './code.jsx';
 import { CodeBlock } from './ui.jsx';
 import { runPython } from './pyodide-runner.js';
 import { graphRenderers } from './graph-renderers.js';
 import { validateGraph } from '../../control-plane/src/learn-graph-schema.js';
+import { parseVerdict, stripVerdict } from '../../control-plane/src/agents/learn-grade.js';
 import SpeakAnswer from './SpeakAnswer.jsx';
 import LearnPaper from './LearnPaper.jsx';
 import RepositoryGraph from './RepositoryGraph.jsx';
@@ -20,8 +22,14 @@ import { sceneLegibility } from './scene-layout.js';
 import { axisScene, residualScene, sigmoidScene } from './demo-scenes.js';
 import { causalAttentionScene } from './reference-scenes.js';
 import InteractiveScene, { sceneSummary } from './InteractiveScene.jsx';
+import SceneActivity from './SceneActivity.jsx';
+import { describeActivity } from './scene-activity.js';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
 import { sceneAssetUrl, sceneList, startScene, startVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
+import PaidConfirm from './PaidConfirm.jsx';
+import { describeNotebook } from './learn-notebook.js';
+import { describeYouTube } from './learn-ask-target.js';
+import { afterPaint, usePerf } from './learn-perf.js';
 
 // Lesson component library for the adaptive canvas (spec: docs/
 // adaptive-learning-canvas-spec.md §12). Each entry renders inside the shared
@@ -36,10 +44,12 @@ import { sceneAssetUrl, sceneList, startScene, startVideo, videoAssetUrl, videoL
 const SIGMOID_FIGURE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMjAgMTgwIiB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCI+PHJlY3Qgd2lkdGg9IjMyMCIgaGVpZ2h0PSIxODAiIGZpbGw9IiNmZmZmZmYiLz48bGluZSB4MT0iMjQiIHkxPSIxNTAiIHgyPSIzMDAiIHkyPSIxNTAiIHN0cm9rZT0iI2M5YzljNSIgc3Ryb2tlLXdpZHRoPSIxIi8+PGxpbmUgeDE9IjE2MiIgeTE9IjI0IiB4Mj0iMTYyIiB5Mj0iMTYyIiBzdHJva2U9IiNjOWM5YzUiIHN0cm9rZS13aWR0aD0iMSIvPjxwYXRoIGQ9Ik0yNCAxNDggQzEwNCAxNDggMTI4IDE0MCAxNjIgODcgQzE5NiAzNCAyMjAgMjYgMzAwIDI2IiBmaWxsPSJub25lIiBzdHJva2U9IiMyMzgzZTIiIHN0cm9rZS13aWR0aD0iMyIvPjxjaXJjbGUgY3g9IjE2MiIgY3k9Ijg3IiByPSI0IiBmaWxsPSIjMjM4M2UyIi8+PHRleHQgeD0iMTcwIiB5PSIzNiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTEiIGZpbGw9IiMzNzM1MmYiPjEuMDwvdGV4dD48dGV4dCB4PSIxNzAiIHk9Ijg0IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMSIgZmlsbD0iIzM3MzUyZiI+MC41PC90ZXh0Pjx0ZXh0IHg9IjE3MCIgeT0iMTY0IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMSIgZmlsbD0iIzM3MzUyZiI+MC4wPC90ZXh0Pjwvc3ZnPg==';
 
 // Everything an animation block draws around its scene frame: the card's own
-// horizontal padding (px-4, both sides) and, vertically, the drag strip, the
-// ANIMATION kicker, the title, and the transport row under the frame. Measured
-// against the shipped 560x460 block, whose frame renders at 528x~320.
-const FRAME_CHROME = { w: 32, h: 140 };
+// horizontal padding (px-4, both sides) plus the 1px borders of the card and
+// of the frame, and, vertically, the drag strip, the ANIMATION kicker, the
+// title, and the transport row under the frame. Width re-measured 2026-09-28 on
+// the deployed board (a 998px scene got a 994px frame at 32, drawing a wide
+// scene at 0.995 - under the type floors).
+const FRAME_CHROME = { w: 36, h: 140 };
 
 export const BLOCK_TYPES = {
   challenge: {
@@ -379,6 +389,8 @@ export const BLOCK_TYPES = {
     }),
   },
   pipeline: {
+    // Off the + menu (kept so boards that already have one still render).
+    menu: false,
     label: 'Pipeline builder',
     width: 460,
     height: 520,
@@ -439,7 +451,17 @@ export const BLOCK_TYPES = {
     sizeFor: block => {
       const report = block.scene ? sceneLegibility(block.scene) : null;
       if (!report) return null;
-      return { width: Math.round(report.viewport.w + FRAME_CHROME.w), height: Math.round(report.viewport.h + FRAME_CHROME.h) };
+      // The INTERACT zone below the frame and transport is not reserved here:
+      // it reports its measured height, wrapped rows included, and the block
+      // grows by it (SceneControls onHeight -> the canvas node's extraHeight),
+      // so the frame never shrinks to make room.
+      // A paged scene's sub-card navigation is one h-8 row above the frame
+      // (CardPager never wraps), plus the gap-2 between them.
+      const pager = (block.scene.inputs || []).some(input => !input.hidden && input.presentation === 'pager') ? 40 : 0;
+      // The practice section is not reserved here: it reports its measured
+      // height (collapsed or open) and the card grows by it (SceneActivity
+      // onHeight -> the canvas node's extraHeight).
+      return { width: Math.round(report.viewport.w + FRAME_CHROME.w), height: Math.round(report.viewport.h + FRAME_CHROME.h + pager) };
     },
     sample: () => ({
       id: crypto.randomUUID(),
@@ -497,6 +519,8 @@ export const BLOCK_TYPES = {
   // fill, typeset maths and monospace code. Their JSON lives in demo-scenes.js
   // so this registry stays a registry.
   animationAxis: {
+    // Off the + menu (kept so boards that already have one still render).
+    menu: false,
     label: 'Animation: pinned axis',
     width: 560,
     height: 460,
@@ -504,6 +528,8 @@ export const BLOCK_TYPES = {
     sample: () => ({ id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: axisScene.title, scene: axisScene, time: 0, selectedObject: null, marked: null }),
   },
   animationResidual: {
+    // Off the + menu (kept so boards that already have one still render).
+    menu: false,
     label: 'Animation: residual',
     width: 620,
     height: 440,
@@ -511,6 +537,8 @@ export const BLOCK_TYPES = {
     sample: () => ({ id: crypto.randomUUID(), type: 'animation', dx: 0, dy: 0, title: residualScene.title, scene: residualScene, time: 0, selectedObject: null, marked: null }),
   },
   animationSigmoid: {
+    // Off the + menu (kept so boards that already have one still render).
+    menu: false,
     label: 'Animation: sigmoid',
     width: 560,
     height: 460,
@@ -521,6 +549,9 @@ export const BLOCK_TYPES = {
   // viz-benchmarks/transformer-explainer/. JSON lives in reference-scenes.js
   // for the same reason the three demo scenes above live in demo-scenes.js.
   referenceAttention: {
+    // Off the + menu (user, 2026-09-29): a fixed benchmark scene, not a tool.
+    // Kept so boards that already have one still render.
+    menu: false,
     label: 'Reference: attention',
     width: 640,
     height: 480,
@@ -613,10 +644,10 @@ export const BLOCK_TYPES = {
       dx: 0,
       dy: 0,
       mode: 'search',
-      title: 'Softmax over the vocabulary',
+      title: 'The sigmoid curve',
       src: SIGMOID_FIGURE,
       alt: 'The logistic curve rising from 0 to 1 through 0.5 at the origin',
-      caption: 'The same S-curve the LM head squashes its scores through. Search Pexels to swap in a photograph.',
+      caption: 'The logistic S-curve: 0.5 at the origin, flattening towards 0 and 1. Search Pexels to swap in a photograph.',
     }),
   },
   imageGenerate: {
@@ -694,9 +725,10 @@ export const BLOCK_TYPES = {
         scene: {
           title: 'Where the slope goes',
           steps: [
-            { kind: 'equation', expressions: ['\sigma(x) = \frac{1}{1 + e^{-x}}', "\sigma'(x) = \sigma(x)(1 - \sigma(x))"], highlight: ['\sigma(x)'], note: 'the slope is written with the function itself', hold: 2 },
-            { kind: 'plot', functions: [{ expression: '1 / (1 + exp(-x))', label: '\sigma(x)', color: '#2383e2' }], xRange: [-6, 6, 2], yRange: [0, 1, 0.25], marker: { from: -6, to: 6, tangent: true }, note: 'the tangent flattens at both ends', hold: 2 },
-            { kind: 'plot', functions: [{ expression: 'exp(-x) / (1 + exp(-x))**2', label: "\sigma'(x)", color: '#E8590C' }], xRange: [-6, 6, 2], yRange: [0, 0.3, 0.1], note: 'the derivative never exceeds a quarter', hold: 2 },
+            // Doubled backslashes: in a plain JS string '\s' is 's' and '\f' is a form feed.
+            { kind: 'equation', expressions: ['\\sigma(x) = \\frac{1}{1 + e^{-x}}', "\\sigma'(x) = \\sigma(x)(1 - \\sigma(x))"], highlight: ['\\sigma(x)'], note: 'the slope is written with the function itself', hold: 2 },
+            { kind: 'plot', functions: [{ expression: '1 / (1 + exp(-x))', label: '\\sigma(x)', color: '#2383e2' }], xRange: [-6, 6, 2], yRange: [0, 1, 0.25], marker: { from: -6, to: 6, tangent: true }, note: 'the tangent flattens at both ends', hold: 2 },
+            { kind: 'plot', functions: [{ expression: 'exp(-x) / (1 + exp(-x))**2', label: "\\sigma'(x)", color: '#E8590C' }], xRange: [-6, 6, 2], yRange: [0, 0.3, 0.1], note: 'the derivative never exceeds a quarter', hold: 2 },
           ],
         },
       },
@@ -792,6 +824,17 @@ function useElapsed(active) {
   return seconds;
 }
 
+// A / command's paid proposal arrives with confirmedStart: the learner already
+// pressed Generate in the composer, so the card starts once and drops the flag.
+function useConfirmedStart(block, onChange, generate) {
+  useEffect(() => {
+    if (!block.confirmedStart) return;
+    const { confirmedStart: _started, ...rest } = block;
+    onChange(rest);
+    generate(rest);
+  }, [block.confirmedStart]);
+}
+
 function Progress({ seconds, expected, label }) {
   const percent = Math.min(96, Math.round((seconds / expected) * 100));
   return (
@@ -816,34 +859,58 @@ function Kicker({ author = 'course', action = null, children }) {
   );
 }
 
+// Attempts whose grade request is running in this page. A block saved while
+// grading (a reload, an undo) has no request here and reads as interrupted.
+const gradingAttempts = new Set();
+
 function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
   const [draft, setDraft] = useState('');
   const latest = useRef(block);
   latest.current = block;
+  // One attempt id per committed answer (docs/features/jev-grading.md): it is
+  // stored on the block, so re-sends, remounts and reloads reuse it, and the
+  // side-by-side grader records each attempt once. The in-flight guard stops a
+  // same-tick double click; Answer again releases it and clears the id.
+  const inFlight = useRef(false);
   const commit = async () => {
     const answer = draft.trim();
-    if (!answer) return;
-    const committed = { ...block, answer, verdict: '', grading: !!onGrade };
-    onChange(committed);
-    if (!onGrade) return;
-    // The tutor reads the challenge, the expected ideas and this answer, then
-    // streams a short verdict back into the block.
+    if (!answer || inFlight.current) return;
+    inFlight.current = true;
+    // Keep `latest` in step with every write: a stream that lands in one tick
+    // must not let the closing write replace the verdict with a stale block.
+    const change = next => { latest.current = next; onChange(next); };
+    const committed = { ...block, answer, attemptId: crypto.randomUUID(), verdict: '', grading: !!onGrade };
+    // Only the attempt still on the block writes to it: after Answer again, a
+    // late reply from the old attempt is dropped.
+    const current = () => latest.current.attemptId === committed.attemptId;
+    gradingAttempts.add(committed.attemptId);
     try {
-      await onGrade(committed, answer, delta => {
-        const current = latest.current;
-        onChange({ ...current, verdict: (current.verdict || '') + delta, grading: true });
-      });
-      onChange({ ...latest.current, grading: false });
-    } catch (error) {
-      onChange({ ...latest.current, grading: false, verdict: `Could not reach the tutor: ${error.message}` });
+      change(committed);
+      if (!onGrade) return;
+      // The tutor reads the challenge, the expected ideas and this answer, then
+      // streams a short verdict back into the block.
+      try {
+        await onGrade(committed, answer, delta => {
+          if (current()) change({ ...latest.current, verdict: (latest.current.verdict || '') + delta, grading: true });
+        });
+        if (current()) change({ ...latest.current, grading: false });
+      } catch (error) {
+        // A verdict that already arrived stays; the error fills only an empty one.
+        if (current()) change({ ...latest.current, grading: false, verdict: latest.current.verdict || `Could not reach the tutor: ${error.message}` });
+      }
+    } finally {
+      gradingAttempts.delete(committed.attemptId);
+      // Release unless a newer attempt of this card is still grading: an undo
+      // that cleared the attempt must leave the card answerable.
+      if (current() || !gradingAttempts.has(latest.current.attemptId)) inFlight.current = false;
     }
   };
-  const retry = () => { setDraft(block.answer || ''); onChange({ ...block, answer: null, verdict: '', grading: false }); };
+  const retry = () => { inFlight.current = false; setDraft(block.answer || ''); onChange({ ...block, answer: null, attemptId: null, verdict: '', grading: false }); };
   // The tutor opens with "VERDICT: good|partial"; it tints the answer and is
   // stripped from what the learner reads.
-  const token = (block.verdict || '').match(/VERDICT:\s*(good|partial)/i);
-  const grade = token ? token[1].toLowerCase() : null;
-  const verdictText = (block.verdict || '').replace(/VERDICT:\s*(good|partial)\s*/i, '').trim();
+  const grade = parseVerdict(block.verdict);
+  const verdictText = stripVerdict(block.verdict);
+  const waiting = block.grading && !verdictText ? (gradingAttempts.has(block.attemptId) ? 'Reading your answer…' : 'Grading was interrupted. Answer again to retry.') : null;
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <Kicker>{block.mode === 'explain_back' ? 'Explain back' : 'Challenge'}</Kicker>
@@ -865,7 +932,7 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
           {(verdictText || block.grading) && (
             <div data-verdict className="mt-3 border-t border-line pt-3 text-sm">
               <p className="mb-1 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">{block.mode === 'explain_back' ? 'Understanding evidence' : 'Tutor'}</p>
-              {verdictText ? <Md text={verdictText} onFile={onFile} /> : <p className="text-ink-2 italic">Reading your answer…</p>}
+              {verdictText ? <Md text={verdictText} onFile={onFile} /> : <p className="text-ink-2 italic">{waiting}</p>}
             </div>
           )}
           {block.reveal && <div className="mt-3 border-t border-line pt-3 text-sm"><Md text={block.reveal} onFile={onFile} /></div>}
@@ -910,10 +977,16 @@ function QuizBody({ block, onChange, onFile }) {
 
 // The lesson paper reader, embedded as a canvas block: page navigation and
 // the red region-select both come from the existing LearnPaper component.
-function PaperBody({ block, appName, onChange, onAskRegion }) {
+// The first press on an unselected card selects it - so its Ask selection
+// pill appears - and only then do presses belong to the paper. Highlights are
+// saved on the block with their page; highlighter mode is a moment, not saved.
+function PaperBody({ block, appName, onChange, onAskRegion, selected = true }) {
+  const [highlighting, setHighlighting] = useState(false);
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-2 pb-2" onPointerDown={event => event.stopPropagation()}>
-      <LearnPaper app={appName} paper={block.paper} selectRequest={block.selectRequest || 0}
+    <div className="flex min-h-0 flex-1 flex-col px-2 pb-2" onPointerDown={event => { if (selected || highlighting) event.stopPropagation(); }}>
+      <LearnPaper app={appName} paper={block.paper} selectRequest={block.selectRequest || 0} selectButton={false}
+        paintKey={block.id} highlights={block.highlights || []} onHighlights={next => onChange({ ...block, highlights: next })}
+        highlighting={highlighting} onHighlighting={setHighlighting}
         onPage={page => onChange({ ...block, paper: { ...block.paper, page, selection: undefined } })}
         onSelect={selection => {
           // The marked region stays drawn on the page after asking, until it
@@ -935,10 +1008,12 @@ function AudioBody({ block, appName, onChange }) {
   const [src, setSrc] = useState('');
   const [spoken, setSpoken] = useState(''); // text the current clip was made from
   useEffect(() => () => { if (src) URL.revokeObjectURL(src); }, [src]);
+  const [confirming, setConfirming] = useState(false);
   const speak = async () => {
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setConfirming(false);
     try {
-      const response = await fetch('/api/learn/tts', { method: 'POST', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify({ app: appName, text: block.text }) });
+      // Paid narrator: only reached from the confirmation's Generate.
+      const response = await fetch('/api/learn/tts', { method: 'POST', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify({ app: appName, text: block.text, confirmed: true }) });
       if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || `HTTP ${response.status}`);
       setSrc(URL.createObjectURL(await response.blob()));
       setSpoken(block.text);
@@ -957,8 +1032,9 @@ function AudioBody({ block, appName, onChange }) {
         onChange={event => onChange({ ...block, text: event.target.value })}
         className="mt-2 w-full resize-y rounded-lg border border-line p-2 text-sm outline-none focus:border-ink-3" />
       <div className="mt-2 flex items-center gap-2" onPointerDown={event => event.stopPropagation()}>
-        {(!src || stale) && (
-          <button type="button" data-speak disabled={busy || !block.text.trim()} onClick={speak}
+        {(!src || stale) && confirming && !busy && <PaidConfirm onGenerate={speak} onCancel={() => setConfirming(false)} />}
+        {(!src || stale) && !confirming && (
+          <button type="button" data-speak disabled={busy || !block.text.trim()} onClick={() => setConfirming(true)}
             className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white disabled:opacity-50">
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Volume2 size={14} />}{stale ? 'Read the new text' : 'Read it aloud'}
           </button>
@@ -980,6 +1056,7 @@ function SceneActivityBody({ block, onChange, onAskScene }) {
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       {block.spec.buildGoal && <p data-drag-zone className="mt-0.5 mb-2 cursor-grab text-xs text-ink-2 active:cursor-grabbing">{block.spec.buildGoal}</p>}
       <InteractiveScene block={block} onChange={onChange} />
+      <SceneActivity block={block} onChange={onChange} />
     </div>
   );
 }
@@ -1002,14 +1079,17 @@ function WhiteboardBody({ block, appName, onChange, onAskSelection }) {
 
 // A short animation from scene JSON: deterministic playback the learner can
 // pause, scrub and ask about without the scene ever changing.
-function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation }) {
+function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPracticeHeight, onControlsHeight }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
-      <Kicker>Animation</Kicker>
+      {/* A card that is one step of a sequence says so, quietly, where the
+          block kind would be: "Self-attention · 2 of 3". A label, not navigation. */}
+      <Kicker>{block.sequence ? <span data-card-sequence>{block.sequence.name} · {block.sequence.position} of {block.sequence.of}</span> : 'Animation'}</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       <div className="mt-2 flex min-h-0 flex-1 flex-col">
-        <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} />
+        <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />
       </div>
+      <SceneActivity block={block} onChange={onChange} onHeight={onPracticeHeight} />
     </div>
   );
 }
@@ -1075,25 +1155,29 @@ function SceneBody({ block, appName, onChange }) {
   const elapsed = useElapsed(block.status === 'queued' || block.status === 'rendering');
   const polling = useRef(null);
   useEffect(() => () => clearTimeout(polling.current), []);
-  const follow = async () => {
+  // Follows the exact job this Generate started (its placement), never the
+  // first job sharing the operation id - an older failed one may share it.
+  const follow = async placementId => {
     try {
       const list = await sceneList(appName);
-      const mine = list.scenes?.find(scene => scene.operation?.id === block.operation.id);
+      const mine = list.scenes?.find(scene => scene.id === placementId);
       if (!mine) return;
       if (mine.status === 'ready') { onChange({ ...block, status: 'ready', modelUrl: sceneAssetUrl(appName, mine.key) }); return; }
       if (mine.status === 'failed') { setError(mine.error || 'Blender could not build this scene.'); onChange({ ...block, status: 'failed' }); return; }
       onChange({ ...block, status: mine.status });
-      polling.current = setTimeout(follow, 5000);
+      polling.current = setTimeout(() => follow(placementId), 5000);
     } catch (problem) { setError(problem.message); }
   };
-  const generate = async () => {
-    setError('');
-    onChange({ ...block, status: 'queued' });
+  const [confirming, setConfirming] = useState(false);
+  const generate = async (current = block) => {
+    setError(''); setConfirming(false);
+    onChange({ ...current, status: 'queued' });
     try {
-      await startScene(appName, block.operation);
-      follow();
-    } catch (problem) { setError(problem.message); onChange({ ...block, status: 'failed' }); }
+      const { placementId } = await startScene(appName, current.operation, { confirmed: true });
+      follow(placementId);
+    } catch (problem) { setError(problem.message); onChange({ ...current, status: 'failed' }); }
   };
+  useConfirmedStart(block, onChange, generate);
   if (block.status === 'ready' && block.modelUrl) return <ThreeDBody block={block} onChange={onChange} />;
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
@@ -1103,7 +1187,7 @@ function SceneBody({ block, appName, onChange }) {
       <div className="mt-2 flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-line bg-hover p-4 text-center" onPointerDown={event => event.stopPropagation()}>
         <p className="text-xs text-ink-2">{block.operation.scene.objects.length} objects · {block.operation.scene.animations?.length || 0} animations · {block.operation.duration || 3}s</p>
         {block.status === 'idle' || block.status === 'failed' ? (
-          <button type="button" data-generate-scene onClick={generate} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white">
+          confirming ? <PaidConfirm onGenerate={() => generate()} onCancel={() => setConfirming(false)} /> : <button type="button" data-generate-scene onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white">
             <Play size={14} />{block.status === 'failed' ? 'Retry scene' : 'Build the scene'}
           </button>
         ) : (
@@ -1117,6 +1201,7 @@ function SceneBody({ block, appName, onChange }) {
 
 // Interactive glTF on the canvas, sharing the lesson three.js renderer.
 function ThreeDBody({ block, onChange }) {
+  const report = usePerf();
   const host = useRef(null);
   const engine = useRef(null);
   const [clips, setClips] = useState([]);
@@ -1131,7 +1216,7 @@ function ThreeDBody({ block, onChange }) {
       if (disposed) return;
       const current = latest.current;
       const props = { w: 0, h: 0, modelUrl: current.modelUrl, camera: current.camera || {}, animation: current.animation || { autoplay: false }, animationTime: current.animationTime || 0, autoRotate: !!current.autoRotate };
-      instance = createThreeDRenderer(host.current, props, patch => onChange({ ...latest.current, ...patch }), setClips, setError);
+      instance = createThreeDRenderer(host.current, props, patch => onChange({ ...latest.current, ...patch }), found => { setClips(found); report('content'); report('interactive'); }, setError);
       engine.current = instance;
       instance.interact(true); // the canvas node owns focus, so orbit is always live
     }).catch(problem => { if (!disposed) setError(problem.message); });
@@ -1180,13 +1265,14 @@ function ImageBody({ block, appName, onChange, onFile }) {
     let live = true;
     if (current?.src) { setResolved(current.src); return; }
     if (!current?.cacheKey) { setResolved(''); return; }
-    cachedAsset(current.cacheKey).then(value => { if (live) setResolved(value || ''); });
+    loadAsset(current.cacheKey).then(value => { if (live) setResolved(value || ''); });
     return () => { live = false; };
   }, [current?.src, current?.cacheKey]);
   const step = direction => onChange({ ...block, variant: (index + direction + variants.length) % variants.length });
   const [results, setResults] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [confirming, setConfirming] = useState(false);
   const elapsed = useElapsed(busy);
   const search = async () => {
     if (!query.trim()) return;
@@ -1197,6 +1283,13 @@ function ImageBody({ block, appName, onChange, onFile }) {
     } catch (problem) { setError(problem.message); }
     finally { setBusy(false); }
   };
+  // /image <terms> arrives with autoSearch: run that search once.
+  useEffect(() => {
+    if (!block.autoSearch) return;
+    const { autoSearch: _once, ...rest } = block;
+    onChange(rest);
+    search();
+  }, [block.autoSearch]);
   const choose = photo => {
     setResults(null);
     const entry = { src: photo.src, alt: photo.alt, credit: { photographer: photo.photographer, url: photo.url } };
@@ -1209,7 +1302,7 @@ function ImageBody({ block, appName, onChange, onFile }) {
     try {
       const key = `image:${prompt}`;
       const cached = await cachedAsset(key);
-      const image = cached || (await api('/api/learn/image', { method: 'POST', body: JSON.stringify({ app: appName, prompt }) })).image;
+      const image = cached || (await api('/api/learn/image', { method: 'POST', body: JSON.stringify({ app: appName, prompt, confirmed: true }) })).image;
       if (!cached) cacheAsset(key, image);
       const entry = { cacheKey: key, prompt, alt: prompt, credit: { photographer: 'generated illustration', url: '' } };
       const kept = variants.some(variant => variant.cacheKey === key) ? variants : [...variants, entry];
@@ -1233,8 +1326,8 @@ function ImageBody({ block, appName, onChange, onFile }) {
       )}
       {block.caption && <div className="mt-1.5 text-xs text-ink-2"><Md text={block.caption} onFile={onFile} /></div>}
       {current?.credit && (current.credit.url
-        ? <p className="mt-1 text-[11px] text-ink-3">Photo by <a href={current.credit.url} target="_blank" rel="noreferrer" className="underline">{current.credit.photographer}</a> on Pexels</p>
-        : <p className="mt-1 text-[11px] text-ink-3">Generated illustration — not a photograph or measurement.</p>)}
+        ? <p className="mt-1 text-[11px] text-ink-2">Photo by <a href={current.credit.url} target="_blank" rel="noreferrer" className="underline">{current.credit.photographer}</a> on Pexels</p>
+        : <p className="mt-1 text-[11px] text-ink-2">Generated illustration — not a photograph or measurement.</p>)}
       <div className="mt-2 flex gap-2" onPointerDown={event => event.stopPropagation()}>
         <input value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') search(); }}
           placeholder="Search or describe an image…" className="h-8 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm outline-none focus:border-ink-3" />
@@ -1242,11 +1335,12 @@ function ImageBody({ block, appName, onChange, onFile }) {
           className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover disabled:opacity-40">
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}Find
         </button>
-        <button type="button" data-image-generate disabled={busy || !query.trim()} onClick={generate} title="Generate an illustration instead of searching"
+        <button type="button" data-image-generate disabled={busy || !query.trim()} onClick={() => setConfirming(true)} title="Generate an illustration instead of searching"
           className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-ink px-3 text-sm font-medium text-white disabled:opacity-40">
           <Sparkles size={14} />Generate
         </button>
       </div>
+      {confirming && !busy && <div className="mt-2"><PaidConfirm onGenerate={() => { setConfirming(false); generate(); }} onCancel={() => setConfirming(false)} /></div>}
       {busy && <div className="mt-2"><Progress seconds={elapsed} expected={25} label="Working" /></div>}
       {error && <p className="mt-1 text-xs text-red-700">{error}</p>}
       {results && (results.length ? (
@@ -1269,10 +1363,11 @@ function VideoBody({ block, appName, onChange, onFile }) {
   const elapsed = useElapsed(block.status === 'generating' || block.status === 'queued');
   const polling = useRef(null);
   useEffect(() => () => clearTimeout(polling.current), []);
-  const follow = async () => {
+  // Follows the exact job this Generate started (see SceneBody).
+  const follow = async placementId => {
     try {
       const list = await videoList(appName);
-      const mine = list.videos?.find(video => video.operation?.id === block.operation?.id);
+      const mine = list.videos?.find(video => video.id === placementId);
       if (!mine) return;
       if (mine.status === 'ready') {
         const src = videoAssetUrl(appName, mine.key);
@@ -1283,26 +1378,30 @@ function VideoBody({ block, appName, onChange, onFile }) {
       }
       if (mine.status === 'failed') { setError(mine.error || 'The provider could not generate this clip.'); onChange({ ...block, status: 'failed' }); return; }
       onChange({ ...block, status: mine.status });
-      polling.current = setTimeout(follow, 5000);
+      polling.current = setTimeout(() => follow(placementId), 5000);
     } catch (problem) { setError(problem.message); }
   };
-  const generate = async () => {
-    setError('');
-    onChange({ ...block, status: 'generating' });
-    try { await startVideo(appName, block.operation); follow(); }
-    catch (problem) { setError(problem.message); onChange({ ...block, status: 'failed' }); }
+  const [confirming, setConfirming] = useState(false);
+  const generate = async (current = block) => {
+    setError(''); setConfirming(false);
+    onChange({ ...current, status: 'generating' });
+    try { const { placementId } = await startVideo(appName, current.operation, { confirmed: true, retry: current.status === 'failed' }); follow(placementId); }
+    catch (problem) { setError(problem.message); onChange({ ...current, status: 'failed' }); }
   };
+  useConfirmedStart(block, onChange, generate);
   const pending = block.status === 'generating' || block.status === 'queued';
+  const report = usePerf();
   const clips = block.variants?.length ? block.variants : (block.src ? [{ src: block.src }] : []);
   const position = Math.max(0, Math.min(block.variant ?? clips.length - 1, clips.length - 1));
   const shown = clips[position]?.src || '';
+  useEffect(() => { if (!shown) afterPaint(() => { report('content'); report('interactive'); }); }, [shown]);
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <Kicker>Video</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       {shown
         ? <>
-            <video data-lesson-video src={shown} controls preload="metadata" onPointerDown={event => event.stopPropagation()}
+            <video data-lesson-video src={shown} controls preload="metadata" onLoadedData={() => { report('content'); report('interactive'); }} onPointerDown={event => event.stopPropagation()}
               className="mt-2 w-full rounded-lg border border-line bg-black" />
             {clips.length > 1 && (
               <div className="mt-1.5 flex items-center justify-between" onPointerDown={event => event.stopPropagation()}>
@@ -1318,7 +1417,8 @@ function VideoBody({ block, appName, onChange, onFile }) {
               : <p className="text-xs text-ink-2">{block.operation?.duration || 4}s · {block.operation?.aspectRatio || '16:9'} · {block.operation?.purpose?.replace('_', ' ')}</p>}
             {pending
               ? <Progress seconds={elapsed} expected={block.operation?.op === 'generate_math_animation' ? 240 : 180} label={block.operation?.op === 'generate_math_animation' ? 'Rendering the animation' : 'Generating the clip'} />
-              : <button type="button" data-generate-video onClick={generate} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? 'Retry render' : block.operation?.op === 'generate_math_animation' ? 'Render the animation' : 'Generate the video'}</button>}
+              : confirming ? <PaidConfirm onGenerate={() => generate()} onCancel={() => setConfirming(false)} />
+              : <button type="button" data-generate-video onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? 'Retry render' : block.operation?.op === 'generate_math_animation' ? 'Render the animation' : 'Generate the video'}</button>}
             {error && <p className="text-xs text-red-700">{error}</p>}
           </div>}
       {block.caption && <div className="mt-1.5 text-xs text-ink-2"><Md text={block.caption} onFile={onFile} /></div>}
@@ -1352,9 +1452,10 @@ function ExplanationBody({ block, onFile }) {
   const [open, setOpen] = useState({});
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker>Explanation</Kicker>
+      {/* A /dive topic anchor (dive.js anchorBlock) is the learner's topic, not an explanation yet: no kicker, and a body only when it adds to the title. */}
+      {!block.anchor && <Kicker>Explanation</Kicker>}
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
-      <div className="mt-1 text-sm"><Md text={block.body} onFile={onFile} /></div>
+      {block.body && <div className="mt-1 text-sm"><Md text={block.body} onFile={onFile} /></div>}
       {(block.more || []).map((section, index) => (
         <div key={index} className="mt-2 border-t border-line pt-2">
           <button type="button" data-explain-more onPointerDown={e => e.stopPropagation()}
@@ -1371,6 +1472,7 @@ function ExplanationBody({ block, onFile }) {
 }
 
 function GraphBody({ block, appName, onChange }) {
+  const report = usePerf();
   const host = useRef(null);
   const engine = useRef(null);
   const own = useRef('');
@@ -1389,11 +1491,16 @@ function GraphBody({ block, appName, onChange }) {
     };
     (async () => {
       validateGraph(block.spec);
+      // Paint the card first: with the SDK already warm, building the
+      // calculator in the same frame held the shell back ~300 ms.
+      await new Promise(resolve => afterPaint(resolve));
+      if (disposed) return;
       instance = await graphRenderers[block.spec.renderer](host.current, block.spec, block.state || {}, appName, change);
       if (disposed) { instance.destroy(); return; }
       engine.current = instance;
       own.current = JSON.stringify(block.state || {});
       instance.resize();
+      afterPaint(() => { report('content'); report('interactive'); });
     })().catch(problem => { if (!disposed) setError(problem.message); });
     return () => { disposed = true; instance?.destroy(); engine.current = null; };
   }, [block.id, attempt, appName]);
@@ -1430,7 +1537,7 @@ function SnippetBody({ block, onFile }) {
       {block.brief && <div data-drag-zone className="mt-1 cursor-grab text-sm text-ink-2 active:cursor-grabbing"><Md text={block.brief} onFile={onFile} /></div>}
       <CodeBlock className="mt-2 text-xs">{block.code.split('\n').map((line, index) => <div key={index}>{colorLine(line)}</div>)}</CodeBlock>
       {block.output && <>
-        <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-3 uppercase">Output</p>
+        <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-2 uppercase">Output</p>
         <pre className="no-scrollbar mt-1 max-h-40 overflow-y-auto rounded-lg border border-line bg-white p-2 font-mono text-[11px] leading-4 whitespace-pre-wrap">{block.output}</pre>
       </>}
     </div>
@@ -1458,9 +1565,9 @@ function CodeBody({ block, onChange, onFile }) {
       )}>Code</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       <div data-drag-zone className="mt-1 cursor-grab text-sm text-ink-2 active:cursor-grabbing"><Md text={block.brief} onFile={onFile} /></div>
-      <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-3 uppercase">Given</p>
+      <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-2 uppercase">Given</p>
       <CodeBlock className="mt-1 text-xs">{block.setup.split('\n').map((line, index) => <div key={index}>{colorLine(line)}</div>)}</CodeBlock>
-      <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-3 uppercase">Your code</p>
+      <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-2 uppercase">Your code</p>
       <textarea data-code-editor value={draft} spellCheck={false} rows={Math.max(4, draft.split('\n').length + 1)}
         onPointerDown={e => e.stopPropagation()}
         onChange={e => setDraft(e.target.value)}
@@ -1530,6 +1637,7 @@ const NEWLINE = String.fromCharCode(10);
 
 // Serialize a block for the tutor prompt when the learner asks about it.
 export function describeBlock(block) {
+  if (block.type === 'notebook') return describeNotebook(block);
   if (block.type === 'code') return { kind: 'Code exercise', title: block.title, text: `Code exercise: ${block.title}\n${block.brief}\nGiven setup:\n${block.setup}\nLearner's current code:\n${block.draft ?? block.starter}\nChecks it must pass:\n${block.checks}` };
   if (block.type === 'audio') return { kind: 'Narration', title: block.title, text: [`Narration block: ${block.title}`, block.text].join(NEWLINE) };
   if (block.type === 'whiteboard') return { kind: 'Whiteboard', title: block.title, text: `Learner whiteboard: ${block.title}` };
@@ -1537,13 +1645,15 @@ export function describeBlock(block) {
   if (block.type === 'flow') return { kind: 'Diagram', title: block.title, text: [`Laid-out diagram: ${block.title}`, `Nodes: ${block.spec.nodes.map(node => node.label).join(', ')}`, `Edges: ${block.spec.edges.map(edge => `${edge.source} -> ${edge.target}${edge.label ? ` (${edge.label})` : ''}`).join('; ')}`].join(NEWLINE) };
   if (block.type === 'mermaid') return { kind: 'Diagram', title: block.title, text: [`Mermaid diagram: ${block.title}`, block.code].join(NEWLINE) };
   if (block.type === 'knowledge') return { kind: 'Graph', title: block.title, text: [`Knowledge graph: ${block.title}`, `Nodes: ${block.graph.nodes.map(node => node.label).join(', ')}`, `Edges: ${block.graph.edges.map(edge => `${edge.source} ${edge.relation} ${edge.target}`).join('; ')}`, block.selected ? `Learner selected: ${block.selected.label}` : ''].join(NEWLINE) };
-  if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return { kind: 'Activity', title: block.title, text: [`Interactive activity: ${block.title}`, `Behaviour: ${block.spec.behaviorId} (${block.spec.execution.mode})`, block.spec.buildGoal ? `Build goal: ${block.spec.buildGoal}` : '', block.spec.checkGoal ? `Check goal: ${block.spec.checkGoal}` : '', block.selectedObject ? `Learner selected: ${block.selectedObject}` : '', `Activity state: ${JSON.stringify(sceneSummary(block))}`].join(NEWLINE) };
+  if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return { kind: 'Activity', title: block.title, text: [`Interactive activity: ${block.title}`, `Behaviour: ${block.spec.behaviorId} (${block.spec.execution.mode})`, block.spec.buildGoal ? `Build goal: ${block.spec.buildGoal}` : '', block.spec.checkGoal ? `Check goal: ${block.spec.checkGoal}` : '', block.selectedObject ? `Learner selected: ${block.selectedObject}` : '', `Activity state: ${JSON.stringify(sceneSummary(block))}`, describeActivity(block)].filter(Boolean).join(NEWLINE) };
   if (block.type === 'scene') return { kind: 'Blender scene', title: block.title, text: [`Generated 3D scene: ${block.title}`, block.brief || '', `Status: ${block.status}`, `Scene specification: ${JSON.stringify(block.operation)}`].join(NEWLINE) };
   if (block.type === 'model3d') return { kind: '3D model', title: block.title, text: [`3D model on the canvas: ${block.title}`, block.brief || '', `Model file: ${block.modelUrl}`, `Animation: ${block.animation?.autoplay ? 'playing' : 'paused'}${block.animation?.clipName ? ` (${block.animation.clipName})` : ''}`].join(NEWLINE) };
   if (block.type === 'image') return { kind: 'Image', title: block.title, text: [`Image on the canvas: ${block.title}`, block.alt || '', block.caption || '', `Source: ${block.src}`].join(NEWLINE) };
+  if (block.type === 'video' && block.videoId) return { kind: 'YouTube moment', title: block.title, text: describeYouTube(block) };
   if (block.type === 'video') return { kind: 'Video', title: block.title, text: [`Video on the canvas: ${block.title}`, block.caption || '', `Status: ${block.status || 'ready'}`, block.operation ? `Generation prompt: ${block.operation.prompt}` : `Source: ${block.src}`].join(NEWLINE) };
   if (block.type === 'paper') return { kind: 'Paper', title: block.title, text: `Paper on the canvas: ${block.title} (arXiv ${block.paper.id}), page ${block.paper.page}.`, paper: { id: block.paper.id, page: block.paper.page } };
   if (block.type === 'table') return { kind: 'Table', title: block.title, text: [`Table: ${block.title}`, block.caption || '', block.columns.join(' | '), ...block.rows.map(row => row.join(' | '))].join('\n') };
+  if (block.type === 'explanation' && block.anchor) return { kind: 'Topic', title: block.title, text: `A topic the learner went deeper into: ${block.title}${block.body ? ` (their words: ${block.body})` : ''}` };
   if (block.type === 'explanation') return { kind: 'Explanation', title: block.title, text: [`Explanation: ${block.title}`, block.body, ...(block.more || []).map(section => `[${section.label}] ${section.text}`)].join('\n') };
   if (block.type === 'graph') return { kind: 'Interactive graph', title: block.title, text: [`Interactive graph: ${block.title}`, block.brief || '', `Renderer: ${block.spec.renderer}`, `Specification: ${JSON.stringify(block.spec)}`, `Learner's current graph state: ${JSON.stringify(block.state || {})}`].join('\n') };
   if (block.type === 'snippet') return { kind: 'Code sample', title: block.title, text: `Code sample: ${block.title}\n${block.brief || ''}\nCode:\n${block.code}\nOutput:\n${block.output || '(none shown)'}` };
@@ -1554,7 +1664,7 @@ export function describeBlock(block) {
   return null;
 }
 
-export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appName, onAskRegion, onGrade, onAskScene }) {
+export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appName, onAskRegion, onGrade, onAskScene, onPracticeHeight, onControlsHeight, selected = true }) {
   if (block.type === 'challenge') return <ChallengeBody block={block} onChange={onChange} onFile={onFile} onGrade={onGrade} appName={appName} />;
   if (block.type === 'quiz') return <QuizBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'flashcards') return <FlashcardsBody block={block} onChange={onChange} />;
@@ -1566,14 +1676,14 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'audio') return <AudioBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return <SceneActivityBody block={block} onChange={onChange} onAskScene={onAskScene} />;
   if (block.type === 'whiteboard') return <WhiteboardBody block={block} appName={appName} onChange={onChange} onAskSelection={onAskRegion} />;
-  if (block.type === 'animation') return <AnimationBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskAnimation={onAskRegion} />;
+  if (block.type === 'animation') return <AnimationBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskAnimation={onAskRegion} onPracticeHeight={onPracticeHeight} onControlsHeight={onControlsHeight} />;
   if (block.type === 'flow') return <FlowBody block={block} />;
   if (block.type === 'mermaid') return <MermaidBody block={block} onChange={onChange} />;
   if (block.type === 'knowledge') return <KnowledgeBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'scene') return <SceneBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'image') return <ImageBody block={block} appName={appName} onChange={onChange} onFile={onFile} />;
   if (block.type === 'video') return <VideoBody block={block} appName={appName} onChange={onChange} onFile={onFile} />;
-  if (block.type === 'paper') return <PaperBody block={block} appName={appName} onChange={onChange} onAskRegion={onAskRegion} />;
+  if (block.type === 'paper') return <PaperBody block={block} appName={appName} onChange={onChange} onAskRegion={onAskRegion} selected={selected} />;
   if (block.type === 'graph') return <GraphBody block={block} appName={appName} onChange={onChange} />;
   return null;
 }

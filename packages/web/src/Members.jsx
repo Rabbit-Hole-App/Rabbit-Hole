@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight, MoreHorizontal, Pencil, Plus, Shield, Square, Trash2, User, Users, X } from 'lucide-react';
-import { api, navigate, wsName } from './api.js';
+import { api, navigate, workspaceLabel, wsName } from './api.js';
+import { learnPreview } from './flags.js';
 import Shell from './Shell.jsx';
 import { Avatar, Button, cn, ConfirmDialog, IconBtn, Input, Menu, MenuItem, Pill, ShareInput, SkeletonRows, toast } from './ui.jsx';
+import { personLabel } from './session-display.js';
 
 // "acme.com" and "acme-com" are the same org - dots normalize to dashes.
 const norm = (s) => (s || '').toLowerCase().replace(/\./g, '-');
@@ -56,7 +58,7 @@ function MembersContent({ data }) {
     <main className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-[1150px] px-24 py-12 max-lg:px-8 max-md:px-4 max-md:py-6">
         <div className="pb-8 text-sm text-ink-2">
-          <button onClick={() => navigate('/apps')} className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink">{wsName(org)}</button>
+          <button onClick={() => navigate('/apps')} className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink">{learnPreview ? workspaceLabel(data?.orgName, org) : wsName(org)}</button>
           <span className="px-1">/</span> <span className="text-ink">Members</span>
         </div>
         <div className="flex items-center justify-between pb-5">
@@ -226,7 +228,7 @@ function MembersContent({ data }) {
                   {t.members.map((m) => (
                     <div key={m} className="group/m flex h-8 items-center gap-2 rounded-sm px-2 text-sm hover:bg-hover">
                       <Avatar email={m} />
-                      <span className="min-w-0 flex-1 truncate">{m}</span>
+                      <span className="min-w-0 flex-1 truncate">{personLabel(m)}</span>
                       <button
                         aria-label={`Remove ${m}`}
                         onClick={async () => { try { await api(`/api/teams/${t.name}/members`, { method: 'POST', body: JSON.stringify({ email: m, remove: true }) }); load(); } catch {} }}

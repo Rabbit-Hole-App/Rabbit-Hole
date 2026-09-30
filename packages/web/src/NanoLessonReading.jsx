@@ -126,7 +126,7 @@ const READING_VISUALS = {
         {lines.map(line => <p key={line} className="font-mono text-xs leading-6 text-ink-2">{line}</p>)}
       </div>)}
     </div>
-    <p className="mt-3 rounded border border-line px-3 py-2 text-center font-mono text-xs text-ink-2">model.py — shared GPT implementation for training and sampling</p>
+    <p className="mt-3 rounded border border-line px-3 py-2 text-center font-mono text-xs text-ink-2">model.py: shared GPT implementation for training and sampling</p>
   </Fig>,
   // Page 5: data / code / checkpoint roles.
   artifacts: () => <Fig label="Data, code and checkpoint" caption="Token files, Python source, and a saved checkpoint play different roles in one pipeline.">

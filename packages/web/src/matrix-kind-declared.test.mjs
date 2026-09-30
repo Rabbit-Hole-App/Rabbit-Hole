@@ -18,7 +18,7 @@ import * as acorn from 'acorn';
 // day after - see docs/superpowers/specs/2026-09-18-visual-language-and-motion-design.md.
 
 const ROOT = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url))))); // packages/web/src -> repo root
-const SKIP_DIRS = new Set(['node_modules', '.git', '.local-benchmark-cache', 'dist', 'build']);
+const SKIP_DIRS = new Set(['node_modules', '.git', '.claude', '.small', '.local-benchmark-cache', 'dist', 'build']);
 
 function walkFiles(dir, matches) {
   for (const entry of readdirSync(dir)) {

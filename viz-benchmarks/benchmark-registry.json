@@ -21,7 +21,11 @@
             "process_scrubbing"
           ],
           "patternAssessability": {
-            "zoom_drilldown": { "declared": true, "assessable": false, "reason": "requires the dynamic or interactive phase" }
+            "zoom_drilldown": {
+              "declared": true,
+              "assessable": false,
+              "reason": "requires the dynamic or interactive phase"
+            }
           },
           "referenceType": "synthetic_internal"
         },
@@ -166,7 +170,11 @@
             "flow"
           ],
           "patternAssessability": {
-            "routing": { "declared": true, "assessable": false, "reason": "requires the dynamic or interactive phase" }
+            "routing": {
+              "declared": true,
+              "assessable": false,
+              "reason": "requires the dynamic or interactive phase"
+            }
           }
         },
         {
@@ -424,6 +432,60 @@
       "candidatePatterns": [
         "flow",
         "matrix_operation"
+      ]
+    },
+    {
+      "id": "rabbit-hole-interactions",
+      "status": "ready",
+      "source": "internal - the four interactive review cards (docs/rabbit-hole-interactive-visuals-agent-spec-v2.md); no external interaction source captured",
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "interactionBenchmark": true,
+      "cases": [
+        {
+          "id": "i01-attention-explorer",
+          "status": "ready",
+          "objective": "Explore query selection and causal masking with live recomputation; predict allowed positions.",
+          "patterns": [
+            "parameter_exploration",
+            "coordinated_views",
+            "matrix_operation",
+            "live_computation"
+          ],
+          "referenceType": "none"
+        },
+        {
+          "id": "i02-image-patch-explorer",
+          "status": "ready",
+          "objective": "One patchIndex from image click, slider and steppers; the crop is a window onto the same file.",
+          "patterns": [
+            "parameter_exploration",
+            "coordinated_views",
+            "zoom_drilldown"
+          ],
+          "referenceType": "none"
+        },
+        {
+          "id": "i03-candidate-future-explorer",
+          "status": "ready",
+          "objective": "Choose a candidate future, commit a prediction, reveal derived example costs.",
+          "patterns": [
+            "routing",
+            "parameter_exploration",
+            "live_computation"
+          ],
+          "referenceType": "none"
+        },
+        {
+          "id": "i04-vector-projection",
+          "status": "ready",
+          "objective": "Drag or type vectors; the projection recomputes live through the existing calculation.",
+          "patterns": [
+            "parameter_exploration",
+            "live_computation"
+          ],
+          "referenceType": "none"
+        }
       ]
     }
   ],

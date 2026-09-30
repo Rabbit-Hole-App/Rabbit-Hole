@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ReactFlow, Background, Controls, Handle, Position } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { afterPaint, usePerf } from './learn-perf.js';
 
 // Structured lesson diagrams: the agent supplies nodes and edges, ELK decides
 // the layout, React Flow draws it. Nothing positions anything by hand.
@@ -28,14 +29,16 @@ function LessonNode({ data }) {
 const nodeTypes = { lesson: LessonNode };
 
 export default function FlowDiagram({ spec }) {
+  const report = usePerf();
   const [layout, setLayout] = useState(null);
+  useEffect(() => { if (layout) afterPaint(() => { report('content'); report('interactive'); }); }, [layout]);
   const [error, setError] = useState('');
   const source = useMemo(() => spec, [JSON.stringify(spec)]);
   useEffect(() => {
     let live = true;
     (async () => {
-      const { default: ELK } = await import('elkjs/lib/elk.bundled.js');
-      const elk = new ELK();
+      const { layoutEngine } = await import('./flow-layout.js');
+      const elk = layoutEngine();
       const measured = source.nodes.map(node => ({ id: node.id, width: Math.max(120, (node.label?.length || 8) * 8), height: node.detail ? 54 : 40 }));
       const graph = await elk.layout({
         id: 'root',
@@ -59,7 +62,10 @@ export default function FlowDiagram({ spec }) {
         })),
         edges: source.edges.map((edge, index) => ({
           id: `e${index}`, source: edge.source, target: edge.target, label: edge.label,
-          animated: !!edge.animated, style: { stroke: '#94a3b8' }, labelStyle: { fontSize: 10, fill: '#787774' },
+          animated: !!edge.animated, style: { stroke: '#94a3b8' }, labelStyle: { fontSize: 10, fill: 'var(--color-ink-2)' },
+          // React Flow's label plate is white in both themes unless told: the
+          // card surface under secondary ink, so the pair flips together.
+          labelBgStyle: { fill: 'var(--color-white)' },
         })),
       });
     })().catch(problem => { if (live) setError(problem.message); });

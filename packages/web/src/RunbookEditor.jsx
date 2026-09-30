@@ -9,6 +9,7 @@ import { Loader2, PenTool } from 'lucide-react';
 import { api, isDark, navigate } from './api.js';
 import { FilePeek } from './ask.jsx';
 import { RunPeek } from './run.jsx';
+import { learnPreview } from './flags.js';
 import { Button, ConfirmDialog, Mark, SlidePanel } from './ui.jsx';
 import { chartBlock, insertChart } from './ChartBlock.jsx';
 
@@ -259,6 +260,7 @@ function loadContent(editor, raw) {
 // Notion behavior: no Save button - edits autosave (debounced), Ctrl+Z is
 // BlockNote's own history. Read-only render for viewers without edit rights.
 export default function Runbook({ app, canEdit, onSaved }) {
+  canEdit = canEdit && !learnPreview; // D7: the preview never writes a live runbook (PUT /api/runbook), from the app page or the Library panel
   const editor = useCreateBlockNote({ schema });
   const dark = useDark();
   const [status, setStatus] = useState('');

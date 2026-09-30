@@ -1,4 +1,4 @@
-// Share page e2e against the live control plane through the Vite dev proxy:
+// Share page e2e against the Rabbit Hole dev control plane through the Vite dev proxy:
 // owner shares counter with bob, bob sees the runbook + read-only popover,
 // owner removes bob, bob hits the access-denied state.
 import { readFileSync } from 'node:fs';
@@ -6,6 +6,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { DEV_CP } from './dev-cp.mjs';
 
 function dotenv() {
   try {
@@ -20,10 +21,10 @@ function dotenv() {
 
 const ENV = dotenv();
 const BOB = 'bob@example.com';
-test.skip(!ENV.SMALL_API || !ENV.SMALL_TEST_BYPASS, 'repo .env with SMALL_API + SMALL_TEST_BYPASS required');
+test.skip(!ENV.RABBIT_HOLE_DEV_TEST_BYPASS, 'repo .env with RABBIT_HOLE_DEV_TEST_BYPASS required');
 
 async function sessionFor(request, email) {
-  const r = await request.post(`${ENV.SMALL_API}/test/session`, { data: { email, secret: ENV.SMALL_TEST_BYPASS } });
+  const r = await request.post(`${DEV_CP}/test/session`, { data: { email, secret: ENV.RABBIT_HOLE_DEV_TEST_BYPASS } });
   expect(r.ok(), await r.text()).toBeTruthy();
   return (await r.json()).session;
 }

@@ -1,0 +1,27 @@
+{
+  "project": "rabbit-hole-interaction-holdouts",
+  "case": "h2-cnn-inspector",
+  "status": "ready",
+  "referenceType": "none",
+  "heldOut": true,
+  "objective": "Inspect a CNN feature map by (layer, channel); the map recomputes as either input changes.",
+  "scope": "A scene NOT used while building the interaction runtime, authored only from existing input types.",
+  "constraints": {
+    "noNewInputType": true,
+    "noNewPrimitive": true,
+    "noSceneIdBranch": true,
+    "noBespokeRenderer": true,
+    "existingTypesOnly": [
+      "index",
+      "bool",
+      "choice",
+      "indices",
+      "vec2"
+    ]
+  },
+  "patterns": [
+    "parameter_exploration",
+    "coordinated_views",
+    "zoom_drilldown"
+  ]
+}

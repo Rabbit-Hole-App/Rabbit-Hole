@@ -1,0 +1,117 @@
+{
+  // The small-parallel session's worker clone. It used to carry the flywheel's phase-3
+  // bindings (Workers AI, Vectorize small-learn-moments, Queue small-learn-index); P0-B Phase 2B
+  // leaves them unbound on rabbit-hole because every use is guarded and degrades to the cold path
+  // (learn-moment-index.js). Re-add them with rabbit-hole resources when the flywheel needs them.
+  "name": "small-cp-dev-small-parallel",
+  // rabbit-hole Cloudflare account (P0-B Phase 2B, docs/features/rabbit-hole-dev.md).
+  "account_id": "c08d3dbdc53a3afd3cb09a536ac42318",
+  "preview_urls": true,
+  "main": "dev-worker.js",
+  "compatibility_date": "2026-08-01",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "LEARN_VIDEOS",
+        "class_name": "LearnVideos"
+      },
+      {
+        "name": "LEARN_SCENES",
+        "class_name": "LearnScenes"
+      },
+      {
+        "name": "REPOSITORY_IMPORTS",
+        "class_name": "RepositoryImports"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "learn-videos-1",
+      "new_sqlite_classes": [
+        "LearnVideos"
+      ]
+    },
+    {
+      "tag": "learn-scenes-1",
+      "new_sqlite_classes": [
+        "LearnScenes"
+      ]
+    },
+    {
+      "tag": "repository-imports-1",
+      "new_sqlite_classes": [
+        "RepositoryImports"
+      ]
+    }
+  ],
+  "assets": {
+    "directory": "./dist-dev",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "rules": [
+    {
+      "type": "Text",
+      "globs": [
+        "**/*.html",
+        "**/*.py"
+      ],
+      "fallthrough": true
+    }
+  ],
+  "r2_buckets": [
+    // No RUNS: production small-runs is never bound on a dev or review worker
+    // (docs/features/dev-prod-write-barrier.md). Run outputs come from CONTROL_PLANE, the dev control
+    // plane, which binds no RUNS either (Phase 2B), so run outputs list empty on dev.
+    // Dev repository snapshots (Map import/refresh) get their own bucket, never a prefix inside the live
+    // small-runs bucket. Production has no such binding (control-plane/test/repositories.test.js).
+    {
+      "binding": "REPOSITORY_SNAPSHOTS",
+      "bucket_name": "rabbit-hole-dev-repositories"
+    },
+    // Learn media on dev/review: never the production bucket
+    // (control-plane/src/learn-storage.js).
+    {
+      "binding": "LEARN_MEDIA",
+      "bucket_name": "rabbit-hole-dev-learn-media"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "rabbit-hole-dev",
+      "database_id": "1ad18fef-ccf9-4a2c-86c7-dc7e87b268a2"
+    },
+    {
+      "binding": "BYOC_DB",
+      "database_name": "rabbit-hole-byoc-dev",
+      "database_id": "cae839e6-6d58-4037-9e92-d47346356c2f"
+    },
+    {
+      "binding": "LEARN_DB",
+      "database_name": "rabbit-hole-learn-dev",
+      "database_id": "028f800f-ce8e-4461-adb2-827f417492eb"
+    }
+  ],
+  "vars": {
+    "LEARN_VIDEO_PROVIDER": "fal-seedance-lite",
+    "LEARN_VIDEO_RESOLUTION": "480p",
+    "SUBSCRIPTION_ONLY": "false",
+    "SUBSCRIPTION_OWNER_EMAIL": "yudhisteer.chin@gmail.com",
+    "BYOC_REGION": "us-east-1",
+    "BYOC_PRINCIPAL_ARN": "arn:aws:iam::637423432890:user/small-byoc-dev",
+    "BYOC_TEMPLATE_BUCKET": "small-byoc-installer-637423432890-us-east-1",
+    "SCENE_WORKER_URL": "https://small-lesson-renderer-dev.fly.dev"
+  },
+  "services": [
+    {
+      "binding": "CONTROL_PLANE",
+      "service": "rabbit-hole-cp-dev"
+    }
+  ]
+}

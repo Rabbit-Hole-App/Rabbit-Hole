@@ -120,7 +120,14 @@ npm run build -- --outDir dist-dev
 npx wrangler deploy --config wrangler.dev.jsonc --name small-cp-dev-<worktree-name>
 ```
 
-Your app is then at `https://small-cp-dev-<worktree-name>.zeroshothq.workers.dev`
+Dev and review Workers live on the separate **rabbit-hole** Cloudflare account
+(`account_id` is pinned in the dev configs). Load its `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` from `small-deploy/.env` into the command environment - never
+print them. Test sessions come from `rabbit-hole-cp-dev` `/test/session`
+(`packages/web/e2e/dev-cp.mjs`, key `RABBIT_HOLE_DEV_TEST_BYPASS`), never from
+production; see [docs/features/rabbit-hole-dev.md](docs/features/rabbit-hole-dev.md).
+
+Your app is then at `https://small-cp-dev-<worktree-name>.tryrabbithole.workers.dev`
 - test sessions, boards and screenshots all work there (verified). Constraints:
 the dev D1 is shared across all clones, so announce any schema migration before
 running it; true wrangler secrets do not clone, so a feature needing one shows
@@ -128,3 +135,17 @@ its no-credential message on your clone; rebase onto main before pushing; and
 delete your clone when the session ends:
 `npx wrangler delete --name small-cp-dev-<worktree-name> --config wrangler.dev.jsonc`.
 Only deploy to the shared worker (no `--name`) when explicitly told to promote.
+
+## Trigger word: `learn-cleanup`
+
+When the user types just `learn-cleanup`, resume the deferred Learn cleanup on
+branch `feature/learn-cleanup`:
+
+1. Run the deferred units U7 lifecycle, U8 registries/paid/history and U9
+   checks/docs. Their verified findings and the build workflow are in
+   `docs/features/learn-cleanup/`: rerun `build-workflow.js` with UNITS
+   filtered to those three.
+2. Re-check each finding against the current code before acting on it.
+3. Then do C11 acceptance and the closeout in `docs/features/learn-cleanup.md`.
+
+Deploy, push and real model calls still each need a typed go.

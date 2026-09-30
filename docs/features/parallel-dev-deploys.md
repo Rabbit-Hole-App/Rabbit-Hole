@@ -16,8 +16,11 @@ npm run build -- --outDir dist-dev
 npx wrangler deploy --config wrangler.dev.jsonc --name small-cp-dev-<session>
 ```
 
-That creates (or updates) `https://small-cp-dev-<session>.zeroshothq.workers.dev`
-with the same config, bindings and dev D1 as `small-cp-dev`. Verified working:
+That creates (or updates) `https://small-cp-dev-<session>.tryrabbithole.workers.dev`
+on the rabbit-hole account, with the same config, bindings and dev D1 as `small-cp-dev`
+(P0-B Phase 2B, [rabbit-hole-dev.md](rabbit-hole-dev.md); test sessions now come from
+`rabbit-hole-cp-dev`). Before 2026-09-30 clones lived on `*.zeroshothq.workers.dev`
+(personal account, now quarantined). Verified working:
 `small-cp-dev-parallel` serves the app and `/test/session` authenticates, so the
 full review flow (test session, boards, screenshots) works against a clone.
 

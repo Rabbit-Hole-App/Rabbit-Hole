@@ -54,7 +54,7 @@ const tbArrow = (id, from, to) => ({
 
 export const transformerBlockScene = {
   id: 'nanogpt-transformer-block',
-  title: 'nanoGPT — Transformer Block',
+  title: 'nanoGPT: Transformer Block',
   width: 1120,
   height: 340,
   duration: 11,
@@ -198,7 +198,7 @@ export const transformerBlockScene = {
 
 export const vlmScene = {
   id: 'vlm-image-to-llm',
-  title: 'VLM — Image to Patches to Projector to LLM',
+  title: 'VLM: Image to Patches to Projector to LLM',
   width: 1080,
   height: 500,
   duration: 12.4,
@@ -304,7 +304,7 @@ const COSTS = [7.5, 2.0, 4.5]; // predicted cost per action; B is cheapest, so B
 
 export const worldModelScene = {
   id: 'world-model-branching-futures',
-  title: 'World Model — Branching Futures',
+  title: 'World Model: Branching Futures',
   width: 1000,
   height: 730,
   duration: 8.2,
@@ -417,7 +417,7 @@ export const worldModelScene = {
 // itself, agreeing with the breadcrumb's own deepest segment.
 export const codebaseOrientationScene = {
   id: 'codebase-architecture-orientation',
-  title: 'Large Codebase — Architecture Orientation',
+  title: 'Large Codebase: Architecture Orientation',
   width: 900,
   height: 650,
   duration: 10.2,
@@ -507,54 +507,54 @@ const ATTENTION_SNIPPET = "att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.
 export function staticAppReviewBlocks() {
   return [
     // 1. nanoGPT - Self-Attention. Reuses the existing benchmarked scene.
-    explanation('nanoGPT — Self-Attention',
-      'Self-attention lets each token gather information from the tokens before it. Every token is projected into a query, a key and a value; the query and key decide *how much* to attend, and the value is *what* gets carried forward.\n\nBecause nanoGPT predicts the next character, a token must never see the future — the causal mask blocks every score above the diagonal before the softmax runs.\n\nSource: nanoGPT’s `model.py` — `CausalSelfAttention.forward()`.'),
+    explanation('nanoGPT: Self-Attention',
+      'Self-attention lets each token gather information from the tokens before it. Every token is projected into a query, a key and a value; the query and key decide *how much* to attend, and the value is *what* gets carried forward.\n\nBecause nanoGPT predicts the next character, a token must never see the future: the causal mask blocks every score above the diagonal before the softmax runs.\n\nSource: nanoGPT’s `model.py`: `CausalSelfAttention.forward()`.'),
     animation(causalAttentionScene, 17.2),
     snippet("nanoGPT's CausalSelfAttention (model.py)", 'The same Q·Kᵀ, mask, softmax, ·V pipeline shown above, as it actually appears in the repo.', ATTENTION_SNIPPET),
     quiz('Why is every score above the diagonal masked out before softmax?', [
-      { key: 'A', text: 'So position i cannot attend to positions after it — attending to the future would leak the answer.', correct: true },
+      { key: 'A', text: 'So position i cannot attend to positions after it: attending to the future would leak the answer.', correct: true },
       { key: 'B', text: 'To make the softmax numerically stable.' },
       { key: 'C', text: 'To reduce the number of floating point operations.' },
-    ], 'nanoGPT predicts the next token from only what came before it. If position i could see position i+1, training would be trivially solved by copying — the model would never learn to predict.'),
+    ], 'nanoGPT predicts the next token from only what came before it. If position i could see position i+1, training would be trivially solved by copying: the model would never learn to predict.'),
 
     // 2. nanoGPT - Transformer Block.
-    explanation('nanoGPT — Transformer Block',
-      'Each transformer block wraps two sub-layers — attention, then an MLP — in the same pattern: normalize, transform, and add the result back to the input. That addition is the residual connection: it means a sub-layer only has to learn the *change* it makes, not the whole representation.\n\nThe shape (batch, sequence length, embedding width) never changes across a block — everything that goes in comes out the same size.\n\nSource: nanoGPT’s `model.py` — the `Block` class.'),
+    explanation('nanoGPT: Transformer Block',
+      'Each transformer block wraps two sub-layers (attention, then an MLP) in the same pattern: normalize, transform, and add the result back to the input. That addition is the residual connection: it means a sub-layer only has to learn the *change* it makes, not the whole representation.\n\nThe shape (batch, sequence length, embedding width) never changes across a block: everything that goes in comes out the same size.\n\nSource: nanoGPT’s `model.py`: the `Block` class.'),
     animation(transformerBlockScene, 10.8),
-    snippet("nanoGPT's Block.forward() (model.py)", 'Two sub-layers, two residual adds — the whole diagram above, in three lines.', 'def forward(self, x):\n    x = x + self.attn(self.ln_1(x))\n    x = x + self.mlp(self.ln_2(x))\n    return x'),
+    snippet("nanoGPT's Block.forward() (model.py)", 'Two sub-layers, two residual adds: the whole diagram above, in three lines.', 'def forward(self, x):\n    x = x + self.attn(self.ln_1(x))\n    x = x + self.mlp(self.ln_2(x))\n    return x'),
     quiz('If x has shape (B, T, C) going into the block, what shape does it have coming out?', [
-      { key: 'A', text: 'B, T, C — a transformer block preserves shape so blocks can be stacked.', correct: true },
-      { key: 'B', text: 'B, T, 4C — the MLP expansion changes the output width.' },
-      { key: 'C', text: 'B, 4T, C — attention lengthens the sequence.' },
+      { key: 'A', text: 'B, T, C: a transformer block preserves shape so blocks can be stacked.', correct: true },
+      { key: 'B', text: 'B, T, 4C: the MLP expansion changes the output width.' },
+      { key: 'C', text: 'B, 4T, C: attention lengthens the sequence.' },
     ], "The MLP's inner expansion to 4C is undone by its own output projection back to C before the residual add, and attention never changes T. Shape preservation is exactly what lets N identical blocks stack."),
 
     // 3. VLM - Image to Patches to Projector to LLM.
-    explanation('VLM — Image to Patches to Projector to LLM',
-      'A vision-language model reads an image the same way it reads text: as a sequence of tokens. The image is cut into fixed-size patches, a vision encoder turns each patch into a visual token, and a small projector maps those tokens from the vision model’s width into the language model’s width so they can sit in the same sequence as text tokens.\n\nThe projector is usually the only new, trained-from-scratch part — the vision encoder and the language model are both reused, pretrained separately.\n\nReference: the LLaVA-style image → patches → encoder → projector → LLM pipeline (Liu et al., *Visual Instruction Tuning*).'),
+    explanation('VLM: Image to Patches to Projector to LLM',
+      'A vision-language model reads an image the same way it reads text: as a sequence of tokens. The image is cut into fixed-size patches, a vision encoder turns each patch into a visual token, and a small projector maps those tokens from the vision model’s width into the language model’s width so they can sit in the same sequence as text tokens.\n\nThe projector is usually the only new, trained-from-scratch part: the vision encoder and the language model are both reused, pretrained separately.\n\nReference: the LLaVA-style image → patches → encoder → projector → LLM pipeline (Liu et al., *Visual Instruction Tuning*).'),
     animation(vlmScene, 10.4),
-    snippet('A minimal vision-to-language projector', 'The projector is a small module bridging two pretrained models — often just a linear layer or a small MLP.',
+    snippet('A minimal vision-to-language projector', 'The projector is a small module bridging two pretrained models: often just a linear layer or a small MLP.',
       'patches = image_to_patches(image, patch_size=14)   # (num_patches, 3, 14, 14)\nvisual_tokens = vision_encoder(patches)             # (num_patches, 1152)\nprojected = mm_projector(visual_tokens)             # nn.Linear(1152, 4096)\nllm_input = torch.cat([projected, text_tokens], dim=0)'),
     quiz('Why does the projector need to exist, instead of feeding visual tokens straight into the language model?', [
-      { key: 'A', text: "The vision encoder's token width (1152) and the language model's embedding width (4096) are different — the projector maps one into the other.", correct: true },
+      { key: 'A', text: "The vision encoder's token width (1152) and the language model's embedding width (4096) are different: the projector maps one into the other.", correct: true },
       { key: 'B', text: "Images need to be resized to match the language model's input length." },
       { key: 'C', text: 'The projector converts pixel values into RGB tokens.' },
-    ], "The vision encoder and the language model are two separately pretrained networks with their own hidden widths. Nothing else in the pipeline reconciles that mismatch — that is the projector's one job."),
+    ], "The vision encoder and the language model are two separately pretrained networks with their own hidden widths. Nothing else in the pipeline reconciles that mismatch: that is the projector's one job."),
 
     // 4. World Model - Branching Futures.
-    explanation('World Model — Branching Futures',
-      "A model-based planner doesn't just react — it imagines. From the current state, it rolls a handful of candidate actions forward through a learned world model, one predicted future per action, and scores each by a cost function.\n\nOnly one action is actually taken, and only that branch is ever observed; the others stay predictions forever. The distinction matters: a *prediction* can be wrong, an *observation* already happened.\n\nThis pattern — predict, score, pick the cheapest, then observe what really happens — underlies model-predictive control and most modern planning agents."),
+    explanation('World Model: Branching Futures',
+      "A model-based planner doesn't just react. It imagines. From the current state, it rolls a handful of candidate actions forward through a learned world model, one predicted future per action, and scores each by a cost function.\n\nOnly one action is actually taken, and only that branch is ever observed; the others stay predictions forever. The distinction matters: a *prediction* can be wrong, an *observation* already happened.\n\nThis pattern (predict, score, pick the cheapest, then observe what really happens) underlies model-predictive control and most modern planning agents."),
     animation(worldModelScene, 8.0, 'action-b'),
     snippet('A minimal planning loop', 'Pseudocode for what the diagram above draws: predict, score, pick, act.',
       'best_action, best_cost = None, float(\'inf\')\nfor action in candidate_actions:\n    future_state = world_model.predict(state, action)\n    cost = cost_fn(future_state, goal)\n    if cost < best_cost:\n        best_action, best_cost = action, cost\nexecute(best_action)'),
     quiz('After the chosen action runs, what happens to the other two predicted futures?', [
-      { key: 'A', text: 'They are discarded — only the branch that was actually taken is ever observed.', correct: true },
+      { key: 'A', text: 'They are discarded: only the branch that was actually taken is ever observed.', correct: true },
       { key: 'B', text: 'They are averaged together with the observed outcome.' },
       { key: 'C', text: 'They become the new candidate actions for the next planning step.' },
-    ], 'A predicted future is a hypothesis the model never gets to test unless that action is chosen. Once action B runs, futures A and C stay exactly what they always were — predictions that were never observed.'),
+    ], 'A predicted future is a hypothesis the model never gets to test unless that action is chosen. Once action B runs, futures A and C stay exactly what they always were: predictions that were never observed.'),
 
     // 5. Large Codebase - Architecture Orientation.
-    explanation('Large Codebase — Architecture Orientation',
-      "Before reading one function, it helps to know where it sits. nanoGPT has four real subsystems: data preparation, the model definition, training, and sampling. `model.py` is the one piece shared by both training and sampling, and inside it, the `Block` class's `CausalSelfAttention` method — the exact function explained earlier — is highlighted below as *you are here*.\n\nThe breadcrumb under the diagram is the exact path from the repo root down to that function."),
+    explanation('Large Codebase: Architecture Orientation',
+      "Before reading one function, it helps to know where it sits. nanoGPT has four real subsystems: data preparation, the model definition, training, and sampling. `model.py` is the one piece shared by both training and sampling, and inside it, the `Block` class's `CausalSelfAttention` method (the exact function explained earlier) is highlighted below as *you are here*.\n\nThe breadcrumb under the diagram is the exact path from the repo root down to that function."),
     animation(codebaseOrientationScene, 10.2),
     table('Where the code lives', "Five files across nanoGPT's four subsystems.", ['File', 'Subsystem', 'Key symbol'], [
       ['`data/prepare.py`', 'Data Prep', 'tokenizes raw text into `train.bin` / `val.bin`'],
@@ -563,11 +563,11 @@ export function staticAppReviewBlocks() {
       ['`sample.py`', 'Sampling', 'generation from a checkpoint'],
       ['`configurator.py`', '(all)', 'plain-text CLI config overrides'],
     ]),
-    snippet("nanoGPT's CausalSelfAttention.forward() (model.py)", 'Reached by the breadcrumb above — the same function explained at the start of this lesson.', ATTENTION_SNIPPET),
+    snippet("nanoGPT's CausalSelfAttention.forward() (model.py)", 'Reached by the breadcrumb above: the same function explained at the start of this lesson.', ATTENTION_SNIPPET),
     quiz('Why does model.py sit below Training and Sampling in the diagram, feeding both, instead of next to them in the same row?', [
-      { key: 'A', text: 'Because it is a shared dependency, not a pipeline stage — both Training and Sampling load the same GPT implementation.', correct: true },
+      { key: 'A', text: 'Because it is a shared dependency, not a pipeline stage: both Training and Sampling load the same GPT implementation.', correct: true },
       { key: 'B', text: 'Because model.py runs after both Training and Sampling finish.' },
       { key: 'C', text: 'Because model.py is the entry point that calls Training and then Sampling.' },
-    ], "Data Prep -> Training -> Sampling is a real sequence — each stage's output feeds the next. model.py isn't a stage in that sequence at all; it's the shared implementation both Training and Sampling import, which is why the diagram draws it underneath, feeding upward into both."),
+    ], "Data Prep -> Training -> Sampling is a real sequence: each stage's output feeds the next. model.py isn't a stage in that sequence at all; it's the shared implementation both Training and Sampling import, which is why the diagram draws it underneath, feeding upward into both."),
   ];
 }

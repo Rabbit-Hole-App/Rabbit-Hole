@@ -1,0 +1,17 @@
+{
+  "created": "2026-09-28",
+  "mode": "built-in image generation",
+  "prompt": "blog-collage-prompt.md",
+  "file": "public/landing/blog-atlas-v4.png",
+  "source": "C:/Users/cyudhist/.codex/generated_images/01a0cb44-ebb0-7592-8034-8261df19c52f/exec-5366dfbe-b00f-4d6c-9ec8-f35316223b1d.png",
+  "width": 2172,
+  "height": 724,
+  "bytes": 3316430,
+  "sha256": "9f5ffb48fcde7a2144aaed52dc831253fea46632e2cd294cbba2e70356d641c5",
+  "previousVersions": [
+    {"file": "public/landing/blog-collage-v1.png", "bytes": 3008120, "sha256": "38d2e720f07babcccc14802717b5c19ace9809bcba54280399d0a3ee3a3ad461", "note": "Pink first version"},
+    {"file": "public/landing/blog-collage-v2.png", "bytes": 1727183, "sha256": "13cba8d5654da5a21875fb82e11c645c645c977643d5bbcd67fe8f6cb7c6fe05", "note": "White intermediate; diagrams not yet expanded"},
+    {"file": "public/landing/blog-collage-v3.png", "bytes": 1974713, "sha256": "d7a7e18ccdcda798066d0e113f48be617e19f0af6c45c397fc5e2a2bd4552a8d", "note": "Rejected white collage with expanded diagrams"}
+  ],
+  "placement": "New colorful aqua, cobalt and teal atlas composition confined to the Blog header. White page below; article cards and readers preserved. No paper animation or pink scroll tint."
+}

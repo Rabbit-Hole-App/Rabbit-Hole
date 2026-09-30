@@ -4,13 +4,18 @@ import { minimapLayout, minimapToView } from './learn-minimap.js';
 
 const SIZE = { w: 184, h: 124 };
 
-// Bottom-right overview of the canvas. Press or drag inside it to send the
-// camera there; the button in its corner frames everything at once, which is the
-// way back when you have panned into empty space and lost the column.
+// Overview of the canvas: lower right in the bottom strip beside the composer (the tools' strip on a phone) - never over it.
+// Press or drag inside it to send the camera there; the button in its corner
+// frames everything at once, which is the way back when you have panned into
+// empty space and lost the column.
 export default function CanvasMinimap({ boxes, view, surface, onView, onFit }) {
   const frame = useRef(null);
   const layout = minimapLayout(boxes, view, surface, SIZE);
-  if (!layout) return null;
+  // An empty canvas (a new Rabbit Hole) keeps the frame, so the shell does not jump at the first object.
+  if (!layout) return <div style={{ width: SIZE.w, height: SIZE.h }} className="relative flex items-center justify-center overflow-hidden rounded-xl border border-line bg-white shadow-md">
+    <svg role="img" aria-label="Canvas overview" width={SIZE.w} height={SIZE.h} className="absolute inset-0" />
+    <span className="text-[11px] text-ink-3">Nothing here yet</span>
+  </div>;
   const goTo = event => {
     const box = frame.current.getBoundingClientRect();
     onView(minimapToView({ x: event.clientX - box.left, y: event.clientY - box.top }, layout, surface, view.z));
@@ -23,7 +28,7 @@ export default function CanvasMinimap({ boxes, view, surface, onView, onFit }) {
   };
   return (
     <div style={{ width: SIZE.w, height: SIZE.h }}
-      className="absolute right-3 bottom-3 z-20 overflow-hidden rounded-xl border border-line bg-white/90 shadow-md backdrop-blur-sm">
+      className="relative overflow-hidden rounded-xl border border-line bg-white shadow-md">
       <svg ref={frame} role="img" aria-label="Canvas overview" width={SIZE.w} height={SIZE.h} className="block cursor-pointer touch-none"
         onPointerDown={drag} onPointerMove={event => { if (event.currentTarget.hasPointerCapture(event.pointerId)) goTo(event); }}>
         {layout.boxes.map((box, index) => (

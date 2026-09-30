@@ -1,0 +1,38 @@
+{
+  "patch-0": {
+    "human": "Patch 1 of 16 · row 1, column 1",
+    "crop": {
+      "x": 0,
+      "y": 0,
+      "w": 0.25,
+      "h": 0.25
+    }
+  },
+  "patch-5": {
+    "human": "Patch 6 of 16 · row 2, column 2",
+    "crop": {
+      "x": 0.25,
+      "y": 0.25,
+      "w": 0.25,
+      "h": 0.25
+    }
+  },
+  "patch-9": {
+    "human": "Patch 10 of 16 · row 3, column 2",
+    "crop": {
+      "x": 0.25,
+      "y": 0.5,
+      "w": 0.25,
+      "h": 0.25
+    }
+  },
+  "patch-15": {
+    "human": "Patch 16 of 16 · row 4, column 4",
+    "crop": {
+      "x": 0.75,
+      "y": 0.75,
+      "w": 0.25,
+      "h": 0.25
+    }
+  }
+}

@@ -23,15 +23,23 @@ export function withAwsApp(data, connection, jobs = [{ name: connection?.job_nam
   return { ...data, apps: apps.length === data.apps.length ? data.apps : apps, ...(awsError ? { awsError } : {}) };
 }
 
+// The control plane answers /api/byoc/connection with 503 only when AWS is not configured
+// (control-plane/src/byoc.js:77): an unavailable capability, not a failure.
+export const awsUnavailable = (error) => error?.status === 503;
+
+// awsAvailable says whether this control plane offers AWS at all; the AWS surfaces show only then.
 export async function loadApps() {
   const data = await api('/api/apps');
   if (isPrivateByoc || import.meta.env?.VITE_BYOC_DEV !== 'true') return data;
+  let connection;
+  try { ({ connection } = await api('/api/byoc/connection')); } catch (error) {
+    return awsUnavailable(error) ? data : { ...data, awsAvailable: true, awsError: 'Could not load AWS apps: ' + error.message };
+  }
   try {
-    const { connection } = await api('/api/byoc/connection');
-    if (!connection || connection.state !== 'connected' || connection.org !== data.org) return data;
+    if (!connection || connection.state !== 'connected' || connection.org !== data.org) return { ...data, awsAvailable: true };
     const { apps } = await awsClient(connection)('/apps');
-    return withAwsApp(data, connection, apps);
-  } catch (error) { return { ...data, awsError: 'Could not load AWS apps: ' + error.message }; }
+    return { ...withAwsApp(data, connection, apps), awsAvailable: true };
+  } catch (error) { return { ...data, awsAvailable: true, awsError: 'Could not load AWS apps: ' + error.message }; }
 }
 
 const utc = (value) => value ? new Date(value).toISOString().slice(0, 19).replace('T', ' ') : null;

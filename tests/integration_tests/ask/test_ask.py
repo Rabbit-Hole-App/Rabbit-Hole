@@ -7,7 +7,7 @@ Covers the three spec scenarios:
 - org-scope "why did yolo fail" with several yolo apps returns a choose;
 - a viewer asking for an action gets an answer naming who has edit rights.
 
-Needs: repo-root .env with SMALL_API + SMALL_TEST_BYPASS, yolo-s3-job deployed
+Needs: repo-root .env with RABBIT_HOLE_DEV_TEST_BYPASS, yolo-s3-job deployed
 with its [inputs] schema, and the fixture image seeded at itest/people.jpg.
 Model-dependent assertions are kept loose on purpose.
 """
@@ -36,7 +36,7 @@ def _dotenv():
 
 
 ENV = _dotenv()
-API = ENV["SMALL_API"]
+API = ENV.get("RABBIT_HOLE_DEV_CP", "https://rabbit-hole-cp-dev.tryrabbithole.workers.dev")
 OWNER = json.loads((Path.home() / ".small" / "config.json").read_text())["email"]
 
 
@@ -66,13 +66,13 @@ def sse_text(body):
 
 @pytest.fixture(scope="session")
 def owner_session():
-    _, body = post("/test/session", {"email": OWNER, "secret": ENV["SMALL_TEST_BYPASS"]})
+    _, body = post("/test/session", {"email": OWNER, "secret": ENV.get("RABBIT_HOLE_DEV_TEST_BYPASS", "")})
     return json.loads(body)["session"]
 
 
 @pytest.fixture(scope="session")
 def bob_session():
-    _, body = post("/test/session", {"email": "bob@gmail.com", "secret": ENV["SMALL_TEST_BYPASS"]})
+    _, body = post("/test/session", {"email": "bob@gmail.com", "secret": ENV.get("RABBIT_HOLE_DEV_TEST_BYPASS", "")})
     return json.loads(body)["session"]
 
 

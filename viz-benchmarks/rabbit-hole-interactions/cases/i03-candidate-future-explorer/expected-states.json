@@ -1,0 +1,12 @@
+{
+  "case": "i03-candidate-future-explorer",
+  "expected": {
+    "costs": [
+      4,
+      1,
+      9
+    ],
+    "derivation": "cost_x = dot(sub(terminal, goal), sub(terminal, goal)) - never typed as output",
+    "reveal": "shownCosts = gate(costs, resultsRevealed); resultsRevealed is granted by a committed attempt only"
+  }
+}

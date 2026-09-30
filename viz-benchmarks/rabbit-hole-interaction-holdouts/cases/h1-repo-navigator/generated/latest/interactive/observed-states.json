@@ -1,0 +1,34 @@
+{
+  "node-0": {
+    "crumb": "nanoGPT › model.py",
+    "code": "class GPT(nn.Module): self.blocks = [Block(c) ...]",
+    "archRow": {
+      "row": 0
+    },
+    "sel": "model.py"
+  },
+  "node-1": {
+    "crumb": "nanoGPT › model.py › Block",
+    "code": "class Block: self.attn = CausalSelfAttention(c)",
+    "archRow": {
+      "row": 1
+    },
+    "sel": "Block"
+  },
+  "node-2": {
+    "crumb": "nanoGPT › model.py › Block › CausalSelfAttention",
+    "code": "class CausalSelfAttention: self.c_attn = Linear(...)",
+    "archRow": {
+      "row": 2
+    },
+    "sel": "CausalSelfAttention"
+  },
+  "node-3": {
+    "crumb": "nanoGPT › model.py › Block › CausalSelfAttention › forward()",
+    "code": "def forward(x): att = (q @ k.T) * scale",
+    "archRow": {
+      "row": 3
+    },
+    "sel": "forward()"
+  }
+}

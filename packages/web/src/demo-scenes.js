@@ -6,6 +6,12 @@
 
 import { causalAttentionScene } from './reference-scenes.js';
 import { staticAppReviewBlocks } from './gallery-scenes.js';
+import { reviewNotebook, reviewWorkspace } from './review-notebook.js';
+import { interactiveAppReviewBlocks } from './interactive-scenes.js';
+import { holdoutBoardBlocks } from './interactive-holdouts.js';
+import { nanogptDeepDiveBlocks, NANOGPT_REVIEW_STATES } from './nanogpt/board.js';
+import { nanogptDepthLadderBlocks, DEPTH_REVIEW_STATES } from './nanogpt/depth/board.js';
+import { TUTOR_BOARD, tutorSliceBlocks } from './learn-tutor-claims.js';
 
 // --- 1. why an axis must hold still -----------------------------------------
 // The same reveal drawn twice. On the left the axis is recomputed from the
@@ -289,8 +295,8 @@ const anatomy = (role, top) => [
   { id: `${role}-box`, type: 'box', semanticId: `${role}-box`, initialState: { label: 'box', role, x: 40, y: top, w: 110, h: 64 } },
   { id: `${role}-arrow`, type: 'arrow', semanticId: `${role}-arrow`, initialState: { role, from: { x: 170, y: top + 32 }, to: { x: 268, y: top + 32 } } },
   { id: `${role}-bars`, type: 'bars', semanticId: `${role}-bars`, initialState: { role, x: 290, y: top, w: 112, h: 64, peak: 1, values: [0.35, 0.7, 0.5, 1] } },
-  { id: `${role}-grid`, type: 'grid', semanticId: `${role}-grid`, initialState: { role, x: 430, y: top, rows: 2, cols: 3, cell: 32, matrixKind: 'input', values: [0.4, -0.2, 0.9, 0.1, 0.6, -0.5] } },
-  { id: `${role}-strip`, type: 'strip', semanticId: `${role}-strip`, initialState: { role, x: 560, y: top + 16, cell: 32, values: [0.2, 0.8, -0.3] } },
+  { id: `${role}-grid`, type: 'grid', semanticId: `${role}-grid`, initialState: { role, x: 430, y: top, rows: 2, cols: 3, cell: 42, matrixKind: 'input', values: [0.4, -0.2, 0.9, 0.1, 0.6, -0.5] } },
+  { id: `${role}-strip`, type: 'strip', semanticId: `${role}-strip`, initialState: { role, x: 580, y: top + 16, cell: 42, values: [0.2, 0.8, -0.3] } },
 ];
 export const anatomyScene = {
   id: 'role-anatomy',
@@ -343,7 +349,37 @@ export const BOARDS = {
   'static-app-review': staticAppReviewBlocks,
   'static-app-review-2': staticAppReviewBlocks,
   'static-app-review-3': staticAppReviewBlocks,
+  // Canvas notebook review (docs/features/canvas-notebook.md): a teaching card
+  // above a real notebook workspace (experiment.ipynb, .py, config and data
+  // files), resized from its default 640x540; the notebook's cells were run.
+  'canvas-notebook-review': () => [
+    { id: 'review-teach', type: 'explanation', dx: 0, dy: 0, title: 'Softmax turns scores into probabilities',
+      body: 'Exponentiate each score so every value is positive, then divide by the sum so the outputs add to one. Bigger scores win disproportionately, because $e^x$ grows faster than $x$.',
+      more: [{ label: 'Why shifting is safe', text: 'Adding the same constant $c$ to every score multiplies every $e^{s}$ by $e^{c}$, which cancels in the division. Libraries subtract the largest score to avoid overflow.' }] },
+    { id: 'review-notebook', type: 'notebook', notebook_id: 'review-softmax-notebook', language: 'python', dx: 0, dy: 0, w: 720, h: 760,
+      active_path: 'experiment.ipynb', ipynb_path: 'experiment.ipynb', ipynb: reviewNotebook, seed_files: reviewWorkspace },
+  ],
+  // The interactive review (docs/rabbit-hole-interactive-visuals-agent-spec-v2.md
+  // T12): the four interactive cards - attention, image patches, candidate
+  // futures, vector projection - each with its practice task. Seeds fresh
+  // through the same versioned mechanism as every other review board.
+  'interactive-app-review': interactiveAppReviewBlocks,
+  // The generalization holdouts (repo navigator + CNN inspector): unseen
+  // scenes built only from existing input types, to test whether the
+  // interaction vocabulary generalizes beyond the four it was built on.
+  'interactive-holdouts': holdoutBoardBlocks,
+  // The NanoGPT deep dive (docs/nanogpt-deep-dive-board-plan.md): first
+  // batch of ten cards bound to karpathy/nanoGPT@3adf61e - the revision the
+  // Rabbit Hole app is connected to - with fixtures generated from it.
+  'nanogpt-deep-dive': nanogptDeepDiveBlocks,
+  'nanogpt-depth-ladder': nanogptDepthLadderBlocks,
+  // Tutor v1: the NanoGPT Attention slice (docs/features/tutor-v1-locked-decisions.md §10).
+  [TUTOR_BOARD]: tutorSliceBlocks,
 };
+
+// Per board, the input states a reviewer should see each card in, keyed by
+// scene id (e2e/review-shots.mjs, e2e/board-interaction-check.mjs).
+export const BOARD_REVIEW_STATES = { 'nanogpt-deep-dive': NANOGPT_REVIEW_STATES, 'nanogpt-depth-ladder': DEPTH_REVIEW_STATES };
 
 // Bump a board's entry here whenever its seed content changes. The version is
 // part of the board's storage key, so a bump moves every browser to a fresh
@@ -354,4 +390,10 @@ export const BOARD_SEED_VERSIONS = {
   'static-app-review': 5,
   'static-app-review-2': 2,
   'static-app-review-3': 1,
+  'canvas-notebook-review': 1,
+  'interactive-app-review': 8,
+  'interactive-holdouts': 2,
+  'nanogpt-deep-dive': 13,
+  'nanogpt-depth-ladder': 9,
+  [TUTOR_BOARD]: 1,
 };

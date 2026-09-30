@@ -8,6 +8,6 @@ export default defineConfig({
     command: 'npm run preview -- --outDir dist-dev --host 127.0.0.1 --port 5186 --strictPort',
     url: 'http://127.0.0.1:5186', reuseExistingServer: false,
     // The browser mocks all APIs; any missed proxy request stays local too.
-    env: { SMALL_API: 'http://127.0.0.1:1' },
+    env: { RABBIT_HOLE_DEV_CP: 'http://127.0.0.1:1' },
   },
 });

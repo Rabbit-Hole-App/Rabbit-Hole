@@ -103,6 +103,7 @@ function test:unit {
     (cd "$THIS_DIR/packages/control-plane" && npm test)
     node --test "$THIS_DIR/viz-benchmarks/check-synthetic-fixtures.test.mjs"
     node --test "$THIS_DIR/viz-benchmarks/critic-packet-isolation.test.mjs"
+    node --test "$THIS_DIR/tests/evals/learn-grade/*.test.mjs"
 }
 
 # full integration tests: real deploy to Fly through the published CLI (~30s)

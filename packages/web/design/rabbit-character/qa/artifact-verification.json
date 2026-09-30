@@ -1,0 +1,113 @@
+{
+  "verified_at": "2026-09-23T20:15:26.297449+00:00",
+  "revision": 4,
+  "pass": true,
+  "seed_matches_original_visible_ink_and_alpha_at_2x": true,
+  "frame_size": [
+    512,
+    512
+  ],
+  "anchor": [
+    256,
+    480
+  ],
+  "unique_run_frames": 8,
+  "stance_frames": [
+    1,
+    2,
+    3,
+    5,
+    6,
+    7
+  ],
+  "flight_clearance_pixels": {
+    "4": 40,
+    "8": 24
+  },
+  "transparent_ink_only": true,
+  "strip_matches_frames": true,
+  "lossless_decoded_run_previews": {
+    "gif": {
+      "frames": 8,
+      "durations_ms": [
+        80,
+        70,
+        80,
+        80,
+        70,
+        80,
+        80,
+        80
+      ],
+      "cycle_ms": 620
+    },
+    "webp": {
+      "frames": 8,
+      "durations_ms": [
+        77,
+        77,
+        77,
+        77,
+        77,
+        77,
+        77,
+        77
+      ],
+      "cycle_ms": 616
+    }
+  },
+  "comparison_matches_original_and_refined_frames": true,
+  "slow_loop_frame_order": [
+    7,
+    8,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "turnaround_views": [
+    "front",
+    "front_left",
+    "left",
+    "back_left",
+    "back",
+    "back_right",
+    "right",
+    "front_right"
+  ],
+  "turnaround_ink_heights": {
+    "front": 430,
+    "front_left": 430,
+    "left": 430,
+    "back_left": 424,
+    "back": 430,
+    "back_right": 424,
+    "right": 430,
+    "front_right": 430
+  },
+  "source_hashes_match": true,
+  "browser_verification": "browser-verification.json",
+  "proportions_seed_and_turnaround_byte_unchanged": true,
+  "motion_guide_approved": true,
+  "exact_rendered_pose_conformance": false,
+  "world_travel_verification": "world-travel-verification.json",
+  "world_preview_exports": {
+    "gif": {
+      "frames": 64,
+      "cycle_ms": 1230
+    },
+    "webp": {
+      "frames": 64,
+      "cycle_ms": 1231
+    }
+  },
+  "visual_approval": "pending user review",
+  "limits": [
+    "Horizontal world travel was tested in isolated Chrome; held-frame sliding remains visible.",
+    "Rendered foot geometry still departs from the approved guide; integrity passing does not approve the artwork.",
+    "Drawing targets and equal image bounds do not prove anatomical accuracy.",
+    "Eight static views do not implement a smooth turn animation."
+  ]
+}

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="same-origin">
+<title>Welcome | Rabbit Hole</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/landing/favicon-32-v1.png">
+<link rel="icon" type="image/svg+xml" href="/landing/favicon-v1.svg">
+<link rel="apple-touch-icon" href="/landing/apple-touch-icon-v1.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/design/rabbit-hole.css">
+<link rel="stylesheet" href="/src/landing/auth.css">
+</head>
+<body class="auth-page">
+<a class="auth-skip" href="#auth-content">Skip to form</a>
+<div class="auth-layout">
+  <aside class="auth-art-panel" aria-label="Rabbit Hole">
+    <img class="auth-art" src="/landing/auth-single-hole-v1.png" alt="" width="1086" height="1448" fetchpriority="high">
+    <div class="auth-art-copy">
+      <a class="auth-brand" href="/"><span class="rh-mark" aria-hidden="true"></span>Rabbit Hole</a>
+      <p class="auth-statement">A good question<br>is a way in.</p>
+      <p class="auth-art-caption">Follow your curiosity.</p>
+    </div>
+  </aside>
+  <div class="auth-form-panel">
+    <a class="auth-back" href="/">Back to site <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></a>
+    <main id="auth-content" class="auth-content" tabindex="-1">
+      <noscript><h1>Welcome to Rabbit Hole.</h1><p>Enable JavaScript to view these forms, or <a href="/login">sign in with an email link</a>.</p></noscript>
+    </main>
+    <footer class="auth-preview-note">
+      <a href="/apps">Open existing workspace <span aria-hidden="true">↗</span></a>
+    <div data-footer-links></div>
+  </footer>
+  </div>
+</div>
+<script type="module" src="/src/landing/auth.js"></script>
+<script type="module" src="/src/landing/footer-links.js"></script>
+</body>
+</html>

@@ -4,7 +4,6 @@ import { boardFetch, validateBoardPlan, generateBoardPlan } from '../src/learn-b
 import { strictTool, REVIEW_TOOL, validateBoardReview, validateTeachingPlan } from '../src/learn-board-review.js';
 import { searchPexels, inspectImage } from '../src/pexels.js';
 import { connector } from '../../web/src/learn-board-layout.js';
-import { answerBlocks } from '../../web/src/answer-blocks.js';
 
 const object = { objectId: 'equation', lessonId: 'sigmoid-demo', runId: 'test-run', author: 'script', kind: 'equation', originalText: 'σ(x) = 1 / (1 + exp(-x))', relatedObjectIds: [], shapeIds: ['shape:eq'], renderStatus: 'complete', shapes: [{ shapeId: 'shape:eq', pageBounds: { x: 0, y: 0, w: 300, h: 30 } }] };
 const snapshot = { lessonId: 'sigmoid-demo', runId: 'test-run', method: 'lesson', target: null, relatedObjects: [object], lessonContext: { topic: 'Sigmoid', currentStage: 'sigmoid', recentExplanations: ['The midpoint is 0.5.'] } };
@@ -62,10 +61,6 @@ test('connectors avoid crossing obstacles and long diagonal arrows', () => {
   assert.ok(connector(source, target, []));
   assert.equal(connector(source, target, [{ x: 95, y: 20, w: 3, h: 10 }]), null);
   assert.equal(connector(source, { ...target, x: 700 }, []), null);
-});
-
-test('answer blocks derive from prose and keep code and math together', () => {
-  assert.deepEqual(answerBlocks('Step one\n\n$$x=1$$\n\nStep two\n\n```py\nx=2\n\nprint(x)\n```'), ['Step one\n\n$$x=1$$', 'Step two\n\n```py\nx=2\n\nprint(x)\n```']);
 });
 
 test('Pexels uses server authorization and rejects untrusted image URLs', async () => {
@@ -273,7 +268,7 @@ test('a rejected structured-output request retries once without strict, and keep
 
 test('a rejected request that is not about strict tools still fails loudly', async () => {
   await assert.rejects(generateBoardPlan({}, boardInput, { callModel: async () => Response.json({ error: { message: 'overloaded' } }, { status: 529 }) }),
-    /model HTTP 529/);
+    { message: 'Canvas explanation unavailable (model HTTP 529: overloaded). Try again.' });
 });
 
 test('a block without an anchor is kept: an omitted fromObjectId means null, not a failed explanation', () => {
@@ -295,4 +290,59 @@ test('over-long lists are trimmed, not failed: a plan that runs long still reach
   const plan = validateTeachingPlan({ objective: 'Explain saturation.', depth: 'conceptual', assumedKnowledge: [], representations: ['text'], tools: [],
     reason: 'Conceptual fits.', outline: Array.from({ length: 6 }, (unused, index) => `Step ${index + 1}`), assets: [] });
   assert.equal(plan.outline.length, 5);
+});
+
+// duplication-15: the subscription owner gate runs once, inside each handler,
+// after its single app authorization; the dev worker's ask branch uses the same helper.
+test('subscription mode: the owner reaches the model, anyone else gets 403, and the app is authorized once', async () => {
+  const { artifactFetch } = await import('../src/learn-artifact.js');
+  const { readFileSync } = await import('node:fs');
+  const post = (path, body) => new Request(`https://small-dev.example${path}`, { method: 'POST', headers: { cookie: 's' }, body: JSON.stringify(body) });
+  for (const [path, handler, body] of [
+    ['/api/learn/board', boardFetch, { app: 'demo', question: 'Why 0.5?', answer: 'exp(0) = 1', snapshot }],
+    ['/api/learn/artifact', artifactFetch, { app: 'demo', command: 'graph', args: 'sigmoid' }],
+  ]) {
+    for (const [email, status, generated] of [['owner@test', 200, 1], ['member@test', 403, 0]]) {
+      let authorized = 0, calls = 0;
+      const env = { SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_OWNER_EMAIL: 'owner@test', CONTROL_PLANE: { fetch: async () => { authorized++; return Response.json({ name: 'demo', email }); } } };
+      const response = await handler(post(path, body), env, async () => { calls++; return plan; });
+      assert.equal(response.status, status, `${path} ${email}`);
+      assert.equal(authorized, 1, path); assert.equal(calls, generated, path);
+      if (status === 403) assert.deepEqual(await response.json(), { error: 'This personal dev subscription is available only to its owner.' });
+    }
+  }
+  const worker = readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8');
+  assert.match(worker, /if \(path === '\/api\/learn\/artifact'\) return artifactFetch\(req, env\);/);
+  assert.match(worker, /if \(path === '\/api\/learn\/board'\) return boardFetch\(req, env\);/);
+  const ask = worker.slice(worker.indexOf("const liveRefused = refuseLiveLearnAsk(access);"));
+  assert.ok(ask.indexOf('subscriptionOwnerRefusal(env, access)') < ask.indexOf('return apiAsk('));
+});
+
+// registries-14: like the Pexels tools, Desmos depends on a key. Without
+// DESMOS_API_KEY the drawing prompt says so and a desmos graph gets the one
+// format repair; a plotly graph (or a key) passes unchanged.
+test('without DESMOS_API_KEY a desmos graph gets the one repair and the prompt says Desmos is unavailable', async () => {
+  const desmos = { kind: 'graph', text: 'Sigmoid', fromObjectId: null, operation: { op: 'interactive_plot', id: 'g', renderer: 'desmos', concept: 'Sigmoid', expressions: [{ id: 'f', expression: 'y=1/(1+e^{-x})' }] } };
+  const plotly = { kind: 'graph', text: 'Sigmoid', fromObjectId: null, operation: { op: 'interactive_plot', id: 'g', renderer: 'plotly', concept: 'Sigmoid', traces: [{ id: 't', type: 'line', x: [-1, 0, 1], y: [0.27, 0.5, 0.73] }] } };
+  const run = async env => {
+    const drafts = [], systems = new Set();
+    const result = await generateBoardPlan(env, boardInput, { callModel: async (_, body) => {
+      const name = body.tool_choice.name || 'explain_on_canvas';
+      if (name !== 'review_explanation') systems.add(body.system);
+      if (name === 'plan_explanation') return toolReply(name, teachingPlan);
+      if (name === 'review_explanation') return toolReply(name, readyReview);
+      drafts.push(body);
+      return toolReply(name, { ...plan, blocks: [drafts.length === 1 ? desmos : plotly] });
+    } });
+    return { result, drafts, systems: [...systems] };
+  };
+  const without = await run({});
+  assert.equal(without.drafts.length, 2);
+  assert.match(JSON.stringify(without.drafts[1].messages.at(-1)), /Desmos is not configured on this deployment/);
+  assert.equal(without.result.blocks[0].operation.renderer, 'plotly');
+  for (const system of without.systems) assert.match(system, /Desmos is not configured on this deployment: use renderer plotly/);
+  const withKey = await run({ DESMOS_API_KEY: 'k' });
+  assert.equal(withKey.drafts.length, 1);
+  assert.equal(withKey.result.blocks[0].operation.renderer, 'desmos');
+  for (const system of withKey.systems) assert.doesNotMatch(system, /Desmos is not configured/);
 });

@@ -3,7 +3,7 @@ user's AWS account; credentials are STS session creds minted by the control plan
 from small.toml's [aws] role_arn — no long-lived AWS keys anywhere.
 
 Needs: `npm i -g small-deploy` (>= 0.0.5), `small login` done once, repo-root .env
-with SMALL_API + SMALL_TEST_BYPASS + admin AWS keys (for the CloudWatch
+with RABBIT_HOLE_DEV_TEST_BYPASS + admin AWS keys (for the CloudWatch
 attribution check). Deploys examples/yolo-lambda only if the app is missing.
 """
 
@@ -35,8 +35,8 @@ def _dotenv(path):
 
 
 ENV = _dotenv(PROJECT_DIR / ".env")
-API = ENV["SMALL_API"]
-BYPASS = ENV["SMALL_TEST_BYPASS"]
+API = ENV.get("RABBIT_HOLE_DEV_CP", "https://rabbit-hole-cp-dev.tryrabbithole.workers.dev")
+BYPASS = ENV.get("RABBIT_HOLE_DEV_TEST_BYPASS", "")
 if not (APP_DIR / ".env").exists():
     pytest.skip("examples/yolo-lambda/.env with LAMBDA_ARN missing — BYO-AWS test needs it", allow_module_level=True)
 LAMBDA_ARN = _dotenv(APP_DIR / ".env")["LAMBDA_ARN"]

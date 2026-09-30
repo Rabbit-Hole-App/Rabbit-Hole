@@ -1,7 +1,9 @@
 import { privateLessonAssetFetch } from './learn-video.js';
 import { sceneCacheKey, validateScene } from './learn-scene-schema.js';
 import { validateToolInput } from './learn-validation.js';
+import { paidRefusal } from './learn-paid.js';
 import { THREE_D_SCHEMA } from './learn-three-d-schema.js';
+import { learnMedia } from './learn-storage.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const WAIT_MS = 15 * 60 * 1000; // Includes worker startup and queue waits; compilation itself is capped at 90 seconds.
@@ -34,7 +36,7 @@ export class LearnScenes {
       if (!/^[a-f0-9]{64}$/.test(key)) return json({ error: 'Invalid scene asset' }, 400);
       const job = await this.state.storage.get(`job:${key}`);
       if (job?.status !== 'ready') return json({ error: 'Scene not ready' }, 404);
-      const asset = await this.env.RUNS.get(job.storageKey);
+      const asset = await learnMedia(this.env).get(job.storageKey);
       if (!asset) return json({ error: 'Scene asset unavailable' }, 404);
       return new Response(asset.body, { headers: { 'Content-Type': 'model/gltf-binary', 'Content-Length': String(asset.size), 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
     }
@@ -54,6 +56,8 @@ export class LearnScenes {
           await this.state.storage.put(`placement:${body.id}`, { ...p, position: { x: pos.x, y: pos.y, w: pos.w, h: pos.h }, viewState: view, hidden: body.hidden === true });
           return json({ saved: true });
         }
+        // A paid job starts only from the learner's explicit confirmation.
+        const refused = paidRefusal(body); if (refused) return refused;
         const input = validateScene(body.operation);
         if (typeof body.lessonId !== 'string' || body.lessonId.length > 150 || typeof body.page !== 'string' || body.page.length > 150) throw new Error('Lesson and page required');
         const health = await workerRequest(this.env, '/health'); if (!health.ok) throw new Error('Scene worker is unavailable');
@@ -75,6 +79,8 @@ export class LearnScenes {
     });
   }
   async alarm() {
+    // A finished job stores its asset: only ever in the dev bucket, never small-runs.
+    if (!this.env.LEARN_MEDIA) throw new Error('LEARN_MEDIA is not bound on this worker');
     for (const [key, job] of await this.state.storage.list({ prefix: 'job:' })) {
       if (!['queued', 'rendering'].includes(job.status)) continue;
       try {
@@ -93,7 +99,7 @@ export class LearnScenes {
               const output = await workerRequest(this.env, `/jobs/${job.workerKey}/asset`);
               if (!output.ok) throw new Error('Scene download unavailable');
               const bytes = await assetBytes(output); job.storageKey = `learn-scene-dev/${this.state.id}/${job.key}.glb`;
-              await this.env.RUNS.put(job.storageKey, bytes, { httpMetadata: { contentType: 'model/gltf-binary' } }); job.status = 'ready';
+              await learnMedia(this.env).put(job.storageKey, bytes, { httpMetadata: { contentType: 'model/gltf-binary' } }); job.status = 'ready';
             }
           }
         }

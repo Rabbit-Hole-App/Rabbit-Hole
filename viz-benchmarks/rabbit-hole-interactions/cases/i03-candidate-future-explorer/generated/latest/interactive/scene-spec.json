@@ -1,0 +1,443 @@
+{
+  "scene": {
+    "id": "candidate-future-explorer",
+    "title": "Candidate-future explorer",
+    "width": 960,
+    "height": 560,
+    "duration": 3,
+    "inputs": [
+      {
+        "name": "candidate",
+        "type": "choice",
+        "label": "Inspect candidate",
+        "default": "A",
+        "options": [
+          {
+            "id": "A",
+            "label": "Path A"
+          },
+          {
+            "id": "B",
+            "label": "Path B"
+          },
+          {
+            "id": "C",
+            "label": "Path C"
+          }
+        ]
+      },
+      {
+        "name": "resultsRevealed",
+        "type": "bool",
+        "label": "Results revealed",
+        "default": false,
+        "hidden": true
+      }
+    ],
+    "exampleData": {
+      "goal": [
+        0,
+        0
+      ],
+      "A": [
+        2,
+        0
+      ],
+      "B": [
+        1,
+        0
+      ],
+      "C": [
+        0,
+        3
+      ],
+      "markY": {
+        "A": 188,
+        "B": 298,
+        "C": 408
+      },
+      "oneV": 1,
+      "zeroV": 0
+    },
+    "derived": {
+      "dA": {
+        "op": "sub",
+        "args": [
+          "A",
+          "goal"
+        ]
+      },
+      "dB": {
+        "op": "sub",
+        "args": [
+          "B",
+          "goal"
+        ]
+      },
+      "dC": {
+        "op": "sub",
+        "args": [
+          "C",
+          "goal"
+        ]
+      },
+      "costA": {
+        "op": "dot",
+        "args": [
+          "dA",
+          "dA"
+        ]
+      },
+      "costB": {
+        "op": "dot",
+        "args": [
+          "dB",
+          "dB"
+        ]
+      },
+      "costC": {
+        "op": "dot",
+        "args": [
+          "dC",
+          "dC"
+        ]
+      },
+      "costs": {
+        "op": "concat",
+        "args": [
+          "costA",
+          "costB",
+          "costC"
+        ]
+      },
+      "shownCosts": {
+        "op": "gate",
+        "args": [
+          "costs",
+          "resultsRevealed"
+        ]
+      },
+      "bestAt": {
+        "op": "argmin",
+        "args": [
+          "shownCosts"
+        ]
+      },
+      "inspectY": {
+        "op": "pick",
+        "args": [
+          "markY",
+          "candidate"
+        ]
+      },
+      "chartOpacity": {
+        "op": "choose",
+        "args": [
+          "resultsRevealed",
+          "oneV",
+          "zeroV"
+        ]
+      },
+      "placeholderOpacity": {
+        "op": "choose",
+        "args": [
+          "resultsRevealed",
+          "zeroV",
+          "oneV"
+        ]
+      }
+    },
+    "objects": [
+      {
+        "id": "caption",
+        "type": "text",
+        "semanticId": "caption",
+        "conceptId": "candidate-futures",
+        "initialState": {
+          "text": "inspecting Path {{candidate}} — one of three futures the world model predicts from the current state",
+          "x": 40,
+          "y": 36
+        }
+      },
+      {
+        "id": "current-state",
+        "type": "box",
+        "semanticId": "current-state",
+        "conceptId": "candidate-futures",
+        "initialState": {
+          "label": "current state",
+          "x": 40,
+          "y": 232,
+          "w": 160,
+          "h": 56,
+          "opacity": 0,
+          "role": "observed"
+        }
+      },
+      {
+        "id": "arrow-a",
+        "type": "arrow",
+        "semanticId": "branch-a",
+        "conceptId": "candidate-futures",
+        "initialState": {
+          "from": {
+            "x": 202,
+            "y": 252
+          },
+          "to": {
+            "x": 392,
+            "y": 178
+          },
+          "opacity": 0,
+          "role": "prediction",
+          "identity": "future-a"
+        }
+      },
+      {
+        "id": "arrow-b",
+        "type": "arrow",
+        "semanticId": "branch-b",
+        "conceptId": "candidate-futures",
+        "initialState": {
+          "from": {
+            "x": 202,
+            "y": 260
+          },
+          "to": {
+            "x": 392,
+            "y": 288
+          },
+          "opacity": 0,
+          "role": "prediction",
+          "identity": "future-b"
+        }
+      },
+      {
+        "id": "arrow-c",
+        "type": "arrow",
+        "semanticId": "branch-c",
+        "conceptId": "candidate-futures",
+        "initialState": {
+          "from": {
+            "x": 202,
+            "y": 268
+          },
+          "to": {
+            "x": 392,
+            "y": 398
+          },
+          "opacity": 0,
+          "role": "prediction",
+          "identity": "future-c"
+        }
+      },
+      {
+        "id": "future-a",
+        "type": "box",
+        "semanticId": "predicted-future-a",
+        "conceptId": "candidate-futures",
+        "initialState": {
+          "label": "Path A → future A",
+          "x": 400,
+          "y": 150,
+          "w": 220,
+          "h": 56,
+          "opacity": 0,
+          "role": "prediction",
+          "identity": "future-a"
+        }
+      },
+      {
+        "id": "future-b",
+        "type": "box",
+        "semanticId": "predicted-future-b",
+        "conceptId": "candidate-futures",
+        "initialState": {
+          "label": "Path B → future B",
+          "x": 400,
+          "y": 260,
+          "w": 220,
+          "h": 56,
+          "opacity": 0,
+          "role": "prediction",
+          "identity": "future-b"
+        }
+      },
+      {
+        "id": "future-c",
+        "type": "box",
+        "semanticId": "predicted-future-c",
+        "conceptId": "candidate-futures",
+        "initialState": {
+          "label": "Path C → future C",
+          "x": 400,
+          "y": 370,
+          "w": 220,
+          "h": 56,
+          "opacity": 0,
+          "role": "prediction",
+          "identity": "future-c"
+        }
+      },
+      {
+        "id": "inspecting",
+        "type": "text",
+        "semanticId": "inspecting-marker",
+        "conceptId": "candidate-futures",
+        "initialState": {
+          "text": "◀ inspecting",
+          "x": 632,
+          "y": {
+            "$derive": "inspectY"
+          },
+          "role": "learner",
+          "typography": "annotation"
+        }
+      },
+      {
+        "id": "cost-chart",
+        "type": "grid",
+        "semanticId": "candidate-costs",
+        "conceptId": "candidate-futures",
+        "initialState": {
+          "label": "cost to goal — squared distance (lower is better)",
+          "x": 742,
+          "y": 220,
+          "rows": 1,
+          "cols": 3,
+          "cell": 56,
+          "opacity": {
+            "$derive": "chartOpacity"
+          },
+          "role": "output",
+          "matrixKind": "derived",
+          "columnLabels": [
+            "A",
+            "B",
+            "C"
+          ],
+          "values": {
+            "$derive": "shownCosts"
+          },
+          "cellHighlight": {
+            "$derive": "bestAt"
+          },
+          "cellHighlightKind": "select"
+        }
+      },
+      {
+        "id": "cost-placeholder",
+        "type": "text",
+        "semanticId": "cost-placeholder",
+        "conceptId": "candidate-futures",
+        "initialState": {
+          "text": "costs appear after you commit a prediction",
+          "x": 700,
+          "y": 250,
+          "opacity": {
+            "$derive": "placeholderOpacity"
+          },
+          "typography": "annotation"
+        }
+      },
+      {
+        "id": "cost-note",
+        "type": "text",
+        "semanticId": "cost-note",
+        "conceptId": "candidate-futures",
+        "initialState": {
+          "text": "cost = squared distance from each predicted end to the goal — computed from the declared example data",
+          "x": 40,
+          "y": 480,
+          "typography": "annotation"
+        }
+      },
+      {
+        "id": "provenance-note",
+        "type": "text",
+        "semanticId": "provenance-note",
+        "conceptId": "candidate-futures",
+        "initialState": {
+          "text": "Toy example — these are predicted outcomes, not observations.",
+          "x": 40,
+          "y": 510,
+          "typography": "annotation"
+        }
+      }
+    ],
+    "timeline": [
+      {
+        "at": 0,
+        "action": "appear",
+        "target": "current-state",
+        "duration": 0.3
+      },
+      {
+        "at": 0.4,
+        "action": "appear",
+        "target": "arrow-a",
+        "duration": 0.4
+      },
+      {
+        "at": 0.55,
+        "action": "appear",
+        "target": "arrow-b",
+        "duration": 0.4
+      },
+      {
+        "at": 0.7,
+        "action": "appear",
+        "target": "arrow-c",
+        "duration": 0.4
+      },
+      {
+        "at": 0.9,
+        "action": "appear",
+        "target": "future-a",
+        "duration": 0.3
+      },
+      {
+        "at": 1.05,
+        "action": "appear",
+        "target": "future-b",
+        "duration": 0.3
+      },
+      {
+        "at": 1.2,
+        "action": "appear",
+        "target": "future-c",
+        "duration": 0.3
+      }
+    ]
+  },
+  "activity": {
+    "id": "i03-practice",
+    "check": "choice_equals",
+    "version": 1,
+    "prompt": "Under the squared-distance cost, which candidate future should be preferred? Committing a prediction reveals the example costs.",
+    "answer": {
+      "type": "choice",
+      "label": "Your prediction",
+      "options": [
+        {
+          "id": "A",
+          "label": "Path A"
+        },
+        {
+          "id": "B",
+          "label": "Path B"
+        },
+        {
+          "id": "C",
+          "label": "Path C"
+        }
+      ],
+      "default": "A"
+    },
+    "expected": "B",
+    "revealInput": "resultsRevealed",
+    "checkLabel": "Check prediction",
+    "feedbackPass": "Right - B ends at (1, 0), one unit from the goal, the smallest squared distance of the three.",
+    "feedbackFail": "The revealed costs show B is cheapest: it ends one unit from the goal. Your committed answer stays recorded; start a new attempt to predict again."
+  }
+}

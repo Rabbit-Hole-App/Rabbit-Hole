@@ -356,7 +356,7 @@ invite emails, admin roles, /settings — per flow.md, when asked.
   (GET /api/ask/threads + /threads/:id), History lists past chats (title =
   first question or a custom one), each row's ⋯ offers Rename (0013
   threads.title) and Delete (messages go; approved proposals stay — that's
-  the action log), + New chat.
+  the action log; open ones become invalidated, v16), + New chat.
 - Phase 2 test (tests/integration_tests/ask, 4 passed): editor's re-run ask
   yields a proposal, approving creates a run with the stored inputs,
   double-approve 409s.
@@ -419,7 +419,8 @@ invite emails, admin roles, /settings — per flow.md, when asked.
 
 ## v15: Slack adapter for Ask — a transport, not a new agent
 - Every message becomes POST /api/ask as the resolved small user; every
-  proposal becomes Block Kit Run/Cancel buttons hitting /api/ask/approve.
+  proposal becomes Block Kit Run/Cancel buttons hitting /api/ask/approve and
+  /api/ask/reject (v16).
   Routes: /slack/events (url_verification + app_mention + message.im, 200
   within 3s then waitUntil), /slack/command (/small), /slack/interact,
   /slack/install (session-gated OAuth start, signed state) + /slack/oauth
@@ -450,6 +451,52 @@ invite emails, admin roles, /settings — per flow.md, when asked.
   sign-in reply and NO ask call, editor approve updates in place while a
   viewer gets the ephemeral refusal, Block Kit limits (25 options).
 
+## v16: Proposal lifecycle (T02 spec 7.4, amendment 5)
+- One transition, once: approve and reject run the same conditional UPDATE
+  (claimProposal: status 'proposed', same org, created under 15 minutes ago)
+  and must change exactly one row before anything executes. Web and Slack
+  share it. Refusals that change nothing (the edit recheck, run_again's run
+  lookup) come before the claim, so a viewer's click leaves the row open. A
+  claim is never undone: if the tool fails after it, the row closes as
+  'failed' (a reopen could revive a proposal whose Cancel or chat delete
+  arrived while the tool ran).
+- The permission recheck runs in the proposal's frozen org: apps resolve in
+  proposals.org, and run_again's run lookup is scoped to that org (it used to
+  match another org's run id and start a same-named app here).
+- POST /api/ask/reject {proposal_id}: Cancel is final, and only the requester
+  or an editor of the target app may cancel (others get 403, the proposal stays
+  open; T02 7.3). Slack Cancel and the
+  Agent Bar card call it; the older web Ask panel's Cancel (ask.jsx) is still
+  local only. Slack clears a card that is already closed with the reason.
+  Deleting a chat marks its open proposals 'invalidated'; approved ones stay
+  as the action log. rejected and invalidated record the resolver in
+  approved_by/approved_at (0012 columns, no migration).
+- Responses, and the Agent Bar card state (T02 spec 7.3) each one maps to:
+
+| Response | Body | Card |
+|---|---|---|
+| approve 200 | {ok: true, ...tool result} | Done |
+| reject 200 | {ok: true, status: 'rejected'} | Cancelled |
+| 409 | {error: 'already approved', status: 'approved'} | Done elsewhere, 'Already approved.' |
+| 409 | {error: 'cancelled', status: 'rejected'} | Cancelled |
+| 409 | {error: 'expired after 15 minutes - ask again', status: 'expired'} | Expired |
+| 409 | {error: 'its chat was deleted', status: 'invalidated'} | Cancelled, 'This thread was deleted.' |
+| 409 | {error: 'failed - ask again', status: 'failed'} | Failed |
+| 403 | {error: 'no edit access'} | No longer allowed (the proposal stays open) |
+| 400 | {error: the tool's reason} | Failed. Before the claim (no such app or run) the proposal stays open; after it, it closes as failed |
+| 404 | {error: 'no such proposal'} | Failed |
+
+- A 409 status is always one of approved, rejected, expired, invalidated, failed.
+  Expiry is computed, not stored: an old row stays 'proposed' and answers
+  'expired'. Slack shows the error text.
+- Takes effect when small-cp is deployed, a live promotion that needs explicit
+  approval. Until then the dev review copy blocks every server proposal
+  (T02 spec 7.5), and a Blocked card's Cancel is local only.
+- Tests: control-plane unit suite +13. ask-proposals.test.js runs the real
+  handlers on node:sqlite (cross-org, 403 recheck, concurrent approve, expiry,
+  no claim on refusal, reject, thread delete, a Cancel or chat delete during a
+  failing tool, org-scoped invalidation); slack.test.js covers Cancel.
+
 ## Serving (hard-won)
 The SPA shell is bundled INTO the worker (esbuild Text rule imports
 `../web/dist/index.html`) and served at `/apps` + `/dash` with `Cache-Control:
@@ -462,7 +509,7 @@ There is no purge API for workers.dev. Never serve mutable content through the
 asset binding; never probe asset URLs before they're uploaded.
 
 ## Look
-Notion, not "inspired by": Inter 14px/1.5, text `#37352F`, secondary `#787774`,
+Notion, not "inspired by": Inter 14px/1.5, text `#37352F`, secondary `#63615D` (dark `#A1A1A1`; darker than Notion's `#787774` so it clears 4.5:1 - see [learn-canvas-blocks.md](learn-canvas-blocks.md#practice-and-secondary-text-read-cleanly)),
 borders `#E9E9E7`, hover `#F1F1EF`, sidebar 240px `#F7F7F5`, one accent `#2383E2`.
 Content pane max 900px, left-aligned, 96px margins. 36px quiet rows, pills for
 properties, no zebra/borders. No top nav; breadcrumb in the content pane. Lucide

@@ -8,15 +8,16 @@ const Github = ({ size = 14 }) => (
     <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
   </svg>
 );
-import { ago, api, cronHuman, cronList, fmtTime, navigate, wsName } from './api.js';
+import { ago, api, cronHuman, cronList, fmtTime, navigate, workspaceLabel } from './api.js';
 import { loadApp } from './app-data.js';
+import { learnPreview } from './flags.js';
 import { AskPanel } from './ask.jsx';
+import AppOps from './AppOps.jsx';
 import CoachingPanel from './coaching/CoachingPanel.jsx';
-import LearnPage from './LearnPage.jsx';
-import RepositoryPage from './RepositoryPage.jsx';
 import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
 import Shell from './Shell.jsx';
 import { Avatar, Button, Chk, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, ShareInput, SkeletonRows, Tabs, TabsContent, TabsList, TabsTrigger, Tip, cn, toast } from './ui.jsx';
+import { personLabel } from './session-display.js';
 
 // Refreshing into Learn must not flash the app-page row skeleton.
 function LearnLoading() {
@@ -60,12 +61,17 @@ function LearnLoading() {
 }
 
 const Runbook = lazy(() => import('./RunbookEditor.jsx'));
-const learnPreview = import.meta.env.VITE_COACHING_DEV === 'true' && import.meta.env.VITE_PRIVATE_BYOC !== 'true';
+// Preview-only project page. A static import would keep the top-level code of its Agent Bar imports (agent/bar.js,
+// agent/slash.js) in the live index even though the page folds away; the literal env check drops the chunk (live-bundle-check.mjs).
+const RepositoryPage = import.meta.env.VITE_COACHING_DEV === 'true' && learnPreview ? lazy(() => import('./RepositoryPage.jsx')) : null;
+// The canvas destination brings all of Learn with it; the same literal guard keeps Learn out of the live index (WP7).
+const CanvasPage = import.meta.env.VITE_COACHING_DEV === 'true' && learnPreview ? lazy(() => import('./CanvasPage.jsx')) : null;
 
 function initialAppTab() {
   const tab = new URLSearchParams(window.location.search).get('tab');
   if (tab === 'agent') return 'graph'; // legacy links from before the Agent tab became Graph
-  return tab === 'graph' || (learnPreview && tab === 'learn') ? tab : null;
+  // T02 §1: working ?tab=runbook|run|logs on the preview. ponytail: a server's ?tab=run shows an empty tab
+  return tab === 'graph' || (learnPreview && ['learn', 'runbook', 'run', 'logs'].includes(tab)) ? tab : null;
 }
 
 const TH = 'h-8 border-b border-line px-2 text-left text-xs font-normal text-ink-2';
@@ -348,7 +354,7 @@ function SharePopover({ app, onChanged }) {
             {app.members.map((m) => (
               <div key={m.email} className="group/p flex items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-hover">
                 <Avatar email={m.email} />
-                <span className="min-w-0 flex-1 truncate text-sm">{m.email}</span>
+                <span className="min-w-0 flex-1 truncate text-sm">{personLabel(m.email)}</span>
                 {app.canEdit ? (
                   <>
                     <select
@@ -388,8 +394,8 @@ function Denied({ slug, error }) {
   };
   return (
     <div className="mx-auto max-w-md pt-[20vh] text-center">
-      <div className="pb-3">You don’t have access.{owner ? ` Ask ${owner}` : ''}</div>
-      {owner && !asked && <Button variant="accent" className="mx-auto" onClick={ask}>Request access</Button>}
+      <div className="pb-3">You don’t have access.{owner && !learnPreview ? ` Ask ${owner}` : ''}</div>
+      {owner && !asked && !learnPreview && <Button variant="accent" className="mx-auto" onClick={ask}>Request access</Button>}
       {asked && (
         <div className="text-sm text-ink-2">
           {asked.err ? `✗ ${asked.err}` : asked.sent ? `✓ asked ${owner}` : `✓ noted - email isn’t configured on this control plane, ping ${owner} directly`}
@@ -400,7 +406,7 @@ function Denied({ slug, error }) {
 }
 
 const Person = ({ email }) => (email
-  ? <span className="inline-flex items-center gap-1.5"><Avatar email={email} />{email}</span>
+  ? <span className="inline-flex items-center gap-1.5"><Avatar email={email} />{personLabel(email)}</span>
   : '-');
 
 // "next in 3h" for the schedule row; nextRun is a ms epoch from the worker.
@@ -535,7 +541,8 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
     const id = ++loadId.current;
     return loadApp(slug, catalogApp).then((d) => {
     if (id !== loadId.current) return;
-    setApp(d);
+    // D7: the clone binds the live D1; rename, description, Schedule, Watch, Runbook and Share all read canEdit
+    setApp(learnPreview && (d.kind === 'job' || d.kind === 'server') ? { ...d, canEdit: false } : d);
     setError(null);
     try {
       const r = JSON.parse(localStorage.getItem('small.recent') || '[]');
@@ -559,12 +566,15 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
 
   // Graph tab: the page must NOT scroll - the pane fills to the viewport bottom so
   // the textbox sits static (level with the sidebar's New chat), only messages scroll.
-  const graphFull = !runId && (tab ?? 'graph') === 'graph';
+  const shown = tab && tab !== 'learn' ? tab : learnPreview ? 'runbook' : 'graph'; // T02 §12 D3: the preview lands on Runbook
+  const graphFull = !runId && shown === 'graph';
   const isAws = app?.hosting === 'aws';
-  // Share + ⋯ menu, shown in the run breadcrumb and in the app title row
+  const runChat = !learnPreview && (!isAws || app?.run_chat); // D7: run chat writes live /api/ask history
+  // Share + ⋯ menu, shown in the run breadcrumb and in the app title row. Rabbit Hole v1 is solo: the preview has no
+  // share-with-people popover (the /api/share routes stay for the live build).
   const appActions = app && (
     <>
-      <SharePopover app={app} onChanged={load} />
+      {!learnPreview && <SharePopover app={app} onChanged={load} />}
       <div className="relative">
         <IconBtn title="More" className={cn(menuOpen && 'bg-active text-ink')} onMouseDown={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>
         <Menu open={menuOpen} onClose={() => setMenuOpen(false)} className="top-8 right-0">
@@ -576,6 +586,8 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
           </MenuItem>
           {!isAws && <MenuItem
             icon={Copy}
+            disabled={learnPreview}
+            className={learnPreview ? 'opacity-50' : undefined}
             onClick={async () => {
               setMenuOpen(false);
               try {
@@ -594,7 +606,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
             </MenuItem>
           )}
           {!isAws && app.owner_email === app.email && (
-            <MenuItem icon={Trash2} className="text-danger" onClick={() => { setMenuOpen(false); setConfirmDel(true); }}>
+            <MenuItem icon={Trash2} disabled={learnPreview} className={cn('text-danger', learnPreview && 'opacity-50')} onClick={() => { setMenuOpen(false); setConfirmDel(true); }}>
               Move to Trash
             </MenuItem>
           )}
@@ -604,23 +616,25 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
   );
   // Refreshing straight into Learn showed the app-page row skeleton for a
   // beat; wait on a canvas-shaped placeholder instead.
-  if (learnPreview && tab === 'learn' && !app && !error) return <LearnLoading />;
-  if (learnPreview && app?.kind === 'repository' && !error) return <RepositoryPage key={app.name} app={app} />;
-  if (learnPreview && tab === 'learn' && app && !error && !runId) {
-    return <LearnPage key={JSON.stringify([app.email, app.org, app.name])} app={app} onBack={() => { setTab(null); navigate(`/apps/${encodeURIComponent(app.name)}`); }} />;
-  }
+  if (learnPreview && (tab === 'learn' || /^canvas-[a-f0-9]{8}$/.test(slug)) && !app && !error) return <LearnLoading />;
+  if (learnPreview && app?.kind === 'repository' && !error) return <Suspense fallback={null}><RepositoryPage key={app.name} app={app} catalog={catalog?.apps} /></Suspense>;
+  // D7: only a canvas asks through LEARN_DB (dev-worker.js canvasAskSeam). A job or server's Learn asks
+  // would reach apiAsk on the live D1, so the preview never mounts Learn for them, and the dev worker
+  // refuses them (canvases.js refuseLiveLearnAsk).
+  // A canvas opens Learn directly, behind its not-in-this-browser gate (WP6).
+  if (learnPreview && app?.kind === 'canvas' && !error && !runId) return <Suspense fallback={<LearnLoading />}><CanvasPage key={JSON.stringify([app.email, app.org, app.name])} app={app} project={catalog?.apps?.find((p) => p.name === app.project)} /></Suspense>;
   return (
     <main className={cn('flex-1', graphFull ? 'overflow-hidden' : 'overflow-y-auto')}>
       {/* run pages carve out the fixed 400px chat panel and center in what's left;
           the app view itself is repo-style: title, pill tabs, full-bleed content */}
       <div className={cn(
         'max-lg:px-8 max-md:px-4',
-        runId ? cn('mx-auto max-w-[860px] px-12 py-12 max-md:py-6', (!isAws || app?.run_chat) && 'lg:mr-[416px]')
+        runId ? cn('mx-auto max-w-[860px] px-12 py-12 max-md:py-6', runChat && 'lg:mr-[416px]')
           : graphFull ? 'flex h-full min-h-0 flex-col px-12 pt-8 pb-4'
           : 'mx-auto max-w-[900px] px-24 py-12 max-md:py-6',
       )}>
         {runId && <div className="flex items-center gap-1 pb-8 text-sm text-ink-2">
-          <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate('/apps')}>{app?.orgName || wsName(app?.org)}</button>
+          <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate('/apps')}>{workspaceLabel(app?.orgName, app?.org)}</button>
           <span>/</span>
           <button className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink" onClick={() => navigate('/apps')}>Apps</button>
           <span>/</span>
@@ -684,7 +698,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                 }}
               />
             </div>
-            {(!isAws || app.run_chat) && <div className="fixed inset-y-0 right-0 z-10 flex w-[400px] flex-col border-l border-line bg-white px-5 pt-4 pb-4 max-lg:hidden">
+            {runChat && <div className="fixed inset-y-0 right-0 z-10 flex w-[400px] flex-col border-l border-line bg-white px-5 pt-4 pb-4 max-lg:hidden">
               <AskPanel key={app.run_chat ? `${app.name}:${runId}` : undefined} scope={{ run: runId }} appName={app.name} chatConfig={app.run_chat} placeholder="Ask about this run…" />
             </div>}
           </>
@@ -724,18 +738,17 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
               </span>
             </div>
 
-            <Tabs value={tab ?? 'graph'} onValueChange={value => { setTab(value); if (value === 'learn') navigate(`/apps/${encodeURIComponent(app.name)}?tab=learn`); }} className={cn(graphFull && 'flex min-h-0 flex-1 flex-col')}>
+            <Tabs value={shown} onValueChange={setTab} className={cn(graphFull && 'flex min-h-0 flex-1 flex-col')}>
               <TabsList pill className="shrink-0">
                 <TabsTrigger pill value="graph"><Tip label="Graph" info="Map of this app, with the Graph Agent"><span>Graph</span></Tip></TabsTrigger>
                 <TabsTrigger pill value="runbook"><Tip label="Runbook" info="Notes and docs for this app"><span>Runbook</span></Tip></TabsTrigger>
                 {app.kind === 'job' && <TabsTrigger pill value="run"><Tip label="Run" info="Start a run from the input form"><span>Run</span></Tip></TabsTrigger>}
                 <TabsTrigger pill value="logs"><Tip label="Logs" info="Table view of this app's runs and requests"><span>Logs</span></Tip></TabsTrigger>
-                {learnPreview && <TabsTrigger pill value="learn"><Tip label="Learn" info="Guided explanations of how this app works"><span>Learn</span></Tip></TabsTrigger>}
               </TabsList>
 
               {/* one compact meta line, repo-page style, in place of the old property grid */}
               <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-2">
-                <Pill color={app.kind === 'job' ? 'blue' : 'grey'}>{app.kind}</Pill>
+                <Pill kind={app.kind}>{app.kind}</Pill>
                 {isAws && <Pill>AWS</Pill>}
                 {isAws && app.aws_connection && <span>{app.aws_connection.account_id} · {app.aws_connection.region}</span>}
                 <span title={fmtTime(app.deployed_at || app.created_at)}>deployed {ago(app.deployed_at || app.created_at)}</span>
@@ -764,6 +777,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                       : app.nextRun && <span title={new Date(app.nextRun).toLocaleString()}>next {until(app.nextRun)}</span>}
                   </span>
                 )}
+                {learnPreview && <AppOps app={app} catalog={catalog?.apps} />}
               </div>
 
               {/* model-written blurb (first deploy), click to edit - edits stick across deploys */}
@@ -825,7 +839,8 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                 <CoachingPanel appName={app.name}>
                 {/* the page itself is scroll-locked on this tab; the pane flexes to the
                     viewport bottom so the input is static and only messages scroll */}
-                {isAws && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> :
+                {/* T02 §12: on the preview the bar replaces the Graph Agent input (one input; its asks would write live chat) */}
+                {learnPreview ? <p className="text-sm text-ink-2">Questions about this app go through the bar below.</p> : isAws && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> :
                 <div className="flex min-h-0 flex-1 flex-col">
                   <AskPanel
                     key={app.app_chat ? app.name : undefined}
@@ -855,9 +870,9 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
 
             </Tabs>
 
-            {app.lastOpened && (tab ?? 'graph') !== 'graph' && (
+            {app.lastOpened && shown !== 'graph' && (
               <div className="pt-6 text-sm text-ink-2">
-                Last opened by {app.lastOpened.email} · {ago(app.lastOpened.ts)}
+                Last opened by {personLabel(app.lastOpened.email)} · {ago(app.lastOpened.ts)}
               </div>
             )}
 

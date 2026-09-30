@@ -1,0 +1,708 @@
+{
+ "findings": [
+  {
+   "id": "registries-1",
+   "title": "Artifact generator offers and proposes provider-backed primitives without checking the provider is configured",
+   "status": "still_present",
+   "evidence": [
+    "learn-primitives.js:9-10 'Pure (no env, no fetch) so the browser imports it too'; video_generate (:153-159), maths_animation (:160-168), blender_scene (:169-175) and interactive_graph (:138-144) are static `ready: true`. The maths comment (:161-162) records one environment's provider: 'Verified 2026-09-29: small-math-renderer-dev rendered the sample end to end'",
+    "learn-artifact.js:28 `export function artifactPlan(command, { args = '', selection = null } = {})` takes no env; :32 `const ready = request.allowedPrimitives.filter(isReady);`; :44-48 builds one make_<id> tool per ready id; :72 returns `{ result: 'paid_proposal', ... }`",
+    "Provider guards run only at execution: video-provider.js:5-6 (LEARN_VIDEO_PROVIDER !== 'fal-seedance-lite' or no FAL_API_KEY -> 'Video generation is not configured'); math-provider.js:15 `if (!this.url || !this.token) throw new Error('Math animation is not configured')`; learn-scene.js:13 `if (!env.SCENE_WORKER_URL || !env.SCENE_WORKER_TOKEN) throw new Error('The scene worker is not configured')`; dev-worker.js:54 `desmosApiKey: env.DESMOS_API_KEY || null` and graph-renderers.js:9 `if (!desmosApiKey) throw new Error('Desmos is not configured')`",
+    "Execution order puts the paid confirmation before the provider check: learn-video.js:63 paidRefusal, then :64-65 provider construction; learn-scene.js:60 paidRefusal, then :63 workerRequest. Thrown errors become 400 {error} (learn-video.js:92, learn-scene.js:78)",
+    "An offer-time gating precedent already exists: learn-board.js:241 offers PEXELS_TOOL/INSPECT_IMAGE_TOOL only when `env.PEXELS_API_KEY` is set",
+    "The existing unit test already demonstrates the offer with no provider: learn-artifact.test.js:96-97 `generateArtifact({}, { command: 'video', ... })` asserts `paid_proposal` with env {}. The verifier re-ran control-plane learn-artifact/learn-video/learn-scene/math-provider tests: 32/32 pass",
+    "Client consequence: Generate in LearnSlash.jsx:76-78 -> learn-slash.js:114 inserts `{ ...result.block, confirmedStart: true }` -> LearningBlocks.jsx:811-819 useConfirmedStart -> VideoBody generate (:1354-1358) sets the error and `status: 'failed'` -> :1390 'Retry render' opens the same confirmation again, which fails the same way. SceneBody :1135/:1147 behaves the same"
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/learn-artifact.js generateArtifact/artifactPlan <- artifactFetch <- packages/web/dev-worker.js:163-170",
+    "packages/control-plane/src/learn-primitives.js PRIMITIVES/isReady",
+    "packages/control-plane/src/video-provider.js, math-provider.js, learn-scene.js workerRequest (existing guards)",
+    "packages/web/src/learn-slash.js runLearnCommand <- packages/web/src/LearnPage.jsx:409-420 <- LearnSlash.jsx",
+    "packages/web/src/LearningBlocks.jsx VideoBody/SceneBody/GraphBody",
+    "packages/control-plane/test/learn-artifact.test.js (calls generateArtifact with env {})"
+   ],
+   "smallest_change": "Export one configured(env) predicate next to each existing guard (video-provider.js, math-provider.js, learn-scene.js; DESMOS_API_KEY for interactive_graph), and have the guards use it. In generateArtifact, after auth and outside the pure artifactPlan, drop ready ids whose predicate is false before building tools. If none remain, return the existing {result:'unsupported', message} with the provider's own not-configured text and make no model call. Do not reuse PRIMITIVES[id].unavailable here: for /video it would say 'Existing clips are added from search or a link, not generated.' No new result type, endpoint or primitive.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Identical. learn-primitives.js, learn-artifact.js, learn-video.js, learn-scene.js, video-provider.js and math-provider.js are unchanged since 3bc489e (git diff 3bc489e..HEAD shows only learn-board.js, dev-worker.js and agent/slash.js changed among the registry files). The baseline only adds canvas-<8hex> authorization in authorizedBoardApp (learn-board.js:368-371), which does not affect this.",
+   "tests_to_add": "learn-artifact.test.js: (1) env without FAL_API_KEY: /video returns unsupported with the provider text and makes zero callModel calls; (2) env without MATH_WORKER_URL/TOKEN: /animate returns unsupported; (3) env without SCENE_WORKER_TOKEN: /3d returns unsupported; (4) env without DESMOS_API_KEY: /graph offers only make_data_plot and ask_clarifying_question; (5) existing cases that assume the keys need an env fixture instead of {}: :48-62 (the make_interactive_graph row, and the `offered(seen[0])` assertion compared against artifactPlan(command).ready, which no longer equals the offered tools once gating sits outside artifactPlan), :67-73 (asserts 'allows only interactive_graph, data_plot'), and :96-97 (/video paid_proposal). Their assertions otherwise stay unchanged."
+  },
+  {
+   "id": "registries-2",
+   "title": "Browser surfaces show every keyed or paid tool as usable, failure comes only at use time, and the palette's dev tier is always on",
+   "status": "still_present",
+   "evidence": [
+    "No browser code reads provider state. The / picker uses static readiness (learn-slash.js:13 `isReady(id) || PRIMITIVES[id]?.direct`). Card buttons render unconditionally: Image Find/Generate LearningBlocks.jsx:1303-1310 (Generate at :1307), Narration 'Read it aloud' :1012, 'Generate the video'/'Render the animation' :1390, 'Build the scene' :1160. A graph fails only after load (graph-renderers.js:8-9), then shows an overlay with 'Retry graph' (LearningBlocks.jsx:1493)",
+    "Messages at use time: dev-worker.js:70-71 runs paidRefusal, then returns 503 'Image generation is not configured on this environment.'; :117-118 runs paidRefusal, then returns 503 'Narration audio is not configured on this environment.'; :137 returns 503 'Speech to text is not configured on this environment.'; pexels.js:7 'Photo search is not configured' (/api/learn/photos 400, dev-worker.js:60-61); learn-youtube.js:83 'YouTube search is not connected on this deployment.' and learn-search.js:141 (EXA_API_KEY) cover the palette 'youtube' action",
+    "Palette tiering: the + button renders only when `import.meta.env.VITE_COACHING_DEV === 'true'` (AdaptiveCanvas.jsx:2696), and BlockMenu (its only caller is :2703) passes `dev: import.meta.env.VITE_COACHING_DEV === 'true'` (:712). DEV_ONLY_ITEMS (learn-insert-palette.js:20: imageGenerate, videoGenerate, mathAnimation, scene, audio) therefore appear wherever the palette exists. The dev:false case tested in learn-insert-palette.test.mjs:17-19 is never rendered. LearnPage mounts only through CanvasPage and RepositoryPage, both lazy-loaded only when VITE_COACHING_DEV and learnPreview are set (SharePage.jsx:65-67, :618, :622)",
+    "Paid image generation is also reachable from the non-dev 'image' item and from every /image card (ImageBody Generate, LearningBlocks.jsx:1307 -> :1274 POST /api/learn/image). The palette comment (learn-insert-palette.js:3-4) says paid generation stays behind the dev flag. The feature doc records image_generate as 'Not permanently dev-only; no change now' (docs/features/learn-artifact-generation.md:230)",
+    "The only provider signal the browser can see is GET /api/learn/graph-config (dev-worker.js:51-55), and it covers Desmos only"
+   ],
+   "files_and_callers": [
+    "packages/web/src/AdaptiveCanvas.jsx BlockMenu and + button (:703-722, :2696-2705)",
+    "packages/web/src/learn-insert-palette.js paletteSections",
+    "packages/web/src/learn-slash.js available/pickerSections <- LearnSlash.jsx, SlashCommandsSheet.jsx",
+    "packages/web/src/LearningBlocks.jsx ImageBody/AudioBody/VideoBody/SceneBody/GraphBody; WhiteboardBlock.jsx narrate (:66-77); SpeakAnswer.jsx",
+    "packages/web/dev-worker.js /api/learn/graph-config, photos, image, tts, transcribe, scene, video, search"
+   ],
+   "smallest_change": "The browser needs a read-only availability signal (booleans only, never key values), for example by extending the existing authorized GET /api/learn/graph-config response. The affected palette items, card buttons and commands would then be disabled with the provider's own not-configured text. That is a public-contract change, so it needs a decision. Until then, keep today's explicit use-time errors; registries-1 fixes the slash path on the server without a contract change.",
+   "change_type": "contract_change",
+   "needs_user_decision": true,
+   "decision_question": "Should there be a read-only provider-availability response (booleans per provider: images, narration, transcription, video, maths, scene, photos, desmos, search), either by extending GET /api/learn/graph-config or as a new GET? It would let the Insert palette, / picker and card Generate/Find buttons say 'not configured on this environment' instead of offering a paid action that cannot run. The alternative is to keep use-time failure in the browser and fix only the server-side slash path (registries-1). Separately: every rendered palette is in a dev build, so the DEV_ONLY tier is always on. Should it stay as documentation only, or be dropped from the product rule?",
+   "snapshot_vs_baseline": "Identical in every file listed. The baseline changes dev-worker.js only for canvas routing (canvasRoute/canvasAskSeam, refuseCanvasAsk), not for these routes.",
+   "tests_to_add": "If approved: a control-plane unit test that the availability builder returns only booleans (no secret values) for each env combination; a web unit test that paletteSections/available hide or mark items whose provider is false; learn-insert-palette.test.mjs updated to the decided tiering."
+  },
+  {
+   "id": "registries-3",
+   "title": "The primitive -> block.type -> palette -> slash -> paid -> provider mapping is only implicit; code_exercise->code and narration->audio are not encoded anywhere",
+   "status": "still_present",
+   "evidence": [
+    "Confirmed: code_sample -> 'snippet' (learn-primitives.js:90 `block: spec => ({ type: 'snippet', title: spec.title, brief: spec.brief, code: spec.code })`); interactive_graph -> 'graph' with desmos (:141-143); data_plot -> 'graph' with plotly (:148-151). The palette id for data_plot is 'plot' (LearningBlocks.jsx:223), whose sample has `type: 'graph'` (:230)",
+    "code_exercise -> 'code' exists only by naming. PRIMITIVES :177 `code_exercise: { ready: false, unavailable: ... }` has no block builder; the palette 'code' sample has `type: 'code'` (LearningBlocks.jsx:176-182, rendered by CodeBody :1637); CARD_OF (learn-slash.js:53-58) has no code_exercise entry",
+    "narration -> 'audio' also exists only by naming. PRIMITIVES :178 is not ready; PAID includes narration (agent/slash.js:70); the palette 'audio' sample has `type: 'audio'` (LearningBlocks.jsx:781-787, AudioBody :1642, dev-only); CARD_OF has no narration entry",
+    "CARD_OF also lacks knowledge_graph->knowledge, animation->animation, reference_attention->referenceAttention, 3d_model->model3d and image_generate->imageGenerate. This is harmless today because cardsFor filters by isReady or inserting-direct (learn-slash.js:66)",
+    "The commands contract hands this mapping to Learn: docs/features/rabbit-hole-commands.md:49-50 'Primitive ids are canonical here; the Learn branch maps them to block types.'; agent/slash.js:66 'Canvas primitives are ids the Learn branch maps to block types.'",
+    "ROWS (primitive -> block.type [discriminator] | palette id (tier) | slash | paid | provider | generator | validation | renderer):",
+    "explanation -> explanation | explanation (Explain) | /explain | no | card-maker model | ready | schema :45 | ExplanationBody :1639",
+    "table -> table | table (Explain) | /explain,/compare | no | model | ready | schema + row width :52 | TableBody :1640",
+    "flashcards -> flashcards | flashcards (Check understanding) | /flashcards | no | model | ready | schema | FlashcardsBody :1636",
+    "quiz -> quiz | quiz (Check) | /quiz,/practice | no | model | ready | schema + one correct/distinct :65-68 | QuizBody :1635",
+    "challenge -> challenge | challenge (Check) | /practice | no | model | ready | schema | ChallengeBody :1634",
+    "explain_back -> challenge [mode explain_back, :81] | explainBack (Check) | /practice | no | model | ready | schema | ChallengeBody",
+    "code_sample -> snippet | snippet (Code) | /code | no | model | ready | schema + <=60 lines :87 | SnippetBody :1638",
+    "code_exercise -> code | code (Code) | /code,/practice | no | browser Pyodide | NOT generated :177 | n/a | CodeBody :1637",
+    "flow_diagram -> flow | flow (Visualize) | /diagram,/compare | no | model + ELK | ready | schema + ids/edges :101-105 | FlowBody :1646",
+    "mermaid_diagram -> mermaid | mermaid (More) | /diagram,/compare | no | model | ready | schema + type allowlist, no click/directive/script :112-116 | MermaidBody :1647",
+    "walkthrough -> scene [spec.type interactive_scene, behaviorId walkthrough_v1] | walkthrough (Visualize) | /walkthrough | no | model | ready | schema | SceneActivityBody :1643",
+    "interactive_graph -> graph [renderer desmos] | graph (Visualize) | /graph,/compare | no | DESMOS_API_KEY via /api/learn/graph-config | ready | validateGraph :142 | GraphBody :1653",
+    "data_plot -> graph [renderer plotly] | plot (Visualize) | /graph,/compare | no | none | ready | validateGraph + illustrative label :149-151 | GraphBody",
+    "video_generate -> video [mode generate, op generate_video] | videoGenerate (More, dev-only) | /video | YES | LEARN_VIDEO_PROVIDER=fal-seedance-lite + FAL_API_KEY | ready (paid proposal) | validateVideo :157 | VideoBody :1651 -> /api/learn/video (paidRefusal learn-video.js:63)",
+    "maths_animation -> video [mode generate, op generate_math_animation] | mathAnimation (More, dev-only) | /animate | YES | MATH_WORKER_URL + MATH_WORKER_TOKEN | ready (paid proposal) | validateMathAnimation :166 | VideoBody -> /api/learn/video",
+    "blender_scene -> scene [operation generate_3d_animation] | scene (More, dev-only) | /3d | YES | SCENE_WORKER_URL (var) + SCENE_WORKER_TOKEN | ready (paid proposal) | validateScene :173 | SceneBody :1649 -> /api/learn/scene (paidRefusal learn-scene.js:60)",
+    "narration -> audio | audio (More, dev-only) | /explain | YES | FISH_AUDIO_API_KEY | NOT generated :178 | n/a | AudioBody :1642 -> /api/learn/tts (paidRefusal dev-worker.js:117)",
+    "knowledge_graph -> knowledge | knowledge (More) | /graph | no | none | NOT generated :179 | n/a | KnowledgeBody :1648",
+    "animation -> animation | animation (Visualize) | /animate,/compare | no | none | NOT generated :180 | n/a | AnimationBody :1645",
+    "reference_attention -> animation [fixed causalAttentionScene] | referenceAttention (menu:false, not in palette) | /animate | no | none | NOT generated :181 | n/a | AnimationBody",
+    "3d_model -> model3d | model3d (More) | /3d | no | external HTTPS glTF | NOT generated, not direct :182 | n/a | ThreeDBody :1641",
+    "image -> image [mode search] | image (Sources) | /image (direct insert + Pexels autoSearch) | no | PEXELS_API_KEY | direct :184 | n/a | ImageBody :1650",
+    "image_generate -> image [mode generate] | imageGenerate (More, dev-only) plus every image card's Generate | /image | YES | OPENAI_API_KEY | not from a command :185, card button only | n/a | ImageBody -> /api/learn/image (paidRefusal dev-worker.js:70)",
+    "video -> video [mode existing, src] | video (Sources) | /video (never inserted by the command) | no | hosted MP4/WebM | direct :186 | n/a | VideoBody",
+    "notebook -> notebook | notebook ACTION (Code) | /notebook | no | VITE_NOTEBOOK_ORIGIN (default dev origin, learn-notebook.js:7) | direct | n/a | NotebookCard (AdaptiveCanvas.jsx:537)",
+    "whiteboard -> whiteboard | whiteboard (More) | /whiteboard | no | VITE_TLDRAW_LICENSE_KEY (WhiteboardBlock.jsx:179) | direct | n/a | WhiteboardBody :1644",
+    "paper -> paper | paper (Sources) | /paper | no | arXiv, no key | direct | n/a | PaperBody :1652",
+    "Palette-only, no primitive: vector -> scene [interactive, vector_projection_v1] (More); youtube ACTION -> video [videoId] VideoCard via EXA search; pipeline, animationAxis, animationResidual, animationSigmoid (menu:false, kept only so old boards render)"
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/learn-primitives.js PRIMITIVES (imported by learn-artifact.js and by web learn-slash.js)",
+    "packages/web/src/learn-slash.js CARD_OF/cardsFor <- SlashCommandsSheet.jsx",
+    "packages/web/src/agent/slash.js PAID/primitive (shared contract, owned by smart-home)",
+    "packages/web/src/LearningBlocks.jsx BLOCK_TYPES/LearningBlockBody",
+    "packages/web/src/learn-insert-palette.js"
+   ],
+   "smallest_change": "Make the mapping explicit in one place with no behavior change. Either add the 7 missing CARD_OF entries, or move CARD_OF into a `card` field on each PRIMITIVES entry and derive the CARD_OF export from it. Paid status stays in primitive(id), per the owner rule at learn-artifact-generation.md:36-37. cardsFor output does not change.",
+   "change_type": "pure_refactor",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Identical. learn-primitives.js, learn-slash.js, LearningBlocks.jsx and learn-insert-palette.js are unchanged since 3bc489e; agent/slash.js changed only in D7_REASON/TEACH_OFF (reviewOff), not in families or PAID.",
+   "tests_to_add": "Pinned by the cross-check test in registries-4: block.type plus discriminator per primitive, palette id, paid flag, family membership."
+  },
+  {
+   "id": "registries-4",
+   "title": "No unit test cross-checks palette ids, BLOCK_TYPES, CARD_OF and renderer dispatch against PRIMITIVES; the palette test only checks itself",
+   "status": "still_present",
+   "evidence": [
+    "learn-insert-palette.test.mjs:5-7 builds its TYPES stand-in from the palette's own lists, so a palette id missing from BLOCK_TYPES cannot make it fail. paletteSections also silently drops unknown ids: learn-insert-palette.js:30 `const keep = id => (ACTIONS.has(id) || types[id]) && ...`",
+    "BLOCK_TYPES lives in a JSX module (LearningBlocks.jsx:48), and web unit tests run plain `node --test \"src/**/*.test.mjs\"` (packages/web/package.json:10 scripts.test:unit), so no node test can import it",
+    "Existing cross-checks: learn-artifact.test.js:27-31 (every family id is in PRIMITIVES; ready entries have schema, block and about); learn-slash.test.mjs:91-101 (cardsFor for 7 commands); agent/slash.test.mjs:61-77 (families against a literal table). e2e canvas-block-menu.mjs and slash-sheet-check.mjs run only against the deployed clone and are not part of make test-unit. Verifier re-ran: control-plane 32/32 and web 24/24 pass on the baseline",
+    "A source read confirms: every palette id (minus ACTIONS) and every CARD_OF value is a BLOCK_TYPES key. The BLOCK_TYPES keys outside the palette are pipeline, animationAxis, animationResidual, animationSigmoid and referenceAttention, each `menu: false` (LearningBlocks.jsx:387, :507, :516, :525, :538), and no code reads that `menu` flag (grep for `.menu` finds no reader)",
+    "BLOCK_TYPES' imports load under node (per the original result; not re-run by the verifier), so the data object could move to a plain .js file without a JSX loader"
+   ],
+   "files_and_callers": [
+    "packages/web/src/learn-insert-palette.test.mjs",
+    "packages/web/src/learn-slash.test.mjs",
+    "packages/control-plane/test/learn-artifact.test.js",
+    "packages/web/src/LearningBlocks.jsx BLOCK_TYPES, LearningBlockBody (:1633-1655)",
+    "packages/web/src/AdaptiveCanvas.jsx LessonBlockCard (:528-543)"
+   ],
+   "smallest_change": "Add one web unit test, for example src/learn-registry.test.mjs, that reads LearningBlocks.jsx source the way learn-artifact.test.js:127 reads dev-worker.js. It asserts: palette ids are all BLOCK_TYPES keys; menu:false keys are not in the palette; each CARD_OF value is in BLOCK_TYPES and its sample block.type (plus mode/renderer/behaviorId/op) matches the ready primitive's builder output; every sample and builder block.type has a LearningBlockBody or LessonBlockCard branch; every PAID id maps to an endpoint gated by paidRefusal. As an optional, separate pure refactor, move the BLOCK_TYPES data into a plain .js module re-exported from LearningBlocks.jsx, so the test can import it instead of parsing source.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Identical: learn-insert-palette.test.mjs, learn-slash.test.mjs and learn-artifact.test.js are unchanged since 3bc489e; agent/slash.test.mjs only gained the /teach reviewOff test.",
+   "tests_to_add": "The registry cross-check test described above, run under make test-unit."
+  },
+  {
+   "id": "registries-5",
+   "title": "The canvas sizes cards by block.type, but the Slash commands sheet sizes them by palette id while claiming to match the canvas",
+   "status": "still_present",
+   "evidence": [
+    "AdaptiveCanvas.jsx:540-543 sizes every lesson card from `BLOCK_TYPES[block.type]` (ghost, autoMax, sizeFor/width, height). CanvasNode defaults to width 380 and autoMax 420 (AdaptiveCanvas.jsx:146)",
+    "SlashCommandsSheet.jsx:161-163 uses `const spec = BLOCK_TYPES[type] || {}`, where type is the palette id from CARD_OF (via cardsFor). Its comment at :114 says 'One card exactly as the canvas draws it at 100%: the canvas node's width...'",
+    "Sheet vs canvas mismatch affects the CARD_OF cards whose key differs from block.type: explainBack (440 wide, autoMax 560 vs challenge 380/420), plot (560x480 vs graph 560x520), walkthrough (420x460 vs scene 560x480), videoGenerate and mathAnimation (autoMax 680 vs video 620)",
+    "Separately, BLOCK_TYPES size fields on other keys whose sample type differs are never used on the canvas: palette ids imageGenerate (autoMax 680 vs image 620) and vector (420x520 vs scene 560x480); and menu:false keys pipeline, animationAxis, animationResidual, animationSigmoid, referenceAttention (not in any palette list, so pipeline is not palette-inserted). In total 12 BLOCK_TYPES keys produce a different block.type, 7 of them palette ids",
+    "slash-sheet-check.mjs:38 asserts the sheet's walkthrough is 420 px, while a generated or inserted walkthrough is 560 px on the canvas. No check covers canvas widths per palette id",
+    "Both lookups date from 2026-09-17 per the original result (262a85b canvas sizing, 62cc976 explainBack entry; not re-verified). The canvas sizes are the ones that have been reviewed on the canvas"
+   ],
+   "files_and_callers": [
+    "packages/web/src/SlashCommandsSheet.jsx CardPreview",
+    "packages/web/src/AdaptiveCanvas.jsx LessonBlockCard/CanvasNode",
+    "packages/web/src/LearningBlocks.jsx BLOCK_TYPES size fields",
+    "packages/web/e2e/slash-sheet-check.mjs"
+   ],
+   "smallest_change": "Option A leaves the canvas unchanged: size the sheet preview from BLOCK_TYPES[sample.type] with sizeFor, exactly as CanvasNode does, and update the expected widths in slash-sheet-check.mjs. Option B makes the canvas use the palette entry's sizes. That needs a stored palette id or a lookup by mode/renderer/behaviorId, and it is a visible canvas change for new and existing boards. Persisted boards are not rewritten either way.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": true,
+   "decision_question": "What size should explain-back, data plot, walkthrough/vector and generated image/video/maths cards have? Option A keeps today's canvas size and changes only the sheet to match it. Option B uses the palette entry's size, which changes the canvas visibly and needs a visual review.",
+   "snapshot_vs_baseline": "Identical: SlashCommandsSheet.jsx, AdaptiveCanvas.jsx and LearningBlocks.jsx are unchanged since 3bc489e.",
+   "tests_to_add": "The registries-4 test asserts that the sheet and the canvas resolve size from the same key; slash-sheet-check.mjs widths are updated to the decided values."
+  },
+  {
+   "id": "registries-6",
+   "title": "The / picker treats a command as available because of a direct primitive the command cannot insert (/video)",
+   "status": "still_present",
+   "evidence": [
+    "learn-slash.js:13 `export const available = command => !command.family || command.deterministic || command.family.some(id => isReady(id) || PRIMITIVES[id]?.direct);`",
+    "learn-slash.js:59-66: cardsFor uses a stricter rule: 'A direct primitive counts only for a command that inserts it without the model (the deterministic ones, and /image's photo search): /video, say, can only propose a generated clip, never an existing one.' `const inserts = !!command?.deterministic || name === 'image';`",
+    "runLearnCommand never inserts an existing clip for /video (learn-slash.js:94-118); /video's only generatable primitive is video_generate (family ['video','video_generate'], agent/slash.js:54)",
+    "No visible effect on the baseline: all 25 Learn commands are available under either rule (every family with a direct-only primitive also has a ready one, except /image, which the inserts rule keeps). It starts to matter once video_generate is unusable: /video would stay listed, and the server's unsupported text would come from the direct 'video' entry, first in the family (learn-artifact.js:34; learn-primitives.js:186 'Existing clips are added from search or a link, not generated.')"
+   ],
+   "files_and_callers": [
+    "packages/web/src/learn-slash.js available <- pickerSections <- LearnSlash.jsx, SlashCommandsSheet.jsx"
+   ],
+   "smallest_change": "Apply cardsFor's `inserts` rule inside available, so a direct primitive counts only for deterministic commands and /image. The output does not change today.",
+   "change_type": "pure_refactor",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Identical: learn-slash.js is unchanged since 3bc489e.",
+   "tests_to_add": "learn-slash.test.mjs: with PRIMITIVES.video_generate.ready temporarily set to false, available for /video is false while /image stays true; restore the flag afterwards."
+  },
+  {
+   "id": "registries-7",
+   "title": "The /api/learn/artifact boundary is intact on the baseline: tools derived on the server, schema and semantic checks, one repair, explicit results",
+   "status": "not_a_problem",
+   "evidence": [
+    "Allowed tools come from the command, never the body: learn-artifact.js:29 `const request = learnRequest(command, { args, selection });`, :32 `request.allowedPrimitives.filter(isReady)`, :44-48 one make_<id> per ready id plus CLARIFY. :97 passes only command, args, selection and context to generate",
+    "A call outside the family is rejected without a repair: :67 `if (!id && call.name !== CLARIFY.name) return { result: 'validation_error', error: ... }`",
+    "Schema and semantic validation: learn-primitives.js:227-234 artifactBlock runs validateSchema, then primitive.check, then block",
+    "Exactly one repair: learn-artifact.js:60-77. A failure on attempt 0 asks again with an is_error tool_result saying 'This is the only correction attempt.'; a failure after that returns validation_error",
+    "Every result is explicit: direct, not_artifact, unsupported (:30-35), clarification (:63), paid_proposal (:72, estimatedCost null), artifact (:73), validation_error (:67, :75). Model or HTTP failures become 502 {error} (:52, :55, :98). Input limits (20000/1000/8000) return 400 before auth (:90-93), and auth runs before any model call (:95-96)",
+    "learn-artifact.test.js passes on the baseline (part of the 32/32 control-plane run)",
+    "Authorization is via authorizedBoardApp (learn-board.js:361-381): repo- apps via repositoryAccess (LEARN_DB); canvas-<8hex> via canvasAccess (LEARN_DB, owner only, new on the baseline at :368-371); any other name via a production read of GET /api/apps/<name> (:372-380). On the baseline the preview UI never mounts Learn for a normal job/server app (SharePage.jsx:619-622 'the preview never mounts Learn for them'); a project-owned canvas is a canvas-<8hex> row whose `project` must name a LEARN_DB repository_apps row (canvases.js:64-69). So the production-read branch is reached only by direct API requests. The endpoint itself writes nothing",
+    "Caveats that do not break the boundary: 'direct' and 'not_artifact' reach the client only from crafted requests, since runLearnCommand posts only family commands (learn-slash.js:110-111). On the OpenAI plan path (ask.js:260-261, whenever OPENAI_API_KEY is set), a truncated tool call maps to stop_reason 'tool_use' (ask.js:254), so the max_tokens branch at learn-artifact.js:69 only applies on Anthropic. Malformed arguments become {} (ask.js:249), still fail validation, get the one repair, then return validation_error"
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/learn-artifact.js <- packages/web/dev-worker.js:163-170",
+    "packages/control-plane/src/learn-primitives.js artifactBlock",
+    "packages/control-plane/src/learn-validation.js",
+    "packages/control-plane/src/learn-board.js authorizedBoardApp",
+    "packages/control-plane/src/canvases.js canvasAccess",
+    "packages/control-plane/src/ask.js planModel/fromOpenAI"
+   ],
+   "smallest_change": "none",
+   "change_type": "none",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "learn-artifact.js, learn-primitives.js, learn-validation.js and learn-artifact.test.js are unchanged since 3bc489e. The only difference is the canvas branch in authorizedBoardApp, which is specific to the smart-home integration and covered by canvases.test.js.",
+   "tests_to_add": "None beyond keeping learn-artifact.test.js; registries-1 adds the provider cases."
+  },
+  {
+   "id": "registries-8",
+   "title": "No code marks a generator ready because a renderer or Insert-palette sample() exists",
+   "status": "not_a_problem",
+   "evidence": [
+    "Readiness comes only from the registry flag: learn-primitives.js:223 `export const isReady = id => PRIMITIVES[id]?.ready === true;`",
+    "The palette lists an item when BLOCK_TYPES has it (learn-insert-palette.js:30) and inserts the hand-written fixture with no model call: AdaptiveCanvas.jsx:2320 `const added = { ...BLOCK_TYPES[type].sample(), dy };`",
+    "The Slash commands sheet previews only cards of ready or inserting-direct primitives (learn-slash.js:63-67). For paid media it shows a finished job, or 'No finished example of this one yet: its generator has not produced one here.' (SlashCommandsSheet.jsx:127-160)",
+    "Primitives that are not ready keep explicit messages and are never replaced by a simpler card (learn-primitives.js:176-189; learn-artifact.test.js:40-41). code_exercise stays unsupported even though the 'code' card renders",
+    "The real conflation is between readiness and provider configuration (registries-1, registries-2, registries-14)"
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/learn-primitives.js",
+    "packages/web/src/learn-insert-palette.js",
+    "packages/web/src/learn-slash.js",
+    "packages/web/src/SlashCommandsSheet.jsx",
+    "packages/web/src/AdaptiveCanvas.jsx insertBlock"
+   ],
+   "smallest_change": "none",
+   "change_type": "none",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Identical: all of these files are unchanged since 3bc489e.",
+   "tests_to_add": "The registries-4 test also asserts that no primitive becomes ready just because it has a CARD_OF or BLOCK_TYPES entry, for example that code_exercise stays unsupported while 'code' renders."
+  },
+  {
+   "id": "registries-9",
+   "title": "The whiteboard explainer has its own generator vocabulary; its video and scene kinds are generated and validated but cannot run on the only mounted renderer",
+   "status": "still_present",
+   "evidence": [
+    "learn-board.js:43-45: the BOARD_TOOL kind enum is ['text','equation','diagram','code','image','paper_figure','video','graph','three_d','scene'], with operation anyOf [VIDEO_SCHEMA, GRAPH_SCHEMA, THREE_D_SCHEMA, SCENE_SCHEMA]; :84-87 run validateVideo, validateGraph, validateThreeD and validateScene",
+    "WhiteboardBlock.jsx:132 calls `drawExplanation(instance, snapshot, plan, { app: appName, paidRunner: false })`. learn-board-renderer.js:13 then sets `const offered = paidRunner ? 'proposed' : 'unavailable';`, and LearnVideoShape.jsx:17-19 shows 'Video not generated' or '3D scene not generated' with 'Generation isn't available from this canvas yet.'",
+    "BOARD_SYSTEM still promises execution: learn-board.js:27 'The video generates asynchronously after review' and :34 'Blender constructs this validated scene asynchronously and the canvas replaces a placeholder with an interactive GLB.'",
+    "drawExplanation's default paidRunner=true ('proposed') is never used on the current canvas; the only caller in packages/web/src is WhiteboardBlock.jsx:132",
+    "Mapping to PRIMITIVES, not encoded anywhere: video->video_generate, scene->blender_scene, graph->interactive_graph/data_plot (desmos/plotly), three_d->3d_model (existing HTTPS glTF), image->Pexels photo (offered only with PEXELS_API_KEY, learn-board.js:241), paper_figure->paper. text, equation, diagram and code exist only on the whiteboard"
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/learn-board.js BOARD_TOOL/BOARD_SYSTEM/validateBoardPlan <- boardFetch <- dev-worker.js:172-179",
+    "packages/web/src/WhiteboardBlock.jsx -> learn-board-renderer.js drawExplanation -> LearnVideoShape.jsx"
+   ],
+   "smallest_change": "For C7, record the kind-to-primitive rows in the docs; no code change. Rewording the prompt so video and scene are described as proposals that this canvas does not generate belongs to C3's prompt work. Keep the kinds and the renderer, which is already truthful.",
+   "change_type": "record_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "The renderer, LearnVideoShape and WhiteboardBlock are unchanged since 3bc489e. learn-board.js changed only in authorizedBoardApp's canvas branch; BOARD_TOOL and BOARD_SYSTEM are unchanged.",
+   "tests_to_add": "A C3 prompt test that the assembled whiteboard prompt no longer says video or scene is generated on the whiteboard. Optionally, a web unit test on learn-board-renderer's status mapping ('unavailable' when paidRunner is false)."
+  },
+  {
+   "id": "registries-10",
+   "title": "Speech-to-text is an OpenAI provider call that sits outside the paid registry and has no paid gate",
+   "status": "still_present",
+   "evidence": [
+    "dev-worker.js:130-150, /api/learn/transcribe: authorizedBoardApp, then `if (!env.OPENAI_API_KEY) return ... 'Speech to text is not configured on this environment.'` (:137), then a POST to OpenAI with `upload.set('model', 'gpt-4o-transcribe')` (:140). There is no paidRefusal",
+    "Caller: SpeakAnswer.jsx:32 posts the recording from the 'Speak your answer' mic (:47) with no confirmation",
+    "learn-paid.js:1-3 says 'One invariant for every paid provider ... OpenAI images, FAL video, Manim, Blender, fish.audio narration, and any provider added later.' Transcription is not listed in the paid table (docs/features/learn-artifact-generation.md:86-93) or in PAID (agent/slash.js:70), and learn-artifact.test.js:127-131 checks only /api/learn/image and /api/learn/tts in dev-worker.js"
+   ],
+   "files_and_callers": [
+    "packages/web/dev-worker.js /api/learn/transcribe",
+    "packages/web/src/SpeakAnswer.jsx",
+    "packages/control-plane/src/learn-paid.js (comment)",
+    "docs/features/learn-artifact-generation.md paid table"
+   ],
+   "smallest_change": "Record the classification. If transcription is an exempt input method, add it to the paid-boundary table as 'provider call, not paid generation, no gate' and say so in learn-paid.js's comment (docs only). If it counts as paid, a confirmation on every spoken answer is a product change for the owner to approve.",
+   "change_type": "record_only",
+   "needs_user_decision": true,
+   "decision_question": "Is speech-to-text (/api/learn/transcribe, OpenAI gpt-4o-transcribe) exempt from the rule that every paid provider asks for confirmation first, or should it be gated like image generation and narration?",
+   "snapshot_vs_baseline": "Identical: the transcribe route is unchanged in dev-worker.js, and SpeakAnswer.jsx is unchanged.",
+   "tests_to_add": "If exempt: none (docs only). If paid: add '/api/learn/transcribe' to the route list in learn-artifact.test.js:128."
+  },
+  {
+   "id": "registries-11",
+   "title": "/source is offered in the Learn picker, but no canvas wires its handler",
+   "status": "still_present",
+   "evidence": [
+    "learn-slash.js:13 lists any command with no family. /source has `action: 'open_sources', deterministic: true` (agent/slash.js:41) and appears under 'More learning tools'",
+    "learn-slash.js:104 `canvas.openSources?.(); return { notice: canvas.openSources ? null : { tone: 'info', text: 'The Source inspector is not available here yet.' } }`. The only host passes a canvas without openSources (LearnPage.jsx:414-418 provides insertNotebook, insertBlock and insertPaper), and grep finds openSources nowhere else in packages/web/src",
+    "The sheet already says so: SlashCommandsSheet.jsx:28 'Opens the Source inspector for the selected card. (Not reachable from a command yet.)'. The architecture doc also lists it (docs/learn-agent-canvas-architecture.md:779 '/source is a no-op')"
+   ],
+   "files_and_callers": [
+    "packages/web/src/learn-slash.js available/runLearnCommand <- LearnSlash.jsx, SlashCommandsSheet.jsx",
+    "packages/web/src/LearnPage.jsx learnSlash.canvas",
+    "packages/web/e2e/slash-sheet-check.mjs:61"
+   ],
+   "smallest_change": "In learn-slash.js `available`, stop offering action commands that have no Learn handler (open_sources). Typed by name, /source still runs and says 'not available here yet', which is the file's own rule at :10-12. The shared contract in agent/slash.js does not change.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": true,
+   "decision_question": "Should /source be hidden from the Learn picker and the Slash commands sheet until the Source inspector exists, or stay listed with its explicit 'not available here yet' notice?",
+   "snapshot_vs_baseline": "Identical: learn-slash.js and LearnPage.jsx are unchanged since 3bc489e, and /source is unchanged in agent/slash.js.",
+   "tests_to_add": "learn-slash.test.mjs: pickerSections('/') has no 'source' row, and runLearnCommand('/source') still returns the info notice. Update the command list in slash-sheet-check.mjs:61."
+  },
+  {
+   "id": "registries-12",
+   "title": "The architecture and feature docs misstate parts of the registries",
+   "status": "still_present",
+   "evidence": [
+    "docs/learn-agent-canvas-architecture.md:503 says 'The call uses tool_choice: any, one tool and 4000 max tokens.' It actually offers one make_<id> per ready primitive plus ask_clarifying_question and forces exactly one call (learn-artifact.js:44-51)",
+    ":592 says 'image: Image (Pexels search / upload)'. ImageBody has Find (Pexels) and a paid Generate, and no upload (LearningBlocks.jsx:1301-1310)",
+    ":594 says 'Dev builds only (VITE_COACHING_DEV=true, so the dev clone shows them)'. The + button itself is dev-only (AdaptiveCanvas.jsx:2696), so this tier is always shown wherever the palette exists",
+    ":688 says 'video without videoId (generate, maths animation) | VideoBody (paid)'. VideoBody also plays existing clips (mode 'existing', LearningBlocks.jsx:653-666), which are not paid",
+    ":958 'Card types | LearningBlocks.jsx BLOCK_TYPES' and learn-insert-palette.js:5 'Ids are canvas block types, except the ACTIONS' both treat palette ids as block types; 7 palette ids produce a different block.type (registries-5)",
+    "docs/features/learn-artifact-generation.md:231 says 3d_model is 'direct only: an existing model is inserted'. PRIMITIVES['3d_model'] (learn-primitives.js:182) has no direct flag, and /3d can only propose blender_scene"
+   ],
+   "files_and_callers": [
+    "docs/learn-agent-canvas-architecture.md sections 10.2, 11.2, 12, 17.4",
+    "docs/features/learn-artifact-generation.md gap table",
+    "packages/web/src/learn-insert-palette.js:5 (comment)"
+   ],
+   "smallest_change": "Correct those lines, and add the explicit mapping table (registries-3) with a provider column to the architecture doc (sections 10.2, 11.2, 12, 13, 17.4). The only code change is the one-line comment in learn-insert-palette.js.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "The doc describes 3bc489e, and the code it describes in these sections is unchanged on the baseline, so the same inaccuracies still apply.",
+   "tests_to_add": "none"
+  },
+  {
+   "id": "registries-13",
+   "title": "Which providers are configured on each dev worker cannot be verified from code",
+   "status": "needs_reproduction",
+   "evidence": [
+    "The configs set only LEARN_VIDEO_PROVIDER 'fal-seedance-lite' and SCENE_WORKER_URL 'https://small-lesson-renderer-dev.fly.dev' as vars, in packages/web/wrangler.dev.jsonc:100,107 (worker small-cp-dev, :2) and wrangler.parallel.jsonc:121,128 (worker small-cp-dev-small-parallel, :7). The other provider settings are secrets (docs/learn-agent-canvas-architecture.md:954: OPENAI_API_KEY, EXA_API_KEY, PEXELS_API_KEY, DESMOS_API_KEY, FAL_API_KEY, FISH_AUDIO_API_KEY, MATH_WORKER_URL, MATH_WORKER_TOKEN, SCENE_WORKER_TOKEN)",
+    "CLAUDE.md: 'true wrangler secrets do not clone, so a feature needing one shows its no-credential message on your clone'. docs/features/learn-math-animation.md:66-69 set MATH_WORKER_URL/TOKEN on the parallel clone by hand, and slash-sheet-check.mjs:49,55 says Manim, Blender and FAL produced samples on the clone on 2026-09-29"
+   ],
+   "files_and_callers": [
+    "packages/web/wrangler.dev.jsonc",
+    "packages/web/wrangler.parallel.jsonc"
+   ],
+   "smallest_change": "None until reproduced. The user can run these read-only commands, which print secret names only: `cd packages/web && npx wrangler secret list --config wrangler.parallel.jsonc` and `npx wrangler secret list --config wrangler.dev.jsonc`. Compare the output with the provider column in registries-3 to see how visible the registries-1, -2 and -14 failures are on each worker.",
+   "change_type": "none",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "The var blocks are the same at 3bc489e and on the baseline for these keys; secret state is remote and was not read.",
+   "tests_to_add": "none"
+  },
+  {
+   "id": "registries-14",
+   "title": "The whiteboard explainer offers Desmos graphs without checking DESMOS_API_KEY, unlike its Pexels tools",
+   "status": "still_present",
+   "evidence": [
+    "learn-board.js:44-45 BOARD_TOOL always accepts kind 'graph' with GRAPH_SCHEMA (desmos or plotly), and BOARD_SYSTEM tells the model 'Choose desmos for editable mathematic...' with no availability condition; validateBoardPlan (:86) runs validateGraph only",
+    "By contrast the same generator offers Pexels tools only when the key is set: learn-board.js:241 `...(env.PEXELS_API_KEY ? [PEXELS_TOOL, INSPECT_IMAGE_TOOL] : [])`",
+    "The whiteboard draws a graph block as an 'interactive-graph' shape (learn-board-renderer.js:72-73), rendered by InteractiveGraphShape.jsx via graph-renderers.js, whose loader throws 'Desmos is not configured' when /api/learn/graph-config returns desmosApiKey null (graph-renderers.js:8-9; dev-worker.js:54)"
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/learn-board.js BOARD_TOOL/BOARD_SYSTEM/validateBoardPlan <- boardFetch <- dev-worker.js:172-179",
+    "packages/web/src/learn-board-renderer.js -> InteractiveGraphShape.jsx -> graph-renderers.js loadDesmos"
+   ],
+   "smallest_change": "Follow the Pexels precedent in the same function: when !env.DESMOS_API_KEY, reject a desmos graph operation in the board's validate callback so the existing single repair picks plotly, and add one line to the system prompt saying Desmos is unavailable. No schema, endpoint or renderer change. Reuse the registries-1 Desmos predicate.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Identical: BOARD_TOOL, BOARD_SYSTEM, the renderer and graph-renderers.js are unchanged since 3bc489e.",
+   "tests_to_add": "A learn-board unit test with a stubbed model: without DESMOS_API_KEY a desmos graph block triggers the one repair (a plotly result is accepted); with the key, desmos is accepted unchanged."
+  },
+  {
+   "id": "paid-persist-1",
+   "title": "paidRefusal checks only `confirmed === true`, runs at every paid generation handler before the provider call, and every client sender is behind PaidConfirm",
+   "status": "not_a_problem",
+   "evidence": [
+    "packages/control-plane/src/learn-paid.js:7 `if (body?.confirmed === true) return null;` and :8 returns 428 `{ error: 'This uses paid generation. Confirm it first.', needsConfirm: true }` with no-store. It checks nothing else: not who clicked, authorization, ownership or duplicates. Each handler does those itself. The file is byte-identical at 3bc489e.",
+    "Image: packages/web/dev-worker.js:65 `const access = await authorizedBoardApp(req, env, body?.app);`, then :70 `const refused = paidRefusal(body); if (refused) return refused;`, then the provider call at :72 `await fetch('https://api.openai.com/v1/images/generations'`.",
+    "TTS: dev-worker.js:114 authorizedBoardApp, :117 paidRefusal, :119 `await fetch('https://api.fish.audio/v1/tts'`.",
+    "Video and maths: packages/control-plane/src/learn-video.js:21 authorizedBoardApp(?app); :25 Origin check; :27 `binding.idFromName(JSON.stringify([app.org, app.name, app.email]))`; :63 paidRefusal inside the LearnVideos DO, after the free `place` action and before validation, provider choice (:64-66 maths vs FAL) and submit.",
+    "Scene: packages/control-plane/src/learn-scene.js:11 uses the same privateLessonAssetFetch; :60 paidRefusal comes before validateScene and the worker health call.",
+    "Artifact: packages/control-plane/src/learn-artifact.js:72 `if (contract(id).paid) return { result: 'paid_proposal', ... }`. No provider or job is started. Its Origin check is at learn-artifact.js:86.",
+    "Client senders of `confirmed: true` (grep of web/src): LearningBlocks.jsx:989 (AudioBody, only from PaidConfirm :1008); :1145 (SceneBody, from PaidConfirm :1159 or useConfirmedStart :1149); :1274 (ImageBody, from PaidConfirm :1312); :1357 (VideoBody, from PaidConfirm :1389 or useConfirmedStart :1360); WhiteboardBlock.jsx:72 (narrate, from PaidConfirm :233); learn-slash.js:114 (confirmedStart set after the LearnSlash.jsx:76-78 PaidConfirm press). learn-video-canvas.js:91 also sends it but cannot run: LearnPage.jsx:169 `const [editor, setEditor] = useState(null);` and setEditor is never called. learn-scene-client.js:12,22 default to `confirmed = false`.",
+    "SlashCommandsSheet.jsx:167-171 also mounts LearningBlockBody for example cards, but disables every PaidConfirm Generate with `[&_[data-paid-generate]]:pointer-events-none` (PaidConfirm.jsx:9 carries data-paid-generate), so the preview sheet cannot send confirmed: true.",
+    "The Agent Bar ConfirmCard (agent/ConfirmCard.jsx, commands.js) confirms app and repository commands, not paid generation. The Agent Bar's Learn handoff (LearnPage.jsx:913-950) runs only teach/research kinds, never paid primitives.",
+    "Existing tests pass on the baseline (re-run with node --test, 32/32 in learn-video, learn-scene, learn-artifact, math-provider): learn-artifact.test.js:118-132, learn-video.test.js:99-109 and learn-scene.test.js:71-80 all give 428 and make no provider call."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/learn-paid.js (paidRefusal)",
+    "packages/web/dev-worker.js:63-83 image, :111-127 tts",
+    "packages/control-plane/src/learn-video.js (videoFetch, privateLessonAssetFetch, LearnVideos; maths via ManimProvider)",
+    "packages/control-plane/src/learn-scene.js (sceneFetch, LearnScenes)",
+    "packages/control-plane/src/learn-artifact.js (paid_proposal)",
+    "packages/web/src/PaidConfirm.jsx <- LearningBlocks.jsx, LearnSlash.jsx, WhiteboardBlock.jsx, SlashCommandsSheet.jsx (disabled)",
+    "packages/web/src/learn-scene-client.js startScene/startVideo"
+   ],
+   "smallest_change": "None. The gate is centralized in one function and sits at each execution boundary.",
+   "change_type": "none",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "The gate and its callers are the same at 3bc489e. Only the dev-worker line numbers moved (image 68->70, tts 112->117). The baseline also adds the canvas branch in authorizedBoardApp (learn-board.js:368-371; absent at 3bc489e, which had only the repo- branch at :364), so paid calls on canvas-* apps are owner-only (canvases.js:17-22).",
+   "tests_to_add": "None for the gate itself. For a handler-level image/TTS test, see paid-persist-3."
+  },
+  {
+   "id": "paid-persist-2",
+   "title": "A `confirmedStart` flag stored in block data starts a paid job on mount with no Generate press, including from a shared view or a fork of a crafted board",
+   "status": "still_present",
+   "evidence": [
+    "packages/web/src/learn-slash.js:114 `generate: () => canvas.insertBlock({ ...result.block, confirmedStart: true })`. The start instruction is stored in the block's persisted data.",
+    "packages/web/src/LearningBlocks.jsx:813-819 `function useConfirmedStart(block, onChange, generate) { useEffect(() => { if (!block.confirmedStart) return; ... onChange(rest); generate(rest); }, [block.confirmedStart]); }`. It is called unconditionally in SceneBody (:1149) and VideoBody (:1360). generate posts `{ confirmed: true }` (:1145, :1357).",
+    "Loaded state is not sanitized: AdaptiveCanvas.jsx:1088 `stored.current = boardState || (storageKey ? JSON.parse(localStorage.getItem(storageKey) || '{}') : {})` and :1103 `useState(stored.current.blocks?.length ? stored.current.blocks : ...)`. Every block body mounts, read-only or not (AdaptiveCanvas.jsx:2517 blocks.map LessonBlockCard, :574 LearningBlockBody). In read-only mode the card column is pointer-events-none because the tool is 'hand' (:1045, :2515), so a view-only viewer cannot click anything. The mount effect is the only way a job can start there.",
+    "The server stores board state as opaque JSON with only a size check: learn-boards.js:79-83 stateText; saveOwn :89-102.",
+    "Fork copies blocks and rewrites only notebook ids (learn-boards.js:160-165) into a canvas-* the forker owns (:155-157). On open, LearnPage.jsx:515-519 writes the server copy into localStorage and remounts the canvas. A VideoBody holding the flag then calls startVideo for the forker's own canvas, and canvasAccess authorizes it as owner (learn-board.js:368-371).",
+    "The read-only viewer: SharedBoardPage.jsx:80 `<AdaptiveCanvas ... appName={shared.app} boardState={board} readOnly />`. A signed-in viewer with access to shared.app (any org member for a repo-* app, repositories.js:43-47) sends startScene or startVideo with confirmed: true. For a canvas-* shared.app, a non-owner viewer gets 403 (canvases.js:20). Signed-out viewers get a 401 and nothing is spent.",
+    "This contradicts the invariant in learn-paid.js:3-4, 'confirmed: true, which the UI sends only from a Generate press', and learn-artifact-generation.md:100-101, which says the card 'starts once'.",
+    "The normal flow is unlikely to persist the flag: the effect drops it in the first commit and the save is debounced by 400 ms (AdaptiveCanvas.jsx:1138-1152). The crafted path (owner PUTs state, then shares) is traced end to end in code but was not run in a browser.",
+    "The server bounds the damage: at most one generating video or maths job and one queued scene per learner per app DO, deduplicated by content key (learn-video.js:72-75, learn-scene.js:65-68)."
+   ],
+   "files_and_callers": [
+    "packages/web/src/learn-slash.js:114 (sets the flag) <- LearnSlash.jsx:76-78",
+    "packages/web/src/LearningBlocks.jsx:811-820 useConfirmedStart <- SceneBody :1149, VideoBody :1360",
+    "packages/web/src/AdaptiveCanvas.jsx:1085-1103 (load), :1138-1152 (save)",
+    "packages/web/src/SharedBoardPage.jsx:80",
+    "packages/control-plane/src/learn-boards.js:148-170 fork, :89-102 saveOwn",
+    "packages/web/src/LearnPage.jsx:504-524 server pull"
+   ],
+   "smallest_change": "Honour only a start token from the current page load. In learn-slash.js add `export const PAGE_START = crypto.randomUUID()` and `export const startsOnMount = block => block.confirmedStart === PAGE_START`. The proposal inserts `confirmedStart: PAGE_START`, and useConfirmedStart checks `startsOnMount(block)` instead of truthiness. A flag that comes from localStorage, a shared view, a fork or a paste never matches, so it never starts a job. The normal /video, /animate or /3d Generate still starts exactly once. No load or save rewriting and no server change. learn-slash.js is already Learn-only, so the bundle boundary does not change.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "The client code (learn-slash.js, LearningBlocks.jsx, SharedBoardPage.jsx, learn-boards.js) is unchanged since 3bc489e (git diff --stat empty for these files). At 3bc489e fork inserted into a `canvases` table that packages/control-plane/repository-schema.sql did not define yet (the CREATE TABLE canvases at :27 was added after 3bc489e), so the fork vector only works end to end on the baseline. The read-only-view vector existed at both.",
+   "tests_to_add": "learn-slash.test.mjs: the paid proposal's generate() inserts a block with confirmedStart === PAGE_START; startsOnMount({confirmedStart: true}) is false; startsOnMount({confirmedStart: PAGE_START}) is true. A browser check on the session clone with providers stubbed: seed `<canvasKey>:ink` with a video block `{confirmedStart: true, status: 'idle', operation}` and open a fork and a /b/<token> view carrying the same block. Record POSTs to /api/learn/video and /api/learn/scene with page.route and expect zero."
+  },
+  {
+   "id": "paid-persist-3",
+   "title": "Image and TTS paid routes check authorization only; nothing limits repeats or duplicates",
+   "status": "still_present",
+   "evidence": [
+    "packages/web/dev-worker.js:63-83 (image) and :111-127 (tts) are synchronous proxies. After authorizedBoardApp and paidRefusal, every POST calls the provider (:72, :119). There is no in-flight lock, rate limit, per-learner budget or dedupe. Nothing is stored server-side, so resource ownership does not apply: image returns a data URL (:82) and tts streams mp3 (:126).",
+    "The only dedupe is on the client: LearningBlocks.jsx:1272-1275 `const key = `image:${prompt}`; const cached = await cachedAsset(key); const image = cached || (await api('/api/learn/image', ...)).image`. It is per browser, in IndexedDB small-learn-assets. TTS has none: a reload drops the blob URL, so hearing the narration again means a paid call.",
+    "Authorization differs by app kind (learn-board.js:361-381): a standalone canvas is owner-only; a repo-* app allows any org member; a normal app allows any viewer (production /api/apps/<name>, a legitimate production read). In the preview, only canvases and repositories mount Learn (SharePage.jsx:618-622).",
+    "Unlike video, scene and artifact (learn-video.js:25, learn-artifact.js:86), these two handlers (and /api/learn/transcribe) do not check Origin. The session cookie is `SameSite=Lax` (index.js:2328), which blocks cross-SITE POSTs but not same-site ones; see paid-persist-14 for the same-site exposure (not reproduced).",
+    "Tests only compare source text: learn-artifact.test.js:127-131 slices dev-worker.js to check that 'paidRefusal(body)' comes before 'await fetch('. dev-worker.js cannot be imported under node because it imports ./dist-dev/index.html and .py files."
+   ],
+   "files_and_callers": [
+    "packages/web/dev-worker.js:63-83, :111-127",
+    "packages/web/src/LearningBlocks.jsx:1267-1281 (ImageBody), :985-995 (AudioBody)",
+    "packages/web/src/WhiteboardBlock.jsx:66-77 (narrate)",
+    "packages/control-plane/test/learn-artifact.test.js:118-132"
+   ],
+   "smallest_change": "No behaviour change without your decision; record the current behaviour in docs section 13. Optional pure refactor for testability: move the two handler bodies, unchanged, into an importable control-plane module next to paidRefusal. dev-worker.js keeps its two route lines. A node test can then drive auth -> 428 -> provider with a fetch that throws.",
+   "change_type": "record_only",
+   "needs_user_decision": true,
+   "decision_question": "Should /api/learn/image (OpenAI) and /api/learn/tts (fish.audio) get a server-side per-learner limit, such as one request in flight or a daily count? Today any authorized session can repeat confirmed POSTs without bound. Any limit needs new state (a Durable Object or a LEARN_DB table), which is a new infra or contract piece.",
+   "snapshot_vs_baseline": "Unchanged since 3bc489e (dev-worker.js:68/112 then, :70/117 now). The baseline adds canvas owner-only authorization.",
+   "tests_to_add": "Only if the refactor is taken: a handler test where CONTROL_PLANE returns the app, a body without confirmed gives 428 and no fetch, and a body with confirmed calls the stub provider once. If a limit is approved: a second concurrent confirmed POST is refused."
+  },
+  {
+   "id": "paid-persist-4",
+   "title": "/api/learn/transcribe calls a paid OpenAI model with no paidRefusal and no confirmation; learn-paid.js says every provider must be gated",
+   "status": "still_present",
+   "evidence": [
+    "packages/web/dev-worker.js:130-147: auth at :135, then `upload.set('model', 'gpt-4o-transcribe')` (:140) and `await fetch('https://api.openai.com/v1/audio/transcriptions'` (:141). There is no paidRefusal. Clips are capped at 20 MB (:134), although the message says 'keep it under a minute'.",
+    "packages/control-plane/src/learn-paid.js:1-5: 'One invariant for every paid provider ... and any provider added later. A request that would spend money starts only with confirmed: true'.",
+    "The client starts it from an explicit record then stop (SpeakAnswer.jsx:16-38, POST at :32) and shows the transcript before grading. No PaidConfirm is shown.",
+    "docs/features/learn-artifact-generation.md:86-93 (the paid table) and architecture doc section 13 (:699-713) both leave transcription out. Chat LLM calls (ask.js), Exa search (learn-search.js, learn-youtube.js) and JEV grading are also paid and ungated, which is exempt by design."
+   ],
+   "files_and_callers": [
+    "packages/web/dev-worker.js:130-147",
+    "packages/web/src/SpeakAnswer.jsx:32 <- LearningBlocks.jsx:12 import",
+    "packages/control-plane/src/learn-paid.js:1-5 (comment)",
+    "docs/features/learn-artifact-generation.md:77-93",
+    "docs/learn-agent-canvas-architecture.md section 13"
+   ],
+   "smallest_change": "Pending your decision. If transcription is exempt: narrow the learn-paid.js comment to 'paid generation primitives (images, video, maths, Blender, narration)' and add a docs row for /api/learn/transcribe marked 'paid, no confirmation: the recording is the explicit action'. If it must be gated: call paidRefusal in the handler and add a PaidConfirm before sending the recording, which changes the voice-answer UX.",
+   "change_type": "record_only",
+   "needs_user_decision": true,
+   "decision_question": "Is speech-to-text (/api/learn/transcribe, gpt-4o-transcribe) paid generation that must pass paidRefusal and show PaidConfirm, or an exempt input method like chat and search? Today the code exempts it but the learn-paid.js invariant says it should not.",
+   "snapshot_vs_baseline": "Same at 3bc489e (dev-worker.js:125-142 then).",
+   "tests_to_add": "If exempt: none (docs only). If gated: a handler test where no confirmed flag gives 428 before any fetch, plus a SpeakAnswer browser check that the confirmation appears before upload."
+  },
+  {
+   "id": "paid-persist-5",
+   "title": "'One job at a time' holds per learner per app Durable Object, not per learner, and standalone canvases are uncapped",
+   "status": "still_present",
+   "evidence": [
+    "packages/control-plane/src/learn-video.js:27 `const id = binding.idFromName(JSON.stringify([app.org, app.name, app.email]));`. Scenes use the same function (learn-scene.js:11).",
+    "learn-video.js:75 `if ([...all.values()].some(j => j.status === 'generating')) return json({ error: 'One video is already generating...' }, 409);` and learn-scene.js:68 apply only inside that DO. Video/maths share LEARN_VIDEOS; scenes use LEARN_SCENES, a separate DO namespace, so a learner can have one of each running per app.",
+    "packages/control-plane/src/canvases.js:67 `// ponytail: no per-owner canvas cap (repositories cap 25 per workspace)`. Each new canvas-<8 hex> is a fresh DO key, so one learner can run parallel FAL clips across canvases.",
+    "Manim and Blender have a global limit on their own side: packages/math-renderer/server.py:137 `if len(JOBS) >= 10 or not SLOT.acquire(blocking=False)` with SLOT = BoundedSemaphore(1) (:27), and lesson-renderer/server.py:77. FAL has no limit in this code.",
+    "Resource ownership holds: job and placement records and asset reads live inside the learner's own DO. Another learner hits a different DO, so it cannot read, place or retry them (learn-video.js:34-47, :55-60). The 100-job cap is per DO (learn-video.js:76, learn-scene.js:69)."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/learn-video.js:15-29, :73-83",
+    "packages/control-plane/src/learn-scene.js:11, :66-73",
+    "packages/control-plane/src/canvases.js:60-71"
+   ],
+   "smallest_change": "None without your decision. Correct the docs: section 13's 'one job at a time' means per learner per app.",
+   "change_type": "record_only",
+   "needs_user_decision": true,
+   "decision_question": "Is one paid job per learner per app the intended spend control, or should FAL video be limited per learner across apps and canvases? Canvases are uncapped. A cross-app limit needs a new coordination point (a new DO key or table).",
+   "snapshot_vs_baseline": "The DO keying is the same at 3bc489e. There, the number of DOs a learner could use was bounded by the apps they could view plus 25 repositories per workspace. The baseline's uncapped standalone canvases (canvases.js, new) widen it.",
+   "tests_to_add": "If a cross-app limit is approved: two DOs for the same learner, and a second FAL start is refused. Otherwise none."
+  },
+  {
+   "id": "paid-persist-6",
+   "title": "A busy Manim worker (429, nothing started) is recorded as an 'uncertain' submission, so that animation can never be retried in that app",
+   "status": "still_present",
+   "evidence": [
+    "packages/control-plane/src/math-provider.js:42 `if (response.status === 429) throw new Error('The math worker is busy; try again shortly');`. The provider's own test says this is retryable: math-provider.test.js:43 `test('a busy worker is a retryable message, not a lost animation'`.",
+    "The worker answers 429 before creating the job (math-renderer/server.py:137-139). It creates JOBS[key] only on the 202 path (:140-142). Only one render runs at a time (SLOT = BoundedSemaphore(1), server.py:27), so any second learner, or the same learner on another canvas, gets 429 while a render is running. Its 409 'Worker version changed' (:127-129) and 400 answers are also definite rejections.",
+    "packages/control-plane/src/learn-video.js:81-82 `try { job.ticket = ... await provider.submit(input, version) ... } catch { job.status = 'failed'; job.uncertain = true; job.error = 'Submission could not be confirmed. ...'; }`, then :84-85 `else if (body.retry === true && job.uncertain) { return json({ error: job.error }, 409);` and list() `retryable: !j?.uncertain` (:100).",
+    "Reproduced (re-run by the verifier) with the read-only script C:/Users/cyudhist/AppData/Local/Temp/pp-c9/manim-busy.mjs, stubbed fetch. Output: `first status: failed | retryable: false | error: Submission could not be confirmed...`, `retry HTTP 409`. Provider calls: `GET /health, POST /jobs, GET /health`.",
+    "The card's 'Retry render' (LearningBlocks.jsx:1389-1390) then shows the 409 message. Recovery needs a changed spec or a new worker version (the version is part of the cache key, learn-video.js:70-71)."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/math-provider.js:38-48 submit",
+    "packages/control-plane/src/learn-video.js:73-86 LearnVideos.fetch",
+    "packages/web/src/LearningBlocks.jsx:1354-1358 VideoBody.generate"
+   ],
+   "smallest_change": "Mark rejections the worker answered for sure. In ManimProvider.submit, throw the 429 and other non-OK answers with `{ submitted: false }`; network or timeout errors from request() stay untagged. In the learn-video.js:82 catch, keep `uncertain = true` only for untagged errors; otherwise set status failed and error = error.message, which leaves it retryable. FAL is not touched: its 4xx submit errors stay uncertain and would need your call.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Identical at 3bc489e (learn-video.js and math-provider.js unchanged).",
+   "tests_to_add": "learn-video.test.js: a maths op with MATH_WORKER_URL/TOKEN and fetch stubs (/health gives a version, the first POST /jobs gives 429, the second gives 202). Expect list status failed, retryable true and error /busy/. A retry: true request makes exactly one more POST and status becomes generating. The existing 'unknown submission fails closed' test must still pass for thrown network errors."
+  },
+  {
+   "id": "paid-persist-7",
+   "title": "LearnScenes re-sends /jobs to the Blender worker with no new learner action (bounded; the docs do not say so)",
+   "status": "still_present",
+   "evidence": [
+    "packages/control-plane/src/learn-scene.js:86-89: while status is 'queued', each alarm POSTs `/jobs` with the same workerKey. A worker 429 or 5xx is not in `[400, 409]`, so the job stays queued; errors matching /fetch|network|timeout|connection/ also stay queued (:105). The alarm re-arms every 5 s (:109).",
+    "learn-scene.js:92 `if (r.status === 404) job.status = 'queued'; // Restart lost transient work; repeat uses the same deterministic key.` A render lost to a worker restart is re-sent automatically. This is bounded by WAIT_MS of 15 min (:9, :85). The worker dedupes by key in memory (lesson-renderer/server.py:76).",
+    "Reproduced (re-run by the verifier; C:/Users/cyudhist/AppData/Local/Temp/pp-c9/scene-resubmit.mjs). Output: `after 3 alarms with worker 429: POSTs = 3 status = queued`; `worker lost job (404): status = queued`; `next alarm: POSTs = 5 status = rendering (re-submitted with no learner action)`.",
+    "Contrast: LearnVideos never resubmits (learn-video.js:78 'Never automatically repeat a potentially charged POST', :140; test learn-video.test.js:83-94), and a lost Manim job fails with final=true (math-provider.js:52). Architecture doc section 13 (:709) says 'never auto-resubmitted' only for Video and says nothing about scenes. learn-paid.js:2 lists Blender as a paid provider."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/learn-scene.js:81-110 LearnScenes.alarm",
+    "packages/lesson-renderer/server.py:63-80",
+    "docs/learn-agent-canvas-architecture.md section 13",
+    "docs/features/learn-artifact-generation.md:86-93"
+   ],
+   "smallest_change": "Document it: in section 13, write 'LearnScenes: one queued or rendering job per learner per app; re-POSTs the same deterministic key while queued or after the worker loses it, for up to 15 minutes; Retry after failure makes a new attempt key.' Add a characterization test. No code change. If you prefer the Manim behaviour (a lost render fails and needs Retry), that is a separate behaviour change.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Identical at 3bc489e.",
+   "tests_to_add": "learn-scene.test.js: worker 429 keeps the job queued and the next alarm POSTs the same workerKey; 404 while rendering re-queues it; past WAIT_MS the job fails and no further POSTs happen."
+  },
+  {
+   "id": "paid-persist-8",
+   "title": "A paid card saved mid-job never resumes after reload, share or fork: permanent progress bar with no Generate or Retry",
+   "status": "still_present",
+   "evidence": [
+    "packages/web/src/LearningBlocks.jsx:1356 `onChange({ ...current, status: 'generating' })` and :1143 `status: 'queued'` are saved with the canvas (AdaptiveCanvas.jsx:1138-1152). The block never stores the placementId that follow() needs (:1129, :1336).",
+    "The only effects are cleanup: :1126 and :1334 `useEffect(() => () => clearTimeout(polling.current), []);`. follow() is called only from generate(). Nothing resets pending statuses on load (grep of web/src finds 'generating'/'queued' only in LearningBlocks.jsx, the inert learn-video-canvas.js:88 and RepositoryPage's unrelated import status).",
+    "VideoBody :1361 `const pending = ...` renders only <Progress/> while pending and no clip is shown (:1387-1388). SceneBody renders its button only for `block.status === 'idle' || block.status === 'failed'` (:1158). A reloaded pending card therefore shows a progress bar that counts from 0 and never finishes. The job itself keeps running in the DO alarm.",
+    "follow() returns silently when the placement is not in this learner's DO (:1133, :1340 `if (!mine) return;`). That is the case for a shared or forked copy, which uses a different DO (learn-video.js:27)."
+   ],
+   "files_and_callers": [
+    "packages/web/src/LearningBlocks.jsx:1122-1168 SceneBody, :1329-1395 VideoBody",
+    "packages/web/src/AdaptiveCanvas.jsx:1138-1152 (save)",
+    "packages/web/src/learn-scene-client.js sceneList/videoList"
+   ],
+   "smallest_change": "When generate() starts a job, store placementId in the block. Add a mount effect: if the status is pending and placementId is set, call follow(placementId). If there is no placementId, or follow does not find the placement in this learner's DO, return the card to 'idle' so its Generate or Retry shows again. Generating again still goes through PaidConfirm and the DO's content dedupe (learn-video.js:72-73 / learn-scene.js:65-66 skip submission when the job exists and is not a failed retry), so a job that is still running is re-followed, not paid twice. This overlaps C8 (no permanent Thinking).",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Identical at 3bc489e (LearningBlocks.jsx unchanged).",
+   "tests_to_add": "Browser check on the session clone with the DO provider stubbed: start a video, reload while generating, and the card reaches ready. Seed a pending block without placementId: the card shows its Generate button, not a spinner."
+  },
+  {
+   "id": "paid-persist-9",
+   "title": "Sheet History ids are stored under `small.learn-sheet-threads:<app>` with no org or email scope; scope the key and adopt legacy ids only after the server confirms them",
+   "status": "still_present",
+   "evidence": [
+    "packages/web/src/ask.jsx:315 `const sheetThreadsKey = app => `small.learn-sheet-threads:${app || ''}`;` (and :316-319). Canvas keys are scoped: LearnPage.jsx:174 `small.adaptive-canvas:${app.org}:${app.email || app.owner_email}:${app.name}`.",
+    "Writes: ask.jsx:576 `if (panelAsk) { sheetThread.current = d.threadId; rememberSheetThread(appName, d.threadId); }`. The only read is the History button at ask.jsx:729 `chatApi(threadsPath).then(d => { const mine = new Set(sheetThreadIds(appName)); setThreads((d.threads || []).filter(t => mine.has(String(t.id)))); })`.",
+    "The ids are never sent without the server's say-so. sheetThread starts null on every mount (ask.jsx:342 `const sheetThread = useRef(null);`), the sheet never auto-resumes (:417 `if (composerOnly || canvasSeed) return;`), and a thread is attached only from a server `done` event (:574-576) or a click on a row the server listed (:742 loadThread). So today another user cannot list or reuse these ids (see paid-persist-10).",
+    "Real defects: users and orgs on one browser share a single 50-entry list (:318 `.slice(0, 50)`), so one user's chats can push another's out of History. The key does not follow the org and email scoping that the other Learn keys use."
+   ],
+   "files_and_callers": [
+    "packages/web/src/ask.jsx:315-319, :576, :729 (AskPanel, sheet mode only)",
+    "packages/web/src/LearnPage.jsx:1197 (the only `sheet` AskPanel, the dock) <- CanvasPage.jsx:14, RepositoryPage.jsx:83",
+    "docs/features/learn-chat-sheet.md:31-33",
+    "docs/learn-agent-canvas-architecture.md:198, :725"
+   ],
+   "smallest_change": "(1) LearnPage passes `sheetKey={app.email ? `small.learn-sheet-threads:${app.org}:${app.email}:${app.name}` : null}` to the dock AskPanel. There is no owner_email fallback, matching lesson-progress.js:2-3. A null key means nothing is remembered. (2) ask.jsx reads and writes that key. (3) Legacy: on History open, treat the old `small.learn-sheet-threads:<app>` list as read-only. Show server-listed threads whose id is in the scoped list or the legacy list, and copy only those legacy matches into the scoped key. The server listing is user- and org-scoped, so a match is verified ownership. Never delete the legacy key, since other users' ids stay there until they open History, and never send a legacy id the server did not list. For node testing, the key builder and the filter/adopt step can live as pure functions in home/canvas-local.js, the existing, tested module for Learn's browser keys. Update learn-chat-sheet.md and architecture section 14.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Identical at 3bc489e (ask.jsx:315 and :729 unchanged). The baseline adds canvas-* apps using the same unscoped key.",
+   "tests_to_add": "home/canvas-local.test.mjs with a fake storage: (a) user A remembers 'a1', and user B's History over server list ['b1'] shows nothing and never adopts 'a1'. (b) The legacy list ['a1','b1'] with B's server list ['b1','b2'] shows ['b1'] and adopts only 'b1' into B's key; the legacy key is unchanged. (c) With no email, the key is null and nothing is written."
+  },
+  {
+   "id": "paid-persist-10",
+   "title": "The server rejects reading or continuing another user's thread ids on all three Learn paths",
+   "status": "not_a_problem",
+   "evidence": [
+    "Normal apps (production DB; direct calls only in the preview): index.js:1398 listing `FROM threads t WHERE t.org = ? AND t.user = ? ...`. index.js:1405 askThreadForUser `WHERE id = ? AND user = ? AND org = ?`, which also requires canView for learn threads (:1406-1409). Continuation: index.js:1192-1193 `const t = seam ? await seam.findThread(threadId) : await askThreadForUser(env, user, threadId); if (!t) return json({ error: 'no such thread' }, 404);` and :1194-1196 gives 409 when scope or ref differ.",
+    "Standalone canvases (LEARN_DB): canvases.js:77 `SELECT scope_ref FROM threads WHERE id=? AND org=? AND user=?`, then ownedCanvas and repositoryThreads. The seam at canvases.js:116 is `findThread: id => db.prepare(\"SELECT ... FROM threads WHERE id=? AND org=? AND user=?\")`. canvasAccess is owner-only (canvases.js:20).",
+    "Repositories (LEARN_DB): repositories.js:165-166 list and read scoped by `org=? AND user=? AND scope_ref=?`; repositoryAsk at :177-178 returns 404 'Chat not found'.",
+    "Thread ids are unique per table: integers in production (index.js:1202 last_row_id), `canvaschat-<uuid>` (canvases.js:118), `repochat-<uuid>` (repositories.js:232). A leftover id cannot match another user's thread.",
+    "Existing tests pass on the baseline (re-run: 70/70 in canvases, learn-chat, repositories): learn-chat.test.js:149-158 (other users and workspaces give 404), :676 (canvas seam, another user gives 404), repositories.test.js:59-64 and :109 (404), canvases.test.js:85-98 (history and read are owner-only; colleague gets 403 or 404).",
+    "Persisted canvas state holds no thread ids (grep threadId in LearnPage.jsx, AdaptiveCanvas.jsx and LearningBlocks.jsx finds none). In-card follow-ups start seeded threads that live only in a ref (ask.jsx:514-515)."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/index.js apiAsk, apiAskThreads, askThreadForUser, apiAskThread/Rename/Delete",
+    "packages/control-plane/src/canvases.js canvasesFetch thread routes, canvasAskSeam",
+    "packages/control-plane/src/repositories.js repositoryThreads, repositoryAsk"
+   ],
+   "smallest_change": "None.",
+   "change_type": "none",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "At 3bc489e the same rules existed through askThreadForUser (3bc489e index.js:1188, :1389) and in repositories. The baseline adds the canvas seam and canvas thread routes with the same (org, user) rule and tests.",
+   "tests_to_add": "None; existing coverage is sufficient."
+  },
+  {
+   "id": "paid-persist-11",
+   "title": "Sheet History only sees the 20 newest Learn threads, and card asks and grading each create one, so older sheet chats silently drop out",
+   "status": "still_present",
+   "evidence": [
+    "index.js:1399 `ORDER BY t.id DESC LIMIT 20` (production listing). repositories.js:165 `... ORDER BY created_at DESC LIMIT 20` (repositories, and canvases through canvases.js:80).",
+    "ask.jsx:729 filters that 20-row page by local ids, so History = (20 newest threads of any kind) ∩ (sheet ids).",
+    "Every Ask in chat on a card starts a new thread: ask.jsx:444-445 `const panelAsk = sheetMode && !canvasTarget; if (composerOnly && !canvasSeed) threadId.current = panelAsk ? sheetThread.current : null;`. Every grade starts one too: learn-grade.js:15-18 posts /api/learn/ask with no thread_id. In-card follow-ups create seeded threads.",
+    "docs/features/learn-chat-sheet.md:28-33 promises that 'History lists only chats started in the sheet', without this limit."
+   ],
+   "files_and_callers": [
+    "packages/web/src/ask.jsx:729",
+    "packages/control-plane/src/index.js:1386-1401",
+    "packages/control-plane/src/repositories.js:164-165",
+    "packages/web/src/learn-grade.js:14-18 <- LearnPage.jsx:563-580"
+   ],
+   "smallest_change": "None inside C9. C6 moving grading off /api/learn/ask removes one source of crowding, but card asks still create threads. A real fix needs either a narrow list contract (for example an optional ids filter on the dev-only repositoryThreads listing used by canvases and repositories) or a thread-source column (a schema change the sheet spec's ponytail already names, ask.jsx:314).",
+   "change_type": "record_only",
+   "needs_user_decision": true,
+   "decision_question": "Accept that sheet History shows only sheet chats among the 20 newest Learn threads per app? Or approve either a narrow contract change (an optional `ids` filter on the dev-only thread listing, no schema change) or a `source` column on threads (schema plus migration)?",
+   "snapshot_vs_baseline": "Same at 3bc489e (3bc489e index.js:1389-1390). Canvases on the baseline inherit the 20-row limit through repositoryThreads.",
+   "tests_to_add": "If the ids filter is approved: repositories.test.js, where 25 newer card threads still leave a listed sheet id visible when its id is requested. Otherwise none."
+  },
+  {
+   "id": "paid-persist-12",
+   "title": "Inventory of Learn and canvas browser keys, and which are scoped by org and email; architecture section 14 is incomplete",
+   "status": "still_present",
+   "evidence": [
+    "Scoped by org, email and app (email is `app.email || app.owner_email`): LearnPage.jsx:174 canvasKey; :448 `<canvasKey>:ink` or `<canvasKey>:<board>:s<n>`; :460 `<boardStorageKey>:v`; :189 `<canvasKey>[:<board>]:chat`; :200/:203 `<canvasKey>:sources`; :976 `<canvasKey>[:<board>]:title`; :62 `small.lesson-plan:<org>:<email>:<app>`. The same keys are read by home/canvas-local.js:8-10, continue.js:20, CanvasPage.jsx:13 and RepositoryPage.jsx:32.",
+    "Scoped with no owner fallback: lesson-progress.js:2-4 `// Never fall back to the owner's email ... if (!app.email) return null;` giving `small.lesson-progress:[org,email,app,version,lesson]`. IndexedDB small-learn-notes keyed by notesScope [email, org, app] (learn-notes.js:1-4), which throws without email. IndexedDB small-learn-graphs keyed by [email, org, app] (learn-graph-storage.js:21), inert because editor is never set. small.pinned:<org>:<email> (home/pinned.js:3).",
+    "Not scoped: `small.learn-sheet-threads:<app>` (ask.jsx:315, see paid-persist-9). IndexedDB small-learn-assets (learn-asset-cache.js:7) with keys `image:<prompt>` (LearningBlocks.jsx:1272), `pdf:<id>` (LearnPage.jsx:333), `drop:<uuid>` (:357) and board asset keys cached from the server (learn-board-assets.js:17). Two users on one browser share entries only for equal keys, in practice `image:<same prompt>`. Preferences small.askModel (ask.jsx:370, Sidebar.jsx:69/292), small.learn-muted and small.learn-speed (learn-audio.js:2,14) and small.learn.search-source (SearchBar.jsx:19). Per-browser by design: small.device (canvas-local.js:34). App-wide: small.recent (continue.js:11), small.preview:explore-saved (home/explore.js:4) and small.preview:review-fixtures (home/review-fixtures.js:10).",
+    "sessionStorage, per tab: small.learn.request, one-shot and removed on read (LearnPage.jsx:970), and small.learn.result:<id> (learn-hook.js:22,39; LearnPage.jsx:910,958). A request is rejected unless its app matches the open Learn (LearnPage.jsx:916).",
+    "Notebook files live in the notebook origin's storage under the random notebook_id (learn-notebook.js:1-8). Fork and shared views re-id them (learn-boards.js:160-165, SharedBoardPage.jsx:37).",
+    "The owner_email fallback is latent: every app object that reaches LearnPage carries the viewer's email (canvases.js:10, repositories.js:37, index.js:592).",
+    "Architecture doc :715-727 lists only :ink, the board key, :chat, :sources, the sheet key and small-learn-assets. It says keys use `<email>` without mentioning the owner fallback, and it omits :v, :title, lesson-plan, lesson-progress, notes/graphs IDB, preferences and the sessionStorage handoff."
+   ],
+   "files_and_callers": [
+    "packages/web/src/LearnPage.jsx",
+    "packages/web/src/ask.jsx",
+    "packages/web/src/home/canvas-local.js, continue.js, pinned.js",
+    "packages/web/src/lesson-progress.js, learn-notes.js, learn-graph-storage.js, learn-asset-cache.js, learn-board-assets.js",
+    "packages/web/src/agent/learn-hook.js",
+    "docs/learn-agent-canvas-architecture.md section 14"
+   ],
+   "smallest_change": "Docs only: replace the section 14 key table with this inventory and a scope column. No key changes other than paid-persist-9. Leave small-learn-assets unscoped: it is a content cache, and its only cross-user overlap is identical-prompt images. Leave the owner fallback alone, since no current caller lacks an email.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "The Learn keys are unchanged since 3bc489e. The baseline adds small.device, small.pinned:<org>:<email>, small.preview:* and the home and canvas readers of the canvas keys.",
+   "tests_to_add": "None beyond paid-persist-9."
+  },
+  {
+   "id": "paid-persist-13",
+   "title": "A ?board= review board writes attached sources into the main canvas's sources key",
+   "status": "still_present",
+   "evidence": [
+    "packages/web/src/LearnPage.jsx:175-176 '?board=<name> opens a SEPARATE board under its own storage key, so trying something out never touches the learner's own canvas'.",
+    "Chat and title keys include the board (LearnPage.jsx:189 `${canvasKey}${board ? `:${board}` : ''}:chat`, :976 the same for :title). Sources do not: :200/:203 use `${canvasKey}:sources`, and home/canvas-local.js:10 mirrors that.",
+    "LearnPage.jsx:197-198 'Attached means the Learn agent is handed it when answering', so attaching a source on a review board changes what the main canvas's asks are handed. The architecture doc documents `<canvasKey>:sources` without a board, so the intent is unclear."
+   ],
+   "files_and_callers": [
+    "packages/web/src/LearnPage.jsx:197-205 (sources state) <- registerSource callers",
+    "packages/web/src/home/canvas-local.js:10"
+   ],
+   "smallest_change": "If board-local is intended: use `${canvasKey}${board ? `:${board}` : ''}:sources`, the same pattern as chat and title. Leave existing main-canvas lists alone (no migration). canvas-local.js keeps reading the main key.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": true,
+   "decision_question": "Should a ?board= review or scratch board keep its own attached-sources list, like its chat and title, or keep sharing the main canvas's list as it does today?",
+   "snapshot_vs_baseline": "Same at 3bc489e (LearnPage.jsx unchanged).",
+   "tests_to_add": "If changed: a browser check that attaching a source on ?board=x leaves `<canvasKey>:sources` unchanged."
+  },
+  {
+   "id": "paid-persist-14",
+   "title": "Image, TTS and transcribe routes have no Origin check, so a same-site page (any *.zeroshothq.workers.dev host) can plausibly spend a signed-in learner's paid calls",
+   "status": "needs_reproduction",
+   "evidence": [
+    "packages/web/dev-worker.js:64 image `body = await req.json()`, :112 tts `body = await req.json()`, :131 transcribe `await req.formData()`. Workers parse the body regardless of Content-Type, so a text/plain JSON body or a multipart form is accepted. Both are CORS-simple requests that need no preflight.",
+    "None of the three checks Origin, whereas learn-video.js:25 (video, maths and scene via privateLessonAssetFetch) and learn-artifact.js:86 refuse a POST whose Origin differs from the worker's.",
+    "The session cookie is `SameSite=Lax` with no Domain (index.js:2328). Lax still sends the cookie on same-SITE cross-origin POSTs. The production worker and every dev clone share zeroshothq.workers.dev (wrangler.jsonc:35 BASE_URL https://small-cp.zeroshothq.workers.dev; CLAUDE.md clone names). workers.dev being on the Public Suffix List (so the site is zeroshothq.workers.dev) is an external fact not verifiable from this repo.",
+    "A same-site page that can run script exists: production serves teammates' deployed app HTML at /a/<org>/<app>/ with no CSP sandbox (index.js:2385-2417 passes response headers through; only run outputs get `sandbox allow-scripts` at index.js:2140-2142).",
+    "If reproduced, a page on that site can make a no-cors `fetch('https://small-cp-dev-<x>.zeroshothq.workers.dev/api/learn/image', {method:'POST', credentials:'include', body: JSON.stringify({app, prompt, confirmed:true})})`. authorizedBoardApp would pass with the victim's cookie, and paidRefusal would pass because the body sets confirmed. This shows again that confirmed: true is not proof of a click."
+   ],
+   "files_and_callers": [
+    "packages/web/dev-worker.js:63-83 image, :111-127 tts, :130-147 transcribe",
+    "packages/control-plane/src/learn-video.js:25 (existing check to copy)",
+    "packages/control-plane/src/learn-artifact.js:86"
+   ],
+   "smallest_change": "Add the existing one-line check to the three handlers before authorization: `if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return Response.json({ error: 'Invalid origin' }, { status: 403 });`. Same-origin api()/fetch calls from the Learn UI send their own origin and keep working. This adds no endpoint or schema. It does not cover app HTML served on the dev origin itself through the /a/ proxy, which is the platform's app-trust model and out of this cluster's scope.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Same at 3bc489e (the image, tts and transcribe handlers had no Origin check then either).",
+   "tests_to_add": "If the handlers are moved into an importable module (paid-persist-3), a node test posting with `Origin: https://small-cp.zeroshothq.workers.dev` gets 403 before authorization and before any fetch. To reproduce first: signed in on the session clone, open a page on another zeroshothq.workers.dev host and issue the no-cors POST above with the provider stubbed or keyless (a 503 'not configured' reply still proves the request was authorized). Record the dev worker's response in its logs."
+  },
+  {
+   "id": "duplication-16",
+   "title": "Same-origin POST guard copied into eight handlers but missing on chat, whiteboard, upload and paid dev routes",
+   "status": "still_present",
+   "evidence": [
+    "Guard variants at learn-artifact.js:86, learn-grade-routes.js:83 and :152, learn-board.js:418, :446 and :475 (the board ones use Response.json and url.origin), learn-feedback.js:24, learn-video.js:25.",
+    "Absent from boardFetch (learn-board.js:302-359), apiAsk and repositoryAsk.",
+    "Also absent (verifier grep: no 'origin' in learn-paper.js or learn-media.js) from the POST upload routes /api/learn/paper and /api/learn/media, which write to LEARN_MEDIA, and from the dev-worker.js inline paid/provider routes /api/learn/image (:63), /api/learn/tts (:111) and /api/learn/transcribe (:130).",
+    "Session cookie is SameSite=Lax (index.js:2328), and workers.dev hosts are separate sites, so the guard is defence in depth."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/learn-artifact.js, learn-grade-routes.js, learn-board.js, learn-feedback.js, learn-video.js",
+    "packages/control-plane/src/index.js apiAsk; repositories.js repositoryAsk",
+    "packages/control-plane/src/learn-paper.js paperFetch; learn-media.js mediaFetch",
+    "packages/web/dev-worker.js /api/learn/image, /tts, /transcribe"
+   ],
+   "smallest_change": "No change in C2 (one-line guard; extraction optional). Adding it to the unguarded routes is an authorization-boundary behaviour change for C9 (paid routes) and C1 (upload writes).",
+   "change_type": "record_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Same at 3bc489e.",
+   "tests_to_add": "If C9/C1 add the guard: a board, ask, paper upload and image request with a foreign Origin get 403 before any model, provider or R2 call."
+  }
+ ]
+}

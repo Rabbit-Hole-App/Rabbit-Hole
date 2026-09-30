@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" fill="none">
+  <!-- Canonical aperture from the landing-page FAQ, with icon-scale stroke weight. -->
+  <g stroke="#000" stroke-width="5" transform="rotate(-28 120 120)">
+    <ellipse cx="134" cy="112" rx="88" ry="68"/>
+    <ellipse cx="127" cy="117" rx="73" ry="56"/>
+    <ellipse cx="120" cy="122" rx="58" ry="44"/>
+    <ellipse cx="113" cy="127" rx="44" ry="33"/>
+    <ellipse cx="106" cy="132" rx="30" ry="22"/>
+    <ellipse cx="99" cy="137" rx="17" ry="12"/>
+  </g>
+</svg>

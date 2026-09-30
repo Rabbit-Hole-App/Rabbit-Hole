@@ -64,8 +64,10 @@ test('case 04: the output equals the sum of the displayed weight x value cells -
   const state = getSceneState(scene, scene.duration);
   const contrib = state.objects.find(o => o.id === 'contrib').values;
   const output = state.objects.find(o => o.id === 'output').values;
-  const roundTo3 = v => Object.is(Math.round(v * 1000) / 1000, -0) ? 0 : Math.round(v * 1000) / 1000;
-  assert.deepEqual(output, [roundTo3(contrib.reduce((sum, v) => sum + v, 0))]);
+  // Cells carry the canonical value (scene-derive.js's cellPool), so the
+  // chain holds to float precision, not to three decimals.
+  assert.equal(output.length, 1);
+  assert.ok(Math.abs(output[0] - contrib.reduce((sum, v) => sum + v, 0)) < 1e-9, `${output[0]} is not the sum of ${contrib}`);
 });
 
 test('case 08: the repeated block carries a real, visible stack of ghost copies, not only its caption', () => {

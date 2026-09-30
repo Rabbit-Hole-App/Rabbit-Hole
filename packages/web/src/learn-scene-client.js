@@ -7,8 +7,10 @@ const endpoint = app => `/api/learn/scene?app=${encodeURIComponent(app)}&workspa
 
 export const sceneList = app => api(endpoint(app));
 
-export const startScene = (app, operation) =>
-  api(endpoint(app), { method: 'POST', body: JSON.stringify({ operation, lessonId: 'adaptive-canvas', page: 'canvas' }) });
+// Paid: the caller passes confirmed only from the learner's Generate press;
+// the endpoint refuses a start without it.
+export const startScene = (app, operation, { confirmed = false } = {}) =>
+  api(endpoint(app), { method: 'POST', body: JSON.stringify({ operation, lessonId: 'adaptive-canvas', page: 'canvas', confirmed }) });
 
 export const sceneAssetUrl = (app, key) => new URL(`${endpoint(app)}&asset=${key}`, window.location.origin).href;
 
@@ -17,7 +19,7 @@ const videoEndpoint = app => `/api/learn/video?app=${encodeURIComponent(app)}&wo
 
 export const videoList = app => api(videoEndpoint(app));
 
-export const startVideo = (app, operation) =>
-  api(videoEndpoint(app), { method: 'POST', body: JSON.stringify({ operation, lessonId: 'adaptive-canvas', page: 'canvas' }) });
+export const startVideo = (app, operation, { confirmed = false, retry = false } = {}) =>
+  api(videoEndpoint(app), { method: 'POST', body: JSON.stringify({ operation, lessonId: 'adaptive-canvas', page: 'canvas', confirmed, retry }) });
 
 export const videoAssetUrl = (app, key) => new URL(`${videoEndpoint(app)}&asset=${key}`, window.location.origin).href;

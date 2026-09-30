@@ -1,0 +1,18 @@
+{
+  "script": "i04-vector-check.mjs",
+  "port": "5199",
+  "lines": [
+    "initial: proj_b(a) = (3, 0)",
+    "drag: 5 distinct intermediate projections, committed at (-3, 0)",
+    "escape: gesture abandoned, committed state intact",
+    "outside release: committed and clamped to +5",
+    "typed coordinates: (0,3) gives the zero projection",
+    "edit buffer: \"-\" never NaN, \"-2\" applies",
+    "clamp: typed 12 becomes 5",
+    "zero axis: explanatory not-ready, recovers on edit",
+    "zoomed drag: handle followed the pointer, a ~ (1,1)",
+    "ask: payload carries the just-dragged vector",
+    "reset + reload: both honest",
+    "PASS - shots: i04-initial / i04-mid-drag / i04-zero-axis / i04-dark"
+  ]
+}

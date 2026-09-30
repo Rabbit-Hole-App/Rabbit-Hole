@@ -1,0 +1,27 @@
+{
+  "created": "2026-09-24",
+  "generation_mode": "built-in image generation",
+  "prompts": "landing-art-prompts.md",
+  "status": "Deployed visual candidates for user review; no final art approval inferred.",
+  "assets": [
+    {
+      "file": "packages/web/public/landing/pink-cloud-filled-v2.png",
+      "active": false,
+      "status": "Rejected; restored the original animated cloud with trimmed white bookends.",
+      "width": 2046,
+      "height": 768,
+      "bytes": 2420881,
+      "sha256": "9e3d74767c01407fd3bbbade95f62c0be426a6771bada6a4735112f5a4c53d7f",
+      "visual_reference": "https://typesafe.ai/"
+    },
+    {
+      "file": "packages/web/public/landing/blue-mountains-v1.png",
+      "active": true,
+      "width": 1672,
+      "height": 941,
+      "bytes": 2302164,
+      "sha256": "6a66ad1cf5b744132f4ebc815659df1dd91fd3583de2c5470c1f4b7ed7fdcc23",
+      "visual_reference": "https://multica.ai/"
+    }
+  ]
+}

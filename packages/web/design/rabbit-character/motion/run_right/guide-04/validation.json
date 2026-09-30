@@ -1,0 +1,131 @@
+{
+  "checked_at": "2026-09-23T20:15:36.773945+00:00",
+  "pass": true,
+  "scope": "skeletal design and exports only; not rabbit artwork or runtime approval",
+  "visual_approval": true,
+  "approval_scope": "motion basis only",
+  "rabbit_run_approved": false,
+  "rabbit_foot_sliding_resolved": false,
+  "dense_poses_checked": 800,
+  "key_support_order": [
+    "left",
+    "left",
+    "left",
+    null,
+    "right",
+    "right",
+    "right",
+    null
+  ],
+  "bone_lengths_px": {
+    "upper_leg": 66.96,
+    "lower_leg": 62.63999999999999,
+    "foot_length": 75.6,
+    "upper_arm": 56.160000000000004,
+    "forearm": 49.68,
+    "hand": 23.76,
+    "torso_length": 110.16
+  },
+  "complementary_leg_pairs": [
+    "01/05",
+    "02/06",
+    "03/07",
+    "04/08"
+  ],
+  "contralateral_contacts": true,
+  "watch_hand": "anatomical right",
+  "seam_near_endpoint_gap_px": 0.0011999965877074914,
+  "seam_tangent_error_px_per_phase": 0.0014705861011831411,
+  "regression_mutations_rejected": [
+    "repeat_half_stride",
+    "stretch_shin",
+    "switch_watch_hand"
+  ],
+  "continuous_skeleton_support_toe_drift_px": 5.684341886080802e-14,
+  "held_pose_translation_per_frame_source_px": 60.0,
+  "held_pose_translation_per_frame_diagnostic_display_px": 42.0,
+  "source_speed_px_s": 780.0,
+  "exports": {
+    "motion-guide.gif": {
+      "frames": 8,
+      "size": [
+        512,
+        620
+      ],
+      "cycle_ms": 620
+    },
+    "motion-guide.webp": {
+      "frames": 8,
+      "size": [
+        512,
+        620
+      ],
+      "cycle_ms": 620
+    },
+    "motion-guide-slow.gif": {
+      "frames": 8,
+      "size": [
+        512,
+        620
+      ],
+      "cycle_ms": 2000
+    },
+    "motion-guide-slow.webp": {
+      "frames": 8,
+      "size": [
+        512,
+        620
+      ],
+      "cycle_ms": 2000
+    },
+    "seam-08-to-01.gif": {
+      "frames": 8,
+      "size": [
+        512,
+        620
+      ],
+      "cycle_ms": 2000
+    },
+    "seam-08-to-01.webp": {
+      "frames": 8,
+      "size": [
+        512,
+        620
+      ],
+      "cycle_ms": 2000
+    },
+    "continuous-skeleton.gif": {
+      "frames": 64,
+      "size": [
+        512,
+        620
+      ],
+      "cycle_ms": 1230
+    },
+    "continuous-skeleton.webp": {
+      "frames": 64,
+      "size": [
+        512,
+        620
+      ],
+      "cycle_ms": 1230
+    },
+    "world-contact-diagnostic.gif": {
+      "frames": 64,
+      "size": [
+        1120,
+        820
+      ],
+      "cycle_ms": 1230
+    },
+    "world-contact-diagnostic.webp": {
+      "frames": 64,
+      "size": [
+        1120,
+        820
+      ],
+      "cycle_ms": 1230
+    }
+  },
+  "source_sha256": "6908369926d2bc3ac7cf73b0bdfbcc00ad2cd01d7a212409c633a5a154670d48"
+}

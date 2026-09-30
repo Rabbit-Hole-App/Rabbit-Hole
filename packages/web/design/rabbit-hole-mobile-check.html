@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>mobile check</title>
+<style>
+  body{margin:0;background:#2a2a2a;font:12px ui-monospace,monospace;color:#9ae;
+       display:flex;gap:24px;padding:16px;align-items:flex-start}
+  figure{margin:0}
+  figcaption{padding:6px 2px}
+  iframe{width:390px;height:844px;border:0;border-radius:10px;background:#fff;display:block}
+</style>
+</head>
+<body>
+  <figure><figcaption>390 x 844 — top</figcaption>
+    <iframe src="rabbit-hole-hero.html" id="a"></iframe></figure>
+  <figure><figcaption>390 x 844 — bar + blog</figcaption>
+    <iframe src="rabbit-hole-hero.html" id="b"></iframe></figure>
+  <figure><figcaption>390 x 844 — pricing</figcaption>
+    <iframe src="rabbit-hole-hero.html" id="c"></iframe></figure>
+<script>
+  // scroll two frames past the hero so the bar and the sections are in view.
+  // A real wheel event is what reveals the bar, so dispatch scroll after moving.
+  const go = (id, y) => document.getElementById(id).addEventListener('load', e => {
+    setTimeout(() => {
+      e.target.contentWindow.scrollTo(0, y);
+      e.target.contentWindow.dispatchEvent(new Event('scroll'));
+    }, 1500);
+  });
+  go('b', 2050);
+  go('c', 3100);
+</script>
+</body>
+</html>

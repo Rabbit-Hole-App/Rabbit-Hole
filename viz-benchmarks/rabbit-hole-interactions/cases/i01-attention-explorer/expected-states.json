@@ -1,0 +1,38 @@
+{
+  "case": "i01-attention-explorer",
+  "expected": {
+    "q0-mask-on": {
+      "weights": [
+        1,
+        null,
+        null,
+        null
+      ],
+      "output": [
+        1,
+        0
+      ]
+    },
+    "q2-mask-on": {
+      "weights": [
+        0.248255,
+        0.248255,
+        0.50349,
+        null
+      ],
+      "output": [
+        0.751745,
+        0.751745
+      ]
+    },
+    "q2-mask-off": {
+      "weightFuture": 0.109057,
+      "output": [
+        0.560704,
+        0.669762
+      ]
+    },
+    "q3": "mask toggle changes nothing - no future position",
+    "tolerance": "seam rounds each named stage to 3 decimals; oracle tolerance 2e-3 before display rounding"
+  }
+}

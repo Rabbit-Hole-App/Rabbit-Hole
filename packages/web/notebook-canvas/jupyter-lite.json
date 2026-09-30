@@ -1,0 +1,8 @@
+{
+  "jupyter-config-data": {
+    "exposeAppInBrowser": true,
+    "enableMemoryStorage": true,
+    "settingsStorageDrivers": ["memoryStorageDriver"],
+    "workspacesStorageDrivers": ["memoryStorageDriver"]
+  }
+}

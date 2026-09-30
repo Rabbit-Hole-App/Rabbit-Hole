@@ -106,7 +106,7 @@ test('windows cover the transcript at the stated stride', () => {
 
 // Reproduced live in review: a single 100s cue followed by silence stalled the
 // stride and the old break threw away the entire rest of the transcript.
-test('a long cue followed by silence does not swallow the rest of the video', () => {
+test('a long cue followed by silence does not swallow the rest of the video', async () => {
   const lines = [
     { start: 0, duration: 100, text: 'a very long introductory cue' },
     { start: 95, duration: 4, text: 'second line' },
@@ -117,7 +117,7 @@ test('a long cue followed by silence does not swallow the rest of the video', ()
   const windows = cutWindows(lines);
   assert.ok(windows.some(entry => entry.text.includes('the answer about gradients')), 'coverage continues past the long cue');
   assert.ok(windows.some(entry => entry.text.includes('closing remarks')), 'and reaches the tail');
-  const passages = topPassages('the answer about gradients', [{ videoId: 'AAAAAAAAAAA', title: 'T', lines }]);
+  const passages = await topPassages('the answer about gradients', [{ videoId: 'AAAAAAAAAAA', title: 'T', lines }]);
   assert.ok(passages.length > 0, 'retrieval can now see it');
 });
 
@@ -142,16 +142,16 @@ test('no query terms means zero scores, not NaN', () => {
   assert.ok(scores.every(score => score === 0));
 });
 
-test('passages are capped per video, so a lecture cannot crowd the field', () => {
+test('passages are capped per video, so a lecture cannot crowd the field', async () => {
   const lecture = { videoId: 'AAAAAAAAAAA', title: 'Lecture', lines: Array.from({ length: 200 }, (_, index) => line(index * 5, 'gradient descent gradient loss weights')) };
   const short = { videoId: 'BBBBBBBBBBB', title: 'Short', lines: [line(0, 'gradient descent explained with one clean example')] };
-  const passages = topPassages('gradient descent', [lecture, short], { top: 10, perVideo: 3 });
+  const passages = await topPassages('gradient descent', [lecture, short], { top: 10, perVideo: 3 });
   assert.ok(passages.filter(passage => passage.videoId === 'AAAAAAAAAAA').length <= 3);
   assert.ok(passages.some(passage => passage.videoId === 'BBBBBBBBBBB'), 'the short video still appears');
 });
 
-test('passage text carries per-line timestamps the model can cite', () => {
-  const [passage] = topPassages('backpropagation', [{ videoId: 'AAAAAAAAAAA', title: 'T', lines: [line(252, 'backpropagation is the algorithm')] }]);
+test('passage text carries per-line timestamps the model can cite', async () => {
+  const [passage] = await topPassages('backpropagation', [{ videoId: 'AAAAAAAAAAA', title: 'T', lines: [line(252, 'backpropagation is the algorithm')] }]);
   assert.match(passage.text, /\[4:12\] backpropagation/);
 });
 

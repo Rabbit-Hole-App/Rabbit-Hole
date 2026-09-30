@@ -9,13 +9,14 @@ import {
 import { ago, api, fmtTime, navigate, wsHeaders } from './api.js';
 import { appApi } from './app-data.js';
 import { AskPanel } from './ask.jsx';
+import { aiFindAllowed, learnPreview } from './flags.js';
 import {
   Avatar, Button, Chk, cn, CodeBlock, Dropzone, Field, fmtBytes, IconBtn, Input,
   Menu, MenuItem, Pill, Select, SkeletonRows, SlidePanel, Slider, StatusPill, SubMenu, Tip, toast, Toggle, useHeaderDrag, ValuePicker,
 } from './ui.jsx';
 
 const shortId = (id) => String(id || '').replace(/^r-/, '').slice(0, 7);
-const secs = (a, b) => (a && b ? Math.max(0, (new Date(b.replace(' ', 'T') + 'Z') - new Date(a.replace(' ', 'T') + 'Z')) / 1000) : null);
+export const secs = (a, b) => (a && b ? Math.max(0, (new Date(b.replace(' ', 'T') + 'Z') - new Date(a.replace(' ', 'T') + 'Z')) / 1000) : null);
 export const fmtDur = (s) => (s == null ? '-' : s < 60 ? `${Math.round(s)}s` : s < 3600 ? `${Math.floor(s / 60)}m ${Math.round(s % 60)}s` : `${Math.floor(s / 3600)}h ${Math.round((s % 3600) / 60)}m`);
 
 // Type icons match the plist reference: 📎 file, # number, Aa text/select, date, bool.
@@ -246,6 +247,7 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
   }, [prefill, app.name]);
 
   const submit = async () => {
+    if (learnPreview) return; // D7: the preview never starts a live run, from any caller (app page, Library panel)
     const errs = {};
     for (const [k, spec] of entries) {
       const e = validateOne(spec, values[k], files[k]);
@@ -286,6 +288,7 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
   };
 
   const submitBatch = async () => {
+    if (learnPreview) return; // D7, as submit
     // shared fields validate as usual; the batch field validates per row
     const spec = schema[batchField];
     const errs = {};
@@ -418,7 +421,7 @@ export function RunForm({ app, prefill, onStarted, onBatchStarted }) {
         </dl>
       </section>}
       <div className={cn('flex items-center gap-3', entries.length && 'pt-4')}>
-        <Button variant="primary" disabled={busy || (batchField && !batchValues.length)} onClick={batchField ? submitBatch : submit}>
+        <Button variant="primary" disabled={learnPreview || busy || (batchField && !batchValues.length)} onClick={batchField ? submitBatch : submit}>
           {busy ? <Loader2 size={16} strokeWidth={1.5} className="animate-spin" /> : <Play size={16} strokeWidth={1.5} />}
           {batchField ? `Run batch (${Math.min(batchValues.length, BATCH_MAX)})` : 'Run'}
         </Button>
@@ -755,7 +758,7 @@ export function RunPeek({ runId, app, onClose, onRunAgain }) {
       </div>
       {/* once a conversation exists the chat lives ONLY in its tab: on the Run tab
           the box is hidden (not unmounted, a mid-stream reply keeps streaming) */}
-      {(app.hosting !== 'aws' || app.run_chat) && <div className={cn(
+      {!learnPreview && (app.hosting !== 'aws' || app.run_chat) && <div className={cn( // D7: run chat writes live /api/ask history
         'px-5',
         tab === 'chat' ? 'flex min-h-0 flex-1 flex-col pt-2 pb-4'
         : chatted ? 'hidden'
@@ -809,7 +812,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
   // status/inputs/when; short strings stay instant substring matching
   const [aiRuns, setAiRuns] = useState(null); // null | 'loading' | { ids, note }
   useEffect(() => {
-    if (app.hosting === 'aws' || !q || q.trim().split(/\s+/).length < 4) { setAiRuns(null); return; }
+    if (app.hosting === 'aws' || !aiFindAllowed() || !q || q.trim().split(/\s+/).length < 4) { setAiRuns(null); return; }
     setAiRuns('loading');
     const t = setTimeout(() => {
       api('/api/runs/find', { method: 'POST', body: JSON.stringify({ app: slug, q }) })

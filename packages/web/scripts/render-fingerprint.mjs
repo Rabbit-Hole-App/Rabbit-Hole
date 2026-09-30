@@ -31,15 +31,20 @@ export const RENDERER_FILES = [
   'src/scene-style.js',
   'src/scene-layout.js',
   'src/AnimatedScene.jsx',
+  'src/scene-format.js', // what a data cell prints
 ];
 
 const sha256 = buffer => createHash('sha256').update(buffer).digest('hex');
 
-export const sceneSpecHash = sceneSpecPath => sha256(readFileSync(sceneSpecPath));
+// Text as committed (LF), whatever this checkout holds: core.autocrlf turns
+// the same commit into CRLF on Windows and LF elsewhere, and line endings
+// never change a pixel.
+const readText = path => readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
+
+export const sceneSpecHash = sceneSpecPath => sha256(readText(sceneSpecPath));
 
 export function rendererHash(webRoot) {
-  const combined = Buffer.concat(RENDERER_FILES.map(f => readFileSync(join(webRoot, f))));
-  return sha256(combined);
+  return sha256(RENDERER_FILES.map(f => readText(join(webRoot, f))).join(''));
 }
 
 export function expectedFingerprint(sceneSpecPath, webRoot) {

@@ -1,0 +1,78 @@
+import { chromium } from '@playwright/test';
+import { readFileSync, mkdirSync } from 'node:fs';
+import { DEV_CP } from './dev-cp.mjs';
+
+// The Learn shell on the parallel clone, desktop and phone, project and canvas
+// routes: the header names what is open, the composer never shows a canvas id,
+// no canvas control covers the composer, and the composer is the shared dock
+// shell (radius, Send width, + height). No model calls.
+// usage: node e2e/learn-shell-check.mjs [screenshot dir]
+const BASE = 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
+const ROUTES = { project: '/apps/repo-06745f10-nanogpt?tab=learn', canvas: '/apps/canvas-9a0b0f86?tab=learn' };
+// ROUTES=project limits the run: canvas routes exist only where smart-home's CanvasPage is merged.
+const only = process.env.ROUTES?.split(',');
+for (const name of Object.keys(ROUTES)) if (only && !only.includes(name)) delete ROUTES[name];
+const SHOTS = process.argv[2] || 'e2e/shots';
+mkdirSync(SHOTS, { recursive: true });
+const env = Object.fromEntries(readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').split(/\r?\n/).map(l => l.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map(([, k, v]) => [k, v.replace(/^"|"$/g, '').trim()]));
+const session = (await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'shell-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.RABBIT_HOLE_DEV_TEST_BYPASS }) })).json()).session;
+
+let failed = 0;
+const ok = (name, condition, extra = '') => { if (!condition) failed += 1; console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${extra ? `  (${extra})` : ''}`); };
+const browser = await chromium.launch();
+// 'short phone' is a phone with smart-home's 48px canvas picker row above Learn;
+// 'tight phone' leaves Learn about what it gets under smart-home's whole phone frame, so the toolbar must scroll.
+for (const [label, viewport] of [['desktop', { width: 1440, height: 900 }], ['phone', { width: 390, height: 844 }], ['short phone', { width: 390, height: 796 }], ['tight phone', { width: 390, height: 640 }]]) {
+  const context = await browser.newContext({ viewport });
+  await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
+  for (const [route, path] of Object.entries(ROUTES)) {
+    const page = await context.newPage();
+    await page.goto(`${BASE}${path}`);
+    const composer = page.locator('[data-learn-dock] [data-chat-composer]').first();
+    await composer.waitFor({ timeout: 60000 });
+    await page.waitForTimeout(2000);
+    const at = `${label} ${route}`;
+    const m = await page.evaluate(() => {
+      const box = node => { const r = node?.getBoundingClientRect(); return r && { x: r.x, y: r.y, w: r.width, h: r.height, r: r.right, b: r.bottom }; };
+      const form = document.querySelector('[data-learn-dock] [data-chat-composer]');
+      const style = getComputedStyle(form);
+      return {
+        form: box(form), zoom: box(document.querySelector('[data-zoom]')),
+        radius: style.borderTopLeftRadius, send: box(form.querySelector('[aria-label="Send"]'))?.w, add: box(form.querySelector('[aria-label="Add"]'))?.h,
+        placeholder: form.querySelector('input,textarea')?.placeholder || '', title: document.querySelector('[aria-label="Canvas title"]')?.value || '',
+        text: document.body.innerText, vw: innerWidth, vh: innerHeight,
+        // Every control in the menubar row, and the drawing toolbar against the bottom strip.
+        header: [...(document.querySelector('[role="menubar"]')?.parentElement?.querySelectorAll('button, input') || [])].map(box).filter(b => b.w > 0),
+        tools: box(document.querySelector('[role="toolbar"][aria-label="Canvas tools"]')), strip: box(document.querySelector('[data-canvas-bottom]')),
+        lessonHeader: !!document.querySelector('[aria-label="Current lesson and section"]'),
+      };
+    });
+    const overlaps = (a, b) => a && b && a.x < b.r && b.x < a.r && a.y < b.b && b.y < a.b;
+    ok(`${at}: zoom bar does not overlap the composer`, !overlaps(m.form, m.zoom), JSON.stringify({ form: m.form, zoom: m.zoom }));
+    ok(`${at}: composer fully on screen`, m.form.x >= 0 && m.form.r <= m.vw && m.form.b <= m.vh && m.form.y >= 0);
+    ok(`${at}: dock shell (radius 12px, Send 36px, + 36px tall)`, m.radius === '12px' && m.send === 36 && m.add === 36, `radius ${m.radius}, send ${m.send}, add ${m.add}, height ${m.form.h}`);
+    ok(`${at}: no canvas id in the placeholder`, !/canvas-[a-f0-9]{8}/.test(m.placeholder), m.placeholder);
+    ok(`${at}: no sample course title`, !m.text.includes('From classification to object detection'), `title "${m.title}"`);
+    ok(`${at}: every menubar-row control fully on screen`, m.header.length > 0 && m.header.every(b => b.x >= 0 && b.r <= m.vw), `${m.header.length} controls, leftmost x ${Math.min(...m.header.map(b => Math.round(b.x)))}, rightmost ${Math.max(...m.header.map(b => Math.round(b.r)))}`);
+    ok(`${at}: drawing toolbar ends above the zoom/composer strip`, !m.tools || m.tools.b <= m.strip.y, JSON.stringify({ toolsBottom: m.tools?.b, stripTop: m.strip?.y }));
+    // Every drawing control whole inside the toolbar's clip box at rest, and the last one whole once scrolled to the end.
+    const clipped = await page.evaluate(() => {
+      const bar = document.querySelector('[role="toolbar"][aria-label="Canvas tools"]');
+      if (!bar) return { rest: [], end: [] };
+      const cut = () => { const box = bar.getBoundingClientRect(); return [...bar.children].filter(child => { const r = child.getBoundingClientRect(); return r.height > 0 && (r.top < box.top - 0.5 || r.bottom > box.bottom + 0.5) && r.top < box.bottom && r.bottom > box.top; }).map(child => child.getAttribute('aria-label') || child.textContent.trim().slice(0, 12) || child.tagName); };
+      const rest = cut();
+      bar.scrollTop = bar.scrollHeight;
+      const last = bar.lastElementChild.getBoundingClientRect(), box = bar.getBoundingClientRect();
+      const end = last.bottom <= box.bottom + 0.5 ? [] : ['last control'];
+      bar.scrollTop = 0;
+      return { rest, end };
+    });
+    ok(`${at}: no drawing control half-clipped at rest, and the last one shows whole when scrolled`, !clipped.rest.length && !clipped.end.length, JSON.stringify(clipped));
+    if (route === 'canvas') ok(`${at}: a canvas shows no sample lesson header`, !m.lessonHeader && !m.text.includes('Logistic regression'));
+    await page.screenshot({ path: `${SHOTS}/shell-${label}-${route}.png` });
+    await page.close();
+  }
+  await context.close();
+}
+await browser.close();
+process.exit(failed ? 1 : 0);

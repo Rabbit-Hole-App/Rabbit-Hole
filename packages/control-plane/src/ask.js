@@ -1,11 +1,13 @@
 import { subscriptionTransport } from './subscription-transport.js';
 import { researchAnswer } from './learn-research.js';
+import { learnMomentsDb } from './learn-storage.js';
+import { base64 } from './token.js';
+import { MODEL, planUsesOpenAI, loggedModel } from './learn-models.js';
 // Ask (phase 1 - read only): one agent function, scoped per question. This module
 // holds the model call + prompt; index.js owns auth, scope resolution, and context
 // assembly so permissions are enforced by queries, never by the prompt.
-const MODEL = 'claude-opus-5';
-// Model picker allowlist - "Auto" resolves to the default.
-export const ASK_MODELS = { auto: MODEL, 'opus-5': 'claude-opus-5', 'sonnet-5': 'claude-sonnet-5', 'haiku-4.5': 'claude-haiku-4-5-20251001' };
+// Model ids and per-task settings live in learn-models.js; re-exported for existing importers.
+export { ASK_MODELS, askModel } from './learn-models.js';
 
 export const ASK_SYSTEM = [
   'You are the built-in assistant of "small", a platform where teams deploy Python apps',
@@ -176,8 +178,9 @@ export function capJoin(parts, cap = CAP_CHARS) {
 // Per-org AI settings (Settings > Account): provider + model. Cached briefly -
 // an agent loop makes a dozen calls and must not read D1 for each.
 const aiCache = new Map(); // org -> { at, row }
+// No DB (a dev worker without production D1): the default provider, never a customer's settings.
 export async function aiSettings(env, org) {
-  if (!org) return null;
+  if (!org || !env.DB) return null;
   const hit = aiCache.get(org);
   if (hit && Date.now() - hit.at < 60000) return hit.row;
   const row = await env.DB.prepare('SELECT provider, model, bedrock_region, bedrock_role_arn, openai_base_url, openai_api_key FROM org_ai WHERE org = ?').bind(org).first().catch(() => null);
@@ -221,7 +224,7 @@ export function toOpenAI(body, modelId) {
     const rest = blocks.filter((b) => b.type !== 'tool_result');
     if (rest.length) {
       msgs.push(rest.some((b) => b.type === 'image')
-        ? { role: 'user', content: rest.map((b) => (b.type === 'image' ? { type: 'image_url', image_url: { url: `data:${b.source?.media_type};base64,${b.source?.data}` } } : { type: 'text', text: b.text || '' })) }
+        ? { role: 'user', content: rest.map((b) => (b.type === 'image' ? { type: 'image_url', image_url: { url: b.source?.type === 'url' ? b.source.url : `data:${b.source?.media_type};base64,${b.source?.data}` } } : { type: 'text', text: b.text || '' })) }
         : { role: 'user', content: rest.map((b) => b.text || '').join('') });
     }
   }
@@ -256,11 +259,13 @@ export function fromOpenAI(j) {
   };
 }
 
-export const PLAN_MODEL = 'gpt-4.1-mini';
+// Cards and the whiteboard. OpenAI is opt-in: it needs both the key and an
+// explicit LEARN_PLAN_MODEL (the key alone also gates image generation and
+// transcription), and subscription mode never leaves the bridge.
 export async function planModel(env, body, model, org) {
-  if (!env.OPENAI_API_KEY) return anthropic(env, body, model, org);
+  if (!planUsesOpenAI(env)) return anthropic(env, body, model, org);
   const { stream, ...rest } = body;
-  const chosen = env.LEARN_PLAN_MODEL || PLAN_MODEL;
+  const chosen = env.LEARN_PLAN_MODEL;
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.OPENAI_API_KEY}` },
@@ -303,8 +308,11 @@ export async function anthropic(env, body, model, org) {
     const msg = fromOpenAI(await resp.json());
     return stream ? sseFromMessage(msg) : new Response(JSON.stringify(msg), { status: 200, headers: { 'Content-Type': 'application/json' } });
   }
-  // an explicit model (chat picker or org setting) is incompatible with the
-  // server-side fallback feature - the API 400s on the combination
+  // Auto sends claude-opus-5 with fallbacks 'default' (a refusal fallback) and
+  // the beta header; an explicit model (chat picker, org setting, cards, the
+  // whiteboard) sends neither. The recorded reason, that the API 400s on an
+  // explicit model with fallbacks, is unverified: Auto itself names
+  // claude-opus-5 explicitly (models-9 in docs/features/learn-cleanup.md).
   const chosen = model || ai?.model || null;
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -369,10 +377,11 @@ export function askStream(env, context, history, message, onDone, meta = {}, ext
         // stated when it is actually offered.
         const researchSystem = research.system ? `${system}
 ${research.system}` : system;
-        const result = await researchAnswer(env, turns, researchSystem, model, { callModel: anthropic, initialPapers: research.papers || [], tools: research.tools || [], runTool: research.runTool, onProgress: stage => send('progress', { stage }) });
+        const result = await researchAnswer(env, turns, researchSystem, model, { callModel: loggedModel('chat', anthropic), initialPapers: research.papers || [], tools: research.tools || [], runTool: research.runTool, onProgress: stage => send('progress', { stage }) });
         full = result.answer;
         if (result.papers.length) {
-          const references = result.papers.map(p => `[${p.title} (arXiv:${p.id})](${p.pdfUrl})`).join(' | ');
+          // An uploaded PDF has no arXiv id or public link: its title alone.
+          const references = result.papers.map(p => (p.pdfUrl ? `[${p.title} (arXiv:${p.id})](${p.pdfUrl})` : p.title)).join(' | ');
           full += `\n\nPapers read: ${references}`;
           await send('papers', { papers: result.papers });
         }
@@ -393,16 +402,19 @@ ${research.system}` : system;
         // paper or an article for the panel - it can always land.
         const moment = research.shownVideo?.();
         if (moment) {
-          await send('video', moment);
           // The moment log is written from day one; the hot path only starts
-          // reading it in phase 4. A missing table must never cost an answer.
+          // reading it in phase 4. A missing table must never cost an answer -
+          // the card simply shows no keep/dismiss when there is no row id.
+          let momentId = null;
           try {
             // `org` the parameter is null for learn conversations by design, so
             // the workspace rides on the research object instead - the log is
             // keyed per workspace or it is useless to the hot path.
-            await env.DB.prepare('INSERT INTO learn_moments (org, question, video_id, start, end, confidence, reason) VALUES (?, ?, ?, ?, ?, ?, ?)')
+            const written = await learnMomentsDb(env).prepare('INSERT INTO learn_moments (org, question, video_id, start, end, confidence, reason) VALUES (?, ?, ?, ?, ?, ?, ?)')
               .bind(research.org || org || 'unknown', message.slice(0, 500), moment.videoId, moment.start, moment.end, moment.confidence, moment.reason).run();
+            momentId = written.meta?.last_row_id ?? null;
           } catch { /* logging is never worth an error mid-answer */ }
+          await send('video', momentId ? { ...moment, momentId } : moment);
         }
       } else if (toolOpts) {
         // tools attached (user has edit): one non-streaming call so tool_use blocks
@@ -460,4 +472,24 @@ ${research.system}` : system;
   return new Response(readable, {
     headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' },
   });
+}
+
+// A chat attachment as model input, the same for every chat: an image or PDF
+// rides as a vision/document block, anything else (CSV, text) inline and
+// truncated.
+export const ATTACHMENT_LIMIT = 4 * 1024 * 1024;
+export async function attachmentBlocks(file) {
+  if (file.size > ATTACHMENT_LIMIT) throw Error('attachment too large - 4 MB max');
+  const type = file.type || '';
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (type.startsWith('image/')) return { bytes, blocks: [{ type: 'image', source: { type: 'base64', media_type: type, data: base64(bytes) } }] };
+  if (type === 'application/pdf' || /\.pdf$/i.test(file.name)) return { bytes, blocks: [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64(bytes) } }] };
+  return { bytes, blocks: [{ type: 'text', text: `Attached file ${file.name}:\n${new TextDecoder().decode(bytes).slice(0, 50000)}` }] };
+}
+// A chat request: JSON, or multipart with the JSON in `body` and one `file`.
+export async function readAskRequest(req) {
+  if (!(req.headers.get('Content-Type') || '').includes('multipart/form-data')) return { body: await req.json(), file: null };
+  const form = await req.formData();
+  const file = form.get('file');
+  return { body: JSON.parse(form.get('body') || '{}'), file: file && typeof file !== 'string' ? file : null };
 }

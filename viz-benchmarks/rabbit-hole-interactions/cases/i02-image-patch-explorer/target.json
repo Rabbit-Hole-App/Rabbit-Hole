@@ -1,0 +1,24 @@
+{
+  "project": "rabbit-hole-interactions",
+  "case": "i02-image-patch-explorer",
+  "status": "ready",
+  "referenceType": "none",
+  "objective": "One patchIndex from image click, slider and steppers; the crop is a window onto the same file.",
+  "scope": "One interactive review card: real browser actions against the deployed-shape Learn canvas.",
+  "evaluationTarget": "action_state_pixels_context_parity",
+  "visualImitationTarget": false,
+  "constraints": {
+    "noCustomReact": true,
+    "noCustomCSS": true,
+    "noFreeformStyle": true,
+    "useExistingVocabularyOnly": true,
+    "noSceneSpecificRenderer": true,
+    "useLearnVisualLanguage": true
+  },
+  "patterns": [
+    "parameter_exploration",
+    "coordinated_views",
+    "zoom_drilldown"
+  ],
+  "externalReferenceStatus": "not_captured - internally verified only; no external interaction source was captured for this milestone"
+}

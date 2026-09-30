@@ -45,3 +45,19 @@ test('bridge rejects unauthenticated requests without invoking Claude', async t 
   const response = await fetch(`http://127.0.0.1:${server.address().port}/messages`, { method: 'POST', body: '{}' });
   assert.equal(response.status, 401); assert.equal(calls, 0);
 });
+
+// models-3: every course action that calls a model is refused in subscription
+// mode; revise_section used to fall through to live small-cp's paid API.
+test('subscription mode refuses the course model actions, including revise_section, and the dev worker asks the helper', async () => {
+  const { subscriptionCourseRefusal } = await import('../src/subscription-transport.js');
+  for (const action of ['draft', 'generate', 'revise_section']) {
+    const refused = subscriptionCourseRefusal({ SUBSCRIPTION_ONLY: 'true' }, action);
+    assert.equal(refused?.status, 503, action);
+    assert.equal(subscriptionCourseRefusal({ SUBSCRIPTION_ONLY: 'false' }, action), null, action);
+  }
+  for (const action of ['brief', 'save', 'approve', 'delete', undefined]) assert.equal(subscriptionCourseRefusal({ SUBSCRIPTION_ONLY: 'true' }, action), null, String(action));
+  const { readFileSync } = await import('node:fs');
+  const worker = readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8');
+  const gate = worker.slice(worker.indexOf('(await req.clone().json()).action'));
+  assert.ok(gate.indexOf('subscriptionCourseRefusal(env, action)') > 0 && gate.indexOf('subscriptionCourseRefusal(env, action)') < gate.indexOf("['/api/learn/ask', '/api/learn/selection']"));
+});

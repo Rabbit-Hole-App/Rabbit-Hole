@@ -1,0 +1,9 @@
+{
+  "approved": true,
+  "scope": "motion basis only; not rabbit art or Character Bible v1",
+  "user_instruction": "Guide approved as the motion basis.",
+  "joint_data_sha256": "6908369926d2bc3ac7cf73b0bdfbcc00ad2cd01d7a212409c633a5a154670d48",
+  "underlay_sha256": "437b09a4e5064fc0385cdf2d84c534b42818f9298859625f48aaa5d77392b8f9",
+  "depth_underlay_sha256": "9c444727bd04ca0008d4d875104d0b63a00973a1d7d1ac828e2ff02371825e0e",
+  "coordinates_changed": false
+}

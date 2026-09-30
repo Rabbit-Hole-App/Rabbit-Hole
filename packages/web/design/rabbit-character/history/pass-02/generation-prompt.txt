@@ -1,0 +1,31 @@
+Use case: identity-preserve / stylized-concept.
+Asset type: a coherent eight-frame run-cycle sprite strip for an existing black-and-white landing-page mascot. This is animation source art, not a poster.
+
+IMAGE ROLES
+Image 1: character-seed-on-paper.png, the canonical ACTUAL shipped mascot and authoritative visual style. Preserve this rabbit, with this exact proportion and coarse black dotted ordered halftone treatment, pale face and belly, dense dark waistcoat, long swept ears, short ornate coat, baggy trousers, long rabbit feet and round pocket watch in the rear hand. White pixels are negative space; the character is predominantly light with scattered black ink. Avoid adding heavy outlines or making its body much darker. Its proportions and shape must remain recognizable at thumbnail size.
+Image 2: rabbit_1.jpg is supporting identity information ONLY, to clarify the original rabbit's anatomical structure, long ears, waistcoat, coat tails, baggy striped trousers and watch. Do NOT reproduce its colors, photorealism, background, fur rendering, or shading. Output must look like Image 1.
+Image 3: run-edit-canvas.png is the layout target: 3072 x 1024 with eight equal 384-pixel-wide slots on ONE horizontal row. There is already a seed in the first slot. Fill this layout with the same rabbit performing successive run poses, replacing the first pose too if required for a correct cycle. Keep the seed's scale. Do not copy the same pose eight times.
+
+PRIMARY REQUEST
+Generate ALL EIGHT poses of ONE complete right-facing bipedal running cycle together, as one coherent action strip. Exactly eight rabbits, one per slot, left-to-right chronological order. No extra row, no missing slot. Each drawing is a new articulated pose of the same individual. Keep the same camera side view, head/muzzle/eye position relative to head, two long ears, body volume, limbs and costume. The watch stays attached to the same rear hand and swings a little. No added accessories.
+
+CANVAS AND REGISTRATION
+Transparent background with genuine alpha, no checkerboard painted into the image, no scenery, floor line, shadows, titles, numbers, guides, borders, labels or text. Request 3072 x 1024 landscape output. Each of the 8 equal columns is 384 pixels wide. The 384 x 384 animation band is vertically centered, from y=320 to y=704, and the implied contact baseline is y=664. The reference character ink height is about 286 pixels and width about 298 pixels. Keep all frames at that same scale and around the same local pelvis/root position. Enough padding for ear tips, hands, coat tails, watch and extended feet. Keep the full body visible. Do not bake forward translation into the frame slots; the pelvis must stay at the same horizontal coordinate relative to each slot. Natural vertical bob and flight are essential.
+
+POSE BEATS, left to right
+1 NEAR CONTACT: the near leg reaches ahead and its foot touches the implied floor, far knee bent behind; torso is descending. Free arm counter-swings; ears still trail the preceding flight.
+2 NEAR COMPRESSION: near foot now supports the body beneath the hip, near knee visibly bent; far knee drives forward, lowest pelvis; head nods slightly and ears lag downward.
+3 NEAR PUSH/PASS: near foot pushes off behind the hip, far bent knee passes ahead; pelvis rises; arms cross neutral. Ears bend back with head acceleration.
+4 FAR REACH/FLIGHT: both feet clearly airborne, far leg extends forward for the next step, near leg folds behind, highest pelvis. Arms counterbalance. Ears follow through with different curves, not two identical paddles.
+5 FAR CONTACT: far foot reaches ahead and touches floor, near knee folded behind, descending torso. Opposite limb configuration to frame 1. Watch lags the restrained rear-hand swing.
+6 FAR COMPRESSION: far foot under pelvis, far knee bent under load, near knee swings ahead, lowest pelvis; ear tips overshoot downward after head compression.
+7 FAR PUSH/PASS: far foot pushes off behind, near bent knee passes ahead, pelvis rises, arm swing crosses neutral; coat and watch trail.
+8 NEAR REACH/FLIGHT: both feet airborne, near leg extends forward toward the contact of frame 1, far leg folds behind. Highest pelvis; ears settle toward frame 1 for a clean repeating loop.
+
+MOTION QUALITY
+Clear large changes in leg articulation and silhouette between contact, compression and flight. Alternating left/right leg phases, honest weight-bearing foot contact, recovery leg bent at the knee. Arms oppose the legs with restrained watch-arm travel. Ears lag body acceleration, bend, overshoot and settle; no random ear flipping. Preserve the source rabbit's long feet and ear lengths. Do not elongate its torso or turn it into a different cartoon rabbit. Run in place: the planted foot sweeps backward relative to the root during stance, then lifts during recovery. No whole-character horizontal translation.
+
+INK STYLE
+Only near-black ink with transparent negative space, coarse ordered dither and rough halftone edges exactly like Image 1. Preserve its light/dark balance and facial readability. No gray wash, colored pixels, smooth cartoon outlines, vector fill, new pixel-art character design, anime, or 3D.
+
+The most important requirement is ONE recognizable character in EIGHT different mechanically connected run poses. Identity and motion correctness outweigh extra details.

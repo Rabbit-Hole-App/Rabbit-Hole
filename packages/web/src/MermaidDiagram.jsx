@@ -1,3 +1,4 @@
+import { afterPaint, usePerf } from './learn-perf.js';
 import { useEffect, useRef, useState } from 'react';
 
 // Text-authored diagrams: the agent writes mermaid, the browser renders it.
@@ -53,6 +54,7 @@ export function MermaidSource({ code }) {
 }
 
 export default function MermaidDiagram({ code }) {
+  const report = usePerf();
   const host = useRef(null);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -61,7 +63,7 @@ export default function MermaidDiagram({ code }) {
     mermaidOnce().then(async mermaid => {
       const id = `mermaid-${Math.abs([...code].reduce((hash, character) => (hash * 31 + character.charCodeAt(0)) | 0, 7))}`;
       const { svg } = await mermaid.render(id, code);
-      if (live && host.current) host.current.innerHTML = svg;
+      if (live && host.current) { host.current.innerHTML = svg; afterPaint(() => { report('content'); report('interactive'); }); }
     }).catch(problem => { if (live) setError(problem.message.split('\n')[0]); });
     return () => { live = false; };
   }, [code]);

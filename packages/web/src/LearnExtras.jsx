@@ -17,8 +17,8 @@ export function LessonReading({ architecture, page, narration, onSource, onNoteb
     </div>
     <Button variant="secondary" onClick={onNotebook}>Try it yourself in the notebook <ArrowUpRight size={14} /></Button>
     <div className="space-y-1 border-t border-line pt-4"><h3 className="font-medium">Further reading</h3>
-      <a className="block text-accent hover:underline" href="https://docs.ultralytics.com/models/yolov8/" target="_blank" rel="noreferrer">Ultralytics: YOLOv8 — model family and detection head ↗</a>
-      <a className="block text-accent hover:underline" href="https://docs.ultralytics.com/guides/yolo-architecture/" target="_blank" rel="noreferrer">Architecture guide — backbone, neck, and head ↗</a>
+      <a className="block text-accent hover:underline" href="https://docs.ultralytics.com/models/yolov8/" target="_blank" rel="noreferrer">Ultralytics: YOLOv8: model family and detection head ↗</a>
+      <a className="block text-accent hover:underline" href="https://docs.ultralytics.com/guides/yolo-architecture/" target="_blank" rel="noreferrer">Architecture guide: backbone, neck, and head ↗</a>
     </div>
   </article>;
 }

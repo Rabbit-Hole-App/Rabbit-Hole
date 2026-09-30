@@ -3,8 +3,9 @@ import { Check, CircleAlert, ExternalLink } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { Button, ConfirmDialog, Field, IconBtn, Input, SettingsRow, Tip } from './ui.jsx';
 import AwsS3Access from './AwsS3Access.jsx';
+import { learnPreview } from './flags.js';
 
-const dataInfo = 'Your source, inputs, logs, and outputs stay in your AWS account. Small stores the connection details.';
+const dataInfo = `Your source, inputs, logs, and outputs stay in your AWS account. ${learnPreview ? 'Rabbit Hole' : 'Small'} stores the connection details.`;
 
 // AWS installation lives alongside the other workspace connections.
 export default function AwsConnection({ workspace, apps = [], onChanged, onAccessChanged }) {

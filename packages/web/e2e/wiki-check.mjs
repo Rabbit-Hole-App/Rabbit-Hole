@@ -44,7 +44,7 @@ await page.route('**/api/**', async route => {
   const url = new URL(request.url());
   const path = url.pathname;
   if (path === '/api/learn/wiki') return route.fulfill({ json: ARTICLES[url.searchParams.get('title')] || { error: 'No Wikipedia article called that' } });
-  if (path === '/api/learn/wiki/search') return route.fulfill({ json: { pages: [{ title: 'Machine_learning', displayTitle: 'Machine learning', description: 'A field of study', thumbnail: null }] } });
+  if (path === '/api/learn/search') return route.fulfill({ json: { results: [{ key: 'Machine_learning', title: 'Machine learning', subtitle: 'Wikipedia', why: 'The field itself.', thumbnail: null, item: { title: 'Machine_learning' } }] } });
   if (request.method() === 'POST' && /ask|selection/.test(path)) {
     try { asks.push(JSON.parse(request.postData() || '{}')); } catch { /* not JSON, not this check's business */ }
     const body = sse || 'event: delta\ndata: {"text":"Here."}\n\nevent: done\ndata: {}\n\n';
@@ -76,18 +76,23 @@ await page.waitForTimeout(3000);
 
 // --- the learner adds one ---
 ok('no article on the canvas to begin with', (await card.count()) === 0);
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Sources/ }).click();
-await page.waitForTimeout(250);
-await page.getByRole('menuitem', { name: /Wikipedia article/ }).click();
+await page.getByRole('button', { name: 'Search YouTube, arXiv and Wikipedia' }).click();
 await page.waitForTimeout(300);
-const box = page.getByRole('dialog', { name: 'Add a Wikipedia article' });
-ok('the picker searches as you type, with no button to press', (await box.getByRole('button').count()) === 0);
-await box.getByRole('textbox').fill('machine');
+const box = page.getByRole('dialog', { name: 'Search' });
+await box.getByRole('combobox', { name: 'Search in' }).selectOption('wikipedia');
+await box.getByRole('textbox').fill('machine learning');
+await page.keyboard.press('Enter');
 await page.waitForTimeout(1200);
-await box.locator('li').first().click();
+await box.getByRole('listbox').getByRole('option').first().click();
 await page.waitForTimeout(2500);
 ok('picking an article puts a card on the canvas', (await card.count()) === 1);
-ok('and opens the reader', await reader.isVisible());
+ok('and only the card - the side panel stays shut', (await reader.count()) === 0);
+// The reader is one right-click away, for long reading.
+await card.first().click({ button: 'right', position: { x: 30, y: 12 } });
+await page.waitForTimeout(250);
+await page.getByRole('menu', { name: 'Canvas actions' }).getByRole('menuitem', { name: 'Open in reader' }).click();
+await page.waitForTimeout(2000);
+ok('Open in reader opens the side panel', await reader.isVisible());
 ok('the licence notice is visible with the content', (await reader.getByText(/Creative Commons Attribution-Share Alike 4\.0/).count()) > 0);
 
 // --- the sanitizer, in a real DOM ---
@@ -154,7 +159,9 @@ await page.keyboard.press('Enter');
 await page.waitForTimeout(2000);
 ok('a question carries the article being read', asks.at(-1)?.wiki_context?.title === 'Machine_learning', JSON.stringify(asks.at(-1)?.wiki_context));
 
-// --- the tutor opens one ---
+// --- the tutor opens one: on the card, not the side panel ---
+await reader.getByLabel('Close article').click();
+await page.waitForTimeout(300);
 sse = `event: delta\ndata: {"text":"Look at the history."}\n\nevent: wiki\ndata: ${JSON.stringify({ lang: 'en', title: 'Machine_learning', displayTitle: 'Machine learning', section: 1, sectionTitle: 'History', url: 'https://en.wikipedia.org/wiki/Machine_learning' })}\n\nevent: done\ndata: {}\n\n`;
 await page.getByPlaceholder(/Ask about/).first().fill('when did this start?');
 await page.keyboard.press('Enter');
@@ -162,7 +169,7 @@ await page.keyboard.press('Enter');
 // life - at 1.2s a slow run sometimes arrived after the animation was over.
 await page.waitForTimeout(600);
 ok('the tutor can open an article at a section', await page.evaluate(() => {
-  const root = [...document.querySelectorAll('.wiki-article')].find(node => node.scrollTop > 0);
+  const root = [...document.querySelectorAll('[aria-label="Lesson canvas"] .wiki-article')].find(node => node.scrollTop > 0);
   if (!root) return false;
   const history = root.querySelector('[data-mw-section-id="1"]');
   return !!history && Math.abs(history.getBoundingClientRect().top - root.getBoundingClientRect().top) < 40;
@@ -170,7 +177,7 @@ ok('the tutor can open an article at a section', await page.evaluate(() => {
 ok('and the section it points at is visibly marked', await page.evaluate(async () => {
   // The tint follows its section one frame behind a reflow, so give it one.
   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-  const root = [...document.querySelectorAll('.wiki-article')].find(node => node.scrollTop > 0);
+  const root = [...document.querySelectorAll('[aria-label="Lesson canvas"] .wiki-article')].find(node => node.scrollTop > 0);
   const mark = root?.querySelector('[data-arrived]');
   if (!mark || getComputedStyle(mark).animationName !== 'wiki-arrive') return false;
   // over the section it named, not somewhere else in the article

@@ -1,0 +1,480 @@
+{
+  "schema_version": 2,
+  "revision": 3,
+  "character": "rabbit-hole-mascot",
+  "status": "candidate pending user visual approval",
+  "frame_count": 8,
+  "frame_size": [
+    512,
+    512
+  ],
+  "facing": "right",
+  "loop": true,
+  "target_fps": 13,
+  "gif_durations_ms": [
+    80,
+    70,
+    80,
+    80,
+    70,
+    80,
+    80,
+    80
+  ],
+  "webp_frame_duration_ms": 77,
+  "baseline_y": 480,
+  "anchor_px": [
+    256,
+    480
+  ],
+  "shared_source_scale": 0.82,
+  "proportions": "proportions.json",
+  "previous_candidate": "history/pass-02/manifest.json",
+  "registration_landmark": "pelvis center x; measured support plane y, preserved flight",
+  "allowed_directions": [
+    "front",
+    "back",
+    "left",
+    "right"
+  ],
+  "additional_view_directions": [
+    "front_left",
+    "front_right",
+    "back_left",
+    "back_right"
+  ],
+  "mirror_allowed": false,
+  "clips": {
+    "run_right": {
+      "action": "run",
+      "facing": "right",
+      "fps": 13,
+      "sheet": "run-strip.png",
+      "frames": "animations/run_right/frames",
+      "frame_count": 8,
+      "loop": true,
+      "approved": false
+    }
+  },
+  "canonical_reference": "../rabbit-sprite.png, first 240 x 168 frame",
+  "underlying_reference": "../rabbit_1.jpg",
+  "seed_redrawn": false,
+  "source_generated_together": true,
+  "source_layout": "4 columns x 2 rows",
+  "runtime_layout": "8 columns x 1 row",
+  "generator": "built-in image_gen through ChatGPT",
+  "upstream_sprite_pipeline_commit": "1dc195897af4161d039b80d8471ec0a10c9bbc89",
+  "source_sha256": "bd8825a8331a3b12c346000ff8bbe0b707340aa1c1ec116d9f48a1a62898f1b6",
+  "registration": [
+    {
+      "frame": 1,
+      "source_cell": [
+        0,
+        0,
+        444,
+        444
+      ],
+      "source_pelvis_x": 214,
+      "source_floor_y": 420,
+      "offset": [
+        80.52000000000001,
+        135.60000000000002
+      ],
+      "ink_bounds": [
+        118,
+        160,
+        398,
+        480
+      ]
+    },
+    {
+      "frame": 2,
+      "source_cell": [
+        444,
+        0,
+        887,
+        444
+      ],
+      "source_pelvis_x": 226,
+      "source_floor_y": 423,
+      "offset": [
+        70.68,
+        133.14000000000004
+      ],
+      "ink_bounds": [
+        174,
+        188,
+        372,
+        480
+      ]
+    },
+    {
+      "frame": 3,
+      "source_cell": [
+        887,
+        0,
+        1330,
+        444
+      ],
+      "source_pelvis_x": 215,
+      "source_floor_y": 422,
+      "offset": [
+        79.70000000000002,
+        133.96000000000004
+      ],
+      "ink_bounds": [
+        148,
+        192,
+        388,
+        480
+      ]
+    },
+    {
+      "frame": 4,
+      "source_cell": [
+        1330,
+        0,
+        1774,
+        444
+      ],
+      "source_pelvis_x": 218,
+      "source_floor_y": 423,
+      "offset": [
+        77.24000000000001,
+        133.14000000000004
+      ],
+      "ink_bounds": [
+        126,
+        158,
+        408,
+        468
+      ]
+    },
+    {
+      "frame": 5,
+      "source_cell": [
+        0,
+        444,
+        444,
+        887
+      ],
+      "source_pelvis_x": 215,
+      "source_floor_y": 407,
+      "offset": [
+        79.70000000000002,
+        146.26000000000005
+      ],
+      "ink_bounds": [
+        122,
+        158,
+        396,
+        480
+      ]
+    },
+    {
+      "frame": 6,
+      "source_cell": [
+        444,
+        444,
+        887,
+        887
+      ],
+      "source_pelvis_x": 240,
+      "source_floor_y": 409,
+      "offset": [
+        59.20000000000002,
+        144.62
+      ],
+      "ink_bounds": [
+        172,
+        194,
+        370,
+        480
+      ]
+    },
+    {
+      "frame": 7,
+      "source_cell": [
+        887,
+        444,
+        1330,
+        887
+      ],
+      "source_pelvis_x": 227,
+      "source_floor_y": 413,
+      "offset": [
+        69.86000000000001,
+        141.34000000000003
+      ],
+      "ink_bounds": [
+        144,
+        184,
+        392,
+        480
+      ]
+    },
+    {
+      "frame": 8,
+      "source_cell": [
+        1330,
+        444,
+        1774,
+        887
+      ],
+      "source_pelvis_x": 235,
+      "source_floor_y": 413,
+      "offset": [
+        63.30000000000001,
+        141.34000000000003
+      ],
+      "ink_bounds": [
+        120,
+        158,
+        402,
+        476
+      ]
+    }
+  ],
+  "turnaround": {
+    "approved": false,
+    "cardinal_sheet": "turnaround-sheet.png",
+    "sheet": "turnaround-8-view-sheet.png",
+    "views": {
+      "front": "turnaround/front.png",
+      "front_left": "turnaround/front_left.png",
+      "left": "turnaround/left.png",
+      "back_left": "turnaround/back_left.png",
+      "back": "turnaround/back.png",
+      "back_right": "turnaround/back_right.png",
+      "right": "turnaround/right.png",
+      "front_right": "turnaround/front_right.png"
+    },
+    "source_groups": [
+      {
+        "file": "generated/turnaround-refinement-03-source.png",
+        "sha256": "1e7a103e559b0178ffa6621a90713db9fd5ed0fee9ee715c464dea348f798718",
+        "shared_scale": 1.1428571428571428,
+        "views": [
+          "front",
+          "front_left",
+          "left",
+          "back_left",
+          "back",
+          "back_right",
+          "right",
+          "front_right"
+        ]
+      }
+    ],
+    "canonical_height_px": 432,
+    "watch_hand": "anatomical right; far hand in left-facing views",
+    "mirrored": false,
+    "registration": [
+      {
+        "direction": "front",
+        "source": "generated/turnaround-refinement-03-source.png",
+        "source_cell": [
+          0,
+          0,
+          444,
+          444
+        ],
+        "source_stance_x": 219,
+        "source_floor_y": 418,
+        "offset": [
+          5.714285714285722,
+          2.2857142857143344
+        ],
+        "ink_bounds": [
+          166,
+          50,
+          336,
+          480
+        ]
+      },
+      {
+        "direction": "front_left",
+        "source": "generated/turnaround-refinement-03-source.png",
+        "source_cell": [
+          444,
+          0,
+          887,
+          444
+        ],
+        "source_stance_x": 207,
+        "source_floor_y": 418,
+        "offset": [
+          19.428571428571445,
+          2.2857142857143344
+        ],
+        "ink_bounds": [
+          198,
+          50,
+          338,
+          480
+        ]
+      },
+      {
+        "direction": "left",
+        "source": "generated/turnaround-refinement-03-source.png",
+        "source_cell": [
+          887,
+          0,
+          1330,
+          444
+        ],
+        "source_stance_x": 220,
+        "source_floor_y": 418,
+        "offset": [
+          4.571428571428584,
+          2.2857142857143344
+        ],
+        "ink_bounds": [
+          198,
+          50,
+          344,
+          480
+        ]
+      },
+      {
+        "direction": "back_left",
+        "source": "generated/turnaround-refinement-03-source.png",
+        "source_cell": [
+          1330,
+          0,
+          1774,
+          444
+        ],
+        "source_stance_x": 217,
+        "source_floor_y": 418,
+        "offset": [
+          8.0,
+          2.2857142857143344
+        ],
+        "ink_bounds": [
+          182,
+          56,
+          334,
+          480
+        ]
+      },
+      {
+        "direction": "back",
+        "source": "generated/turnaround-refinement-03-source.png",
+        "source_cell": [
+          0,
+          444,
+          444,
+          887
+        ],
+        "source_stance_x": 219,
+        "source_floor_y": 416,
+        "offset": [
+          5.714285714285722,
+          4.571428571428612
+        ],
+        "ink_bounds": [
+          178,
+          50,
+          348,
+          480
+        ]
+      },
+      {
+        "direction": "back_right",
+        "source": "generated/turnaround-refinement-03-source.png",
+        "source_cell": [
+          444,
+          444,
+          887,
+          887
+        ],
+        "source_stance_x": 206,
+        "source_floor_y": 416,
+        "offset": [
+          20.571428571428584,
+          4.571428571428612
+        ],
+        "ink_bounds": [
+          198,
+          56,
+          356,
+          480
+        ]
+      },
+      {
+        "direction": "right",
+        "source": "generated/turnaround-refinement-03-source.png",
+        "source_cell": [
+          887,
+          444,
+          1330,
+          887
+        ],
+        "source_stance_x": 214,
+        "source_floor_y": 416,
+        "offset": [
+          11.428571428571445,
+          4.571428571428612
+        ],
+        "ink_bounds": [
+          176,
+          50,
+          322,
+          480
+        ]
+      },
+      {
+        "direction": "front_right",
+        "source": "generated/turnaround-refinement-03-source.png",
+        "source_cell": [
+          1330,
+          444,
+          1774,
+          887
+        ],
+        "source_stance_x": 223,
+        "source_floor_y": 416,
+        "offset": [
+          1.1428571428571672,
+          4.571428571428612
+        ],
+        "ink_bounds": [
+          178,
+          50,
+          320,
+          480
+        ]
+      }
+    ],
+    "generation": "All eight existing views refined in one coherent source sheet; no mirrored views."
+  },
+  "review": {
+    "proportion_sheet": "canonical-proportion-sheet.png",
+    "comparison": "run-comparison.gif",
+    "turnaround_comparison": "turnaround-refinement-comparison.png",
+    "seam_preview": "run-seam-preview.gif",
+    "seam_sheet": "run-seam-sheet.png",
+    "approved": false
+  },
+  "character_bible": {
+    "approved": false,
+    "proportions": "proportions.json",
+    "references": [
+      "character-seed.png",
+      "canonical-proportion-sheet.png",
+      "turnaround-8-view-sheet.png"
+    ],
+    "rule": "After approval, condition all future actions on the approved turnaround plus proportions."
+  },
+  "world_travel_review": {
+    "preview": "run-world-comparison.gif",
+    "browser": "qa/world-travel-verification.json",
+    "measurements": "qa/foot-contact-review.json",
+    "fps": 13,
+    "display_scale": 0.375,
+    "speed_source_px_s": 1235,
+    "foot_sliding_resolved": false,
+    "approved": false
+  }
+}

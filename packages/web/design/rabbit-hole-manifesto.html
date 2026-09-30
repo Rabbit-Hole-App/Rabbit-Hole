@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Our manifesto | Rabbit Hole</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/landing/favicon-32-v1.png">
+<link rel="icon" type="image/svg+xml" href="/landing/favicon-v1.svg">
+<link rel="apple-touch-icon" href="/landing/apple-touch-icon-v1.png">
+<meta name="description" content="AI changes the constraint of education. Why Rabbit Hole is building learning that adapts, remembers and keeps going.">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./rabbit-hole.css">
+<link rel="stylesheet" href="../src/landing/manifesto.css">
+</head>
+<body class="content-page manifesto-page">
+<div class="manifesto-atmosphere" aria-hidden="true"><div id="manifesto-depth-color"></div></div>
+<header id="bar" class="on">
+  <a class="brand" href="/" aria-label="Rabbit Hole home"><span class="rh-mark" aria-hidden="true"></span>Rabbit Hole</a>
+  <a href="/blog">Blog</a>
+  <a href="/features">Features</a>
+  <a href="/pricing">Pricing</a><a href="/docs">Docs</a>
+  <a class="cta" href="/sign-up">Get started</a>
+  <button id="menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="sheet"><i></i><i></i></button>
+</header>
+<nav id="sheet" aria-label="Sections">
+  <a href="/blog">Blog</a><a href="/features">Features</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a>
+</nav>
+<main id="below">
+  <div class="manifesto-journey" id="manifesto-journey">
+    <div class="manifesto-stair-art" id="manifesto-stair-art" aria-hidden="true">
+      <canvas id="manifesto-stairs"></canvas>
+    </div>
+  <article class="manifesto-article">
+    <header class="manifesto-heading" id="manifesto-hero">
+      <p class="manifesto-eyebrow">OUR MANIFESTO</p>
+      <h1>Knowledge<br><mark class="manifesto-highlight">does not end.</mark></h1>
+      <p class="manifesto-deck">Neither should learning.</p>
+    </header>
+    <div class="manifesto-body">
+      <div class="manifesto-opening">
+        <p>For most of modern education, learning has had a shape: a beginning, a curriculum, a fixed amount of material, and an end.</p>
+        <p>That shape made sense when knowledge was expensive to distribute and a teacher's attention was scarce.</p>
+        <p>It makes less sense now.</p>
+      </div>
+      <p class="manifesto-statement"><mark class="manifesto-highlight">AI changes the constraint.</mark></p>
+
+      <section class="manifesto-chapter" aria-labelledby="manifesto-old-shape">
+        <p class="manifesto-number">THE OLD SHAPE</p>
+        <div class="manifesto-prose">
+          <h2 id="manifesto-old-shape">We taught everyone<br><mark class="manifesto-highlight">the same way.</mark></h2>
+          <p>A university lecture might put one professor in front of a hundred students. An online course can put the same recorded lesson in front of a million.</p>
+          <p>Both are extraordinary ways to distribute knowledge. But distribution is not the same thing as adaptation.</p>
+          <p>The lesson is usually the same whether you understood the last idea instantly, missed the prerequisite three chapters ago, or already know enough to skip ahead.</p>
+          <p>The course has a length. The module has an order. The video keeps playing.</p>
+          <p class="manifesto-strong">The learner adapts to the course. The course <mark class="manifesto-highlight">rarely adapts to the learner.</mark></p>
+        </div>
+      </section>
+
+      <section class="manifesto-chapter manifesto-portrait-chapter" id="manifesto-questions" aria-labelledby="manifesto-question">
+        <figure class="manifesto-portrait manifesto-socrates">
+          <img src="/landing/manifesto-socrates-v2.png" width="1086" height="1448" alt="An imagined monochrome portrait of Socrates absorbed in thought, one finger resting at his chin and his other arm supporting the elbow." decoding="async" loading="lazy">
+          <figcaption>Socrates <span>Imagined portrait</span></figcaption>
+        </figure>
+        <div class="manifesto-prose">
+          <p class="manifesto-number">QUESTIONS</p>
+          <h2 id="manifesto-question">A good teacher does not<br><mark class="manifesto-highlight">only give answers.</mark></h2>
+          <p>Socratic teaching starts somewhere more interesting than a lecture: with a question.</p>
+          <p>A good question reveals what you understand, what you assume, and where the next gap actually is.</p>
+          <p>The important part is not asking questions for the sake of asking them. It is responding to the answer.</p>
+          <p>If you already understand the intuition, move deeper. If the formula is hiding the idea, step back. If a prerequisite is missing, follow that branch first.</p>
+          <p class="manifesto-strong">The next lesson should <mark class="manifesto-highlight">depend on what happened</mark> in the last one.</p>
+        </div>
+      </section>
+
+      <section class="manifesto-chapter" aria-labelledby="manifesto-finish-line">
+        <p class="manifesto-number">THE FINISH LINE</p>
+        <div class="manifesto-prose">
+          <h2 id="manifesto-finish-line">We made knowledge<br>look <mark class="manifesto-highlight">finite.</mark></h2>
+          <p>Finish the semester. Complete the specialization. Reach 100%. Get the certificate.</p>
+          <p>Those milestones are useful. But they can accidentally suggest that understanding has an endpoint.</p>
+          <p>In reality, every answer exposes another layer.</p>
+          <p>Learn what a Transformer does and you can ask how attention works. Understand attention and suddenly Softmax matters. Understand Softmax and you can ask about numerical stability, implementation, optimization, scaling, or the paper that changed the architecture.</p>
+          <p>There is no final module.</p>
+          <p class="manifesto-statement manifesto-statement-inline">Knowledge is <mark class="manifesto-highlight">infinite.</mark></p>
+          <p>A learning system should be able to keep going with you.</p>
+        </div>
+      </section>
+
+      <section class="manifesto-chapter manifesto-portrait-chapter manifesto-teaching" id="manifesto-understanding-section" aria-labelledby="manifesto-understanding">
+        <div class="manifesto-prose">
+          <p class="manifesto-number">UNDERSTANDING</p>
+          <h2 id="manifesto-understanding">Knowing the words<br>is <mark class="manifesto-highlight">not enough.</mark></h2>
+          <p>Feynman's style of learning pointed at a simple test: can you make the idea clear enough to explain it?</p>
+          <p>Understanding becomes visible when you use it.</p>
+          <p>Predict what happens. Change an assumption. Work through an example. Write the code. Draw the relationship. Explain it back in your own words.</p>
+          <p>When that breaks, the failure is useful. It tells us what to teach next.</p>
+          <p class="manifesto-strong">Learning should produce evidence of <mark class="manifesto-highlight">understanding,</mark> not just evidence of completion.</p>
+        </div>
+        <figure class="manifesto-portrait manifesto-feynman">
+          <img src="/landing/manifesto-feynman-v2.png" width="1086" height="1448" alt="An imagined monochrome portrait of Richard Feynman in a dark sweater, looking down as he sketches an idea in an open notebook." decoding="async" loading="lazy">
+          <figcaption>Richard Feynman <span>Imagined portrait</span></figcaption>
+        </figure>
+      </section>
+
+      <section class="manifesto-chapter" id="manifesto-ai-native" aria-labelledby="manifesto-new-shape">
+        <p class="manifesto-number">THE AI-NATIVE SHAPE</p>
+        <div class="manifesto-prose">
+          <h2 id="manifesto-new-shape">What if the path<br><mark class="manifesto-highlight">could change?</mark></h2>
+          <p>AI gives us a chance to rethink the shape of learning itself.</p>
+          <p>Not a chatbot bolted onto a course.<br>Not an infinite stream of generated explanations.</p>
+          <p>What we are building: a learning environment that can notice where you are, preserve what you have already explored, and choose a better next move.</p>
+          <dl class="manifesto-path">
+            <div><dt>Need the intuition?</dt><dd><mark class="manifesto-highlight">Show</mark> it.</dd></div>
+            <div><dt>Need the mechanism?</dt><dd><mark class="manifesto-highlight">Interact</mark> with it.</dd></div>
+            <div><dt>Need the math?</dt><dd><mark class="manifesto-highlight">Derive</mark> it.</dd></div>
+            <div><dt>Need the implementation?</dt><dd><mark class="manifesto-highlight">Open</mark> the code.</dd></div>
+            <div><dt>Missing a prerequisite?</dt><dd><mark class="manifesto-highlight">Go down</mark> that rabbit hole.</dd></div>
+            <div><dt>Ready to come back?</dt><dd><mark class="manifesto-highlight">Return</mark> with the context intact.</dd></div>
+          </dl>
+          <p>The path does not have to be predetermined because the learner is no longer invisible to the system.</p>
+        </div>
+      </section>
+
+      <section class="manifesto-chapter" aria-labelledby="manifesto-continuity">
+        <p class="manifesto-number">CONTINUITY</p>
+        <div class="manifesto-prose">
+          <h2 id="manifesto-continuity">Learning should <mark class="manifesto-highlight">remember</mark><br>where you left off.</h2>
+          <p>Today, learning is scattered across tabs, videos, notes, papers, chats, repositories and half-finished notebooks.</p>
+          <p>You ask a great question on Tuesday and reconstruct the context from scratch on Friday.</p>
+          <p>We want learning to accumulate.</p>
+          <p>The source you opened. The diagram that finally made sense. The question you could not answer. The experiment you ran. The branch you took into a prerequisite. The explanation you came back with.</p>
+          <p>Not as a score that pretends to know how smart you are.</p>
+          <p>As a trail of evidence that helps the next learning moment start from somewhere better.</p>
+          <p class="manifesto-strong">You should not have to <mark class="manifesto-highlight">start over</mark> every time you get curious.</p>
+        </div>
+      </section>
+
+      <section class="manifesto-chapter" aria-labelledby="manifesto-building">
+        <p class="manifesto-number">WHAT WE ARE BUILDING</p>
+        <div class="manifesto-prose">
+          <h2 id="manifesto-building">A home for<br>the <mark class="manifesto-highlight">next question.</mark></h2>
+          <p>Rabbit Hole is our attempt to build continuous, adaptive learning for the age of AI.</p>
+          <p>Start with the thing you actually want to understand: a repository, a paper, a concept, a problem, a question.</p>
+          <p>Learn at the depth you need.<br>Follow the branch that matters.<br>Test whether it really clicked.<br>Go deeper when you're ready.</p>
+          <p>And when one answer creates another question, keep going.</p>
+          <div class="manifesto-next-step" id="manifesto-next-step">
+            <h3>Next step</h3>
+            <p>Today, we’re starting with coding and AI. Our ambition is broader: to bring this approach to science, law, economics, and every field people want to understand.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div class="manifesto-ending" id="manifesto-closing">
+      <p class="manifesto-final">There is <mark class="manifesto-highlight">no<br>end</mark> of knowledge.</p>
+      <p class="manifesto-last-question">There is only the <mark class="manifesto-highlight">next question.</mark></p>
+      <a href="/">Start a rabbit hole <span aria-hidden="true">→</span></a>
+    </div>
+  </article>
+  </div>
+</main>
+<footer data-content-footer><span class="brand">Rabbit Hole</span><span>Knowledge is infinite.</span><span>© 2026</span></footer>
+<script type="module" src="../src/landing/navigation.js"></script>
+<script type="module" src="../src/landing/content-footer.js"></script>
+<script type="module" src="../src/landing/manifesto-stairs.js"></script>
+</body>
+</html>

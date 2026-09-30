@@ -1,5 +1,46 @@
 # Coaching: product, ideas, tasks, and results
 
+### Compact landing Guided graph (2026-09-30)
+
+Guided now matches Overview's canvas height and uses one Score A control with
+four live Softmax probability bars. A blue arrow connects the retained video
+still to the graph; the quiz remains beneath the canvas. The prior four-slider
+version was deployed with explicit approval as
+`70811ef2-31e6-4fa8-9aff-3eb72f14696d` and passed read-only hosted checks.
+See [the adaptive demo spec](rabbit-hole-adaptive-demo.md#compact-guided-graph-2026-09-30)
+for the revised interaction and focused validation. Only the named landing
+review clone is in scope; no authenticated flow or shared-data writes.
+
+### Landing Guided walkthrough follow-up (2026-09-30)
+
+The user reopened the approved landing branch specifically for the Guided
+walkthrough, factual four-score controls and a selectable quiz, then requested
+another push and freeze. The scope and checks are recorded in
+[the adaptive demo spec](rabbit-hole-adaptive-demo.md#reopened-guided-walkthrough-2026-09-30).
+Only the named landing review clone is in scope. Verification uses public pages
+with API/auth/write requests blocked; no app data, auth wiring or integration
+merge is included.
+
+### Landing review clone publication (2026-09-30)
+
+Explicit user authorization lifted the deployment hold for the current
+`small-cp-dev-smart-landing-page` review build only. Published current branch
+version `e2d120bb-d0b5-4ba5-936b-bb89bb6f0a97`, including the manifesto,
+compact Overview, existing public-page work and punctuation cleanup. New preview
+line: **No fixed path. No final lesson.** Build and `make test-unit` passed.
+Remote verification is limited to read-only public pages. No login, test
+sessions, uploads, app actions or shared-data writes are authorized by this
+publication; no main-branch merge or live promotion occurred.
+
+### Landing manifesto and compact Overview (2026-09-30, local review)
+
+The landing preview and manifesto essay now use the user's adaptive-learning
+thesis, with the existing red highlights, monochrome portraits and staircase.
+Overview no longer inherits Guided's larger canvas height. Scope, copy decisions
+and local browser evidence: [manifesto revision](rabbit-hole-manifesto.md).
+The P0-B hold remains active: no deployment, auth or shared-resource writes.
+Review is prepared from localhost in the Rabbit Hole Figma organization.
+
 ### Canvas conversation blocks (2026-09-17)
 
 Regular dev's adaptive canvas uses these terms:
@@ -92,6 +133,9 @@ Deployed to regular Small dev as `3ca0d796-6510-425c-85ec-5169a30ad84c`.
 This increment extends the original dev canvas explanation. Live and BYOC
 remain unchanged. Model calls use Anthropic API billing, not a chat subscription.
 
+- **Removed 2026-09-29:** the **Explain on canvas** button under Learn chat
+  answers, which drew on the earlier lesson board. What follows describes it as
+  it was.
 - Completed Learn chat answers offer **Explain on canvas**, including general
   questions before a lesson starts and answers reopened from History. A blank
   canvas gets a freeform explanation context; no demo prerequisite. New explanations
@@ -261,6 +305,11 @@ dialog and restores the bundled original plus a fresh kernel. Edits last until
 reset or leaving/reloading Learn; downloading retains a copy. No server execution,
 new model calls, notebook ingestion, or cross-device persistence was added.
 See [notebook build/deployment](../../packages/web/notebook/README.md).
+
+The canvas also takes real notebooks: **Insert → Notebook** adds a card that is
+its own JupyterLite workspace (notebooks, text and code files, folders, a Files
+drawer), on a separate canvas notebook site. See
+[canvas notebook](canvas-notebook.md).
 
 Practice contains three authored quiz questions with explanations and links
 back to lesson pages. Five flashcards flip on click (keyboard accessible;
@@ -645,6 +694,10 @@ for drawing, undo, separate chat history, demo animation, and replay; screenshot
 review confirmed the formula, curve, labels, and chat fit the existing layout.
 Published to regular dev as `6ed0a1d7-db74-4dcf-9163-786b149b23ad`.
 Review at `/apps/yolo-s3-job?tab=learn`; live and AWS BYOC remain unchanged.
+Since learn-cleanup U2 (2026-09-29) no Learn chat shows this demo: it needs the
+parked tldraw player, so the pill was always disabled and typing its prompt sent
+nothing. The pinned-selection Asking about chip and Clear selected context are
+gone for the same reason. The My notes button now toggles back to the canvas.
 
 - The header reads **Learn Agent** on the same row as **History** and **+ New chat**.
 - `POST /api/learn/ask` uses existing app context and model handling, but creates
@@ -1109,6 +1162,13 @@ This does not change the shared app database or add scheduled jobs.
 The `VITE_COACHING_DEV=true` build flag enables the sample tabs. Default builds
 leave them disabled. Keep them in dev until the user approves promotion to live.
 
+On Rabbit Hole preview builds (`learnPreview`: `VITE_COACHING_DEV` without private
+BYOC), app pages change nothing live (D7): Run, Schedule, Share edits, Duplicate,
+Trash, rename, description, Watch dismiss and Runbook edits are off with the reason
+shown, and run chat is hidden. They land on Runbook, and the Graph tab's chat shows a
+pointer to the bar instead of the Graph Agent input. So far this is built only on the
+smart-home review clone; promoting it to the shared small-cp-dev needs the user's approval.
+
 ## Deploy dev
 
 For **customer-hosted AWS**, use the [private AWS dev deployment](byoc-dev.md#build-and-deploy).
@@ -1125,22 +1185,1631 @@ From `packages/web`, in PowerShell:
 ```powershell
 $env:VITE_COACHING_DEV = 'true'
 $env:VITE_BYOC_DEV = 'true'
-$env:VITE_TLDRAW_LICENSE_KEY = node --input-type=module -e "import {readFileSync} from 'node:fs'; import {parseEnv} from 'node:util'; const key = parseEnv(readFileSync('../../.env', 'utf8')).TLDRAW_LICENSE_KEY; if (!key) throw new Error('Missing TLDRAW_LICENSE_KEY'); process.stdout.write(key);"
-if ($LASTEXITCODE -ne 0) { throw 'Cannot build dev without the tldraw license' }
-npm run build -- --outDir dist-dev
-Remove-Item Env:VITE_COACHING_DEV
-Remove-Item Env:VITE_BYOC_DEV
-Remove-Item Env:VITE_TLDRAW_LICENSE_KEY
-npx wrangler deploy --config wrangler.dev.jsonc
+$devLicenseLine = [IO.File]::ReadAllLines((Resolve-Path ../../.env)) | Where-Object { $_.StartsWith('TLDRAW_LICENSE_KEY=') } | Select-Object -First 1
+if (-not $devLicenseLine) { throw 'Cannot build dev without the tldraw license' }
+$env:VITE_TLDRAW_LICENSE_KEY = $devLicenseLine.Substring('TLDRAW_LICENSE_KEY='.Length).Trim().Trim('"').Trim("'")
+try {
+  npm run build -- --outDir dist-dev
+  $devBuildResult = $LASTEXITCODE
+} finally {
+  Remove-Item Env:VITE_COACHING_DEV, Env:VITE_BYOC_DEV, Env:VITE_TLDRAW_LICENSE_KEY
+  Remove-Variable devLicenseLine
+}
+if ($devBuildResult -ne 0) { throw 'Dev build failed; do not deploy' }
+$devSessionName = Split-Path (Resolve-Path ../..) -Leaf
+npx wrangler deploy --config wrangler.dev.jsonc --name "small-cp-dev-$devSessionName"
 ```
 
 Stop if the build fails. The separate `dist-dev` output leaves the live `dist`
-artifact untouched. `wrangler.dev.jsonc` deploys only `small-cp-dev`; live deploys
-continue using the existing control-plane configuration.
+artifact untouched. Follow [parallel dev deployments](parallel-dev-deploys.md):
+the explicit name deploys this worktree's clone, never the shared dev worker.
+Live deploys continue using the existing control-plane configuration.
 Keep both flags enabled for the dev build so a Coaching UI deployment also
 preserves the approved AWS app integration. Default builds disable both previews.
 
+On a fresh worktree without `dist/index.html`, create that local default build
+once before setting the dev flags. The dev worker's imported control-plane module
+still resolves the production shell even though dev pages use `dist-dev/index.html`.
+Building the missing local artifact does not deploy it. Do not replace an existing
+live build merely to prepare a dev deployment.
+
 ## Release and verification
+
+### Local-only landing video controls and matching prompts — 2026-09-30
+
+All three depth composers now read “explain me softmax function”, using motion,
+explain and deeper tool pills respectively. Overview plays all 25 seconds
+automatically after the illustrated click. A play/pause button, seekable timeline
+and elapsed/total time appear beneath the video. Optional manual playback still
+works with reduced motion; inactive/offscreen playback pauses.
+
+Local build and 80 focused browser checks passed, including real complete
+autoplay on desktop/mobile, seeking, replay, keyboard use and 320px layout.
+Screenshots inspected; no page errors. Evidence:
+`tmp/softmax-motion/autoplay-controls-local/`. This revision is prepared on
+`feature/smart-landing-page` and remains undeployed. The user's P0-B security hold prohibits further clone deployments,
+merges and remote app writes without the required approval; all checks for this
+revision ran locally. The hosted version below remains the earlier revision.
+
+### Matching depth workspaces and full video playback — 2026-09-30
+
+The landing depth controls now look pressable and progress from light rose
+through red to deep red when selected. Guided and Deep Dive reuse the Overview
+canvas/header/chat styling around their existing interactive content. The video
+card keeps its short automatic preview; a real click restarts the full 25-second
+clip and allows inline pause/resume/replay. Explicit keyboard playback works
+with reduced motion; offscreen and inactive-depth playback pauses.
+
+Built with both dev flags and the existing license, deployed only to the
+worktree clone as `3d63133b-a3ba-4ae2-949a-792532f593cb`. The actual deployment
+passed 103 focused checks plus 67 original demo checks across desktop/mobile,
+including real full-length playback, 320–1440px layouts, keyboard access,
+contrast and interaction preservation. Screenshots inspected; no browser page
+errors. Evidence: `tmp/softmax-motion/depth-deployed/`. See the
+[adaptive example specification](rabbit-hole-adaptive-demo.md).
+
+### Overview composer and teaching copy refinement — 2026-09-30
+
+The landing Overview demo now starts with an empty canvas. A stronger chat-bar
+close-up shows `/motion` becoming a tool pill with a corner ×, the remainder of
+the prompt, then the large cursor clicking Send. `Generating animation` and its
+spinner run for one second before the existing video-card reveal/play sequence.
+Adjacent copy now explains Overview's visual foundation for intuition instead
+of teaching Softmax. Guided and Deep Dive remain intact.
+
+Built with both dev flags and the existing license; deployed only the worktree
+clone as `9023fa7a-45eb-483c-9ea1-130370424a4e`. Passed 101 focused checks on the
+actual deployment, including desktop/mobile sequence, measured spinner timing,
+cursor containment, real video playback, keyboard/reduced motion, interruption,
+narrow layouts and fallback. Screenshots inspected; no browser page errors.
+Evidence: `tmp/softmax-motion/refinement-deployed/`. See the
+[adaptive example specification](rabbit-hole-adaptive-demo.md).
+
+### Landing Softmax at three learning depths — 2026-09-29
+
+Replaced the attention example in Learning, at your pace with the approved
+Overview / Guided / Deep Dive Softmax example. Overview stages `/motion explain
+me softmax function`, reveals a video card on the canvas, then a large cursor
+clicks its play control and the supplied cartoon plays. Guided has a working
+score slider; Deep Dive shares the values and shows stable math, tensor shapes
+and the shared code renderer. This is labeled as an illustrative preview; no
+model, backend, persistence or authentication calls were added.
+
+Built with both dev flags and the existing license. Deployed only the worktree
+clone as `a69f287d-53a6-4b36-8cfb-9a774c68205d`. The actual deployment passed 79
+focused browser checks, including desktop/mobile real media playback, cursor
+timing, arithmetic, keyboard navigation, reduced motion, interruption/resume,
+320–1440px layouts, and poster fallback. Screenshots were visually inspected;
+no browser page errors. See [the adaptive example specification](rabbit-hole-adaptive-demo.md)
+and evidence in `tmp/softmax-motion/deployed/`.
+
+### Landing artwork behind the cards — 2026-09-29
+
+Moved both square compositions inward and down behind the card area, with
+softer contrast and less mobile cropping. Original images, opaque cards and
+scroll behavior are retained. Deployed only the worktree clone as
+`3990ac9a-1466-4a4f-abe3-08e3ca325698`; 50 focused checks passed on the deployed
+page at 1440px and 390px. Both sections' screenshots were visually inspected.
+Evidence: `tmp/landing-square-art/inward/deployed-results.json` and screenshots.
+
+### Square artwork in the white landing sections — 2026-09-29
+
+Added two original pale graphite/halftone compositions: nested square depth
+behind Learning, at your pace, and connected square paths behind Who is it for.
+Tiny muted pink accents and CSS edge masks blend into white. Images are lazy
+loaded, decorative and noninteractive. Small scroll-linked translations stop
+at rest and are disabled for reduced motion. The audience stage retains its
+existing sticky positioning. Section order, copy and interactions are retained.
+
+Built with both dev flags and the existing license; deployed to only the
+smart-landing-page clone as `e59172f3-97e9-4f5e-b587-f4c7798d98ca`. All 50
+focused checks passed on the actual deployed page at desktop 1440px and touch
+mobile 390px. Inspected both sections' screenshots at both sizes. No browser
+runtime errors or horizontal overflow. See [the artwork specification](rabbit-hole-square-art.md)
+and `tmp/landing-square-art/deployed-results.json`. Original files and exact
+built-in imagegen prompts are recorded in
+`packages/web/design/square-background-art-direction.md`.
+
+### Landing section order and opening-copy removal — 2026-09-29
+
+Removed the product description beneath Knowledge is infinite, including its
+styles and scroll hook. Reordered the existing content after the manifesto to:
+Learning, at your pace → pink cloud → What is Rabbit Hole? → Who is it for? →
+FAQ. Existing visuals and interactions are retained. The final audience action
+now continues forward to the FAQ and focuses its heading.
+
+Built with both dev flags and the existing license; deployed only to the
+worktree clone, version `4243f8f8-e027-4881-ad0d-db810ab6b799`. All 27 focused
+deployed Chrome checks passed at desktop 1440px and touch-mobile 390px: exact
+document/visual order, adjoining section boundaries, removed description,
+adaptive controls, cloud-to-overview navigation, overview/audience scroll
+forward and reverse, final audience-to-FAQ navigation, and preserved footer CTA.
+No browser errors or horizontal overflow. Desktop/mobile screenshots were
+visually inspected. Evidence: `tmp/landing-adaptive/reorder-results.json` and
+`reorder-*.png`. The preceding removal-only deployment also passed 17 focused
+checks, recorded in `tmp/landing-adaptive/remove-description-results.json`.
+
+### Landing clarity, adaptive example and footer action — 2026-09-29
+
+Added a short product description beneath the opening headline. The reserved
+white space after the clouds now presents one attention/context example with
+Start simple, Show visually and Go deeper controls. Persistent word cards move
+between arrangements; keyboard and reduced-motion changes are immediate. The
+canvas stays the same height and labels the content as illustrative. The
+existing animated footer now has a Start exploring action linking to the
+existing `/sign-up` UI. No generated images, model calls or backend integration.
+
+Built with both dev flags and the existing license. Deployed only to the
+worktree clone as `e486879f-e6bf-4d4b-8f59-ba82672d1d6b`. All 113 local and 114
+deployed browser checks passed at six desktop/mobile/landscape viewport sizes.
+Verified hero readability/reversal, all three modes, rapid switching, diagram
+and copy containment, stable height, keyboard navigation/focus, reduced motion,
+native scroll and actual footer-to-signup navigation. Earlier artwork, audience
+chapters, overview controls, footer animation and the flush FAQ boundary are
+preserved. No browser errors or API calls. Inspected deployed desktop/mobile
+screenshots. Evidence: `tmp/landing-adaptive/deployed/results.json` and images.
+Scope: `docs/features/rabbit-hole-adaptive-demo.md`.
+
+### Landing overview window and cloud interlude — 2026-09-29
+
+The existing Japanese observatory now backs a Mac-style product overview.
+Five animated HTML scenes introduce sources, questions, canvas, practice and
+saved learning. Desktop scrolling opens the window and advances/reverses the
+scenes; tabs, keyboard controls and compact-screen swipes provide direct access.
+The scenes are explicitly illustrative, with no backend or model calls. The
+Features page retains the detailed walkthrough. Preview animation waits while
+the scene is offscreen and reduced motion shows complete, stable previews.
+
+The original cloud loop now has a stronger draft headline, supporting copy,
+small annotations and an overview link. A blank white section follows for
+future content. Removed the external gap between the landscape and FAQ while
+preserving the FAQ's internal layout. Existing audience chapters are unchanged.
+
+Built with both dev flags and the existing license; deployed only to the
+worktree clone. Initial version `6a7aaa48-83ed-4aee-b4c2-3dad9f164033` passed
+190 overview checks across seven viewport sizes and all 162 audience regression
+checks. The final offscreen-animation adjustment is deployed as
+`4797cedd-01c3-4abc-8fa0-f73b6bb8757f`; 15 focused deployed checks passed for
+arrival playback, completed scenes, reduced motion, mobile layout, preserved
+assets and the exact FAQ boundary. No browser errors or API requests. Final
+desktop, mobile and FAQ-join screenshots were visually inspected.
+
+Evidence: `tmp/landing-overview/deployed/results.json`,
+`tmp/landing-overview/final/results.json` and screenshots;
+`tmp/audience-section/deployed-live/results.json`. Scope:
+`docs/features/rabbit-hole-overview.md`. Real product captures remain future work.
+
+### Landing audience chapters — 2026-09-29
+
+The white section between the black manifesto and pink clouds now presents six
+audiences one at a time. Desktop scrolling advances/reverses the sticky chapter;
+compact screens use direct selection, arrows and horizontal touch swipes. Each
+chapter has draft positioning and a neutral HTML canvas placeholder for a future
+real workflow capture. No new generated artwork, model calls or backend behavior.
+The existing thinkers, cloud animation, observatory, footer and Pro Contact CTA
+are preserved. The earlier generated audience concept was rejected and is kept
+only as history.
+
+Built with both dev flags and the tldraw license. Deployed only to
+`small-cp-dev-smart-landing-page`, version
+`e188d01c-8487-42b7-9089-6513c8737baf`.
+
+All 162 browser checks passed locally and on the deployed page at seven viewport
+sizes from 320 to 1440px. Verified all six chapters, forward/reverse scroll,
+actual wheel and touch input, native selection, keyboard controls, reduced
+motion, short screens, deep links, one active accessible story, no overflow and
+release into the clouds. No browser errors or interaction API calls. Inspected
+deployed desktop/mobile screenshots. Evidence:
+`tmp/audience-section/deployed-live/results.json` and screenshots. Specification:
+`docs/features/rabbit-hole-audiences.md`. Canvas contents remain illustrative.
+
+### Pro contact CTA and audience-section concept — 2026-09-29
+
+The Pro pricing card now says Contact and links to
+`mailto:hello@tryrabbithole.dev?subject=Rabbit%20Hole%20Pro`. Free/Plus CTAs,
+card styling and other pricing content are unchanged. Built with both dev flags
+and the tldraw license; deployed only to `small-cp-dev-smart-landing-page`,
+version `4f1e24f0-f0b1-440c-a8f5-30dc907e0576`.
+
+All 17 deployed browser checks passed at 1440 and 390px: Contact label and
+destination, keyboard focus, preserved Free/Plus CTAs, no page overflow, no
+browser errors, and preserved landing white space/cloud layers. Evidence:
+`tmp/audience-section/deployed/results.json` and screenshots. Email delivery
+was not tested or invoked.
+
+The requested Who is it for section is a visual concept, not an implemented
+landing change. Six expanding illustrated chapters cover creators/writers,
+AI/ML engineers, educators, university students, enterprise onboarding and
+interview preparation. See the mockup, positioning and motion proposal in
+`packages/web/design/mockups/rabbit-hole-audiences-direction.md`.
+
+### Rabbit Hole developer documentation — 2026-09-29
+
+Added public `/docs` with nine chapters for the existing CLI, hosted API and
+AWS/BYOC workflows. Docs appears beside Blog, Features and Pricing in public
+desktop/mobile navigation and the footer. The approved field-guide layout uses
+search, copyable examples, chapter navigation, in-page contents, and shared
+resizable panels. The large concept illustration was omitted after the user's
+feedback. No backend, auth integration or cloud-job behavior changed.
+
+The command/content audit corrects outdated Developer-panel descriptions and
+separates hosted routes from customer AWS job APIs. Examples use the current
+preview origin, retaining the existing `small-deploy` package and `small` command.
+No customer account identifiers or private installation URLs are published.
+
+Built with both dev flags and the tldraw license; deployed only to
+`small-cp-dev-smart-landing-page`, version
+`83565435-1480-49e5-b3ea-c84de99e2245`. All 195 deployed browser/HTTP checks passed:
+nine chapters at six viewport widths, navigation/search/history, code and page
+copy, panel resizing, mobile drawer/focus, direct anchors, 404/HEAD/405 behavior
+and preserved unauthenticated API response. Desktop/mobile deployed screenshots
+were inspected. Evidence: `tmp/docs-pages/deployed/results.json` and screenshots
+in that directory; 191 local browser checks also passed.
+
+The documented greeting job was executed locally after validating its TOML and
+input schema with the actual CLI modules. It produced the expected file under
+SMALL_OUTPUTS. Cloud deployment/run examples were checked against source, not
+executed; no login email, AWS mutation or model test was performed.
+See [documentation scope](rabbit-hole-docs.md) and
+[source audit](rabbit-hole-docs-source-map.md).
+
+### Rabbit Hole public identity and supporting pages — 2026-09-29
+
+Added `/team`, `/privacy`, `/terms`, and a branded HTTP 404. Contact was cancelled
+by the user in favor of `hello@tryrabbithole.dev`. Public/auth footers now include
+Manifesto, singular Team (its own page), Privacy, Terms, X/LinkedIn marks, and an
+email link. Social marks await verified profile URLs; Team profiles are clearly
+labelled placeholders; legal copy is explicitly draft. The landing footer keeps
+its existing animation, while other footers remain static.
+
+Extracted the existing six-ellipse FAQ mark for headers, footer wordmarks, auth
+branding, 404 and white-on-black browser icons. Versioned SVG, 32px PNG and 180px
+touch icon are scoped to public/auth pages. Existing app branding is unchanged.
+
+Built with both dev flags and deployed only to `small-cp-dev-smart-landing-page`,
+version `3241f91a-6918-4bba-901b-96110e042199`. 138 deployed browser/HTTP checks
+passed across desktop/mobile widths, legal anchors, menus, footer links, favicon
+assets, true 404/HEAD behavior and preserved email-login/API/static responses.
+No backend integration, database change, email delivery or paid model test.
+See [scope and evidence](rabbit-hole-support-pages.md) and
+`tmp/support-pages/deployed/results.json`.
+
+### Rabbit Hole authentication UI — 2026-09-29
+
+Implemented the approved split-screen auth concept with one engraved opening.
+The shared public-page shell serves `/sign-in`, `/sign-up`, `/forgot-password`,
+`/check-email`, `/reset-password` and `/password-updated`. Public Get started
+links now lead to sign-up. Inputs have associated labels, inline validation,
+password visibility controls, Caps Lock feedback and keyboard focus. Mobile uses
+a compact artwork masthead. The existing `/login`, `/auth` and `/apps` remain
+available, including a workspace link below the forms.
+
+This is explicitly UI only: Google/GitHub and email/password actions show honest
+availability feedback, credentials never leave the page, and the recovery
+confirmation screens state that no email was sent or password changed. No new
+auth backend, email delivery, database change, persistence or paid model call.
+See [the auth UI scope](rabbit-hole-auth.md). Artwork and generation prompt are
+retained in `packages/web/public/landing/auth-single-hole-v1.png` and
+`packages/web/design/auth-art-prompt.md`.
+
+Built with both dev flags and the existing license read privately from the
+primary checkout's `.env` (this worktree has no `.env`). Build passed with the
+existing large-app-chunk warning. Only this session's worker was deployed:
+`small-cp-dev-smart-landing-page`, version
+`52abf882-e1c8-4eb8-aac1-e91ea6b87ed4`.
+
+Actual deployed Chrome checks passed for all six routes at 1440, 1024, 768, 390
+and 320px. Exercised sign-up/sign-in navigation, missing/invalid email, password
+visibility, signup minimum-length guidance, both social controls, the complete
+forgot → email preview → reset → completion flow, mismatched passwords, resend,
+change-email, browser back/reload, keyboard focus and reduced motion. No page
+errors, failed asset requests, horizontal overflow or auth/API requests. Public
+page CTA links and the original email-link login were checked. HEAD succeeds;
+POST to the new auth routes is rejected without forwarding credentials.
+Desktop, phone and recovery screenshots were visually inspected. Evidence:
+`tmp/auth-pages/deployed-verification.json` and `tmp/auth-pages/deployed/`.
+
+### Features demo deck shuffle — 2026-09-29
+
+The approved desktop shuffle uses the actual demo figures as a three-card deck.
+The next preview comes forward while the outgoing preview slips behind it.
+Pose evaluation follows native scroll position over the middle third between
+chapter centers, with stable reading poses on either side. Reversing or stopping
+mid-transition retraces/holds the same poses; there are no timed shuffle queues.
+The loops pause while the deck moves. The incoming content appears after the
+outgoing text clears to avoid superimposed explanations during partial scroll.
+
+Phones retain one preview below each explanation. Resizing resets desktop
+transforms before measuring the phone layout. Reduced motion uses fixed deck
+arrangements and completed static previews. No additional controls or libraries.
+
+Built with both dev flags and the existing license; only the session worker
+was deployed, version `7b6d8c7a-5c0f-404c-ab85-40ec9f00e036`. Build passed with
+the existing app chunk-size warning. Actual deployed Chrome checks passed at
+1440, 1024, 801, 390 and 320px: forward/back wheel input, partial reversal with
+identical poses, held-scroll stability, fast chapter jumps, front-loop playback,
+pause during shuffle, desktop/phone resizing, footer containment, and reduced
+motion. No browser errors, failed requests, horizontal overflow or API calls.
+Desktop intermediate/final screenshots and phone views were inspected.
+Evidence: local `tmp/features-shuffle/deployed-verification.json` and screenshots.
+
+### Remove the old Features summary cards — 2026-09-29
+
+Removed the three older summary cards below the approved walkthrough at the
+user's request, along with their orphaned page-specific styles. The four demos
+now lead directly into the simple footer. A deck-style shuffle was discussed
+as a design recommendation; this deployment retains the existing demo transition.
+
+Dev build passed with the existing chunk-size warning. Deployed only the session
+worker, version `bc20ed0d-2d0c-4c35-81a1-229acc66b41f`. Actual Chrome checks at
+1440, 390 and 320px confirmed the quoted copy/cards are absent, all four demos
+remain, the final preview plays, and the demo stays clear of the footer without
+horizontal overflow or browser errors. Desktop/mobile footer screenshots were
+visually reviewed. Evidence: local `tmp/features-cards-removed/verification.json`
+and screenshots/build/deploy logs.
+
+### Features illustrative product walkthrough — 2026-09-29
+
+The user approved staged demos before real product recordings. `/features`
+now pairs four eight-second HTML/SVG previews with draft explanations: bring
+sources, ask a follow-up, explore an attention diagram, and practice/save.
+The shared example and offset frame outlines carry the existing header's
+visual direction into the content. The header, three summary cards, public
+navigation and static footer remain. No other public page was redesigned.
+
+Desktop previews stay beside the copy and switch with forward/reverse native
+scrolling. At 800px and below, each explanation precedes its own preview.
+Inactive/offscreen previews and hidden-page playback pause; reduced motion
+shows completed stills. The figures are labeled "Illustrative product preview"
+and have accessible descriptions. There are no new playback buttons, API/model
+calls, uploads, learner submissions, or persistence. The app-like controls are
+decorative. No generated image assets or new dependencies were required.
+
+Built with both dev flags and the existing tldraw license; only the session
+worker was deployed, version `84e1e836-2dda-40bb-9e0b-8d8099bd6b89`.
+Build passed with the existing app chunk-size warning. Actual deployed Chrome
+checks passed at 1440, 1024, 801, 768, 390 and 320px: chapter selection in both
+directions, real wheel input, loop reset, inactive animation clocks pausing,
+content bounds, native scrolling, mobile menu, and reduced motion. No browser
+errors, failed assets, horizontal overflow or API requests were observed.
+Desktop and mobile rendered screenshots were inspected. The original header
+asset is still loaded. Local checks caught and fixed a canvas-height overflow
+and narrow-phone follow-up clipping before deployment.
+
+Source: `design/rabbit-hole-features.html`, `src/landing/features-demos.css`
+and `features-demos.js`; direction in `design/features-art-direction.md`.
+Evidence: local `tmp/features-demos/deployed-verification.json`, screenshots,
+and build/deploy logs. These checks establish the illustrative marketing UI,
+not real product inference or ingestion behavior.
+
+### Distinct portraits, editorial rules and contained stairs — 2026-09-29
+
+Manifesto now uses fresh, independently composed portraits: Socrates thinking
+with a finger at his chin, and Feynman in a dark sweater sketching in a notebook.
+The built-in image tool received no landing-page image or other visual reference.
+The v2 PNGs retain true alpha transparency and the approved blended treatment.
+The landing image is unchanged. Exact prompts, paths and hashes are recorded in
+`packages/web/design/manifesto-distinct-portraits-prompts.md`; v1 is retained.
+
+At the user's request, https://typesafe.ai/manifesto was inspected for its long
+vertical rules and inline red highlights. Rabbit Hole's opening and four prose
+blocks now have full-height left rules, and five phrases in the existing draft
+have brick-red highlighting. The text itself is unchanged. The marks wrap with
+cloned decoration; foreground/background contrast measures 5.27:1. The approved
+ivory/stone palette and background staircase remain.
+
+The footer leak was reproduced at 320 × 568: hiding the stair canvas changed
+footer pixels. The negative-margin sticky layer extended beyond the article.
+The article and canvas now occupy the same grid area, without negative margins,
+and the journey uses `overflow: clip` to bound the drawing while preserving
+sticky positioning. The footer remains outside that layer.
+
+Build and session-clone deployment passed, version
+`52a6a23f-6777-4c58-a10c-ac86fe2e593d`. Actual Chrome checks passed at 1440, 390
+and 320px: both v2 portraits/alpha/aspect ratios, no old-image requests, five
+highlights and full-height rules, no overflow, forward/reverse/held staircase,
+reduced motion, direct reload, mobile menu and landing return/Read more links.
+Unchanged landing, Features, Blog and Pricing image hashes were checked.
+Screenshots were visually reviewed for new poses, blending and wrapped marks.
+
+Footer checks passed at 1440 × 1000, 390 × 844, 768 × 1024 and 320 × 568:
+the stair bottom matches the article/footer boundary and footer screenshots
+are pixel-identical with the staircase shown or hidden. No browser errors or
+failed assets remained. Evidence: `tmp/manifesto-distinct/verification.json`,
+`footer-before.json`, `footer-after.json` and PNGs. The initial main check had
+an incorrect Features v2 expectation in the harness; it was corrected to the
+unchanged v1 asset and the check rerun successfully. No API-key model call,
+shared/live deployment or schema change; no commit requested for this pass.
+
+### Manifesto text over stairs and separate blended portraits — 2026-09-29
+
+Following visual feedback, the Manifesto essay now scrolls over the stairway.
+The existing canvas is a sticky decorative background within the article's
+flow; its progress comes from actual essay height. The separate empty animation
+stage is gone. Native text, navigation and links stay above the canvas and remain
+selectable/clickable. Scroll reversal and the complete static reduced-motion
+view remain. The user authorized choosing a replacement palette: warm ivory
+`#f9f7f2`, deepening to stone `#e5dfd6`, with charcoal text and muted gray stairs.
+The background drawing is subdued on desktop and further reduced on phones.
+
+Two new independent portraits replace the rejected blackboard scene. Socrates
+stands beside the question passage; Feynman accompanies active understanding.
+Both PNGs have actual alpha transparency, stippled lower edges and no room or
+rectangular backdrop. Multiply blending and a lower CSS mask integrate them
+with the page. Captions identify each as an imagined portrait. Source assets and
+exact prompts: `packages/web/design/manifesto-solo-portraits-prompts.md`.
+The landing page's approved pair and Features/Blog/Pricing art are unchanged.
+
+Build/deployment passed on the session clone. Version
+`51070899-e573-4d61-8632-57a2b26e1cc7` passed deployed Chrome checks at 1440,
+390 and 320px: text/canvas overlap with correct layer order, article height
+without an added art stage, two transparent PNGs with no border/background,
+increasing step construction, identical pixels when reversing, stable held
+progress, wheel down/up, reduced motion, direct reload, mobile navigation and
+landing return/Read more links. Asset hashes match the local PNGs; earlier page
+assets are unchanged. No overflow, browser errors, failed assets or requests for
+the rejected combined images were observed. Screenshots were visually inspected.
+
+Final version `b50d1154-9a71-440a-b497-f71aa8ce6616` only darkens the small
+portrait captions; their contrast against the darkest page tint exceeds 4.5:1.
+Deployed desktop/phone placement and caption colors were checked again.
+Evidence: `tmp/manifesto-layered/verification.json`, `final-verification.json`
+and screenshots. Built-in image generation only; no API-key model call,
+shared/live deployment or schema migration. No commit requested for this pass.
+
+### Manifesto staircase, blackboard scene and Features header — 2026-09-29
+
+The existing scroll-built green stairway moved from Features to Manifesto. Its
+geometry and animation code are unchanged apart from CSS/element names: forward
+construction, reverse scroll, stopped-scroll stability and reduced motion remain.
+Manifesto now has an oversized centered title, editorial sections with small
+side labels, an image beside prose, and a large closing statement. Existing
+Rabbit Hole draft copy is preserved; the reference informed layout, not prose.
+
+The seated scene is replaced by `manifesto-blackboard-v1.png`: Socrates and
+Richard Feynman stand at a chalkboard, with Feynman writing and Socrates engaged
+in the discussion. The imagined-scene caption remains. Features now uses a new
+green technical collage, `features-collage-v1.png`, behind its heading/subtitle
+only. Existing cards follow on white. Phone cropping retains some right-side
+diagram detail while keeping text readable. Blog/Pricing art, landing artwork,
+white spacer, clouds, observatory and public navigation are unchanged.
+
+Both images were generated through the built-in tool with existing images as
+style/identity references. Source PNGs and previous versions are retained.
+Exact prompts, dimensions and hashes: `packages/web/design/manifesto-features-art-prompts.md`.
+
+Dev build and deployment passed on the session clone only. Initial deployment
+`787b4eb2-3193-464f-a469-a7fa6650a459` passed actual Chrome checks at 1440, 390
+and 320px: step counts increase with scroll, the reversed canvas matches the
+earlier pixels, no motion while held, wheel down/up, sticky positioning, fixed
+complete reduced-motion view, four essay sections, full blackboard aspect ratio,
+mobile menu, return/Read more links, direct /manifesto/ reload, asset hashes,
+three feature cards and no horizontal overflow. No browser errors, failed
+assets or requests for the old seated scene/Features renderer were observed.
+
+Final deployment `33cc6750-3f87-409f-bb3f-c664acde931f` adds only the inspected
+phone crop/subtitle-width adjustment. Features was checked again at all three
+widths, and the unchanged Manifesto stairway/blackboard were verified on this
+version. Desktop and phone screenshots were visually inspected. Evidence:
+`tmp/manifesto-features/verification.json`, `final-verification.json` and PNGs.
+No shared/live worker deployment, schema migration or API-key model call.
+
+### Centered Socrates and Feynman images — 2026-09-29
+
+Both discussion images now contain Socrates and Richard Feynman only. After the
+initial removal-only edit left the composition unbalanced, both were regenerated
+with the pair centered and looking at each other. The standing scene retains
+its black outer edges and full-body view; the seated scene retains its table,
+chalkboard and monochrome photographic treatment. Captions and alternative text
+identify the two remaining participants and the imagined encounter. Current
+assets are `thinkers-standing-v3.png` and `manifesto-conversation-v3.png` in
+`packages/web/public/landing/`; exact prompts, source paths and hashes are in
+`packages/web/design/thinkers-centered-prompt.md`. Prior versions are retained.
+
+Dev build and session-clone deployment passed, version
+`6c83b88e-ceef-4d86-a583-2e5e2a8de240`. Actual deployed Chrome verification passed
+for both `/` and `/manifesto` at 1440 and 390px: new asset dimensions/hash, full
+aspect ratio without cropping, updated captions/alt text, no old asset requests,
+no horizontal overflow and working Read more navigation. The blank white space
+and observatory selection remain intact. All four screenshots were visually
+inspected for centering, gaze and visible anatomy. No browser errors or failed
+assets were observed. Evidence: `tmp/thinkers-two-person/verification.json`,
+`standing-*.png` and `seated-*.png`. Built-in image generation only; no API-key
+model call, shared/live deployment or schema change.
+
+### Observatory selected as the single landscape — 2026-09-29
+
+Following visual approval, the landing page keeps the animated observatory as
+its only Japanese-style landscape. The standalone mountain figure and its unused
+styles are removed; the original mountain asset remains in the repository.
+The observatory follows the pink clouds, retaining its mist, stars, responsive
+layout, offscreen pause and reduced-motion behavior. The approved standing
+thinkers image and blank white content section remain unchanged.
+
+Dev build and session-clone deployment passed, version
+`3a947fe7-2fc2-4908-8239-69b3777ec6fd`. Actual deployed Chrome checks passed at
+1440 and 390px: a single observatory directly after the clouds, no mountain image
+request, moving mist, reduced-motion/offscreen pause, retained white space and
+thinkers asset, and no horizontal overflow. Both screenshots were visually
+inspected; no browser errors or failed assets were observed. Evidence:
+`tmp/observatory-only/verification.json` and `deployed-*.png`. No shared/live
+deployment or schema changes.
+
+### White content space before the clouds — 2026-09-29
+
+The black manifesto/image section now ends with a sharp cut into a blank white
+content area, followed by the existing pink cloud loop. The reserved section is
+55svh tall, bounded to 320–640px. The previous top mask, pink haze and scroll-driven
+opacity reveal are removed; the GIF stays at full opacity and reduced motion
+continues to use its existing still. No new copy or images were added.
+
+The preceding approved public-page state was saved in commit `6b4a8b9` after
+`make test-unit` passed. This subsequent layout change passed the dev build and
+was deployed only to the session clone, version
+`634216e2-52dc-448d-96f3-d759cebbf6a1`. Actual deployed Chrome verification passed
+at 1440, 390 and 320px: full-width empty white section, flush black/white/cloud
+boundaries, hidden scrollbars, no horizontal overflow, full-opacity animated
+clouds during forward/reverse scroll and reduced-motion toggling. Artwork/GIF
+hashes are unchanged and Read more still opens `/manifesto`. Desktop and phone
+screenshots were visually inspected; no browser errors or failed assets were
+observed. Evidence: `tmp/landing-white-section/verification.json`, `cut-*.png`
+and `cloud-*.png`. No shared/live deployment or schema changes.
+
+### Standing thinkers on the landing page — 2026-09-29
+
+The black manifesto introduction now includes a generated monochrome image of
+Plato, Socrates and Richard Feynman standing in discussion. The 1536 × 1024 image
+is displayed without cropping, with a caption identifying the imagined meeting.
+The seated image on `/manifesto` is preserved. Asset and exact prompt:
+`packages/web/public/landing/thinkers-standing-v1.png` and
+`packages/web/design/thinkers-standing-prompt.md`.
+
+Dev build and session-clone deployment passed, version
+`0660ef7d-8e96-4ad5-9af7-359a653c2b77`. Actual deployed Chrome checks passed at
+1440, 390 and 320px: image dimensions/hash, uncropped aspect ratio, no horizontal
+overflow, Read more navigation and the cloud transition below the added image.
+Desktop and phone screenshots were visually inspected. No browser errors or
+failed assets were observed. Evidence: `tmp/standing-thinkers/verification.json`
+and `deployed-*.png`. No shared/live deployment, schema change or API-key model
+call was performed.
+
+### Black manifesto introduction and cloud dissolve — 2026-09-28
+
+The landing hero now continues into a black manifesto introduction: “Follow your
+curiosity.”, a short draft paragraph and a white “Read more” button. The cloud
+follows with its own heading, “One question. Endless paths.” A static top mask
+and a brief pink stippled haze soften that boundary; opacity follows scroll
+position directly across 112–288px and reverses immediately. There is no extra
+animation track, timed reveal, new motion dependency or scroll interception.
+Reduced motion shows the original cloud still with the haze/mask removed.
+
+“Read more” opens `/manifesto`, a new public HTML entry using the existing mobile
+navigation and simple footer. Original draft copy describes Rabbit Hole's
+adaptive-learning mission. A new built-in image-generation asset shows Socrates,
+Richard Feynman and Plato around a table; its caption says it is an imagined
+conversation. Image SHA-256:
+`7b23e2654df67a462d3842df05277d667f51ad64eb934340f6f800644703055a`.
+The full image remains visible on mobile. Spec: [Rabbit Hole manifesto](rabbit-hole-manifesto.md).
+
+Dev build and session-clone deployment passed, version
+`6568cc55-9bd6-46cd-afac-992690e251dc`. Actual deployed Chrome verification covered
+1440px desktop, 390/320px touch-emulated layouts, and 390px reduced motion. Checks
+passed for partial scroll progress, reversal, held scroll state, native wheel
+reversal, moving cloud playback, keyboard/touch “Read more” navigation, direct
+reload, `/manifesto/`, mobile menu/Escape, return-to-introduction link, image
+dimensions/hash, and hidden scrollbars. Blog, Features and Pricing routes still
+return their own pages. Landing heading sizes are explicitly scoped so shared
+production CSS cannot shrink them; computed sizes match the intended desktop
+and phone values. Screenshots were visually inspected; no horizontal
+overflow, page exceptions or failed page-asset responses occurred. Evidence:
+`tmp/manifesto/verification.json` and `deployed-*.png`. No shared/live deployment,
+schema changes or API-key model calls.
+
+### Bring clouds directly after the hero — 2026-09-28
+
+The fixed 1740px hero track kept an empty black canvas visible long after the
+headline faded, followed by 150px desktop / 96px mobile padding. Track and
+spacer now share `100svh + 350px`: the hero releases when its existing title
+fade completes, and clouds enter directly beneath it without the extra padding.
+Reduced motion uses one viewport for the static hero. Tunnel rendering, cloud
+artwork/playback and subsequent sections are preserved.
+
+Session clone deployment `18d27535-73b9-4d76-9b6a-8f8801310a75` passed the dev
+build and actual deployed Chrome checks at 1440×1000, 1536×814 and 390×844,
+plus mobile reduced motion. The cloud meets the outgoing hero with zero gap;
+normal playback still animates, reverse scrolling restores the hero, and the
+navigation follows its earlier release. No horizontal overflow, page exceptions
+or failed page-asset responses occurred. Screenshots were visually inspected.
+Evidence: `tmp/hero-cloud-transition/{before-proposed,verification}.json` and
+screenshots. Only the session clone was deployed; no model calls or schema changes.
+
+### Hide scrollbars across public pages — 2026-09-28
+
+The shared public-page stylesheet now hides the browser scrollbar on the
+landing page, Blog and article readers, Features, and Pricing. Native
+`overflow-y: scroll` remains enabled. The landing-only root class is no longer
+needed; app scrollbars are unaffected because the app does not load this CSS.
+
+Dev build and session-clone deployment passed, version
+`a8ae0460-0d50-43a3-ab27-cffcc07815aa`. Deployed Chrome checks covered all five
+routes at 1440px and touch-emulated 390px with Chrome's default scrollbar-hiding
+flag disabled. Wheel, PageDown/Home and emulated touch scrolling work; no
+horizontal overflow, JavaScript exceptions or failed page-asset responses
+were observed. The Features staircase still builds and reverses with scrolling
+(96 to 184 steps). Screenshots were visually inspected. Evidence:
+`tmp/public-scrollbars/verification.json` and screenshots. No app UI, shared/live
+deployment, schema or model changes.
+
+### Blog/Pricing card feedback and landing scrollbar — 2026-09-28
+
+Blog and Pricing share a circular arrow treatment: pointer hover fills the
+circle and moves its arrow diagonally 2px using a 200ms CSS transition. Blog
+also reveals “Read story” and parts its two existing wireframe cover layers
+slightly; the label stays visible on touch screens. Pricing retains its
+existing hover glow and gains a 3px lift. Plus stays black, CTA labels and
+destinations are preserved, and the three desktop buttons remain aligned.
+Keyboard focus emphasizes the action immediately without movement. Reduced
+motion removes card, arrow and cover movement. No new animation library or
+runtime event handler was added.
+
+Only the landing HTML entry has `class="landing-page"` on its root element.
+Scoped scrollbar styling hides the vertical browser bar without changing
+native `overflow-y: scroll`; Blog, Features, Pricing and app pages are untouched
+by this rule. Both current Blog and Pricing header images are preserved.
+
+Dev build and session-clone deployment passed, version
+`642263df-d746-4713-b54e-58ab5ffe8597`. Actual deployed Chrome verification covered
+all six Blog hover/reset states, all three pricing cards, rapid hover reversal,
+keyboard focus and article navigation, reduced motion, 390/320px touch-emulated
+cards and article taps, and landing wheel/PageDown/Home plus emulated touch
+scrolling (390px, 425px of travel with the scrollbar hidden). Screenshots
+were visually inspected. The Blog/Pricing image bytes match their previous
+hashes. No horizontal overflow, JavaScript exceptions or failed page-asset
+responses were observed. Evidence: `tmp/public-card-hover/verification.json`
+and screenshots. No shared/live promotion, schema changes or model calls.
+
+### Regenerated Blog artwork; Pricing image preserved — 2026-09-28
+
+The Blog's white v3 illustration was rejected. Built-in image generation
+produced a new aqua, cobalt and teal technical atlas, saved as
+`public/landing/blog-atlas-v4.png` (2172 × 724). Its composition uses an indexing
+wheel, connected apertures and contour fields rather than the previous book
+and cube diagrams. It appears only behind the Blog heading; the page below
+and article readers remain white. Phone/tablet image crops favor the quiet
+title area. The six sample cards, story content and navigation are preserved.
+Prompt and provenance: `design/blog-collage-{prompt.md,assets.json}`.
+
+The user's follow-up asks to keep the previous Pricing image. Pricing still
+uses `pricing-collage-v3.png`: the actual deployed asset's SHA-256 matches the
+previous recorded file (`2f456616ecdab8f64366e6f63ea7e5098a134615be8d339138bddfe2cdb43953`).
+No Pricing artwork was generated or replaced in this pass.
+
+Session clone `small-cp-dev-smart-landing-page` version
+`cdfab1f4-2325-4480-b001-28bdc6b8764d` serves the change. The dev build passed
+with both flags and the existing tldraw license. Actual deployed Chrome checks
+at 1440, 768, 390 and 320px verified the new image, header-only placement,
+white page, six cards, no horizontal overflow and working article/back links.
+Desktop/tablet/phone screenshots were inspected. No JavaScript exceptions or
+failed page-asset responses were observed. Evidence and the preserved Pricing
+screenshot are under `tmp/blog-atlas-v4/`. No paid API fallback, app inference,
+schema change or shared/live-worker deployment.
+
+### Pricing amounts, allowances and shared learning benefits — 2026-09-28
+
+The Pricing cards show **Free $0, Plus $19/month and Pro $39/month**. The active
+learning-project allowances use the user's earlier specification: **3 / 20 /
+100** respectively, with **250 MB / 5 GB / 25 GB** of source storage and **20 /
+200 / 500 AI generation credits per month**. These credit quantities remain
+placeholders until usage and cost telemetry informs final allowances. The cards,
+credit-explanation heading and generation description use “AI generation credits.”
+Free lists **Interactive learning canvases** alongside adaptive explanations and
+**Learn from repositories, papers and documents**. Plus and Pro inherit these
+through their existing “Everything in…” features; the redundant source-type
+bullet in Plus is removed so source access does not read as a paid-only benefit.
+Paid prices remain labeled planned; early access remains free. These are displayed package
+proposals, not backend entitlement enforcement.
+Other resources, CTAs and styling remain as previously deployed. Session clone
+`small-cp-dev-smart-landing-page` version
+`07193d66-4562-4968-a5a5-427259a4deb7` includes the change. The dev build passed
+with both preview flags and the existing tldraw license; no shared/live
+promotion, schema change, billing change or model call.
+
+Actual deployed Chrome checks at 1440px and 390px show the three prices,
+3 / 20 / 100 active-project limits, 250 MB / 5 GB / 25 GB source storage and the
+AI generation credit labels, interactive-canvas benefit and shared source types,
+with no horizontal overflow, JavaScript exceptions or failed page-asset responses.
+Chrome separately reports the undeclared `/favicon.ico` as missing (404); this
+unrelated issue remains recorded in verification. Card grids were visually
+inspected and desktop CTAs remain aligned. This verifies the Pricing
+presentation; no source ingestion, canvas runtime or billing behavior was introduced.
+Evidence: `tmp/pricing-sources/verification.json` and the desktop/mobile PNGs
+beside it. The existing [Pricing · deployed review Figma section](https://www.figma.com/design/MYZz4RLKIfJh3uDvLXlF0p/Pricing-deployed-review?node-id=2-2)
+preserves the earlier captured state, before these pricing edits.
+
+### White Blog and denser abstract header collages — 2026-09-28
+
+Session clone `small-cp-dev-smart-landing-page`, version
+`81b87259-a365-4461-9154-e618a3a22080`, replaces the Blog paper animation with
+a static collage confined to the introduction. The user's follow-up removes
+the pink page background, pink card-cover fills and scroll tint. Blog and
+article readers now stay white. The paper canvas, sticky stage and color
+controller are removed. Six existing sample stories, reading routes and
+navigation remain. The selected `blog-collage-v3.png` adds more abstract
+diagrams in the upper-right on white paper.
+
+Pricing uses `pricing-collage-v3.png`, regenerated with denser right-side
+wireframe, cutaway and contour diagrams while retaining a clear subtitle area.
+Its plan cards, credit explanation and Teams content are unchanged. Plus stays
+black, the desktop grid has three columns and the CTAs remain bottom aligned.
+The separate request to revise pricing entitlements awaits the referenced
+model, which was not included in the user's message. Figma export awaits the
+user's choice between the two available teams; no Figma file was created yet.
+
+Built-in image generation produced the collages. Prompts and asset provenance
+are recorded in `design/blog-collage-{prompt.md,assets.json}` and
+`design/pricing-collage-{prompt.md,assets.json}`. Earlier image versions remain.
+Only this session clone was deployed, retaining both dev flags and the tldraw
+license. No shared-worker/live promotion, backend change or app inference.
+
+Deployed Chrome checks passed at 320, 390, 768, 1024 and 1440 pixels:
+header-only art bounds, static images, white Blog throughout scrolling, no
+paper canvas, responsive grids, all six article links, direct reload, browser
+back, keyboard activation, unknown-story recovery and mobile navigation.
+Pricing hover/focus, reduced motion, no-JavaScript header, three columns and
+aligned CTAs passed. No horizontal overflow, browser errors or failed
+same-origin requests. Desktop/mobile screenshots were visually reviewed.
+Source checks confirm story content and Pricing copy are unchanged, and that
+Features, landing artwork and shared footer files match their prior hashes.
+JavaScript syntax, asset metadata and repository whitespace checks passed.
+
+Evidence: `tmp/blog-collage/verification.json` and
+`tmp/pricing-collage/verification.json`. Full Pricing desktop/mobile captures
+are `tmp/pricing-collage/pricing-desktop-full.png` and
+`tmp/pricing-collage/pricing-mobile-full.png` for the pending Figma review.
+Review `/blog` and `/pricing` on the session clone.
+
+### Public-page artwork and scroll colors — 2026-09-28
+
+Session clone `small-cp-dev-smart-landing-page`, version
+`058339a4-e3ff-49fb-8031-8cb2f19d61f8`, places an original technical print collage
+behind only the Pricing introduction. The live heading/subtitle remain HTML;
+cards start below the art. The previous manga sky/bird module is no longer
+loaded. The selected image is `public/landing/pricing-collage-v2.png`; built-in
+generation prompts and provenance are in `design/pricing-collage-{prompt.md,assets.json}`.
+A targeted image edit cleared dense ink behind the small subtitle. Plan content,
+hover/focus feedback, free-trial destination and static footer are preserved.
+The requested pricing disclaimer sentence was removed, retaining the free-access note.
+
+Blog cards now sit over the paper animation in the same scroll region. The
+subtitle and both paper-animation captions were removed. Blog starts at the
+reference pink `#f386a1` and deepens to `#c65c82`; Features keeps its green palette
+and darkens from `#d9e8c9` to `#6a9479`. Both reverse with scroll and hold a static
+composition/tint under reduced motion. Cards stay light and readable. Blog
+article reading views retain their prior pale pink. No animation trajectories
+were changed and the landing page artwork remains unchanged.
+
+Both dev flags and the tldraw license were retained. Build and actual deployed
+Chrome checks passed: header-only bounds, image loading, no old manga requests,
+hover/keyboard focus, reduced motion, no-JavaScript Pricing, and no horizontal
+overflow at 320, 390, 768, 1024 and 1440 pixels. Desktop/mobile screenshots were
+visually reviewed. Scroll checks confirmed cards remain clickable over the
+papers, six working article links, keyboard/browser-back behavior, both color
+endpoints and exact reversal. Measured caption contrast at the darkest tint is
+4.55:1 on Blog and 4.69:1 on Features. No browser errors or failed same-origin
+requests. JavaScript syntax and repository whitespace checks passed.
+
+Evidence: `tmp/pricing-collage/verification.json`, `tmp/blog-overlay/verification.json`
+and screenshots in those directories. Only the session clone was deployed;
+no API/model inference, database changes, shared-worker or live promotion.
+Review at `/pricing`, `/blog` and `/features` on the session clone.
+
+### Blog sample cards and article reading views — 2026-09-28
+
+The Blog's placeholder rows are now six clickable sample cards below the
+existing pink paper archive. Cards include paper-style covers, categories,
+titles, excerpts, dates and reading times. The original three titles remain.
+Each link opens a sample article at `/blog?post=<slug>` in the existing public
+Blog shell, with top/bottom **Back to blog** links. Unknown slugs have a recovery
+view. Content is explicitly labeled sample; no backend, CMS, model calls or
+persistence were introduced. The original paper animation, other public pages
+and shared static footer are unchanged.
+
+Built and deployed to the session clone only, version
+`88c5d560-7731-4cb1-982c-d84a47a33457`. Browser verification opened all six cards,
+checked direct article reload, browser back with restored card position,
+keyboard activation/focus, the back links and unknown-slug recovery. The grid
+uses three, two and one columns at desktop, tablet and phone widths; checked
+1440, 1024, 768, 390 and 320 pixels with no horizontal overflow. Desktop and
+mobile card/article screenshots were visually reviewed. Scroll down/up still
+advances/reverses the archive; reduced motion keeps its existing fixed pose and
+disables card lift. No browser errors, failed same-origin requests or API calls.
+JavaScript syntax and whitespace checks passed. Evidence:
+`tmp/blog-cards/verification.json` and screenshots in the same directory.
+
+Review: `https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/blog#stories`.
+
+### Plus free-trial entry — 2026-09-28
+
+Saved the existing public-page design in commit `a731d75` after `make test-unit`
+passed (31 Python tests, 425 web tests, 326 control-plane tests and two benchmark
+checks). The subsequent pricing update changes Plus to **Start free trial** and
+preserves its `/apps` destination. Paid prices are labeled planned; the existing
+note explains that early access is free and no credit card is required. No
+checkout, trial expiry or plan gates were introduced. The requested Pro
+**Contact** action is awaiting a confirmed email address or contact page.
+
+Deployed only the session clone, version
+`1f71a046-1cb3-4928-a002-6cda4f29f3ad`. An isolated browser verified the actual
+Plus link: a signed-out visitor reaches the existing email sign-in; a signed-in
+visitor reaches `/apps` with a successful app-catalog response. No billing or
+Stripe requests occurred. The label, free-access note and responsive layouts
+were checked at 1440, 390 and 320 pixels, with desktop/mobile screenshot review.
+No page errors or failed artwork requests. Evidence:
+`tmp/pricing-cta/verification.json`. Model inference was not exercised by this
+pricing-button check.
+
+Review: `https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/pricing`.
+
+### Restore the original manga artwork without pixelation — 2026-09-28
+
+The user clarified that all pixelization should be removed. Session clone
+version `8cec95ce-6c70-442a-a30b-f9d3307c5ee6` restores `pricing-manga-v2.png`,
+`pricing-sky-v1.png` and `pricing-mountains-v1.png`, and removes the pixelated
+image-rendering rule. Cloud/bird motion, bottom fade, typography, cards and
+neighboring pages remain unchanged. No new image generation was needed.
+Build and deployed browser checks passed: original image sources, smooth
+rendering, full opacity/no color filter, responsive layout, preserved motion,
+reduced-motion behavior and no public-page errors or failed requests. Desktop
+screenshot review confirms the painterly artwork is restored. Evidence:
+`tmp/pricing-manga/verification.json`.
+Review: `https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/pricing`.
+Only the session clone was redeployed.
+
+### Restore the previous Pricing pixel treatment — 2026-09-28
+
+At the user's request, session clone version
+`8fed5d47-f9c6-4918-b2c3-c021d8cb74b7` restores the pixel-v1 assets and removes
+the subsequent extra pixelation, .84 opacity and saturation reduction. The
+existing bottom fade, typography, moving sky and birds remain. The discarded
+pixel-v2 workspace assets and prompt were removed. Build and deployed browser
+checks passed, including original asset references, full opacity, no color
+filter, responsive layout and preserved animation. Screenshot review confirms
+the restored appearance. Evidence: `tmp/pricing-manga/verification.json`.
+Review: `https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/pricing`.
+Only the session clone was redeployed.
+
+### Pricing pixel-art landscape — 2026-09-28
+
+Session clone version `9464c059-19df-408d-8dbe-f9f4ebf7d263` applies the
+requested pixel-art treatment to the complete landscape fallback and both
+animated scene layers. Built-in image-generation edits preserve the blue/pink
+mountain composition and the foreground's true sky transparency. Original
+painterly assets remain available. Prompts and selected paths are recorded in
+`design/pricing-pixel-prompts.md`; hashes are in `pricing-canvas-assets.json`.
+
+Image-only pixelated resampling keeps the new stepped detail crisp. Text,
+cards, layout, cloud/bird animation, bottom fade and reduced-motion behavior
+remain unchanged. No neighboring page or footer implementation changed.
+Build passed with the existing large-chunk warning. Deployed Chrome checks and
+desktop/mobile screenshot review verified pixel-art asset loading and rendering,
+preserved typography/card markup, moving sky/birds, fixed mountains, offscreen
+and reduced-motion pausing, hover feedback, and no overflow at 320–1920px.
+No page errors or failed same-origin requests were observed. Evidence:
+`tmp/pricing-manga/verification.json` and screenshots in the same directory.
+
+Review: `https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/pricing`.
+Only the session clone was deployed; shared dev and live were not promoted.
+
+### Pricing sky motion, page-top artwork and Features typography — 2026-09-28
+
+Session clone version `cdd99d3b-8338-4640-b563-c2161c72c310` removes the
+88px artwork offset so the landscape starts behind the navigation. The user's
+follow-up restores only a gentle bottom fade; no white brush, top/side fade or
+heading backdrop is added. Pricing uses the same rendered heading sizes as
+Features: 68px section title on desktop, 38px on mobile, with the large headline
+scaling to 146px on desktop and 68–96px on mobile. Its existing introductory
+copy is split into the headline and supporting sentence. Pricing cards,
+allowance notes, credit explanations and Teams details retain their content.
+
+`src/landing/pricing-art.{js,css}` moves a painted sky behind a stationary
+mountain foreground with real alpha transparency. Three small SVG birds glide
+behind the ridge. Cloud drift takes 42 seconds per direction; bird crossings
+take 38–43 seconds. Only transforms animate. Motion pauses offscreen, in hidden
+tabs and for reduced-motion preferences. The original full image stays visible
+until both enhancement images decode and remains the fallback on load failure.
+No animation controls or dependencies were added. Prompts and provenance are
+recorded in `design/pricing-motion-prompts.md` and `pricing-canvas-assets.json`.
+
+Build passed with the existing chunk-size warning. Deployed Chrome checks
+compared computed Pricing/Features font size, weight, line height and tracking
+at 320, 390, 768, 1024, 1440 and 1920px. They verify zero artwork top gap,
+bottom-only masking, no horizontal overflow, moving clouds/birds, fixed mountain
+geometry, reduced-motion and offscreen pausing, card hover and static footer.
+Desktop/mobile screenshots and two animation moments were reviewed. Card and
+detail markup and neighboring page/renderer hashes remain unchanged. No public
+page errors or failed same-origin requests were observed. Evidence:
+`tmp/pricing-manga/verification.json` and screenshots in the same directory.
+
+Review: `https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/pricing`.
+Blog, Features and landing visuals remain unchanged. Only this session clone
+was deployed; shared dev and live were not promoted.
+
+### Pricing manga landscape and white-wash removal — 2026-09-28
+
+Session clone version `7f06beb2-b853-4bbd-ab36-8e1a287aa576` replaces the
+rejected desk artwork with a Japanese manga-style blue mountain valley and lake,
+using the landing mountain art as the style reference. The follow-up removes
+the white brushed margins from the image, all CSS edge masks, mobile dimming,
+and the blurred white backdrop beneath Pricing. The introductory text uses
+solid ink over the image. Pricing cards and their content remain live HTML.
+Blog was explicitly left unchanged; Features and the landing art are unchanged.
+
+The active asset is `public/landing/pricing-manga-v2.png`. Built-in image
+generation produced the landscape and its targeted white-wash correction.
+Prompts and asset provenance are in `design/pricing-manga-prompt.md`,
+`design/pricing-manga-clean-prompt.md` and `design/pricing-canvas-assets.json`.
+Earlier selected assets remain as history. The landscape is static; subtle
+cloud-only drift was discussed as a possible subsequent animation.
+
+Dev build passed with the existing large-chunk warning. Isolated Chrome on
+the deployed clone verified image decoding, no white masks/backdrop/dimming,
+exact pricing-section markup preservation, hover highlighting, static footer,
+solid introductory text and no horizontal overflow at 320–1920px. Desktop and
+mobile screenshots were visually reviewed. Source hashes confirm Blog,
+Features, landing artwork and both footer implementations are preserved.
+No page errors or failed same-origin requests were observed. Evidence:
+`tmp/pricing-manga/verification.json` and screenshots in the same directory.
+
+Review: `https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/pricing`.
+Only this session clone was deployed; shared dev and live were not promoted.
+
+### Learner's desk, pricing explanations and static footers — 2026-09-28
+
+Session clone version `f3964884-8189-42b1-a4ce-66a530d24d3a` replaces the
+pricing illustration's planetary motifs with the selected learner's-desk
+direction: notebook, pencil, ruler, research papers and calculator. The small
+pricing and credit notes remain. A generated numeric cost example was removed
+before integration; the final drawing retains the symbolic contribution formula.
+Built-in image generation was used. Prior artwork versions are retained.
+
+The requested introductory early-access sentence is removed. Existing package
+cards, prices, benefits and hover feedback remain. The credit explanation now
+uses three illustrated rows with explicit charging labels and a monthly refresh
+note. The upcoming Teams offer has a separate panel with its $29 rate,
+five-learner minimum and existing benefits. No billing implementation changed.
+
+Blog, Features and Pricing share a simple static footer with branding, navigation,
+Get started and Back to top. The module is scoped to those three pages. The
+landing-page footer, wireframe animation and FAQ are unchanged. Keyboard focus
+preserves the rounded CTA and uses a dark outline against the light footer.
+
+Dev builds passed with the existing large-chunk warning. Deployed Chrome checks
+and visual review covered desktop/mobile layouts, 320–1440px overflow, exact
+pricing-card text preservation, credit labels, Teams details, image loading,
+hover, footer navigation and keyboard focus. The landing footer was exercised
+and still animates; source hashes confirm its renderer and other existing art
+are unchanged. The final footer-only check confirms consistent neutral color,
+visible focus and mobile sizing on all three pages. Public-page checks have no
+page errors or failed same-origin requests.
+
+Get started reaches the existing sign-in destination. That separate unauthenticated
+app navigation records 401s for `/api/apps` and `/api/watch` and a 503 from the
+clone's `/api/byoc/connection`; no email or model request was sent. Backend
+availability is not claimed by this visual change.
+
+Review: `https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/pricing`.
+Evidence: `tmp/pricing-desk/verification.json`, `footer-verification.json` and
+screenshots. Prompts: `packages/web/design/pricing-desk-prompt.md`. Layout notes:
+`packages/web/design/pricing-layout-refinement.md`. Only the session clone was
+deployed.
+
+### Pricing whiteboard and card highlights — session clone, 2026-09-28
+
+Version `cfc160eb-ba4f-411d-bfe5-3e98ca1d56af` adds a partial abstract canvas
+behind the pricing introduction and cards. The user liked the first generated
+collage, then requested economics-whiteboard notes. The edited v2 includes the
+planned $0 / $19 / $39 prices, 20 / 200 / 500 AI credits, usage curves, cost
+drivers and a contribution formula. These are illustrative annotations, not
+measured business statistics. The original v1 remains in the repository.
+
+White edge masks blend the artwork into the page. Cards remain opaque and the
+package text, benefits and links are unchanged HTML. A soft backdrop protects
+the introduction on smaller screens. Cards brighten with a lilac/mint highlight
+on pointer hover or keyboard focus. Only opacity transitions (160ms); content
+does not move. Touch hover is disabled and reduced-motion feedback is immediate.
+
+The dev build passed with the existing large-chunk warning. Deployed isolated
+Chrome checks passed for all three hover highlights and their reset, keyboard
+focus, reduced motion, touch behavior, image loading, exact pricing-text
+preservation and mobile navigation. No horizontal overflow at 320, 390, 768,
+1024 or 1920px. A 2px phone overflow from the introduction backdrop was found
+and fixed before this final verification. Desktop, tablet and mobile screenshots
+were visually inspected. No page errors or failed same-origin requests; source
+hashes confirm the other landing artwork and navigation are unchanged.
+
+Review: `https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/pricing`.
+Evidence: `tmp/pricing-canvas/verification.json` and screenshots in that directory.
+Prompts and asset provenance: `packages/web/design/pricing-whiteboard-prompt.md`
+and `pricing-canvas-assets.json`. Generation used the built-in image tool.
+Only this session clone was deployed; no billing or model-inference changes.
+
+### Pricing packages and benefits — session clone, 2026-09-28
+
+Version `a61f393c-3f06-4ffe-b2da-a246b88d1fd3` replaces the old placeholder
+tiers with Free ($0), Plus ($19/month) and Pro ($39/month). Each card lists its
+project capacity, monthly AI credits, source storage, learning tools and support.
+A separate Teams offer is marked coming later at $29/learner/month with a
+five-learner minimum. The credit explanation distinguishes new generation from
+reading, editing notes and replaying saved material; generated media has a
+separate planned allowance.
+
+The page identifies these as planned early-access packages and paid subscriptions
+as coming soon. All card links open the existing `/apps` flow. No billing,
+entitlement enforcement, model routing, data migration or paid model calls were
+added. Pricing retains the white/black palette and shared card layout. CSS
+additions are scoped to `.content-page #pricing`.
+
+The dev build passed with the existing large-chunk warning. Deployed Chrome
+checks and desktop/mobile visual inspection confirmed prices and resource
+counts, benefit/support lists, aligned desktop cards, the upcoming-plan notices,
+credit explanation, keyboard focus, mobile navigation and no horizontal overflow
+at 320, 390, 768 and 1024px. Get started reaches the existing sign-in page at
+`/login?next=%2Fapps`; no email was sent. Blog typography and Features artwork
+remain intact. No page errors or failed same-origin requests occurred on the
+public pages. Source hashes confirm other landing artwork and navigation are
+unchanged; all prior shared CSS rules remain intact.
+
+Review: `https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/pricing`.
+Evidence: `tmp/pricing-plans/verification.json`, `desktop.png`, `mobile.png` and
+`get-started.png`. Only the session clone was deployed.
+
+### Pricing key removal — session clone, 2026-09-28
+
+Version `a24fbe18-f494-40f6-99b1-f74420f1e024` removes the rejected key and
+yellow palette. Pricing uses the shared white background and black typography
+again. The three placeholder plans, amounts, links and disclosure are unchanged.
+The orphaned pricing-art module and stylesheet are removed; the rejected version
+is archived under `tmp/pricing-neutral/`.
+
+The dev build passed with the existing large-chunk warning. Deployed Chrome
+verification and desktop/mobile visual inspection confirm no key or empty art
+gap, unchanged plan markup, working mobile navigation to Blog, and no horizontal
+overflow at 320, 390 and 768px. No page errors or failed same-origin requests
+occurred. Source hashes confirm landing, Blog, Features and shared presentation
+are unchanged. Checkout remains placeholder-only and was not claimed functional.
+
+Review: `https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/pricing`.
+Evidence: `tmp/pricing-neutral/verification.json`, `desktop.png` and `mobile.png`.
+Only the session clone was deployed.
+
+### Pricing wireframe key — session clone, 2026-09-28
+
+Version `1615d5e2-f03d-4a16-b3d6-2d3c1cfe8ab8` adds the approved antique
+wireframe key to Pricing on a pale butter-yellow background. The hollow handle,
+shaft, collars and stepped teeth are authored mesh geometry with brown/plum
+lines and stippled shading. A short scroll gently turns and brings the key
+closer while fifteen small pixels settle into the outline. Reverse scroll
+retraces the motion. The compact artwork sits beside the heading on desktop
+and above the plans on phones. Plan markup, amounts, links and the explicit
+placeholder notice are unchanged; only the page palette and artwork changed.
+
+The dev build passed with the existing large-chunk warning. Local and deployed
+Chrome checks passed for five scroll poses, exact screenshot reversal, actual
+wheel input, stationary output after scrolling stops, and fixed reduced-motion
+output at 65%. All three plans fit the first 1440×1000 desktop view. The first
+phone plan starts within 500px of the page top. Mesh-boundary and overflow checks
+passed at widths 320, 390, 600, 620, 768, 900 and 1024px. The deployed mobile menu
+opens Blog with its expected typography and paper artwork; Features retains
+its staircase. No page errors or failed same-origin requests occurred. Source
+hashes confirm landing, Blog, Features and shared styles/navigation are unchanged.
+
+Review: `https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/pricing`.
+Evidence: `tmp/pricing-key/deployed-verification.json` and desktop/mobile
+screenshots. Only the session clone was deployed.
+
+### Blog falling archive — session clone, 2026-09-28
+
+Version `efeebc5b-bb38-48a3-82f8-c9c86026616f` replaces the rejected paper
+tunnel with the user's selected “Falling through an endless archive” direction.
+Loose sheets follow a winding downward path on the pink background. Scroll
+introduces more papers at different depths; each sheet tilts, curls and rolls
+independently. Large sheets pass through the foreground, with smaller sheets
+behind. Scroll reversal retraces the same poses. The Blog content and shared
+navigation remain; no playback controls were added.
+
+Deployed visual inspection caught a CSS-order conflict with the shared content
+page styles. The Blog label and top spacing now use stronger scoped selectors;
+desktop 12px/mobile 11px label sizes and 146px/125px top spacing were verified
+against the final deployed build.
+
+The dev build passed with the existing large-chunk warning. Local and deployed
+Chrome checks passed at six scroll positions. Desktop visible-sheet counts
+increased from 5 to 37; matching sheets moved downward between samples.
+Screenshot comparisons confirmed exact reversal, including real wheel input
+and mid-scroll direction changes. Mobile reversal passed at 390×844; responsive
+checks passed at widths 320, 390, 600, 620, 768 and 1024px. Reduced motion holds
+the 55% composition, removes the extended stage and hides the scroll cue.
+The deployed mobile menu opens Features, and Pricing retains its own page.
+No page errors or failed same-origin requests occurred. Source hashes confirm
+landing art, clouds, observatory, footer, Features stairs, Pricing and navigation
+are unchanged.
+
+Review: `https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/blog`.
+Evidence: `tmp/blog-archive/deployed-verification.json` and desktop/mobile
+screenshots. Only the session clone was deployed.
+
+### Blog paper tunnel — session clone, 2026-09-28
+
+Version `bee962c3-cfcb-460d-bf6b-cc405ba8f377` replaces the downward paper
+ribbon with the approved rabbit hole made of curved, overlapping pages.
+The background stays pink. Scroll assembles additional layers and moves the
+viewpoint into the opening, with nearby sheets passing the viewport edges.
+Reverse scroll returns through the same geometry. Fine plum outlines,
+stipple, lifted corners and a recessed pink/plum center retain the paper style.
+The existing Blog headline, article list and navigation remain. No playback
+controls or generated bitmap were added.
+
+The dev build passed, with the existing large-chunk warning. Local and deployed
+Chrome checks passed at six scroll positions, with exact screenshot reversal
+at the same position, actual wheel input in both directions, camera crossings,
+stationary output when scrolling stops, and a fixed reduced-motion composition.
+Mobile wheel reversal passed at 390×844; overflow checks passed at 320, 390,
+600, 620, 768 and 1024px. The deployed mobile menu still opens Features;
+Features and Pricing retain their own pages. No page errors or failed same-origin
+requests occurred. Source hashes confirm landing imagery, clouds, observatory,
+footer, Features stairs, Pricing and shared navigation are unchanged.
+
+Review: `https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/blog`.
+Evidence: `tmp/blog-tunnel/deployed-verification.json` and corresponding
+desktop/mobile screenshots. This deploy updates only the session clone.
+
+### Blog pink background and increasing papers — session clone, 2026-09-24
+
+Version `f10f5233-ca81-4a5d-ba35-cad56899142d` keeps the page pink throughout
+and increases the paper count with downward scroll. The ribbon begins with
+one sheet and grows to fourteen connected sheets, preserving the original
+fold/twist patterns and stippled paper treatment. New sheets grow from the
+preceding edge; there is no hidden fixed stack of fourteen at the start.
+Reverse scroll retracts the additions. The existing downward composition,
+headline, article list, navigation and reduced-motion behavior remain.
+
+The dev build passed. Local browser checks passed for increasing rendered
+sheet counts across six scroll stages, one/fourteen endpoints, constant pink,
+downward orientation, exact scroll reversal, real wheel input, reduced motion
+and responsive widths from 320 to 1440 pixels. Desktop/mobile screenshots were
+visually inspected. Preservation hashes match Features, Pricing, landing
+artwork/HTML, shared styles and navigation; article markup is unchanged.
+
+The same checks passed on the deployed Blog page, including mobile navigation
+to Features and Pricing, with no page errors or failed page requests. Deployed
+screenshots were inspected. Results: `tmp/blog-growing/deployed-verification.json`.
+
+Evidence: `tmp/blog-growing/`. Design: `packages/web/design/blog-art-direction.md`.
+Review: https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/blog.
+
+### Original Blog paper restored, flowing down — session clone, 2026-09-24
+
+Version `fe282f17-23e9-4c8b-b937-73385a9a3f77` follows the user's clarification:
+restore the first paper version, except flowing downward. The original seven
+connected sheets, hinge timing, twists, bow, stipple texture, pastel pink/lilac
+palette and “Ideas, unfolded.” headline are restored from the archived source.
+The projection turns the sculpture downward on both desktop and mobile. The
+narrow-phone heading size fix is retained. The loose windblown-sheet experiment
+is superseded. No other page, new dependency or backend behavior changes.
+
+The dev build passed. Local Chrome checks passed for six scroll stages,
+downward head-to-tail direction, zero-to-seven opened sheets, exact reversal,
+wheel input, reduced motion and responsive widths from 320 to 1440 pixels.
+The first version's shapes/material were compared with the archived renderer;
+the only animation change is the projection direction. Existing article markup
+is preserved; hashes match Features, Pricing, landing artwork/HTML, shared
+styles and navigation. Desktop/mobile screenshots were visually inspected.
+
+The same checks passed on the deployed Blog page, including mobile navigation
+to Features and Pricing. Deployed desktop/mobile screenshots were inspected;
+no page errors or failed page requests. Results:
+`tmp/blog-downward/deployed-verification.json`.
+
+Evidence: `tmp/blog-downward/`. Design: `packages/web/design/blog-art-direction.md`.
+Review: https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/blog.
+
+### Blog papers in the wind — session clone, 2026-09-24
+
+Superseded by the user's request to restore the original connected paper above.
+
+Version `2bfeef63-4efd-4a06-887b-fa554643a019` implements the user's return to
+the paper direction: a pink background and loose pixelated wireframe sheets
+flowing away in the wind as the page scrolls. Nine separate meshes lift from
+a pile at staggered intervals, curl, rotate, recede and leave the view. The
+background shifts gradually toward mauve. Reverse scroll retraces the same
+flight; reduced motion holds the middle composition and removes the extended
+sticky stage. Desktop uses upward/right travel and mobile uses upward drift.
+The headline is “Ideas, in motion.” There are no playback controls, new
+dependencies, bitmap assets or backend changes.
+
+The dev build passed with both preview flags and the tldraw license. Local
+Chrome checks passed for seven distinct scroll poses, staggered launches,
+departure from view, exact reversal, real wheel input, stationary rendering
+when scroll stops, reduced motion and responsive widths from 320 to 1440 pixels.
+Desktop and mobile screenshots were visually inspected. The article markup
+and existing placeholder destinations remain intact. Preservation hashes match
+Features, Pricing, landing artwork/HTML, shared styles and navigation.
+
+The same browser checks passed against the deployed Blog page, including mobile
+navigation to Features and Pricing. Desktop and mobile reversal screenshots
+matched exactly. Deployed screenshots were visually inspected; no page errors
+or failed page requests. Results: `tmp/blog-wind/deployed-verification.json`.
+
+Design notes: `packages/web/design/blog-art-direction.md`. Evidence and prior
+root source snapshots: `tmp/blog-wind/`. Review:
+https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/blog.
+
+### Blog tree of knowledge — session clone, 2026-09-24
+
+Rejected by the user; superseded by the loose-paper wind animation above.
+
+Version `49edb8b9-dc77-4dca-802f-4e00404b1dbc` replaces the rejected Hidden ink
+concept with the user's requested tree and downward-growing roots. Five main
+roots split into an irregular network of 145 paths, with connected growth from
+the tips. Reverse scroll retraces the same geometry. The rendering uses coarse
+pixels, curved wireframe contours and stippling in sage/earth green, sharing the
+approved Features staircase's visual treatment. The headline is “Knowledge
+takes root.” Reduced motion shows the complete tree without the long sticky
+stage; there are no playback controls, new dependencies or backend changes.
+
+The dev build passed with both preview flags and the tldraw license. Local
+Chrome checks passed for seven growth stages, all roots reached, exact desktop
+screenshot reversal, wheel input, no motion after scrolling stops, reduced
+motion, responsive widths from 320 to 1440 pixels and the unchanged article
+list. Mobile reversal reproduces the same geometry; its screenshot differs by
+an average 0.00011 of an 8-bit channel value, with no pixel differing by more
+than 16. Desktop/mobile captures were visually inspected. Preservation hashes
+match Features, Pricing, landing artwork/HTML, shared styles and navigation.
+The same checks passed on the deployed Blog page, including mobile navigation
+to Features and Pricing, with no page errors or failed page requests. Deployed
+mobile reversal was pixel-identical. Deployed desktop/mobile captures were
+visually inspected. Results: `tmp/blog-roots/deployed-verification.json`.
+
+Design notes: `packages/web/design/blog-art-direction.md`. Evidence and source
+snapshots: `tmp/blog-roots/`. Review:
+https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/blog.
+
+### Blog Hidden ink — session clone, 2026-09-24
+
+Rejected by the user; superseded by the tree of knowledge above.
+
+Version `d5d42d25-69c8-4188-9e6c-1afad3222bc8` replaces the rejected paper
+sculpture with the user's chosen Hidden ink concept. Aubergine dot patterns on
+butter yellow align with scrolling to reveal “Why?”, “What if?” and a question
+mark, then conceal them again. The header is “Look closer.” The effect uses two
+flat phase-encoded dot screens and simulated ink cancellation, with no moving
+camera, folding object or text faded over the finished image. Each question
+holds clearly through the middle of its scroll interval. Reverse scroll
+retraces the alignment; reduced motion fixes the clear first reveal and removes
+the extended scroll stage. There are no playback controls or new dependencies.
+
+The dev build passed with both preview flags and the tldraw license. Local and
+deployed Chrome checks passed for seven distinct rendered states, all three
+reveals and intervening concealed states, exact screenshot reversal, real wheel
+input, stopping with scroll, reduced-motion freeze/resume, mobile scroll and
+navigation, and no horizontal overflow. The article list's markup is unchanged,
+including existing placeholder destinations. Desktop and mobile screenshots
+were visually inspected. No page errors or failed page requests; preservation
+hashes match the landing artwork/HTML, Features renderer/HTML, Pricing, shared
+styles and navigation. Only the session clone was deployed.
+
+Evidence: `tmp/blog-ink/deployed-verification.json` and screenshots in that
+folder. Design notes: `packages/web/design/blog-art-direction.md`.
+Review: https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/blog.
+
+### Blog unfolding paper sculpture — session clone, 2026-09-24
+
+Rejected by the user for repeating the staircase's visual structure;
+superseded by Hidden ink above.
+
+Version `663f0cdd-d8b9-4c62-993d-3ed2e30e82cb` adds the approved Blog concept
+for visual review: “Ideas, unfolded.” with a lilac-to-violet page and plum ink
+paper sculpture. Seven connected sheets open sequentially from a folded stack
+into a ribbon with shallow curves and twists. Scroll reverses the folds directly;
+there is no timed loop or playback control. The 168svh desktop / 148svh mobile
+scroll stage is shorter than Features. Mobile uses an upright composition.
+Reduced motion fixes an open pose at 72% and removes the extended scroll stage.
+The original introduction and dated article list remain unchanged, including
+their existing placeholder destinations. No article or backend functionality
+was added. Canvas geometry replaces any need for generated imagery or a library.
+
+The dev build passed with both preview flags and the tldraw license. Local and
+deployed Chrome checks passed for six distinct rendered scroll stages, opening
+from zero to seven sheets, exact screenshot reversal, actual wheel input,
+stationary rendering after scrolling stops, reduced-motion freeze/resume,
+mobile scroll reversal, no horizontal overflow, and preserved article markup.
+Deployed mobile navigation to Features worked. Desktop and mobile screenshots
+were visually inspected; no page exceptions or failed page requests. Hashes
+confirm that the landing HTML/art, Features HTML/renderer, Pricing, shared styles
+and navigation are unchanged.
+
+Evidence: `tmp/blog-paper/deployed-verification.json` and screenshots in that
+folder. Design notes: `packages/web/design/blog-art-direction.md`.
+Only this session clone was deployed. Review:
+https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/blog.
+
+### Features stairs construct with scroll — session clone, 2026-09-24
+
+Version `f08c0924-c571-464e-91b6-a7607f57c86a` makes the approved wireframe
+stairway build ahead of the descending camera. Each tread extends from its
+joining edge; steps and landings finish in sequence so the next piece stays
+connected. Reverse scroll retracts the same geometry, and stopping scroll holds
+the current construction state. Reduced motion keeps a complete, still stairway.
+The existing camera motion, palette, layout and other pages remain.
+
+The dev build passed. Deployed Chrome checks verified five scroll stages and
+five closely spaced construction samples: progressing from 50% to 52% completed
+two additional steps, with intermediate extension visible. Desktop and mobile
+wheel reversal reproduced the same rendered screenshots. Pause-on-scroll-stop,
+reduced-motion freeze/resume, mobile navigation and no horizontal overflow
+passed. Deployed construction and mobile screenshots were inspected. No page
+errors or failed page requests; preservation hashes matched prior landing
+modules, navigation/styles, landing HTML, Blog and Pricing.
+
+Evidence: `tmp/features-step-build/verification.json` and deployed screenshots
+in that folder. Only the session clone was deployed. Review:
+https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/features.
+
+### Features abstract stair descent — session clone, 2026-09-24
+
+Version `f0ba3718-38a8-4575-b260-5f037dd9676f` replaces the rejected bitmap
+labyrinth and coral route on `/features` with procedural stair geometry.
+Forest-green wireframe edges and dithered pixel surfaces form descending flights
+around an open shaft. Scroll controls camera descent, a gentle turn and the
+pale-green-to-jade background; reversing scroll retraces the same composition.
+The canvas remains sticky on desktop and mobile. Reduced motion fixes the view
+at 32% progress and removes the extended scroll stage. No playback controls.
+Existing feature cards, navigation, landing animations, Blog and Pricing remain.
+The rejected picture is archived outside public assets and is no longer loaded.
+
+The dev build passed with both preview flags and the tldraw license. Deployed
+Chrome checks passed for five distinct rendered progress states, exact screenshot
+reversal on desktop and mobile, real mouse-wheel input, stationary rendering
+after scrolling stops, background progress, reduced-motion camera freeze/resume,
+mobile navigation and no horizontal overflow. Desktop and mobile screenshots
+were visually inspected. No page exceptions or failed page requests were found.
+Preservation hashes match all prior landing modules, shared navigation/styles,
+landing HTML, Blog and Pricing. The first test used repeated canvas pixel reads,
+which changed Chrome's rasterization during measurement; verification now uses
+browser screenshots. Reduced-motion checks compare camera state because fixed
+navigation can overlap its non-sticky canvas at different scroll positions.
+
+Evidence: `tmp/features-stairs/verification.json` and deployed screenshots in
+that folder. Design/renderer notes: `packages/web/design/features-art-direction.md`.
+Only this session clone was deployed. Review:
+https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/features.
+
+### Features labyrinth artwork and scroll journey — session clone, 2026-09-24
+
+Rejected by the user; superseded by the abstract stair descent above.
+
+Version `9a61d0d3-cd0a-4bea-858c-897f3ba23309` adds original Escher-inspired
+architectural artwork to `/features`: mint and forest-green ink, a coral thread
+revealed by scrolling, and a pale-mint-to-sage background. The illustration stays
+still while the separate SVG route advances or retraces. Wide screens keep the
+artwork sticky through the journey; phones use normal page flow and a shorter
+scroll range. Reduced motion shows the complete route with a fixed background.
+No playback buttons, model runtime calls, or animation dependencies were added.
+The existing feature cards/copy and shared navigation remain.
+
+Built and deployed with both dev flags and the tldraw license. Deployed Chrome
+checks passed for five actual rendered progress states, exact route reversal,
+mouse-wheel input, changing background opacity, reduced-motion freeze/resume,
+mobile scroll/layout/navigation, and artwork without JavaScript. Desktop and
+mobile screenshots were visually inspected. No page errors or failed requests.
+Preservation hashes verify the landing HTML, Blog, Pricing, shared stylesheet,
+navigation and prior animation modules are unchanged. One local screenshot run
+was interrupted by Vite reloading; the stable local rerun and deployed checks
+passed. Small text retains at least 5.26:1 contrast against the deepest page tone.
+
+Evidence: `tmp/features-art/verification.json` and screenshots in that folder.
+The generated PNG, prompt, dimensions and hash are documented in
+`packages/web/design/features-art-direction.md`. Only the session clone was
+deployed. Review: https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/features.
+
+### Automatic landing animation without playback controls — session clone, 2026-09-24
+
+Version `58c25a80-4664-4e97-a500-8c54c4121039` removes the cloud,
+observatory and footer play/pause buttons at the user's request. Their event
+handlers and styles are removed as well. The original animations, timing,
+artwork, FAQ and navigation remain. Reduced motion still selects the original
+cloud still and freezes the observatory/footer; returning to normal motion
+resumes automatically. Offscreen and hidden-tab suspension remain in place.
+
+Build and deployed Chrome checks passed with both dev flags and the tldraw
+license. The HTML comparison found only the three playback controls removed.
+Actual cloud screenshots, mist transforms and footer canvas pixels confirmed
+automatic motion; preference changes verified freezing and resumption. Mobile
+layout, FAQ and menu passed with no page errors or failed asset requests.
+Evidence: `tmp/landing-controls/verification.json` and screenshots in that folder.
+The session clone alone was deployed; review at
+https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/.
+
+### Inward tunnel flow and distinct FAQ — session clone, 2026-09-24
+
+Version `00224833-6b97-4f12-9592-2cdd123fe0dd` on
+`small-cp-dev-smart-landing-page` gives the footer a continuous inward flow:
+wireframe rings travel toward the narrow end over eight seconds while the
+existing revolution slows to 76 seconds. A fixed rim and longitudinal ribs stay
+visible as individual rings recycle. The FAQ now has a warm paper background,
+left-aligned introduction and separate rounded question cards. Its approved
+tunnel symbol and answer copy are preserved. Prior sections, shared styles,
+artwork, controllers and separate public pages match the pre-change snapshot.
+
+Build and deployed Chrome checks passed with both dev flags and the tldraw
+license. Real canvas path measurements verified inward travel independently of
+revolution: one ring's area relative to the mouth changed from 0.646 to 0.386
+over 1.2 seconds. Ten rendered samples span more than two eight-second depth
+cycles with no blank reset or clipped edges and a stationary wordmark. FAQ
+mouse/keyboard/rapid-reversal behavior, native disclosures without JavaScript,
+pause/resume, offscreen suspension, reduced motion, mobile layout and public
+navigation also passed. Desktop/mobile screenshots were visually inspected.
+No browser errors or failed requests. Shared dev and live were not changed.
+
+Evidence: `tmp/footer-depth/browser-verification.json`,
+`tmp/footer-depth/preservation-verification.json`, and screenshots in that folder.
+Review at `/#faq` and `/#site-footer`.
+
+### Revolving tunnel footer and FAQ — session clone, 2026-09-24
+
+Version `fe50d7b3-bf03-4ef6-af3c-091c1741820f` on
+`small-cp-dev-smart-landing-page` adds the approved charcoal FAQ and footer after
+the observatory. The footer uses an original revolving wireframe funnel behind
+a stationary Rabbit Hole wordmark, with the existing tagline/copyright and links
+to existing public pages. The FAQ has six native disclosures and provisional
+adaptive-learning copy. No TypeSafe logo, external animation embed, or new
+dependency is used. Earlier page sections, assets, controllers, shared styles,
+and separate public pages match the preservation snapshot.
+
+Both dev flags and the tldraw license were retained. Build and deployed Chrome
+checks passed: all FAQ answers, one-open behavior, keyboard activation, rapid
+toggle reversal, no-JavaScript disclosures, full-cycle tunnel rendering with a
+stationary wordmark, no edge clipping, pause/resume, offscreen suspension,
+reduced motion, mobile layout, footer navigation and back-to-top. Ten actual
+canvas samples span more than 38 seconds. No browser errors or failed requests.
+Desktop/mobile screenshots were visually inspected. A full-turn check caught
+clipping in the first framing; the final renderer fits the entire projected
+extent on desktop and mobile. Cloudflare's expired login was renewed before the
+successful deployment. Shared dev and live were not changed.
+
+Evidence: `tmp/landing-footer/browser-verification.json`,
+`tmp/landing-footer/preservation-verification.json`, and screenshots in that
+folder. Review at `/#faq` and `/#site-footer`. Implementation and design rationale
+are documented in `packages/web/design/rabbit-hole-landing.md`.
+
+### Observatory appended below the mountain — session clone, 2026-09-24
+
+Version `89940ace-3a5d-4306-91c6-bda807748672` on
+`small-cp-dev-smart-landing-page` adds an illustrated mountaintop observatory at
+`/#observatory`, below the existing mountain image. Built-in image generation
+produced an opaque base scene and a separate transparent foreground mist layer.
+Only the mist and five tiny star highlights animate. Pause, keyboard activation,
+reduced motion and offscreen/tab visibility control the new scene independently.
+
+Existing HTML is identical after removing the appended figure and its module
+import. Hash checks confirm the hero's shared styles, navigation, cloud assets
+and controller, and mountain asset are unchanged. No shared or live deployment.
+
+The dev build and deployed Chrome checks passed on desktop and mobile: actual
+mist translation and star shimmer, a fixed opaque base, pause/resume, preference
+changes, offscreen suspension, keyboard control, no horizontal overflow, original
+cloud control, and separate Blog/Features/Pricing pages. No browser errors or
+failed art requests. Desktop/mobile screenshots and both drift extremes were
+captured; desktop/mobile compositions were visually inspected.
+Evidence: `tmp/observatory/browser-verification.json`,
+`tmp/observatory/preservation-verification.json`, and screenshots in that folder.
+Prompts/provenance: `packages/web/design/observatory-{prompts.md,assets.json}`.
+
+### Original cloud restored with a trimmed loop — session clone, 2026-09-24
+
+Version `c53f9f7d-8d63-4a3a-9012-e94803764367` restores the original TypeSafe
+cloud artwork and animation. The user rejected the generated center because it
+was static. The generated fill, permanent base, CSS drift and blending are gone.
+Only source frames 13–96 play, preserving the original visible forward/back
+motion and timing while removing the white opening/closing and their transition
+frames. The loop is 6.72 seconds. Every exported frame is pixel-identical to its
+original on the page's white background; the first and last frames match.
+Pause/reduced motion use the original decoded still, only while motion is paused.
+The blue mountain image and the rest of the landing page remain as before.
+
+Both dev flags were enabled; build and deployed Chrome checks passed. Twenty
+browser captures span two complete loops, show changing animation pixels, and
+contain visible clouds in every capture. The generated fill is absent from the
+DOM and is never requested. Pause/resume, reduced motion, mobile sizing, the
+mountain and public routes passed, with no page errors. Desktop/mobile
+screenshots were inspected. Evidence: `packages/web/design/cloud-loop-verification.json`
+and `tmp/landing-art/cloud-loop-qa/{browser-verification,pixel-verification}.json`.
+No shared-worker or live deployment.
+
+### Filled clouds and blue mountain artwork — session clone, 2026-09-24
+
+Superseded: the user rejected the static cloud center. The restoration above
+replaces this cloud treatment. These earlier checks established persistence,
+not acceptable cloud motion throughout the generated artwork.
+
+Version `7b945b8f-d2a5-4dc9-956a-1547ef2cbc39` of
+`small-cp-dev-smart-landing-page` adds two generated landing assets. The pink
+cloud now has a filled center and a persistent base underneath the original
+GIF, whose opening and closing frames are blank. A gentle horizontal drift and
+blended GIF detail preserve motion without clearing the cloud. Pause and reduced
+motion keep the filled base visible. An original blue mountain landscape in a
+Japanese-animation background style appears below it. The existing hero,
+navigation, public pages and footer are preserved; the mascot remains absent.
+
+Both dev flags were enabled. Build and deployed Chrome checks passed for the
+full cloud loop, pause/resume, preference changes, mountain loading, desktop and
+mobile layout, and Blog/Features/Pricing. Fourteen actual cloud screenshots span
+more than the full 9.68-second GIF loop; pixel checks found pink in at least
+91.6% of the central sample region in every capture. Desktop and mobile artwork
+were visually inspected after decoding. No page errors or failed art requests.
+Evidence: `tmp/landing-art/qa/browser-verification.json`,
+`tmp/landing-art/qa/cloud-pixel-verification.json`, and
+`tmp/landing-art/qa/mountains-mobile.png`. Reusable browser check:
+`packages/web/e2e/landing-art-check.mjs`. Prompts and asset provenance are under
+`packages/web/design/landing-art-*`. No shared-worker or live deployment.
+
+### Rabbit removed from landing — session clone, 2026-09-24
+
+At the user's request, version `222410fb-f94c-4f92-9c26-c01caf981380` of
+`small-cp-dev-smart-landing-page` removes the rabbit, A/B portal interaction,
+controls and reserved scroll region. The original hero, pink clouds and separate
+Blog, Features and Pricing pages remain. Cloud controls now load independently
+from the retired mascot entry. Both dev flags remain enabled.
+
+Deployed Chrome verification confirmed the rabbit/portal DOM is absent, no
+mascot assets are requested, cloud pause/resume works, mobile reduced motion
+works without horizontal overflow, and all three public navigation links work.
+Desktop/mobile screenshots were inspected; zero page errors. Evidence:
+`tmp/rabbit-mascot/removal-verification.json`. No shared-worker or live deployment.
+
+### Landing-only scroll mascot and public pages — session clone, 2026-09-23
+
+Clone `small-cp-dev-smart-landing-page`, version
+`450b3b20-64e0-45df-8462-93bd4c095b9e`, serves the Rabbit Hole landing at `/`,
+with separate `/blog`, `/features` and `/pricing` pages. The user's explicit
+landing-only direction supersedes the earlier Mascot app-tab placement; both
+regular and repository app interfaces retain their original tabs. Both dev flags
+remain enabled. The shared worker, live installation and databases were not changed.
+
+The landing includes a front-facing mascot, scroll-reversible upper/lower vertical
+page portals, runtime portal placement and the exact requested TypeSafe cloud.
+Seven controller tests and 16 deployed Chrome scenarios passed, with zero page
+errors and no model calls. Checks exercised actual wheel input in both directions,
+partial reversals, held poses, rim occlusion, pointer/keyboard positioning, living
+gestures, mobile/reduced motion, cloud pixels, page navigation/reload and absence
+from both app interfaces. Screenshots were visually inspected. Evidence:
+`packages/web/design/rabbit-character/living-08/qa/scroll-portals/browser-verification.json`.
+The portal effect remains an MVP for user visual review; no final art approval is inferred.
+
+### Living mascot prototype — previous app placement, 2026-09-23
+
+Superseded by the user's landing-only correction. The app tabs described below
+are removed. Current implementation and scroll-portal verification are recorded in
+[the living mascot specification](rabbit-living-mascot.md). The landing and its
+Blog, Features and Pricing pages are separate Vite entries in regular dev builds;
+private BYOC and production app builds retain their existing entry points.
+
+`small-cp-dev-smart-landing-page`, version `339ab997-ea8e-477e-a401-52b0deea6cc5`,
+adds a dev-only **Mascot** tab alongside the existing app tabs. Both preview flags
+remain enabled. It uses the shared enlarged app layout and existing buttons;
+`/mascot/` artwork is served by the dev asset binding. Existing Graph, Runbook,
+Logs and Learn flows remain available. Leaving Mascot retains the chosen app tab.
+
+The [living mascot milestone](rabbit-living-mascot.md) includes five actions and
+movable reversible page portals. Six controller tests and 11 real deployed Chrome
+scenarios passed, including the existing counter app's navigation, all actions,
+both portal directions, moved exit during hidden transfer, pause/reset, keyboard
+and pointer dragging, mobile layout and reduced motion. No model calls, mocks,
+database migrations, shared-worker or live deployments were used. Browser evidence:
+`packages/web/design/rabbit-character/living-08/qa/browser-verification.json`.
+Visual character approval remains pending; Pass 04 is explicitly temporary.
+
+### Previous releases
 
 Private dev `0.1.0-dev.3` and live `0.1.0-pilot.6.2` enable the existing Logs and
 Agent chat composers. Both reached `UPDATE_COMPLETE`; nine dev and eight live
@@ -1443,3 +3112,97 @@ Verified on dev version `58d8147d-c64f-496b-8d42-0a13ea8d8dbf`: playback,
 finish-before-next, scrubbing, auto-advance, replay preserving learner text,
 incorrect/correct retry, reload, source highlight and valid selection snapshots.
 The selection reply was mocked to avoid a paid model call. No generated assets.
+
+## Learn: Jev side-by-side grading (dev)
+
+Spec: [jev-grading.md](jev-grading.md). Shadow-only: Opus stays the learner-visible
+grader and Jev can never delay, replace or mask it.
+
+- Third parties: TypeSafe (Jev, `typesafe-ai/jev`) reached through the Vercel AI
+  Gateway, under the option-B data boundary in jev-grading.md.
+- Clone: `small-cp-dev-small-parallel`, version
+  `89b3dc3d-dc3a-48cc-8ac3-b11e8edc9338` (commit 1655e85).
+- `learn_grades` was created on `small-learn-dev`. `VERCEL_TYPESAFE_API_KEY` and
+  `LEARN_BENCH_SECRET` are set on the clone; no other secrets were added.
+- Neither live `small-cp` nor BYOC was deployed.
+
+**benchmark-v1, 2026-09-28** (`tests/evals/learn-grade/results/benchmark-v1/`):
+- Run `-a` is void: all 72 Jev calls returned `Jev 403: Free tier users do not
+  have access to this model` until the Vercel team had paid credits. Opus 72/72.
+- Run `-b`, 72 cases (36 challenge, 36 explain_back):
+  - Verdict accuracy: Jev 69/72 (95.8%, Wilson 88.5-98.6), Opus 72/72 (100%).
+    Challenge 35/36 vs 36/36 (-2.8 points, 3-point rule met); explain_back
+    34/36 vs 36/36 (-5.6 points, missed).
+  - All 3 Jev misses are `Jev timed out after 3000 ms`; every Jev grade that
+    returned matched the gold verdict.
+  - Per-idea F1 1.000 at 0.5 and 0.7 (230 items). Brier 0.0022. Injection graded
+    good 0/6.
+  - Latency: Jev p50 251 ms, p95 424 ms (above the 400 ms holdout condition);
+    Opus p50 4487 ms, p95 7362 ms.
+  - Jev cost per grade $0.0000260, computed as input tokens × the published
+    $0.000000042/token; the gateway reported the same mean. Opus cost is not
+    measured.
+- Spot-check: the 3 disagreements (all Jev timeouts) plus the 12 lowest-margin
+  Jev grades, reviewed by the owner. 12 approved as labeled; the answers of
+  gd-plain_words, lm-rambling_correct and lm-paraphrased were reworded so their
+  gold is true by construction (causal attention; gradient magnitude as well as
+  direction; vocabulary tokens, not words). Run `-b`'s results file is kept
+  unchanged as the record of what ran.
+- Opus scoring 100% means v1 does not separate the graders on verdicts; the
+  timeouts and p95 are the open items. No switch.
+
+On benchmark-v1-2026-09-28-b, every Jev verdict that returned matched the gold
+verdict; the observed accuracy gap came from three timeouts. D1 shows
+`jev_ms = 3000` for all three: each first request timed out, with no 429/529
+retry before it.
+The approved contract is unchanged: 3 s per attempt, no timeout retry, p95 under
+400 ms, and a Jev error counts as wrong in the 3-point rule. A 5 s /
+retry-on-timeout transport may be tried later as a separate experiment; it was
+briefly committed (51630a6) and reverted before any deploy or run. The bench and
+report now count timeouts, 429/529 retries and grades where Jev was
+unavailable and Opus stood alone, as observations. `benchmark-v1.1-draft.json` (v1 plus 24 harder cases, each with
+`hard_because`) waits for owner review and is not run.
+
+**benchmark-v1-2026-09-28-c** (post-spot-check run, with the three reworded
+answers; not a byte-for-byte replay of `-b`). Clone version
+`53b0bb7e-3974-46a4-aad9-d178d4aa9572`, 3 s per attempt, no retry after a timeout:
+- Jev 68/72: challenge 32/36, explain_back 36/36. Opus 71/72: it graded
+  `nt-right_plus_false` good and missed the planted false claim.
+- Jev unavailable (Opus stood alone) 4/72: `nt-one_idea`, `nt-injection`,
+  `sm-one_idea`, `sm-right_plus_false`, each a first-request 3 s timeout.
+  0 429/529 retries. The three cases that timed out in `-b` all returned.
+- 3-point rule: challenge missed (-8.3 points, all from the timeouts),
+  explain_back met (0.0).
+- Jev latency over 68 returned: p50 323 ms, p90 852 ms, p95 1,120 ms, max 1,854 ms.
+- Per-idea F1 1.000 at 0.7 (226 items); injection graded good 0/6; cost
+  $0.0000261 per grade.
+
+Across the two successful development runs, every Jev verdict that returned
+matched the gold verdict. Failures were variable first-request timeouts on
+different cases, indicating a transport/provider tail-latency problem rather
+than case-specific grading errors. No more gateway reruns; the next experiment
+is a transport-only A/B against direct TypeSafe, pending approval. Gate F stays
+closed.
+
+**transport-ab-2026-09-28-a** (clone `f8e231c3-56b0-499a-9bf9-5796c869b25e`,
+144 Jev calls, no Opus; `tests/evals/learn-grade/results/transport-ab/`).
+On transport-ab-2026-09-28-a, direct TypeSafe (jev-1.13.0) and Vercel Gateway
+produced identical verdict accuracy (72/72) and per-idea F1 (1.0). Direct
+TypeSafe was substantially faster: p50 88 ms vs 251 ms and p95 193 ms vs 420 ms.
+Neither transport timed out in this run, so the earlier intermittent gateway
+timeout behavior remains unproven for direct TypeSafe.
+
+- No grading or switch criteria changed: 3 s per attempt, no timeout retry,
+  p95 under 400 ms, 0.7/0.3 thresholds, verdict-v1, errors count as wrong.
+- Direct privacy boundary checked from TypeSafe's documents and its subprocessor
+  list: compatible with option B, one third party fewer (see jev-grading.md,
+  Data boundary).
+
+**Direct TypeSafe (jev-1.13.0) is the default dev shadow-grading transport as of
+this change (2026-09-28). Vercel Gateway remains diagnostic-only. Jev is still
+shadow-only; no learner-facing switch has occurred.** Chosen for the same
+grading behavior, a pinned model and much better latency; the intermittent
+timeout question is not resolved for direct. `TYPESAFE_API_KEY` is set on this
+clone only. Not run: the 432-call A/B, benchmark-v1.1-draft, further gateway
+benchmarks, the holdout (sealed), a switch evaluation. Nothing reached live
+`small-cp`, the live database or BYOC.

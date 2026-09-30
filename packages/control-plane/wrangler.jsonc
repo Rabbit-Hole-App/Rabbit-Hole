@@ -1,6 +1,8 @@
 {
   "name": "small-cp",
   "main": "src/index.js",
+  // old versions keep their old code and secrets; version preview URLs would keep serving them
+  "preview_urls": false,
   "compatibility_date": "2026-08-01",
   "observability": { "enabled": true },
   // every-minute due-job tick + daily 3am request_logs purge (7-day retention)
@@ -33,9 +35,13 @@
     "FLY_ORG_SLUG": "personal",
     "FLY_ORG_ID": "yw2NK09lG62eytyo75jV2OwzbVT8K410y",
     "BASE_URL": "https://small-cp.zeroshothq.workers.dev", // scheduled() has no request URL; runner needs SMALL_API
-    "AWS_PRINCIPAL_ARN": "arn:aws:iam::637423432890:user/small-cp" // shown in the [aws] deploy error's trust policy — not a secret
+    "AWS_PRINCIPAL_ARN": "arn:aws:iam::637423432890:user/small-cp", // shown in the [aws] deploy error's trust policy — not a secret
+    "SMALL_ENV": "production" // test bypasses (echoed codes, dev links, /test/*) need "test" or "dev"
   }
   // secrets (wrangler secret put): MASTER_KEY, FLY_ORG_TOKEN (machine/app ops), FLY_API_TOKEN (minting only),
-  // RESEND_API_KEY (optional), TEST_BYPASS_SECRET (test envs only), EMAIL_FROM (optional),
-  // ANTHROPIC_API_KEY (optional — enables deploy review; if identity-linked, also set ANTHROPIC_WORKSPACE_ID)
+  // RESEND_API_KEY (optional), TEST_BYPASS_SECRET (ignored unless SMALL_ENV is test or dev), EMAIL_FROM (optional),
+  // ANTHROPIC_API_KEY (optional — enables deploy review; if identity-linked, also set ANTHROPIC_WORKSPACE_ID),
+  // GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET and GITHUB_CLIENT_ID + GITHUB_CLIENT_SECRET (optional — each pair enables
+  // Continue with Google/GitHub; without it that button hides), OAUTH_MOCK=true (ignored unless SMALL_ENV is test
+  // with TEST_BYPASS_SECRET — local mock provider). See docs/features/rabbit-hole-auth-backend.md.
 }

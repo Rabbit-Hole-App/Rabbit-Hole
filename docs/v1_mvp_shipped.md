@@ -49,17 +49,18 @@ Deviations from SCOPE.md, chosen deliberately (see memory/small-deploy-decisions
 
 ## Auth model
 
-- CLI: email → 6-digit code → HMAC-signed bearer token (no expiry — rotate
+- CLI: email → 8-digit code → HMAC-signed bearer token (no expiry — rotate
   MASTER_KEY to revoke).
 - Browser: magic link → HMAC-signed session cookie (7 days). No session table.
 - Org = email domain (`gmail.com` → `gmail-com`). `domain` visibility admits
   the whole domain; `private` admits owner + shared members only.
 - Container: refuses everything without `X-Small-Proxy: <per-app secret>` — a
   leaked fly.dev URL answers 403.
-- **Test instance**: no RESEND_API_KEY + TEST_BYPASS_SECRET set, so login codes
-  and magic links are echoed inline, and `/test/session` mints sessions for the
-  integration tests. A prod instance sets RESEND_API_KEY and drops the bypass
-  secret; echo paths then return 503.
+- **Test instance**: SMALL_ENV `test` or `dev` + TEST_BYPASS_SECRET set, so
+  `/test/session` mints sessions for the integration tests. Only SMALL_ENV `test`
+  also echoes login codes and magic links inline when email can't be sent; `dev`
+  (the public rabbit-hole-cp-dev) returns 503 there. Any other SMALL_ENV
+  (small-cp sets `production`) ignores the bypass secret; echo paths return 503.
 
 ## Daily commands
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { loadApps } from './app-data.js';
+import { aiFindAllowed, learnPreview } from './flags.js';
 import { AppIcon, cn, KindIcon } from './ui.jsx';
 
 // Plain text out of a BlockNote JSON string - no parse, just the "text" values.
@@ -19,7 +20,12 @@ export default function SearchModal() {
   useEffect(() => {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setOpen(true); }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'o') { e.preventDefault(); navigate('/chat'); } // org chat is a page now
+      if ((e.metaKey || e.ctrlKey) && e.key === 'o') {
+        e.preventDefault();
+        // The preview's Mothership replaces New chat, so the shortcut focuses it (AgentBar.jsx).
+        if (learnPreview) window.dispatchEvent(new CustomEvent('small:ask-focus'));
+        else navigate('/chat'); // org chat is a page now
+      }
       if (e.key === 'Escape') close();
     };
     const onOpen = () => setOpen(true);
@@ -39,7 +45,7 @@ export default function SearchModal() {
   // sentence-length queries also go to the model, which picks apps by description
   const [ai, setAi] = useState(null); // null | 'loading' | { apps: string[], note: string }
   useEffect(() => {
-    if (!open || q.trim().split(/\s+/).length < 4) { setAi(null); return; }
+    if (!open || !aiFindAllowed() || q.trim().split(/\s+/).length < 4) { setAi(null); return; }
     setAi('loading');
     const t = setTimeout(() => {
       api('/api/apps/find', { method: 'POST', body: JSON.stringify({ q }) })

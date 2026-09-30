@@ -1,0 +1,124 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const http = require('node:http');
+const crypto = require('node:crypto');
+const { spawn } = require('node:child_process');
+
+const workspace = process.cwd();
+const assets = path.join(workspace, 'packages/web/design/rabbit-character');
+const scratch = path.join(workspace, 'tmp/rabbit-mascot');
+fs.mkdirSync(scratch, { recursive: true });
+const profile = fs.mkdtempSync(path.join(scratch, 'chrome-qa-'));
+const shots = path.join(scratch, 'browser-shots');
+fs.mkdirSync(shots, { recursive: true });
+fs.mkdirSync(path.join(assets, 'qa'), { recursive: true });
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const files = {
+  '/seed.png': ['character-seed-on-paper.png', 'image/png'],
+  '/run.gif': ['run-preview.gif', 'image/gif'],
+  '/run.webp': ['run-preview.webp', 'image/webp'],
+};
+const html = '<!doctype html><meta charset="utf-8"><title>Rabbit artifact QA</title>' +
+  '<style>body{margin:16px;background:white;color:#555;font:16px Arial}main{display:flex;gap:8px}' +
+  'figure{margin:0}img{display:block;width:512px;height:512px;image-rendering:pixelated}figcaption{padding:12px}</style>' +
+  '<main><figure><img id="seed" src="/seed.png"><figcaption>Original mascot seed</figcaption></figure>' +
+  '<figure><img id="gif" src="/run.gif"><figcaption>Native GIF playback</figcaption></figure>' +
+  '<figure><img id="webp" src="/run.webp"><figcaption>Native WebP playback</figcaption></figure></main>';
+const errors = [];
+const server = http.createServer((req, res) => {
+  if (req.url === '/') { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end(html); return; }
+  if (req.url === '/favicon.ico') { res.writeHead(204); res.end(); return; }
+  const file = files[req.url];
+  if (!file) { res.writeHead(404); res.end(); return; }
+  res.writeHead(200, { 'Content-Type': file[1], 'Cache-Control': 'no-store' });
+  res.end(fs.readFileSync(path.join(assets, file[0])));
+});
+
+function client(socket) {
+  let id = 0;
+  const pending = new Map();
+  socket.addEventListener('message', event => {
+    const message = JSON.parse(event.data);
+    if (message.id) {
+      const result = pending.get(message.id);
+      if (!result) return;
+      pending.delete(message.id);
+      if (message.error) result.reject(new Error(JSON.stringify(message.error)));
+      else result.resolve(message.result);
+    }
+    if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails.text);
+    if (message.method === 'Log.entryAdded' && message.params.entry.level === 'error') errors.push(message.params.entry.text);
+  });
+  return (method, params = {}) => new Promise((resolve, reject) => {
+    const next = ++id;
+    pending.set(next, { resolve, reject });
+    socket.send(JSON.stringify({ id: next, method, params }));
+  });
+}
+
+async function main() {
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${server.address().port}/`;
+  const chrome = spawn('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', [
+    '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
+    '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--window-size=1600,700', url,
+  ], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+  chrome.stderr.resume();
+  let launchError;
+  chrome.on('error', error => { launchError = error; });
+  let socket;
+  try {
+    const portFile = path.join(profile, 'DevToolsActivePort');
+    for (let i = 0; i < 200 && !fs.existsSync(portFile); i++) {
+      if (launchError) throw launchError;
+      await sleep(100);
+    }
+    if (!fs.existsSync(portFile)) throw new Error('Chrome did not publish its isolated DevTools endpoint.');
+    const port = fs.readFileSync(portFile, 'utf8').split('\n')[0];
+    const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
+    const target = targets.find(item => item.type === 'page' && item.url.startsWith(url));
+    if (!target) throw new Error('Isolated artifact preview target was not found.');
+    socket = new WebSocket(target.webSocketDebuggerUrl);
+    await new Promise((resolve, reject) => { socket.addEventListener('open', resolve); socket.addEventListener('error', reject); });
+    const send = client(socket);
+    await send('Page.enable'); await send('Runtime.enable'); await send('Log.enable');
+    await send('Emulation.setDeviceMetricsOverride', { width: 1600, height: 700, deviceScaleFactor: 1, mobile: false });
+    const loaded = await send('Runtime.evaluate', { expression:
+      '(async () => {if(document.readyState === "loading") await new Promise(resolve => document.addEventListener("DOMContentLoaded", resolve, {once:true})); const images=[...document.images]; if(images.length !== 3) throw new Error("Expected three preview images."); return Promise.all(images.map(async image => {await image.decode(); return {id:image.id,width:image.naturalWidth,height:image.naturalHeight};}));})()',
+      awaitPromise: true, returnByValue: true });
+    if (loaded.exceptionDetails) throw new Error('Browser image decoding failed.');
+    const version = await send('Browser.getVersion');
+    const full = await send('Page.captureScreenshot', { format: 'png' });
+    fs.writeFileSync(path.join(assets, 'qa/browser-preview.png'), Buffer.from(full.data, 'base64'));
+    const counts = {};
+    for (const id of ['gif', 'webp']) {
+      const bounds = await send('Runtime.evaluate', { expression:
+        `(() => {const r=document.getElementById('${id}').getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,scale:1};})()`,
+        returnByValue: true });
+      const unique = new Set();
+      for (let n = 0; n < 24; n++) {
+        await sleep(37);
+        const shot = await send('Page.captureScreenshot', { format: 'png', clip: bounds.result.value });
+        const buffer = Buffer.from(shot.data, 'base64');
+        const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+        if (!unique.has(hash)) fs.writeFileSync(path.join(shots, `${id}-${String(unique.size + 1).padStart(2, '0')}.png`), buffer);
+        unique.add(hash);
+      }
+      counts[id] = unique.size;
+    }
+    const report = { environment: 'isolated headless Chrome; local artifact files over localhost',
+      browser: version.product, tested_at: new Date().toISOString(), images: loaded.result.value,
+      distinct_visible_frames: counts, console_errors: errors,
+      pass: loaded.result.value.length === 3 && loaded.result.value.every(image => image.width === 512 && image.height === 512) &&
+        counts.gif === 8 && counts.webp === 8 && errors.length === 0 };
+    fs.writeFileSync(path.join(assets, 'qa/browser-verification.json'), JSON.stringify(report, null, 2) + '\n');
+    console.log(JSON.stringify(report, null, 2));
+    await Promise.race([send('Browser.close').catch(() => {}), sleep(1000)]);
+    if (!report.pass) process.exitCode = 1;
+  } finally {
+    socket?.close();
+    if (chrome.exitCode === null) chrome.kill();
+    server.close();
+  }
+}
+main().catch(error => { console.error(error.message); server.close(); process.exitCode = 1; });

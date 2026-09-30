@@ -30,7 +30,8 @@ const STEP_REQUIRED = { equation: 'expressions', plot: 'functions', shapes: 'obj
 const MAX_SECONDS = 45;
 
 export function safeTex(value, path) {
-  if (!TEX_CHARACTERS.test(value) || /[$%#]/.test(value)) throw new Error(`${path}: unsupported characters in a maths expression`);
+  // Control characters are what a lost backslash leaves behind ('\f' is a form feed).
+  if (!TEX_CHARACTERS.test(value) || /[$%#]/.test(value) || /[\x00-\x08\x0b-\x1f\x7f]/.test(value)) throw new Error(`${path}: unsupported characters in a maths expression`);
   for (const [, command] of value.matchAll(/\\([A-Za-z]+)/g)) {
     if (!TEX_COMMANDS.has(command)) throw new Error(`${path}: unsupported LaTeX command \\${command}`);
   }

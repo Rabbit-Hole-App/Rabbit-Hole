@@ -1,0 +1,473 @@
+{
+ "findings": [
+  {
+   "id": "lifecycle-1",
+   "title": "Stop and interrupted answers have no end state: the sheet spins forever, a linked card reads 'done…' and cannot continue, and replies restored after a reload or a server pull stay 'Thinking…'",
+   "status": "still_present",
+   "snapshot_vs_baseline": "Identical on both: ask.jsx, LearnPage.jsx, AdaptiveCanvas.jsx, ChatComposer.jsx and SharedBoardPage.jsx have no diff between 3bc489e and feb4825 (verified with git diff --stat). The doc (§11.1, doc line 576) records Stop as 'aborts the browser request; not reported as an error' but not the stuck spinner.",
+   "evidence": [
+    "packages/web/src/ask.jsx:587 - `if (e.name !== 'AbortError') mirror(`✗ ${e.message}`);`. A Stop adds nothing to the empty reply. Learn sends the whole answer as one chunk at the end (control-plane/src/ask.js:379), so any Stop before completion leaves the reply empty.",
+    "packages/web/src/ask.jsx:807-808 - an empty assistant reply always renders `<Loader2 size={14} className=\"animate-spin text-ink-3\" />{m.status || 'Thinking...'}`, with no in-flight check. After Stop, busy is false (ask.jsx:592), but the reply keeps spinning with the last progress stage until New chat or a reload.",
+    "packages/web/src/ask.jsx:590 -> packages/web/src/LearnPage.jsx:428 - the finally block sends `exchange?.({ id: replyId, done: true })`, and placeExchange sets `{ ...exchange, status: 'done' }`. AdaptiveCanvas.jsx:253 then renders `${exchange.status}…`, so the linked card literally reads 'done…'.",
+    "packages/web/src/AdaptiveCanvas.jsx:228,238 - Continue convo is offered on any card with `exchange.status === 'done'`, including one with no answer. canvas-conversation.js:7-9 rejects an empty seed answer, and the per-card AskPanel keeps thread_id null (ask.jsx:515 `...(canvasSeed && !threadId.current ? { canvas_seed: canvasSeed } : {})`), so every retry fails with a 400.",
+    "packages/web/src/LearnPage.jsx:191 - a reload resets only the exchange's own status: `.map(exchange => ({ ...exchange, status: 'done' }))`. Its replies keep status 'thinking' (LearnPage.jsx:437), so AdaptiveCanvas.jsx:256 shows 'Thinking…' forever.",
+    "packages/web/src/LearnPage.jsx:518 - `if (Array.isArray(chats)) setExchanges(chats);` loads exchanges from the server copy (a fork, another device, or another editor's save) with no status normalisation at all, so an exchange saved mid-answer shows 'Thinking…' or a stage forever.",
+    "packages/web/src/AdaptiveCanvas.jsx:253 - most server stages already end in '...' (learn-research.js:37,49,52,59,62,67), so the card shows e.g. 'Preparing answer...…'. The exception is learn-research.js:65 `Retrieval failed: ${error.message}`, which has no ellipsis.",
+    "packages/web/src/SharedBoardPage.jsx:65,80 - shared viewers get the pushed exchanges without normalisation. The owner pushes after every exchanges change (LearnPage.jsx:464,540), so a snapshot pushed mid-answer shows 'Thinking…' or a stage to viewers.",
+    "Contrast: the Mothership marks a stopped turn `{ ...t, done: true, stopped: true }` (agent/AgentBar.jsx:321) and shows 'Stopped.' (agent/ResultSheet.jsx:79), covered by e2e/rabbit-hole-check.mjs:1599-1609. The dock has no Stop check in any tracked e2e (grep 'Stop' matches only rabbit-hole-check.mjs)."
+   ],
+   "files_and_callers": [
+    "packages/web/src/ask.jsx AskPanel.send, render branch :784-809 (dock sheet and Ask in chat via LearnPage.jsx:1197 composer; per-card composer via renderBlockComposer LearnPage.jsx:1197; side-panel Learn chat LearnPage.jsx:1291)",
+    "packages/web/src/LearnPage.jsx placeExchange :423-429, replyToExchange :434-441, exchanges load :190-192, server pull :515-519",
+    "packages/web/src/AdaptiveCanvas.jsx ChatCard :198-265",
+    "packages/web/src/SharedBoardPage.jsx :65",
+    "packages/web/src/ChatComposer.jsx onStop :36-44"
+   ],
+   "smallest_change": "Client only, no storage-shape or server change. (1) ask.jsx: show the spinner only for the in-flight reply (`busy && i === msgs.length - 1`). Otherwise an empty reply reads 'Stopped.' when the catch at :587 saw AbortError (it sets `stopped: true` on the reply by id) and 'No answer received. Try again.' in every other case. (2) AdaptiveCanvas.jsx:253: show 'No answer received. Try again.' for a done card with no answer, the wording replies already use at :256, and show the stage as sent without the extra '…'. (3) AdaptiveCanvas.jsx:238: offer Continue convo only when exchange.answer is non-empty, as Explain in canvas already requires at :230. (4) One small normaliser (exchange and reply statuses to 'done') applied at LearnPage.jsx:191, LearnPage.jsx:518 and SharedBoardPage.jsx:65.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": false,
+   "tests_to_add": "New e2e packages/web/e2e/learn-lifecycle-check.mjs on the learn-chat-sheet.mjs pattern (page.route stub, no model calls, session clone). (a) Stub /api/learn/ask to send one progress event and hold. Click Stop. Assert the [data-chat-sheet] has no .animate-spin and shows 'Stopped.'. (b) Repeat through Ask in chat on a seeded card. Assert the card shows 'No answer received. Try again.' and selecting it offers no Continue convo. (c) Seed the chat key with an exchange whose reply is {status:'thinking', answer:''}. Reload. Assert the reply shows 'No answer received. Try again.'. (d) Stub the board GET to return a newer server copy with a 'thinking' exchange and assert it renders as ended. (e) A progress stage renders once, with no doubled ellipsis."
+  },
+  {
+   "id": "lifecycle-2",
+   "title": "A non-JSON error page, or a stream that ends without done/error, fails silently in the Learn chat and grading consumers",
+   "status": "still_present",
+   "snapshot_vs_baseline": "ask.jsx and learn-grade.js have no diff since 3bc489e. The baseline adds agent/ask-stream.js (Mothership). It already turns a non-OK reply that is not a stream into an error (ask-stream.js:51, tested in ask-stream.test.mjs, which passes), but the Learn consumers never adopted it.",
+   "evidence": [
+    "packages/web/src/ask.jsx:541 - the only check is `if ((r.headers.get('Content-Type') || '').includes('json')) {`, with no `r.ok` check. An HTML 500 or 1101 page is read as SSE (ask.jsx:551-583), yields no events and leaves the reply empty, which is the permanent spinner of lifecycle-1. The same applies to a stream that closes with no chunk, done or error.",
+    "packages/web/src/learn-grade.js:20-41 - same shape: `if ((response.headers.get('Content-Type') || '').includes('json'))`, then a loop that handles only chunk and error. An HTML 500, an empty stream and a progress-then-close stream all resolve with no deltas. ChallengeBody then sets grading:false with no verdict and no error (LearningBlocks.jsx:873, 905).",
+    "Reachable: packages/web/dev-worker.js:97-109 calls authorizedBoardApp and apiAsk with no try/catch (the fetch handler at dev-worker.js:33 has no outer try), and apiAsk's D1 writes are unguarded (index.js:1198 `threadId = await seam.newThread(message);`, :1200-1210 thread, seed, history and user-message statements). repositories.js:40-42 documents that 'D1 occasionally throws a transient internal error'. An uncaught throw returns the platform's non-JSON 500.",
+    "packages/web/src/agent/ask-stream.js:51 - `if (!response.ok) return onEvent('error', { error: `HTTP ${response.status}` });` is the rule to reuse.",
+    "packages/web/src/learn-board-request.js:50 - the whiteboard client already ends a stream that has no result with `throw new Error('The explanation was interrupted. Try again.')`.",
+    "Related: learn-slash.js:111 posts through api(), and api.js:74 `const data = await r.json();` turns an HTML error into a JSON SyntaxError notice. That is an explicit error state, but not a readable one."
+   ],
+   "files_and_callers": [
+    "packages/web/src/ask.jsx send (dock sheet, Ask in chat cards, Continue convo, side-panel Learn chat, and the non-Learn Agent panels that share AskPanel)",
+    "packages/web/src/learn-grade.js gradeAnswer <- LearnPage.jsx:563 gradeCanvasAnswer <- LearningBlocks.jsx:855 ChallengeBody.commit",
+    "packages/web/src/agent/ask-stream.js streamAsk (reuse target)"
+   ],
+   "smallest_change": "Commit 1, a behaviour fix. After the JSON check add `if (!r.ok) { mirror(`✗ HTTP ${r.status}`); return; }` to ask.jsx and `if (!response.ok) throw new Error(`HTTP ${response.status}`)` to learn-grade.js. In both loops, track whether done or error arrived; if the reader ends without either, surface 'The answer was interrupted. Try again.' (the whiteboard's wording). Note the ask.jsx change also applies to the non-Learn Agent panels sharing AskPanel. Commit 2, an optional pure refactor: replace the inline loops at ask.jsx:551-583 and learn-grade.js:24-41 with streamAsk, which already frames, filters and errors the same way (the shared rule is in lifecycle-3).",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": false,
+   "tests_to_add": "Add packages/web/src/learn-grade.test.mjs with fetch stubbed as in ask-stream.test.mjs. An HTML 500 rejects with 'HTTP 500'. An empty stream and a progress-only stream reject as interrupted. chunk+done resolves and delivers the deltas. In e2e learn-lifecycle-check.mjs, route.fulfill({status:500, contentType:'text/html', body:'<html>'}) for /api/learn/ask and assert the sheet shows '✗ HTTP 500' with no spinner."
+  },
+  {
+   "id": "lifecycle-3",
+   "title": "Mothership: a stream that closes without done or error leaves the turn open forever, with a spinner (or no end state) and History and New chat disabled",
+   "status": "branch_specific",
+   "snapshot_vs_baseline": "agent/ask-stream.js, AgentBar.jsx and ResultSheet.jsx do not exist at 3bc489e. They arrived with the smart-home integration.",
+   "evidence": [
+    "packages/web/src/agent/ask-stream.js:56-57 - `if (done) return;`. The reader ending is not treated as an event.",
+    "packages/web/src/agent/AgentBar.jsx:306-330 - only an 'error' event or a thrown error sets `failed`; bar.js:48-49 set done only on 'error' or 'done'. A quiet return leaves the turn with done undefined.",
+    "packages/web/src/agent/ResultSheet.jsx:65 - `{t.text ? <Md text={t.text} /> : !t.done && <span ...><Loader2 .../>{t.stage || 'Thinking…'}</span>}`. :101 `const busy = turns.some((t) => t.kind === 'answer' && !t.done);` disables History and New chat (:122-123) for that scope until a reload, even when some text arrived.",
+    "Routing: agent/scope.js:19-22 sends project and canvas scopes to /api/learn/ask (workspace and app to /api/ask, which is off on the preview, flags.js:16)."
+   ],
+   "files_and_callers": [
+    "packages/web/src/agent/ask-stream.js streamAsk <- AgentBar.jsx ask (project scope asks to /api/learn/ask -> repositoryAsk; canvas scope to the canvas seam; workspace and app asks are off on the preview, flags.js:16)"
+   ],
+   "smallest_change": "In ask-stream.js, record whether done or error was seen. When the reader ends without either, call `onEvent('error', { error: 'The answer was interrupted. Try again.' })`. AgentBar then shows the error with Retry and keeps the draft (AgentBar.jsx:327-330). This is the one shared fix that lifecycle-2's refactor reuses.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": false,
+   "tests_to_add": "In ask-stream.test.mjs, a stream that closes after a progress event, and an empty stream, each end with an error event. In rabbit-hole-check.mjs (bar-page), a stubbed stream that closes early shows the error with Retry and leaves History and New chat enabled."
+  },
+  {
+   "id": "lifecycle-4",
+   "title": "Stop, client timeouts and navigation never reach server model or tool work; the loop stops only if the platform cancels the response stream, and a reason-less cancel crashes the error handler",
+   "status": "needs_reproduction",
+   "snapshot_vs_baseline": "Unchanged. ask.js, learn-research.js and learn-artifact.js have no diff, and learn-board.js changed only authorizedBoardApp. apiAsk gained the seam parameter but still passes no signal (baseline index.js:1227; snapshot index.js:1219).",
+   "evidence": [
+    "packages/web/src/ask.jsx:890 - `dock={dock} onStop={dock ? () => answerFlight.current?.abort() : undefined}`. Stop aborts only the browser fetch (ask.jsx:532,538 `signal: flight.signal`).",
+    "packages/control-plane/src/index.js:1227-1229 and repositories.js:237-239 - askStream is called without req.signal. A grep for 'signal' in control-plane/src and dev-worker.js finds only AbortSignal.timeout on tool, bridge, image, video and math fetches, plus Jev (learn-grade-jev.js:142); no req.signal anywhere.",
+    "packages/control-plane/src/ask.js:309-319 - the Anthropic fetch has no signal. planModel's OpenAI fetch (ask.js:264-268) has none either.",
+    "packages/control-plane/src/ask.js:364-461 - the answer runs in a floating `(async () => { ... })()` that writes to a TransformStream. It is not registered with ctx.waitUntil and has no cancel handling. index.js:344-346 and :364-366 record that platform limits already killed un-held model work in this codebase.",
+    "packages/control-plane/src/learn-research.js:16-22 - `for (let step = 0; step <= 8; step++)` never checks for cancellation. It only awaits onProgress writes (lines 37, 49, 52, 59, 62, 65, 67).",
+    "Verifier probe (read-only script in %TEMP%\\lc-verify importing ask.js, global fetch stubbed): cancelling the reader after the first progress event gave {calls:2, finished:2, withSignal:1 (the arXiv tool fetch only), onDone:'not called'}. In-flight model and tool calls complete, the loop dies at its next write, and the answer is discarded while the user message stays stored (index.js:1209-1210; repositories.js:236).",
+    "New from the probe: `reader.cancel()` with no reason makes the next write reject with undefined, and ask.js:457 `await send('error', { error: e.message }).catch(() => {});` then throws `TypeError: Cannot read properties of undefined (reading 'message')` inside the catch, which escapes the floating IIFE as an unhandled rejection. With a reason (cancel(new Error(...))) it does not. Which reason Workers passes on client disconnect is unverified.",
+    "packages/control-plane/src/learn-board.js:343-353 - the whiteboard stream's `cancel() { cancelled = true; }` only stops emits. generateBoardPlan keeps making every model call, so the 120 s client timeout (learn-board-request.js:25) never stops server work.",
+    "packages/control-plane/src/learn-artifact.js:51 - artifact model calls get no signal, and the client api() POST cannot be aborted (api.js:68).",
+    "Not verified: whether Cloudflare cancels the response stream, or the whole invocation, when the browser disconnects. wrangler configs set compatibility_date 2026-08-01 and no compatibility_flags."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/ask.js anthropic(), planModel(), askStream()",
+    "packages/control-plane/src/learn-research.js researchAnswer",
+    "packages/control-plane/src/index.js apiAsk (dev-worker.js:108 and live /api/learn/ask)",
+    "packages/control-plane/src/repositories.js repositoryAsk",
+    "packages/control-plane/src/learn-board.js boardFetch/generateBoardPlan",
+    "packages/control-plane/src/learn-artifact.js generateArtifact",
+    "packages/control-plane/src/subscription-transport.js",
+    "clients: ask.jsx, learn-board-request.js, learn-slash.js"
+   ],
+   "smallest_change": "After the reproduction, change the server only. In askStream, create one AbortController that aborts when the stream is cancelled (`writer.closed.catch(() => stop.abort())`). Pass its signal into researchAnswer, which checks `signal.aborted` before each step, and into the model call: anthropic() and planModel take an optional signal and hand it to fetch, and subscriptionTransport combines it with its 180 s timeout via AbortSignal.any. In boardFetch, abort the same way from the ReadableStream's cancel(). Make ask.js:457 read `e?.message` so a reason-less cancel cannot throw from the catch. Tool fetches keep their own 8-20 s timeouts. No request or event contract changes, and a stopped answer is still not stored, as today.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": false,
+   "tests_to_add": "Add packages/control-plane/test/ask-stream-cancel.test.js from the probe. Cancel the SSE reader after the first progress event and assert the in-flight model fetch received a signal that is now aborted, no further model or tool calls happen, onDone is not called, and no unhandledRejection fires when cancel() has no reason. researchAnswer with a pre-aborted signal makes no model call. boardFetch's cancel aborts the signal passed to generate. Platform reproduction is gated on deploy/model approval: on the session clone, ask a retrieval question on a canvas, press Stop after 'Finding papers...', then read that canvaschat thread in LEARN_DB. An assistant row means the loop finished after the disconnect; only the user row means it died at the next write. Pointing SUBSCRIPTION_ONLY's bridge (subscription-transport.js:4-6) at an HTTPS stub avoids real model calls."
+  },
+  {
+   "id": "lifecycle-5",
+   "title": "No deadline on Learn model calls or on the slash, grading and Continue convo requests, and only the dock has Stop",
+   "status": "still_present",
+   "snapshot_vs_baseline": "Same on both. Doc §9 'no request timeout' is accurate.",
+   "evidence": [
+    "packages/control-plane/src/ask.js:309-319 and :264-268 - the model fetches carry no timeout. A Learn chat turn can make 9 sequential unbounded model calls (learn-research.js:16-20).",
+    "Bounded calls: tools (arxiv.js:41, learn-wiki.js:67, learn-youtube.js:88 and learn-captions.js:76,88 at 20 s; learn-search.js:85 at 8 s; pexels.js:10 at 10 s), the subscription bridge (subscription-transport.js:6, 180 s), whiteboard client steps (learn-board-request.js:25, 120 s, up to 3 steps) and image generation (dev-worker.js:76, 120 s). Workers AI and Vectorize calls have none (learn-moment-index.js:96,208,246).",
+    "packages/web/src/LearnSlash.jsx:37 shows 'Working on /x…', and :80 `{!busy && <button type=\"button\" aria-label=\"Dismiss\" ...` hides Dismiss while busy. The request is api() with no timeout (learn-slash.js:111 -> api.js:68). While it hangs, every further slash command is swallowed (lifecycle-6).",
+    "packages/web/src/learn-grade.js:15-19 - the grading fetch has no signal, so the block shows 'Reading your answer…' (LearningBlocks.jsx:908) until the provider returns.",
+    "packages/web/src/ask.jsx:890 gives onStop only to the dock, and ChatComposer.jsx:36 `{busy && onStop ? (` shows Stop only when onStop is set. The Continue convo composer (LearnPage.jsx:1197 renderBlockComposer, no `dock`) and the side-panel 'Learn Agent' AskPanel (LearnPage.jsx:1291, no `dock`) therefore have only a spinner."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/ask.js, learn-artifact.js, learn-board.js (model boundary)",
+    "packages/web/src/LearnSlash.jsx, learn-grade.js, ask.jsx (per-card composer and side-panel Learn chat), learn-board-request.js"
+   ],
+   "smallest_change": "Nothing until the decision below. If approved, add named per-task deadlines to the shared limits module (lifecycle-13). Apply them with AbortSignal.timeout at the model boundary, using the signal plumbing from lifecycle-4, and on the client fetches for artifact, grading and Continue convo, so a timeout ends as an explicit error. Optionally give LearnSlash a Stop/Dismiss while busy, using the dock's AbortController pattern.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": true,
+   "decision_question": "Learn model calls and Learn client requests have no deadline; only tool fetches, the subscription bridge and whiteboard steps do. Do you want explicit deadlines, and if so, what values: a whole Learn chat turn (up to 9 model calls), one artifact request, one grading request? Should Continue convo, the side-panel Learn chat, grading and slash commands also get a Stop/Dismiss like the dock, or only the timeout?",
+   "tests_to_add": "Unit: askStream/researchAnswer with a callModel that never resolves and a short injected deadline must end with an error event, not hang. e2e: stub /api/learn/artifact to never answer; assert the slash notice ends in an error after the deadline and the composer then runs the next command."
+  },
+  {
+   "id": "lifecycle-6",
+   "title": "A second slash command while one runs is swallowed with no message, and a clarification then overwrites what was typed",
+   "status": "still_present",
+   "snapshot_vs_baseline": "LearnSlash.jsx, learn-slash.js, ask.jsx and ChatComposer.jsx are identical at 3bc489e. Doc §4.4 (doc line 299) says 'silently dropped': that is right for execution but wrong for the text, which is kept unless a clarification arrives.",
+   "evidence": [
+    "packages/web/src/LearnSlash.jsx:63 - `intercept: raw => { if (busy) return true; exec(raw); return true; },`",
+    "packages/web/src/ask.jsx:439 - `if (slash && raw.trim().startsWith('/') && slashRef.current?.intercept(raw)) return;` returns before `setInput('')` (ask.jsx:458). The typed text stays, nothing runs, and nothing says why.",
+    "packages/web/src/LearnSlash.jsx:21 `const sections = busy ? null : pickerSections(input, { catalog });` and :50 `if (!items.length) return;` - while busy the picker is hidden and Enter falls through to the form submit. ChatComposer.jsx:24 `const submit = () => { if (!busy && !disabled && value.trim()) onSubmit(value); };` sees only the chat busy flag (ask.jsx:889 passes AskPanel's busy), so Send stays enabled.",
+    "packages/web/src/LearnSlash.jsx:36 `setInput(''); setProposal(null); setBusy(true);`, then :44 `if (out.keep) setInput(out.keep);`. learn-slash.js:115 returns keep '/<name> ' for every clarification, which replaces any command typed during the wait. :42 `setInput('/')` does the same for the catalog, but that path needs no network, so there is no window in practice.",
+    "The window is real: only artifact commands await the network (learn-slash.js:111 `await post('/api/learn/artifact', ...)`), and that request has no timeout (lifecycle-5)."
+   ],
+   "files_and_callers": [
+    "packages/web/src/LearnSlash.jsx intercept/exec <- ask.jsx send (dock only; the slash prop is set at LearnPage.jsx:1197)",
+    "packages/web/src/learn-slash.js runLearnCommand",
+    "packages/web/src/ChatComposer.jsx submit"
+   ],
+   "smallest_change": "LearnSlash.jsx only, with no queueing. Remember the running command's name. When intercept is called while busy, still return true (the input stays) and change the busy notice to say so, e.g. 'Still working on /quiz. Your next command is kept; press Enter when this finishes.' In exec, restore keep or '/' only when the composer is empty: `setInput(current => current.trim() ? current : out.keep)`.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": false,
+   "tests_to_add": "e2e (learn-lifecycle-check.mjs): route /api/learn/artifact to wait 2 s, then return {result:'clarification', question:'Which curve?'}. Send '/quiz', type '/graph sigmoid' and press Enter while it is busy. Assert the composer still reads '/graph sigmoid' and the slash result shows the still-working message. After the clarification lands, assert the composer still reads '/graph sigmoid', not '/quiz '."
+  },
+  {
+   "id": "lifecycle-7",
+   "title": "Grading: a late verdict from an earlier attempt lands in the next attempt, a reload mid-grade shows 'Reading your answer…' forever, and an error after a streamed verdict replaces it",
+   "status": "still_present",
+   "snapshot_vs_baseline": "LearningBlocks.jsx, learn-grade.js and AdaptiveCanvas.jsx are identical at 3bc489e. This covers client state handling only; the grading contract belongs to C6.",
+   "evidence": [
+    "packages/web/src/LearningBlocks.jsx:848-849,869-871 - `latest.current = block` on every render, and deltas write into whatever block is current: `change({ ...current, verdict: (current.verdict || '') + delta, grading: true });`. Nothing compares attempts, although each commit gets `attemptId: crypto.randomUUID()` (:863).",
+    "packages/web/src/LearningBlocks.jsx:881 - `const retry = () => { inFlight.current = false; setDraft(block.answer || ''); onChange({ ...block, answer: null, attemptId: null, verdict: '', grading: false }); };` resets the block but cannot cancel the grade, because learn-grade.js:15-19 has no signal. The old stream then writes onto the reset block and, after a second Commit, appends into the new attempt's verdict. :884 `(block.verdict || '').match(/VERDICT:\\s*(good|partial)/i)` takes the first token, so the older grade can tint the new answer.",
+    "packages/web/src/LearningBlocks.jsx:863,905,908 - `grading: true` is saved with the block (AdaptiveCanvas.jsx:1147-1150 saves blocks after 400 ms and pushes shared boards via onSave), and AdaptiveCanvas.jsx:1104 restores blocks as stored. A reload mid-grade therefore shows 'Reading your answer…' forever, until the learner presses Answer again.",
+    "packages/web/src/learn-grade.js:39 `else if (type === 'error') throw new Error(payload.error);` can fire after chunks, e.g. when onDone's store fails after the chunk (control-plane/src/ask.js:379,454-457). LearningBlocks.jsx:875 then replaces the verdict that already streamed with 'Could not reach the tutor: …'.",
+    "The Jev shadow is unaffected: gradeCanvasAnswer keeps its own text and verdict (LearnPage.jsx:566-578)."
+   ],
+   "files_and_callers": [
+    "packages/web/src/LearningBlocks.jsx ChallengeBody commit/retry/render",
+    "packages/web/src/learn-grade.js gradeAnswer",
+    "packages/web/src/LearnPage.jsx gradeCanvasAnswer :563-580"
+   ],
+   "smallest_change": "ChallengeBody only; the grading request, prompts, verdict parsing and Jev are unchanged. Guard every write of an attempt with `latest.current.attemptId === committed.attemptId` and skip deltas and the closing write otherwise. Show a saved `grading: true` with no request running in this mount as 'Grading was interrupted. Answer again to retry.' In the catch, keep a verdict that already streamed and show the error under it instead of replacing it.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": false,
+   "tests_to_add": "e2e: stub /api/learn/ask so the first grade streams 'VERDICT: good …' after 3 s and the second answers 'VERDICT: partial …' at once. Commit, press Answer again, Commit again, wait 4 s. Assert the verdict contains only the second response and [data-answer] has data-grade='partial'. Reload while a grade is held and assert 'Reading your answer…' is gone."
+  },
+  {
+   "id": "lifecycle-8",
+   "title": "Continue convo replies (and grading) receive paper, wiki and video events with no handler, while the model is told the learner now sees the card",
+   "status": "still_present",
+   "snapshot_vs_baseline": "Same at 3bc489e: renderBlockComposer, ask.jsx and apiAsk's tool list are unchanged. The seam changed only where canvas threads are stored.",
+   "evidence": [
+    "packages/web/src/LearnPage.jsx:1197 - renderBlockComposer mounts `<AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} ... conversation=\"learn\" .../>` with no boardContext and no onGraph.",
+    "packages/web/src/ask.jsx:569-571 - `boardContext?.onShowPaper?.(d)`, `boardContext?.onShowWiki?.(d)` and `boardContext?.onShowVideo?.(d)` do nothing without a boardContext.",
+    "packages/control-plane/src/index.js:982 - every Learn ask offers `SHOW_WIKIPEDIA_TOOL, FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL`; outline only with body.outline, which this composer never sends. learn-research.js:19 offers show_paper once a paper is read, and repositories.js:239 offers SHOW_VIDEO_TOOL.",
+    "Tool results tell the model the card is visible: index.js:1000 `note: 'The learner now sees it playing. Say what to watch for.'`, index.js:1005, learn-research.js:60 `note: 'The learner now sees this page. Say what to look at.'`, repositories.js:198.",
+    "packages/control-plane/src/ask.js:404-405 - a shown video still writes a learn_moments row (via env.DB) before the dropped video event.",
+    "packages/web/src/learn-grade.js:38-39 - grading handles only chunk and error, so it drops the same events. C6 removes research tools from grading.",
+    "Mothership (project asks): 'paper' falls to `default: return answer;` (agent/bar.js:50), and video and papers become source pills (bar.js:45,47). This mismatch is milder: a link does appear."
+   ],
+   "files_and_callers": [
+    "packages/web/src/LearnPage.jsx renderBlockComposer -> AdaptiveCanvas.jsx ChatCard :261",
+    "packages/web/src/ask.jsx send :568-571",
+    "packages/control-plane/src/index.js apiAsk research tools; repositories.js repositoryAsk; learn-research.js",
+    "packages/web/src/learn-grade.js; packages/web/src/agent/bar.js applyEvent"
+   ],
+   "smallest_change": "Needs the decision below first. Option A, client only: give the per-card composer a handlers-only context. That is onShowPaper, onShowWiki and onShowVideo from LearnPage, plus no-op pause, setAnswering and removeImage and `snapshot: () => null`, because ask.jsx:450, 470 and 493 call them without optional chaining on the method. Replies then place the card as the dock does (note addWiki/addPaper/addVideo also set the dock's next-question context), and still send no outline or attached sources. Option B: stop offering show_* tools on surfaces that cannot render them. That needs the request to name its surface, a new request field.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": true,
+   "decision_question": "A Continue convo reply can call show_video, show_paper or show_wikipedia, but that composer has no handler: no card appears, yet the reply tells the learner to look at it (and show_video logs a moment). Should replies (A) put the card on the canvas as the dock does (client only), or (B) not be offered those tools, which needs a new request field naming the surface (a contract change)?",
+   "tests_to_add": "e2e: open Continue convo on a card and stub /api/learn/ask to emit a video event, then done. Under A, assert a YouTube card appears. Under B, a learn-chat.test.js harness test asserts the reply request's research.tools omit SHOW_VIDEO_TOOL, SHOW_WIKIPEDIA_TOOL and show_paper."
+  },
+  {
+   "id": "lifecycle-9",
+   "title": "An outline proposal from the dock lands in the right panel, which is closed by default and not mounted at all on narrow screens",
+   "status": "still_present",
+   "snapshot_vs_baseline": "LearnPage.jsx and ResizableSidePanel.jsx are unchanged since 3bc489e. The doc §6.2 (doc line 377) says 'Apply / Discard proposal in the right panel' without noting the panel is closed.",
+   "evidence": [
+    "packages/web/src/LearnPage.jsx:750 - `onOutlineProposal: ops => setProposal(ops),` never opens the panel.",
+    "packages/web/src/LearnPage.jsx:90 - `const [panelOpen, setPanelOpen] = useState(false);`, with the comment at :88-89 'The right panel starts closed'.",
+    "packages/web/src/LearnPage.jsx:1230 - `<ResizableSidePanel ... collapsed={!panelOpen} ...>` wraps the proposal UI at :1247-1261.",
+    "packages/web/src/ResizableSidePanel.jsx:33 `if (!wide && collapsed) return null;` and :35 `width: collapsed ? 0 : visible` (overflow hidden, :36).",
+    "packages/control-plane/src/index.js:1010 - the tool result is `note: 'Shown to the learner for approval. Say what you proposed.'`, so the answer describes a proposal the learner cannot see.",
+    "Contrast: openWiki and openPaper open the panel explicitly (LearnPage.jsx:272,304 `setPanelOpen(true)`). The tool is offered only when the canvas has headings (index.js:982; ask.jsx:499; LearnPage.jsx:749)."
+   ],
+   "files_and_callers": [
+    "packages/web/src/LearnPage.jsx boardContext.onOutlineProposal <- ask.jsx:568 (dock sheet and Ask in chat)",
+    "packages/web/src/ResizableSidePanel.jsx"
+   ],
+   "smallest_change": "If approved, `onOutlineProposal: ops => { setProposal(ops); setPanelOpen(true); }` at LearnPage.jsx:750, the same way openWiki and openPaper open the panel. The alternative is a 'Review proposal' pointer on the sheet answer.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": true,
+   "decision_question": "When the tutor proposes outline changes from the dock, the Apply/Discard card sits in the right panel, which is closed by default (and not rendered on phones). Should a proposal open the right panel, as opening an article or paper already does, or should the sheet answer carry a pointer to it?",
+   "tests_to_add": "e2e: seed a heading block and stub /api/learn/ask to emit outline {ops:[{op:'add',text:'Layer norm',level:1}]}, then chunk and done. Assert 'Proposed: 1 change' is visible in the viewport at 1600x1000 and at 390x844."
+  },
+  {
+   "id": "lifecycle-10",
+   "title": "The side-panel Learn chat navigates the learner out of Learn to the Map whenever a repository answer carries a graph",
+   "status": "still_present",
+   "snapshot_vs_baseline": "At 3bc489e, RepositoryPage.jsx:14's showGraph moved a Learn-tab answer to ?tab=code. On the baseline, showGraph (RepositoryPage.jsx:54) moves it to ?tab=map: same auto-navigation, new target. The baseline added an auto-guarded onGraph (:55) and the rule at :65-67, but only for the Mothership. LearnPage still receives the unguarded showGraph (:83).",
+   "evidence": [
+    "packages/web/src/ask.jsx:578 - `if (responseGraph && onGraph) onGraph(responseGraph);` runs on done, without a click.",
+    "packages/web/src/LearnPage.jsx:1291 - `<AskPanel onGraph={onGraph} key={app.name} ... headerTitle=\"Learn Agent\" .../>`. This is the side-panel chat, shown when courseView or learningView !== 'lesson', e.g. 'My notes' (LearnPage.jsx:1280,1288).",
+    "packages/web/src/RepositoryPage.jsx:83 passes `onGraph={showGraph}`. :54 `const showGraph=value=>{setGraphView({...value,requestId:crypto.randomUUID()});setMode('graph');if(projectTab(window.location.search)!=='map')navigate(`/apps/${app.name}?tab=map`);};`",
+    "packages/web/src/RepositoryPage.jsx:66-67 - 'Learn keeps Root's hidden baseline and gets no onGraph: a late Map answer must not navigate the reader out of Learn.'",
+    "The dock is unaffected: it gets no onGraph (LearnPage.jsx:1197). The only AskPanel onGraph consumer on the baseline is LearnPage.jsx:1291 (grep onGraph)."
+   ],
+   "files_and_callers": [
+    "packages/web/src/ask.jsx send done handler",
+    "packages/web/src/LearnPage.jsx:1291 side-panel AskPanel",
+    "packages/web/src/RepositoryPage.jsx showGraph/onGraph"
+   ],
+   "smallest_change": "Two lines. At ask.jsx:578 call `onGraph(responseGraph, { auto: true })`. At RepositoryPage.jsx:83 pass the guarded `onGraph` (:55, which acts on auto only on the Map tab) instead of `showGraph`. The explicit 'Show on graph' pill (ask.jsx:798) still navigates on click.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": false,
+   "tests_to_add": "e2e on a repository app: open the right panel, choose My notes and ask. Stub /api/learn/ask with a graph event, then done. Assert the URL keeps tab=learn and a 'Show on graph' pill is shown; click it and assert tab=map."
+  },
+  {
+   "id": "lifecycle-11",
+   "title": "An error that arrives after the answer chunk is glued onto the answer text in the sheet and card",
+   "status": "still_present",
+   "snapshot_vs_baseline": "Same at 3bc489e. The baseline's canvas seam and repository path store the answer in LEARN_DB through the same onDone callback.",
+   "evidence": [
+    "packages/control-plane/src/ask.js:379 `await send('chunk', { text: full });`, then side events (:380-409), then :454 `await onDone?.(full);`, which inserts the assistant message (index.js:1228; repositories.js:238). A throw there reaches :457 `await send('error', { error: e.message })` after the learner already has the answer and any inserted cards.",
+    "packages/web/src/ask.jsx:581 `else if (type === 'error') mirror(`✗ ${d.error}`);` and :477-479 append to the last message, so the content becomes '<answer>✗ <error>'.",
+    "Only content that starts with '✗ ' renders as the alert (ask.jsx:784). Add to canvas is still offered because `!m.content.startsWith('✗')` holds (ask.jsx:799), so it copies the error into the card.",
+    "packages/control-plane/src/repositories.js:40-42 documents transient D1 errors, and neither onDone (index.js:1228, repositories.js:238) uses the d1() retry.",
+    "The grading counterpart is in lifecycle-7."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/ask.js askStream ordering",
+    "packages/web/src/ask.jsx error handler and render"
+   ],
+   "smallest_change": "ask.jsx only. When an error arrives after answer text, keep the answer and show the error as a separate alert under it (a flag on the message) instead of appending it. Add to canvas then copies only the answer.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": false,
+   "tests_to_add": "Server characterization in the repositories.test.js style: make the assistant INSERT throw and assert the SSE order is chunk then error, with no done. e2e: stub a stream of chunk then error; assert the answer renders as Markdown, a separate alert shows the error, and Add to canvas copies only the answer."
+  },
+  {
+   "id": "lifecycle-12",
+   "title": "The thread id arrives only with done, so a stopped or failed first question leaves a thread and a user message the browser never learns about",
+   "status": "still_present",
+   "snapshot_vs_baseline": "Same at 3bc489e. The baseline adds the same ordering on the canvas seam (canvases.js:117-120).",
+   "evidence": [
+    "packages/control-plane/src/index.js:1197-1203 creates the thread (the seam's newThread, or the live INSERT), and :1209-1210 store the user message before the stream opens. repositories.js:233-236 do the same.",
+    "packages/control-plane/src/ask.js:455 `await send('done', { ok: true, ...meta });` is the only event that carries threadId. ask.js:457 `send('error', { error: e.message })` carries none.",
+    "packages/web/src/ask.jsx:574-576 set `sheetThread.current` and call `rememberSheetThread(appName, d.threadId)` only on done. After a Stop or error, the next sheet question sends thread_id null (ask.jsx:445,514) and opens another thread; the first never appears in sheet History.",
+    "On a continuing thread, the unanswered user message stays and is replayed as history (index.js:1205-1207 `ORDER BY id DESC LIMIT 10`; askStream appends the new question as another user turn, ask.js:350-358), producing two user turns in a row."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/index.js apiAsk (live DB and canvas seam)",
+    "packages/control-plane/src/repositories.js repositoryAsk",
+    "packages/control-plane/src/ask.js askStream",
+    "packages/web/src/ask.jsx send"
+   ],
+   "smallest_change": "Needs the decision below first. (a) Keep and expose: add threadId to the error payload and send it before the answer in a start event, so the sheet remembers it. (b) Leave no trace: create the thread and store the question only when the answer completes (inside onDone), for apiAsk, the canvas seam and repositoryAsk.",
+   "change_type": "contract_change",
+   "needs_user_decision": true,
+   "decision_question": "A stopped or failed first question leaves a server thread and user message that the browser never learns about: it is orphaned and missing from History. Should it (a) be kept and made reachable, which means the server sends the thread id before the answer (a new SSE start event or a threadId on error: an SSE contract change), or (b) leave no trace, which means the thread and question are stored only when the answer completes (a storage-order change in apiAsk, the canvas seam and repositoryAsk)?",
+   "tests_to_add": "In the learn-chat.test.js harness, use an askStream stub that throws after start. Assert (a) the error payload carries threadId, or (b) no threads or messages rows exist. Add the repositories.test.js equivalent through repositoriesFetch."
+  },
+  {
+   "id": "lifecycle-13",
+   "title": "Request and loop limits are inline literals across about ten files; the research-step, artifact-repair and whiteboard-review limits are already separate and must stay separate",
+   "status": "still_present",
+   "snapshot_vs_baseline": "Same values at 3bc489e. The baseline adds no new Learn limits apart from canvases.js TITLE 120.",
+   "evidence": [
+    "Message and question: index.js:1065 `message.length > 4000`; repositories.js:174 `body.message.length>4000`; learn-board.js:314 (question <= 4000, answer <= 10000); canvas-conversation.js:7-8 (seed question <= 4000, answer <= 32000); dev-worker.js:113 (tts <= 4000); AgentBar.jsx:409 maxLength={4000}; the Learn composer has none (ask.jsx:889).",
+    "Attachments and bodies: ask.js:471 ATTACHMENT_LIMIT 4 MB (index.js:942); ask.js:483 text slice 50000; repositories.js:115 whole request 64000; learn-artifact.js:90 raw 20000 and :92 args 1000, context 8000; learn-board.js:313 40000 and :308/:311 12,000,000 (continuation); learn-paper.js:12 PAPER_UPLOAD_LIMIT 5 MB; learn-paper.js:14 PAPER_PAGE_LIMIT 100 (index.js:1036) duplicated as a literal 100 at repositories.js:221.",
+    "Context and history: ask.js:163 CAP_CHARS 600000; index.js:1206 and repositories.js:235 LIMIT 10; mentions slice(0, 3) at index.js:1100 and repositories.js:214; wiki at index.js:987 (3 articles), :1051 (section <= 500), :1052 (selection <= 2000) and learn-wiki.js:15 SECTION_TEXT_LIMIT 6000; one show per answer at index.js:998,1003,1008 and repositories.js:196; learn-outline-tool.js:10 MAX_OPS 12.",
+    "Research loop: learn-research.js:16 `for (let step = 0; step <= 8; step++)`, :18 max_tokens 2400, :20 tool_choice none at step 8, :53 two papers. The existing test learn-research.test.js pins 9 calls and 8 searches.",
+    "Artifact repair: learn-artifact.js:51 max_tokens 4000, :59-77 one repair, :62 clarifying question <= 300.",
+    "Whiteboard: learn-board.js:231 plan 1200 tokens, :142 default 3000, :192 repair budget min(6000, max(2400, 2x)), :238-241 seven draft turns, :165 eight salvage rounds, :251 two papers, :271 two review passes, :283 review 1800 tokens; client learn-board-request.js:7 three requests and :25 120 s each.",
+    "Client copies: learn-slash.js:111 context slice 8000, :91 title 200; AdaptiveCanvas.jsx:2600 group text 4000; ask.jsx:318 50 sheet threads; agent/learn-hook.js:9 WAIT_MS."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/index.js, repositories.js, ask.js, learn-research.js, learn-artifact.js, learn-board.js, canvas-conversation.js, learn-paper.js, learn-wiki.js, learn-outline-tool.js; packages/web/dev-worker.js; packages/web/src/learn-slash.js, AdaptiveCanvas.jsx, learn-board-request.js"
+   ],
+   "smallest_change": "Pure refactor, values unchanged. Add one module (e.g. packages/control-plane/src/learn-limits.js) that exports the request limits shared by more than one site: message 4000, mentions 3, history 10, papers per answer 2, ATTACHMENT_LIMIT and PAPER_PAGE_LIMIT re-exported. Give the research loop, artifact repair and whiteboard draft/review three separately named groups. Each site imports its constant. Browser copies stay where they already are.",
+   "change_type": "pure_refactor",
+   "needs_user_decision": false,
+   "tests_to_add": "Add one unit test pinning every exported value. The existing learn-research.test.js (9), learn-artifact.test.js (11) and learn-board.test.js suites must stay green; learn-research, learn-artifact and agent/ask-stream (26 tests total) pass on the baseline today (verifier run)."
+  },
+  {
+   "id": "lifecycle-14",
+   "title": "Attachment and message limits differ by route: repository asks cap the whole request at 64 KB, canvases refuse attachments, apiAsk allows 4 MB, and the Learn composer has no length cap",
+   "status": "still_present",
+   "snapshot_vs_baseline": "The 64 KB cap is unchanged since 3bc489e. The canvas refusal is branch-specific: canvases.js and refuseCanvasAsk arrived with the smart-home integration.",
+   "evidence": [
+    "packages/control-plane/src/repositories.js:115 - `if(req.method!=='GET'&&(Number(req.headers.get('content-length'))>64000||(await req.clone().text()).length>64000))return json({error:'Request exceeds 64 KB'},413);` runs before the ask action, and dev-worker.js:100-102 sends every repo-* Learn ask there. A file over about 64 KB therefore fails with '✗ Request exceeds 64 KB'.",
+    "packages/control-plane/src/ask.js:471 `export const ATTACHMENT_LIMIT = 4 * 1024 * 1024;` is used by apiAsk (index.js:942). The composer accepts '.png,.jpg,.jpeg,.gif,.webp,.pdf,.csv,.txt' with no size check (ask.jsx:912-914).",
+    "packages/control-plane/src/canvases.js:46-53 (dev-worker.js:87) refuse every multipart canvas ask: 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' The dock still offers 'Add images, PDFs, or CSVs' (ask.jsx:902-904).",
+    "packages/web/src/ask.jsx:889 passes no maxLength to the Learn ChatComposer, while AgentBar.jsx:409 sets maxLength={4000}. apiAsk answers 'message required (max 4000 chars)' (index.js:1065); only repositoryAsk says 'Question must be 1–4000 characters' (repositories.js:174), the text doc §4.4 (doc line 300) quotes for both.",
+    "All of these end as explicit '✗ …' errors, but the question text and attachment chip are already cleared (ask.jsx:458-463)."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/repositories.js repositoriesFetch",
+    "packages/control-plane/src/canvases.js refuseCanvasAsk",
+    "packages/control-plane/src/index.js apiAsk",
+    "packages/web/src/ask.jsx composer + menu"
+   ],
+   "smallest_change": "Needs the decision below first. Then either apply ATTACHMENT_LIMIT to the file and 64 KB to the JSON part of repository ask requests, or hide + where the route refuses attachments. The composer maxLength is part of C5's question-limit work, not proposed here.",
+   "change_type": "behavior_bug_fix",
+   "needs_user_decision": true,
+   "decision_question": "The dock's + offers attachments up to the 4 MB that apiAsk accepts. Repository-app asks reject any request over 64 KB, and canvases refuse attachments outright. Should repository asks accept attachments up to 4 MB (keeping 64 KB for the JSON part), or should the composer hide + wherever the route refuses attachments?",
+   "tests_to_add": "In repositories.test.js, a multipart ask with a 200 KB PNG returns an SSE stream (first option). For the second option, an e2e asserts no attachment item under + on repository apps and canvases."
+  },
+  {
+   "id": "lifecycle-15",
+   "title": "SSE audit, every Learn event by producer and surface (rendered, metadata or unsupported); the dock's graph is stored-only by design and doc §6.2 needs a per-surface column",
+   "status": "still_present",
+   "snapshot_vs_baseline": "Producers and the Learn consumers are unchanged since 3bc489e. The baseline adds the Mothership consumer (agent/ask-stream.js, bar.js) and the side effects of the canvas seam. Doc §6.2 describes only the dock.",
+   "evidence": [
+    "Producers. askStream sends progress (ask.js:372), papers (:377), chunk (:379, once, with the 'Papers read:' footer from :374-376), graph (:380-381; repositoryAsk only via getGraphView, repositories.js:239), outline (:383-384; apiAsk only, when an outline is sent), paper (:387), wiki (:390-391; apiAsk only, suppressed after a paper), video (:394-409), done (:455; meta {threadId, note?} from index.js:1229, {threadId, commit} from repositories.js:238) and error (:457). proposal (:428) and JSON {choose} (index.js:1112) never occur on Learn (index.js:1214 `canAct && conversation !== 'learn'`; :1064). The board stream sends progress, plan, preview and error (learn-board.js:346-350).",
+    "progress: sheet renders it as the spinner label (ask.jsx:566,808). The linked card renders it with an extra '…' (AdaptiveCanvas.jsx:253). A Continue convo reply stores it but shows only 'Thinking…' (LearnPage.jsx:440; AdaptiveCanvas.jsx:256). Grading ignores it and shows a fixed 'Reading your answer…' (learn-grade.js:38-39; LearningBlocks.jsx:908). The Mothership renders it (bar.js:43; ResultSheet.jsx:65). The whiteboard shows it on the Explain in canvas button (learn-board-request.js:44; AdaptiveCanvas.jsx:235).",
+    "papers: metadata on every Learn surface. ask.jsx:572 stores it and nothing renders it, but the same references stay visible because the chunk carries them as links (ask.js:374-376; Md strips only the prefix, ask.jsx:74). In grading the footer lands inside the verdict text. The Mothership renders source pills (bar.js:45).",
+    "chunk: rendered on every surface.",
+    "graph: stored-only in the dock sheet and linked card (ask.jsx:567). The pill needs onGraph (ask.jsx:798), and the dock gets none (LearnPage.jsx:1197), so no dead button appears, which is consistent with the rule. The graph is also persisted (repositories.js:238) and reloaded with the thread (repositories.js:169), still without a pill. Side-panel chat: pill plus auto-navigation (lifecycle-10). Continue convo and grading: stored-only or ignored. Mothership: 'Show on graph' with a real handler wherever project results show (RepositoryPage.jsx:69 sets handlers; AgentBar.jsx:331-336 auto-shows only on the Map tab).",
+    "outline: the dock handles it but the result is hidden (lifecycle-9). Continue convo, grading and the Mothership never send an outline, so it is not produced there.",
+    "paper, wiki, video: the dock sheet and linked card insert canvas cards (LearnPage.jsx:213-250). Continue convo and grading drop them (lifecycle-8). The Mothership ignores paper (bar.js:50) and shows video and papers as pills (bar.js:45,47); project asks never produce wiki.",
+    "done: the sheet keeps and remembers the thread (ask.jsx:574-580). The linked card's thread id is dropped on the next ask (ask.jsx:445), by design (K4). Continue convo holds it in component memory only (ask.jsx:374). Grading ignores it. The Mothership keeps it per scope (AgentBar.jsx:312).",
+    "error: sheet shows a ✗ alert (ask.jsx:581,784) but appends it to an existing answer (lifecycle-11). Card and reply show it as text. Grading throws (lifecycle-7). The Mothership shows the error with Retry (AgentBar.jsx:327-330). Non-JSON error pages are silent except in the Mothership (lifecycle-2).",
+    "Doc corrections. §6.2 (doc lines 369-384) omits the stage 'Opening <title>...' (learn-research.js:59). '§6.2: A JSON (non-SSE) reply means a validation error' (doc line 384) ignores non-JSON pages. §4.2 row 11 (doc line 215) says the thinking-only nudge happens once, but learn-research.js:35-38 nudges on every thinking-only step within the budget (§4.4 makes no nudge claim). §4.4 'second / command silently dropped' (doc line 299; see lifecycle-6). §4.4 doc line 300 quotes the repository error text for both paths (lifecycle-14). §11.1 Stop leaves the reply spinning (lifecycle-1). §2 omits the side-panel 'Learn Agent' AskPanel (LearnPage.jsx:1291). K16 and §15 'Show on graph is not wired in the dock' (doc line 781) are accurate."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/ask.js askStream; packages/control-plane/src/learn-board.js boardFetch",
+    "packages/web/src/ask.jsx; packages/web/src/learn-grade.js; packages/web/src/learn-board-request.js; packages/web/src/agent/ask-stream.js + bar.js + AgentBar.jsx",
+    "docs/learn-agent-canvas-architecture.md §2, §4.2, §4.4, §6.2, §11.1, §15"
+   ],
+   "smallest_change": "Docs only for this item. Replace §6.2 with the event-by-surface table above (rendered, metadata or unsupported) and apply the listed corrections. Keep the dock graph stored-only; wiring an explicit pill there is a separate product choice. The actionable mismatches are fixed in lifecycle-1, 2, 8, 9, 10 and 11.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "tests_to_add": "Add a source-level unit test next to agent/ask-stream.test.mjs, in the style of learn-research.test.js. It asserts that every event name askStream can send appears in ask-stream.js EVENTS and has a branch in ask.jsx send, so a new producer event cannot ship without a decision about its consumers."
+  },
+  {
+   "id": "lifecycle-16",
+   "title": "Late answers cannot land in another canvas or another sheet thread; two edge cases remain unverified",
+   "status": "not_a_problem",
+   "snapshot_vs_baseline": "At 3bc489e the same per-instance closures applied. The baseline adds keyed mounts for canvases and projects (SharePage.jsx:618,622; RepositoryPage.jsx:83).",
+   "evidence": [
+    "LearnPage remounts per canvas. SharePage.jsx:618 `<RepositoryPage key={app.name} .../>`, :622 `<CanvasPage key={JSON.stringify([app.email, app.org, app.name])} .../>`, RepositoryPage.jsx:83 `<CanvasLearn key={picked.name} .../>`. The dock is keyed `dock:${app.name}` (LearnPage.jsx:1197). Every late handler (exchange, boardContext, canvasApi) is a closure or ref of the unmounted instance, so its writes do nothing.",
+    "packages/web/src/ask.jsx:729,733 disable History and New chat while busy (`disabled={busy}`), and Stop aborts the reader (ask.jsx:890), so no events arrive after a Stop.",
+    "packages/web/src/ask.jsx:576 - rememberSheetThread runs even after unmount, with the captured appName. A sheet answer that finishes after navigating away is therefore listed in that app's History (per-browser key; scoping belongs to C9).",
+    "Edge 1, needs reproduction: the dock renders inside AdaptiveCanvas (AdaptiveCanvas.jsx:2810), which is keyed by canvasEpoch (LearnPage.jsx:1197). The epoch is bumped only when the board pull finds a newer server copy that wins (LearnPage.jsx:509,515-519: never-saved boards return early; otherwise only when this browser has no local copy, or the board is shared and someone else saved it), e.g. opening a fork or a board saved on another device. An ask sent before that pull returns loses its sheet message and sheet thread; the linked card still fills through placeExchange.",
+    "Edge 2, needs reproduction: WhiteboardBlock.jsx:115 `const instance = editor.current;` is captured before a request of up to 3 x 120 s and drawn into at :132. A whiteboard remounted meanwhile is drawn into a disposed editor.",
+    "A linked card whose answer finished after navigation keeps an empty answer: the chat save is debounced 400 ms and its timer is cleared on unmount (LearnPage.jsx:193-195), so the last saved state is 'thinking' or a stage, and its card thread is listed nowhere. The rendering is fixed by lifecycle-1."
+   ],
+   "files_and_callers": [
+    "packages/web/src/SharePage.jsx, RepositoryPage.jsx, CanvasPage.jsx (mount keys)",
+    "packages/web/src/LearnPage.jsx, ask.jsx, AdaptiveCanvas.jsx, WhiteboardBlock.jsx"
+   ],
+   "smallest_change": "No change for cross-canvas safety. Do not abort requests on unmount: that would drop sheet answers that History recovers today.",
+   "change_type": "none",
+   "needs_user_decision": false,
+   "tests_to_add": "e2e: send a sheet question with a held stub, navigate to another canvas, then release the stub. Assert the second canvas gets no new card or sheet message, and the first app's History lists the thread."
+  },
+  {
+   "id": "lifecycle-17",
+   "title": "The artifact repair loop and the whiteboard review loop end in explicit states and match the doc's limits",
+   "status": "not_a_problem",
+   "snapshot_vs_baseline": "learn-artifact.js, learn-board-request.js and the learn-board.js generation code are unchanged since 3bc489e.",
+   "evidence": [
+    "packages/control-plane/src/learn-artifact.js:59-77 allow at most one repair (`if (attempt > 0) return { result: 'validation_error', primitive: id || null, error: error.message };`). Results: clarification (:63), validation_error (:67,:75), paid_proposal (:72), artifact (:73), and unsupported, direct or not_artifact from artifactPlan (:30-36). Failures return 502 {error} (:98), and the client maps each result (learn-slash.js:112-117; 'direct' is never posted because deterministic commands return earlier in runLearnCommand, and would fall to the generic error at :117).",
+    "packages/control-plane/src/learn-artifact.js:51,69,76 - a max_tokens cut is repaired with the same 4000-token budget, whereas the whiteboard raises it (learn-board.js:191-192 'A truncated response cannot be repaired with the same too-small budget'). This is distinct by design; recorded only.",
+    "packages/control-plane/src/learn-board.js:231 plan (1200 tokens). :160-203 one format repair per run, with salvage (:165, up to 8 drop rounds). :238-241 seven draft turns, the last forced. :270-298 at most two reviews and one revision. :149 one non-strict retry on HTTP 400.",
+    "packages/web/src/learn-board-request.js:7 allows at most three requests (initial plus two figure-preview continuations), and :50 turns a stream with no result into an explicit error. The board stream ends only as plan, preview or error (learn-board.js:346-351)."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/learn-artifact.js <- dev-worker.js:163-171 <- learn-slash.js runLearnCommand",
+    "packages/control-plane/src/learn-board.js <- dev-worker.js:172-180 <- learn-board-request.js <- WhiteboardBlock.jsx explain <- AdaptiveCanvas.jsx ChatCard explainOnBoard"
+   ],
+   "smallest_change": "None. Cancellation and deadlines for these loops are covered by lifecycle-4 and lifecycle-5.",
+   "change_type": "none",
+   "needs_user_decision": false
+  },
+  {
+   "id": "lifecycle-18",
+   "title": "What 'no token streaming' means today: every Learn surface gets progress labels, then the whole answer as one chunk",
+   "status": "not_a_problem",
+   "snapshot_vs_baseline": "Same at 3bc489e. Doc §15 is accurate but incomplete.",
+   "evidence": [
+    "packages/control-plane/src/learn-research.js:17-22 - each step calls the model without `stream`, so every step returns a whole JSON reply.",
+    "packages/control-plane/src/ask.js:372-379 - askStream waits for researchAnswer, appends the 'Papers read:' footer, then sends one `chunk`.",
+    "packages/control-plane/src/ask.js:431-452 - token streaming (`stream: true`, one chunk per delta) exists only on the non-research path, which Learn never takes. apiAsk always builds `research` for conversation 'learn' (index.js:976), and repositoryAsk always passes one (repositories.js:239). Subscription mode is non-streaming too (ask.js:282-284; subscription-transport.js:8 `stream: false`).",
+    "Before the chunk the stream carries only progress stages. A no-tool answer such as 'hi' sends none, so the reply shows 'Thinking...' until the full answer arrives. Side events and the store happen after the chunk (ask.js:380-455).",
+    "The consumers already append chunks (ask.jsx:477-482, LearnPage.jsx:426 'streaming', learn-grade.js:38, bar.js:42), so enabling token streaming later would be a producer-only change, except that the footer and side events would need their own ordering."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/ask.js askStream; packages/control-plane/src/learn-research.js",
+    "docs/learn-agent-canvas-architecture.md §15"
+   ],
+   "smallest_change": "No change now. Record in §15 that progress labels are the only incremental output and that a no-tool answer sends none.",
+   "change_type": "record_only",
+   "needs_user_decision": false
+  },
+  {
+   "id": "duplication-11",
+   "title": "SSE framing: two server producers and four browser parsers",
+   "status": "still_present",
+   "evidence": [
+    "Server: ask.js:362 `const send = (event, data) => writer.write(enc.encode(`event: ${event}\\ndata: ${JSON.stringify(data)}\\n\\n`));` (TransformStream) and learn-board.js:346 `const emit = (event, data) => { if (!cancelled) controller.enqueue(...) };` with `cancel() { cancelled = true; },` (:353). Headers differ: ask.js:464 adds Connection: keep-alive.",
+    "Cancellation differs (verifier re-ran cancel.mjs in Node, not workerd): the askStream shape rejects the write after reader cancel; the boardFetch shape drops events silently while generation continues. Whether cancellation reaches model/tool work is C8's reproduction item.",
+    "Browser: ask.jsx:558-562; learn-grade.js:31-35; learn-board-request.js:39-41; agent/ask-stream.js:21-31 `function frames(buffer)` (new since 3bc489e).",
+    "Error policies differ for a non-OK response: agent/ask-stream.js:51 turns non-OK non-JSON into an error event. ask.jsx:541 and learn-grade.js:20 only branch on a JSON content type, so a non-OK non-JSON body is read as a stream and ends silently (gradeAnswer resolves with no verdict). learn-board-request.js:27-28 calls response.json() on any non-SSE response, so a non-JSON error body throws a JSON parse error; its line-50 'The explanation was interrupted. Try again.' applies only to an SSE stream that ends without a plan/preview.",
+    "agent/ask-stream.js is lazy and preview-only (main.jsx:76 `const AgentBar = previewBuild ? lazy(() => import('./agent/AgentBar.jsx')) : null;`); ask.jsx is in the production bundle; api.js is imported by all four consumers."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/ask.js askStream",
+    "packages/control-plane/src/learn-board.js boardFetch",
+    "packages/web/src/ask.jsx send()",
+    "packages/web/src/learn-grade.js gradeAnswer (LearnPage.jsx:569)",
+    "packages/web/src/learn-board-request.js (WhiteboardBlock.jsx:126)",
+    "packages/web/src/agent/ask-stream.js streamAsk",
+    "packages/web/src/api.js"
+   ],
+   "smallest_change": "Browser: move frames(buffer) into api.js and use it in the four consumers, each keeping its event handling and error policy. Server: optionally share a one-line sseFrame(event, data); keep both stream mechanisms (cancellation is C8). Unifying non-OK handling is a C8 behaviour change.",
+   "change_type": "pure_refactor",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "3bc489e had both producers and three parsers; the baseline adds agent/ask-stream.js.",
+   "tests_to_add": "Point agent/ask-stream.test.mjs at the shared export; split-anywhere cases through gradeAnswer and requestBoardExplanation with a chunked ReadableStream stub; learn-board.test.js streamed-stage test stays green."
+  },
+  {
+   "id": "delta-9",
+   "title": "The Mothership Agent Bar is a new, undocumented entry into repositoryAsk, and that handler's prompt and tools describe canvas side effects the bar cannot show",
+   "status": "still_present",
+   "evidence": [
+    "Request: agent/ask-stream.js:10-17 askBody sends {scope:{app:'repo-...'}, message, thread_id, repository_context {commit, nodeId, label} when a Map node is selected}; no model field (AgentBar.jsx:304 calls askBody without model, default 'auto'), unlike the Learn dock which reads Settings (ask.jsx:370); AgentBar.jsx:409 caps the input at 4000.",
+    "Server: dev-worker.js:100-103 -> repositoryAsk, system `${LEARN_SYSTEM}`, REPOSITORY_SYSTEM and VIDEO_SYSTEM joined, plus LEARN_RESEARCH_SYSTEM (repositories.js:237, learn-research.js:18), tools REPOSITORY_TOOLS + find_video_moments + show_video + arXiv (learn-research.js:19 `tools: [...tools, SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, ...(papers.size ? [SHOW_PAPER_TOOL] : [])],`); threads repochat-* in LEARN_DB.",
+    "Rendering (bar.js:39-52 applyEvent): chunk, progress, graph, papers, wiki, video, error and done are folded; papers become source pills (the Learn dock does not render them); video becomes a YouTube link without the verified window (bar.js:47 href has no start); 'paper' and 'outline' fall to default (bar.js:37-38 'outline and paper only act on a mounted canvas'); graph gets Show on graph through the page handler (AgentBar.jsx:331-336, RepositoryPage onGraph).",
+    "The model is still told the learner sees those effects: show_video returns 'The learner now sees it playing. Say what to watch for.' (repositories.js:198); LEARN_RESEARCH_SYSTEM asks for show_paper 'so the learner is looking at it'; LEARN_SYSTEM refers to 'Explain on canvas' (learn-context.js:4-6, :15-16) - none exist on the Map or Overview.",
+    "Specs disagree with the code: docs/features/rabbit-hole-t02-spec.md:373 says repository asks go to 'the code-tool handler, which has no research tools'; agent/slash.js:83-84 says research 'elsewhere ... reaches the live model', although canvas and project asks call the same dev-worker model path.",
+    "Not every bar send is a model call: exact Map fixture prompts are answered locally (AgentBar.jsx:289-295) and help or Rabbit Hole concept questions get built-in answers (agent/router.js:76-78). Stop aborts only the browser read (AgentBar.jsx:407 onStop), as in Learn."
+   ],
+   "files_and_callers": [
+    "packages/web/src/agent/AgentBar.jsx (submit, ask :281-337)",
+    "packages/web/src/agent/ask-stream.js, scope.js, bar.js, slash.js, router.js",
+    "packages/web/src/RepositoryPage.jsx (surface handlers, Context panel :107-118)",
+    "packages/control-plane/src/repositories.js repositoryAsk; learn-research.js; learn-context.js LEARN_SYSTEM",
+    "docs/features/rabbit-hole-t02-spec.md:373; docs/learn-agent-canvas-architecture.md sections 1, 4.4, 6.2, 10"
+   ],
+   "smallest_change": "Docs now: add the bar as an entry point with this event-support matrix (sections 1, 4.4, 6.2 and 10) and correct the T02 line. Behavior (C3/C8) is one of two: render 'paper' as a source pill and keep the video window in the bar's link (client only, bar.js applyEvent), or have repositoryAsk omit show_video/show_paper and their 'learner now sees' notes for bar requests, which needs a request field and is a contract change.",
+   "change_type": "contract_change",
+   "needs_user_decision": true,
+   "decision_question": "For Agent Bar project asks, should the bar render the side-effect events it now drops (paper as a pill, video with its verified window), or should the server stop offering show_video/show_paper and their 'learner now sees' notes on that surface (new request field)?",
+   "snapshot_vs_baseline": "Absent at 3bc489e; the repository page then used an AskPanel ('Graph Agent', 3bc489e RepositoryPage.jsx:48) that rendered the same SSE handling as the Learn chat.",
+   "tests_to_add": "Client option: agent/bar.test.mjs asserting applyEvent('paper') yields a source and applyEvent('video') keeps the start time. Server option: a repositories.test.js prompt/tool assembly test for bar requests without show_video/show_paper."
+  }
+ ]
+}

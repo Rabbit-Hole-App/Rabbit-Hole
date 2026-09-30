@@ -1,0 +1,28 @@
+{
+  "created": "2026-09-24",
+  "method": "built-in image generation",
+  "status": "candidate for visual review",
+  "prompt_file": "observatory-prompts.md",
+  "assets": [
+    {
+      "path": "public/landing/observatory-v1.png",
+      "size": [
+        1672,
+        941
+      ],
+      "mode": "RGB",
+      "bytes": 2165885,
+      "sha256": "e7c23c0af750f5ec1a99192821778b305064781216042b60cba90a8fcdbf8bec"
+    },
+    {
+      "path": "public/landing/observatory-mist-v1.png",
+      "size": [
+        1672,
+        941
+      ],
+      "mode": "RGBA",
+      "bytes": 710343,
+      "sha256": "caaee442cff631714e202448c029218e2dba4640bb6e68ffe51f55b502e480d6"
+    }
+  ]
+}

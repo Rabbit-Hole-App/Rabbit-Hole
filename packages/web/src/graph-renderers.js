@@ -1,7 +1,8 @@
 import { api } from './api.js';
 
 let desmosScript;
-async function loadDesmos(app) {
+// Also called on idle by learn-warmup.js: fetches and parses the SDK once, no calculator.
+export async function loadDesmos(app) {
   if (window.Desmos) return window.Desmos;
   if (!desmosScript) desmosScript = (async () => {
     const { desmosApiKey } = await api(`/api/learn/graph-config?app=${encodeURIComponent(app)}`);

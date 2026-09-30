@@ -12,5 +12,8 @@
   "type": "module",
   "devDependencies": {
     "wrangler": "^4.129.0"
+  },
+  "dependencies": {
+    "jose": "^6.2.12"
   }
 }

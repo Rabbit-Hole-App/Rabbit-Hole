@@ -1,0 +1,12 @@
+{
+  // The small-parallel session's canvas notebook origin: the content-free
+  // JupyterLite site each canvas notebook card opens as its own workspace
+  // (docs/features/canvas-notebook.md). Separate from the Lesson view's
+  // small-learn-notebook-dev, which it never replaces.
+  "name": "small-learn-canvas-notebook-dev-small-parallel",
+  // rabbit-hole Cloudflare account (P0-B Phase 2B, docs/features/rabbit-hole-dev.md).
+  "account_id": "c08d3dbdc53a3afd3cb09a536ac42318",
+  "compatibility_date": "2026-09-16",
+  "workers_dev": true,
+  "assets": { "directory": "../../.small/canvas-notebook-site" }
+}

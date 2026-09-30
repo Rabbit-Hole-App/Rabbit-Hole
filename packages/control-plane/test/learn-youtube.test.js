@@ -133,3 +133,18 @@ test('upstream failures become sentences naming the next step', async () => {
   await assert.rejects(() => searchYouTube('q', { EXA_API_KEY: 'k' }, async () => { throw timeout; }), /did not answer in time/);
   await assert.rejects(() => searchYouTube('q', { EXA_API_KEY: 'k' }, async () => { throw new Error('boom'); }), /Video search is unavailable/);
 });
+
+// duplication-3: the one video-tool runner apiAsk and repositoryAsk share.
+test('videoMomentTools offers the tools only with a provider, shows only found videos once, and passes other names on', async () => {
+  const { videoMomentTools } = await import('../src/learn-youtube.js');
+  assert.deepEqual(videoMomentTools({}, 'o').tools, []);
+  assert.equal(videoMomentTools({}, 'o').system, null);
+  const videos = videoMomentTools({ EXA_API_KEY: 'k' }, 'o', async () => ({ videos: [{ videoId: 'Ilg3gGewQ5U', title: 'A', hasCaptions: false, hasPassages: false }], passages: [] }));
+  assert.deepEqual(videos.tools.map(tool => tool.name), ['find_video_moments', 'show_video']);
+  assert.equal(await videos.run('read_source', {}), undefined);
+  await assert.rejects(videos.run('show_video', { videoId: 'Ilg3gGewQ5U' }));
+  await videos.run('find_video_moments', { query: 'q' });
+  assert.equal((await videos.run('show_video', { videoId: 'Ilg3gGewQ5U' })).window, 'from the start');
+  await assert.rejects(videos.run('show_video', { videoId: 'Ilg3gGewQ5U' }), /One video per answer/);
+  assert.equal(videos.shown().videoId, 'Ilg3gGewQ5U');
+});

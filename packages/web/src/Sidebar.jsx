@@ -1,25 +1,57 @@
-import { useEffect, useState } from 'react';
-import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, LayoutGrid, LayoutPanelLeft, Link, LogOut, Mail, MoreHorizontal, Pencil, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
-import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName } from './api.js';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, Rabbit, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName, workspaceLabel } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
+import { AVAILABILITY, previewConnections } from './connections.js';
 import { isPrivateByoc } from './private-auth.js';
-import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
+import { titleOf } from './agent/catalog.js';
+import { learnPreview, PRODUCT } from './flags.js';
+import { pinnedApps, RAIL_W, readPinned, secClosedInit, togglePin } from './home/pinned.js';
+import { isLearnResource } from './library-filter.js';
+import { pageFor, sectionActive, sectionHref } from './routes.js';
+import FeedbackButton from './FeedbackButton.jsx';
+import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
+import { isInternalPrincipal, personLabel, useShownIdentity } from './session-display.js';
+import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
 // left nav (Account / Workspace sections), right content per tab.
 const THEMES = { System: 'system', Light: 'light', Dark: 'dark' };
+// Dev build only (D2): Rabbit Hole shows a setting when it works and hides it otherwise; no Planned
+// rows or panes. The live markup stays exactly as today.
+const AVAILABILITY_COLOR = { available: 'green', preview: 'yellow', planned: 'grey' };
 // ponytail: nav copied verbatim from the Notion reference (user: "copy the same we
 // will remove later") - most items render an empty pane until we prune/wire them.
-function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initialTab, pendingGrant, onAccessChanged }) {
+function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initialTab, focus: initialFocus, pendingGrant, onAccessChanged, awsAvailable }) {
+  // Shown identity: GET /auth/session's display, never the internal principal (session-display.js).
+  const shown = useShownIdentity(email);
   const [tab, setTab] = useState(initialTab || 'preferences');
+  const [focus, setFocus] = useState(initialFocus || null); // the row open_settings asked for, e.g. google-slides
+  const box = useRef(null);
+  useEffect(() => {
+    if (!learnPreview) return;
+    // Capture phase: while Settings is the top layer, Esc closes it and nothing under it (Start
+    // dialog, bar sheet). A dialog opened inside Settings (Disconnect AWS?) takes Esc first.
+    const esc = (e) => {
+      if (e.key !== 'Escape' || box.current?.querySelector('[role="dialog"]')) return;
+      e.stopPropagation();
+      onClose();
+    };
+    window.addEventListener('keydown', esc, true);
+    return () => window.removeEventListener('keydown', esc, true);
+  }, []);
+  useEffect(() => {
+    if (focus) box.current?.querySelector(`[data-settings-focus="${CSS.escape(focus)}"]`)?.scrollIntoView({ block: 'center' });
+  }, [focus, tab]);
   const [theme, setThemeState] = useState(() => getTheme());
   const [enterNewline, setEnterNewline] = useState(false); // visual only
   const [textDir, setTextDir] = useState(false); // visual only
   const label = Object.keys(THEMES).find((k) => THEMES[k] === theme);
   const NavBtn = ({ id, icon: Icon, children }) => (
     <div
-      onClick={() => setTab(id)}
+      onClick={() => { setTab(id); setFocus(null); }}
       className={cn('flex h-7 cursor-pointer items-center gap-2 rounded-sm px-2 text-sm', tab === id ? 'bg-hover font-medium' : 'hover:bg-hover text-ink-2')}
     >
       <Icon size={15} strokeWidth={1.5} className="shrink-0" />
@@ -42,7 +74,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
     if (tab === 'people' && people === null) api('/api/members').then((d) => setPeople(d.members || [])).catch(() => setPeople([]));
   }, [tab]);
   const activeWs = wsInfo?.workspaces?.find((w) => w.slug === wsInfo.active);
-  const MODEL_LABELS = { auto: 'Auto', 'opus-5': 'Opus 5', 'sonnet-5': 'Sonnet 5', 'haiku-4.5': 'Haiku 4.5' };
+  const MODEL_LABELS = Object.fromEntries(MODEL_CHOICES.map(({ key, label }) => [key, label]));
   const copy = (t) => { navigator.clipboard.writeText(t); toast('Copied'); };
   const CodeCopy = ({ text }) => (
     <span className="flex items-center gap-1">
@@ -50,69 +82,74 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
       <IconBtn aria-label="Copy" onClick={() => copy(text)}><Copy size={13} strokeWidth={1.5} /></IconBtn>
     </span>
   );
-  return (
+  const node = (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={onClose}>
-      <div className="flex h-[calc(100vh-100px)] max-h-[720px] w-[calc(100vw-100px)] max-w-[1150px] overflow-hidden rounded-2xl bg-white text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="w-[260px] shrink-0 overflow-y-auto border-r border-line bg-side py-4 px-3">
+      <div ref={box} {...(learnPreview && { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Settings' })} className={cn('flex h-[calc(100vh-100px)] max-h-[720px] w-[calc(100vw-100px)] max-w-[1150px] overflow-hidden rounded-2xl bg-white text-ink shadow-pop', learnPreview && 'max-md:h-[calc(100dvh-32px)] max-md:w-[calc(100vw-32px)] max-md:flex-col')} onMouseDown={(e) => e.stopPropagation()}>
+        <div className={cn('w-[260px] shrink-0 overflow-y-auto border-r border-line bg-side py-4 px-3', learnPreview && 'max-md:max-h-40 max-md:w-full max-md:border-r-0 max-md:border-b')}>
           <div className="px-2 pb-1 text-xs font-medium text-ink-3">Account</div>
           <div className="flex items-center gap-2 rounded-sm px-2 py-1.5">
-            {email && <Avatar email={email} />}
-            <span className="truncate text-sm" title={email}>{email}</span>
+            {shown.label && <Avatar email={shown.email || shown.label} />}
+            <span className="truncate text-sm" title={shown.label}>{shown.label}</span>
           </div>
           <NavBtn id="preferences" icon={SlidersHorizontal}>Preferences</NavBtn>
           <NavBtn id="notifications" icon={Bell}>Notifications</NavBtn>
-          <NavBtn id="mail" icon={Mail}>Mail & Calendar</NavBtn>
+          {!learnPreview && <NavBtn id="mail" icon={Mail}>Mail & Calendar</NavBtn>}
           <NavLabel>Workspace</NavLabel>
           <NavBtn id="general" icon={Settings}>General</NavBtn>
-          <NavBtn id="people" icon={Users}>People</NavBtn>
-          <NavBtn id="import" icon={Download}>Import</NavBtn>
+          {!learnPreview && <NavBtn id="people" icon={Users}>People</NavBtn>}
+          {!learnPreview && <NavBtn id="import" icon={Download}>Import</NavBtn>}
           <NavLabel>Features</NavLabel>
-          <NavBtn id="ai" icon={Mark}>Small AI</NavBtn>
+          {!learnPreview && <NavBtn id="ai" icon={Mark}>Small AI</NavBtn>}
           <NavBtn id="connections" icon={LayoutGrid}>Connections{pendingGrant && <span role="status" aria-label="AWS access needs attention" className="ml-auto h-2 w-2 shrink-0 rounded-full bg-warn" />}</NavBtn>
-          <NavBtn id="mcp" icon={Share2}>Small MCP</NavBtn>
-          <NavBtn id="pages" icon={Globe}>Public pages</NavBtn>
-          <NavBtn id="emoji" icon={Smile}>Emoji</NavBtn>
+          {!learnPreview && <>
+            <NavBtn id="mcp" icon={Share2}>Small MCP</NavBtn>
+            <NavBtn id="pages" icon={Globe}>Public pages</NavBtn>
+            <NavBtn id="emoji" icon={Smile}>Emoji</NavBtn>
+          </>}
           <NavBtn id="developer" icon={Braces}>Developer</NavBtn>
-          <NavLabel>Admin</NavLabel>
-          <NavBtn id="teamspaces" icon={LayoutPanelLeft}>Teamspaces</NavBtn>
+          <NavLabel>{learnPreview ? 'Sign-in' : 'Admin'}</NavLabel>
+          {!learnPreview && <NavBtn id="teamspaces" icon={LayoutPanelLeft}>Teamspaces</NavBtn>}
           <NavBtn id="security" icon={Shield}>Security</NavBtn>
           <NavBtn id="identity" icon={BadgeCheck}>Identity</NavBtn>
         </div>
         <div className="relative flex-1 overflow-y-auto">
           <IconBtn aria-label="Close" onClick={onClose} className="absolute top-3 right-3"><X size={14} /></IconBtn>
-          <div className="mx-auto max-w-[920px] px-12 py-10">
+          <div className={cn('mx-auto max-w-[920px] px-12 py-10', learnPreview && 'max-md:px-4 max-md:py-6')}>
           {tab === 'preferences' && (
             <>
               <div className="text-2xl font-semibold">Preferences</div>
-              <div className="pt-2 text-base text-ink-2">Choose how you want small to look and behave</div>
+              <div className="pt-2 text-base text-ink-2">{`Choose how you want ${PRODUCT} to look and behave`}</div>
               <Heading>Appearance</Heading>
-              <SettingsRow title="Theme" desc="Choose a theme for small on this device">
+              <SettingsRow title="Theme" desc={`Choose a theme for ${PRODUCT} on this device`}>
                 <Select
                   value={label}
                   options={Object.keys(THEMES)}
                   onChange={(k) => { setThemeState(THEMES[k]); setTheme(THEMES[k]); }}
                 />
               </SettingsRow>
-              <SettingsRow
-                title={<span>High contrast <span className="ml-1 rounded-sm bg-hover px-1.5 py-0.5 text-[11px] text-ink-2">Beta</span></span>}
-                desc="Increase contrast for improved visibility"
-              >
-                <Select value="Use system setting" options={['Use system setting', 'On', 'Off']} onChange={() => {}} />
-              </SettingsRow>
-              <Heading>Input options</Heading>
-              <SettingsRow title="Use Enter to add a new line" desc="Applies to chat, comments, and other input fields. Press Cmd/Ctrl + Enter to send.">
-                <Toggle on={enterNewline} onChange={setEnterNewline} />
-              </SettingsRow>
-              <Heading>Language & time</Heading>
-              <SettingsRow title="Language" desc="Choose the language you want to use small in">
-                <Select value="English (US)" options={['English (US)']} onChange={() => {}} />
-              </SettingsRow>
-              <SettingsRow title="Number format" desc="Choose how numbers and currencies are formatted. Default uses your language setting.">
-                <Select value="Default" options={['Default']} onChange={() => {}} />
-              </SettingsRow>
-              <SettingsRow title="Always show text direction controls" desc="Show the option to change text direction (left to right or right to left) in the editor, regardless of what language you're using">
-                <Toggle on={textDir} onChange={setTextDir} />
-              </SettingsRow>
+              {/* ponytail: these rows are visual only (no-op controls); the preview hides them until they work. */}
+              {!learnPreview && <>
+                <SettingsRow
+                  title={<span>High contrast <span className="ml-1 rounded-sm bg-hover px-1.5 py-0.5 text-[11px] text-ink-2">Beta</span></span>}
+                  desc="Increase contrast for improved visibility"
+                >
+                  <Select value="Use system setting" options={['Use system setting', 'On', 'Off']} onChange={() => {}} />
+                </SettingsRow>
+                <Heading>Input options</Heading>
+                <SettingsRow title="Use Enter to add a new line" desc="Applies to chat, comments, and other input fields. Press Cmd/Ctrl + Enter to send.">
+                  <Toggle on={enterNewline} onChange={setEnterNewline} />
+                </SettingsRow>
+                <Heading>Language & time</Heading>
+                <SettingsRow title="Language" desc={`Choose the language you want to use ${PRODUCT} in`}>
+                  <Select value="English (US)" options={['English (US)']} onChange={() => {}} />
+                </SettingsRow>
+                <SettingsRow title="Number format" desc="Choose how numbers and currencies are formatted. Default uses your language setting.">
+                  <Select value="Default" options={['Default']} onChange={() => {}} />
+                </SettingsRow>
+                <SettingsRow title="Always show text direction controls" desc="Show the option to change text direction (left to right or right to left) in the editor, regardless of what language you're using">
+                  <Toggle on={textDir} onChange={setTextDir} />
+                </SettingsRow>
+              </>}
             </>
           )}
           {tab === 'notifications' && (
@@ -126,11 +163,11 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <SettingsRow title="Weekly email" desc="A summary lands every Monday 08:00 UTC." />
             </>
           )}
-          {tab === 'connections' && (
+          {tab === 'connections' && !learnPreview && (
             <>
               <div className="text-2xl font-semibold">Connections</div>
               <div className="pt-2 text-base text-ink-2">Bring small into the tools your team already uses</div>
-              {(isPrivateByoc || import.meta.env.VITE_BYOC_DEV === 'true') && <>
+              {(isPrivateByoc || awsAvailable) && <>
                 <Heading>AWS</Heading>
                 <AwsConnection workspace={org} apps={apps} onChanged={onReload} onAccessChanged={onAccessChanged} />
               </>}
@@ -142,6 +179,24 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               </SettingsRow>
             </>
           )}
+          {tab === 'connections' && learnPreview && (
+            <>
+              <div className="text-2xl font-semibold">Connections</div>
+              <div className="pt-2 text-base text-ink-2">{`What each connection adds to learning in ${PRODUCT}`}</div>
+              <Heading>Providers</Heading>
+              {previewConnections({ aws: isPrivateByoc || awsAvailable }).map((c) => (
+                <div key={c.id} data-settings-focus={c.id} aria-current={focus === c.id || undefined} className={cn('-mx-2 rounded-md px-2', focus === c.id && 'bg-hover ring-2 ring-accent/35')}>
+                  <SettingsRow
+                    title={<span className="flex items-center gap-2">{c.name}<Pill color={AVAILABILITY_COLOR[c.availability]}>{AVAILABILITY[c.availability]}</Pill></span>}
+                    desc={[c.adds, c.account].filter(Boolean).join(' ')}
+                  >
+                    {c.id === 'github' && <Button variant="soft" size="sm" onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('small:start', { detail: { path: 'repository' } })); }}>Start from a repository</Button>}
+                  </SettingsRow>
+                  {c.id === 'aws' && <AwsConnection workspace={org} apps={apps} onChanged={onReload} onAccessChanged={onAccessChanged} />}
+                </div>
+              ))}
+            </>
+          )}
           {tab === 'general' && (
             <>
               <div className="text-2xl font-semibold">General</div>
@@ -149,13 +204,13 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <Heading>Workspace</Heading>
               <SettingsRow
                 title="Name"
-                desc={activeWs?.kind === 'custom' && activeWs?.role === 'owner'
+                desc={learnPreview ? 'Shown in the sidebar' : activeWs?.kind === 'custom' && activeWs?.role === 'owner'
                   ? 'Shown in the sidebar and breadcrumbs. Edit and save.'
                   : activeWs?.kind === 'custom'
                     ? 'Shown in the sidebar and breadcrumbs. Only the owner can rename it.'
                     : 'Named after your email domain'}
               >
-                {activeWs?.kind === 'custom' && activeWs?.role === 'owner' ? (
+                {!learnPreview && activeWs?.kind === 'custom' && activeWs?.role === 'owner' ? (
                   <form
                     className="flex items-center gap-2"
                     onSubmit={async (e) => {
@@ -177,16 +232,16 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
                     <Button variant="secondary" size="sm" type="submit" disabled={!(wsRename ?? '').trim() || wsRename === activeWs.name}>Save</Button>
                   </form>
                 ) : (
-                  <span className="text-sm text-ink-2">{activeWs ? (activeWs.name || wsName(activeWs.slug)) : '…'}</span>
+                  <span className="text-sm text-ink-2">{activeWs ? workspaceLabel(activeWs.name, activeWs.slug) : '…'}</span>
                 )}
               </SettingsRow>
               <SettingsRow title="Slug" desc="Its id in app URLs">
-                <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{wsInfo?.active || '…'}</code>
+                <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{isInternalPrincipal(wsInfo?.active) ? 'personal' : wsInfo?.active || '…'}</code>
               </SettingsRow>
-              <SettingsRow title="Type" desc="Domain workspaces include everyone with your email domain; custom ones are invite only">
+              {!learnPreview && <SettingsRow title="Type" desc="Domain workspaces include everyone with your email domain; custom ones are invite only">
                 <span className="text-sm text-ink-2">{activeWs?.kind === 'custom' ? 'custom' : 'email domain'}</span>
-              </SettingsRow>
-              {activeWs?.kind === 'custom' && activeWs?.role === 'owner' && (
+              </SettingsRow>}
+              {!learnPreview && activeWs?.kind === 'custom' && activeWs?.role === 'owner' && (
                 <>
                   <Heading>People</Heading>
                   <SettingsRow title="Add someone" desc="They see this workspace next time they open the workspace menu">
@@ -232,7 +287,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <Heading>Model provider</Heading>
               <AiModelSettings />
               <Heading>Chat</Heading>
-              <SettingsRow title="Default model" desc="New chats start on this model; you can still switch per message">
+              <SettingsRow title="Default model" desc={`New chats start on this model; you can still switch per message. ${MODEL_SCOPE}`}>
                 <Select
                   value={MODEL_LABELS[askModel]}
                   options={Object.values(MODEL_LABELS)}
@@ -262,7 +317,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <SettingsRow title="Start a job" desc="Prompts for its inputs"><CodeCopy text="small run <app>" /></SettingsRow>
               <SettingsRow title="Recent runs" desc="Status, duration, who started them"><CodeCopy text="small runs <app>" /></SettingsRow>
               <SettingsRow title="Logs" desc="Tail what an app printed"><CodeCopy text="small logs <app>" /></SettingsRow>
-              <SettingsRow title="Share" desc="Give a teammate access"><CodeCopy text="small share <email>" /></SettingsRow>
+              {!learnPreview && <SettingsRow title="Share" desc="Give a teammate access"><CodeCopy text="small share <email>" /></SettingsRow>}
               <SettingsRow title="Schedule" desc="Pause or resume a cron"><CodeCopy text="small schedule pause <app>" /></SettingsRow>
               <SettingsRow title="Everything you own" desc="Apps and their URLs"><CodeCopy text="small list" /></SettingsRow>
               <SettingsRow title="Watch" desc="What the nightly pass found"><CodeCopy text="small watch" /></SettingsRow>
@@ -306,10 +361,10 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <div className="text-2xl font-semibold">Identity</div>
               <div className="pt-2 text-base text-ink-2">Who you are here</div>
               <Heading>Account</Heading>
-              <SettingsRow title="Email" desc="Your sign-in identity"><span className="text-sm text-ink-2">{email}</span></SettingsRow>
-              <SettingsRow title="Home workspace" desc={isPrivateByoc ? 'Access is granted by your workspace administrator.' : 'Everyone with this email domain shares it'}>
-                <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{isPrivateByoc ? org : email ? email.split('@')[1] : ''}</code>
-              </SettingsRow>
+              <SettingsRow title="Email" desc="Your sign-in identity"><span className="text-sm text-ink-2">{shown.email || shown.label}</span></SettingsRow>
+              {!learnPreview && <SettingsRow title="Home workspace" desc={isPrivateByoc ? 'Access is granted by your workspace administrator.' : 'Everyone with this email domain shares it'}>
+                <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{isPrivateByoc ? org : shown.email ? shown.email.split('@')[1] : ''}</code>
+              </SettingsRow>}
             </>
           )}
           {TITLES[tab] && (
@@ -323,6 +378,9 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
       </div>
     </div>
   );
+  // Portaled in dev: inside the aside it can't show while the sidebar is collapsed
+  // (Shell.jsx:75 transform) or below md (Shell.jsx:72 max-md:hidden).
+  return learnPreview ? createPortal(node, document.body) : node;
 }
 
 // Settings > Account > AI model: every agent (chat, review, runbook, watch)
@@ -418,9 +476,26 @@ function AiModelSettings() {
   );
 }
 
+// Rabbit Hole dev: the main destinations, in the expanded nav and in the collapsed icon rail.
+// ponytail: Explore (/explore, Home.jsx ExplorePreview) is demo cards that open nothing, so the MVP nav
+// leaves it out; the route stays. Add ['Explore', '/explore', 'explore', Compass] back when it works.
+const NAV = [['Home', '/apps', 'home', House], ['Library', '/library', 'library', Library]];
+const RAIL_BTN = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink';
+// Report a bug or suggest a feature, below Trash (user, 2026-09-29): Learn's FeedbackButton, app-less. The sidebar
+// clips its overflow, so the button is fixed over a footer slot and its panel opens beside the strip, unclipped.
+// The footer is sticky, so the slot stays at the bottom however long the sidebar gets; sticky makes it a stacking
+// context, so it sits at z-30 to keep the panel above the Agent Bar (z-20).
+function FeedbackSlot({ left }) {
+  return <><div className="h-9 shrink-0" aria-hidden="true" /><div className="fixed bottom-2 z-40" style={{ left }}><FeedbackButton placement="right" /></div></>;
+}
+// Rabbit Hole dev: the product mark. The chrome names the product, never a letter from the email domain.
+const ProductMark = () => <span className="grid h-5 w-5 shrink-0 place-items-center rounded-sm bg-ink text-white"><Rabbit size={13} strokeWidth={1.75} /></span>;
+
 // Notion-style sidebar: workspace row, search, folders (drag apps in), recent, members.
-// Resizable by dragging the right edge (200–400px).
-export default function Sidebar({ org, orgName, email, apps, folders, awsError, width = 260, onResize, onReload, onCollapse }) {
+// Resizable by dragging the right edge (200–400px). Rabbit Hole dev: `rail` is the collapsed
+// icon rail (Shell.jsx), and the Apps tree, Shared, Private and New chat are gone.
+export default function Sidebar({ org, orgName, email, apps, folders, awsError, awsAvailable, width = 260, rail = false, onResize, onReload, onCollapse, onExpand }) {
+  const shownId = useShownIdentity(email);
   const [dragging, setDragging] = useState(null);
   const [closed, setClosed] = useState({}); // folder id -> collapsed
   const [newFolder, setNewFolder] = useState(null);
@@ -457,8 +532,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
     if (!name) return;
     try {
       const d = await api('/api/workspaces', { method: 'POST', body: JSON.stringify({ name }) });
-      setWs(d.slug);
-      window.location.assign('/apps'); // land in the fresh workspace
+      if (learnPreview) window.location.assign(`/apps?ws=${encodeURIComponent(d.slug)}`); // applied by the page that loads (routes.js takeWs)
+      else { setWs(d.slug); window.location.assign('/apps'); } // land in the fresh workspace
     } catch (e) { toast(`✗ ${e.message}`); }
   };
   const [newMenu, setNewMenu] = useState(false); // bottom + button popup
@@ -469,11 +544,18 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
     return () => window.removeEventListener('small:search-state', on);
   }, []);
   const [showSettings, setShowSettings] = useState(false);
+  useEffect(() => {
+    if (!learnPreview) return;
+    // T02 §11: the Agent Bar and the Start dialog open Settings on a tab, optionally on one row.
+    const on = (e) => setShowSettings({ tab: e.detail?.tab, focus: e.detail?.focus });
+    window.addEventListener('small:settings', on);
+    return () => window.removeEventListener('small:settings', on);
+  }, []);
   const [grantNotice, setGrantNotice] = useState(null);
   const pendingGrant = grantNotice?.org === org ? grantNotice.pending : null;
   const onAccessChanged = (pending) => setGrantNotice({ org, pending });
   useEffect(() => {
-    if (!isPrivateByoc && import.meta.env.VITE_BYOC_DEV !== 'true') return;
+    if (!isPrivateByoc && !awsAvailable) return;
     let cancelled = false, loading = false;
     const load = async () => {
       if (loading || document.hidden) return;
@@ -491,7 +573,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
     const timer = setInterval(load, 10000);
     window.addEventListener('focus', load);
     return () => { cancelled = true; clearInterval(timer); window.removeEventListener('focus', load); };
-  }, [org]);
+  }, [org, awsAvailable]);
   const [watchObs, setWatchObs] = useState([]);
   const [watchRuns, setWatchRuns] = useState([]); // my settled runs, last 3 days
   const [watchOpen, setWatchOpen] = useState(false);
@@ -520,6 +602,23 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
   const [trash, setTrash] = useState(null); // { trash: [...], email }
   const path = window.location.pathname;
   const section = new URLSearchParams(window.location.search).get('s');
+  const query = window.location.search;
+  const here = learnPreview ? pageFor(path, query, true).page : null; // which nav item you are on
+  // One location state: a resource page is marked by its own row (Pinned), not by Library as well.
+  const current = here;
+  // Before the catalog arrives the workspace is unknown: a named one must not flash Personal first.
+  const wsLabel = learnPreview && !email ? '…' : workspaceLabel(orgName, org);
+  // Pinned (T02 §2): device-local and flat. togglePin announces every change, whoever made
+  // it (this menu or the Agent Bar's pin command), so re-read on that event.
+  const [, setPinTick] = useState(0);
+  useEffect(() => {
+    if (!learnPreview) return;
+    const on = () => setPinTick((n) => n + 1);
+    window.addEventListener('small:pinned', on);
+    return () => window.removeEventListener('small:pinned', on);
+  }, []);
+  const pins = learnPreview && email ? readPinned(localStorage, org, email) : [];
+  const pinned = pinnedApps(pins, apps);
 
   const openTrash = () => {
     setTrashOpen(true);
@@ -603,19 +702,20 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         </form>
       ) : (
       <div
-        draggable={menu && a.hosting !== 'aws' && a.kind !== 'repository'}
-        onDragStart={menu && a.hosting !== 'aws' && a.kind !== 'repository' ? (e) => { setDragging(a.name); e.dataTransfer.setData('text/plain', a.name); e.dataTransfer.effectAllowed = 'move'; } : undefined}
+        draggable={menu && a.hosting !== 'aws' && !isLearnResource(a)}
+        onDragStart={menu && a.hosting !== 'aws' && !isLearnResource(a) ? (e) => { setDragging(a.name); e.dataTransfer.setData('text/plain', a.name); e.dataTransfer.effectAllowed = 'move'; } : undefined}
         onDragEnd={menu ? () => { setDragging(null); setDropTarget(null); } : undefined}
         onClick={() => navigate(`/apps/${a.name}`)}
+        aria-current={path === `/apps/${a.name}` ? 'page' : undefined}
         className={cn(
           'flex h-7 cursor-pointer items-center gap-2 rounded-sm px-2 text-sm hover:bg-hover',
           path === `/apps/${a.name}` && 'bg-active font-medium', // you are here
         )}
       >
         <KindIcon kind={a.kind} schedule={a.schedule} />
-        <span className="min-w-0 flex-1 truncate">{a.kind === 'repository' ? a.repo : a.name}</span>
+        <span className="min-w-0 flex-1 truncate">{titleOf(a)}</span>
         {a.hosting === 'aws' && <span className="text-[10px] text-ink-3">AWS</span>}
-        {((a.members?.length || 0) > 0 || (a.team_count || 0) > 0) && (
+        {!learnPreview && ((a.members?.length || 0) > 0 || (a.team_count || 0) > 0) && (
           <Users size={11} className="shrink-0 text-ink-3" title="shared" />
         )}
         {menu ? (
@@ -635,20 +735,27 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
       {menu && (
         <Menu open={menuFor === a.name} onClose={() => setMenuFor(null)} className="top-8 right-0 w-52">
           <MenuItem icon={ExternalLink} onClick={() => { setMenuFor(null); navigate(`/apps/${a.name}`); }}>Open</MenuItem>
-          <MenuItem disabled={a.kind === 'repository'} title={a.kind === 'repository' ? 'Available to everyone in this workspace' : undefined} icon={Share2} onClick={() => { setMenuFor(null); navigate(`/apps/${a.name}?share=1`); }}>Share</MenuItem>
+          {learnPreview && email && (
+            <MenuItem icon={pins.includes(a.name) ? PinOff : Pin} onClick={() => { setMenuFor(null); togglePin(localStorage, org, email, a.name); }}>
+              {pins.includes(a.name) ? 'Unpin' : 'Pin'}
+            </MenuItem>
+          )}
+          {!learnPreview && <MenuItem disabled={isLearnResource(a)} title={a.kind === 'repository' ? 'Available to everyone in this workspace' : a.kind === 'canvas' ? "Sharing projects and canvases isn't available yet." : undefined} icon={Share2} onClick={() => { setMenuFor(null); navigate(`/apps/${a.name}?share=1`); }}>Share</MenuItem>}
           <MenuItem
             icon={Link}
             onClick={() => { setMenuFor(null); navigator.clipboard.writeText(`${window.location.origin}/apps/${a.name}`); toast('Link copied'); }}
           >
             Copy link
           </MenuItem>
-          {a.canEdit && a.kind !== 'repository' && (
+          {a.canEdit && !isLearnResource(a) && !learnPreview && ( // D7: rename writes the live D1
             <MenuItem icon={Pencil} onClick={() => { setMenuFor(null); setRenamingApp({ from: a.name, value: a.name }); }}>
               Rename
             </MenuItem>
           )}
-          {a.hosting !== 'aws' && a.kind !== 'repository' && <MenuItem
+          {a.hosting !== 'aws' && !isLearnResource(a) && <MenuItem
             icon={Copy}
+            disabled={learnPreview} // D7: duplicate and trash write the live D1
+            className={learnPreview ? 'opacity-50' : undefined}
             onClick={async () => {
               setMenuFor(null);
               try {
@@ -660,8 +767,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           >
             Duplicate
           </MenuItem>}
-          {a.hosting !== 'aws' && a.kind !== 'repository' && a.owner_email === email && (
-            <MenuItem icon={Trash2} className="text-danger" onClick={() => { setMenuFor(null); setConfirmDel(a.name); }}>
+          {a.hosting !== 'aws' && !isLearnResource(a) && a.owner_email === email && (
+            <MenuItem icon={Trash2} disabled={learnPreview} className={cn('text-danger', learnPreview && 'opacity-50')} onClick={() => { setMenuFor(null); setConfirmDel(a.name); }}>
               Move to Trash
             </MenuItem>
           )}
@@ -692,7 +799,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
   };
 
   // sections collapse like folders: v open, > closed, remembered per device
-  const [secClosed, setSecClosed] = useState(() => JSON.parse(localStorage.getItem('small.secClosed') || '{}'));
+  const [secClosed, setSecClosed] = useState(() => secClosedInit(localStorage.getItem('small.secClosed'), learnPreview));
   const toggleSec = (k) => setSecClosed((s) => {
     const next = { ...s, [k]: !s[k] };
     localStorage.setItem('small.secClosed', JSON.stringify(next));
@@ -711,10 +818,10 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             {secClosed[k] ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
           </button>
           <button
-            onClick={() => navigate(s ? `/apps?s=${s}` : '/apps')}
+            onClick={() => navigate(sectionHref(s, learnPreview))}
             className={cn(
               'rounded-sm px-1 py-0.5 text-xs text-ink-2 hover:bg-hover hover:text-ink',
-              path === '/apps' && (section || null) === (s || null) && 'bg-active font-medium text-ink',
+              sectionActive(path, query, s, learnPreview) && 'bg-active font-medium text-ink',
             )}
           >
             {label}
@@ -725,18 +832,26 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
     );
   };
 
+  const badge = (unread.length > 0 || pendingGrant) && (
+    <span role="status" aria-label="Pending notifications" className="pointer-events-none absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warn px-1 text-[10px] font-semibold text-white">
+      {unread.length + (pendingGrant ? 1 : 0)}
+    </span>
+  );
+
   return (
     <aside
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => { e.preventDefault(); setDragging(null); setDropTarget(null); }} // outside a real target = cancel
-      style={{ width }}
-      className="group/sb relative flex shrink-0 flex-col overflow-x-hidden overflow-y-auto border-r border-line bg-side px-2 py-2 max-md:hidden"
+      style={{ width: rail ? RAIL_W : width }}
+      className={cn('group/sb relative flex shrink-0 flex-col overflow-x-hidden overflow-y-auto border-r border-line bg-side px-2 py-2', !learnPreview && 'max-md:hidden')}
     >
+      {!rail && (
       <div
         onMouseDown={startResize}
         title="Drag to resize"
         className="absolute inset-y-0 -right-0.5 z-10 w-1.5 cursor-col-resize hover:bg-line-strong/70"
       />
+      )}
       {confirmDel && (
         <ConfirmDialog
           title={`Move ${confirmDel} to Trash?`}
@@ -770,6 +885,42 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         />
       )}
       <div className="relative shrink-0">
+        {rail ? (
+          <div className="flex flex-col items-center gap-1">
+            <button title={`${PRODUCT} · ${wsLabel}`} aria-label={`${PRODUCT} · ${wsLabel}`} onClick={() => setWsMenu(!wsMenu)} className={cn(RAIL_BTN, wsMenu && 'bg-active')}>
+              <ProductMark />
+              <span className="sr-only">{wsLabel}</span>
+            </button>
+            <button title="Open sidebar" aria-label="Open sidebar" onClick={onExpand} className={RAIL_BTN}>
+              <ChevronsRight size={16} strokeWidth={1.5} />
+            </button>
+            <button title="Search (Ctrl + K)" aria-label="Search" onClick={() => { setWatchOpen(false); window.dispatchEvent(new CustomEvent('small:search')); }} className={cn(RAIL_BTN, searchOpen && 'bg-active text-ink')}>
+              <Search size={16} strokeWidth={1.5} />
+            </button>
+            <div className="relative">
+              <button title="Notifications" aria-label="Notifications" onClick={() => { window.dispatchEvent(new CustomEvent('small:search-close')); setWatchOpen(true); loadWatch(); markRead(); }} className={cn(RAIL_BTN, watchOpen && 'bg-active text-ink')}>
+                <Bell size={16} strokeWidth={1.5} />
+              </button>
+              {badge}
+            </div>
+          </div>
+        ) : learnPreview ? (
+          <>
+            <div className="flex h-9 items-center gap-2 px-2">
+              <ProductMark />
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">{PRODUCT}</span>
+              <ByocDevBadge />
+              <IconBtn title="Close sidebar" onClick={onCollapse} className="opacity-0 group-hover/sb:opacity-100 max-md:opacity-100">
+                <ChevronsLeft size={15} />
+              </IconBtn>
+            </div>
+            {/* the workspace is context, not identity: its own switcher under the brand */}
+            <button onClick={() => setWsMenu(!wsMenu)} title="Switch workspace" className={cn('ml-1 flex h-6 max-w-[calc(100%-8px)] cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', wsMenu && 'bg-active text-ink')}>
+              <span className="truncate">{wsLabel}</span>
+              <ChevronDown size={12} className="shrink-0" />
+            </button>
+          </>
+        ) : (
         <div className="flex h-9 items-center gap-2 px-2">
           <button
             onClick={() => setWsMenu(!wsMenu)}
@@ -780,29 +931,33 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             <ByocDevBadge />
             <ChevronDown size={12} className="shrink-0 text-ink-3 opacity-0 group-hover/sb:opacity-100" />
           </button>
-          <IconBtn title="Close sidebar" onClick={onCollapse} className="opacity-0 group-hover/sb:opacity-100">
+          <IconBtn title="Close sidebar" onClick={onCollapse} className={cn('opacity-0 group-hover/sb:opacity-100', learnPreview && 'max-md:opacity-100')}>
             <ChevronsLeft size={15} />
           </IconBtn>
         </div>
+        )}
         {/* fixed!: the sidebar is a scroll container and clips anything wider than
             itself - pinning to the viewport lets the menu fit the full email */}
-        <Menu open={wsMenu} onClose={() => setWsMenu(false)} className="fixed! top-11 left-3 w-auto! min-w-60 max-w-[340px]">
+        <Menu open={wsMenu} onClose={() => setWsMenu(false)} className={rail ? 'fixed! top-2 left-14 w-auto! min-w-60 max-w-[340px]' : learnPreview ? 'fixed! top-[70px] left-3 w-auto! min-w-60 max-w-[340px]' : 'fixed! top-11 left-3 w-auto! min-w-60 max-w-[340px]'}>
           <div className="flex items-center gap-2 px-2 py-1.5">
-            {email && <Avatar email={email} />}
-            <span className="text-xs whitespace-nowrap text-ink-2">{email}</span>
+            {shownId.label && <Avatar email={shownId.email || shownId.label} />}
+            <span className="text-xs whitespace-nowrap text-ink-2">{shownId.label}</span>
           </div>
           <div className="my-1 border-t border-line" />
-          {/* every workspace the user belongs to; the active one gets the check */}
-          {(wsList || []).map((w) => {
-            const label = w.name || wsName(w.slug);
+          {/* every workspace the user belongs to; the active one gets the check. Solo v1 (preview): only Personal,
+              the person's own workspaces and the active one - not one someone else added them to */}
+          {(wsList || []).filter((w) => !learnPreview || w.kind === 'domain' || w.role === 'owner' || w.slug === wsList.activeSlug).map((w) => {
+            const label = isInternalPrincipal(w.name) ? workspaceLabel(null, w.slug, true) : workspaceLabel(w.name, w.slug);
             const active = w.slug === (wsList?.activeSlug ?? org);
             return (
               <MenuItem
                 key={w.slug}
                 onClick={() => {
                   setWsMenu(false);
-                  setWs(w.kind === 'domain' ? '' : w.slug);
-                  window.location.assign('/apps'); // clean reload, every fetch re-scopes
+                  const slug = w.kind === 'domain' ? '' : w.slug;
+                  // Preview: applied by the page that loads, so Stay at the Agent Bar's draft warning keeps this workspace.
+                  if (learnPreview) window.location.assign(`/apps?ws=${encodeURIComponent(slug)}`);
+                  else { setWs(slug); window.location.assign('/apps'); } // clean reload, every fetch re-scopes
                 }}
               >
                 <span className="flex w-full items-center gap-2">
@@ -815,14 +970,14 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           })}
           <div className="my-1 border-t border-line" />
           <MenuItem icon={Settings} onClick={() => { setWsMenu(false); setShowSettings(true); }}>Settings</MenuItem>
-          <MenuItem className="text-accent hover:text-accent" onClick={() => { setWsMenu(false); setNewWs(''); }}>
+          {!learnPreview && <MenuItem className="text-accent hover:text-accent" onClick={() => { setWsMenu(false); setNewWs(''); }}>
             <span className="flex items-center gap-2 text-accent"><Plus size={16} strokeWidth={1.5} /> New workspace</span>
-          </MenuItem>
+          </MenuItem>}
           <div className="my-1 border-t border-line" />
           <MenuItem icon={LogOut} onClick={() => { window.location.href = '/logout'; }}>Log out</MenuItem>
         </Menu>
       </div>
-      {showSettings && <SettingsDialog email={email} org={org} apps={apps} onReload={onReload} onMarkRead={markRead} onClose={() => setShowSettings(false)} initialTab={typeof showSettings === 'string' ? showSettings : undefined} pendingGrant={pendingGrant} onAccessChanged={onAccessChanged} />}
+      {showSettings && <SettingsDialog email={email} org={org} apps={apps} onReload={onReload} onMarkRead={markRead} onClose={() => setShowSettings(false)} initialTab={typeof showSettings === 'string' ? showSettings : showSettings?.tab} focus={showSettings?.focus} pendingGrant={pendingGrant} onAccessChanged={onAccessChanged} awsAvailable={awsAvailable} />}
       {newApp && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={() => setNewApp(false)}>
           <div className="mt-[22vh] w-[420px] max-w-[90vw] rounded-2xl bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
@@ -863,39 +1018,11 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         </div>
       )}
 
-      {/* icons only - search + notifications share one line, tooltips carry the labels */}
-      <div className="flex items-center gap-1 px-0.5">
-        <button
-          title="Search (Ctrl + K)"
-          aria-label="Search"
-          onClick={() => { setWatchOpen(false); window.dispatchEvent(new CustomEvent('small:search')); }}
-          className={cn('flex h-7 cursor-pointer items-center rounded-full px-1.5 text-sm', searchOpen ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')}
-        >
-          <Search size={16} strokeWidth={1.5} className="shrink-0" />
-          <span className={cn('overflow-hidden whitespace-nowrap transition-[max-width] duration-200 ease-out', searchOpen ? 'max-w-[64px] pl-1.5' : 'max-w-0')}>Search</span>
-        </button>
-        <div className="relative">
-          <button
-            title="Notifications"
-            aria-label="Notifications"
-            onClick={() => { window.dispatchEvent(new CustomEvent('small:search-close')); setWatchOpen(true); loadWatch(); markRead(); }}
-            className={cn('flex h-7 cursor-pointer items-center rounded-full px-1.5 text-sm', watchOpen ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')}
-          >
-            <Bell size={16} strokeWidth={1.5} className="shrink-0" />
-            <span className={cn('overflow-hidden whitespace-nowrap transition-[max-width] duration-200 ease-out', watchOpen ? 'max-w-[110px] pl-1.5' : 'max-w-0')}>Notifications</span>
-          </button>
-          {(unread.length > 0 || pendingGrant) && (
-            <span role="status" aria-label="Pending notifications" className="pointer-events-none absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warn px-1 text-[10px] font-semibold text-white">
-              {unread.length + (pendingGrant ? 1 : 0)}
-            </span>
-          )}
-        </div>
-      </div>
       {watchOpen && (
         <>
           {/* Notion-style inbox: a floating rounded box beside the sidebar, not a full-height panel */}
           <div className="fixed inset-0 z-40" onMouseDown={() => setWatchOpen(false)} />
-          <div style={{ left: width + 12 }} className="fixed top-10 z-50 flex max-h-[75vh] w-[440px] flex-col overflow-hidden rounded-lg bg-white text-ink shadow-pop">
+          <div style={{ left: (rail ? RAIL_W : width) + 12 }} className={cn('fixed top-10 z-50 flex max-h-[75vh] w-[440px] flex-col overflow-hidden rounded-lg bg-white text-ink shadow-pop', learnPreview && 'max-md:right-3 max-md:left-3! max-md:w-auto')}>
             <div className="flex shrink-0 items-center justify-between px-4 pt-3 pb-1">
               <span className="text-sm font-semibold">Notifications</span>
               <IconBtn aria-label="Close" onClick={() => setWatchOpen(false)}><X size={14} /></IconBtn>
@@ -973,6 +1100,74 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         </>
       )}
 
+      {rail ? (
+        <>
+          <nav aria-label="Main" className="flex flex-col items-center gap-1 pt-2">
+            {NAV.map(([label, to, page, Icon]) => (
+              <button key={page} title={label} aria-label={label} aria-current={current === page ? 'page' : undefined} onClick={() => navigate(to)} className={cn(RAIL_BTN, current === page && 'bg-active text-ink')}>
+                <Icon size={16} strokeWidth={1.5} />
+              </button>
+            ))}
+          </nav>
+          <div className="sticky bottom-0 z-30 mt-auto flex shrink-0 flex-col items-center gap-1 border-t border-line bg-side pt-2">
+            <button title="Trash" aria-label="Trash" onClick={openTrash} className={cn(RAIL_BTN, trashOpen && 'bg-active text-ink')}>
+              <Trash2 size={16} strokeWidth={1.5} />
+            </button>
+            <FeedbackSlot left={10} />
+          </div>
+        </>
+      ) : (
+      <>
+      {/* icons only - search + notifications share one line, tooltips carry the labels */}
+      <div className="flex items-center gap-1 px-0.5">
+        <button
+          title="Search (Ctrl + K)"
+          aria-label="Search"
+          onClick={() => { setWatchOpen(false); window.dispatchEvent(new CustomEvent('small:search')); }}
+          className={cn('flex h-7 cursor-pointer items-center rounded-full px-1.5 text-sm', searchOpen ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')}
+        >
+          <Search size={16} strokeWidth={1.5} className="shrink-0" />
+          <span className={cn('overflow-hidden whitespace-nowrap transition-[max-width] duration-200 ease-out', searchOpen ? 'max-w-[64px] pl-1.5' : 'max-w-0')}>Search</span>
+        </button>
+        <div className="relative">
+          <button
+            title="Notifications"
+            aria-label="Notifications"
+            onClick={() => { window.dispatchEvent(new CustomEvent('small:search-close')); setWatchOpen(true); loadWatch(); markRead(); }}
+            className={cn('flex h-7 cursor-pointer items-center rounded-full px-1.5 text-sm', watchOpen ? 'bg-active font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink')}
+          >
+            <Bell size={16} strokeWidth={1.5} className="shrink-0" />
+            <span className={cn('overflow-hidden whitespace-nowrap transition-[max-width] duration-200 ease-out', watchOpen ? 'max-w-[110px] pl-1.5' : 'max-w-0')}>Notifications</span>
+          </button>
+          {badge}
+        </div>
+      </div>
+      {learnPreview && (
+        <nav aria-label="Main" className="pt-2">
+          {NAV.map(([label, to, page, Icon]) => (
+            <button
+              key={page}
+              aria-current={current === page ? 'page' : undefined}
+              onClick={() => navigate(to)}
+              className={cn('flex h-7 w-full cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover', current === page && 'bg-active font-medium')}
+            >
+              <Icon size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
+              {label}
+            </button>
+          ))}
+        </nav>
+      )}
+      {pinned.length > 0 && (
+        <section aria-label="Pinned">
+          <div className="px-2 pt-3 pb-1 text-xs text-ink-2">Pinned</div>
+          {pinned.map((a) => appRow(a))}
+        </section>
+      )}
+      {/* ponytail: the preview has no Apps tree, Shared or Private (Library Filters -> Apps and Mine,
+          and the app Share popover, replace them), so folder create, rename and delete have no preview
+          UI. Folder management moves to the Library's ... actions later; the folder API and data stay. */}
+      {!learnPreview && (
+      <>
       {sectionLabel('Apps', null, (
         <span className="flex items-center gap-0.5">
           <button
@@ -1089,8 +1284,10 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         {!secClosed.private && privateApps.length === 0 && <div className="px-2 pb-1 text-xs text-ink-3">Drag apps here to make them private.</div>}
         {!secClosed.private && privateApps.map((a) => appRow(a))}
       </div>
+      </>
+      )}
 
-      {recent.length > 0 && (
+      {!learnPreview && recent.length > 0 && (
         <>
           <div className="flex items-center pt-3 pb-1 pl-0.5">
             <button
@@ -1106,8 +1303,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         </>
       )}
 
-      <div className="mt-auto shrink-0 pt-3">
-        <button
+      <div className={cn('mt-auto shrink-0 pt-3', learnPreview && 'sticky bottom-0 z-30 border-t border-line bg-side')}>
+        {!learnPreview && <button
           onClick={() => navigate('/members')}
           className={cn(
             'flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover',
@@ -1116,7 +1313,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         >
           <Users size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
           Members
-        </button>
+        </button>}
         <button
           onClick={openTrash}
           className={cn('flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover', trashOpen && 'bg-active font-medium')}
@@ -1124,6 +1321,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           <Trash2 size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
           Trash
         </button>
+        {learnPreview && <FeedbackSlot left={12} />}
+        {!learnPreview && (
         <div className="mt-3 mb-3 flex items-center gap-2">
           <button
             onClick={() => navigate('/chat')}
@@ -1148,7 +1347,10 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             </Menu>
           </div>
         </div>
+        )}
       </div>
+      </>
+      )}
 
       {sharedFolderObj && (
         <SlidePanel title={`Share folder ${sharedFolderObj.name}`} width={400} onClose={() => setShareFolder(null)}>
@@ -1201,7 +1403,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
                   {s.team
                     ? <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-hover ring-1 ring-white"><Users size={12} className="text-ink-2" /></span>
                     : <Avatar email={s.email} />}
-                  <span className="min-w-0 flex-1 truncate">{s.team ? `#${s.team}` : s.email}</span>
+                  <span className="min-w-0 flex-1 truncate">{s.team ? `#${s.team}` : personLabel(s.email)}</span>
                   <select
                     value={s.role}
                     onChange={(e) => shareFolderCall({ email: s.email, team: s.team, role: e.target.value })}

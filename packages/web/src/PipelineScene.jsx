@@ -81,7 +81,7 @@ export default function PipelineScene({ state, run, reduced, selected, onSelect 
                 <select aria-label={`Piece for ${slot.label || slot.id}`} value={state.placed[slot.id] || ''}
                   onChange={event => event.target.value ? run({ type: 'place_item', slot: slot.id, piece: event.target.value }) : run({ type: 'clear_slot', slot: slot.id })}
                   className="h-7 rounded border border-line px-2 text-xs">
-                  <option value="">—</option>
+                  <option value="">Choose</option>
                   {state.pieces.map(piece => <option key={piece.id} value={piece.id}>{piece.label}</option>)}
                 </select>
               </label>

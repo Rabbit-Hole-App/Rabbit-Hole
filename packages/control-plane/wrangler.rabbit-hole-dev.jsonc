@@ -1,0 +1,37 @@
+{
+  // Rabbit Hole DEV control plane (P0-B Phase 2B, docs/features/rabbit-hole-dev.md).
+  // Same code as production small-cp, its own Worker on the rabbit-hole account, dev resources only.
+  // Deploy only with --config wrangler.rabbit-hole-dev.jsonc; wrangler.jsonc is production.
+  "name": "rabbit-hole-cp-dev",
+  "account_id": "c08d3dbdc53a3afd3cb09a536ac42318",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  // No crons: the production ticks start Fly machines, purge logs and send the weekly email.
+  "assets": {
+    "directory": "../web/dist",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": true }],
+  "d1_databases": [
+    // Built with bootstrap.sql + migrations/ (docs/features/rabbit-hole-dev.md).
+    { "binding": "DB", "database_name": "rabbit-hole-dev", "database_id": "1ad18fef-ccf9-4a2c-86c7-dc7e87b268a2", "migrations_dir": "migrations" },
+    { "binding": "LEARN_DB", "database_name": "rabbit-hole-learn-dev", "database_id": "028f800f-ce8e-4461-adb2-827f417492eb" },
+    { "binding": "BYOC_DB", "database_name": "rabbit-hole-byoc-dev", "database_id": "cae839e6-6d58-4037-9e92-d47346356c2f" }
+  ],
+  // No RUNS (Phase 2B): no Fly deploys, so run inputs refuse with 503 and outputs list empty.
+  "r2_buckets": [
+    { "binding": "LEARN_MEDIA", "bucket_name": "rabbit-hole-dev-learn-media" },
+    { "binding": "REPOSITORY_SNAPSHOTS", "bucket_name": "rabbit-hole-dev-repositories" }
+  ],
+  "vars": {
+    // Enables /test/session and the dev login echo, both keyed to this Worker's own secrets.
+    "SMALL_ENV": "dev",
+    "BASE_URL": "https://rabbit-hole-cp-dev.tryrabbithole.workers.dev"
+  }
+  // secrets (dev-only, generated fresh, never production values): MASTER_KEY, TEST_BYPASS_SECRET.
+  // Deliberately absent: FLY_API_TOKEN, FLY_ORG_TOKEN, RESEND_API_KEY and every paid-provider key.
+}

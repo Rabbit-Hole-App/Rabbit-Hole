@@ -315,3 +315,18 @@ test('show_wikipedia asks only for what it can verify', () => {
   assert.deepEqual(SHOW_WIKIPEDIA_TOOL.input_schema.required, ['title']);
   assert.deepEqual(Object.keys(SHOW_WIKIPEDIA_TOOL.input_schema.properties).sort(), ['section', 'title']);
 });
+
+// The "Part of a series on" sidebar, hatnotes and navboxes read as a wall of
+// link text before the article - the model must not read them either.
+test('navigation chrome is stripped before the model reads a section', async () => {
+  const { stripChrome } = await import('../src/learn-wiki.js');
+  const html = '<div class="hatnote navigation-not-searchable">This article is about the smooth approximation.</div>'
+    + '<table class="sidebar nomobile"><tbody><tr><td>Part of a series on <table><tr><td>Machine learning</td></tr></table></td></tr></tbody></table>'
+    + '<p>The <b>softmax function</b> converts a vector into probabilities.</p>'
+    + '<div role="navigation" class="navbox"><div>vte Glossary</div></div>'
+    + '<div class="thumb">kept</div>';
+  const text = stripChrome(html);
+  assert.doesNotMatch(text, /This article is about|Part of a series|Machine learning|vte Glossary/);
+  assert.match(text, /softmax function/);
+  assert.match(text, /kept/);
+});

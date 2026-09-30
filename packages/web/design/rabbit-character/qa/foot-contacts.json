@@ -1,0 +1,86 @@
+{
+  "fps": 13,
+  "display_scale": 0.375,
+  "speed_source_px_s": 1040.0,
+  "current": [
+    {
+      "frame": 1,
+      "x": 377,
+      "y": 477,
+      "support": "left"
+    },
+    {
+      "frame": 2,
+      "x": 305,
+      "y": 477,
+      "support": "left"
+    },
+    {
+      "frame": 3,
+      "x": 225,
+      "y": 477,
+      "support": "left"
+    },
+    {
+      "frame": 5,
+      "x": 379,
+      "y": 477,
+      "support": "right"
+    },
+    {
+      "frame": 6,
+      "x": 311,
+      "y": 477,
+      "support": "right"
+    },
+    {
+      "frame": 7,
+      "x": 211,
+      "y": 477,
+      "support": "right"
+    }
+  ],
+  "previous": [
+    {
+      "frame": 1,
+      "x": 393,
+      "y": 477,
+      "support": "right"
+    },
+    {
+      "frame": 2,
+      "x": 297,
+      "y": 477,
+      "support": "right"
+    },
+    {
+      "frame": 3,
+      "x": 201,
+      "y": 477,
+      "support": "right"
+    },
+    {
+      "frame": 5,
+      "x": 387,
+      "y": 477,
+      "support": "left"
+    },
+    {
+      "frame": 6,
+      "x": 283,
+      "y": 477,
+      "support": "left"
+    },
+    {
+      "frame": 7,
+      "x": 199,
+      "y": 477,
+      "support": "left"
+    }
+  ],
+  "measurement": "Foremost opaque ink in y=476..479 support band, visually checked against each support pose.",
+  "uncertainty_source_px": 4,
+  "current_strip_sha256": "911d73d672b0a285078eeb31eabb81316d92680d1e2d76c73c9cfd002523ac28",
+  "previous_strip_sha256": "7f2d961f409de0937934d9d9a52ecc3ca9b1db29119bc41ce279fc568ec4489d",
+  "approved_guide_speed_source_px_s": 780
+}

@@ -1,0 +1,26 @@
+{
+  "as_of": "2026-09-28",
+  "currency": "USD",
+  "status": "Illustrative assumptions, not actual invoices, customer metrics, or a forecast",
+  "monthly_price": 19,
+  "payment_rate": 0.029,
+  "billing_rate": 0.007,
+  "payment_fixed": 0.30,
+  "refund_reserve_rate": 0.02,
+  "paid_ai_cost": 3.00,
+  "paid_variable_infrastructure": 0.35,
+  "paid_support_allowance": 0.65,
+  "active_free_per_paid": 10,
+  "active_free_unit_cost": 0.25,
+  "fixed_nonpayroll_monthly": 500,
+  "license_placeholder_included_in_fixed": 250,
+  "founder_compensation_monthly": 4000,
+  "upfront_investment": 20000,
+  "initial_paid": 0,
+  "projection_months": 60,
+  "scenarios": [
+    {"name": "slow", "new_paid_per_month": 30, "monthly_churn": 0.08, "cac": 45},
+    {"name": "base", "new_paid_per_month": 80, "monthly_churn": 0.05, "cac": 25},
+    {"name": "strong", "new_paid_per_month": 160, "monthly_churn": 0.03, "cac": 20}
+  ]
+}

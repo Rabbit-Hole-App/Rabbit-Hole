@@ -12,12 +12,28 @@ ROOT = Path(__file__).resolve().parents[1]
 STATE = ROOT / ".small" / "byoc"
 ACCOUNT = "637423432890"
 REGION = "us-east-1"
-BASE = "https://small-cp-dev.zeroshothq.workers.dev"
+BASE = "https://small-cp-dev.tryrabbithole.workers.dev"
+# The dev worker trusts only sessions from the Rabbit Hole dev control plane (docs/features/rabbit-hole-dev.md);
+# the production CLI token never goes to a dev host.
+DEV_CP = "https://rabbit-hole-cp-dev.tryrabbithole.workers.dev"
+
+
+def env_file():
+    return dict(line.split("=", 1) for line in (ROOT / ".env").read_text().splitlines()
+                if "=" in line and not line.lstrip().startswith("#"))
+
+
+def dev_session():
+    email = json.loads((Path.home() / ".small" / "config.json").read_text())["email"]
+    body = json.dumps({"email": email, "secret": env_file()["RABBIT_HOLE_DEV_TEST_BYPASS"].strip()}).encode()
+    request = urllib.request.Request(DEV_CP + "/test/session", data=body, headers={
+        "Content-Type": "application/json", "User-Agent": "small-byoc-proof/1"})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        return json.load(response)["session"]
 
 
 def session():
-    cfg = dict(line.split("=", 1) for line in (ROOT / ".env").read_text().splitlines()
-               if "=" in line and not line.lstrip().startswith("#"))
+    cfg = env_file()
     aws = boto3.Session(aws_access_key_id=cfg["AWS_ACCESS_KEY_ID"].strip(),
                         aws_secret_access_key=cfg["AWS_SECRET_ACCESS_KEY"].strip(), region_name=REGION)
     if aws.client("sts").get_caller_identity()["Account"] != ACCOUNT:
@@ -26,8 +42,7 @@ def session():
 
 
 def small(path, body=None):
-    config = json.loads((Path.home() / ".small" / "config.json").read_text())
-    request = urllib.request.Request(BASE + path, headers={"Authorization": "Bearer " + config["token"],
+    request = urllib.request.Request(BASE + path, headers={"Cookie": "small_session=" + dev_session(),
         "Content-Type": "application/json", "User-Agent": "small-byoc-proof/1"}, data=json.dumps(body).encode() if body is not None else None)
     try:
         with urllib.request.urlopen(request, timeout=60) as response:

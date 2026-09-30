@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Calendar, ChevronDown, ChevronRight, Circle, Clock, Eye, EyeOff, Folder as FolderIcon, Inbox, Link as LinkIcon, ListFilter, Loader2, Lock, PanelRight, Play, Search, Settings2, Square, Type, Users, X } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Calendar, ChevronDown, ChevronRight, Circle, Clock, Eye, EyeOff, Folder as FolderIcon, Inbox, Link as LinkIcon, ListFilter, Loader2, Lock, MoreHorizontal, PanelRight, Play, Search, Settings2, Square, Type, Users, X } from 'lucide-react';
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
-import RepositoryImport from './RepositoryImport.jsx';
 import Shell from './Shell.jsx';
+import { aiFindAllowed } from './flags.js';
 import { isPrivateByoc } from './private-auth.js';
-import { Avatar, Chk, cn, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, toast, useHeaderDrag, ValuePicker } from './ui.jsx';
+import { titleOf } from './agent/catalog.js';
+import { learnPreview } from './flags.js';
+import { onAnotherDevice } from './home/continue.js';
+import { chipHref, isMine, libraryQuery, ofType } from './library-filter.js';
+import LibraryViews, { ActiveFilters, LibraryFilters } from './LibraryViews.jsx';
+import { fixturesOn, useFixtures } from './home/review-fixtures.js';
+import { Avatar, Button, Chk, cn, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, toast, useHeaderDrag, ValuePicker } from './ui.jsx';
 
 const people = (a) => [a.owner_email, ...(a.members || []).map((m) => m.email).filter((e) => e !== a.owner_email)];
 
@@ -13,7 +19,10 @@ const td = 'h-8 border-b border-line px-2 text-sm whitespace-nowrap';
 const th = 'h-8 border-b border-line px-2 text-left text-xs font-normal text-ink-2';
 
 // Notion-lite database controls: column order/visibility, one sort, one filter.
-const COLS = { name: 'Name', kind: 'Type', access: 'Access', people: 'People', watch: 'Watch', deployed: 'Deployed', lastrun: 'Last run' };
+// Rabbit Hole v1 is solo: the preview has no People (owner and members) column.
+// Solo v1: a private app reads private on the preview; only shared hints at sharing with people.
+const PRIVATE_ACCESS = learnPreview ? 'private' : 'only shared';
+const COLS = { name: 'Name', kind: 'Type', access: 'Access', ...(!learnPreview && { people: 'People' }), watch: 'Watch', deployed: 'Deployed', lastrun: 'Last run' };
 const DEFAULT_ORDER = Object.keys(COLS);
 const COL_ICON = { name: Type, kind: Circle, access: Lock, people: Users, watch: Eye, deployed: Calendar, lastrun: Clock };
 const COL_INFO = {
@@ -37,19 +46,26 @@ const sortVal = (a, key) =>
 // enumerable columns get an equals-filter; free-text ones don't
 const FILTERS = {
   kind: (a) => a.kind,
-  access: (a) => (a.visibility === 'private' ? 'only shared' : 'anyone in org'),
+  access: (a) => (a.visibility === 'private' ? PRIVATE_ACCESS : 'anyone in org'),
   watch: (a) => (a.watch_count > 0 ? 'has findings' : 'none'),
 };
+
+// Library chips (T02 §4, preview only): a pressed chip is the current filter. Notion's
+// filter chip: 28px, 4px radius, no border; the pressed one sits on the active surface.
+// The Start dialog lives once in main.jsx Root; the Library only asks for it.
+const startRabbitHole = () => window.dispatchEvent(new CustomEvent('small:start', { detail: { path: 'repository' } }));
 
 export default function App() {
   return <Shell>{(data, load) => <AppContent data={data} load={load} />}</Shell>;
 }
 
 function AppContent({ data, load }) {
-  const [importOpen, setImportOpen] = useState(false);
   const [panel, setPanel] = useState(null); // { name, tab }
   const [run, setRun] = useState(null); // { appName, id?, error? }
   const [search, setSearch] = useState(null); // null = collapsed, string = open
+  const [rowMenu, setRowMenu] = useState(null); // { name, top, left }: a canvas row's ⋯ menu, portaled out of the scrolling table
+  const [confirmArchive, setConfirmArchive] = useState(null); // the canvas row awaiting confirmation
+  const [archivedList, setArchivedList] = useState(null); // null loading | rows | { error }
 
   // RUN opens the peek on its Run tab (the [inputs] form); the form's own Run
   // button starts the run and flips the peek to Logs.
@@ -99,7 +115,10 @@ function AppContent({ data, load }) {
   );
   const colMatch = (k) => COLS[k].toLowerCase().includes(menuQ.toLowerCase());
   const order = [...cols.order.filter((k) => DEFAULT_ORDER.includes(k)), ...DEFAULT_ORDER.filter((k) => !cols.order.includes(k))];
-  const visibleCols = order.filter((k) => !cols.hidden[k]);
+  const { type, archived, section } = libraryQuery(window.location.search, learnPreview);
+  const hidden = cols.hidden;
+  const setHidden = (k, v) => saveCols({ ...cols, hidden: { ...cols.hidden, [k]: v } });
+  const visibleCols = order.filter((k) => !hidden[k]);
   const moveCol = (from, to, after = false) => {
     if (from === to) return;
     const next = order.filter((k) => k !== from);
@@ -114,17 +133,36 @@ function AppContent({ data, load }) {
   // ?s=shared / ?s=private - the sidebar section labels filter this overview;
   // ?f=<folder> - the breadcrumb's folder crumb shows just that folder's apps
   const params = new URLSearchParams(window.location.search);
-  const section = params.get('s');
   const folder = params.get('f') ? (data?.folders || []).find((x) => x.name === params.get('f')) : null;
-  const title = folder ? folder.name : section === 'shared' ? 'Shared' : section === 'private' ? 'Private' : 'Apps';
-  const sectionApps = folder
+  // The preview heading uses the scope chip's own name, so one filter never has two names (T02 §4).
+  const title = folder ? folder.name : learnPreview ? 'Library' : section === 'shared' ? 'Shared' : section === 'private' ? 'Private' : learnPreview ? 'Library' : 'Apps';
+  const sectionApps = ofType(folder
     ? apps.filter((a) => a.folder_id === folder.id)
-    : section ? apps.filter((a) => sectionOf(a, org, data?.email) === section) : apps;
+    : section ? apps.filter((a) => (learnPreview ? isMine(a, data?.email) : sectionOf(a, org, data?.email) === section)) : apps, type);
+  // Review fixtures (preview only, ?fixtures=1): made-up cards mixed into the unfiltered card views.
+  const fixtures = learnPreview && fixturesOn(localStorage, window.location.search, learnPreview);
+  const fx = useFixtures(fixtures);
+  const withFixtures = fx && !section && !folder ? [...sectionApps, ...ofType(fx.FIXTURES.map((a) => ({ ...a, org })), type)] : sectionApps;
+  // T02 §4, §8.4: archived canvases come from LEARN_DB (GET /api/canvases?archived=1), never /api/apps.
+  useEffect(() => {
+    if (!archived) return;
+    setArchivedList(null);
+    api('/api/canvases?archived=1').then((d) => setArchivedList(d.canvases)).catch((e) => setArchivedList({ error: e.message }));
+  }, [archived]);
+  // Archive never deletes local content; Restore brings the canvas back.
+  const archive = async () => {
+    const c = confirmArchive;
+    setConfirmArchive(null);
+    try { await api(`/api/apps/${c.name}/archive`, { method: 'POST' }); toast(`Archived ${titleOf(c)}`); load(); } catch (e) { toast(`✗ ${e.message}`); }
+  };
+  const restore = async (c) => {
+    try { await api(`/api/apps/${c.name}/restore`, { method: 'POST' }); toast(`Restored ${titleOf(c)}`); setArchivedList((l) => l.filter((x) => x.name !== c.name)); load(); } catch (e) { toast(`✗ ${e.message}`); }
+  };
   // the inline search is agent-backed too: sentence queries ask the model, which
   // picks apps by description; short strings stay instant name matching
   const [aiFind, setAiFind] = useState(null); // null | 'loading' | { names, note }
   useEffect(() => {
-    if (!search || search.trim().split(/\s+/).length < 4) { setAiFind(null); return; }
+    if (!search || !aiFindAllowed() || search.trim().split(/\s+/).length < 4) { setAiFind(null); return; }
     setAiFind('loading');
     const t = setTimeout(() => {
       api('/api/apps/find', { method: 'POST', body: JSON.stringify({ q: search }) })
@@ -171,16 +209,37 @@ function AppContent({ data, load }) {
     <>
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-[1150px] px-24 py-12 max-lg:px-8 max-md:px-4 max-md:py-6">
-          <div className="pb-8 text-sm text-ink-2">
+          {!learnPreview && <div className="pb-8 text-sm text-ink-2">
             <button onClick={() => navigate('/apps')} className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink">{data?.orgName || wsName(org)}</button>
             <span className="px-1">/</span> <span className="text-ink">{title}</span>
-          </div>
-          <div className="flex items-center justify-between pb-5"><h1 className="text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{title}</h1>{import.meta.env.VITE_COACHING_DEV === 'true' && !isPrivateByoc && <button onClick={() => setImportOpen(true)} className="rounded-lg bg-accent px-3 py-2 text-sm text-white hover:bg-accent-hover">Import repository</button>}</div>
-          {importOpen && <RepositoryImport onClose={() => setImportOpen(false)} onImported={load} />}
+          </div>}
+          <div className="flex items-center justify-between pb-5"><h1 className="text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{title}</h1>{learnPreview && <div className="flex shrink-0 items-center gap-2"><LibraryFilters type={type} section={section} archived={archived} /><Button variant="primary" onClick={startRabbitHole}>Start a rabbit hole</Button></div>}</div>
+          {learnPreview && <ActiveFilters type={type} section={section} archived={archived} />}
+          {/* The preview sidebar has no Apps section, so an AWS catalog error shows here instead. */}
+          {learnPreview && data?.awsError && <p role="alert" className="pb-4 text-xs text-danger">{data.awsError}</p>}
+          {fixtures && <div role="note" className="mb-4 rounded-md bg-code px-3 py-2 text-xs text-ink-2">Review fixtures are on: made-up cards, mixed in for design review. They open nothing and are stored nowhere. <a className="text-accent hover:underline" href="?fixtures=0">Turn off</a></div>}
+          {archived && (!archivedList ? <SkeletonRows rows={3} />
+            : archivedList.error ? <div className="text-sm text-ink-2">✗ {archivedList.error}</div>
+            : !archivedList.length ? <EmptyState icon={Archive}>No archived canvases.</EmptyState>
+            : (
+              <ul aria-label="Archived canvases">
+                {archivedList.map((c) => (
+                  <li key={c.name} className="group flex h-9 items-center gap-2 rounded-md px-2 text-sm hover:bg-hover">
+                    <KindIcon kind="canvas" />
+                    <span className="min-w-0 flex-1 truncate">{titleOf(c)}</span>
+                    <span className="text-xs text-ink-2">archived {ago(c.archived_at)}</span>
+                    <Button size="sm" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100" onClick={() => restore(c)}><ArchiveRestore size={14} strokeWidth={1.5} /> Restore</Button>
+                  </li>
+                ))}
+              </ul>
+            ))}
 
           {!data && <SkeletonRows rows={4} />}
           {data?.error && <div className="text-ink-2">✗ {data.error}</div>}
-          {data && !data.error && apps.length === 0 && (
+          {data && !data.error && learnPreview && !archived && (type === 'apps' ? sectionApps : withFixtures).length === 0 && (
+            <EmptyState icon={Mark}>Nothing here yet</EmptyState>
+          )}
+          {data && !data.error && !learnPreview && apps.length === 0 && (
             <EmptyState icon={Mark}>
               {isPrivateByoc ? 'No apps yet. Use the private CLI to sign into this installation and deploy a CPU job. '
                 : <>No apps yet - <code className="rounded-sm bg-hover px-1.5 py-0.5 text-xs">small deploy</code> ships the first one.{' '}</>}
@@ -190,7 +249,12 @@ function AppContent({ data, load }) {
             </EmptyState>
           )}
 
-          {apps.length > 0 && (
+          {/* Projects and Canvases are cards, All is sections; only the Apps view is the table. */}
+          {learnPreview && !archived && type !== 'apps' && withFixtures.length > 0 && (
+            <LibraryViews apps={withFixtures} type={type} data={data} runningOf={runningId} onRun={startRun} onArchive={setConfirmArchive}
+              onType={(k) => navigate(chipHref(window.location.search, 'type', k))} />
+          )}
+          {!archived && (learnPreview ? type === 'apps' && sectionApps.length > 0 : apps.length > 0) && (
             <>
               <div className="flex h-8 items-center justify-end gap-1">
                 {/* active filter/sort read back as chips; the buttons open Notion-style menus */}
@@ -250,8 +314,8 @@ function AppContent({ data, load }) {
                     </div>
                     <SubMenu icon={Eye} label="Property visibility" hint={String(visibleCols.length)} open={colSub === 'v:props'} onOpen={() => setColSub('v:props')} width="w-56">
                       {order.map((k) => (
-                        <MenuItem key={k} icon={COL_ICON[k]} onClick={() => k !== 'name' && saveCols({ ...cols, hidden: { ...cols.hidden, [k]: !cols.hidden[k] } })} className={k === 'name' ? 'opacity-50' : ''}>
-                          <span className="flex w-full items-center gap-2"><Chk on={!cols.hidden[k]} /> {COLS[k]}</span>
+                        <MenuItem key={k} icon={COL_ICON[k]} onClick={() => k !== 'name' && setHidden(k, !hidden[k])} className={k === 'name' ? 'opacity-50' : ''}>
+                          <span className="flex w-full items-center gap-2"><Chk on={!hidden[k]} /> {COLS[k]}</span>
                         </MenuItem>
                       ))}
                     </SubMenu>
@@ -339,7 +403,7 @@ function AppContent({ data, load }) {
                             </SubMenu>
                           )}
                           {k !== 'name' && (
-                            <MenuItem icon={EyeOff} onClick={(e) => { e.stopPropagation(); saveCols({ ...cols, hidden: { ...cols.hidden, [k]: true } }); setColMenu(null); }}>Hide column</MenuItem>
+                            <MenuItem icon={EyeOff} onClick={(e) => { e.stopPropagation(); setHidden(k, true); setColMenu(null); }}>Hide column</MenuItem>
                           )}
                         </Menu>
                       </th>
@@ -383,15 +447,16 @@ function AppContent({ data, load }) {
                               className="cursor-pointer"
                               onClick={(e) => { e.stopPropagation(); navigate(`/apps/${a.name}`); }}
                             >
-                              {a.kind === 'repository' ? a.repo : a.name}
+                              {titleOf(a)}
                             </button>
+                            {a.kind === 'canvas' && onAnotherDevice(a, data?.email, localStorage) && <Pill>On another device</Pill>}
                           </span>
                         </td>
                       ),
                       kind: (
                         <td key="kind" className={td}>
                           <span className="flex items-center gap-1.5">
-                            <Pill color={a.kind === 'job' ? 'blue' : 'grey'}>{a.kind}</Pill>
+                            <Pill kind={a.kind}>{learnPreview && a.kind === 'repository' ? 'project' : a.kind}</Pill>
                             {a.schedule && (
                               <Pill
                                 className={a.schedule_paused ? 'opacity-60 line-through' : ''}
@@ -406,7 +471,7 @@ function AppContent({ data, load }) {
                       ),
                       access: (
                         <td key="access" className={`${td} text-ink-2`}>
-                          {a.visibility === 'private' ? 'only shared' : `anyone @${a.org.replace(/-/g, '.')}`}
+                          {a.visibility === 'private' ? PRIVATE_ACCESS : `anyone @${a.org.replace(/-/g, '.')}`}
                         </td>
                       ),
                       people: (
@@ -455,24 +520,28 @@ function AppContent({ data, load }) {
                             <PillButton
                               title="Open in side peek"
                               className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-                              onClick={(e) => { e.stopPropagation(); a.kind === 'repository' ? navigate(`/apps/${a.name}?tab=code`) : setPanel({ name: a.name, tab: 'runbook' }); }}
+                              onClick={(e) => { e.stopPropagation(); a.kind === 'repository' ? navigate(`/apps/${a.name}?tab=code`) : a.kind === 'canvas' ? navigate(`/apps/${a.name}`) : setPanel({ name: a.name, tab: 'runbook' }); }}
                             >
                               <PanelRight size={11} /> Open
                             </PillButton>
                             {a.kind === 'job' ? (
                               live ? (
                                 <PillButton
-                                  disabled={live === 'starting'}
+                                  disabled={learnPreview || live === 'starting'} // D7: the preview never stops a live run
                                   title="Stop this run"
                                   onClick={(e) => { e.stopPropagation(); stopRun(live); }}
                                 >
                                   <Square size={10} fill="currentColor" /> Stop
                                 </PillButton>
                               ) : (
-                                <PillButton title="Run now" onClick={(e) => { e.stopPropagation(); startRun(a); }}>
+                                <PillButton title="Run now" className={learnPreview ? 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100' : undefined} onClick={(e) => { e.stopPropagation(); startRun(a); }}>
                                   <Play size={11} /> Run
                                 </PillButton>
                               )
+                            ) : a.kind === 'canvas' ? (
+                              <IconBtn title="More" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100" onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setRowMenu({ name: a.name, top: r.bottom + 4, left: r.right - 176 }); }}>
+                                <MoreHorizontal size={16} strokeWidth={1.5} />
+                              </IconBtn>
                             ) : (
                               <a
                                 href={a.url}
@@ -514,6 +583,12 @@ function AppContent({ data, load }) {
           onRunStarted={(id) => { setRun({ appName: panelApp.name, id }); setPanel({ name: panelApp.name, tab: 'run' }); }}
           onClose={() => setPanel(null)}
         />
+      )}
+      <Menu portal open={!!rowMenu} onClose={() => setRowMenu(null)} style={{ top: rowMenu?.top, left: rowMenu?.left }} className="w-44">
+        <MenuItem icon={Archive} onClick={() => { setConfirmArchive(apps.find((x) => x.name === rowMenu.name)); setRowMenu(null); }}>Archive…</MenuItem>
+      </Menu>
+      {confirmArchive && (
+        <ConfirmDialog title={`Archive ${titleOf(confirmArchive)}?`} body="It leaves the Library. Its content stays in this browser, and Restore brings it back." confirmLabel="Archive" confirmVariant="primary" onConfirm={archive} onCancel={() => setConfirmArchive(null)} />
       )}
     </>
   );

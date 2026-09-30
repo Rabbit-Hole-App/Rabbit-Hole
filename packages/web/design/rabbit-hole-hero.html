@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rabbit Hole</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/landing/favicon-32-v1.png">
+<link rel="icon" type="image/svg+xml" href="/landing/favicon-v1.svg">
+<link rel="apple-touch-icon" href="/landing/apple-touch-icon-v1.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./rabbit-hole.css">
+</head>
+<body>
+
+<!-- Sized in script to the viewport in device pixels. The low-res wall buffer lives
+     offscreen and is blown up into this one. -->
+<header id="bar">
+  <a class="brand" href="/" aria-label="Rabbit Hole home"><span class="rh-mark" aria-hidden="true"></span>Rabbit Hole</a>
+  <a href="/blog">Blog</a>
+  <a href="/features">Features</a>
+  <a href="/pricing">Pricing</a><a href="/docs">Docs</a>
+  <a class="cta" href="/sign-up">Get started</a>
+  <button id="menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="sheet">
+    <i></i><i></i>
+  </button>
+</header>
+
+<nav id="sheet" aria-label="Sections">
+  <a href="/blog">Blog</a>
+  <a href="/features">Features</a>
+  <a href="/pricing">Pricing</a><a href="/docs">Docs</a>
+</nav>
+
+<div id="shaft-track">
+  <canvas id="shaft" role="img" aria-label="Knowledge is infinite. An animated opening into Rabbit Hole."></canvas>
+</div>
+
+<div id="spacer"></div>
+
+<div id="below">
+  <div id="manifesto-preview" role="region" aria-labelledby="manifesto-preview-title">
+    <!-- Manifesto preview; the full editorial statement lives at /manifesto. -->
+    <div class="manifesto-preview-copy">
+      <p class="manifesto-preview-eyebrow">OUR MANIFESTO</p>
+      <h2 id="manifesto-preview-title">Every answer<br>opens <mark class="manifesto-highlight">another question.</mark></h2>
+      <p class="manifesto-preview-intro">For generations, learning has been designed around a fixed path: one curriculum, one pace, one finish line. AI gives us the chance to build something different: learning that keeps adapting as your understanding grows.</p>
+      <a class="manifesto-read" href="/manifesto">Read our manifesto <span aria-hidden="true">→</span></a>
+    </div>
+    <figure class="manifesto-thinkers" id="manifesto-thinkers">
+      <img src="/landing/thinkers-standing-v3.png" width="1536" height="1024" alt="An imagined black-and-white scene of Socrates and Richard Feynman standing in a centered pair, facing each other as they discuss how to teach, with expressive hand gestures and a faint chalkboard behind them." loading="lazy" decoding="async">
+      <figcaption>Socrates · Richard Feynman<span>An imagined conversation about learning.</span></figcaption>
+    </figure>
+    <div class="manifesto-quotes">
+      <figure>
+        <blockquote cite="https://www.perseus.tufts.edu/hopper/text?doc=plat.+theaet.+155">“<mark class="manifesto-highlight">Wonder</mark> is the only beginning of philosophy.”</blockquote>
+        <figcaption><strong>Socrates</strong><span>In Plato’s <cite>Theaetetus</cite>, 155d.</span><a href="https://www.perseus.tufts.edu/hopper/text?doc=plat.+theaet.+155" aria-label="Source for the Socrates quotation">Source</a></figcaption>
+      </figure>
+      <figure>
+        <blockquote cite="https://magazine.caltech.edu/post/biology-through-the-eyes-of-a-physicist">“What I cannot create, I do not <mark class="manifesto-highlight">understand.</mark>”</blockquote>
+        <figcaption><strong>Richard Feynman</strong><span>Recorded on his Caltech blackboard.</span><a href="https://magazine.caltech.edu/post/biology-through-the-eyes-of-a-physicist" aria-label="Source for the Richard Feynman quotation">Source</a></figcaption>
+      </figure>
+    </div>
+  </div>
+  <section id="adaptive-learning" data-mode="overview" aria-labelledby="adaptive-title">
+    <div class="adaptive-inner">
+      <div class="section-art section-art-depth" data-section-art="depth" aria-hidden="true"><img src="/landing/square-depth-v1.png" width="1254" height="1254" alt="" loading="lazy" decoding="async" draggable="false"></div>
+      <div class="adaptive-heading">
+        <div><p class="adaptive-eyebrow">Learning, at your pace</p><h2 id="adaptive-title">One question.<br>Your way in.</h2></div>
+        <p class="adaptive-intro">Get the intuition. Try it yourself.<br>Then see what makes it work.</p>
+      </div>
+      <div class="adaptive-demo">
+        <div class="adaptive-toolbar">
+          <p class="adaptive-question">How does Softmax turn scores into probabilities?</p>
+          <div class="adaptive-tabs" role="tablist" aria-label="Choose learning depth">
+            <button id="adaptive-overview" type="button" role="tab" aria-selected="true" aria-controls="adaptive-example" data-adaptive-mode="overview"><span aria-hidden="true">01</span>Overview</button>
+            <button id="adaptive-guided" type="button" role="tab" aria-selected="false" aria-controls="adaptive-example" tabindex="-1" data-adaptive-mode="guided"><span aria-hidden="true">02</span>Guided</button>
+            <button id="adaptive-deep" type="button" role="tab" aria-selected="false" aria-controls="adaptive-example" tabindex="-1" data-adaptive-mode="deep"><span aria-hidden="true">03</span>Deep Dive</button>
+          </div>
+        </div>
+        <div id="adaptive-example" class="adaptive-example" role="tabpanel" aria-labelledby="adaptive-overview" tabindex="0">
+          <div class="adaptive-art">
+            <div class="softmax-scene softmax-overview" data-adaptive-scene="overview">
+              <div class="softmax-canvas" data-phase="ready" data-running="false">
+                <div class="softmax-canvas-bar"><span><i aria-hidden="true"></i> Rabbit Hole Canvas</span><span>Softmax / Overview</span></div>
+                <div class="softmax-camera">
+                  <div class="softmax-generating" aria-hidden="true"><span class="softmax-spinner"></span><span>Generating animation</span></div>
+                  <div class="softmax-video-card">
+                    <div class="softmax-video-title">Softmax, explained visually</div>
+                    <div class="softmax-video-frame">
+                      <img src="/landing/softmax-overview-poster-v1.webp" width="1280" height="720" alt="Four cartoon scores become shares of one whole: 64%, 24%, 9% and 3%." loading="lazy" decoding="async">
+                      <video muted playsinline preload="none" width="1920" height="1080" aria-label="Softmax cartoon: four scores become probabilities that sum to one."></video>
+                      <span class="softmax-play" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7Z"/></svg></span>
+                      <span class="softmax-click-ring" aria-hidden="true"></span>
+                      <svg class="softmax-demo-cursor" viewBox="0 0 32 40" aria-hidden="true"><path d="M3 2v29l8-7 6 13 6-3-6-12h12Z" fill="white" stroke="#20211f" stroke-width="2.5" stroke-linejoin="round"/></svg>
+                    </div>
+                    <div class="softmax-playback" role="group" aria-label="Animation playback">
+                      <button class="softmax-watch" type="button" aria-label="Play explanation" disabled>
+                        <svg class="softmax-icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7Z" fill="currentColor"/></svg>
+                        <svg class="softmax-icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm6 0h4v14h-4z" fill="currentColor"/></svg>
+                      </button>
+                      <input class="softmax-timeline" type="range" min="0" max="25" step="0.1" value="0" aria-label="Seek animation" disabled>
+                      <span class="softmax-time" aria-hidden="true">0:00 / 0:25</span>
+                    </div>
+                  </div>
+                  <div class="softmax-composer" role="img" aria-label="Prompt: /motion explain me softmax function">
+                    <span class="softmax-prompt-line" aria-hidden="true"><span class="softmax-tool-pill">motion<span class="softmax-tool-remove">×</span></span><span class="softmax-prompt">/motion explain me softmax function</span></span>
+                    <span class="softmax-send" aria-hidden="true">↑<svg class="softmax-send-cursor" viewBox="0 0 32 40"><path d="M3 2v29l8-7 6 13 6-3-6-12h12Z" fill="white" stroke="#20211f" stroke-width="2.5" stroke-linejoin="round"/></svg></span>
+                  </div>
+                </div>
+              </div>
+              <span class="adaptive-art-note" data-softmax-status></span>
+            </div>
+            <div class="softmax-scene softmax-guided" data-adaptive-scene="guided" hidden inert>
+              <div class="softmax-canvas softmax-workspace" data-phase="ready" data-running="false" data-tool-selected>
+                <div class="softmax-canvas-bar"><span><i aria-hidden="true"></i> Rabbit Hole Canvas</span><span>Softmax / Guided</span></div>
+                <div class="softmax-camera softmax-guided-camera">
+                <div class="softmax-context-card" aria-label="Overview animation, retained as a still reference">
+                  <img src="/landing/softmax-overview-poster-v1.webp" width="1280" height="720" alt="The Overview Softmax animation, shown as a still." loading="lazy" decoding="async">
+                  <div><span>01 / Overview · Animation</span><p>Softmax, explained visually</p></div>
+                </div>
+                <div class="softmax-level-link" aria-hidden="true"><span>02 / Guided · Explore the mechanism</span></div>
+                <div class="softmax-generating" aria-hidden="true"><span class="softmax-spinner"></span><span>Generating explanation</span></div>
+                <div class="softmax-learning-card" data-guided-card>
+                  <div class="softmax-step-heading"><span>02 / Guided</span><span>Softmax probabilities</span></div>
+                  <div class="softmax-graph" role="img" aria-label="Softmax probabilities">
+                    <div class="softmax-graph-axis" aria-hidden="true"><span>100%</span><span>50%</span><span>0%</span></div>
+                    <div class="softmax-graph-plot" aria-hidden="true">
+                      <div><i data-prob-bar="0"></i></div><div><i data-prob-bar="1"></i></div><div><i data-prob-bar="2"></i></div><div><i data-prob-bar="3"></i></div>
+                    </div>
+                  </div>
+                  <div class="softmax-probabilities"><span>A <b data-prob="0">64.4%</b></span><span>B <b data-prob="1">23.7%</b></span><span>C <b data-prob="2">8.7%</b></span><span>D <b data-prob="3">3.2%</b></span></div>
+                  <div class="softmax-slider"><label for="softmax-score">Score A <output for="softmax-score" data-score-output="0">2.00</output></label><input id="softmax-score" data-score-input="0" type="range" min="-2" max="4" step="0.25" value="2" aria-describedby="softmax-slider-hint"></div>
+                  <p class="softmax-slider-hint" id="softmax-slider-hint">Fixed scores: B = 1, C = 0, D = -1.</p>
+                </div>
+                <div class="softmax-composer" role="img" aria-label="Prompt: /explain explain me softmax function">
+                  <span class="softmax-prompt-line" aria-hidden="true"><span class="softmax-tool-pill">explain<span class="softmax-tool-remove">×</span></span><span class="softmax-prompt">explain me softmax function</span></span><span class="softmax-send" aria-hidden="true">↑<svg class="softmax-send-cursor" viewBox="0 0 32 40"><path d="M3 2v29l8-7 6 13 6-3-6-12h12Z" fill="white" stroke="#20211f" stroke-width="2.5" stroke-linejoin="round"/></svg></span>
+                </div>
+                <svg class="softmax-slider-cursor" viewBox="0 0 32 40" aria-hidden="true"><path d="M3 2v29l8-7 6 13 6-3-6-12h12Z" fill="white" stroke="#20211f" stroke-width="2.5" stroke-linejoin="round"/></svg>
+                </div>
+              </div>
+              <fieldset class="softmax-quiz" data-guided-quiz>
+                <legend>Try it yourself</legend>
+                <p>If all four scores are equal, what probability does each get?</p>
+                <div class="softmax-quiz-options">
+                  <label><input type="radio" name="softmax-quiz" value="25"><span>25%</span></label>
+                  <label><input type="radio" name="softmax-quiz" value="50"><span>50%</span></label>
+                  <label><input type="radio" name="softmax-quiz" value="100"><span>100%</span></label>
+                </div>
+                <p class="softmax-quiz-feedback" role="status" aria-live="polite">Imagine all four scores were equal. Choose an answer.</p>
+              </fieldset>
+              <span class="adaptive-art-note" data-guided-status>Displayed values are rounded.</span>
+            </div>
+            <div class="softmax-scene softmax-deep" data-adaptive-scene="deep" hidden inert>
+              <div class="softmax-canvas softmax-workspace" data-tool-selected>
+                <div class="softmax-canvas-bar"><span><i aria-hidden="true"></i> Rabbit Hole Canvas</span><span>Softmax / Deep Dive</span></div>
+                <div class="softmax-learning-card">
+              <div class="softmax-step-heading"><span>Under the hood</span><span>Tensor [4] → [4]</span></div>
+              <div class="softmax-equation" role="math" aria-label="p i equals exponential of z i minus m, divided by the sum of exponentials of z j minus m, where m is the maximum score."><span>p<sub>i</sub> =</span><span class="softmax-fraction"><span>exp(z<sub>i</sub> − m)</span><span>Σ<sub>j</sub> exp(z<sub>j</sub> − m)</span></span><small>m = max(z)</small></div>
+              <p class="softmax-vector">scores = <code data-score-vector>[2, 1, 0, −1]</code></p>
+              <div class="softmax-code"><pre>shifted = scores - scores.max()
+weights = shifted.exp()
+probs = weights / weights.sum()
+
+# PyTorch shortcut
+torch.softmax(scores, dim=-1)</pre></div>
+              <p class="softmax-result"><span>probabilities</span><code data-prob-vector>[0.644, 0.237, 0.087, 0.032]</code></p>
+                </div>
+                <div class="softmax-composer" role="img" aria-label="Prompt: /deeper explain me softmax function">
+                  <span class="softmax-prompt-line" aria-hidden="true"><span class="softmax-tool-pill">deeper<span class="softmax-tool-remove">×</span></span><span class="softmax-prompt">explain me softmax function</span></span><span class="softmax-send" aria-hidden="true">↑</span>
+                </div>
+              </div>
+              <span class="adaptive-art-note">For a batch [B, 4], normalize along dim = −1.</span>
+            </div>
+          </div>
+          <div class="adaptive-explanations">
+            <article data-adaptive-copy="overview"><span class="adaptive-step">01 / Overview</span><h3>Build intuition.<br>See the big picture.</h3><p>Overview gives you a visual foundation for a new idea. Animation makes relationships and changes easier to see, so you can build understanding before exploring the mechanics.</p><span class="adaptive-takeaway">Start with a mental picture. Add detail when you’re ready.</span></article>
+            <article data-adaptive-copy="guided" hidden><span class="adaptive-step">02 / Guided</span><h3>Change a score.<br>See the balance shift.</h3><p>Exponentiate each score to make it positive, then divide by their total. Move score A and watch all four probabilities change. The other scores stay fixed, so you can see how they share the same total.</p><span class="adaptive-takeaway">One input changes. The whole distribution responds.</span></article>
+            <article data-adaptive-copy="deep" hidden><span class="adaptive-step">03 / Deep Dive</span><h3>Same idea.<br>Every detail.</h3><p>Subtract the largest score before exponentiating to avoid overflow. The result is unchanged; the calculation is more stable.</p><span class="adaptive-takeaway">Very small probabilities can still underflow. For log-probabilities, use log_softmax directly.</span><a class="adaptive-source" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.functional.softmax.html" target="_blank" rel="noreferrer">PyTorch implementation <span aria-hidden="true">↗</span></a></article>
+          </div>
+        </div>
+        <div class="adaptive-bottom"><span>Illustrative canvas preview</span><span>Same question. Your depth. <span aria-hidden="true">↗</span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <div id="pink-cloud" role="region" aria-labelledby="cloud-title">
+    <img id="cloud-motion" src="/landing/typesafe-pink-cloud-loop.gif" width="1440" height="540" alt="" aria-hidden="true" loading="lazy" decoding="async">
+    <img id="cloud-still" src="/landing/typesafe-pink-cloud-still.png" width="1440" height="540" alt="" aria-hidden="true" loading="lazy" decoding="async" hidden>
+    <div class="cloud-copy">
+      <p class="cloud-eyebrow"><span aria-hidden="true">↳</span> Follow a little further</p>
+      <h2 id="cloud-title" class="cloud-cycle" aria-label="Build to learn. Learn to build."><span>Build</span><svg viewBox="0 0 180 88" fill="none" aria-hidden="true" focusable="false"><path d="M8 22H170M152 4L170 22L152 40"/><path d="M172 66H10M28 48L10 66L28 84"/></svg><span>Learn</span></h2>
+      <p class="cloud-intro">Follow an idea. Connect the pieces.<br>Make the understanding your own.</p>
+      <a class="cloud-link" href="#observatory">Meet Rabbit Hole <span aria-hidden="true">↓</span></a>
+    </div>
+    <div class="cloud-margins" aria-hidden="true"><span>01 · Stay curious</span><span>There is always another way in. ↗</span></div>
+  </div>
+
+  <section id="observatory" data-playing="false" aria-labelledby="overview-title">
+    <div class="overview-stage">
+      <img class="observatory-scene" src="/landing/observatory-v1.png" width="1672" height="941" alt="A moonlit observatory on a blue mountain summit, with a pink moon above distant peaks and a winding path to its warm doorway" loading="lazy" decoding="async">
+      <div class="observatory-stars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      <img class="observatory-mist" src="/landing/observatory-mist-v1.png" width="1672" height="941" alt="" aria-hidden="true" loading="lazy" decoding="async">
+      <div class="overview-heading">
+        <p class="overview-eyebrow">A little orientation</p>
+        <h2 id="overview-title">What is Rabbit Hole?</h2>
+        <p>An adaptive learning workspace.<br class="overview-phone-break"> Your sources, your questions, your way in.</p>
+      </div>
+      <div class="overview-window" aria-label="Illustrative Rabbit Hole product overview">
+        <div class="overview-titlebar"><span class="overview-traffic" aria-hidden="true"><i></i><i></i><i></i></span><span><span class="rh-mark" aria-hidden="true"></span>Rabbit Hole</span><span class="overview-preview-label">Illustrative preview</span></div>
+        <div class="overview-tabs" role="tablist" aria-label="Explore Rabbit Hole"></div>
+        <div class="overview-screens"></div>
+        <div class="overview-window-bottom"><span class="overview-status">Your curiosity, connected.</span><span class="overview-count" aria-hidden="true">01 / 05</span></div>
+      </div>
+      <a class="overview-details" href="/features">Explore all features <span aria-hidden="true">↗</span></a>
+      <noscript><p class="overview-no-script">Learn from your sources, ask follow-up questions, explore a visual canvas, practice and return to saved learning. <a href="/features">Explore the features.</a></p></noscript>
+    </div>
+  </section>
+
+  <section id="who-is-it-for" aria-labelledby="audience-heading">
+    <div class="audience-stage">
+      <div class="section-art section-art-paths" data-section-art="paths" aria-hidden="true"><img src="/landing/square-paths-v1.png" width="1254" height="1254" alt="" loading="lazy" decoding="async" draggable="false"></div>
+      <div class="audience-topline"><h2 id="audience-heading" class="audience-eyebrow">Who is it for?</h2><span class="audience-count" aria-hidden="true">01 <span>/ 06</span></span></div>
+      <div class="audience-slides" id="audience-stories" role="region" aria-roledescription="carousel" aria-label="Who Rabbit Hole is for"></div>
+      <div class="audience-progress" aria-hidden="true"><span></span></div>
+      <div class="audience-controls">
+        <label class="audience-picker"><span>Choose your audience</span><select aria-label="Choose your audience" aria-controls="audience-stories"></select></label>
+        <p class="audience-scroll-hint">Scroll to follow the next question <span aria-hidden="true">↓</span></p>
+        <div class="audience-navigation"><button type="button" data-audience-prev aria-label="Previous audience" aria-controls="audience-stories"><span aria-hidden="true">←</span></button><button type="button" data-audience-next aria-label="Next audience" aria-controls="audience-stories"><span class="audience-next-label">AI / ML engineers</span><span aria-hidden="true">→</span></button></div>
+      </div>
+      <p class="audience-announcement" role="status" aria-live="polite" aria-atomic="true"></p>
+      <noscript><p>For creators and writers, AI/ML engineers, educators, university students, new engineers and interview preparation. Explore the <a href="/features">features</a> to find your starting point.</p></noscript>
+    </div>
+  </section>
+
+</div>
+
+<div id="landing-outro">
+  <section id="faq" aria-labelledby="faq-title">
+    <div class="faq-layout">
+      <div class="faq-intro">
+        <div class="faq-heading">
+          <p class="outro-eyebrow">A little orientation</p>
+          <h2 id="faq-title">Before you dive in.</h2>
+        </div>
+        <div class="faq-aside" aria-hidden="true">
+          <svg class="faq-aperture" viewBox="0 0 240 240" fill="none">
+            <g stroke="currentColor" transform="rotate(-28 120 120)">
+              <ellipse cx="134" cy="112" rx="88" ry="68"/>
+              <ellipse cx="127" cy="117" rx="73" ry="56"/>
+              <ellipse cx="120" cy="122" rx="58" ry="44"/>
+              <ellipse cx="113" cy="127" rx="44" ry="33"/>
+              <ellipse cx="106" cy="132" rx="30" ry="22"/>
+              <ellipse cx="99" cy="137" rx="17" ry="12"/>
+            </g>
+          </svg>
+          <p>Stay curious.</p>
+        </div>
+      </div>
+      <!-- Draft copy for design review; final product wording comes later. -->
+      <div class="faq-list">
+        <details name="rabbit-hole-faq" open>
+          <summary aria-controls="faq-answer-1"><span class="faq-number" aria-hidden="true">01</span><span>What is Rabbit Hole?</span><i class="faq-arrow" aria-hidden="true"></i></summary>
+          <div class="faq-answer" id="faq-answer-1"><p>Rabbit Hole is an adaptive learning platform for following questions, understanding ideas, and going deeper at your own pace.</p></div>
+        </details>
+        <details name="rabbit-hole-faq">
+          <summary aria-controls="faq-answer-2"><span class="faq-number" aria-hidden="true">02</span><span>What does adaptive learning mean?</span><i class="faq-arrow" aria-hidden="true"></i></summary>
+          <div class="faq-answer" id="faq-answer-2"><p>It means the path responds to the learner. Start with what you already understand, spend time on what is unclear, and choose the next step around your goals.</p></div>
+        </details>
+        <details name="rabbit-hole-faq">
+          <summary aria-controls="faq-answer-3"><span class="faq-number" aria-hidden="true">03</span><span>Do I need to know where to start?</span><i class="faq-arrow" aria-hidden="true"></i></summary>
+          <div class="faq-answer" id="faq-answer-3"><p>A question is enough. Pick something you want to understand and begin there. You do not need to map the entire subject before taking the first step.</p></div>
+        </details>
+        <details name="rabbit-hole-faq">
+          <summary aria-controls="faq-answer-4"><span class="faq-number" aria-hidden="true">04</span><span>How deep can I go?</span><i class="faq-arrow" aria-hidden="true"></i></summary>
+          <div class="faq-answer" id="faq-answer-4"><p>Follow the idea as far as it is useful to you. Get an overview, explore an example, or unpack the details behind a concept. The depth follows your curiosity.</p></div>
+        </details>
+        <details name="rabbit-hole-faq">
+          <summary aria-controls="faq-answer-5"><span class="faq-number" aria-hidden="true">05</span><span>How is it different from a chatbot?</span><i class="faq-arrow" aria-hidden="true"></i></summary>
+          <div class="faq-answer" id="faq-answer-5"><p>The focus is the learning journey: connecting questions, explanations, and practice into understanding you can build on. An answer is a starting point for the next question.</p></div>
+        </details>
+        <details name="rabbit-hole-faq">
+          <summary aria-controls="faq-answer-6"><span class="faq-number" aria-hidden="true">06</span><span>Where do I begin?</span><i class="faq-arrow" aria-hidden="true"></i></summary>
+          <div class="faq-answer" id="faq-answer-6"><p>Bring something you are curious about. <a href="/sign-up">Get started</a>, or take a look at <a href="/features">the features</a> first.</p></div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <footer id="site-footer">
+    <div class="footer-scene" id="footer-scene" data-playing="false">
+      <div class="footer-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <canvas id="footer-tunnel" aria-hidden="true"></canvas>
+      <div class="footer-signature">
+        <p class="footer-wordmark">Rabbit Hole</p>
+        <p class="footer-tagline">Knowledge is infinite.</p>
+        <a class="footer-start" href="/sign-up">Start exploring <span aria-hidden="true">↗</span></a>
+      </div>
+      <span class="footer-scene-label" aria-hidden="true">Keep going deeper</span>
+    </div>
+    <div class="footer-bottom">
+      <span class="footer-copyright">Rabbit Hole © 2026</span>
+      <nav aria-label="Footer"><a href="/blog">Blog</a><a href="/features">Features</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/sign-up">Get started <span aria-hidden="true">↗</span></a></nav>
+      <a class="footer-top" href="#">Back to top <span aria-hidden="true">↑</span></a>
+    </div>
+  <div data-footer-links></div>
+  </footer>
+</div>
+
+
+
+<script>
+/* The fall — the page opens looking straight down the shaft.
+   Polar tunnel: depth z = SCALE / radius, so the centre is infinitely far away and
+   goes black on its own. Per-pixel depth, angle and light never change, so they are
+   computed once; each frame only samples the wall at (angle, z + t). Low-res buffer
+   with a pixelated upscale gives the 1-bit dither grain. */
+(function () {
+  // Two surfaces. The wall is computed in a small offscreen buffer — that low resolution
+  // IS the dither grain, and cost is quadratic in it. The visible canvas is full
+  // resolution: the wall is blown up into it with nearest-neighbour, then the title is
+  // drawn on top at native size. Drawing the type into the small buffer instead made the
+  // glyph edges blocky.
+  const cv = document.getElementById('shaft');
+  const bar = document.getElementById('bar');
+  const track = document.getElementById('shaft-track');
+  const ctx = cv.getContext('2d');
+  const wall = document.createElement('canvas');
+  wall.width = 520; wall.height = 260;
+  const wctx = wall.getContext('2d');
+  const W = wall.width, H = wall.height;
+  const img = wctx.createImageData(W, H);
+
+  const WHITE = [254, 254, 254];         // the page
+  // The inner band is dark, not mid-grey. Difference blending cannot make the title
+  // white over a mid tone — |255 - 168| is still dark — so the letters only go white
+  // where the wall behind them is genuinely dark.
+  const GREY  = [196, 196, 196];         // the ripples: outer band, keeps the title ink
+  const SLATE = [ 72,  72,  72];         // inner band, flips the title to white
+  const INK   = [0, 0, 0];               // the bottom of the hole: pitch black, not charcoal
+
+  const BAYER = [0,8,2,10, 12,4,14,6, 3,11,1,9, 15,7,13,5].map(v => (v + 0.5) / 16);
+  const clamp = v => v < 0 ? 0 : v > 1 ? 1 : v;
+
+  const CX = Math.round(W / 2), CY = Math.round(H * 0.50);   // vanishing point, dead centre
+  const SCALE = 300;                     // shaft radius in buffer px at z = 1
+  const ZFAR = 8;                        // past this the wall is pure ink
+  // per-pixel geometry never changes with time — pay for it once, and again only when
+  // the window aspect changes (otherwise the rings would go oval on resize)
+  const zTab = new Float32Array(W * H);  // depth, drives the texture
+  const uTab = new Float32Array(W * H);  // angle around the shaft
+  const sTab = new Float32Array(W * H);  // how much light gets here
+  const dTab = new Float32Array(W * H);  // texture weight — 0 across the core edge
+  let SQUASH = 1, LIGHT = W / 2;
+
+  // Lookups instead of transcendentals. The inner loop runs W*H times a frame, so a
+  // Math.sin for the rings plus a sin-based hash for the grain is ~600k sin calls per
+  // frame — enough to saturate the main thread and make the whole page feel sticky.
+  // These must be declared before rebuild() runs; it fills gTab.
+  const hash = (a, b) => { const s = Math.sin(a * 91.7 + b * 47.3) * 43758.5453; return s - Math.floor(s); };
+  const RINGS = 8;                       // ring frequency along depth
+  const SIN_N = 2048, SIN_MASK = SIN_N - 1;
+  const SIN = new Float32Array(SIN_N);   // pre-biased into 0..1
+  for (let i = 0; i < SIN_N; i++) SIN[i] = 0.5 + 0.5 * Math.sin(i / SIN_N * Math.PI * 2);
+  const RING_K = RINGS * SIN_N / (Math.PI * 2);
+
+  const GU = 40, GV = 512, GV_MASK = GV - 1;   // grain: 40 bands around, 512 down
+  const GRAIN = new Float32Array(GU * GV);
+  for (let u = 0; u < GU; u++)
+    for (let v = 0; v < GV; v++) GRAIN[u * GV + v] = hash(u, v);
+  const gTab = new Int32Array(W * H);    // per-pixel row offset into GRAIN
+
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  let TYPE = 190;                        // headline size in CSS px, set by rebuild
+  let lastW = 0, lastH = 0;
+
+  function rebuild() {
+    // Phones fire resize every time the URL bar slides, and this function is O(W*H).
+    // Skip when the box has not actually changed.
+    if (cv.clientWidth === lastW && cv.clientHeight === lastH) return;
+    lastW = cv.clientWidth; lastH = cv.clientHeight;
+    // Visible canvas matches the viewport in device pixels, so the type is crisp.
+    cv.width  = Math.round(cv.clientWidth  * DPR);
+    cv.height = Math.round(cv.clientHeight * DPR);
+    // Headline scales with the viewport: "Knowledge is" is ~6.3 ems wide, so this keeps
+    // it inside ~88% of the width at any size instead of running off a phone screen.
+    TYPE = Math.min(190, cv.clientWidth * 0.14);
+    // The buffer is 2:1 but the canvas is stretched to the viewport, so correct dy by
+    // the ratio of the two aspects — that is what keeps the rings circular on screen.
+    SQUASH = (W / H) / (cv.clientWidth / cv.clientHeight);
+    // The ripple disc fits the shorter axis with an 8% margin, so the page stays white
+    // around it and only the ripples carry colour.
+    LIGHT = 0.92 * Math.min(W / 2, (H / 2) * SQUASH);
+    for (let y = 0, p = 0; y < H; y++) {
+      for (let x = 0; x < W; x++, p++) {
+        const dx = x - CX, dy = (y - CY) * SQUASH;
+        const r = Math.max(Math.sqrt(dx * dx + dy * dy), 0.75);
+        zTab[p] = Math.min(SCALE / r, ZFAR);
+        uTab[p] = Math.atan2(dy, dx) / (Math.PI * 2) + 0.5; // 0..1 around the shaft
+        let ui = (uTab[p] * GU) | 0; if (ui >= GU) ui = GU - 1;
+        gTab[p] = ui * GV;
+        // exponent sets how wide the black core starts: lower = tighter core
+        sTab[p] = clamp(Math.pow(r / LIGHT, 1.1));          // 0 at the vanishing point
+        // Texture is faded out across the core boundary. Letting the rings modulate
+        // brightness there makes the edge of the black breathe in and out with t.
+        dTab[p] = clamp((r - 0.255 * LIGHT) / (0.425 * LIGHT));
+      }
+    }
+  }
+  rebuild();
+  addEventListener('resize', rebuild);
+
+  // The bar belongs to the page, not the hero: it arrives once the shaft has let go and
+  // leaves on the way back up. Driven by a scroll listener rather than the render loop,
+  // so it still works when rAF is paused or switched off for reduced motion. A class
+  // toggle keeps it off the scroll path entirely — CSS does the transition.
+  const menu = document.getElementById('menu');
+  const sheet = document.getElementById('sheet');
+
+  function setMenu(open) {
+    sheet.classList.toggle('open', open);
+    menu.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  function bars() {
+    const on = window.scrollY > track.offsetHeight - window.innerHeight + 24;
+    bar.classList.toggle('on', on);
+    if (!on) setMenu(false);           // the sheet never outlives the bar it hangs from
+  }
+  addEventListener('scroll', bars, { passive: true });
+  bars();
+
+  menu.addEventListener('click', () => setMenu(sheet.classList.contains('open') === false));
+  sheet.addEventListener('click', e => { if (e.target.tagName === 'A') setMenu(false); });
+  addEventListener('keydown', e => { if (e.key === 'Escape') setMenu(false); });
+  addEventListener('pointerdown', e => {          // tap anywhere else closes it
+    if (sheet.classList.contains('open') && !sheet.contains(e.target) && !menu.contains(e.target))
+      setMenu(false);
+  }, true);
+
+  function put(i, c) { img.data[i] = c[0]; img.data[i+1] = c[1]; img.data[i+2] = c[2]; img.data[i+3] = 255; }
+
+  // One 32-bit store per pixel instead of four byte stores plus a call. At 288k pixels
+  // a frame the call overhead alone was costing milliseconds.
+  const buf32 = new Uint32Array(img.data.buffer);
+  const pack = c => (255 << 24) | (c[2] << 16) | (c[1] << 8) | c[0];   // little-endian RGBA
+  const C_INK = pack(INK), C_SLATE = pack(SLATE), C_GREY = pack(GREY), C_WHITE = pack(WHITE);
+
+  // `open` shrinks from 1 to 0 as you enter: less light reaches the wall, so the black
+  // core swallows the frame outward until the screen is solid black.
+  // The title is drawn into the buffer, not laid over it in the DOM. That is what puts
+  // the ripple pixels inside the letters: `difference` against the dithered wall means
+  // the glyphs are made of wall pixels, and over the pure-black core it resolves to a
+  // true white rather than the muddy mid-grey a CSS blend gave. It also cannot jiggle,
+  // because the text lives at a fixed point in a canvas the browser pins.
+  const LINES = ['Knowledge is', 'infinite.'];
+  function drawTitle(scale, alpha) {
+    if (!(alpha > 0.004)) return;
+    const px = TYPE * DPR * scale;                         // TYPE CSS px at the mouth
+    ctx.save();
+    ctx.globalCompositeOperation = 'difference';
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '500 ' + px.toFixed(1) + 'px "Space Grotesk", Arial, sans-serif';
+    const lead = px * 0.8, cx = cv.width / 2, cy = cv.height / 2;
+    for (let i = 0; i < LINES.length; i++)
+      ctx.fillText(LINES[i], cx, cy + (i - (LINES.length - 1) / 2) * lead);
+    ctx.restore();
+  }
+
+  function frame(t, open, titleScale, titleAlpha) {
+    const K = open * 1.2;                                  // hoisted out of the inner loop
+    for (let y = 0, p = 0; y < H; y++) {
+      const brow = (y & 3) * 4;
+      for (let x = 0; x < W; x++, p++) {
+        const v = zTab[p] + t;
+        const ring  = SIN[(v * RING_K) & SIN_MASK];        // courses of earth rushing past
+        const grain = GRAIN[gTab[p] + (((v * 7) | 0) & GV_MASK)];
+        const tex = 0.6 * ring + 0.4 * grain;
+        const lum = sTab[p] * K * (0.62 + 0.38 * (0.5 + (tex - 0.5) * dTab[p]));
+        // no clamp: the thresholds below already bucket anything outside 0..1
+        const lit = lum + (BAYER[brow + (x & 3)] - 0.5) * 0.16;
+        buf32[p] = lit < 0.30 ? C_INK : lit < 0.50 ? C_SLATE : lit < 0.74 ? C_GREY : C_WHITE;
+      }
+    }
+    wctx.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = false;                     // keep the grain hard-edged
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.drawImage(wall, 0, 0, cv.width, cv.height);
+    drawTitle(titleScale, titleAlpha);
+  }
+
+  // Depth = a slow clock plus an eased scroll position. Scrolling IS falling, and the
+  // hole lets go before the headline arrives so the type never lands on black.
+  const ENTER = 700;                     // px of scroll from mouth to solid black
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const t0 = performance.now();
+  let sm = window.scrollY;
+  (function tick() {
+    sm += (window.scrollY - sm) * 0.28;                     // eased, but tight to the scroll
+    // Size tracks the scrollbar directly — the mouth should open exactly as far as you
+    // have scrolled, with no lag. Only the wall's motion is eased.
+    const enter = clamp(window.scrollY / ENTER);
+    const open = still ? 1 : Math.pow(1 - enter, 1.6);      // hole widens as you go in
+    // The camera closes on the title: it grows, then slips past us.
+    const near = still ? 1 : 1 / (1 - enter * 0.94);
+    const alpha = still ? 1 : 1 - clamp((enter - 0.22) / 0.28);
+    frame(still ? 0.8 : (performance.now() - t0) * 0.00016 + sm * 0.0022, open, near, alpha);
+    // The title is a fixed object in the shaft: the browser pins it and a scroll-driven
+    // CSS animation grows it. Nothing here touches it — driving position or scale from
+    // rAF lands a frame behind the scroll, which is exactly what makes type jiggle.
+    if (!still) requestAnimationFrame(tick);                // every frame, no chug
+  })();
+
+  // --- self-check: load with ?selftest=1 ---
+  if (location.search.includes('selftest')) {
+    const out = [], at = (x, y) => zTab[Math.round(y) * W + Math.round(x)];
+    const ok = (name, cond) => out.push((cond ? 'PASS ' : 'FAIL ') + name);
+    // Brightness must be luminance, not the red channel: pink and magenta share red
+    // 255, so a red-only diff sees no motion, and a blue mid-tone reads as core.
+    const lumOf = (d, i) => 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    const lumAt = (x, y) => {
+      const d = wctx.getImageData(x, y, 1, 1).data;
+      return lumOf(d, 0);
+    };
+    ok('z falls off with radius', at(CX + 10, CY) > at(CX + 100, CY) && at(CX + 100, CY) > at(CX + 300, CY));
+    ok('z clamps at ZFAR', Math.abs(at(CX, CY) - ZFAR) < 1e-6);
+    ok('angle stays in 0..1', uTab.every(v => v >= 0 && v <= 1));
+    frame(0, 1, 1, 0);
+    ok('core darker than rim', lumAt(CX, CY) < lumAt(2, 2));
+
+    // the mouth must be a circle on screen, not an oval: walk out from the centre
+    // along each axis to where the core ends, and convert both to screen pixels
+    const px = wctx.getImageData(0, 0, W, H).data;
+    const darkAt = (x, y) => lumOf(px, (y * W + x) * 4) < 90;
+    // Walk out to the first RUN of light pixels. Stopping at the first single light
+    // pixel ends the walk early (the dither punches holes through the core); counting
+    // every dark pixel on the ray overcounts the dark rings beyond the core.
+    const RUN = 6;
+    function edge(stepX, stepY, limit) {
+      let light = 0;
+      for (let i = 0; i < limit; i++) {
+        if (darkAt(CX + stepX * i, CY + stepY * i)) light = 0;
+        else if (++light >= RUN) return i - RUN + 1;
+      }
+      return limit;
+    }
+    const rx = edge(1, 0, W - CX - 1), ry = edge(0, 1, H - CY - 1);
+    const sx = cv.clientWidth / W, sy = cv.clientHeight / H;
+    const ratio = (rx * sx) / (ry * sy);
+    ok('mouth is circular, not oval (' + ratio.toFixed(3) + ')', Math.abs(ratio - 1) < 0.08);
+
+    // only the wall moves — measure inside the mouth, not across the static page
+    const bw = Math.min(Math.round(LIGHT), CX);            // LIGHT now reaches the corners
+    const bh = Math.min(Math.round(LIGHT / SQUASH), CY);   // so clamp inside the canvas
+    const box = [CX - bw, CY - bh, bw * 2, bh * 2];
+    const before = wctx.getImageData(box[0], box[1], box[2], box[3]).data.slice();
+    frame(0.5, 1, 1, 0);
+    const after = wctx.getImageData(box[0], box[1], box[2], box[3]).data;
+    let moved = 0;
+    for (let i = 0; i < before.length; i += 4)
+      if (Math.abs(lumOf(before, i) - lumOf(after, i)) > 1) moved++;
+    ok('advancing t redraws the wall', moved > box[2] * box[3] * 0.05);
+
+    // the core must hold still while the rings move through it
+    let coreMoved = 0;
+    const cr = Math.round(0.20 * LIGHT);
+    for (let y = CY - Math.round(cr / SQUASH); y <= CY + Math.round(cr / SQUASH); y++)
+      for (let x = CX - cr; x <= CX + cr; x++) {
+        const i = ((y - box[1]) * box[2] + (x - box[0])) * 4;
+        if (Math.abs(lumOf(before, i) - lumOf(after, i)) > 1) coreMoved++;
+      }
+    // a handful of dithered pixels at the damping boundary is not a beat
+    const coreArea = (2 * cr + 1) * (2 * Math.round(cr / SQUASH) + 1);
+    ok('core holds still, no beating (' + coreMoved + 'px)', coreMoved < coreArea * 0.002);
+
+    // entering all the way takes the whole screen to black
+    frame(0.5, 0, 1, 0);
+    const shut = wctx.getImageData(0, 0, W, H).data;
+    let lightPx = 0;
+    for (let i = 0; i < shut.length; i += 4) if (lumOf(shut, i) > 90) lightPx++;
+    ok('entering closes to solid black', lightPx === 0);
+    const el = document.createElement('pre');
+    el.id = 'selftest';
+    el.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:99;background:#000;' +
+                       'color:#6f6;padding:8px;font:11px/1.4 monospace';
+    el.textContent = out.join('\n');
+    document.body.appendChild(el);
+  }
+})();
+</script>
+
+<script type="module" src="../src/landing/pink-cloud.js"></script>
+<script type="module" src="../src/landing/audiences.js"></script>
+<script type="module" src="../src/landing/adaptive.js"></script>
+<script type="module" src="../src/landing/section-art.js"></script>
+<script type="module" src="../src/landing/observatory.js"></script>
+<script type="module" src="../src/landing/footer.js"></script>
+<script type="module" src="/src/landing/footer-links.js"></script>
+</body>
+</html>

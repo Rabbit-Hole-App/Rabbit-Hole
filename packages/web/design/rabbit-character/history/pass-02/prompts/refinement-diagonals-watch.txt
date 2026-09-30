@@ -1,0 +1,11 @@
+Make a precise accessory-continuity correction to this four-view rabbit sheet. Preserve every rabbit's face, long ears, body, standing pose, clothes, feet, size, grayscale art and transparent background. Preserve all four current view directions and positions. Do not mirror any figure. The four views currently shown are front-right, back-right, back-left, front-left in that order; keep this order and add no labels.
+
+The FIRST and SECOND figures have the correct pocket-watch hand. Leave both entirely unchanged.
+
+The THIRD and FOURTH figures incorrectly have the watch in the left hand. Correct only those two figures so that all four views show the watch in the rabbit's anatomical RIGHT hand:
+
+THIRD FIGURE (back-left view): remove the watch and its bow from the hand on the LEFT side of that figure in the image. That visible near/left hand should now be empty. The watch must instead be held by the farther RIGHT-side-in-image paw, on the other side of the body, with the watch naturally partly obscured beside the farther thigh. Show the case back if visible. It is fine for much of that far-side watch to be hidden by the jacket/leg; never transfer it to the visible near hand merely to expose it.
+
+FOURTH FIGURE (front-left view): remove the watch and its bow from the hand on the RIGHT side of that figure in the image. That near/left hand becomes empty. Place the single watch in the farther paw on the LEFT side of this figure in the image, held by its top bow. It hangs next to that far thigh, partly hidden as needed. The face is toward the front. No duplicate watch or extra hand.
+
+In both corrected views preserve the same round watch case diameter, design and short grip-to-center suspension as in the first two correct figures. Only the hand/side assignment changes. Exactly two hands and one watch per rabbit, no belt connection or new chain. Maintain identical anatomy and coat details. Four full clothed standing rabbit views on transparent background, no text or scenery.

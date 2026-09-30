@@ -1,0 +1,14 @@
+{
+  "script": "i02-patch-check.mjs",
+  "port": "5199",
+  "lines": [
+    "click cell 5: caption, slider readout agree (Patch 6, row 2, col 2)",
+    "steppers: next/previous move the same input",
+    "slider + keyboard: bounds respected, Next disabled at 16, ArrowLeft steps back",
+    "ends are ends: no wrap in either direction",
+    "zero tutor/model calls during local exploration",
+    "ask: payload carries Patch = 11 of 16 (index 10)",
+    "reset + reload: effective state preserved",
+    "PASS - shots: i02-initial / i02-patch-6 / i02-dark"
+  ]
+}

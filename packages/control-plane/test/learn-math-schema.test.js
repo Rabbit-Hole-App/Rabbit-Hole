@@ -16,7 +16,7 @@ test('a four kind animation passes and defaults its quality', () => {
 });
 
 test('LaTeX that reaches outside maths is refused', () => {
-  for (const fragment of ['\\input{/etc/passwd}', '\\write18{id}', '\\def\\x{1}', '\\usepackage{tikz}', 'x $ y', '50% off', '\\csname x\\endcsname']) {
+  for (const fragment of ['\\input{/etc/passwd}', '\\write18{id}', '\\def\\x{1}', '\\usepackage{tikz}', 'x $ y', '50% off', '\\csname x\\endcsname', 'sigma(x) = \frac{1}{2}', 'a\u0007b']) {
     assert.throws(() => safeTex(fragment, 'e'), /unsupported/, `accepted ${fragment}`);
   }
   assert.equal(safeTex('\\frac{\\partial y}{\\partial x} \\leq \\infty', 'e').length > 0, true);
