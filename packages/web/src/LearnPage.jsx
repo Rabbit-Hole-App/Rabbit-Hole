@@ -355,6 +355,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
   // in this browser by design - the tutor never sees them.
   const [imageContext, setImageContext] = useState(null);
   const imageAttached = !imageContext?.blockId || isAttached(sources, `image:${imageContext.blockId}`);
+  // A paper switched off in Files stops reaching the tutor too (uploads are registered as upload:..., arXiv as paper:<id>).
+  const paperAttached = !paperContext?.id || isAttached(sources, String(paperContext.id).startsWith('upload:') ? paperContext.id : `paper:${paperContext.id}`);
   const takeDrop = async files => {
     for (const file of files) {
       const { kind, error } = classifyDrop(file);
@@ -739,7 +741,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
           if (link.hasAttribute('data-source-link')) openPaper(paged); else addPaper(paged);
   };
   const boardContext = {
-    paper: paperContext, clearPaper: () => { setPaperContext(null); setPaperOpen(false); setWikiContext(null); setWikiOpen(false); },
+    paper: paperAttached ? paperContext : null, clearPaper: () => { setPaperContext(null); setPaperOpen(false); setWikiContext(null); setWikiOpen(false); },
     // Detaching the source is a context switch, not a deletion: the card stays
     // on the canvas and the reader stays open, the tutor just stops being told.
     wiki: wikiAttached ? wikiContext : null,
@@ -1012,7 +1014,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
   const canvasMenus = [
     {
       title: 'Files',
-      panel: close => <FilesPanel sources={listedSources} close={close}
+      panel: close => <FilesPanel app={app.name} sources={listedSources} close={close}
         onToggle={id => setSources(previous => toggleSource(previous, id))}
         onLocate={locateSource} onRemove={removeSource} />,
     },

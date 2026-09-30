@@ -1,4 +1,6 @@
 import { BookOpen, Crosshair, FileText, FolderGit2, Image as ImageIcon, PlaySquare, Trash2 } from 'lucide-react';
+import ContextDocs from './ContextDocs.jsx';
+import { useContextDocs } from './context-docs.js';
 
 // The Files menu: bring something in from this computer, and see everything
 // the canvas was built from - with one switch per item for whether the tutor
@@ -12,9 +14,12 @@ const KIND = {
   paper: { Icon: FileText, noun: 'arXiv' },
 };
 
-export default function FilesPanel({ sources, onToggle, onLocate, onRemove, close }) {
+export default function FilesPanel({ app, sources, onToggle, onLocate, onRemove, close }) {
+  // Context documents first (canvas-context-docs.md): Upload Context and their switches.
+  const context = useContextDocs(app);
   return (
     <div className="w-[22rem] max-w-[92vw]">
+      {context.enabled && <div className="mb-1 border-b border-line pb-1"><ContextDocs context={context} /></div>}
       <p className="flex items-center justify-between px-2 pt-1.5 pb-1 text-[11px] font-semibold tracking-wider text-ink-3 uppercase">
         <span>On this canvas</span>
         {!!sources.length && <span className="font-normal normal-case tracking-normal">Tutor reads</span>}

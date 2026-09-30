@@ -39,7 +39,9 @@ export function readUpload(name, bytes) {
 const list = async (db, who) => (await db.prepare('SELECT id, name, kind, size, attached, created_at FROM canvas_context_documents WHERE org=? AND owner_email=? AND app=? ORDER BY created_at DESC, rowid DESC')
   .bind(who.org, who.email, who.app).all()).results.map(row => ({ ...row, attached: !!row.attached }));
 
-export const contextDocsRoute = url => url.pathname === '/api/learn/context' || /^\/api\/learn\/context\/ctx:[0-9a-f]{12}$/.test(url.pathname);
+// The browser encodes the id's colon (ctx%3A...), so match the decoded path.
+const decodedPath = url => { try { return decodeURIComponent(url.pathname); } catch { return url.pathname; } };
+export const contextDocsRoute = url => url.pathname === '/api/learn/context' || /^\/api\/learn\/context\/ctx:[0-9a-f]{12}$/.test(decodedPath(url));
 
 export async function contextDocsFetch(req, env, deps = {}) {
   const url = new URL(req.url);

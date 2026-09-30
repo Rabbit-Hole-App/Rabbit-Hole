@@ -34,6 +34,7 @@ test('context documents: upload PDF and text, list, toggle, delete; at most thre
   const { env, canvas, call, upload, objects } = fixture(t);
   assert.equal(contextDocsRoute(new URL('https://dev.test/api/learn/context')), true);
   assert.equal(contextDocsRoute(new URL('https://dev.test/api/learn/context/ctx:0123456789ab')), true);
+  assert.equal(contextDocsRoute(new URL('https://dev.test/api/learn/context/ctx%3A0123456789ab')), true, 'the browser encodes the colon');
   const pdf = await upload('Attention.pdf', PDF);
   assert.equal(pdf.status, 200);
   assert.deepEqual({ kind: pdf.body.document.kind, attached: pdf.body.document.attached, name: pdf.body.document.name }, { kind: 'pdf', attached: true, name: 'Attention.pdf' });

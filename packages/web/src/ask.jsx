@@ -1,11 +1,13 @@
 import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL } from './ChatComposer.jsx';
+import ContextDocs from './ContextDocs.jsx';
+import { useContextDocs } from './context-docs.js';
 import RepositorySource, { SourceSelectionContext } from './RepositorySource.jsx';
 import { FILE_TOKEN, INLINE_PARTS, sourceReference, singleSourcePath } from './source-references.js';
 // ─── Ask (phase 1 - read only): the chat panel behind the Agent tab, the run
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, AtSign, BookOpen, Check, Copy, Crown, Feather, FileText, Globe, History, Loader2, MoreHorizontal, Minus, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, Check, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { MathText, tokenizeMath } from './MathText.jsx';
@@ -381,6 +383,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const [file, setFile] = useState(null); // one attachment per question
   const [mentions, setMentions] = useState([]); // @app chips
   const [plusOpen, setPlusOpen] = useState(false);
+  // Canvas context documents (canvas-context-docs.md): the composer's Context button and list.
+  const contextDocs = useContextDocs(scope?.app);
+  const [ctxOpen, setCtxOpen] = useState(false);
   const [threads, setThreads] = useState([]); // past chats for this scope
   const [view, setView] = useState('chat'); // 'chat' | 'history' - history REPLACES the chat
   const [rowMenu, setRowMenu] = useState(null); // thread id with its ⋯ open
@@ -977,6 +982,19 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               onChange={(e) => { if (e.target.files[0]) setFile(e.target.files[0]); e.target.value = ''; }}
             />
           </div>
+          {contextDocs.enabled && (
+            <div className="relative shrink-0">
+              <button type="button" aria-label="Context documents" title="Documents the agent reads" data-context-button
+                onMouseDown={(e) => { e.stopPropagation(); setCtxOpen(!ctxOpen); }}
+                className={cn(dock ? COMPOSER_ADD.replace(' w-9 ', ' min-w-9 ') : 'inline-flex h-6 min-w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', 'gap-1 px-2', ctxOpen && 'bg-active text-ink')}>
+                <Files size={dock ? 16 : 14} strokeWidth={1.5} />
+                {contextDocs.on > 0 && <span className="text-xs font-medium">{contextDocs.on}</span>}
+              </button>
+              <Menu open={ctxOpen} onClose={() => setCtxOpen(false)} className={dock ? 'bottom-11 left-0 w-[22rem] max-w-[92vw] p-1' : 'bottom-8 left-0 w-[22rem] max-w-[92vw] p-1'}>
+                <ContextDocs context={contextDocs} />
+              </Menu>
+            </div>
+          )}
           {srcOpts.length > 0 && (
             <div className="relative shrink-0">
               <button
