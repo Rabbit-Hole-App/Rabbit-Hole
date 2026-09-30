@@ -435,6 +435,15 @@ target. It may receive:
 Build a bounded motion-context package. Never dump the whole canvas or
 repository into the prompt.
 
+The package comes from the future shared **Learner Intent Resolver**:
+learner message → Learner Intent Resolver → Tutor, or the direct `/motion`
+route → Motion Director. `/motion` has no separate context or prompt system.
+The resolver keeps `raw_user_message` next to the structured interpretation
+and uses per-concept evidence, never permanent learner labels. The contract
+is "Future shared input layer: Learner Intent Resolver" in
+docs/features/adaptive-tutor-v1.md (on feat/canvas-block-conversations until
+merge). It is future architecture only and not implemented.
+
 ### 4. Tutor relationship
 
 - **Tutor** decides WHETHER an animation is the right teaching move.
