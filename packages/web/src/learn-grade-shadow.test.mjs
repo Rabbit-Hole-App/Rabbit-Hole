@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createShadowGrader, parseVerdict } from './learn-grade-shadow.js';
-import { challengePrompt, explainBackPrompt } from './learn-grade-prompts.js';
+import { challengePrompt, explainBackPrompt, stripVerdict } from './learn-grade-prompts.js';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const app = { name: 'demo-app', hosting: null };
 const block = { id: 'b1', attemptId: 'a1b2c3d4-0000', prompt: 'Why exp?', expects: ['positive'] };
@@ -129,4 +132,21 @@ test('golden: parseVerdict takes the first token anywhere, case-insensitive', ()
     ['VERDICT: good\nNice.', 'good'], ['VERDICT:partial', 'partial'], ['Intro. verdict: GOOD then', 'good'],
     ['VERDICT: partial\nlater VERDICT: good', 'partial'], ['VERDICT: great', null], [null, null], [undefined, null],
   ]) assert.equal(parseVerdict(text), verdict, String(text));
+});
+
+test('stripVerdict removes only the first token and trims', () => {
+  assert.equal(stripVerdict('VERDICT: good\nNice.'), 'Nice.');
+  assert.equal(stripVerdict('verdict:PARTIAL  Close.'), 'Close.');
+  assert.equal(stripVerdict('No token here '), 'No token here');
+  assert.equal(stripVerdict('VERDICT: good A VERDICT: partial'), 'A VERDICT: partial');
+  assert.equal(stripVerdict(null), '');
+});
+
+// duplication-12: one VERDICT pattern, in control-plane/src/agents/learn-grade.js.
+test('no other VERDICT pattern remains in the web source or the benchmark', () => {
+  const files = [];
+  const walk = dir => { for (const entry of readdirSync(dir, { withFileTypes: true })) { const full = join(dir, entry.name); if (entry.isDirectory()) walk(full); else if (/\.(jsx?|mjs)$/.test(entry.name) && !entry.name.includes('.test.')) files.push(full); } };
+  walk(fileURLToPath(new URL('.', import.meta.url)));
+  files.push(fileURLToPath(new URL('../../../tests/evals/learn-grade/bench.mjs', import.meta.url)));
+  assert.deepEqual(files.filter(file => readFileSync(file, 'utf8').includes('VERDICT:\\s*')), []);
 });

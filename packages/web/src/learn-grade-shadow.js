@@ -48,5 +48,5 @@ export function createShadowGrader({ fetchImpl = (...args) => fetch(...args), he
   return { shadowGrade, recordBaseline };
 }
 
-// Same pattern ChallengeBody uses (LearningBlocks.jsx) to read the tutor's verdict.
-export const parseVerdict = text => (String(text || '').match(/VERDICT:\s*(good|partial)/i)?.[1] || '').toLowerCase() || null;
+// The tutor's verdict token, read the same way ChallengeBody reads it.
+export { parseVerdict } from '../../control-plane/src/agents/learn-grade.js';

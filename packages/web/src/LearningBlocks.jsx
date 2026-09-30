@@ -9,6 +9,7 @@ import { CodeBlock } from './ui.jsx';
 import { runPython } from './pyodide-runner.js';
 import { graphRenderers } from './graph-renderers.js';
 import { validateGraph } from '../../control-plane/src/learn-graph-schema.js';
+import { parseVerdict, stripVerdict } from '../../control-plane/src/agents/learn-grade.js';
 import SpeakAnswer from './SpeakAnswer.jsx';
 import LearnPaper from './LearnPaper.jsx';
 import RepositoryGraph from './RepositoryGraph.jsx';
@@ -882,9 +883,8 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
   const retry = () => { inFlight.current = false; setDraft(block.answer || ''); onChange({ ...block, answer: null, attemptId: null, verdict: '', grading: false }); };
   // The tutor opens with "VERDICT: good|partial"; it tints the answer and is
   // stripped from what the learner reads.
-  const token = (block.verdict || '').match(/VERDICT:\s*(good|partial)/i);
-  const grade = token ? token[1].toLowerCase() : null;
-  const verdictText = (block.verdict || '').replace(/VERDICT:\s*(good|partial)\s*/i, '').trim();
+  const grade = parseVerdict(block.verdict);
+  const verdictText = stripVerdict(block.verdict);
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <Kicker>{block.mode === 'explain_back' ? 'Explain back' : 'Challenge'}</Kicker>

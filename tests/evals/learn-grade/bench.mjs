@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { THRESHOLDS, VERDICT_LOGIC_VERSION, GRADER_PROTOCOL_VERSION, GRADER_PROTOCOL_FINGERPRINT, VERDICT_LOGIC_FINGERPRINT, JEV_MODEL, JEV_URL, verdictFrom } from '../../../packages/control-plane/src/learn-grade-jev.js';
-import { challengePrompt } from '../../../packages/web/src/learn-grade-prompts.js';
+import { challengePrompt, parseVerdict } from '../../../packages/web/src/learn-grade-prompts.js';
 import { rate, wilson, percentile, prf, bestThreshold, calibration, brier, goldVerdict, verdictAccuracy, confusion } from './metrics.mjs';
 import { validateSet } from './set-rules.mjs';
 
@@ -110,7 +110,7 @@ async function gradeOpus(item) {
     const response = await fetch(`${base}/api/learn/ask`, { method: 'POST', headers, body: JSON.stringify({ scope: { app: args.app }, message: challengePrompt({ mode: challenge.mode, prompt: challenge.prompt, expects: challenge.expects }, item.answer) }) });
     const text = await response.text();
     const streamed = text.split('\n\n').filter(event => /^event: chunk$/m.test(event)).map(event => JSON.parse(event.match(/^data: (.+)$/m)[1]).text).join('');
-    const verdict = (streamed.match(/VERDICT:\s*(good|partial)/i)?.[1] || '').toLowerCase() || null;
+    const verdict = parseVerdict(streamed);
     return { verdict, ms: Date.now() - started, error: verdict ? null : 'unparsed' };
   } catch (error) {
     return { verdict: null, ms: Date.now() - started, error: error.message };

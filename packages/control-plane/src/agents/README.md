@@ -16,6 +16,7 @@ src/agents/
   learn-chat.js      Learn prompt text: teaching policy, chat, tool-family instructions, tool notes
   learn-artifact.js  Learn slash-command card prompt
   learn-board.js     Learn whiteboard drawing and review prompts
+  learn-grade.js     Learn visible-grader instructions and the VERDICT helpers
 ```
 
 Rules:
@@ -41,12 +42,17 @@ ride `askOnce`; move them here when they grow tools.
 
 ## Learn prompt modules
 
-The three learn-*.js files here are prompt text only, an exception to the
+The learn-*.js files here are prompt text only, an exception to the
 SYSTEM/TOOLS/run() shape: Learn's tool schemas, runners, validators and loops
 stay in src/learn-*.js, src/repositories.js and src/index.js (apiAsk), which
 re-export these names so every importer is unchanged. Nothing here routes
-through loop.js. Server-only: packages/web never imports them. The assembled
-prompt per route is pinned in test/learn-prompts.test.js.
+through loop.js. learn-chat.js, learn-artifact.js and learn-board.js are
+server-only: packages/web never imports them. learn-grade.js is the exception:
+pure and import-free, so the browser imports its VERDICT helpers (the builders
+tree-shake away) and packages/web/src/learn-grade-prompts.js re-exports it for
+the benchmark. Its golden text is pinned in
+packages/web/src/learn-grade-shadow.test.mjs; the assembled prompt per chat
+route is pinned in test/learn-prompts.test.js.
 
 Prompt text still outside this directory:
 - Learn request context lines in src/index.js (apiAsk: outline header, paper,
@@ -59,7 +65,6 @@ Prompt text still outside this directory:
   fingerprint and tied to the benchmark holdout check, so it does not move.
 - Course authoring in src/learn-course.js, and the dashboard ASK_SYSTEM in
   src/ask.js.
-- Browser-built text in packages/web: the grading prompts
-  (learn-grade-prompts.js, imported by the benchmark), slash-command templates
+- Browser-built text in packages/web: slash-command templates
   (agent/slash.js) and the card, group and region descriptions sent as the
   learner's message.
