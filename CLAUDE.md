@@ -128,3 +128,17 @@ its no-credential message on your clone; rebase onto main before pushing; and
 delete your clone when the session ends:
 `npx wrangler delete --name small-cp-dev-<worktree-name> --config wrangler.dev.jsonc`.
 Only deploy to the shared worker (no `--name`) when explicitly told to promote.
+
+## Trigger word: `learn-cleanup`
+
+When the user types just `learn-cleanup`, resume the deferred Learn cleanup on
+branch `feature/learn-cleanup`:
+
+1. Run the deferred units U7 lifecycle, U8 registries/paid/history and U9
+   checks/docs. Their verified findings and the build workflow are in
+   `docs/features/learn-cleanup/`: rerun `build-workflow.js` with UNITS
+   filtered to those three.
+2. Re-check each finding against the current code before acting on it.
+3. Then do C11 acceptance and the closeout in `docs/features/learn-cleanup.md`.
+
+Deploy, push and real model calls still each need a typed go.
