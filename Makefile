@@ -69,3 +69,18 @@ publish-skill:
 
 skill-mirror:
 	$(BASH) run.sh skill:mirror
+
+# ---------- dev clone secrets ----------
+# $(call fly_secret_to_clone,<fly app>,<secret name>,<worker clone>): read a secret from a running Fly
+# machine and upload it to a small-cp-dev-<name> worker clone, printing only its length.
+# Refuses the shared small-cp-dev worker and anything that is not a clone.
+define fly_secret_to_clone
+$(BASH) -c 'case "$(3)" in small-cp-dev-?*) ;; *) echo "refusing: $(3) is not a small-cp-dev-<name> clone"; exit 1;; esac; t=$$(fly ssh console -q -a $(1) -C "printenv $(2)" | tr -d "\r\n"); if [ -z "$$t" ]; then echo "empty $(2) from $(1)"; exit 1; fi; echo "$(2) length: $${#t}"; cd packages/web && printf "%s" "$$t" | npx wrangler secret put $(2) --config wrangler.dev.jsonc --name $(3)'
+endef
+
+# The clone defaults to this worktree's own (CLAUDE.md: small-cp-dev-<worktree name>).
+CLONE ?= small-cp-dev-$(notdir $(CURDIR))
+
+# The lesson renderer's bearer token, needed by repository imports and branch lookups on a clone.
+clone-scene-token:
+	$(call fly_secret_to_clone,small-lesson-renderer-dev,SCENE_WORKER_TOKEN,$(CLONE))
