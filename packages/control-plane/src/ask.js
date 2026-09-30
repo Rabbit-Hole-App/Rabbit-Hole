@@ -178,8 +178,9 @@ export function capJoin(parts, cap = CAP_CHARS) {
 // Per-org AI settings (Settings > Account): provider + model. Cached briefly -
 // an agent loop makes a dozen calls and must not read D1 for each.
 const aiCache = new Map(); // org -> { at, row }
+// No DB (a dev worker without production D1): the default provider, never a customer's settings.
 export async function aiSettings(env, org) {
-  if (!org) return null;
+  if (!org || !env.DB) return null;
   const hit = aiCache.get(org);
   if (hit && Date.now() - hit.at < 60000) return hit.row;
   const row = await env.DB.prepare('SELECT provider, model, bedrock_region, bedrock_role_arn, openai_base_url, openai_api_key FROM org_ai WHERE org = ?').bind(org).first().catch(() => null);

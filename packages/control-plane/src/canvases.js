@@ -115,8 +115,8 @@ export async function canvasesFetch(req, env) {
 }
 
 // apiAsk's seam (index.js): the app, its context and the thread store all come from LEARN_DB,
-// so a canvas turn writes nothing to live D1. It still reads live D1 for @-mentioned apps
-// (apiAsk appForUser, appContext). Threads reuse repository-schema.sql threads/messages.
+// so a canvas turn neither writes nor reads live D1: @-mentioned apps are not read on a seam turn
+// (apiAsk). Threads reuse repository-schema.sql threads/messages.
 export function canvasAskSeam(env, app) {
   const db = env.LEARN_DB;
   return {

@@ -156,7 +156,8 @@ export async function repositoriesFetch(req,env,ctx){
       return json(await enqueue(env,app,app.repo,app.branch),202);
     }
     if(action==='learn-course')return handleLearnCourse(req,{...env,DB:db},user,app.name,{
-      generate:(_,org,context,instruction,system)=>generateCourseContent(env,org,context,instruction,system),
+      // org null: the default provider. A dev worker must not read a customer's org_ai row (their OpenAI key or Bedrock role) from production D1.
+      generate:(_,__,context,instruction,system)=>generateCourseContent(env,null,context,instruction,system),
       appForUser:async()=>app,sourceSection:async()=>{
         const snapshot=await repositorySnapshot(env,app), overview=repositoryTool(snapshot,'get_repo_overview');
         const paths=[...new Set(['README.md',...overview.symbols.map(n=>n.path)].filter(p=>p&&Object.hasOwn(snapshot.files,p)))].slice(0,6);

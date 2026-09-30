@@ -1049,11 +1049,14 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     // @-mentioned apps (the composer's chips) join this chat's context, each
     // one the learner can see; at most three, so one answer stays focused.
     // A mention not read says so, and all mentioned context shares what is left of one CAP_CHARS budget.
+    // A seam turn runs on a dev worker, where apps live in production D1: never read into dev chat
+    // (docs/features/dev-prod-write-barrier.md). Without DB there is nothing to read either.
+    const liveApps = !seam && env.DB;
     const mentionNames = (Array.isArray(body.mentions) ? body.mentions : []).filter(name => typeof name === 'string' && name !== scope.app);
     for (const [index, name] of mentionNames.entries()) {
-      const mentioned = index < MENTION_LIMIT ? await appForUser(env, user, name) : null;
+      const mentioned = index < MENTION_LIMIT && liveApps ? await appForUser(env, user, name) : null;
       if (!mentioned?.canView) {
-        context = `${context}\n\nMentioned app ${name}: not available to this chat${index < MENTION_LIMIT ? '' : ` (a question reads at most ${MENTION_LIMIT} mentioned apps)`}.`;
+        context = `${context}\n\nMentioned app ${name}: not available to this chat${index >= MENTION_LIMIT ? ` (a question reads at most ${MENTION_LIMIT} mentioned apps)` : liveApps ? '' : ' (live apps are not read on this preview)'}.`;
         continue;
       }
       const text = await appContext(env, mentioned, useSet), room = Math.max(0, CAP_CHARS - context.length);

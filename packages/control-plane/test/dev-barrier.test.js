@@ -104,3 +104,17 @@ test('dev-worker.js sends every fall-through through the barrier', () => {
   assert.equal(source.match(/CONTROL_PLANE\.fetch/g), null, 'dev-worker.js calls CONTROL_PLANE directly');
   assert.match(source, /return forwardToProduction\(req, env\);\s*\},\s*\};\s*$/, 'the barrier is the last line of fetch()');
 });
+
+test('a canvas Learn ask with an @-mention runs on dev storage and reads nothing from production D1', async t => {
+  const f = fixture(t), original = globalThis.fetch, prompts = [];
+  f.env.ANTHROPIC_API_KEY = 'test';
+  globalThis.fetch = async (url, init) => {
+    assert.equal(new URL(String(url)).hostname, 'api.anthropic.com');
+    prompts.push(init.body);
+    return Response.json({ content: [{ type: 'text', text: 'Answer.' }], stop_reason: 'end_turn' });
+  };
+  t.after(() => { globalThis.fetch = original; });
+  const response = await f.send('POST', '/api/learn/ask', { scope: { app: 'canvas-0a1b2c3d' }, message: 'compare', mentions: ['counter'] });
+  assert.match(await response.text(), /event: done/);
+  assert.match(prompts.join(), /Mentioned app counter: not available to this chat \(live apps are not read on this preview\)/);
+});

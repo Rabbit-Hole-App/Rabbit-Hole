@@ -7,6 +7,7 @@ import { repositoryTool, REPOSITORY_SYSTEM, REPOSITORY_TOOLS } from '../src/repo
 import { researchAnswer } from '../src/learn-research.js';
 import { liveDb, memoryBucket } from './live-storage-spy.js';
 import { putUploadedPaper } from '../src/learn-paper.js';
+import { aiSettings } from '../src/ask.js';
 
 const sha='a'.repeat(40), newer='b'.repeat(40);
 const snapshot={repo:'example/project',commit:sha,version:'graphifyy-0.9.63-small-1',files:{'model.py':'class Model:\n    def forward(self, x):\n        return x + 1','README.md':'A model'},skipped:[],graph:{nodes:[{id:'model',label:'Model',path:'model.py',line:1},{id:'forward',label:'forward()',path:'model.py',line:2}],edges:[{source:'model',target:'forward',relation:'contains',confidence:'EXTRACTED'}]}};
@@ -359,4 +360,18 @@ test('the 25-project import cap counts only projects the caller owns, never the 
   fill('owner@test',24); // the connect above plus these 24 make 25 owned
   const refused=await connect();
   assert.match(JSON.stringify(await refused.json()),/You have reached the 25 repository preview limit/);
+});
+
+// dev-prod-write-barrier.md: Learn on a dev worker never reads a customer's org_ai row (their OpenAI key or
+// Bedrock role) from production D1. The course draft uses the default provider; no DB means no settings.
+test('a repository course draft uses the default provider and reads no org_ai row from production D1',async t=>{
+  const f=fixture(t),live=liveDb(),original=globalThis.fetch,hosts=[];
+  Object.assign(f.env,{DB:live,ANTHROPIC_API_KEY:'test'});
+  globalThis.fetch=async url=>{hosts.push(new URL(String(url)).hostname);return Response.json({content:[{type:'text',text:'{}'}],stop_reason:'end_turn'});};
+  t.after(()=>{globalThis.fetch=original;});
+  assert.equal((await f.send('learn-course',{action:'brief',revision:0,brief:{audience:'Students',goal:'Understand models',knowledge:'Python',duration:'20 minutes'}})).status,200);
+  await (await f.send('learn-course',{action:'draft',revision:1})).text();
+  assert.ok(hosts.length&&hosts.every(host=>host==='api.anthropic.com'),hosts.join());
+  assert.deepEqual(live.calls,[]);
+  assert.equal(await aiSettings({},'team'),null);
 });

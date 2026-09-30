@@ -925,3 +925,29 @@ test('unreadable, unknown and fourth mentions are named as not available, and me
   await big.apiAsk(request({ scope: { app: 'counter' }, message: 'and this canvas', mentions: ['canvas-99999999'] }), env, {}, owner, 'learn');
   assert.match(env.answers[1].context, /Mentioned app canvas-99999999: not available to this chat\.$/);
 });
+
+// dev-prod-write-barrier.md: a canvas turn runs on a dev worker, where an @-mentioned app would be a
+// production row. It is named as not available, with the reason, and neither DB nor an unbound DB is touched.
+test('an @-mention on a canvas turn reads no live app, with DB bound or unbound, and says why', async t => {
+  const env = fixture(t), live = liveDb();
+  const sqlite = new DatabaseSync(':memory:');
+  t.after(() => sqlite.close());
+  sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('workspace-a','canvas-0a1b2c3d','owner@example.test','Attention')");
+  env.LEARN_DB = { batch: async statements => Promise.all(statements.map(statement => statement.run())), prepare: sql => ({ bind: (...params) => ({
+    first: async () => sqlite.prepare(sql).get(...params) || null,
+    all: async () => ({ results: sqlite.prepare(sql).all(...params) }),
+    run: async () => ({ meta: sqlite.prepare(sql).run(...params) }),
+  }) }) };
+  // The real appForUser reads env.DB; this one does too, so a live read is recorded.
+  const reading = new Function(...Object.keys(deps), `${functions}; return { ${names.join(',')} };`)(...Object.values({ ...deps, appForUser: async (env, user, name) => env.DB.prepare(`SELECT * FROM apps WHERE name = '${name}'`).first() }));
+  const seam = () => canvasAskSeam(env, canvasApp(sqlite.prepare("SELECT * FROM canvases WHERE name='canvas-0a1b2c3d'").get(), owner));
+  const ask = () => reading.apiAsk(request({ scope: { app: 'canvas-0a1b2c3d' }, message: 'compare', mentions: ['counter'] }), env, {}, owner, 'learn', seam());
+  env.DB = live;
+  assert.equal((await ask()).status, 200);
+  delete env.DB;
+  assert.equal((await ask()).status, 200);
+  for (const answer of env.answers) assert.match(answer.context, /Mentioned app counter: not available to this chat \(live apps are not read on this preview\)\.$/);
+  assert.equal(env.answers.length, 2);
+  assert.deepEqual(live.calls, []);
+});
