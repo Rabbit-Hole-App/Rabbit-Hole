@@ -27,7 +27,9 @@ const READS = [
 // They write no D1, R2 or Fly state: sessions and magic links are HMAC-signed tokens, not rows.
 // ponytail: POST /login sends a real email once production has RESEND_API_KEY (step 2); drop it
 // here if dev sign-in should stop emailing before the dev control plane exists.
-const SESSION = new Set(['GET /login', 'POST /login', 'GET /auth', 'GET /logout', 'POST /test/session']);
+// POST /test/session is NOT forwarded (owner, 2026-09-30): review clones never mint test sessions from
+// production; the dedicated dev control plane will be the only place they are minted (step 5).
+const SESSION = new Set(['GET /login', 'POST /login', 'GET /auth', 'GET /logout']);
 
 export function productionAllows(method, path) {
   return SESSION.has(`${method} ${path}`) || (method === 'GET' && READS.some(pattern => pattern.test(path)));

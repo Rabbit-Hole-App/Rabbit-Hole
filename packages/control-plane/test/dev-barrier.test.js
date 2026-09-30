@@ -88,8 +88,10 @@ test('each allowlisted production read and the sign-in bridge still reach produc
     '/api/apps/counter', '/api/apps/counter/deploys', '/api/apps/counter/runbook', '/api/apps/counter/learn-course', '/api/trash', '/api/org/ai', '/api/teams', '/api/members',
     '/api/request-logs', '/api/review', '/login', '/auth', '/logout'];
   for (const path of reads) assert.deepEqual(await (await f.send('GET', path)).json(), { forwarded: path }, path);
-  for (const path of ['/login', '/test/session']) assert.deepEqual(await (await f.send('POST', path, {})).json(), { forwarded: path }, path);
-  assert.deepEqual(f.sent, [...reads.map(path => `GET ${path}`), 'POST /login', 'POST /test/session']);
+  assert.deepEqual(await (await f.send('POST', '/login', {})).json(), { forwarded: '/login' });
+  // Production test sessions never cross: review clones get them from the dev control plane only.
+  assert.equal((await f.send('POST', '/test/session', {})).status, 403);
+  assert.deepEqual(f.sent, [...reads.map(path => `GET ${path}`), 'POST /login']);
 });
 
 test('writes the dev worker answers itself stay on dev storage', async t => {

@@ -63,8 +63,9 @@ Production reads that the dev worker makes itself, not through the barrier:
 
 ### 1b. Sign-in bridge (allowed, not a read)
 
-`GET /login`, `POST /login`, `GET /auth`, `GET /logout`, `POST /test/session` (`index.js` :2231, :2250, :2448,
-:2259).
+`GET /login`, `POST /login`, `GET /auth`, `GET /logout` (`index.js` :2231, :2250, :2448).
+
+`POST /test/session` is **refused** (owner decision 2026-09-30): production test sessions never cross the barrier, even while production still has `TEST_BYPASS_SECRET`. Review clones lose test sessions until the dedicated dev control plane (step 5) mints them; no production bypass is kept as a bridge.
 
 - They write no D1, R2 or Fly state. Magic links and sessions are HMAC-signed tokens, not rows.
 - They stay allowed because dev identity is still production identity until the dev control plane exists
