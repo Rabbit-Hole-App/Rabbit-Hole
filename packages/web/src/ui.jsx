@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import { clsx as cn } from 'clsx';
 import { Check, ChevronDown, ChevronRight, Clock, Copy as CopyIcon, File as FileIcon, Globe, Maximize2, Minimize2, Network, PenLine, Play, TriangleAlert, Upload, X } from 'lucide-react';
+import { learnPreview } from './flags.js';
 import { personLabel } from './session-display.js';
 
 export { cn };
@@ -174,8 +175,12 @@ export function TabsTrigger({ className, pill = false, ...props }) {
 }
 export const TabsContent = TabsPrimitive.Content;
 
-// The product mark (E2: a small cloud, boxed) in currentColor - themes for free.
+// Rabbit Hole's mark: the website's aperture favicon (public/landing), never the small cloud.
+const RABBIT_HOLE_MARK = '/landing/favicon-32-v1.png';
+
+// The product mark (E2: a small cloud, boxed) in currentColor - themes for free. Rabbit Hole shows its own.
 export function Mark({ size = 20, className }) {
+  if (learnPreview) return <img src={RABBIT_HOLE_MARK} alt="" aria-label="Rabbit Hole" width={size} height={size} className={cn('shrink-0 rounded-[22%]', className)} />;
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" className={className} aria-label="small deploy">
       <rect x="2" y="2" width="28" height="28" rx="7" fill="none" stroke="currentColor" strokeWidth="2.5" />
@@ -700,7 +705,7 @@ export function MenuItem({ icon: Icon, className, children, ...props }) {
 
 // the product mark (favicon set) as an inline icon; brand rule: never lucide Sparkles
 export const AppIcon = ({ size = 15, className }) => (
-  <img src="/icon-32.png" alt="" width={size} height={size} className={className} />
+  <img src={learnPreview ? RABBIT_HOLE_MARK : '/icon-32.png'} alt="" width={size} height={size} className={cn(learnPreview && 'rounded-[22%]', className)} />
 );
 
 // Pointer-based column-header drag: horizontal only, live reorder, and a FLIP
