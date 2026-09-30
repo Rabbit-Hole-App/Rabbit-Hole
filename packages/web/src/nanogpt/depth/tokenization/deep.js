@@ -141,8 +141,9 @@ const EXAMPLE = {
   // model.py's reason for the fallback's padding, shown only when there is padding.
   padWhy: { true: '', false: ' (multiple of 64, for efficiency)' },
   // 3/3: both rows' text at full strength (each is half the answer); the other
-  // branch's step box at 0.72, and grey, since a warning box at 0.72 reads 3.32:1.
-  edgeLit: { true: { char: 1, bpe: 0.72 }, false: { char: 0.72, bpe: 1 } },
+  // branch's step box at 0.73, and grey, since a warning box at 0.72 reads 3.32:1.
+  // 0.73, not 0.72: its own label reads 4.60:1 on the box's tint and shadow (4.47 at 0.72).
+  edgeLit: { true: { char: 1, bpe: 0.73 }, false: { char: 0.73, bpe: 1 } },
   // The edge-case line (3/3) follows the state: an invitation, or a pointer to the failure drawn above it.
   edgeText: {
     true: byPath(TRY_DIGITS, TRY_DIGITS, `Edge case shown above: ${ONLY_DIGIT}, so ${quote(digits.char.missing)} has no ID.`),

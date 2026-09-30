@@ -114,7 +114,7 @@ export const scene = {
     fusedOnly: { manual: 0, fused: 1 },
     // What the chosen path does not run stays on screen, dimmed.
     manualOpacity: { manual: 1, fused: 0.25 },
-    fusedOpacity: { manual: 0.72, fused: 1 }, // the fused call's box only: its text reads on both paths (NC10)
+    fusedOpacity: { manual: 0.73, fused: 1 }, // the fused call's box only: its text reads on both paths (NC10); its own label 4.60:1 (4.47 at 0.72)
     pathNotes: { manual: 'manual: att is built whole in every layer and kept for backward', fused: 'fused: flash / memory-efficient kernels never hold the whole att;' },
     pathNotes2: { manual: 'fused SDPA need not materialize this full matrix.', fused: 'the math version (non-CUDA, or inputs they reject) still builds it.' },
     fusedLabels: { on: 'scaled_dot_product_attention(is_causal=True)', off: 'scaled_dot_product_attention(is_causal=True, scale=1.0)' },

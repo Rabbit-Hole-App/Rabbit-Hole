@@ -250,7 +250,7 @@ test('branch: the fused path dims the five steps one call replaces and the unsto
   assert.equal(byId(fused, 'fused-note').visible, true);
   assert.equal(byId(fused, 'fused-note').label, 'fused SDPA: one call replaces these five steps');
   // The fused call is 3/4's visual: its text reads on both paths; only its box quiets on the manual one.
-  assert.equal(byId(manualMem, 'fused-box').opacity, 0.72);
+  assert.equal(byId(manualMem, 'fused-box').opacity, 0.73);
   assert.equal(byId(fusedMem, 'fused-box').opacity, 1);
   for (const id of ['fused-shape', 'fused-scale']) for (const result of [manualMem, fusedMem]) assert.equal(byId(result, id).opacity ?? 1, 1, id);
   assert.equal(byId(fusedMem, 'fused-shape').label, 'q, k, v (B, nh, T, hs) → y (B, nh, T, hs) in one call');

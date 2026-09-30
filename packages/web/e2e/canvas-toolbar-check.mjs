@@ -8,7 +8,9 @@
 // stays 100%. Wide screen (2200 x 1200): the overview is open by default and
 // outside the canvas. Phone (390 x 844): the canvas has a real working height,
 // the tools are a scrolling strip below it, the overview opens below the strip
-// (not over the card), and the table of contents is reachable by scrolling.
+// (not over the card), the zoom controls sit clear of the composer (a tap on the
+// "Ask about" input reaches the input) and of the canvas, and the table of
+// contents is reachable by scrolling.
 //
 // Usage: node e2e/canvas-toolbar-check.mjs <deployed-base> <board> <outDir>
 import { chromium } from '@playwright/test';
@@ -162,6 +164,18 @@ async function probeEdge(page, card, title, label) {
   if (!disjoint(g.toolbar, g.surface) || g.toolbar.y < g.surface.bottom - 1) fail('phone: the tool strip is not below the canvas');
   if (g.toolbar.x < 0 || g.toolbar.right > 390) fail('phone: the tool strip runs off screen');
   if (g.overview) fail('phone: the overview is open by default');
+  // The zoom controls never sit on the composer: the input's centre reaches the input.
+  await page.locator('input[placeholder^="Ask about"]').scrollIntoViewIfNeeded();
+  const dock = await page.evaluate(() => {
+    const box = element => { if (!element) return null; const r = element.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom }; };
+    const input = document.querySelector('input[placeholder^="Ask about"]'), r = input.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return { zoom: box(document.querySelector('[aria-label="Zoom controls"]')), form: box(input.closest('form')), surface: box(document.querySelector('[data-canvas-surface]')), onInput: !!hit && input.contains(hit), hit: hit?.closest('[aria-label]')?.getAttribute('aria-label') || hit?.tagName };
+  });
+  if (!dock.zoom || !dock.form) fail('phone: the zoom controls or the composer are missing');
+  if (!disjoint(dock.zoom, dock.form)) fail(`phone: the zoom controls ${JSON.stringify(round(dock.zoom))} overlap the composer ${JSON.stringify(round(dock.form))}`);
+  if (!dock.onInput) fail(`phone: a tap on the composer input lands on ${dock.hit}, not the input`);
+  if (!disjoint(dock.zoom, dock.surface)) fail('phone: the zoom controls overlap the canvas');
   await page.getByRole('button', { name: 'Pen', exact: true }).click();
   const armed = await page.getByRole('button', { name: 'Pen', exact: true }).getAttribute('aria-pressed');
   if (armed !== 'true') fail('phone: the pen tool did not arm');
@@ -185,8 +199,8 @@ async function probeEdge(page, card, title, label) {
   await toc.scrollIntoViewIfNeeded();
   const tocVisible = await toc.isVisible();
   if (!tocVisible) fail('phone: the table of contents cannot be scrolled into view');
-  results.phone = { surface: round((await geometry(page)).surface), heightWithOverview, strip: round(g.toolbar), overview: round(g.overview), penArmed: armed === 'true', stripScrolls: scrollable, tocReachable: tocVisible };
-  console.log(`phone: canvas ${results.phone.surface.h}px tall (${heightWithOverview}px with the overview open), strip below it scrolls, overview opens below the strip, table of contents reachable`);
+  results.phone = { surface: round((await geometry(page)).surface), heightWithOverview, strip: round(g.toolbar), overview: round(g.overview), zoomControls: round(dock.zoom), composer: round(dock.form), composerTappable: dock.onInput, penArmed: armed === 'true', stripScrolls: scrollable, tocReachable: tocVisible };
+  console.log(`phone: canvas ${results.phone.surface.h}px tall (${heightWithOverview}px with the overview open), strip below it scrolls, overview opens below the strip, zoom controls clear of the composer, table of contents reachable`);
   await context.close();
 }
 

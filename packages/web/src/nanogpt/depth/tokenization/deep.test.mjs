@@ -227,7 +227,7 @@ test('deep: the sampling path - B = 1, prompt length T, last position only; the 
     if (inputs.input === 'digits') assert.ok(!labels.some(l => l.startsWith(ifInput)));
     const [on, off] = inputs.meta ? ['char', 'bpe'] : ['bpe', 'char'];
     for (const id of [`edge-${on}`, `edge-${on}-detail`, `edge-${off}-detail`]) assert.equal(byId(result, id).opacity ?? 1, 1, `${id} ${JSON.stringify(inputs)}`);
-    assert.equal(byId(result, `edge-${off}`).opacity, 0.72, `edge-${off} ${JSON.stringify(inputs)}`);
+    assert.equal(byId(result, `edge-${off}`).opacity, 0.73, `edge-${off} ${JSON.stringify(inputs)}`);
     // Red only when the KeyError happens now (meta.pkl found, the digit prompt); a what-if
     // KeyError is grey like the other what-if row (NC10 review: a red pill and row beside
     // "Input: Training batch" read as a live error). A warning box also cannot fade and stay 4.5:1.

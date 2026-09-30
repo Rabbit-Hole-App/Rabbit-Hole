@@ -20,9 +20,9 @@ import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { distributeRounding } from './scene-derive.js';
 import { cellNumeralSize, formatCell } from './scene-format.js';
 import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-sound.js';
-import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, labelAt, requiredLeftMargin, sceneContentBounds, sceneViewBox } from './scene-layout.js';
+import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, estimateTextBox, labelAt, requiredLeftMargin, sceneContentBounds, sceneViewBox } from './scene-layout.js';
 import { GEOMETRY } from './scene-vocab.js';
-import { cellInk, heatStyle, identityVar, roleVar, selectionStyle, shapeStyle, textObjectInk, textStyle } from './scene-style.js';
+import { cellInk, heatStyle, identityVar, inkOver, roleVar, selectionStyle, shapeStyle, textObjectInk, textStyle } from './scene-style.js';
 
 // Live playback of an animation spec. The evaluator owns what the frame looks
 // like at time t; this only draws it and owns the transport. Learner ink is a
@@ -92,7 +92,7 @@ function SelectionMark({ geometry }) {
 // The mathematical object itself: a table with a row that lights up, a strip
 // of numbers that change, a distribution that grows. Labelled rectangles do
 // not teach these; the values do.
-function DataShape({ object, role, pop, chosen, onInputPick }) {
+function DataShape({ object, role, pop, chosen, onInputPick, inkAt }) {
   // Direct manipulation: an object bound to a learning input turns its items
   // into that input's own REAL controls - clickable, focusable, keyboard-
   // activable - so a 'visual' presentation needs no duplicate strip widget.
@@ -116,6 +116,11 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
   // Ink stays the shape's own lit/unlit read, which predates typography and
   // is not what this scale governs.
   const numeral = textStyle('annotation');
+  // A bar or token label can sit on another object's box: it takes that
+  // fill's ink there (scene-style.js inkOver). A grid's axis names stay
+  // secondary ink (scene-style.test.mjs); the glyph-over-fill check in
+  // text-contrast.test.mjs would name one that lands on a fill.
+  const labelInk = (ink, text, x, y, anchor, baseline = 'auto') => inkAt(ink, estimateTextBox({ text, x, y, fontSize: numeral.fontSize, anchor, baseline }));
   if (object.type === 'grid' || object.type === 'strip') {
     const cell = object.cell || GEOMETRY.cellPitch;
     const columns = object.type === 'strip' ? (object.values?.length || 0) : (object.cols || 1);
@@ -185,7 +190,7 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
         const look = shapeStyle(role, blocked ? { blocked: true } : cellState, undefined, object.identitySlot);
         const heat = heatMode && value != null ? heatStyle(value, domain, heatMode) : null;
         const fill = heat ? `color-mix(in srgb, var(--viz-${heat.fillToken}) ${heat.mixPercent}%, transparent)` : look.fill;
-        const ink = heat ? heat.inkToken : cellInk(role, lit);
+        const ink = heat ? heat.inkToken : cellInk(role, lit, look.onFill);
         // INVARIANT: A CONTINUOUSLY VARYING VISUAL PROPERTY MUST HAVE ONE
         // OWNERSHIP PATH FOR THE LIFETIME OF THE ELEMENT. This cell used to
         // read `style={heat ? {fill} : undefined}` / `animate={heat ? ring :
@@ -315,7 +320,8 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
                 rx={4} animate={{ fill: look.fill, scale: lit ? 1.06 : 1 }} transition={pop} style={fromBaseline} />
               {object.labels?.[index] && (
                 <text x={object.x + index * pitch + pitch / 2} y={object.y + height + 12} textAnchor="middle"
-                  fontSize={numeral.fontSize} fontWeight={numeral.fontWeight} style={{ fontFamily: MONO, fill: lit ? 'var(--color-ink)' : 'var(--color-ink-2)' }}>{object.labels[index]}</text>
+                  fontSize={numeral.fontSize} fontWeight={numeral.fontWeight}
+                  style={{ fontFamily: MONO, fill: labelInk(lit ? 'var(--color-ink)' : 'var(--color-ink-2)', object.labels[index], object.x + index * pitch + pitch / 2, object.y + height + 12, 'middle') }}>{object.labels[index]}</text>
               )}
             </g>
           );
@@ -349,7 +355,7 @@ function DataShape({ object, role, pop, chosen, onInputPick }) {
           return (
             <text key={index} x={x + width / 2} y={object.y + GEOMETRY.chipHeight / 2} textAnchor="middle" dominantBaseline="central"
               fontSize={numeral.fontSize} fontWeight={lit ? 700 : numeral.fontWeight}
-              style={{ fontFamily: MONO, fill: lit ? 'var(--color-ink)' : 'var(--color-ink-2)' }}>{token}</text>
+              style={{ fontFamily: MONO, fill: labelInk(lit ? 'var(--color-ink)' : 'var(--color-ink-2)', token, x + width / 2, object.y + GEOMETRY.chipHeight / 2, 'middle', 'central') }}>{token}</text>
           );
         }
         return (
@@ -450,6 +456,14 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
     origin = { x: state.camera.x - baseSpanW / 2 - leftMargin, y: state.camera.y - span.h / 2 };
   }
   const view = `${origin.x} ${origin.y} ${span.w} ${span.h}`;
+  // Every box and circle, in draw order, with the ink its fill carries: a
+  // glyph another object draws over one reads against that fill (inkOver).
+  const shapes = visibleObjects.map(object => {
+    if (!(object.opacity > 0) || ['arrow', 'line', 'image', 'text', 'equation', 'code', ...DATA_TYPES].includes(object.type)) return null;
+    const { x, y } = centreOf(object), w = object.w || (object.type === 'circle' ? 60 : 0), h = object.type === 'circle' ? w : object.h || 0;
+    const { onFill } = shapeStyle(object.role, { highlighted: object.highlighted, chosen: picked === object.semanticId }, undefined, object.identitySlot);
+    return { xMin: x - w / 2, xMax: x + w / 2, yMin: y - h / 2, yMax: y + h / 2, role: object.role, onFill };
+  });
   return (
     <div ref={host} data-animation-frame className="relative h-full w-full select-none"
       onPointerDown={event => { if (!selecting || event.button !== 0) return; event.currentTarget.setPointerCapture(event.pointerId); drag.current = point(event); setRectangle(null); }}
@@ -485,8 +499,10 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
             <feDropShadow dx="0" dy="1" stdDeviation="1.4" style={{ floodColor: 'var(--color-ink)' }} floodOpacity="0.14" />
           </filter>
         </defs>
-        {visibleObjects.map(object => {
+        {visibleObjects.map((object, index) => {
           const role = object.role;
+          const under = shapes.slice(0, index).filter(Boolean);
+          const inkAt = (ink, box) => inkOver(ink, under, box);
           const shown = object.textProgress >= 1 ? object.label : object.label.slice(0, Math.round(object.label.length * object.textProgress));
           const chosen = picked === object.semanticId;
           const isText = object.type === 'text' || object.type === 'equation' || object.type === 'code';
@@ -524,6 +540,10 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
           const textFill = object.type === 'text'
             ? textObjectInk(role, object.typography, object.identitySlot)
             : (isText || isData ? 'var(--color-ink-2)' : look.onFill);
+          // A shape's own label is on its own fill (look.onFill above); any
+          // other label may sit on an earlier object's box instead.
+          const labelFill = !isText && !isData && !isStroke && !isImage ? textFill
+            : inkAt(textFill, estimateTextBox({ text: object.label, x: label.x, y: label.y, fontSize: type.fontSize, anchor: label.anchor, baseline: label.baseline }));
           return (
             <g key={object.id} data-animation-object={object.semanticId} opacity={object.opacity}
               transform={`rotate(${object.rotation} ${centre.x} ${centre.y})`}
@@ -535,7 +555,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
                 ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 8} fill="none" strokeOpacity="0.28" strokeWidth="8" style={{ stroke: look.stroke }} />
                 : <rect x={object.x - 4} y={object.y - 4} width={(object.w || 0) + 8} height={(object.h || 0) + 8} rx={16} fill="none" strokeOpacity="0.25" strokeWidth="8" style={{ stroke: look.stroke }} />)}
               {isData
-                ? <DataShape object={object} role={role} pop={pop} chosen={chosen}
+                ? <DataShape object={object} role={role} pop={pop} chosen={chosen} inkAt={inkAt}
                     onInputPick={object.pickInput && lockedInputs.includes(object.pickInput) ? null : onInputPick} />
                 : isImage
                 ? (object.crop
@@ -579,7 +599,8 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
                   {/* Only typeset() output may reach this - it is KaTeX markup,
                       never script. A scene's own strings are authored content and
                       must never be set as HTML. */}
-                  <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontSize: textStyle('equation').fontSize, color: 'var(--color-ink)' }}
+                  <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontSize: textStyle('equation').fontSize,
+                    color: inkAt('var(--color-ink)', { xMin: object.x, xMax: object.x + (object.w || 0), yMin: object.y, yMax: object.y + (object.h || 0) }) }}
                     dangerouslySetInnerHTML={{ __html: maths }} />
                 </foreignObject>
               )}
@@ -588,7 +609,7 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
                   x={label.x} y={label.y} textAnchor={label.anchor} dominantBaseline={label.baseline}
                   fontSize={type.fontSize}
                   fontWeight={type.fontWeight}
-                  style={{ fontFamily: type.fontFamily ?? (isCircle ? MONO : 'inherit'), fill: textFill }}>{shown}</text>
+                  style={{ fontFamily: type.fontFamily ?? (isCircle ? MONO : 'inherit'), fill: labelFill }}>{shown}</text>
               )}
               {/* the full label reserves its space so later objects never shift */}
               {object.textProgress < 1 && <text x={-9999} y={-9999} fontSize={type.fontSize}>{object.label}</text>}

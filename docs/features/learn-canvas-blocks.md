@@ -93,9 +93,12 @@ Approved 2026-09-24 as regression invariants for the canvas shell (`AdaptiveCanv
   and the page scrolls, so the table of contents stays reachable underneath.
 - Toolbar and overview stay functional at 100% zoom; wheel over empty gutter space pans the canvas,
   while toolbar controls, menus and the overview keep their own wheel.
+- The zoom controls never cover the composer or the canvas (NC10, 2026-09-29): below 1024px of
+  canvas width they take their own line above the composer instead of sitting beside it.
 
 Regression check: `node e2e/canvas-toolbar-check.mjs <deployed-base> nanogpt-depth-ladder <outDir>`
-(desktop 1720×1100 with the widest card pushed past the edge, a 2200px wide screen, and 390×844).
+(desktop 1720×1100 with the widest card pushed past the edge, a 2200px wide screen, and 390×844,
+where a tap on the composer input must land on the input, not the zoom controls).
 
 The same rule holds inside a card: sections under an animation's frame — Sources & evidence and
 the practice section, collapsed or open — grow the card by their measured height and never shrink
@@ -157,10 +160,27 @@ Owner rules (2026-09-29), fixed in the shared renderer and tokens, never per car
   the scene surface, and every soft resting cell tint in any role or identity hue (c25's
   probability cells are prediction's). The fix is the token itself (`#63615d` light, `#a1a1a1`
   dark), still visibly lighter than `--color-ink`. No grey passes on a strong or solid fill, so an
-  unlit numeral there takes the fill's own ink (`cellInk`, `scene-style.js`). Unproven there, and
-  named in `cellInk`'s ponytail because no lesson draws numerals on a loud fill yet: any identity
-  hue, success at rest in light, learner lit or peak in dark, and a strong-role grid whose
-  `cellHighlightKind` is `highlight` (lit and unlit share that ink; only the fill step differs).
+  unlit numeral there takes the fill's own ink (`cellInk`, `scene-style.js`), the same ink a box
+  label gets (below). Unproven there, and named in `cellInk`'s ponytail because only the IDENTITY
+  benchmark draws numerals on a loud fill in an identity hue (identity has no on-ink of its own);
+  and a strong-role grid whose `cellHighlightKind` is `highlight` draws lit and unlit in that one
+  ink (only the fill step differs).
+- **A label on a filled shape takes the fill's ink.** Text drawn on a box, circle, chip or cell
+  reads against that fill, not the page: a shape's own label, a cell's numeral and a chip's token
+  on their own fill, and a text line, token label, bar label or equation drawn over another
+  object's box or circle. On a soft tint the text keeps its own ink. On a strong or solid role
+  fill it takes the fill's readable ink, `inkOn` at the fill's step (`shapeStyle`'s `onFill`);
+  a glyph over another object's box or circle gets that box's `onFill` (`inkOver`,
+  `scene-style.js`). No new tokens: where one ink cannot hold a loud role's whole band in both
+  themes, the step picks from existing inks (heat's zone pattern). Learner takes `--viz-ink-mid`
+  (black in light, white in dark): page ink fell to 4.21:1 on its rest step in dark
+  (Tokenization Guided's found entry, sorted-list and selection boxes; Attention Overview's
+  reading tile). Success takes black (`--viz-ink-solid`) up to its lit step and
+  `--viz-on-success` at its peak: white fell to 4.09-4.25:1 on its rest step in light (Training
+  Deep 1/3's `estimate_loss(): runs`). Warning and observed keep page ink and their on-ink.
+  Active highlights keep their fill; only the ink moves. c15's verdict line on its output-tinted
+  box is page ink (the output-green line read 3.87:1 in light). A grid's row and column names
+  stay secondary ink on the surface.
 - **Informational card text is secondary, never tertiary.** Provenance rows under a card (repo @
   revision, sha256, Reproduce), image credits, block labels (Output, Given, Your code) and the
   scene selection line are `text-ink-2`. `--color-ink-3` (2.8:1) stays for placeholders, disabled
@@ -183,24 +203,33 @@ Owner rules (2026-09-29), fixed in the shared renderer and tokens, never per car
   text matters to understanding, it is not exempt. Each exemption is documented, never assumed.
   Floors on the scene surface: `--color-ink` 0.72 (0.57 dark), `--color-ink-2` (annotations,
   captions, label tokens) 0.88 (0.79 dark), role-hued text in light effectively none; a box
-  label on a 12% soft fill holds 4.5:1 down to 0.72 (4.56:1), not on a strong fill (warning at
-  0.72: 3.32:1). Classified in the NC10 audit (owner, 2026-09-29). A, brought to 4.5:1: c10's
-  later characters' names (0.72; their value dots keep 0.3, non-text); Tokenization Guided's
-  sorted list (full strength; the found entry keeps its box, page ink and bold); Tokenization
-  Deep 3/3's two digit-prompt rows (both texts at full strength; the other branch's step box at
-  0.72, grey when it is the what-if KeyError); Attention Deep 3/4's fused call on the manual
-  path (its two notes at full strength, its box at 0.72). B, exempt in the check's `EXEMPT` by
+  label on a 12% soft fill, under its box shadow, holds 4.5:1 down to 0.73 (4.60:1; 4.47 at
+  0.72), not on a strong fill (warning at 0.72: 3.32:1). Classified in the NC10 audit (owner,
+  2026-09-29). A, brought to 4.5:1: c10's later characters' names (0.72; their value dots keep
+  0.3, non-text); Tokenization Guided's sorted list (full strength; the found entry keeps its box
+  and bold, in the box's ink); Tokenization Deep 3/3's two digit-prompt rows (both texts at full strength; the other branch's step box at
+  0.73, grey when it is the what-if KeyError); Attention Deep 3/4's fused call on the manual
+  path (its two notes at full strength, its box at 0.73). B, exempt in the check's `EXEMPT` by
   object and input state, each with its reason: Architecture Overview's loop note before stage
   6 (a stage not yet reached); Architecture Deep's steps below the failed assert (model(idx) at
   T = 257); Attention Deep's five manual steps and att on the fused path (1/4, 2/4: the path not
-  taken); Generation Deep's steps after ÷ T at T = 0 (invalid). Each B line reads at full
-  strength in the state that teaches it, and a full-strength line in the same state says why
-  it is dimmed. Box labels under these dims (Architecture Overview's later stages, Tokenization
-  Deep 1/3's steps after the KeyError) follow the same B; the check composites text objects
-  only (its ponytail).
+  taken); Generation Deep's steps after ÷ T at T = 0 (invalid). The step-box labels under these
+  dims follow the same B, each listed by object: Architecture Overview's stage boxes the stepper
+  has not reached (0.3), Architecture Deep's step boxes below the failed assert, Attention
+  Deep's five manual step boxes on the fused path (0.25), Generation Deep's step boxes after
+  ÷ T at T = 0, and Tokenization Deep 1/3's batch, wte and lm_head boxes after the digit
+  prompt's KeyError (0.35; the not-reached line says so). New with the box-label check, B:
+  Attention Overview's characters after the one being read (0.3) - the causal mask hides them
+  from that reader, so they get no bar; each reads at full strength once it is read, and the
+  future note says why it is faded. Each B line reads at full strength in the state that
+  teaches it, and a full-strength line in the same state says why it is dimmed.
   Check: `src/text-contrast.test.mjs` - the tokens, every role and identity hue, every loud-fill
-  step, and every glyph on the scene surface of every card at rest; it fails on a listed B
-  object that no longer fails in its state.
+  step, every glyph on the scene surface, and every glyph over a filled shape (its own label
+  included, no blanket skip) composited with its fill's step, every object's opacity and the
+  box shadow - on every card of every board at rest, in every review state and input value,
+  both themes. It fails on a listed B object that no longer fails in its state. Glyph extents
+  are estimated (sans 0.5 em per character, monospace 0.6), so a line whose last character or
+  two runs onto a fill can go unmeasured.
 - **Feedback is 14px and reads in both themes.** Pass, fail and not-ready feedback and the
   committed-attempt count are `text-sm`, like the answer text; the count may stay in secondary
   ink. Pass and fail use `--color-pass` and `--color-fail`, which flip in dark (Tailwind's

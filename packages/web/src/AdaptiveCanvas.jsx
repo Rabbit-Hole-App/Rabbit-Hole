@@ -1791,9 +1791,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
           </div>
         </div>
       )}
-      {/* The zoom pill sits level with the composer's bottom edge. */}
+      {/* The zoom pill sits level with the composer's bottom edge, left of the
+          centred 504px composer. The pill is ~252px, so below 1024px of canvas
+          they would collide: there it takes its own line above the composer
+          instead of covering it. */}
       {presenting === null && <div className="relative min-h-11 shrink-0 pt-3">
-        <div data-zoom aria-label="Zoom controls" className="absolute bottom-0 left-0 z-20 flex items-center rounded-lg border border-line bg-white shadow-sm">
+        <div data-zoom aria-label="Zoom controls" className="absolute bottom-0 left-0 z-20 flex items-center rounded-lg border border-line bg-white shadow-sm @max-[1024px]:static @max-[1024px]:mb-2 @max-[1024px]:w-fit">
           <IconBtn title="Scroll up" onClick={() => scrollBy(-1)}><ChevronUp size={14} /></IconBtn>
           <IconBtn title="Scroll down" onClick={() => scrollBy(1)}><ChevronDown size={14} /></IconBtn>
           <span className="mx-0.5 h-5 w-px bg-line" />
