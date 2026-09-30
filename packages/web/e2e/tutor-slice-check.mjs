@@ -12,7 +12,7 @@ import { cardModule, TUTOR_BOARD } from '../src/learn-tutor-claims.js';
 
 const BASE = process.env.TUTOR_BASE || 'http://127.0.0.1:8788';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(BASE)) throw Error('tutor-slice-check runs against the local stack only');
-const args = process.argv.slice(2), LIVE = args.includes('--live');
+const args = process.argv.slice(2), LIVE = args.includes('--live'), GAP_ONLY = args.includes('--gap'); // --live --gap: only the prerequisite-gap turn
 const OUT = args.find(arg => !arg.startsWith('--')) || 'tutor-shots';
 mkdirSync(OUT, { recursive: true });
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
@@ -105,6 +105,7 @@ if (LIVE) {
     return plan;
   };
 
+  if (!GAP_ONLY) {
   // An unprompted explanation: JEV judges only the ideas it touches (the approved v1 rule).
   await select('c10-weighted-values');
   await liveTurn('L1 explanation', 'So the output is a weighted average of the values: softmax turns the scores into weights that add up to one.');
@@ -127,11 +128,19 @@ if (LIVE) {
   await select('depth-attention-guided');
   await liveTurn('L5 /simplify', '/simplify the masking step');
   await shot('live-05-simplify');
+  }
   // A prerequisite gap: the dive suggestion, the hole, its opening turn, and back to the parent.
   await select('depth-attention-guided');
   await liveTurn('L6 gap', "I get that q·k gives a score, but why do the weights add up to one? Why isn't the score just the weight?");
   const suggested = await page.locator('[data-dive-suggestion]').first().waitFor({ timeout: 5000 }).then(() => true, () => false);
   await shot('live-06-gap');
+  // The words right before the suggestion: at most two sentences (locked gap row; enforce() in learn-tutor.js).
+  // The reply bubble is the dock's last accent-bordered answer (ask.jsx, learnChat).
+  const before = await page.evaluate(() => [...document.querySelectorAll('[data-learn-dock] div')].filter(node => String(node.className).includes('border-accent/30')).at(-1)?.innerText || '');
+  const sentences = before.trim().split(/(?<=[.!?])\s+/).filter(Boolean);
+  console.log('live L6 reply before the suggestion', sentences.length, 'sentence(s):', JSON.stringify(before.slice(0, 400)));
+  if (suggested) assert.ok(sentences.length >= 1 && sentences.length <= 2, `at most two sentences before the Rabbit Hole suggestion (${sentences.length})`);
+  if (GAP_ONLY) { await browser.close(); assert.ok(suggested, 'the real planner suggested a dive'); console.log('tutor-slice-check --live --gap ok'); process.exit(0); }
   if (suggested) {
     const opening = page.waitForResponse(response => response.url().endsWith('/api/learn/tutor/plan'), { timeout: 120000 });
     await page.getByRole('button', { name: 'Go down a Rabbit Hole' }).click();
