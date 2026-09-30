@@ -10,9 +10,9 @@ import './scene-behaviors.js';
 // handed back to the canvas for persistence. Nothing lesson-supplied executes.
 
 const MODE_LABEL = {
-  illustration: 'Illustration — an authored walkthrough, not a measurement',
+  illustration: 'Illustration: an authored walkthrough, not a measurement',
   local_calculation: 'Calculated here from the values you set',
-  recorded_run: 'Recorded run — saved results, not a live execution',
+  recorded_run: 'Recorded run: saved results, not a live execution',
   live_run: 'Live run',
 };
 

@@ -49,8 +49,8 @@ export const BLOCK_TYPES = {
       type: 'challenge',
       dx: 0,
       dy: 0,
-      prompt: 'nanoGPT receives token IDs — plain integers like `42`. What has to happen between these integers and next-token predictions?',
-      hint: 'Commit a guess before we look — the tutor reads it and says what you already have.',
+      prompt: 'nanoGPT receives token IDs: plain integers like `42`. What has to happen between these integers and next-token predictions?',
+      hint: 'Commit a guess before we look: the tutor reads it and says what you already have.',
       expects: ['each token id selects a learned embedding row', 'position information is added to the token vector', 'transformer blocks mix the vectors', 'a final linear layer scores every vocabulary token'],
       reveal: 'Hold that thought. The next blocks walk the real path: token IDs pick embedding rows, positions add where each token sits, the transformer tower mixes them, and the LM head scores every vocabulary token.',
       answer: null,
@@ -85,10 +85,10 @@ export const BLOCK_TYPES = {
       dx: 0,
       dy: 0,
       title: 'An id is an index, not a meaning',
-      body: 'Token ids are positions in the vocabulary, nothing more: `42` is not "bigger" than `41` in any useful sense. `wte` turns each id into a learned vector, and every later step works only with those vectors.\n\nThe table is defined in `model.py:127` — one row per vocabulary token, $65 \\times 384$ in the char model.',
+      body: 'Token ids are positions in the vocabulary, nothing more: `42` is not "bigger" than `41` in any useful sense. `wte` turns each id into a learned vector, and every later step works only with those vectors.\n\nThe table is defined in `model.py:127`: one row per vocabulary token, $65 \\times 384$ in the char model.',
       // Layer 2 of the spec: deeper material that stays folded until asked for.
       more: [
-        { label: 'Worked example', text: 'Token id $42$ selects row $42$: `wte.weight[42]` → `[0.17, -0.81, 0.42, …]`. Change the id to $43$ and a completely different row comes out — the vectors are not ordered by id.' },
+        { label: 'Worked example', text: 'Token id $42$ selects row $42$: `wte.weight[42]` → `[0.17, -0.81, 0.42, …]`. Change the id to $43$ and a completely different row comes out: the vectors are not ordered by id.' },
         { label: 'Common misconception', text: 'Bigger vocabulary does not mean wider vectors. `vocab_size` is the number of rows; `n_embd` is the row width. They move independently.' },
       ],
     }),
@@ -107,7 +107,7 @@ export const BLOCK_TYPES = {
         { key: 'B', text: '$1 - \\sigma(x)^2$' },
         { key: 'C', text: '$e^{-x}$' },
       ],
-      why: 'Differentiate: $\\sigma\'(x) = \\frac{e^{-x}}{(1+e^{-x})^2} = \\sigma(x)\\,(1-\\sigma(x))$ — maximal $0.25$ at $x = 0$, which is why deep sigmoid stacks saturate.',
+      why: 'Differentiate: $\\sigma\'(x) = \\frac{e^{-x}}{(1+e^{-x})^2} = \\sigma(x)\\,(1-\\sigma(x))$: maximal $0.25$ at $x = 0$, which is why deep sigmoid stacks saturate.',
       choice: null,
     }),
   },
@@ -120,9 +120,9 @@ export const BLOCK_TYPES = {
       dx: 0,
       dy: 0,
       cards: [
-        { front: 'What is `wte`?', back: 'The token embedding table — one learned row per vocabulary token ($65 \\times 384$ in the char model).' },
-        { front: 'Why are attention heads free?', back: '`n_head` only splits the same $n\\_{embd}$ channels — changing it adds no parameters.' },
-        { front: 'Reported parameter count of the char model?', back: '$10{,}646{,}784$ — `bias = False` everywhere, and the position table is subtracted by `get_num_params`.' },
+        { front: 'What is `wte`?', back: 'The token embedding table: one learned row per vocabulary token ($65 \\times 384$ in the char model).' },
+        { front: 'Why are attention heads free?', back: '`n_head` only splits the same $n\\_{embd}$ channels: changing it adds no parameters.' },
+        { front: 'Reported parameter count of the char model?', back: '$10{,}646{,}784$: `bias = False` everywhere, and the position table is subtracted by `get_num_params`.' },
       ],
     }),
   },
@@ -164,7 +164,7 @@ export const BLOCK_TYPES = {
       dx: 0,
       dy: 0,
       title: 'Building the character vocabulary',
-      brief: 'The char model derives its whole vocabulary from the training text — every distinct character gets an id.',
+      brief: 'The char model derives its whole vocabulary from the training text: every distinct character gets an id.',
       code: "text = 'hello hi'\nchars = sorted(set(text))\nprint(chars)\nprint(len(chars), 'characters')\nstoi = { ch: i for i, ch in enumerate(chars) }\nprint(stoi['h'], stoi['i'])",
       output: "[' ', 'e', 'h', 'i', 'l', 'o']\n6 characters\n2 3",
     }),
@@ -183,7 +183,7 @@ export const BLOCK_TYPES = {
       setup: "text = 'hello hi'\nchars = sorted(set(text))\nstoi = { ch: i for i, ch in enumerate(chars) }\nitos = { i: ch for ch, i in stoi.items() }",
       starter: 'def encode(s):\n    # return the list of ids for the characters of s\n    ...',
       checks: "assert encode('hi') == [stoi['h'], stoi['i']], f\"encode('hi') returned {encode('hi')}\"\nassert encode('') == [], 'an empty string should give an empty list'\nprint('encode(\\'hi\\') =', encode('hi'))\nprint('all checks passed')",
-      hint: 'encode must return one id per character of s, in order — look each character up in stoi.',
+      hint: 'encode must return one id per character of s, in order: look each character up in stoi.',
       draft: null,
     }),
   },
@@ -199,7 +199,7 @@ export const BLOCK_TYPES = {
       dx: 0,
       dy: 0,
       title: 'Sharpen the sigmoid',
-      brief: 'Drag $k$ — a bigger slope makes the curve snap toward a step function, and the derivative peak grows.',
+      brief: 'Drag $k$: a bigger slope makes the curve snap toward a step function, and the derivative peak grows.',
       // The existing lesson graph contract (packages/control-plane/src/
       // learn-graph-schema.js): Desmos for live math, Plotly for data traces.
       spec: {
@@ -632,7 +632,7 @@ export const BLOCK_TYPES = {
       title: 'Illustrate an idea',
       src: '',
       prompt: 'A clean diagram of light entering a glass prism and fanning into a rainbow, flat vector style, dark background',
-      caption: 'Generated illustration — not a photograph or a measurement.',
+      caption: 'Generated illustration: not a photograph or a measurement.',
     }),
   },
   video: {
@@ -902,7 +902,7 @@ function QuizBody({ block, onChange, onFile }) {
           );
         })}
       </div>
-      {block.choice && !solved && <p className="mt-2 text-xs text-red-700">Not quite — look at where the exponential ends up, and try again.</p>}
+      {block.choice && !solved && <p className="mt-2 text-xs text-red-700">Not quite. Look at where the exponential ends up, and try again.</p>}
       {solved && <div className="mt-2 border-t border-line pt-2 text-sm text-ink-2"><span className="mr-1 font-medium text-green-700">✓ Right.</span><Md text={block.why} onFile={onFile} /></div>}
     </div>
   );
@@ -1234,7 +1234,7 @@ function ImageBody({ block, appName, onChange, onFile }) {
       {block.caption && <div className="mt-1.5 text-xs text-ink-2"><Md text={block.caption} onFile={onFile} /></div>}
       {current?.credit && (current.credit.url
         ? <p className="mt-1 text-[11px] text-ink-3">Photo by <a href={current.credit.url} target="_blank" rel="noreferrer" className="underline">{current.credit.photographer}</a> on Pexels</p>
-        : <p className="mt-1 text-[11px] text-ink-3">Generated illustration — not a photograph or measurement.</p>)}
+        : <p className="mt-1 text-[11px] text-ink-3">Generated illustration: not a photograph or measurement.</p>)}
       <div className="mt-2 flex gap-2" onPointerDown={event => event.stopPropagation()}>
         <input value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') search(); }}
           placeholder="Search or describe an image…" className="h-8 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm outline-none focus:border-ink-3" />

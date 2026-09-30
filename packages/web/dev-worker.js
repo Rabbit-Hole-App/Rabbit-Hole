@@ -8,6 +8,13 @@ import BLOG from './dist-dev/design/rabbit-hole-blog.html';
 import FEATURES from './dist-dev/design/rabbit-hole-features.html';
 import PRICING from './dist-dev/design/rabbit-hole-pricing.html';
 import MANIFESTO from './dist-dev/design/rabbit-hole-manifesto.html';
+import TEAM from './dist-dev/design/rabbit-hole-team.html';
+import DOCS from './dist-dev/design/rabbit-hole-docs.html';
+import { DOCS_PATHS } from './src/landing/docs-content.js';
+import AUTH from './dist-dev/design/rabbit-hole-auth.html';
+import { AUTH_PATHS } from './src/landing/auth-routes.js';
+import SUPPORT from './dist-dev/design/rabbit-hole-support.html';
+import { SUPPORT_PATHS, isPublicPageRequest } from './src/landing/support-routes.js';
 import { byocFetch } from '../control-plane/src/byoc.js';
 import apiCode from '../byoc/api.py';
 import signerCode from '../byoc/signer.py';
@@ -24,7 +31,26 @@ export { LearnVideos } from '../control-plane/src/learn-video.js';
 export default {
   async fetch(req, env, ctx) {
     const path = new URL(req.url).pathname;
-    const publicPage = {'/': LANDING, '/blog': BLOG, '/features': FEATURES, '/pricing': PRICING, '/manifesto': MANIFESTO}[path.replace(/\/$/, '') || '/'];
+    if (DOCS_PATHS.includes(path.replace(/\/$/, ''))) {
+      if (!['GET', 'HEAD'].includes(req.method)) return new Response('Method not allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
+      return new Response(req.method === 'HEAD' ? null : DOCS, {
+        headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
+      });
+    }
+    if (SUPPORT_PATHS.includes(path.replace(/\/$/, ''))) {
+      if (!['GET', 'HEAD'].includes(req.method)) return new Response('Method not allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
+      return new Response(req.method === 'HEAD' ? null : SUPPORT, {
+        status: path.replace(/\/$/, '') === '/404' ? 404 : 200,
+        headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' },
+      });
+    }
+    if (AUTH_PATHS.includes(path.replace(/\/$/, ''))) {
+      if (!['GET', 'HEAD'].includes(req.method)) return new Response('Method not allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
+      return new Response(req.method === 'HEAD' ? null : AUTH, {
+        headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Referrer-Policy': 'same-origin' },
+      });
+    }
+    const publicPage = {'/': LANDING, '/blog': BLOG, '/features': FEATURES, '/pricing': PRICING, '/manifesto': MANIFESTO, '/team': TEAM}[path.replace(/\/$/, '') || '/'];
     if (typeof publicPage === 'string') return new Response(publicPage, {
       headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
     });
@@ -152,6 +178,13 @@ export default {
       return env.ASSETS.fetch(req);
     }
     // Keep the dev request URL so sign-in links and cookies stay on the dev host.
-    return env.CONTROL_PLANE.fetch(req);
+    const response = await env.CONTROL_PLANE.fetch(req);
+    if (response.status === 404 && isPublicPageRequest(req)) {
+      return new Response(req.method === 'HEAD' ? null : SUPPORT, {
+        status: 404,
+        headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' },
+      });
+    }
+    return response;
   },
 };

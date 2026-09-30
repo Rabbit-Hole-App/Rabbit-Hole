@@ -25,7 +25,7 @@ import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 
 const NAV_TOOLS = [
   ['select', MousePointer2, 'Select and move'],
-  ['hand', Hand, 'Hand — pan the canvas'],
+  ['hand', Hand, 'Hand: pan the canvas'],
 ];
 const DRAW_TOOLS = [
   ['pen', Pencil, 'Pen'],
@@ -565,8 +565,8 @@ function GapRail({ gap, zoom, span, space, adding, onNudge, onAdding, onAddHeadi
           They sit off the left edge of the column, on blank canvas. */}
       <div style={{ left: -12, transform: `translate(-100%, -50%) scale(${1 / zoom})`, transformOrigin: 'right center' }}
         className="pointer-events-auto absolute flex items-center gap-1">
-        {button(-SPACE_STEP, Minus, `Pull these cards together — ${space}px apart`)}
-        {button(SPACE_STEP, Plus, `Push these cards apart — ${space}px apart`)}
+        {button(-SPACE_STEP, Minus, `Pull these cards together: ${space}px apart`)}
+        {button(SPACE_STEP, Plus, `Push these cards apart: ${space}px apart`)}
         {/* Same dev gate as the corner button this came from. */}
         <span className="relative">
           <button type="button" aria-label="Insert a section here" title="Insert a section in this gap" aria-expanded={adding}
@@ -1665,10 +1665,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onDelete = null, onR
         {SHAPE_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
         <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
         {/* Keeps the armed tool armed after a draw, so shapes come in runs. */}
-        <ToolButton Icon={lock ? Lock : LockOpen} label={lock ? 'Keep tool active — on' : 'Keep tool active — off'}
+        <ToolButton Icon={lock ? Lock : LockOpen} label={lock ? 'Keep tool active: on' : 'Keep tool active: off'}
           active={lock} onPick={() => setLock(previous => !previous)} />
         {/* Alignment guides always run; this is the harder 18px grid on top. */}
-        <ToolButton Icon={Grid3x3} label={grid ? 'Snap to grid — on' : 'Snap to grid — off'}
+        <ToolButton Icon={Grid3x3} label={grid ? 'Snap to grid: on' : 'Snap to grid: off'}
           active={grid} onPick={() => setGrid(previous => !previous)} />
         {/* The one control that never hides: the way back to the style panel
             once it has closed itself, showing what colour is currently armed. */}

@@ -1,5 +1,15 @@
 # Landing clarity, adaptive example and footer action
 
+## Compact Overview follow-up (2026-09-30, local only)
+
+Inactive depth scenes no longer reserve the tallest scene's height. Overview
+uses a compact canvas (530px desktop, 410px phone minimum) that fits the video,
+playback controls and composer; Guided expands for its linked cards. This
+supersedes the prior equal-height-across-depths behavior. Local checks at
+1440/390/320px verify height, control containment and retained Guided links.
+Evidence: `tmp/manifesto-review/local/results.json`. No deployment or backend
+actions; the security hold remains active.
+
 ## Current milestone — Softmax at three depths (2026-09-29)
 
 Latest revision (local only): all composers use “explain me softmax function”.

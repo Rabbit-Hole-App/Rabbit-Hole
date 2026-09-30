@@ -89,7 +89,7 @@ if(slug!==null){
   reader.hidden=false;
   const back='<a class="blog-back" href="/blog#stories"><span aria-hidden="true">←</span> Back to blog</a>';
   if(story){
-    document.title=`${story.title} — Rabbit Hole`;
+    document.title=`${story.title} | Rabbit Hole`;
     reader.innerHTML=`${back}<header class="blog-post-heading">
       <p class="blog-post-kicker">${story.category} <span>Sample article</span></p>
       <h1>${story.title}</h1><p class="blog-post-deck">${story.excerpt}</p>
@@ -97,7 +97,7 @@ if(slug!==null){
       </header>${cover(story)}<div class="blog-post-body">${story.body}</div>
       <div class="blog-post-end"><p>There is always another question.</p>${back}</div>`;
   }else{
-    document.title='Story not found — Rabbit Hole';
+    document.title='Story not found | Rabbit Hole';
     reader.innerHTML=`${back}<header class="blog-post-heading"><p class="blog-post-kicker">Rabbit Hole / Blog</p><h1>This page is still unwritten.</h1><p class="blog-post-deck">That sample story isn't here. Follow another thread from the blog.</p></header>`;
   }
 }else{

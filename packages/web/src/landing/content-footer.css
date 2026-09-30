@@ -1,7 +1,8 @@
 /* Shared, static footer for Blog, Features and Pricing. */
 .content-page footer.content-footer{display:block;padding:52px 40px 24px;background:#f8f8f8;border-top:1px solid var(--hair);color:var(--fg)}
 .content-footer-main,.content-footer-bottom{max-width:1080px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:32px}
-.content-footer-brand>a{font:500 30px/1.1 var(--display);letter-spacing:-.035em}
+.content-footer-brand>a{font:500 30px/1.1 var(--display);letter-spacing:-.035em;display:inline-flex;align-items:center;gap:10px}
+.content-footer-brand .rh-mark{width:42px;height:42px}
 .content-footer-brand p{font:400 14px/1.5 var(--ui);color:#626262;margin-top:12px}
 .content-footer a{color:inherit;text-decoration:none}
 .content-footer nav{display:flex;align-items:center;gap:26px;flex-wrap:wrap}

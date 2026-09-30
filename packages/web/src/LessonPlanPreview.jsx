@@ -128,7 +128,7 @@ export default function LessonPlanPreview({ view, selected, onSelect, course, ed
   });
   return <section key={selected} aria-label="Lesson material plan" className="min-h-0 flex-1 overflow-y-auto pr-2">
     <button type="button" onClick={onBack} className="mb-4 inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-xs text-ink-2 hover:bg-hover"><ArrowLeft size={14} />Back to curriculum</button>
-    <h2 className="text-xl font-semibold">{plan ? item.title.replace(/ —.*$/, '') : item.title}</h2>
+    <h2 className="text-xl font-semibold">{plan ? item.title.replace(/ —.*$/, '') : item.title.replace(/\s*\u2014\s*/g, ': ')}</h2>
     <p className="mt-2 mb-5 text-sm text-ink-2">{plan ? 'Draft material plan · review before rendering or generating assets' : 'Curriculum outline · the detailed material plan has not been written yet'}</p>
     {selected === 0 && <button type="button" disabled={!onPreview} onClick={onPreview} className="mb-5 inline-flex items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm text-white hover:opacity-90 disabled:opacity-40"><ArrowRight size={15} />Play Lesson 1</button>}
     {selected === 0 && Object.keys(edits).some(id => id.startsWith(`lesson-1-r${lessonOneRevision}-page-1-`) || id.startsWith(`lesson-1-r${lessonOneRevision}-page-2-`)) && <p className="mb-4 text-sm text-ink-2">This preview uses the saved Markdown plan. Your chat draft edits are retained here; rebuilding from those edits is not available yet.</p>}
@@ -139,7 +139,7 @@ export default function LessonPlanPreview({ view, selected, onSelect, course, ed
       {pages.map((page, index) => <details key={page.title} open={index === 0} data-plan-page className="group/page rounded-xl border border-line bg-white">
         <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl p-4 hover:bg-hover [&::-webkit-details-marker]:hidden">
           <ChevronDown size={18} aria-hidden="true" className="shrink-0 -rotate-90 text-ink-2 transition-transform group-open/page:rotate-0" />
-          <h3 className="flex-1 text-base font-semibold">{page.title}</h3>
+          <h3 className="flex-1 text-base font-semibold">{page.title.replace(/\s*\u2014\s*/g, ': ')}</h3>
           <span className="shrink-0 text-xs text-ink-3">{page.blocks.length} sections</span>
         </summary>
         <div className="ml-6 mr-4 mb-5 space-y-4 border-l-2 border-line pl-5">{page.blocks.map(block => <div key={block.id} className="relative before:absolute before:-left-5 before:top-6 before:w-5 before:border-t-2 before:border-line"><MaterialBlock block={block} page={page.title} context={page.blocks.map(item => `${item.title}\n${item.text}`).join('\n\n')} learnerView={learnerView} selectedSection={selectedSection} onEdit={onEdit} /></div>)}</div>

@@ -1,5 +1,7 @@
 #adaptive-learning .softmax-scene{grid-area:1 / 1;min-width:0;min-height:490px;display:flex;flex-direction:column;gap:18px;justify-content:space-between}
-#adaptive-learning .softmax-scene[hidden]{display:flex;visibility:hidden;pointer-events:none}
+#adaptive-learning .softmax-scene[hidden]{display:none}
+#adaptive-learning .softmax-overview .softmax-canvas{min-height:530px}
+#adaptive-learning [data-softmax-status]:empty{display:none}
 #adaptive-learning .softmax-canvas{position:relative;flex:1;min-height:478px;overflow:hidden;border:1px solid #ddded7;border-radius:8px;background-color:#fdfdfa;background-image:radial-gradient(#d9dbd1 .7px,transparent .7px);background-size:16px 16px}
 #adaptive-learning .softmax-canvas-bar{height:38px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;border-bottom:1px solid #e3e4de;font:400 10px/1.4 var(--ui);color:#76796e}
 #adaptive-learning .softmax-canvas-bar>span:first-child{display:flex;align-items:center;gap:7px;color:#383c31}
@@ -107,6 +109,7 @@
 @media(max-width:700px){
   #adaptive-learning .softmax-scene{min-height:390px;gap:16px}
   #adaptive-learning .softmax-canvas{min-height:358px}
+  #adaptive-learning .softmax-overview .softmax-canvas{min-height:410px}
   #adaptive-learning .softmax-canvas-bar{padding:0 10px;font-size:9px}
   #adaptive-learning .softmax-canvas-bar>span:last-child{font-size:8px}
   #adaptive-learning .softmax-learning-card{gap:12px;margin:12px 10px;padding:12px 10px}

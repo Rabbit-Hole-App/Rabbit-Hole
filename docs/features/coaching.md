@@ -1,5 +1,25 @@
 # Coaching: product, ideas, tasks, and results
 
+### Landing review clone publication (2026-09-30)
+
+Explicit user authorization lifted the deployment hold for the current
+`small-cp-dev-smart-landing-page` review build only. Published current branch
+version `e2d120bb-d0b5-4ba5-936b-bb89bb6f0a97`, including the manifesto,
+compact Overview, existing public-page work and punctuation cleanup. New preview
+line: **No fixed path. No final lesson.** Build and `make test-unit` passed.
+Remote verification is limited to read-only public pages. No login, test
+sessions, uploads, app actions or shared-data writes are authorized by this
+publication; no main-branch merge or live promotion occurred.
+
+### Landing manifesto and compact Overview (2026-09-30, local review)
+
+The landing preview and manifesto essay now use the user's adaptive-learning
+thesis, with the existing red highlights, monochrome portraits and staircase.
+Overview no longer inherits Guided's larger canvas height. Scope, copy decisions
+and local browser evidence: [manifesto revision](rabbit-hole-manifesto.md).
+The P0-B hold remains active: no deployment, auth or shared-resource writes.
+Review is prepared from localhost in the Rabbit Hole Figma organization.
+
 ### Canvas conversation blocks (2026-09-17)
 
 Regular dev's adaptive canvas uses these terms:
@@ -1342,6 +1362,185 @@ release into the clouds. No browser errors or interaction API calls. Inspected
 deployed desktop/mobile screenshots. Evidence:
 `tmp/audience-section/deployed-live/results.json` and screenshots. Specification:
 `docs/features/rabbit-hole-audiences.md`. Canvas contents remain illustrative.
+
+### Pro contact CTA and audience-section concept — 2026-09-29
+
+The Pro pricing card now says Contact and links to
+`mailto:hello@tryrabbithole.dev?subject=Rabbit%20Hole%20Pro`. Free/Plus CTAs,
+card styling and other pricing content are unchanged. Built with both dev flags
+and the tldraw license; deployed only to `small-cp-dev-smart-landing-page`,
+version `4f1e24f0-f0b1-440c-a8f5-30dc907e0576`.
+
+All 17 deployed browser checks passed at 1440 and 390px: Contact label and
+destination, keyboard focus, preserved Free/Plus CTAs, no page overflow, no
+browser errors, and preserved landing white space/cloud layers. Evidence:
+`tmp/audience-section/deployed/results.json` and screenshots. Email delivery
+was not tested or invoked.
+
+The requested Who is it for section is a visual concept, not an implemented
+landing change. Six expanding illustrated chapters cover creators/writers,
+AI/ML engineers, educators, university students, enterprise onboarding and
+interview preparation. See the mockup, positioning and motion proposal in
+`packages/web/design/mockups/rabbit-hole-audiences-direction.md`.
+
+### Rabbit Hole developer documentation — 2026-09-29
+
+Added public `/docs` with nine chapters for the existing CLI, hosted API and
+AWS/BYOC workflows. Docs appears beside Blog, Features and Pricing in public
+desktop/mobile navigation and the footer. The approved field-guide layout uses
+search, copyable examples, chapter navigation, in-page contents, and shared
+resizable panels. The large concept illustration was omitted after the user's
+feedback. No backend, auth integration or cloud-job behavior changed.
+
+The command/content audit corrects outdated Developer-panel descriptions and
+separates hosted routes from customer AWS job APIs. Examples use the current
+preview origin, retaining the existing `small-deploy` package and `small` command.
+No customer account identifiers or private installation URLs are published.
+
+Built with both dev flags and the tldraw license; deployed only to
+`small-cp-dev-smart-landing-page`, version
+`83565435-1480-49e5-b3ea-c84de99e2245`. All 195 deployed browser/HTTP checks passed:
+nine chapters at six viewport widths, navigation/search/history, code and page
+copy, panel resizing, mobile drawer/focus, direct anchors, 404/HEAD/405 behavior
+and preserved unauthenticated API response. Desktop/mobile deployed screenshots
+were inspected. Evidence: `tmp/docs-pages/deployed/results.json` and screenshots
+in that directory; 191 local browser checks also passed.
+
+The documented greeting job was executed locally after validating its TOML and
+input schema with the actual CLI modules. It produced the expected file under
+SMALL_OUTPUTS. Cloud deployment/run examples were checked against source, not
+executed; no login email, AWS mutation or model test was performed.
+See [documentation scope](rabbit-hole-docs.md) and
+[source audit](rabbit-hole-docs-source-map.md).
+
+### Rabbit Hole public identity and supporting pages — 2026-09-29
+
+Added `/team`, `/privacy`, `/terms`, and a branded HTTP 404. Contact was cancelled
+by the user in favor of `hello@tryrabbithole.dev`. Public/auth footers now include
+Manifesto, singular Team (its own page), Privacy, Terms, X/LinkedIn marks, and an
+email link. Social marks await verified profile URLs; Team profiles are clearly
+labelled placeholders; legal copy is explicitly draft. The landing footer keeps
+its existing animation, while other footers remain static.
+
+Extracted the existing six-ellipse FAQ mark for headers, footer wordmarks, auth
+branding, 404 and white-on-black browser icons. Versioned SVG, 32px PNG and 180px
+touch icon are scoped to public/auth pages. Existing app branding is unchanged.
+
+Built with both dev flags and deployed only to `small-cp-dev-smart-landing-page`,
+version `3241f91a-6918-4bba-901b-96110e042199`. 138 deployed browser/HTTP checks
+passed across desktop/mobile widths, legal anchors, menus, footer links, favicon
+assets, true 404/HEAD behavior and preserved email-login/API/static responses.
+No backend integration, database change, email delivery or paid model test.
+See [scope and evidence](rabbit-hole-support-pages.md) and
+`tmp/support-pages/deployed/results.json`.
+
+### Rabbit Hole authentication UI — 2026-09-29
+
+Implemented the approved split-screen auth concept with one engraved opening.
+The shared public-page shell serves `/sign-in`, `/sign-up`, `/forgot-password`,
+`/check-email`, `/reset-password` and `/password-updated`. Public Get started
+links now lead to sign-up. Inputs have associated labels, inline validation,
+password visibility controls, Caps Lock feedback and keyboard focus. Mobile uses
+a compact artwork masthead. The existing `/login`, `/auth` and `/apps` remain
+available, including a workspace link below the forms.
+
+This is explicitly UI only: Google/GitHub and email/password actions show honest
+availability feedback, credentials never leave the page, and the recovery
+confirmation screens state that no email was sent or password changed. No new
+auth backend, email delivery, database change, persistence or paid model call.
+See [the auth UI scope](rabbit-hole-auth.md). Artwork and generation prompt are
+retained in `packages/web/public/landing/auth-single-hole-v1.png` and
+`packages/web/design/auth-art-prompt.md`.
+
+Built with both dev flags and the existing license read privately from the
+primary checkout's `.env` (this worktree has no `.env`). Build passed with the
+existing large-app-chunk warning. Only this session's worker was deployed:
+`small-cp-dev-smart-landing-page`, version
+`52abf882-e1c8-4eb8-aac1-e91ea6b87ed4`.
+
+Actual deployed Chrome checks passed for all six routes at 1440, 1024, 768, 390
+and 320px. Exercised sign-up/sign-in navigation, missing/invalid email, password
+visibility, signup minimum-length guidance, both social controls, the complete
+forgot → email preview → reset → completion flow, mismatched passwords, resend,
+change-email, browser back/reload, keyboard focus and reduced motion. No page
+errors, failed asset requests, horizontal overflow or auth/API requests. Public
+page CTA links and the original email-link login were checked. HEAD succeeds;
+POST to the new auth routes is rejected without forwarding credentials.
+Desktop, phone and recovery screenshots were visually inspected. Evidence:
+`tmp/auth-pages/deployed-verification.json` and `tmp/auth-pages/deployed/`.
+
+### Features demo deck shuffle — 2026-09-29
+
+The approved desktop shuffle uses the actual demo figures as a three-card deck.
+The next preview comes forward while the outgoing preview slips behind it.
+Pose evaluation follows native scroll position over the middle third between
+chapter centers, with stable reading poses on either side. Reversing or stopping
+mid-transition retraces/holds the same poses; there are no timed shuffle queues.
+The loops pause while the deck moves. The incoming content appears after the
+outgoing text clears to avoid superimposed explanations during partial scroll.
+
+Phones retain one preview below each explanation. Resizing resets desktop
+transforms before measuring the phone layout. Reduced motion uses fixed deck
+arrangements and completed static previews. No additional controls or libraries.
+
+Built with both dev flags and the existing license; only the session worker
+was deployed, version `7b6d8c7a-5c0f-404c-ab85-40ec9f00e036`. Build passed with
+the existing app chunk-size warning. Actual deployed Chrome checks passed at
+1440, 1024, 801, 390 and 320px: forward/back wheel input, partial reversal with
+identical poses, held-scroll stability, fast chapter jumps, front-loop playback,
+pause during shuffle, desktop/phone resizing, footer containment, and reduced
+motion. No browser errors, failed requests, horizontal overflow or API calls.
+Desktop intermediate/final screenshots and phone views were inspected.
+Evidence: local `tmp/features-shuffle/deployed-verification.json` and screenshots.
+
+### Remove the old Features summary cards — 2026-09-29
+
+Removed the three older summary cards below the approved walkthrough at the
+user's request, along with their orphaned page-specific styles. The four demos
+now lead directly into the simple footer. A deck-style shuffle was discussed
+as a design recommendation; this deployment retains the existing demo transition.
+
+Dev build passed with the existing chunk-size warning. Deployed only the session
+worker, version `bc20ed0d-2d0c-4c35-81a1-229acc66b41f`. Actual Chrome checks at
+1440, 390 and 320px confirmed the quoted copy/cards are absent, all four demos
+remain, the final preview plays, and the demo stays clear of the footer without
+horizontal overflow or browser errors. Desktop/mobile footer screenshots were
+visually reviewed. Evidence: local `tmp/features-cards-removed/verification.json`
+and screenshots/build/deploy logs.
+
+### Features illustrative product walkthrough — 2026-09-29
+
+The user approved staged demos before real product recordings. `/features`
+now pairs four eight-second HTML/SVG previews with draft explanations: bring
+sources, ask a follow-up, explore an attention diagram, and practice/save.
+The shared example and offset frame outlines carry the existing header's
+visual direction into the content. The header, three summary cards, public
+navigation and static footer remain. No other public page was redesigned.
+
+Desktop previews stay beside the copy and switch with forward/reverse native
+scrolling. At 800px and below, each explanation precedes its own preview.
+Inactive/offscreen previews and hidden-page playback pause; reduced motion
+shows completed stills. The figures are labeled "Illustrative product preview"
+and have accessible descriptions. There are no new playback buttons, API/model
+calls, uploads, learner submissions, or persistence. The app-like controls are
+decorative. No generated image assets or new dependencies were required.
+
+Built with both dev flags and the existing tldraw license; only the session
+worker was deployed, version `84e1e836-2dda-40bb-9e0b-8d8099bd6b89`.
+Build passed with the existing app chunk-size warning. Actual deployed Chrome
+checks passed at 1440, 1024, 801, 768, 390 and 320px: chapter selection in both
+directions, real wheel input, loop reset, inactive animation clocks pausing,
+content bounds, native scrolling, mobile menu, and reduced motion. No browser
+errors, failed assets, horizontal overflow or API requests were observed.
+Desktop and mobile rendered screenshots were inspected. The original header
+asset is still loaded. Local checks caught and fixed a canvas-height overflow
+and narrow-phone follow-up clipping before deployment.
+
+Source: `design/rabbit-hole-features.html`, `src/landing/features-demos.css`
+and `features-demos.js`; direction in `design/features-art-direction.md`.
+Evidence: local `tmp/features-demos/deployed-verification.json`, screenshots,
+and build/deploy logs. These checks establish the illustrative marketing UI,
+not real product inference or ingestion behavior.
 
 ### Distinct portraits, editorial rules and contained stairs — 2026-09-29
 

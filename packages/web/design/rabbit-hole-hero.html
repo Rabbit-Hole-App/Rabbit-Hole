@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Rabbit Hole</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/landing/favicon-32-v1.png">
+<link rel="icon" type="image/svg+xml" href="/landing/favicon-v1.svg">
+<link rel="apple-touch-icon" href="/landing/apple-touch-icon-v1.png">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./rabbit-hole.css">
@@ -13,11 +16,11 @@
 <!-- Sized in script to the viewport in device pixels. The low-res wall buffer lives
      offscreen and is blown up into this one. -->
 <header id="bar">
-  <a class="brand" href="/" aria-label="Rabbit Hole home">Rabbit Hole</a>
+  <a class="brand" href="/" aria-label="Rabbit Hole home"><span class="rh-mark" aria-hidden="true"></span>Rabbit Hole</a>
   <a href="/blog">Blog</a>
   <a href="/features">Features</a>
-  <a href="/pricing">Pricing</a>
-  <a class="cta" href="/apps">Get started</a>
+  <a href="/pricing">Pricing</a><a href="/docs">Docs</a>
+  <a class="cta" href="/sign-up">Get started</a>
   <button id="menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="sheet">
     <i></i><i></i>
   </button>
@@ -26,7 +29,7 @@
 <nav id="sheet" aria-label="Sections">
   <a href="/blog">Blog</a>
   <a href="/features">Features</a>
-  <a href="/pricing">Pricing</a>
+  <a href="/pricing">Pricing</a><a href="/docs">Docs</a>
 </nav>
 
 <div id="shaft-track">
@@ -37,17 +40,27 @@
 
 <div id="below">
   <div id="manifesto-preview" role="region" aria-labelledby="manifesto-preview-title">
-    <!-- Draft manifesto copy for review. -->
+    <!-- Manifesto preview; the full editorial statement lives at /manifesto. -->
     <div class="manifesto-preview-copy">
-      <p class="manifesto-preview-eyebrow">Our manifesto</p>
-      <h2 id="manifesto-preview-title">Follow your<br>curiosity.</h2>
-      <p class="manifesto-preview-intro">A question should open a path. We’re building Rabbit Hole so learning can adapt to what you know, and where you want to go.</p>
-      <a class="manifesto-read" href="/manifesto">Read more <span aria-hidden="true">↗</span></a>
+      <p class="manifesto-preview-eyebrow">OUR MANIFESTO</p>
+      <h2 id="manifesto-preview-title">Every answer<br>opens <mark class="manifesto-highlight">another question.</mark></h2>
+      <p class="manifesto-preview-intro">For generations, learning has been designed around a fixed path: one curriculum, one pace, one finish line. AI gives us the chance to build something different: learning that keeps adapting as your understanding grows.</p>
+      <a class="manifesto-read" href="/manifesto">Read our manifesto <span aria-hidden="true">→</span></a>
     </div>
     <figure class="manifesto-thinkers" id="manifesto-thinkers">
       <img src="/landing/thinkers-standing-v3.png" width="1536" height="1024" alt="An imagined black-and-white scene of Socrates and Richard Feynman standing in a centered pair, facing each other as they discuss how to teach, with expressive hand gestures and a faint chalkboard behind them." loading="lazy" decoding="async">
       <figcaption>Socrates · Richard Feynman<span>An imagined conversation about learning.</span></figcaption>
     </figure>
+    <div class="manifesto-quotes">
+      <figure>
+        <blockquote cite="https://www.perseus.tufts.edu/hopper/text?doc=plat.+theaet.+155">“<mark class="manifesto-highlight">Wonder</mark> is the only beginning of philosophy.”</blockquote>
+        <figcaption><strong>Socrates</strong><span>In Plato’s <cite>Theaetetus</cite>, 155d.</span><a href="https://www.perseus.tufts.edu/hopper/text?doc=plat.+theaet.+155" aria-label="Source for the Socrates quotation">Source</a></figcaption>
+      </figure>
+      <figure>
+        <blockquote cite="https://magazine.caltech.edu/post/biology-through-the-eyes-of-a-physicist">“What I cannot create, I do not <mark class="manifesto-highlight">understand.</mark>”</blockquote>
+        <figcaption><strong>Richard Feynman</strong><span>Recorded on his Caltech blackboard.</span><a href="https://magazine.caltech.edu/post/biology-through-the-eyes-of-a-physicist" aria-label="Source for the Richard Feynman quotation">Source</a></figcaption>
+      </figure>
+    </div>
   </div>
   <section id="adaptive-learning" data-mode="overview" aria-labelledby="adaptive-title">
     <div class="adaptive-inner">
@@ -169,11 +182,11 @@ torch.softmax(scores, dim=-1)</pre></div>
     <img id="cloud-still" src="/landing/typesafe-pink-cloud-still.png" width="1440" height="540" alt="" aria-hidden="true" loading="lazy" decoding="async" hidden>
     <div class="cloud-copy">
       <p class="cloud-eyebrow"><span aria-hidden="true">↳</span> Follow a little further</p>
-      <h2 id="cloud-title">A question is<br>just the beginning.</h2>
+      <h2 id="cloud-title" class="cloud-cycle" aria-label="Build to learn. Learn to build."><span>Build</span><svg viewBox="0 0 180 88" fill="none" aria-hidden="true" focusable="false"><path d="M8 22H170M152 4L170 22L152 40"/><path d="M172 66H10M28 48L10 66L28 84"/></svg><span>Learn</span></h2>
       <p class="cloud-intro">Follow an idea. Connect the pieces.<br>Make the understanding your own.</p>
       <a class="cloud-link" href="#observatory">Meet Rabbit Hole <span aria-hidden="true">↓</span></a>
     </div>
-    <div class="cloud-margins" aria-hidden="true"><span>01 — Stay curious</span><span>There is always another way in. ↗</span></div>
+    <div class="cloud-margins" aria-hidden="true"><span>01 · Stay curious</span><span>There is always another way in. ↗</span></div>
   </div>
 
   <section id="observatory" data-playing="false" aria-labelledby="overview-title">
@@ -261,7 +274,7 @@ torch.softmax(scores, dim=-1)</pre></div>
         </details>
         <details name="rabbit-hole-faq">
           <summary aria-controls="faq-answer-6"><span class="faq-number" aria-hidden="true">06</span><span>Where do I begin?</span><i class="faq-arrow" aria-hidden="true"></i></summary>
-          <div class="faq-answer" id="faq-answer-6"><p>Bring something you are curious about. <a href="/apps">Get started</a>, or take a look at <a href="/features">the features</a> first.</p></div>
+          <div class="faq-answer" id="faq-answer-6"><p>Bring something you are curious about. <a href="/sign-up">Get started</a>, or take a look at <a href="/features">the features</a> first.</p></div>
         </details>
       </div>
     </div>
@@ -280,9 +293,10 @@ torch.softmax(scores, dim=-1)</pre></div>
     </div>
     <div class="footer-bottom">
       <span class="footer-copyright">Rabbit Hole © 2026</span>
-      <nav aria-label="Footer"><a href="/blog">Blog</a><a href="/features">Features</a><a href="/pricing">Pricing</a><a href="/apps">Get started <span aria-hidden="true">↗</span></a></nav>
+      <nav aria-label="Footer"><a href="/blog">Blog</a><a href="/features">Features</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/sign-up">Get started <span aria-hidden="true">↗</span></a></nav>
       <a class="footer-top" href="#">Back to top <span aria-hidden="true">↑</span></a>
     </div>
+  <div data-footer-links></div>
   </footer>
 </div>
 
@@ -578,5 +592,6 @@ torch.softmax(scores, dim=-1)</pre></div>
 <script type="module" src="../src/landing/section-art.js"></script>
 <script type="module" src="../src/landing/observatory.js"></script>
 <script type="module" src="../src/landing/footer.js"></script>
+<script type="module" src="/src/landing/footer-links.js"></script>
 </body>
 </html>
