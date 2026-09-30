@@ -1,7 +1,7 @@
 // Tutor v1 claim registry for the NanoGPT Attention slice (docs/features/tutor-v1-locked-decisions.md
 // §2, §10; implementation map G4, G5). Tutor-owned data: the frozen card modules are read, never
 // changed. Concepts are the cards' conceptId vocabulary; claims are Tutor ids, 2-3 per concept.
-import { NANOGPT_FIRST_BATCH, NANOGPT_LATER_BATCHES } from './nanogpt/board.js';
+import { NANOGPT_FIRST_BATCH, NANOGPT_LATER_BATCHES, cardBlock } from './nanogpt/board.js';
 import { DEPTH_LADDER } from './nanogpt/depth/board.js';
 
 // The board the slice runs on (demo-scenes.js BOARDS) and the holes under it.
@@ -190,3 +190,14 @@ export function ladderStep(cardId, direction) {
   if (at < 0) return direction === 'shallower' ? null : ATTENTION_LADDER[0];
   return ATTENTION_LADDER[at + (direction === 'deeper' ? 1 : -1)] || null;
 }
+
+// The slice board (demo-scenes.js BOARDS[TUTOR_BOARD]): the Attention depth ladder, then the
+// "Self-attention" sequence, as unmodified card blocks. c21 is not seeded: the Tutor may show it
+// inside a softmax hole when it answers the learner's question (locked decisions §6.4, §10).
+const heading = (level, text) => ({ id: crypto.randomUUID(), type: 'heading', dx: 0, dy: 0, level, text, done: false });
+export const tutorSliceBlocks = () => [
+  heading(1, 'Attention'),
+  ...ATTENTION_LADDER.map(id => cardBlock(cardModule(id))),
+  heading(1, 'Self-attention, step by step'),
+  ...['c11-causal-mask', 'c12-score-scaling', 'c10-weighted-values'].map(id => cardBlock(cardModule(id))),
+];

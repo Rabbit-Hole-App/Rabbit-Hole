@@ -11,6 +11,7 @@ import { interactiveAppReviewBlocks } from './interactive-scenes.js';
 import { holdoutBoardBlocks } from './interactive-holdouts.js';
 import { nanogptDeepDiveBlocks, NANOGPT_REVIEW_STATES } from './nanogpt/board.js';
 import { nanogptDepthLadderBlocks, DEPTH_REVIEW_STATES } from './nanogpt/depth/board.js';
+import { TUTOR_BOARD, tutorSliceBlocks } from './learn-tutor-claims.js';
 
 // --- 1. why an axis must hold still -----------------------------------------
 // The same reveal drawn twice. On the left the axis is recomputed from the
@@ -372,6 +373,8 @@ export const BOARDS = {
   // Rabbit Hole app is connected to - with fixtures generated from it.
   'nanogpt-deep-dive': nanogptDeepDiveBlocks,
   'nanogpt-depth-ladder': nanogptDepthLadderBlocks,
+  // Tutor v1: the NanoGPT Attention slice (docs/features/tutor-v1-locked-decisions.md §10).
+  [TUTOR_BOARD]: tutorSliceBlocks,
 };
 
 // Per board, the input states a reviewer should see each card in, keyed by
@@ -392,4 +395,5 @@ export const BOARD_SEED_VERSIONS = {
   'interactive-holdouts': 2,
   'nanogpt-deep-dive': 13,
   'nanogpt-depth-ladder': 9,
+  [TUTOR_BOARD]: 1,
 };

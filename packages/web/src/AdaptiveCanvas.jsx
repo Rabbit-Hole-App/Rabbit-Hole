@@ -1290,6 +1290,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       deselect: () => setSelected(null),
       // /dive: the return point reads and restores these (docs/features/dive-v1.md).
       getView: () => view, setView, select: id => setSelection([id]), block: id => blocksRef.current.find(block => block.id === id) || null,
+      // Tutor v1 (docs/features/tutor-v1-implementation-map.md §4): read the cards, and change one
+      // card through a pure reducer (pager, practice), undoable like any other edit.
+      blocks: () => blocksRef.current,
+      updateBlock: (id, change) => {
+        const current = blocksRef.current.find(block => block.id === id);
+        const next = current && change(current);
+        if (!next || next === current) return false;
+        snapshot();
+        setBlocks(previous => previous.map(block => block.id === id ? next : block));
+        return true;
+      },
       undo, redo, selectAll, deleteSelection, zoomFit, present: startPresenting,
       copy: copySelection,
       paste: () => !!clipboard.current?.length && pasteIds(clipboard.current),
