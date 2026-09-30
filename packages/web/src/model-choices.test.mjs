@@ -25,4 +25,10 @@ test('the Settings default model says the pick applies to chat answers only; Lea
   assert.match(ask, /useState\(\(\) => privateChat \|\| learnChat \? 'auto'/);
   assert.match(ask, /const chatControl = learnChat \? slashControl : modelControl;/);
   assert.doesNotMatch(ask, /\{dock && modelControl\}|trailing=\{dock \? null : modelControl\}/);
+  // The slot is Auto (not a model: it opens the command palette) or the chosen command as a pill whose × keeps the text,
+  // and a pill sends exactly "/command text".
+  assert.match(ask, /aria-label="Auto" title="Auto: Rabbit Hole picks the action/);
+  assert.match(ask, /data-command-pill/);
+  assert.match(ask, /aria-label=\{`Remove \/\$\{command\}`\} title="Back to Auto" onMouseDown=\{event => event\.preventDefault\(\)\} onClick=\{\(\) => \{ setCommand\(null\); inputRef\.current\?\.focus\(\); \}\}/);
+  assert.match(ask, /const line = `\/\$\{command\} \$\{raw\.trim\(\)\}`\.trim\(\);/);
 });

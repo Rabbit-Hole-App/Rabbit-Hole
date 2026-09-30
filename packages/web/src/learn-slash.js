@@ -69,6 +69,9 @@ export const cardsFor = name => {
 // Whether running this command can end in a paid generation (it always asks first).
 export const mayConfirmPaid = name => learnRequest(name).paid.some(isReady);
 
+// Whether a word names a Learn command (the composer's command pill takes only these).
+export const isLearnCommand = name => commandsFor('learn').some(command => command.name === name);
+
 export const parseSlash = text => {
   const match = text.trim().match(/^\/([\w-]+)(?:\s+([\s\S]*))?$/);
   return match ? { name: match[1].toLowerCase(), args: (match[2] || '').trim() } : null;

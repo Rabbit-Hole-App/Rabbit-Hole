@@ -20,8 +20,9 @@ export const DOCK_WIDTH = 'mx-auto w-full max-w-[780px]';
 export const DOCK_PAD = 'px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] max-md:px-3 max-md:pt-2 max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]';
 
 // onKeyDown (the Learn / picker, feature/parallel-work a9d770d): runs first; a handler that calls preventDefault keeps Enter from sending.
-export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, onStop }) {
-  const submit = () => { if (!busy && !disabled && value.trim()) onSubmit(value); };
+// ready: the caller can send an empty line (Learn, with a command chosen: a bare /dive).
+export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, onStop, ready = false }) {
+  const submit = () => { if (!busy && !disabled && (ready || value.trim())) onSubmit(value); };
   // ponytail: [field-sizing:content] grows the textarea in Chromium; other engines keep one row and scroll. Add a JS auto-grow if reviewers on Safari or Firefox need it.
   const field = multiline
     ? <textarea ref={inputRef} autoFocus={autoFocus} rows={1} value={value} onChange={event => onChange(event.target.value)} onKeyDown={event => { onKeyDown?.(event); if (!event.defaultPrevented && composerKey(event.nativeEvent) === 'send') { event.preventDefault(); submit(); } }} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className={`max-h-36 min-w-0 flex-1 resize-none bg-transparent outline-none [field-sizing:content] placeholder:text-ink-3 ${dock ? 'min-h-9 py-1.5 text-[15px] leading-6 max-md:text-sm max-md:placeholder:truncate' : 'min-h-7 py-1 text-sm leading-5'}`} />
@@ -38,7 +39,7 @@ export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inp
         <Square size={dock ? 13 : 10} fill="currentColor" />
       </button>
     ) : (
-      <button type="submit" aria-label="Send" disabled={busy || disabled || !value.trim()} className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-accent text-white ${dock ? 'h-9 w-9 disabled:opacity-45' : 'h-6 w-6 disabled:opacity-30'}`}>
+      <button type="submit" aria-label="Send" disabled={busy || disabled || !(ready || value.trim())} className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-accent text-white ${dock ? 'h-9 w-9 disabled:opacity-45' : 'h-6 w-6 disabled:opacity-30'}`}>
         {busy ? <Loader2 size={dock ? 16 : 13} className="animate-spin" /> : <ArrowUp size={dock ? 17 : 13} strokeWidth={2} />}
       </button>
     )}
