@@ -46,7 +46,7 @@ Commands:
 
 | command | does |
 |---|---|
-| `small login` | email → 6-digit code → token stored in `~/.small/config.json` |
+| `small login` | email → 8-digit code → token stored in `~/.small/config.json` |
 | `small deploy [--env .env]` | package the current directory, ship it, print the URL |
 | `small share <email> [--edit]` | grant a person view or edit |
 | `small list` | every app in the org |

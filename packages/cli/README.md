@@ -5,7 +5,7 @@ Deploy a Python app for your team, behind a work-email login, in one command.
 ```
 npm i -g small-deploy
 
-small login                 # email → 6-digit code
+small login                 # email → 8-digit code
 small init                  # scaffold small.toml + a first runbook
 small deploy --env .env     # detect app, build remotely, print URL
 ```
