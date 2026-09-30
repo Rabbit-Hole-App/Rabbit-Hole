@@ -30,12 +30,21 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive }) {
     const block = canvas?.block?.(targetId) || canvas?.block?.(stateRef.current.card?.id) || null;
     const slash = slashNext.current;
     slashNext.current = null;
-    const result = await runTurn({
-      raw: slash?.raw || raw, slash: slash?.name || null, opening,
-      canvas: { ...here, ...(record ? { dive: record } : {}) },
-      access, block, store: load(),
-      post: (path, body) => api(path, { method: 'POST', body: JSON.stringify(body), signal: AbortSignal.any([AbortSignal.timeout(TURN_TIMEOUT_MS), ...(signal ? [signal] : [])]) }),
-    });
+    // The per-turn benchmark record (e2e/tutor-bench.mjs listens); a failed turn reports its error name.
+    const started = performance.now();
+    const bench = detail => window.dispatchEvent(new CustomEvent('small:tutor-bench', { detail }));
+    let result;
+    try {
+      result = await runTurn({
+        raw: slash?.raw || raw, slash: slash?.name || null, opening,
+        canvas: { ...here, ...(record ? { dive: record } : {}) },
+        access, block, store: load(),
+        post: (path, body) => api(path, { method: 'POST', body: JSON.stringify(body), signal: AbortSignal.any([AbortSignal.timeout(TURN_TIMEOUT_MS), ...(signal ? [signal] : [])]) }),
+      });
+    } catch (error) {
+      bench({ error: error?.name || 'Error', ms: { total_in_app: Math.round((performance.now() - started) * 10) / 10 } });
+      throw error;
+    }
     save(result.store);
     if (result.log.length) console.info('[tutor]', result.routed.row, result.log.join('; '));
     setChips(executeActions(result.actions, {
@@ -43,6 +52,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive }) {
       suggestDive: detail => window.dispatchEvent(new CustomEvent('small:dive-suggest', { detail })),
       climb: () => dive.navigator.climb(dive.navigator.tree.path.length - 2),
     }));
+    const done = Math.round((performance.now() - started) * 10) / 10;
+    bench({ ...result.bench, ms: { ...result.bench.ms, canvas_done: done, total_in_app: done } });
     // An empty reply is drawn as the spinner (ask.jsx), so a turn that only acts on the canvas says so.
     return result.text || (result.actions.some(action => action.type !== 'no_action') ? 'See the canvas.' : 'Nothing to add here yet.');
   }, [access, record, here.app, here.board]); // eslint-disable-line react-hooks/exhaustive-deps
