@@ -5,6 +5,11 @@ import { authorizedBoardApp } from './learn-board.js';
 import { GRADER_PROTOCOL_VERSION, JEV_TRANSPORTS, JevError, askJev, jevRequest, parseJevAnswers, sha256Hex, stripFences, verdictFrom } from './learn-grade-jev.js';
 import { pruneLearnGrades, reserveGrade, completeGrade, failGrade, setBaseline, reportRows } from './learn-grade-store.js';
 import { reportFrom } from './learn-grade-report.js';
+import { anthropic } from './ask.js';
+import { modelFailure } from './learn-research.js';
+import { LEARN_TASKS, loggedModel } from './learn-models.js';
+import { subscriptionOwnerRefusal } from './subscription-transport.js';
+import { challengePrompt } from './agents/learn-grade.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const ATTEMPT = /^[A-Za-z0-9:_-]{8,120}$/;
@@ -175,4 +180,59 @@ export async function learnGradeRoute(path, req, env) {
   const baseline = path.match(/^\/api\/learn\/grade\/([^/]+)\/baseline$/);
   if (baseline) return recordBaseline(req, env, baseline[1]);
   return null;
+}
+
+// POST /api/learn/assess (dev worker only; owner decision 3 in
+// docs/features/learn-cleanup.md): the grade the learner sees. The server builds
+// today's instruction from validated fields and makes one call on the grading
+// task: Auto (claude-opus-5 with the server-side fallback), org null, no tools,
+// no Learn system prompt, no thread, no app or repository context, and nothing
+// is stored. A block without key ideas keeps the instruction's fallback text.
+// The reply is the SSE gradeAnswer reads: one chunk then done, or one error.
+export function validateAssessBody(body) {
+  const { mode, prompt, answer } = body || {};
+  const expects = body?.expects ?? [];
+  if (mode !== 'challenge' && mode !== 'explain_back') return { error: 'mode must be challenge or explain_back' };
+  if (typeof prompt !== 'string' || prompt.length > 4000) return { error: 'prompt must be a string of at most 4000 characters' };
+  if (!Array.isArray(expects) || expects.length > 8 || expects.some(idea => typeof idea !== 'string' || idea.length > 300)) return { error: 'expects must be at most 8 ideas of at most 300 characters' };
+  if (typeof answer !== 'string' || answer.length < 1 || answer.length > 4000) return { error: 'answer must be 1-4000 characters' };
+  return { value: { mode, prompt, expects, answer } };
+}
+
+async function assessText(env, instruction, callModel) {
+  const messages = [{ role: 'user', content: instruction }];
+  for (let turn = 0; ; turn += 1) {
+    const response = await callModel(env, { max_tokens: LEARN_TASKS.grading.maxTokens, messages }, LEARN_TASKS.grading.model, null);
+    if (!response.ok) throw await modelFailure(response, 'Grading unavailable');
+    const result = await response.json();
+    if (result.stop_reason === 'max_tokens') throw new Error('The answer was cut short. Try a narrower question.');
+    const text = result.content?.filter(block => block.type === 'text').map(block => block.text).join('\n\n');
+    if (text?.trim()) return text;
+    // As researchAnswer: a thinking-only turn is replayed verbatim once.
+    if (turn === 0 && result.content?.some(block => block.type === 'thinking')) {
+      messages.push({ role: 'assistant', content: result.content }, { role: 'user', content: 'Continue with your final answer now, as plain text.' });
+      continue;
+    }
+    throw new Error(`No verdict returned (${result.stop_reason || 'unknown'})`);
+  }
+}
+
+export async function assessAnswer(req, env, { callModel = loggedModel('grading', anthropic) } = {}) {
+  if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
+  let body;
+  try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+  const access = await authorizedBoardApp(req, env, body?.app);
+  if (access instanceof Response) return access;
+  if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
+  const ownerRefused = subscriptionOwnerRefusal(env, access);
+  if (ownerRefused) return ownerRefused;
+  const input = validateAssessBody(body);
+  if (input.error) return json({ error: input.error }, 400);
+  const { mode, prompt, expects, answer } = input.value;
+  // ponytail: the whole verdict arrives as one chunk, as the chat route's
+  // research path already sends it; token streaming is out of scope.
+  let events;
+  try { events = [['chunk', { text: await assessText(env, challengePrompt({ mode, prompt, expects }, answer), callModel) }], ['done', { ok: true }]]; }
+  catch (error) { events = [['error', { error: error.message }]]; }
+  return new Response(events.map(([event, data]) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`).join(''), { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store' } });
 }

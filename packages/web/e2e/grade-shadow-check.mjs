@@ -33,7 +33,7 @@ async function scenario({ grade = { status: 200 }, gradeDelay = 0, baseline = 20
   await page.route('**/api/**', async route => {
     const request = route.request();
     const url = new URL(request.url());
-    if (url.pathname === '/api/learn/ask') {
+    if (url.pathname === '/api/learn/assess') {
       seen.asks += 1;
       if (opus === 'error') return route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'Tutor down' }) });
       return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: SSE });

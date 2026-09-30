@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { askStream, planModel } from '../src/ask.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { generateBoardPlan } from '../src/learn-board.js';
+import { assessAnswer } from '../src/learn-grade-routes.js';
 import { LEARN_TASKS, askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS, PAPERS_PER_ANSWER, RESEARCH_STEPS, ARTIFACT_REPAIRS, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES } from '../src/learn-models.js';
 
 const object = { objectId: 'equation', lessonId: 'sigmoid-demo', runId: 'test-run', author: 'script', kind: 'equation', originalText: 'σ(x) = 1 / (1 + exp(-x))', relatedObjectIds: [], shapeIds: ['shape:eq'], renderStatus: 'complete', shapes: [{ shapeId: 'shape:eq', pageBounds: { x: 0, y: 0, w: 300, h: 30 } }] };
@@ -56,7 +57,7 @@ const auto = { host: 'api.anthropic.com', model: 'claude-opus-5', fallbacks: 'de
 const pinned = model => ({ host: 'api.anthropic.com', model, fallbacks: undefined, beta: null });
 const openai = model => ({ host: 'api.openai.com', model, fallbacks: undefined, beta: null });
 
-test('chat on Auto (and grading, which sends no model) runs claude-opus-5 with the server-side fallback, with or without an OpenAI key', async t => {
+test('chat and grading on Auto run claude-opus-5 with the server-side fallback, with or without an OpenAI key', async t => {
   for (const env of [{ ANTHROPIC_API_KEY: 'a' }, { ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o', LEARN_PLAN_MODEL: 'gpt-4.1-mini' }]) {
     const calls = recordFetch(t), DB = recordingDb();
     await chat({ ...env, DB }, null);
@@ -64,9 +65,18 @@ test('chat on Auto (and grading, which sends no model) runs claude-opus-5 with t
     assert.equal(calls[0].maxTokens, 2400);
     assert.deepEqual(DB.sql, []);
   }
-  // The grader posts the learner's answer to the chat route with no model key.
+  // The grader posts only the block's fields to /api/learn/assess, which has no model key.
   const grade = readFileSync(new URL('../../web/src/learn-grade.js', import.meta.url), 'utf8');
-  assert.match(grade, /body: JSON\.stringify\(\{ scope: \{ app \}, \.\.\.\(repositoryContext \? \{ repository_context: repositoryContext \} : \{\}\), message: prompt \}\)/);
+  assert.match(grade, /fetch\('\/api\/learn\/assess'[^]*body: JSON\.stringify\(\{ app, \.\.\.assessBody\(block, answer\) \}\)/);
+  for (const env of [{ ANTHROPIC_API_KEY: 'a' }, { ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o', LEARN_PLAN_MODEL: 'gpt-4.1-mini' }]) {
+    const calls = recordFetch(t), DB = recordingDb();
+    const graded = await assessAnswer(new Request('https://dev.test/api/learn/assess', { method: 'POST', body: JSON.stringify({ app: 'demo-app', mode: 'challenge', prompt: 'Why?', expects: [], answer: 'Because.' }) }),
+      { ...env, DB, CONTROL_PLANE: { fetch: async () => Response.json({ name: 'demo-app' }) } });
+    assert.match(await graded.text(), /event: chunk/);
+    assert.deepEqual(shape(calls), [auto]);
+    assert.equal(calls[0].maxTokens, 2400);
+    assert.deepEqual(DB.sql, []);
+  }
 });
 
 test('chat with an explicit pick sends that id and no fallback', async t => {

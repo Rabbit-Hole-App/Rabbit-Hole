@@ -24,9 +24,9 @@ const tinySet = version => ({
   ],
 });
 
-// A stub clone: /test/session, /api/learn/grade/bench (scripted per case id), /api/learn/ask.
+// A stub clone: /test/session, /api/learn/grade/bench (scripted per case id), /api/learn/assess.
 function stubServer(script) {
-  const calls = { grade: [] };
+  const calls = { grade: [], assess: [] };
   const server = createServer((req, res) => {
     let raw = '';
     req.on('data', chunk => { raw += chunk; });
@@ -41,7 +41,8 @@ function stubServer(script) {
         return send(reply.status, reply.body);
       }
       if (req.url === '/v1/models' && script.pricing) return send(200, { data: [{ id: 'typesafe-ai/jev', pricing: script.pricing }] });
-      if (req.url === '/api/learn/ask') return send(200, `event: chunk\ndata: ${JSON.stringify({ text: 'VERDICT: good\nfine' })}\n\nevent: done\ndata: {"ok":true}\n\n`, 'text/event-stream');
+      if (req.url === '/api/learn/assess') calls.assess.push(JSON.parse(raw));
+      if (req.url === '/api/learn/assess') return send(200, `event: chunk\ndata: ${JSON.stringify({ text: 'VERDICT: good\nfine' })}\n\nevent: done\ndata: {"ok":true}\n\n`, 'text/event-stream');
       return send(404, { error: 'no' });
     });
   });
@@ -90,6 +91,21 @@ test('pending is re-sent, then scored as an error; 409 is an incomplete error; n
     const saved = JSON.parse(readFileSync(join(dir, 'results', 'benchmark-v1', file), 'utf8'));
     assert.equal(saved.cases.find(item => item.id === 'ch1-all').jev.verdict, 'good');
     assert.equal(saved.cases.find(item => item.id === 'eb1-idk').jev.error, 'incomplete');
+  } finally { server.close(); }
+});
+
+// The Opus arm posts what gradeAnswer posts (assessBody), to /api/learn/assess.
+test('the Opus arm sends the block fields and the answer to /api/learn/assess, like the canvas', async () => {
+  const { server, base, calls } = await stubServer(() => done());
+  const dir = workspace(tinySet('benchmark-v1'));
+  try {
+    const result = await run([...common(base, dir), '--set-file', join(dir, 'set.json')]);
+    assert.equal(result.code, 0, result.out);
+    const byMode = mode => calls.assess.find(body => body.mode === mode);
+    assert.deepEqual(byMode('challenge'), { app: 'demo-app', mode: 'challenge', prompt: 'Why exp?', expects: ['positive', 'sums to one', 'bigger wins'], answer: 'all three' });
+    assert.deepEqual(byMode('explain_back'), { app: 'demo-app', mode: 'explain_back', prompt: 'Explain descent.', expects: ['gradient', 'opposite step', 'learning rate'], answer: 'no idea' });
+    const [file] = readdirSync(join(dir, 'results', 'benchmark-v1'));
+    assert.equal(JSON.parse(readFileSync(join(dir, 'results', 'benchmark-v1', file), 'utf8')).cases.find(item => item.id === 'ch1-all').opus.verdict, 'good');
   } finally { server.close(); }
 });
 

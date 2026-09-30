@@ -32,6 +32,10 @@ export function explainBackPrompt(block, answer) {
   ].join(NEWLINE);
 }
 
+// The fields POST /api/learn/assess grades, from a challenge block: the
+// browser and the benchmark send the same request.
+export const assessBody = (block, answer) => ({ mode: block.mode === 'explain_back' ? 'explain_back' : 'challenge', prompt: block.prompt, expects: block.expects || [], answer });
+
 // The tutor opens with "VERDICT: good|partial". The first token anywhere tints
 // the answer (and is the Jev baseline); only that token is stripped from what
 // the learner reads.

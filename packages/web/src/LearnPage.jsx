@@ -34,7 +34,7 @@ import LearnPaper from './LearnPaper.jsx';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { classifyDrop } from './learn-drop.js';
 import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from './learn-notes.js';
-import { challengePrompt, gradeAnswer, parseVerdict, recordBaseline, shadowGrade } from './learn-grade.js';
+import { gradeAnswer, parseVerdict, recordBaseline, shadowGrade } from './learn-grade.js';
 import { architectureLesson, sampleCourse } from './learn-preview.js';
 import { BOARDS, BOARD_SEED_VERSIONS } from './demo-scenes.js';
 
@@ -565,12 +565,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     let text = '';
     let verdict = null;
     try {
-      await gradeAnswer({
-        app: app.name,
-        repositoryContext: nanoActive ? { commit: nanoSourceVersion } : repositoryContext,
-        prompt: challengePrompt(block, answer),
-        onDelta: delta => { text += delta; onDelta(delta); },
-      });
+      await gradeAnswer({ app: app.name, block, answer, onDelta: delta => { text += delta; onDelta(delta); } });
       verdict = parseVerdict(text);
     } finally {
       const ms = Math.round(performance.now() - started);

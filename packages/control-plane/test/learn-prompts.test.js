@@ -16,11 +16,12 @@ import { generateBoardPlan } from '../src/learn-board.js';
 import { TEACHING_POLICY } from '../src/learn-teaching.js';
 import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE, PAPER_SHOWN_NOTE } from '../src/agents/learn-chat.js';
 import { challengePrompt } from '../../web/src/learn-grade-prompts.js';
+import { assessAnswer } from '../src/learn-grade-routes.js';
 
 const fingerprint = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
 const PINS = {
   teachingPolicy: 'af83a270b721abfc',
-  chat: '888e512a68c49fd4', // canvas seam and app asks, and grading through them
+  chat: '888e512a68c49fd4', // canvas seam and app asks
   chatSnapshot: 'e04aa9aa112cfc51', // an app ask carrying a lesson_snapshot (legacy selection contract)
   chatOutline: 'fec05d278de63797',
   repository: 'b86f24b2dcaa43f1',
@@ -104,7 +105,6 @@ async function repositoryChat(t, body, extra = {}) {
   return calls[0];
 }
 const names = body => body.tools.map(tool => tool.name);
-const lastText = body => { const content = body.messages.at(-1).content; return typeof content === 'string' ? content : content.at(-1).text; };
 
 // Evidence safeguards (prompts-19): each stays verbatim on the route that has it.
 const CHAT_SAFEGUARDS = [
@@ -149,21 +149,20 @@ test('a repository ask sends the chat prompt plus the repository and video instr
   includesAll(body.system, [...CHAT_SAFEGUARDS, ...REPOSITORY_SAFEGUARDS]);
 });
 
-// prompts-12: the grader posts its instruction as the chat message (learn-grade.js),
-// so it runs under the chat prompt and tools. A chat prompt edit changes the
-// grader too; this pin makes that visible in the same commit.
+// prompts-12, owner decision 3: the grader's instruction, built on the server by
+// /api/learn/assess, is the whole request: no system prompt, no tools, no
+// context. A chat prompt edit no longer reaches the grader.
 const challenge = { prompt: 'Why does attention divide by the square root of d?', expects: ['dot products grow with dimension', 'softmax saturates'] };
 const gradingMessage = challengePrompt(challenge, 'So the numbers stay small.');
-test('grading today: the challenge prompt is the chat message, under the chat or repository prompt and tools', async t => {
+test('grading: the challenge instruction is the only message, with no system prompt and no tools', async () => {
   assert.equal(fingerprint(gradingMessage), PINS.gradingMessage);
-  const canvas = await chat(t, { message: gradingMessage });
-  assert.equal(fingerprint(canvas.system), PINS.chat);
-  assert.deepEqual(names(canvas), CHAT_TOOLS);
-  assert.ok(lastText(canvas).endsWith(`\n\n---\n\n${gradingMessage}`));
-  const repository = await repositoryChat(t, { message: gradingMessage });
-  assert.equal(fingerprint(repository.system), PINS.repository);
-  assert.deepEqual(names(repository), REPOSITORY_TOOLS);
-  assert.ok(lastText(repository).endsWith(`\n\n---\n\n${gradingMessage}`));
+  const seen = [];
+  const env = { CONTROL_PLANE: { fetch: async () => Response.json({ name: 'demo-app' }) } };
+  const graded = await assessAnswer(new Request('https://dev.test/api/learn/assess', { method: 'POST', body: JSON.stringify({ app: 'demo-app', mode: 'challenge', ...challenge, answer: 'So the numbers stay small.' }) }), env, {
+    callModel: async (_env, body) => { seen.push(body); return Response.json({ content: [{ type: 'text', text: 'VERDICT: good' }], stop_reason: 'end_turn' }); },
+  });
+  await graded.text();
+  assert.deepEqual(seen, [{ max_tokens: 2400, messages: [{ role: 'user', content: gradingMessage }] }]);
 });
 
 const quiz = { question: 'What does softmax output sum to?', options: [{ text: '1', correct: true }, { text: '0', correct: false }], why: 'It normalises.' };

@@ -1,5 +1,6 @@
 import { wsHeaders } from './api.js';
 import { createShadowGrader } from './learn-grade-shadow.js';
+import { assessBody } from '../../control-plane/src/agents/learn-grade.js';
 
 export { challengePrompt, explainBackPrompt } from './learn-grade-prompts.js';
 export { parseVerdict } from './learn-grade-shadow.js';
@@ -8,14 +9,14 @@ export { parseVerdict } from './learn-grade-shadow.js';
 // call throws, and the learner path never waits on them.
 export const { shadowGrade, recordBaseline } = createShadowGrader({ headers: wsHeaders });
 
-// One-shot tutor call used by canvas blocks that grade a free-text answer.
-// It streams the same SSE the Learn chat uses, but keeps its own thread so a
-// verdict never pollutes the learner's conversation.
-export async function gradeAnswer({ app, repositoryContext = null, prompt, onDelta }) {
-  const response = await fetch('/api/learn/ask', {
+// The visible grade of a challenge block's answer (/api/learn/assess, dev
+// worker): the server builds the instruction from the block's fields and
+// streams the Learn chat's SSE shape back. No thread, chat or app context.
+export async function gradeAnswer({ app, block, answer, onDelta }) {
+  const response = await fetch('/api/learn/assess', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...wsHeaders() },
-    body: JSON.stringify({ scope: { app }, ...(repositoryContext ? { repository_context: repositoryContext } : {}), message: prompt }),
+    body: JSON.stringify({ app, ...assessBody(block, answer) }),
   });
   if ((response.headers.get('Content-Type') || '').includes('json')) {
     const data = await response.json();
