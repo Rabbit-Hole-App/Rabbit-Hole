@@ -81,15 +81,24 @@ FAL), 3D scene (Blender), audio narration.
 
 Approved 2026-09-24 as regression invariants for the canvas shell (`AdaptiveCanvas.jsx`):
 
-- Canvas utilities — the drawing toolbar and the overview minimap — never permanently obscure
-  authored canvas content. They live in the tools' gutter beside the canvas surface
-  (`[data-tool-gutter]`, next to `[data-canvas-surface]`), never on it.
-- No card- or scene-specific padding or layout for the toolbar or overview; cards do not know the
-  utilities exist.
-- Expanding a utility changes the available layout space instead of overlaying content: opening
-  the overview widens the gutter (the canvas narrows); on a canvas narrower than 640px the tools
-  become one row under the canvas (toolbar scrolling in it) and the overview takes the next row.
-  The overview opens by default only on a canvas 1400px or wider.
+- Canvas utilities — the drawing toolbar, canvas home, the minimap and the Rabbit Hole navigator —
+  never permanently obscure authored canvas content. None of them sits on `[data-canvas-surface]`.
+- The desktop shell was restored on 2026-09-30 after integration lost Parallel's layout
+  (`caca1c2b`):
+  - **Top left:** canvas home (`[data-canvas-home]`, back to the start, Shift 0).
+  - **Left:** the tool palette in the tools' gutter (`[data-tool-gutter]`, docked left by default;
+    the grip still docks it right).
+  - **Top right:** the Rabbit Hole navigator in its own gutter (`[data-dive-gutter]`), or at the
+    top of the tools gutter when the tools dock right.
+  - **Lower right:** the minimap in the bottom strip beside the composer (`[data-canvas-minimap]`),
+    in flow, so the strip grows to hold it.
+  - **Bottom:** the composer.
+  - **Pinned by:** `src/canvas-shell.test.mjs`. Rendered at root, child and grandchild by
+    `e2e/canvas-shell-check.mjs` (local stack).
+- No card- or scene-specific padding or layout for any utility; cards do not know the utilities
+  exist.
+- On a canvas narrower than 640px the tools become one row under the canvas (toolbar scrolling in
+  it), and the overview is that row's toggle, opening on the next row.
 - On phones and tablets (below `lg`) the lesson canvas gets a viewport-relative height (`75dvh`)
   and the page scrolls, so the table of contents stays reachable underneath.
 - Toolbar and overview stay functional at 100% zoom; wheel over empty gutter space pans the canvas,

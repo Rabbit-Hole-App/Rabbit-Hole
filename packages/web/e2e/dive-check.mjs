@@ -40,12 +40,12 @@ const nav = () => page.locator('[data-dive-navigator]');
 const waitPersisted = async () => { await page.waitForFunction(() => /^\/apps\/canvas-[a-f0-9]{8}$/.test(location.pathname) && !location.search.includes('hole='), null, { timeout: 15000 }); await page.waitForTimeout(600); };
 // Canvas chrome never covers content (learn-canvas-blocks.md): the navigator sits in the tools' gutter, clear of the surface and the toolbar.
 const inGutter = async label => {
-  const g = await page.evaluate(() => { const box = s => { const r = document.querySelector(s)?.getBoundingClientRect(); return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; }; return { nav: box('[data-dive-navigator]'), gutter: box('[data-tool-gutter]'), surface: box('[data-canvas-surface]'), toolbar: box('[role="toolbar"][aria-label="Canvas tools"]') }; });
+  const g = await page.evaluate(() => { const box = s => { const r = document.querySelector(s)?.getBoundingClientRect(); return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; }; return { nav: box('[data-dive-navigator]'), gutter: (() => { const r = document.querySelector('[data-dive-navigator]')?.closest('[data-dive-gutter],[data-tool-gutter]')?.getBoundingClientRect(); return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; })(), surface: box('[data-canvas-surface]'), toolbar: box('[role="toolbar"][aria-label="Canvas tools"]') }; });
   const apart = (a, b) => a.right <= b.x || b.right <= a.x || a.bottom <= b.y || b.bottom <= a.y;
   assert.ok(g.nav && g.nav.x >= g.gutter.x - 1 && g.nav.right <= g.gutter.right + 1 && g.nav.y >= g.gutter.y, `${label}: navigator inside the gutter`);
   assert.ok(apart(g.nav, g.surface), `${label}: navigator clear of the canvas surface`);
   assert.ok(apart(g.nav, g.toolbar), `${label}: navigator clear of the toolbar`);
-  assert.ok(g.toolbar.bottom - g.toolbar.y > 120, `${label}: the toolbar keeps usable height beside the navigator`);
+  assert.ok(g.toolbar.bottom - g.toolbar.y > 120, `${label}: the toolbar keeps usable height`);
 };
 const up = async () => { await nav().getByRole('button', { name: 'Up to the parent hole' }).click(); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1500); };
 
