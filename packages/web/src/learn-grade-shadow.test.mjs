@@ -150,3 +150,26 @@ test('no other VERDICT pattern remains in the web source or the benchmark', () =
   files.push(fileURLToPath(new URL('../../../tests/evals/learn-grade/bench.mjs', import.meta.url)));
   assert.deepEqual(files.filter(file => readFileSync(file, 'utf8').includes('VERDICT:\\s*')), []);
 });
+
+// grading-8: a grade ends in a verdict or an error, never silently.
+test('gradeAnswer posts the block to /api/learn/assess and rejects a non-OK reply or a stream with no verdict', async t => {
+  const { gradeAnswer } = await import('./learn-grade.js');
+  const original = globalThis.fetch;
+  globalThis.localStorage = { getItem: () => null }; // wsHeaders: the email-domain workspace
+  t.after(() => { globalThis.fetch = original; delete globalThis.localStorage; });
+  const sse =text => new Response(text, { headers: { 'Content-Type': 'text/event-stream' } });
+  const sent = [];
+  const reply = response => { globalThis.fetch = async (url, init) => { sent.push([url, JSON.parse(init.body)]); return response; }; };
+  const grade = () => { const deltas = []; return gradeAnswer({ app: 'canvas-0a1b2c3d', block: { prompt: 'Why?', expects: ['a'] }, answer: 'b', onDelta: delta => deltas.push(delta) }).then(() => deltas); };
+  reply(sse(`event: chunk\ndata: ${JSON.stringify({ text: 'VERDICT: good\nYes.' })}\n\nevent: done\ndata: {"ok":true}\n\n`));
+  assert.deepEqual(await grade(), ['VERDICT: good\nYes.']);
+  assert.deepEqual(sent[0], ['/api/learn/assess', { app: 'canvas-0a1b2c3d', mode: 'challenge', prompt: 'Why?', expects: ['a'], answer: 'b' }]);
+  reply(new Response('<html>Bad gateway</html>', { status: 502, headers: { 'Content-Type': 'text/html' } }));
+  await assert.rejects(grade(), /HTTP 502/);
+  reply(sse('event: done\ndata: {"ok":true}\n\n'));
+  await assert.rejects(grade(), /No verdict returned/);
+  reply(Response.json({ error: 'answer must be 1-4000 characters' }, { status: 400 }));
+  await assert.rejects(grade(), /answer must be 1-4000 characters/);
+  reply(sse(`event: error\ndata: ${JSON.stringify({ error: 'Grading unavailable' })}\n\n`));
+  await assert.rejects(grade(), /Grading unavailable/);
+});

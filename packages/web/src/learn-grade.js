@@ -18,10 +18,11 @@ export async function gradeAnswer({ app, block, answer, onDelta }) {
     headers: { 'Content-Type': 'application/json', ...wsHeaders() },
     body: JSON.stringify({ app, ...assessBody(block, answer) }),
   });
-  if ((response.headers.get('Content-Type') || '').includes('json')) {
-    const data = await response.json();
+  if (!response.ok || (response.headers.get('Content-Type') || '').includes('json')) {
+    const data = await response.json().catch(() => ({}));
     throw new Error(data.error || `HTTP ${response.status}`);
   }
+  let verdict = false;
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -36,8 +37,9 @@ export async function gradeAnswer({ app, block, answer, onDelta }) {
       const data = (event.match(/^data: (.+)$/m) || [])[1];
       if (!type || !data) continue;
       const payload = JSON.parse(data);
-      if (type === 'chunk') onDelta(payload.text);
+      if (type === 'chunk') { verdict = true; onDelta(payload.text); }
       else if (type === 'error') throw new Error(payload.error);
     }
   }
+  if (!verdict) throw new Error('No verdict returned');
 }
