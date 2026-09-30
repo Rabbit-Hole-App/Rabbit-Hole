@@ -150,9 +150,10 @@ test('the task configuration states what the requests above carry, and the limit
   assert.deepEqual(pick(LEARN_TASKS.chat), { provider: 'anthropic', model: null, maxTokens: 2400 });
   assert.deepEqual(pick(LEARN_TASKS.grading), { provider: 'anthropic', model: null, maxTokens: 2400 });
   assert.deepEqual(pick(LEARN_TASKS.artifact), { provider: 'plan', model: 'claude-opus-5', maxTokens: 4000 });
+  assert.deepEqual(pick(LEARN_TASKS.tutor), { provider: 'anthropic', model: null, maxTokens: 2000 });
   assert.deepEqual(pick(LEARN_TASKS.board), { provider: 'plan', model: 'claude-opus-5', maxTokens: { plan: 1200, draft: 3000, review: 1800 } });
   assert.equal(LEARN_TASKS.chat.picker, true);
-  for (const task of ['grading', 'artifact', 'board']) assert.equal(LEARN_TASKS[task].picker, false, task);
+  for (const task of ['grading', 'tutor', 'artifact', 'board']) assert.equal(LEARN_TASKS[task].picker, false, task);
   assert.deepEqual([MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS, PAPERS_PER_ANSWER], [4000, 3, 10, 2]);
   assert.deepEqual([RESEARCH_STEPS, ARTIFACT_REPAIRS, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES], [8, 1, 7, 2]);
 });

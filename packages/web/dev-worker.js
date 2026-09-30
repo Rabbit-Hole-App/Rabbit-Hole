@@ -12,6 +12,7 @@ import grantsCode from '../byoc/grants.py';
 import { apiAsk } from '../control-plane/src/index.js';
 import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback, videoGone, canvasSearch, wikiArticle } from '../control-plane/src/learn-board.js';
 import { learnGradeRoute, assessAnswer } from '../control-plane/src/learn-grade-routes.js';
+import { tutorRoute } from '../control-plane/src/learn-tutor-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { paidRefusal } from '../control-plane/src/learn-paid.js';
@@ -159,6 +160,7 @@ export default {
     if (path === '/api/learn/wiki') return wikiArticle(req, env);
     // The visible grade (owner decision 3, docs/features/learn-cleanup.md): one model call, nothing stored.
     if (path === '/api/learn/assess') return assessAnswer(req, env);
+    if (path.startsWith('/api/learn/tutor/')) { const tutored = await tutorRoute(path, req, env); if (tutored) return tutored; }
     // Jev side-by-side grading (docs/features/jev-grading.md).
     if (path.startsWith('/api/learn/grade')) { const graded = await learnGradeRoute(path, req, env); if (graded) return graded; }
     // Saved and shared canvas boards (docs/features/canvas-sharing.md). Before
