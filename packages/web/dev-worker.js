@@ -18,7 +18,7 @@ import { paidRefusal } from '../control-plane/src/learn-paid.js';
 import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
-import { subscriptionOwnerRefusal } from '../control-plane/src/subscription-transport.js';
+import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from '../control-plane/src/subscription-transport.js';
 export { LearnVideos } from '../control-plane/src/learn-video.js';
 
 // Authentication/app actions use the live backend. Dev Learn reuses the Ask handler
@@ -89,7 +89,9 @@ export default {
     if (refused) return refused;
     if (env.SUBSCRIPTION_ONLY === 'true' && req.method === 'POST' && (path === '/api/ask' || /\/learn-course$/.test(path))) {
       let action; try { action = (await req.clone().json()).action; } catch {}
-      if (path === '/api/ask' || ['draft', 'generate'].includes(action)) return Response.json({ error: 'Subscription-only dev mode: use Learn chat. This action is not connected to the subscription yet.' }, { status: 503 });
+      if (path === '/api/ask') return Response.json({ error: 'Subscription-only dev mode: use Learn chat. This action is not connected to the subscription yet.' }, { status: 503 });
+      const courseRefused = subscriptionCourseRefusal(env, action);
+      if (courseRefused) return courseRefused;
     }
     if (env.SUBSCRIPTION_ONLY === 'true' && req.method === 'POST' && ['/api/learn/ask', '/api/learn/selection'].includes(path) && !req.headers.get('content-type')?.includes('application/json')) return Response.json({ error: 'Attachments are not connected to the subscription yet. No API fallback.' }, { status: 503 });
     // JSON, or multipart when the composer's + attached a file: both stay on

@@ -6,6 +6,11 @@ export function subscriptionOwnerRefusal(env, access) {
   if (env.SUBSCRIPTION_ONLY !== 'true' || access.email === env.SUBSCRIPTION_OWNER_EMAIL) return null;
   return Response.json({ error: 'This personal dev subscription is available only to its owner.' }, { status: 403 });
 }
+// Course authoring's model actions are not connected to the bridge yet.
+export function subscriptionCourseRefusal(env, action) {
+  if (env.SUBSCRIPTION_ONLY !== 'true' || !['draft', 'generate', 'revise_section'].includes(action)) return null;
+  return Response.json({ error: 'Subscription-only dev mode: use Learn chat. This action is not connected to the subscription yet.' }, { status: 503 });
+}
 export async function subscriptionTransport(env, body, model) {
   if (!env.SUBSCRIPTION_BRIDGE_URL || !env.SUBSCRIPTION_BRIDGE_TOKEN) throw new Error('Claude subscription connection is offline. API fallback is disabled.');
   const url = new URL('/messages', env.SUBSCRIPTION_BRIDGE_URL);
