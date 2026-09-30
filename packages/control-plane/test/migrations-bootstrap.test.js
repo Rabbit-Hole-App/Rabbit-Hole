@@ -49,21 +49,21 @@ test('the migrations alone cannot build a fresh database: bootstrap.sql is requi
   assert.throws(() => apply(db, migrations), /no such table: apps/);
 });
 
-test('0026 adds learn_moments to a pre-0026 database exactly as schema.sql defines it', t => {
+test('0027 adds learn_moments to a pre-0027 database exactly as schema.sql defines it', t => {
   const db = open(t); db.exec(read('bootstrap.sql'));
-  apply(db, migrations.filter(f => f < '0026'));
+  apply(db, migrations.filter(f => f < '0027'));
   assert.equal(shape(db).learn_moments, undefined);
-  apply(db, ['0026-learn-moments.sql']);
+  apply(db, ['0027-learn-moments.sql']);
   const ref = open(t); ref.exec(read('schema.sql'));
   assert.deepEqual(shape(db).learn_moments, shape(ref).learn_moments);
   assert.ok(indexes(db).includes('learn_moments.idx_learn_moments_org'));
 });
 
-test('0026 is a no-op where learn_moments was already created by hand from schema.sql', t => {
+test('0027 is a no-op where learn_moments was already created by hand from schema.sql', t => {
   const db = open(t); db.exec(read('bootstrap.sql'));
-  apply(db, migrations.filter(f => f < '0026'));
-  db.exec(read('schema.sql')); // how the table reached databases before 0026
+  apply(db, migrations.filter(f => f < '0027'));
+  db.exec(read('schema.sql')); // how the table reached databases before 0027
   db.exec("INSERT INTO learn_moments (org, question, video_id, start) VALUES ('example-test', 'q', 'v', 1)");
-  apply(db, ['0026-learn-moments.sql']);
+  apply(db, ['0027-learn-moments.sql']);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM learn_moments').get().n, 1);
 });
