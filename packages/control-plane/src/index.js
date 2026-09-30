@@ -1,5 +1,5 @@
 import { readArxivPaper } from './arxiv.js';
-import { canvasSeed } from './canvas-conversation.js';
+import { canvasSeed, threadTurns } from './canvas-conversation.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
 import { validateLearnContext, appendOutline, readLearnSource } from './learn-ask-context.js';
 import { uploadedPaperAsDocument } from './learn-paper.js';
@@ -23,7 +23,7 @@ import { parseCron, matches, nextRun } from './cron.js';
 import SHELL from '../../web/dist/index.html';
 import { learnMedia } from './learn-storage.js';
 import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest } from './ask.js';
-import { askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS } from './learn-models.js';
+import { askModel, MESSAGE_LIMIT, MENTION_LIMIT } from './learn-models.js';
 
 const SESSION_COOKIE = 'small_session';
 const SESSION_TTL = 7 * 24 * 3600;
@@ -1101,13 +1101,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
       .bind(user.org, user.email, scopeKind, scopeRef).run();
     threadId = r.meta.last_row_id;
   }
-  if (seed.length) await db.batch(seed.map(turn => db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, turn.role, turn.content)));
-  const { results: history } = await db.prepare(
-    `SELECT role, content FROM messages WHERE thread_id = ? ORDER BY id DESC LIMIT ${HISTORY_TURNS}`
-  ).bind(threadId).all();
-  history.reverse();
-  await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)')
-    .bind(threadId, 'user', attachedName ? `${message} [attached: ${attachedName}]` : message).run();
+  const history = await threadTurns(db, threadId, seed, attachedName ? `${message} [attached: ${attachedName}]` : message);
 
   const q = [note, uploadNote && `(${uploadNote})`, message].filter(Boolean).join(' ');
   // tools ride only when the user can edit the scope - a viewer's model has none

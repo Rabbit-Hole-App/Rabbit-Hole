@@ -1,8 +1,8 @@
 import { workerRequest } from './learn-scene.js';
-import { canvasSeed } from './canvas-conversation.js';
+import { canvasSeed, threadTurns } from './canvas-conversation.js';
 import { handleLearnCourse, generateCourseContent } from './learn-course.js';
 import { askStream, attachmentBlocks, readAskRequest } from './ask.js';
-import { askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS } from './learn-models.js';
+import { askModel, MESSAGE_LIMIT, MENTION_LIMIT } from './learn-models.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
 import { REPOSITORY_TOOLS, REPOSITORY_SYSTEM, repositoryTool } from './repository-context.js';
 import { readArxivPaper, paperDocument } from './arxiv.js';
@@ -229,10 +229,8 @@ async function repositoryAsk(req,env,user,app){
   }
   const id=thread?.id||`repochat-${crypto.randomUUID()}`;
   if(!thread)await db.prepare('INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,?,?)').bind(id,user.org,user.email,app.name,commit,body.message.slice(0,120)).run();
-  if(seed.length)await db.batch(seed.map(turn=>db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(id,turn.role,turn.content)));
-  const {results}=await db.prepare(`SELECT role,content FROM messages WHERE thread_id=? ORDER BY id DESC LIMIT ${HISTORY_TURNS}`).bind(id).all();
-  await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(id,'user',question).run();
-  return askStream(env,JSON.stringify({repo:app.repo,commit,selected,selectedCode,lesson:body.lesson_snapshot||null,paper:body.paper_context?{id:body.paper_context.id,page:body.paper_context.page}:null,...(mentioned.length?{mentionedRepositories:mentioned}:{})}),results.reverse(),question,
+  const history=await threadTurns(db,id,seed,question);
+  return askStream(env,JSON.stringify({repo:app.repo,commit,selected,selectedCode,lesson:body.lesson_snapshot||null,paper:body.paper_context?{id:body.paper_context.id,page:body.paper_context.page}:null,...(mentioned.length?{mentionedRepositories:mentioned}:{})}),history,question,
     async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(message.id,JSON.stringify(graphView)).run();},{threadId:id,commit},extraBlocks,null,askModel(body.model),null,
     body.lesson_snapshot?LEARN_SNAPSHOT_SYSTEM:LEARN_SYSTEM,{papers,system:[REPOSITORY_SYSTEM,videos.system].filter(Boolean).join('\n'),tools:[...REPOSITORY_TOOLS,...videos.tools],runTool,getGraphView:()=>graphView,shownVideo:videos.shown,org:user.org});
 }

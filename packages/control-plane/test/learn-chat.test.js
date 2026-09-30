@@ -1,5 +1,5 @@
 import { paperSelectionImage } from '../src/learn-preview-review.js';
-import { canvasSeed } from '../src/canvas-conversation.js';
+import { canvasSeed, threadTurns } from '../src/canvas-conversation.js';
 import { arxivId, paperDocument } from '../src/arxiv.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from '../src/learn-outline-tool.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, wikiTitle, validateShowWikipedia } from '../src/learn-wiki.js';
@@ -73,6 +73,7 @@ const deps = {
   OUTLINE_SYSTEM,
   validateOutlineOps,
   canvasSeed,
+  threadTurns,
   videoMomentTools,
   validateLearnContext,
   appendOutline,
