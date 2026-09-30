@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { parseRepository, repositoriesFetch, repositoryAccess, RepositoryImports } from '../src/repositories.js';
 import { repositoryTool, REPOSITORY_SYSTEM, REPOSITORY_TOOLS } from '../src/repository-context.js';
 import { researchAnswer } from '../src/learn-research.js';
@@ -184,12 +184,19 @@ test('T02 section 16 pin: connect_repository writes only LEARN_DB rows and learn
 // Dev storage hygiene (user, 2026-09-28): dev repository snapshots live in their own bucket, never in the
 // live small-runs bucket under a prefix. The dev config binds that bucket; production has no such binding.
 const jsonc=(path)=>JSON.parse(readFileSync(new URL(path,import.meta.url),'utf8').replace(/("(?:\\.|[^"\\])*")|\/\/[^\n]*|\/\*[\s\S]*?\*\//g,(m,str)=>str||'').replace(/,(\s*[}\]])/g,'$1'));
+// Every packages/web config that deploys dev-worker.js (the shared dev worker and the clone recipe) needs it:
+// without the binding every repository ask fails at repositorySnapshot.
 test('dev repository snapshots cannot reach the production bucket',()=>{
-  const dev=jsonc('../../web/wrangler.dev.jsonc'),live=jsonc('../wrangler.jsonc');
+  const web=new URL('../../web/',import.meta.url),live=jsonc('../wrangler.jsonc');
+  const devs=readdirSync(web).filter(name=>/^wrangler\..*\.jsonc$/.test(name)).filter(name=>jsonc(`../../web/${name}`).main==='dev-worker.js');
+  assert.deepEqual(devs.sort(),['wrangler.dev.jsonc','wrangler.parallel.jsonc']);
   const liveBuckets=(live.r2_buckets||[]).map(b=>b.bucket_name);
-  const snapshots=(dev.r2_buckets||[]).find(b=>b.binding==='REPOSITORY_SNAPSHOTS');
-  assert.ok(snapshots,'the dev config binds REPOSITORY_SNAPSHOTS');
-  assert.ok(!liveBuckets.includes(snapshots.bucket_name),`${snapshots.bucket_name} is a production bucket`);
+  for(const name of devs){
+    const snapshots=(jsonc(`../../web/${name}`).r2_buckets||[]).find(b=>b.binding==='REPOSITORY_SNAPSHOTS');
+    assert.ok(snapshots,`${name} binds REPOSITORY_SNAPSHOTS`);
+    assert.equal(snapshots.bucket_name,'small-repositories-dev',name);
+    assert.ok(!liveBuckets.includes(snapshots.bucket_name),`${snapshots.bucket_name} is a production bucket`);
+  }
   assert.ok(!(live.r2_buckets||[]).some(b=>b.binding==='REPOSITORY_SNAPSHOTS'),'production binds REPOSITORY_SNAPSHOTS');
   const source=readFileSync(new URL('../src/repositories.js',import.meta.url),'utf8');
   assert.doesNotMatch(source,/env\.RUNS\b/,'repositories.js still reads or writes the live RUNS bucket');
