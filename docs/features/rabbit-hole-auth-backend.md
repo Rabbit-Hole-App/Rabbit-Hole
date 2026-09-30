@@ -43,7 +43,7 @@ The code is in `packages/control-plane/src/auth.js`. The tests are `test/web-aut
 | `/auth/github/callback` | GET | The same for GitHub. |
 | `/logout` | GET/POST | Revokes every session of the user, clears the cookie, redirects to `/login`. |
 | `/test/session` | POST | Test instances only, unchanged. It now creates the user row. |
-| `/test/oauth/authorize` | GET | Mock provider. Only when `SMALL_ENV` is test or dev, `TEST_BYPASS_SECRET` is set and `OAUTH_MOCK=true`. |
+| `/test/oauth/authorize` | GET | Mock provider. Only when `SMALL_ENV=test`, `TEST_BYPASS_SECRET` is set and `OAUTH_MOCK=true`. Never on dev. |
 
 ## Flows
 
@@ -75,7 +75,12 @@ The code is in `packages/control-plane/src/auth.js`. The tests are `test/web-aut
 - `login_links` row limits per address: 3 per 15 minutes and 10 per day.
 - There is no domain cap: a 128-bit link can't be guessed, and a gmail.com cap would lock out every Gmail user.
 - A D1 error or an undelivered email fails closed with a generic 503 and removes the row.
-- Only test or dev instances with the bypass secret echo the link.
+- Only `SMALL_ENV=test` instances with the bypass secret echo the link. The public dev control plane (`SMALL_ENV=dev`, rabbit-hole-cp-dev) fails closed like production.
+
+**Test gates (locked):**
+- Echoing a credential or link (CLI `devCode`, the web dev link, `devLink`): `SMALL_ENV=test` only.
+- The mock OAuth provider: `SMALL_ENV=test` only.
+- `/test/session`: test or dev, always gated by the secret.
 
 **Errors** return to `/login?error=<code>&next=<safe next>`, where code is one of:
 - `unavailable`: the provider is not configured, or D1 is down;
@@ -125,7 +130,7 @@ Landing lives on the same worker origin, and cookies are host-only.
   - `400 {error}`: invalid address.
   - `429 {error}`: too many links requested.
   - `503 {error}`: show `error` as it is.
-  - Test instances add `devLink`.
+  - `SMALL_ENV=test` instances add `devLink`; dev never does.
 - **`next`:** carry the `next` from the sign-in page's own query into all three.
 - **Errors:** after the integration, `/login` should redirect to Landing's `/sign-in` with the same query string. The sign-in page shows the message for `error`:
   - unavailable: "That sign-in option isn't available right now. Try another one."
@@ -159,11 +164,13 @@ The email sign-in still needs `RESEND_API_KEY` and `EMAIL_FROM`, in the P0-A rol
 No real credentials are needed. `packages/control-plane/.dev.vars` is gitignored:
 
 ```
-SMALL_ENV=dev
+SMALL_ENV=test
 MASTER_KEY=<any local string>
 TEST_BYPASS_SECRET=<any local string>
 OAUTH_MOCK=true
 ```
+
+It must be `SMALL_ENV=test`: with `dev`, the mock provider and the dev link are both off, the same as on rabbit-hole-cp-dev.
 
 1. Build the web shell, because the worker imports `../web/dist/index.html`.
 2. Load the local D1: `npx wrangler d1 execute small --local --file=schema.sql`.

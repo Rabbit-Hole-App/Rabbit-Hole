@@ -359,15 +359,18 @@ test('missing provider config: start goes to /login?error=unavailable, no flow c
   assert.ok(!/password/i.test(full.text.replace('No password.', '')), 'no password field or copy');
 });
 
-// ---------- Production never runs the mock provider ----------
+// ---------- Production and the public dev control plane never run the mock provider or echo links ----------
 
+// Every test using these adds TEST_BYPASS_SECRET: only SMALL_ENV=test may echo or mock.
+// SMALL_ENV=dev is rabbit-hole-cp-dev, public, so it must behave like production here.
 const PROD_VARIANTS = {
   'no SMALL_ENV': { MASTER_KEY: KEY },
   'SMALL_ENV=production': { MASTER_KEY: KEY, SMALL_ENV: 'production' },
   'SMALL_ENV=staging': { MASTER_KEY: KEY, SMALL_ENV: 'staging' },
+  'SMALL_ENV=dev (public dev control plane)': { MASTER_KEY: KEY, SMALL_ENV: 'dev' },
 };
 for (const [name, base] of Object.entries(PROD_VARIANTS)) {
-  test(`production (${name}) + OAUTH_MOCK + bypass secret: no mock provider, no mock codes`, async (t) => {
+  test(`${name} + OAUTH_MOCK + bypass secret: no mock provider, no mock codes`, async (t) => {
     const env = withDb(t, { ...base, OAUTH_MOCK: 'true', TEST_BYPASS_SECRET: SECRET });
     network(t, { 'https://oauth2.googleapis.com/token': () => [400, { error: 'invalid_grant' }] });
     assert.equal((await call(env, '/test/oauth/authorize?provider=google&state=s&sub=victim')).status, 404);
@@ -388,8 +391,8 @@ for (const [name, base] of Object.entries(PROD_VARIANTS)) {
   });
 }
 
-test('SMALL_ENV=dev + secret + OAUTH_MOCK=true: the mock provider walks the whole flow locally, no credentials', async (t) => {
-  const env = withDb(t, { MASTER_KEY: KEY, SMALL_ENV: 'dev', TEST_BYPASS_SECRET: SECRET, OAUTH_MOCK: 'true' });
+test('SMALL_ENV=test + secret + OAUTH_MOCK=true: the mock provider walks the whole flow locally, no credentials', async (t) => {
+  const env = withDb(t, { MASTER_KEY: KEY, SMALL_ENV: 'test', TEST_BYPASS_SECRET: SECRET, OAUTH_MOCK: 'true' });
   network(t, {});
   const start = await call(env, '/auth/github/start?next=%2Fapps');
   const authorize = new URL(start.location);
@@ -458,7 +461,7 @@ test('email: an expired link, an old-format link and a garbage token are 401 wit
   }
 });
 
-test('email JSON start fails closed in production: generic 503, no link, no devLink, no row', async (t) => {
+test('email JSON start fails closed in production and on the public dev control plane: generic 503, no link, no devLink, no row', async (t) => {
   for (const [name, base] of Object.entries(PROD_VARIANTS)) {
     for (const mode of ['no key', 500, 'throws']) {
       t.mock.restoreAll();

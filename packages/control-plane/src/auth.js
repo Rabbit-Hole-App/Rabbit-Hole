@@ -13,14 +13,15 @@ const now = () => Math.floor(Date.now() / 1000);
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-// Test/dev bypasses (echoed login code, dev sign-in link, /test/*, mock OAuth) need SMALL_ENV test or dev
-// AND their secret. Any other SMALL_ENV, including none, is production: fail closed.
+// Test/dev bypasses (/test/*) need SMALL_ENV test or dev AND their secret. Any other SMALL_ENV,
+// including none, is production: fail closed.
 export const testMode = (env) => env.SMALL_ENV === 'test' || env.SMALL_ENV === 'dev';
 // Echoing a login code or sign-in link hands a session for any email to whoever asks, so it is
 // SMALL_ENV=test only. A public dev control plane (rabbit-hole-cp-dev) mints through /test/session.
 export const echoesLogin = (env) => env.SMALL_ENV === 'test' && !!env.TEST_BYPASS_SECRET;
-// The mock provider signs anyone in as any provider id: only test/dev instances that opt in.
-const mockOAuth = (env) => testMode(env) && !!env.TEST_BYPASS_SECRET && env.OAUTH_MOCK === 'true';
+// The mock provider signs anyone in as any provider id - the same risk as an echo: SMALL_ENV=test
+// instances that opt in only, never a public dev control plane.
+const mockOAuth = (env) => echoesLogin(env) && env.OAUTH_MOCK === 'true';
 
 // Login email: trimmed, lowercased, one @, plain local part, dotted domain labels with no edge hyphens.
 // Quoted or display-name forms are refused - orgOf reads after the first @, so they could pick another org.
@@ -246,7 +247,7 @@ const WEB_LOGIN_LIMITED = 'Too many sign-in links requested. Try again later.';
 // One single-use link per request: the email carries a signed id, the row (login_links) holds the
 // address and the post-login path. Per address: 3 links per 15 minutes, 10 per day. No domain cap:
 // a 128-bit link cannot be guessed, and a cap on gmail.com would lock out every Gmail user.
-// Any D1 error or undelivered email fails closed; only test/dev instances with the bypass secret see the link.
+// Any D1 error or undelivered email fails closed; only SMALL_ENV=test instances with the bypass secret see the link.
 async function emailLogin(env, email, next, baseUrl, sendEmail) {
   const id = randomHex(16);
   const t = now();
