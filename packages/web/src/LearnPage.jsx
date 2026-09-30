@@ -1114,10 +1114,10 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
         {/* On a phone the row wraps (menubar compact) instead of clipping its
             start; not a scroller, which would clip the menus' dropdowns. */}
         {!canvasState.presenting && <div className="relative flex shrink-0 items-center justify-center gap-1 px-3 pt-3 pb-1 max-md:flex-wrap max-md:gap-y-0.5 max-md:px-2 max-md:pt-2">
-          {/* The page's top-left corner leaves Learn like a back button (owner 2026-09-30): back where the learner came
-              from, or Home when Learn opened the tab. Learn has no sidebar button; recentring is Shift 0 and the minimap. */}
-          <button type="button" data-learn-back aria-label="Back" title="Back"
-            onClick={() => (window.history.state?.inApp ? window.history.back() : navigate('/apps'))}
+          {/* The page's top-left corner is Home (owner 2026-09-30): the Home page from any Rabbit Hole, at any depth; the
+              navigator climbs holes. Learn has no sidebar button; recentring is Shift 0 and the minimap. */}
+          <button type="button" data-learn-home aria-label="Home" title="Home"
+            onClick={() => navigate('/apps')}
             className="absolute top-3 left-3 flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink max-md:hidden"><House size={15} strokeWidth={1.7} /></button>
           <input aria-label="Canvas title" title="Rename this canvas"
             // The name on screen is always the value - editing edits IT, via a

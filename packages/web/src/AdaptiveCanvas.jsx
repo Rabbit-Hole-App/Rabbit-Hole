@@ -181,7 +181,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, s
       // A card with a Rabbit Hole (saved or still empty): double-click goes down it; a single click still selects.
       onDoubleClick={portal ? event => { if (!event.target.closest('input, textarea, select, button, [contenteditable="true"]')) dive.enter(portal.name); } : undefined}
       style={{ transform: `translate(${dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, marginTop: space || undefined, width: size.w || width, height: size.h || height ? (size.h || height) + extraHeight : undefined, maxHeight: size.h || height ? undefined : autoMax }}
-      className={`group relative mx-auto flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${portal ? `outline-2 outline-offset-4 outline-[#b42318] ${portal.pending ? 'outline-dashed' : ''}` : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
+      className={`group relative mx-auto flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-2 outline-offset-4 outline-[#b42318]') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* Only this strip drags; the body keeps a normal cursor so text can be
           selected and links inside the block stay clickable. */}
       <div data-drag-handle data-drag-zone title="Drag to move this block"
@@ -190,7 +190,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, s
       </div>
       {children}
       {portal && <button type="button" data-dive-portal={portal.name} title={`Enter the Rabbit Hole: ${portal.title}`} onPointerDown={event => event.stopPropagation()} onClick={() => dive.enter(portal.name)}
-        className="absolute -top-3 left-4 z-20 flex max-w-60 items-center gap-1 rounded-sm border border-[#b42318]/40 bg-white px-2 py-0.5 text-[11px] text-[#912018] shadow-sm hover:bg-[#fef3f2]">
+        className={`absolute -top-3 left-4 z-20 flex max-w-60 items-center gap-1 rounded-sm border bg-white px-2 py-0.5 text-[11px] shadow-sm ${portal.pending ? 'border-[#e5484d]/60 text-[#912018] hover:bg-[#fef3f2]' : 'border-[#b42318]/40 text-[#912018] hover:bg-[#fef3f2]'}`}>
         <svg aria-hidden="true" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" className="shrink-0"><path d="M6 1.5V10M2.5 6.5 6 10l3.5-3.5" /></svg><span className="truncate">{portal.title}</span></button>}
       {['top', 'bottom'].map(side => <button key={side} type="button" data-port={side} data-owner={id} aria-label={`Connect ${side}`} title="Drag to connect blocks"
         data-node-tool

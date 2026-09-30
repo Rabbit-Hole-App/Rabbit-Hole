@@ -135,7 +135,7 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
     saving.current = true;
     const { name, title, parent, origin_block_id, dive: record } = holeRef.current;
     api('/api/canvases/dives', { method: 'POST', body: JSON.stringify({ name, title, parent, origin_block_id, dive: record, device_id: deviceId(localStorage) }) })
-      .then(() => { kept.current = true; dropPending(sessionStorage, name); setPersisted(true); setError(''); window.history.replaceState(window.history.state, '', levelHref({ app: name })); })
+      .then(() => { kept.current = true; dropPending(sessionStorage, name); setPersisted(true); setError(''); window.history.replaceState(null, '', levelHref({ app: name })); })
       .catch(failure => { saving.current = false; setError(`This hole was not saved: ${failure.message}`); });
   }, [pending, canvasState.content]); // eslint-disable-line react-hooks/exhaustive-deps
   // This level's pending children, read after mount (a hole left a moment ago has been swept by then).

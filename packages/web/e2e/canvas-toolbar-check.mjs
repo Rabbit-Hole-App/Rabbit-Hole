@@ -1,6 +1,6 @@
 // Canvas utilities never cover canvas content (docs/features/learn-canvas-blocks.md), on the restored
 // shell (2026-09-30): the tools in the left gutter, the Rabbit Hole navigator in the right gutter, the
-// minimap lower right in the bottom strip beside the composer, a back button in the top-left corner.
+// minimap lower right in the bottom strip beside the composer, Home in the top-left corner.
 // Desktop (the review viewport, 1720 x 1100): the widest card is panned hard right, then hard left; the
 // card is on top all along each canvas edge, the tools, navigator and minimap sit wholly outside the
 // canvas surface, the minimap clears the composer. A wheel over empty gutter space pans the canvas;
@@ -48,7 +48,7 @@ const geometry = page => page.evaluate(() => {
     minimap: (() => { const r = document.querySelector('[data-canvas-minimap] [aria-label="Canvas overview"]')?.getBoundingClientRect(); return r && r.width ? { x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom } : null; })(),
     navigator: box(document.querySelector('[data-dive-navigator]')),
     composer: box(document.querySelector('[data-canvas-composer]')),
-    back: box(document.querySelector('[data-learn-back]')),
+    home: box(document.querySelector('[data-learn-home]')),
     zoom: document.querySelector('[title="Reset zoom"]')?.textContent?.trim(),
   };
 });
@@ -124,7 +124,7 @@ async function probeEdge(page, card, title, label, side = 'right') {
     if (g.minimap.w < 150) fail(`desktop: the minimap is only ${Math.round(g.minimap.w)}px wide`);
   }
   if (g.overview) fail('desktop: the gutter overview is open; the desktop minimap is the bottom strip\'s');
-  if (!g.back || g.back.x > 24 || g.back.y > 24) fail('desktop: no back button in the top-left corner');
+  if (!g.home || g.home.x > 24 || g.home.y > 24) fail('desktop: no Home button in the top-left corner');
   if (g.zoom !== '100%') fail(`desktop: zoom is ${g.zoom}, not 100%`);
   const right = { surface: round(g.surface), toolbar: round(g.toolbar), minimap: round(g.minimap), ...(await probeEdge(page, card, widest.block.title, 'desktop, right edge')) };
   await page.screenshot({ path: `${OUT}/desktop-wide-card-right-edge.png` });

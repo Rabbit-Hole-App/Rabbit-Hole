@@ -73,7 +73,7 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
   (`Search.jsx`).
 - **Stabilization (2026-09-30):**
   - **Pending lifetime.** An empty hole lives in this tab while the learner stays at the hole or its
-    parent board. On the parent, its card shows a temporary (dashed) red portal and the navigator
+    parent board. On the parent, its card shows a temporary portal: a thick translucent red highlighter band around it (a kept hole is the solid red outline) and the navigator
     lists it below. Leaving that part of the tree while it is still empty discards it.
   - **Chat in a pending hole.** Chat and / commands work there: the ask carries `scope.pending`
     (parent and title), and the server answers it as a virtual canvas under a parent board the

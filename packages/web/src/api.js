@@ -35,8 +35,7 @@ export function setTheme(t) {
 
 // Two pages don't need a router dep: pushState + a popstate event the root listens to.
 export function navigate(to) {
-  // inApp marks entries this app pushed, so Learn's back button knows back stays in the app.
-  window.history.pushState({ inApp: true }, '', to);
+  window.history.pushState(null, '', to);
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 

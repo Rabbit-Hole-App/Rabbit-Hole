@@ -1,4 +1,4 @@
-// The Learn canvas shell (owner, 2026-09-30): a back button top left, the tool palette left, the
+// The Learn canvas shell (owner, 2026-09-30): Home top left, the tool palette left, the
 // Rabbit Hole navigator top right, the minimap lower right, the composer at the bottom, and no
 // app rail. Integration merges lost the Parallel toolbar side and the lower-right minimap once
 // (Parallel caca1c2b vs final-integration af572dcc); these pins make a repeat fail loudly.
@@ -16,11 +16,8 @@ test('the tool palette docks left by default and still lives in its own gutter',
   assert.match(canvas, /role="toolbar" aria-label="Canvas tools"/);
 });
 
-test('the top-left corner leaves Learn like a back button, Home when Learn opened the tab; no sidebar button', () => {
-  assert.match(page, /data-learn-back aria-label="Back"/);
-  // Back only when this app pushed the entry (api.js navigate marks it); a tab opened on Learn goes Home.
-  assert.match(page, /onClick=\{\(\) => \(window\.history\.state\?\.inApp \? window\.history\.back\(\) : navigate\('\/apps'\)\)\}/);
-  assert.match(read('api.js'), /window\.history\.pushState\(\{ inApp: true \}, '', to\);/);
+test('the top-left corner is Home at every depth, never a back button; no sidebar button', () => {
+  assert.match(page, /data-learn-home aria-label="Home" title="Home"\r?\n\s+onClick=\{\(\) => navigate\('\/apps'\)\}/);
   assert.match(page, /className="absolute top-3 left-3 /);
   assert.doesNotMatch(canvas, /data-canvas-home/, 'recentring is Shift 0 and the minimap, not a second corner button');
   assert.doesNotMatch(shell, /immersive && !drawer/, 'Learn shows no Open sidebar button');
