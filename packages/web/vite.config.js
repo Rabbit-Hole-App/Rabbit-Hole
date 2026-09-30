@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
+import { fileURLToPath } from 'node:url';
 import { AUTH_PATHS } from './src/landing/auth-routes.js';
 import { SUPPORT_PATHS } from './src/landing/support-routes.js';
 import { DOCS_PATHS } from './src/landing/docs-content.js';
