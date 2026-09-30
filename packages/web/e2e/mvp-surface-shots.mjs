@@ -1,13 +1,15 @@
 // packages/web/e2e/mvp-surface-shots.mjs
-// Screenshots of the MVP surface cleanup on this worktree's dev clone. /test/session is gone from
-// live small-cp (P0-A containment, F5), so the clone's real bundle renders against mocked /api/*
-// answers; every request is answered here and nothing reaches a backend. From packages/web:
-//   SMALL_BASE=https://small-cp-dev-small-cleanup.zeroshothq.workers.dev OUT=<dir> node e2e/mvp-surface-shots.mjs
+// Screenshots of the MVP surface cleanup. /test/session is gone from live small-cp (P0-A
+// containment, F5), so the real dev bundle renders against mocked /api/* answers; every request is
+// answered here and nothing reaches a backend. No review worker until P0-B Phase 2B: serve the
+// dist-dev build locally. From packages/web:
+//   npx vite preview --outDir dist-dev --port 4173 --strictPort
+//   SMALL_BASE=http://localhost:4173 OUT=<dir> node e2e/mvp-surface-shots.mjs
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
 const base = process.env.SMALL_BASE || '';
-if (!/^https:[/][/]small-cp-dev-[a-z0-9-]+[.]zeroshothq[.]workers[.]dev$/.test(base)) throw new Error('SMALL_BASE must be your clone');
+if (!/^(https:[/][/]small-cp-dev-[a-z0-9-]+[.]zeroshothq[.]workers[.]dev|http:[/][/]localhost:[0-9]+)$/.test(base)) throw new Error('SMALL_BASE must be a local preview or your clone');
 const out = process.env.OUT || 'shots';
 mkdirSync(out, { recursive: true });
 const catalog = { org: 'gmail-com', orgName: null, email: 'yudhisteer.chin@gmail.com', apps: [], folders: [] };
@@ -50,15 +52,15 @@ const shot = (page, name) => page.screenshot({ path: `${out}/${name}.png` });
 // 1. AWS not configured: no error anywhere, no AWS row.
 let page = await open('unconfigured', '/library'); // Library hosts the preview's AWS catalog error (App.jsx)
 must(!/not configured|Could not load AWS/.test(await page.locator('body').innerText()), 'unconfigured: an AWS error is shown');
+must(await page.locator('aside').getByRole('button', { name: 'Explore', exact: true }).count() === 0, 'Explore is still in the sidebar');
 await shot(page, '1-library-aws-unconfigured');
 let dialog = await settings(page, 'preferences');
 must(!(await dialog.innerText()).includes('Planned'), 'preferences: Planned shown');
+must(!/Small AI|Rabbit Hole AI/.test(await dialog.innerText()), 'settings: the AI page is still in the nav');
 await shot(page, '2-settings-preferences');
 dialog = await settings(page, 'connections');
 must(!/AWS|Planned|Slack|Notion|Google/.test(await dialog.innerText()), 'connections: hidden provider shown');
 await shot(page, '3-settings-connections-aws-unconfigured');
-dialog = await settings(page, 'ai');
-await shot(page, '4-settings-rabbit-hole-ai');
 await page.keyboard.press('Escape');
 for (const path of ['repository', 'sources', 'question', 'blank']) {
   await page.evaluate((p) => window.dispatchEvent(new CustomEvent('small:start', { detail: { path: p } })), path);

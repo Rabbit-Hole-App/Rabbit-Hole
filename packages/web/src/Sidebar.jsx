@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, Compass, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, Rabbit, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, Rabbit, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName, workspaceLabel } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
@@ -18,7 +18,6 @@ import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
 // left nav (Account / Workspace sections), right content per tab.
 const THEMES = { System: 'system', Light: 'light', Dark: 'dark' };
-const AI_NAME = learnPreview ? 'Rabbit Hole AI' : 'Small AI';
 // Dev build only (D2): Rabbit Hole shows a setting when it works and hides it otherwise; no Planned
 // rows or panes. The live markup stays exactly as today.
 const AVAILABILITY_COLOR = { available: 'green', preview: 'yellow', planned: 'grey' };
@@ -97,7 +96,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
           {!learnPreview && <NavBtn id="people" icon={Users}>People</NavBtn>}
           {!learnPreview && <NavBtn id="import" icon={Download}>Import</NavBtn>}
           <NavLabel>Features</NavLabel>
-          <NavBtn id="ai" icon={Mark}>{AI_NAME}</NavBtn>
+          {!learnPreview && <NavBtn id="ai" icon={Mark}>Small AI</NavBtn>}
           <NavBtn id="connections" icon={LayoutGrid}>Connections{pendingGrant && <span role="status" aria-label="AWS access needs attention" className="ml-auto h-2 w-2 shrink-0 rounded-full bg-warn" />}</NavBtn>
           {!learnPreview && <>
             <NavBtn id="mcp" icon={Share2}>Small MCP</NavBtn>
@@ -280,7 +279,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
           )}
           {tab === 'ai' && (
             <>
-              <div className="text-2xl font-semibold">{AI_NAME}</div>
+              <div className="text-2xl font-semibold">Small AI</div>
               <div className="pt-2 text-base text-ink-2">The agent behind chat, search, diagnosis and Watch</div>
               <Heading>Model provider</Heading>
               <AiModelSettings />
@@ -475,7 +474,9 @@ function AiModelSettings() {
 }
 
 // Rabbit Hole dev: the main destinations, in the expanded nav and in the collapsed icon rail.
-const NAV = [['Home', '/apps', 'home', House], ['Library', '/library', 'library', Library], ['Explore', '/explore', 'explore', Compass]];
+// ponytail: Explore (/explore, Home.jsx ExplorePreview) is demo cards that open nothing, so the MVP nav
+// leaves it out; the route stays. Add ['Explore', '/explore', 'explore', Compass] back when it works.
+const NAV = [['Home', '/apps', 'home', House], ['Library', '/library', 'library', Library]];
 const RAIL_BTN = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink';
 // Report a bug or suggest a feature, below Trash (user, 2026-09-29): Learn's FeedbackButton, app-less. The sidebar
 // clips its overflow, so the button is fixed over a footer slot and its panel opens beside the strip, unclipped.
@@ -1148,7 +1149,6 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             >
               <Icon size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
               {label}
-              {page === 'explore' && <span className="ml-auto text-xs text-ink-3">preview</span>}
             </button>
           ))}
         </nav>

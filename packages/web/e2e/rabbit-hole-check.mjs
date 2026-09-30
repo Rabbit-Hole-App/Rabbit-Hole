@@ -6,6 +6,9 @@
 // renames, trashes or runs an app; a check that creates a canvas deletes it again. From packages/web:
 //   SMALL_BASE=https://small-cp-dev-smart-home.zeroshothq.workers.dev SMALL_ENV_FILE=C:/Users/cyudhist/Desktop/workspace/small-deploy/.env node e2e/rabbit-hole-check.mjs
 // ONLY=build,J15 runs only labels that start with those prefixes. SHOTS=1 also saves screenshots.
+// STATUS (2026-09-30): signed-in execution is pending P0-B Phase 2B. /test/session is gone from live
+// small-cp (P0-A containment) and the isolated Rabbit Hole dev environment is not ready yet; never
+// work around that through production. Read-only mocked checks: e2e/mvp-surface-shots.mjs.
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
@@ -229,7 +232,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
 
   // WP5 sidebar shell (user 2026-09-28): the Library owns browsing, so the Apps tree, Shared, Private,
   // Recent, New chat and + New are gone; pinning moved to the Library card menu.
-  await check('sh-sidebar: workspace, Home, Library, Explore, Pinned and Trash only (solo v1: no Members); a canvas pinned from its Library card keeps a learn-safe menu with no Share', async () => {
+  await check('sh-sidebar: workspace, Home, Library, Pinned and Trash only (Explore hidden for the MVP) (solo v1: no Members); a canvas pinned from its Library card keeps a learn-safe menu with no Share', async () => {
     const page = await open();
     await page.goto(`${base}/apps`);
     const nav = page.getByRole('navigation', { name: 'Main' });
@@ -237,7 +240,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(await nav.getByRole('button', { name: 'Home', exact: true }).getAttribute('aria-current') === 'page', 'Home is not current on /apps');
     const aside = page.locator('aside');
     for (const name of ['Search', 'Notifications', 'Trash']) must(await aside.getByRole('button', { name, exact: true }).count() === 1, `the sidebar lacks ${name}`);
-    for (const name of ['Members', 'Apps', 'Shared', 'Private', 'New', 'New folder', 'Expand Apps', 'Expand Shared', 'Expand Private']) must(await aside.getByRole('button', { name, exact: true }).count() === 0, `the sidebar still offers ${name}`);
+    for (const name of ['Members', 'Apps', 'Shared', 'Private', 'New', 'New folder', 'Expand Apps', 'Expand Shared', 'Expand Private', 'Explore']) must(await aside.getByRole('button', { name, exact: true }).count() === 0, `the sidebar still offers ${name}`);
     must(await aside.getByRole('button', { name: /^New chat/ }).count() === 0, 'the sidebar still offers New chat');
     must(await aside.getByText('Recent', { exact: true }).count() === 0, 'the sidebar still shows Recent');
     const c = await shCanvas(page, 'rabbit-hole-check pin');
@@ -268,7 +271,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
-  await check('sh-rail: Ctrl+\\ collapses to a 48-56px icon rail with labelled workspace, Search, Notifications, Home, Library, Explore and Trash, and no Members (solo v1); the current page is marked; the tile opens the workspace menu; Notifications opens beside the rail; Ctrl+\\ restores', async () => {
+  await check('sh-rail: Ctrl+\\ collapses to a 48-56px icon rail with labelled workspace, Search, Notifications, Home, Library and Trash, and no Members or Explore (solo v1, MVP); the current page is marked; the tile opens the workspace menu; Notifications opens beside the rail; Ctrl+\\ restores', async () => {
     const page = await open();
     await loaded(page, '/apps');
     const sidebar = page.locator('[data-shell-sidebar]');
@@ -277,11 +280,11 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.waitForTimeout(400);
     const w = (await sidebar.boundingBox()).width;
     must(w >= 48 && w <= 56, `the rail is ${w}px wide`);
-    for (const name of [railTile, 'Home', 'Library', 'Explore', 'Trash', 'Open sidebar']) {
+    for (const name of [railTile, 'Home', 'Library', 'Trash', 'Open sidebar']) {
       const b = aside.getByRole('button', { name, exact: true });
       must(await b.count() === 1 && await b.getAttribute('title') === name, `the rail's ${name} button lacks its label or tooltip`);
     }
-    must(await aside.getByRole('button', { name: 'Members', exact: true }).count() === 0, 'the rail offers Members');
+    for (const name of ['Members', 'Explore']) must(await aside.getByRole('button', { name, exact: true }).count() === 0, `the rail offers ${name}`);
     must(await aside.getByRole('button', { name: 'Search', exact: true }).count() === 1, 'the rail has no Search');
     await aside.getByRole('button', { name: 'Notifications', exact: true }).click();
     const inbox = page.getByText('Notifications', { exact: true });
@@ -1000,7 +1003,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const page = await settingsAt({ tab: 'preferences' });
     const dialog = settings(page);
     must((await dialog.innerText()).includes('Choose how you want Rabbit Hole to look and behave'), 'Preferences copy does not use PRODUCT');
-    for (const name of ['High contrast', 'Use Enter to add a new line', 'Language', 'Number format', 'Always show text direction controls', 'Mail & Calendar', 'Import', 'Small MCP', 'Public pages', 'Emoji']) {
+    for (const name of ['High contrast', 'Use Enter to add a new line', 'Language', 'Number format', 'Always show text direction controls', 'Mail & Calendar', 'Import', 'Small AI', 'Rabbit Hole AI', 'Small MCP', 'Public pages', 'Emoji']) {
       must(await dialog.getByText(name, { exact: true }).count() === 0, `${name} is still shown`);
     }
     must(!(await dialog.innerText()).includes('Planned'), 'Settings still says Planned');
@@ -2365,10 +2368,10 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const dialog = settings(page);
     await dialog.waitFor({ timeout: 5000 });
     for (const name of ['People', 'Teamspaces', 'Admin']) must(await dialog.getByText(name, { exact: true }).count() === 0, `Settings shows ${name}`);
-    for (const tab of ['Preferences', 'Notifications', 'General', 'Rabbit Hole AI', 'Connections', 'Developer', 'Security', 'Identity']) {
+    for (const tab of ['Preferences', 'Notifications', 'General', 'Connections', 'Developer', 'Security', 'Identity']) {
       await dialog.getByText(tab, { exact: true }).first().click();
       await dialog.getByText(tab, { exact: true }).nth(1).waitFor({ timeout: 5000 }); // the pane title under the nav item
-      await page.waitForTimeout(300); // General and Rabbit Hole AI load their data
+      await page.waitForTimeout(300); // General loads its data
       const words = (await dialog.innerText()).match(TEAM_WORDS);
       must(!words, `Settings → ${tab} says "${words?.[0]}"`);
     }

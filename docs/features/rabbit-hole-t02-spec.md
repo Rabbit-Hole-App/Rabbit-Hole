@@ -778,8 +778,10 @@ experiment (amendment 3). The design is recorded so the seam exists:
   Slack are hidden; Slack installs the live small bot, which the preview never
   writes to (D7). The planned rows stay in `connections.js` for the bar's
   `connect <provider>` notice. The Start dialog's Sources path offers PDF
-  upload only (`StartDialog.jsx` `connectionSources`). The live build is
-  unchanged.
+  upload only (`StartDialog.jsx` `connectionSources`). The Small AI page is
+  hidden too: its Save is a write the preview refuses, and its Always on rows
+  are deploy features. Explore leaves the sidebar and rail (demo cards that
+  open nothing); the `/explore` route stays. The live build is unchanged.
   - The sheet says "Opened Settings → Connections. Google Slides is planned;
     nothing was connected." There is no fake OAuth, waitlist, or token field.
 - **Return.** Settings overlays the page without changing the route, so the
