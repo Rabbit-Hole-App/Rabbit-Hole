@@ -1,6 +1,7 @@
 // What a Learn ask attaches besides the learner's words: the optional outline, paper,
 // image, Wikipedia and video fields. Validated before anything is read, then at most one
-// source is read for the model (one reader holds one thing). Used by apiAsk (index.js).
+// source is read for the model (one reader holds one thing). Used by apiAsk (index.js); canvas_target
+// by repositoryAsk (repositories.js) too.
 import { arxivId, paperDocument } from './arxiv.js';
 import { paperSelectionImage } from './learn-preview-review.js';
 import { isUploadedPaperId, paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
@@ -8,7 +9,7 @@ import { isUploadedMediaId } from './learn-media.js';
 import { validateOutline, renderOutline } from './learn-context.js';
 import { wikiTitle } from './learn-wiki.js';
 import { validateVideoContext } from './learn-youtube.js';
-import { PAPER_CONTEXT_INSTRUCTION, IMAGE_CONTEXT_INSTRUCTION, WIKI_CONTEXT_INSTRUCTION, VIDEO_CONTEXT_INSTRUCTION, OUTLINE_CONTEXT_HEADER } from './agents/learn-chat.js';
+import { PAPER_CONTEXT_INSTRUCTION, IMAGE_CONTEXT_INSTRUCTION, WIKI_CONTEXT_INSTRUCTION, VIDEO_CONTEXT_INSTRUCTION, OUTLINE_CONTEXT_HEADER, CANVAS_TARGET_HEADER } from './agents/learn-chat.js';
 
 // Throws the 400 message for the first malformed field; returns the validated video context.
 export function validateLearnContext(body, conversation) {
@@ -51,6 +52,27 @@ export function validateLearnContext(body, conversation) {
     } catch { throw new Error('Invalid Learn video context'); }
   }
   return videoContext;
+}
+
+// The card, group or marked region the learner asked about (owner decision 2): its text travels
+// apart from the question, so the question keeps its 4000 limit and the card gets its own bound.
+export const CANVAS_TARGET_LIMIT = 8000;
+const CANVAS_TARGET_MAX = 32000; // the client sends at most this; more is refused, not cut
+export function validateCanvasTarget(value, conversation) {
+  if (value === undefined) return null;
+  const text = (s, max) => typeof s === 'string' && s.trim().length > 0 && s.length <= max;
+  if (conversation !== 'learn' || !value || typeof value !== 'object' || !text(value.id, 200) || !text(value.kind, 200)
+    || (value.title != null && (typeof value.title !== 'string' || value.title.length > 300)) || !text(value.text, CANVAS_TARGET_MAX)) throw new Error('Invalid canvas target');
+  return { id: value.id, kind: value.kind, ...(value.title ? { title: value.title } : {}), text: value.text };
+}
+export function appendCanvasTarget(context, target) {
+  if (!target) return context;
+  const text = target.text.slice(0, CANVAS_TARGET_LIMIT);
+  return `${context}
+
+${CANVAS_TARGET_HEADER}
+${JSON.stringify({ ...target, text })}${text.length < target.text.length ? `
+[card text truncated: showing ${text.length} of ${target.text.length} characters]` : ''}`;
 }
 
 // The lesson's own table of contents, so a question about its structure is

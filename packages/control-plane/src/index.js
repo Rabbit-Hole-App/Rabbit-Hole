@@ -1,7 +1,7 @@
 import { readArxivPaper } from './arxiv.js';
 import { canvasSeed, threadTurns } from './canvas-conversation.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
-import { validateLearnContext, appendOutline, readLearnSource } from './learn-ask-context.js';
+import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from './learn-ask-context.js';
 import { uploadedPaperAsDocument } from './learn-paper.js';
 import { uploadedMediaAsImage } from './learn-media.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
@@ -1013,8 +1013,8 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     catch (error) { return json({ error: error.message }, 400); }
   }
   // Outline, paper, image, Wikipedia and video fields, each refused whole when malformed.
-  let videoContext;
-  try { videoContext = validateLearnContext(body, conversation); }
+  let videoContext, canvasTarget;
+  try { videoContext = validateLearnContext(body, conversation); canvasTarget = validateCanvasTarget(body.canvas_target, conversation); }
   catch (error) { return json({ error: error.message }, 400); }
   if (conversation === 'learn' && (!scope?.app || scope.run)) return json({ error: 'Learn requires an app scope' }, 400);
   if (!message || typeof message !== 'string' || message.length > MESSAGE_LIMIT) return json({ error: 'message required (max 4000 chars)' }, 400);
@@ -1079,6 +1079,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     context = JSON.stringify({ lesson: context, ...source });
     canAct = false;
   }
+  context = appendCanvasTarget(context, canvasTarget);
   // thread per scope and user; follow-ups ride the same thread
   const db = seam ? seam.db : env.DB;
   let threadId = thread_id || null;

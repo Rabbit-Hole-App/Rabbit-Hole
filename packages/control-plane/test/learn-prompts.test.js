@@ -20,10 +20,10 @@ import { challengePrompt } from '../../web/src/learn-grade-prompts.js';
 const fingerprint = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
 const PINS = {
   teachingPolicy: 'af83a270b721abfc',
-  chat: '38a3b1695c285869', // canvas seam and app asks, and grading through them
+  chat: '888e512a68c49fd4', // canvas seam and app asks, and grading through them
   chatSnapshot: 'e04aa9aa112cfc51', // an app ask carrying a lesson_snapshot (legacy selection contract)
-  chatOutline: '0d44412372412af6',
-  repository: 'e349b3e764910409',
+  chatOutline: 'fec05d278de63797',
+  repository: 'b86f24b2dcaa43f1',
   artifact: '870e84a3aa127657',
   board: '4436c297d574838d', // env without DESMOS_API_KEY, so BOARD_NO_DESMOS is appended
   boardReview: 'bce6f95a93d18528',

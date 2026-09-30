@@ -8,7 +8,7 @@ import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_L
 import { isUploadedMediaId } from '../src/learn-media.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
-import { validateLearnContext, appendOutline, readLearnSource } from '../src/learn-ask-context.js';
+import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from '../src/learn-ask-context.js';
 import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE } from '../src/agents/learn-chat.js';
 import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest, askStream } from '../src/ask.js';
 import { askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS } from '../src/learn-models.js';
@@ -76,6 +76,8 @@ const deps = {
   threadTurns,
   videoMomentTools,
   validateLearnContext,
+  validateCanvasTarget,
+  appendCanvasTarget,
   appendOutline,
   readLearnSource,
   validateVideoContext,
@@ -834,4 +836,49 @@ test('a multipart ask with a file over 4 MB is refused before the model', async 
   assert.equal(res.status, 400);
   assert.deepEqual(await res.json(), { error: 'attachment too large - 4 MB max' });
   assert.equal(env.answers.length, 0);
+});
+
+// Owner decision 2 (context-1): the card rides as canvas_target, bounded apart from the question.
+test('a canvas_target card rides as its own bounded context section; the message stays the question', async t => {
+  const env = fixture(t);
+  const ask = body => handlers.apiAsk(request({ scope: { app: 'counter' }, ...body }), env, {}, owner, 'learn');
+  const res = await ask({ message: 'why?', canvas_target: { id: 'block-1', kind: 'Explanation', title: 'T'.repeat(120), text: LONG_CARD } });
+  assert.equal(res.status, 200);
+  const { question, context } = env.answers[0];
+  assert.equal(question, 'why?');
+  assert.ok(context.includes(JSON.stringify(LONG_CARD)), 'the whole card, under the bound, reaches the model');
+  assert.match(context, /"id":"block-1"/);
+  assert.match(context, /untrusted/);
+  assert.doesNotMatch(context, /truncated/);
+  const { threadId } = await res.json();
+  assert.deepEqual((await (await handlers.apiAskThread(env, owner, threadId)).json()).messages[0].content, 'why?');
+  await ask({ message: 'and this?', canvas_target: { id: 'block-2', kind: 'Table', title: 'Big', text: 'x'.repeat(9000) } });
+  assert.ok(env.answers[1].context.includes(`"text":"${'x'.repeat(8000)}"`));
+  assert.doesNotMatch(env.answers[1].context, /x{8001}/);
+  assert.match(env.answers[1].context, /\[card text truncated: showing 8000 of 9000 characters\]/);
+  const legacy = `Question about this Explanation block on the lesson canvas:\n${'b'.repeat(3000)}\n\nLearner question: why?`;
+  assert.equal((await ask({ message: legacy })).status, 200, 'old wrapped messages under the limit still work');
+  for (const canvas_target of [null, 'card', { id: '', kind: 'Explanation', text: 'x' }, { id: 'b', kind: 'Explanation', text: '' }, { id: 'b', kind: 'Explanation', text: 'x'.repeat(32001) }, { id: 'b', kind: 'Explanation', title: 7, text: 'x' }]) {
+    assert.equal((await ask({ message: 'q', canvas_target })).status, 400, JSON.stringify(canvas_target)?.slice(0, 60));
+  }
+  assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'q', canvas_target: { id: 'b', kind: 'Explanation', text: 'x' } }), env, {}, owner, 'agent')).status, 400, 'learn only');
+});
+
+test('a canvas seam thread is titled by the learner question, not the card', async t => {
+  const env = fixture(t);
+  const sqlite = new DatabaseSync(':memory:');
+  t.after(() => sqlite.close());
+  sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  env.LEARN_DB = { batch: async statements => Promise.all(statements.map(statement => statement.run())), prepare: sql => ({ bind: (...params) => ({
+    first: async () => sqlite.prepare(sql).get(...params) || null,
+    all: async () => ({ results: sqlite.prepare(sql).all(...params) }),
+    run: async () => ({ meta: sqlite.prepare(sql).run(...params) }),
+  }) }) };
+  sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('workspace-a','canvas-0a1b2c3d','owner@example.test','Attention')");
+  const seam = canvasAskSeam(env, canvasApp(sqlite.prepare("SELECT * FROM canvases WHERE name='canvas-0a1b2c3d'").get(), owner));
+  const res = await handlers.apiAsk(request({ scope: { app: 'canvas-0a1b2c3d' }, message: 'why?', canvas_target: { id: 'block-1', kind: 'Explanation', title: 'Softmax', text: LONG_CARD } }), env, {}, owner, 'learn', seam);
+  assert.equal(res.status, 200);
+  assert.equal(sqlite.prepare('SELECT title FROM threads').get().title, 'why?');
+  assert.match(env.answers[0].context, /canvas "Attention"/);
+  assert.match(env.answers[0].context, /"title":"Softmax"/);
 });

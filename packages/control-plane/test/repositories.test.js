@@ -238,3 +238,17 @@ test('a long card wrapped into the message is refused by the 4000-character limi
   assert.equal(res.status,400);assert.deepEqual(await res.json(),{error:'Question must be 1–4000 characters'});
   assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM threads').get().n,0);
 });
+test('a canvas_target card rides as its own bounded context section on a repository ask (context-1)',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const prompts=[];
+  globalThis.fetch=async(_,options)=>{prompts.push(JSON.parse(options.body));return Response.json({content:[{type:'text',text:'Because.'}],stop_reason:'end_turn'});};
+  const res=await f.send('ask',{message:'why?',canvas_target:{id:'block-1',kind:'Explanation',title:'Softmax',text:LONG_CARD}});
+  assert.equal(res.status,200);await res.text();
+  const turn=JSON.stringify(prompts[0].messages.at(-1));
+  assert.ok(turn.includes(JSON.stringify(JSON.stringify(LONG_CARD)).slice(1,-1)),'the whole card reaches the model');
+  assert.match(turn,/untrusted/);
+  assert.equal(f.sqlite.prepare("SELECT content FROM messages WHERE role='user'").get().content,'why?');
+  assert.equal(f.sqlite.prepare('SELECT title FROM threads').get().title,'why?');
+  await (await f.send('ask',{message:'and this?',canvas_target:{id:'b2',kind:'Table',title:'Big',text:'x'.repeat(9000)}})).text();
+  assert.match(JSON.stringify(prompts[1].messages.at(-1)),/\[card text truncated: showing 8000 of 9000 characters\]/);
+  assert.equal((await f.send('ask',{message:'q',canvas_target:{id:'b',kind:'Explanation',text:''}})).status,400);
+});
