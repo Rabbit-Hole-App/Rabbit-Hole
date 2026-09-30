@@ -410,7 +410,7 @@ export default function AgentBar({ page }) {
           leading={<>
             {/* [+] Add (T02 §6.2, revised 2026-09-28): the Start paths through open_start. ponytail: Attach stays off on
                 the preview - workspace asks are off (G1) and canvas asks refuse files (canvases.js refuseCanvasAsk); a
-                project ask would take one (repositories.js, 4 MB) on dev storage. streamAsk already takes a file. */}
+                project ask would send one to the model (repositories.js, up to 4 MB), storing no copy. streamAsk already takes a file. */}
             <div className="relative shrink-0">
               <button type="button" aria-label="Add" aria-haspopup="menu" aria-expanded={adding} onMouseDown={(e) => e.stopPropagation()} onClick={() => setAdding(!adding)}
                 className={COMPOSER_ADD}><Plus size={16} /></button>

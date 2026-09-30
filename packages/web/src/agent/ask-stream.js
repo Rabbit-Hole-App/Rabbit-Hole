@@ -32,7 +32,7 @@ function frames(buffer) {
 
 // POST and stream, as ask.jsx:494-547 does. A JSON reply is {choose} or {error}; any other
 // failure that is not a stream is an error, never silence. A file rides as multipart; the dev worker
-// keeps a multipart /api/learn/ask on dev storage, and canvases refuse it. Abort rejects with AbortError.
+// answers a multipart /api/learn/ask itself (never live small-cp), and canvases refuse it. Abort rejects with AbortError.
 export async function streamAsk({ path, body, file = null, signal, onEvent }) {
   let request;
   if (file) {
