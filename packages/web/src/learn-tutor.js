@@ -11,7 +11,7 @@ import { describeAnimation } from './scene-describe.js';
 import { checkStatus, enterPractice, isPracticing } from './scene-activity.js';
 import { applyInputToBlock } from './scene-evaluate.js';
 import { coerceInputs, validateInputDeclarations } from './scene-inputs.js';
-import { CLAIMS, CONCEPTS, SLICE_CARDS, catalogue, cardModule, claimsOfConcept, conceptOf, ladderStep, partLabels, targetClaims } from './learn-tutor-claims.js';
+import { ATTENTION_LADDER, CLAIMS, CONCEPTS, SLICE_CARDS, catalogue, cardModule, claimsOfConcept, conceptOf, ladderStep, partLabels, targetClaims } from './learn-tutor-claims.js';
 import { appendEvents, conceptState, deriveClaimStates, practiceEvents, reconcile } from './learn-tutor-evidence.js';
 import { selectClaims } from './learn-tutor-select.js';
 
@@ -171,29 +171,60 @@ export function route({ turn, claims, states, evaluation, store }) {
   return finish('understood', 'none', ['respond_text', 'suggest_depth', 'ask_question'], claims[0]);
 }
 
-// ---------- Planner context (§9) ----------
+// ---------- Compact Teaching State (§9, v2 Stage E) ----------
 
-export function plannerContext({ turn, routed, block, states }) {
+// What the learner is doing this turn, deterministically: a slash, a hole's opening, an answer to the
+// Tutor's open question, a request ("show me", "explain", "don't quiz me"), a question, else an
+// explanation. The planner reads it; JEV still decides whether words were an attempt.
+export function learnerIntent(turn) {
+  const raw = turn.raw_user_message.trim();
+  const kind = turn.slash ? 'slash' : turn.opening ? 'opening' : turn.returned_from ? 'returned' : turn.answering ? 'answer'
+    : /^(please |can you |could you |just )?(show|take|give|explain|tell|walk|go|simplify|don'?t|do not|no more|stop)\b/i.test(raw) ? 'request'
+    : /\?\s*$/.test(raw) || /^(why|how|what|when|where|which|who|is|are|does|do|can|could|should|would)\b/i.test(raw) ? 'question' : 'explanation';
+  return { kind, raw_user_message: turn.raw_user_message, ...(turn.slash ? { slash: turn.slash } : {}), ...(turn.dive_choice ? { dive_choice: turn.dive_choice } : {}) };
+}
+
+// The cards that bear on this turn: the target, its ladder neighbours, and the cards that teach the
+// route's claim, the turn's claims or their prerequisite concepts.
+function relevantCards(target, concepts) {
+  const ids = new Set([target, ...(ATTENTION_LADDER.includes(target) ? [ladderStep(target, 'deeper'), ladderStep(target, 'shallower')] : [])].filter(id => id && SLICE_CARDS.includes(id)));
+  for (const id of SLICE_CARDS) if (targetClaims({ card_id: id }).some(claim => concepts.has(CLAIMS[claim].concept))) ids.add(id);
+  return catalogue().filter(card => ids.has(card.card));
+}
+
+// The planner's whole input: the turn's intent, target, relevant evidence, route and allowed actions,
+// the authored content that bears on it, constraints, recent context and the hole - nothing else
+// (no unrelated cards, concepts or transcript).
+export function plannerContext({ turn, routed, block, states, claims = [], store = null }) {
   const card = cardModule(turn.target?.card);
   const labels = partLabels(card);
   const index = turn.target?.part_id ? partIndex(card, turn.target.part_id) : null;
   const sources = (block?.sources || card?.sources || []).slice(0, 3).map((source, i) => ({ source_index: i, path: source.path || source.url || null, lines: source.lines || null, note: String(source.note || '').slice(0, 400) }));
   const described = block?.type === 'animation' ? describeAnimation(block).text : block ? [block.title, block.body].filter(Boolean).join('\n') : null;
-  const ids = [...new Set([...turnClaims(turn, { open: null }), routed.claim].filter(Boolean))];
-  const { record, ...dive } = turn.canvas.dive || {};
+  const ids = [...new Set([routed.claim, ...claims].filter(Boolean))].slice(0, 4);
+  const concepts = new Set(ids.flatMap(id => [CLAIMS[id].concept, ...CLAIMS[id].prerequisites]));
+  const record = turn.canvas.dive?.record;
+  const evidence = id => { const { concept, claim, state, misconception_id, prerequisite } = states[id]; return { claim, concept, statement: CLAIMS[id].statement, state, ...(misconception_id ? { misconception_id } : {}), ...(prerequisite ? { prerequisite } : {}), misconceptions: CLAIMS[id].misconceptions.map(wrong => wrong.id) }; };
   return {
-    turn: { ...turn, canvas: { ...turn.canvas, ...(turn.canvas.dive ? { dive } : {}) } },
-    route: routed,
+    learner_intent: learnerIntent(turn),
     target: card ? {
       card: card.evidence.card, title: card.scene.title, depth: card.evidence.depth ?? null,
-      learning_question: card.evidence.learningQuestion, concept: card.evidence.concept,
-      part_label: index != null ? labels[index] : null, description: described, sources,
+      learning_question: card.evidence.learningQuestion, concepts: turn.target.concepts, selected_object: turn.target.selected_object ?? null,
+      part_id: turn.target.part_id ?? null, part_label: index != null ? labels[index] : null, description: described, sources,
     } : described ? { description: described } : null,
-    claims: ids.map(id => ({ id, statement: CLAIMS[id].statement, prerequisites: CLAIMS[id].prerequisites, misconceptions: CLAIMS[id].misconceptions.map(wrong => wrong.id) })),
-    states: turn.evidence.filter(Boolean),
-    concept_states: Object.fromEntries(Object.keys(CONCEPTS).map(concept => [concept, conceptState(states, concept)])),
-    catalogue: catalogue(),
-    ...(record ? { dive: { title: record.title, concept: holeConcept(record), created_by: record.created_by, origin_card: record.origin?.origin_card_id ?? null, origin_part: record.origin?.origin_part_id ?? null, pending_question: record.return_point?.pending_question ?? null } } : {}),
+    relevant_evidence: { claims: ids.map(evidence), concepts: Object.fromEntries([...concepts].map(concept => [concept, conceptState(states, concept)])) },
+    route: { row: routed.row, strategy: routed.strategy, claim: routed.claim },
+    allowed_actions: routed.allowed,
+    relevant_authored_content: { cards: relevantCards(turn.target?.card, concepts), ...(turn.card_state ? { card_state: turn.card_state } : {}) },
+    learner_constraints: turn.constraints,
+    recent_relevant_context: {
+      turns: turn.recent_turns.slice(-2), actions: turn.recent_actions.slice(-2),
+      ...(turn.answering && store?.open?.text ? { open_question: store.open.text } : {}),
+    },
+    dive_context: record || turn.returned_from ? {
+      ...(record ? { title: record.title, concept: holeConcept(record), created_by: record.created_by, origin_card: record.origin?.origin_card_id ?? null, origin_part: record.origin?.origin_part_id ?? null, pending_question: record.return_point?.pending_question ?? null } : {}),
+      ...(turn.returned_from ? { returned_from: { concept: turn.returned_from.concept, claim: turn.returned_from.claim } } : {}),
+    } : null,
   };
 }
 
@@ -289,7 +320,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   }
   // 3. Router, planner, enforcement.
   const routed = route({ turn, claims, states, evaluation, store: current });
-  const context = plannerContext({ turn, routed, block, states });
+  const context = plannerContext({ turn, routed, block, states, claims, store: current });
   const planned = now();
   const response = await post('/api/learn/tutor/plan', { ...access, context });
   const ready = now();
@@ -317,7 +348,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     selection: selection && { available: selection.available, selected: selection.selected.length, fallback: selection.fallback, ms: selection.ms },
     evaluation: evaluation && { status: evaluation.status, evaluator: evaluation.evaluator, events: (evaluation.events || []).length, telemetry: evaluation.telemetry ?? null },
     transitions: transitions.map(({ claim, from, to }) => `${claim}: ${from} -> ${to}`),
-    planner: { telemetry: response.telemetry ?? null },
+    planner: { telemetry: response.telemetry ?? null, context_chars: JSON.stringify(context).length },
     requested_actions: (Array.isArray(response.actions) ? response.actions : []).map(action => action?.type),
     accepted_actions: actions.map(action => action.type),
     rejected: log,
