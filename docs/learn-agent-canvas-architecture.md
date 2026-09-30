@@ -436,11 +436,11 @@ Tool results also carry short notes, such as "The learner now sees this page. Sa
 
 | Use | Provider / model | Where | Needs |
 |---|---|---|---|
-| Learn chat (both paths) | Anthropic `claude-opus-5` by default | `ask.js` `ASK_MODELS`, `anthropic()` | `ANTHROPIC_API_KEY` |
-| Picker choices | Auto = `claude-opus-5` with `fallbacks: 'default'` and the `anthropic-beta: server-side-fallback-2026-07-01` header. Opus 5 = `claude-opus-5`, Sonnet 5 = `claude-sonnet-5`, Haiku 4.5 = `claude-haiku-4-5-20251001`. An explicit choice sends no fallbacks. | `ask.js` 6-8, `anthropic()` | |
+| Learn chat (both paths) and grading | Anthropic `claude-opus-5` by default; the grader sends no model, so it always runs Auto | `learn-models.js` `LEARN_TASKS.chat` / `.grading`, `ask.js` `anthropic()` | `ANTHROPIC_API_KEY` |
+| Picker choices | Auto = `claude-opus-5` with `fallbacks: 'default'` and the `anthropic-beta: server-side-fallback-2026-07-01` header. Opus 5 = `claude-opus-5`, Sonnet 5 = `claude-sonnet-5`, Haiku 4.5 = `claude-haiku-4-5-20251001`. An explicit choice sends no fallbacks. The Auto fallback is a refusal fallback routed by category, not an availability fallback; the serving model is now logged (the `learn_model` line below). The picker reaches chat answers only. | `learn-models.js` `ASK_MODELS`, `askModel`; `ask.js` `anthropic()` | |
 | Subscription mode | `SUBSCRIPTION_ONLY=true` routes every call to `SUBSCRIPTION_BRIDGE_URL/messages`, not streaming, with a 180 s timeout | `subscription-transport.js` | bridge URL and token |
-| Per-org Bedrock / OpenAI-compatible | `org_ai` settings. **Never applied to Learn chat**: `researchAnswer` passes `org = null` | `ask.js` `aiSettings` | |
-| Slash-command cards, whiteboard plan/draft/review | `planModel`: OpenAI `LEARN_PLAN_MODEL` or `gpt-4.1-mini` when `OPENAI_API_KEY` is set, otherwise Anthropic `claude-opus-5` | `ask.js` `planModel` | `OPENAI_API_KEY` optional |
+| Per-org Bedrock / OpenAI-compatible | `org_ai` settings. **Never applied to Learn chat, grading, cards or the whiteboard** (every Learn task passes `org = null`); course authoring does apply them | `ask.js` `aiSettings` | |
+| Slash-command cards, whiteboard plan/draft/review | Anthropic `claude-opus-5`, explicit, no fallback. OpenAI only when both `OPENAI_API_KEY` and `LEARN_PLAN_MODEL` are set (no config sets the var) and never in subscription mode; that branch drops PDFs and strict tool schemas | `learn-models.js` `LEARN_TASKS.artifact` / `.board`, `planUsesOpenAI`; `ask.js` `planModel` | none |
 | Jev shadow grading | Typesafe `jev-1.13.0` (direct); bench uses `typesafe-ai/jev` via the Vercel gateway | `learn-grade-jev.js` | `TYPESAFE_API_KEY` / `VERCEL_TYPESAFE_API_KEY` |
 | Video moment embeddings | Workers AI `@cf/baai/bge-m3` into Vectorize `MOMENTS` | `learn-moment-index.js` | `AI`, `MOMENTS`, `INDEX_QUEUE` bindings |
 | YouTube search | Exa | `learn-youtube.js` | `EXA_API_KEY` |
@@ -455,7 +455,7 @@ Tool results also carry short notes, such as "The learner now sees this page. Sa
 
 **Call settings in the Learn loop:**
 - 2400 max tokens per step
-- no temperature and no thinking parameter
+- no temperature and no thinking parameter, so the model's default thinking shares the max tokens
 - no request timeout
 - one tool per step (`disable_parallel_tool_use`)
 - at most 8 tool steps and 2 papers
@@ -464,6 +464,9 @@ Tool results also carry short notes, such as "The learner now sees this page. Sa
 - **Set:** `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID`, `DESMOS_API_KEY`, `EXA_API_KEY`, `FAL_API_KEY`, `LEARN_BENCH_SECRET`, `MATH_WORKER_URL`, `MATH_WORKER_TOKEN`, `SCENE_WORKER_TOKEN`, `TYPESAFE_API_KEY`, `VERCEL_TYPESAFE_API_KEY`.
 - **Not set:** `OPENAI_API_KEY`, so cards and the whiteboard use `claude-opus-5` here, and image generation and transcription are unavailable. `FISH_AUDIO_API_KEY` (no narration) and `PEXELS_API_KEY` (no stock photos, and the whiteboard gets no photo tools).
 - **`SCENE_WORKER_URL`** is a plain var in the wrangler file, not a secret.
+- Shared `small-cp-dev` and production were not read. Whatever keys they hold, cards and the whiteboard run `claude-opus-5` unless `LEARN_PLAN_MODEL` is set.
+
+**Diagnostics.** Every Learn chat, card and whiteboard model call logs one `learn_model` JSON line: task, provider, requested model, config source, fallback mode, served model, whether a fallback served it, a 12-character hash of the system prompt, HTTP status and stop reason. It never carries the message, context, tool input or keys (`learn-models.js` `loggedModel`). Grading logs as `chat`, since it posts to the chat route.
 
 ## 10. Every agent and its tools
 
@@ -539,7 +542,7 @@ when the learner clicks **Explain in canvas** on that chat card.
 3. **Review.** `review_explanation` checks relevance, factual support, asset correspondence and clarity. It allows at most 2 passes with one revision.
 
 **Model and rendering:**
-- The model is `planModel`; the whiteboard never sends a model choice.
+- The model is `planModel` (see section 9). The browser never sends a model choice, but the server still honours a `model` key in the request body.
 - The browser draws the plan with `learn-board-renderer.js` using `paidRunner: false`, so video and scene blocks become placeholders.
 - Narration is offered behind the paid confirmation.
 
@@ -785,7 +788,7 @@ The dev `DB` is the same database id as production.
   - `e2e/canvas-conversations-check.mjs` expects a plain dock ask to make a card.
   - `e2e/learn-preview.spec.js` clicks a suggestion button the Learn page no longer has.
   - `docs/features/canvas-sharing.md` says board files go to `small-runs`; they go to `LEARN_MEDIA`.
-- **`planModel` ignores the chosen Anthropic model whenever `OPENAI_API_KEY` is set.** Cards and the whiteboard then run on `gpt-4.1-mini`.
+- **Fixed in C4:** an `OPENAI_API_KEY` alone used to move cards and the whiteboard to `gpt-4.1-mini` and bypassed `SUBSCRIPTION_ONLY`. OpenAI now needs an explicit `LEARN_PLAN_MODEL`.
 - **A long card can make Ask in chat fail.** `describeBlock` text is not capped (a group's is, at 4000), and the wrapped message must fit the server's 4000-character limit. A long explanation card or a large graph spec plus a question returns "Question must be 1–4000 characters". This is from reading the code; it has not been reproduced.
 - **Learn prompts do not follow the agents convention.** `packages/control-plane/src/agents/README.md` says every prompt lives in `src/agents/`, one file per agent. All Learn prompts live in `learn-*.js`, `repository-context.js` and `arxiv.js` instead (see [section 17](#17-agent-system-files-prompts-tools-and-config)).
 
@@ -814,7 +817,8 @@ repository root. **P** = holds a prompt (verbatim in
 packages/
 ├─ control-plane/                    Cloudflare Worker code shared by small-cp and the dev worker
 │  ├─ src/
-│  │  ├─ ask.js                      model gateway: ASK_MODELS, MODEL, PLAN_MODEL, anthropic(), planModel(), askStream()
+│  │  ├─ learn-models.js             model ids (ASK_MODELS, askModel), LEARN_TASKS, request and loop limits, learn_model log
+│  │  ├─ ask.js                      model gateway: anthropic(), planModel(), askStream()
 │  │  ├─ subscription-transport.js   SUBSCRIPTION_ONLY bridge for every model call
 │  │  ├─ index.js                    apiAsk: the non-repository Learn chat handler; threads API; appContext
 │  │  ├─ repositories.js             repositoryAsk: the repository Learn chat handler; repository threads
@@ -943,13 +947,13 @@ All in `packages/control-plane/src/`.
 
 | What | Where | Values |
 |---|---|---|
-| Chat model allowlist | `packages/control-plane/src/ask.js` `ASK_MODELS`, `MODEL` | auto / opus-5 → `claude-opus-5`; sonnet-5 → `claude-sonnet-5`; haiku-4.5 → `claude-haiku-4-5-20251001` |
-| Picker labels | `packages/web/src/ask.jsx` `MODELS`, `MODEL_META` | Auto, Opus 5, Sonnet 5, Haiku 4.5 |
-| Default pick | browser `localStorage small.askModel` (Settings > Small AI) | `auto` if unset |
-| Card and whiteboard model | `ask.js` `PLAN_MODEL`; env `LEARN_PLAN_MODEL` | `gpt-4.1-mini` when `OPENAI_API_KEY` is set |
+| Chat model allowlist | `packages/control-plane/src/learn-models.js` `ASK_MODELS`, `MODEL` | auto / opus-5 → `claude-opus-5`; sonnet-5 → `claude-sonnet-5`; haiku-4.5 → `claude-haiku-4-5-20251001` |
+| Picker labels | `packages/web/src/model-choices.js` `MODEL_CHOICES` (ask.jsx and Settings) | Auto, Opus 5, Sonnet 5, Haiku 4.5; applies to chat answers only |
+| Default pick | browser `localStorage small.askModel` (Settings > Small AI) | `auto` if unset; grading, cards, the whiteboard and the Agent Bar never read it |
+| Per-task model settings | `learn-models.js` `LEARN_TASKS` | chat and grading: Auto, 2400 max tokens; cards: `claude-opus-5`, 4000; whiteboard: `claude-opus-5`, plan 1200, draft 3000, review 1800; OpenAI only with `OPENAI_API_KEY` and `LEARN_PLAN_MODEL` |
 | Jev model | `learn-grade-jev.js` `JEV_MODEL` and the direct transport | `typesafe-ai/jev` (gateway), `jev-1.13.0` (direct) |
-| Loop limits | `learn-research.js` | 8 steps, 2 papers, 2400 max tokens, one tool per step |
-| Request limits | `index.js` `apiAsk`, `repositories.js` | message 4000; file 4 MB; 3 mentions; 3 Wikipedia articles; 1 show_* each |
+| Loop limits | `learn-models.js` | `RESEARCH_STEPS` 8, `PAPERS_PER_ANSWER` 2, `ARTIFACT_REPAIRS` 1, `BOARD_DRAFT_TURNS` 7, `BOARD_REVIEW_PASSES` 2; one tool per step |
+| Request limits | `learn-models.js` (`MESSAGE_LIMIT`, `MENTION_LIMIT`, `HISTORY_TURNS`), `ask.js` `ATTACHMENT_LIMIT`, `learn-paper.js` `PAPER_PAGE_LIMIT` | message 4000; file 4 MB; 3 mentions; 10 history turns; 100 paper pages; 3 Wikipedia articles; 1 show_* each |
 | Card maker limits | `learn-artifact.js` | args 1000, context 8000, body 20000, 4000 max tokens, one repair |
 | Worker vars | `packages/web/wrangler.dev.jsonc`, `wrangler.parallel.jsonc` | `SUBSCRIPTION_ONLY`, `SUBSCRIPTION_OWNER_EMAIL`, `LEARN_VIDEO_PROVIDER=fal-seedance-lite`, `LEARN_VIDEO_RESOLUTION=480p`, `SCENE_WORKER_URL` |
 | Worker bindings | same files; `packages/control-plane/wrangler.jsonc` for production | see [section 14](#14-persistence-bindings-and-serving) |

@@ -306,8 +306,11 @@ export async function anthropic(env, body, model, org) {
     const msg = fromOpenAI(await resp.json());
     return stream ? sseFromMessage(msg) : new Response(JSON.stringify(msg), { status: 200, headers: { 'Content-Type': 'application/json' } });
   }
-  // an explicit model (chat picker or org setting) is incompatible with the
-  // server-side fallback feature - the API 400s on the combination
+  // Auto sends claude-opus-5 with fallbacks 'default' (a refusal fallback) and
+  // the beta header; an explicit model (chat picker, org setting, cards, the
+  // whiteboard) sends neither. The recorded reason, that the API 400s on an
+  // explicit model with fallbacks, is unverified: Auto itself names
+  // claude-opus-5 explicitly (models-9 in docs/features/learn-cleanup.md).
   const chosen = model || ai?.model || null;
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

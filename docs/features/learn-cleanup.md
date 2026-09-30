@@ -374,6 +374,59 @@ and workspace `/api/ask`, which the browser guard keeps off on the preview.
   not deleted. Commit `5b705c3` says the tldraw selection listener was
   removed; it is parked, not removed.
 
+- **U3 models-6, Agent Bar.** Agent Bar Learn asks still send no model, so
+  they always run Auto and ignore Settings > Default model. The Agent Bar is
+  a frozen area; the new picker copy says the pick reaches chat answers only.
+- **U3 models-7, whiteboard `model` field.** `/api/learn/board` still honours
+  a request `model` key that no client sends (Anthropic path only). Kept as
+  the contract; pinned in `learn-models.test.js`.
+- **U3 models-9, fallback policy.** Unchanged: Auto sends `claude-opus-5`
+  with `fallbacks: 'default'` and the beta header; every explicit id (the
+  Opus 5 pick, cards, the whiteboard) sends neither. It is a refusal
+  fallback, not an availability one. Whether the explicit Opus 5 pick should
+  also get it needs approved real calls; the `ask.js` comment now says the
+  400 claim is unverified.
+- **U3 models-10, thinking.** No Learn task sets thinking, effort or
+  temperature; the model default thinks inside each `max_tokens`
+  (`LEARN_TASKS` says so, and a test pins that no such key is sent).
+  Forced `tool_choice` on cards and the whiteboard would 400 on the 5.5
+  generation, which constrains any later model change.
+- **U3 models-14, org AI settings.** `org_ai` never applies to Learn chat,
+  grading, cards or the whiteboard (org null); course authoring applies it.
+- **U3 models-15 and lifecycle-13, limits not moved.** No timeouts were added
+  to the Anthropic or OpenAI fetches (C8). The whiteboard repair budget
+  (`min(6000, max(2400, 2x))`), its 8 salvage rounds, the artifact body and
+  argument caps, the canvas seed caps, tts 4000 and every browser copy
+  (`learn-slash.js` 8000, `AdaptiveCanvas.jsx` 4000, `learn-board-request.js`)
+  stay local literals: each has one site.
+- **U3 duplication-10, alignment.** The whitespace-only question rule, the
+  group wrapper over 4000, the grading prompt budget, the whiteboard answer
+  cap and the missing `apiAsk` body cap are behavior, left for C5, C6 and C8.
+- **U3 duplication-7 and models-12, what was not merged.** The card failure
+  message keeps its own text (no API detail; C8). Tool-call extraction and
+  the arXiv read branch stay duplicated (duplication-19). The pre-existing
+  unused `anthropic` import in `learn-board.js` is left.
+- **U3 duplication-15, ordering nuance.** With `SUBSCRIPTION_ONLY` on, a
+  non-owner who sends a malformed card or whiteboard body now gets the 400
+  before the 403.
+- **U3 grading-12, diagnostics.** The grader posts to the chat route, so its
+  `learn_model` line says `task: chat`; `LEARN_TASKS.grading` records its
+  settings. It gets its own task name once `/api/learn/assess` (owner
+  decision 3) exists. `learn_grades` still stores no served model.
+- **U3 models-11, OpenAI served model.** On the opt-in OpenAI branch the log
+  line's `served` is null (`fromOpenAI` drops the response model).
+- **U3 models-18, OpenAI tool results.** Only the url image mapping was
+  fixed; an `inspect_image` result still reaches OpenAI as JSON text, and
+  PDFs and strict schemas are still dropped there. The branch is opt-in only.
+- **U3 models-3, paid media in subscription mode.** `/api/learn/image`,
+  `/api/learn/transcribe`, `/api/learn/tts` and FAL video stay available
+  behind their paid confirmation in `SUBSCRIPTION_ONLY` mode; whether they
+  should answer 503 like Jev is an owner decision. A multipart
+  `/api/repositories/<repo>/ask` is not refused like a multipart
+  `/api/learn/ask`; it still goes through the bridge, not a paid API.
+- **U3 decision 4 environments.** No `LEARN_PLAN_MODEL` var was added. The
+  remote secret sets of shared `small-cp-dev` and production were not read.
+
 ## Progress
 
 - **U1 storage (C1), 2026-09-29.** Commits: `7f5d654` learnMomentsDb at every
@@ -400,3 +453,23 @@ and workspace `/api/ask`, which the browser guard keeps off on the preview.
   coaching.md. Recorded: inert-1 (parked), inert-4, inert-10. UI changes
   (inert-5, inert-19) still need a deployed visual review on the session
   clone.
+- **U3 models and limits (C4), 2026-09-29.** Test: `43b43355` the effective
+  model per task through the real dispatchers (models-1). Refactors:
+  `b74519b0` `learn-models.js` with `ASK_MODELS`, `askModel`, `LEARN_TASKS`
+  (chat, grading, artifact, board) and the named limits (models-12,
+  models-15, duplication-4, duplication-10, lifecycle-13, grading-12);
+  `665324d6` `modelFailure` (duplication-7); `ec68eb22`
+  `subscriptionOwnerRefusal` (duplication-15); `da16eff6` `MODEL_CHOICES`
+  (models-13). Fixes, each shown failing first: `b1aeb33b` own keys only in
+  `askModel` (models-8, duplication-5); `33092d23` OpenAI only with
+  `LEARN_PLAN_MODEL` and never in subscription mode (models-2, models-3,
+  owner decision 4); `30cfdfbc` and `3554560e` `revise_section` refused in
+  subscription mode (models-3); `78718456` the repository owner gate and
+  course 503 (models-4); `823e9023` url images on the OpenAI path
+  (models-18); `84a661a1` picker scope copy (models-5). Feature: `77f03476`
+  the `learn_model` diagnostic line (models-11). Docs: `d19d92fd` the Jev
+  transport comment (models-16); the architecture doc sections 9, 10.3, 15
+  and 17 (models-17) and the `ask.js` fallback comment (models-9). No prompt
+  text changed. Recorded: models-6, 7, 9, 10, 14, the limits left local, the
+  paid media question. UI changes (models-5 copy) still need a deployed
+  visual review on the session clone.
