@@ -409,8 +409,8 @@ export default function AgentBar({ page }) {
           onSubmit={(raw) => (pickerOpen ? pick(entries[hiIndex]) : submit(raw))} inputRef={inputRef} busy={!!streaming} maxLength={4000} placeholder={placeholderFor(target, surface)}
           leading={<>
             {/* [+] Add (T02 §6.2, revised 2026-09-28): the Start paths through open_start. ponytail: Attach stays off on
-                the preview - workspace asks are off (G1), project asks are JSON only (repositories.js:169), and a multipart
-                ask would fall through the dev worker to live R2 (index.js:954). streamAsk already takes a file. */}
+                the preview - workspace asks are off (G1) and canvas asks refuse files (canvases.js refuseCanvasAsk); a
+                project ask would take one (repositories.js, 4 MB) on dev storage. streamAsk already takes a file. */}
             <div className="relative shrink-0">
               <button type="button" aria-label="Add" aria-haspopup="menu" aria-expanded={adding} onMouseDown={(e) => e.stopPropagation()} onClick={() => setAdding(!adding)}
                 className={COMPOSER_ADD}><Plus size={16} /></button>
