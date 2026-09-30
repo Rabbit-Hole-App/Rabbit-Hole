@@ -222,7 +222,7 @@ function AppContent({ data, load }) {
             : archivedList.error ? <div className="text-sm text-ink-2">✗ {archivedList.error}</div>
             : !archivedList.length ? <EmptyState icon={Archive}>No archived canvases.</EmptyState>
             : (
-              <ul aria-label="Archived canvases">
+              <ul aria-label="Archived canvas">
                 {archivedList.map((c) => (
                   <li key={c.name} className="group flex h-9 items-center gap-2 rounded-md px-2 text-sm hover:bg-hover">
                     <KindIcon kind="canvas" />

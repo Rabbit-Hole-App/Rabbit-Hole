@@ -79,7 +79,7 @@ export function LibraryFilters({ type, section, archived }) {
       <Menu open={open} onClose={() => setOpen(false)} className="top-10 right-0 w-56">
         {heading('Type')}
         {Object.entries(TYPES).map(([k, t]) => item(t.label, type === k && !archived, () => setFilter('type', type === k && !archived ? null : k), FILTER_ICONS[k]))}
-        {item('Archived canvases', archived, () => { const q = new URLSearchParams(window.location.search); navigate(libraryHref({ f: q.get('f'), s: q.get('s'), ...(archived ? {} : { type: 'canvases', archived: '1' }) })); }, Archive)}
+        {item('Archived canvas', archived, () => { const q = new URLSearchParams(window.location.search); navigate(libraryHref({ f: q.get('f'), s: q.get('s'), ...(archived ? {} : { type: 'canvases', archived: '1' }) })); }, Archive)}
         {heading('Ownership')}
         {Object.entries(SCOPES).map(([k, label]) => item(label, section === k, () => setFilter('s', section === k ? null : k), UserRound))}
         {count > 0 && <><div className="my-1 border-t border-line" /><MenuItem icon={X} className="text-ink-2" onClick={() => { navigate('/library'); setOpen(false); }}>Clear filters</MenuItem></>}
@@ -90,7 +90,7 @@ export function LibraryFilters({ type, section, archived }) {
 
 export function ActiveFilters({ type, section, archived }) {
   const pills = [
-    type && [archived ? 'Archived canvases' : TYPES[type].label, () => setFilter('type', null)],
+    type && [archived ? 'Archived canvas' : TYPES[type].label, () => setFilter('type', null)],
     section && [SCOPES[section], () => setFilter('s', null)],
   ].filter(Boolean);
   if (!pills.length) return null;

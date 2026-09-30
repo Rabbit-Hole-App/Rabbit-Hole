@@ -2,7 +2,7 @@
 // without a browser; App.jsx reads the URL and renders. Only the Apps view is a table.
 export const TYPES = {
   projects: { label: 'Projects', kinds: ['repository'] },
-  canvases: { label: 'Canvases', kinds: ['canvas'] },
+  canvases: { label: 'Canvas', kinds: ['canvas'] },
   apps: { label: 'Apps', kinds: ['job', 'server'] },
 };
 // Scope chips are the sidebar sections under their T02 §4 names (sectionOf, api.js:9-14). Rabbit Hole v1 is

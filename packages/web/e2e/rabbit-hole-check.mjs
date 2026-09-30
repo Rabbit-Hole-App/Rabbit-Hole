@@ -203,11 +203,11 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const c = await shCanvas(page, 'rabbit-hole-check library', 'rabbit-hole-check-device');
     try {
       await page.reload();
-      await filterBy(page, 'Canvases');
+      await filterBy(page, 'Canvas');
       await page.waitForURL(/[?&]type=canvases/);
       const row = page.locator('[data-library-card="canvas"]').filter({ hasText: 'rabbit-hole-check library' });
       await row.waitFor({ timeout: 20000 });
-      await page.getByRole('button', { name: 'Remove filter Canvases' }).waitFor();
+      await page.getByRole('button', { name: 'Remove filter Canvas' }).waitFor();
       must(await page.locator('table').count() === 0, 'Canvases still render a table');
       for (const ops of ['Watch', 'Deployed', 'Last run']) must(!(await row.innerText()).includes(ops), `${ops} shown on a canvas card`);
       must((await row.innerText()).includes('On another device'), 'canvas card lacks On another device');
@@ -250,7 +250,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await nav.getByRole('button', { name: 'Library', exact: true }).click();
       await page.waitForURL(/\/library$/);
       must(await nav.getByRole('button', { name: 'Library', exact: true }).getAttribute('aria-current') === 'page', 'Library is not current on /library');
-      await filterBy(page, 'Canvases');
+      await filterBy(page, 'Canvas');
       await page.waitForURL(/[?&]type=canvases/);
       await page.locator('[data-library-card="canvas"]').filter({ hasText: 'rabbit-hole-check pin' }).getByTitle('More').click();
       await page.getByRole('button', { name: 'Pin', exact: true }).click();
@@ -442,11 +442,11 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await page.getByRole('button', { name: 'Archive…' }).click();
       await page.getByRole('dialog', { name: 'Archive rabbit-hole-check archive?' }).getByRole('button', { name: 'Archive', exact: true }).click();
       await row.waitFor({ state: 'detached', timeout: 20000 });
-      await filterBy(page, 'Archived canvases');
-      const item = page.getByRole('list', { name: 'Archived canvases' }).getByRole('listitem').filter({ hasText: 'rabbit-hole-check archive' });
+      await filterBy(page, 'Archived canvas');
+      const item = page.getByRole('list', { name: 'Archived canvas' }).getByRole('listitem').filter({ hasText: 'rabbit-hole-check archive' });
       await item.getByRole('button', { name: 'Restore' }).click();
       await item.waitFor({ state: 'detached', timeout: 20000 });
-      await filterBy(page, 'Archived canvases');
+      await filterBy(page, 'Archived canvas');
       await row.waitFor({ timeout: 20000 });
     } finally {
       await shDrop(page, c.name);
@@ -642,12 +642,12 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await loaded(page, '/library');
     await page.getByRole('region', { name: 'Projects', exact: true }).waitFor({ timeout: 20000 });
     must(await page.locator('main button[aria-pressed]').count() === 0, 'permanent filter tabs are back');
-    await filterBy(page, 'Canvases');
+    await filterBy(page, 'Canvas');
     await page.waitForURL(/[?&]type=canvases/);
     await filterBy(page, 'Mine');
     await page.waitForURL(/[?&]s=private/);
     const viaFilters = new URL(page.url()).search;
-    await page.getByRole('button', { name: 'Remove filter Canvases' }).click();
+    await page.getByRole('button', { name: 'Remove filter Canvas' }).click();
     await page.waitForURL((u) => !u.searchParams.has('type'));
     await loaded(page, '/library');
     await page.getByRole('region', { name: 'Projects', exact: true }).getByRole('button', { name: /^View all/ }).click();

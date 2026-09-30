@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BadgeCheck, Bell, Braces, Check, CircleUser, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bell, Braces, Check, CircleUser, ChevronDown, ChevronUp, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName, workspaceLabel } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
@@ -10,11 +10,12 @@ import { titleOf } from './agent/catalog.js';
 import { learnPreview, PRODUCT } from './flags.js';
 import { pinnedApps, RAIL_W, readPinned, secClosedInit, togglePin } from './home/pinned.js';
 import { readRecent, recentItems } from './home/continue.js';
+import { isMine } from './library-filter.js';
 import { isLearnResource } from './library-filter.js';
 import { pageFor, sectionActive, sectionHref } from './routes.js';
 import FeedbackButton from './FeedbackButton.jsx';
 import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
-import { isInternalPrincipal, personLabel, useSessionDisplay, useShownIdentity } from './session-display.js';
+import { isInternalPrincipal, personLabel, saveProfile, useProfile, useSessionDisplay, useShownIdentity } from './session-display.js';
 import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
@@ -28,6 +29,7 @@ const AVAILABILITY_COLOR = { available: 'green', preview: 'yellow', planned: 'gr
 function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initialTab, focus: initialFocus, pendingGrant, onAccessChanged, awsAvailable }) {
   // Shown identity: GET /auth/session's display, never the internal principal (session-display.js).
   const session = useSessionDisplay();
+  const profile = useProfile();
   const shown = useShownIdentity(email);
   const [tab, setTab] = useState(initialTab || (learnPreview ? 'profile' : 'preferences'));
   const [focus, setFocus] = useState(initialFocus || null); // the row open_settings asked for, e.g. google-slides
@@ -89,11 +91,12 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
       <div ref={box} {...(learnPreview && { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Settings' })} className={cn('flex h-[calc(100vh-100px)] max-h-[720px] w-[calc(100vw-100px)] max-w-[1150px] overflow-hidden rounded-2xl bg-white text-ink shadow-pop', learnPreview && 'max-md:h-[calc(100dvh-32px)] max-md:w-[calc(100vw-32px)] max-md:flex-col')} onMouseDown={(e) => e.stopPropagation()}>
         <div className={cn('w-[260px] shrink-0 overflow-y-auto border-r border-line bg-side py-4 px-3', learnPreview && 'max-md:max-h-40 max-md:w-full max-md:border-r-0 max-md:border-b')}>
           <div className="px-2 pb-1 text-xs font-medium text-ink-3">Account</div>
-          <div className="flex items-center gap-2 rounded-sm px-2 py-1.5">
+          {!learnPreview && <div className="flex items-center gap-2 rounded-sm px-2 py-1.5">
             {shown.label && <Avatar email={shown.email || shown.label} />}
             <span className="truncate text-sm" title={shown.label}>{shown.label}</span>
-          </div>
-          {learnPreview && <NavBtn id="profile" icon={CircleUser}>Profile</NavBtn>}
+          </div>}
+          {/* Rabbit Hole: Profile is labelled with the person's own name (their Profile name, else the provider's). */}
+          {learnPreview && <NavBtn id="profile" icon={CircleUser}>{profile?.name || session?.display?.name || 'Profile'}</NavBtn>}
           <NavBtn id="preferences" icon={SlidersHorizontal}>Preferences</NavBtn>
           <NavBtn id="notifications" icon={Bell}>Notifications</NavBtn>
           {!learnPreview && <NavBtn id="mail" icon={Mail}>Mail & Calendar</NavBtn>}
@@ -118,25 +121,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
         <div className="relative flex-1 overflow-y-auto">
           <IconBtn aria-label="Close" onClick={onClose} className="absolute top-3 right-3"><X size={14} /></IconBtn>
           <div className={cn('mx-auto max-w-[920px] px-12 py-10', learnPreview && 'max-md:px-4 max-md:py-6')}>
-          {tab === 'profile' && (
-            // Only what GET /auth/session shares (session-display.js); never the internal principal.
-            <>
-              <div className="text-2xl font-semibold">Profile</div>
-              <div className="pt-2 text-base text-ink-2">How you appear in {PRODUCT}</div>
-              <div className="mt-6 flex items-center gap-3">
-                <Avatar email={shown.email || shown.label || '?'} className="h-12 w-12 text-lg" />
-                <div className="min-w-0">
-                  <div className="truncate text-base font-medium">{session?.display?.name || shown.label}</div>
-                  {shown.email && shown.email !== (session?.display?.name || shown.label) && <div className="truncate text-sm text-ink-2">{shown.email}</div>}
-                </div>
-              </div>
-              <Heading>Account</Heading>
-              <SettingsRow title="Name" desc="From your sign-in provider"><span className="text-sm text-ink-2">{session?.display?.name || 'Not shared'}</span></SettingsRow>
-              <SettingsRow title="Email" desc="Where sign-in links go"><span className="text-sm text-ink-2">{shown.email || 'Not shared'}</span></SettingsRow>
-              <SettingsRow title="Signed in with"><span className="text-sm text-ink-2">{{ google: 'Google', github: 'GitHub', email: 'Email link' }[session?.provider] || 'Unknown'}</span></SettingsRow>
-              {!session && <p className="pt-3 text-xs text-ink-3">Your sign-in details can't be read on this page right now.</p>}
-            </>
-          )}
+          {tab === 'profile' && <ProfilePane session={session} shown={shown} profile={profile} Heading={Heading} />}
           {tab === 'preferences' && (
             <>
               <div className="text-2xl font-semibold">Preferences</div>
@@ -644,6 +629,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
   const pinned = pinnedApps(pins, apps);
   // Recent (user, 2026-09-30): the last three opened on this device, the same list Home's Recent reads.
   const recentOpened = learnPreview && email ? recentItems(readRecent(localStorage), apps).slice(0, 3) : [];
+  // Private (user, 2026-09-30): Rabbit Hole v1 is solo, so what you own is private - newest first, five, then View all.
+  const mine = learnPreview && email ? apps.filter((a) => isMine(a, email)).sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))) : [];
 
   const openTrash = () => {
     setTrashOpen(true);
@@ -935,7 +922,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           <div className="flex h-9 items-center gap-1 px-1">
             <button onClick={() => setWsMenu(!wsMenu)} title="Account" aria-haspopup="menu" aria-expanded={wsMenu} data-account-menu
               className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-sm px-1.5 py-1 text-left hover:bg-hover">
-              {shownId.label ? <Avatar email={shownId.email || shownId.label} /> : <ProductMark />}
+              {shownId.label ? <Avatar email={shownId.email || shownId.label} src={shownId.avatar} /> : <ProductMark />}
               <span className="min-w-0 truncate text-sm font-medium">{shownId.label || wsLabel}</span>
               <ChevronDown size={12} className="shrink-0 text-ink-3" />
             </button>
@@ -963,6 +950,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         {/* fixed!: the sidebar is a scroll container and clips anything wider than
             itself - pinning to the viewport lets the menu fit the full email */}
         <Menu open={wsMenu} onClose={() => setWsMenu(false)} className={rail ? 'fixed! top-2 left-14 w-auto! min-w-60 max-w-[340px]' : learnPreview ? 'fixed! top-[44px] left-3 w-auto! min-w-60 max-w-[340px]' : 'fixed! top-11 left-3 w-auto! min-w-60 max-w-[340px]'}>
+          {!learnPreview && <>
           <div className="flex items-center gap-2 px-2 py-1.5">
             {shownId.label && <Avatar email={shownId.email || shownId.label} />}
             <span className="text-xs whitespace-nowrap text-ink-2">{shownId.label}</span>
@@ -993,11 +981,12 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             );
           })}
           <div className="my-1 border-t border-line" />
+          </>}
           <MenuItem icon={Settings} onClick={() => { setWsMenu(false); setShowSettings(true); }}>Settings</MenuItem>
           {!learnPreview && <MenuItem className="text-accent hover:text-accent" onClick={() => { setWsMenu(false); setNewWs(''); }}>
             <span className="flex items-center gap-2 text-accent"><Plus size={16} strokeWidth={1.5} /> New workspace</span>
           </MenuItem>}
-          <div className="my-1 border-t border-line" />
+          {!learnPreview && <div className="my-1 border-t border-line" />}
           <MenuItem icon={LogOut} onClick={() => { window.location.href = '/logout'; }}>Log out</MenuItem>
         </Menu>
       </div>
@@ -1183,8 +1172,17 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
       )}
       {recentOpened.length > 0 && (
         <section aria-label="Recent">
-          <div className="px-2 pt-3 pb-1 text-xs text-ink-2">Recent</div>
-          {recentOpened.map((a) => appRow(a))}
+          <SectionHead label="Recent" open={!secClosed.recent} onToggle={() => toggleSec('recent')} />
+          {!secClosed.recent && recentOpened.map((a) => appRow(a))}
+        </section>
+      )}
+      {mine.length > 0 && (
+        <section aria-label="Private">
+          <SectionHead label="Private" open={!secClosed.mine} onToggle={() => toggleSec('mine')} />
+          {!secClosed.mine && <>
+            {mine.slice(0, 5).map((a) => appRow(a))}
+            {mine.length > 5 && <button type="button" onClick={() => navigate('/library?s=private')} className="flex h-7 w-full cursor-pointer items-center rounded-sm px-2 text-left text-xs text-ink-2 hover:bg-hover hover:text-ink">View all {mine.length}</button>}
+          </>}
         </section>
       )}
       {pinned.length > 0 && (
@@ -1499,5 +1497,70 @@ function TrashDialog({ trash, onRestore, onClose }) {
       </div>
     </div>,
     document.body,
+  );
+}
+
+// Settings > Profile (user, 2026-09-30): the person sets the name and picture Rabbit Hole shows for them.
+// Saved to /api/profile (session-display.js saveProfile); sign-in details come from GET /auth/session only.
+const AVATAR_SIDE = 256;
+async function squarePng(file) {
+  const image = await createImageBitmap(file);
+  const side = Math.min(image.width, image.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = Math.min(AVATAR_SIDE, side);
+  canvas.getContext('2d').drawImage(image, (image.width - side) / 2, (image.height - side) / 2, side, side, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/png');
+}
+function ProfilePane({ session, shown, profile, Heading }) {
+  const [name, setName] = useState(null); // null until edited: shows the saved name
+  const [busy, setBusy] = useState(false);
+  const picker = useRef(null);
+  const value = name ?? profile?.name ?? '';
+  const save = async (patch, done) => {
+    setBusy(true);
+    try { await saveProfile(patch); toast(done); setName(null); } catch (e) { toast(`✗ ${e.message}`); }
+    setBusy(false);
+  };
+  const upload = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (file.type !== 'image/png') return toast('✗ Choose a PNG image');
+    try { await save({ avatar: await squarePng(file) }, 'Picture updated'); } catch (e) { toast(`✗ ${e.message}`); }
+  };
+  return (
+    <>
+      <div className="text-2xl font-semibold">Profile</div>
+      <div className="pt-2 text-base text-ink-2">How you appear in {PRODUCT}</div>
+      <div className="mt-6 flex items-center gap-4">
+        <Avatar email={shown.email || shown.label || '?'} src={profile?.avatar} className="h-16 w-16 text-xl" />
+        <div className="flex flex-wrap gap-2">
+          <input ref={picker} type="file" accept="image/png" className="hidden" onChange={upload} />
+          <Button variant="secondary" size="sm" disabled={busy} onClick={() => picker.current?.click()}>{profile?.avatar ? 'Change picture' : 'Upload picture'}</Button>
+          {profile?.avatar && <Button variant="ghost" size="sm" disabled={busy} onClick={() => save({ avatar: null }, 'Picture removed')}>Remove</Button>}
+        </div>
+      </div>
+      <p className="pt-2 text-xs text-ink-3">PNG. It is cropped to a square.</p>
+      <Heading>Account</Heading>
+      <SettingsRow title="Name" desc="Shown in the sidebar and across the app">
+        <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); save({ name: value }, 'Name saved'); }}>
+          <Input value={value} maxLength={60} placeholder={session?.display?.name || 'Your name'} onChange={(e) => setName(e.target.value)} className="w-56" aria-label="Name" />
+          <Button type="submit" size="sm" variant="secondary" disabled={busy || name === null || value === (profile?.name ?? '')}>Save</Button>
+        </form>
+      </SettingsRow>
+      <SettingsRow title="Email" desc="Where sign-in links go"><span className="text-sm text-ink-2">{shown.email || 'Not shared'}</span></SettingsRow>
+      <SettingsRow title="Signed in with"><span className="text-sm text-ink-2">{{ google: 'Google', github: 'GitHub', email: 'Email link' }[session?.provider] || 'Unknown'}</span></SettingsRow>
+    </>
+  );
+}
+
+// A Rabbit Hole sidebar section header (Recent, Private): its label and a ^ / v toggle.
+function SectionHead({ label, open, onToggle }) {
+  return (
+    <button type="button" onClick={onToggle} aria-expanded={open} aria-label={open ? `Collapse ${label}` : `Expand ${label}`}
+      className="group/sh flex w-full cursor-pointer items-center justify-between rounded-sm px-2 pt-3 pb-1 text-left text-xs text-ink-2 hover:text-ink">
+      <span>{label}</span>
+      {open ? <ChevronUp size={13} className="shrink-0" /> : <ChevronDown size={13} className="shrink-0" />}
+    </button>
   );
 }
