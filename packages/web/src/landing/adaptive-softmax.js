@@ -16,8 +16,8 @@ export function createGuidedPreview(scene, updateScores) {
   const sliders = [...canvas.querySelectorAll('[data-score-input]')];
   const status = scene.querySelector('[data-guided-status]');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
-  const initial = [2, 1, 0, -1], targets = [3, 3, 1.5, 1];
-  const DRAG_AT = REVEAL_AT + 1000, GESTURE = 2200, END = DRAG_AT + GESTURE * 4;
+  const initial = [2], targets = [-1, 3];
+  const DRAG_AT = REVEAL_AT + 1000, GESTURE = 2200, END = DRAG_AT + GESTURE * targets.length;
   let selected = false, visible = false, composerVisible = false, instant = false, manual = false;
   let elapsed = 0, last = null, frame = null;
   const active = () => selected && visible && (elapsed >= REVEAL_AT || composerVisible) && !document.hidden && !reduce.matches && !instant && !manual && elapsed < END;
@@ -45,27 +45,26 @@ export function createGuidedPreview(scene, updateScores) {
       : pill ? MESSAGE.slice(0, Math.max(0, Math.floor((elapsed - 1450) / 50)))
       : '/explain'.slice(0, Math.max(0, Math.floor((elapsed - 700) / 50)));
     status.textContent = phase === 'generating' ? 'Generating explanation'
-      : ready ? 'Try the sliders yourself. Displayed values are rounded.' : 'Build on the explanation already on your canvas.';
+      : ready ? 'Try the slider yourself. Probabilities total 100% before rounding.' : 'Build on the explanation already on your canvas.';
     if (phase !== 'dragging') { cursor.style.opacity = '0'; return; }
 
-    const index = Math.min(3, Math.floor((elapsed - DRAG_AT) / GESTURE));
+    const index = Math.min(targets.length - 1, Math.floor((elapsed - DRAG_AT) / GESTURE));
     const time = (elapsed - DRAG_AT) % GESTURE;
     const progress = Math.max(0, Math.min(1, (time - 650) / 1150));
-    let changed = false;
-    for (const [i, slider] of sliders.entries()) {
-      const value = i < index ? targets[i] : i === index
-        ? Math.round((initial[i] + (targets[i] - initial[i]) * progress) * 4) / 4 : initial[i];
-      if (Number(slider.value) !== value) { slider.value = String(value); changed = true; }
+    const start = index === 0 ? initial[0] : targets[index - 1];
+    const value = Math.round((start + (targets[index] - start) * progress) * 4) / 4;
+    if (Number(sliders[0].value) !== value) {
+      sliders[0].value = String(value);
+      updateScores();
     }
-    if (changed) updateScores();
     const bounds = camera.getBoundingClientRect();
     const position = slider => {
       const rect = slider.getBoundingClientRect();
       const ratio = (Number(slider.value) - Number(slider.min)) / (Number(slider.max) - Number(slider.min));
       return { x: rect.left - bounds.left + 8 + (rect.width - 16) * ratio, y: rect.top - bounds.top + rect.height / 2 };
     };
-    const to = position(sliders[index]);
-    const from = index > 0 ? position(sliders[index - 1]) : { x: to.x + 45, y: to.y + 45 };
+    const to = position(sliders[0]);
+    const from = index > 0 ? to : { x: to.x + 45, y: to.y + 45 };
     const approach = Math.min(1, time / 650);
     cursor.style.transform = `translate(${from.x + (to.x - from.x) * approach - 3}px, ${from.y + (to.y - from.y) * approach - 3}px) scale(${time >= 650 && progress < 1 ? .9 : 1})`;
     cursor.style.opacity = '1';

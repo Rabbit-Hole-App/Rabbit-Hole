@@ -1,5 +1,33 @@
 # Landing clarity, adaptive example and footer action
 
+## Compact Guided graph (2026-09-30)
+
+The user requested the Overview-sized canvas, a blue connection between the
+retained Overview card and Guided, and one slider with an interactive graph.
+Guided uses the same 530px desktop / 410px phone canvas height as Overview,
+with a graph card capped at the same 540px width. The quiz stays beneath it.
+
+Score A varies from -2 to 4; B=1, C=0, D=-1 remain explicitly fixed. Four
+probability bars, their labels and Deep Dive vectors derive from the same
+Softmax calculation. This teaches how one score changes the entire
+normalized distribution without introducing temperature. The cursor moves A
+down then up. Typing, zoom, send, one-second spinner, takeover, pause/resume
+and reduced-motion behavior remain. The equal-score quiz is hypothetical;
+it no longer asks visitors to adjust unavailable controls.
+
+Verification covers all 25 slider values against an independent stable
+Softmax calculation, bar geometry, compact canvas bounds, visible cards and
+composer, blue connection, actual pointer and keyboard control, quiz feedback,
+shared Deep Dive state, reduced motion and interruption. Public-page browser
+checks block API/auth/write traffic.
+
+Published to the named landing review clone as
+`7597b02d-f5ea-47df-85f3-39218f5dcae0`. Local build, `make test-unit`, the four
+math tests and deployed browser checks passed. Desktop 1440px, phone 390px,
+narrow phone 320px and tablet 768px all passed; deployed screenshots were
+visually inspected. No browser errors or API/auth/write attempts occurred.
+The branch is committed and frozen after this requested refinement.
+
 ## Reopened Guided walkthrough (2026-09-30)
 
 The user explicitly reopened `feature/smart-landing-page` after the approved
@@ -38,10 +66,10 @@ rapid switching and compact Overview. Browser errors and blocked API/write
 attempts: zero. Screenshots were visually inspected. The visibility check reads
 current geometry rather than trusting stale queued intersection measurements.
 
-Deployment was attempted but rejected by automatic approval review under the
-earlier shared-resource security restriction. Explicit approval for this
-specific review-clone deployment has been requested. This record establishes
-local verification only; no hosted completion is claimed pending that approval.
+The initial deployment hold was explicitly lifted by the user. The four-slider
+version was published as `70811ef2-31e6-4fa8-9aff-3eb72f14696d`. Read-only
+deployed browser checks passed at 1440/390/320/768px with no errors or API/write
+requests. The compact single-slider revision above supersedes that layout.
 
 ## Compact Overview follow-up (2026-09-30, local only)
 

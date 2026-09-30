@@ -17,15 +17,33 @@
 #adaptive-learning .softmax-learning-card{display:flex;flex-direction:column;gap:14px;margin:14px;padding:16px;min-width:0;border:1px solid #d4d7c9;border-radius:7px;background:#fff;box-shadow:0 6px 22px #2027100e}
 #adaptive-learning .softmax-level-link+.softmax-learning-card{margin-top:0}
 #adaptive-learning .softmax-workspace .softmax-guided-camera{position:relative;inset:auto;display:flex;flex:1;flex-direction:column;min-width:0;transform-origin:50% calc(100% - 26px)}
-#adaptive-learning .softmax-workspace .softmax-guided-camera .softmax-composer{width:58%;min-height:68px;margin-top:auto}
+#adaptive-learning .softmax-workspace .softmax-guided-camera .softmax-composer{width:calc(100% - 28px);min-height:68px;margin-top:auto}
 #adaptive-learning .softmax-guided-camera .softmax-learning-card{opacity:0;transform:translateY(12px) scale(.97);transition:opacity 200ms var(--ease-out),transform 500ms var(--ease-out)}
 #adaptive-learning .softmax-guided-camera .softmax-level-link{opacity:0;transition:opacity 200ms var(--ease-out)}
 #adaptive-learning [data-guided-revealed] .softmax-learning-card{opacity:1;transform:none}
 #adaptive-learning [data-guided-revealed] .softmax-level-link{opacity:1}
 #adaptive-learning .softmax-guided-camera .softmax-generating{inset:110px 12px 100px;pointer-events:none}
 #adaptive-learning .softmax-slider-cursor{position:absolute;left:0;top:0;width:36px;height:45px;filter:drop-shadow(1px 3px 2px #0003);opacity:0;transform-origin:0 0;pointer-events:none;z-index:3}
-#adaptive-learning .softmax-sliders{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px}
-#adaptive-learning .softmax-sliders .softmax-slider{padding-top:10px}
+#adaptive-learning .softmax-guided .softmax-canvas{height:530px;min-height:0;flex:none}
+#adaptive-learning .softmax-guided-camera{min-height:0}
+#adaptive-learning .softmax-guided-camera .softmax-context-card{margin:10px 0 0 max(14px,calc((100% - 540px)/2));padding:5px 8px;gap:8px}
+#adaptive-learning .softmax-guided-camera .softmax-context-card img{width:64px}
+#adaptive-learning .softmax-guided-camera .softmax-level-link{height:24px;margin-left:max(42px,calc((100% - 540px)/2 + 28px));border-left:2px solid #3373e8;color:#3373e8}
+#adaptive-learning .softmax-guided-camera .softmax-level-link::after{border-width:2px;border-color:#3373e8;bottom:1px;left:-4px}
+#adaptive-learning .softmax-guided-camera .softmax-learning-card{width:min(calc(100% - 28px),540px);box-sizing:border-box;align-self:center;margin:0 0 12px;padding:12px 16px;gap:8px;flex:none}
+#adaptive-learning .softmax-graph{display:flex;gap:8px;height:125px;margin-top:5px}
+#adaptive-learning .softmax-graph-axis{width:30px;flex:none;display:flex;flex-direction:column;justify-content:space-between;font:400 9px/1 var(--ui);color:#777e6a;text-align:right}
+#adaptive-learning .softmax-graph-plot{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:0 12px;border-bottom:1px solid #cfd4c6;background:linear-gradient(#e4e7de 1px,transparent 1px) 0 0 / 100% 50%}
+#adaptive-learning .softmax-graph-plot>div{position:relative}
+#adaptive-learning .softmax-graph-plot i{display:block;height:100%;width:100%;background:#ff603c;border-radius:3px 3px 0 0;transform-origin:50% 100%}
+#adaptive-learning .softmax-graph-plot>div:nth-child(2) i{background:#3373e8}
+#adaptive-learning .softmax-graph-plot>div:nth-child(3) i{background:#efaa13}
+#adaptive-learning .softmax-graph-plot>div:nth-child(4) i{background:#259174}
+#adaptive-learning .softmax-guided .softmax-probabilities{margin-left:38px;text-align:center;gap:16px;padding:0 12px}
+#adaptive-learning .softmax-guided .softmax-probabilities b{margin-top:1px;font-size:13px}
+#adaptive-learning .softmax-guided .softmax-slider{padding-top:8px}
+#adaptive-learning .softmax-guided .softmax-slider input{margin:0;height:28px}
+#adaptive-learning .softmax-guided-camera .softmax-composer{margin-bottom:14px;flex:none}
 #adaptive-learning .softmax-slider-hint{font:400 11px/1.5 var(--ui);color:#6e765e;margin:0}
 #adaptive-learning .softmax-quiz{min-width:0;margin:0;padding:18px;border:1px solid #d4d7c9;border-radius:8px;background:#fff;visibility:hidden}
 #adaptive-learning .softmax-quiz[data-ready]{visibility:visible}
@@ -86,22 +104,6 @@
 #adaptive-learning .softmax-click-ring{position:absolute;top:50%;left:50%;width:54px;height:54px;border:2px solid #697951;border-radius:50%;opacity:0;transform:translate(-50%,-50%) scale(.95)}
 #adaptive-learning .softmax-canvas[data-phase="clicked"] .softmax-click-ring{animation:softmax-click 500ms var(--ease-out) both}
 #adaptive-learning .softmax-step-heading{display:flex;justify-content:space-between;gap:12px;font:400 10px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;color:#6b725e}
-#adaptive-learning .softmax-score-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-#adaptive-learning .softmax-score{display:flex;flex-direction:column;align-items:center;gap:12px;padding:12px 6px;background:#fff;border:1px solid #e1e2da;border-top:3px solid #ff603c;border-radius:5px}
-#adaptive-learning .softmax-score:nth-child(2){border-top-color:#3373e8}
-#adaptive-learning .softmax-score:nth-child(3){border-top-color:#efaa13}
-#adaptive-learning .softmax-score:nth-child(4){border-top-color:#259174}
-#adaptive-learning .softmax-score>span{font:400 10px/1 var(--ui);color:#7f8573}
-#adaptive-learning .softmax-score strong{font:500 28px/1 var(--display);letter-spacing:-.045em}
-#adaptive-learning .softmax-score small{font:400 11px/1.4 var(--ui);color:#7e8571}
-#adaptive-learning .softmax-score b{font:400 13px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace}
-#adaptive-learning .softmax-divide{display:flex;justify-content:space-between;align-items:center;gap:10px;font:400 12px/1.5 var(--ui);color:#646c57}
-#adaptive-learning .softmax-divide strong{flex:none;min-width:5ch;text-align:right;font:400 16px/1 ui-monospace,SFMono-Regular,Consolas,monospace;color:#333a2c}
-#adaptive-learning .softmax-shares{display:flex;height:32px;flex:none;overflow:hidden;border-radius:4px;background:#fff}
-#adaptive-learning .softmax-shares span{background:#ff603c}
-#adaptive-learning .softmax-shares span:nth-child(2){background:#3373e8}
-#adaptive-learning .softmax-shares span:nth-child(3){background:#efaa13}
-#adaptive-learning .softmax-shares span:nth-child(4){background:#259174}
 #adaptive-learning .softmax-probabilities{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;font:400 10px/1.4 var(--ui);color:#7a806d}
 #adaptive-learning .softmax-probabilities b{display:block;margin-top:5px;font:500 17px/1.3 var(--ui);color:#343a2a}
 #adaptive-learning .softmax-slider{border-top:1px solid #dfe1d6;padding-top:18px}
@@ -139,7 +141,17 @@
   #adaptive-learning .softmax-level-link{margin-left:32px;font-size:8px}
   #adaptive-learning .softmax-workspace .softmax-composer{width:calc(100% - 20px);margin:auto 10px 14px;padding-right:10px}
   #adaptive-learning .softmax-workspace .softmax-guided-camera .softmax-composer{width:66%;min-height:70px}
-  #adaptive-learning .softmax-sliders{gap:8px 12px}
+  #adaptive-learning .softmax-guided .softmax-canvas{height:410px}
+  #adaptive-learning .softmax-guided-camera .softmax-context-card{margin-top:7px;padding:4px 6px}
+  #adaptive-learning .softmax-guided-camera .softmax-context-card img{width:46px}
+  #adaptive-learning .softmax-guided-camera .softmax-context-card p{font-size:9px;margin-top:1px}
+  #adaptive-learning .softmax-guided-camera .softmax-level-link{height:20px}
+  #adaptive-learning .softmax-guided-camera .softmax-learning-card{padding:8px;gap:5px;margin-bottom:8px}
+  #adaptive-learning .softmax-graph{height:60px;margin-top:2px}
+  #adaptive-learning .softmax-graph-plot{gap:10px;padding:0 4px}
+  #adaptive-learning .softmax-guided .softmax-probabilities{gap:10px;padding:0 4px}
+  #adaptive-learning .softmax-guided .softmax-slider-hint{font-size:10px;line-height:1.3}
+  #adaptive-learning .softmax-workspace .softmax-guided-camera .softmax-composer{min-height:58px;margin-bottom:10px;width:calc(100% - 28px)}
   #adaptive-learning .softmax-camera{inset:54px 10px 14px}
   #adaptive-learning .softmax-canvas:is([data-phase="typing"],[data-phase="send-cursor"],[data-phase="submitted"]) .softmax-camera{transform:scale(1.4)}
   #adaptive-learning .softmax-video-card{margin-top:15px}
@@ -152,8 +164,7 @@
   #adaptive-learning .softmax-playback{padding:5px 8px;gap:8px}
   #adaptive-learning .softmax-time{font-size:9px}
   #adaptive-learning .softmax-step-heading{font-size:9px}
-  #adaptive-learning .softmax-score-grid,#adaptive-learning .softmax-probabilities{gap:6px}
-  #adaptive-learning .softmax-score{padding:10px 3px;gap:10px}
+  #adaptive-learning .softmax-probabilities{gap:6px}
   #adaptive-learning .softmax-probabilities b{font-size:15px}
   #adaptive-learning .softmax-equation{gap:10px;font-size:22px;flex-wrap:wrap;padding:8px 0}
   #adaptive-learning .softmax-fraction{font-size:19px}

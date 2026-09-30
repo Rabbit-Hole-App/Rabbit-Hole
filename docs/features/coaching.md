@@ -1,5 +1,16 @@
 # Coaching: product, ideas, tasks, and results
 
+### Compact landing Guided graph (2026-09-30)
+
+Guided now matches Overview's canvas height and uses one Score A control with
+four live Softmax probability bars. A blue arrow connects the retained video
+still to the graph; the quiz remains beneath the canvas. The prior four-slider
+version was deployed with explicit approval as
+`70811ef2-31e6-4fa8-9aff-3eb72f14696d` and passed read-only hosted checks.
+See [the adaptive demo spec](rabbit-hole-adaptive-demo.md#compact-guided-graph-2026-09-30)
+for the revised interaction and focused validation. Only the named landing
+review clone is in scope; no authenticated flow or shared-data writes.
+
 ### Landing Guided walkthrough follow-up (2026-09-30)
 
 The user reopened the approved landing branch specifically for the Guided
