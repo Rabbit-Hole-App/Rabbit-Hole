@@ -23,7 +23,7 @@ NC8  Cross-depth content transitions     ✅ CLOSED (page 43:3; docs/nanogpt-dep
 NC9  Curriculum coherence review         ✅ CLOSED (page 47:3): notation and example drift fixed, c18
                                             leak fixed, c25/c26 checkpoints named, c21/c22 rounding aligned;
                                             q·k PASS and no softmax card (audits, no change)
-NC10 Final card QA                       🟡 ACTIVE (incl. accessibility audit: classify the seven dimmed focus/mask
+NC10 Final card QA                       🟡 at the final visual gate (page 55:3) (incl. accessibility audit: classify the seven dimmed focus/mask
                                             states - A semantic text to 4.5:1, B unavailable/decorative
                                             with a documented exemption; docs/features/learn-canvas-blocks.md;
                                             Architecture Deep's INTERACT label generate() on "hear me spea" ends
