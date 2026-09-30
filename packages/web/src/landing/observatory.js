@@ -1,4 +1,5 @@
 import './observatory.css';
+import './overview.js';
 
 const scene=document.getElementById('observatory');
 const media=matchMedia('(prefers-reduced-motion: reduce)');

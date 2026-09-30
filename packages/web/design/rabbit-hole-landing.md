@@ -15,8 +15,9 @@ remains enabled for wheel, touch and keyboard input. App scrollbars are unchange
 The hero's track and spacer use one small viewport height plus 350px, matching
 the point where the title finishes fading. It releases into a black manifesto
 introduction: “Follow your curiosity.”, a short draft excerpt and a “Read more”
-link to `/manifesto`. The cloud follows with its own title, “One question.
-Endless paths.” This replaces the old empty black hold with readable content.
+link to `/manifesto`. After the audience section, the clouds introduce “A question
+is just the beginning.” with draft supporting copy and a link to the overview.
+This replaces the old empty black hold with readable content.
 Reduced motion reserves only the static hero's viewport height.
 
 A monochrome image of Socrates and Richard Feynman standing in discussion
@@ -54,7 +55,8 @@ visible. Reduced motion shows the original decoded frame 60. Playback controls
 were removed at the user's request; the animation runs automatically.
 
 The user selected the mountaintop observatory as the landing page's sole
-Japanese-style landscape on 2026-09-29. It follows the cloud section. The earlier
+Japanese-style landscape on 2026-09-29. It follows the cloud section and a blank
+white block reserved for future content (40svh on desktop, 280px on phones). The earlier
 standalone mountain scene is removed from the page; its source artwork and prompt
 remain in `public/landing/blue-mountains-v1.png` and `landing-art-prompts.md`.
 
@@ -62,7 +64,13 @@ The observatory's opaque painted scene stays fixed while a separate transparent 
 layer drifts across the foreground and five small star highlights shimmer.
 The mist never fades away. Reduced-motion preference, offscreen visibility and
 tab visibility control this scene's automatic motion; there is no playback button.
-The existing hero, white content space, cloud and shared page styles are unchanged.
+The landscape now backs the What is Rabbit Hole overview: one Mac-style window
+with five animated HTML placeholders for sources, questions, canvas, practice
+and saved learning. Desktop scroll opens the window and advances/reverses the
+screens; direct tabs, keyboard and mobile swipe navigation are also available.
+Reduced motion keeps the window and illustrations stable. The Features page
+retains the detailed walkthrough. The observatory directly meets the FAQ with
+no external spacer. See [overview scope](../../../docs/features/rabbit-hole-overview.md).
 Artwork was produced with built-in image generation; prompts and file hashes
 are in `observatory-prompts.md` and `observatory-assets.json`.
 

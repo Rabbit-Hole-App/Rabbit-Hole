@@ -7,15 +7,23 @@
 #manifesto-preview .manifesto-thinkers img{display:block;width:100%;height:auto}
 #manifesto-preview .manifesto-thinkers figcaption{margin-top:18px;color:#c8c4c9;font:400 12px/1.6 var(--ui)}
 #manifesto-preview .manifesto-thinkers figcaption span{display:block;color:#8f8991;margin-top:4px}
-#pink-cloud{position:relative;display:grid;place-items:center;min-height:clamp(420px,40vw,640px);margin:0 -40px 96px;scroll-margin-top:100px;background:#fff}
+#pink-cloud{position:relative;display:grid;place-items:center;min-height:clamp(580px,53vw,780px);margin:0 -40px;scroll-margin-top:100px;background:#fff}
 #pink-cloud img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;pointer-events:none}
 #pink-cloud [hidden]{display:none}
-#pink-cloud .cloud-copy{position:relative;z-index:1;width:min(100%,1000px);padding:calc(clamp(56px,9vw,144px) + 48px) 24px 80px;text-align:center;color:#161016}
-#below #pink-cloud h2{font:500 clamp(60px,7.2vw,112px)/.93 var(--display);letter-spacing:-.055em;margin-bottom:26px}
+#pink-cloud .cloud-copy{position:relative;z-index:1;width:min(100%,1180px);padding:104px 24px 112px;text-align:center;color:#211321}
+#below #pink-cloud h2{font:500 clamp(58px,7.5vw,116px)/.97 var(--display);letter-spacing:-.06em;margin-bottom:28px}
+#pink-cloud .cloud-eyebrow{display:flex;align-items:center;justify-content:center;gap:10px;font:500 11px/1.4 var(--ui);letter-spacing:.05em;margin-bottom:32px}
+#pink-cloud .cloud-eyebrow span{font-size:24px;font-weight:400}
+#pink-cloud .cloud-intro{font:400 17px/1.6 var(--ui);color:#483347;margin:0 auto 26px;text-wrap:balance}
+#pink-cloud .cloud-link{display:inline-flex;align-items:center;gap:28px;min-height:48px;padding:10px 0;border-bottom:1px solid #6a4860;font:500 13px/1.4 var(--ui);color:inherit;text-decoration:none}
+#pink-cloud .cloud-link span{transition:transform 200ms var(--ease-out)}
+#pink-cloud .cloud-link:focus-visible{outline:2px solid #392138;outline-offset:5px}
+#pink-cloud .cloud-margins{position:absolute;z-index:1;inset:auto 40px 30px;display:flex;justify-content:space-between;gap:20px;font:400 10px/1.5 var(--ui);letter-spacing:.03em;color:#594153;border-top:1px solid #63475440;padding-top:14px}
+#landing-future-details{min-height:clamp(260px,40svh,480px);margin:0 -40px;background:#fff}
 .manifesto-read{display:inline-flex;align-items:center;justify-content:center;gap:28px;min-height:48px;padding:13px 22px;border:1px solid #fff;border-radius:999px;background:#fff;color:#161016;font:500 14px/1.4 var(--ui);text-decoration:none}
 .manifesto-read span{transition:transform 200ms var(--ease-out)}
 .manifesto-read:focus-visible{outline:2px solid #fff;outline-offset:5px}
-@media(hover:hover) and (pointer:fine){.manifesto-read:hover span{transform:translate(2px,-2px)}}
+@media(hover:hover) and (pointer:fine){.manifesto-read:hover span{transform:translate(2px,-2px)}#pink-cloud .cloud-link:hover span{transform:translateY(3px)}}
 @media(max-width:700px){
   #manifesto-preview{margin:0 -20px}
   #manifesto-preview .manifesto-preview-copy{padding:84px 24px 44px}
@@ -23,10 +31,15 @@
   #manifesto-preview .manifesto-thinkers figcaption{font-size:11px}
   #below #manifesto-preview h2{font-size:clamp(48px,13.5vw,72px)}
   #manifesto-preview .manifesto-preview-intro{font-size:16px}
-  #pink-cloud{min-height:380px;margin:0 -20px 64px}
-  #pink-cloud .cloud-copy{padding:112px 24px 80px}
-  #below #pink-cloud h2{font-size:clamp(40px,12vw,72px)}
+  #pink-cloud{min-height:550px;margin:0 -20px}
+  #pink-cloud .cloud-copy{padding:84px 20px 100px}
+  #below #pink-cloud h2{font-size:clamp(43px,10.8vw,72px)}
+  #pink-cloud .cloud-eyebrow{margin-bottom:28px;font-size:10px}
+  #pink-cloud .cloud-intro{font-size:14px}
+  #pink-cloud .cloud-margins{left:20px;right:20px;font-size:9px;bottom:22px}
+  #pink-cloud .cloud-margins span:last-child{max-width:140px;text-align:right}
+  #landing-future-details{min-height:280px;margin:0 -20px}
 }
 @media(prefers-reduced-motion:reduce){
-  .manifesto-read span{transition:none;transform:none!important}
+  .manifesto-read span,#pink-cloud .cloud-link span{transition:none;transform:none!important}
 }

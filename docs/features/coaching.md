@@ -1155,6 +1155,35 @@ live build merely to prepare a dev deployment.
 
 ## Release and verification
 
+### Landing overview window and cloud interlude — 2026-09-29
+
+The existing Japanese observatory now backs a Mac-style product overview.
+Five animated HTML scenes introduce sources, questions, canvas, practice and
+saved learning. Desktop scrolling opens the window and advances/reverses the
+scenes; tabs, keyboard controls and compact-screen swipes provide direct access.
+The scenes are explicitly illustrative, with no backend or model calls. The
+Features page retains the detailed walkthrough. Preview animation waits while
+the scene is offscreen and reduced motion shows complete, stable previews.
+
+The original cloud loop now has a stronger draft headline, supporting copy,
+small annotations and an overview link. A blank white section follows for
+future content. Removed the external gap between the landscape and FAQ while
+preserving the FAQ's internal layout. Existing audience chapters are unchanged.
+
+Built with both dev flags and the existing license; deployed only to the
+worktree clone. Initial version `6a7aaa48-83ed-4aee-b4c2-3dad9f164033` passed
+190 overview checks across seven viewport sizes and all 162 audience regression
+checks. The final offscreen-animation adjustment is deployed as
+`4797cedd-01c3-4abc-8fa0-f73b6bb8757f`; 15 focused deployed checks passed for
+arrival playback, completed scenes, reduced motion, mobile layout, preserved
+assets and the exact FAQ boundary. No browser errors or API requests. Final
+desktop, mobile and FAQ-join screenshots were visually inspected.
+
+Evidence: `tmp/landing-overview/deployed/results.json`,
+`tmp/landing-overview/final/results.json` and screenshots;
+`tmp/audience-section/deployed-live/results.json`. Scope:
+`docs/features/rabbit-hole-overview.md`. Real product captures remain future work.
+
 ### Landing audience chapters — 2026-09-29
 
 The white section between the black manifesto and pink clouds now presents six
