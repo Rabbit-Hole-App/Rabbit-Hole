@@ -58,6 +58,6 @@ test('subscription mode refuses the course model actions, including revise_secti
   for (const action of ['brief', 'save', 'approve', 'delete', undefined]) assert.equal(subscriptionCourseRefusal({ SUBSCRIPTION_ONLY: 'true' }, action), null, String(action));
   const { readFileSync } = await import('node:fs');
   const worker = readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8');
-  const gate = worker.slice(worker.indexOf("/\/learn-course$/.test(path)"));
+  const gate = worker.slice(worker.indexOf('(await req.clone().json()).action'));
   assert.ok(gate.indexOf('subscriptionCourseRefusal(env, action)') > 0 && gate.indexOf('subscriptionCourseRefusal(env, action)') < gate.indexOf("['/api/learn/ask', '/api/learn/selection']"));
 });
