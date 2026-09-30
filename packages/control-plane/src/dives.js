@@ -32,6 +32,18 @@ async function descendants(db, user, root) {
   return out;
 }
 
+// A pending hole's identity for chat and / commands before it persists: the hole has no canvas
+// row until its first canvas object (chat alone never persists it, R-4), so an ask that names one
+// is answered as a virtual canvas of this owner, provided the parent board is theirs. Nothing is
+// written here; the ask's thread is keyed by the hole's name, so it continues if the hole is kept.
+export async function pendingHoleApp(env, user, name, pending) {
+  const board = pending?.parent?.board || 'main';
+  const title = typeof pending?.title === 'string' ? pending.title.trim() : '';
+  if (!CANVAS.test(name || '') || !title || title.length > TITLE || !BOARD.test(board)) return null;
+  if (!await level(env.LEARN_DB, user, pending.parent?.app, board)) return null;
+  return { ...canvasApp({ id: null, org: user.org, name, owner_email: user.email, title, project: null, created_at: null, archived_at: null, device_id: null }, user), pending: true };
+}
+
 export async function divesFetch(req, env, user) {
   const url = new URL(req.url), db = env.LEARN_DB;
   const one = url.pathname.match(/^\/api\/canvases\/dives\/(canvas-[a-f0-9]{8})$/)?.[1];

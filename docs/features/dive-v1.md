@@ -71,11 +71,27 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
   anchor with no outline, and the child's first object gives the anchor the red outline.
 - **Ctrl+K without a card**, and Ctrl+K outside Learn, is the global Search, unchanged
   (`Search.jsx`).
+- **Stabilization (2026-09-30):**
+  - **Pending lifetime.** An empty hole lives in this tab while the learner stays at the hole or its
+    parent board. On the parent, its card shows a temporary (dashed) red portal and the navigator
+    lists it below. Leaving that part of the tree while it is still empty discards it.
+  - **Chat in a pending hole.** Chat and / commands work there: the ask carries `scope.pending`
+    (parent and title), and the server answers it as a virtual canvas under a parent board the
+    learner owns (`dives.js` `pendingHoleApp`). Chat alone still never persists the hole.
+  - **Nested holes are hidden** from Home, Library and Search (`ownerCanvases` leaves out every
+    `canvas_dives` child). They open through the navigator, their portal, or their URL.
+  - **Double-click** a card with a hole, saved or pending, to go down it. A single click selects;
+    Ctrl+K on a selected portal card enters too.
+  - **Navigator:**
+    - No ↑ at the root, and no ↓ when there is nothing below.
+    - The current level is a red square and a red label with white text.
+  - **Anchor cards** show no "Explanation" kicker, and a body only when it adds to the title
+    (`/dive softmax` is just "Softmax").
 - **Pending hole.**
   - The hole's URL is its parent's plus `?hole=<canvas-name>`, and its record lives in
     sessionStorage.
   - The name is a real canvas slug, so the hole's local keys never move.
-  - Leaving it while it is empty discards the record and every local key. There is no outline.
+  - Leaving its part of the tree (the hole and its parent board) while it is empty discards the record and every local key, and its temporary outline.
 - **Persisting.** The first canvas object persists the hole: any card, drawing, shape, note or text.
   Chat alone does not (the canvas `content` count excludes chat). The URL then moves in place
   without a remount.
@@ -121,11 +137,7 @@ npx wrangler dev -c packages/web/wrangler.dev.jsonc -c packages/control-plane/wr
 
 - The conversational referent for a bare /dive is the last chat question as typed, not a resolved
   concept: resolving "why do these add to 1?" to Softmax is the Learner Intent Resolver's job.
-- Asking in chat inside a pending hole fails, because the hole has no canvas row yet. Chat alone
-  never persists a hole (R-4).
-- Persisted holes are canvases, so they also appear in Home, Library and Search as standalone
-  canvases.
-- On a phone (the gutter is a strip under the canvas below 640px) the navigator is hidden.
+- The navigator is hidden below 640px of canvas (desktop is the review target).
 - `practice_open` is recorded but not reopened: practice state comes back from the parent's saved
   block data.
 - The Learn chat threads of deleted holes stay unreachable in LEARN_DB (`ponytail:` in `dives.js`).

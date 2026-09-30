@@ -1,5 +1,5 @@
 import { repositoryIdentity, repositoryThreads } from './repositories.js';
-import { divesFetch } from './dives.js';
+import { divesFetch, pendingHoleApp } from './dives.js';
 
 // Dev-only canvas records (T02 section 8). A row is identity and title only; the
 // canvas content stays in the learner's browser under small.adaptive-canvas:*.
@@ -21,13 +21,20 @@ async function ownedCanvas(env, user, name) {
   if (row.owner_email !== user.email) return json({ error: 'This canvas is private to its owner' }, 403);
   return canvasApp(row, user);
 }
-export async function canvasAccess(req, env, name) {
+// `pending` ({ parent: { app, board }, title }) lets a pending Rabbit Hole's chat and / commands run
+// before its canvas row exists (dives.js pendingHoleApp); an existing row always wins.
+export async function canvasAccess(req, env, name, pending = null) {
   const user = await repositoryIdentity(req, env);
-  return user instanceof Response ? user : ownedCanvas(env, user, name);
+  if (user instanceof Response) return user;
+  const app = await ownedCanvas(env, user, name);
+  if (app instanceof Response && app.status === 404 && pending) return (await pendingHoleApp(env, user, name, pending)) || app;
+  return app;
 }
-// The caller's own canvases only (owner-only in phase 1, section 8.2).
+// The caller's own canvases only (owner-only in phase 1, section 8.2). Nested Rabbit Holes are left
+// out: they belong to their root's tree and open through its navigator and portals (dives.js), never
+// as top-level canvases in Home, Library or Search. They still open directly by their URL.
 export async function ownerCanvases(env, user, archived = false) {
-  const { results } = await env.LEARN_DB.prepare(`SELECT * FROM canvases WHERE org=? AND owner_email=? AND archived_at IS ${archived ? 'NOT ' : ''}NULL ORDER BY created_at DESC, id DESC`).bind(user.org, user.email).all();
+  const { results } = await env.LEARN_DB.prepare(`SELECT * FROM canvases WHERE org=? AND owner_email=? AND archived_at IS ${archived ? 'NOT ' : ''}NULL AND name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=?) ORDER BY created_at DESC, id DESC`).bind(user.org, user.email, user.org, user.email).all();
   return results.map(row => canvasApp(row, user));
 }
 
@@ -86,7 +93,10 @@ export async function canvasesFetch(req, env) {
       if (action && req.method !== 'POST') return json({ error: 'POST required' }, 405);
       const ref = id ? (await db.prepare('SELECT scope_ref FROM threads WHERE id=? AND org=? AND user=?').bind(id, user.org, user.email).first())?.scope_ref : url.searchParams.get('ref');
       if (!ref) return json({ error: 'Chat not found' }, 404);
-      const app = await ownedCanvas(env, user, ref); if (app instanceof Response) return app;
+      let app = await ownedCanvas(env, user, ref);
+      // A pending hole has no row yet; its history is still only this user's own threads for that name.
+      if (app instanceof Response && app.status === 404 && isCanvas(ref)) app = canvasApp({ id: null, org: user.org, name: ref, owner_email: user.email, title: '' }, user);
+      if (app instanceof Response) return app;
       return repositoryThreads(new Request(req, { method: action === 'delete' ? 'DELETE' : action === 'rename' ? 'PATCH' : req.method }), db, user, app, id);
     }
     const match = path.match(/^\/api\/apps\/(canvas-[a-f0-9]{8})(?:\/(archive|restore|learn-course))?$/);

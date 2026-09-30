@@ -106,7 +106,7 @@ export default {
         return repositoriesFetch(new Request(target, req), env, ctx);
       }
       {
-        const access = await authorizedBoardApp(req, env, body.scope?.app);
+        const access = await authorizedBoardApp(req, env, body.scope?.app, body.scope?.pending);
         if (access instanceof Response) return access;
         const liveRefused = refuseLiveLearnAsk(access);
         if (liveRefused) return liveRefused;

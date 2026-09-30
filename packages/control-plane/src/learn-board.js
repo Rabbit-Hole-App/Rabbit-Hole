@@ -352,7 +352,7 @@ export async function boardFetch(req, env, generate = generateBoardPlan) {
   catch (error) { return json({ error: error.message }, 502); }
 }
 
-export async function authorizedBoardApp(req, env, name) {
+export async function authorizedBoardApp(req, env, name, pending = null) {
   const json = (body, status) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
   if (typeof name !== 'string' || !/^[a-z0-9-]{1,100}$/.test(name)) return json({ error: 'App required' }, 400);
   if (env.LEARN_DB && name.startsWith('repo-')) {
@@ -361,7 +361,7 @@ export async function authorizedBoardApp(req, env, name) {
   }
   if (env.LEARN_DB && /^canvas-[a-f0-9]{8}$/.test(name)) {
     const { canvasAccess } = await import('./canvases.js');
-    return canvasAccess(req, env, name);
+    return canvasAccess(req, env, name, pending);
   }
   const url = new URL(req.url); url.pathname = `/api/apps/${encodeURIComponent(name)}`; url.search = '';
   const headers = new Headers();

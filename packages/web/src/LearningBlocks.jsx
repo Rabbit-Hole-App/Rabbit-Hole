@@ -1452,9 +1452,10 @@ function ExplanationBody({ block, onFile }) {
   const [open, setOpen] = useState({});
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-      <Kicker>Explanation</Kicker>
+      {/* A /dive topic anchor (dive.js anchorBlock) is the learner's topic, not an explanation yet: no kicker, and a body only when it adds to the title. */}
+      {!block.anchor && <Kicker>Explanation</Kicker>}
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
-      <div className="mt-1 text-sm"><Md text={block.body} onFile={onFile} /></div>
+      {block.body && <div className="mt-1 text-sm"><Md text={block.body} onFile={onFile} /></div>}
       {(block.more || []).map((section, index) => (
         <div key={index} className="mt-2 border-t border-line pt-2">
           <button type="button" data-explain-more onPointerDown={e => e.stopPropagation()}
@@ -1652,6 +1653,7 @@ export function describeBlock(block) {
   if (block.type === 'video') return { kind: 'Video', title: block.title, text: [`Video on the canvas: ${block.title}`, block.caption || '', `Status: ${block.status || 'ready'}`, block.operation ? `Generation prompt: ${block.operation.prompt}` : `Source: ${block.src}`].join(NEWLINE) };
   if (block.type === 'paper') return { kind: 'Paper', title: block.title, text: `Paper on the canvas: ${block.title} (arXiv ${block.paper.id}), page ${block.paper.page}.`, paper: { id: block.paper.id, page: block.paper.page } };
   if (block.type === 'table') return { kind: 'Table', title: block.title, text: [`Table: ${block.title}`, block.caption || '', block.columns.join(' | '), ...block.rows.map(row => row.join(' | '))].join('\n') };
+  if (block.type === 'explanation' && block.anchor) return { kind: 'Topic', title: block.title, text: `A topic the learner went deeper into: ${block.title}${block.body ? ` (their words: ${block.body})` : ''}` };
   if (block.type === 'explanation') return { kind: 'Explanation', title: block.title, text: [`Explanation: ${block.title}`, block.body, ...(block.more || []).map(section => `[${section.label}] ${section.text}`)].join('\n') };
   if (block.type === 'graph') return { kind: 'Interactive graph', title: block.title, text: [`Interactive graph: ${block.title}`, block.brief || '', `Renderer: ${block.spec.renderer}`, `Specification: ${JSON.stringify(block.spec)}`, `Learner's current graph state: ${JSON.stringify(block.state || {})}`].join('\n') };
   if (block.type === 'snippet') return { kind: 'Code sample', title: block.title, text: `Code sample: ${block.title}\n${block.brief || ''}\nCode:\n${block.code}\nOutput:\n${block.output || '(none shown)'}` };

@@ -14,6 +14,19 @@ import { anchorBlock, diveRecord, discardHole, dropPending, holeHref, keepPendin
 // The red portal outline on an originating card, read by the canvas's card chrome.
 export const DivePortals = createContext(null);
 
+// A pending hole lives while the learner stays in its part of the tree - the hole or its parent
+// board - so the parent can show its temporary portal and go back down (owner 2026-09-30). Leaving
+// that part of the tree while it is still empty discards it: no record, no local keys, no outline.
+function sweepPending() {
+  const { pathname, search } = window.location, query = new URLSearchParams(search);
+  for (const hole of Object.values(pendingHoles(sessionStorage))) {
+    const here = pathname === `/apps/${hole.name}` || query.get('hole') === hole.name
+      || (pathname === `/apps/${hole.parent.app}` && (query.get('board') || 'main') === hole.parent.board);
+    if (!here && hole.base) discardHole({ session: sessionStorage, local: localStorage, base: hole.base, name: hole.name });
+  }
+}
+if (typeof window !== 'undefined') { sweepPending(); window.addEventListener('popstate', sweepPending); }
+
 // A pending hole is its parent's URL plus ?hole=; LearnPage renders the hole in the parent's place.
 // Read on popstate only: once the hole persists, the URL moves without a remount.
 export function usePendingHole(app) {
@@ -75,7 +88,7 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
     const block = fresh || canvasApi.current?.block?.(card.id) || { id: card.id };
     const current = treeRef.current, name = newHoleName(), draft = composer()?.value || '';
     keepPending(sessionStorage, {
-      name, title, parent: here, origin_block_id: card.id,
+      name, title, parent: here, origin_block_id: card.id, base: baseFor(name),
       dive: diveRecord({ name, title, via, parent: here, target: resolveTarget(block), block, view: canvasApi.current?.getView?.(), question: draft.startsWith('/') ? '' : draft, level: current.path.length }),
     });
     // ponytail: the canvas saves 400ms after a change and an unmount drops the timer, so a new
@@ -122,13 +135,16 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
     saving.current = true;
     const { name, title, parent, origin_block_id, dive: record } = holeRef.current;
     api('/api/canvases/dives', { method: 'POST', body: JSON.stringify({ name, title, parent, origin_block_id, dive: record, device_id: deviceId(localStorage) }) })
-      .then(() => { kept.current = true; dropPending(sessionStorage, name); setPersisted(true); setError(''); window.history.replaceState(null, '', levelHref({ app: name })); })
+      .then(() => { kept.current = true; dropPending(sessionStorage, name); setPersisted(true); setError(''); window.history.replaceState(window.history.state, '', levelHref({ app: name })); })
       .catch(failure => { saving.current = false; setError(`This hole was not saved: ${failure.message}`); });
   }, [pending, canvasState.content]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Leaving a hole that never got an object discards it: no record, no local keys, no outline.
-  useEffect(() => () => {
-    if (holeRef.current && !kept.current) discardHole({ session: sessionStorage, local: localStorage, base: baseFor(holeRef.current.name), name: holeRef.current.name });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // This level's pending children, read after mount (a hole left a moment ago has been swept by then).
+  const [localHoles, setLocalHoles] = useState([]);
+  useEffect(() => {
+    setLocalHoles(pending ? [] : Object.values(pendingHoles(sessionStorage)).filter(entry => entry.parent.app === here.app && entry.parent.board === here.board));
+  }, [tree, pending]); // eslint-disable-line react-hooks/exhaustive-deps
+  const children = [...(tree?.children || []), ...localHoles.map(entry => ({ name: entry.name, title: entry.title, origin_block_id: entry.origin_block_id, pending: true }))];
+  const enter = name => navigate(children.find(child => child.name === name)?.pending ? holeHref(here, name) : levelHref({ app: name }));
 
   // Arriving back at a level: its viewport, the originating card selected, the pending question.
   useEffect(() => {
@@ -175,7 +191,13 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
   // warning names them. Never a silent cascade.
   const [confirm, setConfirm] = useState(null);
   const askDelete = async level => {
-    if (level.pending) { climb(treeRef.current.path.length - 2); return; }
+    // An empty hole is left, not deleted: nothing of it was saved.
+    if (level.pending) {
+      const entry = pendingHole(sessionStorage, level.app);
+      if (entry) discardHole({ session: sessionStorage, local: localStorage, base: entry.base || baseFor(entry.name), name: entry.name });
+      if (level.app === here.app) climb(treeRef.current.path.length - 2); else setLocalHoles(previous => previous.filter(entry => entry.name !== level.app));
+      return;
+    }
     try {
       const below = await api(`/api/canvases/dives?app=${encodeURIComponent(level.app)}&board=main`);
       if (!below.children.length) { setConfirm({ level, descendants: [] }); return; }
@@ -212,17 +234,17 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
     if (blockId) diveRef.current(topic, 'tutor_confirmed', { id: blockId, title: topic }); else diveFromTopic(topic, 'tutor_confirmed');
   };
 
-  const portals = Object.fromEntries((tree?.children || []).map(child => [child.origin_block_id, { name: child.name, title: child.title }]));
+  const portals = Object.fromEntries(children.map(child => [child.origin_block_id, { name: child.name, title: child.title, pending: !!child.pending }]));
   return {
     tree, pending, error, confirm, suggestion, diveFromTopic,
     run: args => dive(args, 'learner_slash'),
-    portals: { portals, enter: name => navigate(levelHref({ app: name })) },
-    navigator: { tree, pending, error, card: canvasState.card, climb, enter: name => navigate(levelHref({ app: name })), rename, askDelete },
+    portals: { portals, enter },
+    navigator: { tree: tree && { ...tree, children }, pending, error, climb, enter, rename, askDelete },
     // An empty hole says what it is and what keeps it; gone with the first object.
     emptyHint: pending && !canvasState.content && tree && <div data-dive-empty className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-6">
       <div className="max-w-sm text-center">
         <p className="text-sm font-medium text-ink-2">A new Rabbit Hole under {tree.path.at(-2)?.title}</p>
-        <p className="mt-1 text-xs text-ink-3">Add a card, a drawing or a note and it is kept. Leave it empty and it disappears.</p>
+        <p className="mt-1 text-xs text-ink-3">Add a card, a drawing or a note and it is kept. Leave this Rabbit Hole with nothing in it and it disappears.</p>
       </div>
     </div>,
     confirmDialog: confirm && <ConfirmDialog
@@ -241,7 +263,7 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
 const Root = ({ tall = false }) => { const h = tall ? 18 : 14; return <svg aria-hidden="true" width="10" height={h} viewBox={`0 0 10 ${h}`} className="shrink-0 text-[#b3a594]"><line x1="5" y1="1" x2="5" y2={h - 5} stroke="currentColor" strokeWidth="1.2" strokeLinecap="square" /><path d={`M2.5 ${h - 5} H7.5 L5 ${h - 1} Z`} fill="currentColor" /></svg>; };
 const Arrow = ({ up = false, size = 12 }) => <svg aria-hidden="true" width={size} height={size} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" className="shrink-0">{up ? <path d="M6 10.5V2M2.5 5.5 6 2l3.5 3.5" /> : <path d="M6 1.5V10M2.5 6.5 6 10l3.5-3.5" />}</svg>;
 
-function Name({ level, className, onOpen, onRename }) {
+function Name({ level, className, onOpen, onRename, active = false }) {
   const [draft, setDraft] = useState(null);
   if (draft !== null) return <input autoFocus value={draft} aria-label="Rename this Rabbit Hole" maxLength={120}
     onChange={event => setDraft(event.target.value)} onBlur={() => setDraft(null)}
@@ -250,12 +272,12 @@ function Name({ level, className, onOpen, onRename }) {
   const renamable = level.kind === 'canvas';
   return <button type="button" data-dive-level={level.app} onClick={onOpen} onDoubleClick={renamable ? () => setDraft(level.title) : undefined}
     title={`${level.title}${renamable ? ' · double-click to rename' : ''}`}
-    className={`block max-w-full overflow-hidden rounded-sm px-0.5 py-0.5 hover:bg-hover [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] ${className}`}>{level.title}</button>;
+    className={`block max-w-full overflow-hidden rounded-sm py-0.5 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] ${active ? 'bg-[#b42318] px-1.5 text-white' : 'px-0.5 hover:bg-hover'} ${className}`}>{level.title}</button>;
 }
 
 // The descending roots (R-1): path from the root, the current level marked, then its children.
 // ↑ climbs to the parent; ↓ goes down, through a compact picker when there are several.
-export function DiveNavigator({ tree, pending, error, card, climb, enter, rename, askDelete }) {
+export function DiveNavigator({ tree, pending, error, climb, enter, rename, askDelete }) {
   const [picking, setPicking] = useState(false);
   useEffect(() => {
     if (!picking) return undefined;
@@ -269,39 +291,41 @@ export function DiveNavigator({ tree, pending, error, card, climb, enter, rename
   const down = () => (children.length === 1 ? enter(children[0].name) : setPicking(open => !open));
   return (
     <nav data-dive-navigator aria-label="Rabbit Hole levels" className="relative flex w-[76px] flex-col items-center text-center text-[11px] leading-[14px] select-none">
-      <button type="button" aria-label="Up to the parent hole" title={up ? `Up to ${tree.path.at(-2).title}` : 'This is the top of the Rabbit Hole'} disabled={!up}
-        onClick={() => climb(tree.path.length - 2)} className="flex h-6 w-6 items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent">
+      {up && <button type="button" aria-label="Up to the parent hole" title={`Up to ${tree.path.at(-2).title}`}
+        onClick={() => climb(tree.path.length - 2)} className="flex h-6 w-6 items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink">
         <Arrow up />
-      </button>
+      </button>}
       {rows.map((row, index) => <div key={row.role === 'fold' ? 'fold' : row.app} className="flex w-full flex-col items-center">
-        <Root tall={row.role === 'current'} />
+        {(index > 0 || up) && <Root tall={row.role === 'current'} />}
         {row.role === 'fold' && <span title={`${row.count} more levels`} className="px-1 text-ink-3">⋯ {row.count}</span>}
         {row.role === 'ancestor' && <Name level={row} className="text-ink-3 hover:text-ink" onOpen={() => climb(tree.path.findIndex(level => level.app === row.app && level.board === row.board))} onRename={rename} />}
         {row.role === 'current' && <div className="group relative flex w-full flex-col items-center" aria-current="location">
+          {/* The hole you are in: a red square and a red label with white text, unmistakable at a glance. */}
           <span aria-hidden="true" title={pending ? 'Empty: kept once you add something' : undefined}
-            className={`mb-1 h-2 w-2 ${pending ? 'border border-dashed border-[#b42318] bg-white' : 'bg-[#b42318] shadow-[0_0_0_3px_rgba(180,35,24,0.12)]'}`} />
-          <Name level={current} className={`font-semibold ${pending ? 'text-ink-2 italic' : 'text-ink'}`} onOpen={() => {}} onRename={rename} />
+            className={`mb-1 h-2 w-2 ${pending ? 'border border-dashed border-[#b42318] bg-white' : 'bg-[#b42318]'}`} />
+          <Name level={current} active className={`font-semibold ${pending ? 'italic' : ''}`} onOpen={() => {}} onRename={rename} />
           {index > 0 && <button type="button" aria-label={`Delete ${current.title}`} title={pending ? 'Leave this empty hole' : 'Delete this hole'} onClick={() => askDelete(current)}
             className="absolute -right-1 bottom-0 hidden h-5 w-5 items-center justify-center rounded-sm text-ink-3 group-hover:flex hover:bg-hover hover:text-[#b42318] focus:flex"><Trash2 size={11} /></button>}
         </div>}
       </div>)}
-      <Root />
-      <button type="button" data-dive-down aria-label={children.length ? 'Down into a hole' : 'No holes below yet'} aria-expanded={children.length > 1 ? picking : undefined} disabled={!children.length}
-        title={children.length ? children.map(child => child.title).join(', ') : 'Select a card and press Ctrl+K, or type /dive, to go down'}
-        onClick={down} className="flex max-w-full items-center gap-0.5 rounded-sm px-1 py-0.5 text-ink-2 hover:bg-hover hover:text-ink disabled:text-ink-3 disabled:opacity-60 disabled:hover:bg-transparent">
-        <Arrow size={11} />
-        <span className="truncate">{children.length === 1 ? children[0].title : children.length ? `${children.length} holes` : 'none yet'}</span>
-      </button>
-      {card && !children.some(child => child.origin_block_id === card.id) && <p className="mt-1 text-[10px] leading-3 text-ink-3"><kbd className="font-sans">Ctrl K</kbd> dives from the selected card</p>}
+      {children.length > 0 && <>
+        <Root />
+        <button type="button" data-dive-down aria-label="Down into a hole" aria-expanded={children.length > 1 ? picking : undefined}
+          title={children.map(child => child.title).join(', ')}
+          onClick={down} className="flex max-w-full items-center gap-0.5 rounded-sm px-1 py-0.5 text-ink-2 hover:bg-hover hover:text-ink">
+          <Arrow size={11} />
+          <span className="truncate">{children.length === 1 ? children[0].title : `${children.length} holes`}</span>
+        </button>
+      </>}
       {error && <p role="alert" className="mt-1.5 text-[10px] leading-3 text-[#b42318]">{error}</p>}
       {picking && children.length > 1 && (
         <div data-dive-picker role="menu" aria-label="Holes below" className="absolute top-full right-0 z-30 mt-1 w-56 rounded-md border border-line bg-white p-1 text-left shadow-pop">
           <p className="px-2 pt-1 pb-1.5 text-[11px] text-ink-3">Below {current.title}</p>
           {children.map(child => <div key={child.name} className="group flex items-center rounded-sm hover:bg-hover">
             <button type="button" role="menuitem" onClick={() => { setPicking(false); enter(child.name); }} className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-sm text-ink">
-              <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 bg-[#b42318]/70" /><span className="truncate">{child.title}</span>
+              <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 ${child.pending ? 'border border-dashed border-[#b42318]' : 'bg-[#b42318]/70'}`} /><span className={`truncate ${child.pending ? 'italic' : ''}`}>{child.title}</span>
             </button>
-            <button type="button" aria-label={`Delete ${child.title}`} title="Delete this hole" onClick={() => { setPicking(false); askDelete({ ...child, app: child.name, kind: 'canvas' }); }}
+            <button type="button" aria-label={`Delete ${child.title}`} title={child.pending ? 'Leave this empty hole' : 'Delete this hole'} onClick={() => { setPicking(false); askDelete({ ...child, app: child.name, kind: 'canvas' }); }}
               className="mr-1 hidden h-6 w-6 items-center justify-center rounded text-ink-3 group-hover:flex hover:text-[#b42318]"><Trash2 size={12} /></button>
           </div>)}
         </div>

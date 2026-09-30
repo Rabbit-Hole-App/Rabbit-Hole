@@ -91,7 +91,7 @@ export async function artifactFetch(req, env, generate = generateArtifact) {
     if (!body || typeof body.command !== 'string' || typeof (body.args ?? '') !== 'string' || (body.args || '').length > 1000 || (body.context != null && (typeof body.context !== 'string' || body.context.length > 8000))) throw new Error('Invalid artifact request');
     artifactPlan(body.command, body); // unknown command or selection: 400 before auth or model
   } catch (error) { return json({ error: error.message }, 400); }
-  const access = await authorizedBoardApp(req, env, body.app);
+  const access = await authorizedBoardApp(req, env, body.app, body.pending);
   if (access instanceof Response) return access;
   const ownerRefused = subscriptionOwnerRefusal(env, access);
   if (ownerRefused) return ownerRefused;

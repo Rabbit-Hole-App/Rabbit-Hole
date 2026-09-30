@@ -35,7 +35,7 @@ const blocks = () => page.$$eval('[data-block-id]:not([data-chat-block])', nodes
 const select = async id => { const strip = page.locator(`[data-block-id="${id}"] [data-drag-zone]`).last(); await strip.scrollIntoViewIfNeeded(); await strip.click({ position: { x: 12, y: 8 } }); await page.waitForTimeout(300); };
 const composer = () => page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
 const slash = async text => { await composer().click(); await composer().fill(text); await page.waitForTimeout(150); await composer().press('Enter'); await page.waitForTimeout(800); };
-const deselect = async () => { await page.keyboard.press('Escape'); await page.mouse.click(700, 600); await page.waitForTimeout(200); };
+const deselect = async () => { await page.evaluate(() => document.activeElement?.blur()); await page.keyboard.press('Escape'); await page.waitForTimeout(200); }; // never a click: it could land on a card
 const nav = () => page.locator('[data-dive-navigator]');
 const waitPersisted = async () => { await page.waitForFunction(() => /^\/apps\/canvas-[a-f0-9]{8}$/.test(location.pathname) && !location.search.includes('hole='), null, { timeout: 15000 }); await page.waitForTimeout(600); };
 // Canvas chrome never covers content (learn-canvas-blocks.md): the navigator sits in the tools' gutter, clear of the surface and the toolbar.
@@ -54,18 +54,36 @@ await open(ROOT_URL);
 await shot('01-root-navigator');
 await inGutter('root');
 const [card1, card2] = (await blocks()).slice(0, 2);
-// The composer: no model picker; the / button opens the same palette typing / does.
+// The composer: Auto (not a model picker) opens the palette; a chosen command is a removable pill.
 const dock = page.locator('[data-learn-dock]');
-assert.doesNotMatch(await dock.innerText(), /\b(Auto|Opus|Sonnet|Haiku)\b/, 'no model names in the Learn composer');
-await dock.getByRole('button', { name: 'Commands' }).click();
+assert.doesNotMatch(await dock.innerText(), /\b(Opus|Sonnet|Haiku)\b/, 'no model names in the Learn composer');
+await composer().fill('softmax');
+await dock.getByRole('button', { name: 'Auto' }).click();
 await page.getByText('Go down a Rabbit Hole').first().waitFor();
-await shot('01b-slash-palette');
-await dock.getByRole('button', { name: 'Commands' }).click();
-assert.equal(await composer().inputValue(), '');
+await shot('01b-auto-palette');
+await page.getByText('Go down a Rabbit Hole').first().click();
+await dock.locator('[data-command-pill]').waitFor();
+assert.equal(await composer().inputValue(), 'softmax', 'choosing a command keeps the typed text as its argument');
+await shot('01c-command-pill');
+await dock.getByRole('button', { name: 'Remove /dive' }).click();
+assert.equal(await dock.locator('[data-command-pill]').count(), 0);
+assert.equal(await composer().inputValue(), 'softmax', 'the pill\'s × keeps the text');
+await dock.getByRole('button', { name: 'Auto' }).waitFor();
+await composer().fill('/dive ');
+await dock.locator('[data-command-pill]').waitFor();
+assert.equal(await composer().inputValue(), '', 'a typed command becomes the pill');
+await composer().press('Backspace');
+assert.equal(await dock.locator('[data-command-pill]').count(), 0, 'Backspace on an empty argument removes the pill');
+// The root navigator shows structure only: no ↑ above the root, no ↓ with nothing below.
+assert.equal(await nav().getByRole('button', { name: 'Up to the parent hole' }).count(), 0, 'no ↑ at the root');
+assert.equal(await nav().locator('[data-dive-down]').count(), 0, 'no ↓ without children');
+assert.doesNotMatch(await nav().innerText(), /none yet/);
+const activeLabel = () => nav().locator('[aria-current="location"] [data-dive-level]').evaluate(node => { const style = getComputedStyle(node); return [style.backgroundColor, style.color]; });
+assert.deepEqual(await activeLabel(), ['rgb(180, 35, 24)', 'rgb(255, 255, 255)'], 'the current level is a red label with white text');
 await select(card1);
 await shot('02-selected-card');
 
-// ---- A: an empty dive is only a pending hole, and leaving it discards it ----
+// ---- A: an empty dive is a pending hole with a temporary portal; leaving the tree discards it ----
 await page.keyboard.press('Control+k');
 await page.waitForFunction(() => location.search.includes('hole='));
 await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1200);
@@ -73,12 +91,31 @@ assert.equal(await page.locator('[role="dialog"][aria-label*="earch"]').count(),
 const pendingName = url().searchParams.get('hole');
 await shot('03-pending-empty-hole');
 assert.equal((await get(`/api/canvases/dives?app=${root.name}&board=${BOARD}`)).children.length, 0, 'a pending hole is not persisted');
+// Chat works in the empty hole and does not keep it.
+const asked = await fetch(`${BASE}/api/learn/ask`, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ scope: { app: pendingName, pending: { parent: { app: root.name, board: BOARD }, title: 'Pending' } }, message: 'why?' }) });
+const askedText = await asked.text();
+assert.doesNotMatch(askedText, /Canvas not found|App required/, `a pending hole's ask reaches the tutor: ${asked.status} ${askedText.slice(0, 120)}`);
+assert.equal((await get(`/api/canvases/dives?app=${root.name}&board=${BOARD}`)).children.length, 0, 'chat alone never persists the hole');
 await up();
-assert.equal(url().searchParams.get('hole'), null);
-assert.equal(await page.evaluate(() => sessionStorage.getItem('small.dive.pending')), null, 'leaving empty discards the pending record');
+// Back on the parent: the empty hole is still this tab's, its card shows the temporary (dashed) portal.
+assert.ok(await page.evaluate(name => !!JSON.parse(sessionStorage.getItem('small.dive.pending') || '{}')[name], pendingName), 'the pending hole survives going up');
+assert.equal(await page.locator(`[data-block-id="${card1}"]`).first().evaluate(node => node.className.includes('outline-dashed') && node.className.includes('outline-[#b42318]')), true, 'temporary red portal on the card');
+assert.equal(await nav().locator('[data-dive-down]').count(), 1, 'the pending child is below the root');
+await select(card1);
+assert.equal(await page.locator(`[data-block-id="${card1}"]`).first().evaluate(node => node.className.includes('ring-2') && node.className.includes('outline-[#b42318]')), true, 'selection and portal show together');
+await shot('04-pending-portal');
+// Double-click the card goes down its hole.
+await page.locator(`[data-block-id="${card1}"]`).first().dblclick({ position: { x: 40, y: 40 } });
+await page.waitForFunction(name => new URLSearchParams(location.search).get('hole') === name, pendingName); await page.waitForTimeout(1000);
+await up();
+// Leaving the tree (in-app, to Home) while it is still empty discards it.
+await page.evaluate(() => { history.pushState(null, '', '/apps'); dispatchEvent(new PopStateEvent('popstate')); });
+await page.waitForTimeout(1000);
+assert.equal(await page.evaluate(() => sessionStorage.getItem('small.dive.pending')), null, 'leaving the tree discards the pending record');
 assert.equal(await page.evaluate(name => Object.keys(localStorage).filter(key => key.includes(name)).length, pendingName), 0, 'and its local keys');
+await open(ROOT_URL);
 assert.equal(await page.locator('[data-dive-portal]').count(), 0, 'no outline for an abandoned hole');
-await shot('04-after-leaving-empty');
+await shot('04b-after-leaving-tree');
 
 console.log('flow A ok');
 
@@ -113,6 +150,9 @@ await shot('06-parent-red-outline');
 await page.locator(`[data-dive-portal="${softmax}"]`).click();
 await page.waitForFunction(name => location.pathname.endsWith(name), softmax); await page.waitForTimeout(1200);
 await up();
+await page.locator(`[data-block-id="${card1}"]`).first().dblclick({ position: { x: 40, y: 40 } });
+await page.waitForFunction(name => location.pathname.endsWith(name), softmax); await page.waitForTimeout(1200);
+await up();
 await select(card1);
 await page.keyboard.press('Control+k');
 await page.waitForFunction(name => location.pathname.endsWith(name), softmax); await page.waitForTimeout(1200);
@@ -127,10 +167,10 @@ await slash('/dive explain numerical stability');
 await page.waitForFunction(() => location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1000);
 assert.equal(await nav().locator('[aria-current="location"] [data-dive-level]').innerText(), 'Numerical stability');
 await shot('07-anchor-pending-hole');
-await up(); // left empty: the hole goes, the anchor card stays on the parent with no outline
+await up(); // still empty: the anchor stays on the parent with the temporary portal
 const anchor = await anchorCard();
 assert.ok(anchor, 'the anchor card stays on the parent');
-assert.equal(await page.locator(`[data-dive-portal]`).count(), 1, 'an abandoned hole leaves no outline (only softmax has one)');
+assert.equal(await page.locator(`[data-block-id="${anchor}"]`).first().evaluate(node => node.className.includes('outline-dashed')), true, 'the anchor shows the temporary portal while its hole is pending');
 await page.locator(`[data-block-id="${anchor}"]`).scrollIntoViewIfNeeded();
 await shot('07b-anchor-card-no-outline');
 await select(anchor);
@@ -152,7 +192,20 @@ await page.getByText('What do you want to go deeper into?').first().waitFor();
 assert.equal((await blocks()).length, before, 'no card made without a topic');
 assert.equal(url().searchParams.get('hole'), null);
 await shot('07d-bare-dive-asks');
-await composer().fill(''); await page.keyboard.press('Escape');
+await page.locator('[data-learn-dock]').getByRole('button', { name: 'Remove /dive' }).click(); await composer().fill(''); await page.keyboard.press('Escape');
+// /dive <topic> with no card: the anchor shows the topic once, with no Explanation kicker; leaving
+// the empty hole takes its temporary portal with it.
+await deselect();
+await slash('/dive logits');
+await page.waitForFunction(() => location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1000);
+await nav().locator('[aria-current="location"]').hover();
+await nav().getByRole('button', { name: 'Delete Logits' }).click(); // "Leave this empty hole"
+await page.waitForFunction(() => !location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1200);
+const logits = await page.$$eval('[data-block-id]:not([data-chat-block])', nodes => nodes.find(node => node.innerText.replace('Ask in chat', '').trim() === 'Logits')?.dataset.blockId || null); // the card's own hover button aside
+assert.ok(logits, 'the anchor reads just "Logits": no duplicate body, no kicker');
+assert.equal(await page.locator(`[data-block-id="${logits}"] [data-dive-portal]`).count(), 0, 'an abandoned pending child leaves no portal');
+await page.locator(`[data-block-id="${logits}"]`).scrollIntoViewIfNeeded();
+await shot('07e-anchor-title-once');
 console.log('flow E ok');
 
 // ---- H: two cards, two holes: the child picker ----

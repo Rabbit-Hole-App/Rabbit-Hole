@@ -18,7 +18,9 @@ test('the tool palette docks left by default and still lives in its own gutter',
 
 test('the top-left corner leaves Learn like a back button, Home when Learn opened the tab; no sidebar button', () => {
   assert.match(page, /data-learn-back aria-label="Back"/);
-  assert.match(page, /onClick=\{\(\) => \(window\.history\.length > 1 \? window\.history\.back\(\) : navigate\('\/apps'\)\)\}/);
+  // Back only when this app pushed the entry (api.js navigate marks it); a tab opened on Learn goes Home.
+  assert.match(page, /onClick=\{\(\) => \(window\.history\.state\?\.inApp \? window\.history\.back\(\) : navigate\('\/apps'\)\)\}/);
+  assert.match(read('api.js'), /window\.history\.pushState\(\{ inApp: true \}, '', to\);/);
   assert.match(page, /className="absolute top-3 left-3 /);
   assert.doesNotMatch(canvas, /data-canvas-home/, 'recentring is Shift 0 and the minimap, not a second corner button');
   assert.doesNotMatch(shell, /immersive && !drawer/, 'Learn shows no Open sidebar button');

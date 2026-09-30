@@ -65,9 +65,11 @@ export function anchorTitle(request) {
 }
 // The card a topic dive creates on the current canvas: an ordinary explanation block holding the
 // request, marked as a dive anchor. Never a generated lesson.
+// Its body is the request only when that adds to the title: never "Softmax" twice.
+const same = (a, b) => a.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() === b.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 export const anchorBlock = request => {
-  const text = String(request).trim();
-  return { type: 'explanation', title: anchorTitle(text), body: text[0].toUpperCase() + text.slice(1), anchor: { request: text } };
+  const text = String(request).trim(), title = anchorTitle(text);
+  return { type: 'explanation', title, ...(same(text, title) ? {} : { body: text[0].toUpperCase() + text.slice(1) }), anchor: { request: text } };
 };
 
 // A hole's title: the topic in the learner's words ("explain softmax" -> Softmax), else the card's title.

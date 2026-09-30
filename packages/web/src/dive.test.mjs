@@ -33,6 +33,9 @@ test('no selected card: /dive <topic> makes a topic anchor card the origin; bare
   assert.deepEqual(planDive({ card: null, args: '  ', parent, referent: '  ' }), { ask: true });
   // The anchor is an ordinary explanation block holding the learner's own words; nothing generated.
   assert.deepEqual(anchorBlock('explain softmax'), { type: 'explanation', title: 'Softmax', body: 'Explain softmax', anchor: { request: 'explain softmax' } });
+  // Never the same topic twice: /dive softmax is just the title.
+  assert.deepEqual(anchorBlock('softmax'), { type: 'explanation', title: 'Softmax', anchor: { request: 'softmax' } });
+  assert.equal(anchorBlock('Softmax?').body, undefined);
   for (const [request, title] of [['what is the softmax function?', 'Softmax function'], ['How does layer norm work', 'Layer norm work'], ['numerical stability', 'Numerical stability'], ['tell me about the KV cache', 'KV cache']])
     assert.equal(anchorTitle(request), title, request);
 });
