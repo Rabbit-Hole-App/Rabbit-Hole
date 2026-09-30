@@ -689,14 +689,6 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           event.preventDefault(); event.stopPropagation();
           addPaper({ ...paper, page: Number(url.hash.match(/page=(\d+)/)?.[1]) || paper.page });
   };
-  const teachingSnapshot = snapshot => {
-    if (!snapshot || !snapshot.lessonId.startsWith('course-') || !course.course?.brief) return snapshot;
-    const courseBrief = Object.fromEntries(['audience', 'goal', 'knowledge', 'duration'].flatMap(key => {
-      const value = course.course.brief[key];
-      return typeof value === 'string' && value.trim() ? [[key, value.slice(0, 600)]] : [];
-    }));
-    return { ...snapshot, lessonContext: { ...snapshot.lessonContext, courseBrief } };
-  };
   const boardContext = {
     paper: paperContext, clearPaper: () => { setPaperContext(null); setPaperOpen(false); setWikiContext(null); setWikiOpen(false); },
     // Detaching the source is a context switch, not a deletion: the card stays
@@ -716,14 +708,6 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     removeImage: () => { removeImage(); setPaperContext(previous => previous ? { ...previous, selection: undefined } : previous); },
     pause: pauseLesson, setAnswering,
     clear: () => { pinned.current = null; editor?.selectNone(); removeImage(); clearRegionMarker(); refreshSelection(v => v + 1); },
-    snapshot: () => teachingSnapshot(selectionSnapshot(editor, lesson.current, pinned.current)),
-    isCurrent: snapshot => {
-      if (!editor || lesson.current?.runId !== snapshot.runId || lesson.current?.currentStage !== snapshot.lessonContext.currentStage) return false;
-      if (lesson.current?.pageId && editor.getCurrentPageId() !== lesson.current.pageId) return false;
-      if (!snapshot.target) return lesson.current?.runId === snapshot.runId && lesson.current?.currentStage === snapshot.lessonContext.currentStage;
-      try { return lesson.current?.runId === snapshot.runId && !!selectionSnapshot(editor, lesson.current, { ...snapshot.target, shapeIds: snapshot.target.selectedShapeIds, runId: snapshot.runId }); }
-      catch { return false; }
-    },
   };
   const demo = {
     startRef: startDemo,

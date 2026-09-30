@@ -480,8 +480,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       return next;
     });
     const mirror = (t) => { exchange?.({ id: replyId, delta: t }); append(t); };
-    let snapshot = null;
-    let selectionAnswer = '';
     let responseGraph = null;
     try {
       if (isDemo) {
@@ -490,10 +488,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         await demo.run(text => setMsgs(m => m.map(item => item.id === replyId ? { ...item, content: text } : item)));
         return;
       }
-      snapshot = boardContext?.snapshot() || null;
-      const requestPath = snapshot?.target ? '/api/learn/selection' : askPath;
       const payload = {
-        ...(snapshot ? { lesson_snapshot: snapshot } : {}),
         // The lesson's table of contents. Separate from lesson_snapshot, which
         // is tldraw-shaped and would reject it.
         ...(questionOutline?.length ? { outline: questionOutline } : {}),
@@ -529,9 +524,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         const fd = new FormData();
         fd.append('body', JSON.stringify(payload));
         fd.append('file', attached);
-        r = await fetch(requestPath, { method: 'POST', headers: wsHeaders(), body: fd, signal: flight.signal });
+        r = await fetch(askPath, { method: 'POST', headers: wsHeaders(), body: fd, signal: flight.signal });
       } else {
-        r = await fetch(requestPath, {
+        r = await fetch(askPath, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...wsHeaders() },
           body: JSON.stringify(payload),
@@ -562,7 +557,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           const data = (ev.match(/^data: (.+)$/m) || [])[1];
           if (!type || !data) continue;
           const d = JSON.parse(data);
-          if (type === 'chunk') { if (snapshot) selectionAnswer += d.text; else mirror(d.text); }
+          if (type === 'chunk') mirror(d.text);
           else if (type === 'progress') { exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, status: d.stage } : item)); }
           else if (type === 'graph') { responseGraph=d; setMsgs(messages=>messages.map(item=>item.id===replyId?{...item,graph:d}:item)); }
           else if (type === 'outline') { boardContext?.onOutlineProposal?.(d.ops); }
@@ -581,7 +576,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           else if (type === 'error') mirror(`✗ ${d.error}`);
         }
       }
-      if (snapshot) mirror(boardContext.isCurrent(snapshot) ? selectionAnswer : 'The lesson or selected object changed while answering. Select it again and ask again.');
     } catch (e) {
       // A stopped answer keeps what arrived; it is not an error.
       if (e.name !== 'AbortError') mirror(`✗ ${e.message}`);
