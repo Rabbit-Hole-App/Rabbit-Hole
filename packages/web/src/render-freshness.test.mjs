@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expectedFingerprint, fingerprintPathFor, rendererHash } from '../scripts/render-fingerprint.mjs';
+import { RENDERER_FILES, expectedFingerprint, fingerprintPathFor, rendererHash, sceneSpecHash } from '../scripts/render-fingerprint.mjs';
 
 // A check on scene-spec.json is not evidence about static-00.png. This is
 // the gate that makes that true: every committed static render's fingerprint
@@ -47,4 +48,28 @@ test('every committed static render (generated/latest/static-00.png) carries a f
     else if (stored.rendererHash !== currentRendererHash) failures.push(`${dir}: STALE - the renderer has changed since this PNG was rendered`);
   }
   assert.deepEqual(failures, [], `stale or unverified static render(s):\n${failures.join('\n')}`);
+});
+
+// A fingerprint is about the pixels, not the checkout. With core.autocrlf a
+// Windows worktree holds renderer files and scene-spec.json as CRLF (or a mix,
+// once an editor rewrites some), a Linux checkout as LF: the same commit must
+// yield the same hashes in both, or a clean checkout reports every render STALE.
+test('fingerprints ignore line endings, so every checkout of one commit agrees', () => {
+  const lf = mkdtempSync(join(tmpdir(), 'fp-lf-')), crlf = mkdtempSync(join(tmpdir(), 'fp-crlf-'));
+  try {
+    for (const f of RENDERER_FILES) {
+      const text = readFileSync(join(WEB_ROOT, f), 'utf8').replace(/\r\n/g, '\n');
+      for (const [root, body] of [[lf, text], [crlf, text.replace(/\n/g, '\r\n')]]) {
+        mkdirSync(dirname(join(root, f)), { recursive: true });
+        writeFileSync(join(root, f), body);
+      }
+    }
+    writeFileSync(join(lf, 'scene-spec.json'), '{\n  "a": 1\n}\n');
+    writeFileSync(join(crlf, 'scene-spec.json'), '{\r\n  "a": 1\r\n}\r\n');
+    assert.equal(rendererHash(crlf), rendererHash(lf));
+    assert.equal(sceneSpecHash(join(crlf, 'scene-spec.json')), sceneSpecHash(join(lf, 'scene-spec.json')));
+  } finally {
+    rmSync(lf, { recursive: true, force: true });
+    rmSync(crlf, { recursive: true, force: true });
+  }
 });
