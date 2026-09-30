@@ -152,7 +152,9 @@ for (const module of CARDS) {
   await composer.fill(`what changed on "${scene.title}"?`);
   await composer.press('Enter');
   for (let i = 0; i < 20 && asks.length === sent; i += 1) await page.waitForTimeout(250);
-  const payload = asks[sent]?.message || '';
+  // Learn cleanup contract: the typed question is the message; the card's live state rides in canvas_target.
+  if (asks[sent]?.message !== `what changed on "${scene.title}"?`) throw new Error(`${scene.id}: the chat message is not the typed question`);
+  const payload = asks[sent]?.canvas_target?.text || '';
   if (!payload.includes(`Interactive scene: ${scene.title}`)) throw new Error(`${scene.id}: chat payload lacks the scene title`);
   if (!payload.includes('Experiment inputs')) throw new Error(`${scene.id}: chat payload lacks the experiment inputs`);
   await page.keyboard.press('Escape');
