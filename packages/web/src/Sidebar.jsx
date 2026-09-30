@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, Rabbit, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bell, Braces, Check, CircleUser, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName, workspaceLabel } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
@@ -13,7 +13,7 @@ import { isLearnResource } from './library-filter.js';
 import { pageFor, sectionActive, sectionHref } from './routes.js';
 import FeedbackButton from './FeedbackButton.jsx';
 import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
-import { isInternalPrincipal, personLabel, useShownIdentity } from './session-display.js';
+import { isInternalPrincipal, personLabel, useSessionDisplay, useShownIdentity } from './session-display.js';
 import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
@@ -26,8 +26,9 @@ const AVAILABILITY_COLOR = { available: 'green', preview: 'yellow', planned: 'gr
 // will remove later") - most items render an empty pane until we prune/wire them.
 function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initialTab, focus: initialFocus, pendingGrant, onAccessChanged, awsAvailable }) {
   // Shown identity: GET /auth/session's display, never the internal principal (session-display.js).
+  const session = useSessionDisplay();
   const shown = useShownIdentity(email);
-  const [tab, setTab] = useState(initialTab || 'preferences');
+  const [tab, setTab] = useState(initialTab || (learnPreview ? 'profile' : 'preferences'));
   const [focus, setFocus] = useState(initialFocus || null); // the row open_settings asked for, e.g. google-slides
   const box = useRef(null);
   useEffect(() => {
@@ -91,6 +92,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
             {shown.label && <Avatar email={shown.email || shown.label} />}
             <span className="truncate text-sm" title={shown.label}>{shown.label}</span>
           </div>
+          {learnPreview && <NavBtn id="profile" icon={CircleUser}>Profile</NavBtn>}
           <NavBtn id="preferences" icon={SlidersHorizontal}>Preferences</NavBtn>
           <NavBtn id="notifications" icon={Bell}>Notifications</NavBtn>
           {!learnPreview && <NavBtn id="mail" icon={Mail}>Mail & Calendar</NavBtn>}
@@ -115,6 +117,25 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
         <div className="relative flex-1 overflow-y-auto">
           <IconBtn aria-label="Close" onClick={onClose} className="absolute top-3 right-3"><X size={14} /></IconBtn>
           <div className={cn('mx-auto max-w-[920px] px-12 py-10', learnPreview && 'max-md:px-4 max-md:py-6')}>
+          {tab === 'profile' && (
+            // Only what GET /auth/session shares (session-display.js); never the internal principal.
+            <>
+              <div className="text-2xl font-semibold">Profile</div>
+              <div className="pt-2 text-base text-ink-2">How you appear in {PRODUCT}</div>
+              <div className="mt-6 flex items-center gap-3">
+                <Avatar email={shown.email || shown.label || '?'} className="h-12 w-12 text-lg" />
+                <div className="min-w-0">
+                  <div className="truncate text-base font-medium">{session?.display?.name || shown.label}</div>
+                  {shown.email && shown.email !== (session?.display?.name || shown.label) && <div className="truncate text-sm text-ink-2">{shown.email}</div>}
+                </div>
+              </div>
+              <Heading>Account</Heading>
+              <SettingsRow title="Name" desc="From your sign-in provider"><span className="text-sm text-ink-2">{session?.display?.name || 'Not shared'}</span></SettingsRow>
+              <SettingsRow title="Email" desc="Where sign-in links go"><span className="text-sm text-ink-2">{shown.email || 'Not shared'}</span></SettingsRow>
+              <SettingsRow title="Signed in with"><span className="text-sm text-ink-2">{{ google: 'Google', github: 'GitHub', email: 'Email link' }[session?.provider] || 'Unknown'}</span></SettingsRow>
+              {!session && <p className="pt-3 text-xs text-ink-3">Your sign-in details can't be read on this page right now.</p>}
+            </>
+          )}
           {tab === 'preferences' && (
             <>
               <div className="text-2xl font-semibold">Preferences</div>
@@ -489,7 +510,8 @@ function FeedbackSlot({ left }) {
   return <><div className="h-9 shrink-0" aria-hidden="true" /><div className="fixed bottom-2 z-40" style={{ left }}><FeedbackButton placement="right" /></div></>;
 }
 // Rabbit Hole dev: the product mark. The chrome names the product, never a letter from the email domain.
-const ProductMark = () => <span className="grid h-5 w-5 shrink-0 place-items-center rounded-sm bg-ink text-white"><Rabbit size={13} strokeWidth={1.75} /></span>;
+// The website's mark (the Landing favicon, white aperture on black), not a drawn rabbit.
+const ProductMark = () => <img src="/landing/favicon-32-v1.png" alt="" width="20" height="20" className="h-5 w-5 shrink-0 rounded-sm" />;
 
 // Notion-style sidebar: workspace row, search, folders (drag apps in), recent, members.
 // Resizable by dragging the right edge (200–400px). Rabbit Hole dev: `rail` is the collapsed

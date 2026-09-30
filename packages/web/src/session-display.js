@@ -17,11 +17,14 @@ export function shownIdentity(email, display) {
   return { label: email || '', email: email || null };
 }
 
-export function useShownIdentity(email) {
+// GET /auth/session as it came back (null when unreachable): { signedIn, provider, display }.
+export function useSessionDisplay() {
   const [display, setDisplay] = useState(null);
   useEffect(() => { let live = true; loadSessionDisplay().then(value => { if (live) setDisplay(value); }); return () => { live = false; }; }, []);
-  return shownIdentity(email, display);
+  return display;
 }
+
+export const useShownIdentity = email => shownIdentity(email, useSessionDisplay());
 
 // Another person's address as a label (members, shares, "last opened by"): their principal is never shown.
 export const personLabel = email => (isInternalPrincipal(email) ? 'Rabbit Hole user' : email);
