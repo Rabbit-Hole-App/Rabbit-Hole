@@ -24,3 +24,9 @@ CREATE TABLE IF NOT EXISTS learn_courses (
  curriculum TEXT, approved_revision INTEGER, lesson TEXT, source_version TEXT,
  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS canvases (
+ id INTEGER PRIMARY KEY, org TEXT NOT NULL, name TEXT NOT NULL,
+ owner_email TEXT NOT NULL, title TEXT NOT NULL, project TEXT,
+ created_at TEXT NOT NULL DEFAULT (datetime('now')), archived_at TEXT,
+ device_id TEXT, UNIQUE(org,name)
+);

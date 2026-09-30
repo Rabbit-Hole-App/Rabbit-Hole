@@ -58,7 +58,9 @@ dev test; no GitHub token is required for this implementation.
 - Package: `graphifyy==0.9.63`; local environment `.small/graphify-venv`, worker
   environment `/opt/indexer`. No agent hooks or global skill installation.
 - Metadata, courses and conversations: dev-only `small-learn-dev` D1 / `LEARN_DB`.
-- Source and graph: immutable R2 snapshots under `learn-repositories-dev/`.
+- Source and graph: immutable R2 snapshots under `learn-repositories-dev/` in the dev-only
+  bucket `small-repositories-dev` (binding `REPOSITORY_SNAPSHOTS`), never the live
+  `small-runs` bucket (2026-09-28).
 - Async coordinator: `REPOSITORY_IMPORTS`; worker: `small-lesson-renderer-dev`.
 - Limits: 20 MB compressed, 32 MB expanded, 8 MB indexed text, 512 KB per file,
   2,000 indexed files, 10,000 nodes and 30,000 edges. Excluded files are listed.

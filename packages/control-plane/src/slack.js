@@ -1,5 +1,6 @@
 // Slack adapter for Ask - a transport, not a new agent. Every message becomes a
-// /api/ask call; every proposal becomes Run/Cancel buttons that hit /api/ask/approve.
+// /api/ask call; every proposal becomes Run/Cancel buttons that hit /api/ask/approve
+// and /api/ask/reject.
 // Deps (ask, approve, slackApi) are injected so unit tests mock Slack cleanly.
 
 const te = new TextEncoder();
@@ -223,7 +224,7 @@ export async function handleSlackCommand(env, ctx, install, form, deps, baseUrl)
 // ---------- inbound: interactivity (buttons, selects) ----------
 
 export async function handleSlackInteract(env, ctx, install, payload, deps, baseUrl) {
-  const { api, askHandler, approveHandler } = deps;
+  const { api, askHandler, approveHandler, rejectHandler } = deps;
   const action = payload.actions?.[0];
   if (!action) return;
   const channel = payload.channel?.id;
@@ -247,6 +248,23 @@ export async function handleSlackInteract(env, ctx, install, payload, deps, base
   }
 
   if (action.action_id === 'ask_cancel') {
+    // final server-side: a later Run on this card gets a 409
+    const req = new Request('http://internal/api/ask/reject', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ proposal_id: action.value }),
+    });
+    const resp = await rejectHandler(req, env, ctx, actor);
+    const d = await resp.json();
+    // a card that is already closed is cleared with the reason; approved, 403 and 404 stay ephemeral
+    if (resp.status === 409 && ['rejected', 'expired', 'invalidated', 'failed'].includes(d.status)) {
+      await respond({ replace_original: true, text: `✗ ${d.error}` });
+      return;
+    }
+    if (!resp.ok || d.error) {
+      await respond({ response_type: 'ephemeral', replace_original: false, text: `✗ ${d.error}` });
+      return;
+    }
     await respond({ replace_original: true, text: '✗ proposal cancelled' });
     return;
   }

@@ -925,7 +925,9 @@ function b64(bytes) {
   return btoa(s);
 }
 
-export async function apiAsk(req, env, ctx, user, conversation = 'agent') {
+// seam: dev canvases only (canvases.js canvasAskSeam). It supplies the app, its context and a
+// LEARN_DB thread store, so that turn never touches env.DB.
+export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam = null) {
   if (!env.ANTHROPIC_API_KEY && env.SUBSCRIPTION_ONLY !== 'true') return json({ error: 'ask is not configured on this control plane' }, 503);
   // JSON, or multipart when a file rides along (images/PDFs as model blocks, CSVs as text)
   let body, extraBlocks = [], attachedName = null, uploadNote = null;
@@ -1079,11 +1081,12 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent') {
     scopeKind = 'run';
     scopeRef = scope.run;
   } else if (scope.app) {
-    const app = await appForUser(env, user, scope.app);
+    const app = seam ? seam.app : await appForUser(env, user, scope.app);
     if (!app) return json({ error: `no app named ${scope.app}` }, 404);
     if (!app.canView) return json({ error: 'no access' }, 403);
     scopedApp = app;
-    context = lessonSnapshot ? JSON.stringify(lessonSnapshot) : await appContext(env, app, useSet);
+    // appContext reads live runs/members by app.id, and LEARN_DB canvas ids overlap live ids.
+    context = lessonSnapshot ? JSON.stringify(lessonSnapshot) : seam ? seam.context : await appContext(env, app, useSet);
     // The lesson's own table of contents, so a question about its structure is
     // answered from the outline rather than inferred from the cards.
     if (body.outline?.length) context = `${context}
@@ -1164,24 +1167,27 @@ ${renderOutline(body.outline)}`;
     canAct = false;
   }
   // thread per scope and user; follow-ups ride the same thread
+  const db = seam ? seam.db : env.DB;
   let threadId = thread_id || null;
   if (threadId) {
-    const t = await askThreadForUser(env, user, threadId);
+    const t = seam ? await seam.findThread(threadId) : await askThreadForUser(env, user, threadId);
     if (!t) return json({ error: 'no such thread' }, 404);
     if ((scopeKind === 'learn' || t.scope === 'learn') && (t.scope !== scopeKind || t.scope_ref !== scopeRef)) {
       return json({ error: 'thread does not belong to this conversation' }, 409);
     }
+  } else if (seam) {
+    threadId = await seam.newThread(message);
   } else {
     const r = await env.DB.prepare('INSERT INTO threads (org, user, scope, scope_ref) VALUES (?, ?, ?, ?)')
       .bind(user.org, user.email, scopeKind, scopeRef).run();
     threadId = r.meta.last_row_id;
   }
-  if (seed.length) await env.DB.batch(seed.map(turn => env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, turn.role, turn.content)));
-  const { results: history } = await env.DB.prepare(
+  if (seed.length) await db.batch(seed.map(turn => db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, turn.role, turn.content)));
+  const { results: history } = await db.prepare(
     'SELECT role, content FROM messages WHERE thread_id = ? ORDER BY id DESC LIMIT 10'
   ).bind(threadId).all();
   history.reverse();
-  await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)')
+  await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)')
     .bind(threadId, 'user', attachedName ? `${message} [attached: ${attachedName}]` : message).run();
 
   const q = [note, uploadNote && `(${uploadNote})`, message].filter(Boolean).join(' ');
@@ -1197,8 +1203,10 @@ ${renderOutline(body.outline)}`;
         },
       }
     : null;
-  return askStream(env, context, history, q, async (full) => {
-    await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
+  // A canvas turn hands askStream LEARN_DB as DB, so its learn_moments insert (ask.js:403) cannot reach live D1.
+  // ponytail: LEARN_DB has no learn_moments table, so canvas answers skip the moment log (ask.js:399-405 swallows it); add the table to repository-schema.sql when the log needs canvases.
+  return askStream(seam ? { ...env, DB: db } : env, context, history, q, async (full) => {
+    await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
   }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId, conversation === 'learn' ? null : user.org, conversation === 'learn' ? LEARN_SYSTEM : undefined, research);
 }
 
@@ -1207,6 +1215,7 @@ ${renderOutline(body.outline)}`;
 const SLACK_DEPS = {
   askHandler: (req, env, ctx, user) => apiAsk(req, env, ctx, user),
   approveHandler: (req, env, ctx, user, baseUrl) => apiAskApprove(req, env, ctx, user, baseUrl),
+  rejectHandler: (req, env, ctx, user) => apiAskReject(req, env, user),
   runsHandler: (req, env, user) => apiRunsList(req, env, user),
   watchHandler: (req, env, user) => apiWatchList(req, env, user),
   canEditApp: async (env, user, name) => {
@@ -1393,13 +1402,16 @@ async function apiAskThreadRename(req, env, user, threadId) {
 }
 
 // Deleting a chat removes the thread + messages; approved proposals stay - they
-// are the action log, not conversation.
+// are the action log, not conversation. Open ones are invalidated (T02 7.4 #4),
+// so a stale Slack Run button can't execute them.
 async function apiAskThreadDelete(env, user, threadId) {
   if (!(await askThreadForUser(env, user, threadId))) return json({ error: 'no such thread' }, 404);
   const r = await env.DB.prepare('DELETE FROM threads WHERE id = ? AND user = ? AND org = ?')
     .bind(threadId, user.email, user.org).run();
   if (!r.meta.changes) return json({ error: 'no such thread' }, 404);
   await env.DB.prepare('DELETE FROM messages WHERE thread_id = ?').bind(threadId).run();
+  await env.DB.prepare("UPDATE proposals SET status = 'invalidated', approved_by = ?, approved_at = datetime('now') WHERE thread_id = ? AND org = ? AND status = 'proposed'")
+    .bind(user.email, threadId, user.org).run();
   return json({ ok: true });
 }
 
@@ -1408,6 +1420,32 @@ async function apiAskThread(env, user, threadId) {
   if (!t) return json({ error: 'no such thread' }, 404);
   const { results } = await env.DB.prepare('SELECT role, content FROM messages WHERE thread_id = ? ORDER BY id').bind(threadId).all();
   return json({ id: t.id, messages: results });
+}
+
+// The app a proposal acts on, resolved in its own workspace (run_again through its run).
+async function proposalTarget(env, p, args) {
+  if (p.tool !== 'run_again') return args.app;
+  const run = await env.DB.prepare('SELECT apps.name AS app_name FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ? AND apps.org = ?').bind(args.run_id, p.org).first();
+  if (!run) throw new Error(`no run ${args.run_id}`);
+  return run.app_name;
+}
+
+// T02 7.4: proposed -> approved|rejected happens once, inside 15 minutes; web and
+// Slack share it. null = this caller made the transition, else the 404/409 to send.
+async function claimProposal(env, user, id, status) {
+  const r = await env.DB.prepare(
+    "UPDATE proposals SET status = ?, approved_by = ?, approved_at = datetime('now') WHERE id = ? AND org = ? AND status = 'proposed' AND created_at > datetime('now', '-15 minutes')"
+  ).bind(status, user.email, id, user.org).run();
+  if (r.meta.changes === 1) return null;
+  const p = await env.DB.prepare('SELECT status FROM proposals WHERE id = ? AND org = ?').bind(id, user.org).first();
+  if (!p) return json({ error: 'no such proposal' }, 404);
+  return closedProposal(p.status === 'proposed' ? 'expired' : p.status);
+}
+// The 409 for a proposal that can no longer change: status is the card state (approved |
+// rejected | invalidated | expired | failed); error is what Slack shows.
+function closedProposal(status) {
+  const why = { approved: 'already approved', rejected: 'cancelled', invalidated: 'its chat was deleted', expired: 'expired after 15 minutes - ask again', failed: 'failed - ask again' };
+  return json({ error: why[status], status }, 409);
 }
 
 // Phase 2 approval: the proposal executes here, with edit re-checked NOW - the
@@ -1419,15 +1457,27 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
   const p = await env.DB.prepare('SELECT * FROM proposals WHERE id = ? AND org = ?')
     .bind(proposal_id, user.org).first();
   if (!p) return json({ error: 'no such proposal' }, 404);
-  if (p.status !== 'proposed') return json({ error: `already ${p.status}` }, 409);
   const args = JSON.parse(p.args);
 
+  // the recheck runs in the proposal's frozen workspace, never a lookup that can
+  // land in another org; failing it is 403, the card's No longer allowed
   const editableApp = async (name) => {
-    const app = await appRow(env, user.org, name);
+    const app = await appRow(env, p.org, name);
     if (!app) throw new Error(`no app named ${name}`);
-    if (!(await canEdit(env, app, user.email))) throw new Error('no edit access');
+    if (!(await canEdit(env, app, user.email))) throw Object.assign(new Error('no edit access'), { status: 403 });
     return app;
   };
+  // Refusals that change nothing come before the claim, so a viewer's click never holds the
+  // proposal and a refusal never has to hand it back.
+  try {
+    await editableApp(await proposalTarget(env, p, args));
+  } catch (e) {
+    return json({ error: e.message }, e.status || 400);
+  }
+  // claim before executing: a second click, a Cancel or a deleted chat gets the 409
+  // ponytail: a Worker that dies mid-tool leaves the row approved with no log line; add a running status if that shows up
+  const taken = await claimProposal(env, user, p.id, 'approved');
+  if (taken) return taken;
 
   let result;
   try {
@@ -1456,7 +1506,7 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
       if (missing.length) throw new Error(`this job needs a file for "${missing[0][0]}" - attach one in chat or use the Run tab`);
       result = { runId: await startRun(env, app, user.email, baseUrl, Object.keys(inputs).length ? inputs : null, files) };
     } else if (p.tool === 'run_again') {
-      const old = await env.DB.prepare('SELECT runs.*, apps.name AS app_name FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ?').bind(args.run_id).first();
+      const old = await env.DB.prepare('SELECT runs.*, apps.name AS app_name FROM runs JOIN apps ON apps.id = runs.app_id WHERE runs.run_id = ? AND apps.org = ?').bind(args.run_id, p.org).first();
       if (!old) throw new Error(`no run ${args.run_id}`);
       const app = await editableApp(old.app_name);
       const inputs = old.inputs ? JSON.parse(old.inputs) : null;
@@ -1502,14 +1552,35 @@ async function apiAskApprove(req, env, ctx, user, baseUrl) {
       throw new Error(`unknown tool ${p.tool}`);
     }
   } catch (e) {
-    return json({ error: e.message }, 400);
+    // After the claim the row never goes back to 'proposed': a Cancel or a chat delete that
+    // arrived meanwhile was told 'already approved', and reopening would let the action run
+    // later. The tool failed, so the proposal closes as failed and the user asks again.
+    await env.DB.prepare("UPDATE proposals SET status = 'failed' WHERE id = ? AND status = 'approved'").bind(p.id).run();
+    return json({ error: e.message }, e.status || 400);
   }
 
-  await env.DB.prepare("UPDATE proposals SET status = 'approved', approved_by = ?, approved_at = datetime('now') WHERE id = ?")
-    .bind(user.email, p.id).run();
   await env.DB.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)')
     .bind(p.thread_id, 'assistant', `✓ approved and executed ${p.tool} ${p.args} → ${JSON.stringify(result)}`).run();
   return json({ ok: true, ...result });
+}
+
+// Cancel is final (T02 7.4 #3): the same one-time transition as approve, so a
+// cancelled proposal can never run. Slack Cancel lands here too.
+// Cancel is an action (T02 7.3): the requester or an editor of the target app, in the
+// proposal's own workspace. Anyone else gets 403 and the proposal stays open.
+async function apiAskReject(req, env, user) {
+  const { proposal_id } = await req.json();
+  const p = await env.DB.prepare('SELECT * FROM proposals WHERE id = ? AND org = ?').bind(proposal_id, user.org).first();
+  if (!p) return json({ error: 'no such proposal' }, 404);
+  // Already closed: say so to anyone who may see it, rather than 'no edit access'. Read-only.
+  if (p.status !== 'proposed') return closedProposal(p.status);
+  if ((await env.DB.prepare("SELECT created_at <= datetime('now', '-15 minutes') AS old FROM proposals WHERE id = ?").bind(p.id).first())?.old) return closedProposal('expired');
+  if (p.user !== user.email) {
+    let app = null;
+    try { app = await appRow(env, p.org, await proposalTarget(env, p, JSON.parse(p.args))); } catch { /* no target: not an editor */ }
+    if (!app || !(await canEdit(env, app, user.email))) return json({ error: 'no edit access' }, 403);
+  }
+  return (await claimProposal(env, user, proposal_id, 'rejected')) || json({ ok: true, status: 'rejected' });
 }
 
 // s3:// autocomplete for the Run form: list one level under the typed uri using
@@ -2364,6 +2435,7 @@ export default {
           return await apiAsk(req, env, ctx, user, 'learn');
         }
         if (path === '/api/ask/approve' && req.method === 'POST') return await apiAskApprove(req, env, ctx, user, baseUrl);
+        if (path === '/api/ask/reject' && req.method === 'POST') return await apiAskReject(req, env, user);
         if (path === '/api/ask/file' && req.method === 'POST') return await apiAskFile(req, env, user);
         if (path === '/api/watch' && req.method === 'GET') return await apiWatchList(req, env, user);
         const watchDismiss = path.match(/^\/api\/watch\/(\d+)\/dismiss$/);

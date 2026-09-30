@@ -142,6 +142,20 @@ html {
   --viz-identity-3: #0e0b8e;
 }
 
+/* Kind pills (Canvas, Project, Job, Server): one background/text pair per kind, read by the
+   shared Pill (ui.jsx, kind prop). Light values are Notion's tag colours as before (job blue,
+   the rest grey); .dark below gives each a dark surface with readable text. */
+:root {
+  --pill-server-bg: #e3e2e0;
+  --pill-server-fg: #32302c;
+  --pill-job-bg: #d3e5ef;
+  --pill-job-fg: #183347;
+  --pill-project-bg: #e3e2e0;
+  --pill-project-fg: #32302c;
+  --pill-canvas-bg: #e3e2e0;
+  --pill-canvas-fg: #32302c;
+}
+
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
    so one override block re-skins every token - including bg-white surfaces via
    --color-white. Elements on accent/danger re-pin white so their text stays white. */
@@ -160,6 +174,14 @@ html {
   --color-active: #373737;
   --color-side: #202020;
   --color-code: #252525;
+  --pill-server-bg: #373737;
+  --pill-server-fg: #d4d4d4;
+  --pill-job-bg: #1c3a51;
+  --pill-job-fg: #cde3f1;
+  --pill-project-bg: #373737;
+  --pill-project-fg: #d4d4d4;
+  --pill-canvas-bg: #373737;
+  --pill-canvas-fg: #d4d4d4;
   --shadow-pop: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 3px 6px rgba(0, 0, 0, 0.3), 0 9px 24px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 
@@ -435,7 +457,7 @@ tr.cursor-pointer:active > td {
 .wiki-article li { margin: 0.2em 0; }
 .wiki-article dt { font-weight: 600; }
 .wiki-article dd { margin-left: 1.5em; }
-.wiki-article blockquote { border-left: 3px solid var(--color-line); padding-left: 0.8em; }
+.wiki-article blockquote { border-left: 3px solid var(--color-line); padding-left: 0.8em; } /* impeccable-disable-line side-tab -- smart-home 2026-09-29: a neutral grey rule on quoted text in Wikipedia articles (Learn), not a card accent */
 .wiki-article b, .wiki-article strong { font-weight: 600; }
 .wiki-article i, .wiki-article em { font-style: italic; }
 .wiki-article sub { vertical-align: sub; font-size: 0.8em; }
@@ -477,4 +499,20 @@ tr.cursor-pointer:active > td {
 .wiki-article [data-arrived] { animation: wiki-arrive 2s ease-out 1 forwards; border-radius: 4px; background: transparent; }
 @media (prefers-reduced-motion: reduce) {
   .wiki-article [data-arrived] { animation-duration: 4s; }
+}
+
+/* Agent Bar (dev, agent/AgentBar.jsx): every page's <main> ends above the fixed
+   bar. The bar publishes --agent-bar-h (0 while hidden); the live build never
+   sets it, and no page <main> has a bottom padding class, so this is 0 there. */
+[data-shell-sidebar] ~ main {
+  padding-bottom: var(--agent-bar-h, 0px);
+}
+
+/* Rabbit Hole dev, below md: the sidebar is a drawer opened from a fixed top strip (Shell.jsx),
+   which publishes --shell-top-h; pages start below it. The live build never sets it, and no
+   page <main> has a top padding class, so this is 0 there. */
+@media (width < 48rem) {
+  [data-shell-sidebar] ~ main {
+    padding-top: var(--shell-top-h, 0px);
+  }
 }

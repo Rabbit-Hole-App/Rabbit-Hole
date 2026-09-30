@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Minimize2 } from 'lucide-react';
 import './index.css';
@@ -7,13 +7,26 @@ import { AskPanel } from './ask.jsx';
 import MembersPage from './Members.jsx';
 import SearchModal from './Search.jsx';
 import SharePage from './SharePage.jsx';
-import Shell from './Shell.jsx';
-import { applyTheme, getTheme, navigate, wsName } from './api.js';
+// Home and Explore exist only in the preview (routes.js pageFor), so the live bundle never carries them.
+// Preview-only pages: the live build never routes to them (routes.js), so it builds no chunk for them.
+// learnPreview is not constant-folded (flags.js reads import.meta.env?.), so the live build would still
+// emit these chunks as downloadable orphans (e2e/live-bundle-check.mjs). The literal check lets Rollup drop them.
+const previewBuild = import.meta.env.VITE_COACHING_DEV === 'true' && learnPreview;
+const Home = previewBuild ? lazy(() => import('./Home.jsx')) : null;
+const ExplorePreview = previewBuild ? lazy(() => import('./Home.jsx').then((m) => ({ default: m.ExplorePreview }))) : null;
+import Shell, { storedSidebar } from './Shell.jsx';
+import { applyTheme, getTheme, navigate, setWs, workspaceLabel } from './api.js';
 import { ExpandedPageFrame, Toasts } from './ui.jsx';
 import { isPrivateByoc } from './private-auth.js';
 import PrivateAuthGate from './PrivateAuthGate.jsx';
+import { getSurface, setSurface } from './agent/surface.js';
+import { sidebarEdge } from './home/pinned.js';
+import { learnPreview, PRODUCT } from './flags.js';
+import { baseSurfaceFor, canonicalPath, pageFor, takeWs } from './routes.js';
+import { reloadOnce } from './chunk-reload.js';
 
 applyTheme(getTheme()); // before first paint - no light flash for dark users
+if (learnPreview) document.title = PRODUCT; // the live build keeps index.html's title
 
 // org-wide chat as a page - same panel as the app Agent tab, textbox pinned bottom.
 // /chat?app=<slug> narrows the scope to one app (the Agent tab's open-as-page).
@@ -26,7 +39,7 @@ function ChatPage() {
         <main className="flex h-screen min-w-0 flex-1 flex-col">
           <ExpandedPageFrame>
             <div className="flex shrink-0 items-center gap-1 pb-6 text-sm text-ink-2">
-              <button className={crumb} onClick={() => navigate('/apps')}>{data?.orgName || wsName(data?.org)}</button>
+              <button className={crumb} onClick={() => navigate('/apps')}>{workspaceLabel(data?.orgName, data?.org)}</button>
               <span>/</span>
               <button className={crumb} onClick={() => navigate('/apps')}>Apps</button>
               {app && (
@@ -51,12 +64,32 @@ function ChatPage() {
   );
 }
 
+// Rabbit Hole dev only (T02 §3.3, §5): the one Start dialog host, mounted in Root so
+// Shell remounts never drop it. The live build never loads the chunk.
+const StartHost = previewBuild ? lazy(() => import('./agent/StartHost.jsx')) : null;
+// A 'small:start' sent before that chunk has loaded would reach no listener; keep the latest
+// one so the host opens it on mount.
+let earlyStart = null;
+if (learnPreview) window.addEventListener('small:start', (e) => { earlyStart = e.detail?.path || 'repository'; });
+const takeEarlyStart = () => { const path = earlyStart; earlyStart = null; return path; };
+// T02 §6.1: one Agent Bar over every page, mounted in Root for the same reason.
+const AgentBar = previewBuild ? lazy(() => import('./agent/AgentBar.jsx')) : null;
+
+// The Agent Bar sits beside the sidebar from its first paint (Shell republishes on every change).
+if (learnPreview) { const s = storedSidebar(); document.documentElement.style.setProperty('--sidebar-w', `${sidebarEdge(s.collapsed, s.width, learnPreview)}px`); }
+
+// A workspace switch lands here as ?ws= (routes.js takeWs); apply it before the first request.
+const switched = learnPreview && takeWs(window.location.search);
+if (switched) {
+  setWs(switched.ws);
+  window.history.replaceState(null, '', window.location.pathname + switched.search);
+}
+
 function Root() {
   // PrivateAuthGate consumes Cognito callbacks before normalizing app routes.
-  // /dash aliases /apps (see the control-plane cache note). No router dep.
-  if (!/^\/(apps(\/[a-z0-9-]+(\/runs\/[\w-]+)?)?|dash|members|chat)$/.test(window.location.pathname)) {
-    window.history.replaceState(null, '', '/apps');
-  }
+  // /dash aliases /apps (see the control-plane cache note). No router dep: routes.js.
+  const fixed = canonicalPath(window.location.pathname, learnPreview);
+  if (fixed) window.history.replaceState(null, '', fixed);
   // pathname + search so ?s=shared section switches re-render too
   const [path, setPath] = useState(window.location.pathname + window.location.search);
   useEffect(() => {
@@ -64,14 +97,42 @@ function Root() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
-  const m = path.split('?')[0].match(/^\/apps\/([a-z0-9-]+)(?:\/runs\/([\w-]+))?$/);
+  const [pathname, search = ''] = path.split('?');
+  const at = pageFor(pathname, search, learnPreview);
+  // The Agent Bar's starting surface for this URL (T02 §6). Layout effects run before every
+  // child's useEffect, so a page's own refinement always lands on top of this baseline.
+  useLayoutEffect(() => {
+    if (learnPreview) setSurface(baseSurfaceFor(pathname, search, getSurface()));
+  }, [path]);
   return (
     <>
-      {m ? <SharePage slug={m[1]} runId={m[2]} /> : path.split('?')[0] === '/members' ? <MembersPage /> : path.split('?')[0] === '/chat' ? <ChatPage /> : <App />}
+      {at.page === 'app' ? <SharePage slug={at.slug} runId={at.runId} /> : at.page === 'members' ? <MembersPage /> : at.page === 'chat' ? <ChatPage /> : at.page === 'home' ? <Suspense fallback={null}><Home /></Suspense> : at.page === 'explore' ? <Suspense fallback={null}><ExplorePreview /></Suspense> : <App />}
       <SearchModal />
+      {StartHost && <Suspense fallback={null}><StartHost takeEarly={takeEarlyStart} /></Suspense>}
+      {AgentBar && <Suspense fallback={null}><AgentBar page={`${at.page}:${at.slug || ''}`} /></Suspense>}
       <Toasts />
     </>
   );
 }
 
-createRoot(document.getElementById('root')).render(isPrivateByoc ? <PrivateAuthGate><Root /></PrivateAuthGate> : <Root />);
+// A lazy chunk gone after a deploy: reload once for the new shell (chunk-reload.js). If it still fails, React's uncaught
+// error would leave a blank page, so the root shows a plain message with Reload instead.
+let reloading = false;
+window.addEventListener('vite:preloadError', (e) => {
+  let store = null;
+  try { store = window.sessionStorage; } catch { /* blocked: never reload */ }
+  if (!reloadOnce(store, Date.now())) return;
+  reloading = true;
+  e.preventDefault();
+  window.location.reload();
+});
+const rootEl = document.getElementById('root');
+const crashed = () => {
+  if (reloading) return;
+  setTimeout(() => {
+    rootEl.innerHTML = '<div role="alert" class="mx-auto max-w-md px-6 pt-[18vh] text-center"><h1 class="text-lg font-semibold">This page couldn&#39;t load</h1><p class="pt-2 text-sm text-ink-2">Something went wrong, or the app was just updated. Reload to try again.</p><button type="button" class="mt-4 cursor-pointer rounded-md border border-line px-3 py-1.5 text-sm hover:bg-hover">Reload</button></div>';
+    rootEl.querySelector('button').addEventListener('click', () => window.location.reload());
+  });
+};
+
+createRoot(rootEl, { onUncaughtError: crashed }).render(isPrivateByoc ? <PrivateAuthGate><Root /></PrivateAuthGate> : <Root />);

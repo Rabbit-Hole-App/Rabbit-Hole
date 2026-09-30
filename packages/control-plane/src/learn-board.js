@@ -362,6 +362,10 @@ export async function authorizedBoardApp(req, env, name) {
     const { repositoryAccess } = await import('./repositories.js');
     return repositoryAccess(req, env, name);
   }
+  if (env.LEARN_DB && /^canvas-[a-f0-9]{8}$/.test(name)) {
+    const { canvasAccess } = await import('./canvases.js');
+    return canvasAccess(req, env, name);
+  }
   const url = new URL(req.url); url.pathname = `/api/apps/${encodeURIComponent(name)}`; url.search = '';
   const headers = new Headers();
   for (const name of ['cookie', 'authorization', 'x-small-workspace']) if (req.headers.has(name)) headers.set(name, req.headers.get(name));

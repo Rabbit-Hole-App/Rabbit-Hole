@@ -1,5 +1,6 @@
 import { sceneFetch } from '../control-plane/src/learn-scene.js';
 import { repositoriesFetch, repositoryIdentity, repositoryApp } from '../control-plane/src/repositories.js';
+import { canvasesFetch, canvasRoute, ownerCanvases, refuseCanvasAsk, canvasAskSeam } from '../control-plane/src/canvases.js';
 export { RepositoryImports } from '../control-plane/src/repositories.js';
 export { LearnScenes } from '../control-plane/src/learn-scene.js';
 import SHELL from './dist-dev/index.html';
@@ -20,11 +21,12 @@ export default {
   async fetch(req, env, ctx) {
     const path = new URL(req.url).pathname;
     if (path.startsWith('/api/repositories')) return repositoriesFetch(req, env, ctx);
+    if (canvasRoute(new URL(req.url))) return canvasesFetch(req, env);
     if (path === '/api/apps' && req.method === 'GET') {
       const catalog = await repositoryIdentity(req, env);
       if (catalog instanceof Response) return catalog;
       const { results } = await env.LEARN_DB.prepare('SELECT * FROM repository_apps WHERE org=? ORDER BY created_at DESC').bind(catalog.org).all();
-      return Response.json({ ...catalog, apps: [...catalog.apps, ...results.map(row => repositoryApp(row, catalog))] }, { headers: { 'Cache-Control': 'no-store' } });
+      return Response.json({ ...catalog, apps: [...catalog.apps, ...results.map(row => repositoryApp(row, catalog)), ...(await ownerCanvases(env, catalog))] }, { headers: { 'Cache-Control': 'no-store' } });
     }
     const repositoryRoute = path.match(/^\/api\/apps\/(repo-[a-z0-9-]+)(\/learn-course)?$/);
     if (repositoryRoute) {
@@ -64,6 +66,9 @@ export default {
     }
     if (path === '/api/learn/scene') return sceneFetch(req, env);
     if (path === '/api/learn/video') return videoFetch(req, env);
+    // A canvas ask that would fall through to live small-cp: multipart (live R2 ask-uploads/, index.js:954) or the legacy Agent panels' /api/ask.
+    const refused = await refuseCanvasAsk(req);
+    if (refused) return refused;
     if (env.SUBSCRIPTION_ONLY === 'true' && req.method === 'POST' && (path === '/api/ask' || /\/learn-course$/.test(path))) {
       let action; try { action = (await req.clone().json()).action; } catch {}
       if (path === '/api/ask' || ['draft', 'generate'].includes(action)) return Response.json({ error: 'Subscription-only dev mode: use Learn chat. This action is not connected to the subscription yet.' }, { status: 503 });
@@ -80,7 +85,7 @@ export default {
         const access = await authorizedBoardApp(req, env, body.scope?.app);
         if (access instanceof Response) return access;
         if (env.SUBSCRIPTION_ONLY === 'true' && access.email !== env.SUBSCRIPTION_OWNER_EMAIL) return Response.json({ error: 'This personal dev subscription is available only to its owner.' }, { status: 403 });
-        return apiAsk(req, env, ctx, { email: access.email, org: access.org, orgName: access.orgName }, 'learn');
+        return apiAsk(req, env, ctx, { email: access.email, org: access.org, orgName: access.orgName }, 'learn', access.kind === 'canvas' ? canvasAskSeam(env, access) : undefined);
       }
     }
     if (path === '/api/learn/tts' && req.method === 'POST') {
@@ -134,7 +139,7 @@ export default {
     }
     if (path === '/aws') return Response.redirect(new URL('/apps', req.url), 302);
     if (path.startsWith('/api/byoc/')) return byocFetch(req, env, { apiCode, signerCode, permissionsCode, grantsCode });
-    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path.startsWith('/apps/')) {
+    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path.startsWith('/apps/')) {
       return new Response(SHELL, {
         headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
       });

@@ -6,6 +6,7 @@ import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_S
 import { validateVideoContext, FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, validateShowVideo } from '../src/learn-youtube.js';
 import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT } from '../src/learn-paper.js';
 import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
+import { canvasApp, canvasAskSeam } from '../src/canvases.js';
 import { captureSelection, selectionSnapshot, sigmoidObjects } from '../../web/src/sigmoid-context.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -26,7 +27,7 @@ const deps = {
   appForUser: async (env, user, name) => env.apps[name],
   appContext: async (env, app) => ({ name: app.name }),
   askStream: async (env, context, history, question, onFull, metadata, blocks, toolOpts, model, org, system, research) => {
-    env.answers.push({ history: [...history], question, context, toolOpts, system, org, blocks, research });
+    env.answers.push({ history: [...history], question, context, toolOpts, system, org, blocks, research, db: env.DB });
     await onFull('Answer: ' + question);
     return json(metadata);
   },
@@ -93,7 +94,7 @@ function fixture(t) {
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   const schema = readFileSync(new URL('../schema.sql', import.meta.url), 'utf8');
-  for (const table of ['threads', 'messages']) db.exec(schema.match(new RegExp(`CREATE TABLE IF NOT EXISTS ${table} \\([^]*?\\n\\);`))[0]);
+  for (const table of ['threads', 'messages', 'proposals']) db.exec(schema.match(new RegExp(`CREATE TABLE IF NOT EXISTS ${table} \\([^]*?\\n\\);`))[0]);
   return {
     ANTHROPIC_API_KEY: 'test-only', answers: [],
     apps: { counter: { name: 'counter', canView: true, canEdit: false }, other: { name: 'other', canView: true, canEdit: false } },
@@ -639,4 +640,33 @@ test('the card the learner is watching counts as found, but only window-less', a
   assert.equal(shown.opened, true);
   await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi again', video_context }), env, {}, owner, 'learn');
   await assert.rejects(() => env.answers[1].research.runTool('show_video', { videoId: 'aircAruvnKk', start: 40, end: 100 }), /without a window/);
+});
+
+test('canvas Learn asks keep their threads in LEARN_DB and never touch the live DB', async t => {
+  const env = fixture(t);
+  env.DB = { prepare: sql => { throw new Error(`live D1 touched: ${sql}`); }, batch: async () => { throw new Error('live D1 touched: batch'); } };
+  const sqlite = new DatabaseSync(':memory:');
+  t.after(() => sqlite.close());
+  sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  env.LEARN_DB = { batch: async statements => Promise.all(statements.map(statement => statement.run())), prepare: sql => ({ bind: (...params) => ({
+    first: async () => sqlite.prepare(sql).get(...params) || null,
+    all: async () => ({ results: sqlite.prepare(sql).all(...params) }),
+    run: async () => ({ meta: sqlite.prepare(sql).run(...params) }),
+  }) }) };
+  sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('workspace-a','canvas-0a1b2c3d','owner@example.test','Attention'),('workspace-a','canvas-99999999','owner@example.test','Other')");
+  const ask = (name, body, user = owner) => handlers.apiAsk(request({ scope: { app: name }, ...body }), env, {}, user, 'learn',
+    canvasAskSeam(env, canvasApp(sqlite.prepare('SELECT * FROM canvases WHERE name=?').get(name), user)));
+  const first = await (await ask('canvas-0a1b2c3d', { message: 'What is attention?' })).json();
+  assert.match(String(first.threadId), /^canvaschat-/);
+  assert.match(env.answers[0].context, /canvas "Attention"/);
+  assert.equal(env.answers[0].system, LEARN_SYSTEM);
+  assert.equal(env.answers[0].db, env.LEARN_DB, 'askStream gets LEARN_DB, so its moment log cannot reach live D1');
+  assert.equal((await ask('canvas-0a1b2c3d', { message: 'And softmax?', thread_id: first.threadId })).status, 200);
+  assert.deepEqual(env.answers[1].history.map(m => m.content), ['What is attention?', 'Answer: What is attention?']);
+  await ask('canvas-0a1b2c3d', { message: 'Explain further', canvas_seed: { question: 'Q', answer: 'A' } });
+  assert.deepEqual(env.answers[2].history.map(m => m.content), ['Q', 'A']);
+  assert.equal((await ask('canvas-99999999', { message: 'Wrong canvas', thread_id: first.threadId })).status, 409);
+  assert.equal((await ask('canvas-0a1b2c3d', { message: 'Not mine', thread_id: first.threadId }, { ...owner, email: 'colleague@example.test' })).status, 404);
+  assert.equal(sqlite.prepare("SELECT count(*) AS n FROM threads WHERE scope_ref='canvas-0a1b2c3d'").get().n, 2);
+  assert.equal(env.answers.length, 3);
 });

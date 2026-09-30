@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { parseRepository, repositoriesFetch, repositoryAccess, RepositoryImports } from '../src/repositories.js';
-import { repositoryTool, REPOSITORY_TOOLS } from '../src/repository-context.js';
+import { repositoryTool, REPOSITORY_SYSTEM, REPOSITORY_TOOLS } from '../src/repository-context.js';
 import { researchAnswer } from '../src/learn-research.js';
 
 const sha='a'.repeat(40), newer='b'.repeat(40);
@@ -13,7 +13,7 @@ function fixture(t){
   sqlite.exec(`INSERT INTO repository_apps(id,org,name,owner_email,repo,branch,commit_sha,status) VALUES(1,'team','repo-example','owner@test','example/project','main','${sha}','ready'); INSERT INTO repository_versions VALUES(1,'${sha}','snapshot',datetime('now'));`);
   const db={prepare:sql=>{let args=[];const stmt=sqlite.prepare(sql);return{bind(...v){args=v;return this;},first:async()=>stmt.get(...args)||null,all:async()=>({results:stmt.all(...args)}),run:async()=>({meta:stmt.run(...args)})};},batch:async statements=>Promise.all(statements.map(s=>s.run()))};
   const assets=new Map([['snapshot',snapshot]]),data=new Map();
-  const env={LEARN_DB:db,SCENE_WORKER_URL:'https://worker.test',SCENE_WORKER_TOKEN:'secret',CONTROL_PLANE:{fetch:async req=>req.headers.get('cookie')==='denied'?new Response('',{status:401}):Response.json({org:req.headers.get('x-small-workspace')||'team',email:req.headers.get('x-email')||'owner@test',apps:[]})},RUNS:{get:async k=>assets.has(k)?{json:async()=>typeof assets.get(k)==='string'?JSON.parse(assets.get(k)):assets.get(k)}:null,put:async(k,v)=>assets.set(k,v)}};
+  const env={LEARN_DB:db,SCENE_WORKER_URL:'https://worker.test',SCENE_WORKER_TOKEN:'secret',CONTROL_PLANE:{fetch:async req=>req.headers.get('cookie')==='denied'?new Response('',{status:401}):Response.json({org:req.headers.get('x-small-workspace')||'team',email:req.headers.get('x-email')||'owner@test',apps:[]})},REPOSITORY_SNAPSHOTS:{get:async k=>assets.has(k)?{json:async()=>typeof assets.get(k)==='string'?JSON.parse(assets.get(k)):assets.get(k)}:null,put:async(k,v)=>assets.set(k,v)},RUNS:{get(){throw Error('live bucket touched');},put(){throw Error('live bucket touched');}}};
   const state={storage:{get:async k=>structuredClone(data.get(k)),put:async(k,v)=>data.set(k,structuredClone(v)),setAlarm:async()=>{}},blockConcurrencyWhile:async fn=>fn()};
   return{env,sqlite,data,assets,state,actor:new RepositoryImports(state,env),send:(path,body,headers={})=>repositoriesFetch(new Request(`https://dev.test/api/repositories/repo-example/${path}`,{method:body?'POST':'GET',headers, ...(body?{body:JSON.stringify(body)}:{})}),env,{})};
 }
@@ -135,4 +135,46 @@ test('Learn tool loop retrieves actual source instead of sending the whole repos
     if(calls===1)return Response.json({content:[{type:'tool_use',id:'r1',name:'read_source',input:{path:'model.py',start:2,end:3}}]});
     assert.match(JSON.stringify(body.messages),/return x \+ 1/);return Response.json({content:[{type:'text',text:'It adds one. Sources: model.py:3'}],stop_reason:'end_turn'});
   }});assert.match(result.answer,/model.py:3/);assert.equal(calls,2);
+});
+
+// Regression pin, not TDD: it passes on first run because it pins current behaviour. If it ever
+// fails, a T02 section 16 condition is false, D7 wins, and connect_repository must render Blocked.
+test('T02 section 16 pin: connect_repository writes only LEARN_DB rows and learn-repositories-dev keys, and calls no live mutation API',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+  const hosts=new Set(),seen=[],identity=f.env.CONTROL_PLANE.fetch;
+  globalThis.fetch=async url=>{url=new URL(url);hosts.add(url.host);return Response.json(url.pathname==='/repository-metadata'?{commit:newer}:url.pathname.endsWith('/asset')?{...snapshot,commit:newer}:{status:'ready'});};
+  f.env.CONTROL_PLANE.fetch=async req=>{seen.push(`${req.method} ${new URL(req.url).pathname}`);return identity(req);};
+  f.env.DB={prepare(){throw Error('live D1 touched');},batch(){throw Error('live D1 touched');}};
+  f.env.REPOSITORY_IMPORTS={idFromName:String,get:()=>({fetch:(url,init)=>f.actor.fetch(new Request(url,init))})};
+  const response=await repositoriesFetch(new Request('https://dev.test/api/repositories',{method:'POST',body:JSON.stringify({url:'https://github.com/example/project',branch:'main'})}),f.env,{});
+  assert.equal(response.status,202);
+  const row=f.sqlite.prepare('SELECT * FROM repository_apps WHERE name=?').get((await response.json()).name);
+  assert.equal(row.org,'team');assert.equal(row.owner_email,'owner@test');assert.ok(row.created_at); // 16.1, 16.5: a LEARN_DB row, found by org, owner_email, created_at
+  await f.actor.alarm();await f.actor.alarm();
+  const key=`learn-repositories-dev/${row.id}/${newer}/graphify-0.9.63.json`;
+  assert.deepEqual([...f.assets.keys()].filter(k=>k!=='snapshot'),[key]); // 16.2, 16.3: prefix plus LEARN_DB id plus commit
+  assert.equal(f.sqlite.prepare('SELECT storage_key FROM repository_versions WHERE app_id=?').get(row.id).storage_key,key); // 16.5: R2 found through repository_versions
+  assert.deepEqual([...new Set(seen)],['GET /api/apps']); // 16.4: identity read only
+  assert.deepEqual([...hosts],['worker.test']);
+  assert.equal(f.sqlite.prepare('SELECT status FROM repository_apps WHERE id=?').get(row.id).status,'ready');
+});
+
+// Dev storage hygiene (user, 2026-09-28): dev repository snapshots live in their own bucket, never in the
+// live small-runs bucket under a prefix. The dev config binds that bucket; production has no such binding.
+const jsonc=(path)=>JSON.parse(readFileSync(new URL(path,import.meta.url),'utf8').replace(/("(?:\\.|[^"\\])*")|\/\/[^\n]*|\/\*[\s\S]*?\*\//g,(m,str)=>str||'').replace(/,(\s*[}\]])/g,'$1'));
+test('dev repository snapshots cannot reach the production bucket',()=>{
+  const dev=jsonc('../../web/wrangler.dev.jsonc'),live=jsonc('../wrangler.jsonc');
+  const liveBuckets=(live.r2_buckets||[]).map(b=>b.bucket_name);
+  const snapshots=(dev.r2_buckets||[]).find(b=>b.binding==='REPOSITORY_SNAPSHOTS');
+  assert.ok(snapshots,'the dev config binds REPOSITORY_SNAPSHOTS');
+  assert.ok(!liveBuckets.includes(snapshots.bucket_name),`${snapshots.bucket_name} is a production bucket`);
+  assert.ok(!(live.r2_buckets||[]).some(b=>b.binding==='REPOSITORY_SNAPSHOTS'),'production binds REPOSITORY_SNAPSHOTS');
+  const source=readFileSync(new URL('../src/repositories.js',import.meta.url),'utf8');
+  assert.doesNotMatch(source,/env\.RUNS\b/,'repositories.js still reads or writes the live RUNS bucket');
+});
+
+test('a why-question gets the code explained, inference labelled, and no invented history (WP6 two truths)', () => {
+  assert.ok(REPOSITORY_SYSTEM.includes("I don't have a recorded project decision explaining why the team chose this."));
+  assert.match(REPOSITORY_SYSTEM, /No decision, question or session records are captured for this project/);
+  assert.match(REPOSITORY_SYSTEM, /label them as inferred from the source/);
 });
