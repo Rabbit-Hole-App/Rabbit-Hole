@@ -1,14 +1,12 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Pencil, Play, Redo2, RotateCcw, Scan, Search, Share2, Trash2, Trophy, NotebookPen, Undo2, Volume2, VolumeX, ZoomIn, ZoomOut } from 'lucide-react';
-import { createShapeId, getIndices } from 'tldraw';
-import { SPEEDS, getSpeed, isMuted, setMuted, setSpeed } from './learn-audio.js';
+import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, Trophy, NotebookPen, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
+import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, wsHeaders } from './api.js';
 import { AskPanel } from './ask.jsx';
 import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
 import { assetKeysOf, requestWorkspaceExports, setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { captureSelection, selectionSnapshot } from './sigmoid-context.js';
-import RegionPicker from './RegionPicker.jsx';
 import { CourseInterview, CoursePanel, useLearnCourse } from './LearnCourse.jsx';
 import { LessonNotebook, LessonPractice, LessonReading, LessonSource } from './LearnExtras.jsx';
 import LearnOutline from './LearnOutline.jsx';
@@ -581,8 +579,6 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   // A file reference clicked inside a canvas block opens in the right panel.
   const openCanvasFile = (path, line, lineEnd) => { setPaperOpen(false); setSourceOpen(false); setLessonSource({ path, line, lineEnd, commit: nanoActive ? nanoSourceVersion : repositoryContext?.commit }); };
   const clearAskTarget = () => { setAskTarget(null); canvasApi.current?.deselect(); };
-  const [region, setRegion] = useState(false);
-  const cancelRegion = useCallback(() => setRegion(false), []);
   const playback = useRef(null);
   const startDemo = useRef(null);
   const [progress, setProgress] = useState(null);
@@ -604,39 +600,15 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     }
   };
   const [answering, setAnswering] = useState(false);
-  const [narrationMuted, setNarrationMuted] = useState(isMuted());
   const [lessonSpeed, setLessonSpeed] = useState(getSpeed());
   // Learn is immersive: entering collapses the sidebar; the top-left Home restores it.
   useEffect(() => { window.dispatchEvent(new CustomEvent('small:sidebar', { detail: { collapsed: true } })); }, []);
-  const [canvasPick, setCanvasPick] = useState(null);
-  const [toolsOpen, setToolsOpen] = useState(false);
+  const [canvasPick] = useState(null);
   // The red selection ellipse stays on the canvas while the question is asked.
   const regionMarker = useRef(null);
   const clearRegionMarker = () => {
     if (regionMarker.current && editor?.getShape(regionMarker.current)) editor.deleteShapes([regionMarker.current]);
     regionMarker.current = null;
-  };
-  const drawRegionMarker = points => {
-    clearRegionMarker();
-    if (!points?.length) return;
-    const origin = points[0];
-    const loop = [...points, points[0]];
-    const indices = getIndices(loop.length);
-    const id = createShapeId();
-    editor.createShape({ id, type: 'line', x: origin.x, y: origin.y, meta: { regionMarker: true },
-      props: { color: 'red', size: 's', dash: 'solid', points: Object.fromEntries(loop.map((point, i) => [indices[i], { id: indices[i], index: indices[i], x: point.x - origin.x, y: point.y - origin.y }])) } });
-    regionMarker.current = id;
-  };
-  // Page 3: tapping a position tile on the canvas selects it in the check below.
-  const pickSequenceTile = event => {
-    if (!editor || !nanoActive || progress?.page !== 2) return;
-    const point = editor.screenToPage({ x: event.clientX, y: event.clientY });
-    const shape = editor.getShapeAtPoint(point, { hitInside: true });
-    if (!/-(sequence|positions)$/.test(shape?.meta?.objectId || '')) return;
-    const boxes = editor.getCurrentPageShapes().filter(s => s.meta.objectId?.endsWith('-sequence') && s.type === 'geo').sort((a, b) => a.x - b.x);
-    const x = shape.type === 'geo' ? shape.x : shape.x - (shape.meta.objectId.endsWith('-positions') ? 18 : 14);
-    const index = boxes.findIndex(b => Math.abs(b.x - x) < 24);
-    if (index >= 0 && index < 4) setCanvasPick({ position: index + 1, nonce: Date.now() });
   };
   const explanation = useRef(null);
   const boardRequest = useRef(0);
@@ -771,7 +743,6 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     run: async (replace) => {
       dismissBoard();
       setCourseView(false); setLearningView('lesson'); setSetupChat(false); setNarration('');
-      setRegion(false);
       setProgress(null);
       playback.current?.dispose();
       let cancelled = false;
@@ -790,7 +761,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const previewLesson = async (generated, resume = false) => {
     if (!editor) return;
     dismissBoard(); setLessonSource(null); setPaperOpen(false); setSourceOpen(false);
-    playback.current?.dispose(); setRegion(false); pinned.current = null; removeImage();
+    playback.current?.dispose(); pinned.current = null; removeImage();
     let cancelled = false;
     playback.current = { dispose: () => { cancelled = true; } };
     const { playSigmoid } = await import('./sigmoid-demo.js');
@@ -818,7 +789,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     createdAt: Date.now(), snapshot: captureNotePage(editor, true),
   });
   const addNote = () => {
-    pauseLesson(); setRegion(false);
+    pauseLesson();
     const value = playback.current?.state() || (boardVisible && lesson.current ? { label: 'Canvas explanation', page: 0, timeline: 0, frame: 0 } : null);
     if (!value) return;
     setNoteChanged(false);
@@ -846,12 +817,12 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   };
   const navigateLesson = (action, value, position) => {
     dismissBoard();
-    setRegion(false); pinned.current = null; removeImage(); clearRegionMarker();
+    pinned.current = null; removeImage(); clearRegionMarker();
     playback.current?.[action](value, position);
     refreshSelection(v => v + 1);
   };
   const changeLearningView = value => {
-    dismissBoard(); pauseLesson(); setRegion(false); setSourceOpen(false); setLessonSource(null); setPaperOpen(false);
+    dismissBoard(); pauseLesson(); setSourceOpen(false); setLessonSource(null); setPaperOpen(false);
     setLearningView(value); if (value !== 'curriculum') setSectionTarget(null); setCourseView(value === 'curriculum' && course.canAuthor);
     setLearnerOpen(value === 'curriculum' && !course.canAuthor);
     setSetupChat(value === 'curriculum' && course.canAuthor);
@@ -1116,7 +1087,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           if (lesson.current?.lessonId?.startsWith('course-')) {
             playback.current?.dispose(); playback.current = null;
             lesson.current = null; setProgress(null); setNarration('');
-            pinned.current = null; removeImage(); setRegion(false);
+            pinned.current = null; removeImage();
           }
           if (editor) editor.deleteShapes(editor.getPages().flatMap(p => [...editor.getPageShapeIds(p.id)]).filter(id => {
             const meta = editor.getShape(id)?.meta;
@@ -1199,7 +1170,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
             <button type="button" disabled={!progress || progress.page === 0 || answering} onClick={() => navigateLesson('back')} className="flex items-center gap-1 rounded px-2 py-1.5 text-xs text-ink-2 hover:bg-hover disabled:opacity-40"><ChevronLeft size={14} />Previous lesson</button>
-            <button type="button" disabled={!editor || (progress?.page === pages.length - 1 && progress.pageComplete) || answering} onClick={() => { setRegion(false); if (!progress) startDemo.current?.(); else progress.playing ? pauseLesson() : playback.current?.play(); }} className="flex min-w-20 items-center justify-center gap-1.5 rounded border border-line px-3 py-1.5 text-xs hover:bg-hover disabled:opacity-40">{progress?.playing ? <Pause size={14} /> : <Play size={14} />}{progress?.playing ? 'Pause' : 'Play'}</button>
+            <button type="button" disabled={!editor || (progress?.page === pages.length - 1 && progress.pageComplete) || answering} onClick={() => { if (!progress) startDemo.current?.(); else progress.playing ? pauseLesson() : playback.current?.play(); }} className="flex min-w-20 items-center justify-center gap-1.5 rounded border border-line px-3 py-1.5 text-xs hover:bg-hover disabled:opacity-40">{progress?.playing ? <Pause size={14} /> : <Play size={14} />}{progress?.playing ? 'Pause' : 'Play'}</button>
             <button type="button" aria-label={`Playback speed ${lessonSpeed}x`} title="Playback speed" onClick={() => { const next = SPEEDS[(SPEEDS.indexOf(lessonSpeed) + 1) % SPEEDS.length]; setSpeed(next); setLessonSpeed(next); }} className="flex min-w-12 items-center justify-center rounded border border-line px-2 py-1.5 text-xs tabular-nums hover:bg-hover">{lessonSpeed}×</button>
             <button type="button" disabled={!progress || (progress.page === pages.length - 1 && progress.pageComplete) || answering} onClick={() => navigateLesson('next')} className="flex items-center gap-1 rounded px-2 py-1.5 text-xs text-ink-2 hover:bg-hover disabled:opacity-40">Next lesson<ChevronRight size={14} /></button>
           </div>
