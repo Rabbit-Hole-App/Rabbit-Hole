@@ -702,12 +702,10 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     outline: () => canvasStateRef.current.outline || [],
     onOutlineProposal: ops => setProposal(ops),
     onShowPaper: paper => addPaper(paper),
-    label: pinned.current?.label,
     preview: paperContext?.selection?.preview || preview,
     previewKind: paperContext?.selection ? 'paper' : 'canvas',
     removeImage: () => { removeImage(); setPaperContext(previous => previous ? { ...previous, selection: undefined } : previous); },
     pause: pauseLesson, setAnswering,
-    clear: () => { pinned.current = null; editor?.selectNone(); removeImage(); clearRegionMarker(); refreshSelection(v => v + 1); },
   };
   const demo = {
     startRef: startDemo,

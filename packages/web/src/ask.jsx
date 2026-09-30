@@ -860,9 +860,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             )}
           </div>
         )}
-        {!contentPanel && boardContext?.label && <div className="mb-2 text-xs text-ink-2">
-          {boardContext.label && <div className="mt-1 flex items-center gap-2" role="status">Asking about: {boardContext.label}<button type="button" aria-label="Clear selected context" onClick={boardContext.clear}>×</button></div>}
-        </div>}
         {!contentPanel && demo && <button type="button" disabled={busy || demo.disabled} onClick={() => send(demo.prompt)} className="mb-2 self-start rounded-full border border-line px-3 py-1.5 text-xs text-ink-2 hover:bg-hover disabled:opacity-50">
           {demo.prompt} <span className="ml-1 text-ink-3">· Demo</span>
         </button>}
