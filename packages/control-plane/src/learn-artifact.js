@@ -10,6 +10,7 @@
 // comes back anyway. Paid primitives come back as proposals; nothing here
 // starts a job.
 import { learnRequest, primitive as contract } from '../../web/src/agent/slash.js';
+import { contextDocumentBlocks } from './learn-context-docs.js';
 import { PRIMITIVES, isReady, artifactBlock } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel } from './learn-models.js';
@@ -45,7 +46,9 @@ export async function generateArtifact(env, input, { callModel = loggedModel('ar
     description: `${PRIMITIVES[id].about}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}`,
     input_schema: PRIMITIVES[id].schema,
   })), CLARIFY];
-  const messages = [{ role: 'user', content: JSON.stringify({ command: `/${request.command}`, request: request.prompt, learnerText: input.args || '', selection: request.selection, context: input.context || null }) }];
+  const text = JSON.stringify({ command: `/${request.command}`, request: request.prompt, learnerText: input.args || '', selection: request.selection, context: input.context || null });
+  // The canvas's switched-on context documents come first (canvas-context-docs.md), then the request.
+  const messages = [{ role: 'user', content: input.documents?.length ? [...input.documents, { type: 'text', text }] : text }];
   const ask = async history => {
     const response = await callModel(env, { max_tokens: LEARN_TASKS.artifact.maxTokens, system: ARTIFACT_SYSTEM, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages: history }, LEARN_TASKS.artifact.model, null);
     if (!response.ok) throw new Error(`Artifact generation unavailable (model HTTP ${response.status}). Try again.`);
@@ -95,6 +98,8 @@ export async function artifactFetch(req, env, generate = generateArtifact) {
   if (access instanceof Response) return access;
   const ownerRefused = subscriptionOwnerRefusal(env, access);
   if (ownerRefused) return ownerRefused;
-  try { return json(await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null })); }
+  let documents;
+  try { documents = await contextDocumentBlocks(env, access); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
+  try { return json(await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}) })); }
   catch (error) { return json({ error: error.message }, 502); }
 }

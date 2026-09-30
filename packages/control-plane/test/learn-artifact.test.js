@@ -64,6 +64,18 @@ test('/explain, /quiz, /graph and /diagram each return a validated block from th
   assert.match(plotted.block.brief, /Illustrative numbers/);
 });
 
+test('a card request carries the switched-on canvas context documents before the request (canvas-context-docs.md)', async () => {
+  const doc = { type: 'document', title: 'paper.pdf', source: { type: 'base64', media_type: 'application/pdf', data: 'JVBERi0=' } };
+  const { callModel, seen } = scripted(['make_data_plot', loss]);
+  await generateArtifact({}, { command: 'graph', args: 'training loss', documents: [doc] }, { callModel });
+  const content = seen[0].messages[0].content;
+  assert.deepEqual(content[0], doc);
+  assert.equal(JSON.parse(content.at(-1).text).command, '/graph');
+  const { callModel: plain, seen: without } = scripted(['make_data_plot', loss]);
+  await generateArtifact({}, { command: 'graph', args: 'training loss' }, { callModel: plain });
+  assert.equal(typeof without[0].messages[0].content, 'string', 'no documents: the request is unchanged');
+});
+
 test('a primitive outside the family is rejected on the server, whatever the browser sent', async () => {
   const { callModel, seen } = scripted(['make_video_generate', video]);
   const out = await generateArtifact({}, { command: 'graph', args: 'sigmoid', allowedPrimitives: ['video_generate'], family: 'video' }, { callModel });
