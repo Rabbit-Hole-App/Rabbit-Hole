@@ -4,6 +4,7 @@ import { register } from 'node:module';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
+import { SignJWT, exportJWK, generateKeyPair } from 'jose';
 import { sign, verify } from '../src/token.js';
 
 // Same loader stub as auth-fail-closed.test.js: the SPA shell .html import becomes an empty string.
@@ -54,9 +55,23 @@ function network(t, routes = {}) {
   return calls;
 }
 const RESEND = { 'https://api.resend.com/emails': () => [200, {}] };
-const idToken = (claims) => `${b64({ alg: 'RS256' })}.${b64(claims)}.sig`;
-const googleClaims = (over = {}) => ({ iss: 'https://accounts.google.com', aud: GOOGLE.GOOGLE_CLIENT_ID, exp: now() + 300, sub: '1098765432', email: 'a@corp.test', email_verified: true, ...over });
-const googleOk = (claims = googleClaims()) => ({ 'https://oauth2.googleapis.com/token': () => [200, { access_token: 'ya29.google-access', id_token: idToken(claims) }] });
+// Google's signing keys, served from a fake JWKS endpoint. auth.js caches fetched keys per isolate,
+// so every test signs with GOOGLE_KEY (kid k1) except the rotation test, which runs last.
+const JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
+const rsaKey = async (kid) => {
+  const { privateKey, publicKey } = await generateKeyPair('RS256', { extractable: true });
+  return { kid, privateKey, jwk: { ...(await exportJWK(publicKey)), kid, alg: 'RS256', use: 'sig' } };
+};
+const GOOGLE_KEY = await rsaKey('k1');
+let jwks = { keys: [GOOGLE_KEY.jwk] };
+const idToken = (claims, key = GOOGLE_KEY, header = {}) =>
+  new SignJWT(claims).setProtectedHeader({ alg: 'RS256', kid: key.kid, typ: 'JWT', ...header }).sign(key.privateKey);
+const googleClaims = (over = {}) => ({ iss: 'https://accounts.google.com', aud: GOOGLE.GOOGLE_CLIENT_ID, iat: now(), exp: now() + 300, sub: '1098765432', email: 'a@corp.test', email_verified: true, ...over });
+const googleRoutes = (token) => ({
+  'https://oauth2.googleapis.com/token': () => [200, { access_token: 'ya29.google-access', id_token: token }],
+  [JWKS_URL]: () => [200, jwks],
+});
+const googleOk = async (claims = googleClaims(), key = GOOGLE_KEY) => googleRoutes(await idToken(claims, key));
 const githubOk = (user = { id: 4242, login: 'octo', email: null }) => ({
   'https://github.com/login/oauth/access_token': () => [200, { access_token: 'gho_github-access', token_type: 'bearer' }],
   'https://api.github.com/user': () => [200, user],
@@ -119,7 +134,7 @@ test('Google start: redirects to Google with state, PKCE S256 and our callback; 
 
 test('Google callback: creates a user keyed by the immutable sub, signs in, returns to next', async (t) => {
   const env = withDb(t, PROD);
-  const calls = network(t, googleOk());
+  const calls = network(t, await googleOk());
   const { url, cb, session, flow } = await oauthSignIn(env, 'google');
   assert.equal(cb.status, 302);
   assert.equal(cb.location, '/apps/x');
@@ -145,14 +160,14 @@ test('Google callback: creates a user keyed by the immutable sub, signs in, retu
 
 test('Google: the same sub signs into the same user even when its email changed; a new sub is a new user', async (t) => {
   const env = withDb(t, PROD);
-  network(t, googleOk());
+  network(t, await googleOk());
   const first = payloadOf((await oauthSignIn(env, 'google')).session);
   t.mock.restoreAll();
-  network(t, googleOk(googleClaims({ email: 'renamed@other.test' })));
+  network(t, await googleOk(googleClaims({ email: 'renamed@other.test' })));
   const again = payloadOf((await oauthSignIn(env, 'google')).session);
   assert.equal(again.uid, first.uid);
   t.mock.restoreAll();
-  network(t, googleOk(googleClaims({ sub: '222', email: 'a@corp.test' })));
+  network(t, await googleOk(googleClaims({ sub: '222', email: 'a@corp.test' })));
   const other = payloadOf((await oauthSignIn(env, 'google')).session);
   assert.notEqual(other.uid, first.uid);
   assert.equal(env.q('SELECT COUNT(*) AS n FROM users')[0].n, 2);
@@ -160,7 +175,7 @@ test('Google: the same sub signs into the same user even when its email changed;
 
 test('Google: an unverified email is not even stored as information', async (t) => {
   const env = withDb(t, PROD);
-  network(t, googleOk(googleClaims({ email_verified: false })));
+  network(t, await googleOk(googleClaims({ email_verified: false })));
   await oauthSignIn(env, 'google');
   assert.equal(env.q('SELECT provider_email FROM user_identities')[0].provider_email, null);
 });
@@ -196,7 +211,7 @@ test('no email-only merge: Google and GitHub reporting the email of an email use
   const sent = [];
   network(t, {
     'https://api.resend.com/emails': (b) => { sent.push(b); return [200, {}]; },
-    ...googleOk(googleClaims({ email: 'a@corp.test', email_verified: true })),
+    ...(await googleOk(googleClaims({ email: 'a@corp.test', email_verified: true }))),
     ...githubOk({ id: 7, login: 'a', email: 'a@corp.test' }),
   });
   const viaEmail = payloadOf(await emailSignIn(env, 'a@corp.test', sent));
@@ -212,7 +227,7 @@ test('no email-only merge: Google and GitHub reporting the email of an email use
 
 test('OAuth state: a callback this browser did not start is refused before any provider call', async (t) => {
   const env = withDb(t, PROD);
-  const calls = network(t, googleOk());
+  const calls = network(t, await googleOk());
   const start = await call(env, '/auth/google/start');
   const flow = cookieValue(start.cookie('rh_oauth'));
   const state = new URL(start.location).searchParams.get('state');
@@ -241,7 +256,7 @@ test('OAuth state: a callback this browser did not start is refused before any p
 
 test('safe next through OAuth: an off-site next is dropped at start and lands on /', async (t) => {
   const env = withDb(t, PROD);
-  network(t, googleOk());
+  network(t, await googleOk());
   for (const next of ['//evil.test/x', 'https://evil.test', '/\\evil.test']) {
     const { cb } = await oauthSignIn(env, 'google', { next });
     assert.equal(cb.location, '/', next);
@@ -255,10 +270,10 @@ test('provider failure: token or profile errors send you back to /login with no 
   t.mock.method(console, 'error', (...a) => logs.push(a.join(' ')));
   const failures = {
     'Google token 500': ['google', { 'https://oauth2.googleapis.com/token': () => [500, { error: 'server_error' }] }],
-    'Google wrong audience': ['google', googleOk(googleClaims({ aud: 'someone-else' }))],
-    'Google wrong issuer': ['google', googleOk(googleClaims({ iss: 'https://evil.test' }))],
-    'Google expired id_token': ['google', googleOk(googleClaims({ exp: now() - 1 }))],
-    'Google no sub': ['google', googleOk(googleClaims({ sub: undefined }))],
+    'Google wrong audience': ['google', await googleOk(googleClaims({ aud: 'someone-else' }))],
+    'Google wrong issuer': ['google', await googleOk(googleClaims({ iss: 'https://evil.test' }))],
+    'Google expired id_token': ['google', await googleOk(googleClaims({ exp: now() - 1 }))],
+    'Google no sub': ['google', await googleOk(googleClaims({ sub: undefined }))],
     'GitHub bad code': ['github', { 'https://github.com/login/oauth/access_token': () => [200, { error: 'bad_verification_code' }] }],
     'GitHub user 401': ['github', { ...githubOk(), 'https://api.github.com/user': () => [401, { message: 'Bad credentials' }] }],
     'GitHub no id': ['github', githubOk({ login: 'x', email: 'a@corp.test' })],
@@ -278,6 +293,39 @@ test('provider failure: token or profile errors send you back to /login with no 
   for (const line of logs) {
     for (const secret of ['ya29', 'gho_', GOOGLE.GOOGLE_CLIENT_SECRET, GITHUB.GITHUB_CLIENT_SECRET, 'provider-code']) assert.ok(!line.includes(secret), line);
   }
+});
+
+test('Google ID token: signature, algorithm, iss, aud, exp and iat are all verified against Google keys', async (t) => {
+  const claims = googleClaims();
+  const attacker = await rsaKey('k1'); // same kid as Google's key, different private key
+  const { exp, ...noExp } = claims;
+  const { iat, ...noIat } = claims;
+  const cases = {
+    'bad signature (right kid, wrong key)': await idToken(claims, attacker),
+    'tampered payload': (await idToken(claims)).replace(/\.[^.]+\./, `.${b64({ ...claims, sub: 'victim' })}.`),
+    'alg none': `${b64({ alg: 'none', kid: 'k1' })}.${b64(claims)}.`,
+    'HS256 keyed with the public JWK': await new SignJWT(claims).setProtectedHeader({ alg: 'HS256', kid: 'k1' })
+      .sign(new TextEncoder().encode(JSON.stringify(GOOGLE_KEY.jwk))),
+    'wrong aud': await idToken(googleClaims({ aud: 'another-client.apps.googleusercontent.com' })),
+    'wrong iss': await idToken(googleClaims({ iss: 'https://accounts.evil.test' })),
+    'expired': await idToken(googleClaims({ iat: now() - 7200, exp: now() - 3600 })),
+    'no exp': await idToken(noExp),
+    'no iat': await idToken(noIat),
+    'not a JWT': 'not-a-jwt',
+  };
+  const logs = [];
+  for (const [name, token] of Object.entries(cases)) {
+    t.mock.restoreAll();
+    t.mock.method(console, 'error', (...a) => logs.push(a.join(' ')));
+    network(t, googleRoutes(token));
+    const env = withDb(t, PROD);
+    const { cb } = await oauthSignIn(env, 'google', { next: '/apps' });
+    assert.equal(cb.location, '/login?error=provider&next=%2Fapps', name);
+    assert.equal(cb.cookie('small_session'), undefined, name);
+    assert.equal(env.q('SELECT COUNT(*) AS n FROM users')[0].n, 0, name);
+  }
+  assert.equal(logs.length, Object.keys(cases).length);
+  for (const line of logs) assert.match(line, /^google sign-in failed: id_token rejected: /);
 });
 
 test('provider denied: ?error=access_denied is a cancelled sign-in, no provider call', async (t) => {
@@ -466,7 +514,7 @@ test('cross-site POSTs to the sign-in routes are refused (login CSRF)', async (t
 
 test('logout revokes every session of the user; a cross-site logout does nothing; sign-in works again', async (t) => {
   const env = withDb(t, PROD);
-  network(t, googleOk());
+  network(t, await googleOk());
   const a = (await oauthSignIn(env, 'google')).session;
   const b = (await oauthSignIn(env, 'google')).session; // a second browser
   assert.equal((await authed(env, a)).status, 404);
@@ -512,4 +560,72 @@ test('/test/session still works on test instances and makes a revocable user ses
   assert.equal((await authed(env, session)).status, 404);
   await call(env, '/logout', { headers: { Cookie: `small_session=${session}` } });
   assert.equal((await authed(env, session)).status, 401);
+});
+
+// ---------- Display identity: what the frontend may show, never the internal principal ----------
+
+const display = async (env, session) => {
+  const r = await call(env, '/auth/session', { headers: session ? { Cookie: `small_session=${session}` } : {} });
+  return { status: r.status, body: JSON.parse(r.text), text: r.text };
+};
+
+test('GET /auth/session: provider email/name as display metadata, a neutral label otherwise, never the .invalid principal', async (t) => {
+  const env = withDb(t, { ...PROD, RESEND_API_KEY: 're_fake' });
+  assert.deepEqual((await display(env)).body, { signedIn: false });
+  assert.equal((await display(env)).status, 401);
+
+  const cases = [
+    ['google', await googleOk(), { name: null, email: 'a@corp.test', label: 'a@corp.test' }],
+    ['google', await googleOk(googleClaims({ sub: 'g2', email_verified: false })), { name: null, email: null, label: 'Google user' }],
+    ['github', githubOk({ id: 1, login: 'octo', name: 'Octo Cat', email: null }), { name: 'Octo Cat', email: null, label: 'Octo Cat' }],
+    ['github', githubOk({ id: 2, login: 'octo2', name: null, email: 'pub@corp.test' }), { name: 'octo2', email: 'pub@corp.test', label: 'octo2' }],
+    ['github', githubOk({ id: 3, login: '', name: '  ', email: null }), { name: null, email: null, label: 'GitHub user' }],
+  ];
+  for (const [provider, routes, want] of cases) {
+    t.mock.restoreAll();
+    network(t, routes);
+    const { session } = await oauthSignIn(env, provider);
+    const d = await display(env, session);
+    assert.equal(d.status, 200);
+    assert.deepEqual(d.body, { signedIn: true, provider, display: want });
+    assert.ok(!d.text.includes('.invalid') && !d.text.includes(payloadOf(session).email), d.text);
+  }
+
+  // a changed GitHub name shows on the next sign-in; the identity (id 1) stays the same user
+  t.mock.restoreAll();
+  network(t, githubOk({ id: 1, login: 'octo', name: 'Renamed', email: null }));
+  const renamed = await oauthSignIn(env, 'github');
+  assert.equal((await display(env, renamed.session)).body.display.label, 'Renamed');
+
+  // even if a principal ever lands in the metadata, it is not shown
+  env.q("UPDATE user_identities SET provider_email = (SELECT email FROM users WHERE users.id = user_id), provider_name = NULL WHERE provider = 'github' RETURNING 1");
+  assert.deepEqual((await display(env, renamed.session)).body.display, { name: null, email: null, label: 'GitHub user' });
+
+  // email users see their own address
+  t.mock.restoreAll();
+  const sent = [];
+  network(t, { 'https://api.resend.com/emails': (b) => { sent.push(b); return [200, {}]; } });
+  const viaEmail = await emailSignIn(env, 'e@corp.test', sent);
+  assert.deepEqual((await display(env, viaEmail)).body, { signedIn: true, provider: 'email', display: { name: null, email: 'e@corp.test', label: 'e@corp.test' } });
+});
+
+// Last on purpose: it leaves auth.js's per-isolate JWKS cache holding only the rotated key.
+test('Google key rotation: a token signed with a new kid refetches the JWKS; a dropped key stops working', async (t) => {
+  const env = withDb(t, PROD);
+  network(t, await googleOk());
+  assert.ok((await oauthSignIn(env, 'google')).session); // k1 known (cached or fetched)
+
+  t.mock.restoreAll();
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() + 120_000 }); // past jose's 30s refetch cooldown
+  const rotated = await rsaKey('k2');
+  jwks = { keys: [rotated.jwk] }; // Google publishes k2 and drops k1
+  const calls = network(t, await googleOk(googleClaims(), rotated));
+  const r = await oauthSignIn(env, 'google');
+  assert.ok(r.session, r.cb.location);
+  assert.ok(calls.some((c) => c.url === JWKS_URL), 'the unknown kid triggered a JWKS refetch');
+
+  t.mock.restoreAll();
+  t.mock.method(console, 'error', () => {});
+  network(t, await googleOk(googleClaims(), GOOGLE_KEY));
+  assert.equal((await oauthSignIn(env, 'google', { next: '/apps' })).cb.location, '/login?error=provider&next=%2Fapps');
 });

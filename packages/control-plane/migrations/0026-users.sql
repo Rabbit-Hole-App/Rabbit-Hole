@@ -9,13 +9,14 @@ CREATE TABLE IF NOT EXISTS users (
   created_at INTEGER NOT NULL
 );
 -- One row per way to sign in, keyed by the provider's immutable id: Google sub, GitHub numeric id,
--- or the address itself for provider 'email'. provider_email is informational (display, a future
--- explicit link flow) and is never a lookup key.
+-- or the address itself for provider 'email'. provider_email and provider_name are display metadata
+-- (GET /auth/session, a future explicit link flow) and are never lookup keys or principals.
 CREATE TABLE IF NOT EXISTS user_identities (
   provider TEXT NOT NULL,
   provider_user_id TEXT NOT NULL,
   user_id TEXT NOT NULL REFERENCES users(id),
   provider_email TEXT,
+  provider_name TEXT,
   created_at INTEGER NOT NULL,
   last_login_at INTEGER NOT NULL,
   PRIMARY KEY (provider, provider_user_id)

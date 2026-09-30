@@ -9,7 +9,7 @@ function b64u(buf) {
   return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-export function b64uDecode(s) {
+function b64uDecode(s) {
   return Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
 }
 

@@ -272,6 +272,7 @@ CREATE TABLE IF NOT EXISTS user_identities (
   provider_user_id TEXT NOT NULL,
   user_id TEXT NOT NULL REFERENCES users(id),
   provider_email TEXT,
+  provider_name TEXT,
   created_at INTEGER NOT NULL,
   last_login_at INTEGER NOT NULL,
   PRIMARY KEY (provider, provider_user_id)

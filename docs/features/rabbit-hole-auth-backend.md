@@ -34,6 +34,7 @@ The code is in `packages/control-plane/src/auth.js`. The tests are `test/web-aut
 | `/login?next=&error=` | GET | Transitional sign-in page, until Landing replaces it. Shows a provider button only when that provider is configured. |
 | `/login?next=` | POST form `email` | Sends a sign-in link, then shows "Check your email". |
 | `/auth/email/start` | POST JSON `{email, next}` | The same flow as JSON, for Landing. |
+| `/auth/session` | GET | Display identity for the frontend (see below). It never returns the internal principal. 401 `{signedIn:false}` when signed out. |
 | `/auth?token=` | GET | Shows "Continue as <email>". It does **not** spend the link, so mail scanners are safe. |
 | `/auth` | POST form `token` | Spends the link once and signs in. Redirects to the safe `next`. |
 | `/auth/google/start?next=` | GET | Redirects to Google with state and PKCE S256. |
@@ -48,14 +49,18 @@ The code is in `packages/control-plane/src/auth.js`. The tests are `test/web-aut
 
 **Google**
 - Scope: `openid email`.
-- The `id_token` comes straight from Google's token endpoint over TLS with our client secret, so the signature check is skipped (OIDC Core 3.1.3.7).
-- `iss`, `aud` and `exp` are checked.
+- The `id_token` gets full verification with `jose` (`jwtVerify`), even though it comes straight from Google's token endpoint:
+  - the RS256 signature is checked against Google's published keys (`jwks_uri` from Google's OIDC discovery, `https://www.googleapis.com/oauth2/v3/certs`);
+  - `iss` must be Google's, `aud` must be our client ID, and `exp` and `iat` are required, with `exp` in the future;
+  - any other algorithm, including `none` and `HS256`, is refused.
+- Keys are cached per isolate. A token naming an unknown `kid` triggers a refetch (key rotation), limited to one refetch per 30 seconds.
 - Identity is `sub`.
 - `email` is kept only when `email_verified` is true, and only as information.
 
 **GitHub**
 - No scope: public profile only.
-- Code exchange (with the PKCE verifier), then `GET /user`.
+- PKCE S256 (`code_challenge`, `code_challenge_method=S256`, then `code_verifier` in the code exchange). GitHub's OAuth App documentation supports it.
+- Code exchange, then `GET /user`.
 - Identity is the numeric `id`.
 - `email` may be null, and nothing depends on it.
 
@@ -93,6 +98,23 @@ The logs carry statuses and provider error codes only, never tokens.
 
 **Login CSRF.** A POST to `/login`, `/auth`, `/auth/email/start` or `/logout` with a foreign `Origin` gets a 403.
 
+## Display identity (frontend contract)
+
+The display identity is not the principal. The frontend shows only what `GET /auth/session` returns:
+
+```json
+{ "signedIn": true, "provider": "google" | "github" | "email",
+  "display": { "name": "Octo Cat" | null, "email": "a@corp.com" | null, "label": "Octo Cat" } }
+```
+
+- **Google:** `email` is set only when Google marked it verified. There is no `name`: the scope is `openid email`.
+- **GitHub:** `name` is the profile name, or the login when there is no name. `email` is set only when the account's email is public.
+- **Email:** `email` is the signed-in address.
+- **`label`:** always present. It is `name`, else `email`, else "Google user", "GitHub user" or "Email user".
+- The metadata is refreshed at each sign-in.
+- A value ending in `.invalid` is never returned.
+- The UI must never render `user@<id>.rabbithole.invalid` or the org slug derived from it. For example, the dashboard Settings reads `email` from `/api/apps`, which is the principal.
+
 ## Landing integration contract
 
 Landing lives on the same worker origin, and cookies are host-only.
@@ -111,6 +133,7 @@ Landing lives on the same worker origin, and cookies are host-only.
   - expired: "That sign-in attempt expired. Try again."
   - provider: "We couldn't finish signing you in. Try again."
 - **Sign out:** navigate to `/logout`.
+- **Who is signed in:** `GET /auth/session` (same origin, cookies included). Show `display.label`. Never render a `*.rabbithole.invalid` value.
 - **Owned by the backend; Landing must not claim these paths:** `/login`, `/logout`, `/auth`, `/auth/*`, `/test/*`.
 - **Landing removes:**
   - the password fields;
@@ -153,6 +176,6 @@ At `/login`:
 ## Deferred
 
 - **Explicit account linking:** "connect Google" while signed in, and "prove this email" for an OAuth-only user.
-- **Display names:** OAuth-only users show their `.invalid` principal in the dashboard.
+- **Dashboard display:** the existing dashboard still renders the principal (`/api/apps` `email`) in Settings (`Sidebar.jsx`, the account row and "Home workspace"). It must switch to `/auth/session` before Google or GitHub users reach it.
 - **Sharing:** an OAuth-only user can't be shared with by their provider email until linking exists.
 - **Per-device session revocation.**

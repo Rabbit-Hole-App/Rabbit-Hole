@@ -2,7 +2,8 @@
 // No passwords. Every route ends at one internal user (users), found by the provider's immutable
 // id (user_identities), and a signed session that logout can revoke (users.session_epoch).
 // The CLI keeps its own code flow in index.js; for one email address both reach the same principal.
-import { sign, verify, randomHex, sha256, b64uDecode } from './token.js';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { sign, verify, randomHex, sha256 } from './token.js';
 
 export const SESSION_COOKIE = 'small_session';
 const SESSION_TTL = 7 * 24 * 3600;
@@ -51,32 +52,34 @@ const loginError = (code, next) => `/login?error=${code}${next === '/' ? '' : `&
 // The user behind (provider, provider id), created on first sign-in. Email identities use the
 // address as both id and principal, so the web link and the CLI code reach the same user.
 // Google/GitHub identities get a fresh user with a per-user .invalid principal: a provider's email
-// is kept as information only, so a matching address never merges into another account.
+// and name are display metadata only (refreshed each sign-in), so a matching address never merges
+// into another account. The returned user carries the provider it signed in with.
 // ponytail: two first sign-ins racing on one Google/GitHub id can leave one orphan users row (never
 // reachable); wrap in a D1 batch if it matters.
-export async function userFor(env, provider, providerUserId, providerEmail = null) {
+export async function userFor(env, provider, providerUserId, { email = null, name = null } = {}) {
   const find = () => env.DB.prepare(
     'SELECT u.id, u.email, u.session_epoch FROM user_identities i JOIN users u ON u.id = i.user_id WHERE i.provider = ? AND i.provider_user_id = ?'
   ).bind(provider, providerUserId).first();
   const t = now();
   let user = await find();
   if (user) {
-    await env.DB.prepare('UPDATE user_identities SET last_login_at = ? WHERE provider = ? AND provider_user_id = ?').bind(t, provider, providerUserId).run();
-    return user;
+    await env.DB.prepare('UPDATE user_identities SET last_login_at = ?, provider_email = ?, provider_name = ? WHERE provider = ? AND provider_user_id = ?')
+      .bind(t, email, name, provider, providerUserId).run();
+    return { ...user, provider };
   }
   const id = randomHex(16);
   const principal = provider === 'email' ? providerUserId : `user@${id}.rabbithole.invalid`;
   await env.DB.prepare('INSERT OR IGNORE INTO users (id, email, created_at) VALUES (?, ?, ?)').bind(id, principal, t).run();
   await env.DB.prepare(
-    'INSERT OR IGNORE INTO user_identities (provider, provider_user_id, user_id, provider_email, created_at, last_login_at) SELECT ?, ?, id, ?, ?, ? FROM users WHERE email = ?'
-  ).bind(provider, providerUserId, providerEmail, t, t, principal).run();
+    'INSERT OR IGNORE INTO user_identities (provider, provider_user_id, user_id, provider_email, provider_name, created_at, last_login_at) SELECT ?, ?, id, ?, ?, ?, ? FROM users WHERE email = ?'
+  ).bind(provider, providerUserId, email, name, t, t, principal).run();
   user = await find();
   if (!user) throw new Error('identity not stored');
-  return user;
+  return { ...user, provider };
 }
 
 const sessionFor = (env, user) =>
-  sign({ t: 'sess', uid: user.id, email: user.email, ep: user.session_epoch, exp: now() + SESSION_TTL }, env.MASTER_KEY);
+  sign({ t: 'sess', uid: user.id, email: user.email, ep: user.session_epoch, prov: user.provider, exp: now() + SESSION_TTL }, env.MASTER_KEY);
 const sessionCookie = async (env, user) => setCookie(SESSION_COOKIE, await sessionFor(env, user), '/', SESSION_TTL);
 
 // A session is good while its signature holds, it has not expired, and its epoch still matches
@@ -94,7 +97,29 @@ export async function sessionOf(req, env) {
   }
 }
 
+// What the frontend may show for the signed-in user. Never the internal principal: Google/GitHub
+// users get the provider's email/name when there is one, else a neutral label like "GitHub user".
+const PROVIDER_LABELS = { google: 'Google user', github: 'GitHub user', email: 'Email user' };
+const shown = (v) => (typeof v === 'string' && v && !v.endsWith('.invalid') ? v : null);
+async function sessionDisplay(req, env) {
+  const s = await sessionOf(req, env);
+  if (!s) return json({ signedIn: false }, 401);
+  let row = null;
+  try {
+    row = await env.DB.prepare('SELECT provider_email, provider_name FROM user_identities WHERE user_id = ? AND provider = ?').bind(s.uid, s.prov).first();
+  } catch {} // display metadata only: fall back to the neutral label
+  const email = shown(row?.provider_email);
+  const name = shown(row?.provider_name);
+  const provider = PROVIDER_LABELS[s.prov] ? s.prov : null;
+  return json({ signedIn: true, provider, display: { name, email, label: name || email || PROVIDER_LABELS[provider] || 'Signed in' } });
+}
+
 // ---------- Google and GitHub ----------
+
+// jwks_uri from https://accounts.google.com/.well-known/openid-configuration. jose caches the keys
+// per isolate and refetches when a token names a kid it has not seen (Google rotates keys).
+const GOOGLE_KEYS = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
+const GOOGLE_ISSUERS = ['https://accounts.google.com', 'accounts.google.com'];
 
 const PROVIDERS = {
   google: {
@@ -125,13 +150,18 @@ async function googleProfile(env, code, verifier, redirectUri) {
   });
   if (!r.ok) throw new Error(`token status ${r.status}`);
   const { id_token } = await r.json();
-  // Straight from Google's token endpoint over TLS with our secret, so the signature check may be
-  // skipped (OIDC Core 3.1.3.7); issuer, audience and expiry are still checked. sub never changes.
-  const c = JSON.parse(new TextDecoder().decode(b64uDecode(String(id_token).split('.')[1] || '')));
-  if (!['https://accounts.google.com', 'accounts.google.com'].includes(c.iss) || c.aud !== env.GOOGLE_CLIENT_ID || !(c.exp > now()))
-    throw new Error('id_token rejected');
+  // Full ID-token verification even though it came straight from Google: RS256 signature against
+  // Google's published keys, issuer, audience, expiry. sub never changes; email is display only.
+  let c;
+  try {
+    ({ payload: c } = await jwtVerify(String(id_token), GOOGLE_KEYS, {
+      algorithms: ['RS256'], issuer: GOOGLE_ISSUERS, audience: env.GOOGLE_CLIENT_ID, requiredClaims: ['exp', 'iat', 'sub'],
+    }));
+  } catch (e) {
+    throw new Error(`id_token rejected: ${e.code || 'invalid'}`);
+  }
   if (typeof c.sub !== 'string' || !c.sub) throw new Error('id_token has no sub');
-  return { id: c.sub, email: c.email_verified === true && typeof c.email === 'string' ? c.email.toLowerCase() : null };
+  return { id: c.sub, email: c.email_verified === true && typeof c.email === 'string' ? c.email.toLowerCase() : null, name: null };
 }
 
 async function githubProfile(env, code, verifier, redirectUri) {
@@ -150,9 +180,10 @@ async function githubProfile(env, code, verifier, redirectUri) {
   });
   if (!u.ok) throw new Error(`user status ${u.status}`);
   // id is GitHub's immutable account id; login and email can change, and email is often private (null).
-  const { id, email } = await u.json();
+  const { id, email, name, login } = await u.json();
   if (!Number.isSafeInteger(id) || id <= 0) throw new Error('no user id');
-  return { id: String(id), email: typeof email === 'string' ? email.toLowerCase() : null };
+  const display = [name, login].find((v) => typeof v === 'string' && v.trim());
+  return { id: String(id), email: typeof email === 'string' ? email.toLowerCase() : null, name: display ? display.trim().slice(0, 100) : null };
 }
 
 async function profileOf(env, name, code, verifier, redirectUri) {
@@ -160,7 +191,7 @@ async function profileOf(env, name, code, verifier, redirectUri) {
   if (mockOAuth(env)) {
     const m = await verify(code, env.MASTER_KEY);
     if (!m || m.t !== 'mockcode' || m.p !== name) throw new Error('bad mock code');
-    return { id: m.sub, email: m.email };
+    return { id: m.sub, email: m.email, name: m.name || null };
   }
   return PROVIDERS[name].profile(env, code, verifier, redirectUri);
 }
@@ -200,7 +231,7 @@ async function oauthCallback(req, env, name, baseUrl) {
     return redirect(loginError('provider', next), [clear]);
   }
   try {
-    const user = await userFor(env, name, profile.id, profile.email);
+    const user = await userFor(env, name, profile.id, profile);
     return redirect(next, [clear, await sessionCookie(env, user)]);
   } catch {
     return redirect(loginError('unavailable', next), [clear]);
@@ -252,7 +283,7 @@ async function magicLink(req, env, html) {
         'UPDATE login_links SET used_at = ? WHERE id = ? AND used_at IS NULL AND expires_at > ? RETURNING email, next'
       ).bind(t, p.id, t).first();
       if (!row) return expired();
-      return redirect(safeNext(row.next), [await sessionCookie(env, await userFor(env, 'email', row.email, row.email))]);
+      return redirect(safeNext(row.next), [await sessionCookie(env, await userFor(env, 'email', row.email, { email: row.email }))]);
     }
     const token = new URL(req.url).searchParams.get('token');
     const p = await verify(token, env.MASTER_KEY);
@@ -341,6 +372,7 @@ export async function handleWebAuth(req, env, path, { baseUrl, html, sendEmail }
     return r.status === 'limited' ? json({ error: WEB_LOGIN_LIMITED }, 429) : json({ error: WEB_LOGIN_UNAVAILABLE }, 503);
   }
   if (path === '/auth' && (req.method === 'GET' || req.method === 'POST')) return magicLink(req, env, html);
+  if (path === '/auth/session' && req.method === 'GET') return sessionDisplay(req, env);
   const oauth = path.match(/^\/auth\/(google|github)\/(start|callback)$/);
   if (oauth && req.method === 'GET') return oauth[2] === 'start' ? oauthStart(req, env, oauth[1], baseUrl) : oauthCallback(req, env, oauth[1], baseUrl);
   if (path === '/logout') {
@@ -358,7 +390,7 @@ export async function handleWebAuth(req, env, path, { baseUrl, html, sendEmail }
     const { email, secret } = await req.json();
     if (secret !== env.TEST_BYPASS_SECRET) return json({ error: 'bad secret' }, 401);
     const address = String(email).toLowerCase();
-    return json({ session: await sessionFor(env, await userFor(env, 'email', address, address)) });
+    return json({ session: await sessionFor(env, await userFor(env, 'email', address, { email: address })) });
   }
   if (path === '/test/oauth/authorize' && req.method === 'GET') return mockAuthorize(req, env, baseUrl, html);
   return null;
