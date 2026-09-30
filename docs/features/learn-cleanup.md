@@ -441,6 +441,58 @@ and workspace `/api/ask`, which the browser guard keeps off on the preview.
 - **U3 decision 4 environments.** No `LEARN_PLAN_MODEL` var was added. The
   remote secret sets of shared `small-cp-dev` and production were not read.
 
+- **U4 prompts-12, grading under the chat prompt.** The grader still posts
+  its instruction as a chat message, so every chat prompt change above also
+  changed the grader's system text and tools; `learn-prompts.test.js` pins
+  that request and was re-pinned in each commit. Separating it is owner
+  decision 3 (`/api/learn/assess`), for the grading unit. The grading text
+  itself (`learn-grade-prompts.js`) was not touched.
+- **U4 prompts-14, prompt version.** No `PROMPT_VERSION` constant was added:
+  the `learn_model` line's 12-character prompt hash already names the prompt
+  per call, and the test pins each assembled prompt's fingerprint.
+- **U4 prompts-10, context lines (deferred to C5).** The image line still says
+  the learner "dropped" the image when it is a group snapshot, and
+  `repositoryAsk` still sends a paper region and an image with no
+  instruction line. That is request context, owned with `canvas_target`
+  (owner decision 2), which must also update the new `You see only what this
+  request supplies` paragraph when the card text moves out of the message.
+- **U4 prompts-15, left as is.** `READ_ARXIV_TOOL` still mentions figure
+  crops (the tool is shared with the whiteboard, which has them); paid tools
+  are offered on static readiness (C7); the `the current concept` slash
+  template; and a `video_context` instruction still tells the model to call
+  `find_video_moments` on a worker where no video provider is configured.
+  Which deployed workers have `EXA_API_KEY` or `AI` and `MOMENTS` was not
+  read: where neither is present, chat no longer offers the video tools.
+- **U4 prompts-21, tool descriptions.** `SHOW_WIKIPEDIA_TOOL` and
+  `SHOW_PAPER_TOOL` still say they open the learner's reader, which is true on
+  the Learn dock; how the Agent Bar renders `paper` and `outline` events is
+  C8's event-per-surface audit.
+- **U4 prompts-3, project canvases.** The optional line telling a
+  project-owned canvas that its project's code is not in this chat was not
+  added; the new paragraph already says the model sees only the scope context.
+- **U4 prompts-13, prompts-16.** The Jev protocol (`learn-grade-jev.js`) is
+  untouched and listed in `agents/README.md` as pinned text that stays put;
+  the Agent Bar composes no prompt text and inherits every change above.
+- **U4 prompts-17, browser bundle (deferred to C11).** No Learn prompt
+  markers were added to `e2e/live-bundle-check.mjs` (it needs a live build);
+  the new `src/agents/learn-*.js` modules are imported by server code only.
+- **U4 prompts-18, architecture doc (deferred to the docs unit).** Sections 7,
+  8, 17.2 and Appendix A of `docs/learn-agent-canvas-architecture.md` still
+  quote the old prompts; the verbatim text now lives in
+  `packages/control-plane/src/agents/`.
+- **U4 prompts-19, safeguards.** Every evidence safeguard stays verbatim on
+  its route and is asserted per route in `learn-prompts.test.js`. The
+  differently worded untrusted-data sentences were not merged
+  (duplication-18: no shared safety block now).
+- **U4 delta-14.** `a3cda90` added the repository no-recorded-history rule
+  before this work (an approved change); it moved byte-identical into
+  `agents/learn-chat.js` and is pinned exactly.
+- **U4 duplication-8.** `PAPERS_PER_ANSWER` is shared since U3; the arXiv read
+  branch, its refusal wording (`Use the papers already read` versus `Use the
+  two papers already read`) and progress labels stay per loop.
+- **U4 registries-9.** The whiteboard prompt part is done; the
+  kind-to-primitive rows for the registry docs are the registries unit's.
+
 ## Progress
 
 - **U1 storage (C1), 2026-09-29.** Commits: `7f5d654` learnMomentsDb at every
@@ -487,3 +539,22 @@ and workspace `/api/ask`, which the browser guard keeps off on the preview.
   text changed. Recorded: models-6, 7, 9, 10, 14, the limits left local, the
   paid media question. UI changes (models-5 copy) still need a deployed
   visual review on the session clone.
+- **U4 prompts (C3), 2026-09-29.** Test: `e309d6a3` the assembled prompt and
+  tool list per route at the model boundary, and grading today
+  (`test/learn-prompts.test.js`; prompts-20, prompts-12, prompts-19).
+  Refactors: `b839662c` prompt-only modules `src/agents/learn-chat.js`,
+  `learn-artifact.js`, `learn-board.js` with re-exports and the README
+  (prompts-14); `1dbfd425` `repositoryAsk` layering (duplication-6). Fixes,
+  each with a test shown failing first and the pins re-pinned: `a7576463`
+  no Explain on canvas (prompts-1); `4c793a42` what the model sees, snapshot
+  sentences only with a snapshot (prompts-3); `f0884f69` identity
+  (prompts-4); `01da3633` greeting (prompts-5); `a1755903` outline sentence
+  (prompts-8); `cc1c76cd` hot moments (prompts-7); `4527ff64` offered with
+  the answer, cued (prompts-11, prompts-21); `14e3819b` video tools only with
+  a provider, research wording (prompts-15); `2caaba05` whiteboard video and
+  scene are not generated (prompts-2, registries-9); `984541ca` Desmos needs
+  its key (registries-14); `a879191c` uploaded PDFs in the Papers read footer
+  (duplication-17); `493f45b7` the notation rule (prompts-6). Recorded:
+  prompts-10 (C5), 12, 13, 16, 17 (C11), 18 (docs), 19, 21, delta-14,
+  duplication-8, duplication-18. Model-visible only: no UI component changed,
+  but the chat footer text for uploaded PDFs changes on screen.
