@@ -1,7 +1,9 @@
 # Tutor v1 — locked decisions (first vertical slice + /dive)
 
 Status: locked by the owner in the Tutor decision sprint, 2026-09-30. Nothing here is implemented; the next
-step is the /dive implementation.
+step is the /dive implementation. Amended the same day: R-10 now allows a topic anchor card as the
+originating card (the `pending_dive` wait is gone), 6.1 locks the origin identity contract, and §3
+records the real JEV and larger-evaluator code paths.
 
 Scope: the first locally usable Tutor on NanoGPT Attention, and the `/dive` primitive it needs. The
 learner can:
@@ -46,7 +48,6 @@ LearnerTurn v1 {
   slash?: 'deeper' | 'simplify' | 'dive' | null   // typed command, if any
   answering?: string                     // action_id of the Tutor question this message answers
   dive_choice?: { concept, choice: 'dive' | 'inline' }   // the learner's pick on a suggest_dive (§6.3)
-  pending_dive?: { topic }               // a /dive typed with no card selected, kept until a card is selected (R-10)
   canvas: { app: string, board: string | null,
             dive?: { dive_id, parent: { app, board }, origin: DiveOrigin } }   // set inside a child
   target: {                              // null when nothing is focused or selected
@@ -171,8 +172,10 @@ evaluate(turn: LearnerTurn) → EvaluationResult {
 1. **Deterministic** runs when the block's `attemptLog` has new entries since the last turn. The
    adapter diffs the log, maps each attempt through the claim registry, and returns `settled`.
 2. **JEV** runs when there is free text on a slice target. It makes one batched request (J12)
-   through the existing `jevRequest` / `parseJevAnswers` (`packages/control-plane/src/learn-grade-jev.js`),
-   carrying:
+   through the existing JEV client, `askJev` (`packages/control-plane/src/learn-grade-jev.js`). The
+   Tutor needs its own question builder and protocol: the grader's `jevRequest` / `gradeQuestions`
+   send a fixed question set (key ideas, one generic misconception, one non-attempt) pinned by
+   `GRADER_PROTOCOL_FINGERPRINT`, and they cannot carry the checks below. The request carries:
    - if `answering` is set: the claim's expected ideas plus its named-misconception checks;
    - always: gap checks for the target claims' registry prerequisites ("Does the message show the
      learner lacks: <prerequisite statement>?").
@@ -180,9 +183,12 @@ evaluate(turn: LearnerTurn) → EvaluationResult {
    The status uses the existing `THRESHOLDS` (yes ≥ 0.7, no ≤ 0.3): `settled` when every check is ≥
    yes or ≤ no; `uncertain` when any check falls between; `error` on `JevError` or a timeout
    (800 ms hard).
-3. **Larger evaluator** runs only on JEV `uncertain`: the existing Opus grading path
-   (`gradeAnswer` / `challengePrompt` in `packages/web/src/learn-grade.js` → `/api/learn/ask`), 8 s timeout, returning the same event shape. On error the
-   events are stored unsettled and no state changes.
+3. **Larger evaluator** runs only on JEV `uncertain`: the existing grading model task behind
+   `POST /api/learn/assess` (`assessAnswer` in `packages/control-plane/src/learn-grade-routes.js`,
+   mounted on the dev worker; the browser caller is `gradeAnswer` in `packages/web/src/learn-grade.js`).
+   Its current response is prose ("VERDICT: good|partial" and up to three sentences), so Tutor v1
+   adds a structured evaluator instruction and output contract on that same model task, returning
+   the same event shape. 8 s timeout. On error the events are stored unsettled and no state changes.
 4. **Not evaluated:** plain questions that answer nothing (only the gap checks run), and slash
    commands.
 
@@ -217,8 +223,9 @@ TutorAction =
   | { type: 'focus_part', card, part_id, mode: 'suggest' | 'navigate' }            // §5
   | { type: 'suggest_depth', card, direction: 'deeper' | 'shallower' }             // learner-confirmed chip
   | { type: 'suggest_practice', card }                                             // learner-confirmed chip
-  | { type: 'suggest_dive', concept, title, origin: DiveOrigin /* required: one originating card, R-10 */ }   // two-choice prompt: [Go down a Rabbit Hole] / [Keep it on this canvas] (§6.3)
-  | { type: 'open_dive', concept, title, origin: DiveOrigin }                      // only after /dive, Ctrl+K on a card, or 'Go down'; enters the card's existing child, else opens a pending hole (§6.2, R-3)
+  | { type: 'suggest_dive', concept, title, from: DiveFrom }   // two-choice prompt: [Go down a Rabbit Hole] / [Keep it on this canvas] (§6.3)
+  | { type: 'open_dive', concept, title, from: DiveFrom }      // only after /dive, Ctrl+K on a card, or 'Go down'; enters the card's existing child, else opens a pending hole (§6.2, R-3)
+DiveFrom = { block_id } | { anchor: { topic } }   // an existing originating card, or a topic anchor card to create first (R-10)
   | { type: 'return_from_dive' }                                                   // chip unless the learner asked
   | { type: 'no_action' }
 ```
@@ -284,7 +291,7 @@ These are owner decisions, not open questions.
 | R-7 | **Explicit learner intent is the confirmation.** `/dive`, or Ctrl+K on a selected card, executes with no second modal. |
 | R-8 | **Returning preserves place:** the exact parent hole, the originating card and part, and the canvas position. It feels like climbing back up the same root, not reopening a generic parent page. |
 | R-9 | **V1 is a tree:** one parent per hole, no DAG, no product depth limit. Excluded: DAGs, multiple parents, cross-linking arbitrary holes, collaborative holes, knowledge-graph visualization, recursive embedded canvas JSON. An engineering safety limit, if implementation ever needs one, is a guardrail and never part of the product model. |
-| R-10 | **Invariant: every nested Rabbit Hole has exactly one originating card, and it is a selected card.** That card determines the parent hole, the origin block and card, the red portal outline, the return point, the source context and the selected concept. The rules: selected card + `/dive <topic>` creates or enters the `<topic>` child from that card. Selected card + `/dive` creates or enters a child whose topic is derived from the selected card and the current question. **No selected card + `/dive <topic>` creates no hole:** a lightweight reply asks "Select the card you want to go deeper from.", and the pending dive intent (`<topic>`) is kept, so selecting a card completes the dive without retyping. A Tutor-suggested dive is always anchored to a specific originating card. |
+| R-10 | **Invariant: every nested Rabbit Hole has exactly one originating card.** That card is either an existing selected card or a topic/question anchor card created automatically on the current parent canvas. It determines the parent hole, the origin block and identities (6.1), the red portal outline, the return point, the source context and the concept. The rules: selected card + `/dive <topic>` uses the selected card as the originating card and creates or enters the `<topic>` child. Selected card + `/dive` does the same, with the topic derived from the card and the current question. **No selected card + `/dive <topic>`** creates a lightweight topic/question anchor card on the current parent canvas, uses that new card as the originating card, and opens the pending child hole. **No selected card + bare `/dive`** uses the current conversation or context when the topic is unambiguous (then as above, with an anchor card); otherwise it asks what the learner wants to dive into. A Tutor-created dive uses the same primitive: an existing origin card, or create a topic anchor and dive from it. *(Supersedes the earlier "Select the card you want to go deeper from." rule and its kept `pending_dive` intent, 2026-09-30.)* |
 
 **Ctrl+K (locked):**
 - On a Learn canvas with a card selected, Ctrl+K dives: it enters the card's existing hole, or
@@ -301,7 +308,7 @@ consistent with the existing repository.
 
 | Capability | Must hold |
 |---|---|
-| Create child | only from exactly one selected originating card (R-10), by Ctrl+K, `/dive`, or a confirmed Tutor proposal; pending until content (R-4); at most one direct child per originating card (R-3) |
+| Create child | from exactly one originating card (R-10): the selected card, or a topic anchor card created on the parent canvas; by Ctrl+K, `/dive`, or a confirmed Tutor proposal; pending until content (R-4); at most one direct child per originating card (R-3) |
 | Persist after content | the first meaningful canvas object persists the child canvas and its parent link together; nothing is written before that |
 | Tree integrity | a child has exactly one parent; a child is always new, so there are no cycles; no depth cap (R-9) |
 | Query ancestry and children | the current root path and each level's immediate children (for R-1), and the children by originating block of a canvas (for the R-2 outline) |
@@ -321,11 +328,36 @@ Dive {
   return_point: ReturnPoint                    // R-8
   source_revision?: string                     // e.g. karpathy/nanoGPT@3adf61e…
 }
-DiveOrigin { parent: { app, board }, card /* evidence.card */, scene_id, block_id /* the one originating card, R-10 */,
-             part_id?, selected_object?, concepts: string[], depth? /* content depth of the card */ }
+DiveOrigin {
+  parent: { app, board }
+  origin_block_id: string                      // the canvas block's internal identity (uuid): the one originating card, R-10
+  origin_scene_id: string | null               // runtime block.scene.id, e.g. nanogpt-c11-causal-mask
+  origin_card_id: string | null                // authored evidence.card, e.g. c11-causal-mask
+  origin_part_id: string | null                // the card's actual partId (partIds[pager value]), when relevant
+  origin_concept_ids: string[]                 // semantic concepts resolved from the card or selected object (conceptId)
+  selected_object?: string                     // the selected object's semanticId, if any
+  depth?: string                               // evidence.depth of the card, if any
+}
 ReturnPoint { block_id, part_id?, inputs, input_revision, practice_open: boolean,
               pending_question?: { action_id, text }, viewport: { x, y, zoom } }
 ```
+
+**Origin identity contract (locked).** The five origin fields are different identities and must
+never be conflated:
+
+| Field | Is | Source | Never |
+|---|---|---|---|
+| `origin_block_id` | the canvas block's internal identity | `block.id` (uuid from `cardBlock` or `insertBlock`) | — |
+| `origin_scene_id` | the runtime scene identity | `block.scene.id` | the block uuid |
+| `origin_card_id` | the authored card identity | the card module's `evidence.card`, found by `scene.id` in the card registry | the block uuid, or `scene.id` assumed equal to it |
+| `origin_part_id` | the sub-card id | `module.partIds[inputs[pager.name] ?? pager.default]`; `null` on unpaged cards | the selected object's `semanticId` |
+| `origin_concept_ids` | semantic concepts | `conceptId` of the selected object, else of the visible objects of the shown part | invented or copied from the topic text |
+
+A topic anchor card, or any block that is not a registry card, has `origin_scene_id`,
+`origin_card_id` and `origin_part_id` set to `null` and `origin_concept_ids` set to `[]` unless its
+objects carry `conceptId`s; its topic lives in the Dive `title` and `concept`. `/dive` and the Tutor
+resolve these fields with the same shared, Tutor-independent resolver (see
+tutor-v1-implementation-map.md §3).
 
 **Implementation candidate (not locked; the /dive coding agent may change it):**
 - A child is a new standalone canvas (a `canvases` row, title = hole name) linked to its parent by
@@ -356,10 +388,11 @@ ReturnPoint { block_id, part_id?, inputs, input_revision, practice_open: boolean
 |---|---|---|
 | Card selected + `/dive <topic>` | none (R-7) | enter the card's existing child, or open a pending `<topic>` child from that card; `created_by: learner_slash` |
 | Card selected + `/dive` | none (R-7) | as above; the topic is derived from the selected card and the current question |
-| No card selected + `/dive <topic>` | — | **no hole is created.** The reply is "Select the card you want to go deeper from." The intent `{ topic }` is kept as `pending_dive`, so the next card selection completes the dive with no retyping and no second confirmation. It is cleared by Esc, a new `/dive`, or leaving the canvas. |
+| No card selected + `/dive <topic>` | none (R-7) | a lightweight topic/question anchor card holding the request is created on the current parent canvas; it becomes the originating card and a pending `<topic>` child opens from it; `created_by: learner_slash` |
+| No card selected + bare `/dive` | none (R-7) | when the current conversation or context makes the topic unambiguous: as the row above; otherwise a one-line question asks what the learner wants to dive into, and no card or hole is created |
 | No card selected + Ctrl+K | — | global Search (unchanged) |
 | Learner selects a card and presses Ctrl+K | none (R-7) | enter the card's existing child, or open a pending one; `created_by: learner_ctrl_k` |
-| Tutor `suggest_dive`, always anchored to one originating card (R-10) | **[Go down a Rabbit Hole]** / **[Keep it on this canvas]** (R-6) | Go down: enter or open as above (`tutor_confirmed`). Keep here: the next LearnerTurn carries `dive_choice: { concept, choice: 'inline' }`, which authorizes the Tutor to place authored content on the current canvas (`show_authored_card`, `mode: 'navigate'`) and continue inline |
+| Tutor `suggest_dive`, from one originating card: an existing block, or a topic anchor created on Go down (R-10) | **[Go down a Rabbit Hole]** / **[Keep it on this canvas]** (R-6) | Go down: enter or open as above (`tutor_confirmed`). Keep here: the next LearnerTurn carries `dive_choice: { concept, choice: 'inline' }`, which authorizes the Tutor to place authored content on the current canvas (`show_authored_card`, `mode: 'navigate'`) and continue inline |
 | Portal click on an outlined card | none | enter its child |
 
 ### 6.4 What goes into a child and what comes back (R-8)
@@ -407,8 +440,9 @@ The Tutor re-evaluates the blocked claim with one `ask_question` and never auto-
 6. Ctrl+K on the Guided card later enters the same Softmax hole; it never creates a second one.
 7. If the learner had left at step 2 with the hole still empty, it would be discarded, with no
    outline.
-8. Had the learner typed `/dive softmax` with no card selected, no hole would open: "Select the card
-   you want to go deeper from." Selecting the Guided card completes that pending dive.
+8. Had the learner typed `/dive softmax` with no card selected, a "Softmax" anchor card holding the
+   request would be added to the Attention canvas and the pending hole would open from it; the anchor,
+   not the Guided card, would get the red outline once the hole persists.
 
 **Deferred:** several children from one card; moving a hole to another parent; sharing or forking a
 tree; undo for delete; dive targets other than a card, part or object.
