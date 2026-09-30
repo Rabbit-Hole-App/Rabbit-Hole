@@ -206,13 +206,19 @@ async function apiLogin(req, env) {
   const id = randomHex(16);
   const t = now();
   try {
-    // Insert only under the per-address cap (3 per 15 minutes, 10 per day) - one statement, so it is atomic.
+    // Insert only under the caps - one statement, so it is atomic. Per address: 3 per 15 minutes, 10 per day.
+    // Per domain: 30 per hour, 100 per day, because a token for ANY address at a company domain opens that
+    // org's domain-visible apps, so guesses spread over many addresses there must still add up. For public
+    // mail domains (gmail.com etc.) brute force gains nothing beyond a normal self-signup; the domain cap is
+    // for company domains. No global cap - it would let one attacker lock everyone out.
     const ins = await env.DB.prepare(
-      `INSERT INTO cli_login_challenges (id, email, code_mac, created_at, expires_at)
-       SELECT ?1, ?2, ?3, ?4, ?5
+      `INSERT INTO cli_login_challenges (id, email, domain, code_mac, created_at, expires_at)
+       SELECT ?1, ?2, ?6, ?3, ?4, ?5
        WHERE (SELECT COUNT(*) FROM cli_login_challenges WHERE email = ?2 AND created_at > ?4 - 900) < 3
-         AND (SELECT COUNT(*) FROM cli_login_challenges WHERE email = ?2 AND created_at > ?4 - 86400) < 10`
-    ).bind(id, email, await cliCodeMac(env, email, code), t, t + 600).run();
+         AND (SELECT COUNT(*) FROM cli_login_challenges WHERE email = ?2 AND created_at > ?4 - 86400) < 10
+         AND (SELECT COUNT(*) FROM cli_login_challenges WHERE domain = ?6 AND created_at > ?4 - 3600) < 30
+         AND (SELECT COUNT(*) FROM cli_login_challenges WHERE domain = ?6 AND created_at > ?4 - 86400) < 100`
+    ).bind(id, email, await cliCodeMac(env, email, code), t, t + 600, email.split('@')[1]).run();
     if (ins.meta.changes !== 1) return json({ error: 'Too many login codes requested. Try again later.' }, 429);
   } catch {
     return json({ error: CLI_LOGIN_UNAVAILABLE }, 503);

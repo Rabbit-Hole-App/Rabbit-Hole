@@ -259,8 +259,35 @@ test('issuance cap: the 4th code in 15 minutes is a generic 429 and the inbox ge
 
   const day = withDb(t, PROD_OK);
   const old = Math.floor(Date.now() / 1000) - 3600;
-  for (let i = 0; i < 10; i++) day.sql('INSERT INTO cli_login_challenges (id, email, code_mac, created_at, expires_at) VALUES (?, ?, ?, ?, ?)', `old${i}`, EMAIL, 'x', old, old + 600);
+  for (let i = 0; i < 10; i++) seed(day, `old${i}`, EMAIL, old);
   assert.equal((await cliLogin(day)).res.status, 429);
+});
+
+// Past challenges, as if issued at `at` (unix seconds). Domain = text after the single @.
+function seed(env, id, email, at) {
+  env.sql('INSERT INTO cli_login_challenges (id, email, domain, code_mac, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)', id, email, email.split('@')[1], 'x', at, at + 600);
+}
+
+test('per-domain cap: many addresses at one company cannot share guesses - 31st code in an hour or 101st in a day is 429', async (t) => {
+  const sent = provider(t, 'ok');
+  const nowS = Math.floor(Date.now() / 1000);
+  const login = (env, email) => call(post('/api/cli/login', { email }), env);
+
+  const day = withDb(t, PROD_OK);
+  for (let i = 0; i < 100; i++) seed(day, `d${i}`, `x+${i}@corp.test`, nowS - 7200); // 2h ago: under the hourly cap
+  const r = await login(day, 'fresh@corp.test');
+  assert.equal(r.res.status, 429);
+  assert.deepEqual(JSON.parse(r.text), { error: MSG_429 });
+  assertNoAuthMaterial(r, sent);
+  assert.equal(sent.length, 0);
+  assert.equal((await login(day, 'fresh@other.test')).res.status, 200); // another domain is unaffected
+  assert.equal(sent.length, 1);
+
+  const hour = withDb(t, PROD_OK);
+  for (let i = 0; i < 29; i++) seed(hour, `h${i}`, `x+${i}@corp.test`, nowS - 600);
+  assert.equal((await login(hour, 'thirtieth@corp.test')).res.status, 200);
+  assert.equal((await login(hour, 'thirty-first@corp.test')).res.status, 429);
+  assert.equal(sent.length, 2);
 });
 
 test('D1 failure fails closed: login and verify are a generic 503 with no code, challenge or token', async (t) => {
