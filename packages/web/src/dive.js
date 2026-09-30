@@ -103,7 +103,7 @@ export function diveRecord({ name, title, via, parent, target, block = null, vie
     origin: {
       parent, origin_block_id: target.block_id, origin_scene_id: target.scene_id, origin_card_id: target.card_id,
       origin_part_id: target.part_id, origin_concept_ids: target.concept_ids, selected_object: target.selected_object,
-      card_depth: target.depth, level, ...(target.anchor_request ? { anchor_request: target.anchor_request } : {}),
+      depth: target.depth, level, ...(target.anchor_request ? { anchor_request: target.anchor_request } : {}),
     },
     return_point: {
       block_id: target.block_id, part_id: target.part_id, selected_object: target.selected_object, inputs: block?.inputs ?? null, input_revision: block?.inputRevision ?? null,
