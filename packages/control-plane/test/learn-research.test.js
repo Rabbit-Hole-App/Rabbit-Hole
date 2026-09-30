@@ -98,3 +98,9 @@ test('nothing is shown when the tool is never called', async () => {
   const result = await researchAnswer({}, [], 'Tutor', null, { callModel: async () => text('Plain answer.') });
   assert.equal(result.shown, null);
 });
+test('a model HTTP failure names the status and the API reason, cut to 160 characters', async () => {
+  await assert.rejects(researchAnswer({}, [], 'Tutor', null, { callModel: async () => Response.json({ error: { message: 'overloaded' } }, { status: 529 }) }),
+    { message: 'Learn answer unavailable (model HTTP 529: overloaded)' });
+  await assert.rejects(researchAnswer({}, [], 'Tutor', null, { callModel: async () => new Response('down', { status: 503 }) }),
+    { message: 'Learn answer unavailable (model HTTP 503)' });
+});

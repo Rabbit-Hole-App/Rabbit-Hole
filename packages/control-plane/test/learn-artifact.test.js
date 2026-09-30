@@ -145,3 +145,8 @@ test('every primitive carries its observed rendering characteristics, and genera
   assert.equal(PRIMITIVES.notebook.perf.latencyClass, 'slow');
   assert.equal(PRIMITIVES.explanation.perf.latencyClass, 'instant');
 });
+
+test('a model HTTP failure on a card names only the status', async () => {
+  await assert.rejects(generateArtifact({}, { command: 'practice', args: 'multiple choice' }, { callModel: async () => Response.json({ error: { message: 'overloaded' } }, { status: 503 }) }),
+    { message: 'Artifact generation unavailable (model HTTP 503). Try again.' });
+});

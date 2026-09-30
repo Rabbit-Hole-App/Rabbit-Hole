@@ -268,7 +268,7 @@ test('a rejected structured-output request retries once without strict, and keep
 
 test('a rejected request that is not about strict tools still fails loudly', async () => {
   await assert.rejects(generateBoardPlan({}, boardInput, { callModel: async () => Response.json({ error: { message: 'overloaded' } }, { status: 529 }) }),
-    /model HTTP 529/);
+    { message: 'Canvas explanation unavailable (model HTTP 529: overloaded). Try again.' });
 });
 
 test('a block without an anchor is kept: an omitted fromObjectId means null, not a failed explanation', () => {
