@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { sign, verify } from '../src/token.js';
 
 // Load the real worker router. The SPA shell import (web/dist/index.html) is a
@@ -13,7 +15,7 @@ register('data:text/javascript,' + encodeURIComponent(`
 const worker = (await import('../src/index.js')).default;
 
 const EMAIL = 'a@example.test';
-const CODE = '123456'; // crypto.getRandomValues is pinned below, so this is the login code
+const CODE = '00123456'; // the Uint32 random is pinned to 123456 below, so this is the 8-digit login code
 const b64 = (s) => Buffer.from(s).toString('base64url');
 const MAGIC = b64('{"t":"magic"'); // prefix of every magic sign-in token
 const SESS = b64('{"t":"sess",'); // prefix of every session token
@@ -22,11 +24,31 @@ const SECRET = 'bypass-secret-for-tests';
 const BASE = { MASTER_KEY: 'master-key-for-tests' };
 const MSG_WEB = "We couldn't send a sign-in email right now. Try again in a few minutes.";
 const MSG_CLI = 'Could not send the login email right now. Try again in a few minutes.';
+const MSG_VERIFY_DOWN = 'Could not complete the login right now. Try again in a few minutes.';
+const MSG_429 = 'Too many login codes requested. Try again later.';
+const realRandom = crypto.getRandomValues.bind(crypto);
+const MIGRATION = readFileSync(new URL('../migrations/0025-cli-login-challenges.sql', import.meta.url), 'utf8');
+
+// env.DB as D1 over in-memory SQLite with the 0025 migration applied (same adapter
+// shape as learn-chat.test.js). migrate: false = the table is missing, as before the migration.
+function withDb(t, env, { migrate = true } = {}) {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  if (migrate) db.exec(MIGRATION);
+  const DB = { prepare: (sql) => ({ bind: (...params) => ({
+    first: async () => db.prepare(sql).get(...params) || null,
+    all: async () => ({ results: db.prepare(sql).all(...params) }),
+    run: async () => { const r = db.prepare(sql).run(...params); return { meta: { changes: Number(r.changes) } }; },
+  }) }) };
+  const rows = () => (migrate ? db.prepare('SELECT * FROM cli_login_challenges ORDER BY rowid').all() : []);
+  const sql = (q, ...a) => db.prepare(q).run(...a);
+  return { ...env, DB, rows, sql };
+}
 
 // Fake Resend: records every email body; never touches the network.
 function provider(t, mode) {
   const sent = [];
-  t.mock.method(crypto, 'getRandomValues', (a) => a.fill(123456));
+  t.mock.method(crypto, 'getRandomValues', (a) => (a instanceof Uint32Array ? a.fill(123456) : realRandom(a)));
   t.mock.method(globalThis, 'fetch', async (url, init) => {
     assert.equal(String(url), 'https://api.resend.com/emails', `unexpected network call: ${url}`);
     sent.push(JSON.parse(init.body));
@@ -52,7 +74,7 @@ const cliLogin = (env) => call(post('/api/cli/login', { email: EMAIL }), env);
 // Nothing that signs someone in may leave the worker in a production response.
 function assertNoAuthMaterial({ text, headers }, sent = []) {
   const links = sent.map((e) => e.text.match(/https?:\/\/\S+/)?.[0]).filter(Boolean);
-  for (const needle of [CODE, MAGIC, SESS, CHALLENGE, '/auth?token', 'token=', 'devCode', 'session', 'challenge', ...links]) {
+  for (const needle of [CODE, '123456', MAGIC, SESS, CHALLENGE, '/auth?token', 'token=', 'devCode', 'session', 'challenge', ...links]) {
     assert.ok(!text.includes(needle), `response body leaks ${needle}: ${text}`);
     assert.ok(!headers.includes(needle), `response headers leak ${needle}: ${headers}`);
   }
@@ -74,11 +96,9 @@ const FAILURES = {
 
 for (const [prodName, prodEnv] of Object.entries(PROD)) {
   for (const [failName, failure] of Object.entries(FAILURES)) {
-    const env = { ...prodEnv, ...failure.env };
-
     test(`production (${prodName}), ${failName}: web login is a generic 503 with no link`, async (t) => {
       const sent = provider(t, failure.mode);
-      const r = await webLogin(env);
+      const r = await webLogin({ ...prodEnv, ...failure.env });
       assert.equal(r.res.status, 503);
       assert.ok(r.text.includes(MSG_WEB), r.text);
       assertNoAuthMaterial(r, sent);
@@ -86,10 +106,12 @@ for (const [prodName, prodEnv] of Object.entries(PROD)) {
 
     test(`production (${prodName}), ${failName}: CLI login is a 503 with no code, devCode or challenge`, async (t) => {
       const sent = provider(t, failure.mode);
+      const env = withDb(t, { ...prodEnv, ...failure.env });
       const r = await cliLogin(env);
       assert.equal(r.res.status, 503);
       assert.deepEqual(JSON.parse(r.text), { error: MSG_CLI });
       assertNoAuthMaterial(r, sent);
+      assert.deepEqual(env.rows(), []); // the undelivered code leaves no row behind
     });
   }
 
@@ -108,7 +130,7 @@ for (const [prodName, prodEnv] of Object.entries(PROD)) {
 }
 
 test('production with a working provider: web says Check your inbox, CLI returns only a challenge, the email carries the code and link', async (t) => {
-  const env = { ...BASE, SMALL_ENV: 'production', TEST_BYPASS_SECRET: SECRET, RESEND_API_KEY: 're_fake' };
+  const env = withDb(t, { ...BASE, SMALL_ENV: 'production', TEST_BYPASS_SECRET: SECRET, RESEND_API_KEY: 're_fake' });
   const sent = provider(t, 'ok');
   const web = await webLogin(env);
   assert.equal(web.res.status, 200);
@@ -130,7 +152,7 @@ for (const mode of ['test', 'dev']) {
 
   test(`SMALL_ENV=${mode} + secret keeps the bypasses: devCode, dev link, /test/session, /test/watch, mock`, async (t) => {
     provider(t, 'ok');
-    const cli = JSON.parse((await cliLogin(env)).text);
+    const cli = JSON.parse((await cliLogin(withDb(t, env))).text);
     assert.equal(cli.devCode, CODE);
     assert.ok(cli.challenge);
 
@@ -151,7 +173,7 @@ for (const mode of ['test', 'dev']) {
 
   test(`SMALL_ENV=${mode} without the secret: no bypass`, async (t) => {
     const sent = provider(t, 'ok');
-    const bare = { ...BASE, SMALL_ENV: mode };
+    const bare = withDb(t, { ...BASE, SMALL_ENV: mode });
     assert.equal((await cliLogin(bare)).res.status, 503);
     const web = await webLogin(bare);
     assert.equal(web.res.status, 503);
@@ -160,37 +182,114 @@ for (const mode of ['test', 'dev']) {
   });
 }
 
-// The challenge is readable base64url JSON. It must hold nothing that lets an
-// offline search over the 10^6 codes find the one that was emailed.
-test('production CLI challenge carries a keyed MAC bound to the email, not a brute-forceable hash of the code', async (t) => {
-  const env = { ...BASE, SMALL_ENV: 'production', RESEND_API_KEY: 're_fake' };
+// ---------- CLI challenge store: keyed MAC in D1, attempt limit, single use, issuance cap ----------
+const PROD_OK = { ...BASE, SMALL_ENV: 'production', TEST_BYPASS_SECRET: SECRET, RESEND_API_KEY: 're_fake' };
+const payloadOf = (c) => JSON.parse(Buffer.from(c.split('.')[0], 'base64url'));
+const challengeFor = async (env, email = EMAIL) => JSON.parse((await call(post('/api/cli/login', { email }), env)).text).challenge;
+const verifyCli = (env, challenge, code) => call(post('/api/cli/verify', { challenge, code }), env);
+
+test('the challenge carries no code-derived material: a signed random id only; the keyed MAC stays in D1', async (t) => {
   provider(t, 'ok');
-  const challengeFor = async (email) => JSON.parse((await call(post('/api/cli/login', { email }), env)).text).challenge;
-  const payloadOf = (c) => JSON.parse(Buffer.from(c.split('.')[0], 'base64url'));
-  const verifyCli = async (challenge, code) => call(post('/api/cli/verify', { challenge, code }), env);
-
-  const a = await challengeFor(EMAIL);
-  const payload = JSON.stringify(payloadOf(a));
+  const env = withDb(t, PROD_OK);
+  const challenge = await challengeFor(env);
+  const [row] = env.rows();
+  const payload = JSON.stringify(payloadOf(challenge));
+  assert.deepEqual(Object.keys(payloadOf(challenge)).sort(), ['exp', 'id', 't']);
   const plain = createHash('sha256').update(CODE).digest();
-  for (const needle of [CODE, plain.toString('hex'), plain.toString('base64url'), plain.toString('base64')]) {
-    assert.ok(!payload.includes(needle), `challenge payload holds ${needle}: ${payload}`);
+  for (const needle of [CODE, '123456', row.code_mac, plain.toString('hex'), plain.toString('base64url'), EMAIL]) {
+    assert.ok(!challenge.includes(needle) && !payload.includes(needle), `challenge holds ${needle}: ${payload}`);
   }
+  assert.equal(row.email, EMAIL);
+  assert.match(row.code_mac, /^[0-9a-f]{64}$/);
+  assert.equal(row.expires_at - row.created_at, 600);
+  // same code, other email: a different MAC, so the MAC is bound to the email
+  await challengeFor(env, 'b@example.test');
+  assert.notEqual(env.rows()[1].code_mac, row.code_mac);
+});
 
-  const ok = await verifyCli(a, CODE);
+test('right code issues a token once; replaying the same challenge and code is 401', async (t) => {
+  provider(t, 'ok');
+  const env = withDb(t, PROD_OK);
+  const challenge = await challengeFor(env);
+  const ok = await verifyCli(env, challenge, CODE);
   assert.equal(ok.res.status, 200);
   const { token, email } = JSON.parse(ok.text);
   assert.equal(email, EMAIL);
   assert.equal((await verify(token, BASE.MASTER_KEY)).email, EMAIL);
+  const replay = await verifyCli(env, challenge, CODE);
+  assert.equal(replay.res.status, 401);
+  assert.deepEqual(JSON.parse(replay.text), { error: 'bad or expired code' });
+});
 
-  const wrong = await verifyCli(a, '654321');
-  assert.equal(wrong.res.status, 401);
-  assert.deepEqual(JSON.parse(wrong.text), { error: 'bad or expired code' });
+test('5 wrong codes burn the challenge: the right code afterwards is 401', async (t) => {
+  provider(t, 'ok');
+  const env = withDb(t, PROD_OK);
+  const challenge = await challengeFor(env);
+  for (let i = 0; i < 5; i++) {
+    const wrong = await verifyCli(env, challenge, `9999999${i}`);
+    assert.equal(wrong.res.status, 401);
+    assert.deepEqual(JSON.parse(wrong.text), { error: 'bad or expired code' });
+  }
+  const late = await verifyCli(env, challenge, CODE);
+  assert.equal(late.res.status, 401);
+  assert.deepEqual(JSON.parse(late.text), { error: 'bad or expired code' });
+  assert.equal(env.rows()[0].attempts, 5);
+});
 
-  // Same code, different email: the MAC differs, so b's code proof cannot stand in for a's.
-  const b = payloadOf(await challengeFor('b@example.test'));
-  assert.notEqual(b.codeHash, payloadOf(a).codeHash);
-  const forged = await sign({ ...payloadOf(a), codeHash: b.codeHash }, BASE.MASTER_KEY);
-  assert.equal((await verifyCli(forged, CODE)).res.status, 401);
+test('an expired challenge is 401 even with the right code', async (t) => {
+  provider(t, 'ok');
+  const env = withDb(t, PROD_OK);
+  const challenge = await challengeFor(env);
+  env.sql('UPDATE cli_login_challenges SET expires_at = ?', Math.floor(Date.now() / 1000) - 1);
+  assert.equal((await verifyCli(env, challenge, CODE)).res.status, 401);
+});
+
+test('issuance cap: the 4th code in 15 minutes is a generic 429 and the inbox gets no 4th email; 10 per day', async (t) => {
+  const sent = provider(t, 'ok');
+  const env = withDb(t, PROD_OK);
+  for (let i = 0; i < 3; i++) assert.equal((await cliLogin(env)).res.status, 200);
+  const fourth = await cliLogin(env);
+  assert.equal(fourth.res.status, 429);
+  assert.deepEqual(JSON.parse(fourth.text), { error: MSG_429 });
+  assertNoAuthMaterial(fourth, sent);
+  assert.equal(sent.length, 3);
+  assert.equal(env.rows().length, 3);
+  // the cap is per address: b is unaffected by a's
+  assert.equal((await call(post('/api/cli/login', { email: 'b@example.test' }), env)).res.status, 200);
+
+  const day = withDb(t, PROD_OK);
+  const old = Math.floor(Date.now() / 1000) - 3600;
+  for (let i = 0; i < 10; i++) day.sql('INSERT INTO cli_login_challenges (id, email, code_mac, created_at, expires_at) VALUES (?, ?, ?, ?, ?)', `old${i}`, EMAIL, 'x', old, old + 600);
+  assert.equal((await cliLogin(day)).res.status, 429);
+});
+
+test('D1 failure fails closed: login and verify are a generic 503 with no code, challenge or token', async (t) => {
+  const sent = provider(t, 'ok');
+  const missing = withDb(t, PROD_OK, { migrate: false }); // deployed before the migration ran
+  const login = await cliLogin(missing);
+  assert.equal(login.res.status, 503);
+  assert.deepEqual(JSON.parse(login.text), { error: MSG_CLI });
+  assertNoAuthMaterial(login, sent);
+  assert.equal(sent.length, 0); // no code mailed that could never be verified
+
+  const challenge = await sign({ t: 'challenge', id: 'abc', exp: Math.floor(Date.now() / 1000) + 600 }, BASE.MASTER_KEY);
+  const broken = { ...PROD_OK, DB: { prepare() { throw new Error('D1_ERROR: no such table'); } } };
+  for (const env of [broken, missing]) {
+    const v = await verifyCli(env, challenge, CODE);
+    assert.equal(v.res.status, 503);
+    assert.deepEqual(JSON.parse(v.text), { error: MSG_VERIFY_DOWN });
+    assertNoAuthMaterial(v);
+  }
+});
+
+test('SMALL_ENV=test devCode still logs in through the challenge store', async (t) => {
+  provider(t, 'ok');
+  const env = withDb(t, { ...BASE, SMALL_ENV: 'test', TEST_BYPASS_SECRET: SECRET });
+  const { challenge, devCode } = JSON.parse((await cliLogin(env)).text);
+  assert.equal(devCode, CODE);
+  const ok = await verifyCli(env, challenge, devCode);
+  assert.equal(ok.res.status, 200);
+  assert.equal(JSON.parse(ok.text).email, EMAIL);
 });
 
 // orgOf() takes the text after the first @, so anything looser than a plain

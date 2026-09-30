@@ -192,25 +192,61 @@ async function canEdit(env, app, email) {
 
 // ---------- CLI API ----------
 
+// CLI login codes live in D1 (cli_login_challenges, migration 0025): the CLI's challenge is a
+// signed random id only, so it carries nothing to brute-force offline. Each row allows 5 guesses,
+// one success, 10 minutes. Any D1 error fails closed with a generic 503.
+// ponytail: rows are never purged; add a DELETE to the daily cron if the table ever matters.
+const CLI_LOGIN_UNAVAILABLE = 'Could not send the login email right now. Try again in a few minutes.';
+const cliCodeMac = (env, email, code) => hmacHex(env.MASTER_KEY, `cli-code\n${email}\n${code}`);
+
 async function apiLogin(req, env) {
   const email = loginEmail((await req.json())?.email);
   if (!email) return json({ error: 'valid email required' }, 400);
-  const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
-  const challenge = await sign({ t: 'challenge', email, codeHash: await hmacHex(env.MASTER_KEY, `${email}\n${code}`), exp: now() + 600 }, env.MASTER_KEY);
+  const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 100000000).padStart(8, '0');
+  const id = randomHex(16);
+  const t = now();
+  try {
+    // Insert only under the per-address cap (3 per 15 minutes, 10 per day) - one statement, so it is atomic.
+    const ins = await env.DB.prepare(
+      `INSERT INTO cli_login_challenges (id, email, code_mac, created_at, expires_at)
+       SELECT ?1, ?2, ?3, ?4, ?5
+       WHERE (SELECT COUNT(*) FROM cli_login_challenges WHERE email = ?2 AND created_at > ?4 - 900) < 3
+         AND (SELECT COUNT(*) FROM cli_login_challenges WHERE email = ?2 AND created_at > ?4 - 86400) < 10`
+    ).bind(id, email, await cliCodeMac(env, email, code), t, t + 600).run();
+    if (ins.meta.changes !== 1) return json({ error: 'Too many login codes requested. Try again later.' }, 429);
+  } catch {
+    return json({ error: CLI_LOGIN_UNAVAILABLE }, 503);
+  }
+  const challenge = await sign({ t: 'challenge', id, exp: t + 600 }, env.MASTER_KEY);
   const sent = await sendEmail(env, email, `small deploy login code: ${code}`, `Your small deploy login code is ${code}\nIt expires in 10 minutes.`);
   if (sent) return json({ challenge });
   // Echoing the code is an auth bypass - only on test/dev instances (SMALL_ENV test|dev plus TEST_BYPASS_SECRET).
   if (testMode(env) && env.TEST_BYPASS_SECRET) return json({ challenge, devCode: code, warning: 'test instance - code echoed' });
-  return json({ error: 'Could not send the login email right now. Try again in a few minutes.' }, 503);
+  // Undelivered: drop the row. Best effort - its id was never handed out, so a leftover row is unusable anyway.
+  try { await env.DB.prepare('DELETE FROM cli_login_challenges WHERE id = ?').bind(id).run(); } catch {}
+  return json({ error: CLI_LOGIN_UNAVAILABLE }, 503);
 }
 
 async function apiVerify(req, env) {
   const { challenge, code } = await req.json();
   const p = await verify(challenge, env.MASTER_KEY);
-  if (!p || p.t !== 'challenge' || p.codeHash !== (await hmacHex(env.MASTER_KEY, `${p.email}\n${String(code)}`))) return json({ error: 'bad or expired code' }, 401);
-  // ponytail: CLI tokens never expire; revoke by rotating MASTER_KEY. Add exp + refresh when it matters.
-  const token = await sign({ t: 'cli', email: p.email, org: orgOf(p.email) }, env.MASTER_KEY);
-  return json({ token, email: p.email, org: orgOf(p.email) });
+  const bad = () => json({ error: 'bad or expired code' }, 401);
+  if (!p || p.t !== 'challenge' || typeof p.id !== 'string') return bad();
+  const t = now();
+  try {
+    // Spend one of the 5 attempts before comparing; no row back = unknown, used, expired or out of attempts.
+    const row = await env.DB.prepare(
+      'UPDATE cli_login_challenges SET attempts = attempts + 1 WHERE id = ? AND used_at IS NULL AND expires_at > ? AND attempts < 5 RETURNING email, code_mac'
+    ).bind(p.id, t).first();
+    if (!row || row.code_mac !== (await cliCodeMac(env, row.email, String(code)))) return bad();
+    const used = await env.DB.prepare('UPDATE cli_login_challenges SET used_at = ? WHERE id = ? AND used_at IS NULL').bind(t, p.id).run();
+    if (used.meta.changes !== 1) return bad(); // a concurrent verify won
+    // ponytail: CLI tokens never expire; revoke by rotating MASTER_KEY. Add exp + refresh when it matters.
+    const token = await sign({ t: 'cli', email: row.email, org: orgOf(row.email) }, env.MASTER_KEY);
+    return json({ token, email: row.email, org: orgOf(row.email) });
+  } catch {
+    return json({ error: 'Could not complete the login right now. Try again in a few minutes.' }, 503);
+  }
 }
 
 // 200 = public, 404 = private or nonexistent, anything else (rate limit, outage) = unknown.
