@@ -520,7 +520,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       }
       // Tutor v1 (LearnTutor.jsx): on the NanoGPT Attention slice the Tutor answers instead of the
       // Learn chat - the learner's own words, and the card they armed or selected.
-      if (tutor) { mirror(await tutor.ask({ raw: raw.trim(), targetId: target?.id || null, opening })); return; }
+      if (tutor) { mirror(await tutor.ask({ raw: raw.trim(), targetId: target?.id || null, opening, signal: flight.signal }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; throw e; })); return; }
       const payload = {
         // The lesson's table of contents. Separate from lesson_snapshot, which
         // is tldraw-shaped and would reject it.

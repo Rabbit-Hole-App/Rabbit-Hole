@@ -1,22 +1,25 @@
 // Tutor v1 visual acceptance (docs/features/tutor-v1-implementation-map.md §7) against the LOCAL
 // stack only - the same one /dive uses (docs/features/dive-v1.md "Run it locally"):
-//   npx wrangler dev -c packages/web/wrangler.dev.jsonc -c packages/control-plane/wrangler.jsonc --local --persist-to .small/tutor-local --port 8791
+//   the app on 8788 and the control plane on 8790, as docs/features/dive-v1.md "Run it locally" starts them
 // Default: the two Tutor routes are stubbed in the browser, so the flows are deterministic and
 // every assertion is on the UI and the context the page sends. --live sends real requests (JEV
-// and the planner need their keys in packages/control-plane/.dev.vars) and only reports.
+// and the planner need their keys in packages/web/.dev.vars, gitignored) and only reports.
 // Usage: node e2e/tutor-slice-check.mjs [outDir] [--live]
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { cardModule, TUTOR_BOARD } from '../src/learn-tutor-claims.js';
 
-const BASE = process.env.TUTOR_BASE || 'http://127.0.0.1:8791';
+const BASE = process.env.TUTOR_BASE || 'http://127.0.0.1:8788';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(BASE)) throw Error('tutor-slice-check runs against the local stack only');
 const args = process.argv.slice(2), LIVE = args.includes('--live');
 const OUT = args.find(arg => !arg.startsWith('--')) || 'tutor-shots';
 mkdirSync(OUT, { recursive: true });
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
-const { session } = await (await fetch(`${BASE}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
+// Sessions are minted on the control plane's own origin (the app origin's P0-B barrier refuses /test/session):
+// the standalone local control plane, SMALL_CP (default http://127.0.0.1:8790).
+const CP = process.env.SMALL_CP || 'http://127.0.0.1:8790';
+const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
 const cookie = `small_session=${session}`;
 const root = await (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Attention (Tutor)' }) })).json();
 const ROOT_URL = `/apps/${root.name}?board=${TUTOR_BOARD}`;
@@ -193,6 +196,14 @@ await ask('I am back.');
 await waitPlan(8);
 await page.getByText('So why do the attention weights add up to one?').first().waitFor();
 await shot('09-gt-d3-back-on-parent');
+
+// ---- a turn that only acts on the canvas still ends in a reply line, never an endless "Thinking..." ----
+nextPlan = () => ({ strategy: 'none', move: 'go_deeper', reason: '', explicit_request: 'Show me the implementation', actions: [{ type: 'show_authored_card', card: 'depth-attention-deep', part_id: 'shapes', mode: 'navigate' }] });
+await select('depth-attention-overview');
+await ask('Show me the implementation again.');
+await waitPlan(9);
+await page.getByText('See the canvas.').first().waitFor({ timeout: 5000 });
+assert.equal(await page.getByText('Thinking...').count(), 0, 'no Tutor reply is left spinning');
 
 await browser.close();
 assert.deepEqual(errors, [], `page errors: ${errors.join(' | ')}`);
