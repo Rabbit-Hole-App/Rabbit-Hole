@@ -1949,7 +1949,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const element = surface.current;
     if (!element) return;
     // An open chat sheet covers the lower part of the view: centre above it.
-    const sheet = element.parentElement?.querySelector('[data-chat-sheet]')?.getBoundingClientRect();
+    // The shell, not the surface's parent: the tools gutter wraps the surface in its own row.
+    const sheet = (shell.current || element.parentElement)?.querySelector('[data-chat-sheet]')?.getBoundingClientRect();
     const h = sheet?.height ? Math.max(120, sheet.top - element.getBoundingClientRect().top) : element.clientHeight;
     setView(v => ({ ...v, x: element.clientWidth / 2 - (box.x + box.w / 2) * v.z, y: h / 2 - (box.y + Math.min(box.h, h / v.z) / 2) * v.z }));
   };
