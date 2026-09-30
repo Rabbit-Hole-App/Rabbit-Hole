@@ -944,8 +944,9 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
       const { bytes, blocks } = await attachmentBlocks(file);
       extraBlocks = blocks;
       // stash the raw bytes so "run it with this image" can feed a file input;
+      // Learn never gets the run tool (toolOpts below), so its attachment is not stashed.
       // ponytail: unapproved uploads linger in R2 - no lifecycle sweep yet
-      if (learnMedia(env)) {
+      if (conversation !== 'learn' && learnMedia(env)) {
         const uploadId = 'u-' + randomHex(6);
         await learnMedia(env).put(`ask-uploads/${uploadId}/${file.name}`, bytes);
         uploadNote = `pending chat attachment: ${file.name} (upload id ${uploadId}) - the run tool can use it for a file-type input via attachment_id + attachment_input`;

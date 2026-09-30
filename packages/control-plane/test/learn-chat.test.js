@@ -8,6 +8,9 @@ import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_L
 import { isUploadedMediaId } from '../src/learn-media.js';
 import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
+import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest } from '../src/ask.js';
+import { learnMedia } from '../src/learn-storage.js';
+import { randomHex } from '../src/token.js';
 import { captureSelection, selectionSnapshot, sigmoidObjects } from '../../web/src/sigmoid-context.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -33,6 +36,11 @@ const deps = {
     return json(metadata);
   },
   ASK_MODELS: {},
+  ATTACHMENT_LIMIT,
+  attachmentBlocks,
+  readAskRequest,
+  learnMedia,
+  randomHex,
   ASK_TOOLS: [],
   LEARN_SYSTEM,
   validateLessonSnapshot,
@@ -676,6 +684,26 @@ test('canvas Learn asks keep their threads in LEARN_DB and never touch the live 
   assert.equal((await ask('canvas-0a1b2c3d', { message: 'Not mine', thread_id: first.threadId }, { ...owner, email: 'colleague@example.test' })).status, 404);
   assert.equal(sqlite.prepare("SELECT count(*) AS n FROM threads WHERE scope_ref='canvas-0a1b2c3d'").get().n, 2);
   assert.equal(env.answers.length, 3);
+});
+
+// Only the Agent's run tool reads ask-uploads/, and Learn is never offered it, so a Learn
+// attachment rides as a model block alone: no stashed copy, no note about a run tool.
+test('a Learn attachment reaches the model as a block, with no ask-uploads copy and no run-tool note', async t => {
+  const env = fixture(t), stored = [];
+  env.LEARN_MEDIA = { put: async key => { stored.push(key); } };
+  const ask = (path, conversation) => {
+    const body = new FormData();
+    body.set('body', JSON.stringify({ scope: { app: 'counter' }, message: 'what is in this picture' }));
+    body.set('file', new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' }), 'diagram.png');
+    return handlers.apiAsk(new Request('https://small.example' + path, { method: 'POST', body }), env, {}, owner, conversation);
+  };
+  assert.equal((await ask('/api/learn/ask', 'learn')).status, 200);
+  assert.equal(env.answers[0].question, 'what is in this picture');
+  assert.equal(env.answers[0].blocks.at(-1).type, 'image');
+  assert.deepEqual(stored, []);
+  assert.equal((await ask('/api/ask', 'agent')).status, 200);
+  assert.match(env.answers[1].question, /the run tool can use it/);
+  assert.match(stored[0], /^ask-uploads\/u-[0-9a-f]+\/diagram\.png$/);
 });
 
 // A dropped image is a source like a paper: bytes as a block, one line of
