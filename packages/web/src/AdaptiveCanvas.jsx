@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, toast } from './ui.jsx';
@@ -25,6 +25,7 @@ import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeEl
 import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
 import LaserPointer from './LaserPointer.jsx';
+import { DivePortals } from './Dive.jsx';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -147,6 +148,8 @@ function outlineOf(shape) {
 // layout observer that keeps connector geometry fresh. Content is children.
 function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, space = 0, connected = null, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, children }) {
   const [lifted, setLifted] = useState(false);
+  // A card with a Rabbit Hole under it (docs/features/dive-v1.md): derived from the dive link, never stored on the card.
+  const dive = useContext(DivePortals), portal = dive?.portals?.[id];
   // A resized node keeps its size in its own data, so a reload restores it.
   const [size, setSize] = useState({ w: saved?.w || null, h: saved?.h || null });
   const card = useRef(null);
@@ -175,8 +178,10 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, s
   return (
     <div ref={card} data-block data-block-id={id} {...(chat ? { 'data-chat-block': true } : {})}
       onPointerDown={event => { if (event.button !== 0) return; if (event.target.closest('[data-drag-zone]')) drag(event); else onSelect(id, event); }}
+      // A card with a Rabbit Hole (saved or still empty): double-click goes down it; a single click still selects.
+      onDoubleClick={portal ? event => { if (!event.target.closest('input, textarea, select, button, [contenteditable="true"]')) dive.enter(portal.name); } : undefined}
       style={{ transform: `translate(${dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, marginTop: space || undefined, width: size.w || width, height: size.h || height ? (size.h || height) + extraHeight : undefined, maxHeight: size.h || height ? undefined : autoMax }}
-      className={`group relative mx-auto flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
+      className={`group relative mx-auto flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${portal ? `outline-2 outline-offset-4 outline-[#b42318] ${portal.pending ? 'outline-dashed' : ''}` : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* Only this strip drags; the body keeps a normal cursor so text can be
           selected and links inside the block stay clickable. */}
       <div data-drag-handle data-drag-zone title="Drag to move this block"
@@ -184,6 +189,9 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, s
         <span className="h-1 w-12 rounded-full bg-line" />
       </div>
       {children}
+      {portal && <button type="button" data-dive-portal={portal.name} title={`Enter the Rabbit Hole: ${portal.title}`} onPointerDown={event => event.stopPropagation()} onClick={() => dive.enter(portal.name)}
+        className="absolute -top-3 left-4 z-20 flex max-w-60 items-center gap-1 rounded-sm border border-[#b42318]/40 bg-white px-2 py-0.5 text-[11px] text-[#912018] shadow-sm hover:bg-[#fef3f2]">
+        <svg aria-hidden="true" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" className="shrink-0"><path d="M6 1.5V10M2.5 6.5 6 10l3.5-3.5" /></svg><span className="truncate">{portal.title}</span></button>}
       {['top', 'bottom'].map(side => <button key={side} type="button" data-port={side} data-owner={id} aria-label={`Connect ${side}`} title="Drag to connect blocks"
         data-node-tool
         className={`absolute left-1/2 z-20 h-4 w-4 -translate-x-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white focus:opacity-100 ${connected?.[side] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${side === 'top' ? '-top-2' : '-bottom-2'}`}
@@ -1051,7 +1059,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -1063,7 +1071,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [chipEdit, setChipEdit] = useState(null); // group id whose chip should open for renaming
   // The tool palette hangs on the right by default; a drag on its handle can
   // park it on either edge. While dragging it follows the pointer.
-  const [toolSide, setToolSide] = useState('right');
+  // Left by default, as Parallel shipped it (caca1c2b); the grip still docks it right.
+  const [toolSide, setToolSide] = useState('left');
   // The toolbar lives in the tools' gutter on that side (never over the
   // canvas); measured so it never rests with a control half-clipped.
   const toolbarRef = useRef(null);
@@ -1177,16 +1186,22 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const measure = () => {
       // The gutter is the canvas row's height; below 640px it is a strip under
       // the canvas and the toolbar scrolls sideways, so nothing to cap.
-      const room = bar.parentElement.clientHeight - 16, pad = 4; // p-1
+      // The Rabbit Hole navigator shares the gutter above it (Dive.jsx); with it the column is
+      // full, so the overview button below (32px and its gap) is reserved too.
+      const slot = bar.parentElement.querySelector('[data-gutter-top]');
+      const room = bar.parentElement.clientHeight - 16 - (slot ? slot.offsetHeight + 48 : 0), pad = 4; // p-1
       if (shell.current?.clientWidth < 640 || bar.scrollHeight <= room) { setToolCap(null); return; }
-      const ends = [...bar.children].map(child => child.offsetTop + child.offsetHeight).filter(end => end + pad <= room);
+      // Measured from the bar's own top: the gutter is the offset parent, and the navigator moves the bar down in it.
+      const ends = [...bar.children].map(child => child.offsetTop - bar.offsetTop + child.offsetHeight).filter(end => end + pad <= room);
       setToolCap(Math.max(0, ...ends) + pad);
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(bar.parentElement);
+    const slot = bar.parentElement.querySelector('[data-gutter-top]');
+    if (slot) observer.observe(slot);
     return () => observer.disconnect();
-  }, [presenting]);
+  }, [presenting, !!gutterTop]);
   const itemsLayer = useRef(null);
   const [level, setLevel] = useState('body');
   // The route the next shape connector takes; the style panel's Line row sets it.
@@ -1273,6 +1288,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   useEffect(() => {
     commandsRef.current = {
       deselect: () => setSelected(null),
+      // /dive: the return point reads and restores these (docs/features/dive-v1.md).
+      getView: () => view, setView, select: id => setSelection([id]), block: id => blocksRef.current.find(block => block.id === id) || null,
       undo, redo, selectAll, deleteSelection, zoomFit, present: startPresenting,
       copy: copySelection,
       paste: () => !!clipboard.current?.length && pasteIds(clipboard.current),
@@ -1633,7 +1650,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const selectedCount = selection.length;
   const units = selectedCount > 1 ? arrangeUnits(selection).length : selectedCount;
   const grouped = selection.some(id => groupOf(id));
-  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, onState]);
+  // The one selected lesson card, for /dive and Ctrl+K; and how many canvas objects exist (chat left out), for a hole's first object.
+  const soleCard = selection.length === 1 ? blocks.find(block => block.id === selection[0]) : null;
+  const card = soleCard ? { id: soleCard.id, title: soleCard.title || describeBlock(soleCard)?.title || '' } : null;
+  const cardKey = JSON.stringify(card), content = strokes.length + shapes.length + items.length + blocks.length;
+  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, card: JSON.parse(cardKey), content }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, cardKey, content, onState]);
   useEffect(() => () => connectionCleanup.current?.(), []);
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = () => {
@@ -2473,7 +2494,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     ...shapes.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) })),
     ...items.map(item => ({ x: item.x, y: item.y, w: item.w || 160, h: item.h || 40 })),
   ];
-  const overviewOpen = minimap && (overview ?? shellWidth >= 1400);
+  // The gutter's overview is the phone strip's; from 641px of canvas the minimap sits lower right in the bottom strip.
+  const overviewOpen = minimap && shellWidth > 0 && shellWidth < 641 && !!overview;
   const onCanvas = presenting === null ? contentBoxes() : [];
   const gaps = gapsFrom(onCanvas);
   const trackGap = event => {
@@ -2775,11 +2797,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           the page's contents rail (edgeInset). Below 640px of canvas it is one
           row under the canvas instead - the toolbar scrolling in it - with the
           overview on the next row. The style panel opens from it. */}
+      {/* The Rabbit Hole navigator's own gutter, top right, while the tools dock left (Dive.jsx). */}
+      {presenting === null && gutterTop && toolSide === 'left' && <div data-dive-gutter className="flex w-[84px] shrink-0 flex-col items-end pt-3 pr-2 @max-[640px]:hidden">{gutterTop}</div>}
       {presenting === null && (
         <div ref={gutter} data-tool-gutter
           // Docked right it mirrors the left side (84/192px, 8px in from the edge) and clears the contents rail (edgeInset); the full-bleed Learn shell has no page padding for a hang.
           style={{ '--edge': `${edgeInset || 0}px` }}
           className={`relative flex shrink-0 flex-col justify-center gap-2 ${toolSide === 'left' ? `order-first items-start pl-2 ${overviewOpen ? 'w-[192px]' : 'w-[84px]'}` : `items-end pr-2 mr-(--edge) ${overviewOpen ? 'w-[192px]' : 'w-[84px]'}`} @max-[640px]:order-none @max-[640px]:mr-0 @max-[640px]:grid @max-[640px]:w-full @max-[640px]:grid-cols-[auto_minmax(0,1fr)_auto] @max-[640px]:items-center @max-[640px]:pt-2 @max-[640px]:pl-0`}>
+        {/* The Rabbit Hole navigator (Dive.jsx): top of the gutter, the tools centred in the rest. */}
+        {/* Top of the tools gutter: the Rabbit Hole navigator when the tools dock right. Canvas home is the page's top-left corner (LearnPage). */}
+        <div data-gutter-top className={`mb-auto flex flex-col gap-3 ${import.meta.env.VITE_COACHING_DEV === 'true' ? 'pt-12' : 'pt-3'} @max-[640px]:hidden ${toolSide === 'left' ? 'items-start self-start' : 'items-end self-end'}`}>
+          {toolSide === 'right' && gutterTop}
+        </div>
         {/* Dev-only workbench: drop any lesson block on the canvas to review its
             look before lessons are assembled. */}
         {!readOnly && import.meta.env.VITE_COACHING_DEV === 'true' && (
@@ -2845,7 +2874,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {minimap && (
           <button type="button" aria-label={overviewOpen ? 'Hide overview' : 'Show overview'} title={overviewOpen ? 'Hide overview' : 'Show overview'}
             aria-expanded={overviewOpen} onClick={() => setOverview(!overviewOpen)}
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-line shadow-md hover:text-ink @max-[640px]:col-start-3 @max-[640px]:mr-0 ${overviewOpen ? 'bg-hover text-ink' : 'bg-white text-ink-2'}`}>
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-line shadow-md hover:text-ink @min-[641px]:hidden @max-[640px]:col-start-3 @max-[640px]:mr-0 ${overviewOpen ? 'bg-hover text-ink' : 'bg-white text-ink-2'}`}>
             <MapIcon size={15} strokeWidth={1.7} />
           </button>
         )}
@@ -2856,6 +2885,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />
           </div>
         )}
+        <div aria-hidden="true" className="mt-auto @max-[640px]:hidden" />
         {!readOnly && showStyle && (
           <StylePanel side={toolSide} text={panel.text} showFill={panel.fill} fill={fill} corners={panel.corners} order={panel.order}
             route={panel.route} routeValue={panel.routeValue}
@@ -2896,8 +2926,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           </div>
         </div>
       )}
-      {/* The zoom pill and the composer share one lower edge (the overview
-          lives in the tools' gutter). The composer is the primary surface, so
+      {/* The zoom pill, the composer and the minimap share one lower edge (on a
+          phone the overview lives in the tools' strip instead). The composer is the primary surface, so
           no control may cover it: the pill sits in its own flex column beside
           it (the two side columns grow equally, keeping the composer centred
           while there is room), and on a phone the pill takes its own compact
@@ -2918,7 +2948,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {/* The shared composer shell's footprint: DOCK_WIDTH in a DOCK_PAD strip (ChatComposer.jsx). */}
         {composer && <div data-canvas-composer className={`${DOCK_WIDTH} min-w-0 md:mx-0 md:shrink`}>{composer}</div>}
         {/* Balances the pill's column so the composer stays centred. */}
-        <div aria-hidden className="hidden md:block md:flex-1 md:basis-0" />
+        {/* Lower right, level with the composer (Parallel caca1c2b), but in flow: the strip grows to hold it, so it never covers the canvas. */}
+        <div data-canvas-minimap className="hidden md:flex md:flex-1 md:basis-0 md:justify-end @max-[640px]:hidden" style={minimap ? { minWidth: 184 } : undefined}>
+          {minimap && <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
+            surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
+            onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />}
+        </div>
       </div>}
     </div>
   );

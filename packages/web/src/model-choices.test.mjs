@@ -13,7 +13,7 @@ test('the picker offers exactly the server allowlist keys, each with a label and
 });
 
 // models-5: where the model is chosen, the copy says it reaches chat answers only.
-test('the Settings default model and the Learn chat model pill say the pick applies to chat answers only', async () => {
+test('the Settings default model says the pick applies to chat answers only; Learn shows no model at all', async () => {
   const { readFileSync } = await import('node:fs');
   const { MODEL_SCOPE } = await import('./model-choices.js');
   assert.match(MODEL_SCOPE, /chat answers only/);
@@ -21,5 +21,14 @@ test('the Settings default model and the Learn chat model pill say the pick appl
   const sidebar = readFileSync(new URL('./Sidebar.jsx', import.meta.url), 'utf8');
   assert.match(sidebar, /<SettingsRow title="Default model" desc=\{`New chats start on this model; you can still switch per message\. \$\{MODEL_SCOPE\}`\}>/);
   const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
-  assert.match(ask, /title=\{privateChat \? chatConfig\.model : learnChat \? MODEL_SCOPE : undefined\}/);
+  // Users choose intent, Rabbit Hole chooses the model: Learn sends auto, and its / command button sits where the pill was.
+  assert.match(ask, /useState\(\(\) => privateChat \|\| learnChat \? 'auto'/);
+  assert.match(ask, /const chatControl = learnChat \? slashControl : modelControl;/);
+  assert.doesNotMatch(ask, /\{dock && modelControl\}|trailing=\{dock \? null : modelControl\}/);
+  // The slot is Auto (not a model: it opens the command palette) or the chosen command as a pill whose × keeps the text,
+  // and a pill sends exactly "/command text".
+  assert.match(ask, /aria-label="Auto" title="Auto: Rabbit Hole picks the action/);
+  assert.match(ask, /data-command-pill/);
+  assert.match(ask, /aria-label=\{`Remove \/\$\{command\}`\} title="Back to Auto" onMouseDown=\{event => event\.preventDefault\(\)\} onClick=\{\(\) => \{ setCommand\(null\); inputRef\.current\?\.focus\(\); \}\}/);
+  assert.match(ask, /const line = `\/\$\{command\} \$\{raw\.trim\(\)\}`\.trim\(\);/);
 });

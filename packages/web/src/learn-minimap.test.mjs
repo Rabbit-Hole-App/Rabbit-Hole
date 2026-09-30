@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { minimapLayout } from './learn-minimap.js';
+import { minimapLayout, minimapToView } from './learn-minimap.js';
 
 const surface = { w: 1000, h: 500 };
 const size = { w: 180, h: 120 };
@@ -60,4 +60,18 @@ test('a degenerate box does not produce NaN', () => {
   for (const value of [layout.boxes[0].x, layout.boxes[0].y, layout.view.x, layout.view.w]) {
     assert.ok(Number.isFinite(value), `${value} is finite`);
   }
+});
+
+// The NanoGPT board is ~25 cards in one ~20000px column: fitted whole it was a hairline.
+test('a very tall canvas keeps a usable width, and the frame follows the viewport down the column', () => {
+  const column = Array.from({ length: 25 }, (_, i) => ({ x: 0, y: i * 800, w: 1100, h: 760 }));
+  const inner = size.w - 12;
+  const top = minimapLayout(column, { x: 0, y: 0, z: 1 }, surface, size);
+  assert.ok(top.boxes[0].w >= 0.45 * inner - 0.5, `content ${top.boxes[0].w}px wide of ${inner}`);
+  const deep = minimapLayout(column, { x: 0, y: -12000, z: 1 }, surface, size);
+  for (const layout of [top, deep]) assert.ok(layout.view.y >= 0 && layout.view.y + layout.view.h <= size.h, 'the viewport stays inside the frame');
+  assert.ok(deep.offsetY < top.offsetY, 'the frame scrolled down with the viewport');
+  // A press still sends the camera where it points.
+  const back = minimapToView({ x: deep.view.x + deep.view.w / 2, y: deep.view.y + deep.view.h / 2 }, deep, surface, 1);
+  assert.ok(Math.abs(back.y + 12000) < 2, `${back.y}`);
 });

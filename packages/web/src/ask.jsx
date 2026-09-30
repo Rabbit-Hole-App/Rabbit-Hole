@@ -9,7 +9,7 @@ import { ArrowUp, AtSign, BookOpen, Check, Copy, Crown, Feather, FileText, Globe
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { MathText, tokenizeMath } from './MathText.jsx';
-import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
+import { MODEL_CHOICES } from './model-choices.js';
 import { canvasTargetField } from './learn-ask-target.js';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
@@ -348,6 +348,18 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const [sheetHistory, setSheetHistory] = useState(false);
   const sheetThread = useRef(null);
   const [input, setInput] = useState('');
+  // Learn's command slot (owner 2026-09-30): Auto, or the chosen command as a removable pill. The command
+  // is structured state beside the text, never parsed back out of it. `stash` keeps the typed text while
+  // the palette is open over it, so choosing or closing gives it back.
+  const [command, setCommand] = useState(null);
+  const stash = useRef(null);
+  const setComposerInput = (value) => {
+    const chosen = slash && value.match(/^\/([\w-]+) $/);
+    if (chosen && slash.isCommand?.(chosen[1])) { setCommand(chosen[1]); setInput(stash.current ?? ''); stash.current = null; return; }
+    if (value === '' && stash.current !== null) { setInput(stash.current); stash.current = null; return; }
+    setInput(value);
+  };
+  const openPalette = () => { if (!input.startsWith('/')) { stash.current = input; setInput('/'); } inputRef.current?.focus(); };
   const [busy, setBusy] = useState(false);
   const [blockCopy, setBlockCopy] = useState(null);
   useEffect(() => {
@@ -374,7 +386,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const srcOpts = repository || canvasChat ? [] : (privateChat ? PRIVATE_SOURCE_OPTIONS : SOURCE_OPTIONS)[scopeKind] || [];
   const [srcOn, setSrcOn] = useState(() => new Set(srcOpts.map(([k]) => k)));
   const [srcOpen, setSrcOpen] = useState(false);
-  const [model, setModel] = useState(() => privateChat ? 'auto' : localStorage.getItem('small.askModel') || 'auto'); // Settings > Small AI sets the default
+  // Learn never shows a model: users choose intent, Rabbit Hole chooses the model (the server's auto routing).
+  const [model, setModel] = useState(() => privateChat || learnChat ? 'auto' : localStorage.getItem('small.askModel') || 'auto'); // Settings > Small AI sets the default
   const modelOptions = privateChat ? [['auto', 'Bedrock']] : MODELS;
   const [modelOpen, setModelOpen] = useState(false);
   const [appNames, setAppNames] = useState(null); // lazy, for @-mentions
@@ -444,7 +457,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // Stop (the docked shell): aborts the answer being streamed.
   const answerFlight = useRef(null);
   const send = async (raw, scopeOverride) => {
-    if (slash && raw.trim().startsWith('/') && slashRef.current?.intercept(raw)) return;
+    // A chosen command pill sends exactly "/command text" (LearnSlash runs it); the pill goes back to Auto.
+    // A typed /command replaces the pill rather than nesting inside it.
+    if (slash && command && !raw.trim().startsWith('/')) { const line = `/${command} ${raw.trim()}`.trim(); setCommand(null); setInput(''); slashRef.current?.intercept(line); return; }
+    if (slash && raw.trim().startsWith('/')) { setCommand(null); if (slashRef.current?.intercept(raw)) return; }
     // @-chips ride at the front of the message text
     const message = [...mentions.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     if (!message || busy) return;
@@ -610,7 +626,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <div className="relative shrink-0">
             <button
               type="button"
-              title={privateChat ? chatConfig.model : learnChat ? MODEL_SCOPE : undefined}
+              title={privateChat ? chatConfig.model : undefined}
               onMouseDown={(e) => { e.stopPropagation(); setModelOpen(!modelOpen); }}
               className={cn(dock ? COMPOSER_PILL : 'h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', modelOpen && 'bg-active text-ink')}
             >
@@ -628,6 +644,18 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             </Menu>
           </div>
   );
+  // Learn's command slot: Auto (Rabbit Hole picks the action and the model) opens the same palette typing / does;
+  // a chosen command sits here as a pill - its name reopens the palette to swap it, × goes back to Auto and keeps the text.
+  const slashControl = slash && (command
+    ? <span data-command-pill className={cn(dock ? 'h-9 rounded-lg pl-2.5 text-sm max-md:pl-1.5' : 'h-6 rounded-full pl-2 text-xs', 'inline-flex shrink-0 items-center border border-line bg-hover text-ink')}>
+        <button type="button" title="Change the command" onMouseDown={event => event.preventDefault()} onClick={openPalette} className="cursor-pointer font-medium">/{command}</button>
+        <button type="button" aria-label={`Remove /${command}`} title="Back to Auto" onMouseDown={event => event.preventDefault()} onClick={() => { setCommand(null); inputRef.current?.focus(); }}
+          className={cn(dock ? 'mx-1 h-7 w-7' : 'mx-0.5 h-5 w-5', 'flex cursor-pointer items-center justify-center rounded-md text-ink-3 hover:bg-white hover:text-ink')}><X size={13} /></button>
+      </span>
+    : <button type="button" aria-label="Auto" title="Auto: Rabbit Hole picks the action. Choose a command" aria-expanded={input.startsWith('/')}
+        onMouseDown={event => event.preventDefault()} onClick={() => (input.startsWith('/') ? setComposerInput('') : openPalette())}
+        className={cn(dock ? COMPOSER_PILL : 'h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', input.startsWith('/') && 'bg-active text-ink')}>Auto</button>);
+  const chatControl = learnChat ? slashControl : modelControl;
   if (repository && filePeek) contentPanel = <RepositorySource appName={fileApp} {...filePeek} commit={repositoryCommit || repositoryContext?.commit} onClose={() => setFilePeek(null)} />;
   return (
     <div className={cn('flex min-h-0 flex-col', compact ? 'max-h-[320px]' : 'flex-1', sheetMode && 'relative')}>
@@ -896,8 +924,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <img src={boardContext.preview} alt={boardContext.previewKind === 'paper' ? 'Selected paper region' : 'Selected canvas preview'} className="h-20 w-28 rounded-lg border border-line bg-white object-contain" />
           <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
         </div>}
-        {slash && <div className="relative"><slash.Picker apiRef={slashRef} input={input} setInput={setInput} target={canvasTarget} run={slash.run} onPrompt={prompt => send(prompt)} /></div>}
-        <ChatComposer value={input} onChange={value => { boardContext?.pause(); setInput(value); }} onSubmit={send} onKeyDown={slash ? event => slashRef.current?.onKeyDown(event) : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={placeholder} busy={busy}
+        {slash && <div className="relative"><slash.Picker apiRef={slashRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onPrompt={prompt => send(prompt)} /></div>}
+        <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command}
+          onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event); } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? 'Add details, or press Enter' : placeholder} busy={busy}
           dock={dock} onStop={dock ? () => answerFlight.current?.abort() : undefined}
           leading={<>
           <div className="relative shrink-0">
@@ -957,9 +986,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               </Menu>
             </div>
           )}
-          {dock && modelControl}
+          {dock && chatControl}
           </>}
-          trailing={dock ? null : modelControl}
+          trailing={dock ? null : chatControl}
         />
       </div>
       </>)}

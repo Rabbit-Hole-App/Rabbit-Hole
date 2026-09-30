@@ -1,17 +1,17 @@
-// Canvas utilities (the tools and the overview minimap) never cover canvas
-// content, checked on a DEPLOYED board.
-// Desktop (the review viewport, 1720 x 1100): the widest card is panned hard
-// right; the toolbar and the overview sit wholly outside the canvas surface -
-// collapsed by default at this width, and still outside once opened - and at
-// points along the card's visible right edge the element on top is the card.
-// A wheel over empty gutter space pans the canvas; the tools still work; zoom
-// stays 100%. Wide screen (2200 x 1200): the overview is open by default and
-// outside the canvas. Phone (390 x 844): the canvas has a real working height,
-// the tools are a scrolling strip below it, the overview opens below the strip
-// (not over the card), the zoom controls sit clear of the composer (a tap on the
-// "Ask about" input reaches the input) and of the canvas, and the table of
-// contents is reachable by scrolling.
+// Canvas utilities never cover canvas content (docs/features/learn-canvas-blocks.md), on the restored
+// shell (2026-09-30): the tools in the left gutter, the Rabbit Hole navigator in the right gutter, the
+// minimap lower right in the bottom strip beside the composer, a back button in the top-left corner.
+// Desktop (the review viewport, 1720 x 1100): the widest card is panned hard right, then hard left; the
+// card is on top all along each canvas edge, the tools, navigator and minimap sit wholly outside the
+// canvas surface, the minimap clears the composer. A wheel over empty gutter space pans the canvas;
+// the tools still work; zoom stays 100%. Wide screen (2200 x 1200): the same shell. Phone (390 x 844):
+// the canvas has a real working height, the tools are a scrolling strip below it, the overview opens
+// below the strip (not over the card), the zoom controls sit clear of the composer (a tap on the
+// "Ask about" input reaches the input) and of the canvas, and the table of contents is reachable.
 //
+// It reads and pans only. Against the local stack (127.0.0.1) it signs in with the local control
+// plane's secret and makes its own canvas with the board; against a deployed review worker it uses
+// the root .env SMALL_TEST_BYPASS and the nanoGPT project board, as before.
 // Usage: node e2e/canvas-toolbar-check.mjs <deployed-base> <board> <outDir>
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -19,11 +19,17 @@ import { BOARDS } from '../src/demo-scenes.js';
 import { reveal } from './canvas-reveal.mjs';
 
 const [, , base, board, OUT] = process.argv;
-if (!base || !board || !OUT) throw new Error('usage: node e2e/canvas-toolbar-check.mjs <deployed-base> <board> <outDir>');
+if (!base || !board || !OUT) throw new Error('usage: node e2e/canvas-toolbar-check.mjs <base> <board> <outDir>');
+const local = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(base);
 mkdirSync(OUT, { recursive: true });
-const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
+const secret = local
+  ? readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)?.[1]?.trim()
+  : readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
 const { session } = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-toolbar-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
-if (!session) throw new Error('no session from deployed worker');
+if (!session) throw new Error('no session from the worker');
+const learnPath = local
+  ? `/apps/${(await (await fetch(`${base}/api/canvases`, { method: 'POST', headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Toolbar check' }) })).json()).name}?board=${board}`
+  : `/apps/repo-06745f10-nanogpt?tab=learn&board=${board}`;
 const cards = BOARDS[board]().filter(block => block.scene);
 const failures = [];
 const fail = message => { failures.push(message); console.log(`  ✗ ${message}`); };
@@ -37,10 +43,16 @@ const geometry = page => page.evaluate(() => {
     surface: box(document.querySelector('[data-canvas-surface]')),
     gutter: box(document.querySelector('[data-tool-gutter]')),
     toolbar: box(document.querySelector('[role="toolbar"][aria-label="Canvas tools"]')),
-    overview: box(document.querySelector('[aria-label="Canvas overview"]')?.parentElement),
+    // The gutter overview is the phone strip's; the desktop minimap is the bottom strip's.
+    overview: box(document.querySelector('[data-tool-gutter] [aria-label="Canvas overview"]')?.parentElement),
+    minimap: (() => { const r = document.querySelector('[data-canvas-minimap] [aria-label="Canvas overview"]')?.getBoundingClientRect(); return r && r.width ? { x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom } : null; })(),
+    navigator: box(document.querySelector('[data-dive-navigator]')),
+    composer: box(document.querySelector('[data-canvas-composer]')),
+    back: box(document.querySelector('[data-learn-back]')),
     zoom: document.querySelector('[title="Reset zoom"]')?.textContent?.trim(),
   };
 });
+const utilities = '[role="toolbar"],[data-tool-gutter],[data-dive-gutter],[data-dive-navigator],[data-canvas-minimap]';
 const disjoint = (a, b) => !a || !b || a.right <= b.x || b.right <= a.x || a.bottom <= b.y || b.bottom <= a.y;
 const round = box => box && Object.fromEntries(Object.entries(box).map(([k, v]) => [k, Math.round(v)]));
 
@@ -48,7 +60,7 @@ async function open(viewport) {
   const context = await browser.newContext({ viewport });
   await context.addCookies([{ name: 'small_session', value: session, domain: new URL(base).hostname, path: '/' }]);
   const page = await context.newPage();
-  await page.goto(`${base}/apps/repo-06745f10-nanogpt?tab=learn&board=${board}`);
+  await page.goto(`${base}${learnPath}`);
   const canvas = page.locator('[aria-label="Lesson canvas"]');
   await canvas.waitFor({ timeout: 30000 });
   await page.getByText(cards[0].title).first().waitFor({ timeout: 30000 });
@@ -57,11 +69,11 @@ async function open(viewport) {
 }
 const cardLocator = (canvas, block) => canvas.locator('[data-block-id]:not([data-chat-block])').filter({ hasText: block.title }).first();
 
-// Push a card until its right edge runs `past` px beyond the surface's right edge.
-async function pushRight(page, card, past) {
+// Push a card until one edge runs `past` px beyond the surface's edge on that side.
+async function pushRight(page, card, past, side = 'right') {
   for (let i = 0; i < 20; i += 1) {
     const g = await geometry(page), box = await card.boundingBox();
-    const dx = box.x + box.width - (g.surface.right + past);
+    const dx = side === 'right' ? box.x + box.width - (g.surface.right + past) : box.x - (g.surface.x - past);
     if (Math.abs(dx) < 4) return;
     await page.mouse.move(g.surface.x + 40, g.surface.y + g.surface.h / 2);
     await page.mouse.wheel(dx, 0);
@@ -69,17 +81,18 @@ async function pushRight(page, card, past) {
   }
 }
 // Probe points along the surface's right edge, level with the card: the card must be on top.
-async function probeEdge(page, card, title, label) {
+async function probeEdge(page, card, title, label, side = 'right') {
   const g = await geometry(page), box = await card.boundingBox();
   let probes = 0, onCard = 0;
-  for (const x of [g.surface.right - 2, g.surface.right - 30, g.surface.right - 60]) {
+  const xs = side === 'right' ? [g.surface.right - 2, g.surface.right - 30, g.surface.right - 60] : [g.surface.x + 2, g.surface.x + 30, g.surface.x + 60];
+  for (const x of xs) {
     for (const f of [0.2, 0.4, 0.5, 0.6, 0.8]) {
       const y = Math.max(g.surface.y + 4, Math.min(g.surface.bottom - 4, box.y + box.height * f));
       probes += 1;
-      const hit = await page.evaluate(([px, py, t]) => {
+      const hit = await page.evaluate(([px, py, t, u]) => {
         const el = document.elementFromPoint(px, py);
-        return { card: !!el?.closest('[data-block-id]')?.textContent?.includes(t), utility: !!el?.closest('[role="toolbar"],[data-tool-gutter]') };
-      }, [x, y, title]);
+        return { card: !!el?.closest('[data-block-id]')?.textContent?.includes(t), utility: !!el?.closest(u) };
+      }, [x, y, title, utilities]);
       if (hit.utility) fail(`${label}: a canvas utility is on top at (${Math.round(x)}, ${Math.round(y)})`);
       if (hit.card) onCard += 1;
     }
@@ -99,27 +112,29 @@ async function probeEdge(page, card, title, label) {
   await pushRight(page, card, 120);
   let g = await geometry(page);
   let box = await card.boundingBox();
-  if (!(box.x + box.width > g.surface.right + 60 && box.y < g.toolbar.bottom && box.y + box.height > g.toolbar.y)) fail(`desktop: the card was not panned under the toolbar's side (${JSON.stringify(round(box))})`);
+  if (!(box.x + box.width > g.surface.right + 60)) fail(`desktop: the card was not panned past the right edge (${JSON.stringify(round(box))})`);
+  // The restored shell: tools left of the canvas, navigator right of it, minimap below it and right of the composer.
+  if (!(g.toolbar.right <= g.surface.x + 0.5)) fail(`desktop: the tools ${JSON.stringify(round(g.toolbar))} are not in the left gutter`);
   if (!disjoint(g.toolbar, g.surface)) fail(`desktop: toolbar ${JSON.stringify(round(g.toolbar))} overlaps the canvas ${JSON.stringify(round(g.surface))}`);
-  // The rule, not the viewport: the overview opens by default when the canvas (surface + gutter)
-  // is at least 1400px wide. The immersive WP7 Learn shell gives the canvas the full 1720px width.
-  const canvasWidth = g.surface.w + g.gutter.w, openByRule = canvasWidth >= 1400;
-  if (!!g.overview !== openByRule) fail(`desktop: the overview is ${g.overview ? 'open' : 'collapsed'} by default on a ${Math.round(canvasWidth)}px canvas; the 1400px rule says ${openByRule ? 'open' : 'collapsed'}`);
-  if (g.overview) { await page.getByRole('button', { name: 'Hide overview', exact: true }).click(); await page.waitForTimeout(400); await pushRight(page, card, 120); g = await geometry(page); }
-  if (!disjoint(g.overview, g.surface)) fail('desktop: the overview overlaps the canvas');
+  if (g.navigator && !(g.navigator.x >= g.surface.right - 0.5)) fail(`desktop: the navigator ${JSON.stringify(round(g.navigator))} is not in the right gutter`);
+  if (!g.minimap) fail('desktop: no minimap in the lower right');
+  else {
+    if (!(g.minimap.y >= g.surface.bottom - 0.5)) fail(`desktop: the minimap ${JSON.stringify(round(g.minimap))} is not below the canvas`);
+    if (!disjoint(g.minimap, g.composer) || g.minimap.x < g.composer.right) fail('desktop: the minimap does not clear the composer');
+    if (g.minimap.w < 150) fail(`desktop: the minimap is only ${Math.round(g.minimap.w)}px wide`);
+  }
+  if (g.overview) fail('desktop: the gutter overview is open; the desktop minimap is the bottom strip\'s');
+  if (!g.back || g.back.x > 24 || g.back.y > 24) fail('desktop: no back button in the top-left corner');
   if (g.zoom !== '100%') fail(`desktop: zoom is ${g.zoom}, not 100%`);
-  const collapsed = { surface: round(g.surface), toolbar: round(g.toolbar), ...(await probeEdge(page, card, widest.block.title, 'desktop, overview collapsed')) };
-
-  // Open the overview: it takes gutter space, the canvas narrows, nothing floats over the card.
-  await page.getByRole('button', { name: 'Show overview', exact: true }).click();
-  await page.waitForTimeout(400);
-  await pushRight(page, card, 120);
-  g = await geometry(page);
-  if (!g.overview) fail('desktop: Show overview did not open it');
-  if (!disjoint(g.overview, g.surface)) fail(`desktop: the open overview ${JSON.stringify(round(g.overview))} overlaps the canvas ${JSON.stringify(round(g.surface))}`);
-  if (!disjoint(g.toolbar, g.surface)) fail('desktop: with the overview open the toolbar overlaps the canvas');
-  const opened = { surface: round(g.surface), overview: round(g.overview), ...(await probeEdge(page, card, widest.block.title, 'desktop, overview open')) };
-  await page.screenshot({ path: `${OUT}/desktop-wide-card-toolbar-overview.png`, clip: { x: Math.max(0, g.surface.right - 820), y: g.surface.y, width: Math.min(1100, g.gutter.right + 40 - Math.max(0, g.surface.right - 820)), height: Math.min(1000, g.surface.h) } });
+  const right = { surface: round(g.surface), toolbar: round(g.toolbar), minimap: round(g.minimap), ...(await probeEdge(page, card, widest.block.title, 'desktop, right edge')) };
+  await page.screenshot({ path: `${OUT}/desktop-wide-card-right-edge.png` });
+  // Hard left: the tools' side.
+  await pushRight(page, card, 120, 'left');
+  box = await card.boundingBox(); g = await geometry(page);
+  if (!(box.x < g.surface.x - 60)) fail(`desktop: the card was not panned past the left edge (${JSON.stringify(round(box))})`);
+  const left = { ...(await probeEdge(page, card, widest.block.title, 'desktop, left edge', 'left')) };
+  await page.screenshot({ path: `${OUT}/desktop-wide-card-left-edge.png` });
+  const opened = left;
 
   // Wheel over empty gutter space pans the canvas.
   const empty = await page.evaluate(() => {
@@ -144,19 +159,19 @@ async function probeEdge(page, card, title, label) {
   const armed = await page.getByRole('button', { name: 'Pen', exact: true }).getAttribute('aria-pressed');
   await page.getByRole('button', { name: 'Select and move', exact: true }).click();
   if (armed !== 'true') fail('desktop: the pen tool did not arm');
-  results.desktop = { card: widest.block.title, cardWidth: Math.round(widest.width), zoom: g.zoom, collapsed, opened, penArmed: armed === 'true' };
-  console.log(`desktop: "${widest.block.title}" (${Math.round(widest.width)}px) pushed past the edge; toolbar and overview outside the canvas (collapsed ${collapsed.onCard}/${collapsed.probes}, open ${opened.onCard}/${opened.probes} edge probes on the card); gutter wheel moved ${results.gutterWheel?.moved}px; pen arms; zoom ${g.zoom}`);
+  results.desktop = { card: widest.block.title, cardWidth: Math.round(widest.width), zoom: g.zoom, right, left: opened, penArmed: armed === 'true' };
+  console.log(`desktop: "${widest.block.title}" (${Math.round(widest.width)}px) pushed past both edges; tools left, navigator right, minimap lower right, all outside the canvas (right ${right.onCard}/${right.probes}, left ${opened.onCard}/${opened.probes} edge probes on the card); gutter wheel moved ${results.gutterWheel?.moved}px; pen arms; zoom ${g.zoom}`);
   await context.close();
 }
 
-// --- wide screen: the overview is open by default, beside the tools ---
+// --- wide screen: the same shell ---
 {
   const { context, page } = await open({ width: 2200, height: 1200 });
   const g = await geometry(page);
-  if (!g.overview) fail(`wide: the overview is not open by default (canvas ${Math.round(g.surface.w + g.gutter.w)}px)`);
-  if (!disjoint(g.overview, g.surface) || !disjoint(g.toolbar, g.surface)) fail('wide: a utility overlaps the canvas');
-  results.wide = { surface: round(g.surface), overview: round(g.overview), toolbar: round(g.toolbar) };
-  console.log(`wide: overview open by default beside the tools, outside the canvas`);
+  if (!g.minimap || !(g.minimap.y >= g.surface.bottom - 0.5)) fail('wide: no minimap below the canvas in the lower right');
+  if (!disjoint(g.toolbar, g.surface) || (g.navigator && !disjoint(g.navigator, g.surface))) fail('wide: a utility overlaps the canvas');
+  results.wide = { surface: round(g.surface), minimap: round(g.minimap), toolbar: round(g.toolbar), navigator: round(g.navigator) };
+  console.log('wide: tools left, navigator right, minimap lower right, all outside the canvas');
   await context.close();
 }
 

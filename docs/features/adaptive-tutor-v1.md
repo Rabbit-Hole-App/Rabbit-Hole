@@ -555,7 +555,7 @@ LearnerTurn
   current_location:
     concept: attention
     depth: guided
-    current_card: attention-mask-step
+    current_card: depth-attention-guided   # authored card id (evidence.card)
   prior_exposure: [query/key/value, q·k scores, scaling, causal mask]
   evidence:
     - failed causal-mask check twice
@@ -600,7 +600,7 @@ extra context; it is never presented as user-authored text.
 Avoid labels such as "visual learner", "beginner forever", "weak at math" or
 "advanced user". Prefer temporary evidence tied to a specific concept:
 `understood`, `uncertain`, `misconception`, `prerequisite_gap`,
-`not_observed`. Route per turn and per piece of evidence, never by a
+`not_yet_observed`. Route per turn and per piece of evidence, never by a
 permanent "learning style".
 
 ### Bounded context
@@ -662,6 +662,93 @@ learning context before deciding what to do.
 
 Do not make learners repeatedly restate what they already learned, where they
 are, or what they are struggling with.
+
+## Current frozen Learn/Card system available to Tutor
+
+Status: a record of what exists at the NC10 freeze (Cards ref feat/canvas-block-conversations
+cbec3bef, merged into feature/final-integration f1c8c194). It adds no Tutor behaviour and changes no
+policy above; it lists what the Tutor Agent can build on and what it must not assume exists.
+Everything here is current runtime capability unless it says "eventually": a future Tutor capability
+built on it is not implied to exist today.
+
+**Depth describes content, never the learner.** `DEPTHS = Overview · Guided · Deep dive`
+(packages/web/src/nanogpt/depth/board.js). Six concepts, three depths each, 18 cards: tokenization,
+architecture, attention, residual-layernorm, training-loss, generation. Beside it, the 25-card
+nanogpt-deep-dive sequence (c01–c26, no c08). A move may say "here is the Guided version of this
+card"; it never says or stores "beginner", "intermediate" or "advanced learner". What the learner
+understands is recorded only as T1 evidence states (understood · uncertain · misconception ·
+prerequisite_gap · not_yet_observed), per concept and claim, never as a depth.
+
+**Stable semantic IDs**
+- Card: two identifiers, never interchangeable. `scene.id` is the runtime scene and board-block
+  identity; `evidence.card` is the authored card identity that relationships and transitions use.
+  On deep-dive cards they normally differ (`scene.id` `nanogpt-c11-causal-mask`, `evidence.card`
+  `c11-causal-mask`; c06 is the exception, both `c06-tokenizer`). On depth cards they are equal
+  (`depth-attention-deep`).
+- Card metadata: every card module exports `scene`, `sources` and `evidence` (including
+  `evidence.concept`), most export `reviewStates`, and cards with practice export `activity`. Some
+  authored cards also expose `plan` (concept, objective, prerequisites); the depth cards do not.
+  `evidence` and the `conceptId`s on scene objects are the more broadly available semantic
+  metadata.
+- Sub-card: the six paged Deep modules export `partIds` (e.g. Attention Deep: `shapes`,
+  `causal-mask`, `memory`, `scaling`). `partIndex(card, id)` returns the pager index, or null →
+  open the whole card at its default part (a fallback, never an error).
+- Source refs: `sources` holds pinned code ranges (file + line span at nanoGPT@3adf61e) and doc/paper
+  entries with a URL; `evidence` holds `{ card, title, learningQuestion, concept, sourceRevision,
+  provenance }`, and provenance already separates source value, calculated toy example, recorded
+  toy run, live calculation and What-if (T16).
+
+**Observable interaction and evidence (today)**
+
+| Signal | Where it lives | Visible to the agent today |
+|---|---|---|
+| Sub-card being read | pager input on the block | "Showing sub-card i of n: label" |
+| Input state | `block.inputs` + `inputRevision` | learner-visible labels and values, plus locally computed values |
+| Practice draft / open attempt | `activityAnswer`, `activityOpen`, `practiceActive` | status: no answer yet / in progress |
+| Practice attempt | `block.attemptLog`, append-only: `{ taskVersion, answer, practiceInputs?, inputRevision, result: passed \| failed }` | status, attempt count, the learner's committed answer — never the expected value |
+| Retry / reset | New attempt reopens (log kept); Reset returns the experiment to its defaults (keeps the sub-card and practice-locked inputs, clears the selection) | via the fields above |
+| Selection | `selectedObject`, object semantic ids | yes (T13, partial) |
+| Card viewed / dwell | not recorded | no |
+
+Card practice is graded deterministically by a closed predicate set (`set_equals`, `index_equals`,
+`choice_equals`, `projection_zero`); no model grades card practice, and "not ready" is distinct from
+a failed attempt. This is J4's deterministic rung, and card practice asks about a case the card
+does not draw. How a card attempt maps to a T1 record (e.g. `demonstrated_in_transfer`) is for the
+Tutor Agent to settle against T19; attempts carry no timestamp or concept tag yet (the nearest keys
+are the card's authored `evidence.card` and the `conceptId`s on its scene objects; `plan.concept`
+only where a card has a plan).
+
+The agent-facing serializers are `describeAnimation` (packages/web/src/scene-describe.js) and
+`describeActivity` (packages/web/src/scene-activity.js): bounded, learner-visible wording, hidden
+expected answers stripped.
+
+**Existing relationships (declared data, checked by tests; no runtime navigation follows them yet)**
+- Deep-dive sequence: `plan.boundary.sequence.relationships` typed `prerequisite` · `deepens` ·
+  `alternative_explanation` · `practice_for`, with a direction (`out` = this card → target in
+  learning order) (packages/web/src/card-plan.js; relationships.test.mjs).
+- Cross-depth (NC8): every depth card exports `transitions: [{ relation: simplifies_to | deepens_to
+  | prerequisite | related, target_card, target_part?, from_part? }]`. No forward prerequisites;
+  Architecture Deep is a hub; routing carries only declared `transferable_inputs` (T9;
+  depth/transitions.test.mjs; docs/nanogpt-depth-ladder.md "Cross-depth transitions").
+
+**Actions the Tutor could eventually invoke** (future Tutor capability; none is a Tutor tool yet, T3
+wraps them)
+- Show or open a card on the board (`cardBlock`), at a sub-card via `partIndex`.
+- Move across depth by following a declared transition. The data exists; the navigation does not.
+  Today's `/deeper` and `/simplify` are slash prompts that generate new content; they do not move
+  along the ladder.
+- Launch practice: `enterPractice` → learner answers → `applyCheck` → `applyNewAttempt`. It is
+  learner-driven; the Tutor may suggest practice, never answer it.
+- Use the existing Learn artifact families (T3).
+- Cite or open a source: the Sources disclosure opens pinned code ranges; an arXiv source opens the
+  paper reader.
+- "Ask about this": the dock composer, with the target resolved at send.
+
+**Not yet available:** `/dive`; nested canvases / nested rabbit holes; a persistent learner model or
+evidence store; Tutor routing; Socrates/Feynman orchestration; the Learner Intent Resolver (its
+architecture is specified above; no implementation exists); view/dwell events; runtime cross-depth
+navigation; timestamps and concept tags on attempts; `visual_summary`. Card practice stays
+deterministic; JEV applies to free-form responses (J4), not to card practice.
 
 ## Not part of Tutor v1
 
