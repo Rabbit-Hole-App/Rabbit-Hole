@@ -7,3 +7,5 @@ export const MODEL_CHOICES = [
   { key: 'sonnet-5', label: 'Sonnet 5', hint: 'Balanced' },
   { key: 'haiku-4.5', label: 'Haiku 4.5', hint: 'Fastest' },
 ];
+// What the pick reaches: the server resolves it for chat answers only.
+export const MODEL_SCOPE = 'It applies to chat answers only: cards, the whiteboard and grading use their own configured model.';

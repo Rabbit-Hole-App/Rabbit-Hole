@@ -9,7 +9,7 @@ import { ArrowUp, AtSign, BookOpen, Check, Copy, Crown, Feather, FileText, Globe
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { MathText, tokenizeMath } from './MathText.jsx';
-import { MODEL_CHOICES } from './model-choices.js';
+import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
@@ -593,7 +593,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <div className="relative shrink-0">
             <button
               type="button"
-              title={privateChat ? chatConfig.model : undefined}
+              title={privateChat ? chatConfig.model : learnChat ? MODEL_SCOPE : undefined}
               onMouseDown={(e) => { e.stopPropagation(); setModelOpen(!modelOpen); }}
               className={cn(dock ? COMPOSER_PILL : 'h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', modelOpen && 'bg-active text-ink')}
             >

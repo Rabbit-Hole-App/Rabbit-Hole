@@ -13,7 +13,7 @@ import { isLearnResource } from './library-filter.js';
 import { pageFor, sectionActive, sectionHref } from './routes.js';
 import FeedbackButton from './FeedbackButton.jsx';
 import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
-import { MODEL_CHOICES } from './model-choices.js';
+import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
 // left nav (Account / Workspace sections), right content per tab.
@@ -283,7 +283,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <Heading>Model provider</Heading>
               <AiModelSettings />
               <Heading>Chat</Heading>
-              <SettingsRow title="Default model" desc="New chats start on this model; you can still switch per message">
+              <SettingsRow title="Default model" desc={`New chats start on this model; you can still switch per message. ${MODEL_SCOPE}`}>
                 <Select
                   value={MODEL_LABELS[askModel]}
                   options={Object.values(MODEL_LABELS)}

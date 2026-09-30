@@ -11,3 +11,15 @@ test('the picker offers exactly the server allowlist keys, each with a label and
   }
   assert.equal(JSON.stringify(MODEL_CHOICES).includes('claude-'), false);
 });
+
+// models-5: where the model is chosen, the copy says it reaches chat answers only.
+test('the Settings default model and the Learn chat model pill say the pick applies to chat answers only', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { MODEL_SCOPE } = await import('./model-choices.js');
+  assert.match(MODEL_SCOPE, /chat answers only/);
+  assert.match(MODEL_SCOPE, /cards, the whiteboard and grading/i);
+  const sidebar = readFileSync(new URL('./Sidebar.jsx', import.meta.url), 'utf8');
+  assert.match(sidebar, /<SettingsRow title="Default model" desc=\{`New chats start on this model; you can still switch per message\. \$\{MODEL_SCOPE\}`\}>/);
+  const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
+  assert.match(ask, /title=\{privateChat \? chatConfig\.model : learnChat \? MODEL_SCOPE : undefined\}/);
+});
