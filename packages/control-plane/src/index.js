@@ -39,14 +39,25 @@ const html = (body, status = 200, headers = {}) =>
     headers: { 'Content-Type': 'text/html;charset=utf-8', ...headers },
   });
 
+// Test/dev bypasses (echoed login code, dev sign-in link, /test/*) need SMALL_ENV test or dev
+// AND their secret. Any other SMALL_ENV, including none, is production: fail closed.
+const testMode = (env) => env.SMALL_ENV === 'test' || env.SMALL_ENV === 'dev';
+
+// false when there is no provider or the send fails/throws. Never logs the body - it holds codes and links.
 async function sendEmail(env, to, subject, text) {
-  if (!env.RESEND_API_KEY) return false; // dev mode: caller falls back to echoing the code/link
-  const resp = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: env.EMAIL_FROM || 'small <onboarding@resend.dev>', to: [to], subject, text }),
-  });
-  return resp.ok;
+  if (!env.RESEND_API_KEY) return false;
+  try {
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: env.EMAIL_FROM || 'small <onboarding@resend.dev>', to: [to], subject, text }),
+    });
+    if (!resp.ok) console.error(`email send failed: status ${resp.status}`);
+    return resp.ok;
+  } catch {
+    console.error('email send failed: network error');
+    return false;
+  }
 }
 
 async function cliAuth(req, env) {
@@ -181,9 +192,9 @@ async function apiLogin(req, env) {
   const challenge = await sign({ t: 'challenge', email, codeHash: await sha256(code), exp: now() + 600 }, env.MASTER_KEY);
   const sent = await sendEmail(env, email, `small deploy login code: ${code}`, `Your small deploy login code is ${code}\nIt expires in 10 minutes.`);
   if (sent) return json({ challenge });
-  // Echoing the code is an auth bypass - only allowed on test/dev instances (marked by TEST_BYPASS_SECRET).
-  if (!env.TEST_BYPASS_SECRET) return json({ error: 'email not configured on this control plane' }, 503);
-  return json({ challenge, devCode: code, warning: 'test instance - code echoed' });
+  // Echoing the code is an auth bypass - only on test/dev instances (SMALL_ENV test|dev plus TEST_BYPASS_SECRET).
+  if (testMode(env) && env.TEST_BYPASS_SECRET) return json({ challenge, devCode: code, warning: 'test instance - code echoed' });
+  return json({ error: 'Could not send the login email right now. Try again in a few minutes.' }, 503);
 }
 
 async function apiVerify(req, env) {
@@ -2239,8 +2250,8 @@ async function loginPage(req, env, baseUrl) {
     const link = `${baseUrl}/auth?token=${encodeURIComponent(magic)}`;
     const sent = await sendEmail(env, email, 'Your small deploy sign-in link', `Sign in: ${link}\nExpires in 15 minutes.`);
     if (sent) return html(`<h2>Check your inbox</h2><p>We sent a sign-in link to <b>${email}</b>.</p>`);
-    if (!env.TEST_BYPASS_SECRET) return html('<p>Email is not configured on this control plane.</p>', 503);
-    return html(`<h2>Test instance</h2><p>Dev sign-in link:</p><p><a href="${link}">${link}</a></p>`);
+    if (testMode(env) && env.TEST_BYPASS_SECRET) return html(`<h2>Test instance</h2><p>Dev sign-in link:</p><p><a href="${link}">${link}</a></p>`);
+    return html("<p>We couldn't send a sign-in email right now. Try again in a few minutes.</p>", 503);
   }
   return html(
     `<div style="display:flex;align-items:center;gap:8px;font-weight:600;color:#37352F"><svg width="22" height="22" viewBox="0 0 32 32"><rect x="2" y="2" width="28" height="28" rx="7" fill="none" stroke="#37352F" stroke-width="2.5"/><path transform="translate(6.2 7) scale(0.83)" fill="#37352F" d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>small deploy</div><h2>Sign in</h2><form method=post><input name=email type=email placeholder=you@company.com required autofocus><button>Email me a link</button></form><p style="font-size:14px">We’ll send a link. No password.</p>`
@@ -2255,9 +2266,9 @@ async function authRedirect(req, env) {
   return new Response(null, { status: 302, headers: { Location: p.next || '/', 'Set-Cookie': sessionCookie(sess) } });
 }
 
-// Test bypass: mint a session without email. Enabled only when TEST_BYPASS_SECRET is set.
+// Test bypass: mint a session without email. Enabled only in testMode with TEST_BYPASS_SECRET set.
 async function testSession(req, env) {
-  if (!env.TEST_BYPASS_SECRET) return json({ error: 'not enabled' }, 404);
+  if (!testMode(env) || !env.TEST_BYPASS_SECRET) return json({ error: 'not enabled' }, 404);
   const { email, secret } = await req.json();
   if (secret !== env.TEST_BYPASS_SECRET) return json({ error: 'bad secret' }, 401);
   const sess = await sign({ t: 'sess', email: email.toLowerCase(), exp: now() + SESSION_TTL }, env.MASTER_KEY);
@@ -2266,7 +2277,7 @@ async function testSession(req, env) {
 
 // Tests trigger the nightly Watch pass on demand - same bypass guard as /test/session.
 async function testWatch(req, env) {
-  if (!env.TEST_BYPASS_SECRET) return json({ error: 'not enabled' }, 404);
+  if (!testMode(env) || !env.TEST_BYPASS_SECRET) return json({ error: 'not enabled' }, 404);
   const { secret } = await req.json();
   if (secret !== env.TEST_BYPASS_SECRET) return json({ error: 'bad secret' }, 401);
   await runWatchPass(env, Date.now());
@@ -2454,9 +2465,9 @@ export default {
       if (path === '/auth') return await authRedirect(req, env);
       if (path === '/test/session' && req.method === 'POST') return await testSession(req, env);
       if (path === '/test/openai/chat/completions' && req.method === 'POST') {
-        // OpenAI-compatible mock (only where a bypass secret exists): lets the
+        // OpenAI-compatible mock (testMode + a bypass secret only): lets the
         // "openai" provider path be exercised end to end without a real LLM
-        if (!env.SMALL_TEST_BYPASS) return json({ error: 'not found' }, 404);
+        if (!testMode(env) || !env.SMALL_TEST_BYPASS) return json({ error: 'not found' }, 404);
         const b = await req.json();
         const last = [...(b.messages || [])].reverse().find((m) => m.role === 'user');
         const lastText = typeof last?.content === 'string' ? last.content : (last?.content || []).map((c) => c.text || '').join('');
